@@ -14,12 +14,13 @@ insert into auth.users (id, email, aud, role) values
   ('21000000-0000-0000-0000-00000000000f', 'deng-202@people.langquest.org', 'authenticated', 'authenticated');
 insert into public.profiles (id, display_name) values ('21000000-0000-0000-0000-00000000000b', 'Ryder Lead');
 -- The organization, its roles, its admins, two languages and their leads,
--- in one batch.
-select set_config('request.jwt.claim.sub','21000000-0000-0000-0000-00000000000a',true);
+-- in one batch, set up as the server would (an import): people here have
+-- joined by invite or request (decisions.md 75).
+select set_config('request.jwt.claim.sub','',true);
 do $$ declare r record; begin
   for r in select * from public.append_events('[
     {"id":"join-o1","type":"v1.OrgCreated","orgId":"join-org","streamId":"_org","actorId":"21000000-0000-0000-0000-00000000000a","deviceId":"dJ","hlc":"000000000000001:000000:dJ","payload":{"name":"Join test"}},
-    {"id":"join-o2","type":"v1.RoleDefined","orgId":"join-org","streamId":"_org","actorId":"21000000-0000-0000-0000-00000000000a","deviceId":"dJ","hlc":"000000000000002:000000:dJ","payload":{"roleId":"admin","name":"Admin","privileges":["invite_members","manage_structure"]}},
+    {"id":"join-o2","type":"v1.RoleDefined","orgId":"join-org","streamId":"_org","actorId":"21000000-0000-0000-0000-00000000000a","deviceId":"dJ","hlc":"000000000000002:000000:dJ","payload":{"roleId":"admin","name":"Admin","privileges":["invite_members","manage_structure","translate"]}},
     {"id":"join-o3","type":"v1.RoleDefined","orgId":"join-org","streamId":"_org","actorId":"21000000-0000-0000-0000-00000000000a","deviceId":"dJ","hlc":"000000000000003:000000:dJ","payload":{"roleId":"lead","name":"Lead","privileges":["invite_members","translate"]}},
     {"id":"join-o4","type":"v1.RoleDefined","orgId":"join-org","streamId":"_org","actorId":"21000000-0000-0000-0000-00000000000a","deviceId":"dJ","hlc":"000000000000004:000000:dJ","payload":{"roleId":"translator","name":"Translator","privileges":["translate"]}},
     {"id":"join-o5","type":"v1.MemberAdded","orgId":"join-org","streamId":"_org","actorId":"21000000-0000-0000-0000-00000000000a","deviceId":"dJ","hlc":"000000000000005:000000:dJ","payload":{"profileId":"21000000-0000-0000-0000-00000000000a","roleId":"admin","scope":{"level":"org"}}},
@@ -100,6 +101,50 @@ do $$ begin
   if public.may_help_sign_in('21000000-0000-0000-0000-00000000000a','21000000-0000-0000-0000-00000000000b') then
     raise exception 'nobody signs in an account with its own email'; end if;
 end $$;
+-- Nobody gets a looked-after person's account by making an organization
+-- and adding them to it (decisions.md 75). Someone with an email of their
+-- own makes one and may not add Achol; a membership made for her anyway (as
+-- an older log may hold) lets its maker sign nobody in, and does not stop
+-- her own admin from helping. A helper must hold every privilege of her
+-- role, not Invite alone.
+insert into auth.users (id, email, aud, role) values
+  ('21000000-0000-0000-0000-0000000000aa', 'join-attacker@example.org', 'authenticated', 'authenticated'),
+  ('21000000-0000-0000-0000-0000000000ab', 'join-inviter-only@example.org', 'authenticated', 'authenticated');
+select set_config('request.jwt.claim.sub','21000000-0000-0000-0000-0000000000aa',true);
+do $$ declare r record; begin
+  for r in select * from public.append_events('[
+    {"id":"evil-1","type":"v1.OrgCreated","orgId":"evil-org","streamId":"_org","actorId":"21000000-0000-0000-0000-0000000000aa","deviceId":"dE","hlc":"000000000000001:000000:dE","payload":{"name":"Not yours"}},
+    {"id":"evil-2","type":"v1.RoleDefined","orgId":"evil-org","streamId":"_org","actorId":"21000000-0000-0000-0000-0000000000aa","deviceId":"dE","hlc":"000000000000002:000000:dE","payload":{"roleId":"boss","name":"Boss","privileges":["invite_members","manage_structure","translate"]}},
+    {"id":"evil-3","type":"v1.MemberAdded","orgId":"evil-org","streamId":"_org","actorId":"21000000-0000-0000-0000-0000000000aa","deviceId":"dE","hlc":"000000000000003:000000:dE","payload":{"profileId":"21000000-0000-0000-0000-0000000000aa","roleId":"boss","scope":{"level":"org"}}},
+    {"id":"evil-4","type":"v1.MemberAdded","orgId":"evil-org","streamId":"_org","actorId":"21000000-0000-0000-0000-0000000000aa","deviceId":"dE","hlc":"000000000000004:000000:dE","payload":{"profileId":"21000000-0000-0000-0000-00000000000e","roleId":"boss","scope":{"level":"org"}}}
+  ]'::jsonb, (select min_client_version from public.server_config)) loop
+    if r.id = 'evil-4' then
+      if r.accepted or r.reason <> 'may not emit v1.MemberAdded: they have not joined this organization; invite them' then
+        raise exception 'someone was added to an organization they never joined: %', r; end if;
+    elsif not r.accepted then raise exception 'the attacker''s own organization should be made: %', r; end if;
+  end loop;
+end $$;
+select public._append_event_as('evil-legacy','evil-org','_org','v1.MemberAdded','21000000-0000-0000-0000-0000000000aa','server',
+  '{"profileId":"21000000-0000-0000-0000-00000000000e","roleId":"boss","scope":{"level":"org"}}');
+select public._append_event_as('join-inviter-only-role','join-org','_org','v1.RoleDefined','21000000-0000-0000-0000-00000000000a','server',
+  '{"roleId":"inviter_only","name":"Inviter","privileges":["invite_members"]}');
+select public._append_event_as('join-inviter-only','join-org','_org','v1.MemberAdded','21000000-0000-0000-0000-00000000000a','server',
+  '{"profileId":"21000000-0000-0000-0000-0000000000ab","roleId":"inviter_only","scope":{"level":"language","languageId":"L-one"}}');
+do $$ begin
+  if public.may_help_sign_in('21000000-0000-0000-0000-0000000000aa','21000000-0000-0000-0000-00000000000e') then
+    raise exception 'an organization made for someone let its maker sign them in'; end if;
+  if not public.may_help_sign_in('21000000-0000-0000-0000-00000000000a','21000000-0000-0000-0000-00000000000e') then
+    raise exception 'a membership made for her must not stop her own admin helping'; end if;
+  if public.may_help_sign_in('21000000-0000-0000-0000-0000000000ab','21000000-0000-0000-0000-00000000000e') then
+    raise exception 'Invite without her role''s privileges must not be enough to help'; end if;
+end $$;
+select set_config('request.jwt.claim.sub','21000000-0000-0000-0000-0000000000aa',true);
+do $$ begin
+  perform public.issue_sign_in_code_v2('21000000-0000-0000-0000-00000000000e', repeat('9',64), true);
+  raise exception 'the attacker was given a sign-in code for Achol';
+exception when insufficient_privilege then null;
+end $$;
+
 -- The admin who invited Deng leaves, and the lead loses their language:
 -- neither can help any more, though the leaver is still recorded as the one
 -- who invited Deng.

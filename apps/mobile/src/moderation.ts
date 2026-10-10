@@ -7,6 +7,7 @@
  * that offers them is app-only (`reportSheet.tsx`).
  */
 import type { AccountAction } from './durableOutbox';
+import { t } from './i18n';
 
 export type ReportKind = 'version' | 'review' | 'note' | 'request' | 'person';
 
@@ -23,23 +24,37 @@ export interface ReportTarget {
   unitId?: string;
 }
 
-export const REPORT_REASONS = [
-  { id: 'offensive', label: 'Hateful or offensive', sub: 'Insults or attacks on a people, faith or group' },
-  { id: 'harassment', label: 'Harassment or bullying', sub: 'Aimed at you or someone else' },
-  { id: 'sexual', label: 'Sexual content', sub: 'Including anything involving a child' },
-  { id: 'violence', label: 'Violence or threats', sub: 'Threatens or encourages harm' },
-  { id: 'spam', label: 'Spam or unrelated', sub: 'Not part of the translation work' },
-  { id: 'other', label: 'Something else', sub: 'Say what in the box below' }
-] as const;
-export type ReportReason = (typeof REPORT_REASONS)[number]['id'];
+/** The reasons someone can give, in the order the sheet offers them. Ids are what the server stores. */
+export const REPORT_REASON_IDS = ['offensive', 'harassment', 'sexual', 'violence', 'spam', 'other'] as const;
+export type ReportReason = (typeof REPORT_REASON_IDS)[number];
 
+const isReason = (id: string): id is ReportReason => (REPORT_REASON_IDS as readonly string[]).includes(id);
+
+/** A reason's name ("Hateful or offensive"); one the app does not know reads as "Something else". */
 export function reasonLabel(id: string): string {
-  return REPORT_REASONS.find((r) => r.id === id)?.label ?? 'Something else';
+  return t(`moderation.reasons.${isReason(id) ? id : 'other'}.label`);
 }
 
-/** "this version", "this note" — what the sheet offers to report. */
-export function thingLabel(kind: Exclude<ReportKind, 'person'>): string {
-  return { version: 'this version', review: 'this review', note: 'this note', request: 'this request' }[kind];
+/** What a reason covers, under its name. */
+export function reasonSub(id: ReportReason): string {
+  return t(`moderation.reasons.${id}.sub`);
+}
+
+type ReportedThing = Exclude<ReportKind, 'person'>;
+
+/** "Report this version": the sheet's choice for the thing itself. */
+export function reportThingLabel(kind: ReportedThing): string {
+  return t(`moderation.things.${kind}.report`);
+}
+
+/** "Remove this version?" */
+export function removeThingTitle(kind: ReportedThing): string {
+  return t(`moderation.things.${kind}.remove`);
+}
+
+/** "This version by Teal Diamond" */
+export function thingByLine(kind: ReportedThing, name: string): string {
+  return t(`moderation.things.${kind}.by`, { name });
 }
 
 /** The person a target's report is about, as a target of its own. */
@@ -129,16 +144,18 @@ export function groupReports(orgId: string, rows: readonly OpenReport[]): Report
 }
 
 /** "A note was reported", "Teal Diamond was reported". */
-export function reportTitle(t: ReportTarget, name: (id: string) => string): string {
-  if (t.kind === 'person') return `${name(t.profileId)} was reported`;
-  return `${{ version: 'A version', review: 'A review', note: 'A note', request: 'A request' }[t.kind]} was reported`;
+export function reportTitle(target: ReportTarget, name: (id: string) => string): string {
+  if (target.kind === 'person') return t('moderation.reported.person', { name: name(target.profileId) });
+  return t(`moderation.things.${target.kind}.reported`);
 }
 
 /** "Hateful or offensive · 2 reports". */
 export function reportSummary(g: ReportGroup): string {
-  const reasons = g.reasons.map(reasonLabel).join(', ');
-  return g.count > 1 ? `${reasons} · ${g.count} reports` : reasons;
+  const reasons = g.reasons.map(reasonLabel).join(t('moderation.listSeparator'));
+  return g.count > 1 ? t('moderation.reported.summary', { reasons, count: g.count }) : reasons;
 }
 
 /** What stands in for words, audio or photos from someone this person blocked. */
-export const HIDDEN_TEXT = 'Hidden because you blocked them';
+export function hiddenText(): string {
+  return t('moderation.hidden.text');
+}

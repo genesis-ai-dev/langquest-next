@@ -1,0 +1,23 @@
+{
+  "invite": {
+    "subject": "دعوتك إلى LangQuest",
+    "heading": "دعوتك إلى LangQuest",
+    "intro": "تمت دعوتك للانضمام إلى فريق في LangQuest.",
+    "openLink": "افتح هذا الرابط:",
+    "openLinkOnPhone": "افتح هذا الرابط على هاتفك:",
+    "openButton": "افتح LangQuest",
+    "openButtonOnPhone": "افتح LangQuest على هاتفك",
+    "orPasteCode": "أو في LangQuest، اضغط على {{screen}} والصق هذا الرمز:",
+    "joinScreen": "امسح رمزًا",
+    "expires": "تنتهي صلاحية هذه الدعوة في {{date}}.",
+    "ignore": "إذا لم تكن تتوقع هذه الدعوة، يمكنك تجاهلها."
+  },
+  "reset": {
+    "subject": "اختر كلمة مرور جديدة لـ LangQuest",
+    "heading": "اختر كلمة مرور جديدة",
+    "intro": "طلب شخص ما تغيير كلمة المرور لـ {{email}} في LangQuest.",
+    "openButton": "اختر كلمة مرور جديدة",
+    "expires": "هذا الرابط يعمل لمدة {{minutes}} دقيقة.",
+    "ignore": "إذا لم تطلب هذا، فتجاهل هذه الرسالة. كلمة المرور تبقى كما هي."
+  }
+}

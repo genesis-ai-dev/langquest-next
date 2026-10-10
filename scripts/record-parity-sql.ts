@@ -7,7 +7,7 @@
  */
 import { writeFileSync } from 'node:fs';
 import {
-  EVENT_PRIVILEGE, LIBRARY_EVENT_TYPES, PRIVILEGES, languageOfOrgEvent, privilegeAllows, privilegeFor, privilegesOfFixedRole,
+  EVENT_PRIVILEGE, LIBRARY_EVENT_TYPES, PRIVILEGES, entityKeyOf, languageOfOrgEvent, privilegeAllows, privilegeFor, privilegesOfFixedRole,
   validateEvent, type AnyEvent, type Role
 } from '@langquest-next/core';
 import { buildFixture, buildOrgFixture, buildRecordFixture, buildStep11Fixture } from '../packages/core/test/fixtures';
@@ -40,6 +40,7 @@ const OPTIONAL: Partial<Record<string, string[]>> = {
   'v1.ReferencesUsed': ['takeId', 'reviewId'],
   'v1.TakeSubmitted': ['questionSetIds'],
   'v1.ResponseRecorded': ['note', 'blobHash'],
+  'v1.CardVerseSet': ['from', 'to'],
   'v1.MaterialDefined': ['templateRef'],
   'v1.MaterialFieldSet': ['text', 'blobHash'],
   'v1.KeyTermAdjusted': ['blobHash', 'duringTakeId'],
@@ -89,6 +90,10 @@ const broken: AnyEvent[] = events.flatMap((e) => {
     case 'v1.LanguageCountrySet':
       variants.push({ ...p, country: 'ss' }, { ...p, country: 'SSD' });
       break;
+    case 'v1.LanguageCodeSet':
+      variants.push({ ...p, languoidId: 'nyan1308' }, { ...p, languoidId: '' }, { ...p, languoidId: 5 }, { ...p, code: '' },
+        { ...p, code: 'x'.repeat(41) }, { ...p, code: 'x'.repeat(40) }, { ...p, languoidId: '5870452D-7878-4328-916D-F4FECC0B79F2' });
+      break;
     case 'v1.LanguageTargetSet':
       variants.push({ ...p, scope: 'psalms' }, { ...p, startDate: '2026-1-1' }, { ...p, targetDate: p['startDate'] },
         { ...p, startDate: '2027-01-01', targetDate: '2026-01-01' }, { ...p, targetDate: 'soon' });
@@ -102,8 +107,17 @@ const broken: AnyEvent[] = events.flatMap((e) => {
     case 'v1.FlowStepLinksSet':
       variants.push({ ...p, allowed: 'yes' }, { ...p, stepId: '' });
       break;
+    case 'v1.BookNameSet':
+      variants.push({ ...p, book: 'luk' }, { ...p, book: 'LUKE' }, { ...p, book: '1 SA' });
+      break;
     case 'v1.VersionReleased':
       variants.push({ ...p, live: 1 }, { ...p, channel: '' }, { ...p, channel: 'x'.repeat(61) }, { ...p, channel: '🎧'.repeat(60) }, { ...p, url: '' }, { ...p, url: ' ' });
+      break;
+    case 'v1.ExternalValueSet':
+      for (const key of ['/a', 'a/', 'a//b', 'a b', 'a?b', 'a%b', '.', '..', 'a/./b', 'a/../b', '...', 'a.b/c~d:e@f+g-h_i', 'x'.repeat(256), 'x'.repeat(257), 'é', '🎧']) {
+        variants.push({ ...p, key });
+      }
+      variants.push({ ...p, data: [] }, { ...p, data: [1] }, { ...p, data: true }, { ...p, data: {} }, { ...p, data: { nested: { deep: [1, null] } } });
       break;
     case 'v1.UnitAdded':
     case 'v1.TakeComposed':
@@ -190,6 +204,9 @@ const single = withKinds.flatMap((e) => PRIVILEGES.map((priv) => ({ priv, type: 
 const scopedLanguage = [...events, ...broken.filter((e) => SCOPED.has(e.type) && validateEvent(e) === null)]
   .map((e) => ({ type: e.type, payload: e.payload, language: languageOfOrgEvent(e) ?? null }));
 
+// The entity a creating event names (one event per entity in a stream, decisions.md 75).
+const entities = events.map((e) => ({ type: e.type, payload: e.payload, key: entityKeyOf(e) }));
+
 writeFileSync(process.argv[2] ?? '/tmp/record-parity.sql', `do $$ declare r jsonb; begin
   for r in select * from jsonb_array_elements(${sql(rows)}) loop
     if (public.validate_payload(r->>'type', r->'payload') is null) is distinct from (r->>'valid')::boolean then
@@ -211,6 +228,12 @@ writeFileSync(process.argv[2] ?? '/tmp/record-parity.sql', `do $$ declare r json
       raise exception 'language_of_org_event disagrees with core: %', r;
     end if;
   end loop;
+  for r in select * from jsonb_array_elements(${sql(entities)}) loop
+    if public._entity_key(r->>'type', r->'payload') is distinct from r->>'key' then
+      raise exception '_entity_key disagrees with core: % (sql says %)', r, public._entity_key(r->>'type', r->'payload');
+    end if;
+  end loop;
 end $$;
-select ${rows.length} as payload_checks, ${perms.length + single.length} as permission_checks, ${scopedLanguage.length} as scope_checks;
+select ${rows.length} as payload_checks, ${perms.length + single.length} as permission_checks, ${scopedLanguage.length} as scope_checks,
+  ${entities.length} as entity_checks;
 `);

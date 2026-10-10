@@ -1,7 +1,7 @@
 import type { EventPayloads } from './events';
 import type { EventSpec } from './commands';
 import { unitPrefixOf } from './indexes';
-import type { CollectionDoc, FlowDoc, MaterialDoc, StudyDoc, TemplateDoc } from './libraryDocs';
+import { templateBooks, type CollectionDoc, type FlowDoc, type MaterialDoc, type StudyDoc, type TemplateDoc } from './libraryDocs';
 import { flowStepPrefix } from './record';
 import type { LanguageState } from './state';
 import {
@@ -51,6 +51,7 @@ export function templateUnits(doc: TemplateDoc, unitPrefix: string, versificatio
     walk(doc.outline, null, '');
     return out;
   }
+  if (doc.format === 'template@2') return bookByBookUnits(doc, id, versification);
   const bible = doc.bible!;
   const names = new Map(bible.books.map((b) => [b.book, b.name]));
   const books = [...bible.books].sort((a, b) => bookOrder(a.book) - bookOrder(b.book));
@@ -93,15 +94,57 @@ export function templateUnits(doc: TemplateDoc, unitPrefix: string, versificatio
 }
 
 /**
+ * A `template@2` Bible's units: every book it lists, broken up or not (a
+ * book not broken up yet is a book with nothing in it, decision 74), then
+ * its chapters or passages with the same ids `template@1` gives them.
+ */
+function bookByBookUnits(doc: TemplateDoc, id: (node: string) => string, versification: VersificationDoc | null): EventPayloads['v1.UnitAdded'][] {
+  const out: EventPayloads['v1.UnitAdded'][] = [];
+  const books = [...templateBooks(doc)].sort((a, b) => bookOrder(a.book) - bookOrder(b.book));
+  const numbering = doc.format === 'template@2' ? doc.bible?.numbering : undefined;
+  for (const b of books) {
+    const at = `b${pad(bookOrder(b.book), 4)}`;
+    // Parts whose verses changed with the numbering get ids of their own (decision 80).
+    const renumbered = new Set(numbering ? b.renumbered ?? [] : []);
+    const part = (node: string) => id(renumbered.has(node) ? `${node}~${numbering}` : node);
+    if (b.divide === 'book') {
+      out.push({ unitId: id(b.book), parentUnitId: null, kind: 'book_unit', label: b.name, order: at });
+      continue;
+    }
+    out.push({ unitId: id(b.book), parentUnitId: null, kind: 'book', label: b.name, order: at });
+    if (b.divide === 'chapters') {
+      const chapters = versification ? chaptersInBook(versification, b.book) : 0;
+      for (let c = 1; c <= chapters; c++) {
+        out.push({ unitId: part(`${b.book}.${c}`), parentUnitId: id(b.book), kind: 'chapter', label: `${b.name} ${c}`, order: `${at}c${pad(c, 3)}` });
+      }
+    } else if (b.divide === 'passages') {
+      const seen = new Set<string>();
+      (b.passages ?? []).forEach((p, i) => {
+        const r = parseRef(p.ref, versification ? (bk, c) => versesInChapter(versification, bk, c) : undefined);
+        if (!r || r.book !== b.book) return;
+        const node = refId(r);
+        if (seen.has(node)) return;
+        seen.add(node);
+        out.push({ unitId: part(node), parentUnitId: id(b.book), kind: 'passage', label: p.name ?? `${b.name} ${refLabel(r)}`, order: `${at}p${pad(i, 5)}` });
+      });
+    }
+  }
+  return out;
+}
+
+/**
  * Use a template version for a language: the selection, the units it adds,
  * and the parts it no longer has hidden (never deleted, TPL-7). Parts it has
  * again come back. Units already in the log are not repeated.
  */
 export function selectTemplateSpecs(
   state: LanguageState,
-  c: { commandId: string; itemId: string; docHash: string; doc: TemplateDoc; versification: VersificationDoc | null; books?: string[] }
+  c: { commandId: string; itemId: string; docHash: string; doc: TemplateDoc; versification: VersificationDoc | null; books?: string[]; unitPrefix?: string }
 ): EventSpec[] {
-  const prefix = unitPrefixFor(c.itemId);
+  // A newer version of the same item, or a copy split off from the one in
+  // use (decision 74), keeps the language's prefix, so its parts keep their ids.
+  const sel = state.template?.value;
+  const prefix = c.unitPrefix ?? (sel && sel.itemId === c.itemId ? sel.unitPrefix : unitPrefixFor(c.itemId));
   const covered = c.books ? new Set(c.books) : null;
   const units = templateUnits(c.doc, prefix, c.versification)
     .filter((u) => covered === null || covered.has(u.unitId.slice(prefix.length + 1, prefix.length + 4)));

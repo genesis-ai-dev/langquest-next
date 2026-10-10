@@ -1,0 +1,6 @@
+{
+  "ios": {
+    "NSMicrophoneUsageDescription": "ကျမ်းပိုဒ်များကို ဘာသာပြန်ရန် LangQuest က သင့်အသံကို အသံသွင်းပါသည်။",
+    "NSCameraUsageDescription": "ဖိတ်စာ QR ကုဒ်များကို စကင်ဖတ်ရန် LangQuest က ကင်မရာကို သုံးပါသည်။"
+  }
+}

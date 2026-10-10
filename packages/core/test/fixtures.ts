@@ -51,7 +51,10 @@ export function buildFixture(): AnyEvent[] {
   const wrong = emit('dB', 't1', 'v1.RecordingAdded', {
     recordingId: 'recWrong', unitId: 'luke1', kind: 'target', cards: [{ hash: 'cWrong', durationMs: 500 }]
   });
-  emit('dA', 'lead', 'v1.Redacted', { eventId: wrong.id, reason: 'wrong passage' });
+  const redaction = emit('dA', 'lead', 'v1.Redacted', { eventId: wrong.id, reason: 'wrong passage' });
+  // A redaction aimed at that redaction (the server refuses these now). The
+  // fold ignores it, so the mistake stays out in any order.
+  emit('dC', 'lead2', 'v1.Redacted', { eventId: redaction.id, reason: 'undo the removal' });
 
   // Translator records offline on device B.
   emit('dB', 't1', 'v1.RecordingAdded', {
@@ -99,7 +102,16 @@ export function buildStep11Fixture(): AnyEvent[] {
   emit('dA', 'lead', 'v1.ReviewTeamMemberSet', { teamId: 'team1', profileId: 'r3', member: false });
   emit('dA', 'lead', 'v1.TemplateSelected', { itemId: 'langquest.fia-eng', docHash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', unitPrefix: 'langquest.fia-eng', books: ['LUK'] });
   emit('dA', 'lead', 'v1.UnitHidden', { unitId: 'langquest.fia-eng/LUK.2.1-7', hidden: true });
+  emit('dA', 'lead', 'v1.BookNameSet', { book: 'LUK', name: 'Luka' });
+  emit('dE', 'lead2', 'v1.BookNameSet', { book: 'LUK', name: 'Luqaas' });
   emit('dB', 't1', 'v1.ResponseRecorded', { takeId: 'take2', respondsToTakeId: 'take1', note: 'Re-recorded card 2; kept the rest.' });
+  // A voice note's format, said once by the device that has the file (decisions.md 77).
+  emit('dW', 't1', 'v1.AudioFormatSet', { hash: 'vn1', format: 'wav' });
+  // Verse marks on parts from two devices (decisions.md 82): a register per (unit, card).
+  emit('dA', 't1', 'v1.CardVerseSet', { unitId: 'u1', hash: 'c1', mark: 'next' });
+  emit('dB', 't1', 'v1.CardVerseSet', { unitId: 'u1', hash: 'c1', mark: 'set', from: '15:4', to: '15:5' });
+  emit('dA', 't1', 'v1.CardVerseSet', { unitId: 'u1', hash: 'c2', mark: 'join' });
+  emit('dW', 't1', 'v1.CardVerseSet', { unitId: 'u1', hash: 'c2', mark: 'none' });
 
   // Materials with per-field registers, a locked document, the community
   // question set for a kind, a translator-written set, and a living glossary
@@ -169,6 +181,11 @@ export function buildRecordFixture(): AnyEvent[] {
   emit('dB', 't1', 'v1.ReviewRecorded', { reviewId: 'rv-link', takeId: 'take2', kindId: 'community', outcome: 'looks_good', via: 'link', givenBy: 'Deng', comment: 'Clear.' });
   emit('dA', 'lead', 'v1.VersionReleased', { takeId: 'take2', channel: 'EL app', live: true, url: 'https://el.example/luke1' });
   emit('dE', 'lead2', 'v1.VersionReleased', { takeId: 'take2', channel: 'EL app', live: false });
+  // External values (decisions.md 79): two tokens write one key, a second key is written then deleted.
+  emit('api-tok1', 't1', 'v1.ExternalValueSet', { key: 'org.everylanguage.listening/plays/luke1/2026-10-08', data: { count: 40 } });
+  emit('api-tok2', 'lead', 'v1.ExternalValueSet', { key: 'org.everylanguage.listening/plays/luke1/2026-10-08', data: { count: 42 } });
+  emit('api-tok1', 't1', 'v1.ExternalValueSet', { key: 'org.everylanguage.listening/playlist/7', data: { title: 'Luke for children', order: ['luke1'] } });
+  emit('api-tok1', 't1', 'v1.ExternalValueSet', { key: 'org.everylanguage.listening/playlist/7', data: null });
   emit('dF', 'bt1', 'v1.ReviewRecorded', { reviewId: 'rv1', takeId: 'take2', kindId: 'bt', outcome: 'recorded', via: 'app', artifacts: [{ hash: 'b1', durationMs: 4000, format: 'wav' }], comment: 'Verse 3 was hard to say back.' });
   emit('dB', 't1', 'v1.ReviewRecorded', { reviewId: 'rv2', takeId: 'take2', kindId: 'community', outcome: 'needs_changes', via: 'logged', comment: 'They heard shepherd as a hired herder.', people: 11, place: "Women's fellowship", answers: { x1: 'No' } });
   emit('dB', 't1', 'v1.DepartureRecorded', { departureId: 'd2', unitId: 'luke1', type: 'keep', reviewId: 'rv2', reason: 'The cattle-camp word is used for the owner already.' });
@@ -224,6 +241,24 @@ export function buildRecordFixture(): AnyEvent[] {
   raw('tie-h', 'lead2', 'dE', `${tie}dE`, 'v1.FlowSelected', { flowId: 'standard_bible', name: 'Standard Bible Flow' });
   raw('tie-i', 'lead2', 'dE', '001760000700000:000000:dE', 'v1.FlowStepRemoved', { stepId: 'standard_bible/s9' });
   raw('tie-j', 'lead', 'dA', '001760000990000:000000:dA', 'v1.FlowStepSet', { stepId: 'standard_bible/s9', order: 's09', kindIds: ['local'], checkpoint: false });
+  // Create-once ids used twice: a unit, a key term and a link to a take,
+  // each once later than the first (it loses) and once at the same clock
+  // with other content (author and content decide, never arrival).
+  raw('tie-k', 'lead2', 'dE', `${tie}dE`, 'v1.UnitAdded', { unitId: 'luke', parentUnitId: null, kind: 'book', label: 'Lucas', order: 'a9' });
+  raw('tie-l', 'lead', 'dA', `${tie}dA`, 'v1.UnitAdded', { unitId: 'luke-intro', parentUnitId: 'luke', kind: 'folder', label: 'Introduction', order: 'a1' });
+  raw('tie-m', 'lead2', 'dE', `${tie}dA`, 'v1.UnitAdded', { unitId: 'luke-intro', parentUnitId: 'luke', kind: 'folder', label: 'Intro', order: 'a1' });
+  raw('tie-n', 'lead', 'dA', `${tie}dA`, 'v1.KeyTermDefined', { termId: 'kt-logos', term: 'Word', gloss: 'A later redefinition', unitScope: [] });
+  raw('tie-o', 't1', 'dB', `${tie}dB`, 'v1.KeyTermDefined', { termId: 'kt-pneuma', term: 'Spirit (pneuma)', gloss: 'Breath, wind', unitScope: ['luke'] });
+  raw('tie-p', 't2', 'dG', `${tie}dB`, 'v1.KeyTermDefined', { termId: 'kt-pneuma', term: 'Spirit (pneuma)', gloss: 'The Holy Spirit', unitScope: ['luke'] });
+  raw('tie-q', 't1', 'dB', `${tie}dB`, 'v1.KeyTermLinked', { takeId: 'take2', termId: 'kt-logos', note: 'A later link loses.' });
+  raw('tie-r', 't1', 'dB', `${tie}dB`, 'v1.KeyTermLinked', { takeId: 'take2', termId: 'kt-sarx', note: 'Body sense.' });
+  raw('tie-s', 't1', 'dG', `${tie}dB`, 'v1.KeyTermLinked', { takeId: 'take2', termId: 'kt-sarx' });
+  // The same take submitted twice at one clock with different question
+  // sets, and one material defined by two people at one clock.
+  raw('tie-t', 't1', 'dB', `${tie}dB`, 'v1.TakeSubmitted', { takeId: 'take1' });
+  raw('tie-u', 't1', 'dG', `${tie}dB`, 'v1.TakeSubmitted', { takeId: 'take1', questionSetIds: ['q-luke1'] });
+  raw('tie-v', 't1', 'dB', `${tie}dB`, 'v1.MaterialDefined', { materialId: 'notes-luke', kind: 'tg', title: 'Luke notes', scope: { unitId: 'luke' } });
+  raw('tie-w', 'lead', 'dA', `${tie}dB`, 'v1.MaterialDefined', { materialId: 'notes-luke', kind: 'tg', title: 'Notes on Luke', scope: { unitId: 'luke' } });
   return events;
 }
 
@@ -280,6 +315,12 @@ export function buildOrgFixture(): AnyEvent[] {
   emit('v1.ReferenceRecommended', { itemId: 'langquest.source.bsb', recommended: true });
   raw('rec-a', 'dB', '001800000960500:000000:dB', 'v1.ReferenceRecommended', { itemId: 'langquest.source.esv', recommended: true });
   raw('rec-b', 'dC', '001800000960500:000000:dB', 'v1.ReferenceRecommended', { itemId: 'langquest.source.esv', recommended: false });
+  // An invite issued twice and a join request decided twice, each at one
+  // clock: who and what decide, never arrival.
+  raw('inv-a', 'dB', '001800000960600:000000:dB', 'v1.InviteIssued', { inviteId: 'inv2', roleId: 'translator', scope: { level: 'language', languageId: 'L1' }, expiresAt: '2030-01-01T00:00:00Z' });
+  raw('inv-b', 'dC', '001800000960600:000000:dB', 'v1.InviteIssued', { inviteId: 'inv2', roleId: 'reviewer', scope: { level: 'language', languageId: 'L1' }, expiresAt: '2030-01-01T00:00:00Z' });
+  raw('join-a', 'dB', '001800000960700:000000:dB', 'v1.JoinDecided', { requestId: 'jr2', profileId: 'asker2', accepted: true });
+  raw('join-b', 'dC', '001800000960700:000000:dB', 'v1.JoinDecided', { requestId: 'jr2', profileId: 'asker2', accepted: false });
   // A language's identity: added twice offline (earliest wins), renamed from
   // two devices, its country and target set, and a rename that arrives for
   // a language never added.
@@ -289,6 +330,11 @@ export function buildOrgFixture(): AnyEvent[] {
   raw('lang-d', 'dB', '001800000963000:000000:dB', 'v1.LanguageCountrySet', { languageId: 'L1', country: 'SS' });
   raw('lang-e', 'dB', '001800000964000:000000:dB', 'v1.LanguageTargetSet', { languageId: 'L1', scope: 'nt', startDate: '2026-01-01', targetDate: '2027-07-01' });
   raw('lang-f', 'dB', '001800000965000:000000:dB', 'v1.LanguageRenamed', { languageId: 'L-never', name: 'Ghost' });
+  // Linked to the language list from two devices at one clock (the higher id
+  // stands), then unlinked by an admin who was offline earlier.
+  raw('code-a', 'dB', '001800000966000:000000:dB', 'v1.LanguageCodeSet', { languageId: 'L1', code: 'dib', languoidId: '0a1b2c3d-0000-4000-8000-000000000001' });
+  raw('code-b', 'dC', '001800000966000:000000:dB', 'v1.LanguageCodeSet', { languageId: 'L1', code: 'dik', languoidId: '0a1b2c3d-0000-4000-8000-000000000002' });
+  raw('code-c', 'dB', '001800000962500:000000:dB', 'v1.LanguageCodeSet', { languageId: 'L1', code: 'din', languoidId: null });
   // The license only opens (license.ts): a later, more closed choice from
   // an admin who was offline changes nothing, and two devices opening to the
   // same license at the same clock settle on the lower id.
@@ -297,6 +343,11 @@ export function buildOrgFixture(): AnyEvent[] {
   raw('lic-b', 'dC', '001800000970000:000000:dB', 'v1.LicenseSet', { license: 'CC-BY-SA-4.0' });
   raw('lic-c', 'dB', '001800000980000:000000:dB', 'v1.LicenseSet', { license: 'all-rights-reserved' });
   raw('red-a', 'dB', '001800000990000:000000:dB', 'v1.Redacted', { eventId: 'lang-f', reason: 'mistake' });
+  // The organization renamed from two devices at one clock (the higher id
+  // stands), and a rename stamped before them from an admin who was offline.
+  raw('org-a', 'dB', '001800000991000:000000:dB', 'v1.OrgRenamed', { name: 'Wycliffe Associates Kenya' });
+  raw('org-b', 'dC', '001800000991000:000000:dB', 'v1.OrgRenamed', { name: 'Wycliffe Kenya' });
+  raw('org-c', 'dB', '001800000985000:000000:dB', 'v1.OrgRenamed', { name: 'An older name' });
 
   return events;
 }

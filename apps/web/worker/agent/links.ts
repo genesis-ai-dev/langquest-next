@@ -1,6 +1,7 @@
 import { answer, body, fail, json, type AgentDeps } from './http';
+import type { TokenRecord } from './store';
 import { coversLanguage, hashSecret, newLinkCode, type Grant } from './tokens';
-import { isRefusal, LINK_MAX_REVIEWS, parseLinkReview, type LinkSpec, type ReviewLink } from './view';
+import { isRefusal, LINK_MAX_OPEN, LINK_MAX_REVIEWS, parseLinkReview, type LinkSpec, type ReviewLink } from './view';
 import { readVoiceNote } from './voice';
 
 /**
@@ -12,7 +13,7 @@ import { readVoiceNote } from './voice';
  *
  *   POST /api/v1/session/review-links             make one (the app, signed in)
  *   GET  /api/v1/session/review-links?orgId&languageId&unitId   a passage's links
- *   POST /api/v1/session/review-links/:id/revoke
+ *   POST /api/v1/session/review-links/:id/revoke  (its sharer, or whoever assigns work in the language)
  *   POST /api/v1/review-links                     make one with a token (read + review scopes)
  *   GET  /api/v1/links/:code                      what the page shows
  *   PUT  /api/v1/links/:code/voice-note           a voice note (m4a or WAV)
@@ -29,7 +30,16 @@ export const linkOut = (l: ReviewLink, origin?: string, code?: string) => ({
   ...(origin && code ? { url: `${origin}/r/${code}` } : {})
 });
 
-async function createLink(b: Record<string, unknown>, url: URL, profileId: string, orgId: string, deps: AgentDeps, cors: boolean, mayUse: (languageId: string) => boolean): Promise<Response> {
+/** Made with a token: the link closes when the token is revoked, and lasts no longer than it does. */
+interface ViaToken {
+  tokenId: string;
+  expiresAt: string | null;
+}
+
+async function createLink(
+  b: Record<string, unknown>, url: URL, profileId: string, orgId: string, deps: AgentDeps, cors: boolean,
+  mayUse: (languageId: string) => boolean, via: ViaToken | null = null
+): Promise<Response> {
   const text = (k: string, max: number) => (typeof b[k] === 'string' && b[k].trim() && (b[k] as string).length <= max ? (b[k] as string).trim() : null);
   const languageId = text('languageId', 200);
   const unitId = text('unitId', 400);
@@ -47,11 +57,16 @@ async function createLink(b: Record<string, unknown>, url: URL, profileId: strin
   };
   const checked = await deps.org(orgId).checkLink(profileId, spec);
   if (!checked.ok) return answer(checked, cors);
-  const code = newLinkCode();
   const now = (deps.now ?? Date.now)();
+  if ((await deps.store.openLinkCount(orgId, profileId, new Date(now).toISOString())) >= LINK_MAX_OPEN) {
+    return fail(429, 'too_many_links', `You have ${LINK_MAX_OPEN} open review links in this organization. Revoke some, or wait for them to expire.`, cors);
+  }
+  if (via && !(await deps.org(orgId).spendWrite(via.tokenId))) return fail(429, 'rate_limited', 'This token has used its writes for this hour. Try again later.', cors);
+  const code = newLinkCode();
+  const until = Math.min(now + days * 86_400_000, via?.expiresAt ? Date.parse(via.expiresAt) : Infinity);
   const link = await deps.store.insertLink({
     codeHash: await hashSecret(code), orgId, languageId, unitId, takeId: checked.data.takeId, kindId, counts: spec.counts,
-    label: spec.label ?? null, createdBy: profileId, expiresAt: new Date(now + days * 86_400_000).toISOString()
+    label: spec.label ?? null, createdBy: profileId, tokenId: via?.tokenId ?? null, expiresAt: new Date(until).toISOString()
   });
   return json(200, linkOut(link, url.origin, code), cors);
 }
@@ -73,18 +88,29 @@ export async function sessionLinks(request: Request, parts: string[], url: URL, 
     return json(200, (await deps.store.linksOf(orgId, languageId, unitId)).map((l) => linkOut(l)), false);
   }
   if (parts.length === 2 && parts[1] === 'revoke' && request.method === 'POST') {
-    return (await deps.store.revokeLink(parts[0]!, profileId)) ? json(200, { revoked: true }, false) : fail(404, 'not_found', 'There is no open link of yours with that id.', false);
+    // Its sharer, or whoever assigns work in its language, may take a link back.
+    const link = /^[0-9a-f-]{36}$/i.test(parts[0]!) ? await deps.store.linkById(parts[0]!) : null;
+    const mine = link?.createdBy === profileId;
+    const may = !!link && !link.revokedAt && (mine
+      || ((await deps.store.orgsOf(profileId)).includes(link.orgId) && (await deps.org(link.orgId).mayRevokeLink(profileId, link))));
+    if (!link || !may) return fail(404, 'not_found', 'There is no open link with that id that you may revoke.', false);
+    return (await deps.store.revokeLink(link.id)) ? json(200, { revoked: true }, false) : fail(404, 'not_found', 'That link is already closed.', false);
   }
   return fail(404, 'not_found', 'Not found.', false);
 }
 
-/** An app or agent shares a link as the token's person: it needs to read every version (read) and record reviews (review). */
-export async function tokenLinks(request: Request, parts: string[], url: URL, grant: Grant, deps: AgentDeps): Promise<Response> {
+/**
+ * An app or agent shares a link as the token's person: it needs to read
+ * every version (read) and record reviews (review). The link belongs to the
+ * token as well, so revoking the token closes it.
+ */
+export async function tokenLinks(request: Request, parts: string[], url: URL, grant: Grant, token: Pick<TokenRecord, 'expiresAt'>, deps: AgentDeps): Promise<Response> {
   if (parts.length !== 0 || request.method !== 'POST') return fail(404, 'not_found', 'Not found.');
   if (!grant.scopes.includes('read') || !grant.scopes.includes('review')) return fail(403, 'scope', 'Sharing a review link needs the read and review scopes.');
   const b = await body(request);
   if (!b) return fail(400, 'bad_request', 'Send a JSON object.');
-  return createLink(b, url, grant.profileId, grant.orgId, deps, true, (languageId) => coversLanguage(grant, languageId));
+  return createLink(b, url, grant.profileId, grant.orgId, deps, true, (languageId) => coversLanguage(grant, languageId),
+    { tokenId: grant.tokenId, expiresAt: token.expiresAt });
 }
 
 /** What anyone holding a link may do with it. No CORS: only the page on this origin calls these. */
@@ -95,10 +121,10 @@ export async function handlePublicLink(request: Request, parts: string[], deps: 
   const link = await deps.store.linkByCodeHash(await hashSecret(code));
   if (!link) return fail(404, 'no_link', 'This review link is not known. Check it was copied whole.', false);
   const org = deps.org(link.orgId);
-  const now = (deps.now ?? Date.now)();
-  const open = !link.revokedAt && Date.parse(link.expiresAt) > now;
+  // Closed when revoked or expired, and when its sharer can no longer record (decisions.md 75).
+  // A closed link says only that: not who it was for, nor the passage, language or kind.
+  if (!(await org.linkOpen(link))) return fail(410, 'closed', 'This review link has closed. Ask whoever sent it for a new one.', false);
   if (parts.length === 1 && request.method === 'GET') return answer(await org.linkInfo(link), false);
-  if (!open) return fail(410, 'closed', 'This review link has closed. Ask whoever sent it for a new one.', false);
   if (parts[1] === 'voice-note' && request.method === 'PUT') {
     if (!deps.saveVoiceNote) return fail(503, 'unavailable', 'Voice notes cannot be kept here just now. Write your comment instead.', false);
     if (!(await org.spend(`link:${link.id}`))) return fail(429, 'rate_limited', 'This review link is busy. Try again in a while.', false);

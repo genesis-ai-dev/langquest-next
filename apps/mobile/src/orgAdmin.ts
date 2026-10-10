@@ -6,14 +6,18 @@
 // ORG-6, ORG-7, FLOW-5.
 import {
   FLOWS, languagePeople, orgLanguages, privilegesFor, scopeKey,
-  type EventPayloads, type EventSpec, type EventType, type LanguageState, type OrgState, type Scope, type ScopeLevel, type TemplateDoc
+  type EventPayloads, type LanguageInfo, type EventSpec, type EventType, type LanguageState, type OrgState, type Scope, type ScopeLevel, type TemplateDoc
 } from '@langquest-next/core';
 import { canonIndex, STARTER_TEMPLATE, type LibraryChoice } from './contentTemplates';
+import { t } from './i18n';
+import { formatNumber } from './i18n/format';
 
 // ---- levels ------------------------------------------------------------------------
 
 /** The two levels a role is granted at: the organization, which covers every language, and one language (decision 63). */
-export const LEVEL_LABEL: Record<ScopeLevel, string> = { org: 'Organization', language: 'Language' };
+export function levelLabel(level: ScopeLevel): string {
+  return level === 'org' ? t('org.levels.org') : t('org.levels.language');
+}
 
 /** A `level` param back to a level; anything else reads as the organization. */
 export function parseLevel(value: string | undefined): ScopeLevel {
@@ -75,8 +79,8 @@ export function sumProgress(list: HomeProgress[]): HomeProgress {
 
 /** "12 of 260 recorded · 3 done", or "No passages yet". */
 export function progressLine(p: HomeProgress): string {
-  const n = (x: number) => x.toLocaleString('en-US');
-  return p.total === 0 ? 'No passages yet' : `${n(p.recorded)} of ${n(p.total)} recorded · ${n(p.done)} done`;
+  return p.total === 0 ? t('org.progress.none')
+    : t('org.progress.line', { recorded: formatNumber(p.recorded), total: formatNumber(p.total), done: formatNumber(p.done) });
 }
 
 // ---- members -----------------------------------------------------------------------
@@ -204,13 +208,18 @@ export function saveTeam(state: LanguageState, c: { commandId: string; teamId: s
 // ---- a new language (ORG-2) ---------------------------------------------------------------
 
 export type LanguageScope = 'nt' | 'ot' | 'all' | 'custom';
-export const LANGUAGE_SCOPES: { id: LanguageScope; label: string; sub: string }[] = [
-  { id: 'nt', label: 'New Testament', sub: 'Matthew to Revelation' },
-  { id: 'ot', label: 'Old Testament', sub: 'Genesis to Malachi' },
-  { id: 'all', label: 'Whole Bible', sub: 'Every book' },
-  // Demo ADR-039 (amended 2026-10-08): the books a team chooses, not only a testament.
-  { id: 'custom', label: 'Choose books', sub: 'Only the books you pick' }
-];
+// Demo ADR-039 (amended 2026-10-08): the books a team chooses, not only a testament.
+export const LANGUAGE_SCOPES: readonly LanguageScope[] = ['nt', 'ot', 'all', 'custom'];
+
+/** The testament pills: "New Testament", "Old Testament", "Whole Bible", "Choose books". */
+export function languageScopeLabel(scope: LanguageScope): string {
+  switch (scope) {
+    case 'nt': return t('org.scopes.nt');
+    case 'ot': return t('org.scopes.ot');
+    case 'all': return t('org.scopes.all');
+    case 'custom': return t('org.scopes.custom');
+  }
+}
 
 /**
  * The books of a Bible template a scope covers (USFM codes; the first 39
@@ -248,12 +257,13 @@ export function suggestedChoice(inUse: string | null | undefined, choices: Libra
  * the units it needs) and its flow (`FlowSelected` and its steps), as
  * `applySpecs` from the library made them. A language needs both, so a
  * missing one is refused here. The language's stream accepts its events
- * once the organization's lists it.
+ * once the organization's lists it. One picked from the language list also
+ * gets `LanguageCodeSet` (`link`), which links it to that languoid.
  */
 export function addLanguage(
   org: OrgState | null,
-  c: { languageId: string; code: string; name: string; template: EventSpec[]; flow: EventSpec[] }
-): { added: EventPayloads['v1.LanguageAdded']; specs: EventSpec[] } {
+  c: { languageId: string; code: string; name: string; template: EventSpec[]; flow: EventSpec[]; languoidId?: string | null }
+): { added: EventPayloads['v1.LanguageAdded']; link: EventPayloads['v1.LanguageCodeSet'] | null; specs: EventSpec[] } {
   const code = c.code.trim().toLowerCase();
   const name = c.name.trim();
   if (!code) throw new Error('Enter a language code.');
@@ -262,9 +272,29 @@ export function addLanguage(
   if (!c.flow.some((s) => s.type === 'v1.FlowSelected')) throw new Error('Choose a review flow.');
   return {
     added: { languageId: c.languageId, name: name || code.toUpperCase(), code, sourceCode: SOURCE_CODE },
+    // Picked from the language list: linked to it from the start. Typed in, it stays unlinked until someone links it.
+    link: c.languoidId ? { languageId: c.languageId, code, languoidId: c.languoidId } : null,
     specs: [...c.template, ...c.flow]
   };
 }
+
+/**
+ * Languages already in the organization that a new one may repeat: the
+ * same code, or the same name once case, accents, spaces and punctuation
+ * are set aside. Ids identify a language, never its name or code, so two
+ * admins can add one language twice, offline above all (decision 76).
+ * This only warns: the screen says so and lets them go on. `except` is
+ * the language being renamed, which is not a repeat of itself.
+ */
+export function similarLanguages(org: OrgState | null, c: { code: string; name: string; except?: string }): LanguageInfo[] {
+  const code = c.code.trim().toLowerCase();
+  const name = nameKey(c.name);
+  if (!code && !name) return [];
+  return orgLanguages(org).filter((l) => l.languageId !== c.except &&
+    ((!!code && l.code.toLowerCase() === code) || (!!name && nameKey(l.name) === name)));
+}
+
+const nameKey = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
 
 /**
  * The language source Bibles are offered in: the app ships English

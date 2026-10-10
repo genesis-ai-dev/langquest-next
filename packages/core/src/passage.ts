@@ -155,9 +155,33 @@ export interface FlowStepStatus {
   index: number;
   kinds: KindStatus[];
   complete: boolean;
+  /**
+   * Do reviews given through a shared link count here (`v1.FlowStepLinksSet`,
+   * `stepAllowsLinks`)? Where they do not, a link review is read as feedback:
+   * it never completes the step, whenever it was given (decisions.md 75).
+   */
+  linksAllowed: boolean;
   /** Name of the checkpoint this step waits for. */
   lockedBy?: string;
   override?: DepartureView;
+}
+
+/**
+ * An unpublished draft (decisions.md 83). Every change to a draft composes a
+ * new take whose parent is the one before, so a draft is that line of takes:
+ * `takeId` is where it is now, `rootTakeId` where it started, which stays the
+ * same through every change and so names the draft.
+ */
+export interface DraftView {
+  takeId: string;
+  rootTakeId: string;
+  by: string;
+  cardHashes: string[];
+  /** When it was started, and last changed. */
+  startedHlc: Hlc;
+  hlc: Hlc;
+  /** The version it started from, when it started from one. */
+  basedOnTakeId?: string;
 }
 
 export interface PassageState {
@@ -168,8 +192,11 @@ export interface PassageState {
   recorded: boolean;
   /** An unpublished take exists (someone's draft). */
   drafting: boolean;
+  /** The draft changed last, anyone's. */
   draftTakeId?: string;
   draftBy?: string;
+  /** Every open draft, anyone's, in the order they were started: a person may keep several (decisions.md 83). */
+  drafts: DraftView[];
   reviews: ReviewView[];
   departures: DepartureView[];
   requests: RequestView[];
@@ -325,8 +352,8 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
   });
   const openRequests = requests.filter((r) => r.status === 'open');
 
-  const kindStatus = (kindId: string): KindStatus => {
-    const review = [...reviews].reverse().find((r) => r.kindId === kindId);
+  const kindStatus = (kindId: string, linksAllowed: boolean): KindStatus => {
+    const review = [...reviews].reverse().find((r) => r.kindId === kindId && (linksAllowed || r.via !== 'link'));
     const request = openRequests.find((r) => r.what === 'review' && r.kindId === kindId);
     const departure = active((d) => d.type === 'skip' && d.kindId === kindId);
     const base = { kindId, ...(review ? { review } : {}) };
@@ -346,7 +373,8 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
   const steps: FlowStepStatus[] = [];
   let gate: string | undefined;
   flow.steps.forEach((step, index) => {
-    const statuses = step.kindIds.map(kindStatus);
+    const linksAllowed = stepAllowsLinks(state, step);
+    const statuses = step.kindIds.map((kindId) => kindStatus(kindId, linksAllowed));
     const override = active((d) => d.type === 'override' && d.stepId === step.id);
     const lockedBy = gate;
     const kindsShown = lockedBy ? statuses.map((s) => (s.state === 'todo' ? { ...s, state: 'locked' as const } : s)) : statuses;
@@ -358,7 +386,7 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
     // reviewer is an override, which needs its own permission (decision 29).
     const clears = (s: KindStatus) => s.state === 'approved' && s.review?.via === 'app';
     const complete = statuses.every((s) => (step.checkpoint ? clears(s) : isCompleteState(s.state)));
-    steps.push({ step, index, kinds: kindsShown, complete, ...(lockedBy ? { lockedBy } : {}), ...(override ? { override } : {}) });
+    steps.push({ step, index, kinds: kindsShown, complete, linksAllowed, ...(lockedBy ? { lockedBy } : {}), ...(override ? { override } : {}) });
     if (!gate && step.checkpoint && !complete && !override) gate = stepName(ri.kinds, step);
   });
 
@@ -366,9 +394,11 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
   const open = steps.filter((s) => !s.complete && !s.lockedBy);
   const latest = versions.at(-1);
   const draftTakeId = ri.drafts.get(key)?.[0];
+  const drafts = (ri.drafts.get(key) ?? []).map((takeId) => draftView(state, takeId))
+    .sort((a, b) => (a.startedHlc < b.startedHlc ? -1 : a.startedHlc > b.startedHlc ? 1 : a.rootTakeId < b.rootTakeId ? -1 : 1));
   const next = recorded ? open.find((s) => !s.override) ?? open[0] : undefined;
   const result: PassageState = {
-    unitId, flow, versions, recorded, departures, reviews, requests, openRequests, steps,
+    unitId, flow, versions, recorded, departures, reviews, requests, openRequests, steps, drafts,
     drafting: draftTakeId !== undefined,
     done: recorded && steps.every((s) => s.complete),
     awaitingResponse: reviews.filter((r) => r.outcome === 'needs_changes' && !r.response && r.versionN === latest?.n),
@@ -379,6 +409,39 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
   };
   ri.passages.set(key, result);
   return result;
+}
+
+/** A draft's line: back through its parents while they are unpublished takes of the passage. */
+function draftView(state: LanguageState, takeId: string): DraftView {
+  const t = state.takes[takeId]!;
+  const seen = new Set<string>([takeId]);
+  let root = takeId;
+  let basedOn: string | undefined;
+  for (;;) {
+    const parent = state.takes[root]!.parentTakeId;
+    if (!parent || seen.has(parent)) break;
+    if (state.submissions[parent]) { basedOn = parent; break; }
+    const pt = state.takes[parent];
+    if (!pt || pt.unitId !== t.unitId) break;
+    seen.add(parent);
+    root = parent;
+  }
+  return {
+    takeId, rootTakeId: root, by: t.actorId, cardHashes: t.cardHashes, startedHlc: state.takes[root]!.hlc, hlc: t.hlc,
+    ...(basedOn ? { basedOnTakeId: basedOn } : {})
+  };
+}
+
+/** A person's open drafts of a passage, in the order they started them. */
+export function draftsBy(s: Pick<PassageState, 'drafts'>, actorId: string): DraftView[] {
+  return s.drafts.filter((d) => d.by === actorId);
+}
+
+/** The draft a person changed last, if they have one. */
+export function latestDraftBy(s: Pick<PassageState, 'drafts'>, actorId: string): DraftView | undefined {
+  let out: DraftView | undefined;
+  for (const d of s.drafts) if (d.by === actorId && (!out || d.hlc > out.hlc || (d.hlc === out.hlc && d.takeId > out.takeId))) out = d;
+  return out;
 }
 
 /** Feedback waits on whoever recorded the latest version: only they can answer it (REC-5). */
@@ -563,8 +626,10 @@ export function highlightsFor(
   }
   if (opts.canRecord) {
     for (const [unitId, drafts] of ri.drafts) {
-      const t = state.takes[drafts[0]!]!;
-      if (t.actorId !== actorId) continue;
+      // Their own newest draft, even when a teammate changed theirs since.
+      const mine = drafts.find((id) => state.takes[id]!.actorId === actorId);
+      if (!mine) continue;
+      const t = state.takes[mine]!;
       if (out.some((h) => h.unitId === unitId)) continue;
       out.push({ id: `draft-${unitId}`, kind: 'draft', unitId, hlc: t.hlc });
     }
@@ -769,8 +834,9 @@ export function unitPlace(state: LanguageState, unitId: string): UnitPlace {
     }
   }
   const canon = bookId ? BIBLE_BOOKS.findIndex((b) => b.itemId === bookId) : -1;
-  // A library template names its books in the language (its book unit's label).
-  const ownBook = libraryUnitRange(unitId) ? state.units[state.units[unitId]?.parentUnitId ?? unitId]?.label : undefined;
+  // What the language calls the book (decision 74), else its template's name for it (the book unit's label).
+  const lib = libraryUnitRange(unitId);
+  const ownBook = lib ? state.bookNames?.[lib.book]?.value || state.units[state.units[unitId]?.parentUnitId ?? unitId]?.label : undefined;
   return {
     bookId,
     bookLabel: ownBook ?? (canon >= 0 ? BIBLE_BOOKS[canon]!.label : state.units[state.units[unitId]?.parentUnitId ?? '']?.label ?? 'Other'),
@@ -780,9 +846,26 @@ export function unitPlace(state: LanguageState, unitId: string): UnitPlace {
   };
 }
 
-/** A unit's reference as people say it: "Luke 15:11-32", "Genesis 3". */
+/** A unit's reference as people say it: "Luke 15:11-32", "Genesis 3", with the book as the language names it. */
 export function unitTitle(state: LanguageState, unitId: string): string {
-  return state.units[unitId]?.label ?? unitId;
+  const label = state.units[unitId]?.label ?? unitId;
+  return withBookName(state, unitId, label);
+}
+
+/**
+ * A library Bible unit's label with the language's own name for its book
+ * (`v1.BookNameSet`, decision 74): the template's book name at the start of
+ * the label is swapped for it ("Genesis 3" -> "1 Moses 3"). A passage the
+ * template named itself ("The lost son") keeps its name.
+ */
+export function withBookName(state: LanguageState, unitId: string, label: string): string {
+  const r = libraryUnitRange(unitId);
+  const own = r ? state.bookNames?.[r.book]?.value : undefined;
+  if (!r || !own) return label;
+  const templateName = state.units[`${unitId.slice(0, unitId.indexOf('/'))}/${r.book}`]?.label;
+  if (!templateName) return label;
+  if (label === templateName) return own;
+  return label.startsWith(`${templateName} `) ? own + label.slice(templateName.length) : label;
 }
 
 // ---- updates for the Inbox -----------------------------------------------------------
@@ -873,7 +956,8 @@ export function approvedVersion(s: PassageState): Version | null {
       const status = st.kinds[k];
       if (status?.state === 'skipped') return true;
       let last: ReviewView | undefined;
-      for (const r of s.reviews) if (r.kindId === kindId && r.takeId === v.takeId) last = r; // reviews are in clock order
+      // Reviews are in clock order; a link review does not count where the step does not take links.
+      for (const r of s.reviews) if (r.kindId === kindId && r.takeId === v.takeId && (st.linksAllowed || r.via !== 'link')) last = r;
       if (!last) return false;
       const approves = last.outcome === 'looks_good' || (last.outcome === 'recorded' && status?.state === 'approved');
       return approves && (!st.step.checkpoint || last.via === 'app');

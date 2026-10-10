@@ -4,8 +4,11 @@
 // password. Used by Invite Member and by a new language's last step.
 import type { Scope } from '@langquest-next/core';
 import { useState, type ReactNode } from 'react';
-import { Text } from 'react-native';
+
+import { Text } from '../text';
 import type { Ctx } from '../ctx';
+import { t } from '../i18n';
+import { formatNumber } from '../i18n/format';
 import { Chip, PrimaryBtn, QuietLinks, Screen, SectionLabel, txt, type IconName } from '../kit';
 import { shareText } from '../share';
 import { C, space } from '../theme';
@@ -21,8 +24,8 @@ export interface InviteScope {
 /** Share a code's link: the share sheet, or copied where there is none. */
 export function shareInvite(ctx: Ctx, uri: string) {
   void shareText(uri).then((r) => {
-    if (r === 'copied') ctx.toast('Invite link copied. Paste it into a message.');
-    else if (r === 'failed') ctx.toast('Could not share it. Show the code instead.');
+    if (r === 'copied') ctx.toast(t('admin.invite.linkCopied'));
+    else if (r === 'failed') ctx.toast(t('admin.invite.couldNotShare'));
   });
 }
 
@@ -40,12 +43,12 @@ export function InviteSomeone(props: {
   disabled?: string;
 }) {
   const { ctx } = props;
-  const roles = usePlainRoles(ctx);
   const [choice, setChoice] = useState<string>('translate');
   const [others, setOthers] = useState(false);
   const [scopeKey, setScopeKey] = useState(props.initialScope);
   const [shown, setShown] = useState(false);
   const scope = props.scopes.find((s) => s.key === scopeKey) ?? props.scopes[0] ?? null;
+  const roles = usePlainRoles(ctx, scope?.scope ?? null);
   const roleId = roles.choices.find((c) => c.id === choice)?.roleId ?? roles.others.find((r) => r.id === choice)?.id ?? null;
   const invite = useGroupInvite(ctx.language.orgId, shown ? roleId : null, shown && scope ? scope.scope : null, scope ? props.label(scope) : '');
   const uri = invite && 'uri' in invite ? invite.uri : null;
@@ -55,10 +58,10 @@ export function InviteSomeone(props: {
     return (
       <Screen header={props.header(true, () => setShown(false), scope)} bodyStyle={{ paddingHorizontal: 20, gap: 14 }}
         footer={<>
-          <PrimaryBtn label="Done" icon="check" onPress={props.onDone} />
+          <PrimaryBtn label={t('common.done')} icon="check" onPress={props.onDone} />
           <QuietLinks items={[
-            ...(uri ? [{ label: 'Share as a link', icon: 'send' as const, onPress: () => shareInvite(ctx, uri) }] : []),
-            { label: 'Someone else', icon: 'arrowL' as const, onPress: () => setShown(false) }
+            ...(uri ? [{ label: t('admin.invite.shareLink'), icon: 'send' as const, onPress: () => shareInvite(ctx, uri) }] : []),
+            { label: t('admin.invite.someoneElse'), icon: 'arrowL' as const, onPress: () => setShown(false) }
           ]} />
         </>}>
         <Question>{what}{scope && props.scopes.length > 1 ? ` · ${scope.label}` : ''}</Question>
@@ -69,20 +72,20 @@ export function InviteSomeone(props: {
   return (
     <Screen header={props.header(false, ctx.back, scope)} bodyStyle={{ paddingHorizontal: 20, gap: 14 }}
       footer={<>
-        <PrimaryBtn label="Show the code to scan" icon="qr" disabled={!roleId || !scope || !!props.disabled} onPress={() => setShown(true)} />
+        <PrimaryBtn label={t('admin.invite.showCode')} icon="qr" disabled={!roleId || !scope || !!props.disabled} onPress={() => setShown(true)} />
         {props.links ? <QuietLinks items={props.links(roleId, scope)} /> : null}
       </>}>
-      <Question>What will they do?</Question>
+      <Question>{t('admin.invite.whatWillTheyDo')}</Question>
       {roles.choices.map((c) => (
         <RadioRow key={c.id} tile icon={c.icon as IconName} label={c.label} on={choice === c.id} onPress={() => setChoice(c.id)} />
       ))}
       {roles.others.length ? (others ? roles.others.map((r) => (
         <RadioRow key={r.id} tile icon="star" label={r.name} on={choice === r.id} onPress={() => setChoice(r.id)} />
-      )) : <QuietLink icon="down" label={`Other roles · ${roles.others.length}`} onPress={() => setOthers(true)} />) : null}
-      {props.onNewRole ? <DashedRow icon="plus" label="Something else: make a new role" onPress={props.onNewRole} /> : null}
+      )) : <QuietLink icon="down" label={t('admin.invite.otherRoles', { total: formatNumber(roles.others.length) })} onPress={() => setOthers(true)} />) : null}
+      {props.onNewRole ? <DashedRow icon="plus" label={t('admin.invite.newRole')} onPress={props.onNewRole} /> : null}
       {props.scopes.length > 1 ? (
         <>
-          <SectionLabel label="In which language?" />
+          <SectionLabel label={t('admin.invite.whichLanguage')} />
           <Pills>{props.scopes.map((s) => <Chip key={s.key} label={s.label} on={scopeKey === s.key} onPress={() => setScopeKey(s.key)} />)}</Pills>
         </>
       ) : null}

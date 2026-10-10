@@ -1,6 +1,7 @@
 import { handleApi } from './api';
 import { connectPage } from './agent/connectPage';
 import { reviewPage } from './agent/reviewPage';
+import { pageLanguage } from './i18n/pages';
 import type { OrgStub } from './agent/http';
 import { supabaseAgentStore } from './agent/store';
 import { sha256Hex } from './agent/tokens';
@@ -15,11 +16,11 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (url.pathname === '/connect' && request.method === 'GET') {
-      return connectPage({ supabaseUrl: env.SUPABASE_URL, anonKey: env.SUPABASE_ANON_KEY ?? '' });
+      return connectPage({ supabaseUrl: env.SUPABASE_URL, anonKey: env.SUPABASE_ANON_KEY ?? '' }, pageLanguage(request));
     }
     // A shared review link (agent/links.ts); the page checks the code with the API.
     const review = /^\/r\/([A-Za-z0-9_-]{22})\/?$/.exec(url.pathname);
-    if (review && request.method === 'GET') return reviewPage(review[1]!);
+    if (review && request.method === 'GET') return reviewPage(review[1]!, pageLanguage(request));
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
     // Verified here against the project's signing keys when it has
     // asymmetric ones (the keys are fetched once and cached); otherwise
@@ -37,6 +38,15 @@ export default {
       profileOf,
       reports: (orgId, profileId, fresh) => orgObject(orgId).reports(orgId, profileId, fresh),
       bible: { key: env.BIBLE_BRAIN_ACCESS_KEY, cache: caches.default, waitUntil: (p) => ctx.waitUntil(p) },
+      languoids: {
+        load: async () => {
+          const { data, error } = await serviceClient(env).rpc('languoid_explorer');
+          if (error) throw new Error(`languoid_explorer: ${error.message}`);
+          return data;
+        },
+        cache: caches.default,
+        waitUntil: (p) => ctx.waitUntil(p)
+      },
       blobs: {
         bucket: r2Bucket(env.BLOBS),
         serviceKey: env.SUPABASE_SERVICE_ROLE_KEY,
@@ -59,6 +69,9 @@ export default {
             write: (grant, w) => plain(object.agentWrite(orgId, grant, w, url.origin)),
             access: (profileId) => plain(object.agentAccess(orgId, profileId)),
             spend: (key) => plain(object.agentSpend(orgId, key)),
+            spendWrite: (key) => plain(object.agentSpendWrite(orgId, key)),
+            linkOpen: (link) => plain(object.agentLinkOpen(orgId, link)),
+            mayRevokeLink: (profileId, link) => plain(object.agentMayRevokeLink(orgId, profileId, link)),
             checkLink: (profileId, spec) => plain(object.agentCheckLink(orgId, profileId, spec)),
             linkInfo: (link) => plain(object.agentLinkInfo(orgId, link, url.origin)),
             linkReview: (link, input) => plain(object.agentLinkReview(orgId, link, input))

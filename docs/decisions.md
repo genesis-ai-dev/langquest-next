@@ -223,6 +223,14 @@ Amended (2026-09-30, Caleb Koster): one edit is now allowed, erasing a
 deleted person's name from the event that holds it (decision 47). Everything
 else here stands.
 
+Amended (2026-10-09, Carl Sauder): a redaction is never redacted. The fold
+applies every redaction before anything else, in the order they arrived, so
+one aimed at another made the outcome depend on that order: the first stood
+if it came first and vanished if it came second. `append_events` refuses a
+`v1.Redacted` whose target is a `v1.Redacted`, and the fold ignores any
+already in the log (reducer version 12). A removal that was a mistake is put
+right by recording the thing again, not by redacting the redaction.
+
 ## 17. Bytes are verified on both ends, and the bucket is reconciled
 
 Date: 2026-09-15 · By: Ryder Wishart · Status: accepted
@@ -318,6 +326,12 @@ any one of several privileges: 31.)
 
 Amended (2026-10-06, Carl Sauder): scope is `org` or `language` (63);
 the project and lane levels are gone, and a person holds one role per scope.
+
+Amended (2026-10-09, Carl Sauder): a grantor grants only what they hold (75).
+A role given, invited to or admitted to may carry no privilege the grantor
+lacks at that scope; a role changed or removed must be one they could have
+granted; a role defined or retired likewise. Holding Invite is no longer
+enough to make someone, or oneself, Owner.
 
 ## 24. Refusals carry a code, and membership refusals retry themselves
 
@@ -1501,6 +1515,13 @@ it was scanned offline, instead of 24 hours (`heldInvite.ts`): someone who
 scans in a village may find a signal days later, and claims already keep it
 from the next person on a shared phone.
 
+Amended (2026-10-09, Carl Sauder): "whoever can invite you" now means
+everywhere you are (75). A helper must hold, for every membership the
+person has in an organization they joined themselves, Invite at that scope
+and every privilege of the role; a membership someone else made for them
+counts for nothing. A repeated `join` request signs the account in again
+only within an hour and while it is still looked after with no password.
+
 ## 60. Signing out of a shared phone hands unsent work over, and it still goes as its author
 
 Date: 2026-10-05 · By: Caleb Koster · Status: accepted
@@ -2056,9 +2077,13 @@ started the detector (`claimVad`), so a recorder left mounted under another
 screen keeps nothing it did not record. Still not built: notes on a key term
 (no screen writes a `term` note, so "Note on a word" is left out).
 
+Amended (2026-10-09, Caleb Koster): spoken help on a device plays recorded
+lines in the app's language, downloaded and kept on the phone (decision 81);
+none are recorded yet, so a device still shows the words.
+
 ## 72. Apps, agents and review links take part through reviews and releases; outside reviews never clear a checkpoint
 
-Date: 2026-10-08 · By: Ryder Wishart · Status: accepted
+Date: 2026-10-08 · By: Ryder Wishart · Status: partly superseded by 79
 
 Reason: supersedes 70's publishing and scopes. Partners want their own apps on LangQuest's data. Every
 Language's listening app plays approved chapters and wants listeners'
@@ -2134,3 +2159,513 @@ Reverse if: partners need each of their users to act as themselves (then
 OAuth authorization codes), shared links attract abuse that names and
 browser ids cannot contain (then one-person links with a contact), or Worker
 CPU from folds per request shows up in cost.
+
+Amended (2026-10-09, Carl Sauder): a link closes for listening, not only
+for answering, once its sharer can no longer record; whoever assigns work in
+the language may revoke anyone's link; a link made with a token closes with
+it, and a person may have 200 open in an organization. Voice notes take
+their own budget, 100 an hour per token or link. A review given by link
+counts toward a step only while the step takes links, read in the fold, so
+turning links off also stops links and tokens already out (75).
+
+## 73. Languages and regions are LangQuest v2's reference tables, filled from Glottolog itself and kept outside the event log
+
+Date: 2026-10-08 · By: Caleb Koster · Status: partly superseded by 78
+
+Reason: the app had no list of languages. A new language took whatever code
+an admin typed (`addLanguage`, "din"), while `import:v2` carried v2's
+languoid UUIDs. v2 already has a carefully normalized model, which Caleb
+designed: languoids in a tree; aliases written in a label languoid and typed
+endonym or exonym (so a language's name can be shown in the reader's app
+language); sources (glottocode, ISO 639-3, Wikidata, WALS, …); open
+properties; regions with their own aliases and sources; and languoid–region
+links with majority, official and native. That model is what lets LangQuest
+map the world's languages and their regions from what people enter. So this
+app takes v2's nine tables with the same columns and constraints, and fills
+them from Glottolog's own release files (one `md.ini` per languoid, plus its
+CLDF category and macroareas), shaped as v2's loader shaped them, rather
+than copying v2's rows (Caleb, 2026-10-08): `npm run languoids -- explore /
+preview / apply` (`scripts/languoids.ts`, `scripts/glottolog.ts`). A
+languoid v2 also had keeps v2's id, matched by ISO code or by its names, so
+imported v2 projects point at the same language; languoids v2 users made
+are not brought over (Caleb, 2026-10-05). Ids are UUIDs because languages
+collected in the field may not be in Glottolog yet. Departures from v2:
+`download_profiles` is dropped (PowerSync's sync list; nothing syncs these
+tables here), `ui_ready` is dropped (v2's interface languages; this app's
+will come from published localizations), and the glottocode, which v2
+never kept, is a `languoid_source` row so each release merges into the rows
+the last one made: added, renamed, moved, or made inactive, never deleted.
+The tables are reference data, not events and not in any stream: a language
+in the app names its languoid's UUID in `LanguageAdded`, and phones keep no
+copy; they search online, and offline a typed name is added unlinked and
+linked later. This replaces the "languoid list in a static `catalog@N`
+bundle" of `docs/flow-coverage-audit.md` 5.D. `docs/languoids.md` has the
+details.
+Reverse if: people often need to pick a language they have never searched
+for while offline and cannot wait to link it; then phones keep a compact
+copy of the names (about 2.7 MB gzipped), and the tables stay the source.
+
+Amended (2026-10-09, Caleb Koster): the language explorer is part of the web app only, at `/languages`, reading `/api/languoids` (the Worker caches `languoid_explorer()` for an hour); the phone app does not show it. Names tagged with an umbrella ISO code take its main language as their label (nine codes, checked by Caleb), names of six words or more are `alias_type = 'description'`, retired ISO entries keep ISO's reason and their replacements as properties, and Glottolog's macroareas are `region.level = 'macroarea'`.
+
+## 74. A Bible template breaks up each book its own way, or not yet, and a change goes to the languages chosen
+
+Date: 2026-10-09 · By: Caleb Koster · Status: partly superseded by 80
+
+Reason: an admin should first say what a language translates (the Bible or
+something else), then, if they want, how the Bible is broken up, and a book
+has to be broken up before anyone records it (Caleb, 2026-10-09). The ways
+are by chapter, FIA's passages, unfoldingWord's chunks and OpenBible.info's
+sections where at least 15, 10 or 5 of 20 English Bibles start one; FIA's
+way includes FIA's study guides' requirement for how things are divided,
+and FIA covers 46 books, not all 66. A `template@1` divides every book one
+way, and in its passage form a book with no passages is not listed at all.
+So a new document format, `template@2` (`libraryDocs.ts`): each book says
+how it is broken up (`divide: chapters | passages`, the part's name, the
+passages) or nothing yet, and a book with nothing in it is listed and
+waits (`Indexes.waiting`); nobody records in it. Unit ids are
+`template@1`'s, so a language moves between the two, and between ways that
+agree on a piece, without losing anything; `asTemplateV2` carries a
+`template@1` over unchanged. A new format rather than new fields on
+`template@1`, because an older app would read such a document with its
+one `divide` and hide every part it did not expect; an older app refuses a
+format it does not know. The ways are LangQuest library items
+(`langquest.bible.*`, `scripts/library-seed.ts` from `library/fia/pericopes.tsv`,
+`library/divisions/`), plus "Book by book" with every book waiting; the
+existing `langquest.template.*` items are unchanged, because a new version
+of them would move the parts of every language that follows them.
+Templates stay shared between languages (Caleb, 2026-10-09). What a book is
+called in a language is its own register, `v1.BookNameSet` (language
+stream, `manage_templates`), read wherever a book's name shows
+(`unitTitle`, `unitPlace`). Breaking up a book, or changing one, asks which
+of the languages using the template it goes to (`library_template_users`
+says which languages use what, since a phone pulls only the languages it
+opens), offering only those the person may change: all of them, and it is
+the template's next version; some, and the chosen ones move to a copy split
+off for them (`v1.LibraryItemDefined` with `copiedFrom`, then the version
+they had, then the change), keeping their unit prefix (`TemplateSelected`
+`unitPrefix`), so the pieces that did not change keep their recordings.
+Offline, who else uses it is unknown, so the change is always a copy.
+Changing a book that is already broken up warns first that every recording
+and review on its old pieces, including ones on phones that have not
+synced, will stop showing and need to be redone; they are hidden, not
+deleted (TPL-7). Only `manage_templates` (coordinators and admins) breaks
+books up. A guide set says which method it follows (`collection@1`
+`pattern`) and a template which one it was made for (`goesWith`), so FIA's
+guides say they go with FIA's passages; any later guide set links the same
+way. Verse numbers are not asked: a language's numbering is its Bibles',
+English when it has none, and when its Bibles disagree the team sees one
+verse that shows how (`verseNumbering`), which it may put away.
+Reverse if: teams need to break up one book differently from every other
+language using the same template, often enough that copies pile up; then a
+language keeps its own overrides on top of a shared template instead.
+
+
+Amended (2026-10-09, Caleb Koster): decision 80 puts the numbering first, for the whole Bible, and replaces the warning that recordings on old pieces "will no longer show": expired sections that overlap current ones stay reachable under "Earlier sections".
+## 75. Nobody is added without joining, nobody grants more than they hold, and one id names one event
+
+Date: 2026-10-09 · By: Carl Sauder · Status: accepted
+
+Reason: a security audit of who may post and read events (2026-10-09) found
+that the write path trusted too much of what a phone sends. Anyone who
+signed up could make an organization, add any profile id to it, and then,
+being an Invite holder who shares an organization with them, issue that
+person a sign-in code: a takeover of any looked-after account whose id they
+had seen. A Coordinator, who holds Invite but not Manage roles, could make
+themselves Owner or remove the Owner. Event ids are chosen by phones and
+the server's own are predictable (`removed:<event>`,
+`accountdeleted:<person>:<scope>`, `invitemember:<invite>`, the v2
+import's), and an id already in the log made the server skip its own
+event, so a content author could make a moderator's removal do nothing. A
+second `v1.TakeComposed` with a take's id replaced its audio under the
+reviews it had, and a backdated clock let a member replace someone else's
+review, note or request. Carl chose that the grantor may only grant scopes
+and roles they currently hold. Migration
+`20261009130000_event_integrity_and_grants.sql`:
+- A person's `v1.MemberAdded` may name only themselves or someone who has
+  held a membership in that organization; newcomers come in by invite or
+  join request, whose memberships the server appends. Sign-in help reads
+  only memberships the person joined themselves (`_joined_by_consent`) and
+  needs the helper to cover all of them (59).
+- `_grant_refusal`: a role given, invited to or admitted to carries no
+  privilege the grantor lacks at that scope; a role changed or removed, or
+  defined or retired, is one they could have granted. An invite redeems
+  only while its issuer could still issue it. Core `mayGrantRole` and
+  `mayChangeMembership` say the same, and the role pickers offer only
+  those roles.
+- An event id names one event: a resend is a duplicate, the same id on
+  anything else is refused (`event id already used`), and the server's id
+  prefixes are refused from people (`_server_event_id`).
+- One create, one entity: a recording, take, response, review, departure,
+  request, note, key-term rendering or adjustment id is used by one event in
+  its stream (`_entity_key`, core `entityKeyOf`, held together by the
+  parity script). The fold keeps the earliest of each in every order, so
+  logs that already hold a duplicate fold the same everywhere (reducer
+  version 12). The translation guide's material and key terms keep sharing
+  ids by design, as do units (two phones applying one template) and a
+  take's link to a key term; for those the fold keeps the earliest too, a
+  tie settled by author and content, instead of whichever arrived first.
+  Submissions, materials, invites and join decisions settle a same-clock
+  tie the same way (`ties.ts`).
+- A redaction is never redacted (16, amended).
+- An organization is bootstrapped only while nobody else has written to it,
+  so ids the library seed or an import used cannot be claimed, and the v2
+  import refuses an organization someone else created (`--existing-org`).
+- Review links and tokens: 72, amended.
+The service role (imports, seeds, the Worker) still writes as the actor it
+names, as 64 said; these checks are for people. A translator may still log
+a check from outside the app (29), which completes ordinary steps; that is
+the design, not a gap. SQL tests: `server/grantsSmoke.sql`, and the
+takeover in `server/joinSmoke.sql`.
+Reverse if: teams need to place people they have not invited (then a
+consent step on the person's side, not a direct add), or a partner's
+custom roles need someone to grant more than they hold (then a privilege
+that says so, held by owners only).
+
+Amended (2026-10-09, Carl Sauder): the audit's low findings that were cheap
+to close (migration `20261009140000_audit_low_findings.sql`). `may_emit` is
+service-role only, like `org_privileges`, since it answers for any profile.
+Writing a file needs more than reading its stream (`blob_access`): a
+language's files are written by whoever holds more than View there, once it
+is listed; the organization's guide files by whoever manages its library;
+a person's stream by nobody, so no upload makes a stream nobody listed. The
+language tables hide `creator_id` from everyone but the service role. In
+the Worker, a voice note must be stored no more than six hours before it is
+attached, since a redaction drops the event but not the file, so a hash
+seen before a removal cannot bring the audio back; a closed review link
+answers only that it closed; and files are served with `nosniff`.
+
+## 76. Names identify nothing: a repeated language is warned about, and an organization can be renamed
+
+Date: 2026-10-09 · By: Carl Sauder · Status: accepted
+
+Reason: organizations and languages are identified by ids made on the
+phone (`org-<uuid>` in `createOrg.ts`, `L-<code>-<random>` in
+`newLanguageId`), so they can be created offline without asking anyone,
+and nothing on the phone or the server refuses a name already in use. Two
+people offline can start two organizations with one name, and two admins
+can add one language twice to the same organization; each stands, since
+no server check on names can reach a phone that is offline. Names stay
+labels, and two answers are added instead of a uniqueness rule. Adding a
+language warns when the organization already lists one with the same code,
+or the same name once case, accents, spaces and punctuation are set aside
+(`similarLanguages` in `orgAdmin.ts`, shown on the first step of New
+language). It only warns: the admin may still go on. It sees the
+languages this phone has synced, so a repeat added on another phone while
+both were offline still lands. An organization can be renamed with
+`v1.OrgRenamed { name }`, which writes the same name register as
+`v1.OrgCreated`, as `MemberAdded` and `MemberRemoved` share `removed`: the
+later clock wins, then the higher id. A rename is always stamped after the
+creation its phone saw. Only an Organization Admin may rename
+(`manage_roles`, as for the license), since the name is how everyone,
+Request Access included, tells the organization apart. Every server
+reader of the name reads that register (`org_name`, `library_shared_items`,
+`diag.find`; migration `20261009160000_org_renamed.sql`). A library
+subscription keeps the source's name as it was when subscribed
+(`sourceOrgName`). A language is renamed from its page (More, Name)
+with the `v1.LanguageRenamed` it always had, by whoever manages its
+structure there or for the whole organization (`mayRenameLanguage`), so a
+language admin may rename their own; the sheet warns when another
+language already has the name. Not built: a way to merge or retire a repeated
+language, a check after sync for repeats that landed offline, and a way
+to tell same-named organizations apart in Request Access beyond their
+listed languages.
+Reverse if: repeated languages keep landing despite the warning; then
+check for repeats after sync and give admins a way to retire one.
+
+## 77. A voice note's format goes in the log when it is not m4a
+
+Date: 2026-10-09 · By: Ryder Wishart · Status: accepted
+
+Reason: a voice note is named only by the event that uses it (30), and none
+of those events has a format field, so core called every voice note m4a.
+A browser that cannot record MP4 (Chrome, Firefox) stores its take as WAV
+(58), at `<hash>.wav`. Review comments, directions, reasons, notes and
+responses recorded there were then looked for as `<hash>.m4a`: the browser
+could not read its own file to upload it or play it back, and no other
+device or the agent API (70) could fetch it. What changed:
+- `v1.AudioFormatSet { hash, format }` says a voice note's format, once per
+  hash: the earliest stands and the server refuses a second (75), so nobody
+  re-labels someone else's note. The app appends it ahead of the event
+  that names the note, in the same batch, when the file on this device is
+  not m4a and the log does not say so yet (`useLanguage.ts`, core `audioFormatsFor`). The
+  device that has the file is the one that knows its format; `BlobStore`
+  keeps each file's extension (`formatOf`).
+- Core `referencedBlobs` reads it for every voice-note field
+  (`voiceNoteOf` lists them), so uploads, downloads, playback and read
+  links use the real name. Without the event a voice note is m4a, as
+  phones record it, so nothing already in the log changes meaning.
+- Whoever may append an event that names a voice note may append this one.
+  `REDUCER_VERSION` is 13 for the new state field.
+Rejected: v2 of the seven events that carry a voice note (seven new shapes
+for one missing field); converting a browser's take to AAC (no encoder in
+Firefox, and a muxer to ship); recording at `<hash>.m4a` whatever the bytes
+(58: a phone's player trusts the label); probing the server for either
+extension (a round trip per file, and nothing for the uploader).
+Reverse if: every supported browser records MP4 (then web voice notes are
+m4a and the event is no longer appended), or voice notes get an event of
+their own that carries the card, as recordings do.
+
+## 78. A language links to the language list with LanguageCodeSet, and is unlinked until then
+
+Date: 2026-10-09 · By: Caleb Koster · Status: accepted
+
+Reason: partly supersedes 73, which said a language names its languoid's
+UUID in `LanguageAdded`. Its `code` is what people and the app read: the
+language page and the map show it, reports carry it, and the warning about
+a repeated language compares it. A UUID there would show as a code, and
+`LanguageAdded`'s shape cannot change. So a new register in the
+organization stream, `v1.LanguageCodeSet { languageId, code, languoidId }`,
+says which language in the world it is: `languoidId` is a languoid's UUID,
+or null, and `code` takes over `LanguageAdded`'s (the languoid's ISO 639-3
+code, else its glottocode). The later clock wins, then the higher id. With
+no `LanguageCodeSet` a language is unlinked. Adding a language searches the
+language list as its name is typed (`search_languoids`, online only, as 73
+has it); picking one adds the language with that code and links it in the
+same step (`addLanguage`'s `link`). Offline, or when nothing fits, the typed
+name and code are added unlinked, and the language's page links it later
+(More, In the language list). Whoever may rename the language may link it
+(`manage_structure` there or for the organization, `mayRenameLanguage`).
+The server keeps the link on `languages` (`code_set`, `languoid_id`, read
+through `language_code()`), with no foreign key, since a language may name a
+languoid this database does not have yet (migration
+`20261009200000_language_code_set.sql`). Linking later changes the code and
+the link only: the work belongs to the language, so nothing moves. This
+settles the open point in `docs/streams-and-languages.md` on whether a
+language's code can change. Caleb agreed to the picker, unlinked languages
+and `LanguageCodeSet` (2026-10-09). Not built: sending a missing language to
+us as a request, and moving v2 imports, which still put v2's languoid UUID
+in `LanguageAdded`'s code, to `LanguageCodeSet`.
+Reverse if: a language needs to be in more than one languoid (a project
+covering two dialects, say); then the link becomes a set rather than a
+register.
+
+## 79. Third-party apps keep their own values with a language, as external values LangQuest never acts on
+
+Date: 2026-10-09 · By: Carl Sauder · Status: accepted
+
+Reason: partly supersedes 72, which said everything written from outside
+is one of two events. Partners' apps want to keep data of their own with a
+language's work, clearly marked as coming from outside LangQuest; Every
+Language's listening app is the example (play counts, playlists). Carl
+chose a key-value store per language, named so an API user can tell the
+values are external to LangQuest (`docs/agent-api.md`). Chosen:
+- `PUT`, `GET` and `DELETE /api/v1/languages/{languageId}/external-values/{key}`
+  and a list (`keyPrefix`, `changedSince`, `after`) on the access-token API
+  (70), and the MCP tools `set_external_value` and `get_external_values`.
+  The body is `{ data }`, a JSON object of at most 4 KB, checked by the
+  Worker, which is the only writer.
+- Each write is `v1.ExternalValueSet { key, data }` in the language stream:
+  a register per key, the later clock then the higher id, and `data: null`
+  a deleted key. The Worker stamps a write after the value it replaces, so
+  two in one millisecond keep their order. Nothing in LangQuest reads it: no
+  status, step, report or screen. `REDUCER_VERSION` is 14.
+- Only the Worker appends it. `append_events` refuses it from people and
+  takes it from the service role only for a device `api-<token id>` that
+  is a live token of the author's, with the new `external_values` scope,
+  reaching the language (`_external_values_token`, migration
+  `20261009220000_external_values.sql`, `server/externalValuesSmoke.sql`).
+  The author must translate, review or fill reference material there.
+  Reading needs `read` or `external_values`, and each value says which
+  token, app and person wrote it.
+- One shared store per language: apps keep apart by starting keys with
+  their own reverse-domain name. Every token belongs to a member the
+  organization trusts, nothing acts on the values, and every member's
+  phone downloads the stream anyway, so namespaces per app would hide
+  nothing from the people who can see it.
+- Nothing points into LangQuest: no passage field. An app that ties a value
+  to a passage puts the unit id in the key. Showing values on a passage
+  later would need a field added to a shipped event (as 72's `atMs` was)
+  or a `v2`. No files yet either.
+- Keys are segments of letters, digits and `. _ ~ : @ + -` joined by `/`,
+  at most 256 characters, none empty, `.` or `..`, so a key reads back
+  unchanged as a URL path (core `externalKeyError`, SQL `validate_payload`).
+Rejected: an opaque subject or a namespace per app (key prefixes do the
+same with nothing to check); an idempotency key from the caller (the
+newest write wins, so a retry reads the same); a sibling stream phones do
+not pull (more to build before anyone has seen the cost); `/values` as the
+path (it reads as LangQuest's own settings for the language).
+Reverse if: external values grow past a set share of a language's events or
+slow its downloads (then a sibling stream phones do not pull), partners
+that do not trust each other share a language (then a namespace per app),
+or values start to drive anything in LangQuest.
+
+## 80. A language's numbering is chosen first, for the whole Bible, and ways of dividing are converted into it
+
+Date: 2026-10-09 · By: Caleb Koster · Status: accepted
+
+Reason: how a book is divided depends on its numbering. "By chapter" has
+no meaning until the chapters are known: English Malachi has 4, Hebrew-
+numbered Malachi 3. And the numbering decides which books exist. So when a
+language translates the Bible, its numbering is chosen first, for the whole
+Bible (by its Bible, by name, or with the quiz), and only then are books
+divided, all at once or one by one (Caleb, 2026-10-09). A numbering offered
+to admins is a source versification with exactly one tradition's books.
+FIA, unfoldingWord and OpenBible divide the text, not the numbers, so their
+English-numbered sections are converted into the language's numbering, with
+four rules: uncovered verses inside a chapter are a section of their own
+(Psalm headings included); uncovered verses inside a section split it
+(Catholic Daniel 3:19–23, 3:24–90, 3:91–97); a verse two sections want goes
+to the earlier one (Douay Judges 21:24); uncovered whole chapters are a
+section each (Catholic Daniel 13 and 14). Books a way does not cover wait
+for the admin. When divisions change (a way's new version, an admin
+dividing a book again, a new numbering), sections expire but are not
+deleted: a current section that overlaps an expired one with recordings
+shows a warning mark and lists it under "Earlier sections", closed by
+default (Caleb, 2026-10-09); this replaces decision 74's "will no longer
+show" for an admin's own change. `docs/breaking-up-the-bible.md`
+holds the rules with examples. Decision 74 stays as built; this extends it.
+The source files are rebuilt first, because their JSON copies lost every
+second line of a verse that matches two (96 lines). Five numberings are
+offered (English, Hebrew, Vulgate 73 books, Russian Synodal 66 and 77);
+every way is published once in each, converted by the seed. A language's
+numbering is its template's versification, so no new event is needed; a
+language's state keeps every template version it used, to read an expired
+section in the numbering it was made in. Changing numbering keeps the
+work on sections whose verses stay the same: a converted way marks the
+parts whose verses differ from the same numbers in English, and only
+those get new ids (`2CO.13~org`). The Septuagint numbering and Catholic
+Bibles numbered like the Hebrew are not offered yet.
+Reverse if: teams need one section made of two separate ranges (Daniel
+3:19–23 with 3:91–97) often enough; then a section holds a list of ranges,
+and every reader of a section's verses learns to read one.
+
+## 81. The app's words come from catalogs in the app, in the language chosen on the device or the phone's; English is the source
+
+Date: 2026-10-09 · By: Caleb Koster · Status: accepted
+
+Reason: field teams who do not read English could not use the app (LAN-42);
+every word was written into the screens. Chosen (`docs/localization.md`):
+- `i18next` and `react-i18next`, with one JSON catalog per language in
+  `apps/mobile/src/i18n/` and English the source. Fifteen languages: LAN-42's
+  thirteen (`en`, `es`, `pt` in Brazilian wording, `fr`, `ar`, `sw`, `ha`,
+  `am`, `hi`, `bn`, `ne`, `id`, `zh-Hans`) and Thai and Burmese from
+  LangQuest v2's list. Dates and numbers through `Intl`; plurals by each
+  language's own rules (`src/i18n/plurals.ts` stands in where the engine has
+  no `Intl.PluralRules`).
+- The language is a setting of the device, not an event: Me → Language (and
+  a globe on the sign-in screen) keeps it in expo-sqlite's key-value store,
+  read before the first screen draws, or the browser's localStorage. Nothing
+  to sync and no migration; people sharing a phone share it. Without a
+  choice the phone's language is followed (`expo-localization`) for any
+  catalog approved for release (`approved` in `src/i18n/languages.ts`). The
+  fourteen first catalogs are machine translations Caleb approved as they
+  are: the teams who read them are the reviewers there are, and they can
+  only say what reads wrong once the app speaks their language. A language
+  added later may stay a draft until approved: anyone may pick it, it says
+  it is a draft, and the phone's language never switches to it.
+- Arabic lays the app out right to left; on a phone the app restarts once to
+  change direction (`src/i18n/start.ts`).
+- "No hard-coded words" is a test, run by `npm test` and before a push:
+  `apps/mobile/test/i18n.test.ts` fails on a word written into the code
+  where a person would see it, a key used but missing or defined but unused,
+  and a catalog that lacks keys, adds keys, has the wrong plural forms or
+  drops a placeholder. `t()` keys are typed, so a wrong key fails the
+  typecheck.
+- `packages/core` stays English and pure; `src/coreText.ts` says its words
+  (review states, shipped kinds unless renamed, a passage's state, command
+  errors, licenses, book names). Library documents (36), names people typed,
+  and words stored in the event log are shown as written.
+- Emails go in the sender's app language: the invite now (the phone sends its
+  language; `apps/invite-email/src/i18n/`), and the password reset email's
+  words are ready for Forgot password.
+- Help mode speaks recorded lines per language: files named by a hash of the
+  language and the words, listed and served by the Worker
+  (`/api/help-audio`, `npm run help-audio`), kept on the phone once heard.
+  A line nobody has recorded shows as words, read aloud on the web.
+This departs from `docs/languoids.md`'s proposal that interface translations
+be library items an organization publishes: bundled catalogs work offline
+from the first launch and need no server; a published localization could
+later sit over them. Push notifications' words are still written in English
+by the database (the Inbox shows its own words by kind).
+Reverse if: translators need to change words between app releases (then the
+library localization), or people want their language to follow them to
+other devices (then an event in the person stream).
+
+## 82. A recorded part keeps how it relates to its neighbours, and its verse numbers are worked out down the list
+
+Date: 2026-10-09 · By: Caleb Koster · Status: accepted
+
+Reason: The recorder groups parts into cards by verse (demo ADR-036,
+SIMPLE-7), which needs verse labels on parts. Caleb asked for labelling
+simple enough to need no reading: an empty space on the left of each part
+that, when tapped, infers the right verse from the parts above and below,
+and a long press for a chosen verse or range. Rules: labels come from the
+passage's verses (the template's range in its versification), go up the
+list, never overlap, may be one verse or a range, several parts may share
+one verse, and verses may be skipped for later. What was chosen:
+- A part stores a mark, not a number: `next` (the verse after the label
+  above), `join` (the same verses as the part right above), `set` (verses
+  chosen, as `chapter:verse` from and to) or `none`. Core `verses.ts`
+  derives the numbers down a take's cards, so labelling a part higher up
+  renumbers the ones after it and the order cannot break; `tapPart`
+  picks the first legal change (next, else join the verse above), and a
+  chosen verse wins over the parts after it that no longer fit, which lose
+  their mark (`settlePartMarks`).
+- One new event, `v1.CardVerseSet { unitId, hash, mark, from?, to? }`, a
+  register per (unit, card hash) in the language stream (privilege
+  translate; migration `20261010010000_card_verse_set.sql`). Keyed by card,
+  not take: every list change composes a new draft take, and a card keeps
+  its mark through them and into the version it is published in.
+- The workspace (`simple/verseParts.tsx`): tap a space to give the part a
+  verse, tap a number to join the part above and again to split it out,
+  hold for the verse grid with Auto, None and Delete (each tap applies at
+  once), slide down the spaces to number many parts, and a gap left for
+  later has Record here, which records into its place as the next verse.
+  A unit with no verses keeps the one card of numbered parts.
+Rejected: storing numbers on parts (moving or labelling one would leave
+the rest out of order); labels on the take (each draft change makes a new
+take, so marks would have to be copied forward); separate events for
+joins and choices (one register per card is simpler to merge).
+Reverse if: the same recording needs different verses in different
+versions (then marks belong on the take), or teams want labels from the
+audio itself (alignment) rather than taps.
+
+Amended (2026-10-10, Caleb Koster): no grouping by verse for now. The
+recorder keeps its one card of parts as before, and each part has its verse
+space; a part with the same verse as the part above shows that verse hollow
+and grey instead of joining a card; a part's own verse is a soft grey tile
+with a dark number, so the labels stay quiet beside the parts. The marks, the event and the tap rules are
+unchanged.
+
+## 83. A person may keep several drafts of a passage, each one the line of takes its changes made
+
+Date: 2026-10-10 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb asked that people can make several versions of a passage and
+save, delete, edit, publish and send each for review freely. Until now each
+person had one draft per passage: every change composed a new take and
+retired their previous draft, so starting over meant losing the last try.
+What was chosen:
+- No new event. A draft is the line of takes its changes composed
+  (`v1.TakeComposed` with `parentTakeId`); the take it started with names
+  it. Core `derivePassage` lists every open draft (`drafts`, anyone's, in
+  the order started, each with its first take and the version it started
+  from), and `keepTake`, `publishVersion` and `discardCards` take the take a
+  change continues (`parentTakeId`): the draft open in the workspace (whose
+  take is retired), a version to start from, or null for a draft started
+  empty. Left out, they continue the person's latest draft as before.
+- Deleting a draft is `deleteDraft` (`v1.TakeArchived`, only the person's
+  own). Its Undo composes the same parts continuing the deleted take, so it
+  is the same draft again.
+- A published version never changes. Editing one starts a new draft from its
+  parts; it publishes as a new version, as every change does (REC-W3).
+- Screens: the passage record's "Versions and history" is now a page: the
+  person's drafts (play, Edit, Publish, Delete with Undo), then the
+  published versions (play, open, Edit, and on the latest, Ask for its next
+  check), "New version" to start empty, then the study, reviews and history
+  that used to open in place. Record opens the person's only draft, or the
+  page when they keep several. The workspace opens one draft, says which
+  ("Draft 2"), and has Save, which says the draft is kept (every change
+  already is) and goes back. Publishing then asking for a check is
+  unchanged (demo ADR-034).
+- Verse marks (decision 82) stay on cards, so drafts that share parts share
+  their marks. A mark relative to its neighbours (next, join) still reads
+  right in each draft; a chosen verse is the same in all of them.
+Rejected: a name per draft (a new event, and typed names suit oral teams
+poorly; drafts are numbered in the order started instead); deleting a
+published version (reviews and requests point at it; nothing removes one).
+Open: a request for review names the passage, not a version, so asking for
+a check always means the latest version. Sending an older version for review
+would need a new event with the version in it.
+Reverse if: teams need drafts others can pick up and change (then a draft
+would need an owner other than whoever composed its takes).

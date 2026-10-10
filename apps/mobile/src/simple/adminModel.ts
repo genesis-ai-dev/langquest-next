@@ -5,26 +5,38 @@
 // "reference material"): each function turns a library document, a flow's
 // steps or a set of privileges into what an admin who knows nothing about
 // the app would say. No React, no I/O, so it is tested on its own
-// (test/adminModel.test.ts).
+// (test/adminModel.test.ts). The words are in the language showing (LAN-42):
+// whole catalog sentences, never English grammar put together here.
+import { canonIndex } from '../contentTemplates';
 import {
-  englishBookName, canonIndex
-} from '../contentTemplates';
-import {
-  languagePeople, PRIVILEGES,
+  bookIdOf, languagePeople, PRIVILEGES, templateBooks,
   type KindDef, type OrgState, type Privilege, type TemplateDoc
 } from '@langquest-next/core';
-import { booksInScope, type LanguageScope } from '../orgAdmin';
+import { bookName } from '../coreText';
+import { t } from '../i18n';
+import { formatNumber } from '../i18n/format';
+import { booksInScope, languageScopeLabel, type LanguageScope } from '../orgAdmin';
 
 // ---- the four questions -------------------------------------------------------------
 
 /** The four questions, in the order an admin thinks (demo ADR-039). */
 export const QUESTIONS = [
-  { id: 'record', label: 'What will they record?', icon: 'template' },
-  { id: 'helps', label: 'What will help them?', icon: 'listen' },
-  { id: 'checks', label: 'Who checks the recordings?', icon: 'people' },
-  { id: 'invite', label: 'Invite your translators', icon: 'qr' }
+  { id: 'record', icon: 'template' },
+  { id: 'helps', icon: 'listen' },
+  { id: 'checks', icon: 'people' },
+  { id: 'invite', icon: 'qr' }
 ] as const;
 export type QuestionId = (typeof QUESTIONS)[number]['id'];
+
+/** A question as the admin reads it: "What will they record?". */
+export function questionLabel(id: QuestionId): string {
+  switch (id) {
+    case 'record': return t('admin.questions.record');
+    case 'helps': return t('admin.questions.helps');
+    case 'checks': return t('admin.questions.checks');
+    case 'invite': return t('admin.questions.invite');
+  }
+}
 
 export interface ReadyFacts {
   /** The language records against a template. */
@@ -101,26 +113,36 @@ export type RecordKind = 'stories' | 'chapters' | 'books' | 'outline';
 export function recordKind(doc: TemplateDoc | null | undefined): RecordKind | null {
   if (!doc) return null;
   if (doc.structure === 'outline') return 'outline';
-  switch (doc.bible?.divide) {
-    case 'passages': return 'stories';
-    case 'chapters': return 'chapters';
-    case 'books': return 'books';
-    default: return null;
+  // A template@2 breaks up each book its own way: passages anywhere read as stories.
+  const divides = new Set(templateBooks(doc).map((b) => b.divide));
+  if (divides.has('passages')) return 'stories';
+  if (divides.has('chapters')) return 'chapters';
+  if (divides.has('book')) return 'books';
+  return doc.format === 'template@2' ? 'chapters' : null;
+}
+
+/** What a template divides the work into, as a choice's title: "Bible stories". */
+export function recordTitle(kind: RecordKind): string {
+  switch (kind) {
+    case 'stories': return t('admin.record.stories');
+    case 'chapters': return t('admin.record.chapters');
+    case 'books': return t('admin.record.books');
+    case 'outline': return t('admin.record.outline');
   }
 }
 
-export const RECORD_LABEL: Record<RecordKind, { title: string; sub: string }> = {
-  stories: { title: 'Bible stories', sub: 'One story at a time' },
-  chapters: { title: 'Bible chapters', sub: 'One chapter at a time' },
-  books: { title: 'Whole books', sub: 'One book at a time' },
-  outline: { title: 'Something else', sub: 'Songs, lessons, your own list' }
-};
+/** A book by its USFM code ("LUK") in the language showing; the code when core has no such book. */
+function bookLabel(usfm: string): string {
+  const id = bookIdOf(usfm);
+  const name = bookName(id);
+  return name === id ? usfm : name;
+}
 
 /** "LUK 15:1-7" as people read it: "Luke 15:1–7". */
 export function readableRef(ref: string): string {
   const m = /^([1-3A-Z]{3})\s+(.*)$/.exec(ref.trim());
   if (!m) return ref;
-  return `${englishBookName(m[1]!)} ${m[2]!.replace(/-/g, '–')}`;
+  return t('admin.reference', { book: bookLabel(m[1]!), place: m[2]!.replace(/-/g, '–') });
 }
 
 /**
@@ -131,27 +153,24 @@ export function readableRef(ref: string): string {
 export function recordExamples(doc: TemplateDoc | null | undefined, n = 2): string[] {
   if (!doc) return [];
   if (doc.structure === 'outline') return (doc.outline ?? []).slice(0, n).map((o) => o.title);
-  const bible = doc.bible;
-  if (!bible) return [];
-  if (bible.divide === 'passages') {
-    const all = bible.passages ?? [];
-    const named = all.filter((p) => p.name);
-    const list = named.length ? named : all;
+  const books = templateBooks(doc);
+  const passages = books.flatMap((b) => (b.divide === 'passages' ? b.passages ?? [] : []));
+  if (passages.length) {
+    const named = passages.filter((p) => p.name);
+    const list = named.length ? named : passages;
     const luke15 = list.findIndex((p) => /^LUK 15:/.test(p.ref));
     const from = luke15 >= 0 ? luke15 : 0;
     return list.slice(from, from + n).map((p) => (p.name ? `${p.name} · ${readableRef(p.ref)}` : readableRef(p.ref)));
   }
-  if (bible.divide === 'chapters') {
-    const luke = bible.books.some((b) => b.book === 'LUK');
-    const book = luke ? 'LUK' : bible.books[0]?.book;
-    if (!book) return [];
+  const byChapter = books.filter((b) => b.divide === 'chapters');
+  if (byChapter.length) {
+    const luke = byChapter.some((b) => b.book === 'LUK');
+    const book = luke ? 'LUK' : byChapter[0]!.book;
     const first = luke ? 15 : 1;
-    return Array.from({ length: n }, (_, i) => `${englishBookName(book)} ${first + i}`);
+    return Array.from({ length: n }, (_, i) => t('admin.bookChapter', { book: bookLabel(book), chapter: formatNumber(first + i) }));
   }
-  return bible.books.slice(0, n).map((b) => englishBookName(b.book));
+  return books.slice(0, n).map((b) => bookLabel(b.book));
 }
-
-const TESTAMENT_LABEL: Record<Exclude<LanguageScope, 'custom'>, string> = { nt: 'New Testament', ot: 'Old Testament', all: 'Whole Bible' };
 
 /** Which part of the Bible a language's books are, as the testament pills read it. */
 export function scopeOfBooks(doc: TemplateDoc | null | undefined, books: readonly string[] | undefined): LanguageScope {
@@ -165,40 +184,86 @@ export function scopeOfBooks(doc: TemplateDoc | null | undefined, books: readonl
 
 /** "New Testament", or for chosen books "Luke and Acts" / "5 books". */
 export function scopeLabel(scope: LanguageScope, books: readonly string[] = []): string {
-  if (scope !== 'custom') return TESTAMENT_LABEL[scope];
-  const sorted = [...books].sort((a, b) => canonIndex(a) - canonIndex(b)).map(englishBookName);
-  if (sorted.length === 0) return 'No books yet';
-  if (sorted.length <= 2) return sorted.join(' and ');
-  return `${sorted.length} books`;
+  if (scope !== 'custom') return languageScopeLabel(scope);
+  const sorted = [...books].sort((a, b) => canonIndex(a) - canonIndex(b)).map(bookLabel);
+  if (sorted.length === 0) return t('admin.record.noBooks');
+  if (sorted.length <= 2) return joinAnd(sorted);
+  return t('admin.record.someBooks', { count: sorted.length });
 }
 
 /** "Bible stories · New Testament" for the checklist and the language page. */
 export function recordSummary(doc: TemplateDoc | null | undefined, books: readonly string[] | undefined, name?: string): string {
   const kind = recordKind(doc);
-  if (!kind) return name ?? 'Chosen';
-  if (kind === 'outline') return name ?? doc?.name ?? 'Your own list';
-  return `${RECORD_LABEL[kind].title} · ${scopeLabel(scopeOfBooks(doc, books), books)}`;
+  if (!kind) return name ?? t('admin.record.chosen');
+  if (kind === 'outline') return name ?? doc?.name ?? t('admin.record.ownList');
+  return `${recordTitle(kind)} · ${scopeLabel(scopeOfBooks(doc, books), books)}`;
 }
 
 // ---- who checks ----------------------------------------------------------------------
 
-/** Each shipped kind of check in an admin's words: the step's name, who does it, and the noun for a summary. */
-const PLAIN_KIND: Record<string, { step: string; who: string; noun: string; just: string }> = {
-  peer: { step: 'Peer check', who: 'Another translator', noun: 'team', just: 'the team' },
-  bt: { step: 'Back translation', who: 'A back-translator', noun: 'back translation', just: 'a back translation' },
-  community: { step: 'Community check', who: 'The community', noun: 'community', just: 'the community' },
-  consultant: { step: 'Consultant check', who: 'A consultant', noun: 'a consultant', just: 'a consultant' },
-  final: { step: 'Final approval', who: 'You approve', noun: 'your approval', just: 'your approval' },
-  retell: { step: 'Retelling', who: 'Someone retells it', noun: 'retelling', just: 'retelling' },
-  local: { step: 'Local check', who: 'Local listeners', noun: 'local listeners', just: 'local listeners' }
-};
+/**
+ * A kind of check in an admin's words, each a whole catalog string so every
+ * language says it its own way:
+ * - `step`, the step's name ("Peer check"), and `stepLater`, the same after
+ *   another in one step ("Peer check and back translation");
+ * - `who` does it ("Another translator");
+ * - `noun` for a flow's title, first (`nounFirst`, "Team, …") or later
+ *   ("…, then a consultant"), and `short`/`shortFirst` for the summary line
+ *   ("Team, community, consultant");
+ * - `just`, the title of a flow with only this check ("Just the community").
+ * Final approval is never a check, so it has only its step and who.
+ */
+interface PlainKind { step: string; stepLater: string; who: string; noun: string; nounFirst: string; short: string; shortFirst: string; just: string }
 
-function plainKind(id: string, kinds: readonly KindDef[]) {
-  const known = PLAIN_KIND[id];
-  if (known) return known;
+function plainKind(id: string, kinds: readonly KindDef[]): PlainKind {
+  switch (id) {
+    case 'peer': return {
+      step: t('admin.kinds.peer.step'), stepLater: t('admin.kinds.peer.stepLater'), who: t('admin.kinds.peer.who'),
+      noun: t('admin.kinds.peer.noun'), nounFirst: t('admin.kinds.peer.nounFirst'), short: t('admin.kinds.peer.short'),
+      shortFirst: t('admin.kinds.peer.shortFirst'), just: t('admin.kinds.peer.just')
+    };
+    case 'bt': return {
+      step: t('admin.kinds.bt.step'), stepLater: t('admin.kinds.bt.stepLater'), who: t('admin.kinds.bt.who'),
+      noun: t('admin.kinds.bt.noun'), nounFirst: t('admin.kinds.bt.nounFirst'), short: t('admin.kinds.bt.short'),
+      shortFirst: t('admin.kinds.bt.shortFirst'), just: t('admin.kinds.bt.just')
+    };
+    case 'community': return {
+      step: t('admin.kinds.community.step'), stepLater: t('admin.kinds.community.stepLater'), who: t('admin.kinds.community.who'),
+      noun: t('admin.kinds.community.noun'), nounFirst: t('admin.kinds.community.nounFirst'), short: t('admin.kinds.community.short'),
+      shortFirst: t('admin.kinds.community.shortFirst'), just: t('admin.kinds.community.just')
+    };
+    case 'consultant': return {
+      step: t('admin.kinds.consultant.step'), stepLater: t('admin.kinds.consultant.stepLater'), who: t('admin.kinds.consultant.who'),
+      noun: t('admin.kinds.consultant.noun'), nounFirst: t('admin.kinds.consultant.nounFirst'), short: t('admin.kinds.consultant.short'),
+      shortFirst: t('admin.kinds.consultant.shortFirst'), just: t('admin.kinds.consultant.just')
+    };
+    case 'final': {
+      // Never a check (`checks` leaves it out), so it is never a flow's noun.
+      const step = t('admin.kinds.final.step');
+      return { step, stepLater: t('admin.kinds.final.stepLater'), who: t('admin.kinds.final.who'), noun: step, nounFirst: step, short: step, shortFirst: step, just: step };
+    }
+    case 'retell': return {
+      step: t('admin.kinds.retell.step'), stepLater: t('admin.kinds.retell.stepLater'), who: t('admin.kinds.retell.who'),
+      noun: t('admin.kinds.retell.noun'), nounFirst: t('admin.kinds.retell.nounFirst'), short: t('admin.kinds.retell.short'),
+      shortFirst: t('admin.kinds.retell.shortFirst'), just: t('admin.kinds.retell.just')
+    };
+    case 'local': return {
+      step: t('admin.kinds.local.step'), stepLater: t('admin.kinds.local.stepLater'), who: t('admin.kinds.local.who'),
+      noun: t('admin.kinds.local.noun'), nounFirst: t('admin.kinds.local.nounFirst'), short: t('admin.kinds.local.short'),
+      shortFirst: t('admin.kinds.local.shortFirst'), just: t('admin.kinds.local.just')
+    };
+  }
+  // A kind the organization made: its own name, as it typed it, placed in a
+  // sentence the way every cased language this app speaks does (lower case
+  // mid-sentence, a capital to start).
   const k = kinds.find((x) => x.id === id);
   const name = k?.name ?? id.replace(/_/g, ' ');
-  return { step: name, who: k?.usualReviewer || name, noun: name.toLowerCase(), just: name.toLowerCase() };
+  const lower = name.toLowerCase();
+  const first = lower.charAt(0).toUpperCase() + lower.slice(1);
+  return {
+    step: name, stepLater: name.charAt(0).toLowerCase() + name.slice(1), who: k?.usualReviewer || name,
+    noun: lower, nounFirst: first, short: lower, shortFirst: first, just: t('admin.flow.justKind', { kind: lower })
+  };
 }
 
 interface PlainStep {
@@ -208,11 +273,7 @@ interface PlainStep {
 
 /** "Peer check and back translation": a step's kinds, joined. */
 export function stepTitle(kindIds: readonly string[], kinds: readonly KindDef[]): string {
-  const names = kindIds.map((id, i) => {
-    const s = plainKind(id, kinds).step;
-    return i === 0 ? s : s.charAt(0).toLowerCase() + s.slice(1);
-  });
-  return names.length <= 1 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
+  return joinAnd(kindIds.map((id, i) => (i === 0 ? plainKind(id, kinds).step : plainKind(id, kinds).stepLater)), false);
 }
 
 /** Who usually does a step, as a short line ("Another translator"). */
@@ -225,40 +286,38 @@ function checks(steps: readonly PlainStep[]): PlainStep[] {
   return steps.filter((s) => s.kindIds.some((k) => k !== 'final'));
 }
 
+/** The kinds of check a flow makes, in order, a kind repeated in a row said once. */
+function checkKinds(steps: readonly PlainStep[], kinds: readonly KindDef[], by: (k: PlainKind) => string): PlainKind[] {
+  const out: PlainKind[] = [];
+  for (const s of checks(steps)) {
+    const k = plainKind(s.kindIds.find((id) => id !== 'final')!, kinds);
+    if (!out.length || by(out.at(-1)!) !== by(k)) out.push(k);
+  }
+  return out;
+}
+
 /** "Team, community, then a consultant"; "Just the community"; "No checks". */
 export function flowTitle(steps: readonly PlainStep[], kinds: readonly KindDef[]): string {
-  const nouns: string[] = [];
-  for (const s of checks(steps)) {
-    const n = plainKind(s.kindIds.find((k) => k !== 'final')!, kinds);
-    if (nouns.at(-1) !== n.noun) nouns.push(n.noun);
-  }
-  if (nouns.length === 0) return steps.length ? 'Just your approval' : 'No checks';
-  if (nouns.length === 1) {
-    const first = checks(steps)[0]!.kindIds.find((k) => k !== 'final')!;
-    return `Just ${plainKind(first, kinds).just}`;
-  }
-  const text = `${nouns.slice(0, -1).join(', ')}, then ${nouns.at(-1)}`;
-  return text.charAt(0).toUpperCase() + text.slice(1);
+  const list = checkKinds(steps, kinds, (k) => k.noun);
+  if (list.length === 0) return steps.length ? t('admin.flow.justApproval') : t('admin.flow.noChecks');
+  if (list.length === 1) return list[0]!.just;
+  const before = [list[0]!.nounFirst, ...list.slice(1, -1).map((k) => k.noun)].join(t('admin.list.separator'));
+  return t('admin.flow.then', { before, last: list.at(-1)!.noun });
 }
 
 /** The same, shorter, for a summary line: "Team, community, consultant". */
 export function flowShort(steps: readonly PlainStep[], kinds: readonly KindDef[]): string {
-  const nouns: string[] = [];
-  for (const s of checks(steps)) {
-    const n = plainKind(s.kindIds.find((k) => k !== 'final')!, kinds).noun.replace(/^an? /, '');
-    if (nouns.at(-1) !== n) nouns.push(n);
-  }
-  if (nouns.length === 0) return flowTitle(steps, kinds);
-  const text = nouns.join(', ');
-  return text.charAt(0).toUpperCase() + text.slice(1);
+  const list = checkKinds(steps, kinds, (k) => k.short);
+  if (list.length === 0) return flowTitle(steps, kinds);
+  return [list[0]!.shortFirst, ...list.slice(1).map((k) => k.short)].join(t('admin.list.separator'));
 }
 
 /** "One check", "3 checks", "Done once recorded". */
 export function flowSub(steps: readonly PlainStep[]): string {
   const n = checks(steps).length;
-  if (steps.length === 0) return 'Done once recorded';
-  if (n === 0) return 'You approve each one';
-  return n === 1 ? 'One check' : `${n} checks`;
+  if (steps.length === 0) return t('admin.flow.doneOnceRecorded');
+  if (n === 0) return t('admin.flow.youApprove');
+  return t('admin.flow.checks', { count: n });
 }
 
 /** Where a dragged step lands: its place moved by how many cards it crossed. */
@@ -284,12 +343,22 @@ export function flowWho(steps: readonly PlainStep[], kinds: readonly KindDef[]):
 
 export type PlainRoleId = 'translate' | 'check' | 'backtranslate' | 'lead';
 
-export const PLAIN_ROLES: { id: PlainRoleId; label: string; chip: string; icon: 'mic' | 'check' | 'globe' | 'people' }[] = [
-  { id: 'translate', label: 'Translate', chip: 'Translate', icon: 'mic' },
-  { id: 'check', label: 'Check recordings', chip: 'Check', icon: 'check' },
-  { id: 'backtranslate', label: 'Back-translate', chip: 'Back-translate', icon: 'globe' },
-  { id: 'lead', label: 'Help run the team', chip: 'Help run the team', icon: 'people' }
+export const PLAIN_ROLES: { id: PlainRoleId; icon: 'mic' | 'check' | 'globe' | 'people' }[] = [
+  { id: 'translate', icon: 'mic' },
+  { id: 'check', icon: 'check' },
+  { id: 'backtranslate', icon: 'globe' },
+  { id: 'lead', icon: 'people' }
 ];
+
+/** A plain choice as a row says it ("Check recordings") and as a chip ("Check"). */
+function plainRoleWords(id: PlainRoleId): { label: string; chip: string } {
+  switch (id) {
+    case 'translate': return { label: t('admin.roles.translate'), chip: t('admin.roles.translateChip') };
+    case 'check': return { label: t('admin.roles.check'), chip: t('admin.roles.checkChip') };
+    case 'backtranslate': return { label: t('admin.roles.backtranslate'), chip: t('admin.roles.backtranslateChip') };
+    case 'lead': return { label: t('admin.roles.lead'), chip: t('admin.roles.leadChip') };
+  }
+}
 
 export interface RoleInfo {
   id: string;
@@ -320,7 +389,7 @@ export function plainRoleChoices(roles: readonly RoleInfo[]): { choices: { id: P
     ?? fewest(roles.filter((r) => has(r, 'review') && has(r, 'translate') && !runs(r))) ?? check;
   const lead = byId('coordinator') ?? fewest(roles.filter((r) => has(r, 'assign_work') && !has(r, 'manage_roles')));
   const given: Record<PlainRoleId, RoleInfo | undefined> = { translate, check, backtranslate: back, lead };
-  const choices = PLAIN_ROLES.flatMap((c) => (given[c.id] ? [{ ...c, roleId: given[c.id]!.id }] : []));
+  const choices = PLAIN_ROLES.flatMap((c) => (given[c.id] ? [{ ...c, ...plainRoleWords(c.id), roleId: given[c.id]!.id }] : []));
   const used = new Set(choices.map((c) => c.roleId));
   return { choices, others: roles.filter((r) => !used.has(r.id)) };
 }
@@ -331,26 +400,27 @@ export function plainRoleChoices(roles: readonly RoleInfo[]): { choices: { id: P
  * A role's permissions as three groups of switches (demo ADR-039). A few
  * permissions share one switch: setting up a language covers its passages
  * and how they divide; choosing who checks covers the review groups. Every
- * permission is under exactly one switch (tested).
+ * permission is under exactly one switch (tested). Titles and labels are
+ * read when shown, in the language showing (getters, never at load).
  */
-export const ROLE_SWITCHES: { title: string; rows: { label: string; privileges: Privilege[] }[] }[] = [
-  { title: 'Do the work', rows: [
-    { label: 'Record', privileges: ['translate'] },
-    { label: 'Add notes and key words', privileges: ['fill_reference'] },
-    { label: 'Ask for checks', privileges: ['send_to_reviewers'] }
+export const ROLE_SWITCHES: { readonly title: string; rows: { readonly label: string; privileges: Privilege[] }[] }[] = [
+  { get title() { return t('admin.switches.doTheWork'); }, rows: [
+    { get label() { return t('admin.switches.record'); }, privileges: ['translate'] },
+    { get label() { return t('admin.switches.addNotes'); }, privileges: ['fill_reference'] },
+    { get label() { return t('admin.switches.askForChecks'); }, privileges: ['send_to_reviewers'] }
   ] },
-  { title: 'Check the work', rows: [
-    { label: 'Check recordings', privileges: ['review'] },
-    { label: 'See everyone’s work', privileges: ['view_status'] }
+  { get title() { return t('admin.switches.checkTheWork'); }, rows: [
+    { get label() { return t('admin.switches.checkRecordings'); }, privileges: ['review'] },
+    { get label() { return t('admin.switches.seeEveryonesWork'); }, privileges: ['view_status'] }
   ] },
-  { title: 'Run the team', rows: [
-    { label: 'Invite people', privileges: ['invite_members'] },
-    { label: 'Set up languages', privileges: ['manage_structure', 'manage_templates', 'shape_templates'] },
-    { label: 'Choose Bibles and guides', privileges: ['manage_reference'] },
-    { label: 'Choose who checks', privileges: ['manage_flows', 'manage_teams'] },
-    { label: 'Assign work', privileges: ['assign_work'] },
-    { label: 'Let work past a locked check', privileges: ['override_checkpoints'] },
-    { label: 'Make and change roles', privileges: ['manage_roles'] }
+  { get title() { return t('admin.switches.runTheTeam'); }, rows: [
+    { get label() { return t('admin.switches.invitePeople'); }, privileges: ['invite_members'] },
+    { get label() { return t('admin.switches.setUpLanguages'); }, privileges: ['manage_structure', 'manage_templates', 'shape_templates'] },
+    { get label() { return t('admin.switches.chooseBibles'); }, privileges: ['manage_reference'] },
+    { get label() { return t('admin.switches.chooseWhoChecks'); }, privileges: ['manage_flows', 'manage_teams'] },
+    { get label() { return t('admin.switches.assignWork'); }, privileges: ['assign_work'] },
+    { get label() { return t('admin.switches.overrideChecks'); }, privileges: ['override_checkpoints'] },
+    { get label() { return t('admin.switches.manageRoles'); }, privileges: ['manage_roles'] }
   ] }
 ];
 
@@ -372,15 +442,15 @@ export function flipSwitch(privileges: readonly Privilege[], row: { privileges: 
 
 /** "Asked 10 minutes ago", "Asked just now", "Asked yesterday". */
 export function askedAgo(createdAt: string | undefined, now: number): string {
-  const t = createdAt ? Date.parse(createdAt) : NaN;
-  if (!Number.isFinite(t)) return 'Asked to join';
-  const min = Math.max(0, Math.round((now - t) / 60000));
-  if (min < 1) return 'Asked just now';
-  if (min < 60) return `Asked ${min} minute${min === 1 ? '' : 's'} ago`;
+  const at = createdAt ? Date.parse(createdAt) : NaN;
+  if (!Number.isFinite(at)) return t('admin.asked.toJoin');
+  const min = Math.max(0, Math.round((now - at) / 60000));
+  if (min < 1) return t('admin.asked.justNow');
+  if (min < 60) return t('admin.asked.minutes', { count: min });
   const h = Math.round(min / 60);
-  if (h < 24) return `Asked ${h} hour${h === 1 ? '' : 's'} ago`;
+  if (h < 24) return t('admin.asked.hours', { count: h });
   const d = Math.round(h / 24);
-  return d === 1 ? 'Asked yesterday' : `Asked ${d} days ago`;
+  return d === 1 ? t('admin.asked.yesterday') : t('admin.asked.days', { count: d });
 }
 
 /** A person's first name, for "Let Deng in". */
@@ -388,22 +458,44 @@ export function firstName(name: string): string {
   return name.trim().split(/\s+/)[0] || name;
 }
 
-/** Names of the languages Bibles and guides are written in, for lines like "Amharic and English Bibles". */
-const LANGUAGE_NAMES: Record<string, string> = {
-  eng: 'English', amh: 'Amharic', orm: 'Oromo', fra: 'French', por: 'Portuguese', spa: 'Spanish', hin: 'Hindi',
-  cmn: 'Mandarin Chinese', arb: 'Arabic', arz: 'Arabic', swh: 'Swahili', swa: 'Swahili', tir: 'Tigrinya', som: 'Somali',
-  hau: 'Hausa', yor: 'Yoruba', ibo: 'Igbo', rus: 'Russian', ind: 'Indonesian', tha: 'Thai', vie: 'Vietnamese', din: 'Dinka', nus: 'Nuer'
-};
-
+/** Names of the languages Bibles and guides are written in, for lines like "Amharic and English Bibles"; else the code. */
 export function languageLabel(code: string | null | undefined): string {
   if (!code) return '';
-  return LANGUAGE_NAMES[code.toLowerCase()] ?? code.toUpperCase();
+  switch (code.toLowerCase()) {
+    case 'eng': return t('admin.languageNames.eng');
+    case 'amh': return t('admin.languageNames.amh');
+    case 'orm': return t('admin.languageNames.orm');
+    case 'fra': return t('admin.languageNames.fra');
+    case 'por': return t('admin.languageNames.por');
+    case 'spa': return t('admin.languageNames.spa');
+    case 'hin': return t('admin.languageNames.hin');
+    case 'cmn': return t('admin.languageNames.cmn');
+    case 'arb': case 'arz': return t('admin.languageNames.arb');
+    case 'swh': case 'swa': return t('admin.languageNames.swa');
+    case 'tir': return t('admin.languageNames.tir');
+    case 'som': return t('admin.languageNames.som');
+    case 'hau': return t('admin.languageNames.hau');
+    case 'yor': return t('admin.languageNames.yor');
+    case 'ibo': return t('admin.languageNames.ibo');
+    case 'rus': return t('admin.languageNames.rus');
+    case 'ind': return t('admin.languageNames.ind');
+    case 'tha': return t('admin.languageNames.tha');
+    case 'vie': return t('admin.languageNames.vie');
+    case 'din': return t('admin.languageNames.din');
+    case 'nus': return t('admin.languageNames.nus');
+    default: return code.toUpperCase();
+  }
 }
 
-/** "Amharic and English", "Amharic, English and Oromo". */
-export function joinAnd(names: readonly string[]): string {
-  const list = [...new Set(names.filter(Boolean))];
-  return list.length <= 1 ? list.join('') : `${list.slice(0, -1).join(', ')} and ${list.at(-1)}`;
+/**
+ * "Amharic and English", "Amharic, English and Oromo", in the language
+ * showing (Hermes has no Intl.ListFormat). Repeats are said once unless
+ * `unique` is false (a step may hold one kind twice).
+ */
+export function joinAnd(names: readonly string[], unique = true): string {
+  const list = unique ? [...new Set(names.filter(Boolean))] : names.filter(Boolean);
+  if (list.length <= 1) return list.join('');
+  return t('admin.list.and', { before: list.slice(0, -1).join(t('admin.list.separator')), last: list.at(-1)! });
 }
 
 /** "FIA study guides (English)" -> "FIA": the short name of a set of guides. */
@@ -415,8 +507,8 @@ export function guideShortName(name: string): string {
 /** "Amharic and English Bibles · FIA guides", or what is missing. */
 export function helpsSummary(bibleLanguages: readonly string[], guides: readonly string[], notes: number): string {
   const parts: string[] = [];
-  if (bibleLanguages.length) parts.push(`${joinAnd(bibleLanguages)} Bible${bibleLanguages.length === 1 ? '' : 's'}`);
-  if (guides.length) parts.push(`${joinAnd(guides)} guides`);
-  if (notes) parts.push(`${notes} note${notes === 1 ? '' : 's'}`);
-  return parts.length ? parts.join(' · ') : 'Nothing offered yet';
+  if (bibleLanguages.length) parts.push(t('admin.helps.bibles', { count: bibleLanguages.length, languages: joinAnd(bibleLanguages) }));
+  if (guides.length) parts.push(t('admin.helps.guides', { names: joinAnd(guides) }));
+  if (notes) parts.push(t('admin.helps.notes', { count: notes }));
+  return parts.length ? parts.join(' · ') : t('admin.helps.nothing');
 }

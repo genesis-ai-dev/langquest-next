@@ -1,0 +1,2377 @@
+id	bookId	pId	sequence	split	start	end
+1ch-p1	1ch	p1	1		1:1	1:7
+1ch-p2	1ch	p2	2		1:8	1:16
+1ch-p3	1ch	p3	3		1:17	1:27
+1ch-p4	1ch	p4	4		1:28	1:33
+1ch-p5	1ch	p5	5		1:34	1:37
+1ch-p6	1ch	p6	6		1:38	1:42
+1ch-p7	1ch	p7	7		1:43	1:54
+1ch-p8	1ch	p8	8		2:1	2:8
+1ch-p9	1ch	p9	9		2:9	2:17
+1ch-p10	1ch	p10	10		2:18	2:24
+1ch-p11	1ch	p11	11		2:25	2:33
+1ch-p12	1ch	p12	12		2:34	2:41
+1ch-p13	1ch	p13	13		2:42	2:50a
+1ch-p14	1ch	p14	14		2:50b	2:55
+1ch-p15	1ch	p15	15		3:1	3:9
+1ch-p16	1ch	p16	16		3:10	3:16
+1ch-p17	1ch	p17	17		3:17	3:24
+1ch-p18	1ch	p18	18		4:1	4:10
+1ch-p19	1ch	p19	19		4:11	4:20
+1ch-p20	1ch	p20	20		4:21	4:23
+1ch-p21	1ch	p21	21		4:24	4:43
+1ch-p22	1ch	p22	22		5:1	5:10
+1ch-p23	1ch	p23	23		5:11	5:17
+1ch-p24	1ch	p24	24		5:18	5:26
+1ch-p25	1ch	p25	25		6:1	6:15
+1ch-p26	1ch	p26	26		6:16	6:30
+1ch-p27	1ch	p27	27		6:31	6:48
+1ch-p28	1ch	p28	28		6:49	6:53
+1ch-p29	1ch	p29	29		6:54	6:81
+1ch-p30	1ch	p30	30		7:1	7:5
+1ch-p31	1ch	p31	31		7:6	7:13
+1ch-p32	1ch	p32	32		7:14	7:19
+1ch-p33	1ch	p33	33		7:20	7:29
+1ch-p34	1ch	p34	34		7:30	7:40
+1ch-p35	1ch	p35	35		8:1	8:16
+1ch-p36	1ch	p36	36		8:17	8:28
+1ch-p37	1ch	p37	37		8:29	8:40
+1ch-p38	1ch	p38	38		9:1	9:9
+1ch-p39	1ch	p39	39		9:10	9:16
+1ch-p40	1ch	p40	40		9:17	9:27
+1ch-p41	1ch	p41	41		9:28	9:34
+1ch-p42	1ch	p42	42		9:35	9:44
+1ch-p43	1ch	p43	43		10:1	10:14
+1ch-p44	1ch	p44	44		11:1	11:9
+1ch-p45	1ch	p45	45		11:10	11:19
+1ch-p46	1ch	p46	46		11:20	11:25
+1ch-p47	1ch	p47	47		11:26	11:47
+1ch-p48	1ch	p48	48		12:1	12:7
+1ch-p49	1ch	p49	49		12:8	12:15
+1ch-p50	1ch	p50	50		12:16	12:18
+1ch-p51	1ch	p51	51		12:19	12:22
+1ch-p52	1ch	p52	52		12:23	12:40
+1ch-p53	1ch	p53	53		13:1	13:14
+1ch-p54	1ch	p54	54		14:1	14:7
+1ch-p55	1ch	p55	55		14:8	14:17
+1ch-p56	1ch	p56	56		15:1	15:24
+1ch-p57	1ch	p57	57		15:25	16:7
+1ch-p58a	1ch	p58a	58	a	16:8	16:13
+1ch-p58b	1ch	p58b	58	b	16:14	16:22
+1ch-p58c	1ch	p58c	58	c	16:23	16:33
+1ch-p58d	1ch	p58d	58	d	16:34	16:36
+1ch-p59	1ch	p59	59		16:37	16:43
+1ch-p60	1ch	p60	60		17:1	17:15
+1ch-p61	1ch	p61	61		17:16	17:27
+1ch-p62	1ch	p62	62		18:1	18:13
+1ch-p63	1ch	p63	63		18:14	18:17
+1ch-p64	1ch	p64	64		19:1	19:9
+1ch-p65	1ch	p65	65		19:10	19:19
+1ch-p66	1ch	p66	66		20:1	20:3
+1ch-p67	1ch	p67	67		20:4	20:8
+1ch-p68	1ch	p68	68		21:1	21:6
+1ch-p69	1ch	p69	69		21:7	21:17
+1ch-p70	1ch	p70	70		21:18	22:1
+1ch-p71	1ch	p71	71		22:2	22:19
+1ch-p72	1ch	p72	72		23:1	23:6
+1ch-p73	1ch	p73	73		23:7	23:11
+1ch-p74	1ch	p74	74		23:12	23:20
+1ch-p75	1ch	p75	75		23:21	23:32
+1ch-p76	1ch	p76	76		24:1	24:19
+1ch-p77	1ch	p77	77		24:20	24:31
+1ch-p78a	1ch	p78a	78	a	25:1	25:7
+1ch-p78b	1ch	p78b	78	b	25:8	25:31
+1ch-p79	1ch	p79	79		26:1	26:19
+1ch-p80	1ch	p80	80		26:20	26:28
+1ch-p81	1ch	p81	81		26:29	26:32
+1ch-p82	1ch	p82	82		27:1	27:15
+1ch-p83	1ch	p83	83		27:16	27:24
+1ch-p84	1ch	p84	84		27:25	27:31
+1ch-p85	1ch	p85	85		27:32	27:34
+1ch-p86	1ch	p86	86		28:1	28:8
+1ch-p87	1ch	p87	87		28:9	28:21
+1ch-p88	1ch	p88	88		29:1	29:9
+1ch-p89	1ch	p89	89		29:10	29:20
+1ch-p90	1ch	p90	90		29:21	29:25
+1ch-p91	1ch	p91	91		29:26	29:30
+1co-p1	1co	p1	1		1:1	1:9
+1co-p2	1co	p2	2		1:10	1:17
+1co-p3	1co	p3	3		1:18	1:25
+1co-p4	1co	p4	4		1:26	1:31
+1co-p5	1co	p5	5		2:1	2:5
+1co-p6	1co	p6	6		2:6	2:16
+1co-p7	1co	p7	7		3:1	3:4
+1co-p8	1co	p8	8		3:5	3:9
+1co-p9	1co	p9	9		3:10	3:17
+1co-p10	1co	p10	10		3:18	3:23
+1co-p11	1co	p11	11		4:1	4:5
+1co-p12	1co	p12	12		4:6	4:13
+1co-p13	1co	p13	13		4:14	4:21
+1co-p14	1co	p14	14		5:1	5:13
+1co-p15	1co	p15	15		6:1	6:11
+1co-p16	1co	p16	16		6:12	6:20
+1co-p17	1co	p17	17		7:1	7:9
+1co-p18	1co	p18	18		7:10	7:16
+1co-p19	1co	p19	19		7:17	7:24
+1co-p20	1co	p20	20		7:25	7:31
+1co-p21	1co	p21	21		7:32	7:40
+1co-p22	1co	p22	22		8:1	8:13
+1co-p23	1co	p23	23		9:1	9:14
+1co-p24	1co	p24	24		9:15	9:23
+1co-p25	1co	p25	25		9:24	9:27
+1co-p26	1co	p26	26		10:1	10:13
+1co-p27	1co	p27	27		10:14	10:22
+1co-p28	1co	p28	28		10:23	11:1
+1co-p29	1co	p29	29		11:2	11:16
+1co-p30	1co	p30	30		11:17	11:26
+1co-p31	1co	p31	31		11:27	11:34
+1co-p32	1co	p32	32		12:1	12:11
+1co-p33	1co	p33	33		12:12	12:26
+1co-p34	1co	p34	34		12:27	12:31
+1co-p35	1co	p35	35		13:1	13:7
+1co-p36	1co	p36	36		13:8	13:13
+1co-p37	1co	p37	37		14:1	14:5
+1co-p38	1co	p38	38		14:6	14:19
+1co-p39	1co	p39	39		14:20	14:25
+1co-p40	1co	p40	40		14:26	14:33
+1co-p41	1co	p41	41		14:34	14:40
+1co-p42	1co	p42	42		15:1	15:11
+1co-p43	1co	p43	43		15:12	15:19
+1co-p44	1co	p44	44		15:20	15:28
+1co-p45	1co	p45	45		15:29	15:34
+1co-p46	1co	p46	46		15:35	15:41
+1co-p47	1co	p47	47		15:42	15:49
+1co-p48	1co	p48	48		15:50	15:58
+1co-p49	1co	p49	49		16:1	16:4
+1co-p50	1co	p50	50		16:5	16:12
+1co-p51	1co	p51	51		16:13	16:18
+1co-p52	1co	p52	52		16:19	16:24
+1jn-p1	1jn	p1	1		1:1	1:4
+1jn-p2	1jn	p2	2		1:5	2:2
+1jn-p3	1jn	p3	3		2:3	2:11
+1jn-p4	1jn	p4	4		2:12	2:17
+1jn-p5	1jn	p5	5		2:18	2:28
+1jn-p6	1jn	p6	6		2:29	3:10
+1jn-p7	1jn	p7	7		3:11	3:18
+1jn-p8	1jn	p8	8		3:19	3:24
+1jn-p9	1jn	p9	9		4:1	4:6
+1jn-p10	1jn	p10	10		4:7	4:12
+1jn-p11	1jn	p11	11		4:13	4:21
+1jn-p12	1jn	p12	12		5:1	5:5
+1jn-p13	1jn	p13	13		5:6	5:12
+1jn-p14	1jn	p14	14		5:13	5:21
+1ki-p1a	1ki	p1a	1	a	1:1	1:4
+1ki-p1b	1ki	p1b	1	b	1:5	1:10
+1ki-p2	1ki	p2	2		1:11	1:27
+1ki-p3	1ki	p3	3		1:28	1:37
+1ki-p4	1ki	p4	4		1:38	1:53
+1ki-p5	1ki	p5	5		2:1	2:12
+1ki-p6	1ki	p6	6		2:13	2:25
+1ki-p7	1ki	p7	7		2:26	2:35
+1ki-p8	1ki	p8	8		2:36	2:46
+1ki-p9	1ki	p9	9		3:1	3:15
+1ki-p10	1ki	p10	10		3:16	3:28
+1ki-p11	1ki	p11	11		4:1	4:19
+1ki-p12	1ki	p12	12		4:20	4:28
+1ki-p13	1ki	p13	13		4:29	4:34
+1ki-p14	1ki	p14	14		5:1	5:12
+1ki-p15	1ki	p15	15		5:13	5:18
+1ki-p16	1ki	p16	16		6:1	6:13
+1ki-p17	1ki	p17	17		6:14	6:38
+1ki-p18	1ki	p18	18		7:1	7:12
+1ki-p19	1ki	p19	19		7:13	7:22
+1ki-p20	1ki	p20	20		7:23	7:39
+1ki-p21	1ki	p21	21		7:40	7:51
+1ki-p22	1ki	p22	22		8:1	8:11
+1ki-p23	1ki	p23	23		8:12	8:21
+1ki-p24	1ki	p24	24		8:22	8:30
+1ki-p25	1ki	p25	25		8:31	8:53
+1ki-p26	1ki	p26	26		8:54	8:61
+1ki-p27	1ki	p27	27		8:62	8:66
+1ki-p28	1ki	p28	28		9:1	9:9
+1ki-p29	1ki	p29	29		9:10	9:25
+1ki-p30	1ki	p30	30		9:26	10:13
+1ki-p31	1ki	p31	31		10:14	10:29
+1ki-p32	1ki	p32	32		11:1	11:13
+1ki-p33	1ki	p33	33		11:14	11:25
+1ki-p34	1ki	p34	34		11:26	11:43
+1ki-p35	1ki	p35	35		12:1	12:15
+1ki-p36	1ki	p36	36		12:16	12:24
+1ki-p37	1ki	p37	37		12:25	12:33
+1ki-p38	1ki	p38	38		13:1	13:10
+1ki-p39a	1ki	p39a	39	a	13:11	13:22
+1ki-p39b	1ki	p39b	39	b	13:23	13:34
+1ki-p40a	1ki	p40a	40	a	14:1	14:11
+1ki-p40b	1ki	p40b	40	b	14:12	14:20
+1ki-p41	1ki	p41	41		14:21	14:31
+1ki-p42	1ki	p42	42		15:1	15:8
+1ki-p43	1ki	p43	43		15:9	15:24
+1ki-p44	1ki	p44	44		15:25	15:32
+1ki-p45	1ki	p45	45		15:33	16:7
+1ki-p46	1ki	p46	46		16:8	16:14
+1ki-p47	1ki	p47	47		16:15	16:20
+1ki-p48	1ki	p48	48		16:21	16:28
+1ki-p49	1ki	p49	49		16:29	16:34
+1ki-p50	1ki	p50	50		17:1	17:7
+1ki-p51	1ki	p51	51		17:8	17:16
+1ki-p52	1ki	p52	52		17:17	17:24
+1ki-p53	1ki	p53	53		18:1	18:15
+1ki-p54	1ki	p54	54		18:16	18:29
+1ki-p55	1ki	p55	55		18:30	18:40
+1ki-p56	1ki	p56	56		18:41	18:46
+1ki-p57	1ki	p57	57		19:1	19:8
+1ki-p58	1ki	p58	58		19:9	19:21
+1ki-p59	1ki	p59	59		20:1	20:12
+1ki-p60	1ki	p60	60		20:13	20:22
+1ki-p61	1ki	p61	61		20:23	20:34
+1ki-p62	1ki	p62	62		20:35	20:43
+1ki-p63	1ki	p63	63		21:1	21:16
+1ki-p64	1ki	p64	64		21:17	21:29
+1ki-p65	1ki	p65	65		22:1	22:12
+1ki-p66	1ki	p66	66		22:13	22:28
+1ki-p67	1ki	p67	67		22:29	22:40
+1ki-p68	1ki	p68	68		22:41	22:53
+1pe-p1	1pe	p1	1		1:1	1:5
+1pe-p2	1pe	p2	2		1:6	1:12
+1pe-p3	1pe	p3	3		1:13	1:16
+1pe-p4	1pe	p4	4		1:17	1:25
+1pe-p5	1pe	p5	5		2:1	2:10
+1pe-p6	1pe	p6	6		2:11	2:17
+1pe-p7	1pe	p7	7		2:18	2:25
+1pe-p8	1pe	p8	8		3:1	3:7
+1pe-p9	1pe	p9	9		3:8	3:12
+1pe-p10	1pe	p10	10		3:13	3:17
+1pe-p11	1pe	p11	11		3:18	3:22
+1pe-p12	1pe	p12	12		4:1	4:6
+1pe-p13	1pe	p13	13		4:7	4:11
+1pe-p14	1pe	p14	14		4:12	4:19
+1pe-p15	1pe	p15	15		5:1	5:7
+1pe-p16	1pe	p16	16		5:8	5:14
+1sa-p1	1sa	p1	1		1:1	1:8
+1sa-p2	1sa	p2	2		1:9	1:18
+1sa-p3	1sa	p3	3		1:19	1:28
+1sa-p4	1sa	p4	4		2:1	2:11
+1sa-p5	1sa	p5	5		2:12	2:26
+1sa-p6	1sa	p6	6		2:27	2:36
+1sa-p7	1sa	p7	7		3:1	3:14
+1sa-p8	1sa	p8	8		3:15	4:1a
+1sa-p9	1sa	p9	9		4:1b	4:11
+1sa-p10	1sa	p10	10		4:12	4:22
+1sa-p11	1sa	p11	11		5:1	5:12
+1sa-p12	1sa	p12	12		6:1	6:18
+1sa-p13	1sa	p13	13		6:19	7:2
+1sa-p14	1sa	p14	14		7:3	7:17
+1sa-p15	1sa	p15	15		8:1	8:9
+1sa-p16	1sa	p16	16		8:10	8:22
+1sa-p17	1sa	p17	17		9:1	9:14
+1sa-p18	1sa	p18	18		9:15	9:27
+1sa-p19	1sa	p19	19		10:1	10:16
+1sa-p20	1sa	p20	20		10:17	10:27
+1sa-p21	1sa	p21	21		11:1	11:15
+1sa-p22	1sa	p22	22		12:1	12:17
+1sa-p23	1sa	p23	23		12:18	12:25
+1sa-p24	1sa	p24	24		13:1	13:14
+1sa-p25	1sa	p25	25		13:15	13:23
+1sa-p26	1sa	p26	26		14:1	14:15
+1sa-p27	1sa	p27	27		14:16	14:23
+1sa-p28	1sa	p28	28		14:24	14:35
+1sa-p29	1sa	p29	29		14:36	14:46
+1sa-p30	1sa	p30	30		14:47	14:52
+1sa-p31	1sa	p31	31		15:1	15:9
+1sa-p32	1sa	p32	32		15:10	15:23
+1sa-p33	1sa	p33	33		15:24	15:35
+1sa-p34	1sa	p34	34		16:1	16:13
+1sa-p35	1sa	p35	35		16:14	16:23
+1sa-p36	1sa	p36	36		17:1	17:11
+1sa-p37	1sa	p37	37		17:12	17:19
+1sa-p38	1sa	p38	38		17:20	17:30
+1sa-p39	1sa	p39	39		17:31	17:40
+1sa-p40	1sa	p40	40		17:41	17:54
+1sa-p41	1sa	p41	41		17:55	18:5
+1sa-p42	1sa	p42	42		18:6	18:16
+1sa-p43	1sa	p43	43		18:17	18:30
+1sa-p44	1sa	p44	44		19:1	19:10
+1sa-p45	1sa	p45	45		19:11	19:24
+1sa-p46	1sa	p46	46		20:1	20:17
+1sa-p47	1sa	p47	47		20:18	20:34
+1sa-p48	1sa	p48	48		20:35	20:42
+1sa-p49a	1sa	p49a	49	a	21:1	21:9
+1sa-p49b	1sa	p49b	49	b	21:10	21:15
+1sa-p50	1sa	p50	50		22:1	22:10
+1sa-p51	1sa	p51	51		22:11	22:23
+1sa-p52	1sa	p52	52		23:1	23:14
+1sa-p53	1sa	p53	53		23:15	23:29
+1sa-p54	1sa	p54	54		24:1	24:7
+1sa-p55	1sa	p55	55		24:8	24:22
+1sa-p56	1sa	p56	56		25:1	25:13
+1sa-p57	1sa	p57	57		25:14	25:22
+1sa-p58	1sa	p58	58		25:23	25:38
+1sa-p59	1sa	p59	59		25:39	25:44
+1sa-p60	1sa	p60	60		26:1	26:12
+1sa-p61	1sa	p61	61		26:13	26:25
+1sa-p62	1sa	p62	62		27:1	28:2
+1sa-p63	1sa	p63	63		28:3	28:14
+1sa-p64	1sa	p64	64		28:15	28:25
+1sa-p65	1sa	p65	65		29:1	29:11
+1sa-p66	1sa	p66	66		30:1	30:15
+1sa-p67	1sa	p67	67		30:16	30:31
+1sa-p68	1sa	p68	68		31:1	31:13
+1th-p1	1th	p1	1		1:1	1:10
+1th-p2	1th	p2	2		2:1	2:8
+1th-p3a	1th	p3a	3	a	2:9	2:13
+1th-p3b	1th	p3b	3	b	2:14	2:16
+1th-p4	1th	p4	4		2:17	3:5
+1th-p5	1th	p5	5		3:6	3:13
+1th-p6	1th	p6	6		4:1	4:8
+1th-p7	1th	p7	7		4:9	4:12
+1th-p8	1th	p8	8		4:13	4:18
+1th-p9	1th	p9	9		5:1	5:11
+1th-p10	1th	p10	10		5:12	5:22
+1th-p11	1th	p11	11		5:23	5:28
+1ti-p1a	1ti	p1a	1	a	1:1	1:2
+1ti-p1b	1ti	p1b	1	b	1:3	1:7
+1ti-p2	1ti	p2	2		1:8	1:11
+1ti-p3	1ti	p3	3		1:12	1:20
+1ti-p4	1ti	p4	4		2:1	2:7
+1ti-p5	1ti	p5	5		2:8	2:15
+1ti-p6	1ti	p6	6		3:1	3:7
+1ti-p7	1ti	p7	7		3:8	3:13
+1ti-p8	1ti	p8	8		3:14	3:16
+1ti-p9	1ti	p9	9		4:1	4:5
+1ti-p10	1ti	p10	10		4:6	4:10
+1ti-p11	1ti	p11	11		4:11	4:16
+1ti-p12	1ti	p12	12		5:1	5:8
+1ti-p13	1ti	p13	13		5:9	5:16
+1ti-p14	1ti	p14	14		5:17	5:25
+1ti-p15	1ti	p15	15		6:1	6:2e
+1ti-p16	1ti	p16	16		6:2f	6:10
+1ti-p17	1ti	p17	17		6:11	6:16
+1ti-p18	1ti	p18	18		6:17	6:21
+2ch-p1	2ch	p1	1		1:1	1:6
+2ch-p2	2ch	p2	2		1:7	1:13
+2ch-p3	2ch	p3	3		1:14	1:17
+2ch-p4	2ch	p4	4		2:1	2:18
+2ch-p5	2ch	p5	5		3:1	3:14
+2ch-p6	2ch	p6	6		3:15	4:10
+2ch-p7	2ch	p7	7		4:11	5:1
+2ch-p8	2ch	p8	8		5:2	5:14
+2ch-p9	2ch	p9	9		6:1	6:11
+2ch-p10	2ch	p10	10		6:12	6:21
+2ch-p11	2ch	p11	11		6:22	6:39
+2ch-p12	2ch	p12	12		6:40	7:3
+2ch-p13	2ch	p13	13		7:4	7:10
+2ch-p14	2ch	p14	14		7:11	7:22
+2ch-p15	2ch	p15	15		8:1	8:18
+2ch-p16	2ch	p16	16		9:1	9:12
+2ch-p17	2ch	p17	17		9:13	9:31
+2ch-p18a	2ch	p18a	18	a	10:1	10:7
+2ch-p18b	2ch	p18b	18	b	10:8	10:19
+2ch-p19	2ch	p19	19		11:1	11:12
+2ch-p20	2ch	p20	20		11:13	11:17
+2ch-p21	2ch	p21	21		11:18	11:23
+2ch-p22	2ch	p22	22		12:1	12:16
+2ch-p23	2ch	p23	23		13:1	13:12
+2ch-p24	2ch	p24	24		13:13	14:1
+2ch-p25	2ch	p25	25		14:2	14:15
+2ch-p26	2ch	p26	26		15:1	15:19
+2ch-p27	2ch	p27	27		16:1	16:14
+2ch-p28	2ch	p28	28		17:1	17:9
+2ch-p29	2ch	p29	29		17:10	17:19
+2ch-p30	2ch	p30	30		18:1	18:8
+2ch-p31	2ch	p31	31		18:9	18:27
+2ch-p32	2ch	p32	32		18:28	18:34
+2ch-p33	2ch	p33	33		19:1	19:11
+2ch-p34	2ch	p34	34		20:1	20:12
+2ch-p35	2ch	p35	35		20:13	20:19
+2ch-p36	2ch	p36	36		20:20	20:30
+2ch-p37	2ch	p37	37		20:31	20:37
+2ch-p38	2ch	p38	38		21:1	21:10
+2ch-p39	2ch	p39	39		21:11	21:20
+2ch-p40	2ch	p40	40		22:1	22:12
+2ch-p41	2ch	p41	41		23:1	23:15
+2ch-p42	2ch	p42	42		23:16	23:21
+2ch-p43	2ch	p43	43		24:1	24:16
+2ch-p44	2ch	p44	44		24:17	24:27
+2ch-p45	2ch	p45	45		25:1	25:13
+2ch-p46	2ch	p46	46		25:14	25:28
+2ch-p47	2ch	p47	47		26:1	26:15
+2ch-p48	2ch	p48	48		26:16	26:23
+2ch-p49	2ch	p49	49		27:1	27:9
+2ch-p50	2ch	p50	50		28:1	28:8
+2ch-p51	2ch	p51	51		28:9	28:15
+2ch-p52	2ch	p52	52		28:16	28:27
+2ch-p53	2ch	p53	53		29:1	29:17
+2ch-p54a	2ch	p54a	54	a	29:18	29:30
+2ch-p54b	2ch	p54b	54	b	29:31	29:36
+2ch-p55	2ch	p55	55		30:1	30:12
+2ch-p56a	2ch	p56a	56	a	30:13	30:20
+2ch-p56b	2ch	p56b	56	b	30:21	30:27
+2ch-p57	2ch	p57	57		31:1	31:10
+2ch-p58	2ch	p58	58		31:11	31:21
+2ch-p59	2ch	p59	59		32:1	32:8
+2ch-p60	2ch	p60	60		32:9	32:23
+2ch-p61	2ch	p61	61		32:24	32:33
+2ch-p62	2ch	p62	62		33:1	33:9
+2ch-p63	2ch	p63	63		33:10	33:20
+2ch-p64	2ch	p64	64		33:21	33:25
+2ch-p65	2ch	p65	65		34:1	34:7
+2ch-p66	2ch	p66	66		34:8	34:21
+2ch-p67	2ch	p67	67		34:22	34:33
+2ch-p68	2ch	p68	68		35:1	35:19
+2ch-p69	2ch	p69	69		35:20	35:27
+2ch-p70	2ch	p70	70		36:1	36:16
+2ch-p71	2ch	p71	71		36:17	36:23
+2co-p1	2co	p1	1		1:1	1:7
+2co-p2	2co	p2	2		1:8	1:11
+2co-p3	2co	p3	3		1:12	1:22
+2co-p4	2co	p4	4		1:23	2:4
+2co-p5	2co	p5	5		2:5	2:11
+2co-p6	2co	p6	6		2:12	3:3
+2co-p7	2co	p7	7		3:4	3:11
+2co-p8	2co	p8	8		3:12	3:18
+2co-p9	2co	p9	9		4:1	4:6
+2co-p10	2co	p10	10		4:7	4:12
+2co-p11	2co	p11	11		4:13	4:18
+2co-p12	2co	p12	12		5:1	5:10
+2co-p13	2co	p13	13		5:11	5:15
+2co-p14	2co	p14	14		5:16	6:2
+2co-p15	2co	p15	15		6:3	6:13
+2co-p16	2co	p16	16		6:14	7:1
+2co-p17a	2co	p17a	17	a	7:2	7:4
+2co-p17b	2co	p17b	17	b	7:5	7:10
+2co-p18	2co	p18	18		7:11	7:16
+2co-p19	2co	p19	19		8:1	8:7
+2co-p20	2co	p20	20		8:8	8:15
+2co-p21	2co	p21	21		8:16	8:24
+2co-p22	2co	p22	22		9:1	9:5
+2co-p23	2co	p23	23		9:6	9:15
+2co-p24a	2co	p24a	24	a	10:1	10:6
+2co-p24b	2co	p24b	24	b	10:7	10:11
+2co-p25	2co	p25	25		10:12	10:18
+2co-p26a	2co	p26a	26	a	11:1	11:6
+2co-p26b	2co	p26b	26	b	11:7	11:15
+2co-p27	2co	p27	27		11:16	11:33
+2co-p28	2co	p28	28		12:1	12:10
+2co-p29	2co	p29	29		12:11	12:18
+2co-p30	2co	p30	30		12:19	12:21
+2co-p31a	2co	p31a	31	a	13:1	13:4
+2co-p31b	2co	p31b	31	b	13:5	13:10
+2co-p32	2co	p32	32		13:11	13:14
+2jn-p1	2jn	p1	1		1:1	1:3
+2jn-p2	2jn	p2	2		1:4	1:6
+2jn-p3	2jn	p3	3		1:7	1:13
+2ki-p1	2ki	p1	1		1:1	1:18
+2ki-p2	2ki	p2	2		2:1	2:12
+2ki-p3	2ki	p3	3		2:13	2:25
+2ki-p4a	2ki	p4a	4	a	3:1	3:9
+2ki-p4b	2ki	p4b	4	b	3:10	3:19
+2ki-p5	2ki	p5	5		3:20	3:25
+2ki-p6	2ki	p6	6		4:1	4:7
+2ki-p7	2ki	p7	7		4:8	4:17
+2ki-p8	2ki	p8	8		4:18	4:37
+2ki-p9	2ki	p9	9		4:38	4:44
+2ki-p10	2ki	p10	10		5:1	5:14
+2ki-p11	2ki	p11	11		5:15	5:27
+2ki-p12	2ki	p12	12		6:1	6:7
+2ki-p13	2ki	p13	13		6:8	6:23
+2ki-p14	2ki	p14	14		6:24	7:2
+2ki-p15	2ki	p15	15		7:3	7:20
+2ki-p16	2ki	p16	16		8:1	8:6
+2ki-p17	2ki	p17	17		8:7	8:15
+2ki-p18	2ki	p18	18		8:16	8:24
+2ki-p19	2ki	p19	19		8:25	8:29
+2ki-p20	2ki	p20	20		9:1	9:13
+2ki-p21	2ki	p21	21		9:14	9:29
+2ki-p22	2ki	p22	22		9:30	9:37
+2ki-p23	2ki	p23	23		10:1	10:17
+2ki-p24	2ki	p24	24		10:18	10:27
+2ki-p25	2ki	p25	25		10:28	10:36
+2ki-p26	2ki	p26	26		11:1	11:12
+2ki-p27	2ki	p27	27		11:13	11:21
+2ki-p28	2ki	p28	28		12:1	12:16
+2ki-p29	2ki	p29	29		12:17	12:21
+2ki-p30	2ki	p30	30		13:1	13:13
+2ki-p31	2ki	p31	31		13:14	13:25
+2ki-p32	2ki	p32	32		14:1	14:7
+2ki-p33	2ki	p33	33		14:8	14:16
+2ki-p34	2ki	p34	34		14:17	14:22
+2ki-p35	2ki	p35	35		14:23	14:29
+2ki-p36	2ki	p36	36		15:1	15:7
+2ki-p37	2ki	p37	37		15:8	15:16
+2ki-p38	2ki	p38	38		15:17	15:22
+2ki-p39	2ki	p39	39		15:23	15:31
+2ki-p40	2ki	p40	40		15:32	15:38
+2ki-p41	2ki	p41	41		16:1	16:9
+2ki-p42	2ki	p42	42		16:10	16:20
+2ki-p43	2ki	p43	43		17:1	17:6
+2ki-p44	2ki	p44	44		17:7	17:23
+2ki-p45	2ki	p45	45		17:24	17:41
+2ki-p46	2ki	p46	46		18:1	18:12
+2ki-p47	2ki	p47	47		18:13	18:18
+2ki-p48	2ki	p48	48		18:19	18:25
+2ki-p49	2ki	p49	49		18:26	18:37
+2ki-p50	2ki	p50	50		19:1	19:7
+2ki-p51	2ki	p51	51		19:8	19:13
+2ki-p52	2ki	p52	52		19:14	19:19
+2ki-p53a	2ki	p53a	53	a	19:20	19:28
+2ki-p53b	2ki	p53b	53	b	19:29	19:37
+2ki-p54	2ki	p54	54		20:1	20:11
+2ki-p55	2ki	p55	55		20:12	20:21
+2ki-p56	2ki	p56	56		21:1	21:9
+2ki-p57	2ki	p57	57		21:10	21:18
+2ki-p58	2ki	p58	58		21:19	21:26
+2ki-p59	2ki	p59	59		22:1	22:7
+2ki-p60	2ki	p60	60		22:8	22:20
+2ki-p61	2ki	p61	61		23:1	23:7
+2ki-p62	2ki	p62	62		23:8	23:14
+2ki-p63	2ki	p63	63		23:15	23:20
+2ki-p64	2ki	p64	64		23:21	23:30
+2ki-p65	2ki	p65	65		23:31	24:7
+2ki-p66	2ki	p66	66		24:8	24:17
+2ki-p67	2ki	p67	67		24:18	25:7
+2ki-p68	2ki	p68	68		25:8	25:21
+2ki-p69	2ki	p69	69		25:22	25:26
+2ki-p70	2ki	p70	70		25:27	25:30
+2pe-p1	2pe	p1	1		1:1	1:4
+2pe-p2	2pe	p2	2		1:5	1:11
+2pe-p3	2pe	p3	3		1:12	1:15
+2pe-p4	2pe	p4	4		1:16	1:21
+2pe-p5	2pe	p5	5		2:1	2:3
+2pe-p6	2pe	p6	6		2:4	2:10a
+2pe-p7	2pe	p7	7		2:10b	2:16
+2pe-p8	2pe	p8	8		2:17	2:22
+2pe-p9	2pe	p9	9		3:1	3:7
+2pe-p10	2pe	p10	10		3:8	3:13
+2pe-p11	2pe	p11	11		3:14	3:18
+2sa-p1	2sa	p1	1		1:1	1:16
+2sa-p2	2sa	p2	2		1:17	1:27
+2sa-p3	2sa	p3	3		2:1	2:7
+2sa-p4	2sa	p4	4		2:8	2:11
+2sa-p5	2sa	p5	5		2:12	2:17
+2sa-p6	2sa	p6	6		2:18	3:1
+2sa-p7	2sa	p7	7		3:2	3:5
+2sa-p8	2sa	p8	8		3:6	3:21
+2sa-p9	2sa	p9	9		3:22	3:30
+2sa-p10	2sa	p10	10		3:31	3:39
+2sa-p11	2sa	p11	11		4:1	4:12
+2sa-p12	2sa	p12	12		5:1	5:16
+2sa-p13	2sa	p13	13		5:17	5:25
+2sa-p14	2sa	p14	14		6:1	6:15
+2sa-p15	2sa	p15	15		6:16	6:23
+2sa-p16	2sa	p16	16		7:1	7:17
+2sa-p17	2sa	p17	17		7:18	7:29
+2sa-p18	2sa	p18	18		8:1	8:14
+2sa-p19	2sa	p19	19		8:15	8:18
+2sa-p20	2sa	p20	20		9:1	9:13
+2sa-p21	2sa	p21	21		10:1	10:19
+2sa-p22	2sa	p22	22		11:1	11:13
+2sa-p23	2sa	p23	23		11:14	11:27
+2sa-p24	2sa	p24	24		12:1	12:15a
+2sa-p25	2sa	p25	25		12:15b	12:25
+2sa-p26	2sa	p26	26		12:26	12:31
+2sa-p27a	2sa	p27a	27	a	13:1	13:9
+2sa-p27b	2sa	p27b	27	b	13:10	13:22
+2sa-p28	2sa	p28	28		13:23	13:39
+2sa-p29a	2sa	p29a	29	a	14:1	14:11
+2sa-p29b	2sa	p29b	29	b	14:12	14:24
+2sa-p30	2sa	p30	30		14:25	14:33
+2sa-p31	2sa	p31	31		15:1	15:12
+2sa-p32	2sa	p32	32		15:13	15:23
+2sa-p33	2sa	p33	33		15:24	15:37
+2sa-p34	2sa	p34	34		16:1	16:4
+2sa-p35	2sa	p35	35		16:5	16:14
+2sa-p36	2sa	p36	36		16:15	16:23
+2sa-p37	2sa	p37	37		17:1	17:14
+2sa-p38	2sa	p38	38		17:15	17:29
+2sa-p39a	2sa	p39a	39	a	18:1	18:8
+2sa-p39b	2sa	p39b	39	b	18:9	18:18
+2sa-p40	2sa	p40	40		18:19	18:33
+2sa-p41	2sa	p41	41		19:1	19:8a
+2sa-p42	2sa	p42	42		19:8b	19:18a
+2sa-p43	2sa	p43	43		19:18b	19:23
+2sa-p44	2sa	p44	44		19:24	19:30
+2sa-p45	2sa	p45	45		19:31	19:39
+2sa-p46	2sa	p46	46		19:40	19:43
+2sa-p47	2sa	p47	47		20:1	20:22
+2sa-p48	2sa	p48	48		20:23	20:26
+2sa-p49	2sa	p49	49		21:1	21:14
+2sa-p50	2sa	p50	50		21:15	21:22
+2sa-p51a	2sa	p51a	51	a	22:1	22:4
+2sa-p51b	2sa	p51b	51	b	22:5	22:20
+2sa-p51c	2sa	p51c	51	c	22:21	22:29
+2sa-p51d	2sa	p51d	51	d	22:30	22:46
+2sa-p51e	2sa	p51e	51	e	22:47	22:51
+2sa-p52	2sa	p52	52		23:1	23:7
+2sa-p53	2sa	p53	53		23:8	23:17
+2sa-p54	2sa	p54	54		23:18	23:23
+2sa-p55	2sa	p55	55		23:24	23:39
+2sa-p56	2sa	p56	56		24:1	24:9
+2sa-p57	2sa	p57	57		24:10	24:17
+2sa-p58	2sa	p58	58		24:18	24:25
+2th-p1	2th	p1	1		1:1	1:4
+2th-p2	2th	p2	2		1:5	1:12
+2th-p3	2th	p3	3		2:1	2:12
+2th-p4	2th	p4	4		2:13	2:17
+2th-p5	2th	p5	5		3:1	3:5
+2th-p6	2th	p6	6		3:6	3:18
+2ti-p1	2ti	p1	1		1:1	1:7
+2ti-p2	2ti	p2	2		1:8	1:14
+2ti-p3	2ti	p3	3		1:15	1:18
+2ti-p4	2ti	p4	4		2:1	2:7
+2ti-p5	2ti	p5	5		2:8	2:13
+2ti-p6	2ti	p6	6		2:14	2:19
+2ti-p7	2ti	p7	7		2:20	2:26
+2ti-p8	2ti	p8	8		3:1	3:9
+2ti-p9	2ti	p9	9		3:10	3:17
+2ti-p10	2ti	p10	10		4:1	4:8
+2ti-p11	2ti	p11	11		4:9	4:22
+3jn-p1	3jn	p1	1		1:1	1:8
+3jn-p2	3jn	p2	2		1:9	1:10
+3jn-p3	3jn	p3	3		1:11	1:15
+act-p1a	act	p1a	1	a	1:1	1:5
+act-p1b	act	p1b	1	b	1:6	1:11
+act-p2	act	p2	2		1:12	1:14
+act-p3	act	p3	3		1:15	1:26
+act-p4	act	p4	4		2:1	2:13
+act-p5a	act	p5a	5	a	2:14	2:36
+act-p5b	act	p5b	5	b	2:37	2:41
+act-p6	act	p6	6		2:42	2:47
+act-p7	act	p7	7		3:1	3:10
+act-p8	act	p8	8		3:11	3:26
+act-p9	act	p9	9		4:1	4:22
+act-p10	act	p10	10		4:23	4:31
+act-p11	act	p11	11		4:32	4:37
+act-p12	act	p12	12		5:1	5:11
+act-p13	act	p13	13		5:12	5:16
+act-p14a	act	p14a	14	a	5:17	5:26
+act-p14b	act	p14b	14	b	5:27	5:42
+act-p15	act	p15	15		6:1	6:7
+act-p16	act	p16	16		6:8	6:15
+act-p17a	act	p17a	17	a	7:1	7:8
+act-p17b	act	p17b	17	b	7:9	7:19
+act-p17c	act	p17c	17	c	7:20	7:34
+act-p18a	act	p18a	18	a	7:35	7:43
+act-p18b	act	p18b	18	b	7:44	7:53
+act-p19	act	p19	19		7:54	8:3
+act-p20	act	p20	20		8:4	8:25
+act-p21	act	p21	21		8:26	8:40
+act-p22a	act	p22a	22	a	9:1	9:19a
+act-p22b	act	p22b	22	b	9:19b	9:31
+act-p23	act	p23	23		9:32	9:35
+act-p24	act	p24	24		9:36	9:43
+act-p25a	act	p25a	25	a	10:1	10:8
+act-p25b	act	p25b	25	b	10:9	10:23a
+act-p25c	act	p25c	25	c	10:23b	10:33
+act-p25d	act	p25d	25	d	10:34	10:48
+act-p26	act	p26	26		11:1	11:18
+act-p27	act	p27	27		11:19	11:26
+act-p28	act	p28	28		11:27	11:30
+act-p29	act	p29	29		12:1	12:5
+act-p30	act	p30	30		12:6	12:19
+act-p31	act	p31	31		12:20	12:24
+act-p32	act	p32	32		12:25	13:3
+act-p33	act	p33	33		13:4	13:12
+act-p34	act	p34	34		13:13	13:22
+act-p35a	act	p35a	35	a	13:23	13:41
+act-p35b	act	p35b	35	b	13:42	13:52
+act-p36	act	p36	36		14:1	14:7
+act-p37	act	p37	37		14:8	14:20
+act-p38	act	p38	38		14:21	14:28
+act-p39a	act	p39a	39	a	15:1	15:21
+act-p39b	act	p39b	39	b	15:22	15:35
+act-p40	act	p40	40		15:36	15:41
+act-p41a	act	p41a	41	a	16:1	16:5
+act-p41b	act	p41b	41	b	16:6	16:15
+act-p41c	act	p41c	41	c	16:16	16:24
+act-p41d	act	p41d	41	d	16:25	16:40
+act-p42	act	p42	42		17:1	17:9
+act-p43	act	p43	43		17:10	17:15
+act-p44a	act	p44a	44	a	17:16	17:21
+act-p44b	act	p44b	44	b	17:22	17:34
+act-p45	act	p45	45		18:1	18:17
+act-p46	act	p46	46		18:18	18:23
+act-p47	act	p47	47		18:24	18:28
+act-p48	act	p48	48		19:1	19:7
+act-p49	act	p49	49		19:8	19:10
+act-p50	act	p50	50		19:11	19:20
+act-p51	act	p51	51		19:21	19:41
+act-p52	act	p52	52		20:1	20:6
+act-p53	act	p53	53		20:7	20:12
+act-p54	act	p54	54		20:13	20:17
+act-p55	act	p55	55		20:18	20:38
+act-p56	act	p56	56		21:1	21:9
+act-p57	act	p57	57		21:10	21:14
+act-p58	act	p58	58		21:15	21:26
+act-p59	act	p59	59		21:27	21:36
+act-p60	act	p60	60		21:37	22:21
+act-p61	act	p61	61		22:22	22:29
+act-p62	act	p62	62		22:30	23:11
+act-p63	act	p63	63		23:12	23:35
+act-p64	act	p64	64		24:1	24:9
+act-p65	act	p65	65		24:10	24:23
+act-p66	act	p66	66		24:24	24:27
+act-p67	act	p67	67		25:1	25:5
+act-p68	act	p68	68		25:6	25:12
+act-p69	act	p69	69		25:13	25:22
+act-p70	act	p70	70		25:23	25:27
+act-p71a	act	p71a	71	a	26:1	26:23
+act-p71b	act	p71b	71	b	26:24	26:32
+act-p72	act	p72	72		27:1	27:8
+act-p73a	act	p73a	73	a	27:9	27:26
+act-p73b	act	p73b	73	b	27:27	27:38
+act-p74	act	p74	74		27:39	27:44
+act-p75	act	p75	75		28:1	28:10
+act-p76	act	p76	76		28:11	28:16
+act-p77	act	p77	77		28:17	28:31
+col-p1	col	p1	1		1:1	1:8
+col-p2	col	p2	2		1:9	1:14
+col-p3	col	p3	3		1:15	1:20
+col-p4	col	p4	4		1:21	1:23
+col-p5	col	p5	5		1:24	1:29
+col-p6	col	p6	6		2:1	2:5
+col-p7	col	p7	7		2:6	2:15
+col-p8	col	p8	8		2:16	2:23
+col-p9	col	p9	9		3:1	3:4
+col-p10	col	p10	10		3:5	3:11
+col-p11	col	p11	11		3:12	3:17
+col-p12	col	p12	12		3:18	3:21
+col-p13	col	p13	13		3:22	4:1
+col-p14	col	p14	14		4:2	4:6
+col-p15	col	p15	15		4:7	4:9
+col-p16	col	p16	16		4:10	4:18
+dan-p1	dan	p1	1		1:1	1:7
+dan-p2	dan	p2	2		1:8	1:21
+dan-p3	dan	p3	3		2:1	2:13
+dan-p4	dan	p4	4		2:14	2:23
+dan-p5	dan	p5	5		2:24	2:30
+dan-p6	dan	p6	6		2:31	2:45
+dan-p7	dan	p7	7		2:46	2:49
+dan-p8	dan	p8	8		3:1	3:7
+dan-p9	dan	p9	9		3:8	3:18
+dan-p10	dan	p10	10		3:19	3:30
+dan-p11a	dan	p11a	11	a	4:1	4:8
+dan-p11b	dan	p11b	11	b	4:9	4:18
+dan-p12	dan	p12	12		4:19	4:27
+dan-p13	dan	p13	13		4:28	4:37
+dan-p14	dan	p14	14		5:1	5:12
+dan-p15	dan	p15	15		5:13	5:31
+dan-p16	dan	p16	16		6:1	6:9
+dan-p17	dan	p17	17		6:10	6:18
+dan-p18	dan	p18	18		6:19	6:28
+dan-p19	dan	p19	19		7:1	7:8
+dan-p20	dan	p20	20		7:9	7:14
+dan-p21	dan	p21	21		7:15	7:28
+dan-p22	dan	p22	22		8:1	8:14
+dan-p23	dan	p23	23		8:15	8:27
+dan-p24a	dan	p24a	24	a	9:1	9:14
+dan-p24b	dan	p24b	24	b	9:15	9:19
+dan-p25	dan	p25	25		9:20	9:27
+dan-p26	dan	p26	26		10:1	10:9
+dan-p27	dan	p27	27		10:10	11:1
+dan-p28a	dan	p28a	28	a	11:2	11:13
+dan-p28b	dan	p28b	28	b	11:14	11:20
+dan-p29a	dan	p29a	29	a	11:21	11:28
+dan-p29b	dan	p29b	29	b	11:29	11:35
+dan-p30	dan	p30	30		11:36	12:3
+dan-p31	dan	p31	31		12:4	12:13
+deu-p1	deu	p1	1		1:1	1:8
+deu-p2	deu	p2	2		1:9	1:18
+deu-p3	deu	p3	3		1:19	1:33
+deu-p4	deu	p4	4		1:34	1:46
+deu-p5	deu	p5	5		2:1	2:15
+deu-p6	deu	p6	6		2:16	2:25
+deu-p7	deu	p7	7		2:26	2:37
+deu-p8	deu	p8	8		3:1	3:11
+deu-p9	deu	p9	9		3:12	3:17
+deu-p10	deu	p10	10		3:18	3:22
+deu-p11	deu	p11	11		3:23	3:29
+deu-p12	deu	p12	12		4:1	4:8
+deu-p13	deu	p13	13		4:9	4:14
+deu-p14	deu	p14	14		4:15	4:24
+deu-p15	deu	p15	15		4:25	4:31
+deu-p16	deu	p16	16		4:32	4:40
+deu-p17	deu	p17	17		4:41	4:49
+deu-p18	deu	p18	18		5:1	5:5
+deu-p19	deu	p19	19		5:6	5:11
+deu-p20	deu	p20	20		5:12	5:21
+deu-p21	deu	p21	21		5:22	5:27
+deu-p22	deu	p22	22		5:28	5:33
+deu-p23	deu	p23	23		6:1	6:9
+deu-p24a	deu	p24a	24	a	6:10	6:19
+deu-p24b	deu	p24b	24	b	6:20	6:25
+deu-p25	deu	p25	25		7:1	7:11
+deu-p26a	deu	p26a	26	a	7:12	7:16
+deu-p26b	deu	p26b	26	b	7:17	7:26
+deu-p27	deu	p27	27		8:1	8:10
+deu-p28	deu	p28	28		8:11	8:20
+deu-p29	deu	p29	29		9:1	9:6
+deu-p30	deu	p30	30		9:7	9:17
+deu-p31	deu	p31	31		9:18	9:29
+deu-p32	deu	p32	32		10:1	10:5
+deu-p33	deu	p33	33		10:6	10:11
+deu-p34	deu	p34	34		10:12	10:22
+deu-p35	deu	p35	35		11:1	11:12
+deu-p36	deu	p36	36		11:13	11:21
+deu-p37	deu	p37	37		11:22	11:32
+deu-p38	deu	p38	38		12:1	12:14
+deu-p39	deu	p39	39		12:15	12:28
+deu-p40	deu	p40	40		12:29	13:5
+deu-p41a	deu	p41a	41	a	13:6	13:11
+deu-p41b	deu	p41b	41	b	13:12	13:18
+deu-p42	deu	p42	42		14:1	14:10
+deu-p43	deu	p43	43		14:11	14:21
+deu-p44	deu	p44	44		14:22	14:29
+deu-p45	deu	p45	45		15:1	15:11
+deu-p46	deu	p46	46		15:12	15:18
+deu-p47	deu	p47	47		15:19	15:23
+deu-p48	deu	p48	48		16:1	16:8
+deu-p49	deu	p49	49		16:9	16:17
+deu-p50	deu	p50	50		16:18	17:7
+deu-p51	deu	p51	51		17:8	17:13
+deu-p52	deu	p52	52		17:14	17:20
+deu-p53	deu	p53	53		18:1	18:8
+deu-p54	deu	p54	54		18:9	18:14
+deu-p55	deu	p55	55		18:15	18:22
+deu-p56	deu	p56	56		19:1	19:13
+deu-p57	deu	p57	57		19:14	19:21
+deu-p58	deu	p58	58		20:1	20:9
+deu-p59	deu	p59	59		20:10	20:20
+deu-p60	deu	p60	60		21:1	21:9
+deu-p61	deu	p61	61		21:10	21:21
+deu-p62	deu	p62	62		21:22	22:5
+deu-p63	deu	p63	63		22:6	22:12
+deu-p64	deu	p64	64		22:13	22:21
+deu-p65	deu	p65	65		22:22	22:30
+deu-p66	deu	p66	66		23:1	23:8
+deu-p67	deu	p67	67		23:9	23:14
+deu-p68	deu	p68	68		23:15	23:20
+deu-p69	deu	p69	69		23:21	23:25
+deu-p70	deu	p70	70		24:1	24:9
+deu-p71	deu	p71	71		24:10	24:16
+deu-p72	deu	p72	72		24:17	24:22
+deu-p73	deu	p73	73		25:1	25:10
+deu-p74	deu	p74	74		25:11	25:19
+deu-p75	deu	p75	75		26:1	26:11
+deu-p76	deu	p76	76		26:12	26:19
+deu-p77	deu	p77	77		27:1	27:10
+deu-p78	deu	p78	78		27:11	27:17
+deu-p79	deu	p79	79		27:18	27:26
+deu-p80a	deu	p80a	80	a	28:1	28:6
+deu-p80b	deu	p80b	80	b	28:7	28:14
+deu-p81	deu	p81	81		28:15	28:24
+deu-p82	deu	p82	82		28:25	28:37
+deu-p83	deu	p83	83		28:38	28:46
+deu-p84	deu	p84	84		28:47	28:57
+deu-p85a	deu	p85a	85	a	28:58	28:62
+deu-p85b	deu	p85b	85	b	28:63	28:68
+deu-p86	deu	p86	86		29:1	29:8
+deu-p87	deu	p87	87		29:9	29:15
+deu-p88a	deu	p88a	88	a	29:16	29:21
+deu-p88b	deu	p88b	88	b	29:22	29:29
+deu-p89	deu	p89	89		30:1	30:10
+deu-p90	deu	p90	90		30:11	30:20
+deu-p91	deu	p91	91		31:1	31:8
+deu-p92	deu	p92	92		31:9	31:13
+deu-p93	deu	p93	93		31:14	31:23
+deu-p94	deu	p94	94		31:24	31:29
+deu-p95	deu	p95	95		31:30	32:6
+deu-p96	deu	p96	96		32:7	32:14
+deu-p97	deu	p97	97		32:15	32:25
+deu-p98	deu	p98	98		32:26	32:35
+deu-p99	deu	p99	99		32:36	32:44
+deu-p100	deu	p100	100		32:45	32:52
+deu-p101	deu	p101	101		33:1	33:11
+deu-p102	deu	p102	102		33:12	33:21
+deu-p103	deu	p103	103		33:22	33:29
+deu-p104	deu	p104	104		34:1	34:12
+eph-p1	eph	p1	1		1:1	1:6
+eph-p2a	eph	p2a	2	a	1:7	1:10
+eph-p2b	eph	p2b	2	b	1:11	1:14
+eph-p3	eph	p3	3		1:15	1:23
+eph-p4	eph	p4	4		2:1	2:10
+eph-p5	eph	p5	5		2:11	2:18
+eph-p6	eph	p6	6		2:19	2:22
+eph-p7	eph	p7	7		3:1	3:6
+eph-p8	eph	p8	8		3:7	3:13
+eph-p9	eph	p9	9		3:14	3:21
+eph-p10	eph	p10	10		4:1	4:6
+eph-p11	eph	p11	11		4:7	4:16
+eph-p12	eph	p12	12		4:17	4:24
+eph-p13	eph	p13	13		4:25	4:32
+eph-p14	eph	p14	14		5:1	5:6
+eph-p15	eph	p15	15		5:7	5:14
+eph-p16	eph	p16	16		5:15	5:21
+eph-p17	eph	p17	17		5:22	5:33
+eph-p18	eph	p18	18		6:1	6:9
+eph-p19	eph	p19	19		6:10	6:20
+eph-p20	eph	p20	20		6:21	6:24
+est-p1	est	p1	1		1:1	1:9
+est-p2	est	p2	2		1:10	1:22
+est-p3	est	p3	3		2:1	2:11
+est-p4	est	p4	4		2:12	2:18
+est-p5	est	p5	5		2:19	2:23
+est-p6	est	p6	6		3:1	3:6
+est-p7	est	p7	7		3:7	3:15
+est-p8	est	p8	8		4:1	4:11
+est-p9	est	p9	9		4:12	4:17
+est-p10	est	p10	10		5:1	5:8
+est-p11	est	p11	11		5:9	5:14
+est-p12	est	p12	12		6:1	6:14
+est-p13	est	p13	13		7:1	7:10
+est-p14	est	p14	14		8:1	8:8
+est-p15	est	p15	15		8:9	8:17
+est-p16	est	p16	16		9:1	9:10
+est-p17	est	p17	17		9:11	9:19
+est-p18	est	p18	18		9:20	9:32
+est-p19	est	p19	19		10:1	10:3
+exo-p1	exo	p1	1		1:1	1:7
+exo-p2	exo	p2	2		1:8	1:14
+exo-p3	exo	p3	3		1:15	1:22
+exo-p4	exo	p4	4		2:1	2:10
+exo-p5	exo	p5	5		2:11	2:15
+exo-p6	exo	p6	6		2:16	2:25
+exo-p7	exo	p7	7		3:1	3:10
+exo-p8	exo	p8	8		3:11	3:22
+exo-p9	exo	p9	9		4:1	4:17
+exo-p10	exo	p10	10		4:18	4:31
+exo-p11	exo	p11	11		5:1	5:21
+exo-p12	exo	p12	12		5:22	6:13
+exo-p13	exo	p13	13		6:14	6:27
+exo-p14	exo	p14	14		6:28	7:13
+exo-p15	exo	p15	15		7:14	7:25
+exo-p16	exo	p16	16		8:1	8:15
+exo-p17	exo	p17	17		8:16	8:19
+exo-p18	exo	p18	18		8:20	8:32
+exo-p19	exo	p19	19		9:1	9:7
+exo-p20	exo	p20	20		9:8	9:12
+exo-p21a	exo	p21a	21	a	9:13	9:21
+exo-p21b	exo	p21b	21	b	9:22	9:35
+exo-p22	exo	p22	22		10:1	10:20
+exo-p23	exo	p23	23		10:21	10:29
+exo-p24	exo	p24	24		11:1	11:10
+exo-p25	exo	p25	25		12:1	12:13
+exo-p26	exo	p26	26		12:14	12:28
+exo-p27	exo	p27	27		12:29	12:42
+exo-p28	exo	p28	28		12:43	12:51
+exo-p29	exo	p29	29		13:1	13:16
+exo-p30	exo	p30	30		13:17	13:22
+exo-p31	exo	p31	31		14:1	14:14
+exo-p32	exo	p32	32		14:15	14:31
+exo-p33a	exo	p33a	33	a	15:1	15:10
+exo-p33b	exo	p33b	33	b	15:11	15:18
+exo-p34	exo	p34	34		15:19	15:27
+exo-p35	exo	p35	35		16:1	16:12
+exo-p36	exo	p36	36		16:13	16:21
+exo-p37	exo	p37	37		16:22	16:36
+exo-p38	exo	p38	38		17:1	17:7
+exo-p39	exo	p39	39		17:8	17:16
+exo-p40	exo	p40	40		18:1	18:12
+exo-p41	exo	p41	41		18:13	18:27
+exo-p42	exo	p42	42		19:1	19:15
+exo-p43	exo	p43	43		19:16	19:25
+exo-p44	exo	p44	44		20:1	20:7
+exo-p45	exo	p45	45		20:8	20:17
+exo-p46	exo	p46	46		20:18	20:26
+exo-p47	exo	p47	47		21:1	21:11
+exo-p48	exo	p48	48		21:12	21:17
+exo-p49	exo	p49	49		21:18	21:27
+exo-p50	exo	p50	50		21:28	21:36
+exo-p51a	exo	p51a	51	a	22:1	22:6
+exo-p51b	exo	p51b	51	b	22:7	22:15
+exo-p52	exo	p52	52		22:16	22:24
+exo-p53	exo	p53	53		22:25	22:31
+exo-p54	exo	p54	54		23:1	23:9
+exo-p55	exo	p55	55		23:10	23:19
+exo-p56	exo	p56	56		23:20	23:33
+exo-p57	exo	p57	57		24:1	24:8
+exo-p58	exo	p58	58		24:9	24:18
+exo-p59	exo	p59	59		25:1	25:9
+exo-p60	exo	p60	60		25:10	25:22
+exo-p61	exo	p61	61		25:23	25:30
+exo-p62	exo	p62	62		25:31	25:40
+exo-p63	exo	p63	63		26:1	26:14
+exo-p64	exo	p64	64		26:15	26:30
+exo-p65	exo	p65	65		26:31	26:37
+exo-p66	exo	p66	66		27:1	27:8
+exo-p67	exo	p67	67		27:9	27:21
+exo-p68	exo	p68	68		28:1	28:14
+exo-p69	exo	p69	69		28:15	28:30
+exo-p70	exo	p70	70		28:31	28:43
+exo-p71	exo	p71	71		29:1	29:9
+exo-p72	exo	p72	72		29:10	29:18
+exo-p73	exo	p73	73		29:19	29:28
+exo-p74	exo	p74	74		29:29	29:37
+exo-p75	exo	p75	75		29:38	29:46
+exo-p76	exo	p76	76		30:1	30:10
+exo-p77	exo	p77	77		30:11	30:16
+exo-p78	exo	p78	78		30:17	30:21
+exo-p79	exo	p79	79		30:22	30:33
+exo-p80	exo	p80	80		30:34	30:38
+exo-p81	exo	p81	81		31:1	31:11
+exo-p82	exo	p82	82		31:12	31:18
+exo-p83	exo	p83	83		32:1	32:14
+exo-p84	exo	p84	84		32:15	32:24
+exo-p85	exo	p85	85		32:25	32:35
+exo-p86	exo	p86	86		33:1	33:11
+exo-p87	exo	p87	87		33:12	33:23
+exo-p88	exo	p88	88		34:1	34:9
+exo-p89	exo	p89	89		34:10	34:17
+exo-p90	exo	p90	90		34:18	34:28
+exo-p91	exo	p91	91		34:29	34:35
+exo-p92	exo	p92	92		35:1	35:19
+exo-p93	exo	p93	93		35:20	35:29
+exo-p94	exo	p94	94		35:30	36:7
+exo-p95	exo	p95	95		36:8	36:19
+exo-p96	exo	p96	96		36:20	36:34
+exo-p97	exo	p97	97		36:35	36:38
+exo-p98	exo	p98	98		37:1	37:9
+exo-p99	exo	p99	99		37:10	37:16
+exo-p100	exo	p100	100		37:17	37:24
+exo-p101	exo	p101	101		37:25	38:8
+exo-p102	exo	p102	102		38:9	38:20
+exo-p103	exo	p103	103		38:21	38:31
+exo-p104	exo	p104	104		39:1	39:7
+exo-p105	exo	p105	105		39:8	39:21
+exo-p106	exo	p106	106		39:22	39:31
+exo-p107	exo	p107	107		39:32	39:43
+exo-p108	exo	p108	108		40:1	40:15
+exo-p109	exo	p109	109		40:16	40:33
+exo-p110	exo	p110	110		40:34	40:38
+ezr-p1	ezr	p1	1		1:1	1:11
+ezr-p2a	ezr	p2a	2	a	2:1	2:20
+ezr-p2b	ezr	p2b	2	b	2:21	2:35
+ezr-p2c	ezr	p2c	2	c	2:36	2:42
+ezr-p2d	ezr	p2d	2	d	2:43	2:58
+ezr-p2e	ezr	p2e	2	e	2:59	2:63
+ezr-p2f	ezr	p2f	2	f	2:64	2:70
+ezr-p3	ezr	p3	3		3:1	3:7
+ezr-p4	ezr	p4	4		3:8	3:13
+ezr-p5	ezr	p5	5		4:1	4:6
+ezr-p6	ezr	p6	6		4:7	4:16
+ezr-p7	ezr	p7	7		4:17	4:24
+ezr-p8	ezr	p8	8		5:1	5:5
+ezr-p9	ezr	p9	9		5:6	5:17
+ezr-p10	ezr	p10	10		6:1	6:12
+ezr-p11	ezr	p11	11		6:13	6:18
+ezr-p12	ezr	p12	12		6:19	6:22
+ezr-p13	ezr	p13	13		7:1	7:10
+ezr-p14	ezr	p14	14		7:11	7:28
+ezr-p15	ezr	p15	15		8:1	8:14
+ezr-p16	ezr	p16	16		8:15	8:23
+ezr-p17	ezr	p17	17		8:24	8:30
+ezr-p18	ezr	p18	18		8:31	8:36
+ezr-p19a	ezr	p19a	19	a	9:1	9:4
+ezr-p19b	ezr	p19b	19	b	9:5	9:15
+ezr-p20a	ezr	p20a	20	a	10:1	10:8
+ezr-p20b	ezr	p20b	20	b	10:9	10:17
+ezr-p21a	ezr	p21a	21	a	10:18	10:24
+ezr-p21b	ezr	p21b	21	b	10:25	10:44
+gal-p1	gal	p1	1		1:1	1:5
+gal-p2	gal	p2	2		1:6	1:10
+gal-p3	gal	p3	3		1:11	1:24
+gal-p4	gal	p4	4		2:1	2:10
+gal-p5	gal	p5	5		2:11	2:14
+gal-p6	gal	p6	6		2:15	2:21
+gal-p7	gal	p7	7		3:1	3:9
+gal-p8	gal	p8	8		3:10	3:14
+gal-p9	gal	p9	9		3:15	3:18
+gal-p10	gal	p10	10		3:19	3:25
+gal-p11	gal	p11	11		3:26	4:7
+gal-p12	gal	p12	12		4:8	4:20
+gal-p13	gal	p13	13		4:21	4:27
+gal-p14	gal	p14	14		4:28	5:1
+gal-p15	gal	p15	15		5:2	5:6
+gal-p16	gal	p16	16		5:7	5:12
+gal-p17	gal	p17	17		5:13	5:18
+gal-p18	gal	p18	18		5:19	5:26
+gal-p19	gal	p19	19		6:1	6:10
+gal-p20	gal	p20	20		6:11	6:18
+gen-p1	gen	p1	1		1:1	2:3
+gen-p2	gen	p2	2		2:4	2:25
+gen-p3	gen	p3	3		3:1	3:24
+gen-p4a	gen	p4a	4	a	4:1	4:16
+gen-p4b	gen	p4b	4	b	4:17	4:26
+gen-p5	gen	p5	5		5:1	5:32
+gen-p6	gen	p6	6		6:1	6:8
+gen-p7	gen	p7	7		6:9	6:22
+gen-p8	gen	p8	8		7:1	7:24
+gen-p9	gen	p9	9		8:1	8:19
+gen-p10	gen	p10	10		8:20	9:17
+gen-p11	gen	p11	11		9:18	9:29
+gen-p12	gen	p12	12		10:1	10:32
+gen-p13	gen	p13	13		11:1	11:9
+gen-p14	gen	p14	14		11:10	11:26
+gen-p15	gen	p15	15		11:27	11:32
+gen-p16	gen	p16	16		12:1	12:9
+gen-p17	gen	p17	17		12:10	12:20
+gen-p18	gen	p18	18		13:1	13:18
+gen-p19	gen	p19	19		14:1	14:16
+gen-p20	gen	p20	20		14:17	14:24
+gen-p21	gen	p21	21		15:1	15:21
+gen-p22	gen	p22	22		16:1	16:16
+gen-p23	gen	p23	23		17:1	17:27
+gen-p24	gen	p24	24		18:1	18:15
+gen-p25	gen	p25	25		18:16	18:33
+gen-p26	gen	p26	26		19:1	19:29
+gen-p27	gen	p27	27		19:30	19:38
+gen-p28	gen	p28	28		20:1	20:18
+gen-p29	gen	p29	29		21:1	21:21
+gen-p30	gen	p30	30		21:22	21:34
+gen-p31	gen	p31	31		22:1	22:19
+gen-p32	gen	p32	32		22:20	22:24
+gen-p33	gen	p33	33		23:1	23:20
+gen-p34a	gen	p34a	34	a	24:1	24:14
+gen-p34b	gen	p34b	34	b	24:15	24:28
+gen-p34c	gen	p34c	34	c	24:29	24:49
+gen-p34d	gen	p34d	34	d	24:50	24:61
+gen-p34e	gen	p34e	34	e	24:62	24:67
+gen-p35	gen	p35	35		25:1	25:11
+gen-p36	gen	p36	36		25:12	25:18
+gen-p37	gen	p37	37		25:19	25:34
+gen-p38	gen	p38	38		26:1	26:33
+gen-p39a	gen	p39a	39	a	26:34	27:17
+gen-p39b	gen	p39b	39	b	27:18	27:29
+gen-p39c	gen	p39c	39	c	27:30	27:40
+gen-p39d	gen	p39d	39	d	27:41	28:9
+gen-p40	gen	p40	40		28:10	28:22
+gen-p41	gen	p41	41		29:1	29:14
+gen-p42	gen	p42	42		29:15	29:30
+gen-p43	gen	p43	43		29:31	30:24
+gen-p44	gen	p44	44		30:25	30:43
+gen-p45	gen	p45	45		31:1	31:21
+gen-p46a	gen	p46a	46	a	31:22	31:35
+gen-p46b	gen	p46b	46	b	31:36	31:55
+gen-p47	gen	p47	47		32:1	32:21
+gen-p48	gen	p48	48		32:22	32:32
+gen-p49	gen	p49	49		33:1	33:20
+gen-p50a	gen	p50a	50	a	34:1	34:17
+gen-p50b	gen	p50b	50	b	34:18	34:31
+gen-p51	gen	p51	51		35:1	35:15
+gen-p52	gen	p52	52		35:16	35:20
+gen-p53	gen	p53	53		35:21	35:29
+gen-p54a	gen	p54a	54	a	36:1	36:19
+gen-p54b	gen	p54b	54	b	36:20	36:30
+gen-p54c	gen	p54c	54	c	36:31	36:43
+gen-p55	gen	p55	55		37:1	37:11
+gen-p56	gen	p56	56		37:12	37:36
+gen-p57	gen	p57	57		38:1	38:30
+gen-p58	gen	p58	58		39:1	39:23
+gen-p59	gen	p59	59		40:1	40:23
+gen-p60	gen	p60	60		41:1	41:36
+gen-p61	gen	p61	61		41:37	41:57
+gen-p62a	gen	p62a	62	a	42:1	42:26
+gen-p62b	gen	p62b	62	b	42:27	42:38
+gen-p63	gen	p63	63		43:1	43:34
+gen-p64a	gen	p64a	64	a	44:1	44:13
+gen-p64b	gen	p64b	64	b	44:14	44:34
+gen-p65	gen	p65	65		45:1	45:28
+gen-p66	gen	p66	66		46:1	46:27
+gen-p67	gen	p67	67		46:28	47:12
+gen-p68	gen	p68	68		47:13	47:26
+gen-p69	gen	p69	69		47:27	47:31
+gen-p70	gen	p70	70		48:1	48:22
+gen-p71	gen	p71	71		49:1	49:28
+gen-p72	gen	p72	72		49:29	50:14
+gen-p73	gen	p73	73		50:15	50:21
+gen-p74	gen	p74	74		50:22	50:26
+isa-p1	isa	p1	1		1:1	1:9
+isa-p2	isa	p2	2		1:10	1:20
+isa-p3	isa	p3	3		1:21	1:31
+isa-p4	isa	p4	4		2:1	2:5
+isa-p5	isa	p5	5		2:6	2:11
+isa-p6	isa	p6	6		2:12	2:17
+isa-p7	isa	p7	7		2:18	2:22
+isa-p8a	isa	p8a	8	a	3:1	3:7
+isa-p8b	isa	p8b	8	b	3:8	3:15
+isa-p9	isa	p9	9		3:16	4:1
+isa-p10	isa	p10	10		4:2	4:6
+isa-p11	isa	p11	11		5:1	5:7
+isa-p12	isa	p12	12		5:8	5:17
+isa-p13	isa	p13	13		5:18	5:25
+isa-p14	isa	p14	14		5:26	5:30
+isa-p15	isa	p15	15		6:1	6:8
+isa-p16	isa	p16	16		6:9	6:13
+isa-p17	isa	p17	17		7:1	7:9
+isa-p18	isa	p18	18		7:10	7:17
+isa-p19	isa	p19	19		7:18	7:25
+isa-p20	isa	p20	20		8:1	8:4
+isa-p21	isa	p21	21		8:5	8:10
+isa-p22	isa	p22	22		8:11	8:15
+isa-p23	isa	p23	23		8:16	8:22
+isa-p24	isa	p24	24		9:1	9:7
+isa-p25	isa	p25	25		9:8	9:17
+isa-p26	isa	p26	26		9:18	10:4
+isa-p27	isa	p27	27		10:5	10:11
+isa-p28	isa	p28	28		10:12	10:19
+isa-p29	isa	p29	29		10:20	10:27
+isa-p30	isa	p30	30		10:28	10:34
+isa-p31	isa	p31	31		11:1	11:9
+isa-p32	isa	p32	32		11:10	11:16
+isa-p33	isa	p33	33		12:1	12:6
+isa-p34	isa	p34	34		13:1	13:5
+isa-p35	isa	p35	35		13:6	13:18
+isa-p36	isa	p36	36		13:19	13:22
+isa-p37	isa	p37	37		14:1	14:4a
+isa-p38	isa	p38	38		14:4b	14:11
+isa-p39	isa	p39	39		14:12	14:23
+isa-p40	isa	p40	40		14:24	14:27
+isa-p41	isa	p41	41		14:28	14:32
+isa-p42	isa	p42	42		15:1	15:9
+isa-p43	isa	p43	43		16:1	16:5
+isa-p44	isa	p44	44		16:6	16:14
+isa-p45	isa	p45	45		17:1	17:6
+isa-p46	isa	p46	46		17:7	17:11
+isa-p47	isa	p47	47		17:12	17:14
+isa-p48	isa	p48	48		18:1	18:7
+isa-p49	isa	p49	49		19:1	19:15
+isa-p50	isa	p50	50		19:16	19:25
+isa-p51	isa	p51	51		20:1	20:6
+isa-p52	isa	p52	52		21:1	21:10
+isa-p53	isa	p53	53		21:11	21:17
+isa-p54	isa	p54	54		22:1	22:14
+isa-p55	isa	p55	55		22:15	22:25
+isa-p56	isa	p56	56		23:1	23:14
+isa-p57	isa	p57	57		23:15	23:18
+isa-p58	isa	p58	58		24:1	24:13
+isa-p59	isa	p59	59		24:14	24:23
+isa-p60	isa	p60	60		25:1	25:5
+isa-p61	isa	p61	61		25:6	25:12
+isa-p62	isa	p62	62		26:1	26:6
+isa-p63	isa	p63	63		26:7	26:19
+isa-p64	isa	p64	64		26:20	27:6
+isa-p65	isa	p65	65		27:7	27:13
+isa-p66	isa	p66	66		28:1	28:6
+isa-p67	isa	p67	67		28:7	28:13
+isa-p68	isa	p68	68		28:14	28:22
+isa-p69	isa	p69	69		28:23	28:29
+isa-p70	isa	p70	70		29:1	29:8
+isa-p71	isa	p71	71		29:9	29:14
+isa-p72	isa	p72	72		29:15	29:24
+isa-p73	isa	p73	73		30:1	30:7
+isa-p74	isa	p74	74		30:8	30:17
+isa-p75	isa	p75	75		30:18	30:26
+isa-p76	isa	p76	76		30:27	30:33
+isa-p77	isa	p77	77		31:1	31:9
+isa-p78	isa	p78	78		32:1	32:8
+isa-p79	isa	p79	79		32:9	32:20
+isa-p80	isa	p80	80		33:1	33:9
+isa-p81	isa	p81	81		33:10	33:16
+isa-p82	isa	p82	82		33:17	33:24
+isa-p83	isa	p83	83		34:1	34:4
+isa-p84	isa	p84	84		34:5	34:17
+isa-p85	isa	p85	85		35:1	35:10
+isa-p86	isa	p86	86		36:1	36:10
+isa-p87	isa	p87	87		36:11	36:21
+isa-p88	isa	p88	88		36:22	37:7
+isa-p89	isa	p89	89		37:8	37:13
+isa-p90	isa	p90	90		37:14	37:20
+isa-p91	isa	p91	91		37:21	37:29
+isa-p92	isa	p92	92		37:30	37:38
+isa-p93	isa	p93	93		38:1	38:8
+isa-p94	isa	p94	94		38:9	38:22
+isa-p95	isa	p95	95		39:1	39:8
+isa-p96	isa	p96	96		40:1	40:11
+isa-p97	isa	p97	97		40:12	40:20
+isa-p98	isa	p98	98		40:21	40:26
+isa-p99	isa	p99	99		40:27	40:31
+isa-p100	isa	p100	100		41:1	41:7
+isa-p101	isa	p101	101		41:8	41:16
+isa-p102	isa	p102	102		41:17	41:20
+isa-p103	isa	p103	103		41:21	41:29
+isa-p104	isa	p104	104		42:1	42:9
+isa-p105	isa	p105	105		42:10	42:17
+isa-p106	isa	p106	106		42:18	42:25
+isa-p107	isa	p107	107		43:1	43:7
+isa-p108	isa	p108	108		43:8	43:13
+isa-p109	isa	p109	109		43:14	43:21
+isa-p110	isa	p110	110		43:22	43:28
+isa-p111	isa	p111	111		44:1	44:8
+isa-p112	isa	p112	112		44:9	44:17
+isa-p113	isa	p113	113		44:18	44:22
+isa-p114	isa	p114	114		44:23	44:28
+isa-p115	isa	p115	115		45:1	45:8
+isa-p116	isa	p116	116		45:9	45:13
+isa-p117	isa	p117	117		45:14	45:19
+isa-p118	isa	p118	118		45:20	45:25
+isa-p119	isa	p119	119		46:1	46:13
+isa-p120	isa	p120	120		47:1	47:15
+isa-p121	isa	p121	121		48:1	48:11
+isa-p122	isa	p122	122		48:16	48:12
+isa-p123	isa	p123	123		48:17	48:22
+isa-p124	isa	p124	124		49:1	49:7
+isa-p125	isa	p125	125		49:8	49:13
+isa-p126	isa	p126	126		49:14	49:23
+isa-p127	isa	p127	127		49:24	50:3
+isa-p128	isa	p128	128		50:4	50:11
+isa-p129	isa	p129	129		51:1	51:8
+isa-p130	isa	p130	130		51:9	51:16
+isa-p131	isa	p131	131		51:17	51:23
+isa-p132	isa	p132	132		52:1	52:12
+isa-p133	isa	p133	133		52:13	53:12
+isa-p134	isa	p134	134		54:1	54:10
+isa-p135	isa	p135	135		54:11	54:17
+isa-p136	isa	p136	136		55:1	55:16
+isa-p137	isa	p137	137		56:1	56:8
+isa-p138	isa	p138	138		56:9	57:2
+isa-p139	isa	p139	139		57:3	57:13
+isa-p140	isa	p140	140		57:14	57:21
+isa-p141	isa	p141	141		58:1	58:14
+isa-p142	isa	p142	142		59:1	59:8
+isa-p143	isa	p143	143		59:9	59:15a
+isa-p144	isa	p144	144		59:15b	59:21
+isa-p145	isa	p145	145		60:1	60:9
+isa-p146	isa	p146	146		60:10	60:16
+isa-p147	isa	p147	147		60:17	60:22
+isa-p148	isa	p148	148		61:1	61:11
+isa-p149	isa	p149	149		62:1	62:12
+isa-p150	isa	p150	150		63:1	63:6
+isa-p151	isa	p151	151		63:7	63:14
+isa-p152	isa	p152	152		63:15	63:19
+isa-p153	isa	p153	153		64:1	64:7
+isa-p154	isa	p154	154		64:8	64:12
+isa-p155	isa	p155	155		65:1	65:7
+isa-p156	isa	p156	156		65:8	65:16
+isa-p157	isa	p157	157		65:17	65:25
+isa-p158	isa	p158	158		66:1	66:6
+isa-p159	isa	p159	159		66:7	66:16
+isa-p160	isa	p160	160		66:17	66:24
+jas-p1	jas	p1	1		1:1	1:11
+jas-p2	jas	p2	2		1:12	1:18
+jas-p3	jas	p3	3		1:19	1:27
+jas-p4	jas	p4	4		2:1	2:7
+jas-p5	jas	p5	5		2:8	2:13
+jas-p6	jas	p6	6		2:14	2:26
+jas-p7	jas	p7	7		3:1	3:12
+jas-p8	jas	p8	8		3:13	3:18
+jas-p9	jas	p9	9		4:1	4:10
+jas-p10	jas	p10	10		4:11	4:17
+jas-p11	jas	p11	11		5:1	5:6
+jas-p12	jas	p12	12		5:7	5:12
+jas-p13	jas	p13	13		5:13	5:20
+jdg-p1	jdg	p1	1		1:1	1:8
+jdg-p2	jdg	p2	2		1:9	1:17
+jdg-p3	jdg	p3	3		1:18	1:26
+jdg-p4	jdg	p4	4		1:27	1:36
+jdg-p5	jdg	p5	5		2:1	2:10
+jdg-p6	jdg	p6	6		2:11	2:19
+jdg-p7	jdg	p7	7		2:20	3:6
+jdg-p8	jdg	p8	8		3:7	3:11
+jdg-p9	jdg	p9	9		3:12	3:31
+jdg-p10a	jdg	p10a	10	a	4:1	4:10
+jdg-p10b	jdg	p10b	10	b	4:11	4:24
+jdg-p11a	jdg	p11a	11	a	5:1	5:11a
+jdg-p11b	jdg	p11b	11	b	5:11b	5:18
+jdg-p11c	jdg	p11c	11	c	5:19	5:23
+jdg-p11d	jdg	p11d	11	d	5:24	5:31
+jdg-p12	jdg	p12	12		6:1	6:10
+jdg-p13	jdg	p13	13		6:11	6:27
+jdg-p14	jdg	p14	14		6:28	6:40
+jdg-p15	jdg	p15	15		7:1	7:8
+jdg-p16a	jdg	p16a	16	a	7:9	7:15
+jdg-p16b	jdg	p16b	16	b	7:16	7:25
+jdg-p17	jdg	p17	17		8:1	8:3
+jdg-p18	jdg	p18	18		8:4	8:21
+jdg-p19	jdg	p19	19		8:22	8:35
+jdg-p20	jdg	p20	20		9:1	9:6
+jdg-p21	jdg	p21	21		9:7	9:21
+jdg-p22	jdg	p22	22		9:22	9:29
+jdg-p23	jdg	p23	23		9:30	9:41
+jdg-p24	jdg	p24	24		9:42	9:49
+jdg-p25	jdg	p25	25		9:50	9:57
+jdg-p26	jdg	p26	26		10:1	10:5
+jdg-p27	jdg	p27	27		10:6	10:16
+jdg-p28	jdg	p28	28		10:17	11:11
+jdg-p29	jdg	p29	29		11:12	11:28
+jdg-p30a	jdg	p30a	30	a	11:29	11:33
+jdg-p30b	jdg	p30b	30	b	11:34	11:40
+jdg-p31	jdg	p31	31		12:1	12:7
+jdg-p32	jdg	p32	32		12:8	12:15
+jdg-p33a	jdg	p33a	33	a	13:1	13:7
+jdg-p33b	jdg	p33b	33	b	13:8	13:25
+jdg-p34a	jdg	p34a	34	a	14:1	14:9
+jdg-p34b	jdg	p34b	34	b	14:10	14:20
+jdg-p35	jdg	p35	35		15:1	15:8
+jdg-p36	jdg	p36	36		15:9	15:20
+jdg-p37	jdg	p37	37		16:1	16:3
+jdg-p38a	jdg	p38a	38	a	16:4	16:14
+jdg-p38b	jdg	p38b	38	b	16:15	16:22
+jdg-p39	jdg	p39	39		16:23	16:31
+jdg-p40	jdg	p40	40		17:1	17:13
+jdg-p41	jdg	p41	41		18:1	18:10
+jdg-p42	jdg	p42	42		18:11	18:21
+jdg-p43	jdg	p43	43		18:22	18:31
+jdg-p44a	jdg	p44a	44	a	19:1	19:10
+jdg-p44b	jdg	p44b	44	b	19:11	19:21
+jdg-p45	jdg	p45	45		19:22	19:30
+jdg-p46	jdg	p46	46		20:1	20:11
+jdg-p47	jdg	p47	47		20:12	20:25
+jdg-p48a	jdg	p48a	48	a	20:26	20:35
+jdg-p48b	jdg	p48b	48	b	20:36	20:48
+jdg-p49	jdg	p49	49		21:1	21:12
+jdg-p50	jdg	p50	50		21:13	21:25
+jhn-p1	jhn	p1	1		1:1	1:5
+jhn-p2	jhn	p2	2		1:6	1:18
+jhn-p3	jhn	p3	3		1:19	1:28
+jhn-p4	jhn	p4	4		1:29	1:34
+jhn-p5	jhn	p5	5		1:35	1:42
+jhn-p6	jhn	p6	6		1:43	1:51
+jhn-p7	jhn	p7	7		2:1	2:12
+jhn-p8	jhn	p8	8		2:13	2:25
+jhn-p9	jhn	p9	9		3:1	3:8
+jhn-p10	jhn	p10	10		3:9	3:21
+jhn-p11	jhn	p11	11		3:22	3:36
+jhn-p12	jhn	p12	12		4:1	4:15
+jhn-p13	jhn	p13	13		4:16	4:26
+jhn-p14	jhn	p14	14		4:27	4:42
+jhn-p15	jhn	p15	15		4:43	4:54
+jhn-p16	jhn	p16	16		5:1	5:15
+jhn-p17	jhn	p17	17		5:16	5:23
+jhn-p18	jhn	p18	18		5:24	5:30
+jhn-p19	jhn	p19	19		5:31	5:47
+jhn-p20	jhn	p20	20		6:1	6:15
+jhn-p21	jhn	p21	21		6:16	6:21
+jhn-p22	jhn	p22	22		6:22	6:27
+jhn-p23	jhn	p23	23		6:28	6:40
+jhn-p24	jhn	p24	24		6:41	6:51
+jhn-p25	jhn	p25	25		6:52	6:59
+jhn-p26	jhn	p26	26		6:60	6:71
+jhn-p27	jhn	p27	27		7:1	7:10
+jhn-p28	jhn	p28	28		7:11	7:24
+jhn-p29	jhn	p29	29		7:25	7:36
+jhn-p30	jhn	p30	30		7:37	7:44
+jhn-p31	jhn	p31	31		7:45	7:53
+jhn-p32	jhn	p32	32		8:1	8:11
+jhn-p33	jhn	p33	33		8:12	8:20
+jhn-p34	jhn	p34	34		8:21	8:30
+jhn-p35	jhn	p35	35		8:31	8:47
+jhn-p36	jhn	p36	36		8:48	8:59
+jhn-p37	jhn	p37	37		9:1	9:12
+jhn-p38	jhn	p38	38		9:13	9:23
+jhn-p39	jhn	p39	39		9:24	9:34
+jhn-p40	jhn	p40	40		9:35	9:41
+jhn-p41	jhn	p41	41		10:1	10:10
+jhn-p42	jhn	p42	42		10:11	10:21
+jhn-p43	jhn	p43	43		10:22	10:42
+jhn-p44	jhn	p44	44		11:1	11:16
+jhn-p45	jhn	p45	45		11:17	11:27
+jhn-p46	jhn	p46	46		11:28	11:44
+jhn-p47	jhn	p47	47		11:45	11:57
+jhn-p48	jhn	p48	48		12:1	12:11
+jhn-p49	jhn	p49	49		12:12	12:19
+jhn-p50	jhn	p50	50		12:20	12:36
+jhn-p51	jhn	p51	51		12:37	12:50
+jhn-p52	jhn	p52	52		13:1	13:11
+jhn-p53	jhn	p53	53		13:12	13:30
+jhn-p54	jhn	p54	54		13:31	13:38
+jhn-p55	jhn	p55	55		14:1	14:14
+jhn-p56	jhn	p56	56		14:15	14:21
+jhn-p57	jhn	p57	57		14:22	14:31
+jhn-p58	jhn	p58	58		15:1	15:17
+jhn-p59	jhn	p59	59		15:18	15:27
+jhn-p60	jhn	p60	60		16:1	16:15
+jhn-p61	jhn	p61	61		16:16	16:24
+jhn-p62	jhn	p62	62		16:25	16:33
+jhn-p63	jhn	p63	63		17:1	17:19
+jhn-p64	jhn	p64	64		17:20	17:26
+jhn-p65	jhn	p65	65		18:1	18:14
+jhn-p66	jhn	p66	66		18:15	18:27
+jhn-p67	jhn	p67	67		18:28	18:40
+jhn-p68	jhn	p68	68		19:1	19:16
+jhn-p69	jhn	p69	69		19:17	19:30
+jhn-p70	jhn	p70	70		19:31	19:42
+jhn-p71	jhn	p71	71		20:1	20:18
+jhn-p72	jhn	p72	72		20:19	20:31
+jhn-p73	jhn	p73	73		21:1	21:14
+jhn-p74	jhn	p74	74		21:15	21:25
+job-p1	job	p1	1		1:1	1:5
+job-p2	job	p2	2		1:6	1:12
+job-p3	job	p3	3		1:13	1:22
+job-p4	job	p4	4		2:1	2:6
+job-p5	job	p5	5		2:7	2:13
+job-p6	job	p6	6		3:1	3:10
+job-p7	job	p7	7		3:11	3:26
+job-p8	job	p8	8		4:1	4:11
+job-p9	job	p9	9		4:12	4:21
+job-p10	job	p10	10		5:1	5:7
+job-p11	job	p11	11		5:8	5:16
+job-p12	job	p12	12		5:17	5:27
+job-p13	job	p13	13		6:1	6:7
+job-p14	job	p14	14		6:8	6:13
+job-p15	job	p15	15		6:14	6:23
+job-p16	job	p16	16		6:24	6:30
+job-p17	job	p17	17		7:1	7:8
+job-p18	job	p18	18		7:9	7:16
+job-p19	job	p19	19		7:17	7:21
+job-p20	job	p20	20		8:1	8:7
+job-p21	job	p21	21		8:8	8:22
+job-p22	job	p22	22		9:1	9:13
+job-p23	job	p23	23		9:14	9:24
+job-p24	job	p24	24		9:25	9:35
+job-p25	job	p25	25		10:1	10:7
+job-p26	job	p26	26		10:8	10:17
+job-p27	job	p27	27		10:18	10:22
+job-p28	job	p28	28		11:1	11:6
+job-p29	job	p29	29		11:7	11:12
+job-p30	job	p30	30		11:13	11:20
+job-p31	job	p31	31		12:1	12:6
+job-p32	job	p32	32		12:7	12:12
+job-p33	job	p33	33		12:13	12:25
+job-p34	job	p34	34		13:1	13:5
+job-p35	job	p35	35		13:6	13:12
+job-p36	job	p36	36		13:13	13:19
+job-p37	job	p37	37		13:20	13:28
+job-p38	job	p38	38		14:1	14:6
+job-p39	job	p39	39		14:7	14:22
+job-p40	job	p40	40		15:1	15:16
+job-p41	job	p41	41		15:17	15:35
+job-p42	job	p42	42		16:1	16:5
+job-p43	job	p43	43		16:6	16:17
+job-p44	job	p44	44		16:18	17:5
+job-p45	job	p45	45		17:6	17:10
+job-p46	job	p46	46		17:11	17:16
+job-p47	job	p47	47		18:1	18:21
+job-p48	job	p48	48		19:1	19:6
+job-p49	job	p49	49		19:7	19:12
+job-p50	job	p50	50		19:13	19:22
+job-p51	job	p51	51		19:23	19:29
+job-p52	job	p52	52		20:1	20:11
+job-p53	job	p53	53		20:12	20:22
+job-p54	job	p54	54		20:23	20:29
+job-p55	job	p55	55		21:1	21:6
+job-p56	job	p56	56		21:7	21:16
+job-p57	job	p57	57		21:17	21:26
+job-p58	job	p58	58		21:27	21:34
+job-p59	job	p59	59		22:1	22:11
+job-p60	job	p60	60		22:12	22:20
+job-p61	job	p61	61		22:21	22:30
+job-p62	job	p62	62		23:1	23:7
+job-p63	job	p63	63		23:8	23:17
+job-p64	job	p64	64		24:1	24:12
+job-p65	job	p65	65		24:13	24:17
+job-p66	job	p66	66		24:18	24:25
+job-p67	job	p67	67		25:1	25:6
+job-p68	job	p68	68		26:1	26:14
+job-p69	job	p69	69		27:1	27:12
+job-p70	job	p70	70		27:13	27:23
+job-p71	job	p71	71		28:1	28:6
+job-p72	job	p72	72		28:7	28:11
+job-p73	job	p73	73		28:12	28:19
+job-p74	job	p74	74		28:20	28:28
+job-p75	job	p75	75		29:1	29:10
+job-p76	job	p76	76		29:11	29:17
+job-p77	job	p77	77		29:18	29:25
+job-p78	job	p78	78		30:1	30:8
+job-p79	job	p79	79		30:9	30:15
+job-p80	job	p80	80		30:16	30:26
+job-p81	job	p81	81		30:27	30:31
+job-p82	job	p82	82		31:1	31:6
+job-p83	job	p83	83		31:7	31:12
+job-p84	job	p84	84		31:13	31:23
+job-p85	job	p85	85		31:24	31:28
+job-p86	job	p86	86		31:29	31:40
+job-p87	job	p87	87		32:1	32:5
+job-p88	job	p88	88		32:6	32:22
+job-p89	job	p89	89		33:1	33:11
+job-p90	job	p90	90		33:12	33:18
+job-p91	job	p91	91		33:19	33:33
+job-p92	job	p92	92		34:1	34:9
+job-p93	job	p93	93		34:10	34:15
+job-p94	job	p94	94		34:16	34:30
+job-p95	job	p95	95		34:31	34:37
+job-p96	job	p96	96		35:1	35:16
+job-p97	job	p97	97		36:1	36:15
+job-p98	job	p98	98		36:16	36:21
+job-p99	job	p99	99		36:22	36:33
+job-p100	job	p100	100		37:1	37:13
+job-p101	job	p101	101		37:14	37:24
+job-p102	job	p102	102		38:1	38:11
+job-p103	job	p103	103		38:12	38:21
+job-p104	job	p104	104		38:22	38:28
+job-p105	job	p105	105		38:29	39:12
+job-p106	job	p106	106		39:13	39:30
+job-p107	job	p107	107		40:1	40:5
+job-p108	job	p108	108		40:6	40:14
+job-p109	job	p109	109		40:15	40:24
+job-p110	job	p110	110		41:1	41:11
+job-p111	job	p111	111		41:12	41:34
+job-p112	job	p112	112		42:1	42:6
+job-p113	job	p113	113		42:7	42:9
+job-p114	job	p114	114		42:10	42:17
+jon-p1	jon	p1	1		1:1	1:16
+jon-p2	jon	p2	2		1:17	2:10
+jon-p3	jon	p3	3		3:1	3:10
+jon-p4	jon	p4	4		4:1	4:11
+jos-p1	jos	p1	1		1:1	1:9
+jos-p2	jos	p2	2		1:10	1:18
+jos-p3	jos	p3	3		2:1	2:14
+jos-p4	jos	p4	4		2:15	2:24
+jos-p5	jos	p5	5		3:1	3:17
+jos-p6	jos	p6	6		4:1	4:14
+jos-p7	jos	p7	7		4:15	5:1
+jos-p8	jos	p8	8		5:2	5:9
+jos-p9	jos	p9	9		5:10	5:15
+jos-p10	jos	p10	10		6:1	6:14
+jos-p11	jos	p11	11		6:15	6:27
+jos-p12	jos	p12	12		7:1	7:9
+jos-p13	jos	p13	13		7:10	7:26
+jos-p14	jos	p14	14		8:1	8:13
+jos-p15	jos	p15	15		8:14	8:29
+jos-p16	jos	p16	16		8:30	8:35
+jos-p17	jos	p17	17		9:1	9:15
+jos-p18	jos	p18	18		9:16	9:27
+jos-p19	jos	p19	19		10:1	10:15
+jos-p20	jos	p20	20		10:16	10:28
+jos-p21	jos	p21	21		10:29	10:43
+jos-p22	jos	p22	22		11:1	11:15
+jos-p23	jos	p23	23		11:16	11:23
+jos-p24	jos	p24	24		12:1	12:6
+jos-p25	jos	p25	25		12:7	12:24
+jos-p26	jos	p26	26		13:1	13:7
+jos-p27	jos	p27	27		13:8	13:13
+jos-p28	jos	p28	28		13:14	13:23
+jos-p29	jos	p29	29		13:24	13:33
+jos-p30	jos	p30	30		14:1	14:15
+jos-p31	jos	p31	31		15:1	15:12
+jos-p32	jos	p32	32		15:13	15:19
+jos-p33	jos	p33	33		15:20	15:32
+jos-p34	jos	p34	34		15:33	15:47
+jos-p35	jos	p35	35		15:48	15:63
+jos-p36	jos	p36	36		16:1	16:10
+jos-p37	jos	p37	37		17:1	17:13
+jos-p38	jos	p38	38		17:14	17:18
+jos-p39	jos	p39	39		18:1	18:10
+jos-p40	jos	p40	40		18:11	18:28
+jos-p41	jos	p41	41		19:1	19:9
+jos-p42	jos	p42	42		19:10	19:16
+jos-p43	jos	p43	43		19:17	19:23
+jos-p44	jos	p44	44		19:24	19:31
+jos-p45	jos	p45	45		19:32	19:39
+jos-p46	jos	p46	46		19:40	19:48
+jos-p47	jos	p47	47		19:49	19:51
+jos-p48	jos	p48	48		20:1	20:9
+jos-p49	jos	p49	49		21:1	21:8
+jos-p50	jos	p50	50		21:9	21:19
+jos-p51	jos	p51	51		21:20	21:26
+jos-p52	jos	p52	52		21:27	21:33
+jos-p53	jos	p53	53		21:34	21:40
+jos-p54	jos	p54	54		21:41	21:45
+jos-p55	jos	p55	55		22:1	22:12
+jos-p56	jos	p56	56		22:13	22:20
+jos-p57	jos	p57	57		22:21	22:34
+jos-p58a	jos	p58a	58	a	23:1	23:8
+jos-p58b	jos	p58b	58	b	23:9	23:16
+jos-p59	jos	p59	59		24:1	24:13
+jos-p60	jos	p60	60		24:14	24:28
+jos-p61	jos	p61	61		24:29	24:33
+jud-p1	jud	p1	1		1:1	1:2
+jud-p2	jud	p2	2		1:3	1:7
+jud-p3	jud	p3	3		1:8	1:11
+jud-p4	jud	p4	4		1:12	1:16
+jud-p5	jud	p5	5		1:17	1:23
+jud-p6	jud	p6	6		1:24	1:25
+lev-p1	lev	p1	1		1:1	1:17
+lev-p2	lev	p2	2		2:1	2:16
+lev-p3	lev	p3	3		3:1	3:17
+lev-p4	lev	p4	4		4:1	4:12
+lev-p5	lev	p5	5		4:13	4:26
+lev-p6	lev	p6	6		4:27	4:35
+lev-p7	lev	p7	7		5:1	5:13
+lev-p8	lev	p8	8		5:14	6:7
+lev-p9	lev	p9	9		6:8	6:18
+lev-p10	lev	p10	10		6:19	6:23
+lev-p11	lev	p11	11		6:24	6:30
+lev-p12	lev	p12	12		7:1	7:10
+lev-p13	lev	p13	13		7:11	7:21
+lev-p14	lev	p14	14		7:22	7:27
+lev-p15	lev	p15	15		7:28	7:28
+lev-p16	lev	p16	16		8:1	8:13
+lev-p17	lev	p17	17		8:14	8:21
+lev-p18	lev	p18	18		8:22	8:29
+lev-p19	lev	p19	19		8:30	8:36
+lev-p20	lev	p20	20		9:1	9:7
+lev-p21	lev	p21	21		9:8	9:14
+lev-p22	lev	p22	22		9:15	9:24
+lev-p23	lev	p23	23		10:1	10:11
+lev-p24	lev	p24	24		10:12	10:20
+lev-p25	lev	p25	25		11:1	11:8
+lev-p26	lev	p26	26		11:9	11:12
+lev-p27	lev	p27	27		11:13	11:19
+lev-p28	lev	p28	28		11:20	11:23
+lev-p29	lev	p29	29		11:24	11:28
+lev-p30	lev	p30	30		11:29	11:38
+lev-p31	lev	p31	31		11:39	11:47
+lev-p32	lev	p32	32		12:1	12:8
+lev-p33	lev	p33	33		13:1	13:8
+lev-p34	lev	p34	34		13:9	13:17
+lev-p35	lev	p35	35		13:18	13:28
+lev-p36	lev	p36	36		13:29	13:37
+lev-p37	lev	p37	37		13:38	13:46
+lev-p38	lev	p38	38		13:47	13:59
+lev-p39	lev	p39	39		14:1	14:9
+lev-p40	lev	p40	40		14:10	14:20
+lev-p41	lev	p41	41		14:21	14:32
+lev-p42	lev	p42	42		14:33	14:42
+lev-p43	lev	p43	43		14:43	14:57
+lev-p44	lev	p44	44		15:1	15:12
+lev-p45	lev	p45	45		15:13	15:18
+lev-p46	lev	p46	46		15:19	15:24
+lev-p47	lev	p47	47		15:25	15:33
+lev-p48	lev	p48	48		16:1	16:5
+lev-p49	lev	p49	49		16:6	16:14
+lev-p50	lev	p50	50		16:15	16:22
+lev-p51	lev	p51	51		16:23	16:28
+lev-p52	lev	p52	52		16:29	16:34
+lev-p53	lev	p53	53		17:1	17:9
+lev-p54	lev	p54	54		17:10	17:16
+lev-p55	lev	p55	55		18:1	18:5
+lev-p56	lev	p56	56		18:6	18:18
+lev-p57	lev	p57	57		18:19	18:23
+lev-p58	lev	p58	58		18:24	18:30
+lev-p59	lev	p59	59		19:1	19:8
+lev-p60	lev	p60	60		19:9	19:14
+lev-p61	lev	p61	61		19:15	19:18
+lev-p62	lev	p62	62		19:19	19:25
+lev-p63	lev	p63	63		19:26	19:30
+lev-p64	lev	p64	64		19:31	19:37
+lev-p65	lev	p65	65		20:1	20:9
+lev-p66	lev	p66	66		20:10	20:16
+lev-p67	lev	p67	67		20:17	20:21
+lev-p68	lev	p68	68		20:22	20:27
+lev-p69	lev	p69	69		21:1	21:9
+lev-p70	lev	p70	70		21:10	21:16
+lev-p71	lev	p71	71		21:17	21:25
+lev-p72	lev	p72	72		22:1	22:9
+lev-p73	lev	p73	73		22:10	22:16
+lev-p74	lev	p74	74		22:17	22:25
+lev-p75	lev	p75	75		22:26	22:33
+lev-p76	lev	p76	76		23:1	23:8
+lev-p77	lev	p77	77		23:9	23:14
+lev-p78	lev	p78	78		23:15	23:22
+lev-p79	lev	p79	79		23:23	23:32
+lev-p80	lev	p80	80		23:33	23:44
+lev-p81	lev	p81	81		24:1	24:9
+lev-p82	lev	p82	82		24:10	24:23
+lev-p83	lev	p83	83		25:1	25:7
+lev-p84	lev	p84	84		25:8	25:22
+lev-p85	lev	p85	85		25:23	25:34
+lev-p86	lev	p86	86		25:35	25:46
+lev-p87	lev	p87	87		25:47	25:55
+lev-p88	lev	p88	88		26:1	26:5
+lev-p89	lev	p89	89		26:6	26:13
+lev-p90	lev	p90	90		26:14	26:20
+lev-p91	lev	p91	91		26:21	26:26
+lev-p92	lev	p92	92		26:27	26:33
+lev-p93	lev	p93	93		26:34	26:39
+lev-p94	lev	p94	94		26:10	26:46
+lev-p95	lev	p95	95		27:1	27:8
+lev-p96	lev	p96	96		27:9	27:15
+lev-p97	lev	p97	97		27:16	27:25
+lev-p98	lev	p98	98		27:26	27:34
+luk-p1	luk	p1	1		1:1	1:4
+luk-p2	luk	p2	2		1:5	1:25
+luk-p3	luk	p3	3		1:26	1:38
+luk-p4	luk	p4	4		1:39	1:56
+luk-p5	luk	p5	5		1:57	1:80
+luk-p6	luk	p6	6		2:1	2:21
+luk-p7	luk	p7	7		2:22	2:40
+luk-p8	luk	p8	8		2:41	2:52
+luk-p9	luk	p9	9		3:1	3:14
+luk-p10	luk	p10	10		3:15	3:22
+luk-p11	luk	p11	11		3:23	3:38
+luk-p12	luk	p12	12		4:1	4:13
+luk-p13	luk	p13	13		4:14	4:30
+luk-p14	luk	p14	14		4:31	4:44
+luk-p15	luk	p15	15		5:1	5:11
+luk-p16	luk	p16	16		5:12	5:16
+luk-p17	luk	p17	17		5:17	5:26
+luk-p18	luk	p18	18		5:27	5:39
+luk-p19	luk	p19	19		6:1	6:11
+luk-p20	luk	p20	20		6:12	6:16
+luk-p21a	luk	p21a	21	a	6:17	6:19
+luk-p21b	luk	p21b	21	b	6:20	6:26
+luk-p21c	luk	p21c	21	c	6:27	6:36
+luk-p21d	luk	p21d	21	d	6:37	6:42
+luk-p21e	luk	p21e	21	e	6:43	6:49
+luk-p22	luk	p22	22		7:1	7:10
+luk-p23	luk	p23	23		7:11	7:17
+luk-p24	luk	p24	24		7:18	7:35
+luk-p25	luk	p25	25		7:36	8:3
+luk-p26	luk	p26	26		8:4	8:15
+luk-p27	luk	p27	27		8:16	8:18
+luk-p28	luk	p28	28		8:19	8:21
+luk-p29	luk	p29	29		8:22	8:25
+luk-p30	luk	p30	30		8:26	8:39
+luk-p31	luk	p31	31		8:40	8:56
+luk-p32a	luk	p32a	32	a	9:1	9:17
+luk-p32b	luk	p32b	32	b	9:18	9:27
+luk-p33	luk	p33	33		9:28	9:36
+luk-p34	luk	p34	34		9:37	9:45
+luk-p35	luk	p35	35		9:46	9:62
+luk-p36a	luk	p36a	36	a	10:1	10:16
+luk-p36b	luk	p36b	36	b	10:17	10:24
+luk-p37	luk	p37	37		10:25	10:37
+luk-p38	luk	p38	38		10:38	10:42
+luk-p39	luk	p39	39		11:1	11:13
+luk-p40	luk	p40	40		11:14	11:32
+luk-p41	luk	p41	41		11:33	11:54
+luk-p42	luk	p42	42		12:1	12:12
+luk-p43	luk	p43	43		12:13	12:21
+luk-p44	luk	p44	44		12:22	12:34
+luk-p45a	luk	p45a	45	a	12:35	12:48
+luk-p45b	luk	p45b	45	b	12:49	12:59
+luk-p46	luk	p46	46		13:1	13:9
+luk-p47	luk	p47	47		13:10	13:17
+luk-p48	luk	p48	48		13:18	13:21
+luk-p49	luk	p49	49		13:22	13:30
+luk-p50	luk	p50	50		13:31	13:35
+luk-p51a	luk	p51a	51	a	14:1	14:14
+luk-p51b	luk	p51b	51	b	14:15	14:24
+luk-p52	luk	p52	52		14:25	14:35
+luk-p53a	luk	p53a	53	a	15:1	15:10
+luk-p53b	luk	p53b	53	b	15:11	15:32
+luk-p54	luk	p54	54		16:1	16:15
+luk-p55	luk	p55	55		16:16	16:18
+luk-p56	luk	p56	56		16:19	16:31
+luk-p57	luk	p57	57		17:1	17:10
+luk-p58	luk	p58	58		17:11	17:19
+luk-p59	luk	p59	59		17:20	17:37
+luk-p60	luk	p60	60		18:1	18:17
+luk-p61	luk	p61	61		18:18	18:30
+luk-p62	luk	p62	62		18:31	18:34
+luk-p63	luk	p63	63		18:35	19:10
+luk-p64	luk	p64	64		19:11	19:27
+luk-p65	luk	p65	65		19:28	19:44
+luk-p66a	luk	p66a	66	a	19:45	20:8
+luk-p66b	luk	p66b	66	b	20:9	20:19
+luk-p67	luk	p67	67		20:20	20:40
+luk-p68	luk	p68	68		20:41	20:44
+luk-p69	luk	p69	69		20:45	21:4
+luk-p70a	luk	p70a	70	a	21:5	21:11
+luk-p70b	luk	p70b	70	b	21:12	21:19
+luk-p70c	luk	p70c	70	c	21:20	21:28
+luk-p70d	luk	p70d	70	d	21:29	21:38
+luk-p71	luk	p71	71		22:1	22:6
+luk-p72a	luk	p72a	72	a	22:7	22:23
+luk-p72b	luk	p72b	72	b	22:24	22:38
+luk-p73	luk	p73	73		22:39	22:46
+luk-p74	luk	p74	74		22:47	22:62
+luk-p75a	luk	p75a	75	a	22:63	22:71
+luk-p75b	luk	p75b	75	b	23:1	23:12
+luk-p75c	luk	p75c	75	c	23:13	23:25
+luk-p76a	luk	p76a	76	a	23:26	23:43
+luk-p76b	luk	p76b	76	b	23:44	23:49
+luk-p77	luk	p77	77		23:50	23:56
+luk-p78	luk	p78	78		24:1	24:12
+luk-p79	luk	p79	79		24:13	24:35
+luk-p80	luk	p80	80		24:36	24:53
+mat-p1	mat	p1	1		1:1	1:17
+mat-p2	mat	p2	2		1:18	1:25
+mat-p3	mat	p3	3		2:1	2:12
+mat-p4	mat	p4	4		2:13	2:23
+mat-p5	mat	p5	5		3:1	3:17
+mat-p6	mat	p6	6		4:1	4:11
+mat-p7	mat	p7	7		4:12	4:25
+mat-p8	mat	p8	8		5:1	5:12
+mat-p9	mat	p9	9		5:13	5:16
+mat-p10	mat	p10	10		5:17	5:26
+mat-p11	mat	p11	11		5:27	5:32
+mat-p12	mat	p12	12		5:33	5:42
+mat-p13	mat	p13	13		5:43	5:48
+mat-p14	mat	p14	14		6:1	6:8
+mat-p15	mat	p15	15		6:9	6:18
+mat-p16	mat	p16	16		6:19	6:34
+mat-p17	mat	p17	17		7:1	7:12
+mat-p18	mat	p18	18		7:13	7:29
+mat-p19	mat	p19	19		8:1	8:17
+mat-p20	mat	p20	20		8:18	8:22
+mat-p21	mat	p21	21		8:23	8:27
+mat-p22	mat	p22	22		8:28	8:34
+mat-p23	mat	p23	23		9:1	9:8
+mat-p24	mat	p24	24		9:9	9:13
+mat-p25	mat	p25	25		9:14	9:17
+mat-p26	mat	p26	26		9:18	9:26
+mat-p27	mat	p27	27		9:27	9:38
+mat-p28	mat	p28	28		10:1	10:15
+mat-p29	mat	p29	29		10:16	10:25
+mat-p30	mat	p30	30		10:26	10:33
+mat-p31	mat	p31	31		10:34	10:42
+mat-p32a	mat	p32a	32	a	11:1	11:6
+mat-p32b	mat	p32b	32	b	11:7	11:19
+mat-p33	mat	p33	33		11:20	11:24
+mat-p34	mat	p34	34		11:25	11:30
+mat-p35	mat	p35	35		12:1	12:14
+mat-p36	mat	p36	36		12:15	12:21
+mat-p37	mat	p37	37		12:22	12:32
+mat-p38	mat	p38	38		12:33	12:37
+mat-p39	mat	p39	39		12:38	12:45
+mat-p40	mat	p40	40		12:46	12:50
+mat-p41	mat	p41	41		13:1	13:9
+mat-p42	mat	p42	42		13:10	13:17
+mat-p43	mat	p43	43		13:18	13:23
+mat-p44	mat	p44	44		13:24	13:35
+mat-p45	mat	p45	45		13:36	13:43
+mat-p46	mat	p46	46		13:44	13:53
+mat-p47	mat	p47	47		13:54	13:58
+mat-p48	mat	p48	48		14:1	14:12
+mat-p49	mat	p49	49		14:13	14:21
+mat-p50	mat	p50	50		14:22	14:36
+mat-p51	mat	p51	51		15:1	15:20
+mat-p52	mat	p52	52		15:21	15:28
+mat-p53	mat	p53	53		15:29	15:39
+mat-p54	mat	p54	54		16:1	16:12
+mat-p55	mat	p55	55		16:13	16:20
+mat-p56	mat	p56	56		16:21	16:28
+mat-p57	mat	p57	57		17:1	17:13
+mat-p58	mat	p58	58		17:14	17:21
+mat-p59	mat	p59	59		17:22	17:27
+mat-p60	mat	p60	60		18:1	18:9
+mat-p61	mat	p61	61		18:10	18:14
+mat-p62	mat	p62	62		18:15	18:20
+mat-p63	mat	p63	63		18:21	18:35
+mat-p64	mat	p64	64		19:1	19:12
+mat-p65	mat	p65	65		19:13	19:30
+mat-p66	mat	p66	66		20:1	20:16
+mat-p67	mat	p67	67		20:17	20:28
+mat-p68	mat	p68	68		20:29	20:34
+mat-p69	mat	p69	69		21:1	21:11
+mat-p70	mat	p70	70		21:12	21:22
+mat-p71	mat	p71	71		21:23	21:32
+mat-p72	mat	p72	72		21:33	21:46
+mat-p73	mat	p73	73		22:1	22:14
+mat-p74	mat	p74	74		22:15	22:22
+mat-p75	mat	p75	75		22:23	22:33
+mat-p76	mat	p76	76		22:34	22:46
+mat-p77	mat	p77	77		23:1	23:12
+mat-p78	mat	p78	78		23:13	23:22
+mat-p79	mat	p79	79		23:23	23:28
+mat-p80	mat	p80	80		23:29	23:36
+mat-p81	mat	p81	81		23:37	24:2
+mat-p82	mat	p82	82		24:3	24:14
+mat-p83	mat	p83	83		24:15	24:28
+mat-p84	mat	p84	84		24:29	24:36
+mat-p85	mat	p85	85		24:37	24:44
+mat-p86	mat	p86	86		24:45	24:51
+mat-p87	mat	p87	87		25:1	25:13
+mat-p88	mat	p88	88		25:14	25:30
+mat-p89	mat	p89	89		25:31	25:46
+mat-p90	mat	p90	90		26:1	26:16
+mat-p91	mat	p91	91		26:17	26:25
+mat-p92	mat	p92	92		26:26	26:35
+mat-p93	mat	p93	93		26:36	26:46
+mat-p94	mat	p94	94		26:47	26:56
+mat-p95	mat	p95	95		26:57	26:68
+mat-p96	mat	p96	96		26:69	26:75
+mat-p97	mat	p97	97		27:1	27:10
+mat-p98	mat	p98	98		27:11	27:26
+mat-p99	mat	p99	99		27:27	27:31
+mat-p100	mat	p100	100		27:32	27:44
+mat-p101	mat	p101	101		27:45	27:56
+mat-p102	mat	p102	102		27:57	27:66
+mat-p103	mat	p103	103		28:1	28:15
+mat-p104	mat	p104	104		28:16	28:20
+mrk-p1	mrk	p1	1		1:1	1:13
+mrk-p2	mrk	p2	2		1:14	1:20
+mrk-p3	mrk	p3	3		1:21	1:28
+mrk-p4	mrk	p4	4		1:29	1:34
+mrk-p5	mrk	p5	5		1:35	1:39
+mrk-p6	mrk	p6	6		1:40	1:45
+mrk-p7	mrk	p7	7		2:1	2:12
+mrk-p8	mrk	p8	8		2:13	2:17
+mrk-p9	mrk	p9	9		2:18	2:22
+mrk-p10	mrk	p10	10		2:23	3:6
+mrk-p11	mrk	p11	11		3:7	3:12
+mrk-p12	mrk	p12	12		3:13	3:19
+mrk-p13	mrk	p13	13		3:20	3:35
+mrk-p14	mrk	p14	14		4:1	4:20
+mrk-p15	mrk	p15	15		4:21	4:25
+mrk-p16	mrk	p16	16		4:26	4:34
+mrk-p17	mrk	p17	17		4:35	4:41
+mrk-p18	mrk	p18	18		5:1	5:20
+mrk-p19a	mrk	p19a	19	a	5:21	5:34
+mrk-p19b	mrk	p19b	19	b	5:35	5:43
+mrk-p20	mrk	p20	20		6:1	6:6a
+mrk-p21	mrk	p21	21		6:6b	6:13
+mrk-p22	mrk	p22	22		6:14	6:29
+mrk-p23a	mrk	p23a	23	a	6:30	6:44
+mrk-p23b	mrk	p23b	23	b	6:45	6:56
+mrk-p24a	mrk	p24a	24	a	7:1	7:8
+mrk-p24b	mrk	p24b	24	b	7:9	7:13
+mrk-p24c	mrk	p24c	24	c	7:14	7:23
+mrk-p25	mrk	p25	25		7:24	7:30
+mrk-p26	mrk	p26	26		7:31	7:37
+mrk-p27a	mrk	p27a	27	a	8:1	8:10
+mrk-p27b	mrk	p27b	27	b	8:11	8:21
+mrk-p28	mrk	p28	28		8:22	8:26
+mrk-p29a	mrk	p29a	29	a	8:27	8:30
+mrk-p29b	mrk	p29b	29	b	8:31	9:1
+mrk-p30	mrk	p30	30		9:2	9:13
+mrk-p31	mrk	p31	31		9:14	9:29
+mrk-p32	mrk	p32	32		9:30	9:50
+mrk-p33	mrk	p33	33		10:1	10:12
+mrk-p34	mrk	p34	34		10:13	10:31
+mrk-p35	mrk	p35	35		10:32	10:45
+mrk-p36	mrk	p36	36		10:46	10:52
+mrk-p37	mrk	p37	37		11:1	11:11
+mrk-p38	mrk	p38	38		11:12	11:26
+mrk-p39a	mrk	p39a	39	a	11:27	11:33
+mrk-p39b	mrk	p39b	39	b	12:1	12:12
+mrk-p40	mrk	p40	40		12:13	12:17
+mrk-p41	mrk	p41	41		12:18	12:27
+mrk-p42	mrk	p42	42		12:28	12:34
+mrk-p43	mrk	p43	43		12:35	12:37
+mrk-p44	mrk	p44	44		12:38	12:44
+mrk-p45a	mrk	p45a	45	a	13:1	13:8
+mrk-p45b	mrk	p45b	45	b	13:9	13:23
+mrk-p45c	mrk	p45c	45	c	13:24	13:31
+mrk-p45d	mrk	p45d	45	d	13:32	13:37
+mrk-p46	mrk	p46	46		14:1	14:11
+mrk-p47a	mrk	p47a	47	a	14:12	14:26
+mrk-p47b	mrk	p47b	47	b	14:27	14:31
+mrk-p48	mrk	p48	48		14:32	14:42
+mrk-p49	mrk	p49	49		14:43	14:52
+mrk-p50a	mrk	p50a	50	a	14:53	14:65
+mrk-p50b	mrk	p50b	50	b	14:66	14:72
+mrk-p51	mrk	p51	51		15:1	15:15
+mrk-p52a	mrk	p52a	52	a	15:16	15:32
+mrk-p52b	mrk	p52b	52	b	15:33	15:39
+mrk-p53	mrk	p53	53		15:40	15:47
+mrk-p54	mrk	p54	54		16:1	16:8
+mrk-p55	mrk	p55	55		16:9	16:20
+neh-p1	neh	p1	1		1:1	1:11
+neh-p2	neh	p2	2		2:1	2:10
+neh-p3	neh	p3	3		2:11	2:20
+neh-p4	neh	p4	4		3:1	3:5
+neh-p5	neh	p5	5		3:6	3:15
+neh-p6	neh	p6	6		3:16	3:27
+neh-p7	neh	p7	7		3:28	3:32
+neh-p8	neh	p8	8		4:1	4:14
+neh-p9	neh	p9	9		4:15	4:23
+neh-p10	neh	p10	10		5:1	5:13
+neh-p11	neh	p11	11		5:14	5:19
+neh-p12	neh	p12	12		6:1	6:14
+neh-p13	neh	p13	13		6:15	7:4
+neh-p14	neh	p14	14		7:5	7:25
+neh-p15	neh	p15	15		7:26	7:38
+neh-p16	neh	p16	16		7:39	7:60
+neh-p17	neh	p17	17		7:61	7:65
+neh-p18	neh	p18	18		7:66	7:73
+neh-p19	neh	p19	19		8:1	8:8
+neh-p20	neh	p20	20		8:9	8:12
+neh-p21	neh	p21	21		8:13	8:18
+neh-p22	neh	p22	22		9:1	9:5
+neh-p23a	neh	p23a	23	a	9:6	9:15
+neh-p23b	neh	p23b	23	b	9:16	9:25
+neh-p23c	neh	p23c	23	c	9:26	9:31
+neh-p23d	neh	p23d	23	d	9:32	9:37
+neh-p24	neh	p24	24		9:38	10:27
+neh-p25	neh	p25	25		10:28	10:39
+neh-p26	neh	p26	26		11:1	11:9
+neh-p27	neh	p27	27		11:10	11:24
+neh-p28	neh	p28	28		11:25	11:36
+neh-p29	neh	p29	29		12:1	12:11
+neh-p30	neh	p30	30		12:12	12:21
+neh-p31	neh	p31	31		12:22	12:26
+neh-p32	neh	p32	32		12:27	12:43
+neh-p33	neh	p33	33		12:44	12:47
+neh-p34	neh	p34	34		13:1	13:9
+neh-p35	neh	p35	35		13:10	13:14
+neh-p36	neh	p36	36		13:15	13:22
+neh-p37	neh	p37	37		13:23	13:31
+num-p1	num	p1	1		1:1	1:16
+num-p2	num	p2	2		1:17	1:47
+num-p3	num	p3	3		1:48	1:54
+num-p4	num	p4	4		2:1	2:17
+num-p5	num	p5	5		2:18	2:34
+num-p6	num	p6	6		3:1	3:13
+num-p7	num	p7	7		3:14	3:20
+num-p8	num	p8	8		3:21	3:26
+num-p9	num	p9	9		3:27	3:32
+num-p10	num	p10	10		3:33	3:39
+num-p11	num	p11	11		3:40	3:51
+num-p12	num	p12	12		4:1	4:20
+num-p13	num	p13	13		4:21	4:28
+num-p14	num	p14	14		4:29	4:33
+num-p15	num	p15	15		4:34	4:49
+num-p16	num	p16	16		5:1	5:4
+num-p17	num	p17	17		5:5	5:10
+num-p18	num	p18	18		5:11	5:31
+num-p19a	num	p19a	19	a	6:1	6:12
+num-p19b	num	p19b	19	b	6:13	6:21
+num-p20	num	p20	20		6:22	6:27
+num-p21	num	p21	21		7:1	7:9
+num-p22	num	p22	22		7:10	7:83
+num-p23	num	p23	23		7:84	7:89
+num-p24	num	p24	24		8:1	8:4
+num-p25	num	p25	25		8:5	8:22
+num-p26	num	p26	26		8:23	8:26
+num-p27	num	p27	27		9:1	9:14
+num-p28	num	p28	28		9:15	9:23
+num-p29	num	p29	29		10:1	10:10
+num-p30	num	p30	30		10:11	10:36
+num-p31	num	p31	31		11:1	11:15
+num-p32	num	p32	32		11:16	11:30
+num-p33	num	p33	33		11:31	11:35
+num-p34	num	p34	34		12:1	12:16
+num-p35	num	p35	35		13:1	13:16
+num-p36	num	p36	36		13:17	13:33
+num-p37	num	p37	37		14:1	14:10
+num-p38	num	p38	38		14:11	14:25
+num-p39	num	p39	39		14:26	14:38
+num-p40	num	p40	40		14:39	14:45
+num-p41	num	p41	41		15:1	15:16
+num-p42	num	p42	42		15:17	15:21
+num-p43	num	p43	43		15:22	15:31
+num-p44	num	p44	44		15:32	15:36
+num-p45	num	p45	45		15:37	15:41
+num-p46a	num	p46a	46	a	16:1	16:19
+num-p46b	num	p46b	46	b	16:20	16:35
+num-p47	num	p47	47		16:36	16:50
+num-p48	num	p48	48		17:1	17:13
+num-p49	num	p49	49		18:1	18:7
+num-p50	num	p50	50		18:8	18:20
+num-p51	num	p51	51		18:21	18:24
+num-p52	num	p52	52		18:25	18:32
+num-p53	num	p53	53		19:1	19:10
+num-p54	num	p54	54		19:11	19:22
+num-p55	num	p55	55		20:1	20:13
+num-p56	num	p56	56		20:14	20:21
+num-p57	num	p57	57		20:22	20:29
+num-p58	num	p58	58		21:1	21:9
+num-p59	num	p59	59		21:10	21:20
+num-p60a	num	p60a	60	a	21:21	21:26
+num-p60b	num	p60b	60	b	21:27	21:30
+num-p61	num	p61	61		21:31	21:35
+num-p62	num	p62	62		22:1	22:21
+num-p63	num	p63	63		22:22	22:40
+num-p64	num	p64	64		22:41	23:6
+num-p65	num	p65	65		23:7	23:12
+num-p66	num	p66	66		23:13	23:26
+num-p67	num	p67	67		23:27	24:13
+num-p68	num	p68	68		24:14	24:19
+num-p69	num	p69	69		24:20	24:25
+num-p70	num	p70	70		25:1	25:9
+num-p71	num	p71	71		25:10	25:18
+num-p72a	num	p72a	72	a	26:1	26:11
+num-p72b	num	p72b	72	b	26:12	26:14
+num-p72c	num	p72c	72	c	26:15	26:18
+num-p72d	num	p72d	72	d	26:19	26:22
+num-p72e	num	p72e	72	e	26:23	26:25
+num-p72f	num	p72f	72	f	26:26	26:27
+num-p72g	num	p72g	72	g	26:28	26:34
+num-p72h	num	p72h	72	h	26:35	26:37
+num-p72i	num	p72i	72	i	26:38	26:41
+num-p72j	num	p72j	72	j	26:42	26:43
+num-p72k	num	p72k	72	k	26:44	26:47
+num-p72l	num	p72l	72	l	26:48	26:50
+num-p72m	num	p72m	72	m	26:51	26:56
+num-p72n	num	p72n	72	n	26:57	26:65
+num-p73	num	p73	73		27:1	27:11
+num-p74	num	p74	74		27:12	27:23
+num-p75	num	p75	75		28:1	28:10
+num-p76	num	p76	76		28:11	28:15
+num-p77	num	p77	77		28:16	28:25
+num-p78	num	p78	78		28:26	28:31
+num-p79	num	p79	79		29:1	29:6
+num-p80	num	p80	80		29:7	29:11
+num-p81	num	p81	81		29:12	29:40
+num-p82	num	p82	82		30:1	30:16
+num-p83	num	p83	83		31:1	31:24
+num-p84	num	p84	84		31:25	31:54
+num-p85	num	p85	85		32:1	32:15
+num-p86	num	p86	86		32:16	32:27
+num-p87	num	p87	87		32:28	32:32
+num-p88	num	p88	88		32:33	32:42
+num-p89a	num	p89a	89	a	33:1	33:15
+num-p89b	num	p89b	89	b	33:16	33:36
+num-p89c	num	p89c	89	c	33:37	33:49
+num-p90	num	p90	90		33:50	33:56
+num-p91	num	p91	91		34:1	34:15
+num-p92	num	p92	92		34:16	34:29
+num-p93	num	p93	93		35:1	35:8
+num-p94a	num	p94a	94	a	35:9	35:29
+num-p94b	num	p94b	94	b	35:30	35:34
+num-p95	num	p95	95		36:1	36:13
+phm-p1	phm	p1	1		1:1	1:3
+phm-p2	phm	p2	2		1:4	1:7
+phm-p3	phm	p3	3		1:8	1:16
+phm-p4	phm	p4	4		1:17	1:22
+phm-p5	phm	p5	5		1:23	1:25
+php-p1	php	p1	1		1:1	1:11
+php-p2	php	p2	2		1:12	1:18a
+php-p3	php	p3	3		1:18b	1:26
+php-p4	php	p4	4		1:27	1:30
+php-p5	php	p5	5		2:1	2:4
+php-p6	php	p6	6		2:5	2:11
+php-p7	php	p7	7		2:12	2:18
+php-p8	php	p8	8		2:19	2:24
+php-p9	php	p9	9		2:25	3:1
+php-p10	php	p10	10		3:2	3:11
+php-p11	php	p11	11		3:12	3:16
+php-p12	php	p12	12		3:17	4:1
+php-p13	php	p13	13		4:2	4:9
+php-p14	php	p14	14		4:10	4:23
+psa-p1	psa	p1	1		1:1	1:6
+psa-p2	psa	p2	2		2:1	2:12
+psa-p3	psa	p3	3		3:1	3:8
+psa-p4	psa	p4	4		4:1	4:8
+psa-p5	psa	p5	5		5:1	5:12
+psa-p6	psa	p6	6		6:1	6:10
+psa-p7	psa	p7	7		7:1	7:17
+psa-p8	psa	p8	8		8:1	8:9
+psa-p9	psa	p9	9		9:1	9:20
+psa-p10	psa	p10	10		10:1	10:18
+psa-p11	psa	p11	11		11:1	11:7
+psa-p12	psa	p12	12		12:1	12:8
+psa-p13	psa	p13	13		13:1	13:6
+psa-p14	psa	p14	14		14:1	14:7
+psa-p15	psa	p15	15		15:1	15:5
+psa-p16	psa	p16	16		16:1	16:11
+psa-p17	psa	p17	17		17:1	17:15
+psa-p18	psa	p18	18		18:1	18:50
+psa-p19	psa	p19	19		19:1	19:14
+psa-p20	psa	p20	20		20:1	20:9
+psa-p21	psa	p21	21		21:1	21:13
+psa-p22	psa	p22	22		22:1	22:31
+psa-p23	psa	p23	23		23:1	23:6
+psa-p24	psa	p24	24		24:1	24:10
+psa-p25	psa	p25	25		25:1	25:22
+psa-p26	psa	p26	26		26:1	26:12
+psa-p27	psa	p27	27		27:1	27:14
+psa-p28	psa	p28	28		28:1	28:9
+psa-p29	psa	p29	29		29:1	29:11
+psa-p30	psa	p30	30		30:1	30:12
+psa-p31	psa	p31	31		31:1	31:24
+psa-p32	psa	p32	32		32:1	32:11
+psa-p33	psa	p33	33		33:1	33:22
+psa-p34	psa	p34	34		34:1	34:22
+psa-p35	psa	p35	35		35:1	35:28
+psa-p36	psa	p36	36		36:1	36:12
+psa-p37	psa	p37	37		37:1	37:40
+psa-p38	psa	p38	38		38:1	38:22
+psa-p39	psa	p39	39		39:1	39:13
+psa-p40	psa	p40	40		40:1	40:17
+psa-p41	psa	p41	41		41:1	41:13
+psa-p42	psa	p42	42		42:1	42:11
+psa-p43	psa	p43	43		43:1	43:5
+psa-p44	psa	p44	44		44:1	44:26
+psa-p45	psa	p45	45		45:1	45:17
+psa-p46	psa	p46	46		46:1	46:11
+psa-p47	psa	p47	47		47:1	47:9
+psa-p48	psa	p48	48		48:1	48:14
+psa-p49	psa	p49	49		49:1	49:20
+psa-p50	psa	p50	50		50:1	50:23
+psa-p51	psa	p51	51		51:1	51:19
+psa-p52	psa	p52	52		52:1	52:9
+psa-p53	psa	p53	53		53:1	53:6
+psa-p54	psa	p54	54		54:1	54:7
+psa-p55	psa	p55	55		55:1	55:23
+psa-p56	psa	p56	56		56:1	56:13
+psa-p57	psa	p57	57		57:1	57:11
+psa-p58	psa	p58	58		58:1	58:11
+psa-p59	psa	p59	59		59:1	59:17
+psa-p60	psa	p60	60		60:1	60:12
+psa-p61	psa	p61	61		61:1	61:8
+psa-p62	psa	p62	62		62:1	62:12
+psa-p63	psa	p63	63		63:1	63:11
+psa-p64	psa	p64	64		64:1	64:10
+psa-p65	psa	p65	65		65:1	65:13
+psa-p66	psa	p66	66		66:1	66:20
+psa-p67	psa	p67	67		67:1	67:7
+psa-p68	psa	p68	68		68:1	68:35
+psa-p69	psa	p69	69		69:1	69:36
+psa-p70	psa	p70	70		70:1	70:5
+psa-p71	psa	p71	71		71:1	71:24
+psa-p72	psa	p72	72		72:1	72:20
+psa-p73	psa	p73	73		73:1	73:28
+psa-p74	psa	p74	74		74:1	74:23
+psa-p75	psa	p75	75		75:1	75:10
+psa-p76	psa	p76	76		76:1	76:12
+psa-p77	psa	p77	77		77:1	77:20
+psa-p78	psa	p78	78		78:1	78:72
+psa-p79	psa	p79	79		79:1	79:13
+psa-p80	psa	p80	80		80:1	80:19
+psa-p81	psa	p81	81		81:1	81:16
+psa-p82	psa	p82	82		82:1	82:8
+psa-p83	psa	p83	83		83:1	83:18
+psa-p84	psa	p84	84		84:1	84:12
+psa-p85	psa	p85	85		85:1	85:13
+psa-p86	psa	p86	86		86:1	86:17
+psa-p87	psa	p87	87		87:1	87:7
+psa-p88	psa	p88	88		88:1	88:18
+psa-p89	psa	p89	89		89:1	89:52
+psa-p90	psa	p90	90		90:1	90:17
+psa-p91	psa	p91	91		91:1	91:16
+psa-p92	psa	p92	92		92:1	92:15
+psa-p93	psa	p93	93		93:1	93:5
+psa-p94	psa	p94	94		94:1	94:23
+psa-p95	psa	p95	95		95:1	95:11
+psa-p96	psa	p96	96		96:1	96:13
+psa-p97	psa	p97	97		97:1	97:12
+psa-p98	psa	p98	98		98:1	98:9
+psa-p99	psa	p99	99		99:1	99:9
+psa-p100	psa	p100	100		100:1	100:5
+psa-p101	psa	p101	101		101:1	101:8
+psa-p102	psa	p102	102		102:1	102:28
+psa-p103	psa	p103	103		103:1	103:22
+psa-p104	psa	p104	104		104:1	104:35
+psa-p105	psa	p105	105		105:1	105:45
+psa-p106	psa	p106	106		106:1	106:48
+psa-p107	psa	p107	107		107:1	107:43
+psa-p108	psa	p108	108		108:1	108:13
+psa-p109	psa	p109	109		109:1	109:31
+psa-p110	psa	p110	110		110:1	110:7
+psa-p111	psa	p111	111		111:1	111:10
+psa-p112	psa	p112	112		112:1	112:10
+psa-p113	psa	p113	113		113:1	113:9
+psa-p114	psa	p114	114		114:1	114:8
+psa-p115	psa	p115	115		115:1	115:18
+psa-p116	psa	p116	116		116:1	116:19
+psa-p117	psa	p117	117		117:1	117:2
+psa-p118	psa	p118	118		118:1	118:29
+psa-p119	psa	p119	119		119:1	119:176
+psa-p120	psa	p120	120		120:1	120:7
+psa-p121	psa	p121	121		121:1	121:8
+psa-p122	psa	p122	122		122:1	122:9
+psa-p123	psa	p123	123		123:1	123:4
+psa-p124	psa	p124	124		124:1	124:8
+psa-p125	psa	p125	125		125:1	125:5
+psa-p126	psa	p126	126		126:1	126:6
+psa-p127	psa	p127	127		127:1	127:5
+psa-p128	psa	p128	128		128:1	128:6
+psa-p129	psa	p129	129		129:1	129:8
+psa-p130	psa	p130	130		130:1	130:8
+psa-p131	psa	p131	131		131:1	131:3
+psa-p132	psa	p132	132		132:1	132:18
+psa-p133	psa	p133	133		133:1	133:3
+psa-p134	psa	p134	134		134:1	134:3
+psa-p135	psa	p135	135		135:1	135:21
+psa-p136	psa	p136	136		136:1	136:26
+psa-p137	psa	p137	137		137:1	137:9
+psa-p138	psa	p138	138		138:1	138:8
+psa-p139	psa	p139	139		139:1	139:24
+psa-p140	psa	p140	140		140:1	140:13
+psa-p141	psa	p141	141		141:1	141:10
+psa-p142	psa	p142	142		142:1	142:7
+psa-p143	psa	p143	143		143:1	143:12
+psa-p144	psa	p144	144		144:1	144:15
+psa-p145	psa	p145	145		145:1	145:21
+psa-p146	psa	p146	146		146:1	146:10
+psa-p147	psa	p147	147		147:1	147:20
+psa-p148	psa	p148	148		148:1	148:14
+psa-p149	psa	p149	149		149:1	149:9
+psa-p150	psa	p150	150		150:1	150:6
+rut-p1	rut	p1	1		1:1	1:7
+rut-p2	rut	p2	2		1:8	1:19a
+rut-p3	rut	p3	3		1:19b	2:2
+rut-p4	rut	p4	4		2:3	2:13
+rut-p5	rut	p5	5		2:14	2:23
+rut-p6	rut	p6	6		3:1	3:18
+rut-p7	rut	p7	7		4:1	4:13
+rut-p8	rut	p8	8		4:14	4:22
+tit-p1	tit	p1	1		1:1	1:4
+tit-p2	tit	p2	2		1:5	1:9
+tit-p3	tit	p3	3		1:10	1:16
+tit-p4	tit	p4	4		2:1	2:10
+tit-p5	tit	p5	5		2:11	2:15
+tit-p6	tit	p6	6		3:1	3:11
+tit-p7	tit	p7	7		3:12	3:15

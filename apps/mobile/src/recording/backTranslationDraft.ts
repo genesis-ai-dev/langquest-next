@@ -7,6 +7,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Card } from '@langquest-next/core';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { t } from '../i18n';
 import { reportError } from '../report';
 import { parseBackTranslationDraft, withoutPart, withPart, type BackTranslationDraft } from './workspaceModel';
 
@@ -30,8 +31,8 @@ export function useBackTranslationDraft(key: string, fromTakeId: string) {
       if (mounted.current) { setDraft(current.current); setLoaded(true); }
     }, (e: unknown) => {
       const id = reportError('back translation draft: read', e);
-      if (mounted.current) { setProblem(`Your earlier parts could not be read on this device (code ${id}). Nothing was deleted.`); setLoaded(true); }
-      throw new DraftUnreadable('draft unreadable');
+      if (mounted.current) { setProblem(t('recording.backTranslation.draftUnreadable', { code: id })); setLoaded(true); }
+      throw new DraftUnreadable('draft unreadable'); // i18n-ignore: an internal error's message, never shown
     });
     chain.current.catch(() => undefined); // reported above; writes see the refusal
   }

@@ -4,7 +4,7 @@
 // new language adds (ORG-2), and review teams (FLOW-5).
 import { describe, expect, it } from 'vitest';
 import {
-  BIBLE_BOOKS, emptyLanguageState, foldLanguage, foldOrg, HlcClock, languageName, languageProgress, ORG_STREAM, selectFlowSpecs,
+  BIBLE_BOOKS, emptyLanguageState, foldLanguage, foldOrg, HlcClock, languageInfo, languageName, languageProgress, ORG_STREAM, selectFlowSpecs,
   selectTemplateSpecs,
   type AnyEvent, type EventPayloads, type EventSpec, type EventType, type FlowDoc, type LibraryItemView, type OrgState, type TemplateDoc,
   type VersificationDoc
@@ -12,7 +12,7 @@ import {
 import type { LibraryChoice } from '../src/contentTemplates';
 import {
   addLanguage, assignableLevels, booksInScope, changeMembership, grantableLanguages, grantFloor, groupBelow, mayGrantAt, memberEntries,
-  membersAbove, membersAt, newLanguageId, progressLine, removeMembership, reviewEligible, saveTeam, STARTER_FLOW, suggestedChoice,
+  membersAbove, membersAt, newLanguageId, progressLine, removeMembership, reviewEligible, saveTeam, similarLanguages, STARTER_FLOW, suggestedChoice,
   sumProgress, teamMembers
 } from '../src/orgAdmin';
 import { STARTER_TEMPLATE } from '../src/contentTemplates';
@@ -187,6 +187,19 @@ describe('a new language (ORG-2)', () => {
     expect(after.template!.value).toMatchObject({ itemId: 'lq.bible', docHash: HASH, books: ['LUK'] });
     expect(after.flow!.value).toMatchObject({ itemId: 'lq.quick', docHash: FLOW_HASH });
     expect(languageProgress(after).total).toBe(24);
+    expect(plan.link).toBeNull();
+  });
+
+  it('links a language picked from the language list, and leaves a typed one unlinked', () => {
+    // Why: the link is what says which language in the world this is; the
+    // code alone can be anything someone typed, offline above all.
+    const org = orgFixture();
+    const languoidId = '6d0c6d4e-3f0a-4c3e-9a51-6f3e2b9d7a10';
+    const plan = addLanguage(org, { languageId: 'L3', code: 'DIK', name: 'Rek', template: template(), flow: flow(), languoidId });
+    expect(plan.link).toEqual({ languageId: 'L3', code: 'dik', languoidId });
+    const after = applyOrg([{ type: 'v1.LanguageAdded', payload: plan.added }, { type: 'v1.LanguageCodeSet', payload: plan.link! }], org);
+    expect(languageInfo(after, 'L3')).toMatchObject({ name: 'Rek', code: 'dik', languoidId });
+    expect(addLanguage(org, { languageId: 'L4', code: 'rek', name: 'Rek', template: template(), flow: flow(), languoidId: null }).link).toBeNull();
   });
 
   it('refuses a language with no code, no template or no flow, or one already there', () => {
@@ -195,6 +208,27 @@ describe('a new language (ORG-2)', () => {
     expect(() => addLanguage(org, { languageId: 'L3', code: 'x', name: 'X', template: template(), flow: [] })).toThrow('review flow');
     expect(() => addLanguage(org, { languageId: 'L3', code: 'x', name: 'X', template: [], flow: flow() })).toThrow('template');
     expect(() => addLanguage(org, { languageId: 'L1', code: 'x', name: 'X', template: template(), flow: flow() })).toThrow('already');
+  });
+
+  it('warns of a language already there under the same code or name, and only warns (decision 76)', () => {
+    // Why: a new language gets a fresh id, so nothing refuses a second
+    // Dinka; the admin is told before adding it, and may still go on.
+    const org = orgFixture();
+    const ids = (c: { code: string; name: string }) => similarLanguages(org, c).map((l) => l.languageId);
+    expect(ids({ code: 'DIN ', name: 'Something else' })).toEqual(['L1']);
+    expect(ids({ code: '', name: '  dinka ' })).toEqual(['L1']);
+    expect(ids({ code: '', name: 'Nüer' })).toEqual(['L2']);
+    expect(ids({ code: 'nus', name: 'Dinka' })).toEqual(['L1', 'L2']);
+    expect(ids({ code: 'hdy', name: 'Hadiyya' })).toEqual([]);
+    expect(ids({ code: '', name: '' })).toEqual([]);
+    expect(similarLanguages(null, { code: 'din', name: 'Dinka' })).toEqual([]);
+    // A renamed language is matched by the name it has now.
+    const renamed = applyOrg([{ type: 'v1.LanguageRenamed', payload: { languageId: 'L1', name: 'Thuɔŋjäŋ' } }], org);
+    expect(similarLanguages(renamed, { code: '', name: 'thuɔŋ jaŋ' }).map((l) => l.languageId)).toEqual(['L1']);
+    expect(similarLanguages(renamed, { code: '', name: 'Dinka' })).toEqual([]);
+    // Renaming a language: it is not a repeat of itself.
+    expect(similarLanguages(org, { code: '', name: 'Dinka', except: 'L1' })).toEqual([]);
+    expect(similarLanguages(org, { code: '', name: 'Nuer', except: 'L1' }).map((l) => l.languageId)).toEqual(['L2']);
   });
 
   it('suggests what the open language uses, else the LangQuest starter, else the first', () => {

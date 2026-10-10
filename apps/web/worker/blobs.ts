@@ -70,7 +70,7 @@ export function parseKey(path: string): BlobKey | null {
   return { key, orgId: m[1]!, streamId: m[2]!, hash: m[3]!, ext: m[4]! };
 }
 
-const NO_STORE = { 'cache-control': 'private, no-store' };
+const NO_STORE = { 'cache-control': 'private, no-store', 'x-content-type-options': 'nosniff' };
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...NO_STORE } });
 
@@ -140,6 +140,8 @@ export function resolveRange(header: string | null, size: number): { offset: num
 async function read(request: Request, b: BlobKey, deps: BlobDeps): Promise<Response> {
   const headers: Record<string, string> = {
     'content-type': MIME[b.ext]!,
+    // Read as the type its name says, never sniffed into something a browser would run.
+    'x-content-type-options': 'nosniff',
     'accept-ranges': 'bytes',
     etag: `"${b.hash}"`,
     // The name is the content: what was read once never changes.

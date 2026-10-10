@@ -56,7 +56,8 @@ begin
       pg_temp.ev(o.org || '-2', o.org, o.actor, 'v1.RoleDefined', jsonb_build_object('roleId', 'admin', 'name', 'Admin', 'privileges', v_all)),
       pg_temp.ev(o.org || '-3', o.org, o.actor, 'v1.MemberAdded', jsonb_build_object('profileId', o.actor, 'roleId', 'admin', 'scope', jsonb_build_object('level', 'org')))));
   end loop;
-  perform set_config('request.jwt.claim.sub', 'bob', false);
+  -- Vic joins libB (by invite in the app; here as the server adds them, decisions.md 75).
+  perform set_config('request.jwt.claim.sub', '', false);
   perform pg_temp.push(jsonb_build_array(
     pg_temp.ev('libB-4', 'libB', 'bob', 'v1.RoleDefined', '{"roleId":"viewer","name":"Viewer","privileges":["view_status"]}'),
     pg_temp.ev('libB-5', 'libB', 'bob', 'v1.MemberAdded', '{"profileId":"vic","roleId":"viewer","scope":{"level":"org"}}')));
@@ -301,6 +302,36 @@ do $$ declare n int; v text; begin
   exception when sqlstate '22023' then null; end;
 end $$;
 
+-- 7b. template@2 (decisions.md 74), and which template each language uses.
+select set_config('request.jwt.claim.sub', 'alice', false);
+select pg_temp.body('T2V', format('{"bible":{"books":[{"book":"GEN","divide":"chapters","name":"Genesis","part":"Chapter"},{"book":"EXO","name":"Exodus"}],"versification":"%s"},"deps":["%s"],"description":"","format":"template@2","goesWith":{"pattern":"FIA"},"levels":[{"name":"Book"},{"name":"Chapter"}],"name":"Book by book","structure":"bible"}', pg_temp.h('V'), pg_temp.h('V')));
+do $$ declare n int; r record; begin
+  perform pg_temp.put('libA', 'T2V');
+  select count(*) into n from public.library_documents where hash = pg_temp.h('T2V') and format = 'template@2';
+  if n <> 1 then raise exception 'template@2 not stored'; end if;
+  perform pg_temp.push(jsonb_build_array(
+    pg_temp.ev('a-lang-1', 'libA', 'alice', 'v1.LanguageAdded', '{"languageId":"tu-one","name":"One","code":"one","sourceCode":"eng"}'),
+    pg_temp.ev('a-lang-2', 'libA', 'alice', 'v1.LanguageAdded', '{"languageId":"tu-two","name":"Two","code":"two","sourceCode":"eng"}')));
+  perform pg_temp.push(jsonb_build_array(
+    jsonb_set(pg_temp.ev('tu-1', 'libA', 'alice', 'v1.TemplateSelected', jsonb_build_object('itemId', 'tpl', 'docHash', pg_temp.h('T1'), 'unitPrefix', 'tpl')), '{streamId}', '"tu-one"'),
+    jsonb_set(pg_temp.ev('tu-2', 'libA', 'alice', 'v1.TemplateSelected', jsonb_build_object('itemId', 'tpl-two', 'docHash', pg_temp.h('T2V'), 'unitPrefix', 'tpl')), '{streamId}', '"tu-one"'),
+    jsonb_set(pg_temp.ev('tu-3', 'libA', 'alice', 'v1.TemplateSelected', jsonb_build_object('itemId', 'tpl', 'docHash', pg_temp.h('T1'), 'unitPrefix', 'tpl')), '{streamId}', '"tu-two"'),
+    jsonb_set(pg_temp.ev('tu-4', 'libA', 'alice', 'v1.BookNameSet', '{"book":"GEN","name":"1 Mose"}'), '{streamId}', '"tu-two"')));
+  select count(*) into n from public.library_template_users('libA');
+  if n <> 2 then raise exception 'expected two languages with a template, got %', n; end if;
+  select * into r from public.library_template_users('libA') where language_id = 'tu-one';
+  if r.item_id <> 'tpl-two' or r.unit_prefix <> 'tpl' then raise exception 'latest selection not returned: %', r.item_id; end if;
+  begin
+    perform pg_temp.push1(jsonb_set(pg_temp.ev('tu-5', 'libA', 'alice', 'v1.BookNameSet', '{"book":"gen","name":"x"}'), '{streamId}', '"tu-two"'));
+    raise exception 'a lower-case book was accepted';
+  exception when others then if sqlerrm not like '%refused%' then raise; end if; end;
+end $$;
+select set_config('request.jwt.claim.sub', 'mallory', false);
+do $$ begin
+  begin perform * from public.library_template_users('libA'); raise exception 'stranger read template users';
+  exception when sqlstate '42501' then null; end;
+end $$;
+
 -- 8. Clients cannot reach the tables or the service functions.
 do $$ begin
   if has_table_privilege('authenticated', 'public.library_documents', 'select')
@@ -316,6 +347,7 @@ do $$ begin
     raise exception 'a service function is callable by a client';
   end if;
   if not has_function_privilege('authenticated', 'public.library_put_document(text, text)', 'execute')
+     or not has_function_privilege('authenticated', 'public.library_template_users(text)', 'execute')
      or not has_function_privilege('service_role', 'public.library_seed_events(text, jsonb)', 'execute') then
     raise exception 'library RPCs not granted';
   end if;

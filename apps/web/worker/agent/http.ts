@@ -5,7 +5,11 @@ import {
   hashSecret, newSecret, newUserCode, normalizeUserCode, parseScopes, SCOPE_TEXT, SCOPES, TOKEN_PREFIX, type Grant, type Scope
 } from './tokens';
 import { handlePublicLink, sessionLinks, tokenLinks } from './links';
-import { isRefusal, parseRelease, parseReview, type ApiStatus, type LinkReviewInput, type LinkSpec, type LinkView, type PassageFilter, type ReviewLink, type VoiceNote } from './view';
+import {
+  isRefusal, parseExternalValue, parseRelease, parseReview, type ApiStatus, type ExternalValueFilter, type ExternalValueOut, type LinkReviewInput, type LinkSpec,
+  type LinkView, type PassageFilter, type ReviewLink, type VoiceNote
+} from './view';
+import { EXTERNAL_KEY_MAX } from '@langquest-next/core';
 import { readVoiceNote } from './voice';
 
 /**
@@ -20,8 +24,14 @@ export interface OrgStub {
   read(grant: Grant, q: AgentQuery): Promise<Answer<unknown>>;
   write(grant: Grant, w: AgentWrite): Promise<Answer<unknown>>;
   access(profileId: string): Promise<OrgAccess | null>;
-  /** Count one write (a voice note upload) against a token's or link's hourly budget; false when it is spent. */
+  /** Count one voice note upload against a token's or link's hourly uploads; false when they are spent. */
   spend(key: string): Promise<boolean>;
+  /** Count one write that is not an event (a review link made with a token) against the token's writes. */
+  spendWrite(key: string): Promise<boolean>;
+  /** Is the link open: not revoked or expired, and its sharer can still record (decisions.md 75)? */
+  linkOpen(link: ReviewLink): Promise<boolean>;
+  /** May this person take back a link someone else shared in its language? */
+  mayRevokeLink(profileId: string, link: ReviewLink): Promise<boolean>;
   checkLink(profileId: string, spec: LinkSpec): Promise<Answer<{ takeId: string }>>;
   linkInfo(link: ReviewLink): Promise<Answer<LinkView>>;
   linkReview(link: ReviewLink, input: LinkReviewInput): Promise<Answer<{ duplicate: boolean }>>;
@@ -128,7 +138,7 @@ export async function handleAgentApi(request: Request, deps: AgentDeps): Promise
     if (parts.length === 0) return json(200, index(url));
     const auth = await grantFor(request, deps);
     if (auth instanceof Response) return auth;
-    if (parts[0] === 'mcp' && parts.length === 1) return await handleMcp(request, auth.grant, deps.org(auth.grant.orgId), url);
+    if (parts[0] === 'mcp' && parts.length === 1) return await handleMcp(request, auth.grant, deps.org(auth.grant.orgId), url, (data) => withAppNames(auth.grant.orgId, data, deps));
     return await tokenRoute(request, parts, url, auth, deps);
   } catch (e) {
     console.error(`agent api ${request.method} ${url.pathname}:`, e);
@@ -152,6 +162,8 @@ function index(url: URL) {
       review: `POST ${base}/languages/{languageId}/passages/{unitId}/reviews`,
       release: `POST ${base}/languages/{languageId}/passages/{unitId}/releases`,
       voiceNote: `PUT ${base}/languages/{languageId}/voice-notes (m4a or WAV body)`,
+      externalValues: `GET ${base}/languages/{languageId}/external-values?keyPrefix=&changedSince=ISO&after= (values your apps store with the language; LangQuest keeps them and never acts on them)`,
+      externalValue: `PUT | GET | DELETE ${base}/languages/{languageId}/external-values/{key} (PUT body: { "data": { … } }, at most 4 KB)`,
       reviewLink: `POST ${base}/review-links`,
       mcp: `POST ${base}/mcp (Model Context Protocol, streamable HTTP)`,
       deviceCode: `POST ${base}/device/code`,
@@ -168,7 +180,7 @@ async function tokenRoute(request: Request, parts: string[], url: URL, auth: { g
     const languages = await org.read(grant, { op: 'languages' });
     return json(200, { token: tokenOut(auth.token), languages: languages.ok ? languages.data : [] });
   }
-  if (parts[0] === 'review-links') return tokenLinks(request, parts.slice(1), url, grant, deps);
+  if (parts[0] === 'review-links') return tokenLinks(request, parts.slice(1), url, grant, auth.token, deps);
   if (parts[0] !== 'languages') return fail(404, 'not_found', 'Not found. GET /api/v1 lists what is here.');
   if (parts.length === 1 && get) return answer(await org.read(grant, { op: 'languages' }));
   const languageId = parts[1]!;
@@ -178,6 +190,7 @@ async function tokenRoute(request: Request, parts: string[], url: URL, auth: { g
     return one ? json(200, one) : fail(404, 'no_language', 'This token cannot open that language.');
   }
   if (parts[2] === 'voice-notes' && parts.length === 3 && request.method === 'PUT') return voiceNote(request, grant, languageId, deps);
+  if (parts[2] === 'external-values') return externalValuesRoute(request, parts.slice(3).join('/'), url, grant, languageId, deps);
   if (parts[2] !== 'passages') return fail(404, 'not_found', 'Not found. GET /api/v1 lists what is here.');
   if (parts.length === 3 && get) {
     const filter = filterFrom(url);
@@ -197,6 +210,66 @@ async function tokenRoute(request: Request, parts: string[], url: URL, auth: { g
   }
   const input = parseRelease(b);
   return isRefusal(input) ? fail(input.status, input.code, input.error) : answer(await org.write(grant, { op: 'release', languageId, unitId, input }));
+}
+
+// ---- external values (decisions.md 79) -----------------------------------------------
+
+/** A PUT body bigger than this is refused before it is read: data is at most 4 KB, and JSON spacing is allowed for. */
+const MAX_VALUE_BODY_BYTES = 16 * 1024;
+
+/**
+ * `…/languages/{languageId}/external-values[/{key}]`: a third-party app's
+ * key-value store in the language. The key is the rest of the path, slashes
+ * and all, as a passage's unit id is.
+ */
+async function externalValuesRoute(request: Request, key: string, url: URL, grant: Grant, languageId: string, deps: AgentDeps): Promise<Response> {
+  const org = deps.org(grant.orgId);
+  const named = async (a: Answer<unknown>) => (a.ok ? json(200, await withAppNames(grant.orgId, a.data, deps)) : answer(a));
+  if (!key) {
+    if (request.method !== 'GET') return fail(405, 'method', 'GET lists values; PUT, GET or DELETE …/external-values/{key} works on one.');
+    const filter = valueFilterFrom(url);
+    return isRefusal(filter) ? fail(filter.status, filter.code, filter.error) : named(await org.read(grant, { op: 'externalValues', languageId, filter }));
+  }
+  if (request.method === 'GET') return named(await org.read(grant, { op: 'externalValue', languageId, key }));
+  if (request.method === 'DELETE') return answer(await org.write(grant, { op: 'externalValue', languageId, key, data: null }));
+  if (request.method !== 'PUT') return fail(405, 'method', 'Use PUT, GET or DELETE on a key.');
+  if (Number(request.headers.get('content-length') ?? 0) > MAX_VALUE_BODY_BYTES) return fail(413, 'too_large', 'data can be at most 4096 bytes of JSON.');
+  const b = await body(request);
+  if (!b) return fail(400, 'bad_request', 'Send a JSON object: { "data": { … } }.');
+  const input = parseExternalValue(b);
+  return isRefusal(input) ? fail(input.status, input.code, input.error) : named(await org.write(grant, { op: 'externalValue', languageId, key, data: input.data }));
+}
+
+export function valueFilterFrom(url: URL): ExternalValueFilter | { status: number; code: string; error: string } {
+  const filter: ExternalValueFilter = {};
+  const prefix = url.searchParams.get('keyPrefix');
+  if (prefix) {
+    if (prefix.length > EXTERNAL_KEY_MAX) return { status: 400, code: 'bad_request', error: `keyPrefix is at most ${EXTERNAL_KEY_MAX} characters.` };
+    filter.keyPrefix = prefix;
+  }
+  const after = url.searchParams.get('after');
+  if (after) filter.after = after;
+  const since = url.searchParams.get('changedSince');
+  if (since) {
+    const ms = Date.parse(since);
+    if (Number.isNaN(ms)) return { status: 400, code: 'bad_request', error: 'changedSince must be an ISO date and time.' };
+    filter.changedSince = new Date(ms).toISOString();
+  }
+  return filter;
+}
+
+/** Name the app behind each value's token (its client name, else the token's name), so a reader sees which app wrote it. */
+export async function withAppNames(orgId: string, data: unknown, deps: AgentDeps): Promise<unknown> {
+  const isValue = (v: unknown): v is ExternalValueOut => typeof v === 'object' && v !== null && 'writtenBy' in v && 'key' in v;
+  const list: ExternalValueOut[] = isValue(data) ? [data] : Array.isArray((data as { values?: unknown })?.values) ? (data as { values: ExternalValueOut[] }).values : [];
+  const ids = [...new Set(list.map((v) => v.writtenBy.tokenId).filter((id): id is string => id !== null))];
+  if (ids.length === 0) return data;
+  const names = await deps.store.tokenNames(orgId, ids);
+  for (const v of list) {
+    const app = v.writtenBy.tokenId ? names[v.writtenBy.tokenId] : undefined;
+    if (app) v.writtenBy.app = app;
+  }
+  return data;
 }
 
 export function filterFrom(url: URL): PassageFilter | { status: number; code: string; error: string } {
@@ -379,6 +452,9 @@ async function tokenSpec(b: Record<string, unknown>, profileId: string, deps: Ag
   const reach = access.languages.filter((l) => languageIds === null || languageIds.includes(l.languageId));
   if (scopes.includes('review') && !reach.some((l) => l.mayReview)) {
     return { error: 'The review scope records reviews as you, and you cannot review or translate in any of these languages.' };
+  }
+  if (scopes.includes('external_values') && !reach.some((l) => l.mayStoreValues)) {
+    return { error: 'The external_values scope stores values as you, and you cannot translate, review or fill reference material in any of these languages.' };
   }
   let expiresAt: string | null = null;
   if (b['expiresInDays'] !== undefined && b['expiresInDays'] !== null) {

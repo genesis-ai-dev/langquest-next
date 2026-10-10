@@ -153,7 +153,7 @@ when the databases were reset (decision 63); nothing older survives.
 
 | Event | Shape | Merge rule |
 | --- | --- | --- |
-| `v1.OrgCreated` | name | once |
+| `v1.OrgCreated` / `v1.OrgRenamed` | name | one register for both: later clock wins (decision 76) |
 | `v1.RoleDefined` / `v1.RoleRetired` | roleId, name, privileges[] / roleId | register per role; retired is add-wins |
 | `v1.MemberAdded` / `v1.MemberRemoved` | profileId, roleId, scope / profileId, scope; scope is `{ level: 'org' }` or `{ level: 'language', languageId }` | register per (profile, scope); one role per scope |
 | `v1.InviteIssued` / `v1.InviteRedeemed` | inviteId, roleId, scope, expiresAt / inviteId, profileId | issue fields latest wins; redeemed is server-only |
@@ -161,6 +161,7 @@ when the databases were reset (decision 63); nothing older survives.
 | `v1.LicenseSet` | license (all-rights-reserved, CC-BY-NC-ND-4.0, CC-BY-NC-SA-4.0, CC-BY-SA-4.0, CC-BY-4.0, CC0-1.0) | ratchet: the most open license ever set wins (docs/licensing.md, decision 38) |
 | `v1.LanguageAdded` | languageId, name, code, sourceCode | earliest wins; the language's stream accepts events only after this |
 | `v1.LanguageRenamed` | languageId, name | register per language |
+| `v1.LanguageCodeSet` | languageId, code, languoidId (a languoid's UUID, or null) | register per language; takes over `LanguageAdded`'s code and links the language to the language list; none means unlinked (decision 78) |
 | `v1.LanguageCountrySet` | languageId, country (ISO 3166-1 alpha-2) | register per language; the dashboard's geography (decision 41) |
 | `v1.LanguageTargetSet` | languageId, scope (gospels, nt, ot, bible), startDate, targetDate | register per language; the dashboard's pace (decision 41) |
 | `v1.ReferenceRecommended` | itemId, recommended | register per item; recommended to every language (decision 62) |
@@ -168,7 +169,7 @@ when the databases were reset (decision 63); nothing older survives.
 | `v1.LibraryVersionPublished` | itemId, kind, docHash, note? | grow-only per (item, hash), earliest wins; numbered by clock |
 | `v1.LibrarySharingSet` / `v1.LibraryItemArchived` | itemId, kind, shared, subscribable / archived | register per item; subscribable implies shared |
 | `v1.LibrarySubscribed` / `v1.LibraryPinned` | itemId, kind, sourceOrgId, sourceOrgName, sourceItemId, name, autoUpdate, active / docHash | register per item; the server writes the pin for automatic updates |
-| `v1.Redacted` | eventId, reason | grow-only set; the target is never folded |
+| `v1.Redacted` | eventId, reason | grow-only set; the target is never folded; a redaction is never itself redacted (decisions.md 16) |
 
 **Language stream** (`streamId` the language id; no payload names a language):
 
@@ -177,12 +178,13 @@ when the databases were reset (decision 63); nothing older survives.
 | `v1.TemplateSelected` | itemId, docHash, unitPrefix, books? | register; the selector emits `UnitAdded` (`<itemId>/GEN.1.1-2.3`) and `UnitHidden` |
 | `v1.UnitAdded` | unitId, parentUnitId, kind, label, order | grow-only set |
 | `v1.UnitHidden` | unitId, hidden | register per unit; a part the template's version no longer has |
+| `v1.BookNameSet` | book, name | register per book (USFM); what this language calls a Bible book, whatever its template calls it (decision 74) |
 | `v1.FlowSelected` | flowId, itemId, docHash, name | register; the selector emits kinds and `FlowStepSet` under `<flowId>/` |
 | `v1.FlowStepSet` / `v1.FlowStepRemoved` | stepId, order, kindIds[], checkpoint / stepId | register per step; removal is add-wins; kinds in one step run in parallel, a checkpoint is the only gate |
 | `v1.ReviewKindDefined` | kindId, name, description?, usualReviewer?, withholdsContext?, produces? | register per kind; overrides the shipped kind of the same id |
 | `v1.ReviewTeamDefined` / `v1.ReviewTeamMemberSet` / `v1.ReviewTeamKindSet` | teamId, name / teamId, profileId, member / teamId, kindId (null = any) | register per team, per (team, profile), per team |
-| `v1.RecordingAdded` | recordingId, unitId, cards[{hash, durationMs}], kind | grow-only set |
-| `v1.TakeComposed` / `v1.TakeArchived` | takeId, unitId, cardHashes[], parentTakeId / takeId | grow-only set / flag, add-wins |
+| `v1.RecordingAdded` | recordingId, unitId, cards[{hash, durationMs}], kind | grow-only set; one event per id, earliest wins (decisions.md 75) |
+| `v1.TakeComposed` / `v1.TakeArchived` | takeId, unitId, cardHashes[], parentTakeId / takeId | grow-only set, one event per id, earliest wins (decisions.md 75) / flag, add-wins |
 | `v1.TakeSelected` | unitId, takeId | register per unit |
 | `v1.TakeSubmitted` | takeId, questionSetIds? | grow-only; the first submission counts |
 | `v1.ResponseRecorded` | takeId, respondsToTakeId, note?, blobHash? | grow-only (first wins) |
@@ -199,7 +201,10 @@ when the databases were reset (decision 63); nothing older survives.
 | `v1.PassageReferenceLinked` | unitId, itemId, linked | register per (unit, item) |
 | `v1.ReferencesUsed` | unitId, takeId? or reviewId?, items[] | grow-only |
 | `v1.BlobStored` / `v1.BlobInvalidated` | hash, size / hash, reason | register per hash (LWW by clock); server-only |
-| `v1.Redacted` | eventId, reason | grow-only set; the target is never folded |
+| `v1.CardVerseSet` | unitId, hash, mark (next, join, set, none), from?, to? | register per (unit, card); which verses a recorded part holds, worked out down a take's cards (verses.ts, decisions.md 82) |
+| `v1.AudioFormatSet` | hash, format | one event per hash, earliest wins (decisions.md 75); a voice note's format when not m4a (decisions.md 77) |
+| `v1.ExternalValueSet` | key, data (object or null) | register per key (later clock, then higher id); a third-party app's own value, kept and never acted on; only the app's Worker appends it, for a token with the `external_values` scope (decisions.md 79) |
+| `v1.Redacted` | eventId, reason | grow-only set; the target is never folded; a redaction is never itself redacted (decisions.md 16) |
 
 **Person stream** (org `_person`, `streamId` the profile id; written only by
 `record_user_event`): `v1.TermsAccepted`, `v1.VisionSeen`,
@@ -436,7 +441,7 @@ gone (decision 63).
 | Spec concept | Here | Note |
 | --- | --- | --- |
 | Org › Language | `orgId` › one stream per language (`streamId` = the language's id), listed by `LanguageAdded` in the organization stream (`orgLanguages`) | no project and no lane (decision 63); a phone pulls the languages it opens (decision 37) |
-| Content template (FIA, OpenBible…) | a library item's version (docs/library.md) used by the language (`TemplateSelected`); units `<itemId>/<node>`, parts a later version drops hidden (`UnitHidden`) | pieces are leaf units; a language shows its template's units in the books it covers, plus hand-added ones |
+| Content template (FIA, OpenBible…) | a library item's version (docs/library.md) used by the language (`TemplateSelected`); units `<itemId>/<node>`, parts a later version drops hidden (`UnitHidden`); a `template@2` Bible breaks up each book its own way or not yet (decision 74) | pieces are leaf units; a language shows its template's units in the books it covers, plus hand-added ones; a book with none waits to be broken up |
 | Piece / passage | `UnitAdded` with a leaf kind | |
 | Version (submitted content) | take (`TakeComposed`) plus `TakeSubmitted` | **added** `TakeSubmitted`: recordings save immediately, submission is the hand-off (A30) |
 | Take (audio) | cards (`RecordingAdded`) referenced by a take | |

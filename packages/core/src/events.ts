@@ -57,6 +57,17 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordE
   };
   'v1.TakeArchived': { takeId: string };
   /**
+   * Which verses a recorded part holds (decisions.md 82). A part keeps how
+   * it relates to the parts around it, not a number: `next` is the verse
+   * after the part above, `join` is the same verses as the part right above
+   * (one verse recorded in pieces), `set` is verses someone chose, `from` to
+   * `to` as "chapter:verse", and `none` takes the mark away. The numbers are
+   * worked out down a take's cards (verses.ts), so labelling or moving one
+   * part renumbers the ones that follow and the order always holds.
+   * Register per (unit, card hash).
+   */
+  'v1.CardVerseSet': { unitId: string; hash: string; mark: 'next' | 'join' | 'set' | 'none'; from?: string; to?: string };
+  /**
    * The translator hands a take to review. Until this, a take is a draft:
    * recordings save immediately, submission is the explicit act (UX spec A30).
    */
@@ -101,6 +112,22 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordE
    * Register per (version, channel).
    */
   'v1.VersionReleased': { takeId: string; channel: string; live: boolean; url?: string };
+  /**
+   * The format of a voice note's file (decisions.md 77). A voice note is
+   * named only by the event that uses it (30), which has no format field,
+   * so it is m4a unless this says otherwise: a browser that cannot record
+   * MP4 stores WAV (58). Appended with the event that names the note, by
+   * the device that has the file. Once per hash, earliest wins (75).
+   */
+  'v1.AudioFormatSet': { hash: string; format: 'wav' | 'm4a' };
+  /**
+   * A value a third-party app stores with the language under a key it
+   * chooses (decisions.md 79). LangQuest keeps it and never acts on it.
+   * Register per key: the later clock wins, then the higher id; `data:
+   * null` is a deleted key. Only the app's Worker appends it, for a token
+   * with the `external_values` scope.
+   */
+  'v1.ExternalValueSet': { key: string; data: Record<string, unknown> | null };
 }
 
 export type EventType = keyof EventPayloads;

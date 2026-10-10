@@ -7,6 +7,7 @@
 // itself, so neither is ever hidden (splitModel.ts).
 import { useRef, useState, type ReactNode } from 'react';
 import { PanResponder, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { t } from '../i18n';
 import { C, radius, target } from '../theme';
 import {
   DEFAULT_SPLIT, DIVIDER, fractionAfterDrag, MIN_BOTTOM, nearestSnap, paneHeights, rememberedSplit, rememberSplit, splitValueText, stepSnap
@@ -67,8 +68,8 @@ export function SplitPane(props: {
       <View style={[styles.pane, measured ? { height: heights.top } : { flex: fraction }, props.topStyle]}>{render(props.top, fraction <= 0, heights.top)}</View>
       <View style={styles.divider} {...pan.panHandlers}
         accessible accessibilityRole="adjustable"
-        accessibilityLabel="Divider between reference and your recording"
-        accessibilityHint="Drag up or down to give either one more room"
+        accessibilityLabel={t('recording.split.divider')}
+        accessibilityHint={t('recording.split.dividerHint')}
         accessibilityValue={{ text: splitValueText(heights) }}
         accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
         onAccessibilityAction={(e) => settle(stepSnap(shown(), e.nativeEvent.actionName === 'increment' ? 1 : -1))}>

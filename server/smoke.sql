@@ -12,8 +12,8 @@ update public.server_config set min_client_version = 0;
 -- Simulate an authenticated caller (no auth.uid() outside PostgREST).
 select set_config('request.jwt.claim.sub', 'lead', false);
 
--- 1. Bootstrap: the organization, its roles, its creator, its first
---    language and a translator in it, in one batch.
+-- 1. Bootstrap: the organization, its roles, its creator and its first
+--    language, in one batch; then a translator joins it.
 do $$ declare r record; n int := 0; begin
   for r in select * from public.append_events('[
     {"id":"o1","type":"v1.OrgCreated","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000001:000000:dA","payload":{"name":"Wycliffe"}},
@@ -21,16 +21,36 @@ do $$ declare r record; n int := 0; begin
     {"id":"o3","type":"v1.MemberAdded","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000003:000000:dA","payload":{"profileId":"lead","roleId":"org_admin","scope":{"level":"org"}}},
     {"id":"o4","type":"v1.RoleDefined","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000004:000000:dA","payload":{"roleId":"translator","name":"Translator","privileges":["translate","fill_reference","send_to_reviewers","view_status"]}},
     {"id":"o5","type":"v1.RoleDefined","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000005:000000:dA","payload":{"roleId":"lang_lead","name":"Team Leader","privileges":["assign_work","manage_teams","translate","review","view_status"]}},
-    {"id":"o6","type":"v1.LanguageAdded","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000006:000000:dA","payload":{"languageId":"L1","name":"Luke Team","code":"fia","sourceCode":"eng"}},
-    {"id":"o7","type":"v1.MemberAdded","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000007:000000:dA","payload":{"profileId":"t1","roleId":"translator","scope":{"level":"language","languageId":"L1"}}}
+    {"id":"o6","type":"v1.LanguageAdded","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000006:000000:dA","payload":{"languageId":"L1","name":"Luke Team","code":"fia","sourceCode":"eng"}}
   ]'::jsonb) loop
     if not r.accepted then raise exception 'bootstrap event % refused: %', r.id, r.reason; end if;
     n := n + 1;
   end loop;
-  if n <> 7 then raise exception 'expected 7 bootstrap answers'; end if;
+  if n <> 6 then raise exception 'expected 6 bootstrap answers'; end if;
   if (select role_id from public.org_memberships where org_id = 'org1' and profile_id = 'lead' and scope_key = 'org') <> 'org_admin' then
     raise exception 'org_memberships row wrong';
   end if;
+end $$;
+-- Nobody is added without joining (decisions.md 75): the admin may not
+-- name t1, who has never been in org1. In the app t1 joins by invite; here
+-- the server adds them, as redeem_invite_for does, in the admin's name.
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"o7","type":"v1.MemberAdded","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000007:000000:dA","payload":{"profileId":"t1","roleId":"translator","scope":{"level":"language","languageId":"L1"}}}
+  ]'::jsonb);
+  if r.accepted or r.reason <> 'may not emit v1.MemberAdded: they have not joined this organization; invite them' then
+    raise exception 'adding someone who never joined should be refused, got %', r;
+  end if;
+end $$;
+select set_config('request.jwt.claim.sub', '', false);
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"o7","type":"v1.MemberAdded","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000007:000000:dA","payload":{"profileId":"t1","roleId":"translator","scope":{"level":"language","languageId":"L1"}}}
+  ]'::jsonb);
+  if not r.accepted or r.server_seq <> 7 then raise exception 't1 should join at seq 7, got %', r; end if;
+end $$;
+select set_config('request.jwt.claim.sub', 'lead', false);
+do $$ begin
   if (select role_id from public.org_memberships where org_id = 'org1' and profile_id = 't1' and scope_key = 'language:L1') <> 'translator' then
     raise exception 'language membership row wrong';
   end if;
@@ -209,6 +229,15 @@ do $$ declare r record; begin
   ]'::jsonb);
   if not r.accepted then raise exception 'admin redaction should be accepted: %', r.reason; end if;
 end $$;
+-- A redaction is never redacted: which one stood would depend on arrival order.
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"rd2","type":"v1.Redacted","orgId":"org1","streamId":"L1","actorId":"lead","deviceId":"dA","hlc":"000000000000022:000000:dA","payload":{"eventId":"rd1"}}
+  ]'::jsonb);
+  if r.accepted or r.reason <> 'invalid payload: a redaction cannot be redacted' then
+    raise exception 'redacting a redaction should be refused, got %', r;
+  end if;
+end $$;
 
 -- 5g. Snapshots: service writes, members read newest for their version, strangers cannot.
 select set_config('request.jwt.claim.sub', '', false);
@@ -352,8 +381,63 @@ do $$ declare r record; l public.languages; begin
   if public.language_display_name(l) <> 'Thuɔŋjäŋ' then raise exception 'latest rename should win, got %', l; end if;
 end $$;
 
+-- 8b1. Linking a language to the language list is a later-wins register
+--      that takes over LanguageAdded's code; unlinking keeps the code.
+do $$ declare r record; l public.languages; begin
+  select * into l from public.languages where org_id = 'org1' and language_id = 'din';
+  if public.language_code(l) <> 'din' or l.languoid_id is not null then raise exception 'an unlinked language keeps its added code, got %', l; end if;
+  for r in select * from public.append_events('[
+    {"id":"oc1","type":"v1.LanguageCodeSet","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000116:000000:dA","payload":{"languageId":"din","code":"dik","languoidId":"6d0c6d4e-3f0a-4c3e-9a51-6f3e2b9d7a10"}},
+    {"id":"oc2","type":"v1.LanguageCodeSet","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dB","hlc":"000000000000115:000002:dB","payload":{"languageId":"din","code":"dip","languoidId":null}}
+  ]'::jsonb) loop
+    if not r.accepted then raise exception 'language code event % refused: %', r.id, r.reason; end if;
+  end loop;
+  select * into l from public.languages where org_id = 'org1' and language_id = 'din';
+  if public.language_code(l) <> 'dik' or l.languoid_id <> '6d0c6d4e-3f0a-4c3e-9a51-6f3e2b9d7a10' or l.code <> 'din' then
+    raise exception 'latest LanguageCodeSet should win and keep the added code, got %', l;
+  end if;
+  select * into r from public.append_events('[
+    {"id":"oc3","type":"v1.LanguageCodeSet","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000117:000000:dA","payload":{"languageId":"din","code":"dik","languoidId":"nyan1308"}}
+  ]'::jsonb);
+  if r.accepted then raise exception 'a glottocode is not a languoid id and should be refused'; end if;
+end $$;
+
+-- 8b2. The organization's name is a later-wins register over OrgCreated and
+--      OrgRenamed (decisions.md 76), and only an Organization Admin renames it.
+do $$ declare r record; begin
+  if public.org_name('org1') <> 'Wycliffe' then raise exception 'org name before a rename should be Wycliffe, got %', public.org_name('org1'); end if;
+  for r in select * from public.append_events('[
+    {"id":"orn1","type":"v1.OrgRenamed","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000115:000001:dA","payload":{"name":"Wycliffe Kenya"}},
+    {"id":"orn2","type":"v1.OrgRenamed","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dB","hlc":"000000000000114:000001:dB","payload":{"name":"Older"}}
+  ]'::jsonb) loop
+    if not r.accepted then raise exception 'admin rename % refused: %', r.id, r.reason; end if;
+  end loop;
+  if public.org_name('org1') <> 'Wycliffe Kenya' then raise exception 'latest org rename should win, got %', public.org_name('org1'); end if;
+  select * into r from public.append_events('[
+    {"id":"orn3","type":"v1.OrgRenamed","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000115:000002:dA","payload":{"name":""}}
+  ]'::jsonb);
+  if r.accepted then raise exception 'an empty organization name must be refused'; end if;
+end $$;
+select set_config('request.jwt.claim.sub', 't1', false);
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"orn4","type":"v1.OrgRenamed","orgId":"org1","streamId":"_org","actorId":"t1","deviceId":"dT","hlc":"000000000000115:000003:dT","payload":{"name":"Mine now"}}
+  ]'::jsonb);
+  if r.accepted then raise exception 'a translator must not rename the organization'; end if;
+  if public.org_name('org1') <> 'Wycliffe Kenya' then raise exception 'refused rename changed the name: %', public.org_name('org1'); end if;
+end $$;
+select set_config('request.jwt.claim.sub', 'lead', false);
+-- Named back, as the checks further down expect.
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"orn5","type":"v1.OrgRenamed","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000115:000004:dA","payload":{"name":"Wycliffe"}}
+  ]'::jsonb);
+  if not r.accepted or public.org_name('org1') <> 'Wycliffe' then raise exception 'renaming back failed: % %', r, public.org_name('org1'); end if;
+end $$;
+
 -- 8c. A language-scoped leader works in their language only; a stranger
---     may not touch the organization.
+--     may not touch the organization. Akol joins din (by invite in the app).
+select set_config('request.jwt.claim.sub', '', false);
 select * from public.append_events('[
   {"id":"o15","type":"v1.MemberAdded","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000116:000000:dA","payload":{"profileId":"akol","roleId":"lang_lead","scope":{"level":"language","languageId":"din"}}}
 ]'::jsonb);
@@ -582,7 +666,7 @@ end $$;
 -- A language-scoped leader with Invite invites into their language only.
 select set_config('request.jwt.claim.sub', 'lead', false);
 select * from public.append_events('[
-  {"id":"o21","type":"v1.RoleDefined","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000401:000000:dA","payload":{"roleId":"inviter","name":"Inviter","privileges":["invite_members","view_status"]}},
+  {"id":"o21","type":"v1.RoleDefined","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000401:000000:dA","payload":{"roleId":"inviter","name":"Inviter","privileges":["invite_members","translate","fill_reference","send_to_reviewers","view_status"]}},
   {"id":"o22","type":"v1.MemberAdded","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000402:000000:dA","payload":{"profileId":"akol","roleId":"inviter","scope":{"level":"language","languageId":"nus"}}}
 ]'::jsonb);
 select set_config('request.jwt.claim.sub', 'akol', false);
@@ -598,6 +682,13 @@ do $$ begin
   begin
     perform public.issue_invite_v3('org1', 'inv5', repeat('0', 64), 'translator', '{"level":"org"}'::jsonb, now() + interval '1 day');
     raise exception 'invited at org scope with a language role';
+  exception when sqlstate '42501' then null;
+  end;
+  -- Nobody invites to a role that holds more than they do (decisions.md 75).
+  begin
+    perform public.issue_invite_v3('org1', 'inv6', repeat('1', 64), 'lang_lead',
+      '{"level":"language","languageId":"nus"}'::jsonb, now() + interval '1 day');
+    raise exception 'invited to a role with privileges the inviter lacks';
   exception when sqlstate '42501' then null;
   end;
 end $$;
@@ -741,7 +832,7 @@ do $$ declare v text; begin
   if v is not null then raise exception 'anon may run security definer functions: %', v; end if;
   select string_agg(f, ', ') into v
   from unnest(array['put_snapshot', 'list_streams', 'record_blob', 'invalidate_blob', 'org_privileges', 'blob_access',
-                     '_library_media_readable']) f
+                     '_library_media_readable', 'may_emit']) f
   where exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = f
     and has_function_privilege('authenticated', p.oid, 'execute'));
   if v is not null then raise exception 'signed-in people may run service-role functions: %', v; end if;

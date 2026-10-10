@@ -1,9 +1,9 @@
 import {
-  approvedVersion, buildIndexes, derivePassage, encodeHlc, kindOf, languageInfo, LISTENER_KIND, mayViewLanguage, orgLanguages, passageWork,
+  approvedVersion, buildIndexes, decodeHlc, derivePassage, encodeHlc, externalKeyError, kindOf, languageInfo, LISTENER_KIND, mayViewLanguage, orgLanguages, passageWork,
   privilegesFor, referencedBlobs, releasesOf, stateRevision, stepAllowsLinks, validateEvent,
   type AnyEvent, type Card, type LanguageState, type OrgState, type PassageState, type Version
 } from '@langquest-next/core';
-import { canRead, coversLanguage, sha256Hex, type Grant } from './tokens';
+import { canRead, canReadValues, coversLanguage, sha256Hex, type Grant } from './tokens';
 
 /**
  * What a token may see and write, read from the same folded state the
@@ -19,7 +19,7 @@ export interface LanguageView {
   code: string;
   country: string | null;
   /** What this token can do here, given its scopes and the person's privileges today. */
-  can: { read: 'all' | 'published' | null; review: boolean; release: boolean };
+  can: { read: 'all' | 'published' | null; review: boolean; release: boolean; externalValues: { read: boolean; write: boolean } };
 }
 
 export interface PassageSummary {
@@ -104,9 +104,13 @@ function abilities(grant: Grant, org: OrgState, languageId: string): LanguageVie
     read: canRead(grant, true) ? 'all' : canRead(grant) ? 'published' : null,
     // Recorded like a check logged from outside the app: review or translate (core privilegeFor, via link).
     review: (privs.has('review') || privs.has('translate')) && grant.scopes.includes('review'),
-    release: privs.has('assign_work') && grant.scopes.includes('release')
+    release: privs.has('assign_work') && grant.scopes.includes('release'),
+    externalValues: { read: canReadValues(grant), write: mayStoreValues(privs) && grant.scopes.includes('external_values') }
   };
 }
+
+/** Whoever contributes to a language's work may store values there through a token (core EVENT_PRIVILEGE, decisions.md 79). */
+export const mayStoreValues = (privs: ReadonlySet<string>): boolean => privs.has('translate') || privs.has('review') || privs.has('fill_reference');
 
 /** Null when the token may not open this language; otherwise what it may do there. */
 export function languageAccess(grant: Grant, org: OrgState, languageId: string): LanguageView['can'] | null {
@@ -224,10 +228,10 @@ export async function passageFor(
     const out: ReviewOut = { kindId: r.kindId, kind: kindOf(state, r.kindId).name, outcome: r.outcome, via: r.via, versionN: r.versionN, at: iso(r.hlc) };
     if (r.comment !== undefined) out.comment = r.comment;
     if (r.givenBy !== undefined) out.givenBy = r.givenBy;
-    // Voice notes: one m4a in commentBlobHash (the app's), and clips among the artifacts (from outside;
-    // for a kind that makes content, the artifacts are that content, not notes).
+    // Voice notes: one in commentBlobHash (the app's; m4a unless the log says otherwise, decisions.md 77), and
+    // clips among the artifacts (from outside; for a kind that makes content, the artifacts are that content, not notes).
     const notes: Card[] = [
-      ...(r.commentBlobHash ? [{ hash: r.commentBlobHash, durationMs: 0, format: 'm4a' as const }] : []),
+      ...(r.commentBlobHash ? [{ hash: r.commentBlobHash, durationMs: 0, format: state.audioFormats[r.commentBlobHash]?.value ?? 'm4a' }] : []),
       ...(r.outcome !== 'recorded' ? r.artifacts ?? [] : [])
     ];
     if (notes.length) {
@@ -350,10 +354,25 @@ export function reviewableKinds(state: LanguageState, unitId: string): Set<strin
   return new Set([LISTENER_KIND, ...s.flow.steps.flatMap((st) => st.kindIds)]);
 }
 
-/** A voice note is new audio from an upload; naming a card or note already in the language would hand out a link to it. */
-const fresh = (state: LanguageState, notes: VoiceNote[] | undefined) => {
-  const known = notes?.length ? referencedBlobs(state) : null;
-  return !notes?.some((n) => known!.has(n.hash));
+/** How long after its upload a voice note may still be attached to an answer. */
+export const VOICE_NOTE_FRESH_MS = 6 * 60 * 60 * 1000;
+
+/**
+ * A voice note is new audio from an upload. Naming a card or note already in
+ * the language would hand out a link to it, and so would naming audio that
+ * was there before and has since been taken out of the record: a redaction
+ * drops the event, not the file. So a note must not be referenced, and the
+ * server must have stored it no more than a few hours ago (its BlobStored
+ * is stamped with the server's clock, and a re-upload of the same bytes
+ * keeps the first one, decisions.md 77). A note not folded in yet is new.
+ */
+const fresh = (state: LanguageState, notes: VoiceNote[] | undefined, now: number) => {
+  if (!notes?.length) return true;
+  const known = referencedBlobs(state);
+  return !notes.some((n) => {
+    const stored = state.blobs[n.hash];
+    return known.has(n.hash) || (!!stored && decodeHlc(stored.hlc).wallMs < now - VOICE_NOTE_FRESH_MS);
+  });
 };
 
 /**
@@ -400,8 +419,9 @@ export async function reviewEvent(ctx: WriteContext, input: ReviewInput): Promis
   if (!s.versions.some((v) => v.takeId === takeId)) return refuse(404, 'no_version', 'That takeId is not a version of this passage.');
   if (!canRead(grant, true) && takeId !== own.takeId) return refuse(404, 'no_version', 'This token hears only the approved version.');
   const kindId = input.kindId ?? LISTENER_KIND;
+  // A review from outside is given by link: where its step takes no links it is kept but completes nothing (passage.ts, decisions.md 77).
   if (!reviewableKinds(state, unitId).has(kindId)) return refuse(400, 'no_kind', `kindId must be "${LISTENER_KIND}" or a kind in this language's flow.`);
-  if (!fresh(state, input.voiceNotes)) return refuse(400, 'bad_request', 'voiceNotes must be ones you just uploaded.');
+  if (!fresh(state, input.voiceNotes, ctx.now)) return refuse(400, 'bad_request', 'voiceNotes must be ones you just uploaded.');
   const reviewer = (await sha256Hex(`${grant.tokenId}\n${input.reviewerId}`)).slice(0, 16);
   const reviewId = `${kindId === LISTENER_KIND ? LISTENER_KIND : 'review'}-${(await sha256Hex([grant.tokenId, takeId, reviewer, kindId, input.submissionId ?? input.outcome].join('\n'))).slice(0, 32)}`;
   const givenBy = input.reviewerName?.trim() || `Listener ${reviewer.slice(0, 6)}`;
@@ -429,6 +449,90 @@ export async function releaseEvent(ctx: WriteContext, input: ReleaseInput): Prom
     { takeId, channel: input.channel, live: input.live, ...(input.url !== undefined ? { url: input.url } : {}) }));
 }
 
+// ---- external values (decisions.md 79) -----------------------------------------------
+
+/** The most a value's data may hold, as UTF-8 JSON. Only the Worker writes them, so the cap is kept here. */
+export const EXTERNAL_DATA_MAX_BYTES = 4096;
+/** Values in one answer; `after` (the last key) asks for the next ones. */
+export const EXTERNAL_VALUES_PAGE = 500;
+
+/** A third-party app's value as the API gives it, with who wrote it. */
+export interface ExternalValueOut {
+  key: string;
+  /** Null when the key was deleted (listed only with changedSince, so a follower sees deletions). */
+  data: Record<string, unknown> | null;
+  /** The person, and the token by its id; http.ts adds the app's name. */
+  writtenBy: { profileId: string; tokenId: string | null; app?: string };
+  at: string;
+}
+
+export interface ExternalValueFilter {
+  keyPrefix?: string;
+  changedSince?: string;
+  /** Keys after this one, for the next page. */
+  after?: string;
+}
+
+/** The token behind a device, `api-<tokenId>` (deviceOf), or null for a review link's (`api-link-…`) or anything else. */
+export const tokenOfDevice = (deviceId: string): string | null =>
+  deviceId.startsWith('api-') && !deviceId.startsWith('api-link-') ? deviceId.slice(4) : null;
+
+function valueOut(key: string, r: LanguageState['externalValues'][string]): ExternalValueOut {
+  return { key, data: r.value.data, writtenBy: { profileId: r.value.actorId, tokenId: tokenOfDevice(r.value.deviceId) }, at: iso(r.hlc) };
+}
+
+/** The latest value per key, in key order. A deleted key is left out unless the caller follows changes. */
+export function externalValuesFor(state: LanguageState, filter: ExternalValueFilter = {}): { values: ExternalValueOut[]; nextAfter: string | null } {
+  const since = filter.changedSince ? Date.parse(filter.changedSince) : null;
+  const keys = Object.keys(state.externalValues ?? {})
+    .filter((k) => (!filter.keyPrefix || k.startsWith(filter.keyPrefix)) && (!filter.after || k > filter.after))
+    .sort();
+  const values: ExternalValueOut[] = [];
+  for (const k of keys) {
+    const r = state.externalValues[k]!;
+    if (since !== null ? wallOf(r.hlc) <= since : r.value.data === null) continue;
+    if (values.length === EXTERNAL_VALUES_PAGE) return { values, nextAfter: values[values.length - 1]!.key };
+    values.push(valueOut(k, r));
+  }
+  return { values, nextAfter: null };
+}
+
+/** One key's value, or why not: a key never written, or deleted, is not found. */
+export function externalValueFor(state: LanguageState, key: string): ExternalValueOut | Refusal {
+  const r = state.externalValues?.[key];
+  return r && r.value.data !== null ? valueOut(key, r) : refuse(404, 'no_value', 'There is no value under that key in this language.');
+}
+
+/** A PUT's body: `{ "data": { … } }`, at most 4 KB as JSON. */
+export function parseExternalValue(body: unknown): { data: Record<string, unknown> } | Refusal {
+  const data = (body as Record<string, unknown> | null)?.['data'];
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) return refuse(400, 'bad_request', 'Send { "data": { … } }: data is a JSON object. DELETE removes a key.');
+  if (new TextEncoder().encode(JSON.stringify(data)).length > EXTERNAL_DATA_MAX_BYTES) {
+    return refuse(413, 'too_large', `data can be at most ${EXTERNAL_DATA_MAX_BYTES} bytes of JSON. Keep totals, not one value per event.`);
+  }
+  return { data: data as Record<string, unknown> };
+}
+
+/** A value stored (or a key deleted, with null) as the token's person, from the token's device. Only this ever appends v1.ExternalValueSet. */
+export function externalValueEvent(ctx: Omit<WriteContext, 'unitId'>, key: string, data: Record<string, unknown> | null): AnyEvent | Refusal {
+  const { grant, org, state, languageId } = ctx;
+  if (!grant.scopes.includes('external_values')) return refuse(403, 'scope', 'This token was not given the "external_values" scope.');
+  const can = languageAccess(grant, org, languageId);
+  if (!can) return refuse(404, 'no_language', 'This token cannot open that language.');
+  if (!can.externalValues.write) return refuse(403, 'privilege', 'The account behind this token cannot translate, review or fill reference material in this language, which storing values needs.');
+  const bad = externalKeyError(key);
+  if (bad) return refuse(400, 'bad_key', `${bad}. Start keys with your app's own name, such as org.example.app/…`);
+  const device = deviceOf(grant.tokenId);
+  const event = envelope(grant.orgId, languageId, grant.profileId, device, ctx.now, 'v1.ExternalValueSet', `api-ev-${crypto.randomUUID()}`, { key, data });
+  // Stamped after the value it replaces, so a second write in the same millisecond wins as the newer one.
+  const prior = state.externalValues?.[key];
+  if (prior && prior.hlc >= event.hlc) {
+    const p = decodeHlc(prior.hlc);
+    event.hlc = encodeHlc(p.wallMs, p.counter + 1, device);
+  }
+  return checked(event);
+}
+
 // ---- review links ------------------------------------------------------------------
 
 /** A link someone shared to review one version for one kind (migration 20261008140000). */
@@ -443,6 +547,8 @@ export interface ReviewLink {
   counts: boolean;
   label: string | null;
   createdBy: string;
+  /** The token it was shared with, if any: revoking the token closes it (decisions.md 77). */
+  tokenId: string | null;
   createdAt: string;
   expiresAt: string;
   revokedAt: string | null;
@@ -461,6 +567,29 @@ export interface LinkSpec {
 /** Reviews one link takes, and one browser on it, before it stops: one group, not the internet. */
 export const LINK_MAX_REVIEWS = 500;
 export const LINK_MAX_PER_BROWSER = 10;
+/** Open links one person may have shared in an organization at once, so a leaked token cannot spray them. */
+export const LINK_MAX_OPEN = 200;
+
+/** Does any step that holds this kind take reviews through shared links (`stepAllowsLinks`)? */
+function kindTakesLinks(state: LanguageState, s: PassageState, kindId: string): boolean {
+  return s.flow.steps.some((st) => st.kindIds.includes(kindId) && stepAllowsLinks(state, st));
+}
+
+/**
+ * Is a link open: not revoked, not expired, and its sharer can still record
+ * what it takes (review or translate)? A sharer who left, or lost the role,
+ * closes every link they shared, for listening as well as answering.
+ */
+export function linkIsOpen(link: ReviewLink, org: OrgState, now: number): boolean {
+  if (link.revokedAt || Date.parse(link.expiresAt) <= now) return false;
+  const privs = privilegesFor(org, link.createdBy, link.languageId);
+  return privs.has('review') || privs.has('translate');
+}
+
+/** May this person take back someone else's link? Whoever runs the work in the language (assign_work). */
+export function mayRevokeLinks(org: OrgState, profileId: string, languageId: string): boolean {
+  return privilegesFor(org, profileId, languageId).has('assign_work');
+}
 
 /**
  * May this person share this link? They need to be able to ask for reviews
@@ -505,7 +634,7 @@ export async function linkView(link: ReviewLink, org: OrgState, state: LanguageS
   const s = derivePassage(state, link.unitId);
   const v = s.versions.find((x) => x.takeId === link.takeId);
   if (!v) return refuse(404, 'gone', 'This passage is no longer here.');
-  const open = !link.revokedAt && Date.parse(link.expiresAt) > now;
+  const open = linkIsOpen(link, org, now);
   const cards = cardsOf(state);
   const audio: AudioCard[] = [];
   // A closed link plays nothing: revoking it is how a sharer takes the audio back.
@@ -558,10 +687,10 @@ export function parseLinkReview(body: unknown): LinkReviewInput | Refusal {
  * from the log itself, so they survive the object's evictions.
  */
 export async function linkReviewEvent(link: ReviewLink, org: OrgState, state: LanguageState, input: LinkReviewInput, now: number): Promise<AnyEvent | Refusal> {
-  if (link.revokedAt || Date.parse(link.expiresAt) <= now) return refuse(410, 'closed', 'This review link has closed. Ask whoever sent it for a new one.');
+  if (!linkIsOpen(link, org, now)) return refuse(410, 'closed', 'This review link has closed. Ask whoever sent it for a new one.');
   const s = derivePassage(state, link.unitId);
   if (!s.versions.some((v) => v.takeId === link.takeId)) return refuse(404, 'gone', 'This passage is no longer here.');
-  if (!fresh(state, input.voiceNotes)) return refuse(400, 'bad_request', 'A voice note was not uploaded here.');
+  if (!fresh(state, input.voiceNotes, now)) return refuse(400, 'bad_request', 'A voice note was not uploaded here. Record it again.');
   const linkKey = link.id.replace(/-/g, '').slice(0, 12);
   const browser = (await sha256Hex(`${link.id}\n${input.browserId}`)).slice(0, 12);
   const prefix = `link-${linkKey}-`;
@@ -569,10 +698,8 @@ export async function linkReviewEvent(link: ReviewLink, org: OrgState, state: La
   if (onLink.length >= LINK_MAX_REVIEWS) return refuse(429, 'full', 'This review link has taken all the reviews it can. Ask whoever sent it for a new one.');
   if (onLink.filter((id) => id.startsWith(`${prefix}${browser}-`)).length >= LINK_MAX_PER_BROWSER) return refuse(429, 'full', 'You have sent as many answers on this link as it takes.');
   const reviewId = `${prefix}${browser}-${(await sha256Hex(input.submissionId)).slice(0, 16)}`;
-  const kindId = link.counts ? link.kindId : LISTENER_KIND;
-  // A sharer who can no longer record it (left, or lost the role) closes their links.
-  const privs = privilegesFor(org, link.createdBy, link.languageId);
-  if (!(privs.has('review') || privs.has('translate'))) return refuse(410, 'closed', 'This review link has closed. Ask whoever sent it for a new one.');
+  // A counting link whose step stopped taking links since it was shared records feedback instead.
+  const kindId = link.counts && kindTakesLinks(state, s, link.kindId) ? link.kindId : LISTENER_KIND;
   return checked(envelope(link.orgId, link.languageId, link.createdBy, `api-link-${linkKey}`, now, 'v1.ReviewRecorded', `api-${reviewId}`,
     reviewPayload(input, link.takeId, kindId, input.name, reviewId)));
 }

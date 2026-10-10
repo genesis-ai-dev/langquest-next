@@ -42,6 +42,8 @@ export interface AgentStore {
   /** False when there is no such live token of theirs. */
   revokeToken(id: string, profileId: string): Promise<boolean>;
   touchToken(id: string, at: string): Promise<void>;
+  /** tokenId -> what its app is called (its client name, else the token's name), for tokens of this organization. */
+  tokenNames(orgId: string, ids: string[]): Promise<Record<string, string>>;
   insertGrant(grant: Omit<DeviceGrant, 'id' | 'createdAt' | 'lastPolledAt' | 'approvedAt' | 'deniedAt' | 'tokenId'> & { deviceCodeHash: string }): Promise<DeviceGrant>;
   grantByUserCode(userCode: string): Promise<(DeviceGrant & { deviceCodeHash: string }) | null>;
   grantByDeviceHash(hash: string): Promise<(DeviceGrant & { deviceCodeHash: string }) | null>;
@@ -56,8 +58,11 @@ export interface AgentStore {
   linkByCodeHash(hash: string): Promise<ReviewLink | null>;
   /** One passage's links in an organization, newest first. */
   linksOf(orgId: string, languageId: string, unitId: string): Promise<ReviewLink[]>;
-  /** False when there is no such open link of theirs. */
-  revokeLink(id: string, profileId: string): Promise<boolean>;
+  linkById(id: string): Promise<ReviewLink | null>;
+  /** Links this person shared in the organization that are neither revoked nor expired at `now`. */
+  openLinkCount(orgId: string, profileId: string, now: string): Promise<number>;
+  /** False when there is no such open link. Who may revoke is the caller's to decide. */
+  revokeLink(id: string): Promise<boolean>;
 }
 
 type Row = Record<string, unknown>;
@@ -86,12 +91,12 @@ function must<T>(what: string, r: { data: T; error: { message: string } | null }
   return r.data;
 }
 
-const LINK_COLUMNS = 'id, org_id, language_id, unit_id, take_id, kind_id, counts, label, created_by, created_at, expires_at, revoked_at';
+const LINK_COLUMNS = 'id, org_id, language_id, unit_id, take_id, kind_id, counts, label, created_by, token_id, created_at, expires_at, revoked_at';
 
 const linkOf = (r: Row): ReviewLink => ({
   id: r['id'] as string, orgId: r['org_id'] as string, languageId: r['language_id'] as string, unitId: r['unit_id'] as string,
   takeId: r['take_id'] as string, kindId: r['kind_id'] as string, counts: r['counts'] as boolean, label: (r['label'] as string | null) ?? null,
-  createdBy: r['created_by'] as string, createdAt: r['created_at'] as string, expiresAt: r['expires_at'] as string,
+  createdBy: r['created_by'] as string, tokenId: (r['token_id'] as string | null) ?? null, createdAt: r['created_at'] as string, expiresAt: r['expires_at'] as string,
   revokedAt: (r['revoked_at'] as string | null) ?? null
 });
 
@@ -114,12 +119,23 @@ export function supabaseAgentStore(service: SupabaseClient): AgentStore {
       return (data as Row[]).map(tokenOf);
     },
     async revokeToken(id, profileId) {
-      const data = must('api_tokens revoke', await service.from('api_tokens').update({ revoked_at: new Date().toISOString() })
+      const at = new Date().toISOString();
+      const data = must('api_tokens revoke', await service.from('api_tokens').update({ revoked_at: at })
         .eq('id', id).eq('profile_id', profileId).is('revoked_at', null).select('id'));
-      return (data as Row[]).length > 0;
+      if ((data as Row[]).length === 0) return false;
+      // The review links it shared close with it (decisions.md 75).
+      must('review_links revoke with token', await service.from('review_links').update({ revoked_at: at }).eq('token_id', id).is('revoked_at', null));
+      return true;
     },
     async touchToken(id, at) {
       must('api_tokens touch', await service.from('api_tokens').update({ last_used_at: at }).eq('id', id));
+    },
+    async tokenNames(orgId, ids) {
+      // Token ids are uuids; anything else (a value written some other way) names no token.
+      const uuids = ids.filter((id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id)).slice(0, 500);
+      if (uuids.length === 0) return {};
+      const data = must('api_tokens names', await service.from('api_tokens').select('id, name, client_name').eq('org_id', orgId).in('id', uuids));
+      return Object.fromEntries((data as Row[]).map((r) => [r['id'] as string, ((r['client_name'] as string | null) ?? (r['name'] as string))]));
     },
     async insertGrant(g) {
       const data = must('api_device_grants insert', await service.from('api_device_grants').insert({
@@ -153,7 +169,7 @@ export function supabaseAgentStore(service: SupabaseClient): AgentStore {
     async insertLink(l) {
       const data = must('review_links insert', await service.from('review_links').insert({
         code_hash: l.codeHash, org_id: l.orgId, language_id: l.languageId, unit_id: l.unitId, take_id: l.takeId, kind_id: l.kindId,
-        counts: l.counts, label: l.label, created_by: l.createdBy, expires_at: l.expiresAt
+        counts: l.counts, label: l.label, created_by: l.createdBy, token_id: l.tokenId, expires_at: l.expiresAt
       }).select(LINK_COLUMNS).single());
       return linkOf(data as Row);
     },
@@ -166,9 +182,19 @@ export function supabaseAgentStore(service: SupabaseClient): AgentStore {
         .eq('org_id', orgId).eq('language_id', languageId).eq('unit_id', unitId).order('created_at', { ascending: false }).limit(100));
       return (data as Row[]).map(linkOf);
     },
-    async revokeLink(id, profileId) {
+    async linkById(id) {
+      const data = must('review_links', await service.from('review_links').select(LINK_COLUMNS).eq('id', id).maybeSingle());
+      return data ? linkOf(data as Row) : null;
+    },
+    async openLinkCount(orgId, profileId, now) {
+      const r = await service.from('review_links').select('id', { count: 'exact', head: true })
+        .eq('org_id', orgId).eq('created_by', profileId).is('revoked_at', null).gt('expires_at', now);
+      if (r.error) throw new Error(`review_links count: ${r.error.message}`);
+      return r.count ?? 0;
+    },
+    async revokeLink(id) {
       const data = must('review_links revoke', await service.from('review_links').update({ revoked_at: new Date().toISOString() })
-        .eq('id', id).eq('created_by', profileId).is('revoked_at', null).select('id'));
+        .eq('id', id).is('revoked_at', null).select('id'));
       return (data as Row[]).length > 0;
     },
     async orgsOf(profileId) {

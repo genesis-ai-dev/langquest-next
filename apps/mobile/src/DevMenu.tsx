@@ -1,3 +1,4 @@
+// i18n-ignore-file: developer tools, shown only in development builds.
 // Persona sheet: switch persona (a real sign-in), seed the demo team, and in
 // a dev build jump to any screen. Personas exist only on a local Supabase
 // (dev.ts `personasAvailable`); seeding is for dev builds on a local server,
@@ -5,10 +6,12 @@
 import { commands, membershipsOf, selectFlowSpecs, type FlowDoc } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useState } from 'react';
-import { Text } from 'react-native';
-import { ensurePersonaAccount, maySeedDemoTeam, PERSONAS, personasAvailable, switchToPersona, type Persona } from './dev';
+
+import { Text } from './text';
+import { ensurePersonaAccount, joinAsPersona, maySeedDemoTeam, PERSONAS, personasAvailable, switchToPersona, type Persona } from './dev';
+import { issueInvite } from './invites';
 import { indexesFor } from './indexes';
-import { SCREEN_IDS, TITLES, type ScreenId } from './flow';
+import { SCREEN_IDS, screenTitle, type ScreenId } from './flow';
 import { Group, Row, SectionLabel, Sheet, txt } from './kit';
 import { loadDocs } from './library/docStore';
 import { subscribeOps, type SharedItem } from './library/model';
@@ -88,7 +91,9 @@ export function DevMenu(props: {
       if (!p.roleId) continue;
       const id = await ensurePersonaAccount(p);
       if (props.org.state && membershipsOf(props.org.state, id).length > 0) continue;
-      await props.org.append('v1.MemberAdded', { profileId: id, roleId: p.roleId, scope: { level: 'org' } });
+      // Nobody is added without joining (decisions.md 75): invite the persona, and it redeems as itself.
+      const invite = await issueInvite(props.language.orgId, p.roleId, { level: 'org' }, { label: p.label, ttlDays: 1 });
+      await joinAsPersona(p, invite.token);
       if (languageId && p.role === 'translator') {
         const due = new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10);
         const c = commands(state, indexesFor(state));
@@ -125,7 +130,7 @@ export function DevMenu(props: {
           <SectionLabel label="Jump to screen (bypasses flow)" />
           <Group>
             {SCREEN_IDS.map((s, i) => (
-              <Row key={s} label={TITLES[s]} sub={s} onPress={() => { props.jump(s); props.onClose(); }} last={i === SCREEN_IDS.length - 1} />
+              <Row key={s} label={screenTitle(s)} sub={s} onPress={() => { props.jump(s); props.onClose(); }} last={i === SCREEN_IDS.length - 1} />
             ))}
           </Group>
         </>

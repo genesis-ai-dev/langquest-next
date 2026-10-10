@@ -2,8 +2,10 @@
 import { isStored, type BlobRef, type LanguageState } from '@langquest-next/core';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from './text';
 import type { LanguageHandle } from './useLanguage';
+import { t } from './i18n';
 import { IconBtn, txt } from './kit';
 import { noteExpected, reportError } from './report';
 import { C, target } from './theme';
@@ -14,14 +16,11 @@ export function audioFormat(state: LanguageState, hash: string): BlobRef['format
     const card = recording.cards.find((c) => c.hash === hash);
     if (card) return card.format ?? 'wav';
   }
-  return 'm4a';
+  // A voice note: m4a unless the log says otherwise (decisions.md 77).
+  return state.audioFormats[hash]?.value ?? 'm4a';
 }
 
-/** A player failure is a fault (native audio): report it and say so without its message. */
-function playbackFailed(where: string, err: unknown): string {
-  return `Audio could not play (code ${reportError(where, err)}).`;
-}
-
+// A player failure is a fault (native audio): it is reported and said without its message.
 export function AudioClip(props: {
   language: LanguageHandle;
   hashes: string[];
@@ -109,12 +108,12 @@ export function AudioClip(props: {
           try { uri = await language.blobs.streamUri(ref); }
           catch (err) {
             noteExpected('audio clip stream', err);
-            if (generation.current === run) { wantsPlayback.current = false; setPlaying(false); setError('Audio could not load. Check your connection and try again.'); }
+            if (generation.current === run) { wantsPlayback.current = false; setPlaying(false); setError(t('common.audioCouldNotLoad')); }
             return;
           }
           if (generation.current !== run || !wantsPlayback.current) return;
         }
-        if (!uri) { wantsPlayback.current = false; setPlaying(false); setError('Audio is not on this device yet.'); return; }
+        if (!uri) { wantsPlayback.current = false; setPlaying(false); setError(t('recording.player.notOnDeviceYet')); return; }
         try {
           const p = createAudioPlayer({ uri });
           player.current = p;
@@ -123,7 +122,7 @@ export function AudioClip(props: {
             if (status.error) {
               wantsPlayback.current = false;
               p.remove(); player.current = null; setPlaying(false);
-              setError('Audio could not load. Check your connection and try again.');
+              setError(t('common.audioCouldNotLoad'));
               return;
             }
             if (status.didJustFinish && player.current === p) void next(index + 1);
@@ -132,7 +131,7 @@ export function AudioClip(props: {
         } catch (err) {
           wantsPlayback.current = false;
           player.current?.remove(); player.current = null;
-          setPlaying(false); setError(playbackFailed('audio clip create player', err));
+          setPlaying(false); setError(t('common.audioCouldNotPlay', { code: reportError('audio clip create player', err) }));
         }
       };
       await next(0);
@@ -140,7 +139,7 @@ export function AudioClip(props: {
       if (generation.current === run) {
         wantsPlayback.current = false;
         player.current?.remove(); player.current = null;
-        setPlaying(false); setError(playbackFailed('audio clip play', err));
+        setPlaying(false); setError(t('common.audioCouldNotPlay', { code: reportError('audio clip play', err) }));
       }
     }
   }
@@ -148,17 +147,17 @@ export function AudioClip(props: {
     const p = player.current;
     if (!p || props.disabled) return;
     try { await p.seekTo(Math.max(0, Math.min(p.duration, p.currentTime + delta))); }
-    catch (err) { setError(playbackFailed('audio clip seek', err)); }
+    catch (err) { setError(t('common.audioCouldNotPlay', { code: reportError('audio clip seek', err) })); }
   }
   return (
     <View style={{ gap: 8 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        {props.seekControls ? <IconBtn name="restart" label="Rewind source 10 seconds" size={target.min}
+        {props.seekControls ? <IconBtn name="restart" label={t('recording.player.rewindSource')} size={target.min}
           bg={C.light} color={C.primary} disabled={props.disabled || !available} onPress={() => void seek(-10)} /> : null}
         <IconBtn name={available ? playing ? 'pause' : 'play' : 'download'} size={target.primary} bg={C.light} color={C.primary}
-          label={available ? playing ? 'Pause playback' : props.label ?? 'Play audio' : 'Audio is not on this device yet'}
+          label={available ? playing ? t('recording.player.pausePlayback') : props.label ?? t('recording.player.playAudio') : t('recording.player.notOnDevice')}
           disabled={!available || props.disabled} onPress={() => void toggle()} />
-        {props.seekControls ? <IconBtn name="skip" label="Forward source 10 seconds" size={target.min}
+        {props.seekControls ? <IconBtn name="skip" label={t('recording.player.forwardSource')} size={target.min}
           bg={C.light} color={C.primary} disabled={props.disabled || !available} onPress={() => void seek(10)} /> : null}
       </View>
       {error ? <Text accessibilityRole="alert" style={txt.error}>{error}</Text> : null}

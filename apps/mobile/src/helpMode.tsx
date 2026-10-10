@@ -2,21 +2,42 @@
 // whether help is on and which parts of the screen are numbered, and shows
 // the explanation card, which steps through the parts with Back and Next
 // part. The first time a screen opens it says what the screen is for, once
-// per device. On the web the browser reads the words aloud; on a device
-// the words show until recorded help lines exist.
+// per device. It speaks in the recorded voice for the app's language where
+// the line has been recorded (helpAudio.ts, decision 81); otherwise the
+// browser reads the words aloud on the web, and a device shows them.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { HelpContext, helpLine, SCREEN_INTROS, type HelpMode, type HelpPart } from './helpContext';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from './text';
+import { HelpContext, helpLine, screenIntro, type HelpMode, type HelpPart } from './helpContext';
+import { currentLocale, t } from './i18n';
+import { sayRecorded, stopHelpAudio } from './helpAudio';
 import { noteExpected } from './report';
 import { C, radius, space, TINT } from './theme';
 
-function speak(text: string) {
+function speakInBrowser(text: string) {
   if (Platform.OS !== 'web') return;
   const synth = (globalThis as { speechSynthesis?: { cancel: () => void; speak: (u: unknown) => void } }).speechSynthesis;
-  const Utterance = (globalThis as { SpeechSynthesisUtterance?: new (t: string) => unknown }).SpeechSynthesisUtterance;
+  const Utterance = (globalThis as { SpeechSynthesisUtterance?: new (t: string) => { lang: string } }).SpeechSynthesisUtterance;
   if (!synth || !Utterance) return;
-  try { synth.cancel(); synth.speak(new Utterance(text)); } catch { /* speaking is a nicety */ }
+  try {
+    const u = new Utterance(text);
+    u.lang = currentLocale();
+    synth.cancel();
+    synth.speak(u);
+  } catch { /* speaking is a nicety */ }
+}
+
+function stopSpeaking() {
+  stopHelpAudio();
+  try { (globalThis as { speechSynthesis?: { cancel: () => void } }).speechSynthesis?.cancel(); } catch { /* nothing was speaking */ }
+}
+
+/** The recorded voice if every line has a recording in the app's language, else the browser's voice on the web. */
+function speak(...lines: (string | undefined)[]) {
+  const words = lines.filter((l): l is string => !!l?.trim());
+  stopSpeaking();
+  void sayRecorded(...words).then((said) => { if (!said) speakInBrowser(helpLine(words[0] ?? '', words[1])); });
 }
 
 /** Set to "off" (or `globalThis.__lqNoIntros`, for tests and screenshots) to skip the first-time intros. */
@@ -34,11 +55,11 @@ export function HelpModeProvider(props: { children: ReactNode }) {
   const setOn = useCallback((v: boolean) => {
     setOnState(v);
     setIntro(null);
-    if (!v) { setShown(null); setParts([]); }
+    if (!v) { setShown(null); setParts([]); stopSpeaking(); }
   }, []);
   const explain = useCallback((label: string, detail?: string, key?: string) => {
     setShown({ label, ...(detail ? { detail } : {}), ...(key ? { key } : {}) });
-    speak(helpLine(label, detail));
+    speak(label, detail);
   }, []);
   const register = useCallback((part: HelpPart) => {
     setParts((ps) => [...ps.filter((p) => p.key !== part.key), part]);
@@ -48,13 +69,14 @@ export function HelpModeProvider(props: { children: ReactNode }) {
     [on, setOn, explain, parts, shown?.key, register]);
   IntroContext.current = useMemo(() => ({
     intro: (screen: string) => {
-      const text = SCREEN_INTROS[screen];
+      const text = screenIntro(screen);
       if (!text) return;
       setIntro(text);
       speak(text);
     }
   }), []);
 
+  const closeIntro = () => { setIntro(null); stopSpeaking(); };
   const index = shown?.key ? parts.findIndex((p) => p.key === shown.key) : -1;
   const step = (by: number) => {
     const next = parts[index + by];
@@ -69,49 +91,49 @@ export function HelpModeProvider(props: { children: ReactNode }) {
             <View style={styles.head}>
               <View style={styles.playing}><View style={styles.bar} /><View style={styles.bar} /></View>
               <View style={{ flex: 1, minWidth: 0 }}>
-                {index >= 0 ? <Text style={styles.count}>{index + 1} of {parts.length} · playing</Text> : null}
+                {index >= 0 ? <Text style={styles.count}>{t('help.card.partPlaying', { part: index + 1, total: parts.length })}</Text> : null}
                 <Text style={styles.label}>{shown.label}</Text>
               </View>
             </View>
-            {shown.detail ? <Text style={styles.detail}>“{shown.detail}”</Text> : null}
+            {shown.detail ? <Text style={styles.detail}>{t('help.card.quoted', { text: shown.detail })}</Text> : null}
             <View style={styles.row}>
               {index > 0 ? (
                 <Pressable onPress={() => step(-1)} accessibilityRole="button" style={({ pressed }) => [styles.btn, pressed && { opacity: 0.7 }]}>
-                  <Text style={styles.btnText}>Back</Text>
+                  <Text style={styles.btnText}>{t('common.back')}</Text>
                 </Pressable>
               ) : (
                 <Pressable onPress={() => setShown(null)} accessibilityRole="button" style={({ pressed }) => [styles.btn, pressed && { opacity: 0.7 }]}>
-                  <Text style={styles.btnText}>Got it</Text>
+                  <Text style={styles.btnText}>{t('help.gotIt')}</Text>
                 </Pressable>
               )}
               {index >= 0 && index < parts.length - 1 ? (
                 <Pressable onPress={() => step(1)} accessibilityRole="button" style={({ pressed }) => [styles.btn, styles.done, pressed && { opacity: 0.7 }]}>
-                  <Text style={[styles.btnText, { color: C.white }]}>Next part</Text>
+                  <Text style={[styles.btnText, { color: C.white }]}>{t('help.nextPart')}</Text>
                 </Pressable>
               ) : (
                 <Pressable onPress={() => setOn(false)} accessibilityRole="button" style={({ pressed }) => [styles.btn, styles.done, pressed && { opacity: 0.7 }]}>
-                  <Text style={[styles.btnText, { color: C.white }]}>Turn help off</Text>
+                  <Text style={[styles.btnText, { color: C.white }]}>{t('help.turnOff')}</Text>
                 </Pressable>
               )}
             </View>
           </View>
         ) : null}
         {intro && !on ? (
-          <Pressable style={styles.scrim} onPress={() => setIntro(null)} accessibilityLabel="Close" accessibilityRole="button" />
+          <Pressable style={styles.scrim} onPress={closeIntro} accessibilityLabel={t('common.close')} accessibilityRole="button" />
         ) : null}
         {intro && !on ? (
           <View style={[styles.card, styles.introCard]} accessibilityLiveRegion="polite">
             <View style={styles.head}>
               <View style={[styles.playing, { backgroundColor: C.primary }]}><View style={[styles.bar, { backgroundColor: C.white }]} /><View style={[styles.bar, { backgroundColor: C.white }]} /></View>
-              <Text style={[styles.label, { flex: 1 }]}>Playing: “{intro}”</Text>
+              <Text style={[styles.label, { flex: 1 }]}>{t('help.intro.playing', { text: intro })}</Text>
             </View>
-            <Text style={styles.detail}>The first time you open a screen, LangQuest says what it's for. Tap ? any time to hear it again and see what each part does.</Text>
+            <Text style={styles.detail}>{t('help.intro.explain')}</Text>
             <View style={styles.row}>
               <Pressable onPress={() => setOn(true)} accessibilityRole="button" style={({ pressed }) => [styles.btn, styles.done, { flex: 2 }, pressed && { opacity: 0.7 }]}>
-                <Text style={[styles.btnText, { color: C.white }]}>Show me the parts</Text>
+                <Text style={[styles.btnText, { color: C.white }]}>{t('help.intro.showParts')}</Text>
               </Pressable>
-              <Pressable onPress={() => setIntro(null)} accessibilityRole="button" style={({ pressed }) => [styles.btn, pressed && { opacity: 0.7 }]}>
-                <Text style={styles.btnText}>Got it</Text>
+              <Pressable onPress={closeIntro} accessibilityRole="button" style={({ pressed }) => [styles.btn, pressed && { opacity: 0.7 }]}>
+                <Text style={styles.btnText}>{t('help.gotIt')}</Text>
               </Pressable>
             </View>
           </View>
@@ -126,7 +148,7 @@ export function useScreenIntro(screen: string, focused: boolean) {
   const help = useContext(HelpContext);
   const done = useRef(false);
   useEffect(() => {
-    if (!focused || done.current || !SCREEN_INTROS[screen] || help?.on) return;
+    if (!focused || done.current || !screenIntro(screen) || help?.on) return;
     done.current = true;
     let cancelled = false;
     void (async () => {

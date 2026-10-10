@@ -20939,6 +20939,8 @@ function emptyLanguageState() {
     takes: {},
     submissions: {},
     blobs: {},
+    audioFormats: {},
+    cardVerses: {},
     appliedEventIds: {},
     invalidEvents: {},
     redactions: {},
@@ -20948,6 +20950,7 @@ function emptyLanguageState() {
     teams: {},
     stepLinks: {},
     releases: {},
+    externalValues: {},
     responses: {},
     materials: {},
     keyTerms: {},
@@ -20955,6 +20958,146 @@ function emptyLanguageState() {
     ...emptyRecordState(),
     ...emptyReferenceState()
   };
+}
+
+// packages/core/src/versification.ts
+var USFM_BOOKS = [
+  "GEN",
+  "EXO",
+  "LEV",
+  "NUM",
+  "DEU",
+  "JOS",
+  "JDG",
+  "RUT",
+  "1SA",
+  "2SA",
+  "1KI",
+  "2KI",
+  "1CH",
+  "2CH",
+  "EZR",
+  "NEH",
+  "EST",
+  "JOB",
+  "PSA",
+  "PRO",
+  "ECC",
+  "SNG",
+  "ISA",
+  "JER",
+  "LAM",
+  "EZK",
+  "DAN",
+  "HOS",
+  "JOL",
+  "AMO",
+  "OBA",
+  "JON",
+  "MIC",
+  "NAM",
+  "HAB",
+  "ZEP",
+  "HAG",
+  "ZEC",
+  "MAL",
+  "MAT",
+  "MRK",
+  "LUK",
+  "JHN",
+  "ACT",
+  "ROM",
+  "1CO",
+  "2CO",
+  "GAL",
+  "EPH",
+  "PHP",
+  "COL",
+  "1TH",
+  "2TH",
+  "1TI",
+  "2TI",
+  "TIT",
+  "PHM",
+  "HEB",
+  "JAS",
+  "1PE",
+  "2PE",
+  "1JN",
+  "2JN",
+  "3JN",
+  "JUD",
+  "REV",
+  "TOB",
+  "JDT",
+  "ESG",
+  "WIS",
+  "SIR",
+  "BAR",
+  "LJE",
+  "S3Y",
+  "SUS",
+  "BEL",
+  "1MA",
+  "2MA",
+  "3MA",
+  "4MA",
+  "1ES",
+  "2ES",
+  "MAN",
+  "PS2",
+  "ODA",
+  "PSS",
+  "EZA",
+  "5EZ",
+  "6EZ",
+  "DAG",
+  "PS3",
+  "2BA",
+  "LBA",
+  "JUB",
+  "ENO",
+  "1MQ",
+  "2MQ",
+  "3MQ",
+  "REP",
+  "4BA",
+  "LAO",
+  // Paratext's alternate Greek texts, which the standard versifications list.
+  "JSA",
+  "JDB",
+  "TBS",
+  "SST",
+  "DNT",
+  "BLT"
+];
+var BOOK_ORDER = new Map(USFM_BOOKS.map((b, i) => [b, i]));
+var LEGACY_BOOK_IDS = { joe: "JOL", nah: "NAM", mar: "MRK", joh: "JHN", phi: "PHP" };
+var TO_LEGACY = Object.fromEntries(Object.entries(LEGACY_BOOK_IDS).map(([k, v]) => [v, k]));
+function libraryUnitRange(unitId, versesIn) {
+  const slash = unitId.indexOf("/");
+  if (slash < 0 || unitId.slice(0, slash).includes("@")) return null;
+  const node = unitId.slice(slash + 1).replace(/~[a-z0-9-]+$/, "");
+  return /^[A-Z0-9]{3}(\.|$)/.test(node) ? parseRef(node, versesIn) : null;
+}
+var REF = /^([A-Z0-9]{3})(?:[ .](\d+)(?:[:.](\d+)[a-z]?)?(?:-(?:(\d+)[:.])?(\d+)[a-z]?)?)?$/;
+function parseRef(text, versesIn) {
+  const m = REF.exec(text.trim());
+  if (!m) return null;
+  const book = m[1];
+  const last = (c) => versesIn?.(book, c) ?? 999;
+  if (m[2] === void 0) {
+    return { book, start: { chapter: 1, verse: 1 }, end: { chapter: 999, verse: 999 } };
+  }
+  const c1 = Number(m[2]);
+  if (m[3] === void 0) {
+    const c22 = m[5] !== void 0 && m[4] === void 0 ? Number(m[5]) : c1;
+    return { book, start: { chapter: c1, verse: 1 }, end: { chapter: c22, verse: last(c22) } };
+  }
+  const v1 = Number(m[3]);
+  if (m[5] === void 0) return { book, start: { chapter: c1, verse: v1 }, end: { chapter: c1, verse: v1 } };
+  const c2 = m[4] !== void 0 ? Number(m[4]) : c1;
+  return { book, start: { chapter: c1, verse: v1 }, end: { chapter: c2, verse: Number(m[5]) } };
 }
 
 // packages/core/src/libraryDocs.ts
@@ -21000,6 +21143,7 @@ function licenseRank(license) {
 }
 
 // packages/core/src/validate.ts
+var UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 function validateEvent(e) {
   for (const k of ["id", "type", "orgId", "streamId", "actorId", "deviceId", "hlc"]) {
     if (typeof e[k] !== "string" || e[k] === "") return `${k} must be a non-empty string`;
@@ -21037,6 +21181,7 @@ function validateEvent(e) {
   switch (e.type) {
     // ---- organization stream (org.ts)
     case "v1.OrgCreated":
+    case "v1.OrgRenamed":
       return str("name");
     case "v1.RoleDefined":
       return str("roleId", "name") ?? (Array.isArray(p["privileges"]) && p["privileges"].every((x) => PRIVILEGES.includes(x)) ? null : "privileges must be known privileges");
@@ -21058,6 +21203,8 @@ function validateEvent(e) {
       return str("languageId", "name", "code", "sourceCode") ?? (/^[A-Za-z0-9][A-Za-z0-9_-]{0,80}$/.test(p["languageId"]) ? null : "languageId may use letters, digits, _ and - only") ?? (p["languageId"] === ORG_STREAM ? "languageId is reserved" : null);
     case "v1.LanguageRenamed":
       return str("languageId", "name");
+    case "v1.LanguageCodeSet":
+      return str("languageId", "code") ?? (p["code"].length <= 40 ? null : "code must be at most 40 characters") ?? (p["languoidId"] === null || typeof p["languoidId"] === "string" && UUID.test(p["languoidId"]) ? null : "languoidId must be a languoid id or null");
     case "v1.LanguageCountrySet":
       return str("languageId") ?? (typeof p["country"] === "string" && /^[A-Z]{2}$/.test(p["country"]) ? null : "country must be an ISO 3166 alpha-2 code");
     case "v1.LanguageTargetSet":
@@ -21086,6 +21233,8 @@ function validateEvent(e) {
       return str("unitId", "kind", "label", "order") ?? (p["parentUnitId"] === null ? null : str("parentUnitId"));
     case "v1.UnitHidden":
       return str("unitId") ?? bool("hidden");
+    case "v1.BookNameSet":
+      return str("book", "name") ?? (/^[A-Z0-9]{3}$/.test(p["book"]) ? null : "book must be a USFM book code");
     case "v1.FlowSelected":
       return str("flowId") ?? (/[/@\s]/.test(p["flowId"]) ? "flowId may not contain /, @ or spaces" : null) ?? optStr("itemId", "name") ?? (p["docHash"] === void 0 || hash(p["docHash"]) ? null : "docHash must be a SHA-256 hex digest");
     case "v1.FlowStepSet":
@@ -21115,6 +21264,12 @@ function validateEvent(e) {
       return str("takeId") ?? (p["questionSetIds"] === void 0 ? null : strArray("questionSetIds"));
     case "v1.ResponseRecorded":
       return str("takeId", "respondsToTakeId") ?? optStr("note", "blobHash");
+    case "v1.CardVerseSet":
+      return str("unitId", "hash") ?? oneOf("mark", ["next", "join", "set", "none"]) ?? cardVerseError(p);
+    case "v1.AudioFormatSet":
+      return str("hash") ?? oneOf("format", ["wav", "m4a"]);
+    case "v1.ExternalValueSet":
+      return externalKeyError(p["key"]) ?? (p["data"] === null || isObject(p["data"]) ? null : "data must be an object or null");
     case "v1.ReviewRecorded":
       return str("reviewId", "takeId", "kindId") ?? oneOf("outcome", ["looks_good", "needs_changes", "recorded"]) ?? oneOf("via", ["app", "link", "logged"]) ?? optStr("comment", "commentBlobHash", "place", "givenBy", "requestId") ?? optStrRecord("answers") ?? optStrRecord("skipped") ?? (p["people"] === void 0 || typeof p["people"] === "number" && p["people"] >= 0 ? null : "people must be a number") ?? (p["artifacts"] === void 0 ? null : cards("artifacts")) ?? (p["outcome"] === "recorded" && (!Array.isArray(p["artifacts"]) || p["artifacts"].length === 0) ? "recorded needs artifacts" : null);
     case "v1.DepartureRecorded":
@@ -21202,12 +21357,55 @@ function anchor(v) {
       return "anchor.kind must be passage, version, verse, study or term";
   }
 }
+var EXTERNAL_KEY_MAX = 256;
+function externalKeyError(v) {
+  if (typeof v !== "string" || v === "") return "key must be a non-empty string";
+  if (v.length > EXTERNAL_KEY_MAX) return `key must be at most ${EXTERNAL_KEY_MAX} characters`;
+  if (!/^[A-Za-z0-9._~:@+-]+(\/[A-Za-z0-9._~:@+-]+)*$/.test(v)) return "key must be segments of letters, digits and . _ ~ : @ + - joined by /";
+  if (/(^|\/)\.\.?(\/|$)/.test(v)) return "key segments may not be . or ..";
+  return null;
+}
 function isObject(v) {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
+var VERSE_REF = /^[1-9][0-9]{0,2}:[1-9][0-9]{0,2}$/;
+function verseRefOrder(ref) {
+  if (typeof ref !== "string" || !VERSE_REF.test(ref)) return null;
+  const [c, v] = ref.split(":").map(Number);
+  return c * 1e3 + v;
+}
+function cardVerseError(p) {
+  if (p["mark"] !== "set") return p["from"] === void 0 && p["to"] === void 0 ? null : "from and to belong to set only";
+  const a = verseRefOrder(p["from"]);
+  const b = verseRefOrder(p["to"]);
+  if (a === null || b === null) return "from and to must be chapter:verse";
+  return a <= b ? null : "from must not come after to";
+}
+
+// packages/core/src/ties.ts
+function earlier(event, content, prior, priorContent, actorId = event.actorId) {
+  if (event.hlc !== prior.hlc) return event.hlc < prior.hlc;
+  return tieWins(content, prior, priorContent, actorId);
+}
+function later2(event, content, prior, priorContent, actorId = event.actorId) {
+  if (event.hlc !== prior.hlc) return event.hlc > prior.hlc;
+  return tieWins(content, prior, priorContent, actorId);
+}
+function tieWins(content, prior, priorContent, actorId) {
+  return `${actorId}
+${stable(content)}` < `${prior.actorId}
+${stable(priorContent)}`;
+}
+function stable(v) {
+  if (Array.isArray(v)) return `[${v.map(stable).join(",")}]`;
+  if (v && typeof v === "object") {
+    return `{${Object.keys(v).filter((k) => v[k] !== void 0).sort().map((k) => `${JSON.stringify(k)}:${stable(v[k])}`).join(",")}}`;
+  }
+  return JSON.stringify(v);
+}
 
 // packages/core/src/reducer.ts
-var REDUCER_VERSION = 11;
+var REDUCER_VERSION = 15;
 var REVISIONS = /* @__PURE__ */ new WeakMap();
 function stateRevision(state) {
   return REVISIONS.get(state) ?? 0;
@@ -21221,20 +21419,27 @@ function applyLanguageEvent(state, event) {
     state.invalidEvents[event.id] = invalid;
     return state;
   }
-  if (state.redactions[event.id]) return state;
+  if (state.redactions[event.id] && event.type !== "v1.Redacted") return state;
   switch (event.type) {
     case "v1.TemplateSelected": {
       const { itemId, docHash, unitPrefix, books } = event.payload;
       state.template = set(state.template, event, { itemId, docHash, unitPrefix, ...books ? { books: [...books].sort() } : {} });
+      const history = state.templateHistory ??= {};
+      const had = history[docHash];
+      if (!had || event.hlc < had.hlc || event.hlc === had.hlc && event.id < had.eventId) history[docHash] = { unitPrefix, hlc: event.hlc, eventId: event.id };
       break;
     }
     case "v1.UnitAdded": {
       const { unitId, ...unit } = event.payload;
-      state.units[unitId] ??= unit;
+      const prior = state.units[unitId];
+      if (!prior || earlier(event, unit, { hlc: prior.hlc, actorId: "" }, unitContent(prior), "")) state.units[unitId] = { ...unit, hlc: event.hlc };
       break;
     }
     case "v1.UnitHidden":
       lww(state.hiddenUnits, event.payload.unitId, event, event.payload.hidden);
+      break;
+    case "v1.BookNameSet":
+      lww(state.bookNames ??= {}, event.payload.book, event, event.payload.name);
       break;
     case "v1.FlowSelected": {
       const { flowId, itemId, docHash, name } = event.payload;
@@ -21285,14 +21490,25 @@ function applyLanguageEvent(state, event) {
       lww((state.releases ??= {})[takeId] ??= {}, channel, event, { live, by: event.actorId, ...url !== void 0 ? { url } : {} });
       break;
     }
+    case "v1.ExternalValueSet":
+      lww(state.externalValues ??= {}, event.payload.key, event, { data: event.payload.data, actorId: event.actorId, deviceId: event.deviceId });
+      break;
+    case "v1.CardVerseSet": {
+      const { unitId, hash, ...mark } = event.payload;
+      lww((state.cardVerses ??= {})[unitId] ??= {}, hash, event, mark);
+      break;
+    }
     case "v1.RecordingAdded": {
       const { recordingId, ...rest } = event.payload;
-      state.recordings[recordingId] ??= { ...rest, actorId: event.actorId, hlc: event.hlc };
+      const prior = state.recordings[recordingId];
+      if (!prior || earlier(event, rest, prior, { unitId: prior.unitId, kind: prior.kind, cards: prior.cards })) state.recordings[recordingId] = { ...rest, actorId: event.actorId, hlc: event.hlc };
       break;
     }
     case "v1.TakeComposed": {
       const { takeId, ...rest } = event.payload;
       const prior = state.takes[takeId];
+      const composed = prior && prior.unitId !== "";
+      if (composed && !earlier(event, rest, prior, { unitId: prior.unitId, cardHashes: prior.cardHashes, parentTakeId: prior.parentTakeId })) break;
       state.takes[takeId] = {
         ...rest,
         actorId: event.actorId,
@@ -21312,16 +21528,19 @@ function applyLanguageEvent(state, event) {
       break;
     }
     case "v1.TakeSubmitted": {
-      const { takeId, questionSetIds } = event.payload;
+      const { takeId } = event.payload;
+      const questionSetIds = event.payload.questionSetIds ?? [];
       const prior = state.submissions[takeId];
-      if (!prior || event.hlc < prior.hlc) {
-        state.submissions[takeId] = { takeId, actorId: event.actorId, hlc: event.hlc, questionSetIds: questionSetIds ?? [] };
+      if (!prior || earlier(event, { questionSetIds }, prior, { questionSetIds: prior.questionSetIds })) {
+        state.submissions[takeId] = { takeId, actorId: event.actorId, hlc: event.hlc, questionSetIds };
       }
       break;
     }
     case "v1.ResponseRecorded": {
       const { takeId, respondsToTakeId, note, blobHash } = event.payload;
-      state.responses[takeId] ??= {
+      const prior = state.responses[takeId];
+      if (prior && !earlier(event, { respondsToTakeId, note, blobHash }, prior, { respondsToTakeId: prior.respondsToTakeId, note: prior.note, blobHash: prior.blobHash })) break;
+      state.responses[takeId] = {
         respondsToTakeId,
         ...note !== void 0 ? { note } : {},
         ...blobHash !== void 0 ? { blobHash } : {},
@@ -21373,7 +21592,7 @@ function applyLanguageEvent(state, event) {
         locked: { value: false, hlc: "", eventId: "" },
         ...templateRef !== void 0 ? { templateRef } : {}
       };
-      if (m.hlc === "" || m.hlc > event.hlc) {
+      if (m.hlc === "" || earlier(event, { kind, title, scope: scope2, templateRef }, { hlc: m.hlc, actorId: m.createdBy }, { kind: m.kind, title: m.title, scope: m.scope, templateRef: m.templateRef })) {
         m.kind = kind;
         m.title = title;
         m.scope = { ...scope2 };
@@ -21396,22 +21615,28 @@ function applyLanguageEvent(state, event) {
     }
     case "v1.KeyTermDefined": {
       const { termId, term, gloss, unitScope } = event.payload;
-      const t = state.keyTerms[termId] ??= { term, gloss, unitScope: [...unitScope], renderings: {}, adjustments: {} };
-      if (t.term === "") {
+      const t = keyTerm(state, termId);
+      if (t.hlc === "" || earlier(event, { term, gloss, unitScope }, { hlc: t.hlc, actorId: "" }, { term: t.term, gloss: t.gloss, unitScope: t.unitScope }, "")) {
         t.term = term;
         t.gloss = gloss;
         t.unitScope = [...unitScope];
+        t.hlc = event.hlc;
       }
       break;
     }
     case "v1.KeyTermRenderingAdded": {
       const { termId, renderingId, rendering, context } = event.payload;
-      keyTerm(state, termId).renderings[renderingId] ??= { rendering, context, hlc: event.hlc };
+      const renderings = keyTerm(state, termId).renderings;
+      const prior = renderings[renderingId];
+      if (!prior || earlier(event, { rendering, context }, { hlc: prior.hlc, actorId: "" }, { rendering: prior.rendering, context: prior.context }, "")) renderings[renderingId] = { rendering, context, hlc: event.hlc };
       break;
     }
     case "v1.KeyTermAdjusted": {
       const { termId, adjustmentId, note, blobHash, duringTakeId } = event.payload;
-      keyTerm(state, termId).adjustments[adjustmentId] ??= {
+      const adjustments = keyTerm(state, termId).adjustments;
+      const prior = adjustments[adjustmentId];
+      if (prior && !earlier(event, { note, blobHash, duringTakeId }, prior, { note: prior.note, blobHash: prior.blobHash, duringTakeId: prior.duringTakeId })) break;
+      adjustments[adjustmentId] = {
         note,
         actorId: event.actorId,
         hlc: event.hlc,
@@ -21423,7 +21648,9 @@ function applyLanguageEvent(state, event) {
     case "v1.KeyTermLinked": {
       const { takeId, termId, note, adjustmentId } = event.payload;
       const byTerm = state.keyTermLinks[takeId] ??= {};
-      byTerm[termId] ??= { actorId: event.actorId, hlc: event.hlc, ...note !== void 0 ? { note } : {}, ...adjustmentId !== void 0 ? { adjustmentId } : {} };
+      const prior = byTerm[termId];
+      if (prior && !earlier(event, { note, adjustmentId }, prior, { note: prior.note, adjustmentId: prior.adjustmentId })) break;
+      byTerm[termId] = { actorId: event.actorId, hlc: event.hlc, ...note !== void 0 ? { note } : {}, ...adjustmentId !== void 0 ? { adjustmentId } : {} };
       break;
     }
     case "v1.ReferenceSet":
@@ -21437,10 +21664,17 @@ function applyLanguageEvent(state, event) {
     case "v1.BlobInvalidated":
       blobVerdict(state, event, { size: 0, stored: false });
       break;
+    case "v1.AudioFormatSet": {
+      const prior = state.audioFormats[event.payload.hash];
+      if (prior && (prior.hlc < event.hlc || prior.hlc === event.hlc && prior.eventId <= event.id)) break;
+      state.audioFormats[event.payload.hash] = { value: event.payload.format, hlc: event.hlc, eventId: event.id };
+      break;
+    }
     case "v1.Redacted":
       state.redactions[event.payload.eventId] = true;
       break;
     case "v1.OrgCreated":
+    case "v1.OrgRenamed":
     case "v1.RoleDefined":
     case "v1.RoleRetired":
     case "v1.MemberAdded":
@@ -21451,6 +21685,7 @@ function applyLanguageEvent(state, event) {
     case "v1.LicenseSet":
     case "v1.LanguageAdded":
     case "v1.LanguageRenamed":
+    case "v1.LanguageCodeSet":
     case "v1.LanguageCountrySet":
     case "v1.LanguageTargetSet":
     case "v1.ReferenceRecommended":
@@ -21501,7 +21736,10 @@ function material(state, materialId) {
   return state.materials[materialId] ??= { kind: "", title: "", scope: {}, createdBy: "", hlc: "", fields: {}, locked: { value: false, hlc: "", eventId: "" } };
 }
 function keyTerm(state, termId) {
-  return state.keyTerms[termId] ??= { term: "", gloss: "", unitScope: [], renderings: {}, adjustments: {} };
+  return state.keyTerms[termId] ??= { term: "", gloss: "", unitScope: [], hlc: "", renderings: {}, adjustments: {} };
+}
+function unitContent(u) {
+  return { parentUnitId: u.parentUnitId, kind: u.kind, label: u.label, order: u.order };
 }
 function lww(table, key, event, value) {
   const current = table[key];
@@ -21535,27 +21773,41 @@ function unitPrefixOf(unitId) {
   return cut > 0 ? unitId.slice(0, cut) : null;
 }
 function buildIndexes(state) {
-  const parents = /* @__PURE__ */ new Set();
-  for (const u of Object.values(state.units)) if (u.parentUnitId) parents.add(u.parentUnitId);
   const sel = state.template?.value ?? null;
   const books = sel?.books ? new Set(sel.books) : null;
+  const inUse = (id) => {
+    const prefix = unitPrefixOf(id);
+    if (prefix === null || !sel) return true;
+    if (prefix !== sel.unitPrefix) return false;
+    return books === null || books.has(id.slice(prefix.length + 1, prefix.length + 4));
+  };
+  const parents = /* @__PURE__ */ new Set();
+  const shownParents = /* @__PURE__ */ new Set();
+  for (const [id, u] of Object.entries(state.units)) {
+    if (!u.parentUnitId) continue;
+    parents.add(u.parentUnitId);
+    if (state.hiddenUnits[id]?.value !== true && inUse(id)) shownParents.add(u.parentUnitId);
+  }
   const ordered = Object.entries(state.units).sort(([ia, a], [ib, b]) => a.order < b.order ? -1 : a.order > b.order ? 1 : ia < ib ? -1 : 1);
   const passages = [];
   const containers = [];
-  for (const [id] of ordered) {
+  const waiting = [];
+  for (const [id, u] of ordered) {
+    const bookUnit = u.kind === "book" && u.parentUnitId === null && unitPrefixOf(id) !== null;
+    if (bookUnit && !shownParents.has(id)) {
+      if (state.hiddenUnits[id]?.value !== true && inUse(id) && sel) waiting.push(id);
+      if (parents.has(id)) containers.push(id);
+      continue;
+    }
     if (parents.has(id)) {
       containers.push(id);
       continue;
     }
     if (state.hiddenUnits[id]?.value === true) continue;
-    const prefix = unitPrefixOf(id);
-    if (prefix !== null && sel) {
-      if (prefix !== sel.unitPrefix) continue;
-      if (books !== null && !books.has(id.slice(prefix.length + 1, prefix.length + 4))) continue;
-    }
+    if (!inUse(id)) continue;
     passages.push(id);
   }
-  return { passages, containers };
+  return { passages, containers, waiting };
 }
 
 // packages/core/src/passage.ts
@@ -21704,8 +21956,8 @@ function derivePassage(state, unitId, idx) {
     return { ...r, status, ...team ? { team } : {} };
   });
   const openRequests = requests.filter((r) => r.status === "open");
-  const kindStatus = (kindId) => {
-    const review = [...reviews].reverse().find((r) => r.kindId === kindId);
+  const kindStatus = (kindId, linksAllowed) => {
+    const review = [...reviews].reverse().find((r) => r.kindId === kindId && (linksAllowed || r.via !== "link"));
     const request = openRequests.find((r) => r.what === "review" && r.kindId === kindId);
     const departure = active((d) => d.type === "skip" && d.kindId === kindId);
     const base = { kindId, ...review ? { review } : {} };
@@ -21722,19 +21974,21 @@ function derivePassage(state, unitId, idx) {
   const steps = [];
   let gate;
   flow.steps.forEach((step, index) => {
-    const statuses = step.kindIds.map(kindStatus);
+    const linksAllowed = stepAllowsLinks(state, step);
+    const statuses = step.kindIds.map((kindId) => kindStatus(kindId, linksAllowed));
     const override = active((d) => d.type === "override" && d.stepId === step.id);
     const lockedBy = gate;
     const kindsShown = lockedBy ? statuses.map((s) => s.state === "todo" ? { ...s, state: "locked" } : s) : statuses;
     const clears = (s) => s.state === "approved" && s.review?.via === "app";
     const complete = statuses.every((s) => step.checkpoint ? clears(s) : isCompleteState(s.state));
-    steps.push({ step, index, kinds: kindsShown, complete, ...lockedBy ? { lockedBy } : {}, ...override ? { override } : {} });
+    steps.push({ step, index, kinds: kindsShown, complete, linksAllowed, ...lockedBy ? { lockedBy } : {}, ...override ? { override } : {} });
     if (!gate && step.checkpoint && !complete && !override) gate = stepName(ri.kinds, step);
   });
   const recorded = versions.length > 0;
   const open = steps.filter((s) => !s.complete && !s.lockedBy);
   const latest = versions.at(-1);
   const draftTakeId = ri.drafts.get(key)?.[0];
+  const drafts = (ri.drafts.get(key) ?? []).map((takeId) => draftView(state, takeId)).sort((a, b) => a.startedHlc < b.startedHlc ? -1 : a.startedHlc > b.startedHlc ? 1 : a.rootTakeId < b.rootTakeId ? -1 : 1);
   const next = recorded ? open.find((s) => !s.override) ?? open[0] : void 0;
   const result = {
     unitId,
@@ -21746,6 +22000,7 @@ function derivePassage(state, unitId, idx) {
     requests,
     openRequests,
     steps,
+    drafts,
     drafting: draftTakeId !== void 0,
     done: recorded && steps.every((s) => s.complete),
     awaitingResponse: reviews.filter((r) => r.outcome === "needs_changes" && !r.response && r.versionN === latest?.n),
@@ -21756,6 +22011,33 @@ function derivePassage(state, unitId, idx) {
   };
   ri.passages.set(key, result);
   return result;
+}
+function draftView(state, takeId) {
+  const t = state.takes[takeId];
+  const seen = /* @__PURE__ */ new Set([takeId]);
+  let root = takeId;
+  let basedOn;
+  for (; ; ) {
+    const parent = state.takes[root].parentTakeId;
+    if (!parent || seen.has(parent)) break;
+    if (state.submissions[parent]) {
+      basedOn = parent;
+      break;
+    }
+    const pt = state.takes[parent];
+    if (!pt || pt.unitId !== t.unitId) break;
+    seen.add(parent);
+    root = parent;
+  }
+  return {
+    takeId,
+    rootTakeId: root,
+    by: t.actorId,
+    cardHashes: t.cardHashes,
+    startedHlc: state.takes[root].hlc,
+    hlc: t.hlc,
+    ...basedOn ? { basedOnTakeId: basedOn } : {}
+  };
 }
 function teamMemberIds(state, teamId) {
   const team = state.teams[teamId];
@@ -21780,7 +22062,17 @@ function languageProgress(state, idx) {
   };
 }
 function unitTitle(state, unitId) {
-  return state.units[unitId]?.label ?? unitId;
+  const label = state.units[unitId]?.label ?? unitId;
+  return withBookName(state, unitId, label);
+}
+function withBookName(state, unitId, label) {
+  const r = libraryUnitRange(unitId);
+  const own = r ? state.bookNames?.[r.book]?.value : void 0;
+  if (!r || !own) return label;
+  const templateName = state.units[`${unitId.slice(0, unitId.indexOf("/"))}/${r.book}`]?.label;
+  if (!templateName) return label;
+  if (label === templateName) return own;
+  return label.startsWith(`${templateName} `) ? own + label.slice(templateName.length) : label;
 }
 function updatesFor(state, actorId, idx) {
   const ri = recordIndexes(state, idx);
@@ -21813,6 +22105,9 @@ function updatesFor(state, actorId, idx) {
   }
   return out.sort((a, b) => a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : 0);
 }
+function stepAllowsLinks(state, step) {
+  return state.stepLinks?.[step.id]?.value ?? !step.checkpoint;
+}
 
 // packages/core/src/library.ts
 var blank = { value: void 0, hlc: "", eventId: "" };
@@ -21829,8 +22124,8 @@ function newItem() {
     pinned: { value: null, hlc: "", eventId: "" }
   };
 }
-var later2 = (current, e) => current.hlc === "" || current.hlc < e.hlc || current.hlc === e.hlc && current.eventId < e.id;
-var earlier = (current, e) => current.hlc === "" || e.hlc < current.hlc || e.hlc === current.hlc && e.id < current.eventId;
+var later3 = (current, e) => current.hlc === "" || current.hlc < e.hlc || current.hlc === e.hlc && current.eventId < e.id;
+var earlier2 = (current, e) => current.hlc === "" || e.hlc < current.hlc || e.hlc === current.hlc && e.id < current.eventId;
 var reg = (value, e) => ({ value, hlc: e.hlc, eventId: e.id });
 var LIBRARY_EVENT_TYPES = [
   "v1.LibraryItemDefined",
@@ -21843,13 +22138,13 @@ var LIBRARY_EVENT_TYPES = [
 function applyLibraryEvent(library, e) {
   const p = e.payload;
   const item = library[p.itemId] ??= newItem();
-  if (earlier(item.kind, e)) item.kind = reg(p.kind, e);
+  if (earlier2(item.kind, e)) item.kind = reg(p.kind, e);
   switch (e.type) {
     case "v1.LibraryItemDefined": {
       const d = p;
-      if (later2(item.name, e)) item.name = reg(d.name, e);
-      if (later2(item.description, e)) item.description = reg(d.description, e);
-      if (d.copiedFrom && earlier(item.copiedFrom, e)) item.copiedFrom = reg({ ...d.copiedFrom }, e);
+      if (later3(item.name, e)) item.name = reg(d.name, e);
+      if (later3(item.description, e)) item.description = reg(d.description, e);
+      if (d.copiedFrom && earlier2(item.copiedFrom, e)) item.copiedFrom = reg({ ...d.copiedFrom }, e);
       break;
     }
     case "v1.LibraryVersionPublished": {
@@ -21862,21 +22157,21 @@ function applyLibraryEvent(library, e) {
     }
     case "v1.LibrarySharingSet": {
       const d = p;
-      if (later2(item.sharing, e)) item.sharing = reg({ shared: d.shared, subscribable: d.shared && d.subscribable }, e);
+      if (later3(item.sharing, e)) item.sharing = reg({ shared: d.shared, subscribable: d.shared && d.subscribable }, e);
       break;
     }
     case "v1.LibraryItemArchived":
-      if (later2(item.archived, e)) item.archived = reg(p.archived, e);
+      if (later3(item.archived, e)) item.archived = reg(p.archived, e);
       break;
     case "v1.LibrarySubscribed": {
       const d = p;
-      if (later2(item.subscription, e)) {
+      if (later3(item.subscription, e)) {
         item.subscription = reg({ sourceOrgId: d.sourceOrgId, sourceOrgName: d.sourceOrgName, sourceItemId: d.sourceItemId, name: d.name, autoUpdate: d.autoUpdate, active: d.active }, e);
       }
       break;
     }
     case "v1.LibraryPinned":
-      if (later2(item.pinned, e)) item.pinned = reg(p.docHash, e);
+      if (later3(item.pinned, e)) item.pinned = reg(p.docHash, e);
       break;
   }
 }
@@ -21884,6 +22179,7 @@ function applyLibraryEvent(library, e) {
 // packages/core/src/org.ts
 var ORG_EVENT_TYPES = [
   "v1.OrgCreated",
+  "v1.OrgRenamed",
   "v1.RoleDefined",
   "v1.RoleRetired",
   "v1.MemberAdded",
@@ -21894,6 +22190,7 @@ var ORG_EVENT_TYPES = [
   "v1.LicenseSet",
   "v1.LanguageAdded",
   "v1.LanguageRenamed",
+  "v1.LanguageCodeSet",
   "v1.LanguageCountrySet",
   "v1.LanguageTargetSet",
   "v1.ReferenceRecommended",
@@ -21938,7 +22235,7 @@ function set2(current, event, value) {
   return { value, hlc: event.hlc, eventId: event.id };
 }
 function language(state, languageId) {
-  return state.languages[languageId] ??= { added: null, renamed: null, country: null, target: null };
+  return state.languages[languageId] ??= { added: null, renamed: null, codeSet: null, country: null, target: null };
 }
 function applyOrgEvent(state, event) {
   if (state.appliedEventIds[event.id]) return state;
@@ -21948,10 +22245,11 @@ function applyOrgEvent(state, event) {
     state.invalidEvents[event.id] = invalid;
     return state;
   }
-  if (state.redactions[event.id]) return state;
+  if (state.redactions[event.id] && event.type !== "v1.Redacted") return state;
   switch (event.type) {
     case "v1.OrgCreated":
-      state.org = set2(state.org, event, event.payload);
+    case "v1.OrgRenamed":
+      state.org = set2(state.org, event, { name: event.payload.name });
       break;
     case "v1.RoleDefined": {
       const r = state.roles[event.payload.roleId] ??= { name: empty, privileges: empty, retired: false };
@@ -21978,7 +22276,7 @@ function applyOrgEvent(state, event) {
     case "v1.InviteIssued": {
       const { inviteId, roleId, scope: scope2, expiresAt: expiresAt2 } = event.payload;
       const slot = state.invites[inviteId] ??= emptyInvite();
-      if (slot.hlc === "" || slot.hlc < event.hlc) {
+      if (slot.hlc === "" || later2(event, { roleId, scope: scope2, expiresAt: expiresAt2 }, { hlc: slot.hlc, actorId: slot.issuedBy }, { roleId: slot.roleId, scope: slot.scope, expiresAt: slot.expiresAt })) {
         slot.roleId = roleId;
         slot.scope = { ...scope2 };
         slot.expiresAt = expiresAt2;
@@ -21995,7 +22293,7 @@ function applyOrgEvent(state, event) {
     case "v1.JoinDecided": {
       const { requestId, profileId, accepted } = event.payload;
       const prior = state.joinDecisions[requestId];
-      if (!prior || prior.hlc < event.hlc) {
+      if (!prior || later2(event, { profileId, accepted }, { hlc: prior.hlc, actorId: prior.decidedBy }, { profileId: prior.profileId, accepted: prior.accepted })) {
         state.joinDecisions[requestId] = { profileId, accepted, decidedBy: event.actorId, hlc: event.hlc };
       }
       break;
@@ -22020,6 +22318,12 @@ function applyOrgEvent(state, event) {
     case "v1.LanguageRenamed": {
       const l = language(state, event.payload.languageId);
       l.renamed = set2(l.renamed, event, event.payload.name);
+      break;
+    }
+    case "v1.LanguageCodeSet": {
+      const { languageId, code, languoidId } = event.payload;
+      const l = language(state, languageId);
+      l.codeSet = set2(l.codeSet, event, { code, languoidId });
       break;
     }
     case "v1.LanguageCountrySet": {
@@ -22072,7 +22376,8 @@ function languageInfo(org, languageId) {
   return {
     languageId,
     name: l.renamed?.value ?? l.added.name,
-    code: l.added.code,
+    code: l.codeSet?.value.code ?? l.added.code,
+    languoidId: l.codeSet?.value.languoidId ?? null,
     sourceCode: l.added.sourceCode,
     country: l.country?.value ?? null,
     target: l.target?.value ?? null

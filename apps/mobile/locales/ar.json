@@ -1,0 +1,6 @@
+{
+  "ios": {
+    "NSMicrophoneUsageDescription": "يسجّل LangQuest صوتك لترجمة المقاطع.",
+    "NSCameraUsageDescription": "يستخدم LangQuest الكاميرا لمسح رموز QR الخاصة بالدعوات."
+  }
+}

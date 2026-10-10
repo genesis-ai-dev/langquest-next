@@ -1,7 +1,7 @@
 import { encodeHlc } from '../src/hlc';
 import type { AnyEvent } from '../src/events';
 import {
-  adminScopeOf, effectiveRole, emptyOrgState, foldOrg, languageInfo, languageName, languageOfOrgEvent, languagePeople, orgLanguages,
+  adminScopeOf, effectiveRole, emptyOrgState, foldOrg, languageInfo, languageName, languageOfOrgEvent, languagePeople, mayRenameLanguage, mayRenameOrg, orgLanguages, orgName,
   privilegeFor, privilegesFor, privilegesOfFixedRole, scopeCovers, SEED_ROLES, EVENT_PRIVILEGE
 } from '../src/org';
 import { buildFixture, shuffle } from './fixtures';
@@ -64,12 +64,65 @@ describe('organization stream fold', () => {
     // Why: a phone pulls only the languages it opens, so the organization
     // stream is where everyone learns which languages exist and what they are called.
     expect(orgLanguages(canonical).map((l) => [l.languageId, l.name])).toEqual([['nus', 'Nuer'], ['din', 'Thuɔŋjäŋ']]);
-    expect(languageInfo(canonical, 'din')).toEqual({ languageId: 'din', name: 'Thuɔŋjäŋ', code: 'din', sourceCode: 'eng', country: null, target: null });
+    expect(languageInfo(canonical, 'din')).toEqual({ languageId: 'din', name: 'Thuɔŋjäŋ', code: 'din', languoidId: null, sourceCode: 'eng', country: null, target: null });
     expect(languageInfo(canonical, 'later')).toBeNull();
     expect(languageName(canonical, 'din')).toBe('Thuɔŋjäŋ');
     expect(languageName(canonical, 'unknown')).toBe('unknown');
     expect(languageName(null, 'din')).toBe('din');
     expect(orgLanguages(null)).toEqual([]);
+  });
+
+  it('a language takes the latest code and link to the language list, by clock, whatever the arrival order', () => {
+    // Why: an admin who added a language offline links it to the language
+    // list later (docs/languoids.md); every phone must agree which languoid it is.
+    const at = (ms: number, deviceId: string) => encodeHlc(1_700_000_000_000 + ms, 0, deviceId);
+    const linked = [
+      ...events,
+      { id: 'c1', type: 'v1.LanguageCodeSet', orgId: 'org1', streamId: '_org', actorId: 'lead', deviceId: 'dB', hlc: at(600, 'dB'), payload: { languageId: 'din', code: 'dip', languoidId: '0a1b2c3d-0000-4000-8000-000000000003' } },
+      { id: 'c2', type: 'v1.LanguageCodeSet', orgId: 'org1', streamId: '_org', actorId: 'lead', deviceId: 'dC', hlc: at(300, 'dC'), payload: { languageId: 'din', code: 'xxx', languoidId: null } }
+    ] as AnyEvent[];
+    for (let seed = 1; seed <= 10; seed++) {
+      expect(languageInfo(foldOrg(shuffle(linked, seed)), 'din')).toMatchObject({ code: 'dip', languoidId: '0a1b2c3d-0000-4000-8000-000000000003' });
+    }
+    expect(EVENT_PRIVILEGE['v1.LanguageCodeSet']).toBe('manage_structure');
+    expect(languageOfOrgEvent(linked[linked.length - 1]!)).toBe('din');
+  });
+
+  it('the organization takes its latest name, by clock, whatever the arrival order (decision 76)', () => {
+    // Why: names are labels, and two organizations can be created offline
+    // under one name; an admin renames theirs, and every phone must agree.
+    expect(orgName(canonical)).toBe('Wycliffe Associates');
+    const at = (ms: number, deviceId: string) => encodeHlc(1_700_000_000_000 + ms, 0, deviceId);
+    const renames = [
+      { id: 'r1', type: 'v1.OrgRenamed', orgId: 'org1', streamId: '_org', actorId: 'lead', deviceId: 'dB', hlc: at(500, 'dB'), payload: { name: 'Wycliffe Kenya' } },
+      // Stamped before the rename above, by an admin who was offline: it does not stand.
+      { id: 'r2', type: 'v1.OrgRenamed', orgId: 'org1', streamId: '_org', actorId: 'lead', deviceId: 'dC', hlc: at(400, 'dC'), payload: { name: 'Older' } }
+    ] as AnyEvent[];
+    for (let seed = 1; seed <= 20; seed++) expect(orgName(foldOrg(shuffle([...events, ...renames], seed)))).toBe('Wycliffe Kenya');
+    expect(orgName(null)).toBeUndefined();
+  });
+
+  it('only an Organization Admin renames the organization', () => {
+    expect(mayRenameOrg(canonical, 'lead')).toBe(true);
+    expect(mayRenameOrg(canonical, 'coord')).toBe(false);
+    expect(mayRenameOrg(canonical, 'akol')).toBe(false);
+    expect(mayRenameOrg(null, 'lead')).toBe(false);
+    expect(EVENT_PRIVILEGE['v1.OrgRenamed']).toBe('manage_roles');
+    expect(languageOfOrgEvent({ ...events[0]!, type: 'v1.OrgRenamed', payload: { name: 'x' } } as AnyEvent)).toBeUndefined();
+  });
+
+  it('whoever manages a language\'s structure renames it, at org scope or its own', () => {
+    expect(mayRenameLanguage(canonical, 'lead', 'din')).toBe(true);
+    expect(mayRenameLanguage(canonical, 'coord', 'din')).toBe(true);
+    expect(mayRenameLanguage(canonical, 'akol', 'din')).toBe(false);
+    expect(mayRenameLanguage(canonical, 'viewer', 'din')).toBe(false);
+    expect(mayRenameLanguage(null, 'lead', 'din')).toBe(false);
+    const langAdmin = foldOrg([...events,
+      { ...events[0]!, id: 'la1', type: 'v1.RoleDefined', payload: { roleId: 'lang_admin', name: 'Language Admin', privileges: ['manage_structure', 'view_status'] } },
+      { ...events[0]!, id: 'la2', type: 'v1.MemberAdded', payload: { profileId: 'ana', roleId: 'lang_admin', scope: { level: 'language', languageId: 'nus' } } }
+    ] as AnyEvent[]);
+    expect(mayRenameLanguage(langAdmin, 'ana', 'nus')).toBe(true);
+    expect(mayRenameLanguage(langAdmin, 'ana', 'din')).toBe(false);
   });
 
   it('privileges are the union over covering scopes through live roles', () => {

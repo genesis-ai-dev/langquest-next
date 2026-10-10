@@ -14,7 +14,7 @@ An item is one of four kinds:
 
 | Kind | Documents | Managed with |
 | --- | --- | --- |
-| `template` | `template@1` | Manage Content Templates |
+| `template` | `template@1`, `template@2` (a Bible broken up book by book, decision 74) | Manage Content Templates |
 | `flow` | `flow@1` | Manage Review Flows |
 | `material` | `study@1`, `study@2`, `collection@1`, `material@1` | Manage Reference Material (guides: Write a guide) |
 | `versification` | `versification@1` (Copenhagen Alliance JSON) | Manage Content Templates |
@@ -73,6 +73,42 @@ offline agree:
 When an item a language uses moves to a new version (an edit here, or a
 subscription update), the next device of someone who may apply it does so.
 
+### Breaking up the Bible book by book (decision 74)
+
+The rules for numbering and dividing, with examples, are in
+`docs/breaking-up-the-bible.md` (decision 80).
+
+A `template@2` Bible lists its books, and each says how it is broken up:
+`divide: chapters` (one part a chapter, from the versification), `divide:
+passages` with its ranges, or nothing yet. A book with nothing in it is
+still a unit (`<itemId>/RUT`, kind `book`) with no parts under it: the
+language's `Indexes.waiting`, shown on the Map as waiting to be broken up.
+Unit ids are the same as `template@1`'s, so a language keeps its parts
+when it moves between the two (`asTemplateV2`), and between two ways that
+agree on a piece.
+
+LangQuest publishes the ways (`scripts/library-seed.ts` `breakupWays`):
+`langquest.bible.chapters`, `langquest.bible.fia` (FIA's list from its API,
+`library/fia/pericopes.tsv`; books FIA has none for wait),
+`langquest.bible.unfoldingword` (`library/divisions/unfoldingword-chunks.json`),
+`langquest.bible.openbible-long`, `-usual` and `-short` (sections where at
+least 15, 10 or 5 of 20 English Bibles start one,
+`library/divisions/openbible-section-counts.tsv`) and
+`langquest.bible.book-by-book` (every book waiting). FIA's way says
+`goesWith: { pattern: 'FIA' }`, and FIA's guide collections say `pattern:
+'FIA'`, so a screen can say the guides go with the passages.
+
+Breaking up one book copies that book's parts from a way into the
+language's template (core `withBookBrokenUp`). The change is published for
+the languages chosen (`apps/mobile/src/breakup/`): when every language using
+the template is chosen and the organization controls it, as its next
+version; otherwise as a copy split off for the chosen languages
+(`copiedFrom` the original, its first version the one they had), each
+moved there by a `TemplateSelected` that keeps its `unitPrefix`.
+`library_template_users(p_org)` says which template each language of an
+organization uses; offline, a change is always a copy. What a language
+calls a book is `v1.BookNameSet`, read by `unitTitle` and `unitPlace`.
+
 ## Versification
 
 `packages/core/src/versification.ts` reimplements the pivot method of
@@ -92,6 +128,7 @@ by `_apply_org_event`), `library_documents` (hash, format, body, deps) and
 
 | Function | Who | What |
 | --- | --- | --- |
+| `library_template_users(p_org) → (language_id, item_id, doc_hash, unit_prefix, books)` | a member of `p_org` | each language's latest `TemplateSelected` (decision 74) |
 | `library_put_document(p_org, p_body) → hash` | a member of `p_org` who manages templates, flows or reference | stores a document; its deps must already be readable by `p_org` |
 | `library_get_documents(p_org, p_hashes) → (hash, body)` | a member of `p_org` | documents `p_org` may read, plus current versions of shared items (for browsing) |
 | `library_shared_items(p_kind, p_query, p_limit, p_offset)` | anyone signed in | shared, unarchived items of every organization, with their latest version |

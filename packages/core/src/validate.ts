@@ -11,6 +11,9 @@ import { isLicense, LICENSES } from './license';
  * folding when a newer app emits events it does not know.
  */
 
+/** A languoid's id (docs/languoids.md): a UUID. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
 export function validateEvent(e: AnyEvent): string | null {
   for (const k of ['id', 'type', 'orgId', 'streamId', 'actorId', 'deviceId', 'hlc'] as const) {
     if (typeof e[k] !== 'string' || e[k] === '') return `${k} must be a non-empty string`;
@@ -54,6 +57,7 @@ export function validateEvent(e: AnyEvent): string | null {
   switch (e.type) {
     // ---- organization stream (org.ts)
     case 'v1.OrgCreated':
+    case 'v1.OrgRenamed':
       return str('name');
     case 'v1.RoleDefined':
       return str('roleId', 'name') ??
@@ -78,6 +82,10 @@ export function validateEvent(e: AnyEvent): string | null {
         (p['languageId'] === ORG_STREAM ? 'languageId is reserved' : null);
     case 'v1.LanguageRenamed':
       return str('languageId', 'name');
+    case 'v1.LanguageCodeSet':
+      return str('languageId', 'code') ??
+        ((p['code'] as string).length <= 40 ? null : 'code must be at most 40 characters') ??
+        (p['languoidId'] === null || (typeof p['languoidId'] === 'string' && UUID.test(p['languoidId'])) ? null : 'languoidId must be a languoid id or null');
     case 'v1.LanguageCountrySet':
       return str('languageId') ?? (typeof p['country'] === 'string' && /^[A-Z]{2}$/.test(p['country']) ? null : 'country must be an ISO 3166 alpha-2 code');
     case 'v1.LanguageTargetSet':
@@ -114,6 +122,8 @@ export function validateEvent(e: AnyEvent): string | null {
       return str('unitId', 'kind', 'label', 'order') ?? (p['parentUnitId'] === null ? null : str('parentUnitId'));
     case 'v1.UnitHidden':
       return str('unitId') ?? bool('hidden');
+    case 'v1.BookNameSet':
+      return str('book', 'name') ?? (/^[A-Z0-9]{3}$/.test(p['book'] as string) ? null : 'book must be a USFM book code');
     case 'v1.FlowSelected':
       return str('flowId') ?? (/[/@\s]/.test(p['flowId'] as string) ? 'flowId may not contain /, @ or spaces' : null) ??
         optStr('itemId', 'name') ?? (p['docHash'] === undefined || hash(p['docHash']) ? null : 'docHash must be a SHA-256 hex digest');
@@ -150,6 +160,12 @@ export function validateEvent(e: AnyEvent): string | null {
       return str('takeId') ?? (p['questionSetIds'] === undefined ? null : strArray('questionSetIds'));
     case 'v1.ResponseRecorded':
       return str('takeId', 'respondsToTakeId') ?? optStr('note', 'blobHash');
+    case 'v1.CardVerseSet':
+      return str('unitId', 'hash') ?? oneOf('mark', ['next', 'join', 'set', 'none']) ?? cardVerseError(p);
+    case 'v1.AudioFormatSet':
+      return str('hash') ?? oneOf('format', ['wav', 'm4a']);
+    case 'v1.ExternalValueSet':
+      return externalKeyError(p['key']) ?? (p['data'] === null || isObject(p['data']) ? null : 'data must be an object or null');
     case 'v1.ReviewRecorded':
       return (
         str('reviewId', 'takeId', 'kindId') ??
@@ -279,6 +295,67 @@ function anchor(v: unknown): string | null {
   }
 }
 
+/** The longest key a third-party app may use, in characters. */
+export const EXTERNAL_KEY_MAX = 256;
+
+/**
+ * Why a key a third-party app chose cannot be used, or null (decisions.md
+ * 79): path segments of URL-safe characters joined by `/`, none of them
+ * `.` or `..`, so it reads back unchanged as the rest of a URL path. SQL
+ * validate_payload says the same.
+ */
+export function externalKeyError(v: unknown): string | null {
+  if (typeof v !== 'string' || v === '') return 'key must be a non-empty string';
+  if (v.length > EXTERNAL_KEY_MAX) return `key must be at most ${EXTERNAL_KEY_MAX} characters`;
+  if (!/^[A-Za-z0-9._~:@+-]+(\/[A-Za-z0-9._~:@+-]+)*$/.test(v)) return 'key must be segments of letters, digits and . _ ~ : @ + - joined by /';
+  if (/(^|\/)\.\.?(\/|$)/.test(v)) return 'key segments may not be . or ..';
+  return null;
+}
+
 function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
+/**
+ * The entity a creating event names, as `kind:id`, or null for every other
+ * event. One event per entity in a stream: the server refuses a second one
+ * (`append_events`, SQL `_entity_key`, held to this by the parity script),
+ * and the fold keeps the earliest, so nobody can swap the audio under a
+ * reviewed version or replace someone's review (decisions.md 75). The
+ * translation guide's material and key terms are left out: two phones
+ * define them under the same id by design.
+ */
+export function entityKeyOf(e: AnyEvent): string | null {
+  const p = e.payload as Record<string, unknown>;
+  switch (e.type) {
+    case 'v1.RecordingAdded': return `recording:${String(p['recordingId'])}`;
+    case 'v1.TakeComposed': return `take:${String(p['takeId'])}`;
+    case 'v1.ResponseRecorded': return `response:${String(p['takeId'])}`;
+    case 'v1.ReviewRecorded': return `review:${String(p['reviewId'])}`;
+    case 'v1.DepartureRecorded': return `departure:${String(p['departureId'])}`;
+    case 'v1.RequestMade': return `request:${String(p['requestId'])}`;
+    case 'v1.NoteAdded': return `note:${String(p['noteId'])}`;
+    case 'v1.KeyTermRenderingAdded': return `rendering:${String(p['termId'])}/${String(p['renderingId'])}`;
+    case 'v1.KeyTermAdjusted': return `adjustment:${String(p['termId'])}/${String(p['adjustmentId'])}`;
+    case 'v1.AudioFormatSet': return `audioformat:${String(p['hash'])}`;
+    default: return null;
+  }
+}
+
+const VERSE_REF = /^[1-9][0-9]{0,2}:[1-9][0-9]{0,2}$/;
+
+/** "15:4" -> 15004, for ordering; null when it is not chapter:verse. */
+export function verseRefOrder(ref: unknown): number | null {
+  if (typeof ref !== 'string' || !VERSE_REF.test(ref)) return null;
+  const [c, v] = ref.split(':').map(Number) as [number, number];
+  return c * 1000 + v;
+}
+
+/** `set` needs from and to in order; the other marks carry neither. */
+function cardVerseError(p: Record<string, unknown>): string | null {
+  if (p['mark'] !== 'set') return p['from'] === undefined && p['to'] === undefined ? null : 'from and to belong to set only';
+  const a = verseRefOrder(p['from']);
+  const b = verseRefOrder(p['to']);
+  if (a === null || b === null) return 'from and to must be chapter:verse';
+  return a <= b ? null : 'from must not come after to';
 }

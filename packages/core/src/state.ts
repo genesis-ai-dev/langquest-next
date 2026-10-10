@@ -11,10 +11,20 @@ import { emptyRecordState, type RecordState } from './record';
  */
 
 /** A last-writer-wins register: the value plus the clock that set it. */
+/** A part's verse mark (v1.CardVerseSet without its unit and hash); `none` is stored as no mark. */
+export interface CardVerseMark { mark: 'next' | 'join' | 'set' | 'none'; from?: string; to?: string }
+
 export interface Register<V> {
   value: V;
   hlc: Hlc;
   eventId: string;
+}
+
+/** A third-party app's value under one key (v1.ExternalValueSet), with who wrote it: a person, through a token's device (`api-<tokenId>`). */
+export interface ExternalValue {
+  data: Record<string, unknown> | null;
+  actorId: string;
+  deviceId: string;
 }
 
 interface Unit {
@@ -22,6 +32,8 @@ interface Unit {
   kind: string;
   label: string;
   order: string;
+  /** Clock of the UnitAdded that stands: the earliest (reducer `earlier`). */
+  hlc: Hlc;
 }
 
 interface Recording {
@@ -72,6 +84,8 @@ interface KeyTerm {
   term: string;
   gloss: string;
   unitScope: string[];
+  /** Clock of the KeyTermDefined that stands (the earliest), or '' for a placeholder left by an early rendering. */
+  hlc: Hlc;
   renderings: Record<string, { rendering: string; context: string; hlc: Hlc }>;
   adjustments: Record<string, { note: string; blobHash?: string; duringTakeId?: string; actorId: string; hlc: Hlc }>;
 }
@@ -105,6 +119,10 @@ export interface LanguageState extends RecordState, ReferenceState {
    * invalidated. Only the server writes these events.
    */
   blobs: Record<string, { size: number; hlc: Hlc; eventId: string; stored: boolean }>;
+  /** hash -> a voice note's format, when it is not m4a (v1.AudioFormatSet; earliest wins). */
+  audioFormats: Record<string, Register<'wav' | 'm4a'>>;
+  /** unitId -> card hash -> what verses the part holds (v1.CardVerseSet; verses.ts reads it). */
+  cardVerses: Record<string, Record<string, Register<CardVerseMark>>>;
   /** Idempotency guard. Compacted away when a snapshot is taken. */
   appliedEventIds: Record<string, true>;
   /** eventId -> reason. Malformed events are skipped, never thrown on. */
@@ -112,14 +130,25 @@ export interface LanguageState extends RecordState, ReferenceState {
   /** eventId -> true. Targets of v1.Redacted; never applied. */
   redactions: Record<string, true>;
   template: Register<TemplateSelection> | null;
+  /**
+   * Every template version the language has used (docHash -> its unit
+   * prefix and when it was first chosen), so work on sections that have
+   * since expired can be read in the numbering it was made in (decision
+   * 80). Grow-only; absent in older snapshots.
+   */
+  templateHistory?: Record<string, { unitPrefix: string; hlc: Hlc; eventId: string }>;
   /** unitId -> hidden (TPL-7): parts the template's current version no longer has. */
   hiddenUnits: Record<string, Register<boolean>>;
+  /** USFM book -> what this language calls it (v1.BookNameSet, decision 74); absent in older snapshots. */
+  bookNames?: Record<string, Register<string>>;
   flow: Register<FlowSelection> | null;
   teams: Record<string, ReviewTeam>;
   /** stepId -> may it be reviewed by a shared link (v1.FlowStepLinksSet). */
   stepLinks: Record<string, Register<boolean>>;
   /** takeId -> channel -> live there (v1.VersionReleased). */
   releases: Record<string, Record<string, Register<{ live: boolean; url?: string; by: string }>>>;
+  /** key -> a third-party app's value (v1.ExternalValueSet); never read by anything else in core. */
+  externalValues: Record<string, Register<ExternalValue>>;
   /** takeId -> the translator's response that produced it */
   responses: Record<string, { respondsToTakeId: string; note?: string; blobHash?: string; actorId: string; hlc: Hlc }>;
   materials: Record<string, Material>;
@@ -135,6 +164,8 @@ export function emptyLanguageState(): LanguageState {
     takes: {},
     submissions: {},
     blobs: {},
+    audioFormats: {},
+    cardVerses: {},
     appliedEventIds: {},
     invalidEvents: {},
     redactions: {},
@@ -144,6 +175,7 @@ export function emptyLanguageState(): LanguageState {
     teams: {},
     stepLinks: {},
     releases: {},
+    externalValues: {},
     responses: {},
     materials: {},
     keyTerms: {},

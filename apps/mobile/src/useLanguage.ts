@@ -1,5 +1,5 @@
 import { DEFAULT_TRANSFER_BUDGET_BYTES, DOWNLOAD_DEFAULTS, SupabaseTransport, SyncClient, TransferBudget, TransferWorker, UPLOAD_DEFAULTS, ensureDeviceId, SyncScheduler, type SyncInspection } from '@langquest-next/client';
-import { defaultOfflineScope, emptyLanguageState, deriveDownloadWork, deriveUploadWork, evictableBlobs, type BlobRef, type EventPayloads, type EventSpec, type EventType, type LanguageState } from '@langquest-next/core';
+import { audioFormatsFor, defaultOfflineScope, emptyLanguageState, deriveDownloadWork, deriveUploadWork, evictableBlobs, type BlobRef, type EventPayloads, type EventSpec, type EventType, type LanguageState } from '@langquest-next/core';
 import { getBlobStore, type BlobFile, type BlobStore } from './blobs';
 import { downloadBlob, streamUrl, uploadBlob } from './blobTransport';
 import { diagnostics, flushDiagnostics, timedTransfer, type TransferTimings } from './diagnostics';
@@ -176,6 +176,7 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
           : r.refused
             ? `refused: ${r.refused}`
             : r.pushed === 0 && r.pulled === 0 && r.rejected === 0
+              // i18n-ignore: a sync status for diagnostics, not words on screen
               ? 'up to date'
               : `pushed ${r.pushed}, pulled ${r.pulled}, rejected ${r.rejected}`
       );
@@ -367,37 +368,47 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
     };
   }, [orgId, languageId, openId, actorId, refresh, sync, keepKey]);
 
+  // A voice note this device stored as WAV (a browser without MP4) goes
+  // with an event saying so, ahead of the event that names it (decisions.md 77).
+  const formatsFor = useCallback((items: readonly { type: EventType; payload: unknown }[]) => {
+    const store = storeRef.current;
+    const c = clientRef.current;
+    return store && c ? audioFormatsFor(c.getState(), items, (hash) => store.formatOf(hash)) : [];
+  }, []);
+
   const append = useCallback(
     async <T extends EventType>(type: T, payload: EventPayloads[T], parentEventId?: string) => {
       const c = clientRef.current;
       if (!c) return;
+      const formats = formatsFor([{ type, payload }]);
+      if (formats.length) await c.appendMany(formats);
       await c.append(type, payload, parentEventId);
       await refresh();
       schedulerRef.current?.nudge();
     },
-    [refresh]
+    [refresh, formatsFor]
   );
 
   const appendMany = useCallback(
     async <T extends EventType>(items: { type: T; payload: EventPayloads[T] }[]) => {
       const c = clientRef.current;
       if (!c || items.length === 0) return;
-      await c.appendMany(items);
+      await c.appendMany<EventType>([...formatsFor(items), ...items]);
       await refresh();
       schedulerRef.current?.nudge();
     },
-    [refresh]
+    [refresh, formatsFor]
   );
 
   const run = useCallback(
     async (specs: EventSpec[]) => {
       const c = clientRef.current;
       if (!c || specs.length === 0) return;
-      await c.appendMany(specs);
+      await c.appendMany<EventType>([...formatsFor(specs), ...specs]);
       await refresh();
       schedulerRef.current?.nudge();
     },
-    [refresh]
+    [refresh, formatsFor]
   );
 
   const keepOffline = useCallback(

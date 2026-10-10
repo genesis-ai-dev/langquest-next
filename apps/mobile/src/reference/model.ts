@@ -8,6 +8,7 @@ import {
   type LanguageRecommendation, type LibraryDoc, type OrgState, type Privilege, type LanguageState,
   type RecommendationSource, type Register, type SourceBookDoc, type SourceDoc, type TimingDoc
 } from '@langquest-next/core';
+import { t } from '../i18n';
 import type { BibleDetail } from '../sources/bibleBrain';
 
 // ---- who may recommend ----------------------------------------------------------
@@ -41,21 +42,32 @@ export function recState(orgRecs: Record<string, Register<boolean>> | undefined,
 
 /** "Recommended by the organization", "Hidden for this language", for a line or badge. */
 export function recLabel(r: RecState, level: Level): string {
-  if (level.kind === 'org') return r.org ? 'Recommended' : 'Not recommended';
-  if (r.language === 'hidden') return 'Hidden for this language';
-  if (r.effective === 'language') return 'Recommended for this language';
-  if (r.effective === 'organization') return 'Recommended by the organization';
-  return 'Not recommended';
+  if (level.kind === 'org') return r.org ? t('reference.rec.recommended') : t('reference.rec.notRecommended');
+  if (r.language === 'hidden') return t('reference.rec.hiddenForLanguage');
+  if (r.effective === 'language') return t('reference.rec.forLanguage');
+  if (r.effective === 'organization') return t('reference.rec.byOrganization');
+  return t('reference.rec.notRecommended');
+}
+
+/** How a badge colours `recLabel`: recommended green, hidden amber, else plain. */
+export function recTone(r: RecState): 'green' | 'amber' | 'default' {
+  if (r.language === 'hidden') return 'amber';
+  return r.effective ? 'green' : 'default';
+}
+
+/** Does it reach translators here (what `recLabel` calls recommended)? */
+export function recOn(r: RecState): boolean {
+  return r.language !== 'hidden' && !!r.effective;
 }
 
 export type RecAction = 'recommend' | 'stop' | 'hide' | 'inherit';
 
 /** What an admin may do at this level: the organization recommends or stops; a language recommends, hides or follows the organization. */
 export function recActions(r: RecState, level: Level): { id: RecAction; label: string }[] {
-  if (level.kind === 'org') return [r.org ? { id: 'stop', label: 'Stop recommending' } : { id: 'recommend', label: 'Recommend' }];
-  if (r.language === 'hidden') return [{ id: 'inherit', label: 'Follow organization' }];
-  if (r.language === 'recommended') return [{ id: 'inherit', label: r.org ? 'Follow organization' : 'Stop recommending' }];
-  return [r.org ? { id: 'hide', label: 'Hide' } : { id: 'recommend', label: 'Recommend' }];
+  if (level.kind === 'org') return [r.org ? { id: 'stop', label: t('reference.rec.stop') } : { id: 'recommend', label: t('reference.rec.recommend') }];
+  if (r.language === 'hidden') return [{ id: 'inherit', label: t('reference.rec.follow') }];
+  if (r.language === 'recommended') return [{ id: 'inherit', label: r.org ? t('reference.rec.follow') : t('reference.rec.stop') }];
+  return [r.org ? { id: 'hide', label: t('reference.rec.hide') } : { id: 'recommend', label: t('reference.rec.recommend') }];
 }
 
 /** The write an action makes: an organization event, or an event in the language's own log. */
@@ -78,10 +90,10 @@ export function recUndo(r: RecState, level: Level, itemId: string): RecWrite {
 /** What the toast says after an action. */
 export function recMessage(name: string, action: RecAction, level: Level): string {
   switch (action) {
-    case 'recommend': return level.kind === 'org' ? `${name} is recommended to every language.` : `${name} is recommended to this language's team.`;
-    case 'stop': return `${name} is no longer recommended.`;
-    case 'hide': return `${name} is hidden for this language.`;
-    case 'inherit': return `${name} follows the organization here.`;
+    case 'recommend': return level.kind === 'org' ? t('reference.rec.done.recommendedEverywhere', { name }) : t('reference.rec.done.recommendedHere', { name });
+    case 'stop': return t('reference.rec.done.stopped', { name });
+    case 'hide': return t('reference.rec.done.hidden', { name });
+    case 'inherit': return t('reference.rec.done.follows', { name });
   }
 }
 
@@ -100,9 +112,16 @@ export function refKindOf(doc: LibraryDoc | null | undefined): RefKind | null {
   }
 }
 
-export const REF_KIND_LABEL: Record<RefKind, string> = {
-  source: 'Bible', guide: 'Study guide', note: 'Note for translators', questions: 'Question set', other: 'Material'
-};
+/** What a kind of reference is called, in the language showing. */
+export function refKindLabel(kind: RefKind): string {
+  switch (kind) {
+    case 'source': return t('reference.kind.source');
+    case 'guide': return t('reference.kind.guide');
+    case 'note': return t('reference.kind.note');
+    case 'questions': return t('reference.kind.questions');
+    case 'other': return t('reference.kind.other');
+  }
+}
 
 /** A library item's document language when it names one ("eng"). */
 export function languageOf(doc: LibraryDoc | null | undefined): string | null {
@@ -204,38 +223,46 @@ export function sourceFacts(source: SourceDoc, get: (hash: string | null | undef
   return { text, audio, timings, books, offline: source.offline === 'allowed', copyright, provider: source.provider.kind };
 }
 
-const TESTAMENT: Record<Testament, string> = { OT: 'Old Testament', NT: 'New Testament' };
+const testamentName = (x: Testament) => (x === 'OT' ? t('reference.facts.oldTestament') : t('reference.facts.newTestament'));
 
 /** "Text and audio · timings by FCBH", per testament the source has, for a card. */
 export function testamentLines(f: SourceFacts): { testament: Testament; label: string; line: string }[] {
-  return (['OT', 'NT'] as const).filter((t) => f.text[t] || f.audio[t] || f.books.some((b) => testamentOf(b.book) === t)).map((t) => {
-    const media = f.text[t] && f.audio[t] ? 'Text and audio' : f.audio[t] ? 'Audio only' : f.text[t] ? 'Text only, no audio' : 'Listed, nothing to read yet';
-    const timing = !f.audio[t] ? '' : ({
-      fcbh: ' · timings by FCBH', stored: ' · verse timings', some: ' · timings for some books', none: ' · no verse timings', unknown: ''
-    } as const)[f.timings[t]];
-    return { testament: t, label: TESTAMENT[t], line: `${media}${timing}` };
+  return (['OT', 'NT'] as const).filter((x) => f.text[x] || f.audio[x] || f.books.some((b) => testamentOf(b.book) === x)).map((x) => {
+    const media = f.text[x] && f.audio[x] ? t('reference.facts.textAndAudio') : f.audio[x] ? t('reference.facts.audioOnly')
+      : f.text[x] ? t('reference.facts.textOnly') : t('reference.facts.listedOnly');
+    const timing = !f.audio[x] ? null : timingWords(f.timings[x]);
+    return { testament: x, label: testamentName(x), line: timing ? [media, timing].join(' · ') : media };
   });
+}
+
+function timingWords(timings: SourceFacts['timings'][Testament]): string | null {
+  switch (timings) {
+    case 'fcbh': return t('reference.facts.timingsByFcbh');
+    case 'stored': return t('reference.media.verseTimings');
+    case 'some': return t('reference.facts.timingsSomeBooks');
+    case 'none': return t('reference.facts.noVerseTimings');
+    case 'unknown': return null;
+  }
 }
 
 /** "Keep offline" or why not. */
 export function offlineLine(f: SourceFacts): string {
-  return f.offline ? 'Can be kept on this device for offline use' : 'Stream only: needs a connection';
+  return f.offline ? t('reference.facts.keptOffline') : t('reference.facts.streamOnly');
 }
 
 /** One line for a list: "Text and audio (NT) · offline". */
 export function sourceSummary(f: SourceFacts): string {
   const parts: string[] = [];
-  const both = (m: Record<Testament, boolean>) => (m.OT && m.NT ? 'whole Bible' : m.OT ? 'OT' : m.NT ? 'NT' : null);
-  const t = both(f.text), a = both(f.audio);
-  parts.push(t ? `Text ${t}` : 'No text');
-  parts.push(a ? `audio ${a}` : 'no audio');
+  parts.push(f.text.OT && f.text.NT ? t('reference.media.textWhole') : f.text.OT ? t('reference.media.textOT') : f.text.NT ? t('reference.media.textNT') : t('reference.media.noText'));
+  parts.push(f.audio.OT && f.audio.NT ? t('reference.media.audioWhole') : f.audio.OT ? t('reference.media.audioOT') : f.audio.NT ? t('reference.media.audioNT') : t('reference.media.noAudio'));
   const withAudio = (['OT', 'NT'] as const).filter((x) => f.audio[x]);
   const timed = withAudio.filter((x) => f.timings[x] === 'fcbh' || f.timings[x] === 'stored');
   // Until Bible Brain has said whether FCBH has timestamps, say nothing about timings.
   if (withAudio.length && !withAudio.every((x) => f.timings[x] === 'unknown')) {
-    parts.push(timed.length === withAudio.length ? 'verse timings' : timed.length || withAudio.some((x) => f.timings[x] === 'some') ? 'some timings' : 'no timings');
+    parts.push(timed.length === withAudio.length ? t('reference.media.verseTimings')
+      : timed.length || withAudio.some((x) => f.timings[x] === 'some') ? t('reference.media.someTimings') : t('reference.media.noTimings'));
   }
-  parts.push(f.offline ? 'offline' : 'stream only');
+  parts.push(f.offline ? t('reference.media.offline') : t('reference.media.streamOnly'));
   return parts.join(' · ');
 }
 
@@ -267,7 +294,7 @@ export function timingsNeeded(source: SourceDoc, f: SourceFacts, detail: BibleDe
   }
   const allowed = detail ? detail.offline.audio : source.offline === 'allowed';
   const reason = requests.length && !allowed
-    ? 'Bible Brain lets this audio be streamed only. Timing it means downloading it, which its license does not allow for this Bible.'
+    ? t('reference.facts.streamOnlyNoTimings')
     : null;
   return { requests, allowed, reason };
 }

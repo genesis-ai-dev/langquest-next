@@ -31,11 +31,14 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // People asking to join show under a coordinator's Get ready card (decision 71).
   my_work: { reads:['highlightsFor','waitingOn','derivePassage','upNext','recommendedFor','join_requests','profiles'] },
   status_home: { reads:['languageProgress'] },
-  map_home: { reads:['derivePassage','unitPlace','languageProgress'] },
-  book_map: { reads:['derivePassage','unitPlace'] },
+  // A section whose divisions changed since it was recorded is marked (earlier.tsx, decision 80):
+  // the numberings come from the library.
+  map_home: { reads:['derivePassage','unitPlace','languageProgress','earlierSections','library'],rpcs:['library_get_documents'] },
+  book_map: { reads:['derivePassage','unitPlace','earlierSections','library'],rpcs:['library_get_documents'] },
   // Send to … (ADR-029) asks the usual reviewer or review team in one tap.
-  passage_record: { emits:['v1.DepartureRecorded','v1.DepartureUndone','v1.RequestMade','v1.RequestWithdrawn','v1.NoteAdded'],
-    reads:['derivePassage','recordTimeline','reviewGrid','studyMarksFor'],rpcs:REPORTS },
+  // Versions deletes a draft; its Undo composes it again (decisions.md 83).
+  passage_record: { emits:['v1.DepartureRecorded','v1.DepartureUndone','v1.RequestMade','v1.RequestWithdrawn','v1.NoteAdded','v1.TakeArchived','v1.TakeComposed'],
+    reads:['derivePassage','recordTimeline','reviewGrid','studyMarksFor','earlierSections','library'],rpcs:[...REPORTS,'library_get_documents'] },
   version_detail: { reads:['derivePassage','keyTermLinksFor'],rpcs:REPORTS },
   review_detail: { emits:['v1.DepartureRecorded','v1.DepartureUndone'],reads:['derivePassage','questionsForKind'],rpcs:REPORTS },
   ask_someone: { emits:['v1.RequestMade','v1.RequestWithdrawn'],reads:['derivePassage','questionsForKind'] },
@@ -45,7 +48,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // What was offered and used goes on the record with the version (docs/reference-material.md).
   // Key words grow during the work (decision 71): say yours, add a word.
   workspace: { emits:['v1.RecordingAdded','v1.TakeComposed','v1.TakeArchived','v1.TakeSubmitted',
-    'v1.ResponseRecorded','v1.NoteAdded','v1.KeyTermLinked','v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted','v1.ReferencesUsed'],
+    'v1.ResponseRecorded','v1.CardVerseSet','v1.NoteAdded','v1.KeyTermLinked','v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted','v1.ReferencesUsed'],
     reads:['derivePassage','keyTermsForUnit','recommendedFor','studyMarksFor'],rpcs:[...REPORTS,'library_get_documents','library_shared_items'] },
   // Its parts are the review's artifacts, not recordings (docs/decisions.md 30).
   back_translation: { emits:['v1.ReviewRecorded'],reads:['derivePassage'],rpcs:REPORTS },
@@ -67,14 +70,15 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // Adds the language to the organization's stream, then gives its own
   // stream a template and a flow, which it needs (decisions.md 63).
   // And what its team is offered from the start (decision 71), and its first group invite code.
-  new_language: { emits:['v1.LanguageAdded','v1.TemplateSelected','v1.UnitAdded','v1.UnitHidden','v1.FlowSelected','v1.FlowStepSet','v1.ReviewKindDefined','v1.LibrarySubscribed','v1.LibraryPinned',
+  // Its name is looked up in the language list as it is typed (docs/languoids.md).
+  new_language: { emits:['v1.LanguageAdded','v1.LanguageCodeSet','v1.TemplateSelected','v1.UnitAdded','v1.UnitHidden','v1.FlowSelected','v1.FlowStepSet','v1.ReviewKindDefined','v1.LibrarySubscribed','v1.LibraryPinned',
     'v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.ReferenceSet'],
-    rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document','issue_invite_v3'] },
+    rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document','issue_invite_v3','library_template_users','search_languoids'] },
   // The public listing is per language (docs/streams-and-languages.md).
   // Opening the organization's license (docs/licensing.md).
-  org_home: { emits:['v1.LicenseSet'],rpcs:['set_language_visibility'],reads:['language_visibility','orgLicense'] },
+  org_home: { emits:['v1.LicenseSet','v1.OrgRenamed'],rpcs:['set_language_visibility'],reads:['language_visibility','orgLicense'] },
   // A language's page reads the four questions from the record, and who is waiting to be let in (decision 71).
-  language_home: { rpcs:['set_language_visibility'],reads:['language_visibility','join_requests','recommendedFor','deriveFlow','org.members'] },
+  language_home: { emits:['v1.LanguageRenamed','v1.LanguageCodeSet'],rpcs:['set_language_visibility','search_languoids'],reads:['languoid','language_visibility','join_requests','recommendedFor','deriveFlow','org.members'] },
   review_team_editor: { emits:['v1.ReviewTeamDefined','v1.ReviewTeamMemberSet','v1.ReviewTeamKindSet'] },
   // The organization's template library and a language's template (docs/library.md).
   templates_home: { emits:['v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySharingSet','v1.LibraryItemArchived','v1.LibrarySubscribed','v1.LibraryPinned'],reads:['library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
@@ -127,7 +131,12 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   get_ready: { emits:['v1.TemplateSelected','v1.UnitAdded','v1.UnitHidden','v1.FlowSelected','v1.FlowStepSet','v1.FlowStepRemoved','v1.ReviewKindDefined',
     'v1.ReferenceRecommended','v1.ReferenceSet','v1.LibrarySubscribed','v1.LibraryPinned','v1.LibraryItemDefined','v1.LibraryVersionPublished'],
     reads:['library','recommendedFor','deriveFlow','org.roles','join_requests'],
-    rpcs:['issue_invite_v3','library_shared_items','library_get_documents','library_adopt','library_put_document'] }
+    rpcs:['issue_invite_v3','library_shared_items','library_get_documents','library_adopt','library_put_document','library_template_users'] },
+  // Breaking up a book (decision 74): the language's template moves to its next version, or to a copy split off for the
+  // languages chosen (each moved there by its own TemplateSelected); and what the language calls the book.
+  book_structure: { emits:['v1.TemplateSelected','v1.UnitAdded','v1.UnitHidden','v1.BookNameSet','v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySubscribed','v1.LibraryPinned'],
+    reads:['library','derivePassage'],
+    rpcs:['library_shared_items','library_get_documents','library_adopt','library_put_document','library_template_users'] }
 };
 export const SCREEN_CONTRACTS = Object.fromEntries(SCREEN_IDS.map((id) => [id, {
   emits:[],reads:[],rpcs:[],...declarations[id]

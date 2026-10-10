@@ -110,7 +110,10 @@ sequence, cursor, snapshots and blob folder.
 6. You may grant a role, or issue an invite, only at a scope where you hold
    `invite_members`: at org scope, or at your own language. The server
    enforces this. Today the UI offers language admins things the server then
-   refuses.
+   refuses. Since decision 75 you may also grant only a role whose
+   privileges you hold there, change or remove only a role you could have
+   granted, and add directly only someone who already joined the
+   organization; newcomers come in by invite or join request.
 7. Events restart at `v1`. Nothing shipped survives the reset, so no event is
    kept for compatibility.
 
@@ -120,7 +123,7 @@ sequence, cursor, snapshots and blob folder.
 
 | Event | Payload | Merge |
 | --- | --- | --- |
-| `v1.OrgCreated` | name | register |
+| `v1.OrgCreated` / `v1.OrgRenamed` | name | one register for both (decision 76) |
 | `v1.RoleDefined` / `v1.RoleRetired` | roleId, name, privileges / roleId | register per role |
 | `v1.MemberAdded` / `v1.MemberRemoved` | profileId, roleId, scope / profileId, scope | register per (profile, scope) |
 | `v1.InviteIssued` / `v1.InviteRedeemed` | inviteId, roleId, scope, expiresAt / inviteId, profileId | as today |
@@ -128,6 +131,7 @@ sequence, cursor, snapshots and blob folder.
 | `v1.LicenseSet` | license | only opens (decision 38) |
 | `v1.LanguageAdded` | languageId, name, code, sourceCode | earliest wins; `sourceCode` is the language source Bibles are offered in (`eng` today), which the sources and reference screens read |
 | `v1.LanguageRenamed` | languageId, name | register |
+| `v1.LanguageCodeSet` | languageId, code, languoidId \| null | register; takes over `LanguageAdded`'s code and links the language to the language list (decision 78) |
 | `v1.LanguageCountrySet` | languageId, country | register |
 | `v1.LanguageTargetSet` | languageId, scope, startDate, targetDate | register |
 | `v1.ReferenceRecommended` | itemId, recommended | register per item (decision 62) |
@@ -456,8 +460,6 @@ The new decision records this document. It:
 ## 8. Open points for implementation
 
 These don't change the concepts.
-- Whether `LanguageAdded.code` can change later (a `LanguageCodeSet`), or a
-  wrong code means a new language.
 - Whether a language admin may rename their language, or only an
   organization admin. The draft rule is: anyone with `manage_structure` for
   that language.

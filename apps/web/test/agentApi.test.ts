@@ -127,9 +127,13 @@ class MemoryStore implements AgentStore {
   async revokeToken(id: string, profileId: string) {
     const t = this.tokens.find((x) => x.id === id && x.profileId === profileId && !x.revokedAt);
     if (t) t.revokedAt = new Date(T0).toISOString();
+    if (t) for (const l of this.links) if (l.tokenId === id && !l.revokedAt) l.revokedAt = t.revokedAt;
     return !!t;
   }
   async touchToken(id: string, at: string) { const t = this.tokens.find((x) => x.id === id); if (t) t.lastUsedAt = at; }
+  async tokenNames(orgId: string, ids: string[]) {
+    return Object.fromEntries(this.tokens.filter((t) => t.orgId === orgId && ids.includes(t.id)).map((t) => [t.id, t.clientName ?? t.name]));
+  }
   async insertGrant(g: Parameters<AgentStore['insertGrant']>[0]) {
     const row = { ...g, id: `g${++this.n}`, createdAt: new Date(T0).toISOString(), lastPolledAt: null, approvedAt: null, deniedAt: null, tokenId: null };
     this.grants.push(row);
@@ -156,8 +160,12 @@ class MemoryStore implements AgentStore {
   }
   async linkByCodeHash(hash: string) { return this.links.find((l) => l.codeHash === hash) ?? null; }
   async linksOf(orgId: string, languageId: string, unitId: string) { return this.links.filter((l) => l.orgId === orgId && l.languageId === languageId && l.unitId === unitId); }
-  async revokeLink(id: string, profileId: string) {
-    const l = this.links.find((x) => x.id === id && x.createdBy === profileId && !x.revokedAt);
+  async linkById(id: string) { return this.links.find((l) => l.id === id) ?? null; }
+  async openLinkCount(orgId: string, profileId: string, now: string) {
+    return this.links.filter((l) => l.orgId === orgId && l.createdBy === profileId && !l.revokedAt && l.expiresAt > now).length;
+  }
+  async revokeLink(id: string) {
+    const l = this.links.find((x) => x.id === id && !x.revokedAt);
     if (l) l.revokedAt = new Date(T0).toISOString();
     return !!l;
   }
@@ -249,6 +257,22 @@ describe('reading', () => {
     const d1 = await call('GET', '/api/v1/languages/din/passages/d1', t);
     expect(d1.body.reviews.map((r: any) => [r.kind, r.outcome])).toEqual([['Peer Review', 'looks_good']]);
     expect(d1.body.steps).toEqual([{ name: 'Peer Review', complete: true }]);
+  });
+
+  it('links a voice note recorded in a browser under its real format (decisions.md 77)', async () => {
+    // Why: a browser without MP4 stores the note as <hash>.wav; a link to
+    // <hash>.m4a would point at nothing.
+    const { call, token, log } = setup();
+    const t = await token('admin', { scopes: ['read'] });
+    const web = 'w'.repeat(64);
+    const phone = 'p'.repeat(64);
+    log.add('din', 'v1.AudioFormatSet', { hash: web, format: 'wav' }, 'rev');
+    log.add('din', 'v1.ReviewRecorded', { reviewId: 'peer-d2-web', takeId: 'take-d2', kindId: 'peer', outcome: 'needs_changes', via: 'app', commentBlobHash: web }, 'rev');
+    log.add('din', 'v1.ReviewRecorded', { reviewId: 'peer-d1-phone', takeId: 'take-d1', kindId: 'peer', outcome: 'looks_good', via: 'app', commentBlobHash: phone }, 'rev');
+    const d2 = await call('GET', '/api/v1/languages/din/passages/d2', t);
+    expect(d2.body.reviews[0].voiceNotes[0].url).toBe(`https://lq.test/api/blobs/${ORG}/din/${web}.wav?sig=x`);
+    const d1 = await call('GET', '/api/v1/languages/din/passages/d1', t);
+    expect(d1.body.reviews.find((r: any) => r.voiceNotes).voiceNotes[0].url).toBe(`https://lq.test/api/blobs/${ORG}/din/${phone}.m4a?sig=x`);
   });
 
   it('never reaches past the person: a language list narrows, and their own access caps it', async () => {
@@ -463,7 +487,7 @@ describe('review links', () => {
     expect((await call('POST', `/api/v1/session/review-links/${made.body.id}/revoke`, 'jwt:rev')).status).toBe(404); // not theirs
     expect((await call('POST', `/api/v1/session/review-links/${made.body.id}/revoke`, 'jwt:tr')).status).toBe(200);
     expect((await call('POST', `/api/v1/links/${code}/reviews`, undefined, answer('looks_good'))).status).toBe(410);
-    expect((await call('GET', `/api/v1/links/${code}`)).body).toMatchObject({ open: false, audio: [] });
+    expect(await call('GET', `/api/v1/links/${code}`)).toEqual({ status: 410, body: { error: expect.any(String), code: 'closed' } });
 
     const later = codeOf((await share(call, { expiresInDays: 1 })).body.url);
     advance(86_400_000 + 1);
@@ -474,6 +498,89 @@ describe('review links', () => {
     advance(61_000); // the organization's state catches up once a minute
     expect((await call('POST', `/api/v1/links/${third}/reviews`, undefined, answer('looks_good'))).status).toBe(410);
     expect((await call('GET', '/api/v1/links/notarealcodeatallxxxxx')).status).toBe(404);
+  });
+
+  it('stops playing, and taking clips, once its sharer leaves (decisions.md 77)', async () => {
+    const { call, log, advance } = setup();
+    const code = codeOf((await share(call, {})).body.url);
+    expect((await call('GET', `/api/v1/links/${code}`)).body.audio).toHaveLength(2);
+    log.add('_org', 'v1.MemberRemoved', { profileId: 'tr', scope: { level: 'org' } });
+    advance(61_000);
+    expect(await call('GET', `/api/v1/links/${code}`)).toEqual({ status: 410, body: { error: expect.any(String), code: 'closed' } });
+    expect((await call('PUT', `/api/v1/links/${code}/voice-note`, undefined, undefined, m4a('after'))).status).toBe(410);
+  });
+
+  it('may be taken back by whoever assigns work in the language, not by anyone else', async () => {
+    const { call } = setup();
+    const made = await share(call, {});
+    expect((await call('POST', `/api/v1/session/review-links/${made.body.id}/revoke`, 'jwt:dinka')).status).toBe(404);
+    expect((await call('POST', `/api/v1/session/review-links/${made.body.id}/revoke`, 'jwt:admin')).status).toBe(200);
+    expect((await call('GET', `/api/v1/links/${codeOf(made.body.url)}`)).status).toBe(410);
+  });
+
+  it('closes with the token it was shared with, and a person has only so many open', async () => {
+    const { call, token, store } = setup();
+    const t = await token('tr', { scopes: ['read', 'review'] });
+    const made = await call('POST', '/api/v1/review-links', t, { languageId: 'din', unitId: 'd2', kindId: 'peer', counts: true });
+    expect(made.status).toBe(200);
+    const record = store.tokens.find((x) => x.profileId === 'tr')!;
+    expect((await call('POST', `/api/v1/session/tokens/${record.id}/revoke`, 'jwt:tr')).status).toBe(200);
+    expect((await call('GET', `/api/v1/links/${codeOf(made.body.url)}`)).status).toBe(410);
+
+    for (let i = 0; i < 200; i += 1) store.links.push({ ...store.links[0]!, id: `filler-${i}`, codeHash: `h${i}`, tokenId: null, revokedAt: null });
+    expect((await share(call, {})).body.code).toBe('too_many_links');
+  });
+
+  it('counts toward a step only while the step takes links', async () => {
+    const { call, log, token } = setup();
+    const code = codeOf((await share(call, {})).body.url);
+    // A coordinator turns links off for the step after the link went out.
+    log.add('din', 'v1.FlowStepLinksSet', { stepId: 'peer_only/s1', allowed: false });
+    await call('POST', `/api/v1/links/${code}/reviews`, undefined, answer('looks_good'));
+    expect(log.reviews('din').at(-1)).toMatchObject({ kindId: 'listener', givenBy: 'Abuk' });
+    const t = await setupToken(call);
+    expect((await call('GET', '/api/v1/languages/din/passages/d2', t)).body.status).toBe('in_review');
+    // A token's review of that step is kept but completes nothing, and so does one appended by link directly.
+    const partner = await token('admin', { scopes: ['read', 'review'] });
+    expect((await call('POST', '/api/v1/languages/din/passages/d2/reviews', partner, { outcome: 'looks_good', reviewerId: 'p', kindId: 'peer' })).status).toBe(200);
+    log.add('din', 'v1.ReviewRecorded', { reviewId: 'direct-link', takeId: 'take-d2', kindId: 'peer', outcome: 'looks_good', via: 'link' }, 'tr');
+    expect((await call('GET', '/api/v1/languages/din/passages/d2', t)).body.status).toBe('in_review');
+    // Turned back on, they count.
+    log.add('din', 'v1.FlowStepLinksSet', { stepId: 'peer_only/s1', allowed: true });
+    expect((await call('GET', '/api/v1/languages/din/passages/d2', t)).body.status).toBe('approved');
+  });
+
+  it('says nothing about a closed link but that it closed: not who it was for, nor the passage', async () => {
+    const { call } = setup();
+    const made = await share(call, { label: 'Pastor Deng' });
+    await call('POST', `/api/v1/session/review-links/${made.body.id}/revoke`, 'jwt:tr');
+    const page = await call('GET', `/api/v1/links/${codeOf(made.body.url)}`);
+    expect(page.status).toBe(410);
+    expect(JSON.stringify(page.body)).not.toMatch(/Pastor|Luke|Dinka|peer/);
+  });
+
+  it('will not attach audio stored long before, such as a recording since taken out of the record', async () => {
+    const { call, log, advance } = setup();
+    const code = codeOf((await share(call, {})).body.url);
+    // A recording's file stays stored after a moderator redacts the recording.
+    const old = 'c'.repeat(64);
+    log.add('din', 'v1.BlobStored', { hash: old, size: 1200 }, 'service');
+    advance(7 * 60 * 60 * 1000);
+    const sent = await call('POST', `/api/v1/links/${code}/reviews`, undefined,
+      answer('looks_good', { voiceNotes: [{ hash: old, durationMs: 1000, format: 'm4a' }] }));
+    expect(sent.status).toBe(400);
+    // A note just uploaded is attached as before.
+    const note = (await call('PUT', `/api/v1/links/${code}/voice-note`, undefined, undefined, m4a('fresh'))).body.voiceNote;
+    expect((await call('POST', `/api/v1/links/${code}/reviews`, undefined, answer('looks_good', { voiceNotes: [{ ...note, durationMs: 1000 }] }))).status).toBe(200);
+  });
+
+  it('takes a hundred voice clips an hour, far fewer than its writes', async () => {
+    const { call } = setup();
+    const code = codeOf((await share(call, { counts: false })).body.url);
+    for (let i = 0; i < 100; i += 1) {
+      expect((await call('PUT', `/api/v1/links/${code}/voice-note`, undefined, undefined, m4a(`clip-${i}`))).status).toBe(200);
+    }
+    expect((await call('PUT', `/api/v1/links/${code}/voice-note`, undefined, undefined, m4a('one-more'))).status).toBe(429);
   });
 
   it('takes a voice note phones can play, and nothing else', () => {
@@ -530,7 +637,7 @@ describe('the device flow', () => {
     const done = await poll();
     expect(done.body).toMatchObject({ access_token: asked.body.device_code, token_type: 'Bearer', scope: 'read review', language_ids: ['din'] });
     const langs = await call('GET', '/api/v1/languages', done.body.access_token);
-    expect(langs.body.map((l: any) => [l.languageId, l.can])).toEqual([['din', { read: 'all', review: true, release: false }]]);
+    expect(langs.body.map((l: any) => [l.languageId, l.can])).toEqual([['din', { read: 'all', review: true, release: false, externalValues: { read: true, write: false } }]]);
     expect(store.tokens[0]!.tokenHash).toBe(await hashSecret(asked.body.device_code));
     expect(store.tokens[0]!.clientName).toBe('Every Language Listener');
   });
@@ -583,3 +690,81 @@ describe('MCP', () => {
   });
 });
 
+describe('external values (decisions.md 79)', () => {
+  const KEY = 'org.everylanguage.listening/plays/d1/2026-10-08';
+  const at = (key = KEY) => `/api/v1/languages/din/external-values/${key}`;
+
+  it('stores a value under a key, as the token\'s person, and reads it back labelled with its app', async () => {
+    const { call, token, log } = setup();
+    const t = await token('tr', { scopes: ['external_values'], name: 'Every Language Listener' });
+    const put = await call('PUT', at(), t, { data: { count: 40 } });
+    expect(put.status).toBe(200);
+    expect(put.body).toMatchObject({ key: KEY, data: { count: 40 }, writtenBy: { profileId: 'tr', tokenId: 'tok1', app: 'Every Language Listener' } });
+    // An ordinary event in the language's log, from the token's own device.
+    const written = log.streams.get('din')!.filter((e) => e.type === 'v1.ExternalValueSet');
+    expect(written).toMatchObject([{ actorId: 'tr', deviceId: 'api-tok1', payload: { key: KEY, data: { count: 40 } } }]);
+    // The newest write to a key wins.
+    await call('PUT', at(), t, { data: { count: 42 } });
+    expect((await call('GET', at(), t)).body).toMatchObject({ data: { count: 42 } });
+  });
+
+  it('lists by key prefix, page by page, and shows deletions only to a reader following changes', async () => {
+    const { call, token, advance } = setup();
+    const t = await token('tr', { scopes: ['external_values'] });
+    await call('PUT', at(), t, { data: { count: 40 } });
+    await call('PUT', at('org.everylanguage.listening/playlist/7'), t, { data: { title: 'Luke for children' } });
+    await call('PUT', at('org.other.app/state'), t, { data: { x: 1 } });
+    const plays = await call('GET', '/api/v1/languages/din/external-values?keyPrefix=org.everylanguage.listening/', t);
+    expect(plays.body.values.map((v: any) => v.key)).toEqual(['org.everylanguage.listening/playlist/7', KEY]);
+    expect(plays.body.nextAfter).toBeNull();
+    const before = new Date(T0 + 10_000_000).toISOString();
+    advance(1000);
+    expect((await call('DELETE', at('org.everylanguage.listening/playlist/7'), t)).body).toEqual({ key: 'org.everylanguage.listening/playlist/7', deleted: true });
+    expect((await call('GET', at('org.everylanguage.listening/playlist/7'), t)).body.code).toBe('no_value');
+    expect((await call('GET', '/api/v1/languages/din/external-values', t)).body.values.map((v: any) => v.key)).toEqual([KEY, 'org.other.app/state']);
+    // A follower asking what changed since its last look learns the key is gone.
+    const changed = await call('GET', `/api/v1/languages/din/external-values?changedSince=${before}`, t);
+    expect(changed.body.values).toMatchObject([{ key: 'org.everylanguage.listening/playlist/7', data: null }]);
+  });
+
+  it('is written only with the scope, by someone who contributes to the language, and read with read or the scope', async () => {
+    const { call, token } = setup();
+    // A viewer contributes nothing, so cannot be given the scope at all.
+    expect((await call('POST', '/api/v1/session/tokens', 'jwt:dinka', { orgId: ORG, name: 'x', scopes: ['external_values'] })).status).toBe(400);
+    const reader = await token('rev', { scopes: ['read'] });
+    expect((await call('PUT', at(), reader, { data: { count: 1 } })).body.code).toBe('scope');
+    const listener = await token('rev', { scopes: ['read:published'] });
+    expect((await call('GET', '/api/v1/languages/din/external-values', listener)).body.code).toBe('scope');
+    const dinkaOnly = await token('tr', { scopes: ['external_values'], languageIds: ['din'] });
+    expect((await call('PUT', '/api/v1/languages/nus/external-values/a', dinkaOnly, { data: {} })).body.code).toBe('no_language');
+    const writer = await token('tr', { scopes: ['external_values'] });
+    await call('PUT', at(), writer, { data: { count: 1 } });
+    expect((await call('GET', at(), reader)).body.data).toEqual({ count: 1 });
+  });
+
+  it('refuses keys that would not read back as a path, and data that is not a small object', async () => {
+    const { call, token } = setup();
+    const t = await token('tr', { scopes: ['external_values'] });
+    expect((await call('PUT', at('a%20b'), t, { data: {} })).body.code).toBe('bad_key');
+    expect((await call('PUT', at('a%3Fb'), t, { data: {} })).body.code).toBe('bad_key');
+    expect((await call('PUT', at(`a/${'x'.repeat(256)}`), t, { data: {} })).body.code).toBe('bad_key');
+    expect((await call('PUT', at(), t, { data: [1] })).body.code).toBe('bad_request');
+    expect((await call('PUT', at(), t, { count: 1 })).body.code).toBe('bad_request');
+    expect((await call('PUT', at(), t, { data: { text: 'x'.repeat(5000) } })).status).toBe(413);
+    expect((await call('POST', at(), t, { data: {} })).status).toBe(405);
+  });
+
+  it('offers the same over MCP', async () => {
+    const { call, token } = setup();
+    const rpc = (id: number, method: string, params: unknown = {}) => ({ jsonrpc: '2.0', id, method, params });
+    const t = await token('tr', { scopes: ['external_values'], name: 'Agent' });
+    const tools = (await call('POST', '/api/v1/mcp', t, rpc(1, 'tools/list'))).body.result.tools.map((x: any) => x.name);
+    expect(tools).toEqual(expect.arrayContaining(['set_external_value', 'get_external_values']));
+    const set = await call('POST', '/api/v1/mcp', t, rpc(2, 'tools/call', { name: 'set_external_value', arguments: { languageId: 'din', key: 'agent/notes', data: { seen: true } } }));
+    expect(set.body.result.isError).toBe(false);
+    const got = await call('POST', '/api/v1/mcp', t, rpc(3, 'tools/call', { name: 'get_external_values', arguments: { languageId: 'din', keyPrefix: 'agent/' } }));
+    expect(JSON.parse(got.body.result.content[0].text).values).toMatchObject([{ key: 'agent/notes', data: { seen: true }, writtenBy: { app: 'Agent' } }]);
+    const gone = await call('POST', '/api/v1/mcp', t, rpc(4, 'tools/call', { name: 'set_external_value', arguments: { languageId: 'din', key: 'agent/notes', data: null } }));
+    expect(JSON.parse(gone.body.result.content[0].text)).toEqual({ key: 'agent/notes', deleted: true });
+  });
+});

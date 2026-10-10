@@ -5,6 +5,8 @@
 - [environments.md](./environments.md) — Development, preview and production: branches, where public settings and secrets live, `npm run secrets`, setup
 - [flow-coverage-audit.md](./flow-coverage-audit.md) — Flow coverage audit
 - [library.md](./library.md) — The library: templates, flows and reference material as versioned documents
+- [languoids.md](./languoids.md) — Languages and regions: v2's reference tables filled from Glottolog, the explorer, search, and the interface-language proposal
+- [v2-project-languages.md](./v2-project-languages.md) — The language each v2 project should get here (many picked English), and the records that follow it
 - [licensing.md](./licensing.md) — An organization's license, why it only opens, and the plan for what outsiders can see
 - [ux/demo-parity.md](./ux/demo-parity.md) — How the app follows the partner demo, and what is not ported yet
 - [ux/](./ux/) — Earlier interactive mocks (slideshow workflow, one yellow action, VAD takeover), kept as history

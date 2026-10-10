@@ -5,6 +5,7 @@ import { applyLibraryEvent, LIBRARY_EVENT_TYPES, type LibraryEvents, type Librar
 import { DEFAULT_LICENSE, licenseRank, type License } from './license';
 import type { Register } from './state';
 import { validateEvent } from './validate';
+import { later } from './ties';
 import { PRIVILEGES, MANAGE_PRIVILEGES, type Privilege, type TargetScope } from './orgTerms';
 
 export * from './orgTerms';
@@ -23,6 +24,8 @@ export interface LanguageTarget {
 
 export interface OrgEventPayloads extends LibraryEvents, ReferenceOrgEvents {
   'v1.OrgCreated': { name: string };
+  /** The organization's name from now on. Same register as `OrgCreated`'s name: the later clock wins. */
+  'v1.OrgRenamed': { name: string };
   /** A named privilege set. Scope is never on the role; it is on the membership (A38). */
   'v1.RoleDefined': { roleId: string; name: string; privileges: Privilege[] };
   'v1.RoleRetired': { roleId: string };
@@ -55,6 +58,14 @@ export interface OrgEventPayloads extends LibraryEvents, ReferenceOrgEvents {
   'v1.LanguageAdded': { languageId: string; name: string; code: string; sourceCode: string };
   /** A language's display name. Register per language. */
   'v1.LanguageRenamed': { languageId: string; name: string };
+  /**
+   * Which language in the world a language is: its code, and the languoid
+   * (docs/languoids.md) it is linked to, or null when it is not linked to
+   * the language list (typed in offline, or not in Glottolog yet). Register
+   * per language; it takes over the code `v1.LanguageAdded` gave. A language
+   * no event of this type names is unlinked.
+   */
+  'v1.LanguageCodeSet': { languageId: string; code: string; languoidId: string | null };
   /** Where a language's work happens (ISO 3166-1 alpha-2, "SS"), for the dashboard's geography. Register per language. */
   'v1.LanguageCountrySet': { languageId: string; country: string };
   /** What a language aims to record, from when and by when, for the dashboard's pace (decision 41). Register per language. */
@@ -62,9 +73,9 @@ export interface OrgEventPayloads extends LibraryEvents, ReferenceOrgEvents {
 }
 export type OrgEventType = keyof OrgEventPayloads;
 export const ORG_EVENT_TYPES: readonly OrgEventType[] = [
-  'v1.OrgCreated', 'v1.RoleDefined', 'v1.RoleRetired', 'v1.MemberAdded', 'v1.MemberRemoved',
+  'v1.OrgCreated', 'v1.OrgRenamed', 'v1.RoleDefined', 'v1.RoleRetired', 'v1.MemberAdded', 'v1.MemberRemoved',
   'v1.InviteIssued', 'v1.InviteRedeemed', 'v1.JoinDecided', 'v1.LicenseSet',
-  'v1.LanguageAdded', 'v1.LanguageRenamed', 'v1.LanguageCountrySet', 'v1.LanguageTargetSet',
+  'v1.LanguageAdded', 'v1.LanguageRenamed', 'v1.LanguageCodeSet', 'v1.LanguageCountrySet', 'v1.LanguageTargetSet',
   'v1.ReferenceRecommended', ...LIBRARY_EVENT_TYPES
 ];
 
@@ -81,6 +92,9 @@ type EventPrivilege = Privilege | readonly Privilege[] | 'bootstrap' | null;
 export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   // organization stream
   'v1.OrgCreated': 'bootstrap',
+  // Who the organization is to everyone, Request Access included: the
+  // owner's, as the license is.
+  'v1.OrgRenamed': 'manage_roles',
   'v1.RoleDefined': 'manage_roles',
   'v1.RoleRetired': 'manage_roles',
   'v1.MemberAdded': 'invite_members',
@@ -93,6 +107,7 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.LicenseSet': 'manage_roles',
   'v1.LanguageAdded': 'manage_structure',
   'v1.LanguageRenamed': 'manage_structure',
+  'v1.LanguageCodeSet': 'manage_structure',
   'v1.LanguageCountrySet': 'manage_structure',
   'v1.LanguageTargetSet': 'manage_structure',
   'v1.ReferenceRecommended': 'manage_reference',
@@ -108,6 +123,7 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.TemplateSelected': 'manage_templates',
   'v1.UnitAdded': 'manage_templates',
   'v1.UnitHidden': ['manage_templates', 'shape_templates'],
+  'v1.BookNameSet': 'manage_templates',
   'v1.FlowSelected': 'manage_flows',
   'v1.FlowStepSet': 'manage_flows',
   'v1.FlowStepRemoved': 'manage_flows',
@@ -121,8 +137,13 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.RecordingAdded': 'translate',
   'v1.TakeComposed': 'translate',
   'v1.TakeArchived': 'translate',
+  'v1.CardVerseSet': 'translate',
   'v1.TakeSubmitted': 'translate',
   'v1.ResponseRecorded': 'translate',
+  // Whoever may append an event that names a voice note (voiceNotesOf, blobs.ts).
+  'v1.AudioFormatSet': ['translate', 'review', 'assign_work', 'send_to_reviewers', 'override_checkpoints', 'fill_reference'],
+  // Whoever contributes to the language's work (decisions.md 79); only the Worker appends it, for a token with the external_values scope.
+  'v1.ExternalValueSet': ['translate', 'review', 'fill_reference'],
   'v1.ReviewRecorded': 'by_kind',
   'v1.DepartureRecorded': 'by_kind',
   'v1.DepartureUndone': ['translate', 'review', 'assign_work', 'override_checkpoints'],
@@ -184,6 +205,7 @@ export function privilegeFor(event: AnyEvent): EventPrivilege {
 export function languageOfOrgEvent(event: AnyEvent): string | undefined {
   switch (event.type) {
     case 'v1.LanguageRenamed':
+    case 'v1.LanguageCodeSet':
     case 'v1.LanguageCountrySet':
     case 'v1.LanguageTargetSet':
       return event.payload.languageId;
@@ -280,11 +302,14 @@ interface OrgLanguage {
   /** `v1.LanguageAdded`, earliest wins; null while only later events have arrived. */
   added: { name: string; code: string; sourceCode: string; hlc: Hlc; eventId: string } | null;
   renamed: Register<string> | null;
+  /** `v1.LanguageCodeSet`; absent in states folded before it existed. */
+  codeSet?: Register<{ code: string; languoidId: string | null }> | null;
   country: Register<string> | null;
   target: Register<LanguageTarget> | null;
 }
 
 export interface OrgState {
+  /** The name, written by `OrgCreated` and `OrgRenamed`; the later clock wins (`orgName`). */
   org: Register<{ name: string }> | null;
   roles: Record<string, OrgRoleState>;
   /** profileId -> scopeKey -> membership */
@@ -335,7 +360,7 @@ function set<V>(current: Register<V> | null | undefined, event: EventEnvelope, v
 }
 
 function language(state: OrgState, languageId: string): OrgLanguage {
-  return (state.languages[languageId] ??= { added: null, renamed: null, country: null, target: null });
+  return (state.languages[languageId] ??= { added: null, renamed: null, codeSet: null, country: null, target: null });
 }
 
 /** Deterministic, order-independent, idempotent; same discipline as the language fold. */
@@ -347,11 +372,15 @@ export function applyOrgEvent(state: OrgState, event: AnyEvent): OrgState {
     state.invalidEvents[event.id] = invalid;
     return state;
   }
-  if (state.redactions[event.id]) return state;
+  // A redaction is never itself redacted (reducer.ts, applyLanguageEvent).
+  if (state.redactions[event.id] && event.type !== 'v1.Redacted') return state;
 
   switch (event.type) {
     case 'v1.OrgCreated':
-      state.org = set(state.org, event, event.payload);
+    case 'v1.OrgRenamed':
+      // One register for both, by clock, as MemberAdded and MemberRemoved
+      // share `removed`: a rename is always stamped after the creation it saw.
+      state.org = set(state.org, event, { name: event.payload.name });
       break;
     case 'v1.RoleDefined': {
       const r = (state.roles[event.payload.roleId] ??= { name: empty, privileges: empty, retired: false });
@@ -379,8 +408,8 @@ export function applyOrgEvent(state: OrgState, event: AnyEvent): OrgState {
       const { inviteId, roleId, scope, expiresAt } = event.payload;
       const slot = (state.invites[inviteId] ??= emptyInvite());
       // Register by clock so a duplicated id cannot make the fold depend on
-      // arrival order; only this event's own fields are written.
-      if (slot.hlc === '' || slot.hlc < event.hlc) {
+      // arrival order, a tie included; only this event's own fields are written.
+      if (slot.hlc === '' || later(event, { roleId, scope, expiresAt }, { hlc: slot.hlc, actorId: slot.issuedBy }, { roleId: slot.roleId, scope: slot.scope, expiresAt: slot.expiresAt })) {
         slot.roleId = roleId;
         slot.scope = { ...scope };
         slot.expiresAt = expiresAt;
@@ -397,7 +426,8 @@ export function applyOrgEvent(state: OrgState, event: AnyEvent): OrgState {
     case 'v1.JoinDecided': {
       const { requestId, profileId, accepted } = event.payload;
       const prior = state.joinDecisions[requestId];
-      if (!prior || prior.hlc < event.hlc) {
+      // The latest decision stands; a tie is settled by who decided and what.
+      if (!prior || later(event, { profileId, accepted }, { hlc: prior.hlc, actorId: prior.decidedBy }, { profileId: prior.profileId, accepted: prior.accepted })) {
         state.joinDecisions[requestId] = { profileId, accepted, decidedBy: event.actorId, hlc: event.hlc };
       }
       break;
@@ -426,6 +456,12 @@ export function applyOrgEvent(state: OrgState, event: AnyEvent): OrgState {
     case 'v1.LanguageRenamed': {
       const l = language(state, event.payload.languageId);
       l.renamed = set(l.renamed, event, event.payload.name);
+      break;
+    }
+    case 'v1.LanguageCodeSet': {
+      const { languageId, code, languoidId } = event.payload;
+      const l = language(state, languageId);
+      l.codeSet = set(l.codeSet, event, { code, languoidId });
       break;
     }
     case 'v1.LanguageCountrySet': {
@@ -481,8 +517,10 @@ export function foldOrg(events: Iterable<AnyEvent>, initial: OrgState = emptyOrg
 export interface LanguageInfo {
   languageId: string;
   name: string;
-  /** The target language's code ("din"). */
+  /** The target language's code ("din"): the latest `LanguageCodeSet`'s, else the one it was added with. */
   code: string;
+  /** The languoid it is linked to (docs/languoids.md), or null while it is unlinked. */
+  languoidId: string | null;
   /** The language source Bibles are offered in ("eng"). */
   sourceCode: string;
   country: string | null;
@@ -496,7 +534,8 @@ export function languageInfo(org: OrgState | null, languageId: string): Language
   return {
     languageId,
     name: l.renamed?.value ?? l.added.name,
-    code: l.added.code,
+    code: l.codeSet?.value.code ?? l.added.code,
+    languoidId: l.codeSet?.value.languoidId ?? null,
     sourceCode: l.added.sourceCode,
     country: l.country?.value ?? null,
     target: l.target?.value ?? null
@@ -538,6 +577,35 @@ export function privilegesFor(state: OrgState, profileId: string, languageId?: s
     for (const p of role.privileges.value ?? []) out.add(p);
   }
   return out;
+}
+
+/**
+ * May this person grant this role at this scope (an invite, an admission,
+ * or a role given directly)? They need Invite there and every privilege the
+ * role carries: nobody hands out more than they hold (decisions.md 75). The
+ * SQL `_grant_refusal` asks the same at the door.
+ */
+export function mayGrantRole(state: OrgState | null, actorId: string, roleId: string, scope: Scope): boolean {
+  if (!state) return false;
+  const role = state.roles[roleId];
+  if (!role || role.retired) return false;
+  const mine = privilegesFor(state, actorId, scope.level === 'language' ? scope.languageId : undefined);
+  return mine.has('invite_members') && (role.privileges.value ?? []).every((p) => mine.has(p));
+}
+
+/**
+ * May this person change or remove someone's role at a scope? Only when
+ * they could have granted the role it holds now, so nobody demotes or
+ * removes someone who holds more than they do (decisions.md 75).
+ */
+export function mayChangeMembership(state: OrgState | null, actorId: string, profileId: string, scope: Scope): boolean {
+  if (!state) return false;
+  const mine = privilegesFor(state, actorId, scope.level === 'language' ? scope.languageId : undefined);
+  if (!mine.has('invite_members')) return false;
+  const current = state.members[profileId]?.[scopeKey(scope)];
+  if (!current || current.removed.value !== false) return true;
+  const role = state.roles[current.roleId.value];
+  return !role || role.retired || (role.privileges.value ?? []).every((p) => mine.has(p));
 }
 
 /** Active memberships of a profile, at any scope. */
@@ -589,6 +657,26 @@ export function adminScopeOf(state: OrgState, profileId: string): Scope | null {
 /** The license the organization's work is under; all rights reserved until one is set (license.ts). */
 export function orgLicense(state: OrgState | null): License {
   return state?.license?.value ?? DEFAULT_LICENSE;
+}
+
+/** The organization's name, as it was last set. */
+export function orgName(state: OrgState | null): string | undefined {
+  return state?.org?.value.name;
+}
+
+/** May this person rename the organization? It needs manage_roles at org scope, as the license does. */
+export function mayRenameOrg(state: OrgState | null, profileId: string): boolean {
+  return !!state && privilegesFor(state, profileId).has('manage_roles');
+}
+
+/**
+ * May this person rename a language, or link it to the language list
+ * (`v1.LanguageCodeSet`)? It needs manage_structure there, at
+ * org scope or the language's own, so a language admin may rename theirs
+ * (`languageOfOrgEvent`; the SQL `may_emit` is the same).
+ */
+export function mayRenameLanguage(state: OrgState | null, profileId: string, languageId: string): boolean {
+  return !!state && privilegesFor(state, profileId, languageId).has('manage_structure');
 }
 
 /** May this person change the organization's license? It needs manage_roles at org scope. */

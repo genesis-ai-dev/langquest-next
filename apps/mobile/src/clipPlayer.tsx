@@ -6,11 +6,14 @@
 import { isStored, type LanguageState } from '@langquest-next/core';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { PanResponder, Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { PanResponder, Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { Text } from './text';
 import { audioFormat } from './audioClip';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
 import type { ListenHooks } from './recording/useListenLoop';
 import { useHelpPress } from './helpContext';
+import { t } from './i18n';
+import { formatClock, formatNumber } from './i18n/format';
 import { Ico, txt } from './kit';
 import { noteExpected, reportError } from './report';
 import { C, radius, space, TINT } from './theme';
@@ -18,8 +21,7 @@ import type { LanguageHandle } from './useLanguage';
 
 /** "1:05" from seconds. */
 export function clock(seconds: number): string {
-  const s = Math.max(0, Math.round(seconds));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  return formatClock(seconds * 1000);
 }
 
 /** The length of these cards together, in seconds (0 when unknown). */
@@ -148,13 +150,13 @@ export function ClipPlayer(props: {
       if (!uri && ref && language.state && isStored(language.state, hash)) {
         try { uri = await language.blobs.streamUri(ref); } catch (err) {
           noteExpected('clip player stream', err);
-          if (generation.current === run) { wants.current = false; setPlaying(false); setError('Audio could not load. Check your connection and try again.'); }
+          if (generation.current === run) { wants.current = false; setPlaying(false); setError(t('common.audioCouldNotLoad')); }
           return;
         }
         if (generation.current !== run || !wants.current) return;
       }
     }
-    if (!uri) { wants.current = false; setPlaying(false); setError('Audio is not on this device yet.'); return; }
+    if (!uri) { wants.current = false; setPlaying(false); setError(t('recording.player.notOnDeviceYet')); return; }
     try {
       const p = createAudioPlayer({ uri });
       player.current = p;
@@ -162,7 +164,7 @@ export function ClipPlayer(props: {
         if (player.current !== p) return;
         if (status.error) {
           wants.current = false; p.remove(); player.current = null; setPlaying(false);
-          setError('Audio could not load. Check your connection and try again.');
+          setError(t('common.audioCouldNotLoad'));
           return;
         }
         if (status.duration > 0) setClipLength(status.duration);
@@ -173,7 +175,7 @@ export function ClipPlayer(props: {
       if (generation.current === run && wants.current) p.play();
     } catch (err) {
       wants.current = false; player.current?.remove(); player.current = null; setPlaying(false);
-      setError(`Audio could not play (code ${reportError('clip player create', err)}).`);
+      setError(t('common.audioCouldNotPlay', { code: reportError('clip player create', err) }));
     }
   }
 
@@ -196,7 +198,7 @@ export function ClipPlayer(props: {
       if (p && p.duration > 0 && p.currentTime < p.duration - 0.1) { p.play(); return; }
       await playFrom(p ? indexRef.current : 0, 0, run);
     } catch (err) {
-      if (generation.current === run) { halt(); setError(`Audio could not play (code ${reportError('clip player play', err)}).`); }
+      if (generation.current === run) { halt(); setError(t('common.audioCouldNotPlay', { code: reportError('clip player play', err) })); }
     }
   }
 
@@ -210,7 +212,7 @@ export function ClipPlayer(props: {
     const within = target - start;
     const p = player.current;
     if (p && i === indexRef.current) {
-      try { await p.seekTo(within); setAt(within); } catch (err) { setError(`Audio could not seek (code ${reportError('clip player seek', err)}).`); }
+      try { await p.seekTo(within); setAt(within); } catch (err) { setError(t('recording.player.couldNotSeek', { code: reportError('clip player seek', err) })); }
       return;
     }
     // Another clip: load it there, playing only if it was playing.
@@ -227,9 +229,9 @@ export function ClipPlayer(props: {
     await playFrom(i, within, run);
   }
 
-  const back10 = useHelpPress('Back 10 seconds', 'Hear the last few seconds again.', () => void seekTo(elapsed - 10));
-  const note = useHelpPress('Note', 'Leave a note at this moment, by voice or text.', props.onNote ? () => { halt(); props.onNote?.(elapsed); } : undefined);
-  const play = useHelpPress(playing ? 'Pause' : `Play ${props.title}`, 'Play or pause.', () => void toggle());
+  const back10 = useHelpPress(t('common.backTenSeconds'), t('recording.player.back10Help'), () => void seekTo(elapsed - 10));
+  const note = useHelpPress(t('recording.player.note'), t('recording.player.noteHelp'), props.onNote ? () => { halt(); props.onNote?.(elapsed); } : undefined);
+  const play = useHelpPress(playing ? t('common.pause') : t('recording.player.playTitle', { title: props.title }), t('recording.player.playHelp'), () => void toggle());
 
   // The timeline: tap anywhere, or drag the thumb.
   const width = useRef(1);
@@ -258,7 +260,7 @@ export function ClipPlayer(props: {
         {props.right}
       </View>
       <View style={styles.track} onLayout={(e: LayoutChangeEvent) => { width.current = Math.max(1, e.nativeEvent.layout.width); }}
-        accessibilityRole="adjustable" accessibilityLabel={`Where you are in ${props.title}`} accessibilityValue={{ text: `${clock(elapsed)} of ${clock(total)}` }}
+        accessibilityRole="adjustable" accessibilityLabel={t('recording.player.whereYouAre', { title: props.title })} accessibilityValue={{ text: t('recording.player.position', { at: clock(elapsed), total: clock(total) }) }}
         {...pan.panHandlers}>
         <View style={styles.rail} />
         <View style={[styles.fill, { width: `${share * 100}%`, backgroundColor: tone }]} />
@@ -266,21 +268,21 @@ export function ClipPlayer(props: {
       </View>
       <View style={styles.controls}>
         <Text style={[txt.xs, styles.time]}>{clock(elapsed)}</Text>
-        <Pressable onPress={back10} disabled={!available || props.disabled} accessibilityRole="button" accessibilityLabel="Back 10 seconds"
+        <Pressable onPress={back10} disabled={!available || props.disabled} accessibilityRole="button" accessibilityLabel={t('common.backTenSeconds')}
           style={({ pressed }) => [styles.side, pressed && styles.pressed, (!available || props.disabled) && styles.off]}>
           <Ico name="restart" size={20} color={C.dark} />
-          <Text style={styles.sideLabel}>10</Text>
+          <Text style={styles.sideLabel}>{formatNumber(10)}</Text>
         </Pressable>
         <Pressable onPress={play} disabled={!available || props.disabled} accessibilityRole="button"
-          accessibilityLabel={available ? playing ? 'Pause' : `Play ${props.title}` : 'Audio is not on this device yet'}
+          accessibilityLabel={available ? playing ? t('common.pause') : t('recording.player.playTitle', { title: props.title }) : t('recording.player.notOnDevice')}
           style={({ pressed }) => [{ width: size, height: size, borderRadius: size / 2, backgroundColor: available ? tone : C.faint, alignItems: 'center', justifyContent: 'center' }, pressed && styles.pressed]}>
           <Ico name={available ? playing ? 'pause' : 'play' : 'download'} size={Math.round(size * 0.4)} color={C.white} />
         </Pressable>
         {props.onNote ? (
-          <Pressable onPress={note} accessibilityRole="button" accessibilityLabel="Add a note at this moment"
+          <Pressable onPress={note} accessibilityRole="button" accessibilityLabel={t('recording.player.addNoteAtMoment')}
             style={({ pressed }) => [styles.side, pressed && styles.pressed]}>
             <Ico name="chat" size={18} color={TINT.amberText} />
-            <Text style={[styles.sideLabel, { color: TINT.amberText }]}>Note</Text>
+            <Text style={[styles.sideLabel, { color: TINT.amberText }]}>{t('recording.player.note')}</Text>
           </Pressable>
         ) : <View style={{ width: 52 }} />}
         <Text style={[txt.xs, styles.time, { textAlign: 'right' }]}>{clock(total)}</Text>

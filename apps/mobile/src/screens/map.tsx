@@ -12,30 +12,36 @@
 // book, plus search and filters that narrow to counts first (ADR-009).
 // Progress is several counts, never one number (ADR-004).
 import {
-  deriveFlow, libraryItemView, deriveKinds, derivePassage, highlightsFor, languageInfo, languageName, languageProgress,
-  passageSummary, percent, privilegesFor, timeAgo, unitPlace, unitTitle, upNext,
+  deriveFlow, libraryItemView, derivePassage, highlightsFor, languageInfo, languageName, languageProgress,
+  percent, privilegesFor, unitPlace, unitTitle, upNext,
   type KindDef, type LanguageProgress, type OrgState, type PassageState, type LanguageState, type UnitPlace
 } from '@langquest-next/core';
 import { useMemo, useState, type ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import {
   bookMatches, canonBook, canonBooks, chapterStage, chapterTone, countFilters, isMapFilter, MAP_FILTERS, matchesFilter, parseQuery,
   placeMatches, type CanonBook, type ChapterTone, type MapFilter, type Testament
 } from '../canon';
+import { deriveKinds, passageSummary, stepName } from '../coreText';
 import type { Ctx } from '../ctx';
 import { edgeFor, type ScreenId } from '../flow';
+import { t } from '../i18n';
+import { formatNumber, formatPercent } from '../i18n/format';
 import { indexesFor } from '../indexes';
 import { keptOfflineMap, OfflineMark, offlineWords, type KeptOffline } from '../offline';
 import { languageFigures, oldestAsOf } from '../orgFigures';
 import { useOrgSummary } from '../useOrgSummary';
 import {
-  Card, Chip, ChipRow, EmptyState, Group, Header, Ico, IconBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore,
+  Card, Chip, ChipRow, EmptyState, Group, Header, Ico, IconBtn, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore,
   StepMarks, txt, useLayout, useOpenDetail, type IconName
 } from '../kit';
 import { workIcon } from '../simple/homeModel';
+import { NumberingNote } from '../breakup/parts';
+import { useVerseNumbering } from '../breakup/useBreakup';
+import { ChangedMark, useEarlierSections } from '../breakup/earlier';
 import { BookBar, ChapterTileView, FullKey, NextLink, Pills, QuietIconLink, ShortKey } from '../simple/mapParts';
 import { chapterColumns } from '../layout';
-import { plural } from '../passageView';
 import { contractsFor } from '../screenContracts';
 import { edgeAllowed, mapScreenFor } from '../session';
 import { C, onColor, radius, space, TINT, type as T } from '../theme';
@@ -43,7 +49,45 @@ import { C, onColor, radius, space, TINT, type as T } from '../theme';
 const PAGE = 25;
 const OTHER = 'other';
 
-const fmt = (n: number) => n.toLocaleString('en-US');
+const fmt = (n: number) => formatNumber(n);
+
+/** Sentences of a spoken label, one after another: "Luke. 3 of 9 recorded". */
+const sentences = (parts: string[]) => parts.reduce((first, next) => t('map.joinSentences', { first, next }));
+/** Clauses of a spoken label, one after another: "Chapter 3: Done, 2 parts". */
+const clauses = (parts: string[]) => parts.reduce((first, next) => t('map.joinClauses', { first, next }));
+
+/** How long ago the server's figures are from, as people say it: "5 minutes ago". */
+function agoWords(iso: string): string {
+  const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000));
+  if (s < 60) return t('map.ago.justNow');
+  if (s < 3600) return t('map.ago.minutes', { count: Math.floor(s / 60) });
+  if (s < 86_400) return t('map.ago.hours', { count: Math.floor(s / 3600) });
+  return t('map.ago.days', { count: Math.floor(s / 86_400) });
+}
+
+/** A filter's name, as its chip says it. */
+function filterLabel(f: MapFilter): string {
+  switch (f) {
+    case 'all': return t('map.filters.all');
+    case 'feedback': return t('map.filters.feedback');
+    case 'waiting': return t('map.filters.waiting');
+    case 'review': return t('map.filters.review');
+    case 'done': return t('map.filters.done');
+    case 'todo': return t('map.filters.todo');
+  }
+}
+
+/** How many passages match a filter, as a book's spoken label says it: "3 with feedback". */
+function matchingWords(f: MapFilter, count: number): string {
+  switch (f) {
+    case 'all': return t('map.passages', { count });
+    case 'feedback': return t('map.matching.feedback', { count });
+    case 'waiting': return t('map.matching.waiting', { count });
+    case 'review': return t('map.matching.review', { count });
+    case 'done': return t('map.matching.done', { count });
+    case 'todo': return t('map.matching.todo', { count });
+  }
+}
 
 function canGo(ctx: Ctx, from: ScreenId, to: ScreenId): boolean {
   const edge = edgeFor(from, to);
@@ -61,6 +105,11 @@ interface Entry {
 const entryCache = new WeakMap<LanguageState, Entry[]>();
 
 /** Every passage the open language works on, with where it sits and where it stands; shared by the map and its books. */
+/** Books of the language waiting to be broken up (decision 74), as the app's book ids ("rut"). */
+function waitingBooks(state: LanguageState): string[] {
+  return indexesFor(state).waiting.map((unitId) => unitPlace(state, unitId).bookId).filter((b): b is string => !!b);
+}
+
 function languageEntries(state: LanguageState): Entry[] {
   const hit = entryCache.get(state);
   if (hit) return hit;
@@ -81,7 +130,7 @@ function useForYou(ctx: Ctx, state: LanguageState | null): Set<string> {
 
 function flowLabel(state: LanguageState): string {
   const flow = deriveFlow(state);
-  return flow.steps.length ? flow.name : 'No review flow';
+  return flow.steps.length ? flow.name : t('map.noFlow');
 }
 
 function languageCode(org: OrgState | null, languageId: string): string {
@@ -136,12 +185,12 @@ function PassageDisc(props: { s: PassageState }) {
   const feedback = s.awaitingResponse.length > 0;
   return (
     <View style={[styles.disc, { borderWidth: 3, borderColor: feedback ? C.amber : C.primary, backgroundColor: feedback ? TINT.amber : C.light }]}>
-      {feedback ? <Ico name="chat" size={18} color={TINT.amberText} /> : <Text style={[txt.xsStrong, { color: C.dark }]}>{cleared}/{s.steps.length}</Text>}
+      {feedback ? <Ico name="chat" size={18} color={TINT.amberText} /> : <Text style={[txt.xsStrong, { color: C.dark }]}>{fmt(cleared)}/{fmt(s.steps.length)}</Text>}
     </View>
   );
 }
 
-function PassageRow(props: { ctx: Ctx; state: LanguageState; kinds: KindDef[]; e: Entry; mine: boolean; last: boolean; onPress: () => void }) {
+function PassageRow(props: { ctx: Ctx; state: LanguageState; kinds: KindDef[]; e: Entry; mine: boolean; last: boolean; onPress: () => void; changed?: boolean }) {
   const { e, ctx } = props;
   const me = ctx.session.actorId;
   const title = unitTitle(props.state, e.unitId);
@@ -151,13 +200,14 @@ function PassageRow(props: { ctx: Ctx; state: LanguageState; kinds: KindDef[]; e
   return (
     <Row label={title} sub={summary} last={props.last} onPress={props.onPress}
       current={beside?.screen === 'passage_record' && beside.params['unitId'] === e.unitId}
-      accessibilityLabel={`${title}. ${summary}${props.mine ? '. For you' : ''}. ${offlineWords(offline)}`}
-      {...(props.mine ? { badge: 'For you', badgeTone: 'amber' as const } : {})}
+      accessibilityLabel={sentences([title, summary, ...(props.mine ? [t('map.forYou')] : []), ...(props.changed ? [t('map.changedSinceRecorded')] : []), offlineWords(offline)])}
+      {...(props.mine ? { badge: t('map.forYou'), badgeTone: 'amber' as const } : {})}
       leading={(
         <View>
           <PassageDisc s={e.s} />
           {props.mine ? <View style={styles.discDot} /> : null}
           <OfflineMark u={offline} />
+          {props.changed ? <ChangedMark /> : null}
         </View>
       )}
       {...(e.s.recorded && e.s.steps.length > 0
@@ -177,11 +227,11 @@ function FilterSheet(props: {
   summary?: string[]; children?: ReactNode;
 }) {
   return (
-    <Sheet visible={props.visible} title="Filter" sub="Show only the passages that match" onClose={props.onClose}>
+    <Sheet visible={props.visible} title={t('map.filter.title')} sub={t('map.filter.sub')} onClose={props.onClose}>
       {props.summary?.length ? <View style={{ gap: 2 }}>{props.summary.map((line) => <Text key={line} style={txt.smMuted}>{line}</Text>)}</View> : null}
       <View style={styles.filterChoices}>
         {MAP_FILTERS.filter((f) => f.id === 'all' || f.id === props.filter || props.counts[f.id] > 0).map((f) => (
-          <Chip key={f.id} label={f.label} on={props.filter === f.id} onPress={() => { props.onFilter(f.id); props.onClose(); }}
+          <Chip key={f.id} label={filterLabel(f.id)} on={props.filter === f.id} onPress={() => { props.onFilter(f.id); props.onClose(); }}
             {...(f.id === 'all' ? {} : { count: props.counts[f.id] })} {...(f.id === 'feedback' ? { icon: 'chat' as const } : {})} />
         ))}
       </View>
@@ -196,9 +246,9 @@ function ActiveFilter(props: { filter: MapFilter; counts: Record<MapFilter, numb
   if (!active) return null;
   return (
     <View style={styles.filterBar}>
-      <Chip icon="filter" label={active.label} on count={props.counts[active.id]} onPress={props.onOpen}
-        accessibilityLabel={`Filter: ${active.label}. Change it`} />
-      <IconBtn name="close" label="Clear filter" bg={C.card} onPress={props.onClear} />
+      <Chip icon="filter" label={filterLabel(active.id)} on count={props.counts[active.id]} onPress={props.onOpen}
+        accessibilityLabel={t('map.filter.active', { filter: filterLabel(active.id) })} />
+      <IconBtn name="close" label={t('map.filter.clear')} bg={C.card} onPress={props.onClear} />
     </View>
   );
 }
@@ -221,13 +271,13 @@ function stageRamp(n: number): string[] {
  * read as how many passages stand at each stage. The legend under it gives
  * the exact counts, so identity is never colour alone.
  */
-function FunnelRows(props: { progress: LanguageProgress }) {
+function FunnelRows(props: { progress: LanguageProgress; stepNames?: string[] }) {
   const p = props.progress;
   const ramp = stageRamp(1 + p.steps.length);
   const rows = [
-    { label: 'Recorded', n: p.recorded, color: ramp[0]!, checkpoint: false },
-    ...p.steps.map((st, i) => ({ label: st.name, n: st.cleared, color: ramp[i + 1]!, checkpoint: st.checkpoint })),
-    ...(p.steps.length ? [{ label: 'Done', n: p.done, color: C.green, checkpoint: false }] : [])
+    { label: t('map.funnel.recorded'), n: p.recorded, color: ramp[0]!, checkpoint: false },
+    ...p.steps.map((st, i) => ({ label: props.stepNames?.[i] ?? st.name, n: st.cleared, color: ramp[i + 1]!, checkpoint: st.checkpoint })),
+    ...(p.steps.length ? [{ label: t('map.funnel.done'), n: p.done, color: C.green, checkpoint: false }] : [])
   ];
   // Longest first, so a shorter bar is never hidden behind a longer one.
   const layers = rows.map((r, i) => ({ ...r, i })).filter((r) => r.n > 0).sort((a, b) => b.n - a.n || a.i - b.i);
@@ -235,7 +285,7 @@ function FunnelRows(props: { progress: LanguageProgress }) {
   return (
     <View style={{ gap: space.sm }}>
       <View accessible accessibilityRole="progressbar"
-        accessibilityLabel={rows.map((r) => `${r.label}: ${fmt(r.n)} of ${fmt(p.total)}`).join(', ')}
+        accessibilityLabel={clauses(rows.map((r) => t('map.funnel.item', { label: r.label, n: fmt(r.n), total: fmt(p.total) })))}
         style={{ height: h, borderRadius: h, backgroundColor: C.bg, overflow: 'hidden' }}>
         {layers.map((r) => (
           <View key={`${r.label}-${r.i}`} style={{
@@ -273,18 +323,21 @@ export function StatusHome(ctx: Ctx) {
     const ids = ctx.languages.map((l) => l.languageId);
     const local = new Map(state && openId ? [[openId, languageProgress(state, indexesFor(state))]] : []);
     const figures = languageFigures(ids, local, summary);
+    // The open language's steps named in the language showing (core names them in English).
+    const stepNames = state ? deriveFlow(state).steps.map((st) => stepName(deriveKinds(state), st)) : undefined;
     return ctx.languages.map(({ languageId, name }) => {
       const here = languageId === openId;
       const f = figures.get(languageId);
       return {
         languageId, here, name, code: languageCode(ctx.org.state, languageId),
-        flow: here ? flowLabel(state!) : '', progress: f?.progress ?? null, asOf: f?.asOf ?? null
+        flow: here ? flowLabel(state!) : '', progress: f?.progress ?? null, asOf: f?.asOf ?? null,
+        stepNames: here ? stepNames : undefined
       };
     }).sort((a, b) => a.name.localeCompare(b.name));
   }, [state, ctx.languages, ctx.language.languageId, ctx.org.state, summary]);
   const orgName = ctx.org.state?.org?.value.name ?? '';
-  const header = <Header title="Progress" sub={[orgName, 'All languages'].filter(Boolean).join(' · ')} />;
-  if (!state) return <Screen header={header}><EmptyState icon="progress" title="Loading…" /></Screen>;
+  const header = <Header title={t('map.status.title')} sub={[orgName, t('map.status.allLanguages')].filter(Boolean).join(' · ')} />;
+  if (!state) return <Screen header={header}><EmptyState icon="progress" title={t('common.loading')} /></Screen>;
 
   const known = languages.flatMap((l) => (l.progress ? [l.progress] : []));
   const asOf = oldestAsOf(languages.flatMap((l) => (l.progress ? [{ progress: l.progress, asOf: l.asOf }] : [])));
@@ -301,56 +354,58 @@ export function StatusHome(ctx: Ctx) {
   return (
     <Screen header={header}>
       {languages.length === 0 ? (
-        <EmptyState icon="globe" title="No languages yet" sub="Once a language is added, its progress shows here." />
+        <EmptyState icon="globe" title={t('map.noLanguages')} sub={t('map.status.noLanguagesSub')} />
       ) : (
         <Card>
           <Text style={[txt.sm, { color: C.muted, fontWeight: '600' }]}>
-            {known.length === languages.length ? `Across ${plural(languages.length, 'language')}` : `${known.length} of ${plural(languages.length, 'language')} counted`} · {plural(total, 'passage')}
+            {known.length === languages.length ? t('map.status.across', { count: languages.length }) : t('map.status.counted', { count: languages.length, known: fmt(known.length) })} · {t('map.passages', { count: total })}
           </Text>
-          {asOf ? <Text style={txt.smMuted}>Languages not on this device as of {timeAgo(asOf, Date.now())}</Text> : null}
+          {asOf ? <Text style={txt.smMuted}>{t('map.status.asOf', { ago: agoWords(asOf) })}</Text> : null}
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space.xl }}>
             <View>
-              <Text style={[styles.bigNumber, { color: C.primary }]}>{percent(recorded, total)}%</Text>
-              <Text style={txt.smMuted}>recorded</Text>
+              <Text style={[styles.bigNumber, { color: C.primary }]}>{formatPercent(percent(recorded, total))}</Text>
+              <Text style={txt.smMuted}>{t('map.status.recorded')}</Text>
             </View>
             <View>
-              <Text style={[styles.bigNumber, { color: TINT.greenText }]}>{percent(done, total)}%</Text>
-              <Text style={txt.smMuted}>done</Text>
+              <Text style={[styles.bigNumber, { color: TINT.greenText }]}>{formatPercent(percent(done, total))}</Text>
+              <Text style={txt.smMuted}>{t('map.status.done')}</Text>
             </View>
             <View style={{ marginLeft: 'auto', alignItems: 'flex-end' }}>
               <Text style={[txt.h2]}>{fmt(waiting)}</Text>
-              <Text style={txt.smMuted}>with reviewers</Text>
+              <Text style={txt.smMuted}>{t('map.status.withReviewers')}</Text>
             </View>
           </View>
           <StackBar done={done} recorded={recorded} total={total} height={10} recordedColor={C.soft} />
         </Card>
       )}
-      {languages.length > 5 ? <SearchField value={query} onChangeText={(t) => { setQuery(t); setLimit(PAGE); }} placeholder="Find a language" /> : null}
-      {shown.length > 0 ? <SectionLabel label="Languages" /> : null}
+      {languages.length > 5 ? <SearchField value={query} onChangeText={(t) => { setQuery(t); setLimit(PAGE); }} placeholder={t('map.status.find')} /> : null}
+      {shown.length > 0 ? <SectionLabel label={t('map.status.languages')} /> : null}
       {shown.slice(0, limit).map((l) => l.progress && l.here ? (
-        <Card key={l.languageId} current={isOpen(l.languageId)} onPress={() => open(l.languageId)} accessibilityLabel={`${l.name}: ${fmt(l.progress.recorded)} of ${fmt(l.progress.total)} recorded. Open its map.`}>
+        <Card key={l.languageId} current={isOpen(l.languageId)} onPress={() => open(l.languageId)} accessibilityLabel={t('map.status.languageLabel', { name: l.name, recorded: fmt(l.progress.recorded), total: fmt(l.progress.total) })}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
             <View style={styles.code}><Text style={[txt.sm, { fontWeight: '700', color: C.primary }]}>{l.code}</Text></View>
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={[txt.body, { fontWeight: '600' }]} numberOfLines={1}>{l.name}</Text>
-              <Text style={txt.smMuted} numberOfLines={1}>{plural(l.progress.total, 'passage')} · {l.flow}</Text>
+              <Text style={txt.smMuted} numberOfLines={1}>{t('map.passages', { count: l.progress.total })} · {l.flow}</Text>
             </View>
             {l.progress.waiting > 0 ? <IconCount icon="clock" n={l.progress.waiting} tone="brand" /> : null}
             <Ico name="right" size={24} color={C.muted} />
           </View>
-          <FunnelRows progress={l.progress} />
+          <FunnelRows progress={l.progress} {...(l.stepNames ? { stepNames: l.stepNames } : {})} />
         </Card>
       ) : (
         // Not open on this phone: opening it brings it down (decision 63).
         // The server's figures, when it has them, show what it holds meanwhile.
         <Card key={l.languageId} current={isOpen(l.languageId)} onPress={() => open(l.languageId)}
-          accessibilityLabel={l.progress ? `${l.name}: ${fmt(l.progress.recorded)} of ${fmt(l.progress.total)} recorded, as of ${timeAgo(l.asOf!, Date.now())}. Not on this device yet. Open it.` : `${l.name}. Not on this device yet. Open it.`}>
+          accessibilityLabel={l.progress
+            ? t('map.status.languageLabelAsOf', { name: l.name, recorded: fmt(l.progress.recorded), total: fmt(l.progress.total), ago: agoWords(l.asOf!) })
+            : t('map.status.languageLabelAway', { name: l.name })}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
             <View style={styles.code}><Ico name="download" size={20} color={C.primary} /></View>
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={[txt.body, { fontWeight: '600' }]} numberOfLines={1}>{l.name}</Text>
               <Text style={txt.smMuted} numberOfLines={1}>
-                {l.progress ? `${plural(l.progress.total, 'passage')} · as of ${timeAgo(l.asOf!, Date.now())}` : 'Open it to bring it onto this device'}
+                {l.progress ? t('map.status.passagesAsOf', { count: l.progress.total, ago: agoWords(l.asOf!) }) : t('map.status.openToBring')}
               </Text>
             </View>
             {l.progress && l.progress.waiting > 0 ? <IconCount icon="clock" n={l.progress.waiting} tone="brand" /> : null}
@@ -360,11 +415,9 @@ export function StatusHome(ctx: Ctx) {
         </Card>
       ))}
       <ShowMore remaining={shown.length - limit} step={PAGE} onMore={() => setLimit((n) => n + PAGE)} />
-      {q && shown.length === 0 ? <Text style={[txt.bodyMuted, { textAlign: 'center', paddingVertical: space.xl }]}>No language matches “{query}”.</Text> : null}
+      {q && shown.length === 0 ? <Text style={[txt.bodyMuted, { textAlign: 'center', paddingVertical: space.xl }]}>{t('map.status.noMatch', { query })}</Text> : null}
       {languages.length > 0 ? (
-        <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>
-          Each bar layers the steps of the language's review flow: the further a passage has come, the darker its band. A passage is done when every step is complete — or, with no flow, once it's recorded. Locked steps are checkpoints.
-        </Text>
+        <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('map.status.explain')}</Text>
       ) : null}
     </Screen>
   );
@@ -374,6 +427,8 @@ export function StatusHome(ctx: Ctx) {
 
 interface BookSummary {
   key: string;
+  /** Listed but not broken up yet (decision 74): nothing to record in it until a coordinator breaks it up. */
+  waiting?: boolean;
   book: CanonBook | null;
   name: string;
   group: string;
@@ -385,14 +440,18 @@ interface BookSummary {
   mine: number;
 }
 
-function summarizeBooks(entries: Entry[], filter: MapFilter, forYou: Set<string>): BookSummary[] {
+function summarizeBooks(entries: Entry[], filter: MapFilter, forYou: Set<string>, waiting: string[] = []): BookSummary[] {
   const by = new Map<string, BookSummary>();
+  for (const id of waiting) {
+    const book = canonBook(id);
+    if (book) by.set(book.id, { key: book.id, waiting: true, book, name: book.name, group: book.group, total: 0, recorded: 0, done: 0, feedback: 0, matching: 0, mine: 0 });
+  }
   for (const e of entries) {
     const book = canonBook(e.place.bookId) ?? null;
     const key = book?.id ?? OTHER;
     let row = by.get(key);
     if (!row) {
-      row = { key, book, name: book?.name ?? 'Other', group: book?.group ?? 'Other', total: 0, recorded: 0, done: 0, feedback: 0, matching: 0, mine: 0 };
+      row = { key, book, name: book?.name ?? t('map.other'), group: book?.group ?? t('map.other'), total: 0, recorded: 0, done: 0, feedback: 0, matching: 0, mine: 0 };
       by.set(key, row);
     }
     row.total++;
@@ -408,14 +467,16 @@ function summarizeBooks(entries: Entry[], filter: MapFilter, forYou: Set<string>
 /** One book as the simple Map shows it: name, bar, "25/97"; with a filter set, how many match. */
 function BookRow(props: { b: BookSummary; filter: MapFilter; last: boolean; onPress: () => void }) {
   const { b, filter } = props;
-  const noun = MAP_FILTERS.find((f) => f.id === filter)?.noun ?? '';
-  const sub = b.recorded > 0 ? `${fmt(b.recorded)} of ${fmt(b.total)} recorded${b.done ? `, ${fmt(b.done)} done` : ''}` : 'Not started';
+  const sub = b.waiting ? t('map.waiting') : b.recorded > 0
+    ? b.done ? t('map.book.recordedDone', { recorded: fmt(b.recorded), total: fmt(b.total), done: fmt(b.done) }) : t('map.book.recorded', { recorded: fmt(b.recorded), total: fmt(b.total) })
+    : t('map.book.notStarted');
   const beside = useOpenDetail();
   return (
-    <BookBar name={b.name} total={b.total} recorded={b.recorded} done={b.done} last={props.last} onPress={props.onPress}
+    <BookBar name={b.name} total={b.total} recorded={b.recorded} done={b.done} last={props.last} onPress={props.onPress} waiting={!!b.waiting}
       {...(filter !== 'all' ? { count: fmt(b.matching) } : {})}
       current={beside?.screen === 'book_map' && beside.params['bookId'] === b.key}
-      accessibilityLabel={`${b.name}. ${sub}${filter !== 'all' ? `. ${fmt(b.matching)} ${noun}` : ''}${b.mine ? `. ${b.mine} for you` : ''}${b.feedback ? `. ${b.feedback} with feedback` : ''}`} />
+      accessibilityLabel={sentences([b.name, sub, ...(filter !== 'all' ? [matchingWords(filter, b.matching)] : []),
+        ...(b.mine ? [t('map.book.forYou', { count: b.mine })] : []), ...(b.feedback ? [t('map.matching.feedback', { count: b.feedback })] : [])])} />
   );
 }
 
@@ -495,28 +556,34 @@ export function MapHome(ctx: Ctx) {
   const forYou = useForYou(ctx, state);
   const next = useNextPassage(ctx, state);
   const entries = useMemo(() => (state ? languageEntries(state) : []), [state]);
-  const books = useMemo(() => summarizeBooks(entries, filter, forYou), [entries, filter, forYou]);
+  // Books not broken up yet (decision 74), by the app's book id.
+  const waiting = useMemo(() => (state ? waitingBooks(state) : []), [state]);
+  const books = useMemo(() => summarizeBooks(entries, filter, forYou, waiting), [entries, filter, forYou, waiting]);
+  // The team's Bibles numbering verses differently is worth one note (decision 74); it may be put away.
+  const numbering = useVerseNumbering(ctx);
+  // Sections whose divisions changed since work was recorded on them (decision 80).
+  const earlier = useEarlierSections(ctx, state);
   const counts = useMemo(() => countFilters(entries.map((e) => e.s)), [entries]);
   const progress = useMemo(() => (state ? languageProgress(state, indexesFor(state)) : null), [state]);
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
 
-  const language = languageId ? languageName(ctx.org.state, languageId) : 'Passage Map';
-  const outline = entries.length > 0 && entries.every((e) => !e.place.bookId);
+  const language = languageId ? languageName(ctx.org.state, languageId) : t('map.home.title');
+  const outline = entries.length > 0 && waiting.length === 0 && entries.every((e) => !e.place.bookId);
   const sel = state?.template?.value;
   const templateName = sel ? libraryItemView(ctx.org.state?.library ?? {}, sel.itemId)?.name : undefined;
   // What the header used to say under the title: in the Filter sheet now.
-  const about = state ? [outline ? 'Own outline' : templateName, flowLabel(state)].filter(Boolean).join(' · ') : '';
+  const about = state ? [outline ? t('map.home.ownOutline') : templateName, flowLabel(state)].filter(Boolean).join(' · ') : '';
   // Workers land here from the Map tab; everyone else came from the overview or a language home.
   const backable = mapScreenFor(ctx.session) === 'status_home';
   const filterLink = state && entries.length > 0 && !outline
-    ? <QuietIconLink icon="filter" label="Filter" onPress={() => setFilterOpen(true)} detail="Show only some passages: with feedback, with reviewers, done, not recorded." />
+    ? <QuietIconLink icon="filter" label={t('map.filter.title')} onPress={() => setFilterOpen(true)} detail={t('map.home.filterHelp')} />
     : undefined;
   const header = <Header title={language} {...(backable ? { onBack: ctx.back } : {})} {...(filterLink ? { action: filterLink } : {})} />;
 
   if (!languageId) {
-    return <Screen header={header}><EmptyState icon="globe" title="No languages yet" sub="Once a language is added, its passages show here." /></Screen>;
+    return <Screen header={header}><EmptyState icon="globe" title={t('map.noLanguages')} sub={t('map.home.noLanguagesSub')} /></Screen>;
   }
-  if (!state || !progress) return <Screen header={header}><EmptyState icon="map" title="Loading…" /></Screen>;
+  if (!state || !progress) return <Screen header={header}><EmptyState icon="map" title={t('common.loading')} /></Screen>;
 
   // Reached from the Map tab, a worker switches language here; from the
   // overview or a language home, the screen is about that one language.
@@ -533,11 +600,11 @@ export function MapHome(ctx: Ctx) {
     </ChipRow>
   ) : null;
 
-  if (entries.length === 0) {
+  if (entries.length === 0 && waiting.length === 0) {
     return (
       <Screen header={header}>
         {languageChips}
-        <EmptyState icon="book" title="No passages yet" sub={`Once ${language} has passages to record, they show here by book and chapter.`} />
+        <EmptyState icon="book" title={t('map.home.noPassages')} sub={t('map.home.noPassagesSub', { language })} />
       </Screen>
     );
   }
@@ -562,24 +629,24 @@ export function MapHome(ctx: Ctx) {
   // New Testament first (demo Map), then Old.
   const testaments = (['nt', 'ot'] as const).filter((t) => books.some((b) => b.book?.testament === t));
   const shownTestament = testament && testaments.includes(testament) ? testament : testaments[0];
-  const inFilter = (b: BookSummary) => filter === 'all' || b.matching > 0;
+  const inFilter = (b: BookSummary) => filter === 'all' || b.matching > 0 || !!b.waiting;
   const visible = books.filter((b) => b.book && b.book.testament === shownTestament && inFilter(b));
   const other = books.find((b) => !b.book && inFilter(b));
   const summary = [
-    `${fmt(progress.recorded)} of ${fmt(progress.total)} recorded · ${fmt(progress.done)} done · ${fmt(progress.waiting)} with reviewers`,
+    t('map.home.summary', { recorded: fmt(progress.recorded), total: fmt(progress.total), done: fmt(progress.done), waiting: fmt(progress.waiting) }),
     ...(about ? [about] : [])
   ];
 
   return (
     <Screen header={header}>
       {languageChips}
-      <SearchField value={query} onChangeText={(v) => { setQuery(v); setLimit(PAGE); }} placeholder="Find “John 3”" />
+      <SearchField value={query} onChangeText={(v) => { setQuery(v); setLimit(PAGE); }} placeholder={t('map.home.find')} />
 
       {searching ? (
         search.chapter === undefined ? (
           <>
             <Text style={[txt.sm, { color: C.muted, fontWeight: '600', paddingHorizontal: space.xs }]}>
-              {bookHits.length ? `${plural(bookHits.length, 'book')} · add a chapter number to jump straight to it` : 'No book by that name in this language'}
+              {bookHits.length ? t('map.home.bookHits', { count: bookHits.length }) : t('map.home.noBook')}
             </Text>
             {bookHits.length > 0 ? (
               <Group>
@@ -590,12 +657,12 @@ export function MapHome(ctx: Ctx) {
         ) : (
           <>
             <Text style={[txt.sm, { color: C.muted, fontWeight: '600', paddingHorizontal: space.xs }]}>
-              {passageHits.length ? plural(passageHits.length, 'passage') : 'No passage matches — try a book name, then a chapter'}
+              {passageHits.length ? t('map.passages', { count: passageHits.length }) : t('map.home.noPassageMatch')}
             </Text>
             {passageHits.length > 0 ? (
               <Group>
                 {passageHits.slice(0, limit).map((e, i, shown) => (
-                  <PassageRow key={e.unitId} ctx={ctx} state={state} kinds={kinds} e={e} mine={forYou.has(e.unitId)} last={i === shown.length - 1}
+                  <PassageRow key={e.unitId} ctx={ctx} state={state} kinds={kinds} e={e} mine={forYou.has(e.unitId)} last={i === shown.length - 1} changed={earlier.over.has(e.unitId)}
                     onPress={() => ctx.openPassage(e.unitId, languageId)} />
                 ))}
               </Group>
@@ -606,14 +673,15 @@ export function MapHome(ctx: Ctx) {
       ) : (
         <>
           {nextLink}
+          {numbering.clash ? <NumberingNote clash={numbering.clash} onIgnore={numbering.ignore} /> : null}
           <ActiveFilter filter={filter} counts={counts} onOpen={() => setFilterOpen(true)} onClear={() => setFilter('all')} />
           {testaments.length > 1 && shownTestament ? (
-            <Pills items={testaments.map((t) => ({ id: t, label: t === 'ot' ? 'Old Testament' : 'New Testament' }))} on={shownTestament} onPick={setTestament} />
+            <Pills items={testaments.map((id) => ({ id, label: id === 'ot' ? t('map.home.oldTestament') : t('map.home.newTestament') }))} on={shownTestament} onPick={setTestament} />
           ) : null}
 
           {visible.length === 0 && !other ? (
             <Text style={[txt.bodyMuted, { textAlign: 'center', paddingVertical: space.xl }]}>
-              {filter === 'all' ? 'No books in this language yet.' : 'Nothing here matches this filter.'}
+              {filter === 'all' ? t('map.home.noBooks') : t('map.nothingMatches')}
             </Text>
           ) : null}
           {visible.length > 0 ? (
@@ -623,7 +691,7 @@ export function MapHome(ctx: Ctx) {
           ) : null}
           {other ? (
             <View style={{ gap: space.sm }}>
-              <SectionLabel label="Other" />
+              <SectionLabel label={t('map.other')} />
               <Group><BookRow b={other} filter={filter} last onPress={() => openBook(OTHER)} /></Group>
             </View>
           ) : null}
@@ -637,14 +705,16 @@ export function MapHome(ctx: Ctx) {
 // ---- one book: a grid of chapters (MAP-5) ---------------------------------------------------
 
 /** What each tone is called, for a tile's spoken label. */
-const TONES: Record<ChapterTone, { label: string }> = {
-  done: { label: 'Done' },
-  feedback: { label: 'Feedback waiting' },
-  review: { label: 'Recorded, in review' },
-  drafting: { label: 'Recording started' },
-  todo: { label: 'Not recorded' },
-  none: { label: 'No passage' }
-};
+function toneLabel(tone: ChapterTone): string {
+  switch (tone) {
+    case 'done': return t('map.tones.done');
+    case 'feedback': return t('map.tones.feedback');
+    case 'review': return t('map.tones.review');
+    case 'drafting': return t('map.tones.drafting');
+    case 'todo': return t('map.tones.todo');
+    case 'none': return t('map.tones.none');
+  }
+}
 
 interface ChapterTile {
   n: number;
@@ -663,17 +733,26 @@ interface ChapterTile {
  * device) stays in its spoken label and under Filter's key; a kept chapter
  * keeps its mark at the corner.
  */
-function Tile(props: { c: ChapterTile; onPress: () => void; current?: boolean; offline: Map<string, KeptOffline> }) {
+function Tile(props: { c: ChapterTile; onPress: () => void; current?: boolean; offline: Map<string, KeptOffline>; changed?: boolean }) {
   const { c } = props;
-  const t = TONES[c.tone];
   const parts = c.list.length;
   // Kept passages of this chapter (decisions.md 61): the mark is green only when every kept one is ready.
   const kept = c.list.map((e) => props.offline.get(e.unitId)).filter((u): u is KeptOffline => !!u);
-  const keptLabel = kept.length === 0 ? '' : `, ${kept.length === parts ? (parts > 1 ? 'all parts' : 'kept') : `${kept.length} of ${parts} parts`} on this device${kept.every((u) => u.ready) ? '' : ' (downloading)'}`;
-  const label = `Chapter ${c.n}: ${t.label}${c.tone === 'review' && c.steps ? ` (${c.cleared} of ${c.steps} steps)` : ''}${parts > 1 ? `, ${parts} parts` : ''}${c.mine ? ', for you' : ''}${keptLabel}${c.matches ? '' : ', outside the filter'}`;
+  const keptWhere = kept.length === parts ? (parts > 1 ? t('map.tile.keptAll') : t('map.tile.kept')) : t('map.tile.keptSome', { count: parts, kept: fmt(kept.length) });
+  const keptLabel = kept.length === 0 ? null : kept.every((u) => u.ready) ? keptWhere : t('map.tile.downloading', { kept: keptWhere });
+  const state = c.tone === 'review' && c.steps
+    ? t('map.tile.stateSteps', { state: toneLabel(c.tone), cleared: fmt(c.cleared), steps: fmt(c.steps) }) : toneLabel(c.tone);
+  const label = clauses([
+    t('map.tile.chapter', { n: fmt(c.n), state }),
+    ...(parts > 1 ? [t('map.tile.parts', { count: parts })] : []),
+    ...(c.mine ? [t('map.tile.forYou')] : []),
+    ...(keptLabel ? [keptLabel] : []),
+    ...(props.changed ? [t('map.tile.changedSinceRecorded')] : []),
+    ...(c.matches ? [] : [t('map.tile.outsideFilter')])
+  ]);
   return (
     <ChapterTileView n={c.n} stage={chapterStage(c.tone)} dim={!c.matches} current={!!props.current} disabled={parts === 0} label={label} onPress={props.onPress}
-      corner={kept.length ? <OfflineMark u={kept.every((u) => u.ready) ? kept[0] : kept.find((u) => !u.ready)} /> : undefined} />
+      corner={kept.length ? <OfflineMark u={kept.every((u) => u.ready) ? kept[0] : kept.find((u) => !u.ready)} /> : props.changed ? <ChangedMark /> : undefined} />
   );
 }
 
@@ -688,6 +767,7 @@ export function BookMap(ctx: Ctx) {
   const [filterOpen, setFilterOpen] = useState(false);
   const [limit, setLimit] = useState(PAGE);
   const forYou = useForYou(ctx, state);
+  const earlier = useEarlierSections(ctx, state);
   const layout = useLayout();
   const beside = useOpenDetail();
   const book = canonBook(bookId);
@@ -718,25 +798,38 @@ export function BookMap(ctx: Ctx) {
   }, [book, entries, forYou, filter]);
 
   const language = languageId ? languageName(ctx.org.state, languageId) : '';
-  const title = book?.name ?? 'Other';
+  const title = book?.name ?? t('map.other');
   const recordedCount = entries.filter((e) => e.s.recorded).length;
-  const crumbs = [{ label: language || 'Passage Map', onPress: () => ctx.go('map_home', languageId ? { languageId } : undefined) }, { label: title }];
+  const crumbs = [{ label: language || t('map.home.title'), onPress: () => ctx.go('map_home', languageId ? { languageId } : undefined) }, { label: title }];
   const canEdit = !!book && canGo(ctx, 'book_map', 'book_structure');
   // The demo's book (MapBook): the book's name and how many of its passages are recorded; nothing else up top.
-  const header = <Header title={title} crumbs={crumbs} onBack={ctx.back} sub={`${fmt(recordedCount)} of ${plural(entries.length, 'passage')}`} />;
+  const header = <Header title={title} crumbs={crumbs} onBack={ctx.back} sub={t('map.book.sub', { count: entries.length, recorded: fmt(recordedCount) })} />;
   if (!languageId || (!book && bookId !== OTHER)) {
-    return <Screen header={header}><EmptyState icon="book" title="This book isn't in this language" sub="Go back to the map to pick another." /></Screen>;
+    return <Screen header={header}><EmptyState icon="book" title={t('map.book.notHere')} sub={t('map.book.notHereSub')} /></Screen>;
   }
-  if (!state) return <Screen header={header}><EmptyState icon="book" title="Loading…" /></Screen>;
+  if (!state) return <Screen header={header}><EmptyState icon="book" title={t('common.loading')} /></Screen>;
+
+  if (book && entries.length === 0 && waitingBooks(state).includes(book.id)) {
+    const may = canGo(ctx, 'book_map', 'book_structure');
+    return (
+      <Screen header={<Header title={title} crumbs={crumbs} onBack={ctx.back} sub={t('map.waiting')} />}
+        footer={may ? <PrimaryBtn label={t('map.book.breakUp', { book: book.name })} icon="cut" onPress={() => ctx.go('book_structure', { languageId, bookId })} /> : undefined}>
+        <EmptyState icon="cut" title={t('map.book.notBrokenUp', { book: book.name })}
+          sub={may ? t('map.book.chooseHow', { book: book.name }) : t('map.book.coordinatorDecides', { book: book.name })} />
+      </Screen>
+    );
+  }
 
   const open = (e: Entry) => ctx.openPassage(e.unitId, languageId);
   const sheet = openChapter ? chapters[openChapter - 1] : undefined;
-  const summary = [`${fmt(recordedCount)} of ${plural(entries.length, 'passage')} recorded${language ? ` in ${language}` : ''}`];
+  const summary = [language
+    ? t('map.book.summaryIn', { count: entries.length, recorded: fmt(recordedCount), language })
+    : t('map.book.summary', { count: entries.length, recorded: fmt(recordedCount) })];
   const filterSheet = (
     <FilterSheet visible={filterOpen} onClose={() => setFilterOpen(false)} filter={filter} counts={counts} onFilter={(f) => { setFilter(f); setLimit(PAGE); }} summary={summary}>
       {book ? (
         <>
-          <SectionLabel label="Key" />
+          <SectionLabel label={t('map.book.key')} />
           <FullKey none={chapters.some((c) => c.tone === 'none')} />
         </>
       ) : null}
@@ -745,10 +838,10 @@ export function BookMap(ctx: Ctx) {
   // The less likely ways on, quiet, under the chapters: the filters and the full key, and shaping the book for those who may.
   const quiet = (
     <View style={styles.quietRow}>
-      <QuietIconLink icon="filter" label="Filter" onPress={() => setFilterOpen(true)} detail="Show only some passages, and the full key." />
+      <QuietIconLink icon="filter" label={t('map.filter.title')} onPress={() => setFilterOpen(true)} detail={t('map.book.filterHelp')} />
       {canEdit ? (
-        <QuietIconLink icon="cut" label="Edit passages" onPress={() => ctx.go('book_structure', { languageId: languageId ?? '', bookId })}
-          detail="Divide this book into passages your own way." />
+        <QuietIconLink icon="cut" label={t('map.book.breakUpDifferently')} onPress={() => ctx.go('book_structure', { languageId: languageId ?? '', bookId })}
+          detail={t('map.book.breakUpDifferentlyHelp')} />
       ) : null}
     </View>
   );
@@ -759,10 +852,10 @@ export function BookMap(ctx: Ctx) {
     return (
       <Screen header={header}>
         <ActiveFilter filter={filter} counts={counts} onOpen={() => setFilterOpen(true)} onClear={() => setFilter('all')} />
-        {shown.length === 0 ? <Text style={[txt.bodyMuted, { textAlign: 'center', paddingVertical: space.xl }]}>Nothing here matches this filter.</Text> : (
+        {shown.length === 0 ? <Text style={[txt.bodyMuted, { textAlign: 'center', paddingVertical: space.xl }]}>{t('map.nothingMatches')}</Text> : (
           <Group>
             {shown.slice(0, limit).map((e, i, list) => (
-              <PassageRow key={e.unitId} ctx={ctx} state={state} kinds={kinds} e={e} mine={forYou.has(e.unitId)} last={i === list.length - 1} onPress={() => open(e)} />
+              <PassageRow key={e.unitId} ctx={ctx} state={state} kinds={kinds} e={e} mine={forYou.has(e.unitId)} last={i === list.length - 1} onPress={() => open(e)} changed={earlier.over.has(e.unitId)} />
             ))}
           </Group>
         )}
@@ -785,7 +878,7 @@ export function BookMap(ctx: Ctx) {
         {rows.map((row, r) => (
           <View key={r} style={{ flexDirection: 'row', gap: space.sm }}>
             {row.map((c) => (
-              <Tile key={c.n} c={c} offline={offline} current={beside?.screen === 'passage_record' && c.list.some((e) => e.unitId === beside.params['unitId'])} onPress={() => {
+              <Tile key={c.n} c={c} offline={offline} changed={c.list.some((e) => earlier.over.has(e.unitId))} current={beside?.screen === 'passage_record' && c.list.some((e) => e.unitId === beside.params['unitId'])} onPress={() => {
                 if (c.list.length === 1) open(c.list[0]!);
                 else if (c.list.length > 1) setOpenChapter(c.n);
               }} />
@@ -797,11 +890,11 @@ export function BookMap(ctx: Ctx) {
       <ShortKey offline={chapters.some((c) => c.list.some((e) => offline.has(e.unitId)))} />
       {quiet}
       {filterSheet}
-      <Sheet visible={!!sheet} title={sheet ? `${book.name} ${sheet.n}` : ''} sub={sheet ? `${sheet.list.length} parts — pick one` : ''} onClose={() => setOpenChapter(null)}>
+      <Sheet visible={!!sheet} title={sheet ? t('map.book.chapterTitle', { book: book.name, n: fmt(sheet.n) }) : ''} sub={sheet ? t('map.book.pickPart', { count: sheet.list.length }) : ''} onClose={() => setOpenChapter(null)}>
         {sheet ? (
           <Group>
             {sheet.list.map((e, i) => (
-              <PassageRow key={e.unitId} ctx={ctx} state={state} kinds={kinds} e={e} mine={forYou.has(e.unitId)} last={i === sheet.list.length - 1}
+              <PassageRow key={e.unitId} ctx={ctx} state={state} kinds={kinds} e={e} mine={forYou.has(e.unitId)} last={i === sheet.list.length - 1} changed={earlier.over.has(e.unitId)}
                 onPress={() => { setOpenChapter(null); open(e); }} />
             ))}
           </Group>

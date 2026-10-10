@@ -7,7 +7,8 @@
 update public.server_config set min_client_version = 0;
 
 -- An org with one language, a lead and a translator in that language.
-select set_config('request.jwt.claim.sub', 'dg_lead', false);
+-- Set up as the server would (an import): people here have joined by invite or request (decisions.md 75).
+select set_config('request.jwt.claim.sub', '', false);
 do $$ declare r record; begin
   for r in select * from public.append_events('[
   {"id":"dg1","type":"v1.OrgCreated","orgId":"dg_org","streamId":"_org","actorId":"dg_lead","deviceId":"dg_dA","hlc":"000000000000101:000000:dg_dA","payload":{"name":"Diagnostics Test Org"}},

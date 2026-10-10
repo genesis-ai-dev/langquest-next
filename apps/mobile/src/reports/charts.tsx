@@ -1,11 +1,13 @@
 import { PASSAGE_WORK, percent, RECENCY_DAYS, type ActivityWeek, type PaceBand, type PassageWork, type RecencyBand } from '@langquest-next/core';
 import { useState, type ReactNode } from 'react';
-import { Pressable, Text, View, type LayoutChangeEvent } from 'react-native';
+import { Pressable, View, type LayoutChangeEvent } from 'react-native';
+import { Text } from '../text';
 import Svg, { Circle, G, Line, Path, Polyline, Rect, Text as SvgText } from 'react-native-svg';
+import { t } from '../i18n';
 import { txt } from '../kit';
 import { C, space } from '../theme';
-import { PACE_TONE, recencyDaysLabel, RECENCY_LABEL, RECENCY_TONE, WORK_LABEL, WORK_TONE } from './labels';
-import { Legend, num, shortDate, TONE_FILL, weekday, type Tone } from './ui';
+import { PACE_TONE, recencyDaysLabel, recencyLabel, RECENCY_TONE, workLabel, WORK_TONE } from './labels';
+import { Legend, num, pctText, shortDate, signed, TONE_FILL, weekday, type Tone } from './ui';
 
 /**
  * Small SVG charts, ported from the web dashboard. Each one says its numbers
@@ -32,7 +34,7 @@ function Measured(props: { height: number; label: string; children: (width: numb
 /** Parts of a whole as one stacked bar and a legend with counts. */
 export function StackBar<K extends string>(props: { parts: { key: K; label: string; value: number; tone: Tone; soft?: boolean }[]; empty?: string }) {
   const total = props.parts.reduce((n, p) => n + p.value, 0);
-  if (total === 0) return <Text style={txt.smMuted}>{props.empty ?? 'Nothing yet.'}</Text>;
+  if (total === 0) return <Text style={txt.smMuted}>{props.empty ?? t('reports.charts.nothingYet')}</Text>;
   const color = (p: { tone: Tone; soft?: boolean }) => (p.soft ? C.soft : TONE_FILL[p.tone]);
   return (
     <View style={{ gap: space.sm }}>
@@ -41,15 +43,15 @@ export function StackBar<K extends string>(props: { parts: { key: K; label: stri
           <View key={p.key} style={{ width: `${(100 * p.value) / total}%`, backgroundColor: color(p) }} />
         ))}
       </View>
-      <Legend items={props.parts.map((p) => ({ label: p.label, color: color(p), value: `${num(p.value)} (${percent(p.value, total)}%)` }))} />
+      <Legend items={props.parts.map((p) => ({ label: p.label, color: color(p), value: t('reports.charts.valueShare', { value: num(p.value), share: pctText(percent(p.value, total)) }) }))} />
     </View>
   );
 }
 
 export function WorkBar(props: { work: Record<PassageWork, number> }) {
   return (
-    <StackBar empty="No passages yet." parts={PASSAGE_WORK.map((w) => ({
-      key: w, label: WORK_LABEL[w], value: props.work[w], tone: WORK_TONE[w], soft: w === 'drafting'
+    <StackBar empty={t('reports.charts.noPassages')} parts={PASSAGE_WORK.map((w) => ({
+      key: w, label: workLabel(w), value: props.work[w], tone: WORK_TONE[w], soft: w === 'drafting'
     }))} />
   );
 }
@@ -73,7 +75,7 @@ export function GroupedBars(props: { labels: string[]; series: Series[]; format:
   const H = 200, left = 36, bottom = 24, top = 8;
   return (
     <View style={{ gap: space.sm }}>
-      <Measured height={H} label={series.map((s, i) => `${num(totals[i]!)} ${s.label.toLowerCase()}`).join(', ')}>
+      <Measured height={H} label={series.map((s, i) => t('reports.charts.seriesTotal', { label: s.label, value: num(totals[i]!) })).join(', ')}>
         {(W) => {
           const plotW = W - left, plotH = H - bottom - top;
           const group = plotW / Math.max(1, labels.length);
@@ -110,7 +112,7 @@ export function GroupedBars(props: { labels: string[]; series: Series[]; format:
         <View>
           <Pressable onPress={() => setOpen((o) => !o)} accessibilityRole="button" accessibilityState={{ expanded: open }} hitSlop={8}
             style={({ pressed }) => [{ minHeight: 48, justifyContent: 'center' }, pressed && { opacity: 0.6 }]}>
-            <Text style={txt.link}>{open ? 'Hide the numbers' : 'Show the numbers'}</Text>
+            <Text style={txt.link}>{open ? t('reports.charts.hideNumbers') : t('reports.charts.showNumbers')}</Text>
           </Pressable>
           {open ? (
             <View>
@@ -136,37 +138,38 @@ export function GroupedBars(props: { labels: string[]; series: Series[]; format:
 export function ActivityChart(props: { weeks: ActivityWeek[]; withCards?: boolean }) {
   const { weeks } = props;
   const series: Series[] = [
-    ...(props.withCards ? [{ key: 'cards', label: 'Recordings uploaded', color: C.soft, values: weeks.map((w) => w.cards) }] : []),
-    { key: 'versions', label: 'Versions published', color: C.primary, values: weeks.map((w) => w.versions) },
-    { key: 'reviews', label: 'Reviews', color: C.green, values: weeks.map((w) => w.reviews) },
-    { key: 'requests', label: 'Requests made', color: C.amber, values: weeks.map((w) => w.requests) }
+    ...(props.withCards ? [{ key: 'cards', label: t('reports.charts.recordingsUploaded'), color: C.soft, values: weeks.map((w) => w.cards) }] : []),
+    { key: 'versions', label: t('reports.charts.versionsPublished'), color: C.primary, values: weeks.map((w) => w.versions) },
+    { key: 'reviews', label: t('reports.charts.reviews'), color: C.green, values: weeks.map((w) => w.reviews) },
+    { key: 'requests', label: t('reports.charts.requestsMade'), color: C.amber, values: weeks.map((w) => w.requests) }
   ];
   return (
-    <GroupedBars labels={weeks.map((w) => w.weekStart)} series={series} format={shortDate} title={(d) => `Week of ${shortDate(d)}`}
-      empty={`No versions, reviews or requests in the last ${weeks.length} weeks.`} />
+    <GroupedBars labels={weeks.map((w) => w.weekStart)} series={series} format={shortDate} title={(d) => t('reports.charts.weekOf', { date: shortDate(d) })}
+      empty={t('reports.charts.noActivity', { count: weeks.length })} />
   );
 }
 
 /** One series of days, the recent part highlighted against what came before. */
-export function DayBars(props: { days: { day: string; value: number }[]; highlightFrom: string; label: string; unit: string }) {
+export function DayBars(props: { days: { day: string; value: number }[]; highlightFrom: string; label: string; unit: 'uploads' | 'recordings' }) {
   const { days } = props;
   return (
-    <GroupedBars labels={days.map((d) => d.day)} format={shortDate} title={(d) => shortDate(d)} empty={`No ${props.unit} in this period.`} table={false}
+    <GroupedBars labels={days.map((d) => d.day)} format={shortDate} title={(d) => shortDate(d)} table={false}
+      empty={props.unit === 'uploads' ? t('reports.charts.noUploadsInPeriod') : t('reports.charts.noRecordingsInPeriod')}
       series={[
-        { key: 'before', label: `Before ${shortDate(props.highlightFrom)}`, color: PRIOR, values: days.map((d) => (d.day < props.highlightFrom ? d.value : 0)) },
+        { key: 'before', label: t('reports.charts.before', { date: shortDate(props.highlightFrom) }), color: PRIOR, values: days.map((d) => (d.day < props.highlightFrom ? d.value : 0)) },
         { key: 'recent', label: props.label, color: C.primary, values: days.map((d) => (d.day >= props.highlightFrom ? d.value : 0)) }
       ]} />
   );
 }
 
 /** This period's days beside the same days of the period before. */
-export function CompareBars(props: { current: { day: string; value: number }[]; previous: { day: string; value: number }[]; unit: string }) {
+export function CompareBars(props: { current: { day: string; value: number }[]; previous: { day: string; value: number }[] }) {
   const labels = props.current.map((d) => d.day);
   return (
-    <GroupedBars labels={labels} format={weekday} title={(d) => shortDate(d)} empty={`No ${props.unit} in either period.`}
+    <GroupedBars labels={labels} format={weekday} title={(d) => shortDate(d)} empty={t('reports.charts.noRecordingsEitherPeriod')}
       series={[
-        { key: 'prev', label: 'Period before', color: PRIOR, values: labels.map((_, i) => props.previous[i]?.value ?? 0) },
-        { key: 'now', label: 'This period', color: C.primary, values: props.current.map((d) => d.value) }
+        { key: 'prev', label: t('reports.charts.periodBefore'), color: PRIOR, values: labels.map((_, i) => props.previous[i]?.value ?? 0) },
+        { key: 'now', label: t('reports.charts.thisPeriod'), color: C.primary, values: props.current.map((d) => d.value) }
       ]} />
   );
 }
@@ -177,7 +180,7 @@ export function Sparkline(props: { values: number[]; label: string }) {
   const max = Math.max(1, ...props.values);
   const pts = props.values.map((v, i) => `${((W - 2) * i) / Math.max(1, props.values.length - 1) + 1},${H - 2 - ((H - 4) * v) / max}`).join(' ');
   return (
-    <View accessible accessibilityRole="image" accessibilityLabel={`${props.label}: ${props.values.join(', ')}`}>
+    <View accessible accessibilityRole="image" accessibilityLabel={t('reports.charts.sparkline', { label: props.label, values: props.values.map(num).join(', ') })}>
       <Svg width={W} height={H}><Polyline points={pts} fill="none" stroke={C.primary} strokeWidth={1.5} /></Svg>
     </View>
   );
@@ -186,12 +189,15 @@ export function Sparkline(props: { values: number[]; label: string }) {
 /** Recorded and done, as a share of passages, one point per day the server reported. */
 export function ProgressLine(props: { points: { day: string; recorded: number; done: number }[] }) {
   const { points } = props;
-  if (points.length < 2) return <Text style={txt.smMuted}>The line starts once the server has reported on two different days.</Text>;
+  if (points.length < 2) return <Text style={txt.smMuted}>{t('reports.charts.lineStarts')}</Text>;
   const H = 200, left = 40, bottom = 24, top = 8;
   const first = points[0]!, last = points.at(-1)!;
   return (
     <View style={{ gap: space.sm }}>
-      <Measured height={H} label={`From ${shortDate(first.day)} to ${shortDate(last.day)}: recorded ${first.recorded}% to ${last.recorded}%, done ${first.done}% to ${last.done}%.`}>
+      <Measured height={H} label={t('reports.charts.progressSpoken', {
+        from: shortDate(first.day), to: shortDate(last.day),
+        recordedFrom: pctText(first.recorded), recordedTo: pctText(last.recorded), doneFrom: pctText(first.done), doneTo: pctText(last.done)
+      })}>
         {(W) => {
           const plotW = W - left - 8, plotH = H - bottom - top;
           const x = (i: number) => left + (plotW * i) / (points.length - 1);
@@ -202,7 +208,7 @@ export function ProgressLine(props: { points: { day: string; recorded: number; d
               {[0, 50, 100].map((v) => (
                 <G key={v}>
                   <Line x1={left} x2={W - 8} y1={y(v)} y2={y(v)} stroke={C.border} strokeWidth={1} />
-                  <SvgText x={left - 6} y={y(v) + 4} textAnchor="end" {...AXIS}>{`${v}%`}</SvgText>
+                  <SvgText x={left - 6} y={y(v) + 4} textAnchor="end" {...AXIS}>{pctText(v)}</SvgText>
                 </G>
               ))}
               <Path d={path('recorded')} fill="none" stroke={C.primary} strokeWidth={2.5} />
@@ -213,7 +219,10 @@ export function ProgressLine(props: { points: { day: string; recorded: number; d
           );
         }}
       </Measured>
-      <Legend items={[{ label: 'Recorded', color: C.primary, value: `${last.recorded}%` }, { label: 'Done', color: C.green, value: `${last.done}%` }]} />
+      <Legend items={[
+        { label: t('reports.progress.recorded'), color: C.primary, value: pctText(last.recorded) },
+        { label: t('reports.progress.done'), color: C.green, value: pctText(last.done) }
+      ]} />
     </View>
   );
 }
@@ -223,7 +232,7 @@ export function ProgressLine(props: { points: { day: string; recorded: number; d
 /** Days since each language's last upload on one axis, the bands shaded, quiet languages named. */
 export function RecencyStrip(props: { items: { name: string; days: number | null; band: RecencyBand }[] }) {
   const items = props.items.filter((i) => i.days !== null) as { name: string; days: number; band: RecencyBand }[];
-  if (items.length === 0) return <Text style={txt.smMuted}>No language has uploaded yet.</Text>;
+  if (items.length === 0) return <Text style={txt.smMuted}>{t('reports.charts.noUploadsYet')}</Text>;
   const MAX = 60, left = 8, right = 8, top = 28;
   // Stack dots that land on the same day.
   const seen = new Map<number, number>();
@@ -239,7 +248,10 @@ export function RecencyStrip(props: { items: { name: string; days: number | null
   const bands = Object.entries(RECENCY_DAYS) as [Exclude<RecencyBand, 'not_started'>, [number, number]][];
   return (
     <View style={{ gap: space.sm }}>
-      <Measured height={H} label={`${items.filter((i) => i.band === 'active').length} active; ${items.filter((i) => i.band !== 'active').map((i) => `${i.name} ${i.days} days`).join(', ')}`}>
+      <Measured height={H} label={t('reports.charts.recencySpoken', {
+        count: items.filter((i) => i.band === 'active').length,
+        quiet: items.filter((i) => i.band !== 'active').map((i) => t('reports.charts.nameDays', { name: i.name, count: i.days })).join(', ')
+      })}>
         {(W) => {
           const x = (d: number) => left + ((W - left - right) * Math.min(d, MAX)) / MAX;
           return (
@@ -247,7 +259,7 @@ export function RecencyStrip(props: { items: { name: string; days: number | null
               {bands.map(([band, [lo, hi]]) => (
                 <G key={band}>
                   <Rect x={x(lo)} y={top - 6} width={Math.max(0, x(Math.min(hi + 1, MAX)) - x(lo))} height={rows * 14 + 12} fill={TONE_FILL[RECENCY_TONE[band]]} opacity={0.15} />
-                  <SvgText x={x(lo) + 3} y={14} {...AXIS}>{`${lo}d`}</SvgText>
+                  <SvgText x={x(lo) + 3} y={14} {...AXIS}>{t('reports.daysShort', { count: lo })}</SvgText>
                 </G>
               ))}
               {placed.map((p) => (
@@ -255,14 +267,14 @@ export function RecencyStrip(props: { items: { name: string; days: number | null
               ))}
               {labelled.map((p, i) => (
                 <SvgText key={`l-${p.name}`} x={Math.min(x(p.days), W - 4)} y={top + rows * 14 + 22 + (i % 3) * 14} fontSize={13} fill={C.dark}
-                  textAnchor={x(p.days) > W - 120 ? 'end' : 'start'}>{`${p.name} · ${p.days}d`}</SvgText>
+                  textAnchor={x(p.days) > W - 120 ? 'end' : 'start'}>{t('reports.charts.nameDaysShort', { name: p.name, count: p.days })}</SvgText>
               ))}
             </>
           );
         }}
       </Measured>
       <Legend items={(['active', 'check_in', 'reminder', 'four_weeks', 'five_weeks', 'inactive'] as const).map((b) => ({
-        label: `${RECENCY_LABEL[b]} (${recencyDaysLabel(b)})`, color: TONE_FILL[RECENCY_TONE[b]]
+        label: t('reports.charts.bandDays', { label: recencyLabel(b), days: recencyDaysLabel(b) }), color: TONE_FILL[RECENCY_TONE[b]]
       }))} />
     </View>
   );
@@ -272,7 +284,7 @@ export function RecencyStrip(props: { items: { name: string; days: number | null
 
 /** Every language's gap to its plan on one axis, the on-pace band shaded. */
 export function PaceStrip(props: { items: { name: string; gap: number; band: PaceBand }[] }) {
-  if (props.items.length === 0) return <Text style={txt.smMuted}>No language has a target yet.</Text>;
+  if (props.items.length === 0) return <Text style={txt.smMuted}>{t('reports.charts.noTargetYet')}</Text>;
   const MIN = -50, MAX = 50, left = 12, right = 12, top = 12;
   const seen = new Map<number, number>();
   const placed = props.items.map((i) => {
@@ -284,7 +296,7 @@ export function PaceStrip(props: { items: { name: string; gap: number; band: Pac
   const rows = Math.max(1, ...placed.map((p) => p.row + 1));
   const H = top + rows * 14 + 36;
   return (
-    <Measured height={H} label={props.items.map((i) => `${i.name} ${i.gap >= 0 ? '+' : ''}${i.gap} points`).join(', ')}>
+    <Measured height={H} label={props.items.map((i) => t('reports.charts.namePoints', { name: i.name, gap: signed(i.gap), count: Math.abs(i.gap) })).join(', ')}>
       {(W) => {
         const x = (g: number) => left + ((W - left - right) * (Math.max(MIN, Math.min(MAX, g)) - MIN)) / (MAX - MIN);
         return (
@@ -296,7 +308,7 @@ export function PaceStrip(props: { items: { name: string; gap: number; band: Pac
             ))}
             {[-50, -25, 0, 25, 50].map((g) => (
               <SvgText key={g} x={x(g)} y={H - 6} textAnchor={g === -50 ? 'start' : g === 50 ? 'end' : 'middle'} {...AXIS}>
-                {g === 0 ? 'on plan' : `${g > 0 ? '+' : '−'}${Math.abs(g)}`}
+                {g === 0 ? t('reports.charts.onPlan') : `${g > 0 ? '+' : '−'}${num(Math.abs(g))}`}
               </SvgText>
             ))}
           </>

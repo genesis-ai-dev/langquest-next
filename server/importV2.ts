@@ -2,7 +2,7 @@
  * Import LangQuest v2 projects into the event log (PLAN.md build order 8).
  *
  *   npm run import:v2 -- --project <v2 project id> [--project ...] [--org langquest-v2]
- *       [--grant <email>=<role>] [--skip-audio] [--concurrency 8]
+ *       [--grant <email>=<role>] [--skip-audio] [--concurrency 8] [--existing-org]
  *
  * Reads v2 anonymously (its tables are world-readable) from V2_SUPABASE_URL /
  * V2_SUPABASE_ANON_KEY, copies audio from the public V2_BUCKET (default
@@ -100,6 +100,22 @@ function mp4DurationMs(bytes: Uint8Array): number {
   throw new Error('no mvhd box: not an MP4/M4A file');
 }
 
+// The organization must be this import's own (decisions.md 75). Anyone may
+// create an organization under an id nobody has used yet, and the default id
+// is well known, so one someone else created is refused rather than filled
+// with v2's work. --existing-org imports into it anyway, once you have
+// checked who runs it.
+{
+  const { data, error } = await service.from('events').select('id, actor_id')
+    .eq('org_id', orgId).eq('stream_id', '_org').eq('type', 'v1.OrgCreated');
+  if (error) throw new Error(`events: ${error.message}`);
+  const foreign = (data ?? []).filter((e) => e.id !== `v2:org:${orgId}`);
+  if (foreign.length > 0 && !flag('existing-org')) {
+    throw new Error(`organization ${orgId} was created by ${foreign.map((e) => e.actor_id).join(', ')}, not by this import. ` +
+      'Check who runs it, then pass --existing-org to import into it, or choose another --org.');
+  }
+}
+
 const transport = new SupabaseTransport(service);
 let orgOwner = '';
 let orgAt = '';
@@ -114,6 +130,14 @@ for (const project of projects) {
   // seeding it again for each project only adds the new language.
   const listing = mapV2Project(rows, { orgId, blobs: new Map(), grant });
   const languageId = listing.language.languageId;
+  // Many v2 projects name the wrong language (English, or a user-made copy
+  // of it); docs/v2-project-languages.md says which one each should have.
+  // Languages v2 users made are not in the language list (docs/languoids.md).
+  for (const code of new Set([listing.language.code, listing.language.sourceCode])) {
+    const { data, error } = await service.from('languoid').select('id').eq('id', code).maybeSingle();
+    if (error && !/invalid input syntax for type uuid/.test(error.message)) throw new Error(`languoid: ${error.message}`);
+    if (!data) console.log(`  language ${code} is not in the language list; check docs/v2-project-languages.md`);
+  }
   // Whoever you granted ownership to is the org's admin: that is the account
   // that will actually drive it. Otherwise fall back to v2's project owner.
   if (!orgOwner) {

@@ -1,0 +1,23 @@
+{
+  "invite": {
+    "subject": "आपका LangQuest निमंत्रण",
+    "heading": "आपका LangQuest निमंत्रण",
+    "intro": "आपको LangQuest में एक टीम से जुड़ने का निमंत्रण मिला है।",
+    "openLink": "यह लिंक खोलें:",
+    "openLinkOnPhone": "यह लिंक अपने फ़ोन पर खोलें:",
+    "openButton": "LangQuest खोलें",
+    "openButtonOnPhone": "अपने फ़ोन पर LangQuest खोलें",
+    "orPasteCode": "या LangQuest में {{screen}} दबाएँ और यह कोड पेस्ट करें:",
+    "joinScreen": "कोड स्कैन करें",
+    "expires": "इस निमंत्रण का समय {{date}} को खत्म होगा।",
+    "ignore": "अगर आपको इस निमंत्रण की उम्मीद नहीं थी, तो आप इसे अनदेखा कर सकते हैं।"
+  },
+  "reset": {
+    "subject": "LangQuest का नया पासवर्ड चुनें",
+    "heading": "नया पासवर्ड चुनें",
+    "intro": "किसी ने LangQuest में {{email}} का पासवर्ड बदलने का अनुरोध किया।",
+    "openButton": "नया पासवर्ड चुनें",
+    "expires": "यह लिंक {{minutes}} मिनट तक काम करता है।",
+    "ignore": "अगर आपने यह अनुरोध नहीं किया, तो इस ईमेल को अनदेखा करें। आपका पासवर्ड वही रहेगा।"
+  }
+}

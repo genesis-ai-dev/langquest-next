@@ -8,7 +8,9 @@ import { AppState, Platform } from 'react-native';
 import MicrophoneEnergy, { type VADConfig } from '../modules/microphone-energy';
 import { preferredRecordingType } from './audioFormat';
 import { getBlobStore } from './blobs';
+import { t } from './i18n';
 import { getRecordingJournal } from './recordingJournal';
+import { failureMessage, noteExpected } from './report';
 import { cachedMicSettings, loadMicSettings, onMicSettings } from './simple/micSettings';
 import type { JournalTarget } from './recordingJournalCore';
 import { storableRecording } from './webAudio';
@@ -47,6 +49,21 @@ export const VAD_BASE: VADConfig = {
 let vadOwner: symbol | null = null;
 export function claimVad(owner: symbol | null): void {
   vadOwner = owner;
+}
+
+/** The microphone was refused: said in words, not reported as a fault. */
+export class MicrophoneRefused extends Error {
+  override name = 'MicrophoneRefused';
+}
+
+/**
+ * What a person reads when recording failed: a refused microphone in words;
+ * anything else is a fault, reported, and shown with a code (never the raw
+ * message, which is a native module's English).
+ */
+export function recorderProblem(where: string, e: unknown): string {
+  if (e instanceof MicrophoneRefused) { noteExpected(where, e); return t('recording.recorder.permissionNeeded'); }
+  return failureMessage(where, e);
 }
 
 /** Recorders with the microphone open or a save in progress, app-wide. */
@@ -96,7 +113,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
   const failures = useRef<PendingFile[]>([]);
   const config = useRef({ threshold: chosen?.threshold ?? 0.1, silenceDuration: chosen?.pauseMs ?? 1000 });
   const fail = useCallback((e: unknown) => {
-    if (mounted.current) setError(e instanceof Error ? e.message : String(e));
+    if (mounted.current) setError(recorderProblem('recorder', e));
   }, []);
   const work = useCallback((delta: number) => {
     if (mounted.current) setWorking((n) => Math.max(0, n + delta));
@@ -176,7 +193,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
       try {
         const permission = await AudioModule.requestRecordingPermissionsAsync();
         if (!wanted.current || !mounted.current) return;
-        if (!permission.granted) throw new Error('Microphone permission is required.');
+        if (!permission.granted) throw new MicrophoneRefused();
         await setSessionAudioMode({ allowsRecording: true, playsInSilentMode: true });
         if (!wanted.current || !mounted.current) return;
         await MicrophoneEnergy.startEnergyDetection();
@@ -260,7 +277,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
       try {
         const permission = await AudioModule.requestRecordingPermissionsAsync();
         if (!mounted.current) return;
-        if (!permission.granted) throw new Error('Microphone permission is required.');
+        if (!permission.granted) throw new MicrophoneRefused();
         await MicrophoneEnergy.configureVAD({ ...VAD_BASE, ...config.current });
         await setSessionAudioMode({ allowsRecording: true, playsInSilentMode: true });
         if (!mounted.current) return;
@@ -297,7 +314,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
   useEffect(() => {
     mounted.current = true;
     const subscriptions = [
-      MicrophoneEnergy.addListener('onError', (e) => fail(e.message)),
+      MicrophoneEnergy.addListener('onError', (e) => fail(new Error(e.message))),
       MicrophoneEnergy.addListener('onSegmentStart', () => { if (vadOwner === self) setVadCapturing(true); }),
       MicrophoneEnergy.addListener('onSegmentComplete', (e) => {
         if (vadOwner !== self) return;
