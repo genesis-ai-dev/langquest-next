@@ -76,7 +76,7 @@ function Overview({ ctx }: { ctx: Ctx }) {
         : <PrimaryBtn label={t('common.done')} icon="check" onPress={ctx.back} />}>
       <ReadyChecklist ctx={ctx} s={s} />
       {help ? <QuietLink icon="playSolid" label={t('admin.howItWorks.link', { length: formatClock(40_000) })} detail={t('admin.howItWorks.detail')}
-        onPress={() => { help.setOn(true); help.explain(t('admin.howItWorks.title'), howItWorks(s.name)); }} /> : null}
+        onPress={() => { help.setOn(true); help.tell(t('admin.howItWorks.title'), howItWorks(s.name)); }} /> : null}
     </Screen>
   );
 }

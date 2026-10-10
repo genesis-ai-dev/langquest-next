@@ -10,7 +10,8 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../text';
 import type { Ctx } from '../ctx';
-import { useHelpPress } from '../helpContext';
+import { useHelpSpot } from '../helpContext';
+import { HelpBadge } from '../helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { indexesFor } from '../indexes';
@@ -189,9 +190,9 @@ export function BiblePane(props: {
 function Verse(props: { row: VerseRow; here: boolean; selected: boolean; notes: number; timed: boolean; onPress: () => void; children: ReactNode }) {
   const r = props.row;
   const verse = r.key.includes(':') ? r.key.slice(r.key.indexOf(':') + 1) : r.key;
-  const onPress = useHelpPress(t('reference.bible.verse', { verse }), props.timed ? t('reference.bible.verseHelpTimed') : t('reference.bible.verseHelp'), props.onPress);
+  const spot = useHelpSpot(t('reference.bible.verse', { verse }), props.timed ? t('reference.bible.verseHelpTimed') : t('reference.bible.verseHelp'), props.onPress);
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: props.here || props.selected }}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ selected: props.here || props.selected }}
       accessibilityLabel={props.notes ? t('reference.bible.verseLabelNotes', { verse: r.key, text: r.text, count: props.notes }) : t('sources.reader.verseLabel', { verse: r.key, text: r.text })}
       style={({ pressed }) => [styles.verse, props.here && styles.versePlaying, props.selected && styles.verseSelected, pressed && ps.pressed]}>
       <Text style={styles.verseText}>
@@ -199,6 +200,7 @@ function Verse(props: { row: VerseRow; here: boolean; selected: boolean; notes: 
         {props.children}
         {props.notes ? <Text style={styles.verseNotes}>  ● {formatNumber(props.notes)}</Text> : null}
       </Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -209,12 +211,13 @@ function VerseNotes(props: { ctx: Ctx; notes: PassageNote[] }) {
 }
 
 function BiblePick(props: { label: string; onPress: () => void }) {
-  const onPress = useHelpPress(t('reference.bible.choose'), t('reference.bible.chooseHelp'), props.onPress);
+  const spot = useHelpSpot(t('reference.bible.choose'), t('reference.bible.chooseHelp'), props.onPress);
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={t('reference.bible.pickLabel', { bible: props.label })}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('reference.bible.pickLabel', { bible: props.label })}
       style={({ pressed }) => [styles.pick, pressed && ps.pressed]}>
       <Text style={[txt.sm, { fontWeight: '700', color: TINT.amberText }]} numberOfLines={1}>{props.label}</Text>
       <Ico name="down" size={16} color={TINT.amberText} strokeWidth={2.6} />
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -236,9 +239,9 @@ function BibleSheet(props: { ctx: Ctx; bible: Bible; onClose: () => void; onMore
 }
 
 function BibleRow(props: { label: string; sub: string; on?: boolean; more?: boolean; last?: boolean; onPress: () => void }) {
-  const onPress = useHelpPress(props.label, props.sub, props.onPress);
+  const spot = useHelpSpot(props.label, props.sub, props.onPress);
   return (
-    <Pressable onPress={onPress} accessibilityRole={props.more ? 'button' : 'radio'} accessibilityState={props.more ? undefined : { selected: !!props.on }}
+    <Pressable onPress={spot.onPress} accessibilityRole={props.more ? 'button' : 'radio'} accessibilityState={props.more ? undefined : { selected: !!props.on }}
       style={({ pressed }) => [styles.bibleRow, !props.last && ps.rowBorder, pressed && ps.pressed]}>
       <Ico name={props.more ? 'plus' : 'book'} size={20} color={C.primary} />
       <View style={{ flex: 1, minWidth: 0 }}>
@@ -246,6 +249,7 @@ function BibleRow(props: { label: string; sub: string; on?: boolean; more?: bool
         <Text style={txt.xs} numberOfLines={2}>{props.sub}</Text>
       </View>
       {props.on ? <Ico name="check" size={20} color={C.primary} strokeWidth={3} /> : null}
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -253,13 +257,14 @@ function BibleRow(props: { label: string; sub: string; on?: boolean; more?: bool
 /** The reference at one line (a-wsPeek): the Bible still plays, and the rest is a drag away. */
 export function BibleBar(props: { bible: Bible; onOpen: () => void }) {
   const { bible } = props;
-  const open = useHelpPress(t('reference.bible.barHelpTitle'), t('reference.bible.barHelp'), props.onOpen);
+  const open = useHelpSpot(t('reference.bible.barHelpTitle'), t('reference.bible.barHelp'), props.onOpen);
   return (
     <View style={styles.bar}>
       <PlayBtn playing={bible.player.playing} available={bible.hasAudio && !bible.player.loading} none={!bible.hasAudio} label={t('reference.bible.play')} onPress={bible.player.toggle} />
-      <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={t('reference.bible.openReference')} style={({ pressed }) => [{ flex: 1, minWidth: 0 }, pressed && ps.pressed]}>
+      <Pressable onPress={open.onPress} accessibilityRole="button" accessibilityLabel={t('reference.bible.openReference')} style={({ pressed }) => [{ flex: 1, minWidth: 0 }, pressed && ps.pressed]}>
         <Text style={ps.miniTitle} numberOfLines={1}>{bible.option ? t('reference.bible.barTitleWith', { abbr: bible.option.abbreviation }) : t('reference.bible.barTitle')}</Text>
         <Text style={txt.smMuted} numberOfLines={2}>{t('reference.bible.barSub')}</Text>
+        <HelpBadge spot={open} />
       </Pressable>
       <Back10 onPress={() => bible.player.skip(-10)} disabled={!bible.player.started} />
     </View>
@@ -317,18 +322,20 @@ function TermRow(props: { ctx: Ctx; term: KeyTermView; refs: string; last: boole
   const term = props.term;
   const voice = voiceOf(term);
   const rendering = term.renderings[term.renderings.length - 1]?.rendering;
-  const hear = useHelpPress(t('reference.keyWords.hear', { term: term.term }), t('reference.keyWords.hearHelp'), props.onHear);
-  const open = useHelpPress(term.term, t('reference.keyWords.openHelp'), props.onOpen);
+  const hear = useHelpSpot(t('reference.keyWords.hear', { term: term.term }), t('reference.keyWords.hearHelp'), props.onHear);
+  const open = useHelpSpot(term.term, t('reference.keyWords.openHelp'), props.onOpen);
   return (
     <View style={[styles.termRow, !props.last && ps.rowBorder]}>
-      <Pressable onPress={hear} accessibilityRole="button" accessibilityLabel={t('reference.keyWords.hearLabel', { term: term.term })} hitSlop={4} style={({ pressed }) => [styles.hear, pressed && ps.pressed]}>
+      <Pressable onPress={hear.onPress} accessibilityRole="button" accessibilityLabel={t('reference.keyWords.hearLabel', { term: term.term })} hitSlop={4} style={({ pressed }) => [styles.hear, pressed && ps.pressed]}>
         <Ico name="listen" size={22} color={TINT.amberText} />
+        <HelpBadge spot={hear} />
       </Pressable>
-      <Pressable onPress={open} accessibilityRole="button"
+      <Pressable onPress={open.onPress} accessibilityRole="button"
         accessibilityLabel={rendering ? t('reference.keyWords.termLabelWord', { term: term.term, refs: props.refs, word: rendering }) : t('reference.keyWords.termLabel', { term: term.term, refs: props.refs })}
         style={({ pressed }) => [{ flex: 1, minWidth: 0, minHeight: target.min, justifyContent: 'center' }, pressed && ps.pressed]}>
         <Text style={styles.termName} numberOfLines={1}>{term.term}</Text>
         <Text style={txt.smMuted} numberOfLines={1}>{props.refs}{rendering && voice ? ` · ${rendering}` : ''}</Text>
+        <HelpBadge spot={open} />
       </Pressable>
       {voice ? <YourWord ctx={props.ctx} hash={voice} term={term.term} />
         : rendering ? <Text style={[styles.yourWord, { maxWidth: 120 }]} numberOfLines={2}>{rendering}</Text>
@@ -339,24 +346,26 @@ function TermRow(props: { ctx: Ctx; term: KeyTermView; refs: string; last: boole
 
 function YourWord(props: { ctx: Ctx; hash: string; term: string }) {
   const clip = useClip(props.ctx.language, [props.hash]);
-  const onPress = useHelpPress(t('reference.keyWords.yourWord'), t('reference.keyWords.yourWordHelp', { term: props.term }), clip.toggle);
+  const spot = useHelpSpot(t('reference.keyWords.yourWord'), t('reference.keyWords.yourWordHelp', { term: props.term }), clip.toggle);
   return (
-    <Pressable onPress={onPress} disabled={!clip.available} accessibilityRole="button"
+    <Pressable onPress={spot.onPress} disabled={!clip.available} accessibilityRole="button"
       accessibilityLabel={clip.playing ? t('reference.keyWords.pauseYourWord', { term: props.term }) : t('reference.keyWords.playYourWord', { term: props.term })}
       style={({ pressed }) => [styles.wordBtn, !clip.available && ps.off, pressed && ps.pressed]}>
       <Ico name={clip.playing ? 'pause' : 'play'} size={14} color={TINT.greenText} strokeWidth={3} fill={TINT.greenText} />
       <Text style={styles.yourWord}>{t('reference.keyWords.yourWord')}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
 
 function SayYours(props: { onPress: () => void; term: string }) {
-  const onPress = useHelpPress(t('reference.keyWords.sayYours'), t('reference.keyWords.sayYoursHelp', { term: props.term }), props.onPress);
+  const spot = useHelpSpot(t('reference.keyWords.sayYours'), t('reference.keyWords.sayYoursHelp', { term: props.term }), props.onPress);
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={t('reference.keyWords.sayYoursLabel', { term: props.term })}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('reference.keyWords.sayYoursLabel', { term: props.term })}
       style={({ pressed }) => [styles.wordBtn, pressed && ps.pressed]}>
       <Ico name="mic" size={16} color={C.primary} />
       <Text style={[styles.yourWord, { color: C.primary }]}>{t('reference.keyWords.sayYours')}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }

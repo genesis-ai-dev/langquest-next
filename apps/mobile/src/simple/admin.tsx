@@ -3,7 +3,7 @@
 // language's page, the four-question checklist, big radio cards with
 // examples under them, numbered steps, radio rows, a checkbox row with a
 // play button, a lock toggle, and the invite code. Built from kit
-// primitives and theme tokens; every pressable goes through `useHelpPress`
+// primitives and theme tokens; every pressable goes through `useHelpSpot`
 // so help mode explains it instead of pressing it.
 import { FileText, Play, Route } from 'lucide-react-native';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -12,7 +12,8 @@ import { Text } from '../text';
 import QRCode from 'react-native-qrcode-svg';
 import { scopeKey, type Scope } from '@langquest-next/core';
 import { APP_URL } from '../appUrl';
-import { useHelpMode, useHelpPress } from '../helpContext';
+import { useHelpMode, useHelpSpot } from '../helpContext';
+import { HelpBadge, HelpLit } from '../helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { inviteUri, issueInvite } from '../invites';
@@ -57,6 +58,7 @@ export function HelpButton() {
       accessibilityState={{ selected: help.on }}
       style={({ pressed }) => [styles.round, help.on && { backgroundColor: C.primary, borderColor: C.primary }, pressed && styles.pressed]}>
       <Ico name="help" size={24} color={help.on ? C.white : C.primary} />
+      <HelpLit />
     </Pressable>
   );
 }
@@ -64,34 +66,24 @@ export function HelpButton() {
 /**
  * A page led by a big title (a language's page, Get ready): Back and ? as
  * round buttons above it when it was opened from somewhere, only ? at a
- * tab's root. While help is on, the kit's header says so; here the ? is lit.
+ * tab's root. While help is on, the ? is filled and stays lit, as in the
+ * kit's header.
  */
 export function BigTop(props: { onBack?: () => void; over?: string; title: string; status?: string; statusTone?: 'green' | 'amber' | 'muted' }) {
-  const help = useHelpMode();
   const tone = props.statusTone === 'green' ? TINT.greenText : props.statusTone === 'amber' ? TINT.amberText : C.muted;
   return (
-    <View>
-      {help?.on ? (
-        <View style={styles.helpBanner} accessibilityLiveRegion="polite">
-          <Text style={[txt.sm, { flex: 1, color: C.white, fontWeight: '700' }]}>{t('admin.help.isOn')}</Text>
-          <Pressable onPress={() => help.setOn(false)} accessibilityRole="button" style={({ pressed }) => [styles.helpDone, pressed && styles.pressed]}>
-            <Text style={[txt.sm, { color: C.primary, fontWeight: '800' }]}>{t('common.done')}</Text>
+    <View style={styles.bigTop}>
+      <View style={styles.bigTopBar}>
+        {props.onBack ? (
+          <Pressable onPress={props.onBack} accessibilityRole="button" accessibilityLabel={t('common.back')} style={({ pressed }) => [styles.round, pressed && styles.pressed]}>
+            <Ico name="arrowL" size={24} color={C.dark} />
           </Pressable>
-        </View>
-      ) : null}
-      <View style={styles.bigTop}>
-        <View style={styles.bigTopBar}>
-          {props.onBack ? (
-            <Pressable onPress={props.onBack} accessibilityRole="button" accessibilityLabel={t('common.back')} style={({ pressed }) => [styles.round, pressed && styles.pressed]}>
-              <Ico name="arrowL" size={24} color={C.dark} />
-            </Pressable>
-          ) : <View />}
-          <HelpButton />
-        </View>
-        {props.over ? <Text style={styles.over}>{props.over}</Text> : null}
-        <Text style={styles.bigTitle} accessibilityRole="header">{props.title}</Text>
-        {props.status ? <Text style={[styles.status, { color: tone }]}>{props.status}</Text> : null}
+        ) : <View />}
+        <HelpButton />
       </View>
+      {props.over ? <Text style={styles.over}>{props.over}</Text> : null}
+      <Text style={styles.bigTitle} accessibilityRole="header">{props.title}</Text>
+      {props.status ? <Text style={[styles.status, { color: tone }]}>{props.status}</Text> : null}
     </View>
   );
 }
@@ -106,9 +98,9 @@ export function Question(props: { children: ReactNode }) {
 /** One of the four questions: done (green tick), now (lit, brand border), or later (muted). */
 export function ChecklistRow(props: { state: 'done' | 'now' | 'later'; icon: AdminIcon; label: string; sub?: string; onPress?: () => void }) {
   const { state } = props;
-  const onPress = useHelpPress(props.label, props.sub ?? (state === 'done' ? t('admin.checklist.answered') : t('admin.checklist.answerIt')), props.onPress);
+  const spot = useHelpSpot(props.label, props.sub ?? (state === 'done' ? t('admin.checklist.answered') : t('admin.checklist.answerIt')), props.onPress);
   return (
-    <Pressable onPress={onPress} disabled={!props.onPress} accessibilityRole="button"
+    <Pressable onPress={spot.onPress} disabled={!props.onPress} accessibilityRole="button"
       accessibilityLabel={state === 'done' ? t('admin.checklist.doneLabel', { label: props.label }) : props.label}
       accessibilityState={{ disabled: !props.onPress, selected: state === 'now' }}
       style={({ pressed }) => [styles.checkRow, state === 'now' && styles.checkRowNow, pressed && styles.pressed]}>
@@ -121,17 +113,19 @@ export function ChecklistRow(props: { state: 'done' | 'now' | 'later'; icon: Adm
         {props.sub && state === 'done' ? <Text style={[txt.sm, { color: C.muted }]} numberOfLines={2}>{props.sub}</Text> : null}
       </View>
       {state !== 'later' ? <Ico name="right" size={22} color={C.muted} /> : null}
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
 
 /** A quiet centred link with a small icon ("▶ How this works · 0:40"). */
 export function QuietLink(props: { icon: AdminIcon; label: string; onPress: () => void; detail?: string }) {
-  const onPress = useHelpPress(props.label, props.detail, props.onPress);
+  const spot = useHelpSpot(props.label, props.detail, props.onPress);
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" style={({ pressed }) => [styles.quietLink, pressed && styles.pressed]}>
+    <Pressable onPress={spot.onPress} accessibilityRole="button" style={({ pressed }) => [styles.quietLink, pressed && styles.pressed]}>
       <Glyph name={props.icon} size={16} color={C.muted} />
       <Text style={[txt.sm, { color: C.muted, fontWeight: '700' }]}>{props.label}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -149,9 +143,9 @@ function Radio(props: { on: boolean; size?: number }) {
 
 /** A big radio card: icon, title, a line under it, and, when given, examples or steps below. */
 export function ChoiceCard(props: { on: boolean; icon: AdminIcon; title: string; sub?: string; onPress: () => void; children?: ReactNode; chevron?: boolean }) {
-  const onPress = useHelpPress(props.title, props.sub, props.onPress);
+  const spot = useHelpSpot(props.title, props.sub, props.onPress);
   return (
-    <Pressable onPress={onPress} accessibilityRole={props.chevron ? 'button' : 'radio'} accessibilityState={props.chevron ? undefined : { selected: props.on }}
+    <Pressable onPress={spot.onPress} accessibilityRole={props.chevron ? 'button' : 'radio'} accessibilityState={props.chevron ? undefined : { selected: props.on }}
       accessibilityLabel={`${props.title}${props.sub ? `. ${props.sub}` : ''}`}
       style={({ pressed }) => [styles.choice, props.on && styles.choiceOn, pressed && styles.pressed]}>
       <View style={styles.choiceHead}>
@@ -163,6 +157,7 @@ export function ChoiceCard(props: { on: boolean; icon: AdminIcon; title: string;
         {props.chevron ? <Ico name="right" size={22} color={C.muted} /> : <Radio on={props.on} />}
       </View>
       {props.children}
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -194,9 +189,9 @@ export function NumberedSteps(props: { items: { label: string; lock?: boolean }[
 
 /** A radio row ("Translate"), with the icon on a tile (inviting) or bare (letting someone in). */
 export function RadioRow(props: { icon: AdminIcon; label: string; sub?: string; on: boolean; onPress: () => void; tile?: boolean }) {
-  const onPress = useHelpPress(props.label, props.sub, props.onPress);
+  const spot = useHelpSpot(props.label, props.sub, props.onPress);
   return (
-    <Pressable onPress={onPress} accessibilityRole="radio" accessibilityState={{ selected: props.on }} accessibilityLabel={props.label}
+    <Pressable onPress={spot.onPress} accessibilityRole="radio" accessibilityState={{ selected: props.on }} accessibilityLabel={props.label}
       style={({ pressed }) => [styles.radioRow, props.tile && styles.radioRowTall, props.on && styles.choiceOn, pressed && styles.pressed]}>
       {props.tile ? <IconTile icon={props.icon} size={44} /> : <Glyph name={props.icon} size={24} />}
       <View style={{ flex: 1, minWidth: 0 }}>
@@ -204,17 +199,19 @@ export function RadioRow(props: { icon: AdminIcon; label: string; sub?: string; 
         {props.sub ? <Text style={[txt.xs]} numberOfLines={2}>{props.sub}</Text> : null}
       </View>
       <Radio on={props.on} size={26} />
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
 
 /** A dashed action ("Add a step", "Something else: make a new role"). */
 export function DashedRow(props: { icon: AdminIcon; label: string; onPress: () => void; detail?: string; centred?: boolean }) {
-  const onPress = useHelpPress(props.label, props.detail, props.onPress);
+  const spot = useHelpSpot(props.label, props.detail, props.onPress);
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" style={({ pressed }) => [styles.dashed, props.centred && { justifyContent: 'center' }, pressed && styles.pressed]}>
+    <Pressable onPress={spot.onPress} accessibilityRole="button" style={({ pressed }) => [styles.dashed, props.centred && { justifyContent: 'center' }, pressed && styles.pressed]}>
       <Glyph name={props.icon} size={20} />
       <Text style={[txt.body, { color: C.primary, fontWeight: '700' }]}>{props.label}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -226,12 +223,12 @@ export function Pills(props: { children: ReactNode }) {
 
 /** A pick-many row with a checkbox, and a play button that opens what it is. */
 export function CheckRow(props: { label: string; sub?: string; checked: boolean; onToggle: () => void; onPlay?: () => void; playLabel?: string; last?: boolean; disabled?: boolean; detail?: string }) {
-  const onToggle = useHelpPress(props.label, props.detail ?? (props.checked ? t('admin.checkRow.offered') : t('admin.checkRow.notOffered')), props.onToggle);
+  const onToggle = useHelpSpot(props.label, props.detail ?? (props.checked ? t('admin.checkRow.offered') : t('admin.checkRow.notOffered')), props.onToggle);
   const playLabel = props.playLabel ?? t('admin.checkRow.hear', { name: props.label });
-  const onPlay = useHelpPress(playLabel, undefined, props.onPlay);
+  const onPlay = useHelpSpot(playLabel, undefined, props.onPlay);
   return (
     <View style={[styles.checkLine, !props.last && styles.rowBorder]}>
-      <Pressable onPress={onToggle} disabled={props.disabled} accessibilityRole="checkbox" accessibilityState={{ checked: props.checked, disabled: !!props.disabled }}
+      <Pressable onPress={onToggle.onPress} disabled={props.disabled} accessibilityRole="checkbox" accessibilityState={{ checked: props.checked, disabled: !!props.disabled }}
         accessibilityLabel={props.label} style={({ pressed }) => [styles.checkTap, pressed && styles.pressed]}>
         <View style={[styles.box, props.checked && { backgroundColor: C.primary, borderColor: C.primary }]}>
           {props.checked ? <Ico name="check" size={20} color={C.white} strokeWidth={3} /> : null}
@@ -240,11 +237,13 @@ export function CheckRow(props: { label: string; sub?: string; checked: boolean;
           <Text style={[txt.body, { fontWeight: '700' }]} numberOfLines={2}>{props.label}</Text>
           {props.sub ? <Text style={[txt.sm, { color: C.muted }]}>{props.sub}</Text> : null}
         </View>
+        <HelpBadge spot={onToggle} />
       </Pressable>
       {props.onPlay ? (
-        <Pressable onPress={onPlay} accessibilityRole="button" accessibilityLabel={playLabel} hitSlop={4}
+        <Pressable onPress={onPlay.onPress} accessibilityRole="button" accessibilityLabel={playLabel} hitSlop={4}
           style={({ pressed }) => [styles.play, pressed && styles.pressed]}>
           <Ico name="play" size={22} color={C.primary} />
+          <HelpBadge spot={onPlay} />
         </Pressable>
       ) : null}
     </View>
@@ -262,9 +261,9 @@ export function Pill(props: { on: boolean; disabled?: boolean }) {
 
 /** A row that is one switch: the whole row takes the tap (a 64pt target) and speaks as the switch. */
 export function SwitchRow(props: { label: string; sub?: string; on: boolean; onToggle: () => void; disabled?: boolean; last?: boolean; icon?: AdminIcon }) {
-  const onPress = useHelpPress(props.label, props.on ? t('admin.switchRow.on') : t('admin.switchRow.off'), props.onToggle);
+  const spot = useHelpSpot(props.label, props.on ? t('admin.switchRow.on') : t('admin.switchRow.off'), props.onToggle);
   return (
-    <Pressable onPress={onPress} disabled={props.disabled} accessibilityRole="switch" accessibilityState={{ checked: props.on, disabled: !!props.disabled }}
+    <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="switch" accessibilityState={{ checked: props.on, disabled: !!props.disabled }}
       accessibilityLabel={props.label} style={({ pressed }) => [styles.switchRow, !props.last && styles.rowBorder, pressed && styles.pressed]}>
       {props.icon ? <IconTile icon={props.icon} /> : null}
       <View style={{ flex: 1, minWidth: 0 }}>
@@ -272,6 +271,7 @@ export function SwitchRow(props: { label: string; sub?: string; on: boolean; onT
         {props.sub ? <Text style={[txt.sm, { fontSize: 14, color: C.muted }]}>{props.sub}</Text> : null}
       </View>
       <Pill on={props.on} disabled={props.disabled} />
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -287,12 +287,13 @@ export function CountBadge(props: { n: number }) {
 
 /** Must this step pass before the next ones? A round lock, dashed when not. */
 export function LockToggle(props: { on: boolean; onToggle: () => void; label: string; disabled?: boolean }) {
-  const onPress = useHelpPress(props.label, props.on ? t('admin.lock.on') : t('admin.lock.off'), props.onToggle);
+  const spot = useHelpSpot(props.label, props.on ? t('admin.lock.on') : t('admin.lock.off'), props.onToggle);
   return (
-    <Pressable onPress={onPress} disabled={props.disabled} accessibilityRole="switch" accessibilityState={{ checked: props.on, disabled: !!props.disabled }}
+    <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="switch" accessibilityState={{ checked: props.on, disabled: !!props.disabled }}
       accessibilityLabel={props.label} hitSlop={4}
       style={({ pressed }) => [styles.lock, props.on ? styles.lockOn : null, pressed && styles.pressed]}>
       <Ico name="lock" size={20} color={props.on ? TINT.amberText : C.faint} />
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -372,8 +373,6 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.7 },
   tile: { backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
   round: { width: target.min, height: target.min, borderRadius: target.min / 2, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
-  helpBanner: { flexDirection: 'row', alignItems: 'center', gap: space.sm, backgroundColor: C.primary, paddingHorizontal: space.lg, paddingVertical: space.sm },
-  helpDone: { minHeight: 40, paddingHorizontal: space.md, borderRadius: radius.full, backgroundColor: C.white, justifyContent: 'center' },
   bigTop: { paddingHorizontal: space.xl - 4, paddingTop: space.md, paddingBottom: space.xs, backgroundColor: C.bg },
   bigTopBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: space.sm },
   over: { fontSize: 14, fontWeight: '700', color: C.muted },

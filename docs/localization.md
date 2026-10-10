@@ -41,8 +41,8 @@ event log.
   `<Trans i18nKey="work.tapStart" components={{ b: <Text style={bold} /> }} />`.
 - **Never at module scope.** A table of labels is a function (or a `switch`)
   so it is read in the language showing.
-- **Help counts.** `accessibilityLabel`, help mode's details and screen intros
-  are words too.
+- **Help counts.** `accessibilityLabel` and help mode's details are words
+  too.
 - **Short and plain.** The words are read by people new to phones and then
   translated; shorter English translates better.
 
@@ -113,9 +113,10 @@ the date in its `approved` field.
 
 ## Help audio
 
-Help mode says each screen's intro, and each part's name and explanation.
-Where a line has been recorded in the app's language it plays the recording;
-otherwise a phone shows the words and a browser reads them aloud.
+Help mode's tooltip shows a part's name and explanation, and its play button
+says them. Where a line has been recorded in the app's language the button
+plays the recording; otherwise a browser reads the words aloud, and a phone
+shows no play button.
 
 - A recording is named by the first 16 hex digits of SHA-256 over
   `<language>\n<words>`, so changing the words retires it.

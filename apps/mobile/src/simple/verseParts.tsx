@@ -15,7 +15,8 @@ import {
   type PartLabel, type PartMark
 } from '@langquest-next/core';
 import type { Ctx } from '../ctx';
-import { useHelpPress } from '../helpContext';
+import { useHelpSpot } from '../helpContext';
+import { HelpBadge } from '../helpBadge';
 import { t } from '../i18n';
 import { Ico, IconBtn, Sheet, txt } from '../kit';
 import { C, radius, space, target, TINT, type as T } from '../theme';
@@ -211,14 +212,14 @@ function PartRow(props: {
   const name = partLabel(props.index);
   const clip = useClip(props.ctx.language, [props.part.hash], { disabled: props.disabled });
   const playLabel = clip.playing ? t('recording.recorder.pausePart', { part: name }) : t('recording.player.playTitle', { title: name });
-  const play = useHelpPress(playLabel, undefined, clip.toggle);
+  const play = useHelpSpot(playLabel, undefined, clip.toggle);
   const l = props.label;
   const verses = l ? spanName(props.verses, l.s, l.e) : null;
-  const tap = useHelpPress(l ? (l.kind === 'join' ? t('recording.verses.giveNext', { part: name }) : t('recording.verses.giveAbove', { part: name })) : t('recording.verses.giveVerse', { part: name }),
+  const tap = useHelpSpot(l ? (l.kind === 'join' ? t('recording.verses.giveNext', { part: name }) : t('recording.verses.giveAbove', { part: name })) : t('recording.verses.giveVerse', { part: name }),
     t('recording.verses.tapHelp'), props.onTap);
   return (
     <View style={[styles.row, props.index > 0 && styles.rowBorder, props.flash && { backgroundColor: C.light }, props.editing && styles.editing]}>
-      <Pressable ref={props.gutterRef} onPress={tap} onLongPress={props.onHold} delayLongPress={HOLD_MS}
+      <Pressable ref={props.gutterRef} onPress={tap.onPress} onLongPress={props.onHold} delayLongPress={HOLD_MS}
         disabled={props.disabled} accessibilityRole="button"
         accessibilityLabel={l ? t(l.kind === 'join' ? 'recording.verses.labelSame' : 'recording.verses.label', { part: name, verses }) : t('recording.verses.labelEmpty', { part: name })}
         accessibilityHint={l ? (l.kind === 'join' ? t('recording.verses.hintSame') : t('recording.verses.hintLabelled')) : t('recording.verses.hintEmpty')}
@@ -236,26 +237,29 @@ function PartRow(props: {
             <Text style={[styles.ghostText, props.ghost?.join && { fontSize: T.sm }]}>{props.ghost?.text ?? '·'}</Text>
           </View>
         )}
+        <HelpBadge spot={tap} />
       </Pressable>
-      <Pressable onPress={play} disabled={!clip.available || props.disabled} accessibilityRole="button" accessibilityLabel={playLabel}
+      <Pressable onPress={play.onPress} disabled={!clip.available || props.disabled} accessibilityRole="button" accessibilityLabel={playLabel}
         style={({ pressed }) => [styles.play, (!clip.available || props.disabled) && ps.off, pressed && ps.pressed]}>
         <View style={styles.playDot}><Ico name={clip.playing ? 'pause' : 'play'} size={16} color={C.primary} strokeWidth={2.6} fill={C.primary} /></View>
         <Text style={[txt.body, { fontWeight: '700', color: C.dark }]}>{name}</Text>
         <Text style={txt.smMuted}>{mmss(props.part.durationMs)}</Text>
+        <HelpBadge spot={play} />
       </Pressable>
     </View>
   );
 }
 
 function GapRow(props: { text: string; disabled: boolean; onRecord: () => void }) {
-  const record = useHelpPress(t('recording.verses.recordHere'), t('recording.verses.recordHereHelp'), props.onRecord);
+  const record = useHelpSpot(t('recording.verses.recordHere'), t('recording.verses.recordHereHelp'), props.onRecord);
   return (
     <View style={styles.gap}>
       <Text style={[txt.body, { flex: 1, fontWeight: '700', color: TINT.amberText }]}>{props.text}</Text>
-      <Pressable onPress={record} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={t('recording.verses.recordHere')}
+      <Pressable onPress={record.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={t('recording.verses.recordHere')}
         style={({ pressed }) => [styles.gapBtn, props.disabled && ps.off, pressed && ps.pressed]}>
         <Ico name="mic" size={18} color={TINT.amberText} />
         <Text style={[txt.sm, { fontWeight: '700', color: TINT.amberText }]}>{t('recording.verses.recordHere')}</Text>
+        <HelpBadge spot={record} />
       </Pressable>
     </View>
   );

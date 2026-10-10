@@ -12,7 +12,6 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import { Text } from '../text';
 import type { Ctx } from '../ctx';
-import { useHelpPress } from '../helpContext';
 import { t } from '../i18n';
 import { Card, Field, GhostBtn, Header, PrimaryBtn, Row, Group, Screen, Sheet, txt } from '../kit';
 import { useLibraryDocs } from '../library/useLibrary';
@@ -46,7 +45,6 @@ export function BookHead(props: {
   const own = ctx.language.state?.bookNames?.[book]?.value;
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState('');
-  const change = useHelpPress(t('breakup.book.breakDifferently'), t('breakup.book.breakDifferentlyHelp'), props.onChange);
   async function saveName() {
     const trimmed = name.trim();
     if (!trimmed) return;
@@ -63,7 +61,7 @@ export function BookHead(props: {
         <Text style={txt.label}>{t('breakup.book.brokenUp')}</Text>
         <Text style={txt.h3}>{now ? now.choice.name : t('breakup.book.ownWay')}</Text>
         <PieceBar doc={props.doc} v11n={props.v11n} book={book} />
-        {props.canShape ? <GhostBtn label={t('breakup.book.breakDifferently')} icon="cut" onPress={change} /> : null}
+        {props.canShape ? <GhostBtn label={t('breakup.book.breakDifferently')} help={t('breakup.book.breakDifferentlyHelp')} icon="cut" onPress={props.onChange} /> : null}
       </View>
       <Group style={{ marginTop: space.md }}>
         <Row icon="edit" label={t('breakup.book.calledIn', { name: own ?? props.templateName, language: props.language })}

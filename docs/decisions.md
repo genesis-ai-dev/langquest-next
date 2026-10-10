@@ -2081,6 +2081,29 @@ Amended (2026-10-09, Caleb Koster): spoken help on a device plays recorded
 lines in the app's language, downloaded and kept on the phone (decision 81);
 none are recorded yet, so a device still shows the words.
 
+Amended (2026-10-10, Caleb Koster): help mode no longer opens by itself. The
+first-time screen intros (demo a-helpFirst) are gone, because opening the
+overlay the first time someone reaches each screen was too confusing; help
+comes only from the ?. While it is on, the screen dims and every part stays
+lit with its number, the ? lit and filled as the way out (the "Help is on"
+banner is gone). A tap on a part shows a tooltip beside it, its name and
+what it does, with a play button; nothing plays by itself, and the card
+that said "Playing" and stepped through the parts with Back and Next part is
+gone. The play button shows where there is something to play: a recording
+of the line, or the browser's voice on the web. "How this works" still plays
+when tapped, in the same tooltip. Every part that explains itself is now
+numbered: the controls that used `useHelpPress` explained themselves without
+a visible number, and now light up and number like kit's (`useHelpSpot` with
+`HelpBadge`). The layer that draws the dim, the numbers and the tooltip
+(`helpMode.tsx`) measures each part every frame while help is on, so it
+follows scrolling; kit's Screen body and the workspace panes (`HelpClip`)
+keep what scrolls inside them from being lit past their edges. Numbers go in
+reading order across what is in sight when help comes on, and parts
+scrolled into view later take the next numbers, so a number never changes.
+Reverse if: field tests show people miss help without the intros (then an
+intro behind the ?, not on first open), or the dim hides what people need
+to see while exploring.
+
 ## 72. Apps, agents and review links take part through reviews and releases; outside reviews never clear a checkpoint
 
 Date: 2026-10-08 · By: Ryder Wishart · Status: partly superseded by 79

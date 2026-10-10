@@ -22,7 +22,8 @@ import { ClipPlayer } from '../clipPlayer';
 import { localKind } from '../coreText';
 import type { Ctx } from '../ctx';
 import { screenTitle } from '../flow';
-import { useHelpPress } from '../helpContext';
+import { useHelpSpot } from '../helpContext';
+import { HelpBadge, HelpClip } from '../helpBadge';
 import { currentLocale, t } from '../i18n';
 import { formatClock, formatNumber } from '../i18n/format';
 import { indexesFor } from '../indexes';
@@ -177,23 +178,25 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
             <Text style={[txt.xsStrong, { color: C.primary }]}>{t('backTranslation.open')}</Text>
           </Pressable>
         ) : (
-          <ScrollView contentContainerStyle={styles.paneBody}
-            accessibilityLabel={partN ? t('backTranslation.listenToPart', { n: of.n, part: partN }) : t('backTranslation.listenTo', { n: of.n })}>
-            {request && (request.note || request.noteBlobHash) ? <RequestBanner ctx={ctx} request={request} /> : null}
-            {madeFrom ? (
-              <Banner icon="history" tone="amber" title={t('backTranslation.madeFrom', { n: madeFrom.n })}
-                body={t('backTranslation.madeFromBody', { n: of.n, what: produces.what })} />
-            ) : null}
-            {part ? (
-              <ClipPlayer language={ctx.language} hashes={[part.hash]} listen={loop.hooks}
-                title={playerTitle}
-                sub={mine ? t('backTranslation.youDrag') : t('backTranslation.nameDrag', { name: who })}
-                onNote={(s) => setNoteAt(Math.round(s * 1000))} />
-            ) : null}
-            <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>
-              {t('backTranslation.sayEachPart', { into: produces.into })}
-            </Text>
-          </ScrollView>
+          <HelpClip style={{ flex: 1 }}>
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.paneBody}
+              accessibilityLabel={partN ? t('backTranslation.listenToPart', { n: of.n, part: partN }) : t('backTranslation.listenTo', { n: of.n })}>
+              {request && (request.note || request.noteBlobHash) ? <RequestBanner ctx={ctx} request={request} /> : null}
+              {madeFrom ? (
+                <Banner icon="history" tone="amber" title={t('backTranslation.madeFrom', { n: madeFrom.n })}
+                  body={t('backTranslation.madeFromBody', { n: of.n, what: produces.what })} />
+              ) : null}
+              {part ? (
+                <ClipPlayer language={ctx.language} hashes={[part.hash]} listen={loop.hooks}
+                  title={playerTitle}
+                  sub={mine ? t('backTranslation.youDrag') : t('backTranslation.nameDrag', { name: who })}
+                  onNote={(s) => setNoteAt(Math.round(s * 1000))} />
+              ) : null}
+              <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>
+                {t('backTranslation.sayEachPart', { into: produces.into })}
+              </Text>
+            </ScrollView>
+          </HelpClip>
         )}
         bottom={({ compact, open }) => session ? <VadPanel rec={rec} phase={loop.phase} count={part?.cards.length ?? 0} noun="piece" onResume={loop.resumeNow} /> : compact ? (
           <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={t('backTranslation.openYour', { what: produces.what })} style={({ pressed }) => [styles.bar, pressed && { opacity: 0.7 }]}>
@@ -202,18 +205,20 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
             <Text style={[txt.xsStrong, { color: C.primary }]}>{t('backTranslation.open')}</Text>
           </Pressable>
         ) : (
-          <ScrollView contentContainerStyle={styles.paneBody} accessibilityLabel={t('backTranslation.yourWhat', { what: produces.what, said: saidLine(parts) })}>
-            {problem}
-            {!drafts.loaded ? <Text style={[txt.smMuted, { textAlign: 'center' }]}>{t('backTranslation.loadingParts')}</Text> : parts.map((x) => (
-              <PartCard key={x.index} ctx={ctx} part={x} into={produces.into} focused={x.index === focus} disabled={blocked}
-                onPick={() => setPicked(x.index)} onDelete={() => void clearPart(x)} />
-            ))}
-            {notes.length ? (
-              <Text style={[txt.xs, { textAlign: 'center' }]}>
-                {checkedBy ? t('backTranslation.notesFor', { count: notes.length, check: checkedBy }) : t('backTranslation.notesForNext', { count: notes.length })}
-              </Text>
-            ) : null}
-          </ScrollView>
+          <HelpClip style={{ flex: 1 }}>
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.paneBody} accessibilityLabel={t('backTranslation.yourWhat', { what: produces.what, said: saidLine(parts) })}>
+              {problem}
+              {!drafts.loaded ? <Text style={[txt.smMuted, { textAlign: 'center' }]}>{t('backTranslation.loadingParts')}</Text> : parts.map((x) => (
+                <PartCard key={x.index} ctx={ctx} part={x} into={produces.into} focused={x.index === focus} disabled={blocked}
+                  onPick={() => setPicked(x.index)} onDelete={() => void clearPart(x)} />
+              ))}
+              {notes.length ? (
+                <Text style={[txt.xs, { textAlign: 'center' }]}>
+                  {checkedBy ? t('backTranslation.notesFor', { count: notes.length, check: checkedBy }) : t('backTranslation.notesForNext', { count: notes.length })}
+                </Text>
+              ) : null}
+            </ScrollView>
+          </HelpClip>
         )} />
 
       {noteAt !== null && part ? (
@@ -242,10 +247,10 @@ function PartCard(props: { ctx: Ctx; part: BackPart; into: string; focused: bool
   const length = formatClock(part.saidMs);
   const sub = focused ? (said ? t('backTranslation.saidInMore', { length, into: props.into }) : t('backTranslation.sayingNext'))
     : said ? t('backTranslation.saidIn', { length, into: props.into }) : '';
-  const press = useHelpPress(label, said ? t('backTranslation.partSaidHelp') : t('backTranslation.partTapHelp'), props.onPick);
+  const spot = useHelpSpot(label, said ? t('backTranslation.partSaidHelp') : t('backTranslation.partTapHelp'), props.onPick);
   return (
     <View style={[styles.part, focused && styles.partNow]}>
-      <Pressable onPress={press} disabled={props.disabled} accessibilityRole="button" accessibilityState={{ selected: focused }}
+      <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityState={{ selected: focused }}
         accessibilityLabel={sub ? t('backTranslation.partA11y', { part: label, sub }) : label} style={({ pressed }) => [styles.partHead, pressed && { opacity: 0.7 }]}>
         <View style={[styles.partMark, said ? { backgroundColor: C.green } : focused ? { backgroundColor: C.primary } : { backgroundColor: C.light }]}>
           <Ico name={said ? 'check' : 'mic'} size={said ? 20 : 18} color={said || focused ? C.white : withAlpha(C.primary, 0.35)} strokeWidth={said ? 3 : 2.2} />
@@ -254,6 +259,7 @@ function PartCard(props: { ctx: Ctx; part: BackPart; into: string; focused: bool
           <Text style={styles.partTitle}>{label}</Text>
           {sub ? <Text style={[txt.sm, { color: C.muted }]}>{sub}</Text> : null}
         </View>
+        <HelpBadge spot={spot} />
       </Pressable>
       {focused && said ? (
         <View style={styles.partActions}>
@@ -270,24 +276,26 @@ function PartCard(props: { ctx: Ctx; part: BackPart; into: string; focused: bool
 /** `part` is the part's number (from 1), or null when there is no part to say. */
 function BigRecord(props: { disabled: boolean; part: number | null; onPress: () => void }) {
   const n = props.part;
-  const press = useHelpPress(t('common.record'), n ? t('backTranslation.recordHelp', { n }) : undefined, props.onPress);
+  const spot = useHelpSpot(t('common.record'), n ? t('backTranslation.recordHelp', { n }) : undefined, props.onPress);
   return (
     <View style={[styles.halo, props.disabled && { opacity: 0.45 }]}>
-      <Pressable onPress={press} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={n ? t('backTranslation.recordPart', { n }) : t('common.record')}
+      <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={n ? t('backTranslation.recordPart', { n }) : t('common.record')}
         accessibilityHint={t('backTranslation.recordHint')} accessibilityState={{ disabled: props.disabled }}
         style={({ pressed }) => [styles.record, pressed && { transform: [{ scale: 0.95 }] }]}>
         <Ico name="mic" size={34} color={C.white} />
+        <HelpBadge spot={spot} />
       </Pressable>
     </View>
   );
 }
 
 function PublishBtn(props: { disabled: boolean; onPress: () => void }) {
-  const press = useHelpPress(t('common.publish'), t('backTranslation.publishHelp'), props.onPress);
+  const spot = useHelpSpot(t('common.publish'), t('backTranslation.publishHelp'), props.onPress);
   return (
-    <Pressable onPress={press} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={t('common.publish')} accessibilityState={{ disabled: props.disabled }}
+    <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={t('common.publish')} accessibilityState={{ disabled: props.disabled }}
       style={({ pressed }) => [styles.publish, props.disabled && { opacity: 0.45 }, pressed && { opacity: 0.7 }]}>
       <Text style={styles.publishLabel}>{t('common.publish')}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }

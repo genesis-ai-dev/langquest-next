@@ -1076,8 +1076,7 @@
     },
     "help": {
       "turnOff": "关闭帮助",
-      "turnOn": "帮助：讲解这个页面",
-      "isOn": "帮助已打开。点按任何地方，听听它是做什么的。"
+      "turnOn": "帮助：讲解这个页面"
     },
     "checklist": {
       "answered": "已回答。点按可以更改。",
@@ -3611,35 +3610,13 @@
   "help": {
     "explainScreen": "帮助：讲解这个页面",
     "turnOff": "关闭帮助",
-    "banner": "帮助已打开。点按任何地方，听听它是做什么的。",
-    "gotIt": "知道了",
-    "nextPart": "下一部分",
+    "listen": "收听",
+    "stop": "停止",
     "line": "{{label}}。{{detail}}",
     "lineAfterSentence": "{{label}}{{detail}}",
-    "card": {
-      "partPlaying": "{{part, number}}/{{total, number}} · 正在播放",
-      "quoted": "“{{text}}”"
-    },
-    "intro": {
-      "playing": "正在播放：“{{text}}”",
-      "explain": "第一次打开一个页面时，LangQuest 会说明它的用途。随时点按 ? 可以再听一遍，并查看每个部分的作用。",
-      "showParts": "给我看看各个部分"
-    },
     "details": {
       "primary": "这个页面上最主要要做的事。",
       "quiet": "另一种继续的方式，不太常用。"
-    },
-    "intros": {
-      "myWork": "这是你的工作。大卡片是接下来要做的事：点按“开始”就可以开始。",
-      "passageRecord": "这是你的经段。步骤从上到下排列。底部的大按钮是你的下一步。",
-      "workspace": "这里是录音的地方。对你有帮助的内容在上面，你的录音在下面。点按红色按钮开始说话，再点一次停止。",
-      "reviewCapture": "在这里检查一段录音。先听，再回答问题，然后说说是否清楚。",
-      "backTranslation": "在这里用另一种语言把录音再说一遍，一次说一段。",
-      "studyGuide": "这是学习指南。录音之前，大家一起把每一步过一遍。",
-      "studyStep": "这是学习指南中的一步。先听，再讨论，然后点按“这一步完成”。",
-      "mapHome": "这里是所有经段。找到一个经段，或者点按“下一个”继续你的工作。",
-      "settingsHome": "这里是关于你的内容：你的名字、麦克风，以及 LangQuest 如何运作。",
-      "getReady": "回答四个问题，为译者准备好这个语言。"
     }
   },
   "offline": {

@@ -9,7 +9,8 @@ import { BackHandler, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../text';
 import { ClipPlayer } from '../clipPlayer';
 import type { Ctx } from '../ctx';
-import { useHelpPress } from '../helpContext';
+import { useHelpSpot } from '../helpContext';
+import { HelpBadge } from '../helpBadge';
 import { t } from '../i18n';
 import { Field, Header, Ico, PrimaryBtn, Screen, Sheet, txt } from '../kit';
 import { feedbackSource, versionTitle, type PassageView } from '../passageView';
@@ -84,9 +85,9 @@ function SayRow(props: { said: boolean; needsNote: boolean; text: string; hasVoi
   const sub = props.said
     ? [props.hasVoice ? t('common.voiceNote') : null, props.text.trim() ? t('recording.quoted', { text: props.text.trim() }) : null].filter(Boolean).join(' · ')
     : props.needsNote ? t('recording.publish.needed', { version: versionTitle(props.prior) }) : t('recording.publish.optional');
-  const onPress = useHelpPress(label, t('recording.publish.sayHelp'), props.onPress);
+  const spot = useHelpSpot(label, t('recording.publish.sayHelp'), props.onPress);
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={t('recording.publish.rowLabel', { label, sub })}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('recording.publish.rowLabel', { label, sub })}
       style={({ pressed }) => [styles.row, props.needsNote && !props.said && { borderColor: TINT.amberText }, pressed && ps.pressed]}>
       <View style={[styles.tile, props.said && { backgroundColor: TINT.green }]}>
         <Ico name={props.said ? 'check' : 'mic'} size={22} color={props.said ? TINT.greenText : C.primary} />
@@ -96,6 +97,7 @@ function SayRow(props: { said: boolean; needsNote: boolean; text: string; hasVoi
         <Text style={txt.smMuted} numberOfLines={3}>{sub}</Text>
       </View>
       <Ico name="right" size={22} color={C.muted} />
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }

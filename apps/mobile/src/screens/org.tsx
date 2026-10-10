@@ -567,7 +567,7 @@ export function LanguageHome(ctx: Ctx) {
         footer={next >= 0 ? <PrimaryBtn label={questionLabel(QUESTIONS[next]!.id)} icon="right" onPress={() => ctx.go('get_ready', { languageId, step: String(next + 1) })} /> : undefined}>
         <ReadyChecklist ctx={ctx} s={s} />
         {help ? <QuietLink icon="playSolid" label={t('admin.howItWorks.link', { length: formatClock(40_000) })} detail={t('admin.howItWorks.detail')}
-          onPress={() => { help.setOn(true); help.explain(t('admin.howItWorks.title'), howItWorks(name)); }} /> : null}
+          onPress={() => { help.setOn(true); help.tell(t('admin.howItWorks.title'), howItWorks(name)); }} /> : null}
         {joinRows ? <Group>{joinRows}</Group> : null}
         {moreCard}
         {listingError}

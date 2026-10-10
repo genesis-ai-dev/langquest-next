@@ -1105,8 +1105,7 @@
     },
     "help": {
       "turnOff": "Turn help off",
-      "turnOn": "Help: explain this screen",
-      "isOn": "Help is on. Tap anything to hear what it does."
+      "turnOn": "Help: explain this screen"
     },
     "checklist": {
       "answered": "Answered. Tap to change it.",
@@ -3738,35 +3737,13 @@
   "help": {
     "explainScreen": "Help: explain this screen",
     "turnOff": "Turn help off",
-    "banner": "Help is on. Tap anything to hear what it does.",
-    "gotIt": "Got it",
-    "nextPart": "Next part",
+    "listen": "Listen",
+    "stop": "Stop",
     "line": "{{label}}. {{detail}}",
     "lineAfterSentence": "{{label}} {{detail}}",
-    "card": {
-      "partPlaying": "{{part, number}} of {{total, number}} · playing",
-      "quoted": "“{{text}}”"
-    },
-    "intro": {
-      "playing": "Playing: “{{text}}”",
-      "explain": "The first time you open a screen, LangQuest says what it's for. Tap ? any time to hear it again and see what each part does.",
-      "showParts": "Show me the parts"
-    },
     "details": {
       "primary": "The main thing to do on this screen.",
       "quiet": "Another way forward, less often needed."
-    },
-    "intros": {
-      "myWork": "This is your work. The big card is what to do next: tap Start to begin.",
-      "passageRecord": "This is your passage. The steps go from top to bottom. The big button at the bottom is your next step.",
-      "workspace": "This is where you record. What helps you is on top, your recording is below. Tap the red button to speak, and tap it again to stop.",
-      "reviewCapture": "Here you check a recording. Listen first, then answer the questions, then say if it is clear.",
-      "backTranslation": "Here you say the recording again in the other language, one part at a time.",
-      "studyGuide": "This is the study guide. Go through each step together before you record.",
-      "studyStep": "This is one step of the study guide. Listen to it, talk about it, then tap Done with this step.",
-      "mapHome": "These are all the passages. Find one, or tap Next to go on with your work.",
-      "settingsHome": "This is about you: your name, the microphone, and how LangQuest works.",
-      "getReady": "Answer four questions to get the language ready for translators."
     }
   },
   "offline": {

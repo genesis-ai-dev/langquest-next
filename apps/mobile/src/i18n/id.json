@@ -1076,8 +1076,7 @@
     },
     "help": {
       "turnOff": "Matikan bantuan",
-      "turnOn": "Bantuan: jelaskan layar ini",
-      "isOn": "Bantuan aktif. Ketuk apa saja untuk mendengar fungsinya."
+      "turnOn": "Bantuan: jelaskan layar ini"
     },
     "checklist": {
       "answered": "Sudah dijawab. Ketuk untuk mengubahnya.",
@@ -3611,35 +3610,13 @@
   "help": {
     "explainScreen": "Bantuan: jelaskan layar ini",
     "turnOff": "Matikan bantuan",
-    "banner": "Bantuan aktif. Ketuk apa saja untuk mendengar fungsinya.",
-    "gotIt": "Mengerti",
-    "nextPart": "Bagian berikutnya",
+    "listen": "Dengarkan",
+    "stop": "Berhenti",
     "line": "{{label}}. {{detail}}",
     "lineAfterSentence": "{{label}} {{detail}}",
-    "card": {
-      "partPlaying": "{{part, number}} dari {{total, number}} · diputar",
-      "quoted": "“{{text}}”"
-    },
-    "intro": {
-      "playing": "Memutar: “{{text}}”",
-      "explain": "Saat pertama kali Anda membuka sebuah layar, LangQuest menjelaskan kegunaannya. Ketuk ? kapan saja untuk mendengarnya lagi dan melihat fungsi tiap bagian.",
-      "showParts": "Tunjukkan bagian-bagiannya"
-    },
     "details": {
       "primary": "Hal utama yang dilakukan di layar ini.",
       "quiet": "Cara lain untuk lanjut, lebih jarang diperlukan."
-    },
-    "intros": {
-      "myWork": "Ini pekerjaan Anda. Kartu besar adalah yang perlu dilakukan berikutnya: ketuk Mulai untuk memulai.",
-      "passageRecord": "Ini perikop Anda. Tahapnya berurutan dari atas ke bawah. Tombol besar di bawah adalah langkah Anda berikutnya.",
-      "workspace": "Di sini Anda merekam. Yang membantu Anda ada di atas, rekaman Anda di bawah. Ketuk tombol merah untuk berbicara, lalu ketuk lagi untuk berhenti.",
-      "reviewCapture": "Di sini Anda memeriksa rekaman. Dengarkan dulu, lalu jawab pertanyaannya, lalu katakan apakah sudah jelas.",
-      "backTranslation": "Di sini Anda mengucapkan rekaman itu lagi dalam bahasa lain, satu bagian demi satu bagian.",
-      "studyGuide": "Ini panduan studi. Lalui setiap langkah bersama sebelum Anda merekam.",
-      "studyStep": "Ini satu langkah dari panduan studi. Dengarkan, bicarakan, lalu ketuk Selesai dengan langkah ini.",
-      "mapHome": "Ini semua perikop. Cari satu, atau ketuk Lanjut untuk meneruskan pekerjaan Anda.",
-      "settingsHome": "Ini tentang Anda: nama Anda, mikrofon, dan cara kerja LangQuest.",
-      "getReady": "Jawab empat pertanyaan untuk menyiapkan bahasa ini bagi para penerjemah."
     }
   },
   "offline": {
