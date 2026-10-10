@@ -131,6 +131,22 @@
       "eas": {
         "projectId": "582d3757-4245-419a-9087-e269e3bf4c4d"
       }
+    },
+    "locales": {
+      "es": "./locales/es.json",
+      "pt-BR": "./locales/pt-BR.json",
+      "fr": "./locales/fr.json",
+      "ar": "./locales/ar.json",
+      "sw": "./locales/sw.json",
+      "ha": "./locales/ha.json",
+      "am": "./locales/am.json",
+      "hi": "./locales/hi.json",
+      "bn": "./locales/bn.json",
+      "ne": "./locales/ne.json",
+      "id": "./locales/id.json",
+      "zh-Hans": "./locales/zh-Hans.json",
+      "th": "./locales/th.json",
+      "my": "./locales/my.json"
     }
   }
 }

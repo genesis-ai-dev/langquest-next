@@ -1,1 +1,23 @@
-{}
+{
+  "invite": {
+    "subject": "Gayyatarku ta LangQuest",
+    "heading": "Gayyatarku ta LangQuest",
+    "intro": "An gayyace ku ku shiga wata tawaga a LangQuest.",
+    "openLink": "Buɗe wannan mahaɗi:",
+    "openLinkOnPhone": "Buɗe wannan mahaɗi a wayarku:",
+    "openButton": "Buɗe LangQuest",
+    "openButtonOnPhone": "Buɗe LangQuest a wayarku",
+    "orPasteCode": "Ko a cikin LangQuest, taɓa {{screen}} sannan ku liƙa wannan lambar:",
+    "joinScreen": "Karanta lamba",
+    "expires": "Wannan gayyata za ta ƙare ranar {{date}}.",
+    "ignore": "Idan ba ku yi tsammanin wannan gayyata ba, kuna iya ƙyale ta."
+  },
+  "reset": {
+    "subject": "Zaɓi sabuwar kalmar sirri ta LangQuest",
+    "heading": "Zaɓi sabuwar kalmar sirri",
+    "intro": "Wani ya nemi a canja kalmar sirri ta {{email}} a LangQuest.",
+    "openButton": "Zaɓi sabuwar kalmar sirri",
+    "expires": "Wannan mahaɗi yana aiki na minti {{minutes}}.",
+    "ignore": "Idan ba ku nemi wannan ba, ku ƙyale wannan imel. Kalmar sirrinku ba za ta canja ba."
+  }
+}

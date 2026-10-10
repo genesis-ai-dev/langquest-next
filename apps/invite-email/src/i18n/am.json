@@ -1,1 +1,23 @@
-{}
+{
+  "invite": {
+    "subject": "የእርስዎ የLangQuest ግብዣ",
+    "heading": "የእርስዎ የLangQuest ግብዣ",
+    "intro": "በLangQuest ውስጥ አንድን ቡድን እንዲቀላቀሉ ተጋብዘዋል።",
+    "openLink": "ይህን ሊንክ ይክፈቱ፦",
+    "openLinkOnPhone": "ይህን ሊንክ በስልክዎ ላይ ይክፈቱ፦",
+    "openButton": "LangQuestን ይክፈቱ",
+    "openButtonOnPhone": "LangQuestን በስልክዎ ላይ ይክፈቱ",
+    "orPasteCode": "ወይም በLangQuest ውስጥ {{screen}} ን ይንኩና ይህን ኮድ ይለጥፉ፦",
+    "joinScreen": "ኮድ ይቃኙ",
+    "expires": "ይህ ግብዣ በ{{date}} ያበቃል።",
+    "ignore": "ይህን ግብዣ ካልጠበቁ ችላ ሊሉት ይችላሉ።"
+  },
+  "reset": {
+    "subject": "አዲስ የLangQuest የይለፍ ቃል ይምረጡ",
+    "heading": "አዲስ የይለፍ ቃል ይምረጡ",
+    "intro": "አንድ ሰው በLangQuest ውስጥ የ{{email}}ን የይለፍ ቃል ለመቀየር ጠይቋል።",
+    "openButton": "አዲስ የይለፍ ቃል ይምረጡ",
+    "expires": "ይህ ሊንክ ለ{{minutes}} ደቂቃዎች ይሠራል።",
+    "ignore": "ይህን ካልጠየቁ ይህን ኢሜይል ችላ ይበሉት። የይለፍ ቃልዎ እንዳለ ይቆያል።"
+  }
+}

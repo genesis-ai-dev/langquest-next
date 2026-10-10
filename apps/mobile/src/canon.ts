@@ -111,11 +111,14 @@ export function parseQuery(query: string): { book: string; chapter?: number } {
   return m?.[2] ? { book, chapter: Number(m[2]) } : { book };
 }
 
-/** The book's names start with the prefix, with or without a leading number ("cor" finds 1 and 2 Corinthians). */
+/** The book's names start with the prefix, with or without a leading number ("cor" finds 1 and 2 Corinthians), or one of their words does. */
 export function bookMatches(b: CanonBook, prefix: string): boolean {
   if (!prefix) return true;
   const p = prefix.toLowerCase();
-  return [b.name, ...b.aliases].map((n) => latinDigits(n).toLowerCase()).some((n) => n.startsWith(p) || n.replace(/^\d /, '').startsWith(p));
+  return [b.name, ...b.aliases].map((n) => latinDigits(n).toLowerCase()).some((n) => n.startsWith(p) || n.replace(/^\d /, '').startsWith(p)
+    // Any word of the name ("yohana" in "Injili ya Yohana"), and, in scripts without
+    // letters a-z, anywhere in it ("ယောဟန်" in "ရှင်ယောဟန်ခရစ်ဝင်", "约翰" in "约翰福音").
+    || n.split(/\s+/).some((w) => w.startsWith(p)) || (p.length >= 2 && !/[a-z]/.test(p) && n.includes(p)));
 }
 
 /** Books a search names, in canon order. */

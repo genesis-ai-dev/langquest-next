@@ -1,1 +1,23 @@
-{}
+{
+  "invite": {
+    "subject": "Mwaliko wako wa LangQuest",
+    "heading": "Mwaliko wako wa LangQuest",
+    "intro": "Umealikwa kujiunga na timu katika LangQuest.",
+    "openLink": "Fungua kiungo hiki:",
+    "openLinkOnPhone": "Fungua kiungo hiki kwenye simu yako:",
+    "openButton": "Fungua LangQuest",
+    "openButtonOnPhone": "Fungua LangQuest kwenye simu yako",
+    "orPasteCode": "Au katika LangQuest, gusa {{screen}} kisha bandika msimbo huu:",
+    "joinScreen": "Soma msimbo",
+    "expires": "Mwaliko huu unaisha tarehe {{date}}.",
+    "ignore": "Ikiwa hukutarajia mwaliko huu, unaweza kuupuuza."
+  },
+  "reset": {
+    "subject": "Chagua nenosiri jipya la LangQuest",
+    "heading": "Chagua nenosiri jipya",
+    "intro": "Mtu ameomba kubadilisha nenosiri la {{email}} katika LangQuest.",
+    "openButton": "Chagua nenosiri jipya",
+    "expires": "Kiungo hiki kinafanya kazi kwa dakika {{minutes}}.",
+    "ignore": "Ikiwa hukuomba hili, puuza barua pepe hii. Nenosiri lako linabaki vilevile."
+  }
+}

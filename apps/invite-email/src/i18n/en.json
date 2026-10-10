@@ -7,8 +7,8 @@
     "openLinkOnPhone": "Open this link on your phone:",
     "openButton": "Open LangQuest",
     "openButtonOnPhone": "Open LangQuest on your phone",
-    "orPasteCode": "Or open {{screen}} in LangQuest and paste this code:",
-    "joinScreen": "Join with an invite",
+    "orPasteCode": "Or in LangQuest, tap {{screen}} and paste this code:",
+    "joinScreen": "Scan a code",
     "expires": "This invite expires on {{date}}.",
     "ignore": "If you did not expect this invitation, you can ignore it."
   },
