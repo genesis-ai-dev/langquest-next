@@ -162,7 +162,3 @@ export function andList(items: string[]): string {
 export function commaList(items: string[]): string {
   return items.reduce((acc, x, i) => (i === 0 ? x : t('passage.list.comma', { a: acc, b: x })), '');
 }
-
-export function plural(n: number, one: string, many = `${one}s`): string {
-  return `${n.toLocaleString('en-US')} ${n === 1 ? one : many}`;
-}
