@@ -34,7 +34,8 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   map_home: { reads:['derivePassage','unitPlace','languageProgress'] },
   book_map: { reads:['derivePassage','unitPlace'] },
   // Send to … (ADR-029) asks the usual reviewer or review team in one tap.
-  passage_record: { emits:['v1.DepartureRecorded','v1.DepartureUndone','v1.RequestMade','v1.RequestWithdrawn','v1.NoteAdded'],
+  // Versions deletes a draft; its Undo composes it again (decisions.md 81).
+  passage_record: { emits:['v1.DepartureRecorded','v1.DepartureUndone','v1.RequestMade','v1.RequestWithdrawn','v1.NoteAdded','v1.TakeArchived','v1.TakeComposed'],
     reads:['derivePassage','recordTimeline','reviewGrid','studyMarksFor'],rpcs:REPORTS },
   version_detail: { reads:['derivePassage','keyTermLinksFor'],rpcs:REPORTS },
   review_detail: { emits:['v1.DepartureRecorded','v1.DepartureUndone'],reads:['derivePassage','questionsForKind'],rpcs:REPORTS },

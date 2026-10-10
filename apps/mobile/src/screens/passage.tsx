@@ -8,7 +8,7 @@
 // (core derivePassage and friends); every change is a core command through
 // ctx.act, with Undo where the demo offers it.
 import {
-  CommandError, commands, feedbackIsMine, isCompleteState, keyTermLinksFor, KIND_STATE_LABEL, questionsForKind, recordTimeline,
+  CommandError, commands, draftsBy, feedbackIsMine, isCompleteState, keyTermLinksFor, KIND_STATE_LABEL, questionsForKind, recordTimeline,
   reviewGrid, stepName,
   type Commands, type EventSpec, type FlowStepStatus, type KindState, type KindStatus, type PassageNote, type QuestionSpec, type ReviewView
 } from '@langquest-next/core';
@@ -31,6 +31,7 @@ import {
   type RowAction
 } from '../passage/record';
 import { PassagePath } from '../passage/path';
+import { VersionsPage } from '../passage/versions';
 import { checkPhrase, pathSteps, teamSteps, type PathInput, type PathStep, type TeamStep } from '../passage/pathModel';
 import { clipSeconds, clock as clockOf } from '../clipPlayer';
 import { useHelpPress } from '../helpContext';
@@ -153,9 +154,11 @@ interface RecordCan extends KindRowCan {
  * steps numbered top to bottom, the lit one in a card, the team's checks
  * under "Then the team", and one main button for this person's next step.
  * Everything else is one labelled tap away: "Something else?" (a page of the
- * other ways forward) and "Versions and history" (the full record, in place).
- * Publishing comes back here to "Version N published" with the likely next
- * check picked (demo ADR-034).
+ * other ways forward) and "Versions and history" (a page of the person's
+ * drafts and every published version to work on freely, then the full
+ * record, decisions.md 81). With several drafts, Record opens that page to
+ * pick one. Publishing comes back here to "Version N published" with the
+ * likely next check picked (demo ADR-034).
  */
 export function PassageRecord(ctx: Ctx) {
   const v = usePassage(ctx);
@@ -163,9 +166,9 @@ export function PassageRecord(ctx: Ctx) {
   const [skipping, setSkipping] = useState<{ kindId: string; stepId: string } | null>(null);
   const [overriding, setOverriding] = useState<string | null>(null);
   const [noting, setNoting] = useState<null | 'note' | 'say'>(null);
-  // The record's pages: the path, "Something else?", and asking for the next check.
+  // The record's pages: the path, "Something else?", asking for the next check, and every version (decisions.md 81).
   const publishedParam = ctx.params['published'];
-  const [page, setPage] = useState<'path' | 'else' | 'ask'>(() => (publishedParam ? 'ask' : 'path'));
+  const [page, setPage] = useState<'path' | 'else' | 'ask' | 'versions'>(() => (publishedParam ? 'ask' : 'path'));
   const [askAfterPublish, setAskAfterPublish] = useState(!!publishedParam);
   // Publishing returns to a record that may already be open (the stack pops back to it): open the ask then too.
   useEffect(() => { if (publishedParam) { setPage('ask'); setAskAfterPublish(true); } }, [publishedParam]);
@@ -174,7 +177,6 @@ export function PassageRecord(ctx: Ctx) {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => { setPage('path'); return true; });
     return () => sub.remove();
   }, [page]);
-  const [historyOpen, setHistoryOpen] = useState(false);
   const [historyShown, setHistoryShown] = useState(HISTORY_STEP);
   const timeline = useMemo(() => (v ? recordTimeline(v.state, v.p) : []), [v?.state, v?.p]);
   const guide = useStudyGuide(ctx, v?.unitId);
@@ -212,7 +214,10 @@ export function PassageRecord(ctx: Ctx) {
   const mine = requestIsMine(v.state, me);
   const teamName = teamNameIn(v.state);
   const answersMine = can.record && can.keep && feedbackIsMine(p, me);
-  const myDraft = p.drafting && p.draftBy === me;
+  // A person may keep several drafts (decisions.md 81): with more than one, Record opens Versions to pick.
+  const myDrafts = draftsBy(p, me);
+  const myDraft = myDrafts.length > 0;
+  const recordOrPick = () => (myDrafts.length > 1 ? setPage('versions') : go('workspace'));
   const fbKindIds = p.awaitingResponse.map((r) => r.kindId);
   const fbNames = feedbackNames(p, kinds);
   const openStep = openStepId ? p.steps.find((st) => st.step.id === openStepId) : undefined;
@@ -301,7 +306,7 @@ export function PassageRecord(ctx: Ctx) {
   } else if (lit?.kind === 'study') {
     main = { label: 'Study', icon: 'star', onPress: () => go('study_guide') };
   } else if (lit?.kind === 'record' && can.record) {
-    main = { label: myDraft ? 'Continue recording' : 'Record', icon: 'mic', onPress: () => go('workspace') };
+    main = { label: myDraft ? 'Continue recording' : 'Record', icon: 'mic', onPress: recordOrPick };
   } else if (nextKind && can.ask) {
     main = { label: `Ask for ${checkPhrase(v.kind(nextKind.kindId).name)}`, icon: 'send', onPress: () => { setAskAfterPublish(false); setPage('ask'); } };
   } else if (openCheck) {
@@ -402,7 +407,7 @@ export function PassageRecord(ctx: Ctx) {
           ) : null}
           {can.record && p.recorded && !answersMine ? (
             <BigOption icon="mic" label={myDraft ? 'Continue recording' : 'Record a new version'} sub="Reviews so far stay with the version they heard"
-              onPress={() => go('workspace')} />
+              onPress={recordOrPick} />
           ) : null}
           {lockedCheckpoint ? (
             <BigOption icon="lock" label="Move past a checkpoint" sub={`${stepName(kinds, lockedCheckpoint.step)} is a must-pass step. Say why, and it's on the record`}
@@ -476,27 +481,10 @@ export function PassageRecord(ctx: Ctx) {
     );
   }
 
-  // ---- the path ----
-  const footer = (
-    <View style={{ gap: space.xs }}>
-      {main ? <PrimaryBtn label={main.label} icon={main.icon} onPress={main.onPress} /> : null}
-      <QuietLinks items={[
-        { label: 'Something else?', icon: 'help', onPress: () => setPage('else') },
-        { label: historyOpen ? 'Hide versions and history' : 'Versions and history', icon: 'list', onPress: () => setHistoryOpen((o) => !o) }
-      ]} />
-    </View>
-  );
-  return (
-    <Screen header={<Header title={v.title} sub={v.language} onBack={ctx.back} />} footer={footer}>
-      {p.awaitingResponse.length > 0 && !answersMine ? (
-        <Text style={[txt.sm, { color: TINT.amberText }]}>
-          Waiting on {p.latest ? ctx.name(p.latest.by, true) : 'the translator'} to answer the {fbNames} feedback.
-        </Text>
-      ) : null}
-      <PassagePath steps={steps} team={team} onStep={onStep} onTeamStep={onTeamStep} extraFor={extraFor} />
-
-      {historyOpen ? <SectionLabel label="Versions and history" /> : null}
-      {historyOpen && study ? (
+  // ---- every version (decisions.md 81): drafts, published versions, then the history ----
+  const history = (
+    <>
+      {study ? (
         <Disclosure icon="sparkle" title={`${study.guide.pattern} study`}
           summary={study.doneCount || study.noteCount ? studySummary(study) : 'Not started'}
           {...ctx.details(`passage:${unitId}:${languageId}:study`)}>
@@ -504,21 +492,13 @@ export function PassageRecord(ctx: Ctx) {
           <Row icon="sparkle" label="Open the study" onPress={() => go('study_guide')} last />
         </Disclosure>
       ) : null}
-      {historyOpen && p.versions.length > 0 ? (
-        <Group>
-          {[...p.versions].reverse().map((ver, i) => (
-            <Row key={ver.takeId} icon="mic" label={versionTitle(ver.n)} sub={`${ctx.name(ver.by)} · ${when(ver.hlc)}`}
-              onPress={() => go('version_detail', { takeId: ver.takeId })} last={i === p.versions.length - 1} />
-          ))}
-        </Group>
-      ) : null}
-      {historyOpen && p.versions.length > 0 && gridIds.length > 0 ? (
+      {p.versions.length > 0 && gridIds.length > 0 ? (
         <Disclosure icon="chat" title="Reviews by version" summary={reviewsSummary(p)} {...ctx.details(`passage:${unitId}:${languageId}:reviews`)}>
           <ReviewGrid ctx={ctx} v={v} kindIds={gridIds}
             onVersion={(takeId) => go('version_detail', { takeId })} onReview={(reviewId) => go('review_detail', { reviewId })} />
         </Disclosure>
       ) : null}
-      {historyOpen && timeline.length > 0 ? (
+      {timeline.length > 0 ? (
         <Disclosure icon="history" title="History" summary={historySummary(timeline)} {...ctx.details(`passage:${unitId}:${languageId}:history`)}>
           {timeline.slice(0, historyShown).map((e, i) => {
             const t = describe(e);
@@ -548,6 +528,36 @@ export function PassageRecord(ctx: Ctx) {
           </View>
         </Disclosure>
       ) : null}
+    </>
+  );
+  if (page === 'versions') {
+    return (
+      <>
+        <VersionsPage ctx={ctx} v={v} canRecord={can.record} go={go} onBack={() => setPage('path')} history={history}
+          {...(nextKind && can.ask ? { ask: { label: `Ask for ${checkPhrase(v.kind(nextKind.kindId).name)}`, onPress: () => { setAskAfterPublish(false); setPage('ask'); } } } : {})} />
+        {sheets}
+      </>
+    );
+  }
+
+  // ---- the path ----
+  const footer = (
+    <View style={{ gap: space.xs }}>
+      {main ? <PrimaryBtn label={main.label} icon={main.icon} onPress={main.onPress} /> : null}
+      <QuietLinks items={[
+        { label: 'Something else?', icon: 'help', onPress: () => setPage('else') },
+        { label: 'Versions and history', icon: 'list', onPress: () => setPage('versions') }
+      ]} />
+    </View>
+  );
+  return (
+    <Screen header={<Header title={v.title} sub={v.language} onBack={ctx.back} />} footer={footer}>
+      {p.awaitingResponse.length > 0 && !answersMine ? (
+        <Text style={[txt.sm, { color: TINT.amberText }]}>
+          Waiting on {p.latest ? ctx.name(p.latest.by, true) : 'the translator'} to answer the {fbNames} feedback.
+        </Text>
+      ) : null}
+      <PassagePath steps={steps} team={team} onStep={onStep} onTeamStep={onTeamStep} extraFor={extraFor} />
       {sheets}
     </Screen>
   );

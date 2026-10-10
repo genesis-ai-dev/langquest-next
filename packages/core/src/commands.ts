@@ -2,7 +2,7 @@ import type { Card, EventPayloads, EventType } from './events';
 import { buildIndexes, type Indexes } from './indexes';
 import { TG_MATERIAL_ID } from './materials';
 import type { FlowSelection, LanguageState } from './state';
-import { derivePassage } from './passage';
+import { derivePassage, latestDraftBy, type PassageState } from './passage';
 import type { UsedReference } from './references';
 import { cardVerseEvents, type PartMark } from './verses';
 import { CUSTOM_FLOW, flowStepId, flowStepPrefix, type DepartureType, type NoteAnchor, type QuestionSpec, type RecordEvents, type ReviewOutcome, type ReviewVia } from './record';
@@ -32,18 +32,24 @@ export interface Commands {
   /** Save one recorded card against a passage. Idempotent by recordingId. */
   addRecording(c: { commandId: string; unitId: string; recordingId: string; kind: 'source' | 'target'; card: Card }): EventSpec[];
   /**
-   * Compose the pending cards into the person's draft of a passage. Their
-   * previous draft is retired; a teammate's draft is never touched (archiving
-   * is add-wins).
+   * Compose cards into a draft of a passage. A person may keep several drafts
+   * (decisions.md 81): `parentTakeId` is the take this one continues, the
+   * draft being changed (its take is retired), a version to start from, or
+   * null for a draft started empty. A draft already set aside continues as
+   * it was (the Undo of deleting it). Left out, it continues the person's
+   * latest draft, else the latest version. A teammate's draft is never
+   * retired (archiving is add-wins).
    */
-  keepTake(c: { commandId: string; unitId: string; cardHashes: string[]; actorId: string }): EventSpec[];
+  keepTake(c: { commandId: string; unitId: string; cardHashes: string[]; actorId: string; parentTakeId?: string | null }): EventSpec[];
+  /** Set one of the person's drafts aside (decisions.md 81). Undo is `keepTake` with its cards and the draft as parent. */
+  deleteDraft(c: { commandId: string; unitId: string; takeId: string; actorId: string }): EventSpec[];
   /**
    * Which verses each part holds (decisions.md 80): one 'v1.CardVerseSet'
    * per card whose mark changed, from the marks of a whole list of cards.
    */
   setCardVerses(c: { commandId: string; unitId: string; cards: readonly string[]; marks: readonly PartMark[]; verses: readonly string[] }): EventSpec[];
-  /** Record a deliberate discard of pending cards so recovery never resurrects them. */
-  discardCards(c: { commandId: string; unitId: string; cardHashes: string[] }): EventSpec[];
+  /** Record a deliberate discard of pending cards so recovery never resurrects them. `parentTakeId`: the draft they were dropped from. */
+  discardCards(c: { commandId: string; unitId: string; cardHashes: string[]; parentTakeId?: string | null }): EventSpec[];
   /** Set a passage note in the language's translation guidelines, defining the material on first use. */
   savePassageNote(c: { commandId: string; unitId: string; text: string; card?: Card; recordingId?: string; blobHash?: string }): EventSpec[];
 
@@ -56,7 +62,9 @@ export interface Commands {
    */
   publishVersion(c: { commandId: string; unitId: string; cardHashes: string[]; note?: string; noteBlobHash?: string;
     /** The publisher: only their own draft is replaced, never a teammate's (archiving is add-wins). */
-    actorId?: string }): EventSpec[];
+    actorId?: string;
+    /** The draft being published, or the version it was started from (decisions.md 81). Left out: the publisher's latest draft. */
+    parentTakeId?: string | null }): EventSpec[];
   /** A review of a version for one kind; one per passage when a session covered several (REV-6). */
   recordReview(c: {
     commandId: string; takeIds: string[]; kindId: string; outcome: Exclude<ReviewOutcome, 'recorded'>; via: ReviewVia;
@@ -121,6 +129,21 @@ export const MAX_USED_ITEMS = 200;
 export type { QuestionSpec };
 
 export function commands(state: LanguageState, idx: Indexes = buildIndexes(state)): Commands {
+  /**
+   * What a new take of a draft continues (decisions.md 81), and the take it
+   * retires: the person's own open draft it replaces, never a teammate's.
+   */
+  const continuing = (passage: PassageState, c: { unitId: string; actorId: string; parentTakeId?: string | null }) => {
+    if (c.parentTakeId === undefined) {
+      const mine = latestDraftBy(passage, c.actorId);
+      return { parent: mine?.takeId ?? passage.latest?.takeId ?? null, retire: mine?.takeId };
+    }
+    if (c.parentTakeId === null) return { parent: null, retire: undefined };
+    if (state.takes[c.parentTakeId]?.unitId !== c.unitId) throw new CommandError('That draft is not on this passage.');
+    const open = passage.drafts.find((d) => d.takeId === c.parentTakeId && d.by === c.actorId);
+    return { parent: c.parentTakeId, retire: open?.takeId };
+  };
+
   const ids = (commandId: string) => {
     let n = 0;
     return () => `${commandId}:${n++}`;
@@ -142,12 +165,19 @@ export function commands(state: LanguageState, idx: Indexes = buildIndexes(state
       const next = ids(c.commandId);
       const takeId = `take:${c.commandId}`;
       const passage = derivePassage(state, c.unitId, idx);
-      const mine = passage.draftTakeId && passage.draftBy === c.actorId ? passage.draftTakeId : undefined;
+      const { parent, retire } = continuing(passage, c);
       const out: EventSpec[] = [
-        { id: next(), type: 'v1.TakeComposed', payload: { takeId, unitId: c.unitId, cardHashes: c.cardHashes, parentTakeId: mine ?? passage.latest?.takeId ?? null } }
+        { id: next(), type: 'v1.TakeComposed', payload: { takeId, unitId: c.unitId, cardHashes: c.cardHashes, parentTakeId: parent } }
       ];
-      if (mine) out.push({ id: next(), type: 'v1.TakeArchived', payload: { takeId: mine } });
+      if (retire) out.push({ id: next(), type: 'v1.TakeArchived', payload: { takeId: retire } });
       return out;
+    },
+
+    deleteDraft(c) {
+      const draft = derivePassage(state, c.unitId, idx).drafts.find((d) => d.takeId === c.takeId);
+      if (!draft) throw new CommandError('That draft is already gone.');
+      if (draft.by !== c.actorId) throw new CommandError("Only whoever recorded a draft can delete it.");
+      return [{ id: ids(c.commandId)(), type: 'v1.TakeArchived', payload: { takeId: c.takeId } }];
     },
 
     setCardVerses(c) {
@@ -159,8 +189,9 @@ export function commands(state: LanguageState, idx: Indexes = buildIndexes(state
       const next = ids(c.commandId);
       const takeId = `take:${c.commandId}`;
       const passage = derivePassage(state, c.unitId, idx);
+      const parent = c.parentTakeId !== undefined ? c.parentTakeId : passage.draftTakeId ?? passage.latest?.takeId ?? null;
       return [
-        { id: next(), type: 'v1.TakeComposed', payload: { takeId, unitId: c.unitId, cardHashes: c.cardHashes, parentTakeId: passage.draftTakeId ?? passage.latest?.takeId ?? null } },
+        { id: next(), type: 'v1.TakeComposed', payload: { takeId, unitId: c.unitId, cardHashes: c.cardHashes, parentTakeId: parent } },
         { id: next(), type: 'v1.TakeArchived', payload: { takeId } }
       ];
     },
@@ -189,11 +220,13 @@ export function commands(state: LanguageState, idx: Indexes = buildIndexes(state
       if (latest && !note && !c.noteBlobHash) throw new CommandError('Say what changed.');
       const next = ids(c.commandId);
       const takeId = `take:${c.commandId}`;
-      const draft = passage.draftTakeId && (c.actorId === undefined || passage.draftBy === c.actorId) ? passage.draftTakeId : undefined;
+      const { parent, retire } = c.actorId === undefined && c.parentTakeId === undefined
+        ? { parent: passage.draftTakeId ?? latest?.takeId ?? null, retire: passage.draftTakeId }
+        : continuing(passage, { unitId: c.unitId, actorId: c.actorId ?? '', ...(c.parentTakeId !== undefined ? { parentTakeId: c.parentTakeId } : {}) });
       const out: EventSpec[] = [
-        { id: next(), type: 'v1.TakeComposed', payload: { takeId, unitId: c.unitId, cardHashes: [...c.cardHashes], parentTakeId: draft ?? latest?.takeId ?? null } }
+        { id: next(), type: 'v1.TakeComposed', payload: { takeId, unitId: c.unitId, cardHashes: [...c.cardHashes], parentTakeId: parent } }
       ];
-      if (draft) out.push({ id: next(), type: 'v1.TakeArchived', payload: { takeId: draft } });
+      if (retire) out.push({ id: next(), type: 'v1.TakeArchived', payload: { takeId: retire } });
       out.push({ id: next(), type: 'v1.TakeSubmitted', payload: { takeId, questionSetIds: [] } });
       if (latest) {
         out.push({ id: next(), type: 'v1.ResponseRecorded', payload: { takeId, respondsToTakeId: latest.takeId, ...(note ? { note } : {}), ...(c.noteBlobHash ? { blobHash: c.noteBlobHash } : {}) } });
