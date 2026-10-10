@@ -54,28 +54,45 @@ function recorded(language: string): Promise<Set<string>> {
 
 let player: AudioPlayer | null = null;
 let generation = 0;
+/** Ends the line playing now as stopped, so whoever awaits it moves on. */
+let endPlaying: (() => void) | null = null;
 
+/** Stop the help voice: help itself, or anything that stops all playback (leaving the screen, audioSession.ts). */
 export function stopHelpAudio() {
   generation += 1;
   player?.remove();
   player = null;
+  const end = endPlaying;
+  endPlaying = null;
+  end?.();
 }
 
-function playOne(uri: string, run: number): Promise<boolean> {
+type Played = 'done' | 'failed' | 'stopped';
+
+function playOne(uri: string, run: number): Promise<Played> {
   return new Promise((resolve) => {
-    if (run !== generation) { resolve(false); return; }
+    if (run !== generation) { resolve('stopped'); return; }
     try {
       const p = createAudioPlayer({ uri });
       player = p;
       const unregister = registerPlayback(stopHelpAudio);
+      const stopped = () => { unregister(); resolve('stopped'); };
+      endPlaying = stopped;
+      const finish = (how: Played) => {
+        unregister();
+        if (endPlaying === stopped) endPlaying = null;
+        p.remove();
+        if (player === p) player = null;
+        resolve(how);
+      };
       p.addListener('playbackStatusUpdate', (s) => {
-        if (s.error) { unregister(); p.remove(); if (player === p) player = null; resolve(false); return; }
-        if (s.didJustFinish) { unregister(); p.remove(); if (player === p) player = null; resolve(run === generation); }
+        if (s.error) finish('failed');
+        else if (s.didJustFinish) finish(run === generation ? 'done' : 'stopped');
       });
       p.play();
     } catch (e) {
       noteExpected('help audio play', e);
-      resolve(false);
+      resolve('failed');
     }
   });
 }
@@ -93,7 +110,8 @@ export async function isRecorded(...lines: string[]): Promise<boolean> {
  * Say these words in the recorded voice, one after another (a part's name,
  * then what it does). Resolves false, having said nothing, when any of them
  * has no recording in the language showing: the caller shows the words, and
- * the web reads them instead.
+ * the web reads them instead. Resolves true when it has said them, or was
+ * stopped (nothing more is to be said).
  */
 export async function sayRecorded(...lines: string[]): Promise<boolean> {
   stopHelpAudio();
@@ -102,9 +120,12 @@ export async function sayRecorded(...lines: string[]): Promise<boolean> {
   const words = lines.map((l) => l.trim()).filter(Boolean);
   if (words.length === 0 || apiUrl === null) return false;
   const [have, hashes] = await Promise.all([recorded(language), Promise.all(words.map((w) => lineHash(language, w)))]);
-  if (run !== generation || !hashes.every((h) => have.has(h))) return false;
+  if (run !== generation) return true;
+  if (!hashes.every((h) => have.has(h))) return false;
   for (const h of hashes) {
-    if (!(await playOne(await localCopy(language, h), run))) return false;
+    const played = await playOne(await localCopy(language, h), run);
+    if (played === 'failed') return false;
+    if (played === 'stopped') return true;
   }
   return true;
 }

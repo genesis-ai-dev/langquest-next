@@ -3,6 +3,7 @@ import { HelpModeProvider } from './src/helpMode';
 import { keepHelpAudio } from './src/helpAudio';
 import { languageReady, onLanguageReady } from './src/i18n/start';
 import { HelpScopeContext } from './src/helpContext';
+import { stopAudioPlayback } from './src/audioSession';
 import { CommandError, highlightsFor, orgLanguages, updatesFor, type EventSpec } from '@langquest-next/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session as AuthSession } from '@supabase/supabase-js';
@@ -142,6 +143,13 @@ function hostFor(id: ScreenId) {
   function Host(props: HostProps) {
     const ctx = useContext(CtxContext);
     const focused = useFocusedSafe();
+    // Playback belongs to the screen it started on: leaving it (another screen pushed over it, or a tab
+    // switched away) stops whatever was playing. Popping back unmounts the screen, and its players with it.
+    const wasFocused = useRef(focused);
+    useEffect(() => {
+      if (wasFocused.current && !focused) stopAudioPlayback();
+      wasFocused.current = focused;
+    }, [focused]);
     const pane = useContext(PaneKeyContext);
     const report = useContext(FooterReportContext);
     const key = props.route.key;

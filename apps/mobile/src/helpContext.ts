@@ -59,6 +59,11 @@ export const HelpContext = createContext<HelpMode | null>(null);
  */
 export const HelpScopeContext = createContext<boolean>(true);
 
+/** Whether the screen this is drawn in is the one showing (false while another screen is pushed over it). */
+export function useScreenShowing(): boolean {
+  return useContext(HelpScopeContext);
+}
+
 export function useHelpMode(): HelpMode | null {
   return useContext(HelpContext);
 }

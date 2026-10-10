@@ -14,6 +14,7 @@ import { Text } from './text';
 import { clipRect, HelpContext, helpLine, litShape, MARK_SIZE, markAt, numberParts, tooltipPlace, type FirstSeen, type HelpLit, type HelpMark, type HelpMode, type HelpPart, type HelpRect } from './helpContext';
 import { currentLocale, isRtl, t } from './i18n';
 import { formatNumber } from './i18n/format';
+import { registerPlayback } from './audioSession';
 import { isRecorded, sayRecorded, stopHelpAudio } from './helpAudio';
 import { Ico } from './kit';
 import { lift } from './shadow';
@@ -40,18 +41,22 @@ function browserVoice() {
   return g.speechSynthesis && g.SpeechSynthesisUtterance ? { synth: g.speechSynthesis, Utterance: g.SpeechSynthesisUtterance } : null;
 }
 
+/** Read the words aloud in the browser; resolves when it stops, including when anything stops all playback (audioSession.ts). */
 function speakInBrowser(text: string): Promise<void> {
   const voice = browserVoice();
   if (!voice) return Promise.resolve();
   return new Promise((resolve) => {
+    let unregister = () => {};
+    const end = () => { unregister(); resolve(); };
     try {
       const u = new voice.Utterance(text);
       u.lang = currentLocale();
-      u.onend = () => resolve();
-      u.onerror = () => resolve();
+      u.onend = end;
+      u.onerror = end;
       voice.synth.cancel();
+      unregister = registerPlayback(() => { voice.synth.cancel(); end(); });
       voice.synth.speak(u);
-    } catch { resolve(); /* speaking is a nicety */ }
+    } catch { end(); /* speaking is a nicety */ }
   });
 }
 
