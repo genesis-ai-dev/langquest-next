@@ -4,7 +4,8 @@
 // language showing under it. Drafts (machine translations nobody has checked
 // yet, i18n/languages.ts) say so. Picking one restarts the app in it.
 import { useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from './text';
 import { languageInfo, t, UI_LANGUAGES, currentLanguage, type UiLanguage } from './i18n';
 import { chooseLanguage, chosenLanguage, phoneLanguage } from './i18n/start';
 import { Ico, Row, Sheet, txt } from './kit';

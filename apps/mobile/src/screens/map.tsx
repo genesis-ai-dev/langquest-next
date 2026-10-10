@@ -17,7 +17,8 @@ import {
   type KindDef, type LanguageProgress, type OrgState, type PassageState, type LanguageState, type UnitPlace
 } from '@langquest-next/core';
 import { useMemo, useState, type ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import {
   bookMatches, canonBook, canonBooks, chapterStage, chapterTone, countFilters, isMapFilter, MAP_FILTERS, matchesFilter, parseQuery,
   placeMatches, type CanonBook, type ChapterTone, type MapFilter, type Testament

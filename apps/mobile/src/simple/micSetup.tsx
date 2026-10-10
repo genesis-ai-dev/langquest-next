@@ -9,7 +9,8 @@
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { AudioModule } from 'expo-audio';
 import { useEffect, useRef, useState } from 'react';
-import { PanResponder, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import MicrophoneEnergy from '../../modules/microphone-energy';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../audioSession';
 import type { Ctx } from '../ctx';

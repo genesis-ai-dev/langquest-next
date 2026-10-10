@@ -2,7 +2,8 @@
 import { isStored, type BlobRef, type LanguageState } from '@langquest-next/core';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from './text';
 import type { LanguageHandle } from './useLanguage';
 import { t } from './i18n';
 import { IconBtn, txt } from './kit';

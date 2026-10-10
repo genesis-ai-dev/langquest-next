@@ -5,7 +5,8 @@
 // the filters and the full key one tap deeper. Every press goes through help
 // mode.
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import type { ChapterStage } from '../canon';
 import { useHelpPress } from '../helpContext';
 import { t } from '../i18n';

@@ -7,7 +7,8 @@
 // tap on a card opens what else can be done with the step.
 import type { KindDef } from '@langquest-next/core';
 import { useRef, useState } from 'react';
-import { PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
+import { PanResponder, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import { useHelpPress } from '../helpContext';
 import { t } from '../i18n';
 import { Ico, txt } from '../kit';

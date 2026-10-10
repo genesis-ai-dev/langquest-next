@@ -3,7 +3,8 @@
 // coordinator's "Get ‹language› ready" card, and quiet links that open in
 // place. Built on the kit, and every press goes through help mode.
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import { useHelpPress } from '../helpContext';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';

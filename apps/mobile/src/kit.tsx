@@ -15,9 +15,10 @@ import {
 } from 'lucide-react-native';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
-  AccessibilityInfo, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View,
+  AccessibilityInfo, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View,
   type StyleProp, type TextStyle, type ViewStyle
 } from 'react-native';
+import { Text } from './text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { KindState } from '@langquest-next/core';
 import { useHelpMode, useHelpPress, useHelpSpot } from './helpContext';
@@ -47,6 +48,15 @@ const ICONS = {
   arrowL: ArrowLeft, send: Send, key: KeyRound, list: List, phone: Smartphone, grip: GripVertical, sliders: SlidersHorizontal, done: CircleCheck
 } satisfies Record<string, LucideIcon>;
 export type IconName = keyof typeof ICONS;
+
+/**
+ * A text field starts where the line of reading starts. iOS aligns an empty
+ * field (its placeholder) by the text's own direction, not the app's, so in
+ * right to left it is told; the web follows the page's `dir`.
+ */
+function inputDirection(): TextStyle | null {
+  return isRtl() && Platform.OS === 'ios' ? { textAlign: 'right' } : null;
+}
 
 /** Icons that point along the line of reading, so right to left mirrors them (media controls stay as they are). */
 const MIRRORED = new Set<IconName>(['arrowR', 'arrowL', 'left', 'right', 'send', 'undo']);
@@ -552,7 +562,7 @@ export function Field(props: {
       <TextInput value={props.value} onChangeText={props.onChangeText} placeholder={props.placeholder} placeholderTextColor={C.faint}
         accessibilityLabel={props.label ?? props.placeholder}
         multiline={props.multiline} secureTextEntry={props.secure} keyboardType={props.keyboardType} autoCapitalize={props.autoCapitalize}
-        style={[styles.field, props.multiline && { minHeight: 88, textAlignVertical: 'top', paddingTop: 14 }, props.style]} />
+        style={[styles.field, inputDirection(), props.multiline && { minHeight: 88, textAlignVertical: 'top', paddingTop: 14 }, props.style]} />
     </View>
   );
 }
@@ -562,7 +572,7 @@ export function SearchField(props: { value: string; onChangeText: (v: string) =>
     <View style={styles.search}>
       <Ico name="search" size={24} color={C.muted} />
       <TextInput value={props.value} onChangeText={props.onChangeText} placeholder={props.placeholder} placeholderTextColor={C.faint}
-        autoCapitalize="none" autoCorrect={false} returnKeyType="search" accessibilityLabel={props.placeholder} style={styles.searchInput} />
+        autoCapitalize="none" autoCorrect={false} returnKeyType="search" accessibilityLabel={props.placeholder} style={[styles.searchInput, inputDirection()]} />
       {props.value ? <IconBtn name="close" label={t('shell.kit.clearSearch')} onPress={() => props.onChangeText('')} bg="transparent" color={C.muted} /> : null}
     </View>
   );

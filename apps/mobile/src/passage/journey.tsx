@@ -9,7 +9,8 @@
 // heard, read only.
 import { type FlowStepStatus, type KindStatus, type ReviewView, type Version } from '@langquest-next/core';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
+import { PanResponder, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import { AudioClip } from '../audioClip';
 import { stepName } from '../coreText';
 import type { Ctx } from '../ctx';

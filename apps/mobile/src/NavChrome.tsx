@@ -5,7 +5,8 @@
 // The simple redesign's tabs (decision 71, demo ADR-032): Work (a list), Map
 // (a book), Manage (the gear), Me (a person).
 import { Book } from 'lucide-react-native';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from './text';
 import { t } from './i18n';
 import { formatNumber } from './i18n/format';
 import { Badge, Ico, txt, type IconName } from './kit';

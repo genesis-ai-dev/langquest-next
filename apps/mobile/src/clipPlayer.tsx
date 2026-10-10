@@ -6,7 +6,8 @@
 import { isStored, type LanguageState } from '@langquest-next/core';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { PanResponder, Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { PanResponder, Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { Text } from './text';
 import { audioFormat } from './audioClip';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
 import type { ListenHooks } from './recording/useListenLoop';

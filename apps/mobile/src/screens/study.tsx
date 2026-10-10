@@ -21,7 +21,8 @@
 import { commands, isLicense, keyTermsForUnit, type EventSpec, type PassageNote } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import { licenseText } from '../coreText';
 import type { Ctx } from '../ctx';
 import { screenTitle } from '../flow';

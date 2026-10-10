@@ -9,7 +9,8 @@ import {
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '../text';
 import type { Ctx } from '../ctx';
 import { useHelpPress } from '../helpContext';
 import { t } from '../i18n';

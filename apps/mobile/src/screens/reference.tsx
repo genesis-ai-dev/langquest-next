@@ -17,7 +17,8 @@ import {
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import type { Ctx } from '../ctx';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';

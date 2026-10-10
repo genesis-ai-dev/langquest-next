@@ -7,7 +7,8 @@
 import { commands, keyTermView, type KeyTermView, type PassageNote } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import type { Ctx } from '../ctx';
 import { useHelpPress } from '../helpContext';
 import { t } from '../i18n';

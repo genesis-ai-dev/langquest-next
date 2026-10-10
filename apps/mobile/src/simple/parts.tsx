@@ -3,7 +3,8 @@
 // SegCard, RecordButton). Every pressable goes through the kit or
 // `useHelpPress`, so help mode explains it instead of pressing it.
 import { useEffect, useRef, type ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import { useHelpPress } from '../helpContext';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';

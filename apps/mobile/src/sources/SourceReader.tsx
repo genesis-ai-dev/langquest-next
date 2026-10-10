@@ -9,7 +9,8 @@
 // simulated, and the built-in text says it is a last resort.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import type { Ctx } from '../ctx';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';

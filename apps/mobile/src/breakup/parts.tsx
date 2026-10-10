@@ -5,7 +5,8 @@
 // again, and the note when a language's Bibles number verses differently.
 import { templateBooks, type NumberingClash, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
 import { useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import { bookNameOf } from '../contentTemplates';
 import { useHelpPress } from '../helpContext';
 import { t } from '../i18n';

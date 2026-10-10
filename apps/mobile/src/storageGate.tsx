@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Platform, ScrollView, Text, View } from 'react-native';
+import { Platform, ScrollView, View } from 'react-native';
+import { Text } from './text';
 import { t } from './i18n';
 import { EmptyState, GhostBtn, PrimaryBtn, txt } from './kit';
 import { reportError } from './report';

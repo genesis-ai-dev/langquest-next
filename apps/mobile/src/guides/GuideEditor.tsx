@@ -21,7 +21,8 @@ import {
 } from '@langquest-next/core';
 import { Bold, List, TextQuote, type LucideIcon } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, TextInput, View, type NativeSyntheticEvent, type TextInputSelectionChangeEventData } from 'react-native';
+import { Image, Pressable, StyleSheet, TextInput, View, type NativeSyntheticEvent, type TextInputSelectionChangeEventData } from 'react-native';
+import { Text } from '../text';
 import { licenseText } from '../coreText';
 import type { Ctx } from '../ctx';
 import { t } from '../i18n';

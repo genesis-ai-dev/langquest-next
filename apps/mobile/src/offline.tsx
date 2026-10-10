@@ -7,7 +7,8 @@
 // in the field that none of it came along.
 import { defaultOfflineScope, languageName, offlineByUnit, offlineSummary, type OfflineSummary, type UnitOffline } from '@langquest-next/core';
 import { useMemo, useSyncExternalStore } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from './text';
 import type { Ctx } from './ctx';
 import { Card, Ico, ProgressBar, SmallBtn, txt, type IconName } from './kit';
 import { endsSentence } from './helpContext';

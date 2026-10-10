@@ -28,7 +28,8 @@ import {
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import type { Ctx } from '../ctx';
 import { screenTitle } from '../flow';
 import { t } from '../i18n';

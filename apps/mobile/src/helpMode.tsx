@@ -7,7 +7,8 @@
 // browser reads the words aloud on the web, and a device shows them.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from './text';
 import { HelpContext, helpLine, screenIntro, type HelpMode, type HelpPart } from './helpContext';
 import { currentLocale, t } from './i18n';
 import { sayRecorded, stopHelpAudio } from './helpAudio';

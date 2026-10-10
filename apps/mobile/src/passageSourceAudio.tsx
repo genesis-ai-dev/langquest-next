@@ -10,7 +10,8 @@
 import { isStored } from '@langquest-next/core';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from './text';
 import { audioFormat } from './audioClip';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
 import type { Ctx } from './ctx';

@@ -10,7 +10,8 @@ import {
   weeklyCards, type AlertLevel, type LanguageRow, type LanguageSortKey, type Portfolio, type ReportWindow, type SortDir
 } from '@langquest-next/core';
 import { useState, type ReactNode } from 'react';
-import { Platform, Pressable, ScrollView, Share, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, Share, View } from 'react-native';
+import { Text } from '../text';
 import { t, Trans } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { Chip, ChipRow, IconBtn, LinkBtn, SearchField, SmallBtn, txt } from '../kit';

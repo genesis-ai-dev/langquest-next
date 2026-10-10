@@ -4,7 +4,8 @@
 // password. Used by Invite Member and by a new language's last step.
 import type { Scope } from '@langquest-next/core';
 import { useState, type ReactNode } from 'react';
-import { Text } from 'react-native';
+
+import { Text } from '../text';
 import type { Ctx } from '../ctx';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';

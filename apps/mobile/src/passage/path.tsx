@@ -3,7 +3,8 @@
 // one in a card, then the team's checks under "Then the team". The steps
 // come from pathModel.ts; this only draws them.
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import { useHelpSpot } from '../helpContext';
 import { HelpBadge } from '../helpBadge';
 import { t } from '../i18n';

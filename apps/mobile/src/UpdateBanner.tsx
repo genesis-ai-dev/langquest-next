@@ -1,7 +1,8 @@
 import { CloudOff } from 'lucide-react-native';
 import * as Updates from 'expo-updates';
 import { useCallback, useEffect } from 'react';
-import { ActivityIndicator, AppState, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from './text';
 import { t } from './i18n';
 import { noteExpected } from './report';
 import { C, onColor, radius, space, type as T } from './theme';

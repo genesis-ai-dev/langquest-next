@@ -5,7 +5,8 @@
 // or a new one. The walk-through is one tap away.
 import { emptyBooks, withEmptyBooksFilled, type TemplateDoc } from '@langquest-next/core';
 import { useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '../text';
 import { type LibraryChoice } from '../contentTemplates';
 import type { Ctx } from '../ctx';
 import { t } from '../i18n';

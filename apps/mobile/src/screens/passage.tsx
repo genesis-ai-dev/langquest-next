@@ -13,7 +13,8 @@ import {
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import { AudioClip } from '../audioClip';
 import { commandErrorText, stateLabel, stepName } from '../coreText';
 import type { Ctx } from '../ctx';

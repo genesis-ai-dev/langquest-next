@@ -4,7 +4,8 @@
 // someone else made opens a sheet, never a flow node, so the demo's flow is
 // unchanged. Kept in its own file so kit.tsx stays free of I/O.
 import { useState, type ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from './text';
 import type { Ctx } from './ctx';
 import { Field, GhostBtn, Group, Ico, IconBtn, LinkBtn, PrimaryBtn, Row, Sheet, txt } from './kit';
 import { t } from './i18n';

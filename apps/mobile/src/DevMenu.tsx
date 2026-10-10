@@ -6,7 +6,8 @@
 import { commands, membershipsOf, selectFlowSpecs, type FlowDoc } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useState } from 'react';
-import { Text } from 'react-native';
+
+import { Text } from './text';
 import { ensurePersonaAccount, joinAsPersona, maySeedDemoTeam, PERSONAS, personasAvailable, switchToPersona, type Persona } from './dev';
 import { issueInvite } from './invites';
 import { indexesFor } from './indexes';

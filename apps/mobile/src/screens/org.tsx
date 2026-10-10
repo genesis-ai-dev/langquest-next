@@ -15,7 +15,8 @@ import {
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '../text';
 import QRCode from 'react-native-qrcode-svg';
 import { type LibraryChoice } from '../contentTemplates';
 import { deriveKinds, kindOf, licenseText } from '../coreText';

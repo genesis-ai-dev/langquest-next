@@ -11,7 +11,8 @@ import {
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { Text } from '../text';
 import type { Ctx } from '../ctx';
 import { t, Trans } from '../i18n';
 import { contractsFor } from '../screenContracts';

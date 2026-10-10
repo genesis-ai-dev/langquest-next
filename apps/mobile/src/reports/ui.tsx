@@ -1,6 +1,7 @@
 import { ledgerFor, percent, recencyOf, toCsv, type Coverage, type LanguageReport, type LanguageRow } from '@langquest-next/core';
 import type { ReactNode } from 'react';
-import { Platform, Share, StyleSheet, Text, View } from 'react-native';
+import { Platform, Share, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import { bookName } from '../coreText';
 import { currentLocale, t, Trans } from '../i18n';
 import { formatDay, formatDayYear, formatMonthShort, formatMonthYear, formatNumber, formatPercent } from '../i18n/format';

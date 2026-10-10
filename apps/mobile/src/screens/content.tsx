@@ -27,7 +27,8 @@ import {
 import { BookHead, BreakUpBook, templateBookName } from '../breakup/BreakUpBook';
 import { useMemo, useRef, useState } from 'react';
 import * as Crypto from 'expo-crypto';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import {
   bibleBook, bookNameOf, bookRows, bookSegments, chapterBlocks, chipLabel, choiceLine, continuesInto, countOutline, addNode, docFromForm,
   docLevels, fiaStarts, formChanged, formFromDoc, levelsForDivide,

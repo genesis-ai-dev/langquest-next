@@ -4,7 +4,8 @@
 // (only more open than now, confirmed, since it cannot be undone).
 import { LICENSE_INFO, licenseChoices, type License } from '@langquest-next/core';
 import { useEffect, useState } from 'react';
-import { Linking, Text, View } from 'react-native';
+import { Linking, View } from 'react-native';
+import { Text } from './text';
 import { licenseText } from './coreText';
 import { t } from './i18n';
 import { Banner, GhostBtn, Ico, LinkBtn, PrimaryBtn, Row, Sheet, txt } from './kit';

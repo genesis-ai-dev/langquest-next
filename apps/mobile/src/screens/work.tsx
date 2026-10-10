@@ -18,7 +18,8 @@ import {
   type Highlight, type KindDef, type LanguageState, type OrgState, type Waiting
 } from '@langquest-next/core';
 import { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import { deriveKinds, passageSummary } from '../coreText';
 import type { Ctx } from '../ctx';
 import { edgeFor, type ScreenId } from '../flow';

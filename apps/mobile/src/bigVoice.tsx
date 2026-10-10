@@ -3,7 +3,8 @@
 // or say it again. Like VoiceNote, the audio lands in the content-addressed
 // store and is named only by the event that uses it (decisions.md 30).
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from './text';
 import { AudioClip } from './audioClip';
 import { clipSeconds, clock } from './clipPlayer';
 import type { Ctx } from './ctx';

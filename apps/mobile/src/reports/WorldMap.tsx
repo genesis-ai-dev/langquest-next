@@ -1,7 +1,8 @@
 import { geoEqualEarth, geoPath } from 'd3-geo';
 import type { FeatureCollection, Geometry } from 'geojson';
 import { useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '../text';
 import Svg, { Path } from 'react-native-svg';
 import { feature } from 'topojson-client';
 import type { GeometryCollection, Topology } from 'topojson-specification';

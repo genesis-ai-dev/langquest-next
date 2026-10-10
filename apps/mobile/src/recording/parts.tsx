@@ -3,7 +3,8 @@
 // and delete, and the line that says a save failed with a way to retry.
 import { CommandError } from '@langquest-next/core';
 import { useEffect } from 'react';
-import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import { AudioClip } from '../audioClip';
 import type { Ctx } from '../ctx';
 import { t } from '../i18n';

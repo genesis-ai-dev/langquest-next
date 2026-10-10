@@ -7,7 +7,8 @@
 // so help mode explains it instead of pressing it.
 import { FileText, Play, Route } from 'lucide-react-native';
 import { useEffect, useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import QRCode from 'react-native-qrcode-svg';
 import { scopeKey, type Scope } from '@langquest-next/core';
 import { APP_URL } from '../appUrl';

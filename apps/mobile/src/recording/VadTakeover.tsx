@@ -10,7 +10,8 @@
 // While the source plays, the microphone is paused (useListenLoop): the pane
 // turns pale and says so, with Resume now.
 import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Animated, PanResponder, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { Ico } from '../kit';

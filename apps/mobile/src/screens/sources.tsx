@@ -9,7 +9,8 @@
 // can be kept offline.
 import { languageInfo, libraryItems, testamentOf, type SourceDoc, type VerseRange } from '@langquest-next/core';
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import type { Ctx } from '../ctx';
 import { screenTitle } from '../flow';
 import { t } from '../i18n';

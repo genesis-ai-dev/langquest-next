@@ -2,7 +2,8 @@
 // phones keep no copy of it. Adding a language offers what matches its name,
 // and a language's page links one added unlinked (v1.LanguageCodeSet).
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
+import { Text } from './text';
 import { t } from './i18n';
 import { Banner, Group, LinkBtn, Row, SectionLabel, SmallBtn, txt } from './kit';
 import { hitLine, languoidHits, type LanguoidHit, type LanguoidRow } from './languoidModel';

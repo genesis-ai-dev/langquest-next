@@ -5,7 +5,8 @@
 // each version and each review.
 import { usedOn, type LanguageState, type UsedReference } from '@langquest-next/core';
 import { useMemo, useRef } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import type { Ctx } from '../ctx';
 import { t } from '../i18n';
 import { Ico, txt } from '../kit';

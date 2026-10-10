@@ -5,7 +5,8 @@
 // What happens next (ask for a check) is the passage record's, opened with
 // the `published` param by the workspace.
 import { useEffect, useState } from 'react';
-import { BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import { ClipPlayer } from '../clipPlayer';
 import type { Ctx } from '../ctx';
 import { useHelpPress } from '../helpContext';

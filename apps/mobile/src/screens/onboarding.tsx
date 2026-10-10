@@ -7,7 +7,8 @@
 // Not ported: the practice tours (ADR-022, ONB-3/4) and Listen. "Show me
 // how" opens My Work with its Getting started card instead of a tour.
 import { useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import { firstName, roleWords, teamLabel, welcomeRoleFor, WELCOME_POINTS } from '../accountText';
 import type { Ctx } from '../ctx';
 import { t, Trans } from '../i18n';

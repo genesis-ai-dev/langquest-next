@@ -7,7 +7,8 @@
 // no verse labels yet, so they are counted ("Part 4") rather than grouped
 // by verse.
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import type { Ctx } from '../ctx';
 import { useHelpPress } from '../helpContext';
 import { t } from '../i18n';

@@ -7,7 +7,8 @@
 // here depends on which method wrote the guide.
 import { keyTermsFor, type CalloutKind, type PassageNote } from '@langquest-next/core';
 import { useEffect, useMemo, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import type { Ctx } from '../ctx';
 import { useHelpPress } from '../helpContext';
 import { t } from '../i18n';

@@ -15,7 +15,8 @@
 import { commands, DEFAULT_KINDS, type EventSpec, type KindDef, type Version } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import { AudioClip } from '../audioClip';
 import { ClipPlayer } from '../clipPlayer';
 import { localKind } from '../coreText';

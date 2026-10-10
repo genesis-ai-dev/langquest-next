@@ -14,7 +14,8 @@ import {
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState, type ReactNode } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AudioClip } from '../audioClip';
 import type { Ctx } from '../ctx';

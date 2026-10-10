@@ -4,7 +4,8 @@
 // that uses it (docs/decisions.md 30); that event is what uploads it. A
 // voice note someone records and then abandons never reaches the log.
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from './text';
 import { AudioClip } from './audioClip';
 import type { Ctx } from './ctx';
 import { t } from './i18n';
