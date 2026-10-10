@@ -169,7 +169,10 @@
       "stepNeedsKind": "Every step needs a kind of review.",
       "nameTerm": "Name the term.",
       "giveTitle": "Give it a title.",
-      "versionOrReview": "Name the version or the review, not both."
+      "versionOrReview": "Name the version or the review, not both.",
+      "draftGone": "That draft is already gone.",
+      "draftNotYours": "Only whoever recorded a draft can delete it.",
+      "draftNotHere": "That draft is not on this passage."
     },
     "licenses": {
       "allRightsReserved": {
@@ -3320,7 +3323,6 @@
         "confirm": "Move past checkpoint",
         "done": "Moved past the checkpoint · reason saved"
       },
-      "hideHistory": "Hide versions and history",
       "history": "Versions and history",
       "waitingOnAnswer": "Waiting on {{name}} to answer the {{kinds}} feedback.",
       "study": "{{pattern}} study",
@@ -3483,6 +3485,27 @@
     },
     "resources": {
       "sourceAudio": "Source audio"
+    },
+    "versions": {
+      "title": "Versions",
+      "newVersion": "New version",
+      "yourDraft": "Your draft",
+      "yourDrafts": "Your drafts",
+      "noDrafts": "No drafts. Edit a version below, or start a new one.",
+      "published": "Published",
+      "latest": "Latest",
+      "saved": "Saved {{when}}",
+      "savedJustNow": "Saved just now",
+      "savedToast": "{{name}} saved.",
+      "notDeleted": "Not deleted. {{reason}}",
+      "deleted": "{{name}} deleted.",
+      "delete": "Delete {{name}}",
+      "open": "Open {{title}}",
+      "lengthFrom": "{{length}} · from {{version}}",
+      "nameFrom": "{{name}} · from {{version}}",
+      "newDraft": "New draft",
+      "draft": "Draft",
+      "draftN": "Draft {{n, number}}"
     }
   },
   "work": {
@@ -4202,6 +4225,36 @@
     "workspace": {
       "take": "Take {{n}}",
       "newTake": "New take {{n}}"
+    },
+    "verses": {
+      "verse": "Verse {{verse}}",
+      "range": "Verses {{first}}–{{last}}",
+      "isOne": "{{part}} is verse {{verse}}.",
+      "isRange": "{{part}} is verses {{first}}–{{last}}.",
+      "moreOfOne": "{{part}} is more of verse {{verse}}.",
+      "moreOfRange": "{{part}} is more of verses {{first}}–{{last}}.",
+      "numbered_one": "{{count, number}} part numbered.",
+      "numbered_other": "{{count, number}} parts numbered.",
+      "leftForLater": "{{verses}} · left for later",
+      "follows": "{{part}} follows the order.",
+      "none": "{{part}} has no verse.",
+      "giveNext": "Give {{part}} the next verse",
+      "giveAbove": "Give {{part}} the verse above",
+      "giveVerse": "Give {{part}} a verse",
+      "tapHelp": "Tap: the app works out the verse from the parts around it. Hold: choose it yourself.",
+      "label": "{{part}}, {{verses}}",
+      "labelSame": "{{part}}, {{verses}}, same as the part above",
+      "labelEmpty": "{{part}}, no verse yet",
+      "hintSame": "Tap to make it the next verse. Hold to choose.",
+      "hintLabelled": "Tap to give it the same verse as the part above. Hold to choose.",
+      "hintEmpty": "Tap to give it the next verse. Hold to choose.",
+      "choose": "Choose verses",
+      "recordHere": "Record here",
+      "recordHereHelp": "Record the verse you left for later; it goes in its place.",
+      "verseSame": "{{verse}}, same as the part above",
+      "auto": "Auto",
+      "noVerse": "None",
+      "deletePart": "Delete {{part}}"
     }
   },
   "map": {

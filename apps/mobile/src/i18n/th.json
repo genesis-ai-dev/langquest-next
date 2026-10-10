@@ -167,7 +167,10 @@
       "stepNeedsKind": "ทุกขั้นตอนต้องมีประเภทการตรวจ",
       "nameTerm": "ใส่คำ",
       "giveTitle": "ตั้งชื่อเรื่อง",
-      "versionOrReview": "ระบุฉบับหรือการตรวจ ไม่ใช่ทั้งสองอย่าง"
+      "versionOrReview": "ระบุฉบับหรือการตรวจ ไม่ใช่ทั้งสองอย่าง",
+      "draftGone": "ฉบับร่างนั้นไม่มีแล้ว",
+      "draftNotYours": "มีเพียงผู้ที่อัดฉบับร่างเท่านั้นที่ลบได้",
+      "draftNotHere": "ฉบับร่างนั้นไม่ได้อยู่ในตอนนี้"
     },
     "licenses": {
       "allRightsReserved": {
@@ -3208,7 +3211,6 @@
         "confirm": "ผ่านจุดตรวจ",
         "done": "ผ่านจุดตรวจไปแล้ว · บันทึกเหตุผลแล้ว"
       },
-      "hideHistory": "ซ่อนฉบับต่างๆ และประวัติ",
       "history": "ฉบับต่างๆ และประวัติ",
       "waitingOnAnswer": "รอ {{name}} ตอบความคิดเห็นจาก {{kinds}}",
       "study": "การศึกษา {{pattern}}",
@@ -3363,6 +3365,27 @@
     },
     "resources": {
       "sourceAudio": "เสียงต้นฉบับ"
+    },
+    "versions": {
+      "title": "ฉบับต่างๆ",
+      "newVersion": "ฉบับใหม่",
+      "yourDraft": "ฉบับร่างของคุณ",
+      "yourDrafts": "ฉบับร่างของคุณ",
+      "noDrafts": "ไม่มีฉบับร่าง แก้ไขฉบับด้านล่าง หรือเริ่มฉบับใหม่",
+      "published": "เผยแพร่แล้ว",
+      "latest": "ล่าสุด",
+      "saved": "บันทึกเมื่อ {{when}}",
+      "savedJustNow": "เพิ่งบันทึก",
+      "savedToast": "บันทึก{{name}}แล้ว",
+      "notDeleted": "ไม่ได้ลบ {{reason}}",
+      "deleted": "ลบ{{name}}แล้ว",
+      "delete": "ลบ{{name}}",
+      "open": "เปิด{{title}}",
+      "lengthFrom": "{{length}} · จาก{{version}}",
+      "nameFrom": "{{name}} · จาก{{version}}",
+      "newDraft": "ฉบับร่างใหม่",
+      "draft": "ฉบับร่าง",
+      "draftN": "ฉบับร่างที่ {{n, number}}"
     }
   },
   "work": {
@@ -4051,6 +4074,35 @@
     "workspace": {
       "take": "ครั้งที่ {{n}}",
       "newTake": "อัดใหม่ ครั้งที่ {{n}}"
+    },
+    "verses": {
+      "verse": "ข้อ {{verse}}",
+      "range": "ข้อ {{first}}–{{last}}",
+      "isOne": "{{part}} คือข้อ {{verse}}",
+      "isRange": "{{part}} คือข้อ {{first}}–{{last}}",
+      "moreOfOne": "{{part}} เป็นส่วนต่อของข้อ {{verse}}",
+      "moreOfRange": "{{part}} เป็นส่วนต่อของข้อ {{first}}–{{last}}",
+      "numbered_other": "ใส่หมายเลขให้ {{count, number}} ช่วงแล้ว",
+      "leftForLater": "{{verses}} · เก็บไว้ทำทีหลัง",
+      "follows": "{{part}} เรียงตามลำดับ",
+      "none": "{{part}} ยังไม่มีข้อ",
+      "giveNext": "ให้ข้อถัดไปแก่{{part}}",
+      "giveAbove": "ให้ข้อเดียวกับด้านบนแก่{{part}}",
+      "giveVerse": "ให้ข้อแก่{{part}}",
+      "tapHelp": "แตะ: แอปหาข้อจากช่วงรอบๆ กดค้าง: เลือกเอง",
+      "label": "{{part}}, {{verses}}",
+      "labelSame": "{{part}}, {{verses}}, เหมือนช่วงด้านบน",
+      "labelEmpty": "{{part}}, ยังไม่มีข้อ",
+      "hintSame": "แตะเพื่อให้เป็นข้อถัดไป กดค้างเพื่อเลือก",
+      "hintLabelled": "แตะเพื่อให้ข้อเดียวกับช่วงด้านบน กดค้างเพื่อเลือก",
+      "hintEmpty": "แตะเพื่อให้ข้อถัดไป กดค้างเพื่อเลือก",
+      "choose": "เลือกข้อ",
+      "recordHere": "อัดตรงนี้",
+      "recordHereHelp": "อัดข้อที่เก็บไว้ทำทีหลัง แล้วจะเข้าไปอยู่ในตำแหน่งของมัน",
+      "verseSame": "{{verse}}, เหมือนช่วงด้านบน",
+      "auto": "อัตโนมัติ",
+      "noVerse": "ไม่มี",
+      "deletePart": "ลบ{{part}}"
     }
   },
   "map": {

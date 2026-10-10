@@ -169,7 +169,10 @@
       "stepNeedsKind": "हरेक चरणमा जाँचको प्रकार चाहिन्छ।",
       "nameTerm": "मुख्य शब्द लेख्नुहोस्।",
       "giveTitle": "शीर्षक दिनुहोस्।",
-      "versionOrReview": "संस्करण वा जाँचमध्ये एउटा मात्र भन्नुहोस्, दुवै होइन।"
+      "versionOrReview": "संस्करण वा जाँचमध्ये एउटा मात्र भन्नुहोस्, दुवै होइन।",
+      "draftGone": "त्यो मस्यौदा अब छैन।",
+      "draftNotYours": "मस्यौदा रेकर्ड गर्ने व्यक्तिले मात्र यसलाई मेटाउन सक्छ।",
+      "draftNotHere": "त्यो मस्यौदा यो खण्डको होइन।"
     },
     "licenses": {
       "allRightsReserved": {
@@ -3320,7 +3323,6 @@
         "confirm": "जाँच बिन्दु नाघ्नुहोस्",
         "done": "जाँच बिन्दु नाघियो · कारण सेभ भयो"
       },
-      "hideHistory": "संस्करण र इतिहास लुकाउनुहोस्",
       "history": "संस्करण र इतिहास",
       "waitingOnAnswer": "{{name}}ले {{kinds}} प्रतिक्रियाको जवाफ दिने पर्खाइमा।",
       "study": "{{pattern}} अध्ययन",
@@ -3483,6 +3485,27 @@
     },
     "resources": {
       "sourceAudio": "स्रोत अडियो"
+    },
+    "versions": {
+      "title": "संस्करणहरू",
+      "newVersion": "नयाँ संस्करण",
+      "yourDraft": "तपाईंको मस्यौदा",
+      "yourDrafts": "तपाईंका मस्यौदाहरू",
+      "noDrafts": "कुनै मस्यौदा छैन। तलको कुनै संस्करण सम्पादन गर्नुहोस्, वा नयाँ सुरु गर्नुहोस्।",
+      "published": "प्रकाशित",
+      "latest": "सबैभन्दा नयाँ",
+      "saved": "{{when}} सेभ भयो",
+      "savedJustNow": "भर्खरै सेभ भयो",
+      "savedToast": "{{name}} सेभ भयो।",
+      "notDeleted": "मेटिएन। {{reason}}",
+      "deleted": "{{name}} मेटियो।",
+      "delete": "{{name}} मेटाउनुहोस्",
+      "open": "{{title}} खोल्नुहोस्",
+      "lengthFrom": "{{length}} · {{version}} बाट",
+      "nameFrom": "{{name}} · {{version}} बाट",
+      "newDraft": "नयाँ मस्यौदा",
+      "draft": "मस्यौदा",
+      "draftN": "मस्यौदा {{n, number}}"
     }
   },
   "work": {
@@ -4202,6 +4225,36 @@
     "workspace": {
       "take": "प्रयास {{n}}",
       "newTake": "नयाँ प्रयास {{n}}"
+    },
+    "verses": {
+      "verse": "पद {{verse}}",
+      "range": "पद {{first}}–{{last}}",
+      "isOne": "{{part}} पद {{verse}} हो।",
+      "isRange": "{{part}} पद {{first}}–{{last}} हो।",
+      "moreOfOne": "{{part}} पद {{verse}} को थप भाग हो।",
+      "moreOfRange": "{{part}} पद {{first}}–{{last}} को थप भाग हो।",
+      "numbered_one": "{{count, number}} भागमा नम्बर लाग्यो।",
+      "numbered_other": "{{count, number}} भागमा नम्बर लागे।",
+      "leftForLater": "{{verses}} · पछिका लागि छोडिएको",
+      "follows": "{{part}} क्रम अनुसार छ।",
+      "none": "{{part}} को कुनै पद छैन।",
+      "giveNext": "{{part}} लाई अर्को पद दिनुहोस्",
+      "giveAbove": "{{part}} लाई माथिको पद दिनुहोस्",
+      "giveVerse": "{{part}} लाई पद दिनुहोस्",
+      "tapHelp": "थिच्नुहोस्: वरिपरिका भागबाट एपले पद पत्ता लगाउँछ। थिचिराख्नुहोस्: आफैँ छान्नुहोस्।",
+      "label": "{{part}}, {{verses}}",
+      "labelSame": "{{part}}, {{verses}}, माथिको भाग जस्तै",
+      "labelEmpty": "{{part}}, अझै पद छैन",
+      "hintSame": "यसलाई अर्को पद बनाउन थिच्नुहोस्। छान्न थिचिराख्नुहोस्।",
+      "hintLabelled": "माथिको भागकै पद दिन थिच्नुहोस्। छान्न थिचिराख्नुहोस्।",
+      "hintEmpty": "अर्को पद दिन थिच्नुहोस्। छान्न थिचिराख्नुहोस्।",
+      "choose": "पदहरू छान्नुहोस्",
+      "recordHere": "यहाँ रेकर्ड गर्नुहोस्",
+      "recordHereHelp": "पछिका लागि छोडेको पद रेकर्ड गर्नुहोस्; यो आफ्नो ठाउँमा जान्छ।",
+      "verseSame": "{{verse}}, माथिको भाग जस्तै",
+      "auto": "स्वचालित",
+      "noVerse": "कुनै पनि होइन",
+      "deletePart": "{{part}} मेटाउनुहोस्"
     }
   },
   "map": {

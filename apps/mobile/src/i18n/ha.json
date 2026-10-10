@@ -169,7 +169,10 @@
       "stepNeedsKind": "Kowane mataki yana buƙatar irin bita.",
       "nameTerm": "Faɗi sunan kalmar.",
       "giveTitle": "Sa masa take.",
-      "versionOrReview": "Faɗi sigar ko bitar, ba duka biyu ba."
+      "versionOrReview": "Faɗi sigar ko bitar, ba duka biyu ba.",
+      "draftGone": "Daftarin nan ba ya nan kuma.",
+      "draftNotYours": "Wanda ya naɗa daftari ne kaɗai zai iya share shi.",
+      "draftNotHere": "Daftarin nan ba na wannan nassi ba ne."
     },
     "licenses": {
       "allRightsReserved": {
@@ -3320,7 +3323,6 @@
         "confirm": "Wuce shingen dubawa",
         "done": "An wuce shingen dubawa · an ajiye dalili"
       },
-      "hideHistory": "Ɓoye sigogi da tarihi",
       "history": "Sigogi da tarihi",
       "waitingOnAnswer": "Ana jiran amsar {{name}} ga sharhin {{kinds}}.",
       "study": "Nazarin {{pattern}}",
@@ -3483,6 +3485,27 @@
     },
     "resources": {
       "sourceAudio": "Sautin asali"
+    },
+    "versions": {
+      "title": "Sigogi",
+      "newVersion": "Sabuwar siga",
+      "yourDraft": "Daftarinka",
+      "yourDrafts": "Daftarorinka",
+      "noDrafts": "Babu daftari. Gyara wata siga a ƙasa, ko fara sabuwa.",
+      "published": "Waɗanda aka wallafa",
+      "latest": "Mafi sabo",
+      "saved": "An ajiye {{when}}",
+      "savedJustNow": "An ajiye yanzu nan",
+      "savedToast": "An ajiye {{name}}.",
+      "notDeleted": "Ba a share ba. {{reason}}",
+      "deleted": "An share {{name}}.",
+      "delete": "Share {{name}}",
+      "open": "Buɗe {{title}}",
+      "lengthFrom": "{{length}} · daga {{version}}",
+      "nameFrom": "{{name}} · daga {{version}}",
+      "newDraft": "Sabon daftari",
+      "draft": "Daftari",
+      "draftN": "Daftari na {{n, number}}"
     }
   },
   "work": {
@@ -4202,6 +4225,36 @@
     "workspace": {
       "take": "Naɗi na {{n}}",
       "newTake": "Sabon naɗi na {{n}}"
+    },
+    "verses": {
+      "verse": "Aya ta {{verse}}",
+      "range": "Ayoyi {{first}}–{{last}}",
+      "isOne": "{{part}} aya ta {{verse}} ce.",
+      "isRange": "{{part}} ayoyi {{first}}–{{last}} ne.",
+      "moreOfOne": "{{part}} ci gaban aya ta {{verse}} ce.",
+      "moreOfRange": "{{part}} ci gaban ayoyi {{first}}–{{last}} ce.",
+      "numbered_one": "An sa lamba ga sashe {{count, number}}.",
+      "numbered_other": "An sa lamba ga sassa {{count, number}}.",
+      "leftForLater": "{{verses}} · an bari sai anjima",
+      "follows": "{{part}} tana bin jeri.",
+      "none": "{{part}} ba ta da aya.",
+      "giveNext": "Ba {{part}} aya ta gaba",
+      "giveAbove": "Ba {{part}} ayar da ke sama",
+      "giveVerse": "Ba {{part}} aya",
+      "tapHelp": "Taɓa: manhajar za ta gano ayar daga sassan da ke kewaye. Riƙe: zaɓa da kanka.",
+      "label": "{{part}}, {{verses}}",
+      "labelSame": "{{part}}, {{verses}}, daidai da sashen da ke sama",
+      "labelEmpty": "{{part}}, babu aya tukuna",
+      "hintSame": "Taɓa don ta zama aya ta gaba. Riƙe don zaɓa.",
+      "hintLabelled": "Taɓa don ba ta ayar sashen da ke sama. Riƙe don zaɓa.",
+      "hintEmpty": "Taɓa don ba ta aya ta gaba. Riƙe don zaɓa.",
+      "choose": "Zaɓi ayoyi",
+      "recordHere": "Naɗa a nan",
+      "recordHereHelp": "Naɗa ayar da ka bari sai anjima; za ta shiga wurinta.",
+      "verseSame": "{{verse}}, daidai da sashen da ke sama",
+      "auto": "Kai-tsaye",
+      "noVerse": "Babu",
+      "deletePart": "Share {{part}}"
     }
   },
   "map": {

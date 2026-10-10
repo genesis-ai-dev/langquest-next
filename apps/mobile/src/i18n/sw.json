@@ -169,7 +169,10 @@
       "stepNeedsKind": "Kila hatua inahitaji aina ya ukaguzi.",
       "nameTerm": "Taja neno.",
       "giveTitle": "Lipe kichwa.",
-      "versionOrReview": "Taja toleo au ukaguzi, si vyote viwili."
+      "versionOrReview": "Taja toleo au ukaguzi, si vyote viwili.",
+      "draftGone": "Rasimu hiyo haipo tena.",
+      "draftNotYours": "Aliyerekodi rasimu ndiye pekee anayeweza kuifuta.",
+      "draftNotHere": "Rasimu hiyo si ya kifungu hiki."
     },
     "licenses": {
       "allRightsReserved": {
@@ -3320,7 +3323,6 @@
         "confirm": "Ruka kituo cha ukaguzi",
         "done": "Kituo cha ukaguzi kimerukwa · sababu imehifadhiwa"
       },
-      "hideHistory": "Ficha matoleo na historia",
       "history": "Matoleo na historia",
       "waitingOnAnswer": "Inamsubiri {{name}} ajibu maoni ya {{kinds}}.",
       "study": "Somo la {{pattern}}",
@@ -3483,6 +3485,27 @@
     },
     "resources": {
       "sourceAudio": "Sauti ya chanzo"
+    },
+    "versions": {
+      "title": "Matoleo",
+      "newVersion": "Toleo jipya",
+      "yourDraft": "Rasimu yako",
+      "yourDrafts": "Rasimu zako",
+      "noDrafts": "Hakuna rasimu. Hariri toleo hapa chini, au anza jipya.",
+      "published": "Yaliyochapishwa",
+      "latest": "La karibuni",
+      "saved": "Imehifadhiwa {{when}}",
+      "savedJustNow": "Imehifadhiwa sasa hivi",
+      "savedToast": "{{name}} imehifadhiwa.",
+      "notDeleted": "Haijafutwa. {{reason}}",
+      "deleted": "{{name}} imefutwa.",
+      "delete": "Futa {{name}}",
+      "open": "Fungua {{title}}",
+      "lengthFrom": "{{length}} · kutoka {{version}}",
+      "nameFrom": "{{name}} · kutoka {{version}}",
+      "newDraft": "Rasimu mpya",
+      "draft": "Rasimu",
+      "draftN": "Rasimu ya {{n, number}}"
     }
   },
   "work": {
@@ -4202,6 +4225,36 @@
     "workspace": {
       "take": "Rekodi ya {{n}}",
       "newTake": "Rekodi mpya ya {{n}}"
+    },
+    "verses": {
+      "verse": "Mstari wa {{verse}}",
+      "range": "Mistari {{first}}–{{last}}",
+      "isOne": "{{part}} ni mstari wa {{verse}}.",
+      "isRange": "{{part}} ni mistari {{first}}–{{last}}.",
+      "moreOfOne": "{{part}} ni mwendelezo wa mstari wa {{verse}}.",
+      "moreOfRange": "{{part}} ni mwendelezo wa mistari {{first}}–{{last}}.",
+      "numbered_one": "Sehemu {{count, number}} imepewa namba.",
+      "numbered_other": "Sehemu {{count, number}} zimepewa namba.",
+      "leftForLater": "{{verses}} · imeachwa kwa baadaye",
+      "follows": "{{part}} inafuata mpangilio.",
+      "none": "{{part}} haina mstari.",
+      "giveNext": "Ipe {{part}} mstari unaofuata",
+      "giveAbove": "Ipe {{part}} mstari wa juu yake",
+      "giveVerse": "Ipe {{part}} mstari",
+      "tapHelp": "Gusa: programu inapata mstari kutoka sehemu zilizo karibu. Shikilia: chagua mwenyewe.",
+      "label": "{{part}}, {{verses}}",
+      "labelSame": "{{part}}, {{verses}}, sawa na sehemu ya juu",
+      "labelEmpty": "{{part}}, bado haina mstari",
+      "hintSame": "Gusa ili iwe mstari unaofuata. Shikilia ili kuchagua.",
+      "hintLabelled": "Gusa ili uipe mstari sawa na sehemu ya juu. Shikilia ili kuchagua.",
+      "hintEmpty": "Gusa ili uipe mstari unaofuata. Shikilia ili kuchagua.",
+      "choose": "Chagua mistari",
+      "recordHere": "Rekodi hapa",
+      "recordHereHelp": "Rekodi mstari uliouacha kwa baadaye; utaingia mahali pake.",
+      "verseSame": "{{verse}}, sawa na sehemu ya juu",
+      "auto": "Otomatiki",
+      "noVerse": "Hakuna",
+      "deletePart": "Futa {{part}}"
     }
   },
   "map": {

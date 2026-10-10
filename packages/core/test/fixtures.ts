@@ -107,6 +107,11 @@ export function buildStep11Fixture(): AnyEvent[] {
   emit('dB', 't1', 'v1.ResponseRecorded', { takeId: 'take2', respondsToTakeId: 'take1', note: 'Re-recorded card 2; kept the rest.' });
   // A voice note's format, said once by the device that has the file (decisions.md 77).
   emit('dW', 't1', 'v1.AudioFormatSet', { hash: 'vn1', format: 'wav' });
+  // Verse marks on parts from two devices (decisions.md 82): a register per (unit, card).
+  emit('dA', 't1', 'v1.CardVerseSet', { unitId: 'u1', hash: 'c1', mark: 'next' });
+  emit('dB', 't1', 'v1.CardVerseSet', { unitId: 'u1', hash: 'c1', mark: 'set', from: '15:4', to: '15:5' });
+  emit('dA', 't1', 'v1.CardVerseSet', { unitId: 'u1', hash: 'c2', mark: 'join' });
+  emit('dW', 't1', 'v1.CardVerseSet', { unitId: 'u1', hash: 'c2', mark: 'none' });
 
   // Materials with per-field registers, a locked document, the community
   // question set for a kind, a translator-written set, and a living glossary

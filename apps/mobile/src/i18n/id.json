@@ -167,7 +167,10 @@
       "stepNeedsKind": "Setiap tahap perlu jenis pemeriksaan.",
       "nameTerm": "Beri nama istilahnya.",
       "giveTitle": "Beri judul.",
-      "versionOrReview": "Sebutkan versi atau pemeriksaan, jangan keduanya."
+      "versionOrReview": "Sebutkan versi atau pemeriksaan, jangan keduanya.",
+      "draftGone": "Draf itu sudah tidak ada.",
+      "draftNotYours": "Hanya orang yang merekam draf yang bisa menghapusnya.",
+      "draftNotHere": "Draf itu bukan dari perikop ini."
     },
     "licenses": {
       "allRightsReserved": {
@@ -3208,7 +3211,6 @@
         "confirm": "Lewati titik periksa",
         "done": "Titik periksa dilewati · alasan disimpan"
       },
-      "hideHistory": "Sembunyikan versi dan riwayat",
       "history": "Versi dan riwayat",
       "waitingOnAnswer": "Menunggu {{name}} menjawab masukan {{kinds}}.",
       "study": "Studi {{pattern}}",
@@ -3363,6 +3365,27 @@
     },
     "resources": {
       "sourceAudio": "Audio sumber"
+    },
+    "versions": {
+      "title": "Versi",
+      "newVersion": "Versi baru",
+      "yourDraft": "Draf Anda",
+      "yourDrafts": "Draf-draf Anda",
+      "noDrafts": "Tidak ada draf. Ubah versi di bawah, atau mulai yang baru.",
+      "published": "Diterbitkan",
+      "latest": "Terbaru",
+      "saved": "Disimpan {{when}}",
+      "savedJustNow": "Baru saja disimpan",
+      "savedToast": "{{name}} disimpan.",
+      "notDeleted": "Tidak terhapus. {{reason}}",
+      "deleted": "{{name}} dihapus.",
+      "delete": "Hapus {{name}}",
+      "open": "Buka {{title}}",
+      "lengthFrom": "{{length}} · dari {{version}}",
+      "nameFrom": "{{name}} · dari {{version}}",
+      "newDraft": "Draf baru",
+      "draft": "Draf",
+      "draftN": "Draf {{n, number}}"
     }
   },
   "work": {
@@ -4051,6 +4074,35 @@
     "workspace": {
       "take": "Hasil rekaman {{n}}",
       "newTake": "Hasil rekaman baru {{n}}"
+    },
+    "verses": {
+      "verse": "Ayat {{verse}}",
+      "range": "Ayat {{first}}–{{last}}",
+      "isOne": "{{part}} adalah ayat {{verse}}.",
+      "isRange": "{{part}} adalah ayat {{first}}–{{last}}.",
+      "moreOfOne": "{{part}} adalah lanjutan ayat {{verse}}.",
+      "moreOfRange": "{{part}} adalah lanjutan ayat {{first}}–{{last}}.",
+      "numbered_other": "{{count, number}} bagian diberi nomor.",
+      "leftForLater": "{{verses}} · untuk nanti",
+      "follows": "{{part}} mengikuti urutan.",
+      "none": "{{part}} belum punya ayat.",
+      "giveNext": "Beri {{part}} ayat berikutnya",
+      "giveAbove": "Beri {{part}} ayat di atasnya",
+      "giveVerse": "Beri {{part}} ayat",
+      "tapHelp": "Ketuk: aplikasi menentukan ayat dari bagian di sekitarnya. Tahan: pilih sendiri.",
+      "label": "{{part}}, {{verses}}",
+      "labelSame": "{{part}}, {{verses}}, sama dengan bagian di atasnya",
+      "labelEmpty": "{{part}}, belum ada ayat",
+      "hintSame": "Ketuk untuk menjadikannya ayat berikutnya. Tahan untuk memilih.",
+      "hintLabelled": "Ketuk untuk memberinya ayat yang sama dengan bagian di atasnya. Tahan untuk memilih.",
+      "hintEmpty": "Ketuk untuk memberinya ayat berikutnya. Tahan untuk memilih.",
+      "choose": "Pilih ayat",
+      "recordHere": "Rekam di sini",
+      "recordHereHelp": "Rekam ayat yang Anda tinggalkan untuk nanti; ayat itu masuk ke tempatnya.",
+      "verseSame": "{{verse}}, sama dengan bagian di atasnya",
+      "auto": "Otomatis",
+      "noVerse": "Tidak ada",
+      "deletePart": "Hapus {{part}}"
     }
   },
   "map": {

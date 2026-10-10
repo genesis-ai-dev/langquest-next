@@ -36,7 +36,8 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   map_home: { reads:['derivePassage','unitPlace','languageProgress','earlierSections','library'],rpcs:['library_get_documents'] },
   book_map: { reads:['derivePassage','unitPlace','earlierSections','library'],rpcs:['library_get_documents'] },
   // Send to … (ADR-029) asks the usual reviewer or review team in one tap.
-  passage_record: { emits:['v1.DepartureRecorded','v1.DepartureUndone','v1.RequestMade','v1.RequestWithdrawn','v1.NoteAdded'],
+  // Versions deletes a draft; its Undo composes it again (decisions.md 83).
+  passage_record: { emits:['v1.DepartureRecorded','v1.DepartureUndone','v1.RequestMade','v1.RequestWithdrawn','v1.NoteAdded','v1.TakeArchived','v1.TakeComposed'],
     reads:['derivePassage','recordTimeline','reviewGrid','studyMarksFor','earlierSections','library'],rpcs:[...REPORTS,'library_get_documents'] },
   version_detail: { reads:['derivePassage','keyTermLinksFor'],rpcs:REPORTS },
   review_detail: { emits:['v1.DepartureRecorded','v1.DepartureUndone'],reads:['derivePassage','questionsForKind'],rpcs:REPORTS },
@@ -47,7 +48,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // What was offered and used goes on the record with the version (docs/reference-material.md).
   // Key words grow during the work (decision 71): say yours, add a word.
   workspace: { emits:['v1.RecordingAdded','v1.TakeComposed','v1.TakeArchived','v1.TakeSubmitted',
-    'v1.ResponseRecorded','v1.NoteAdded','v1.KeyTermLinked','v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted','v1.ReferencesUsed'],
+    'v1.ResponseRecorded','v1.CardVerseSet','v1.NoteAdded','v1.KeyTermLinked','v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted','v1.ReferencesUsed'],
     reads:['derivePassage','keyTermsForUnit','recommendedFor','studyMarksFor'],rpcs:[...REPORTS,'library_get_documents','library_shared_items'] },
   // Its parts are the review's artifacts, not recordings (docs/decisions.md 30).
   back_translation: { emits:['v1.ReviewRecorded'],reads:['derivePassage'],rpcs:REPORTS },

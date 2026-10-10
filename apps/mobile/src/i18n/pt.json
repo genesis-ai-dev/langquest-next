@@ -171,7 +171,10 @@
       "stepNeedsKind": "Cada etapa precisa de um tipo de revisão.",
       "nameTerm": "Dê um nome ao termo.",
       "giveTitle": "Dê um título.",
-      "versionOrReview": "Indique a versão ou a revisão, não as duas."
+      "versionOrReview": "Indique a versão ou a revisão, não as duas.",
+      "draftGone": "Esse rascunho não existe mais.",
+      "draftNotYours": "Só quem gravou um rascunho pode apagá-lo.",
+      "draftNotHere": "Esse rascunho não é desta passagem."
     },
     "licenses": {
       "allRightsReserved": {
@@ -3432,7 +3435,6 @@
         "confirm": "Passar do ponto de controle",
         "done": "Passou do ponto de controle · motivo salvo"
       },
-      "hideHistory": "Esconder versões e histórico",
       "history": "Versões e histórico",
       "waitingOnAnswer": "Esperando {{name}} responder aos comentários da {{kinds}}.",
       "study": "Estudo {{pattern}}",
@@ -3603,6 +3605,27 @@
     },
     "resources": {
       "sourceAudio": "Áudio do texto-fonte"
+    },
+    "versions": {
+      "title": "Versões",
+      "newVersion": "Nova versão",
+      "yourDraft": "Seu rascunho",
+      "yourDrafts": "Seus rascunhos",
+      "noDrafts": "Nenhum rascunho. Edite uma versão abaixo ou comece uma nova.",
+      "published": "Publicadas",
+      "latest": "A mais recente",
+      "saved": "Salvo {{when}}",
+      "savedJustNow": "Salvo agora mesmo",
+      "savedToast": "{{name}} salvo.",
+      "notDeleted": "Não foi apagado. {{reason}}",
+      "deleted": "{{name}} apagado.",
+      "delete": "Apagar {{name}}",
+      "open": "Abrir {{title}}",
+      "lengthFrom": "{{length}} · a partir da {{version}}",
+      "nameFrom": "{{name}} · a partir da {{version}}",
+      "newDraft": "Novo rascunho",
+      "draft": "Rascunho",
+      "draftN": "Rascunho {{n, number}}"
     }
   },
   "work": {
@@ -4353,6 +4376,37 @@
     "workspace": {
       "take": "Tentativa {{n}}",
       "newTake": "Nova tentativa {{n}}"
+    },
+    "verses": {
+      "verse": "Versículo {{verse}}",
+      "range": "Versículos {{first}}–{{last}}",
+      "isOne": "{{part}} é o versículo {{verse}}.",
+      "isRange": "{{part}} são os versículos {{first}}–{{last}}.",
+      "moreOfOne": "{{part}} é mais do versículo {{verse}}.",
+      "moreOfRange": "{{part}} é mais dos versículos {{first}}–{{last}}.",
+      "numbered_one": "{{count, number}} parte numerada.",
+      "numbered_many": "{{count, number}} de partes numeradas.",
+      "numbered_other": "{{count, number}} partes numeradas.",
+      "leftForLater": "{{verses}} · para depois",
+      "follows": "{{part}} segue a ordem.",
+      "none": "{{part}} não tem versículo.",
+      "giveNext": "Dar a {{part}} o próximo versículo",
+      "giveAbove": "Dar a {{part}} o versículo de cima",
+      "giveVerse": "Dar um versículo a {{part}}",
+      "tapHelp": "Toque: o app descobre o versículo pelas partes ao redor. Segure: escolha você.",
+      "label": "{{part}}, {{verses}}",
+      "labelSame": "{{part}}, {{verses}}, igual à parte de cima",
+      "labelEmpty": "{{part}}, ainda sem versículo",
+      "hintSame": "Toque para torná-lo o próximo versículo. Segure para escolher.",
+      "hintLabelled": "Toque para dar o mesmo versículo da parte de cima. Segure para escolher.",
+      "hintEmpty": "Toque para dar o próximo versículo. Segure para escolher.",
+      "choose": "Escolher versículos",
+      "recordHere": "Gravar aqui",
+      "recordHereHelp": "Grave o versículo que você deixou para depois; ele fica no lugar certo.",
+      "verseSame": "{{verse}}, igual à parte de cima",
+      "auto": "Auto",
+      "noVerse": "Nenhum",
+      "deletePart": "Apagar {{part}}"
     }
   },
   "map": {

@@ -11,6 +11,9 @@ import { emptyRecordState, type RecordState } from './record';
  */
 
 /** A last-writer-wins register: the value plus the clock that set it. */
+/** A part's verse mark (v1.CardVerseSet without its unit and hash); `none` is stored as no mark. */
+export interface CardVerseMark { mark: 'next' | 'join' | 'set' | 'none'; from?: string; to?: string }
+
 export interface Register<V> {
   value: V;
   hlc: Hlc;
@@ -118,6 +121,8 @@ export interface LanguageState extends RecordState, ReferenceState {
   blobs: Record<string, { size: number; hlc: Hlc; eventId: string; stored: boolean }>;
   /** hash -> a voice note's format, when it is not m4a (v1.AudioFormatSet; earliest wins). */
   audioFormats: Record<string, Register<'wav' | 'm4a'>>;
+  /** unitId -> card hash -> what verses the part holds (v1.CardVerseSet; verses.ts reads it). */
+  cardVerses: Record<string, Record<string, Register<CardVerseMark>>>;
   /** Idempotency guard. Compacted away when a snapshot is taken. */
   appliedEventIds: Record<string, true>;
   /** eventId -> reason. Malformed events are skipped, never thrown on. */
@@ -160,6 +165,7 @@ export function emptyLanguageState(): LanguageState {
     submissions: {},
     blobs: {},
     audioFormats: {},
+    cardVerses: {},
     appliedEventIds: {},
     invalidEvents: {},
     redactions: {},

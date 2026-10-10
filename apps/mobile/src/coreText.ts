@@ -110,6 +110,9 @@ export function commandErrorText(e: CommandError): string {
     case 'Name the term.': return t('core.errors.nameTerm');
     case 'Give it a title.': return t('core.errors.giveTitle');
     case 'Name the version or the review, not both.': return t('core.errors.versionOrReview');
+    case 'That draft is already gone.': return t('core.errors.draftGone');
+    case 'Only whoever recorded a draft can delete it.': return t('core.errors.draftNotYours');
+    case 'That draft is not on this passage.': return t('core.errors.draftNotHere');
     // The app's own CommandErrors are already in the language showing.
     default: return e.message;
   }
