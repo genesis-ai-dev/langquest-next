@@ -8,6 +8,7 @@ import { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 import { type LibraryChoice } from '../contentTemplates';
 import type { Ctx } from '../ctx';
+import { t } from '../i18n';
 import { Chip, SectionLabel, txt } from '../kit';
 import { prepareDoc } from '../library/docStore';
 import { useRecordChoices } from '../simple/choices';
@@ -55,7 +56,7 @@ export function useTranslate(ctx: Ctx, forLanguage: string | null) {
     if (!row || !doc || !finalDoc) throw new Error('Choose how the Bible is broken up.');
     if (finalDoc === doc) return { itemId: await adoptWay(lib, row.choice), docHash: row.choice.hash, doc };
     // FIA's passages, the other books by chapter: the organization's own template, made once and reused.
-    const name = `${row.choice.name}, other books by chapter`;
+    const name = `${row.choice.name}, other books by chapter`; // i18n-ignore: the new template's name, stored in the event log
     const { hash } = await prepareDoc(finalDoc);
     const existing = lib.items('template').find((it) => !it.archived && it.source !== 'subscription' && it.current === hash);
     if (existing) return { itemId: existing.itemId, docHash: hash, doc: finalDoc };
@@ -76,54 +77,54 @@ export function useTranslate(ctx: Ctx, forLanguage: string | null) {
 
 /** The question on screen. `lang` names the language ("Hadiyya"). */
 export function TranslateQuestion(props: { ctx: Ctx; t: Translate; lang: string; canMake: boolean; onMake: () => void }) {
-  const { t } = props;
+  const q = props.t;
   const [lesson, setLesson] = useState(false);
   const [peek, setPeek] = useState<WayRow | null>(null);
-  const bibleUsed = t.ways.rows.find((r) => r.usedIn.length > 0);
-  const wayDoc = (item: string) => t.ways.docOf(t.ways.way(item)?.choice);
-  const fiaV11n = t.ways.v11nOf(wayDoc(WAY_ITEMS[0]));
+  const bibleUsed = q.ways.rows.find((r) => r.usedIn.length > 0);
+  const wayDoc = (item: string) => q.ways.docOf(q.ways.way(item)?.choice);
+  const fiaV11n = q.ways.v11nOf(wayDoc(WAY_ITEMS[0]));
   return (
     <>
-      <Question>What will {props.lang} translate?</Question>
-      <ChoiceCard on={t.what === 'bible'} icon="book" title="The Bible"
-        sub={bibleUsed ? `Used in ${bibleUsed.usedIn[0]}` : 'Then choose how it is broken up'} onPress={() => t.setWhat('bible')} />
-      <ChoiceCard on={t.what === 'else'} icon="folder" title="Something else"
-        sub="Stories, songs, lessons. Make folders, and put what to record in them." onPress={() => t.setWhat('else')} />
-      <QuietLink icon="help" label="How is material broken up?" detail="A short walk-through in five steps." onPress={() => setLesson(true)} />
+      <Question>{t('breakup.translate.question', { language: props.lang })}</Question>
+      <ChoiceCard on={q.what === 'bible'} icon="book" title={t('breakup.translate.bible')}
+        sub={bibleUsed ? t('breakup.usedIn.one', { name: bibleUsed.usedIn[0] }) : t('breakup.translate.bibleSub')} onPress={() => q.setWhat('bible')} />
+      <ChoiceCard on={q.what === 'else'} icon="folder" title={t('breakup.translate.else')}
+        sub={t('breakup.translate.elseSub')} onPress={() => q.setWhat('else')} />
+      <QuietLink icon="help" label={t('breakup.translate.howBrokenUp')} detail={t('breakup.translate.howBrokenUpDetail')} onPress={() => setLesson(true)} />
 
-      {t.what === 'bible' ? (
+      {q.what === 'bible' ? (
         <>
-          <SectionLabel label="How should the Bible be broken up?" />
-          <Text style={[txt.sm, { color: C.muted, marginTop: -space.sm }]}>Each piece is recorded on its own. The bars show a book cut that way.</Text>
-          {t.ways.rows.map((r) => (
-            <WayCard key={r.choice.key} row={r} doc={t.ways.docOf(r.choice)} v11n={t.ways.v11nOf(t.ways.docOf(r.choice))} on={t.row === r}
-              onPress={() => t.setKey(r.choice.key)} onPreview={() => setPeek(r)}>
-              {t.row === r && t.empty.length ? (
-                <OthersChoice empty={emptyLine(t.doc!)} count={t.empty.length} on={t.others} onPick={t.setOthers} />
+          <SectionLabel label={t('breakup.translate.howBible')} />
+          <Text style={[txt.sm, { color: C.muted, marginTop: -space.sm }]}>{t('breakup.translate.eachPiece')}</Text>
+          {q.ways.rows.map((r) => (
+            <WayCard key={r.choice.key} row={r} doc={q.ways.docOf(r.choice)} v11n={q.ways.v11nOf(q.ways.docOf(r.choice))} on={q.row === r}
+              onPress={() => q.setKey(r.choice.key)} onPreview={() => setPeek(r)}>
+              {q.row === r && q.empty.length ? (
+                <OthersChoice empty={emptyLine(q.doc!)} count={q.empty.length} on={q.others} onPick={q.setOthers} />
               ) : null}
             </WayCard>
           ))}
-          {t.ways.rows.length === 0 ? <Text style={txt.smMuted}>{t.ways.loaded ? 'Nothing to choose from yet. Connect to load the ways LangQuest offers.' : 'Loading…'}</Text> : null}
+          {q.ways.rows.length === 0 ? <Text style={txt.smMuted}>{q.ways.loaded ? t('breakup.translate.nothingYet') : t('common.loading')}</Text> : null}
         </>
       ) : null}
 
-      {t.what === 'else' ? (
+      {q.what === 'else' ? (
         <>
-          {t.outlines.length ? (
+          {q.outlines.length ? (
             <>
-              <SectionLabel label="Your organization's own" />
+              <SectionLabel label={t('breakup.translate.ourOwn')} />
               <View style={{ gap: space.xs }}>
-                {t.outlines.map((c) => <Chip key={c.key} label={c.name} on={t.outline === c} onPress={() => t.setOutlineKey(c.key)} />)}
+                {q.outlines.map((c) => <Chip key={c.key} label={c.name} on={q.outline === c} onPress={() => q.setOutlineKey(c.key)} />)}
               </View>
             </>
-          ) : <Text style={txt.smMuted}>There are no ready-made ones for this yet. Make your own: folders for how it's organized, and the things people record inside them.</Text>}
-          {props.canMake ? <QuietLink icon="plus" label="Make your own" detail="Folders, and what to record in them." onPress={props.onMake} /> : null}
+          ) : <Text style={txt.smMuted}>{t('breakup.translate.noneReady')}</Text>}
+          {props.canMake ? <QuietLink icon="plus" label={t('breakup.translate.makeOwn')} detail={t('breakup.translate.makeOwnDetail')} onPress={props.onMake} /> : null}
         </>
       ) : null}
 
       <LessonSheet visible={lesson} onClose={() => setLesson(false)} wayDoc={wayDoc} v11n={fiaV11n} />
-      <PreviewSheet key={peek?.choice.key ?? 'none'} visible={!!peek} name={peek?.choice.name ?? ''} doc={t.ways.docOf(peek?.choice)} v11n={t.ways.v11nOf(t.ways.docOf(peek?.choice))}
-        onClose={() => setPeek(null)} onUse={peek ? () => { t.setKey(peek.choice.key); setPeek(null); } : undefined} />
+      <PreviewSheet key={peek?.choice.key ?? 'none'} visible={!!peek} name={peek?.choice.name ?? ''} doc={q.ways.docOf(peek?.choice)} v11n={q.ways.v11nOf(q.ways.docOf(peek?.choice))}
+        onClose={() => setPeek(null)} onUse={peek ? () => { q.setKey(peek.choice.key); setPeek(null); } : undefined} />
     </>
   );
 }

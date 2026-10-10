@@ -14,17 +14,20 @@
 // the Map. Getting started is gone: help mode (the ? in the header) explains
 // each part for field workers, and the Get ready card leads coordinators.
 import {
-  derivePassage, deriveKinds, highlightsFor, languageName, membershipsOf, passageSummary, recommendedFor, timeAgo, unitTitle, upNext, waitingOn,
+  derivePassage, highlightsFor, languageName, membershipsOf, recommendedFor, unitTitle, upNext, waitingOn,
   type Highlight, type KindDef, type LanguageState, type OrgState, type Waiting
 } from '@langquest-next/core';
 import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { deriveKinds, passageSummary } from '../coreText';
 import type { Ctx } from '../ctx';
 import { edgeFor, type ScreenId } from '../flow';
+import { t } from '../i18n';
+import { formatAgo } from '../i18n/format';
 import { indexesFor } from '../indexes';
 import { pendingRequests, type PendingRequest } from '../invites';
 import { Card, Group, Header, Ico, Row, Screen, SectionLabel, SmallBtn, StepMarks, txt, type IconName } from '../kit';
-import { dueText, when } from '../passageView';
+import { dueText, isJustNow, when } from '../passageView';
 import { noteExpected } from '../report';
 import { contractsFor } from '../screenContracts';
 import { edgeAllowed, mapScreenFor } from '../session';
@@ -43,15 +46,20 @@ function canGo(ctx: Ctx, to: ScreenId): boolean {
 
 /** "asked just now", "asked 2 h ago", "asked Sep 2". */
 function askedWhen(hlc: string): string {
-  const w = when(hlc);
-  return w === 'Just now' ? 'just now' : w;
+  return isJustNow(hlc) ? t('work.waiting.askedJustNow') : t('work.waiting.askedWhen', { when: when(hlc) });
 }
 
 function waitingText(state: LanguageState, kinds: KindDef[], w: Waiting, name: Ctx['name']): { title: string; sub: string } {
   const r = w.request;
-  const what = r.what === 'record' ? 'Recording' : kinds.find((k) => k.id === r.kindId)?.name ?? 'Review';
-  const who = r.profileId ? name(r.profileId) : r.guest?.name ?? 'someone';
-  return { title: unitTitle(state, w.unitId), sub: `${what} · ${who} · ${r.dueDate ? dueText(r.dueDate) : `asked ${askedWhen(r.hlc)}`}` };
+  const what = r.what === 'record' ? t('work.waiting.recording') : kinds.find((k) => k.id === r.kindId)?.name ?? t('work.waiting.review');
+  const who = r.profileId ? name(r.profileId) : r.guest?.name ?? t('work.waiting.someone');
+  return { title: unitTitle(state, w.unitId), sub: `${what} · ${who} · ${r.dueDate ? dueText(r.dueDate) : askedWhen(r.hlc)}` };
+}
+
+/** When someone asked to join: "Asked just now", "Asked 5 min ago", "Asked Oct 1". */
+function joinAsked(createdAt: string): string {
+  const ms = Date.parse(createdAt);
+  return Date.now() - ms < 60_000 ? t('work.join.askedJustNow') : t('work.join.asked', { when: formatAgo(ms) });
 }
 
 /** Everyone the organization has, at any scope, not counting removed members. */
@@ -99,7 +107,7 @@ function useJoinRequests(ctx: Ctx): PendingRequest[] {
 function SyncChip(ctx: Ctx) {
   const p = ctx.language;
   if (!canGo(ctx, 'sync_status')) return null;
-  const label = p.refused ? 'Not syncing' : p.pending > 0 ? `${p.pending.toLocaleString('en-US')} to send` : p.online === false ? 'Offline' : null;
+  const label = p.refused ? t('work.sync.refused') : p.pending > 0 ? t('work.sync.toSend', { count: p.pending }) : p.online === false ? t('work.sync.offline') : null;
   if (!label) return null;
   return <SmallBtn icon="cloud" label={label} onPress={() => ctx.go('sync_status')} />;
 }
@@ -157,11 +165,11 @@ export function MyWork(ctx: Ctx) {
   const language = languageId ? languageName(ctx.org.state, languageId) : '';
   const bell = canGo(ctx, 'inbox_home') ? <Bell count={ctx.inbox.unread} onPress={() => ctx.go('inbox_home', { from: 'my_work' })} /> : null;
   const header = (
-    <Header title="My Work" sub={[language, orgName].filter(Boolean).join(' · ') || undefined}
+    <Header title={t('work.title')} sub={[language, orgName].filter(Boolean).join(' · ') || undefined}
       action={<View style={styles.headerActions}><SyncChip {...ctx} />{bell}</View>} />
   );
   if (!state || !lists) {
-    return <Screen header={header}><Text style={[txt.bodyMuted, { textAlign: 'center', paddingVertical: space.xxl }]}>Loading your work…</Text></Screen>;
+    return <Screen header={header}><Text style={[txt.bodyMuted, { textAlign: 'center', paddingVertical: space.xxl }]}>{t('work.loading')}</Text></Screen>;
   }
 
   const { forYou, waiting, recent, kinds } = lists;
@@ -195,12 +203,12 @@ export function MyWork(ctx: Ctx) {
     // Feedback says who it came from in the passage itself; the row stays short (demo Then list).
     const sub = h.kind === 'respond' ? w.what : workSub(w.what, { ...(w.by ? { by: w.by } : {}), ...(w.due ? { due: w.due } : {}) });
     // A check asked of you reads as one (demo HomeCoord: "Check Luke 1:1–4"); the rest by the passage alone.
-    return { id: h.id, icon: look.icon, tone: look.tone, title: h.kind === 'review' ? `Check ${w.title}` : w.title, sub, onPress: () => open(h, languageId) };
+    return { id: h.id, icon: look.icon, tone: look.tone, title: h.kind === 'review' ? t('work.checkPassage', { passage: w.title }) : w.title, sub, onPress: () => open(h, languageId) };
   };
   const joinItems: WorkItem[] = joins.map((r) => ({
     id: `join:${r.id}`, icon: 'people', tone: 'brand',
-    title: `${r.name ?? ctx.name(r.profileId)} wants to join`,
-    sub: r.message.trim() || `Asked ${timeAgo(r.createdAt, Date.now())}`,
+    title: t('work.join.wantsToJoin', { name: r.name ?? ctx.name(r.profileId) }),
+    sub: r.message.trim() || joinAsked(r.createdAt),
     onPress: () => ctx.go('edit_member', { memberId: r.profileId, requestId: r.id, ...(r.name ? { name: r.name } : {}), ...(r.message ? { message: r.message } : {}) })
   }));
 
@@ -213,8 +221,8 @@ export function MyWork(ctx: Ctx) {
   let rest: Highlight[] = forYou;
   let suggested = false;
   if (addLanguage) {
-    lead = <NextCard label={`Get ${orgName || 'your organization'} ready`} title="Add a language" sub="The language your team speaks"
-      cta="Add a language" onPress={() => ctx.go('new_language')} />;
+    lead = <NextCard label={orgName ? t('work.lead.getOrgReady', { org: orgName }) : t('work.lead.getYourOrgReady')} title={t('work.lead.addLanguage')}
+      sub={t('work.lead.addLanguageSub')} cta={t('work.lead.addLanguage')} onPress={() => ctx.go('new_language')} />;
   } else if (getReady && languageId) {
     lead = <ReadyCard language={language} done={getReady.done} total={getReady.total} question={getReady.next!.question}
       onChoose={() => ctx.go('get_ready', { languageId, step: String(getReady.step) })} />;
@@ -222,7 +230,7 @@ export function MyWork(ctx: Ctx) {
     const first = forYou[0]!;
     const w = words(first);
     rest = forYou.slice(1);
-    lead = <NextCard label="Next for you" title={w.title} cta="Start" onPress={() => open(first, languageId)}
+    lead = <NextCard label={t('work.lead.nextForYou')} title={w.title} cta={t('work.lead.start')} onPress={() => open(first, languageId)}
       sub={nextSub(first.kind, w.what, { ...(w.by ? { by: w.by } : {}), ...(w.due ? { due: w.due } : {}) })} />;
   } else if (languageId) {
     // ONB-7: something real to do when nothing is waiting, instead of an empty list.
@@ -231,17 +239,17 @@ export function MyWork(ctx: Ctx) {
       suggested = true;
       const title = unitTitle(state, next.unitId);
       const by = next.kind === 'review' ? derivePassage(state, next.unitId, idx).latest?.by : undefined;
-      const sub = isAdminOnly ? 'Nobody has recorded it yet · ask someone, or let your team pick any passage'
-        : next.kind === 'record' ? "Nobody has recorded it yet · you don't need to be asked"
-        : `${by ? ctx.name(by) : 'Someone'} recorded it · nobody has checked it yet`;
-      lead = <NextCard label={isAdminOnly ? `Get ${language} started` : 'A good place to start'} title={title} sub={sub}
-        cta={isAdminOnly ? 'Open it' : 'Start'} onPress={() => ctx.openPassage(next.unitId, languageId)} />;
+      const sub = isAdminOnly ? t('work.lead.notRecordedAdmin')
+        : next.kind === 'record' ? t('work.lead.notRecorded')
+        : t('work.lead.notChecked', { name: by ? ctx.name(by) : t('common.someone') });
+      lead = <NextCard label={isAdminOnly ? t('work.lead.getLanguageStarted', { language }) : t('work.lead.goodPlace')} title={title} sub={sub}
+        cta={isAdminOnly ? t('work.lead.openIt') : t('work.lead.start')} onPress={() => ctx.openPassage(next.unitId, languageId)} />;
     }
   }
 
   const items = [...joinItems, ...(languageId ? rest.map((h) => toItem(h, languageId)) : [])];
   const shown = moreShown ? items : items.slice(0, THEN_CAP);
-  const listLabel = lead && !getReady && !addLanguage && !suggested ? 'Then' : 'Also for you';
+  const listLabel = lead && !getReady && !addLanguage && !suggested ? t('work.list.then') : t('work.list.alsoForYou');
   const nothing = !lead && items.length === 0;
   const map = () => ctx.go(mapScreenFor(ctx.session));
 
@@ -252,9 +260,9 @@ export function MyWork(ctx: Ctx) {
         <Card style={styles.caughtUp}>
           <View style={[styles.tile, { backgroundColor: TINT.green }]}><Ico name="check" size={24} color={TINT.greenText} /></View>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={[txt.body, { fontWeight: '700' }]}>Nothing is waiting on you</Text>
+            <Text style={[txt.body, { fontWeight: '700' }]}>{t('work.caughtUp.title')}</Text>
             <Text style={[txt.smMuted, { marginTop: 2 }]}>
-              {ctx.session.isAdmin ? 'Set up people, languages and review flows under Manage, or find any passage on the Map.' : 'Find any passage on the Map to keep going.'}
+              {ctx.session.isAdmin ? t('work.caughtUp.admin') : t('work.caughtUp.member')}
             </Text>
           </View>
         </Card>
@@ -265,7 +273,7 @@ export function MyWork(ctx: Ctx) {
           <SectionLabel label={listLabel} />
           <WorkRows items={shown} />
           {items.length > THEN_CAP ? (
-            <QuietToggle label={moreShown ? 'Fewer' : `${items.length - THEN_CAP} more for you`} open={moreShown} onPress={() => setMoreShown((v) => !v)} />
+            <QuietToggle label={moreShown ? t('work.list.fewer') : t('work.list.more', { count: items.length - THEN_CAP })} open={moreShown} onPress={() => setMoreShown((v) => !v)} />
           ) : null}
         </>
       ) : null}
@@ -273,23 +281,23 @@ export function MyWork(ctx: Ctx) {
       {/* The less likely ways on, each one labelled tap away (demo ADR-032): what you asked of others, what you opened lately, the whole map. */}
       <View style={styles.quietLinks}>
         {waiting.length > 0 && languageId ? (
-          <QuietToggle label={`Waiting on others · ${waiting.length}`} open={waitingOpen.open} onPress={waitingOpen.onToggle}
-            detail="What you asked of someone else that is not done yet." />
+          <QuietToggle label={t('work.waiting.toggle', { count: waiting.length })} open={waitingOpen.open} onPress={waitingOpen.onToggle}
+            detail={t('work.waiting.help')} />
         ) : null}
         {waitingOpen.open && waiting.length > 0 && languageId ? (
           <Group>
             {waiting.map((w, i) => {
-              const t = waitingText(state, kinds, w, ctx.name);
+              const line = waitingText(state, kinds, w, ctx.name);
               return (
                 <Row key={w.id} icon="clock" iconColor={C.muted} iconBg={C.bg} last={i === waiting.length - 1}
-                  label={t.title} sub={t.sub} onPress={() => ctx.openPassage(w.unitId, languageId)} />
+                  label={line.title} sub={line.sub} onPress={() => ctx.openPassage(w.unitId, languageId)} />
               );
             })}
           </Group>
         ) : null}
         {recent.length > 0 ? (
-          <QuietToggle label={`Opened lately · ${recent.length}`} open={recentOpen.open} onPress={recentOpen.onToggle}
-            detail="Passages you opened lately, to pick up where you were." />
+          <QuietToggle label={t('work.recent.toggle', { count: recent.length })} open={recentOpen.open} onPress={recentOpen.onToggle}
+            detail={t('work.recent.help')} />
         ) : null}
         {recentOpen.open && recent.length > 0 ? (
           <Group>
@@ -305,8 +313,8 @@ export function MyWork(ctx: Ctx) {
           </Group>
         ) : null}
         {languageId && (forYou.length === 0 || nothing) ? (
-          <QuietToggle label={isAdminOnly ? 'See how every language is doing' : `Everything in ${language}`} onPress={map}
-            detail="Every passage, and how far it has come." />
+          <QuietToggle label={isAdminOnly ? t('work.map.everyLanguage') : t('work.map.everything', { language })} onPress={map}
+            detail={t('work.map.help')} />
         ) : null}
       </View>
     </Screen>

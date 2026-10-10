@@ -10,11 +10,12 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Ctx } from '../ctx';
 import { useHelpPress } from '../helpContext';
+import { t } from '../i18n';
 import { Ico, IconBtn, txt } from '../kit';
 import type { LoopPhase } from '../recording/splitModel';
 import { C, radius, space, target, TINT, type as T } from '../theme';
 import { useEnergyHistory } from '../useRecorder';
-import { mmss, recorderLines, totalMs } from './model';
+import { mmss, partLabel, recorderLines, totalMs } from './model';
 import { PartMark, RecordBtn, styles as ps } from './parts';
 import { useClip } from './useClip';
 
@@ -39,7 +40,7 @@ export function RecorderPane(props: {
       ) : null}
       <NextCard label={lines.next} phase={props.phase} capturing={props.capturing} onResume={props.onResume} />
       {parts.length > 0 && props.small ? (
-        <Text style={[txt.smMuted, { textAlign: 'center' }]}>{lines.recorded} · drag up to see them</Text>
+        <Text style={[txt.smMuted, { textAlign: 'center' }]}>{t('recording.recorder.dragUp', { recorded: lines.recorded })}</Text>
       ) : null}
     </View>
   );
@@ -47,22 +48,23 @@ export function RecorderPane(props: {
 
 function GroupCard(props: { ctx: Ctx; parts: Part[]; title: string; sub: string; open: boolean; onToggle: () => void; disabled: boolean; onDelete: (hash: string, label: string) => void }) {
   const clip = useClip(props.ctx.language, props.parts.map((p) => p.hash), { disabled: props.disabled });
-  const toggle = useHelpPress(props.title, props.open ? 'Hide the parts.' : 'Show each part, to hear or delete it.', props.onToggle);
-  const play = useHelpPress(clip.playing ? 'Pause' : `Play ${props.title}`, 'Hear everything recorded so far, one part after another.', clip.toggle);
+  const toggle = useHelpPress(props.title, props.open ? t('recording.recorder.hidePartsHelp') : t('recording.recorder.showPartsHelp'), props.onToggle);
+  const playLabel = clip.playing ? t('common.pause') : t('recording.player.playTitle', { title: props.title });
+  const play = useHelpPress(playLabel, t('recording.recorder.playAllHelp'), clip.toggle);
   return (
     <View style={styles.card}>
       <View style={styles.head}>
         <PartMark state="done" />
-        <Pressable onPress={toggle} accessibilityRole="button" accessibilityState={{ expanded: props.open }} accessibilityLabel={`${props.title}, ${props.sub}`}
+        <Pressable onPress={toggle} accessibilityRole="button" accessibilityState={{ expanded: props.open }} accessibilityLabel={t('recording.recorder.groupLabel', { title: props.title, sub: props.sub })}
           style={({ pressed }) => [{ flex: 1, minHeight: target.min, justifyContent: 'center' }, pressed && ps.pressed]}>
           <Text style={styles.title}>{props.title}</Text>
           <Text style={txt.smMuted}>{props.sub}</Text>
         </Pressable>
-        <Pressable onPress={play} disabled={!clip.available || props.disabled} accessibilityRole="button" accessibilityLabel={clip.playing ? 'Pause' : `Play ${props.title}`}
+        <Pressable onPress={play} disabled={!clip.available || props.disabled} accessibilityRole="button" accessibilityLabel={playLabel}
           style={({ pressed }) => [styles.iconTap, (!clip.available || props.disabled) && ps.off, pressed && ps.pressed]}>
           <Ico name={clip.playing ? 'pause' : 'play'} size={22} color={C.primary} strokeWidth={2.6} fill={C.primary} />
         </Pressable>
-        <Pressable onPress={toggle} accessibilityRole="button" accessibilityLabel={props.open ? 'Hide the parts' : 'Show the parts'} style={({ pressed }) => [styles.iconTap, pressed && ps.pressed]}>
+        <Pressable onPress={toggle} accessibilityRole="button" accessibilityLabel={props.open ? t('recording.recorder.hideParts') : t('recording.recorder.showParts')} style={({ pressed }) => [styles.iconTap, pressed && ps.pressed]}>
           <Ico name={props.open ? 'down' : 'right'} size={22} color={C.muted} />
         </Pressable>
       </View>
@@ -77,17 +79,18 @@ function GroupCard(props: { ctx: Ctx; parts: Part[]; title: string; sub: string;
 }
 
 function PartRow(props: { ctx: Ctx; part: Part; index: number; disabled: boolean; onDelete: (hash: string, label: string) => void }) {
-  const label = `Part ${props.index + 1}`;
+  const label = partLabel(props.index);
   const clip = useClip(props.ctx.language, [props.part.hash], { disabled: props.disabled });
-  const play = useHelpPress(clip.playing ? 'Pause' : `Play ${label}`, undefined, clip.toggle);
+  const playLabel = clip.playing ? t('recording.recorder.pausePart', { part: label }) : t('recording.player.playTitle', { title: label });
+  const play = useHelpPress(clip.playing ? t('common.pause') : t('recording.player.playTitle', { title: label }), undefined, clip.toggle);
   return (
     <View style={styles.partRow}>
-      <Pressable onPress={play} disabled={!clip.available || props.disabled} accessibilityRole="button" accessibilityLabel={`${clip.playing ? 'Pause' : 'Play'} ${label}`}
+      <Pressable onPress={play} disabled={!clip.available || props.disabled} accessibilityRole="button" accessibilityLabel={playLabel}
         style={({ pressed }) => [styles.partPlay, (!clip.available || props.disabled) && ps.off, pressed && ps.pressed]}>
         <Ico name={clip.playing ? 'pause' : 'play'} size={16} color={C.primary} strokeWidth={2.6} fill={C.primary} />
-        <Text style={[txt.body, { color: C.muted }]}>{label} · {mmss(props.part.durationMs)}</Text>
+        <Text style={[txt.body, { color: C.muted }]}>{t('recording.recorder.partLength', { part: label, length: mmss(props.part.durationMs) })}</Text>
       </Pressable>
-      <IconBtn name="trash" label={`Delete ${label}`} bg="transparent" color={C.muted} size={40} disabled={props.disabled} onPress={() => props.onDelete(props.part.hash, label)} />
+      <IconBtn name="trash" label={t('recording.deleteItem', { item: label })} bg="transparent" color={C.muted} size={40} disabled={props.disabled} onPress={() => props.onDelete(props.part.hash, label)} />
     </View>
   );
 }
@@ -96,23 +99,23 @@ function PartRow(props: { ctx: Ctx; part: Part; index: number; disabled: boolean
 function NextCard(props: { label: string; phase: LoopPhase; capturing: boolean; onResume: () => void }) {
   const recording = props.phase === 'recording';
   const listening = props.phase === 'listening';
-  const resume = useHelpPress('Resume now', 'Stop the Bible and go on recording.', props.onResume);
+  const resume = useHelpPress(t('recording.resumeNow'), t('recording.recorder.resumeHelp'), props.onResume);
   return (
     <View style={[styles.next, recording && { borderColor: C.red }, listening && { borderColor: TINT.amberText }]}
       accessibilityLiveRegion="polite" accessible={!listening}
-      accessibilityLabel={`${props.label}. ${recording ? (props.capturing ? 'Recording what you say' : 'Listening for you') : listening ? 'Paused while the Bible plays' : 'Recording next'}`}>
+      accessibilityLabel={t('recording.recorder.nextLabel', { part: props.label, status: recording ? (props.capturing ? t('recording.loop.capturing') : t('recording.recorder.listeningForYou')) : listening ? t('recording.recorder.pausedForBible') : t('recording.recorder.recordingNext') })}>
       <PartMark state={recording ? 'recording' : 'next'} />
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={styles.title}>{props.label}</Text>
         <Text style={[txt.smMuted, recording && { color: TINT.redText }]}>
-          {recording ? (props.capturing ? 'Recording…' : 'Listening for you · pause between parts') : listening ? 'Paused while the Bible plays' : 'Recording next'}
+          {recording ? (props.capturing ? t('recording.recorder.recordingNow') : t('recording.recorder.listeningPause')) : listening ? t('recording.recorder.pausedForBible') : t('recording.recorder.recordingNext')}
         </Text>
       </View>
       {recording ? <Meter captured={props.capturing} /> : null}
       {listening ? (
-        <Pressable onPress={resume} accessibilityRole="button" accessibilityLabel="Resume recording now" style={({ pressed }) => [styles.resume, pressed && ps.pressed]}>
+        <Pressable onPress={resume} accessibilityRole="button" accessibilityLabel={t('recording.resumeRecordingNow')} style={({ pressed }) => [styles.resume, pressed && ps.pressed]}>
           <Ico name="mic" size={16} color={C.white} />
-          <Text style={[txt.sm, { color: C.white, fontWeight: '700' }]}>Resume</Text>
+          <Text style={[txt.sm, { color: C.white, fontWeight: '700' }]}>{t('recording.recorder.resume')}</Text>
         </Pressable>
       ) : null}
     </View>
@@ -134,13 +137,13 @@ function Meter(props: { captured: boolean }) {
 /** The recorder at one line (a-wsGuide): what is next, how far along, and the record button. */
 export function RecorderBar(props: { count: number; phase: LoopPhase; disabled: boolean; onRecord: () => void; onOpen: () => void }) {
   const lines = recorderLines(props.count);
-  const open = useHelpPress('Your recording', 'Drag the divider up, or tap here, to see your parts.', props.onOpen);
+  const open = useHelpPress(t('recording.recorder.yourRecording'), t('recording.recorder.openHelp'), props.onOpen);
   const recording = props.phase !== 'off';
   return (
     <View style={styles.bar}>
-      <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={`Your recording. ${lines.next}. ${lines.bar}. Open`} style={({ pressed }) => [{ flex: 1 }, pressed && ps.pressed]}>
+      <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={t('recording.recorder.barLabel', { next: lines.next, progress: lines.bar })} style={({ pressed }) => [{ flex: 1 }, pressed && ps.pressed]}>
         <Text style={styles.title}>{lines.next}</Text>
-        <Text style={[txt.smMuted, recording && { color: TINT.redText }]}>{props.phase === 'recording' ? 'Recording…' : props.phase === 'listening' ? 'Paused while the Bible plays' : lines.bar}</Text>
+        <Text style={[txt.smMuted, recording && { color: TINT.redText }]}>{props.phase === 'recording' ? t('recording.recorder.recordingNow') : props.phase === 'listening' ? t('recording.recorder.pausedForBible') : lines.bar}</Text>
       </Pressable>
       <RecordBtn size={56} recording={recording} disabled={props.disabled} onPress={props.onRecord} />
     </View>
@@ -151,15 +154,15 @@ export function RecorderBar(props: { count: number; phase: LoopPhase; disabled: 
 export function RecorderFooter(props: { count: number; phase: LoopPhase; recordDisabled: boolean; publishDisabled: boolean; onRecord: () => void; onPublish: () => void }) {
   const lines = recorderLines(props.count);
   const recording = props.phase !== 'off';
-  const publish = useHelpPress('Publish', 'When every part is recorded: save this version for the team.', props.onPublish);
+  const publish = useHelpPress(t('common.publish'), t('recording.recorder.publishHelp'), props.onPublish);
   return (
     <View style={styles.footer}>
-      <Text style={[styles.side, { textAlign: 'right', color: recording ? TINT.redText : C.muted }]} numberOfLines={2}>{recording ? `${lines.next}…` : lines.next}</Text>
+      <Text style={[styles.side, { textAlign: 'right', color: recording ? TINT.redText : C.muted }]} numberOfLines={2}>{recording ? t('recording.recorder.nextRecording', { part: lines.next }) : lines.next}</Text>
       <RecordBtn size={72} recording={recording} disabled={props.recordDisabled} onPress={props.onRecord} />
       <View style={styles.sideBox}>
-        <Pressable onPress={publish} disabled={props.publishDisabled} accessibilityRole="button" accessibilityLabel="Publish" accessibilityState={{ disabled: props.publishDisabled }}
+        <Pressable onPress={publish} disabled={props.publishDisabled} accessibilityRole="button" accessibilityLabel={t('common.publish')} accessibilityState={{ disabled: props.publishDisabled }}
           style={({ pressed }) => [styles.publish, props.publishDisabled && { opacity: 0.45 }, pressed && ps.pressed]}>
-          <Text style={styles.publishLabel}>Publish</Text>
+          <Text style={styles.publishLabel}>{t('common.publish')}</Text>
         </Pressable>
       </View>
     </View>

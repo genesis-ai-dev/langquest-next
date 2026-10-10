@@ -22,20 +22,22 @@
 // language, so its state is the open language's.
 import {
   chaptersInBook, derivePassage, languageName, languageProgress, libraryItemView, usfmOf,
-  type LibraryItemView, type TemplateDoc, type VersificationDoc
+  type LevelDisplay, type LibraryItemView, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import { BookHead, BreakUpBook, templateBookName } from '../breakup/BreakUpBook';
 import { useMemo, useRef, useState } from 'react';
 import * as Crypto from 'expo-crypto';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import {
-  bibleBook, bookRows, bookSegments, chapterBlocks, chipLabel, choiceLine, continuesInto, countOutline, addNode, docFromForm,
-  docLevels, englishBookName, fiaStarts, formChanged, formFromDoc, levelsForDivide,
-  levelsForOutline, libraryChoices, moveNode, newTemplateForm, partName, pluralOf, recordedCount, removeNode, renameNode,
+  bibleBook, bookNameOf, bookRows, bookSegments, chapterBlocks, chipLabel, choiceLine, continuesInto, countOutline, addNode, docFromForm,
+  docLevels, fiaStarts, formChanged, formFromDoc, levelsForDivide,
+  levelsForOutline, libraryChoices, moveNode, newTemplateForm, partWords, recordedCount, removeNode, renameNode,
   setAsideCount, siblingsOf, findNode, STARTER_TEMPLATE, templateLine, templateOf, versesText, versificationBooks, versionNumber,
   type BibleBook, type Block, type LibraryChoice, type Segment, type TemplateForm
 } from '../contentTemplates';
+import { bookName } from '../coreText';
 import type { Ctx } from '../ctx';
+import { t } from '../i18n';
 import { indexesFor } from '../indexes';
 import {
   Banner, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, PrimaryBtn, Row, Screen, SearchField,
@@ -44,7 +46,6 @@ import {
 import { loadDocs } from '../library/docStore';
 import { sourceLine, usesItem, type SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs, useLibraryUpdates, useSharedItems } from '../library/useLibrary';
-import { plural } from '../passageView';
 import { failureMessage } from '../report';
 import { readingsFor } from '../scripture';
 import { contractsFor } from '../screenContracts';
@@ -60,13 +61,18 @@ const lower = (s: string) => s.toLowerCase();
 
 /** "Dinka", "Dinka and Nuer", "Dinka, Nuer and Shilluk". */
 function joinNames(names: string[]): string {
-  return names.length <= 1 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
+  return names.length <= 1 ? names.join('') : t('content.list.and', { items: names.slice(0, -1).join(t('content.list.separator')), last: names.at(-1) });
 }
 
 /** "Dinka moves to it by itself." / "Dinka and Nuer move to it by themselves." */
 function movesLine(names: string[]): string {
   if (names.length === 0) return '';
-  return names.length === 1 ? `${names[0]} moves to it by itself.` : `${joinNames(names)} move to it by themselves.`;
+  return t('content.moves', { count: names.length, names: joinNames(names) });
+}
+
+/** "12 passages", "1 story": a count of what a language records, in the template's word for it. */
+function partsCount(count: number, words: { one: string; many: string }): string {
+  return t('content.partsCount', { count, part: lower(words.one), parts: lower(words.many) });
 }
 
 type Level = 'org' | 'language';
@@ -94,13 +100,13 @@ function usersOf(ctx: Ctx, itemId: string): string[] {
 }
 
 function orgName(ctx: Ctx): string {
-  return ctx.org.state?.org?.value.name ?? 'Your organization';
+  return ctx.org.state?.org?.value.name ?? t('content.orgFallback');
 }
 
 /** Book › Chapter › Passage: folders, then what's recorded (TPL-2). */
 function LevelsLine(props: { levels: string[] }) {
   return (
-    <View style={styles.levels} accessibilityLabel={`Levels: ${props.levels.join(', ')}`}>
+    <View style={styles.levels} accessibilityLabel={t('content.levelsLabel', { levels: props.levels.join(t('content.list.separator')) })}>
       {props.levels.map((l, i) => (
         <View key={`${l}-${i}`} style={styles.level}>
           {i > 0 ? <Ico name="right" size={14} color={C.muted} /> : null}
@@ -114,13 +120,13 @@ function LevelsLine(props: { levels: string[] }) {
 
 /** A document still on its way: a light line, never a spinner over the screen. */
 function LoadingLine() {
-  return <Text style={txt.smMuted}>Loading…</Text>;
+  return <Text style={txt.smMuted}>{t('common.loading')}</Text>;
 }
 
 function Loading(props: { title: string; onBack: () => void }) {
   return (
     <Screen header={<Header title={props.title} onBack={props.onBack} />}>
-      <EmptyState icon="template" title="Getting your organization ready…" />
+      <EmptyState icon="template" title={t('content.loadingOrg')} />
     </Screen>
   );
 }
@@ -129,8 +135,8 @@ function Loading(props: { title: string; onBack: () => void }) {
 function SharedOffline(props: { error: string; empty: boolean }) {
   if (!props.error) return null;
   return (
-    <Banner icon="cloud" tone="amber" title="Could not refresh this list"
-      body={props.empty ? 'Connect to see what other organizations share.' : 'Showing the list this device saved.'} />
+    <Banner icon="cloud" tone="amber" title={t('content.sharedOffline.title')}
+      body={props.empty ? t('content.sharedOffline.connect') : t('content.sharedOffline.saved')} />
   );
 }
 
@@ -143,7 +149,7 @@ function useRunner(ctx: Ctx) {
     try {
       await fn();
     } catch (e) {
-      ctx.toast(`Not saved. ${failure(what, e)}`);
+      ctx.toast(t('common.notSaved', { reason: failure(what, e) }));
     } finally {
       setBusy(false);
     }
@@ -199,34 +205,32 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
         </View>
         {doc ? <LevelsLine levels={docLevels(doc)} /> : <LoadingLine />}
         <Text style={[txt.sm, { fontWeight: '600', color: users.length ? C.primary : C.muted }]}>
-          {users.length ? `Used by ${joinNames(users)}` : 'Not used here yet'}
+          {users.length ? t('content.library.usedBy', { names: joinNames(users) }) : t('content.library.notUsedHere')}
         </Text>
-        {update ? <Text style={[txt.sm, { color: TINT.amberText }]}>{it.subscription!.sourceOrgName} has a newer version.</Text> : null}
+        {update ? <Text style={[txt.sm, { color: TINT.amberText }]}>{t('content.newerVersion', { org: it.subscription!.sourceOrgName })}</Text> : null}
         <View style={styles.cardActions}>
-          {canManage ? <SmallBtn label="Options" icon="settings" onPress={() => setOptions(it.itemId)} /> : null}
+          {canManage ? <SmallBtn label={t('content.library.options')} icon="settings" onPress={() => setOptions(it.itemId)} /> : null}
           <View style={{ flex: 1 }} />
-          <SmallBtn label={canManage && it.source !== 'subscription' ? 'Edit' : 'View'} icon="right" onPress={() => ctx.go('template_editor', { itemId: it.itemId })} />
+          <SmallBtn label={canManage && it.source !== 'subscription' ? t('common.edit') : t('content.library.view')} icon="right" onPress={() => ctx.go('template_editor', { itemId: it.itemId })} />
         </View>
       </Card>
     );
   };
 
   return (
-    <Screen header={<Header title="Content Templates" sub={scopeName} onBack={ctx.back}
-      action={canManage ? <SmallBtn label="Template" icon="plus" tone="primary" onPress={() => ctx.go('template_editor', { new: '1' })} /> : undefined} />}>
-      <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>
-        A template is the structure a language records against — books and passages, or lessons, or stories. Each language uses one version of one, and moves to the next when the template changes.
-      </Text>
+    <Screen header={<Header title={t('content.library.title')} sub={scopeName} onBack={ctx.back}
+      action={canManage ? <SmallBtn label={t('content.library.addTemplate')} icon="plus" tone="primary" onPress={() => ctx.go('template_editor', { new: '1' })} /> : undefined} />}>
+      <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('content.library.intro')}</Text>
 
-      <SectionLabel label="Your organization" />
+      <SectionLabel label={t('content.sections.yourOrganization')} />
       {active.length === 0 ? (
         <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>
-          No templates yet. {canManage ? 'Follow or copy one another organization shares, or make your own.' : 'Whoever manages content templates adds them.'}
+          {canManage ? t('content.library.emptyManage') : t('content.library.empty')}
         </Text>
       ) : active.slice(0, limit).map(itemCard)}
       <ShowMore remaining={active.length - limit} step={8} onMore={() => setLimit((l) => l + 8)} />
       {archived.length > 0 ? (
-        <Disclosure icon="history" title="Archived" summary={`${plural(archived.length, 'template')} · languages using them keep them`}
+        <Disclosure icon="history" title={t('content.library.archived')} summary={t('content.library.archivedSummary', { count: archived.length })}
           open={archivedOpen.open} onToggle={archivedOpen.onToggle}>
           {archived.map((it, i) => (
             <Row key={it.itemId} icon="template" iconColor={C.muted} iconBg={C.bg} label={it.name} sub={sourceLine(it)} muted
@@ -235,16 +239,16 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
         </Disclosure>
       ) : null}
 
-      <SectionLabel label="From other organizations" />
+      <SectionLabel label={t('content.sections.fromOthers')} />
       <SharedOffline error={shared.error} empty={shared.rows.length === 0} />
       {shared.loaded && others.length === 0 && !shared.error ? (
-        <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>Nothing else is shared yet.</Text>
+        <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('content.library.nothingShared')}</Text>
       ) : null}
       {others.slice(0, sharedLimit).map((c) => {
         if (c.source !== 'shared') return null;
         const doc = docs.get<TemplateDoc>(c.hash);
         return (
-          <Card key={c.key} onPress={() => setBrowsing(c.shared)} accessibilityLabel={`${c.name}, from ${c.shared.org_name}`}>
+          <Card key={c.key} onPress={() => setBrowsing(c.shared)} accessibilityLabel={t('content.library.sharedLabel', { name: c.name, org: c.shared.org_name })}>
             <View style={styles.head}>
               <View style={styles.tile}><Ico name={doc?.structure === 'outline' ? 'folder' : 'book'} size={22} color={C.primary} /></View>
               <View style={{ flex: 1, minWidth: 0 }}>
@@ -260,15 +264,15 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
       })}
       <ShowMore remaining={others.length - sharedLimit} step={5} onMore={() => setSharedLimit((l) => l + 5)} />
 
-      <SectionLabel label="By language" />
+      <SectionLabel label={t('content.library.byLanguage')} />
       {languages.length === 0 ? (
-        <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>No languages here yet.</Text>
+        <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('content.library.noLanguages')}</Text>
       ) : (
         <>
           <Group>
             {languages.slice(0, languageLimit).map((l, i, shown) => (
               <Row key={l.languageId} icon="globe" iconColor={C.muted} iconBg={C.bg} label={l.name}
-                sub={state && isOpen(ctx, l.languageId) ? templateLine(state, lib.item) : 'Open to see its template'}
+                sub={state && isOpen(ctx, l.languageId) ? templateLine(state, lib.item) : t('content.library.openToSee')}
                 onPress={() => ctx.go('templates_home', { level: 'language', languageId: l.languageId })} last={i === shown.length - 1} />
             ))}
           </Group>
@@ -294,12 +298,12 @@ function ItemOptions(props: { ctx: Ctx; lib: Lib; item: LibraryItemView; update?
   const { busy, run } = useRunner(ctx);
   const sub = it.subscription;
 
-  const setSharing = (shared: boolean, subscribable: boolean, message: string) => run('template sharing', async () => {
+  const setSharing = (shared: boolean, subscribable: boolean, message: string) => run('template sharing', async () => { // i18n-ignore: log label
     const before = { shared: it.shared, subscribable: it.subscribable };
     await lib.setSharing(it, shared, subscribable);
-    ctx.toast(message, () => run('undo template sharing', async () => {
+    ctx.toast(message, () => run('undo template sharing', async () => { // i18n-ignore: log label
       await lib.setSharing(it, before.shared, before.subscribable);
-      ctx.toast('Undone.');
+      ctx.toast(t('common.undone'));
     }));
   });
 
@@ -308,39 +312,39 @@ function ItemOptions(props: { ctx: Ctx; lib: Lib; item: LibraryItemView; update?
       <Sheet visible title={it.name} sub={sourceLine(it)} onClose={onClose}>
         {sub.active ? (
           <Group>
-            <Row label="Update automatically" sub={`New versions from ${sub.sourceOrgName} reach your languages by themselves.`} last
-              right={<Toggle on={sub.autoUpdate} disabled={busy} label="Update automatically"
-                onToggle={() => void run('template updates', async () => {
+            <Row label={t('content.options.autoUpdate')} sub={t('content.options.autoUpdateSub', { org: sub.sourceOrgName })} last
+              right={<Toggle on={sub.autoUpdate} disabled={busy} label={t('content.options.autoUpdate')}
+                onToggle={() => void run('template updates', async () => { // i18n-ignore: log label
                   const auto = !sub.autoUpdate;
                   await lib.follow(it.itemId, { autoUpdate: auto });
-                  ctx.toast(auto ? `${it.name} updates automatically.` : `You take ${it.name}'s updates.`, () => run('undo template updates', async () => {
+                  ctx.toast(auto ? t('content.options.autoOn', { name: it.name }) : t('content.options.autoOff', { name: it.name }), () => run('undo template updates', async () => { // i18n-ignore: log label
                     await lib.follow(it.itemId, { autoUpdate: !auto });
-                    ctx.toast('Undone.');
+                    ctx.toast(t('common.undone'));
                   }));
                 })} />} />
           </Group>
         ) : null}
         {props.update ? (
-          <GhostBtn label="Take update" icon="download" disabled={busy} onPress={() => void run('take template update', async () => {
+          <GhostBtn label={t('content.options.takeUpdate')} icon="download" disabled={busy} onPress={() => void run('take template update', async () => { // i18n-ignore: log label
             await lib.takeUpdate(it, props.update!);
             onClose();
-            ctx.toast(`${it.name} updated. Languages using it move to the new version by themselves.`);
+            ctx.toast(t('content.options.updated', { name: it.name }));
           })} />
         ) : null}
         {sub.active ? (
-          <GhostBtn label="Stop following" icon="close" disabled={busy} onPress={() => void run('stop following template', async () => {
+          <GhostBtn label={t('content.options.stopFollowing')} icon="close" disabled={busy} onPress={() => void run('stop following template', async () => { // i18n-ignore: log label
             await lib.follow(it.itemId, { active: false });
             onClose();
-            ctx.toast(`Stopped following ${it.name}. Languages keep the version they use.`, () => run('undo stop following', async () => {
+            ctx.toast(t('content.options.stoppedFollowing', { name: it.name }), () => run('undo stop following', async () => { // i18n-ignore: log label
               await lib.follow(it.itemId, { active: true });
-              ctx.toast('Undone.');
+              ctx.toast(t('common.undone'));
             }));
           })} />
         ) : null}
-        <GhostBtn label="Copy to change it" icon="edit" disabled={busy} onPress={() => void run('copy template', async () => {
+        <GhostBtn label={t('content.options.copyToChange')} icon="edit" disabled={busy} onPress={() => void run('copy template', async () => { // i18n-ignore: log label
           await lib.copyFollowed(it);
           onClose();
-          ctx.toast(`${it.name} copied. The copy is yours to change.`);
+          ctx.toast(t('content.copied', { name: it.name }));
         })} />
       </Sheet>
     );
@@ -349,22 +353,22 @@ function ItemOptions(props: { ctx: Ctx; lib: Lib; item: LibraryItemView; update?
   return (
     <Sheet visible title={it.name} sub={sourceLine(it)} onClose={onClose}>
       <Group>
-        <Row label="Share with other organizations" sub="They can see it and copy it." last={!it.shared}
-          right={<Toggle on={it.shared} disabled={busy} label="Share with other organizations"
-            onToggle={() => void setSharing(!it.shared, it.subscribable, it.shared ? `${it.name} is no longer shared. Anyone using it keeps their version.` : `${it.name} is shared with other organizations.`)} />} />
+        <Row label={t('content.options.share')} sub={t('content.options.shareSub')} last={!it.shared}
+          right={<Toggle on={it.shared} disabled={busy} label={t('content.options.share')}
+            onToggle={() => void setSharing(!it.shared, it.subscribable, it.shared ? t('content.options.unshared', { name: it.name }) : t('content.options.shared', { name: it.name }))} />} />
         {it.shared ? (
-          <Row label="Let them follow updates" sub="They can follow it and get each new version." last
-            right={<Toggle on={it.subscribable} disabled={busy} label="Let them follow updates"
-              onToggle={() => void setSharing(true, !it.subscribable, it.subscribable ? 'Others can no longer follow it.' : 'Others can follow it and get your new versions.')} />} />
+          <Row label={t('content.options.letFollow')} sub={t('content.options.letFollowSub')} last
+            right={<Toggle on={it.subscribable} disabled={busy} label={t('content.options.letFollow')}
+              onToggle={() => void setSharing(true, !it.subscribable, it.subscribable ? t('content.options.followOff') : t('content.options.followOn'))} />} />
         ) : null}
       </Group>
-      <GhostBtn label={it.archived ? 'Unarchive' : 'Archive'} icon="history" disabled={busy} onPress={() => void run('archive template', async () => {
+      <GhostBtn label={it.archived ? t('content.options.unarchive') : t('content.options.archive')} icon="history" disabled={busy} onPress={() => void run('archive template', async () => { // i18n-ignore: log label
         const archived = !it.archived;
         await lib.archive(it, archived);
         onClose();
-        ctx.toast(archived ? `${it.name} archived. Languages using it keep it.` : `${it.name} is back in the list.`, () => run('undo archive', async () => {
+        ctx.toast(archived ? t('content.options.archivedToast', { name: it.name }) : t('content.options.unarchivedToast', { name: it.name }), () => run('undo archive', async () => { // i18n-ignore: log label
           await lib.archive(it, !archived);
-          ctx.toast('Undone.');
+          ctx.toast(t('common.undone'));
         }));
       })} />
     </Sheet>
@@ -376,38 +380,52 @@ function SharedTemplateSheet(props: { ctx: Ctx; lib: Lib; shared: SharedItem; ca
   const { ctx, lib, shared: s, onClose } = props;
   const { busy, run } = useRunner(ctx);
   const [following, setFollowing] = useState(false);
-  const follow = (auto: boolean) => run('follow template', async () => {
+  const follow = (auto: boolean) => run('follow template', async () => { // i18n-ignore: log label
     const itemId = await lib.subscribe(s, auto);
     onClose();
-    ctx.toast(`Following ${s.name} from ${s.org_name}.`, () => run('undo follow', async () => {
+    ctx.toast(t('content.shared.followingToast', { name: s.name, org: s.org_name }), () => run('undo follow', async () => { // i18n-ignore: log label
       await lib.follow(itemId, { active: false });
-      ctx.toast('Undone.');
+      ctx.toast(t('common.undone'));
     }));
   });
   return (
-    <Sheet visible title={s.name} sub={`From ${s.org_name} · ${plural(s.version_count, 'version')}`} onClose={onClose}>
+    <Sheet visible title={s.name} sub={t('content.fromOrgVersions', { org: s.org_name, count: s.version_count })} onClose={onClose}>
       {s.description ? <Text style={txt.body}>{s.description}</Text> : null}
       {!props.canManage ? (
-        <Text style={txt.smMuted}>Whoever manages content templates can follow it or copy it.</Text>
+        <Text style={txt.smMuted}>{t('content.shared.whoever')}</Text>
       ) : following ? (
         <Group>
-          <Row icon="download" label="Update automatically" sub="New versions reach your languages by themselves." onPress={busy ? undefined : () => void follow(true)} />
-          <Row icon="notif" label="I'll take updates" sub="You'll see when there is a new version and choose when to take it." onPress={busy ? undefined : () => void follow(false)} last />
+          <Row icon="download" label={t('content.options.autoUpdate')} sub={t('content.shared.autoSub')} onPress={busy ? undefined : () => void follow(true)} />
+          <Row icon="notif" label={t('content.shared.takeMyself')} sub={t('content.shared.takeMyselfSub')} onPress={busy ? undefined : () => void follow(false)} last />
         </Group>
       ) : (
         <Group>
           {s.subscribable ? (
-            <Row icon="history" label="Follow" sub={`Use ${s.org_name}'s versions as they publish them.`} onPress={() => setFollowing(true)} />
+            <Row icon="history" label={t('content.shared.follow')} sub={t('content.shared.followSub', { org: s.org_name })} onPress={() => setFollowing(true)} />
           ) : null}
-          <Row icon="edit" label="Copy" sub="Make it ours to change." last onPress={busy ? undefined : () => void run('copy template', async () => {
+          <Row icon="edit" label={t('content.shared.copy')} sub={t('content.shared.copySub')} last onPress={busy ? undefined : () => void run('copy template', async () => { // i18n-ignore: log label
             await lib.copy(s);
             onClose();
-            ctx.toast(`${s.name} copied. The copy is yours to change.`);
+            ctx.toast(t('content.copied', { name: s.name }));
           })} />
         </Group>
       )}
     </Sheet>
   );
+}
+
+/** "Version 2 · from LangQuest", "Version 3 · copied from LangQuest", "from LangQuest", or nothing. */
+function versionLineOf(n: number | null, item: LibraryItemView | null): string {
+  const sub = item?.subscription ? item.subscription.sourceOrgName : null;
+  const copied = item?.copiedFrom ? item.copiedFrom.orgName : null;
+  if (n) {
+    if (sub !== null) return t('content.language.versionFrom', { n, org: sub });
+    if (copied !== null) return t('content.language.versionCopied', { n, org: copied });
+    return t('content.language.version', { n });
+  }
+  if (sub !== null) return t('content.language.from', { org: sub });
+  if (copied !== null) return t('content.language.copied', { org: copied });
+  return '';
 }
 
 /** A language: its template and version, its levels and counts, Change, and the books (TPL-1, TPL-7). */
@@ -431,11 +449,11 @@ function LanguageTemplateView({ ctx, languageId }: { ctx: Ctx; languageId: strin
       setAside: setAsideCount(state)
     };
   }, [state, open, languageId, ctx.org.state]);
-  if (!state) return <Loading title="Content Template" onBack={ctx.back} />;
+  if (!state) return <Loading title={t('content.language.title')} onBack={ctx.back} />;
   if (!data || !languageId) {
     return (
-      <Screen header={<Header title="Content Template" onBack={ctx.back} />}>
-        <EmptyState icon="globe" title="No language chosen" sub="Open Content Templates from a language to see the structure it records against." />
+      <Screen header={<Header title={t('content.language.title')} onBack={ctx.back} />}>
+        <EmptyState icon="globe" title={t('content.noLanguage')} sub={t('content.language.noLanguageSub')} />
       </Screen>
     );
   }
@@ -445,86 +463,92 @@ function LanguageTemplateView({ ctx, languageId }: { ctx: Ctx; languageId: strin
   const doc = docs.get<TemplateDoc>(sel?.docHash);
   const v11n = doc?.bible ? docs.get<VersificationDoc>(doc.bible.versification) : null;
   const levels = doc ? docLevels(doc) : [];
-  const last = partName(doc);
-  const parts = lower(pluralOf(last));
+  const words = partWords(doc);
   const q = query.trim().toLowerCase();
-  const books = data.books.filter((b) => !q || b.label.toLowerCase().includes(q) || b.book.label.toLowerCase().includes(q));
+  const books = data.books.filter((b) => !q || [b.label, bookName(b.book.itemId), b.book.label].some((name) => name.toLowerCase().includes(q)));
   const n = versionNumber(item, sel?.docHash);
-  const from = item?.subscription ? ` · from ${item.subscription.sourceOrgName}` : item?.copiedFrom ? ` · copied from ${item.copiedFrom.orgName}` : '';
+  const versionLine = versionLineOf(n, item);
   const newer = item?.current && sel && item.current !== sel.docHash ? versionNumber(item, item.current) : null;
   const update = item?.subscription?.active && !item.subscription.autoUpdate ? updates[item.itemId] : undefined;
 
   return (
-    <Screen header={<Header title="Content Template" sub={data.language} onBack={ctx.back} />}>
+    <Screen header={<Header title={t('content.language.title')} sub={data.language} onBack={ctx.back} />}>
       {sel ? (
         <Card>
           <View>
-            <Text style={txt.label}>{data.language} records against</Text>
-            <Text style={[txt.h2, { marginTop: space.xs }]}>{item?.name ?? doc?.name ?? 'Its template'}</Text>
-            <Text style={[txt.smMuted, { marginTop: 2 }]}>
-              {n ? `Version ${n}${from}` : from.replace(/^ · /, '')}
-            </Text>
+            <Text style={txt.label}>{t('content.language.recordsAgainst', { language: data.language })}</Text>
+            <Text style={[txt.h2, { marginTop: space.xs }]}>{item?.name ?? doc?.name ?? t('content.language.itsTemplate')}</Text>
+            <Text style={[txt.smMuted, { marginTop: 2 }]}>{versionLine}</Text>
           </View>
           {!doc ? <LoadingLine /> : <LevelsLine levels={levels} />}
           {doc?.bible ? (
             <Text style={txt.sm}>
-              {`${sel?.books ? `${sel.books.length} of its ${plural(doc.bible.books.length, 'book')}` : plural(doc.bible.books.length, 'book')} · ${v11n ? `${v11n.name} versification` : 'versification loading…'}`}
+              {[
+                sel?.books
+                  ? t('content.language.booksOfIts', { chosen: sel.books.length, count: doc.bible.books.length })
+                  : t('content.books', { count: doc.bible.books.length }),
+                v11n ? t('content.language.versification', { name: v11n.name }) : t('content.language.versificationLoading')
+              ].join(' · ')}
             </Text>
           ) : null}
           <Text style={txt.sm}>
-            {`${data.books.length && !doc?.bible ? `${plural(data.books.length, 'book')} · ` : ''}${plural(data.progress.total, lower(last), parts)} · ${data.progress.recorded.toLocaleString('en-US')} recorded`}
+            {[
+              ...(data.books.length && !doc?.bible ? [t('content.books', { count: data.books.length })] : []),
+              partsCount(data.progress.total, words),
+              t('content.language.recorded', { count: data.progress.recorded })
+            ].join(' · ')}
           </Text>
           {newer ? (
-            <Text style={[txt.sm, { color: C.primary, fontWeight: '600' }]}>Version {newer} is out. {data.language} moves to it by itself.</Text>
+            <Text style={[txt.sm, { color: C.primary, fontWeight: '600' }]}>{t('content.language.newerOut', { n: newer, language: data.language })}</Text>
           ) : update ? (
             <>
-              <Text style={[txt.sm, { color: TINT.amberText }]}>{item!.subscription!.sourceOrgName} has a newer version.</Text>
+              <Text style={[txt.sm, { color: TINT.amberText }]}>{t('content.newerVersion', { org: item!.subscription!.sourceOrgName })}</Text>
               {canManage ? (
-                <SmallBtn label="Take update" icon="download" disabled={busy} onPress={() => void run('take template update', async () => {
+                <SmallBtn label={t('content.options.takeUpdate')} icon="download" disabled={busy} onPress={() => void run('take template update', async () => { // i18n-ignore: log label
                   await lib.takeUpdate(item!, update);
-                  ctx.toast(`${data.language} moves to the new version of ${item!.name}.`);
+                  ctx.toast(t('content.language.movesToNew', { language: data.language, name: item!.name }));
                 })} />
               ) : null}
             </>
           ) : null}
           {canManage ? (
             <View style={{ gap: space.sm }}>
-              <GhostBtn label={item && item.source !== 'subscription' ? 'Edit template' : 'View template'} icon="edit"
+              <GhostBtn label={item && item.source !== 'subscription' ? t('content.language.editTemplate') : t('content.language.viewTemplate')} icon="edit"
                 onPress={() => ctx.go('template_editor', { itemId: sel.itemId })} />
-              <GhostBtn label="Change template" icon="swap" onPress={() => ctx.go('template_picker', { languageId })} />
+              <GhostBtn label={t('content.language.changeTemplate')} icon="swap" onPress={() => ctx.go('template_picker', { languageId })} />
             </View>
           ) : null}
         </Card>
       ) : (
         <Card>
-          <Text style={txt.h3}>No template yet</Text>
+          <Text style={txt.h3}>{t('content.noTemplate')}</Text>
           <Text style={txt.smMuted}>
             {canManage
-              ? `Choose the structure ${data.language} records against. Its passages come from the template.`
-              : `Whoever manages content templates chooses the structure ${data.language} records against.`}
+              ? t('content.language.chooseStructure', { language: data.language })
+              : t('content.language.whoeverChooses', { language: data.language })}
           </Text>
-          {canManage ? <PrimaryBtn label="Choose a template" icon="template" onPress={() => ctx.go('template_picker', { languageId })} /> : null}
+          {canManage ? <PrimaryBtn label={t('content.language.chooseTemplate')} icon="template" onPress={() => ctx.go('template_picker', { languageId })} /> : null}
         </Card>
       )}
 
       {data.setAside > 0 ? (
-        <Banner icon="history" title={`${plural(data.setAside, 'recorded part')} set aside`}
-          body={`${data.setAside === 1 ? 'It is' : 'They are'} not in the template ${data.language} uses now. Set aside, not deleted: change back to bring ${data.setAside === 1 ? 'it' : 'them'} back.`} />
+        <Banner icon="history" title={t('content.language.setAsideTitle', { count: data.setAside })}
+          body={t('content.language.setAsideBody', { count: data.setAside, language: data.language })} />
       ) : null}
 
       {sel && canShape && data.books.length > 0 ? (
         <>
-          <SectionLabel label={`Divide into ${parts}`} />
+          <SectionLabel label={t('content.language.divideInto', { parts: lower(words.many) })} />
           <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>
-            Open a book to read through it and see where each {lower(last)} starts, with FIA's breaks marked as suggestions.
+            {t('content.language.openABook', { part: lower(words.one) })}
           </Text>
-          <SearchField value={query} onChangeText={(v) => { setQuery(v); setLimit(8); }} placeholder="Find a book" />
+          <SearchField value={query} onChangeText={(v) => { setQuery(v); setLimit(8); }} placeholder={t('content.language.findBook')} />
           {books.length === 0 ? (
-            <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>No book matches “{query.trim()}”.</Text>
+            <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('content.language.noBookMatches', { query: query.trim() })}</Text>
           ) : (
             <Group>
               {books.slice(0, limit).map((b, i, shown) => (
-                <Row key={b.book.itemId} icon="book" label={b.label} sub={plural(b.parts, lower(last), parts)}
+                <Row key={b.book.itemId} icon="book" label={b.label} sub={partsCount(b.parts, words)}
                   onPress={() => ctx.go('book_structure', { languageId, bookId: b.book.itemId })} last={i === shown.length - 1} />
               ))}
             </Group>
@@ -555,20 +579,20 @@ export function TemplatePicker(ctx: Ctx) {
   const pick = choices.find((c) => c.key === picked);
   const docs = useLibraryDocs(lib.orgId, [pick?.hash, sel?.docHash]);
   const recorded = useMemo(() => (state && open ? recordedCount(state) : 0), [state, open]);
-  if (!state) return <Loading title="Choose a Template" onBack={ctx.back} />;
+  if (!state) return <Loading title={t('content.picker.title')} onBack={ctx.back} />;
   if (!isOpen(ctx, languageId)) {
     return (
-      <Screen header={<Header title="Choose a Template" onBack={ctx.back} />}>
-        <EmptyState icon="globe" title="No language chosen" sub="Choose a template from a language's Content Template." />
+      <Screen header={<Header title={t('content.picker.title')} onBack={ctx.back} />}>
+        <EmptyState icon="globe" title={t('content.noLanguage')} sub={t('content.picker.noLanguageSub')} />
       </Screen>
     );
   }
   const language = languageName(ctx.org.state, languageId);
   const canUse = ctx.session.can('manage_templates');
-  const currentName = sel ? lib.item(sel.itemId)?.name ?? 'its template' : null;
+  const currentName = sel ? lib.item(sel.itemId)?.name ?? t('content.picker.itsTemplate') : null;
   const inUse = (c: LibraryChoice) => !!sel && c.source === 'ours' && c.item.itemId === sel.itemId;
   const currentDoc = sel ? docs.get<TemplateDoc>(sel.docHash) : null;
-  const currentParts = lower(pluralOf(partName(currentDoc)));
+  const currentParts = lower(partWords(currentDoc).many);
 
   async function use(c: LibraryChoice) {
     if (!state || busy || !canUse) return;
@@ -585,7 +609,7 @@ export function TemplatePicker(ctx: Ctx) {
       const specs = await lib.applySpecs(itemId, { docHash: c.hash, ...(books ? { books } : {}) });
       // ctx.act says "Not saved" and why itself; stay here to try again.
       try {
-        await ctx.act(specs, `${language} now uses ${c.name}.`, undo ? () => undo : undefined);
+        await ctx.act(specs, t('content.picker.nowUses', { language, name: c.name }), undo ? () => undo : undefined);
       } catch { return; }
       ctx.go('templates_home', { languageId });
     } catch (e) {
@@ -601,14 +625,14 @@ export function TemplatePicker(ctx: Ctx) {
     const doc = on ? docs.get<TemplateDoc>(c.hash) : null;
     const description = c.source === 'ours' ? c.item.description : c.shared.description;
     return (
-      <Card key={c.key} onPress={() => setPicked(on ? null : c.key)} accessibilityLabel={`${c.name}${used ? ', in use' : ''}`}
+      <Card key={c.key} onPress={() => setPicked(on ? null : c.key)} accessibilityLabel={used ? t('content.picker.inUseLabel', { name: c.name }) : c.name}
         style={on ? { borderWidth: 2, borderColor: C.primary } : null}>
         <View style={styles.head}>
           <View style={[styles.tile, on ? { backgroundColor: C.primary } : null]}>
             <Ico name={doc?.structure === 'outline' ? 'folder' : 'book'} size={22} color={on ? C.white : C.primary} />
           </View>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={txt.h3}>{c.name}{used ? ' · in use' : ''}</Text>
+            <Text style={txt.h3}>{used ? t('content.picker.inUseTitle', { name: c.name }) : c.name}</Text>
             <Text style={[txt.sm, { fontWeight: '600', color: C.primary }]}>{choiceLine(c, sourceLine)}</Text>
             {description ? <Text style={[txt.smMuted, { marginTop: 2 }]}>{description}</Text> : null}
           </View>
@@ -622,23 +646,26 @@ export function TemplatePicker(ctx: Ctx) {
   const changing = !!pick && !inUse(pick);
   return (
     <Screen
-      header={<Header title="Choose a Template" sub={currentName ? `For ${language} · now ${currentName}` : `For ${language}`} onBack={ctx.back} />}
+      header={<Header title={t('content.picker.title')}
+        sub={currentName ? t('content.picker.forNow', { language, template: currentName }) : t('content.picker.for', { language })} onBack={ctx.back} />}
       footer={changing && pick ? (
         <>
           <Text style={txt.smMuted}>
             {sel
-              ? `${language}'s current ${currentParts} are hidden, not deleted.${recorded ? ` ${plural(recorded, 'part has', 'parts have')} recordings — change back to this template to bring them back.` : ''}`
-              : `${language} will record against ${pick.name}. You can change it later; nothing recorded is ever deleted.`}
-            {pick.source === 'shared' ? ` Your organization follows it, so ${pick.shared.org_name}'s new versions reach ${language} by themselves.` : ''}
+              ? recorded
+                ? t('content.picker.hiddenRecorded', { language, parts: currentParts, count: recorded })
+                : t('content.picker.hidden', { language, parts: currentParts })
+              : t('content.picker.willRecord', { language, name: pick.name })}
+            {pick.source === 'shared' ? ` ${t('content.picker.followsIt', { org: pick.shared.org_name, language })}` : ''}
           </Text>
-          <PrimaryBtn label={`Use ${pick.name}`} icon="check" busy={busy} disabled={!canUse} onPress={() => void use(pick)} />
+          <PrimaryBtn label={t('content.picker.use', { name: pick.name })} icon="check" busy={busy} disabled={!canUse} onPress={() => void use(pick)} />
         </>
       ) : undefined}>
-      <SectionLabel label="Your organization" />
+      <SectionLabel label={t('content.sections.yourOrganization')} />
       {ours.length === 0 ? (
-        <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>Your organization has no templates yet. Choose one another organization shares.</Text>
+        <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('content.picker.noneOurs')}</Text>
       ) : ours.map(card)}
-      <SectionLabel label="From other organizations" />
+      <SectionLabel label={t('content.sections.fromOthers')} />
       <SharedOffline error={shared.error} empty={shared.rows.length === 0} />
       {others.slice(0, sharedLimit).map(card)}
       <ShowMore remaining={others.length - sharedLimit} step={5} onMore={() => setSharedLimit((l) => l + 5)} />
@@ -648,8 +675,15 @@ export function TemplatePicker(ctx: Ctx) {
 
 // ---- Template editor (TPL-9) -------------------------------------------------------------------
 
-const levelSub = (i: number, count: number, display?: string) =>
-  i === count - 1 ? `Recorded · shown by ${display ?? 'reference'}` : i === count - 2 ? "Holds what's recorded · can be downloaded" : 'Holds folders';
+/** What a level is for: the last is recorded (and how each is shown), the one above holds it, the rest hold folders. */
+function levelSub(i: number, count: number, display?: LevelDisplay): string {
+  if (i < count - 1) return i === count - 2 ? t('content.editor.levelHolds') : t('content.editor.levelFolders');
+  switch (display ?? 'reference') {
+    case 'reference': return t('content.editor.levelShownByReference');
+    case 'name': return t('content.editor.levelShownByName');
+    case 'both': return t('content.editor.levelShownByBoth');
+  }
+}
 
 export function TemplateEditor(ctx: Ctx) {
   const languageId = ctx.params['languageId'] ?? ctx.languageId;
@@ -657,10 +691,10 @@ export function TemplateEditor(ctx: Ctx) {
   const itemId = ctx.params['itemId'] ?? (ctx.params['new'] ? undefined : used);
   if (itemId) return <LibraryTemplate ctx={ctx} itemId={itemId} />;
   if (ctx.params['new']) return <NewTemplate ctx={ctx} />;
-  if (!ctx.language.state) return <Loading title="Template Outline" onBack={ctx.back} />;
+  if (!ctx.language.state) return <Loading title={t('content.editor.outlineTitle')} onBack={ctx.back} />;
   return (
-    <Screen header={<Header title="Template Outline" onBack={ctx.back} />}>
-      <EmptyState icon="template" title="Template not found" sub="Open a template from Content Templates." />
+    <Screen header={<Header title={t('content.editor.outlineTitle')} onBack={ctx.back} />}>
+      <EmptyState icon="template" title={t('content.editor.notFound')} sub={t('content.editor.notFoundOpen')} />
     </Screen>
   );
 }
@@ -673,15 +707,15 @@ function LibraryTemplate({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
   const doc = docs.get<TemplateDoc>(item?.current);
   if (!item || item.kind !== 'template') {
     return (
-      <Screen header={<Header title="Template Outline" onBack={ctx.back} />}>
-        <EmptyState icon="template" title="Template not found" sub="It is not in your organization's library." />
+      <Screen header={<Header title={t('content.editor.outlineTitle')} onBack={ctx.back} />}>
+        <EmptyState icon="template" title={t('content.editor.notFound')} sub={t('content.editor.notInLibrary')} />
       </Screen>
     );
   }
   if (!doc) {
     return (
       <Screen header={<Header title={item.name} sub={sourceLine(item)} onBack={ctx.back} />}>
-        {docs.error ? <Banner icon="cloud" tone="amber" title="Not on this device yet" body="Connect to open this template." /> : <LoadingLine />}
+        {docs.error ? <Banner icon="cloud" tone="amber" title={t('content.editor.notOnDevice')} body={t('content.editor.connectToOpen')} /> : <LoadingLine />}
       </Screen>
     );
   }
@@ -692,6 +726,7 @@ function LibraryTemplate({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
 function useVersifications(ctx: Ctx, lib: Lib, enabled = true) {
   const shared = useSharedItems('versification', lib.orgId, enabled);
   const library = ctx.org.state?.library;
+  // i18n-ignore: LangQuest's English versification by its library name, matched to list it first
   const choices = useMemo(() => libraryChoices(library ?? {}, lib.items('versification'), shared.rows, 'English'), [library, lib.items, shared.rows]);
   return { choices, error: shared.error };
 }
@@ -720,32 +755,32 @@ function NewTemplate({ ctx }: { ctx: Ctx }) {
   }
 
   return (
-    <Screen header={<Header title="New Template" sub={orgName(ctx)} onBack={bible ? () => setBible(false) : ctx.back} />}>
+    <Screen header={<Header title={t('content.newTemplate.title')} sub={orgName(ctx)} onBack={bible ? () => setBible(false) : ctx.back} />}>
       {!bible ? (
         <>
-          <Text style={txt.body}>What will languages record with it?</Text>
-          <Card onPress={() => setBible(true)} accessibilityLabel="Scripture">
+          <Text style={txt.body}>{t('content.newTemplate.what')}</Text>
+          <Card onPress={() => setBible(true)} accessibilityLabel={t('content.newTemplate.scripture')}>
             <View style={styles.head}>
               <View style={styles.tile}><Ico name="book" size={22} color={C.primary} /></View>
               <View style={{ flex: 1 }}>
-                <Text style={txt.h3}>Scripture</Text>
-                <Text style={txt.smMuted}>Books and chapters of the Bible, divided into passages as teams go.</Text>
+                <Text style={txt.h3}>{t('content.newTemplate.scripture')}</Text>
+                <Text style={txt.smMuted}>{t('content.newTemplate.scriptureSub')}</Text>
               </View>
             </View>
           </Card>
-          <Card onPress={() => setForm(newTemplateForm('outline'))} accessibilityLabel="Something else">
+          <Card onPress={() => setForm(newTemplateForm('outline'))} accessibilityLabel={t('content.newTemplate.else')}>
             <View style={styles.head}>
               <View style={styles.tile}><Ico name="folder" size={22} color={C.primary} /></View>
               <View style={{ flex: 1 }}>
-                <Text style={txt.h3}>Something else</Text>
-                <Text style={txt.smMuted}>Lessons, stories, a commentary — any outline you build yourself.</Text>
+                <Text style={txt.h3}>{t('content.newTemplate.else')}</Text>
+                <Text style={txt.smMuted}>{t('content.newTemplate.elseSub')}</Text>
               </View>
             </View>
           </Card>
         </>
       ) : (
         <>
-          <Text style={txt.body}>Which numbering of chapters and verses does it follow?</Text>
+          <Text style={txt.body}>{t('content.newTemplate.numbering')}</Text>
           <SharedOffline error={v.error} empty={v.choices.length === 0} />
           <Group>
             {v.choices.map((c, i) => (
@@ -786,11 +821,11 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
   const users = item ? usersOf(ctx, item.itemId) : [];
   const bible = f.structure === 'bible';
   const v11nChoice = v.choices.find((c) => c.hash === f.versification);
-  const v11nName = v11n?.name ?? v11nChoice?.name ?? (f.versification ? 'Loading…' : 'Choose one');
+  const v11nName = v11n?.name ?? v11nChoice?.name ?? (f.versification ? t('common.loading') : t('content.editor.chooseOne'));
   const ready = !!f.name.trim() && (!bible || (!!f.versification && f.books.length > 0)) && (bible || f.outline.length > 0);
 
   function save() {
-    void run('save template', async () => {
+    void run('save template', async () => { // i18n-ignore: log label
       const name = f.name.trim();
       // A versification another organization shares is followed (or copied) first, so this organization may name it.
       if (bible && v11nChoice?.source === 'shared') {
@@ -801,12 +836,12 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
         kind: 'template', ...(item ? { itemId: item.itemId } : {}), name, description: f.description.trim(), doc: docFromForm(f)
       });
       const n = (item?.versions.length ?? 0) + (item?.versions.some((x) => x.docHash === docHash) ? 0 : 1);
-      ctx.toast(isNew ? `${name} created.` : `${name} saved as version ${n}. ${movesLine(users)}`.trim());
+      ctx.toast(isNew ? t('content.editor.created', { name }) : `${t('content.editor.savedAs', { name, n })} ${movesLine(users)}`.trim());
       ctx.back();
     });
   }
 
-  const sub = isNew ? `New template · ${orgName(ctx)}` : followed ? sourceLine(item) : `Template · ${sourceLine(item)}`;
+  const sub = isNew ? t('content.editor.subNew', { org: orgName(ctx) }) : followed ? sourceLine(item) : t('content.editor.subTemplate', { source: sourceLine(item) });
   const shownBooks = f.books.slice(0, bookLimit);
   const bookSheet = editingBook ? f.books.find((b) => b.book === editingBook) : undefined;
   const missing = v11n ? versificationBooks(v11n).filter((b) => !f.books.some((x) => x.book === b)) : [];
@@ -815,17 +850,17 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
 
   return (
     <Screen
-      header={<Header title={f.name.trim() || 'New template'} sub={sub} onBack={() => (changed && !readOnly && !isNew ? setLeaving(true) : ctx.back())} />}
+      header={<Header title={f.name.trim() || t('content.editor.untitled')} sub={sub} onBack={() => (changed && !readOnly && !isNew ? setLeaving(true) : ctx.back())} />}
       footer={readOnly ? undefined : (
-        <PrimaryBtn label={isNew ? 'Create template' : 'Save changes'} icon="check" busy={busy} disabled={!changed || !ready} onPress={save} />
+        <PrimaryBtn label={isNew ? t('content.editor.create') : t('content.editor.saveChanges')} icon="check" busy={busy} disabled={!changed || !ready} onPress={save} />
       )}>
       {followed ? (
         <>
-          <Banner icon="lock" title={`It follows ${item!.subscription!.sourceOrgName}`} body="Its versions come from there. Copy it to change it." />
+          <Banner icon="lock" title={t('content.editor.follows', { org: item!.subscription!.sourceOrgName })} body={t('content.editor.followsBody')} />
           {ctx.session.can('manage_templates') ? (
-            <GhostBtn label="Copy to change it" icon="edit" disabled={busy} onPress={() => void run('copy template', async () => {
+            <GhostBtn label={t('content.options.copyToChange')} icon="edit" disabled={busy} onPress={() => void run('copy template', async () => { // i18n-ignore: log label
               await lib.copyFollowed(item!);
-              ctx.toast(`${item!.name} copied. Find the copy under Your organization.`);
+              ctx.toast(t('content.editor.copiedFind', { name: item!.name }));
               ctx.back();
             })} />
           ) : null}
@@ -836,17 +871,17 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
         f.description ? <Card><Text style={txt.body}>{f.description}</Text></Card> : null
       ) : (
         <>
-          <Field label="Name" value={f.name} onChangeText={(name) => set({ name })} placeholder="Template name" autoCapitalize="words" />
-          <Field label="What it's for" value={f.description} onChangeText={(description) => set({ description })} placeholder="What it's for, in a sentence" multiline />
+          <Field label={t('content.name')} value={f.name} onChangeText={(name) => set({ name })} placeholder={t('content.editor.namePlaceholder')} autoCapitalize="words" />
+          <Field label={t('content.editor.whatFor')} value={f.description} onChangeText={(description) => set({ description })} placeholder={t('content.editor.whatForPlaceholder')} multiline />
         </>
       )}
       {users.length > 0 ? (
         <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>
-          Used by {joinNames(users)}. {users.length === 1 ? 'It moves' : 'They move'} to each new version by {users.length === 1 ? 'itself' : 'themselves'}; recordings stay where they are.
+          {t('content.editor.usedBy', { count: users.length, names: joinNames(users) })}
         </Text>
       ) : null}
 
-      <SectionLabel label="Levels" />
+      <SectionLabel label={t('content.editor.levels')} />
       <Group>
         {f.levels.map((l, i) => (
           <Row key={`${l.name}-${i}`} icon={i === f.levels.length - 1 ? 'media' : 'folder'} label={l.name}
@@ -858,37 +893,37 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
 
       {bible ? (
         <>
-          <SectionLabel label="Versification" />
+          <SectionLabel label={t('content.editor.versification')} />
           <Group>
-            <Row icon="book" label={v11nName} sub="How its chapters and verses are numbered" last
+            <Row icon="book" label={v11nName} sub={t('content.editor.versificationSub')} last
               onPress={readOnly ? undefined : () => setChoosingV11n(true)} right={readOnly ? undefined : <Ico name="edit" size={20} color={C.muted} />} />
           </Group>
 
-          <SectionLabel label="Divide into" />
+          <SectionLabel label={t('content.editor.divideInto')} />
           <ChipRow>
-            <Chip label="Whole books" on={f.divide === 'books'} onPress={() => !readOnly && set({ divide: 'books', levels: levelsForDivide(f.levels, 'books') })} />
-            <Chip label="Chapters" on={f.divide === 'chapters'} onPress={() => !readOnly && set({ divide: 'chapters', levels: levelsForDivide(f.levels, 'chapters') })} />
+            <Chip label={t('content.editor.wholeBooks')} on={f.divide === 'books'} onPress={() => !readOnly && set({ divide: 'books', levels: levelsForDivide(f.levels, 'books') })} />
+            <Chip label={t('content.editor.chapters')} on={f.divide === 'chapters'} onPress={() => !readOnly && set({ divide: 'chapters', levels: levelsForDivide(f.levels, 'chapters') })} />
             {f.passages.length > 0 ? (
-              <Chip label="Passages" on={f.divide === 'passages'} onPress={() => !readOnly && set({ divide: 'passages', levels: levelsForDivide(f.levels, 'passages') })} />
+              <Chip label={t('content.editor.passages')} on={f.divide === 'passages'} onPress={() => !readOnly && set({ divide: 'passages', levels: levelsForDivide(f.levels, 'passages') })} />
             ) : null}
           </ChipRow>
           <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>
             {f.divide === 'passages'
-              ? `${plural(f.passages.length, 'passage')}, as the version this started from divides them. Changing where passages start is coming.`
-              : f.divide === 'books' ? 'Each book is one part to record.' : 'Each chapter is one part to record.'}
+              ? t('content.editor.passagesNote', { count: f.passages.length })
+              : f.divide === 'books' ? t('content.editor.eachBook') : t('content.editor.eachChapter')}
           </Text>
 
-          <SectionLabel label={`Books · ${f.books.length}`} />
+          <SectionLabel label={t('content.editor.booksCount', { n: f.books.length })} />
           {f.books.length === 0 ? (
-            <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>No books yet.</Text>
+            <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('content.editor.noBooks')}</Text>
           ) : (
             <Group>
               {shownBooks.map((b, i) => {
-                const english = englishBookName(b.book);
+                const known = bookNameOf(b.book);
                 const chapters = v11n ? chaptersInBook(v11n, b.book) : 0;
                 return (
                   <Row key={b.book} icon="book" label={b.name}
-                    sub={`${b.book}${english !== b.name ? ` · ${english}` : ''}${chapters ? ` · ${plural(chapters, 'chapter')}` : ''}`}
+                    sub={[b.book, ...(known !== b.name ? [known] : []), ...(chapters ? [t('content.editor.chapterCount', { count: chapters })] : [])].join(' · ')}
                     onPress={readOnly ? undefined : () => setEditingBook(b.book)} right={readOnly ? undefined : <Ico name="edit" size={20} color={C.muted} />}
                     last={i === shownBooks.length - 1} />
                 );
@@ -896,11 +931,11 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
             </Group>
           )}
           <ShowMore remaining={f.books.length - bookLimit} step={12} onMore={() => setBookLimit((l) => l + 12)} />
-          {!readOnly ? <GhostBtn label="Add a book" icon="plus" disabled={!v11n || missing.length === 0} onPress={() => setAddingBook(true)} /> : null}
+          {!readOnly ? <GhostBtn label={t('content.editor.addBook')} icon="plus" disabled={!v11n || missing.length === 0} onPress={() => setAddingBook(true)} /> : null}
         </>
       ) : (
         <>
-          <SectionLabel label="Outline" />
+          <SectionLabel label={t('content.editor.outline')} />
           <OutlineScroll outline={f.outline} levels={f.levels} readOnly={readOnly}
             onChange={(outline, edit) => { set({ outline, levels: levelsForOutline(outline, f.levels) }); if (edit) setEditingNode(edit); }}
             onEdit={setEditingNode} />
@@ -918,10 +953,10 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
       ) : null}
       {addingBook ? (
         <AddBookSheet books={missing} onClose={() => setAddingBook(false)}
-          onAdd={(book) => set({ books: [...f.books, { book, name: englishBookName(book) }] })} />
+          onAdd={(book) => set({ books: [...f.books, { book, name: bookNameOf(book) }] })} />
       ) : null}
       {choosingV11n ? (
-        <Sheet visible title="Versification" sub="How chapters and verses are numbered. Study material numbered another way still lines up." onClose={() => setChoosingV11n(false)}>
+        <Sheet visible title={t('content.editor.versification')} sub={t('content.editor.versificationSheetSub')} onClose={() => setChoosingV11n(false)}>
           <SharedOffline error={v.error} empty={v.choices.length === 0} />
           <Group>
             {v.choices.map((c, i) => (
@@ -939,12 +974,12 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
           onRemove={() => { const outline = removeNode(f.outline, node.id); set({ outline, levels: levelsForOutline(outline, f.levels) }); setEditingNode(null); }} />
       ) : null}
       {leaving ? (
-        <Sheet visible title="Leave without saving?" sub="Your changes to this template are not saved." onClose={() => setLeaving(false)}
+        <Sheet visible title={t('content.editor.leaveTitle')} sub={t('content.editor.leaveSub')} onClose={() => setLeaving(false)}
           footer={<>
-            <PrimaryBtn label="Keep editing" onPress={() => setLeaving(false)} />
-            <GhostBtn label="Leave" tone="red" onPress={() => { setLeaving(false); ctx.back(); }} />
+            <PrimaryBtn label={t('content.editor.keepEditing')} onPress={() => setLeaving(false)} />
+            <GhostBtn label={t('content.editor.leave')} tone="red" onPress={() => { setLeaving(false); ctx.back(); }} />
           </>}>
-          <Text style={txt.smMuted}>Save publishes them as the next version.</Text>
+          <Text style={txt.smMuted}>{t('content.editor.leaveNote')}</Text>
         </Sheet>
       ) : null}
     </Screen>
@@ -955,20 +990,21 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
 function LevelSheet(props: { level: TemplateForm['levels'][number]; last: boolean; bible: boolean; onClose: () => void; onSave: (l: TemplateForm['levels'][number]) => void }) {
   const [name, setName] = useState(props.level.name);
   const [display, setDisplay] = useState(props.level.display ?? (props.bible ? 'reference' : 'name'));
+  const example = `${bookName('luk')} 15:11–32`;
   return (
-    <Sheet visible title="Level" sub="What your team calls it. Everyone sees this word in the app — on the map, in requests, on the record." onClose={props.onClose}
-      footer={<PrimaryBtn label="Done" disabled={!name.trim()} onPress={() => props.onSave({ name: name.trim(), ...(props.last ? { display } : {}) })} />}>
-      <Field label="Name" value={name} onChangeText={setName} placeholder="e.g. Passage, Story, Lesson" autoCapitalize="words" />
+    <Sheet visible title={t('content.levelSheet.title')} sub={t('content.levelSheet.sub')} onClose={props.onClose}
+      footer={<PrimaryBtn label={t('common.done')} disabled={!name.trim()} onPress={() => props.onSave({ name: name.trim(), ...(props.last ? { display } : {}) })} />}>
+      <Field label={t('content.name')} value={name} onChangeText={setName} placeholder={t('content.levelSheet.placeholder')} autoCapitalize="words" />
       {props.last && props.bible ? (
         <>
-          <Text style={txt.xsStrong}>Show each one by</Text>
+          <Text style={txt.xsStrong}>{t('content.levelSheet.showBy')}</Text>
           <ChipRow>
-            <Chip label="Reference" on={display === 'reference'} onPress={() => setDisplay('reference')} />
-            <Chip label="Name" on={display === 'name'} onPress={() => setDisplay('name')} />
-            <Chip label="Both" on={display === 'both'} onPress={() => setDisplay('both')} />
+            <Chip label={t('content.levelSheet.reference')} on={display === 'reference'} onPress={() => setDisplay('reference')} />
+            <Chip label={t('content.name')} on={display === 'name'} onPress={() => setDisplay('name')} />
+            <Chip label={t('content.levelSheet.both')} on={display === 'both'} onPress={() => setDisplay('both')} />
           </ChipRow>
           <Text style={txt.smMuted}>
-            {display === 'reference' ? 'Luke 15:11–32' : display === 'name' ? "The lost son (the reference when there's no name)" : 'The lost son · Luke 15:11–32'}
+            {display === 'reference' ? example : display === 'name' ? t('content.levelSheet.exampleName') : t('content.levelSheet.exampleBoth', { reference: example })}
           </Text>
         </>
       ) : null}
@@ -980,11 +1016,11 @@ function LevelSheet(props: { level: TemplateForm['levels'][number]; last: boolea
 function BookSheet(props: { book: { book: string; name: string }; onClose: () => void; onSave: (name: string) => void; onRemove: () => void }) {
   const [name, setName] = useState(props.book.name);
   return (
-    <Sheet visible title={englishBookName(props.book.book)} sub="What the language calls it. Everyone sees this name on the map and the record." onClose={props.onClose}
-      footer={<PrimaryBtn label="Done" disabled={!name.trim()} onPress={() => props.onSave(name.trim())} />}>
-      <Field label="Name in the language" value={name} onChangeText={setName} placeholder={englishBookName(props.book.book)} autoCapitalize="words" />
-      <GhostBtn label="Remove this book" icon="trash" tone="red" onPress={props.onRemove} />
-      <Text style={txt.smMuted}>Languages using the template keep anything recorded in it; its parts are set aside, not deleted.</Text>
+    <Sheet visible title={bookNameOf(props.book.book)} sub={t('content.bookSheet.sub')} onClose={props.onClose}
+      footer={<PrimaryBtn label={t('common.done')} disabled={!name.trim()} onPress={() => props.onSave(name.trim())} />}>
+      <Field label={t('content.bookSheet.nameLabel')} value={name} onChangeText={setName} placeholder={bookNameOf(props.book.book)} autoCapitalize="words" />
+      <GhostBtn label={t('content.bookSheet.remove')} icon="trash" tone="red" onPress={props.onRemove} />
+      <Text style={txt.smMuted}>{t('content.bookSheet.removeNote')}</Text>
     </Sheet>
   );
 }
@@ -995,12 +1031,12 @@ function AddBookSheet(props: { books: string[]; onClose: () => void; onAdd: (boo
   const [added, setAdded] = useState<string[]>([]);
   const left = props.books.filter((b) => !added.includes(b));
   return (
-    <Sheet visible title="Add a book" sub="Books this versification has that the template does not." onClose={props.onClose}
-      footer={<PrimaryBtn label="Done" onPress={props.onClose} />}>
-      {left.length === 0 ? <Text style={txt.smMuted}>Every book is in the template.</Text> : (
+    <Sheet visible title={t('content.editor.addBook')} sub={t('content.addBook.sub')} onClose={props.onClose}
+      footer={<PrimaryBtn label={t('common.done')} onPress={props.onClose} />}>
+      {left.length === 0 ? <Text style={txt.smMuted}>{t('content.addBook.allIn')}</Text> : (
         <Group>
           {left.slice(0, limit).map((b, i, shown) => (
-            <Row key={b} icon="plus" label={englishBookName(b)} sub={b} onPress={() => { props.onAdd(b); setAdded((a) => [...a, b]); }} last={i === shown.length - 1} />
+            <Row key={b} icon="plus" label={bookNameOf(b)} sub={b} onPress={() => { props.onAdd(b); setAdded((a) => [...a, b]); }} last={i === shown.length - 1} />
           ))}
         </Group>
       )}
@@ -1018,12 +1054,12 @@ function OutlineScroll(props: {
   outline: TemplateForm['outline']; levels: TemplateForm['levels']; readOnly: boolean;
   onChange: (outline: TemplateForm['outline'], edit?: string) => void; onEdit: (id: string) => void;
 }) {
-  const levelName = (d: number) => props.levels[Math.min(d, props.levels.length - 1)]?.name ?? 'Part';
+  const levelName = (d: number) => props.levels[Math.min(d, props.levels.length - 1)]?.name ?? t('content.levels.part');
 
   function add(parentId: string | null, folder: boolean, depth: number) {
     const id = `n${Crypto.randomUUID().replace(/-/g, '').slice(0, 10)}`;
     // Opened straight away so it can be named.
-    props.onChange(addNode(props.outline, parentId, { id, title: `New ${lower(levelName(depth))}`, folder }), id);
+    props.onChange(addNode(props.outline, parentId, { id, title: t('content.outline.newNode', { level: lower(levelName(depth)) }), folder }), id);
   }
 
   function render(list: TemplateForm['outline'], depth: number, parentId: string | null) {
@@ -1032,19 +1068,19 @@ function OutlineScroll(props: {
       <View style={depth ? styles.outlineIndent : null}>
         {list.map((n) => n.children ? (
           <View key={n.id}>
-            <Pressable disabled={props.readOnly} onPress={() => props.onEdit(n.id)} accessibilityRole="button" accessibilityLabel={`Edit ${n.title}`}
+            <Pressable disabled={props.readOnly} onPress={() => props.onEdit(n.id)} accessibilityRole="button" accessibilityLabel={t('content.outline.editLabel', { name: n.title })}
               style={({ pressed }) => [styles.outlineHead, pressed && { opacity: 0.7 }]}>
               <Ico name="folder" size={depth ? 18 : 22} color={C.primary} />
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={[depth ? txt.body : txt.h3, { fontWeight: '700' }]} numberOfLines={1}>{n.title}</Text>
-                <Text style={txt.smMuted}>{(() => { const c = countOutline(n.children); return c.folders ? plural(c.folders, 'folder') : plural(c.items, 'item'); })()}</Text>
+                <Text style={txt.smMuted}>{(() => { const c = countOutline(n.children); return c.folders ? t('content.outline.folders', { count: c.folders }) : t('content.outline.items', { count: c.items }); })()}</Text>
               </View>
               {!props.readOnly ? <Ico name="edit" size={20} color={C.muted} /> : null}
             </Pressable>
             {render(n.children, depth + 1, n.id)}
           </View>
         ) : (
-          <Pressable key={n.id} disabled={props.readOnly} onPress={() => props.onEdit(n.id)} accessibilityRole="button" accessibilityLabel={`Edit ${n.title}`}
+          <Pressable key={n.id} disabled={props.readOnly} onPress={() => props.onEdit(n.id)} accessibilityRole="button" accessibilityLabel={t('content.outline.editLabel', { name: n.title })}
             style={({ pressed }) => [styles.outlineItem, pressed && { opacity: 0.7 }]}>
             <View style={[styles.tile, { backgroundColor: TINT.green }]}><Ico name="media" size={20} color={TINT.greenText} /></View>
             <View style={{ flex: 1, minWidth: 0 }}>
@@ -1056,15 +1092,15 @@ function OutlineScroll(props: {
         ))}
         {!props.readOnly ? (
           <View style={styles.addRow}>
-            {holds !== 'items' ? <SmallBtn label={`Add ${lower(levelName(depth))} folder`} icon="folder" onPress={() => add(parentId, true, depth)} /> : null}
-            {holds !== 'folders' ? <SmallBtn label={`Add ${lower(levelName(depth))}`} icon="media" onPress={() => add(parentId, false, depth)} /> : null}
+            {holds !== 'items' ? <SmallBtn label={t('content.outline.addFolder', { level: lower(levelName(depth)) })} icon="folder" onPress={() => add(parentId, true, depth)} /> : null}
+            {holds !== 'folders' ? <SmallBtn label={t('content.outline.addItem', { level: lower(levelName(depth)) })} icon="media" onPress={() => add(parentId, false, depth)} /> : null}
           </View>
         ) : null}
       </View>
     );
   }
 
-  if (props.readOnly && props.outline.length === 0) return <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>The outline is empty.</Text>;
+  if (props.readOnly && props.outline.length === 0) return <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('content.outline.empty')}</Text>;
   return render(props.outline, 0, null);
 }
 
@@ -1080,15 +1116,15 @@ function NodeSheet(props: {
     props.onClose();
   };
   return (
-    <Sheet visible title={folder ? 'Folder' : 'Item'} sub={folder ? "Groups what's inside it." : 'Something people record.'} onClose={done}
-      footer={<PrimaryBtn label="Done" disabled={!title.trim()} onPress={done} />}>
-      <Field label="Name" value={title} onChangeText={setTitle} placeholder="Name" autoCapitalize="sentences" />
+    <Sheet visible title={folder ? t('content.node.folder') : t('content.node.item')} sub={folder ? t('content.node.folderSub') : t('content.node.itemSub')} onClose={done}
+      footer={<PrimaryBtn label={t('common.done')} disabled={!title.trim()} onPress={done} />}>
+      <Field label={t('content.name')} value={title} onChangeText={setTitle} placeholder={t('content.name')} autoCapitalize="sentences" />
       <View style={styles.pair}>
-        <View style={{ flex: 1 }}><GhostBtn label="Move up" icon="up" disabled={props.index <= 0} onPress={() => props.onMove(-1)} /></View>
-        <View style={{ flex: 1 }}><GhostBtn label="Move down" icon="down" disabled={props.index >= props.count - 1} onPress={() => props.onMove(1)} /></View>
+        <View style={{ flex: 1 }}><GhostBtn label={t('content.node.moveUp')} icon="up" disabled={props.index <= 0} onPress={() => props.onMove(-1)} /></View>
+        <View style={{ flex: 1 }}><GhostBtn label={t('content.node.moveDown')} icon="down" disabled={props.index >= props.count - 1} onPress={() => props.onMove(1)} /></View>
       </View>
-      <GhostBtn label={folder ? 'Remove this folder' : 'Remove this item'} icon="trash" tone="red" onPress={props.onRemove} />
-      <Text style={txt.smMuted}>Languages using the template keep anything recorded on it; it is set aside, not deleted.</Text>
+      <GhostBtn label={folder ? t('content.node.removeFolder') : t('content.node.removeItem')} icon="trash" tone="red" onPress={props.onRemove} />
+      <Text style={txt.smMuted}>{t('content.node.removeNote')}</Text>
     </Sheet>
   );
 }
@@ -1130,21 +1166,21 @@ export function BookStructure(ctx: Ctx) {
     }
     // FIA's breaks show only where the language divides differently (TPL-5): where a part starts there, no mark.
     const textOf = (c: number, v: number) => text.get(`${c}:${v}`);
-    const label = bookRows(state, idx).find((r) => r.book.itemId === book.itemId)?.label ?? book.label;
+    const label = bookRows(state, idx).find((r) => r.book.itemId === book.itemId)?.label ?? bookName(book.itemId);
     return { language: languageName(ctx.org.state, languageId!), label, segments, recorded, textOf, translation, fia: fiaStarts(book) };
   }, [state, open, languageId, book, ctx.org.state]);
 
-  if (!state) return <Loading title="Divide a Book" onBack={ctx.back} />;
+  if (!state) return <Loading title={t('content.book.title')} onBack={ctx.back} />;
   if (!book || !data || !languageId) {
     return (
-      <Screen header={<Header title="Divide a Book" onBack={ctx.back} />}>
-        <EmptyState icon="book" title="Choose a book" sub="Open a book from the language's Content Template, or from its Map." />
+      <Screen header={<Header title={t('content.book.title')} onBack={ctx.back} />}>
+        <EmptyState icon="book" title={t('content.book.chooseBook')} sub={t('content.book.chooseBookSub')} />
       </Screen>
     );
   }
   const usfm = usfmOf(book.itemId);
   const item = sel ? libraryItemView(ctx.org.state?.library ?? {}, sel.itemId) : null;
-  const templateName = templateBookName(doc, usfm, book.label);
+  const templateName = templateBookName(doc, usfm, bookName(book.itemId));
   // Not broken up yet, or Break up differently: the ways to choose from (decision 74).
   if (doc?.bible && canBreak && (choosing || data.segments.length === 0)) {
     return (
@@ -1152,17 +1188,18 @@ export function BookStructure(ctx: Ctx) {
         onClose={() => (choosing ? setChoosing(false) : ctx.back())} />
     );
   }
-  const part = partName(doc);
-  const parts = lower(pluralOf(part));
+  const words = partWords(doc);
+  const part = words.one;
+  const parts = lower(words.many);
   const chapters = book.verses.map((_, i) => i + 1);
   const fia = canShape ? data.fia : new Set<number>();
   const jump = (c: number) => list.current?.scrollToIndex({ index: c - 1, animated: true });
 
   return (
-    <Screen fixed header={<Header title={data.label} sub={`${data.language} · ${plural(data.segments.length, lower(part), parts)}`} onBack={ctx.back} />}>
+    <Screen fixed header={<Header title={data.label} sub={`${data.language} · ${partsCount(data.segments.length, words)}`} onBack={ctx.back} />}>
       <View style={styles.jumpBar}>
         <ChipRow>
-          <Chip label="Chapter" icon="down" on onPress={() => setPicking(true)} />
+          <Chip label={t('content.book.chapterChip')} icon="down" on onPress={() => setPicking(true)} />
           {data.segments.map((s) => (
             <Chip key={s.unitId} label={chipLabel(book, s)} on={false} onPress={() => jump(s.from.c)} />
           ))}
@@ -1186,7 +1223,7 @@ export function BookStructure(ctx: Ctx) {
                 onChange={() => setChoosing(true)} />
             ) : null}
             {data.segments.length === 0 ? (
-              <Text style={txt.smMuted}>{canBreak ? `${data.language} has no ${parts} in ${data.label} yet.` : `A coordinator breaks up ${data.label} before anyone records it.`}</Text>
+              <Text style={txt.smMuted}>{canBreak ? t('content.book.noParts', { language: data.language, parts, book: data.label }) : t('content.book.coordinatorBreaks', { book: data.label })}</Text>
             ) : null}
           </View>
         }
@@ -1195,13 +1232,13 @@ export function BookStructure(ctx: Ctx) {
             translation={data.translation.get(c)} recorded={data.recorded} />
         )}
       />
-      <Sheet visible={picking} title={data.label} sub="Jump to a chapter." onClose={() => setPicking(false)}>
+      <Sheet visible={picking} title={data.label} sub={t('content.book.jump')} onClose={() => setPicking(false)}>
         <View style={styles.grid}>
           {chapters.map((c) => {
             const n = data.segments.filter((s) => s.from.c === c).length;
             return (
               <Pressable key={c} onPress={() => { setPicking(false); jump(c); }} accessibilityRole="button"
-                accessibilityLabel={`Chapter ${c}${n > 1 ? `, ${n} ${parts}` : ''}`}
+                accessibilityLabel={n > 1 ? t('content.book.chapterParts', { chapter: c, count: n, part: lower(part), parts }) : t('content.book.chapter', { chapter: c })}
                 style={({ pressed }) => [styles.chapterTile, pressed && { opacity: 0.7 }]}>
                 <Text style={[txt.h3, { fontVariant: ['tabular-nums'] }]}>{c}</Text>
                 {n > 1 ? <Text style={txt.xsStrong}>{n}</Text> : null}
@@ -1225,9 +1262,9 @@ function ChapterView(props: {
   return (
     <View style={{ paddingHorizontal: space.lg }}>
       <Text style={[txt.label, styles.chapterHead]}>
-        Chapter {c}
+        {t('content.book.chapter', { chapter: c })}
         {props.translation ? <Text style={txt.xs}> · {props.translation}</Text> : null}
-        {continues ? <Text style={txt.xs}> · {lower(part)} {versesText(continues)} continues</Text> : null}
+        {continues ? <Text style={txt.xs}> · {t('content.book.continues', { part: lower(part), verses: versesText(continues) })}</Text> : null}
       </Text>
       {blocks.map((b, i) => <BlockView key={i} block={b} c={c} part={part} recorded={props.recorded} />)}
     </View>
@@ -1240,13 +1277,13 @@ function BlockView(props: { block: Block; c: number; part: string; recorded: Set
   if (b.kind === 'card') {
     const recorded = props.recorded.has(b.seg.unitId);
     return (
-      <View style={styles.passageCard} accessibilityLabel={`${props.part} ${b.n}, ${versesText(b.seg)}${recorded ? ', recorded' : ''}`}>
+      <View style={styles.passageCard} accessibilityLabel={t(recorded ? 'content.block.cardLabelRecorded' : 'content.block.cardLabel', { part: props.part, n: b.n, verses: versesText(b.seg) })}>
         <View style={styles.tile}><Ico name="media" size={22} color={C.primary} /></View>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={[txt.body, { fontWeight: '700' }]}>{props.part} {versesText(b.seg)}</Text>
           <View style={styles.cardSub}>
             {recorded ? <Ico name="check" size={14} color={TINT.greenText} /> : null}
-            <Text style={[txt.sm, { color: recorded ? TINT.greenText : C.muted }]}>{recorded ? 'Recorded' : 'Not recorded yet'}</Text>
+            <Text style={[txt.sm, { color: recorded ? TINT.greenText : C.muted }]}>{recorded ? t('content.block.recorded') : t('content.block.notRecorded')}</Text>
           </View>
         </View>
       </View>
@@ -1256,21 +1293,21 @@ function BlockView(props: { block: Block; c: number; part: string; recorded: Set
     return (
       <View style={styles.fia}>
         <Ico name="cut" size={16} color={C.muted} />
-        <Text style={[txt.sm, { color: C.muted, flex: 1 }]}>FIA starts a passage at {b.at.c}:{b.at.v}</Text>
+        <Text style={[txt.sm, { color: C.muted, flex: 1 }]}>{t('content.block.fiaStarts', { chapter: b.at.c, verse: b.at.v })}</Text>
       </View>
     );
   }
   if (b.kind === 'gap') {
     return (
-      <Text style={[txt.sm, styles.gap]}>From verse {b.from}, these verses aren't in any {part} yet.</Text>
+      <Text style={[txt.sm, styles.gap]}>{t('content.block.gap', { verse: b.from, part })}</Text>
     );
   }
   return (
     <Text style={[styles.para, { borderLeftColor: b.seg ? (b.n % 2 ? C.primary : C.soft) : C.border }]}>
       {b.verses.map((v) => (
-        <Text key={v.v} accessibilityLabel={`Verse ${props.c}:${v.v}`}>
+        <Text key={v.v} accessibilityLabel={t('content.block.verseLabel', { chapter: props.c, verse: v.v })}>
           <Text style={styles.verseNo}>{v.v} </Text>
-          {v.text ?? <Text style={{ color: C.muted }}>verse {v.v}</Text>}{' '}
+          {v.text ?? <Text style={{ color: C.muted }}>{t('content.block.versePlaceholder', { verse: v.v })}</Text>}{' '}
         </Text>
       ))}
     </Text>

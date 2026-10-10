@@ -11,7 +11,7 @@
 // them), CORE-12 (sign-out never strands work).
 import { signInName } from '../accounts';
 import { readHelp, type SignInHelp } from '../signInHelp';
-import { CommandError, decodeHlc, deriveKinds, kindOf, languageName, unitTitle, type Update } from '@langquest-next/core';
+import { CommandError, decodeHlc, languageName, unitTitle, type Update } from '@langquest-next/core';
 import type { SyncInspection } from '@langquest-next/client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Updates from 'expo-updates';
@@ -19,10 +19,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { accountOutbox, queueAccountAction } from '../accountData';
 import { deleteAccount } from '../accountDeletion';
-import { groupByRead, updateText } from '../accountText';
+import { authErrorText, groupByRead, outboxErrorText, remoteTitle, roleWords, updateText } from '../accountText';
+import { deriveKinds, kindOf } from '../coreText';
 import type { Ctx } from '../ctx';
+import { t } from '../i18n';
+import { formatAgo, formatDayTime, formatNumber, formatShortDate, formatTime } from '../i18n/format';
 import { OfflineCard, useOfflineSummary } from '../offline';
-import { offlineCount, MORE_SETTINGS_SUB } from '../simple/meModel';
+import { offlineCount, moreSettingsSub } from '../simple/meModel';
 import { useHelpPress } from '../helpContext';
 import { diagnosticsEnabled, setDiagnosticsEnabled } from '../diagnostics';
 import { groupReports, reasonLabel, reportSummary, reportTitle, type ReportGroup } from '../moderation';
@@ -33,7 +36,7 @@ import {
   SectionLabel, Sheet, ShowMore, SmallBtn, txt, useLayout, useOpenDetail, type IconName
 } from '../kit';
 import { cachedInbox, enableNotifications, refreshInbox, unregisterNotifications, type RemoteNotification } from '../notifications';
-import { dueText, plural, when } from '../passageView';
+import { dueText } from '../passageView';
 import { personLook } from '../people';
 import { noteExpected, reportError, failureMessage } from '../report';
 import { ReportActions } from '../reportSheet';
@@ -75,9 +78,9 @@ function useAccountLine(ctx: Ctx) {
   const me = ctx.session.actorId;
   const mine = Object.values(org?.members[me] ?? {}).filter((m) => !m.removed.value);
   const roleName = mine.map((m) => org?.roles[m.roleId.value]?.name.value).find(Boolean)
-    ?? (ctx.session.role ? ctx.session.role[0]!.toUpperCase() + ctx.session.role.slice(1) : 'No role yet');
+    ?? (ctx.session.role ? roleWords(ctx.session.role) : t('account.more.noRole'));
   // Before the org's name has synced, a neutral phrase: never its id.
-  const orgName = org?.org?.value.name ?? 'your organization';
+  const orgName = org?.org?.value.name ?? t('entry.welcome.yourOrganization');
   return { roleName, orgName };
 }
 
@@ -154,7 +157,7 @@ export function InboxHome(ctx: Ctx) {
       await ctx.openOrganization(row.org_id)
         .catch((e: unknown) => ctx.toast(failure('inbox open organization', e)));
     } else if (row.kind === 'join_request') ctx.go('members_list');
-    else if (row.kind === 'content_report') ctx.toast('Connect to the internet to see what was reported.');
+    else if (row.kind === 'content_report') ctx.toast(t('account.inbox.reportsNeedConnection'));
   }
 
   // The words for each record-derived update, memoized on the fold. Updates are the open language's.
@@ -163,7 +166,7 @@ export function InboxHome(ctx: Ctx) {
   const words = useMemo(() => {
     if (!state) return null;
     const kinds = deriveKinds(state);
-    const kindName = (id: string | undefined) => (id ? (kinds.find((k) => k.id === id) ?? kindOf(state, id)).name : 'review');
+    const kindName = (id: string | undefined) => (id ? (kinds.find((k) => k.id === id) ?? kindOf(state, id)).name : t('account.updates.reviewFallback'));
     const produces = (id: string) => !!(kinds.find((k) => k.id === id) ?? kindOf(state, id)).produces;
     return (u: Update) => updateText(u, {
       name: ctx.name, passage: unitTitle(state, u.unitId), language, kindName, produces, due: (d) => dueText(d)
@@ -176,24 +179,24 @@ export function InboxHome(ctx: Ctx) {
   for (const r of requests ?? []) {
     if (decided[r.id]) continue;
     items.push({
-      id: `join:${r.id}`, icon: 'people', title: 'Join request', read: false,
-      body: `${r.name ?? names[r.profileId] ?? personLook(r.profileId).name} asked to join ${orgName}. Assign a role to give them access.`,
-      time: new Date(r.createdAt).toLocaleDateString(), onPress: () => setOpenRequest(r)
+      id: `join:${r.id}`, icon: 'people', title: t('account.inbox.joinRequest'), read: false,
+      body: t('account.inbox.askedToJoin', { name: r.name ?? names[r.profileId] ?? personLook(r.profileId).name, org: orgName }),
+      time: formatShortDate(r.createdAt), onPress: () => setOpenRequest(r)
     });
   }
   for (const g of reports ?? []) {
-    const t = g.target;
-    const where = t.unitId && t.languageId === languageId && state?.units[t.unitId] ? ` · ${unitTitle(state, t.unitId)}` : '';
+    const target = g.target;
+    const where = target.unitId && target.languageId === languageId && state?.units[target.unitId] ? ` · ${unitTitle(state, target.unitId)}` : '';
     items.push({
-      id: `report:${g.key}`, icon: 'flag', title: reportTitle(t, ctx.name), read: false,
-      body: `${reportSummary(g)}${where}`, time: new Date(g.latest).toLocaleDateString(), onPress: () => setOpenReport(g)
+      id: `report:${g.key}`, icon: 'flag', title: reportTitle(target, ctx.name), read: false,
+      body: `${reportSummary(g)}${where}`, time: formatShortDate(g.latest), onPress: () => setOpenReport(g)
     });
   }
   if (words) {
     for (const u of ctx.inbox.updates) {
       const w = words(u);
       items.push({
-        id: u.id, icon: w.icon, title: w.title, body: w.body, time: when(u.hlc), read: ctx.inbox.isRead(u.id), unitId: u.unitId,
+        id: u.id, icon: w.icon, title: w.title, body: w.body, time: ago(u.hlc), read: ctx.inbox.isRead(u.id), unitId: u.unitId,
         onPress: () => { ctx.inbox.markRead([u.id]); ctx.openPassage(u.unitId, languageId); }
       });
     }
@@ -206,9 +209,9 @@ export function InboxHome(ctx: Ctx) {
     if (here && row.kind === 'content_report' && (reports !== null || !canModerate)) continue;
     if (here && row.kind !== 'join_request' && row.kind !== 'content_report') continue;
     items.push({
-      id: `remote:${row.id}`, icon: row.kind === 'join_request' ? 'people' : row.kind === 'content_report' ? 'flag' : 'notif', title: row.title,
-      body: !here ? 'In another organization. Opening it switches to it.'
-        : row.kind === 'content_report' ? 'Connect to see what was reported.' : 'Open Members to assign a role.',
+      id: `remote:${row.id}`, icon: row.kind === 'join_request' ? 'people' : row.kind === 'content_report' ? 'flag' : 'notif', title: remoteTitle(row),
+      body: !here ? t('account.inbox.otherOrg')
+        : row.kind === 'content_report' ? t('account.inbox.connectToSee') : t('account.inbox.openMembers'),
       read: seen.has(row.id), onPress: () => void openRemote(row)
     });
   }
@@ -222,13 +225,13 @@ export function InboxHome(ctx: Ctx) {
     setDeclining(true);
     try {
       await decideRequest(r.id, false);
-      ctx.toast('Declined. They were not given access.');
+      ctx.toast(t('account.inbox.declined'));
       setOpenRequest(null);
-      setRequestsTick((t) => t + 1);
+      setRequestsTick((n) => n + 1);
     } catch (e) {
-      // Offline or refused: the server's answer says which.
+      // Offline or refused (the server's answer, in English, goes to the log).
       noteExpected('decline join request', e);
-      ctx.toast(`Not declined: ${e instanceof Error ? e.message : 'try again when connected'}`);
+      ctx.toast(t('account.inbox.notDeclined'));
     } finally {
       setDeclining(false);
     }
@@ -242,7 +245,7 @@ export function InboxHome(ctx: Ctx) {
           current={!!n.unitId && beside?.screen === 'passage_record' && beside.params['unitId'] === n.unitId}
           right={
             <View style={styles.rowEnd}>
-              {!n.read ? <View style={styles.dot} accessibilityLabel="Unread" /> : null}
+              {!n.read ? <View style={styles.dot} accessibilityLabel={t('account.inbox.unread')} /> : null}
               <Ico name="right" size={22} color={C.muted} />
             </View>
           } />
@@ -253,17 +256,18 @@ export function InboxHome(ctx: Ctx) {
   const canAssign = ctx.session.can('assign_work');
   return (
     // Reached from My Work's bell (no Inbox tab there): Back returns to it.
-    <Screen header={<Header title="Inbox" {...(ctx.params['from'] === 'my_work' ? { onBack: ctx.back } : {})} />}>
+    <Screen header={<Header title={t('account.inbox.title')} {...(ctx.params['from'] === 'my_work' ? { onBack: ctx.back } : {})} />}>
       {accountActions.length ? (
         <>
-          <SectionLabel label="Saved account changes" />
+          <SectionLabel label={t('account.inbox.savedChanges')} />
           <Group>
             {accountActions.map((a, i, all) => (
               <Row key={a.id} icon={a.status === 'failed' ? 'flag' : 'cloud'} iconColor={a.status === 'failed' ? TINT.redText : C.primary}
-                label={a.kind === 'join_request' ? 'Access request' : a.kind === 'profile' ? 'Profile' : a.kind === 'report' ? 'Report'
-                  : a.kind === 'block' ? (a.payload.blocked ? 'Block' : 'Unblock') : 'Onboarding'}
-                sub={a.status === 'failed' ? `${a.error ?? 'Not accepted'} · Tap to try again` : 'Waiting to send'}
-                badge={a.status === 'failed' ? 'Not sent' : 'Saved'} last={i === all.length - 1}
+                label={a.kind === 'join_request' ? t('account.inbox.actions.joinRequest') : a.kind === 'profile' ? t('account.inbox.actions.profile')
+                  : a.kind === 'report' ? t('account.inbox.actions.report')
+                  : a.kind === 'block' ? (a.payload.blocked ? t('account.inbox.actions.block') : t('account.inbox.actions.unblock')) : t('account.inbox.actions.onboarding')}
+                sub={a.status === 'failed' ? t('account.inbox.failedSub', { reason: outboxErrorText(a.error) }) : t('account.inbox.waiting')}
+                badge={a.status === 'failed' ? t('account.inbox.badgeNotSent') : t('account.inbox.badgeSaved')} last={i === all.length - 1}
                 onPress={a.status === 'failed' ? () => { void accountOutbox(me).retry(a.id).catch((e: unknown) => ctx.toast(failure('account retry', e))); } : undefined} />
             ))}
           </Group>
@@ -271,60 +275,60 @@ export function InboxHome(ctx: Ctx) {
       ) : null}
       {unread.length ? (
         <>
-          <SectionLabel label={`Unread (${unread.length.toLocaleString('en-US')})`} />
+          <SectionLabel label={t('account.inbox.unreadCount', { n: unread.length })} />
           {list(unread, shownUnread)}
           <ShowMore remaining={unread.length - shownUnread} step={INBOX_STEP} onMore={() => setShownUnread(shownUnread + INBOX_STEP)} />
         </>
       ) : null}
       {earlier.length ? (
         <>
-          <SectionLabel label="Earlier" />
+          <SectionLabel label={t('account.inbox.earlier')} />
           {list(earlier, shownEarlier)}
           <ShowMore remaining={earlier.length - shownEarlier} step={INBOX_STEP} onMore={() => setShownEarlier(shownEarlier + INBOX_STEP)} />
         </>
       ) : null}
-      {!items.length ? <EmptyState icon="inbox" title="Nothing yet" sub="Requests and feedback about your passages show up here." /> : null}
+      {!items.length ? <EmptyState icon="inbox" title={t('account.inbox.emptyTitle')} sub={t('account.inbox.emptySub')} /> : null}
 
       {openReport ? (
-        <Sheet visible title={reportTitle(openReport.target, ctx.name)} sub={`${reportSummary(openReport)} · ${new Date(openReport.latest).toLocaleDateString()}`}
+        <Sheet visible title={reportTitle(openReport.target, ctx.name)} sub={`${reportSummary(openReport)} · ${formatShortDate(openReport.latest)}`}
           onClose={() => setOpenReport(null)}
           footer={<ReportActions ctx={ctx} target={openReport.target}
-            onDone={() => { setOpenReport(null); setReportsTick((t) => t + 1); }}
+            onDone={() => { setOpenReport(null); setReportsTick((n) => n + 1); }}
             onOpen={() => {
-              const t = openReport.target;
+              const target = openReport.target;
               setOpenReport(null);
-              if (t.kind === 'person') ctx.go('members_list');
-              else if (t.unitId && t.languageId) ctx.openPassage(t.unitId, t.languageId);
+              if (target.kind === 'person') ctx.go('members_list');
+              else if (target.unitId && target.languageId) ctx.openPassage(target.unitId, target.languageId);
             }} />}>
           <View style={styles.requestBody}>
             <Text style={txt.body}>
               {openReport.target.kind === 'person'
-                ? `Someone reported ${ctx.name(openReport.target.profileId)} for ${openReport.reasons.map((r) => reasonLabel(r).toLowerCase()).join(', ')}. You can remove them from the organization under Members.`
-                : `Someone reported this for ${openReport.reasons.map((r) => reasonLabel(r).toLowerCase()).join(', ')}. It was made by ${ctx.name(openReport.target.profileId)}. Look at it, then remove it from the record or keep it.`}
+                ? t('account.inbox.reportedPerson', { name: ctx.name(openReport.target.profileId), reasons: openReport.reasons.map((r) => reasonLabel(r)).join(', ') })
+                : t('account.inbox.reportedContent', { name: ctx.name(openReport.target.profileId), reasons: openReport.reasons.map((r) => reasonLabel(r)).join(', ') })}
             </Text>
             {openReport.details.slice(0, 5).map((d, i) => <Text key={i} style={[txt.sm, { fontStyle: 'italic' }]}>"{d}"</Text>)}
           </View>
-          <Text style={txt.xs}>Reports never say who sent them. The LangQuest team sees every report too.</Text>
+          <Text style={txt.xs}>{t('account.inbox.reportsAnonymous')}</Text>
         </Sheet>
       ) : null}
-      <Sheet visible={!!openRequest} title="Join request" sub={openRequest ? new Date(openRequest.createdAt).toLocaleString() : undefined}
+      <Sheet visible={!!openRequest} title={t('account.inbox.joinRequest')} sub={openRequest ? formatDayTime(openRequest.createdAt) : undefined}
         onClose={() => setOpenRequest(null)}
         footer={openRequest ? (
           <>
             {canAssign ? (
-              <PrimaryBtn label="Assign role & accept" icon="check" onPress={() => {
+              <PrimaryBtn label={t('account.inbox.assignAccept')} icon="check" onPress={() => {
                 const r = openRequest;
                 setOpenRequest(null);
                 ctx.go('edit_member', { memberId: r.profileId, requestId: r.id, ...(r.name ? { name: r.name } : {}) });
               }} />
             ) : null}
-            <GhostBtn label="Decline" tone="red" disabled={declining} onPress={() => void decline(openRequest)} />
+            <GhostBtn label={t('account.inbox.decline')} tone="red" disabled={declining} onPress={() => void decline(openRequest)} />
           </>
         ) : undefined}>
         {openRequest ? (
           <View style={styles.requestBody}>
             <Text style={txt.body}>
-              {openRequest.name ?? names[openRequest.profileId] ?? personLook(openRequest.profileId).name} asked to join {orgName}. Assign a role to give them access.
+              {t('account.inbox.askedToJoin', { name: openRequest.name ?? names[openRequest.profileId] ?? personLook(openRequest.profileId).name, org: orgName })}
             </Text>
             {openRequest.message ? <Text style={[txt.sm, { fontStyle: 'italic' }]}>"{openRequest.message}"</Text> : null}
           </View>
@@ -332,6 +336,11 @@ export function InboxHome(ctx: Ctx) {
       </Sheet>
     </Screen>
   );
+}
+
+/** When an update happened, as people say it: "Just now", "5 min ago", "Oct 1". */
+function ago(hlc: string): string {
+  return hlc ? formatAgo(decodeHlc(hlc).wallMs) : '';
 }
 
 // ---- Getting back in, for an account without email (decisions.md 59) ---------------------------------
@@ -358,7 +367,7 @@ function useHasPassword(): [boolean | null, () => void] {
     });
     return () => { active = false; };
   }, [tick]);
-  return [has, () => setTick((t) => t + 1)];
+  return [has, () => setTick((n) => n + 1)];
 }
 
 // ---- Me (AUTH-7, AUTH-8, ONB-2; decision 71) -------------------------------------------------------
@@ -372,32 +381,32 @@ function useHasPassword(): [boolean | null, () => void] {
 export function SettingsHome(ctx: Ctx) {
   const names = useDisplayNames(ctx.session.actorId);
   const s = ctx.session;
-  const name = names[s.actorId] ?? s.email?.split('@')[0] ?? 'You';
+  const name = names[s.actorId] ?? s.email?.split('@')[0] ?? t('common.you');
   const offline = useOfflineSummary(ctx);
   // The language's sync needs noticing when work is waiting to send: say so on More settings' row.
   const p = ctx.language;
-  const moreSub = p.refused ? 'This account cannot sync · password, notifications, account'
-    : p.pending > 0 ? `${p.pending.toLocaleString('en-US')} waiting to send · ${MORE_SETTINGS_SUB.toLowerCase()}` : MORE_SETTINGS_SUB;
+  const moreSub = p.refused ? t('account.me.moreRefused')
+    : p.pending > 0 ? t('account.me.morePending', { count: p.pending }) : moreSettingsSub();
   return (
-    <Screen header={<Header title="Me" />}>
+    <Screen header={<Header title={t('account.me.title')} />}>
       <Group>
-        <Row icon="user" label={name} sub="Name and photo" onPress={() => ctx.go('profile_edit')} />
+        <Row icon="user" label={name} sub={t('account.me.nameSub')} onPress={() => ctx.go('profile_edit')} />
         {/* What comes along to the field, seen before a trip (decisions.md 61). */}
-        <Row icon="download" label="Ready for offline" sub={offlineCount(offline)} onPress={() => ctx.go('sync_status')} />
-        <Row icon="mic" label="Set up the microphone" sub="Say a sentence, pick what sounds best" onPress={() => ctx.go('mic_setup')} />
-        <Row icon="help" label="How LangQuest works" sub="Listen to a short tour" onPress={() => ctx.go('vision')} />
+        <Row icon="download" label={t('account.me.offline')} sub={offlineCount(offline)} onPress={() => ctx.go('sync_status')} />
+        <Row icon="mic" label={t('account.me.mic')} sub={t('account.me.micSub')} onPress={() => ctx.go('mic_setup')} />
+        <Row icon="help" label={t('account.me.tour')} sub={t('account.me.tourSub')} onPress={() => ctx.go('vision')} />
         <LanguageRow />
-        <Row icon="settings" label="More settings" sub={moreSub} onPress={() => ctx.go('settings_more')}
-          {...(p.pending > 0 ? { badge: String(p.pending) } : {})} last />
+        <Row icon="settings" label={t('account.me.more')} sub={moreSub} onPress={() => ctx.go('settings_more')}
+          {...(p.pending > 0 ? { badge: formatNumber(p.pending) } : {})} last />
       </Group>
-      <DangerLink label="Sign out" onPress={() => ctx.go('sign_out_confirm')} />
+      <DangerLink label={t('account.me.signOut')} onPress={() => ctx.go('sign_out_confirm')} />
     </Screen>
   );
 }
 
 /** A red line of text for leaving (Sign out): plain, centred, 56pt, never louder than the card above it. */
 function DangerLink(props: { label: string; onPress: () => void }) {
-  const onPress = useHelpPress(props.label, 'Leaves this account on this device. Work not yet sent is kept until it is.', props.onPress);
+  const onPress = useHelpPress(props.label, t('account.me.signOutHelp'), props.onPress);
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={props.label}
       style={({ pressed }) => [styles.dangerLink, pressed && { opacity: 0.7 }]}>
@@ -424,19 +433,19 @@ export function SettingsMore(ctx: Ctx) {
   const [hasPassword] = useHasPassword();
   const [help, setHelp] = useState<SignInHelp | null>(null);
   useEffect(() => { void readHelp(s.actorId).then(setHelp); }, [s.actorId]);
-  const name = names[s.actorId] ?? s.email?.split('@')[0] ?? 'You';
+  const name = names[s.actorId] ?? s.email?.split('@')[0] ?? t('common.you');
   const p = ctx.language;
-  const syncSub = p.refused ? 'This account cannot sync this organization'
-    : p.pending > 0 ? `${p.pending.toLocaleString('en-US')} ${p.pending === 1 ? 'change' : 'changes'} waiting to send`
-    : p.live ? 'Live: changes arrive as they happen'
-    : p.online === false ? 'Offline: work is kept on this device'
-    : p.lastSync ? `Last synced ${p.lastSync}` : 'Everything is saved on this device';
+  const syncSub = p.refused ? t('account.more.syncRefused')
+    : p.pending > 0 ? t('account.more.syncPending', { count: p.pending })
+    : p.live ? t('account.more.syncLive')
+    : p.online === false ? t('account.more.syncOffline')
+    : lastSyncText(p.lastSync);
   // Switch Organization is always offered (it also starts a new one); with only one organization it says so.
   const orgs = useOrganizations(s.actorId).rows;
   const canSwitch = orgs === null || orgs.length > 1;
   const blocked = ctx.blocks.ids.length;
   return (
-    <Screen header={<Header title="More settings" onBack={ctx.back} />}>
+    <Screen header={<Header title={t('account.me.more')} onBack={ctx.back} />}>
       <Card>
         <View style={styles.profile}>
           <PersonAvatar look={personLook(s.actorId, name)} size={52} />
@@ -444,16 +453,18 @@ export function SettingsMore(ctx: Ctx) {
             <Text style={txt.h3} numberOfLines={1}>{name}</Text>
             {/* A looked-after account's address means nothing to the person (decisions.md 59). */}
             <Text style={[txt.xs, (!s.email || s.isManaged) && { color: TINT.amberText }]} numberOfLines={1}>
-              {s.isManaged || !s.email ? 'No email yet' : s.email}
+              {s.isManaged || !s.email ? t('account.more.noEmail') : s.email}
             </Text>
             <Text style={[txt.xs, { color: C.primary, fontWeight: '600' }]} numberOfLines={1}>{roleName} · {orgName}</Text>
           </View>
         </View>
         {s.isManaged ? (
           <View style={{ gap: 2 }}>
-            <Text style={txt.xs}>New device? {inviter ?? 'The person who invited you'} or an admin can help you sign in.</Text>
+            <Text style={txt.xs}>{inviter ? t('account.more.newDevice', { name: inviter }) : t('account.more.newDeviceNoName')}</Text>
             {help ? (
-              <Text style={txt.xs}>Signed in on this device with {help.helper ? `${help.helper}'s` : 'someone\'s'} help · {new Date(help.at).toLocaleDateString()}</Text>
+              <Text style={txt.xs}>
+                {help.helper ? t('account.more.helpedBy', { name: help.helper, date: formatShortDate(help.at) }) : t('account.more.helpedBySomeone', { date: formatShortDate(help.at) })}
+              </Text>
             ) : null}
           </View>
         ) : null}
@@ -461,44 +472,61 @@ export function SettingsMore(ctx: Ctx) {
       <Group>
         {/* For a shared phone: then they can sign back in after someone else has used it (decisions.md 59). */}
         {s.isManaged && hasPassword === false ? (
-          <Row icon="lock" label="Set a password" sub="If other people use this device" onPress={() => ctx.go('profile_edit')} />
+          <Row icon="lock" label={t('account.more.setPassword')} sub={t('account.more.setPasswordSub')} onPress={() => ctx.go('profile_edit')} />
         ) : null}
         {/* No push on the web yet: requests and feedback still reach the Inbox there. */}
         {Platform.OS !== 'web' ? (
-          <Row icon="notif" label="Notifications" sub={notificationMessage || 'Hear about requests and feedback'} onPress={() => {
-            void enableNotifications().then(() => setNotificationMessage('Notifications are on.')).catch((e: Error) => setNotificationMessage(e.message));
+          <Row icon="notif" label={t('account.more.notifications')} sub={notificationMessage || t('account.more.notificationsSub')} onPress={() => {
+            void enableNotifications().then(() => setNotificationMessage(t('account.more.notificationsOn'))).catch((e: unknown) => {
+              // Turned off on the phone says so in its own words (push.ts); anything else is the server or the device.
+              if (!(e instanceof CommandError)) noteExpected('enable notifications', e);
+              setNotificationMessage(e instanceof CommandError ? e.message : t('account.more.notificationsFailed'));
+            });
           }} />
         ) : null}
         {/* Always here: someone in one organization may start another (Switch Organization, then New organization). */}
-        <Row icon="building" label="Switch Organization" sub={canSwitch ? `${orgName} (active)` : `${orgName} · or start a new one`} onPress={() => ctx.go('org_switcher')} last />
+        <Row icon="building" label={t('account.more.switchOrg')} sub={canSwitch ? t('account.more.switchActive', { org: orgName }) : t('account.more.switchOrStart', { org: orgName })} onPress={() => ctx.go('org_switcher')} last />
       </Group>
-      <SectionLabel label="This device" />
+      <SectionLabel label={t('account.more.thisDevice')} />
       <Group>
-        <Row icon="cloud" label="Sync" sub={syncSub} badge={p.pending > 0 ? String(p.pending) : undefined} onPress={() => ctx.go('sync_status')} />
+        <Row icon="cloud" label={t('account.more.sync')} sub={syncSub} badge={p.pending > 0 ? formatNumber(p.pending) : undefined} onPress={() => ctx.go('sync_status')} />
         {/* docs/diagnostics.md, decisions.md 39: on by default, off here. */}
-        <Row icon="progress" label="Send diagnostics" sub="Sends speed and error reports, never recordings, what you type or names."
+        <Row icon="progress" label={t('account.more.diagnostics')} sub={t('account.more.diagnosticsSub')}
           role="switch" checked={diag.on === true} disabled={diag.on === null} onPress={diag.toggle} last={blocked === 0} />
         {/* Store rules, decisions.md 48: shown once someone is blocked (blocking starts from the flag on what they made). */}
         {blocked > 0 ? (
-          <Row icon="block" label="Blocked people" sub={plural(blocked, 'person', 'people')} onPress={() => setBlockedOpen(true)} last />
+          <Row icon="block" label={t('account.more.blocked')} sub={t('account.more.blockedCount', { count: blocked })} onPress={() => setBlockedOpen(true)} last />
         ) : null}
       </Group>
       {/* Store rules, decisions.md 46: the store answers and the App Review notes say Settings → Delete account; it is here, under Me › More settings. */}
       <Group>
-        <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label="Delete account" sub="Your account and your name, for good"
+        <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label={t('account.more.deleteAccount')} sub={t('account.more.deleteSub')}
           onPress={() => ctx.go('delete_account')} last />
       </Group>
       {ctx.canSwitchPersona ? (
         <>
-          <SectionLabel label="Testing" />
+          <SectionLabel label={t('account.more.testing')} />
           <Group>
-            <Row icon="people" label="Switch persona" sub="Sign in as a demo translator, reviewer or admin" onPress={ctx.openDev} last />
+            <Row icon="people" label={t('entry.signIn.switchPersona')} sub={t('account.more.personaSub')} onPress={ctx.openDev} last />
           </Group>
         </>
       ) : null}
       {blockedOpen ? <BlockedPeople ctx={ctx} onClose={() => setBlockedOpen(false)} /> : null}
     </Screen>
   );
+}
+
+/**
+ * The last sync, from useLanguage's `lastSync` (a diagnostic token, not
+ * words: 'never', 'offline', 'up to date', 'pushed N, pulled N, rejected N',
+ * 'refused: …', 'error: …').
+ */
+function lastSyncText(lastSync: string): string {
+  if (lastSync === 'up to date' || lastSync.startsWith('pushed ')) return t('account.more.syncUpToDate');
+  if (lastSync === 'offline') return t('account.more.syncOffline');
+  if (lastSync.startsWith('refused')) return t('account.more.syncRefused');
+  if (lastSync.startsWith('error')) return t('account.more.syncError');
+  return t('account.more.syncSaved');
 }
 
 type OrgRow = { org_id: string; name: string };
@@ -518,7 +546,7 @@ function useOrganizations(actorId: string): { rows: OrgRow[] | null; error: stri
       const saved = await AsyncStorage.getItem(key);
       if (active && saved) setRows(JSON.parse(saved) as OrgRow[]);
       const { data, error } = await supabase.rpc('my_organizations');
-      if (error) { if (active) setError('Unable to refresh. Saved organizations remain available.'); return; }
+      if (error) { if (active) setError(t('account.orgs.stale')); return; }
       const orgs = ((data ?? []) as OrgRow[]).map((r) => ({ org_id: r.org_id, name: r.name }));
       await AsyncStorage.setItem(key, JSON.stringify(orgs));
       if (active) setRows(orgs);
@@ -541,27 +569,28 @@ function BlockedPeople(props: { ctx: Ctx; onClose: () => void }) {
     try {
       await ctx.blocks.set(id, blocked);
     } catch (e) {
+      // i18n-ignore: log labels for the report, not words on screen
       ctx.toast(failure(blocked ? 'block person' : 'unblock person', e));
     }
   }
   const shown = [...listed, ...ctx.blocks.ids.filter((id) => !listed.includes(id))];
   return (
-    <Sheet visible title="Blocked people" sub="What they add is hidden for you. They aren't told." onClose={props.onClose}>
+    <Sheet visible title={t('account.more.blocked')} sub={t('account.blocked.sub')} onClose={props.onClose}>
       {shown.length ? (
         <Group>
           {shown.map((id, i, all) => {
             const blocked = ctx.blocks.has(id);
             return (
               <Row key={id} leading={<PersonAvatar look={personLook(id, ctx.name(id))} size={36} />} label={ctx.name(id)}
-                {...(blocked ? {} : { sub: 'Unblocked' })} last={i === all.length - 1}
+                {...(blocked ? {} : { sub: t('account.blocked.unblocked') })} last={i === all.length - 1}
                 right={blocked
-                  ? <SmallBtn label="Unblock" onPress={() => void set(id, false)} />
-                  : <SmallBtn label="Block again" tone="plain" onPress={() => void set(id, true)} />} />
+                  ? <SmallBtn label={t('account.blocked.unblock')} onPress={() => void set(id, false)} />
+                  : <SmallBtn label={t('account.blocked.blockAgain')} tone="plain" onPress={() => void set(id, true)} />} />
             );
           })}
         </Group>
       ) : (
-        <EmptyState icon="block" title="Nobody blocked" sub="To block someone, tap the flag on a note, version or review they made." />
+        <EmptyState icon="block" title={t('account.blocked.emptyTitle')} sub={t('account.blocked.emptySub')} />
       )}
     </Sheet>
   );
@@ -608,44 +637,48 @@ export function ProfileEdit(ctx: Ctx) {
     try {
       // A password goes to the server now (it needs a connection); the name syncs whenever it can.
       if (managed && password) {
-        if (password.length < 6) { setError('Choose a password of 6 or more characters.'); return; }
+        if (password.length < 6) { setError(t('account.profile.shortPassword')); return; }
         const { error } = await supabase.auth.updateUser({ password, data: { has_password: true } });
-        if (error) { noteExpected('set password', error); setError(/fetch|network/i.test(error.message) ? 'Setting a password needs a connection.' : error.message); return; }
+        if (error) {
+          noteExpected('set password', error);
+          setError(authErrorText(error, t('account.profile.passwordFailed'), t('account.profile.passwordNeedsConnection')));
+          return;
+        }
         recheck();
       }
       await queueAccountAction(ctx.session.actorId, 'profile', { displayName: value.trim() });
-      ctx.toast(managed && password ? 'Saved. You can sign in with your sign-in name and this password.' : 'Profile saved. It syncs when you are connected.');
+      ctx.toast(managed && password ? t('account.profile.savedWithPassword') : t('account.profile.saved'));
       ctx.back();
     } catch (e) { setError(failure('save profile', e)); }
     finally { setBusy(false); }
   }
   return (
     <Screen
-      header={<Header title="Edit Profile" onBack={ctx.back} />}
-      footer={<PrimaryBtn label="Save Profile" onPress={() => void save()} disabled={!value.trim()} busy={busy} />}
+      header={<Header title={t('account.profile.title')} onBack={ctx.back} />}
+      footer={<PrimaryBtn label={t('account.profile.save')} onPress={() => void save()} disabled={!value.trim()} busy={busy} />}
     >
       <View style={styles.avatarBlock}>
         <PersonAvatar look={personLook(ctx.session.actorId, value)} size={72} />
       </View>
-      <Field label="Full Name" value={value} onChangeText={setName} placeholder="Your name" autoCapitalize="words" />
+      <Field label={t('account.profile.nameLabel')} value={value} onChangeText={setName} placeholder={t('entry.fields.yourName')} autoCapitalize="words" />
       <View style={{ gap: space.xs }}>
-        <Text style={txt.xsStrong}>Email</Text>
+        <Text style={txt.xsStrong}>{t('entry.fields.email')}</Text>
         {/* A looked-after account's address is not an email anyone can use (accounts.ts). */}
-        <Text style={txt.body}>{managed || !ctx.session.email ? 'No email yet' : ctx.session.email}</Text>
+        <Text style={txt.body}>{managed || !ctx.session.email ? t('account.more.noEmail') : ctx.session.email}</Text>
       </View>
       {managed ? (
         <View style={{ gap: space.xs }}>
-          <Field label={hasPassword ? 'New password (optional)' : 'Password (optional)'} value={password} onChangeText={setPassword}
-            placeholder="6 or more characters" secure autoCapitalize="none" />
+          <Field label={hasPassword ? t('account.profile.newPassword') : t('account.profile.password')} value={password} onChangeText={setPassword}
+            placeholder={t('account.profile.passwordPlaceholder')} secure autoCapitalize="none" />
           <Text style={txt.xs}>
             {password || hasPassword
-              ? `You sign in with ${handle ?? 'your sign-in name'} and this password. Write the name down.`
-              : 'Set one if other people use this device, so you can sign back in after they do.'}
+              ? (handle ? t('account.profile.signInWith', { name: handle }) : t('account.profile.signInWithYourName'))
+              : t('account.profile.setOne')}
           </Text>
         </View>
       ) : null}
-      {pending?.status === 'failed' ? <Banner icon="flag" tone="amber" title="Your last change was not accepted" body={pending.error} /> : null}
-      {pending?.status === 'queued' ? <Banner icon="cloud" title="Saved on this device" body="It sends when you are connected." /> : null}
+      {pending?.status === 'failed' ? <Banner icon="flag" tone="amber" title={t('account.profile.lastChangeRefused')} body={outboxErrorText(pending.error)} /> : null}
+      {pending?.status === 'queued' ? <Banner icon="cloud" title={t('entry.shared.savedOnDevice')} body={t('account.profile.savedBody')} /> : null}
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
     </Screen>
   );
@@ -659,12 +692,12 @@ export function OrgSwitcher(ctx: Ctx) {
   const [switchError, setError] = useState('');
   const error = switchError || listError;
   return (
-    <Screen header={<Header title="Switch Organization" onBack={ctx.back} />}>
+    <Screen header={<Header title={t('account.more.switchOrg')} onBack={ctx.back} />}>
       {error ? <Banner icon="cloud" tone="amber" title={error} /> : null}
       {rows.map((r) => {
         const active = r.org_id === ctx.language.orgId;
         return (
-          <Card key={r.org_id} accessibilityLabel={active ? `${r.name}, active` : r.name}
+          <Card key={r.org_id} accessibilityLabel={active ? t('account.orgs.activeLabel', { name: r.name }) : r.name}
             onPress={() => void ctx.openOrganization(r.org_id).catch((e: unknown) => setError(failure('switch organization', e)))}>
             <View style={styles.profile}>
               <View style={styles.tile}><Ico name="building" size={24} color={active ? C.primary : C.muted} /></View>
@@ -676,14 +709,14 @@ export function OrgSwitcher(ctx: Ctx) {
           </Card>
         );
       })}
-      {!rows.length && !error ? <EmptyState icon="building" title="Loading your organizations…" /> : null}
+      {!rows.length && !error ? <EmptyState icon="building" title={t('account.orgs.loading')} /> : null}
       {/* App only: someone already in an organization starts another, and is its Organization Admin. */}
-      <Card onPress={() => ctx.go('create_org')} accessibilityLabel="New organization">
+      <Card onPress={() => ctx.go('create_org')} accessibilityLabel={t('account.orgs.newOrg')}>
         <View style={styles.profile}>
           <View style={styles.tile}><Ico name="plus" size={24} color={C.primary} /></View>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={[txt.body, { fontWeight: '600', color: C.primary }]}>New organization</Text>
-            <Text style={txt.xs}>You'll be its admin. Your place in the others stays as it is.</Text>
+            <Text style={[txt.body, { fontWeight: '600', color: C.primary }]}>{t('account.orgs.newOrg')}</Text>
+            <Text style={txt.xs}>{t('account.orgs.newOrgSub')}</Text>
           </View>
         </View>
       </Card>
@@ -730,30 +763,32 @@ export function SignOutConfirm(ctx: Ctx) {
     } catch (e) { setError(failure('sign out', e)); setBusy(false); }
   }
   const blocked = waiting.length > 0 && !handsOver;
-  const helpLine = `To sign back in, you'll need a code from ${inviter ?? 'the person who invited you'} or an admin.`;
+  const helpLine = inviter ? t('account.signOut.helpLine', { name: inviter }) : t('account.signOut.helpLineNoName');
+  const things = waiting.join(', ');
+  // Two whole sentences side by side where both apply.
   const why = handsOver
-    ? `Still to send: ${waiting.join(', ')}. All of it will still be sent, as you, when this device is online.${needsHelp ? ` ${helpLine}` : ''}`
+    ? [t('account.signOut.handsOver', { things }), ...(needsHelp ? [helpLine] : [])].join(' ')
     : blocked
-      ? `Still to send: ${waiting.join(', ')}${online === false ? '. This device is offline' : ''}. Sign out once they have synced so they are not stranded here.`
+      ? online === false ? t('account.signOut.blockedOffline', { things }) : t('account.signOut.blocked', { things })
       : refused
-        ? 'This account cannot sync this organization: the server refused it. Signing out is safe; anything queued stays on this device.'
+        ? t('account.signOut.refused')
         : needsHelp
-          ? `${helpLine} If other people use this device, set a password in Edit Profile first.`
+          ? `${helpLine} ${t('account.signOut.setPasswordFirst')}`
           : FORGETS_ON_SIGN_OUT
-            ? 'You can sign back in anytime. This browser forgets everything it kept for you, so the next person here sees none of it.'
-            : 'You can sign back in anytime.';
+            ? t('account.signOut.forgets')
+            : t('account.signOut.anytime');
   return (
     <Screen bodyStyle={styles.centered}
       footer={
         <>
-          <PrimaryBtn label={busy ? 'Signing out…' : 'Sign Out'} tone="red" onPress={() => void signOut()} disabled={blocked || busy} />
-          <GhostBtn label="Cancel" onPress={ctx.back} />
+          <PrimaryBtn label={busy ? t('account.signOut.signingOut') : t('account.signOut.button')} tone="red" onPress={() => void signOut()} disabled={blocked || busy} />
+          <GhostBtn label={t('common.cancel')} onPress={ctx.back} />
         </>
       }>
       <View style={[styles.bigTile, { backgroundColor: waiting.length > 0 ? TINT.amber : TINT.red }]}>
         <Ico name={waiting.length > 0 ? 'cloud' : 'user'} size={32} color={waiting.length > 0 ? TINT.amberText : C.red} />
       </View>
-      <Text style={[txt.h2, { textAlign: 'center' }]} accessibilityRole="header">{blocked ? 'Not yet' : 'Sign out?'}</Text>
+      <Text style={[txt.h2, { textAlign: 'center' }]} accessibilityRole="header">{blocked ? t('account.signOut.notYet') : t('account.signOut.question')}</Text>
       <Text style={[txt.bodyMuted, { textAlign: 'center' }]}>{why}</Text>
       {error ? <Text style={[txt.error, { textAlign: 'center' }]} accessibilityRole="alert">{error}</Text> : null}
     </Screen>
@@ -765,10 +800,10 @@ function useUnsent(ctx: Ctx): string[] {
   const { pending, refused } = ctx.language;
   const accountQueued = useAccountActions(ctx.session.actorId).filter((a) => a.status === 'queued').length;
   return [
-    !refused && pending > 0 ? plural(pending, 'change') : null,
-    ctx.org.pending > 0 ? plural(ctx.org.pending, 'organization change') : null,
-    !refused && ctx.language.blobs.pendingUp > 0 ? plural(ctx.language.blobs.pendingUp, 'recording') : null,
-    accountQueued > 0 ? plural(accountQueued, 'account change') : null
+    !refused && pending > 0 ? t('account.unsent.changes', { count: pending }) : null,
+    ctx.org.pending > 0 ? t('account.unsent.orgChanges', { count: ctx.org.pending }) : null,
+    !refused && ctx.language.blobs.pendingUp > 0 ? t('account.unsent.recordings', { count: ctx.language.blobs.pendingUp }) : null,
+    accountQueued > 0 ? t('account.unsent.accountChanges', { count: accountQueued }) : null
   ].filter((w): w is string => w !== null);
 }
 
@@ -798,25 +833,25 @@ export function DeleteAccount(ctx: Ctx) {
   }
   const blocked = waiting.length > 0 || offline;
   return (
-    <Screen header={<Header title="Delete Account" onBack={ctx.back} />}
+    <Screen header={<Header title={t('account.delete.title')} onBack={ctx.back} />}
       footer={
         <>
-          <PrimaryBtn label={busy ? 'Deleting…' : 'Delete My Account'} tone="red" onPress={() => void remove()} disabled={blocked || busy} />
-          <GhostBtn label="Cancel" onPress={ctx.back} />
+          <PrimaryBtn label={busy ? t('account.delete.deleting') : t('account.delete.button')} tone="red" onPress={() => void remove()} disabled={blocked || busy} />
+          <GhostBtn label={t('common.cancel')} onPress={ctx.back} />
         </>
       }>
       {waiting.length > 0 ? (
-        <Banner icon="cloud" tone="amber" title="Send your work first"
-          body={`Still to send: ${waiting.join(', ')}. Delete your account once they have synced, so your organization gets them.`} />
+        <Banner icon="cloud" tone="amber" title={t('account.delete.sendFirstTitle')}
+          body={t('account.delete.sendFirstBody', { things: waiting.join(', ') })} />
       ) : offline ? (
-        <Banner icon="cloud" tone="amber" title="You're offline" body="Connect to the internet to delete your account." />
+        <Banner icon="cloud" tone="amber" title={t('account.delete.offlineTitle')} body={t('account.delete.offlineBody')} />
       ) : null}
-      <Text style={txt.h2} accessibilityRole="header">Delete your account?</Text>
+      <Text style={txt.h2} accessibilityRole="header">{t('account.delete.question')}</Text>
       <Group>
-        <Row icon="user" label="Deleted" sub="Your sign-in, email, name, notifications, blocks and diagnostics. You leave every organization." />
-        <Row icon="people" label="Kept by your organization" sub="Recordings, reviews and notes you made stay part of its work, without your name." last />
+        <Row icon="user" label={t('account.delete.deleted')} sub={t('account.delete.deletedSub')} />
+        <Row icon="people" label={t('account.delete.kept')} sub={t('account.delete.keptSub')} last />
       </Group>
-      <Text style={txt.bodyMuted}>This cannot be undone. To use LangQuest again you would create a new account.</Text>
+      <Text style={txt.bodyMuted}>{t('account.delete.cannotUndo')}</Text>
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
     </Screen>
   );
@@ -866,24 +901,25 @@ export function SyncStatus(ctx: Ctx) {
     finally { setBusy(false); }
   };
   return (
-    <Screen header={<Header title="Sync" onBack={ctx.back} />}
-      footer={<PrimaryBtn label={busy ? 'Syncing…' : 'Sync now'} icon="restart" onPress={() => void syncNow()} disabled={language.tooOld || busy} />}>
+    <Screen header={<Header title={t('account.more.sync')} onBack={ctx.back} />}
+      footer={<PrimaryBtn label={busy ? t('account.sync.syncing') : t('account.sync.syncNow')} icon="restart" onPress={() => void syncNow()} disabled={language.tooOld || busy} />}>
+      {/* The server's refusal is English (its reason goes to the log): say what it means. */}
       <Banner icon="cloud" tone={language.live ? 'green' : offline ? 'amber' : 'brand'}
-        title={language.live ? 'Live: changes arrive as they happen' : offline ? 'Offline: work is kept on this device' : 'Checking for changes now and then'}
-        body={language.refused ?? (language.tooOld ? 'Update the app to sync.' : undefined)} />
+        title={language.live ? t('account.more.syncLive') : offline ? t('account.more.syncOffline') : t('account.sync.checking')}
+        body={language.refused ? t('account.sync.refused') : language.tooOld ? t('account.sync.tooOld') : undefined} />
       {/* Settings' "Ready for offline" opens here (decisions.md 61): what comes along comes first. */}
       <OfflineCard ctx={ctx} s={offlineSummaryNow} />
       <View style={styles.tiles}>
-        <Stat icon="up" color={pendingEvents ? C.primary : C.green} value={pendingEvents} label="waiting to upload" />
-        <Stat icon="flag" color={rejected.length ? TINT.redText : C.muted} value={rejected.length} label="refused by the server" />
-        <Stat icon="check" color={C.green} value={ins?.cursor ?? 0} label="latest confirmed" />
-        <Stat icon="layers" color={C.muted} value={ins?.checkpointSeq ?? 0} label="local checkpoint" />
+        <Stat icon="up" color={pendingEvents ? C.primary : C.green} value={pendingEvents} label={t('account.sync.waitingUpload')} />
+        <Stat icon="flag" color={rejected.length ? TINT.redText : C.muted} value={rejected.length} label={t('account.sync.refusedByServer')} />
+        <Stat icon="check" color={C.green} value={ins?.cursor ?? 0} label={t('account.sync.latestConfirmed')} />
+        <Stat icon="layers" color={C.muted} value={ins?.checkpointSeq ?? 0} label={t('account.sync.localCheckpoint')} />
       </View>
-      <Transfer icon="up" pending={language.blobs.pendingUp} peak={language.blobs.peakUp} rate={rates.up} label="Audio uploading" />
-      <Transfer icon="download" pending={language.blobs.pendingDown} peak={language.blobs.peakDown} rate={rates.down} label="Audio downloading" />
+      <Transfer icon="up" pending={language.blobs.pendingUp} peak={language.blobs.peakUp} rate={rates.up} label={t('account.sync.audioUp')} />
+      <Transfer icon="download" pending={language.blobs.pendingDown} peak={language.blobs.peakDown} rate={rates.down} label={t('account.sync.audioDown')} />
       {ins && ins.pending.length ? (
         <>
-          <SectionLabel label={`Waiting · ${ins.pending.length}`} />
+          <SectionLabel label={t('account.sync.waitingCount', { n: ins.pending.length })} />
           <Group>
             {ins.pending.slice(0, 20).map((l, i, a) => (
               <Row key={l.event.id} icon="cloud" label={l.event.type.replace(/^v\d\./, '')} sub={clock(l.event.hlc)} last={i === a.length - 1} />
@@ -893,7 +929,7 @@ export function SyncStatus(ctx: Ctx) {
       ) : null}
       {rejected.length ? (
         <>
-          <SectionLabel label={`Refused · ${rejected.length}`} />
+          <SectionLabel label={t('account.sync.refusedCount', { n: rejected.length })} />
           <Group>
             {rejected.slice(0, 20).map((l, i, a) => (
               <Row key={l.event.id} icon="flag" iconColor={TINT.redText} label={l.event.type.replace(/^v\d\./, '')} sub={l.rejectReason ?? clock(l.event.hlc)} last={i === a.length - 1} />
@@ -901,7 +937,7 @@ export function SyncStatus(ctx: Ctx) {
           </Group>
         </>
       ) : null}
-      <Text style={[txt.xs, { textAlign: 'center' }]}>{ins ? `${ins.total.toLocaleString('en-US')} events on this device` : ''}</Text>
+      <Text style={[txt.xs, { textAlign: 'center' }]}>{ins ? t('account.sync.events', { count: ins.total }) : ''}</Text>
       <Text style={[txt.xs, { textAlign: 'center' }]} selectable>
         {runningBuildLabel({ updateId: Updates.updateId ?? undefined, createdAt: Updates.createdAt ?? undefined, isEmbeddedLaunch: Updates.isEmbeddedLaunch })}
       </Text>
@@ -910,16 +946,17 @@ export function SyncStatus(ctx: Ctx) {
 }
 
 function clock(hlc: string): string {
-  try { return new Date(decodeHlc(hlc).wallMs).toLocaleTimeString(); } catch { return ''; }
+  try { return formatTime(decodeHlc(hlc).wallMs, { seconds: true }); } catch { return ''; }
 }
 
 function Stat(props: { icon: IconName; color: string; value: number; label: string }) {
   // Two by two on a phone; one row of four once the column is wide enough.
   const { kind, contentWidth } = useLayout();
   return (
-    <View style={[styles.tile2, kind !== 'phone' && contentWidth >= 600 && { width: '22%' }]} accessible accessibilityLabel={`${props.value} ${props.label}`}>
+    <View style={[styles.tile2, kind !== 'phone' && contentWidth >= 600 && { width: '22%' }]} accessible
+      accessibilityLabel={t('account.sync.statLabel', { value: formatNumber(props.value), label: props.label })}>
       <Ico name={props.icon} size={24} color={props.color} />
-      <Text style={[styles.statValue, { color: props.color }]}>{props.value.toLocaleString('en-US')}</Text>
+      <Text style={[styles.statValue, { color: props.color }]}>{formatNumber(props.value)}</Text>
       <Text style={[txt.xs, { textAlign: 'center' }]}>{props.label}</Text>
     </View>
   );
@@ -930,11 +967,12 @@ function Transfer(props: { icon: IconName; pending: number; peak: number; rate: 
   const done = total - props.pending;
   const idle = props.pending === 0;
   return (
-    <Card accessibilityLabel={idle ? `${props.label}: nothing` : `${props.label}: ${done} of ${total}, ${speed(props.rate)}`}>
+    <Card accessibilityLabel={idle ? t('account.sync.transferIdle', { label: props.label })
+      : t('account.sync.transferBusy', { label: props.label, done, total, speed: speed(props.rate) })}>
       <View style={styles.profile}>
         <Ico name={props.icon} size={22} color={idle ? C.muted : C.primary} />
         <Text style={[txt.sm, { flex: 1, fontWeight: '600' }]}>{props.label}</Text>
-        {idle ? <Badge label="Up to date" tone="green" /> : <Text style={txt.xs}>{props.pending} left · {speed(props.rate)}</Text>}
+        {idle ? <Badge label={t('account.more.syncUpToDate')} tone="green" /> : <Text style={txt.xs}>{t('account.sync.left', { count: props.pending, speed: speed(props.rate) })}</Text>}
       </View>
       {idle ? null : <ProgressBar value={total ? (done / total) * 100 : 100} />}
     </Card>
@@ -942,9 +980,9 @@ function Transfer(props: { icon: IconName; pending: number; peak: number; rate: 
 }
 
 function speed(bytesPerSecond: number): string {
-  if (bytesPerSecond < 1024) return `${Math.round(bytesPerSecond)} B/s`;
-  if (bytesPerSecond < 1024 * 1024) return `${(bytesPerSecond / 1024).toFixed(0)} KB/s`;
-  return `${(bytesPerSecond / (1024 * 1024)).toFixed(1)} MB/s`;
+  if (bytesPerSecond < 1024) return t('account.sync.speedB', { value: formatNumber(Math.round(bytesPerSecond)) });
+  if (bytesPerSecond < 1024 * 1024) return t('account.sync.speedKB', { value: formatNumber(bytesPerSecond / 1024, { maximumFractionDigits: 0 }) });
+  return t('account.sync.speedMB', { value: formatNumber(bytesPerSecond / (1024 * 1024), { minimumFractionDigits: 1, maximumFractionDigits: 1 }) });
 }
 
 const styles = StyleSheet.create({

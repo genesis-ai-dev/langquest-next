@@ -7,56 +7,89 @@
 // sections. The Map's filters and chapter colours (MAP-3, MAP-5; demo
 // screens/map.tsx) sit at the end, so they can be tested without React.
 import { BIBLE_BOOKS } from '@langquest-next/core';
+import { bookName } from './coreText';
+import { currentLanguage, t } from './i18n';
 
 export type Testament = 'ot' | 'nt';
 
 export interface CanonBook {
   /** Core's book id ("luk", "1co"), as `unitPlace(...).bookId` gives it. */
   id: string;
-  /** "Psalms" */
+  /** "Psalms", in the language showing. */
   name: string;
-  /** Other names people search by ("Psalm", "Song of Songs"). */
+  /** Other names people search by ("Psalm", "Song of Songs", and core's English name when the app shows another). */
   aliases: string[];
   chapters: number;
   testament: Testament;
-  /** Canon section: "Law", "Gospels & Acts", ... */
+  /** Canon section in the language showing: "Law", "Gospels & Acts", ... */
   group: string;
   /** 0..65 in canon order. */
   index: number;
 }
 
-/** The demo's canon sections, by the index of the first book in each. */
-const GROUPS: { from: number; name: string }[] = [
-  { from: 0, name: 'Law' },
-  { from: 5, name: 'History' },
-  { from: 17, name: 'Poetry & Wisdom' },
-  { from: 22, name: 'Prophets' },
-  { from: 39, name: 'Gospels & Acts' },
-  { from: 44, name: 'Letters' }
-];
-export const CANON_GROUPS: string[] = GROUPS.map((g) => g.name);
+/** The demo's canon sections. */
+export type CanonGroup = 'law' | 'history' | 'poetry' | 'prophets' | 'gospels' | 'letters';
 
-const ALIASES: Record<string, string[]> = {
-  psa: ['Psalm'],
-  sng: ['Song of Songs']
-};
+/** The canon sections, by the index of the first book in each. */
+const GROUPS: { from: number; id: CanonGroup }[] = [
+  { from: 0, id: 'law' },
+  { from: 5, id: 'history' },
+  { from: 17, id: 'poetry' },
+  { from: 22, id: 'prophets' },
+  { from: 39, id: 'gospels' },
+  { from: 44, id: 'letters' }
+];
+
+/** A canon section's name in the language showing. */
+export function canonGroupName(id: CanonGroup): string {
+  switch (id) {
+    case 'law': return t('canon.groups.law');
+    case 'history': return t('canon.groups.history');
+    case 'poetry': return t('canon.groups.poetry');
+    case 'prophets': return t('canon.groups.prophets');
+    case 'gospels': return t('canon.groups.gospels');
+    case 'letters': return t('canon.groups.letters');
+  }
+}
+
+/** The canon sections in order, in the language showing. */
+export function canonGroups(): string[] {
+  return GROUPS.map((g) => canonGroupName(g.id));
+}
+
+/** The same names, read each time they are iterated, so never the English of the moment the module loaded. */
+export const CANON_GROUPS: Iterable<string> = { [Symbol.iterator]: () => canonGroups()[Symbol.iterator]() };
+
+/** Another name people search for a book by, in the language showing. */
+function aliasOf(id: string): string | null {
+  switch (id) {
+    case 'psa': return t('canon.aliases.psa');
+    case 'sng': return t('canon.aliases.sng');
+    default: return null;
+  }
+}
 
 let books: CanonBook[] | null = null;
+let booksLanguage = '';
 
-/** The 66 books in canon order. Built once. */
+/** The 66 books in canon order. Built once for the language showing. */
 export function canonBooks(): CanonBook[] {
-  if (books) return books;
+  if (books && booksLanguage === currentLanguage()) return books;
   // The canon is reference data in core, not a content template: a language's
   // own book names come from its template (docs/library.md).
-  books = BIBLE_BOOKS.map((it, index) => ({
-    id: it.itemId,
-    name: it.label,
-    aliases: (ALIASES[it.itemId] ?? []).filter((a) => a !== it.label),
-    chapters: it.verses.length,
-    testament: index < 39 ? 'ot' : 'nt',
-    group: [...GROUPS].reverse().find((g) => index >= g.from)!.name,
-    index
-  }));
+  booksLanguage = currentLanguage();
+  books = BIBLE_BOOKS.map((it, index) => {
+    const name = bookName(it.itemId);
+    return {
+      id: it.itemId,
+      name,
+      aliases: [...new Set([aliasOf(it.itemId), it.label])].filter((a): a is string => !!a && a !== name),
+      chapters: it.verses.length,
+      testament: index < 39 ? 'ot' : 'nt',
+      group: canonGroupName([...GROUPS].reverse().find((g) => index >= g.from)!.id),
+      index
+    };
+  });
   return books;
 }
 
@@ -112,13 +145,8 @@ export function canonKey(place: { bookId: string | null; chapters: number[] }): 
 /** The Map's filters, in the demo's order. */
 export type MapFilter = 'all' | 'feedback' | 'waiting' | 'review' | 'done' | 'todo';
 
-export const MAP_FILTERS: { id: MapFilter; label: string; noun: string }[] = [
-  { id: 'all', label: 'All', noun: '' },
-  { id: 'feedback', label: 'Feedback waiting', noun: 'with feedback' },
-  { id: 'waiting', label: 'With reviewers', noun: 'with reviewers' },
-  { id: 'review', label: 'In review', noun: 'in review' },
-  { id: 'done', label: 'Done', noun: 'done' },
-  { id: 'todo', label: 'Not recorded', noun: 'not recorded' }
+export const MAP_FILTERS: readonly { id: MapFilter }[] = [
+  { id: 'all' }, { id: 'feedback' }, { id: 'waiting' }, { id: 'review' }, { id: 'done' }, { id: 'todo' }
 ];
 
 export function isMapFilter(v: string | undefined): v is MapFilter {

@@ -2,6 +2,7 @@ import { CloudOff } from 'lucide-react-native';
 import * as Updates from 'expo-updates';
 import { useCallback, useEffect } from 'react';
 import { ActivityIndicator, AppState, Pressable, StyleSheet, Text, View } from 'react-native';
+import { t } from './i18n';
 import { noteExpected } from './report';
 import { C, onColor, radius, space, type as T } from './theme';
 import { updateStatus } from './updateStatus';
@@ -50,7 +51,7 @@ export function UpdateBanner() {
   // the device simply cannot reach the server, and spelling that out as an
   // update failure reads as though the app itself broke.
   const body = offline ? (
-    <View style={[styles.banner, styles.offline]} accessible accessibilityLabel="Offline: updates cannot be checked">
+    <View style={[styles.banner, styles.offline]} accessible accessibilityLabel={t('account.update.offlineLabel')}>
       <CloudOff size={18} color={C.white} />
     </View>
   ) : (

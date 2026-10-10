@@ -6,6 +6,7 @@
 // screens use. The key stays on the server; a phone asks with the person's
 // Supabase token, the way the reports are fetched (src/useOrgSummary.ts).
 import { BibleError, type BibleDetail, type BibleLanguage, type BibleSummary } from './sources/bibleBrain';
+import { t } from './i18n';
 import { bibleBrain } from './sources/store';
 
 export { BibleError, type BibleDetail, type BibleLanguage, type BibleSummary };
@@ -14,7 +15,7 @@ export { BibleError, type BibleDetail, type BibleLanguage, type BibleSummary };
 export const bibleSearchAvailable = bibleBrain !== null;
 
 function client() {
-  if (!bibleBrain) throw new BibleError('Bible Brain is reached through the LangQuest server, which this build does not name.', 'unavailable', 0);
+  if (!bibleBrain) throw new BibleError(t('shell.bibleBrainNotNamed'), 'unavailable', 0);
   return bibleBrain;
 }
 

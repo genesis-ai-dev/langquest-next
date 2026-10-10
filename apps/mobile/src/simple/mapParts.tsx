@@ -8,13 +8,15 @@ import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { ChapterStage } from '../canon';
 import { useHelpPress } from '../helpContext';
+import { t } from '../i18n';
+import { formatNumber } from '../i18n/format';
 import { Ico, type IconName } from '../kit';
 import { C, onColor, radius, space, target, TINT, type as T } from '../theme';
 
 /** "Next: Luke 15:1–7": this person's next passage, one tap from the map (demo Map). */
 export function NextLink(props: { title: string; icon: IconName; onPress: () => void }) {
-  const label = `Next: ${props.title}`;
-  const onPress = useHelpPress(label, 'Your next passage. Opens it.', props.onPress);
+  const label = t('map.parts.next', { title: props.title });
+  const onPress = useHelpPress(label, t('map.parts.nextHelp'), props.onPress);
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label}
       style={({ pressed }) => [styles.next, pressed && styles.pressed]}>
@@ -35,7 +37,7 @@ export function Pills<K extends string>(props: { items: { id: K; label: string }
 }
 
 function Pill(props: { label: string; on: boolean; onPress: () => void }) {
-  const onPress = useHelpPress(props.label, 'Shows these books.', props.onPress);
+  const onPress = useHelpPress(props.label, t('map.parts.pillHelp'), props.onPress);
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: props.on }}
       style={({ pressed }) => [styles.pill, props.on && styles.pillOn, pressed && styles.pressed]}>
@@ -54,18 +56,18 @@ export function BookBar(props: {
   /** Not broken up yet (decision 74): said in place of the bar. */
   waiting?: boolean;
 }) {
-  const onPress = useHelpPress(props.name, props.waiting ? 'Waiting to be broken up before anyone records it.' : 'Opens its chapters.', props.onPress);
+  const onPress = useHelpPress(props.name, props.waiting ? t('map.parts.waitingHelp') : t('map.parts.bookHelp'), props.onPress);
   if (props.waiting) {
     return (
       <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
         style={({ pressed }) => [styles.book, !props.last && styles.bookBorder, pressed && styles.pressed]}>
         <Text style={styles.bookName} numberOfLines={2}>{props.name}</Text>
-        <Text style={[styles.waiting]} numberOfLines={1}>Waiting to be broken up</Text>
+        <Text style={[styles.waiting]} numberOfLines={1}>{t('map.waiting')}</Text>
       </Pressable>
     );
   }
   const pct = (n: number) => `${props.total ? Math.min(100, (n / props.total) * 100) : 0}%` as const;
-  const count = props.count ?? (props.recorded > 0 ? `${props.recorded.toLocaleString('en-US')}/${props.total.toLocaleString('en-US')}` : '');
+  const count = props.count ?? (props.recorded > 0 ? t('map.parts.bookCount', { recorded: formatNumber(props.recorded), total: formatNumber(props.total) }) : '');
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
       accessibilityState={props.current ? { selected: true } : undefined}
@@ -92,14 +94,14 @@ const STAGE: Record<ChapterStage, { bg: string; fg: string; border: string }> = 
 export function ChapterTileView(props: {
   n: number; stage: ChapterStage; dim: boolean; current: boolean; disabled: boolean; label: string; corner?: ReactNode; onPress: () => void;
 }) {
-  const t = STAGE[props.stage];
-  const onPress = useHelpPress(`Chapter ${props.n}`, 'Opens its passage. A tick means done, a dot means started.', props.onPress);
+  const look = STAGE[props.stage];
+  const onPress = useHelpPress(t('map.parts.chapter', { n: formatNumber(props.n) }), t('map.parts.chapterHelp'), props.onPress);
   return (
     <Pressable onPress={onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
       accessibilityState={{ disabled: props.disabled, selected: props.current }}
-      style={({ pressed }) => [styles.tile, { backgroundColor: t.bg, borderColor: t.border, opacity: props.dim ? 0.28 : 1 },
+      style={({ pressed }) => [styles.tile, { backgroundColor: look.bg, borderColor: look.border, opacity: props.dim ? 0.28 : 1 },
         props.current && { borderColor: C.primary, borderWidth: 3 }, pressed && { transform: [{ scale: 0.95 }] }]}>
-      <Text style={[styles.tileNumber, { color: t.fg }]}>{props.n}</Text>
+      <Text style={[styles.tileNumber, { color: look.fg }]}>{formatNumber(props.n)}</Text>
       {props.stage === 'done' ? <Ico name="check" size={16} color={onColor.green} strokeWidth={3} />
         : props.stage === 'started' ? <View style={styles.tileDot} />
         : <View style={{ height: 16 }} />}
@@ -111,20 +113,20 @@ export function ChapterTileView(props: {
 /** The short key under a book's chapters: "✓ Done • Started", and the offline mark when any chapter shows it. */
 export function ShortKey(props: { offline?: boolean }) {
   return (
-    <View style={styles.key} accessible accessibilityLabel={`A tick means done, a dot means started${props.offline ? ', a cloud means kept on this device' : ''}`}>
-      <View style={styles.keyItem}><Ico name="check" size={16} color={onColor.green} strokeWidth={3} /><Text style={styles.keyText}>Done</Text></View>
-      <View style={styles.keyItem}><View style={styles.tileDot} /><Text style={styles.keyText}>Started</Text></View>
-      {props.offline ? <View style={styles.keyItem}><Ico name="onPhone" size={16} color={onColor.green} /><Text style={styles.keyText}>On this device</Text></View> : null}
+    <View style={styles.key} accessible accessibilityLabel={props.offline ? t('map.parts.keyLabelOffline') : t('map.parts.keyLabel')}>
+      <View style={styles.keyItem}><Ico name="check" size={16} color={onColor.green} strokeWidth={3} /><Text style={styles.keyText}>{t('map.key.done')}</Text></View>
+      <View style={styles.keyItem}><View style={styles.tileDot} /><Text style={styles.keyText}>{t('map.key.started')}</Text></View>
+      {props.offline ? <View style={styles.keyItem}><Ico name="onPhone" size={16} color={onColor.green} /><Text style={styles.keyText}>{t('map.key.onDevice')}</Text></View> : null}
     </View>
   );
 }
 
 /** One line of the full key: a small tile in that state, and what it means. */
 function KeyLine(props: { stage: ChapterStage; label: string; sub?: string }) {
-  const t = STAGE[props.stage];
+  const look = STAGE[props.stage];
   return (
     <View style={styles.keyLine}>
-      <View style={[styles.keyTile, { backgroundColor: t.bg, borderColor: t.border }]}>
+      <View style={[styles.keyTile, { backgroundColor: look.bg, borderColor: look.border }]}>
         {props.stage === 'done' ? <Ico name="check" size={12} color={onColor.green} strokeWidth={3} />
           : props.stage === 'started' ? <View style={[styles.tileDot, { width: 6, height: 6, marginVertical: 0 }]} /> : null}
       </View>
@@ -140,13 +142,13 @@ function KeyLine(props: { stage: ChapterStage; label: string; sub?: string }) {
 export function FullKey(props: { none: boolean }) {
   return (
     <View style={{ gap: space.sm }}>
-      <KeyLine stage="done" label="Done" sub="Every check is complete" />
-      <KeyLine stage="started" label="Started" sub="Recording begun, recorded, with reviewers, or feedback waiting" />
-      <KeyLine stage="new" label="Not started" sub="Nobody has recorded it yet" />
-      {props.none ? <KeyLine stage="none" label="No passage" sub="This chapter has no passage in this language" /> : null}
+      <KeyLine stage="done" label={t('map.key.done')} sub={t('map.key.doneSub')} />
+      <KeyLine stage="started" label={t('map.key.started')} sub={t('map.key.startedSub')} />
+      <KeyLine stage="new" label={t('map.key.notStarted')} sub={t('map.key.notStartedSub')} />
+      {props.none ? <KeyLine stage="none" label={t('map.key.noPassage')} sub={t('map.key.noPassageSub')} /> : null}
       <View style={styles.keyLine}>
         <View style={[styles.keyTile, { borderColor: 'transparent' }]}><Ico name="onPhone" size={18} color={onColor.green} /></View>
-        <Text style={[styles.keyLabel, { flex: 1 }]}>Kept on this device for offline</Text>
+        <Text style={[styles.keyLabel, { flex: 1 }]}>{t('map.key.kept')}</Text>
       </View>
     </View>
   );

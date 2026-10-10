@@ -1,9 +1,13 @@
-import { percent, recencyOf, SCOPE_LABEL, timeAgo, type Coverage, type LanguageReport } from '@langquest-next/core';
+import { ledgerFor, percent, recencyOf, toCsv, type Coverage, type LanguageReport, type LanguageRow } from '@langquest-next/core';
 import type { ReactNode } from 'react';
 import { Platform, Share, StyleSheet, Text, View } from 'react-native';
+import { bookName } from '../coreText';
+import { currentLocale, t, Trans } from '../i18n';
+import { formatDay, formatDayYear, formatMonthShort, formatMonthYear, formatNumber, formatPercent } from '../i18n/format';
 import { Badge, Card, Ico, txt, type IconName } from '../kit';
 import { C, radius, space, TINT } from '../theme';
-import { RECENCY_LABEL, RECENCY_TONE } from './labels';
+import { countryName } from './countries';
+import { bottleneckText, RECENCY_TONE, recencyLabel, scopeLabel, scopeShort } from './labels';
 
 /**
  * The Reports section's primitives (ported from the web dashboard, decision
@@ -17,23 +21,50 @@ export const TONE_FILL: Record<Tone, string> = { brand: C.primary, green: C.gree
 const TONE_TEXT: Record<Tone, string> = { brand: C.primary, green: TINT.greenText, amber: TINT.amberText, red: TINT.redText, gray: TINT.grayText };
 const BADGE_TONE: Record<Tone, 'brand' | 'green' | 'amber' | 'red' | 'default'> = { brand: 'brand', green: 'green', amber: 'amber', red: 'red', gray: 'default' };
 
-export const num = (n: number) => n.toLocaleString('en-US');
-export const pctText = (n: number) => `${Number.isInteger(n) ? n : n.toFixed(1)}%`;
+/** 1234 → "1,234", in the language showing. */
+export const num = (n: number) => formatNumber(n);
+/** 42.5 (a percentage already) → "42.5%". */
+export const pctText = (n: number) => formatPercent(n);
+/** +12, -3: a change, with its sign. */
+export const signed = (n: number) => `${n >= 0 ? '+' : ''}${formatNumber(n)}`;
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const MONTHS_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const WEEKDAYS_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
-// Dates are UTC days (`YYYY-MM-DD`) from the server; written out by hand so phones without full Intl read them the same.
-const utc = (day: string) => new Date(`${day}T00:00:00Z`);
-export const shortDate = (day: string) => `${MONTHS[utc(day).getUTCMonth()]} ${utc(day).getUTCDate()}`;
-export const weekday = (day: string) => WEEKDAYS[utc(day).getUTCDay()]!;
-export const longDay = (day: string) => `${WEEKDAYS_LONG[utc(day).getUTCDay()]}, ${shortDate(day)}`;
-export const monthName = (m: string) => `${MONTHS_LONG[Number(m.slice(5, 7)) - 1]} ${m.slice(0, 4)}`;
-export const monthShort = (m: string) => MONTHS[Number(m.slice(5, 7)) - 1]!;
+// Dates are UTC days (`YYYY-MM-DD`) or ISO times from the server, said in the language showing.
+const utc = (day: string) => new Date(`${day.slice(0, 10)}T00:00:00Z`);
+const intlFormats = new Map<string, Intl.DateTimeFormat>();
+function intl(options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const key = `${currentLocale()}|${JSON.stringify(options)}`;
+  let f = intlFormats.get(key);
+  if (!f) { f = new Intl.DateTimeFormat(currentLocale(), { ...options, timeZone: 'UTC' }); intlFormats.set(key, f); }
+  return f;
+}
+/** "Oct 3" */
+export const shortDate = (day: string) => formatDay(utc(day), { utc: true });
+/** "Oct 3, 2026" */
+export const dayYear = (day: string) => formatDayYear(utc(day), { utc: true });
+/** "Sat" */
+export const weekday = (day: string) => intl({ weekday: 'short' }).format(utc(day));
+/** "Saturday, Oct 3" */
+export const longDay = (day: string) => intl({ weekday: 'long', month: 'short', day: 'numeric' }).format(utc(day));
+/** A month ("2026-10") as "October 2026". */
+export const monthName = (m: string) => formatMonthYear(m);
+/** A month ("2026-10") as "Oct". */
+export const monthShort = (m: string) => formatMonthShort(m);
+/** `14:05 UTC` */
+export const utcTime = (iso: string) => t('reports.timeUtc', { time: intl({ hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(iso)) });
 /** `Oct 3, 2026, 14:05 UTC` */
-export const dateTime = (iso: string) => `${shortDate(iso.slice(0, 10))}, ${iso.slice(0, 4)}, ${iso.slice(11, 16)} UTC`;
+export const dateTime = (iso: string) => t('reports.dateTimeUtc', {
+  date: dayYear(iso), time: intl({ hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(iso))
+});
+/** Core's `timeAgo`: "just now", "5 minutes ago", "3 days ago". */
+export function ago(iso: string, now: number): string {
+  const s = Math.max(0, Math.round((now - Date.parse(iso)) / 1000));
+  if (s < 60) return t('reports.ago.justNow');
+  if (s < 3600) return t('reports.ago.minutes', { count: Math.floor(s / 60) });
+  if (s < 86_400) return t('reports.ago.hours', { count: Math.floor(s / 3600) });
+  return t('reports.ago.days', { count: Math.floor(s / 86_400) });
+}
+/** "12 of 40" */
+export const partOf = (part: number, total: number) => t('reports.partOf', { part: num(part), total: num(total) });
 
 export function ToneBadge(props: { tone: Tone; label: string }) {
   return <Badge tone={BADGE_TONE[props.tone]} label={props.label} />;
@@ -71,7 +102,7 @@ function wrapEach(children: ReactNode, min: number): ReactNode {
 
 export function Stat(props: { label: string; value: string; sub?: string | undefined; tone?: Tone | undefined }) {
   return (
-    <View style={styles.stat} accessible accessibilityLabel={`${props.label}: ${props.value}${props.sub ? `, ${props.sub}` : ''}`}>
+    <View style={styles.stat} accessible accessibilityLabel={props.sub ? t('reports.stat.spokenWithSub', { label: props.label, value: props.value, sub: props.sub }) : t('reports.stat.spoken', { label: props.label, value: props.value })}>
       <Text style={[styles.statValue, props.tone ? { color: TONE_TEXT[props.tone] } : null]}>{props.value}</Text>
       <Text style={[txt.sm, { fontWeight: '600' }]}>{props.label}</Text>
       {props.sub ? <Text style={txt.xs}>{props.sub}</Text> : null}
@@ -112,16 +143,20 @@ export function Notice(props: { tone: Tone; title: string; body?: string; icon?:
   );
 }
 
-export function Delta(props: { now: number; before: number; unit?: string }) {
+/** A change against the period before: "▲ +12 recordings (+20%) against the period before". */
+export function Delta(props: { now: number; before: number; unit?: 'recordings' | 'chapters' }) {
   const d = props.now - props.before;
-  if (props.before === 0 && props.now === 0) return <Text style={txt.smMuted}>No change</Text>;
-  const rel = props.before > 0 ? ` (${d >= 0 ? '+' : ''}${Math.round((100 * d) / props.before)}%)` : '';
+  if (props.before === 0 && props.now === 0) return <Text style={txt.smMuted}>{t('reports.delta.noChange')}</Text>;
+  const change = signed(d);
+  const amount = props.unit === 'recordings' ? t('reports.delta.recordings', { count: Math.abs(d), change })
+    : props.unit === 'chapters' ? t('reports.delta.chapters', { count: Math.abs(d), change }) : change;
+  const rel = props.before > 0 ? `${d >= 0 ? '+' : ''}${formatPercent(Math.round((100 * d) / props.before))}` : null;
   return (
     <Text style={txt.sm}>
       <Text style={{ fontWeight: '700', color: d >= 0 ? TINT.greenText : TINT.redText }}>
-        {d >= 0 ? '▲ +' : '▼ '}{num(d)}{props.unit ? ` ${props.unit}` : ''}
+        {d >= 0 ? '▲ ' : '▼ '}{amount}
       </Text>
-      <Text style={{ color: C.muted }}>{rel} against the period before</Text>
+      <Text style={{ color: C.muted }}> {rel ? t('reports.delta.againstWithShare', { share: rel }) : t('reports.delta.against')}</Text>
     </Text>
   );
 }
@@ -157,11 +192,11 @@ export function ProgressPair(props: { total: number; recorded: number; done: num
   const { total, recorded, done } = props;
   return (
     <View style={{ gap: space.xs }}>
-      {([['Recorded', recorded, 'brand'], ['Done', done, 'green']] as const).map(([label, n, tone]) => (
-        <View key={label} style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+      {([['recorded', t('reports.progress.recorded'), recorded, 'brand'], ['done', t('reports.progress.done'), done, 'green']] as const).map(([key, label, n, tone]) => (
+        <View key={key} style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
           <Text style={[txt.xs, { width: 64 }]}>{label}</Text>
-          <View style={{ flex: 1 }}><Bar value={percent(n, total)} tone={tone} label={`${label} ${percent(n, total)}%`} /></View>
-          <Text style={[txt.xs, { minWidth: 84, textAlign: 'right' }]}>{num(n)} of {num(total)}</Text>
+          <View style={{ flex: 1 }}><Bar value={percent(n, total)} tone={tone} label={t('reports.progress.bar', { label, share: formatPercent(percent(n, total)) })} /></View>
+          <Text style={[txt.xs, { minWidth: 84, textAlign: 'right' }]}>{partOf(n, total)}</Text>
         </View>
       ))}
     </View>
@@ -172,10 +207,11 @@ export function ProgressPair(props: { total: number; recorded: number; done: num
 export function CoverageMini(props: { coverage: Coverage; name: string }) {
   return (
     <View style={{ gap: 4 }}>
-      {([['G', 'gospels', 'brand'], ['NT', 'nt', 'green'], ['OT', 'ot', 'amber']] as const).map(([short, s, tone]) => (
+      {([['gospels', 'brand'], ['nt', 'green'], ['ot', 'amber']] as const).map(([s, tone]) => (
         <View key={s} style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-          <Text style={[txt.xs, { width: 24 }]} accessibilityLabel={SCOPE_LABEL[s]}>{short}</Text>
-          <View style={{ flex: 1 }}><Bar value={props.coverage[s]} tone={tone} height={6} label={`${props.name} ${SCOPE_LABEL[s]} ${props.coverage[s]}%`} /></View>
+          <Text style={[txt.xs, { width: 24 }]} accessibilityLabel={scopeLabel(s)}>{scopeShort(s)}</Text>
+          <View style={{ flex: 1 }}><Bar value={props.coverage[s]} tone={tone} height={6}
+            label={t('reports.coverage.miniBar', { name: props.name, scope: scopeLabel(s), share: formatPercent(props.coverage[s]) })} /></View>
           <Text style={[txt.xs, { width: 48, textAlign: 'right' }]}>{pctText(props.coverage[s])}</Text>
         </View>
       ))}
@@ -190,32 +226,34 @@ export function CoverageRows(props: { recorded: Coverage; done: Coverage }) {
       {(['gospels', 'nt', 'ot'] as const).map((s) => (
         <View key={s} style={{ gap: space.xs }}>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', columnGap: space.sm }}>
-            <Text style={[txt.sm, { fontWeight: '700' }]}>{SCOPE_LABEL[s]}</Text>
-            <Text style={txt.sm}><Text style={{ fontWeight: '700' }}>{pctText(props.recorded[s])}</Text> recorded · <Text style={{ color: C.muted }}>{pctText(props.done[s])} done</Text></Text>
+            <Text style={[txt.sm, { fontWeight: '700' }]}>{scopeLabel(s)}</Text>
+            <Text style={txt.sm}>
+              <Trans i18nKey="reports.coverage.recordedDone" values={{ recorded: pctText(props.recorded[s]), done: pctText(props.done[s]) }}
+                components={{ b: <Text style={{ fontWeight: '700' }} />, muted: <Text style={{ color: C.muted }} /> }} />
+            </Text>
           </View>
-          <Bar value={props.recorded[s]} tone="brand" tick={props.done[s]} label={`${SCOPE_LABEL[s]}: ${props.recorded[s]}% recorded, ${props.done[s]}% done`} />
+          <Bar value={props.recorded[s]} tone="brand" tick={props.done[s]}
+            label={t('reports.coverage.bar', { scope: scopeLabel(s), recorded: pctText(props.recorded[s]), done: pctText(props.done[s]) })} />
         </View>
       ))}
-      <Text style={txt.xs}>
-        By verses of the whole canon. Recorded: the passage has a published version. Done: it has cleared its review flow (the tick on each bar).
-      </Text>
+      <Text style={txt.xs}>{t('reports.coverage.explain')}</Text>
     </View>
   );
 }
 
 export function RecencyBadge(props: { report: LanguageReport; now: number }) {
   const { band, days } = recencyOf(props.report, props.now);
-  return <ToneBadge tone={RECENCY_TONE[band]} label={`${RECENCY_LABEL[band]}${days !== null && band !== 'active' ? ` · ${days}d` : ''}`} />;
+  return <ToneBadge tone={RECENCY_TONE[band]} label={days !== null && band !== 'active' ? t('reports.recency.badgeDays', { label: recencyLabel(band), count: days }) : recencyLabel(band)} />;
 }
 
 export function HeadlineStats(props: { total: number; recorded: number; done: number; languages?: number }) {
   const { total, recorded, done } = props;
   return (
     <Stats>
-      {props.languages !== undefined ? <Stat label="Languages" value={num(props.languages)} /> : null}
-      <Stat label="Passages" value={num(total)} />
-      <Stat label="Recorded" value={`${percent(recorded, total)}%`} sub={`${num(recorded)} of ${num(total)}`} />
-      <Stat label="Done" value={`${percent(done, total)}%`} sub={`${num(done)} of ${num(total)}`} tone={done > 0 ? 'green' : undefined} />
+      {props.languages !== undefined ? <Stat label={t('reports.headline.languages')} value={num(props.languages)} /> : null}
+      <Stat label={t('reports.headline.passages')} value={num(total)} />
+      <Stat label={t('reports.progress.recorded')} value={pctText(percent(recorded, total))} sub={partOf(recorded, total)} />
+      <Stat label={t('reports.progress.done')} value={pctText(percent(done, total))} sub={partOf(done, total)} tone={done > 0 ? 'green' : undefined} />
     </Stats>
   );
 }
@@ -224,38 +262,41 @@ export function AttentionPanel(props: { attention: LanguageReport['attention'] }
   const a = props.attention;
   const tone = (n: number, t: Tone): Tone | undefined => (n > 0 ? t : undefined);
   return (
-    <Panel title="Needs attention" sub="What a coordinator can move today.">
+    <Panel title={t('reports.attention.title')} sub={t('reports.attention.sub')}>
       <Stats>
-        <Stat label="Feedback to answer" value={num(a.feedback)} tone={tone(a.feedback, 'amber')} sub="The latest version has feedback nobody answered" />
-        <Stat label="Overdue requests" value={num(a.overdueRequests)} tone={tone(a.overdueRequests, 'red')} sub={`${num(a.openRequests)} request${a.openRequests === 1 ? '' : 's'} open in all`} />
-        <Stat label="At a checkpoint" value={num(a.atCheckpoint)} tone={tone(a.atCheckpoint, 'amber')} sub="Waiting for a checkpoint review" />
+        <Stat label={t('reports.attention.feedback')} value={num(a.feedback)} tone={tone(a.feedback, 'amber')} sub={t('reports.attention.feedbackSub')} />
+        <Stat label={t('reports.attention.overdue')} value={num(a.overdueRequests)} tone={tone(a.overdueRequests, 'red')} sub={t('reports.attention.openInAll', { count: a.openRequests })} />
+        <Stat label={t('reports.attention.checkpoint')} value={num(a.atCheckpoint)} tone={tone(a.atCheckpoint, 'amber')} sub={t('reports.attention.checkpointSub')} />
       </Stats>
     </Panel>
   );
 }
 
 /** Why a section with no numbers has none. */
-export function NoReports(props: { what: string }) {
+export function NoReports(props: { what: 'languages' | 'languageReport' }) {
   return (
-    <Notice tone="gray" title={`No ${props.what} to show yet`}
-      body="Languages appear here once the organization has one and your role lets you view its status. If you expected some, ask an administrator which languages your role covers." />
+    <Notice tone="gray" title={props.what === 'languages' ? t('reports.noReports.languages') : t('reports.noReports.languageReport')}
+      body={t('reports.noReports.body')} />
   );
 }
 
 export function Freshness(props: { updatedAt: string | null; now: number }) {
   if (!props.updatedAt) return null;
   return (
-    <Text style={txt.xs}>
-      Figures as of {dateTime(props.updatedAt)} ({timeAgo(props.updatedAt, props.now)}). Work recorded offline appears after the device syncs.
-    </Text>
+    <Text style={txt.xs}>{t('reports.freshness', { when: dateTime(props.updatedAt), ago: ago(props.updatedAt, props.now) })}</Text>
   );
 }
 
 // ---- exports -----------------------------------------------------------------------
 
-/** `Dinka report 2026-09-29.csv`, safe on every filesystem. */
+/** `Dinka books 2026-09-29.csv`, safe on every filesystem. */
 export function fileName(title: string, now = new Date()): string {
-  return `${title.replace(/[\\/:*?"<>|]+/g, ' ').trim()} ${now.toISOString().slice(0, 10)}.csv`;
+  return `${safeName(title)} ${now.toISOString().slice(0, 10)}.csv`;
+}
+
+/** A file name without the characters some filesystems refuse. */
+export function safeName(name: string): string {
+  return name.replace(/[\\/:*?"<>|]+/g, ' ').trim();
 }
 
 /** A CSV to keep: downloaded in a browser, handed to the share sheet on a phone or tablet. */
@@ -276,6 +317,48 @@ export function exportCsv(name: string, text: string): void {
 export const canPrint = Platform.OS === 'web';
 export function printPage(): void {
   if (canPrint) window.print();
+}
+
+// Core's CSVs (`languagesCsv`, `ledgerCsv`, `languageCsv`) with their headers in the
+// language showing: a spreadsheet's column names are words people read. Cells keep
+// core's values (codes, ISO times, band ids) so a sheet sorts and filters the same.
+
+/** A book of the report by name: a Bible book in the language showing, else the label the organization gave it. */
+export const bookOf = (b:{ bookId: string | null; label: string }) => (b.bookId ? bookName(b.bookId) : b.label);
+
+export function languagesCsv(rows: LanguageRow[], now = Date.now()): string {
+  return toCsv([
+    [t('reports.csv.language'), t('reports.csv.code'), t('reports.csv.country'), t('reports.csv.reviewFlow'), t('reports.csv.passages'),
+      t('reports.csv.recorded'), t('reports.csv.done'), t('reports.csv.recordedShare'), t('reports.csv.doneShare'),
+      t('reports.csv.gospelsRecorded'), t('reports.csv.ntRecorded'), t('reports.csv.otRecorded'), t('reports.csv.recordingsOnServer'),
+      t('reports.csv.lastUpload'), t('reports.csv.uploadStatus'), t('reports.csv.feedbackToAnswer'), t('reports.csv.openRequests'),
+      t('reports.csv.overdueRequests'), t('reports.csv.atCheckpoint'), t('reports.csv.bottleneck'), t('reports.csv.lastActivity'), t('reports.csv.reportUpdated')],
+    ...rows.map(({ report: r, updatedAt }) => [
+      r.name, r.code, r.country, r.flowName, r.progress.total, r.progress.recorded, r.progress.done,
+      percent(r.progress.recorded, r.progress.total), percent(r.progress.done, r.progress.total),
+      r.coverage.recorded.gospels, r.coverage.recorded.nt, r.coverage.recorded.ot, r.uploads.cards, r.uploads.lastAt,
+      recencyOf(r, now).band,
+      r.attention.feedback, r.attention.openRequests, r.attention.overdueRequests, r.attention.atCheckpoint,
+      bottleneckText(r), r.lastActivity, updatedAt
+    ])
+  ]);
+}
+
+export function languageCsv(r: LanguageReport): string {
+  return toCsv([
+    [t('reports.csv.book'), t('reports.csv.passages'), t('reports.csv.recorded'), t('reports.csv.done'), t('reports.csv.recordedShare'), t('reports.csv.doneShare')],
+    ...r.books.map((b) => [bookOf(b), b.total, b.recorded, b.done, percent(b.recorded, b.total), percent(b.done, b.total)])
+  ]);
+}
+
+export function ledgerCsv(rows: LanguageRow[], month: string): string {
+  const l = ledgerFor(rows, month);
+  return toCsv([
+    [t('reports.csv.month'), t('reports.csv.language'), t('reports.csv.code'), t('reports.csv.country'), t('reports.csv.newChapters'), t('reports.csv.books'), t('reports.csv.chaptersByBook')],
+    ...l.lines.map((x) => [month, x.row.report.name, x.row.report.code, countryName(x.row.report.country), x.chapters, x.books.length,
+      x.books.map((b) => `${bookOf(b)} ${b.chapters}`).join('; ')]),
+    [month, t('reports.csv.total'), null, null, l.chapters, l.books, null]
+  ]);
 }
 
 const styles = StyleSheet.create({

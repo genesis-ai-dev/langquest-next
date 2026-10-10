@@ -175,8 +175,8 @@ export function keysNamed(path: string, text: string): { literals: Set<string>; 
   const prefixes = new Set<string>();
   const visit = (node: ts.Node) => {
     if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) literals.add(node.text);
-    if (ts.isTemplateExpression(node) && node.parent && ts.isCallExpression(node.parent) && node.parent.arguments[0] === node
-      && ts.isIdentifier(node.parent.expression) && node.parent.expression.text === 't' && node.head.text) prefixes.add(node.head.text);
+    // A key built at run time (`t(`books.${id}`)`, or kept first in a variable): its fixed start names the keys under it.
+    if (ts.isTemplateExpression(node) && /^[a-z][A-Za-z]*\.([A-Za-z0-9]+\.)*$/.test(node.head.text)) prefixes.add(node.head.text);
     ts.forEachChild(node, visit);
   };
   visit(source);

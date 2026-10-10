@@ -50,6 +50,7 @@ export function installGlobalHandlers(): void {
   };
   const previous = g.ErrorUtils?.getGlobalHandler();
   g.ErrorUtils?.setGlobalHandler((e, fatal) => {
+    // i18n-ignore: log labels
     reportError(fatal ? 'global (fatal)' : 'global', e, !!fatal);
     previous?.(e, fatal);
   });

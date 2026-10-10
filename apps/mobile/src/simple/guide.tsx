@@ -5,11 +5,12 @@
 // (tap for the meaning), pictures and maps as cards, and its callouts ("Stop
 // here." on amber). Any part takes a note or an answer (STUDY-7). Nothing
 // here depends on which method wrote the guide.
-import { keyTermsFor, type PassageNote } from '@langquest-next/core';
+import { keyTermsFor, type CalloutKind, type PassageNote } from '@langquest-next/core';
 import { useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Ctx } from '../ctx';
 import { useHelpPress } from '../helpContext';
+import { t } from '../i18n';
 import { Ico, SmallBtn, txt, type IconName } from '../kit';
 import type { PassageView } from '../passageView';
 import type { StudyGuide, StudyResource } from '../study/guides';
@@ -17,7 +18,7 @@ import { glossaryEntryOf } from '../study/libraryGuides';
 import { useStudyFileUri } from '../study/media';
 import type { StudyProgress, StudyStepStatus } from '../study/progress';
 import { clock, inlineParts, isCallout, isQuestion, secondsOf, sectionLabel, studySections, type StudySection } from '../study/text';
-import { ContributeSheet, GlossarySheet, MediaSheet, saveNote, StudyNote, useStudyAudio } from '../study/ui';
+import { calloutLabel, ContributeSheet, GlossarySheet, MediaSheet, saveNote, shownClock, StudyNote, useStudyAudio } from '../study/ui';
 import { C, radius, space, target, TINT, type as T } from '../theme';
 import { Callout, MiniPlayer, StepNav, StepsSheet, styles as ps } from './parts';
 
@@ -33,14 +34,18 @@ export function GuideNav(props: { ctx: Ctx; sp: StudyProgress; index: number; on
   const [listing, setListing] = useState(false);
   const step = sp.steps[props.index] ?? sp.steps[0]!;
   const people = sp.people.map((p) => props.ctx.name(p));
+  const progress = { done: sp.doneCount, total: sp.steps.length };
+  const sub = people.length === 0 ? t('study.guide.progress', progress)
+    : people.length === 1 ? t('study.guide.progressByOne', { ...progress, name: people[0] })
+    : people.length === 2 ? t('study.guide.progressByTwo', { ...progress, first: people[0], second: people[1] })
+    : t('study.guide.progressByMore', { ...progress, first: people[0], second: people[1] });
   return (
     <>
       <StepNav index={props.index} count={sp.steps.length} title={step.step.title}
         onPrev={() => props.onIndex(Math.max(0, props.index - 1))} onNext={() => props.onIndex(Math.min(sp.steps.length - 1, props.index + 1))}
         onList={() => setListing(true)} />
       {listing ? (
-        <StepsSheet title={`Guide · ${sp.steps.length} step${sp.steps.length === 1 ? '' : 's'}`}
-          sub={`${sp.doneCount} of ${sp.steps.length} done${people.length ? ` · by ${people.slice(0, 2).join(' and ')}${people.length > 2 ? ' and others' : ''}` : ''}`}
+        <StepsSheet title={t('study.guide.stepsTitle', { count: sp.steps.length })} sub={sub}
           steps={sp.steps.map((s) => ({ title: s.step.title, ...(s.step.phase ? { phase: s.step.phase } : {}), done: !!s.done }))}
           current={props.index} onPick={(i) => { setListing(false); props.onIndex(i); }} onClose={() => setListing(false)}>
           {props.sheetFooter}
@@ -82,8 +87,8 @@ export function GuideStep(props: {
   const term = (() => {
     const state = ctx.language.state;
     if (!state || resource?.kind !== 'term') return null;
-    const t = resource.title.trim().toLowerCase();
-    return keyTermsFor(state).find((k) => k.term.trim().toLowerCase() === t) ?? null;
+    const name = resource.title.trim().toLowerCase();
+    return keyTermsFor(state).find((k) => k.term.trim().toLowerCase() === name) ?? null;
   })();
   const entry = resource?.kind === 'term' ? glossaryEntryOf(guide, resource.ref) : null;
   const lang = guideLanguage(guide);
@@ -91,14 +96,14 @@ export function GuideStep(props: {
   return (
     <View style={{ gap: space.md }}>
       {props.spoken && hasAudio ? (
-        <MiniPlayer title="This step, spoken" sub={audio.failed ? "Couldn't load the recording" : !audioUri ? 'Getting the recording…' : [clock(audio.playing || audio.time > 0 ? audio.time : audio.duration), lang].filter(Boolean).join(' · ')}
+        <MiniPlayer title={t('study.guide.spoken')} sub={audio.failed ? t('study.guide.couldNotLoad') : !audioUri ? t('study.guide.gettingRecording') : [shownClock(audio.playing || audio.time > 0 ? audio.time : audio.duration), lang].filter(Boolean).join(' · ')}
           playing={audio.playing} available onToggle={audio.toggle} onBack10={() => audio.seek(audio.time - 10)} backDisabled={audio.time <= 0}
-          {...(props.canContribute ? { onNote: () => { audio.pause(); setAdding({ at: clock(audio.time), quote: `The recording at ${clock(audio.time)}`, answer: false }); } } : {})} />
+          {...(props.canContribute ? { onNote: () => { audio.pause(); setAdding({ at: clock(audio.time), quote: t('study.guide.recordingAt', { time: shownClock(audio.time) }), answer: false }); } } : {})} />
       ) : null}
 
       {atMoment.length > 0 ? (
         <View style={{ gap: space.sm }}>
-          {atMoment.map((n) => <StudyNote key={n.id} ctx={ctx} note={n} label={`At ${clock(momentOf(n))}`} />)}
+          {atMoment.map((n) => <StudyNote key={n.id} ctx={ctx} note={n} label={t('study.guide.at', { time: shownClock(momentOf(n)) })} />)}
         </View>
       ) : null}
 
@@ -113,29 +118,30 @@ export function GuideStep(props: {
       {onStep.length > 0 ? <View style={{ gap: space.sm }}>{onStep.map((n) => <StudyNote key={n.id} ctx={ctx} note={n} />)}</View> : null}
 
       {adding ? (
-        <ContributeSheet ctx={ctx} unitId={v.unitId} languageId={v.languageId} title={adding.answer ? 'Your answer' : 'Add a note'}
+        <ContributeSheet ctx={ctx} unitId={v.unitId} languageId={v.languageId} title={adding.answer ? t('study.guide.yourAnswer') : t('common.addNote')}
           where={`${step.title} · ${adding.quote}`}
           onClose={() => { setAdding(null); setSelected(null); }}
           onSave={(c) => saveNote(ctx, v, {
             kind: 'study', guideId: guide.id, stepId: step.id,
             ...(adding.sectionId ? { sectionId: adding.sectionId } : {}), ...(adding.at ? { at: adding.at } : {})
-          }, c, adding.at ? `Note added at ${adding.at}. It stays with the study.` : 'Added to the study. Reviewers will see it with the passage.')} />
+          }, c, adding.at ? t('study.guide.noteAddedAt', { time: shownClock(secondsOf(adding.at)) }) : t('study.guide.added'))} />
       ) : null}
-      {resource && resource.kind !== 'term' ? <MediaSheet resource={resource} source={lang ? `Guide · ${lang}` : 'Guide'} orgId={ctx.language.orgId} onClose={() => setResource(null)} /> : null}
+      {resource && resource.kind !== 'term' ? <MediaSheet resource={resource} source={lang ? t('study.guide.mediaSourceLanguage', { language: lang }) : t('study.guide.mediaSource')} orgId={ctx.language.orgId} onClose={() => setResource(null)} /> : null}
       {resource && entry ? (
-        <GlossarySheet entry={entry} source={lang ? `the guide · ${lang}` : 'the guide'} orgId={ctx.language.orgId} hasKeyTerm={!!term && !!props.onTerm} onClose={() => setResource(null)}
+        <GlossarySheet entry={entry} source={lang ? t('study.guide.glossarySourceLanguage', { language: lang }) : t('study.guide.glossarySource')} orgId={ctx.language.orgId} hasKeyTerm={!!term && !!props.onTerm} onClose={() => setResource(null)}
           onOpenTerm={() => { if (!term || !props.onTerm) return; setResource(null); props.onTerm(term.termId); }} />
       ) : null}
     </View>
   );
 }
 
-const CALLOUTS: Record<string, { icon: IconName; label: string; tone: 'amber' | 'brand' | 'green' | 'gray' }> = {
-  action: { icon: 'clock', label: 'Stop here', tone: 'amber' },
-  warning: { icon: 'flag', label: 'Careful', tone: 'amber' },
-  note: { icon: 'note', label: 'Note', tone: 'gray' },
-  question: { icon: 'help', label: 'Question', tone: 'brand' },
-  culture: { icon: 'globe', label: 'Culture', tone: 'green' }
+/** Each callout kind's icon and tone; its word is study/ui's `calloutLabel`. */
+const CALLOUTS: Record<CalloutKind, { icon: IconName; tone: 'amber' | 'brand' | 'green' | 'gray' }> = {
+  action: { icon: 'clock', tone: 'amber' },
+  warning: { icon: 'flag', tone: 'amber' },
+  note: { icon: 'note', tone: 'gray' },
+  question: { icon: 'help', tone: 'brand' },
+  culture: { icon: 'globe', tone: 'green' }
 };
 
 /** Inline text: bold, glossary words dotted-underlined, pictures and maps as links. */
@@ -148,7 +154,7 @@ function Inline(props: { text: string; resources: StudyResource[]; onOpenRef: (r
         const r = props.resources.find((x) => x.ref === p.ref);
         return (
           <Text key={i} onPress={() => props.onOpenRef(p.ref)} accessibilityRole="link" suppressHighlighting={false}
-            accessibilityHint={r?.kind === 'term' ? 'Tap for its meaning' : 'Opens the picture'}
+            accessibilityHint={r?.kind === 'term' ? t('study.guide.tapForMeaning') : t('study.guide.opensPicture')}
             style={r?.kind === 'term' ? styles.word : styles.link}>{p.text}</Text>
         );
       })}
@@ -166,9 +172,10 @@ function SectionView(props: {
   const links = inlineParts(sec.text).flatMap((p) => (p.type === 'link' ? [p] : []));
   const media = links.map((l) => props.resources.find((r) => r.ref === l.ref)).filter((r): r is StudyResource => !!r && r.kind !== 'term');
   const inline = <Inline text={sec.text} resources={props.resources} onOpenRef={props.onOpenRef} />;
-  const select = useHelpPress(question ? 'A question' : 'This part', props.canContribute ? (question ? 'Tap it to answer.' : 'Tap it to add a note.') : undefined, props.onSelect);
+  const select = useHelpPress(question ? t('study.guide.help.question') : t('study.guide.help.part'),
+    props.canContribute ? (question ? t('study.guide.help.tapToAnswer') : t('study.guide.help.tapToNote')) : undefined, props.onSelect);
   const body = isCallout(sec.kind) ? (
-    <Callout {...(CALLOUTS[sec.kind] ?? CALLOUTS.action!)}>{inline}</Callout>
+    <Callout {...CALLOUTS[sec.kind]} label={calloutLabel(sec.kind)}>{inline}</Callout>
   ) : sec.kind === 'item' ? (
     <View style={{ flexDirection: 'row', gap: space.sm }}>
       <Text style={[styles.reading, styles.itemMark]}>{sec.n ? `${sec.n}.` : '•'}</Text>
@@ -184,11 +191,11 @@ function SectionView(props: {
       </Pressable>
       {props.selected && props.canContribute ? (
         <View style={{ flexDirection: 'row' }}>
-          <SmallBtn label={question ? 'Answer' : 'Add a note'} icon={question ? 'mic' : 'note'} tone="primary" onPress={props.onAdd} />
+          <SmallBtn label={question ? t('study.guide.answer') : t('common.addNote')} icon={question ? 'mic' : 'note'} tone="primary" onPress={props.onAdd} />
         </View>
       ) : null}
       {media.map((r) => <MediaCard key={r.ref} resource={r} orgId={props.orgId} onPress={() => props.onOpenRef(r.ref)} />)}
-      {props.notes.map((n) => <StudyNote key={n.id} ctx={props.ctx} note={n} label={question ? 'Answer' : undefined} />)}
+      {props.notes.map((n) => <StudyNote key={n.id} ctx={props.ctx} note={n} label={question ? t('study.guide.answerNote') : undefined} />)}
     </View>
   );
 }
@@ -198,10 +205,10 @@ function MediaCard(props: { resource: StudyResource; orgId: string | null; onPre
   const first = props.resource.media?.[0];
   const { uri } = useStudyFileUri(props.orgId, first?.file, first?.url);
   const [failed, setFailed] = useState(false);
-  const onPress = useHelpPress(props.resource.title, 'Shows the picture full size.', props.onPress);
+  const onPress = useHelpPress(props.resource.title, t('study.guide.help.picture'), props.onPress);
   const picture = uri && !failed && first?.kind !== 'video';
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`Picture: ${props.resource.title}`}
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={t('study.guide.picture', { title: props.resource.title })}
       style={({ pressed }) => [styles.media, pressed && ps.pressed]}>
       <View style={styles.thumb}>
         {picture ? <Image source={{ uri }} style={StyleSheet.absoluteFill} resizeMode="cover" onError={() => setFailed(true)} />

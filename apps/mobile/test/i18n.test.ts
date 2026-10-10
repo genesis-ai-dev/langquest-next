@@ -50,7 +50,9 @@ describe('the app writes no words into its code (LAN-42)', () => {
   it('defines every key the code uses, and uses every key it defines', () => {
     const literals = new Set<string>();
     const prefixes = new Set<string>();
-    for (const path of files) {
+    // The i18n module itself uses keys too (format.ts: time.*, units.*).
+    const i18nFiles = readdirSync(DIR).filter((f) => /\.tsx?$/.test(f) && !f.endsWith('.d.ts')).map((f) => join(DIR, f));
+    for (const path of [...files, ...i18nFiles]) {
       const named = keysNamed(path, readFileSync(path, 'utf8'));
       named.literals.forEach((k) => literals.add(k));
       named.prefixes.forEach((p) => prefixes.add(p));

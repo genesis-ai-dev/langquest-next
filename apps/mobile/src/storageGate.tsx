@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Platform, ScrollView, Text, View } from 'react-native';
+import { t } from './i18n';
 import { EmptyState, GhostBtn, PrimaryBtn, txt } from './kit';
 import { reportError } from './report';
 import { allowStorage, onStoreFailure } from './store';
@@ -86,9 +87,9 @@ export function StorageGate(props: { children: ReactNode }) {
       setTab('ready');
       return;
     }
-    const t = startTab(deps, setTab);
-    setActions({ useHere: () => { tookFlag('set'); t.useHere(); } });
-    return () => t.stop();
+    const lock = startTab(deps, setTab);
+    setActions({ useHere: () => { tookFlag('set'); lock.useHere(); } });
+    return () => lock.stop();
   }, []);
 
   const last = useRef<TabState>(tab);
@@ -108,14 +109,10 @@ export function StorageGate(props: { children: ReactNode }) {
   if (failure) {
     return (
       <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.md, flexGrow: 1, justifyContent: 'center', backgroundColor: C.bg }}>
-        <Text style={txt.h2} accessibilityRole="header">LangQuest could not open its storage</Text>
-        <Text style={txt.body}>
-          {WEB
-            ? 'Nothing was deleted. If LangQuest is open in another tab or window, close it, then try again. A private or incognito window cannot keep LangQuest\'s files: use a normal window.'
-            : 'Nothing was deleted. Try again; if it keeps happening, restart the app.'}
-        </Text>
-        <Text style={txt.smMuted} selectable>Code for your team: {failure}</Text>
-        <PrimaryBtn label="Try again" icon="restart" onPress={() => {
+        <Text style={txt.h2} accessibilityRole="header">{t('entry.storage.title')}</Text>
+        <Text style={txt.body}>{WEB ? t('entry.storage.webBody') : t('entry.storage.phoneBody')}</Text>
+        <Text style={txt.smMuted} selectable>{t('entry.storage.code', { code: failure })}</Text>
+        <PrimaryBtn label={t('common.tryAgain')} icon="restart" onPress={() => {
           if (WEB) window.location.reload();
           else { setFailure(null); setAttempt((n) => n + 1); }
         }} />
@@ -124,15 +121,13 @@ export function StorageGate(props: { children: ReactNode }) {
   }
   if (tab === 'ready') return <View key={attempt} style={{ flex: 1 }}>{props.children}</View>;
   if (tab === 'checking') return null;
-  const title = tab === 'moved' ? 'LangQuest moved to another tab' : tab === 'waiting' ? 'Moving LangQuest to this tab…' : 'LangQuest is open in another tab';
-  const sub = tab === 'waiting'
-    ? 'The other tab saves what it has and steps aside.'
-    : 'It works in one tab at a time, so your recordings and changes stay in one place. Use it here, or go back to the other tab.';
+  const title = tab === 'moved' ? t('entry.storage.moved') : tab === 'waiting' ? t('entry.storage.moving') : t('entry.storage.elsewhere');
+  const sub = tab === 'waiting' ? t('entry.storage.movingSub') : t('entry.storage.elsewhereSub');
   return (
     <View style={{ flex: 1, justifyContent: 'center', backgroundColor: C.bg, padding: space.xl }}>
       <EmptyState icon="layers" title={title} sub={sub}>
         {tab !== 'waiting' && actions ? (
-          <View style={{ alignSelf: 'center' }}><GhostBtn label="Use it here" icon="swap" full={false} onPress={actions.useHere} /></View>
+          <View style={{ alignSelf: 'center' }}><GhostBtn label={t('entry.storage.useHere')} icon="swap" full={false} onPress={actions.useHere} /></View>
         ) : null}
       </EmptyState>
     </View>

@@ -13,14 +13,15 @@ describe('help mode', () => {
 
 describe('first-time screen intros (decision 71, demo a-helpFirst)', () => {
   it('the screens people open first each say what they are for, in a sentence or two', async () => {
-    const { SCREEN_INTROS } = await import('../src/helpContext');
+    const { INTRO_SCREENS, screenIntro } = await import('../src/helpContext');
     const { SCREEN_IDS } = await import('../src/flow');
     for (const id of ['my_work', 'passage_record', 'workspace', 'review_capture', 'back_translation', 'map_home', 'settings_home', 'get_ready']) {
-      expect(SCREEN_INTROS[id], id).toBeTruthy();
+      expect(screenIntro(id), id).toBeTruthy();
     }
-    for (const [id, text] of Object.entries(SCREEN_INTROS)) {
+    for (const id of INTRO_SCREENS) {
       expect(SCREEN_IDS as readonly string[], id).toContain(id);
-      expect(text!.length, id).toBeLessThan(160);
+      expect(screenIntro(id)!.length, id).toBeLessThan(160);
     }
+    expect(screenIntro('sign_in')).toBeUndefined();
   });
 });

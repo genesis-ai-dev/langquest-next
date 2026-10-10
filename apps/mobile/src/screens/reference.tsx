@@ -19,6 +19,8 @@ import * as Crypto from 'expo-crypto';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { Ctx } from '../ctx';
+import { t } from '../i18n';
+import { formatNumber } from '../i18n/format';
 import { indexesFor } from '../indexes';
 import {
   Badge, Banner, Card, Chip, ChipRow, Disclosure, EmptyState, GhostBtn, Group, Header, PrimaryBtn, ProgressBar, Row, Screen, SearchField,
@@ -30,7 +32,7 @@ import { noteExpected } from '../report';
 import { BibleError, bibleDetail, biblesIn, bibleSearchAvailable, heldDetail, searchLanguages, type BibleDetail, type BibleLanguage, type BibleSummary } from '../bibleBrain';
 import { coverage, coverageSummary, itemReaches, type Reach, type ReachWhy } from '../reference/coverage';
 import {
-  biblebrainItemId, booksOf, languageOf, offlineLine, orgLevelCan, recActions, recLabel, recState, REF_KIND_LABEL,
+  biblebrainItemId, booksOf, languageOf, offlineLine, orgLevelCan, recActions, recLabel, recOn, recState, recTone, refKindLabel,
   sourceFacts, sourceFromBible, sourceSummary, testamentLines, timingsNeeded, type Level, type RefKind
 } from '../reference/model';
 import {
@@ -38,11 +40,16 @@ import {
   versificationHash, type RefItem, type TimingJob
 } from '../reference/useReference';
 import { contractsFor } from '../screenContracts';
+import { bibleErrorText } from '../sources/bibleBrain';
 import { space, TINT } from '../theme';
 
 const STEP = 25;
 
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+/** A list of short things ("GEN, EXO"), with the language's separator. */
+const list = (items: string[]) => items.join(t('reference.listSeparator'));
+
+/** Where a source comes from, for its line: Bible Brain or the library. */
+const providerName = (kind: 'library' | 'biblebrain') => (kind === 'biblebrain' ? t('reference.provider.bibleBrain') : t('reference.provider.library'));
 
 /** May this person change recommendations here? The organization's need an organization-wide role; a language's, Manage Reference there. */
 function canActAt(ctx: Ctx, level: Level): boolean {
@@ -51,7 +58,7 @@ function canActAt(ctx: Ctx, level: Level): boolean {
 
 function levelName(ctx: Ctx, level: Level): string {
   if (level.kind === 'language') return languageName(ctx.org.state, level.languageId);
-  return ctx.org.state?.org?.value.name ?? 'Organization';
+  return ctx.org.state?.org?.value.name ?? t('reference.organization');
 }
 
 const levelParams = (level: Level): Record<string, string> => (level.kind === 'language' ? { languageId: level.languageId } : {});
@@ -59,8 +66,6 @@ const levelParams = (level: Level): Record<string, string> => (level.kind === 'l
 function Intro(props: { children: ReactNode }) {
   return <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{props.children}</Text>;
 }
-
-const recTone = (label: string) => (label.startsWith('Recommended') ? 'green' : label.startsWith('Hidden') ? 'amber' : 'default') as 'green' | 'amber' | 'default';
 
 /** Recommend, stop, hide or follow the organization, for one item at this level. */
 function RecButtons(props: { ctx: Ctx; level: Level; itemId: string; name: string; rec: ReturnType<typeof useRecommend> }) {
@@ -98,7 +103,7 @@ export function ReferenceBibles(ctx: Ctx) {
     return () => { active = false; };
   }, [bibleIds]);
 
-  if (!ctx.language.state || !ctx.org.state) return <Screen header={<Header title="Bibles" onBack={ctx.back} />}><EmptyState title="Loading…" /></Screen>;
+  if (!ctx.language.state || !ctx.org.state) return <Screen header={<Header title={t('reference.bibles.title')} onBack={ctx.back} />}><EmptyState title={t('common.loading')} /></Screen>;
   const sources = rows.filter((r) => r.kind === 'source' && !r.it.archived);
   const loading = rows.some((r) => r.doc === null);
   const withRec = sources.map((r) => ({ r, s: recState(ctx.org.state?.recommendations, ctx.language.state, level, r.it.itemId) }));
@@ -109,15 +114,16 @@ export function ReferenceBibles(ctx: Ctx) {
   const card = ({ r }: (typeof withRec)[number]) => {
     const doc = r.doc as SourceDoc;
     const facts = sourceFacts(doc, docs.get, doc.provider.kind === 'biblebrain' ? heldDetail(doc.provider.bibleId) : null);
-    const label = recLabel(recState(ctx.org.state?.recommendations, ctx.language.state, level, r.it.itemId), level);
+    const st = recState(ctx.org.state?.recommendations, ctx.language.state, level, r.it.itemId);
+    const label = recLabel(st, level);
     return (
       <Card key={r.it.itemId} current={beside?.screen === 'reference_source' && beside.params['itemId'] === r.it.itemId}
-        onPress={() => ctx.go('reference_source', { itemId: r.it.itemId, ...levelParams(level) })} accessibilityLabel={`${r.it.name}. ${label}`}>
+        onPress={() => ctx.go('reference_source', { itemId: r.it.itemId, ...levelParams(level) })} accessibilityLabel={t('reference.itemLabel', { name: r.it.name, state: label })}>
         <View style={styles.titleRow}>
           <Text style={[txt.h3, { flex: 1 }]}>{r.it.name}</Text>
-          <Badge label={label} tone={recTone(label)} />
+          <Badge label={label} tone={recTone(st)} />
         </View>
-        <Text style={txt.xs}>{`${doc.abbreviation} · ${doc.language.toUpperCase()} · ${doc.provider.kind === 'biblebrain' ? 'Bible Brain' : 'LangQuest library'} · ${sourceLine(r.it)}`}</Text>
+        <Text style={txt.xs}>{[doc.abbreviation, doc.language.toUpperCase(), providerName(doc.provider.kind), sourceLine(r.it)].join(' · ')}</Text>
         <Text style={txt.sm}>{sourceSummary(facts)}</Text>
         {canAct ? <RecButtons ctx={ctx} level={level} itemId={r.it.itemId} name={r.it.name} rec={rec} /> : null}
       </Card>
@@ -125,27 +131,23 @@ export function ReferenceBibles(ctx: Ctx) {
   };
 
   return (
-    <Screen header={<Header title="Bibles" sub={levelName(ctx, level)} onBack={ctx.back} />}
-      footer={canAct || ctx.session.can('manage_reference') ? <PrimaryBtn label="Add a Bible" icon="plus" onPress={() => setAdding(true)} /> : undefined}>
-      <Intro>
-        {level.kind === 'org'
-          ? 'What the organization recommends to every language. Language admins can add or hide some for their team, and translators can still explore any Bible online.'
-          : 'What this language’s team is offered: the organization’s recommendations, with what you add or hide here. Translators can still explore any Bible online.'}
-      </Intro>
-      <SectionLabel label={`Recommended · ${on.length}`} />
+    <Screen header={<Header title={t('reference.bibles.title')} sub={levelName(ctx, level)} onBack={ctx.back} />}
+      footer={canAct || ctx.session.can('manage_reference') ? <PrimaryBtn label={t('reference.bibles.add')} icon="plus" onPress={() => setAdding(true)} /> : undefined}>
+      <Intro>{level.kind === 'org' ? t('reference.bibles.introOrg') : t('reference.bibles.introLanguage')}</Intro>
+      <SectionLabel label={t('reference.bibles.recommended', { n: on.length })} />
       {on.length ? on.slice(0, n).map(card) : (
-        <Card><Text style={txt.smMuted}>{loading ? 'Loading…' : 'No Bible is recommended here yet. Add one, or recommend one below.'}</Text></Card>
+        <Card><Text style={txt.smMuted}>{loading ? t('common.loading') : t('reference.bibles.noneRecommended')}</Text></Card>
       )}
       <ShowMore remaining={on.length - n} step={STEP} onMore={() => setN(n + STEP)} />
       {hidden.length ? (
         <>
-          <SectionLabel label={`Hidden for this language · ${hidden.length}`} />
+          <SectionLabel label={t('reference.bibles.hidden', { n: hidden.length })} />
           {hidden.map(card)}
         </>
       ) : null}
       {off.length ? (
         <>
-          <SectionLabel label={`In your library, not recommended · ${off.length}`} />
+          <SectionLabel label={t('reference.bibles.notRecommended', { n: off.length })} />
           {off.map(card)}
         </>
       ) : null}
@@ -203,14 +205,14 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
       await rec.run(level, itemId, s.name, 'recommend');
       props.onClose();
     } catch (e) {
-      ctx.toast(`Not added. ${referenceFailure('add ready source', e)}`);
+      ctx.toast(t('reference.addBible.notAdded', { reason: referenceFailure('add ready source', e) })); // i18n-ignore: 'add ready source' is a log label
     } finally {
       setBusy(false);
     }
   }
   async function pick(b: BibleSummary) {
     setBusy(true);
-    try { setPicked(await bibleDetail(b.bibleId)); } catch (e) { ctx.toast(referenceFailure('bible detail', e)); } finally { setBusy(false); }
+    try { setPicked(await bibleDetail(b.bibleId)); } catch (e) { ctx.toast(referenceFailure('bible detail', e)); } finally { setBusy(false); } // i18n-ignore: 'bible detail' is a log label
   }
   async function addBibleBrain(d: BibleDetail) {
     setBusy(true);
@@ -218,12 +220,13 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
       const itemId = biblebrainItemId(d.bibleId);
       if (!lib.item(itemId)?.current) {
         const v11n = await versificationHash(lib, 'eng', sharedV.rows);
+        // i18n-ignore: the item's description is stored in the organization's library (its event log)
         await lib.publish({ kind: 'material', itemId, name: d.name, description: `Bible Brain · ${d.languageName}`, doc: sourceFromBible(d, v11n) });
       }
       await rec.run(level, itemId, d.name, 'recommend');
       props.onClose();
     } catch (e) {
-      ctx.toast(`Not added. ${referenceFailure('add bible brain source', e)}`);
+      ctx.toast(t('reference.addBible.notAdded', { reason: referenceFailure('add bible brain source', e) })); // i18n-ignore: 'add bible brain source' is a log label
     } finally {
       setBusy(false);
     }
@@ -231,12 +234,12 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
 
   const facts = picked ? sourceFacts(sourceFromBible(picked, '0'.repeat(64)), () => null, picked) : null;
   return (
-    <Sheet visible title={picked ? picked.name : 'Add a Bible'} onClose={props.onClose}
-      sub={picked ? `${picked.abbreviation} · ${picked.languageName} · Bible Brain` : 'It is recommended here once added. Translators see whether it has audio and whether it can be kept offline.'}
+    <Sheet visible title={picked ? picked.name : t('reference.addBible.title')} onClose={props.onClose}
+      sub={picked ? [picked.abbreviation, picked.languageName, providerName('biblebrain')].join(' · ') : t('reference.addBible.sub')}
       footer={picked ? (
         <>
-          <PrimaryBtn label="Add and recommend" onPress={() => void addBibleBrain(picked)} busy={busy} />
-          <GhostBtn label="Back to the list" onPress={() => setPicked(null)} />
+          <PrimaryBtn label={t('reference.addBible.addAndRecommend')} onPress={() => void addBibleBrain(picked)} busy={busy} />
+          <GhostBtn label={t('reference.addBible.backToList')} onPress={() => setPicked(null)} />
         </>
       ) : undefined}>
       {picked && facts ? (
@@ -250,26 +253,26 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
       ) : (
         <>
           <ChipRow>
-            <Chip label="From LangQuest" on={tab === 'ready'} onPress={() => setTab('ready')} />
-            <Chip label="Bible Brain" icon="search" on={tab === 'biblebrain'} onPress={() => setTab('biblebrain')} />
+            <Chip label={t('reference.addBible.fromLangQuest')} on={tab === 'ready'} onPress={() => setTab('ready')} />
+            <Chip label={providerName('biblebrain')} icon="search" on={tab === 'biblebrain'} onPress={() => setTab('biblebrain')} />
           </ChipRow>
           {tab === 'ready' ? (
-            !shared.loaded ? <Text style={txt.smMuted}>Loading…</Text>
-              : ready.length === 0 ? <Text style={txt.smMuted}>{shared.error ? 'Could not load the list. Try again when you are online.' : 'Nothing more to add from LangQuest.'}</Text>
+            !shared.loaded ? <Text style={txt.smMuted}>{t('common.loading')}</Text>
+              : ready.length === 0 ? <Text style={txt.smMuted}>{shared.error ? t('reference.addBible.listNotLoaded') : t('reference.addBible.nothingMore')}</Text>
               : (
                 <Group>
                   {ready.map((s, i) => {
                     const doc = readyDocs.get(s.latest_hash) as SourceDoc;
                     return <Row key={`${s.org_id}/${s.item_id}`} icon="book" label={s.name} disabled={busy} last={i === ready.length - 1}
-                      sub={`${s.org_name} · ${sourceSummary(sourceFacts(doc, readyDocs.get))}`} onPress={() => void addReady(s)} />;
+                      sub={[s.org_name, sourceSummary(sourceFacts(doc, readyDocs.get))].join(' · ')} onPress={() => void addReady(s)} />;
                   })}
                 </Group>
               )
           ) : !bibleSearchAvailable ? (
-            <Text style={txt.smMuted}>Bible Brain is reached through the LangQuest server, which this build does not name.</Text>
+            <Text style={txt.smMuted}>{t('reference.addBible.noServer')}</Text>
           ) : (
             <>
-              <SearchField value={q} onChangeText={(v) => { setQ(v); setLang(null); }} placeholder="Language name or code" />
+              <SearchField value={q} onChangeText={(v) => { setQ(v); setLang(null); }} placeholder={t('reference.addBible.searchPlaceholder')} />
               {error ? <Text style={txt.error}>{error}</Text> : null}
               {languages.length ? (
                 <ChipRow>
@@ -278,8 +281,8 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
                   ))}
                 </ChipRow>
               ) : null}
-              {lang && bibles === null && !error ? <Text style={txt.smMuted}>Loading…</Text> : null}
-              {bibles && bibles.length === 0 ? <Text style={txt.smMuted}>Bible Brain has no Bible in this language.</Text> : null}
+              {lang && bibles === null && !error ? <Text style={txt.smMuted}>{t('common.loading')}</Text> : null}
+              {bibles && bibles.length === 0 ? <Text style={txt.smMuted}>{t('reference.addBible.noneInLanguage')}</Text> : null}
               {bibles && bibles.length ? (
                 <Group>
                   {bibles.map((b, i) => (
@@ -298,16 +301,18 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
 
 /** Why a Bible Brain search failed, plainly: a server without the Bible routes answers 404. */
 function searchFailure(e: unknown): string {
-  if (e instanceof BibleError && e.status === 404) return 'This server does not offer Bible Brain search yet.';
-  return e instanceof Error ? e.message : 'Not connected.';
+  if (e instanceof BibleError && e.status === 404) return t('reference.addBible.noSearch');
+  // Bible Brain's errors are already in the language showing; anything else is said plainly.
+  return e instanceof BibleError ? e.message : bibleErrorText(e);
 }
 
 /** "Text OT NT · audio NT · FCBH timings" for a search result. */
 function bibleLine(b: BibleSummary): string {
-  const t = (x: { OT?: string; NT?: string }) => [x.OT ? 'OT' : '', x.NT ? 'NT' : ''].filter(Boolean).join(' ');
-  const text = t(b.text), audio = t(b.audio);
+  const text = b.text.OT && b.text.NT ? t('reference.media.textOTNT') : b.text.OT ? t('reference.media.textOT') : b.text.NT ? t('reference.media.textNT') : t('reference.media.noText');
+  const hasAudio = !!(b.audio.OT || b.audio.NT);
+  const audio = b.audio.OT && b.audio.NT ? t('reference.media.audioOTNT') : b.audio.OT ? t('reference.media.audioOT') : b.audio.NT ? t('reference.media.audioNT') : t('reference.media.noAudio');
   const timed = (b.timestamps.OT && b.audio.OT) || (b.timestamps.NT && b.audio.NT);
-  return [text ? `Text ${text}` : 'No text', audio ? `audio ${audio}` : 'no audio', audio ? (timed ? 'FCBH timings' : 'no timings') : ''].filter(Boolean).join(' · ');
+  return [text, audio, hasAudio ? (timed ? t('reference.media.fcbhTimings') : t('reference.media.noTimings')) : ''].filter(Boolean).join(' · ');
 }
 
 // ─── One Bible ───────────────────────────────────────────────────────────────────────
@@ -332,7 +337,7 @@ export function ReferenceSource(ctx: Ctx) {
   useEffect(() => {
     if (!bibleId || detail) return;
     let active = true;
-    bibleDetail(bibleId).then((d) => { if (active) setDetail(d); }).catch((e: unknown) => { if (active) setDetailError(referenceFailure('bible detail', e)); });
+    bibleDetail(bibleId).then((d) => { if (active) setDetail(d); }).catch((e: unknown) => { if (active) setDetailError(referenceFailure('bible detail', e)); }); // i18n-ignore: 'bible detail' is a log label
     return () => { active = false; };
   }, [bibleId, detail]);
   // Asking for timings and publishing them are organization-wide acts (request_timings, the source's next version).
@@ -342,12 +347,13 @@ export function ReferenceSource(ctx: Ctx) {
   const outcomes = useTimingPublisher(ctx, lib, it, jobs, timed && canOrg);
 
   if (!it || !source) {
-    return <Screen header={<Header title="Bible" onBack={ctx.back} />}><EmptyState icon="book" title={it && !row?.doc ? 'Loading…' : 'This Bible is not here any more'} /></Screen>;
+    return <Screen header={<Header title={t('reference.source.title')} onBack={ctx.back} />}><EmptyState icon="book" title={it && !row?.doc ? t('common.loading') : t('reference.source.gone')} /></Screen>;
   }
   const facts = sourceFacts(source, (h) => bookDocs.get(h) ?? docs.get(h), detail);
   const need = timingsNeeded(source, facts, detail);
   const r = recState(ctx.org.state?.recommendations, ctx.language.state, level, it.itemId);
   const label = recLabel(r, level);
+  const booksToTime = need.requests.reduce((n, q) => n + q.books.length, 0);
   const open = jobs.filter((j) => !j.finished_at);
   const followed = it.source === 'subscription';
   // Following LangQuest's own source: the timings go to LangQuest's copy, for everyone who follows it.
@@ -363,10 +369,10 @@ export function ReferenceSource(ctx: Ctx) {
         await requestTimings(lib.orgId, { itemId: it.itemId, bibleId: q.bibleId, audioFileset: q.audioFileset, textFileset: q.textFileset, books: q.books, versification,
           ...(viaLangQuest ? { publishTo: viaLangQuest } : {}) });
       }
-      ctx.toast(`Asked for verse timings for ${plural(need.requests.reduce((n, q) => n + q.books.length, 0), 'book')}. Progress shows here.`);
+      ctx.toast(t('reference.source.asked', { count: booksToTime }));
       await refresh();
     } catch (e) {
-      ctx.toast(`Not asked. ${referenceFailure('request timings', e)}`);
+      ctx.toast(t('reference.source.notAsked', { reason: referenceFailure('request timings', e) })); // i18n-ignore: 'request timings' is a log label
     } finally {
       setAsking(false);
     }
@@ -374,50 +380,55 @@ export function ReferenceSource(ctx: Ctx) {
 
   const timedBooks = facts.books.filter((b) => b.timed > 0).length;
   return (
-    <Screen header={<Header title={it.name} sub={`${source.abbreviation} · ${source.language.toUpperCase()} · ${source.provider.kind === 'biblebrain' ? 'Bible Brain' : 'LangQuest library'}`} onBack={ctx.back} />}
-      footer={mayAsk ? <PrimaryBtn label="Generate verse timings" icon="clock" onPress={() => void ask()} busy={asking} /> : undefined}>
+    <Screen header={<Header title={it.name} sub={[source.abbreviation, source.language.toUpperCase(), providerName(source.provider.kind)].join(' · ')} onBack={ctx.back} />}
+      footer={mayAsk ? <PrimaryBtn label={t('reference.source.generate')} icon="clock" onPress={() => void ask()} busy={asking} /> : undefined}>
       <Card>
         <View style={styles.titleRow}>
           <Text style={[txt.h3, { flex: 1 }]}>{levelName(ctx, level)}</Text>
-          <Badge label={label} tone={recTone(label)} />
+          <Badge label={label} tone={recTone(r)} />
         </View>
         {canAct ? <RecButtons ctx={ctx} level={level} itemId={it.itemId} name={it.name} rec={rec} /> : null}
       </Card>
 
-      <SectionLabel label="What it offers" />
+      <SectionLabel label={t('reference.source.offers')} />
       <Group>
         {testamentLines(facts).map((l, i, all) => <Row key={l.testament} icon="book" label={l.label} sub={l.line} last={i === all.length - 1} />)}
       </Group>
       <Text style={[txt.sm, { paddingHorizontal: space.xs }]}>{offlineLine(facts)}</Text>
-      {detailError && source.provider.kind === 'biblebrain' ? <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>{`Could not ask Bible Brain for the latest: ${detailError}`}</Text> : null}
+      {detailError && source.provider.kind === 'biblebrain' ? <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>{t('reference.source.detailFailed', { reason: detailError })}</Text> : null}
       {facts.copyright.length ? (
         <Card>
           {facts.copyright.map((c) => <Text key={c} style={txt.xs}>{c}</Text>)}
-          {source.provider.kind === 'biblebrain' ? <Text style={txt.xs}>Text and audio from Bible Brain (Faith Comes By Hearing), under its terms.</Text> : null}
+          {source.provider.kind === 'biblebrain' ? <Text style={txt.xs}>{t('reference.source.fromBibleBrain')}</Text> : null}
         </Card>
       ) : null}
       <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>{sourceLine(it)}</Text>
 
-      <Disclosure icon="clock" title="Verse timings by book" summary={`${timedBooks} of ${plural(facts.books.length, 'book')} timed here`} {...booksOpen}>
+      <Disclosure icon="clock" title={t('reference.source.timingsByBook')} summary={t('reference.source.booksTimed', { timed: timedBooks, count: facts.books.length })} {...booksOpen}>
         {facts.books.map((b, i) => (
           <Row key={b.book} label={b.name} last={i === facts.books.length - 1}
-            sub={facts.timings[testamentOf(b.book)] === 'fcbh' ? 'Timings by FCBH'
-              : b.timed === 0 ? (!facts.audio[testamentOf(b.book)] ? 'No audio' : facts.timings[testamentOf(b.book)] === 'unknown' ? 'Not known until Bible Brain answers' : 'No timings')
-              : `${b.timed}${b.chapters ? ` of ${b.chapters}` : ''} chapters timed · ${b.sources.map((s) => (s === 'generated' ? 'generated' : s === 'fcbh' ? 'FCBH' : 'corrected')).join(', ')}`} />
+            sub={facts.timings[testamentOf(b.book)] === 'fcbh' ? t('reference.source.bookFcbh')
+              : b.timed === 0 ? (!facts.audio[testamentOf(b.book)] ? t('reference.source.bookNoAudio') : facts.timings[testamentOf(b.book)] === 'unknown' ? t('reference.source.bookUnknown') : t('reference.source.bookNoTimings'))
+              : [
+                b.chapters ? t('reference.source.chaptersTimedOf', { timed: b.timed, count: b.chapters }) : t('reference.source.chaptersTimed', { count: b.timed }),
+                list(b.sources.map((s) => (s === 'generated' ? t('reference.source.timingGenerated') : s === 'fcbh' ? t('reference.source.timingFcbh') : t('reference.source.timingCorrected'))))
+              ].join(' · ')} />
         ))}
       </Disclosure>
 
       {source.provider.kind === 'biblebrain' && canManage ? (
         <>
-          <SectionLabel label="Generating timings" />
-          {need.reason ? <Banner icon="lock" tone="amber" title="These timings can't be generated" body={need.reason} /> : null}
-          {followed && need.requests.length && !viaLangQuest ? <Banner icon="link" title={`Follows ${it.subscription?.sourceOrgName ?? 'another organization'}`} body="Timings are added by whoever publishes it. Copy it to add your own." /> : null}
-          {viaLangQuest && need.requests.length ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>This Bible follows LangQuest. Timings you ask for are added to LangQuest's copy, so every organization that follows it gets them.</Text> : null}
-          {!need.reason && need.requests.length === 0 && detail ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>Every book with audio has verse timings.</Text> : null}
-          {!detail && !detailError ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>Checking Bible Brain…</Text> : null}
-          {mayAsk ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{`${plural(need.requests.reduce((n, q) => n + q.books.length, 0), 'book')} of audio without timings. Timings let translators hear one verse at a time.`}</Text> : null}
+          <SectionLabel label={t('reference.source.generating')} />
+          {need.reason ? <Banner icon="lock" tone="amber" title={t('reference.source.cannotGenerate')} body={need.reason} /> : null}
+          {followed && need.requests.length && !viaLangQuest ? <Banner icon="link"
+            title={it.subscription?.sourceOrgName ? t('reference.source.follows', { org: it.subscription.sourceOrgName }) : t('reference.source.followsAnother')}
+            body={t('reference.source.followsBody')} /> : null}
+          {viaLangQuest && need.requests.length ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('reference.source.viaLangQuest')}</Text> : null}
+          {!need.reason && need.requests.length === 0 && detail ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('reference.source.allTimed')}</Text> : null}
+          {!detail && !detailError ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('reference.source.checking')}</Text> : null}
+          {mayAsk ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('reference.source.untimedBooks', { count: booksToTime })}</Text> : null}
           {jobs.map((j) => <JobCard key={j.id} job={j} outcome={outcomes[j.id]} ctx={ctx} onRetry={async () => {
-            try { await publishTimingJob(lib, it, j.id); ctx.toast('Timings published.'); } catch (e) { ctx.toast(`Not published. ${referenceFailure('publish timings', e)}`); }
+            try { await publishTimingJob(lib, it, j.id); ctx.toast(t('reference.source.published')); } catch (e) { ctx.toast(t('reference.source.notPublished', { reason: referenceFailure('publish timings', e) })); } // i18n-ignore: 'publish timings' is a log label
           }} />)}
         </>
       ) : null}
@@ -428,17 +439,20 @@ export function ReferenceSource(ctx: Ctx) {
 function JobCard(props: { ctx: Ctx; job: TimingJob; outcome?: Awaited<ReturnType<typeof publishTimingJob>> | { error: string }; onRetry: () => Promise<void> }) {
   const { job: j, outcome } = props;
   const failedOpen = props.ctx.details(`reference:job:${j.id}:failed`);
-  const what = `${plural(j.books.length, 'book')} · ${j.audio_fileset}`;
-  const state = j.error ? `Stopped: ${j.error}`
-    : j.finished_at ? `Finished · ${j.results - j.failed} of ${plural(j.results, 'chapter')} passed`
-    : j.claimed_at ? `Working · ${j.done} of ${j.total || '?'} chapters${j.note ? ` · ${j.note}` : ''}`
-    : 'Waiting for the timing service';
+  const what = t('reference.job.what', { count: j.books.length, fileset: j.audio_fileset });
+  // The timing service writes its error and progress note itself, in English.
+  const working = j.total ? t('reference.job.working', { done: j.done, count: j.total }) : t('reference.job.workingUnknown', { done: j.done });
+  const state = j.error ? t('reference.job.stopped', { reason: j.error })
+    : j.finished_at ? t('reference.job.finished', { passed: j.results - j.failed, count: j.results })
+    : j.claimed_at ? (j.note ? [working, j.note].join(' · ') : working)
+    : t('reference.job.waitingForService');
   const failed = outcome && 'failed' in outcome ? outcome.failed : [];
   return (
     <Card>
       <View style={styles.titleRow}>
         <Text style={[txt.h3, { flex: 1 }]}>{what}</Text>
-        <Badge label={j.error ? 'Stopped' : j.finished_at ? 'Done' : j.claimed_at ? 'Working' : 'Waiting'} tone={j.error ? 'red' : j.finished_at ? 'green' : 'amber'} />
+        <Badge label={j.error ? t('reference.job.badgeStopped') : j.finished_at ? t('reference.job.badgeDone') : j.claimed_at ? t('reference.job.badgeWorking') : t('reference.job.badgeWaiting')}
+          tone={j.error ? 'red' : j.finished_at ? 'green' : 'amber'} />
       </View>
       <Text style={txt.sm}>{state}</Text>
       {!j.finished_at && j.total > 0 ? (
@@ -446,28 +460,65 @@ function JobCard(props: { ctx: Ctx; job: TimingJob; outcome?: Awaited<ReturnType
       ) : null}
       {outcome && 'error' in outcome ? (
         <>
-          <Text style={txt.error}>{`Not published yet. ${outcome.error}`}</Text>
-          <SmallBtn label="Try again" icon="restart" onPress={() => void props.onRetry()} />
+          <Text style={txt.error}>{t('reference.job.notPublishedYet', { reason: outcome.error })}</Text>
+          <SmallBtn label={t('common.tryAgain')} icon="restart" onPress={() => void props.onRetry()} />
         </>
       ) : null}
       {outcome && 'placed' in outcome ? (
-        <Text style={txt.xs}>{outcome.placed.length ? `Published: ${plural(outcome.placed.length, 'chapter')}.` : 'Already published.'}{outcome.kept.length ? ` ${plural(outcome.kept.length, 'chapter')} kept the timings they had.` : ''}{outcome.skipped.length ? ` ${plural(outcome.skipped.length, 'chapter')} use FCBH's timings live.` : ''}</Text>
+        <Text style={txt.xs}>{[
+          outcome.placed.length ? t('reference.job.publishedChapters', { count: outcome.placed.length }) : t('reference.job.alreadyPublished'),
+          outcome.kept.length ? t('reference.job.keptTimings', { count: outcome.kept.length }) : null,
+          outcome.skipped.length ? t('reference.job.fcbhLive', { count: outcome.skipped.length }) : null
+        ].filter(Boolean).join(' ')}</Text>
       ) : null}
       {failed.length ? (
-        <Disclosure icon="flag" title="Did not pass" summary={`${plural(failed.length, 'chapter')}, not published`} {...failedOpen}>
-          {failed.map((f, i) => <Row key={`${f.book}.${f.chapter}`} label={`${f.book} ${f.chapter}`} sub={f.reason} last={i === failed.length - 1} />)}
+        <Disclosure icon="flag" title={t('reference.job.didNotPass')} summary={t('reference.job.notPublishedChapters', { count: failed.length })} {...failedOpen}>
+          {failed.map((f, i) => <Row key={`${f.book}.${f.chapter}`} label={`${f.book} ${formatNumber(f.chapter)}`} sub={failReason(f.reason)} last={i === failed.length - 1} />)}
         </Disclosure>
       ) : null}
     </Card>
   );
 }
 
+/**
+ * Why a chapter did not pass, in the language showing. Core's
+ * `timingPublication` words these in English; the aligner's own reason
+ * after "Verse 3:" is its own and stays as it wrote it.
+ */
+function failReason(reason: string): string {
+  switch (reason) {
+    case 'Not a timing document': return t('reference.job.reason.notTiming');
+    case 'This Bible does not have that book': return t('reference.job.reason.noSuchBook');
+    case 'The result names another chapter': return t('reference.job.reason.otherChapter');
+    case "This Bible's book is not loaded yet. Try again when connected.": return t('reference.job.reason.bookNotLoaded');
+    case 'Did not pass the check': return t('reference.job.reason.failedCheck');
+  }
+  let m = /^Numbered in a versification this organization does not have \((.*)\)$/.exec(reason);
+  if (m) return t('reference.job.reason.unknownVersification', { code: m[1] });
+  m = /^Not a valid timing: (.*)$/.exec(reason);
+  if (m) return t('reference.job.reason.invalid', { detail: m[1] });
+  m = /^Did not pass the check \(off by up to (\d+) ms\)$/.exec(reason);
+  if (m) return t('reference.job.reason.offBy', { ms: formatNumber(Number(m[1])) });
+  m = /^Verse (.+?): (.*?)(?: \(and (\d+) more\))?$/.exec(reason);
+  if (m) {
+    const flag = m[2] === 'flagged' ? t('reference.job.reason.flagged') : m[2]!;
+    return m[3] ? t('reference.job.reason.verseMore', { verse: m[1], reason: flag, count: Number(m[3]) }) : t('reference.job.reason.verse', { verse: m[1], reason: flag });
+  }
+  return reason;
+}
+
 // ─── Guides and notes ────────────────────────────────────────────────────────────────
 
 type KindFilter = 'all' | 'guide' | 'note' | 'other';
-const KIND_FILTERS: { id: KindFilter; label: string }[] = [
-  { id: 'all', label: 'All' }, { id: 'guide', label: 'Guides' }, { id: 'note', label: 'Notes' }, { id: 'other', label: 'Other' }
-];
+const KIND_FILTERS: KindFilter[] = ['all', 'guide', 'note', 'other'];
+function kindFilterLabel(k: KindFilter): string {
+  switch (k) {
+    case 'all': return t('reference.guides.kindAll');
+    case 'guide': return t('reference.guides.kindGuides');
+    case 'note': return t('reference.guides.kindNotes');
+    case 'other': return t('reference.guides.kindOther');
+  }
+}
 
 /** The open language's passages with their verses, in its template's numbering; null when `enabled` is false or no language is open. */
 function usePassages(ctx: Ctx, enabled: boolean) {
@@ -528,7 +579,7 @@ export function ReferenceGuides(ctx: Ctx) {
   // Material written in the app belongs to a language: shown at that language's level.
   const inApp = useMemo(() => (state && languageId ? materialsFor(state).filter((m) => m.kind !== 'questions' && m.kind !== 'key_terms') : []), [state, languageId]);
 
-  if (!state) return <Screen header={<Header title="Guides and Notes" onBack={ctx.back} />}><EmptyState title="Loading…" /></Screen>;
+  if (!state) return <Screen header={<Header title={t('reference.guides.title')} onBack={ctx.back} />}><EmptyState title={t('common.loading')} /></Screen>;
   const languages = [...new Set(items.map((r) => languageOf(r.doc)).filter((l): l is string => !!l))].sort();
   const books = [...new Set(items.flatMap((r) => booksOf(r.doc)))];
   const shown = items.filter((r) => (kind === 'all' || r.kind === kind)
@@ -536,29 +587,31 @@ export function ReferenceGuides(ctx: Ctx) {
     && (!book || booksOf(r.doc).includes(book))
     && (!reach || itemReaches(reach, r.it.itemId) > 0));
   const active = [kind !== 'all', !!language, !!book, covers].filter(Boolean).length;
-  const withRec = shown.map((r) => ({ r, label: recLabel(recState(ctx.org.state?.recommendations, state, level, r.it.itemId), level) }))
-    .sort((a, b) => Number(!a.label.startsWith('Recommended')) - Number(!b.label.startsWith('Recommended')) || a.r.it.name.localeCompare(b.r.it.name));
+  const withRec = shown.map((r) => {
+    const st = recState(ctx.org.state?.recommendations, state, level, r.it.itemId);
+    return { r, st, label: recLabel(st, level) };
+  }).sort((a, b) => Number(!recOn(a.st)) - Number(!recOn(b.st)) || a.r.it.name.localeCompare(b.r.it.name));
 
   return (
-    <Screen header={<Header title="Guides and Notes" sub={levelName(ctx, level)} onBack={ctx.back} />}
-      footer={ctx.session.can('manage_reference') ? <PrimaryBtn label="New note for translators" icon="plus" onPress={() => ctx.go('material_editor', { itemId: 'new', kind: 'note', ...levelParams(level) })} /> : undefined}>
-      <Intro>Study guides and notes reach the passages they are placed on, by verses or by a part of a content template. Recommended ones come first for translators.</Intro>
+    <Screen header={<Header title={t('reference.guides.title')} sub={levelName(ctx, level)} onBack={ctx.back} />}
+      footer={ctx.session.can('manage_reference') ? <PrimaryBtn label={t('reference.guides.newNote')} icon="plus" onPress={() => ctx.go('material_editor', { itemId: 'new', kind: 'note', ...levelParams(level) })} /> : undefined}>
+      <Intro>{t('reference.guides.intro')}</Intro>
       <ChipRow>
-        <Chip label={active ? `Filter · ${active}` : 'Filter'} icon="filter" on={active > 0} onPress={() => setFiltering(true)} />
-        {active ? <Chip label="Clear" on={false} onPress={() => { setKind('all'); setLanguage(null); setBook(null); setCovers(false); }} /> : null}
+        <Chip label={active ? t('reference.guides.filterCount', { n: active }) : t('common.filter')} icon="filter" on={active > 0} onPress={() => setFiltering(true)} />
+        {active ? <Chip label={t('reference.guides.clear')} on={false} onPress={() => { setKind('all'); setLanguage(null); setBook(null); setCovers(false); }} /> : null}
       </ChipRow>
-      <SectionLabel label={`In your library · ${shown.length}`} />
-      {covers && !reach ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>Working out coverage…</Text> : null}
+      <SectionLabel label={t('reference.guides.inLibrary', { n: shown.length })} />
+      {covers && !reach ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('reference.guides.workingOut')}</Text> : null}
       {withRec.length === 0 ? (
-        <Card><Text style={txt.smMuted}>{items.length ? 'Nothing matches the filter.' : 'No guides or notes in your library yet. Follow or copy what other organizations share under Reference Material, or write a note.'}</Text></Card>
-      ) : withRec.slice(0, n).map(({ r, label }) => (
+        <Card><Text style={txt.smMuted}>{items.length ? t('reference.guides.nothingMatches') : t('reference.guides.empty')}</Text></Card>
+      ) : withRec.slice(0, n).map(({ r, st, label }) => (
         <Card key={r.it.itemId} current={beside?.screen === 'material_editor' && beside.params['itemId'] === r.it.itemId}
           onPress={() => (r.doc?.format === 'study@2' && r.it.source !== 'subscription'
             ? ctx.go('guide_editor', { itemId: r.it.itemId, ...levelParams(level) })
-            : ctx.go('material_editor', { itemId: r.it.itemId, ...levelParams(level) }))} accessibilityLabel={`${r.it.name}. ${label}`}>
+            : ctx.go('material_editor', { itemId: r.it.itemId, ...levelParams(level) }))} accessibilityLabel={t('reference.itemLabel', { name: r.it.name, state: label })}>
           <View style={styles.titleRow}>
             <Text style={[txt.h3, { flex: 1 }]}>{r.it.name}</Text>
-            <Badge label={label} tone={recTone(label)} />
+            <Badge label={label} tone={recTone(st)} />
           </View>
           <Text style={txt.xs}>{guideLine(r, reach ? itemReaches(reach, r.it.itemId) : null)}</Text>
           {canAct ? <RecButtons ctx={ctx} level={level} itemId={r.it.itemId} name={r.it.name} rec={rec} /> : null}
@@ -568,43 +621,43 @@ export function ReferenceGuides(ctx: Ctx) {
 
       {inApp.length ? (
         <>
-          <SectionLabel label={`Written in the app · ${inApp.length}`} />
+          <SectionLabel label={t('reference.writtenInApp', { n: inApp.length })} />
           <Group>
             {inApp.slice(0, STEP).map((m, i) => (
               <Row key={m.materialId} icon="note" label={m.title} last={i === Math.min(inApp.length, STEP) - 1}
-                sub={m.scope.unitId ? `On ${unitTitle(state, m.scope.unitId)}` : 'For this language’s team'} />
+                sub={m.scope.unitId ? t('reference.guides.onPassage', { passage: unitTitle(state, m.scope.unitId) }) : t('reference.guides.forTeam')} />
             ))}
           </Group>
-          <Intro>These are offered wherever they are placed; edit them under Reference Material.</Intro>
+          <Intro>{t('reference.guides.inAppNote')}</Intro>
         </>
       ) : null}
 
-      <Sheet visible={filtering} title="Filter" onClose={() => setFiltering(false)} footer={<PrimaryBtn label={`Show ${plural(shown.length, 'item')}`} onPress={() => setFiltering(false)} />}>
-        <Text style={txt.xsStrong}>What kind</Text>
-        <ChipRow>{KIND_FILTERS.map((k) => <Chip key={k.id} label={k.label} on={kind === k.id} onPress={() => setKind(k.id)} />)}</ChipRow>
+      <Sheet visible={filtering} title={t('common.filter')} onClose={() => setFiltering(false)} footer={<PrimaryBtn label={t('reference.guides.showItems', { count: shown.length })} onPress={() => setFiltering(false)} />}>
+        <Text style={txt.xsStrong}>{t('reference.guides.whatKind')}</Text>
+        <ChipRow>{KIND_FILTERS.map((k) => <Chip key={k} label={kindFilterLabel(k)} on={kind === k} onPress={() => setKind(k)} />)}</ChipRow>
         {languages.length ? (
           <>
-            <Text style={txt.xsStrong}>Language</Text>
+            <Text style={txt.xsStrong}>{t('reference.guides.language')}</Text>
             <ChipRow>
-              <Chip label="Any" on={!language} onPress={() => setLanguage(null)} />
+              <Chip label={t('reference.guides.any')} on={!language} onPress={() => setLanguage(null)} />
               {languages.map((l) => <Chip key={l} label={l.toUpperCase()} on={language === l} onPress={() => setLanguage(l)} />)}
             </ChipRow>
           </>
         ) : null}
         {books.length ? (
           <>
-            <Text style={txt.xsStrong}>Book</Text>
+            <Text style={txt.xsStrong}>{t('reference.guides.book')}</Text>
             <ChipRow>
-              <Chip label="Any" on={!book} onPress={() => setBook(null)} />
+              <Chip label={t('reference.guides.any')} on={!book} onPress={() => setBook(null)} />
               {books.slice(0, 40).map((b) => <Chip key={b} label={b} on={book === b} onPress={() => setBook(b)} />)}
             </ChipRow>
           </>
         ) : null}
         {languageId ? (
           <Group>
-            <Row label="Covers this language’s passages" sub="Only what reaches at least one passage of its content template." role="switch" checked={covers} onPress={() => setCovers(!covers)} last />
+            <Row label={t('reference.guides.covers')} sub={t('reference.guides.coversSub')} role="switch" checked={covers} onPress={() => setCovers(!covers)} last />
           </Group>
-        ) : <Text style={txt.xs}>Open this from a language to filter by what covers its passages.</Text>}
+        ) : <Text style={txt.xs}>{t('reference.guides.coversFromLanguage')}</Text>}
       </Sheet>
     </Screen>
   );
@@ -612,16 +665,16 @@ export function ReferenceGuides(ctx: Ctx) {
 
 function guideLine(r: RefItem, reaches: number | null): string {
   const doc = r.doc;
-  const parts: string[] = [REF_KIND_LABEL[r.kind ?? 'other']];
+  const parts: string[] = [refKindLabel(r.kind ?? 'other')];
   const lang = languageOf(doc);
   if (lang) parts.push(lang.toUpperCase());
-  if (doc?.format === 'collection@1') parts.push(plural(doc.entries.length, 'passage'));
+  if (doc?.format === 'collection@1') parts.push(t('reference.passages', { count: doc.entries.length }));
   else {
     const books = booksOf(doc);
-    if (books.length) parts.push(books.slice(0, 3).join(', ') + (books.length > 3 ? ` +${books.length - 3}` : ''));
-    if (doc && 'links' in doc && doc.links?.some((l) => 'node' in l)) parts.push('template parts');
+    if (books.length) parts.push(books.length > 3 ? t('reference.guides.booksMore', { books: list(books.slice(0, 3)), more: formatNumber(books.length - 3) }) : list(books));
+    if (doc && 'links' in doc && doc.links?.some((l) => 'node' in l)) parts.push(t('reference.guides.templateParts'));
   }
-  if (reaches !== null) parts.push(`reaches ${plural(reaches, 'passage')}`);
+  if (reaches !== null) parts.push(t('reference.guides.reaches', { count: reaches }));
   parts.push(sourceLine(r.it));
   return parts.join(' · ');
 }
@@ -648,65 +701,73 @@ export function ReferenceCoverage(ctx: Ctx) {
     [state, passages, offered, rows, docs.get]);
   const names = useMemo(() => new Map(rows.map((r) => [r.it.itemId, r.doc?.format === 'source@1' ? r.doc.abbreviation : r.it.name])), [rows]);
 
-  if (!state) return <Screen header={<Header title="Coverage" onBack={ctx.back} />}><EmptyState title="Loading…" /></Screen>;
+  if (!state) return <Screen header={<Header title={t('reference.coverage.title')} onBack={ctx.back} />}><EmptyState title={t('common.loading')} /></Screen>;
   if (!languageId || !passages) {
-    return <Screen header={<Header title="Coverage" onBack={ctx.back} />}><EmptyState icon="map" title="No language open" sub="Open a language first: coverage is read against its content template." /></Screen>;
+    return <Screen header={<Header title={t('reference.coverage.title')} onBack={ctx.back} />}><EmptyState icon="map" title={t('reference.coverage.noLanguage')} sub={t('reference.coverage.noLanguageSub')} /></Screen>;
   }
   const summary = map ? coverageSummary(map) : null;
-  const list = passages.passages.filter((p) => {
+  const shown = passages.passages.filter((p) => {
     const reach = map?.get(p.unitId) ?? [];
     if (filter === 'bare') return !reach.some((r) => r.kind === 'guide' || r.kind === 'note');
     if (filter === 'notes') return reach.some((r) => r.kind === 'note');
     return true;
   });
   return (
-    <Screen header={<Header title="Coverage" sub={languageName(ctx.org.state, languageId)} onBack={ctx.back} />}>
-      <Intro>What reaches each passage: recommended Bibles by book, guides and notes by verses or template part, and anything placed by hand.</Intro>
+    <Screen header={<Header title={t('reference.coverage.title')} sub={languageName(ctx.org.state, languageId)} onBack={ctx.back} />}>
+      <Intro>{t('reference.coverage.intro')}</Intro>
       {summary ? (
         <Card>
-          <Text style={txt.h3}>{`${plural(summary.passages, 'passage')}`}</Text>
-          <Text style={txt.sm}>{`${summary.withSource} with a Bible · ${summary.withGuide} with a guide · ${summary.withNote} with a note`}</Text>
-          {summary.bare ? <Text style={[txt.sm, { color: TINT.amberText }]}>{`${plural(summary.bare, 'passage')} without a guide or note`}</Text> : null}
-          {offered.size === 0 ? <Text style={txt.xs}>Nothing is recommended to this language yet.</Text> : null}
+          <Text style={txt.h3}>{t('reference.passages', { count: summary.passages })}</Text>
+          <Text style={txt.sm}>{t('reference.coverage.counts', { source: summary.withSource, guide: summary.withGuide, note: summary.withNote })}</Text>
+          {summary.bare ? <Text style={[txt.sm, { color: TINT.amberText }]}>{t('reference.coverage.bare', { count: summary.bare })}</Text> : null}
+          {offered.size === 0 ? <Text style={txt.xs}>{t('reference.coverage.nothingOffered')}</Text> : null}
         </Card>
-      ) : <Card><Text style={txt.smMuted}>Working it out…</Text></Card>}
+      ) : <Card><Text style={txt.smMuted}>{t('reference.coverage.workingOut')}</Text></Card>}
       <ChipRow>
-        <Chip label="All" on={filter === 'all'} onPress={() => setFilter('all')} />
-        <Chip label="No guide or note" on={filter === 'bare'} count={summary?.bare} onPress={() => setFilter('bare')} />
-        <Chip label="With notes" on={filter === 'notes'} count={summary?.withNote} onPress={() => setFilter('notes')} />
+        <Chip label={t('reference.coverage.all')} on={filter === 'all'} onPress={() => setFilter('all')} />
+        <Chip label={t('reference.coverage.noGuide')} on={filter === 'bare'} count={summary?.bare} onPress={() => setFilter('bare')} />
+        <Chip label={t('reference.coverage.withNotes')} on={filter === 'notes'} count={summary?.withNote} onPress={() => setFilter('notes')} />
       </ChipRow>
-      {list.length === 0 ? <Card><Text style={txt.smMuted}>No passages here.</Text></Card> : (
+      {shown.length === 0 ? <Card><Text style={txt.smMuted}>{t('reference.coverage.noPassages')}</Text></Card> : (
         <Group>
-          {list.slice(0, n).map((p, i) => {
+          {shown.slice(0, n).map((p, i) => {
             const reach = map?.get(p.unitId) ?? [];
             const bare = !reach.some((r) => r.kind === 'guide' || r.kind === 'note');
             const order: Record<RefKind, number> = { source: 0, guide: 1, note: 2, other: 3, questions: 4 };
             const what = [...reach].sort((a, b) => order[a.kind] - order[b.kind]).map((r) => names.get(r.itemId) ?? r.itemId);
             return (
-              <Row key={p.unitId} label={p.label} last={i === Math.min(n, list.length) - 1}
+              <Row key={p.unitId} label={p.label} last={i === Math.min(n, shown.length) - 1}
                 current={beside?.screen === 'passage_reference' && beside.params['unitId'] === p.unitId}
-                sub={what.length ? what.join(' · ') : 'Nothing recommended reaches it'}
-                badge={bare ? 'No guide' : undefined} badgeTone={bare ? 'amber' : undefined}
+                sub={what.length ? what.join(' · ') : t('reference.coverage.nothingReaches')}
+                badge={bare ? t('reference.coverage.noGuideBadge') : undefined} badgeTone={bare ? 'amber' : undefined}
                 onPress={() => ctx.go('passage_reference', { unitId: p.unitId, languageId })} />
             );
           })}
         </Group>
       )}
-      <ShowMore remaining={list.length - n} step={STEP} onMore={() => setN(n + STEP)} />
+      <ShowMore remaining={shown.length - n} step={STEP} onMore={() => setN(n + STEP)} />
     </Screen>
   );
 }
 
 // ─── One passage ─────────────────────────────────────────────────────────────────────
 
-const WHY: Record<ReachWhy, string> = {
-  organization: 'Recommended by the organization',
-  language: 'Recommended for this language',
-  linked: 'Placed here by hand'
-};
-const GROUPS: { kind: RefKind; label: string }[] = [
-  { kind: 'source', label: 'Bibles' }, { kind: 'guide', label: 'Study guides' }, { kind: 'note', label: 'Notes for translators' }, { kind: 'other', label: 'Other material' }
-];
+function whyLabel(why: ReachWhy): string {
+  switch (why) {
+    case 'organization': return t('reference.rec.byOrganization');
+    case 'language': return t('reference.rec.forLanguage');
+    case 'linked': return t('reference.passage.placedByHand');
+  }
+}
+const GROUPS: RefKind[] = ['source', 'guide', 'note', 'other'];
+function groupLabel(kind: RefKind): string {
+  switch (kind) {
+    case 'source': return t('reference.bibles.title');
+    case 'guide': return t('reference.passage.studyGuides');
+    case 'note': return t('reference.passage.notes');
+    case 'other': case 'questions': return t('reference.passage.other');
+  }
+}
 
 export function PassageReference(ctx: Ctx) {
   const state = ctx.language.state;
@@ -741,7 +802,7 @@ export function PassageReference(ctx: Ctx) {
   const inApp = useMemo(() => (state && passage ? materialsFor(state, { unitId }).filter((m) => m.kind !== 'questions' && m.kind !== 'key_terms') : []), [state, passage, unitId]);
 
   if (!state || !passage || !result) {
-    return <Screen header={<Header title="Reference" onBack={ctx.back} />}><EmptyState icon="book" title={state ? 'This passage is not here' : 'Loading…'} /></Screen>;
+    return <Screen header={<Header title={t('reference.passage.title')} onBack={ctx.back} />}><EmptyState icon="book" title={state ? t('reference.passage.gone') : t('common.loading')} /></Screen>;
   }
   const byId = new Map(rows.map((r) => [r.it.itemId, r]));
 
@@ -765,50 +826,50 @@ export function PassageReference(ctx: Ctx) {
     const prior = passageLink(state, unitId, r.itemId);
     return (
       <Row key={r.itemId} icon={r.kind === 'source' ? 'book' : r.kind === 'guide' ? 'sparkle' : 'note'} label={name} last={last} muted={hidden}
-        sub={hidden ? 'Hidden here' : [WHY[r.why], facts].filter(Boolean).join(' · ')}
+        sub={hidden ? t('reference.passage.hiddenHere') : [whyLabel(r.why), facts].filter(Boolean).join(' · ')}
         right={canManage ? (hidden
-          ? <SmallBtn label="Show here" disabled={busy} onPress={() => void link(r.itemId, true, `${name} shows on this passage again.`, false)} />
-          : <SmallBtn label="Hide here" disabled={busy} onPress={() => void link(r.itemId, false, `${name} is hidden on this passage.`, prior ?? true)} />) : undefined} />
+          ? <SmallBtn label={t('reference.passage.showHere')} disabled={busy} onPress={() => void link(r.itemId, true, t('reference.passage.shownAgain', { name }), false)} />
+          : <SmallBtn label={t('reference.passage.hideHere')} disabled={busy} onPress={() => void link(r.itemId, false, t('reference.passage.hidden', { name }), prior ?? true)} />) : undefined} />
     );
   };
   const addable = rows.filter((r) => r.kind && r.kind !== 'questions' && !r.it.archived && !result.here.some((h) => h.itemId === r.it.itemId))
     .filter((r) => !q.trim() || r.it.name.toLowerCase().includes(q.trim().toLowerCase()));
 
   return (
-    <Screen header={<Header title="Reference" sub={`${passage.label} · ${languageName(ctx.org.state, languageId)}`} onBack={ctx.back} />}
-      footer={canManage ? <PrimaryBtn label="Add" icon="plus" onPress={() => setAdding(true)} /> : undefined}>
-      <Intro>What translators are offered on this passage, and why. They can still explore any Bible online and choose for themselves.</Intro>
-      {GROUPS.map((g) => {
-        const list = result.here.filter((r) => r.kind === g.kind);
-        if (list.length === 0 && g.kind !== 'source') return null;
+    <Screen header={<Header title={t('reference.passage.title')} sub={`${passage.label} · ${languageName(ctx.org.state, languageId)}`} onBack={ctx.back} />}
+      footer={canManage ? <PrimaryBtn label={t('reference.passage.add')} icon="plus" onPress={() => setAdding(true)} /> : undefined}>
+      <Intro>{t('reference.passage.intro')}</Intro>
+      {GROUPS.map((kind) => {
+        const here = result.here.filter((r) => r.kind === kind);
+        if (here.length === 0 && kind !== 'source') return null;
         return (
-          <View key={g.kind} style={{ gap: space.sm }}>
-            <SectionLabel label={`${g.label} · ${list.length}`} />
-            {list.length ? <Group>{list.map((r, i) => reachRow(r, i === list.length - 1, false))}</Group>
-              : <Card><Text style={txt.smMuted}>No Bible is recommended for this passage. Translators can still explore one.</Text></Card>}
+          <View key={kind} style={{ gap: space.sm }}>
+            <SectionLabel label={t('reference.passage.group', { group: groupLabel(kind), n: here.length })} />
+            {here.length ? <Group>{here.map((r, i) => reachRow(r, i === here.length - 1, false))}</Group>
+              : <Card><Text style={txt.smMuted}>{t('reference.passage.noBible')}</Text></Card>}
           </View>
         );
       })}
       {inApp.length ? (
         <>
-          <SectionLabel label={`Written in the app · ${inApp.length}`} />
-          <Group>{inApp.map((m, i) => <Row key={m.materialId} icon="note" label={m.title} sub="Placed here in the app" last={i === inApp.length - 1} />)}</Group>
+          <SectionLabel label={t('reference.writtenInApp', { n: inApp.length })} />
+          <Group>{inApp.map((m, i) => <Row key={m.materialId} icon="note" label={m.title} sub={t('reference.passage.placedInApp')} last={i === inApp.length - 1} />)}</Group>
         </>
       ) : null}
       {canManage && result.hidden.length ? (
         <>
-          <SectionLabel label={`Hidden here · ${result.hidden.length}`} />
+          <SectionLabel label={t('reference.passage.hiddenSection', { n: result.hidden.length })} />
           <Group>{result.hidden.map((r, i) => reachRow(r, i === result.hidden.length - 1, true))}</Group>
         </>
       ) : null}
-      <Sheet visible={adding} title="Add to this passage" sub="Placed here by hand, whatever its coordinates say." onClose={() => setAdding(false)}>
-        <SearchField value={q} onChangeText={setQ} placeholder="Search your library" />
-        {addable.length === 0 ? <Text style={txt.smMuted}>{q ? `Nothing matches “${q}”.` : 'Everything in your library is here already.'}</Text> : (
+      <Sheet visible={adding} title={t('reference.passage.addTitle')} sub={t('reference.passage.addSub')} onClose={() => setAdding(false)}>
+        <SearchField value={q} onChangeText={setQ} placeholder={t('reference.passage.searchPlaceholder')} />
+        {addable.length === 0 ? <Text style={txt.smMuted}>{q ? t('common.nothingMatches', { query: q }) : t('reference.passage.allHere')}</Text> : (
           <Group>
             {addable.slice(0, 50).map((r, i) => (
               <Row key={r.it.itemId} icon={r.kind === 'source' ? 'book' : r.kind === 'guide' ? 'sparkle' : 'note'} label={r.it.name}
-                sub={REF_KIND_LABEL[r.kind!]} last={i === Math.min(addable.length, 50) - 1} disabled={busy}
-                onPress={() => { setAdding(false); void link(r.it.itemId, true, `${r.it.name} is placed on this passage.`, false); }} />
+                sub={refKindLabel(r.kind!)} last={i === Math.min(addable.length, 50) - 1} disabled={busy}
+                onPress={() => { setAdding(false); void link(r.it.itemId, true, t('reference.passage.placed', { name: r.it.name }), false); }} />
             ))}
           </Group>
         )}

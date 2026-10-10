@@ -7,7 +7,9 @@ import {
   bookParts, templateBooks, wayPartCount, parseRef,
   type LibraryItemView, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
-import { englishBookName, STARTER_TEMPLATE, type LibraryChoice } from '../contentTemplates';
+import { bookNameOf, STARTER_TEMPLATE, type LibraryChoice } from '../contentTemplates';
+import { bookName } from '../coreText';
+import { t } from '../i18n';
 import type { LibraryOp } from '../library/model';
 
 /** The ways LangQuest publishes (scripts/library-seed.ts `breakupWays`), in the order offered. */
@@ -89,31 +91,33 @@ export function wayRows(c: {
 /** "Used in Dinka", "Used in Dinka and 2 more". */
 export function usedLine(names: string[]): string {
   if (names.length === 0) return '';
-  if (names.length === 1) return `Used in ${names[0]}`;
-  if (names.length === 2) return `Used in ${names[0]} and ${names[1]}`;
-  return `Used in ${names[0]} and ${names.length - 1} more`;
+  if (names.length === 1) return t('breakup.usedIn.one', { name: names[0] });
+  if (names.length === 2) return t('breakup.usedIn.two', { first: names[0], second: names[1] });
+  return t('breakup.usedIn.more', { name: names[0], count: names.length - 1 });
 }
-
-const fmt = (n: number) => n.toLocaleString('en-US');
 
 /** What a way gives the whole Bible: "2,376 passages in 46 books", "1,189 chapters". */
 export function countLine(doc: TemplateDoc, v11n: VersificationDoc | null): string {
   const books = templateBooks(doc);
   const divided = books.filter((b) => b.divide);
-  if (divided.length === 0) return 'Each book waits until a coordinator breaks it up';
+  if (divided.length === 0) return t('breakup.count.waits');
   const parts = wayPartCount(doc, v11n);
-  const names = [...new Set(divided.map((b) => (b.part ?? doc.levels[doc.levels.length - 1]?.name ?? 'part').toLowerCase()))];
-  const noun = names.length === 1 ? names[0]! : 'part';
-  const plural = parts === 1 ? noun : noun.endsWith('y') ? `${noun.slice(0, -1)}ies` : `${noun}s`;
-  return divided.length === books.length ? `${fmt(parts)} ${plural}` : `${fmt(parts)} ${plural} in ${divided.length} ${divided.length === 1 ? "book" : "books"}`;
+  // The template's own word for its pieces, when every book uses the same one; else the app's "part".
+  const names = [...new Set(divided.map((b) => (b.part ?? doc.levels[doc.levels.length - 1]?.name)?.toLowerCase() ?? null))];
+  const noun = names.length === 1 ? names[0] : null;
+  const pieces = noun
+    ? t('breakup.count.named', { count: parts, part: noun, parts: noun.endsWith('y') ? `${noun.slice(0, -1)}ies` : `${noun}s` })
+    : t('breakup.count.parts', { count: parts });
+  return divided.length === books.length ? pieces : t('breakup.count.inBooks', { pieces, books: t('breakup.count.books', { count: divided.length }) });
 }
 
 /** Books a way leaves for later: "Romans, Hebrews and 18 more". */
 export function emptyLine(doc: TemplateDoc): string {
-  const empty = templateBooks(doc).filter((b) => !b.divide).map((b) => englishBookName(b.book));
-  if (empty.length === 0) return '';
-  if (empty.length <= 3) return empty.join(', ');
-  return `${empty.slice(0, 2).join(', ')} and ${empty.length - 2} more`;
+  const empty = templateBooks(doc).filter((b) => !b.divide).map((b) => bookNameOf(b.book));
+  if (empty.length <= 1) return empty[0] ?? '';
+  if (empty.length === 2) return t('breakup.emptyBooks.two', { first: empty[0], second: empty[1] });
+  if (empty.length === 3) return t('breakup.emptyBooks.three', { first: empty[0], second: empty[1], third: empty[2] });
+  return t('breakup.emptyBooks.more', { first: empty[0], second: empty[1], count: empty.length - 2 });
 }
 
 export interface Piece {
@@ -127,7 +131,7 @@ export interface Piece {
 export function piecesOf(doc: TemplateDoc, book: string, v11n: VersificationDoc | null): Piece[] {
   const b = bookParts(doc, book);
   if (!b) return [];
-  const name = englishBookName(book);
+  const name = bookNameOf(book);
   const max = v11n?.maxVerses[book] ?? [];
   if (b.divide === 'book') return [{ label: name, verses: max.reduce((n, v) => n + v, 0) || 1 }];
   if (b.divide === 'chapters') return max.map((v, i) => ({ label: `${name} ${i + 1}`, verses: v }));
@@ -186,7 +190,11 @@ export function copyOffOps(c: {
   ];
 }
 
-/** "FIA passages (Hadiyya)", "FIA passages (Hadiyya and Sidamo)", for a copy split off for some languages. */
+/**
+ * "FIA passages (Hadiyya)", "FIA passages (Hadiyya and Sidamo)", for a copy
+ * split off for some languages. It is the copy's name in the event log
+ * (`v1.LibraryItemDefined`), shown as written like any library name.
+ */
 export function copyName(base: string, languages: string[]): string {
   const clean = base.replace(/\s*\([^)]*\)\s*$/, '');
   if (languages.length === 0) return `${clean} (copy)`;
@@ -206,34 +214,69 @@ export interface LessonSlide {
   rows?: [string, string][];
 }
 
-/** "How is material broken up?": five slides, one idea each (round 2 of the prototype, kept). */
-export const LESSON: LessonSlide[] = [
-  {
-    title: 'Your team records material in pieces',
-    text: 'Material is sorted into folders, and people record the pieces inside them. Here are stories, sorted into collections.',
-    tree: [{ name: 'How things began', items: ['Why the river is wide', 'The first fire'] }, { name: 'Stories of our grandparents', items: ['The long walk'] }]
-  },
-  {
-    title: 'A Bible has books, chapters and verses',
-    text: 'Each book is a folder. Inside, the book is cut into pieces to record, and each verse marks a place in the recording.',
-    tree: [{ name: 'Ruth', items: ['Ruth 1 · verses 1 to 22', 'Ruth 2 · verses 1 to 23', 'Ruth 3', 'Ruth 4'] }]
-  },
-  {
-    title: 'The same book can be cut in different places',
-    text: 'Here is Ruth three ways. Same verses, different pieces.',
-    ways: [{ item: 'langquest.bible.chapters', label: 'By chapter' }, { item: 'langquest.bible.fia', label: 'FIA passages' }, { item: 'langquest.bible.unfoldingword', label: 'unfoldingWord chunks' }]
-  },
-  {
-    title: 'Not all Bibles are the same',
-    text: 'Churches use Bibles with different books, and some number the same verses differently.',
-    rows: [
-      ['Protestant Bibles', '66 books. “The Lord is my shepherd” is Psalm 23. Malachi has 4 chapters.'],
-      ['Catholic Bibles', '73 books, adding Tobit, Judith, Maccabees and others. Many count Malachi as 3 chapters, and Daniel 3 has 100 verses.'],
-      ['Orthodox Bibles', 'Up to 81 books. “The Lord is my shepherd” is Psalm 22, because Psalms 9 and 10 are one psalm.']
-    ]
-  },
-  {
-    title: 'So you choose two things',
-    text: 'First, what your team will translate. Then, for the Bible, how it is broken up: every book now, or one book at a time later. Some study guides, like FIA, come with their own way of breaking it up. Verse numbers sort themselves out from the Bibles you pick.'
+/** "How is material broken up?": five slides, one idea each (round 2 of the prototype, kept), in the language showing. */
+export function lessonSlides(): LessonSlide[] {
+  const ruth = bookName('rut');
+  return [
+    {
+      title: t('breakup.lesson.pieces.title'),
+      text: t('breakup.lesson.pieces.text'),
+      tree: [
+        { name: t('breakup.lesson.pieces.began'), items: [t('breakup.lesson.pieces.river'), t('breakup.lesson.pieces.fire')] },
+        { name: t('breakup.lesson.pieces.grandparents'), items: [t('breakup.lesson.pieces.walk')] }
+      ]
+    },
+    {
+      title: t('breakup.lesson.bible.title'),
+      text: t('breakup.lesson.bible.text'),
+      tree: [{
+        name: ruth,
+        items: [
+          t('breakup.lesson.bible.chapterVerses', { book: ruth, chapter: 1, last: 22 }),
+          t('breakup.lesson.bible.chapterVerses', { book: ruth, chapter: 2, last: 23 }),
+          `${ruth} 3`,
+          `${ruth} 4`
+        ]
+      }]
+    },
+    {
+      title: t('breakup.lesson.places.title'),
+      text: t('breakup.lesson.places.text', { book: ruth }),
+      ways: [
+        { item: 'langquest.bible.chapters', label: t('breakup.lesson.places.byChapter') },
+        { item: 'langquest.bible.fia', label: t('breakup.lesson.places.fia') },
+        { item: 'langquest.bible.unfoldingword', label: t('breakup.lesson.places.unfoldingWord') }
+      ]
+    },
+    {
+      title: t('breakup.lesson.bibles.title'),
+      text: t('breakup.lesson.bibles.text'),
+      rows: [
+        [t('breakup.lesson.bibles.protestant'), t('breakup.lesson.bibles.protestantText', { verse: t('breakup.verses.shepherd') })],
+        [t('breakup.lesson.bibles.catholic'), t('breakup.lesson.bibles.catholicText')],
+        [t('breakup.lesson.bibles.orthodox'), t('breakup.lesson.bibles.orthodoxText', { verse: t('breakup.verses.shepherd') })]
+      ]
+    },
+    {
+      title: t('breakup.lesson.choose.title'),
+      text: t('breakup.lesson.choose.text')
+    }
+  ];
+}
+
+/**
+ * What a verse core uses to show a numbering clash says (`NumberingClash.says`,
+ * core's English), in the language showing, as people's Bibles say it.
+ */
+export function verseSays(says: string): string {
+  switch (says) {
+    case 'The Lord is my shepherd': return t('breakup.verses.shepherd');
+    case 'The day is coming, burning like an oven': return t('breakup.verses.dayIsComing');
+    case 'Have mercy on me, O God': return t('breakup.verses.haveMercy');
+    case 'I will pour out my Spirit': return t('breakup.verses.pourOutSpirit');
+    case 'Now to him who is able to strengthen you': return t('breakup.verses.ableToStrengthen');
+    case 'King Nebuchadnezzar, to all peoples': return t('breakup.verses.nebuchadnezzar');
+    case 'Peace be to you': return t('breakup.verses.peaceToYou');
+    default: return says;
   }
-];
+}

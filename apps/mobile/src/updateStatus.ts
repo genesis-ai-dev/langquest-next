@@ -7,6 +7,8 @@
  *
  * Pure so the wording is testable without a native module.
  */
+import { t } from './i18n';
+import { formatDayTime, formatPercent } from './i18n/format';
 type UpdateStatus = {
   /**
    * `busy` = something is happening, no action. `ready`/`failed`/`offline` are
@@ -31,17 +33,22 @@ export type UpdateSignals = {
 };
 
 export function updateStatus(u: UpdateSignals): UpdateStatus | null {
-  if (u.isRestarting) return { kind: 'busy', text: 'Restarting…' };
+  if (u.isRestarting) return { kind: 'busy', text: t('account.update.restarting') };
   // Pending outranks a stale error: the bundle is on the device either way.
-  if (u.isUpdatePending) return { kind: 'ready', text: 'Update ready — tap to restart', action: 'restart' };
+  if (u.isUpdatePending) return { kind: 'ready', text: t('account.update.ready'), action: 'restart' };
   if (u.isDownloading) {
-    const pct = typeof u.downloadProgress === 'number' ? ` ${Math.round(u.downloadProgress * 100)}%` : '';
-    return { kind: 'busy', text: `Downloading update…${pct}` };
+    return {
+      kind: 'busy',
+      text: typeof u.downloadProgress === 'number'
+        ? t('account.update.downloadingPercent', { percent: formatPercent(Math.round(u.downloadProgress * 100)) })
+        : t('account.update.downloading')
+    };
   }
   const error = u.downloadError ?? u.checkError;
   if (error) {
-    if (isOffline(error)) return { kind: 'offline', text: 'Offline — tap to retry', action: 'retry' };
-    return { kind: 'failed', text: `Update failed: ${error.message} — tap to retry`, action: 'retry' };
+    if (isOffline(error)) return { kind: 'offline', text: t('account.update.offline'), action: 'retry' };
+    // expo-updates' own reason, for the tester reading it out (it has no codes).
+    return { kind: 'failed', text: t('account.update.failed', { reason: error.message }), action: 'retry' };
   }
   // A check with nothing to report stays silent: a banner on every launch
   // saying "up to date" is a banner nobody reads.
@@ -54,26 +61,16 @@ export function updateStatus(u: UpdateSignals): UpdateStatus | null {
  * machine has no error codes, only messages, so this matches on the wording
  * the platforms use when the request never reached a server.
  */
-const OFFLINE_HINTS = [
-  'network request failed',
-  'internet connection appears to be offline',
-  'could not connect to the server',
-  'network is unreachable',
-  'no internet',
-  'offline',
-  'timed out',
-  'timeout'
-];
+const OFFLINE_HINTS = /network request failed|internet connection appears to be offline|could not connect to the server|network is unreachable|no internet|offline|timed out|timeout/i;
 
 function isOffline(error: Error): boolean {
-  const message = error.message.toLowerCase();
-  return OFFLINE_HINTS.some((hint) => message.includes(hint));
+  return OFFLINE_HINTS.test(error.message);
 }
 
-/** The running build, for the settings line: "update 4f2a1c9 · 17 Sep, 14:02". */
+/** The running build, for the settings line: "update 4f2a1c9 · Sep 17, 2:02 PM". */
 export function runningBuildLabel(c: { updateId?: string; createdAt?: Date; isEmbeddedLaunch: boolean }): string {
-  const which = c.isEmbeddedLaunch ? 'store build' : `update ${c.updateId ? c.updateId.slice(0, 7) : 'unknown'}`;
+  const which = c.isEmbeddedLaunch ? t('account.update.storeBuild')
+    : c.updateId ? t('account.update.updateBuild', { id: c.updateId.slice(0, 7) }) : t('account.update.unknownBuild');
   if (!c.createdAt) return which;
-  const when = c.createdAt.toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-  return `${which} · ${when}`;
+  return `${which} · ${formatDayTime(c.createdAt)}`;
 }

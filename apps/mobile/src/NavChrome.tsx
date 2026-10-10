@@ -6,12 +6,24 @@
 // (a book), Manage (the gear), Me (a person).
 import { Book } from 'lucide-react-native';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { t } from './i18n';
+import { formatNumber } from './i18n/format';
 import { Badge, Ico, txt, type IconName } from './kit';
 import type { Tab, TabId } from './session';
 import { C, measure, radius, space, target } from './theme';
 import { UserChip } from './UserChip';
 
 const TAB_ICONS: Record<TabId, IconName | 'bookClosed'> = { work: 'list', map: 'bookClosed', reports: 'progress', manage: 'settings', inbox: 'notif', me: 'user' };
+
+/** A tab's badge: its count, or 99+ past that. */
+function badgeText(n: number): string {
+  return n > 99 ? t('shell.nav.badgeMax', { max: 99 }) : formatNumber(n);
+}
+
+/** A tab as a screen reader says it: its name, and its count when it has one. */
+function tabLabel(tab: Tab): string {
+  return tab.badge ? t('shell.nav.tabBadge', { tab: tab.label, badge: tab.badge }) : tab.label;
+}
 
 /** A tab's icon: the kit's, or the closed book the Map tab reads by. */
 function TabIcon(props: { id: TabId; size: number; color: string }) {
@@ -37,16 +49,16 @@ export function NavChrome(props: {
         </View>
         {/* Only the tabs are in the tab list; the account chip beside them is a button of its own. */}
         <View accessibilityRole="tablist" style={{ gap: 2 }}>
-        {props.tabs.map((t) => {
-          const active = t.id === props.active;
+        {props.tabs.map((tab) => {
+          const active = tab.id === props.active;
           const color = active ? C.primary : C.dark;
           return (
-            <Pressable key={t.id} onPress={() => props.onSelect(t)} accessibilityRole="tab"
-              accessibilityLabel={t.badge ? `${t.label}, ${t.badge}` : t.label} accessibilityState={{ selected: active }}
+            <Pressable key={tab.id} onPress={() => props.onSelect(tab)} accessibilityRole="tab"
+              accessibilityLabel={tabLabel(tab)} accessibilityState={{ selected: active }}
               style={({ pressed }) => [styles.sideItem, active && { backgroundColor: C.light }, pressed && { opacity: 0.6 }]}>
-              <TabIcon id={t.id} size={22} color={active ? C.primary : C.muted} />
-              <Text style={[txt.body, { flex: 1, fontWeight: active ? '700' : '600', color }]} numberOfLines={1}>{t.label}</Text>
-              {t.badge ? <Badge label={t.badge > 99 ? '99+' : String(t.badge)} tone={t.id === 'inbox' ? 'red' : 'brand'} /> : null}
+              <TabIcon id={tab.id} size={22} color={active ? C.primary : C.muted} />
+              <Text style={[txt.body, { flex: 1, fontWeight: active ? '700' : '600', color }]} numberOfLines={1}>{tab.label}</Text>
+              {tab.badge ? <Badge label={badgeText(tab.badge)} tone={tab.id === 'inbox' ? 'red' : 'brand'} /> : null}
             </Pressable>
           );
         })}
@@ -54,10 +66,10 @@ export function NavChrome(props: {
         {/* The web app only: the language explorer, a page of its own (docs/languoids.md). */}
         {Platform.OS === 'web' ? (
           <Pressable onPress={() => window.open('/languages', '_blank', 'noopener')} accessibilityRole="link"
-            accessibilityLabel="Language explorer, opens in a new tab"
+            accessibilityLabel={t('shell.nav.languageExplorerNewTab')}
             style={({ pressed }) => [styles.sideItem, { marginTop: space.md }, pressed && { opacity: 0.6 }]}>
             <Ico name="globe" size={22} color={C.muted} />
-            <Text style={[txt.body, { flex: 1, fontWeight: '600', color: C.dark }]} numberOfLines={1}>Language explorer</Text>
+            <Text style={[txt.body, { flex: 1, fontWeight: '600', color: C.dark }]} numberOfLines={1}>{t('shell.nav.languageExplorer')}</Text>
           </Pressable>
         ) : null}
       </View>
@@ -66,26 +78,26 @@ export function NavChrome(props: {
   const rail = props.variant === 'rail';
   return (
     <View style={rail ? styles.rail : styles.tabs} accessibilityRole="tablist">
-      {props.tabs.map((t) => {
-        const active = t.id === props.active;
+      {props.tabs.map((tab) => {
+        const active = tab.id === props.active;
         const color = active ? C.primary : C.muted;
         return (
           <Pressable
-            key={t.id}
-            onPress={() => props.onSelect(t)}
+            key={tab.id}
+            onPress={() => props.onSelect(tab)}
             accessibilityRole="tab"
-            accessibilityLabel={t.badge ? `${t.label}, ${t.badge}` : t.label}
+            accessibilityLabel={tabLabel(tab)}
             accessibilityState={{ selected: active }}
             style={({ pressed }) => [rail ? styles.railItem : styles.tab, pressed && { opacity: 0.6 }]}
           >
             {/* The lit tab is its colour, with no pill behind it (demo ADR-032); the rail keeps the pill. */}
             <View style={[styles.tabPill, rail && active && { backgroundColor: C.light }]}>
-              <TabIcon id={t.id} size={26} color={color} />
-              {t.badge ? (
-                <View style={styles.tabBadge}><Text style={styles.tabBadgeText}>{t.badge > 99 ? '99+' : t.badge}</Text></View>
+              <TabIcon id={tab.id} size={26} color={color} />
+              {tab.badge ? (
+                <View style={styles.tabBadge}><Text style={styles.tabBadgeText}>{badgeText(tab.badge)}</Text></View>
               ) : null}
             </View>
-            <Text style={[styles.tabLabel, { color }]} numberOfLines={1}>{t.label}</Text>
+            <Text style={[styles.tabLabel, { color }]} numberOfLines={1}>{tab.label}</Text>
           </Pressable>
         );
       })}

@@ -14,15 +14,23 @@ import MicrophoneEnergy from '../../modules/microphone-energy';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../audioSession';
 import type { Ctx } from '../ctx';
 import { useHelpPress } from '../helpContext';
+import { t } from '../i18n';
+import { formatNumber } from '../i18n/format';
 import { Header, Ico, PrimaryBtn, Screen, txt } from '../kit';
 import { noteExpected } from '../report';
 import { C, radius, space, target, TINT, type as T, withAlpha } from '../theme';
-import { claimVad, useEnergyHistory, VAD_BASE } from '../useRecorder';
+import { claimVad, MicrophoneRefused, useEnergyHistory, VAD_BASE } from '../useRecorder';
 import { cachedMicSettings, loadMicSettings, saveMicSettings } from './micSettings';
 import { DEFAULT_MIC, MIC_TRIES, mmss, QUIET_MS, thresholdFromNoise, type MicSettings } from './model';
 import { QuietLink, RecordBtn, styles as ps } from './parts';
 
-const SENTENCE = 'The shepherd went to look for the lost sheep.';
+/** The sentence said in each try, in the language showing. */
+const sentence = () => t('recording.micSetup.sentence');
+
+/** Why the microphone did not start: a refusal says so; anything else, that it could not start. */
+function micProblem(e: unknown): string {
+  return e instanceof MicrophoneRefused ? t('recording.recorder.permissionNeeded') : t('recording.micSetup.couldNotStart');
+}
 
 interface Segment { uri: string; durationMs: number }
 type Phase = 'start' | 'quiet' | 'try' | 'pick' | 'hand';
@@ -58,7 +66,7 @@ function useProbe() {
   async function open(vad: MicSettings | null) {
     stopAudioPlayback();
     const permission = await AudioModule.requestRecordingPermissionsAsync();
-    if (!permission.granted) throw new Error('Microphone permission is required.');
+    if (!permission.granted) throw new MicrophoneRefused();
     if (vad) await MicrophoneEnergy.configureVAD({ ...VAD_BASE, threshold: vad.threshold, silenceDuration: vad.pauseMs });
     await setSessionAudioMode({ allowsRecording: true, playsInSilentMode: true });
     levels.current = [];
@@ -130,8 +138,8 @@ export function MicSetupScreen(props: { ctx: Ctx }) {
   useEffect(() => {
     if (!listening) return;
     setSeconds(0);
-    const t = setInterval(() => setSeconds((s) => s + 1), 1000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => setSeconds((s) => s + 1), 1000);
+    return () => clearInterval(timer);
   }, [listening]);
 
   async function listenToRoom() {
@@ -142,17 +150,17 @@ export function MicSetupScreen(props: { ctx: Ctx }) {
       setListening(true);
       await new Promise((r) => setTimeout(r, QUIET_MS));
       if (!probe.live.current) return;
-      const t = thresholdFromNoise(probe.levels.current);
+      const level = thresholdFromNoise(probe.levels.current);
       await probe.stop();
       setListening(false);
-      setThreshold(t);
+      setThreshold(level);
       setTries([]);
       setPhase('try');
     } catch (e) {
       setListening(false);
       await probe.stop();
       setPhase('start');
-      setProblem(e instanceof Error && e.message ? e.message : 'The microphone could not start.');
+      setProblem(micProblem(e));
     }
   }
 
@@ -164,7 +172,7 @@ export function MicSetupScreen(props: { ctx: Ctx }) {
         setListening(true);
       } catch (e) {
         await probe.stop();
-        setProblem(e instanceof Error && e.message ? e.message : 'The microphone could not start.');
+        setProblem(micProblem(e));
       }
       return;
     }
@@ -173,22 +181,22 @@ export function MicSetupScreen(props: { ctx: Ctx }) {
     // The last part arrives as the detector stops.
     await new Promise((r) => setTimeout(r, 300));
     const heard = [...probe.segments.current];
-    if (heard.length === 0) { setProblem('Nothing was heard. Say it a little louder, or hold the device closer.'); return; }
+    if (heard.length === 0) { setProblem(t('recording.micSetup.nothingHeard')); return; }
     const next = [...tries, heard];
     setTries(next);
     if (next.length >= MIC_TRIES.length) setPhase('pick');
   }
 
   async function use() {
-    const t = MIC_TRIES[picked]!;
+    const pick = MIC_TRIES[picked]!;
     setSaving(true);
     try {
-      await saveMicSettings({ threshold, pauseMs: t.pauseMs });
-      ctx.toast(`Microphone set up. Recording now uses Try ${t.id}.`);
+      await saveMicSettings({ threshold, pauseMs: pick.pauseMs });
+      ctx.toast(t('recording.micSetup.setUp', { id: pick.id }));
       ctx.back();
     } catch (e) {
       noteExpected('mic setup: save', e);
-      ctx.toast('Not saved on this device. Try again.');
+      ctx.toast(t('recording.micSetup.notSaved'));
     } finally { setSaving(false); }
   }
 
@@ -203,38 +211,39 @@ export function MicSetupScreen(props: { ctx: Ctx }) {
 
   if (phase === 'pick') {
     return (
-      <Screen header={<Header title="Which sounds best?" sub="Set up your microphone" onBack={ctx.back} close />}
-        footer={<PrimaryBtn label={`Use Try ${MIC_TRIES[picked]!.id}`} icon="check" busy={saving} onPress={() => void use()} />}>
-        <Text style={[styles.lead, { textAlign: 'center' }]}>Listen to each. Pick the one where every word is clear and nothing is cut off.</Text>
-        {MIC_TRIES.map((t, i) => (
-          <TryRow key={t.id} id={t.id} parts={tries[i] ?? []} on={picked === i} playing={tryPlayer.playing === i}
+      <Screen header={<Header title={t('recording.micSetup.whichBest')} sub={t('recording.micSetup.title')} onBack={ctx.back} close />}
+        footer={<PrimaryBtn label={t('recording.micSetup.useTry', { id: MIC_TRIES[picked]!.id })} icon="check" busy={saving} onPress={() => void use()} />}>
+        <Text style={[styles.lead, { textAlign: 'center' }]}>{t('recording.micSetup.listenToEach')}</Text>
+        {MIC_TRIES.map((tr, i) => (
+          <TryRow key={tr.id} id={tr.id} parts={tries[i] ?? []} on={picked === i} playing={tryPlayer.playing === i}
             onPlay={() => tryPlayer.play(i, tries[i] ?? [])} onPick={() => setPicked(i)} />
         ))}
-        <QuietLink label="They all sound bad. Try again somewhere quieter." onPress={again} />
-        <QuietLink label="Adjust by hand" icon="sliders" hint="The sensitivity line and the pause length, set yourself." onPress={() => { tryPlayer.halt(); setPhase('hand'); }} />
+        <QuietLink label={t('recording.micSetup.allBad')} onPress={again} />
+        <QuietLink label={t('recording.micSetup.byHand')} icon="sliders" hint={t('recording.micSetup.byHandHelp')} onPress={() => { tryPlayer.halt(); setPhase('hand'); }} />
       </Screen>
     );
   }
 
   const quiet = phase === 'start' || phase === 'quiet';
+  const tryOf = t('recording.micSetup.tryOf', { n: formatNumber(at + 1), total: formatNumber(MIC_TRIES.length) });
   return (
-    <Screen fixed header={<Header title="Set up your microphone" sub="Takes about a minute" onBack={ctx.back} close />}>
+    <Screen fixed header={<Header title={t('recording.micSetup.title')} sub={t('recording.micSetup.aboutAMinute')} onBack={ctx.back} close />}>
       <View style={styles.page}>
-        <View style={styles.segments} accessibilityLabel={quiet ? 'Before the tries' : `Try ${at + 1} of ${MIC_TRIES.length}`}>
-          {MIC_TRIES.map((t, i) => <View key={t.id} style={[styles.segment, { backgroundColor: !quiet && i < at ? C.green : !quiet && i === at ? C.primary : C.border }]} />)}
+        <View style={styles.segments} accessibilityLabel={quiet ? t('recording.micSetup.beforeTries') : tryOf}>
+          {MIC_TRIES.map((tr, i) => <View key={tr.id} style={[styles.segment, { backgroundColor: !quiet && i < at ? C.green : !quiet && i === at ? C.primary : C.border }]} />)}
         </View>
-        <Text style={[txt.smMuted, { textAlign: 'center' }]}>{quiet ? 'First, the room' : `Try ${at + 1} of ${MIC_TRIES.length}`}</Text>
+        <Text style={[txt.smMuted, { textAlign: 'center' }]}>{quiet ? t('recording.micSetup.firstTheRoom') : tryOf}</Text>
         <View style={styles.card}>
           {quiet ? (
             <>
-              <Text style={[txt.label, { textAlign: 'center' }]}>First, a few seconds of quiet</Text>
-              <Text style={styles.sentence}>Go where you usually record. Stay quiet while the device listens to the room.</Text>
+              <Text style={[txt.label, { textAlign: 'center' }]}>{t('recording.micSetup.quietTitle')}</Text>
+              <Text style={styles.sentence}>{t('recording.micSetup.quietBody')}</Text>
             </>
           ) : (
             <>
-              <Text style={[txt.label, { textAlign: 'center' }]}>Say this, then pause, then say it again</Text>
-              <Text style={styles.sentence}>“{SENTENCE}”</Text>
-              {speak ? <HearIt onPress={() => speak(SENTENCE)} /> : null}
+              <Text style={[txt.label, { textAlign: 'center' }]}>{t('recording.micSetup.sayThis')}</Text>
+              <Text style={styles.sentence}>{t('recording.quoted', { text: sentence() })}</Text>
+              {speak ? <HearIt onPress={() => speak(sentence())} /> : null}
             </>
           )}
         </View>
@@ -247,50 +256,56 @@ export function MicSetupScreen(props: { ctx: Ctx }) {
           )}
         </View>
         <Text style={styles.status} accessibilityLiveRegion="polite">
-          {phase === 'quiet' ? `Listening to the room… ${mmss(seconds * 1000)}` : listening ? `Listening… ${mmss(seconds * 1000)}` : quiet ? 'Tap to start' : 'Tap, then say it'}
+          {phase === 'quiet' ? t('recording.micSetup.listeningToRoom', { time: mmss(seconds * 1000) })
+            : listening ? t('recording.listening', { time: mmss(seconds * 1000) }) : quiet ? t('recording.micSetup.tapToStart') : t('recording.micSetup.tapThenSay')}
         </Text>
         {problem ? <Text style={[txt.error, { textAlign: 'center' }]} accessibilityRole="alert">{problem}</Text> : null}
         <Text style={[txt.smMuted, { textAlign: 'center' }]}>
-          {quiet ? "Then you'll say one sentence three times." : "Each try uses a slightly different setting. You'll pick the one that sounds best."}
+          {quiet ? t('recording.micSetup.thenThreeTimes') : t('recording.micSetup.eachTry')}
         </Text>
-        {phase === 'start' ? <QuietLink label="Adjust by hand" icon="sliders" hint="The sensitivity line and the pause length, set yourself." onPress={() => setPhase('hand')} /> : null}
+        {phase === 'start' ? <QuietLink label={t('recording.micSetup.byHand')} icon="sliders" hint={t('recording.micSetup.byHandHelp')} onPress={() => setPhase('hand')} /> : null}
       </View>
     </Screen>
   );
 }
 
 function HearIt(props: { onPress: () => void }) {
-  const onPress = useHelpPress('Hear it', 'Hear the sentence read out.', props.onPress);
+  const onPress = useHelpPress(t('recording.micSetup.hearIt'), t('recording.micSetup.hearItHelp'), props.onPress);
   return (
     <Pressable onPress={onPress} accessibilityRole="button" style={({ pressed }) => [styles.hear, pressed && ps.pressed]}>
       <Ico name="listen" size={18} color={C.primary} />
-      <Text style={[txt.sm, { color: C.primary, fontWeight: '700' }]}>Hear it</Text>
+      <Text style={[txt.sm, { color: C.primary, fontWeight: '700' }]}>{t('recording.micSetup.hearIt')}</Text>
     </Pressable>
   );
 }
 
 function TryRow(props: { id: string; parts: Segment[]; on: boolean; playing: boolean; onPlay: () => void; onPick: () => void }) {
   const ms = props.parts.reduce((a, p) => a + p.durationMs, 0);
-  const play = useHelpPress(props.playing ? 'Pause' : `Play Try ${props.id}`, 'Hear this try.', props.onPlay);
-  const pick = useHelpPress(`Try ${props.id}`, 'Choose this one.', props.onPick);
+  const name = t('recording.micSetup.tryName', { id: props.id });
+  const playLabel = props.playing ? t('common.pause') : t('recording.micSetup.playTry', { id: props.id });
+  const play = useHelpPress(playLabel, t('recording.micSetup.playTryHelp'), props.onPlay);
+  const pick = useHelpPress(name, t('recording.micSetup.chooseThis'), props.onPick);
   return (
-    <Pressable onPress={pick} accessibilityRole="radio" accessibilityState={{ selected: props.on }} accessibilityLabel={`Try ${props.id}, ${mmss(ms)}`}
+    <Pressable onPress={pick} accessibilityRole="radio" accessibilityState={{ selected: props.on }} accessibilityLabel={t('recording.micSetup.tryLabel', { id: props.id, length: mmss(ms) })}
       style={({ pressed }) => [styles.tryRow, props.on && { borderColor: C.primary }, pressed && ps.pressed]}>
-      <Pressable onPress={play} accessibilityRole="button" accessibilityLabel={props.playing ? 'Pause' : `Play Try ${props.id}`}
+      <Pressable onPress={play} accessibilityRole="button" accessibilityLabel={playLabel}
         style={({ pressed }) => [styles.tryPlay, pressed && ps.pressed]}>
         <Ico name={props.playing ? 'pause' : 'play'} size={24} color={C.white} strokeWidth={2.6} fill={C.white} />
       </Pressable>
-      <Text style={[styles.tryName, { flex: 1 }]}>Try {props.id} <Text style={styles.tryLength}>· {mmss(ms)}</Text></Text>
+      <Text style={[styles.tryName, { flex: 1 }]}>{name} <Text style={styles.tryLength}>· {mmss(ms)}</Text></Text>
       <View style={[styles.radio, props.on && { borderColor: C.primary }]}>{props.on ? <View style={styles.radioDot} /> : null}</View>
     </Pressable>
   );
 }
 
-const PAUSES = [
-  { ms: 500, label: 'Short pause' },
-  { ms: 1000, label: 'Normal pause' },
-  { ms: 2000, label: 'Long pause' }
-];
+/** The three pause lengths, named in the language showing. */
+function pauseChoices(): { ms: number; label: string }[] {
+  return [
+    { ms: 500, label: t('recording.pauses.short') },
+    { ms: 1000, label: t('recording.pauses.normal') },
+    { ms: 2000, label: t('recording.pauses.long') }
+  ];
+}
 
 /**
  * The old controls, for anyone who would rather set them (moved here from
@@ -309,7 +324,7 @@ function ByHand(props: { ctx: Ctx; onDone: () => void }) {
   const start = useRef(0);
   useEffect(() => {
     void loadMicSettings().then((m) => { if (m) { setCutoff(m.threshold); setPause(m.pauseMs); } });
-    probe.open(null).catch((e: unknown) => setProblem(e instanceof Error && e.message ? e.message : 'The microphone could not start.'));
+    probe.open(null).catch((e: unknown) => setProblem(micProblem(e)));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const pan = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => true,
@@ -319,24 +334,24 @@ function ByHand(props: { ctx: Ctx; onDone: () => void }) {
   })).current;
   async function save() {
     await saveMicSettings({ threshold: Math.round(cutoff * 1000) / 1000, pauseMs: pause });
-    props.ctx.toast('Microphone settings saved on this device.');
+    props.ctx.toast(t('recording.micSetup.settingsSaved'));
     props.ctx.back();
   }
   return (
-    <Screen header={<Header title="Adjust by hand" sub="Set up your microphone" onBack={props.onDone} />}
-      footer={<PrimaryBtn label="Save these settings" icon="check" onPress={() => void save()} />}>
-      <Text style={styles.lead}>Speak, and watch the bars. Drag the line so your voice goes above it and the room's noise stays below.</Text>
+    <Screen header={<Header title={t('recording.micSetup.byHand')} sub={t('recording.micSetup.title')} onBack={props.onDone} />}
+      footer={<PrimaryBtn label={t('recording.micSetup.saveSettings')} icon="check" onPress={() => void save()} />}>
+      <Text style={styles.lead}>{t('recording.micSetup.byHandLead')}</Text>
       <View style={styles.meter} onLayout={(e) => setHeight(e.nativeEvent.layout.height)} {...pan.panHandlers}
-        accessible accessibilityRole="adjustable" accessibilityLabel="Sensitivity line" accessibilityValue={{ min: 4, max: 92, now: Math.round(cutoff * 100) }}
+        accessible accessibilityRole="adjustable" accessibilityLabel={t('recording.micSetup.sensitivityLine')} accessibilityValue={{ min: 4, max: 92, now: Math.round(cutoff * 100) }}
         accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
         onAccessibilityAction={(e) => setCutoff((c) => Math.max(0.04, Math.min(0.92, c + (e.nativeEvent.actionName === 'increment' ? 0.02 : -0.02))))}>
         <Bars />
         <View style={[{ pointerEvents: 'none' }, styles.cutoff, { top: `${(1 - cutoff) * 100}%` }]} />
       </View>
       {problem ? <Text style={txt.error} accessibilityRole="alert">{problem}</Text> : null}
-      <Text style={[txt.label, { paddingHorizontal: space.xs }]}>Pause that ends a part</Text>
+      <Text style={[txt.label, { paddingHorizontal: space.xs }]}>{t('recording.micSetup.pauseEndsPart')}</Text>
       <View style={styles.pauses} accessibilityRole="radiogroup">
-        {PAUSES.map((p, i) => <PauseChip key={p.ms} label={p.label} dots={i + 1} on={p.ms === pause} onPress={() => setPause(p.ms)} />)}
+        {pauseChoices().map((p, i) => <PauseChip key={p.ms} label={p.label} dots={i + 1} on={p.ms === pause} onPress={() => setPause(p.ms)} />)}
       </View>
     </Screen>
   );
@@ -348,7 +363,7 @@ function Bars() {
 }
 
 function PauseChip(props: { label: string; dots: number; on: boolean; onPress: () => void }) {
-  const onPress = useHelpPress(props.label, 'How long a pause ends a part.', props.onPress);
+  const onPress = useHelpPress(props.label, t('recording.micSetup.pauseHelp'), props.onPress);
   return (
     <Pressable onPress={onPress} accessibilityRole="radio" accessibilityState={{ selected: props.on }} accessibilityLabel={props.label}
       style={({ pressed }) => [styles.pause, props.on && { backgroundColor: C.primary, borderColor: C.primary }, pressed && ps.pressed]}>

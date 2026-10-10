@@ -1,7 +1,8 @@
 import { StudyPrefetch } from './src/study/StudyPrefetch';
 import { HelpModeProvider, useScreenIntro } from './src/helpMode';
+import { keepHelpAudio } from './src/helpAudio';
 import { HelpScopeContext } from './src/helpContext';
-import { highlightsFor, orgLanguages, updatesFor, type EventSpec } from '@langquest-next/core';
+import { CommandError, highlightsFor, orgLanguages, updatesFor, type EventSpec } from '@langquest-next/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session as AuthSession } from '@supabase/supabase-js';
 import { StatusBar } from 'expo-status-bar';
@@ -24,6 +25,8 @@ import { LayoutContext, PaneSelectionContext, type Layout, type OpenDetail } fro
 import { indexesFor } from './src/indexes';
 import { EmptyState, FooterHeightContext, GhostBtn, ToastView, txt, type ToastSpec } from './src/kit';
 import { installGlobalHandlers, noteExpected, reportError } from './src/report';
+import { commandErrorText } from './src/coreText';
+import { t } from './src/i18n';
 import { personLook } from './src/people';
 import { navRef, useNav, type Route, type StackParams } from './src/nav';
 import * as Account from './src/screens/account';
@@ -218,7 +221,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
 
   override render() {
     if (!this.state.error) return this.props.children;
-    return <Fatal title="Something went wrong" id={this.state.id} detail={this.state.error.stack ?? this.state.error.name} />;
+    return <Fatal title={t('shell.errors.somethingWentWrong')} id={this.state.id} detail={this.state.error.stack ?? this.state.error.name} />;
   }
 }
 
@@ -242,11 +245,11 @@ class ScreenBoundary extends Component<{ screen: ScreenId; onBack: () => void; o
     const reset = (then: () => void) => () => { this.setState({ error: null, id: '' }); then(); };
     return (
       <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.md, backgroundColor: C.bg, flexGrow: 1 }}>
-        <Text style={txt.h2} accessibilityRole="header">This screen could not open</Text>
-        <Text style={txt.body}>Your recordings and everything you saved are safe on this device.</Text>
-        <Text style={txt.smMuted} selectable>If it keeps happening, tell your team this code: {this.state.id}</Text>
-        <GhostBtn label="Go back" icon="left" onPress={reset(this.props.onBack)} />
-        <GhostBtn label="Go to My Work" icon="home" onPress={reset(this.props.onHome)} />
+        <Text style={txt.h2} accessibilityRole="header">{t('shell.errors.screenTitle')}</Text>
+        <Text style={txt.body}>{t('shell.errors.safe')}</Text>
+        <Text style={txt.smMuted} selectable>{t('shell.errors.tellCode', { code: this.state.id })}</Text>
+        <GhostBtn label={t('shell.errors.goBack')} icon="left" onPress={reset(this.props.onBack)} />
+        <GhostBtn label={t('shell.errors.goToMyWork')} icon="home" onPress={reset(this.props.onHome)} />
       </ScrollView>
     );
   }
@@ -257,8 +260,8 @@ function Fatal(props: { title: string; detail: string; id?: string }) {
   return (
     <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.md }}>
       <Text style={txt.h3}>{props.title}</Text>
-      <Text style={txt.body}>Your recordings and everything you saved are safe on this device.</Text>
-      {props.id ? <Text style={txt.smMuted} selectable>Code for your team: {props.id}</Text> : null}
+      <Text style={txt.body}>{t('shell.errors.safe')}</Text>
+      {props.id ? <Text style={txt.smMuted} selectable>{t('shell.errors.codeForTeam', { code: props.id })}</Text> : null}
       <Text style={txt.xs} selectable>{props.detail}</Text>
     </ScrollView>
   );
@@ -267,6 +270,8 @@ function Fatal(props: { title: string; detail: string; id?: string }) {
 export default function App() {
   const [auth, setAuth] = useState<AuthSession | null | undefined>(undefined);
   useEffect(() => { installGlobalHandlers(); lockPhonesToPortrait(); }, []);
+  // Help speaks offline too: keep the recorded help lines of the app's language (decision 80).
+  useEffect(() => { void keepHelpAudio(); }, []);
   // Work people left unsent when they signed out of this phone goes as them (decisions.md 60).
   useHandOvers(auth === undefined ? undefined : auth?.user.id ?? null);
   useEffect(() => {
@@ -281,7 +286,7 @@ export default function App() {
         <StatusBar style="dark" />
         <UpdateBanner />
         {supabaseConfigError ? (
-          <Fatal title="This build is not configured" detail={supabaseConfigError} />
+          <Fatal title={t('shell.errors.notConfigured')} detail={supabaseConfigError} />
         ) : auth === undefined ? null : (
           <ErrorBoundary>
             {/* Help mode: a ? on every screen's header; while on, taps explain (demo ADR-038). */}
@@ -348,7 +353,7 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
   // The held invite is used here, above the organization, so opening the
   // organization it joined cannot interrupt it.
   const invite = useHeldInvite(props.signedIn ? props.actorId : null, openOrganization);
-  if (!decided) return <View style={styles.root} accessibilityLabel="Opening your organization" />;
+  if (!decided) return <View style={styles.root} accessibilityLabel={t('shell.openingOrganization')} />;
   return <Workspace key={`${orgId}:${selectionRevision}`} {...props} orgId={orgId} noOrganizations={noOrganizations} openOrganization={openOrganization} invite={invite} />;
 }
 
@@ -361,7 +366,7 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
 function Workspace(props: { actorId: string; email: string | null; signedIn: boolean; orgId: string | null; noOrganizations: boolean; openOrganization: Ctx['openOrganization']; invite: InviteHandle }) {
   const org = useOrg(props.orgId, props.actorId);
   const known = org.state !== null && (org.state.org !== null || org.settled);
-  if (!known) return <View style={styles.root} accessibilityLabel="Opening your organization" />;
+  if (!known) return <View style={styles.root} accessibilityLabel={t('shell.openingOrganization')} />;
   // No organization: the screens still need an id for their keys; '' names none.
   return <OrgWork {...props} orgId={props.orgId ?? ''} org={org} />;
 }
@@ -464,17 +469,20 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     try {
       await languageRef.current.run(specs);
     } catch (e) {
-      toast(`Not saved: ${(e as Error).message}`);
+      // Core's refusal in words; anything else is a fault, with its code.
+      toast(e instanceof CommandError ? t('shell.toast.notSaved', { reason: commandErrorText(e) }) : t('shell.toast.notSavedCode', { code: reportError('save change', e) }));
       throw e;
     }
     toast(message, undo ? async () => {
-      try { await languageRef.current.run(undo()); toast('Undone.'); } catch (e) { toast(`Could not undo: ${(e as Error).message}`); }
+      try { await languageRef.current.run(undo()); toast(t('common.undone')); } catch (e) {
+        toast(e instanceof CommandError ? t('shell.toast.notUndone', { reason: commandErrorText(e) }) : t('shell.toast.notUndoneCode', { code: reportError('undo change', e) }));
+      }
     } : undefined);
   }, [toast]);
 
   // ---- names: the signed-in person is always "you" (CORE-6) ----
   const name = useCallback((id: string, lower = false) => {
-    if (id === props.actorId) return lower ? 'you' : 'You';
+    if (id === props.actorId) return lower ? t('shell.youInSentence') : t('common.you');
     return people[id] ?? personLook(id).name;
   }, [people, props.actorId]);
 
@@ -571,14 +579,14 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
       if (!edge) {
         if (TAB_SCREENS.includes(to)) return nav.reset(route);
         reportError(`flow blocked ${from} -> ${to}: no edge`, new Error('undeclared transition'));
-        toast("That can't be opened from here.");
+        toast(t('shell.nav.cannotOpenHere'));
         return;
       }
       // Gates are permissions (who MAY act), part of the machine: a screen
       // must not offer an affordance the session cannot take.
       if (!edgeAllowed(edge, session)) {
         reportError(`flow blocked ${from} -> ${to}: gate ${edge.when}`, new Error('gate not met'));
-        toast("You don't have permission to open that.");
+        toast(t('shell.nav.noPermission'));
         return;
       }
       const mode = edge.mode ?? 'push';

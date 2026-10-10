@@ -7,6 +7,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AudioClip } from './audioClip';
 import type { Ctx } from './ctx';
+import { t } from './i18n';
+import { formatClock } from './i18n/format';
 import { Ico, IconBtn, txt } from './kit';
 import { C, radius, space, TINT } from './theme';
 import { useRecorder, type RecordedCard } from './useRecorder';
@@ -29,17 +31,17 @@ export function VoiceNote(props: {
   useEffect(() => {
     if (!rec.manualOn) return;
     setElapsed(0);
-    const t = setInterval(() => setElapsed((e) => e + 1), 1000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => setElapsed((e) => e + 1), 1000);
+    return () => clearInterval(timer);
   }, [rec.manualOn]);
 
   if (props.hash && !rec.manualOn) {
     return (
       <View style={[styles.box, { backgroundColor: TINT.green, borderColor: `${C.green}55` }]}>
         <View style={{ flex: 1 }}>
-          <AudioClip language={props.ctx.language} hashes={[props.hash]} label="Play voice note" />
+          <AudioClip language={props.ctx.language} hashes={[props.hash]} label={t('recording.voiceNote.play')} />
         </View>
-        <IconBtn name="trash" label="Delete voice note" onPress={() => props.onChange(null)} bg="transparent" color={TINT.greenText} />
+        <IconBtn name="trash" label={t('recording.voiceNote.delete')} onPress={() => props.onChange(null)} bg="transparent" color={TINT.greenText} />
       </View>
     );
   }
@@ -47,13 +49,13 @@ export function VoiceNote(props: {
   return (
     <View style={{ gap: space.xs }}>
       <Pressable onPress={() => void (recording ? rec.manualUp() : rec.manualDown())} disabled={rec.busy && !recording}
-        accessibilityRole="button" accessibilityLabel={recording ? 'Stop recording' : props.label}
+        accessibilityRole="button" accessibilityLabel={recording ? t('common.stopRecording') : props.label}
         style={({ pressed }) => [styles.box, recording ? { backgroundColor: TINT.red, borderColor: `${C.red}55` } : null, pressed && { opacity: 0.8 }]}>
         <View style={[styles.dot, { backgroundColor: recording ? C.red : C.primary }]}>
           <Ico name={recording ? 'stop' : 'mic'} size={18} color={C.white} />
         </View>
         <Text style={[txt.sm, { flex: 1, fontWeight: '600', color: recording ? TINT.redText : C.dark }]}>
-          {recording ? `Recording · ${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, '0')} · tap to stop` : rec.busy ? 'Saving…' : props.label}
+          {recording ? t('recording.voiceNote.recording', { time: formatClock(elapsed * 1000) }) : rec.busy ? t('common.saving') : props.label}
         </Text>
       </Pressable>
       {rec.error ? <Text style={[txt.xs, { color: TINT.redText }]}>{rec.error}</Text> : null}
@@ -62,9 +64,9 @@ export function VoiceNote(props: {
 }
 
 /** The `voice` slot of ReasonSheet. */
-export function voiceFor(ctx: Ctx, label = 'Say why instead') {
+export function voiceFor(ctx: Ctx, label?: string) {
   return ({ hash, onChange }: { hash: string | null; onChange: (h: string | null) => void }) => (
-    <VoiceNote ctx={ctx} label={label} hash={hash} onChange={onChange} />
+    <VoiceNote ctx={ctx} label={label ?? t('recording.voiceNote.sayWhyInstead')} hash={hash} onChange={onChange} />
   );
 }
 

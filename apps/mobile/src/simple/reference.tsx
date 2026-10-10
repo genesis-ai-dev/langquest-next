@@ -10,6 +10,8 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Ctx } from '../ctx';
 import { useHelpPress } from '../helpContext';
+import { t } from '../i18n';
+import { formatNumber } from '../i18n/format';
 import { indexesFor } from '../indexes';
 import { Field, Ico, LinkBtn, PrimaryBtn, Sheet, txt } from '../kit';
 import { versionTitle, when, type PassageView } from '../passageView';
@@ -18,9 +20,9 @@ import { markTerms } from '../recording/workspaceModel';
 import { Authored, recordTarget, ReportFlag } from '../reportSheet';
 import { RequestBanner } from '../reviewing/parts';
 import { openContentLink } from '../share';
-import { chipLabel, choiceKey, copyrightLine, useChoice, useOffer } from '../sources/SourceReader';
+import { anchorClock, chipLabel, choiceKey, copyrightLine, useChoice, useOffer } from '../sources/SourceReader';
 import type { SourceOption, VerseRow } from '../sources/model';
-import { usePassagePlayer } from '../sources/player';
+import { PlayError, usePassagePlayer } from '../sources/player';
 import type { Usage } from '../sources/used';
 import { useChipMarks, usePassageSource, useSources } from '../sources/useSources';
 import { saveNote } from '../study/ui';
@@ -56,7 +58,7 @@ export function useBible(ctx: Ctx, unitId: string | null, languageId: string | n
     resolve: (i) => {
       const part = plan?.parts[i];
       const ch = src?.chapters.find((c) => c.chapter === part?.chapter);
-      if (!ch) return Promise.reject(new Error('No audio for this chapter.'));
+      if (!ch) return Promise.reject(new PlayError(t('sources.reader.noAudioForChapter')));
       return ch.resolve();
     },
     ...(opts.listen ? { listen: opts.listen } : {}),
@@ -73,16 +75,16 @@ export function useBible(ctx: Ctx, unitId: string | null, languageId: string | n
     /** "0:42 / 1:18", or why there is nothing to play. */
     time: (): string => {
       if (!option) return '';
-      if (!plan) return src?.loading ? 'Loading…' : 'No audio for this passage';
+      if (!plan) return src?.loading ? t('common.loading') : t('reference.bible.noAudio');
       const total = clock?.total;
       if (player.started) return `${mmss((clock?.elapsed ?? 0) * 1000)}${total ? ` / ${mmss(total * 1000)}` : ''}`;
       return total ? mmss(total * 1000) : '';
     },
     /** "World English Bible · 0:42 / 1:18" */
     line: (): string => {
-      if (!option) return passage.loading ? 'Loading…' : 'No Bible for this passage yet';
-      if (src?.loading && !plan) return `${option.name} · loading…`;
-      if (!plan) return `${option.name} · no audio for this passage`;
+      if (!option) return passage.loading ? t('common.loading') : t('reference.bible.noBible');
+      if (src?.loading && !plan) return t('reference.bible.nameLoading', { name: option.name });
+      if (!plan) return t('reference.bible.nameNoAudio', { name: option.name });
       const total = clock?.total;
       if (player.started) return `${option.name} · ${mmss((clock?.elapsed ?? 0) * 1000)}${total ? ` / ${mmss(total * 1000)}` : ''}`;
       return total ? `${option.name} · ${mmss(total * 1000)}` : option.name;
@@ -114,7 +116,8 @@ export function BiblePane(props: {
   const note = () => {
     player.pause();
     const verse = props.selected ?? player.current?.key;
-    const at = player.started && player.current && verse === player.current.key ? mmss(player.ms) : undefined;
+    // Stored in the note's anchor: plain digits, whatever the language showing.
+    const at = player.started && player.current && verse === player.current.key ? anchorClock(player.ms) : undefined;
     setNoting({ ...(verse ? { verse } : {}), ...(at ? { at } : {}) });
   };
   const tap = (row: VerseRow) => {
@@ -149,7 +152,7 @@ export function BiblePane(props: {
                   const onTerm = props.onTerm;
                   return (
                     <Text key={i} {...(onTerm ? { onPress: () => onTerm(part.termId!), accessibilityRole: 'link' as const } : {})}
-                      accessibilityLabel={`${part.text}, key word${tied ? ', tied to your draft' : ''}`}
+                      accessibilityLabel={tied ? t('reference.bible.keyWordTied', { word: part.text }) : t('reference.bible.keyWord', { word: part.text })}
                       style={[styles.term, tied && { color: TINT.greenText }]}>{part.text}{tied ? ' ✓' : ''}</Text>
                   );
                 })}
@@ -158,23 +161,23 @@ export function BiblePane(props: {
           })}
         </View>
       ) : (
-        <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{!option ? (bible.passage.loading ? 'Loading…' : 'No Bible for this passage yet.') : src?.loading || !src ? 'Loading…' : src.textProblem}</Text>
+        <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{!option ? (bible.passage.loading ? t('common.loading') : t('sources.reader.noBible')) : src?.loading || !src ? t('common.loading') : src.textProblem}</Text>
       )}
       {props.selected ? <VerseNotes ctx={ctx} notes={verseNotes.filter((n) => n.anchor.kind === 'verse' && n.anchor.verse === props.selected)} /> : null}
       {option && src ? (
         <View style={{ gap: 2, paddingHorizontal: space.xs }}>
-          {option.kind === 'builtin' ? <Text style={txt.xs}>Built-in text, a last resort until your organization recommends Bibles.</Text>
-            : option.sharedBy ? <Text style={txt.xs}>Shared by {option.sharedBy}.</Text> : null}
-          {copyrightLine(src.copyright) ? <Text style={txt.xs}>{abbr}: {copyrightLine(src.copyright)}</Text> : null}
-          {src.bibleBrain ? <LinkBtn label="Bible Brain terms" style={{ alignSelf: 'flex-start' }} accessibilityLabel="Open the Bible Brain terms of use" onPress={() => openContentLink(DBP_TERMS)} /> : null}
-          {props.onMoreBibles && !many ? <LinkBtn label="Other Bibles" style={{ alignSelf: 'flex-start' }} onPress={props.onMoreBibles} /> : null}
+          {option.kind === 'builtin' ? <Text style={txt.xs}>{t('sources.reader.builtIn')}</Text>
+            : option.sharedBy ? <Text style={txt.xs}>{t('sources.reader.sharedBy', { org: option.sharedBy })}</Text> : null}
+          {copyrightLine(src.copyright) ? <Text style={txt.xs}>{t('sources.reader.copyright', { abbr, line: copyrightLine(src.copyright) })}</Text> : null}
+          {src.bibleBrain ? <LinkBtn label={t('sources.reader.terms')} style={{ alignSelf: 'flex-start' }} accessibilityLabel={t('sources.reader.termsLabel')} onPress={() => openContentLink(DBP_TERMS)} /> : null}
+          {props.onMoreBibles && !many ? <LinkBtn label={t('reference.bible.otherBibles')} style={{ alignSelf: 'flex-start' }} onPress={props.onMoreBibles} /> : null}
         </View>
       ) : null}
       {props.footer}
       {picking ? <BibleSheet ctx={ctx} bible={bible} onClose={() => setPicking(false)} {...(props.onMoreBibles ? { onMoreBibles: () => { setPicking(false); props.onMoreBibles!(); } } : {})} /> : null}
       {noting ? (
-        <NoteSheet ctx={ctx} v={v} title={noting.verse ? `Note on ${noting.verse}` : 'Add a note'}
-          where={noting.verse ? `${v.title} · verse ${noting.verse}${abbr ? ` · ${abbr}` : ''}${noting.at ? ` · ${noting.at}` : ''}` : `${v.title} · the whole passage`}
+        <NoteSheet ctx={ctx} v={v} title={noting.verse ? t('reference.notes.noteOnRef', { verse: noting.verse }) : t('common.addNote')}
+          where={noting.verse ? [t('reference.notes.whereVerse', { passage: v.title, verse: noting.verse }), abbr, noting.at].filter(Boolean).join(' · ') : t('reference.notes.whereWhole', { passage: v.title })}
           anchor={noting.verse ? { kind: 'verse', verse: noting.verse, ...(abbr ? { translation: abbr } : {}), ...(noting.at ? { at: noting.at } : {}) } : { kind: 'passage' }}
           onClose={() => setNoting(null)} />
       ) : null}
@@ -185,15 +188,15 @@ export function BiblePane(props: {
 function Verse(props: { row: VerseRow; here: boolean; selected: boolean; notes: number; timed: boolean; onPress: () => void; children: ReactNode }) {
   const r = props.row;
   const verse = r.key.includes(':') ? r.key.slice(r.key.indexOf(':') + 1) : r.key;
-  const onPress = useHelpPress(`Verse ${verse}`, props.timed ? 'Plays from this verse. Then Note leaves a note on it.' : 'Choose this verse. Then Note leaves a note on it.', props.onPress);
+  const onPress = useHelpPress(t('reference.bible.verse', { verse }), props.timed ? t('reference.bible.verseHelpTimed') : t('reference.bible.verseHelp'), props.onPress);
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: props.here || props.selected }}
-      accessibilityLabel={`Verse ${r.key}. ${r.text}${props.notes ? `. ${props.notes} note${props.notes === 1 ? '' : 's'}` : ''}`}
+      accessibilityLabel={props.notes ? t('reference.bible.verseLabelNotes', { verse: r.key, text: r.text, count: props.notes }) : t('sources.reader.verseLabel', { verse: r.key, text: r.text })}
       style={({ pressed }) => [styles.verse, props.here && styles.versePlaying, props.selected && styles.verseSelected, pressed && ps.pressed]}>
       <Text style={styles.verseText}>
         <Text style={styles.verseNum}>{verse} </Text>
         {props.children}
-        {props.notes ? <Text style={styles.verseNotes}>  ● {props.notes}</Text> : null}
+        {props.notes ? <Text style={styles.verseNotes}>  ● {formatNumber(props.notes)}</Text> : null}
       </Text>
     </Pressable>
   );
@@ -205,9 +208,9 @@ function VerseNotes(props: { ctx: Ctx; notes: PassageNote[] }) {
 }
 
 function BiblePick(props: { label: string; onPress: () => void }) {
-  const onPress = useHelpPress('Choose a Bible', 'Hear and read the passage in another Bible.', props.onPress);
+  const onPress = useHelpPress(t('reference.bible.choose'), t('reference.bible.chooseHelp'), props.onPress);
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`Bible: ${props.label}. Choose another`}
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={t('reference.bible.pickLabel', { bible: props.label })}
       style={({ pressed }) => [styles.pick, pressed && ps.pressed]}>
       <Text style={[txt.sm, { fontWeight: '700', color: TINT.amberText }]} numberOfLines={1}>{props.label}</Text>
       <Ico name="down" size={16} color={TINT.amberText} strokeWidth={2.6} />
@@ -219,13 +222,13 @@ function BibleSheet(props: { ctx: Ctx; bible: Bible; onClose: () => void; onMore
   const { bible } = props;
   const marks = useChipMarks(props.ctx, bible.passage);
   return (
-    <Sheet visible title="Choose a Bible" sub="The one you choose plays and shows here, and in the study and reviews on this device." onClose={props.onClose}>
+    <Sheet visible title={t('reference.bible.choose')} sub={t('reference.bible.chooseSub')} onClose={props.onClose}>
       <View style={styles.card}>
         {bible.passage.options.map((o, i, all) => (
           <BibleRow key={o.itemId} label={chipLabel(o, all)} sub={[o.name, ...(marks[o.itemId] ?? [])].join(' · ')} on={o.itemId === bible.option?.itemId}
             last={i === all.length - 1 && !props.onMoreBibles} onPress={() => { bible.choose(o); props.onClose(); }} />
         ))}
-        {props.onMoreBibles ? <BibleRow label="More Bibles" sub="Find another Bible and add it" more last onPress={props.onMoreBibles} /> : null}
+        {props.onMoreBibles ? <BibleRow label={t('sources.reader.moreBibles')} sub={t('reference.bible.moreBiblesSub')} more last onPress={props.onMoreBibles} /> : null}
       </View>
     </Sheet>
   );
@@ -249,13 +252,13 @@ function BibleRow(props: { label: string; sub: string; on?: boolean; more?: bool
 /** The reference at one line (a-wsPeek): the Bible still plays, and the rest is a drag away. */
 export function BibleBar(props: { bible: Bible; onOpen: () => void }) {
   const { bible } = props;
-  const open = useHelpPress('The reference', 'Drag the divider down, or tap here, for the guide, key words, notes and earlier recordings.', props.onOpen);
+  const open = useHelpPress(t('reference.bible.barHelpTitle'), t('reference.bible.barHelp'), props.onOpen);
   return (
     <View style={styles.bar}>
-      <PlayBtn playing={bible.player.playing} available={bible.hasAudio && !bible.player.loading} none={!bible.hasAudio} label="Play the Bible" onPress={bible.player.toggle} />
-      <Pressable onPress={open} accessibilityRole="button" accessibilityLabel="Open the reference" style={({ pressed }) => [{ flex: 1, minWidth: 0 }, pressed && ps.pressed]}>
-        <Text style={ps.miniTitle} numberOfLines={1}>Bible{bible.option ? ` · ${bible.option.abbreviation}` : ''}</Text>
-        <Text style={txt.smMuted} numberOfLines={2}>Drag down for the guide, key words, notes and earlier recordings</Text>
+      <PlayBtn playing={bible.player.playing} available={bible.hasAudio && !bible.player.loading} none={!bible.hasAudio} label={t('reference.bible.play')} onPress={bible.player.toggle} />
+      <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={t('reference.bible.openReference')} style={({ pressed }) => [{ flex: 1, minWidth: 0 }, pressed && ps.pressed]}>
+        <Text style={ps.miniTitle} numberOfLines={1}>{bible.option ? t('reference.bible.barTitleWith', { abbr: bible.option.abbreviation }) : t('reference.bible.barTitle')}</Text>
+        <Text style={txt.smMuted} numberOfLines={2}>{t('reference.bible.barSub')}</Text>
       </Pressable>
       <Back10 onPress={() => bible.player.skip(-10)} disabled={!bible.player.started} />
     </View>
@@ -265,8 +268,8 @@ export function BibleBar(props: { bible: Bible; onOpen: () => void }) {
 // ---- key words --------------------------------------------------------------------------
 
 /** The latest voice recording of the term in this language: what "Your word" plays. */
-function voiceOf(t: KeyTermView): string | undefined {
-  return [...t.adjustments].reverse().find((a) => a.blobHash)?.blobHash;
+function voiceOf(term: KeyTermView): string | undefined {
+  return [...term.adjustments].reverse().find((a) => a.blobHash)?.blobHash;
 }
 
 /**
@@ -284,25 +287,25 @@ export function KeyWordsPane(props: {
   const [saying, setSaying] = useState<KeyTermView | null>(null);
   const [adding, setAdding] = useState(false);
   const book = bookOf(v.title);
-  const where = (t: KeyTermView): string[] => (props.rows ?? []).filter((r) => markTerms(r.text, [t]).some((p) => p.termId)).map((r) => r.key);
+  const where = (term: KeyTermView): string[] => (props.rows ?? []).filter((r) => markTerms(r.text, [term]).some((p) => p.termId)).map((r) => r.key);
   return (
     <View style={{ gap: space.md }}>
       {props.terms.length === 0 ? (
-        <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>No key words in this passage yet.{canEdit ? ' Add one your team should say the same way every time.' : ''}</Text>
+        <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{canEdit ? t('reference.keyWords.noneAdd') : t('reference.keyWords.none')}</Text>
       ) : (
         <View style={styles.card}>
-          {props.terms.map((t, i) => {
-            const keys = where(t);
+          {props.terms.map((term, i) => {
+            const keys = where(term);
             return (
-              <TermRow key={t.termId} ctx={ctx} term={t} refs={keys.length ? `${book} ${verseRefs(keys)}` : t.gloss || 'Elsewhere in the book'} last={i === props.terms.length - 1}
-                onHear={() => props.onHear(keys[0] ?? null)} canEdit={canEdit && !props.disabled} onSay={() => setSaying(t)}
-                onOpen={() => ctx.go('key_term_detail', { unitId: v.unitId, languageId: v.languageId, termId: t.termId })} />
+              <TermRow key={term.termId} ctx={ctx} term={term} refs={keys.length ? `${book} ${verseRefs(keys)}` : term.gloss || t('reference.keyWords.elsewhere')} last={i === props.terms.length - 1}
+                onHear={() => props.onHear(keys[0] ?? null)} canEdit={canEdit && !props.disabled} onSay={() => setSaying(term)}
+                onOpen={() => ctx.go('key_term_detail', { unitId: v.unitId, languageId: v.languageId, termId: term.termId })} />
             );
           })}
         </View>
       )}
-      {canEdit ? <DashedBtn label="Add a key word" onPress={() => setAdding(true)} disabled={props.disabled} hint="A word your team should say the same way every time." /> : null}
-      {props.allTerms ? <LinkBtn label="All key words" style={{ alignSelf: 'center' }} onPress={props.allTerms} /> : null}
+      {canEdit ? <DashedBtn label={t('reference.keyWords.add')} onPress={() => setAdding(true)} disabled={props.disabled} hint={t('reference.keyWords.addHint')} /> : null}
+      {props.allTerms ? <LinkBtn label={t('reference.keyWords.all')} style={{ alignSelf: 'center' }} onPress={props.allTerms} /> : null}
       {saying ? <SayYoursSheet ctx={ctx} v={v} term={saying} draftTakeId={props.draftTakeId} canTie={props.canTie} onClose={() => setSaying(null)} /> : null}
       {adding ? <AddWordSheet ctx={ctx} v={v} draftTakeId={props.draftTakeId} onClose={() => setAdding(false)} /> : null}
     </View>
@@ -310,47 +313,49 @@ export function KeyWordsPane(props: {
 }
 
 function TermRow(props: { ctx: Ctx; term: KeyTermView; refs: string; last: boolean; canEdit: boolean; onHear: () => void; onSay: () => void; onOpen: () => void }) {
-  const t = props.term;
-  const voice = voiceOf(t);
-  const rendering = t.renderings[t.renderings.length - 1]?.rendering;
-  const hear = useHelpPress(`Hear ${t.term}`, 'Plays the verse it is in.', props.onHear);
-  const open = useHelpPress(t.term, 'What it means, how your team says it, and why.', props.onOpen);
+  const term = props.term;
+  const voice = voiceOf(term);
+  const rendering = term.renderings[term.renderings.length - 1]?.rendering;
+  const hear = useHelpPress(t('reference.keyWords.hear', { term: term.term }), t('reference.keyWords.hearHelp'), props.onHear);
+  const open = useHelpPress(term.term, t('reference.keyWords.openHelp'), props.onOpen);
   return (
     <View style={[styles.termRow, !props.last && ps.rowBorder]}>
-      <Pressable onPress={hear} accessibilityRole="button" accessibilityLabel={`Hear ${t.term} in the Bible`} hitSlop={4} style={({ pressed }) => [styles.hear, pressed && ps.pressed]}>
+      <Pressable onPress={hear} accessibilityRole="button" accessibilityLabel={t('reference.keyWords.hearLabel', { term: term.term })} hitSlop={4} style={({ pressed }) => [styles.hear, pressed && ps.pressed]}>
         <Ico name="listen" size={22} color={TINT.amberText} />
       </Pressable>
-      <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={`${t.term}. ${props.refs}${rendering ? `. Your word: ${rendering}` : ''}`}
+      <Pressable onPress={open} accessibilityRole="button"
+        accessibilityLabel={rendering ? t('reference.keyWords.termLabelWord', { term: term.term, refs: props.refs, word: rendering }) : t('reference.keyWords.termLabel', { term: term.term, refs: props.refs })}
         style={({ pressed }) => [{ flex: 1, minWidth: 0, minHeight: target.min, justifyContent: 'center' }, pressed && ps.pressed]}>
-        <Text style={styles.termName} numberOfLines={1}>{t.term}</Text>
+        <Text style={styles.termName} numberOfLines={1}>{term.term}</Text>
         <Text style={txt.smMuted} numberOfLines={1}>{props.refs}{rendering && voice ? ` · ${rendering}` : ''}</Text>
       </Pressable>
-      {voice ? <YourWord ctx={props.ctx} hash={voice} term={t.term} />
+      {voice ? <YourWord ctx={props.ctx} hash={voice} term={term.term} />
         : rendering ? <Text style={[styles.yourWord, { maxWidth: 120 }]} numberOfLines={2}>{rendering}</Text>
-        : props.canEdit ? <SayYours onPress={props.onSay} term={t.term} /> : null}
+        : props.canEdit ? <SayYours onPress={props.onSay} term={term.term} /> : null}
     </View>
   );
 }
 
 function YourWord(props: { ctx: Ctx; hash: string; term: string }) {
   const clip = useClip(props.ctx.language, [props.hash]);
-  const onPress = useHelpPress('Your word', `Plays how your team says ${props.term}.`, clip.toggle);
+  const onPress = useHelpPress(t('reference.keyWords.yourWord'), t('reference.keyWords.yourWordHelp', { term: props.term }), clip.toggle);
   return (
-    <Pressable onPress={onPress} disabled={!clip.available} accessibilityRole="button" accessibilityLabel={`${clip.playing ? 'Pause' : 'Play'} your word for ${props.term}`}
+    <Pressable onPress={onPress} disabled={!clip.available} accessibilityRole="button"
+      accessibilityLabel={clip.playing ? t('reference.keyWords.pauseYourWord', { term: props.term }) : t('reference.keyWords.playYourWord', { term: props.term })}
       style={({ pressed }) => [styles.wordBtn, !clip.available && ps.off, pressed && ps.pressed]}>
       <Ico name={clip.playing ? 'pause' : 'play'} size={14} color={TINT.greenText} strokeWidth={3} fill={TINT.greenText} />
-      <Text style={styles.yourWord}>Your word</Text>
+      <Text style={styles.yourWord}>{t('reference.keyWords.yourWord')}</Text>
     </Pressable>
   );
 }
 
 function SayYours(props: { onPress: () => void; term: string }) {
-  const onPress = useHelpPress('Say yours', `Record how your language says ${props.term}.`, props.onPress);
+  const onPress = useHelpPress(t('reference.keyWords.sayYours'), t('reference.keyWords.sayYoursHelp', { term: props.term }), props.onPress);
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`Say your word for ${props.term}`}
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={t('reference.keyWords.sayYoursLabel', { term: props.term })}
       style={({ pressed }) => [styles.wordBtn, pressed && ps.pressed]}>
       <Ico name="mic" size={16} color={C.primary} />
-      <Text style={[styles.yourWord, { color: C.primary }]}>Say yours</Text>
+      <Text style={[styles.yourWord, { color: C.primary }]}>{t('reference.keyWords.sayYours')}</Text>
     </Pressable>
   );
 }
@@ -368,19 +373,21 @@ function SayYoursSheet(props: { ctx: Ctx; v: PassageView; term: KeyTermView; dra
     try {
       // TERM-5: a rendering said (and, when typed, written), recorded with this passage; tied to the draft when there is one.
       await ctx.act(commands(state, indexesFor(state)).adjustKeyTermRendering({
+        // i18n-ignore: the rendering's note is stored in the event log
         commandId: Crypto.randomUUID(), termId: term.termId, rendering: text, note: hash ? '' : `Rendered “${text.trim()}” in ${v.title}.`,
         ...(hash ? { blobHash: hash } : {}), ...(duringTakeId ? { duringTakeId } : {}),
         ...(props.canTie && props.draftTakeId ? { tieToTakeId: props.draftTakeId } : {})
-      }), `Your word for ${term.term} is saved.`);
+      }), t('reference.keyWords.saved', { term: term.term }));
       props.onClose();
     } catch { /* ctx.act said what went wrong */ }
     finally { setBusy(false); }
   }
   return (
-    <Sheet visible title={`Your word for “${term.term}”`} sub={`${term.gloss ? `${term.gloss}. ` : ''}Say how ${v.language} says it. Your team hears it whenever this word comes up.`}
-      onClose={props.onClose} footer={<PrimaryBtn label="Save your word" icon="check" busy={busy} disabled={!hash && !text.trim()} onPress={() => void save()} />}>
-      <VoiceNote ctx={ctx} label="Say it" hash={hash} onChange={setHash} />
-      <Field value={text} onChangeText={setText} placeholder="Or type it" />
+    <Sheet visible title={t('reference.keyWords.sayTitle', { term: term.term })}
+      sub={term.gloss ? t('reference.keyWords.saySubGloss', { gloss: term.gloss, language: v.language }) : t('reference.keyWords.saySub', { language: v.language })}
+      onClose={props.onClose} footer={<PrimaryBtn label={t('reference.keyWords.saveWord')} icon="check" busy={busy} disabled={!hash && !text.trim()} onPress={() => void save()} />}>
+      <VoiceNote ctx={ctx} label={t('common.sayIt')} hash={hash} onChange={setHash} />
+      <Field value={text} onChangeText={setText} placeholder={t('common.orTypeIt')} />
     </Sheet>
   );
 }
@@ -403,20 +410,21 @@ function AddWordSheet(props: { ctx: Ctx; v: PassageView; draftTakeId: string | u
       // TERM-6: the word, how the language says it (said, typed or both), recorded as its first adjustment.
       await ctx.act(commands(state, indexesFor(state)).defineKeyTerm({
         commandId: Crypto.randomUUID(), termId: `kt-${Crypto.randomUUID()}`, term, gloss, unitScope: [book],
+        // i18n-ignore: the term's first note is stored in the event log
         rendering, note: rendering.trim() ? `First rendering: ${rendering.trim()}.` : 'Said in a voice note.',
         ...(hash ? { blobHash: hash } : {}), ...(duringTakeId ? { duringTakeId } : {})
-      }), `${term.trim()} added.`);
+      }), t('reference.keyWords.added', { term: term.trim() }));
       props.onClose();
     } catch { /* ctx.act said what went wrong */ }
     finally { setBusy(false); }
   }
   return (
-    <Sheet visible title="Add a key word" sub={`A word the team should say the same way every time. It is added to ${v.language}'s key words.`}
-      onClose={props.onClose} footer={<PrimaryBtn label="Add the word" icon="plus" busy={busy} disabled={!ready} onPress={() => void save()} />}>
-      <Field value={term} onChangeText={setTerm} placeholder="The word in the Bible, e.g. shepherd" />
-      <Field value={gloss} onChangeText={setGloss} placeholder="What it means (optional)" autoCapitalize="sentences" />
-      <VoiceNote ctx={ctx} label={`Say it in ${v.language}`} hash={hash} onChange={setHash} />
-      <Field value={rendering} onChangeText={setRendering} placeholder="Or type it" />
+    <Sheet visible title={t('reference.keyWords.add')} sub={t('reference.keyWords.addSub', { language: v.language })}
+      onClose={props.onClose} footer={<PrimaryBtn label={t('reference.keyWords.addWord')} icon="plus" busy={busy} disabled={!ready} onPress={() => void save()} />}>
+      <Field value={term} onChangeText={setTerm} placeholder={t('reference.keyWords.wordPlaceholder')} />
+      <Field value={gloss} onChangeText={setGloss} placeholder={t('reference.keyWords.meaningPlaceholder')} autoCapitalize="sentences" />
+      <VoiceNote ctx={ctx} label={t('reference.keyWords.sayItIn', { language: v.language })} hash={hash} onChange={setHash} />
+      <Field value={rendering} onChangeText={setRendering} placeholder={t('common.orTypeIt')} />
     </Sheet>
   );
 }
@@ -426,17 +434,30 @@ function AddWordSheet(props: { ctx: Ctx; v: PassageView; draftTakeId: string | u
 /** "NOTE ON VERSE 12 · MARY", "VOICE NOTE · ABEBE · ON VERSE 12". */
 export function noteLabel(ctx: Ctx, n: PassageNote, versionN?: (takeId: string) => number | undefined): string {
   const who = ctx.name(n.by);
-  const on = (() => {
+  // What the note is on, as its own phrase (after "Voice note") and as a whole label ("Note on verse 12").
+  const on = ((): { on: string; note: string } | null => {
     switch (n.anchor.kind) {
-      case 'passage': return '';
-      case 'verse': return `on verse ${n.anchor.verse.includes(':') ? n.anchor.verse.slice(n.anchor.verse.indexOf(':') + 1) : n.anchor.verse}`;
-      case 'version': { const at = versionN?.(n.anchor.takeId); return at ? `on ${versionTitle(at)}` : 'on a draft'; }
-      case 'term': { const t = ctx.language.state ? keyTermView(ctx.language.state, n.anchor.termId) : null; return t ? `on “${t.term}”` : 'on a key word'; }
-      case 'study': return 'on the study';
+      case 'passage': return null;
+      case 'verse': {
+        const verse = n.anchor.verse.includes(':') ? n.anchor.verse.slice(n.anchor.verse.indexOf(':') + 1) : n.anchor.verse;
+        return { on: t('reference.notes.onVerse', { verse }), note: t('reference.notes.noteOnVerse', { verse }) };
+      }
+      case 'version': {
+        const at = versionN?.(n.anchor.takeId);
+        if (!at) return { on: t('reference.notes.onDraft'), note: t('reference.notes.noteOnDraft') };
+        const version = versionTitle(at);
+        return { on: t('reference.notes.onVersion', { version }), note: t('reference.notes.noteOnVersion', { version }) };
+      }
+      case 'term': {
+        const term = ctx.language.state ? keyTermView(ctx.language.state, n.anchor.termId) : null;
+        return term ? { on: t('reference.notes.onTerm', { term: term.term }), note: t('reference.notes.noteOnTerm', { term: term.term }) }
+          : { on: t('reference.notes.onKeyWord'), note: t('reference.notes.noteOnKeyWord') };
+      }
+      case 'study': return { on: t('reference.notes.onStudy'), note: t('reference.notes.noteOnStudy') };
     }
   })();
-  if (n.blobHash && !n.text) return ['Voice note', who, on].filter(Boolean).join(' · ');
-  return [on ? `Note ${on}` : 'Note on the passage', who].join(' · ');
+  if (n.blobHash && !n.text) return [t('common.voiceNote'), who, on?.on].filter(Boolean).join(' · ');
+  return [on ? on.note : t('reference.notes.noteOnPassage'), who].join(' · ');
 }
 
 function NoteItem(props: { ctx: Ctx; note: PassageNote; label: string; older?: string }) {
@@ -460,7 +481,7 @@ function NoteItem(props: { ctx: Ctx; note: PassageNote; label: string; older?: s
 function VoiceClip(props: { ctx: Ctx; hash: string; sub: string }) {
   const clip = useClip(props.ctx.language, [props.hash]);
   return (
-    <MiniPlayer title={clip.total ? mmss(clip.total * 1000) : 'Voice note'} sub={props.sub} playing={clip.playing} available={clip.available}
+    <MiniPlayer title={clip.total ? mmss(clip.total * 1000) : t('common.voiceNote')} sub={props.sub} playing={clip.playing} available={clip.available}
       onToggle={clip.toggle} onBack10={clip.back10} backDisabled={!clip.available || clip.elapsed <= 0} {...(clip.error ? { error: clip.error } : {})} />
   );
 }
@@ -476,14 +497,14 @@ export function NotesPane(props: { ctx: Ctx; v: PassageView; notes: PassageNote[
     <View style={{ gap: space.md }}>
       {props.top}
       {newest.length === 0 && !props.top ? (
-        <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>Notes you leave here follow the passage. Reviewers and the next translator see them.</Text>
+        <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('reference.notes.empty')}</Text>
       ) : null}
       {newest.map((n) => {
         const older = n.onTakeId && n.onTakeId !== latestId ? versionN.get(n.onTakeId) : undefined;
-        return <NoteItem key={n.id} ctx={ctx} note={n} label={noteLabel(ctx, n, (id) => versionN.get(id))} {...(older ? { older: `made with ${versionTitle(older)}` } : {})} />;
+        return <NoteItem key={n.id} ctx={ctx} note={n} label={noteLabel(ctx, n, (id) => versionN.get(id))} {...(older ? { older: t('reference.notes.madeWith', { version: versionTitle(older) }) } : {})} />;
       })}
-      <DashedBtn label="Add a note" onPress={() => setAdding(true)} disabled={props.disabled} hint="Leave a note on this passage, by voice or text." />
-      {adding ? <NoteSheet ctx={ctx} v={v} title="Add a note" where={`${v.title} · the whole passage`} anchor={{ kind: 'passage' }} onClose={() => setAdding(false)} /> : null}
+      <DashedBtn label={t('common.addNote')} onPress={() => setAdding(true)} disabled={props.disabled} hint={t('reference.notes.addHint')} />
+      {adding ? <NoteSheet ctx={ctx} v={v} title={t('common.addNote')} where={t('reference.notes.whereWhole', { passage: v.title })} anchor={{ kind: 'passage' }} onClose={() => setAdding(false)} /> : null}
     </View>
   );
 }
@@ -499,12 +520,12 @@ export function NoteSheet(props: { ctx: Ctx; v: Pick<PassageView, 'unitId'>; tit
   const [hash, setHash] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   return (
-    <Sheet visible title={props.title} sub="It stays with the passage. Reviewers and the next translator see it." onClose={props.onClose}
-      footer={<PrimaryBtn label="Save note" busy={busy} disabled={!text.trim() && !hash}
-        onPress={() => { setBusy(true); void saveNote(props.ctx, props.v, props.anchor, { text, blobHash: hash }, props.message ?? 'Note added.').then((ok) => { setBusy(false); if (ok) props.onClose(); }); }} />}>
+    <Sheet visible title={props.title} sub={t('reference.notes.sheetSub')} onClose={props.onClose}
+      footer={<PrimaryBtn label={t('reference.notes.save')} busy={busy} disabled={!text.trim() && !hash}
+        onPress={() => { setBusy(true); void saveNote(props.ctx, props.v, props.anchor, { text, blobHash: hash }, props.message ?? t('reference.notes.added')).then((ok) => { setBusy(false); if (ok) props.onClose(); }); }} />}>
       <View style={styles.where}><Text style={txt.smMuted}>{props.where}</Text></View>
-      <VoiceNote ctx={props.ctx} label="Say it" hash={hash} onChange={setHash} />
-      <Field value={text} onChangeText={setText} placeholder="Or type it" multiline />
+      <VoiceNote ctx={props.ctx} label={t('common.sayIt')} hash={hash} onChange={setHash} />
+      <Field value={text} onChangeText={setText} placeholder={t('common.orTypeIt')} multiline />
     </Sheet>
   );
 }
@@ -524,36 +545,45 @@ export function EarlierPane(props: { ctx: Ctx; v: PassageView; focusReviewId?: s
   const items = useMemo<EarlierItem[]>(() => {
     const out: EarlierItem[] = [];
     for (const x of v.p.versions) {
-      const who = x.by === me ? 'Yours' : ctx.name(x.by);
+      const who = x.by === me ? t('reference.earlier.yours') : ctx.name(x.by);
       out.push({ key: x.takeId, hlc: x.hlc, title: versionTitle(x.n), sub: who, after: when(x.hlc), hashes: x.cardHashes });
       if (x.changeBlobHash || (x.changeNote && x.n > 1)) {
-        out.push({ key: `${x.takeId}:change`, hlc: x.hlc, title: `What changed in ${versionTitle(x.n)}`, sub: who, hashes: x.changeBlobHash ? [x.changeBlobHash] : [], ...(x.changeNote ? { text: x.changeNote } : {}) });
+        out.push({ key: `${x.takeId}:change`, hlc: x.hlc, title: t('reference.earlier.whatChanged', { version: versionTitle(x.n) }), sub: who, hashes: x.changeBlobHash ? [x.changeBlobHash] : [], ...(x.changeNote ? { text: x.changeNote } : {}) });
       }
     }
     for (const r of v.p.reviews) {
       const kind = v.kind(r.kindId);
-      const name = r.by === me ? 'Your' : `${ctx.name(r.by)}'s`;
+      const mine = r.by === me;
+      const name = ctx.name(r.by);
       const made = kind.produces && r.artifacts?.length;
       const hashes = made ? r.artifacts!.map((c) => c.hash) : r.commentBlobHash ? [r.commentBlobHash] : [];
       if (!hashes.length && !r.comment) continue;
+      const version = versionTitle(r.versionN);
+      const outcome = made ? null : r.outcome === 'needs_changes' ? t('reference.earlier.needsChanges') : r.outcome === 'looks_good' ? t('reference.earlier.looksGood') : null;
       out.push({
         key: r.id, hlc: r.hlc, hashes, ...(r.comment ? { text: r.comment } : {}), focus: r.id === props.focusReviewId,
-        title: made ? `${name} ${kind.produces!.what} of ${versionTitle(r.versionN)}` : `${name} feedback on ${versionTitle(r.versionN)}`,
-        sub: `${kind.name}${made ? '' : r.outcome === 'needs_changes' ? ' · needs changes' : r.outcome === 'looks_good' ? ' · looks good' : ''}`
+        title: made
+          ? (mine ? t('reference.earlier.yourMade', { what: kind.produces!.what, version }) : t('reference.earlier.theirMade', { name, what: kind.produces!.what, version }))
+          : (mine ? t('reference.earlier.yourFeedback', { version }) : t('reference.earlier.theirFeedback', { name, version })),
+        sub: outcome ? [kind.name, outcome].join(' · ') : kind.name
       });
       if (r.response?.blobHash || r.response?.note) {
-        out.push({ key: `${r.id}:response`, hlc: r.response.hlc, title: `${r.response.by === me ? 'Your' : `${ctx.name(r.response.by)}'s`} answer to it`,
-          sub: r.response.decision === 'kept' ? 'Kept it' : 'Revised', hashes: r.response.blobHash ? [r.response.blobHash] : [], ...(r.response.note ? { text: r.response.note } : {}) });
+        out.push({ key: `${r.id}:response`, hlc: r.response.hlc,
+          title: r.response.by === me ? t('reference.earlier.yourAnswer') : t('reference.earlier.theirAnswer', { name: ctx.name(r.response.by) }),
+          sub: r.response.decision === 'kept' ? t('reference.earlier.keptIt') : t('reference.earlier.revised'), hashes: r.response.blobHash ? [r.response.blobHash] : [], ...(r.response.note ? { text: r.response.note } : {}) });
       }
     }
     for (const n of v.p.notes) {
       if (!n.blobHash || n.anchor.kind === 'study' || (n.anchor.kind === 'version' && n.anchor.role === 'change')) continue;
-      const on = n.anchor.kind === 'verse' ? ` on verse ${n.anchor.verse.slice(n.anchor.verse.indexOf(':') + 1)}` : '';
-      out.push({ key: n.id, hlc: n.hlc, title: `${n.by === me ? 'Your' : `${ctx.name(n.by)}'s`} note${on}`, sub: when(n.hlc), hashes: [n.blobHash], ...(n.text ? { text: n.text } : {}) });
+      const verse = n.anchor.kind === 'verse' ? n.anchor.verse.slice(n.anchor.verse.indexOf(':') + 1) : null;
+      const title = n.by === me
+        ? (verse ? t('reference.earlier.yourNoteOnVerse', { verse }) : t('reference.earlier.yourNote'))
+        : (verse ? t('reference.earlier.theirNoteOnVerse', { name: ctx.name(n.by), verse }) : t('reference.earlier.theirNote', { name: ctx.name(n.by) }));
+      out.push({ key: n.id, hlc: n.hlc, title, sub: when(n.hlc), hashes: [n.blobHash], ...(n.text ? { text: n.text } : {}) });
     }
     return out.sort((a, b) => (a.hlc < b.hlc ? -1 : a.hlc > b.hlc ? 1 : 0));
   }, [v, ctx, me, props.focusReviewId]);
-  if (items.length === 0) return <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>Nothing recorded for this passage yet. This will be the first version.</Text>;
+  if (items.length === 0) return <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('reference.earlier.empty')}</Text>;
   return (
     <View style={styles.card}>
       {items.map((it, i) => <EarlierRow key={it.key} ctx={ctx} item={it} last={i === items.length - 1} />)}
@@ -572,7 +602,7 @@ function EarlierRow(props: { ctx: Ctx; item: EarlierItem; last: boolean }) {
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={ps.rowTitle}>{it.title}</Text>
           <Text style={txt.smMuted}>{it.sub}</Text>
-          {it.text ? <Text style={[txt.sm, { marginTop: 2 }]}>“{it.text}”</Text> : null}
+          {it.text ? <Text style={[txt.sm, { marginTop: 2 }]}>{t('reference.earlier.quoted', { text: it.text })}</Text> : null}
         </View>
       </View>
     );
@@ -581,7 +611,7 @@ function EarlierRow(props: { ctx: Ctx; item: EarlierItem; last: boolean }) {
     <View style={[it.focus && styles.focus, !props.last && ps.rowBorder]}>
       <PlayRow title={it.title} sub={`${it.sub}${length}`} playing={clip.playing} available={clip.available} onToggle={clip.toggle}
         last {...(clip.error ? { error: clip.error } : {})} />
-      {it.text ? <Text style={[txt.sm, styles.earlierText]}>“{it.text}”</Text> : null}
+      {it.text ? <Text style={[txt.sm, styles.earlierText]}>{t('reference.earlier.quoted', { text: it.text })}</Text> : null}
     </View>
   );
 }

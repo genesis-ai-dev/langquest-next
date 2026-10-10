@@ -14,6 +14,7 @@ import { Text, View } from 'react-native';
 import { audioFormat } from './audioClip';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
 import type { Ctx } from './ctx';
+import { t } from './i18n';
 import { getReferenceSlides } from './passageResources';
 import { Card, IconBtn, Ico, txt } from './kit';
 import type { ListenHooks } from './recording/useListenLoop';
@@ -35,13 +36,13 @@ export function ReferenceRecordings({ ctx, unitId, disabled, listen, onPlay }: {
         <Text style={[txt.sm, { flex: 1 }]}>{item.label}</Text>
       </View>
       <SourcePlayer language={ctx.language} hashes={[item.hash]} {...(listen ? { listen } : {})}
-        label={`Play ${item.label}`} disabled={disabled} {...(onPlay ? { onPlay: () => onPlay(item.id) } : {})} />
+        label={t('sources.recordings.play', { name: item.label })} disabled={disabled} {...(onPlay ? { onPlay: () => onPlay(item.id) } : {})} />
     </Card>)}
   </View>;
 }
 
 function playbackFailed(where: string, err: unknown): string {
-  return `Audio could not play (code ${reportError(where, err)}).`;
+  return t('common.audioCouldNotPlay', { code: reportError(where, err) });
 }
 
 /**
@@ -142,12 +143,12 @@ export function SourcePlayer(props: {
           try { uri = await language.blobs.streamUri(ref); }
           catch (err) {
             noteExpected('source player stream', err);
-            if (generation.current === run) { wants.current = false; setPlaying(false); setError('Audio could not load. Check your connection and try again.'); }
+            if (generation.current === run) { wants.current = false; setPlaying(false); setError(t('common.audioCouldNotLoad')); }
             return;
           }
           if (!wants.current || generation.current !== run) return;
         }
-        if (!uri) { wants.current = false; setPlaying(false); setError('Audio is not on this device yet.'); return; }
+        if (!uri) { wants.current = false; setPlaying(false); setError(t('sources.recordings.notHere')); return; }
         try {
           const p = createAudioPlayer({ uri });
           player.current = p;
@@ -156,7 +157,7 @@ export function SourcePlayer(props: {
             if (status.error) {
               wants.current = false;
               p.remove(); player.current = null; setPlaying(false);
-              setError('Audio could not load. Check your connection and try again.');
+              setError(t('common.audioCouldNotLoad'));
               return;
             }
             if (status.didJustFinish) void next(index + 1);
@@ -165,7 +166,7 @@ export function SourcePlayer(props: {
         } catch (err) {
           wants.current = false;
           player.current?.remove(); player.current = null;
-          setPlaying(false); setError(playbackFailed('source player create', err));
+          setPlaying(false); setError(playbackFailed('source player create', err)); // i18n-ignore: log label
         }
       };
       await next(0);
@@ -173,7 +174,7 @@ export function SourcePlayer(props: {
       if (generation.current === run) {
         wants.current = false;
         player.current?.remove(); player.current = null;
-        setPlaying(false); setError(playbackFailed('source player play', err));
+        setPlaying(false); setError(playbackFailed('source player play', err)); // i18n-ignore: log label
       }
     }
   }
@@ -181,17 +182,17 @@ export function SourcePlayer(props: {
     const p = player.current;
     if (!p || props.disabled) return;
     try { await p.seekTo(Math.max(0, Math.min(p.duration, p.currentTime + delta))); }
-    catch (err) { setError(playbackFailed('source player seek', err)); }
+    catch (err) { setError(playbackFailed('source player seek', err)); } // i18n-ignore: log label
   }
   return (
     <View style={{ gap: space.sm }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-        <IconBtn name="restart" label="Rewind source 10 seconds" size={target.min}
+        <IconBtn name="restart" label={t('sources.recordings.rewind')} size={target.min}
           bg={C.light} color={C.primary} disabled={props.disabled || !available} onPress={() => void seek(-10)} />
         <IconBtn name={available ? playing ? 'pause' : 'play' : 'download'} size={target.primary} bg={C.light} color={C.primary}
-          label={available ? playing ? 'Pause playback' : props.label : 'Audio is not on this device yet'}
+          label={available ? playing ? t('sources.recordings.pause') : props.label : t('sources.recordings.notHereLabel')}
           disabled={!available || props.disabled} onPress={() => void toggle()} />
-        <IconBtn name="skip" label="Forward source 10 seconds" size={target.min}
+        <IconBtn name="skip" label={t('sources.recordings.forward')} size={target.min}
           bg={C.light} color={C.primary} disabled={props.disabled || !available} onPress={() => void seek(10)} />
       </View>
       {error ? <Text accessibilityRole="alert" style={txt.error}>{error}</Text> : null}

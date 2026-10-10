@@ -7,6 +7,7 @@ import { usedOn, type LanguageState, type UsedReference } from '@langquest-next/
 import { useMemo, useRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Ctx } from '../ctx';
+import { t } from '../i18n';
 import { Ico, txt } from '../kit';
 import { C, radius, space } from '../theme';
 import { madeWithLine, usedItems } from './model';
@@ -31,7 +32,14 @@ export function useUsage(): Usage {
   }), []);
 }
 
-const KIND: Record<UsedReference['kind'], string> = { source: 'Bible', guide: 'Study guide', note: 'Note', questions: 'Questions' };
+function kindName(kind: UsedReference['kind']): string {
+  switch (kind) {
+    case 'source': return t('sources.used.kindSource');
+    case 'guide': return t('sources.used.kindGuide');
+    case 'note': return t('sources.used.kindNote');
+    case 'questions': return t('sources.used.kindQuestions');
+  }
+}
 
 /** "Made with BSB (opened), FIA" under a version or a review; tap for the list. Nothing when nothing was recorded. */
 export function UsedLine(props: { ctx: Ctx; state: LanguageState; subject: { takeId?: string; reviewId?: string }; detailsKey: string }) {
@@ -41,7 +49,7 @@ export function UsedLine(props: { ctx: Ctx; state: LanguageState; subject: { tak
   return (
     <View style={styles.box}>
       <Pressable onPress={d.onToggle} accessibilityRole="button" accessibilityState={{ expanded: d.open }}
-        accessibilityLabel={`${madeWithLine(items)}. ${d.open ? 'Hide' : 'Show'} the list`}
+        accessibilityLabel={d.open ? t('sources.used.hideList', { line: madeWithLine(items) }) : t('sources.used.showList', { line: madeWithLine(items) })}
         style={({ pressed }) => [styles.line, pressed && { opacity: 0.7 }]}>
         <Ico name="book" size={16} color={C.muted} />
         <Text style={[txt.xs, { flex: 1 }]} numberOfLines={d.open ? undefined : 2}>{madeWithLine(items)}</Text>
@@ -49,8 +57,8 @@ export function UsedLine(props: { ctx: Ctx; state: LanguageState; subject: { tak
       </Pressable>
       {d.open ? items.map((u) => (
         <View key={u.itemId} style={styles.item}>
-          <Text style={[txt.sm, { fontWeight: '700' }]}>{u.name}<Text style={[txt.xs, { fontWeight: '400' }]}> · {KIND[u.kind]}{u.ref ? ` · ${u.ref}` : ''}</Text></Text>
-          <Text style={txt.xs}>{u.opened ? (u.kind === 'source' ? 'Played or chosen' : 'Opened') : 'Offered, not opened'}{u.by ? ` · ${props.ctx.name(u.by)}` : ''}</Text>
+          <Text style={[txt.sm, { fontWeight: '700' }]}>{u.name}<Text style={[txt.xs, { fontWeight: '400' }]}> · {kindName(u.kind)}{u.ref ? ` · ${u.ref}` : ''}</Text></Text>
+          <Text style={txt.xs}>{u.opened ? (u.kind === 'source' ? t('sources.used.played') : t('sources.used.opened')) : t('sources.used.notOpened')}{u.by ? ` · ${props.ctx.name(u.by)}` : ''}</Text>
           {u.copyright ? <Text style={txt.xs}>{u.copyright}</Text> : null}
         </View>
       )) : null}

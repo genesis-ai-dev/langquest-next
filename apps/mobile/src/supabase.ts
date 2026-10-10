@@ -19,8 +19,10 @@ const anon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
  * sets EXPO_PUBLIC_LOCAL_RELEASE for the web smoke test against a local stack.
  */
 export const supabaseConfigError: string | null = !url || !anon
+  // i18n-ignore: for the developer who made the build (it names env vars); computed before any language is chosen
   ? 'This build has no server configuration. EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY were not set when it was built (see apps/mobile/.env.example).'
   : !__DEV__ && process.env.EXPO_PUBLIC_LOCAL_RELEASE !== '1' && /^https?:\/\/(127\.0\.0\.1|localhost|10\.0\.2\.2|192\.168\.)/.test(url)
+    // i18n-ignore: for the developer who made the build (a local server URL in a device build)
     ? `This build points at ${url}, which only exists on a developer machine. A device build needs the hosted Supabase URL.`
     : null;
 

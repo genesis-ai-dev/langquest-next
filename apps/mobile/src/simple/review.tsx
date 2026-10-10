@@ -19,12 +19,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AudioClip } from '../audioClip';
 import type { Ctx } from '../ctx';
 import { useHelpPress } from '../helpContext';
+import { t } from '../i18n';
+import { formatClock, formatNumber } from '../i18n/format';
 import { indexesFor } from '../indexes';
 import { Badge, Chip, ChipRow, Field, GhostBtn, Group, Ico, IconBtn, LinkBtn, NoteCard, PrimaryBtn, Row, txt, useLayout, type IconName } from '../kit';
 import type { PassageView } from '../passageView';
 import { when } from '../passageView';
 import { Authored, recordTarget, ReportFlag } from '../reportSheet';
-import { clockMs, questionSource, type Stage, type StageId } from '../reviewing/capture';
+import { clockMs, questionSource, YES_NO, yesNoLabel, type Stage, type StageId } from '../reviewing/capture';
 import { EarlierReviewsPart, TeamStudyPart } from '../reviewing/parts';
 import { lift } from '../shadow';
 import { usePassagePlayer } from '../sources/player';
@@ -44,7 +46,7 @@ import { SpeakBtn } from './reviewVoice';
  */
 export function StepStrip(props: { stages: Stage[]; at: number; onGo: (id: StageId) => void }) {
   return (
-    <View style={styles.strip} accessibilityLabel="Review steps">
+    <View style={styles.strip} accessibilityLabel={t('review.simple.stepsLabel')}>
       {props.stages.map((st, i) => (
         <StripStep key={st.id} stage={st} index={i} count={props.stages.length} done={i < props.at} current={i === props.at} onGo={props.onGo} />
       ))}
@@ -54,12 +56,12 @@ export function StepStrip(props: { stages: Stage[]; at: number; onGo: (id: Stage
 
 function StripStep(props: { stage: Stage; index: number; count: number; done: boolean; current: boolean; onGo: (id: StageId) => void }) {
   const { stage, done, current } = props;
-  const press = useHelpPress(stage.label, done ? 'Go back to this step.' : `Step ${props.index + 1} of ${props.count}.`, () => props.onGo(stage.id));
+  const press = useHelpPress(stage.label, done ? t('review.simple.goBack') : t('review.simple.stepOf', { index: props.index + 1, total: props.count }), () => props.onGo(stage.id));
   const icon: IconName = done ? 'check' : stage.icon === 'help' ? 'help' : stage.icon;
   const fg = done ? TINT.greenText : current ? C.primary : C.muted;
   return (
     <Pressable onPress={press} disabled={!done} accessibilityRole="button"
-      accessibilityLabel={done ? `${stage.label}, done. Go back` : `${stage.label}, step ${props.index + 1} of ${props.count}`}
+      accessibilityLabel={done ? t('review.simple.stepDone', { stage: stage.label }) : t('review.simple.stepA11y', { stage: stage.label, index: props.index + 1, total: props.count })}
       accessibilityState={{ selected: current, disabled: !done }}
       style={({ pressed }) => [styles.step, pressed && styles.pressed]}>
       <View style={[styles.stepMark, done ? { backgroundColor: C.green } : current ? { backgroundColor: C.primary } : styles.stepLater]}>
@@ -74,7 +76,7 @@ function StripStep(props: { stage: Stage; index: number; count: number; done: bo
 export function QuestionDots(props: { count: number; at: number }) {
   if (props.count < 2) return null;
   return (
-    <View style={styles.dots} accessibilityLabel={`Question ${props.at + 1} of ${props.count}`}>
+    <View style={styles.dots} accessibilityLabel={t('review.simple.questionOf', { index: props.at + 1, total: props.count })}>
       {Array.from({ length: props.count }, (_, i) => (
         <View key={i} style={[styles.dot, i === props.at ? styles.dotNow : i < props.at ? { backgroundColor: withAlpha(C.primary, 0.45) } : null]} />
       ))}
@@ -91,7 +93,7 @@ export function QuestionCard(props: { question: SourcedQuestion; asker?: string 
       <View style={{ flex: 1, minWidth: 0, gap: space.xs }}>
         <Text style={styles.qText} accessibilityRole="header">{q.q.text}</Text>
         {q.required || q.source !== 'org' ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.sm }}>
-          {q.required ? <Badge label="Required" tone="brand" /> : null}
+          {q.required ? <Badge label={t('common.required')} tone="brand" /> : null}
           {q.source !== 'org' ? <Text style={txt.xs}>{questionSource(q, props.asker)}</Text> : null}
         </View> : null}
       </View>
@@ -104,7 +106,7 @@ export function QuestionCard(props: { question: SourcedQuestion; asker?: string 
 /** One of the two big Decide cards: Looks good (green) or Needs changes (amber). */
 export function DecideCard(props: { tone: 'green' | 'amber'; label: string; icon: IconName; onPress: () => void; busy?: boolean; disabled?: boolean }) {
   const green = props.tone === 'green';
-  const press = useHelpPress(props.label, green ? 'Sends it on: the passage is ready for its next step.' : 'Then you say what should change.', props.onPress);
+  const press = useHelpPress(props.label, green ? t('review.simple.looksGoodHelp') : t('review.simple.needsChangesHelp'), props.onPress);
   return (
     <Pressable onPress={press} disabled={props.disabled || props.busy} accessibilityRole="button" accessibilityLabel={props.label}
       accessibilityState={{ disabled: !!props.disabled, busy: !!props.busy }}
@@ -113,7 +115,7 @@ export function DecideCard(props: { tone: 'green' | 'amber'; label: string; icon
       <View style={[styles.decideMark, { backgroundColor: green ? onColor.green : onColor.amber }]}>
         <Ico name={props.icon} size={40} color={C.white} strokeWidth={green ? 3 : 2.4} />
       </View>
-      <Text style={[styles.decideLabel, { color: green ? TINT.greenText : TINT.amberText }]}>{props.busy ? 'Saving…' : props.label}</Text>
+      <Text style={[styles.decideLabel, { color: green ? TINT.greenText : TINT.amberText }]}>{props.busy ? t('common.saving') : props.label}</Text>
     </Pressable>
   );
 }
@@ -141,13 +143,20 @@ export interface BackgroundData {
 
 type Tab = 'passage' | 'guide' | 'notes' | 'terms' | 'earlier';
 
-/** The Background row's line: what there is, in the translator's name ("The passage, Deng's notes, key words, earlier checks"). */
-export function backgroundLine(d: BackgroundData, translator: { id: string; name: string }): string {
-  const parts = ['The passage'];
-  if (d.study) parts.push("the team's study");
-  if (d.notes.length) parts.push(!d.notes.every((n) => n.by === translator.id) ? 'notes' : translator.name === 'you' ? 'your notes' : `${translator.name}'s notes`);
-  if (d.terms.length) parts.push('key words');
-  if (d.earlier.length) parts.push('earlier checks');
+/**
+ * The Background row's line: what there is, in the translator's name ("The
+ * passage, Deng's notes, key words, earlier checks"). `you` when the
+ * translator is the person looking ("your notes").
+ */
+export function backgroundLine(d: BackgroundData, translator: { id: string; name: string; you: boolean }): string {
+  const parts = [t('review.simple.bgLine.passage')];
+  if (d.study) parts.push(t('review.simple.bgLine.study'));
+  if (d.notes.length) {
+    parts.push(!d.notes.every((n) => n.by === translator.id) ? t('review.simple.bgLine.notes')
+      : translator.you ? t('review.simple.bgLine.yourNotes') : t('review.simple.bgLine.theirNotes', { name: translator.name }));
+  }
+  if (d.terms.length) parts.push(t('review.simple.bgLine.keyWords'));
+  if (d.earlier.length) parts.push(t('review.simple.bgLine.earlier'));
   return parts.join(', ');
 }
 
@@ -160,7 +169,9 @@ export function BackgroundSheet(props: {
   ctx: Ctx;
   v: PassageView;
   takeId: string;
+  /** The translator's first name; `translatorIsYou` when that is the person looking. */
   translator: string;
+  translatorIsYou: boolean;
   data: BackgroundData;
   usage: Usage;
   kind: (id: string) => KindDef;
@@ -173,25 +184,25 @@ export function BackgroundSheet(props: {
   const { ctx, v, data } = props;
   const [tab, setTab] = useState<Tab>('passage');
   const chips: { id: Tab; label: string; count?: number }[] = [
-    { id: 'passage', label: 'Passage' },
-    ...(data.study ? [{ id: 'guide' as const, label: 'Guide' }] : []),
-    { id: 'notes', label: 'Notes', count: data.notes.length },
-    { id: 'terms', label: 'Key words', count: data.terms.length },
-    { id: 'earlier', label: 'Earlier', count: data.earlier.length }
+    { id: 'passage', label: t('review.simple.chips.passage') },
+    ...(data.study ? [{ id: 'guide' as const, label: t('review.simple.chips.guide') }] : []),
+    { id: 'notes', label: t('review.simple.chips.notes'), count: data.notes.length },
+    { id: 'terms', label: t('review.simple.chips.terms'), count: data.terms.length },
+    { id: 'earlier', label: t('review.simple.chips.earlier'), count: data.earlier.length }
   ];
   return (
-    <TallSheet title="Background" onClose={props.onClose}>
+    <TallSheet title={t('review.parts.background')} onClose={props.onClose}>
       <ChipRow>
         {chips.map((c) => <Chip key={c.id} label={c.label} {...(c.count !== undefined ? { count: c.count } : {})} on={tab === c.id} onPress={() => setTab(c.id)} />)}
       </ChipRow>
       {tab === 'passage' ? (
-        <BiblePassage ctx={ctx} v={v} takeId={props.takeId} translator={props.translator} usage={props.usage} onMoreBibles={props.onMoreBibles} />
+        <BiblePassage ctx={ctx} v={v} takeId={props.takeId} translator={props.translator} translatorIsYou={props.translatorIsYou} usage={props.usage} onMoreBibles={props.onMoreBibles} />
       ) : null}
       {tab === 'guide' && data.study ? (
         <Group><TeamStudyPart ctx={ctx} study={data.study} onOpenStep={props.onOpenStep} onOpenStudy={props.onOpenStudy} /></Group>
       ) : null}
       {tab === 'notes' ? (
-        data.notes.length === 0 ? <Text style={[txt.smMuted, styles.empty]}>No notes on this passage yet.</Text> : (
+        data.notes.length === 0 ? <Text style={[txt.smMuted, styles.empty]}>{t('review.simple.noNotes')}</Text> : (
           <View style={{ gap: space.sm }}>
             {[...data.notes].reverse().map((n) => {
               const older = data.olderVersion(n);
@@ -199,7 +210,7 @@ export function BackgroundSheet(props: {
                 <Authored key={n.id} ctx={ctx} by={n.by}>
                   <NoteCard anchor={data.anchor(n)} {...(n.text ? { text: n.text } : {})} by={ctx.name(n.by)} when={when(n.hlc)}
                     {...(older ? { olderVersion: older } : {})} icon={n.anchor.kind === 'term' ? 'book' : 'note'}
-                    {...(n.blobHash ? { audio: <AudioClip language={ctx.language} hashes={[n.blobHash]} label="Play note" /> } : {})}
+                    {...(n.blobHash ? { audio: <AudioClip language={ctx.language} hashes={[n.blobHash]} label={t('review.parts.playNote')} /> } : {})}
                     action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', n.id, n.by, n.unitId)} size={36} />} />
                 </Authored>
               );
@@ -208,20 +219,20 @@ export function BackgroundSheet(props: {
         )
       ) : null}
       {tab === 'terms' ? (
-        data.terms.length === 0 ? <Text style={[txt.smMuted, styles.empty]}>No key words were tied to this version.</Text> : (
+        data.terms.length === 0 ? <Text style={[txt.smMuted, styles.empty]}>{t('review.simple.noTerms')}</Text> : (
           <Group>
-            {data.terms.map((t, i) => {
-              const rendering = t.renderings.at(-1)?.rendering;
+            {data.terms.map((term, i) => {
+              const rendering = term.renderings.at(-1)?.rendering;
               return (
-                <Row key={t.termId} icon="key" label={t.term} sub={rendering ? `Their word: ${rendering}` : 'No word of theirs yet'}
-                  last={i === data.terms.length - 1} onPress={() => props.onOpenTerm(t.termId)} />
+                <Row key={term.termId} icon="key" label={term.term} sub={rendering ? t('review.simple.theirWord', { word: rendering }) : t('review.simple.noWordYet')}
+                  last={i === data.terms.length - 1} onPress={() => props.onOpenTerm(term.termId)} />
               );
             })}
           </Group>
         )
       ) : null}
       {tab === 'earlier' ? (
-        data.earlier.length === 0 ? <Text style={[txt.smMuted, styles.empty]}>No earlier checks of this passage.</Text>
+        data.earlier.length === 0 ? <Text style={[txt.smMuted, styles.empty]}>{t('review.simple.noEarlier')}</Text>
           : <Group><EarlierReviewsPart ctx={ctx} reviews={data.earlier} kind={props.kind} /></Group>
       ) : null}
     </TallSheet>
@@ -230,7 +241,7 @@ export function BackgroundSheet(props: {
 
 // ---- the passage in the Bible the translator used --------------------------------------------
 
-function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; translator: string; usage: Usage; onMoreBibles: () => void }) {
+function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; translator: string; translatorIsYou: boolean; usage: Usage; onMoreBibles: () => void }) {
   const { ctx, v, usage } = props;
   const passage = useSources(ctx, v.unitId, v.languageId);
   // The Bible the translator played or chose while recording this version (v1.ReferencesUsed).
@@ -251,7 +262,7 @@ function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; transla
     resolve: (i) => {
       const part = plan?.parts[i];
       const ch = src?.chapters.find((c) => c.chapter === part?.chapter);
-      return ch ? ch.resolve() : Promise.reject(new Error('No audio for this chapter.'));
+      return ch ? ch.resolve() : Promise.reject(new Error(t('review.simple.noAudioChapter')));
     },
     onPlayed: () => { if (option) usage.open(option.itemId); }
   });
@@ -261,19 +272,19 @@ function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; transla
     return out;
   }, [v.p.notes]);
 
-  const back = useHelpPress('Back 10 seconds', 'Hear the last few seconds again.', () => player.skip(-10));
-  const play = useHelpPress(player.playing ? 'Pause' : 'Play the passage', 'Plays the passage in this Bible.', player.toggle);
+  const back = useHelpPress(t('common.backTenSeconds'), t('review.simple.backHelp'), () => player.skip(-10));
+  const play = useHelpPress(player.playing ? t('common.pause') : t('review.simple.playPassage'), t('review.simple.playHelp'), player.toggle);
   const rows = src?.rows ?? [];
   const noteHere = () => {
     player.pause();
     const row = player.current ?? rows.find((x) => x.key === picked) ?? rows[0];
     if (row) setNoting({ verse: row.key, at: player.started ? clockMs(player.ms) : '' });
   };
-  const note = useHelpPress('Note', 'Leave a note on the verse playing, by voice or text.', noteHere);
-  const pick = useHelpPress('Choose a Bible', 'Hear the passage in another Bible.', () => setPicking((x) => !x));
+  const note = useHelpPress(t('review.simple.note'), t('review.simple.noteHelp'), noteHere);
+  const pick = useHelpPress(t('review.simple.chooseBible'), t('review.simple.chooseBibleHelp'), () => setPicking((x) => !x));
 
   if (!passage.range) {
-    return <Text style={[txt.smMuted, styles.empty]}>This passage doesn't name its verses, so no Bible can be lined up with it.</Text>;
+    return <Text style={[txt.smMuted, styles.empty]}>{t('review.simple.noVerses')}</Text>;
   }
   const parts = plan?.parts ?? [];
   const known = parts.length > 0 && parts.every((x) => x.toMs != null);
@@ -289,13 +300,15 @@ function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; transla
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={[txt.body, { fontWeight: '800' }]} numberOfLines={1}>{v.title}</Text>
             <Text style={txt.xs} numberOfLines={2}>
-              {option && option.itemId === theirs ? `The source ${props.translator} used` : option ? option.name : passage.loading ? 'Loading…' : 'No Bible for this passage yet'}
+              {option && option.itemId === theirs
+                ? (props.translatorIsYou ? t('review.simple.sourceYouUsed') : t('review.simple.sourceNameUsed', { name: props.translator }))
+                : option ? option.name : passage.loading ? t('common.loading') : t('review.simple.noBible')}
             </Text>
           </View>
           {(
-            <Pressable onPress={pick} accessibilityRole="button" accessibilityLabel={`Choose a Bible${option ? `, now ${option.name}` : ''}`}
+            <Pressable onPress={pick} accessibilityRole="button" accessibilityLabel={option ? t('review.simple.chooseBibleNow', { bible: option.name }) : t('review.simple.chooseBible')}
               accessibilityState={{ expanded: picking }} style={({ pressed }) => [styles.picker, pressed && styles.pressed]}>
-              <Text style={[txt.sm, { fontWeight: '800', color: TINT.amberText }]} numberOfLines={1}>{option?.abbreviation ?? 'Bibles'}</Text>
+              <Text style={[txt.sm, { fontWeight: '800', color: TINT.amberText }]} numberOfLines={1}>{option?.abbreviation ?? t('review.simple.bibles')}</Text>
               <Ico name={picking ? 'up' : 'down'} size={18} color={TINT.amberText} strokeWidth={2.6} />
             </Pressable>
           )}
@@ -303,40 +316,42 @@ function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; transla
         {picking ? (
           <View style={styles.pickList}>
             {passage.options.map((o, i) => (
-              <Row key={o.itemId} label={o.abbreviation} sub={o.itemId === theirs ? `${o.name} · ${props.translator} used it` : o.name} role="radio" selected={o.itemId === option?.itemId}
+              <Row key={o.itemId} label={o.abbreviation} role="radio" selected={o.itemId === option?.itemId}
+                sub={o.itemId !== theirs ? o.name : props.translatorIsYou ? t('review.simple.youUsedIt', { bible: o.name }) : t('review.simple.nameUsedIt', { bible: o.name, name: props.translator })}
                 right={o.itemId === option?.itemId ? <Ico name="check" size={20} color={C.primary} /> : <View />}
                 onPress={() => { setChosen(o.itemId); usage.open(o.itemId); setPicking(false); }} />
             ))}
-            <Row icon="plus" label="More Bibles" sub="Find and add another Bible" onPress={props.onMoreBibles} last />
+            <Row icon="plus" label={t('review.simple.moreBibles')} sub={t('review.simple.moreBiblesSub')} onPress={props.onMoreBibles} last />
           </View>
         ) : null}
         {option ? (
           <>
-            <View style={styles.track} accessibilityRole="progressbar" accessibilityValue={{ text: total ? `${clockMs(elapsed)} of ${clockMs(total)}` : clockMs(elapsed) }}>
+            <View style={styles.track} accessibilityRole="progressbar"
+              accessibilityValue={{ text: total ? t('review.simple.elapsedOf', { elapsed: formatClock(elapsed), total: formatClock(total) }) : formatClock(elapsed) }}>
               <View style={styles.rail} />
               <View style={[styles.fill, { width: `${share * 100}%` }]} />
               <View style={[styles.thumb, { left: `${share * 100}%` }]} />
             </View>
             <View style={styles.controls}>
-              <Text style={[txt.xs, styles.time]}>{clockMs(elapsed)}</Text>
-              <Pressable onPress={back} disabled={!player.started} accessibilityRole="button" accessibilityLabel="Back 10 seconds"
+              <Text style={[txt.xs, styles.time]}>{formatClock(elapsed)}</Text>
+              <Pressable onPress={back} disabled={!player.started} accessibilityRole="button" accessibilityLabel={t('common.backTenSeconds')}
                 style={({ pressed }) => [styles.side, !player.started && styles.off, pressed && styles.pressed]}>
                 <Ico name="restart" size={20} color={C.dark} />
-                <Text style={styles.sideLabel}>10</Text>
+                <Text style={styles.sideLabel}>{formatNumber(10)}</Text>
               </Pressable>
               <Pressable onPress={play} disabled={!canPlay} accessibilityRole="button"
-                accessibilityLabel={plan ? player.playing ? 'Pause' : `Play ${v.title} in ${option.abbreviation}` : `No audio in ${option.abbreviation}`}
+                accessibilityLabel={plan ? player.playing ? t('common.pause') : t('review.simple.playTitleIn', { title: v.title, bible: option.abbreviation }) : t('review.simple.noAudioIn', { bible: option.abbreviation })}
                 style={({ pressed }) => [styles.play, !plan && { backgroundColor: C.faint }, pressed && styles.pressed]}>
                 <Ico name={player.playing ? 'pause' : 'play'} size={24} color={C.white} />
               </Pressable>
-              <Pressable onPress={note} disabled={rows.length === 0} accessibilityRole="button" accessibilityLabel="Add a note on the verse playing"
+              <Pressable onPress={note} disabled={rows.length === 0} accessibilityRole="button" accessibilityLabel={t('review.simple.noteOnPlaying')}
                 style={({ pressed }) => [styles.side, rows.length === 0 && styles.off, pressed && styles.pressed]}>
                 <Ico name="chat" size={18} color={TINT.amberText} />
-                <Text style={[styles.sideLabel, { color: TINT.amberText }]}>Note</Text>
+                <Text style={[styles.sideLabel, { color: TINT.amberText }]}>{t('review.simple.note')}</Text>
               </Pressable>
-              <Text style={[txt.xs, styles.time, { textAlign: 'right' }]}>{total ? clockMs(total) : ''}</Text>
+              <Text style={[txt.xs, styles.time, { textAlign: 'right' }]}>{total ? formatClock(total) : ''}</Text>
             </View>
-            {!plan && !src?.loading ? <Text style={[txt.xs, { textAlign: 'center' }]}>No audio for this passage in {option.abbreviation}: read it below.</Text> : null}
+            {!plan && !src?.loading ? <Text style={[txt.xs, { textAlign: 'center' }]}>{t('review.simple.noAudioRead', { bible: option.abbreviation })}</Text> : null}
             {player.error ? <Text accessibilityRole="alert" style={txt.error}>{player.error}</Text> : null}
           </>
         ) : null}
@@ -360,8 +375,9 @@ function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; transla
                   setPicked(isPicked ? null : row.key);
                   if (notes.length) setOpenVerse(open ? null : row.key);
                 }} accessibilityState={{ selected: isPicked }}
-                  accessibilityHint={plan ? 'Plays from this verse' : 'Picks this verse for a note'}
-                  accessibilityRole="button" accessibilityLabel={`Verse ${row.key}. ${row.text}${notes.length ? `. ${notes.length} note${notes.length === 1 ? '' : 's'}` : ''}`}
+                  accessibilityHint={plan ? t('review.simple.playsFromVerse') : t('review.simple.picksVerse')}
+                  accessibilityRole="button"
+                  accessibilityLabel={notes.length ? t('review.simple.verseWithNotes', { verse: row.key, text: row.text, count: notes.length }) : t('review.simple.verseA11y', { verse: row.key, text: row.text })}
                   style={({ pressed }) => [pressed && styles.pressed]}>
                   <Text style={styles.verseText}>
                     <Text style={styles.verseNum}>{row.key.split(':')[1] ?? row.key} </Text>{row.text}
@@ -369,7 +385,7 @@ function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; transla
                 </Pressable>
                 {notes.length ? (
                   <Pressable onPress={() => setOpenVerse(open ? null : row.key)} accessibilityRole="button" accessibilityState={{ expanded: open }}
-                    accessibilityLabel={`${open ? 'Hide' : 'Show'} the note${notes.length === 1 ? '' : 's'} on verse ${row.key}`}
+                    accessibilityLabel={open ? t('review.simple.hideNotes', { count: notes.length, verse: row.key }) : t('review.simple.showNotes', { count: notes.length, verse: row.key })}
                     style={({ pressed }) => [styles.noteBy, pressed && styles.pressed]}>
                     <Ico name="chat" size={16} color={TINT.amberText} />
                     <Text style={[txt.sm, { fontWeight: '800', color: TINT.amberText }]}>{[...new Set(notes.map((n) => ctx.name(n.by).split(' ')[0]))].join(', ')}</Text>
@@ -379,19 +395,19 @@ function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; transla
                   <Authored key={n.id} ctx={ctx} by={n.by}>
                     <View style={{ gap: space.xs }}>
                       {n.text ? <Text style={txt.sm}>{n.text}</Text> : null}
-                      {n.blobHash ? <AudioClip language={ctx.language} hashes={[n.blobHash]} label="Play note" /> : null}
-                      <Text style={txt.xs}>{ctx.name(n.by)} · {when(n.hlc)}{n.anchor.kind === 'verse' && n.anchor.at ? ` · at ${n.anchor.at}` : ''}</Text>
+                      {n.blobHash ? <AudioClip language={ctx.language} hashes={[n.blobHash]} label={t('review.parts.playNote')} /> : null}
+                      <Text style={txt.xs}>{ctx.name(n.by)} · {when(n.hlc)}{n.anchor.kind === 'verse' && n.anchor.at ? ` · ${t('review.simple.atTime', { time: n.anchor.at })}` : ''}</Text>
                     </View>
                   </Authored>
                 )) : null}
               </View>
             );
-          }) : <Text style={[txt.smMuted, styles.empty]}>{src?.loading || !src ? 'Loading…' : src.textProblem}</Text>}
+          }) : <Text style={[txt.smMuted, styles.empty]}>{src?.loading || !src ? t('common.loading') : src.textProblem}</Text>}
           {src && (src.copyright.text || src.copyright.audio) ? (
             <Text style={txt.xs}>{option.abbreviation}: {src.copyright.text ?? src.copyright.audio}</Text>
           ) : null}
         </View>
-      ) : !passage.loading ? <Text style={[txt.smMuted, styles.empty]}>Find one under More Bibles.</Text> : null}
+      ) : !passage.loading ? <Text style={[txt.smMuted, styles.empty]}>{t('review.simple.findUnderMore')}</Text> : null}
     </View>
   );
 }
@@ -411,18 +427,20 @@ function VerseNote(props: { ctx: Ctx; v: PassageView; verse: string; at: string;
         commandId: Crypto.randomUUID(), unitId: v.unitId,
         anchor: { kind: 'verse', verse: props.verse, ...(props.translation ? { translation: props.translation } : {}), ...(props.at ? { at: props.at } : {}) },
         ...(text.trim() ? { text: text.trim() } : {}), ...(hash ? { blobHash: hash } : {})
-      }), 'Note added — it follows this passage');
+      }), t('review.simple.noteAdded'));
       props.onDone();
     } catch { /* ctx.act said what went wrong */ } finally { setBusy(false); }
   }
   return (
     <View style={styles.noteBox}>
-      <Text style={[txt.sm, { fontWeight: '800', color: TINT.amberText }]}>Note on verse {props.verse}{props.at ? ` · at ${props.at}` : ''}</Text>
-      <VoiceNote ctx={ctx} label="Say it" hash={hash} onChange={setHash} />
-      <Field value={text} onChangeText={setText} placeholder="Or type it" multiline />
+      <Text style={[txt.sm, { fontWeight: '800', color: TINT.amberText }]}>
+        {props.at ? t('review.simple.noteOnVerseAt', { verse: props.verse, time: props.at }) : t('review.simple.noteOnVerse', { verse: props.verse })}
+      </Text>
+      <VoiceNote ctx={ctx} label={t('common.sayIt')} hash={hash} onChange={setHash} />
+      <Field value={text} onChangeText={setText} placeholder={t('common.orTypeIt')} multiline />
       <View style={{ flexDirection: 'row', gap: space.sm }}>
-        <View style={{ flex: 1 }}><GhostBtn label="Cancel" onPress={props.onDone} /></View>
-        <View style={{ flex: 1 }}><PrimaryBtn label="Save note" busy={busy} disabled={!text.trim() && !hash} onPress={() => void save()} /></View>
+        <View style={{ flex: 1 }}><GhostBtn label={t('common.cancel')} onPress={props.onDone} /></View>
+        <View style={{ flex: 1 }}><PrimaryBtn label={t('review.simple.saveNote')} busy={busy} disabled={!text.trim() && !hash} onPress={() => void save()} /></View>
       </View>
     </View>
   );
@@ -437,12 +455,12 @@ export function MomentList(props: { ctx: Ctx; moments: { hash: string; durationM
     <Group>
       {props.moments.map((m, i) => (
         <View key={m.hash} style={[styles.moment, i > 0 && styles.momentTop]}>
-          <AudioClip language={props.ctx.language} hashes={[m.hash]} label={`Play your note at ${clockMs(m.atMs)}`} />
+          <AudioClip language={props.ctx.language} hashes={[m.hash]} label={t('review.simple.playYourNoteAt', { time: formatClock(m.atMs) })} />
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={[txt.body, { fontWeight: '700' }]}>Your note at {clockMs(m.atMs)}</Text>
-            <Text style={txt.xs}>{clockMs(m.durationMs)} · goes with your review</Text>
+            <Text style={[txt.body, { fontWeight: '700' }]}>{t('review.simple.yourNoteAt', { time: formatClock(m.atMs) })}</Text>
+            <Text style={txt.xs}>{t('review.simple.goesWithReview', { length: formatClock(m.durationMs) })}</Text>
           </View>
-          <LinkBtn label="Remove" color={C.muted} accessibilityLabel={`Remove your note at ${clockMs(m.atMs)}`} onPress={() => props.onRemove(m.hash)} />
+          <LinkBtn label={t('common.remove')} color={C.muted} accessibilityLabel={t('review.simple.removeNoteAt', { time: formatClock(m.atMs) })} onPress={() => props.onRemove(m.hash)} />
         </View>
       ))}
     </Group>
@@ -459,22 +477,21 @@ export function BigChoices(props: { type: 'rating' | 'yesno'; value: string | un
           {['1', '2', '3', '4', '5'].map((n) => <BigChoice key={n} label={n} on={props.value === n} onPress={() => props.onChange(n)} />)}
         </View>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: space.xs }}>
-          <Text style={txt.xs}>1 · not at all</Text>
-          <Text style={txt.xs}>5 · very well</Text>
+          <Text style={txt.xs}>{t('review.simple.ratingLow')}</Text>
+          <Text style={txt.xs}>{t('review.simple.ratingHigh')}</Text>
         </View>
       </View>
     );
   }
   return (
     <View style={[styles.choiceRow, { alignSelf: 'stretch' }]} accessibilityRole="radiogroup">
-      <BigChoice label="Yes" icon="check" tall on={props.value === 'Yes'} onPress={() => props.onChange('Yes')} />
-      <BigChoice label="No" icon="close" tall on={props.value === 'No'} onPress={() => props.onChange('No')} />
+      {YES_NO.map((v) => <BigChoice key={v} label={yesNoLabel(v)} icon={v === 'Yes' ? 'check' : 'close'} tall on={props.value === v} onPress={() => props.onChange(v)} />)}
     </View>
   );
 }
 
 function BigChoice(props: { label: string; icon?: IconName; on: boolean; tall?: boolean; onPress: () => void }) {
-  const press = useHelpPress(props.label, 'Your answer.', props.onPress);
+  const press = useHelpPress(props.label, t('review.simple.yourAnswerHelp'), props.onPress);
   return (
     <Pressable onPress={press} accessibilityRole="radio" accessibilityState={{ checked: props.on }} accessibilityLabel={props.label}
       style={({ pressed }) => [styles.choice, props.tall && { minHeight: 112 }, props.on && { backgroundColor: C.primary, borderColor: C.primary }, pressed && styles.pressed]}>
@@ -486,10 +503,10 @@ function BigChoice(props: { label: string; icon?: IconName; on: boolean; tall?: 
 
 /** "Skip": small beside the main button, so it is there without competing. */
 export function SkipBtn(props: { onPress: () => void }) {
-  const press = useHelpPress('Skip', 'Leave this question. A required one asks why.', props.onPress);
+  const press = useHelpPress(t('review.simple.skip'), t('review.simple.skipHelp'), props.onPress);
   return (
-    <Pressable onPress={press} accessibilityRole="button" accessibilityLabel="Skip this question" style={({ pressed }) => [styles.skip, pressed && styles.pressed]}>
-      <Text style={[txt.body, { fontWeight: '700' }]}>Skip</Text>
+    <Pressable onPress={press} accessibilityRole="button" accessibilityLabel={t('review.simple.skipA11y')} style={({ pressed }) => [styles.skip, pressed && styles.pressed]}>
+      <Text style={[txt.body, { fontWeight: '700' }]}>{t('review.simple.skip')}</Text>
     </Pressable>
   );
 }
@@ -501,12 +518,12 @@ export function TallSheet(props: { title: string; onClose: () => void; children:
   return (
     <Modal visible transparent animationType={wide ? 'fade' : 'slide'} onRequestClose={props.onClose}>
       <View style={[{ flex: 1 }, wide && styles.dialogFrame]}>
-        <Pressable style={styles.backdrop} onPress={props.onClose} accessibilityLabel="Close" />
+        <Pressable style={styles.backdrop} onPress={props.onClose} accessibilityLabel={t('common.close')} />
         <View style={wide ? styles.dialog : [styles.tall, { paddingBottom: Math.max(insets.bottom, space.md) }]}>
           {wide ? null : <View style={styles.grip} />}
           <View style={styles.tallHead}>
             <Text style={styles.tallTitle} accessibilityRole="header">{props.title}</Text>
-            <IconBtn name="close" label="Close" onPress={props.onClose} bg={C.bg} color={C.muted} />
+            <IconBtn name="close" label={t('common.close')} onPress={props.onClose} bg={C.bg} color={C.muted} />
           </View>
           <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.tallBody} keyboardShouldPersistTaps="handled">{props.children}</ScrollView>
         </View>

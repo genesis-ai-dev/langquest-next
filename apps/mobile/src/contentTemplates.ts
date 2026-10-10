@@ -12,6 +12,8 @@ import {
   type TemplateBook, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import { BIBLE_BOOKS, FIA_PERICOPES, type BibleBook } from '@langquest-next/core';
+import { bookName } from './coreText';
+import { t } from './i18n';
 import type { SharedItem } from './library/model';
 
 export type { BibleBook };
@@ -95,7 +97,7 @@ export function versesText(s: { from: VerseRef; to: VerseRef }): string {
 
 /** Jump-bar label: a whole chapter reads "Ch 15", a part its verses. */
 export function chipLabel(book: BibleBook, s: { from: VerseRef; to: VerseRef }): string {
-  if (s.from.v === 1 && s.from.c === s.to.c && s.to.v === versesIn(book, s.to.c)) return `Ch ${s.from.c}`;
+  if (s.from.v === 1 && s.from.c === s.to.c && s.to.v === versesIn(book, s.to.c)) return t('content.chapterChip', { chapter: s.from.c });
   if (s.from.c === s.to.c) return s.from.v === s.to.v ? `${s.from.c}:${s.from.v}` : `${s.from.c}:${s.from.v}–${s.to.v}`;
   return versesText(s);
 }
@@ -120,12 +122,22 @@ export function docLevels(doc: TemplateDoc): string[] {
   return doc.levels.map((l) => l.name);
 }
 
-/** The word for what a language records: its template's last level ("Passage", "Chapter"). */
+/** The word for what a language records: its template's last level ("Passage", "Chapter"), else the app's word. */
 export function partName(doc?: TemplateDoc | null): string {
-  return (doc ? docLevels(doc) : []).at(-1) ?? 'Passage';
+  return (doc ? docLevels(doc) : []).at(-1) ?? t('content.levels.passage');
 }
 
-/** "passages", "stories": the demo's plural of a level name. */
+/**
+ * The word for what a language records, one and many: the template's last
+ * level (the organization's word, made plural the demo's way), else the
+ * app's own "Passage" and "Passages" in the language showing.
+ */
+export function partWords(doc?: TemplateDoc | null): { one: string; many: string } {
+  const name = (doc ? docLevels(doc) : []).at(-1);
+  return name ? { one: name, many: pluralOf(name) } : { one: t('content.levels.passage'), many: t('content.levels.passages') };
+}
+
+/** "passages", "stories": the demo's plural of a level name (the organization's word, so English rules). */
 export function pluralOf(word: string): string {
   if (/[^aeiou]y$/i.test(word)) return `${word.slice(0, -1)}ies`;
   if (/(s|x|ch|sh)$/i.test(word)) return `${word}es`;
@@ -139,11 +151,12 @@ export function versionNumber(item: LibraryItemView | null, docHash: string | nu
 
 /** "FIA passages (English) · version 2", or "No template yet", for a language's row. */
 export function templateLine(state: LanguageState, item: (itemId: string) => LibraryItemView | null): string {
-  const t = templateOf(state);
-  if (!t) return 'No template yet';
-  const it = item(t.itemId);
-  const n = versionNumber(it, t.docHash);
-  return `${it?.name ?? 'A template'}${n ? ` · version ${n}` : ''}`;
+  const sel = templateOf(state);
+  if (!sel) return t('content.noTemplate');
+  const it = item(sel.itemId);
+  const n = versionNumber(it, sel.docHash);
+  const name = it?.name ?? t('content.aTemplate');
+  return n ? t('content.templateVersion', { name, n }) : name;
 }
 
 /**
@@ -157,14 +170,14 @@ export function setAsideCount(state: LanguageState): number {
   if (!sel) return 0;
   const books = sel.books ? new Set(sel.books) : null;
   const units = new Set<string>();
-  for (const t of Object.values(state.takes)) {
-    if (t.archived) continue;
-    const prefix = unitPrefixOf(t.unitId);
+  for (const take of Object.values(state.takes)) {
+    if (take.archived) continue;
+    const prefix = unitPrefixOf(take.unitId);
     if (prefix === null) continue;
-    const book = libraryUnitRange(t.unitId)?.book;
-    if (prefix !== sel.unitPrefix) units.add(t.unitId);
-    else if (state.hiddenUnits[t.unitId]?.value === true) units.add(t.unitId);
-    else if (books && book && !books.has(book)) units.add(t.unitId);
+    const book = libraryUnitRange(take.unitId)?.book;
+    if (prefix !== sel.unitPrefix) units.add(take.unitId);
+    else if (state.hiddenUnits[take.unitId]?.value === true) units.add(take.unitId);
+    else if (books && book && !books.has(book)) units.add(take.unitId);
   }
   return units.size;
 }
@@ -172,13 +185,14 @@ export function setAsideCount(state: LanguageState): number {
 /** Parts of the language that already have a recording: they never move on their own. */
 export function recordedCount(state: LanguageState): number {
   const units = new Set<string>();
-  for (const t of Object.values(state.takes)) if (!t.archived) units.add(t.unitId);
+  for (const take of Object.values(state.takes)) if (!take.archived) units.add(take.unitId);
   return units.size;
 }
 
 // ---- choosing a template (TPL-1) -------------------------------------------------------------
 
 /** The starter LangQuest suggests to a new organization. */
+// i18n-ignore: LangQuest's starter by its library name, matched against what LangQuest shares
 export const STARTER_TEMPLATE = { orgId: 'langquest', name: 'FIA passages (English)' } as const;
 
 /** A template (or versification) someone can use: one of this organization's, or one another organization shares. */
@@ -210,7 +224,7 @@ export function libraryChoices(
 export function choiceLine(c: LibraryChoice, sourceLine: (it: LibraryItemView) => string): string {
   if (c.source === 'ours') return sourceLine(c.item);
   const n = c.shared.version_count;
-  return `From ${c.shared.org_name}${n > 1 ? ` · ${n} versions` : ''}`;
+  return n > 1 ? t('content.fromOrgVersions', { org: c.shared.org_name, count: n }) : t('content.fromOrg', { org: c.shared.org_name });
 }
 
 // ---- the template editor (TPL-9) --------------------------------------------------------------
@@ -288,19 +302,27 @@ export function englishBookName(usfm: string): string {
   return BIBLE_BOOKS.find((b) => b.itemId === bookIdOf(usfm))?.label ?? usfm;
 }
 
+/** The name the app shows for a USFM book, in the language showing ("Luke", "Lucas"), else its code. */
+export function bookNameOf(usfm: string): string {
+  const id = bookIdOf(usfm);
+  const name = bookName(id);
+  return name === id ? usfm : name;
+}
+
 /** Every book a versification has, in canon order. */
 export function versificationBooks(v: VersificationDoc): string[] {
   return Object.keys(v.maxVerses).filter((b) => (v.maxVerses[b]?.length ?? 0) > 0).sort((a, b) => bookOrder(a) - bookOrder(b));
 }
 
-/** The 66 books of the Protestant canon that a versification has, with English names to rename. */
+/** The 66 books of the Protestant canon that a versification has, with the app's names (in the language showing) to rename. */
 export function defaultBooks(v: VersificationDoc): { book: string; name: string }[] {
-  return versificationBooks(v).filter((b) => bookOrder(b) < 66).map((book) => ({ book, name: englishBookName(book) }));
+  return versificationBooks(v).filter((b) => bookOrder(b) < 66).map((book) => ({ book, name: bookNameOf(book) }));
 }
 
 /** Levels for a Bible template's divide: Book, then Chapter or Passage. Names already given are kept. */
 export function levelsForDivide(levels: TemplateForm['levels'], divide: TemplateForm['divide']): TemplateForm['levels'] {
-  const want = divide === 'books' ? [{ name: 'Book' }] : [{ name: 'Book' }, { name: divide === 'chapters' ? 'Chapter' : 'Passage', display: 'reference' as const }];
+  const book = t('content.levels.book');
+  const want = divide === 'books' ? [{ name: book }] : [{ name: book }, { name: divide === 'chapters' ? t('content.levels.chapter') : t('content.levels.passage'), display: 'reference' as const }];
   if (levels.length === want.length) return levels;
   return want.map((w, i) => (i === 0 && levels[0] ? levels[0] : w));
 }
@@ -308,11 +330,14 @@ export function levelsForDivide(levels: TemplateForm['levels'], divide: Template
 /** A new template: a Bible one from a versification, or an empty outline (the demo's New Template). */
 export function newTemplateForm(structure: 'bible' | 'outline', versification?: { hash: string; doc: VersificationDoc }): TemplateForm {
   if (structure === 'outline') {
-    return { name: '', description: '', structure, levels: [{ name: 'Section' }, { name: 'Lesson', display: 'name' }], versification: null, books: [], divide: 'chapters', passages: [], outline: [] };
+    return {
+      name: '', description: '', structure, levels: [{ name: t('content.levels.section') }, { name: t('content.levels.lesson'), display: 'name' }],
+      versification: null, books: [], divide: 'chapters', passages: [], outline: []
+    };
   }
   return {
     name: '', description: '', structure,
-    levels: [{ name: 'Book' }, { name: 'Chapter', display: 'reference' }],
+    levels: [{ name: t('content.levels.book') }, { name: t('content.levels.chapter'), display: 'reference' }],
     versification: versification?.hash ?? null,
     books: versification ? defaultBooks(versification.doc) : [],
     divide: 'chapters', passages: [], outline: []
@@ -380,7 +405,7 @@ export function levelsForOutline(outline: OutlineNode[], levels: TemplateForm['l
   const depth = (list: OutlineNode[]): number => (list.length ? 1 + Math.max(...list.map((n) => (n.children ? depth(n.children) : 0))) : 1);
   const need = depth(outline);
   if (levels.length >= need) return levels;
-  return [...levels.slice(0, -1), ...Array.from({ length: need - levels.length }, () => ({ name: 'Part' })), levels[levels.length - 1]!];
+  return [...levels.slice(0, -1), ...Array.from({ length: need - levels.length }, () => ({ name: t('content.levels.part') })), levels[levels.length - 1]!];
 }
 
 /** Folders and items under a node, for its one-line summary. */
@@ -430,7 +455,7 @@ export function bookRows(state: LanguageState, idx: Indexes): BookRow[] {
   const byBook = unitsByBook(state, idx);
   return BIBLE_BOOKS.filter((b) => byBook.has(b.itemId)).map((book) => {
     const units = byBook.get(book.itemId)!;
-    return { book, label: unitPlace(state, units[0]!).bookLabel || book.label, parts: units.length };
+    return { book, label: unitPlace(state, units[0]!).bookLabel || bookName(book.itemId), parts: units.length };
   });
 }
 
@@ -515,8 +540,8 @@ export function chapterBlocks(book: BibleBook, c: number, segments: Segment[], f
       para = { kind: 'para', seg: hit?.seg ?? null, n: hit?.n ?? 0, verses: [] };
       blocks.push(para);
     }
-    const t = text(c, v);
-    para.verses.push(t === undefined ? { v } : { v, text: t });
+    const words = text(c, v);
+    para.verses.push(words === undefined ? { v } : { v, text: words });
   }
   return blocks;
 }

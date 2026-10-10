@@ -13,7 +13,7 @@
 // ADR-005 (kinds arranged by the flow designer), ADR-016 (parallel kinds).
 // Pure reading lives in configModel.ts.
 import {
-  CommandError, commands, CUSTOM_FLOW, deriveFlow, deriveKinds, derivePassage, formatQuestionField, keyTermsFor, keyTermView, languageName,
+  CommandError, commands, CUSTOM_FLOW, deriveFlow, derivePassage, formatQuestionField, keyTermsFor, keyTermView, languageName,
   materialView, parseQuestionField, PRIVILEGES, privilegesFor, recommendedFor, subscriptionItemId,
   takesLinkingTerm, templateFields, unitPrefixOf, unitTitle,
   type EventSpec, type FlowDoc, type FlowStep, type KeyTermView, type KindDef, type LibraryDoc, type LibraryItemView, type MaterialDoc,
@@ -23,7 +23,10 @@ import * as Crypto from 'expo-crypto';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { AudioClip } from '../audioClip';
+import { deriveKinds, localKind } from '../coreText';
 import type { Ctx } from '../ctx';
+import { t } from '../i18n';
+import { formatNumber } from '../i18n/format';
 import { indexesFor } from '../indexes';
 import {
   Badge, Banner, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, IconBtn, KindIcon,
@@ -42,10 +45,10 @@ import { SwitchRow } from '../simple/admin';
 import { flipSwitch, ROLE_SWITCHES, stepTitle, stepWho, switchState } from '../simple/adminModel';
 import { teamMembers } from '../orgAdmin';
 import {
-  draftChanged, draftFromDoc, draftFromLanguage, fieldLabel, flowDocFrom, flowLabel, flowUndoFor, flowUse, holdersOf, isFiaTerm,
-  LEVEL_LABEL, libraryMaterialLine, libraryQuestions, matchesTerm, materialDocFrom, materialItemId, moveStep, newKindId,
-  nextFieldId, parseRefLinks, plural, PRIVILEGE_INFO, questionCount, questionCountLabel, questionDrafts, questionSetToReviews,
-  REFERENCE_KINDS, referenceKindName, referenceView, roleRows, scopeName, setKindName, termsInPassage, viewLevelFrom,
+  draftChanged, draftFromDoc, draftFromLanguage, fieldLabel, flowDocFrom, flowLabel, flowName, flowUndoFor, flowUse, holdersOf, isFiaTerm,
+  levelLabel, libraryMaterialLine, libraryQuestions, matchesTerm, materialDocFrom, materialItemId, moveStep, newKindId,
+  nextFieldId, parseRefLinks, PRIVILEGE_INFO, questionCount, questionCountLabel, questionDrafts, questionSetToReviews,
+  referenceKinds, referenceKindName, referenceView, roleRows, scopeName, setKindName, termsInPassage, viewLevelFrom,
   type DraftStep, type QuestionDraft
 } from './configModel';
 
@@ -91,6 +94,16 @@ function Intro(props: { children: ReactNode }) {
   return <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{props.children}</Text>;
 }
 
+/** A section's name and how many it holds: "Questions · 3". */
+function withCount(label: string, n: number): string {
+  return `${label} · ${formatNumber(n)}`;
+}
+
+/** Names in a run ("Luke 15, Ruth 1"), with the separator of the language showing. */
+function listOf(items: string[]): string {
+  return items.join(t('config.listJoin'));
+}
+
 /** A list capped at 25 with "Show more" (ADR-009). */
 function Capped<T>(props: { items: T[]; render: (item: T, last: boolean) => ReactNode; empty?: string }) {
   const [n, setN] = useState(STEP);
@@ -122,7 +135,7 @@ function ToggleRow(props: { label: string; desc: string; on: boolean; disabled?:
 
 /** What a view without a language covers: the organization, which holds its languages directly (decision 63). */
 function orgName(ctx: Ctx): string {
-  return ctx.org.state?.org?.value.name ?? 'Organization';
+  return ctx.org.state?.org?.value.name ?? t('config.unnamedOrg');
 }
 
 /** The open language's name, or null when the organization has none yet. */
@@ -140,27 +153,22 @@ export function RolesHome(ctx: Ctx) {
   const rows = useMemo(() => roleRows(org, level), [org, level]);
   const canManage = ctx.session.can('manage_roles') && level === 'org';
   return (
-    <Screen header={<Header title="Roles" sub={LEVEL_LABEL[level]} onBack={ctx.back}
-      action={canManage ? <SmallBtn label="Role" icon="plus" tone="primary" onPress={() => ctx.go('role_editor', { roleId: 'new', level })} /> : undefined} />}>
-      <Intro>
-        Roles are privilege sets without a fixed scope. Scope is chosen when assigning a role to a member.
-        {level === 'org'
-          ? ' Roles created here can be assigned at any level.'
-          : ' Roles are defined for the whole organization, so here they are view only. Edit them from Organization Home.'}
-      </Intro>
-      {!org ? <EmptyState icon="people" title="Loading roles…" /> : rows.length === 0 ? (
-        <EmptyState icon="people" title="No roles yet" sub={canManage ? 'Make one for each way people help: what they may do, not where.' : undefined} />
+    <Screen header={<Header title={t('config.roles.title')} sub={levelLabel(level)} onBack={ctx.back}
+      action={canManage ? <SmallBtn label={t('config.roles.addRole')} icon="plus" tone="primary" onPress={() => ctx.go('role_editor', { roleId: 'new', level })} /> : undefined} />}>
+      <Intro>{level === 'org' ? t('config.roles.introOrg') : t('config.roles.introLanguage')}</Intro>
+      {!org ? <EmptyState icon="people" title={t('config.roles.loading')} /> : rows.length === 0 ? (
+        <EmptyState icon="people" title={t('config.roles.empty')} sub={canManage ? t('config.roles.emptySub') : undefined} />
       ) : (
         <>
-          <SectionLabel label="Defined at Organization" />
+          <SectionLabel label={t('config.roles.definedAtOrg')} />
           <Group>
             {rows.map((r, i) => (
               <Row key={r.roleId} icon={r.inherited ? 'lock' : r.builtIn ? 'people' : 'star'}
                 iconColor={r.inherited ? TINT.grayText : C.primary} iconBg={r.inherited ? TINT.gray : undefined}
                 label={r.name} muted={r.inherited}
-                sub={r.inherited ? 'View only · edit from the level where it was defined'
-                  : `${plural(r.members, 'member')} · ${plural(r.privileges.length, 'privilege')}`}
-                badge={r.inherited ? 'View only' : undefined}
+                sub={r.inherited ? t('config.roles.inheritedSub')
+                  : `${t('config.roles.members', { count: r.members })} · ${t('config.roles.privileges', { count: r.privileges.length })}`}
+                badge={r.inherited ? t('common.viewOnly') : undefined}
                 onPress={() => ctx.go('role_editor', { roleId: r.roleId, level })} last={i === rows.length - 1}
                 current={beside?.screen === 'role_editor' && beside.params['roleId'] === r.roleId} />
             ))}
@@ -195,8 +203,8 @@ export function RoleEditor(ctx: Ctx) {
 
   if (!isNew && !existing) {
     return (
-      <Screen header={<Header title="Role" onBack={ctx.back} />}>
-        <EmptyState icon="people" title={org ? 'This role is not here any more' : 'Loading the role…'} />
+      <Screen header={<Header title={t('config.roleEditor.title')} onBack={ctx.back} />}>
+        <EmptyState icon="people" title={org ? t('config.roleEditor.gone') : t('config.roleEditor.loading')} />
       </Screen>
     );
   }
@@ -208,12 +216,12 @@ export function RoleEditor(ctx: Ctx) {
     setBusy(true);
     try {
       await ctx.org.append('v1.RoleDefined', next);
-      ctx.toast(isNew ? `${next.name} created.` : `${next.name} saved.`, prev ? async () => {
-        try { await ctx.org.append('v1.RoleDefined', prev); ctx.toast('Undone.'); } catch (e) { ctx.toast(`Not undone. ${failure('undo role', e)}`); }
+      ctx.toast(isNew ? t('config.roleEditor.created', { name: next.name }) : t('config.roleEditor.saved', { name: next.name }), prev ? async () => {
+        try { await ctx.org.append('v1.RoleDefined', prev); ctx.toast(t('common.undone')); } catch (e) { ctx.toast(t('common.notUndone', { reason: failure('undo role', e) })); }
       } : undefined);
       ctx.back();
     } catch (e) {
-      ctx.toast(`Not saved. ${failure('save role', e)}`);
+      ctx.toast(t('common.notSaved', { reason: failure('save role', e) }));
       setBusy(false);
     }
   }
@@ -222,12 +230,12 @@ export function RoleEditor(ctx: Ctx) {
   // The role's permissions as three groups of switches in the admin's words (decision 71, demo ADR-039).
   return (
     <Screen
-      header={<Header title={label || (isNew ? 'New role' : 'Role')} sub={isNew ? 'A new role' : `${people} ${people === 1 ? 'person' : 'people'}`} onBack={ctx.back} />}
+      header={<Header title={label || (isNew ? t('config.roleEditor.newRole') : t('config.roleEditor.title'))} sub={isNew ? t('config.roleEditor.aNewRole') : t('config.roleEditor.people', { count: people })} onBack={ctx.back} />}
       bodyStyle={{ gap: space.sm }}
-      footer={readOnly ? undefined : <PrimaryBtn label="Save" icon="check" onPress={() => void save()} disabled={!label.trim() || !dirty} busy={busy} />}>
-      {inherited ? <Banner icon="lock" title="View only" body="Defined at the organization level. Edit it from Organization Home." /> : null}
-      {readOnly && !inherited ? <Banner icon="lock" title="View only" body="You do not have permission to edit this role." /> : null}
-      {isNew && !readOnly ? <Field label="What is it called?" value={label} onChangeText={setName} placeholder="e.g. Back-translator" autoCapitalize="words" /> : null}
+      footer={readOnly ? undefined : <PrimaryBtn label={t('common.save')} icon="check" onPress={() => void save()} disabled={!label.trim() || !dirty} busy={busy} />}>
+      {inherited ? <Banner icon="lock" title={t('common.viewOnly')} body={t('config.roleEditor.inheritedBody')} /> : null}
+      {readOnly && !inherited ? <Banner icon="lock" title={t('common.viewOnly')} body={t('config.roleEditor.noPermission')} /> : null}
+      {isNew && !readOnly ? <Field label={t('config.roleEditor.nameLabel')} value={label} onChangeText={setName} placeholder={t('config.roleEditor.namePlaceholder')} autoCapitalize="words" /> : null}
       {ROLE_SWITCHES.map((g) => (
         <View key={g.title} style={{ gap: space.sm }}>
           <SectionLabel label={g.title} />
@@ -236,7 +244,7 @@ export function RoleEditor(ctx: Ctx) {
               const state = switchState(privileges, row);
               return (
                 <SwitchRow key={row.label} label={row.label} on={state !== 'off'} disabled={readOnly || busy} last={i === g.rows.length - 1}
-                  {...(state === 'some' ? { sub: `Only some: ${row.privileges.filter((p) => privileges.includes(p)).map((p) => PRIVILEGE_INFO[p].label).join(', ')}` } : {})}
+                  {...(state === 'some' ? { sub: t('config.roleEditor.onlySome', { privileges: listOf(row.privileges.filter((p) => privileges.includes(p)).map((p) => PRIVILEGE_INFO[p].label)) }) } : {})}
                   onToggle={() => setPicked(flipSwitch(privileges, row))} />
               );
             })}
@@ -245,20 +253,18 @@ export function RoleEditor(ctx: Ctx) {
       ))}
       {!isNew ? (
         <>
-          <SectionLabel label="People with this role" />
-          {canAssign ? <GhostBtn label={`Invite someone as ${label || 'this role'}`} icon="qr" onPress={() => ctx.go('invite_qr', { roleId })} /> : null}
-          <Capped items={holders} empty="Nobody has this role yet." render={(h, last) => (
+          <SectionLabel label={t('config.roleEditor.peopleSection')} />
+          {canAssign ? <GhostBtn label={label ? t('config.roleEditor.inviteAs', { role: label }) : t('config.roleEditor.inviteAsThisRole')} icon="qr" onPress={() => ctx.go('invite_qr', { roleId })} /> : null}
+          <Capped items={holders} empty={t('config.roleEditor.nobody')} render={(h, last) => (
             <Row key={`${h.profileId}-${JSON.stringify(h.scope)}`} icon="user"
-              label={h.profileId === ctx.session.actorId ? 'You' : ctx.name(h.profileId)}
+              label={h.profileId === ctx.session.actorId ? t('common.you') : ctx.name(h.profileId)}
               sub={scopeName(h.scope, org)}
               onPress={canAssign ? () => ctx.go('edit_member', { memberId: h.profileId }) : undefined} last={last} />
           )} />
-          {!readOnly ? <Field label="Its name" value={label} onChangeText={setName} placeholder="Role name" autoCapitalize="words" /> : null}
+          {!readOnly ? <Field label={t('config.roleEditor.itsName')} value={label} onChangeText={setName} placeholder={t('config.roleEditor.itsNamePlaceholder')} autoCapitalize="words" /> : null}
         </>
       ) : null}
-      <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>
-        Where a role applies is chosen for each person: the whole organization or one language, when they are invited or let in.
-      </Text>
+      <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>{t('config.roleEditor.scopeNote')}</Text>
     </Screen>
   );
 }
@@ -270,7 +276,7 @@ type Library = ReturnType<typeof useLibrary>;
 /** A library action that needs the server says so plainly when offline, instead of reporting a fault. */
 function libraryFailure(where: string, e: unknown): string {
   if (e instanceof Error && !(e instanceof CommandError) && /network|fetch|offline|timed? ?out/i.test(e.message)) {
-    return 'Not connected. Try again when you are online.';
+    return t('common.notConnected');
   }
   return failure(where, e);
 }
@@ -280,11 +286,11 @@ async function libraryAct(ctx: Ctx, where: string, action: () => Promise<unknown
   try {
     await action();
   } catch (e) {
-    ctx.toast(`Not saved. ${libraryFailure(where, e)}`);
+    ctx.toast(t('common.notSaved', { reason: libraryFailure(where, e) }));
     return false;
   }
   ctx.toast(message, undo ? async () => {
-    try { await undo(); ctx.toast('Undone.'); } catch (e) { ctx.toast(`Not undone. ${libraryFailure(`undo ${where}`, e)}`); }
+    try { await undo(); ctx.toast(t('common.undone')); } catch (e) { ctx.toast(t('common.notUndone', { reason: libraryFailure(`undo ${where}`, e) })); }
   } : undefined);
   return true;
 }
@@ -312,48 +318,48 @@ function SharedItems(props: {
     setBusy(true);
     let itemId = '';
     await libraryAct(ctx, 'follow', async () => { itemId = await lib.subscribe(s, autoUpdate); },
-      `Following ${s.name}${autoUpdate ? '. It updates automatically.' : '. You choose when to take updates.'}`,
+      autoUpdate ? t('config.library.followingAuto', { name: s.name }) : t('config.library.followingManual', { name: s.name }),
       () => live.current.follow(itemId, { active: false }));
     setBusy(false);
   }
   async function copy(s: SharedItem) {
     setBusy(true);
-    await libraryAct(ctx, 'copy', () => lib.copy(s), `${s.name} copied. It is yours to change.`);
+    await libraryAct(ctx, 'copy', () => lib.copy(s), t('config.library.copied', { name: s.name }));
     setBusy(false);
   }
 
   return (
     <>
-      <SectionLabel label={`From other organizations · ${rows.length}`} />
+      <SectionLabel label={withCount(t('config.library.fromOthers'), rows.length)} />
       {shared.error ? (
-        <Card><Text style={txt.smMuted}>{shared.rows.length ? 'Could not refresh this list. Showing the one saved on this device.' : 'Could not load what other organizations share. Try again when you are online.'}</Text></Card>
+        <Card><Text style={txt.smMuted}>{shared.rows.length ? t('config.library.refreshFailed') : t('config.library.loadFailed')}</Text></Card>
       ) : null}
-      {!shared.loaded ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>Loading…</Text>
-        : rows.length === 0 && !shared.error ? <Card><Text style={txt.smMuted}>Nothing shared by other organizations yet.</Text></Card> : null}
+      {!shared.loaded ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('common.loading')}</Text>
+        : rows.length === 0 && !shared.error ? <Card><Text style={txt.smMuted}>{t('config.library.nothingShared')}</Text></Card> : null}
       {rows.slice(0, n).map((s) => (
         <Card key={`${s.org_id}/${s.item_id}`}>
           <Text style={txt.h3}>{s.name}</Text>
-          <Text style={txt.xsStrong}>{`${s.org_name} · ${plural(s.version_count, 'version')}`}</Text>
+          <Text style={txt.xsStrong}>{`${s.org_name} · ${t('config.library.versions', { count: s.version_count })}`}</Text>
           {s.description ? <Text style={txt.smMuted}>{s.description}</Text> : null}
           {props.detail?.(s)}
           {props.canManage ? (
             <View style={styles.actions}>
               {props.use ? <SmallBtn label={props.use.label} tone="primary" disabled={busy || props.use.disabled} onPress={() => props.use!.onUse(s)} /> : null}
-              {s.subscribable ? <SmallBtn label="Follow" icon="link" disabled={busy} onPress={() => setFollowing(s)} /> : null}
-              <SmallBtn label="Copy" icon="plus" disabled={busy} onPress={() => void copy(s)} />
+              {s.subscribable ? <SmallBtn label={t('config.library.follow')} icon="link" disabled={busy} onPress={() => setFollowing(s)} /> : null}
+              <SmallBtn label={t('common.copy')} icon="plus" disabled={busy} onPress={() => void copy(s)} />
             </View>
           ) : null}
         </Card>
       ))}
       <ShowMore remaining={rows.length - n} step={STEP} onMore={() => setN(n + STEP)} />
 
-      <Sheet visible={following !== null} title={following ? `Follow ${following.name}` : 'Follow'} onClose={() => setFollowing(null)}
-        sub={`It stays ${following?.org_name ?? 'theirs'}'s: you use their versions, and can copy it any time to make it yours to change.`}
+      <Sheet visible={following !== null} title={following ? t('config.library.followNamed', { name: following.name }) : t('config.library.follow')} onClose={() => setFollowing(null)}
+        sub={following ? t('config.library.followSheetSub', { org: following.org_name }) : undefined}
         footer={<>
-          <PrimaryBtn label="Update automatically" onPress={() => following && void follow(following, true)} busy={busy} />
-          <GhostBtn label="I'll take updates" onPress={() => following && void follow(following, false)} />
+          <PrimaryBtn label={t('config.library.updateAutomatically')} onPress={() => following && void follow(following, true)} busy={busy} />
+          <GhostBtn label={t('config.library.takeUpdatesMyself')} onPress={() => following && void follow(following, false)} />
         </>}>
-        <Text style={txt.sm}>Automatically: languages using it move to each new version they publish. Otherwise you see when an update is ready and take it.</Text>
+        <Text style={txt.sm}>{t('config.library.followSheetBody')}</Text>
       </Sheet>
     </>
   );
@@ -378,31 +384,32 @@ function LibraryItemSettings(props: { ctx: Ctx; lib: Library; it: LibraryItemVie
   const sub = it.subscription;
   return (
     <>
-      <SectionLabel label="Library" />
+      <SectionLabel label={t('config.library.sectionTitle')} />
       <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>{sourceLine(it)}</Text>
       {sub ? (
         <>
           <Group>
-            <ToggleRow label="Update automatically" desc={`Take each new version ${sub.sourceOrgName} publishes.`} on={sub.autoUpdate}
+            <ToggleRow label={t('config.library.updateAutomatically')} desc={t('config.library.takeEachVersion', { org: sub.sourceOrgName })} on={sub.autoUpdate}
               disabled={!canManage || busy || !sub.active} last
-              onToggle={() => void run('follow updates', () => lib.follow(it.itemId, { autoUpdate: !sub.autoUpdate }),
-                sub.autoUpdate ? 'You choose when to take updates.' : 'It updates automatically.',
+              onToggle={() => void run('follow updates', () => lib.follow(it.itemId, { autoUpdate: !sub.autoUpdate }), // i18n-ignore: log label
+                sub.autoUpdate ? t('config.library.youChooseUpdates') : t('config.library.updatesAutomatically'),
                 () => live.current.follow(it.itemId, { autoUpdate: sub.autoUpdate }))} />
           </Group>
           {props.update && canManage ? (
-            <GhostBtn label="Take update" icon="download" disabled={busy}
-              onPress={() => void run('take update', () => lib.takeUpdate(it, props.update!), `${it.name} is up to date. Languages using it move to the new version.`)} />
+            <GhostBtn label={t('config.library.takeUpdate')} icon="download" disabled={busy}
+              onPress={() => void run('take update', // i18n-ignore: log label
+                () => lib.takeUpdate(it, props.update!), t('config.library.upToDate', { name: it.name }))} />
           ) : null}
           {canManage ? (
             <>
-              <GhostBtn label="Copy to change it" icon="plus" disabled={busy}
-                onPress={() => void run('copy', () => lib.copyFollowed(it), `${it.name} copied. It is yours to change.`).then((ok) => ok && props.onCopied())} />
+              <GhostBtn label={t('config.library.copyToChange')} icon="plus" disabled={busy}
+                onPress={() => void run('copy', () => lib.copyFollowed(it), t('config.library.copied', { name: it.name })).then((ok) => ok && props.onCopied())} />
               {sub.active ? (
-                <GhostBtn label="Stop following" tone="red" disabled={busy}
-                  onPress={() => void run('stop following', () => lib.follow(it.itemId, { active: false }), `Stopped following. The version in use stays.`,
+                <GhostBtn label={t('config.library.stopFollowing')} tone="red" disabled={busy}
+                  onPress={() => void run('stop following', () => lib.follow(it.itemId, { active: false }), t('config.library.stoppedFollowing'), // i18n-ignore: log label
                     () => live.current.follow(it.itemId, { active: true }))} />
               ) : (
-                <GhostBtn label="Follow again" disabled={busy} onPress={() => void run('follow', () => lib.follow(it.itemId, { active: true }), `Following ${sub.sourceOrgName} again.`)} />
+                <GhostBtn label={t('config.library.followAgain')} disabled={busy} onPress={() => void run('follow', () => lib.follow(it.itemId, { active: true }), t('config.library.followingAgain', { org: sub.sourceOrgName }))} />
               )}
             </>
           ) : null}
@@ -410,22 +417,22 @@ function LibraryItemSettings(props: { ctx: Ctx; lib: Library; it: LibraryItemVie
       ) : (
         <>
           <Group>
-            <ToggleRow label="Share with other organizations" desc="They can see it and copy it." on={it.shared} disabled={!canManage || busy} last={!it.shared}
+            <ToggleRow label={t('config.library.share')} desc={t('config.library.shareDesc')} on={it.shared} disabled={!canManage || busy} last={!it.shared}
               onToggle={() => void run('share', () => lib.setSharing(it, !it.shared, it.subscribable),
-                it.shared ? 'No longer shared. Copies and followers keep what they have.' : 'Shared with other organizations.',
+                it.shared ? t('config.library.unshared') : t('config.library.shared'),
                 () => lib.setSharing(it, it.shared, it.subscribable))} />
             {it.shared ? (
-              <ToggleRow label="Let them follow updates" desc="They can follow it and get each new version you publish." on={it.subscribable}
+              <ToggleRow label={t('config.library.letFollow')} desc={t('config.library.letFollowDesc')} on={it.subscribable}
                 disabled={!canManage || busy} last
                 onToggle={() => void run('share', () => lib.setSharing(it, true, !it.subscribable),
-                  it.subscribable ? 'Others can no longer follow it.' : 'Others can follow it now.',
+                  it.subscribable ? t('config.library.noLongerFollowable') : t('config.library.followableNow'),
                   () => lib.setSharing(it, true, it.subscribable))} />
             ) : null}
           </Group>
           {canManage ? (
-            <GhostBtn label={it.archived ? 'Unarchive' : 'Archive'} icon="folder" disabled={busy}
+            <GhostBtn label={it.archived ? t('config.library.unarchive') : t('config.library.archive')} icon="folder" disabled={busy}
               onPress={() => void run('archive', () => lib.archive(it, !it.archived),
-                it.archived ? `${it.name} is back in the lists.` : `${it.name} archived. Languages using it keep it.`,
+                it.archived ? t('config.library.unarchived', { name: it.name }) : t('config.library.archived', { name: it.name }),
                 () => lib.archive(it, it.archived))} />
           ) : null}
         </>
@@ -441,7 +448,7 @@ function FlowStepsInline(props: { steps: Pick<FlowStep, 'kindIds' | 'checkpoint'
   if (props.steps.length === 0) {
     return (
       <View style={[styles.stepTile, { backgroundColor: TINT.gray, alignSelf: 'flex-start' }]}>
-        <Text style={[txt.xsStrong, { color: TINT.grayText }]}>No reviews: done once recorded</Text>
+        <Text style={[txt.xsStrong, { color: TINT.grayText }]}>{t('config.flows.noReviews')}</Text>
       </View>
     );
   }
@@ -467,8 +474,9 @@ function FlowStepsInline(props: { steps: Pick<FlowStep, 'kindIds' | 'checkpoint'
 
 /** A flow document's steps inline, or a light line while it loads. */
 function DocSteps(props: { doc: FlowDoc | null; kinds: KindDef[] }) {
-  if (!props.doc) return <Text style={txt.smMuted}>Loading…</Text>;
-  return <FlowStepsInline steps={props.doc.steps.map((s) => ({ kindIds: s.kindIds, checkpoint: !!s.checkpoint }))} kinds={[...props.doc.kinds, ...props.kinds]} />;
+  if (!props.doc) return <Text style={txt.smMuted}>{t('common.loading')}</Text>;
+  // A shipped kind the document carries reads in the language showing.
+  return <FlowStepsInline steps={props.doc.steps.map((s) => ({ kindIds: s.kindIds, checkpoint: !!s.checkpoint }))} kinds={[...props.doc.kinds.map(localKind), ...props.kinds]} />;
 }
 
 export function FlowsHome(ctx: Ctx) {
@@ -513,17 +521,17 @@ export function FlowsHome(ctx: Ctx) {
         specs = await lib.applySpecs(itemId, { docHash: s.latest_hash });
       } else {
         const it = lib.item(target.itemId);
-        if (!it?.current) throw new CommandError('That flow has no version to use yet.');
+        if (!it?.current) throw new CommandError(t('config.errors.flowHasNoVersion'));
         name = it.name;
         specs = await lib.applySpecs(it.itemId, { docHash: it.current });
       }
     } catch (e) {
-      ctx.toast(`Not saved. ${libraryFailure('use flow', e)}`);
+      ctx.toast(t('common.notSaved', { reason: libraryFailure('use flow', e) })); // i18n-ignore: log label
       setBusy(false);
       return;
     }
     try {
-      await ctx.act(specs, `${language} now uses ${name}.`, undo);
+      await ctx.act(specs, t('config.flows.nowUses', { language, flow: name }), undo);
     } catch {
       // ctx.act has already said "Not saved" and why.
     }
@@ -535,39 +543,37 @@ export function FlowsHome(ctx: Ctx) {
   const versionOf = currentItem?.versions.find((v) => v.docHash === current?.docHash)?.n;
 
   return (
-    <Screen header={<Header title="Review Flows" sub={language ?? orgName(ctx)} onBack={ctx.back}
-      action={canManage ? <SmallBtn label="Flow" icon="plus" tone="primary" onPress={() => ctx.go('flow_editor', { itemId: 'new' })} /> : undefined} />}>
-      <Intro>
-        The flow is advice: it suggests what should happen next. Steps can be done in any order or set aside with a reason; only checkpoints are required.
-      </Intro>
-      {!state ? <EmptyState icon="flow" title="Loading…" /> : (
+    <Screen header={<Header title={t('config.flows.title')} sub={language ?? orgName(ctx)} onBack={ctx.back}
+      action={canManage ? <SmallBtn label={t('config.flows.addFlow')} icon="plus" tone="primary" onPress={() => ctx.go('flow_editor', { itemId: 'new' })} /> : undefined} />}>
+      <Intro>{t('config.flows.intro')}</Intro>
+      {!state ? <EmptyState icon="flow" title={t('common.loading')} /> : (
         <>
-          {!language ? <EmptyState icon="globe" title="No languages yet" sub="Add a language, then choose how its passages get checked." /> : null}
+          {!language ? <EmptyState icon="globe" title={t('config.flows.noLanguages')} sub={t('config.flows.noLanguagesSub')} /> : null}
           {language && current ? (
             <Card>
-              <Text style={txt.xsStrong}>{language} uses</Text>
+              <Text style={txt.xsStrong}>{t('config.flows.languageUses', { language })}</Text>
               <Text style={txt.h3}>{flowLabel(current)}</Text>
               {currentItem ? (
                 <Text style={txt.xs}>
-                  {[versionOf ? `Version ${versionOf}` : '', currentItem.current && currentItem.current !== current.docHash ? 'moving to the newest' : '', sourceLine(currentItem)].filter(Boolean).join(' · ')}
+                  {[versionOf ? t('config.flows.version', { n: versionOf }) : '', currentItem.current && currentItem.current !== current.docHash ? t('config.flows.movingToNewest') : '', sourceLine(currentItem)].filter(Boolean).join(' · ')}
                 </Text>
               ) : null}
               <FlowStepsInline steps={current.steps} kinds={kinds} />
-              {canManage && currentItem ? <SmallBtn label="Open flow" icon="edit" onPress={() => ctx.go('flow_editor', { itemId: currentItem.itemId })} /> : null}
+              {canManage && currentItem ? <SmallBtn label={t('config.flows.openFlow')} icon="edit" onPress={() => ctx.go('flow_editor', { itemId: currentItem.itemId })} /> : null}
               {canManage && !current.itemId && current.chosen && current.steps.length ? (
-                <SmallBtn label="Save as a flow" icon="plus" onPress={() => ctx.go('flow_editor', { itemId: 'new', languageId: ctx.language.languageId })} />
+                <SmallBtn label={t('config.flows.saveAsFlow')} icon="plus" onPress={() => ctx.go('flow_editor', { itemId: 'new', languageId: ctx.language.languageId })} />
               ) : null}
             </Card>
           ) : null}
 
-          <SectionLabel label={`Your organization · ${flows.length}`} />
+          <SectionLabel label={withCount(t('config.flows.yourOrganization'), flows.length)} />
           {flows.length === 0 ? (
-            <Card><Text style={txt.smMuted}>No flows here yet. Follow or copy one another organization shares, or make your own.</Text></Card>
+            <Card><Text style={txt.smMuted}>{t('config.flows.noFlows')}</Text></Card>
           ) : null}
           {flows.slice(0, shown).map((f) => {
             const on = !!current && current.itemId === f.itemId;
             return (
-              <Card key={f.itemId} onPress={open(f.itemId)} accessibilityLabel={`Open ${f.name}`}
+              <Card key={f.itemId} onPress={open(f.itemId)} accessibilityLabel={t('config.flows.openNamed', { name: f.name })}
                 style={on ? { borderColor: C.primary, borderWidth: 1.5 } : undefined}>
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.md }}>
                   <View style={{ flex: 1 }}>
@@ -575,11 +581,11 @@ export function FlowsHome(ctx: Ctx) {
                     <Text style={txt.xs}>{sourceLine(f)}</Text>
                     {f.description ? <Text style={[txt.smMuted, { marginTop: 2 }]}>{f.description}</Text> : null}
                   </View>
-                  {f.archived ? <Badge label="Archived" />
-                    : updates[f.itemId] ? <Badge label="Update" tone="amber" /> : null}
+                  {f.archived ? <Badge label={t('config.library.archivedBadge')} />
+                    : updates[f.itemId] ? <Badge label={t('config.library.updateBadge')} tone="amber" /> : null}
                   {on
-                    ? <SmallBtn label="In use" icon="check" tone="primary" onPress={() => {}} />
-                    : language && !f.archived ? <SmallBtn label="Use" onPress={() => void use({ itemId: f.itemId })} disabled={!canManage || busy || !f.current} /> : null}
+                    ? <SmallBtn label={t('config.flows.inUse')} icon="check" tone="primary" onPress={() => {}} />
+                    : language && !f.archived ? <SmallBtn label={t('config.flows.use')} onPress={() => void use({ itemId: f.itemId })} disabled={!canManage || busy || !f.current} /> : null}
                 </View>
                 <DocSteps doc={docs.get<FlowDoc>(f.current)} kinds={kinds} />
               </Card>
@@ -589,7 +595,7 @@ export function FlowsHome(ctx: Ctx) {
 
           <SharedItems ctx={ctx} lib={lib} shared={shared} canManage={canManage}
             detail={(s) => <DocSteps doc={docs.get<FlowDoc>(s.latest_hash)} kinds={kinds} />}
-            {...(language ? { use: { label: 'Use', onUse: (s: SharedItem) => void use({ shared: s }), disabled: busy } } : {})} />
+            {...(language ? { use: { label: t('config.flows.use'), onUse: (s: SharedItem) => void use({ shared: s }), disabled: busy } } : {})} />
         </>
       )}
     </Screen>
@@ -603,11 +609,11 @@ export function FlowsHome(ctx: Ctx) {
 function usuallyFor(ctx: Ctx, state: LanguageState, kinds: KindDef[]) {
   return (kindIds: string[]) => {
     const who = kinds.find((k) => k.id === kindIds[0])?.usualReviewer || stepWho(kindIds, kinds);
-    const team = Object.entries(state.teams).find(([, t]) => t.kindId?.value && kindIds.includes(t.kindId.value));
-    if (!team) return who || 'Anyone the team asks';
-    const [teamId, t] = team;
+    const team = Object.entries(state.teams).find(([, tm]) => tm.kindId?.value && kindIds.includes(tm.kindId.value));
+    if (!team) return who || t('config.flowEditor.anyoneTeamAsks');
+    const [teamId, tm] = team;
     const people = teamMembers(state, teamId);
-    return people.length === 1 ? `${who} · ${ctx.name(people[0]!)}` : t.name.value || who;
+    return people.length === 1 ? `${who} · ${ctx.name(people[0]!)}` : tm.name.value || who;
   };
 }
 
@@ -622,20 +628,20 @@ function StepSheet(props: {
   const st = props.step;
   const name = (id: string) => props.kinds.find((k) => k.id === id)?.name ?? id;
   return (
-    <Sheet visible={!!st} title={props.title} sub={`Step ${props.i + 1} of ${props.count}`} onClose={props.onClose}>
+    <Sheet visible={!!st} title={props.title} sub={t('config.flowEditor.stepOf', { step: props.i + 1, total: props.count })} onClose={props.onClose}>
       {st ? (
         <>
           <Group>
             {st.kindIds.map((id, j) => (
               <Row key={id} leading={<KindIcon kindId={id} size={40} />} label={name(id)} last={j === st.kindIds.length - 1}
-                right={st.kindIds.length > 1 ? <IconBtn name="close" label={`Remove ${name(id)}`} onPress={() => props.onChange({ ...st, kindIds: st.kindIds.filter((k) => k !== id) })} bg={C.light} color={C.primary} /> : undefined} />
+                right={st.kindIds.length > 1 ? <IconBtn name="close" label={t('config.flowEditor.removeCheck', { name: name(id) })} onPress={() => props.onChange({ ...st, kindIds: st.kindIds.filter((k) => k !== id) })} bg={C.light} color={C.primary} /> : undefined} />
             ))}
           </Group>
           <Group>
-            <Row icon="plus" label="Add a check alongside" sub="Both happen in this step" onPress={props.onAdd} />
-            {props.i > 0 ? <Row icon="up" label="Move up" onPress={() => props.onMove(-1)} /> : null}
-            {props.i < props.count - 1 ? <Row icon="down" label="Move down" onPress={() => props.onMove(1)} /> : null}
-            <Row icon="trash" label="Remove this step" iconColor={TINT.redText} iconBg={TINT.red} onPress={props.onRemove} last />
+            <Row icon="plus" label={t('config.flowEditor.addAlongside')} sub={t('config.flowEditor.addAlongsideSub')} onPress={props.onAdd} />
+            {props.i > 0 ? <Row icon="up" label={t('config.flowEditor.moveUp')} onPress={() => props.onMove(-1)} /> : null}
+            {props.i < props.count - 1 ? <Row icon="down" label={t('config.flowEditor.moveDown')} onPress={() => props.onMove(1)} /> : null}
+            <Row icon="trash" label={t('config.flowEditor.removeStep')} iconColor={TINT.redText} iconBg={TINT.red} onPress={props.onRemove} last />
           </Group>
         </>
       ) : null}
@@ -672,7 +678,7 @@ function LanguageChecks({ ctx }: { ctx: Ctx }) {
   const live = useLatest(ctx);
   const canManage = ctx.session.can('manage_flows');
   if (!state || !flow) {
-    return <Screen header={<Header title="Who checks" onBack={ctx.back} />}><EmptyState icon="flow" title="Loading…" /></Screen>;
+    return <Screen header={<Header title={t('config.flowEditor.whoChecks')} onBack={ctx.back} />}><EmptyState icon="flow" title={t('common.loading')} /></Screen>;
   }
   const kinds = [...known, ...added.filter((k) => !known.some((x) => x.id === k.id))];
   const steps = edited ?? base;
@@ -682,7 +688,7 @@ function LanguageChecks({ ctx }: { ctx: Ctx }) {
 
   async function save() {
     if (!state || !dirty || busy) return;
-    if (steps.some((s) => s.kindIds.length === 0)) { ctx.toast('Every step needs a check in it.'); return; }
+    if (steps.some((s) => s.kindIds.length === 0)) { ctx.toast(t('config.flowEditor.everyStepNeedsCheck')); return; }
     setBusy(true);
     const commandId = Crypto.randomUUID();
     const c = commands(state, indexesFor(state));
@@ -704,7 +710,7 @@ function LanguageChecks({ ctx }: { ctx: Ctx }) {
       return s ? commands(s, indexesFor(s)).restoreFlow({ commandId: Crypto.randomUUID(), previous }) : [];
     } : undefined;
     try {
-      await ctx.act(specs, `${language ?? 'The language'}'s checks are saved.`, undo);
+      await ctx.act(specs, language ? t('config.flowEditor.checksSaved', { language }) : t('config.flowEditor.checksSavedUnnamed'), undo);
     } catch {
       setBusy(false);
       return;
@@ -720,17 +726,17 @@ function LanguageChecks({ ctx }: { ctx: Ctx }) {
   };
   return (
     <Screen
-      header={<Header title="Who checks" sub={`${language ?? ''} · ${flow.flowId === CUSTOM_FLOW ? 'its own steps' : flow.name}`} onBack={() => (dirty ? setLeaving(true) : ctx.back())} />}
-      footer={canManage ? <PrimaryBtn label="Save" icon="check" onPress={() => void save()} disabled={!dirty} busy={busy} /> : undefined}>
-      {!canManage ? <Banner icon="lock" title="View only" body="Only people who choose who checks can change these steps." /> : null}
+      header={<Header title={t('config.flowEditor.whoChecks')} sub={`${language ?? ''} · ${flow.flowId === CUSTOM_FLOW ? t('config.flowEditor.itsOwnSteps') : flowName(state)}`} onBack={() => (dirty ? setLeaving(true) : ctx.back())} />}
+      footer={canManage ? <PrimaryBtn label={t('common.save')} icon="check" onPress={() => void save()} disabled={!dirty} busy={busy} /> : undefined}>
+      {!canManage ? <Banner icon="lock" title={t('common.viewOnly')} body={t('config.flowEditor.viewOnlyBody')} /> : null}
       <CheckSteps steps={steps} kinds={kinds} readOnly={!canManage} usually={usuallyFor(ctx, state, kinds)} onChange={change}
         onAdd={() => setPickFor('new')} onOpen={(i) => setOpen(i)} />
-      {dirty ? <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>These steps are for {language} only. Undo puts back the ones it had.</Text> : null}
+      {dirty ? <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>{t('config.flowEditor.languageOnly', { language: language ?? '' })}</Text> : null}
       {canManage ? (
         <Group>
-          <Row icon="people" label="Who's in each group" sub="Optional · they come first when someone asks for that check"
+          <Row icon="people" label={t('config.flowEditor.groups')} sub={t('config.flowEditor.groupsSub')}
             onPress={() => ctx.go('review_teams', { languageId: ctx.language.languageId })} />
-          <Row icon="flow" label="Every way to check" sub="Use one of your organization's, or one others share" last
+          <Row icon="flow" label={t('config.flowEditor.everyWay')} sub={t('config.flowEditor.everyWaySub')} last
             onPress={() => ctx.go('flows_home', { languageId: ctx.language.languageId })} />
         </Group>
       ) : null}
@@ -740,26 +746,26 @@ function LanguageChecks({ ctx }: { ctx: Ctx }) {
         onAdd={() => { const i = open; setOpen(null); setPickFor(i); }}
         onMove={(dir) => { if (open === null) return; change(moveStep(steps, open, dir)); setOpen(open + dir); }}
         onRemove={() => { if (open === null) return; change(steps.filter((_, j) => j !== open)); setOpen(null); }} />
-      <Sheet visible={pickFor !== null} title={pickFor === 'new' ? 'Add a step' : 'Add a check alongside'} sub="Who checks the recording at this step?" onClose={() => setPickFor(null)}>
+      <Sheet visible={pickFor !== null} title={pickFor === 'new' ? t('config.flowEditor.addStep') : t('config.flowEditor.addAlongside')} sub={t('config.flowEditor.pickSub')} onClose={() => setPickFor(null)}>
         <Group>
           {kinds.filter((k) => !(picking?.kindIds ?? []).includes(k.id)).map((k, i, a) => (
             <Row key={k.id} leading={<KindIcon kindId={k.id} size={40} />} label={stepTitle([k.id], kinds)} sub={k.usualReviewer || k.description || undefined}
               onPress={() => pick(k.id)} last={i === a.length - 1} />
           ))}
         </Group>
-        <Field label="Something else" value={newKind} onChangeText={setNewKind} placeholder="A new kind of check, e.g. Elder check" autoCapitalize="words" />
-        <SmallBtn label="Add this check" icon="plus" tone="primary" disabled={!newKind.trim()} onPress={() => {
+        <Field label={t('config.flowEditor.somethingElse')} value={newKind} onChangeText={setNewKind} placeholder={t('config.flowEditor.newCheckPlaceholder')} autoCapitalize="words" />
+        <SmallBtn label={t('config.flowEditor.addThisCheck')} icon="plus" tone="primary" disabled={!newKind.trim()} onPress={() => {
           if (!newKind.trim()) return;
-          const k: KindDef = { id: newKindId(newKind, kinds.map((x) => x.id)), name: newKind.trim(), description: 'Defined by your organization.', usualReviewer: 'Anyone the team chooses' };
+          const k: KindDef = { id: newKindId(newKind, kinds.map((x) => x.id)), name: newKind.trim(), description: t('config.flowEditor.newKindDescription'), usualReviewer: t('config.flowEditor.newKindReviewer') };
           setAdded([...added, k]);
           setNewKind('');
           pick(k.id);
         }} />
       </Sheet>
-      <Sheet visible={leaving} title="Leave without saving?" sub="Your changes to who checks haven't been saved." onClose={() => setLeaving(false)}
+      <Sheet visible={leaving} title={t('config.flowEditor.leaveTitle')} sub={t('config.flowEditor.leaveSubChecks')} onClose={() => setLeaving(false)}
         footer={<>
-          <PrimaryBtn label="Save" icon="check" onPress={() => { setLeaving(false); void save(); }} busy={busy} />
-          <GhostBtn label="Discard changes" tone="red" onPress={() => { setLeaving(false); ctx.back(); }} />
+          <PrimaryBtn label={t('common.save')} icon="check" onPress={() => { setLeaving(false); void save(); }} busy={busy} />
+          <GhostBtn label={t('config.flowEditor.discard')} tone="red" onPress={() => { setLeaving(false); ctx.back(); }} />
         </>}>
         {null}
       </Sheet>
@@ -778,7 +784,7 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
   const { updates } = useLibraryUpdates(lib.orgId);
   // A new flow may start from the language's own steps (made a library flow).
   const [seed] = useState(() => (isNew && ctx.params['languageId'] && state?.flow
-    ? { name: deriveFlow(state).name, description: '', steps: draftFromLanguage(state) }
+    ? { name: flowName(state), description: '', steps: draftFromLanguage(state) }
     : { name: '', description: '', steps: [] as DraftStep[] }));
   const base = useMemo(() => (isNew ? seed : doc ? { name: doc.name, description: doc.description, steps: draftFromDoc(doc) } : null), [isNew, seed, doc]);
   const [name, setName] = useState<string | null>(null);
@@ -792,7 +798,7 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
   const [busy, setBusy] = useState(false);
   const known = useMemo(() => {
     const out = new Map<string, KindDef>();
-    for (const k of [...(state ? deriveKinds(state) : []), ...(doc?.kinds ?? [])]) if (!out.has(k.id)) out.set(k.id, k);
+    for (const k of [...(state ? deriveKinds(state) : []), ...(doc?.kinds ?? []).map(localKind)]) if (!out.has(k.id)) out.set(k.id, k);
     return [...out.values()];
   }, [state, doc]);
   const kinds = useMemo(() => [...known, ...added.filter((k) => !known.some((x) => x.id === k.id))], [known, added]);
@@ -809,8 +815,8 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
 
   if (!state || (!isNew && !it)) {
     return (
-      <Screen header={<Header title="Review Flow" onBack={ctx.back} />}>
-        <EmptyState icon="flow" title={state && ctx.org.state ? 'This flow is not here any more' : 'Loading…'} />
+      <Screen header={<Header title={t('config.flowEditor.reviewFlow')} onBack={ctx.back} />}>
+        <EmptyState icon="flow" title={state && ctx.org.state ? t('config.flowEditor.gone') : t('common.loading')} />
       </Screen>
     );
   }
@@ -829,38 +835,36 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
     if (readOnly || busy || !label.trim()) return;
     const flowDoc = flowDocFrom({ name: label, description: desc, steps, kinds });
     setBusy(true);
-    const saved = await libraryAct(ctx, 'save flow',
+    const saved = await libraryAct(ctx, 'save flow', // i18n-ignore: log label
       () => lib.publish({ kind: 'flow', ...(it ? { itemId: it.itemId } : {}), name: flowDoc.name, description: flowDoc.description, doc: flowDoc }),
-      usedHere ? `${flowDoc.name} saved. ${language} moves to it.` : `${flowDoc.name} saved.`);
+      usedHere ? t('config.flowEditor.savedMoves', { name: flowDoc.name, language }) : t('config.flowEditor.saved', { name: flowDoc.name }));
     if (saved) ctx.back();
     else setBusy(false);
   }
 
   return (
     <Screen
-      header={<Header title={label || (isNew ? 'New way to check' : 'Who checks')} sub={it ? sourceLine(it) : 'New · your organization'}
+      header={<Header title={label || (isNew ? t('config.flowEditor.newWayToCheck') : t('config.flowEditor.whoChecks'))} sub={it ? sourceLine(it) : t('config.flowEditor.newSub')}
         onBack={() => (dirty ? setLeaving(true) : ctx.back())} />}
-      footer={readOnly ? undefined : <PrimaryBtn label="Save" icon="check" onPress={() => void save()} disabled={!dirty || !label.trim()} busy={busy} />}>
+      footer={readOnly ? undefined : <PrimaryBtn label={t('common.save')} icon="check" onPress={() => void save()} disabled={!dirty || !label.trim()} busy={busy} />}>
       {followed ? (
-        <Banner icon="link" title={`Follows ${it!.subscription!.sourceOrgName}`} body="It changes only when they publish a new version. Copy it to make your own changes." />
-      ) : !canManage ? <Banner icon="lock" title="View only" body="You do not have permission to change review flows." /> : null}
-      {!base ? <Card><Text style={txt.smMuted}>Loading…</Text></Card> : (
+        <Banner icon="link" title={t('config.library.follows', { org: it!.subscription!.sourceOrgName })} body={t('config.library.followsBody')} />
+      ) : !canManage ? <Banner icon="lock" title={t('common.viewOnly')} body={t('config.flowEditor.noPermission')} /> : null}
+      {!base ? <Card><Text style={txt.smMuted}>{t('common.loading')}</Text></Card> : (
         <>
           {readOnly ? (desc ? <Text style={[txt.sm, { paddingHorizontal: space.xs }]}>{desc}</Text> : null) : (
             <>
-              <Field label="Name" value={label} onChangeText={setName} placeholder="e.g. Community first" autoCapitalize="words" />
-              <Field label="Description" value={desc} onChangeText={setDescription} placeholder="What it is for, in a line" autoCapitalize="sentences" multiline />
+              <Field label={t('config.flowEditor.nameLabel')} value={label} onChangeText={setName} placeholder={t('config.flowEditor.namePlaceholder')} autoCapitalize="words" />
+              <Field label={t('config.flowEditor.descriptionLabel')} value={desc} onChangeText={setDescription} placeholder={t('config.flowEditor.descriptionPlaceholder')} autoCapitalize="sentences" multiline />
             </>
           )}
           <CheckSteps steps={steps} kinds={kinds} readOnly={readOnly} usually={usuallyFor(ctx, state, kinds)} onChange={change}
             onAdd={() => setPickFor('new')} onOpen={(i) => { if (!readOnly) setOpen(i); }} />
           {!readOnly && steps.length > 0 ? (
-            <SmallBtn label="No checks: done once recorded" onPress={() => change([])} />
+            <SmallBtn label={t('config.flowEditor.noChecks')} onPress={() => change([])} />
           ) : null}
           <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>
-            {usedHere
-              ? `${language} uses it. Changes apply to its passages right away; nothing already recorded is lost.`
-              : 'Languages using it move to each version you save. Steps are a suggested order; only a locked step has to pass first.'}
+            {usedHere ? t('config.flowEditor.usedHere', { language }) : t('config.flowEditor.usedNote')}
           </Text>
         </>
       )}
@@ -874,27 +878,27 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
         onAdd={() => { const i = open; setOpen(null); setPickFor(i); }}
         onMove={(dir) => { if (open === null) return; change(moveStep(steps, open, dir)); setOpen(open + dir); }}
         onRemove={() => { if (open === null) return; change(steps.filter((_, j) => j !== open)); setOpen(null); }} />
-      <Sheet visible={pickFor !== null} title={pickFor === 'new' ? 'Add a step' : 'Add a check alongside'} sub="Kinds are your organization's vocabulary. Add your own if these don't fit." onClose={() => setPickFor(null)}>
+      <Sheet visible={pickFor !== null} title={pickFor === 'new' ? t('config.flowEditor.addStep') : t('config.flowEditor.addAlongside')} sub={t('config.flowEditor.kindsSub')} onClose={() => setPickFor(null)}>
         <Group>
           {kinds.filter((k) => !(picking?.kindIds ?? []).includes(k.id)).map((k, i, a) => (
             <Row key={k.id} leading={<KindIcon kindId={k.id} size={40} />} label={k.name} sub={k.description || k.usualReviewer || undefined}
               onPress={() => pick(k.id)} last={i === a.length - 1} />
           ))}
         </Group>
-        <Field label="A new kind" value={newKind} onChangeText={setNewKind} placeholder="New kind, e.g. Elder Review" autoCapitalize="words" />
-        <SmallBtn label="Add this kind" icon="plus" tone="primary" disabled={!newKind.trim()} onPress={() => {
+        <Field label={t('config.flowEditor.newKindLabel')} value={newKind} onChangeText={setNewKind} placeholder={t('config.flowEditor.newKindPlaceholder')} autoCapitalize="words" />
+        <SmallBtn label={t('config.flowEditor.addThisKind')} icon="plus" tone="primary" disabled={!newKind.trim()} onPress={() => {
           if (!newKind.trim()) return;
-          const k: KindDef = { id: newKindId(newKind, kinds.map((x) => x.id)), name: newKind.trim(), description: 'Defined by your organization.', usualReviewer: 'Anyone the team chooses' };
+          const k: KindDef = { id: newKindId(newKind, kinds.map((x) => x.id)), name: newKind.trim(), description: t('config.flowEditor.newKindDescription'), usualReviewer: t('config.flowEditor.newKindReviewer') };
           setAdded([...added, k]);
           setNewKind('');
           pick(k.id);
         }} />
       </Sheet>
 
-      <Sheet visible={leaving} title="Leave without saving?" sub="Your changes to this flow haven't been saved." onClose={() => setLeaving(false)}
+      <Sheet visible={leaving} title={t('config.flowEditor.leaveTitle')} sub={t('config.flowEditor.leaveSubFlow')} onClose={() => setLeaving(false)}
         footer={<>
-          <PrimaryBtn label="Save" icon="check" onPress={() => { setLeaving(false); void save(); }} busy={busy} disabled={!label.trim()} />
-          <GhostBtn label="Discard changes" tone="red" onPress={() => { setLeaving(false); ctx.back(); }} />
+          <PrimaryBtn label={t('common.save')} icon="check" onPress={() => { setLeaving(false); void save(); }} busy={busy} disabled={!label.trim()} />
+          <GhostBtn label={t('config.flowEditor.discard')} tone="red" onPress={() => { setLeaving(false); ctx.back(); }} />
         </>}>
         {null}
       </Sheet>
@@ -905,7 +909,7 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
 // ─── Reference library (ORG-8) ─────────────────────────────────────────────────────
 
 function materialScopeName(state: LanguageState, m: Pick<MaterialView, 'scope'>, language: string): string {
-  return m.scope.unitId ? unitTitle(state, m.scope.unitId) : `${language} team`;
+  return m.scope.unitId ? unitTitle(state, m.scope.unitId) : t('config.reference.languageTeam', { language });
 }
 
 /** The versification a study or material document names, by name, once loaded. */
@@ -932,15 +936,15 @@ export function ReferenceHome(ctx: Ctx) {
   const termCount = useMemo(() => (state && languageId ? keyTermsFor(state).length : 0), [state, languageId]);
   // What translators are offered at this level (screens/reference.tsx).
   const offered = useMemo(() => recommendedFor(ctx.org.state?.recommendations, languageView ? state : null), [ctx.org.state, state, languageView]);
-  if (!state || !view) return <Screen header={<Header title="Reference Material" onBack={ctx.back} />}><EmptyState title="Loading…" /></Screen>;
+  if (!state || !view) return <Screen header={<Header title={t('config.reference.title')} onBack={ctx.back} />}><EmptyState title={t('common.loading')} /></Screen>;
 
   const own = languageView && language ? language : null;
   const params: Record<string, string> = own && languageId ? { languageId } : {};
   const open = (m: MaterialView) => (canManage ? () => ctx.go('material_editor', { materialId: m.materialId, ...params }) : undefined);
   const generalRow = (m: MaterialView, last: boolean) => (
-    <Row key={m.materialId} icon="book" label={m.title} last={last} badge={m.locked ? 'Locked' : undefined}
+    <Row key={m.materialId} icon="book" label={m.title} last={last} badge={m.locked ? t('config.reference.locked') : undefined}
       current={beside?.screen === 'material_editor' && beside.params['materialId'] === m.materialId}
-      sub={`${referenceKindName(m.kind)} · ${materialScopeName(state, m, own ?? '')}${m.blanks > 0 ? ` · ${plural(m.blanks, 'blank')}` : ''}`} onPress={open(m)} />
+      sub={`${referenceKindName(m.kind)} · ${materialScopeName(state, m, own ?? '')}${m.blanks > 0 ? ` · ${t('config.reference.blanks', { count: m.blanks })}` : ''}`} onPress={open(m)} />
   );
   const sets = [...view.questionSets].sort((a, b) => {
     const ia = kinds.findIndex((k) => k.id === a.scope.stepId), ib = kinds.findIndex((k) => k.id === b.scope.stepId);
@@ -951,63 +955,59 @@ export function ReferenceHome(ctx: Ctx) {
     const what = libraryMaterialLine(doc, versificationNameOf(docs, doc), kinds);
     return (
       <Row key={m.itemId} icon={what?.type === 'study' ? 'sparkle' : what?.type === 'questions' ? 'chat' : 'book'} label={m.name} last={last}
-        sub={`${what?.line ?? 'Loading…'} · ${sourceLine(m)}`} muted={m.archived}
+        sub={`${what?.line ?? t('common.loading')} · ${sourceLine(m)}`} muted={m.archived}
         current={beside?.screen === 'material_editor' && beside.params['itemId'] === m.itemId}
-        badge={m.archived ? 'Archived' : updates[m.itemId] ? 'Update' : undefined} badgeTone={updates[m.itemId] && !m.archived ? 'amber' : undefined}
+        badge={m.archived ? t('config.library.archivedBadge') : updates[m.itemId] ? t('config.library.updateBadge') : undefined} badgeTone={updates[m.itemId] && !m.archived ? 'amber' : undefined}
         onPress={canManage ? () => ctx.go('material_editor', { itemId: m.itemId, ...params }) : undefined} />
     );
   };
 
   return (
-    <Screen header={<Header title="Reference Material" sub={own ?? orgName(ctx)} onBack={ctx.back} />}
-      footer={canManage ? <PrimaryBtn label="Add material" icon="plus" onPress={() => ctx.go('material_editor', params)} /> : undefined}>
-      <Intro>
-        {own
-          ? `${own}'s own material adds to what the organization recommends; nothing is copied. Translators see it in the workspace tray; reviewers see the questions for their kind of review.`
-          : 'Material for every language lives in your library, and the organization recommends it to them. Each language adds its own from its Home.'}
-      </Intro>
+    <Screen header={<Header title={t('config.reference.title')} sub={own ?? orgName(ctx)} onBack={ctx.back} />}
+      footer={canManage ? <PrimaryBtn label={t('config.reference.addMaterial')} icon="plus" onPress={() => ctx.go('material_editor', params)} /> : undefined}>
+      <Intro>{own ? t('config.reference.introLanguage', { language: own }) : t('config.reference.introOrg')}</Intro>
 
-      <SectionLabel label="What translators are offered" />
+      <SectionLabel label={t('config.reference.offered')} />
       <OfferedRows ctx={ctx} languageId={own ? languageId : null} offered={offered} materials={materials} get={docs.get} />
 
-      <SectionLabel label="Key terms" />
+      <SectionLabel label={t('config.reference.keyTermsSection')} />
       <Group>
-        <Row icon="book" label="Key Terms" last
-          sub={languageId && language ? `${plural(termCount, 'concept')} · ${language} renderings` : 'Add a language first'}
+        <Row icon="book" label={t('config.reference.keyTermsRow')} last
+          sub={languageId && language ? `${t('config.reference.concepts', { count: termCount })} · ${t('config.languageRenderings', { language })}` : t('config.reference.addLanguageFirst')}
           onPress={languageId ? () => ctx.go('key_terms', { languageId }) : undefined} />
       </Group>
 
-      <SectionLabel label={`Library · your organization · ${materials.length}`}
-        action={canManage ? <SmallBtn label="New" icon="plus" onPress={() => ctx.go('material_editor', { itemId: 'new', ...params })} /> : undefined} />
+      <SectionLabel label={withCount(t('config.reference.libraryOrg'), materials.length)}
+        action={canManage ? <SmallBtn label={t('config.reference.new')} icon="plus" onPress={() => ctx.go('material_editor', { itemId: 'new', ...params })} /> : undefined} />
       <Capped items={materials} render={libraryRow}
-        empty="Nothing in your library yet. Follow or copy what other organizations share, or publish your own." />
-      {canManage ? <Group><Row icon="sparkle" label="Write a guide" sub="Steps with text and audio, pictures, maps and key terms" last
+        empty={t('config.reference.libraryEmpty')} />
+      {canManage ? <Group><Row icon="sparkle" label={t('config.reference.writeGuide')} sub={t('config.reference.writeGuideSub')} last
         onPress={() => ctx.go('guide_editor', params)} /></Group> : null}
       <SharedItems ctx={ctx} lib={lib} shared={shared} canManage={canManage}
         detail={(s) => {
           const doc = docs.get(s.latest_hash);
           const what = libraryMaterialLine(doc, versificationNameOf(docs, doc), kinds);
-          return <Text style={txt.xs}>{what?.line ?? 'Loading…'}</Text>;
+          return <Text style={txt.xs}>{what?.line ?? t('common.loading')}</Text>;
         }} />
 
       {own ? (
         <>
-          <SectionLabel label={`Study material · ${view.study.length}`} />
-          <Capped items={view.study} empty="No study material written in the app for this language." render={(m, last) => (
-            <Row key={m.materialId} icon="sparkle" label={m.title} last={last} badge={m.locked ? 'Locked' : undefined}
-              sub={`Study guide · ${materialScopeName(state, m, own)}${m.blanks > 0 ? ` · ${plural(m.blanks, 'blank')}` : ''}`} onPress={open(m)} />
+          <SectionLabel label={withCount(t('config.reference.studyMaterial'), view.study.length)} />
+          <Capped items={view.study} empty={t('config.reference.noStudy')} render={(m, last) => (
+            <Row key={m.materialId} icon="sparkle" label={m.title} last={last} badge={m.locked ? t('config.reference.locked') : undefined}
+              sub={`${t('config.libraryLine.studyGuide')} · ${materialScopeName(state, m, own)}${m.blanks > 0 ? ` · ${t('config.reference.blanks', { count: m.blanks })}` : ''}`} onPress={open(m)} />
           )} />
 
-          <SectionLabel label={`Review questions · ${sets.length}`} />
-          <Capped items={sets} empty="No question sets yet. Use one from the library, or add your own." render={(m, last) => (
-            <Row key={m.materialId} icon="chat" label={m.title} last={last} badge={m.locked ? 'Locked' : undefined}
-              sub={`${setKindName(kinds, m) ?? 'Not tied to a kind of review'} · ${questionCountLabel(questionCount(m))} · ${materialScopeName(state, m, own)}`}
+          <SectionLabel label={withCount(t('config.reference.reviewQuestions'), sets.length)} />
+          <Capped items={sets} empty={t('config.reference.noSets')} render={(m, last) => (
+            <Row key={m.materialId} icon="chat" label={m.title} last={last} badge={m.locked ? t('config.reference.locked') : undefined}
+              sub={`${setKindName(kinds, m) ?? t('config.libraryLine.notTiedToKind')} · ${questionCountLabel(questionCount(m))} · ${materialScopeName(state, m, own)}`}
               onPress={open(m)} />
           )} />
-          <Intro>Question sets for the same kind add up: a reviewer sees the shipped questions and the language team's together, labelled by source.</Intro>
+          <Intro>{t('config.reference.setsAddUp')}</Intro>
 
-          <SectionLabel label={`General · ${own} · ${view.general.length}`} />
-          <Capped items={view.general} empty="No general materials for this language yet." render={generalRow} />
+          <SectionLabel label={withCount(`${t('config.reference.general')} · ${own}`, view.general.length)} />
+          <Capped items={view.general} empty={t('config.reference.noGeneral')} render={generalRow} />
         </>
       ) : null}
     </Screen>
@@ -1031,17 +1031,22 @@ function OfferedRows(props: { ctx: Ctx; languageId: string | null; offered: Map<
   const open = ctx.language.languageId || null;
   return (
     <Group>
-      <Row icon="sound" label="Bibles" sub={`${bibles} recommended · text, audio, offline use and timings`} onPress={() => ctx.go('reference_bibles', params)} />
-      <Row icon="sparkle" label="Guides and notes" sub={`${guides} recommended guide${guides === 1 ? '' : 's'} · ${plural(notes, 'note')}`} onPress={() => ctx.go('reference_guides', params)} last={!open} />
-      {open ? <Row icon="map" label="Coverage" sub={`What reaches each passage in ${languageName(ctx.org.state, open)}`}
+      <Row icon="sound" label={t('config.reference.bibles')} sub={t('config.reference.biblesSub', { count: bibles })} onPress={() => ctx.go('reference_bibles', params)} />
+      <Row icon="sparkle" label={t('config.reference.guidesNotes')} sub={`${t('config.reference.guidesRecommended', { count: guides })} · ${t('config.reference.notes', { count: notes })}`} onPress={() => ctx.go('reference_guides', params)} last={!open} />
+      {open ? <Row icon="map" label={t('config.reference.coverage')} sub={t('config.reference.coverageSub', { language: languageName(ctx.org.state, open) })}
         onPress={() => ctx.go('reference_coverage', { languageId: open })} last /> : null}
     </Group>
   );
 }
 
-const QUESTION_TYPES: { id: QuestionSpec['type']; label: string }[] = [
-  { id: 'text', label: 'Text' }, { id: 'yesno', label: 'Yes / No' }, { id: 'rating', label: '1–5' }
-];
+/** How a question is answered, by name in the language showing. */
+function questionTypes(): { id: QuestionSpec['type']; label: string }[] {
+  return [
+    { id: 'text', label: t('config.questionTypes.text') },
+    { id: 'yesno', label: t('config.questionTypes.yesNo') },
+    { id: 'rating', label: t('config.questionTypes.rating', { low: formatNumber(1), high: formatNumber(5) }) }
+  ];
+}
 
 /** A question field as stored: `[yesno!] Is it clear?`; an empty question clears the field. */
 function storedQuestion(q: Pick<QuestionDraft, 'text' | 'type' | 'required'>): string {
@@ -1085,7 +1090,7 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
   const baseQuestions = useMemo(() => questionDrafts(existing), [existing]);
 
   if (!state || (!isNew && !existing)) {
-    return <Screen header={<Header title="Edit Material" onBack={ctx.back} />}><EmptyState icon="book" title={state ? 'This material is not here any more' : 'Loading…'} /></Screen>;
+    return <Screen header={<Header title={t('config.material.editTitle')} onBack={ctx.back} />}><EmptyState icon="book" title={state ? t('config.material.gone') : t('common.loading')} /></Screen>;
   }
 
   const materialKind = existing?.kind ?? kind;
@@ -1130,14 +1135,14 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
     const c = commands(s, indexesFor(s));
     const fields = changes.map((f) => ({ fieldId: f.fieldId, text: f.text }));
     setBusy(true);
-    const saved = await actCommand(ctx, 'save material', () => (isNew
+    const saved = await actCommand(ctx, 'save material', () => (isNew // i18n-ignore: log label
       ? c.defineMaterial({
         commandId: Crypto.randomUUID(), materialId: id, kind: materialKind, title: title.trim(), fields,
         ...(newTemplateRef ? { templateRef: newTemplateRef } : {}),
         scope: isQuestions ? { stepId: reviewKind } : {}
       })
       : c.setMaterialFields({ commandId: Crypto.randomUUID(), materialId: id, fields })),
-    isNew ? `${title.trim()} added.` : 'Saved.',
+    isNew ? t('config.material.added', { title: title.trim() }) : t('config.material.saved'),
     isNew ? undefined : () => c.setMaterialFields({ commandId: Crypto.randomUUID(), materialId: id, fields: changes.map((f) => ({ fieldId: f.fieldId, text: f.before })) }));
     if (saved) ctx.back();
     else setBusy(false);
@@ -1148,10 +1153,10 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
     const name = title.trim();
     const doc = materialDocFrom({ kind: materialKind, title: name, scope: {}, fields: changes.map((f) => ({ fieldId: f.fieldId, text: f.text })) }, fieldTitle);
     setBusy(true);
-    const saved = await libraryAct(ctx, 'save material', async () => {
+    const saved = await libraryAct(ctx, 'save material', async () => { // i18n-ignore: log label
       const { itemId } = await lib.publish({ kind: 'material', name, description: referenceKindName(materialKind), doc });
       await ctx.org.append('v1.ReferenceRecommended', { itemId, recommended: true });
-    }, `${name} is in your library, recommended to every language.`);
+    }, t('config.material.inLibraryRecommended', { name }));
     if (saved) ctx.back();
     else setBusy(false);
   }
@@ -1160,8 +1165,8 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
     if (!existing || !canManage) return;
     const to = !locked;
     const c = commands(state!, indexesFor(state!));
-    void actCommand(ctx, 'lock material', () => c.lockMaterial({ commandId: Crypto.randomUUID(), materialId: existing.materialId, locked: to }),
-      to ? 'Locked. Only people who manage reference material can edit it.' : 'Unlocked. Anyone who fills reference content can edit it.',
+    void actCommand(ctx, 'lock material', () => c.lockMaterial({ commandId: Crypto.randomUUID(), materialId: existing.materialId, locked: to }), // i18n-ignore: log label
+      to ? t('config.material.lockedToast') : t('config.material.unlockedToast'),
       () => c.lockMaterial({ commandId: Crypto.randomUUID(), materialId: existing.materialId, locked: !to }));
   }
 
@@ -1174,54 +1179,54 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
   async function publishToLibrary() {
     if (!existing || !canManage || busy) return;
     setBusy(true);
-    await libraryAct(ctx, 'publish material',
+    await libraryAct(ctx, 'publish material', // i18n-ignore: log label
       () => lib.publish({
         kind: 'material', itemId: materialItemId(existing.materialId), name: existing.title,
         description: published?.description || referenceKindName(existing.kind), doc: materialDocFrom(existing, fieldTitle)
       }),
-      published ? `${existing.title} published as a new version.` : `${existing.title} is in your library. Share it from there.`);
+      published ? t('config.material.publishedVersion', { title: existing.title }) : t('config.material.inLibraryShare', { title: existing.title }));
     setBusy(false);
   }
 
   return (
     <Screen
-      header={<Header title={existing?.title ?? 'New material'} sub={existing ? materialScopeName(state, existing, language ?? '') : toLibrary ? orgName(ctx) : language ?? orgName(ctx)} onBack={ctx.back}
-        action={existing && canManage ? <SmallBtn label={locked ? 'Locked' : 'Unlocked'} icon="lock" tone={locked ? 'dark' : undefined} onPress={toggleLock} />
-          : existing && locked ? <Badge label="Locked" tone="red" /> : undefined} />}
-      footer={canFill ? <PrimaryBtn label={isNew ? 'Add material' : 'Save Changes'} onPress={() => void save()} disabled={!ready} busy={busy} /> : undefined}>
+      header={<Header title={existing?.title ?? t('config.material.newMaterial')} sub={existing ? materialScopeName(state, existing, language ?? '') : toLibrary ? orgName(ctx) : language ?? orgName(ctx)} onBack={ctx.back}
+        action={existing && canManage ? <SmallBtn label={locked ? t('config.material.locked') : t('config.material.unlocked')} icon="lock" tone={locked ? 'dark' : undefined} onPress={toggleLock} />
+          : existing && locked ? <Badge label={t('config.material.locked')} tone="red" /> : undefined} />}
+      footer={canFill ? <PrimaryBtn label={isNew ? t('config.reference.addMaterial') : t('config.material.saveChanges')} onPress={() => void save()} disabled={!ready} busy={busy} /> : undefined}>
       {existing ? (
         <Text style={txt.xs}>
-          {referenceKindName(existing.kind)} · by {ctx.name(existing.createdBy)}{kindOfSet ? ` · questions for ${kindOfSet}` : ''}
+          {[referenceKindName(existing.kind), t('config.material.byWhom', { name: ctx.name(existing.createdBy) }), ...(kindOfSet ? [t('config.material.questionsFor', { kind: kindOfSet })] : [])].join(' · ')}
         </Text>
       ) : null}
-      {existing && existing.blanks > 0 ? <Banner icon="edit" tone="amber" title={`${plural(existing.blanks, 'unfilled blank')}`} /> : null}
-      {existing && locked && !canFill ? <Banner icon="lock" title="Locked" body="Only people who manage reference material can edit it. You can still read it." /> : null}
+      {existing && existing.blanks > 0 ? <Banner icon="edit" tone="amber" title={t('config.material.unfilledBlanks', { count: existing.blanks })} /> : null}
+      {existing && locked && !canFill ? <Banner icon="lock" title={t('config.material.locked')} body={t('config.material.lockedBody')} /> : null}
 
       {isNew ? (
         <>
-          <SectionLabel label="What kind" />
+          <SectionLabel label={t('config.material.whatKind')} />
           <Group>
-            {REFERENCE_KINDS.filter((k) => k.id !== 'key_terms' && (canManage || k.id === 'questions')).map((k, i, a) => (
+            {referenceKinds().filter((k) => k.id !== 'key_terms' && (canManage || k.id === 'questions')).map((k, i, a) => (
               <Row key={k.id} label={k.name} sub={k.code} onPress={() => setKind(k.id)} last={i === a.length - 1}
                 role="radio" selected={kind === k.id}
                 right={kind === k.id ? <Ico name="check" size={22} color={C.primary} /> : <View style={{ width: 22 }} />} />
             ))}
           </Group>
-          <Field label="Title" value={title} onChangeText={setTitle} placeholder={isQuestions ? 'e.g. Peer Review questions' : 'e.g. Dinka translation guidelines'} autoCapitalize="sentences" />
+          <Field label={t('config.material.titleLabel')} value={title} onChangeText={setTitle} placeholder={isQuestions ? t('config.material.questionsTitlePlaceholder') : t('config.material.titlePlaceholder')} autoCapitalize="sentences" />
           {language && mayRecommend && !isQuestions ? (
             <>
-              <SectionLabel label="Where it applies" />
+              <SectionLabel label={t('config.material.whereItApplies')} />
               <ChipRow>
                 <Chip label={language} icon="globe" on={forLanguage} onPress={() => setForLanguage(true)} />
-                <Chip label="All languages" icon="folder" on={!forLanguage} onPress={() => setForLanguage(false)} />
+                <Chip label={t('config.material.allLanguages')} icon="folder" on={!forLanguage} onPress={() => setForLanguage(false)} />
               </ChipRow>
             </>
           ) : null}
-          {toLibrary ? <Text style={txt.xs}>Saved to your library and recommended to every language.</Text> : null}
-          {!language && !toLibrary ? <Text style={txt.smMuted}>{isQuestions ? 'Question sets belong to a language. Add a language first.' : 'Add a language first.'}</Text> : null}
+          {toLibrary ? <Text style={txt.xs}>{t('config.material.toLibraryNote')}</Text> : null}
+          {!language && !toLibrary ? <Text style={txt.smMuted}>{isQuestions ? t('config.material.setsNeedLanguage') : t('config.material.addLanguageFirst')}</Text> : null}
           {isQuestions ? (
             <>
-              <SectionLabel label="For which kind of review" />
+              <SectionLabel label={t('config.material.forWhichKind')} />
               <Group>
                 {kinds.map((k, i) => (
                   <Row key={k.id} leading={<KindIcon kindId={k.id} size={40} />} label={k.name} onPress={() => setReviewKind(k.id)} last={i === kinds.length - 1}
@@ -1236,56 +1241,56 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
 
       {isQuestions ? (
         <>
-          <SectionLabel label={`Questions · ${qs.filter((q) => q.text.trim()).length}`} />
+          <SectionLabel label={withCount(t('config.material.questions'), qs.filter((q) => q.text.trim()).length)} />
           {qs.map((q, i) => (
             <Card key={q.fieldId}>
               {canFill ? (
                 <>
-                  <Field value={q.text} onChangeText={(v) => setQuestion(i, { text: v })} placeholder="The question" multiline />
+                  <Field value={q.text} onChangeText={(v) => setQuestion(i, { text: v })} placeholder={t('config.material.questionPlaceholder')} multiline />
                   <ChipRow>
-                    {QUESTION_TYPES.map((t) => <Chip key={t.id} label={t.label} on={q.type === t.id} onPress={() => setQuestion(i, { type: t.id })} />)}
+                    {questionTypes().map((type) => <Chip key={type.id} label={type.label} on={q.type === type.id} onPress={() => setQuestion(i, { type: type.id })} />)}
                   </ChipRow>
                   <View style={styles.checkpoint}>
                     <View style={{ flex: 1 }}>
-                      <Text style={[txt.sm, { fontWeight: '700' }]}>{q.required ? 'Required' : 'Suggested'}</Text>
-                      <Text style={txt.xs}>{q.required ? 'Reviewers answer it, or say why not.' : 'Reviewers may skip it.'}</Text>
+                      <Text style={[txt.sm, { fontWeight: '700' }]}>{q.required ? t('common.required') : t('config.material.suggested')}</Text>
+                      <Text style={txt.xs}>{q.required ? t('config.material.requiredHelp') : t('config.material.suggestedHelp')}</Text>
                     </View>
-                    <Toggle on={q.required} label="Required" onToggle={() => setQuestion(i, { required: !q.required })} />
+                    <Toggle on={q.required} label={t('common.required')} onToggle={() => setQuestion(i, { required: !q.required })} />
                   </View>
-                  <SmallBtn label="Remove question" icon="trash" onPress={() => setQuestions(qs.filter((_, j) => j !== i))} />
+                  <SmallBtn label={t('config.material.removeQuestion')} icon="trash" onPress={() => setQuestions(qs.filter((_, j) => j !== i))} />
                 </>
               ) : (
                 <>
                   <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'center' }}>
-                    <Text style={txt.label}>{QUESTION_TYPES.find((t) => t.id === q.type)?.label}</Text>
-                    {q.required ? <Badge label="Required" tone="brand" /> : null}
+                    <Text style={txt.label}>{questionTypes().find((type) => type.id === q.type)?.label}</Text>
+                    {q.required ? <Badge label={t('common.required')} tone="brand" /> : null}
                   </View>
                   <Text style={txt.body}>{q.text}</Text>
                 </>
               )}
             </Card>
           ))}
-          {qs.length === 0 && !canFill ? <Card><Text style={txt.smMuted}>No questions yet.</Text></Card> : null}
-          {canFill ? <GhostBtn label="Add question" icon="plus" onPress={() => setQuestions([...qs, { fieldId: nextFieldId([...qs.map((x) => x.fieldId), ...(existing?.fields.map((f) => f.fieldId) ?? [])]), text: '', type: 'text', required: false }])} /> : null}
+          {qs.length === 0 && !canFill ? <Card><Text style={txt.smMuted}>{t('config.material.noQuestions')}</Text></Card> : null}
+          {canFill ? <GhostBtn label={t('config.material.addQuestion')} icon="plus" onPress={() => setQuestions([...qs, { fieldId: nextFieldId([...qs.map((x) => x.fieldId), ...(existing?.fields.map((f) => f.fieldId) ?? [])]), text: '', type: 'text', required: false }])} /> : null}
         </>
       ) : (
         <>
-          <SectionLabel label={`Sections · ${fieldIds.length}`} />
+          <SectionLabel label={withCount(t('config.material.sections'), fieldIds.length)} />
           {fieldIds.slice(0, shown).map((fieldId) => (
             <Card key={fieldId}>
               <Text style={txt.h3}>{fieldTitle(fieldId)}</Text>
               {canFill
-                ? <Field value={valueOf(fieldId)} onChangeText={(v) => setTexts({ ...texts, [fieldId]: v })} placeholder={`Guidance for ${fieldTitle(fieldId)}…`} multiline />
-                : <Text style={valueOf(fieldId) ? txt.body : txt.bodyMuted}>{valueOf(fieldId) || 'Not filled in yet.'}</Text>}
+                ? <Field value={valueOf(fieldId)} onChangeText={(v) => setTexts({ ...texts, [fieldId]: v })} placeholder={t('config.material.guidanceFor', { section: fieldTitle(fieldId) })} multiline />
+                : <Text style={valueOf(fieldId) ? txt.body : txt.bodyMuted}>{valueOf(fieldId) || t('config.material.notFilled')}</Text>}
             </Card>
           ))}
           <ShowMore remaining={fieldIds.length - shown} step={STEP} onMore={() => setShown(shown + STEP)} />
           {canFill ? (
             <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'flex-end' }}>
               <View style={{ flex: 1 }}>
-                <Field label="Add a section" value={newField} onChangeText={setNewField} placeholder="e.g. Names" autoCapitalize="sentences" />
+                <Field label={t('config.material.addSection')} value={newField} onChangeText={setNewField} placeholder={t('config.material.addSectionPlaceholder')} autoCapitalize="sentences" />
               </View>
-              <SmallBtn label="Add" icon="plus" disabled={!newField.trim()} onPress={() => {
+              <SmallBtn label={t('config.material.add')} icon="plus" disabled={!newField.trim()} onPress={() => {
                 const id = newKindId(newField, fieldIds);
                 setExtraFields([...extraFields, id]);
                 setNewField('');
@@ -1297,14 +1302,12 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
 
       {existing && canManage ? (
         <>
-          <SectionLabel label="Library" />
+          <SectionLabel label={t('config.library.sectionTitle')} />
           <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>
-            {published
-              ? `In your library · ${sourceLine(published)}. Publishing again adds a version from what is saved here.`
-              : 'Publish it to your library to share it with other organizations or keep versions of it.'}
+            {published ? t('config.material.inLibrary', { source: sourceLine(published) }) : t('config.material.notInLibrary')}
           </Text>
-          <GhostBtn label={published ? 'Publish a new version' : 'Publish to library'} icon="share" disabled={busy || changes.length > 0} onPress={() => void publishToLibrary()} />
-          {changes.length > 0 ? <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>Save your changes first.</Text> : null}
+          <GhostBtn label={published ? t('config.material.publishNewVersion') : t('config.material.publishToLibrary')} icon="share" disabled={busy || changes.length > 0} onPress={() => void publishToLibrary()} />
+          {changes.length > 0 ? <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>{t('config.material.saveFirst')}</Text> : null}
         </>
       ) : null}
     </Screen>
@@ -1313,6 +1316,9 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
 
 /** Kinds of simple material the library editor makes; question sets and study guides come from elsewhere. */
 const LIBRARY_MATERIAL_KINDS = ['note', 'tg', 'tmf', 'brief', 'document'];
+
+/** A verse link as the parser reads it (USFM book codes), the same in every language: not words to translate. */
+const REF_EXAMPLE = 'RUT 1:1-16';
 
 /** A versification a verse link can be read in: one this organization has, or one another shares (followed or copied on Save). */
 interface VersificationChoice { key: string; label: string; hash: string | null; shared?: SharedItem }
@@ -1345,20 +1351,20 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
   const baseRefs = baseLinks.flatMap((l) => ('ref' in l ? [l.ref] : [])).join('\n');
   const baseParts = baseLinks.flatMap((l) => ('node' in l ? [l] : []));
   const k = kind ?? material?.kind ?? ctx.params['kind'] ?? 'tg';
-  const t = title ?? material?.title ?? '';
+  const titleText = title ?? material?.title ?? '';
   const b = body ?? material?.body ?? '';
   const refs = parseRefLinks(refsText ?? baseRefs);
   const linked = parts ?? baseParts;
   const own = lib.items('versification').filter((v) => v.current && !v.archived);
   const choices: VersificationChoice[] = [
-    { key: 'none', label: "Each language's own", hash: null },
+    { key: 'none', label: t('config.libraryMaterial.eachLanguagesOwn'), hash: null },
     ...own.map((v) => ({ key: v.itemId, label: v.name, hash: v.current })),
     ...sharedV.rows.filter((s) => !lib.item(subscriptionItemId(s.org_id, s.item_id))?.subscription?.active)
       .map((s) => ({ key: `${s.org_id}/${s.item_id}`, label: `${s.name} · ${s.org_name}`, hash: s.latest_hash, shared: s }))
   ];
   const baseHash = material?.versification ?? null;
   const baseChoice: VersificationChoice = choices.find((c) => c.hash === baseHash && !c.shared)
-    ?? { key: 'doc', label: versificationNameOf(docs, material) ?? 'Loading…', hash: baseHash };
+    ?? { key: 'doc', label: versificationNameOf(docs, material) ?? t('common.loading'), hash: baseHash };
   const chosen = v11n ?? baseChoice;
   const units = useMemo(() => {
     if (!state || !picking) return [];
@@ -1370,10 +1376,10 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
       .sort((x, y) => x.label.localeCompare(y.label));
   }, [state, picking, q]);
   const dirty = editable && (kind !== null || title !== null || body !== null || refsText !== null || parts !== null || v11n !== null);
-  const ready = editable && t.trim() !== '' && refs.bad.length === 0 && (isNew || dirty);
+  const ready = editable && titleText.trim() !== '' && refs.bad.length === 0 && (isNew || dirty);
 
   if (!state || (!isNew && !it)) {
-    return <Screen header={<Header title="Library material" onBack={ctx.back} />}><EmptyState icon="book" title={state && ctx.org.state ? 'This material is not here any more' : 'Loading…'} /></Screen>;
+    return <Screen header={<Header title={t('config.libraryMaterial.title')} onBack={ctx.back} />}><EmptyState icon="book" title={state && ctx.org.state ? t('config.material.gone') : t('common.loading')} /></Screen>;
   }
   const partLabel = (l: { template: string; node: string }) => {
     const unitId = `${l.template}/${l.node}`;
@@ -1384,21 +1390,21 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
   async function save() {
     if (!ready || busy) return;
     setBusy(true);
-    const saved = await libraryAct(ctx, 'save material', async () => {
+    const saved = await libraryAct(ctx, 'save material', async () => { // i18n-ignore: log label
       let hash = refs.refs.length ? chosen.hash : null;
       if (hash && chosen.shared) {
         const s = chosen.shared;
         await (s.subscribable ? lib.subscribe(s, true) : lib.copy(s));
         hash = s.latest_hash;
       }
-      const { links: _links, versification: _v, body: _b, ...rest } = material ?? { format: 'material@1' as const, kind: k, title: t, deps: [] };
+      const { links: _links, versification: _v, body: _b, ...rest } = material ?? { format: 'material@1' as const, kind: k, title: titleText, deps: [] };
       const links = [...refs.refs.map((ref) => ({ ref })), ...linked];
       const out: MaterialDoc = {
-        ...rest, format: 'material@1', kind: k, title: t.trim(), deps: [],
+        ...rest, format: 'material@1', kind: k, title: titleText.trim(), deps: [],
         ...(b.trim() ? { body: b.trim() } : {}), ...(links.length ? { links } : {}), ...(hash ? { versification: hash } : {})
       };
       await lib.publish({ kind: 'material', ...(it ? { itemId: it.itemId } : {}), name: out.title, description: it?.description || referenceKindName(k), doc: out });
-    }, isNew ? `${t.trim()} is in your library.` : `${t.trim()} saved as a new version.`);
+    }, isNew ? t('config.libraryMaterial.inLibrary', { title: titleText.trim() }) : t('config.libraryMaterial.savedVersion', { title: titleText.trim() }));
     if (saved) ctx.back();
     else setBusy(false);
   }
@@ -1413,7 +1419,7 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
       return;
     }
     const kindLabel = kinds.find((x) => x.id === material.reviewKindId)?.name ?? material.reviewKindId;
-    void ctx.act(plan.specs, `Reviewers doing ${kindLabel} now see these questions.`, () => plan.undo).catch(() => {
+    void ctx.act(plan.specs, t('config.libraryMaterial.reviewersSee', { kind: kindLabel }), () => plan.undo).catch(() => {
       // ctx.act has already said "Not saved" and why.
     });
   }
@@ -1422,25 +1428,25 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
   const what = libraryMaterialLine(doc, versificationNameOf(docs, doc), kinds);
   return (
     <Screen
-      header={<Header title={t || (isNew ? 'New library material' : it?.name ?? 'Library material')} sub={it ? sourceLine(it) : 'Library · your organization'} onBack={ctx.back} />}
-      footer={editable ? <PrimaryBtn label={isNew ? 'Publish' : 'Publish new version'} onPress={() => void save()} disabled={!ready} busy={busy} /> : undefined}>
-      {!isNew && !doc ? <Card><Text style={txt.smMuted}>Loading…</Text></Card> : null}
+      header={<Header title={titleText || (isNew ? t('config.libraryMaterial.newTitle') : it?.name ?? t('config.libraryMaterial.title'))} sub={it ? sourceLine(it) : t('config.libraryMaterial.newSub')} onBack={ctx.back} />}
+      footer={editable ? <PrimaryBtn label={isNew ? t('common.publish') : t('config.libraryMaterial.publishNewVersion')} onPress={() => void save()} disabled={!ready} busy={busy} /> : undefined}>
+      {!isNew && !doc ? <Card><Text style={txt.smMuted}>{t('common.loading')}</Text></Card> : null}
       {it?.source === 'subscription' ? (
-        <Banner icon="link" title={`Follows ${it.subscription!.sourceOrgName}`} body="It changes only when they publish a new version. Copy it to make your own changes." />
+        <Banner icon="link" title={t('config.library.follows', { org: it.subscription!.sourceOrgName })} body={t('config.library.followsBody')} />
       ) : null}
       {what ? <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>{what.line}</Text> : null}
 
       {doc?.format === 'study@1' ? (
         <Card>
           <Text style={txt.h3}>{doc.title}</Text>
-          <Text style={txt.xs}>{`${doc.ref} · ${doc.source} · ${plural(doc.steps.length, 'step')}`}</Text>
+          <Text style={txt.xs}>{`${doc.ref} · ${doc.source} · ${t('config.libraryLine.steps', { count: doc.steps.length })}`}</Text>
           {doc.about ? <Text style={txt.sm}>{doc.about}</Text> : null}
         </Card>
       ) : null}
       {doc?.format === 'collection@1' ? (
         <>
           {doc.description ? <Text style={[txt.sm, { paddingHorizontal: space.xs }]}>{doc.description}</Text> : null}
-          <SectionLabel label={`Passages · ${doc.entries.length}`} />
+          <SectionLabel label={withCount(t('config.libraryMaterial.passages'), doc.entries.length)} />
           <Capped items={doc.entries} render={(e, last) => <Row key={`${e.ref}-${e.doc}`} icon="sparkle" label={e.title} sub={e.ref} last={last} />} />
         </>
       ) : null}
@@ -1448,18 +1454,18 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
       {isNew || material ? (
         editable ? (
           <>
-            <SectionLabel label="What kind" />
+            <SectionLabel label={t('config.material.whatKind')} />
             <ChipRow>
               {[...new Set([...LIBRARY_MATERIAL_KINDS, k])].map((id) => <Chip key={id} label={referenceKindName(id)} on={k === id} onPress={() => setKind(id)} />)}
             </ChipRow>
-            <Field label="Title" value={t} onChangeText={setTitle} placeholder="e.g. Names in Ruth" autoCapitalize="sentences" />
-            <Field label="Text" value={b} onChangeText={setBody} placeholder="What translators should know" autoCapitalize="sentences" multiline />
-            <SectionLabel label="Where it applies" />
-            <Field label="Verses, one per line" value={refsText ?? baseRefs} onChangeText={setRefsText} placeholder="RUT 1:1-16" autoCapitalize="none" multiline />
-            {refs.bad.length ? <Text style={[txt.sm, { color: TINT.redText }]}>{`Could not read ${refs.bad.map((x) => `“${x}”`).join(', ')}. Write them like RUT 1:1-16.`}</Text> : null}
+            <Field label={t('config.material.titleLabel')} value={titleText} onChangeText={setTitle} placeholder={t('config.libraryMaterial.titlePlaceholder')} autoCapitalize="sentences" />
+            <Field label={t('config.libraryMaterial.textLabel')} value={b} onChangeText={setBody} placeholder={t('config.libraryMaterial.textPlaceholder')} autoCapitalize="sentences" multiline />
+            <SectionLabel label={t('config.material.whereItApplies')} />
+            <Field label={t('config.libraryMaterial.versesLabel')} value={refsText ?? baseRefs} onChangeText={setRefsText} placeholder={REF_EXAMPLE} autoCapitalize="none" multiline />
+            {refs.bad.length ? <Text style={[txt.sm, { color: TINT.redText }]}>{t('config.libraryMaterial.couldNotRead', { refs: listOf(refs.bad.map((x) => t('config.quoted', { text: x }))), example: REF_EXAMPLE })}</Text> : null}
             {refs.refs.length ? (
               <>
-                <Text style={txt.xsStrong}>Numbered as in</Text>
+                <Text style={txt.xsStrong}>{t('config.libraryMaterial.numberedAs')}</Text>
                 <ChipRow>
                   {[...choices, ...(choices.some((c) => c.key === chosen.key) ? [] : [chosen])].map((c) => (
                     <Chip key={c.key} label={c.label} on={c.key === chosen.key} onPress={() => setV11n(c)} />
@@ -1470,12 +1476,12 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
             {linked.length ? (
               <Group>
                 {linked.map((l, i) => (
-                  <Row key={`${l.template}/${l.node}`} icon="template" label={partLabel(l)} sub="A part of a content template" last={i === linked.length - 1}
-                    right={<IconBtn name="close" label={`Remove ${partLabel(l)}`} onPress={() => setParts(linked.filter((_, j) => j !== i))} bg={C.light} color={C.primary} />} />
+                  <Row key={`${l.template}/${l.node}`} icon="template" label={partLabel(l)} sub={t('config.libraryMaterial.templatePart')} last={i === linked.length - 1}
+                    right={<IconBtn name="close" label={t('config.libraryMaterial.removePart', { name: partLabel(l) })} onPress={() => setParts(linked.filter((_, j) => j !== i))} bg={C.light} color={C.primary} />} />
                 ))}
               </Group>
             ) : null}
-            <SmallBtn label="Link a part of a template" icon="link" onPress={() => setPicking(true)} />
+            <SmallBtn label={t('config.libraryMaterial.linkPart')} icon="link" onPress={() => setPicking(true)} />
           </>
         ) : material ? (
           <>
@@ -1485,7 +1491,7 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
             ))}
             {baseLinks.length ? (
               <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>
-                {`Applies to ${baseLinks.map((l) => ('ref' in l ? l.ref : partLabel(l))).join(', ')}`}
+                {t('config.libraryMaterial.appliesTo', { places: listOf(baseLinks.map((l) => ('ref' in l ? l.ref : partLabel(l)))) })}
               </Text>
             ) : null}
           </>
@@ -1494,27 +1500,27 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
 
       {material?.kind === 'questions' ? (
         <>
-          <SectionLabel label={`Questions · ${questions.length}`} />
+          <SectionLabel label={withCount(t('config.material.questions'), questions.length)} />
           {questions.map((x) => (
             <Card key={x.id}>
               <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'center' }}>
-                <Text style={txt.label}>{QUESTION_TYPES.find((qt) => qt.id === x.type)?.label}</Text>
-                {x.required ? <Badge label="Required" tone="brand" /> : null}
+                <Text style={txt.label}>{questionTypes().find((qt) => qt.id === x.type)?.label}</Text>
+                {x.required ? <Badge label={t('common.required')} tone="brand" /> : null}
               </View>
               <Text style={txt.body}>{x.text}</Text>
             </Card>
           ))}
           {canManage && material.reviewKindId && questions.length ? (
-            <GhostBtn label="Use in reviews" icon="chat" onPress={useInReviews} />
+            <GhostBtn label={t('config.libraryMaterial.useInReviews')} icon="chat" onPress={useInReviews} />
           ) : null}
         </>
       ) : null}
 
       {it ? <LibraryItemSettings ctx={ctx} lib={lib} it={it} canManage={canManage} {...(updates[it.itemId] ? { update: updates[it.itemId] } : {})} onCopied={ctx.back} /> : null}
 
-      <Sheet visible={picking} title="Link a part" sub="Parts of the content templates your languages use." onClose={() => setPicking(false)}>
-        <SearchField value={q} onChangeText={setQ} placeholder="Search parts" />
-        <Capped items={units} empty={q ? `Nothing matches “${q}”.` : 'No language uses a library template yet.'} render={(u, last) => (
+      <Sheet visible={picking} title={t('config.libraryMaterial.linkPartTitle')} sub={t('config.libraryMaterial.linkPartSub')} onClose={() => setPicking(false)}>
+        <SearchField value={q} onChangeText={setQ} placeholder={t('config.libraryMaterial.searchParts')} />
+        <Capped items={units} empty={q ? t('common.nothingMatches', { query: q }) : t('config.libraryMaterial.noTemplates')} render={(u, last) => (
           <Row key={u.unitId} icon="template" label={u.label} last={last} onPress={() => {
             const slash = u.unitId.indexOf('/');
             const link = { template: u.unitId.slice(0, slash), node: u.unitId.slice(slash + 1) };
@@ -1529,15 +1535,31 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
 
 // ─── Key terms (TERM-1..6) ─────────────────────────────────────────────────────────
 
-function TermRow(props: { t: KeyTermView; language: string; onPress: () => void; last: boolean }) {
-  const { t } = props;
-  const has = t.renderings.length > 0;
+/**
+ * A new term's first adjustment, when nobody wrote why: written into the
+ * event log in English (everyone reads the same log), and said in the
+ * language showing wherever it is shown here (`adjustmentNote`).
+ */
+function firstRenderingNote(rendering: string): string {
+  return `First rendering: ${rendering}.`; // i18n-ignore: stored in the event log; adjustmentNote shows it translated
+}
+const FIRST_RENDERING = /^First rendering: ([\s\S]*)\.$/;
+
+/** An adjustment's note as written, or the app's own first-rendering note in the language showing. */
+function adjustmentNote(note: string): string {
+  const m = FIRST_RENDERING.exec(note);
+  return m ? t('config.keyTerm.firstRendering', { rendering: m[1] }) : note;
+}
+
+function TermRow(props: { term: KeyTermView; language: string; onPress: () => void; last: boolean }) {
+  const { term } = props;
+  const has = term.renderings.length > 0;
   const beside = useOpenDetail();
   return (
     <Row icon="book" iconColor={has ? C.primary : TINT.amberText} iconBg={has ? undefined : TINT.amber}
-      label={t.term} badge={isFiaTerm(t) ? 'FIA' : undefined}
-      sub={has ? t.renderings.map((r) => r.rendering).join(' · ') : `No ${props.language} rendering yet`}
-      onPress={props.onPress} last={props.last} current={beside?.screen === 'key_term_detail' && beside.params['termId'] === t.termId} />
+      label={term.term} badge={isFiaTerm(term) ? 'FIA' : undefined}
+      sub={has ? term.renderings.map((r) => r.rendering).join(' · ') : t('config.keyTerms.noLanguageRendering', { language: props.language })}
+      onPress={props.onPress} last={props.last} current={beside?.screen === 'key_term_detail' && beside.params['termId'] === term.termId} />
   );
 }
 
@@ -1554,13 +1576,13 @@ export function KeyTerms(ctx: Ctx) {
   const here = useMemo(() => (state && unitId && state.units[unitId] ? termsInPassage(state, terms, unitId, sourceText(state, unitId)) : new Set<string>()), [state, terms, unitId]);
   const canAdd = ctx.session.can('fill_reference') || ctx.session.can('manage_reference');
   if (!state || !languageId) {
-    return <Screen header={<Header title="Key Terms" onBack={ctx.back} />}><EmptyState icon="book" title={state ? 'Choose a language first' : 'Loading…'} /></Screen>;
+    return <Screen header={<Header title={t('config.keyTerms.title')} onBack={ctx.back} />}><EmptyState icon="book" title={state ? t('config.keyTerms.chooseLanguage') : t('common.loading')} /></Screen>;
   }
   const language = languageName(ctx.org.state, languageId);
-  const matching = terms.filter((t) => matchesTerm(t, q));
-  const inPassage = matching.filter((t) => here.has(t.termId));
-  const rest = matching.filter((t) => !here.has(t.termId));
-  const open = (t: KeyTermView) => ctx.go('key_term_detail', { termId: t.termId, languageId, ...(unitId ? { unitId } : {}), ...(takeId ? { takeId } : {}) });
+  const matching = terms.filter((term) => matchesTerm(term, q));
+  const inPassage = matching.filter((term) => here.has(term.termId));
+  const rest = matching.filter((term) => !here.has(term.termId));
+  const open = (term: KeyTermView) => ctx.go('key_term_detail', { termId: term.termId, languageId, ...(unitId ? { unitId } : {}), ...(takeId ? { takeId } : {}) });
 
   async function add() {
     if (!state || busy || !draft.term.trim() || !draft.rendering.trim()) return;
@@ -1570,11 +1592,11 @@ export function KeyTerms(ctx: Ctx) {
     const duringTakeId = during?.draftTakeId ?? during?.latest?.takeId;
     setBusy(true);
     // TERM-6: the concept, its first rendering, and that as its first adjustment (who, when, which passage).
-    const saved = await actCommand(ctx, 'add key term', () => commands(state, indexesFor(state)).defineKeyTerm({
+    const saved = await actCommand(ctx, 'add key term', () => commands(state, indexesFor(state)).defineKeyTerm({ // i18n-ignore: log label
       commandId: Crypto.randomUUID(), termId, term: draft.term, gloss: draft.gloss, unitScope: book ? [book] : [],
       rendering: draft.rendering, context: draft.context,
-      note: draft.context.trim() || `First rendering: ${draft.rendering.trim()}.`, ...(duringTakeId ? { duringTakeId } : {})
-    }), `${draft.term.trim()} added.`);
+      note: draft.context.trim() || firstRenderingNote(draft.rendering.trim()), ...(duringTakeId ? { duringTakeId } : {})
+    }), t('config.keyTerms.added', { term: draft.term.trim() }));
     if (saved) {
       setDraft({ term: '', gloss: '', rendering: '', context: '' });
       setAdding(false);
@@ -1583,31 +1605,31 @@ export function KeyTerms(ctx: Ctx) {
   }
 
   return (
-    <Screen header={<Header title="Key Terms" sub={unitId && state.units[unitId] ? `${unitTitle(state, unitId)} · ${language}` : `${language} renderings`} onBack={ctx.back}
-      action={canAdd ? <SmallBtn label="New term" icon="plus" onPress={() => setAdding(true)} /> : undefined} />}>
-      <SearchField value={q} onChangeText={setQ} placeholder="Search terms" />
+    <Screen header={<Header title={t('config.keyTerms.title')} sub={unitId && state.units[unitId] ? `${unitTitle(state, unitId)} · ${language}` : t('config.languageRenderings', { language })} onBack={ctx.back}
+      action={canAdd ? <SmallBtn label={t('config.keyTerms.newTerm')} icon="plus" onPress={() => setAdding(true)} /> : undefined} />}>
+      <SearchField value={q} onChangeText={setQ} placeholder={t('config.keyTerms.search')} />
       {terms.length === 0 ? (
-        <EmptyState icon="book" title="No key terms yet" sub={canAdd ? 'Add a term with how this language says it, and when to use it.' : 'Terms your team adds show here with their renderings.'} />
+        <EmptyState icon="book" title={t('config.keyTerms.empty')} sub={canAdd ? t('config.keyTerms.emptySubCanAdd') : t('config.keyTerms.emptySub')} />
       ) : (
         <>
           {inPassage.length > 0 ? (
             <>
-              <SectionLabel label={`In this passage · ${inPassage.length}`} />
-              <Capped items={inPassage} render={(t, last) => <TermRow key={t.termId} t={t} language={language} onPress={() => open(t)} last={last} />} />
+              <SectionLabel label={withCount(t('config.keyTerms.inPassage'), inPassage.length)} />
+              <Capped items={inPassage} render={(term, last) => <TermRow key={term.termId} term={term} language={language} onPress={() => open(term)} last={last} />} />
             </>
           ) : null}
-          <SectionLabel label={`${inPassage.length ? 'Other terms' : 'All terms'} · ${rest.length}`} />
-          <Capped items={rest} empty={q ? `Nothing matches “${q}”.` : 'No other terms.'} render={(t, last) => <TermRow key={t.termId} t={t} language={language} onPress={() => open(t)} last={last} />} />
+          <SectionLabel label={withCount(inPassage.length ? t('config.keyTerms.otherTerms') : t('config.keyTerms.allTerms'), rest.length)} />
+          <Capped items={rest} empty={q ? t('common.nothingMatches', { query: q }) : t('config.keyTerms.noOther')} render={(term, last) => <TermRow key={term.termId} term={term} language={language} onPress={() => open(term)} last={last} />} />
         </>
       )}
-      <Intro>Concepts come from a shared list (like FIA key terms) or your own. {language} keeps its own renderings and the reasons behind them.</Intro>
+      <Intro>{t('config.keyTerms.intro', { language })}</Intro>
 
-      <Sheet visible={adding} title="New key term" sub={`Added to ${language}'s key terms, with its first rendering.`} onClose={() => setAdding(false)}
-        footer={<PrimaryBtn label="Add Term" onPress={() => void add()} disabled={!draft.term.trim() || !draft.rendering.trim()} busy={busy} />}>
-        <Field value={draft.term} onChangeText={(v) => setDraft({ ...draft, term: v })} placeholder="Source term, e.g. grace (charis)" />
-        <Field value={draft.gloss} onChangeText={(v) => setDraft({ ...draft, gloss: v })} placeholder="Meaning, briefly" autoCapitalize="sentences" />
-        <Field value={draft.rendering} onChangeText={(v) => setDraft({ ...draft, rendering: v })} placeholder={`${language} rendering`} />
-        <Field value={draft.context} onChangeText={(v) => setDraft({ ...draft, context: v })} placeholder="When to use it, and why" multiline autoCapitalize="sentences" />
+      <Sheet visible={adding} title={t('config.keyTerms.newKeyTerm')} sub={t('config.keyTerms.newSub', { language })} onClose={() => setAdding(false)}
+        footer={<PrimaryBtn label={t('config.keyTerms.addTerm')} onPress={() => void add()} disabled={!draft.term.trim() || !draft.rendering.trim()} busy={busy} />}>
+        <Field value={draft.term} onChangeText={(v) => setDraft({ ...draft, term: v })} placeholder={t('config.keyTerms.termPlaceholder')} />
+        <Field value={draft.gloss} onChangeText={(v) => setDraft({ ...draft, gloss: v })} placeholder={t('config.keyTerms.meaningPlaceholder')} autoCapitalize="sentences" />
+        <Field value={draft.rendering} onChangeText={(v) => setDraft({ ...draft, rendering: v })} placeholder={t('config.keyTerms.renderingPlaceholder', { language })} />
+        <Field value={draft.context} onChangeText={(v) => setDraft({ ...draft, context: v })} placeholder={t('config.keyTerms.contextPlaceholder')} multiline autoCapitalize="sentences" />
       </Sheet>
     </Screen>
   );
@@ -1617,7 +1639,7 @@ export function KeyTermDetail(ctx: Ctx) {
   const state = ctx.language.state;
   const termId = ctx.params['termId'] ?? '';
   const unitId = ctx.params['unitId'];
-  const t = useMemo(() => (state ? keyTermView(state, termId) : null), [state, termId]);
+  const term = useMemo(() => (state ? keyTermView(state, termId) : null), [state, termId]);
   const languageId = ctx.language.languageId;
   const passage = useMemo(() => (state && unitId && state.units[unitId] ? derivePassage(state, unitId, indexesFor(state)) : null), [state, unitId]);
   const usedIn = useMemo(() => {
@@ -1640,8 +1662,8 @@ export function KeyTermDetail(ctx: Ctx) {
   const why = ctx.details(`term:${termId}:why`);
   const used = ctx.details(`term:${termId}:used`);
 
-  if (!state || !t) {
-    return <Screen header={<Header title="Key Term" onBack={ctx.back} />}><EmptyState icon="book" title={state ? 'This term is not here any more' : 'Loading…'} /></Screen>;
+  if (!state || !term) {
+    return <Screen header={<Header title={t('config.keyTerm.title')} onBack={ctx.back} />}><EmptyState icon="book" title={state ? t('config.keyTerm.gone') : t('common.loading')} /></Screen>;
   }
   const language = languageName(ctx.org.state, languageId);
   const canEdit = ctx.session.can('fill_reference') || ctx.session.can('manage_reference');
@@ -1651,7 +1673,7 @@ export function KeyTermDetail(ctx: Ctx) {
   const canTie = !!draftTakeId && fromDraft && ctx.session.can('translate') && canEdit;
   const isLinked = !!draftTakeId && !!state.keyTermLinks[draftTakeId]?.[termId];
   const passageLabel = passage ? unitTitle(state, passage.unitId) : null;
-  const adjustments = [...t.adjustments].reverse();
+  const adjustments = [...term.adjustments].reverse();
   const versionOf = (takeId?: string) => {
     const take = takeId ? state.takes[takeId] : undefined;
     if (!take || !takeId) return null;
@@ -1663,8 +1685,8 @@ export function KeyTermDetail(ctx: Ctx) {
   async function tie() {
     if (!draftTakeId || isLinked || busy) return;
     setBusy(true);
-    await actCommand(ctx, 'tie key term', () => commands(state!, indexesFor(state!)).linkKeyTerms({ commandId: Crypto.randomUUID(), takeId: draftTakeId, termIds: [termId] }),
-      `Tied ${t!.term} to your draft.`);
+    await actCommand(ctx, 'tie key term', () => commands(state!, indexesFor(state!)).linkKeyTerms({ commandId: Crypto.randomUUID(), takeId: draftTakeId, termIds: [termId] }), // i18n-ignore: log label
+      t('config.keyTerm.tied', { term: term!.term }));
     setBusy(false);
   }
 
@@ -1672,93 +1694,93 @@ export function KeyTermDetail(ctx: Ctx) {
     if (!canEdit || busy || (!note.trim() && !hash)) return;
     const duringTakeId = draftTakeId ?? passage?.latest?.takeId;
     setBusy(true);
-    const saved = await actCommand(ctx, 'adjust key term', () => commands(state!, indexesFor(state!)).adjustKeyTermRendering({
+    const saved = await actCommand(ctx, 'adjust key term', () => commands(state!, indexesFor(state!)).adjustKeyTermRendering({ // i18n-ignore: log label
       commandId: Crypto.randomUUID(), termId, rendering, context, note,
       ...(hash ? { blobHash: hash } : {}), ...(duringTakeId ? { duringTakeId } : {}),
       // TERM-5: an adjustment made while drafting ties the term to the draft.
       ...(canTie && !isLinked && draftTakeId ? { tieToTakeId: draftTakeId } : {})
-    }), rendering.trim() ? `Added “${rendering.trim()}”.` : 'Change recorded.');
+    }), rendering.trim() ? t('config.keyTerm.added', { rendering: rendering.trim() }) : t('config.keyTerm.changeRecorded'));
     if (saved) { setAdjusting(false); setRendering(''); setContext(''); setNote(''); setHash(null); }
     setBusy(false);
   }
 
-  const scopeTitles = t.unitScope.map((u) => unitTitle(state, u));
+  const scopeTitles = term.unitScope.map((u) => unitTitle(state, u));
   return (
-    <Screen header={<Header title={t.term} sub={isFiaTerm(t) ? `FIA key term · ${language}` : `${language} key term`} onBack={ctx.back} />}>
+    <Screen header={<Header title={term.term} sub={isFiaTerm(term) ? t('config.keyTerm.fiaSub', { language }) : t('config.keyTerm.sub', { language })} onBack={ctx.back} />}>
       <Card style={{ backgroundColor: C.light }}>
-        <Text style={txt.body}>{t.gloss || 'No meaning written yet.'}</Text>
-        <Text style={[txt.xsStrong, { color: C.primary }]}>{scopeTitles.length ? `Appears in ${scopeTitles.join(', ')}` : 'Applies to every passage'}</Text>
+        <Text style={txt.body}>{term.gloss || t('config.keyTerm.noMeaning')}</Text>
+        <Text style={[txt.xsStrong, { color: C.primary }]}>{scopeTitles.length ? t('config.keyTerm.appearsIn', { places: listOf(scopeTitles) }) : t('config.keyTerm.everyPassage')}</Text>
       </Card>
 
       {canTie ? (
-        <Card onPress={isLinked ? undefined : () => void tie()} accessibilityLabel={isLinked ? 'Tied to your draft' : 'Tie to your draft'}
+        <Card onPress={isLinked ? undefined : () => void tie()} accessibilityLabel={isLinked ? t('config.keyTerm.tiedToDraft') : t('config.keyTerm.tieToDraft')}
           style={isLinked ? { backgroundColor: TINT.green } : { borderStyle: 'dashed', borderWidth: 1.5, borderColor: `${C.primary}99` }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
             <View style={[styles.tieIcon, { backgroundColor: isLinked ? C.green : C.primary }]}>
               <Ico name={isLinked ? 'check' : 'link'} size={20} color={C.white} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[txt.body, { fontWeight: '700', color: isLinked ? TINT.greenText : C.dark }]}>{isLinked ? 'Tied to your draft' : 'Tie to your draft'}</Text>
+              <Text style={[txt.body, { fontWeight: '700', color: isLinked ? TINT.greenText : C.dark }]}>{isLinked ? t('config.keyTerm.tiedToDraft') : t('config.keyTerm.tieToDraft')}</Text>
               <Text style={[txt.sm, { color: isLinked ? TINT.greenText : C.muted }]}>
-                {isLinked ? 'Reviewers will see this term and your reasoning.' : `So reviewers know this term shaped ${passageLabel}.`}
+                {isLinked ? t('config.keyTerm.tiedBody') : t('config.keyTerm.tieBody', { passage: passageLabel ?? '' })}
               </Text>
             </View>
           </View>
         </Card>
       ) : null}
 
-      <SectionLabel label={`In ${language}`} />
-      {t.renderings.length === 0 ? (
+      <SectionLabel label={t('config.keyTerm.inLanguage', { language })} />
+      {term.renderings.length === 0 ? (
         <Card onPress={canEdit ? () => setAdjusting(true) : undefined} style={{ backgroundColor: TINT.amber, borderStyle: 'dashed', borderWidth: 1.5, borderColor: `${C.amber}99` }}>
-          <Text style={[txt.body, { fontWeight: '700', color: TINT.amberText }]}>No rendering yet</Text>
-          <Text style={[txt.sm, { color: TINT.amberText }]}>Add how {language} says this, and when to use it.</Text>
+          <Text style={[txt.body, { fontWeight: '700', color: TINT.amberText }]}>{t('config.keyTerm.noRendering')}</Text>
+          <Text style={[txt.sm, { color: TINT.amberText }]}>{t('config.keyTerm.addHow', { language })}</Text>
         </Card>
       ) : (
         <Group>
-          {t.renderings.map((r, i) => (
-            <View key={r.renderingId} style={[styles.rendering, i < t.renderings.length - 1 && styles.rowBorder]}>
+          {term.renderings.map((r, i) => (
+            <View key={r.renderingId} style={[styles.rendering, i < term.renderings.length - 1 && styles.rowBorder]}>
               <Text style={[txt.h3, { color: C.primary }]}>{r.rendering}</Text>
               {r.context ? <Text style={txt.sm}>{r.context}</Text> : null}
             </View>
           ))}
         </Group>
       )}
-      {canEdit ? <GhostBtn label={t.renderings.length ? 'Adjust or add a rendering' : 'Add a rendering'} icon="edit" onPress={() => setAdjusting(true)} /> : null}
+      {canEdit ? <GhostBtn label={term.renderings.length ? t('config.keyTerm.adjustOrAdd') : t('config.keyTerm.addRendering')} icon="edit" onPress={() => setAdjusting(true)} /> : null}
 
-      {adjustments.length || usedIn.length ? <SectionLabel label="Details" /> : null}
+      {adjustments.length || usedIn.length ? <SectionLabel label={t('config.keyTerm.details')} /> : null}
       {adjustments.length ? (
-        <Disclosure icon="history" title="Why it's rendered this way" open={why.open} onToggle={why.onToggle}
-          summary={`${plural(adjustments.length, 'change')} · latest by ${ctx.name(adjustments[0]!.actorId)}, ${when(adjustments[0]!.hlc)}`}>
+        <Disclosure icon="history" title={t('config.keyTerm.why')} open={why.open} onToggle={why.onToggle}
+          summary={`${t('config.keyTerm.changes', { count: adjustments.length })} · ${t('config.keyTerm.latestBy', { name: ctx.name(adjustments[0]!.actorId), when: when(adjustments[0]!.hlc) })}`}>
           {adjustments.map((a, i) => {
             const v = versionOf(a.duringTakeId);
             return (
               <View key={a.adjustmentId} style={[styles.adjustment, i < adjustments.length - 1 && styles.rowBorder]}>
                 <Text style={txt.xs}>{ctx.name(a.actorId)} · {when(a.hlc)}{v ? ` · ${v.title}` : ''}</Text>
-                <Text style={txt.sm}>{a.note}</Text>
-                {a.blobHash ? <AudioClip language={ctx.language} hashes={[a.blobHash]} label="Play the explanation" /> : null}
-                {v && v.n !== null ? <SmallBtn label={`Open Version ${v.n}`} icon="mic" onPress={() => openVersion(v)} /> : null}
+                <Text style={txt.sm}>{adjustmentNote(a.note)}</Text>
+                {a.blobHash ? <AudioClip language={ctx.language} hashes={[a.blobHash]} label={t('config.keyTerm.playExplanation')} /> : null}
+                {v && v.n !== null ? <SmallBtn label={t('config.keyTerm.openVersion', { n: v.n })} icon="mic" onPress={() => openVersion(v)} /> : null}
               </View>
             );
           })}
         </Disclosure>
       ) : null}
       {usedIn.length ? (
-        <Disclosure icon="mic" title="Where it's used" open={used.open} onToggle={used.onToggle}
-          summary={`${plural(usedIn.length, 'version')} · ${[...new Set(usedIn.map((u) => u.title))].slice(0, 2).join(', ')}${usedIn.length > 2 ? '…' : ''}`}>
+        <Disclosure icon="mic" title={t('config.keyTerm.whereUsed')} open={used.open} onToggle={used.onToggle}
+          summary={`${t('config.keyTerm.versions', { count: usedIn.length })} · ${listOf([...new Set(usedIn.map((u) => u.title))].slice(0, 2))}${usedIn.length > 2 ? '…' : ''}`}>
           {usedIn.slice(0, usedShown).map((u, i, a) => (
-            <Row key={u.takeId} icon="mic" label={`${u.title} · Version ${u.n}`} sub={u.note ?? `${ctx.name(u.by)} · ${when(u.hlc)}`}
-              badge={u.adjustmentId ? 'Changed here' : undefined} onPress={() => openVersion(u)} last={i === a.length - 1} />
+            <Row key={u.takeId} icon="mic" label={t('config.keyTerm.usedTitle', { title: u.title, n: u.n })} sub={u.note ?? `${ctx.name(u.by)} · ${when(u.hlc)}`}
+              badge={u.adjustmentId ? t('config.keyTerm.changedHere') : undefined} onPress={() => openVersion(u)} last={i === a.length - 1} />
           ))}
           <ShowMore remaining={usedIn.length - usedShown} step={STEP} onMore={() => setUsedShown(usedShown + STEP)} />
         </Disclosure>
       ) : null}
-      <Sheet visible={adjusting} title={`${language} · “${t.term}”`} onClose={() => setAdjusting(false)}
-        sub={canTie ? `Recorded as part of ${passageLabel}, and tied to your draft.` : 'Every change is recorded with your reason.'}
-        footer={<PrimaryBtn label="Save" onPress={() => void saveAdjustment()} disabled={!note.trim() && !hash} busy={busy} />}>
-        <Field value={rendering} onChangeText={setRendering} placeholder="New rendering (optional)" />
-        {rendering.trim() ? <Field value={context} onChangeText={setContext} placeholder="When to use it" multiline autoCapitalize="sentences" /> : null}
-        {passage ? <VoiceNote ctx={ctx} label="Say why" hash={hash} onChange={setHash} /> : null}
-        <Field value={note} onChangeText={setNote} placeholder={passage ? 'Or type what changed, and why' : 'What changed, and why'} multiline autoCapitalize="sentences" />
+      <Sheet visible={adjusting} title={t('config.keyTerm.adjustTitle', { language, term: term.term })} onClose={() => setAdjusting(false)}
+        sub={canTie ? t('config.keyTerm.adjustSubTie', { passage: passageLabel ?? '' }) : t('config.keyTerm.adjustSub')}
+        footer={<PrimaryBtn label={t('common.save')} onPress={() => void saveAdjustment()} disabled={!note.trim() && !hash} busy={busy} />}>
+        <Field value={rendering} onChangeText={setRendering} placeholder={t('config.keyTerm.newRendering')} />
+        {rendering.trim() ? <Field value={context} onChangeText={setContext} placeholder={t('config.keyTerm.whenToUse')} multiline autoCapitalize="sentences" /> : null}
+        {passage ? <VoiceNote ctx={ctx} label={t('config.keyTerm.sayWhy')} hash={hash} onChange={setHash} /> : null}
+        <Field value={note} onChangeText={setNote} placeholder={passage ? t('config.keyTerm.orTypeWhy') : t('config.keyTerm.typeWhy')} multiline autoCapitalize="sentences" />
       </Sheet>
     </Screen>
   );

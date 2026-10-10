@@ -6,6 +6,7 @@ import Svg, { Path } from 'react-native-svg';
 import { feature } from 'topojson-client';
 import type { GeometryCollection, Topology } from 'topojson-specification';
 import world from 'world-atlas/countries-110m.json';
+import { t } from '../i18n';
 import { txt } from '../kit';
 import { C, space } from '../theme';
 import { countryName, numericOf } from './countries';
@@ -25,7 +26,12 @@ function shapes() {
  * always in the words below the map and in its accessibility label, and a
  * country too small for the map is listed.
  */
-export default function WorldMap(props: { values: { country: string; value: number }[]; unit: string; compact?: boolean }) {
+/** One country's count, said with its unit. */
+function spoken(unit: 'languages' | 'recordings', country: string, count: number): string {
+  return unit === 'languages' ? t('reports.map.countryLanguages', { country, count }) : t('reports.map.countryRecordings', { country, count });
+}
+
+export default function WorldMap(props: { values: { country: string; value: number }[]; unit: 'languages' | 'recordings'; compact?: boolean }) {
   const [width, setWidth] = useState(0);
   const aspect = props.compact ? 420 / 960 : 500 / 960;
   const all = shapes();
@@ -43,7 +49,7 @@ export default function WorldMap(props: { values: { country: string; value: numb
   return (
     <View style={{ gap: space.sm }}>
       <View onLayout={(e) => setWidth(Math.round(e.nativeEvent.layout.width))} style={{ width: '100%', height: H || 200 }}
-        accessible accessibilityRole="image" accessibilityLabel={props.values.map((v) => `${countryName(v.country)}: ${num(v.value)} ${props.unit}`).join(', ')}>
+        accessible accessibilityRole="image" accessibilityLabel={props.values.map((v) => spoken(props.unit, countryName(v.country), v.value)).join(', ')}>
         {W > 0 ? (
           <Svg width={W} height={H}>
             {paths.map((p, i) => {
@@ -54,9 +60,13 @@ export default function WorldMap(props: { values: { country: string; value: numb
         ) : null}
       </View>
       <Text style={txt.xs}>
-        {props.unit[0]!.toUpperCase() + props.unit.slice(1)} per country, from 1 (palest) to {num(max)} (darkest).
+        {props.unit === 'languages' ? t('reports.map.scaleLanguages', { min: num(1), max: num(max) }) : t('reports.map.scaleRecordings', { min: num(1), max: num(max) })}
       </Text>
-      {missing.length ? <Text style={txt.xs}>Too small for the map: {missing.map((v) => `${countryName(v.country)} (${num(v.value)})`).join(', ')}.</Text> : null}
+      {missing.length ? (
+        <Text style={txt.xs}>
+          {t('reports.map.tooSmall', { list: missing.map((v) => t('reports.map.countryValue', { country: countryName(v.country), value: num(v.value) })).join(', ') })}
+        </Text>
+      ) : null}
     </View>
   );
 }

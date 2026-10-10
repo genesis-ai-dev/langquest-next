@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
+import { t } from './i18n';
 import { C, radius, space, type as T } from './theme';
 import { isRecording } from './useRecorder';
 import { BUILD_ID } from './webBuild';
@@ -33,7 +34,7 @@ export function UpdateBanner() {
     return () => { clearInterval(timer); document.removeEventListener('visibilitychange', shown); };
   }, []);
   if (!newer) return null;
-  const text = 'A new version of LangQuest is ready. Reload to use it.';
+  const text = t('account.update.webReady');
   return (
     <Pressable onPress={() => { if (!isRecording()) window.location.reload(); }} accessibilityRole="button" accessibilityLabel={text}
       style={({ pressed }) => [styles.banner, pressed && { opacity: 0.8 }]}>

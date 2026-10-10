@@ -9,6 +9,7 @@ import type { KindDef } from '@langquest-next/core';
 import { useRef, useState } from 'react';
 import { PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useHelpPress } from '../helpContext';
+import { t } from '../i18n';
 import { Ico, txt } from '../kit';
 import { C, space } from '../theme';
 import { DashedRow, LockToggle } from './admin';
@@ -25,7 +26,7 @@ function StepCard(props: {
   onLayout: (h: number) => void; onMove: (to: number) => void; onLock: () => void; onOpen: () => void;
 }) {
   const { step, i } = props;
-  const title = stepTitle(step.kindIds, props.kinds) || 'A step';
+  const title = stepTitle(step.kindIds, props.kinds) || t('review.checkSteps.aStep');
   const [dy, setDy] = useState(0);
   const latest = useRef(props);
   latest.current = props;
@@ -41,28 +42,28 @@ function StepCard(props: {
     },
     onPanResponderTerminate: () => setDy(0)
   })).current;
-  const open = useHelpPress(title, `Usually: ${props.usually}. Tap for more you can do with this step.`, props.onOpen);
+  const open = useHelpPress(title, t('review.checkSteps.openHelp', { who: props.usually }), props.onOpen);
   return (
     <View onLayout={(e) => props.onLayout(e.nativeEvent.layout.height)}
       style={[styles.card, dy !== 0 && { transform: [{ translateY: dy }], zIndex: 2, borderColor: C.primary }]}>
-      <View {...pan.panHandlers} style={styles.grip} accessibilityRole="adjustable" accessibilityLabel={`Move ${title}`}
-        accessibilityActions={props.readOnly ? [] : [{ name: 'increment', label: 'Move down' }, { name: 'decrement', label: 'Move up' }]}
+      <View {...pan.panHandlers} style={styles.grip} accessibilityRole="adjustable" accessibilityLabel={t('review.checkSteps.move', { title })}
+        accessibilityActions={props.readOnly ? [] : [{ name: 'increment', label: t('review.checkSteps.moveDown') }, { name: 'decrement', label: t('review.checkSteps.moveUp') }]}
         onAccessibilityAction={(e) => {
           if (e.nativeEvent.actionName === 'decrement' && i > 0) props.onMove(i - 1);
           if (e.nativeEvent.actionName === 'increment' && i < props.count - 1) props.onMove(i + 1);
         }}>
         <Ico name="grip" size={22} color={C.faint} />
       </View>
-      <Pressable onPress={open} disabled={props.readOnly && !props.onOpen} accessibilityRole="button" accessibilityLabel={`${i + 1}. ${title}. Usually: ${props.usually}`}
+      <Pressable onPress={open} disabled={props.readOnly && !props.onOpen} accessibilityRole="button" accessibilityLabel={t('review.checkSteps.cardA11y', { n: i + 1, title, who: props.usually })}
         style={({ pressed }) => [styles.body, pressed && { opacity: 0.7 }]}>
         <View style={styles.num}><Text style={styles.numText}>{i + 1}</Text></View>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={styles.title}>{title}</Text>
-          <Text style={[txt.xs, { fontSize: 14 }]} numberOfLines={2}>Usually: {props.usually}</Text>
+          <Text style={[txt.xs, { fontSize: 14 }]} numberOfLines={2}>{t('review.checkSteps.usually', { who: props.usually })}</Text>
         </View>
       </Pressable>
       <LockToggle on={step.checkpoint} onToggle={props.onLock} disabled={props.readOnly}
-        label={step.checkpoint ? `${title} must pass before the next steps` : `${title} can be set aside`} />
+        label={step.checkpoint ? t('review.checkSteps.mustPass', { title }) : t('review.checkSteps.canSetAside', { title })} />
     </View>
   );
 }
@@ -83,11 +84,11 @@ export function CheckSteps(props: {
     <View style={{ gap: space.sm + 2 }}>
       <View style={styles.start}>
         <View style={styles.mic}><Ico name="mic" size={18} color={C.white} /></View>
-        <Text style={[txt.sm, { color: C.muted, fontWeight: '700' }]}>A translator records a version</Text>
+        <Text style={[txt.sm, { color: C.muted, fontWeight: '700' }]}>{t('review.checkSteps.translatorRecords')}</Text>
       </View>
       {steps.length === 0 ? (
         <View style={[styles.card, { justifyContent: 'center' }]}>
-          <Text style={[txt.sm, { color: C.muted, flex: 1, textAlign: 'center' }]}>No checks: a passage is done once it is recorded.</Text>
+          <Text style={[txt.sm, { color: C.muted, flex: 1, textAlign: 'center' }]}>{t('review.checkSteps.noChecks')}</Text>
         </View>
       ) : steps.map((st, i) => (
         <StepCard key={st.key} step={st} i={i} count={steps.length} kinds={props.kinds} usually={props.usually(st.kindIds)} readOnly={props.readOnly}
@@ -96,10 +97,10 @@ export function CheckSteps(props: {
           onLock={() => props.onChange(steps.map((s, j) => (j === i ? { ...s, checkpoint: !s.checkpoint } : s)))}
           onOpen={() => props.onOpen(i)} />
       ))}
-      {props.readOnly ? null : <DashedRow icon="plus" label="Add a step" centred onPress={props.onAdd} detail="Add another check, after the others." />}
+      {props.readOnly ? null : <DashedRow icon="plus" label={t('review.checkSteps.addStep')} centred onPress={props.onAdd} detail={t('review.checkSteps.addStepDetail')} />}
       <View style={styles.legend}>
         <Ico name="lock" size={15} color={C.muted} />
-        <Text style={[txt.sm, { color: C.muted }]}>= must pass before the next steps</Text>
+        <Text style={[txt.sm, { color: C.muted }]}>{t('review.checkSteps.legend')}</Text>
       </View>
     </View>
   );
