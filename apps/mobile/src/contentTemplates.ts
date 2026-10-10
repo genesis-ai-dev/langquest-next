@@ -14,7 +14,7 @@ import {
 import { latinDigits } from './textMatch';
 import { BIBLE_BOOKS, FIA_PERICOPES, type BibleBook } from '@langquest-next/core';
 import { bookName } from './coreText';
-import { t } from './i18n';
+import { currentLanguage, t } from './i18n';
 import type { SharedItem } from './library/model';
 
 export type { BibleBook };
@@ -135,7 +135,10 @@ export function partName(doc?: TemplateDoc | null): string {
  */
 export function partWords(doc?: TemplateDoc | null): { one: string; many: string } {
   const name = (doc ? docLevels(doc) : []).at(-1);
-  return name ? { one: name, many: pluralOf(name) } : { one: t('content.levels.passage'), many: t('content.levels.passages') };
+  // The organization's word made plural the English way only when the app speaks English: other
+  // languages make plurals their own way, so the word stays as the organization wrote it.
+  if (name) return { one: name, many: currentLanguage() === 'en' ? pluralOf(name) : name };
+  return { one: t('content.levels.passage'), many: t('content.levels.passages') };
 }
 
 /** "passages", "stories": the demo's plural of a level name (the organization's word, so English rules). */
