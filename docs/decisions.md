@@ -2205,7 +2205,7 @@ Amended (2026-10-09, Caleb Koster): the language explorer is part of the web app
 
 ## 74. A Bible template breaks up each book its own way, or not yet, and a change goes to the languages chosen
 
-Date: 2026-10-09 · By: Caleb Koster · Status: accepted
+Date: 2026-10-09 · By: Caleb Koster · Status: partly superseded by 80
 
 Reason: an admin should first say what a language translates (the Bible or
 something else), then, if they want, how the Bible is broken up, and a book
@@ -2255,6 +2255,8 @@ Reverse if: teams need to break up one book differently from every other
 language using the same template, often enough that copies pile up; then a
 language keeps its own overrides on top of a shared template instead.
 
+
+Amended (2026-10-09, Caleb Koster): decision 80 puts the numbering first, for the whole Bible, and replaces the warning that recordings on old pieces "will no longer show": expired sections that overlap current ones stay reachable under "Earlier sections".
 ## 75. Nobody is added without joining, nobody grants more than they hold, and one id names one event
 
 Date: 2026-10-09 · By: Carl Sauder · Status: accepted
@@ -2482,3 +2484,43 @@ Reverse if: external values grow past a set share of a language's events or
 slow its downloads (then a sibling stream phones do not pull), partners
 that do not trust each other share a language (then a namespace per app),
 or values start to drive anything in LangQuest.
+
+## 80. A language's numbering is chosen first, for the whole Bible, and ways of dividing are converted into it
+
+Date: 2026-10-09 · By: Caleb Koster · Status: accepted
+
+Reason: how a book is divided depends on its numbering. "By chapter" has
+no meaning until the chapters are known: English Malachi has 4, Hebrew-
+numbered Malachi 3. And the numbering decides which books exist. So when a
+language translates the Bible, its numbering is chosen first, for the whole
+Bible (by its Bible, by name, or with the quiz), and only then are books
+divided, all at once or one by one (Caleb, 2026-10-09). A numbering offered
+to admins is a source versification with exactly one tradition's books.
+FIA, unfoldingWord and OpenBible divide the text, not the numbers, so their
+English-numbered sections are converted into the language's numbering, with
+four rules: uncovered verses inside a chapter are a section of their own
+(Psalm headings included); uncovered verses inside a section split it
+(Catholic Daniel 3:19–23, 3:24–90, 3:91–97); a verse two sections want goes
+to the earlier one (Douay Judges 21:24); uncovered whole chapters are a
+section each (Catholic Daniel 13 and 14). Books a way does not cover wait
+for the admin. When divisions change (a way's new version, an admin
+dividing a book again, a new numbering), sections expire but are not
+deleted: a current section that overlaps an expired one with recordings
+shows a warning mark and lists it under "Earlier sections", closed by
+default (Caleb, 2026-10-09); this replaces decision 74's "will no longer
+show" for an admin's own change. `docs/breaking-up-the-bible.md`
+holds the rules with examples. Decision 74 stays as built; this extends it.
+The source files are rebuilt first, because their JSON copies lost every
+second line of a verse that matches two (96 lines). Five numberings are
+offered (English, Hebrew, Vulgate 73 books, Russian Synodal 66 and 77);
+every way is published once in each, converted by the seed. A language's
+numbering is its template's versification, so no new event is needed; a
+language's state keeps every template version it used, to read an expired
+section in the numbering it was made in. Changing numbering keeps the
+work on sections whose verses stay the same: a converted way marks the
+parts whose verses differ from the same numbers in English, and only
+those get new ids (`2CO.13~org`). The Septuagint numbering and Catholic
+Bibles numbered like the Hebrew are not offered yet.
+Reverse if: teams need one section made of two separate ranges (Daniel
+3:19–23 with 3:91–97) often enough; then a section holds a list of ranges,
+and every reader of a section's verses learns to read one.

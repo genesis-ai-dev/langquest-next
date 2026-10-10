@@ -21076,7 +21076,7 @@ var TO_LEGACY = Object.fromEntries(Object.entries(LEGACY_BOOK_IDS).map(([k, v]) 
 function libraryUnitRange(unitId, versesIn) {
   const slash = unitId.indexOf("/");
   if (slash < 0 || unitId.slice(0, slash).includes("@")) return null;
-  const node = unitId.slice(slash + 1);
+  const node = unitId.slice(slash + 1).replace(/~[a-z0-9-]+$/, "");
   return /^[A-Z0-9]{3}(\.|$)/.test(node) ? parseRef(node, versesIn) : null;
 }
 var REF = /^([A-Z0-9]{3})(?:[ .](\d+)(?:[:.](\d+)[a-z]?)?(?:-(?:(\d+)[:.])?(\d+)[a-z]?)?)?$/;
@@ -21408,6 +21408,9 @@ function applyLanguageEvent(state, event) {
     case "v1.TemplateSelected": {
       const { itemId, docHash, unitPrefix, books } = event.payload;
       state.template = set(state.template, event, { itemId, docHash, unitPrefix, ...books ? { books: [...books].sort() } : {} });
+      const history = state.templateHistory ??= {};
+      const had = history[docHash];
+      if (!had || event.hlc < had.hlc || event.hlc === had.hlc && event.id < had.eventId) history[docHash] = { unitPrefix, hlc: event.hlc, eventId: event.id };
       break;
     }
     case "v1.UnitAdded": {

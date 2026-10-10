@@ -34,8 +34,8 @@ import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isLocalUrl, LOCAL_URL, supabaseKey } from './local-supabase';
 import {
-  bookOrder, canonicalJson, DEFAULT_KINDS, encodeHlc, FIA_PERICOPES, FLOWS, kindOfDoc, ORG_STREAM, parseRef,
-  QUESTION_TEMPLATES, usfmOf, validateDoc, withDeps,
+  bookOrder, canonicalJson, convertWay, DEFAULT_KINDS, encodeHlc, FIA_PERICOPES, FLOWS, kindOfDoc, missingMappings, numberingOf, ORG_STREAM, paratextMappings, parseRef,
+  QUESTION_TEMPLATES, USFM_BOOKS, usfmOf, validateDoc, withDeps,
   type AnyEvent, type CollectionDoc, type FlowDoc, type LibraryDoc, type LibraryKind, type MaterialDoc, type StudyDoc,
   type TemplateBook, type TemplateDocV1, type TemplateDocV2, type VersificationDoc
 } from '@langquest-next/core';
@@ -55,6 +55,43 @@ const VERSIFICATIONS: { code: string; name: string; short: string; description: 
   { code: 'vul', name: 'Vulgate', short: 'Vulgate', description: 'Verse numbers of the Latin Vulgate, as many Catholic Bibles use them.' },
   { code: 'rso', name: 'Russian Orthodox', short: 'Russian Orthodox', description: 'Verse numbers of the Russian Synodal Bible with the deuterocanon.' },
   { code: 'rsc', name: 'Russian Protestant', short: 'Russian Protestant', description: 'Verse numbers of the Russian Synodal Bible, 66 books.' }
+];
+
+/** The 66 books of the Protestant canon. */
+const P66 = USFM_BOOKS.slice(0, 66) as readonly string[];
+
+/**
+ * The numberings LangQuest offers (decision 80, docs/breaking-up-the-bible.md):
+ * a source file and exactly one tradition's books. Catholic Bibles numbered
+ * like the Hebrew (NABRE) are not here yet: no source file has Daniel with
+ * its Greek chapters in that numbering.
+ */
+const NUMBERINGS: { id: string; from: string; name: string; short: string; description: string; books: string[] }[] = [
+  {
+    id: 'eng-66', from: 'eng', name: 'Like most English Bibles · 66 books', short: 'Numbered like most English Bibles',
+    description: 'Psalm headings have no verse number, and Malachi has 4 chapters. Most English, Spanish and Portuguese Bibles (KJV, NIV, ESV, NLT, Reina-Valera).',
+    books: [...P66]
+  },
+  {
+    id: 'org-66', from: 'org', name: 'Like the Hebrew and Greek · 66 books', short: 'Numbered like the Hebrew and Greek',
+    description: 'Psalm headings are numbered, Malachi has 3 chapters and Joel 4. Luther 2017, Elberfelder, Bible du Semeur, the Hebrew and Greek texts.',
+    books: [...P66]
+  },
+  {
+    id: 'vul-73', from: 'vul', name: 'Like the Latin Vulgate · 73 books (Catholic)', short: 'Numbered like the Latin Vulgate',
+    description: 'The shepherd psalm is Psalm 22, and Daniel has 14 chapters. The Douay-Rheims and older Catholic Bibles.',
+    books: [...P66.map((b) => (b === 'EST' ? 'ESG' : b)), 'TOB', 'JDT', 'WIS', 'SIR', 'BAR', '1MA', '2MA']
+  },
+  {
+    id: 'rsc-66', from: 'rsc', name: 'Russian Synodal · 66 books', short: 'Numbered like the Russian Synodal Bible',
+    description: 'The Russian Synodal Bible as Protestants print it.',
+    books: [...P66]
+  },
+  {
+    id: 'rso-77', from: 'rso', name: 'Russian Synodal · 77 books (Orthodox)', short: 'Numbered like the Russian Synodal Bible with the extra books',
+    description: 'The Russian Synodal Bible with the books Orthodox churches print.',
+    books: [...P66, 'TOB', 'JDT', 'WIS', 'SIR', 'BAR', 'LJE', '1MA', '2MA', '3MA', '1ES', '2ES']
+  }
 ];
 
 const NT_FIRST = bookOrder('MAT');
@@ -169,18 +206,40 @@ export function buildLibrary(opts: { fiaDirs?: string[]; examples?: boolean } = 
   template('langquest.template.fia-passages-eng', 'FIA passages (English)', "The passages FIA divides the Bible into, in FIA's order, numbered as in English Bibles.", ['Book', 'Passage'],
     { books: books([...new Set(fiaPassages.map((p) => parseRef(p.ref)!.book))]), divide: 'passages', passages: fiaPassages });
 
-  // 2b. Ways to break up the Bible (decision 74): the 66 books, each broken
-  // up its own way or not yet. The items above stay as they are, for the
-  // languages that use them; a new version of them would move those
-  // languages' parts.
-  for (const way of breakupWays(books(engBooks.filter((b) => bookOrder(b) <= NT_LAST)), vDoc['eng']!)) {
-    publish(`langquest.bible.${way.slug}`, way.name, way.description, {
+  // 2b. The numberings an admin chooses from (decision 80): a source
+  // versification with exactly one tradition's books, carrying every
+  // Paratext mapping line (library/versifications/paratext/).
+  const numbering: Record<string, { doc: VersificationDoc; hash: string; books: { book: string; name: string }[] }> = {};
+  for (const n of NUMBERINGS) {
+    const src = vDoc[n.from]!;
+    const more = missingMappings(src, paratextMappings(readFileSync(join(LIBRARY, 'versifications', 'paratext', `${n.from}.vrs`), 'utf8')));
+    const full = more.length ? { ...src, moreMappedVerses: more } : src;
+    const doc = numberingOf(full, n.books, n.name);
+    const hash = put(doc);
+    items.push({ itemId: `langquest.numbering.${n.id}`, kind: 'versification', name: n.name, description: n.description, docHash: hash });
+    numbering[n.id] = { doc, hash, books: books(n.books) };
+  }
+
+  // 2c. Ways to break up the Bible (decisions 74 and 80), each published in
+  // every numbering: written once in English numbering, converted into the
+  // others (core convertWay). The English ones keep their item ids. The
+  // items above stay as they are for the languages that use them; a new
+  // version of them would move those languages' parts.
+  const engWays = breakupWays(books(engBooks.filter((b) => bookOrder(b) <= NT_LAST)), vDoc['eng']!);
+  for (const way of engWays) {
+    const source: TemplateDocV2 = {
       format: 'template@2', name: way.name, description: way.description, structure: 'bible',
       levels: [{ name: 'Book' }, { name: way.part }],
       bible: { versification: eng, books: way.books },
       ...(way.goesWith ? { goesWith: { pattern: way.goesWith } } : {}),
       deps: []
-    } satisfies TemplateDocV2);
+    };
+    for (const n of NUMBERINGS) {
+      const target = numbering[n.id]!;
+      const doc = convertWay(source, numbering['eng-66']!.doc, target);
+      const description = `${way.description} ${n.short}.`;
+      publish(n.id === 'eng-66' ? `langquest.bible.${way.slug}` : `langquest.bible.${way.slug}.${n.id}`, way.name, description, { ...doc, description });
+    }
   }
 
   // 3. Flows, each carrying the kinds it uses.

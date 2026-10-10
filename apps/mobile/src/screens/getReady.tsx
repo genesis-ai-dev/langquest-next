@@ -12,7 +12,7 @@
 // 'helps' for What helps them on a ready language. `only: '1'` opens
 // question 1 alone, as "What to translate" from a ready language's page.
 import {
-  commands, CUSTOM_FLOW, deriveFlow, deriveKinds, keyTermsFor, languageInfo, languageName, languageProgress, materialsFor,
+  commands, CUSTOM_FLOW, deriveFlow, deriveKinds, keyTermsFor, languageInfo, languageName, materialsFor,
   goesWith, isTemplateDoc, recommendedFor, subscriptionItemId, templateBooks,
   type CollectionDoc, type EventSpec, type LibraryDoc, type SourceDoc
 } from '@langquest-next/core';
@@ -42,7 +42,7 @@ import {
 import { howItWorks, ReadyChecklist, usePlainRoles, useReadySummary } from '../simple/ready';
 import { useCheckChoices, type FlowEntry } from '../simple/choices';
 import { TranslateQuestion, useTranslate } from '../breakup/TranslateStep';
-import { NumberingNote } from '../breakup/parts';
+import { NumberingNote, RedoSheet } from '../breakup/parts';
 import { useVerseNumbering } from '../breakup/useBreakup';
 
 const PAD = { paddingHorizontal: 20, gap: 14 } as const;
@@ -125,11 +125,16 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
     a === b || (!!a && !!b && a.length === b.length && a.every((x) => b.includes(x)));
   const changed = t.ready && (!inUse || !same(wanted, sel?.books));
   const canUse = ctx.session.can('manage_templates');
-  const recorded = useMemo(() => languageProgress(state, indexesFor(state)), [state]);
+  // Any work at all, published or not: a change of numbering moves it (decision 80).
+  const worked = useMemo(() => Object.keys(state.recordings).length + Object.keys(state.takes).length > 0, [state]);
+  const [warn, setWarn] = useState(false);
 
-  async function answer() {
+  async function answer(confirmed = false) {
     if (busy) return;
     if (!changed) { next(); return; }
+    // A new numbering changes sections that may hold work: say so first (decision 80).
+    if (t.numberingChanged && worked && !confirmed) { setWarn(true); return; }
+    setWarn(false);
     if (!canUse) { ctx.toast('Only people who set up languages can change this.'); return; }
     if (wanted && wanted.length === 0) { ctx.toast('Choose at least one book.'); return; }
     setBusy(true);
@@ -140,7 +145,7 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
         ? await lib.applySpecs(prev.itemId, { docHash: prev.docHash, ...(prev.books ? { books: prev.books } : {}) }).catch(() => null)
         : null;
       const use = await t.resolve();
-      const specs = await lib.applySpecs(use.itemId, { docHash: use.docHash, ...(wanted ? { books: wanted } : {}) });
+      const specs = await lib.applySpecs(use.itemId, { docHash: use.docHash, ...(wanted ? { books: wanted } : {}), ...(use.unitPrefix ? { unitPrefix: use.unitPrefix } : {}) });
       try {
         await ctx.act(specs, `${lang} translates ${recordSummary(use.doc, wanted, use.doc.name)}.`, undo ? () => undo : undefined);
       } catch { setBusy(false); return; }
@@ -154,10 +159,18 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
 
   return (
     <Screen header={header} bodyStyle={PAD}
-      footer={<PrimaryBtn label={only ? (changed ? 'Use this' : 'Keep it') : 'Next'} icon={only ? 'check' : 'right'} busy={busy} disabled={!t.ready && !only}
-        onPress={() => void answer()} />}>
+      footer={<>
+        {/* One question a screen: the pages before the last move on inside the question (decision 80). */}
+        {!t.last ? (
+          t.showContinue ? <PrimaryBtn label="Next" icon="right" disabled={!t.canContinue} onPress={() => { t.advance(); }} /> : null
+        ) : (
+          <PrimaryBtn label={only ? (changed ? 'Use this' : 'Keep it') : 'Next'} icon={only ? 'check' : 'right'} busy={busy} disabled={!t.ready && !only}
+            onPress={() => void answer()} />
+        )}
+        {t.page !== 'what' ? <QuietLinks items={[{ label: 'Back', icon: 'arrowL', onPress: () => { t.retreat(); } }]} /> : null}
+      </>}>
       <TranslateQuestion ctx={ctx} t={t} lang={lang} canMake={canUse} onMake={() => ctx.go('template_editor', { new: '1' })} />
-      {doc?.bible ? (
+      {doc?.bible && t.last ? (
         <>
           <SectionLabel label="Which part of the Bible?" />
           <Pills>
@@ -176,10 +189,11 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
           ) : null}
         </>
       ) : null}
-      {changed && recorded.recorded > 0 ? (
-        <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>Pieces that stay the same keep their recordings. Anything recorded on a piece that changes stops showing, and comes back if you change back.</Text>
+      {changed && worked && t.last ? (
+        <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>Pieces that stay the same keep their recordings. What was recorded on a piece that changes is kept under "Earlier sections" on the new pieces.</Text>
       ) : null}
       {!canUse ? <Banner icon="lock" title="View only" body="Only people who set up languages can change what they translate." /> : null}
+      <RedoSheet visible={warn} book={lang} numbering busy={busy} onClose={() => setWarn(false)} onConfirm={() => void answer(true)} />
     </Screen>
   );
 }

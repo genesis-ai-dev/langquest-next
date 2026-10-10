@@ -29,11 +29,30 @@ export const SAMPLE_BOOK = 'RUT';
 /** Books a preview offers, the sample first. */
 export const PREVIEW_BOOKS = ['RUT', 'LUK', 'GEN', 'ROM'] as const;
 
-/** The LangQuest item a choice is, or follows, or was copied from; null for the organization's own. */
+/**
+ * The numberings LangQuest publishes (decision 80), by the source code their
+ * documents carry: one per code, so a template's numbering is known from its
+ * versification document alone.
+ */
+export const NUMBERING_ITEMS: Record<string, string> = {
+  eng: 'langquest.numbering.eng-66',
+  org: 'langquest.numbering.org-66',
+  vul: 'langquest.numbering.vul-73',
+  rsc: 'langquest.numbering.rsc-66',
+  rso: 'langquest.numbering.rso-77'
+};
+
+/** "langquest.bible.fia.org-66" -> "langquest.bible.fia": the way, whatever its numbering. */
+export function baseWay(itemId: string): string {
+  const m = /^(langquest\.bible\.[a-z0-9-]+)(?:\.[a-z]{3}-\d+)?$/.exec(itemId);
+  return m ? m[1]! : itemId;
+}
+
+/** The LangQuest way a choice is, or follows (in any numbering); null for the organization's own. */
 export function wayOf(c: LibraryChoice): string | null {
-  if (c.source === 'shared') return c.shared.org_id === STARTER_TEMPLATE.orgId ? c.shared.item_id : null;
+  if (c.source === 'shared') return c.shared.org_id === STARTER_TEMPLATE.orgId ? baseWay(c.shared.item_id) : null;
   const sub = c.item.subscription;
-  if (sub) return sub.sourceOrgId === STARTER_TEMPLATE.orgId ? sub.sourceItemId : null;
+  if (sub) return sub.sourceOrgId === STARTER_TEMPLATE.orgId ? baseWay(sub.sourceItemId) : null;
   return null;
 }
 
