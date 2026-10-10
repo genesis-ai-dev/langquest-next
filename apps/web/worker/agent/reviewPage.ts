@@ -124,7 +124,7 @@ textarea { min-height: 110px; resize: vertical; }
 <script>
 const CODE = ${JSON.stringify(code)};
 const W = ${words};
-const T = (key, values) => String(W[key]).replace(/\{\{\s*(\w+)\s*\}\}/g, (m, k) => (values && k in values ? values[k] : m));
+const T = (key, values) => String(W[key]).replace(/\\{\\{\\s*(\\w+)\\s*\\}\\}/g, (m, k) => (values && k in values ? values[k] : m));
 $('ui-lang').addEventListener('change', (e) => { const u = new URL(location.href); u.searchParams.set('lang', e.target.value); location.replace(u); });
 const API = '/api/v1/links/' + CODE;
 const MAX_CLIPS = 10;

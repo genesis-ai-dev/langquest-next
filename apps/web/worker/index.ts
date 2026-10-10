@@ -16,7 +16,7 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (url.pathname === '/connect' && request.method === 'GET') {
-      return connectPage({ supabaseUrl: env.SUPABASE_URL, anonKey: env.SUPABASE_ANON_KEY ?? '' });
+      return connectPage({ supabaseUrl: env.SUPABASE_URL, anonKey: env.SUPABASE_ANON_KEY ?? '' }, pageLanguage(request));
     }
     // A shared review link (agent/links.ts); the page checks the code with the API.
     const review = /^\/r\/([A-Za-z0-9_-]{22})\/?$/.exec(url.pathname);

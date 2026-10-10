@@ -1,3 +1,4 @@
+import { connectPage } from '../worker/agent/connectPage';
 import { reviewPage } from '../worker/agent/reviewPage';
 import { PAGE_CATALOGS, pageLanguage } from '../worker/i18n/pages';
 import { UI_LANGUAGES } from '../../mobile/src/i18n/languages';
@@ -23,26 +24,35 @@ describe('pages the Worker serves, in the reader’s language', () => {
     for (const l of UI_LANGUAGES) expect(html).toContain(`<option value="${l.code}"`);
   });
 
-  it('writes no English words of its own into the page', async () => {
-    const saved = PAGE_CATALOGS.my;
-    PAGE_CATALOGS.my = marked(PAGE_CATALOGS.en as unknown as Tree) as typeof saved;
-    try {
-      const html = await reviewPage('a'.repeat(22), 'my').text();
-      const [, body = ''] = /<body>([\s\S]*)<\/body>/.exec(html) ?? [];
-      const markup = body.replace(/<script>[\s\S]*<\/script>/, '');
-      const script = /<script>([\s\S]*)<\/script>/.exec(body)?.[1] ?? '';
-      // Text between tags, and the words in attributes people see or hear.
-      const shown = [...markup.matchAll(/>([^<]+)</g)].map((m) => m[1]!.trim()).filter(Boolean)
-        .concat([...markup.matchAll(/(?:aria-label|placeholder|title)="([^"]*)"/g)].map((m) => m[1]!));
-      const names = new Set(UI_LANGUAGES.map((l) => l.name));
-      expect(shown.filter((t) => /[A-Za-z]{2,}/.test(t) && !names.has(t))).toEqual([]);
-      // Strings in the page's script that read like prose.
-      const literals = [...script.replace(/const W = .*\n/, '').matchAll(/'([^'\n]*)'/g)].map((m) => m[1]!);
-      expect(literals.filter((t) => /[A-Za-z]{2,}\s+[A-Za-z]{2,}|^[A-Z][a-z]+[.!]?$/.test(t))).toEqual([]);
-    } finally {
-      PAGE_CATALOGS.my = saved;
-    }
-  });
+  const pages = {
+    review: (lang: 'my' | 'es') => reviewPage('a'.repeat(22), lang),
+    connect: (lang: 'my' | 'es') => connectPage({ supabaseUrl: 'https://x.supabase.co', anonKey: 'k' }, lang)
+  };
+
+  for (const [name, page] of Object.entries(pages)) {
+    it(`writes no English words of its own into the ${name} page, and its script runs`, async () => {
+      const saved = PAGE_CATALOGS.my;
+      PAGE_CATALOGS.my = marked(PAGE_CATALOGS.en as unknown as Tree) as typeof saved;
+      try {
+        const html = await page('my').text();
+        const [, body = ''] = /<body>([\s\S]*)<\/body>/.exec(html) ?? [];
+        const markup = body.replace(/<script>[\s\S]*<\/script>/, '');
+        const script = /<script>([\s\S]*)<\/script>/.exec(body)?.[1] ?? '';
+        expect(() => new Function(script)).not.toThrow();
+        // Text between tags, and the words in attributes people see or hear.
+        const shown = [...markup.matchAll(/>([^<]+)</g)].map((m) => m[1]!.trim()).filter(Boolean)
+          .concat([...markup.matchAll(/(?:aria-label|placeholder|title)="([^"]*)"/g)].map((m) => m[1]!));
+        const names = new Set(UI_LANGUAGES.map((l) => l.name));
+        // A code's shape (BCDF-GHJK) has no lower-case letters and is not a word.
+        expect(shown.filter((t) => /[a-z]{2,}/.test(t) && !names.has(t))).toEqual([]);
+        // Strings in the page's script that read like prose (the words themselves ride in as JSON).
+        const literals = [...script.replace(/^const (W|CFG) = .*$/m, '').matchAll(/'([^'\n]*)'/g)].map((m) => m[1]!);
+        expect(literals.filter((t) => /[A-Za-z]{2,}\s+[A-Za-z]{2,}|^[A-Z][a-z]+[.!]?$/.test(t))).toEqual([]);
+      } finally {
+        PAGE_CATALOGS.my = saved;
+      }
+    });
+  }
 
   it('has the same words in every language as in English', () => {
     const want = keys(PAGE_CATALOGS.en as unknown as Tree);
