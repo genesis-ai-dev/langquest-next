@@ -13,11 +13,34 @@ const h = (tag, attrs = {}, ...kids) => {
     else if (k === 'text') el.textContent = v;
     else el.setAttribute(k, v === true ? '' : v);
   }
-  for (const kid of kids.flat()) if (kid != null && kid !== false) el.append(kid.nodeType ? kid : String(kid));
+  for (const kid of kids.flat(Infinity)) if (kid != null && kid !== false) el.append(kid.nodeType ? kid : String(kid));
   return el;
 };
 const fmt = (n) => n.toLocaleString('en-US');
 const norm = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+// `text` with what was typed in bold wherever it appears, ignoring case and
+// accents as the search does ("kele" bolds "Kélé"); `text` itself when it is not there.
+function mark(text, q) {
+  const t = norm((q || '').trim());
+  if (!t || !text) return text;
+  let folded = ''; const starts = []; const ends = []; let at = 0;
+  for (const ch of text) {
+    const f = norm(ch);
+    if (!f && ends.length) ends[ends.length - 1] = at + ch.length; // a lone accent stays with its letter
+    for (let k = 0; k < f.length; k++) { starts.push(at); ends.push(at + ch.length); }
+    folded += f; at += ch.length;
+  }
+  const out = []; let from = 0;
+  for (let k = folded.indexOf(t); k !== -1; k = folded.indexOf(t, k + t.length)) {
+    const s = starts[k], e = ends[k + t.length - 1];
+    if (s > from) out.push(text.slice(from, s));
+    out.push(h('b', { class: 'hit' }, text.slice(s, e)));
+    from = e;
+  }
+  if (!out.length) return text;
+  if (from < text.length) out.push(text.slice(from));
+  return out;
+}
 const store = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
   set(k, v) { try { localStorage.setItem(k, v); } catch { /* not kept */ } }
@@ -31,6 +54,7 @@ themeBtn.addEventListener('click', () => {
   const cur = document.documentElement.getAttribute('data-theme');
   const next = cur === null ? 'dark' : cur === 'dark' ? 'light' : null;
   store.set('lx-theme', next ?? ''); applyTheme(next);
+  window.dispatchEvent(new Event('lx-theme'));
 });
 
 // ---- data ----
@@ -164,8 +188,8 @@ function start(D) {
     const i = row.i; const via = hits?.get(i)?.via;
     return h('div', { class: 'vrow' + (i === st.sel ? ' sel' : ''), role: 'option', 'aria-selected': String(i === st.sel), onclick: () => select(i, true) },
       h('span', { class: 'lv ' + LEVELS[L.level[i]], title: LEVELS[L.level[i]] }),
-      h('div', { class: 'main' }, h('div', { class: 'nm' }, L.name[i]),
-        h('div', { class: 'sub' }, via ? 'matched “' + via + '” · ' : '', [L.glottocode[i], iso[i]].filter(Boolean).join(' · '), L.parent[i] >= 0 ? ' · in ' + L.name[L.parent[i]] : '')));
+      h('div', { class: 'main' }, h('div', { class: 'nm' }, mark(L.name[i], st.q)),
+        h('div', { class: 'sub' }, via ? ['matched “', mark(via, st.q), '” · '] : '', mark([L.glottocode[i], iso[i]].filter(Boolean).join(' · '), st.q), L.parent[i] >= 0 ? ' · in ' + L.name[L.parent[i]] : '')));
   });
 
   function search(q) {
@@ -247,7 +271,6 @@ function start(D) {
     detail.scrollTop = 0;
   }
   function openLanguoid(i) { show('languoids'); select(i, false); }
-  const nameBtn = (i, extra) => h('button', { type: 'button', onclick: () => select(i, false), title: LEVELS[L.level[i]] + ' · ' + L.glottocode[i] }, h('span', { class: 'lv ' + LEVELS[L.level[i]] }), h('span', { class: 'n' }, L.name[i]), extra ? h('span', { class: 'muted num' }, extra) : null);
 
   // A label that is a family: say so, and name the language proposed instead.
   function umbrellaNote(lb) {
@@ -257,6 +280,43 @@ function start(D) {
       u && u.code ? h('span', { class: 'muted' }, ' umbrella code ' + u.code) : null,
       u && u.proposed >= 0 ? [h('span', { class: 'muted' }, ' · proposed: '), h('button', { type: 'button', class: 'ref', onclick: () => select(u.proposed, false) }, L.name[u.proposed])] : h('span', { class: 'muted' }, ' · no single main language'));
   }
+  // The family tree around a languoid: each step down from the top of its
+  // tree, then everything directly below it. Any branch opens in place, and
+  // on the way down the other branches of each step show when asked for.
+  const TREE_CAP = 150;
+  const byLevelThenName = (a, b) => L.level[a] - L.level[b] || L.name[a].localeCompare(L.name[b]);
+  function familyTree(i, anc, below) {
+    const path = [...anc, i];
+    const step = new Map(path.map((k, n) => [k, path[n + 1]]));
+    const open = new Set(path), others = new Set(), whole = new Set();
+    const box = h('ul', { class: 'tree', role: 'tree', 'aria-label': 'Family tree of ' + L.name[i] });
+    const item = (k) => {
+      const n = kids(k).length, isOpen = n > 0 && open.has(k);
+      const li = h('li', { role: 'treeitem', 'aria-expanded': n ? String(isOpen) : null, 'aria-current': k === i ? 'true' : null },
+        h('div', { class: 'trow' + (k === i ? ' here' : '') },
+          n ? h('button', { type: 'button', class: 'tog', 'aria-label': (isOpen ? 'Close ' : 'Open ') + L.name[k], onclick: () => { if (isOpen) open.delete(k); else open.add(k); draw(); } }, isOpen ? '▾' : '▸') : h('span', { class: 'tog' }),
+          h('span', { class: 'lv ' + LEVELS[L.level[k]], title: LEVELS[L.level[k]] }),
+          k === i ? h('b', { class: 'tn' }, L.name[k]) : h('button', { type: 'button', class: 'tn', onclick: () => select(k, false), title: LEVELS[L.level[k]] + ' · ' + L.glottocode[k] }, L.name[k]),
+          iso[k] ? h('span', { class: 'mono muted' }, iso[k]) : null,
+          descendants[k] ? h('span', { class: 'muted num' }, fmt(descendants[k]) + ' below') : null));
+      if (isOpen) {
+        const all = [...kids(k)].sort(byLevelThenName);
+        const next = step.get(k);
+        const onlyNext = next != null && !others.has(k);
+        const shown = onlyNext ? [next] : whole.has(k) ? all : all.slice(0, TREE_CAP);
+        const more = onlyNext ? all.length - 1 : all.length - shown.length;
+        li.append(h('ul', { role: 'group' }, shown.map(item),
+          more > 0 ? h('li', { class: 'tmore' }, h('button', { type: 'button', onclick: () => { if (onlyNext) others.add(k); else whole.add(k); draw(); } },
+            onlyNext ? '+ ' + fmt(more) + (more === 1 ? ' other branch' : ' other branches') + ' of ' + L.name[k] : 'Show ' + fmt(more) + ' more')) : null));
+      }
+      return li;
+    };
+    const draw = () => box.replaceChildren(item(path[0]));
+    draw();
+    return h('section', { class: 'block' }, h('h3', {}, 'Family tree', h('span', { class: 'count num' }, anc.length ? fmt(anc.length) + (anc.length === 1 ? ' step' : ' steps') + ' down' : 'top of its tree'),
+      below ? h('span', { class: 'count num' }, fmt(below) + ' directly below') : null), box);
+  }
+
   let nameMode = 'all';
   function renderDetail(i) {
     const level = LEVELS[L.level[i]];
@@ -264,7 +324,7 @@ function start(D) {
     const origin = L.origin[i];
     const lat = L.lat[i], lon = L.lon[i];
     const regs = [...regionsOf.of(i)].map((j) => LR.region[j]);
-    const kidList = [...kids(i)].sort((a, b) => L.level[a] - L.level[b] || L.name[a].localeCompare(L.name[b]));
+    const kidList = kids(i);
     const parts = [];
     parts.push(h('button', { class: 'back', type: 'button', onclick: () => lv.el.classList.remove('showdetail') }, '← Back to the list'));
     parts.push(h('nav', { class: 'crumbs', 'aria-label': 'Classification' }, anc.length ? anc.flatMap((p, k) => [k ? h('span', { class: 'sep' }, '›') : null, h('button', { type: 'button', onclick: () => select(p, false) }, L.name[p])]) : h('span', {}, 'Top of a tree')));
@@ -277,7 +337,8 @@ function start(D) {
     const fact = (k, v) => h('div', {}, h('div', { class: 'k' }, k), h('div', { class: 'v' }, v ?? h('span', { class: 'nullv' }, 'none')));
     parts.push(h('div', { class: 'facts' },
       fact('Macroareas', macro[i] || null),
-      fact('Location', lat != null && lon != null ? h('a', { href: `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=6/${lat}/${lon}`, target: '_blank', rel: 'noopener', class: 'num' }, lat + ', ' + lon) : null),
+      fact('Location', lat != null && lon != null ? [h('a', { href: `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=6/${lat}/${lon}`, target: '_blank', rel: 'noopener', class: 'num' }, lat + ', ' + lon),
+        h('button', { type: 'button', class: 'ref globe-link', onclick: () => seeOnGlobe(i) }, 'See it on the globe')] : null),
       fact('hid', prop(i, 'hid')),
       fact('Below it', descendants[i] ? fmt(descendants[i]) + ' languoids' : null),
       fact('Names', fmt(aliasBy.of(i).length)),
@@ -292,13 +353,8 @@ function start(D) {
     parts.push(h('section', { class: 'block' }, h('h3', {}, 'Where it is spoken', h('span', { class: 'count num' }, fmt(regs.length))),
       regs.length ? h('div', { class: 'linkchips' }, regs.sort((a, b) => (R.level[a] === R.level[b] ? R.name[a].localeCompare(R.name[b]) : R.level[a] === 'macroarea' ? -1 : 1)).map((r) => h('button', { class: 'linkchip', type: 'button', onclick: () => openRegion(r) }, R.name[r], R.iso[r] ? h('span', { class: 'mono muted' }, R.iso[r]) : h('span', { class: 'muted' }, 'macroarea')))) : h('div', { class: 'muted' }, 'No region links.')));
 
-    // children
-    if (kidList.length) {
-      const byLevel = [0, 1, 2].map((l) => kidList.filter((k) => L.level[k] === l)).filter((g) => g.length);
-      parts.push(h('section', { class: 'block' }, h('h3', {}, 'Directly below', h('span', { class: 'count num' }, fmt(kidList.length))),
-        byLevel.map((g) => h('div', {}, h('div', { class: 'muted', style: 'font-size:12px;margin:6px 0 2px' }, LEVELS[L.level[g[0]]] === 'family' ? 'Families' : LEVELS[L.level[g[0]]] === 'language' ? 'Languages' : 'Dialects'),
-          h('div', { class: 'kids' }, g.map((k) => nameBtn(k, descendants[k] ? fmt(descendants[k]) : null)))))));
-    }
+    // its family: the way down from the top of its tree, and what is below it
+    parts.push(familyTree(i, anc, kidList.length));
 
     // names
     const al = [...aliasBy.of(i)];
@@ -339,23 +395,67 @@ function start(D) {
   const rDetail = h('div', { class: 'detail' });
   const rLine = h('div', { class: 'resultline' });
   rv.el.append(h('div', { class: 'listcol' }, h('div', { class: 'controls' }, h('div', { class: 'search' }, rq), rLine), rList), rDetail);
+  // The globe (languages-globe.js): nations shaded by their languoids, each
+  // languoid with a location a dot. It stays put while regions change under it.
+  const globeBox = h('div', { class: 'globe' });
+  const rInfo = h('div', {});
+  let globe = null;
+  const nationByIso = new Map(nations.map((r) => [R.iso[r].toUpperCase(), r]));
+  const located = []; for (let i = 0; i < N; i++) if (L.lat[i] != null && L.lon[i] != null) located.push(i);
+  const placed = (ls) => ls.filter((i) => L.lat[i] != null && L.lon[i] != null);
+  rDetail.append(h('button', { class: 'back', type: 'button', onclick: () => rv.el.classList.remove('showdetail') }, '← Back to the list'),
+    h('section', { class: 'globewrap', 'aria-label': 'Globe' }, globeBox,
+      h('div', { class: 'globe-bar' },
+        h('span', { class: 'legend' }, h('span', { class: 'lv language' }), 'language', h('span', { class: 'lv dialect' }), 'dialect', h('span', { class: 'lv family' }), 'family'),
+        h('span', { class: 'spacer' }),
+        h('button', { type: 'button', 'aria-label': 'Zoom out', onclick: () => globe?.zoomBy(1 / 1.5) }, '−'),
+        h('button', { type: 'button', 'aria-label': 'Zoom in', onclick: () => globe?.zoomBy(1.5) }, '+'),
+        h('button', { type: 'button', onclick: () => globe?.reset() }, 'Whole globe')),
+      h('p', { class: 'globe-hint' }, 'Drag to turn it and scroll or pinch to zoom. Darker countries have more languoids. Click a country to open it; zoom in to click a single languoid.')),
+    rInfo);
+  function makeGlobe() {
+    if (globe || !window.LanguoidGlobe) { if (!window.LanguoidGlobe) globeBox.replaceChildren(h('div', { class: 'empty' }, 'The globe could not load.')); return; }
+    globe = window.LanguoidGlobe.createGlobe(globeBox, {
+      value: (a2) => { const r = nationByIso.get(a2); return r == null ? 0 : languoidsIn.of(r).length; },
+      label: (a2, name) => { const r = nationByIso.get(a2); return r == null ? name + ' · no languoids' : R.name[r] + ' · ' + fmt(languoidsIn.of(r).length) + ' languoids'; },
+      points: located.map((i) => ({ lon: L.lon[i], lat: L.lat[i], id: i, kind: L.level[i] })),
+      pointLabel: (i) => L.name[i] + ' · ' + LEVELS[L.level[i]] + (iso[i] ? ' · ' + iso[i] : ''),
+      onCountry: (a2) => { const r = nationByIso.get(a2); if (r != null) openRegion(r, false); },
+      onPoint: (i) => openLanguoid(i)
+    });
+    window.addEventListener('lx-theme', () => globe.redraw());
+    window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change', () => globe.redraw());
+  }
+  // A languoid's own place: its nation open (the one its dot is in, when it
+  // names that one), the globe turned to the dot and ringed.
+  function seeOnGlobe(i) {
+    show('regions');
+    const ns = [...regionsOf.of(i)].map((j) => LR.region[j]).filter((r) => R.level[r] === 'nation');
+    const here = globe?.countryAt(L.lon[i], L.lat[i]);
+    const nation = ns.find((r) => R.iso[r].toUpperCase() === here) ?? ns[0];
+    if (nation != null) openRegion(nation, false, false);
+    globe?.focus(L.lon[i], L.lat[i]);
+  }
   let rSel = -1;
+  let rRows = [];
   const rvl = vlist(rList, 50, (r) => h('div', { class: 'vrow' + (r === rSel ? ' sel' : ''), onclick: () => openRegion(r, true) },
     h('span', { class: 'lv ' + (R.level[r] === 'macroarea' ? 'family' : 'language') }),
-    h('div', { class: 'main' }, h('div', { class: 'nm' }, R.name[r]), h('div', { class: 'sub' }, (R.level[r] === 'macroarea' ? 'macroarea' : 'nation · ' + R.iso[r]) + ' · ' + fmt(languoidsIn.of(r).length) + ' languoids'))));
+    h('div', { class: 'main' }, h('div', { class: 'nm' }, mark(R.name[r], rq.value)), h('div', { class: 'sub' }, R.level[r] === 'macroarea' ? 'macroarea' : ['nation · ', mark(R.iso[r], rq.value)], ' · ' + fmt(languoidsIn.of(r).length) + ' languoids'))));
   const regionOrder = [...continents.sort((a, b) => R.name[a].localeCompare(R.name[b])), ...nations];
   function refreshRegions() {
     const t = norm(rq.value.trim());
-    const rows = regionOrder.filter((r) => !t || norm(R.name[r]).includes(t) || R.iso[r].toLowerCase() === t);
-    rLine.replaceChildren(h('span', { class: 'num' }, fmt(rows.length) + ' regions'), h('span', {}, 'Macroareas, then nations'));
-    rvl.set(rows);
+    rRows = regionOrder.filter((r) => !t || norm(R.name[r]).includes(t) || R.iso[r].toLowerCase() === t);
+    rLine.replaceChildren(h('span', { class: 'num' }, fmt(rRows.length) + ' regions'), h('span', {}, 'Macroareas, then nations'));
+    rvl.set(rRows);
   }
   rq.addEventListener('input', refreshRegions);
   let regionLevel = 1;
-  function openRegion(r, fromList) {
+  function openRegion(r, fromList, fly = true) {
     if (current !== 'regions') show('regions');
     rSel = r; rvl.redraw();
+    if (!fromList) { const k = rRows.indexOf(r); if (k >= 0) rvl.scrollTo(k); }
     const ls = [...languoidsIn.of(r)].map((j) => LR.languoid[j]);
+    globe?.select(R.level[r] === 'nation' ? R.iso[r].toUpperCase() : null, placed(ls), fly);
     const counts = [0, 0, 0]; for (const i of ls) counts[L.level[i]]++;
     const box = h('div', {});
     const draw = () => {
@@ -369,8 +469,7 @@ function start(D) {
     };
     const seg = h('span', { class: 'seg', role: 'group', 'aria-label': 'Level' }, [[-1, 'All'], [0, 'Families'], [1, 'Languages'], [2, 'Dialects']].map(([m, t]) => h('button', { type: 'button', 'aria-pressed': String(regionLevel === m), onclick: (e) => { regionLevel = m; seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', 'false')); e.currentTarget.setAttribute('aria-pressed', 'true'); draw(); } }, t + (m >= 0 ? ' ' + fmt(counts[m]) : ''))));
     draw();
-    rDetail.replaceChildren(
-      h('button', { class: 'back', type: 'button', onclick: () => rv.el.classList.remove('showdetail') }, '← Back to the list'),
+    rInfo.replaceChildren(
       h('div', { class: 'crumbs' }, R.level[r] === 'macroarea' ? 'Macroarea' : 'Nation'),
       h('div', { class: 'title' }, h('h2', {}, R.name[r]), h('span', { class: 'badge ' + (R.level[r] === 'macroarea' ? 'family' : 'language') }, R.level[r])),
       h('div', { class: 'ids' }, h('span', {}, h('b', {}, 'id'), h('span', { class: 'mono' }, R.id[r])), R.iso[r] ? h('span', {}, h('b', {}, 'region_source iso3166-1'), h('span', { class: 'mono' }, R.iso[r])) : null),
@@ -379,7 +478,7 @@ function start(D) {
     rv.el.classList.add('showdetail');
     rDetail.scrollTop = 0;
   }
-  rv.shown = () => { if (!rv.ready) { rv.ready = true; refreshRegions(); const mm = nations.find((r) => R.iso[r] === 'MW'); if (mm != null) openRegion(mm, true); } };
+  rv.shown = () => { if (!rv.ready) { rv.ready = true; refreshRegions(); makeGlobe(); const mm = nations.find((r) => R.iso[r] === 'MW'); if (mm != null) openRegion(mm, true); } };
 
   // ================= Tables =================
   const tv = { el: h('section', { class: 'view', id: 'view-tables' }) };
