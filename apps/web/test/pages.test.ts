@@ -47,7 +47,10 @@ describe('pages the Worker serves, in the reader’s language', () => {
         expect(shown.filter((t) => /[a-z]{2,}/.test(t) && !names.has(t))).toEqual([]);
         // Strings in the page's script that read like prose (the words themselves ride in as JSON).
         const literals = [...script.replace(/^const (W|CFG) = .*$/m, '').matchAll(/'([^'\n]*)'/g)].map((m) => m[1]!);
-        expect(literals.filter((t) => /[A-Za-z]{2,}\s+[A-Za-z]{2,}|^[A-Z][a-z]+[.!]?$/.test(t))).toEqual([]);
+        // Markup built in the script is not prose: what is left after its tags and attributes is.
+        // 'Bearer ' is the HTTP scheme, not a word anyone reads.
+        const words = (t: string) => t.replace(/<\/?[\w-]+|\/?>|[\w-]+="[^"]*"?|"|^-[\w-]+\b|\b(checked|hidden|selected)\b/g, ' ').trim();
+        expect(literals.filter((t) => t !== 'Bearer ' && /[A-Za-z]{2,}\s+[A-Za-z]{2,}|^[A-Z][a-z]+[.!]?$/.test(words(t)))).toEqual([]);
       } finally {
         PAGE_CATALOGS.my = saved;
       }
