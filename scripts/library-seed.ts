@@ -259,7 +259,7 @@ export function buildLibrary(opts: { fiaDirs?: string[]; examples?: boolean } = 
     if (!reviewKindId) throw new Error(`no review kind for question set ${q.id}`);
     const kind = DEFAULT_KINDS.find((k) => k.id === reviewKindId)!;
     publish(`langquest.questions.${q.id}`, q.name, `Questions to ask in a ${kind.name}.`, {
-      format: 'material@1', kind: 'questions', title: q.name, reviewKindId,
+      format: 'material@1', kind: 'questions', title: q.name, language: 'eng', reviewKindId,
       questions: q.questions.map((x) => ({ id: x.id, text: x.text, type: x.type, required: false })),
       deps: []
     } satisfies MaterialDoc);

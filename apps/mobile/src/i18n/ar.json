@@ -964,11 +964,13 @@
       "offerNoteFia": "سنقدّم {{offers}} لمترجمي {{language}}. أدلة FIA تأتي مع مقاطع FIA التي اخترتها. غيّر ذلك في أي وقت من <b>ما يساعدهم</b>.",
       "notAdded": "لم تُضف",
       "inviteLater": "ادعُ مترجمي {{language}} من صفحتها لاحقًا.",
-      "later": "لاحقًا"
+      "later": "لاحقًا",
+      "guideLanguage": "اختر لغة أدلة {{name}}"
     },
     "offers": {
       "guides": "أدلة الدراسة من {{name}}",
-      "theBible": "{{name}}"
+      "theBible": "{{name}}",
+      "guidesIn": "أدلة الدراسة من {{name}} باللغة {{language}}"
     },
     "teams": {
       "thisLanguage": "هذه اللغة",
@@ -1183,7 +1185,14 @@
       "tha": "التايلاندية",
       "vie": "الفيتنامية",
       "din": "الدينكا",
-      "nus": "النوير"
+      "nus": "النوير",
+      "apd": "العربية السودانية",
+      "fas": "الفارسية",
+      "ben": "البنغالية",
+      "npi": "النيبالية",
+      "mya": "البورمية",
+      "tpi": "توك بيسين",
+      "bis": "البيسلامية"
     },
     "helps": {
       "bibles_zero": "الكتاب المقدس باللغات {{languages}}",
@@ -1199,7 +1208,8 @@
       "notes_few": "{{count, number}} ملاحظات",
       "notes_many": "{{count, number}} ملاحظة",
       "notes_other": "{{count, number}} ملاحظة",
-      "nothing": "لم يُقدَّم شيء بعد"
+      "nothing": "لم يُقدَّم شيء بعد",
+      "guidesIn": "أدلة {{name}} باللغة {{languages}}"
     },
     "ready": {
       "translators_zero": "{{count, number}} مترجم",
@@ -1309,7 +1319,15 @@
       "notesForTranslators": "ملاحظات للمترجمين",
       "on": "مفعّل",
       "off": "متوقف",
-      "viewOnly": "فقط من يختارون ترجمات الكتاب المقدس والأدلة يمكنهم تغيير هذا."
+      "viewOnly": "فقط من يختارون ترجمات الكتاب المقدس والأدلة يمكنهم تغيير هذا.",
+      "inLanguages_zero": "بـ {{count, number}} لغة",
+      "inLanguages_one": "بلغة واحدة",
+      "inLanguages_two": "بلغتين",
+      "inLanguages_few": "بـ {{count, number}} لغات",
+      "inLanguages_many": "بـ {{count, number}} لغة",
+      "inLanguages_other": "بـ {{count, number}} لغة",
+      "setChosen": "أدلة الدراسة {{name}} الآن باللغة {{language}}",
+      "setOff": "أدلة الدراسة {{name}} متوقفة لهذا الفريق"
     },
     "page": {
       "title": "ما يساعدهم",
@@ -6821,6 +6839,39 @@
       "theirNoteOnVerse": "ملاحظة {{name}} على الآية {{verse}}",
       "empty": "لم يُسجَّل شيء لهذا المقطع بعد. ستكون هذه النسخة الأولى.",
       "quoted": "“{{text}}”"
+    },
+    "language": {
+      "notGiven": "اللغة غير محددة",
+      "another": "لغة أخرى",
+      "searchPlaceholder": "ابحث عن لغة",
+      "unlisted": "ليست في القائمة؟ اختر أقرب لغة إليها.",
+      "unreachable": "البحث يحتاج إلى اتصال. اختر الآن إحدى اللغات أعلاه.",
+      "writtenIn": "مكتوب باللغة"
+    },
+    "setLanguage": {
+      "title": "بأي لغة يكون {{name}}؟",
+      "sub_zero": "متوفر بـ {{count, number}} لغة. اختر اللغة التي يقرؤها فريق {{team}} أفضل.",
+      "sub_one": "متوفر بلغة واحدة. اختر اللغة التي يقرؤها فريق {{team}} أفضل.",
+      "sub_two": "متوفر بلغتين. اختر اللغة التي يقرؤها فريق {{team}} أفضل.",
+      "sub_few": "متوفر بـ {{count, number}} لغات. اختر اللغة التي يقرؤها فريق {{team}} أفضل.",
+      "sub_many": "متوفر بـ {{count, number}} لغة. اختر اللغة التي يقرؤها فريق {{team}} أفضل.",
+      "sub_other": "متوفر بـ {{count, number}} لغة. اختر اللغة التي يقرؤها فريق {{team}} أفضل.",
+      "use": "استخدم {{language}}",
+      "keep": "أبقِ {{language}}",
+      "off": "لا تعرض {{name}}",
+      "passages_zero": "أدلة لـ {{count, number}} مقطع",
+      "passages_one": "دليل لمقطع واحد",
+      "passages_two": "أدلة لمقطعين",
+      "passages_few": "أدلة لـ {{count, number}} مقاطع",
+      "passages_many": "أدلة لـ {{count, number}} مقطعًا",
+      "passages_other": "أدلة لـ {{count, number}} مقطع",
+      "yours": "لغة تطبيقك",
+      "gaps_zero": "باللغة {{language}}، لدى {{name}} أدلة لـ {{count, number}} مقطع. المقاطع التي ليس لها دليل لا يظهر فيها دليل دراسة.",
+      "gaps_one": "باللغة {{language}}، لدى {{name}} دليل لمقطع واحد. المقاطع التي ليس لها دليل لا يظهر فيها دليل دراسة.",
+      "gaps_two": "باللغة {{language}}، لدى {{name}} أدلة لمقطعين. المقاطع التي ليس لها دليل لا يظهر فيها دليل دراسة.",
+      "gaps_few": "باللغة {{language}}، لدى {{name}} أدلة لـ {{count, number}} مقاطع. المقاطع التي ليس لها دليل لا يظهر فيها دليل دراسة.",
+      "gaps_many": "باللغة {{language}}، لدى {{name}} أدلة لـ {{count, number}} مقطعًا. المقاطع التي ليس لها دليل لا يظهر فيها دليل دراسة.",
+      "gaps_other": "باللغة {{language}}، لدى {{name}} أدلة لـ {{count, number}} مقطع. المقاطع التي ليس لها دليل لا يظهر فيها دليل دراسة."
     }
   },
   "sources": {

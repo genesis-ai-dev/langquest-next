@@ -13,7 +13,7 @@ import {
   type KindDef, type OrgState, type Privilege, type TemplateDoc
 } from '@langquest-next/core';
 import { bookName } from '../coreText';
-import { t } from '../i18n';
+import { currentLocale, t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { booksInScope, languageScopeLabel, type LanguageScope } from '../orgAdmin';
 
@@ -469,9 +469,16 @@ export function languageLabel(code: string | null | undefined): string {
     case 'por': return t('admin.languageNames.por');
     case 'spa': return t('admin.languageNames.spa');
     case 'hin': return t('admin.languageNames.hin');
-    case 'cmn': return t('admin.languageNames.cmn');
-    case 'arb': case 'arz': return t('admin.languageNames.arb');
+    case 'cmn': case 'zho': return t('admin.languageNames.cmn');
+    case 'arb': case 'ara': case 'arz': return t('admin.languageNames.arb');
+    case 'apd': return t('admin.languageNames.apd');
     case 'swh': case 'swa': return t('admin.languageNames.swa');
+    case 'fas': case 'pes': return t('admin.languageNames.fas');
+    case 'ben': return t('admin.languageNames.ben');
+    case 'npi': case 'nep': return t('admin.languageNames.npi');
+    case 'mya': return t('admin.languageNames.mya');
+    case 'tpi': return t('admin.languageNames.tpi');
+    case 'bis': return t('admin.languageNames.bis');
     case 'tir': return t('admin.languageNames.tir');
     case 'som': return t('admin.languageNames.som');
     case 'hau': return t('admin.languageNames.hau');
@@ -483,7 +490,17 @@ export function languageLabel(code: string | null | undefined): string {
     case 'vie': return t('admin.languageNames.vie');
     case 'din': return t('admin.languageNames.din');
     case 'nus': return t('admin.languageNames.nus');
-    default: return code.toUpperCase();
+    default: return displayName(code) ?? code.toUpperCase();
+  }
+}
+
+/** A language's name from the platform (browsers have it; Hermes may not), in the language showing. */
+function displayName(code: string): string | null {
+  try {
+    const names = new Intl.DisplayNames([currentLocale()], { type: 'language', fallback: 'none' });
+    return names.of(code) ?? null;
+  } catch {
+    return null;
   }
 }
 
@@ -504,11 +521,19 @@ export function guideShortName(name: string): string {
   return short || name;
 }
 
-/** "Amharic and English Bibles · FIA guides", or what is missing. */
-export function helpsSummary(bibleLanguages: readonly string[], guides: readonly string[], notes: number): string {
+/**
+ * "Amharic and English Bibles · FIA guides in French", or what is missing.
+ * A guide is its short name, with the language it is in when it says one.
+ */
+export function helpsSummary(bibleLanguages: readonly string[], guides: readonly (string | { name: string; language: string })[], notes: number): string {
   const parts: string[] = [];
   if (bibleLanguages.length) parts.push(t('admin.helps.bibles', { count: bibleLanguages.length, languages: joinAnd(bibleLanguages) }));
-  if (guides.length) parts.push(t('admin.helps.guides', { names: joinAnd(guides) }));
+  const plain = guides.filter((g): g is string => typeof g === 'string');
+  if (plain.length) parts.push(t('admin.helps.guides', { names: joinAnd(plain) }));
+  // One guide in two languages reads as one part: "FIA guides in French and English".
+  const inLanguages = new Map<string, string[]>();
+  for (const g of guides) if (typeof g !== 'string') inLanguages.set(g.name, [...(inLanguages.get(g.name) ?? []), g.language]);
+  for (const [name, languages] of inLanguages) parts.push(t('admin.helps.guidesIn', { name, languages: joinAnd(languages) }));
   if (notes) parts.push(t('admin.helps.notes', { count: notes }));
   return parts.length ? parts.join(' · ') : t('admin.helps.nothing');
 }

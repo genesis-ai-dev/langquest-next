@@ -29,6 +29,7 @@ import { useChipMarks, usePassageSource, useSources } from '../sources/useSource
 import { saveNote } from '../study/ui';
 import { C, radius, space, target, TINT, type as T } from '../theme';
 import { VoiceNote } from '../voiceNote';
+import { languageLabel } from './adminModel';
 import { bookOf, mmss, passageClock, verseRefs } from './model';
 import { Back10, DashedBtn, MiniPlayer, PlayBtn, PlayRow, styles as ps } from './parts';
 import { useClip } from './useClip';
@@ -226,7 +227,7 @@ function BibleSheet(props: { ctx: Ctx; bible: Bible; onClose: () => void; onMore
     <Sheet visible title={t('reference.bible.choose')} sub={t('reference.bible.chooseSub')} onClose={props.onClose}>
       <View style={styles.card}>
         {bible.passage.options.map((o, i, all) => (
-          <BibleRow key={o.itemId} label={chipLabel(o, all)} sub={[o.name, ...(marks[o.itemId] ?? [])].join(' · ')} on={o.itemId === bible.option?.itemId}
+          <BibleRow key={o.itemId} label={chipLabel(o, all)} sub={[o.name, languageLabel(o.language), ...(marks[o.itemId] ?? [])].filter(Boolean).join(' · ')} on={o.itemId === bible.option?.itemId}
             last={i === all.length - 1 && !props.onMoreBibles} onPress={() => { bible.choose(o); props.onClose(); }} />
         ))}
         {props.onMoreBibles ? <BibleRow label={t('sources.reader.moreBibles')} sub={t('reference.bible.moreBiblesSub')} more last onPress={props.onMoreBibles} /> : null}

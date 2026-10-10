@@ -884,11 +884,13 @@
       "offerNoteFia": "ለ{{language}} ተርጓሚዎች {{offers}} እናቀርባለን። የFIA መመሪያዎች ከመረጧቸው የFIA ክፍሎች ጋር አብረው ይሄዳሉ። ይህን በማንኛውም ጊዜ በ<b>የሚረዳቸው</b> ሥር ይቀይሩ።",
       "notAdded": "አልታከለም",
       "inviteLater": "የ{{language}} ተርጓሚዎችን በኋላ ከገጹ ይጋብዙ።",
-      "later": "በኋላ"
+      "later": "በኋላ",
+      "guideLanguage": "የ{{name}} መመሪያዎችን ቋንቋ ይምረጡ"
     },
     "offers": {
       "guides": "የ{{name}} የጥናት መመሪያዎች",
-      "theBible": "{{name}}"
+      "theBible": "{{name}}",
+      "guidesIn": "የ{{name}} የጥናት መመሪያዎች በ{{language}}"
     },
     "teams": {
       "thisLanguage": "ይህ ቋንቋ",
@@ -1079,7 +1081,14 @@
       "tha": "ታይኛ",
       "vie": "ቬትናምኛ",
       "din": "ዲንካ",
-      "nus": "ኑዌር"
+      "nus": "ኑዌር",
+      "apd": "የሱዳን ዓረብኛ",
+      "fas": "ፋርስኛ",
+      "ben": "ቤንጋሊኛ",
+      "npi": "ኔፓሊኛ",
+      "mya": "በርምኛ",
+      "tpi": "ቶክ ፒሲን",
+      "bis": "ቢስላማ"
     },
     "helps": {
       "bibles_one": "{{languages}} መጽሐፍ ቅዱስ",
@@ -1087,7 +1096,8 @@
       "guides": "የ{{names}} መመሪያዎች",
       "notes_one": "{{count, number}} ማስታወሻ",
       "notes_other": "{{count, number}} ማስታወሻዎች",
-      "nothing": "እስካሁን ምንም አልቀረበም"
+      "nothing": "እስካሁን ምንም አልቀረበም",
+      "guidesIn": "የ{{name}} መመሪያዎች በ{{languages}}"
     },
     "ready": {
       "translators_one": "{{count, number}} ተርጓሚ",
@@ -1189,7 +1199,11 @@
       "notesForTranslators": "ለተርጓሚዎች ማስታወሻዎች",
       "on": "በርቷል",
       "off": "ጠፍቷል",
-      "viewOnly": "ይህን መለወጥ የሚችሉት መጽሐፍ ቅዱሶችንና መመሪያዎችን የሚመርጡ ሰዎች ብቻ ናቸው።"
+      "viewOnly": "ይህን መለወጥ የሚችሉት መጽሐፍ ቅዱሶችንና መመሪያዎችን የሚመርጡ ሰዎች ብቻ ናቸው።",
+      "inLanguages_one": "በ{{count, number}} ቋንቋ",
+      "inLanguages_other": "በ{{count, number}} ቋንቋዎች",
+      "setChosen": "የ{{name}} የጥናት መመሪያዎች አሁን በ{{language}} ናቸው",
+      "setOff": "የ{{name}} የጥናት መመሪያዎች ለዚህ ቡድን ጠፍተዋል"
     },
     "page": {
       "title": "የሚረዳቸው",
@@ -5749,6 +5763,27 @@
       "theirNoteOnVerse": "በቁጥር {{verse}} ላይ የ{{name}} ማስታወሻ",
       "empty": "እስካሁን ለዚህ ክፍል ምንም አልተቀረጸም። ይህ የመጀመሪያው ስሪት ይሆናል።",
       "quoted": "«{{text}}»"
+    },
+    "language": {
+      "notGiven": "ቋንቋ አልተገለጸም",
+      "another": "ሌላ ቋንቋ",
+      "searchPlaceholder": "ቋንቋ ይፈልጉ",
+      "unlisted": "ዝርዝሩ ውስጥ የለም? ለእሱ በጣም ቅርብ የሆነውን ቋንቋ ይምረጡ።",
+      "unreachable": "መፈለግ ግንኙነት ይፈልጋል። ለአሁን ከላይ ካሉት ቋንቋዎች አንዱን ይምረጡ።",
+      "writtenIn": "የተጻፈበት ቋንቋ"
+    },
+    "setLanguage": {
+      "title": "{{name}} በየትኛው ቋንቋ ይሁን?",
+      "sub_one": "በ{{count, number}} ቋንቋ ይገኛል። የ{{team}} ቡድን በተሻለ የሚያነበውን ይምረጡ።",
+      "sub_other": "በ{{count, number}} ቋንቋዎች ይገኛል። የ{{team}} ቡድን በተሻለ የሚያነበውን ይምረጡ።",
+      "use": "{{language}} ይጠቀሙ",
+      "keep": "{{language}} ይቆይ",
+      "off": "{{name}} አይቅረብ",
+      "passages_one": "ለ{{count, number}} ክፍል መመሪያ",
+      "passages_other": "ለ{{count, number}} ክፍሎች መመሪያዎች",
+      "yours": "የመተግበሪያዎ ቋንቋ",
+      "gaps_one": "በ{{language}}፣ {{name}} ለ{{count, number}} ክፍል መመሪያ አለው። መመሪያ የሌላቸው ክፍሎች የጥናት መመሪያ አያሳዩም።",
+      "gaps_other": "በ{{language}}፣ {{name}} ለ{{count, number}} ክፍሎች መመሪያዎች አሉት። መመሪያ የሌላቸው ክፍሎች የጥናት መመሪያ አያሳዩም።"
     }
   },
   "sources": {

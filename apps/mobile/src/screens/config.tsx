@@ -37,6 +37,8 @@ import { sourceLine, usesItem, type SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs, useLibraryUpdates, useSharedItems } from '../library/useLibrary';
 import { when } from '../passageView';
 import { failureMessage } from '../report';
+import { LanguageField } from '../reference/LanguageField';
+import { readerLanguage } from '../reference/languages';
 import { contractsFor } from '../screenContracts';
 import { sourceText } from '../scripture';
 import { C, radius, space, TINT } from '../theme';
@@ -1081,6 +1083,8 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
   const [title, setTitle] = useState('');
   const [forLanguage, setForLanguage] = useState(!!ctx.params['languageId'] || !mayRecommend);
   const [reviewKind, setReviewKind] = useState('peer');
+  // What it goes to the library in (decision 84): the writer's own language unless they say another.
+  const [libraryLanguage, setLibraryLanguage] = useState(readerLanguage);
   // Edits: only touched fields are written (each field is its own register, so two people filling different blanks both land).
   const [texts, setTexts] = useState<Record<string, string>>({});
   const [extraFields, setExtraFields] = useState<string[]>([]);
@@ -1152,7 +1156,7 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
   /** New material for every language: a library item, recommended to every language (decision 63). */
   async function saveToLibrary() {
     const name = title.trim();
-    const doc = materialDocFrom({ kind: materialKind, title: name, scope: {}, fields: changes.map((f) => ({ fieldId: f.fieldId, text: f.text })) }, fieldTitle);
+    const doc = { ...materialDocFrom({ kind: materialKind, title: name, scope: {}, fields: changes.map((f) => ({ fieldId: f.fieldId, text: f.text })) }, fieldTitle), language: libraryLanguage };
     setBusy(true);
     const saved = await libraryAct(ctx, 'save material', async () => { // i18n-ignore: log label
       const { itemId } = await lib.publish({ kind: 'material', name, description: referenceKindName(materialKind), doc });
@@ -1183,7 +1187,7 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
     await libraryAct(ctx, 'publish material', // i18n-ignore: log label
       () => lib.publish({
         kind: 'material', itemId: materialItemId(existing.materialId), name: existing.title,
-        description: published?.description || referenceKindName(existing.kind), doc: materialDocFrom(existing, fieldTitle)
+        description: published?.description || referenceKindName(existing.kind), doc: { ...materialDocFrom(existing, fieldTitle), language: libraryLanguage }
       }),
       published ? t('config.material.publishedVersion', { title: existing.title }) : t('config.material.inLibraryShare', { title: existing.title }));
     setBusy(false);
@@ -1223,7 +1227,12 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
               </ChipRow>
             </>
           ) : null}
-          {toLibrary ? <Text style={txt.xs}>{t('config.material.toLibraryNote')}</Text> : null}
+          {toLibrary ? (
+            <>
+              <LanguageField label={t('reference.language.writtenIn')} value={libraryLanguage} onChange={setLibraryLanguage} />
+              <Text style={txt.xs}>{t('config.material.toLibraryNote')}</Text>
+            </>
+          ) : null}
           {!language && !toLibrary ? <Text style={txt.smMuted}>{isQuestions ? t('config.material.setsNeedLanguage') : t('config.material.addLanguageFirst')}</Text> : null}
           {isQuestions ? (
             <>
@@ -1307,6 +1316,7 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
           <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>
             {published ? t('config.material.inLibrary', { source: sourceLine(published) }) : t('config.material.notInLibrary')}
           </Text>
+          <LanguageField label={t('reference.language.writtenIn')} value={libraryLanguage} onChange={setLibraryLanguage} disabled={busy} />
           <GhostBtn label={published ? t('config.material.publishNewVersion') : t('config.material.publishToLibrary')} icon="share" disabled={busy || changes.length > 0} onPress={() => void publishToLibrary()} />
           {changes.length > 0 ? <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>{t('config.material.saveFirst')}</Text> : null}
         </>
@@ -1344,6 +1354,8 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
   const [refsText, setRefsText] = useState<string | null>(null);
   const [parts, setParts] = useState<{ template: string; node: string }[] | null>(null);
   const [v11n, setV11n] = useState<VersificationChoice | null>(null);
+  // The language it is written in (decision 84): a new one starts in the writer's own.
+  const [language, setLanguage] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState(false);
@@ -1356,6 +1368,7 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
   const b = body ?? material?.body ?? '';
   const refs = parseRefLinks(refsText ?? baseRefs);
   const linked = parts ?? baseParts;
+  const lang = language ?? material?.language ?? (isNew ? readerLanguage() : null);
   const own = lib.items('versification').filter((v) => v.current && !v.archived);
   const choices: VersificationChoice[] = [
     { key: 'none', label: t('config.libraryMaterial.eachLanguagesOwn'), hash: null },
@@ -1376,8 +1389,8 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
       .filter((u) => !needle || u.label.toLowerCase().includes(needle))
       .sort((x, y) => x.label.localeCompare(y.label));
   }, [state, picking, q]);
-  const dirty = editable && (kind !== null || title !== null || body !== null || refsText !== null || parts !== null || v11n !== null);
-  const ready = editable && titleText.trim() !== '' && refs.bad.length === 0 && (isNew || dirty);
+  const dirty = editable && (kind !== null || title !== null || body !== null || refsText !== null || parts !== null || v11n !== null || language !== null);
+  const ready = editable && titleText.trim() !== '' && !!lang && refs.bad.length === 0 && (isNew || dirty);
 
   if (!state || (!isNew && !it)) {
     return <Screen header={<Header title={t('config.libraryMaterial.title')} onBack={ctx.back} />}><EmptyState icon="book" title={state && ctx.org.state ? t('config.material.gone') : t('common.loading')} /></Screen>;
@@ -1398,10 +1411,10 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
         await (s.subscribable ? lib.subscribe(s, true) : lib.copy(s));
         hash = s.latest_hash;
       }
-      const { links: _links, versification: _v, body: _b, ...rest } = material ?? { format: 'material@1' as const, kind: k, title: titleText, deps: [] };
+      const { links: _links, versification: _v, body: _b, language: _l, ...rest } = material ?? { format: 'material@1' as const, kind: k, title: titleText, deps: [] };
       const links = [...refs.refs.map((ref) => ({ ref })), ...linked];
       const out: MaterialDoc = {
-        ...rest, format: 'material@1', kind: k, title: titleText.trim(), deps: [],
+        ...rest, format: 'material@1', kind: k, title: titleText.trim(), deps: [], ...(lang ? { language: lang } : {}),
         ...(b.trim() ? { body: b.trim() } : {}), ...(links.length ? { links } : {}), ...(hash ? { versification: hash } : {})
       };
       await lib.publish({ kind: 'material', ...(it ? { itemId: it.itemId } : {}), name: out.title, description: it?.description || referenceKindName(k), doc: out });
@@ -1460,6 +1473,7 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
               {[...new Set([...LIBRARY_MATERIAL_KINDS, k])].map((id) => <Chip key={id} label={referenceKindName(id)} on={k === id} onPress={() => setKind(id)} />)}
             </ChipRow>
             <Field label={t('config.material.titleLabel')} value={titleText} onChangeText={setTitle} placeholder={t('config.libraryMaterial.titlePlaceholder')} autoCapitalize="sentences" />
+            <LanguageField label={t('reference.language.writtenIn')} value={lang} onChange={setLanguage} />
             <Field label={t('config.libraryMaterial.textLabel')} value={b} onChangeText={setBody} placeholder={t('config.libraryMaterial.textPlaceholder')} autoCapitalize="sentences" multiline />
             <SectionLabel label={t('config.material.whereItApplies')} />
             <Field label={t('config.libraryMaterial.versesLabel')} value={refsText ?? baseRefs} onChangeText={setRefsText} placeholder={REF_EXAMPLE} autoCapitalize="none" multiline />

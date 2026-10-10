@@ -864,11 +864,13 @@
       "offerNoteFia": "Kami akan menyediakan {{offers}} bagi penerjemah {{language}}. Panduan FIA menyertai perikop FIA yang Anda pilih. Ubah kapan saja di <b>Yang membantu</b>.",
       "notAdded": "Tidak ditambahkan",
       "inviteLater": "Undang penerjemah {{language}} dari halamannya nanti.",
-      "later": "Nanti"
+      "later": "Nanti",
+      "guideLanguage": "Pilih bahasa panduan {{name}}"
     },
     "offers": {
       "guides": "panduan studi {{name}}",
-      "theBible": "{{name}}"
+      "theBible": "{{name}}",
+      "guidesIn": "panduan studi {{name}} dalam bahasa {{language}}"
     },
     "teams": {
       "thisLanguage": "bahasa ini",
@@ -1053,13 +1055,21 @@
       "tha": "Thai",
       "vie": "Vietnam",
       "din": "Dinka",
-      "nus": "Nuer"
+      "nus": "Nuer",
+      "apd": "Arab Sudan",
+      "fas": "Persia",
+      "ben": "Bengali",
+      "npi": "Nepali",
+      "mya": "Burma",
+      "tpi": "Tok Pisin",
+      "bis": "Bislama"
     },
     "helps": {
       "bibles_other": "Alkitab {{languages}}",
       "guides": "Panduan {{names}}",
       "notes_other": "{{count, number}} catatan",
-      "nothing": "Belum ada yang disediakan"
+      "nothing": "Belum ada yang disediakan",
+      "guidesIn": "Panduan {{name}} dalam bahasa {{languages}}"
     },
     "ready": {
       "translators_other": "{{count, number}} penerjemah",
@@ -1159,7 +1169,10 @@
       "notesForTranslators": "Catatan untuk penerjemah",
       "on": "Aktif",
       "off": "Mati",
-      "viewOnly": "Hanya orang yang memilih Alkitab dan panduan yang dapat mengubah ini."
+      "viewOnly": "Hanya orang yang memilih Alkitab dan panduan yang dapat mengubah ini.",
+      "inLanguages_other": "Dalam {{count, number}} bahasa",
+      "setChosen": "Panduan studi {{name}} sekarang dalam bahasa {{language}}",
+      "setOff": "Panduan studi {{name}} dimatikan untuk tim ini"
     },
     "page": {
       "title": "Apa yang membantu mereka",
@@ -5481,6 +5494,24 @@
       "theirNoteOnVerse": "Catatan {{name}} pada ayat {{verse}}",
       "empty": "Belum ada yang direkam untuk perikop ini. Ini akan menjadi versi pertama.",
       "quoted": "“{{text}}”"
+    },
+    "language": {
+      "notGiven": "Bahasa tidak disebutkan",
+      "another": "Bahasa lain",
+      "searchPlaceholder": "Cari bahasa",
+      "unlisted": "Tidak ada di daftar? Pilih bahasa yang paling dekat.",
+      "unreachable": "Pencarian memerlukan koneksi. Untuk sekarang, pilih salah satu bahasa di atas.",
+      "writtenIn": "Ditulis dalam bahasa"
+    },
+    "setLanguage": {
+      "title": "{{name}} sebaiknya dalam bahasa apa?",
+      "sub_other": "Tersedia dalam {{count, number}} bahasa. Pilih yang paling baik dibaca oleh tim {{team}}.",
+      "use": "Gunakan {{language}}",
+      "keep": "Tetap {{language}}",
+      "off": "Jangan tawarkan {{name}}",
+      "passages_other": "Panduan untuk {{count, number}} perikop",
+      "yours": "Bahasa aplikasi Anda",
+      "gaps_other": "Dalam bahasa {{language}}, {{name}} memiliki panduan untuk {{count, number}} perikop. Perikop tanpa panduan tidak menampilkan panduan studi."
     }
   },
   "sources": {

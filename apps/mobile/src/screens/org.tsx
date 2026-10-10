@@ -55,11 +55,14 @@ import { C, radius, space, tile, TINT } from '../theme';
 import { useOrgSummary } from '../useOrgSummary';
 import { useHelpMode } from '../helpContext';
 import { AmberNote, BigTop, ChoiceCard, CountBadge, DashedRow, IconTile, inviteFailureText, NumberedSteps, Pills, Question, QuietLink, RadioRow } from '../simple/admin';
-import { askedAgo, firstName, flowSub, guideShortName, joinAnd, QUESTIONS, questionLabel, stepTitle } from '../simple/adminModel';
+import { askedAgo, firstName, flowSub, guideShortName, joinAnd, languageLabel, QUESTIONS, questionLabel, stepTitle } from '../simple/adminModel';
 import { useCheckChoices, type FlowEntry } from '../simple/choices';
 import { TranslateQuestion, useTranslate } from '../breakup/TranslateStep';
 import { InviteSomeone } from '../simple/invite';
-import { languageOf, refKindOf } from '../reference/model';
+import { refKindOf } from '../reference/model';
+import { GuideLanguageSheet } from '../reference/GuideLanguageSheet';
+import { chooseSetLanguage, guideSets, suggestedMember, type GuideSet, type ReferenceSay, type SetMember } from '../reference/guideSets';
+import { docLanguage, readerLanguage } from '../reference/languages';
 import { howItWorks, ReadyChecklist, usePendingRequests, usePlainRoles, useReadySummary } from '../simple/ready';
 import { personLook } from '../people';
 import { PersonAvatar, usePerson } from '../UserChip';
@@ -1277,7 +1280,10 @@ export function NewLanguage(ctx: Ctx) {
   const tq = useTranslate(ctx, null);
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
   const chk = useCheckChoices(ctx, state?.flow?.value.itemId ?? null, kinds);
-  const offers = useNewLanguageOffers(ctx);
+  // FIA's language for the new team: the admin's own when FIA has it, else English, changed on the step that names it (decision 84).
+  const [guideLanguage, setGuideLanguage] = useState<string | null>(null);
+  const [choosingGuide, setChoosingGuide] = useState(false);
+  const offers = useNewLanguageOffers(ctx, guideLanguage);
   const doc = tq.finalDoc;
   const flow = chk.entries.find((e) => e.c.key === (flowKey ?? chk.first?.c.key)) ?? null;
   const orgName = ctx.org.state?.org?.value.name ?? t('org.newLanguage.theOrganization');
@@ -1308,16 +1314,26 @@ export function NewLanguage(ctx: Ctx) {
       const templateItem = use.itemId;
       const flowItem = await adoptChoice(lib, flow.c);
       // What its team is offered, followed first when it is another organization's (as What helps them does).
+      // A guide set (FIA) is offered in its one chosen language, and its other languages in the library are hidden here.
       const offered: string[] = [];
-      for (const o of offers.items) offered.push(o.itemId ?? (o.shared!.subscribable ? await lib.subscribe(o.shared!, true) : await lib.copy(o.shared!)));
+      const setSays: ReferenceSay[] = [];
+      for (const o of offers.items) {
+        const itemId = o.itemId ?? (o.shared!.subscribable ? await lib.subscribe(o.shared!, true) : await lib.copy(o.shared!));
+        if (o.set && o.member) {
+          const held = { ...o.set, members: o.set.members.map((m) => (m === o.member ? { ...m, itemId, shared: null } : m)) };
+          setSays.push(...chooseSetLanguage(held, itemId, null).says);
+        } else offered.push(itemId);
+      }
       const fresh = emptyLanguageState();
       const plan = addLanguage(org, {
         languageId, code: languoid, name: languageName, languoidId: picked?.id ?? null,
         template: await lib.applySpecs(templateItem, { docHash: use.docHash, into: fresh, ...(books ? { books } : {}) }),
         flow: await lib.applySpecs(flowItem, { docHash: flow.c.hash, into: fresh })
       });
-      const recommend: EventSpec[] = offered.filter((id) => ctx.org.state?.recommendations[id]?.value !== true)
-        .map((itemId, i) => ({ id: `${languageId}:offer:${i}`, type: 'v1.ReferenceSet', payload: { itemId, state: 'recommended' } } as EventSpec));
+      const recommend: EventSpec[] = [
+        ...offered.filter((id) => ctx.org.state?.recommendations[id]?.value !== true).map((itemId) => ({ itemId, state: 'recommended' as const })),
+        ...setSays
+      ].map((payload, i) => ({ id: `${languageId}:offer:${i}`, type: 'v1.ReferenceSet', payload } as EventSpec));
       await ctx.org.append('v1.LanguageAdded', plan.added);
       if (plan.link) await ctx.org.append('v1.LanguageCodeSet', plan.link);
       // Its stream takes events once the organization's lists it: send that first when connected.
@@ -1423,6 +1439,13 @@ export function NewLanguage(ctx: Ctx) {
             values={{ offers: joinAnd(offers.names), language: title }} components={{ b: <Text style={{ fontWeight: '800' }} /> }} />
         </AmberNote>
       ) : null}
+      {offers.guide?.set ? (
+        <QuietLink icon="globe" label={t('org.newLanguage.guideLanguage', { name: guideShortName(offers.guide.set.name) })} onPress={() => setChoosingGuide(true)} />
+      ) : null}
+      {choosingGuide && offers.guide?.set && offers.guide.member ? (
+        <GuideLanguageSheet set={offers.guide.set} chosen={[offers.guide.member]} team={title} onClose={() => setChoosingGuide(false)}
+          onUse={(m) => { setGuideLanguage(m.language); setChoosingGuide(false); }} />
+      ) : null}
       {error ? <Banner icon="flag" tone="amber" title={t('org.newLanguage.notAdded')} body={error} /> : null}
     </Screen>
   );
@@ -1442,11 +1465,13 @@ function flowFrom(c: LibraryChoice): string {
 }
 
 /**
- * What a new language's team is offered from the start: a Bible and the
- * study guides in the language its team reads (English), FIA's first: the
- * organization's own when it has them, else what LangQuest shares.
+ * What a new language's team is offered from the start: a Bible in the
+ * language its team reads (English), and study guides, FIA's first: the
+ * organization's own when it has them, else what LangQuest shares. FIA
+ * comes in several languages (decision 84): `guideLanguage` when chosen,
+ * else the admin's own language when FIA has it, else English.
  */
-function useNewLanguageOffers(ctx: Ctx) {
+function useNewLanguageOffers(ctx: Ctx, guideLanguage: string | null) {
   const lib = useLibrary(ctx);
   const shared = useSharedItems('material', lib.orgId);
   const own = lib.items('material').filter((it) => it.current && !it.archived);
@@ -1454,26 +1479,41 @@ function useNewLanguageOffers(ctx: Ctx) {
   const docs = useLibraryDocs(lib.orgId, [...own.map((it) => it.current), ...others.map((s) => s.latest_hash)], { deps: false });
   const fia = (n: string) => (/fia/i.test(n) ? 0 : /example/i.test(n) ? 2 : 1);
   const web = (n: string) => (/world english/i.test(n) ? 0 : 1);
-  type Offer = { itemId: string | null; shared: SharedItem | null; name: string; label: string };
+  type Offer = { itemId: string | null; shared: SharedItem | null; name: string; label: string; set?: GuideSet; member?: SetMember };
+  const sets = guideSets(own.map((it) => ({ it, doc: docs.get(it.current) })), others.map((s) => ({ s, doc: docs.get(s.latest_hash) })));
+  const set = [...sets].sort((a, b) => fia(a.name) - fia(b.name))[0] ?? null;
+  const pickSet = (): Offer | null => {
+    if (!set) return null;
+    const member = (guideLanguage ? set.members.find((m) => m.language === guideLanguage) : null) ?? suggestedMember(set, readerLanguage());
+    return { itemId: member.itemId, shared: member.shared, name: member.name, set, member,
+      label: t('org.offers.guidesIn', { name: guideShortName(set.name), language: languageLabel(member.language) }) };
+  };
   const pick = (kind: 'source' | 'guide', rank: (n: string) => number): Offer | null => {
     // A guide still on its way is known by its name ("FIA study guides (English)"), so FIA's is offered even before it loads.
     const named = (n: string) => kind === 'guide' && /study guides?/i.test(n) && /\(English\)/.test(n);
-    const fits = (doc: LibraryDoc | null, n: string) => (doc ? refKindOf(doc) === kind && (languageOf(doc) ?? 'eng') === 'eng' : named(n));
+    const fits = (doc: LibraryDoc | null, n: string) => (doc ? refKindOf(doc) === kind && (docLanguage(doc) ?? 'eng') === 'eng' : named(n));
     const mine = own.map((it) => ({ it, doc: docs.get(it.current) })).filter((x) => fits(x.doc, x.it.name))
       .sort((a, b) => rank(a.it.name) - rank(b.it.name))[0];
-    if (mine) return { itemId: mine.it.itemId, shared: null, name: mine.it.name, label: kind === 'source' ? bibleOffer(mine.it.name) : t('org.offers.guides', { name: guideShortName(mine.it.name) }) };
+    if (mine) return { itemId: mine.it.itemId, shared: null, name: mine.it.name, label: kind === 'source' ? bibleOffer(mine.it.name) : guidesOffer(mine.it.name, mine.doc) };
     const theirs = others.map((s) => ({ s, doc: docs.get(s.latest_hash) }))
       .filter((x) => fits(x.doc, x.s.name))
       .sort((a, b) => rank(a.s.name) - rank(b.s.name))[0];
     if (theirs) {
       return { itemId: null, shared: theirs.s, name: theirs.s.name,
-        label: kind === 'source' ? bibleOffer((theirs.doc as SourceDoc | null)?.name || theirs.s.name) : t('org.offers.guides', { name: guideShortName(theirs.s.name) }) };
+        label: kind === 'source' ? bibleOffer((theirs.doc as SourceDoc | null)?.name || theirs.s.name) : guidesOffer(theirs.s.name, theirs.doc) };
     }
     return null;
   };
-  const items = [pick('source', web), pick('guide', fia)].filter((o): o is Offer => !!o);
+  const guide = pickSet() ?? pick('guide', fia);
+  const items = [pick('source', web), guide].filter((o): o is Offer => !!o);
   const may = ctx.session.can('manage_reference');
-  return { items: may ? items : [], names: may ? items.map((o) => o.label) : [] };
+  return { items: may ? items : [], names: may ? items.map((o) => o.label) : [], guide: may ? guide : null };
+}
+
+/** Study guides as the offer note names them: "FIA's study guides in English", or without the language when they give none. */
+function guidesOffer(name: string, doc: LibraryDoc | null): string {
+  const language = docLanguage(doc);
+  return language ? t('org.offers.guidesIn', { name: guideShortName(name), language: languageLabel(language) }) : t('org.offers.guides', { name: guideShortName(name) });
 }
 
 /** A Bible as the offer note names it: "the World English Bible" (an English name that reads with "the"), else its name. */

@@ -904,11 +904,13 @@
       "offerNoteFia": "Vamos oferecer {{offers}} aos tradutores de {{language}}. Os guias do FIA acompanham as passagens do FIA que você escolheu. Mude isso quando quiser em <b>O que os ajuda</b>.",
       "notAdded": "Não foi adicionado",
       "inviteLater": "Convide os tradutores de {{language}} mais tarde, na página dele.",
-      "later": "Mais tarde"
+      "later": "Mais tarde",
+      "guideLanguage": "Escolher o idioma dos guias de {{name}}"
     },
     "offers": {
       "guides": "os guias de estudo de {{name}}",
-      "theBible": "a {{name}}"
+      "theBible": "a {{name}}",
+      "guidesIn": "os guias de estudo de {{name}} em {{language}}"
     },
     "teams": {
       "thisLanguage": "este idioma",
@@ -1105,7 +1107,14 @@
       "tha": "Tailandês",
       "vie": "Vietnamita",
       "din": "Dinca",
-      "nus": "Nuer"
+      "nus": "Nuer",
+      "apd": "Árabe sudanês",
+      "fas": "Persa",
+      "ben": "Bengali",
+      "npi": "Nepalês",
+      "mya": "Birmanês",
+      "tpi": "Tok pisin",
+      "bis": "Bislamá"
     },
     "helps": {
       "bibles_one": "Bíblia em {{languages}}",
@@ -1115,7 +1124,8 @@
       "notes_one": "{{count, number}} nota",
       "notes_many": "{{count, number}} de notas",
       "notes_other": "{{count, number}} notas",
-      "nothing": "Nada oferecido ainda"
+      "nothing": "Nada oferecido ainda",
+      "guidesIn": "Guias de {{name}} em {{languages}}"
     },
     "ready": {
       "translators_one": "{{count, number}} tradutor",
@@ -1219,7 +1229,12 @@
       "notesForTranslators": "Notas para tradutores",
       "on": "Ligado",
       "off": "Desligado",
-      "viewOnly": "Só quem escolhe Bíblias e guias pode mudar isso."
+      "viewOnly": "Só quem escolhe Bíblias e guias pode mudar isso.",
+      "inLanguages_one": "Em {{count, number}} idioma",
+      "inLanguages_many": "Em {{count, number}} de idiomas",
+      "inLanguages_other": "Em {{count, number}} idiomas",
+      "setChosen": "Os guias de estudo de {{name}} agora estão em {{language}}",
+      "setOff": "Os guias de estudo de {{name}} estão desativados para esta equipe"
     },
     "page": {
       "title": "O que os ajuda",
@@ -6017,6 +6032,30 @@
       "theirNoteOnVerse": "A nota de {{name}} no versículo {{verse}}",
       "empty": "Ainda não há nada gravado para esta passagem. Esta será a primeira versão.",
       "quoted": "“{{text}}”"
+    },
+    "language": {
+      "notGiven": "Idioma não informado",
+      "another": "Outro idioma",
+      "searchPlaceholder": "Procurar um idioma",
+      "unlisted": "Não está na lista? Escolha o idioma mais próximo.",
+      "unreachable": "Para procurar é preciso conexão. Por enquanto, escolha um dos idiomas acima.",
+      "writtenIn": "Escrito em"
+    },
+    "setLanguage": {
+      "title": "Em que idioma {{name}} deve estar?",
+      "sub_one": "Está disponível em {{count, number}} idioma. Escolha o que a equipe de {{team}} lê melhor.",
+      "sub_many": "Está disponível em {{count, number}} de idiomas. Escolha o que a equipe de {{team}} lê melhor.",
+      "sub_other": "Está disponível em {{count, number}} idiomas. Escolha o que a equipe de {{team}} lê melhor.",
+      "use": "Usar {{language}}",
+      "keep": "Manter {{language}}",
+      "off": "Não oferecer {{name}}",
+      "passages_one": "Guias para {{count, number}} passagem",
+      "passages_many": "Guias para {{count, number}} de passagens",
+      "passages_other": "Guias para {{count, number}} passagens",
+      "yours": "O idioma do seu aplicativo",
+      "gaps_one": "Em {{language}}, {{name}} tem guia para {{count, number}} passagem. As passagens sem guia não mostram nenhum guia de estudo.",
+      "gaps_many": "Em {{language}}, {{name}} tem guias para {{count, number}} de passagens. As passagens sem guia não mostram nenhum guia de estudo.",
+      "gaps_other": "Em {{language}}, {{name}} tem guias para {{count, number}} passagens. As passagens sem guia não mostram nenhum guia de estudo."
     }
   },
   "sources": {

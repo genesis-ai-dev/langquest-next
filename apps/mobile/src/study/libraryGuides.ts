@@ -10,6 +10,7 @@ import { useMemo } from 'react';
 import { Platform } from 'react-native';
 import type { Ctx } from '../ctx';
 import { useLibraryDocs } from '../library/useLibrary';
+import { chosenOnly } from '../reference/guideSets';
 import { offeredGuideSources } from '../reference/offered';
 import { bestGuide, guideFromDoc, passageVerses, type GuideSource } from './guideMatch';
 import type { StudyGuide } from './guides';
@@ -33,7 +34,7 @@ export function useStudyGuides(ctx: Ctx, unitIds: readonly string[]): Map<string
   const offered = useMemo(() => {
     const library = ctx.org.state?.library ?? {};
     // An item this organization controls (not a follow) is named, so its single guides offer Edit (guides/GuideEditor.tsx).
-    const named = (s: { key: string; hash: string }): GuideSource => {
+    const named = (s: { key: string; hash: string; origin: string }): GuideSource => {
       const it = libraryItemView(library, s.key);
       return it && it.source !== 'subscription' ? { ...s, itemId: it.itemId } : s;
     };
@@ -58,7 +59,8 @@ export function useStudyGuides(ctx: Ctx, unitIds: readonly string[]): Map<string
       if (!o) continue;
       // A part of an outline template has no verses; guides placed on it by template node still match.
       const passage = passageVerses(state, unitId, get);
-      const choice = bestGuide({ unitId, range: passage?.range ?? null, versification: passage?.versification ?? null }, [o.recommended, o.own], get);
+      // A guide set's languages the team did not choose stay out (decision 84).
+      const choice = bestGuide({ unitId, range: passage?.range ?? null, versification: passage?.versification ?? null }, chosenOnly([o.recommended, o.own], get), get);
       if (choice) out.set(unitId, choice);
     }
     return out;
