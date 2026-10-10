@@ -56,7 +56,8 @@ describe('the app writes no words into its code (LAN-42)', () => {
       named.prefixes.forEach((p) => prefixes.add(p));
     }
     // A string literal that is a key is a use (t('a.b'), or a key kept in a table and passed to t later).
-    const unused = [...enBases].filter((k) => !literals.has(k) && ![...prefixes].some((p) => k.startsWith(p)));
+    // `native.*` is read by iOS from apps/mobile/locales (checked below), not by the code.
+    const unused = [...enBases].filter((k) => !k.startsWith('native.') && !literals.has(k) && ![...prefixes].some((p) => k.startsWith(p)));
     expect(unused).toEqual([]);
     // Every `t('…')` names a key English has (the typecheck says so too, unless a key is built at run time).
     const tCalls = files.flatMap((path) => [...readFileSync(path, 'utf8').matchAll(/\bt\(\s*'([^'$]+)'/g)].map((m) => m[1]!));
@@ -70,6 +71,19 @@ describe('the catalogs', () => {
     expect(files).toEqual(UI_LANGUAGES.map((l) => l.code).sort());
     const loaders = readFileSync(join(DIR, 'catalogs.ts'), 'utf8');
     for (const l of UI_LANGUAGES) if (l.code !== 'en') expect(loaders).toContain(`case '${l.code}': return require('./${l.code}.json');`);
+  });
+
+  it('gives iOS the microphone and camera questions in each language (scripts/native-locales.mjs)', () => {
+    const app = JSON.parse(readFileSync(join(ROOT, 'app.json'), 'utf8')).expo as { locales?: Record<string, string>; ios: { infoPlist: Record<string, string> } };
+    const english = catalog('en').native as Tree;
+    expect(app.ios.infoPlist.NSMicrophoneUsageDescription).toBe(english.microphone);
+    for (const lang of UI_LANGUAGES.filter((l) => l.code !== 'en')) {
+      const name = lang.code === 'pt' ? 'pt-BR' : lang.code;
+      expect(app.locales?.[name], name).toBe(`./locales/${name}.json`);
+      const native = catalog(lang.code).native as Tree;
+      expect(JSON.parse(readFileSync(join(ROOT, 'locales', `${name}.json`), 'utf8')), name)
+        .toEqual({ ios: { NSMicrophoneUsageDescription: native.microphone, NSCameraUsageDescription: native.camera } });
+    }
   });
 
   for (const lang of UI_LANGUAGES.filter((l) => l.code !== 'en')) {

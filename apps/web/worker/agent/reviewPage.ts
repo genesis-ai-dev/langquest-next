@@ -1,3 +1,7 @@
+import { DEFAULT_KINDS } from '@langquest-next/core';
+import type { UiLanguage } from '../../../mobile/src/i18n/languages';
+import { fill, languageChoices, pageWords } from '../i18n/pages';
+
 /**
  * `/r/<code>`: the page someone opens from a shared review link
  * (decisions.md 72, links.ts). No account, no app, nothing else on screen:
@@ -10,15 +14,22 @@
  * policy, since it collects a name and a voice from someone without an
  * account.
  */
-export function reviewPage(code: string): Response {
+export function reviewPage(code: string, language: UiLanguage = 'en'): Response {
+  const w = pageWords(language, 'review');
+  const info = languageChoices().find((l) => l.code === language)!;
+  const h = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+  // The shipped kinds of review by their default English names, so a kind an organization renamed keeps its own name.
+  const shipped = Object.fromEntries(DEFAULT_KINDS.map((k) => [k.id, k.name]));
+  const words = JSON.stringify({ ...w, shipped }).replace(/</g, '\\u003c');
+  const choices = languageChoices().map((l) => `<option value="${l.code}"${l.code === language ? ' selected' : ''}>${h(l.name)}</option>`).join('');
   const html = `<!doctype html>
-<html lang="en">
+<html lang="${info.locale}" dir="${info.dir}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#6B48C8">
-<title>Review · LangQuest</title>
+<title>${h(w.pageTitle)}</title>
 <style>
 :root { --primary:#6B48C8; --bg:#F4F2FA; --card:#fff; --ink:#1E1636; --muted:#6E629E; --line:#E3DEF3; --red:#B42318; --green:#1F7A4D; color-scheme: light; }
 @media (prefers-color-scheme: dark) { :root { --primary:#A48BF0; --bg:#14101F; --card:#1E1830; --ink:#F1EEFA; --muted:#B4A9D8; --line:#332A4D; --red:#FF8A80; --green:#7FD6A4; color-scheme: dark; } }
@@ -60,55 +71,61 @@ textarea { min-height: 110px; resize: vertical; }
 .foot a { color: var(--muted); }
 .label { font-weight: 600; margin: 0 0 8px; }
 [hidden] { display: none !important; }
+.pick { text-align: end; margin: 0; } .pick select { font: inherit; font-size: 15px; color: var(--muted); background: none; border: 0; min-height: 48px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 </style>
 </head>
 <body>
 <main>
+  <p class="pick"><label>🌐 <span class="sr">${h(w.language)}</span><select id="ui-lang" aria-label="${h(w.language)}">${choices}</select></label></p>
   <p class="muted" id="lang"></p>
-  <h1 id="title">Loading…</h1>
+  <h1 id="title">${h(w.loading)}</h1>
   <p class="muted" id="ask"></p>
   <div id="out" role="status" aria-live="polite"></div>
 
   <section class="card" id="listen" hidden>
     <div class="player">
-      <button type="button" class="play" id="play" aria-label="Play">▶</button>
+      <button type="button" class="play" id="play" aria-label="${h(w.play)}">▶</button>
       <div>
-        <div class="track"><div class="marks" id="marks"></div><input type="range" id="seek" min="0" max="1000" value="0" aria-label="Where in the recording"></div>
+        <div class="track"><div class="marks" id="marks"></div><input type="range" id="seek" min="0" max="1000" value="0" aria-label="${h(w.seek)}"></div>
         <div class="time" id="time">0:00</div>
       </div>
     </div>
-    <button type="button" class="say" id="say" hidden>🎙 Comment here</button>
+    <button type="button" class="say" id="say" hidden>${h(w.commentHere)}</button>
     <ul class="clips" id="clips"></ul>
   </section>
 
   <form id="form" hidden>
     <section class="card">
-      <p class="label">How does it sound?</p>
+      <p class="label">${h(w.howDoesItSound)}</p>
       <div class="choices">
-        <button type="button" class="choice good" data-outcome="looks_good" aria-pressed="false">👍 Good</button>
-        <button type="button" class="choice changes" data-outcome="needs_changes" aria-pressed="false">✋ Needs changes</button>
+        <button type="button" class="choice good" data-outcome="looks_good" aria-pressed="false">${h(w.good)}</button>
+        <button type="button" class="choice changes" data-outcome="needs_changes" aria-pressed="false">${h(w.needsChanges)}</button>
       </div>
       <details id="write">
-        <summary>✎ Write a comment</summary>
-        <textarea id="comment" maxlength="4000" placeholder="What did you notice?" aria-label="Comment"></textarea>
+        <summary>${h(w.writeComment)}</summary>
+        <textarea id="comment" maxlength="4000" placeholder="${h(w.commentPlaceholder)}" aria-label="${h(w.comment)}"></textarea>
       </details>
     </section>
     <section class="card">
-      <div class="name" id="known" hidden><span>Answering as <b id="known-name"></b></span><button type="button" id="rename">Change</button></div>
-      <div id="ask-name"><p class="label"><label for="name">Your name</label></p><input id="name" type="text" maxlength="80" autocomplete="name" placeholder="Shown to the translation team"></div>
-      <button class="send" type="submit" id="send">Send</button>
+      <div class="name" id="known" hidden><span>${fill(h(w.answeringAs), { name: '<b id="known-name"></b>' })}</span><button type="button" id="rename">${h(w.change)}</button></div>
+      <div id="ask-name"><p class="label"><label for="name">${h(w.yourName)}</label></p><input id="name" type="text" maxlength="80" autocomplete="name" placeholder="${h(w.namePlaceholder)}"></div>
+      <button class="send" type="submit" id="send">${h(w.send)}</button>
     </section>
   </form>
 
   <section class="card" id="done" hidden>
-    <p class="notice green">Thank you. The translation team will see your answer.</p>
-    <button type="button" id="again">Change my answer</button>
+    <p class="notice green">${h(w.thanks)}</p>
+    <button type="button" id="again">${h(w.changeAnswer)}</button>
   </section>
 
-  <p class="foot"><small class="muted">Your name, answer and voice clips go to the translation team that sent this link. <a href="/privacy.html" target="_blank" rel="noopener">Privacy</a></small></p>
+  <p class="foot"><small class="muted">${h(w.privacyNote)} <a href="/privacy.html" target="_blank" rel="noopener">${h(w.privacy)}</a></small></p>
 </main>
 <script>
 const CODE = ${JSON.stringify(code)};
+const W = ${words};
+const T = (key, values) => String(W[key]).replace(/\{\{\s*(\w+)\s*\}\}/g, (m, k) => (values && k in values ? values[k] : m));
+$('ui-lang').addEventListener('change', (e) => { const u = new URL(location.href); u.searchParams.set('lang', e.target.value); location.replace(u); });
 const API = '/api/v1/links/' + CODE;
 const MAX_CLIPS = 10;
 const $ = (id) => document.getElementById(id);
@@ -124,12 +141,13 @@ const fmt = (ms) => { const s = Math.max(0, Math.round(ms / 1000)); return Math.
 
 async function load() {
   let res, data;
-  try { res = await fetch(API); data = await res.json(); } catch { $('title').textContent = 'No connection'; say('Check your connection and reload this page.', 'red'); return; }
-  if (!res.ok) { $('title').textContent = 'This link does not work'; say(data.error || 'Ask whoever sent it for a new one.', 'red'); return; }
+  try { res = await fetch(API); data = await res.json(); } catch { $('title').textContent = T('noConnection'); say(T('checkConnection'), 'red'); return; }
+  if (!res.ok) { $('title').textContent = T('linkBroken'); say(T('askForNew'), 'red'); return; }
   $('lang').textContent = data.language + (data.passage.path.length ? ' · ' + data.passage.path.join(' · ') : '');
   $('title').textContent = data.passage.label;
-  $('ask').textContent = data.kind.name + (data.label ? ' · ' + data.label : '');
-  if (!data.open) { say('This review link has closed. Ask whoever sent it for a new one.', 'red'); return; }
+  const kindName = W.shipped[data.kind.id] === data.kind.name && W.kinds[data.kind.id] ? W.kinds[data.kind.id] : data.kind.name;
+  $('ask').textContent = kindName + (data.label ? ' · ' + data.label : '');
+  if (!data.open) { say(T('linkClosed'), 'red'); return; }
   player = makePlayer(data.audio);
   $('form').hidden = false;
   showName(store.get('lq-review-name') || '');
@@ -145,7 +163,7 @@ function makePlayer(cards) {
   let i = 0, playing = false, pendingSeek = null;
   const now = () => starts[i] + (audio.currentTime || 0) * 1000;
   const show = () => { const at = now(); if (total) $('seek').value = String(Math.round((at / total) * 1000)); $('time').textContent = fmt(at) + (total ? ' / ' + fmt(total) : ''); };
-  const setIcon = () => { $('play').textContent = playing ? '❚❚' : '▶'; $('play').setAttribute('aria-label', playing ? 'Pause' : 'Play'); };
+  const setIcon = () => { $('play').textContent = playing ? '❚❚' : '▶'; $('play').setAttribute('aria-label', playing ? T('pause') : T('play')); };
   const load = (n, offsetMs) => {
     i = n;
     if (audio.dataset.n !== String(n)) { audio.src = cards[n].url; audio.dataset.n = String(n); pendingSeek = offsetMs; }
@@ -157,11 +175,11 @@ function makePlayer(cards) {
     if (i + 1 < cards.length) { load(i + 1, 0); if (playing) audio.play().catch(() => {}); }
     else { playing = false; setIcon(); load(0, 0); show(); }
   });
-  audio.addEventListener('error', () => say('The audio did not load. Reload the page to try again.', 'red'));
+  audio.addEventListener('error', () => say(T('audioFailed'), 'red'));
   const api = {
     get playing() { return playing; },
     now,
-    play() { playing = true; setIcon(); audio.play().catch(() => { playing = false; setIcon(); say('Tap play again to listen.', 'red'); }); },
+    play() { playing = true; setIcon(); audio.play().catch(() => { playing = false; setIcon(); say(T('tapPlayAgain'), 'red'); }); },
     pause() { playing = false; setIcon(); audio.pause(); },
     seek(ms) {
       ms = Math.max(0, Math.min(ms, total));
@@ -184,10 +202,10 @@ const MP4 = ['audio/mp4;codecs=mp4a.40.2', 'audio/mp4'].find((t) => window.Media
 
 $('say').addEventListener('click', async () => {
   if (recorder) { recorder.stop(); return; }
-  if (clips.length >= MAX_CLIPS) { say('That is as many clips as one answer takes. Remove one to add another.', 'red'); return; }
+  if (clips.length >= MAX_CLIPS) { say(T('tooManyClips'), 'red'); return; }
   atMs = player ? Math.round(player.now()) : 0;
   if (player && player.playing) player.pause();
-  try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch { say('The microphone was not allowed. You can still write a comment.', 'red'); return; }
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch { say(T('micBlocked'), 'red'); return; }
   say('');
   chunks = []; recorder = MP4 ? new MediaRecorder(stream, { mimeType: MP4 }) : new MediaRecorder(stream);
   recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
@@ -196,19 +214,19 @@ $('say').addEventListener('click', async () => {
     stream.getTracks().forEach((t) => t.stop());
     const durationMs = Date.now() - startedAt;
     const raw = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
-    recorder = null; $('say').classList.remove('on'); $('say').textContent = '🎙 Comment here';
+    recorder = null; $('say').classList.remove('on'); $('say').textContent = T('commentHere');
     if (durationMs < 600) return; // a slip of the thumb
     try {
       const blob = MP4 ? raw : await toWav(raw);
       clips.push({ blob, atMs: clipAt, durationMs, url: URL.createObjectURL(blob) });
       clips.sort((a, b) => a.atMs - b.atMs);
       drawClips();
-    } catch { say('That clip could not be kept. Try again, or write a comment.', 'red'); }
+    } catch { say(T('clipNotKept'), 'red'); }
   };
   const clipAt = atMs;
   recorder.start(); startedAt = Date.now();
   $('say').classList.add('on');
-  const label = () => { $('say').textContent = '■ Stop · at ' + fmt(clipAt) + ' · ' + fmt(Date.now() - startedAt); };
+  const label = () => { $('say').textContent = T('stopAt', { at: fmt(clipAt), length: fmt(Date.now() - startedAt) }); };
   label(); tick = setInterval(label, 500);
 });
 
@@ -218,9 +236,9 @@ function drawClips() {
   clips.forEach((c, n) => {
     const li = document.createElement('li');
     const at = document.createElement('button'); at.type = 'button'; at.className = 'at';
-    at.textContent = '🎙 At ' + fmt(c.atMs) + ' · ' + Math.max(1, Math.round(c.durationMs / 1000)) + ' s';
+    at.textContent = T('clipAt', { at: fmt(c.atMs), seconds: String(Math.max(1, Math.round(c.durationMs / 1000))) });
     at.addEventListener('click', () => { if (player) player.seek(c.atMs); new Audio(c.url).play().catch(() => {}); });
-    const x = document.createElement('button'); x.type = 'button'; x.className = 'x'; x.textContent = '✕'; x.setAttribute('aria-label', 'Remove the clip at ' + fmt(c.atMs));
+    const x = document.createElement('button'); x.type = 'button'; x.className = 'x'; x.textContent = '✕'; x.setAttribute('aria-label', T('removeClip', { at: fmt(c.atMs) }));
     x.addEventListener('click', () => { URL.revokeObjectURL(c.url); clips.splice(n, 1); drawClips(); });
     li.append(at, x); list.append(li);
     if (player && player.total) { const m = document.createElement('span'); m.style.left = (100 * c.atMs / player.total) + '%'; marks.append(m); }
@@ -261,32 +279,32 @@ $('form').addEventListener('submit', async (e) => {
   e.preventDefault();
   if (recorder) recorder.stop();
   const name = $('name').value.trim();
-  if (!outcome) { say('Choose Good or Needs changes first.', 'red'); return; }
-  if (!name) { say('Type your name first. Any name will do.', 'red'); $('ask-name').hidden = false; $('name').focus(); return; }
+  if (!outcome) { say(T('chooseFirst'), 'red'); return; }
+  if (!name) { say(T('nameFirst'), 'red'); $('ask-name').hidden = false; $('name').focus(); return; }
   $('send').disabled = true;
   try {
     const voiceNotes = [];
     for (let n = 0; n < clips.length; n++) {
-      say('Sending voice clip ' + (n + 1) + ' of ' + clips.length + '…');
+      say(T('sendingClip', { n: String(n + 1), total: String(clips.length) }));
       const c = clips[n];
       if (!c.uploaded) {
         const up = await fetch(API + '/voice-note', { method: 'PUT', body: c.blob, headers: { 'content-type': c.blob.type } });
         const body = await up.json();
-        if (!up.ok) throw new Error(body.error || 'A voice clip did not send.');
+        if (!up.ok) throw new Error(T('clipDidNotSend'));
         c.uploaded = body.voiceNote;
       }
       voiceNotes.push({ ...c.uploaded, durationMs: c.durationMs, atMs: c.atMs });
     }
-    say('Sending…');
+    say(T('sending'));
     const comment = $('comment').value.trim();
     const res = await fetch(API + '/reviews', { method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ outcome, name, browserId, submissionId, ...(comment ? { comment } : {}), ...(voiceNotes.length ? { voiceNotes } : {}) }) });
     const body = await res.json();
-    if (!res.ok) throw new Error(body.error || 'Your answer did not send.');
+    if (!res.ok) throw new Error(T('answerDidNotSend'));
     store.set('lq-review-name', name);
     say(''); $('form').hidden = true; $('done').hidden = false; window.scrollTo(0, 0);
   } catch (err) {
-    say(((err && err.message) || 'No connection.') + ' Your answer is still here; tap Send again.', 'red');
+    say(T('stillHere', { reason: err instanceof TypeError || !(err && err.message) ? T('noConnectionShort') : err.message }), 'red');
   } finally { $('send').disabled = false; }
 });
 

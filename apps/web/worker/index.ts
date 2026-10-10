@@ -1,6 +1,7 @@
 import { handleApi } from './api';
 import { connectPage } from './agent/connectPage';
 import { reviewPage } from './agent/reviewPage';
+import { pageLanguage } from './i18n/pages';
 import type { OrgStub } from './agent/http';
 import { supabaseAgentStore } from './agent/store';
 import { sha256Hex } from './agent/tokens';
@@ -19,7 +20,7 @@ export default {
     }
     // A shared review link (agent/links.ts); the page checks the code with the API.
     const review = /^\/r\/([A-Za-z0-9_-]{22})\/?$/.exec(url.pathname);
-    if (review && request.method === 'GET') return reviewPage(review[1]!);
+    if (review && request.method === 'GET') return reviewPage(review[1]!, pageLanguage(request));
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
     // Verified here against the project's signing keys when it has
     // asymmetric ones (the keys are fetched once and cached); otherwise
