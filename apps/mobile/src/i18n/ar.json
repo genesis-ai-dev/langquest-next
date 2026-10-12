@@ -1892,12 +1892,12 @@
       "psalm": "المزمور {{place}}"
     },
     "others": {
-      "intro_zero": "ليس لدى FIA مقاطع لـ {{count, number}} سفر ({{books}}). هذه الأسفار:",
-      "intro_one": "ليس لدى FIA مقاطع لسفر واحد ({{books}}). هذا السفر:",
-      "intro_two": "ليس لدى FIA مقاطع لسفرين ({{books}}). هذان السفران:",
-      "intro_few": "ليس لدى FIA مقاطع لـ {{count, number}} أسفار ({{books}}). هذه الأسفار:",
-      "intro_many": "ليس لدى FIA مقاطع لـ {{count, number}} سفرًا ({{books}}). هذه الأسفار:",
-      "intro_other": "ليس لدى FIA مقاطع لـ {{count, number}} سفر ({{books}}). هذه الأسفار:",
+      "intro_zero": "ليس لدى {{way}} أقسام لـ {{count, number}} سفر ({{books}}). هذه الأسفار:",
+      "intro_one": "ليس لدى {{way}} أقسام لسفر واحد ({{books}}). هذا السفر:",
+      "intro_two": "ليس لدى {{way}} أقسام لسفرين ({{books}}). هذان السفران:",
+      "intro_few": "ليس لدى {{way}} أقسام لـ {{count, number}} أسفار ({{books}}). هذه الأسفار:",
+      "intro_many": "ليس لدى {{way}} أقسام لـ {{count, number}} سفرًا ({{books}}). هذه الأسفار:",
+      "intro_other": "ليس لدى {{way}} أقسام لـ {{count, number}} سفر ({{books}}). هذه الأسفار:",
       "byChapter": "حسب الأصحاح",
       "wait": "بانتظار التقسيم"
     },

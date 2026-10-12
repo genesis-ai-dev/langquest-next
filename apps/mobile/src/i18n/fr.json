@@ -1721,9 +1721,9 @@
       "psalm": "Psaume {{place}}"
     },
     "others": {
-      "intro_one": "FIA n’a pas de passages pour {{count, number}} livre ({{books}}). Ce livre :",
-      "intro_many": "FIA n’a pas de passages pour {{count, number}} livres ({{books}}). Ces livres :",
-      "intro_other": "FIA n’a pas de passages pour {{count, number}} livres ({{books}}). Ces livres :",
+      "intro_one": "{{way}} n’a pas de sections pour {{count, number}} livre ({{books}}). Ce livre :",
+      "intro_many": "{{way}} n’a pas de sections pour {{count, number}} livres ({{books}}). Ces livres :",
+      "intro_other": "{{way}} n’a pas de sections pour {{count, number}} livres ({{books}}). Ces livres :",
       "byChapter": "par chapitre",
       "wait": "attendre d’être découpés"
     },

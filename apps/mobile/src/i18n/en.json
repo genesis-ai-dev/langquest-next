@@ -1664,8 +1664,8 @@
       "psalm": "Psalm {{place}}"
     },
     "others": {
-      "intro_one": "FIA has no passages for {{count, number}} book ({{books}}). That book:",
-      "intro_other": "FIA has no passages for {{count, number}} books ({{books}}). Those books:",
+      "intro_one": "{{way}} has no sections for {{count, number}} book ({{books}}). That book:",
+      "intro_other": "{{way}} has no sections for {{count, number}} books ({{books}}). Those books:",
       "byChapter": "by chapter",
       "wait": "wait to be broken up"
     },

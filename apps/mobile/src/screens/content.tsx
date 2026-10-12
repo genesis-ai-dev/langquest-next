@@ -670,6 +670,10 @@ export function TemplatePicker(ctx: Ctx) {
       <SharedOffline error={shared.error} empty={shared.rows.length === 0} />
       {others.slice(0, sharedLimit).map(card)}
       <ShowMore remaining={others.length - sharedLimit} step={5} onMore={() => setSharedLimit((l) => l + 5)} />
+      {/* Ready-made ones come with making your own (design principle 12). */}
+      {ctx.session.can('manage_templates') ? (
+        <Group><Row icon="plus" label={t('breakup.translate.makeOwn')} last onPress={() => ctx.go('template_editor', { new: '1' })} /></Group>
+      ) : null}
     </Screen>
   );
 }
@@ -736,7 +740,8 @@ function useVersifications(ctx: Ctx, lib: Lib, enabled = true) {
 function NewTemplate({ ctx }: { ctx: Ctx }) {
   const lib = useLibrary(ctx);
   const v = useVersifications(ctx, lib);
-  const [form, setForm] = useState<TemplateForm | null>(null);
+  // Opened from "Something else: Make your own" (`kind: 'outline'`): the outline, without asking again.
+  const [form, setForm] = useState<TemplateForm | null>(() => (ctx.params['kind'] === 'outline' ? newTemplateForm('outline') : null));
   const [bible, setBible] = useState(false);
   const [busy, setBusy] = useState(false);
   if (form) return <TemplateEditorForm ctx={ctx} lib={lib} item={null} initial={form} />;

@@ -260,11 +260,11 @@ function readable(ref: string): string {
   return m[1] === 'PSA' ? t('breakup.numbering.psalm', { place: m[2] }) : `${bookNameOf(m[1]!)} ${m[2]}`;
 }
 
-/** A quiet line under the ways: FIA covers some books; what the rest get. */
-export function OthersChoice(props: { empty: string; count: number; on: 'chapters' | 'later'; onPick: (v: 'chapters' | 'later') => void }) {
+/** A quiet line under the ways: the way picked (FIA's passages, say) covers some books; what the rest get. */
+export function OthersChoice(props: { way: string; empty: string; count: number; on: 'chapters' | 'later'; onPick: (v: 'chapters' | 'later') => void }) {
   return (
     <AmberNote icon="help">
-      {t('breakup.others.intro', { count: props.count, books: props.empty })}{'\n'}
+      {t('breakup.others.intro', { way: props.way, count: props.count, books: props.empty })}{'\n'}
       <Text onPress={() => props.onPick('chapters')} style={{ fontWeight: props.on === 'chapters' ? '800' : '400', textDecorationLine: props.on === 'chapters' ? 'none' : 'underline' }}>
         {props.on === 'chapters' ? '● ' : ''}{t('breakup.others.byChapter')}
       </Text>

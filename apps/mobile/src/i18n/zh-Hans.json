@@ -1607,7 +1607,7 @@
       "psalm": "诗篇 {{place}}"
     },
     "others": {
-      "intro_other": "FIA 在 {{count, number}} 卷书中没有经段（{{books}}）。这些书卷：",
+      "intro_other": "{{way}} 在 {{count, number}} 卷书中没有段落（{{books}}）。这些书卷：",
       "byChapter": "按章划分",
       "wait": "等待划分"
     },

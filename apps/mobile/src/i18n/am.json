@@ -1664,8 +1664,8 @@
       "psalm": "መዝሙር {{place}}"
     },
     "others": {
-      "intro_one": "FIA ለ{{count, number}} መጽሐፍ ({{books}}) ክፍሎች የሉትም። ያ መጽሐፍ፦",
-      "intro_other": "FIA ለ{{count, number}} መጻሕፍት ({{books}}) ክፍሎች የሉትም። እነዚያ መጻሕፍት፦",
+      "intro_one": "{{way}} ለ{{count, number}} መጽሐፍ ({{books}}) ክፍሎች የሉትም። ያ መጽሐፍ፦",
+      "intro_other": "{{way}} ለ{{count, number}} መጻሕፍት ({{books}}) ክፍሎች የሉትም። እነዚያ መጻሕፍት፦",
       "byChapter": "በምዕራፍ",
       "wait": "እስኪከፋፈሉ ይጠብቃሉ"
     },

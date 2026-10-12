@@ -37,6 +37,8 @@ const APP_ONLY: Record<string, string> = {
   'get_ready->role_editor': 'Invite your translators: Something else, make a new role (decision 71, demo ADR-039, amended 2026-10-08)',
   'language_home->flow_editor': "a ready language's Who checks: its steps, top to bottom (decision 71, demo ADR-039)",
   'new_language->template_editor': 'New language, what they translate: Something else, Make your own (decision 71, amended 2026-10-11)',
+  'template_picker->template_editor': 'Choose a Template ends with Make your own (design principle 12)',
+  'new_language->role_editor': 'New language, invite its translators: Something else, make a new role, as on Get ready and Invite (design principle 12)',
   'new_language->flow_editor': "New language, how recordings get checked: I'll choose the steps (decision 71, amended 2026-10-11)",
   'language_home->edit_member': 'a ready language lists join requests: tap to let them in (decision 71, demo ADR-039)',
   'org_home->new_language': 'no project level (decision 63): languages are added from the organization',

@@ -1607,7 +1607,7 @@
       "psalm": "สดุดี {{place}}"
     },
     "others": {
-      "intro_other": "FIA ไม่มีตอนสำหรับ {{count, number}} เล่ม ({{books}}) เล่มเหล่านั้น:",
+      "intro_other": "{{way}} ไม่มีตอนสำหรับ {{count, number}} เล่ม ({{books}}) เล่มเหล่านั้น:",
       "byChapter": "แบ่งตามบท",
       "wait": "รอการแบ่ง"
     },

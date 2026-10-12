@@ -672,8 +672,14 @@ function LanguageChecks({ ctx }: { ctx: Ctx }) {
   const flow = useMemo(() => (state ? deriveFlow(state) : null), [state]);
   const known = useMemo(() => (state ? deriveKinds(state) : []), [state]);
   const base = useMemo<DraftStep[]>(() => (flow ? flow.steps.map((s, i) => ({ key: `${s.id}#${i}`, stepId: s.id, kindIds: [...s.kindIds], checkpoint: s.checkpoint })) : []), [flow]);
-  const [edited, setEdited] = useState<DraftStep[] | null>(null);
-  const [added, setAdded] = useState<KindDef[]>([]);
+  // Opened from a way picked on Get ready (`from`, its document): its steps and the checks it brings, to change (design principle 12).
+  const fromDoc = useMemo(() => {
+    const d = cachedDoc(ctx.params['from']);
+    return d?.format === 'flow@1' ? (d as FlowDoc) : null;
+  }, [ctx.params]);
+  const [edited, setEdited] = useState<DraftStep[] | null>(() => fromDoc
+    ? fromDoc.steps.map((s, i) => ({ key: `from#${i}`, kindIds: [...s.kindIds], checkpoint: !!s.checkpoint })) : null);
+  const [added, setAdded] = useState<KindDef[]>(() => fromDoc?.kinds ?? []);
   const [open, setOpen] = useState<number | null>(null);
   const [pickFor, setPickFor] = useState<number | 'new' | null>(null);
   const [newKind, setNewKind] = useState('');

@@ -1664,8 +1664,8 @@
       "psalm": "Zabura ta {{place}}"
     },
     "others": {
-      "intro_one": "FIA ba shi da nassosi don littafi {{count, number}} ({{books}}). Wannan littafi:",
-      "intro_other": "FIA ba shi da nassosi don littattafai {{count, number}} ({{books}}). Waɗannan littattafai:",
+      "intro_one": "{{way}} ba shi da sassa don littafi {{count, number}} ({{books}}). Wannan littafi:",
+      "intro_other": "{{way}} ba shi da sassa don littattafai {{count, number}} ({{books}}). Waɗannan littattafai:",
       "byChapter": "babi-babi",
       "wait": "suna jiran a raba su"
     },

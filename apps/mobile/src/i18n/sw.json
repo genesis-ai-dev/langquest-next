@@ -1664,8 +1664,8 @@
       "psalm": "Zaburi {{place}}"
     },
     "others": {
-      "intro_one": "FIA haina vifungu kwa kitabu {{count, number}} ({{books}}). Kitabu hicho:",
-      "intro_other": "FIA haina vifungu kwa vitabu {{count, number}} ({{books}}). Vitabu hivyo:",
+      "intro_one": "{{way}} haina sehemu kwa kitabu {{count, number}} ({{books}}). Kitabu hicho:",
+      "intro_other": "{{way}} haina sehemu kwa vitabu {{count, number}} ({{books}}). Vitabu hivyo:",
       "byChapter": "kwa sura",
       "wait": "vinasubiri kugawanywa"
     },

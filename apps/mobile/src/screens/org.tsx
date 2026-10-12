@@ -1464,12 +1464,16 @@ export function NewLanguage(ctx: Ctx) {
           {tq.showContinue ? <PrimaryBtn label={t('org.continue')} icon="right" disabled={tq.last ? !tq.ready : !tq.canContinue} onPress={() => { if (!tq.advance()) setStep(3); }} /> : null}
           <QuietLinks items={[{ label: t('common.back'), icon: 'arrowL', onPress: () => { if (!tq.retreat()) setStep(1); } }]} />
         </>}>
-        <TranslateQuestion ctx={ctx} t={tq} lang={title} canMake={ctx.session.can('manage_templates')} onMake={() => ctx.go('template_editor', { new: '1' })} />
+        <TranslateQuestion ctx={ctx} t={tq} lang={title} canMake={ctx.session.can('manage_templates')} onMake={() => ctx.go('template_editor', { new: '1', kind: 'outline' })} />
         {doc?.bible && tq.page === 'ways' ? (
           <>
             <SectionLabel label={t('getReady.record.whichPart')} />
             <Pills>
-              {LANGUAGE_SCOPES.map((sc) => <Chip key={sc} label={languageScopeLabel(sc)} on={scope === sc} onPress={() => setScope(sc)} />)}
+              {/* Choose books starts from the part picked before (the New Testament, say), to change (design principle 12). */}
+              {LANGUAGE_SCOPES.map((sc) => <Chip key={sc} label={languageScopeLabel(sc)} on={scope === sc} onPress={() => {
+                if (sc === 'custom' && scope !== 'custom' && chosenBooks.size === 0) setChosenBooks(new Set(booksInScope(doc, scope) ?? templateBooks(doc).map((b) => b.book)));
+                setScope(sc);
+              }} />)}
             </Pills>
             {scope === 'custom' ? (
               <Pills>
@@ -1618,7 +1622,8 @@ function NewLanguageInvite(props: { ctx: Ctx; languageId: string; name: string }
       header={(shown, back) => <Header title={t('org.invite.title')} sub={props.name} onBack={shown ? back : ctx.back} />}
       label={() => t('admin.invite.teamLabel', { name: props.name })} onDone={ctx.back}
       disabled={may ? undefined : t('org.newLanguage.inviteLater', { language: props.name })}
-      links={() => [{ label: t('org.newLanguage.later'), icon: 'clock', onPress: ctx.back }]} />
+      links={() => [{ label: t('org.newLanguage.later'), icon: 'clock', onPress: ctx.back }]}
+      {...(ctx.session.can('manage_roles') ? { onNewRole: () => ctx.go('role_editor', { roleId: 'new' }) } : {})} />
   );
 }
 

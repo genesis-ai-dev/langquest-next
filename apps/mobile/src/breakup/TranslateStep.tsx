@@ -5,7 +5,7 @@
 // first; for something else, the organization's own outlines or a new one.
 // The walk-through is one tap away.
 import { emptyBooks, withEmptyBooksFilled, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { Text } from '../text';
 import { STARTER_TEMPLATE, type LibraryChoice } from '../contentTemplates';
@@ -134,6 +134,17 @@ export type TranslatePage = 'what' | 'find' | 'quiz' | 'list' | 'numbered' | 'wa
 
 /** The question on screen, one page at a time. `lang` names the language ("Hadiyya"). */
 export function TranslateQuestion(props: { ctx: Ctx; t: Translate; lang: string; canMake: boolean; onMake: () => void }) {
+  // An outline made from here comes back picked (design principle 12).
+  const outlinesBefore = useRef<Set<string> | null>(null);
+  const outlineKeys = props.t.outlines.map((c) => c.key).join('|');
+  useEffect(() => {
+    const before = outlinesBefore.current;
+    const made = before ? props.t.outlines.find((c) => !before.has(c.key)) : undefined;
+    if (made) { outlinesBefore.current = null; props.t.setOutlineKey(made.key); }
+    // `outlineKeys` names what changes in `outlines`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [outlineKeys]);
+  const makeOwn = () => { outlinesBefore.current = new Set(props.t.outlines.map((c) => c.key)); props.onMake(); };
   const q = props.t;
   const [lesson, setLesson] = useState(false);
   const [peek, setPeek] = useState<WayRow | null>(null);
@@ -162,7 +173,7 @@ export function TranslateQuestion(props: { ctx: Ctx; t: Translate; lang: string;
           <WayCard key={r.choice.key} row={r} doc={q.ways.docOf(r.choice)} v11n={q.ways.v11nOf(q.ways.docOf(r.choice))} on={q.row === r}
             onPress={() => q.setKey(r.choice.key)} onPreview={() => setPeek(r)}>
             {q.row === r && q.empty.length ? (
-              <OthersChoice empty={emptyLine(q.doc!)} count={q.empty.length} on={q.others} onPick={q.setOthers} />
+              <OthersChoice way={r.choice.name} empty={emptyLine(q.doc!)} count={q.empty.length} on={q.others} onPick={q.setOthers} />
             ) : null}
           </WayCard>
         ))}
@@ -192,7 +203,7 @@ export function TranslateQuestion(props: { ctx: Ctx; t: Translate; lang: string;
               </View>
             </>
           ) : <Text style={txt.smMuted}>{t('breakup.translate.noneReady')}</Text>}
-          {props.canMake ? <QuietLink icon="plus" label={t('breakup.translate.makeOwn')} detail={t('breakup.translate.makeOwnDetail')} onPress={props.onMake} /> : null}
+          {props.canMake ? <QuietLink icon="plus" label={t('breakup.translate.makeOwn')} detail={t('breakup.translate.makeOwnDetail')} onPress={makeOwn} /> : null}
         </>
       ) : null}
 

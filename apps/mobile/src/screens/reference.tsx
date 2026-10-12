@@ -599,6 +599,13 @@ export function ReferenceGuides(ctx: Ctx) {
     <Screen header={<Header title={t('reference.guides.title')} sub={levelName(ctx, level)} onBack={ctx.back} />}
       footer={ctx.session.can('manage_reference') ? <PrimaryBtn label={t('reference.guides.newNote')} icon="plus" onPress={() => ctx.go('material_editor', { itemId: 'new', kind: 'note', ...levelParams(level) })} /> : undefined}>
       <Intro>{t('reference.guides.intro')}</Intro>
+      {/* Write your own, beside following others' (design principle 12; Get ready promises it). */}
+      {ctx.session.can('manage_reference') ? (
+        <Group>
+          <Row icon="sparkle" label={t('config.reference.writeGuide')} sub={t('config.reference.writeGuideSub')} last
+            onPress={() => ctx.go('guide_editor', levelParams(level))} />
+        </Group>
+      ) : null}
       <ChipRow>
         <Chip label={active ? t('reference.guides.filterCount', { n: active }) : t('common.filter')} icon="filter" on={active > 0} onPress={() => setFiltering(true)} />
         {active ? <Chip label={t('reference.guides.clear')} on={false} onPress={() => { setKind('all'); setLanguage(null); setBook(null); setCovers(false); }} /> : null}

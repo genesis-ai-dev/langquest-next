@@ -243,6 +243,7 @@ export const EDGES: Edge[] = [
   e('template_picker', 'templates_home', 'popTo'), // tap Use for this language
   e('template_picker', 'templates_home', 'back'), // tap Back
   e('templates_home', 'template_editor', undefined, 'manageTemplates'), // tap Edit levels / a template / New template
+  e('template_picker', 'template_editor', undefined, 'manageTemplates'), // tap Make your own
   e('template_editor', 'templates_home', 'back'), // tap Save / Back
   e('templates_home', 'book_structure', undefined, 'shapeTemplates'), // tap a book / Open the outline
   e('book_structure', 'templates_home', 'back'), // tap Back
@@ -371,6 +372,7 @@ export const EDGES: Edge[] = [
   e('get_ready', 'key_terms'),
   e('get_ready', 'flow_editor', undefined, 'manageFlows'),
   e('get_ready', 'role_editor'),
+  e('new_language', 'role_editor'), // Invite its translators: Something else, make a new role
   // App only: New language's questions make their own answer where none fits (decision 71):
   // an outline for something other than the Bible, and "I'll choose the steps"
   e('new_language', 'template_editor', undefined, 'manageTemplates'),
