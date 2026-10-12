@@ -297,46 +297,48 @@ export function MyWork(ctx: Ctx) {
     }
   }
 
-  const items = [...joinItems, ...(languageId ? rest.map((h) => toItem(h, languageId)) : [])];
-  const shown = moreShown ? items : items.slice(0, THEN_CAP);
-  const listLabel = lead && !getReady && !addLanguage && !suggested ? t('work.list.then') : t('work.list.alsoForYou');
-  const nothing = !lead && items.length === 0;
   // "Everything in Bari" opens Bari's map; only an admin who neither records nor reviews is offered every language.
   const map = () => (languageId ? ctx.go('map_home', { languageId }) : ctx.go(mapScreenFor(ctx.session)));
   const everyLanguage = () => ctx.go(mapScreenFor(ctx.session));
 
-  // On the admin's list (decision 80): books waiting to be divided before anyone can record them.
-  // The row opens the first of them in this language, where the ways to divide it are offered.
-  const toDivide = languageId && ctx.session.can('manage_templates') ? idx.waiting : [];
-  const divideBook = toDivide.length ? unitPlace(state, toDivide[0]!).bookId : null;
-  const divide = () => (divideBook && languageId && canGo(ctx, 'book_structure') ? ctx.go('book_structure', { languageId, bookId: divideBook }) : map());
-  // Why it waits: the way this language divides the Bible has nothing for it (FIA has no passages for Romans).
-  // Book by book leaves every book waiting on purpose, so that needs no reason.
-  const template = state.template?.value;
-  const way = template ? libraryItemView(ctx.org.state?.library ?? {}, template.itemId) : null;
-  const followed = way?.subscription ? baseWay(way.subscription.sourceItemId) : null;
-  const leftOut = toDivide.length && way && followed !== LATER_ITEM ? t('work.divide.leftOut', { way: way.name, book: unitTitle(state, toDivide[0]!) }) : null;
+  // Each to-do opens the task itself and says why it is there (design principle 11). They join the one list.
+  const tasks: WorkItem[] = [];
   // Sections whose divisions changed after they were recorded (decision 80): their verses need recording again,
   // and the earlier recordings wait on their pages. For those who record, and those who divide.
   const again = (canRecord || ctx.session.can('manage_templates')) && languageId
     ? [...earlier.over.keys()].filter((u) => state.units[u] && !derivePassage(state, u, idx).recorded) : [];
+  if (again.length && languageId) {
+    tasks.push({ id: 'again', icon: 'mic', tone: 'amber', title: t('work.again.title', { passage: unitTitle(state, again[0]!) }),
+      sub: t('work.again.sub', { count: again.length }), onPress: () => ctx.openPassage(again[0]!, languageId) });
+  }
+  // Books waiting to be divided before anyone can record them (decision 80), for those who divide: the first opens
+  // in this language, and the line says why it waits (FIA has no passages for Romans). Book by book leaves every
+  // book waiting on purpose, so that needs no reason.
+  const toDivide = languageId && ctx.session.can('manage_templates') ? idx.waiting : [];
+  if (toDivide.length && languageId) {
+    const book = unitTitle(state, toDivide[0]!);
+    const bookId = unitPlace(state, toDivide[0]!).bookId;
+    const template = state.template?.value;
+    const way = template ? libraryItemView(ctx.org.state?.library ?? {}, template.itemId) : null;
+    const why = way && (!way.subscription || baseWay(way.subscription.sourceItemId) !== LATER_ITEM) ? t('work.divide.leftOut', { way: way.name, book }) : null;
+    tasks.push({ id: 'divide', icon: 'cut', tone: 'brand', title: t('work.divide.title', { book }),
+      sub: !why ? t('work.divide.waiting', { count: toDivide.length }) : toDivide.length > 1 ? `${why} ${t('work.divide.more', { count: toDivide.length - 1 })}` : why,
+      onPress: () => (bookId && canGo(ctx, 'book_structure') ? ctx.go('book_structure', { languageId, bookId }) : map()) });
+  }
+  // What is new for this person in the organization's other languages: the line switches to that language.
+  for (const e of elsewhere) {
+    const name = languageName(ctx.org.state, e.languageId);
+    tasks.push({ id: `elsewhere:${e.languageId}`, icon: 'globe', tone: 'brand', title: t('work.elsewhere.title', { language: name }),
+      sub: t('work.elsewhere.sub', { count: e.count, language: name }), onPress: () => ctx.setLanguage(e.languageId) });
+  }
+
+  const items = [...joinItems, ...tasks, ...(languageId ? rest.map((h) => toItem(h, languageId)) : [])];
+  const shown = moreShown ? items : items.slice(0, THEN_CAP);
+  const listLabel = lead && !getReady && !addLanguage && !suggested ? t('work.list.then') : t('work.list.alsoForYou');
+  const nothing = !lead && items.length === 0;
   return (
     <Screen header={header}>
       {lead}
-      {again.length > 0 && languageId ? (
-        <Group>
-          <Row icon="mic" label={t('work.again.title', { passage: unitTitle(state, again[0]!) })} sub={t('work.again.sub', { count: again.length })}
-            iconBg={TINT.amber} iconColor={TINT.amberText} last onPress={() => ctx.openPassage(again[0]!, languageId)} />
-        </Group>
-      ) : null}
-      {toDivide.length > 0 ? (
-        <Group>
-          <Row icon="cut" label={t('work.divide.title', { book: unitTitle(state, toDivide[0]!) })}
-            sub={!leftOut ? t('work.divide.waiting', { count: toDivide.length })
-              : toDivide.length > 1 ? `${leftOut} ${t('work.divide.more', { count: toDivide.length - 1 })}` : leftOut}
-            last onPress={divide} />
-        </Group>
-      ) : null}
       {nothing ? (
         <Card style={styles.caughtUp}>
           <View style={[styles.tile, { backgroundColor: TINT.green }]}><Ico name="check" size={24} color={TINT.greenText} /></View>
@@ -357,18 +359,6 @@ export function MyWork(ctx: Ctx) {
             <QuietToggle label={moreShown ? t('work.list.fewer') : t('work.list.more', { count: items.length - THEN_CAP })} open={moreShown} onPress={() => setMoreShown((v) => !v)} />
           ) : null}
         </>
-      ) : null}
-
-      {elsewhere.length > 0 ? (
-        <Group>
-          {elsewhere.map((e, i) => {
-            const name = languageName(ctx.org.state, e.languageId);
-            return (
-              <Row key={e.languageId} icon="globe" label={t('work.elsewhere.title', { language: name })} sub={t('work.elsewhere.sub', { count: e.count, language: name })}
-                last={i === elsewhere.length - 1} onPress={() => ctx.setLanguage(e.languageId)} />
-            );
-          })}
-        </Group>
       ) : null}
 
       {/* The less likely ways on, each one labelled tap away (demo ADR-032): what you asked of others, what you opened lately, the whole map. */}
