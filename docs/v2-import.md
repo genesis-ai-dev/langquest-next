@@ -78,11 +78,18 @@ A v2 account and the v3 account it becomes have **the same id**. Imported
 events name v2 profile ids as their actors and members, so when that person
 signs in here everything they did is already theirs.
 
-- Sign In is unchanged. When this app does not know an email, the
-  `v2-sign-in` Edge Function checks the email and password with v2's
-  sign-in once (as the old app would), then makes this app's account with
-  the v2 id, the same email and password, and signs the phone in. v2 has
-  email and password accounts only, so this covers everyone.
+- Sign In is unchanged. When this app turns an email and password down,
+  the app asks the `v2-sign-in` Edge Function, which checks them with v2's
+  own sign-in once (as the old app would) and signs that v2 session straight
+  out again, then makes this app's account with the v2 id, the same email
+  and password, and signs the phone in (`apps/mobile/src/v2SignIn.ts`). v2
+  has email and password accounts only, so this covers everyone. Every try
+  reaches v2 from the same few servers, so after ten wrong passwords for
+  one email in an hour the function refuses that email itself, before v2
+  starts refusing everyone (`v2_import.sign_in_failures`). It needs v2's
+  publishable key as a function secret (`V2_SUPABASE_ANON_KEY` in
+  `.env.<env>`, placed by `npm run secrets`); without it, Sign In simply
+  says the password is wrong.
 - Someone who already has an account here with the same email signs in as
   usual; Settings, "Bring my LangQuest work" checks their v2 sign-in and
   adds them where their v2 self is a member. Their v2 work still shows

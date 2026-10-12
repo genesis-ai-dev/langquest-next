@@ -181,6 +181,24 @@ begin
   return v;
 end $$;
 
+-- Signing in with a v2 account (functions/v2-sign-in): every try goes to
+-- v2's sign-in from the same few servers, so a run of wrong passwords for
+-- one email is stopped here before v2 starts refusing everyone.
+create table v2_import.sign_in_failures (
+  email text not null,
+  at timestamptz not null default now()
+);
+create index sign_in_failures_idx on v2_import.sign_in_failures (email, at desc);
+
+-- May this email try now? With p_failed, also notes a wrong password.
+create or replace function public.v2_import_sign_in_try(p_email text, p_failed boolean default false)
+returns boolean language plpgsql security definer set search_path = v2_import, public as $$
+begin
+  delete from v2_import.sign_in_failures where at < now() - interval '1 hour';
+  if p_failed then insert into v2_import.sign_in_failures (email) values (lower(p_email)); end if;
+  return (select count(*) from v2_import.sign_in_failures where email = lower(p_email)) < 10;
+end $$;
+
 -- An organization the import fills uses LangQuest's Bible as any
 -- organization does: subscribed in its stream, and allowed to read the
 -- document (as library_adopt grants it to a member who subscribes).
@@ -196,7 +214,7 @@ end $$;
 do $$
 declare f text;
 begin
-  foreach f in array array['v2_import_library_grant', 'v2_import_plan', 'v2_import_save_plan', 'v2_import_ledger', 'v2_import_ledger_put',
+  foreach f in array array['v2_import_sign_in_try', 'v2_import_library_grant', 'v2_import_plan', 'v2_import_save_plan', 'v2_import_ledger', 'v2_import_ledger_put',
                            'v2_import_files', 'v2_import_files_put', 'v2_import_pass', 'v2_import_cursor'] loop
     execute format('revoke all on function public.%I from public, anon, authenticated', f);
     execute format('grant execute on function public.%I to service_role', f);

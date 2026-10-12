@@ -2226,7 +2226,9 @@
       "badEmail": "Periksa alamat email.",
       "signupClosed": "Akun baru belum dapat dibuat saat ini.",
       "suspended": "Akun ini ditangguhkan.",
-      "sessionEnded": "Sesi Anda berakhir. Masuk lagi."
+      "sessionEnded": "Sesi Anda berakhir. Masuk lagi.",
+      "v2AlreadyHere": "Akun ini sudah pindah ke sini. Gunakan kata sandi yang Anda buat di sini.",
+      "v2SameEmail": "Anda sudah punya akun di sini dengan email ini. Masuk dengan kata sandi yang Anda pakai di sini."
     },
     "signIn": {
       "tagline": "Mengoordinasikan penerjemahan Alkitab — dari draf sampai disetujui",

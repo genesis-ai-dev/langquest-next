@@ -2308,7 +2308,9 @@
       "badEmail": "Ku duba adireshin imel.",
       "signupClosed": "Ba za a iya buɗe sababbin asusu ba a yanzu.",
       "suspended": "An dakatar da wannan asusu.",
-      "sessionEnded": "Zamanku ya ƙare. Ku sake shiga."
+      "sessionEnded": "Zamanku ya ƙare. Ku sake shiga.",
+      "v2AlreadyHere": "Wannan asusun ya riga ya koma nan. Yi amfani da kalmar sirrin da kuka sa a nan.",
+      "v2SameEmail": "Kuna da asusu a nan da wannan imel tuni. Ku shiga da kalmar sirrin da kuke amfani da ita a nan."
     },
     "signIn": {
       "tagline": "Gudanar da fassarar Littafi Mai Tsarki — daga daftari zuwa amincewa",

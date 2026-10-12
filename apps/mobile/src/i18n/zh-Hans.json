@@ -2226,7 +2226,9 @@
       "badEmail": "请检查邮箱地址。",
       "signupClosed": "目前无法创建新账号。",
       "suspended": "这个账号已被停用。",
-      "sessionEnded": "你的登录已过期。请重新登录。"
+      "sessionEnded": "你的登录已过期。请重新登录。",
+      "v2AlreadyHere": "这个账号已经转到这里了。请使用你在这里设置的密码。",
+      "v2SameEmail": "你在这里已经有用这个邮箱的账号。请用你在这里使用的密码登录。"
     },
     "signIn": {
       "tagline": "协调圣经翻译——从草稿到批准",

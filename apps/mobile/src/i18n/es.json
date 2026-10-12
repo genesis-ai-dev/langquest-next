@@ -2390,7 +2390,9 @@
       "badEmail": "Revisa la dirección de correo.",
       "signupClosed": "Ahora no se pueden crear cuentas nuevas.",
       "suspended": "Esta cuenta está suspendida.",
-      "sessionEnded": "Tu sesión terminó. Vuelve a iniciar sesión."
+      "sessionEnded": "Tu sesión terminó. Vuelve a iniciar sesión.",
+      "v2AlreadyHere": "Esta cuenta ya se trasladó aquí. Usa la contraseña que pusiste aquí.",
+      "v2SameEmail": "Ya tienes una cuenta aquí con este correo. Inicia sesión con la contraseña que usas aquí."
     },
     "signIn": {
       "tagline": "Coordinando la traducción de la Biblia, del borrador a la aprobación",

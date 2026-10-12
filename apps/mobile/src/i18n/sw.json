@@ -2308,7 +2308,9 @@
       "badEmail": "Angalia anwani ya barua pepe.",
       "signupClosed": "Akaunti mpya haziwezi kufunguliwa sasa hivi.",
       "suspended": "Akaunti hii imesimamishwa.",
-      "sessionEnded": "Muda wako wa kuingia umeisha. Ingia tena."
+      "sessionEnded": "Muda wako wa kuingia umeisha. Ingia tena.",
+      "v2AlreadyHere": "Akaunti hii tayari imehamia hapa. Tumia nenosiri uliloweka hapa.",
+      "v2SameEmail": "Tayari una akaunti hapa yenye barua pepe hii. Ingia kwa nenosiri unalotumia hapa."
     },
     "signIn": {
       "tagline": "Kuratibu tafsiri ya Biblia — kutoka rasimu hadi idhini",

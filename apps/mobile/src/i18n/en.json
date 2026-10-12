@@ -2308,7 +2308,9 @@
       "badEmail": "Check the email address.",
       "signupClosed": "New accounts cannot be made right now.",
       "suspended": "This account is suspended.",
-      "sessionEnded": "Your session ended. Sign in again."
+      "sessionEnded": "Your session ended. Sign in again.",
+      "v2AlreadyHere": "This account has already moved here. Use the password you set here.",
+      "v2SameEmail": "You already have an account here with this email. Sign in with the password you use here."
     },
     "signIn": {
       "tagline": "Coordinating Bible translation — draft to approval",
