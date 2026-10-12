@@ -22,9 +22,11 @@ export const BASELINES: [name: string, args: string][] = [
   ['normalDay-default', 'normalDay'],
   ['normalDay-45', 'normalDay --passages=1000 --translators=27 --reviewers=17'],
   ['normalDay-131', 'normalDay --passages=3000 --translators=80 --reviewers=50'],
+  ['normalDay-audio', 'normalDay --audio=1'],
   ['village-small', 'villageReconnect --passages=300 --translators=5 --reviewers=3 --offlineDays=7'],
   ['village-default', 'villageReconnect'],
   ['village-large', 'villageReconnect --passages=3000 --translators=40 --reviewers=25 --offlineDays=28'],
+  ['village-audio', 'villageReconnect --audio=1'],
   ['bump-default', 'reducerBump'],
   ['bump-oldRule', 'reducerBump --snapshotMinNew=1 --snapshotMaxAgeMin=0 --snapshotRetainHours=0'],
   ['bump-slow5KBps', 'reducerBump --slowKBps=5 --chunkKB=32'],
@@ -86,6 +88,12 @@ function render(all: [string, Result][]): string {
     r.phones.pushDelayMinutes.p95, r.phones.propagationMinutes.p95, r.agreement?.agree ? 'yes' : 'NO'
   ]);
   let md = '';
+  const withAudio = all.filter(([, r]) => r.report.audio);
+  if (withAudio.length) {
+    md += `\n### Audio (runs with --audio=1)\n\n${head(['Run', 'Recorded', 'Lost', 'MB up', 'MB down', 'Failed transfers', 'To server p50 min', 'To server p95 min', 'Playable elsewhere p50 min', 'Playable elsewhere p95 min', 'Work lists', 'Work-list CPU s'])}\n`;
+    md += withAudio.map(([n, { report: { audio: a } }]) => row([n, a!.recorded, a!.lost, a!.mbUp, a!.mbDown, a!.uploadFailures + a!.downloadFailures,
+      a!.toServerMinutes.p50, a!.toServerMinutes.p95, a!.playableElsewhereMinutes.p50, a!.playableElsewhereMinutes.p95, a!.workLists, a!.workListCpuSeconds])).join('\n') + '\n';
+  }
   for (const scenario of ['normalDay', 'villageReconnect', 'reducerBump', 'slowLink', 'refoldTriggers']) {
     const runs = all.filter(([, r]) => r.scenario === scenario);
     if (runs.length === 0) continue;

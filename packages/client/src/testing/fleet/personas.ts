@@ -15,7 +15,15 @@ export interface Persona {
   readonly role: 'coordinator' | 'translator' | 'reviewer';
   observe(event: AnyEvent): void;
   /** The next thing to do, or null when there is nothing to do yet. */
-  next(): Action | null;
+  next(phone?: PhoneView): Action | null;
+  /** Passages this person keeps offline beyond what the app keeps by default (Keep offline). */
+  wants?(): Iterable<string>;
+}
+
+/** What a person can tell from their phone besides the events they saw. */
+export interface PhoneView {
+  /** Can these audio files be played here now? */
+  hasAudio(hashes: readonly string[]): boolean;
 }
 
 export const FLOW_ID = 'standard_bible';
@@ -108,17 +116,28 @@ export function translator(o: { actorId: string; index: number; of: number; rand
  */
 export function reviewer(o: { actorId: string; kindId: string; random: Random; sendBackRate?: number; noteRate?: number }): Persona {
   const queue: string[] = [];
+  const queued = new Set<string>();
   const unitOf = new Map<string, string>();
+  const cardsOf = new Map<string, string[]>();
   let reviews = 0;
   return {
     role: 'reviewer',
     observe(e) {
-      if (e.type === 'v1.TakeComposed') unitOf.set(e.payload.takeId, e.payload.unitId);
-      else if (e.type === 'v1.TakeSubmitted' && e.actorId !== o.actorId) queue.push(e.payload.takeId);
+      if (e.type === 'v1.TakeComposed') {
+        unitOf.set(e.payload.takeId, e.payload.unitId);
+        cardsOf.set(e.payload.takeId, e.payload.cardHashes);
+      } else if (e.type === 'v1.TakeSubmitted' && e.actorId !== o.actorId && !queued.has(e.payload.takeId)) {
+        queued.add(e.payload.takeId);
+        queue.push(e.payload.takeId);
+      }
     },
-    next() {
-      const takeId = queue.shift();
-      if (!takeId) return null;
+    // A version waiting for review is one to keep on the phone.
+    wants: () => queue.map((takeId) => unitOf.get(takeId)).filter((u): u is string => !!u),
+    next(phone) {
+      // Nobody reviews what they cannot hear: the first waiting version whose audio is here.
+      const i = queue.findIndex((takeId) => !phone || phone.hasAudio(cardsOf.get(takeId) ?? []));
+      if (i < 0) return null;
+      const takeId = queue.splice(i, 1)[0]!;
       const id = `${o.actorId}-review${++reviews}`;
       const outcome = o.random.chance(o.sendBackRate ?? 0.3) ? 'needs_changes' : 'looks_good';
       const action: Action = [{ type: 'v1.ReviewRecorded', payload: { reviewId: id, takeId, kindId: o.kindId, outcome, via: 'app' } }];

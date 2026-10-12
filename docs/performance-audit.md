@@ -385,6 +385,13 @@ bump the revision once per batch instead of once per event
 
 ## 4. Found along the way
 
+- **Transfer work lists (open).** The fleet's audio runs
+  (`fleet-simulation.md`, Audio) show each transfer worker scanning the
+  whole language on every pass, and a pass follows every sync, poke and
+  minute: 581,439 work lists and 45.6 s of CPU across 14 phones in a week,
+  against about 2 s of sync CPU. A work list cached per fold revision and
+  per change to the files on the phone would make most passes free.
+
 - **Waking a phone with no signal (fixed 2026-10-12).** The fleet showed a
   phone out of signal woke sync every 5 minutes, the scheduler's ceiling,
   for as long as the app stayed open. A phone now wakes sync when its

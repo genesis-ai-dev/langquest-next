@@ -15,6 +15,23 @@ export interface LinkState extends NetworkShape {
   online(now: number): boolean;
 }
 
+/**
+ * One direction of a link's bandwidth, shared by everything a device sends
+ * or receives on it: sync calls and audio transfers queue for the same
+ * bytes, as they do on a phone, instead of each getting the whole link.
+ */
+export class LinkPipe {
+  private busyUntil = 0;
+
+  /** Wait until `bytes` have crossed, after whatever is already crossing. */
+  carry(bytes: number, link: NetworkShape, now: () => number, sleep: (ms: number) => Promise<void>): Promise<void> {
+    const ms = Number.isFinite(link.bytesPerSecond) ? (bytes / link.bytesPerSecond) * 1000 : 0;
+    const start = Math.max(now(), this.busyUntil);
+    this.busyUntil = start + ms;
+    return sleep(this.busyUntil - now() + link.latencyMs / 2);
+  }
+}
+
 interface ShapeOptions {
   /** Read on every call, so a device can move to another link mid-run. */
   link: () => LinkState;
@@ -22,6 +39,8 @@ interface ShapeOptions {
   /** Real or simulated (`VirtualTime.sleep`). */
   sleep: (ms: number) => Promise<void>;
   random: () => number;
+  /** Bandwidth shared with the device's other traffic (audio); without it each call has the link to itself. */
+  pipes?: { up: LinkPipe; down: LinkPipe };
 }
 
 /**
@@ -36,14 +55,17 @@ export function shapeTransport(inner: Transport, o: ShapeOptions): Transport {
   const transferMs = (bytes: number, l: NetworkShape) =>
     Number.isFinite(l.bytesPerSecond) ? (bytes / l.bytesPerSecond) * 1000 : 0;
 
+  const send = (bytes: number, l: NetworkShape, dir: 'up' | 'down') =>
+    o.pipes ? o.pipes[dir].carry(bytes, l, o.now, o.sleep) : o.sleep(l.latencyMs / 2 + transferMs(bytes, l));
+
   async function call<T>(upBytes: number, run: () => Promise<T>, size: (result: T) => number): Promise<T> {
     const out = o.link();
     if (!out.online(o.now())) throw new OfflineError('offline');
-    await o.sleep(out.latencyMs / 2 + transferMs(upBytes, out));
+    await send(upBytes, out, 'up');
     if (o.random() < out.dropRate / 2) throw new OfflineError('fetch failed');
     const result = await run();
     const back = o.link();
-    await o.sleep(back.latencyMs / 2 + transferMs(size(result), back));
+    await send(size(result), back, 'down');
     // The server has done the work; losing the answer now is unknown success.
     if (!back.online(o.now()) || o.random() < back.dropRate / 2) throw new OfflineError('fetch failed');
     return result;
