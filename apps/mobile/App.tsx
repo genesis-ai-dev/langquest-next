@@ -1,14 +1,18 @@
 import { StudyPrefetch } from './src/study/StudyPrefetch';
-import { HelpModeProvider, useScreenIntro } from './src/helpMode';
+import { HelpModeProvider } from './src/helpMode';
+import { keepHelpAudio } from './src/helpAudio';
+import { languageReady, onLanguageReady } from './src/i18n/start';
 import { HelpScopeContext } from './src/helpContext';
-import { highlightsFor, orgLanguages, updatesFor, type EventSpec } from '@langquest-next/core';
+import { stopAudioPlayback } from './src/audioSession';
+import { CommandError, highlightsFor, orgLanguages, updatesFor, type EventSpec } from '@langquest-next/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session as AuthSession } from '@supabase/supabase-js';
 import { StatusBar } from 'expo-status-bar';
 import { CommonActions, NavigationContainer, NavigationContext, type RouteProp } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Component, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
-import { AccessibilityInfo, Dimensions, Linking, Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { AccessibilityInfo, Dimensions, Linking, Platform, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Text } from './src/text';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import type { Ctx, RecentPassage } from './src/ctx';
 import { DevMenu } from './src/DevMenu';
@@ -24,6 +28,8 @@ import { LayoutContext, PaneSelectionContext, type Layout, type OpenDetail } fro
 import { indexesFor } from './src/indexes';
 import { EmptyState, FooterHeightContext, GhostBtn, ToastView, txt, type ToastSpec } from './src/kit';
 import { installGlobalHandlers, noteExpected, reportError } from './src/report';
+import { commandErrorText } from './src/coreText';
+import { t } from './src/i18n';
 import { personLook } from './src/people';
 import { navRef, useNav, type Route, type StackParams } from './src/nav';
 import * as Account from './src/screens/account';
@@ -136,9 +142,14 @@ function hostFor(id: ScreenId) {
   const Screen = SCREENS[id];
   function Host(props: HostProps) {
     const ctx = useContext(CtxContext);
-    // What the screen is for, said the first time it opens (decision 71, demo a-helpFirst).
     const focused = useFocusedSafe();
-    useScreenIntro(id, focused);
+    // Playback belongs to the screen it started on: leaving it (another screen pushed over it, or a tab
+    // switched away) stops whatever was playing. Popping back unmounts the screen, and its players with it.
+    const wasFocused = useRef(focused);
+    useEffect(() => {
+      if (wasFocused.current && !focused) stopAudioPlayback();
+      wasFocused.current = focused;
+    }, [focused]);
     const pane = useContext(PaneKeyContext);
     const report = useContext(FooterReportContext);
     const key = props.route.key;
@@ -218,7 +229,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
 
   override render() {
     if (!this.state.error) return this.props.children;
-    return <Fatal title="Something went wrong" id={this.state.id} detail={this.state.error.stack ?? this.state.error.name} />;
+    return <Fatal title={t('shell.errors.somethingWentWrong')} id={this.state.id} detail={this.state.error.stack ?? this.state.error.name} />;
   }
 }
 
@@ -242,11 +253,11 @@ class ScreenBoundary extends Component<{ screen: ScreenId; onBack: () => void; o
     const reset = (then: () => void) => () => { this.setState({ error: null, id: '' }); then(); };
     return (
       <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.md, backgroundColor: C.bg, flexGrow: 1 }}>
-        <Text style={txt.h2} accessibilityRole="header">This screen could not open</Text>
-        <Text style={txt.body}>Your recordings and everything you saved are safe on this device.</Text>
-        <Text style={txt.smMuted} selectable>If it keeps happening, tell your team this code: {this.state.id}</Text>
-        <GhostBtn label="Go back" icon="left" onPress={reset(this.props.onBack)} />
-        <GhostBtn label="Go to My Work" icon="home" onPress={reset(this.props.onHome)} />
+        <Text style={txt.h2} accessibilityRole="header">{t('shell.errors.screenTitle')}</Text>
+        <Text style={txt.body}>{t('shell.errors.safe')}</Text>
+        <Text style={txt.smMuted} selectable>{t('shell.errors.tellCode', { code: this.state.id })}</Text>
+        <GhostBtn label={t('shell.errors.goBack')} icon="left" onPress={reset(this.props.onBack)} />
+        <GhostBtn label={t('shell.errors.goToMyWork')} icon="home" onPress={reset(this.props.onHome)} />
       </ScrollView>
     );
   }
@@ -257,8 +268,8 @@ function Fatal(props: { title: string; detail: string; id?: string }) {
   return (
     <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.md }}>
       <Text style={txt.h3}>{props.title}</Text>
-      <Text style={txt.body}>Your recordings and everything you saved are safe on this device.</Text>
-      {props.id ? <Text style={txt.smMuted} selectable>Code for your team: {props.id}</Text> : null}
+      <Text style={txt.body}>{t('shell.errors.safe')}</Text>
+      {props.id ? <Text style={txt.smMuted} selectable>{t('shell.errors.codeForTeam', { code: props.id })}</Text> : null}
       <Text style={txt.xs} selectable>{props.detail}</Text>
     </ScrollView>
   );
@@ -266,7 +277,12 @@ function Fatal(props: { title: string; detail: string; id?: string }) {
 
 export default function App() {
   const [auth, setAuth] = useState<AuthSession | null | undefined>(undefined);
+  // In a browser the chosen language's words arrive as a file; draw nothing until they have (src/i18n/start.ts).
+  const [wordsReady, setWordsReady] = useState(languageReady);
+  useEffect(() => onLanguageReady(() => setWordsReady(true)), []);
   useEffect(() => { installGlobalHandlers(); lockPhonesToPortrait(); }, []);
+  // Help speaks offline too: keep the recorded help lines of the app's language (decision 81).
+  useEffect(() => { void keepHelpAudio(); }, []);
   // Work people left unsent when they signed out of this phone goes as them (decisions.md 60).
   useHandOvers(auth === undefined ? undefined : auth?.user.id ?? null);
   useEffect(() => {
@@ -281,8 +297,8 @@ export default function App() {
         <StatusBar style="dark" />
         <UpdateBanner />
         {supabaseConfigError ? (
-          <Fatal title="This build is not configured" detail={supabaseConfigError} />
-        ) : auth === undefined ? null : (
+          <Fatal title={t('shell.errors.notConfigured')} detail={supabaseConfigError} />
+        ) : auth === undefined || !wordsReady ? null : (
           <ErrorBoundary>
             {/* Help mode: a ? on every screen's header; while on, taps explain (demo ADR-038). */}
             <HelpModeProvider>
@@ -348,7 +364,7 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
   // The held invite is used here, above the organization, so opening the
   // organization it joined cannot interrupt it.
   const invite = useHeldInvite(props.signedIn ? props.actorId : null, openOrganization);
-  if (!decided) return <View style={styles.root} accessibilityLabel="Opening your organization" />;
+  if (!decided) return <View style={styles.root} accessibilityLabel={t('shell.openingOrganization')} />;
   return <Workspace key={`${orgId}:${selectionRevision}`} {...props} orgId={orgId} noOrganizations={noOrganizations} openOrganization={openOrganization} invite={invite} />;
 }
 
@@ -361,7 +377,7 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
 function Workspace(props: { actorId: string; email: string | null; signedIn: boolean; orgId: string | null; noOrganizations: boolean; openOrganization: Ctx['openOrganization']; invite: InviteHandle }) {
   const org = useOrg(props.orgId, props.actorId);
   const known = org.state !== null && (org.state.org !== null || org.settled);
-  if (!known) return <View style={styles.root} accessibilityLabel="Opening your organization" />;
+  if (!known) return <View style={styles.root} accessibilityLabel={t('shell.openingOrganization')} />;
   // No organization: the screens still need an id for their keys; '' names none.
   return <OrgWork {...props} orgId={props.orgId ?? ''} org={org} />;
 }
@@ -464,17 +480,20 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     try {
       await languageRef.current.run(specs);
     } catch (e) {
-      toast(`Not saved: ${(e as Error).message}`);
+      // Core's refusal in words; anything else is a fault, with its code.
+      toast(e instanceof CommandError ? t('shell.toast.notSaved', { reason: commandErrorText(e) }) : t('shell.toast.notSavedCode', { code: reportError('save change', e) }));
       throw e;
     }
     toast(message, undo ? async () => {
-      try { await languageRef.current.run(undo()); toast('Undone.'); } catch (e) { toast(`Could not undo: ${(e as Error).message}`); }
+      try { await languageRef.current.run(undo()); toast(t('common.undone')); } catch (e) {
+        toast(e instanceof CommandError ? t('shell.toast.notUndone', { reason: commandErrorText(e) }) : t('shell.toast.notUndoneCode', { code: reportError('undo change', e) }));
+      }
     } : undefined);
   }, [toast]);
 
   // ---- names: the signed-in person is always "you" (CORE-6) ----
   const name = useCallback((id: string, lower = false) => {
-    if (id === props.actorId) return lower ? 'you' : 'You';
+    if (id === props.actorId) return lower ? t('shell.youInSentence') : t('common.you');
     return people[id] ?? personLook(id).name;
   }, [people, props.actorId]);
 
@@ -571,14 +590,14 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
       if (!edge) {
         if (TAB_SCREENS.includes(to)) return nav.reset(route);
         reportError(`flow blocked ${from} -> ${to}: no edge`, new Error('undeclared transition'));
-        toast("That can't be opened from here.");
+        toast(t('shell.nav.cannotOpenHere'));
         return;
       }
       // Gates are permissions (who MAY act), part of the machine: a screen
       // must not offer an affordance the session cannot take.
       if (!edgeAllowed(edge, session)) {
         reportError(`flow blocked ${from} -> ${to}: gate ${edge.when}`, new Error('gate not met'));
-        toast("You don't have permission to open that.");
+        toast(t('shell.nav.noPermission'));
         return;
       }
       const mode = edge.mode ?? 'push';
@@ -719,7 +738,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
       goFrom(split.list.screen, split.list.key, 'passage_record', { unitId, languageId: inLanguage, ...extra });
     }
   } : null;
-  // The toast on a wide window: over the content, just above the top screen's footer.
+  // The toast sits over the content, just above the top screen's footer, so it never covers its buttons.
   const [footers, setFooters] = useState<Record<string, number>>({});
   const reportFooter = useCallback((key: string, height: number) => {
     setFooters((f) => (f[key] === height ? f : { ...f, [key]: height }));
@@ -737,7 +756,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
           {split && paneCtx ? <PaneSlot key={split.list.key} route={split.list} ctx={paneCtx} layout={paneLayout} open={openDetail} /> : null}
           <LayoutContext.Provider value={stackLayout}>
           <PaneKeyContext.Provider value={paneKey}>
-          <FooterReportContext.Provider value={wide ? reportFooter : null}>
+          <FooterReportContext.Provider value={reportFooter}>
           <CtxContext.Provider value={ctx}>
             <StudyPrefetch ctx={ctx} />
             {/* Its own box, so the native stack ends where the tab bar begins
@@ -758,7 +777,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
                 ))}
               </Stack.Navigator>
             </NavigationContainer>
-            {wide ? toastHost(toastAbove) : null}
+            {toastHost(toastAbove)}
             </View>
           </CtxContext.Provider>
           </FooterReportContext.Provider>
@@ -767,7 +786,6 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
         </View>
         {!wide && showTabs ? navChrome('bar') : null}
       </PeopleContext.Provider>
-      {wide ? null : toastHost(showTabs ? 96 : 24)}
       {canSwitchPersona ? (
         <DevMenu open={devOpen} onClose={() => setDevOpen(false)} language={language} org={org} currentEmail={props.email} isOwner={session.role === 'owner'} isDev={IS_DEV} jump={(s) => nav.reset({ screen: s })} />
       ) : null}
@@ -799,8 +817,8 @@ function ToastHost(props: { register: (show: (spec: ToastSpec) => void) => void;
   useEffect(() => {
     props.register((next) => {
       if (timer.current) clearTimeout(timer.current);
-      setSpec(next);
       const ms = (next.undo ? 7000 : 3500) * (reader.current ? 2 : 1);
+      setSpec({ ...next, ms });
       timer.current = setTimeout(() => setSpec((t) => (t?.id === next.id ? null : t)), ms);
     });
   }, [props.register]);

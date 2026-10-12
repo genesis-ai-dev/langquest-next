@@ -13,6 +13,8 @@ import { ORG_STREAM, type MediaRef } from '@langquest-next/core';
 import { Platform } from 'react-native';
 import { getBlobStore, isStoredFormat, type StoredFile, type StoredFormat } from '../blobs';
 import { uploadBlob } from '../blobTransport';
+import { formatNumber } from '../i18n/format';
+import { t } from '../i18n';
 import type { StudyMediaKind } from '../study/guides';
 import type { GuideDraft } from './draft';
 import { draftFiles } from './draft';
@@ -103,9 +105,11 @@ export class FileProblem extends Error {}
  * picture with its phone copy (`lowHash`), a film or an audio file as it is.
  */
 export async function keepPicked(file: File, kind: PickKind): Promise<MediaRef> {
-  if (file.size > MAX_BYTES) throw new FileProblem(`That file is ${Math.round(file.size / 1024 / 1024)} MB. Files can be up to 50 MB; make it smaller first.`);
+  if (file.size > MAX_BYTES) {
+    throw new FileProblem(t('guides.files.tooBig', { size: formatNumber(Math.round(file.size / 1024 / 1024)), max: formatNumber(MAX_BYTES / 1024 / 1024) }));
+  }
   const format = formatOfFile(file.type, file.name);
-  if (!format) throw new FileProblem(`The app can't keep “${file.name}”. Use JPEG, PNG or WebP pictures, MP4 films, or MP3, M4A, WAV or OGG audio.`);
+  if (!format) throw new FileProblem(t('guides.files.cannotKeep', { name: file.name }));
   const store = await getBlobStore();
   const original = await store.ingestBytes(await bytesOf(file), format);
   if (kind === 'image') {

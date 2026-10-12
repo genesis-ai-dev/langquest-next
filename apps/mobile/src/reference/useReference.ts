@@ -6,7 +6,9 @@
 import { CommandError, libraryItems, type LibraryDoc, type LibraryItemView, type SourceDoc, type VersificationDoc } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { commandErrorText } from '../coreText';
 import type { Ctx } from '../ctx';
+import { t } from '../i18n';
 import { cachedDoc, hashOf, keepNewDoc, loadDocs } from '../library/docStore';
 import type { SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs } from '../library/useLibrary';
@@ -22,13 +24,22 @@ export function levelOf(ctx: Ctx): Level {
   return languageId && ctx.language.languageId === languageId ? { kind: 'language', languageId } : { kind: 'org' };
 }
 
+const NETWORK = /network|fetch|offline|timed? ?out|not connected/i;
+
 /** Say "not connected" plainly for a server action, else the fault with a code. */
 export function referenceFailure(where: string, e: unknown): string {
-  if (e instanceof Error && !(e instanceof CommandError) && /network|fetch|offline|timed? ?out|not connected/i.test(e.message)) {
-    return 'Not connected. Try again when you are online.';
-  }
-  if (e instanceof CommandError || e instanceof BibleError) return e.message;
+  if (e instanceof Error && !(e instanceof CommandError) && !(e instanceof BibleError) && NETWORK.test(e.message)) return t('common.notConnected');
+  if (e instanceof CommandError) return commandErrorText(e);
+  // Bible Brain's errors are worded in the language showing (sources/bibleBrain.ts).
+  if (e instanceof BibleError) return e.message;
   return failureMessage(where, e);
+}
+
+/** A refusal from the server (Supabase), in the person's words: not connected, not allowed, or a general one. Its own message is English. */
+function serverRefusal(error: { message: string; code?: string }): CommandError {
+  if (NETWORK.test(error.message)) return new CommandError(t('common.notConnected'));
+  if (error.code === '42501') return new CommandError(t('reference.errors.notAllowed'));
+  return new CommandError(t('reference.errors.serverRefused'));
 }
 
 async function write(ctx: Ctx, w: RecWrite, message: string, undo?: RecWrite): Promise<boolean> {
@@ -45,11 +56,11 @@ async function write(ctx: Ctx, w: RecWrite, message: string, undo?: RecWrite): P
   try {
     await ctx.org.append('v1.ReferenceRecommended', w.payload as { itemId: string; recommended: boolean });
   } catch (e) {
-    ctx.toast(`Not saved. ${referenceFailure('recommend', e)}`);
+    ctx.toast(t('common.notSaved', { reason: referenceFailure('recommend', e) }));
     return false;
   }
   if (message) ctx.toast(message, undo ? async () => {
-    try { await ctx.org.append('v1.ReferenceRecommended', undo.payload as { itemId: string; recommended: boolean }); ctx.toast('Undone.'); } catch (e) { ctx.toast(`Not undone. ${referenceFailure('undo recommend', e)}`); }
+    try { await ctx.org.append('v1.ReferenceRecommended', undo.payload as { itemId: string; recommended: boolean }); ctx.toast(t('common.undone')); } catch (e) { ctx.toast(t('common.notUndone', { reason: referenceFailure('undo recommend', e) })); } // i18n-ignore: 'undo recommend' is a log label
   } : undefined);
   return true;
 }
@@ -100,7 +111,7 @@ export async function versificationHash(lib: ReturnType<typeof useLibrary>, code
   if (hit) return hit.current!;
   const row = shared.find((s) => s.org_id === 'langquest' && s.item_id === `langquest.versification.${code}`)
     ?? shared.find((s) => s.item_id.endsWith(`.versification.${code}`));
-  if (!row) throw new CommandError(`This organization has no ${code.toUpperCase()} versification yet. Follow one under Content Templates first.`);
+  if (!row) throw new CommandError(t('reference.errors.noVersification', { code: code.toUpperCase() }));
   await lib.subscribe(row, true);
   return row.latest_hash;
 }
@@ -139,7 +150,7 @@ export function useTimingJobs(orgId: string, itemId: string | null, enabled: boo
       setError('');
     } catch (e) {
       noteExpected('timing jobs', e);
-      setError(e instanceof Error ? e.message : 'Not connected.');
+      setError(t('reference.errors.jobsNotLoaded'));
     } finally {
       setLoaded(true);
     }
@@ -164,7 +175,7 @@ export async function requestTimings(orgId: string, c: { itemId: string; bibleId
     p_books: c.books, p_versification: c.versification,
     ...(c.publishTo ? { p_publish_org: c.publishTo.org, p_publish_item: c.publishTo.item } : {})
   });
-  if (error) throw new CommandError(error.message);
+  if (error) throw serverRefusal(error);
   return data as string;
 }
 
@@ -174,18 +185,18 @@ export async function requestTimings(orgId: string, c: { itemId: string; bibleId
  * again; what is already there is not published twice.
  */
 export async function publishTimingJob(lib: ReturnType<typeof useLibrary>, it: LibraryItemView, jobId: string, base: string | null = it.current): Promise<TimingPublication> {
-  if (it.source === 'subscription') throw new CommandError('This Bible follows another organization. Copy it to add timings.');
+  if (it.source === 'subscription') throw new CommandError(t('reference.errors.followedNoTimings'));
   const { data, error } = await supabase.rpc('timing_job_results', { p_org: lib.orgId, p_job: jobId });
-  if (error) throw new CommandError(error.message);
+  if (error) throw serverRefusal(error);
   const rows = (data ?? []) as TimingResultRow[];
   const loaded = await loadDocs(lib.orgId, [base]);
   const get = (h: string | null | undefined) => (h ? loaded.get(h) ?? cachedDoc(h) : null);
   const source = get(base) as SourceDoc | null;
-  if (!source || source.format !== 'source@1') throw new CommandError('The Bible is not on this device yet. Try again when connected.');
+  if (!source || source.format !== 'source@1') throw new CommandError(t('reference.errors.bibleNotHere'));
   // Its books, so chapters already timed keep their timings and text is carried over (books do not come with the source).
   const books = await loadDocs(lib.orgId, source.books.map((b) => b.doc), { deps: false });
   for (const [h, d] of books) loaded.set(h, d);
-  if (source.books.some((b) => b.doc && !loaded.get(b.doc) && !cachedDoc(b.doc))) throw new CommandError('Some of the Bible is not on this device yet. Try again when connected.');
+  if (source.books.some((b) => b.doc && !loaded.get(b.doc) && !cachedDoc(b.doc))) throw new CommandError(t('reference.errors.someBibleNotHere'));
   const own = lib.items('versification').filter((v) => v.current);
   const vdocs = await loadDocs(lib.orgId, [source.versification, ...own.map((v) => v.current)]);
   const versifications = [source.versification, ...own.map((v) => v.current!)]
@@ -196,6 +207,7 @@ export async function publishTimingJob(lib: ReturnType<typeof useLibrary>, it: L
   for (const d of pub.docs) if (d.doc.format !== 'source@1') await keepNewDoc(lib.orgId, d.text, d.hash);
   await lib.publish({
     kind: 'material', itemId: it.itemId, name: it.name, description: it.description, doc: pub.source.doc,
+    // i18n-ignore: the version's note is stored in the organization's event log
     note: `Verse timings for ${pub.placed.length} chapter${pub.placed.length === 1 ? '' : 's'}`
   });
   return pub;
@@ -228,11 +240,11 @@ export function useTimingPublisher(ctx: Ctx, lib: ReturnType<typeof useLibrary>,
           setOutcomes((o) => ({ ...o, [j.id]: pub }));
           if (pub.source) {
             base = pub.source.hash;
-            ctx.toast(`Verse timings published for ${pub.placed.length} chapter${pub.placed.length === 1 ? '' : 's'}.`);
+            ctx.toast(t('reference.source.timingsPublishedFor', { count: pub.placed.length }));
           }
         } catch (e) {
           tried.current.delete(j.id);
-          setOutcomes((o) => ({ ...o, [j.id]: { error: referenceFailure('publish timings', e) } }));
+          setOutcomes((o) => ({ ...o, [j.id]: { error: referenceFailure('publish timings', e) } })); // i18n-ignore: 'publish timings' is a log label
         }
       }
     })();

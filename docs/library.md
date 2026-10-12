@@ -54,6 +54,10 @@ subscription, its pinned version.
 Before either, `library_adopt` gives the organization access to the version
 and everything it depends on. That copy of access is what makes it
 self-contained (PLAN.md invariant 6): no live link to the other organization.
+The phone then fetches the version's document and what it depends on,
+except a Bible source's books and a collection's guides: only their
+numbering comes, and each book or guide is fetched by its own hash when a
+passage reads it (`loadDocs`; decisions.md 71, amended 2026-10-11).
 
 ## Languages
 
@@ -74,6 +78,9 @@ When an item a language uses moves to a new version (an edit here, or a
 subscription update), the next device of someone who may apply it does so.
 
 ### Breaking up the Bible book by book (decision 74)
+
+The rules for numbering and dividing, with examples, are in
+`docs/breaking-up-the-bible.md` (decision 80).
 
 A `template@2` Bible lists its books, and each says how it is broken up:
 `divide: chapters` (one part a chapter, from the versification), `divide:

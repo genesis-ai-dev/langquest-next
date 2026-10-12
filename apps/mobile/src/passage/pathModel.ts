@@ -4,7 +4,11 @@
 // when a study guide with steps is attached, then Record and Publish; when
 // feedback comes back, Hear the feedback and Fix it join the path. The
 // language's flow follows under "Then the team". Pure, for tests.
-import { isCompleteState, stepName, type FlowStepStatus, type KindDef, type PassageState, type ReviewView } from '@langquest-next/core';
+import { isCompleteState, type FlowStepStatus, type KindDef, type PassageState, type ReviewView } from '@langquest-next/core';
+import { stepName } from '../coreText';
+import { t } from '../i18n';
+import { formatClock, formatNumber } from '../i18n/format';
+import { kindInSentence, versionTitle } from '../passageView';
 
 export type PathStepKind = 'study' | 'record' | 'publish' | 'feedback' | 'fix';
 /** done: finished; current: the lit step; todo: still to come; passed: left behind (a study nobody finished before recording). */
@@ -49,7 +53,7 @@ const kindName = (kinds: KindDef[], id: string) => kinds.find((k) => k.id === id
 
 /** "the community check" from "Community Check": how the path says a check in a sentence. */
 export function checkPhrase(name: string): string {
-  return `the ${name.toLowerCase()}`;
+  return t('passage.path.theCheck', { check: kindInSentence(name) });
 }
 
 /** The first check the flow asks for after a version, if any. */
@@ -59,11 +63,6 @@ export function firstCheck(p: PassageState): { kindId: string; step: FlowStepSta
     if (k) return { kindId: k.kindId, step };
   }
   return undefined;
-}
-
-function minutes(seconds: number): string {
-  const s = Math.max(0, Math.round(seconds));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
 /** The recording's own steps, top to bottom. */
@@ -79,43 +78,65 @@ export function pathSteps(input: PathInput): PathStep[] {
   if (input.study && input.study.total > 0) {
     const finished = input.study.done >= input.study.total;
     out.push({
-      kind: 'study', title: 'Study',
-      sub: finished ? `${input.study.name} · done` : `${input.study.name} · ${input.study.done} of ${input.study.total} steps`,
+      kind: 'study', title: t('passage.path.study'),
+      sub: finished ? t('passage.path.studyDone', { name: input.study.name })
+        : t('passage.path.studySteps', { name: input.study.name, done: formatNumber(input.study.done), count: input.study.total }),
       state: finished ? 'done' : p.recorded || p.drafting ? 'passed' : 'current'
     });
   }
 
   const recordAsk = p.openRequests.find((r) => r.what === 'record');
-  const askedLine = recordAsk ? `${recordAsk.by === me ? 'You' : recordAsk.by ? input.name(recordAsk.by) : 'Someone'} asked ${recordAsk.profileId === me ? 'you' : recordAsk.profileId ? input.name(recordAsk.profileId) : 'someone'}${recordAsk.dueDate ? ` · ${input.due ? input.due(recordAsk.dueDate) : `due ${recordAsk.dueDate}`}` : ''}` : '';
+  const askedLine = recordAsk ? [whoAsked(recordAsk, input), recordAsk.dueDate ? (input.due ? input.due(recordAsk.dueDate) : t('passage.path.dueOn', { date: recordAsk.dueDate })) : '']
+    .filter(Boolean).join(' · ') : '';
   out.push({
-    kind: 'record', title: 'Record',
+    kind: 'record', title: t('passage.path.record'),
     sub: p.recorded && latest
-      ? `Version ${latest.n}${input.latestSeconds ? ` · ${minutes(input.latestSeconds)}` : ''}`
+      ? [versionTitle(latest.n), input.latestSeconds ? formatClock(input.latestSeconds * 1000) : ''].filter(Boolean).join(' · ')
       : p.drafting
-        ? `${p.draftBy === me ? 'Your' : 'Some'} takes are recorded, not published yet.`
-        : [askedLine, 'Tell it in your language. The Bible, key words and notes are beside you while you record.'].filter(Boolean).join('. '),
+        ? (p.draftBy === me ? t('passage.path.yourTakes') : t('passage.path.someTakes'))
+        : askedLine ? t('passage.path.recordHintAsked', { asked: askedLine }) : t('passage.path.recordHint'),
     state: p.recorded ? 'done' : 'todo'
   });
 
   const asked = first ? first.step.kinds.find((k) => k.kindId === first.kindId)?.request : undefined;
   out.push({
-    kind: 'publish', title: 'Publish',
+    kind: 'publish', title: t('passage.path.publish'),
     sub: p.recorded && latest
-      ? `Published ${input.when(latest.hlc)}${asked ? ` · asked ${input.askedName?.(asked.kindId ?? '') ?? (asked.profileId ? input.name(asked.profileId) : asked.team?.name ?? 'someone')}` : ''}`
-      : firstName ? `Then ask for ${checkPhrase(firstName)}` : 'Save it for the team to hear',
+      ? [
+        t('passage.path.publishedWhen', { when: input.when(latest.hlc) }),
+        asked ? t('passage.path.status.askedWho', { who: input.askedName?.(asked.kindId ?? '') ?? (asked.profileId ? input.name(asked.profileId) : asked.team?.name ?? t('passage.path.someoneInSentence')) }) : ''
+      ].filter(Boolean).join(' · ')
+      : firstName ? t('passage.path.thenAskFor', { check: kindInSentence(firstName) }) : t('passage.path.saveForTeam'),
     state: p.recorded ? 'done' : 'todo'
   });
 
   if (answering) {
     const r = feedback[0]!;
-    out.push({ kind: 'feedback', title: 'Hear the feedback', sub: `${kindName(kinds, r.kindId)} · needs changes`, state: 'todo', review: r });
-    out.push({ kind: 'fix', title: 'Fix it, or keep it and say why', sub: 'Then it goes back to the check', state: 'todo' });
+    out.push({ kind: 'feedback', title: t('passage.path.hearFeedback'), sub: t('passage.path.feedbackSub', { kind: kindName(kinds, r.kindId) }), state: 'todo', review: r });
+    out.push({ kind: 'fix', title: t('passage.path.fix'), sub: t('passage.path.fixSub'), state: 'todo' });
   }
 
   // The lit step: the first one not done (a study left behind is passed, not current).
   const lit = out.find((s) => s.state !== 'done' && s.state !== 'passed');
   if (lit) lit.state = 'current';
   return out;
+}
+
+/** "after the community check" */
+function after(check: string): string {
+  return t('passage.path.status.after', { check: kindInSentence(check) });
+}
+
+/** Who asked for the recording, and of whom: "Mary asked you", "You asked Akol". */
+function whoAsked(r: { by?: string; profileId?: string }, input: PathInput): string {
+  const { me } = input;
+  if (r.by === me) {
+    if (r.profileId === me) return t('passage.path.asked.youAskedYou');
+    return r.profileId ? t('passage.path.asked.youAskedName', { name: input.name(r.profileId) }) : t('passage.path.asked.youAskedSomeone');
+  }
+  const by = r.by ? input.name(r.by) : t('common.someone');
+  if (r.profileId === me) return t('passage.path.asked.askedYou', { by });
+  return r.profileId ? t('passage.path.asked.askedName', { by, name: input.name(r.profileId) }) : t('passage.path.asked.askedSomeone', { by });
 }
 
 /** The team's checks after the recording, in the flow's order. */
@@ -129,21 +150,22 @@ export function teamSteps(input: PathInput): TeamStep[] {
     let state: TeamStep['state'];
     if (s.complete) {
       state = 'done';
-      status = s.override ? 'moved past' : states.every((x) => x === 'skipped') ? 'set aside' : states.includes('addressed') ? 'answered' : 'looks good';
+      status = s.override ? t('passage.path.status.movedPast') : states.every((x) => x === 'skipped') ? t('passage.path.status.setAside')
+        : states.includes('addressed') ? t('passage.path.status.answered') : t('passage.path.status.looksGood');
     } else if (states.includes('suggestions')) {
-      state = 'attention'; status = 'needs changes';
+      state = 'attention'; status = t('passage.path.status.needsChanges');
     } else if (s.lockedBy) {
-      state = 'locked'; status = `after ${checkPhrase(s.lockedBy)}`;
+      state = 'locked'; status = after(s.lockedBy);
     } else if (states.includes('asked')) {
       state = 'waiting';
       const k = s.kinds.find((x) => x.state === 'asked');
       const who = k?.request ? (input.askedName?.(k.kindId) ?? (k.request.profileId ? input.name(k.request.profileId) : k.request.team?.name ?? k.request.guest?.name)) : undefined;
-      status = who ? `asked ${who}` : 'asked';
+      status = who ? t('passage.path.status.askedWho', { who }) : t('passage.path.status.asked');
     } else {
       state = 'todo';
       status = !p.recorded
-        ? previous ? `after ${checkPhrase(previous.name)}` : 'after you publish'
-        : previous && !previous.complete ? `after ${checkPhrase(previous.name)}` : 'next';
+        ? previous ? after(previous.name) : t('passage.path.status.afterPublish')
+        : previous && !previous.complete ? after(previous.name) : t('passage.path.status.next');
     }
     // Later steps say the step before by its first check, so the line stays short.
     previous = { name: kindName(kinds, s.step.kindIds[0] ?? '') || name, complete: s.complete };

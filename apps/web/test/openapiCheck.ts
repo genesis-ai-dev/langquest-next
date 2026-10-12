@@ -3,7 +3,7 @@ import Ajv2020 from 'ajv/dist/2020';
 import { openApi } from '../worker/agent/openapi';
 
 /**
- * Holds the API to its OpenAPI document (decisions.md 81). agentApi.test.ts
+ * Holds the API to its OpenAPI document (decisions.md 86). agentApi.test.ts
  * passes every request it makes through `check`: the route must be in the
  * document, the response must match the document's schema for its status,
  * and a request the API took must match the document's request schema.

@@ -9,8 +9,11 @@
 // simulated, and the built-in text says it is a last resort.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import type { Ctx } from '../ctx';
+import { t } from '../i18n';
+import { formatNumber } from '../i18n/format';
 import { IconBtn, Ico, LinkBtn, txt } from '../kit';
 import type { ListenHooks } from '../recording/useListenLoop';
 import { markTerms } from '../recording/workspaceModel';
@@ -18,7 +21,7 @@ import { openContentLink } from '../share';
 import { lift } from '../shadow';
 import { C, radius, space, target, TINT, type as T, withAlpha } from '../theme';
 import { filesetsFor, sourceUsed, type SourceOption, type VerseRow } from './model';
-import { usePassagePlayer } from './player';
+import { PlayError, usePassagePlayer } from './player';
 import type { Usage } from './used';
 import { useChipMarks, usePassageSource, useSources, type PassageSources } from './useSources';
 
@@ -128,7 +131,7 @@ export function SourceView(props: SourceReaderProps & {
     resolve: (i) => {
       const part = src?.plan?.parts[i];
       const ch = src?.chapters.find((c) => c.chapter === part?.chapter);
-      if (!ch) return Promise.reject(new Error('No audio for this chapter.'));
+      if (!ch) return Promise.reject(new PlayError(t('sources.reader.noAudioForChapter')));
       return ch.resolve();
     },
     ...(props.listen ? { listen: props.listen } : {}),
@@ -168,7 +171,7 @@ export function SourceView(props: SourceReaderProps & {
   if (!passage.range) {
     return (
       <View style={styles.card}>
-        <Text style={txt.smMuted}>This passage doesn't name its verses, so no Bible text can be lined up with it.</Text>
+        <Text style={txt.smMuted}>{t('sources.reader.noVerses')}</Text>
       </View>
     );
   }
@@ -179,10 +182,10 @@ export function SourceView(props: SourceReaderProps & {
         <VersionChip key={o.itemId} option={o} label={chipLabel(o, passage.options)} on={o.itemId === option?.itemId} marks={marks[o.itemId] ?? []} onPress={() => props.onChoose?.(o)} />
       ))}
       {props.onMoreBibles ? (
-        <Pressable onPress={props.onMoreBibles} accessibilityRole="button" accessibilityLabel="More Bibles: find and add another Bible"
+        <Pressable onPress={props.onMoreBibles} accessibilityRole="button" accessibilityLabel={t('sources.reader.moreBiblesLabel')}
           style={({ pressed }) => [styles.chip, styles.moreChip, pressed && styles.pressed]}>
           <Ico name="plus" size={18} color={C.primary} />
-          <Text style={[styles.chipLabel, { color: C.primary }]}>More Bibles</Text>
+          <Text style={[styles.chipLabel, { color: C.primary }]}>{t('sources.reader.moreBibles')}</Text>
         </Pressable>
       ) : null}
     </ScrollView>
@@ -192,26 +195,29 @@ export function SourceView(props: SourceReaderProps & {
     <View style={styles.card}>
       {plan ? (
         <View style={styles.playerRow}>
-          <IconBtn name="restart" label="Back 10 seconds" size={target.min} bg={C.light} color={C.primary} disabled={!player.started} onPress={() => player.skip(-10)} />
+          <IconBtn name="restart" label={t('common.backTenSeconds')} size={target.min} bg={C.light} color={C.primary} disabled={!player.started} onPress={() => player.skip(-10)} />
           <IconBtn name={player.playing ? 'pause' : 'play'} size={target.primary} bg={C.light} color={C.primary}
-            label={player.playing ? 'Pause' : `Play the passage in ${abbr}`} onPress={player.toggle} />
-          <IconBtn name="skip" label="Forward 10 seconds" size={target.min} bg={C.light} color={C.primary} disabled={!player.started} onPress={() => player.skip(10)} />
+            label={player.playing ? t('common.pause') : t('sources.reader.playIn', { abbr })} onPress={player.toggle} />
+          <IconBtn name="skip" label={t('sources.reader.forwardTen')} size={target.min} bg={C.light} color={C.primary} disabled={!player.started} onPress={() => player.skip(10)} />
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={[txt.sm, { fontWeight: '700' }]} numberOfLines={1}>
-              {player.loading ? 'Loading…' : player.playing ? (player.current ? `Playing ${player.current.key}` : 'Playing') : player.started ? 'Paused' : 'Play passage'}
+              {player.loading ? t('common.loading') : player.playing ? (player.current ? t('sources.reader.playingVerse', { verse: player.current.key }) : t('sources.reader.playing'))
+                : player.started ? t('sources.reader.paused') : t('sources.reader.playPassage')}
             </Text>
-            <Text style={txt.xs} numberOfLines={1}>{abbr}{src?.chapters.some((c) => c.local) ? ' · on this device' : ''}</Text>
+            <Text style={txt.xs} numberOfLines={1}>{src?.chapters.some((c) => c.local) ? t('sources.reader.onDevice', { abbr }) : abbr}</Text>
           </View>
         </View>
       ) : (
         <View style={{ gap: space.xs }}>
-          <Text style={[txt.sm, { fontWeight: '700' }]}>{src?.loading ? 'Loading…' : `No audio for this passage in ${abbr}`}</Text>
-          {!src?.loading && canManage ? <Text style={txt.xs}>To give your team audio, recommend a Bible that has it in Reference library.</Text> : null}
+          <Text style={[txt.sm, { fontWeight: '700' }]}>{src?.loading ? t('common.loading') : t('sources.reader.noAudioIn', { abbr })}</Text>
+          {!src?.loading && canManage ? <Text style={txt.xs}>{t('sources.reader.giveAudio')}</Text> : null}
         </View>
       )}
-      {plan && plan.wholeChapters ? <Text style={txt.xs}>Plays the whole chapter: this recording has no verse timings yet.</Text>
-        : plan && !timed ? <Text style={txt.xs}>No verse timings for this recording yet, so verses aren't highlighted.</Text> : null}
-      {plan && plan.missing.length > 0 ? <Text style={txt.xs}>No audio for chapter {plan.missing.join(', ')} in {abbr}.</Text> : null}
+      {plan && plan.wholeChapters ? <Text style={txt.xs}>{t('sources.reader.wholeChapter')}</Text>
+        : plan && !timed ? <Text style={txt.xs}>{t('sources.reader.noTimings')}</Text> : null}
+      {plan && plan.missing.length > 0 ? (
+        <Text style={txt.xs}>{t('sources.reader.missingChapters', { count: plan.missing.length, chapters: plan.missing.map((c) => formatNumber(c)).join(t('sources.listSeparator')), abbr })}</Text>
+      ) : null}
       {player.error ? <Text accessibilityRole="alert" style={txt.error}>{player.error}</Text> : null}
     </View>
   ) : null;
@@ -219,8 +225,8 @@ export function SourceView(props: SourceReaderProps & {
   const terms = props.terms ?? [];
   const verses = !option ? (
     <View style={styles.card}>
-      <Text style={txt.smMuted}>{passage.loading ? 'Loading…' : 'No Bible for this passage yet.'}</Text>
-      {!passage.loading && props.onMoreBibles ? <Text style={txt.xs}>Find one under More Bibles.</Text> : null}
+      <Text style={txt.smMuted}>{passage.loading ? t('common.loading') : t('sources.reader.noBible')}</Text>
+      {!passage.loading && props.onMoreBibles ? <Text style={txt.xs}>{t('sources.reader.findMore')}</Text> : null}
     </View>
   ) : (
     <View style={styles.textCard} onLayout={(e) => { listY.current = e.nativeEvent.layout.y; }}>
@@ -230,12 +236,12 @@ export function SourceView(props: SourceReaderProps & {
         const badge = props.verse?.badge?.(row) ?? 0;
         const below = props.verse?.below?.(row, {
           selected: isSel, code: abbr,
-          ...(isSel && !player.playing && player.started && player.current?.key === row.key ? { at: clock(player.ms) } : {})
+          ...(isSel && !player.playing && player.started && player.current?.key === row.key ? { at: anchorClock(player.ms) } : {})
         });
         return (
           <View key={row.key} onLayout={(e) => { rowsY.current[row.key] = e.nativeEvent.layout.y; }}>
             <Pressable onPress={() => tapRow(row)} accessibilityRole="button" accessibilityState={{ selected: here || isSel }}
-              accessibilityLabel={`Verse ${row.key}. ${row.text}`} accessibilityHint={plan && timed ? 'Plays from this verse' : undefined}
+              accessibilityLabel={t('sources.reader.verseLabel', { verse: row.key, text: row.text })} accessibilityHint={plan && timed ? t('sources.reader.playsFromVerse') : undefined}
               style={({ pressed }) => [styles.verse, here && styles.playing, isSel && styles.selected, pressed && styles.pressed]}>
               <Text style={[styles.verseNum, here && { color: C.primary }]}>{row.key}</Text>
               <Text style={[styles.verseText, { flex: 1 }]}>
@@ -245,18 +251,18 @@ export function SourceView(props: SourceReaderProps & {
                   const onTerm = props.onTerm;
                   return (
                     <Text key={i} {...(onTerm ? { onPress: () => onTerm(part.termId!), accessibilityRole: 'link' as const } : {})}
-                      accessibilityLabel={`${part.text}, key term${tied ? ', tied to your draft' : ''}`}
+                      accessibilityLabel={tied ? t('sources.reader.keyTermTied', { term: part.text }) : t('sources.reader.keyTerm', { term: part.text })}
                       style={[styles.term, tied ? styles.termTied : null]}>{part.text}{tied ? ' ✓' : ''}</Text>
                   );
                 })}
               </Text>
-              {badge > 0 && !isSel ? <View style={styles.count}><Text style={styles.countText}>{badge}</Text></View> : null}
+              {badge > 0 && !isSel ? <View style={styles.count}><Text style={styles.countText}>{formatNumber(badge)}</Text></View> : null}
             </Pressable>
             {below}
           </View>
         );
       }) : (
-        <Text style={[txt.smMuted, { padding: space.md }]}>{src?.loading || !src ? 'Loading…' : src.textProblem}</Text>
+        <Text style={[txt.smMuted, { padding: space.md }]}>{src?.loading || !src ? t('common.loading') : src.textProblem}</Text>
       )}
     </View>
   );
@@ -264,10 +270,10 @@ export function SourceView(props: SourceReaderProps & {
   const copyright = option && src ? (
     <View style={{ gap: 2, paddingHorizontal: space.xs }}>
       {option.kind === 'builtin' ? (
-        <Text style={txt.xs}>Built-in text, a last resort until your organization recommends Bibles.</Text>
-      ) : option.sharedBy ? <Text style={txt.xs}>Shared by {option.sharedBy}.</Text> : null}
-      {copyrightLine(src.copyright) ? <Text style={txt.xs}>{option.abbreviation}: {copyrightLine(src.copyright)}</Text> : null}
-      {src.bibleBrain ? <LinkBtn label="Bible Brain terms" style={{ alignSelf: 'flex-start' }} accessibilityLabel="Open the Bible Brain terms of use" onPress={() => openContentLink(DBP_TERMS)} /> : null}
+        <Text style={txt.xs}>{t('sources.reader.builtIn')}</Text>
+      ) : option.sharedBy ? <Text style={txt.xs}>{t('sources.reader.sharedBy', { org: option.sharedBy })}</Text> : null}
+      {copyrightLine(src.copyright) ? <Text style={txt.xs}>{t('sources.reader.copyright', { abbr: option.abbreviation, line: copyrightLine(src.copyright) })}</Text> : null}
+      {src.bibleBrain ? <LinkBtn label={t('sources.reader.terms')} style={{ alignSelf: 'flex-start' }} accessibilityLabel={t('sources.reader.termsLabel')} onPress={() => openContentLink(DBP_TERMS)} /> : null}
     </View>
   ) : null;
 
@@ -299,15 +305,16 @@ export function chipLabel(o: SourceOption, all: SourceOption[]): string {
   let i = 0;
   while (i < o.name.length && o.name[i] === twin.name[i]) i++;
   const rest = o.name.slice(i).replace(/^[\s,;:–-]+/, '').trim();
-  return `${o.abbreviation} · ${rest || (o.doc?.provider.kind === 'library' || o.kind === 'library' && !o.doc ? 'library' : 'Bible Brain')}`;
+  return `${o.abbreviation} · ${rest || (o.doc?.provider.kind === 'library' || o.kind === 'library' && !o.doc ? t('sources.reader.chipLibrary') : t('sources.reader.chipBibleBrain'))}`;
 }
 
 export function copyrightLine(c: { text?: string; audio?: string }): string {
-  if (c.text && c.audio && c.text !== c.audio) return `Text ${c.text} · Audio ${c.audio}`;
+  if (c.text && c.audio && c.text !== c.audio) return t('sources.reader.copyrightBoth', { text: c.text, audio: c.audio });
   return c.text ?? c.audio ?? '';
 }
 
-function clock(ms: number): string {
+/** Where playback paused, as a note's anchor stores it ("0:42"): plain digits in every language, since it is kept in the event log. */
+export function anchorClock(ms: number): string {
   const s = Math.max(0, Math.round(ms / 1000));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
@@ -315,10 +322,11 @@ function clock(ms: number): string {
 /** A version: its abbreviation, and under it what it has here ("no audio", "offline ✓"). */
 function VersionChip(props: { option: SourceOption; label: string; on: boolean; marks: string[]; onPress: () => void }) {
   const o = props.option;
-  const from = o.from === 'language' || o.from === 'organization' ? 'recommended' : o.from === 'mine' ? 'my Bible' : o.from === 'passage' ? 'for this passage' : null;
+  const from = o.from === 'language' || o.from === 'organization' ? t('sources.reader.fromRecommended') : o.from === 'mine' ? t('sources.reader.fromMine')
+    : o.from === 'passage' ? t('sources.reader.fromPassage') : null;
   return (
     <Pressable onPress={props.onPress} accessibilityRole="button" accessibilityState={{ selected: props.on }}
-      accessibilityLabel={[o.name, from, ...props.marks].filter(Boolean).join(', ')}
+      accessibilityLabel={[o.name, from, ...props.marks].filter(Boolean).join(t('sources.listSeparator'))}
       style={({ pressed }) => [styles.chip, props.on && styles.chipOn, pressed && styles.pressed]}>
       <View>
         <Text style={[styles.chipLabel, { color: props.on ? C.white : C.dark }]} numberOfLines={1}>{props.label}</Text>

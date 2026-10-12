@@ -1,3 +1,7 @@
+// The app's words are chosen first, so the first screen draws in the
+// person's language (src/i18n/start.ts).
+import './src/i18n/boot';
+
 import { registerRootComponent } from 'expo';
 
 import App from './App';

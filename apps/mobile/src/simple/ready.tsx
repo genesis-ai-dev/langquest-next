@@ -4,20 +4,24 @@
 // language's page (screens/org.tsx LanguageHome) and Get ready
 // (screens/getReady.tsx) both read it, so they always agree.
 import {
-  deriveFlow, deriveKinds, languageName, libraryItems, libraryItemView, mayGrantRole, recommendedFor, scopeKey,
+  deriveFlow, languageName, libraryItems, libraryItemView, mayGrantRole, recommendedFor, scopeKey,
   type LibraryDoc, type Scope, type SourceDoc, type TemplateDoc
 } from '@langquest-next/core';
 import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
+import { deriveKinds } from '../coreText';
 import type { Ctx } from '../ctx';
+import { t } from '../i18n';
 import { pendingRequests, type PendingRequest } from '../invites';
 import { useLibraryDocs } from '../library/useLibrary';
+import { guideSets, setReach } from '../reference/guideSets';
+import { docLanguage } from '../reference/languages';
 import { noteExpected } from '../report';
 import { space } from '../theme';
 import { ChecklistRow } from './admin';
 import {
-  flowShort, guideShortName, helpsSummary, invitedTo, languageLabel, languageTranslators, plainRoleChoices, QUESTIONS, readiness, recordSummary,
-  translatorsOf, type Readiness, type RoleInfo
+  flowShort, guideShortName, helpsSummary, invitedTo, languageLabel, languageTranslators, plainRoleChoices, QUESTIONS, questionLabel, readiness,
+  recordSummary, translatorsOf, type Readiness, type RoleInfo
 } from './adminModel';
 
 export interface ReadySummary {
@@ -45,19 +49,27 @@ export function useReadySummary(ctx: Ctx): ReadySummary {
     const templateDoc = docs.get<TemplateDoc>(sel?.docHash);
     const templateName = sel ? libraryItemView(org?.library ?? {}, sel.itemId)?.name ?? templateDoc?.name : undefined;
     const bibles: string[] = [];
-    const guides: string[] = [];
+    const guides: (string | { name: string; language: string })[] = [];
     let notes = 0;
     // What reaches the team: recommended items, and the library's guides and notes not hidden here (reference/offered.ts).
     const reach = new Set(offered.keys());
-    for (const it of libraryItems(org?.library ?? {}, 'material')) {
-      if (it.current && !it.archived && state?.languageReferences[it.itemId]?.value !== 'hidden') reach.add(it.itemId);
+    const held = libraryItems(org?.library ?? {}, 'material').filter((it) => it.current && !it.archived);
+    for (const it of held) {
+      if (state?.languageReferences[it.itemId]?.value !== 'hidden') reach.add(it.itemId);
+    }
+    // A guide set (FIA) reaches in the languages chosen for the team; the rest of it does not (decision 84).
+    const sets = guideSets(held.map((it) => ({ it, doc: docs.get(it.current) })), []);
+    for (const set of sets) {
+      const chosen = setReach(set, org?.recommendations, state);
+      for (const m of set.members) if (m.itemId && !chosen.includes(m)) reach.delete(m.itemId);
     }
     for (const id of reach) {
       const it = libraryItemView(org?.library ?? {}, id);
       const doc: LibraryDoc | null = docs.get(it?.current);
       if (!it || it.archived || !doc) continue;
+      const language = docLanguage(doc);
       if (doc.format === 'source@1') { if (offered.has(id)) bibles.push(languageLabel((doc as SourceDoc).language)); }
-      else if (doc.format === 'study@1' || doc.format === 'study@2' || doc.format === 'collection@1') guides.push(guideShortName(it.name));
+      else if (doc.format === 'study@1' || doc.format === 'study@2' || doc.format === 'collection@1') guides.push(language ? { name: guideShortName(it.name), language: languageLabel(language) } : guideShortName(it.name));
       else if (doc.format === 'material@1' && doc.kind === 'note') notes++;
     }
     const flow = state?.flow ? deriveFlow(state) : null;
@@ -71,7 +83,7 @@ export function useReadySummary(ctx: Ctx): ReadySummary {
       sel ? recordSummary(templateDoc, sel.books, templateName) : undefined,
       facts.helps ? helpsSummary(bibles, guides, notes) : undefined,
       flow && state ? flowShort(flow.steps, deriveKinds(state)) : undefined,
-      r.done[3] ? (team.length ? `${team.length} translator${team.length === 1 ? '' : 's'}` : 'Invited') : undefined
+      r.done[3] ? (team.length ? t('admin.ready.translators', { count: team.length }) : t('admin.ready.invited')) : undefined
     ];
     return { languageId, name: languageName(org, languageId), readiness: r, lines, team };
   }, [docs, sel, org, state, offered, languageId]);
@@ -97,7 +109,7 @@ export function ReadyChecklist(props: { ctx: Ctx; s: ReadySummary }) {
   return (
     <View style={{ gap: space.md }}>
       {QUESTIONS.map((q, i) => (
-        <ChecklistRow key={q.id} icon={q.icon} label={q.label} sub={s.lines[i]}
+        <ChecklistRow key={q.id} icon={q.icon} label={questionLabel(q.id)} sub={s.lines[i]}
           state={s.readiness.done[i] ? 'done' : i === s.readiness.current ? 'now' : 'later'}
           onPress={() => ctx.go('get_ready', { languageId: s.languageId, step: String(i + 1) })} />
       ))}
@@ -107,14 +119,7 @@ export function ReadyChecklist(props: { ctx: Ctx; s: ReadySummary }) {
 
 /** "How this works": the checklist's own words, spoken in help mode (about 40 seconds). */
 export function howItWorks(language: string): string {
-  return [
-    `Four questions get ${language} ready.`,
-    'What will they record: the stories or chapters your translators work through, one at a time.',
-    'What will help them: Bibles they understand and study guides, beside them while they record.',
-    'Who checks the recordings: the steps each recording goes through, like another translator, the community and a consultant, and then you approve.',
-    'Invite your translators: show them a code to scan. No password needed, and one code works for a whole group.',
-    'Then each passage leaves what they record, picks up what helps them, and goes through who checks until it is approved.'
-  ].join(' ');
+  return t('admin.howItWorks.text', { language });
 }
 
 /** The four plain choices of what someone will do, from this organization's roles. */

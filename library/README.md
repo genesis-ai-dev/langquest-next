@@ -12,6 +12,7 @@ and publishes them; `docs/library.md` explains items, versions and documents.
 | Path | What | Source and license |
 | --- | --- | --- |
 | `versifications/*.json` | The six standard systems: `org`, `eng`, `lxx`, `vul`, `rso`, `rsc` (Copenhagen Alliance JSON) | Frontier's versification-tool, MIT. Do not edit; replace from upstream. |
+| `versifications/paratext/*.vrs` | The same six systems as Paratext ships them | SIL's libpalaso, MIT. The seed adds the mapping lines the JSON files lost (a verse that holds two Original verses is two lines; a JSON object keeps one; 96 lines, decision 80). Do not edit; replace from upstream. |
 | `books.eng.json` | English names for every book any of them lists, deuterocanon included | Written for this repo. |
 | `fia/pericope_*.json` | FIA API pericopes, as the API returns them (`{ "pericope": … }`) | fia.bible; © 2025 Word Collective, CC BY-SA 4.0 (as stated on FIA's Aquifer releases, e.g. github.com/BibleAquifer/FIATranslationGuide). Every guide's `source` carries that attribution, and adaptations must stay CC BY-SA. `pericope_gen-p2.json` is the copy the app used to bundle. |
 | `fia/pericopes.tsv` | FIA's passage list from its API (`list_content.py` in genesis-ai-dev/fia, 2026-10-09): 2,376 passages in 46 books, in FIA's order | fia.bible; © 2025 Word Collective, CC BY-SA 4.0 |
@@ -31,10 +32,17 @@ Item ids are `langquest.<kind>.<slug>`:
 - `langquest.template.bible-chapters-<code>`: every book the versification
   has, by chapter; `bible-books-eng` (the 66 books, one part each);
   `nt-chapters-eng`; `fia-passages-eng` (FIA's passages, in FIA's order).
+- `langquest.numbering.<id>` (`versification@1`, decision 80): the
+  numberings an admin chooses from, each a source system with exactly one
+  tradition's books and every Paratext mapping line: `eng-66`, `org-66`,
+  `vul-73` (Catholic), `rsc-66`, `rso-77` (Orthodox).
 - `langquest.bible.<way>` (`template@2`, decision 74): the ways to break up
   the Bible: `chapters`, `fia` (FIA's full list; books it has none for
   wait), `unfoldingword`, `openbible-long`, `openbible-usual`,
-  `openbible-short`, and `book-by-book` (every book waiting). The older
+  `openbible-short`, and `book-by-book` (every book waiting). Each is in
+  English numbering; `langquest.bible.<way>.<numbering>` is the same way in
+  another numbering (core `convertWay`, the rules in
+  `docs/breaking-up-the-bible.md`). The older
   `langquest.template.*` items above are kept as they are for the languages
   that use them.
 - `langquest.flow.<id>`: each core flow, carrying the review kinds it uses.

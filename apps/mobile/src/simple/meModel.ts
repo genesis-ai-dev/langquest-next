@@ -1,6 +1,6 @@
 // The words on Me (decision 71; the demo's simple Me). Pure, for tests.
-
-const passages = (n: number) => `${n.toLocaleString('en-US')} ${n === 1 ? 'passage' : 'passages'}`;
+import { t } from '../i18n';
+import { formatNumber } from '../i18n/format';
 
 /**
  * "Ready for offline": how many kept passages are on this device, in the
@@ -8,11 +8,13 @@ const passages = (n: number) => `${n.toLocaleString('en-US')} ${n === 1 ? 'passa
  * The simple screens say "device", not "phone" (demo ADR-040).
  */
 export function offlineCount(s: { kept: number; ready: number } | null): string {
-  if (!s) return 'Checking this device…';
-  if (s.kept === 0) return 'No passages kept on this device yet';
-  if (s.ready === s.kept) return `${passages(s.kept)} on this device`;
-  return `${s.ready.toLocaleString('en-US')} of ${passages(s.kept)} ready on this device`;
+  if (!s) return t('map.me.checking');
+  if (s.kept === 0) return t('map.me.noneKept');
+  if (s.ready === s.kept) return t('map.me.kept', { count: s.kept });
+  return t('map.me.ready', { count: s.kept, ready: formatNumber(s.ready) });
 }
 
 /** What More settings holds, as Me's row says it. */
-export const MORE_SETTINGS_SUB = 'Password, notifications, sync, account';
+export function moreSettingsSub(): string {
+  return t('map.me.moreSettingsSub');
+}

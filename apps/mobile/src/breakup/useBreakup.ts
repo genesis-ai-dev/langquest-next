@@ -13,13 +13,14 @@ import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { libraryChoices, STARTER_TEMPLATE, type LibraryChoice } from '../contentTemplates';
 import type { Ctx } from '../ctx';
+import { t } from '../i18n';
 import { appendToLanguage } from '../languageWriter';
 import { flushOutbox, keepNewDoc, loadDocs, prepareDoc } from '../library/docStore';
 import { newItemId } from '../library/model';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
 import { noteExpected } from '../report';
 import { supabase } from '../supabase';
-import { copyName, copyOffOps, planChange, wayRows, type TemplateUser, type WayRow } from './model';
+import { copyName, copyOffOps, itemIdOf, NUMBERING_ITEMS, planChange, wayOf, wayRows, type TemplateUser, type WayRow } from './model';
 
 interface UserRow {
   language_id: string;
@@ -66,7 +67,7 @@ export function useTemplateUsers(ctx: Ctx) {
  * `wayRows`), with their documents and versifications loaded.
  * `forLanguage`: the language being set up (none yet for a new one).
  */
-export function useWays(ctx: Ctx, forLanguage: string | null) {
+export function useWays(ctx: Ctx, forLanguage: string | null, numbering?: string | null) {
   const lib = useLibrary(ctx);
   const library = ctx.org.state?.library;
   const shared = useSharedItems('template', lib.orgId);
@@ -74,21 +75,47 @@ export function useWays(ctx: Ctx, forLanguage: string | null) {
   const docs = useLibraryDocs(lib.orgId, choices.map((c) => c.hash));
   const { users } = useTemplateUsers(ctx);
   const current = forLanguage ? (forLanguage === ctx.language.languageId ? ctx.language.state?.template?.value.itemId ?? null : null) : null;
+  // Only the ways in this numbering (decision 80): a template's numbering is its versification document's code.
+  const inNumbering = useCallback((h: string) => {
+    const d = docs.get<TemplateDoc>(h);
+    if (!d || !numbering) return d;
+    const v = d.bible ? docs.get<VersificationDoc>(d.bible.versification) : null;
+    return v && v.code === numbering ? d : null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [docs.get, numbering]);
   const rows = useMemo(() => wayRows({
     choices,
-    docOf: (h) => docs.get<TemplateDoc>(h),
+    docOf: inNumbering,
     others: (users ?? []).filter((u) => u.language_id !== forLanguage).map((u) => ({ languageId: u.language_id, name: languageName(ctx.org.state, u.language_id), itemId: u.item_id })),
     current,
     follow: (s) => subscriptionItemId(s.org_id, s.item_id)
     // docs.get changes when documents arrive.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [choices, docs.get, users, forLanguage, current, ctx.org.state]);
+  }), [choices, inNumbering, users, forLanguage, current, ctx.org.state]);
   const docOf = useCallback((c: LibraryChoice | null | undefined) => (c ? docs.get<TemplateDoc>(c.hash) : null), [docs.get]);
+  // What numbering the organization's other languages use, by code: their template's versification.
+  const usedInByNumbering = useMemo(() => {
+    const out: Record<string, string[]> = {};
+    for (const u of users ?? []) {
+      if (u.language_id === forLanguage) continue;
+      const ch = choices.find((c) => itemIdOf(c, (sh) => subscriptionItemId(sh.org_id, sh.item_id)) === u.item_id);
+      const d = ch ? docs.get<TemplateDoc>(ch.hash) : null;
+      const code = d?.bible ? docs.get<VersificationDoc>(d.bible.versification)?.code : undefined;
+      if (code) (out[code] ??= []).push(languageName(ctx.org.state, u.language_id));
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [users, choices, docs.get, forLanguage, ctx.org.state]);
   const v11nOf = useCallback((d: TemplateDoc | null | undefined) => (d?.bible ? docs.get<VersificationDoc>(d.bible.versification) : null), [docs.get]);
   /** A LangQuest way by its item id, when it is offered. */
-  const way = useCallback((sourceItemId: string): WayRow | null =>
-    rows.find((r) => (r.choice.source === 'shared' ? r.choice.shared.item_id : r.choice.item.subscription?.sourceItemId) === sourceItemId) ?? null, [rows]);
-  return { lib, rows, choices, docOf, v11nOf, way, loaded: shared.loaded, error: shared.error };
+  const way = useCallback((sourceItemId: string): WayRow | null => rows.find((r) => wayOf(r.choice) === sourceItemId) ?? null, [rows]);
+  // The numberings to choose from: LangQuest's, with their documents.
+  const numberingRows = useSharedItems('versification', lib.orgId);
+  const numberings = useMemo(() => Object.entries(NUMBERING_ITEMS).flatMap(([code, itemId]) => {
+    const row = numberingRows.rows.find((r) => r.org_id === 'langquest' && r.item_id === itemId);
+    return row ? [{ code, itemId, name: row.name, description: row.description, hash: row.latest_hash }] : [];
+  }), [numberingRows.rows]);
+  return { lib, rows, choices, docOf, v11nOf, way, numberings, usedInByNumbering, loaded: shared.loaded, error: shared.error };
 }
 
 /**
@@ -146,7 +173,7 @@ export async function publishChange(ctx: Ctx, lib: ReturnType<typeof useLibrary>
 }): Promise<EventSpec[]> {
   const state = ctx.language.state;
   const sel = state?.template?.value;
-  if (!state || !sel) throw new CommandError('This language has no template yet.');
+  if (!state || !sel) throw new CommandError(t('breakup.errors.noTemplate'));
   const plan = planChange({ item: c.item, users: c.users, chosen: c.chosen });
   let itemId = c.item.itemId;
   let docHash: string;
@@ -170,7 +197,7 @@ export async function publishChange(ctx: Ctx, lib: ReturnType<typeof useLibrary>
   }
   const docs = await loadDocs(ctx.language.orgId, [docHash]);
   const v11n = c.doc.bible ? ((docs.get(c.doc.bible.versification) as VersificationDoc | undefined) ?? null) : null;
-  if (c.doc.bible && !v11n) throw new CommandError('Its versification is not on this device yet. Try again when connected.');
+  if (c.doc.bible && !v11n) throw new CommandError(t('breakup.errors.versificationMissing'));
   return selectTemplateSpecs(state, {
     commandId: Crypto.randomUUID(), itemId, docHash, doc: c.doc, versification: v11n, unitPrefix: sel.unitPrefix,
     ...(sel.books ? { books: sel.books } : {})
@@ -213,9 +240,9 @@ export function useVerseNumbering(ctx: Ctx) {
       bibles.push({ name: d.abbreviation || d.name, versification: v });
       if (v.code === 'eng') english = v;
     }
-    const t = docs.get(state?.template?.value.docHash);
-    if (!english && t && isTemplateDoc(t) && t.bible) {
-      const v = docs.get<VersificationDoc>(t.bible.versification);
+    const tpl = docs.get(state?.template?.value.docHash);
+    if (!english && tpl && isTemplateDoc(tpl) && tpl.bible) {
+      const v = docs.get<VersificationDoc>(tpl.bible.versification);
       if (v?.code === 'eng') english = v;
     }
     if (!english) return { code: bibles[0]?.versification.code ?? 'eng', clash: null, key: '' };

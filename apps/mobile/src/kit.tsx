@@ -15,13 +15,16 @@ import {
 } from 'lucide-react-native';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
-  AccessibilityInfo, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View,
+  AccessibilityInfo, Animated, Easing, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View,
   type StyleProp, type TextStyle, type ViewStyle
 } from 'react-native';
+import { Text } from './text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { KindState } from '@langquest-next/core';
-import { useHelpMode, useHelpPress, useHelpSpot } from './helpContext';
-import { HelpBadge } from './helpBadge';
+import { useHelpMode, useHelpSpot } from './helpContext';
+import { isRtl, t } from './i18n';
+import { formatNumber } from './i18n/format';
+import { HelpBadge, HelpClip, HelpLit } from './helpBadge';
 import { lift, shadow } from './shadow';
 import { markedParts } from './textMatch';
 import { C, measure, onColor, radius, space, target, TINT, type as T } from './theme';
@@ -46,9 +49,22 @@ const ICONS = {
 } satisfies Record<string, LucideIcon>;
 export type IconName = keyof typeof ICONS;
 
+/**
+ * A text field starts where the line of reading starts. iOS aligns an empty
+ * field (its placeholder) by the text's own direction, not the app's, so in
+ * right to left it is told; the web follows the page's `dir`.
+ */
+function inputDirection(): TextStyle | null {
+  return isRtl() && Platform.OS === 'ios' ? { textAlign: 'right' } : null;
+}
+
+/** Icons that point along the line of reading, so right to left mirrors them (media controls stay as they are). */
+const MIRRORED = new Set<IconName>(['arrowR', 'arrowL', 'left', 'right', 'send', 'undo']);
+
 export function Ico(props: { name: IconName; size?: number; color?: string; strokeWidth?: number; fill?: string }) {
   const Icon = ICONS[props.name];
-  return <Icon size={props.size ?? 20} color={props.color ?? C.dark} strokeWidth={props.strokeWidth ?? 2.2} {...(props.fill ? { fill: props.fill } : {})} />;
+  const icon = <Icon size={props.size ?? 20} color={props.color ?? C.dark} strokeWidth={props.strokeWidth ?? 2.2} {...(props.fill ? { fill: props.fill } : {})} />;
+  return isRtl() && MIRRORED.has(props.name) ? <View style={{ transform: [{ scaleX: -1 }] }}>{icon}</View> : icon;
 }
 
 /** The icon each shipped review kind reads by (the demo's REVIEW_KINDS icons). */
@@ -76,9 +92,8 @@ export const txt = StyleSheet.create({
 // ---- layout ----------------------------------------------------------------------------
 
 /**
- * Wide windows only (decisions.md 55): how tall this screen's footer is, so
- * the toast can sit just above its buttons rather than over them (App.tsx).
- * Not provided on phones, where nothing is measured.
+ * How tall this screen's footer is, so the toast sits just above its
+ * buttons rather than over them (App.tsx), on a phone as on a wide window.
  */
 export const FooterHeightContext = createContext<((height: number) => void) | null>(null);
 
@@ -107,13 +122,15 @@ export function Screen(props: {
   return (
     <KeyboardSafe style={styles.screen}>
       {props.header}
-      {props.fixed ? (
-        <View style={[{ flex: 1 }, column, props.bodyStyle]}>{props.children}</View>
-      ) : (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.body, column, props.bodyStyle]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          {props.children}
-        </ScrollView>
-      )}
+      <HelpClip style={{ flex: 1 }}>
+        {props.fixed ? (
+          <View style={[{ flex: 1 }, column, props.bodyStyle]}>{props.children}</View>
+        ) : (
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.body, column, props.bodyStyle]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            {props.children}
+          </ScrollView>
+        )}
+      </HelpClip>
       {props.footer ? (
         <View style={[styles.footer, { paddingBottom: space.md }]}
           onLayout={reportFooter ? (e) => reportFooter(e.nativeEvent.layout.height) : undefined}>
@@ -181,11 +198,13 @@ export function Header(props: {
   // Ryder's header on a phone (demo ADR-032): a task screen centres its title between two round
   // buttons, Back (or ✕) and ?, on the screen's own ground; a tab's home keeps its big title at the left.
   const centred = !wide && !!props.onBack;
+  // While help is on the ? is filled and stays lit over the dimmed screen: it is the way out.
   const helpBtn = help ? (
-    <Pressable onPress={() => help.setOn(!help.on)} accessibilityRole="button" accessibilityLabel={help.on ? 'Turn help off' : 'Help: explain this screen'}
+    <Pressable onPress={() => help.setOn(!help.on)} accessibilityRole="button" accessibilityLabel={help.on ? t('help.turnOff') : t('help.explainScreen')}
       accessibilityState={{ selected: help.on }}
       style={({ pressed }) => [styles.helpBtn, help.on && { backgroundColor: C.primary, borderColor: C.primary }, pressed && styles.pressed]}>
       <Ico name="help" size={24} color={help.on ? C.white : C.primary} />
+      <HelpLit />
     </Pressable>
   ) : null;
   const crumbs = props.crumbs && props.crumbs.length > 0 && wide ? (
@@ -206,7 +225,7 @@ export function Header(props: {
   ) : null;
   const content = centred ? (
     <>
-      <Pressable onPress={props.onBack} accessibilityRole="button" accessibilityLabel={props.close ? 'Close' : 'Back'}
+      <Pressable onPress={props.onBack} accessibilityRole="button" accessibilityLabel={props.close ? t('common.close') : t('common.back')}
         style={({ pressed }) => [styles.roundBtn, pressed && styles.pressed]}>
         <Ico name={props.close ? 'close' : 'arrowL'} size={24} color={C.dark} />
       </Pressable>
@@ -220,7 +239,7 @@ export function Header(props: {
   ) : (
     <>
       {props.onBack ? (
-        <Pressable onPress={props.onBack} accessibilityRole="button" accessibilityLabel={props.close ? 'Close' : 'Back'}
+        <Pressable onPress={props.onBack} accessibilityRole="button" accessibilityLabel={props.close ? t('common.close') : t('common.back')}
           style={({ pressed }) => [styles.headerBack, pressed && styles.pressed]}>
           <Ico name={props.close ? 'close' : 'left'} size={props.close ? 24 : 28} color={C.dark} />
         </Pressable>
@@ -234,18 +253,9 @@ export function Header(props: {
       {helpBtn}
     </>
   );
-  // While help is on, say so under the header (demo ADR-038).
-  const banner = help?.on ? (
-    <View style={styles.helpBanner} accessibilityLiveRegion="polite">
-      <Text style={[txt.sm, { flex: 1, color: C.white, fontWeight: '700' }]}>Help is on. Tap anything to hear what it does.</Text>
-      <Pressable onPress={() => help.setOn(false)} accessibilityRole="button" style={({ pressed }) => [styles.helpDone, pressed && styles.pressed]}>
-        <Text style={[txt.sm, { color: C.primary, fontWeight: '800' }]}>Done</Text>
-      </Pressable>
-    </View>
-  ) : null;
   // Wide: the white bar spans the window, its contents line up with the body's column.
-  if (wide) return <View><View style={styles.headerBar}><View style={[styles.headerRow, styles.column, props.columnWidth ? { maxWidth: props.columnWidth } : null]}>{content}</View></View>{banner}</View>;
-  return <View>{banner ?? null}<View style={centred ? styles.headerCentred : styles.headerHome}>{content}</View></View>;
+  if (wide) return <View style={styles.headerBar}><View style={[styles.headerRow, styles.column, props.columnWidth ? { maxWidth: props.columnWidth } : null]}>{content}</View></View>;
+  return <View style={centred ? styles.headerCentred : styles.headerHome}>{content}</View>;
 }
 
 /** `current`: what this card opened is showing beside the list (a split on a wide window, panes.ts). */
@@ -283,9 +293,9 @@ export function SectionLabel(props: { label: string; action?: ReactNode }) {
  */
 export function OrDivider() {
   return (
-    <View style={styles.orDivider} accessibilityRole="text" accessibilityLabel="or">
+    <View style={styles.orDivider} accessibilityRole="text" accessibilityLabel={t('shell.kit.or')}>
       <View style={styles.orRule} />
-      <Text style={[txt.smMuted, { fontWeight: '600' }]}>or</Text>
+      <Text style={[txt.smMuted, { fontWeight: '600' }]}>{t('shell.kit.or')}</Text>
       <View style={styles.orRule} />
     </View>
   );
@@ -359,7 +369,7 @@ export function Row(props: {
     <Pressable onPress={onPress} disabled={props.disabled} accessibilityRole={props.role ?? 'button'} accessibilityState={state} accessibilityLabel={props.accessibilityLabel}
       style={({ pressed }) => [...style, pressed && styles.pressed]}>
       {body}
-      <HelpBadge n={spot.n} current={spot.current} inset />
+      <HelpBadge spot={spot} inset />
     </Pressable>
   );
 }
@@ -379,14 +389,14 @@ export function Disclosure(props: { icon: IconName; title: string; summary: stri
   return (
     <View style={styles.disclosure}>
       <Pressable onPress={props.onToggle} accessibilityRole="button" accessibilityState={{ expanded: props.open }}
-        accessibilityLabel={`${props.title}. ${props.summary}`} accessibilityHint={props.open ? 'Hides the details' : 'Shows the details'}
+        accessibilityLabel={t('shell.a11y.labelDetail', { label: props.title, detail: props.summary })} accessibilityHint={props.open ? t('shell.kit.hidesDetails') : t('shell.kit.showsDetails')}
         style={({ pressed }) => [styles.disclosureHead, pressed && styles.pressed]}>
         <View style={styles.iconTile}><Ico name={props.icon} size={20} color={C.primary} /></View>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={[txt.body, { fontWeight: '600' }]}>{props.title}</Text>
           <Text style={[txt.xs, { marginTop: 2 }]} numberOfLines={1}>{props.summary}</Text>
         </View>
-        <Text style={txt.link}>{props.open ? 'Hide' : 'Show'}</Text>
+        <Text style={txt.link}>{props.open ? t('shell.kit.hide') : t('shell.kit.show')}</Text>
         <Ico name={props.open ? 'up' : 'down'} size={20} color={C.primary} />
       </Pressable>
       {props.open ? <View style={styles.disclosureBody}>{props.children}</View> : null}
@@ -403,24 +413,25 @@ const TONES: Record<Tone, string> = { primary: C.primary, dark: C.dark, amber: o
 export function PrimaryBtn(props: { label: string; onPress: () => void; disabled?: boolean; icon?: IconName; tone?: Tone; full?: boolean; busy?: boolean }) {
   const bg = TONES[props.tone ?? 'primary'];
   const off = props.disabled || props.busy;
-  const spot = useHelpSpot(props.label, 'The main thing to do on this screen.', props.onPress);
+  const spot = useHelpSpot(props.label, t('help.details.primary'), props.onPress);
   const onPress = spot.onPress;
   return (
     <Pressable onPress={onPress} disabled={off} accessibilityRole="button" accessibilityLabel={props.label} accessibilityState={{ disabled: !!off, busy: !!props.busy }}
       style={({ pressed }) => [styles.primary, { backgroundColor: off ? C.faint : bg }, props.full === false && { alignSelf: 'flex-start', paddingHorizontal: space.xl },
         !off && lift({ color: bg, opacity: 0.25, y: 5, elevation: 3 }), pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={22} color={C.white} /> : null}
-      <Text style={styles.primaryLabel}>{props.busy ? 'Saving…' : props.label}</Text>
-      <HelpBadge n={spot.n} current={spot.current} />
+      <Text style={styles.primaryLabel}>{props.busy ? t('common.saving') : props.label}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
 
 /** A secondary action: tinted, same size as the main button. */
-export function GhostBtn(props: { label: string; onPress: () => void; disabled?: boolean; icon?: IconName; full?: boolean; tone?: 'primary' | 'red' | 'amber' }) {
+export function GhostBtn(props: { label: string; onPress: () => void; disabled?: boolean; icon?: IconName; full?: boolean; tone?: 'primary' | 'red' | 'amber';
+  /** What help mode says it does. */ help?: string }) {
   const fg = props.tone === 'red' ? TINT.redText : props.tone === 'amber' ? TINT.amberText : C.primary;
   const bg = props.tone === 'red' ? TINT.red : props.tone === 'amber' ? TINT.amber : C.light;
-  const spot = useHelpSpot(props.label, undefined, props.onPress);
+  const spot = useHelpSpot(props.label, props.help, props.onPress);
   const onPress = spot.onPress;
   return (
     <Pressable onPress={onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
@@ -429,7 +440,7 @@ export function GhostBtn(props: { label: string; onPress: () => void; disabled?:
         props.disabled && { opacity: 0.5 }, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={22} color={fg} /> : null}
       <Text style={[styles.ghostLabel, { color: fg }]}>{props.label}</Text>
-      <HelpBadge n={spot.n} current={spot.current} />
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -446,19 +457,20 @@ export function SmallBtn(props: { label: string; onPress: () => void; icon?: Ico
       style={({ pressed }) => [styles.small, filled ? { backgroundColor: bg, borderColor: bg } : null, props.disabled && { opacity: 0.45 }, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={18} color={filled ? C.white : C.primary} /> : null}
       <Text style={[styles.smallLabel, { color: filled ? C.white : C.primary }]} numberOfLines={1}>{props.label}</Text>
-      <HelpBadge n={spot.n} current={spot.current} />
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
 
 /** A plain text action (Show all, Undo). Still 48pt tall. */
 export function LinkBtn(props: { label: string; onPress: () => void; color?: string; style?: StyleProp<ViewStyle>; accessibilityLabel?: string; expanded?: boolean }) {
-  const onPress = useHelpPress(props.label, undefined, props.onPress);
+  const spot = useHelpSpot(props.label, undefined, props.onPress);
   return (
-    <Pressable onPress={onPress} hitSlop={8} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
+    <Pressable onPress={spot.onPress} hitSlop={8} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
       accessibilityState={props.expanded !== undefined ? { expanded: props.expanded } : undefined}
       style={({ pressed }) => [styles.linkBtn, props.style, pressed && styles.pressed]}>
       <Text style={[txt.link, props.color ? { color: props.color } : null]}>{props.label}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -477,26 +489,27 @@ export function QuietLinks(props: { items: { label: string; icon: IconName; onPr
 }
 
 function QuietLink(props: { label: string; icon: IconName; onPress: () => void }) {
-  const spot = useHelpSpot(props.label, 'Another way forward, less often needed.', props.onPress);
+  const spot = useHelpSpot(props.label, t('help.details.quiet'), props.onPress);
   const onPress = spot.onPress;
   return (
     <Pressable onPress={onPress} accessibilityRole="button" hitSlop={4} style={({ pressed }) => [styles.quiet, pressed && styles.pressed]}>
       <Ico name={props.icon} size={18} color={C.muted} />
       <Text style={[txt.sm, { color: C.muted, fontWeight: '700' }]}>{props.label}</Text>
-      <HelpBadge n={spot.n} current={spot.current} />
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
 
 export function IconBtn(props: { name: IconName; onPress: () => void; label: string; color?: string; bg?: string; size?: number; disabled?: boolean }) {
   const size = props.size ?? 48;
-  const onPress = useHelpPress(props.label, undefined, props.onPress);
+  const spot = useHelpSpot(props.label, undefined, props.onPress);
   return (
-    <Pressable onPress={onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
+    <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
       accessibilityState={{ disabled: !!props.disabled }} hitSlop={Math.max(0, (target.min - size) / 2)}
       style={({ pressed }) => [{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: props.bg ?? C.bg },
         props.disabled && { opacity: 0.4 }, pressed && styles.pressed]}>
       <Ico name={props.name} size={Math.round(size * 0.46)} color={props.color ?? C.dark} />
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -509,8 +522,8 @@ export function Chip(props: { label: string; on: boolean; onPress: () => void; i
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: props.on }} accessibilityLabel={props.accessibilityLabel}
       style={({ pressed }) => [styles.chip, props.on ? { backgroundColor: C.primary, borderColor: C.primary } : null, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={18} color={props.on ? C.white : C.primary} /> : null}
-      <Text style={[styles.chipLabel, { color: props.on ? C.white : C.dark }]}>{props.label}{props.count !== undefined ? ` · ${props.count.toLocaleString('en-US')}` : ''}</Text>
-      <HelpBadge n={spot.n} current={spot.current} />
+      <Text style={[styles.chipLabel, { color: props.on ? C.white : C.dark }]}>{props.count !== undefined ? t('shell.kit.chipCount', { label: props.label, number: formatNumber(props.count) }) : props.label}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -546,7 +559,7 @@ export function Field(props: {
       <TextInput value={props.value} onChangeText={props.onChangeText} placeholder={props.placeholder} placeholderTextColor={C.faint}
         accessibilityLabel={props.label ?? props.placeholder}
         multiline={props.multiline} secureTextEntry={props.secure} keyboardType={props.keyboardType} autoCapitalize={props.autoCapitalize}
-        style={[styles.field, props.multiline && { minHeight: 88, textAlignVertical: 'top', paddingTop: 14 }, props.style]} />
+        style={[styles.field, inputDirection(), props.multiline && { minHeight: 88, textAlignVertical: 'top', paddingTop: 14 }, props.style]} />
     </View>
   );
 }
@@ -556,8 +569,8 @@ export function SearchField(props: { value: string; onChangeText: (v: string) =>
     <View style={styles.search}>
       <Ico name="search" size={24} color={C.muted} />
       <TextInput value={props.value} onChangeText={props.onChangeText} placeholder={props.placeholder} placeholderTextColor={C.faint}
-        autoCapitalize="none" autoCorrect={false} returnKeyType="search" accessibilityLabel={props.placeholder} style={styles.searchInput} />
-      {props.value ? <IconBtn name="close" label="Clear search" onPress={() => props.onChangeText('')} bg="transparent" color={C.muted} /> : null}
+        autoCapitalize="none" autoCorrect={false} returnKeyType="search" accessibilityLabel={props.placeholder} style={[styles.searchInput, inputDirection()]} />
+      {props.value ? <IconBtn name="close" label={t('shell.kit.clearSearch')} onPress={() => props.onChangeText('')} bg="transparent" color={C.muted} /> : null}
     </View>
   );
 }
@@ -567,7 +580,7 @@ export function ShowMore(props: { remaining: number; step: number; onMore: () =>
   if (props.remaining <= 0) return null;
   return (
     <Pressable onPress={props.onMore} accessibilityRole="button" style={({ pressed }) => [styles.showMore, pressed && styles.pressed]}>
-      <Text style={[txt.body, { color: C.primary, fontWeight: '600' }]}>Show {Math.min(props.step, props.remaining)} more · {props.remaining.toLocaleString('en-US')} left</Text>
+      <Text style={[txt.body, { color: C.primary, fontWeight: '600' }]}>{t('shell.kit.showMore', { count: Math.min(props.step, props.remaining), left: formatNumber(props.remaining) })}</Text>
     </Pressable>
   );
 }
@@ -591,6 +604,33 @@ export function ProgressBar(props: { value: number; color?: string; height?: num
   return (
     <View style={{ height: h, borderRadius: h, backgroundColor: C.border, overflow: 'hidden' }}>
       <View style={{ height: h, borderRadius: h, width: `${Math.max(0, Math.min(100, props.value))}%`, backgroundColor: props.color ?? C.primary }} />
+    </View>
+  );
+}
+
+/**
+ * A bar that keeps moving while something runs whose length is not known, so
+ * a long wait never looks frozen. On a phone it moves on the native side, so
+ * it keeps going while JavaScript is busy.
+ */
+export function MovingBar(props: { color?: string; height?: number }) {
+  const h = props.height ?? 6;
+  const [width, setWidth] = useState(0);
+  const x = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(Animated.timing(x, { toValue: 1, duration: 1300, easing: Easing.inOut(Easing.quad), useNativeDriver: Platform.OS !== 'web' }));
+    loop.start();
+    return () => loop.stop();
+  }, [x]);
+  const run = width * 0.4;
+  const ends = isRtl() ? [width, -run] : [-run, width];
+  return (
+    <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} accessibilityRole="progressbar" accessibilityState={{ busy: true }}
+      style={{ height: h, borderRadius: h, backgroundColor: C.border, overflow: 'hidden' }}>
+      {width ? (
+        <Animated.View style={{ position: 'absolute', left: 0, top: 0, width: run, height: h, borderRadius: h, backgroundColor: props.color ?? C.muted,
+          transform: [{ translateX: x.interpolate({ inputRange: [0, 1], outputRange: ends }) }] }} />
+      ) : null}
     </View>
   );
 }
@@ -671,7 +711,7 @@ export function NoteCard(props: { anchor: string; text?: string; by: string; whe
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
         <Ico name={props.icon ?? 'note'} size={14} color={TINT.amberText} />
         <Text style={[txt.xsStrong, { color: TINT.amberText }]}>{props.anchor}</Text>
-        {props.olderVersion ? <View style={styles.noteTag}><Text style={[txt.xsStrong, { color: TINT.amberText }]}>on {props.olderVersion}</Text></View> : null}
+        {props.olderVersion ? <View style={styles.noteTag}><Text style={[txt.xsStrong, { color: TINT.amberText }]}>{t('shell.kit.onOlderVersion', { version: props.olderVersion })}</Text></View> : null}
       </View>
       {props.text ? <Text style={[txt.sm, { marginTop: 6 }]}>{props.text}</Text> : null}
       {props.audio ? <View style={{ marginTop: 6 }}>{props.audio}</View> : null}
@@ -709,7 +749,7 @@ export function Sheet(props: { visible: boolean; title: string; sub?: string; on
   return (
     <Modal visible={props.visible} transparent animationType={wide ? 'fade' : 'slide'} onRequestClose={props.onClose}>
       <KeyboardSafe style={[{ flex: 1 }, wide && styles.dialogFrame]}>
-        <Pressable style={wide ? styles.dialogBackdrop : styles.sheetBackdrop} onPress={props.onClose} accessibilityLabel="Close" />
+        <Pressable style={wide ? styles.dialogBackdrop : styles.sheetBackdrop} onPress={props.onClose} accessibilityLabel={t('common.close')} />
         <View style={wide ? styles.dialog : [styles.sheet, { paddingBottom: Math.max(insets.bottom, space.lg) }]}>
           {wide ? null : <View style={styles.sheetGrip} />}
           <View style={styles.sheetHead}>
@@ -717,7 +757,7 @@ export function Sheet(props: { visible: boolean; title: string; sub?: string; on
               <Text style={txt.title}>{props.title}</Text>
               {props.sub ? <Text style={[txt.smMuted, { marginTop: 4 }]}>{props.sub}</Text> : null}
             </View>
-            <IconBtn name="close" label="Close" onPress={props.onClose} bg={C.card} color={C.muted} />
+            <IconBtn name="close" label={t('common.close')} onPress={props.onClose} bg={C.card} color={C.muted} />
           </View>
           <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={{ gap: space.md, paddingHorizontal: space.xl, paddingBottom: space.lg }} keyboardShouldPersistTaps="handled">
             {props.children}
@@ -752,6 +792,7 @@ export function ReasonSheet(props: {
   return (
     <Sheet visible={props.visible} title={props.title} sub={props.sub} onClose={props.onClose}
       footer={<PrimaryBtn label={props.confirmLabel} tone={props.tone ?? 'dark'} disabled={!ready}
+        // i18n-ignore: stored in the event log as the reason when only a voice note was given; stays English like the rest of the log
         onPress={() => { props.onConfirm({ reason: reason.trim() || 'Explained in a voice note.', ...(hash ? { blobHash: hash } : {}) }); setReason(''); setHash(null); }} />}>
       {props.quickReasons.length > 0 ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
         {props.quickReasons.map((q) => (
@@ -762,8 +803,8 @@ export function ReasonSheet(props: {
         ))}
       </View> : null}
       {props.voice ? props.voice({ hash, onChange: setHash }) : null}
-      <Field value={reason} onChangeText={setReason} placeholder={props.quickReasons.length ? 'Or type the reason' : 'Or type it'} multiline />
-      <Text style={txt.xs}>{props.footnote ?? "This goes in the passage's record with your name. It can be undone later; the record keeps both."}</Text>
+      <Field value={reason} onChangeText={setReason} placeholder={props.quickReasons.length ? t('shell.kit.orTypeReason') : t('common.orTypeIt')} multiline />
+      <Text style={txt.xs}>{props.footnote ?? t('shell.kit.reasonFootnote')}</Text>
     </Sheet>
   );
 }
@@ -775,33 +816,51 @@ export interface ToastSpec {
   message: string;
   /** Offered for about 7 s (CORE-5). */
   undo?: () => void | Promise<void>;
+  /** How long it shows, for the bar that counts down to its going (the host sets it). */
+  ms?: number;
 }
 
 /**
  * What changed, and Undo when it can be (CORE-5). The message and Undo are
  * separate elements so a screen reader can reach Undo, and the message is
- * announced as it appears. Tapping the message dismisses it.
+ * announced as it appears. A bar along its foot shrinks until it goes, and
+ * a big X (or tapping the message) closes it sooner. The host places it
+ * above the screen's buttons, never over them.
  */
 export function ToastView(props: { toast: ToastSpec | null; onDismiss: () => void; bottom: number }) {
-  const t = props.toast;
+  const toast = props.toast;
   const wide = useLayout().kind !== 'phone';
+  const left = useRef(new Animated.Value(1)).current;
   useEffect(() => {
-    if (t) AccessibilityInfo.announceForAccessibility(t.undo ? `${t.message} Undo available.` : t.message);
-  }, [t?.id]);
-  if (!t) return null;
+    if (toast) AccessibilityInfo.announceForAccessibility(toast.undo ? t('shell.toast.announceUndo', { message: toast.message }) : toast.message);
+  }, [toast?.id]);
+  useEffect(() => {
+    if (!toast?.ms) return;
+    left.setValue(1);
+    const run = Animated.timing(left, { toValue: 0, duration: toast.ms, easing: Easing.linear, useNativeDriver: false });
+    run.start();
+    return () => run.stop();
+  }, [toast?.id, toast?.ms, left]);
+  if (!toast) return null;
   return (
     <View style={[{ pointerEvents: 'box-none' }, styles.toastWrap, { bottom: props.bottom }]}>
       <View style={[styles.toast, wide && { maxWidth: measure.toast }]}>
-        <Pressable onPress={props.onDismiss} accessibilityRole="button" accessibilityLabel={`${t.message} Dismiss`}
+        <Pressable onPress={props.onDismiss} accessibilityRole="button" accessibilityLabel={t('shell.toast.dismissLabel', { message: toast.message })}
           accessibilityLiveRegion="polite" style={styles.toastMessage}>
           <Ico name="check" size={20} color={C.green} />
-          <Text style={[txt.sm, { color: C.white, flex: 1, fontWeight: '600' }]}>{t.message}</Text>
+          <Text style={[txt.sm, { color: C.white, flex: 1, fontWeight: '600' }]}>{toast.message}</Text>
         </Pressable>
-        {t.undo ? (
-          <Pressable onPress={() => { void Promise.resolve(t.undo?.()).catch(() => undefined); props.onDismiss(); }} hitSlop={10}
-            accessibilityRole="button" accessibilityLabel="Undo" style={styles.toastUndo}>
-            <Text style={[txt.sm, { color: C.light, fontWeight: '800' }]}>Undo</Text>
+        {toast.undo ? (
+          <Pressable onPress={() => { void Promise.resolve(toast.undo?.()).catch(() => undefined); props.onDismiss(); }} hitSlop={10}
+            accessibilityRole="button" accessibilityLabel={t('shell.toast.undo')} style={styles.toastUndo}>
+            <Text style={[txt.sm, { color: C.light, fontWeight: '800' }]}>{t('shell.toast.undo')}</Text>
           </Pressable>
+        ) : null}
+        <IconBtn name="close" label={t('common.close')} onPress={props.onDismiss} bg="transparent" color={C.white} size={target.min} />
+        {toast.ms ? (
+          <View style={[styles.toastTrack, { pointerEvents: 'none' }]}>
+            <Animated.View style={[styles.toastLeft, { width: left.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />
+          </View>
         ) : null}
       </View>
     </View>
@@ -849,8 +908,6 @@ const styles = StyleSheet.create({
   smallLabel: { fontSize: T.sm, fontWeight: '700' },
   linkBtn: { minHeight: target.min, justifyContent: 'center' },
   helpBtn: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.border, backgroundColor: C.card },
-  helpBanner: { flexDirection: 'row', alignItems: 'center', gap: space.sm, backgroundColor: C.primary, paddingHorizontal: space.lg, paddingVertical: space.sm },
-  helpDone: { minHeight: 40, paddingHorizontal: space.md, borderRadius: radius.full, backgroundColor: C.white, justifyContent: 'center' },
   quietRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.xs },
   quiet: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: target.min, paddingHorizontal: space.sm },
   chip: { minHeight: target.min, borderRadius: radius.full, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: space.lg },
@@ -873,7 +930,9 @@ const styles = StyleSheet.create({
   sheetHead: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md, paddingHorizontal: space.xl, paddingTop: space.sm },
   quickReason: { borderRadius: radius.md, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, paddingHorizontal: space.md, paddingVertical: space.sm, minHeight: target.min, justifyContent: 'center' },
   toastWrap: { position: 'absolute', left: space.lg, right: space.lg, alignItems: 'center' },
-  toast: { flexDirection: 'row', alignItems: 'center', gap: space.sm, backgroundColor: C.dark, borderRadius: radius.lg, paddingLeft: space.lg, paddingRight: space.sm, minHeight: 56, width: '100%', ...lift({ opacity: 0.25 }) },
-  toastMessage: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 56 },
+  toast: { flexDirection: 'row', alignItems: 'center', gap: space.sm, backgroundColor: C.dark, borderRadius: radius.lg, paddingLeft: space.lg, paddingRight: space.xs, paddingTop: space.xs, paddingBottom: space.xs + 4, minHeight: 56, width: '100%', overflow: 'hidden', ...lift({ opacity: 0.25 }) },
+  toastTrack: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 4, backgroundColor: 'rgba(255,255,255,0.15)' },
+  toastLeft: { height: 4, backgroundColor: C.light },
+  toastMessage: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 48, paddingVertical: space.xs },
   toastUndo: { minHeight: 48, minWidth: 64, alignItems: 'center', justifyContent: 'center' }
 });

@@ -18,6 +18,8 @@ export interface GuideSource {
   hash: string;
   /** The organization's own item (not a subscription): its single guides can be edited here. */
   itemId?: string;
+  /** The organization it follows or was copied from ('' when made here): which guide set it belongs to (reference/guideSets.ts). */
+  origin?: string;
 }
 
 type Get = (hash: string | null | undefined) => LibraryDoc | null;

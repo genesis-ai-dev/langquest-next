@@ -6,26 +6,28 @@
 // shell, Language); the sections and their parts are in src/reports/.
 import { appendConfirmed, ensureDeviceId, NotSavedError, SupabaseTransport } from '@langquest-next/client';
 import {
-  dayPercents, languageCsv, milestoneText, ORG_STREAM, paceOf, percent, privilegesFor, recencyOf, SCOPE_LABEL, TARGET_SCOPES,
+  dayPercents, ORG_STREAM, paceOf, percent, privilegesFor, recencyOf, TARGET_SCOPES,
   type LanguageReport, type LanguageRow, type TargetScope
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { Text } from '../text';
 import type { Ctx } from '../ctx';
+import { t, Trans } from '../i18n';
 import { contractsFor } from '../screenContracts';
 import { Chip, ChipRow, EmptyState, Field, Header, IconBtn, Screen, SearchField, Sheet, SmallBtn, txt } from '../kit';
 import { getStore } from '../store';
 import { supabase } from '../supabase';
 import { C, measure, space } from '../theme';
 import { ActivityChart, DayBars, ProgressLine, WorkBar } from '../reports/charts';
-import { COUNTRY_CODES, countryName } from '../reports/countries';
+import { countryCodes, countryName } from '../reports/countries';
 import { useReports } from '../reports/data';
-import { PACE_ADVICE, PACE_LABEL, PACE_TONE, RECENCY_ADVICE, RECENCY_LABEL, RECENCY_TONE } from '../reports/labels';
-import { Activity, Alerts, FieldReport, Geography, Languages, Ledger, openAlerts, Overview, Pace, SECTIONS, type SectionId, type SectionProps } from '../reports/sections';
+import { bottleneckText, milestoneText, paceAdvice, paceLabel, PACE_TONE, recencyAdvice, recencyLabel, RECENCY_TONE, scopeLabel, stageName } from '../reports/labels';
+import { Activity, Alerts, FieldReport, Geography, Languages, Ledger, openAlerts, Overview, Pace, sectionLabel, SECTIONS, type SectionId, type SectionProps } from '../reports/sections';
 import {
-  AttentionPanel, Bar, canPrint, Columns, CoverageRows, exportCsv, fileName, Freshness, HeadlineStats, ListLine, NoReports, Notice, num, Panel,
-  pctText, printPage, ProgressPair, shortDate, Stat, Stats, ToneBadge, type Tone
+  AttentionPanel, Bar, bookOf, canPrint, Columns, CoverageRows, dayYear, exportCsv, fileName, Freshness, HeadlineStats, languageCsv, ListLine, NoReports, Notice, num, Panel,
+  pctText, printPage, ProgressPair, shortDate, signed, Stat, Stats, ToneBadge, type Tone
 } from '../reports/ui';
 
 const COLUMN = measure.report;
@@ -50,27 +52,27 @@ export function ReportsHome(ctx: Ctx) {
     show: (to, c) => { setSection(to); if (c !== undefined) setCountry(c); }
   };
   const header = (
-    <Header title={spec.label} sub={[orgName, 'Reports'].filter(Boolean).join(' · ')} columnWidth={COLUMN}
-      action={<IconBtn name="restart" label="Catch up with the server" onPress={reports.refresh} disabled={reports.status === 'ready' && reports.refreshing} />} />
+    <Header title={sectionLabel(section)} sub={[orgName, t('reports.title')].filter(Boolean).join(' · ')} columnWidth={COLUMN}
+      action={<IconBtn name="restart" label={t('reports.home.catchUp')} onPress={reports.refresh} disabled={reports.status === 'ready' && reports.refreshing} />} />
   );
   return (
     <Screen header={header} columnWidth={COLUMN}>
       <ChipRow>
         {SECTIONS.map((s) => (
-          <Chip key={s.id} label={s.label} on={s.id === section} onPress={() => setSection(s.id)}
-            {...(s.id === 'alerts' && alerts > 0 ? { count: alerts, accessibilityLabel: `Alerts, ${alerts} need someone` } : {})} />
+          <Chip key={s.id} label={sectionLabel(s.id)} on={s.id === section} onPress={() => setSection(s.id)}
+            {...(s.id === 'alerts' && alerts > 0 ? { count: alerts, accessibilityLabel: t('reports.home.alertsChip', { count: alerts }) } : {})} />
         ))}
       </ChipRow>
       {spec.filterCountry && countries.length > 1 ? (
         <ChipRow>
-          <Chip label="All countries" icon="globe" on={!country} onPress={() => setCountry('')} />
+          <Chip label={t('reports.home.allCountries')} icon="globe" on={!country} onPress={() => setCountry('')} />
           {countries.map((c) => <Chip key={c || 'none'} label={countryName(c || null)} on={country === c} onPress={() => setCountry(c)} />)}
         </ChipRow>
       ) : null}
-      {reports.status === 'loading' ? <EmptyState icon="progress" title="Loading reports…" /> : null}
+      {reports.status === 'loading' ? <EmptyState icon="progress" title={t('reports.home.loading')} /> : null}
       {reports.status === 'error' ? (
-        <Notice tone={reports.offline ? 'amber' : 'red'} title={reports.offline ? 'You are offline' : 'The reports could not be read'} body={reports.message}>
-          <View style={{ alignSelf: 'flex-start', marginTop: space.sm }}><SmallBtn label="Try again" icon="restart" onPress={reports.reload} /></View>
+        <Notice tone={reports.offline ? 'amber' : 'red'} title={reports.offline ? t('reports.offlineTitle') : t('reports.home.couldNotRead')} body={reports.message}>
+          <View style={{ alignSelf: 'flex-start', marginTop: space.sm }}><SmallBtn label={t('common.tryAgain')} icon="restart" onPress={reports.reload} /></View>
         </Notice>
       ) : null}
       {reports.status === 'ready' && all.length === 0 ? <NoReports what="languages" /> : null}
@@ -95,30 +97,31 @@ export function ReportsLanguage(ctx: Ctx) {
   const reports = useReports(orgId);
   const languageId = ctx.params['languageId'] ?? '';
   const row = reports.status === 'ready' ? reports.rows.find((r) => r.languageId === languageId) : undefined;
-  const title = row?.report.name ?? 'Language';
+  const title = row?.report.name ?? t('reports.language.fallbackTitle');
   const header = (
-    <Header title={title} sub={orgName} columnWidth={COLUMN} onBack={ctx.back} crumbs={[{ label: 'Reports', onPress: ctx.back }]}
+    <Header title={title} sub={orgName} columnWidth={COLUMN} onBack={ctx.back} crumbs={[{ label: t('reports.title'), onPress: ctx.back }]}
       action={row ? (
         <View style={{ flexDirection: 'row', gap: space.sm }}>
-          <IconBtn name="download" label="Download the books as CSV" onPress={() => exportCsv(fileName(`${row.report.name} books`), languageCsv(row.report))} />
-          {canPrint ? <IconBtn name="share" label="Print or save as PDF" onPress={printPage} /> : null}
+          <IconBtn name="download" label={t('reports.language.downloadBooks')} onPress={() => exportCsv(fileName(t('reports.files.books', { name: row.report.name })), languageCsv(row.report))} />
+          {canPrint ? <IconBtn name="share" label={t('reports.printOrSave')} onPress={printPage} /> : null}
         </View>
       ) : undefined} />
   );
   return (
     <Screen header={header} columnWidth={COLUMN}>
-      {reports.status === 'loading' ? <EmptyState icon="progress" title="Loading the report…" /> : null}
-      {reports.status === 'error' ? <Notice tone={reports.offline ? 'amber' : 'red'} title={reports.offline ? 'You are offline' : 'The report could not be read'} body={reports.message} /> : null}
+      {reports.status === 'loading' ? <EmptyState icon="progress" title={t('reports.language.loading')} /> : null}
+      {reports.status === 'error' ? <Notice tone={reports.offline ? 'amber' : 'red'} title={reports.offline ? t('reports.offlineTitle') : t('reports.language.couldNotRead')} body={reports.message} /> : null}
       {reports.status === 'ready' && !row ? (
-        reports.rows.length === 0 ? <NoReports what="report for this language" /> : (
-          <Notice tone="gray" title="This language has no report you can see"
-            body="Your role may not include this language, or it was added after the reports loaded (catch up from Reports to check)." />
+        reports.rows.length === 0 ? <NoReports what="languageReport" /> : (
+          <Notice tone="gray" title={t('reports.language.notVisible')} body={t('reports.language.notVisibleBody')} />
         )
       ) : null}
       {row ? <LanguageBody ctx={ctx} row={row} refresh={reports.refresh} /> : null}
     </Screen>
   );
 }
+
+const bold = <Text style={{ fontWeight: '700' }} />;
 
 function LanguageBody(props: { ctx: Ctx; row: LanguageRow; refresh: () => void }) {
   const { ctx, row } = props;
@@ -129,72 +132,73 @@ function LanguageBody(props: { ctx: Ctx; row: LanguageRow; refresh: () => void }
   const sevenAgo = new Date(now - 6 * 86_400_000).toISOString().slice(0, 10);
   const org = ctx.org.state;
   const mayEdit = !!org && privilegesFor(org, ctx.session.actorId, row.languageId).has('manage_structure');
+  const bottleneck = bottleneckText(r);
   return (
     <>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, alignItems: 'center' }}>
         <ToneBadge tone="brand" label={r.code.toUpperCase()} />
-        <Text style={txt.sm}>{r.country ? countryName(r.country) : 'No country set'}</Text>
-        <Text style={txt.sm}>· Review flow: <Text style={{ fontWeight: '700' }}>{r.flowName}</Text></Text>
-        {r.bottleneck ? <Text style={txt.sm}>· Bottleneck: <Text style={{ fontWeight: '700' }}>{r.bottleneck}</Text></Text> : null}
-        <ToneBadge tone={RECENCY_TONE[recency.band]} label={RECENCY_LABEL[recency.band]} />
-        {pace ? <ToneBadge tone={PACE_TONE[pace.band]} label={PACE_LABEL[pace.band]} /> : null}
+        <Text style={txt.sm}>{countryName(r.country)}</Text>
+        <Text style={txt.sm}>· <Trans i18nKey="reports.language.reviewFlow" values={{ flow: r.flowName }} components={{ b: bold }} /></Text>
+        {bottleneck ? <Text style={txt.sm}>· <Trans i18nKey="reports.language.bottleneck" values={{ bottleneck }} components={{ b: bold }} /></Text> : null}
+        <ToneBadge tone={RECENCY_TONE[recency.band]} label={recencyLabel(recency.band)} />
+        {pace ? <ToneBadge tone={PACE_TONE[pace.band]} label={paceLabel(pace.band)} /> : null}
       </View>
       <Freshness updatedAt={row.updatedAt} now={now} />
       <HeadlineStats total={r.progress.total} recorded={r.progress.recorded} done={r.progress.done} />
       <Columns>
-        <Panel title="Scripture coverage">
+        <Panel title={t('reports.coverage.title')}>
           <CoverageRows recorded={r.coverage.recorded} done={r.coverage.done} />
           {r.milestones.length ? (
             <>
-              <Text style={txt.h3}>Milestones</Text>
+              <Text style={txt.h3}>{t('reports.milestones')}</Text>
               {[...r.milestones].reverse().map((m) => (
-                <ListLine key={`${m.scope}-${m.threshold}`} right={<Text style={txt.xs}>{shortDate(m.at.slice(0, 10))} {m.at.slice(0, 4)}</Text>}>
+                <ListLine key={`${m.scope}-${m.threshold}`} right={<Text style={txt.xs}>{dayYear(m.at)}</Text>}>
                   <Text style={txt.sm}>{milestoneText({ ...m, row })}</Text>
                 </ListLine>
               ))}
             </>
           ) : null}
         </Panel>
-        <Panel title="Uploads" sub={RECENCY_ADVICE[recency.band]}>
+        <Panel title={t('reports.language.uploads')} sub={recencyAdvice(recency.band)}>
           <Stats>
-            <Stat label="Recordings on the server" value={num(r.uploads.cards)} />
-            <Stat label="Chapters with audio" value={num(r.uploads.chapters)} />
-            <Stat label="Since the last upload" value={recency.days === null ? '—' : `${recency.days}d`}
-              sub={r.uploads.lastAt ? `${shortDate(r.uploads.lastAt.slice(0, 10))} ${r.uploads.lastAt.slice(0, 4)}` : undefined} />
+            <Stat label={t('reports.recordingsOnServer')} value={num(r.uploads.cards)} />
+            <Stat label={t('reports.language.chaptersWithAudio')} value={num(r.uploads.chapters)} />
+            <Stat label={t('reports.language.sinceLastUpload')} value={recency.days === null ? '—' : t('reports.daysShort', { count: recency.days })}
+              sub={r.uploads.lastAt ? dayYear(r.uploads.lastAt) : undefined} />
           </Stats>
           {r.alerts.stuckCards > 0 ? (
-            <Notice tone="red" title={`${num(r.alerts.stuckCards)} recordings stuck on devices`}
-              body={`Recorded more than two weeks ago (the oldest ${r.alerts.stuckSince ? shortDate(r.alerts.stuckSince.slice(0, 10)) : ''}) and not yet on the server. Until they upload, the device holds the only copy.`} />
+            <Notice tone="red" title={t('reports.language.stuck', { count: r.alerts.stuckCards })}
+              body={r.alerts.stuckSince ? t('reports.language.stuckBody', { date: shortDate(r.alerts.stuckSince) }) : t('reports.language.stuckBodyUndated')} />
           ) : null}
-          <DayBars days={r.uploads.daily.map((d) => ({ day: d.day, value: d.cards }))} highlightFrom={sevenAgo} label="The last 7 days" unit="uploads" />
+          <DayBars days={r.uploads.daily.map((d) => ({ day: d.day, value: d.cards }))} highlightFrom={sevenAgo} label={t('reports.last7Days')} unit="uploads" />
         </Panel>
       </Columns>
       {r.target && pace ? (
-        <Panel title="Pace" right={<ToneBadge tone={PACE_TONE[pace.band]} label={`${PACE_LABEL[pace.band]} ${pace.gap >= 0 ? '+' : ''}${pace.gap} pts`} />}
-          sub={`${SCOPE_LABEL[r.target.scope]} from ${shortDate(r.target.startDate)} ${r.target.startDate.slice(0, 4)} to ${shortDate(r.target.targetDate)} ${r.target.targetDate.slice(0, 4)}. ${PACE_ADVICE[pace.band]}`}>
-          <Bar value={pace.actual} tick={pace.expected} tone={PACE_TONE[pace.band]} label={`${pace.actual}% recorded, plan ${pace.expected}%`} />
+        <Panel title={t('reports.sections.pace')} right={<ToneBadge tone={PACE_TONE[pace.band]} label={t('reports.pace.badge', { label: paceLabel(pace.band), gap: signed(pace.gap) })} />}
+          sub={t('reports.language.paceSub', { scope: scopeLabel(r.target.scope), from: dayYear(r.target.startDate), to: dayYear(r.target.targetDate), advice: paceAdvice(pace.band) })}>
+          <Bar value={pace.actual} tick={pace.expected} tone={PACE_TONE[pace.band]} label={t('reports.pace.bar', { actual: pctText(pace.actual), expected: pctText(pace.expected) })} />
           <Text style={txt.sm}>
-            <Text style={{ fontWeight: '700' }}>{pctText(pace.actual)}</Text> of the {SCOPE_LABEL[r.target.scope]} recorded; a straight line to the target puts it at {pctText(pace.expected)} today (the tick).
-            {pace.projectedFinish && pace.band !== 'complete' ? ` At the last eight weeks' rate it finishes around ${shortDate(pace.projectedFinish)} ${pace.projectedFinish.slice(0, 4)}.` : ''}
-            {!pace.projectedFinish ? ' No progress in the last eight weeks.' : ''}
+            <Trans i18nKey="reports.language.paceLine" values={{ actual: pctText(pace.actual), scope: scopeLabel(r.target.scope), expected: pctText(pace.expected) }} components={{ b: bold }} />
+            {pace.projectedFinish && pace.band !== 'complete' ? ` ${t('reports.language.paceFinishes', { date: dayYear(pace.projectedFinish) })}` : ''}
+            {!pace.projectedFinish ? ` ${t('reports.language.paceNoProgress')}` : ''}
           </Text>
         </Panel>
       ) : null}
       <AttentionPanel attention={r.attention} />
       <Columns>
         <FlowPanel report={r} />
-        <Panel title="Where passages stand" sub="Each passage counted once."><WorkBar work={r.work} /></Panel>
+        <Panel title={t('reports.whereStand.title')} sub={t('reports.whereStand.once')}><WorkBar work={r.work} /></Panel>
       </Columns>
       <Columns>
-        <Panel title="Activity" sub="By week."><ActivityChart weeks={r.activity.slice(-12)} withCards /></Panel>
-        <Panel title="Progress over time" sub="Share of passages recorded and done, one point per day for the last 90 days.">
+        <Panel title={t('reports.language.activity')} sub={t('reports.language.byWeek')}><ActivityChart weeks={r.activity.slice(-12)} withCards /></Panel>
+        <Panel title={t('reports.language.progressOverTime')} sub={t('reports.language.progressOverTimeSub')}>
           <ProgressLine points={dayPercents(r)} />
         </Panel>
       </Columns>
-      <Panel title="Books">
-        {r.books.length === 0 ? <Text style={txt.smMuted}>No passages yet.</Text> : r.books.map((b) => (
-          <ListLine key={b.bookId ?? b.label} right={<Text style={txt.xs}>{num(b.total)} passages</Text>}>
-            <Text style={[txt.sm, { fontWeight: '700' }]}>{b.label}</Text>
+      <Panel title={t('reports.language.books')}>
+        {r.books.length === 0 ? <Text style={txt.smMuted}>{t('reports.charts.noPassages')}</Text> : r.books.map((b) => (
+          <ListLine key={b.bookId ?? b.label} right={<Text style={txt.xs}>{t('reports.counts.passages', { count: b.total })}</Text>}>
+            <Text style={[txt.sm, { fontWeight: '700' }]}>{bookOf(b)}</Text>
             <ProgressPair total={b.total} recorded={b.recorded} done={b.done} />
           </ListLine>
         ))}
@@ -207,20 +211,23 @@ function LanguageBody(props: { ctx: Ctx; row: LanguageRow; refresh: () => void }
 function FlowPanel(props: { report: LanguageReport }) {
   const r = props.report;
   if (r.stages.length === 0) {
-    return <Panel title="Review flow"><Text style={txt.smMuted}>This language's flow has no review steps, so a recorded passage is done.</Text></Panel>;
+    return <Panel title={t('reports.flow.title')}><Text style={txt.smMuted}>{t('reports.flow.noSteps')}</Text></Panel>;
   }
   return (
-    <Panel title="Review flow" sub="How many recorded passages have cleared each step, and how many wait at it.">
+    <Panel title={t('reports.flow.title')} sub={t('reports.flow.sub')}>
       {r.stages.map((s, i) => {
         const cleared = r.progress.steps[i]?.cleared ?? 0;
+        const name = stageName(s.name);
         return (
           <View key={s.stepId} style={{ gap: 4 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, flexWrap: 'wrap' }}>
-              <Text style={[txt.sm, { fontWeight: '700' }]}>{s.name}</Text>
-              {s.checkpoint ? <ToneBadge tone="amber" label="Checkpoint" /> : null}
-              <Text style={[txt.xs, { marginLeft: 'auto' }]}>{num(cleared)} cleared{s.passages > 0 ? ` · ${num(s.passages)} waiting` : ''}</Text>
+              <Text style={[txt.sm, { fontWeight: '700' }]}>{name}</Text>
+              {s.checkpoint ? <ToneBadge tone="amber" label={t('reports.flow.checkpoint')} /> : null}
+              <Text style={[txt.xs, { marginStart: 'auto' }]}>
+                {s.passages > 0 ? t('reports.flow.clearedWaiting', { cleared: num(cleared), waiting: num(s.passages) }) : t('reports.flow.cleared', { cleared: num(cleared) })}
+              </Text>
             </View>
-            <Bar value={percent(cleared, r.progress.total)} tone="green" label={`${s.name}: ${percent(cleared, r.progress.total)}% cleared`} />
+            <Bar value={percent(cleared, r.progress.total)} tone="green" label={t('reports.flow.bar', { name, share: pctText(percent(cleared, r.progress.total)) })} />
           </View>
         );
       })}
@@ -230,6 +237,17 @@ function FlowPanel(props: { report: LanguageReport }) {
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const validDay = (d: string) => DAY.test(d) && !Number.isNaN(Date.parse(`${d}T00:00:00Z`));
+
+/** Why a setting was not saved, by the client's reason (its own message is English). */
+function notSavedText(e: unknown): string {
+  if (!(e instanceof NotSavedError)) return t('reports.settings.notSaved');
+  switch (e.reason) {
+    case 'offline': return t('reports.settings.offline');
+    case 'refused': return t('reports.settings.refused');
+    case 'unconfirmed': return t('reports.settings.unconfirmed');
+    case 'failed': return t('reports.settings.failed');
+  }
+}
 
 /**
  * Country and target, for people who manage the organization's structure
@@ -249,8 +267,9 @@ function SettingsPanel(props: { ctx: Ctx; row: LanguageRow; refresh: () => void 
   const [busy, setBusy] = useState<'' | 'country' | 'target'>('');
   const [status, setStatus] = useState<{ tone: Tone; text: string } | null>(null);
   const datesOk = validDay(start) && validDay(end) && end > start;
+  const codes = useMemo(() => countryCodes(), []);
   const q = search.trim().toLowerCase();
-  const choices = q ? COUNTRY_CODES.filter((c) => countryName(c).toLowerCase().includes(q) || c.toLowerCase() === q) : COUNTRY_CODES;
+  const choices = q ? codes.filter((c) => countryName(c).toLowerCase().includes(q) || c.toLowerCase() === q) : codes;
 
   async function save(what: 'country' | 'target') {
     setBusy(what);
@@ -260,46 +279,47 @@ function SettingsPanel(props: { ctx: Ctx; row: LanguageRow; refresh: () => void 
       const who = { orgId: row.orgId, streamId: ORG_STREAM, actorId: ctx.session.actorId, deviceId, transport: new SupabaseTransport(supabase) };
       if (what === 'country') await appendConfirmed(who, 'v1.LanguageCountrySet', { languageId: r.languageId, country });
       else await appendConfirmed(who, 'v1.LanguageTargetSet', { languageId: r.languageId, scope, startDate: start, targetDate: end });
-      setStatus({ tone: 'green', text: 'Saved.' });
+      setStatus({ tone: 'green', text: t('reports.settings.saved') });
       props.refresh();
     } catch (e) {
-      setStatus({ tone: e instanceof NotSavedError && e.reason === 'offline' ? 'amber' : 'red', text: e instanceof Error ? e.message : 'Not saved.' });
+      setStatus({ tone: e instanceof NotSavedError && e.reason === 'offline' ? 'amber' : 'red', text: notSavedText(e) });
     } finally {
       setBusy('');
     }
   }
 
   return (
-    <Panel title="Language settings" sub="Where this language's work happens, and what it aims to record by when. Only people who manage the organization's structure see this.">
-      <Text style={txt.xsStrong}>Country</Text>
+    <Panel title={t('reports.settings.title')} sub={t('reports.settings.sub')}>
+      <Text style={txt.xsStrong}>{t('reports.settings.country')}</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, alignItems: 'center' }}>
-        <Pressable onPress={() => setPicking(true)} accessibilityRole="button" accessibilityLabel={`Country: ${country ? countryName(country) : 'not chosen'}. Change it.`}
+        <Pressable onPress={() => setPicking(true)} accessibilityRole="button"
+          accessibilityLabel={country ? t('reports.settings.countryButton', { country: countryName(country) }) : t('reports.settings.countryButtonNone')}
           style={({ pressed }) => [{ minHeight: 48, paddingHorizontal: space.md, borderRadius: 12, borderWidth: 1, borderColor: C.border, justifyContent: 'center', backgroundColor: C.card }, pressed && { opacity: 0.6 }]}>
-          <Text style={txt.body}>{country ? countryName(country) : 'Choose a country'}</Text>
+          <Text style={txt.body}>{country ? countryName(country) : t('reports.settings.chooseCountry')}</Text>
         </Pressable>
-        <SmallBtn label={busy === 'country' ? 'Saving…' : 'Save country'} tone="primary" onPress={() => void save('country')}
+        <SmallBtn label={busy === 'country' ? t('common.saving') : t('reports.settings.saveCountry')} tone="primary" onPress={() => void save('country')}
           disabled={busy !== '' || !country || country === r.country} />
       </View>
-      <Text style={[txt.xsStrong, { marginTop: space.sm }]}>Target</Text>
-      <ChipRow>{TARGET_SCOPES.map((s) => <Chip key={s} label={SCOPE_LABEL[s]} on={scope === s} onPress={() => setScope(s)} />)}</ChipRow>
+      <Text style={[txt.xsStrong, { marginTop: space.sm }]}>{t('reports.settings.target')}</Text>
+      <ChipRow>{TARGET_SCOPES.map((s) => <Chip key={s} label={scopeLabel(s)} on={scope === s} onPress={() => setScope(s)} />)}</ChipRow>
       <Columns min={200}>
-        <Field label="Start (YYYY-MM-DD)" value={start} onChangeText={setStart} autoCapitalize="none" />
-        <Field label="Finish by (YYYY-MM-DD)" value={end} onChangeText={setEnd} autoCapitalize="none" />
+        <Field label={t('reports.settings.start')} value={start} onChangeText={setStart} autoCapitalize="none" />
+        <Field label={t('reports.settings.finishBy')} value={end} onChangeText={setEnd} autoCapitalize="none" />
       </Columns>
-      {!datesOk ? <Text style={txt.error} accessibilityRole="alert">Write both dates as YYYY-MM-DD, with the finish after the start.</Text> : null}
+      {!datesOk ? <Text style={txt.error} accessibilityRole="alert">{t('reports.settings.datesInvalid')}</Text> : null}
       <View style={{ alignSelf: 'flex-start' }}>
-        <SmallBtn label={busy === 'target' ? 'Saving…' : 'Save target'} tone="primary" onPress={() => void save('target')} disabled={busy !== '' || !datesOk} />
+        <SmallBtn label={busy === 'target' ? t('common.saving') : t('reports.settings.saveTarget')} tone="primary" onPress={() => void save('target')} disabled={busy !== '' || !datesOk} />
       </View>
       {status ? <Notice tone={status.tone} title={status.text} /> : null}
-      <Sheet visible={picking} title="Country" sub={r.name} onClose={() => setPicking(false)}>
-        <SearchField value={search} onChangeText={setSearch} placeholder="Find a country" />
+      <Sheet visible={picking} title={t('reports.settings.country')} sub={r.name} onClose={() => setPicking(false)}>
+        <SearchField value={search} onChangeText={setSearch} placeholder={t('reports.settings.findCountry')} />
         {choices.slice(0, 60).map((c) => (
           <Pressable key={c} onPress={() => { setCountry(c); setPicking(false); setSearch(''); }} accessibilityRole="button" accessibilityState={{ selected: c === country }}
             style={({ pressed }) => [{ minHeight: 48, justifyContent: 'center', paddingHorizontal: space.sm, borderBottomWidth: 1, borderColor: C.border }, pressed && { opacity: 0.6 }]}>
             <Text style={[txt.body, c === country ? { color: C.primary, fontWeight: '700' } : null]}>{countryName(c)}</Text>
           </Pressable>
         ))}
-        {choices.length > 60 ? <Text style={txt.xs}>Type to find the other {choices.length - 60}.</Text> : null}
+        {choices.length > 60 ? <Text style={txt.xs}>{t('reports.settings.typeToFind', { count: choices.length - 60 })}</Text> : null}
       </Sheet>
     </Panel>
   );

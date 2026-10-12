@@ -7,13 +7,16 @@
 // shows inside the step that gave it. The recording flips between versions
 // (‹ ›, the dots, or a swipe), and every step then shows what that version
 // heard, read only.
-import { stepName, type FlowStepStatus, type KindStatus, type ReviewView, type Version } from '@langquest-next/core';
+import { type FlowStepStatus, type KindStatus, type ReviewView, type Version } from '@langquest-next/core';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
+import { PanResponder, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import { AudioClip } from '../audioClip';
+import { stepName } from '../coreText';
 import type { Ctx } from '../ctx';
+import { t, Trans } from '../i18n';
 import { Ico, StateMark, txt, type IconName } from '../kit';
-import { plural, versionTitle, when, type PassageView } from '../passageView';
+import { commaList, versionTitle, when, type PassageView } from '../passageView';
 import { shadow } from '../shadow';
 import { C, radius, space, target, TINT, withAlpha } from '../theme';
 import {
@@ -21,9 +24,18 @@ import {
   stepSummary, versionCaption, type NameFn, type PathState
 } from './record';
 
-const PATH_A11Y: Record<PathState, string> = {
-  complete: 'complete', answered: 'feedback answered', current: 'next', todo: 'to do', locked: 'locked', attention: 'needs attention', waiting: 'waiting'
-};
+/** A step's mark, as a screen reader says it. */
+function pathA11y(state: PathState): string {
+  switch (state) {
+    case 'complete': return t('passage.journey.a11y.complete');
+    case 'answered': return t('passage.journey.a11y.answered');
+    case 'current': return t('passage.journey.a11y.current');
+    case 'todo': return t('passage.journey.a11y.todo');
+    case 'locked': return t('passage.journey.a11y.locked');
+    case 'attention': return t('passage.journey.a11y.attention');
+    case 'waiting': return t('passage.journey.a11y.waiting');
+  }
+}
 
 /** A step's mark: colour and icon together (ADR-010); a lock for a checkpoint, a flag for an override. */
 function PathDot(props: { state: PathState; icon?: IconName; checkpoint: boolean; override: boolean; size?: number }) {
@@ -43,7 +55,7 @@ function PathDot(props: { state: PathState; icon?: IconName; checkpoint: boolean
   if (state === 'attention') mark = <Ico name="chat" size={px(15)} color={TINT.amberText} />;
   if (state === 'todo' && props.icon) mark = <Ico name={props.icon} size={px(15)} color={C.faint} />;
   return (
-    <View accessibilityLabel={`${PATH_A11Y[state]}${checkpoint ? ', checkpoint' : ''}${override ? ', moved past' : ''}`}
+    <View accessibilityLabel={commaList([pathA11y(state), checkpoint ? t('passage.journey.a11y.checkpoint') : '', override ? t('passage.journey.a11y.movedPast') : ''].filter(Boolean))}
       style={{ padding: 2, borderRadius: size, borderWidth: 2, borderColor: halo }}>
       <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: bg, borderWidth: 2, borderColor: ring, alignItems: 'center', justifyContent: 'center' }}>
         {mark}
@@ -101,12 +113,12 @@ export function Journey(props: {
           <VersionCard ctx={ctx} version={version} index={props.versionIdx} titles={versions.map((x) => versionTitle(x.n))} onGo={go}
             onOpen={() => props.onOpenVersion(version.takeId)}
             madeAfter={madeAfter(p, version).map((r) => ({
-              id: r.id, label: `${kindName(r.kindId)} on ${versionTitle(r.versionN)}`, onPress: () => goTo(versions.find((x) => x.n === r.versionN)?.takeId)
+              id: r.id, label: t('passage.journey.kindOnVersion', { kind: kindName(r.kindId), version: versionTitle(r.versionN) }), onPress: () => goTo(versions.find((x) => x.n === r.versionN)?.takeId)
             }))} />
         ) : (
           <View style={{ paddingTop: space.xs, gap: 2 }}>
-            <Text style={[txt.body, { fontWeight: '700' }]}>Recording</Text>
-            <Text style={txt.xs}>{p.drafting ? 'Takes recorded, not published yet' : 'Not recorded yet'}</Text>
+            <Text style={[txt.body, { fontWeight: '700' }]}>{t('passage.journey.recording')}</Text>
+            <Text style={txt.xs}>{p.drafting ? t('passage.journey.takesNotPublished') : t('passage.journey.notRecorded')}</Text>
           </View>
         )}
         {!p.recorded ? <View style={{ marginTop: space.md }}>{props.nextSlot}</View> : null}
@@ -116,7 +128,7 @@ export function Journey(props: {
         <Pressable onPress={() => go(versions.length - 1)} accessibilityRole="button"
           style={({ pressed }) => [styles.backToLatest, pressed && styles.pressed]}>
           <Ico name="history" size={16} color={TINT.amberText} />
-          <Text style={[txt.sm, { fontWeight: '700', color: TINT.amberText }]}>Back to the latest version</Text>
+          <Text style={[txt.sm, { fontWeight: '700', color: TINT.amberText }]}>{t('passage.journey.backToLatest')}</Text>
         </Pressable>
       ) : null}
 
@@ -143,12 +155,12 @@ export function Journey(props: {
                 <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
                   <View style={styles.pills}>
                     <Text style={[txt.body, { fontWeight: '700' }]}>{stepName(kinds, st)}</Text>
-                    {st.checkpoint ? <Pill icon="lock" label="Checkpoint" bg={TINT.amber} fg={TINT.amberText} /> : null}
-                    {isNext && feedback.length === 0 ? <Pill label="Next" bg={C.primary} fg={C.white} /> : null}
-                    {feedback.length > 0 ? <Pill label="Feedback" bg={TINT.amber} fg={TINT.amberText} /> : null}
+                    {st.checkpoint ? <Pill icon="lock" label={t('passage.journey.pill.checkpoint')} bg={TINT.amber} fg={TINT.amberText} /> : null}
+                    {isNext && feedback.length === 0 ? <Pill label={t('passage.journey.pill.next')} bg={C.primary} fg={C.white} /> : null}
+                    {feedback.length > 0 ? <Pill label={t('passage.journey.pill.feedback')} bg={TINT.amber} fg={TINT.amberText} /> : null}
                   </View>
                   {!open ? <Text style={txt.smMuted} numberOfLines={2}>{summary}</Text> : null}
-                  {open && st.kindIds.length > 1 ? <Text style={txt.xs}>{st.kindIds.length === 2 ? 'Either order' : 'Any order'}</Text> : null}
+                  {open && st.kindIds.length > 1 ? <Text style={txt.xs}>{st.kindIds.length === 2 ? t('passage.journey.eitherOrder') : t('passage.journey.anyOrder')}</Text> : null}
                 </View>
                 <View style={styles.chev}><Ico name={open ? 'up' : 'down'} size={18} color={C.muted} /></View>
               </Pressable>
@@ -165,10 +177,10 @@ export function Journey(props: {
                     </View>
                   )}
                   {options ? (
-                    <Pressable onPress={() => props.onOpenStep(st.id)} accessibilityRole="button" accessibilityLabel={`${stepName(kinds, st)}, all options`}
+                    <Pressable onPress={() => props.onOpenStep(st.id)} accessibilityRole="button" accessibilityLabel={t('passage.journey.allOptions', { step: stepName(kinds, st) })}
                       style={({ pressed }) => [styles.softBtn, pressed && styles.pressed]}>
                       <Ico name="settings" size={18} color={C.dark} />
-                      <Text style={[txt.sm, { fontWeight: '700' }]}>Options for this step</Text>
+                      <Text style={[txt.sm, { fontWeight: '700' }]}>{t('passage.journey.stepOptions')}</Text>
                     </Pressable>
                   ) : null}
                 </View>
@@ -181,16 +193,16 @@ export function Journey(props: {
       {isLatest && p.done && steps.length > 0 ? (
         <JourneyRow dot={<View style={styles.doneDot}><Ico name="star" size={20} color={C.white} /></View>}>
           <View style={{ paddingTop: space.xs, gap: 2 }}>
-            <Text style={[txt.body, { fontWeight: '700', color: TINT.greenText }]}>Done</Text>
-            <Text style={txt.xs}>Every step of {p.flow.name} is complete.</Text>
+            <Text style={[txt.body, { fontWeight: '700', color: TINT.greenText }]}>{t('passage.journey.done')}</Text>
+            <Text style={txt.xs}>{t('passage.journey.allStepsDone', { flow: p.flow.name })}</Text>
           </View>
         </JourneyRow>
       ) : null}
 
       {isLatest && props.canAct && !p.done && steps.length > 0 ? (
-        <Hint icon="help" text="Tap a step to open it. Its options let you ask someone, say it already happened, or set it aside." />
+        <Hint icon="help" text={t('passage.journey.hintSteps')} />
       ) : null}
-      {versions.length > 1 ? <Hint icon="swap" text="Swipe, or tap ‹ ›, to see what happened to each version." /> : null}
+      {versions.length > 1 ? <Hint icon="swap" text={t('passage.journey.hintVersions')} /> : null}
     </View>
   );
 }
@@ -254,15 +266,15 @@ function VersionCard(props: {
   return (
     <View style={styles.versionCard} {...(many ? pan.panHandlers : {})}>
       <View style={styles.rowCenter}>
-        <Flip icon="left" label="Earlier version" hidden={!many} disabled={index === 0} onPress={() => props.onGo(index - 1)} />
+        <Flip icon="left" label={t('passage.journey.earlier')} hidden={!many} disabled={index === 0} onPress={() => props.onGo(index - 1)} />
         <View style={{ flex: 1, minWidth: 0, alignItems: 'center' }}>
           <Text style={[txt.body, { fontWeight: '700' }]} accessibilityRole="header">{versionTitle(version.n)}</Text>
           <Text style={[txt.xsStrong, { color: isLatest ? C.primary : TINT.amberText }]}>{versionCaption(index, count)}</Text>
         </View>
-        <Flip icon="right" label="Newer version" hidden={!many} disabled={isLatest} onPress={() => props.onGo(index + 1)} />
+        <Flip icon="right" label={t('passage.journey.newer')} hidden={!many} disabled={isLatest} onPress={() => props.onGo(index + 1)} />
       </View>
       {many ? (
-        <View style={styles.dots} accessibilityRole="tablist" accessibilityLabel="Versions">
+        <View style={styles.dots} accessibilityRole="tablist" accessibilityLabel={t('passage.journey.versions')}>
           {props.titles.map((title, i) => (
             <Pressable key={title} onPress={() => props.onGo(i)} hitSlop={10} accessibilityRole="tab" accessibilityLabel={title}
               accessibilityState={{ selected: i === index }} style={styles.dotTap}>
@@ -272,22 +284,22 @@ function VersionCard(props: {
         </View>
       ) : null}
       <View style={styles.rowCenter}>
-        <AudioClip language={ctx.language} hashes={version.cardHashes} label={`Play ${versionTitle(version.n)}`} />
+        <AudioClip language={ctx.language} hashes={version.cardHashes} label={t('passage.journey.playVersion', { version: versionTitle(version.n) })} />
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={[txt.sm, { fontWeight: '600' }]} numberOfLines={1}>{ctx.name(version.by)} · {when(version.hlc)}</Text>
-          <Text style={txt.xs}>{plural(version.cardHashes.length, 'take')}</Text>
+          <Text style={txt.xs}>{t('passage.journey.takes', { count: version.cardHashes.length })}</Text>
         </View>
       </View>
       {version.changeNote ? <Text style={txt.sm} numberOfLines={2}>{version.changeNote}</Text> : null}
       <Pressable onPress={props.onOpen} accessibilityRole="button" style={({ pressed }) => [styles.openBtn, pressed && styles.pressed]}>
-        <Text style={[txt.sm, { fontWeight: '700', color: C.primary }]}>Open the recording</Text>
+        <Text style={[txt.sm, { fontWeight: '700', color: C.primary }]}>{t('passage.journey.openRecording')}</Text>
         <Ico name="right" size={16} color={C.primary} />
       </Pressable>
       {props.madeAfter.length > 0 ? (
         <View style={styles.chips}>
-          <Text style={txt.xsStrong}>Made after</Text>
+          <Text style={txt.xsStrong}>{t('passage.journey.madeAfter')}</Text>
           {props.madeAfter.map((m) => (
-            <Pressable key={m.id} onPress={m.onPress} accessibilityRole="button" accessibilityLabel={`Made after ${m.label}. Show that version`}
+            <Pressable key={m.id} onPress={m.onPress} accessibilityRole="button" accessibilityLabel={t('passage.journey.madeAfterShow', { label: m.label })}
               style={({ pressed }) => [styles.chip, { backgroundColor: TINT.amber }, pressed && styles.pressed]}>
               <Ico name="chat" size={12} color={TINT.amberText} />
               <Text style={[txt.xsStrong, { color: TINT.amberText }]}>{m.label}</Text>
@@ -318,19 +330,23 @@ function ReviewAttachments(props: { ctx: Ctx; v: PassageView; review: ReviewView
   if (!review.comment && !review.commentBlobHash && parts.length === 0) return null;
   return (
     <View style={{ gap: space.xs }}>
-      {review.comment ? <Text style={[txt.xs, { fontStyle: 'italic' }]} numberOfLines={2}>“{review.comment}”</Text> : null}
-      {review.commentBlobHash ? <ClipRow ctx={ctx} hashes={[review.commentBlobHash]} label="Voice feedback" /> : null}
+      {review.comment ? <Text style={[txt.xs, { fontStyle: 'italic' }]} numberOfLines={2}>{t('passage.quote', { text: review.comment })}</Text> : null}
+      {review.commentBlobHash ? (
+        <ClipRow ctx={ctx} hashes={[review.commentBlobHash]} label={t('passage.journey.voiceFeedback')} playLabel={t('passage.journey.playVoiceFeedback')} />
+      ) : null}
       {parts.length > 0 ? (
-        <ClipRow ctx={ctx} hashes={parts.map((c) => c.hash)} label={makes ? `The ${makes.what}` : 'What was captured'} />
+        <ClipRow ctx={ctx} hashes={parts.map((c) => c.hash)}
+          label={makes ? t('passage.journey.theMade', { what: makes.what }) : t('passage.journey.captured')}
+          playLabel={makes ? t('passage.journey.playMade', { what: makes.what }) : t('passage.journey.playCaptured')} />
       ) : null}
     </View>
   );
 }
 
-function ClipRow(props: { ctx: Ctx; hashes: string[]; label: string }) {
+function ClipRow(props: { ctx: Ctx; hashes: string[]; label: string; playLabel: string }) {
   return (
     <View style={styles.rowCenter}>
-      <AudioClip language={props.ctx.language} hashes={props.hashes} label={`Play ${props.label.toLowerCase()}`} />
+      <AudioClip language={props.ctx.language} hashes={props.hashes} label={props.playLabel} />
       <Text style={[txt.sm, { fontWeight: '600', flex: 1 }]} numberOfLines={1}>{props.label}</Text>
     </View>
   );
@@ -338,9 +354,9 @@ function ClipRow(props: { ctx: Ctx; hashes: string[]; label: string }) {
 
 function LedTo(props: { version: Version; onPress: () => void }) {
   return (
-    <Pressable onPress={props.onPress} accessibilityRole="button" accessibilityLabel={`Led to ${versionTitle(props.version.n)}. Show it`}
+    <Pressable onPress={props.onPress} accessibilityRole="button" accessibilityLabel={t('passage.journey.ledToShow', { version: versionTitle(props.version.n) })}
       style={({ pressed }) => [styles.chip, { backgroundColor: C.light }, pressed && styles.pressed]}>
-      <Text style={[txt.xsStrong, { color: C.primary }]}>led to {versionTitle(props.version.n)}</Text>
+      <Text style={[txt.xsStrong, { color: C.primary }]}>{t('passage.journey.ledTo', { version: versionTitle(props.version.n) })}</Text>
       <Ico name="right" size={12} color={C.primary} />
     </Pressable>
   );
@@ -349,7 +365,9 @@ function LedTo(props: { version: Version; onPress: () => void }) {
 function LineText(props: { label?: string; text: string; muted?: boolean; onPress?: () => void }) {
   const body = (
     <Text style={[txt.sm, props.muted && { color: C.muted }, props.onPress && styles.underline]}>
-      {props.label ? <Text style={{ fontWeight: '700' }}>{props.label}: </Text> : null}{props.text}
+      {props.label
+        ? <Trans i18nKey="passage.journey.labelled" values={{ label: props.label, text: props.text }} components={{ b: <Text style={{ fontWeight: '700' }} /> }} />
+        : props.text}
     </Text>
   );
   if (!props.onPress) return <View style={styles.lineText}>{body}</View>;
@@ -395,7 +413,7 @@ function OldKindLine(props: {
           {...(review ? { onPress: () => props.onOpenReview(review.id) } : {})} />
         {review ? <ReviewAttachments ctx={ctx} v={v} review={review} /> : null}
         {led ? <LedTo version={led} onPress={() => props.onVersion(led.takeId)} /> : null}
-        {review?.response?.decision === 'kept' ? <Text style={txt.xsStrong}>Kept, with a reason</Text> : null}
+        {review?.response?.decision === 'kept' ? <Text style={txt.xsStrong}>{t('passage.journey.keptWithReason')}</Text> : null}
       </View>
     </View>
   );

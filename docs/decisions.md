@@ -1951,7 +1951,7 @@ something (then it joins the flow as a checkpoint kind instead).
 
 Amended (2026-10-12, Carl Sauder): the passage list now returns
 `{ passages, nextAfter }` a page at a time, picks passages by `unitIds`,
-and adds any part of one passage with `include` (80).
+and adds any part of one passage with `include` (85).
 
 ## 71. One simpler set of screens for everyone, keeping every capability
 
@@ -2081,6 +2081,59 @@ started the detector (`claimVad`), so a recorder left mounted under another
 screen keeps nothing it did not record. Still not built: notes on a key term
 (no screen writes a `term` note, so "Note on a word" is left out).
 
+Amended (2026-10-09, Caleb Koster): spoken help on a device plays recorded
+lines in the app's language, downloaded and kept on the phone (decision 81);
+none are recorded yet, so a device still shows the words.
+
+Amended (2026-10-10, Caleb Koster): help mode no longer opens by itself. The
+first-time screen intros (demo a-helpFirst) are gone, because opening the
+overlay the first time someone reaches each screen was too confusing; help
+comes only from the ?. While it is on, the screen dims and every part stays
+lit with its number, the ? lit and filled as the way out (the "Help is on"
+banner is gone). A tap on a part shows a tooltip beside it, its name and
+what it does, with a play button; nothing plays by itself, and the card
+that said "Playing" and stepped through the parts with Back and Next part is
+gone. The play button shows where there is something to play: a recording
+of the line, or the browser's voice on the web. "How this works" still plays
+when tapped, in the same tooltip. Every part that explains itself is now
+numbered: the controls that used `useHelpPress` explained themselves without
+a visible number, and now light up and number like kit's (`useHelpSpot` with
+`HelpBadge`). The layer that draws the dim, the numbers and the tooltip
+(`helpMode.tsx`) measures each part every frame while help is on, so it
+follows scrolling; kit's Screen body and the workspace panes (`HelpClip`)
+keep what scrolls inside them from being lit past their edges. Numbers go in
+reading order across what is in sight when help comes on, and parts
+scrolled into view later take the next numbers, so a number never changes.
+Reverse if: field tests show people miss help without the intros (then an
+intro behind the ?, not on first open), or the dim hides what people need
+to see while exploring.
+
+Amended (2026-10-11, Caleb Koster): New language makes its own answer where
+none fits. Question 3 has "I'll choose the steps" (as Get ready does): it
+opens the flow editor on a new flow for the organization, named "<language>
+checks" and starting from the steps of the way picked before, and the flow
+saved there comes back picked. Review flows stay library flows chosen per
+language, so the new one is a template other languages can use too.
+Question 2's "Make your own" opens the template editor (`new_language` had
+no edge to it, so the app said it could not open there). Continue no longer
+shows a still "Saving…" button: the screen names each part as it starts
+(the passages, the review steps, the Bible and guides offered, listing the
+language, saving its passages) under a bar that keeps moving, and ✕ says
+to wait until it is done. The wait itself was mostly FIA's English guides:
+loading a collection fetched everything it depends on, which for that
+collection is 1,525 guides (65 MB), and following it did that before going
+on. Opening any passage did the same on every phone, the first time. Now a
+collection brings only its numbering, as a Bible source already did
+(`loadDocs` in library/docStore.ts), and each guide is fetched by its own
+hash when a passage reads it. On a phone-like link (12 Mbit/s down, 4 up,
+120 ms) a first language took 60 s and now takes 5 to 7; the first passage
+opened fetched 1,524 documents (67 MB) and now fetches its one guide (80
+KB). Offline, a phone keeps the guides of the passages it keeps (decision
+61, `StudyPrefetch`), not every guide.
+Reverse if: teams need every guide on the phone before they go out of
+signal, beyond the passages they keep (then a "keep all guides" choice on
+Ready for offline, not a download on first open).
+
 ## 72. Apps, agents and review links take part through reviews and releases; outside reviews never clear a checkpoint
 
 Date: 2026-10-08 · By: Ryder Wishart · Status: partly superseded by 79
@@ -2209,7 +2262,7 @@ Amended (2026-10-09, Caleb Koster): the language explorer is part of the web app
 
 ## 74. A Bible template breaks up each book its own way, or not yet, and a change goes to the languages chosen
 
-Date: 2026-10-09 · By: Caleb Koster · Status: accepted
+Date: 2026-10-09 · By: Caleb Koster · Status: partly superseded by 80
 
 Reason: an admin should first say what a language translates (the Bible or
 something else), then, if they want, how the Bible is broken up, and a book
@@ -2259,6 +2312,8 @@ Reverse if: teams need to break up one book differently from every other
 language using the same template, often enough that copies pile up; then a
 language keeps its own overrides on top of a shared template instead.
 
+
+Amended (2026-10-09, Caleb Koster): decision 80 puts the numbering first, for the whole Bible, and replaces the warning that recordings on old pieces "will no longer show": expired sections that overlap current ones stay reachable under "Earlier sections".
 ## 75. Nobody is added without joining, nobody grants more than they hold, and one id names one event
 
 Date: 2026-10-09 · By: Carl Sauder · Status: accepted
@@ -2487,7 +2542,246 @@ slow its downloads (then a sibling stream phones do not pull), partners
 that do not trust each other share a language (then a namespace per app),
 or values start to drive anything in LangQuest.
 
-## 80. The passage list pages, picks passages by id, and includes any part of one passage
+## 80. A language's numbering is chosen first, for the whole Bible, and ways of dividing are converted into it
+
+Date: 2026-10-09 · By: Caleb Koster · Status: accepted
+
+Reason: how a book is divided depends on its numbering. "By chapter" has
+no meaning until the chapters are known: English Malachi has 4, Hebrew-
+numbered Malachi 3. And the numbering decides which books exist. So when a
+language translates the Bible, its numbering is chosen first, for the whole
+Bible (by its Bible, by name, or with the quiz), and only then are books
+divided, all at once or one by one (Caleb, 2026-10-09). A numbering offered
+to admins is a source versification with exactly one tradition's books.
+FIA, unfoldingWord and OpenBible divide the text, not the numbers, so their
+English-numbered sections are converted into the language's numbering, with
+four rules: uncovered verses inside a chapter are a section of their own
+(Psalm headings included); uncovered verses inside a section split it
+(Catholic Daniel 3:19–23, 3:24–90, 3:91–97); a verse two sections want goes
+to the earlier one (Douay Judges 21:24); uncovered whole chapters are a
+section each (Catholic Daniel 13 and 14). Books a way does not cover wait
+for the admin. When divisions change (a way's new version, an admin
+dividing a book again, a new numbering), sections expire but are not
+deleted: a current section that overlaps an expired one with recordings
+shows a warning mark and lists it under "Earlier sections", closed by
+default (Caleb, 2026-10-09); this replaces decision 74's "will no longer
+show" for an admin's own change. `docs/breaking-up-the-bible.md`
+holds the rules with examples. Decision 74 stays as built; this extends it.
+The source files are rebuilt first, because their JSON copies lost every
+second line of a verse that matches two (96 lines). Five numberings are
+offered (English, Hebrew, Vulgate 73 books, Russian Synodal 66 and 77);
+every way is published once in each, converted by the seed. A language's
+numbering is its template's versification, so no new event is needed; a
+language's state keeps every template version it used, to read an expired
+section in the numbering it was made in. Changing numbering keeps the
+work on sections whose verses stay the same: a converted way marks the
+parts whose verses differ from the same numbers in English, and only
+those get new ids (`2CO.13~org`). The Septuagint numbering and Catholic
+Bibles numbered like the Hebrew are not offered yet.
+Reverse if: teams need one section made of two separate ranges (Daniel
+3:19–23 with 3:91–97) often enough; then a section holds a list of ranges,
+and every reader of a section's verses learns to read one.
+
+## 81. The app's words come from catalogs in the app, in the language chosen on the device or the phone's; English is the source
+
+Date: 2026-10-09 · By: Caleb Koster · Status: accepted
+
+Reason: field teams who do not read English could not use the app (LAN-42);
+every word was written into the screens. Chosen (`docs/localization.md`):
+- `i18next` and `react-i18next`, with one JSON catalog per language in
+  `apps/mobile/src/i18n/` and English the source. Fifteen languages: LAN-42's
+  thirteen (`en`, `es`, `pt` in Brazilian wording, `fr`, `ar`, `sw`, `ha`,
+  `am`, `hi`, `bn`, `ne`, `id`, `zh-Hans`) and Thai and Burmese from
+  LangQuest v2's list. Dates and numbers through `Intl`; plurals by each
+  language's own rules (`src/i18n/plurals.ts` stands in where the engine has
+  no `Intl.PluralRules`).
+- The language is a setting of the device, not an event: Me → Language (and
+  a globe on the sign-in screen) keeps it in expo-sqlite's key-value store,
+  read before the first screen draws, or the browser's localStorage. Nothing
+  to sync and no migration; people sharing a phone share it. Without a
+  choice the phone's language is followed (`expo-localization`) for any
+  catalog approved for release (`approved` in `src/i18n/languages.ts`). The
+  fourteen first catalogs are machine translations Caleb approved as they
+  are: the teams who read them are the reviewers there are, and they can
+  only say what reads wrong once the app speaks their language. A language
+  added later may stay a draft until approved: anyone may pick it, it says
+  it is a draft, and the phone's language never switches to it.
+- Arabic lays the app out right to left; on a phone the app restarts once to
+  change direction (`src/i18n/start.ts`).
+- "No hard-coded words" is a test, run by `npm test` and before a push:
+  `apps/mobile/test/i18n.test.ts` fails on a word written into the code
+  where a person would see it, a key used but missing or defined but unused,
+  and a catalog that lacks keys, adds keys, has the wrong plural forms or
+  drops a placeholder. `t()` keys are typed, so a wrong key fails the
+  typecheck.
+- `packages/core` stays English and pure; `src/coreText.ts` says its words
+  (review states, shipped kinds unless renamed, a passage's state, command
+  errors, licenses, book names). Library documents (36), names people typed,
+  and words stored in the event log are shown as written.
+- Emails go in the sender's app language: the invite now (the phone sends its
+  language; `apps/invite-email/src/i18n/`), and the password reset email's
+  words are ready for Forgot password.
+- Help mode speaks recorded lines per language: files named by a hash of the
+  language and the words, listed and served by the Worker
+  (`/api/help-audio`, `npm run help-audio`), kept on the phone once heard.
+  A line nobody has recorded shows as words, read aloud on the web.
+This departs from `docs/languoids.md`'s proposal that interface translations
+be library items an organization publishes: bundled catalogs work offline
+from the first launch and need no server; a published localization could
+later sit over them. Push notifications' words are still written in English
+by the database (the Inbox shows its own words by kind).
+Reverse if: translators need to change words between app releases (then the
+library localization), or people want their language to follow them to
+other devices (then an event in the person stream).
+
+## 82. A recorded part keeps how it relates to its neighbours, and its verse numbers are worked out down the list
+
+Date: 2026-10-09 · By: Caleb Koster · Status: accepted
+
+Reason: The recorder groups parts into cards by verse (demo ADR-036,
+SIMPLE-7), which needs verse labels on parts. Caleb asked for labelling
+simple enough to need no reading: an empty space on the left of each part
+that, when tapped, infers the right verse from the parts above and below,
+and a long press for a chosen verse or range. Rules: labels come from the
+passage's verses (the template's range in its versification), go up the
+list, never overlap, may be one verse or a range, several parts may share
+one verse, and verses may be skipped for later. What was chosen:
+- A part stores a mark, not a number: `next` (the verse after the label
+  above), `join` (the same verses as the part right above), `set` (verses
+  chosen, as `chapter:verse` from and to) or `none`. Core `verses.ts`
+  derives the numbers down a take's cards, so labelling a part higher up
+  renumbers the ones after it and the order cannot break; `tapPart`
+  picks the first legal change (next, else join the verse above), and a
+  chosen verse wins over the parts after it that no longer fit, which lose
+  their mark (`settlePartMarks`).
+- One new event, `v1.CardVerseSet { unitId, hash, mark, from?, to? }`, a
+  register per (unit, card hash) in the language stream (privilege
+  translate; migration `20261010010000_card_verse_set.sql`). Keyed by card,
+  not take: every list change composes a new draft take, and a card keeps
+  its mark through them and into the version it is published in.
+- The workspace (`simple/verseParts.tsx`): tap a space to give the part a
+  verse, tap a number to join the part above and again to split it out,
+  hold for the verse grid with Auto, None and Delete (each tap applies at
+  once), slide down the spaces to number many parts, and a gap left for
+  later has Record here, which records into its place as the next verse.
+  A unit with no verses keeps the one card of numbered parts.
+Rejected: storing numbers on parts (moving or labelling one would leave
+the rest out of order); labels on the take (each draft change makes a new
+take, so marks would have to be copied forward); separate events for
+joins and choices (one register per card is simpler to merge).
+Reverse if: the same recording needs different verses in different
+versions (then marks belong on the take), or teams want labels from the
+audio itself (alignment) rather than taps.
+
+Amended (2026-10-10, Caleb Koster): no grouping by verse for now. The
+recorder keeps its one card of parts as before, and each part has its verse
+space; a part with the same verse as the part above shows that verse hollow
+and grey instead of joining a card; a part's own verse is a soft grey tile
+with a dark number, so the labels stay quiet beside the parts. The marks, the event and the tap rules are
+unchanged.
+
+## 83. A person may keep several drafts of a passage, each one the line of takes its changes made
+
+Date: 2026-10-10 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb asked that people can make several versions of a passage and
+save, delete, edit, publish and send each for review freely. Until now each
+person had one draft per passage: every change composed a new take and
+retired their previous draft, so starting over meant losing the last try.
+What was chosen:
+- No new event. A draft is the line of takes its changes composed
+  (`v1.TakeComposed` with `parentTakeId`); the take it started with names
+  it. Core `derivePassage` lists every open draft (`drafts`, anyone's, in
+  the order started, each with its first take and the version it started
+  from), and `keepTake`, `publishVersion` and `discardCards` take the take a
+  change continues (`parentTakeId`): the draft open in the workspace (whose
+  take is retired), a version to start from, or null for a draft started
+  empty. Left out, they continue the person's latest draft as before.
+- Deleting a draft is `deleteDraft` (`v1.TakeArchived`, only the person's
+  own). Its Undo composes the same parts continuing the deleted take, so it
+  is the same draft again.
+- A published version never changes. Editing one starts a new draft from its
+  parts; it publishes as a new version, as every change does (REC-W3).
+- Screens: the passage record's "Versions and history" is now a page: the
+  person's drafts (play, Edit, Publish, Delete with Undo), then the
+  published versions (play, open, Edit, and on the latest, Ask for its next
+  check), "New version" to start empty, then the study, reviews and history
+  that used to open in place. Record opens the person's only draft, or the
+  page when they keep several. The workspace opens one draft, says which
+  ("Draft 2"), and has Save, which says the draft is kept (every change
+  already is) and goes back. Publishing then asking for a check is
+  unchanged (demo ADR-034).
+- Verse marks (decision 82) stay on cards, so drafts that share parts share
+  their marks. A mark relative to its neighbours (next, join) still reads
+  right in each draft; a chosen verse is the same in all of them.
+Rejected: a name per draft (a new event, and typed names suit oral teams
+poorly; drafts are numbered in the order started instead); deleting a
+published version (reviews and requests point at it; nothing removes one).
+Open: a request for review names the passage, not a version, so asking for
+a check always means the latest version. Sending an older version for review
+would need a new event with the version in it.
+Reverse if: teams need drafts others can pick up and change (then a draft
+would need an owner other than whoever composed its takes).
+
+## 84. Reference material says the language it is in, and FIA is chosen with its language
+
+Date: 2026-10-10 · By: Caleb Koster · Status: accepted
+
+Reason: nobody chose the language of the FIA guides a team read. `bestGuide`
+preferred English for every team because its one caller passed no language,
+and a new language was offered English guides only because `sourceCode` on
+`v1.LanguageAdded` is always `eng`. LangQuest publishes FIA as one
+collection per language (fourteen of them), so admins saw look-alike rows
+for each language. Notes, question sets and other material said nothing
+about their language at all. Caleb chose (2026-10-10): turning FIA on asks
+which language it should be in, defaulting to the admin's own (the app
+language, decision 81), and every piece of reference material is tied to a
+language that shows wherever someone chooses it. So:
+- The language a team's reference material is in is a setting with a page
+  of its own (Caleb, 2026-10-10: "give the language setting its own page
+  (for reference material in general)"): step 4 of New language, and the
+  first page of What will help them. It lists every language LangQuest or
+  the organization has material in, each saying what is there (a guide
+  set's passages, Bibles, other guides), and starts on the admin's app
+  language when there is anything in it, else English
+  (`apps/mobile/src/reference/ReferenceLanguagePage.tsx`). New language
+  writes it as `sourceCode` on `v1.LanguageAdded`; changing it later is
+  `v1.ReferenceLanguageSet { language }`, a register in the language's
+  stream (Manage Reference). It decides what New language offers (a Bible
+  and FIA in that language, nothing in a language with none), which
+  language FIA follows when the team has FIA on, which Bibles are listed
+  first, which other organizations' guides are shown, and which guide a
+  passage prefers when several fit as well.
+- Collections that follow one method from one organization (`pattern` and
+  `language`, such as LangQuest's `langquest.fia.<code>`) form one guide set
+  (`apps/mobile/src/reference/guideSets.ts`). What will help them shows the
+  set as one row; tapping it opens a sheet listing each language with how
+  many passages it covers, for a team that wants FIA in a language other
+  than its own.
+- Choosing a language writes the team's say in its own log with
+  `v1.ReferenceSet`, so there is no new event. The chosen collection is
+  recommended (followed from LangQuest first when needed), and the set's
+  other collections in the library are hidden. A team has one language per
+  set. Passages the chosen language does not cover show no guide rather than
+  another language's: `chosenOnly` leaves a set's unchosen languages out of
+  the library fallback of decision 62.
+- `material@1` gains an optional `language` (ISO 639-3). The library
+  material editor, the in-app material editor (when the material goes to
+  the library) and the guide editor ask for it, starting with the writer's
+  app language. The lists of Bibles, guides and notes, a passage's reference
+  page, the library and the translator's Bible picker name each item's
+  language, or say "Language not given". LangQuest's seeded question sets
+  now say English; production gets that with the next hosted seed.
+- Language names come from the catalogs (all fourteen of FIA's), else the
+  platform's `Intl.DisplayNames`, else the code.
+Toasts stay clear of a screen's buttons on phones too: they sit just above
+its footer, show a bar counting down to their going, and have an X.
+Reverse if: teams need two languages of one set at once (then the sheet
+becomes a pick-many and `bestGuide` ranks the team's languages), or teams
+want another language's guide where theirs has none (then `chosenOnly`
+keeps the rest of the set as a fallback).
+
+## 85. The passage list pages, picks passages by id, and includes any part of one passage
 
 Date: 2026-10-12 · By: Carl Sauder · Status: accepted
 
@@ -2521,7 +2815,7 @@ Reverse if: callers lose passages between pages because the order changes
 under them (then a cursor on a snapshot), or a page with every include is
 too large at 100 (then a smaller default).
 
-## 81. The access-token API is described by an OpenAPI 3.1 document the tests hold it to
+## 86. The access-token API is described by an OpenAPI 3.1 document the tests hold it to
 
 Date: 2026-10-12 · By: Carl Sauder · Status: accepted
 

@@ -10,13 +10,17 @@
 import { CommandError, DEFAULT_LICENSE, isLicense, LICENSE_INFO, type License } from '@langquest-next/core';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import {
   cachedListedOrganizations, cachedPublicLanguages, listedOrganizations, publicLanguages, queueAccountAction, TERMS_VERSION,
   type ListedOrganization
 } from '../accountData';
-import { firstName, VISION_STEPS } from '../accountText';
+import { authErrorText, firstName, outboxErrorText, signInCodeErrorText, VISION_STEPS } from '../accountText';
 import { isSignInName, signInAddress, signInName } from '../accounts';
+import { licenseText } from '../coreText';
+import { t, Trans } from '../i18n';
+import { formatPercent } from '../i18n/format';
 import { recordHelp } from '../signInHelp';
 import { deadMessage, inviteCard, type DeadReason, type InvitePreview } from '../heldInvite';
 import { parseKey } from '../inviteCode';
@@ -37,6 +41,7 @@ import { supabase } from '../supabase';
 import { lift } from '../shadow';
 import { C, TINT, radius, space, tile, type as T, withAlpha } from '../theme';
 import { useAccountActions, useDisplayNames } from '../useAccount';
+import { LanguageChip } from '../uiLanguage';
 
 /**
  * What to say when something fails (error-tracking): a command's own reason,
@@ -69,8 +74,8 @@ export function SignIn(ctx: Ctx) {
         await ensurePersonaAccount({ id: 'dev', email: email.trim() });
         ({ data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password }));
       }
-      // A wrong password or no connection: the server's words are the answer.
-      if (error) { noteExpected('sign in', error); setError(error.message); return; }
+      // A wrong password or no connection: the server's answer, said in the language showing.
+      if (error) { noteExpected('sign in', error); setError(authErrorText(error, t('entry.signIn.failed'))); return; }
       // Signing in accepts the terms (AUTH-1). The session this screen was
       // given belongs to the guest, so record it for the account that just
       // signed in; the account outbox delivers (and retries) it once the new
@@ -96,36 +101,45 @@ export function SignIn(ctx: Ctx) {
   const joining = ctx.invite.held?.claim.kind === 'next-account';
   return (
     <Screen bodyStyle={styles.signInBody}>
+      <LanguageChip />
       <View style={styles.brand}>
         <View style={styles.logo}><Ico name="book" size={32} color={C.white} /></View>
+        {/* i18n-ignore: the app's name, the same in every language */}
         <Text style={styles.wordmark} accessibilityRole="header">LangQuest</Text>
-        <Text style={[txt.smMuted, { textAlign: 'center' }]}>Coordinating Bible translation — draft to approval</Text>
+        <Text style={[txt.smMuted, { textAlign: 'center' }]}>{t('entry.signIn.tagline')}</Text>
       </View>
-      {joining ? <Banner icon="people" title="Sign in to join" body="Your invite is saved. You'll join as soon as you sign in." /> : null}
+      {joining ? <Banner icon="people" title={t('entry.signIn.joinTitle')} body={t('entry.signIn.joinBody')} /> : null}
       {/* Two ways in that never combine (the demo's ADR-031): the fields, or a code. */}
       <Card>
-        <Field value={email} onChangeText={setEmail} placeholder="Email or sign-in name" keyboardType="email-address" autoCapitalize="none" />
-        <Field value={password} onChangeText={setPassword} placeholder="Password" secure autoCapitalize="none" />
+        <Field value={email} onChangeText={setEmail} placeholder={t('entry.signIn.namePlaceholder')} keyboardType="email-address" autoCapitalize="none" />
+        <Field value={password} onChangeText={setPassword} placeholder={t('entry.fields.password')} secure autoCapitalize="none" />
         {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
-        <PrimaryBtn label={busy ? 'Signing in…' : 'Sign In'} onPress={() => void signIn()} disabled={!ready || busy} />
-        <Pressable onPress={() => ctx.go('terms_privacy')} accessibilityRole="link" style={({ pressed }) => [styles.termsLine, pressed && { opacity: 0.7 }]}>
-          <Text style={[txt.xs, { textAlign: 'center' }]}>
-            By signing in you accept the <Text style={styles.termsLink}>Terms of Use and Privacy Policy</Text>
-          </Text>
-        </Pressable>
+        <PrimaryBtn label={busy ? t('entry.shared.signingIn') : t('entry.signIn.button')} onPress={() => void signIn()} disabled={!ready || busy} />
+        <TermsLink ctx={ctx} i18nKey="entry.termsLine.signingIn" />
       </Card>
       <OrDivider />
-      <GhostBtn label="Scan a code" icon="qr" onPress={() => ctx.go('scan_qr')} />
-      <Text style={[txt.xs, { textAlign: 'center' }]}>An invite, or a code from someone helping you sign in</Text>
+      <GhostBtn label={t('entry.signIn.scanCode')} icon="qr" onPress={() => ctx.go('scan_qr')} />
+      <Text style={[txt.xs, { textAlign: 'center' }]}>{t('entry.signIn.scanHint')}</Text>
       <View style={styles.inline}>
-        <Text style={txt.smMuted}>Don't have an account?</Text>
-        <LinkBtn label="Create Account" onPress={() => ctx.go('create_account')} />
+        <Text style={txt.smMuted}>{t('entry.signIn.noAccount')}</Text>
+        <LinkBtn label={t('entry.createAccount.button')} onPress={() => ctx.go('create_account')} />
       </View>
-      <GhostBtn label="Browse public work" icon="globe" onPress={() => ctx.go('explore_home')} />
+      <GhostBtn label={t('entry.signIn.browse')} icon="globe" onPress={() => ctx.go('explore_home')} />
       {ctx.canSwitchPersona ? (
-        <LinkBtn label="Switch persona" color={C.muted} onPress={ctx.openDev} style={{ alignSelf: 'center' }} />
+        <LinkBtn label={t('entry.signIn.switchPersona')} color={C.muted} onPress={ctx.openDev} style={{ alignSelf: 'center' }} />
       ) : null}
     </Screen>
+  );
+}
+
+/** The line that says doing this accepts the terms, with the terms one tap away (ADR-022). */
+function TermsLink(props: { ctx: Ctx; i18nKey: 'entry.termsLine.signingIn' | 'entry.termsLine.joining' | 'entry.termsLine.creating' }) {
+  return (
+    <Pressable onPress={() => props.ctx.go('terms_privacy')} accessibilityRole="link" style={({ pressed }) => [styles.termsLine, pressed && { opacity: 0.7 }]}>
+      <Text style={[txt.xs, { textAlign: 'center' }]}>
+        <Trans i18nKey={props.i18nKey} components={{ b: <Text style={styles.termsLink} /> }} />
+      </Text>
+    </Pressable>
   );
 }
 
@@ -136,36 +150,34 @@ export function SignIn(ctx: Ctx) {
  * forbid objectionable content and are accepted before anyone posts
  * (decisions.md 48); signing in accepts them (TERMS_VERSION).
  */
-const NOT_ALLOWED = [
-  'Hate: attacking people for their ethnicity, nationality, religion, disability, sex, gender or sexual orientation.',
-  'Harassment, bullying, threats or intimidation.',
-  'Sexual content or nudity. Anything sexual involving a child is never allowed, and we report it to the authorities.',
-  'Content that encourages violence, self-harm or terrorism.',
-  'Anything illegal, or that uses someone else\'s work without the right to.',
-  'Someone else\'s private information, such as their address or phone number, without their permission.',
-  'Pretending to be someone else.',
-  'Spam, advertising, or anything unrelated to translation work.',
-  'Trying to break into LangQuest or another person\'s account, or harm the service.'
-];
+function notAllowed(): string[] {
+  return [
+    t('entry.terms.rules.hate'),
+    t('entry.terms.rules.harassment'),
+    t('entry.terms.rules.sexual'),
+    t('entry.terms.rules.violence'),
+    t('entry.terms.rules.illegal'),
+    t('entry.terms.rules.privateInfo'),
+    t('entry.terms.rules.impersonation'),
+    t('entry.terms.rules.spam'),
+    t('entry.terms.rules.hacking')
+  ];
+}
 
 /** A page to read; accepting is the line under Sign In (ADR-022). */
 export function TermsPrivacy(ctx: Ctx) {
   return (
-    <Screen header={<Header title="Terms & Privacy" onBack={ctx.back} />}>
+    <Screen header={<Header title={t('entry.terms.title')} onBack={ctx.back} />}>
       <Card>
-        <Text style={txt.h3}>Terms of Use</Text>
-        <Text style={txt.xs}>Updated {TERMS_VERSION}</Text>
-        <Text style={txt.bodyMuted}>
-          LangQuest is for translation teams to record, review and organize their work. By creating an account or signing in, you agree to these terms. You must be 18 or older. Use your own account and keep your password private.
-        </Text>
-        <Text style={txt.bodyMuted}>
-          What you record and write is part of your organization's work, shared under its license. Your organization's members can see it.
-        </Text>
+        <Text style={txt.h3}>{t('entry.terms.termsTitle')}</Text>
+        <Text style={txt.xs}>{t('entry.terms.updated', { date: TERMS_VERSION })}</Text>
+        <Text style={txt.bodyMuted}>{t('entry.terms.intro')}</Text>
+        <Text style={txt.bodyMuted}>{t('entry.terms.yourWork')}</Text>
       </Card>
       <Card>
-        <Text style={txt.h3}>Not allowed</Text>
-        <Text style={txt.bodyMuted}>Do not record, write or share:</Text>
-        {NOT_ALLOWED.map((rule) => (
+        <Text style={txt.h3}>{t('entry.terms.notAllowedTitle')}</Text>
+        <Text style={txt.bodyMuted}>{t('entry.terms.notAllowedLead')}</Text>
+        {notAllowed().map((rule) => (
           <View key={rule} style={styles.rule}>
             <Text style={txt.bodyMuted}>{'\u2022'}</Text>
             <Text style={[txt.bodyMuted, { flex: 1 }]}>{rule}</Text>
@@ -173,20 +185,14 @@ export function TermsPrivacy(ctx: Ctx) {
         ))}
       </Card>
       <Card>
-        <Text style={txt.h3}>Reporting and blocking</Text>
-        <Text style={txt.bodyMuted}>
-          Tap the flag on a note, recording or review to report it, or to report or block the person who made it. Blocking hides what they add, for you only, and they are not told. Your organization's admins and the LangQuest team see reports. We act on them within 24 hours.
-        </Text>
-        <Text style={txt.bodyMuted}>
-          Content that breaks these terms is removed. People who break them may be removed from their organization, and their account suspended or deleted. Questions or reports by email: admin@frontierrnd.com.
-        </Text>
+        <Text style={txt.h3}>{t('entry.terms.reportingTitle')}</Text>
+        <Text style={txt.bodyMuted}>{t('entry.terms.reporting')}</Text>
+        <Text style={txt.bodyMuted}>{t('entry.terms.enforcement')}</Text>
       </Card>
       <Card>
-        <Text style={txt.h3}>Privacy Policy</Text>
-        <Text style={txt.bodyMuted}>
-          LangQuest keeps your email, your name and the work you do, so your team can work together, even offline. Your organization's members see your work; the public sees only what your organization chooses to share. No ads and no tracking. Speed and error reports can be turned off in Settings, and you can delete your account there. Recordings you made stay with your organization.
-        </Text>
-        <LinkBtn label="Read the full privacy policy" onPress={() => void Linking.openURL(PRIVACY_URL)} />
+        <Text style={txt.h3}>{t('entry.terms.privacyTitle')}</Text>
+        <Text style={txt.bodyMuted}>{t('entry.terms.privacy')}</Text>
+        <LinkBtn label={t('entry.terms.readFull')} onPress={() => void Linking.openURL(PRIVACY_URL)} />
       </Card>
     </Screen>
   );
@@ -205,8 +211,8 @@ export function Vision(ctx: Ctx) {
   const last = step === VISION_STEPS.length - 1;
   return (
     <Screen
-      header={<Header title="What is LangQuest?" sub={`${step + 1} of ${VISION_STEPS.length}`} onBack={step === 0 ? ctx.back : () => setStep(step - 1)} />}
-      footer={<PrimaryBtn label={last ? 'Done' : 'Next'} onPress={last ? ctx.back : () => setStep(step + 1)} />}
+      header={<Header title={t('entry.vision.title')} sub={t('entry.vision.step', { current: step + 1, total: VISION_STEPS.length })} onBack={step === 0 ? ctx.back : () => setStep(step - 1)} />}
+      footer={<PrimaryBtn label={last ? t('common.done') : t('common.next')} onPress={last ? ctx.back : () => setStep(step + 1)} />}
       bodyStyle={styles.visionBody}
     >
       <Segments total={VISION_STEPS.length} done={(i) => i < step} current={step} />
@@ -223,13 +229,21 @@ export function Vision(ctx: Ctx) {
 
 const EXPLORE_STEP = 25;
 
+/** Where a refreshed list is: still loading, refreshed (or not asked), or showing what was saved. */
+type Refresh = 'loading' | 'fresh' | 'stale';
+
+/** What to say over a refreshed list: loading, or that it could not refresh. */
+function refreshMessage(r: Refresh): string {
+  return r === 'loading' ? t('common.loading') : r === 'stale' ? t('entry.explore.stale') : '';
+}
+
 /**
  * A server list shown at once from what this device saved, then refreshed.
- * The message is what to say over it: loading, or that it could not refresh.
+ * The state says what to say over it (refreshMessage).
  */
-function useRefreshed<T>(where: string, cached: () => Promise<T[]>, fresh: () => Promise<T[]>, enabled = true): [T[], string] {
+function useRefreshed<T>(where: string, cached: () => Promise<T[]>, fresh: () => Promise<T[]>, enabled = true): [T[], Refresh] {
   const [rows, setRows] = useState<T[]>([]);
-  const [message, setMessage] = useState(enabled ? 'Loading…' : '');
+  const [message, setMessage] = useState<Refresh>(enabled ? 'loading' : 'fresh');
   useEffect(() => {
     if (!enabled) return;
     let active = true;
@@ -238,11 +252,11 @@ function useRefreshed<T>(where: string, cached: () => Promise<T[]>, fresh: () =>
       if (active) setRows(saved);
       try {
         const latest = await fresh();
-        if (active) { setRows(latest); setMessage(''); }
+        if (active) { setRows(latest); setMessage('fresh'); }
       } catch (e) {
         // Offline or the server is away: expected, and said on screen.
         noteExpected(`${where} refresh`, e);
-        if (active) setMessage('Unable to refresh. Showing what was saved on this device.');
+        if (active) setMessage('stale');
       }
     })();
     return () => { active = false; };
@@ -254,20 +268,21 @@ function useRefreshed<T>(where: string, cached: () => Promise<T[]>, fresh: () =>
 
 /** Organizations that list their work publicly, without an account: name, languages, progress. */
 export function ExploreHome(ctx: Ctx) {
-  const [listed, message] = useRefreshed('explore', cachedPublicLanguages, publicLanguages);
+  const [listed, refresh] = useRefreshed('explore', cachedPublicLanguages, publicLanguages);
+  const message = refreshMessage(refresh);
   const [shown, setShown] = useState(EXPLORE_STEP);
   const guest = ctx.session.isGuest;
   return (
-    <Screen header={<Header title="Explore" onBack={ctx.back}
-      action={guest ? <SmallBtn label="Sign In" tone="primary" onPress={() => ctx.go('sign_in')} /> : undefined} />}>
+    <Screen header={<Header title={t('entry.explore.title')} onBack={ctx.back}
+      action={guest ? <SmallBtn label={t('entry.signIn.button')} tone="primary" onPress={() => ctx.go('sign_in')} /> : undefined} />}>
       {message ? <Banner icon="cloud" title={message} /> : null}
-      {listed.length ? <SectionLabel label="Listed publicly" /> : null}
+      {listed.length ? <SectionLabel label={t('entry.explore.listed')} /> : null}
       {listed.slice(0, shown).map((p) => {
         const pct = Math.round(p.translated_pct);
         // A license this build does not know yet is simply not shown.
-        const license = isLicense(p.license) ? LICENSE_INFO[p.license] : null;
+        const license = isLicense(p.license) ? { ...licenseText(p.license), terms: LICENSE_INFO[p.license].terms } : null;
         return (
-          <Card key={`${p.org_id}:${p.language_id}`} accessibilityLabel={`${p.name}, ${pct}%`}
+          <Card key={`${p.org_id}:${p.language_id}`} accessibilityLabel={t('entry.explore.cardLabel', { name: p.name, percent: formatPercent(pct) })}
             onPress={guest ? () => ctx.go('sign_in') : () => ctx.go('request_access', { orgId: p.org_id, orgName: p.name })}>
             <View style={{ gap: 2 }}>
               <Text style={txt.h3}>{p.name}</Text>
@@ -276,14 +291,14 @@ export function ExploreHome(ctx: Ctx) {
             {license ? <View style={{ flexDirection: 'row' }}><Badge label={`${license.name} · ${license.short}`} tone={license.terms.outsidersMayView ? 'green' : 'default'} /></View> : null}
             <ProgressBar value={pct} />
             <View style={styles.between}>
-              <Text style={txt.xs}>Recorded</Text>
-              <Text style={[txt.xsStrong, { color: C.primary }]}>{pct}%</Text>
+              <Text style={txt.xs}>{t('entry.explore.recorded')}</Text>
+              <Text style={[txt.xsStrong, { color: C.primary }]}>{formatPercent(pct)}</Text>
             </View>
           </Card>
         );
       })}
       <ShowMore remaining={listed.length - shown} step={EXPLORE_STEP} onMore={() => setShown(shown + EXPLORE_STEP)} />
-      {!listed.length && !message ? <EmptyState icon="globe" title="Nothing listed yet" sub="Organizations appear here when they list their work publicly." /> : null}
+      {!listed.length && !message ? <EmptyState icon="globe" title={t('entry.explore.emptyTitle')} sub={t('entry.explore.emptySub')} /> : null}
     </Screen>
   );
 }
@@ -317,19 +332,13 @@ function NewPerson(ctx: Ctx) {
 
   return (
     <Screen
-      header={<Header title="Join with your invite" onBack={ctx.back} />}
-      footer={<PrimaryBtn label={busy ? 'Joining…' : 'Join'} icon="check" onPress={() => void join()} disabled={!name.trim() || busy} />}
+      header={<Header title={t('entry.newPerson.title')} onBack={ctx.back} />}
+      footer={<PrimaryBtn label={busy ? t('entry.shared.joining') : t('entry.shared.join')} icon="check" onPress={() => void join()} disabled={!name.trim() || busy} />}
     >
-      <Text style={txt.bodyMuted}>
-        No email or password needed. Your team sees you by this name.
-      </Text>
-      <Field label="Your name" value={name} onChangeText={setName} placeholder="Your name" autoCapitalize="words" />
+      <Text style={txt.bodyMuted}>{t('entry.newPerson.intro')}</Text>
+      <Field label={t('entry.fields.yourName')} value={name} onChangeText={setName} placeholder={t('entry.fields.yourName')} autoCapitalize="words" />
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
-      <Pressable onPress={() => ctx.go('terms_privacy')} accessibilityRole="link" style={({ pressed }) => [styles.termsLine, pressed && { opacity: 0.7 }]}>
-        <Text style={[txt.xs, { textAlign: 'center' }]}>
-          Joining accepts the <Text style={styles.termsLink}>Terms of Use and Privacy Policy</Text>
-        </Text>
-      </Pressable>
+      <TermsLink ctx={ctx} i18nKey="entry.termsLine.joining" />
     </Screen>
   );
 }
@@ -354,7 +363,7 @@ function EmailAccount(ctx: Ctx) {
     setError('');
     try {
       const { data, error } = await supabase.auth.signUp({ email: email.trim(), password });
-      if (error) { noteExpected('sign up', error); setError(error.message); return; }
+      if (error) { noteExpected('sign up', error); setError(authErrorText(error, t('entry.createAccount.failed'))); return; }
       // Creating the account accepts the terms (AUTH-1). With a session they
       // are recorded now (the account outbox retries until delivered) and the
       // app routes on by itself; without one the address has to be confirmed
@@ -377,28 +386,24 @@ function EmailAccount(ctx: Ctx) {
 
   if (checkEmail) {
     return (
-      <Screen header={<Header title="Create Account" onBack={ctx.back} />}>
-        <EmptyState icon="check" title="Account created" sub={`Open the link we sent to ${email.trim()}, then sign in. You can create an organization, ask to join one, or scan an invite when you are ready.`} />
+      <Screen header={<Header title={t('entry.createAccount.title')} onBack={ctx.back} />}>
+        <EmptyState icon="check" title={t('entry.createAccount.createdTitle')} sub={t('entry.createAccount.createdSub', { email: email.trim() })} />
       </Screen>
     );
   }
 
   return (
-    <Screen header={<Header title="Create Account" onBack={ctx.back} />}>
-      <Field label="Email" value={email} onChangeText={setEmail} placeholder="you@example.com" keyboardType="email-address" autoCapitalize="none" />
-      <Field label="Password" value={password} onChangeText={setPassword} placeholder="Choose a password (6 or more characters)" secure autoCapitalize="none" />
-      <Field label="Confirm password" value={confirm} onChangeText={setConfirm} placeholder="Re-enter password" secure autoCapitalize="none" />
-      {confirm.length > 0 && password !== confirm ? <Text style={txt.error}>Passwords do not match.</Text> : null}
+    <Screen header={<Header title={t('entry.createAccount.title')} onBack={ctx.back} />}>
+      <Field label={t('entry.fields.email')} value={email} onChangeText={setEmail} placeholder={t('entry.createAccount.emailPlaceholder')} keyboardType="email-address" autoCapitalize="none" />
+      <Field label={t('entry.fields.password')} value={password} onChangeText={setPassword} placeholder={t('entry.createAccount.passwordPlaceholder')} secure autoCapitalize="none" />
+      <Field label={t('entry.createAccount.confirmLabel')} value={confirm} onChangeText={setConfirm} placeholder={t('entry.createAccount.confirmPlaceholder')} secure autoCapitalize="none" />
+      {confirm.length > 0 && password !== confirm ? <Text style={txt.error}>{t('entry.createAccount.mismatch')}</Text> : null}
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
-      <PrimaryBtn label={busy ? 'Creating…' : 'Create Account'} onPress={() => void create()} disabled={!emailOk || !matches || busy} />
-      <Pressable onPress={() => ctx.go('terms_privacy')} accessibilityRole="link" style={({ pressed }) => [styles.termsLine, pressed && { opacity: 0.7 }]}>
-        <Text style={[txt.xs, { textAlign: 'center' }]}>
-          Creating an account accepts the <Text style={styles.termsLink}>Terms of Use and Privacy Policy</Text>
-        </Text>
-      </Pressable>
+      <PrimaryBtn label={busy ? t('entry.shared.creating') : t('entry.createAccount.button')} onPress={() => void create()} disabled={!emailOk || !matches || busy} />
+      <TermsLink ctx={ctx} i18nKey="entry.termsLine.creating" />
       <OrDivider />
-      <GhostBtn label="Scan an invite" icon="qr" onPress={() => ctx.go('scan_qr')} />
-      <Text style={[txt.xs, { textAlign: 'center' }]}>No email or password needed. The invite makes your account and puts you on the team.</Text>
+      <GhostBtn label={t('entry.createAccount.scanInvite')} icon="qr" onPress={() => ctx.go('scan_qr')} />
+      <Text style={[txt.xs, { textAlign: 'center' }]}>{t('entry.createAccount.scanHint')}</Text>
     </Screen>
   );
 }
@@ -451,7 +456,7 @@ export function ScanQr(ctx: Ctx) {
 
   async function read(value: string) {
     const key = parseKey(value);
-    if (!key) { setError('This is not a LangQuest code.'); return false; }
+    if (!key) { setError(t('entry.scan.notCode')); return false; }
     setError('');
     if (key.kind === 'signin') { setSigninCode(key.code); return true; }
     setSigninCode(null);
@@ -464,7 +469,7 @@ export function ScanQr(ctx: Ctx) {
     void (async () => {
       const result = permission?.granted ? permission : await requestPermission();
       if (result.granted) { scanned.current = false; setError(''); setScanning(true); }
-      else setError('Camera access is off. You can paste the code below.');
+      else setError(t('entry.scan.cameraOff'));
     })();
   }
 
@@ -475,7 +480,7 @@ export function ScanQr(ctx: Ctx) {
   const alreadyIn = preview?.status === 'joined';
   const claimedHere = held?.claim.kind === 'next-account';
   const me = useDisplayNames(ctx.session.actorId)[ctx.session.actorId]
-    ?? signInName(ctx.session.email) ?? ctx.session.email?.split('@')[0] ?? 'you';
+    ?? signInName(ctx.session.email) ?? ctx.session.email?.split('@')[0] ?? null;
   // A one-person invite names who it is for: they join with one tap. Any
   // other (a group, or no name on it) asks their name first.
   const named = preview?.status === 'ok' && preview.label && !preview.group ? preview.label : null;
@@ -495,29 +500,29 @@ export function ScanQr(ctx: Ctx) {
     footer = guest ? (
       <>
         {named ? (
-          <PrimaryBtn label={joining ? 'Joining…' : `Join as ${firstName(named) || named}`} icon="check" busy={joining} disabled={joining}
+          <PrimaryBtn label={joining ? t('entry.shared.joining') : t('entry.shared.joinAs', { name: firstName(named) || named })} icon="check" busy={joining} disabled={joining}
             onPress={() => void joinNamed()} />
         ) : (
-          <PrimaryBtn label="Join" icon="check" disabled={joining}
+          <PrimaryBtn label={t('entry.shared.join')} icon="check" disabled={joining}
             // A group invite's label names the group, not the person: they type their own name
             // (an empty name, so no earlier visit's name carries over).
             onPress={() => ctx.go('create_account', { as: 'new', name: '' })} />
         )}
-        <GhostBtn label="I already have an account" disabled={joining} onPress={() => void invite.choose('next-account').then(() => ctx.go('sign_in'))} />
+        <GhostBtn label={t('entry.scan.haveAccount')} disabled={joining} onPress={() => void invite.choose('next-account').then(() => ctx.go('sign_in'))} />
       </>
     ) : (
       <>
-        <PrimaryBtn label={joining ? 'Joining…' : `Join as ${me}`} icon="check"
+        <PrimaryBtn label={joining ? t('entry.shared.joining') : me ? t('entry.shared.joinAs', { name: me }) : t('entry.scan.joinAsYou')} icon="check"
           busy={joining} disabled={invite.status.kind !== 'idle' && invite.status.kind !== 'dead'}
           onPress={() => void invite.choose('me')} />
-        <GhostBtn label={`Not ${me}? Sign out first`} onPress={() => ctx.go('sign_out_confirm')} />
+        <GhostBtn label={me ? t('entry.scan.notMe', { name: me }) : t('entry.scan.notYou')} onPress={() => ctx.go('sign_out_confirm')} />
       </>
     );
   }
 
   return (
     <Screen
-      header={<Header title="Scan a code" sub={signinCode ? 'A code from someone helping you sign in' : guest ? 'No email or password needed' : 'Invite includes organization, role, and scope'} onBack={ctx.back} />}
+      header={<Header title={t('entry.scan.title')} sub={signinCode ? t('entry.scan.subSignIn') : guest ? t('entry.scan.subGuest') : t('entry.scan.subMember')} onBack={ctx.back} />}
       footer={footer}
     >
       {signinCode ? <SignInKey ctx={ctx} code={signinCode} onCancel={() => setSigninCode(null)} /> : (
@@ -528,7 +533,7 @@ export function ScanQr(ctx: Ctx) {
                 barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
                 onBarcodeScanned={({ data }) => {
                   if (scanned.current) return;
-                  if (!parseKey(data)) { setError('This QR code is not a LangQuest code.'); return; }
+                  if (!parseKey(data)) { setError(t('entry.scan.notQr')); return; }
                   scanned.current = true;
                   setScanning(false);
                   void read(data);
@@ -544,7 +549,7 @@ export function ScanQr(ctx: Ctx) {
               }]} />
             ))}
             <Text style={styles.viewfinderHint}>
-              {scanning ? 'Point the camera at the code' : held ? 'Code read' : 'Tap Scan to use the camera'}
+              {scanning ? t('entry.scan.hintPoint') : held ? t('entry.scan.hintRead') : t('entry.scan.hintTap')}
             </Text>
           </View>
           {held ? (
@@ -554,32 +559,26 @@ export function ScanQr(ctx: Ctx) {
                 <View style={{ flex: 1 }}>
                   <Text style={[txt.body, { fontWeight: '700' }]}>{card.title}</Text>
                   {card.detail ? <Text style={txt.smMuted}>{card.detail}</Text> : null}
-                  {card.from ? <Text style={txt.xs}>From {card.from}</Text> : null}
-                  {!preview ? <Text style={txt.xs}>Your role shows once you're connected.</Text> : null}
+                  {card.from ? <Text style={txt.xs}>{t('entry.scan.from', { name: card.from })}</Text> : null}
+                  {!preview ? <Text style={txt.xs}>{t('entry.scan.roleWhenConnected')}</Text> : null}
                 </View>
               </View>
             </Card>
           ) : null}
-          {dead ? <Banner icon="flag" tone="amber" title="This invite can't be used" body={dead} /> : null}
-          {alreadyIn ? <Banner icon="check" tone="green" title="You're already in" body="This invite was used by this account." /> : null}
+          {dead ? <Banner icon="flag" tone="amber" title={t('entry.scan.deadTitle')} body={dead} /> : null}
+          {alreadyIn ? <Banner icon="check" tone="green" title={t('entry.scan.alreadyTitle')} body={t('entry.scan.alreadyBody')} /> : null}
           {invite.status.kind === 'waiting' ? (
-            <Banner icon="cloud" title="Saved on this device" body="You'll join as soon as there's a connection. You can leave this screen." />
+            <Banner icon="cloud" title={t('entry.shared.savedOnDevice')} body={t('entry.scan.waitingBody')} />
           ) : null}
           {guest && claimedHere && !joining ? (
-            <Text style={txt.xs}>Saved on this device: you'll join as soon as you sign in.</Text>
+            <Text style={txt.xs}>{t('entry.scan.savedForSignIn')}</Text>
           ) : null}
-          {guest && held && !dead && !alreadyIn ? (
-            <Pressable onPress={() => ctx.go('terms_privacy')} accessibilityRole="link" style={({ pressed }) => [styles.termsLine, pressed && { opacity: 0.7 }]}>
-              <Text style={[txt.xs, { textAlign: 'center' }]}>
-                Joining accepts the <Text style={styles.termsLink}>Terms of Use and Privacy Policy</Text>
-              </Text>
-            </Pressable>
-          ) : null}
-          <GhostBtn label={scanning ? 'Stop camera' : held ? 'Scan a different code' : 'Scan QR code'} icon="camera" onPress={toggleCamera} />
-          <Field label="Or paste the code or link" value={text} autoCapitalize="none" placeholder="Invite or sign-in code"
+          {guest && held && !dead && !alreadyIn ? <TermsLink ctx={ctx} i18nKey="entry.termsLine.joining" /> : null}
+          <GhostBtn label={scanning ? t('entry.scan.stopCamera') : held ? t('entry.scan.scanDifferent') : t('entry.scan.scanQr')} icon="camera" onPress={toggleCamera} />
+          <Field label={t('entry.scan.pasteLabel')} value={text} autoCapitalize="none" placeholder={t('entry.scan.pastePlaceholder')}
             onChangeText={(v) => { setText(v); setError(''); if (parseKey(v)) void read(v).then((ok) => { if (ok) setText(''); }); }} />
-          {held && (dead || alreadyIn) ? <LinkBtn label="Clear this invite" color={C.muted} onPress={() => void invite.drop()} style={{ alignSelf: 'center' }} /> : null}
-          {held && !dead && !alreadyIn && !guest ? <LinkBtn label="Not now" color={C.muted} onPress={() => void invite.drop().then(ctx.home)} style={{ alignSelf: 'center' }} /> : null}
+          {held && (dead || alreadyIn) ? <LinkBtn label={t('entry.scan.clearInvite')} color={C.muted} onPress={() => void invite.drop()} style={{ alignSelf: 'center' }} /> : null}
+          {held && !dead && !alreadyIn && !guest ? <LinkBtn label={t('common.notNow')} color={C.muted} onPress={() => void invite.drop().then(ctx.home)} style={{ alignSelf: 'center' }} /> : null}
           {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
         </>
       )}
@@ -600,8 +599,8 @@ function SignInKey(props: { ctx: Ctx; code: string; onCancel: () => void }) {
   if (!ctx.session.isGuest) {
     return (
       <>
-        <Banner icon="lock" title="This is a sign-in code" body="It is for someone signed out. Sign out first, then scan it again." />
-        <LinkBtn label="Scan something else" onPress={props.onCancel} style={{ alignSelf: 'center' }} />
+        <Banner icon="lock" title={t('entry.signInKey.notGuestTitle')} body={t('entry.signInKey.notGuestBody')} />
+        <LinkBtn label={t('entry.signInKey.scanElse')} onPress={props.onCancel} style={{ alignSelf: 'center' }} />
       </>
     );
   }
@@ -611,26 +610,27 @@ function SignInKey(props: { ctx: Ctx; code: string; onCancel: () => void }) {
     try {
       const help = await redeemSignInCode(props.code);
       const { data, error } = await supabase.auth.setSession(help.session);
-      if (error) { noteExpected('sign in with code', error); setError(error.message); return; }
+      if (error) { noteExpected('sign in with code', error); setError(authErrorText(error, t('entry.signInKey.failed'))); return; }
       if (data.user) {
         await recordHelp(data.user.id, help.helper).catch((e: unknown) => { reportError('record sign-in help', e); });
         await ctx.acceptTerms(data.user.id).catch((e: unknown) => { reportError('accept terms', e); });
       }
-      ctx.toast(help.oldPhoneSignedOut ? 'Signed in. Your old device is signed out.'
-        : help.helper ? `Signed in with ${help.helper}'s help` : 'Signed in');
+      ctx.toast(help.oldPhoneSignedOut ? t('entry.signInKey.signedInOldPhone')
+        : help.helper ? t('entry.signInKey.signedInWith', { name: help.helper }) : t('entry.signInKey.signedIn'));
     } catch (e) {
       noteExpected('sign-in code', e);
-      setError(e instanceof Error ? e.message : 'Try again when connected.');
+      // The function's reply is English: say it in the language showing.
+      setError(e instanceof Error ? signInCodeErrorText(e.message) : t('common.tryWhenConnected'));
     } finally {
       setBusy(false);
     }
   }
   return (
     <>
-      <Banner icon="lock" title="Someone is helping you sign in" body="Nothing to type: this signs you in on this device, with all your work." />
+      <Banner icon="lock" title={t('entry.signInKey.title')} body={t('entry.signInKey.body')} />
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
-      <PrimaryBtn label={busy ? 'Signing in…' : 'Sign in'} icon="check" busy={busy} disabled={busy} onPress={() => void go()} />
-      <LinkBtn label="Cancel" color={C.muted} onPress={props.onCancel} style={{ alignSelf: 'center' }} />
+      <PrimaryBtn label={busy ? t('entry.shared.signingIn') : t('entry.signInKey.button')} icon="check" busy={busy} disabled={busy} onPress={() => void go()} />
+      <LinkBtn label={t('common.cancel')} color={C.muted} onPress={props.onCancel} style={{ alignSelf: 'center' }} />
     </>
   );
 }
@@ -639,12 +639,14 @@ function SignInKey(props: { ctx: Ctx; code: string; onCancel: () => void }) {
 
 // Join your team (demo ADR-040): scanning a teammate's code first, the way most people arrive;
 // finding a listed organization (decision 66); starting a new one; looking around last.
-const INTENTS: { to: 'create_org' | 'request_access' | 'scan_qr' | 'explore_home'; icon: IconName; label: string; sub: string }[] = [
-  { to: 'scan_qr', icon: 'qr', label: 'Scan their code', sub: 'Someone on your team shows it' },
-  { to: 'request_access', icon: 'search', label: 'Find your organization', sub: 'Ask them to let you in' },
-  { to: 'create_org', icon: 'building', label: 'Start a new one', sub: 'For a team leader' },
-  { to: 'explore_home', icon: 'globe', label: 'Look around first', sub: 'Translation work listed publicly' }
-];
+function intents(): { to: 'create_org' | 'request_access' | 'scan_qr' | 'explore_home'; icon: IconName; label: string; sub: string }[] {
+  return [
+    { to: 'scan_qr', icon: 'qr', label: t('entry.intent.scanTitle'), sub: t('entry.intent.scanSub') },
+    { to: 'request_access', icon: 'search', label: t('entry.intent.findTitle'), sub: t('entry.intent.findSub') },
+    { to: 'create_org', icon: 'building', label: t('entry.intent.startTitle'), sub: t('entry.intent.startSub') },
+    { to: 'explore_home', icon: 'globe', label: t('entry.intent.lookTitle'), sub: t('entry.intent.lookSub') }
+  ];
+}
 
 /**
  * Someone with no organization lands here (NAV-2). After asking to join
@@ -655,7 +657,8 @@ export function IntentChooser(ctx: Ctx) {
   const actions = useAccountActions(ctx.session.actorId);
   const waiting = actions.filter((a) => a.kind === 'join_request' && a.status !== 'failed').at(-1);
   // The name Explore knew, else a neutral phrase: never the org's id.
-  const waitingFor = waiting && typeof waiting.payload.orgName === 'string' ? waiting.payload.orgName : 'the organization';
+  const waitingFor = waiting && typeof waiting.payload.orgName === 'string' ? waiting.payload.orgName : null;
+  const askedLine = waitingFor ? t('entry.shared.askedOrg', { org: waitingFor }) : t('entry.shared.askedUnknown');
   const [error, setError] = useState('');
   // Once the server has it, watch for the answer: admitted opens the
   // organization; turned away says so (useRequestOutcome).
@@ -673,40 +676,42 @@ export function IntentChooser(ctx: Ctx) {
   const queued = actions.filter((a) => a.status === 'queued').length;
   async function signOut() {
     if (FORGETS_ON_SIGN_OUT && queued > 0) {
-      setError(`Still to send: ${queued === 1 ? 'an account change' : `${queued} account changes`}. Sign out once you are back online and they have gone.`);
+      setError(t('entry.intent.stillToSend', { count: queued }));
       return;
     }
     const { error } = await supabase.auth.signOut();
-    if (error) { setError(error.message); return; }
+    if (error) { setError(authErrorText(error, t('entry.intent.signOutFailed'))); return; }
     await forgetThisBrowser();
   }
   const me = useDisplayNames(ctx.session.actorId)[ctx.session.actorId];
   const first = me?.split(/\s+/)[0];
-  const main = INTENTS.filter((o) => o.to !== 'explore_home');
+  const main = intents().filter((o) => o.to !== 'explore_home');
   return (
-    <Screen header={<Header title={waiting && !declined ? `Asked ${waitingFor}` : 'Join your team'} {...(first && !waiting ? { sub: `Welcome, ${first}` } : {})} />}
-      footer={<QuietLinks items={[{ label: 'Look around first', icon: 'globe', onPress: () => ctx.go('explore_home') }]} />}>
+    <Screen header={<Header title={waiting && !declined ? askedLine : t('entry.intent.title')} {...(first && !waiting ? { sub: t('entry.welcome.greeting', { name: first }) } : {})} />}
+      footer={<QuietLinks items={[{ label: t('entry.intent.lookTitle'), icon: 'globe', onPress: () => ctx.go('explore_home') }]} />}>
       {/* An invite being used right now, or waiting for a connection (docs/invites-and-accounts.md). */}
-      {ctx.invite.status.kind === 'joining' ? <Banner icon="people" title="Joining with your invite…" /> : null}
+      {ctx.invite.status.kind === 'joining' ? <Banner icon="people" title={t('entry.intent.joiningInvite')} /> : null}
       {ctx.invite.status.kind === 'waiting' ? (
-        <Banner icon="cloud" title="Your invite is saved" body="You'll join as soon as there's a connection." />
+        <Banner icon="cloud" title={t('entry.intent.inviteSavedTitle')} body={t('entry.intent.inviteSavedBody')} />
       ) : null}
-      {ctx.invite.status.kind === 'dead' ? <Banner icon="flag" tone="amber" title="Your invite couldn't be used" body={ctx.invite.status.message} /> : null}
+      {ctx.invite.status.kind === 'dead' ? <Banner icon="flag" tone="amber" title={t('entry.intent.inviteDeadTitle')} body={ctx.invite.status.message} /> : null}
       {waiting ? (
         <>
           {/* Asked, and waiting (demo a-waiting): the answer comes by itself. */}
           <View style={styles.hero}>
             <View style={[styles.heroCircle, declined && { backgroundColor: TINT.amber }]}><Ico name={declined ? 'flag' : 'clock'} size={40} color={declined ? TINT.amberText : C.primary} /></View>
-            <Text style={[txt.h2, { textAlign: 'center', fontWeight: '800' }]}>{declined ? `${waitingFor} didn't add you` : `Asked ${waitingFor}`}</Text>
+            <Text style={[txt.h2, { textAlign: 'center', fontWeight: '800' }]}>
+              {declined ? (waitingFor ? t('entry.intent.declinedOrg', { org: waitingFor }) : t('entry.intent.declinedUnknown')) : askedLine}
+            </Text>
             <Text style={[txt.bodyMuted, { textAlign: 'center' }]}>
               {declined
-                ? 'An admin there turned down your request. You can ask again below, or ask someone there to show you their code.'
+                ? t('entry.intent.declinedBody')
                 : waiting.status === 'sent'
-                  ? "You'll go straight in when they say yes. You can close the app; we'll let you know."
-                  : 'Your request is saved on this device and sends when you have a connection.'}
+                  ? t('entry.shared.sentBody')
+                  : t('entry.intent.savedBody')}
             </Text>
           </View>
-          <SectionLabel label="Meanwhile" />
+          <SectionLabel label={t('entry.intent.meanwhile')} />
         </>
       ) : null}
       {main.map((o, i) => (
@@ -724,8 +729,8 @@ export function IntentChooser(ctx: Ctx) {
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
       {!ctx.session.isGuest ? (
         <QuietLinks items={[
-          { label: 'Sign out', icon: 'user', onPress: () => void signOut() },
-          { label: 'Delete account', icon: 'trash', onPress: () => ctx.go('delete_account') }
+          { label: t('entry.intent.signOut'), icon: 'user', onPress: () => void signOut() },
+          { label: t('entry.intent.deleteAccount'), icon: 'trash', onPress: () => ctx.go('delete_account') }
         ]} />
       ) : null}
     </Screen>
@@ -767,7 +772,7 @@ export function CreateOrg(ctx: Ctx) {
       // The org exists by now, so a failure here is reported, not shown as
       // "not created"; the worst case is seeing the welcome once more.
       await ctx.markWelcomed().catch((e: unknown) => { reportError('create org welcomed', e); });
-      ctx.toast(`${orgName} is ready to grow. Next, add your first language and invite your team.`);
+      ctx.toast(t('entry.createOrg.ready', { name: orgName }));
       // Opening it replaces this screen with the new organization's home.
       await ctx.openOrganization(orgId);
     } catch (e) {
@@ -778,25 +783,22 @@ export function CreateOrg(ctx: Ctx) {
   }
   return (
     <Screen
-      header={<Header title="Create Organization" onBack={ctx.back} />}
-      footer={<PrimaryBtn label={busy ? 'Creating…' : 'Create Organization'} onPress={() => void create()} disabled={!name.trim() || busy} />}
+      header={<Header title={t('entry.createOrg.title')} onBack={ctx.back} />}
+      footer={<PrimaryBtn label={busy ? t('entry.shared.creating') : t('entry.createOrg.button')} onPress={() => void create()} disabled={!name.trim() || busy} />}
     >
       <View style={styles.hero}>
         <View style={[styles.tile, styles.heroTile]}><Ico name="building" size={32} color={C.primary} /></View>
-        <Text style={[txt.h2, { textAlign: 'center' }]}>Start your organization</Text>
-        <Text style={[txt.bodyMuted, { textAlign: 'center' }]}>
-          Your teams will record Scripture in their own languages and check it together. It starts with a name.
-        </Text>
+        <Text style={[txt.h2, { textAlign: 'center' }]}>{t('entry.createOrg.heroTitle')}</Text>
+        <Text style={[txt.bodyMuted, { textAlign: 'center' }]}>{t('entry.createOrg.heroBody')}</Text>
       </View>
-      <Field label="What's it called?" value={name} onChangeText={setName} placeholder="Enter organization name" autoCapitalize="words" />
+      <Field label={t('entry.createOrg.nameLabel')} value={name} onChangeText={setName} placeholder={t('entry.createOrg.namePlaceholder')} autoCapitalize="words" />
       <View>
-        <SectionLabel label="Who may use your work" />
+        <SectionLabel label={t('entry.createOrg.licenseLabel')} />
         <Group><LicenseRow license={license} onPress={() => setChoosing(true)} last /></Group>
       </View>
       <LicenseSheet visible={choosing} mode="choose" current={license} onClose={() => setChoosing(false)}
         onConfirm={(l) => { setLicense(l); setChoosing(false); }} />
-      <Banner icon="sparkle" title="Ready to use"
-        body="You'll get the usual roles and a standard way to check passages. Next, we'll add your first language and team together." />
+      <Banner icon="sparkle" title={t('entry.createOrg.readyTitle')} body={t('entry.createOrg.readyBody')} />
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
     </Screen>
   );
@@ -817,7 +819,9 @@ export function RequestAccess(ctx: Ctx) {
   const given = ctx.params['orgId'] ?? '';
   // The language this person found on Explore, which names who they are asking.
   const givenName = ctx.params['orgName'] || undefined;
-  const [listed, loadMessage] = useRefreshed('request access', cachedListedOrganizations, listedOrganizations, !given);
+  // i18n-ignore: 'request access' is the log label for this list's failures
+  const [listed, refresh] = useRefreshed('request access', cachedListedOrganizations, listedOrganizations, !given);
+  const loadMessage = refreshMessage(refresh);
   const [picked, setPicked] = useState<ListedOrganization | null>(null);
   const [find, setFind] = useState('');
   const [shown, setShown] = useState(EXPLORE_STEP);
@@ -829,7 +833,6 @@ export function RequestAccess(ctx: Ctx) {
   const [busy, setBusy] = useState(false);
   const orgId = given || picked?.org_id || '';
   const orgName = given ? givenName : picked?.name;
-  const label = orgName ?? 'the organization';
   const query = find.trim().toLowerCase();
   const matches = query
     ? listed.filter((o) => o.name.toLowerCase().includes(query) || o.languages.some((l) => l.toLowerCase().includes(query)))
@@ -864,14 +867,14 @@ export function RequestAccess(ctx: Ctx) {
     const failed = request?.status === 'failed';
     return (
       <Screen
-        header={<Header title={failed ? 'Not sent' : 'Asked'} />}
-        footer={failed ? <GhostBtn label="Back" onPress={() => ctx.go('intent_chooser')} /> : <PrimaryBtn label="Done" onPress={() => ctx.go('intent_chooser')} />}
+        header={<Header title={failed ? t('entry.request.notSent') : t('entry.request.asked')} />}
+        footer={failed ? <GhostBtn label={t('common.back')} onPress={() => ctx.go('intent_chooser')} /> : <PrimaryBtn label={t('common.done')} onPress={() => ctx.go('intent_chooser')} />}
       >
         <EmptyState icon={failed ? 'close' : 'clock'}
-          title={failed ? 'Request not sent' : `Asked ${label}`}
-          sub={failed ? request?.error ?? 'The organization could not take the request.'
-            : request?.status === 'sent' ? "You'll go straight in when they say yes. You can close the app; we'll let you know."
-            : 'Saved on this device. It sends when you have a connection.'} />
+          title={failed ? t('entry.request.requestNotSent') : orgName ? t('entry.shared.askedOrg', { org: orgName }) : t('entry.shared.askedUnknown')}
+          sub={failed ? outboxErrorText(request?.error, t('entry.request.couldNotTake'))
+            : request?.status === 'sent' ? t('entry.shared.sentBody')
+            : t('entry.request.savedBody')} />
       </Screen>
     );
   }
@@ -880,36 +883,34 @@ export function RequestAccess(ctx: Ctx) {
   if (given) {
     return (
       <Screen
-        header={<Header title={`Ask ${label}`} onBack={ctx.back} />}
-        footer={<PrimaryBtn label="Ask to join" icon="arrowR" onPress={() => void send()} disabled={orgId === ''} busy={busy} />}
+        header={<Header title={orgName ? t('entry.request.askOrg', { org: orgName }) : t('entry.request.askUnknown')} onBack={ctx.back} />}
+        footer={<PrimaryBtn label={t('entry.request.askToJoin')} icon="arrowR" onPress={() => void send()} disabled={orgId === ''} busy={busy} />}
       >
-        <Text style={txt.bodyMuted}>They'll let you in, and you'll go straight to your work.</Text>
-        <Field label="Say something (optional)" value={message} onChangeText={setMessage} placeholder="Who you are, and which team" multiline />
+        <Text style={txt.bodyMuted}>{t('entry.request.askIntro')}</Text>
+        <Field label={t('entry.request.messageLabel')} value={message} onChangeText={setMessage} placeholder={t('entry.request.messagePlaceholder')} multiline />
         {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
       </Screen>
     );
   }
   // Find your organization (demo a-findOrg): the listed ones, each with Ask to join.
   return (
-    <Screen header={<Header title="Find your organization" onBack={ctx.back} />}>
-      <SearchField value={find} onChangeText={(v) => { setFind(v); setShown(EXPLORE_STEP); }} placeholder="Name or language" />
+    <Screen header={<Header title={t('entry.intent.findTitle')} onBack={ctx.back} />}>
+      <SearchField value={find} onChangeText={(v) => { setFind(v); setShown(EXPLORE_STEP); }} placeholder={t('entry.request.searchPlaceholder')} />
       {loadMessage ? <Banner icon="cloud" title={loadMessage} /> : null}
       {matches.length > 0 ? (
         <Group>
           {matches.slice(0, shown).map((o, i, all) => (
             <Row key={o.org_id} label={o.name} sub={o.languages.join(' · ')} last={i === all.length - 1}
-              accessibilityLabel={`Ask ${o.name} to let you in`}
-              right={<Text style={[txt.link, { fontSize: 16 }]}>{busy && picked?.org_id === o.org_id ? 'Asking…' : 'Ask to join'}</Text>}
+              accessibilityLabel={t('entry.request.askRowLabel', { org: o.name })}
+              right={<Text style={[txt.link, { fontSize: 16 }]}>{busy && picked?.org_id === o.org_id ? t('entry.request.asking') : t('entry.request.askToJoin')}</Text>}
               onPress={() => { setPicked(o); void sendTo(o); }} />
           ))}
         </Group>
       ) : null}
       <ShowMore remaining={matches.length - shown} step={EXPLORE_STEP} onMore={() => setShown(shown + EXPLORE_STEP)} />
-      {listed.length && !matches.length ? <Text style={txt.smMuted}>No organization or language matches “{find.trim()}”.</Text> : null}
-      {loadMessage === 'Loading…' ? null : (
-        <Text style={txt.smMuted}>
-          {listed.length ? 'Not here? ' : 'No organizations are listed yet. '}Ask someone on your team to show you their code.
-        </Text>
+      {listed.length && !matches.length ? <Text style={txt.smMuted}>{t('entry.request.noMatch', { query: find.trim() })}</Text> : null}
+      {refresh === 'loading' ? null : (
+        <Text style={txt.smMuted}>{listed.length ? t('entry.request.notHere') : t('entry.request.noneListed')}</Text>
       )}
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
     </Screen>

@@ -1,4 +1,4 @@
-import { DROPPED_SCREENS, EDGES, SCREEN_IDS, TAB_SCREENS, TITLES, type NodeId } from '../src/flow';
+import { DROPPED_SCREENS, EDGES, SCREEN_IDS, TAB_SCREENS, screenTitle, type NodeId, type ScreenId } from '../src/flow';
 import { edgeAllowed, tabsFor } from '../src/session';
 import { roleSession } from './sessions';
 import spec from './spec-flow.json';
@@ -8,7 +8,7 @@ describe('UX flow coverage', () => {
     const kept = spec.screens.filter((id) => !(id in DROPPED_SCREENS));
     for (const id of kept) {
       expect(SCREEN_IDS, id).toContain(id);
-      expect(TITLES[id as keyof typeof TITLES], id).toBeTruthy();
+      expect(screenTitle(id as ScreenId), id).not.toBe(`screens.${id}`);
     }
     // The app-only screens: the local log, realtime state and transfers;
     // account deletion, which the app stores require (decisions.md 46); and
@@ -23,7 +23,7 @@ describe('UX flow coverage', () => {
       // Me keeps five rows; the rest of Settings is under More settings (decision 71).
       'settings_more'] as const;
     expect(SCREEN_IDS.length).toBe(kept.length + appOnly.length);
-    for (const id of appOnly) expect(TITLES[id]).toBeTruthy();
+    for (const id of appOnly) expect(screenTitle(id)).not.toBe(`screens.${id}`);
   });
 
   it('every screen is reachable from sign_in through declared edges and tabs', () => {

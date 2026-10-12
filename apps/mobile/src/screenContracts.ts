@@ -31,11 +31,14 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // People asking to join show under a coordinator's Get ready card (decision 71).
   my_work: { reads:['highlightsFor','waitingOn','derivePassage','upNext','recommendedFor','join_requests','profiles'] },
   status_home: { reads:['languageProgress'] },
-  map_home: { reads:['derivePassage','unitPlace','languageProgress'] },
-  book_map: { reads:['derivePassage','unitPlace'] },
+  // A section whose divisions changed since it was recorded is marked (earlier.tsx, decision 80):
+  // the numberings come from the library.
+  map_home: { reads:['derivePassage','unitPlace','languageProgress','earlierSections','library'],rpcs:['library_get_documents'] },
+  book_map: { reads:['derivePassage','unitPlace','earlierSections','library'],rpcs:['library_get_documents'] },
   // Send to … (ADR-029) asks the usual reviewer or review team in one tap.
-  passage_record: { emits:['v1.DepartureRecorded','v1.DepartureUndone','v1.RequestMade','v1.RequestWithdrawn','v1.NoteAdded'],
-    reads:['derivePassage','recordTimeline','reviewGrid','studyMarksFor'],rpcs:REPORTS },
+  // Versions deletes a draft; its Undo composes it again (decisions.md 83).
+  passage_record: { emits:['v1.DepartureRecorded','v1.DepartureUndone','v1.RequestMade','v1.RequestWithdrawn','v1.NoteAdded','v1.TakeArchived','v1.TakeComposed'],
+    reads:['derivePassage','recordTimeline','reviewGrid','studyMarksFor','earlierSections','library'],rpcs:[...REPORTS,'library_get_documents'] },
   version_detail: { reads:['derivePassage','keyTermLinksFor'],rpcs:REPORTS },
   review_detail: { emits:['v1.DepartureRecorded','v1.DepartureUndone'],reads:['derivePassage','questionsForKind'],rpcs:REPORTS },
   ask_someone: { emits:['v1.RequestMade','v1.RequestWithdrawn'],reads:['derivePassage','questionsForKind'] },
@@ -45,7 +48,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // What was offered and used goes on the record with the version (docs/reference-material.md).
   // Key words grow during the work (decision 71): say yours, add a word.
   workspace: { emits:['v1.RecordingAdded','v1.TakeComposed','v1.TakeArchived','v1.TakeSubmitted',
-    'v1.ResponseRecorded','v1.NoteAdded','v1.KeyTermLinked','v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted','v1.ReferencesUsed'],
+    'v1.ResponseRecorded','v1.CardVerseSet','v1.NoteAdded','v1.KeyTermLinked','v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted','v1.ReferencesUsed'],
     reads:['derivePassage','keyTermsForUnit','recommendedFor','studyMarksFor'],rpcs:[...REPORTS,'library_get_documents','library_shared_items'] },
   // Its parts are the review's artifacts, not recordings (docs/decisions.md 30).
   back_translation: { emits:['v1.ReviewRecorded'],reads:['derivePassage'],rpcs:REPORTS },
@@ -126,7 +129,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // them (recommendations, as reference_bibles and reference_guides write them), who checks (a flow, as flows_home
   // chooses it), and a group invite code (as invite_qr issues it).
   get_ready: { emits:['v1.TemplateSelected','v1.UnitAdded','v1.UnitHidden','v1.FlowSelected','v1.FlowStepSet','v1.FlowStepRemoved','v1.ReviewKindDefined',
-    'v1.ReferenceRecommended','v1.ReferenceSet','v1.LibrarySubscribed','v1.LibraryPinned','v1.LibraryItemDefined','v1.LibraryVersionPublished'],
+    'v1.ReferenceRecommended','v1.ReferenceSet','v1.ReferenceLanguageSet','v1.LibrarySubscribed','v1.LibraryPinned','v1.LibraryItemDefined','v1.LibraryVersionPublished'],
     reads:['library','recommendedFor','deriveFlow','org.roles','join_requests'],
     rpcs:['issue_invite_v3','library_shared_items','library_get_documents','library_adopt','library_put_document','library_template_users'] },
   // Breaking up a book (decision 74): the language's template moves to its next version, or to a copy split off for the

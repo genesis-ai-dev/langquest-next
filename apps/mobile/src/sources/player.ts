@@ -8,9 +8,19 @@
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState } from 'react';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../audioSession';
+import { t } from '../i18n';
 import type { ListenHooks } from '../recording/useListenLoop';
 import { noteExpected } from '../report';
 import { rowAt, seekTargetFor, type PlayPlan, type VerseRow } from './model';
+
+/**
+ * Why a part could not be played, worded for the person in the language
+ * showing (thrown by `resolve`). Any other failure (the audio system's own,
+ * in English) is said as "Audio could not play."
+ */
+export class PlayError extends Error {
+  override name = 'PlayError';
+}
 
 interface PassagePlayer {
   playing: boolean;
@@ -122,7 +132,7 @@ export function usePassagePlayer(c: {
       playerPart.current = at;
       p.addListener('playbackStatusUpdate', (st) => {
         if (player.current !== p || ended.current) return;
-        if (st.error) { fail('Audio could not load. Check your connection and try again.'); return; }
+        if (st.error) { fail(t('common.audioCouldNotLoad')); return; }
         if (st.isLoaded) setLoading(false);
         const now = Math.round(st.currentTime * 1000);
         setMs(now);
@@ -133,7 +143,7 @@ export function usePassagePlayer(c: {
       if (generation.current === run) p.play();
     } catch (e) {
       noteExpected('source player', e);
-      if (generation.current === run) fail(e instanceof Error && e.message ? e.message : 'Audio could not play.');
+      if (generation.current === run) fail(e instanceof PlayError && e.message ? e.message : t('sources.player.couldNotPlay'));
     }
   }
 

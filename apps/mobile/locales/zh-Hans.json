@@ -1,0 +1,6 @@
+{
+  "ios": {
+    "NSMicrophoneUsageDescription": "LangQuest 会录下你的声音，用来翻译经段。",
+    "NSCameraUsageDescription": "LangQuest 使用相机扫描邀请二维码。"
+  }
+}

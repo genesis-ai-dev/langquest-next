@@ -1,24 +1,25 @@
 // Pure pieces of the simple recording, study and microphone screens
 // (decision 71; demo ADR-035, ADR-036, ADR-037). No I/O, so they are tested
 // in apps/mobile/test/simpleModel.test.ts.
+import { t } from '../i18n';
+import { formatClock, formatNumber } from '../i18n/format';
 
 // ---- the recorder's cards ------------------------------------------------------------
 
 /** "Part 3". Parts carry no verse labels yet, so they are counted. */
 export function partLabel(index: number): string {
-  return `Part ${index + 1}`;
+  return t('recording.parts.part', { n: formatNumber(index + 1) });
 }
 
 /** "Part 1", "Parts 1–3": the recorded parts as one group. */
 export function partsRange(count: number): string {
-  return count <= 1 ? 'Part 1' : `Parts 1–${count}`;
+  return count <= 1 ? partLabel(0) : t('recording.parts.range', { first: formatNumber(1), last: formatNumber(count) });
 }
 
 /** "0:52" from milliseconds; "–:––" when unknown. */
 export function mmss(ms: number | undefined): string {
   if (ms === undefined || !Number.isFinite(ms)) return '–:––';
-  const s = Math.max(0, Math.round(ms / 1000));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  return formatClock(ms);
 }
 
 /** What the recorder says about the parts so far, in the design's words. */
@@ -26,9 +27,10 @@ export function recorderLines(count: number): { next: string; group: string; gro
   return {
     next: partLabel(count),
     group: partsRange(count),
-    groupSub: (totalMs) => `${count} part${count === 1 ? '' : 's'} · ${mmss(totalMs)}`,
-    recorded: count ? `${partsRange(count)} recorded` : '',
-    bar: count ? `${count} part${count === 1 ? '' : 's'} recorded` : 'Nothing recorded yet'
+    groupSub: (totalMs) => t('recording.parts.groupSub', { count, length: mmss(totalMs) }),
+    recorded: !count ? '' : count <= 1 ? t('recording.parts.firstRecorded', { n: formatNumber(1) })
+      : t('recording.parts.rangeRecorded', { first: formatNumber(1), last: formatNumber(count) }),
+    bar: count ? t('recording.parts.countRecorded', { count }) : t('recording.parts.nothingYet')
   };
 }
 

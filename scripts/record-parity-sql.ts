@@ -40,6 +40,7 @@ const OPTIONAL: Partial<Record<string, string[]>> = {
   'v1.ReferencesUsed': ['takeId', 'reviewId'],
   'v1.TakeSubmitted': ['questionSetIds'],
   'v1.ResponseRecorded': ['note', 'blobHash'],
+  'v1.CardVerseSet': ['from', 'to'],
   'v1.MaterialDefined': ['templateRef'],
   'v1.MaterialFieldSet': ['text', 'blobHash'],
   'v1.KeyTermAdjusted': ['blobHash', 'duringTakeId'],
@@ -99,6 +100,9 @@ const broken: AnyEvent[] = events.flatMap((e) => {
       break;
     case 'v1.ReferenceSet':
       variants.push({ ...p, state: 'pinned' });
+      break;
+    case 'v1.ReferenceLanguageSet':
+      variants.push({ ...p, language: '' }, { ...p, language: 'French' }, { ...p, language: 'x' }, { ...p, language: 'x'.repeat(41) }, { ...p, language: 7 });
       break;
     case 'v1.ReviewTeamKindSet':
       variants.push({ ...p, kindId: ['peer'] });

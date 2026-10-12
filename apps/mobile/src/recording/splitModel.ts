@@ -4,6 +4,8 @@
 // the reference as one line, a third, half, two thirds, or the recorder as
 // one line. The choice is kept for the rest of the session. Pure, so the arithmetic is tested for
 // small Android phones (about 640pt tall) without rendering anything.
+import { t } from '../i18n';
+import { formatPercent } from '../i18n/format';
 
 /**
  * The reference's (top pane's) share of the room, smallest first. 0 and 1
@@ -78,9 +80,9 @@ export function stepSnap(fraction: number, direction: 1 | -1): number {
 /** The top pane's share as a screen reader says it: "Source 50%", or which side is one line. */
 export function splitValueText(heights: PaneHeights): string {
   const total = heights.top + heights.bottom;
-  if (total > 0 && heights.top === BAR) return 'Reference as one line';
-  if (total > 0 && heights.bottom === BAR) return 'Recorder as one line';
-  return `Source ${total > 0 ? Math.round((heights.top / total) * 100) : 50}%`;
+  if (total > 0 && heights.top === BAR) return t('recording.split.referenceOneLine');
+  if (total > 0 && heights.bottom === BAR) return t('recording.split.recorderOneLine');
+  return t('recording.split.source', { percent: formatPercent(total > 0 ? Math.round((heights.top / total) * 100) : 50) });
 }
 
 const remembered = new Map<string, number>();
@@ -110,10 +112,22 @@ export function loopPhase(vadOn: boolean, listening: boolean): LoopPhase {
   return listening ? 'listening' : 'off';
 }
 
+/** What a session's recordings are called where it counts them. */
+export type LoopNoun = 'take' | 'part' | 'piece';
+
+/** "2 takes so far". */
+function soFar(count: number, noun: LoopNoun): string {
+  switch (noun) {
+    case 'take': return t('recording.loop.takesSoFar', { count });
+    case 'part': return t('recording.loop.partsSoFar', { count });
+    case 'piece': return t('recording.loop.piecesSoFar', { count });
+  }
+}
+
 /** What the recorder pane says (and a screen reader announces) in each phase. */
-export function loopStatus(phase: LoopPhase, capturing: boolean, count: number, noun: string): string {
-  const so = `${count} ${noun}${count === 1 ? '' : 's'} so far`;
-  if (phase === 'listening') return `Paused while the source plays. ${so}`;
-  if (phase === 'recording') return capturing ? 'Recording what you say' : `Listening for you. ${so}`;
+export function loopStatus(phase: LoopPhase, capturing: boolean, count: number, noun: LoopNoun): string {
+  const so = soFar(count, noun);
+  if (phase === 'listening') return t('recording.loop.pausedForSource', { soFar: so });
+  if (phase === 'recording') return capturing ? t('recording.loop.capturing') : t('recording.loop.listeningForYou', { soFar: so });
   return so;
 }

@@ -89,10 +89,17 @@ The language explorer is a page of the web app, at `/languages`
 (`apps/mobile/public/languages.html` and `languages.js`, a file of its own because the site allows no inline scripts; the phone app does not have it, and
 the web sidebar links to it). It reads `GET /api/languoids`, which the
 Worker answers from `languoid_explorer()` and caches for an hour (about
-3 MB gzipped). You can search, filter and group the languoids, follow
-parents and children, read names by the language they are written in
-(with descriptions, umbrella-code labels and retired ISO codes marked),
-look by region, and page through each table as it is stored.
+3 MB gzipped). You can search, filter and group the languoids (what you
+typed is bold in each match), follow a languoid's family tree up to the top
+of its tree and down any branch, read names by the language they are
+written in (with descriptions, umbrella-code labels and retired ISO codes
+marked), look by region on a globe, and page through each table as it is
+stored. The globe shades each nation by its languoids and draws every
+languoid with a location as a dot; click a country to open it, zoom in to
+click a languoid, or use "See it on the globe" from a languoid. It is
+`apps/mobile/explorer/globe.mjs`, bundled with d3-geo and the Reports map's
+shapes into `public/languages-globe.js` by `npm run explorer:build` (a test
+holds the committed file to its source).
 `npm run languoids -- explore` writes the same page with a release's
 tables inside it, to check a release before loading it; it needs no
 database.

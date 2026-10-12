@@ -3,17 +3,20 @@
  * anonymous label ("Teal Diamond"). Colour and shape come from a hash of the
  * id, so every device derives the same look without syncing anything.
  * Labels are colours and shapes only: nothing that can read as an insult in
- * any culture, unlike animal names.
+ * any culture, unlike animal names. The label is said in the language
+ * showing; the colour and shape it names are the same on every device.
  */
+import { t } from './i18n';
+
 export const PERSON_COLORS = [
-  { name: 'Blue', hex: '#2563EB' },
-  { name: 'Teal', hex: '#0F8B8D' },
-  { name: 'Green', hex: '#2F9E44' },
-  { name: 'Amber', hex: '#B7791F' },
-  { name: 'Orange', hex: '#DD6B20' },
-  { name: 'Rose', hex: '#D6336C' },
-  { name: 'Purple', hex: '#7048E8' },
-  { name: 'Slate', hex: '#495057' }
+  { id: 'blue', hex: '#2563EB' },
+  { id: 'teal', hex: '#0F8B8D' },
+  { id: 'green', hex: '#2F9E44' },
+  { id: 'amber', hex: '#B7791F' },
+  { id: 'orange', hex: '#DD6B20' },
+  { id: 'rose', hex: '#D6336C' },
+  { id: 'purple', hex: '#7048E8' },
+  { id: 'slate', hex: '#495057' }
 ] as const;
 export const PERSON_SHAPES = ['circle', 'square', 'diamond', 'triangle', 'hexagon'] as const;
 type PersonShape = typeof PERSON_SHAPES[number];
@@ -48,5 +51,5 @@ export function personLook(id: string, displayName?: string | null): PersonLook 
   const shape = PERSON_SHAPES[Math.floor(h / PERSON_COLORS.length) % PERSON_SHAPES.length]!;
   const name = displayName?.trim();
   if (name) return { id, name, anonymous: false, color: color.hex, shape: 'circle', initials: initials(name) };
-  return { id, name: `${color.name} ${shape[0]!.toUpperCase()}${shape.slice(1)}`, anonymous: true, color: color.hex, shape };
+  return { id, name: t('shell.person.anonymous', { color: t(`shell.person.colors.${color.id}`), shape: t(`shell.person.shapes.${shape}`) }), anonymous: true, color: color.hex, shape };
 }

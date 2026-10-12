@@ -1,0 +1,23 @@
+{
+  "invite": {
+    "subject": "Undangan LangQuest Anda",
+    "heading": "Undangan LangQuest Anda",
+    "intro": "Anda diundang untuk bergabung dengan sebuah tim di LangQuest.",
+    "openLink": "Buka tautan ini:",
+    "openLinkOnPhone": "Buka tautan ini di ponsel Anda:",
+    "openButton": "Buka LangQuest",
+    "openButtonOnPhone": "Buka LangQuest di ponsel Anda",
+    "orPasteCode": "Atau di LangQuest, ketuk {{screen}} lalu tempel kode ini:",
+    "joinScreen": "Pindai kode",
+    "expires": "Undangan ini kedaluwarsa pada {{date}}.",
+    "ignore": "Jika Anda tidak mengharapkan undangan ini, Anda dapat mengabaikannya."
+  },
+  "reset": {
+    "subject": "Pilih kata sandi LangQuest yang baru",
+    "heading": "Pilih kata sandi baru",
+    "intro": "Seseorang meminta untuk mengganti kata sandi {{email}} di LangQuest.",
+    "openButton": "Pilih kata sandi baru",
+    "expires": "Tautan ini berlaku selama {{minutes}} menit.",
+    "ignore": "Jika Anda tidak memintanya, abaikan email ini. Kata sandi Anda tetap sama."
+  }
+}

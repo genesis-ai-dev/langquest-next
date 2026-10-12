@@ -88,7 +88,7 @@ describe('LangQuest library seed', () => {
     expect(f.kinds.map((k) => k.id)).toEqual(['peer', 'bt', 'community', 'consultant', 'final']);
     expect(f.steps[2]).toEqual({ stepId: 's3', kindIds: ['consultant'], checkpoint: true });
     const q = doc(item('langquest.questions.consultant_check').docHash) as MaterialDoc;
-    expect(q).toMatchObject({ kind: 'questions', reviewKindId: 'consultant' });
+    expect(q).toMatchObject({ kind: 'questions', reviewKindId: 'consultant', language: 'eng' });
     expect(q.questions!.every((x) => x.required === false)).toBe(true);
   });
 

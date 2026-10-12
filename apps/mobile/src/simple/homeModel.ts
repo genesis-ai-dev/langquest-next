@@ -1,6 +1,7 @@
 // The words and choices behind the simple My Work (decision 71; demo ADR-032,
 // ADR-039, SIMPLE-1). Pure, so the rules are tested without a screen.
 import type { Highlight } from '@langquest-next/core';
+import { t } from '../i18n';
 
 // ---- getting a language ready -------------------------------------------------------
 
@@ -28,11 +29,11 @@ export interface ReadyFacts {
 /** The four questions in the order a coordinator thinks them, each answered or not. */
 export function readySteps(f: ReadyFacts): ReadyStep[] {
   return [
-    { id: 'template', question: 'What will they record?', done: f.template },
-    { id: 'helps', question: 'What will help them?', done: f.helps > 0 },
-    { id: 'flow', question: 'Who checks the recordings?', done: f.flow },
+    { id: 'template', question: t('work.ready.template'), done: f.template },
+    { id: 'helps', question: t('work.ready.helps'), done: f.helps > 0 },
+    { id: 'flow', question: t('work.ready.flow'), done: f.flow },
     // Someone besides the coordinator: the language has a team.
-    { id: 'invite', question: 'Invite your translators', done: f.members > 1 }
+    { id: 'invite', question: t('work.ready.invite'), done: f.members > 1 }
   ];
 }
 
@@ -82,11 +83,11 @@ export function workIcon(kind: WorkKind): { icon: 'mic' | 'chat' | 'check' | 'gl
 /** What to do, in the fewest words: "Record", "Feedback to hear", "Peer Review". */
 export function workWhat(kind: WorkKind, kindName?: string): string {
   switch (kind) {
-    case 'record': return 'Record';
-    case 'draft': return 'Finish recording';
-    case 'respond': return 'Feedback to hear';
-    case 'review': return kindName ?? 'Check';
-    case 'produce': return kindName ?? 'Back-translate';
+    case 'record': return t('work.what.record');
+    case 'draft': return t('work.what.draft');
+    case 'respond': return t('work.what.respond');
+    case 'review': return kindName ?? t('work.what.review');
+    case 'produce': return kindName ?? t('work.what.produce');
   }
 }
 
@@ -96,13 +97,13 @@ export function workWhat(kind: WorkKind, kindName?: string): string {
  * by Abebe").
  */
 export function workSub(what: string, opts: { by?: string; due?: string } = {}): string {
-  return [what, opts.due ?? (opts.by ? `asked by ${opts.by}` : '')].filter(Boolean).join(' · ');
+  return [what, opts.due ?? (opts.by ? t('work.askedBy', { name: opts.by }) : '')].filter(Boolean).join(' · ');
 }
 
 /** The "Next for you" card's line under the passage, which has room for both: "Record it · asked by Mary · due Oct 11". */
 export function nextSub(kind: WorkKind, what: string, opts: { by?: string; due?: string } = {}): string {
-  const verb = kind === 'record' ? 'Record it' : kind === 'draft' ? 'Finish recording it' : what;
-  return [verb, opts.by ? `asked by ${opts.by}` : '', opts.due ?? ''].filter(Boolean).join(' · ');
+  const verb = kind === 'record' ? t('work.what.recordIt') : kind === 'draft' ? t('work.what.draftIt') : what;
+  return [verb, opts.by ? t('work.askedBy', { name: opts.by }) : '', opts.due ?? ''].filter(Boolean).join(' · ');
 }
 
 /** How many of "Then" show before "N more" (Hick's law: a short list, the rest one tap away). */

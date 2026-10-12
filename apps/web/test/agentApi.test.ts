@@ -206,7 +206,7 @@ function setup() {
       ...(body !== undefined ? { body: JSON.stringify(body) } : raw ? { body: raw } : {})
     }), deps);
     const out = { status: res.status, body: (res.status === 202 || res.status === 204 ? null : await res.json()) as any };
-    // Every exchange must agree with the OpenAPI document (decisions.md 81).
+    // Every exchange must agree with the OpenAPI document (decisions.md 86).
     const problem = check(method, path, out.status, out.body, raw ?? body);
     if (problem) throw new Error(problem);
     return out;
@@ -888,7 +888,7 @@ describe('external values (decisions.md 79)', () => {
   });
 });
 
-describe('the OpenAPI document (decisions.md 81)', () => {
+describe('the OpenAPI document (decisions.md 86)', () => {
   it('is served without a token, linked from the index, and every schema in it compiles', async () => {
     const { call } = setup();
     const spec = await call('GET', '/api/v1/openapi.json');

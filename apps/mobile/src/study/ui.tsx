@@ -8,15 +8,19 @@ import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import * as Crypto from 'expo-crypto';
 import { CircleHelp, Globe, Pause, StickyNote, TriangleAlert, type LucideIcon } from 'lucide-react-native';
 import { createElement, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { Image, Platform, Pressable, ScrollView, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { Text } from '../text';
 import { openContentLink } from '../share';
 import { AudioClip } from '../audioClip';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../audioSession';
 import { studyUri } from './studyFiles';
+import { commandErrorText } from '../coreText';
 import type { Ctx } from '../ctx';
+import { t } from '../i18n';
+import { formatClock, formatNumber } from '../i18n/format';
 import { indexesFor } from '../indexes';
 import { Field, Ico, NoteCard, PrimaryBtn, Sheet, txt, type IconName } from '../kit';
-import { plural, when, type PassageView } from '../passageView';
+import { when, type PassageView } from '../passageView';
 import { noteExpected, reportError } from '../report';
 import { Authored, recordTarget, ReportFlag } from '../reportSheet';
 import { SourceReader } from '../sources/SourceReader';
@@ -26,9 +30,14 @@ import { VoiceNote } from '../voiceNote';
 import type { GlossaryEntry, StudyMedia, StudyMediaKind, StudyResource } from './guides';
 import { useStudyFileUri } from './media';
 import type { StudyStepStatus } from './progress';
-import { clock, inlineParts, isCallout, isQuestion, studySections, type StudySection } from './text';
+import { inlineParts, isCallout, isQuestion, studySections, type StudySection } from './text';
 
 // ---- audio -------------------------------------------------------------------------
+
+/** A time in the audio as people read it ("1:14"), in the language's digits. `clock` (study/text.ts) is the stored form. */
+export function shownClock(seconds: number): string {
+  return formatClock(Math.floor(Math.max(0, seconds)) * 1000);
+}
 
 interface StudyAudio {
   playing: boolean;
@@ -78,9 +87,9 @@ export function useStudyAudio(address: string | undefined, estimate: number): St
     if (!playing || !simulated) return;
     const tick = setInterval(() => {
       const end = now.current.duration;
-      const t = Math.min(base.current.from + (Date.now() - base.current.at) / 1000, end);
-      setTime(t);
-      if (t >= end) setPlaying(false);
+      const at = Math.min(base.current.from + (Date.now() - base.current.at) / 1000, end);
+      setTime(at);
+      if (at >= end) setPlaying(false);
     }, 250);
     return () => clearInterval(tick);
   }, [playing, simulated]);
@@ -156,8 +165,8 @@ function Scrubber(props: { value: number; max: number; label: string; onSeek: (s
     <View onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)} style={styles.scrubber}
       onStartShouldSetResponder={() => true} onMoveShouldSetResponder={() => true} onResponderTerminationRequest={() => false}
       onResponderGrant={(e) => at(e.nativeEvent.locationX)} onResponderMove={(e) => at(e.nativeEvent.locationX)}
-      accessible accessibilityRole="adjustable" accessibilityLabel={`Position in ${props.label}`}
-      accessibilityValue={{ min: 0, max: Math.round(props.max), now: Math.round(props.value), text: clock(props.value) }}
+      accessible accessibilityRole="adjustable" accessibilityLabel={t('study.audio.position', { label: props.label })}
+      accessibilityValue={{ min: 0, max: Math.round(props.max), now: Math.round(props.value), text: shownClock(props.value) }}
       accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
       onAccessibilityAction={(e) => props.onSeek(props.value + (e.nativeEvent.actionName === 'increment' ? 10 : -10))}>
       <View style={[styles.track, { pointerEvents: 'none' }]}>
@@ -173,22 +182,22 @@ export function AudioBar(props: { audio: StudyAudio; label: string; sub?: string
   const a = props.audio;
   return (
     <View style={styles.audioBar}>
-      <Pressable onPress={a.toggle} accessibilityRole="button" accessibilityLabel={a.playing ? `Pause ${props.label}` : `Play ${props.label}`}
+      <Pressable onPress={a.toggle} accessibilityRole="button" accessibilityLabel={a.playing ? t('study.audio.pause', { label: props.label }) : t('study.audio.play', { label: props.label })}
         style={({ pressed }) => [styles.playBtn, pressed && styles.pressed]}>
         <Ico name={a.playing ? 'pause' : 'play'} size={26} color={C.white} />
       </Pressable>
       <View style={{ flex: 1, minWidth: 0 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
           <Text style={[txt.sm, { fontWeight: '700', flex: 1 }]} numberOfLines={1}>{props.label}</Text>
-          <Text style={[txt.xs, { fontVariant: ['tabular-nums'] }]}>{clock(a.time)} / {clock(a.duration)}</Text>
+          <Text style={[txt.xs, { fontVariant: ['tabular-nums'] }]}>{shownClock(a.time)} / {shownClock(a.duration)}</Text>
         </View>
         <Scrubber value={a.time} max={a.duration} label={props.label} onSeek={a.seek} />
         {props.sub ? <Text style={[txt.xs, { marginTop: -2 }]} numberOfLines={2}>{props.sub}</Text> : null}
       </View>
-      <Pressable onPress={() => a.seek(a.time - 10)} accessibilityRole="button" accessibilityLabel="Back 10 seconds"
+      <Pressable onPress={() => a.seek(a.time - 10)} accessibilityRole="button" accessibilityLabel={t('common.backTenSeconds')}
         style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}>
         <Ico name="undo" size={16} color={C.primary} />
-        <Text style={[txt.xsStrong, { color: C.primary }]}>10</Text>
+        <Text style={[txt.xsStrong, { color: C.primary }]}>{formatNumber(10)}</Text>
       </Pressable>
     </View>
   );
@@ -222,31 +231,34 @@ export function StepMark(props: { status: StudyStepStatus; size?: number }) {
   const size = props.size ?? 32;
   const started = !s.done && s.notes.length > 0;
   return (
-    <View accessibilityLabel={s.done ? 'Done' : started ? 'Started' : 'Not started'}
+    <View accessibilityLabel={s.done ? t('study.step.done') : started ? t('study.step.started') : t('study.step.notStarted')}
       style={{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center',
         backgroundColor: s.done ? C.green : started ? C.light : C.card, borderWidth: s.done ? 0 : 1.5, borderColor: started ? C.primary : C.border }}>
       {s.done ? <Ico name="check" size={Math.round(size * 0.55)} color={C.white} strokeWidth={3} />
-        : <Text style={[txt.sm, { fontWeight: '800', color: C.primary }]}>{s.index + 1}</Text>}
+        : <Text style={[txt.sm, { fontWeight: '800', color: C.primary }]}>{formatNumber(s.index + 1)}</Text>}
     </View>
   );
 }
 
 /** "Done by you · Sep 2 · 2 notes", "2 notes", "Not started". */
 export function stepLine(ctx: Ctx, s: StudyStepStatus): string {
-  if (s.done) return `Done by ${ctx.name(s.done.by, true)} · ${when(s.done.hlc)}${s.notes.length ? ` · ${plural(s.notes.length, 'note')}` : ''}`;
-  if (s.notes.length) return plural(s.notes.length, 'note');
-  return 'Not started';
+  if (s.done) {
+    const done = { name: ctx.name(s.done.by, true), when: when(s.done.hlc) };
+    return s.notes.length ? t('study.step.doneByWithNotes', { ...done, count: s.notes.length }) : t('study.step.doneBy', done);
+  }
+  if (s.notes.length) return t('study.step.notes', { count: s.notes.length });
+  return t('study.step.notStarted');
 }
 
 /** One note from the study or the passage reader, with its voice note when there is one. */
 export function StudyNote(props: { ctx: Ctx; note: PassageNote; label?: string }) {
   const n = props.note;
-  const anchor = props.label ?? (n.blobHash && !n.text ? 'Voice note' : 'Note');
+  const anchor = props.label ?? (n.blobHash && !n.text ? t('common.voiceNote') : t('study.note.note'));
   return (
     <Authored ctx={props.ctx} by={n.by}>
-      <NoteCard anchor={n.photoHash ? `${anchor} · photo` : anchor} {...(n.text ? { text: n.text } : {})} by={props.ctx.name(n.by)} when={when(n.hlc)}
+      <NoteCard anchor={n.photoHash ? t('study.note.withPhoto', { anchor }) : anchor} {...(n.text ? { text: n.text } : {})} by={props.ctx.name(n.by)} when={when(n.hlc)}
         icon={n.blobHash ? 'mic' : 'note'}
-        audio={n.blobHash ? <AudioClip language={props.ctx.language} hashes={[n.blobHash]} label="Play voice note" /> : undefined}
+        audio={n.blobHash ? <AudioClip language={props.ctx.language} hashes={[n.blobHash]} label={t('study.note.playVoiceNote')} /> : undefined}
         action={<ReportFlag ctx={props.ctx} target={recordTarget(props.ctx, 'note', n.id, n.by, n.unitId)} size={36} />} />
     </Authored>
   );
@@ -269,8 +281,8 @@ export async function saveNote(ctx: Ctx, v: Pick<PassageView, 'unitId'>, anchor:
       ...(c.text.trim() ? { text: c.text.trim() } : {}), ...(c.blobHash ? { blobHash: c.blobHash } : {})
     });
   } catch (e) {
-    if (e instanceof CommandError) ctx.toast(e.message);
-    else ctx.toast(`Something went wrong (code ${reportError('study: build note', e)}). Nothing was lost.`);
+    if (e instanceof CommandError) ctx.toast(commandErrorText(e));
+    else ctx.toast(t('common.somethingWentWrong', { code: reportError('study: build note', e) }));
     return false;
   }
   try {
@@ -296,19 +308,27 @@ export function ContributeSheet(props: {
   const [hash, setHash] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   return (
-    <Sheet visible title={props.title} sub="It stays with the passage, and reviewers see it with the study." onClose={props.onClose}
-      footer={<PrimaryBtn label="Save" busy={busy} disabled={!text.trim() && !hash}
+    <Sheet visible title={props.title} sub={t('study.contribute.sub')} onClose={props.onClose}
+      footer={<PrimaryBtn label={t('common.save')} busy={busy} disabled={!text.trim() && !hash}
         onPress={() => { setBusy(true); void props.onSave({ text, blobHash: hash }).then((ok) => { setBusy(false); if (ok) props.onClose(); }); }} />}>
       <View style={styles.where}><Text style={txt.smMuted}>{props.where}</Text></View>
-      <VoiceNote ctx={props.ctx} label="Record what the group said" hash={hash} onChange={setHash} />
-      <Field value={text} onChangeText={setText} placeholder="Or type it" multiline />
+      <VoiceNote ctx={props.ctx} label={t('study.contribute.record')} hash={hash} onChange={setHash} />
+      <Field value={text} onChangeText={setText} placeholder={t('common.orTypeIt')} multiline />
     </Sheet>
   );
 }
 
 // ---- pictures, maps and glossary terms ----------------------------------------------------
 
-const MEDIA_LABEL: Record<StudyMediaKind, string> = { map: 'Map', photo: 'Photo', illustration: 'Illustration', video: 'Video' };
+/** A kind of picture, as the study and the guide editor name it. */
+export function mediaKindLabel(kind: StudyMediaKind): string {
+  switch (kind) {
+    case 'map': return t('study.media.map');
+    case 'photo': return t('study.media.photo');
+    case 'illustration': return t('study.media.illustration');
+    case 'video': return t('study.media.video');
+  }
+}
 const MEDIA_ICON: Record<StudyMediaKind, IconName> = { map: 'map', photo: 'camera', illustration: 'media', video: 'video' };
 
 export function resourceIcon(r: StudyResource | undefined): IconName {
@@ -326,9 +346,9 @@ function MediaImage(props: { item: StudyMedia; orgId?: string | null }) {
     return createElement('video', { src: uri, controls: true, preload: 'metadata', 'aria-label': it.title, style: { width: '100%', aspectRatio: '16 / 9', backgroundColor: '#000', display: 'block' } });
   }
   if (!uri || failed || film) {
-    const why = film ? 'Films play in the web app for now.' : waiting ? 'Loading…' : uri ? 'Not loaded. Check your connection.' : MEDIA_LABEL[it.kind];
+    const why = film ? t('study.media.filmsOnWeb') : waiting ? t('common.loading') : uri ? t('study.media.notLoaded') : mediaKindLabel(it.kind);
     return (
-      <View style={styles.standIn} accessibilityLabel={`${MEDIA_LABEL[it.kind]}: ${it.title}`}>
+      <View style={styles.standIn} accessibilityLabel={t('study.media.standIn', { kind: mediaKindLabel(it.kind), title: it.title })}>
         <Ico name={MEDIA_ICON[it.kind]} size={40} color={C.faint} />
         <Text style={[txt.xs, { textAlign: 'center' }]}>{why}</Text>
       </View>
@@ -342,14 +362,16 @@ function MediaImage(props: { item: StudyMedia; orgId?: string | null }) {
 /** A set of pictures or a map, full width. A map opens full size. */
 export function MediaSheet(props: { resource: StudyResource; source: string; orgId?: string | null; onClose: () => void }) {
   const items = props.resource.media ?? [];
-  const kinds = [...new Set(items.map((i) => MEDIA_LABEL[i.kind]))].join(', ');
+  const kinds = [...new Set(items.map((i) => mediaKindLabel(i.kind)))].join(t('study.listSeparator'));
+  const tapMap = items.some((i) => i.kind === 'map' && i.url);
+  const noCopy = items.some((i) => i.noPhoneCopy);
   return (
     <Sheet visible title={props.resource.title} sub={kinds ? `${kinds} · ${props.source}` : props.source} onClose={props.onClose}>
       {props.resource.description ? <Text style={txt.body}>{props.resource.description}</Text> : null}
       {items.map((item) => (
         <View key={item.id} style={{ gap: space.xs }}>
           {item.kind === 'map' && item.url ? (
-            <Pressable onPress={() => openContentLink(item.url!)} accessibilityRole="link" accessibilityLabel={`Open ${item.title} full size`}
+            <Pressable onPress={() => openContentLink(item.url!)} accessibilityRole="link" accessibilityLabel={t('study.media.openFullSize', { title: item.title })}
               style={({ pressed }) => [styles.imageWrap, pressed && styles.pressed]}>
               <MediaImage item={item} orgId={props.orgId} />
             </Pressable>
@@ -364,8 +386,7 @@ export function MediaSheet(props: { resource: StudyResource; source: string; org
         </View>
       ))}
       <Text style={txt.xs}>
-        Low-resolution copies, to save data.{items.some((i) => i.kind === 'map' && i.url) ? ' Tap the map to open it full size.' : ''}
-        {items.some((i) => i.noPhoneCopy) ? ' This film has no small copy yet.' : ''}
+        {tapMap && noCopy ? t('study.media.lowResMapFilm') : tapMap ? t('study.media.lowResMap') : noCopy ? t('study.media.lowResFilm') : t('study.media.lowRes')}
       </Text>
     </Sheet>
   );
@@ -379,12 +400,12 @@ export function GlossarySheet(props: { entry: GlossaryEntry; source: string; org
   const audio = useStudyAudio(audioUri, Math.max(5, Math.round(words / 2.5)));
   useEffect(() => () => audio.pause(), []);
   return (
-    <Sheet visible title={e.term} sub={`Glossary · ${props.source}`} onClose={props.onClose}
-      footer={props.hasKeyTerm ? <PrimaryBtn label="Open the key term" icon="book" onPress={props.onOpenTerm} /> : undefined}>
+    <Sheet visible title={e.term} sub={t('study.glossary.sub', { source: props.source })} onClose={props.onClose}
+      footer={props.hasKeyTerm ? <PrimaryBtn label={t('study.glossary.openKeyTerm')} icon="book" onPress={props.onOpenTerm} /> : undefined}>
       {e.hint ? <Text style={[txt.body, { fontWeight: '600' }]}>{e.hint}</Text> : null}
-      {e.audioUrl || e.audioFile ? <AudioBar audio={audio} label={`Listen: ${e.term}`} {...(audio.failed ? { sub: "Couldn't load the audio — playing a stand-in" } : {})} /> : null}
+      {e.audioUrl || e.audioFile ? <AudioBar audio={audio} label={t('study.glossary.listen', { term: e.term })} {...(audio.failed ? { sub: t('study.glossary.standIn') } : {})} /> : null}
       {e.body ? e.body.split(/\n{2,}/).map((para, i) => <Text key={i} style={txt.body}>{para.trim()}</Text>) : null}
-      {!props.hasKeyTerm ? <Text style={txt.xs}>This term isn't in your organization's key terms yet.</Text> : null}
+      {!props.hasKeyTerm ? <Text style={txt.xs}>{t('study.glossary.notKeyTerm')}</Text> : null}
     </Sheet>
   );
 }
@@ -392,16 +413,28 @@ export function GlossarySheet(props: { entry: GlossaryEntry; source: string; org
 // ---- a step's text: callouts, list items, headings and links -------------------------------
 
 /**
- * How each callout kind reads (core CALLOUT_KINDS): an icon and a word, so
- * the kind never rests on colour alone, on a quiet tint with an edge.
+ * How each callout kind reads (core CALLOUT_KINDS): an icon and a word
+ * (`calloutLabel`), so the kind never rests on colour alone, on a quiet tint
+ * with an edge.
  */
-export const CALLOUT_LOOK: Record<CalloutKind, { label: string; icon: LucideIcon; bg: string; edge: string; ink: string }> = {
-  action: { label: 'Stop here', icon: Pause, bg: C.light, edge: C.primary, ink: C.primary },
-  note: { label: 'Note', icon: StickyNote, bg: TINT.gray, edge: TINT.grayText, ink: TINT.grayText },
-  question: { label: 'Question', icon: CircleHelp, bg: C.card, edge: C.soft, ink: C.primary },
-  culture: { label: 'Culture', icon: Globe, bg: TINT.green, edge: TINT.greenText, ink: TINT.greenText },
-  warning: { label: 'Careful', icon: TriangleAlert, bg: TINT.amber, edge: TINT.amberText, ink: TINT.amberText }
+export const CALLOUT_LOOK: Record<CalloutKind, { icon: LucideIcon; bg: string; edge: string; ink: string }> = {
+  action: { icon: Pause, bg: C.light, edge: C.primary, ink: C.primary },
+  note: { icon: StickyNote, bg: TINT.gray, edge: TINT.grayText, ink: TINT.grayText },
+  question: { icon: CircleHelp, bg: C.card, edge: C.soft, ink: C.primary },
+  culture: { icon: Globe, bg: TINT.green, edge: TINT.greenText, ink: TINT.greenText },
+  warning: { icon: TriangleAlert, bg: TINT.amber, edge: TINT.amberText, ink: TINT.amberText }
 };
+
+/** A callout kind's word: "Stop here", "Note", "Question", "Culture", "Careful". */
+export function calloutLabel(kind: CalloutKind): string {
+  switch (kind) {
+    case 'action': return t('study.callout.action');
+    case 'note': return t('study.callout.note');
+    case 'question': return t('study.callout.question');
+    case 'culture': return t('study.callout.culture');
+    case 'warning': return t('study.callout.warning');
+  }
+}
 
 /** Inline text: bold words and links to pictures, maps and glossary terms. */
 function Inline(props: { text: string; onOpenRef?: (ref: string) => void }): ReactNode {
@@ -426,7 +459,7 @@ export function SectionBody(props: { section: StudySection; onOpenRef?: (ref: st
       <View style={[styles.callout, { backgroundColor: look.bg, borderColor: look.edge }, sec.kind === 'question' && styles.calloutOutlined]}>
         <View style={styles.calloutHead}>
           <Icon size={16} color={look.ink} strokeWidth={2.4} />
-          <Text style={[styles.calloutLabel, { color: look.ink }]}>{look.label}</Text>
+          <Text style={[styles.calloutLabel, { color: look.ink }]}>{calloutLabel(sec.kind)}</Text>
         </View>
         <Text style={styles.stepText}>{inline}</Text>
       </View>
@@ -447,7 +480,7 @@ export function SectionBody(props: { section: StudySection; onOpenRef?: (ref: st
 /** A step's whole text as the step screen shows it, without notes: the guide editor's live preview. */
 export function StepPreview(props: { text: string; onOpenRef?: (ref: string) => void }) {
   const sections = useMemo(() => studySections(props.text), [props.text]);
-  if (!sections.length) return <View style={styles.textCard}><Text style={[txt.smMuted, { padding: space.md }]}>Nothing written yet.</Text></View>;
+  if (!sections.length) return <View style={styles.textCard}><Text style={[txt.smMuted, { padding: space.md }]}>{t('study.nothingWritten')}</Text></View>;
   return (
     <View style={styles.textCard}>
       {sections.map((sec) => (
@@ -490,23 +523,25 @@ export function PassageReader(props: { ctx: Ctx; v: PassageView; canContribute: 
                   <Pressable onPress={() => setAdding({ verse: row.key, code: c.code, ...(c.at ? { at: c.at } : {}) })} accessibilityRole="button"
                     style={({ pressed }) => [styles.addBtn, pressed && styles.pressed]}>
                     <Ico name="note" size={16} color={C.white} />
-                    <Text style={[txt.sm, { fontWeight: '700', color: C.white }]}>Add a note on {row.key}{c.at ? ` at ${c.at}` : ''}</Text>
+                    <Text style={[txt.sm, { fontWeight: '700', color: C.white }]}>{c.at ? t('study.reader.addNoteOnAt', { verse: row.key, time: c.at }) : t('study.reader.addNoteOn', { verse: row.key })}</Text>
                   </Pressable>
                 ) : null}
                 {here.map((n) => {
                   const a = n.anchor.kind === 'verse' ? [n.anchor.translation, n.anchor.at].filter(Boolean).join(' · ') : '';
-                  return <StudyNote key={n.id} ctx={ctx} note={n} label={a || `Verse ${row.key}`} />;
+                  return <StudyNote key={n.id} ctx={ctx} note={n} label={a || t('study.reader.verse', { verse: row.key })} />;
                 })}
               </View>
             );
           }
         }} />
       {adding ? (
-        <ContributeSheet ctx={ctx} unitId={v.unitId} languageId={v.languageId} title="Add a note"
-          where={`${v.title} · verse ${adding.verse} · ${adding.code}${adding.at ? ` · ${adding.at}` : ''}`}
+        <ContributeSheet ctx={ctx} unitId={v.unitId} languageId={v.languageId} title={t('common.addNote')}
+          where={adding.at
+            ? t('study.reader.whereAt', { title: v.title, verse: adding.verse, bible: adding.code, time: adding.at })
+            : t('study.reader.where', { title: v.title, verse: adding.verse, bible: adding.code })}
           onClose={() => setAdding(null)}
           onSave={(c) => saveNote(ctx, v, { kind: 'verse', verse: adding.verse, translation: adding.code, ...(adding.at ? { at: adding.at } : {}) }, c,
-            `Note added on ${adding.verse} — it follows this passage`)} />
+            t('study.reader.noteAdded', { verse: adding.verse }))} />
       ) : null}
     </>
   );

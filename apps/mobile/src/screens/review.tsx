@@ -26,19 +26,22 @@ import {
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import { AudioClip } from '../audioClip';
 import { ClipPlayer } from '../clipPlayer';
 import type { Ctx } from '../ctx';
-import { TITLES } from '../flow';
+import { screenTitle } from '../flow';
+import { t } from '../i18n';
+import { formatClock } from '../i18n/format';
 import { indexesFor } from '../indexes';
 import {
   Badge, Banner, Card, Chip, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, ReasonSheet, Row, Screen, Sheet, txt, useLayout
 } from '../kit';
-import { passageCrumbs, passageView as passageViewOf, plural, usePassage, versionTitle, type PassageView } from '../passageView';
-import { problemText } from '../recording/parts';
+import { passageCrumbs, passageView as passageViewOf, usePassage, versionTitle, type PassageView } from '../passageView';
+import { failureMessage } from '../report';
 import {
-  canLeave, cleanAnswers, cleanSkips, clockMs, CANT_ANSWER, earlierReviews, firstOpenAt, isGroupKind, kindLabel, listenLine, loggedTargets, nextLabel,
+  canLeave, cantAnswerReasons, cleanAnswers, cleanSkips, earlierReviews, firstOpenAt, isGroupKind, kindInSentence, kindLabel, listenLine, loggedTargets, nextLabel,
   noteAnchorText, readiness, recordedPassages, requestFor, reviewCapture, reviewStages, stageAt, summaryLine, toCompareFor, verdictQuestion, versionFor,
   type Answers, type Skips, type StageId, type VoiceAnswer
 } from '../reviewing/capture';
@@ -140,21 +143,25 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
 
   if (!v || !kind) {
     return (
-      <Screen header={<Header title={logged ? TITLES.add_record : TITLES.review_capture} onBack={ctx.back} close />}>
-        <EmptyState icon="book" title={ctx.language.state ? "This passage isn't in this language" : 'Loading…'} />
+      <Screen header={<Header title={logged ? screenTitle('add_record') : screenTitle('review_capture')} onBack={ctx.back} close />}>
+        <EmptyState icon="book" title={ctx.language.state ? t('review.screen.notInLanguage') : t('common.loading')} />
       </Screen>
     );
   }
-  const crumbs = passageCrumbs(ctx, v, logged ? 'Already happened' : 'Review it');
-  const sub = wide ? (logged ? 'Already happened' : v.language) : logged ? `${kindLabel(kind.name)} · already happened` : kindLabel(kind.name);
+  const crumbs = passageCrumbs(ctx, v, logged ? t('review.screen.alreadyHappened') : t('review.screen.reviewIt'));
+  const sub = wide ? (logged ? t('review.screen.alreadyHappened') : v.language) : logged ? t('review.screen.kindAlreadyHappened', { kind: kindLabel(kind.name) }) : kindLabel(kind.name);
   const title = wide ? kind.name : v.title;
   if (!version) {
-    return <Screen header={<Header title={title} sub={sub} crumbs={crumbs} onBack={ctx.back} close />}><EmptyState icon="mic" title="There's no recording to review yet." sub="Once a version is published, it can be reviewed here." /></Screen>;
+    return (
+      <Screen header={<Header title={title} sub={sub} crumbs={crumbs} onBack={ctx.back} close />}>
+        <EmptyState icon="mic" title={t('review.screen.noRecording')} sub={t('review.screen.noRecordingSub')} />
+      </Screen>
+    );
   }
   if (!logged && kind.produces) {
     return (
       <Screen header={<Header title={title} sub={sub} crumbs={crumbs} onBack={ctx.back} close />}>
-        <EmptyState icon="swap" title={`${kind.name} makes a recording`} sub={`It isn't a verdict, so it isn't reviewed here. Use ${kind.produces.action} on the passage's record.`} />
+        <EmptyState icon="swap" title={t('review.screen.makesRecording', { kind: kind.name })} sub={t('review.screen.makesRecordingSub', { action: kind.produces.action })} />
       </Screen>
     );
   }
@@ -171,15 +178,17 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const latest = v.p.latest;
   const otherPassages = !!here && all.some((p) => p.unitId !== here.unitId);
   const mine = version.by === actorId;
-  const translator = mine ? 'you' : ctx.name(version.by).split(' ')[0] ?? ctx.name(version.by);
+  // The translator's first name, for sentences about them; when it is you, the sentences say so themselves.
+  const translator = ctx.name(version.by).split(' ')[0] ?? ctx.name(version.by);
   const q = questions[Math.min(qi, Math.max(0, questions.length - 1))];
   const openAt = firstOpenAt(questions, captured.answers, skipped, makes ? {} : voice);
   const afterSheet = (fn: () => void) => { setSheet(null); setTimeout(fn, SHEET_GAP_MS); };
   const whoLine = summaryLine([
-    (group || !logged) && people > 0 && `${people} ${people === 1 ? 'person' : 'people'}`,
+    (group || !logged) && people > 0 && t('review.parts.people', { count: people }),
     logged && !group && givenBy.trim(),
     !logged && place.trim()
   ]);
+  const whoTitle = logged && !group ? t('review.screen.whoReviewed') : logged ? t('review.parts.howManyListened') : t('review.screen.whoIsListening');
 
   async function save(outcome: 'looks_good' | 'needs_changes' | 'recorded') {
     const state = ctx.language.state;
@@ -201,8 +210,10 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           ...(cleanA ? { answers: cleanA } : {}), ...(cleanS ? { skipped: cleanS } : {}), ...(request ? { requestId: request.id } : {}),
           ...(people > 0 ? { people } : {}), ...(place.trim() ? { place: place.trim() } : {}), ...(artifacts.length ? { artifacts } : {})
         });
-        const sentTo = version.by === actorId ? 'on the record' : `sent to ${ctx.name(version.by)}`;
-        message = outcome === 'looks_good' ? `Looks good · ${sentTo}` : `Feedback ${sentTo}`;
+        const name = ctx.name(version.by);
+        message = outcome === 'looks_good'
+          ? (mine ? t('review.screen.looksGoodOnRecord') : t('review.screen.looksGoodSentTo', { name }))
+          : (mine ? t('review.screen.feedbackOnRecord') : t('review.screen.feedbackSentTo', { name }));
       } else {
         const targets = loggedTargets(state, { unitId: v.unitId, takeId: version.takeId }, also);
         const who = !group && givenBy.trim() ? { givenBy: givenBy.trim() } : {};
@@ -227,7 +238,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
               ...(theseArtifacts.length ? { artifacts: theseArtifacts } : {}), ...(req ? { requestId: req.id } : {})
             })));
         });
-        message = targets.length > 1 ? `${kind.name} added to ${targets.length} passages` : `${kind.name} added to the record`;
+        message = targets.length > 1 ? t('review.screen.addedToPassages', { kind: kind.name, count: targets.length }) : t('review.screen.addedToRecord', { kind: kind.name });
       }
       // Each review of this passage names what its Background offered and what was opened.
       const used = usage.items();
@@ -240,7 +251,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
         })];
       }
     } catch (e) {
-      ctx.toast(`Not saved: ${problemText(logged ? 'add record: save' : 'review: send', e)}`);
+      ctx.toast(t('review.screen.notSaved', { reason: logged ? failureMessage('add record: save', e) : failureMessage('review: send', e) }));
       return;
     }
     setBusy(true);
@@ -267,7 +278,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   // ---- the footer, per stage ----
   let footer: ReactNode = null;
   if (why) {
-    footer = <PrimaryBtn label="Send feedback" icon="send" disabled={!r.saysWhat || !r.ready} busy={busy} onPress={() => void save('needs_changes')} />;
+    footer = <PrimaryBtn label={t('review.screen.sendFeedback')} icon="send" disabled={!r.saysWhat || !r.ready} busy={busy} onPress={() => void save('needs_changes')} />;
   } else if (stage === 'listen') {
     footer = next ? <PrimaryBtn label={nextLabel(next)} icon="right" onPress={goNext} /> : null;
   } else if (stage === 'questions' && q) {
@@ -277,7 +288,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       <View style={styles.qFoot}>
         <SkipBtn onPress={() => (q.required && !answeredHere ? setSkipFor(q.q.id) : goNext())} />
         <View style={{ flex: 1 }}>
-          <PrimaryBtn label={last ? nextLabel(next ?? stages[at]!) : 'Next question'} icon="right"
+          <PrimaryBtn label={last ? nextLabel(next ?? stages[at]!) : t('review.screen.nextQuestion')} icon="right"
             disabled={!canLeave(q, captured.answers, skipped, makes ? {} : voice)} onPress={goNext} />
         </View>
       </View>
@@ -285,8 +296,8 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   } else if (stage === 'decide' && makes) {
     footer = (
       <>
-        {logged && also.length > 0 ? <Text style={[txt.xsStrong, styles.center, { color: C.primary }]}>Saves to {also.length + 1} passages</Text> : null}
-        <PrimaryBtn label="Save to the record" icon="check" disabled={!r.ready || made.length === 0} busy={busy} onPress={() => void save('recorded')} />
+        {logged && also.length > 0 ? <Text style={[txt.xsStrong, styles.center, { color: C.primary }]}>{t('review.screen.savesTo', { count: also.length + 1 })}</Text> : null}
+        <PrimaryBtn label={t('review.screen.saveToRecord')} icon="check" disabled={!r.ready || made.length === 0} busy={busy} onPress={() => void save('recorded')} />
       </>
     );
   }
@@ -298,36 +309,36 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     <>
       {logged ? (
         <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>
-          For a {kind.name.toLowerCase()} that happened outside the app — in person, on a call, at church. It goes on the record credited to whoever gave it.
+          {t('review.screen.loggedIntro', { kind: kindInSentence(kind.name) })}
         </Text>
       ) : null}
       {directions ? <RequestBanner ctx={ctx} request={request} /> : null}
       <ClipPlayer language={ctx.language} hashes={version.cardHashes} big
-        title={`${versionTitle(version.n)} · recorded by ${translator}`} sub={listenLine(kind.id, logged)}
+        title={mine ? t('review.screen.versionByYou', { n: version.n }) : t('review.screen.versionBy', { n: version.n, name: translator })} sub={listenLine(kind.id, logged)}
         {...(makes ? {} : { onNote: (s: number) => setMomentAt(Math.round(s * 1000)) })} />
       <MomentList ctx={ctx} moments={moments} onRemove={(h) => setMoments((m) => m.filter((x) => x.hash !== h))} />
       {changed ? (
         <Card>
-          <Text style={txt.sm}><Text style={{ fontWeight: '700' }}>What changed in {versionTitle(version.n)}:</Text> {version.changeNote ?? 'said in a voice note'}</Text>
-          {version.changeBlobHash ? <AudioClip language={ctx.language} hashes={[version.changeBlobHash]} label="Play what changed" /> : null}
+          <Text style={txt.sm}><Text style={{ fontWeight: '700' }}>{t('review.screen.whatChangedIn', { n: version.n })}</Text> {version.changeNote ?? t('review.screen.saidInVoiceNote')}</Text>
+          {version.changeBlobHash ? <AudioClip language={ctx.language} hashes={[version.changeBlobHash]} label={t('review.parts.playWhatChanged')} /> : null}
         </Card>
       ) : null}
       {context?.compare ? <CompareCard ctx={ctx} review={context.compare} kind={v.kind(context.compare.kindId)} version={version} /> : null}
       {context === null ? <WithheldNotice kind={kind} /> : (
         <Group>
-          <Row leading={<Ico name="layers" size={28} color={C.primary} />} label="Background" sub={backgroundLine(context, { id: version.by, name: translator })}
+          <Row leading={<Ico name="layers" size={28} color={C.primary} />} label={t('review.parts.background')} sub={backgroundLine(context, { id: version.by, name: translator, you: mine })}
             onPress={() => setSheet('background')} last />
         </Group>
       )}
-      <DashedRow icon="people" label={logged && !group ? 'Who reviewed it?' : logged ? 'How many listened?' : 'Who is listening?'}
-        {...(whoLine ? { sub: whoLine, done: true } : {})} right={whoLine ? 'Change' : 'optional'} onPress={() => setSheet('who')} />
+      <DashedRow icon="people" label={whoTitle}
+        {...(whoLine ? { sub: whoLine, done: true } : {})} right={whoLine ? t('review.shared.change') : t('review.shared.optional')} onPress={() => setSheet('who')} />
       {logged ? (
-        <DashedRow icon="edit" label="Add details"
+        <DashedRow icon="edit" label={t('review.screen.addDetails')}
           sub={summaryLine([
-            place.trim() || 'Where',
-            `${versionTitle(version.n)}${latest && version.takeId === latest.takeId ? ' (latest)' : ''}`,
-            otherPassages && (also.length ? `+${plural(also.length, 'passage')}` : 'Other passages'),
-            !makes && (evidence ? 'Retelling recorded' : 'Retelling')
+            place.trim() || t('review.screen.where'),
+            latest && version.takeId === latest.takeId ? t('review.screen.versionLatest', { n: version.n }) : versionTitle(version.n),
+            otherPassages && (also.length ? t('review.screen.morePassages', { count: also.length }) : t('review.screen.otherPassages')),
+            !makes && (evidence ? t('review.screen.retellingRecorded') : t('review.screen.retelling'))
           ])} onPress={() => setSheet('details')} />
       ) : null}
     </>
@@ -341,8 +352,8 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       <View style={styles.answer}>
         {skipped[q.q.id] !== undefined ? (
           <View style={{ alignItems: 'center', gap: space.sm }}>
-            <Text style={[txt.body, styles.center]}><Text style={{ fontWeight: '700' }}>Left unanswered:</Text> {skipped[q.q.id]}</Text>
-            <LinkBtn label="Answer it" onPress={() => setSkipped((s) => { const { [q.q.id]: _gone, ...rest } = s; return rest; })} />
+            <Text style={[txt.body, styles.center]}><Text style={{ fontWeight: '700' }}>{t('review.parts.leftUnanswered')}</Text> {skipped[q.q.id]}</Text>
+            <LinkBtn label={t('review.screen.answerIt')} onPress={() => setSkipped((s) => { const { [q.q.id]: _gone, ...rest } = s; return rest; })} />
           </View>
         ) : q.q.type !== 'text' ? (
           <BigChoices type={q.q.type} value={answers[q.q.id]} onChange={(val) => setAnswers((a) => ({ ...a, [q.q.id]: val }))} />
@@ -350,18 +361,18 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           <>
             {makes ? null : voice[q.q.id] ? (
               <>
-                <PlayChip ctx={ctx} clip={voice[q.q.id]!} label="Their answer" />
-                <AgainBtn label="Record again" onPress={() => setVoice((x) => { const { [q.q.id]: _gone, ...rest } = x; return rest; })} />
+                <PlayChip ctx={ctx} clip={voice[q.q.id]!} label={t('review.screen.theirAnswer')} />
+                <AgainBtn label={t('review.screen.recordAgain')} onPress={() => setVoice((x) => { const { [q.q.id]: _gone, ...rest } = x; return rest; })} />
               </>
             ) : (
-              <BigMic label="Tap and record the answer" size={96} onClip={(clip) => setVoice((x) => ({ ...x, [q.q.id]: clip }))} />
+              <BigMic label={t('review.screen.tapRecordAnswer')} size={96} onClip={(clip) => setVoice((x) => ({ ...x, [q.q.id]: clip }))} />
             )}
             {makes || typing[q.q.id] || answers[q.q.id] ? (
               <View style={{ alignSelf: 'stretch' }}>
-                <Field value={answers[q.q.id] ?? ''} onChangeText={(val) => setAnswers((a) => ({ ...a, [q.q.id]: val }))} placeholder="Type the answer" multiline />
+                <Field value={answers[q.q.id] ?? ''} onChangeText={(val) => setAnswers((a) => ({ ...a, [q.q.id]: val }))} placeholder={t('review.screen.typeAnswer')} multiline />
               </View>
             ) : (
-              <LinkBtn label="Or type it" style={{ alignSelf: 'center' }} onPress={() => setTyping((t) => ({ ...t, [q.q.id]: true }))} />
+              <LinkBtn label={t('common.orTypeIt')} style={{ alignSelf: 'center' }} onPress={() => setTyping((x) => ({ ...x, [q.q.id]: true }))} />
             )}
           </>
         )}
@@ -373,19 +384,20 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const decide = makes ? (
     <>
       <View style={{ gap: space.xs }}>
-        <Text style={[styles.h1, styles.center]}>Record the {makes.what}</Text>
-        <Text style={[txt.smMuted, styles.center]}>It's what gets checked next, so it's the one thing this entry needs.</Text>
+        <Text style={[styles.h1, styles.center]}>{t('review.screen.recordTheHeading', { what: makes.what })}</Text>
+        <Text style={[txt.smMuted, styles.center]}>{t('review.screen.recordTheWhy')}</Text>
       </View>
       <View style={styles.answer}>
-        <BigMic label={made.length ? 'Record another part' : 'Tap and speak'} onClip={(clip) => setMade((m) => (m.some((x) => x.hash === clip.hash) ? m : [...m, voiceCard(clip.hash, clip)]))} />
+        <BigMic label={made.length ? t('review.screen.recordAnotherPart') : t('review.screen.tapAndSpeak')} onClip={(clip) => setMade((m) => (m.some((x) => x.hash === clip.hash) ? m : [...m, voiceCard(clip.hash, clip)]))} />
       </View>
       {made.map((c, i) => (
         <View key={c.hash} style={styles.partRow}>
-          <PlayChip ctx={ctx} clip={{ hash: c.hash, durationMs: c.durationMs, format: c.format ?? 'm4a' }} label={`Part ${i + 1}`} tone="brand" />
-          <LinkBtn label="Remove" color={C.muted} accessibilityLabel={`Remove part ${i + 1}`} onPress={() => setMade((m) => m.filter((x) => x.hash !== c.hash))} />
+          <PlayChip ctx={ctx} clip={{ hash: c.hash, durationMs: c.durationMs, format: c.format ?? 'm4a' }} label={t('review.screen.part', { n: i + 1 })} tone="brand" />
+          <LinkBtn label={t('common.remove')} color={C.muted} accessibilityLabel={t('review.screen.removePart', { n: i + 1 })} onPress={() => setMade((m) => m.filter((x) => x.hash !== c.hash))} />
         </View>
       ))}
-      <DashedRow icon="chatDots" label="What happened" sub={comment.trim() || (feedback ? 'Said in a voice note' : 'What was hard to say back')} right={comment.trim() || feedback ? 'Change' : 'optional'}
+      <DashedRow icon="chatDots" label={t('review.screen.whatHappened')} sub={comment.trim() || (feedback ? t('review.screen.saidInVoiceNoteCap') : t('review.screen.whatWasHard'))}
+        right={comment.trim() || feedback ? t('review.shared.change') : t('review.shared.optional')}
         done={!!comment.trim() || !!feedback} onPress={() => setSheet('say')} />
     </>
   ) : (
@@ -395,14 +407,15 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
         <SpeakBtn text={verdictQuestion(kind.id)} size={52} />
       </View>
       {openAt >= 0 ? (
-        <LinkBtn label={`${r.open} required question${r.open === 1 ? '' : 's'} left — answer, or say why not`} style={{ alignSelf: 'center' }} onPress={() => goStage('questions')} />
+        <LinkBtn label={t('review.capture.requiredLeft', { count: r.open })} style={{ alignSelf: 'center' }} onPress={() => goStage('questions')} />
       ) : null}
-      <DecideCard tone="green" label="Looks good" icon="check" busy={busy} disabled={openAt >= 0} onPress={() => void save('looks_good')} />
-      <DecideCard tone="amber" label="Needs changes" icon="chat" disabled={openAt >= 0 || busy} onPress={() => setWhy(true)} />
-      <DashedRow icon="chatDots" label={logged ? 'What happened' : 'Say something about it'}
-        sub={comment.trim() || (feedback ? 'Said in a voice note' : logged ? 'What people understood and asked about' : `${translator === 'you' ? 'It goes on the record' : `${translator} hears it`} with your answer`)}
-        right={comment.trim() || feedback ? 'Change' : 'optional'} done={!!comment.trim() || !!feedback} onPress={() => setSheet('say')} />
-      {logged && also.length > 0 ? <Text style={[txt.xsStrong, styles.center, { color: C.primary }]}>Saves to {also.length + 1} passages</Text> : null}
+      <DecideCard tone="green" label={t('review.screen.looksGood')} icon="check" busy={busy} disabled={openAt >= 0} onPress={() => void save('looks_good')} />
+      <DecideCard tone="amber" label={t('review.screen.needsChanges')} icon="chat" disabled={openAt >= 0 || busy} onPress={() => setWhy(true)} />
+      <DashedRow icon="chatDots" label={logged ? t('review.screen.whatHappened') : t('review.screen.saySomething')}
+        sub={comment.trim() || (feedback ? t('review.screen.saidInVoiceNoteCap') : logged ? t('review.screen.whatPeopleUnderstood')
+          : mine ? t('review.screen.onRecordWithAnswer') : t('review.screen.nameHearsWithAnswer', { name: translator }))}
+        right={comment.trim() || feedback ? t('review.shared.change') : t('review.shared.optional')} done={!!comment.trim() || !!feedback} onPress={() => setSheet('say')} />
+      {logged && also.length > 0 ? <Text style={[txt.xsStrong, styles.center, { color: C.primary }]}>{t('review.screen.savesTo', { count: also.length + 1 })}</Text> : null}
     </Centre>
   );
 
@@ -410,30 +423,32 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const whyBody = (
     <>
       <View style={{ gap: space.sm, paddingTop: space.md }}>
-        <OutcomePill label="Needs changes" />
-        <Text style={[styles.h1, styles.center]} accessibilityRole="header">What should change?</Text>
+        <OutcomePill label={t('review.screen.needsChanges')} />
+        <Text style={[styles.h1, styles.center]} accessibilityRole="header">{t('review.screen.whatShouldChange')}</Text>
         <Text style={[styles.lead, styles.center]}>
-          {logged ? `Say what they said. ${mine ? 'It goes on the record.' : `${translator} will hear it.`}` : `Say it in your words. ${mine ? 'It goes on the record.' : `${translator} will hear it.`}`}
+          {logged
+            ? (mine ? t('review.screen.sayWhatTheySaidMine') : t('review.screen.sayWhatTheySaid', { name: translator }))
+            : (mine ? t('review.screen.sayInYourWordsMine') : t('review.screen.sayInYourWords', { name: translator }))}
         </Text>
       </View>
       <Centre>
         {feedback ? (
           <View style={{ gap: space.md }}>
-            <PlayChip ctx={ctx} clip={feedback} label="Your feedback" tone="amber" />
-            <AgainBtn label="Record again" onPress={() => setFeedback(null)} />
+            <PlayChip ctx={ctx} clip={feedback} label={t('review.screen.yourFeedback')} tone="amber" />
+            <AgainBtn label={t('review.screen.recordAgain')} onPress={() => setFeedback(null)} />
           </View>
-        ) : <BigMic label="Tap and speak" onClip={setFeedback} />}
+        ) : <BigMic label={t('review.screen.tapAndSpeak')} onClip={setFeedback} />}
         {typeFeedback || comment ? (
-          <Field value={comment} onChangeText={setComment} placeholder={logged ? 'Or type what people understood and asked about' : "Or type it — what worked, what didn't"} multiline />
-        ) : <LinkBtn label="Or type it" style={{ alignSelf: 'center' }} onPress={() => setTypeFeedback(true)} />}
+          <Field value={comment} onChangeText={setComment} placeholder={logged ? t('review.screen.typeWhatPeopleUnderstood') : t('review.screen.typeWhatWorked')} multiline />
+        ) : <LinkBtn label={t('common.orTypeIt')} style={{ alignSelf: 'center' }} onPress={() => setTypeFeedback(true)} />}
       </Centre>
       {evidence ? (
         <View style={styles.partRow}>
-          <PlayChip ctx={ctx} clip={evidence} label="Listener retelling" />
-          <LinkBtn label="Remove" color={C.muted} accessibilityLabel="Remove the retelling" onPress={() => setEvidence(null)} />
+          <PlayChip ctx={ctx} clip={evidence} label={t('review.screen.listenerRetelling')} />
+          <LinkBtn label={t('common.remove')} color={C.muted} accessibilityLabel={t('review.screen.removeRetelling')} onPress={() => setEvidence(null)} />
         </View>
       ) : (
-        <DashedRow tile icon="user" label="Record a listener retelling" right="optional" onPress={() => setSheet('retell')} />
+        <DashedRow tile icon="user" label={t('review.screen.recordListenerRetelling')} right={t('review.shared.optional')} onPress={() => setSheet('retell')} />
       )}
     </>
   );
@@ -453,7 +468,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       {why ? whyBody : stage === 'listen' ? listen : stage === 'questions' ? question : decide}
 
       {sheet === 'background' && context ? (
-        <BackgroundSheet ctx={ctx} v={v} takeId={version.takeId} translator={translator === 'you' ? 'you' : translator} data={context} usage={usage} kind={v.kind}
+        <BackgroundSheet ctx={ctx} v={v} takeId={version.takeId} translator={translator} translatorIsYou={mine} data={context} usage={usage} kind={v.kind}
           onClose={() => setSheet(null)}
           onOpenTerm={(termId) => afterSheet(() => ctx.go('key_term_detail', { termId, unitId: v.unitId, languageId: v.languageId }))}
           onOpenStep={(stepId) => afterSheet(() => { if (guideItem) usage.open(guideItem); ctx.go('study_step', { unitId: v.unitId, languageId: v.languageId, stepId }); })}
@@ -462,23 +477,23 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       ) : null}
 
       {sheet === 'who' ? (
-        <Sheet visible title={logged && !group ? 'Who reviewed it?' : logged ? 'How many listened?' : 'Who is listening?'}
-          sub="Optional. It goes on the record with this review." onClose={() => setSheet(null)}
-          footer={<PrimaryBtn label="Done" onPress={() => setSheet(null)} />}>
+        <Sheet visible title={whoTitle}
+          sub={t('review.screen.whoSheetSub')} onClose={() => setSheet(null)}
+          footer={<PrimaryBtn label={t('common.done')} onPress={() => setSheet(null)} />}>
           {logged && !group ? (
-            <Field value={givenBy} onChangeText={setGivenBy} autoCapitalize="words" placeholder={makes ? 'Who made it — e.g. Okello Joseph' : 'Who reviewed it — e.g. Peter Lual'} />
+            <Field value={givenBy} onChangeText={setGivenBy} autoCapitalize="words" placeholder={makes ? t('review.screen.whoMadeIt') : t('review.screen.whoReviewedIt')} />
           ) : <PeopleCounter value={people} onChange={setPeople} />}
           {/* Already happened keeps where under Add details, with which version and other passages. */}
-          {logged ? null : <Field value={place} onChangeText={setPlace} placeholder="Where — e.g. Bor church, after service" />}
+          {logged ? null : <Field value={place} onChangeText={setPlace} placeholder={t('review.screen.wherePlaceholder')} />}
         </Sheet>
       ) : null}
 
       {sheet === 'details' ? (
-        <Sheet visible title="Add details" sub="Which version was played, other passages the session covered, and a retelling." onClose={() => setSheet(null)}
-          footer={<PrimaryBtn label="Done" onPress={() => setSheet(null)} />}>
-          <Field value={place} onChangeText={setPlace} placeholder="Where — e.g. Bor church, after service" />
+        <Sheet visible title={t('review.screen.addDetails')} sub={t('review.screen.detailsSub')} onClose={() => setSheet(null)}
+          footer={<PrimaryBtn label={t('common.done')} onPress={() => setSheet(null)} />}>
+          <Field value={place} onChangeText={setPlace} placeholder={t('review.screen.wherePlaceholder')} />
           {v.p.versions.length > 1 ? (
-            <Block label="Which version was played">
+            <Block label={t('review.screen.whichVersion')}>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
                 {[...v.p.versions].reverse().map((x) => (
                   <Chip key={x.takeId} label={versionTitle(x.n)} on={x.takeId === version.takeId} onPress={() => setTakeId(x.takeId)} />
@@ -488,8 +503,8 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           ) : null}
           {here ? <AlsoCoveredPicker here={here} all={all} picked={also} onChange={setAlso} /> : null}
           {!makes ? (
-            <Block label="Evidence · optional" hint="A retelling or a recorded conversation makes the review easy to trust.">
-              <VoiceNote ctx={ctx} label="Record a retelling" hash={evidence?.hash ?? null}
+            <Block label={t('review.screen.evidence')} hint={t('review.screen.evidenceHint')}>
+              <VoiceNote ctx={ctx} label={t('review.screen.recordARetelling')} hash={evidence?.hash ?? null}
                 onChange={(h, card) => setEvidence(h ? { hash: h, durationMs: card?.durationMs ?? 0, format: card?.format ?? 'm4a' } : null)} />
             </Block>
           ) : null}
@@ -497,36 +512,37 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       ) : null}
 
       {sheet === 'say' ? (
-        <Sheet visible title={logged ? 'What happened' : 'Say something about it'}
-          sub={makes ? 'Optional — what was hard to say back.' : logged ? 'Optional — what people understood and asked about.' : `Optional. ${mine ? 'It goes on the record' : `${translator} hears it`} with your answer.`}
-          onClose={() => setSheet(null)} footer={<PrimaryBtn label="Done" onPress={() => setSheet(null)} />}>
-          <VoiceNote ctx={ctx} label={logged ? 'Record a summary' : 'Say it'} hash={feedback?.hash ?? null}
+        <Sheet visible title={logged ? t('review.screen.whatHappened') : t('review.screen.saySomething')}
+          sub={makes ? t('review.screen.saySubMakes') : logged ? t('review.screen.saySubLogged') : mine ? t('review.screen.saySubMine') : t('review.screen.saySub', { name: translator })}
+          onClose={() => setSheet(null)} footer={<PrimaryBtn label={t('common.done')} onPress={() => setSheet(null)} />}>
+          <VoiceNote ctx={ctx} label={logged ? t('review.screen.recordSummary') : t('common.sayIt')} hash={feedback?.hash ?? null}
             onChange={(h, card) => setFeedback(h ? { hash: h, durationMs: card?.durationMs ?? 0, format: card?.format ?? 'm4a' } : null)} />
-          <Field value={comment} onChangeText={setComment} placeholder="Or type it" multiline />
+          <Field value={comment} onChangeText={setComment} placeholder={t('common.orTypeIt')} multiline />
         </Sheet>
       ) : null}
 
       {sheet === 'retell' ? (
-        <Sheet visible title="Record a listener retelling" sub="Ask someone who listened to tell it back in their own words. It goes with your review." onClose={() => setSheet(null)}>
+        <Sheet visible title={t('review.screen.recordListenerRetelling')} sub={t('review.screen.retellSub')} onClose={() => setSheet(null)}>
           <View style={{ paddingVertical: space.lg }}>
-            <BigMic label="Tap and record the retelling" size={96} onClip={(clip) => { setEvidence(clip); setSheet(null); }} />
+            <BigMic label={t('review.screen.tapRecordRetelling')} size={96} onClip={(clip) => { setEvidence(clip); setSheet(null); }} />
           </View>
         </Sheet>
       ) : null}
 
       {momentAt !== null ? (
-        <Sheet visible title={`A note at ${clockMs(momentAt)}`} sub={`Say what you noticed here. ${mine ? 'It goes on the record' : `${translator} hears it`} with your review.`}
+        <Sheet visible title={t('review.screen.noteAt', { time: formatClock(momentAt) })}
+          sub={mine ? t('review.screen.noteAtSubMine') : t('review.screen.noteAtSub', { name: translator })}
           onClose={() => setMomentAt(null)}>
           <View style={{ paddingVertical: space.lg }}>
-            <BigMic label="Tap and speak" size={96} onClip={(clip) => { const atMs = momentAt; setMoments((m) => [...m.filter((x) => x.hash !== clip.hash), { ...clip, atMs }]); setMomentAt(null); }} />
+            <BigMic label={t('review.screen.tapAndSpeak')} size={96} onClip={(clip) => { const atMs = momentAt; setMoments((m) => [...m.filter((x) => x.hash !== clip.hash), { ...clip, atMs }]); setMomentAt(null); }} />
           </View>
         </Sheet>
       ) : null}
 
-      <ReasonSheet visible={skipFor !== null} title="Leave this question unanswered?"
-        sub="Required questions can be skipped — the reason is saved with your review."
-        quickReasons={CANT_ANSWER} confirmLabel="Skip question"
-        footnote="The reason is saved with your review."
+      <ReasonSheet visible={skipFor !== null} title={t('review.screen.skipTitle')}
+        sub={t('review.screen.skipSub')}
+        quickReasons={cantAnswerReasons()} confirmLabel={t('review.screen.skipConfirm')}
+        footnote={t('review.screen.skipFootnote')}
         onClose={() => setSkipFor(null)}
         onConfirm={({ reason }) => { if (skipFor) setSkipped((s) => ({ ...s, [skipFor]: reason })); setSkipFor(null); }} />
     </Screen>
@@ -575,59 +591,66 @@ export function GuestReview(ctx: Ctx) {
   const kindId = request?.kindId ?? 'community';
   const questions = useMemo(() => v ? questionsForKind(v.state, kindId, request).slice(0, 3) : [], [v, kindId, request]);
 
-  const header = <Header title={TITLES.guest_review} sub="Preview · what someone without the app sees" onBack={ctx.back} close />;
-  if (!v) return <Screen header={header}><EmptyState icon="link" title={state ? 'No link to preview' : 'Loading…'} sub="Ask someone without the app from a passage to see what they get." /></Screen>;
+  const header = <Header title={screenTitle('guest_review')} sub={t('review.guest.previewSub')} onBack={ctx.back} close />;
+  if (!v) {
+    return (
+      <Screen header={header}>
+        <EmptyState icon="link" title={state ? t('review.guest.noLink') : t('common.loading')} sub={t('review.guest.noLinkSub')} />
+      </Screen>
+    );
+  }
 
   const kind: KindDef = v.kind(kindId);
   const version = v.p.latest;
   const mine = request?.by === ctx.session.actorId;
-  const guest = request?.guest?.name ?? 'friend';
-  const asker = request?.by ? ctx.name(request.by) : 'The translation team';
-  const headline = mine ? `You asked ${guest} to listen to ${v.title}` : `${asker} asked you to listen to ${v.title}`;
+  const guest = request?.guest?.name ?? t('review.guest.friend');
+  const headline = mine ? t('review.guest.youAsked', { guest, title: v.title })
+    : request?.by ? t('review.guest.askedYou', { asker: ctx.name(request.by), title: v.title }) : t('review.guest.teamAskedYou', { title: v.title });
 
   const footer = (
     <>
-      <Text style={[txt.xs, styles.center]}>Preview only: replies by link need a server endpoint that isn't built yet, so nothing is sent.</Text>
+      <Text style={[txt.xs, styles.center]}>{t('review.guest.previewOnly')}</Text>
       <View style={{ flexDirection: 'row', gap: space.sm }}>
-        <View style={{ flex: 1 }}><GhostBtn label="Some parts unclear" disabled onPress={() => undefined} /></View>
-        <View style={{ flex: 1 }}><PrimaryBtn label="Understood it well" tone="green" disabled onPress={() => undefined} /></View>
+        <View style={{ flex: 1 }}><GhostBtn label={t('review.guest.someUnclear')} disabled onPress={() => undefined} /></View>
+        <View style={{ flex: 1 }}><PrimaryBtn label={t('review.guest.understoodWell')} tone="green" disabled onPress={() => undefined} /></View>
       </View>
     </>
   );
 
   return (
     <Screen header={header} footer={footer}>
-      <Banner icon="link" title="Preview" body={`The page ${mine ? guest : 'they'} open${mine ? 's' : ''} from the link. You can try it; nothing here is saved.`} />
+      <Banner icon="link" title={t('review.guest.preview')} body={mine ? t('review.guest.previewBodyGuest', { guest }) : t('review.guest.previewBody')} />
       <Card>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
           <View style={styles.brand}><Ico name="globe" size={18} color={C.white} /></View>
+          {/* i18n-ignore: the product's name, the same in every language */}
           <Text style={[txt.sm, { fontWeight: '800', flex: 1 }]}>LangQuest</Text>
-          <Badge label="No account needed" />
+          <Badge label={t('review.guest.noAccount')} />
         </View>
         <Text style={txt.title}>{headline}</Text>
         <Text style={txt.xs}>{v.language} · {kind.name}</Text>
       </Card>
-      {request?.note ? <Card style={{ backgroundColor: C.light }}><Text style={txt.body}>“{request.note}”</Text></Card> : null}
-      {request?.noteBlobHash ? <AudioClip language={ctx.language} hashes={[request.noteBlobHash]} label="Play their directions" /> : null}
+      {request?.note ? <Card style={{ backgroundColor: C.light }}><Text style={txt.body}>{t('review.guest.quoted', { note: request.note })}</Text></Card> : null}
+      {request?.noteBlobHash ? <AudioClip language={ctx.language} hashes={[request.noteBlobHash]} label={t('review.parts.playDirections')} /> : null}
       {version ? (
         <Card>
-          <Text style={txt.h3}>Listen</Text>
-          <AudioClip language={ctx.language} hashes={version.cardHashes} label={`Play ${v.title}`} />
+          <Text style={txt.h3}>{t('review.parts.listen')}</Text>
+          <AudioClip language={ctx.language} hashes={version.cardHashes} label={t('review.guest.playTitle', { title: v.title })} />
         </Card>
-      ) : <EmptyState icon="mic" title="There's no recording to listen to yet." />}
+      ) : <EmptyState icon="mic" title={t('review.guest.noRecording')} />}
       {questions.map((q) => (
         <Card key={q.q.id}>
           <Text style={[txt.body, { fontWeight: '600' }]}>{q.q.text}</Text>
           <AnswerInput type={q.q.type} value={answers[q.q.id]} onChange={(val) => setAnswers((a) => ({ ...a, [q.q.id]: val }))} />
         </Card>
       ))}
-      <Block label="Tell us what you understood">
+      <Block label={t('review.guest.tellUs')}>
         {/* A voice reply would be saved to the language's record; a preview must not write, so it is shown, not live. */}
         <View style={styles.voiceOff} accessibilityState={{ disabled: true }}>
           <View style={styles.micDot}><Ico name="mic" size={18} color={C.white} /></View>
-          <Text style={[txt.sm, { flex: 1, fontWeight: '600', color: C.muted }]}>Tap to reply by voice</Text>
+          <Text style={[txt.sm, { flex: 1, fontWeight: '600', color: C.muted }]}>{t('review.guest.replyByVoice')}</Text>
         </View>
-        <Field value={comment} onChangeText={setComment} placeholder="Or type it" multiline />
+        <Field value={comment} onChangeText={setComment} placeholder={t('common.orTypeIt')} multiline />
       </Block>
     </Screen>
   );

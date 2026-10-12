@@ -1,5 +1,7 @@
 import { CommandError } from '@langquest-next/core';
+import { commandErrorText } from './coreText';
 import { diagnostics } from './diagnostics';
+import { t } from './i18n';
 
 // The one place faults are reported (error-tracking skill). There is no
 // third-party tracker (decisions.md 39): this logs a content-free line,
@@ -48,6 +50,7 @@ export function installGlobalHandlers(): void {
   };
   const previous = g.ErrorUtils?.getGlobalHandler();
   g.ErrorUtils?.setGlobalHandler((e, fatal) => {
+    // i18n-ignore: log labels
     reportError(fatal ? 'global (fatal)' : 'global', e, !!fatal);
     previous?.(e, fatal);
   });
@@ -62,6 +65,6 @@ export function installGlobalHandlers(): void {
  * code and the reassurance that nothing was lost.
  */
 export function failureMessage(where: string, e: unknown): string {
-  if (e instanceof CommandError) return e.message;
-  return `Something went wrong (code ${reportError(where, e)}). Nothing was lost.`;
+  if (e instanceof CommandError) return commandErrorText(e);
+  return t('common.somethingWentWrong', { code: reportError(where, e) });
 }

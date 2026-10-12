@@ -116,6 +116,25 @@ describe('deleting a take', () => {
   });
 });
 
+describe('deleting a take with several drafts (decisions.md 83)', () => {
+  it('changes only the draft open in the workspace', () => {
+    // Why: removing a part used to rewrite the person's latest draft, whichever was open.
+    const h = history();
+    h.record('a'); h.record('b'); h.record('c');
+    h.run(h.cmd().keepTake({ commandId: 'k1', unitId: 'passage', cardHashes: ['a', 'b'], actorId: 'me', parentTakeId: null }));
+    h.run(h.cmd().keepTake({ commandId: 'k2', unitId: 'passage', cardHashes: ['c'], actorId: 'me', parentTakeId: null }));
+    const s = h.state();
+    const first = passage(s).drafts.find((d) => d.cardHashes.includes('a'))!;
+    const r = removeCardSpecs(s, buildIndexes(s), {
+      commandId: 'd1', unitId: 'passage', actorId: 'me', list: ['a', 'b'], hash: 'a', draftTakeId: first.takeId, parentTakeId: first.takeId, pending: new Set()
+    });
+    h.run(r.specs);
+    const drafts = passage(h.state()).drafts;
+    expect(drafts.map((d) => d.cardHashes)).toEqual([['b'], ['c']]);
+    expect(drafts[0]!.rootTakeId).toBe(first.rootTakeId);
+  });
+});
+
 describe('key terms', () => {
   const terms = [
     { termId: 't-son', term: 'son' },

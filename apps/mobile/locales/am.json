@@ -1,0 +1,6 @@
+{
+  "ios": {
+    "NSMicrophoneUsageDescription": "LangQuest ክፍሎችን ለመተርጎም ድምፅዎን ይቀርጻል።",
+    "NSCameraUsageDescription": "LangQuest የግብዣ QR ኮዶችን ለመቃኘት ካሜራውን ይጠቀማል።"
+  }
+}

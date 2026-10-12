@@ -1,0 +1,6 @@
+{
+  "ios": {
+    "NSMicrophoneUsageDescription": "LangQuest merekam suara Anda untuk menerjemahkan perikop.",
+    "NSCameraUsageDescription": "LangQuest memakai kamera untuk memindai kode QR undangan."
+  }
+}

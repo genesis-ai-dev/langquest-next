@@ -53,6 +53,7 @@ export async function uploadBlob(orgId: string, streamId: string, ref: StoredFil
 
 /** The server answered and did not take the file; `refused` means trying again will not help. */
 export class UploadError extends Error {
+  // i18n-ignore: the error's message, for logs and diagnostics; screens say what failed in their own words
   constructor(readonly status: number, body: string) { super(`Upload failed (${status}): ${body}`); }
   get refused(): boolean { return this.status >= 400 && this.status < 500 && this.status !== 408 && this.status !== 429; }
 }

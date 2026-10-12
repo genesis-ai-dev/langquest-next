@@ -75,6 +75,14 @@ export interface TemplateBook {
   part?: string;
   /** For `passages`: verse ranges inside this book, in order ("RUT 1:1-7"), each with an optional name. */
   passages?: { ref: string; name?: string }[];
+  /**
+   * Parts ("MAL.3", "PSA.51.1-2") whose verses differ from the part with the
+   * same numbers in the numbering the way was made in (decision 80). Their
+   * unit ids carry the template's `numbering` ("MAL.3~org"), so a language
+   * that changes numbering keeps the parts that stay the same and no part
+   * keeps an id whose verses changed.
+   */
+  renumbered?: string[];
 }
 
 /**
@@ -94,6 +102,8 @@ export interface TemplateDocV2 {
   bible?: {
     versification: string;
     books: TemplateBook[];
+    /** The numbering's code ("org"), carried by the ids of `renumbered` parts. */
+    numbering?: string;
   };
   outline?: OutlineNode[];
   goesWith?: { pattern: string };
@@ -224,6 +234,12 @@ export interface MaterialDoc {
   /** tmf, brief, tg, questions, key_terms, document, or a partner's own. */
   kind: string;
   title: string;
+  /**
+   * ISO 639-3 language its words are in ("eng"), so whoever chooses it
+   * knows whether their team can read it (decision 84). Absent on
+   * material made before languages were asked for.
+   */
+  language?: string;
   body?: string;
   fields?: { id: string; label?: string; text: string }[];
   questions?: QuestionSpec[];
@@ -465,9 +481,14 @@ export function validateDoc(value: unknown): string | null {
         const b = d['bible'];
         if (!isObj(b) || !isHash(b['versification'])) return 'a Bible template names its versification';
         if (!Array.isArray(b['books'])) return 'books must be listed';
+        if (b['numbering'] !== undefined && !/^[a-z0-9-]{1,16}$/.test(String(b['numbering']))) return 'numbering is a short code';
         const seen = new Set<string>();
         for (const x of b['books'] as unknown[]) {
           if (!isObj(x) || !/^[A-Z0-9]{3}$/.test(String(x['book'])) || !str(x['name'])) return 'books need a USFM code and a name';
+          if (x['renumbered'] !== undefined) {
+            if (b['numbering'] === undefined) return 'renumbered parts need the template\'s numbering';
+            if (!Array.isArray(x['renumbered']) || !(x['renumbered'] as unknown[]).every((n) => str(n) && parseRef(n as string)?.book === x['book'])) return 'renumbered lists parts of its book';
+          }
           if (seen.has(x['book'] as string)) return `book ${String(x['book'])} is listed twice`;
           seen.add(x['book'] as string);
           if (x['divide'] !== undefined && !['book', 'chapters', 'passages'].includes(x['divide'] as string)) return 'divide must be book, chapters or passages';
@@ -519,6 +540,7 @@ export function validateDoc(value: unknown): string | null {
       break;
     case 'material@1':
       if (!str(d['kind']) || !str(d['title'])) return 'a material needs a kind and a title';
+      if (d['language'] !== undefined && !str(d['language'])) return 'language must be a language code';
       if (d['versification'] !== undefined && !isHash(d['versification'])) return 'versification must be a hash';
       if (d['links'] !== undefined) {
         if (!Array.isArray(d['links'])) return 'links must be an array';
@@ -589,6 +611,10 @@ export function validateDoc(value: unknown): string | null {
         return 'maxVerses must list verse counts per chapter';
       }
       if (!isObj(d['mappedVerses']) || !Object.values(d['mappedVerses']).every((v) => typeof v === 'string')) return 'mappedVerses must map refs to refs';
+      if (d['moreMappedVerses'] !== undefined && !(Array.isArray(d['moreMappedVerses']) &&
+        (d['moreMappedVerses'] as unknown[]).every((m) => Array.isArray(m) && m.length === 2 && typeof m[0] === 'string' && typeof m[1] === 'string'))) {
+        return 'moreMappedVerses must be pairs of refs';
+      }
       return null;
     default:
       return `unknown document format ${String(d['format'])}`;

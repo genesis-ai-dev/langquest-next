@@ -10,12 +10,15 @@
 // While the source plays, the microphone is paused (useListenLoop): the pane
 // turns pale and says so, with Resume now.
 import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Animated, PanResponder, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
+import { t } from '../i18n';
+import { formatNumber } from '../i18n/format';
 import { Ico } from '../kit';
 import { C, onColor, radius, space, target, TINT, type as T, withAlpha } from '../theme';
 import { useEnergyHistory, type useRecorder } from '../useRecorder';
 import { RecordButton } from './parts';
-import { loopStatus, type LoopPhase } from './splitModel';
+import { loopStatus, type LoopNoun, type LoopPhase } from './splitModel';
 import { mmss } from './workspaceModel';
 
 type Recorder = ReturnType<typeof useRecorder>;
@@ -76,21 +79,24 @@ function Elapsed(props: { running: boolean; color: string }) {
     };
   }, [props.running]);
   const ms = total.current + (since.current !== null ? Date.now() - since.current : 0);
-  return <Text style={[styles.time, { color: props.color }]} accessibilityLabel={`Recorded for ${mmss(ms)}`}>{mmss(ms)}</Text>;
+  return <Text style={[styles.time, { color: props.color }]} accessibilityLabel={t('recording.vad.recordedFor', { time: mmss(ms) })}>{mmss(ms)}</Text>;
 }
 
-const PAUSES = [
-  { ms: 500, label: 'Short pause' },
-  { ms: 1000, label: 'Normal pause' },
-  { ms: 2000, label: 'Long pause' }
-];
+/** The three pause lengths, named in the language showing. */
+function pauseChoices(): { ms: number; label: string }[] {
+  return [
+    { ms: 500, label: t('recording.pauses.short') },
+    { ms: 1000, label: t('recording.pauses.normal') },
+    { ms: 2000, label: t('recording.pauses.long') }
+  ];
+}
 
 /**
  * The recorder pane's body while a session is on (`phase` not off). `count`
  * is how many takes are on the list so far, so each finished part visibly
  * lands. Fills the pane.
  */
-export function VadPanel(props: { rec: Recorder; phase: LoopPhase; count: number; noun: string; onResume: () => void }) {
+export function VadPanel(props: { rec: Recorder; phase: LoopPhase; count: number; noun: LoopNoun; onResume: () => void }) {
   const { rec } = props;
   const listening = props.phase === 'listening';
   const [height, setHeight] = useState(1);
@@ -117,24 +123,24 @@ export function VadPanel(props: { rec: Recorder; phase: LoopPhase; count: number
       <View style={styles.status} accessible accessibilityLiveRegion="polite" accessibilityLabel={status}>
         {listening ? <Ico name="pause" size={22} color={fg} /> : <PulsingDot on={rec.vadCapturing} />}
         <Ico name="mic" size={22} color={fg} />
-        <Text style={[styles.count, { color: fg }]}>{props.count}</Text>
+        <Text style={[styles.count, { color: fg }]}>{formatNumber(props.count)}</Text>
         <View style={{ flex: 1 }} />
         <Elapsed running={props.phase === 'recording'} color={fg} />
       </View>
       {listening ? (
         <View style={styles.paused}>
-          <Text style={[styles.pausedTitle, { color: IDLE }]}>Paused while the source plays</Text>
-          <Text style={[styles.pausedSub, { color: IDLE }]}>Recording starts again when the source stops.</Text>
-          <Pressable onPress={props.onResume} accessibilityRole="button" accessibilityLabel="Resume recording now"
+          <Text style={[styles.pausedTitle, { color: IDLE }]}>{t('recording.vad.pausedForSource')}</Text>
+          <Text style={[styles.pausedSub, { color: IDLE }]}>{t('recording.vad.startsAgain')}</Text>
+          <Pressable onPress={props.onResume} accessibilityRole="button" accessibilityLabel={t('recording.resumeRecordingNow')}
             style={({ pressed }) => [styles.resume, pressed && { opacity: 0.8 }]}>
             <Ico name="mic" size={18} color={C.white} />
-            <Text style={styles.resumeLabel}>Resume now</Text>
+            <Text style={styles.resumeLabel}>{t('recording.resumeNow')}</Text>
           </Pressable>
         </View>
       ) : (
         <View style={styles.wave} onLayout={(e) => setHeight(e.nativeEvent.layout.height)}
           {...pan.panHandlers} accessible accessibilityRole="adjustable"
-          accessibilityLabel="Sound cutoff" accessibilityValue={{ min: 4, max: 92, now: Math.round(cutoff * 100) }}
+          accessibilityLabel={t('recording.vad.cutoff')} accessibilityValue={{ min: 4, max: 92, now: Math.round(cutoff * 100) }}
           accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
           onAccessibilityAction={(event) => {
             const next = Math.max(0.04, Math.min(0.92, cutoff + (event.nativeEvent.actionName === 'increment' ? 0.02 : -0.02)));
@@ -158,8 +164,8 @@ export function VadControls(props: { rec: Recorder; onStop: () => void }) {
   return (
     <View style={styles.controls}>
       <RecordButton recording onPress={props.onStop} />
-      <View style={styles.pauses} accessibilityLabel="Pause between parts">
-        {PAUSES.map((p, index) => {
+      <View style={styles.pauses} accessibilityLabel={t('recording.vad.pauseBetween')}>
+        {pauseChoices().map((p, index) => {
           const on = p.ms === rec.pauseDuration;
           return (
             <Pressable key={p.ms} onPress={() => void rec.setPause(p.ms)} accessibilityRole="button"

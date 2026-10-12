@@ -16,7 +16,7 @@ Deno.serve(async (request) => {
   const relaySecret = Deno.env.get('INVITE_RELAY_SECRET');
   if (!relayUrl || !relaySecret) return reply({ error: 'Email delivery is not configured. Share the QR or invite link instead.' }, 503);
   try {
-    const { inviteId, token, email } = await request.json();
+    const { inviteId, token, email, locale } = await request.json();
     if (typeof email !== 'string' || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
       || typeof token !== 'string' || !/^[0-9a-f]{32,128}$/i.test(token)
       || typeof inviteId !== 'string') return reply({ error: 'Invalid invitation details' }, 400);
@@ -44,8 +44,10 @@ Deno.serve(async (request) => {
     const response = await fetch(relayUrl, {
       method: 'POST', signal: AbortSignal.timeout(25_000),
       headers: { Authorization: `Bearer ${relaySecret}`, 'Content-Type':'application/json' },
+      // The inviter's app language, so the email is in it (LAN-42); the Worker accepts only its own catalogs.
       body: JSON.stringify({ inviteId, orgId: invite.org_id, token,
-        email: normalized, expiresAt: invite.expires_at })
+        email: normalized, expiresAt: invite.expires_at,
+        ...(typeof locale === 'string' && /^[a-z]{2,3}(-[A-Za-z]{4})?$/.test(locale) ? { locale } : {}) })
     });
     if (response.status === 409) return reply({ error: 'Delivery is pending or could not be confirmed. Check the recipient inbox or share the invite link.' },409);
     if (!response.ok) return reply({ error: 'Email delivery failed. Your QR and link still work. Please retry.' },502);

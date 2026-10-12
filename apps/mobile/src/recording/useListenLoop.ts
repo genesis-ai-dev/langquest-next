@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { stopAudioPlayback } from '../audioSession';
+import { useScreenShowing } from '../helpContext';
 import type { useRecorder } from '../useRecorder';
 import { loopPhase, type LoopPhase } from './splitModel';
 
@@ -63,6 +64,10 @@ export function useListenLoop(rec: Recorder) {
     if (listeningRef.current) { setListening(false); return; }
     await recRef.current.toggleVad();
   }, []);
+
+  // Leaving the screen stops the source (App.tsx); don't pick the microphone up again behind another screen.
+  const showing = useScreenShowing();
+  useEffect(() => { if (!showing && listeningRef.current) setListening(false); }, [showing]);
 
   // Never pick the microphone up again in the background.
   useEffect(() => {

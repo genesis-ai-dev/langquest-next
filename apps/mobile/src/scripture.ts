@@ -27,11 +27,8 @@ interface Reading {
   verses: Verse[];
 }
 
-const TRANSLATIONS: { code: string; name: string }[] = [
-  { code: 'BSB', name: 'Berean Standard Bible' },
-  { code: 'WEB', name: 'World English Bible' },
-  { code: 'KJV', name: 'King James Version' }
-];
+// i18n-ignore: Bibles' names are content, shown as each Bible names itself
+const TRANSLATIONS: { code: string; name: string }[] = [{ code: 'BSB', name: 'Berean Standard Bible' }, { code: 'WEB', name: 'World English Bible' }, { code: 'KJV', name: 'King James Version' }];
 
 function verseText(code: string, book: string, chapter: number, verse: number): string | undefined {
   for (const p of PASSAGE_TEXTS) {

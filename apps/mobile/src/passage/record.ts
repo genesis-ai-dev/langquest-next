@@ -6,22 +6,25 @@
 // Requirements REC-1..8 (REC-2/2a: the path top to bottom, per version),
 // ASK-2, ASK-4; ADR-012, 013, 014, 015, 016, 020, 029, 030.
 import {
-  feedbackIsMine, isCompleteState, KIND_STATE_LABEL, keyTermView, languagePeople, membershipsOf, privilegesFor,
-  scopeCovers, stepName,
+  feedbackIsMine, isCompleteState, keyTermView, languagePeople, membershipsOf, privilegesFor, scopeCovers,
   type FlowStepStatus, type KindDef, type KindStatus, type OrgState, type PassageNote, type PassageState,
   type Privilege, type LanguageState, type QuestionSpec, type RecordEntry, type RequestView, type ReviewView, type SourcedQuestion,
   type Version
 } from '@langquest-next/core';
+import { latinDigits } from '../textMatch';
+import { stateLabel, stepName } from '../coreText';
+import { t } from '../i18n';
 import type { IconName } from '../kit';
-import { HIDDEN_TEXT } from '../moderation';
-import { dueText, feedbackSource, outcomeText, plural, viaText, when } from '../passageView';
+import { hiddenText } from '../moderation';
+import { storedAnswerText } from '../reviewing/capture';
+import { andList, commaList, dueText, feedbackSource, isJustNow, outcomeText, outcomeTitle, versionTitle, viaText, when } from '../passageView';
 import type { StudyGuide } from '../study/guides';
 import { C, TINT } from '../theme';
 
 /** `ctx.name`: a display name, "You"/"you" for the viewer. */
 export type NameFn = (profileId: string, lower?: boolean) => string;
 
-const kindName = (kinds: KindDef[], id?: string) => kinds.find((k) => k.id === id)?.name ?? 'Review';
+const kindName = (kinds: KindDef[], id?: string) => kinds.find((k) => k.id === id)?.name ?? t('passage.record.unknownKind');
 
 /** "Community Check" -> "Community": the path is too narrow for full kind names. */
 function pathLabel(name: string): string {
@@ -40,29 +43,42 @@ function requestee(
 ): string {
   if (r?.profileId) return name(r.profileId, lower);
   const team = r?.teamId ? teamName?.(r.teamId) : undefined;
-  if (team) return `the ${team} team`;
-  return r?.guest?.name ?? (lower ? 'a reviewer' : 'A reviewer');
+  if (team) return t('passage.record.theTeam', { team });
+  return r?.guest?.name ?? (lower ? t('passage.record.aReviewerInSentence') : t('passage.record.aReviewer'));
+}
+
+/**
+ * Reasons the app writes into the event log for a reason given only by
+ * voice; shown in the language showing. Anything else is the person's words.
+ */
+export const SAID_BY_VOICE = 'Said by voice'; // i18n-ignore: stored in the event log as a keep's reason; shown through reasonText
+const VOICE_NOTE_REASON = 'Explained in a voice note.'; // i18n-ignore: stored in the event log by ReasonSheet; shown through reasonText
+
+export function reasonText(reason: string): string {
+  if (reason === SAID_BY_VOICE) return t('passage.record.storedReason.saidByVoice');
+  if (reason === VOICE_NOTE_REASON) return t('passage.record.storedReason.voiceNote');
+  return reason;
 }
 
 // ---- the hero (REC-1) ------------------------------------------------------------
 
 /** The hero's one-line answer to "where does this stand, and whose move is it?" */
 export function heroHeadline(p: PassageState, kinds: KindDef[], me: string, name: NameFn, mine: MineFn = namesMe(me)): string {
-  if (p.done) return 'Done';
-  if (!p.recorded) return p.drafting ? 'Recording in progress' : 'Not started';
+  if (p.done) return t('passage.record.hero.done');
+  if (!p.recorded) return p.drafting ? t('passage.record.hero.recording') : t('passage.record.hero.notStarted');
   if (p.awaitingResponse.length) {
-    return feedbackIsMine(p, me) ? 'Feedback for you to answer' : `Waiting on ${p.latest ? name(p.latest.by, true) : 'the translator'}`;
+    return feedbackIsMine(p, me) ? t('passage.record.hero.feedbackForYou') : t('passage.record.waitingOn', { name: p.latest ? name(p.latest.by, true) : t('passage.record.theTranslator') });
   }
   const next = p.next;
-  if (!next) return 'In review';
+  if (!next) return t('passage.record.hero.inReview');
   // Only the kinds still open: a finished kind beside an asked one doesn't make it "Next".
   const open = next.kinds.filter((k) => !isCompleteState(k.state));
   const openName = open.map((k) => kindName(kinds, k.kindId)).join(' + ') || stepName(kinds, next.step);
   if (open.length && open.every((k) => k.state === 'asked')) {
-    if (open.some((k) => k.request && mine(k.request))) return `Your turn: ${openName}`;
-    return `Waiting on ${[...new Set(open.map((k) => requestee(k.request, name, true)))].join(' and ')}`;
+    if (open.some((k) => k.request && mine(k.request))) return t('passage.record.hero.yourTurn', { kind: openName });
+    return t('passage.record.waitingOn', { name: andList([...new Set(open.map((k) => requestee(k.request, name, true)))]) });
   }
-  return `Next: ${openName}`;
+  return t('passage.record.hero.next', { kind: openName });
 }
 
 /** "answered": done because its feedback was answered, not because someone said it looks good. */
@@ -89,13 +105,14 @@ export function kindPathState(k: KindStatus, s: FlowStepStatus, isNext: boolean)
 
 /** What tapping a step says about it, above its kinds' actions. */
 export function stepSheetSub(s: FlowStepStatus, canAct: boolean): string {
-  if (s.lockedBy) return `Waits for the ${s.lockedBy} checkpoint.`;
-  if (s.complete) return 'This step is done.';
-  if (s.override) return 'Checkpoint moved past, with a reason — later steps can go ahead. Undo it from History.';
-  if (s.step.checkpoint) return 'Checkpoint — later steps wait for this one.';
+  if (s.lockedBy) return t('passage.record.sheet.waitsFor', { step: s.lockedBy });
+  if (s.complete) return t('passage.record.sheet.done');
+  if (s.override) return t('passage.record.sheet.movedPast');
+  if (s.step.checkpoint) return t('passage.record.sheet.checkpoint');
   const n = s.kinds.length;
-  const together = n > 1 ? `${n} separate pieces of work, in ${n === 2 ? 'either' : 'any'} order. ` : '';
-  return `${together}${canAct ? 'Steps are a suggested order — you can do this now.' : 'Steps are a suggested order.'}`;
+  const together = n === 2 ? t('passage.record.sheet.togetherTwo') : n > 2 ? t('passage.record.sheet.together', { count: n }) : '';
+  const order = canAct ? t('passage.record.sheet.suggestedNow') : t('passage.record.sheet.suggested');
+  return [together, order].filter(Boolean).join(' ');
 }
 
 // ---- the journey: the path top to bottom, per version (REC-2, REC-2a, ADR-030) ---------
@@ -112,8 +129,8 @@ export function currentStepId(p: PassageState): string | undefined {
 
 /** Under the version's title: "Latest of 3", "Recorded", or "Older · 2 newer". */
 export function versionCaption(index: number, count: number): string {
-  if (index >= count - 1) return count > 1 ? `Latest of ${count}` : 'Recorded';
-  return `Older · ${count - index - 1} newer`;
+  if (index >= count - 1) return count > 1 ? t('passage.record.caption.latestOf', { count }) : t('passage.record.caption.recorded');
+  return t('passage.record.caption.older', { count: count - index - 1 });
 }
 
 /** The latest review of a kind on one version (by its number). */
@@ -140,16 +157,15 @@ export function oldStepState(reviews: (Pick<ReviewView, 'outcome' | 'response'> 
   return 'todo';
 }
 
-const capFirst = (s: string) => s.replace(/^./, (c) => c.toUpperCase());
-
 /** A closed step's one line on the latest version: each kind's state, and who when it has one kind. */
 export function stepSummary(s: FlowStepStatus, kinds: KindDef[], name: NameFn, teamName?: (teamId: string) => string | undefined): string {
-  if (s.lockedBy) return `Starts after the ${s.lockedBy} checkpoint`;
+  if (s.lockedBy) return t('passage.record.startsAfter', { step: s.lockedBy });
   const one = s.kinds.length === 1;
   return s.kinds.map((k) => {
     const who = k.state === 'asked' && k.request ? requestee(k.request, name, false, teamName) : k.review ? feedbackSource(k.review, name) : '';
-    const label = k.state === 'asked' ? 'Waiting' : KIND_STATE_LABEL[k.state];
-    return `${one ? '' : `${pathLabel(kindName(kinds, k.kindId))}: `}${label}${who && one ? ` · ${who}` : ''}`;
+    const label = k.state === 'asked' ? t('passage.record.waiting') : stateLabel(k.state);
+    if (!one) return t('passage.record.kindSays', { kind: pathLabel(kindName(kinds, k.kindId)), says: label });
+    return who ? `${label} · ${who}` : label;
   }).join(' · ');
 }
 
@@ -158,7 +174,8 @@ export function oldStepSummary(kindIds: string[], reviews: (ReviewView | undefin
   return kindIds.map((id, i) => {
     const r = reviews[i];
     const k = kinds.find((x) => x.id === id);
-    return `${kindIds.length > 1 ? `${pathLabel(kindName(kinds, id))}: ` : ''}${r ? capFirst(outcomeText(k, r.outcome)) : 'Not reviewed'}`;
+    const says = r ? outcomeTitle(k, r.outcome) : t('passage.record.notReviewed');
+    return kindIds.length > 1 ? t('passage.record.kindSays', { kind: pathLabel(kindName(kinds, id)), says }) : says;
   }).join(' · ');
 }
 
@@ -166,25 +183,32 @@ export function oldStepSummary(kindIds: string[], reviews: (ReviewView | undefin
 export function kindLineText(k: KindStatus, s: FlowStepStatus, p: PassageState, name: NameFn, teamName?: (teamId: string) => string | undefined): string {
   const r = k.review;
   switch (k.state) {
-    case 'asked': return `Waiting on ${requestee(k.request, name, true, teamName)}${k.request?.dueDate ? ` · ${dueText(k.request.dueDate)}` : ''}`;
-    case 'skipped': return `Set aside: ${k.departure?.reason ?? ''}`;
-    case 'locked': return `Starts after the ${s.lockedBy ?? 'checkpoint'} checkpoint`;
-    case 'todo': return 'Not yet';
-    default:
-      if (!r) return KIND_STATE_LABEL[k.state];
-      return `${KIND_STATE_LABEL[k.state]} · ${feedbackSource(r, name)}${r.versionN !== p.latest?.n ? ` on Version ${r.versionN}` : ''}`;
+    case 'asked': return [t('passage.record.waitingOn', { name: requestee(k.request, name, true, teamName) }), k.request?.dueDate ? dueText(k.request.dueDate) : ''].filter(Boolean).join(' · ');
+    case 'skipped': return t('passage.record.setAsideBecause', { reason: reasonText(k.departure?.reason ?? '') });
+    case 'locked': return startsAfter(s);
+    case 'todo': return t('passage.record.notYet');
+    default: {
+      if (!r) return stateLabel(k.state);
+      const who = feedbackSource(r, name);
+      return `${stateLabel(k.state)} · ${r.versionN !== p.latest?.n ? t('passage.record.whoOnVersion', { who, version: versionTitle(r.versionN) }) : who}`;
+    }
   }
 }
 
 /** A kind's line in a step on an older version: what it said, and who. */
 export function oldKindLineText(r: ReviewView | undefined, kind: KindDef | undefined, name: NameFn): string {
-  if (!r) return 'Not reviewed on this version';
-  return `${capFirst(outcomeText(kind, r.outcome))} · ${feedbackSource(r, name)}`;
+  if (!r) return t('passage.record.notReviewedHere');
+  return `${outcomeTitle(kind, r.outcome)} · ${feedbackSource(r, name)}`;
+}
+
+/** "Starts after the Consultant Check checkpoint", for a step (or a kind) that waits for one. */
+function startsAfter(s: Pick<FlowStepStatus, 'lockedBy'>): string {
+  return s.lockedBy ? t('passage.record.startsAfter', { step: s.lockedBy }) : t('passage.record.startsAfterCheckpoint');
 }
 
 /** What a usual target is called on its button: "the Community team" or the person's name. */
-export function sendTargetLabel(t: { teamId: string; name: string } | { profileId: string }, name: NameFn): string {
-  return 'teamId' in t ? `the ${t.name} team` : name(t.profileId);
+export function sendTargetLabel(target: { teamId: string; name: string } | { profileId: string }, name: NameFn): string {
+  return 'teamId' in target ? t('passage.record.theTeam', { team: target.name }) : name(target.profileId);
 }
 
 // ---- a kind's actions (REC-3) ------------------------------------------------------
@@ -231,12 +255,13 @@ export function kindRowActions(o: {
   const mine = o.mine ?? namesMe(o.me);
   const askedMe = s === 'asked' && !!o.status.request && mine(o.status.request);
   const cleared = o.step.step.checkpoint ? s === 'approved' : isCompleteState(s);
-  const doIt: RowAction | undefined = o.can.review ? { id: 'do', label: o.kind.produces ? o.kind.produces.action : 'Review it now' } : undefined;
-  const send: RowAction | undefined = o.can.ask && s !== 'asked' && s !== 'addressed' && o.isAuthor && o.sendTo ? { id: 'send', label: `Send to ${o.sendTo}` } : undefined;
+  const doIt: RowAction | undefined = o.can.review ? { id: 'do', label: o.kind.produces ? o.kind.produces.action : t('passage.record.actions.reviewNow') } : undefined;
+  const send: RowAction | undefined = o.can.ask && s !== 'asked' && s !== 'addressed' && o.isAuthor && o.sendTo
+    ? { id: 'send', label: t('passage.record.actions.sendTo', { target: o.sendTo }) } : undefined;
   const ask: RowAction | undefined = o.can.ask && s !== 'asked'
-    ? { id: 'ask', label: s === 'addressed' ? 'Ask again' : send ? 'Send to someone else' : 'Ask someone' } : undefined;
-  const log: RowAction | undefined = o.can.log ? { id: 'log', label: 'Already happened' } : undefined;
-  const skip: RowAction | undefined = o.can.skip && !o.step.step.checkpoint ? { id: 'skip', label: 'Set aside' } : undefined;
+    ? { id: 'ask', label: s === 'addressed' ? t('passage.record.actions.askAgain') : send ? t('passage.record.actions.sendElsewhere') : t('passage.record.actions.askSomeone') } : undefined;
+  const log: RowAction | undefined = o.can.log ? { id: 'log', label: t('passage.record.actions.alreadyHappened') } : undefined;
+  const skip: RowAction | undefined = o.can.skip && !o.step.step.checkpoint ? { id: 'skip', label: t('passage.record.actions.setAside') } : undefined;
   const primary = askedMe ? doIt : s === 'asked' ? undefined : o.isAuthor || !doIt ? send ?? ask ?? doIt : doIt;
   const second = s === 'asked' ? undefined : send && primary === send ? ask : log;
   const rest = [doIt, ask, log, skip].filter((a): a is RowAction => !!a && a !== primary && a !== second);
@@ -257,34 +282,40 @@ export function kindRowSub(o: {
   const req = status.request;
   const makes = kind.produces;
   const cleared = step.step.checkpoint ? s === 'approved' : isCompleteState(s);
-  const due = req?.dueDate ? ` · ${dueText(req.dueDate)}` : '';
-  const checked = makes && o.checkedBy ? ` · the ${o.checkedBy} reviews it` : '';
-  const source = (r: ReviewView, lower = false) => {
-    const who = feedbackSource(r, name);
-    return lower && who === 'You' ? 'you' : who;
-  };
+  const due = req?.dueDate ? dueText(req.dueDate) : '';
+  const checked = makes && o.checkedBy ? t('passage.record.sub.reviewsIt', { kind: o.checkedBy }) : '';
+  const line = (...parts: string[]) => parts.filter(Boolean).join(' · ');
   if (s === 'asked') {
-    if (req && mine(req)) return `${req.by ? name(req.by) : 'Someone'} asked ${req.profileId ? 'you' : `your ${requestee(req, name, true, o.teamName).replace(/^the /, '')}`}${due}`;
-    return `Waiting on ${requestee(req, name, true, o.teamName)}${req?.guest ? ` · by link over ${channelLabel(req.guest.channel)}` : ''}${due}`;
+    if (req && mine(req)) {
+      const by = req.by ? name(req.by) : t('common.someone');
+      const team = !req.profileId && req.teamId ? o.teamName?.(req.teamId) : undefined;
+      const asked = req.profileId ? t('passage.record.sub.askedYou', { by })
+        : team ? t('passage.record.sub.askedYourTeam', { by, team }) : t('passage.record.sub.askedYourReviewTeam', { by });
+      return line(asked, due);
+    }
+    return line(t('passage.record.waitingOn', { name: requestee(req, name, true, o.teamName) }),
+      req?.guest ? t('passage.record.sub.byLinkOver', { channel: channelLabel(req.guest.channel) }) : '', due);
   }
-  if (s === 'skipped') return `Set aside: ${status.departure?.reason ?? ''}`;
-  if (s === 'suggestions' && status.review) return `${source(status.review)} asked for changes`;
-  if (s === 'addressed' && !cleared) return 'Feedback answered — clears once the reviewer says Looks good';
-  if (cleared && makes) return `Recorded${status.review ? ` by ${source(status.review, true)}` : ''}${checked}`;
-  if (cleared) return `${KIND_STATE_LABEL[s]}${status.review ? ` · ${source(status.review)}` : ''}`;
-  if (s === 'locked') return `Starts after the ${step.lockedBy ?? 'checkpoint'} checkpoint`;
-  if (o.waitFor) return `Best after the ${o.waitFor} feedback is answered, so it's done on the version you keep`;
-  if (makes) return `${kind.usualReviewer || 'Someone'} records it in ${makes.into} — new content, not a verdict${checked}`;
+  if (s === 'skipped') return t('passage.record.setAsideBecause', { reason: reasonText(status.departure?.reason ?? '') });
+  if (s === 'suggestions' && status.review) return t('passage.record.sub.askedForChanges', { who: feedbackSource(status.review, name) });
+  if (s === 'addressed' && !cleared) return t('passage.record.sub.answered');
+  if (cleared && makes) {
+    return line(status.review ? t('passage.record.sub.recordedBy', { who: feedbackSource(status.review, name, true) }) : t('passage.record.sub.recorded'), checked);
+  }
+  if (cleared) return line(stateLabel(s), status.review ? feedbackSource(status.review, name) : '');
+  if (s === 'locked') return startsAfter(step);
+  if (o.waitFor) return t('passage.record.sub.bestAfter', { kind: o.waitFor });
+  if (makes) return line(t('passage.record.sub.recordsItIn', { who: kind.usualReviewer || t('common.someone'), language: makes.into }), checked);
   return kind.usualReviewer;
 }
 
 export function channelLabel(c: 'whatsapp' | 'sms'): string {
-  return c === 'whatsapp' ? 'WhatsApp' : 'SMS';
+  return c === 'whatsapp' ? t('passage.record.channels.whatsapp') : t('passage.record.channels.sms');
 }
 
 /** Kinds whose feedback on the latest version still needs an answer: "Peer Review and Community Check". */
 export function feedbackNames(p: PassageState, kinds: KindDef[]): string {
-  return [...new Set(p.awaitingResponse.map((r) => r.kindId))].map((id) => kindName(kinds, id)).join(' and ');
+  return andList([...new Set(p.awaitingResponse.map((r) => r.kindId))].map((id) => kindName(kinds, id)));
 }
 
 /** The grid's columns: the flow's kinds, then any other kind reviewed here. */
@@ -307,17 +338,17 @@ export interface EntryText {
 export function anchorLabel(note: Pick<PassageNote, 'anchor'>, o: { state: LanguageState; p: PassageState; guide?: StudyGuide | null }): string {
   const a = note.anchor;
   switch (a.kind) {
-    case 'passage': return 'Whole passage';
+    case 'passage': return t('passage.record.anchor.passage');
     case 'version': {
       const v = o.p.versions.find((x) => x.takeId === a.takeId);
-      return v ? `Version ${v.n}` : 'A version';
+      return v ? versionTitle(v.n) : t('passage.record.anchor.aVersion');
     }
-    case 'verse': return `Verse ${a.verse}${a.translation ? ` · ${a.translation}` : ''}${a.at ? ` · ${a.at}` : ''}`;
-    case 'term': return `Key term · ${keyTermView(o.state, a.termId)?.term ?? 'term'}`;
+    case 'verse': return [t('passage.record.anchor.verse', { verse: a.verse }), a.translation ?? '', a.at ?? ''].filter(Boolean).join(' · ');
+    case 'term': return t('passage.record.anchor.term', { term: keyTermView(o.state, a.termId)?.term ?? t('passage.record.anchor.aTerm') });
     case 'study': {
       const step = o.guide?.id === a.guideId ? o.guide.steps.find((s) => s.id === a.stepId) : undefined;
-      if (!step) return 'Study';
-      return a.at ? `${step.title} · audio at ${a.at}` : step.title;
+      if (!step) return t('passage.record.anchor.study');
+      return a.at ? t('passage.record.anchor.studyAudioAt', { step: step.title, at: a.at }) : step.title;
     }
   }
 }
@@ -329,10 +360,13 @@ export function describeEntry(e: RecordEntry, o: {
 }): EntryText {
   const { kinds, name } = o;
   const who = name(e.by);
-  const said = (text: string) => (o.hidden?.(e.by) ? HIDDEN_TEXT : text);
+  const said = (text: string) => (o.hidden?.(e.by) ? hiddenText() : text);
   switch (e.type) {
     case 'version':
-      return { icon: 'mic', color: C.primary, title: `Version ${e.version.n} published`, sub: said(e.version.changeNote ?? (e.version.n === 1 ? 'First recording.' : '')), who };
+      return {
+        icon: 'mic', color: C.primary, title: t('passage.record.entry.versionPublished', { n: e.version.n }),
+        sub: said(e.version.changeNote ?? (e.version.n === 1 ? t('passage.record.entry.firstRecording') : '')), who
+      };
     case 'review': {
       const r = e.review;
       const k = kinds.find((x) => x.id === r.kindId);
@@ -341,72 +375,78 @@ export function describeEntry(e: RecordEntry, o: {
         icon: k?.produces ? 'swap' : good ? 'check' : 'chat',
         color: k?.produces ? C.primary : good ? C.green : C.amber,
         title: `${kindName(kinds, r.kindId)} · ${outcomeText(k, r.outcome)}`,
-        sub: r.via === 'logged' ? `From ${lowerYou(feedbackSource(r, name))}` : viaText(r, name),
-        who: r.via === 'logged' ? `Logged by ${name(r.by, true)}` : who
+        sub: r.via === 'logged' ? t('passage.record.entry.from', { who: feedbackSource(r, name, true) }) : viaText(r, name),
+        who: r.via === 'logged' ? t('passage.record.entry.loggedBy', { name: name(r.by, true) }) : who
       };
     }
     case 'response':
-      return { icon: 'edit', color: C.primary, title: `Revised after ${kindName(kinds, e.review.kindId)}`, sub: said(e.response.note ?? ''), who };
+      return { icon: 'edit', color: C.primary, title: t('passage.record.entry.revisedAfter', { kind: kindName(kinds, e.review.kindId) }), sub: said(e.response.note ?? ''), who };
     case 'request': {
       const r = e.request;
-      const status = r.status === 'open' ? (r.dueDate ? dueText(r.dueDate) : 'open') : r.status;
+      const status = r.status === 'open' ? (r.dueDate ? dueText(r.dueDate) : t('passage.record.entry.status.open'))
+        : r.status === 'done' ? t('passage.record.entry.status.done') : t('passage.record.entry.status.withdrawn');
       return {
         icon: r.guest ? 'link' : 'people', color: C.muted,
-        title: r.what === 'record' ? `Asked ${requestee(r, name, true)} to record` : `Asked ${requestee(r, name, true)} for ${kindName(kinds, r.kindId)}`,
-        sub: `${r.guest ? `By link over ${channelLabel(r.guest.channel)} · ` : ''}${status}`,
-        who: r.by ? who : 'Assigned'
+        title: r.what === 'record' ? t('passage.record.entry.askedToRecord', { who: requestee(r, name, true) })
+          : t('passage.record.entry.askedFor', { who: requestee(r, name, true), kind: kindName(kinds, r.kindId) }),
+        sub: [r.guest ? t('passage.record.entry.byLinkOver', { channel: channelLabel(r.guest.channel) }) : '', status].filter(Boolean).join(' · '),
+        who: r.by ? who : t('passage.record.entry.assigned')
       };
     }
     case 'departure': {
       const d = e.departure;
-      const back = d.undone ? ` · brought back ${when(d.undone.hlc).toLowerCase()}` : '';
-      if (d.type === 'override') return { icon: 'flag', color: C.red, title: 'Moved past a checkpoint', sub: said(d.reason) + back, who };
-      if (d.type === 'keep') return { icon: 'chat', color: C.primary, title: keptTitle(o.p, kinds, d.reviewId), sub: said(d.reason) + back, who };
-      return { icon: 'skip', color: C.muted, title: `${kindName(kinds, d.kindId)} set aside`, sub: said(d.reason) + back, who };
+      const back = !d.undone ? '' : ` · ${isJustNow(d.undone.hlc) ? t('passage.record.entry.broughtBackJustNow') : t('passage.record.entry.broughtBack', { when: when(d.undone.hlc) })}`;
+      const sub = said(reasonText(d.reason)) + back;
+      if (d.type === 'override') return { icon: 'flag', color: C.red, title: t('passage.record.entry.movedPast'), sub, who };
+      if (d.type === 'keep') return { icon: 'chat', color: C.primary, title: keptTitle(o.p, kinds, d.reviewId), sub, who };
+      return { icon: 'skip', color: C.muted, title: t('passage.record.entry.setAside', { kind: kindName(kinds, d.kindId) }), sub, who };
     }
     case 'note': {
       const n = e.note;
-      return { icon: 'note', color: TINT.amberText, title: `Note · ${o.anchor(n)}`, sub: said(n.text ?? (n.blobHash ? 'Voice note' : n.photoHash ? 'Photo' : '')), who };
+      return {
+        icon: 'note', color: TINT.amberText, title: t('passage.record.entry.note', { anchor: o.anchor(n) }),
+        sub: said(n.text ?? (n.blobHash ? t('common.voiceNote') : n.photoHash ? t('passage.record.entry.photo') : '')), who
+      };
     }
     case 'study': {
       const i = o.guide?.id === e.guideId ? o.guide.steps.findIndex((s) => s.id === e.stepId) : -1;
       const step = i >= 0 ? o.guide!.steps[i]! : undefined;
       return {
         icon: 'sparkle', color: C.primary,
-        title: step ? `${o.guide!.pattern} step ${i + 1} done · ${step.title}` : 'Study step done',
+        title: step ? t('passage.record.entry.studyStepDone', { pattern: o.guide!.pattern, n: i + 1, step: step.title }) : t('passage.record.entry.studyDone'),
         sub: step?.purpose ?? '', who
       };
     }
   }
 }
 
-const lowerYou = (s: string) => (s === 'You' ? 'you' : s);
-
 /** "Kept after Peer Review" when the kept feedback is known. */
 function keptTitle(p: PassageState, kinds: KindDef[], reviewId?: string): string {
   const r = p.reviews.find((x) => x.id === reviewId);
-  return r ? `Kept after ${kindName(kinds, r.kindId)}` : 'Kept after feedback';
+  return r ? t('passage.record.entry.keptAfter', { kind: kindName(kinds, r.kindId) }) : t('passage.record.entry.keptAfterFeedback');
 }
 
 // ---- summaries on the collapsed details (ADR-013) ---------------------------------
 
 export function reviewsSummary(p: PassageState): string {
-  const versions = plural(p.versions.length, 'version');
-  return p.reviews.length ? `${plural(p.reviews.length, 'review')} across ${versions}` : `No reviews yet · ${versions}`;
+  const versions = t('passage.record.counts.versions', { count: p.versions.length });
+  return p.reviews.length
+    ? t('passage.record.summary.reviewsAcross', { reviews: t('passage.record.counts.reviews', { count: p.reviews.length }), versions })
+    : t('passage.record.summary.noReviews', { versions });
 }
 
 export function versionReviewsSummary(reviews: ReviewView[], kinds: KindDef[]): string {
   const open = reviews.filter((r) => r.outcome === 'needs_changes' && !r.response).length;
-  const names = [...new Set(reviews.map((r) => pathLabel(kindName(kinds, r.kindId))))].join(', ');
-  return `${plural(reviews.length, 'review')} · ${names}${open ? ` · ${open} to answer` : ''}`;
+  const names = commaList([...new Set(reviews.map((r) => pathLabel(kindName(kinds, r.kindId))))]);
+  return `${t('passage.record.counts.reviews', { count: reviews.length })} · ${names}${open ? ` · ${t('passage.record.summary.toAnswer', { count: open })}` : ''}`;
 }
 
 export function historySummary(timeline: RecordEntry[], now = Date.now()): string {
-  const entries = plural(timeline.length, 'entry', 'entries');
+  const count = timeline.length;
   const oldest = timeline.at(-1);
-  if (!oldest) return entries;
-  const first = when(oldest.hlc, now);
-  return first === 'Just now' ? `${entries} · just now` : `${entries} since ${first}`;
+  if (!oldest) return t('passage.record.summary.entries', { count });
+  return isJustNow(oldest.hlc, now) ? t('passage.record.summary.entriesJustNow', { count })
+    : t('passage.record.summary.entriesSince', { count, when: when(oldest.hlc, now) });
 }
 
 /** The mark a review shows: looks good, answered, or needs changes. */
@@ -417,14 +457,19 @@ export function reviewMark(r: Pick<ReviewView, 'outcome' | 'response'>): 'approv
 // ---- review detail (REC-10) --------------------------------------------------------
 
 function formatAnswer(type: QuestionSpec['type'], value: string): string {
-  if (type === 'rating') return `${value} / 5`;
-  if (type === 'yesno') return value === 'yes' ? 'Yes' : value === 'no' ? 'No' : value;
-  return value;
+  if (type === 'rating') return t('passage.record.answer.rating', { value });
+  if (type === 'yesno' && (value === 'yes' || value === 'no')) return value === 'yes' ? t('common.yes') : t('common.no');
+  // What review capture stored ("Said aloud · 0:14 · recording 1", "Yes"), in the language showing; typed words as typed.
+  return storedAnswerText(value);
 }
 
-const QUESTION_SOURCE: Record<SourcedQuestion['source'], string> = {
-  org: 'Organization', language: 'Language', request: 'Asked for this review'
-};
+function questionSource(source: SourcedQuestion['source']): string {
+  switch (source) {
+    case 'org': return t('passage.record.questionFrom.org');
+    case 'language': return t('passage.record.questionFrom.language');
+    case 'request': return t('passage.record.questionFrom.request');
+  }
+}
 
 /** Answers paired with their questions; answers whose question is gone still show. */
 export function answeredQuestions(questions: SourcedQuestion[], answers: Record<string, string> | undefined): { id: string; label: string; source?: string; answer: string }[] {
@@ -432,10 +477,10 @@ export function answeredQuestions(questions: SourcedQuestion[], answers: Record<
   const out: { id: string; label: string; source?: string; answer: string }[] = [];
   for (const q of questions) {
     const a = answers[q.q.id];
-    if (a !== undefined) out.push({ id: q.q.id, label: q.q.text, source: QUESTION_SOURCE[q.source], answer: formatAnswer(q.q.type, a) });
+    if (a !== undefined) out.push({ id: q.q.id, label: q.q.text, source: questionSource(q.source), answer: formatAnswer(q.q.type, a) });
   }
   for (const [id, a] of Object.entries(answers)) {
-    if (!questions.some((q) => q.q.id === id)) out.push({ id, label: 'Question', answer: a });
+    if (!questions.some((q) => q.q.id === id)) out.push({ id, label: t('passage.record.answer.question'), answer: storedAnswerText(a) });
   }
   return out;
 }
@@ -476,12 +521,12 @@ export function askCandidates(
   const inGroup = new Map<string, string>();
   const onTeam = new Set<string>();
   if (o.what === 'review') {
-    for (const t of Object.values(state.teams)) {
-      const kind = t.kindId?.value ?? null;
-      for (const [id, reg] of Object.entries(t.members)) {
+    for (const team of Object.values(state.teams)) {
+      const kind = team.kindId?.value ?? null;
+      for (const [id, reg] of Object.entries(team.members)) {
         if (!reg.value) continue;
         onTeam.add(id);
-        if (o.kindId && (kind === o.kindId || kind === null) && !inGroup.has(id)) inGroup.set(id, t.name.value);
+        if (o.kindId && (kind === o.kindId || kind === null) && !inGroup.has(id)) inGroup.set(id, team.name.value);
       }
     }
   }
@@ -491,9 +536,10 @@ export function askCandidates(
     const id = person.profileId;
     if (id === o.me || !person.privileges.has(need)) continue;
     const covering = membershipsOf(org!, id).find((m) => scopeCovers(m.scope, o.languageId) && org!.roles[m.roleId.value] && !org!.roles[m.roleId.value]!.retired);
-    const role = covering ? org!.roles[covering.roleId.value]!.name.value : 'Member';
+    const role = covering ? org!.roles[covering.roleId.value]!.name.value : t('passage.record.candidate.member');
     const group = inGroup.get(id);
-    const why = group ? `In ${group}` : onTeam.has(id) ? 'On the review team' : reviewedHere.has(id) ? 'Has done this here before' : '';
+    const why = group ? t('passage.record.candidate.inGroup', { group }) : onTeam.has(id) ? t('passage.record.candidate.onTeam')
+      : reviewedHere.has(id) ? t('passage.record.candidate.doneHere') : '';
     out.push({ profileId: id, sub: why ? `${role} · ${why}` : role, usual: !!why });
   }
   return out.map((c, i) => [c, i] as const).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(([c]) => c);
@@ -510,35 +556,45 @@ export function addDays(iso: string, days: number): string {
 }
 
 /** The "By when" chips (ASK-4): a day count from today, or no date. */
-export const DUE_CHOICES: { label: string; days: number | null }[] = [
-  { label: 'No date', days: null },
-  { label: 'Today', days: 0 },
-  { label: 'In 3 days', days: 3 },
-  { label: 'In a week', days: 7 },
-  { label: 'In 2 weeks', days: 14 }
-];
+export function dueChoices(): { label: string; days: number | null }[] {
+  return [
+    { label: t('passage.record.due.none'), days: null },
+    { label: t('passage.record.due.today'), days: 0 },
+    { label: t('passage.record.due.threeDays'), days: 3 },
+    { label: t('passage.record.due.week'), days: 7 },
+    { label: t('passage.record.due.twoWeeks'), days: 14 }
+  ];
+}
 
 /** Why a typed due date can't be used, or null when it can (empty = no date). Any day from today on. */
 export function dueError(value: string, today: string): string | null {
-  const v = value.trim();
+  const v = latinDigits(value).trim();
   if (!v) return null;
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
-  if (!m) return 'Write the date as YYYY-MM-DD, like 2026-10-07.';
+  if (!m) return t('passage.record.due.format');
   const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
   const date = new Date(y, mo - 1, d);
-  if (date.getFullYear() !== y || date.getMonth() !== mo - 1 || date.getDate() !== d) return 'That date does not exist.';
-  if (v < today) return 'Pick today or a later day.';
+  if (date.getFullYear() !== y || date.getMonth() !== mo - 1 || date.getDate() !== d) return t('passage.record.due.noSuchDate');
+  if (v < today) return t('passage.record.due.past');
   return null;
 }
 
-export const QUESTION_TYPE_LABEL: Record<QuestionSpec['type'], string> = { yesno: 'Yes/No', text: 'Text', rating: '1–5' };
+export function questionTypeLabel(type: QuestionSpec['type']): string {
+  switch (type) {
+    case 'yesno': return t('passage.record.questionType.yesno');
+    case 'text': return t('passage.record.questionType.text');
+    case 'rating': return t('passage.record.questionType.rating');
+  }
+}
 
 /** Yes/No -> Text -> 1–5 -> Yes/No. */
-export function nextQuestionType(t: QuestionSpec['type']): QuestionSpec['type'] {
-  return t === 'yesno' ? 'text' : t === 'text' ? 'rating' : 'yesno';
+export function nextQuestionType(type: QuestionSpec['type']): QuestionSpec['type'] {
+  return type === 'yesno' ? 'text' : type === 'text' ? 'rating' : 'yesno';
 }
 
 /** The message someone without the app would get (ASK-3). */
 export function guestMessage(o: { name: string; passage: string; language: string }): string {
-  return `Hi ${o.name.trim() || 'there'} — could you listen to ${o.passage} in ${o.language} and tell us what you understood? No account needed:`;
+  const name = o.name.trim();
+  return name ? t('passage.record.guestMessage', { name, passage: o.passage, language: o.language })
+    : t('passage.record.guestMessageNoName', { passage: o.passage, language: o.language });
 }

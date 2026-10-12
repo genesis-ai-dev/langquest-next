@@ -1,10 +1,14 @@
 // Building blocks of the simple recording and study screens (decision 71;
 // demo simple/translator.tsx Chips, StepBar, MiniAudio, Callout, Dock,
 // SegCard, RecordButton). Every pressable goes through the kit or
-// `useHelpPress`, so help mode explains it instead of pressing it.
+// `useHelpSpot` (with its HelpBadge), so help mode explains it instead of pressing it.
 import { useEffect, useRef, type ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useHelpPress } from '../helpContext';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
+import { useHelpSpot } from '../helpContext';
+import { HelpBadge } from '../helpBadge';
+import { t } from '../i18n';
+import { formatNumber } from '../i18n/format';
 import { Ico, Sheet, txt, type IconName } from '../kit';
 import { lift } from '../shadow';
 import { C, radius, space, target, TINT, type as T, withAlpha } from '../theme';
@@ -46,13 +50,14 @@ export function RefChips<T extends string>(props: { items: ChipItem<T>[]; value:
 
 function RefChip<T extends string>(props: { item: ChipItem<T>; on: boolean; onPress: () => void }) {
   const it = props.item;
-  const label = it.count ? `${it.label} · ${it.count}` : it.label;
-  const onPress = useHelpPress(label, it.hint, props.onPress);
+  const label = it.count ? t('recording.parts.chipCount', { label: it.label, n: formatNumber(it.count) }) : it.label;
+  const spot = useHelpSpot(label, it.hint, props.onPress);
   return (
-    <Pressable onPress={onPress} accessibilityRole="tab" accessibilityState={{ selected: props.on }} accessibilityLabel={label}
+    <Pressable onPress={spot.onPress} accessibilityRole="tab" accessibilityState={{ selected: props.on }} accessibilityLabel={label}
       style={({ pressed }) => [styles.chip, props.on && styles.chipOn, pressed && styles.pressed]}>
       <Ico name={it.icon} size={18} color={props.on ? C.white : C.dark} />
       <Text style={[styles.chipLabel, props.on && { color: C.white }]}>{label}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -65,37 +70,39 @@ export function RoundBtn(props: {
   tone?: 'plain' | 'brand' | 'amber' | 'white'; size?: number;
 }) {
   const size = props.size ?? target.min;
-  const onPress = useHelpPress(props.label, props.hint, props.onPress);
+  const spot = useHelpSpot(props.label, props.hint, props.onPress);
   const brand = props.tone === 'brand';
   const fg = brand ? C.white : props.tone === 'amber' ? TINT.amberText : C.dark;
   return (
-    <Pressable onPress={onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
+    <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
       accessibilityState={{ disabled: !!props.disabled }}
       style={({ pressed }) => [styles.round, { width: size, height: size, borderRadius: size / 2 },
         brand ? { backgroundColor: C.primary, borderColor: C.primary } : props.tone === 'white' ? { borderColor: C.card } : null,
         props.disabled && styles.off, pressed && styles.pressed]}>
       <Ico name={props.icon} size={props.word ? 16 : 20} color={fg} strokeWidth={2.4} />
       {props.word ? <Text style={[styles.roundWord, { color: fg }]}>{props.word}</Text> : null}
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
 
 /** Back 10 seconds: the circular arrow with "10" under it. */
 export function Back10(props: { onPress: () => void; disabled?: boolean; tone?: 'plain' | 'white' }) {
-  return <RoundBtn icon="restart" word="10" label="Back 10 seconds" hint="Hear the last few seconds again." onPress={props.onPress} disabled={props.disabled} tone={props.tone ?? 'plain'} />;
+  return <RoundBtn icon="restart" word={formatNumber(10)} label={t('common.backTenSeconds')} hint={t('recording.player.back10Help')} onPress={props.onPress} disabled={props.disabled} tone={props.tone ?? 'plain'} />;
 }
 
 /** The big round play button of a small player. */
 export function PlayBtn(props: { playing: boolean; available: boolean; label: string; onPress: () => void; size?: number; disabled?: boolean; none?: boolean }) {
   const size = props.size ?? target.min;
-  const onPress = useHelpPress(props.playing ? 'Pause' : props.label, 'Play or pause.', props.onPress);
+  const spot = useHelpSpot(props.playing ? t('common.pause') : props.label, t('recording.player.playHelp'), props.onPress);
   const off = !props.available || props.disabled;
   return (
-    <Pressable onPress={onPress} disabled={off} accessibilityRole="button"
-      accessibilityLabel={props.none ? 'No audio to play' : !props.available ? 'Audio is not on this device yet' : props.playing ? 'Pause' : props.label}
+    <Pressable onPress={spot.onPress} disabled={off} accessibilityRole="button"
+      accessibilityLabel={props.none ? t('recording.player.noAudio') : !props.available ? t('recording.player.notOnDevice') : props.playing ? t('common.pause') : props.label}
       style={({ pressed }) => [{ width: size, height: size, borderRadius: size / 2, backgroundColor: off ? C.faint : C.primary, alignItems: 'center', justifyContent: 'center' },
         pressed && styles.pressed]}>
       <Ico name={props.none ? 'play' : !props.available ? 'download' : props.playing ? 'pause' : 'play'} size={Math.round(size * 0.38)} color={C.white} strokeWidth={2.4} fill={props.available || props.none ? C.white : undefined} />
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -113,14 +120,14 @@ export function MiniPlayer(props: {
   return (
     <View style={[!props.bare && styles.mini, props.style]}>
       <View style={styles.miniRow}>
-        <PlayBtn playing={props.playing} available={props.available} label={`Play ${props.title}`} onPress={props.onToggle} {...(props.none ? { none: true } : {})} />
+        <PlayBtn playing={props.playing} available={props.available} label={t('recording.player.playTitle', { title: props.title })} onPress={props.onToggle} {...(props.none ? { none: true } : {})} />
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={styles.miniTitle} numberOfLines={1}>{props.title}</Text>
           {props.under ?? (props.sub ? <Text style={txt.smMuted} numberOfLines={2}>{props.sub}</Text> : null)}
         </View>
         {props.right}
         <Back10 onPress={props.onBack10} disabled={props.backDisabled ?? !props.available} />
-        {props.onNote ? <RoundBtn icon="chat" label="Add a note here" hint="Leave a note at this moment, by voice or text." tone="amber" onPress={props.onNote} /> : null}
+        {props.onNote ? <RoundBtn icon="chat" label={t('recording.player.addNoteHere')} hint={t('recording.player.noteHelp')} tone="amber" onPress={props.onNote} /> : null}
       </View>
       {props.error ? <Text accessibilityRole="alert" style={txt.error}>{props.error}</Text> : null}
     </View>
@@ -131,7 +138,7 @@ export function MiniPlayer(props: {
 export function Dock(props: { title: string; sub: string; playing: boolean; available: boolean; onToggle: () => void; onBack10: () => void; backDisabled?: boolean; none?: boolean }) {
   return (
     <View style={styles.dock}>
-      <PlayBtn playing={props.playing} available={props.available} label={`Play ${props.title}`} onPress={props.onToggle} {...(props.none ? { none: true } : {})} />
+      <PlayBtn playing={props.playing} available={props.available} label={t('recording.player.playTitle', { title: props.title })} onPress={props.onToggle} {...(props.none ? { none: true } : {})} />
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={styles.miniTitle} numberOfLines={1}>{props.title}</Text>
         <Text style={txt.smMuted} numberOfLines={1}>{props.sub}</Text>
@@ -145,10 +152,12 @@ export function Dock(props: { title: string; sub: string; playing: boolean; avai
 
 /** A row in a card with a pale play tile at the left (Earlier): the tile plays, the row says what it is. */
 export function PlayRow(props: { title: string; sub: string; playing: boolean; available: boolean; onToggle: () => void; last?: boolean; error?: string }) {
-  const onPress = useHelpPress(props.playing ? 'Pause' : `Play ${props.title}`, props.sub, props.onToggle);
+  const spot = useHelpSpot(props.playing ? t('common.pause') : t('recording.player.playTitle', { title: props.title }), props.sub, props.onToggle);
   return (
-    <Pressable onPress={onPress} disabled={!props.available} accessibilityRole="button"
-      accessibilityLabel={props.available ? `${props.playing ? 'Pause' : 'Play'} ${props.title}. ${props.sub}` : `${props.title}. Not on this device yet`}
+    <Pressable onPress={spot.onPress} disabled={!props.available} accessibilityRole="button"
+      accessibilityLabel={props.available
+        ? t(props.playing ? 'recording.player.pauseRow' : 'recording.player.playRow', { title: props.title, sub: props.sub })
+        : t('recording.player.rowNotOnDevice', { title: props.title })}
       style={({ pressed }) => [styles.playRow, !props.last && styles.rowBorder, pressed && styles.pressed]}>
       <View style={styles.playTile}>
         <Ico name={!props.available ? 'download' : props.playing ? 'pause' : 'play'} size={22} color={props.available ? C.primary : C.faint} strokeWidth={2.4} fill={props.available ? C.primary : undefined} />
@@ -158,29 +167,32 @@ export function PlayRow(props: { title: string; sub: string; playing: boolean; a
         <Text style={txt.smMuted} numberOfLines={2}>{props.sub}</Text>
         {props.error ? <Text style={txt.error}>{props.error}</Text> : null}
       </View>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
 
 /** A dashed button for adding something ("+ Add a note"). */
 export function DashedBtn(props: { label: string; icon?: IconName; onPress: () => void; hint?: string; disabled?: boolean; style?: object }) {
-  const onPress = useHelpPress(props.label, props.hint, props.onPress);
+  const spot = useHelpSpot(props.label, props.hint, props.onPress);
   return (
-    <Pressable onPress={onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
+    <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
       style={({ pressed }) => [styles.dashed, props.disabled && styles.off, props.style, pressed && styles.pressed]}>
       <Ico name={props.icon ?? 'plus'} size={20} color={C.primary} />
       <Text style={[styles.dashedLabel]}>{props.label}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
 
 /** A quiet link with an icon, centred, 48pt. */
 export function QuietLink(props: { label: string; icon?: IconName; onPress: () => void; hint?: string }) {
-  const onPress = useHelpPress(props.label, props.hint, props.onPress);
+  const spot = useHelpSpot(props.label, props.hint, props.onPress);
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" style={({ pressed }) => [styles.quiet, pressed && styles.pressed]}>
+    <Pressable onPress={spot.onPress} accessibilityRole="button" style={({ pressed }) => [styles.quiet, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={18} color={C.muted} /> : null}
       <Text style={[txt.sm, { color: C.muted, fontWeight: '700', textAlign: 'center', flexShrink: 1 }]}>{props.label}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -197,12 +209,12 @@ const CALLOUT_TONE: Record<CalloutTone, { bg: string; ink: string }> = {
 
 /** A box in the step's text ("Stop here." on amber): an icon, the word in bold, then the text. */
 export function Callout(props: { icon: IconName; label: string; tone: CalloutTone; children: ReactNode }) {
-  const t = CALLOUT_TONE[props.tone];
+  const tone = CALLOUT_TONE[props.tone];
   return (
-    <View style={[styles.callout, { backgroundColor: t.bg }]}>
-      <Ico name={props.icon} size={22} color={t.ink} />
+    <View style={[styles.callout, { backgroundColor: tone.bg }]}>
+      <Ico name={props.icon} size={22} color={tone.ink} />
       <Text style={[styles.reading, { flex: 1 }]}>
-        <Text style={{ fontWeight: '800' }}>{props.label}. </Text>{props.children}
+        <Text style={{ fontWeight: '800' }}>{t('recording.parts.calloutLabel', { label: props.label })} </Text>{props.children}
       </Text>
     </View>
   );
@@ -212,19 +224,20 @@ export function Callout(props: { icon: IconName; label: string; tone: CalloutTon
 
 /** ‹ "2/6 Setting the stage ▾" ›: the step bar of a guide with steps (demo StepBar). */
 export function StepNav(props: { index: number; count: number; title: string; onPrev: () => void; onNext: () => void; onList: () => void }) {
-  const list = useHelpPress('All steps', 'See every step and jump to one.', props.onList);
+  const list = useHelpSpot(t('recording.steps.all'), t('recording.steps.allHelp'), props.onList);
   const first = props.index <= 0;
   const last = props.index >= props.count - 1;
   return (
     <View style={styles.stepNav}>
-      <RoundBtn icon="arrowL" label="Previous step" onPress={props.onPrev} disabled={first} />
-      <Pressable onPress={list} accessibilityRole="button" accessibilityLabel={`Step ${props.index + 1} of ${props.count}: ${props.title}. All steps`}
+      <RoundBtn icon="arrowL" label={t('recording.steps.previous')} onPress={props.onPrev} disabled={first} />
+      <Pressable onPress={list.onPress} accessibilityRole="button" accessibilityLabel={t('recording.steps.navLabel', { n: formatNumber(props.index + 1), total: formatNumber(props.count), title: props.title })}
         style={({ pressed }) => [styles.stepBox, pressed && styles.pressed]}>
-        <Text style={styles.stepCount}>{props.index + 1}/{props.count}</Text>
+        <Text style={styles.stepCount}>{t('recording.steps.count', { n: formatNumber(props.index + 1), total: formatNumber(props.count) })}</Text>
         <Text style={styles.stepTitle} numberOfLines={1}>{props.title}</Text>
         <Ico name="down" size={20} color={C.muted} />
+        <HelpBadge spot={list} />
       </Pressable>
-      <RoundBtn icon="right" label="Next step" onPress={props.onNext} disabled={last} tone="brand" />
+      <RoundBtn icon="right" label={t('recording.steps.next')} onPress={props.onNext} disabled={last} tone="brand" />
     </View>
   );
 }
@@ -254,17 +267,18 @@ export function StepsSheet(props: { title: string; sub?: string; steps: StepList
 }
 
 function StepRow(props: { n: number; title: string; state: 'done' | 'now' | 'later'; onPress: () => void }) {
-  const onPress = useHelpPress(props.title, 'Open this step.', props.onPress);
+  const spot = useHelpSpot(props.title, t('recording.steps.openHelp'), props.onPress);
   const now = props.state === 'now';
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: now }}
-      accessibilityLabel={`Step ${props.n}: ${props.title}${props.state === 'done' ? ', done' : now ? ', open now' : ''}`}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ selected: now }}
+      accessibilityLabel={t(props.state === 'done' ? 'recording.steps.rowDone' : now ? 'recording.steps.rowNow' : 'recording.steps.row', { n: formatNumber(props.n), title: props.title })}
       style={({ pressed }) => [styles.stepRow, now && { backgroundColor: C.light }, pressed && styles.pressed]}>
       <View style={[styles.stepMark, props.state === 'done' ? { backgroundColor: C.green, borderColor: C.green } : now ? { backgroundColor: C.primary, borderColor: C.primary } : null]}>
         {props.state === 'done' ? <Ico name="check" size={16} color={C.white} strokeWidth={3} />
-          : <Text style={[txt.xsStrong, { color: now ? C.white : C.muted, fontWeight: '800' }]}>{props.n}</Text>}
+          : <Text style={[txt.xsStrong, { color: now ? C.white : C.muted, fontWeight: '800' }]}>{formatNumber(props.n)}</Text>}
       </View>
       <Text style={[txt.body, { flex: 1, fontWeight: now ? '800' : '600' }]}>{props.title}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -275,18 +289,19 @@ function StepRow(props: { n: number; title: string; state: 'done' | 'now' | 'lat
 export function RecordBtn(props: { size?: number; recording: boolean; onPress: () => void; disabled?: boolean }) {
   const size = props.size ?? 72;
   const halo = Math.round(size * 0.14);
-  const onPress = useHelpPress(props.recording ? 'Stop recording' : 'Record',
-    props.recording ? 'Stop. What you said is kept, part by part.' : 'Start recording. Speak, and pause between parts: each part is kept by itself.', props.onPress);
+  const spot = useHelpSpot(props.recording ? t('common.stopRecording') : t('common.record'),
+    props.recording ? t('recording.recordButton.stopHelp') : t('recording.recordButton.recordHelp'), props.onPress);
   const off = props.disabled && !props.recording;
   return (
     <View style={{ padding: halo, borderRadius: (size + halo * 2) / 2, backgroundColor: withAlpha(C.red, off ? 0.06 : 0.14) }}>
-      <Pressable onPress={onPress} disabled={off} accessibilityRole="button" accessibilityLabel={props.recording ? 'Stop recording' : 'Record'}
+      <Pressable onPress={spot.onPress} disabled={off} accessibilityRole="button" accessibilityLabel={props.recording ? t('common.stopRecording') : t('common.record')}
         accessibilityState={{ disabled: !!off }}
         style={({ pressed }) => [{ width: size, height: size, borderRadius: size / 2, backgroundColor: C.red, alignItems: 'center', justifyContent: 'center' },
           off && { opacity: 0.45 }, !off && lift({ color: C.red, opacity: 0.3, radius: 10, y: 4, elevation: 3 }), pressed && { transform: [{ scale: 0.95 }] }]}>
         {props.recording
           ? <View style={{ width: size * 0.3, height: size * 0.3, borderRadius: size * 0.06, backgroundColor: C.white }} />
           : <Ico name="mic" size={Math.round(size * 0.42)} color={C.white} />}
+        <HelpBadge spot={spot} />
       </Pressable>
     </View>
   );

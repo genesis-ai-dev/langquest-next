@@ -1,5 +1,7 @@
+import { CommandError } from '@langquest-next/core';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { t } from './i18n';
 
 /**
  * The phones' push (push.web.ts is the browser's, which has none). Kept
@@ -10,10 +12,11 @@ import { Platform } from 'react-native';
 /** Asks for permission and returns this phone's Expo push token. */
 export async function requestPushToken(): Promise<string> {
   if (Platform.OS === 'android') await Notifications.setNotificationChannelAsync('work', {
-    name: 'Work updates', importance: Notifications.AndroidImportance.DEFAULT
+    name: t('account.notifications.channel'), importance: Notifications.AndroidImportance.DEFAULT
   });
   const permission = await Notifications.requestPermissionsAsync();
-  if (!permission.granted) throw new Error('Notifications are off. Your inbox still works.');
+  // A CommandError: an expected answer, shown to the person as it is (account.tsx).
+  if (!permission.granted) throw new CommandError(t('account.notifications.off'));
   return (await Notifications.getExpoPushTokenAsync({
     projectId: '582d3757-4245-419a-9087-e269e3bf4c4d'
   })).data;

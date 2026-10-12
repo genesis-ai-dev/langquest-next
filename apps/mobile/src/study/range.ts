@@ -4,6 +4,7 @@
 // (STUDY-1, STUDY-5), so a chapter unit, a FIA pericope and a hand-added
 // passage all find the same material. Pure: no I/O.
 import { unitPlace, type LanguageState } from '@langquest-next/core';
+import { latinDigits } from '../textMatch';
 
 export interface VerseRange {
   /** Core's book id ("gen", "luk", "joh"). */
@@ -17,7 +18,7 @@ const RANGE = /^(\d+)(?::(\d+))?(?:\s*[–-]\s*(?:(\d+):)?(\d+))?$/;
 
 /** "15:11-32", "1:1-2:3", "15", "14-16" (chapters), "15:11" after the book's name; null when it is not a reference. */
 export function parseRange(book: string, ref: string): VerseRange | null {
-  const m = RANGE.exec(ref.trim());
+  const m = RANGE.exec(latinDigits(ref).trim());
   if (!m) return null;
   const c1 = Number(m[1]);
   if (m[2] === undefined) {

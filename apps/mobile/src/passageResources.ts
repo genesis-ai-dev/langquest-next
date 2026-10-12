@@ -1,4 +1,5 @@
 import { materialsFor, recordAudioHashes, unitAncestry, type BlobRef, type LanguageState } from '@langquest-next/core';
+import { t } from './i18n';
 
 type AudioItem = { id: string; label: string; hash: string; format: BlobRef['format'] };
 
@@ -25,7 +26,7 @@ export function getReferenceSlides(state: LanguageState, unitId: string): AudioI
   for (const [id, recording] of Object.entries(state.recordings)) {
     if (recording.kind !== 'source' || !ancestors.has(recording.unitId)) continue;
     recording.cards.forEach((card, index) => recordAudio.has(card.hash) ? undefined : items.push({
-      id: `source:${id}:${index}`, label: 'Source audio', hash: card.hash,
+      id: `source:${id}:${index}`, label: t('passage.resources.sourceAudio'), hash: card.hash,
       format: card.format ?? 'wav'
     }));
   }

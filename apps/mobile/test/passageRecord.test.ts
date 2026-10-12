@@ -8,7 +8,7 @@ import {
   oldStepSummary, pathState, sendTargetLabel, stepSheetSub, stepSummary, versionCaption
 } from '../src/passage/record';
 import { requestIsMine, sendToInput, usualTargetFor } from '../src/passage/sendTarget';
-import { HIDDEN_TEXT } from '../src/moderation';
+import { hiddenText } from '../src/moderation';
 
 /**
  * The passage record's words and button rules (demo screens/passage.tsx),
@@ -212,7 +212,7 @@ describe('the record’s details', () => {
     const t = recordTimeline(p.state(), s);
     const o = { p: s, kinds: p.kinds(), name, anchor: () => 'Whole passage', hidden: (id: string) => id === 'ayen' };
     expect(describeEntry(t[0]!, o).title).toBe('Back Translation set aside');
-    expect(describeEntry(t[0]!, o).sub).toBe(HIDDEN_TEXT);
+    expect(describeEntry(t[0]!, o).sub).toBe(hiddenText());
     expect(describeEntry(t[0]!, o).who).toBe('Ayen');
     expect(describeEntry(t[1]!, o).sub).toBe('First recording.');
   });

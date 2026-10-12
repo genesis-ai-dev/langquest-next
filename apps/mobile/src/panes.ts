@@ -7,6 +7,7 @@
  * flow.ts. Pure, so it is tested without a device.
  */
 import type { Mode, ScreenId } from './flow';
+import { t } from './i18n';
 import type { IconName } from './kit';
 
 export interface PaneRoute {
@@ -20,24 +21,42 @@ export interface SplitSpec {
   /** Screens the list opens that sit beside it. Each is a push edge from the list (panes.test.ts). */
   details: readonly ScreenId[];
   /** What the right side shows while nothing is open. A hub with none keeps its single column until something is. */
-  empty?: { icon: IconName; title: string; sub: string };
+  empty?: PaneEmpty;
+}
+
+/** Beside a list with nothing open: an icon and what tapping a row will show. Read in the language showing. */
+export interface PaneEmpty {
+  icon: IconName;
+  readonly title: string;
+  readonly sub: string;
+}
+
+type PaneEmptyId = 'book' | 'chapter' | 'update' | 'member' | 'role' | 'flow' | 'template' | 'reference' | 'bible' | 'guide' | 'passage' | 'team' | 'term';
+
+/** One object per split, so it stays the same between renders; its words are read when shown. */
+function emptyPane(icon: IconName, id: PaneEmptyId): PaneEmpty {
+  return {
+    icon,
+    get title() { return t(`shell.panes.${id}.title`); },
+    get sub() { return t(`shell.panes.${id}.sub`); }
+  };
 }
 
 export const SPLITS: readonly SplitSpec[] = [
   { list: 'status_home', details: ['map_home'] },
-  { list: 'map_home', details: ['book_map', 'passage_record'], empty: { icon: 'book', title: 'Pick a book', sub: 'Its chapters open here.' } },
-  { list: 'book_map', details: ['passage_record'], empty: { icon: 'map', title: 'Pick a chapter', sub: 'Its passage opens here.' } },
-  { list: 'inbox_home', details: ['passage_record', 'edit_member', 'members_list'], empty: { icon: 'inbox', title: 'Pick an update', sub: 'What it is about opens here.' } },
-  { list: 'members_list', details: ['edit_member'], empty: { icon: 'people', title: 'Pick a member', sub: 'Their role opens here.' } },
-  { list: 'roles_home', details: ['role_editor'], empty: { icon: 'user', title: 'Pick a role', sub: 'It opens here to edit.' } },
-  { list: 'flows_home', details: ['flow_editor'], empty: { icon: 'flow', title: 'Pick a flow', sub: 'It opens here to edit.' } },
-  { list: 'templates_home', details: ['template_editor'], empty: { icon: 'template', title: 'Pick a template', sub: 'It opens here to edit.' } },
-  { list: 'reference_home', details: ['material_editor'], empty: { icon: 'folder', title: 'Pick reference material', sub: 'It opens here to edit.' } },
-  { list: 'reference_bibles', details: ['reference_source'], empty: { icon: 'book', title: 'Pick a Bible', sub: 'What it offers opens here.' } },
-  { list: 'reference_guides', details: ['material_editor'], empty: { icon: 'sparkle', title: 'Pick a guide or note', sub: 'It opens here.' } },
-  { list: 'reference_coverage', details: ['passage_reference'], empty: { icon: 'map', title: 'Pick a passage', sub: 'Its reference opens here.' } },
-  { list: 'review_teams', details: ['review_team_editor'], empty: { icon: 'people', title: 'Pick a team', sub: 'It opens here to edit.' } },
-  { list: 'key_terms', details: ['key_term_detail'], empty: { icon: 'book', title: 'Pick a term', sub: 'Its meaning and renderings open here.' } },
+  { list: 'map_home', details: ['book_map', 'passage_record'], empty: emptyPane('book', 'book') },
+  { list: 'book_map', details: ['passage_record'], empty: emptyPane('map', 'chapter') },
+  { list: 'inbox_home', details: ['passage_record', 'edit_member', 'members_list'], empty: emptyPane('inbox', 'update') },
+  { list: 'members_list', details: ['edit_member'], empty: emptyPane('people', 'member') },
+  { list: 'roles_home', details: ['role_editor'], empty: emptyPane('user', 'role') },
+  { list: 'flows_home', details: ['flow_editor'], empty: emptyPane('flow', 'flow') },
+  { list: 'templates_home', details: ['template_editor'], empty: emptyPane('template', 'template') },
+  { list: 'reference_home', details: ['material_editor'], empty: emptyPane('folder', 'reference') },
+  { list: 'reference_bibles', details: ['reference_source'], empty: emptyPane('book', 'bible') },
+  { list: 'reference_guides', details: ['material_editor'], empty: emptyPane('sparkle', 'guide') },
+  { list: 'reference_coverage', details: ['passage_reference'], empty: emptyPane('map', 'passage') },
+  { list: 'review_teams', details: ['review_team_editor'], empty: emptyPane('people', 'team') },
+  { list: 'key_terms', details: ['key_term_detail'], empty: emptyPane('book', 'term') },
   { list: 'org_home', details: ['language_home'] }
 ];
 
@@ -56,16 +75,16 @@ interface Split<R extends PaneRoute = PaneRoute> {
  * top shows itself beside its empty state.
  */
 export function paneFor<R extends PaneRoute>(stack: readonly R[]): Split<R> | null {
-  const t = stack.length - 1;
-  if (t < 0) return null;
-  const top = stack[t]!;
-  const under = t > 0 ? stack[t - 1]! : undefined;
+  const last = stack.length - 1;
+  if (last < 0) return null;
+  const top = stack[last]!;
+  const under = last > 0 ? stack[last - 1]! : undefined;
   if (under) {
     const spec = SPLITS.find((s) => s.list === under.screen && s.details.includes(top.screen));
-    if (spec) return { list: under, listIndex: t - 1, detail: top, ...(spec.empty ? { empty: spec.empty } : {}) };
+    if (spec) return { list: under, listIndex: last - 1, detail: top, ...(spec.empty ? { empty: spec.empty } : {}) };
   }
   const own = SPLITS.find((s) => s.list === top.screen && s.empty);
-  if (own?.empty) return { list: top, listIndex: t, detail: null, empty: own.empty };
+  if (own?.empty) return { list: top, listIndex: last, detail: null, empty: own.empty };
   return null;
 }
 

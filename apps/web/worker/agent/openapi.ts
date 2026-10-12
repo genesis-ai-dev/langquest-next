@@ -7,7 +7,7 @@ import {
 } from './view';
 
 /**
- * The access-token API as OpenAPI 3.1 (decisions.md 81), served at
+ * The access-token API as OpenAPI 3.1 (decisions.md 86), served at
  * `/api/v1/openapi.json`. It is the reference; docs/agent-api.md is the
  * guide. It names the code's own constants, so limits and enums cannot
  * drift, and apps/web/test/agentApi.test.ts checks every response the API

@@ -2,6 +2,7 @@
 // steps someone finished and what people added to each (ADR-018). Shown to
 // translators as progress and to reviewers as evidence the study was done.
 import { studyMarksFor, studyNotesFor, type PassageNote, type PassageState, type LanguageState } from '@langquest-next/core';
+import { t } from '../i18n';
 import type { StudyGuide, StudyStep } from './guides';
 
 export interface StudyStepStatus {
@@ -41,7 +42,7 @@ export function studyProgress(state: LanguageState, p: PassageState, guide: Stud
 
 /** "4 of 6 steps · 7 notes" */
 export function studySummary(sp: StudyProgress): string {
-  const parts = [`${sp.doneCount} of ${sp.steps.length} steps`];
-  if (sp.noteCount) parts.push(`${sp.noteCount} note${sp.noteCount === 1 ? '' : 's'}`);
+  const parts = [t('study.summary.steps', { done: sp.doneCount, count: sp.steps.length })];
+  if (sp.noteCount) parts.push(t('study.summary.notes', { count: sp.noteCount }));
   return parts.join(' · ');
 }

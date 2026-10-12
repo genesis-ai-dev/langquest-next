@@ -9,6 +9,7 @@ import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState } from 'react';
 import { audioFormat } from '../audioClip';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../audioSession';
+import { t } from '../i18n';
 import { noteExpected, reportError } from '../report';
 import type { LanguageHandle } from '../useLanguage';
 
@@ -104,13 +105,13 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: { uri
       if (!uri && ref && lang.state && isStored(lang.state, hash)) {
         try { uri = await lang.blobs.streamUri(ref); } catch (err) {
           noteExpected('simple clip stream', err);
-          if (generation.current === run) { wants.current = false; setPlaying(false); setError('Audio could not load. Check your connection and try again.'); }
+          if (generation.current === run) { wants.current = false; setPlaying(false); setError(t('common.audioCouldNotLoad')); }
           return;
         }
         if (generation.current !== run || !wants.current) return;
       }
     }
-    if (!uri) { wants.current = false; setPlaying(false); setError('Audio is not on this device yet.'); return; }
+    if (!uri) { wants.current = false; setPlaying(false); setError(t('recording.player.notOnDeviceYet')); return; }
     try {
       const p = createAudioPlayer({ uri });
       player.current = p;
@@ -118,7 +119,7 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: { uri
         if (player.current !== p) return;
         if (status.error) {
           wants.current = false; p.remove(); player.current = null; setPlaying(false);
-          setError('Audio could not load. Check your connection and try again.');
+          setError(t('common.audioCouldNotLoad'));
           return;
         }
         if (status.duration > 0) setClipLength(status.duration);
@@ -129,7 +130,7 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: { uri
       if (generation.current === run && wants.current) p.play();
     } catch (err) {
       wants.current = false; player.current?.remove(); player.current = null; setPlaying(false);
-      setError(`Audio could not play (code ${reportError('simple clip create', err)}).`);
+      setError(t('common.audioCouldNotPlay', { code: reportError('simple clip create', err) }));
     }
   }
 
@@ -148,7 +149,7 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: { uri
       if (p && p.duration > 0 && p.currentTime < p.duration - 0.1) { p.play(); return; }
       await playFrom(p ? indexRef.current : 0, 0, run);
     } catch (err) {
-      if (generation.current === run) { halt(); setError(`Audio could not play (code ${reportError('simple clip play', err)}).`); }
+      if (generation.current === run) { halt(); setError(t('common.audioCouldNotPlay', { code: reportError('simple clip play', err) })); }
     }
   }
 
@@ -161,7 +162,7 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: { uri
     const within = target - start;
     const p = player.current;
     if (p && i === indexRef.current) {
-      try { await p.seekTo(within); setAt(within); } catch (err) { setError(`Audio could not seek (code ${reportError('simple clip seek', err)}).`); }
+      try { await p.seekTo(within); setAt(within); } catch (err) { setError(t('recording.player.couldNotSeek', { code: reportError('simple clip seek', err) })); }
       return;
     }
     const was = wants.current;

@@ -176,6 +176,7 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
           : r.refused
             ? `refused: ${r.refused}`
             : r.pushed === 0 && r.pulled === 0 && r.rejected === 0
+              // i18n-ignore: a sync status for diagnostics, not words on screen
               ? 'up to date'
               : `pushed ${r.pushed}, pulled ${r.pulled}, rejected ${r.rejected}`
       );

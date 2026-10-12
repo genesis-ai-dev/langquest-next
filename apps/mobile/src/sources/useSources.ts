@@ -8,11 +8,13 @@
 // study guides do), and when nothing at all has this passage's text, the
 // text the app carries is the last resort, labelled as built in.
 import {
-  bookIdOf, languageInfo, libraryItemView, linkedTo, passageLink, recommendedFor, sourceAudioUrl, SOURCE_BIBLES, subscriptionItemId, versesInChapter,
+  bookIdOf, libraryItemView, linkedTo, passageLink, recommendedFor, sourceAudioUrl, SOURCE_BIBLES, subscriptionItemId, versesInChapter,
   type LibraryDoc, type SourceBookDoc, type SourceDoc, type TemplateDoc, type TimingDoc, type VerseRange, type VersificationDoc
 } from '@langquest-next/core';
 import { useEffect, useMemo, useState } from 'react';
 import type { Ctx } from '../ctx';
+import { teamLanguage } from '../reference/languages';
+import { t } from '../i18n';
 import { useLibraryDocs, useSharedItems } from '../library/useLibrary';
 import { readingsForRange } from '../scripture';
 import { bibleErrorText, type BibleDetail } from './bibleBrain';
@@ -21,6 +23,7 @@ import {
   refText, resolveTiming, unitCoordinates, type PlayPlan, type SourceFrom, type SourceOption, type Timing, type TimingSource, type VerseRow
 } from './model';
 import { audioFormatOf, bbKey, ensureIndex, keptAudio, libAudioKey, onSourceFiles, playableUri } from './offline';
+import { PlayError } from './player';
 import { bibleBrain, textKept, useKeptRevision, useMyBibles } from './store';
 
 type Get = <T extends LibraryDoc = LibraryDoc>(hash: string | null | undefined) => T | null;
@@ -101,7 +104,7 @@ export function useSources(ctx: Ctx, unitId: string | null | undefined, language
 
   const options = useMemo(() => {
     const out: SourceOption[] = [];
-    const sourceLanguage = (languageId ? languageInfo(ctx.org.state, languageId)?.sourceCode : undefined) ?? 'eng';
+    const sourceLanguage = teamLanguage(ctx.org.state, languageId === ctx.language.languageId ? ctx.language.state : null, languageId);
     const fromLibrary = (itemId: string, from: SourceFrom) => {
       const hash = libraryItemView(library ?? {}, itemId)?.current;
       const doc = get<SourceDoc>(hash);
@@ -181,7 +184,7 @@ async function bibleBrainAudio(store: ReturnType<typeof storeOf>, fileset: strin
     const uri = await playableUri(store, kept);
     if (uri) return uri;
   }
-  if (!bibleBrain) throw new Error("Bible Brain isn't set up on this device.");
+  if (!bibleBrain) throw new PlayError(t('sources.text.noBibleBrain'));
   const key = `${fileset}:${book}:${chapter}`;
   const held = audioLinks.get(key);
   if (held && held.expires > Date.now() + 60_000) return held.url;
@@ -190,7 +193,7 @@ async function bibleBrainAudio(store: ReturnType<typeof storeOf>, fileset: strin
     audioLinks.set(key, { url: link.url, expires: Date.parse(link.expiresAt) || Date.now() + 10 * 60_000 });
     return link.url;
   } catch (e) {
-    throw new Error(bibleErrorText(e));
+    throw new PlayError(bibleErrorText(e));
   }
 }
 
@@ -227,7 +230,7 @@ export function usePassageSource(ctx: Ctx, option: SourceOption | undefined, pas
     setBb({ key: bbKeyNow, verses, stamps, problem: null, done: false });
     void (async () => {
       let problem: string | null = null;
-      if (!bibleBrain) problem = "Bible Brain isn't set up on this device.";
+      if (!bibleBrain) problem = t('sources.text.noBibleBrain');
       else {
         for (const c of chaptersOf(range)) {
           if (filesets.text) {
@@ -259,8 +262,8 @@ export function usePassageSource(ctx: Ctx, option: SourceOption | undefined, pas
         ? chapters.map((c) => ({ chapter: c, timing: null, timingSource: 'none' as const, local: false, resolve: async () => sourceAudioUrl(SOURCE_BIBLES[0], { book: bookIdOf(range.book), chapter: c, label: '' }) }))
         : [];
       return {
-        loading: false, range, rows, textProblem: rows ? null : 'No text for this passage.', plan: audio.length ? playPlan(range, audio) : null, chapters: audio,
-        filesets: [], copyright: option.itemId === 'builtin.BSB' ? { text: 'Public domain', audio: 'Public domain · OpenBible.com, read by Frederick Surrey' } : { text: 'Public domain' }, bibleBrain: false
+        loading: false, range, rows, textProblem: rows ? null : t('sources.text.noPassageText'), plan: audio.length ? playPlan(range, audio) : null, chapters: audio,
+        filesets: [], copyright: option.itemId === 'builtin.BSB' ? { text: t('sources.text.publicDomain'), audio: t('sources.text.publicDomainRead') } : { text: t('sources.text.publicDomain') }, bibleBrain: false
       };
     }
     // Library text and audio from the source's book document.
@@ -281,12 +284,12 @@ export function usePassageSource(ctx: Ctx, option: SourceOption | undefined, pas
           resolve: async () => {
             if (ref && store?.has(ref.hash)) { const uri = await playableUri(store, ref); if (uri) return uri; }
             if (a.url) return a.url;
-            throw new Error("This recording isn't on this device yet.");
+            throw new PlayError(t('sources.text.recordingNotHere'));
           }
         });
       }
       return {
-        loading, range, rows, textProblem: loading ? null : rows ? null : bookHash ? 'No text for this passage in this source.' : 'This source has no text for this book.',
+        loading, range, rows, textProblem: loading ? null : rows ? null : bookHash ? t('sources.text.noTextInSource') : t('sources.text.noBookInSource'),
         plan: audio.length ? playPlan(range, audio) : null, chapters: audio, filesets: [], copyright, bibleBrain: false
       };
     }
@@ -304,7 +307,7 @@ export function usePassageSource(ctx: Ctx, option: SourceOption | undefined, pas
     const loading = !!bbKeyNow && !ready?.done && !rows;
     return {
       loading, range, rows,
-      textProblem: loading ? null : !filesets.text ? 'No text for this book in this Bible.' : rows ? null : ready?.problem ?? 'No text for this passage.',
+      textProblem: loading ? null : !filesets.text ? t('sources.text.noBookInBible') : rows ? null : ready?.problem ?? t('sources.text.noPassageText'),
       plan: audio.length ? playPlan(range, audio) : null, chapters: audio,
       filesets: [filesets.text, filesets.audio].filter((x): x is string => !!x), copyright, bibleBrain: true
     };
@@ -331,7 +334,7 @@ export function useChipMarks(ctx: Ctx, passage: PassageSources): Record<string, 
     for (const o of passage.options) {
       const offers = offersFor(o, range.book, o.kind === 'builtin');
       if (o.kind === 'builtin') {
-        out[o.itemId] = [...chipMarks({ text: true, audio: offers.audio, offlineAllowed: false, textOnPhone: true, audioOnPhone: false }), 'built in'];
+        out[o.itemId] = [...chipMarks({ text: true, audio: offers.audio, offlineAllowed: false, textOnPhone: true, audioOnPhone: false }), t('sources.chip.builtIn')];
         continue;
       }
       if (o.doc?.provider.kind === 'library') {

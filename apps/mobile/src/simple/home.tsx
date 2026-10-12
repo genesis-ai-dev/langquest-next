@@ -3,8 +3,12 @@
 // coordinator's "Get ‹language› ready" card, and quiet links that open in
 // place. Built on the kit, and every press goes through help mode.
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useHelpPress } from '../helpContext';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
+import { useHelpSpot } from '../helpContext';
+import { HelpBadge } from '../helpBadge';
+import { t } from '../i18n';
+import { formatNumber } from '../i18n/format';
 import { Ico, PrimaryBtn, txt } from '../kit';
 import { C, onColor, radius, space, target, type as T } from '../theme';
 
@@ -14,17 +18,18 @@ import { C, onColor, radius, space, target, type as T } from '../theme';
  * tab used to show: unread updates, open reports and people asking to join.
  */
 export function Bell(props: { count: number; onPress: () => void }) {
-  const label = props.count ? `Updates, ${props.count} new` : 'Updates';
-  const onPress = useHelpPress('Updates', 'What happened that concerns you: requests, feedback, people asking to join.', props.onPress);
+  const label = props.count ? t('work.bell.labelNew', { count: props.count }) : t('work.bell.label');
+  const spot = useHelpSpot(t('work.bell.label'), t('work.bell.help'), props.onPress);
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={label}
       style={({ pressed }) => [styles.bell, pressed && styles.pressed]}>
       <Ico name="notif" size={24} color={C.dark} />
       {props.count > 0 ? (
         <View style={[styles.badge, { pointerEvents: 'none' }]}>
-          <Text style={styles.badgeText}>{props.count > 99 ? '99+' : props.count}</Text>
+          <Text style={styles.badgeText}>{props.count > 99 ? t('work.bell.overMax', { max: formatNumber(99) }) : formatNumber(props.count)}</Text>
         </View>
       ) : null}
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -55,9 +60,10 @@ export function NextCard(props: { label: string; title: string; sub?: string; ct
  */
 export function ReadyCard(props: { language: string; done: number; total: number; question: string; onChoose: () => void }) {
   return (
-    <NextCard label={`Get ${props.language} ready · ${props.done} of ${props.total}`} title={props.question} cta="Choose" onPress={props.onChoose}>
+    <NextCard label={t('work.readyCard.label', { language: props.language, done: formatNumber(props.done), total: formatNumber(props.total) })}
+      title={props.question} cta={t('work.readyCard.choose')} onPress={props.onChoose}>
       <View style={styles.segments} accessible accessibilityRole="progressbar"
-        accessibilityLabel={`${props.done} of ${props.total} questions answered`}>
+        accessibilityLabel={t('work.readyCard.progress', { done: formatNumber(props.done), count: props.total })}>
         {Array.from({ length: props.total }, (_, i) => (
           <View key={i} style={[styles.segment, { backgroundColor: i < props.done ? C.green : C.border }]} />
         ))}
@@ -72,14 +78,15 @@ export function ReadyCard(props: { language: string; done: number; total: number
  * ADR-032). 48pt tall.
  */
 export function QuietToggle(props: { label: string; onPress: () => void; open?: boolean; detail?: string }) {
-  const onPress = useHelpPress(props.label, props.detail, props.onPress);
+  const spot = useHelpSpot(props.label, props.detail, props.onPress);
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={props.label}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.label}
       {...(props.open !== undefined ? { accessibilityState: { expanded: props.open } } : {})}
       style={({ pressed }) => [styles.quiet, pressed && styles.pressed]}>
       <Text style={styles.quietText}>{props.label}</Text>
       {/* Open, it says how to fold it away again; closed, the words alone (demo Home). */}
       {props.open ? <Ico name="up" size={18} color={C.muted} /> : null}
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }

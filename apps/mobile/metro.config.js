@@ -21,9 +21,22 @@ config.watcher = {
   additionalExts: (config.watcher?.additionalExts ?? []).filter((ext) => !envExts.has(ext))
 };
 config.resolver.assetExts.push('wasm');
+// In development the browser fetches the other languages' words from here;
+// an export copies them beside the page (src/i18n/catalogs.web.ts).
+const path = require('node:path');
+const fs = require('node:fs');
 config.server.enhanceMiddleware = (middleware) => (req, res, next) => {
   res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless');
   res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  const catalog = /^\/i18n\/([A-Za-z-]+)\.json(\?|$)/.exec(req.url ?? '');
+  if (catalog) {
+    const file = path.join(__dirname, 'src/i18n', `${catalog[1]}.json`);
+    if (fs.existsSync(file)) {
+      res.setHeader('Content-Type', 'application/json');
+      res.end(fs.readFileSync(file));
+      return;
+    }
+  }
   middleware(req, res, next);
 };
 
