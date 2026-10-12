@@ -2605,8 +2605,10 @@
     "lock": {
       "title": "Kun fita daga wannan waya?",
       "wait": "Gwaje-gwaje sun yi yawa. Ku jira kaɗan, sannan ku sake gwadawa.",
-      "body": "Zana zanenku. Ba a buƙatar intanet.",
-      "wrong": "Wannan zanen ba daidai ba ne."
+      "wrong": "Wannan zanen ba daidai ba ne.",
+      "body": "Taɓa hotonku, sannan ku zana zanenku. Ba a buƙatar intanet.",
+      "drawNow": "Zana zanenku.",
+      "notMe": "Ba hotona ba ne"
     }
   },
   "account": {
@@ -2882,8 +2884,9 @@
       "drawAgain": "Sake zana shi",
       "patternsDiffer": "Wannan wani zane ne daban. Sake farawa.",
       "tooShort": "Haɗa aƙalla ɗigo {{n}}.",
-      "patternTaken": "Wani a wannan waya yana amfani da wannan zanen. Zana wani.",
-      "newPattern": "Zana sabon zane"
+      "newPattern": "Zana sabon zane",
+      "pictureTitle": "Zaɓi hotonku",
+      "pictureBody": "Don sake shiga a wannan waya, za ku taɓa hotonku, sannan ku zana zanenku."
     }
   },
   "study": {
@@ -3783,7 +3786,8 @@
     "pattern": {
       "label": "Zane: haɗa aƙalla ɗigo {{n}}",
       "dot": "Ɗigo {{n}}",
-      "again": "Sake farawa"
+      "again": "Sake farawa",
+      "picture": "Hoto {{n}}"
     }
   },
   "help": {

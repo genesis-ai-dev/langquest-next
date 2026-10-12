@@ -2689,8 +2689,10 @@
     "lock": {
       "title": "Saiu deste aparelho?",
       "wait": "Tentativas demais. Espere um pouco e tente de novo.",
-      "body": "Desenhe o seu padrão. Não precisa de internet.",
-      "wrong": "Esse padrão não está certo."
+      "wrong": "Esse padrão não está certo.",
+      "body": "Toque na sua imagem e depois desenhe o seu padrão. Não precisa de internet.",
+      "drawNow": "Desenhe o seu padrão.",
+      "notMe": "Não é a minha imagem"
     }
   },
   "account": {
@@ -2975,8 +2977,9 @@
       "drawAgain": "Desenhe de novo",
       "patternsDiffer": "Esse era outro padrão. Comece de novo.",
       "tooShort": "Ligue pelo menos {{n}} pontos.",
-      "patternTaken": "Alguém neste aparelho já usa esse padrão. Desenhe outro.",
-      "newPattern": "Desenhar um padrão novo"
+      "newPattern": "Desenhar um padrão novo",
+      "pictureTitle": "Escolha a sua imagem",
+      "pictureBody": "Para entrar de novo neste aparelho, você vai tocar na sua imagem e depois desenhar o seu padrão."
     }
   },
   "study": {
@@ -3911,7 +3914,8 @@
     "pattern": {
       "label": "Padrão: ligue pelo menos {{n}} pontos",
       "dot": "Ponto {{n}}",
-      "again": "Começar de novo"
+      "again": "Começar de novo",
+      "picture": "Imagem {{n}}"
     }
   },
   "help": {

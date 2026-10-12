@@ -2689,8 +2689,10 @@
     "lock": {
       "title": "Déconnecté de ce téléphone ?",
       "wait": "Trop d'essais. Attendez un peu, puis réessayez.",
-      "body": "Dessinez votre schéma. Pas besoin de connexion.",
-      "wrong": "Ce schéma n'est pas le bon."
+      "wrong": "Ce schéma n'est pas le bon.",
+      "body": "Touchez votre image, puis dessinez votre schéma. Pas besoin de connexion.",
+      "drawNow": "Dessinez votre schéma.",
+      "notMe": "Ce n'est pas mon image"
     }
   },
   "account": {
@@ -2975,8 +2977,9 @@
       "drawAgain": "Dessinez-le à nouveau",
       "patternsDiffer": "C'était un autre schéma. Recommencez.",
       "tooShort": "Reliez au moins {{n}} points.",
-      "patternTaken": "Quelqu'un sur ce téléphone utilise déjà ce schéma. Dessinez-en un autre.",
-      "newPattern": "Dessiner un nouveau schéma"
+      "newPattern": "Dessiner un nouveau schéma",
+      "pictureTitle": "Choisissez votre image",
+      "pictureBody": "Pour vous reconnecter sur ce téléphone, vous toucherez votre image, puis dessinerez votre schéma."
     }
   },
   "study": {
@@ -3911,7 +3914,8 @@
     "pattern": {
       "label": "Schéma : reliez au moins {{n}} points",
       "dot": "Point {{n}}",
-      "again": "Recommencer"
+      "again": "Recommencer",
+      "picture": "Image {{n}}"
     }
   },
   "help": {

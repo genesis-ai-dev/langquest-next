@@ -3,6 +3,7 @@ import {
   addDot, addressHash, afterMiss, between, dotAt, isPattern, MIN_DOTS, newDataKey, openWrap, parseLocks, patternSecret, seal, unseal, waitLeft, withWrap,
   type Lock, type Misses
 } from '../src/lockCore';
+import { isPicture, PICTURES } from '../src/lockPictures';
 
 // Decision 88: signing out of a phone locks the sign-in on it, and the
 // person's password or a pattern on nine dots opens it again with no connection.
@@ -37,6 +38,16 @@ describe('a pattern', () => {
     expect(dotAt(250, 250, 300)).toBe(8);
     expect(dotAt(100, 100, 300)).toBeNull();
     expect(dotAt(-5, 50, 300)).toBeNull();
+  });
+});
+
+describe('pictures people find themselves by', () => {
+  it('are sixteen different ones, kept by position', () => {
+    expect(PICTURES).toHaveLength(16);
+    expect(new Set(PICTURES).size).toBe(16);
+    expect(isPicture(0)).toBe(true);
+    expect(isPicture(15)).toBe(true);
+    for (const no of [-1, 16, 1.5, '3', null]) expect(isPicture(no)).toBe(false);
   });
 });
 

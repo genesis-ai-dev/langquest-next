@@ -8,6 +8,7 @@ import {
   addressHash, afterMiss, newDataKey, openWrap, parseLocks, parseMisses, patternSecret, seal, unseal, waitLeft, withWrap,
   type Lock, type Random, type Sealed, type Wrap
 } from './lockCore';
+import { isPicture } from './lockPictures';
 import { noteExpected } from './report';
 import { SESSION_KEY, supabase } from './supabase';
 
@@ -15,14 +16,15 @@ import { SESSION_KEY, supabase } from './supabase';
  * Signing out of a phone locks the person's sign-in on it, so they sign back
  * in with their password or a pattern, with no connection (decision 88;
  * lockCore.ts has the cryptography and what it guards against). Sign In
- * names nobody: a phone that is taken shows no one who used it. A browser
+ * names nobody: each person with a pattern is a picture they chose, so a
+ * phone that is taken shows how many signed out here, never who. A browser
  * forgets everything on sign-out instead (forgetBrowser.ts).
  */
 export const LOCKS_ON_SIGN_OUT = Platform.OS !== 'web';
 
 const LOCKS = 'locks';
 const PHONE_SALT = 'lock-phone-salt';
-const MISSES = 'lock-misses';
+const missesFor = (actorId: string) => `lock-misses:${actorId}`;
 const RELEASE = 'push-release';
 const keyFor = (actorId: string) => `lock-key:${actorId}`;
 const sessionFor = (actorId: string) => `locked-session:${actorId}`;
@@ -89,29 +91,28 @@ export async function lockKinds(actorId: string): Promise<Wrap['kind'][]> {
   return (await readLocks()).find((l) => l.actorId === actorId)?.wraps.map((w) => w.kind) ?? [];
 }
 
-export type PatternChoice = { kind: 'ok' } | { kind: 'taken' } | { kind: 'wait'; ms: number };
+export type PatternChoice = { kind: 'ok' } | { kind: 'pictureTaken' };
 
 /**
- * Choose the pattern this person signs back in with. Two people on one phone
- * never share one, so a drawn pattern opens exactly one lock. Being told a
- * pattern is taken would let someone signed in here try other people's
- * patterns, so it counts as a wrong guess for the phone, as on Sign In.
+ * Choose the picture and pattern this person signs back in with. Two people
+ * on one phone never share a picture; they may share a pattern, since the
+ * picture says whose lock to open.
  */
-export function setLockPattern(actorId: string, dots: readonly number[]): Promise<PatternChoice> {
-  const secret = patternSecret(dots);
+export function setLockPattern(actorId: string, dots: readonly number[], picture: number): Promise<PatternChoice> {
   return serial(async (): Promise<PatternChoice> => {
-    const misses = parseMisses(await AsyncStorage.getItem(MISSES));
-    const ms = waitLeft(misses, Date.now());
-    if (ms > 0) return { kind: 'wait', ms };
-    for (const other of (await readLocks()).filter((l) => l.actorId !== actorId)) {
-      if (await openWrap(other, 'pattern', secret)) {
-        await AsyncStorage.setItem(MISSES, JSON.stringify(afterMiss(misses, Date.now())));
-        return { kind: 'taken' };
-      }
-    }
-    await addWrap(actorId, 'pattern', secret);
+    if (!isPicture(picture) || (await readLocks()).some((l) => l.actorId !== actorId && l.picture === picture)) return { kind: 'pictureTaken' };
+    await addWrap(actorId, 'pattern', patternSecret(dots));
+    await writeLocks((await readLocks()).map((l) => (l.actorId === actorId ? { ...l, picture } : l)));
     return { kind: 'ok' };
   });
+}
+
+/** Pictures someone else on this phone already has, and this person's own, if any. */
+export async function pictures(actorId: string): Promise<{ taken: number[]; mine: number | null }> {
+  await writes;
+  const list = await readLocks();
+  const mine = list.find((l) => l.actorId === actorId)?.picture;
+  return { taken: list.filter((l) => l.actorId !== actorId && isPicture(l.picture)).map((l) => l.picture!), mine: isPicture(mine) ? mine : null };
 }
 
 /**
@@ -151,69 +152,70 @@ export function onUnlocked(listener: (session: Session) => void): () => void {
 
 /**
  * Sign back in from a lock: with a password (and the address typed with it),
- * or with a pattern alone. `none` means no lock on this phone fits, so the
- * caller asks the server instead. Wrong guesses count for the whole phone.
+ * or with the pattern of the person whose picture was tapped. `none` means no
+ * lock on this phone fits, so the caller asks the server instead. Wrong
+ * guesses count for that person's lock.
  */
-export async function unlock(kind: Wrap['kind'], secret: string, address?: string): Promise<Unlock> {
+export async function unlock(kind: Wrap['kind'], secret: string, who: { address?: string; actorId?: string }): Promise<Unlock> {
   const result = await serial(async (): Promise<{ out: Unlock; session?: Session }> => {
-    const misses = parseMisses(await AsyncStorage.getItem(MISSES));
+    const hashed = who.address ? addressHash(await phoneSalt(), who.address) : null;
+    const lock = (await readLocks()).find((l) => l.wraps.some((w) => w.kind === kind)
+      && (kind === 'pattern' ? l.actorId === who.actorId : !!l.address && l.address === hashed));
+    if (!lock) return { out: { kind: 'none' } };
+    const misses = parseMisses(await AsyncStorage.getItem(missesFor(lock.actorId)));
     const ms = waitLeft(misses, Date.now());
     if (ms > 0) return { out: { kind: 'wait', ms } };
-    let candidates = (await readLocks()).filter((l) => l.wraps.some((w) => w.kind === kind));
-    if (kind === 'password') {
-      const hashed = address ? addressHash(await phoneSalt(), address) : null;
-      candidates = candidates.filter((l) => l.address && l.address === hashed);
-    }
-    if (candidates.length === 0) return { out: { kind: 'none' } };
     if (await AsyncStorage.getItem(SESSION_KEY) !== null) throw new Error('Someone is signed in on this phone.');
-    for (const lock of candidates) {
-      const key = await openWrap(lock, kind, secret);
-      if (!key) continue;
-      const sealedRaw = await AsyncStorage.getItem(sessionFor(lock.actorId));
-      const raw = sealedRaw ? unseal(key, JSON.parse(sealedRaw) as Sealed) : null;
-      const session = savedSession(raw);
-      if (!raw || !session) continue;
-      await AsyncStorage.setItem(SESSION_KEY, raw);
-      await AsyncStorage.setItem(keyFor(lock.actorId), key);
-      await AsyncStorage.removeItem(sessionFor(lock.actorId));
-      await AsyncStorage.removeItem(MISSES);
-      await keepPushToken(lock.actorId);
-      return { out: { kind: 'ok' }, session };
+    const key = await openWrap(lock, kind, secret);
+    const sealedRaw = key ? await AsyncStorage.getItem(sessionFor(lock.actorId)) : null;
+    const raw = key && sealedRaw ? unseal(key, JSON.parse(sealedRaw) as Sealed) : null;
+    const session = savedSession(raw);
+    if (!key) {
+      await AsyncStorage.setItem(missesFor(lock.actorId), JSON.stringify(afterMiss(misses, Date.now())));
+      return { out: { kind: 'wrong' } };
     }
-    await AsyncStorage.setItem(MISSES, JSON.stringify(afterMiss(misses, Date.now())));
-    return { out: { kind: 'wrong' } };
+    // The key opened but nothing is sealed (signed in elsewhere since): nothing to come back to here.
+    if (!raw || !session) return { out: { kind: 'none' } };
+    await AsyncStorage.setItem(SESSION_KEY, raw);
+    await AsyncStorage.setItem(keyFor(lock.actorId), key);
+    await AsyncStorage.removeItem(sessionFor(lock.actorId));
+    await AsyncStorage.removeItem(missesFor(lock.actorId));
+    await keepPushToken(lock.actorId);
+    return { out: { kind: 'ok' }, session };
   });
   if (result.session) for (const listener of unlocked) listener(result.session);
   return result.out;
 }
 
-/** Whether anyone signed out of this phone can sign back in with a pattern. Sign In shows the pattern pad only then. */
-export async function hasPatternLocks(): Promise<boolean> {
+/** People signed out of this phone who can come back with a pattern, as the pictures they chose. Sign In shows these. */
+export async function patternPeople(): Promise<{ actorId: string; picture: number }[]> {
   await writes;
-  const list = await readLocks();
-  for (const l of list) {
-    if (l.wraps.some((w) => w.kind === 'pattern') && await AsyncStorage.getItem(sessionFor(l.actorId)) !== null) return true;
+  const out: { actorId: string; picture: number }[] = [];
+  for (const l of await readLocks()) {
+    if (isPicture(l.picture) && l.wraps.some((w) => w.kind === 'pattern') && await AsyncStorage.getItem(sessionFor(l.actorId)) !== null) {
+      out.push({ actorId: l.actorId, picture: l.picture });
+    }
   }
-  return false;
+  return out.sort((a, b) => a.picture - b.picture);
 }
 
-export function useHasPatternLocks(): boolean {
-  const [has, setHas] = useState(false);
+export function usePatternPeople(): { actorId: string; picture: number }[] {
+  const [people, setPeople] = useState<{ actorId: string; picture: number }[]>([]);
   useEffect(() => {
     if (!LOCKS_ON_SIGN_OUT) return;
     let active = true;
-    const read = () => { hasPatternLocks().then((h) => { if (active) setHas(h); }, (e: unknown) => noteExpected('pattern locks', e)); };
+    const read = () => { patternPeople().then((p) => { if (active) setPeople(p); }, (e: unknown) => noteExpected('pattern locks', e)); };
     read();
     changed.add(read);
     return () => { active = false; changed.delete(read); };
   }, []);
-  return has;
+  return people;
 }
 
 /** Signing out for good (account deletion): nothing of this person's lock stays. */
 export function forgetLock(actorId: string): Promise<void> {
   return serial(async () => {
-    await AsyncStorage.multiRemove([keyFor(actorId), sessionFor(actorId)]);
+    await AsyncStorage.multiRemove([keyFor(actorId), sessionFor(actorId), missesFor(actorId)]);
     await writeLocks((await readLocks()).filter((l) => l.actorId !== actorId));
   });
 }

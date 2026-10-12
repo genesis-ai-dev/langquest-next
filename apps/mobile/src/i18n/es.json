@@ -2689,8 +2689,10 @@
     "lock": {
       "title": "¿Cerraste sesión en este teléfono?",
       "wait": "Demasiados intentos. Espera un poco y vuelve a intentarlo.",
-      "body": "Dibuja tu patrón. No hace falta conexión.",
-      "wrong": "Ese patrón no es correcto."
+      "wrong": "Ese patrón no es correcto.",
+      "body": "Toca tu imagen y luego dibuja tu patrón. No hace falta conexión.",
+      "drawNow": "Dibuja tu patrón.",
+      "notMe": "No es mi imagen"
     }
   },
   "account": {
@@ -2975,8 +2977,9 @@
       "drawAgain": "Dibújalo otra vez",
       "patternsDiffer": "Ese era otro patrón. Empieza de nuevo.",
       "tooShort": "Une al menos {{n}} puntos.",
-      "patternTaken": "Alguien en este teléfono ya usa ese patrón. Dibuja otro.",
-      "newPattern": "Dibujar un patrón nuevo"
+      "newPattern": "Dibujar un patrón nuevo",
+      "pictureTitle": "Elige tu imagen",
+      "pictureBody": "Para volver a iniciar sesión en este teléfono, tocarás tu imagen y luego dibujarás tu patrón."
     }
   },
   "study": {
@@ -3911,7 +3914,8 @@
     "pattern": {
       "label": "Patrón: une al menos {{n}} puntos",
       "dot": "Punto {{n}}",
-      "again": "Empezar de nuevo"
+      "again": "Empezar de nuevo",
+      "picture": "Imagen {{n}}"
     }
   },
   "help": {

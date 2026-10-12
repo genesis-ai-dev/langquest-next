@@ -2521,8 +2521,10 @@
     "lock": {
       "title": "Keluar dari ponsel ini?",
       "wait": "Terlalu banyak percobaan. Tunggu sebentar, lalu coba lagi.",
-      "body": "Gambar pola Anda. Tidak perlu koneksi.",
-      "wrong": "Pola itu tidak benar."
+      "wrong": "Pola itu tidak benar.",
+      "body": "Ketuk gambar Anda, lalu gambar pola Anda. Tidak perlu koneksi.",
+      "drawNow": "Gambar pola Anda.",
+      "notMe": "Bukan gambar saya"
     }
   },
   "account": {
@@ -2789,8 +2791,9 @@
       "drawAgain": "Gambar sekali lagi",
       "patternsDiffer": "Itu pola yang berbeda. Mulai lagi.",
       "tooShort": "Hubungkan setidaknya {{n}} titik.",
-      "patternTaken": "Seseorang di ponsel ini sudah memakai pola itu. Gambar yang lain.",
-      "newPattern": "Gambar pola baru"
+      "newPattern": "Gambar pola baru",
+      "pictureTitle": "Pilih gambar Anda",
+      "pictureBody": "Untuk masuk kembali di ponsel ini, Anda akan mengetuk gambar Anda, lalu menggambar pola Anda."
     }
   },
   "study": {
@@ -3655,7 +3658,8 @@
     "pattern": {
       "label": "Pola: hubungkan setidaknya {{n}} titik",
       "dot": "Titik {{n}}",
-      "again": "Mulai lagi"
+      "again": "Mulai lagi",
+      "picture": "Gambar {{n}}"
     }
   },
   "help": {

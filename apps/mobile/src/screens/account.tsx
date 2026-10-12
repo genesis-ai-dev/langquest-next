@@ -45,8 +45,9 @@ import { ReportActions } from '../reportSheet';
 import { contractsFor } from '../screenContracts';
 import { FORGETS_ON_SIGN_OUT, forgetThisBrowser } from '../forgetBrowser';
 import { isPattern, MIN_DOTS } from '../lockCore';
-import { forgetLock, lockAndSignOut, lockKinds, LOCKS_ON_SIGN_OUT, rememberPassword, setLockPattern } from '../lock';
-import { PatternPad } from '../patternPad';
+import { forgetLock, lockAndSignOut, lockKinds, LOCKS_ON_SIGN_OUT, pictures, rememberPassword, setLockPattern } from '../lock';
+import { PICTURES } from '../lockPictures';
+import { PatternPad, PictureGrid } from '../patternPad';
 import { signOutHere, supabase } from '../supabase';
 import { C, radius, space, target, tile, TINT, type as T } from '../theme';
 import { useAccountActions, useDisplayNames } from '../useAccount';
@@ -759,10 +760,21 @@ export function SignOutConfirm(ctx: Ctx) {
   useEffect(() => {
     if (locks) void lockKinds(ctx.session.actorId).then(setKinds, () => setKinds([]));
   }, [ctx.session.actorId]);
-  const [choosing, setChoosing] = useState(false);
+  // Choosing how to come back: a picture to find yourself on Sign In, then a pattern drawn twice.
+  const [choosing, setChoosing] = useState<'picture' | 'pattern' | null>(null);
+  const [picture, setPicture] = useState<number | null>(null);
+  const [taken, setTaken] = useState<number[]>([]);
   // The pattern drawn once, waiting to be drawn again; the pad clears when its key changes.
   const [first, setFirst] = useState<number[] | null>(null);
   const [padKey, setPadKey] = useState(0);
+  async function choose() {
+    const p = await pictures(ctx.session.actorId);
+    setTaken(p.taken);
+    setPicture(p.mine);
+    setFirst(null);
+    setError('');
+    setChoosing('picture');
+  }
   /** Lock and sign out: the push token goes with it when the server cannot be told now. */
   async function lockOut() {
     await lockAndSignOut(ctx.session.actorId, (await handOverPushToken()) ?? null);
@@ -772,7 +784,7 @@ export function SignOutConfirm(ctx: Ctx) {
     setError('');
     try {
       if (locks) {
-        if (!kinds?.length) { setChoosing(true); setBusy(false); return; }
+        if (!kinds?.length) { await choose(); setBusy(false); return; }
         await lockOut();
         return;
       }
@@ -791,13 +803,8 @@ export function SignOutConfirm(ctx: Ctx) {
     setBusy(true);
     setError('');
     try {
-      const chosen = await setLockPattern(ctx.session.actorId, dots);
-      if (chosen.kind !== 'ok') {
-        setFirst(null);
-        setError(chosen.kind === 'wait' ? t('entry.lock.wait') : t('account.lock.patternTaken'));
-        setBusy(false);
-        return;
-      }
+      // Someone took that picture meanwhile: choose again.
+      if ((await setLockPattern(ctx.session.actorId, dots, picture ?? -1)).kind !== 'ok') { setBusy(false); await choose(); return; }
       await lockOut();
     } catch (e) { setError(failure('sign out', e)); setBusy(false); }
   }
@@ -818,10 +825,26 @@ export function SignOutConfirm(ctx: Ctx) {
           : FORGETS_ON_SIGN_OUT
             ? online === false ? `${t('account.signOut.forgets')} ${t('account.signOut.offlineBackIn')}` : t('account.signOut.forgets')
             : t('account.signOut.anytime');
-  if (choosing) {
+  if (choosing === 'picture') {
     return (
       <Screen bodyStyle={styles.centered}
-        footer={<GhostBtn label={t('common.back')} onPress={() => { setChoosing(false); setFirst(null); setError(''); }} disabled={busy} />}>
+        footer={
+          <>
+            <PrimaryBtn label={t('common.next')} onPress={() => setChoosing('pattern')} disabled={picture === null} />
+            <GhostBtn label={t('common.back')} onPress={() => setChoosing(null)} />
+          </>
+        }>
+        <Text style={[txt.h2, { textAlign: 'center' }]} accessibilityRole="header">{t('account.lock.pictureTitle')}</Text>
+        <Text style={[txt.bodyMuted, { textAlign: 'center' }]}>{t('account.lock.pictureBody')}</Text>
+        <PictureGrid pictures={PICTURES.map((_, i) => i).filter((i) => !taken.includes(i))} selected={picture} onPick={setPicture} />
+      </Screen>
+    );
+  }
+  if (choosing === 'pattern') {
+    return (
+      <Screen bodyStyle={styles.centered}
+        footer={<GhostBtn label={t('common.back')} onPress={() => { setChoosing('picture'); setFirst(null); setError(''); }} disabled={busy} />}>
+        {picture !== null ? <Text style={styles.chosenPicture} accessibilityElementsHidden importantForAccessibility="no">{PICTURES[picture]}</Text> : null}
         <Text style={[txt.h2, { textAlign: 'center' }]} accessibilityRole="header">
           {busy ? t('account.signOut.signingOut') : first === null ? t('account.lock.chooseTitle') : t('account.lock.drawAgain')}
         </Text>
@@ -845,7 +868,7 @@ export function SignOutConfirm(ctx: Ctx) {
       <Text style={[txt.h2, { textAlign: 'center' }]} accessibilityRole="header">{blocked ? t('account.signOut.notYet') : t('account.signOut.question')}</Text>
       <Text style={[txt.bodyMuted, { textAlign: 'center' }]}>{why}</Text>
       {/* Someone with a password may still prefer a pattern; a pattern can be changed. */}
-      {locks && kinds !== null ? <LinkBtn label={kinds.includes('pattern') ? t('account.lock.newPattern') : t('account.lock.chooseTitle')} onPress={() => setChoosing(true)} /> : null}
+      {locks && kinds !== null ? <LinkBtn label={kinds.includes('pattern') ? t('account.lock.newPattern') : t('account.lock.chooseTitle')} onPress={() => void choose()} /> : null}
       {error ? <Text style={[txt.error, { textAlign: 'center' }]} accessibilityRole="alert">{error}</Text> : null}
     </Screen>
   );
@@ -1051,7 +1074,7 @@ const styles = StyleSheet.create({
   avatarBlock: { alignItems: 'center', paddingVertical: space.md },
   centered: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.xl, gap: space.lg },
   bigTile: { width: 64, height: 64, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  codeFields: { alignSelf: 'stretch', gap: space.md },
+  chosenPicture: { fontSize: 44, lineHeight: 54, textAlign: 'center' },
   tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md },
   tile2: { width: '47%', flexGrow: 1, alignItems: 'center', gap: space.xs, paddingVertical: space.lg, paddingHorizontal: space.sm, borderRadius: radius.xl,
     borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, backgroundColor: C.card },

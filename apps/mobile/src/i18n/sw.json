@@ -2605,8 +2605,10 @@
     "lock": {
       "title": "Ulitoka kwenye simu hii?",
       "wait": "Majaribio mengi mno. Subiri kidogo, kisha ujaribu tena.",
-      "body": "Chora mchoro wako. Huhitaji mtandao.",
-      "wrong": "Mchoro huo si sahihi."
+      "wrong": "Mchoro huo si sahihi.",
+      "body": "Gusa picha yako, kisha uchore mchoro wako. Huhitaji mtandao.",
+      "drawNow": "Chora mchoro wako.",
+      "notMe": "Si picha yangu"
     }
   },
   "account": {
@@ -2882,8 +2884,9 @@
       "drawAgain": "Uchore tena",
       "patternsDiffer": "Huo ulikuwa mchoro tofauti. Anza upya.",
       "tooShort": "Unganisha angalau nukta {{n}}.",
-      "patternTaken": "Mtu mwingine kwenye simu hii tayari anatumia mchoro huo. Chora mwingine.",
-      "newPattern": "Chora mchoro mpya"
+      "newPattern": "Chora mchoro mpya",
+      "pictureTitle": "Chagua picha yako",
+      "pictureBody": "Ili kuingia tena kwenye simu hii, utagusa picha yako, kisha uchore mchoro wako."
     }
   },
   "study": {
@@ -3783,7 +3786,8 @@
     "pattern": {
       "label": "Mchoro: unganisha angalau nukta {{n}}",
       "dot": "Nukta {{n}}",
-      "again": "Anza upya"
+      "again": "Anza upya",
+      "picture": "Picha {{n}}"
     }
   },
   "help": {

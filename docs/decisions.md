@@ -2911,8 +2911,8 @@ months, and on a shared phone nobody else could get in either. Caleb said
 users will tap Sign Out, and in countries where Christians are persecuted
 they may do so on purpose before a phone is taken. A sign-out that waits
 for a connection was ruled out. Of the options put to him he chose an
-encrypted lock and no names on Sign In, and a swipe pattern rather than
-digits. Little research covers low-literacy users: less-literate smartphone
+encrypted lock and no names on Sign In, a swipe pattern rather than digits,
+and a picture for each person to find themselves by. Little research covers low-literacy users: less-literate smartphone
 users already lock their phones with a PIN or a pattern; patterns are
 faster and liked, PINs give fewer errors; text-free designs suit
 non-literate users; no field evidence was found for picture passwords. A
@@ -2926,18 +2926,21 @@ pattern needs no reading and no numbers, in any language. Chosen:
   name is kept only as a hash salted per phone.
 - The password wrap is made on every online sign-in with a password and
   when a password is set (`rememberPassword`). Someone with no password (a
-  QR join or a helper's code) draws a pattern when they first sign out;
-  anyone may add or change one there. Two people on one phone never share
-  a pattern.
+  QR join or a helper's code) chooses a picture and draws a pattern when
+  they first sign out; anyone may add or change them there. Two people on
+  one phone never share a picture (`lockPictures.ts`: sixteen things known
+  everywhere, drawn by the phone's emoji font); they may share a pattern,
+  since the picture says whose lock to open.
 - A pattern joins at least five of nine dots, as on the Android lock screen
   (`patternPad.tsx`): dragging and lifting finishes it; tapping the dots one
   at a time and then Done works too, which is also how a screen reader
   enters one.
-- Sign In tries the typed password against the lock before the server, and
-  shows a pattern pad, naming no one, while someone here can come back with
-  a pattern. A taken phone shows nobody who used it. Wrong guesses count
-  for the whole phone: four are free, then each try waits twice as long,
-  from a minute up to an hour.
+- Sign In tries the typed password against the lock before the server.
+  While someone here can come back with a pattern, it shows their pictures,
+  never names: tap yours, then draw. A taken phone shows how many people
+  signed out on it, not who. Wrong guesses count for that person's lock:
+  four are free, then each try waits twice as long, from a minute up to an
+  hour; one person's mistakes never hold up the others.
 - Unsent work stays queued and goes when the person signs back in, here or
   anywhere. A locked session cannot be used without them, so the courier of
   60 no longer takes over at sign-out (hand-overs already on a phone still

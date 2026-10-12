@@ -5,7 +5,9 @@ import Svg, { Circle, Line } from 'react-native-svg';
 import { t } from './i18n';
 import { LinkBtn, SmallBtn } from './kit';
 import { addDot, dotAt, MIN_DOTS } from './lockCore';
-import { C, space } from './theme';
+import { PICTURES } from './lockPictures';
+import { Text } from './text';
+import { C, radius, space } from './theme';
 
 /**
  * Nine dots to draw a pattern on, as on the Android lock screen (decision
@@ -72,7 +74,7 @@ export function PatternPad(props: { onDone: (dots: number[]) => void; disabled?:
   return (
     <View style={styles.wrap}>
       <View style={styles.pad} onLayout={(e: LayoutChangeEvent) => setSize(e.nativeEvent.layout.width)} {...pan.panHandlers}
-        accessibilityLabel={t('shell.pattern.label', { count: MIN_DOTS })}>
+        accessibilityLabel={t('shell.pattern.label', { n: MIN_DOTS })}>
         {size > 0 ? (
           <Svg width={size} height={size} pointerEvents="none">
             {dots.slice(1).map((d, i) => {
@@ -117,5 +119,31 @@ const styles = StyleSheet.create({
   wrap: { alignSelf: 'stretch', alignItems: 'center', gap: space.sm },
   pad: { width: '100%', maxWidth: 300, aspectRatio: 1 },
   hit: { position: 'absolute' },
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', alignSelf: 'stretch', maxWidth: 300, width: '100%' }
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', alignSelf: 'stretch', maxWidth: 300, width: '100%' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.sm, maxWidth: 304, alignSelf: 'center' },
+  tile: { width: 70, height: 70, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: C.light, borderWidth: 3, borderColor: 'transparent' },
+  tileOn: { borderColor: C.primary, backgroundColor: C.white },
+  picture: { fontSize: 36, lineHeight: 44 }
 });
+
+/**
+ * The pictures people choose to find themselves on Sign In (lockPictures.ts):
+ * 64pt tiles, four to a row. Pictures someone else on the phone has are left
+ * out when choosing; on Sign In only the pictures of people here are shown.
+ */
+export function PictureGrid(props: { pictures: readonly number[]; selected?: number | null; onPick: (picture: number) => void; disabled?: boolean }) {
+  return (
+    <View style={styles.grid}>
+      {props.pictures.map((p) => {
+        const on = props.selected === p;
+        return (
+          <Pressable key={p} onPress={() => props.onPick(p)} disabled={props.disabled}
+            accessibilityRole="button" accessibilityLabel={t('shell.pattern.picture', { n: p + 1 })} accessibilityState={{ selected: on }}
+            style={({ pressed }) => [styles.tile, on && styles.tileOn, pressed && { opacity: 0.7 }]}>
+            <Text style={styles.picture}>{PICTURES[p]}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}

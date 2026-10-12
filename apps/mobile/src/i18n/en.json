@@ -2605,8 +2605,10 @@
     "lock": {
       "title": "Signed out of this phone?",
       "wait": "Too many tries. Wait a little, then try again.",
-      "body": "Draw your pattern. No connection needed.",
-      "wrong": "That pattern is not right."
+      "wrong": "That pattern is not right.",
+      "body": "Tap your picture, then draw your pattern. No connection needed.",
+      "drawNow": "Draw your pattern.",
+      "notMe": "Not my picture"
     }
   },
   "account": {
@@ -2882,8 +2884,9 @@
       "drawAgain": "Draw it again",
       "patternsDiffer": "That was a different pattern. Start again.",
       "tooShort": "Join at least {{n}} dots.",
-      "patternTaken": "Someone on this phone already uses that pattern. Draw another.",
-      "newPattern": "Draw a new pattern"
+      "newPattern": "Draw a new pattern",
+      "pictureTitle": "Choose your picture",
+      "pictureBody": "To sign back in on this phone, you will tap your picture, then draw your pattern."
     }
   },
   "study": {
@@ -3783,7 +3786,8 @@
     "pattern": {
       "label": "Pattern: join at least {{n}} dots",
       "dot": "Dot {{n}}",
-      "again": "Start again"
+      "again": "Start again",
+      "picture": "Picture {{n}}"
     }
   },
   "help": {

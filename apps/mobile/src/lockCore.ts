@@ -38,10 +38,15 @@ export interface Wrap {
   sealed: string;
 }
 
-/** One person's lock on this phone. `address` is a salted hash of their email or sign-in name, never the name itself. */
+/**
+ * One person's lock on this phone. `address` is a salted hash of their email
+ * or sign-in name, never the name itself; `picture` is what they tap on Sign
+ * In before drawing their pattern (lockPictures.ts), never their name.
+ */
 export interface Lock {
   actorId: string;
   address?: string;
+  picture?: number;
   wraps: Wrap[];
 }
 
@@ -157,7 +162,7 @@ export function parseLocks(raw: string | null | undefined): Lock[] {
   }
 }
 
-// ---- wrong guesses (one count for the phone: with no names shown, a guess is not aimed at anyone) ----
+// ---- wrong guesses, counted for each person's lock ----
 
 export interface Misses { count: number; waitUntil?: string }
 
