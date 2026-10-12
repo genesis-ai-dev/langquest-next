@@ -29,7 +29,8 @@ import type { PassageView } from '../passageView';
 import { when } from '../passageView';
 import { Authored, recordTarget, ReportFlag } from '../reportSheet';
 import { clockMs, questionSource, YES_NO, yesNoLabel, type Stage, type StageId } from '../reviewing/capture';
-import { EarlierReviewsPart, TeamStudyPart } from '../reviewing/parts';
+import { TeamStudyPart } from '../reviewing/parts';
+import { EarlierPane } from './reference';
 import { lift } from '../shadow';
 import { usePassagePlayer } from '../sources/player';
 import type { Usage } from '../sources/used';
@@ -184,6 +185,8 @@ export function BackgroundSheet(props: {
   onOpenStep: (stepId: string) => void;
   onOpenStudy: () => void;
   onMoreBibles: () => void;
+  /** A Bible to open on, from the check's helps (decision 91). */
+  bible?: string;
 }) {
   const { ctx, v, data } = props;
   const [tab, setTab] = useState<Tab>('passage');
@@ -192,7 +195,7 @@ export function BackgroundSheet(props: {
     ...(data.study ? [{ id: 'guide' as const, label: t('review.simple.chips.guide') }] : []),
     { id: 'notes', label: t('review.simple.chips.notes'), count: data.notes.length },
     { id: 'terms', label: t('review.simple.chips.terms'), count: data.terms.length },
-    { id: 'earlier', label: t('review.simple.chips.earlier'), count: data.earlier.length }
+    { id: 'earlier', label: t('review.simple.chips.earlier'), count: v.p.versions.length + data.earlier.length }
   ];
   return (
     <TallSheet title={t('review.parts.background')} onClose={props.onClose}>
@@ -200,7 +203,8 @@ export function BackgroundSheet(props: {
         {chips.map((c) => <Chip key={c.id} label={c.label} {...(c.count !== undefined ? { count: c.count } : {})} on={tab === c.id} onPress={() => setTab(c.id)} />)}
       </ChipRow>
       {tab === 'passage' ? (
-        <BiblePassage ctx={ctx} v={v} takeId={props.takeId} translator={props.translator} translatorIsYou={props.translatorIsYou} usage={props.usage} onMoreBibles={props.onMoreBibles} />
+        <BiblePassage ctx={ctx} v={v} takeId={props.takeId} translator={props.translator} translatorIsYou={props.translatorIsYou} usage={props.usage} onMoreBibles={props.onMoreBibles}
+          {...(props.bible ? { bible: props.bible } : {})} />
       ) : null}
       {tab === 'guide' && data.study ? (
         <Group><TeamStudyPart ctx={ctx} study={data.study} onOpenStep={props.onOpenStep} onOpenStudy={props.onOpenStudy} /></Group>
@@ -235,23 +239,21 @@ export function BackgroundSheet(props: {
           </Group>
         )
       ) : null}
-      {tab === 'earlier' ? (
-        data.earlier.length === 0 ? <Text style={[txt.smMuted, styles.empty]}>{t('review.simple.noEarlier')}</Text>
-          : <Group><EarlierReviewsPart ctx={ctx} reviews={data.earlier} kind={props.kind} /></Group>
-      ) : null}
+      {/* Every version and what was said about each, as the recorder shows them (decision 91). */}
+      {tab === 'earlier' ? <EarlierPane ctx={ctx} v={v} /> : null}
     </TallSheet>
   );
 }
 
 // ---- the passage in the Bible the translator used --------------------------------------------
 
-function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; translator: string; translatorIsYou: boolean; usage: Usage; onMoreBibles: () => void }) {
+function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; translator: string; translatorIsYou: boolean; usage: Usage; onMoreBibles: () => void; bible?: string }) {
   const { ctx, v, usage } = props;
   const passage = useSources(ctx, v.unitId, v.languageId);
   // The Bible the translator played or chose while recording this version (v1.ReferencesUsed).
   const used = useMemo(() => usedOn(v.state, { takeId: props.takeId }).filter((u) => u.kind === 'source'), [v.state, props.takeId]);
   const theirs = used.find((u) => u.opened && passage.options.some((o) => o.itemId === u.itemId))?.itemId;
-  const [chosen, setChosen] = useState<string | null>(null);
+  const [chosen, setChosen] = useState<string | null>(props.bible ?? null);
   const [picking, setPicking] = useState(false);
   const [noting, setNoting] = useState<{ verse: string; at: string } | null>(null);
   const [openVerse, setOpenVerse] = useState<string | null>(null);

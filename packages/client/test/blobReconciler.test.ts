@@ -2,7 +2,7 @@ import { HlcClock, isStored } from '@langquest-next/core';
 import { reconcileBlobs, type BlobObject, type ReconcilerDeps } from '../src/blobReconciler';
 import { MemoryStore } from '../src/memoryStore';
 import { SyncClient } from '../src/syncClient';
-import { FakeServer } from './fakeServer';
+import { FakeServer } from '../src/testing/fakeServer';
 
 /**
  * The reconciler is the server's own check on the bucket, independent of the

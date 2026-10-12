@@ -11,6 +11,7 @@ import { RateMeter } from './rate';
 import { getStore } from './store';
 import { onWake } from './wake';
 import { supabase } from './supabase';
+import { stateCopier } from './publishedState';
 
 export interface LanguageHandle {
   orgId: string;
@@ -131,11 +132,15 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
   const pendingUpRef = useRef(0);
   const pendingDownRef = useRef(0);
 
+  // One copy per change to the fold, however often the client publishes (publishedState.ts).
+  const copyRef = useRef(stateCopier());
+
   const refresh = useCallback(async () => {
     const c = clientRef.current;
     if (!c) return;
     // The fold mutates in place; copy the top level so React sees a change.
-    setState({ ...c.getState() });
+    const next = copyRef.current(c.getState(), c.publishedRevision);
+    if (next) setState(next);
     // The count is a query; it must not hold the state update.
     void c.pendingCount().then(setPending).catch(() => {});
   }, []);
@@ -250,9 +255,12 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
       storeRef.current = blobStore;
       // The client publishes after every fold change and every commit; the
       // screen follows that, not the call sites. The fold mutates in place,
-      // so copy the top level: identity is the revision.
+      // so copy the top level, but only when the fold changed: identity is
+      // the revision, and a publish that only says a write was saved keeps it.
+      copyRef.current = stateCopier();
       const unsubscribe = client.subscribe((s) => {
-        setState({ ...s.state });
+        const next = copyRef.current(s.state, s.revision);
+        if (next) setState(next);
         setSaving(s.saving > 0);
         setRevision(s.revision);
       });

@@ -1,0 +1,52 @@
+import { always, Fleet, FLEET_EPOCH, NETWORKS, offlineBetween, patchy, TIME, village, type Link } from '../src/testing';
+
+/**
+ * A small fleet on simulated time (docs/fleet-simulation.md): the app's
+ * sync code on every phone, against the fake server. The full scenarios
+ * are `npm run fleet`; this keeps the cheap guarantees in `npm test`.
+ */
+const mixed = (_role: string, i: number, r: { int(a: number, b: number): number }): Link =>
+  i % 3 === 0 ? always(NETWORKS.phone, 'phone')
+    : i % 3 === 1 ? village(NETWORKS.phone, 2, 3, r.int(8, 14))
+      : patchy(NETWORKS.slow, 180, 40, r.int(0, 179));
+
+async function run(seed: number, link = mixed, days = 4) {
+  const fleet = new Fleet({ seed, crew: { passages: 40, translators: 4, reviewers: 3, link } });
+  await fleet.start();
+  await fleet.runFor(days * TIME.DAY);
+  const agreement = await fleet.settle();
+  return fleet.report(agreement, 0);
+}
+
+describe('a fleet of phones on simulated time', () => {
+  it('ends with every phone holding the same state as the server, on mixed links', async () => {
+    // Why: invariant 2 across a fleet. Phones that work offline for days,
+    // lose calls mid-answer and catch up in slices must all fold to what
+    // the server's log folds to.
+    const r = await run(1);
+    expect(r.errors).toEqual([]);
+    expect(r.agreement).toMatchObject({ caughtUp: true, agree: true, disagree: [] });
+    expect(r.events.appended).toBe(r.events.onServer);
+    expect(r.phones.syncErrors).toBe(0);
+  });
+
+  it('is deterministic for a seed', async () => {
+    // Why: a scenario that finds a problem must find it again on the next run.
+    const a = await run(7);
+    const b = await run(7);
+    expect(b.agreement?.digest).toBe(a.agreement?.digest);
+    expect(b.events).toEqual(a.events);
+    expect(b.server).toEqual(a.server);
+    expect(b.phones.syncs).toBe(a.phones.syncs);
+  });
+
+  it('drains a village that reconnects after working offline', async () => {
+    // Why: everyone's month of work reaching the server at once is the
+    // moment an offline-first app is for.
+    const r = await run(3, () => offlineBetween(FLEET_EPOCH + 2 * TIME.HOUR, FLEET_EPOCH + 3 * TIME.DAY, always(NETWORKS.phone, 'phone')), 4);
+    expect(r.errors).toEqual([]);
+    expect(r.agreement?.agree).toBe(true);
+    expect(r.phones.pushDelayMinutes.max).toBeGreaterThan(24 * 60);
+    expect(r.phones.refolds).toBe(0);
+  });
+});

@@ -4,6 +4,7 @@ import { SupabaseTransport } from './supabaseTransport';
 import { fetchSnapshot } from './snapshotFetch';
 import type { Transport } from './types';
 import { blobKey, type BlobFiles } from './workerBlobs';
+import { listStreams } from './listStreams';
 
 export interface BlobObject {
   orgId: string;
@@ -101,9 +102,7 @@ function reconcilerDeps(service: SupabaseClient, files: BlobFiles): ReconcilerDe
   const key = (o: BlobObject) => blobKey(o.orgId, o.streamId, o.hash, o.format);
   return {
     streams: async () => {
-      const { data, error } = await service.rpc('list_streams');
-      if (error) throw new Error(`list_streams: ${error.message}`);
-      return ((data ?? []) as { org_id: string; stream_id: string }[]).map((r) => ({ orgId: r.org_id, streamId: r.stream_id }));
+      return (await listStreams(service)).map((r) => ({ orgId: r.org_id, streamId: r.stream_id }));
     },
     transport: new SupabaseTransport(service),
     listObjects: async (orgId, streamId) => {

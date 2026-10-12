@@ -153,30 +153,61 @@ export function deriveDownloadWork(
 }
 
 /**
+ * Where the audio a passage needs lives, read once per call: each unit's
+ * own files, and the material and key-term audio a passage inherits, by the
+ * unit it is scoped to or for the whole language (rule 10). Looking these
+ * up per passage made offline planning walk the whole language for every
+ * passage (performance-audit.md item 6).
+ */
+interface AudioIndex {
+  own: Map<string, string[]>;
+  byScope: Map<string, string[]>;
+  everywhere: string[];
+}
+
+function audioIndex(state: LanguageState, refs: Map<string, BlobRef>): AudioIndex {
+  const own = new Map<string, string[]>();
+  const byScope = new Map<string, string[]>();
+  const everywhere: string[] = [];
+  const add = (map: Map<string, string[]>, key: string, hash: string) => {
+    const list = map.get(key);
+    if (list) list.push(hash); else map.set(key, [hash]);
+  };
+  for (const ref of refs.values()) add(own, ref.unitId, ref.hash);
+  for (const material of Object.values(state.materials)) {
+    if (material.scope.stepId) continue;
+    for (const field of Object.values(material.fields)) {
+      const hash = field.value.blobHash;
+      if (!hash) continue;
+      if (material.scope.unitId) add(byScope, material.scope.unitId, hash); else everywhere.push(hash);
+    }
+  }
+  for (const term of Object.values(state.keyTerms)) {
+    for (const adjustment of Object.values(term.adjustments)) {
+      if (!adjustment.blobHash) continue;
+      if (term.unitScope.length === 0) everywhere.push(adjustment.blobHash);
+      else for (const unitId of term.unitScope) add(byScope, unitId, adjustment.blobHash);
+    }
+  }
+  return { own, byScope, everywhere };
+}
+
+/** One passage's audio, leaving out what the whole language shares (`everywhere`). */
+function unitHashes(state: LanguageState, unitId: string, idx: AudioIndex, into = new Set<string>()): Set<string> {
+  for (const hash of idx.own.get(unitId) ?? []) into.add(hash);
+  for (const ancestor of unitAncestry(state, unitId)) for (const hash of idx.byScope.get(ancestor) ?? []) into.add(hash);
+  return into;
+}
+
+/**
  * Every blob a set of units needs offline: their own audio plus the
  * reference audio, materials and key terms they inherit (rule 10).
  */
-function scopedHashes(state: LanguageState, scope: ReadonlySet<string>, refs = referencedBlobs(state)): Set<string> {
+function scopedHashes(state: LanguageState, scope: ReadonlySet<string>, refs = referencedBlobs(state), idx = audioIndex(state, refs)): Set<string> {
   const needed = new Set<string>();
-  // Preserve every directly scoped blob, including feedback and responses,
-  // then add resources inherited by these passages.
-  for (const ref of refs.values()) if (scope.has(ref.unitId)) needed.add(ref.hash);
-  for (const unitId of scope) {
-    const ancestors = unitAncestry(state, unitId);
-    for (const material of Object.values(state.materials)) {
-      if (material.scope.unitId && !ancestors.has(material.scope.unitId)) continue;
-      if (material.scope.stepId) continue;
-      for (const field of Object.values(material.fields)) {
-        if (field.value.blobHash) needed.add(field.value.blobHash);
-      }
-    }
-    for (const term of Object.values(state.keyTerms)) {
-      if (term.unitScope.length && !term.unitScope.some((id) => ancestors.has(id))) continue;
-      for (const adjustment of Object.values(term.adjustments)) {
-        if (adjustment.blobHash) needed.add(adjustment.blobHash);
-      }
-    }
-  }
+  if (scope.size === 0) return needed;
+  for (const unitId of scope) unitHashes(state, unitId, idx, needed);
+  for (const hash of idx.everywhere) needed.add(hash);
   return needed;
 }
 
@@ -264,30 +295,49 @@ export function offlineByUnit(
   actorId: string,
   chosen: ReadonlySet<string>
 ): Map<string, UnitOffline> {
-  const refs = referencedBlobs(state);
-  const mine = defaultOfflineScope(state, actorId);
-  const asked = unitsAskedOf(state, actorId);
+  return countOffline(state, unitIds, present, chosen, audioIndex(state, referencedBlobs(state)), defaultOfflineScope(state, actorId), unitsAskedOf(state, actorId));
+}
+
+function countOffline(
+  state: LanguageState,
+  unitIds: Iterable<string>,
+  present: ReadonlySet<string>,
+  chosen: ReadonlySet<string>,
+  idx: AudioIndex,
+  mine: ReadonlySet<string>,
+  asked: ReadonlySet<string>
+): Map<string, UnitOffline> {
+  // What the whole language shares is the same for every passage: count it once.
+  const shared = new Set(idx.everywhere);
+  const sharedCount = tally(state, shared, present);
   const out = new Map<string, UnitOffline>();
   for (const unitId of unitIds) {
     if (out.has(unitId)) continue;
     const reason: OfflineReason | null = asked.has(unitId) ? 'asked' : mine.has(unitId) ? 'worked' : chosen.has(unitId) ? 'chosen' : null;
-    out.set(unitId, countUnit(state, unitId, reason, present, refs));
+    const own = unitHashes(state, unitId, idx);
+    for (const hash of shared) own.delete(hash);
+    const c = tally(state, own, present);
+    const audio = own.size + shared.size;
+    const toFetch = c.toFetch + sharedCount.toFetch;
+    out.set(unitId, {
+      reason, audio, here: c.here + sharedCount.here, toFetch, bytesToFetch: c.bytesToFetch + sharedCount.bytesToFetch,
+      notSent: c.notSent + sharedCount.notSent, ready: reason !== null && toFetch === 0
+    });
   }
   return out;
 }
 
-function countUnit(state: LanguageState, unitId: string, reason: OfflineReason | null, present: ReadonlySet<string>, refs: Map<string, BlobRef>): UnitOffline {
+function tally(state: LanguageState, hashes: Iterable<string>, present: ReadonlySet<string>) {
   let here = 0;
   let toFetch = 0;
   let bytesToFetch = 0;
   let notSent = 0;
-  const hashes = scopedHashes(state, new Set([unitId]), refs);
   for (const hash of hashes) {
     if (present.has(hash)) here++;
     else if (isStored(state, hash)) { toFetch++; bytesToFetch += state.blobs[hash]?.size ?? 0; }
     else notSent++;
   }
-  return { reason, audio: hashes.size, here, toFetch, bytesToFetch, notSent, ready: reason !== null && toFetch === 0 };
+  return { here, toFetch, bytesToFetch, notSent };
 }
 
 /** The whole offline scope at a glance: how many kept passages are ready, and what is left to fetch. */
@@ -308,16 +358,19 @@ export function offlineSummary(
   actorId: string,
   chosen: ReadonlySet<string>
 ): OfflineSummary {
-  const scope = defaultOfflineScope(state, actorId);
+  const refs = referencedBlobs(state);
+  const idx = audioIndex(state, refs);
+  const mine = defaultOfflineScope(state, actorId);
+  const scope = new Set(mine);
   for (const u of chosen) scope.add(u);
   const out: OfflineSummary = { kept: 0, ready: 0, chosen: 0, filesToFetch: 0, bytesToFetch: 0, notSent: 0 };
   // Per passage, so a file two passages share is counted under each; the totals below are by file.
-  for (const u of offlineByUnit(state, scope, present, actorId, chosen).values()) {
+  for (const u of countOffline(state, scope, present, chosen, idx, mine, unitsAskedOf(state, actorId)).values()) {
     out.kept++;
     if (u.ready) out.ready++;
     if (u.reason === 'chosen') out.chosen++;
   }
-  for (const hash of scopedHashes(state, scope)) {
+  for (const hash of scopedHashes(state, scope, refs, idx)) {
     if (present.has(hash)) continue;
     if (isStored(state, hash)) { out.filesToFetch++; out.bytesToFetch += state.blobs[hash]?.size ?? 0; }
     else out.notSent++;

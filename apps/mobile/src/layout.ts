@@ -55,7 +55,7 @@ export function chapterColumns(contentWidth: number, kind: LayoutKind): number {
  * at any width (ADR-021).
  */
 export const WIDE_CHROME: readonly ScreenId[] = [
-  'members_list', 'edit_member', 'invite_member', 'invite_qr', 'new_language', 'review_teams', 'review_team_editor',
+  'members_list', 'edit_member', 'invite_member', 'invite_qr', 'new_language', 'check_editor',
   'roles_home', 'role_editor', 'flows_home', 'flow_editor', 'templates_home', 'template_picker', 'template_editor', 'book_structure',
   'reference_home', 'material_editor', 'guide_editor', 'key_terms', 'key_term_detail', 'profile_edit', 'org_switcher', 'sync_status', 'settings_more',
   'reference_bibles', 'reference_source', 'reference_guides', 'reference_coverage',

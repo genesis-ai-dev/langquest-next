@@ -17,7 +17,7 @@ import {
   type CollectionDoc, type EventSpec, type LibraryDoc, type SourceDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { Text } from '../text';
 import { type LibraryChoice } from '../contentTemplates';
@@ -605,8 +605,6 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
   const custom = flow.flowId === CUSTOM_FLOW;
   const { lib, entries, current, starter, first, main, rest, kindsOf, titleOf, loaded } = useCheckChoices(ctx, flow.itemId, kinds);
   const [picked, setPicked] = useState<string | null>(null);
-  // A way tapped before "I'll choose the steps": the steps start from it (design principle 12), not from the language's own.
-  const lastPicked = useRef<FlowEntry | null>(null);
   const [more, setMore] = useState(false);
   const [busy, setBusy] = useState(false);
   const key = picked ?? (custom ? 'custom' : first?.c.key ?? null);
@@ -614,20 +612,15 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
 
   async function answer() {
     if (busy) return;
-    if (key === 'choose') {
-      const from = lastPicked.current?.c.hash;
-      ctx.go('flow_editor', { languageId, steps: 'language', ...(from ? { from } : {}) });
-      onChoose();
-      return;
-    }
+    if (key === 'choose') { ctx.go('flow_editor', { languageId, steps: 'language' }); onChoose(); return; }
     const pick = entries.find((e) => e.c.key === key);
     if (!pick || pick.c === current || key === 'custom') { next(); return; }
     if (!canUse) { ctx.toast(t('getReady.checks.onlyChoosers')); return; }
     setBusy(true);
     let specs: EventSpec[];
     try {
-      const itemId = pick.c.source === 'shared' ? (pick.c.shared.subscribable ? await lib.subscribe(pick.c.shared, true) : await lib.copy(pick.c.shared)) : pick.c.item.itemId;
-      specs = await lib.applySpecs(itemId, { docHash: pick.c.hash });
+      // A ready-made flow is copied into the language, its checks the language's own (decision 91).
+      specs = commands(state, indexesFor(state)).copyFlow({ commandId: Crypto.randomUUID(), name: pick.c.name, kinds: kindsOf(pick.doc), steps: pick.doc.steps });
     } catch (e) {
       ctx.toast(t('common.notSaved', { reason: failureMessage('get ready: who checks', e) }));
       setBusy(false);
@@ -650,7 +643,7 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
     const on = key === e.c.key;
     const sub = e.c === current ? t('getReady.checks.inUse') : e === starter && i === 0 ? t('getReady.checks.suggested') : flowSub(e.doc.steps);
     return (
-      <ChoiceCard key={e.c.key} on={on} icon="people" title={titleOf(e.doc)} sub={sub} onPress={() => { setPicked(e.c.key); lastPicked.current = e.c === current ? null : e; }}>
+      <ChoiceCard key={e.c.key} on={on} icon="people" title={titleOf(e.doc)} sub={sub} onPress={() => setPicked(e.c.key)}>
         {on && e.doc.steps.length ? <NumberedSteps items={flowWho(e.doc.steps, kindsOf(e.doc))} /> : null}
       </ChoiceCard>
     );
@@ -677,7 +670,6 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
         ) : <QuietLink icon="down" label={t('getReady.checks.otherWaysCount', { total: formatNumber(rest.length) })} onPress={() => setMore(true)} />
       ) : null}
       {entries.length === 0 ? <Text style={txt.smMuted}>{loaded ? t('getReady.checks.noWays') : t('common.loading')}</Text> : null}
-      <Text style={[txt.sm, { color: C.muted, paddingHorizontal: space.xs }]}>{t('getReady.checks.pickPeopleLater')}</Text>
     </Screen>
   );
 }

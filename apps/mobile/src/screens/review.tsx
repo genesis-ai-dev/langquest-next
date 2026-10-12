@@ -35,9 +35,7 @@ import { screenTitle } from '../flow';
 import { t } from '../i18n';
 import { formatClock } from '../i18n/format';
 import { indexesFor } from '../indexes';
-import {
-  Badge, Banner, Card, Chip, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, ReasonSheet, Row, Screen, Sheet, txt, useLayout
-} from '../kit';
+import { Badge, Banner, Card, Chip, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, ReasonSheet, Row, Screen, Sheet, txt, useLayout, SectionLabel } from '../kit';
 import { passageCrumbs, passageView as passageViewOf, usePassage, versionTitle, type PassageView } from '../passageView';
 import { failureMessage } from '../report';
 import {
@@ -50,6 +48,8 @@ import {
 } from '../reviewing/parts';
 import { contractsFor } from '../screenContracts';
 import { AgainBtn, BigMic, DashedRow, PlayChip, SpeakBtn } from '../simple/reviewVoice';
+import { checkName } from '../simple/adminModel';
+import { useCheckHelpRows, type HelpRow } from '../checks/parts';
 import { BackgroundSheet, backgroundLine, BigChoices, Centre, DecideCard, MomentList, OutcomePill, QuestionCard, QuestionDots, SkipBtn, StepStrip } from '../simple/review';
 import { useOfferedSources } from '../sources/SourceReader';
 import { useUsage } from '../sources/used';
@@ -121,6 +121,14 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const [why, setWhy] = useState(false);
   const [sheet, setSheet] = useState<'background' | 'who' | 'details' | 'say' | 'retell' | null>(null);
   const [momentAt, setMomentAt] = useState<number | null>(null);
+  // The check's helps (decision 91), and a Bible one of them opens in Background.
+  const helps = useCheckHelpRows(ctx, v?.state, kindId);
+  const [bible, setBible] = useState<string | null>(null);
+  const openHelp = (h: HelpRow) => {
+    if ('bible' in h.open) { setBible(h.open.bible); setSheet('background'); return; }
+    if (h.open.screen === 'study_guide') return ctx.go('study_guide', { unitId: v!.unitId, languageId: v!.languageId });
+    ctx.go('material_editor', h.open.params);
+  };
   // A wide window names the passage in the crumbs above the title, so the title is the kind.
   const wide = useLayout().kind !== 'phone';
 
@@ -149,8 +157,10 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     );
   }
   const crumbs = passageCrumbs(ctx, v, logged ? t('review.screen.alreadyHappened') : t('review.screen.reviewIt'));
-  const sub = wide ? (logged ? t('review.screen.alreadyHappened') : v.language) : logged ? t('review.screen.kindAlreadyHappened', { kind: kindLabel(kind.name) }) : kindLabel(kind.name);
-  const title = wide ? kind.name : v.title;
+  // One name for the check on every screen (decision 91).
+  const check = checkName(kindId, v.kinds);
+  const sub = wide ? (logged ? t('review.screen.alreadyHappened') : v.language) : logged ? t('review.screen.kindAlreadyHappened', { kind: check }) : check;
+  const title = wide ? check : v.title;
   if (!version) {
     return (
       <Screen header={<Header title={title} sub={sub} crumbs={crumbs} onBack={ctx.back} close />}>
@@ -324,6 +334,16 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
         </Card>
       ) : null}
       {context?.compare ? <CompareCard ctx={ctx} review={context.compare} kind={v.kind(context.compare.kindId)} version={version} /> : null}
+      {context !== null && helps.length ? (
+        <>
+          <SectionLabel label={t('checks.forCheck', { check })} />
+          <Group>
+            {helps.map((h, i) => (
+              <Row key={h.key} icon={h.icon} label={h.name} {...(h.sub ? { sub: h.sub } : {})} onPress={() => openHelp(h)} last={i === helps.length - 1} />
+            ))}
+          </Group>
+        </>
+      ) : null}
       {context === null ? <WithheldNotice kind={kind} /> : (
         <Group>
           <Row leading={<Ico name="layers" size={28} color={C.primary} />} label={t('review.parts.background')} sub={backgroundLine(context, { id: version.by, name: translator, you: mine })}
@@ -469,7 +489,8 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
 
       {sheet === 'background' && context ? (
         <BackgroundSheet ctx={ctx} v={v} takeId={version.takeId} translator={translator} translatorIsYou={mine} data={context} usage={usage} kind={v.kind}
-          onClose={() => setSheet(null)}
+          {...(bible ? { bible } : {})}
+          onClose={() => { setSheet(null); setBible(null); }}
           onOpenTerm={(termId) => afterSheet(() => ctx.go('key_term_detail', { termId, unitId: v.unitId, languageId: v.languageId }))}
           onOpenStep={(stepId) => afterSheet(() => { if (guideItem) usage.open(guideItem); ctx.go('study_step', { unitId: v.unitId, languageId: v.languageId, stepId }); })}
           onOpenStudy={() => afterSheet(() => { if (guideItem) usage.open(guideItem); ctx.go('study_guide', { unitId: v.unitId, languageId: v.languageId }); })}

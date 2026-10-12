@@ -20,7 +20,7 @@ import { noteExpected } from '../report';
 import { space } from '../theme';
 import { ChecklistRow } from './admin';
 import {
-  flowShort, guideShortName, helpsSummary, invitedTo, languageLabel, languageTranslators, plainRoleChoices, QUESTIONS, questionLabel, readiness,
+  checksLine, guideShortName, helpsSummary, invitedTo, languageLabel, languageTranslators, plainRoleChoices, QUESTIONS, questionLabel, readiness,
   recordSummary, translatorsOf, type Readiness, type RoleInfo
 } from './adminModel';
 
@@ -82,7 +82,7 @@ export function useReadySummary(ctx: Ctx): ReadySummary {
     const lines = [
       sel ? recordSummary(templateDoc, sel.books, templateName) : undefined,
       facts.helps ? helpsSummary(bibles, guides, notes) : undefined,
-      flow && state ? flowShort(flow.steps, deriveKinds(state)) : undefined,
+      flow && state ? checksLine(flow.steps, deriveKinds(state)) : undefined,
       r.done[3] ? (team.length ? t('admin.ready.translators', { count: team.length }) : t('admin.ready.invited')) : undefined
     ];
     return { languageId, name: languageName(org, languageId), readiness: r, lines, team };

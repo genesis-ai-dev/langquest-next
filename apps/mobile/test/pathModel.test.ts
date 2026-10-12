@@ -47,15 +47,18 @@ describe('the passage path (decision 71)', () => {
     const l = language();
     const steps = pathSteps(l.input('akol'));
     expect(shape(steps)).toEqual(['record:current', 'publish:todo']);
-    expect(steps[1]!.sub).toBe('Then ask for the peer review');
+    expect(steps[1]!.sub).toBe('Then ask for the peer check');
+    // One row per check, each by its one name (decision 91); the second of a step happens at the same time.
     const team = teamSteps(l.input('akol'));
     expect(team.map((t) => `${t.name}|${t.status}`)).toEqual([
-      'Peer Review + Back Translation|after you publish',
-      'Community Check|after the peer review',
-      'Consultant Check|after the community check',
-      'Final Approval|after the consultant check'
+      'Peer check|after you publish',
+      'Back translation|same time',
+      'Community check|after the peer check',
+      'Consultant check|after the community check',
+      'Final approval|after the consultant check'
     ]);
-    expect(team[2]!.checkpoint).toBe(true);
+    expect(team[1]!.together).toBe(true);
+    expect(team[3]!.checkpoint).toBe(true);
   });
 
   it('a study guide with steps comes first, and stays lit until it is done or someone records', () => {
@@ -102,7 +105,7 @@ describe('the passage path (decision 71)', () => {
     l.run('ayen', (c) => c.recordReview({ commandId: 'r1', takeIds: [takeId], kindId: 'peer', outcome: 'needs_changes', via: 'app', comment: 'Verse 4 is hard to follow.' }));
     const steps = pathSteps(l.input('akol'));
     expect(shape(steps)).toEqual(['record:done', 'publish:done', 'feedback:current', 'fix:todo']);
-    expect(steps[2]!.sub).toBe('Peer Review · needs changes');
+    expect(steps[2]!.sub).toBe('Peer check · needs changes');
     expect(steps[2]!.review?.comment).toBe('Verse 4 is hard to follow.');
     expect(teamSteps(l.input('akol'))[0]).toMatchObject({ state: 'attention', status: 'needs changes' });
     // A new version answers it: the path is the recording's again.
@@ -118,9 +121,10 @@ describe('the passage path (decision 71)', () => {
     l.run('ayen', (c) => c.recordReview({ commandId: 'r1', takeIds: [takeId], kindId: 'peer', outcome: 'looks_good', via: 'app' }));
     l.run('ayen', (c) => c.depart({ commandId: 'd1', unitId: 'luk15', type: 'skip', kindId: 'bt', reason: 'No bilingual speaker yet.' }));
     const team = teamSteps(l.input('akol'));
-    expect(team[0]).toMatchObject({ state: 'done', status: 'looks good' });
-    expect(team[1]).toMatchObject({ state: 'todo', status: 'next' });
-    expect(team[2]).toMatchObject({ status: 'after the community check' });
+    expect(team[0]).toMatchObject({ kindId: 'peer', state: 'done', status: 'looks good' });
+    expect(team[1]).toMatchObject({ kindId: 'bt', state: 'done', status: 'set aside' });
+    expect(team[2]).toMatchObject({ kindId: 'community', state: 'todo', status: 'next' });
+    expect(team[3]).toMatchObject({ status: 'after the community check' });
   });
 
   it('says a check in a sentence', () => {

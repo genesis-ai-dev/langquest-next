@@ -145,6 +145,11 @@ export function validateEvent(e: AnyEvent): string | null {
       return str('teamId') ?? nullableStr('kindId');
     case 'v1.FlowStepLinksSet':
       return str('stepId') ?? bool('allowed');
+    case 'v1.CheckHelpSet':
+      return str('kindId') ?? bool('linked') ??
+        ((p['itemId'] === undefined) === (p['materialId'] === undefined) ? 'exactly one of itemId, materialId' : null) ??
+        (p['itemId'] === undefined || nonEmpty(p['itemId']) ? null : 'itemId must be a non-empty string') ??
+        (p['materialId'] === undefined || nonEmpty(p['materialId']) ? null : 'materialId must be a non-empty string');
     case 'v1.VersionReleased':
       return str('takeId', 'channel') ?? bool('live') ??
         (p['url'] === undefined || nonEmpty(p['url']) ? null : 'url must be a non-empty string') ??

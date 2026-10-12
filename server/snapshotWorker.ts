@@ -15,4 +15,4 @@ if (!key) {
   process.exit(1);
 }
 const results = await runSnapshotWorker(createClient(url, key, { auth: { persistSession: false } }));
-for (const r of results) console.log(`${r.orgId}/${r.streamId} seq=${r.serverSeq} ${r.updated ? 'updated' : 'unchanged'}`);
+for (const r of results) console.log(`${r.orgId}/${r.streamId} seq=${r.serverSeq} ${r.written ? 'written' : r.updated ? 'folded, not due for a new snapshot' : 'unchanged'}`);
