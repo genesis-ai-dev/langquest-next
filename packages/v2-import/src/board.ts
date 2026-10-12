@@ -87,13 +87,14 @@ export function defaultBoard(projects: readonly BoardProject[], people: readonly
       continue;
     }
     const id = ownerOrgId(owner);
-    if (!orgs.has(id)) orgs.set(id, { id, name: orgNameFor(byId.get(owner)), existing: false });
+    if (!orgs.has(id)) orgs.set(id, { id, name: orgNameFor(byId.get(owner), p.name), existing: false });
     placements.push({ projectId: p.id, orgId: id, why: 'owner' });
   }
   return { orgs: [...orgs.values()], placements };
 }
 
-function orgNameFor(person: BoardPerson | undefined): string {
+/** The owner's name when it can be read; else their first project's, so the team can still tell organizations apart. */
+function orgNameFor(person: BoardPerson | undefined, firstProject: string): string {
   const name = person?.name?.trim();
-  return name ? `${name}'s organization` : 'An organization from LangQuest';
+  return name ? `${name}'s organization` : `${firstProject.trim() || 'LangQuest'} organization`;
 }

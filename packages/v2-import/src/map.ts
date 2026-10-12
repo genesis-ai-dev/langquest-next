@@ -266,10 +266,11 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
           key: `rec:${q.id}:${a.id}`, streamId: languageId, actorId: actor(a.creator_id), at: at(a.created_at), unsay: 'redact', hold: r.waiting,
           say: (s) => [
             { type: 'v1.RecordingAdded', payload: { recordingId: `rec:${a.id}:${q.id}#${s.n}`, unitId, kind: 'target', cards: r.cards } },
-            ...r.cards.map((c, i): Said => ({
+            // Which verses it holds, when v2 says: the first card is set to them and the rest join it.
+            ...(verse ? r.cards.map((c, i): Said => ({
               type: 'v1.CardVerseSet',
-              payload: verse && i === 0 ? { unitId, hash: c.hash, mark: 'set', from: verse.from, to: verse.to } : { unitId, hash: c.hash, mark: verse ? 'join' : 'none' }
-            }))
+              payload: i === 0 ? { unitId, hash: c.hash, mark: 'set', from: verse.from, to: verse.to } : { unitId, hash: c.hash, mark: 'join' }
+            })) : [])
           ]
         });
         report.recordings += 1;

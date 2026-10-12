@@ -1,10 +1,11 @@
 /**
  * LangQuest v2 → this app, one way, and kept up to date (docs/v2-import.md).
  *
- *   npm run v2 -- board [--port 8097]          the grouping board, in your browser
+ *   npm run v2 -- board [--port 8079]          the grouping board, in your browser
  *   npm run v2 -- sync                         one pass: confirmed projects v2 changed since the last
  *   npm run v2 -- sync --all                   every confirmed project, read whole (the nightly pass)
  *   npm run v2 -- sync --project <v2 id> …     just these
+ *   npm run v2 -- try --project <v2 id> …      map v2 projects and check the result, writing nothing
  *
  * Reads v2 with V2_SUPABASE_URL / V2_SUPABASE_ANON_KEY (v2's publishable
  * key; v2 is never written) and its public bucket V2_BUCKET ("assets").
@@ -24,7 +25,9 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
 import { workerBlobs } from '@langquest-next/client';
-import { boardData, parseRecommendations, restReader, supabaseTarget, sync, type SavedPlacement, type PlanOrg } from '@langquest-next/v2-import';
+import { createHash } from 'node:crypto';
+import { foldLanguage, foldOrg, ORG_STREAM, subscriptionItemId, validateEvent } from '@langquest-next/core';
+import { bucketName, boardData, mapProject, parseRecommendations, reconcile, restReader, supabaseTarget, sync, WAYS, LIBRARY_ORG, type CopiedFile, type SavedPlacement, type PlanOrg, type TemplateRef } from '@langquest-next/v2-import';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const args = process.argv.slice(2);
@@ -64,10 +67,12 @@ if (command === 'sync') {
   const refused = reports.filter((r) => r.rejected?.length || r.skipped?.startsWith('failed'));
   for (const r of refused) console.log(`${r.projectId}: ${r.skipped ?? r.rejected!.slice(0, 5).map((x) => `${x.id} (${x.reason})`).join('; ')}`);
   if (refused.length) process.exitCode = 2;
+} else if (command === 'try') {
+  await tryProjects(values('project'));
 } else if (command === 'board') {
-  await board(Number(values('port')[0] ?? 8097));
+  await board(Number(values("port")[0] ?? 8079));
 } else {
-  console.error('usage: npm run v2 -- board | sync [--all] [--project <v2 id> …]');
+  console.error('usage: npm run v2 -- board | sync [--all] [--project <v2 id> …] | try --project <v2 id> …');
   process.exit(2);
 }
 
@@ -128,4 +133,42 @@ async function board(port: number) {
       json(res, 500, { error: (e as Error).message });
     }
   }).listen(port, '127.0.0.1', () => console.log(`The board is at http://127.0.0.1:${port} (saving as ${by})`));
+}
+
+/**
+ * Map v2 projects as a pass would, without copying a file or writing
+ * anything: each file stands in by a hash of its name. Checks that every
+ * event is valid and folds, and prints what would come over.
+ */
+async function tryProjects(ids: string[]) {
+  const templates: Record<'bible' | 'fia', TemplateRef | null> = { bible: null, fia: null };
+  for (const kind of ['bible', 'fia'] as const) {
+    const t = await target.template(WAYS[kind].sourceItemId);
+    templates[kind] = t && { itemId: subscriptionItemId(LIBRARY_ORG.id, WAYS[kind].sourceItemId), docHash: t.docHash, doc: t.doc, versification: t.versification };
+  }
+  for (const id of ids) {
+    const t0 = Date.now();
+    const rows = await v2.projectRows(id);
+    const files = new Map<string, CopiedFile>();
+    for (const c of rows.contents) for (const raw of c.audio ?? []) {
+      const name = bucketName(raw);
+      if (name) files.set(name, { hash: createHash('sha256').update(name).digest('hex'), size: 0, durationMs: 1000, format: name.endsWith('.wav') ? 'wav' : 'm4a' });
+    }
+    const kind = rows.project.template === 'bible' || rows.project.template === 'fia' ? rows.project.template : null;
+    const mapped = mapProject(rows, {
+      orgId: 'org-try', language: { code: 'und', languoidId: null, sourceCode: 'eng', decidedAt: new Date().toISOString() },
+      files, templates: kind && templates[kind] ? { [kind]: templates[kind]! } : {}, now: Date.now()
+    });
+    const r = reconcile(mapped.facts, new Map(), { orgId: 'org-try', scope: id, now: Date.now() });
+    const invalid = r.events.flatMap((e) => { const why = validateEvent(e); return why ? [`${e.type}: ${why}`] : []; });
+    const lang = foldLanguage(r.events.filter((e) => e.streamId === id));
+    foldOrg(r.events.filter((e) => e.streamId === ORG_STREAM));
+    const byType = new Map<string, number>();
+    for (const e of r.events) byType.set(e.type, (byType.get(e.type) ?? 0) + 1);
+    console.log(`\n== ${id} (${rows.project.template ?? 'unstructured'}): ${rows.quests.length} quests, ${rows.assets.length} assets, ${rows.contents.length} segments, ${rows.votes.length} votes; read in ${((Date.now() - t0) / 1000).toFixed(1)} s`);
+    console.log(`events: ${r.events.length} (${[...byType].sort((a, b) => b[1] - a[1]).map(([t, n]) => `${t.slice(3)} ${n}`).join(', ')})`);
+    const { missingFiles, ...counts } = mapped.report;
+    console.log(`report: ${JSON.stringify(counts)}, files never uploaded: ${missingFiles.length}`);
+    console.log(`fold: ${Object.keys(lang.units).length} units, ${Object.keys(lang.takes).length} takes, ${Object.keys(lang.invalidEvents).length} invalid in the fold; ${invalid.length} invalid at the door${invalid.length ? `: ${invalid.slice(0, 5).join('; ')}` : ''}`);
+  }
 }

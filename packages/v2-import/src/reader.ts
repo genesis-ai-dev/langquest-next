@@ -74,36 +74,44 @@ export function restReader(src: RestSource): V2Reader {
     }
   };
 
+  /** Rows for many ids, a slice of ids per request, a few requests at a time. */
+  const bySlices = async <T>(ids: string[], size: number, read: (ids: string) => Promise<T[]>): Promise<T[]> => {
+    const slices: string[][] = [];
+    for (let i = 0; i < ids.length; i += size) slices.push(ids.slice(i, i + size));
+    const out: T[][] = new Array(slices.length);
+    await pool(slices.map((ids, i) => ({ ids, i })), 6, async ({ ids, i }) => { out[i] = await read(ids.map(encodeURIComponent).join(',')); });
+    return out.flat();
+  };
+
   return {
     async projectRows(projectId) {
       const p = encodeURIComponent(projectId);
-      const [projects, languages, members, quests, placements, assets, contents, votes] = await Promise.all([
+      const [projects, languages, members, quests, assets] = await Promise.all([
         get<V2ProjectRow>(`project?select=id,name,description,created_at,last_updated,active,private,creator_id,template&id=eq.${p}`),
         byOffset<V2LanguageLink>(`project_language_link?select=languoid_id,language_type,active&project_id=eq.${p}&order=languoid_id,language_type`),
         byOffset<V2Membership>(`profile_project_link?select=profile_id,membership,active,created_at,last_updated&project_id=eq.${p}&order=profile_id`),
         byKey<V2Quest & Record<string, unknown>>(`quest?select=id,name,parent_id,metadata,active,visible,duplicate_of,creator_id,created_at,last_updated&project_id=eq.${p}`, 'id'),
-        byOffset<V2Placement & { quest: unknown }>(
-          `quest_asset_link?select=quest_id,asset_id,active,visible,order_index,metadata,created_at,quest!inner(project_id)&quest.project_id=eq.${p}&order=quest_id,asset_id`
-        ),
-        byKey<V2Asset & Record<string, unknown>>(`asset?select=id,name,content_type,source_asset_id,creator_id,active,visible,order_index,metadata,created_at,last_updated&project_id=eq.${p}`, 'id'),
-        byKey<V2Content & { asset: unknown } & Record<string, unknown>>(
-          `asset_content_link?select=id,asset_id,text,audio,languoid_id,source_language_id,active,order_index,created_at,asset!inner(project_id)&asset.project_id=eq.${p}`, 'id'
-        ),
-        byKey<V2Vote & { asset: unknown } & Record<string, unknown>>(
-          `vote?select=id,asset_id,polarity,comment,creator_id,active,created_at,last_updated,asset!inner(project_id)&asset.project_id=eq.${p}`, 'id'
-        )
+        byKey<V2Asset & Record<string, unknown>>(`asset?select=id,name,content_type,source_asset_id,creator_id,active,visible,order_index,metadata,created_at,last_updated&project_id=eq.${p}`, 'id')
       ]);
       const project = projects[0];
       if (!project) throw new Error(`v2 project ${projectId} not found`);
+      // The link tables have no project column, and joining through one makes
+      // v2 scan them whole (its statement timeout stops that): ask by the
+      // project's own quest and asset ids instead, a slice at a time.
+      const [placements, contents, votes] = await Promise.all([
+        bySlices<V2Placement>(quests.map((q) => q.id), 100, (ids) => byOffset(`quest_asset_link?select=quest_id,asset_id,active,visible,order_index,metadata,created_at&quest_id=in.(${ids})&order=quest_id,asset_id`)),
+        bySlices<V2Content>(assets.map((a) => a.id), 150, (ids) => byOffset(`asset_content_link?select=id,asset_id,text,audio,languoid_id,source_language_id,active,order_index,created_at&asset_id=in.(${ids})&order=id`)),
+        bySlices<V2Vote>(assets.map((a) => a.id), 150, (ids) => byOffset(`vote?select=id,asset_id,polarity,comment,creator_id,active,created_at,last_updated&asset_id=in.(${ids})&order=id`))
+      ]);
       return {
         project,
         languages,
         members,
         quests,
-        placements: placements.map(({ quest: _q, ...p }) => ({ ...p, order_index: p.order_index ?? 0 })),
+        placements: placements.map((x) => ({ ...x, order_index: x.order_index ?? 0 })),
         assets,
-        contents: contents.map(({ asset: _a, ...c }) => ({ ...c, audio: Array.isArray(c.audio) ? c.audio : null, created_at: String(c.created_at) })),
-        votes: votes.map(({ asset: _a, ...v }) => v)
+        contents: contents.map((c) => ({ ...c, audio: Array.isArray(c.audio) ? c.audio : null, created_at: String(c.created_at) })),
+        votes
       };
     },
 
@@ -127,15 +135,22 @@ export function restReader(src: RestSource): V2Reader {
     },
 
     async projects() {
-      const [rows, closures] = await Promise.all([
-        byKey<V2ProjectRow & { last_updated: string } & Record<string, unknown>>('project?select=id,name,active,private,created_at,creator_id,template,last_updated', 'id'),
-        byOffset<{ project_id: string; total_assets: number; last_updated: string }>('project_closure?select=project_id,total_assets,last_updated&order=project_id')
-      ]);
-      const closure = new Map(closures.map((c) => [c.project_id, c]));
+      const rows = await byKey<V2ProjectRow & { last_updated: string } & Record<string, unknown>>('project?select=id,name,active,private,created_at,creator_id,template,last_updated', 'id');
+      // v2's own rollups (project_closure) stopped being kept up to date, so count
+      // each project's assets, and find its newest, in one small request each.
+      const counted = new Map<string, { assets: number; newest: string | null }>();
+      await pool(rows, 8, async (p) => {
+        const res = await http(`${src.url}/rest/v1/asset?select=created_at&project_id=eq.${encodeURIComponent(p.id)}&order=created_at.desc&limit=1`, {
+          headers: { apikey: src.key, authorization: `Bearer ${src.key}`, Prefer: 'count=exact' }
+        });
+        const body = (await res.json()) as { created_at: string }[] | { message?: string };
+        if (!res.ok || !Array.isArray(body)) throw new Error(`v2 asset count: ${(body as { message?: string }).message ?? res.status}`);
+        counted.set(p.id, { assets: Number(res.headers.get('content-range')?.split('/')[1] ?? 0), newest: body[0]?.created_at ?? null });
+      });
       return rows.map((p) => ({
         id: p.id, name: p.name, active: p.active, private: p.private, created_at: p.created_at, creator_id: p.creator_id, template: p.template,
-        assets: closure.get(p.id)?.total_assets ?? 0,
-        lastActivity: [p.last_updated, closure.get(p.id)?.last_updated].filter((x): x is string => !!x).sort().at(-1) ?? null
+        assets: counted.get(p.id)?.assets ?? 0,
+        lastActivity: [p.last_updated, counted.get(p.id)?.newest].filter((x): x is string => !!x).sort().at(-1) ?? null
       }));
     },
 
@@ -154,4 +169,11 @@ export function restReader(src: RestSource): V2Reader {
       return new Uint8Array(await res.arrayBuffer());
     }
   };
+}
+
+async function pool<T>(items: readonly T[], size: number, work: (t: T) => Promise<void>): Promise<void> {
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(size, items.length) }, async () => {
+    for (let i = next++; i < items.length; i = next++) await work(items[i]!);
+  }));
 }

@@ -31,7 +31,8 @@ describe('defaultBoard', () => {
       project('ccc', { owners: ['ana'] })
     ], people);
     expect(placements.map((p) => p.orgId)).toEqual([ownerOrgId('nyibol'), ownerOrgId('nyibol'), ownerOrgId('ana')]);
-    expect(orgs.map((o) => o.name)).toEqual(["Nyibol's organization", 'An organization from LangQuest']);
+    // Without the owner's name, their first project's names the organization until someone renames it.
+    expect(orgs.map((o) => o.name)).toEqual(["Nyibol's organization", 'Project ccc organization']);
   });
 
   it('starts test projects with nothing to go on, and projects nobody owns, as not coming over', () => {
