@@ -10,7 +10,7 @@ import { roleSession } from './sessions';
 
 const root = path.resolve('apps/mobile');
 const app = fs.readFileSync(path.join(root,'App.tsx'),'utf8');
-const componentScreen = new Map([...app.matchAll(/(\w+): (?:Entry|Onboarding|Org|Config|Content|Account|Work|MapScreens|Passage|Review|Translate|Study|Reports|Reference|Sources|Simple)\.(\w+)/g)]
+const componentScreen = new Map([...app.matchAll(/(\w+): (?:Entry|Onboarding|Org|Config|Checks|Content|Account|Work|MapScreens|Passage|Review|Translate|Study|Reports|Reference|Sources|Simple)\.(\w+)/g)]
   .map((m) => [m[2]!,m[1]! as ScreenId]));
 
 describe('screen action contracts', () => {
@@ -45,7 +45,7 @@ describe('screen action contracts', () => {
     // or come from a ctx method known to append it. Events a core command
     // builds are left out: which command a screen calls is not a literal.
     const core = path.resolve('packages/core/src');
-    const commandEvents = new Set(['commands.ts', 'materials.ts', 'libraryApply.ts'].flatMap((f) =>
+    const commandEvents = new Set(['commands.ts', 'materials.ts', 'libraryApply.ts', 'checks.ts'].flatMap((f) =>
       [...fs.readFileSync(path.join(core, f), 'utf8').matchAll(/'(v\d\.\w+)'/g)].map((m) => m[1]!)));
     const viaCtx: Record<string, string> = { 'v1.VisionSeen': '.markWelcomed(', 'v1.TermsAccepted': '.acceptTerms(' };
     const src = path.join(root, 'src');
@@ -115,7 +115,7 @@ describe('screen action contracts', () => {
     expect(screenMayEmit('ask_someone', as('viewer'), ask)).toBe(false);
     const review = { type: 'v1.ReviewRecorded', payload: { reviewId: 'r', takeId: 'take2', kindId: 'peer', outcome: 'looks_good', via: 'app' } } as AnyEvent;
     expect(screenMayEmit('review_capture', as('reviewer'), review)).toBe(true);
-    // A translator may do a check in the app (decisions.md 90) and log one they ran themselves (design principles 5).
+    // A translator may do a check in the app (decisions.md 88) and log one they ran themselves (design principles 5).
     expect(screenMayEmit('review_capture', as('translator'), review)).toBe(true);
     expect(screenMayEmit('review_capture', as('viewer'), review)).toBe(false);
     const logged = { ...review, payload: { ...review.payload, via: 'logged' } } as AnyEvent;

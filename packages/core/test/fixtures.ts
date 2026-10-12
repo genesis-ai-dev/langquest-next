@@ -178,7 +178,7 @@ export function buildRecordFixture(): AnyEvent[] {
   // consultant checkpoint; a listener's review arrives through a link; take2 goes live, then down, in one app.
   emit('dA', 'lead', 'v1.FlowStepLinksSet', { stepId: 'standard_bible/s3', allowed: true });
   emit('dE', 'lead2', 'v1.FlowStepLinksSet', { stepId: 'standard_bible/s3', allowed: false });
-  // Helps on a check (decisions.md 90): a register per (kind, help), set from two devices.
+  // Helps on a check (decisions.md 88): a register per (kind, help), set from two devices.
   emit('dA', 'lead', 'v1.CheckHelpSet', { kindId: 'peer', materialId: 'note-names', linked: true });
   emit('dE', 'lead2', 'v1.CheckHelpSet', { kindId: 'peer', materialId: 'note-names', linked: false });
   emit('dA', 'lead', 'v1.CheckHelpSet', { kindId: 'community', itemId: 'fia-guides', linked: true });

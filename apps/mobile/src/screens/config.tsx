@@ -45,6 +45,7 @@ import { sourceText } from '../scripture';
 import { C, radius, space, TINT } from '../theme';
 import { VoiceNote } from '../voiceNote';
 import { CheckSteps } from '../simple/checks';
+import { LanguageChecks } from './checks';
 import { SwitchRow } from '../simple/admin';
 import { flipSwitch, ROLE_SWITCHES, stepTitle, stepWho, switchState } from '../simple/adminModel';
 import { teamMembers } from '../orgAdmin';
@@ -499,10 +500,9 @@ export function FlowsHome(ctx: Ctx) {
   const language = openLanguageName(ctx);
 
   /**
-   * Use a flow for the language: one of this organization's, or a shared
-   * one, followed with automatic updates first (copied when its owner does
-   * not allow following). Undo goes back to the flow it had, whose steps
-   * were never removed (core `restoreFlow`).
+   * Use a flow for the language: its checks are copied into the language
+   * and are the language's own from then on (decision 88). Undo goes back to
+   * the checks it had (core `restoreFlow`).
    */
   async function use(target: { itemId: string } | { shared: SharedItem }) {
     if (!state || !language || busy) return;
@@ -518,17 +518,11 @@ export function FlowsHome(ctx: Ctx) {
           return s ? commands(s, indexesFor(s)).restoreFlow({ commandId: Crypto.randomUUID(), previous }) : [];
         };
       }
-      if ('shared' in target) {
-        const s = target.shared;
-        const itemId = s.subscribable ? await lib.subscribe(s, true) : await lib.copy(s);
-        name = s.name;
-        specs = await lib.applySpecs(itemId, { docHash: s.latest_hash });
-      } else {
-        const it = lib.item(target.itemId);
-        if (!it?.current) throw new CommandError(t('config.errors.flowHasNoVersion'));
-        name = it.name;
-        specs = await lib.applySpecs(it.itemId, { docHash: it.current });
-      }
+      const hash = 'shared' in target ? target.shared.latest_hash : lib.item(target.itemId)?.current;
+      const doc = docs.get<FlowDoc>(hash);
+      if (!doc) throw new CommandError(t('config.errors.flowHasNoVersion'));
+      name = 'shared' in target ? target.shared.name : lib.item(target.itemId)?.name ?? doc.name;
+      specs = commands(state, indexesFor(state)).copyFlow({ commandId: Crypto.randomUUID(), name, kinds: [...doc.kinds, ...kinds], steps: doc.steps });
     } catch (e) {
       ctx.toast(t('common.notSaved', { reason: libraryFailure('use flow', e) })); // i18n-ignore: log label
       setBusy(false);
@@ -549,7 +543,6 @@ export function FlowsHome(ctx: Ctx) {
   return (
     <Screen header={<Header title={t('config.flows.title')} sub={language ?? orgName(ctx)} onBack={ctx.back}
       action={canManage ? <SmallBtn label={t('config.flows.addFlow')} icon="plus" tone="primary" onPress={() => ctx.go('flow_editor', { itemId: 'new' })} /> : undefined} />}>
-      <Intro>{t('config.flows.intro')}</Intro>
       {!state ? <EmptyState icon="flow" title={t('common.loading')} /> : (
         <>
           {!language ? <EmptyState icon="globe" title={t('config.flows.noLanguages')} sub={t('config.flows.noLanguagesSub')} /> : null}
@@ -662,119 +655,9 @@ function StepSheet(props: {
  * new version that the languages using it move to.
  */
 export function FlowEditor(ctx: Ctx) {
-  if (ctx.params['steps'] === 'language') return <LanguageChecks ctx={ctx} />;
+  // A language's own checks, or New language's before it exists (screens/checks.tsx, decision 88).
+  if (ctx.params['steps'] === 'language' || ctx.params['draft'] === '1') return <LanguageChecks ctx={ctx} />;
   return <LibraryFlowEditor ctx={ctx} />;
-}
-
-function LanguageChecks({ ctx }: { ctx: Ctx }) {
-  const state = ctx.language.state;
-  const language = openLanguageName(ctx);
-  const flow = useMemo(() => (state ? deriveFlow(state) : null), [state]);
-  const known = useMemo(() => (state ? deriveKinds(state) : []), [state]);
-  const base = useMemo<DraftStep[]>(() => (flow ? flow.steps.map((s, i) => ({ key: `${s.id}#${i}`, stepId: s.id, kindIds: [...s.kindIds], checkpoint: s.checkpoint })) : []), [flow]);
-  const [edited, setEdited] = useState<DraftStep[] | null>(null);
-  const [added, setAdded] = useState<KindDef[]>([]);
-  const [open, setOpen] = useState<number | null>(null);
-  const [pickFor, setPickFor] = useState<number | 'new' | null>(null);
-  const [newKind, setNewKind] = useState('');
-  const [leaving, setLeaving] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const live = useLatest(ctx);
-  const canManage = ctx.session.can('manage_flows');
-  if (!state || !flow) {
-    return <Screen header={<Header title={t('config.flowEditor.whoChecks')} onBack={ctx.back} />}><EmptyState icon="flow" title={t('common.loading')} /></Screen>;
-  }
-  const kinds = [...known, ...added.filter((k) => !known.some((x) => x.id === k.id))];
-  const steps = edited ?? base;
-  const dirty = canManage && (draftChanged(base, steps) || added.length > 0);
-  const change = (next: DraftStep[]) => setEdited(next);
-  const title = (i: number) => stepTitle(steps[i]?.kindIds ?? [], kinds);
-
-  async function save() {
-    if (!state || !dirty || busy) return;
-    if (steps.some((s) => s.kindIds.length === 0)) { ctx.toast(t('config.flowEditor.everyStepNeedsCheck')); return; }
-    setBusy(true);
-    const commandId = Crypto.randomUUID();
-    const c = commands(state, indexesFor(state));
-    let specs: EventSpec[];
-    try {
-      const used = new Set(steps.flatMap((s) => s.kindIds));
-      specs = [
-        ...added.filter((k) => used.has(k.id)).flatMap((k, i) => c.defineKind({ commandId: `${commandId}:kind${i}`, kindId: k.id, name: k.name, description: k.description, usualReviewer: k.usualReviewer })),
-        ...c.saveFlowSteps({ commandId, steps: steps.map((s) => ({ ...(s.stepId ? { stepId: s.stepId } : {}), kindIds: s.kindIds, checkpoint: s.checkpoint })) })
-      ];
-    } catch (e) {
-      ctx.toast(failure('save checks', e));
-      setBusy(false);
-      return;
-    }
-    const previous = flowUndoFor(state);
-    const undo = previous ? () => {
-      const s = live.current.language.state;
-      return s ? commands(s, indexesFor(s)).restoreFlow({ commandId: Crypto.randomUUID(), previous }) : [];
-    } : undefined;
-    try {
-      await ctx.act(specs, language ? t('config.flowEditor.checksSaved', { language }) : t('config.flowEditor.checksSavedUnnamed'), undo);
-    } catch {
-      setBusy(false);
-      return;
-    }
-    ctx.back();
-  }
-
-  const picking = typeof pickFor === 'number' ? steps[pickFor] : undefined;
-  const pick = (id: string) => {
-    if (pickFor === 'new') change([...steps, { key: Crypto.randomUUID(), kindIds: [id], checkpoint: false }]);
-    else if (typeof pickFor === 'number') change(steps.map((s, j) => (j === pickFor ? { ...s, kindIds: [...s.kindIds, id] } : s)));
-    setPickFor(null);
-  };
-  return (
-    <Screen
-      header={<Header title={t('config.flowEditor.whoChecks')} sub={`${language ?? ''} · ${flow.flowId === CUSTOM_FLOW ? t('config.flowEditor.itsOwnSteps') : flowName(state)}`} onBack={() => (dirty ? setLeaving(true) : ctx.back())} />}
-      footer={canManage ? <PrimaryBtn label={t('common.save')} icon="check" onPress={() => void save()} disabled={!dirty} busy={busy} /> : undefined}>
-      {!canManage ? <Banner icon="lock" title={t('common.viewOnly')} body={t('config.flowEditor.viewOnlyBody')} /> : null}
-      <CheckSteps steps={steps} kinds={kinds} readOnly={!canManage} usually={usuallyFor(ctx, state, kinds)} onChange={change}
-        onAdd={() => setPickFor('new')} onOpen={(i) => setOpen(i)} />
-      {dirty ? <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>{t('config.flowEditor.languageOnly', { language: language ?? '' })}</Text> : null}
-      {canManage ? (
-        <Group>
-          <Row icon="people" label={t('config.flowEditor.groups')} sub={t('config.flowEditor.groupsSub')}
-            onPress={() => ctx.go('review_teams', { languageId: ctx.language.languageId })} />
-          <Row icon="flow" label={t('config.flowEditor.everyWay')} sub={t('config.flowEditor.everyWaySub')} last
-            onPress={() => ctx.go('flows_home', { languageId: ctx.language.languageId })} />
-        </Group>
-      ) : null}
-      <StepSheet step={open !== null ? steps[open] ?? null : null} i={open ?? 0} count={steps.length} kinds={kinds} title={open !== null ? title(open) : ''}
-        onClose={() => setOpen(null)}
-        onChange={(st) => open !== null && change(steps.map((s, j) => (j === open ? st : s)))}
-        onAdd={() => { const i = open; setOpen(null); setPickFor(i); }}
-        onMove={(dir) => { if (open === null) return; change(moveStep(steps, open, dir)); setOpen(open + dir); }}
-        onRemove={() => { if (open === null) return; change(steps.filter((_, j) => j !== open)); setOpen(null); }} />
-      <Sheet visible={pickFor !== null} title={pickFor === 'new' ? t('config.flowEditor.addStep') : t('config.flowEditor.addAlongside')} sub={t('config.flowEditor.pickSub')} onClose={() => setPickFor(null)}>
-        <Group>
-          {kinds.filter((k) => !(picking?.kindIds ?? []).includes(k.id)).map((k, i, a) => (
-            <Row key={k.id} leading={<KindIcon kindId={k.id} size={40} />} label={stepTitle([k.id], kinds)} sub={k.usualReviewer || k.description || undefined}
-              onPress={() => pick(k.id)} last={i === a.length - 1} />
-          ))}
-        </Group>
-        <Field label={t('config.flowEditor.somethingElse')} value={newKind} onChangeText={setNewKind} placeholder={t('config.flowEditor.newCheckPlaceholder')} autoCapitalize="words" />
-        <SmallBtn label={t('config.flowEditor.addThisCheck')} icon="plus" tone="primary" disabled={!newKind.trim()} onPress={() => {
-          if (!newKind.trim()) return;
-          const k: KindDef = { id: newKindId(newKind, kinds.map((x) => x.id)), name: newKind.trim(), description: t('config.flowEditor.newKindDescription'), usualReviewer: t('config.flowEditor.newKindReviewer') };
-          setAdded([...added, k]);
-          setNewKind('');
-          pick(k.id);
-        }} />
-      </Sheet>
-      <Sheet visible={leaving} title={t('config.flowEditor.leaveTitle')} sub={t('config.flowEditor.leaveSubChecks')} onClose={() => setLeaving(false)}
-        footer={<>
-          <PrimaryBtn label={t('common.save')} icon="check" onPress={() => { setLeaving(false); void save(); }} busy={busy} />
-          <GhostBtn label={t('config.flowEditor.discard')} tone="red" onPress={() => { setLeaving(false); ctx.back(); }} />
-        </>}>
-        {null}
-      </Sheet>
-    </Screen>
-  );
 }
 
 function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {

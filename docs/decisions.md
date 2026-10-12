@@ -482,6 +482,10 @@ Amended (2026-10-06, Carl Sauder): each language now has a stream of its
 own (63), so step ids are namespaced by flow version only
 (`<flowId>@<v>/<step>`, `custom/<step>`); the add-wins reason still holds.
 
+Amended (2026-10-12, Caleb Koster): a ready-made flow is now copied into the
+`custom` prefix (decision 88), so choosing one replaces the language's own
+steps; Undo puts them back, under the ids they had.
+
 ## 33. Derived views are cached per state object and revision, outside the state
 
 Date: 2026-09-28 · By: Caleb Koster · Status: accepted
@@ -575,6 +579,11 @@ reference data; the app's old catalog stays only so languages set up from
 it keep their names. Reverse if: documents need collaborative editing field
 by field; then a version is a snapshot of per-field registers (decision 26)
 taken when publishing, and nothing here changes.
+
+Amended (2026-10-12, Caleb Koster): languages no longer follow flows.
+Using a flow copies its checks into the language as its own (decision 88);
+the library keeps flows to start from and to share. Templates and reference
+material still follow as above.
 
 ## 37. Each language is its own synced partition, listed in the organization's partition
 
@@ -1371,6 +1380,10 @@ under it instead of the header's More and the Details cards. "Send to
 team for the next check. The recording split takes any reference on top
 (Bible, guide, key words, notes, earlier versions) and settles on five snaps,
 two of them one-line ends, instead of three.
+
+Amended (2026-10-12, Caleb Koster): a kind's usual team is now the people
+put on that check (decision 88), and "Send to ‹team›" reads "Ask the ‹check›
+team"; Review Teams are no longer a screen of their own.
 
 ## 57. The app shows the organization's reports: a Reports section on wide windows, server totals on a phone's Progress
 
@@ -2898,3 +2911,61 @@ never held their sign-in without the server.
 Reverse if: a phone keeps acting for an account the server has ended
 (then end it on the first refusal of its requests), or Supabase Auth
 starts answering a lasting refusal with a status this treats as passing.
+
+## 88. A language's checks carry their own people, questions and helps, and a ready-made flow is copied
+
+Date: 2026-10-12 · By: Caleb Koster · Status: accepted
+
+Reason: the review set-up read as tangled (Caleb, 2026-10-12). One check was
+spread over Who checks (steps that hold two kinds), Review Teams under More
+(a team that "usually reviews" one kind, or any), questions as Review
+Questions material beside the TMF and Brief, and flows a language used,
+followed or copied. Only people with the Reviewer role could be on a team or
+be asked, so a translator could not do a peer check, and nothing linked a
+note or guide to a check. His model: a language has checks in order, made,
+reordered or started from a ready-made flow, and that alone carries the work
+forward, with anyone on the team asked. People may be put on a check; they
+are then the top choices, and "Ask the Peer check team" reaches all of them.
+Helps (notes, guides, Bibles) may be linked to a check. From the audit page
+(https://claude.ai/artifact/XqndiTYoof96zmrgzMwVgz) he chose:
+- People belong to a check. They are review-team records, one team per check
+  (`check:<kindId>`, core `checks.ts`), so a request to a team (56) reaches
+  them as it did. Older teams still count: one set to the kind, or to any
+  kind, puts its people on the check until that check's people are edited,
+  when they move onto the check's own team (`checkPeopleSpecs`). The Review
+  Teams screens are dropped (flow.ts `DROPPED_SCREENS`).
+- The Translator role has Review (`SEED_ROLES`), so a translator can be on a
+  check and be asked. An organization whose Translator role still has
+  exactly the old seed gets the change once, from an admin's phone
+  (`translatorReviewUpgrade`, `useTranslatorReview`); a changed role is left
+  alone.
+- A ready-made flow is a starting point: using one copies its checks into
+  the language as its own steps (`commands.copyFlow`, the `custom` prefix of
+  32), from New language, Get ready, Checks and the flow library alike.
+  Nothing follows a flow's later versions. Languages already following one
+  keep following it until someone changes their checks.
+- Checks that happen at the same time stay one step with two kinds (29); the
+  screens show each check as its own row, marked "same time"
+  (`checks/model.ts`).
+- A help is linked by `v1.CheckHelpSet { kindId, itemId | materialId,
+  linked }`, a register per (kind, help) in the language stream, under
+  manage_flows (migration `20261012200000_check_helps.sql`). Questions keep
+  their storage, a question set scoped to the kind (26), but are added and
+  edited on the check.
+The screens (`screens/checks.tsx`): the language page's Checks row says the
+order; Checks lists each check with its people, questions and helps and saves
+every change at once, with Undo; one check holds People, Questions, Helps,
+Must pass, Same time and Remove. New language's "I'll choose the checks" edits
+the same list before the language exists (`checks/draft.ts`). After
+publishing, the ask page shows each open check with its people and asks the
+check's team; Someone else lists the team first, then everyone else, and the
+questions they will answer. The passage path lists each check with its
+people, My Work says when a check went to a team, and the review shows the
+check's helps on Listen and every earlier version under Background. "Check"
+is the one word for a review stage on every screen (`checkName`).
+Not yet: an invite that puts whoever joins on a check (the server would have
+to write the team membership at redeem time).
+Reverse if: teams need someone on a check who must not review anything else
+(then a check's people need a grant of their own), or one check needs
+several groups with different people (then groups come back, within a check).
+

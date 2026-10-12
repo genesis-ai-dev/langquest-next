@@ -619,8 +619,8 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
     setBusy(true);
     let specs: EventSpec[];
     try {
-      const itemId = pick.c.source === 'shared' ? (pick.c.shared.subscribable ? await lib.subscribe(pick.c.shared, true) : await lib.copy(pick.c.shared)) : pick.c.item.itemId;
-      specs = await lib.applySpecs(itemId, { docHash: pick.c.hash });
+      // A ready-made flow is copied into the language, its checks the language's own (decision 88).
+      specs = commands(state, indexesFor(state)).copyFlow({ commandId: Crypto.randomUUID(), name: pick.c.name, kinds: kindsOf(pick.doc), steps: pick.doc.steps });
     } catch (e) {
       ctx.toast(t('common.notSaved', { reason: failureMessage('get ready: who checks', e) }));
       setBusy(false);
@@ -670,7 +670,6 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
         ) : <QuietLink icon="down" label={t('getReady.checks.otherWaysCount', { total: formatNumber(rest.length) })} onPress={() => setMore(true)} />
       ) : null}
       {entries.length === 0 ? <Text style={txt.smMuted}>{loaded ? t('getReady.checks.noWays') : t('common.loading')}</Text> : null}
-      <Text style={[txt.sm, { color: C.muted, paddingHorizontal: space.xs }]}>{t('getReady.checks.pickPeopleLater')}</Text>
     </Screen>
   );
 }

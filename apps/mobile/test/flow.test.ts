@@ -21,7 +21,9 @@ describe('UX flow coverage', () => {
       // Microphone setup and getting a language ready (decision 71).
       'mic_setup', 'get_ready',
       // Me keeps five rows; the rest of Settings is under More settings (decision 71).
-      'settings_more'] as const;
+      'settings_more',
+      // One of a language's checks, with its people, questions and helps (decision 88).
+      'check_editor'] as const;
     expect(SCREEN_IDS.length).toBe(kept.length + appOnly.length);
     for (const id of appOnly) expect(screenTitle(id)).not.toBe(`screens.${id}`);
   });

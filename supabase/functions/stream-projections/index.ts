@@ -22220,7 +22220,7 @@ var SEED_ROLES = [
     fixed: "coordinator",
     privileges: PRIVILEGES.filter((p) => p !== "manage_roles")
   },
-  // Review since decisions.md 90: a peer check is often another translator.
+  // Review since decisions.md 88: a peer check is often another translator.
   { roleId: "translator", name: "Translator", fixed: "translator", privileges: ["translate", "review", "fill_reference", "send_to_reviewers", "view_status"] },
   { roleId: "reviewer", name: "Reviewer", fixed: "reviewer", privileges: ["review", "view_status"] },
   { roleId: "viewer", name: "Viewer", fixed: "viewer", privileges: ["view_status"] }

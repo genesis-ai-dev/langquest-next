@@ -1,4 +1,4 @@
--- v1.CheckHelpSet: a help linked to a check (decisions.md 90).
+-- v1.CheckHelpSet: a help linked to a check (decisions.md 88).
 --
 --   v1.CheckHelpSet { kindId, itemId? | materialId?, linked }
 --

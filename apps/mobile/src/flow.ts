@@ -27,7 +27,7 @@ export const SCREEN_IDS = [
   'inbox_home', 'settings_home', 'profile_edit', 'org_switcher', 'sign_out_confirm',
   // 7 Running the organization (Manage tab)
   'org_home', 'language_home', 'new_language', 'members_list', 'invite_member',
-  'invite_qr', 'edit_member', 'roles_home', 'role_editor', 'review_teams', 'review_team_editor',
+  'invite_qr', 'edit_member', 'roles_home', 'role_editor',
   // 8 Method and content
   'flows_home', 'flow_editor', 'templates_home', 'template_picker', 'template_editor', 'book_structure',
   'reference_home', 'material_editor',
@@ -43,7 +43,9 @@ export const SCREEN_IDS = [
   // App only: the simple redesign (decision 71): microphone setup by ear, and getting a language ready
   'mic_setup', 'get_ready',
   // App only: the simple redesign's Me keeps five rows; everything else Settings had is one tap deeper (decision 71)
-  'settings_more'
+  'settings_more',
+  // App only: one of a language's checks, with its people, questions and helps (decision 88)
+  'check_editor'
 ] as const;
 
 export type ScreenId = (typeof SCREEN_IDS)[number];
@@ -56,7 +58,11 @@ export const DROPPED_SCREENS: Record<string, string> = {
   // i18n-ignore: reasons for developers, read by the parity tests
   project_home: 'no project level (docs/decisions.md 63): an organization holds languages directly',
   // i18n-ignore: reasons for developers, read by the parity tests
-  new_project: 'no project level (docs/decisions.md 63): languages are added from the organization (New Language)'
+  new_project: 'no project level (docs/decisions.md 63): languages are added from the organization (New Language)',
+  // i18n-ignore: reasons for developers, read by the parity tests
+  review_teams: 'no review teams (docs/decisions.md 88): people are put on a check, on the check itself (check_editor)',
+  // i18n-ignore: reasons for developers, read by the parity tests
+  review_team_editor: 'no review teams (docs/decisions.md 88): people are put on a check, on the check itself (check_editor)'
 };
 export type NodeId = ScreenId | 'home_hub';
 
@@ -216,13 +222,10 @@ export const EDGES: Edge[] = [
   e('org_home', 'flows_home', undefined, 'manageFlows'), // tap Setup, then Review Flows
   e('language_home', 'members_list'), // tap Members
   e('language_home', 'roles_home'), // tap Setup, then Roles
-  e('language_home', 'review_teams'), // tap Review Teams
   e('language_home', 'org_home', 'popTo'), // tap org breadcrumb
   e('language_home', 'templates_home', undefined, 'manageTemplates'), // tap Setup, then Content Templates
   e('language_home', 'reference_home', undefined, 'manageReference'), // tap Setup, then Reference Material
   e('language_home', 'flows_home', undefined, 'manageFlows'), // tap Setup, then Review Flows
-  e('review_teams', 'review_team_editor'), // tap team / New
-  e('review_team_editor', 'review_teams', 'back'), // tap Save / Back
   e('members_list', 'invite_member'), // tap Invite
   e('org_home', 'invite_member', undefined, 'assigner'), // tap Invite people
   e('members_list', 'edit_member'), // tap Edit on an editable member
@@ -373,7 +376,10 @@ export const EDGES: Edge[] = [
   e('new_language', 'flow_editor', undefined, 'manageFlows'),
   // App only: a ready language's page (decision 71, demo ADR-039): who checks, and letting someone in
   e('language_home', 'flow_editor', undefined, 'manageFlows'),
-  e('language_home', 'edit_member', undefined, 'assigner')
+  e('language_home', 'edit_member', undefined, 'assigner'),
+  // A language's checks (decision 88): one check, and a help a reviewer opens from it.
+  e('flow_editor', 'check_editor'),
+  e('review_capture', 'material_editor')
 ];
 
 /**

@@ -6,7 +6,7 @@
 // Requirements REC-1..8 (REC-2/2a: the path top to bottom, per version),
 // ASK-2, ASK-4; ADR-012, 013, 014, 015, 016, 020, 029, 030.
 import {
-  feedbackIsMine, isCompleteState, keyTermView, languagePeople, membershipsOf, privilegesFor, scopeCovers,
+  checkPeople, feedbackIsMine, isCompleteState, keyTermView, languagePeople, membershipsOf, privilegesFor, scopeCovers,
   type FlowStepStatus, type KindDef, type KindStatus, type OrgState, type PassageNote, type PassageState,
   type Privilege, type LanguageState, type QuestionSpec, type RecordEntry, type RequestView, type ReviewView, type SourcedQuestion,
   type Version
@@ -104,15 +104,13 @@ export function kindPathState(k: KindStatus, s: FlowStepStatus, isNext: boolean)
 }
 
 /** What tapping a step says about it, above its kinds' actions. */
-export function stepSheetSub(s: FlowStepStatus, canAct: boolean): string {
+export function stepSheetSub(s: FlowStepStatus): string {
   if (s.lockedBy) return t('passage.record.sheet.waitsFor', { step: s.lockedBy });
   if (s.complete) return t('passage.record.sheet.done');
   if (s.override) return t('passage.record.sheet.movedPast');
   if (s.step.checkpoint) return t('passage.record.sheet.checkpoint');
-  const n = s.kinds.length;
-  const together = n === 2 ? t('passage.record.sheet.togetherTwo') : n > 2 ? t('passage.record.sheet.together', { count: n }) : '';
-  const order = canAct ? t('passage.record.sheet.suggestedNow') : t('passage.record.sheet.suggested');
-  return [together, order].filter(Boolean).join(' ');
+  // Nothing to explain otherwise: the checks below are the step (decision 88).
+  return '';
 }
 
 // ---- the journey: the path top to bottom, per version (REC-2, REC-2a, ADR-030) ---------
@@ -496,15 +494,17 @@ interface AskCandidate {
   profileId: string;
   /** Role name, and why they are suggested. */
   sub: string;
-  /** On a review team for the language, or has done this kind here before. */
+  /** On the check, or has done this kind here before. */
   usual: boolean;
+  /** On the check itself (decision 88), not only someone who did it here before. */
+  onCheck: boolean;
 }
 
 /**
  * Teammates who may be asked: everyone whose role covers the language and
  * holds Translate (to record) or Review (to review). Not the person asking.
- * For a review, those on one of the language's review teams or who did this
- * kind here before come first ("Usually does").
+ * For a review, the check's people come first (decision 88), then whoever
+ * did this kind here before.
  */
 export function askCandidates(
   state: LanguageState,
@@ -516,31 +516,17 @@ export function askCandidates(
   if (o.what === 'review' && o.kindId) {
     for (const r of Object.values(state.kindReviews)) if (r.kindId === o.kindId) reviewedHere.add(r.by);
   }
-  // The review group for this kind (a team tagged with it, or with any kind) comes first: admins can put
-  // people in each group, and they are the top choices when someone asks for that check (demo ADR-034, amended).
-  const inGroup = new Map<string, string>();
-  const onTeam = new Set<string>();
-  if (o.what === 'review') {
-    for (const team of Object.values(state.teams)) {
-      const kind = team.kindId?.value ?? null;
-      for (const [id, reg] of Object.entries(team.members)) {
-        if (!reg.value) continue;
-        onTeam.add(id);
-        if (o.kindId && (kind === o.kindId || kind === null) && !inGroup.has(id)) inGroup.set(id, team.name.value);
-      }
-    }
-  }
-  const rank = (c: AskCandidate) => (inGroup.has(c.profileId) ? 0 : c.usual ? 1 : 2);
+  // The check's people come first (decision 88): admins put them on the check, and they are the top choices when someone asks for it.
+  const onCheck = new Set(o.what === 'review' && o.kindId ? checkPeople(state, o.kindId) : []);
+  const rank = (c: AskCandidate) => (onCheck.has(c.profileId) ? 0 : c.usual ? 1 : 2);
   const out: AskCandidate[] = [];
   for (const person of languagePeople(org, o.languageId).values()) {
     const id = person.profileId;
     if (id === o.me || !person.privileges.has(need)) continue;
     const covering = membershipsOf(org!, id).find((m) => scopeCovers(m.scope, o.languageId) && org!.roles[m.roleId.value] && !org!.roles[m.roleId.value]!.retired);
     const role = covering ? org!.roles[covering.roleId.value]!.name.value : t('passage.record.candidate.member');
-    const group = inGroup.get(id);
-    const why = group ? t('passage.record.candidate.inGroup', { group }) : onTeam.has(id) ? t('passage.record.candidate.onTeam')
-      : reviewedHere.has(id) ? t('passage.record.candidate.doneHere') : '';
-    out.push({ profileId: id, sub: why ? `${role} · ${why}` : role, usual: !!why });
+    const why = !onCheck.has(id) && reviewedHere.has(id) ? t('passage.record.candidate.doneHere') : '';
+    out.push({ profileId: id, sub: why ? `${role} · ${why}` : role, usual: onCheck.has(id) || !!why, onCheck: onCheck.has(id) });
   }
   return out.map((c, i) => [c, i] as const).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(([c]) => c);
 }

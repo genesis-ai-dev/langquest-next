@@ -14,7 +14,7 @@
 // the Map. Getting started is gone: help mode (the ? in the header) explains
 // each part for field workers, and the Get ready card leads coordinators.
 import {
-  derivePassage, highlightsFor, languageName, membershipsOf, recommendedFor, unitTitle, upNext, waitingOn,
+  checkPeople, derivePassage, highlightsFor, languageName, membershipsOf, recommendedFor, unitTitle, upNext, waitingOn,
   type Highlight, type KindDef, type LanguageState, type OrgState, type Waiting
 } from '@langquest-next/core';
 import { useEffect, useMemo, useState } from 'react';
@@ -33,6 +33,8 @@ import { noteExpected } from '../report';
 import { contractsFor } from '../screenContracts';
 import { edgeAllowed, mapScreenFor } from '../session';
 import { Bell, NextCard, QuietToggle, ReadyCard } from '../simple/home';
+import { checkName } from '../simple/adminModel';
+import { Faces } from '../checks/parts';
 import { useReadySummary, type ReadySummary } from '../simple/ready';
 import { nextSub, readiness, readySteps, THEN_CAP, workIcon, workSub, workTarget, workWhat, type Readiness } from '../simple/homeModel';
 import { C, space, TINT } from '../theme';
@@ -189,7 +191,7 @@ export function MyWork(ctx: Ctx) {
   /** One highlight's words: the passage, what to do, who asked and when it is due. */
   function words(h: Highlight): { title: string; what: string; by?: string; due?: string } {
     const r = h.request;
-    const kindName = r?.kindId ? kinds.find((k) => k.id === r.kindId)?.name : undefined;
+    const kindName = r?.kindId ? checkName(r.kindId, kinds) : undefined;
     return {
       title: unitTitle(state!, h.unitId),
       what: workWhat(h.kind, kindName),
@@ -231,8 +233,16 @@ export function MyWork(ctx: Ctx) {
     const first = forYou[0]!;
     const w = words(first);
     rest = forYou.slice(1);
+    // A check asked of a whole team (decision 88) says so, with the team's faces.
+    const team = first.request?.teamId && first.request.kindId ? { kindId: first.request.kindId, people: checkPeople(state, first.request.kindId) } : null;
     lead = <NextCard label={t('work.lead.nextForYou')} title={w.title} cta={t('work.lead.start')} onPress={() => open(first, languageId)}
-      sub={nextSub(first.kind, w.what, { ...(w.by ? { by: w.by } : {}), ...(w.due ? { due: w.due } : {}) })} />;
+      sub={nextSub(first.kind, w.what, { ...(w.by ? { by: w.by } : {}), ...(w.due ? { due: w.due } : {}) })}
+      {...(team ? { below: (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+          <Faces people={team.people} />
+          <Text style={[txt.sm, { color: C.muted, fontWeight: '600', flex: 1 }]}>{t('checks.forTeam', { check: checkName(team.kindId, kinds) })}</Text>
+        </View>
+      ) } : {})} />;
   } else if (languageId) {
     // ONB-7: something real to do when nothing is waiting, instead of an empty list.
     const next = upNext(state, isAdminOnly ? { canRecord: true, canReview: false } : { canRecord, canReview }, idx);

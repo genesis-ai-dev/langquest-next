@@ -11,6 +11,8 @@ import { t } from '../i18n';
 import { Ico, txt, type IconName } from '../kit';
 import { C, radius, space, target, TINT } from '../theme';
 import type { PathStep, PathStepKind, TeamStep } from './pathModel';
+import type { Ctx } from '../ctx';
+import { PeopleLine } from '../checks/parts';
 
 const STEP_ICON: Record<PathStepKind, IconName> = { study: 'star', record: 'mic', publish: 'send', feedback: 'chat', fix: 'mic' };
 
@@ -81,7 +83,7 @@ function StepRow(props: {
   );
 }
 
-function TeamRow(props: { step: TeamStep; onPress?: () => void }) {
+function TeamRow(props: { ctx: Ctx; step: TeamStep; people: string[] | null; onPress?: () => void }) {
   const { step } = props;
   const spot = useHelpSpot(step.name, t('passage.path.help.team', { status: step.status }), props.onPress);
   const press = spot.onPress;
@@ -92,16 +94,22 @@ function TeamRow(props: { step: TeamStep; onPress?: () => void }) {
       style={({ pressed }) => [styles.teamRow, pressed && { opacity: 0.7 }]}>
       <Ico name={icon} size={20} color={color} strokeWidth={step.state === 'done' ? 3 : 2.2} />
       <HelpBadge spot={spot} />
-      <Text style={[styles.teamName, { flex: 1 }]}>
-        {step.name}{'  '}
-        <Text style={[txt.smMuted, { fontWeight: '400' }, step.state === 'attention' ? { color: TINT.amberText } : null]}>{step.status}</Text>
-      </Text>
+      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+        <Text style={styles.teamName}>
+          {step.name}{'  '}
+          <Text style={[txt.smMuted, { fontWeight: '400' }, step.state === 'attention' ? { color: TINT.amberText } : null]}>{step.status}</Text>
+        </Text>
+        {props.people && props.people.length ? <PeopleLine ctx={props.ctx} people={props.people} size={22} /> : null}
+      </View>
     </Pressable>
   );
 }
 
 export function PassagePath(props: {
+  ctx: Ctx;
   steps: PathStep[];
+  /** Who is on each check (decision 88). */
+  peopleOf?: (kindId: string) => string[];
   team: TeamStep[];
   onStep: (step: PathStep) => (() => void) | undefined;
   onTeamStep: (step: TeamStep) => (() => void) | undefined;
@@ -118,7 +126,10 @@ export function PassagePath(props: {
       {props.team.length > 0 ? (
         <View style={styles.team}>
           <Text style={[txt.label, { marginBottom: space.xs }]}>{t('passage.path.thenTheTeam')}</Text>
-          {props.team.map((step) => <TeamRow key={step.stepId} step={step} {...(props.onTeamStep(step) ? { onPress: props.onTeamStep(step)! } : {})} />)}
+          {props.team.map((step) => (
+            <TeamRow key={`${step.stepId}:${step.kindId}`} ctx={props.ctx} step={step} people={props.peopleOf ? props.peopleOf(step.kindId) : null}
+              {...(props.onTeamStep(step) ? { onPress: props.onTeamStep(step)! } : {})} />
+          ))}
         </View>
       ) : null}
     </View>

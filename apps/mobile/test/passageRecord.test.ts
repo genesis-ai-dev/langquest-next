@@ -109,8 +109,9 @@ describe('the step path', () => {
     let s = p.passage();
     expect(pathState(s.steps[0]!, true)).toBe('current');
     expect(pathState(s.steps[3]!, false)).toBe('locked');
-    expect(stepSheetSub(s.steps[3]!, true)).toBe('Waits for the Consultant Check checkpoint.');
-    expect(stepSheetSub(s.steps[0]!, true)).toBe('2 separate pieces of work, in either order. Steps are a suggested order — you can do this now.');
+    expect(stepSheetSub(s.steps[3]!)).toBe('Waits for the Consultant Check checkpoint.');
+    // No explaining a step that is simply its checks (decision 88).
+    expect(stepSheetSub(s.steps[0]!)).toBe('');
 
     const take = s.latest!.takeId;
     p.run('ayen', (c) => c.recordReview({ commandId: 'r1', takeIds: [take], kindId: 'peer', outcome: 'needs_changes', via: 'app', comment: 'Fix it' }));
@@ -259,7 +260,7 @@ describe('asking someone', () => {
     ]);
 
     const review = askCandidates(p.state(), org, { languageId: 'din', what: 'review', kindId: 'peer', me: 'lead' });
-    // Translators hold Review too (decisions.md 90): a peer check is often another translator.
+    // Translators hold Review too (decisions.md 88): a peer check is often another translator.
     expect(review.map((c) => c.profileId).sort()).toEqual(['akol', 'ayen', 'deng', 'nyibol']);
     expect(review.find((c) => c.profileId === 'deng')).toMatchObject({ usual: true, sub: 'Reviewer · Has done this here before' });
     expect(review.find((c) => c.profileId === 'nyibol')).toMatchObject({ usual: false, sub: 'Community Reviewer' });
@@ -268,7 +269,7 @@ describe('asking someone', () => {
     expect(rec.map((c) => c.profileId)).toEqual(['akol']);
   });
 
-  it('puts the review group for this check first, named, when admins have put people in it', () => {
+  it("puts the check's people first when admins have put people on it (decision 88)", () => {
     const p = language();
     record(p, 'v1', ['c1']);
     const org = team([['nyibol', 'rev', { level: 'language', languageId: 'din' }]]);
@@ -276,9 +277,9 @@ describe('asking someone', () => {
     const reg = <T,>(value: T) => ({ value, hlc: '0', eventId: 'e' });
     state.teams['t1'] = { name: reg('Community group'), members: { nyibol: reg(true) }, kindId: reg('peer') } as never;
     const review = askCandidates(state, org, { languageId: 'din', what: 'review', kindId: 'peer', me: 'lead' });
-    expect(review[0]).toMatchObject({ profileId: 'nyibol', usual: true, sub: 'Community Reviewer · In Community group' });
+    expect(review[0]).toMatchObject({ profileId: 'nyibol', usual: true, onCheck: true, sub: 'Community Reviewer' });
     const other = askCandidates(state, org, { languageId: 'din', what: 'review', kindId: 'consultant', me: 'lead' });
-    expect(other.find((c) => c.profileId === 'nyibol')?.sub).toBe('Community Reviewer · On the review team');
+    expect(other.find((c) => c.profileId === 'nyibol')).toMatchObject({ usual: false, onCheck: false, sub: 'Community Reviewer' });
   });
 
   it('takes a due date from today on, written as YYYY-MM-DD', () => {

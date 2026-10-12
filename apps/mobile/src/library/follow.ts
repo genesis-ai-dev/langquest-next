@@ -1,4 +1,4 @@
-import { isTemplateDoc, selectFlowSpecs, selectTemplateSpecs, type FlowDoc, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
+import { isTemplateDoc, selectFlowSpecs, selectTemplateSpecs, translatorReviewUpgrade, type FlowDoc, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useEffect, useMemo, useRef } from 'react';
 import { noteExpected, reportError } from '../report';
@@ -62,4 +62,22 @@ export function useLibraryFollow(language: LanguageHandle, org: OrgHandle, sessi
       else reportError('library upload', e);
     });
   }, [orgId, org.pulled, org.pending]);
+}
+
+/**
+ * Give the organization's Translator role Review, once (decisions.md 88):
+ * the next phone of someone who may change roles appends the change, and
+ * only while the role still has exactly the privileges it was seeded with.
+ */
+export function useTranslatorReview(org: OrgHandle, session: Session): void {
+  const upgrade = useMemo(() => translatorReviewUpgrade(org.state), [org.state]);
+  const done = useRef(false);
+  useEffect(() => {
+    if (!upgrade || done.current || !org.pulled || !session.can('manage_roles')) return;
+    done.current = true;
+    void org.append('v1.RoleDefined', upgrade).catch((e: unknown) => {
+      done.current = false;
+      noteExpected('translator review', e);
+    });
+  }, [upgrade, org, session]);
 }
