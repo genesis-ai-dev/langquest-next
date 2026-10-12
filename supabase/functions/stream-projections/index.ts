@@ -21256,6 +21256,8 @@ function validateEvent(e) {
       return str("teamId") ?? nullableStr("kindId");
     case "v1.FlowStepLinksSet":
       return str("stepId") ?? bool("allowed");
+    case "v1.CheckHelpSet":
+      return str("kindId") ?? bool("linked") ?? (p["itemId"] === void 0 === (p["materialId"] === void 0) ? "exactly one of itemId, materialId" : null) ?? (p["itemId"] === void 0 || nonEmpty(p["itemId"]) ? null : "itemId must be a non-empty string") ?? (p["materialId"] === void 0 || nonEmpty(p["materialId"]) ? null : "materialId must be a non-empty string");
     case "v1.VersionReleased":
       return str("takeId", "channel") ?? bool("live") ?? (p["url"] === void 0 || nonEmpty(p["url"]) ? null : "url must be a non-empty string") ?? // Characters, as SQL length() counts them.
       ([...p["channel"]].length <= 60 ? null : "channel must be at most 60 characters");
@@ -21492,6 +21494,12 @@ function applyLanguageEvent(state, event) {
     case "v1.FlowStepLinksSet":
       lww(state.stepLinks ??= {}, event.payload.stepId, event, event.payload.allowed);
       break;
+    case "v1.CheckHelpSet": {
+      const { kindId, itemId, materialId, linked } = event.payload;
+      const key = itemId !== void 0 ? `item:${itemId}` : `material:${materialId}`;
+      lww((state.checkHelps ??= {})[kindId] ??= {}, key, event, linked);
+      break;
+    }
     case "v1.VersionReleased": {
       const { takeId, channel, live, url } = event.payload;
       lww((state.releases ??= {})[takeId] ??= {}, channel, event, { live, by: event.actorId, ...url !== void 0 ? { url } : {} });
@@ -21833,7 +21841,7 @@ function deriveFlow(state) {
   if (!selection) return { flowId: null, itemId: null, docHash: null, name: "No review flow", steps: [] };
   const prefix = flowStepPrefix(selection.flowId);
   const steps = Object.values(state.flowSteps).map((r) => r.value).filter((d) => d.stepId.startsWith(prefix) && !state.removedSteps[d.stepId]).sort((a, b) => a.order < b.order ? -1 : a.order > b.order ? 1 : a.stepId < b.stepId ? -1 : 1).map((d) => ({ id: d.stepId, kindIds: [...d.kindIds], checkpoint: d.checkpoint }));
-  const name = selection.flowId === CUSTOM_FLOW ? "Custom flow" : selection.name ?? flowTemplate(selection.flowId)?.name ?? "Review flow";
+  const name = selection.flowId === CUSTOM_FLOW ? selection.name ?? "Custom flow" : selection.name ?? flowTemplate(selection.flowId)?.name ?? "Review flow";
   return { flowId: selection.flowId, itemId: selection.itemId ?? null, docHash: selection.docHash ?? null, name, steps };
 }
 function stepName(kinds, step) {
@@ -22212,7 +22220,8 @@ var SEED_ROLES = [
     fixed: "coordinator",
     privileges: PRIVILEGES.filter((p) => p !== "manage_roles")
   },
-  { roleId: "translator", name: "Translator", fixed: "translator", privileges: ["translate", "fill_reference", "send_to_reviewers", "view_status"] },
+  // Review since decisions.md 91: a peer check is often another translator.
+  { roleId: "translator", name: "Translator", fixed: "translator", privileges: ["translate", "review", "fill_reference", "send_to_reviewers", "view_status"] },
   { roleId: "reviewer", name: "Reviewer", fixed: "reviewer", privileges: ["review", "view_status"] },
   { roleId: "viewer", name: "Viewer", fixed: "viewer", privileges: ["view_status"] }
 ];

@@ -1,5 +1,5 @@
 // The alert for files this device deleted behind the app's back
-// (decisions.md 91). Phones sold with fake storage sizes throw files away
+// (decisions.md 92). Phones sold with fake storage sizes throw files away
 // once the real space runs out, and nobody learns of it until a recording
 // is needed. The file store notices (blobs.ts); this says so where nobody
 // can miss it: over every screen, until someone taps "I understand". It

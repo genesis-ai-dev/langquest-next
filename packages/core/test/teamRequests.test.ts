@@ -138,12 +138,26 @@ describe('requests to a review team', () => {
 });
 
 describe('usualTarget', () => {
-  it('nothing clear: no team for the kind and nobody has done it here', () => {
-    expect(usualTarget(language().state(), 'peer', 'akol')).toBeUndefined();
+  /** Nobody on the fixture's team, which is for any kind. */
+  const emptyPeers = (p: ReturnType<typeof language>) => {
+    for (const id of ['ayen', 'deng', 'akol']) p.emit('lead', 'v1.ReviewTeamMemberSet', { teamId: 'peers', profileId: id, member: false });
+  };
+
+  it('nothing clear: nobody on the check and nobody has done it here', () => {
+    const p = language();
+    emptyPeers(p);
+    expect(usualTarget(p.state(), 'peer', 'akol')).toBeUndefined();
+  });
+
+  it('an older team for any kind is on every check (decisions.md 91)', () => {
+    const s = language().state();
+    expect(usualTarget(s, 'peer', 'akol')).toEqual({ teamId: 'peers', name: 'Dinka peers' });
+    expect(usualTarget(s, 'community', 'akol')).toEqual({ teamId: 'peers', name: 'Dinka peers' });
   });
 
   it('the one person who reviewed this kind here before, in the app', () => {
     const p = language();
+    emptyPeers(p);
     const v1 = derivePassage(p.state(), 'john3').latest!.takeId;
     p.run('ayen', (c) => c.recordReview({ commandId: 'r1', takeIds: [v1], kindId: 'peer', outcome: 'looks_good', via: 'app' }));
     // A check logged afterwards is the typist's act, not the reviewer's.
@@ -155,11 +169,10 @@ describe('usualTarget', () => {
     expect(usualTarget(p.state(), 'peer', 'akol')).toBeUndefined(); // two people: no one is "the" usual
   });
 
-  it('a team that usually does this kind comes first, before a person, while someone besides me is on it', () => {
+  it("the check's team comes first, before a person, while someone besides me is on it", () => {
     const p = language();
     const v1 = derivePassage(p.state(), 'john3').latest!.takeId;
     p.run('nyibol', (c) => c.recordReview({ commandId: 'r1', takeIds: [v1], kindId: 'peer', outcome: 'looks_good', via: 'app' }));
-    expect(usualTarget(p.state(), 'peer', 'akol')).toEqual({ profileId: 'nyibol' });
     p.emit('lead', 'v1.ReviewTeamKindSet', { teamId: 'peers', kindId: 'peer' });
     expect(p.state().teams['peers']!.kindId?.value).toBe('peer');
     expect(usualTarget(p.state(), 'peer', 'akol')).toEqual({ teamId: 'peers', name: 'Dinka peers' });
@@ -170,9 +183,10 @@ describe('usualTarget', () => {
     expect(usualTarget(p.state(), 'peer', 'akol')).toEqual({ profileId: 'nyibol' });
     p.emit('lead', 'v1.ReviewTeamMemberSet', { teamId: 'peers', profileId: 'deng', member: true });
     expect(usualTarget(p.state(), 'peer', 'akol')).toEqual({ teamId: 'peers', name: 'Dinka peers' });
-    // "Any kind" is no kind's usual team.
-    p.emit('lead', 'v1.ReviewTeamKindSet', { teamId: 'peers', kindId: null });
-    expect(usualTarget(p.state(), 'peer', 'akol')).toEqual({ profileId: 'nyibol' });
+    // The check's own team comes before an older team set to the kind.
+    p.emit('lead', 'v1.ReviewTeamDefined', { teamId: 'check:peer', name: 'Peer check' });
+    p.emit('lead', 'v1.ReviewTeamMemberSet', { teamId: 'check:peer', profileId: 'ayen', member: true });
+    expect(usualTarget(p.state(), 'peer', 'akol')).toEqual({ teamId: 'check:peer', name: 'Peer check' });
   });
 
   it('the kind is a register: the later clock wins whatever order events arrive in', () => {

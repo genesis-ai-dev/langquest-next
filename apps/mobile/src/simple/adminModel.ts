@@ -271,6 +271,18 @@ interface PlainStep {
   checkpoint?: boolean;
 }
 
+/** One check's name, the same on every screen (decisions.md 91): "Peer check", or the name an organization gave its own. */
+export function checkName(kindId: string, kinds: readonly KindDef[]): string {
+  return plainKind(kindId, kinds).step;
+}
+
+/** A language's checks in order on one line: "Peer check + back translation → Community check → Final approval". */
+export function checksLine(steps: readonly PlainStep[], kinds: readonly KindDef[]): string {
+  if (steps.length === 0) return t('admin.flow.noChecks');
+  return steps.map((s) => s.kindIds.map((id, i) => (i === 0 ? plainKind(id, kinds).step : plainKind(id, kinds).stepLater)).join(t('checks.together')))
+    .join(t('checks.then'));
+}
+
 /** "Peer check and back translation": a step's kinds, joined. */
 export function stepTitle(kindIds: readonly string[], kinds: readonly KindDef[]): string {
   return joinAnd(kindIds.map((id, i) => (i === 0 ? plainKind(id, kinds).step : plainKind(id, kinds).stepLater)), false);

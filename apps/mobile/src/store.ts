@@ -164,7 +164,7 @@ export function getDiagStore(): Promise<SqliteDiagStore> {
 }
 
 /**
- * What the file store has kept (blobs.ts, decisions.md 91). Its own file
+ * What the file store has kept (blobs.ts, decisions.md 92). Its own file
  * too, so writing down a downloaded file never waits on an event commit.
  * Only the file store opens it, and only on a phone: a browser's SQLite
  * keeps at most six files open (expo-sqlite's access handle pool), which

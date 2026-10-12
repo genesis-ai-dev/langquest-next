@@ -66,7 +66,7 @@ describe('blob transport', () => {
     expect(env.uploads[0]!.options['httpMethod']).toBe('PUT');
   });
 
-  it('a recording gone from the disk is not sent, and the store looks for others gone with it (decisions.md 91)', async () => {
+  it('a recording gone from the disk is not sent, and the store looks for others gone with it (decisions.md 92)', async () => {
     const { uploadBlob } = await load('ios');
     store.exists = false;
     store.rechecks = 0;

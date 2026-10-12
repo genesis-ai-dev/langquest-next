@@ -19,7 +19,7 @@ function nodeDriver(): SqlDriver {
 
 const hash = (n: number) => n.toString(16).padStart(64, '0');
 
-// What the file store has kept, written down apart from the files (decisions.md 91).
+// What the file store has kept, written down apart from the files (decisions.md 92).
 for (const [name, make] of [['SQLite', async () => SqliteFileLedger.open(nodeDriver())], ['memory', async () => new MemoryFileLedger()]] as const) {
   describe(`the file ledger (${name})`, () => {
     let ledger: FileLedger;

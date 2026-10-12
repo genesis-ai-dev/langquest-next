@@ -228,7 +228,7 @@ export function deriveMissingBlobs(state: LanguageState, present: ReadonlySet<st
   return [...referencedBlobs(state).values()].filter((r) => !isStored(state, r.hash) && !present.has(r.hash));
 }
 
-/** What losing files from this device means for one language (decisions.md 91). */
+/** What losing files from this device means for one language (decisions.md 92). */
 export interface LostFilesView {
   /** The server has these, so nothing is lost there; kept passages download them again. */
   safe: number;

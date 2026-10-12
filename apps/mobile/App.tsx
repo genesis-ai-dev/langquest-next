@@ -33,6 +33,7 @@ import { t } from './src/i18n';
 import { personLook } from './src/people';
 import { navRef, useNav, type Route, type StackParams } from './src/nav';
 import * as Account from './src/screens/account';
+import * as Checks from './src/screens/checks';
 import * as Config from './src/screens/config';
 import * as Content from './src/screens/content';
 import * as Entry from './src/screens/entry';
@@ -65,7 +66,7 @@ import { parseKey } from './src/inviteCode';
 import { nextStep } from './src/heldInvite';
 import { useHeldInvite, type InviteHandle } from './src/useHeldInvite';
 import { useOrg, type OrgHandle } from './src/useOrg';
-import { useLibraryFollow } from './src/library/follow';
+import { useLibraryFollow, useTranslatorReview } from './src/library/follow';
 import { useSourceOffline } from './src/sources/offline';
 import { useLanguage } from './src/useLanguage';
 import { useHandOvers } from './src/handOver';
@@ -91,7 +92,7 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   org_switcher: Account.OrgSwitcher, sign_out_confirm: Account.SignOutConfirm, delete_account: Account.DeleteAccount, sync_status: Account.SyncStatus,
   org_home: Org.OrgHome, language_home: Org.LanguageHome,
   new_language: Org.NewLanguage, members_list: Org.MembersList, invite_member: Org.InviteMember, invite_qr: Org.InviteQr,
-  edit_member: Org.EditMember, review_teams: Org.ReviewTeams, review_team_editor: Org.ReviewTeamEditor,
+  edit_member: Org.EditMember, check_editor: Checks.CheckEditor,
   roles_home: Config.RolesHome, role_editor: Config.RoleEditor, reference_home: Config.ReferenceHome, material_editor: Config.MaterialEditor,
   flows_home: Config.FlowsHome, flow_editor: Config.FlowEditor,
   templates_home: Content.TemplatesHome, template_picker: Content.TemplatePicker, template_editor: Content.TemplateEditor,
@@ -451,6 +452,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   );
   // Languages follow the library versions their template and flow are at (docs/library.md).
   useLibraryFollow(language, org, session);
+  useTranslatorReview(org, session);
   // Sources phones may keep follow the offline scope (docs/reference-material.md).
   useSourceOffline(language, org, session);
 
@@ -793,7 +795,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
         </View>
         {!wide && showTabs ? navChrome('bar') : null}
       </PeopleContext.Provider>
-      {/* Files this device deleted behind the app's back (decisions.md 91): over every screen until seen. */}
+      {/* Files this device deleted behind the app's back (decisions.md 92): over every screen until seen. */}
       <LostFilesAlert state={language.state} />
       {canSwitchPersona ? (
         <DevMenu open={devOpen} onClose={() => setDevOpen(false)} language={language} org={org} currentEmail={props.email} isOwner={session.role === 'owner'} isDev={IS_DEV} jump={(s) => nav.reset({ screen: s })} />
