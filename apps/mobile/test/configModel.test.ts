@@ -185,7 +185,11 @@ describe('reference material in the library', () => {
     expect(validateDoc(doc)).toBeNull();
     expect(doc.reviewKindId).toBe('peer');
     expect(doc.questions).toEqual([{ id: 'q1', text: 'Is it clear?', type: 'yesno', required: true }, { id: 'q2', text: 'Anything missing?', type: 'text' }]);
-    expect(libraryMaterialLine(doc, null, deriveKinds(p.state()))?.line).toBe('Question set · Peer Review · 2 questions');
+    // Made in the app, it gives no language until the library editor says one (decision 84).
+    expect(libraryMaterialLine(doc, null, deriveKinds(p.state()))?.line).toBe('Question set · Language not given · Peer Review · 2 questions');
+    expect(libraryMaterialLine({ ...doc, language: 'fra' }, null, deriveKinds(p.state()))?.line).toBe('Question set · French · Peer Review · 2 questions');
+    expect(validateDoc({ ...doc, language: 'fra' })).toBeNull();
+    expect(validateDoc({ ...doc, language: '' })).toBe('language must be a language code');
   });
 
   it('links a material scoped to a template part by that part, and keeps a lone body as the body', () => {
@@ -228,11 +232,11 @@ describe('reference material in the library', () => {
     expect(parseRefLinks('RUT 1:1-16\nrut 2:1; RUT1:1-16\n\nRuth one')).toEqual({ refs: ['RUT 1:1-16', 'RUT 2:1'], bad: ['Ruth one'] });
   });
 
-  it('says what a study document is, with its passage count and versification', () => {
+  it('says what a study document is, the language it is in, its passage count and versification', () => {
     const hash = 'c'.repeat(64);
-    expect(libraryMaterialLine({ format: 'collection@1', title: 'FIA', description: '', versification: hash, entries: [
+    expect(libraryMaterialLine({ format: 'collection@1', title: 'FIA', description: '', language: 'fra', versification: hash, entries: [
       { ref: 'LUK 15:11-32', title: 'Lost son', doc: hash }, { ref: 'JHN 3:1-21', title: 'Nicodemus', doc: hash }
-    ], deps: [] }, 'English', [])).toEqual({ type: 'study', line: 'Study guides · 2 passages · English' });
+    ], deps: [] }, 'English', [])).toEqual({ type: 'study', line: 'Study guides · French · 2 passages · English numbering' });
     expect(libraryMaterialLine(null, null, [])).toBeNull();
   });
 });

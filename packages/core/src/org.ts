@@ -159,6 +159,7 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.KeyTermAdjusted': 'fill_reference',
   'v1.KeyTermLinked': 'fill_reference',
   'v1.ReferenceSet': 'manage_reference',
+  'v1.ReferenceLanguageSet': 'manage_reference',
   'v1.PassageReferenceLinked': 'manage_reference',
   // Whoever publishes a version (translate) or records a review (review, or translate for a logged check).
   'v1.ReferencesUsed': ['translate', 'review'],

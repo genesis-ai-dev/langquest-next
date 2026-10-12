@@ -10,6 +10,8 @@ import { useMemo } from 'react';
 import { Platform } from 'react-native';
 import type { Ctx } from '../ctx';
 import { useLibraryDocs } from '../library/useLibrary';
+import { chosenOnly } from '../reference/guideSets';
+import { teamLanguage } from '../reference/languages';
 import { offeredGuideSources } from '../reference/offered';
 import { bestGuide, guideFromDoc, passageVerses, type GuideSource } from './guideMatch';
 import type { StudyGuide } from './guides';
@@ -33,7 +35,7 @@ export function useStudyGuides(ctx: Ctx, unitIds: readonly string[]): Map<string
   const offered = useMemo(() => {
     const library = ctx.org.state?.library ?? {};
     // An item this organization controls (not a follow) is named, so its single guides offer Edit (guides/GuideEditor.tsx).
-    const named = (s: { key: string; hash: string }): GuideSource => {
+    const named = (s: { key: string; hash: string; origin: string }): GuideSource => {
       const it = libraryItemView(library, s.key);
       return it && it.source !== 'subscription' ? { ...s, itemId: it.itemId } : s;
     };
@@ -46,6 +48,8 @@ export function useStudyGuides(ctx: Ctx, unitIds: readonly string[]): Map<string
     // The org fold changes its maps in place; the state object is new on every change.
   }, [ctx.org.state, state, unitIds]); // eslint-disable-line react-hooks/exhaustive-deps
   const sel = state?.template?.value;
+  // Among guides that fit as well, the one in the team's reference language (decision 84).
+  const reads = teamLanguage(ctx.org.state, state, ctx.language.languageId);
   const hashes = useMemo(() => [...new Set([...offered.values()].flatMap((o) => [...o.recommended, ...o.own].map((s) => s.hash)))], [offered]);
   // Nothing to match, nothing to load: the prefetch on the web, or a screen with no passage yet.
   const { get } = useLibraryDocs(orgId, unitIds.length ? [...hashes, sel?.docHash] : []);
@@ -58,11 +62,12 @@ export function useStudyGuides(ctx: Ctx, unitIds: readonly string[]): Map<string
       if (!o) continue;
       // A part of an outline template has no verses; guides placed on it by template node still match.
       const passage = passageVerses(state, unitId, get);
-      const choice = bestGuide({ unitId, range: passage?.range ?? null, versification: passage?.versification ?? null }, [o.recommended, o.own], get);
+      // A guide set's languages the team did not choose stay out (decision 84).
+      const choice = bestGuide({ unitId, range: passage?.range ?? null, versification: passage?.versification ?? null }, chosenOnly([o.recommended, o.own], get), get, reads);
       if (choice) out.set(unitId, choice);
     }
     return out;
-  }, [state, unitIds, offered, get]);
+  }, [state, unitIds, offered, get, reads]);
 
   // The chosen guides' own documents (a collection's entries) load on demand.
   const entry = useLibraryDocs(orgId, [...choices.values()].map((c) => c.hash));

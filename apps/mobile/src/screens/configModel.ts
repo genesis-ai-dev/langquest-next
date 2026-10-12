@@ -13,6 +13,7 @@ import {
 } from '@langquest-next/core';
 import { deriveKinds } from '../coreText';
 import { t } from '../i18n';
+import { docLanguage, languagesLine } from '../reference/languages';
 
 // ---- roles (ORG-3, ORG-4) ----------------------------------------------------------
 
@@ -438,24 +439,26 @@ export function parseRefLinks(text: string): { refs: string[]; bad: string[] } {
 /** What a library material is, in one line under its name; null while its document loads. */
 export function libraryMaterialLine(doc: LibraryDoc | null, versificationName: string | null, kinds: KindDef[]): { type: 'study' | 'questions' | 'material'; line: string } | null {
   if (!doc) return null;
-  // Facts about it, a dot between each; the versification last when it has one.
+  // Facts about it, a dot between each: what it is, the language it is in (decision 84), then the rest; the versification last when it has one.
   const line = (...parts: string[]) => parts.join(' · ');
-  const v = versificationName ? [versificationName] : [];
+  // "English numbering", so a numbering's name never reads as the language the material is in.
+  const v = versificationName ? [t('config.libraryLine.numbering', { name: versificationName })] : [];
+  const language = languagesLine([docLanguage(doc)]);
   switch (doc.format) {
-    case 'study@1': return { type: 'study', line: line(t('config.libraryLine.studyGuide'), doc.ref, t('config.libraryLine.passages', { count: 1 }), ...v) };
-    case 'collection@1': return { type: 'study', line: line(t('config.libraryLine.studyGuides'), t('config.libraryLine.passages', { count: doc.entries.length }), ...v) };
+    case 'study@1': return { type: 'study', line: line(t('config.libraryLine.studyGuide'), language, doc.ref, t('config.libraryLine.passages', { count: 1 }), ...v) };
+    case 'collection@1': return { type: 'study', line: line(t('config.libraryLine.studyGuides'), language, t('config.libraryLine.passages', { count: doc.entries.length }), ...v) };
     case 'material@1': {
       if (doc.kind === 'questions') {
         const kind = doc.reviewKindId ? kinds.find((k) => k.id === doc.reviewKindId)?.name ?? fieldLabel(doc.reviewKindId) : t('config.libraryLine.notTiedToKind');
-        return { type: 'questions', line: line(t('config.libraryLine.questionSet'), kind, questionCountLabel(libraryQuestions(doc).length)) };
+        return { type: 'questions', line: line(t('config.libraryLine.questionSet'), language, kind, questionCountLabel(libraryQuestions(doc).length)) };
       }
-      return { type: 'material', line: referenceKindName(doc.kind) };
+      return { type: 'material', line: line(referenceKindName(doc.kind), language) };
     }
     case 'study@2': {
       const where = doc.ref ?? (doc.links?.length ? t('config.libraryLine.places', { count: doc.links.length }) : t('config.libraryLine.notPlaced'));
-      return { type: 'study', line: line(t('config.libraryLine.studyGuide'), where, t('config.libraryLine.steps', { count: doc.steps.length }), ...(doc.ref ? v : [])) };
+      return { type: 'study', line: line(t('config.libraryLine.studyGuide'), language, where, t('config.libraryLine.steps', { count: doc.steps.length }), ...(doc.ref ? v : [])) };
     }
-    case 'source@1': return { type: 'material', line: line(t('config.libraryLine.bible'), doc.abbreviation, doc.language) };
+    case 'source@1': return { type: 'material', line: line(t('config.libraryLine.bible'), language, doc.abbreviation) };
     default: return { type: 'material', line: t('config.libraryLine.notReference') };
   }
 }

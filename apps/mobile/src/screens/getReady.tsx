@@ -12,7 +12,7 @@
 // 'helps' for What helps them on a ready language. `only: '1'` opens
 // question 1 alone, as "What to translate" from a ready language's page.
 import {
-  commands, CUSTOM_FLOW, deriveFlow, keyTermsFor, languageInfo, languageName, languageProgress, materialsFor,
+  commands, CUSTOM_FLOW, deriveFlow, keyTermsFor, languageName, languageProgress, materialsFor,
   goesWith, isTemplateDoc, recommendedFor, subscriptionItemId, templateBooks,
   type CollectionDoc, type EventSpec, type LibraryDoc, type SourceDoc
 } from '@langquest-next/core';
@@ -31,8 +31,13 @@ import { Banner, Chip, EmptyState, Group, Header, PrimaryBtn, QuietLinks, Row, S
 import { sourceLine, type SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
 import { booksInScope, LANGUAGE_SCOPES, languageScopeLabel, mayGrantAt, type LanguageScope } from '../orgAdmin';
-import { languageOf, recState, refKindOf, sourceFacts, type RefKind } from '../reference/model';
+import { recState, refKindOf, sourceFacts, type RefKind } from '../reference/model';
 import { referenceFailure, useRecommend } from '../reference/useReference';
+import { GuideLanguageSheet } from '../reference/GuideLanguageSheet';
+import { chooseSetLanguage, guideSets, hideSet, originOf, setKeyOf, setReach, type GuideSet, type ReferenceSay, type SetMember } from '../reference/guideSets';
+import { docLanguage, languagesLine, readerLanguage, sameLanguage, teamLanguage } from '../reference/languages';
+import { memberIn } from '../reference/languageChoices';
+import { ReferenceLanguageChip, ReferenceLanguagePage, useReferenceLanguages } from '../reference/ReferenceLanguagePage';
 import { failureMessage } from '../report';
 import { contractsFor } from '../screenContracts';
 import { C, space } from '../theme';
@@ -217,6 +222,8 @@ interface HelpItem {
   owner: string;
   /** The organization it is followed from or shared by, when it is another's. */
   from: string | null;
+  /** A guide set in several languages (FIA), chosen as one with its language (decision 84), and what of it reaches the team. */
+  set?: { set: GuideSet; reach: SetMember[] };
 }
 
 /**
@@ -237,13 +244,27 @@ function useHelpItems(ctx: Ctx) {
   const rec = useRecommend(ctx);
   const [busy, setBusy] = useState(false);
   const offered = recommendedFor(org?.recommendations, state);
-  const reads = languageInfo(org, languageId)?.sourceCode ?? 'eng';
+  const reads = teamLanguage(org, state, languageId);
+  const reader = readerLanguage();
   const out: HelpItem[] = [];
   const say = state?.languageReferences ?? {};
+  // FIA's collections, one per language, are one row whose language is chosen (decision 84).
+  const sets = guideSets(items.map((it) => ({ it, doc: docs.get(it.current) })), others.map((s) => ({ s, doc: docs.get(s.latest_hash) })));
+  const setKeys = new Set(sets.map((x) => x.key));
+  for (const set of sets) {
+    const reach = setReach(set, org?.recommendations, state);
+    const first = reach[0] ?? set.members[0]!;
+    const doc = first.itemId ? docs.get(lib.item(first.itemId)?.current) : docs.get(first.shared?.latest_hash);
+    const heldFrom = set.members.map((m) => (m.itemId ? lib.item(m.itemId)?.subscription?.sourceOrgName ?? lib.item(m.itemId)?.copiedFrom?.orgName : m.shared?.org_name)).find(Boolean) ?? null;
+    if (!doc) continue;
+    out.push({ key: `set:${set.key}`, itemId: null, shared: null, name: set.name, kind: 'guide', doc, on: reach.length > 0,
+      owner: heldFrom ? t('getReady.helps.fromOrg', { org: heldFrom }) : '', from: heldFrom, set: { set, reach } });
+  }
   for (const it of items) {
     const doc = docs.get(it.current);
     const kind = refKindOf(doc);
     if (!doc || !kind || kind === 'questions') continue;
+    if (setKeys.has(setKeyOf(originOf(it), doc) ?? '')) continue;
     // A Bible reaches the team when recommended; a guide or note in the library reaches it unless hidden here (reference/offered.ts).
     const on = kind === 'source' ? offered.has(it.itemId) : say[it.itemId]?.value !== 'hidden';
     const following = it.source === 'subscription' && it.subscription?.active ? it.subscription.sourceOrgName : null;
@@ -253,7 +274,10 @@ function useHelpItems(ctx: Ctx) {
     const doc = docs.get(s.latest_hash);
     const kind = refKindOf(doc);
     if (!doc || (kind !== 'source' && kind !== 'guide')) continue;
-    if (kind === 'guide' && languageOf(doc) && languageOf(doc) !== reads) continue;
+    if (setKeys.has(setKeyOf(s.org_id, doc) ?? '')) continue;
+    // Another organization's guides in a language the team may read: the language's own or the reader's.
+    const lang = docLanguage(doc);
+    if (kind === 'guide' && lang && !sameLanguage(lang, reads) && !sameLanguage(lang, reader)) continue;
     out.push({ key: `shared:${s.org_id}/${s.item_id}`, itemId: null, shared: s, name: s.name, kind, doc, on: false, owner: t('getReady.helps.fromOrg', { org: s.org_name }), from: s.org_name });
   }
   // By name, examples last; never by on or off, so a row stays put when it is switched.
@@ -280,7 +304,58 @@ function useHelpItems(ctx: Ctx) {
       setBusy(false);
     }
   }
-  return { items: out, toggle, busy, may, loading: !shared.loaded, get: docs.get };
+  /** Language-stream writes for one set's says, with Undo, in one step. */
+  async function sayAll(plan: { says: ReferenceSay[]; undo: ReferenceSay[] }, message: string) {
+    const specs = (list: ReferenceSay[]) => list.map((p) => ({ id: Crypto.randomUUID(), type: 'v1.ReferenceSet', payload: p } as EventSpec));
+    if (!plan.says.length) return;
+    try {
+      await ctx.act(specs(plan.says), message, () => specs(plan.undo));
+    } catch {
+      // ctx.act has already said "Not saved" and why.
+    }
+  }
+  /** Offer a guide set in one language: taken into the library first when it is another organization's, then the team's only language of it. */
+  async function chooseLanguage(h: HelpItem, m: SetMember) {
+    if (busy || !may || !languageId || !h.set) return;
+    setBusy(true);
+    try {
+      const itemId = m.itemId ?? (m.shared!.subscribable ? await lib.subscribe(m.shared!, true) : await lib.copy(m.shared!));
+      const set = { ...h.set.set, members: h.set.set.members.map((x) => (x === m ? { ...x, itemId, shared: null } : x)) };
+      const now = ctx.language.state;
+      await sayAll(chooseSetLanguage(set, itemId, now), t('getReady.helps.setChosen', { name: guideShortName(set.name), language: languageLabel(m.language) }));
+    } catch (e) {
+      ctx.toast(t('common.notSaved', { reason: referenceFailure('choose guide language', e) })); // i18n-ignore: log label
+    } finally {
+      setBusy(false);
+    }
+  }
+  /** Stop offering a guide set to the team, in every language. */
+  async function setOff(h: HelpItem) {
+    if (busy || !may || !languageId || !h.set) return;
+    setBusy(true);
+    await sayAll(hideSet(h.set.set, ctx.language.state), t('getReady.helps.setOff', { name: guideShortName(h.set.set.name) }));
+    setBusy(false);
+  }
+  return { items: out, toggle, chooseLanguage, setOff, busy, may, reads, loading: !shared.loaded, get: docs.get };
+}
+
+/** What a guide row says of its language: the set's languages chosen, or how many it comes in; a single guide's own. */
+function guideLanguageLine(h: HelpItem): string {
+  if (h.set) return h.set.reach.length ? languagesLine(h.set.reach.map((m) => m.language)) : t('getReady.helps.inLanguages', { count: h.set.set.members.length });
+  return languagesLine([docLanguage(h.doc)]);
+}
+
+/** The language sheet for a guide set row, while one is open. */
+function useSetSheet(h: ReturnType<typeof useHelpItems>, team: string) {
+  const [open, setOpen] = useState<string | null>(null);
+  const item = h.items.find((x) => x.key === open && x.set) ?? null;
+  const close = () => setOpen(null);
+  const sheet = item?.set ? (
+    <GuideLanguageSheet key={item.key} set={item.set.set} chosen={item.set.reach} team={team} prefer={h.reads} busy={h.busy}
+      onUse={(m) => void h.chooseLanguage(item, m).then(close)}
+      {...(item.on ? { onOff: () => void h.setOff(item).then(close) } : {})} onClose={close} />
+  ) : null;
+  return { open: (x: HelpItem) => setOpen(x.key), sheet };
 }
 
 type Media = 'both' | 'audio' | 'text' | 'listed';
@@ -321,16 +396,88 @@ function useComesWith(ctx: Ctx) {
   };
 }
 
-function HelpsStep({ ctx, header, next }: StepProps) {
+/** What will help them: the language of their reference material on a page of its own, then what is offered in it (decision 84). */
+function HelpsStep(props: StepProps) {
+  const [page, setPage] = useState<'language' | 'helps'>('language');
+  return page === 'language'
+    ? <ReferenceLanguageStep {...props} onDone={() => setPage('helps')} />
+    : <HelpsList {...props} onLanguage={() => setPage('language')} />;
+}
+
+/**
+ * The team's reference language: saved when it changes, and a guide set
+ * (FIA) the team has follows it into that language when it is there.
+ */
+function ReferenceLanguageStep({ ctx, lang, header, onDone }: StepProps & { onDone: () => void }) {
+  const state = ctx.language.state!;
+  const org = ctx.org.state;
+  const languageId = ctx.language.languageId;
+  const lib = useLibrary(ctx);
+  const current = teamLanguage(org, state, languageId);
+  const [picked, setPicked] = useState<string | null>(null);
+  const value = picked ?? current;
+  const refs = useReferenceLanguages(ctx, [value, readerLanguage(), 'eng']);
+  const may = ctx.session.can('manage_reference');
+  const [busy, setBusy] = useState(false);
+
+  async function save() {
+    if (busy) return;
+    const moved = !sameLanguage(value, current);
+    if (!may || !moved) { onDone(); return; }
+    setBusy(true);
+    const says: { type: 'v1.ReferenceLanguageSet' | 'v1.ReferenceSet'; payload: object }[] = [{ type: 'v1.ReferenceLanguageSet', payload: { language: value } }];
+    const undo: typeof says = [{ type: 'v1.ReferenceLanguageSet', payload: { language: current } }];
+    try {
+      for (const set of refs.sets) {
+        // A set the team has follows the language; one it does not have stays off.
+        const reach = setReach(set, org?.recommendations, state);
+        const m = memberIn(set, value);
+        if (!m || !reach.length || (reach.length === 1 && sameLanguage(reach[0]!.language, value))) continue;
+        const itemId = m.itemId ?? (m.shared!.subscribable ? await lib.subscribe(m.shared!, true) : await lib.copy(m.shared!));
+        const held = { ...set, members: set.members.map((x) => (x === m ? { ...x, itemId, shared: null } : x)) };
+        const plan = chooseSetLanguage(held, itemId, ctx.language.state);
+        says.push(...plan.says.map((p) => ({ type: 'v1.ReferenceSet' as const, payload: p })));
+        undo.push(...plan.undo.map((p) => ({ type: 'v1.ReferenceSet' as const, payload: p })));
+      }
+    } catch (e) {
+      ctx.toast(t('common.notSaved', { reason: referenceFailure('reference language', e) })); // i18n-ignore: log label
+      setBusy(false);
+      return;
+    }
+    const specs = (list: typeof says) => list.map((x) => ({ id: Crypto.randomUUID(), ...x } as EventSpec));
+    try {
+      await ctx.act(specs(says), t('getReady.language.saved', { team: lang, language: languageLabel(value) }), () => specs(undo));
+    } catch {
+      // ctx.act has already said "Not saved" and why.
+      setBusy(false);
+      return;
+    }
+    setBusy(false);
+    onDone();
+  }
+
+  return (
+    <Screen header={header} bodyStyle={PAD} footer={<PrimaryBtn label={t('common.next')} icon="right" busy={busy} onPress={() => void save()} />}>
+      <ReferenceLanguagePage team={lang} choices={refs.choices} value={value} first={current} onChange={setPicked} loading={refs.loading} />
+      {!may ? <Banner icon="lock" title={t('common.viewOnly')} body={t('getReady.helps.viewOnly')} /> : null}
+    </Screen>
+  );
+}
+
+function HelpsList({ ctx, lang, header, next, onLanguage }: StepProps & { onLanguage: () => void }) {
   const languageId = ctx.language.languageId;
   const h = useHelpItems(ctx);
+  const sheet = useSetSheet(h, lang);
   const numbering = useVerseNumbering(ctx);
   const comes = useComesWith(ctx);
-  const bibles = h.items.filter((x) => x.kind === 'source');
+  // Bibles in the team's language first.
+  const bibles = h.items.filter((x) => x.kind === 'source')
+    .sort((a, b) => Number(!sameLanguage((a.doc as SourceDoc).language, h.reads)) - Number(!sameLanguage((b.doc as SourceDoc).language, h.reads)));
   const guides = h.items.filter((x) => x.kind === 'guide');
   const notes = h.items.filter((x) => x.kind === 'note' || x.kind === 'other');
   return (
     <Screen header={header} bodyStyle={PAD} footer={<PrimaryBtn label={t('common.next')} icon="right" onPress={next} />}>
+      <ReferenceLanguageChip language={h.reads} onPress={onLanguage} />
       <Question>{questionLabel('helps')}</Question>
       <SectionLabel label={t('getReady.helps.biblesTheyUnderstand')} />
       <Group>
@@ -349,8 +496,8 @@ function HelpsStep({ ctx, header, next }: StepProps) {
         <Group>
           {guides.map((g, i) => (
             <SwitchRow key={g.key} icon="star" label={guides.length === 1 ? t('getReady.helps.studyGuides') : t('getReady.helps.namedGuides', { name: guideShortName(g.name) })}
-              sub={[guides.length === 1 ? guideShortName(g.name) : fromLine(g), g.on ? t('getReady.helps.onInline') : t('getReady.helps.offInline'), comes(g)].filter(Boolean).join(' · ')}
-              on={g.on} disabled={!h.may || h.busy} onToggle={() => void h.toggle(g)} last={i === guides.length - 1} />
+              sub={[guides.length === 1 ? guideShortName(g.name) : fromLine(g), guideLanguageLine(g), g.on ? t('getReady.helps.onInline') : t('getReady.helps.offInline'), comes(g)].filter(Boolean).join(' · ')}
+              on={g.on} disabled={!h.may || h.busy} onToggle={() => (g.set ? sheet.open(g) : void h.toggle(g))} last={i === guides.length - 1} />
           ))}
         </Group>
       ) : h.loading ? <Text style={txt.smMuted}>{t('getReady.helps.lookingForGuides')}</Text> : null}
@@ -360,13 +507,14 @@ function HelpsStep({ ctx, header, next }: StepProps) {
           <SectionLabel label={t('getReady.helps.notesForTranslators')} />
           <Group>
             {notes.map((x, i) => (
-              <SwitchRow key={x.key} icon="note" label={x.name} sub={x.on ? t('getReady.helps.on') : t('getReady.helps.off')} on={x.on} disabled={!h.may || h.busy}
+              <SwitchRow key={x.key} icon="note" label={x.name} sub={[x.on ? t('getReady.helps.on') : t('getReady.helps.off'), languagesLine([docLanguage(x.doc)])].join(' · ')} on={x.on} disabled={!h.may || h.busy}
                 onToggle={() => void h.toggle(x)} last={i === notes.length - 1} />
             ))}
           </Group>
         </>
       ) : null}
       {!h.may ? <Banner icon="lock" title={t('common.viewOnly')} body={t('getReady.helps.viewOnly')} /> : null}
+      {sheet.sheet}
     </Screen>
   );
 }
@@ -377,12 +525,13 @@ function HelpsPage({ ctx }: { ctx: Ctx }) {
   const languageId = ctx.language.languageId;
   const lang = languageName(ctx.org.state, languageId);
   const h = useHelpItems(ctx);
-  const reads = languageLabel(languageInfo(ctx.org.state, languageId)?.sourceCode ?? 'eng');
+  const sheet = useSetSheet(h, lang);
+  const reads = languageLabel(h.reads);
   const [adding, setAdding] = useState(false);
   const terms = useMemo(() => keyTermsFor(state), [state]);
   const written = useMemo(() => materialsFor(state).filter((m) => m.kind !== 'questions' && m.kind !== 'key_terms' && m.kind !== 'fia_study'), [state]);
   const switchRow = (x: HelpItem, last: boolean, sub: string) => (
-    <SwitchRow key={x.key} label={plainName(x.name, reads)} sub={sub} on={x.on} disabled={!h.may || h.busy} onToggle={() => void h.toggle(x)} last={last} />
+    <SwitchRow key={x.key} label={plainName(x.name, reads)} sub={sub} on={x.on} disabled={!h.may || h.busy} onToggle={() => (x.set ? sheet.open(x) : void h.toggle(x))} last={last} />
   );
   const none = (label: string) => <Row label={label} sub={t('getReady.page.addToOffer')} muted last />;
   const bibles = h.items.filter((x) => x.kind === 'source');
@@ -403,8 +552,9 @@ function HelpsPage({ ctx }: { ctx: Ctx }) {
       <SectionLabel label={t('getReady.helps.studyGuides')} />
       <Group>
         {guides.length ? guides.map((g, i) => {
-          const entries = g.doc.format === 'collection@1' ? (g.doc as CollectionDoc).entries.length : 0;
-          return switchRow(g, i === guides.length - 1, [fromLine(g), entries ? t('getReady.page.passagesCovered', { count: entries }) : ''].filter(Boolean).join(' · '));
+          // A set counts the passages of the languages chosen; off, none.
+          const entries = g.set ? g.set.reach.reduce((n, m) => Math.max(n, m.passages), 0) : g.doc.format === 'collection@1' ? (g.doc as CollectionDoc).entries.length : 0;
+          return switchRow(g, i === guides.length - 1, [fromLine(g), guideLanguageLine(g), entries ? t('getReady.page.passagesCovered', { count: entries }) : ''].filter(Boolean).join(' · '));
         }) : none(t('getReady.page.noGuides'))}
       </Group>
       <SectionLabel label={t('getReady.page.keyWords')} />
@@ -414,7 +564,7 @@ function HelpsPage({ ctx }: { ctx: Ctx }) {
       </Group>
       <SectionLabel label={t('getReady.helps.notesForTranslators')} />
       <Group>
-        {notes.map((x, i) => switchRow(x, i === notes.length - 1 && written.length === 0, x.owner))}
+        {notes.map((x, i) => switchRow(x, i === notes.length - 1 && written.length === 0, [x.owner, languagesLine([docLanguage(x.doc)])].filter(Boolean).join(' · ')))}
         {written.map((m, i) => (
           <Row key={m.materialId} label={m.title} sub={t('getReady.page.writtenHere')} last={i === written.length - 1}
             onPress={h.may ? () => ctx.go('material_editor', { materialId: m.materialId, languageId }) : undefined} />
@@ -430,6 +580,7 @@ function HelpsPage({ ctx }: { ctx: Ctx }) {
           <Row icon="layers" label={t('getReady.add.library')} sub={t('getReady.add.librarySub')} last onPress={() => go('reference_home', { languageId })} />
         </Group>
       </Sheet>
+      {sheet.sheet}
     </Screen>
   );
 }

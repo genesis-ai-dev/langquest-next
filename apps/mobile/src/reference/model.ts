@@ -123,14 +123,6 @@ export function refKindLabel(kind: RefKind): string {
   }
 }
 
-/** A library item's document language when it names one ("eng"). */
-export function languageOf(doc: LibraryDoc | null | undefined): string | null {
-  if (!doc) return null;
-  if (doc.format === 'study@1' || doc.format === 'study@2' || doc.format === 'source@1') return doc.language || null;
-  if (doc.format === 'collection@1') return doc.language ?? null;
-  return null;
-}
-
 /** The books an item speaks to (USFM), from its ref, entries, links or books. */
 export function booksOf(doc: LibraryDoc | null | undefined): string[] {
   if (!doc) return [];

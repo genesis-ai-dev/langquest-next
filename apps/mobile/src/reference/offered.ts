@@ -7,6 +7,7 @@ import {
   libraryItems, linkedTo, passageLink, recommendedFor,
   type LibraryItemState, type LanguageState, type Register
 } from '@langquest-next/core';
+import { originOf } from './guideSets';
 
 interface OfferedSource {
   /**
@@ -17,6 +18,8 @@ interface OfferedSource {
   key: string;
   /** Its current version. */
   hash: string;
+  /** The organization it follows or was copied from ('' when made here), which tells a guide set's members apart (guideSets.ts). */
+  origin: string;
 }
 
 export function offeredGuideSources(
@@ -37,7 +40,7 @@ export function offeredGuideSources(
   const src = (id: string) => {
     const it = byId.get(id)!;
     const sub = it.subscription;
-    return { key: sub ? `${sub.sourceOrgId}.${sub.sourceItemId}` : id, hash: it.current! };
+    return { key: sub ? `${sub.sourceOrgId}.${sub.sourceItemId}` : id, hash: it.current!, origin: originOf(it) };
   };
   return { recommended: first.map(src), own: own.map((i) => src(i.itemId)) };
 }
