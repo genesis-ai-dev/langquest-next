@@ -2,7 +2,7 @@ import { SNAPSHOT_SCHEDULE, shouldWriteSnapshot } from '../src/snapshotWorker';
 
 describe('when the projection pass writes a new snapshot (decisions.md 88)', () => {
   const HOUR = 60 * 60 * 1000;
-  const base = { existing: true, newEvents: 10, redactsSnapshot: false, ageMs: 5 * 60 * 1000 };
+  const base = { existing: true, newEvents: 10, redaction: false, ageMs: 5 * 60 * 1000 };
 
   it('waits for 200 new events or an hour, so a download in progress is not overtaken every five minutes', () => {
     // Why: rewriting it after every event made slow phones' downloads go
@@ -13,10 +13,12 @@ describe('when the projection pass writes a new snapshot (decisions.md 88)', () 
     expect(shouldWriteSnapshot({ ...base, ageMs: HOUR })).toBe(true);
   });
 
-  it('writes at once when there is none, or when a redaction reaches inside it', () => {
-    // Why: phones holding the redacted content wait for a snapshot past it.
+  it('writes at once when there is none, or when the new events hold a redaction', () => {
+    // Why: phones whose own checkpoint holds the redacted content wait for
+    // a server snapshot past it, whether or not the server's held it; waiting
+    // up to an hour sent them back to the whole log after 30 minutes.
     expect(shouldWriteSnapshot({ ...base, existing: false })).toBe(true);
-    expect(shouldWriteSnapshot({ ...base, redactsSnapshot: true })).toBe(true);
+    expect(shouldWriteSnapshot({ ...base, redaction: true })).toBe(true);
   });
 
   it('never writes for a stream that has not moved, and writes when the age is unknown', () => {

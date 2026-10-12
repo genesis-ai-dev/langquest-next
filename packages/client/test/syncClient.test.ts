@@ -818,6 +818,63 @@ describe('SyncClient after a long offline stretch (audit L1, L2, L3)', () => {
     expect(Object.keys(b.getState().units).sort()).toEqual(['u0', 'u2']);
   });
 
+  it('while it waits for a snapshot past a redaction, it does not download one that is too old', async () => {
+    // Why: every sync in the 30-minute wait downloaded and parsed the whole
+    // server snapshot only to find it older than the redaction: 830 MB in
+    // the fleet's refoldTriggers run (performance-audit.md item 7). The
+    // snapshot's seq is in its meta; check it first.
+    const server = new FakeServer();
+    const a = await seeded(server, 3);
+    server.makeSnapshot('org1', 'p1');
+    const clock = { t: 1_000 };
+    const b = new SyncClient({
+      orgId: 'org1', streamId: 'p1', actorId: 'r1', deviceId: 'dB', store: new MemoryStore(), transport: server.transportFor(),
+      now: () => clock.t
+    });
+    await b.load();
+    await b.pull();
+    const target = server.log.find((e) => e.type === 'v1.UnitAdded' && e.payload.unitId === 'u1')!;
+    await a.client.append('v1.Redacted', { eventId: target.id });
+    await a.client.sync();
+    const chunksBefore = server.chunkCalls;
+    for (let i = 0; i < 3; i++) {
+      clock.t += 60_000;
+      await b.pull();
+    }
+    expect(server.chunkCalls - chunksBefore).toBe(0);
+    server.makeSnapshot('org1', 'p1');
+    await b.pull();
+    expect(server.chunkCalls - chunksBefore).toBeGreaterThan(0);
+    expect(b.getState().units['u1']).toBeUndefined();
+  });
+
+  it('a snapshot past the redaction will do, even if the pull went further than the snapshot', async () => {
+    // Why: the phone asked for a snapshot past the end of what it had
+    // pulled, not past the redaction; one taken right after the redaction
+    // was refused as stale, and with snapshots an hour apart (decision 88)
+    // the phone fell back to the whole log after 30 minutes.
+    const server = new FakeServer();
+    const a = await seeded(server, 3);
+    server.makeSnapshot('org1', 'p1');
+    const clock = { t: 1_000 };
+    const b = new SyncClient({
+      orgId: 'org1', streamId: 'p1', actorId: 'r1', deviceId: 'dB', store: new MemoryStore(), transport: server.transportFor(),
+      now: () => clock.t
+    });
+    await b.load();
+    await b.pull();
+    const target = server.log.find((e) => e.type === 'v1.UnitAdded' && e.payload.unitId === 'u1')!;
+    await a.client.append('v1.Redacted', { eventId: target.id });
+    await a.client.sync();
+    server.makeSnapshot('org1', 'p1'); // the worker writes one at once after a redaction
+    await a.client.append('v1.UnitAdded', unit(9));
+    await a.client.sync();
+    await b.pull(); // the redaction and the unit after the snapshot, in one slice
+    expect(b.getState().units['u1']).toBeUndefined();
+    expect(b.getState().units['u9']).toBeDefined();
+    expect(await b.inspect()).toMatchObject({ checkpointSeq: server.snapshots.get('org1/p1')!.serverSeq });
+  });
+
   it('after the wait window with no snapshot, the device falls back to the full log', async () => {
     const server = new FakeServer();
     const a = await seeded(server, 3);

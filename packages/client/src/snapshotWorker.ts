@@ -25,15 +25,16 @@ export const SNAPSHOT_SCHEDULE = { minNewEvents: 200, maxAgeMs: 60 * 60 * 1000 }
 
 /**
  * Should the pass store a new snapshot? Always when there is none, and when
- * the new events redact something inside it: phones holding the target wait
- * for a snapshot past the redaction (syncClient resolvePendingRedaction).
+ * the new events hold a redaction: a phone whose own checkpoint holds the
+ * target waits for a server snapshot past the redaction (syncClient
+ * resolvePendingRedaction), whether or not the server's snapshot held it.
  * Otherwise once enough events or time have passed.
  */
 export function shouldWriteSnapshot(
-  o: { existing: boolean; newEvents: number; redactsSnapshot: boolean; ageMs: number | null },
+  o: { existing: boolean; newEvents: number; redaction: boolean; ageMs: number | null },
   schedule = SNAPSHOT_SCHEDULE
 ): boolean {
-  if (!o.existing || o.redactsSnapshot) return true;
+  if (!o.existing || o.redaction) return true;
   if (o.newEvents === 0) return false;
   return o.newEvents >= schedule.minNewEvents || o.ageMs === null || o.ageMs >= schedule.maxAgeMs;
 }
@@ -87,8 +88,9 @@ export async function runSnapshotWorker(
     }
 
     // Its age is only needed when the event count alone does not decide.
+    const redaction = tail.some((e) => e.type === 'v1.Redacted');
     let ageMs: number | null = null;
-    if (existing && !redactsSnapshot && tail.length < SNAPSHOT_SCHEDULE.minNewEvents) {
+    if (existing && !redaction && tail.length < SNAPSHOT_SCHEDULE.minNewEvents) {
       const at = await service.from('snapshots').select('created_at')
         .eq('org_id', orgId).eq('stream_id', streamId).eq('reducer_version', REDUCER_VERSION)
         .order('server_seq', { ascending: false }).limit(1);
@@ -96,7 +98,7 @@ export async function runSnapshotWorker(
       const written = (at.data?.[0] as { created_at?: string } | undefined)?.created_at;
       ageMs = written ? Date.now() - Date.parse(written) : null;
     }
-    const written = shouldWriteSnapshot({ existing: !!existing, newEvents: tail.length, redactsSnapshot, ageMs });
+    const written = shouldWriteSnapshot({ existing: !!existing, newEvents: tail.length, redaction, ageMs });
     if (written) {
       const put = await service.rpc('put_snapshot', {
         p_org_id: orgId,

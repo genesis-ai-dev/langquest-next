@@ -125,10 +125,8 @@ export class Fleet {
       const head = this.server.head(this.orgId, this.streamId);
       const moved = head - this.lastSnapshotSeq;
       const first = this.snapshotsTaken === 0 && head > 0;
-      const tail = this.server.stream(this.orgId, this.streamId).slice(this.lastSnapshotSeq);
-      const tailIds = new Set(tail.map((e) => e.id));
-      const redactsSnapshot = !first && tail.some((e) => e.type === 'v1.Redacted' && !tailIds.has(e.payload.eventId));
-      if (first || redactsSnapshot || moved >= o.minNewEvents || (moved > 0 && this.time.now() - this.lastSnapshotAt >= o.maxAgeMs)) {
+      const redaction = !first && this.server.stream(this.orgId, this.streamId).slice(this.lastSnapshotSeq).some((e) => e.type === 'v1.Redacted');
+      if (first || redaction || moved >= o.minNewEvents || (moved > 0 && this.time.now() - this.lastSnapshotAt >= o.maxAgeMs)) {
         this.server.makeSnapshot(this.orgId, this.streamId);
         this.lastSnapshotSeq = head;
         this.lastSnapshotAt = this.time.now();

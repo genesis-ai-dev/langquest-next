@@ -2920,8 +2920,10 @@ Carl chose (2026-10-12, LAN-47):
   new snapshot only after 200 new events or once the newest is an hour old
   and the stream has moved (`SNAPSHOT_SCHEDULE`, `shouldWriteSnapshot` in
   `packages/client/src/snapshotWorker.ts`). It writes at once when there is
-  none, and when the new events redact something inside it, since phones
-  holding the target wait for a snapshot past the redaction. A language
+  none, and when the new events hold a redaction, since a phone whose own
+  checkpoint holds the target waits for a snapshot past the redaction
+  (whether or not the server's snapshot held it; waiting up to an hour sent
+  such phones back to the whole log after 30 minutes). A language
   that went quiet a few events past its snapshot is visited again once the
   hour is up (`snapshotDue`, `server/projectionWorker.ts`).
 - A snapshot stays downloadable until the one after it has been out for 24

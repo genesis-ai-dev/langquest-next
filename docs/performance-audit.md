@@ -269,6 +269,24 @@ Confirmed.
   refolds across 33 phones.
 - A phone whose stream is still empty asks for a server snapshot on every
   sync (77,460 empty lookups in the same run).
+- **Done (2026-10-12), besides the hot loop:** while waiting for a snapshot
+  past a redaction, a phone compares the snapshot's seq before downloading
+  it; it asks for a snapshot past the redaction rather than past the end of
+  what it pulled; the projection pass writes one at once after any
+  redaction (decision 88); `resume` folds onto the checkpoint it has just
+  parsed instead of cloning it; and after the server says it has no
+  snapshot, a phone asks again only after five minutes. `refold-large`:
+  537 MB downloaded instead of 830, 10 s of real time instead of 15.
+- **Left as it is:** one refold per sync. The checkpoint's fast path saves
+  the live state, so a refold put off to the end of a sync could save a
+  redacted event into the checkpoint. The role trigger stays broad; it only
+  costs a refold when the phone holds refused events.
+- **Found while measuring:** every redaction costs every phone whose
+  checkpoint holds the target a full snapshot download, since a checkpoint
+  cannot be edited: 627 downloads for 23 redactions on 33 phones, about
+  0.8 MB each at 1,200 passages and 13 MB at Bible scale. Worth its own
+  look (for example, keeping the events a checkpoint covers until it is
+  rolled again).
 - One sync can refold up to 3 times (push, pulled redaction, membership).
 - A NOT_LISTED refusal is re-queued on every push (`syncClient.ts:491`). If
   the server keeps refusing it, the phone refolds on every sync (`538`).

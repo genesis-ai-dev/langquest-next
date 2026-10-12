@@ -22554,7 +22554,7 @@ async function listStreams(service, pageSize = 1e3) {
 // packages/client/src/snapshotWorker.ts
 var SNAPSHOT_SCHEDULE = { minNewEvents: 200, maxAgeMs: 60 * 60 * 1e3 };
 function shouldWriteSnapshot(o, schedule = SNAPSHOT_SCHEDULE) {
-  if (!o.existing || o.redactsSnapshot) return true;
+  if (!o.existing || o.redaction) return true;
   if (o.newEvents === 0) return false;
   return o.newEvents >= schedule.minNewEvents || o.ageMs === null || o.ageMs >= schedule.maxAgeMs;
 }
@@ -22589,14 +22589,15 @@ async function runSnapshotWorker(service, pageSize = 1e3, observe, visit) {
       state.appliedEventIds = {};
       snapshot = { orgId, streamId, reducerVersion: REDUCER_VERSION, serverSeq: all[all.length - 1].serverSeq, state };
     }
+    const redaction = tail.some((e) => e.type === "v1.Redacted");
     let ageMs = null;
-    if (existing && !redactsSnapshot && tail.length < SNAPSHOT_SCHEDULE.minNewEvents) {
+    if (existing && !redaction && tail.length < SNAPSHOT_SCHEDULE.minNewEvents) {
       const at = await service.from("snapshots").select("created_at").eq("org_id", orgId).eq("stream_id", streamId).eq("reducer_version", REDUCER_VERSION).order("server_seq", { ascending: false }).limit(1);
       if (at.error) throw new Error(`snapshot age ${orgId}/${streamId}: ${at.error.message}`);
       const written2 = at.data?.[0]?.created_at;
       ageMs = written2 ? Date.now() - Date.parse(written2) : null;
     }
-    const written = shouldWriteSnapshot({ existing: !!existing, newEvents: tail.length, redactsSnapshot, ageMs });
+    const written = shouldWriteSnapshot({ existing: !!existing, newEvents: tail.length, redaction, ageMs });
     if (written) {
       const put2 = await service.rpc("put_snapshot", {
         p_org_id: orgId,
