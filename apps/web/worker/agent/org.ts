@@ -6,13 +6,13 @@ import {
   checkLinkSpec, externalValueEvent, externalValueFor, externalValuesFor, isRefusal, languageAccess, languagesFor, linkIsOpen, linkReviewEvent, linkView,
   mayRevokeLinks, mayStoreValues, passageFor, passagesFor, releaseEvent, reviewEvent,
   type ExternalValueFilter, type ExternalValueOut, type LanguageView, type LinkReviewInput, type LinkSpec, type LinkView, type PassageDetail,
-  type PassageFilter, type PassageSummary, type Refusal, type ReleaseInput, type ReviewInput, type ReviewLink, type Signer
+  type PassageListItem, type PassageListQuery, type Refusal, type ReleaseInput, type ReviewInput, type ReviewLink, type Signer
 } from './view';
 
 export type AgentQuery =
   | { op: 'languages' }
   | { op: 'can'; languageId: string }
-  | { op: 'passages'; languageId: string; filter: PassageFilter }
+  | { op: 'passages'; languageId: string; query: PassageListQuery }
   | { op: 'passage'; languageId: string; unitId: string }
   | { op: 'externalValues'; languageId: string; filter: ExternalValueFilter }
   | { op: 'externalValue'; languageId: string; key: string };
@@ -77,7 +77,7 @@ export class AgentOrg {
     };
   }
 
-  async read(grant: Grant, q: AgentQuery): Promise<Answer<LanguageView[] | LanguageView['can'] | PassageSummary[] | PassageDetail | ExternalValueOut | ReturnType<typeof externalValuesFor>>> {
+  async read(grant: Grant, q: AgentQuery): Promise<Answer<LanguageView[] | LanguageView['can'] | { passages: PassageListItem[]; nextAfter: string | null } | PassageDetail | ExternalValueOut | ReturnType<typeof externalValuesFor>>> {
     if (q.op === 'languages') return yes(languagesFor(grant, await this.folder.orgState()));
     const held = await this.folder.languageState(q.languageId);
     const can = held ? languageAccess(grant, held.org, q.languageId) : null;
@@ -90,7 +90,10 @@ export class AgentOrg {
       return isRefusal(one) ? no(one) : yes(one);
     }
     if (!can.read) return no({ status: 403, code: 'scope', error: 'This token was not given a read scope.' });
-    if (q.op === 'passages') return yes(passagesFor(grant, held.state, q.filter));
+    if (q.op === 'passages') {
+      const page = await passagesFor(grant, grant.orgId, q.languageId, held.state, q.query, this.deps.sign);
+      return isRefusal(page) ? no(page) : yes(page);
+    }
     const detail = await passageFor(grant, grant.orgId, q.languageId, held.state, q.unitId, this.deps.sign);
     return isRefusal(detail) ? no(detail) : yes(detail);
   }

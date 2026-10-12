@@ -100,9 +100,9 @@ const signed = (key: string, expires: number) => new TextEncoder().encode(`${key
 
 /**
  * `/api/blobs/<key>?expires=…&sig=…`, readable by anyone holding it until it
- * expires. A path, not a URL: the caller already knows the Worker's address,
- * and the request's own host is not it under `wrangler dev`, which rewrites
- * it to the route's custom domain.
+ * expires. A path, not a URL: the app already knows the Worker's address,
+ * and the agent API adds the address its request came in on (right under
+ * `wrangler dev` too, which runs without routes: scripts/web-dev-vars.ts).
  */
 export async function readPath(key: string, deps: Pick<BlobDeps, 'serviceKey' | 'now'>): Promise<{ path: string; expiresAt: number }> {
   const expiresAt = (deps.now ?? Date.now)() + URL_TTL_MS;

@@ -9,6 +9,7 @@ import { hashSecret } from '../worker/agent/tokens';
 import type { ReviewLink } from '../worker/agent/view';
 import { sniffVoiceNote } from '../worker/agent/voice';
 import { MemoryCache, OrgFolder, type Source } from '../worker/orgFolder';
+import { check, compileAll, openApiProblems, uncovered } from './openapiCheck';
 
 /**
  * The access-token API (decision 70). What matters most: a token never sees
@@ -171,13 +172,19 @@ class MemoryStore implements AgentStore {
   }
 }
 
+const withoutKeys = (o: Record<string, unknown>, keys: string[]) => Object.fromEntries(Object.entries(o).filter(([k]) => !keys.includes(k)));
+
 function setup() {
   const log = world();
   const store = new MemoryStore();
   let now = T0 + 10_000_000;
+  let signed = 0;
   const agent = new AgentOrg(new OrgFolder(log, ORG, new MemoryCache(), () => now, 0), ORG, {
     append: (events) => log.append(events),
-    sign: async (key) => ({ url: `https://lq.test/api/blobs/${key}?sig=x`, expiresAt: now + 600_000 }),
+    sign: async (key) => {
+      signed += 1;
+      return { url: `https://lq.test/api/blobs/${key}?sig=x`, expiresAt: now + 600_000 };
+    },
     now: () => now
   });
   const deps: AgentDeps = {
@@ -198,7 +205,11 @@ function setup() {
       },
       ...(body !== undefined ? { body: JSON.stringify(body) } : raw ? { body: raw } : {})
     }), deps);
-    return { status: res.status, body: (res.status === 202 ? null : await res.json()) as any };
+    const out = { status: res.status, body: (res.status === 202 || res.status === 204 ? null : await res.json()) as any };
+    // Every exchange must agree with the OpenAPI document (decisions.md 81).
+    const problem = check(method, path, out.status, out.body, raw ?? body);
+    if (problem) throw new Error(problem);
+    return out;
   };
   /** A token made on the connect page by `profileId`. */
   const token = async (profileId: string, spec: Record<string, unknown>) => {
@@ -206,7 +217,7 @@ function setup() {
     if (r.status !== 200) throw new Error(JSON.stringify(r.body));
     return r.body.token as string;
   };
-  return { log, store, call, token, advance: (ms: number) => { now += ms; } };
+  return { log, store, call, token, advance: (ms: number) => { now += ms; }, signed: () => signed };
 }
 
 describe('reading', () => {
@@ -216,9 +227,10 @@ describe('reading', () => {
     const list = await call('GET', '/api/v1/languages/din/passages', t);
     expect(list.status).toBe(200);
     // d2 (in review), d3 (draft) and d4 (not started) must never reach a listening app.
-    expect(list.body.map((p: any) => [p.unitId, p.status])).toEqual([['d1', 'approved']]);
-    expect(list.body[0].path).toEqual(['Luke']);
-    expect(list.body[0].version.durationMs).toBe(4000);
+    expect(list.body.passages.map((p: any) => [p.unitId, p.status])).toEqual([['d1', 'approved']]);
+    expect(list.body.nextAfter).toBeNull();
+    expect(list.body.passages[0].path).toEqual(['Luke']);
+    expect(list.body.passages[0].version.durationMs).toBe(4000);
 
     const one = await call('GET', '/api/v1/languages/din/passages/d1', t);
     expect(one.body.audio.map((a: any) => a.hash)).toEqual([card('d1a').hash, card('d1b').hash]);
@@ -251,12 +263,69 @@ describe('reading', () => {
     const { call, token } = setup();
     const t = await token('admin', { scopes: ['read'] });
     const list = await call('GET', '/api/v1/languages/din/passages', t);
-    expect(list.body.map((p: any) => [p.unitId, p.status])).toEqual([['d1', 'approved'], ['d2', 'in_review'], ['d3', 'drafting'], ['d4', 'not_started']]);
-    expect(list.body[2].version).toBeNull();
-    expect((await call('GET', '/api/v1/languages/din/passages?status=in_review', t)).body.map((p: any) => p.unitId)).toEqual(['d2']);
+    expect(list.body.passages.map((p: any) => [p.unitId, p.status])).toEqual([['d1', 'approved'], ['d2', 'in_review'], ['d3', 'drafting'], ['d4', 'not_started']]);
+    expect(list.body.passages[2].version).toBeNull();
+    expect((await call('GET', '/api/v1/languages/din/passages?status=in_review', t)).body.passages.map((p: any) => p.unitId)).toEqual(['d2']);
+    expect((await call('GET', '/api/v1/languages/din', t)).body).toMatchObject({ languageId: 'din', can: { read: 'all' } });
     const d1 = await call('GET', '/api/v1/languages/din/passages/d1', t);
     expect(d1.body.reviews.map((r: any) => [r.kind, r.outcome])).toEqual([['Peer Review', 'looks_good']]);
-    expect(d1.body.steps).toEqual([{ name: 'Peer Review', complete: true }]);
+    expect(d1.body.steps).toEqual([{ name: 'Peer Review', complete: true, checkpoint: false, kinds: [{ kindId: 'peer', name: 'Peer Review', state: 'approved', apiReviewCounts: true }] }]);
+    expect(d1.body.requests).toEqual([]);
+  });
+
+  it('adds what include names to every passage on the list, as one passage gives it', async () => {
+    // Why: "where is each passage in review?" took one call per passage.
+    const { call, token, log } = setup();
+    log.add('din', 'v1.RequestMade', { requestId: 'q-rev', unitId: 'd2', what: 'review', kindId: 'peer', profileId: 'rev' }, 'tr');
+    const t = await token('rev', { scopes: ['read'] });
+    const plain = await call('GET', '/api/v1/languages/din/passages', t);
+    expect(plain.body.passages.every((p: any) => Object.keys(p).every((k) => !['steps', 'requests', 'reviews', 'versions', 'audio'].includes(k)))).toBe(true);
+    const one = await call('GET', '/api/v1/languages/din/passages/d2', t);
+    const progress = await call('GET', '/api/v1/languages/din/passages?status=in_review&include=steps,requests', t);
+    expect(progress.body.passages).toEqual([{ ...withoutKeys(one.body, ['audio', 'reviews', 'versions']) }]);
+    expect(progress.body.passages[0].requests).toMatchObject([{ requestId: 'q-rev', forYou: true }]);
+    // Everything one passage gives, for several picked passages, in display order.
+    const picked = await call('GET', '/api/v1/languages/din/passages?unitIds=d2&unitIds=d1&unitIds=nope&include=audio,reviews,steps,requests,versions', t);
+    expect(picked.body.passages.map((p: any) => p.unitId)).toEqual(['d1', 'd2']);
+    expect(picked.body.passages[1]).toEqual(one.body);
+    expect((await call('GET', '/api/v1/languages/din/passages?include=steps,colour', t)).body).toMatchObject({ code: 'bad_request' });
+  });
+
+  it('gives a listening app audio and reviews on the list, but never the team\'s flow', async () => {
+    const { call, token } = setup();
+    const listener = await token('admin', { scopes: ['read:published'] });
+    const one = await call('GET', '/api/v1/languages/din/passages/d1', listener);
+    const list = await call('GET', '/api/v1/languages/din/passages?include=audio,reviews', listener);
+    expect(list.body.passages).toEqual([one.body]);
+    for (const include of ['steps', 'requests', 'versions']) {
+      expect((await call('GET', `/api/v1/languages/din/passages?include=${include}`, listener)).body).toMatchObject({ code: 'scope' });
+    }
+  });
+
+  it('pages the list, signing links only for the page it gives', async () => {
+    const { call, token, signed } = setup();
+    const t = await token('admin', { scopes: ['read'] });
+    const seen: string[] = [];
+    let after: string | null = null;
+    let pages = 0;
+    do {
+      const before = signed();
+      const page = await call('GET', `/api/v1/languages/din/passages?limit=3&include=audio${after ? `&after=${after}` : ''}`, t);
+      expect(page.body.passages.length).toBeLessThanOrEqual(3);
+      expect(signed() - before).toBe(page.body.passages.reduce((n: number, p: any) => n + p.audio.length, 0));
+      seen.push(...page.body.passages.map((p: any) => p.unitId));
+      after = page.body.nextAfter;
+      pages += 1;
+    } while (after);
+    expect(seen).toEqual(['d1', 'd2', 'd3', 'd4']);
+    expect(pages).toBe(2);
+    // A full last page says there is no more, rather than sending the caller to an empty one.
+    expect((await call('GET', '/api/v1/languages/din/passages?limit=4', t)).body.nextAfter).toBeNull();
+    // Filters apply before the page is cut.
+    expect((await call('GET', '/api/v1/languages/din/passages?limit=1&status=drafting', t)).body).toMatchObject({ passages: [{ unitId: 'd3' }], nextAfter: null });
+    for (const bad of ['limit=0', 'limit=501', 'limit=two', 'after=nope']) {
+      expect((await call('GET', `/api/v1/languages/din/passages?${bad}`, t)).status).toBe(400);
+    }
   });
 
   it('links a voice note recorded in a browser under its real format (decisions.md 77)', async () => {
@@ -292,11 +361,11 @@ describe('reading', () => {
     const { call, token, log } = setup();
     const t = await token('admin', { scopes: ['read'] });
     const first = await call('GET', '/api/v1/languages/din/passages', t);
-    const newest = first.body.map((p: any) => p.updatedAt).filter(Boolean).sort().at(-1);
-    expect((await call('GET', `/api/v1/languages/din/passages?changedSince=${newest}`, t)).body).toEqual([]);
+    const newest = first.body.passages.map((p: any) => p.updatedAt).filter(Boolean).sort().at(-1);
+    expect((await call('GET', `/api/v1/languages/din/passages?changedSince=${newest}`, t)).body).toEqual({ passages: [], nextAfter: null });
     log.add('din', 'v1.ReviewRecorded', { reviewId: 'peer-d2', takeId: 'take-d2', kindId: 'peer', outcome: 'looks_good', via: 'app' }, 'rev');
     const changed = await call('GET', `/api/v1/languages/din/passages?changedSince=${newest}`, t);
-    expect(changed.body.map((p: any) => [p.unitId, p.status])).toEqual([['d2', 'approved']]);
+    expect(changed.body.passages.map((p: any) => [p.unitId, p.status])).toEqual([['d2', 'approved']]);
   });
 
   it('refuses missing, foreign, revoked and expired tokens', async () => {
@@ -336,6 +405,25 @@ describe('writing', () => {
     expect(JSON.stringify(log.streams.get('din'))).not.toContain('device-42');
   });
 
+  it('says which requests wait on the token\'s person, and only a review of the asked kind answers one', async () => {
+    // Why: a reviewer asked for a peer review sent listener feedback through the API, and the team kept waiting.
+    const { call, token, log } = setup();
+    log.add('din', 'v1.RequestMade', { requestId: 'q-rev', unitId: 'd2', what: 'review', kindId: 'peer', profileId: 'rev', note: 'Please check' }, 'tr');
+    const asked = await token('rev', { scopes: ['read', 'review'] });
+    const before = await call('GET', '/api/v1/languages/din/passages/d2', asked);
+    expect(before.body.requests).toEqual([{ requestId: 'q-rev', what: 'review', kindId: 'peer', kind: 'Peer Review', forYou: true, note: 'Please check', askedAt: expect.any(String) }]);
+    expect(before.body.steps[0].kinds).toEqual([{ kindId: 'peer', name: 'Peer Review', state: 'asked', apiReviewCounts: true }]);
+    // Anyone else with read sees it, not as theirs.
+    const other = await token('admin', { scopes: ['read'] });
+    expect((await call('GET', '/api/v1/languages/din/passages/d2', other)).body.requests).toMatchObject([{ requestId: 'q-rev', forYou: false }]);
+    // Listener feedback leaves the request open; a peer review answers it and completes the step.
+    const listener = await call('POST', '/api/v1/languages/din/passages/d2/reviews', asked, { outcome: 'looks_good', reviewerId: 'caleb' });
+    expect(listener.body.passage.requests).toHaveLength(1);
+    const peer = await call('POST', '/api/v1/languages/din/passages/d2/reviews', asked, { kindId: 'peer', outcome: 'looks_good', reviewerId: 'caleb' });
+    expect(peer.body.passage.requests).toEqual([]);
+    expect(peer.body.passage.steps[0]).toMatchObject({ complete: true, kinds: [{ state: 'approved' }] });
+  });
+
   it('lets a partner review a step of the flow, which counts like any review but never clears a checkpoint', async () => {
     const { call, token } = setup();
     // A translator's token: a review by link is recorded like a check logged from outside the app.
@@ -344,7 +432,10 @@ describe('writing', () => {
     expect(peer.body.passage).toMatchObject({ status: 'approved', approvedVersion: { n: 1 } });
     const consultant = await call('POST', '/api/v1/languages/nus/passages/n2/reviews', t, { kindId: 'consultant', outcome: 'looks_good', reviewerId: 'partner' });
     expect(consultant.status).toBe(200);
-    expect(consultant.body.passage.steps).toEqual([{ name: 'Peer Review', complete: true }, { name: 'Consultant Check', complete: false }]);
+    expect(consultant.body.passage.steps).toMatchObject([
+      { name: 'Peer Review', complete: true, checkpoint: false, kinds: [{ kindId: 'peer', apiReviewCounts: true }] },
+      { name: 'Consultant Check', complete: false, checkpoint: true, kinds: [{ kindId: 'consultant', apiReviewCounts: false }] }
+    ]);
     expect(consultant.body.passage.approvedVersion).toBeNull();
     expect((await call('POST', '/api/v1/languages/din/passages/d2/reviews', t, { kindId: 'consultant', outcome: 'looks_good', reviewerId: 'p' })).body.code).toBe('no_kind');
   });
@@ -355,6 +446,17 @@ describe('writing', () => {
     // d2's cards are unapproved; a published-only token must not get a link to them this way.
     const r = await call('POST', '/api/v1/languages/din/passages/d1/reviews', t, { outcome: 'needs_changes', reviewerId: 'a', voiceNotes: [{ hash: card('d2a').hash, format: 'm4a' }] });
     expect(r.status).toBe(400);
+  });
+
+  it('takes a voice note with a token and attaches it to a review, which plays it back', async () => {
+    const { call, token } = setup();
+    const t = await token('rev', { scopes: ['read', 'review'] });
+    const up = await call('PUT', '/api/v1/languages/din/voice-notes', t, undefined, m4a('token-note'));
+    expect(up.body.voiceNote).toMatchObject({ format: 'm4a', hash: expect.stringMatching(/^[0-9a-f]{64}$/) });
+    const sent = await call('POST', '/api/v1/languages/din/passages/d2/reviews', t, { outcome: 'needs_changes', reviewerId: 'a', voiceNotes: [{ ...up.body.voiceNote, atMs: 1200 }] });
+    expect(sent.body.passage.reviews.at(-1).voiceNotes).toEqual([{ url: expect.stringContaining(up.body.voiceNote.hash), expiresAt: expect.any(String), durationMs: 0, atMs: 1200 }]);
+    const reader = await token('rev', { scopes: ['read'] });
+    expect((await call('PUT', '/api/v1/languages/din/voice-notes', reader, undefined, m4a('nope'))).body).toMatchObject({ code: 'scope' });
   });
 
   it('lets a team hear about needs-changes on a version in review', async () => {
@@ -680,13 +782,30 @@ describe('MCP', () => {
     const tools = (await call('POST', '/api/v1/mcp', t, rpc(2, 'tools/list'))).body.result.tools.map((x: any) => x.name);
     expect(tools).toEqual(['whoami', 'list_languages', 'list_passages', 'get_passage', 'record_review']);
     const listed = await call('POST', '/api/v1/mcp', t, rpc(3, 'tools/call', { name: 'list_passages', arguments: { languageId: 'din' } }));
-    expect(JSON.parse(listed.body.result.content[0].text).map((p: any) => p.unitId)).toEqual(['d1']);
+    expect(JSON.parse(listed.body.result.content[0].text).passages.map((p: any) => p.unitId)).toEqual(['d1']);
     const sent = await call('POST', '/api/v1/mcp', t, rpc(4, 'tools/call', { name: 'record_review', arguments: { languageId: 'din', unitId: 'd1', outcome: 'looks_good', comment: 'Clear' } }));
     expect(sent.body.result.isError).toBe(false);
     const flood = Array.from({ length: 21 }, (_, i) => rpc(100 + i, 'tools/call', { name: 'list_languages', arguments: {} }));
     expect((await call('POST', '/api/v1/mcp', t, flood)).status).toBe(400);
     const refused = await call('POST', '/api/v1/mcp', t, rpc(5, 'tools/call', { name: 'report_release', arguments: {} }));
     expect(refused.body.error.code).toBe(-32602);
+    // Stateless: closing a session is accepted and changes nothing.
+    expect((await call('DELETE', '/api/v1/mcp', t)).status).toBe(204);
+  });
+
+  it('takes include, unitIds, limit and after on list_passages, as the REST route does', async () => {
+    const { call, token } = setup();
+    const t = await token('admin', { scopes: ['read'] });
+    const tool = async (id: number, name: string, args: unknown) => (await call('POST', '/api/v1/mcp', t, rpc(id, 'tools/call', { name, arguments: args }))).body.result;
+    const listed = JSON.parse((await tool(1, 'list_passages', { languageId: 'din', status: 'in_review', include: ['steps', 'requests'] })).content[0].text);
+    expect(listed).toMatchObject({ passages: [{ unitId: 'd2', steps: [{ name: 'Peer Review', complete: false }], requests: [] }], nextAfter: null });
+    const page = JSON.parse((await tool(2, 'list_passages', { languageId: 'din', unitIds: ['d3', 'd1'], limit: 1 })).content[0].text);
+    expect(page).toMatchObject({ passages: [{ unitId: 'd1' }], nextAfter: 'd1' });
+    const next = JSON.parse((await tool(3, 'list_passages', { languageId: 'din', unitIds: ['d3', 'd1'], limit: 1, after: 'd1' })).content[0].text);
+    expect(next).toMatchObject({ passages: [{ unitId: 'd3' }], nextAfter: null });
+    expect((await tool(4, 'list_passages', { languageId: 'din', include: 'steps' })).isError).toBe(true);
+    expect((await tool(5, 'list_passages', { languageId: 'din', limit: 2.5 })).isError).toBe(true);
+    expect((await tool(6, 'list_passages', { languageId: 'din', unitIds: 'd1' })).isError).toBe(true);
   });
 });
 
@@ -766,5 +885,24 @@ describe('external values (decisions.md 79)', () => {
     expect(JSON.parse(got.body.result.content[0].text).values).toMatchObject([{ key: 'agent/notes', data: { seen: true }, writtenBy: { app: 'Agent' } }]);
     const gone = await call('POST', '/api/v1/mcp', t, rpc(4, 'tools/call', { name: 'set_external_value', arguments: { languageId: 'din', key: 'agent/notes', data: null } }));
     expect(JSON.parse(gone.body.result.content[0].text)).toEqual({ key: 'agent/notes', deleted: true });
+  });
+});
+
+describe('the OpenAPI document (decisions.md 81)', () => {
+  it('is served without a token, linked from the index, and every schema in it compiles', async () => {
+    const { call } = setup();
+    const spec = await call('GET', '/api/v1/openapi.json');
+    expect(spec.body).toMatchObject({ openapi: '3.1.0', servers: [{ url: 'https://lq.test/api/v1' }] });
+    expect((await call('GET', '/api/v1')).body.openapi).toBe('https://lq.test/api/v1/openapi.json');
+    compileAll();
+  });
+
+  it('is valid OpenAPI 3.1, by the OpenAPI Initiative\'s own schema', () => {
+    expect(openApiProblems()).toBeNull();
+  });
+
+  // Last in the file: the tests above went through check() on every call.
+  it('was reached in every operation by the tests above', () => {
+    expect(uncovered()).toEqual([]);
   });
 });

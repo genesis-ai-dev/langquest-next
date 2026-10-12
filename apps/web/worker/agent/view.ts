@@ -1,7 +1,7 @@
 import {
   approvedVersion, buildIndexes, decodeHlc, derivePassage, encodeHlc, externalKeyError, kindOf, languageInfo, LISTENER_KIND, mayViewLanguage, orgLanguages, passageWork,
   privilegesFor, referencedBlobs, releasesOf, stateRevision, stepAllowsLinks, validateEvent,
-  type AnyEvent, type Card, type LanguageState, type OrgState, type PassageState, type Version
+  type AnyEvent, type Card, type KindState, type LanguageState, type OrgState, type PassageState, type Version
 } from '@langquest-next/core';
 import { canRead, canReadValues, coversLanguage, sha256Hex, type Grant } from './tokens';
 
@@ -70,10 +70,28 @@ export interface PassageDetail extends PassageSummary {
   audio: AudioCard[];
   /** With `read`: every review of every version. With `read:published` only: listener reviews of `version`. */
   reviews: ReviewOut[];
-  /** With `read`: the language's flow and where the passage is in it. */
-  steps?: { name: string; complete: boolean }[];
+  /**
+   * With `read`: the language's flow and where the passage is in it. Each
+   * kind's `kindId` is what a review of that step sends; `apiReviewCounts`
+   * says whether a review sent through this API completes it (an ordinary
+   * step that takes links, never a checkpoint: decisions.md 72).
+   */
+  steps?: { name: string; complete: boolean; checkpoint: boolean; kinds: { kindId: string; name: string; state: KindState; apiReviewCounts: boolean }[] }[];
+  /**
+   * With `read`: requests not done yet, oldest first. `forYou` when it is to
+   * the token's person, or to a review team they are in; a review of its
+   * `kindId` answers it.
+   */
+  requests?: { requestId: string; what: 'record' | 'review'; kindId?: string; kind?: string; forYou: boolean; team?: string; dueDate?: string; note?: string; askedAt: string }[];
   versions?: { n: number; takeId: string; submittedAt: string }[];
 }
+
+/** What a list may add to each passage, named as one passage's own fields. */
+export const PASSAGE_INCLUDES = ['audio', 'reviews', 'steps', 'requests', 'versions'] as const;
+export type PassageInclude = (typeof PASSAGE_INCLUDES)[number];
+
+/** A passage on the list: its summary, and what the caller included. */
+export type PassageListItem = PassageSummary & Partial<Pick<PassageDetail, PassageInclude>>;
 
 export interface Refusal {
   status: number;
@@ -184,26 +202,94 @@ function summarize(grant: Grant, state: LanguageState, s: PassageState): Passage
 /** A token with only `read:published` sees passages with an approved version, and only that version. */
 const visible = (grant: Grant, s: PassageState) => canRead(grant, true) || (canRead(grant) && approvedVersion(s) !== null);
 
+export const API_STATUSES: readonly ApiStatus[] = ['not_started', 'drafting', 'in_review', 'feedback', 'approved'];
+/** The flow, the work asked for and older versions are the team's; read:published never gets them. */
+const TEAM_ONLY: readonly PassageInclude[] = ['steps', 'requests', 'versions'];
+/** Passages on a page when the caller does not say, and the most one page holds. */
+export const PASSAGES_PAGE = 100;
+export const PASSAGES_PAGE_MAX = 500;
+
 export interface PassageFilter {
   status?: ApiStatus;
   /** ISO time: only passages with something newer than it. */
   changedSince?: string;
+  /** Only these, still in display order. Ids that do not exist, or the token cannot see, are left out. */
+  unitIds?: string[];
 }
 
-export function passagesFor(grant: Grant, state: LanguageState, filter: PassageFilter = {}): PassageSummary[] {
+export interface PassageListQuery {
+  filter: PassageFilter;
+  include: PassageInclude[];
+  limit: number;
+  /** The `nextAfter` of the page before: passages after this one in display order. */
+  after?: string;
+}
+
+/** A list request from REST or MCP, as plain values (strings, a string array, a number); one set of rules for both. */
+export function parsePassageQuery(raw: { status?: unknown; changedSince?: unknown; unitIds?: unknown; include?: unknown; limit?: unknown; after?: unknown }): PassageListQuery | Refusal {
+  const bad = (error: string) => refuse(400, 'bad_request', error);
+  const strings = (v: unknown) => Array.isArray(v) && v.every((x) => typeof x === 'string' && x.length > 0);
+  const filter: PassageFilter = {};
+  if (raw.status !== undefined) {
+    if (!(API_STATUSES as readonly unknown[]).includes(raw.status)) return bad(`status is one of ${API_STATUSES.join(', ')}.`);
+    filter.status = raw.status as ApiStatus;
+  }
+  if (raw.changedSince !== undefined) {
+    const ms = typeof raw.changedSince === 'string' ? Date.parse(raw.changedSince) : NaN;
+    if (Number.isNaN(ms)) return bad('changedSince must be an ISO date and time.');
+    filter.changedSince = new Date(ms).toISOString();
+  }
+  if (raw.unitIds !== undefined) {
+    if (!strings(raw.unitIds) || (raw.unitIds as string[]).length > PASSAGES_PAGE_MAX) return bad(`unitIds is a list of at most ${PASSAGES_PAGE_MAX} unit ids.`);
+    filter.unitIds = raw.unitIds as string[];
+  }
+  const include = raw.include ?? [];
+  if (!strings(include) || !(include as string[]).every((i) => (PASSAGE_INCLUDES as readonly string[]).includes(i))) {
+    return bad(`include lists any of ${PASSAGE_INCLUDES.join(', ')}.`);
+  }
+  const limit = raw.limit ?? PASSAGES_PAGE;
+  if (!Number.isInteger(limit) || (limit as number) < 1 || (limit as number) > PASSAGES_PAGE_MAX) return bad(`limit is a whole number from 1 to ${PASSAGES_PAGE_MAX}.`);
+  if (raw.after !== undefined && (typeof raw.after !== 'string' || !raw.after)) return bad('after is the nextAfter of the page before.');
+  return { filter, include: [...new Set(include as PassageInclude[])], limit: limit as number, ...(raw.after !== undefined ? { after: raw.after as string } : {}) };
+}
+
+/**
+ * One page of passages in display order, each with what the caller
+ * included. Links are signed only for the page given, and `nextAfter` is
+ * null when no passage after the page matches.
+ */
+export async function passagesFor(
+  grant: Grant, orgId: string, languageId: string, state: LanguageState, q: PassageListQuery, sign: Signer
+): Promise<{ passages: PassageListItem[]; nextAfter: string | null } | Refusal> {
+  const teamOnly = q.include.filter((i) => TEAM_ONLY.includes(i));
+  if (teamOnly.length && !canRead(grant, true)) return refuse(403, 'scope', `${teamOnly.join(' and ')} need the read scope; read:published shows approved passages only.`);
   const idx = buildIndexes(state);
-  const out: PassageSummary[] = [];
-  for (const unitId of idx.passages) {
+  const start = q.after === undefined ? -1 : idx.passages.indexOf(q.after);
+  if (q.after !== undefined && start === -1) return refuse(400, 'bad_request', 'after is not a passage in this language. Start again without it.');
+  const wanted = q.filter.unitIds ? new Set(q.filter.unitIds) : null;
+  const page: { s: PassageState; sum: PassageSummary }[] = [];
+  let nextAfter: string | null = null;
+  for (let i = start + 1; i < idx.passages.length; i++) {
+    const unitId = idx.passages[i]!;
+    if (wanted && !wanted.has(unitId)) continue;
     const s = derivePassage(state, unitId, idx);
     if (!visible(grant, s)) continue;
     const sum = summarize(grant, state, s);
-    if (filter.status && sum.status !== filter.status) continue;
-    if (filter.changedSince && (!sum.updatedAt || sum.updatedAt <= filter.changedSince)) continue;
-    out.push(sum);
+    if (q.filter.status && sum.status !== q.filter.status) continue;
+    if (q.filter.changedSince && (!sum.updatedAt || sum.updatedAt <= q.filter.changedSince)) continue;
+    if (page.length === q.limit) {
+      nextAfter = page[page.length - 1]!.s.unitId;
+      break;
+    }
+    page.push({ s, sum });
   }
-  return out;
+  const include = new Set(q.include);
+  const passages: PassageListItem[] = [];
+  for (const { s, sum } of page) passages.push(await passageOut(grant, orgId, languageId, state, s, sum, include, sign));
+  return { passages, nextAfter };
 }
 
+/** One passage with everything the token may see; the list with every include, for one unit. */
 export async function passageFor(
   grant: Grant, orgId: string, languageId: string, state: LanguageState, unitId: string, sign: Signer
 ): Promise<PassageDetail | Refusal> {
@@ -211,44 +297,70 @@ export async function passageFor(
   if (!idx.passages.includes(unitId)) return refuse(404, 'no_passage', 'There is no passage with that id in this language.');
   const s = derivePassage(state, unitId, idx);
   if (!visible(grant, s)) return refuse(404, 'no_passage', 'There is no approved passage with that id in this language.');
-  const all = canRead(grant, true);
-  const cards = cardsOf(state);
-  const key = (hash: string, format: string) => `${orgId}/${languageId}/${hash}.${format}`;
-  const audio: AudioCard[] = [];
+  const include = new Set<PassageInclude>(canRead(grant, true) ? PASSAGE_INCLUDES : PASSAGE_INCLUDES.filter((i) => !TEAM_ONLY.includes(i)));
+  return (await passageOut(grant, orgId, languageId, state, s, summarize(grant, state, s), include, sign)) as PassageDetail;
+}
+
+async function passageOut(
+  grant: Grant, orgId: string, languageId: string, state: LanguageState, s: PassageState, sum: PassageSummary,
+  include: ReadonlySet<PassageInclude>, sign: Signer
+): Promise<PassageListItem> {
+  const out: PassageListItem = { ...sum };
+  const link = async (hash: string, format: string) => {
+    const l = await sign(`${orgId}/${languageId}/${hash}.${format}`);
+    return { url: l.url, expiresAt: new Date(l.expiresAt).toISOString() };
+  };
   const v = heard(grant, s);
-  for (const hash of v?.cardHashes ?? []) {
-    const card = cards.get(hash);
-    const format = card?.format ?? 'wav';
-    const link = await sign(key(hash, format));
-    audio.push({ hash, format, durationMs: card?.durationMs ?? 0, url: link.url, expiresAt: new Date(link.expiresAt).toISOString() });
-  }
-  const reviews: ReviewOut[] = [];
-  for (const r of s.reviews) {
-    if (!all && (r.kindId !== LISTENER_KIND || r.takeId !== v?.takeId)) continue;
-    const out: ReviewOut = { kindId: r.kindId, kind: kindOf(state, r.kindId).name, outcome: r.outcome, via: r.via, versionN: r.versionN, at: iso(r.hlc) };
-    if (r.comment !== undefined) out.comment = r.comment;
-    if (r.givenBy !== undefined) out.givenBy = r.givenBy;
-    // Voice notes: one in commentBlobHash (the app's; m4a unless the log says otherwise, decisions.md 77), and
-    // clips among the artifacts (from outside; for a kind that makes content, the artifacts are that content, not notes).
-    const notes: Card[] = [
-      ...(r.commentBlobHash ? [{ hash: r.commentBlobHash, durationMs: 0, format: state.audioFormats[r.commentBlobHash]?.value ?? 'm4a' }] : []),
-      ...(r.outcome !== 'recorded' ? r.artifacts ?? [] : [])
-    ];
-    if (notes.length) {
-      out.voiceNotes = [];
-      for (const n of notes) {
-        const link = await sign(key(n.hash, n.format ?? 'wav'));
-        out.voiceNotes.push({ url: link.url, expiresAt: new Date(link.expiresAt).toISOString(), durationMs: n.durationMs, ...(n.atMs !== undefined ? { atMs: n.atMs } : {}) });
-      }
+  if (include.has('audio')) {
+    const cards = cardsOf(state);
+    out.audio = [];
+    for (const hash of v?.cardHashes ?? []) {
+      const card = cards.get(hash);
+      const format = card?.format ?? 'wav';
+      out.audio.push({ hash, format, durationMs: card?.durationMs ?? 0, ...(await link(hash, format)) });
     }
-    reviews.push(out);
   }
-  const detail: PassageDetail = { ...summarize(grant, state, s), audio, reviews };
-  if (all) {
-    detail.steps = s.steps.map((st) => ({ name: st.step.kindIds.map((k) => kindOf(state, k).name).join(' + '), complete: st.complete }));
-    detail.versions = s.versions.map((v) => ({ n: v.n, takeId: v.takeId, submittedAt: iso(v.hlc) }));
+  if (include.has('reviews')) {
+    const all = canRead(grant, true);
+    out.reviews = [];
+    for (const r of s.reviews) {
+      if (!all && (r.kindId !== LISTENER_KIND || r.takeId !== v?.takeId)) continue;
+      const review: ReviewOut = { kindId: r.kindId, kind: kindOf(state, r.kindId).name, outcome: r.outcome, via: r.via, versionN: r.versionN, at: iso(r.hlc) };
+      if (r.comment !== undefined) review.comment = r.comment;
+      if (r.givenBy !== undefined) review.givenBy = r.givenBy;
+      // Voice notes: one in commentBlobHash (the app's; m4a unless the log says otherwise, decisions.md 77), and
+      // clips among the artifacts (from outside; for a kind that makes content, the artifacts are that content, not notes).
+      const notes: Card[] = [
+        ...(r.commentBlobHash ? [{ hash: r.commentBlobHash, durationMs: 0, format: state.audioFormats[r.commentBlobHash]?.value ?? 'm4a' }] : []),
+        ...(r.outcome !== 'recorded' ? r.artifacts ?? [] : [])
+      ];
+      if (notes.length) {
+        review.voiceNotes = [];
+        for (const n of notes) review.voiceNotes.push({ ...(await link(n.hash, n.format ?? 'wav')), durationMs: n.durationMs, ...(n.atMs !== undefined ? { atMs: n.atMs } : {}) });
+      }
+      out.reviews.push(review);
+    }
   }
-  return detail;
+  if (include.has('steps')) {
+    out.steps = s.steps.map((st) => {
+      const counts = !st.step.checkpoint && stepAllowsLinks(state, st.step);
+      return {
+        name: st.step.kindIds.map((k) => kindOf(state, k).name).join(' + '), complete: st.complete, checkpoint: st.step.checkpoint,
+        kinds: st.kinds.map((k) => ({ kindId: k.kindId, name: kindOf(state, k.kindId).name, state: k.state, apiReviewCounts: counts }))
+      };
+    });
+  }
+  if (include.has('requests')) {
+    out.requests = s.openRequests.map((r) => ({
+      requestId: r.id, what: r.what,
+      ...(r.kindId ? { kindId: r.kindId, kind: kindOf(state, r.kindId).name } : {}),
+      forYou: r.profileId === grant.profileId || (r.team?.memberIds.includes(grant.profileId) ?? false),
+      ...(r.team ? { team: r.team.name } : {}), ...(r.dueDate ? { dueDate: r.dueDate } : {}), ...(r.note ? { note: r.note } : {}),
+      askedAt: iso(r.hlc)
+    }));
+  }
+  if (include.has('versions')) out.versions = s.versions.map((ver) => ({ n: ver.n, takeId: ver.takeId, submittedAt: iso(ver.hlc) }));
+  return out;
 }
 
 // ---- writes ------------------------------------------------------------------------

@@ -1,7 +1,9 @@
 import type { OrgStub } from './http';
 import type { Answer } from './org';
 import { canRead, canReadValues, SCOPE_TEXT, type Grant } from './tokens';
-import { isRefusal, parseExternalValue, parseRelease, parseReview, type ApiStatus, type ExternalValueFilter, type PassageFilter } from './view';
+import {
+  API_STATUSES, isRefusal, PASSAGE_INCLUDES, PASSAGES_PAGE, PASSAGES_PAGE_MAX, parseExternalValue, parsePassageQuery, parseRelease, parseReview, type ExternalValueFilter
+} from './view';
 
 /**
  * The same API as Model Context Protocol tools, so an agent (Claude, ChatGPT,
@@ -58,34 +60,35 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'list_passages',
-    description: 'Passages of a language in display order, with status (not_started, drafting, in_review, feedback, approved), the version this token hears, the approved version, where it is released, and listener feedback counts. A token with only read:published sees approved passages alone.',
+    description: 'Passages of a language in display order, a page at a time ({ passages, nextAfter }; pass nextAfter as after for the next page, null means no more), with status (not_started, drafting, in_review, feedback, approved), the version this token hears, the approved version, where it is released, and listener feedback counts. include adds get_passage\'s fields to every passage, so one call can answer, say, where every passage in review stands. A token with only read:published sees approved passages alone.',
     inputSchema: obj({
       languageId: LANGUAGE,
-      status: s('Only passages with this status.', { enum: ['not_started', 'drafting', 'in_review', 'feedback', 'approved'] }),
-      changedSince: s('ISO date-time: only passages with something newer. Use the newest updatedAt you have seen to follow changes.')
+      status: s('Only passages with this status.', { enum: [...API_STATUSES] }),
+      changedSince: s('ISO date-time: only passages with something newer. Use the newest updatedAt you have seen to follow changes.'),
+      unitIds: { type: 'array', items: { type: 'string' }, maxItems: PASSAGES_PAGE_MAX, description: 'Only these passages (still in display order); ids that do not exist or this token cannot see are left out.' },
+      include: {
+        type: 'array', items: { type: 'string', enum: [...PASSAGE_INCLUDES] }, uniqueItems: true,
+        description: 'Fields of get_passage to add to each passage. audio: playable links; reviews; steps: where it is in the review flow; requests: work asked for, forYou marking the token person\'s; versions. steps, requests and versions need the read scope.'
+      },
+      limit: { type: 'integer', minimum: 1, maximum: PASSAGES_PAGE_MAX, description: `Passages per page; ${PASSAGES_PAGE} when left out.` },
+      after: s('The nextAfter of the page before.')
     }, ['languageId']),
     allowed: (g) => canRead(g),
     run: (a, g, org) => {
-      const filter: PassageFilter = {};
-      if (a['status'] !== undefined) filter.status = a['status'] as ApiStatus;
-      if (a['changedSince'] !== undefined) {
-        const ms = Date.parse(str(a['changedSince']));
-        if (Number.isNaN(ms)) return Promise.resolve(bad('changedSince must be an ISO date-time.'));
-        filter.changedSince = new Date(ms).toISOString();
-      }
-      return org.read(g, { op: 'passages', languageId: str(a['languageId']), filter });
+      const query = parsePassageQuery(a);
+      return isRefusal(query) ? Promise.resolve({ ok: false, ...query }) : org.read(g, { op: 'passages', languageId: str(a['languageId']), query });
     }
   },
   {
     name: 'get_passage',
-    description: 'One passage: its latest version\'s audio (links that play for ten minutes, in order), its reviews and, with the read scope, its steps and versions.',
+    description: 'One passage: its latest version\'s audio (links that play for ten minutes, in order), its reviews and, with the read scope, its steps (each kind\'s kindId, and whether a review through this API counts there), the requests not done yet (forYou marks the ones asked of this token\'s person) and its versions. For several passages, or only some of this, use list_passages with unitIds and include.',
     inputSchema: obj({ languageId: LANGUAGE, unitId: UNIT }, ['languageId', 'unitId']),
     allowed: (g) => canRead(g),
     run: (a, g, org) => org.read(g, { op: 'passage', languageId: str(a['languageId']), unitId: str(a['unitId']) })
   },
   {
     name: 'record_review',
-    description: 'Record a review of a passage\'s version, as the token\'s person: listener feedback (kindId "listener", the default, which never clears a step) or a review step in the language\'s flow (a kindId from get_passage steps). needs_changes asks the translator to respond. A review through the API never clears a checkpoint.',
+    description: 'Record a review of a passage\'s version, as the token\'s person: listener feedback (kindId "listener", the default, which never clears a step) or a review step in the language\'s flow (a kindId from get_passage steps). To answer a request, send its kindId: listener feedback leaves the request open. needs_changes asks the translator to respond. A review through the API never clears a checkpoint.',
     inputSchema: obj({
       languageId: LANGUAGE, unitId: UNIT,
       outcome: s('looks_good or needs_changes.', { enum: ['looks_good', 'needs_changes'] }),

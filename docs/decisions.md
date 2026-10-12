@@ -1949,6 +1949,10 @@ OAuth authorization codes with per-user consent), the per-object rate limit
 or folds per request show up in Worker CPU, or publication needs to gate
 something (then it joins the flow as a checkpoint kind instead).
 
+Amended (2026-10-12, Carl Sauder): the passage list now returns
+`{ passages, nextAfter }` a page at a time, picks passages by `unitIds`,
+and adds any part of one passage with `include` (80).
+
 ## 71. One simpler set of screens for everyone, keeping every capability
 
 Date: 2026-10-08 · By: Caleb Koster · Status: accepted
@@ -2482,3 +2486,74 @@ Reverse if: external values grow past a set share of a language's events or
 slow its downloads (then a sibling stream phones do not pull), partners
 that do not trust each other share a language (then a namespace per app),
 or values start to drive anything in LangQuest.
+
+## 80. The passage list pages, picks passages by id, and includes any part of one passage
+
+Date: 2026-10-12 · By: Carl Sauder · Status: accepted
+
+Reason: changes the list 70 shipped. Asking an agent for the review status
+of a language's 23 passages in review took 24 calls (the list, then each
+passage), about 100 KB, mostly audio links the question did not need. The
+list had no pages: Tyap's 1,584 passages were 560 KB. Carl chose one list
+that can carry any part of a passage, with pages. Chosen:
+- `GET …/languages/{languageId}/passages` (and MCP `list_passages`) returns
+  `{ passages, nextAfter }`, as external values already page (79). It was a
+  bare array; the API was five days old, so the partners using it are told
+  rather than given a second shape. A page holds 100 passages, or `limit`
+  up to 500. `after` is the last passage's `unitId`, in display order.
+- `include` (`audio`, `reviews`, `steps`, `requests`, `versions`) adds those
+  fields of one passage to each passage on the page, built by the same code
+  as one passage (`passageOut` in `apps/web/worker/agent/view.ts`), and
+  links are signed only for the page. `steps`, `requests` and `versions`
+  need `read`, and are refused with `read:published` alone.
+- `unitIds` picks passages; in REST it repeats, one id each, because a unit
+  id may hold a comma. Ids that do not exist or are hidden from the token
+  are left out, not refused.
+- `GET …/passages/{unitId}` and `get_passage` stay as they shipped: one
+  passage with everything the token may see.
+- One parser (`parsePassageQuery`) holds the rules for REST and MCP.
+Rejected: steps on every list entry (four to five times larger for callers
+that never read them); separate `steps` and `audio` flags (two ways to say
+what `include` says); a cap of 50 passages when audio is included instead
+of pages; the cursor in a header (MCP has none) or an object only when
+paging (a shape that depends on the request, and an unbounded default).
+Reverse if: callers lose passages between pages because the order changes
+under them (then a cursor on a snapshot), or a page with every include is
+too large at 100 (then a smaller default).
+
+## 81. The access-token API is described by an OpenAPI 3.1 document the tests hold it to
+
+Date: 2026-10-12 · By: Carl Sauder · Status: accepted
+
+Reason: the API (70) had a written guide, a list of routes at `GET /api/v1`
+and MCP's argument schemas, but nothing a machine could read for the REST
+routes, and the response shapes lived only in TypeScript types and prose.
+Partners want to generate clients and check what they get; a description
+nobody checks drifts. Carl chose an OpenAPI document tied to the code by
+tests. Chosen:
+- OpenAPI 3.1, written as a TypeScript object in
+  `apps/web/worker/agent/openapi.ts` and served without a token at
+  `GET /api/v1/openapi.json`. It uses the code's own constants (statuses,
+  includes, scopes, kind states, page sizes and limits), so they cannot
+  drift. `docs/agent-api.md` stays the guide; the document is the
+  reference, and wins on details.
+- It covers what apps and agents call. `/session/*` and `/links/*`, which
+  only LangQuest's own pages call, with no CORS, are left out.
+- Its object schemas are open, so a field added later does not break a
+  generated client. The tests close them.
+- `apps/web/test/agentApi.test.ts` passes every request it makes through
+  `openapiCheck.ts`: the route must be in the document, the response must
+  match the schema for its status with no unlisted field, and a request the
+  API took must match the request schema. Every operation must be reached
+  by some test, and the document must pass the OpenAPI Initiative's own
+  schema (copied into `apps/web/test/oas31`). Ajv, a JSON Schema
+  validator, is a development dependency of `apps/web` for this; it never
+  ships in the Worker.
+Rejected: a hand-written YAML file (nothing ties it to the code); types
+generated from the document, or the document from the types (a build step
+and a generator's opinions for one API of 19 operations); deriving MCP's
+argument schemas from it (MCP takes arrays where REST repeats a query
+parameter, so they would differ anyway).
+Reverse if: the document is often updated only because the tests fail
+rather than ahead of the change (then generate it from the types), or a
+second API needs one (then a shared generator).
