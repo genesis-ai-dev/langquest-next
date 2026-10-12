@@ -1,7 +1,7 @@
 import { HlcClock, ORG_STREAM, applyOrgEvent, derivePassage, emptyOrgState, foldOrg, REDUCER_VERSION, type LanguageState, type OrgState } from '@langquest-next/core';
 import { MemoryStore } from '../src/memoryStore';
 import { SyncClient, type Materializer } from '../src/syncClient';
-import { FakeServer } from './fakeServer';
+import { FakeServer } from '../src/testing/fakeServer';
 import { rejectCodeOf } from '../src/types';
 
 /** The organization stream's fold, as the app wires it (apps/mobile useOrg). */

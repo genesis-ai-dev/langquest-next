@@ -14,7 +14,7 @@ import { MemoryStore } from '../src/memoryStore';
 import { SqliteDiagStore } from '../src/sqliteDiagStore';
 import type { SqlDriver } from '../src/sqliteStore';
 import { SyncClient } from '../src/syncClient';
-import { FakeServer } from './fakeServer';
+import { FakeServer } from '../src/testing/fakeServer';
 
 function nodeDriver(): SqlDriver {
   const db = new DatabaseSync(':memory:');
