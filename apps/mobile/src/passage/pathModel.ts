@@ -25,7 +25,7 @@ export interface PathStep {
 
 export interface TeamStep {
   stepId: string;
-  /** One check per row (decision 88); `together` when it happens with the one above. */
+  /** One check per row (decision 91); `together` when it happens with the one above. */
   kindId: string;
   together: boolean;
   name: string;
@@ -52,7 +52,7 @@ export interface PathInput {
   due?: (iso: string) => string;
 }
 
-// A check's one name on every screen (decision 88).
+// A check's one name on every screen (decision 91).
 const kindName = (kinds: KindDef[], id: string) => checkName(id, kinds);
 
 /** "the community check" from "Community Check": how the path says a check in a sentence. */
@@ -143,7 +143,7 @@ function whoAsked(r: { by?: string; profileId?: string }, input: PathInput): str
   return r.profileId ? t('passage.path.asked.askedName', { by, name: input.name(r.profileId) }) : t('passage.path.asked.askedSomeone', { by });
 }
 
-/** The team's checks after the recording, one row each in the flow's order (decision 88). */
+/** The team's checks after the recording, one row each in the flow's order (decision 91). */
 export function teamSteps(input: PathInput): TeamStep[] {
   const { p, kinds } = input;
   let previous: { name: string; complete: boolean } | undefined;

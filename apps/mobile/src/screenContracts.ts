@@ -79,7 +79,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   org_home: { emits:['v1.LicenseSet','v1.OrgRenamed'],rpcs:['set_language_visibility'],reads:['language_visibility','orgLicense'] },
   // A language's page reads the four questions from the record, and who is waiting to be let in (decision 71).
   language_home: { emits:['v1.LanguageRenamed','v1.LanguageCodeSet'],rpcs:['set_language_visibility','search_languoids'],reads:['languoid','language_visibility','join_requests','recommendedFor','deriveFlow','org.members'] },
-  // One check (decision 88): its people (one review team per check), its questions (a question set for the kind),
+  // One check (decision 91): its people (one review team per check), its questions (a question set for the kind),
   // its helps, and its place in the language's steps.
   check_editor: { emits:['v1.ReviewTeamDefined','v1.ReviewTeamMemberSet','v1.ReviewTeamKindSet','v1.CheckHelpSet','v1.MaterialDefined','v1.MaterialFieldSet',
     'v1.FlowSelected','v1.FlowStepSet','v1.FlowStepRemoved'],reads:['checkPeople','checkHelps','questionsForKind','deriveFlow','library'] },

@@ -192,7 +192,7 @@ export function PassageRecord(ctx: Ctx) {
     return () => sub.remove();
   }, [page]);
   const [historyShown, setHistoryShown] = useState(HISTORY_STEP);
-  // Which of the checks that happen next the ask page sends (decision 88): the first, unless another is picked.
+  // Which of the checks that happen next the ask page sends (decision 91): the first, unless another is picked.
   const [askKindId, setAskKindId] = useState<string | null>(null);
   const timeline = useMemo(() => (v ? recordTimeline(v.state, v.p) : []), [v?.state, v?.p]);
   const guide = useStudyGuide(ctx, v?.unitId);
@@ -292,7 +292,7 @@ export function PassageRecord(ctx: Ctx) {
     askedName: (kindId) => {
       const r = p.openRequests.find((x) => x.what === 'review' && x.kindId === kindId);
       if (!r) return undefined;
-      // A check's team reads as one (decision 88): "asked the Peer check team".
+      // A check's team reads as one (decision 91): "asked the Peer check team".
       if (r.teamId) { const team = teamName(r.teamId) ?? r.team?.name; return team ? t('passage.record.theTeam', { team }) : undefined; }
       return r.profileId ? ctx.name(r.profileId) : r.guest?.name;
     }
@@ -452,7 +452,7 @@ export function PassageRecord(ctx: Ctx) {
     );
   }
 
-  // ---- Published, then ask for a check (demo a-ask, a-btAsk; decision 88: each check with its people) ----
+  // ---- Published, then ask for a check (demo a-ask, a-btAsk; decision 91: each check with its people) ----
   if (page === 'ask') {
     const bt = publishedParam?.startsWith('bt');
     const latest = p.latest;
@@ -1182,7 +1182,7 @@ export function ReviewDetail(ctx: Ctx) {
  * when. It asks for exactly what its button belonged to (params `what` and
  * `kindId`); another kind is asked for from its own step.
  */
-/** The ask screen's choice of a check's whole team (decision 88), beside one person's id. */
+/** The ask screen's choice of a check's whole team (decision 91), beside one person's id. */
 const TEAM = '\u0000team';
 
 export function AskSomeone(ctx: Ctx) {
@@ -1221,7 +1221,7 @@ export function AskSomeone(ctx: Ctx) {
   const byName = (a: { profileId: string }, b: { profileId: string }) => ctx.name(a.profileId).localeCompare(ctx.name(b.profileId));
   const usual = candidates.filter((c) => c.usual).sort((a, b) => Number(b.onCheck) - Number(a.onCheck) || byName(a, b));
   const others = candidates.filter((c) => !c.usual).sort(byName);
-  // The check's team (decision 88): everyone on it gets the request, and it is the first choice.
+  // The check's team (decision 91): everyone on it gets the request, and it is the first choice.
   const usualTo = !isRecord && kindId ? usualTargetFor(v.state, ctx.org.state, { languageId: v.languageId, kindId, me }) : undefined;
   const team = usualTo && 'teamId' in usualTo ? usualTo : undefined;
   const teamPeople = team ? checkPeople(v.state, kindId!).filter((id) => id !== me) : [];

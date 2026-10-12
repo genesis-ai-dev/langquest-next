@@ -619,7 +619,7 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
     setBusy(true);
     let specs: EventSpec[];
     try {
-      // A ready-made flow is copied into the language, its checks the language's own (decision 88).
+      // A ready-made flow is copied into the language, its checks the language's own (decision 91).
       specs = commands(state, indexesFor(state)).copyFlow({ commandId: Crypto.randomUUID(), name: pick.c.name, kinds: kindsOf(pick.doc), steps: pick.doc.steps });
     } catch (e) {
       ctx.toast(t('common.notSaved', { reason: failureMessage('get ready: who checks', e) }));

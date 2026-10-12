@@ -503,7 +503,7 @@ export type UsualTarget = { teamId: string; name: string } | { profileId: string
  * it; undefined when neither is clear (then the app opens Ask someone).
  * Advice only: anyone with the permission may still be asked.
  *
- * - Team: the check's people (decisions.md 88, `checkTeamFor`): its own
+ * - Team: the check's people (decisions.md 91, `checkTeamFor`): its own
  *   team, else an older team set to the kind or to any kind, with at least
  *   one member other than `me`.
  * - Person: exactly one person other than `me` who reviewed this kind in

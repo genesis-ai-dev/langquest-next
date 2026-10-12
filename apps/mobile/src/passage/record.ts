@@ -109,7 +109,7 @@ export function stepSheetSub(s: FlowStepStatus): string {
   if (s.complete) return t('passage.record.sheet.done');
   if (s.override) return t('passage.record.sheet.movedPast');
   if (s.step.checkpoint) return t('passage.record.sheet.checkpoint');
-  // Nothing to explain otherwise: the checks below are the step (decision 88).
+  // Nothing to explain otherwise: the checks below are the step (decision 91).
   return '';
 }
 
@@ -496,14 +496,14 @@ interface AskCandidate {
   sub: string;
   /** On the check, or has done this kind here before. */
   usual: boolean;
-  /** On the check itself (decision 88), not only someone who did it here before. */
+  /** On the check itself (decision 91), not only someone who did it here before. */
   onCheck: boolean;
 }
 
 /**
  * Teammates who may be asked: everyone whose role covers the language and
  * holds Translate (to record) or Review (to review). Not the person asking.
- * For a review, the check's people come first (decision 88), then whoever
+ * For a review, the check's people come first (decision 91), then whoever
  * did this kind here before.
  */
 export function askCandidates(
@@ -516,7 +516,7 @@ export function askCandidates(
   if (o.what === 'review' && o.kindId) {
     for (const r of Object.values(state.kindReviews)) if (r.kindId === o.kindId) reviewedHere.add(r.by);
   }
-  // The check's people come first (decision 88): admins put them on the check, and they are the top choices when someone asks for it.
+  // The check's people come first (decision 91): admins put them on the check, and they are the top choices when someone asks for it.
   const onCheck = new Set(o.what === 'review' && o.kindId ? checkPeople(state, o.kindId) : []);
   const rank = (c: AskCandidate) => (onCheck.has(c.profileId) ? 0 : c.usual ? 1 : 2);
   const out: AskCandidate[] = [];

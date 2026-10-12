@@ -121,7 +121,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const [why, setWhy] = useState(false);
   const [sheet, setSheet] = useState<'background' | 'who' | 'details' | 'say' | 'retell' | null>(null);
   const [momentAt, setMomentAt] = useState<number | null>(null);
-  // The check's helps (decision 88), and a Bible one of them opens in Background.
+  // The check's helps (decision 91), and a Bible one of them opens in Background.
   const helps = useCheckHelpRows(ctx, v?.state, kindId);
   const [bible, setBible] = useState<string | null>(null);
   const openHelp = (h: HelpRow) => {
@@ -157,7 +157,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     );
   }
   const crumbs = passageCrumbs(ctx, v, logged ? t('review.screen.alreadyHappened') : t('review.screen.reviewIt'));
-  // One name for the check on every screen (decision 88).
+  // One name for the check on every screen (decision 91).
   const check = checkName(kindId, v.kinds);
   const sub = wide ? (logged ? t('review.screen.alreadyHappened') : v.language) : logged ? t('review.screen.kindAlreadyHappened', { kind: check }) : check;
   const title = wide ? check : v.title;

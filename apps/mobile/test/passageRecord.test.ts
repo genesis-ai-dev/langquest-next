@@ -110,7 +110,7 @@ describe('the step path', () => {
     expect(pathState(s.steps[0]!, true)).toBe('current');
     expect(pathState(s.steps[3]!, false)).toBe('locked');
     expect(stepSheetSub(s.steps[3]!)).toBe('Waits for the Consultant Check checkpoint.');
-    // No explaining a step that is simply its checks (decision 88).
+    // No explaining a step that is simply its checks (decision 91).
     expect(stepSheetSub(s.steps[0]!)).toBe('');
 
     const take = s.latest!.takeId;
@@ -260,7 +260,7 @@ describe('asking someone', () => {
     ]);
 
     const review = askCandidates(p.state(), org, { languageId: 'din', what: 'review', kindId: 'peer', me: 'lead' });
-    // Translators hold Review too (decisions.md 88): a peer check is often another translator.
+    // Translators hold Review too (decisions.md 91): a peer check is often another translator.
     expect(review.map((c) => c.profileId).sort()).toEqual(['akol', 'ayen', 'deng', 'nyibol']);
     expect(review.find((c) => c.profileId === 'deng')).toMatchObject({ usual: true, sub: 'Reviewer · Has done this here before' });
     expect(review.find((c) => c.profileId === 'nyibol')).toMatchObject({ usual: false, sub: 'Community Reviewer' });
@@ -269,7 +269,7 @@ describe('asking someone', () => {
     expect(rec.map((c) => c.profileId)).toEqual(['akol']);
   });
 
-  it("puts the check's people first when admins have put people on it (decision 88)", () => {
+  it("puts the check's people first when admins have put people on it (decision 91)", () => {
     const p = language();
     record(p, 'v1', ['c1']);
     const org = team([['nyibol', 'rev', { level: 'language', languageId: 'din' }]]);

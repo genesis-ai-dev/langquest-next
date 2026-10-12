@@ -1,4 +1,4 @@
-// A language's checks (decisions.md 88): one list, in order, each check with
+// A language's checks (decisions.md 91): one list, in order, each check with
 // its own people, questions and helps. `LanguageChecks` is the list (the
 // flow editor for a language's own steps, `flow_editor` with `steps:
 // 'language'`, or New language's draft with `draft: '1'`); `CheckEditor` is

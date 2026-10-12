@@ -243,9 +243,20 @@ end $$;
 select set_config('request.jwt.claim.sub', '', false);
 select public.put_snapshot('org1', 'L1', 1, 3, '{"v":"old"}'::jsonb);
 select public.put_snapshot('org1', 'L1', 1, 5, '{"v":"new"}'::jsonb);
+-- The one before stays for a phone part-way through downloading it, until
+-- the newer one has been out for 24 hours (decisions.md 88).
 do $$ declare n int; begin
   select count(*) into n from public.snapshots where stream_id = 'L1';
-  if n <> 1 then raise exception 'put_snapshot should keep one row per version, got %', n; end if;
+  if n <> 2 then raise exception 'put_snapshot should keep the previous snapshot for now, got % rows', n; end if;
+  update public.snapshots set created_at = now() - interval '25 hours' where stream_id = 'L1' and server_seq = 5;
+  perform public.put_snapshot('org1', 'L1', 1, 7, '{"v":"newer"}'::jsonb);
+  if exists (select 1 from public.snapshots where stream_id = 'L1' and server_seq = 3) then
+    raise exception 'a snapshot whose successor is 24 hours old should be gone';
+  end if;
+  if not exists (select 1 from public.snapshots where stream_id = 'L1' and server_seq = 5) then
+    raise exception 'the previous snapshot should stay while its successor is new';
+  end if;
+  delete from public.snapshots where stream_id = 'L1' and server_seq = 7;
 end $$;
 select set_config('request.jwt.claim.sub', 'lead', false);
 do $$ declare r record; begin
@@ -267,6 +278,30 @@ do $$ declare m record; v_text text := ''; i int; begin
   end loop;
   if v_text::jsonb <> '{"v":"new"}'::jsonb then raise exception 'chunks do not reassemble: %', v_text; end if;
   if public.get_snapshot_chunk('org1', 'L1', 1, 4, 0) is not null then raise exception 'wrong seq must be null'; end if;
+end $$;
+-- The workers page through every stream (performance-audit.md item 9).
+select set_config('request.jwt.claim.sub', '', false);
+do $$ declare r record; after_org text := ''; after_stream text := ''; n int := 0; page int; begin
+  loop
+    page := 0;
+    for r in select * from public.list_streams_page(after_org, after_stream, 2) loop
+      page := page + 1; n := n + 1; after_org := r.org_id; after_stream := r.stream_id;
+    end loop;
+    exit when page < 2;
+  end loop;
+  if n <> (select count(*) from public.stream_cursors) then raise exception 'paging saw % of % streams', n, (select count(*) from public.stream_cursors); end if;
+end $$;
+-- Pieces are cut once, by bytes, never inside a character (decisions.md 89).
+select set_config('request.jwt.claim.sub', '', false);
+do $$ declare m record; v text := ''; i int; begin
+  perform public.put_snapshot('org1', 'mb', 1, 1, jsonb_build_object('t', repeat('ŋäɔ€𝄞', 120000)));
+  select * into m from public.get_snapshot_meta('org1', 'mb', 1);
+  if m.chunks < 2 then raise exception 'expected several pieces, got %', m.chunks; end if;
+  for i in 0 .. m.chunks - 1 loop v := v || public.get_snapshot_chunk('org1', 'mb', 1, 1, i); end loop;
+  if v::jsonb <> jsonb_build_object('t', repeat('ŋäɔ€𝄞', 120000)) then raise exception 'multi-byte pieces do not reassemble'; end if;
+  if exists (select 1 from public.snapshot_chunks where stream_id = 'mb' and octet_length(piece) > 262144) then raise exception 'a piece is over 256 KB'; end if;
+  delete from public.snapshots where stream_id = 'mb';
+  if exists (select 1 from public.snapshot_chunks where stream_id = 'mb') then raise exception 'pieces should go with their snapshot'; end if;
 end $$;
 select set_config('request.jwt.claim.sub', 'stranger', false);
 do $$ begin
@@ -831,7 +866,7 @@ do $$ declare v text; begin
     and p.proname not in ('preview_invite');
   if v is not null then raise exception 'anon may run security definer functions: %', v; end if;
   select string_agg(f, ', ') into v
-  from unnest(array['put_snapshot', 'list_streams', 'record_blob', 'invalidate_blob', 'org_privileges', 'blob_access',
+  from unnest(array['put_snapshot', 'list_streams', 'list_streams_page', 'record_blob', 'invalidate_blob', 'org_privileges', 'blob_access',
                      '_library_media_readable', 'may_emit']) f
   where exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = f
     and has_function_privilege('authenticated', p.oid, 'execute'));

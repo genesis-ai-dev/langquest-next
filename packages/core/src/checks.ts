@@ -2,7 +2,7 @@ import type { EventSpec } from './commands';
 import type { LanguageState } from './state';
 
 /**
- * A language's checks (decisions.md 88): each kind of review in its flow
+ * A language's checks (decisions.md 91): each kind of review in its flow
  * carries its own people and helps. People are stored as review-team
  * records, one team per check (`checkTeamId`), so a request to "the Peer
  * check team" reaches all of them through the team requests already do

@@ -271,7 +271,7 @@ interface PlainStep {
   checkpoint?: boolean;
 }
 
-/** One check's name, the same on every screen (decisions.md 88): "Peer check", or the name an organization gave its own. */
+/** One check's name, the same on every screen (decisions.md 91): "Peer check", or the name an organization gave its own. */
 export function checkName(kindId: string, kinds: readonly KindDef[]): string {
   return plainKind(kindId, kinds).step;
 }

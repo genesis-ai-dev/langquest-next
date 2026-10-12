@@ -1,4 +1,4 @@
-// Parts every check screen shares (decision 88): who is on a check, as faces
+// Parts every check screen shares (decision 91): who is on a check, as faces
 // and names, and a check's helps as a reviewer opens them.
 import { checkHelps, type LanguageState } from '@langquest-next/core';
 import { useMemo } from 'react';
@@ -53,7 +53,7 @@ export interface HelpRow {
   open: { screen: 'material_editor'; params: Record<string, string> } | { screen: 'study_guide' } | { bible: string };
 }
 
-/** A check's helps (decision 88) with their names and how each opens. */
+/** A check's helps (decision 91) with their names and how each opens. */
 export function useCheckHelpRows(ctx: Ctx, state: LanguageState | null | undefined, kindId: string): HelpRow[] {
   const lib = useLibrary(ctx);
   const helps = useMemo(() => (state ? checkHelps(state, kindId) : []), [state, kindId]);

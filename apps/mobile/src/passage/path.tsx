@@ -108,7 +108,7 @@ function TeamRow(props: { ctx: Ctx; step: TeamStep; people: string[] | null; onP
 export function PassagePath(props: {
   ctx: Ctx;
   steps: PathStep[];
-  /** Who is on each check (decision 88). */
+  /** Who is on each check (decision 91). */
   peopleOf?: (kindId: string) => string[];
   team: TeamStep[];
   onStep: (step: PathStep) => (() => void) | undefined;

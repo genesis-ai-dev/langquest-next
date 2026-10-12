@@ -22220,7 +22220,7 @@ var SEED_ROLES = [
     fixed: "coordinator",
     privileges: PRIVILEGES.filter((p) => p !== "manage_roles")
   },
-  // Review since decisions.md 88: a peer check is often another translator.
+  // Review since decisions.md 91: a peer check is often another translator.
   { roleId: "translator", name: "Translator", fixed: "translator", privileges: ["translate", "review", "fill_reference", "send_to_reviewers", "view_status"] },
   { roleId: "reviewer", name: "Reviewer", fixed: "reviewer", privileges: ["review", "view_status"] },
   { roleId: "viewer", name: "Viewer", fixed: "viewer", privileges: ["view_status"] }
@@ -22545,13 +22545,33 @@ async function fetchSnapshot(transport, orgId, streamId, reducerVersion, opts = 
   return { orgId, streamId, reducerVersion, serverSeq: meta.serverSeq, state: JSON.parse(pieces.join("")) };
 }
 
+// packages/client/src/listStreams.ts
+async function listStreams(service, pageSize = 1e3) {
+  const out = [];
+  let after = { org: "", stream: "" };
+  for (; ; ) {
+    const { data, error } = await service.rpc("list_streams_page", { p_after_org: after.org, p_after_stream: after.stream, p_limit: pageSize });
+    if (error) throw new Error(`list_streams_page: ${error.message}`);
+    const page = data ?? [];
+    out.push(...page);
+    if (page.length < pageSize) return out;
+    const last = page[page.length - 1];
+    after = { org: last.org_id, stream: last.stream_id };
+  }
+}
+
 // packages/client/src/snapshotWorker.ts
+var SNAPSHOT_SCHEDULE = { minNewEvents: 200, maxAgeMs: 60 * 60 * 1e3 };
+function shouldWriteSnapshot(o, schedule = SNAPSHOT_SCHEDULE) {
+  if (!o.existing || o.redaction) return true;
+  if (o.newEvents === 0) return false;
+  return o.newEvents >= schedule.minNewEvents || o.ageMs === null || o.ageMs >= schedule.maxAgeMs;
+}
 async function runSnapshotWorker(service, pageSize = 1e3, observe, visit) {
   const transport = new SupabaseTransport(service);
-  const { data, error } = await service.rpc("list_streams");
-  if (error) throw new Error(`list_streams: ${error.message}`);
+  const streams = await listStreams(service);
   const out = [];
-  for (const row of data ?? []) {
+  for (const row of streams) {
     const orgId = row.org_id;
     const streamId = row.stream_id;
     if (streamId === ORG_STREAM || orgId === PERSON_ORG) continue;
@@ -22560,7 +22580,7 @@ async function runSnapshotWorker(service, pageSize = 1e3, observe, visit) {
     const tail = await pullAll(transport, orgId, streamId, existing?.serverSeq ?? 0, pageSize);
     if (tail.length === 0) {
       if (existing && observe) await observe(existing);
-      out.push({ orgId, streamId, serverSeq: existing?.serverSeq ?? 0, updated: false });
+      out.push({ orgId, streamId, serverSeq: existing?.serverSeq ?? 0, updated: false, written: false });
       continue;
     }
     const tailIds = new Set(tail.map((e) => e.id));
@@ -22578,16 +22598,27 @@ async function runSnapshotWorker(service, pageSize = 1e3, observe, visit) {
       state.appliedEventIds = {};
       snapshot = { orgId, streamId, reducerVersion: REDUCER_VERSION, serverSeq: all[all.length - 1].serverSeq, state };
     }
-    const put2 = await service.rpc("put_snapshot", {
-      p_org_id: orgId,
-      p_stream_id: streamId,
-      p_reducer_version: REDUCER_VERSION,
-      p_server_seq: snapshot.serverSeq,
-      p_state: snapshot.state
-    });
-    if (put2.error) throw new Error(`put_snapshot ${orgId}/${streamId}: ${put2.error.message}`);
+    const redaction = tail.some((e) => e.type === "v1.Redacted");
+    let ageMs = null;
+    if (existing && !redaction && tail.length < SNAPSHOT_SCHEDULE.minNewEvents) {
+      const at = await service.from("snapshots").select("created_at").eq("org_id", orgId).eq("stream_id", streamId).eq("reducer_version", REDUCER_VERSION).order("server_seq", { ascending: false }).limit(1);
+      if (at.error) throw new Error(`snapshot age ${orgId}/${streamId}: ${at.error.message}`);
+      const written2 = at.data?.[0]?.created_at;
+      ageMs = written2 ? Date.now() - Date.parse(written2) : null;
+    }
+    const written = shouldWriteSnapshot({ existing: !!existing, newEvents: tail.length, redaction, ageMs });
+    if (written) {
+      const put2 = await service.rpc("put_snapshot", {
+        p_org_id: orgId,
+        p_stream_id: streamId,
+        p_reducer_version: REDUCER_VERSION,
+        p_server_seq: snapshot.serverSeq,
+        p_state: snapshot.state
+      });
+      if (put2.error) throw new Error(`put_snapshot ${orgId}/${streamId}: ${put2.error.message}`);
+    }
     if (observe) await observe(snapshot);
-    out.push({ orgId, streamId, serverSeq: snapshot.serverSeq, updated: true });
+    out.push({ orgId, streamId, serverSeq: snapshot.serverSeq, updated: true, written });
   }
   return out;
 }
@@ -22642,10 +22673,8 @@ async function runProjections(service) {
     orgs.set(orgId, folded);
     return folded;
   }
-  const streams = await service.rpc("list_streams");
-  check(streams);
   const heads = /* @__PURE__ */ new Map();
-  for (const row of streams.data ?? []) {
+  for (const row of await listStreams(service)) {
     heads.set(streamKey(row.org_id, row.stream_id), Number(row.next_seq) - 1);
   }
   const marks = new Map((await selectAll(service, "projection_marks", "*")).map((m) => [streamKey(m.org_id, m.stream_id), m]));
@@ -22654,6 +22683,22 @@ async function runProjections(service) {
     "language_visibility",
     "org_id,language_id,listed"
   )).filter((v) => v.listed).map((v) => streamKey(v.org_id, v.language_id)));
+  const snapshotOf = /* @__PURE__ */ new Map();
+  for (const s of await selectAll(
+    service,
+    "snapshots",
+    "org_id,stream_id,reducer_version,server_seq,created_at"
+  )) {
+    if (s.reducer_version !== REDUCER_VERSION) continue;
+    const key = streamKey(s.org_id, s.stream_id);
+    const seen = snapshotOf.get(key);
+    if (!seen || Number(s.server_seq) > seen.seq) snapshotOf.set(key, { seq: Number(s.server_seq), at: Date.parse(s.created_at) });
+  }
+  const snapshotDue = (orgId, streamId) => {
+    const snap = snapshotOf.get(streamKey(orgId, streamId));
+    const head2 = heads.get(streamKey(orgId, streamId)) ?? 0;
+    return !!snap && snap.seq < head2 && Date.now() - snap.at >= SNAPSHOT_SCHEDULE.maxAgeMs;
+  };
   const changed = (orgId, streamId) => {
     const mark2 = marks.get(streamKey(orgId, streamId));
     return !mark2 || mark2.version !== PROJECTION_VERSION || Number(mark2.seq) !== heads.get(streamKey(orgId, streamId)) || Number(mark2.org_seq) !== heads.get(streamKey(orgId, ORG_STREAM)) || mark2.listed !== listed.has(streamKey(orgId, streamId));
@@ -22708,7 +22753,7 @@ async function runProjections(service) {
       }));
     }
     await mark(snapshot.orgId, languageId, snapshot.serverSeq, orgSeq, isListed);
-  }, changed);
+  }, (orgId, streamId) => changed(orgId, streamId) || snapshotDue(orgId, streamId));
 }
 async function deliverPushes(service, fetcher = fetch) {
   const claimed = await service.rpc("claim_notification_pushes");

@@ -4,7 +4,7 @@ import {
 } from '@langquest-next/core';
 import { MemoryStore } from '../../../packages/client/src/memoryStore';
 import { SyncClient } from '../../../packages/client/src/syncClient';
-import { FakeServer } from '../../../packages/client/test/fakeServer';
+import { FakeServer } from '../../../packages/client/src/testing/fakeServer';
 import { EDGES, TAB_SCREENS, type ScreenId } from '../src/flow';
 import { deriveSession, edgeAllowed, homeScreenFor } from '../src/session';
 import { screenMayEmit } from '../src/screenContracts';

@@ -483,7 +483,7 @@ own (63), so step ids are namespaced by flow version only
 (`<flowId>@<v>/<step>`, `custom/<step>`); the add-wins reason still holds.
 
 Amended (2026-10-12, Caleb Koster): a ready-made flow is now copied into the
-`custom` prefix (decision 88), so choosing one replaces the language's own
+`custom` prefix (decision 91), so choosing one replaces the language's own
 steps; Undo puts them back, under the ids they had.
 
 ## 33. Derived views are cached per state object and revision, outside the state
@@ -581,7 +581,7 @@ by field; then a version is a snapshot of per-field registers (decision 26)
 taken when publishing, and nothing here changes.
 
 Amended (2026-10-12, Caleb Koster): languages no longer follow flows.
-Using a flow copies its checks into the language as its own (decision 88);
+Using a flow copies its checks into the language as its own (decision 91);
 the library keeps flows to start from and to share. Templates and reference
 material still follow as above.
 
@@ -1382,7 +1382,7 @@ team for the next check. The recording split takes any reference on top
 two of them one-line ends, instead of three.
 
 Amended (2026-10-12, Caleb Koster): a kind's usual team is now the people
-put on that check (decision 88), and "Send to ‹team›" reads "Ask the ‹check›
+put on that check (decision 91), and "Send to ‹team›" reads "Ask the ‹check›
 team"; Review Teams are no longer a screen of their own.
 
 ## 57. The app shows the organization's reports: a Reports section on wide windows, server totals on a phone's Progress
@@ -1857,6 +1857,11 @@ arriving late because of the five-minute pass; then those want the same
 treatment, from the language's events, rather than a faster pass. Or if a
 mark lets a language go stale; then bump `PROJECTION_VERSION` and find
 what the mark misses.
+
+Amended (2026-10-12, Carl Sauder): the pass also visits a language whose
+newest snapshot is behind its stream and an hour old, so it gets a new one
+(88); a language whose stream moved is still folded every pass, but its
+snapshot is written only on 88's schedule.
 
 ## 69. Recordings and guide media live in Cloudflare R2, behind the app's Worker
 
@@ -2912,7 +2917,86 @@ Reverse if: a phone keeps acting for an account the server has ended
 (then end it on the first refusal of its requests), or Supabase Auth
 starts answering a lasting refusal with a status this treats as passing.
 
-## 88. A language's checks carry their own people, questions and helps, and a ready-made flow is copied
+## 88. A language's server snapshot is written after 200 new events or an hour, and the one before stays for 24 hours
+
+Date: 2026-10-12 · By: Carl Sauder · Status: accepted
+
+Reason: the projection pass wrote a new snapshot of every language that had
+any new event, every five minutes, and `put_snapshot` deleted the one
+before at once. A phone part-way through downloading a snapshot then found
+its pieces gone, threw the download away and pulled the whole log; on a
+slow link the next try went the same way. The fleet simulator measured it
+(`docs/fleet-baselines.md`, `slowLink`): every joiner on a 2 KB/s link went
+stale and took 14 to 29 minutes at 1,200 passages, 42 to 51 at 3,000.
+Carl chose (2026-10-12, LAN-47):
+- The pass still folds every changed language for the Inbox, but writes a
+  new snapshot only after 200 new events or once the newest is an hour old
+  and the stream has moved (`SNAPSHOT_SCHEDULE`, `shouldWriteSnapshot` in
+  `packages/client/src/snapshotWorker.ts`). It writes at once when there is
+  none, and when the new events hold a redaction, since a phone whose own
+  checkpoint holds the target waits for a snapshot past the redaction
+  (whether or not the server's snapshot held it; waiting up to an hour sent
+  such phones back to the whole log after 30 minutes). A language
+  that went quiet a few events past its snapshot is visited again once the
+  hour is up (`snapshotDue`, `server/projectionWorker.ts`).
+- A snapshot stays downloadable until the one after it has been out for 24
+  hours (`put_snapshot`, migration `20261012120000_snapshot_retention.sql`).
+  That covers a 13 MB download at 2 KB/s, about two hours, with a wide
+  margin, and a phone that loses its signal and resumes later that day.
+A cold start now pulls up to 200 events, or an hour's, after the snapshot.
+A busy language keeps up to about 25 snapshots, a quiet one one or two.
+Reverse if: snapshot storage grows past what the database plan allows
+(then shorten the retention, or keep pieces in object storage), or cold
+starts spend more time on the tail than they saved.
+
+## 89. A snapshot's pieces are cut once, when it is written, and kept in their own table
+
+Date: 2026-10-12 · By: Carl Sauder · Status: accepted
+
+Reason: `get_snapshot_chunk` serialized the whole snapshot (`state::text`)
+to return each 256 KB piece (18), and `get_snapshot_meta` did it twice to
+say how big it was. `npm run bench:server` measured 60 to 80 ms of database
+time per piece for a 14 MB snapshot of 55 pieces: about 4 s for each cold
+start and each worker read (performance-audit.md item 4). Carl chose
+(2026-10-12, LAN-47) to keep the pieces in Postgres rather than R2: the
+same RPCs, the same authorization, nothing new to run. `put_snapshot`
+serializes the state once, cuts it by bytes into pieces of at most 256 KB
+that never split a character, and stores them in `snapshot_chunks`, with
+the snapshot's size and piece count on its row (migration
+`20261012130000_snapshot_chunks.sql`). Pieces go with their snapshot (a
+cascading key), so 88's retention holds for them. A snapshot written
+before has no pieces and is read as before until it ages out. Reads now
+take under a millisecond; a write takes about 0.3 s instead of 0.1 s, and
+88 writes at most one an hour per language. The pieces double a
+snapshot's storage beside its `state`, which `get_snapshot` and the
+diagnostics (`diag.language_health`) still read.
+Reverse if: snapshot storage outgrows the database plan (then the pieces
+move to object storage behind the Worker, or `state` stops being kept), or
+a snapshot write has to be faster than that.
+
+## 90. A phone wakes sync when its network comes back, and with no signal polls at most every half hour
+
+Date: 2026-10-12 · By: Carl Sauder · Status: accepted
+
+Reason: the fleet simulator showed a phone out of signal woke sync every
+five minutes, the scheduler's backoff ceiling, for as long as the app was
+open: about 280 times a day on a phone that may be out of reach for weeks.
+On a phone nothing woke sync when the network returned (`wake.ts` listened
+for that only on the web), so the poll was the only way back. Carl chose
+(2026-10-12, LAN-47) to do both: wake on the operating system's network
+state (`expo-network`, `apps/mobile/src/networkWake.ts`, at most once in
+ten seconds while the signal comes and goes), and let the offline backoff
+go on to 10 and then 30 minutes (`SyncScheduler`). The poll stays as the
+safety net, since a phone can report a network that cannot reach the
+server (a captive portal, a SIM with no data left); it no longer carries
+the latency. `expo-network` adds no Android permission and collects
+nothing (`play-store-declarations.md`). Fleet `village-small`: 2,962 wakes
+with no signal instead of 16,799, and work reached the server as fast.
+Reverse if: phones are seen not to report a returning network, so work
+waits for the half-hour poll (then a shorter ceiling, or a reachability
+check of our own).
+
+## 91. A language's checks carry their own people, questions and helps, and a ready-made flow is copied
 
 Date: 2026-10-12 · By: Caleb Koster · Status: accepted
 

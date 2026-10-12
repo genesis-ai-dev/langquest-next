@@ -1,4 +1,4 @@
-// New language's "I'll choose the checks" (decisions.md 88): the checks a
+// New language's "I'll choose the checks" (decisions.md 91): the checks a
 // language will start with, edited on the Checks screen before the language
 // exists. One draft at a time, held here between the two screens and
 // forgotten when the language is made or New language closes.

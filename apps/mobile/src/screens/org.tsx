@@ -3,7 +3,7 @@
 // HomeSetup, HomeProgressBars), MembersListScreen, InviteMemberScreen
 // (invite and edit), InviteQrScreen and NewStructureItemScreen (new
 // language). The demo's review teams are a check's people now, on the check
-// itself (screens/checks.tsx, decision 88).
+// itself (screens/checks.tsx, decision 91).
 // Requirements ORG-1, ORG-2, ORG-5, ORG-6, ORG-7, NAV-6, FLOW-5; ADR-017
 // (admins reach these homes through Manage), ADR-025 (a language owns its
 // template, starting from the one its organization suggests). The demo's
@@ -222,7 +222,7 @@ function HomeSetup(props: { ctx: Ctx; from: HomeId; level: ScopeLevel; languageI
   );
 }
 
-/** People: who is assigned here (Members). A check's people are on the check itself (decision 88). */
+/** People: who is assigned here (Members). A check's people are on the check itself (decision 91). */
 function PeopleRows(props: { ctx: Ctx; level: ScopeLevel; languageId?: string }) {
   const { ctx } = props;
   const entries = useMemo(() => memberEntries(ctx.org.state), [ctx.org.state]);
@@ -1301,7 +1301,7 @@ export function NewLanguage(ctx: Ctx) {
   const offers = useNewLanguageOffers(ctx, reads, refs.sets);
   const doc = tq.finalDoc;
   // "I'll choose the checks": the language's own checks, edited on the Checks screen before it exists
-  // (checks/draft.ts, decision 88), starting from the way picked before that.
+  // (checks/draft.ts, decision 91), starting from the way picked before that.
   const choosing = flowKey === CHOOSE_STEPS;
   const flow = choosing ? null : chk.entries.find((e) => e.c.key === (flowKey ?? chk.first?.c.key)) ?? null;
   const lastFlow = useRef<FlowEntry | null>(null);
@@ -1309,7 +1309,7 @@ export function NewLanguage(ctx: Ctx) {
   const draft = useChecksDraft();
   // A draft left from an earlier New language is not this one's.
   useEffect(() => { setChecksDraft(null); return () => setChecksDraft(null); }, []);
-  // What the language starts with: the way picked, copied (decision 88), or its own checks.
+  // What the language starts with: the way picked, copied (decision 91), or its own checks.
   const checks = choosing
     ? (draft ? { name: undefined, kinds: draft.kinds, steps: stepsOf(draft.rows) } : null)
     : flow ? { name: flow.c.name, kinds: chk.kindsOf(flow.doc), steps: flow.doc.steps } : null;
@@ -1371,7 +1371,7 @@ export function NewLanguage(ctx: Ctx) {
       }
       await part('listing');
       const fresh = emptyLanguageState();
-      // A ready-made flow is copied into the language, its checks the language's own (decision 88).
+      // A ready-made flow is copied into the language, its checks the language's own (decision 91).
       const flowSpecs = commands(fresh).copyFlow({ commandId: `${languageId}:checks`, name: checks.name ?? '', kinds: checks.kinds, steps: checks.steps });
       const plan = addLanguage(org, {
         languageId, code: languoid, name: languageName, languoidId: picked?.id ?? null, sourceCode: reads,

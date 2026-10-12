@@ -10,7 +10,7 @@ import { validateEvent } from '../src/validate';
 import { applyOrgEvent, emptyOrgState, SEED_ROLES, translatorReviewUpgrade, type OrgState } from '../src/org';
 
 /**
- * A language's checks carry their own people and helps (decisions.md 88):
+ * A language's checks carry their own people and helps (decisions.md 91):
  * people are stored as one review team per check, older teams for the kind
  * or for any kind still count until the check's people are edited, and a
  * ready-made flow is copied into the language rather than followed.

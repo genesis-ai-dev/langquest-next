@@ -1,4 +1,4 @@
--- v1.CheckHelpSet: a help linked to a check (decisions.md 88).
+-- v1.CheckHelpSet: a help linked to a check (decisions.md 91).
 --
 --   v1.CheckHelpSet { kindId, itemId? | materialId?, linked }
 --
@@ -419,7 +419,7 @@ returns text language sql immutable as $$
   end;
 $$;
 
--- The Translator role has Review (decisions.md 88): a peer check is often
+-- The Translator role has Review (decisions.md 91): a peer check is often
 -- another translator. core SEED_ROLES says so; this keeps the fixed roles'
 -- privileges, used by the parity check and when an organization's roles are
 -- seeded, the same. Organizations made before keep the roles they have until

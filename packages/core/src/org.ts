@@ -237,18 +237,18 @@ export const SEED_ROLES: { roleId: string; name: string; privileges: Privilege[]
     roleId: 'coordinator', name: 'Coordinator', fixed: 'coordinator',
     privileges: PRIVILEGES.filter((p) => p !== 'manage_roles')
   },
-  // Review since decisions.md 88: a peer check is often another translator.
+  // Review since decisions.md 91: a peer check is often another translator.
   { roleId: 'translator', name: 'Translator', fixed: 'translator', privileges: ['translate', 'review', 'fill_reference', 'send_to_reviewers', 'view_status'] },
   { roleId: 'reviewer', name: 'Reviewer', fixed: 'reviewer', privileges: ['review', 'view_status'] },
   { roleId: 'viewer', name: 'Viewer', fixed: 'viewer', privileges: ['view_status'] }
 ];
 
-/** The Translator role's privileges before decisions.md 88 gave it Review. */
+/** The Translator role's privileges before decisions.md 91 gave it Review. */
 const TRANSLATOR_BEFORE_REVIEW: readonly Privilege[] = ['fill_reference', 'send_to_reviewers', 'translate', 'view_status'];
 
 /**
  * The role change that gives an organization's Translator role Review
- * (decisions.md 88), or null: only while the role still has exactly the
+ * (decisions.md 91), or null: only while the role still has exactly the
  * privileges it was seeded with, so a role someone changed is left alone.
  * An admin's phone appends it once (`useTranslatorReview`).
  */

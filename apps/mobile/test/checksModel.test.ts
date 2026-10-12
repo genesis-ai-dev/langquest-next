@@ -1,6 +1,6 @@
 import { addRow, groupOf, moveRow, removeRow, rowNumbers, rowsOf, setCheckpoint, setTogether, stepsOf } from '../src/checks/model';
 
-/** A language's checks as one list, and back to flow steps (decisions.md 88). */
+/** A language's checks as one list, and back to flow steps (decisions.md 91). */
 const STANDARD = [
   { id: 'f/s1', kindIds: ['peer', 'bt'], checkpoint: false },
   { id: 'f/s2', kindIds: ['community'], checkpoint: false },

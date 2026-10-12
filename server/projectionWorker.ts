@@ -1,8 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { buildIndexes, foldOrg, languageInfo, languagePeople, languageProgress, ORG_STREAM, orgLicense, PERSON_ORG,
   REDUCER_VERSION, unitTitle, updatesFor, type AnyEvent, type OrgState, type Update } from '@langquest-next/core';
-import { runSnapshotWorker } from '../packages/client/src/snapshotWorker';
+import { runSnapshotWorker, SNAPSHOT_SCHEDULE } from '../packages/client/src/snapshotWorker';
 import { SupabaseTransport } from '../packages/client/src/supabaseTransport';
+import { listStreams } from '../packages/client/src/listStreams';
 
 function check(result: { error: { message: string } | null }) {
   if (result.error) throw new Error(result.error.message);
@@ -68,10 +69,8 @@ export async function runProjections(service: SupabaseClient) {
     orgs.set(orgId, folded);
     return folded;
   }
-  const streams = await service.rpc('list_streams');
-  check(streams);
   const heads = new Map<string, number>();
-  for (const row of (streams.data ?? []) as { org_id: string; stream_id: string; next_seq: number }[]) {
+  for (const row of await listStreams(service)) {
     heads.set(streamKey(row.org_id, row.stream_id), Number(row.next_seq) - 1);
   }
   const marks = new Map((await selectAll<Mark>(service, 'projection_marks', '*'))
@@ -79,6 +78,21 @@ export async function runProjections(service: SupabaseClient) {
   const listed = new Set((await selectAll<{ org_id: string; language_id: string; listed: boolean }>(
     service, 'language_visibility', 'org_id,language_id,listed'))
     .filter((v) => v.listed).map((v) => streamKey(v.org_id, v.language_id)));
+  // The newest snapshot of each language, so one that went quiet with a few
+  // events past its snapshot still gets a new one after an hour (decisions.md 88).
+  const snapshotOf = new Map<string, { seq: number; at: number }>();
+  for (const s of await selectAll<{ org_id: string; stream_id: string; reducer_version: number; server_seq: number; created_at: string }>(
+    service, 'snapshots', 'org_id,stream_id,reducer_version,server_seq,created_at')) {
+    if (s.reducer_version !== REDUCER_VERSION) continue;
+    const key = streamKey(s.org_id, s.stream_id);
+    const seen = snapshotOf.get(key);
+    if (!seen || Number(s.server_seq) > seen.seq) snapshotOf.set(key, { seq: Number(s.server_seq), at: Date.parse(s.created_at) });
+  }
+  const snapshotDue = (orgId: string, streamId: string) => {
+    const snap = snapshotOf.get(streamKey(orgId, streamId));
+    const head = heads.get(streamKey(orgId, streamId)) ?? 0;
+    return !!snap && snap.seq < head && Date.now() - snap.at >= SNAPSHOT_SCHEDULE.maxAgeMs;
+  };
   const changed = (orgId: string, streamId: string) => {
     const mark = marks.get(streamKey(orgId, streamId));
     return !mark || mark.version !== PROJECTION_VERSION
@@ -131,7 +145,7 @@ export async function runProjections(service: SupabaseClient) {
       }));
     }
     await mark(snapshot.orgId, languageId, snapshot.serverSeq, orgSeq, isListed);
-  }, changed);
+  }, (orgId, streamId) => changed(orgId, streamId) || snapshotDue(orgId, streamId));
 }
 
 /** Push contains no language name or personal content on the lock screen. */

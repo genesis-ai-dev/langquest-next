@@ -1,6 +1,6 @@
 import { ORG_STREAM } from '@langquest-next/core';
 import { appendConfirmed, fetchOrgReports, fetchOrgSummary, NotSavedError, ReportsError, type ReportsServer } from '../src/reports';
-import { FakeServer } from './fakeServer';
+import { FakeServer } from '../src/testing/fakeServer';
 
 /** The dashboard's server as a device asks it (decision 44): HTTP only, faked here. */
 

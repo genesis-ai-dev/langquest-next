@@ -233,7 +233,7 @@ export function MyWork(ctx: Ctx) {
     const first = forYou[0]!;
     const w = words(first);
     rest = forYou.slice(1);
-    // A check asked of a whole team (decision 88) says so, with the team's faces.
+    // A check asked of a whole team (decision 91) says so, with the team's faces.
     const team = first.request?.teamId && first.request.kindId ? { kindId: first.request.kindId, people: checkPeople(state, first.request.kindId) } : null;
     lead = <NextCard label={t('work.lead.nextForYou')} title={w.title} cta={t('work.lead.start')} onPress={() => open(first, languageId)}
       sub={nextSub(first.kind, w.what, { ...(w.by ? { by: w.by } : {}), ...(w.due ? { due: w.due } : {}) })}

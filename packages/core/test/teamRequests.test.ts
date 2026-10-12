@@ -149,7 +149,7 @@ describe('usualTarget', () => {
     expect(usualTarget(p.state(), 'peer', 'akol')).toBeUndefined();
   });
 
-  it('an older team for any kind is on every check (decisions.md 88)', () => {
+  it('an older team for any kind is on every check (decisions.md 91)', () => {
     const s = language().state();
     expect(usualTarget(s, 'peer', 'akol')).toEqual({ teamId: 'peers', name: 'Dinka peers' });
     expect(usualTarget(s, 'community', 'akol')).toEqual({ teamId: 'peers', name: 'Dinka peers' });

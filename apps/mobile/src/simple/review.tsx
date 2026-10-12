@@ -185,7 +185,7 @@ export function BackgroundSheet(props: {
   onOpenStep: (stepId: string) => void;
   onOpenStudy: () => void;
   onMoreBibles: () => void;
-  /** A Bible to open on, from the check's helps (decision 88). */
+  /** A Bible to open on, from the check's helps (decision 91). */
   bible?: string;
 }) {
   const { ctx, v, data } = props;
@@ -239,7 +239,7 @@ export function BackgroundSheet(props: {
           </Group>
         )
       ) : null}
-      {/* Every version and what was said about each, as the recorder shows them (decision 88). */}
+      {/* Every version and what was said about each, as the recorder shows them (decision 91). */}
       {tab === 'earlier' ? <EarlierPane ctx={ctx} v={v} /> : null}
     </TallSheet>
   );

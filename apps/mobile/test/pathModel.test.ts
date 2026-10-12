@@ -48,7 +48,7 @@ describe('the passage path (decision 71)', () => {
     const steps = pathSteps(l.input('akol'));
     expect(shape(steps)).toEqual(['record:current', 'publish:todo']);
     expect(steps[1]!.sub).toBe('Then ask for the peer check');
-    // One row per check, each by its one name (decision 88); the second of a step happens at the same time.
+    // One row per check, each by its one name (decision 91); the second of a step happens at the same time.
     const team = teamSteps(l.input('akol'));
     expect(team.map((t) => `${t.name}|${t.status}`)).toEqual([
       'Peer check|after you publish',

@@ -65,7 +65,7 @@ export function useLibraryFollow(language: LanguageHandle, org: OrgHandle, sessi
 }
 
 /**
- * Give the organization's Translator role Review, once (decisions.md 88):
+ * Give the organization's Translator role Review, once (decisions.md 91):
  * the next phone of someone who may change roles appends the change, and
  * only while the role still has exactly the privileges it was seeded with.
  */

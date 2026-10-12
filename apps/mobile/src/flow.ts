@@ -44,7 +44,7 @@ export const SCREEN_IDS = [
   'mic_setup', 'get_ready',
   // App only: the simple redesign's Me keeps five rows; everything else Settings had is one tap deeper (decision 71)
   'settings_more',
-  // App only: one of a language's checks, with its people, questions and helps (decision 88)
+  // App only: one of a language's checks, with its people, questions and helps (decision 91)
   'check_editor'
 ] as const;
 
@@ -60,9 +60,9 @@ export const DROPPED_SCREENS: Record<string, string> = {
   // i18n-ignore: reasons for developers, read by the parity tests
   new_project: 'no project level (docs/decisions.md 63): languages are added from the organization (New Language)',
   // i18n-ignore: reasons for developers, read by the parity tests
-  review_teams: 'no review teams (docs/decisions.md 88): people are put on a check, on the check itself (check_editor)',
+  review_teams: 'no review teams (docs/decisions.md 91): people are put on a check, on the check itself (check_editor)',
   // i18n-ignore: reasons for developers, read by the parity tests
-  review_team_editor: 'no review teams (docs/decisions.md 88): people are put on a check, on the check itself (check_editor)'
+  review_team_editor: 'no review teams (docs/decisions.md 91): people are put on a check, on the check itself (check_editor)'
 };
 export type NodeId = ScreenId | 'home_hub';
 
@@ -377,7 +377,7 @@ export const EDGES: Edge[] = [
   // App only: a ready language's page (decision 71, demo ADR-039): who checks, and letting someone in
   e('language_home', 'flow_editor', undefined, 'manageFlows'),
   e('language_home', 'edit_member', undefined, 'assigner'),
-  // A language's checks (decision 88): one check, and a help a reviewer opens from it.
+  // A language's checks (decision 91): one check, and a help a reviewer opens from it.
   e('flow_editor', 'check_editor'),
   e('review_capture', 'material_editor')
 ];

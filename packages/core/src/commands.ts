@@ -106,7 +106,7 @@ export interface Commands {
   /** Save the language's steps from the flow editor (FLOW-3). The language then owns its steps, as a custom flow. */
   saveFlowSteps(c: { commandId: string; steps: { stepId?: string; kindIds: string[]; checkpoint: boolean }[]; name?: string }): EventSpec[];
   /**
-   * Start a language's checks from a ready-made flow (decisions.md 88): its
+   * Start a language's checks from a ready-made flow (decisions.md 91): its
    * kinds the language lacks, then its steps as the language's own (the
    * `custom` prefix), so later edits stay with the language and nothing
    * follows the flow's new versions. `name` says where they came from.

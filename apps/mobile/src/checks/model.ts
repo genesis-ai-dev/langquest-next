@@ -1,4 +1,4 @@
-// A language's checks as one list (decisions.md 88): a row per check, in
+// A language's checks as one list (decisions.md 91): a row per check, in
 // order, each marked when it happens at the same time as the one above (a
 // flow step that holds two kinds, like Peer check and back translation).
 // The list is what the Checks screen shows and edits; `stepsOf` turns it

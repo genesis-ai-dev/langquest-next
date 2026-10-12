@@ -501,7 +501,7 @@ export function FlowsHome(ctx: Ctx) {
 
   /**
    * Use a flow for the language: its checks are copied into the language
-   * and are the language's own from then on (decision 88). Undo goes back to
+   * and are the language's own from then on (decision 91). Undo goes back to
    * the checks it had (core `restoreFlow`).
    */
   async function use(target: { itemId: string } | { shared: SharedItem }) {
@@ -655,7 +655,7 @@ function StepSheet(props: {
  * new version that the languages using it move to.
  */
 export function FlowEditor(ctx: Ctx) {
-  // A language's own checks, or New language's before it exists (screens/checks.tsx, decision 88).
+  // A language's own checks, or New language's before it exists (screens/checks.tsx, decision 91).
   if (ctx.params['steps'] === 'language' || ctx.params['draft'] === '1') return <LanguageChecks ctx={ctx} />;
   return <LibraryFlowEditor ctx={ctx} />;
 }

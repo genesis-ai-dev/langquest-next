@@ -81,8 +81,8 @@ const APP_ONLY: Record<string, string> = {
   'settings_more->org_switcher': 'More settings: Switch Organization, moved from Settings (decision 71)',
   'settings_more->sync_status': 'More settings: Sync, moved from Settings › Advanced (decision 71)',
   'settings_more->delete_account': 'More settings: Delete account, moved from Settings (decision 71; store rules, decisions.md 46)',
-  'flow_editor->check_editor': "a language's Checks open one check, with its people, questions and helps (decision 88)",
-  'review_capture->material_editor': "a check's help that is a note opens from the review (decision 88)"
+  'flow_editor->check_editor': "a language's Checks open one check, with its people, questions and helps (decision 91)",
+  'review_capture->material_editor': "a check's help that is a note opens from the review (decision 91)"
 };
 
 /** App-only reference screens (docs/reference-material.md). */

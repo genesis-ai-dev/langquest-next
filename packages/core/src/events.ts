@@ -107,7 +107,7 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordE
    */
   'v1.FlowStepLinksSet': { stepId: string; allowed: boolean };
   /**
-   * A help linked to a check (decisions.md 88): a note, a guide or a Bible
+   * A help linked to a check (decisions.md 91): a note, a guide or a Bible
    * whoever does that kind of review sees first. Exactly one of `itemId` (a
    * library item) or `materialId` (material written in the language).
    * Register per (kind, help).

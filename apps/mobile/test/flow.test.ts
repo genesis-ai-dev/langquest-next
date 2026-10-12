@@ -22,7 +22,7 @@ describe('UX flow coverage', () => {
       'mic_setup', 'get_ready',
       // Me keeps five rows; the rest of Settings is under More settings (decision 71).
       'settings_more',
-      // One of a language's checks, with its people, questions and helps (decision 88).
+      // One of a language's checks, with its people, questions and helps (decision 91).
       'check_editor'] as const;
     expect(SCREEN_IDS.length).toBe(kept.length + appOnly.length);
     for (const id of appOnly) expect(screenTitle(id)).not.toBe(`screens.${id}`);

@@ -115,7 +115,7 @@ describe('screen action contracts', () => {
     expect(screenMayEmit('ask_someone', as('viewer'), ask)).toBe(false);
     const review = { type: 'v1.ReviewRecorded', payload: { reviewId: 'r', takeId: 'take2', kindId: 'peer', outcome: 'looks_good', via: 'app' } } as AnyEvent;
     expect(screenMayEmit('review_capture', as('reviewer'), review)).toBe(true);
-    // A translator may do a check in the app (decisions.md 88) and log one they ran themselves (design principles 5).
+    // A translator may do a check in the app (decisions.md 91) and log one they ran themselves (design principles 5).
     expect(screenMayEmit('review_capture', as('translator'), review)).toBe(true);
     expect(screenMayEmit('review_capture', as('viewer'), review)).toBe(false);
     const logged = { ...review, payload: { ...review.payload, via: 'logged' } } as AnyEvent;
