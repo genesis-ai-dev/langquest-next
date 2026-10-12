@@ -136,8 +136,9 @@ export async function flushOutbox(orgId: string): Promise<number> {
  * The documents for these hashes, and everything they depend on: from
  * memory, then disk, then the server (which gives only what this
  * organization may read). Missing ones are simply absent from the result.
- * `deps: false` fetches only the documents named: a source lists every
- * book it has, and only the book being read is wanted.
+ * A source's books and a collection's guides are not followed: each is
+ * fetched by its own hash when a passage reads it. `deps: false` fetches
+ * only the documents named.
  */
 export async function loadDocs(orgId: string, hashes: (string | null | undefined)[], opts: { deps?: boolean } = {}): Promise<Map<string, LibraryDoc>> {
   const out = new Map<string, LibraryDoc>();
@@ -176,8 +177,9 @@ export async function loadDocs(orgId: string, hashes: (string | null | undefined
     if (opts.deps === false) break;
     for (const doc of out.values()) {
       if (doc.format === 'versification@1' || doc.format === 'sourceBook@1') continue;
-      // A source's books (and their timings) load when a passage reads them; only its numbering comes along.
-      const deps = doc.format === 'source@1' ? [doc.versification] : doc.deps;
+      // A source's books (and their timings) and a collection's guides load when a passage reads
+      // them; only the numbering comes along. FIA's English guides alone are 1,525 documents (65 MB).
+      const deps = doc.format === 'source@1' || doc.format === 'collection@1' ? [doc.versification] : doc.deps;
       for (const d of deps) if (!seen.has(d)) next.add(d);
     }
     want = [...next];

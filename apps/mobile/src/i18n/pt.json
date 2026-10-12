@@ -907,7 +907,18 @@
       "offerNoteFia": "Vamos oferecer {{offers}} aos tradutores de {{language}}. Os guias do FIA acompanham as passagens do FIA que você escolheu. Mude isso quando quiser em <b>O que os ajuda</b>.",
       "notAdded": "Não foi adicionado",
       "inviteLater": "Convide os tradutores de {{language}} mais tarde, na página dele.",
-      "later": "Mais tarde"
+      "later": "Mais tarde",
+      "ownFlowName": "Verificações de {{language}}",
+      "making": {
+        "title": "Preparando {{language}}",
+        "passages": "Obtendo as passagens",
+        "checks": "Obtendo as etapas de verificação",
+        "helps": "Obtendo {{offers}}",
+        "listing": "Adicionando {{language}} a {{org}}",
+        "saving": "Salvando as passagens de {{language}}",
+        "keepOpen": "Mantenha o app aberto até terminar.",
+        "wait": "Ainda adicionando {{language}}. Aguarde, por favor."
+      }
     },
     "offers": {
       "guides": "os guias de estudo de {{name}}",

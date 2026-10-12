@@ -867,7 +867,18 @@
       "offerNoteFia": "Kami akan menyediakan {{offers}} bagi penerjemah {{language}}. Panduan FIA menyertai perikop FIA yang Anda pilih. Ubah kapan saja di <b>Yang membantu</b>.",
       "notAdded": "Tidak ditambahkan",
       "inviteLater": "Undang penerjemah {{language}} dari halamannya nanti.",
-      "later": "Nanti"
+      "later": "Nanti",
+      "ownFlowName": "Pemeriksaan {{language}}",
+      "making": {
+        "title": "Menyiapkan {{language}}",
+        "passages": "Mengambil perikop",
+        "checks": "Mengambil langkah pemeriksaan",
+        "helps": "Mengambil {{offers}}",
+        "listing": "Menambahkan {{language}} ke {{org}}",
+        "saving": "Menyimpan perikop {{language}}",
+        "keepOpen": "Biarkan aplikasi tetap terbuka sampai selesai.",
+        "wait": "{{language}} masih ditambahkan. Mohon tunggu."
+      }
     },
     "offers": {
       "guides": "panduan studi {{name}}",

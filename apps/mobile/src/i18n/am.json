@@ -887,7 +887,18 @@
       "offerNoteFia": "ለ{{language}} ተርጓሚዎች {{offers}} እናቀርባለን። የFIA መመሪያዎች ከመረጧቸው የFIA ክፍሎች ጋር አብረው ይሄዳሉ። ይህን በማንኛውም ጊዜ በ<b>የሚረዳቸው</b> ሥር ይቀይሩ።",
       "notAdded": "አልታከለም",
       "inviteLater": "የ{{language}} ተርጓሚዎችን በኋላ ከገጹ ይጋብዙ።",
-      "later": "በኋላ"
+      "later": "በኋላ",
+      "ownFlowName": "የ{{language}} ፍተሻዎች",
+      "making": {
+        "title": "{{language}}ን በማዘጋጀት ላይ",
+        "passages": "ክፍሎቹን በማምጣት ላይ",
+        "checks": "የፍተሻ ደረጃዎችን በማምጣት ላይ",
+        "helps": "{{offers}} በማምጣት ላይ",
+        "listing": "{{language}}ን ወደ {{org}} በማከል ላይ",
+        "saving": "የ{{language}} ክፍሎችን በማስቀመጥ ላይ",
+        "keepOpen": "ይህ እስኪያልቅ ድረስ መተግበሪያውን ክፍት ያድርጉት።",
+        "wait": "{{language}} አሁንም እየታከለ ነው። እባክዎ ይጠብቁ።"
+      }
     },
     "offers": {
       "guides": "የ{{name}} የጥናት መመሪያዎች",

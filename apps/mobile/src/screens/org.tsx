@@ -14,7 +14,7 @@ import {
   subscriptionItemId, templateBooks, type EventSpec, type LanguageProgress, type LibraryDoc, type License, type Scope, type ScopeLevel, type SourceDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { Text } from '../text';
 import QRCode from 'react-native-qrcode-svg';
@@ -28,7 +28,7 @@ import { canHelpSignIn, decideRequest, inviteUri, issueInvite, issueSignInCode, 
 import { APP_URL } from '../appUrl';
 import { signInUri } from '../inviteCode';
 import {
-  Badge, Banner, Card, Chip, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, KindIcon, LinkBtn, PrimaryBtn, ProgressBar, QuietLinks, Row,
+  Badge, Banner, Card, Chip, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, KindIcon, LinkBtn, MovingBar, PrimaryBtn, ProgressBar, QuietLinks, Row,
   Screen, SearchField, SectionLabel, Segments, Sheet, ShowMore, SmallBtn, Toggle, txt, useOpenDetail, type IconName
 } from '../kit';
 import { edgeFor } from '../flow';
@@ -54,7 +54,7 @@ import { supabase } from '../supabase';
 import { C, radius, space, tile, TINT } from '../theme';
 import { useOrgSummary } from '../useOrgSummary';
 import { useHelpMode } from '../helpContext';
-import { AmberNote, BigTop, ChoiceCard, CountBadge, DashedRow, IconTile, inviteFailureText, NumberedSteps, Pills, Question, QuietLink, RadioRow } from '../simple/admin';
+import { AmberNote, BigTop, ChoiceCard, CountBadge, DashedRow, IconTile, inviteFailureText, NumberedSteps, Pills, Question, QuietLink, RadioRow, WorkSteps } from '../simple/admin';
 import { askedAgo, firstName, flowSub, guideShortName, joinAnd, QUESTIONS, questionLabel, stepTitle } from '../simple/adminModel';
 import { useCheckChoices, type FlowEntry } from '../simple/choices';
 import { TranslateQuestion, useTranslate } from '../breakup/TranslateStep';
@@ -1245,14 +1245,22 @@ async function adoptChoice(lib: ReturnType<typeof useLibrary>, c: LibraryChoice)
   return c.shared.subscribable ? lib.subscribe(c.shared, true) : lib.copy(c.shared);
 }
 
+/** Step 3's "I'll choose the steps" card. */
+const CHOOSE_STEPS = 'choose';
+
+/** The parts of adding a language, in order, as step 3 names them while Continue runs. */
+type Making = 'passages' | 'checks' | 'helps' | 'listing' | 'saving';
+
 /**
  * A new language (ORG-2, decision 63; decision 71 and the prototype's
  * NewLang and NewLangFlow): one question per step, the likely answer picked.
  *   1 its name, found in the language list as it is typed (online), or
  *     a name and code of its own, unlinked until someone links it
  *   2 what it will translate (its template, and which part of the Bible)
- *   3 how recordings get checked (its review flow); Continue adds it, and
- *     offers its team the Bible and study guides named in the note
+ *   3 how recordings get checked (its review flow, or one made here with
+ *     "I'll choose the steps"); Continue adds it, and offers its team the
+ *     Bible and study guides named in the note, saying what it is doing
+ *     part by part under a bar that keeps moving
  *   4 invite its translators (a group code to scan)
  * It is listed in the organization's stream first; its own stream then
  * starts with the template, the flow and what it is offered.
@@ -1270,6 +1278,8 @@ export function NewLanguage(ctx: Ctx) {
   const [chosenBooks, setChosenBooks] = useState<Set<string>>(new Set());
   const [flowKey, setFlowKey] = useState<string | null>(null);
   const [moreFlows, setMoreFlows] = useState(false);
+  // What Continue is doing now, of the parts it will do (the step 3 screen shows them while it runs).
+  const [making, setMaking] = useState<{ parts: Making[]; now: Making } | null>(null);
   const [created, setCreated] = useState<{ languageId: string; name: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -1279,18 +1289,45 @@ export function NewLanguage(ctx: Ctx) {
   const chk = useCheckChoices(ctx, state?.flow?.value.itemId ?? null, kinds);
   const offers = useNewLanguageOffers(ctx);
   const doc = tq.finalDoc;
-  const flow = chk.entries.find((e) => e.c.key === (flowKey ?? chk.first?.c.key)) ?? null;
+  // "I'll choose the steps": a new flow for the organization, made in the flow editor and picked here once saved.
+  const choosing = flowKey === CHOOSE_STEPS;
+  const flow = choosing ? null : chk.entries.find((e) => e.c.key === (flowKey ?? chk.first?.c.key)) ?? null;
+  // The way picked before that, whose steps the new one starts from.
+  const lastFlow = useRef<FlowEntry | null>(null);
+  if (flow) lastFlow.current = flow;
+  // The organization's own flows when the editor opened: the one that is new when it closes was made there.
+  const ownBefore = useRef<Set<string> | null>(null);
+  const ownKeys = chk.entries.filter((e) => e.c.source === 'ours').map((e) => e.c.key).join('|');
+  useEffect(() => {
+    const before = ownBefore.current;
+    const made = before ? chk.entries.find((e) => e.c.source === 'ours' && !before.has(e.c.key)) : undefined;
+    if (made) { ownBefore.current = null; setFlowKey(made.c.key); }
+    // `ownKeys` names what changes in `chk.entries`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ownKeys]);
   const orgName = ctx.org.state?.org?.value.name ?? t('org.newLanguage.theOrganization');
   const title = name.trim() || t('org.newLanguage.theLanguage');
   // Names and codes identify nothing, so a second Dinka is only warned about (decision 76).
   const theCode = picked?.code ?? code;
   const alike = useMemo(() => similarLanguages(ctx.org.state, { code: theCode, name }), [ctx.org.state, theCode, name]);
 
+  function chooseSteps() {
+    ownBefore.current = new Set(chk.entries.filter((e) => e.c.source === 'ours').map((e) => e.c.key));
+    const from = lastFlow.current?.c.hash;
+    ctx.go('flow_editor', { itemId: 'new', name: t('org.newLanguage.ownFlowName', { language: title }), ...(from ? { from } : {}) });
+  }
+
   async function create() {
     const languageName = name.trim();
     if (!languageName || busy || !tq.ready || !flow) return;
     setBusy(true);
     setError('');
+    // Each part is named on screen before it starts, and the screen is drawn before the work goes on.
+    const parts: Making[] = ['passages', 'checks', ...(offers.items.length ? ['helps' as const] : []), 'listing', 'saving'];
+    const part = async (now: Making) => {
+      setMaking({ parts, now });
+      await new Promise<void>((done) => requestAnimationFrame(() => setTimeout(done, 0)));
+    };
     try {
       const org = ctx.org.state;
       // The new language has no members yet: its first events go in under org-scope privileges.
@@ -1300,16 +1337,21 @@ export function NewLanguage(ctx: Ctx) {
       }
       const languoid = theCode.trim() || languageName.slice(0, 3);
       const languageId = newLanguageId(languoid, Crypto.randomUUID());
+      await part('passages');
       const use = await tq.resolve();
       const loaded = (await loadDocs(lib.orgId, [use.docHash])).get(use.docHash);
       if (!loaded || !isTemplateDoc(loaded)) throw new CommandError(t('org.newLanguage.templateMissing'));
       const books = booksInScope(loaded, scope, chosenBooks);
       if (books && books.length === 0) throw new CommandError(t('getReady.record.chooseABook'));
       const templateItem = use.itemId;
+      await part('checks');
       const flowItem = await adoptChoice(lib, flow.c);
       // What its team is offered, followed first when it is another organization's (as What helps them does).
+      // Only each item's own document comes now; a guide loads when a passage reads it (useLibrary `adopt`).
       const offered: string[] = [];
+      if (offers.items.length) await part('helps');
       for (const o of offers.items) offered.push(o.itemId ?? (o.shared!.subscribable ? await lib.subscribe(o.shared!, true) : await lib.copy(o.shared!)));
+      await part('listing');
       const fresh = emptyLanguageState();
       const plan = addLanguage(org, {
         languageId, code: languoid, name: languageName, languoidId: picked?.id ?? null,
@@ -1322,6 +1364,7 @@ export function NewLanguage(ctx: Ctx) {
       if (plan.link) await ctx.org.append('v1.LanguageCodeSet', plan.link);
       // Its stream takes events once the organization's lists it: send that first when connected.
       await ctx.org.sync().catch((e: unknown) => noteExpected('new language listing', e));
+      await part('saving');
       await appendToLanguage({ orgId: ctx.language.orgId, languageId, actorId: ctx.session.actorId, specs: [...plan.specs, ...recommend] });
       ctx.toast(t('org.newLanguage.added', { language: languageName, org: orgName }));
       // The language this person works in is the one the app opens.
@@ -1332,12 +1375,15 @@ export function NewLanguage(ctx: Ctx) {
       setError(failure('new language', e));
     } finally {
       setBusy(false);
+      setMaking(null);
     }
   }
 
   const header = (
     <View style={{ backgroundColor: C.bg }}>
-      <Header title={t('org.home.newLanguage')} sub={t('org.newLanguage.step', { step: formatNumber(step), total: formatNumber(4) })} onBack={ctx.back} close />
+      {/* Leaving while it is being added would leave it half made: ✕ says to wait until it is done. */}
+      <Header title={t('org.home.newLanguage')} sub={t('org.newLanguage.step', { step: formatNumber(step), total: formatNumber(4) })}
+        onBack={making ? () => ctx.toast(t('org.newLanguage.making.wait', { language: title })) : ctx.back} close />
       <View style={{ paddingHorizontal: 20, paddingBottom: space.sm }}>
         <Segments total={4} current={step - 1} done={(i) => i < step - 1} />
       </View>
@@ -1395,6 +1441,23 @@ export function NewLanguage(ctx: Ctx) {
     );
   }
 
+  if (making) {
+    const at = making.parts.indexOf(making.now);
+    const label = (p: Making) => p === 'passages' ? t('org.newLanguage.making.passages')
+      : p === 'checks' ? t('org.newLanguage.making.checks')
+        : p === 'helps' ? t('org.newLanguage.making.helps', { offers: joinAnd(offers.names) })
+          : p === 'listing' ? t('org.newLanguage.making.listing', { language: title, org: orgName })
+            : t('org.newLanguage.making.saving', { language: title });
+    return (
+      <Screen header={header} bodyStyle={bodyStyle}>
+        <Question>{t('org.newLanguage.making.title', { language: title })}</Question>
+        <MovingBar height={8} />
+        <WorkSteps items={making.parts.map((p, i) => ({ key: p, label: label(p), state: i < at ? 'done' : i === at ? 'now' : 'later' }))} />
+        <Text style={[txt.sm, { color: C.muted, paddingHorizontal: space.xs }]}>{t('org.newLanguage.making.keepOpen')}</Text>
+      </Screen>
+    );
+  }
+
   // Spoken's method is offered beside the suggested ways (the prototype's NewLangFlow); the rest one tap deeper.
   const spoken = chk.rest.filter((e) => /spoken/i.test(e.c.name));
   const rest = chk.rest.filter((e) => !spoken.includes(e));
@@ -1411,9 +1474,16 @@ export function NewLanguage(ctx: Ctx) {
   };
   return (
     <Screen header={header} bodyStyle={bodyStyle}
-      footer={<><PrimaryBtn label={t('org.continue')} icon="right" busy={busy} disabled={!flow || !tq.ready || !name.trim()} onPress={() => void create()} />{back}</>}>
+      footer={<>
+        {choosing ? <PrimaryBtn label={t('getReady.checks.chooseSteps')} icon="right" onPress={chooseSteps} />
+          : <PrimaryBtn label={t('org.continue')} icon="right" busy={busy} disabled={!flow || !tq.ready || !name.trim()} onPress={() => void create()} />}
+        {back}
+      </>}>
       <Question>{t('org.newLanguage.howChecked')}</Question>
       {[...chk.main, ...spoken].map(flowCard)}
+      {ctx.session.can('manage_flows') && chk.loaded ? (
+        <ChoiceCard on={choosing} icon="edit" title={t('getReady.checks.illChoose')} onPress={() => setFlowKey(CHOOSE_STEPS)} />
+      ) : null}
       {rest.length ? (moreFlows ? rest.map(flowCard)
         : <QuietLink icon="down" label={t('getReady.checks.otherWaysCount', { total: formatNumber(rest.length) })} onPress={() => setMoreFlows(true)} />) : null}
       {chk.entries.length === 0 ? <Text style={txt.smMuted}>{chk.loaded ? t('org.newLanguage.noWays') : t('common.loading')}</Text> : null}

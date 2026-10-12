@@ -887,7 +887,18 @@
       "offerNoteFia": "Tutawapa watafsiri wa {{language}} {{offers}}. Miongozo ya FIA inaenda pamoja na vifungu vya FIA ulivyochagua. Badilisha hilo wakati wowote chini ya <b>Kinachowasaidia</b>.",
       "notAdded": "Haijaongezwa",
       "inviteLater": "Waalike watafsiri wa {{language}} kutoka kwenye ukurasa wake baadaye.",
-      "later": "Baadaye"
+      "later": "Baadaye",
+      "ownFlowName": "Ukaguzi wa {{language}}",
+      "making": {
+        "title": "Inaandaa {{language}}",
+        "passages": "Inapata vifungu",
+        "checks": "Inapata hatua za ukaguzi",
+        "helps": "Inapata {{offers}}",
+        "listing": "Inaongeza {{language}} kwenye {{org}}",
+        "saving": "Inahifadhi vifungu vya {{language}}",
+        "keepOpen": "Acha programu wazi hadi hili likamilike.",
+        "wait": "Bado inaongeza {{language}}. Tafadhali subiri."
+      }
     },
     "offers": {
       "guides": "miongozo ya kujifunza ya {{name}}",

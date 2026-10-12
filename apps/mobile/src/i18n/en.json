@@ -887,7 +887,18 @@
       "offerNoteFia": "We'll offer {{offers}} to {{language}}'s translators. FIA's guides go with the FIA passages you chose. Change that any time under <b>What helps</b>.",
       "notAdded": "Not added",
       "inviteLater": "Invite {{language}}'s translators from its page later.",
-      "later": "Later"
+      "later": "Later",
+      "ownFlowName": "{{language}} checks",
+      "making": {
+        "title": "Setting up {{language}}",
+        "passages": "Getting the passages",
+        "checks": "Getting the review steps",
+        "helps": "Getting {{offers}}",
+        "listing": "Adding {{language}} to {{org}}",
+        "saving": "Saving {{language}}'s passages",
+        "keepOpen": "Keep the app open until this is done.",
+        "wait": "Still adding {{language}}. Please wait."
+      }
     },
     "offers": {
       "guides": "{{name}}'s study guides",

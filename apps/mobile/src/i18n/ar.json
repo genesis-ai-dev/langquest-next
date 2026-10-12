@@ -967,7 +967,18 @@
       "offerNoteFia": "سنقدّم {{offers}} لمترجمي {{language}}. أدلة FIA تأتي مع مقاطع FIA التي اخترتها. غيّر ذلك في أي وقت من <b>ما يساعدهم</b>.",
       "notAdded": "لم تُضف",
       "inviteLater": "ادعُ مترجمي {{language}} من صفحتها لاحقًا.",
-      "later": "لاحقًا"
+      "later": "لاحقًا",
+      "ownFlowName": "فحوصات {{language}}",
+      "making": {
+        "title": "جارٍ إعداد {{language}}",
+        "passages": "جارٍ جلب المقاطع",
+        "checks": "جارٍ جلب خطوات الفحص",
+        "helps": "جارٍ جلب {{offers}}",
+        "listing": "جارٍ إضافة {{language}} إلى {{org}}",
+        "saving": "جارٍ حفظ مقاطع {{language}}",
+        "keepOpen": "أبقِ التطبيق مفتوحًا حتى ينتهي هذا.",
+        "wait": "لا تزال إضافة {{language}} جارية. يُرجى الانتظار."
+      }
     },
     "offers": {
       "guides": "أدلة الدراسة من {{name}}",

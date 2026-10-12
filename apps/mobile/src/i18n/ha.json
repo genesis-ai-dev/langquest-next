@@ -887,7 +887,18 @@
       "offerNoteFia": "Za mu ba masu fassarar {{language}} {{offers}}. Jagororin FIA suna tafiya tare da nassosin FIA da kuka zaɓa. Ku canja hakan kowane lokaci a ƙarƙashin <b>Abin da ke taimaka musu</b>.",
       "notAdded": "Ba a ƙara ba",
       "inviteLater": "Ku gayyaci masu fassarar {{language}} daga shafinsa daga baya.",
-      "later": "Daga baya"
+      "later": "Daga baya",
+      "ownFlowName": "Dubawar {{language}}",
+      "making": {
+        "title": "Ana shirya {{language}}",
+        "passages": "Ana samo nassosi",
+        "checks": "Ana samo matakan dubawa",
+        "helps": "Ana samo {{offers}}",
+        "listing": "Ana ƙara {{language}} zuwa {{org}}",
+        "saving": "Ana ajiye nassosin {{language}}",
+        "keepOpen": "Ku bar manhajar a buɗe har sai an gama.",
+        "wait": "Har yanzu ana ƙara {{language}}. Don Allah ku jira."
+      }
     },
     "offers": {
       "guides": "jagororin nazari na {{name}}",

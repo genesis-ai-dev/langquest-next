@@ -2104,6 +2104,32 @@ Reverse if: field tests show people miss help without the intros (then an
 intro behind the ?, not on first open), or the dim hides what people need
 to see while exploring.
 
+Amended (2026-10-11, Caleb Koster): New language makes its own answer where
+none fits. Question 3 has "I'll choose the steps" (as Get ready does): it
+opens the flow editor on a new flow for the organization, named "<language>
+checks" and starting from the steps of the way picked before, and the flow
+saved there comes back picked. Review flows stay library flows chosen per
+language, so the new one is a template other languages can use too.
+Question 2's "Make your own" opens the template editor (`new_language` had
+no edge to it, so the app said it could not open there). Continue no longer
+shows a still "Saving…" button: the screen names each part as it starts
+(the passages, the review steps, the Bible and guides offered, listing the
+language, saving its passages) under a bar that keeps moving, and ✕ says
+to wait until it is done. The wait itself was mostly FIA's English guides:
+loading a collection fetched everything it depends on, which for that
+collection is 1,525 guides (65 MB), and following it did that before going
+on. Opening any passage did the same on every phone, the first time. Now a
+collection brings only its numbering, as a Bible source already did
+(`loadDocs` in library/docStore.ts), and each guide is fetched by its own
+hash when a passage reads it. On a phone-like link (12 Mbit/s down, 4 up,
+120 ms) a first language took 60 s and now takes 5 to 7; the first passage
+opened fetched 1,524 documents (67 MB) and now fetches its one guide (80
+KB). Offline, a phone keeps the guides of the passages it keeps (decision
+61, `StudyPrefetch`), not every guide.
+Reverse if: teams need every guide on the phone before they go out of
+signal, beyond the passages they keep (then a "keep all guides" choice on
+Ready for offline, not a download on first open).
+
 ## 72. Apps, agents and review links take part through reviews and releases; outside reviews never clear a checkpoint
 
 Date: 2026-10-08 · By: Ryder Wishart · Status: partly superseded by 79

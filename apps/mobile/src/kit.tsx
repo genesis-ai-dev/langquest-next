@@ -15,7 +15,7 @@ import {
 } from 'lucide-react-native';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
-  AccessibilityInfo, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View,
+  AccessibilityInfo, Animated, Easing, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View,
   type StyleProp, type TextStyle, type ViewStyle
 } from 'react-native';
 import { Text } from './text';
@@ -605,6 +605,33 @@ export function ProgressBar(props: { value: number; color?: string; height?: num
   return (
     <View style={{ height: h, borderRadius: h, backgroundColor: C.border, overflow: 'hidden' }}>
       <View style={{ height: h, borderRadius: h, width: `${Math.max(0, Math.min(100, props.value))}%`, backgroundColor: props.color ?? C.primary }} />
+    </View>
+  );
+}
+
+/**
+ * A bar that keeps moving while something runs whose length is not known, so
+ * a long wait never looks frozen. On a phone it moves on the native side, so
+ * it keeps going while JavaScript is busy.
+ */
+export function MovingBar(props: { color?: string; height?: number }) {
+  const h = props.height ?? 6;
+  const [width, setWidth] = useState(0);
+  const x = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(Animated.timing(x, { toValue: 1, duration: 1300, easing: Easing.inOut(Easing.quad), useNativeDriver: Platform.OS !== 'web' }));
+    loop.start();
+    return () => loop.stop();
+  }, [x]);
+  const run = width * 0.4;
+  const ends = isRtl() ? [width, -run] : [-run, width];
+  return (
+    <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} accessibilityRole="progressbar" accessibilityState={{ busy: true }}
+      style={{ height: h, borderRadius: h, backgroundColor: C.border, overflow: 'hidden' }}>
+      {width ? (
+        <Animated.View style={{ position: 'absolute', left: 0, top: 0, width: run, height: h, borderRadius: h, backgroundColor: props.color ?? C.muted,
+          transform: [{ translateX: x.interpolate({ inputRange: [0, 1], outputRange: ends }) }] }} />
+      ) : null}
     </View>
   );
 }
