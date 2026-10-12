@@ -652,15 +652,16 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
     <Screen header={header} bodyStyle={PAD}
       footer={<PrimaryBtn label={key === 'choose' ? t('getReady.checks.chooseSteps') : t('common.next')} icon="right" busy={busy} onPress={() => void answer()} />}>
       <Question>{questionLabel('checks')}</Question>
+      {/* Making your own comes first, set apart, so the ready-made list below can grow (design principle 12). */}
+      {canUse ? (
+        <ChoiceCard own on={key === 'choose'} icon="edit" title={t('getReady.checks.illChoose')} onPress={() => setPicked('choose')} />
+      ) : null}
       {custom ? (
         <ChoiceCard on={key === 'custom'} icon="people" title={flowTitle(flow.steps, kinds)} sub={t('getReady.checks.ownSteps')} onPress={() => setPicked('custom')}>
           {key === 'custom' ? <NumberedSteps items={flowWho(flow.steps, kinds)} /> : null}
         </ChoiceCard>
       ) : null}
       {main.map(card)}
-      {canUse ? (
-        <ChoiceCard on={key === 'choose'} icon="edit" title={t('getReady.checks.illChoose')} onPress={() => setPicked('choose')} />
-      ) : null}
       {rest.length ? (
         more ? (
           <>
@@ -693,14 +694,15 @@ function InviteStep({ ctx, lang, header, next }: StepProps) {
         {uri ? <QuietLinks items={[{ label: t('admin.invite.shareLink'), icon: 'send', onPress: () => shareInvite(ctx, uri) }]} /> : null}
       </>}>
       <Question>{questionLabel('invite')}</Question>
+      {/* Making a new role comes first, set apart from the roles there are (design principle 12). */}
+      {ctx.session.can('manage_roles') ? (
+        <DashedRow icon="plus" label={t('admin.invite.newRole')} onPress={() => ctx.go('role_editor', { roleId: 'new' })} />
+      ) : null}
       <Pills>
         {roles.choices.map((c) => <Chip key={c.id} label={c.chip} on={choice === c.id} onPress={() => setChoice(c.id)} />)}
         {more ? roles.others.map((r) => <Chip key={r.id} label={r.name} on={choice === r.id} onPress={() => setChoice(r.id)} />) : null}
-        {!more && (roles.others.length || ctx.session.can('manage_roles')) ? <Chip label={t('getReady.invite.somethingElse')} icon="plus" on={false} onPress={() => setMore(true)} /> : null}
+        {!more && roles.others.length ? <Chip label={t('getReady.invite.somethingElse')} icon="plus" on={false} onPress={() => setMore(true)} /> : null}
       </Pills>
-      {more && ctx.session.can('manage_roles') ? (
-        <DashedRow icon="plus" label={t('admin.invite.newRole')} onPress={() => ctx.go('role_editor', { roleId: 'new' })} />
-      ) : null}
       {may ? <InviteCode state={invite} /> : (
         <Banner icon="lock" title={t('getReady.invite.cannotTitle')} body={t('getReady.invite.cannotBody', { language: lang })} />
       )}

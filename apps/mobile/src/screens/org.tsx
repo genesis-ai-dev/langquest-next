@@ -740,12 +740,12 @@ function AssignmentForm(props: {
   return (
     <>
       <SectionLabel label={t('admin.invite.whatWillTheyDo')} />
+      {/* Something other than the usual roles: make one here (demo ADR-039, amended 2026-10-08), first and set apart (design principle 12). */}
+      {ctx.session.can('manage_roles') && TO_ROLE_EDITOR.some((from) => edgeFor(from, 'role_editor')) ? (
+        <DashedRow icon="plus" label={t('admin.invite.newRole')} onPress={() => ctx.go('role_editor', { roleId: 'new' })} />
+      ) : null}
       <Choices items={props.roles.map((r) => ({ id: r.id, label: r.name, sub: r.sub }))} value={value.roleId}
         onChoose={(roleId) => props.onChange({ ...value, roleId })} empty={t('org.assign.noRoles')} />
-      {/* Something other than the usual roles: make one here (demo ADR-039, amended 2026-10-08). */}
-      {ctx.session.can('manage_roles') && TO_ROLE_EDITOR.some((from) => edgeFor(from, 'role_editor')) ? (
-        <GhostBtn label={t('admin.invite.newRole')} icon="plus" onPress={() => ctx.go('role_editor', { roleId: 'new' })} />
-      ) : null}
       <SectionLabel label={t('org.assign.where')} />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
         {props.levels.map((l) => (
@@ -928,13 +928,13 @@ function JoinRequest(ctx: Ctx) {
       ) : undefined}>
       {message ? <Text style={[txt.sm, { color: C.muted, paddingHorizontal: space.xs }]}>{t('org.join.message', { message })}</Text> : null}
       <SectionLabel label={t('admin.invite.whatWillTheyDo')} />
+      {ctx.session.can('manage_roles') ? <DashedRow icon="plus" label={t('admin.invite.newRole')} onPress={() => ctx.go('role_editor', { roleId: 'new' })} /> : null}
       {roles.choices.map((c) => (
         <RadioRow key={c.id} icon={c.icon as IconName} label={c.label} on={choice === c.id} onPress={() => setChoice(c.id)} />
       ))}
       {roles.others.length ? (others ? roles.others.map((r) => (
         <RadioRow key={r.id} icon="star" label={r.name} on={choice === r.id} onPress={() => setChoice(r.id)} />
       )) : <QuietLink icon="down" label={t('admin.invite.otherRoles', { total: formatNumber(roles.others.length) })} onPress={() => setOthers(true)} />) : null}
-      {ctx.session.can('manage_roles') ? <DashedRow icon="plus" label={t('admin.invite.newRole')} onPress={() => ctx.go('role_editor', { roleId: 'new' })} /> : null}
       <SectionLabel label={t('admin.invite.whichLanguage')} />
       <Pills>
         {granted.map((id) => <Chip key={id} label={v.label(id)} on={where === id} onPress={() => setWhere(id)} />)}
@@ -1193,11 +1193,11 @@ export function InviteQr(ctx: Ctx) {
           <Text style={txt.xs}>{t('org.qr.pickRole')}</Text>
           {/* A new invite for someone already on the team makes a second account (decisions.md 59). */}
           <Banner icon="lock" title={t('org.qr.alreadyTitle')} body={t('org.qr.alreadyBody')} />
+          {ctx.session.can('manage_roles') ? (
+            <DashedRow icon="plus" label={t('org.qr.createRole')} onPress={() => ctx.go('role_editor', { roleId: 'new' })} />
+          ) : null}
           <Choices items={roles.map((r) => ({ id: r.id, label: r.name, sub: t('org.qr.privileges', { count: r.privileges }) }))} value={roleId} onChoose={setRoleId}
             empty={t('org.qr.noRoles')} />
-          {ctx.session.can('manage_roles') ? (
-            <GhostBtn label={t('org.qr.createRole')} icon="plus" onPress={() => ctx.go('role_editor', { roleId: 'new' })} />
-          ) : null}
         </>
       ) : null}
       {step === 1 ? (
@@ -1529,9 +1529,9 @@ export function NewLanguage(ctx: Ctx) {
         {back}
       </>}>
       <Question>{t('org.newLanguage.howChecked')}</Question>
-      {[...chk.main, ...spoken].map(flowCard)}
+      {/* Making your own comes first, set apart, so the ready-made list below can grow (design principle 12). */}
       {ctx.session.can('manage_flows') && chk.loaded ? (
-        <ChoiceCard on={choosing} icon="edit" title={t('getReady.checks.illChoose')} onPress={() => setFlowKey(CHOOSE_STEPS)}>
+        <ChoiceCard own on={choosing} icon="edit" title={t('getReady.checks.illChoose')} onPress={() => setFlowKey(CHOOSE_STEPS)}>
           {choosing && draft ? (
             <>
               <NumberedSteps items={stepsOf(draft.rows).map((st) => ({ label: stepTitle(st.kindIds, draft.kinds), lock: st.checkpoint }))} />
@@ -1540,6 +1540,7 @@ export function NewLanguage(ctx: Ctx) {
           ) : null}
         </ChoiceCard>
       ) : null}
+      {[...chk.main, ...spoken].map(flowCard)}
       {rest.length ? (moreFlows ? rest.map(flowCard)
         : <QuietLink icon="down" label={t('getReady.checks.otherWaysCount', { total: formatNumber(rest.length) })} onPress={() => setMoreFlows(true)} />) : null}
       {chk.entries.length === 0 ? <Text style={txt.smMuted}>{chk.loaded ? t('org.newLanguage.noWays') : t('common.loading')}</Text> : null}

@@ -87,13 +87,14 @@ export function InviteSomeone(props: {
         {props.links ? <QuietLinks items={props.links(roleId, scope)} /> : null}
       </>}>
       <Question>{t('admin.invite.whatWillTheyDo')}</Question>
+      {/* Making a new role comes first, set apart from the roles there are (design principle 12). */}
+      {newRole ? <DashedRow icon="plus" label={t('admin.invite.newRole')} onPress={newRole} /> : null}
       {roles.choices.map((c) => (
         <RadioRow key={c.id} tile icon={c.icon as IconName} label={c.label} on={choice === c.id} onPress={() => setChoice(c.id)} />
       ))}
       {roles.others.length ? (others ? roles.others.map((r) => (
         <RadioRow key={r.id} tile icon="star" label={r.name} on={choice === r.id} onPress={() => setChoice(r.id)} />
       )) : <QuietLink icon="down" label={t('admin.invite.otherRoles', { total: formatNumber(roles.others.length) })} onPress={() => setOthers(true)} />) : null}
-      {newRole ? <DashedRow icon="plus" label={t('admin.invite.newRole')} onPress={newRole} /> : null}
       {props.scopes.length > 1 ? (
         <>
           <SectionLabel label={t('admin.invite.whichLanguage')} />
