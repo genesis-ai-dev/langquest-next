@@ -43,8 +43,20 @@ export interface Fact {
   actorId: string;
   /** When it happened in v2 (ISO 8601). */
   at: string;
-  /** The events that say it. Must not depend on the statement except in ids it makes for itself. */
-  say: (s: Statement) => Said[];
+  /**
+   * The events that say it. They may depend on the statement only for ids
+   * the fact makes for itself, and on other facts (through `look`) only when
+   * `value` says what the fact is.
+   */
+  say: (s: Statement, look: Look) => Said[];
+  /**
+   * What the fact says, when its events also carry something that is not
+   * the fact's own (a review names the take that was current when it was
+   * given). A change here is said again; a change in the rest is not.
+   */
+  value?: unknown;
+  /** v2 says something that is not ready to come over yet (its audio has not arrived): leave what was said as it is. */
+  hold?: boolean;
   /**
    * How it is taken back when v2 stops saying it: redact everything it said
    * (recordings, takes, reviews, notes), or say something else (a member
@@ -82,6 +94,9 @@ export interface LedgerEntry {
   withdrawn: boolean;
 }
 
+/** What the import has said about another fact, as of this point in the pass. */
+export type Look = (key: string) => LedgerEntry | undefined;
+
 export interface Reconciled {
   events: AnyEvent[];
   /** The ledger entries to save once their events are accepted, by key. */
@@ -105,6 +120,7 @@ export function reconcile(facts: readonly Fact[], ledger: ReadonlyMap<string, Le
   const entries = new Map<string, LedgerEntry>();
   const owner = new Map<string, string>();
   const seen = new Set<string>();
+  const look: Look = (key) => entries.get(key) ?? ledger.get(key);
 
   const emit = (entry: LedgerEntry, n: number, said: Said[], actorId: string, at: number, verb: 'say' | 'unsay'): LedgerEntry => {
     const wall = Math.max(Math.min(at, ctx.now), entry.hlc ? decodeHlc(entry.hlc).wallMs + 1 : 0);
@@ -132,15 +148,18 @@ export function reconcile(facts: readonly Fact[], ledger: ReadonlyMap<string, Le
     const prior = ledger.get(fact.key);
     const base: LedgerEntry = prior ?? { key: fact.key, streamId: fact.streamId, n: 0, lastSaid: null, digest: '', hlc: '', live: [], withdrawn: false };
 
+    if (fact.hold) continue;
     if (fact.gone) {
       if (!prior || prior.withdrawn) continue;
       entries.set(fact.key, takeBack(fact, base, at));
       continue;
     }
-    const digest = digestOf(fact.say({ n: 0, lastSaid: null }));
+    const digest = fact.value !== undefined ? hash53(canonical(fact.value)) : digestOf(fact.say({ n: 0, lastSaid: null }, look));
     if (prior && !prior.withdrawn && (prior.digest === digest || (fact.restate === false && prior.digest !== ''))) continue;
     const s = { n: base.n + 1, lastSaid: base.lastSaid };
-    const said = prior?.withdrawn && fact.resay ? fact.resay(s) : fact.say(s);
+    const said = prior?.withdrawn && fact.resay ? fact.resay(s) : fact.say(s, look);
+    // Nothing to say yet (a review of a version that has not come over): as if held.
+    if (said.length === 0) continue;
     const undo = fact.unsay === 'redact' ? undefined : fact.unsay({ n: s.n + 1, lastSaid: s.n });
     const { undo: _old, ...rest } = emit(base, s.n, said, fact.actorId, at, 'say');
     entries.set(fact.key, { ...rest, digest, ...(undo ? { undo } : {}) });
