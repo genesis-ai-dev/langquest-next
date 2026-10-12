@@ -418,3 +418,20 @@ returns text language sql immutable as $$
     else null
   end;
 $$;
+
+-- The Translator role has Review (decisions.md 88): a peer check is often
+-- another translator. core SEED_ROLES says so; this keeps the fixed roles'
+-- privileges, used by the parity check and when an organization's roles are
+-- seeded, the same. Organizations made before keep the roles they have until
+-- an admin's phone gives their untouched Translator role Review.
+create or replace function public.fixed_role_privileges(p_role text)
+returns text[] language sql immutable as $$
+  select case p_role
+    when 'owner' then array['manage_structure','invite_members','manage_roles','manage_templates','shape_templates','manage_reference','manage_flows','manage_teams','assign_work','override_checkpoints','translate','fill_reference','send_to_reviewers','review','view_status']
+    when 'coordinator' then array['manage_structure','invite_members','manage_templates','shape_templates','manage_reference','manage_flows','manage_teams','assign_work','override_checkpoints','translate','fill_reference','send_to_reviewers','review','view_status']
+    when 'translator' then array['translate','review','fill_reference','send_to_reviewers','view_status']
+    when 'reviewer' then array['review','view_status']
+    when 'viewer' then array['view_status']
+    else '{}'::text[]
+  end;
+$$;

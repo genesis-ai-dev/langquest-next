@@ -292,7 +292,8 @@ export function PassageRecord(ctx: Ctx) {
     askedName: (kindId) => {
       const r = p.openRequests.find((x) => x.what === 'review' && x.kindId === kindId);
       if (!r) return undefined;
-      if (r.teamId) return teamName(r.teamId) ?? r.team?.name;
+      // A check's team reads as one (decision 88): "asked the Peer check team".
+      if (r.teamId) { const team = teamName(r.teamId) ?? r.team?.name; return team ? t('passage.record.theTeam', { team }) : undefined; }
       return r.profileId ? ctx.name(r.profileId) : r.guest?.name;
     }
   };
