@@ -31,7 +31,9 @@ export const BASELINES: [name: string, args: string][] = [
   ['slow-default', 'slowLink'],
   ['slow-minNew200', 'slowLink --snapshotMinNew=200'],
   ['slow-8KBps-256KB', 'slowLink --joinerKBps=8 --chunkKB=256'],
-  ['slow-large', 'slowLink --passages=3000 --translators=40 --reviewers=25 --joiners=5']
+  ['slow-large', 'slowLink --passages=3000 --translators=40 --reviewers=25 --joiners=5'],
+  ['refold-default', 'refoldTriggers'],
+  ['refold-large', 'refoldTriggers --passages=1200 --translators=20 --reviewers=12']
 ];
 
 interface Result {
@@ -80,7 +82,7 @@ function render(all: [string, Result][]): string {
     r.phones.pushDelayMinutes.p95, r.phones.propagationMinutes.p95, r.agreement?.agree ? 'yes' : 'NO'
   ]);
   let md = '';
-  for (const scenario of ['normalDay', 'villageReconnect', 'reducerBump', 'slowLink']) {
+  for (const scenario of ['normalDay', 'villageReconnect', 'reducerBump', 'slowLink', 'refoldTriggers']) {
     const runs = all.filter(([, r]) => r.scenario === scenario);
     if (runs.length === 0) continue;
     md += `\n### ${scenario}\n\n${head(common)}\n${runs.map(([n, r]) => commonRow(n, r)).join('\n')}\n`;
@@ -98,6 +100,10 @@ function render(all: [string, Result][]): string {
         const js = f.joiners as { minutes: number | null; mbDown: number; snapshot: string[] }[];
         return row([n, f.snapshotKBWhenJoining, js.map((x) => x.minutes ?? 'never').join(', '), js.map((x) => x.mbDown).join(', '), js.map((x) => x.snapshot.join('+') || 'none').join(', '), r.server.snapshotsTaken]);
       }).join('\n') + '\n';
+    }
+    if (scenario === 'refoldTriggers') {
+      md += `\n${head(['Run', 'Hours unlisted', 'Refolds while unlisted', 'Worst phone', 'Redactions', 'Refolds after listing', 'Per phone', 'Sync CPU after listing, ms', 'Empty snapshot lookups'])}\n`;
+      md += runs.map(([n, { findings: f, report: r }]) => row([n, f.whileUnlisted.hours, f.whileUnlisted.refolds, f.whileUnlisted.worstPhone, f.afterListing.redactions, f.afterListing.refolds, f.afterListing.perPhone, f.afterListing.syncCpuMsTotal, r.phones.snapshotOutcomes.none ?? 0])).join('\n') + '\n';
     }
   }
   return md;

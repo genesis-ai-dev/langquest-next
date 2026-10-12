@@ -28,14 +28,26 @@ export function passageId(n: number): string {
   return `b${Math.floor(n / PASSAGES_PER_BOOK)}/p${n}`;
 }
 
-/** Sets the language up: the flow and every passage, the way a template does, in one batch. */
-export function coordinator(passages: number): Persona {
+/**
+ * Sets the language up: the flow and every passage, the way a template
+ * does, in one batch. As a moderator (`redactShare` above 0) it then takes
+ * notes out of the record as it goes, one on that share of its turns, the
+ * way acting on a report does (decision 48).
+ */
+export function coordinator(passages: number, o: { redactShare?: number; random?: Random } = {}): Persona {
   let done = false;
+  const notes: string[] = [];
   return {
     role: 'coordinator',
-    observe: () => {},
+    observe: (e) => {
+      if (e.type === 'v1.NoteAdded') notes.push(e.id);
+    },
     next: () => {
-      if (done) return null;
+      if (done) {
+        const share = o.redactShare ?? 0;
+        if (share <= 0 || notes.length === 0 || !o.random?.chance(share)) return null;
+        return [{ type: 'v1.Redacted', payload: { eventId: notes.shift()!, reason: 'reported' } }];
+      }
       done = true;
       const action: Action = [{ type: 'v1.FlowSelected', payload: { flowId: FLOW_ID, name: 'Standard Bible Flow' } }];
       for (const step of FLOW) action.push({ type: 'v1.FlowStepSet', payload: step });

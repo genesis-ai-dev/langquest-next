@@ -27,7 +27,7 @@ means is in `fleet-simulation.md`.
   CPU while draining where the first run measured 21 ms. Compare the large
   runs, and rerun before reading a small difference as real.
 - **Agreement must stay "yes".** Every phone ended with the server's state
-  in all 15 runs.
+  in all 17 runs.
 - **Runs with a different `snapshotMinNew` are close, not identical.** A
   phone that adopts a snapshot instead of pulling learns of the work at a
   different moment, so its persona acts at different moments, and events
@@ -91,6 +91,41 @@ means is in `fleet-simulation.md`.
 | slow-8KBps-256KB | 624 | 2, 1, 2 | 0.8, 0.8, 0.8 | ok, ok, ok | 352 |
 | slow-large | 2,736 | 43, 48, 42, 43, 51 | 5.8, 6.5, 6, 6, 6.4 | stale, stale, stale, stale, stale+stale | 397 |
 
+### refoldTriggers
+
+| Run | Phones | Passages | Sim days | Real s | Heap MB | Events | Syncs | Sync CPU s | Sync CPU p95 ms | Refolds | MB down | Reach server p95 min | Reach others p95 min | Agree |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| refold-default | 14 | 300 | 3 | 2.74 | 52 | 1,638 | 18,153 | 1 | 0.06 | 436 | 9.55 | 600 | 600 | yes |
+| refold-large | 33 | 1,200 | 3 | 286 | 441 | 4,632 | 142,923 | 236 | 5.3 | 74,271 | 901 | 600 | 600 | yes |
+
+| Run | Hours unlisted | Refolds while unlisted | Worst phone | Redactions | Refolds after listing | Per phone | Sync CPU after listing, ms | Empty snapshot lookups |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| refold-default | 10 | 120 | 120 | 21 | 316 | 23 | 993 | 1,705 |
+| refold-large | 10 | 73,555 | 73,555 | 21 | 1,277 | 39 | 13,064 | 77,460 |
+
+## Core and server benchmarks
+
+`npm run bench:core`, synthetic language (per passage: a unit, two
+recordings and takes, two submissions, four reviews, two notes), median of
+five runs:
+
+| Passages | Events | Fold ms | Rebuild per publish ms | offlineSummary ms | Snapshot KB | Snapshot KB by key |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1,200 | 15,635 | 31.3 | 8 | 38.45 | 3,369 | recordings 931, takes 804, kindReviews 802, notes 454, submissions 236, units 142 |
+| 5,000 | 65,130 | 125.74 | 36.48 | 582.91 | 14,195 | recordings 3,897, kindReviews 3,393, takes 3,371, notes 1,931, submissions 996, units 606 |
+
+`npm run bench:server`, local Postgres, an empty organization (the best
+case for every lookup), one transaction rolled back:
+
+| Measure | ms |
+| --- | --- |
+| append 200 UnitAdded | 19.3, 16.9, 17.9, 16.3, 16.2 |
+| append 200 RecordingAdded | 27, 26.6, 27.7, 31.9, 32.8 |
+| pull 500 events | 0.7 |
+| put_snapshot | 122.5 |
+| get_snapshot_meta | 122.5 |
+| get_snapshot_chunk (first, middle, last) | 61.7, 69.1, 77.5 |
+
 ## What these show
 
 - **`normalDay`:** sync CPU grows faster than the team. Going from 14 to 131
@@ -107,6 +142,13 @@ means is in `fleet-simulation.md`.
 - **`reducerBump`:** at 600 passages, cold starts are cheap whatever the
   snapshot rule. At 3,000 passages, 9 of 66 phones threw a download away
   (`stale`), and the worst took 7 minutes.
+- **`refoldTriggers`:** a hot loop. With a 1,200-passage template queued
+  while the language was not listed, one phone refolded 73,555 times in
+  10 hours (`performance-audit.md` item 7). Each redaction refolds every
+  phone that pulls it.
+- **Benchmarks:** `offlineSummary` is quadratic (38 ms at 1,200 passages,
+  582 ms at 5,000), and every snapshot piece costs the server as much as
+  serializing the whole snapshot (62 to 77 ms each, 55 pieces).
 - **`slowLink`:** today's snapshot rule fails slow joiners, and it gets worse
   with size. With a 2.7 MB snapshot (3,000 passages), all 5 joiners' downloads
   went stale (one of them twice). Each then pulled the log: 42 to 51 minutes

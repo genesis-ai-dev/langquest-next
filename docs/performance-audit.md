@@ -64,6 +64,11 @@ hand, and the only timing assertion is the coarse 1000 ms guard in
 
 Node numbers catch regressions. They do not say how fast a phone is.
 
+Done in part (2026-10-12): `npm run bench:core` (`scripts/bench/core.ts`)
+times the fold, the view rebuild per published state, `offlineSummary`,
+and snapshot size by key, at 1,200 and 5,000 passages. Its numbers are in
+`fleet-baselines.md`. Not yet in CI.
+
 ### 2.2 The same benchmarks on a phone
 
 Add a dev-menu action (`apps/mobile/src/DevMenu.tsx`) that runs the
@@ -108,6 +113,12 @@ agreement, propagation, backlog drain, refolds and snapshot outcomes. Its
   (`events_entity_idx`) and the pull range scan.
 - In production, watch `diag.rpc_stats()` for `get_snapshot_chunk` and
   `append_events`.
+
+Done in part (2026-10-12): `npm run bench:server` (`scripts/bench/server.sql`)
+times 200-event appends, a pull page and the snapshot RPCs on a 14 MB
+snapshot, in one transaction it rolls back. A batch's time is how long it
+holds the stream's lock, so how long a second writer waits; the two-writer
+run itself comes with item 8. Numbers in `fleet-baselines.md`.
 
 ## 3. Improvements, and how each is measured
 
@@ -209,9 +220,21 @@ Confirmed.
 - **Measure:** the core benchmark (2.1). It takes 45 → 675 ms today; target
   linear, under 10 ms at 5,000 passages.
 
-**7. Refolds run more often than they need to.** Read from the code; counts
-not measured.
+**7. Refolds run more often than they need to.** Confirmed and measured
+(2026-10-12) with the fleet's `refoldTriggers` scenario
+(`fleet-baselines.md`).
 
+- **A hot loop while a language is not listed.** Refused events are
+  re-queued at the start of every push. With more than five batches
+  (1,000 events) queued, `push` reports more work, the scheduler runs again
+  at once, and every pass is five refused appends and a full refold. A
+  1,200-passage template applied before the organization lists the
+  language made one phone refold 73,555 times in 10 hours and pull 901 MB.
+  With 300 passages, 120 times.
+- Each redaction refolds every phone that pulls it: 21 redactions, 1,277
+  refolds across 33 phones.
+- A phone whose stream is still empty asks for a server snapshot on every
+  sync (77,460 empty lookups in the same run).
 - One sync can refold up to 3 times (push, pulled redaction, membership).
 - A NOT_LISTED refusal is re-queued on every push (`syncClient.ts:491`). If
   the server keeps refusing it, the phone refolds on every sync (`538`).

@@ -47,6 +47,8 @@
     "diag": "tsx scripts/diag.ts",
     "fleet": "node --max-old-space-size=16384 --import tsx scripts/fleet/run.ts",
     "fleet:baselines": "tsx scripts/fleet/baselines.ts",
+    "bench:core": "tsx scripts/bench/core.ts",
+    "bench:server": "tsx scripts/bench/server.ts",
     "moderation": "tsx scripts/moderation.ts",
     "help-audio": "tsx scripts/help-audio.ts"
   },

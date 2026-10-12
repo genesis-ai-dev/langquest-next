@@ -44,6 +44,7 @@ Baseline numbers for every scenario at several sizes are in
 | `villageReconnect` | Everyone sets up in town, works out of reach for two weeks, and comes back into signal on the same morning | Backlog size, minutes to drain it, append calls, sync CPU while draining |
 | `reducerBump` | Every phone cold-starts through the server snapshot over an hour, while the team works and the snapshot is rewritten every 5 minutes | Snapshot outcomes, minutes to catch up, megabytes |
 | `slowLink` | Phones on a 2 KB/s link join a busy language | Whether each joiner's snapshot went `stale`, minutes, megabytes |
+| `refoldTriggers` | The language is not listed for its first 10 hours (its events refused and re-queued), then the coordinator redacts notes as it goes | Refolds while unlisted and after, the sync CPU they cost, empty snapshot lookups |
 
 ## Reading the report
 
@@ -87,6 +88,12 @@ Baseline numbers for every scenario at several sizes are in
   network returns (`apps/mobile/src/wake.ts` listens for that only on the
   web).
 
+- `refoldTriggers` found a hot loop (`performance-audit.md` item 7). While
+  a language is not listed, a phone with more than 1,000 queued events
+  re-runs sync at once, again and again, each time pushing five refused
+  batches and refolding: 73,555 refolds in 10 hours on one phone with a
+  1,200-passage template.
+
 ## Where the code is
 
 - `packages/client/src/testing/`: the engine, Node only; the app never
@@ -107,9 +114,9 @@ Baseline numbers for every scenario at several sizes are in
 - **Every app is open all the time.** A real phone runs sync timers only
   while the app is open; the simulator never closes it. Counts of syncs
   with no signal are upper bounds.
-- **One language stream.** No organization stream, memberships, refusals
-  or blobs. The fake server accepts everything (`authorize` can change
-  that).
+- **One language stream.** No organization stream, memberships or blobs.
+  The fake server accepts everything unless a scenario says otherwise
+  (`refoldTriggers` refuses the language as not listed for a while).
 - **Personas are simple.** Translators record each assigned passage and
   re-record what is sent back; reviewers review submitted versions for
   one kind and sometimes leave a note. A synthetic language's snapshot is

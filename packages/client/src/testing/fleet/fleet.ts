@@ -17,6 +17,8 @@ export interface CrewOptions {
   /** Each translator's and reviewer's link, by role and index. The coordinator is on Wi-Fi. */
   link: (role: 'translator' | 'reviewer', index: number, random: Random) => Link;
   work?: WorkPattern;
+  /** The coordinator moderates: on this share of its turns it redacts a note. */
+  redactShare?: number;
 }
 
 export interface FleetOptions {
@@ -27,6 +29,12 @@ export interface FleetOptions {
   /** Characters per snapshot piece; the server's is 256 KB. */
   chunkChars?: number;
   realtime?: { on: boolean; delayMs: number };
+  /**
+   * The server refuses the language's events as not listed until this
+   * simulated time, as it does when a phone pushes a new language's events
+   * before the organization stream lists it (they are re-queued on every push).
+   */
+  unlistedUntil?: number;
 }
 
 /**
@@ -62,7 +70,7 @@ export class Fleet {
     };
     const { crew } = options;
     const work = crew.work ?? OFFICE_HOURS;
-    this.add('coord', 'coordinator', coordinator(crew.passages), work, always(NETWORKS.wifi, 'wifi'));
+    this.add('coord', 'coordinator', coordinator(crew.passages, { redactShare: crew.redactShare ?? 0, random: this.random.fork('coord') }), work, always(NETWORKS.wifi, 'wifi'));
     for (let i = 0; i < crew.translators; i++) {
       const r = this.random.fork(`t${i}`);
       this.add(`t${i}`, `translator-${i}`, translator({ actorId: `translator-${i}`, index: i, of: crew.translators, random: r }), work, crew.link('translator', i, r));
@@ -81,6 +89,8 @@ export class Fleet {
   /** Install every app; the coordinator sets the language up at once. */
   async start(): Promise<void> {
     const { realtime } = this.context;
+    const unlisted = this.options.unlistedUntil;
+    if (unlisted !== undefined) this.server.authorize = () => (this.time.now() < unlisted ? 'language not listed yet' : null);
     this.server.appended.add(() => {
       if (!realtime.on) return;
       for (const d of this.devices) this.time.setTimeout(() => d.poke(), realtime.delayMs);
