@@ -22,7 +22,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createClient } from '@supabase/supabase-js';
 import { foldLanguage, type Role } from '@langquest-next/core';
-import { appendAll, audioNames, blobKey, copyBlobs, fetchV2Rows, mapOrgSeed, mapV2Project, SupabaseTransport, workerBlobs } from '@langquest-next/client';
+import { blobKey, SupabaseTransport, workerBlobs } from '@langquest-next/client';
+import { appendAll, audioNames, copyBlobs, fetchV2Rows, mapOrgSeed, mapV2Project } from '@langquest-next/v2-import';
 
 const args = process.argv.slice(2);
 const flag = (name: string) => args.includes(`--${name}`);

@@ -17,7 +17,7 @@ const OLD = /(?<![A-Za-z])(?:[Pp]artition|[Ll]ane|[Pp]roject)s?(?![a-z])|(?<=[a-
 /** Where the word means something else, by file (a path prefix) and what it may say there. */
 const ALLOWED: { path: string; words: RegExp; why: string }[] = [
   { path: '', words: /^project$/i, why: "a Supabase or EAS project (a hosted project, `projectId` in app.json's extra, `langquest_project_url`)" },
-  { path: 'packages/client/src/v2import.ts', words: /^projects?$/i, why: "LangQuest v2's own projects and its `project_id` columns" },
+  { path: 'packages/v2-import/', words: /^projects?$/i, why: "LangQuest v2's own projects and its `project_id` columns" },
   { path: 'server/importV2.ts', words: /^projects?$/i, why: "the v2 projects it imports" },
   { path: 'apps/mobile/src/flow.ts', words: /^projects?$/i, why: "the demo's own words: its dropped project screens, and comments ported with its edges" },
   { path: 'apps/mobile/src/study/chapterText.ts', words: /^lanes?$/i, why: 'Bible text ("the streets and lanes of the city")' },
