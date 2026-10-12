@@ -114,5 +114,23 @@ do $$ begin
     raise exception 'push lease permits duplicate worker';
   end if;
 end $$;
+-- A phone signed out offline detaches its notifications as nobody (decisions.md 88),
+-- but only for the person it names: never a token registered to someone else since.
+set local role anon;
+select public.release_push_token('ExponentPushToken[audit]', 'someone-else');
+reset role;
+do $$ begin
+  if not exists(select 1 from public.push_tokens where token='ExponentPushToken[audit]') then
+    raise exception 'release_push_token detached a token registered to someone else';
+  end if;
+end $$;
+set local role anon;
+select public.release_push_token('ExponentPushToken[audit]', 'audit-stranger');
+reset role;
+do $$ begin
+  if exists(select 1 from public.push_tokens where token='ExponentPushToken[audit]') then
+    raise exception 'release_push_token kept the token';
+  end if;
+end $$;
 select 'account smoke passed' as result;
 rollback;

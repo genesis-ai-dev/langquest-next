@@ -2685,6 +2685,14 @@
       "movingSub": "L’autre onglet sauvegarde ce qu’il a et se met en retrait.",
       "elsewhereSub": "Il fonctionne dans un seul onglet à la fois, pour que vos enregistrements et modifications restent au même endroit. Utilisez-le ici, ou retournez à l’autre onglet.",
       "useHere": "L’utiliser ici"
+    },
+    "lock": {
+      "title": "Déconnecté de ce téléphone ?",
+      "wait": "Trop d'essais. Attendez un peu, puis réessayez.",
+      "wrong": "Ce schéma n'est pas le bon.",
+      "body": "Touchez votre image, puis dessinez votre schéma. Pas besoin de connexion.",
+      "drawNow": "Dessinez votre schéma.",
+      "notMe": "Ce n'est pas mon image"
     }
   },
   "account": {
@@ -2906,7 +2914,6 @@
     "signOut": {
       "helpLine": "Pour vous reconnecter, il vous faudra un code de {{name}} ou d’un administrateur.",
       "helpLineNoName": "Pour vous reconnecter, il vous faudra un code de la personne qui vous a invité ou d’un administrateur.",
-      "handsOver": "Reste à envoyer : {{things}}. Tout sera quand même envoyé, en votre nom, quand cet appareil sera en ligne.",
       "blocked": "Reste à envoyer : {{things}}. Déconnectez-vous une fois la synchronisation faite, pour que rien ne reste bloqué ici.",
       "blockedOffline": "Reste à envoyer : {{things}}. Cet appareil est hors ligne. Déconnectez-vous une fois la synchronisation faite, pour que rien ne reste bloqué ici.",
       "refused": "Ce compte ne peut pas synchroniser cette organisation : le serveur l’a refusé. Vous pouvez vous déconnecter sans risque ; tout ce qui est en attente reste sur cet appareil.",
@@ -2960,6 +2967,19 @@
       "events_one": "{{count, number}} événement sur cet appareil",
       "events_many": "{{count, number}} événements sur cet appareil",
       "events_other": "{{count, number}} événements sur cet appareil"
+    },
+    "lock": {
+      "backWithPassword": "Vous pouvez vous reconnecter sur ce téléphone avec votre mot de passe, même sans connexion.",
+      "waitsForYou": "Reste à envoyer : {{things}}. L'envoi se fera quand vous vous reconnecterez.",
+      "backWithPattern": "Vous pouvez vous reconnecter sur ce téléphone avec votre schéma, même sans connexion.",
+      "chooseTitle": "Dessinez un schéma",
+      "chooseBody": "Reliez au moins {{n}} points. Vous le dessinerez pour vous reconnecter sur ce téléphone, même sans connexion. Personne d'autre ici ne peut ouvrir votre travail sans lui.",
+      "drawAgain": "Dessinez-le à nouveau",
+      "patternsDiffer": "C'était un autre schéma. Recommencez.",
+      "tooShort": "Reliez au moins {{n}} points.",
+      "newPattern": "Dessiner un nouveau schéma",
+      "pictureTitle": "Choisissez votre image",
+      "pictureBody": "Pour vous reconnecter sur ce téléphone, vous toucherez votre image, puis dessinerez votre schéma."
     }
   },
   "study": {
@@ -3890,6 +3910,12 @@
       "onlyAdmin": "Seul un administrateur de l’organisation peut changer cela.",
       "read": "Lire la licence",
       "rowLabel": "Licence : {{name}}. {{short}}"
+    },
+    "pattern": {
+      "label": "Schéma : reliez au moins {{n}} points",
+      "dot": "Point {{n}}",
+      "again": "Recommencer",
+      "picture": "Image {{n}}"
     }
   },
   "help": {

@@ -2517,6 +2517,14 @@
       "movingSub": "Tab lain menyimpan apa yang ada lalu mengalah.",
       "elsewhereSub": "LangQuest hanya bekerja di satu tab dalam satu waktu, agar rekaman dan perubahan Anda tetap di satu tempat. Pakai di sini, atau kembali ke tab lain.",
       "useHere": "Pakai di sini"
+    },
+    "lock": {
+      "title": "Keluar dari ponsel ini?",
+      "wait": "Terlalu banyak percobaan. Tunggu sebentar, lalu coba lagi.",
+      "wrong": "Pola itu tidak benar.",
+      "body": "Ketuk gambar Anda, lalu gambar pola Anda. Tidak perlu koneksi.",
+      "drawNow": "Gambar pola Anda.",
+      "notMe": "Bukan gambar saya"
     }
   },
   "account": {
@@ -2724,7 +2732,6 @@
     "signOut": {
       "helpLine": "Untuk masuk kembali, Anda memerlukan kode dari {{name}} atau admin.",
       "helpLineNoName": "Untuk masuk kembali, Anda memerlukan kode dari orang yang mengundang Anda atau admin.",
-      "handsOver": "Masih perlu dikirim: {{things}}. Semuanya tetap akan dikirim atas nama Anda saat perangkat ini online.",
       "blocked": "Masih perlu dikirim: {{things}}. Keluarlah setelah semuanya tersinkron agar tidak tertinggal di sini.",
       "blockedOffline": "Masih perlu dikirim: {{things}}. Perangkat ini sedang offline. Keluarlah setelah semuanya tersinkron agar tidak tertinggal di sini.",
       "refused": "Akun ini tidak dapat menyinkronkan organisasi ini: server menolaknya. Keluar tetap aman; semua yang mengantre tetap di perangkat ini.",
@@ -2774,6 +2781,19 @@
       "waitingCount": "Menunggu · {{n, number}}",
       "refusedCount": "Ditolak · {{n, number}}",
       "events_other": "{{count, number}} peristiwa di perangkat ini"
+    },
+    "lock": {
+      "backWithPassword": "Anda dapat masuk kembali di ponsel ini dengan kata sandi Anda, bahkan tanpa koneksi.",
+      "waitsForYou": "Masih perlu dikirim: {{things}}. Akan dikirim saat Anda masuk kembali.",
+      "backWithPattern": "Anda dapat masuk kembali di ponsel ini dengan pola Anda, bahkan tanpa koneksi.",
+      "chooseTitle": "Gambar pola",
+      "chooseBody": "Hubungkan setidaknya {{n}} titik. Anda akan menggambarnya untuk masuk kembali di ponsel ini, bahkan tanpa koneksi. Tidak ada orang lain di sini yang bisa membuka pekerjaan Anda tanpanya.",
+      "drawAgain": "Gambar sekali lagi",
+      "patternsDiffer": "Itu pola yang berbeda. Mulai lagi.",
+      "tooShort": "Hubungkan setidaknya {{n}} titik.",
+      "newPattern": "Gambar pola baru",
+      "pictureTitle": "Pilih gambar Anda",
+      "pictureBody": "Untuk masuk kembali di ponsel ini, Anda akan mengetuk gambar Anda, lalu menggambar pola Anda."
     }
   },
   "study": {
@@ -3634,6 +3654,12 @@
       "onlyAdmin": "Hanya admin organisasi yang dapat mengubah ini.",
       "read": "Baca lisensinya",
       "rowLabel": "Lisensi: {{name}}. {{short}}"
+    },
+    "pattern": {
+      "label": "Pola: hubungkan setidaknya {{n}} titik",
+      "dot": "Titik {{n}}",
+      "again": "Mulai lagi",
+      "picture": "Gambar {{n}}"
     }
   },
   "help": {

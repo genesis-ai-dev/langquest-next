@@ -823,12 +823,14 @@ end $$;
 -- 14. Signed out reaches nothing that reads a missing caller as the
 -- service role (decisions.md 64). A security definer function anon may run
 -- must be on this list; a new one fails here until it is revoked or listed.
+-- release_push_token reads no caller: a phone signed out offline detaches
+-- one device for one person with the token and id it holds (decisions.md 88).
 do $$ declare v text; begin
   select string_agg(p.proname, ', ' order by p.proname) into v
   from pg_proc p
   where p.pronamespace = 'public'::regnamespace and p.prosecdef
     and has_function_privilege('anon', p.oid, 'execute')
-    and p.proname not in ('preview_invite');
+    and p.proname not in ('preview_invite', 'release_push_token');
   if v is not null then raise exception 'anon may run security definer functions: %', v; end if;
   select string_agg(f, ', ') into v
   from unnest(array['put_snapshot', 'list_streams', 'record_blob', 'invalidate_blob', 'org_privileges', 'blob_access',

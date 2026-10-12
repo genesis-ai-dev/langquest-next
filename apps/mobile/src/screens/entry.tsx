@@ -37,6 +37,11 @@ import { noteExpected, reportError, failureMessage } from '../report';
 import { createOrganization } from '../createOrg';
 import { contractsFor } from '../screenContracts';
 import { FORGETS_ON_SIGN_OUT, forgetThisBrowser } from '../forgetBrowser';
+import { lockAndSignOut, lockKinds, LOCKS_ON_SIGN_OUT, rememberPassword, unlock, usePatternPeople } from '../lock';
+import { isPattern, patternSecret } from '../lockCore';
+import { PICTURES } from '../lockPictures';
+import { PatternPad, PictureGrid } from '../patternPad';
+import { handOverPushToken } from '../notifications';
 import { signOutHere, supabase } from '../supabase';
 import { lift } from '../shadow';
 import { C, TINT, radius, space, tile, type as T, withAlpha } from '../theme';
@@ -66,6 +71,10 @@ export function SignIn(ctx: Ctx) {
     setBusy(true);
     setError('');
     try {
+      // Signed out of this phone before: the password opens the lock, with no connection (decision 88).
+      const local = LOCKS_ON_SIGN_OUT ? await unlock('password', password, { address: signInAddress(email) }) : { kind: 'none' as const };
+      if (local.kind === 'ok') return;
+      if (local.kind === 'wait') { setError(t('entry.lock.wait')); return; }
       // One field: an email, or a looked-after account's sign-in name (accounts.ts).
       let { data, error } = await supabase.auth.signInWithPassword({ email: signInAddress(email), password });
       // Dev on a local server: `npm run db:test` wipes auth users. Recreate
@@ -75,7 +84,14 @@ export function SignIn(ctx: Ctx) {
         ({ data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password }));
       }
       // A wrong password or no connection: the server's answer, said in the language showing.
-      if (error) { noteExpected('sign in', error); setError(authErrorText(error, t('entry.signIn.failed'))); return; }
+      if (error) {
+        noteExpected('sign in', error);
+        // Offline after a password the lock did not take: say it was wrong, not that the phone is offline.
+        setError(local.kind === 'wrong' && error.name === 'AuthRetryableFetchError' ? t('entry.errors.wrongPassword') : authErrorText(error, t('entry.signIn.failed')));
+        return;
+      }
+      // Next time, this password signs them back in here with no connection.
+      if (data.user) void rememberPassword(data.user.id, signInAddress(email), password);
       // Signing in accepts the terms (AUTH-1). The session this screen was
       // given belongs to the guest, so record it for the account that just
       // signed in; the account outbox delivers (and retries) it once the new
@@ -99,6 +115,7 @@ export function SignIn(ctx: Ctx) {
 
   const ready = (email.trim().includes('@') || isSignInName(email)) && password.length > 0;
   const joining = ctx.invite.held?.claim.kind === 'next-account';
+  const patternPeople = usePatternPeople();
   return (
     <Screen bodyStyle={styles.signInBody}>
       <LanguageChip />
@@ -109,6 +126,12 @@ export function SignIn(ctx: Ctx) {
         <Text style={[txt.smMuted, { textAlign: 'center' }]}>{t('entry.signIn.tagline')}</Text>
       </View>
       {joining ? <Banner icon="people" title={t('entry.signIn.joinTitle')} body={t('entry.signIn.joinBody')} /> : null}
+      {patternPeople.length > 0 ? (
+        <>
+          <PatternSignIn people={patternPeople} />
+          <OrDivider />
+        </>
+      ) : null}
       {/* Two ways in that never combine (the demo's ADR-031): the fields, or a code. */}
       <Card>
         <Field value={email} onChangeText={setEmail} placeholder={t('entry.signIn.namePlaceholder')} keyboardType="email-address" autoCapitalize="none" />
@@ -129,6 +152,53 @@ export function SignIn(ctx: Ctx) {
         <LinkBtn label={t('entry.signIn.switchPersona')} color={C.muted} onPress={ctx.openDev} style={{ alignSelf: 'center' }} />
       ) : null}
     </Screen>
+  );
+}
+
+/**
+ * Someone who signed out of this phone taps their picture, draws their
+ * pattern and is back in, with no connection (decision 88). Nobody is named:
+ * a phone that is taken shows how many signed out here, never who.
+ */
+function PatternSignIn(props: { people: { actorId: string; picture: number }[] }) {
+  const [who, setWho] = useState<{ actorId: string; picture: number } | null>(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [padKey, setPadKey] = useState(0);
+  async function drew(dots: number[]) {
+    if (!who) return;
+    setBusy(true);
+    setError('');
+    try {
+      const result = isPattern(dots) ? await unlock('pattern', patternSecret(dots), { actorId: who.actorId }) : { kind: 'wrong' as const };
+      // In: App opens the app as them, and this screen goes.
+      if (result.kind === 'ok') return;
+      setError(result.kind === 'wait' ? t('entry.lock.wait') : t('entry.lock.wrong'));
+    } catch (e) {
+      setError(failureMessage('sign in with pattern', e));
+    } finally {
+      setBusy(false);
+      setPadKey((k) => k + 1);
+    }
+  }
+  return (
+    <Card>
+      <Text style={txt.h3}>{t('entry.lock.title')}</Text>
+      {who ? (
+        <>
+          <Text style={[styles.chosenPicture]} accessibilityElementsHidden importantForAccessibility="no">{PICTURES[who.picture]}</Text>
+          <Text style={txt.smMuted}>{busy ? t('entry.shared.signingIn') : t('entry.lock.drawNow')}</Text>
+          <PatternPad onDone={(dots) => void drew(dots)} disabled={busy} error={!!error} resetKey={padKey} />
+          {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
+          <LinkBtn label={t('entry.lock.notMe')} onPress={() => { setWho(null); setError(''); }} style={{ alignSelf: 'center' }} />
+        </>
+      ) : (
+        <>
+          <Text style={txt.smMuted}>{t('entry.lock.body')}</Text>
+          <PictureGrid pictures={props.people.map((p) => p.picture)} onPick={(picture) => setWho(props.people.find((p) => p.picture === picture) ?? null)} />
+        </>
+      )}
+    </Card>
   );
 }
 
@@ -679,8 +749,12 @@ export function IntentChooser(ctx: Ctx) {
       setError(t('entry.intent.stillToSend', { count: queued }));
       return;
     }
-    // This device only, and offline too (decision 87).
+    // This device only, and offline too (decision 87); a phone locks it when they can come back (decision 88).
     try {
+      if (LOCKS_ON_SIGN_OUT && (await lockKinds(ctx.session.actorId)).length > 0) {
+        await lockAndSignOut(ctx.session.actorId, (await handOverPushToken()) ?? null);
+        return;
+      }
       await signOutHere();
     } catch (e) {
       reportError('sign out', e);
@@ -926,6 +1000,7 @@ export function RequestAccess(ctx: Ctx) {
 const styles = StyleSheet.create({
   rule: { flexDirection: 'row', gap: space.sm },
   signInBody: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: space.xl, gap: space.lg },
+  chosenPicture: { fontSize: 44, lineHeight: 54, textAlign: 'center' },
   brand: { alignItems: 'center', gap: space.sm, paddingBottom: space.sm },
   logo: { width: 64, height: 64, borderRadius: 24, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center',
     ...lift({ color: C.primary, opacity: 0.25, radius: 12, y: 6, elevation: 4 }) },

@@ -10,6 +10,7 @@ import { UploadError, uploadBlob } from './blobTransport';
 import { afterAttempt, parseHandOvers, withHandOver, withoutFinished, type HandOver, type PendingUpload } from './handOverCore';
 import { handOverPushToken } from './notifications';
 import { noteExpected } from './report';
+import { releasePushTokens } from './lock';
 import { getStore } from './store';
 import { SESSION_KEY, clientKeptAt, supabase } from './supabase';
 import { onWake } from './wake';
@@ -169,7 +170,13 @@ async function sendAll(signedInAs: string | null): Promise<{ offline: boolean }>
 export function useHandOvers(signedInAs: string | null | undefined): void {
   useEffect(() => {
     if (!HANDS_OVER || signedInAs === undefined) return;
-    const scheduler = new SyncScheduler({ run: () => sendAll(signedInAs), pollMs: 10 * 60_000 });
+    // Also stops notifications for people who signed out offline (lock.ts, decision 88).
+    const run = async () => {
+      const released = await releasePushTokens();
+      const sent = await sendAll(signedInAs);
+      return { offline: released.offline || sent.offline };
+    };
+    const scheduler = new SyncScheduler({ run, pollMs: 10 * 60_000 });
     const nudge = () => scheduler.nudge();
     added.add(nudge);
     const unwake = onWake(() => scheduler.wake());

@@ -2601,6 +2601,14 @@
       "movingSub": "The other tab saves what it has and steps aside.",
       "elsewhereSub": "It works in one tab at a time, so your recordings and changes stay in one place. Use it here, or go back to the other tab.",
       "useHere": "Use it here"
+    },
+    "lock": {
+      "title": "Signed out of this phone?",
+      "wait": "Too many tries. Wait a little, then try again.",
+      "wrong": "That pattern is not right.",
+      "body": "Tap your picture, then draw your pattern. No connection needed.",
+      "drawNow": "Draw your pattern.",
+      "notMe": "Not my picture"
     }
   },
   "account": {
@@ -2815,7 +2823,6 @@
     "signOut": {
       "helpLine": "To sign back in, you'll need a code from {{name}} or an admin.",
       "helpLineNoName": "To sign back in, you'll need a code from the person who invited you or an admin.",
-      "handsOver": "Still to send: {{things}}. All of it will still be sent, as you, when this device is online.",
       "blocked": "Still to send: {{things}}. Sign out once they have synced so they are not stranded here.",
       "blockedOffline": "Still to send: {{things}}. This device is offline. Sign out once they have synced so they are not stranded here.",
       "refused": "This account cannot sync this organization: the server refused it. Signing out is safe; anything queued stays on this device.",
@@ -2867,6 +2874,19 @@
       "refusedCount": "Refused · {{n, number}}",
       "events_one": "{{count, number}} event on this device",
       "events_other": "{{count, number}} events on this device"
+    },
+    "lock": {
+      "backWithPassword": "You can sign back in on this phone with your password, even with no connection.",
+      "waitsForYou": "Still to send: {{things}}. It goes when you sign back in.",
+      "backWithPattern": "You can sign back in on this phone with your pattern, even with no connection.",
+      "chooseTitle": "Draw a pattern",
+      "chooseBody": "Join at least {{n}} dots. You will draw it to sign back in on this phone, even with no connection. Nobody else here can open your work without it.",
+      "drawAgain": "Draw it again",
+      "patternsDiffer": "That was a different pattern. Start again.",
+      "tooShort": "Join at least {{n}} dots.",
+      "newPattern": "Draw a new pattern",
+      "pictureTitle": "Choose your picture",
+      "pictureBody": "To sign back in on this phone, you will tap your picture, then draw your pattern."
     }
   },
   "study": {
@@ -3762,6 +3782,12 @@
       "onlyAdmin": "Only an organization admin can change this.",
       "read": "Read the license",
       "rowLabel": "License: {{name}}. {{short}}"
+    },
+    "pattern": {
+      "label": "Pattern: join at least {{n}} dots",
+      "dot": "Dot {{n}}",
+      "again": "Start again",
+      "picture": "Picture {{n}}"
     }
   },
   "help": {

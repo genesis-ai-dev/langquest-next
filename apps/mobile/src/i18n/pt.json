@@ -2685,6 +2685,14 @@
       "movingSub": "A outra aba salva o que tem e dá lugar a esta.",
       "elsewhereSub": "Ele funciona em uma aba de cada vez, para que as suas gravações e mudanças fiquem em um só lugar. Use aqui, ou volte para a outra aba.",
       "useHere": "Usar aqui"
+    },
+    "lock": {
+      "title": "Saiu deste aparelho?",
+      "wait": "Tentativas demais. Espere um pouco e tente de novo.",
+      "wrong": "Esse padrão não está certo.",
+      "body": "Toque na sua imagem e depois desenhe o seu padrão. Não precisa de internet.",
+      "drawNow": "Desenhe o seu padrão.",
+      "notMe": "Não é a minha imagem"
     }
   },
   "account": {
@@ -2906,7 +2914,6 @@
     "signOut": {
       "helpLine": "Para entrar de novo, você vai precisar de um código de {{name}} ou de um administrador.",
       "helpLineNoName": "Para entrar de novo, você vai precisar de um código da pessoa que convidou você ou de um administrador.",
-      "handsOver": "Ainda falta enviar: {{things}}. Tudo isso ainda será enviado, em seu nome, quando este aparelho estiver com internet.",
       "blocked": "Ainda falta enviar: {{things}}. Saia depois que tudo for sincronizado, para que nada fique preso aqui.",
       "blockedOffline": "Ainda falta enviar: {{things}}. Este aparelho está sem internet. Saia depois que tudo for sincronizado, para que nada fique preso aqui.",
       "refused": "Esta conta não pode sincronizar esta organização: o servidor recusou. Pode sair com segurança; o que está na fila continua neste aparelho.",
@@ -2960,6 +2967,19 @@
       "events_one": "{{count, number}} evento neste aparelho",
       "events_many": "{{count, number}} de eventos neste aparelho",
       "events_other": "{{count, number}} eventos neste aparelho"
+    },
+    "lock": {
+      "backWithPassword": "Você pode entrar de novo neste aparelho com a sua senha, mesmo sem internet.",
+      "waitsForYou": "Ainda falta enviar: {{things}}. Vai ser enviado quando você entrar de novo.",
+      "backWithPattern": "Você pode entrar de novo neste aparelho com o seu padrão, mesmo sem internet.",
+      "chooseTitle": "Desenhe um padrão",
+      "chooseBody": "Ligue pelo menos {{n}} pontos. Você vai desenhá-lo para entrar de novo neste aparelho, mesmo sem internet. Ninguém mais aqui consegue abrir o seu trabalho sem ele.",
+      "drawAgain": "Desenhe de novo",
+      "patternsDiffer": "Esse era outro padrão. Comece de novo.",
+      "tooShort": "Ligue pelo menos {{n}} pontos.",
+      "newPattern": "Desenhar um padrão novo",
+      "pictureTitle": "Escolha a sua imagem",
+      "pictureBody": "Para entrar de novo neste aparelho, você vai tocar na sua imagem e depois desenhar o seu padrão."
     }
   },
   "study": {
@@ -3890,6 +3910,12 @@
       "onlyAdmin": "Só um administrador da organização pode mudar isso.",
       "read": "Ler a licença",
       "rowLabel": "Licença: {{name}}. {{short}}"
+    },
+    "pattern": {
+      "label": "Padrão: ligue pelo menos {{n}} pontos",
+      "dot": "Ponto {{n}}",
+      "again": "Começar de novo",
+      "picture": "Imagem {{n}}"
     }
   },
   "help": {

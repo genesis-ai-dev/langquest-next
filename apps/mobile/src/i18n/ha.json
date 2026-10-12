@@ -2601,6 +2601,14 @@
       "movingSub": "Ɗayan shafin zai ajiye abin da yake da shi ya koma gefe.",
       "elsewhereSub": "Yana aiki a shafi ɗaya a lokaci guda, don naɗe-naɗenku da canje-canjenku su kasance a wuri ɗaya. Ku yi amfani da shi a nan, ko ku koma ɗayan shafin.",
       "useHere": "Yi amfani da shi a nan"
+    },
+    "lock": {
+      "title": "Kun fita daga wannan waya?",
+      "wait": "Gwaje-gwaje sun yi yawa. Ku jira kaɗan, sannan ku sake gwadawa.",
+      "wrong": "Wannan zanen ba daidai ba ne.",
+      "body": "Taɓa hotonku, sannan ku zana zanenku. Ba a buƙatar intanet.",
+      "drawNow": "Zana zanenku.",
+      "notMe": "Ba hotona ba ne"
     }
   },
   "account": {
@@ -2815,7 +2823,6 @@
     "signOut": {
       "helpLine": "Don sake shiga, za ku buƙaci lamba daga {{name}} ko mai kula.",
       "helpLineNoName": "Don sake shiga, za ku buƙaci lamba daga wanda ya gayyace ku ko mai kula.",
-      "handsOver": "Saura a aika: {{things}}. Za a aika duka, da sunanku, idan wannan na'ura tana kan intanet.",
       "blocked": "Saura a aika: {{things}}. Ku fita bayan an daidaita su don kada su maƙale a nan.",
       "blockedOffline": "Saura a aika: {{things}}. Wannan na'ura ba ta da intanet. Ku fita bayan an daidaita su don kada su maƙale a nan.",
       "refused": "Wannan asusu ba zai iya daidaita wannan ƙungiya ba: sabar ta ƙi. Fita ba shi da haɗari; duk abin da ke jira zai zauna a wannan na'ura.",
@@ -2867,6 +2874,19 @@
       "refusedCount": "An ƙi · {{n, number}}",
       "events_one": "Abu {{count, number}} a wannan na'ura",
       "events_other": "Abubuwa {{count, number}} a wannan na'ura"
+    },
+    "lock": {
+      "backWithPassword": "Kuna iya sake shiga a wannan waya da kalmar sirrinku, ko babu intanet.",
+      "waitsForYou": "Saura a aika: {{things}}. Za a aika idan kun sake shiga.",
+      "backWithPattern": "Kuna iya sake shiga a wannan waya da zanenku, ko babu intanet.",
+      "chooseTitle": "Zana zane",
+      "chooseBody": "Haɗa aƙalla ɗigo {{n}}. Za ku zana shi don sake shiga a wannan waya, ko babu intanet. Babu wani a nan da zai iya buɗe aikinku ba tare da shi ba.",
+      "drawAgain": "Sake zana shi",
+      "patternsDiffer": "Wannan wani zane ne daban. Sake farawa.",
+      "tooShort": "Haɗa aƙalla ɗigo {{n}}.",
+      "newPattern": "Zana sabon zane",
+      "pictureTitle": "Zaɓi hotonku",
+      "pictureBody": "Don sake shiga a wannan waya, za ku taɓa hotonku, sannan ku zana zanenku."
     }
   },
   "study": {
@@ -3762,6 +3782,12 @@
       "onlyAdmin": "Mai kula da ƙungiya kaɗai ne zai iya canja wannan.",
       "read": "Karanta lasisin",
       "rowLabel": "Lasisi: {{name}}. {{short}}"
+    },
+    "pattern": {
+      "label": "Zane: haɗa aƙalla ɗigo {{n}}",
+      "dot": "Ɗigo {{n}}",
+      "again": "Sake farawa",
+      "picture": "Hoto {{n}}"
     }
   },
   "help": {
