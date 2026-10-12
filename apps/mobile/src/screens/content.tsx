@@ -48,6 +48,7 @@ import { loadDocs } from '../library/docStore';
 import { sourceLine, usesItem, type SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs, useLibraryUpdates, useSharedItems } from '../library/useLibrary';
 import { failureMessage } from '../report';
+import { DashedRow } from '../simple/admin';
 import { readingsFor } from '../scripture';
 import { contractsFor } from '../screenContracts';
 import { C, radius, space, target, tile, TINT, type as T } from '../theme';
@@ -662,6 +663,8 @@ export function TemplatePicker(ctx: Ctx) {
           <PrimaryBtn label={t('content.picker.use', { name: pick.name })} icon="check" busy={busy} disabled={!canUse} onPress={() => void use(pick)} />
         </>
       ) : undefined}>
+      {/* Making your own comes first and stands apart, so the ready-made list below can grow without burying it (design principle 12). */}
+      {ctx.session.can('manage_templates') ? <DashedRow icon="plus" label={t('breakup.translate.makeOwn')} onPress={() => ctx.go('template_editor', { new: '1' })} /> : null}
       <SectionLabel label={t('content.sections.yourOrganization')} />
       {ours.length === 0 ? (
         <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('content.picker.noneOurs')}</Text>
@@ -670,10 +673,6 @@ export function TemplatePicker(ctx: Ctx) {
       <SharedOffline error={shared.error} empty={shared.rows.length === 0} />
       {others.slice(0, sharedLimit).map(card)}
       <ShowMore remaining={others.length - sharedLimit} step={5} onMore={() => setSharedLimit((l) => l + 5)} />
-      {/* Ready-made ones come with making your own (design principle 12). */}
-      {ctx.session.can('manage_templates') ? (
-        <Group><Row icon="plus" label={t('breakup.translate.makeOwn')} last onPress={() => ctx.go('template_editor', { new: '1' })} /></Group>
-      ) : null}
     </Screen>
   );
 }
