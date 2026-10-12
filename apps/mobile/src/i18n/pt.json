@@ -6281,5 +6281,25 @@
     "theyAnswer": "Vão responder",
     "forTeam": "Para a equipe de {{check}}",
     "forCheck": "Para {{check}}"
+  },
+  "lostFiles": {
+    "title": "Falta áudio",
+    "deleted_one": "Este aparelho apagou {{count, number}} arquivo sozinho.",
+    "deleted_many": "Este aparelho apagou {{count, number}} arquivos sozinho.",
+    "deleted_other": "Este aparelho apagou {{count, number}} arquivos sozinho.",
+    "unsent_one": "{{count, number}} gravação não foi enviada. Ela se perdeu.",
+    "unsent_many": "{{count, number}} gravações não foram enviadas. Elas se perderam.",
+    "unsent_other": "{{count, number}} gravações não foram enviadas. Elas se perderam.",
+    "recordAgain": "Grave de novo:",
+    "passage": "• {{passage}}",
+    "morePassages_one": "e mais {{count, number}} passagem",
+    "morePassages_many": "e mais {{count, number}} passagens",
+    "morePassages_other": "e mais {{count, number}} passagens",
+    "safe_one": "{{count, number}} arquivo está seguro no servidor.",
+    "safe_many": "{{count, number}} arquivos estão seguros no servidor.",
+    "safe_other": "{{count, number}} arquivos estão seguros no servidor.",
+    "goOnline": "Conecte-se à internet com frequência para que seu trabalho seja enviado.",
+    "lessSpace": "Este aparelho pode ter menos espaço do que diz.",
+    "understand": "Entendi"
   }
 }

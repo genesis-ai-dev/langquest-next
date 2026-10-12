@@ -5717,5 +5717,17 @@
     "theyAnswer": "พวกเขาจะตอบ",
     "forTeam": "สำหรับทีม {{check}}",
     "forCheck": "สำหรับ {{check}}"
+  },
+  "lostFiles": {
+    "title": "เสียงหายไป",
+    "deleted_other": "เครื่องนี้ลบไฟล์ {{count, number}} ไฟล์ไปเอง",
+    "unsent_other": "เสียงที่อัด {{count, number}} รายการยังไม่ได้ส่ง และหายไปแล้ว",
+    "recordAgain": "อัดใหม่:",
+    "passage": "• {{passage}}",
+    "morePassages_other": "และอีก {{count, number}} ตอน",
+    "safe_other": "ไฟล์ {{count, number}} ไฟล์ปลอดภัยอยู่บนเซิร์ฟเวอร์",
+    "goOnline": "เชื่อมต่ออินเทอร์เน็ตบ่อยๆ เพื่อให้งานของคุณถูกส่ง",
+    "lessSpace": "เครื่องนี้อาจมีพื้นที่น้อยกว่าที่แสดง",
+    "understand": "เข้าใจแล้ว"
   }
 }

@@ -6281,5 +6281,25 @@
     "theyAnswer": "Van a responder",
     "forTeam": "Para el equipo de {{check}}",
     "forCheck": "Para {{check}}"
+  },
+  "lostFiles": {
+    "title": "Falta audio",
+    "deleted_one": "Este dispositivo borró {{count, number}} archivo por sí solo.",
+    "deleted_many": "Este dispositivo borró {{count, number}} archivos por sí solo.",
+    "deleted_other": "Este dispositivo borró {{count, number}} archivos por sí solo.",
+    "unsent_one": "{{count, number}} grabación no se envió. Se perdió.",
+    "unsent_many": "{{count, number}} grabaciones no se enviaron. Se perdieron.",
+    "unsent_other": "{{count, number}} grabaciones no se enviaron. Se perdieron.",
+    "recordAgain": "Vuelve a grabar:",
+    "passage": "• {{passage}}",
+    "morePassages_one": "y {{count, number}} pasaje más",
+    "morePassages_many": "y {{count, number}} pasajes más",
+    "morePassages_other": "y {{count, number}} pasajes más",
+    "safe_one": "{{count, number}} archivo está a salvo en el servidor.",
+    "safe_many": "{{count, number}} archivos están a salvo en el servidor.",
+    "safe_other": "{{count, number}} archivos están a salvo en el servidor.",
+    "goOnline": "Conéctate a internet a menudo para que tu trabajo se envíe.",
+    "lessSpace": "Puede que este dispositivo tenga menos espacio del que dice.",
+    "understand": "Entendido"
   }
 }

@@ -5999,5 +5999,21 @@
     "theyAnswer": "Za su amsa",
     "forTeam": "Don tawagar {{check}}",
     "forCheck": "Don {{check}}"
+  },
+  "lostFiles": {
+    "title": "Sauti ta ɓace",
+    "deleted_one": "Wannan na'ura ta goge fayil {{count, number}} da kanta.",
+    "deleted_other": "Wannan na'ura ta goge fayiloli {{count, number}} da kanta.",
+    "unsent_one": "Naɗi {{count, number}} ba a aika ba. Ya ɓace.",
+    "unsent_other": "Naɗe-naɗe {{count, number}} ba a aika ba. Sun ɓace.",
+    "recordAgain": "Sake naɗawa:",
+    "passage": "• {{passage}}",
+    "morePassages_one": "da ƙarin nassi {{count, number}}",
+    "morePassages_other": "da ƙarin nassosi {{count, number}}",
+    "safe_one": "Fayil {{count, number}} yana nan lafiya a sabar.",
+    "safe_other": "Fayiloli {{count, number}} suna nan lafiya a sabar.",
+    "goOnline": "Ku riƙa haɗa intanet akai-akai don a aika aikinku.",
+    "lessSpace": "Wataƙila wannan na'ura tana da ƙarancin wuri fiye da yadda take faɗa.",
+    "understand": "Na fahimta"
   }
 }

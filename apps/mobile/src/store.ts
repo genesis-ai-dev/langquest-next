@@ -1,4 +1,4 @@
-import { SqliteDiagStore, SqliteStore, type SqlDriver } from '@langquest-next/client';
+import { SqliteDiagStore, SqliteFileLedger, SqliteStore, type SqlDriver } from '@langquest-next/client';
 import * as SQLite from 'expo-sqlite';
 import { Platform } from 'react-native';
 
@@ -118,6 +118,7 @@ async function expoDriver(db: SQLite.SQLiteDatabase, name: string): Promise<SqlD
 
 let storePromise: Promise<SqliteStore> | undefined;
 let diagPromise: Promise<SqliteDiagStore> | undefined;
+let ledgerPromise: Promise<SqliteFileLedger> | undefined;
 /** The open databases, so signing out on the web can close and delete them. */
 const opened = new Map<string, SQLite.SQLiteDatabase>();
 /** Their write connections (phones only). */
@@ -160,6 +161,21 @@ export function getDiagStore(): Promise<SqliteDiagStore> {
     .then(async (db) => SqliteDiagStore.open(await expoDriver(db, 'langquest-diagnostics.db')))
     .catch((error: unknown) => { diagPromise = undefined; throw error; });
   return diagPromise;
+}
+
+/**
+ * What the file store has kept (blobs.ts, decisions.md 92). Its own file
+ * too, so writing down a downloaded file never waits on an event commit.
+ * Only the file store opens it, and only on a phone: a browser's SQLite
+ * keeps at most six files open (expo-sqlite's access handle pool), which
+ * the two databases above already fill, so a third makes the web fail to
+ * open its storage at all.
+ */
+export function getFileLedger(): Promise<SqliteFileLedger> {
+  ledgerPromise ??= allowed.then(() => open('langquest-files.db'))
+    .then(async (db) => SqliteFileLedger.open(await expoDriver(db, 'langquest-files.db')))
+    .catch((error: unknown) => { ledgerPromise = undefined; throw error; });
+  return ledgerPromise;
 }
 
 /** One local event log per device, shared by every stream this phone syncs. */
