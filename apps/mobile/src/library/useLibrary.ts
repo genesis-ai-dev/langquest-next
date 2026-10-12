@@ -40,9 +40,12 @@ function adoptError(error: { message?: string; code?: string }): CommandError {
  */
 export function useLibrary(ctx: Ctx) {
   const orgId = ctx.language.orgId;
-  const library = ctx.org.state?.library;
-  const items = useCallback((kind?: LibraryKind) => libraryItems(library ?? {}, kind), [library]);
-  const item = useCallback((itemId: string) => libraryItemView(library ?? {}, itemId), [library]);
+  const orgState = ctx.org.state;
+  const library = orgState?.library;
+  // The org fold changes its maps in place and makes a new state object on every change, so the
+  // state keys these: an item published here (New language's "I'll choose the steps") shows at once.
+  const items = useCallback((kind?: LibraryKind) => libraryItems(library ?? {}, kind), [library, orgState]);
+  const item = useCallback((itemId: string) => libraryItemView(library ?? {}, itemId), [library, orgState]);
 
   const run = useCallback(async (ops: LibraryOp[]) => {
     for (const op of ops) await ctx.org.append(op.type, op.payload as never);
@@ -65,11 +68,15 @@ export function useLibrary(ctx: Ctx) {
   const archive = useCallback((it: LibraryItemView, archived: boolean) =>
     run([{ type: 'v1.LibraryItemArchived', payload: { itemId: it.itemId, kind: it.kind, archived } }]), [run]);
 
-  /** Get access to a shared version (and what it depends on) before naming it here. */
+  /**
+   * Get access to a shared version (and what it depends on) before naming it here.
+   * Reference material brings only its own document now: FIA's English guides are
+   * 1,525 more (65 MB), and each loads when a passage reads it.
+   */
   const adopt = useCallback(async (s: SharedItem, hash = s.latest_hash) => {
     const { error } = await supabase.rpc('library_adopt', { p_org: orgId, p_source_org: s.org_id, p_source_item: s.item_id, p_hash: hash });
     if (error) throw adoptError(error);
-    await loadDocs(orgId, [hash]);
+    await loadDocs(orgId, [hash], s.kind === 'material' ? { deps: false } : {});
   }, [orgId]);
 
   const copy = useCallback(async (s: SharedItem) => {

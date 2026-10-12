@@ -7,7 +7,7 @@
 // so help mode explains it instead of pressing it.
 import { FileText, Play, Route } from 'lucide-react-native';
 import { useEffect, useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../text';
 import QRCode from 'react-native-qrcode-svg';
 import { scopeKey, type Scope } from '@langquest-next/core';
@@ -127,6 +127,32 @@ export function QuietLink(props: { icon: AdminIcon; label: string; onPress: () =
       <Text style={[txt.sm, { color: C.muted, fontWeight: '700' }]}>{props.label}</Text>
       <HelpBadge spot={spot} />
     </Pressable>
+  );
+}
+
+/**
+ * What a job that takes a while is doing, a line a part: done (a tick), now
+ * (turning, in dark type), or still to come (a dot). The part now running is
+ * read out as it starts.
+ */
+export function WorkSteps(props: { items: { key: string; label: string; state: 'done' | 'now' | 'later' }[] }) {
+  const now = props.items.find((s) => s.state === 'now')?.label;
+  useEffect(() => {
+    if (now) AccessibilityInfo.announceForAccessibility(now);
+  }, [now]);
+  return (
+    <View style={styles.work}>
+      {props.items.map((s) => (
+        <View key={s.key} style={styles.workRow}>
+          <View style={styles.workMark}>
+            {s.state === 'done' ? <Ico name="check" size={20} color={C.green} strokeWidth={3} />
+              : s.state === 'now' ? <ActivityIndicator size="small" color={C.muted} />
+                : <View style={styles.workDot} />}
+          </View>
+          <Text style={[styles.workLabel, s.state === 'now' && styles.workNow]}>{s.label}</Text>
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -378,6 +404,12 @@ const styles = StyleSheet.create({
   over: { fontSize: 14, fontWeight: '700', color: C.muted },
   bigTitle: { fontSize: 28, fontWeight: '800', color: C.dark, marginTop: 2 },
   status: { fontSize: T.sm, fontWeight: '700', marginTop: 2 },
+  work: { gap: space.md, paddingTop: space.sm, paddingHorizontal: space.xs },
+  workRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 32 },
+  workMark: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
+  workDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.faint },
+  workLabel: { flex: 1, minWidth: 0, fontSize: T.base, fontWeight: '600', color: C.muted },
+  workNow: { color: C.dark, fontWeight: '800' },
   question: { fontSize: 24, fontWeight: '800', color: C.dark, lineHeight: 31, paddingHorizontal: space.xs },
   checkRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 74, paddingLeft: 14, paddingRight: 10, paddingVertical: 10, borderRadius: radius.xl, borderWidth: 2, borderColor: C.border, backgroundColor: C.card },
   checkRowNow: { borderColor: C.primary },
