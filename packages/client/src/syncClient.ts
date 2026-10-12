@@ -225,6 +225,11 @@ export class SyncClient<S = LanguageState> {
     return () => this.listeners.delete(listener);
   }
 
+  /** The fold revision `subscribe` publishes, for a screen catching up outside a publish. */
+  get publishedRevision(): number {
+    return this.revision;
+  }
+
   private publish(): void {
     const snap = { state: this.state, revision: this.revision, saving: this.writer.size };
     for (const l of this.listeners) l(snap);

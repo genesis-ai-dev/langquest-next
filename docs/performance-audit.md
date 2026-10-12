@@ -159,6 +159,15 @@ per append.** Confirmed.
   state, and drop the second copy in `refresh()`.
 - **Measure:** index builds per append (a counter; target 1), and append to
   screen updated. A rebuild costs 8–11 ms on V8 at Bible scale today.
+- **Done (2026-10-12):** `useLanguage` copies the state only when the fold
+  changed: another state object, or another of the client's fold revisions
+  (`stateCopier`, `apps/mobile/src/publishedState.ts`;
+  `SyncClient.publishedRevision`). 100 appends made 300 copies, and as many
+  index builds per mounted screen; now 100. Keying on core's
+  `stateRevision` was tried first and dropped: its counts live in a
+  module-level `WeakMap`, and a second copy of the core module (as tsx made
+  of it) would have stopped screens updating without an error.
+  `apps/mobile/test/publishedState.test.ts`. Not measured on a phone yet.
 
 **3. Every sync parses the whole local checkpoint to read one number.**
 Confirmed.
