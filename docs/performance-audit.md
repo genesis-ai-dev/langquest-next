@@ -145,6 +145,15 @@ but not measured.
 - **Measure:** the `commit` record (2.3), ms per append and per 500-event
   page, on the device. `scripts/bench/bootstrap.ts` uses node:sqlite on one
   connection and cannot show this.
+- **Done (2026-10-12):** one write connection per database, opened once
+  with `synchronous = normal` and a busy timeout, its statements prepared
+  once and kept; commits run on it one at a time, reads stay on the main
+  connection (`writeConnectionDriver`, `apps/mobile/src/store.ts`). The
+  developer menu's Storage benchmark (`storageBench.ts`) runs both drivers
+  on the device. iOS simulator, four runs: an append 0.16 to 0.18 ms
+  instead of 0.50 to 0.67, a 500-event page 30 to 32 ms instead of 66 to
+  71. The simulator uses the Mac's CPU and disk: the ratio carries over to
+  a phone, the milliseconds do not. Not yet run on Android.
 
 **2. Every publish makes every screen rebuild its derived views, 2–3 times
 per append.** Confirmed.
