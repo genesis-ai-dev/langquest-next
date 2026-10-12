@@ -68,15 +68,11 @@ export function useLibrary(ctx: Ctx) {
   const archive = useCallback((it: LibraryItemView, archived: boolean) =>
     run([{ type: 'v1.LibraryItemArchived', payload: { itemId: it.itemId, kind: it.kind, archived } }]), [run]);
 
-  /**
-   * Get access to a shared version (and what it depends on) before naming it here.
-   * Reference material brings only its own document now: FIA's English guides are
-   * 1,525 more (65 MB), and each loads when a passage reads it.
-   */
+  /** Get access to a shared version (and what it depends on) before naming it here. A collection's guides stay on the server (`loadDocs`). */
   const adopt = useCallback(async (s: SharedItem, hash = s.latest_hash) => {
     const { error } = await supabase.rpc('library_adopt', { p_org: orgId, p_source_org: s.org_id, p_source_item: s.item_id, p_hash: hash });
     if (error) throw adoptError(error);
-    await loadDocs(orgId, [hash], s.kind === 'material' ? { deps: false } : {});
+    await loadDocs(orgId, [hash]);
   }, [orgId]);
 
   const copy = useCallback(async (s: SharedItem) => {

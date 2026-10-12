@@ -2116,15 +2116,19 @@ shows a still "Saving…" button: the screen names each part as it starts
 (the passages, the review steps, the Bible and guides offered, listing the
 language, saving its passages) under a bar that keeps moving, and ✕ says
 to wait until it is done. The wait itself was mostly FIA's English guides:
-following a shared item fetched the item's document and everything it
-depends on, which for that collection is 1,525 guides (65 MB). Reference
-material now brings only its own document when followed or copied
-(`adopt` in library/useLibrary.ts); the guides load when a passage needs
-them, as they already did on every other phone. On a phone-like link (12 Mbit/s
-down, 4 up, 120 ms) a first language took 60 s and now takes about 5.
-Reverse if: admins expect followed guides to be on their phone offline right
-after adding a language (then fetch them after the language is added, in
-the background).
+loading a collection fetched everything it depends on, which for that
+collection is 1,525 guides (65 MB), and following it did that before going
+on. Opening any passage did the same on every phone, the first time. Now a
+collection brings only its numbering, as a Bible source already did
+(`loadDocs` in library/docStore.ts), and each guide is fetched by its own
+hash when a passage reads it. On a phone-like link (12 Mbit/s down, 4 up,
+120 ms) a first language took 60 s and now takes 5 to 7; the first passage
+opened fetched 1,524 documents (67 MB) and now fetches its one guide (80
+KB). Offline, a phone keeps the guides of the passages it keeps (decision
+61, `StudyPrefetch`), not every guide.
+Reverse if: teams need every guide on the phone before they go out of
+signal, beyond the passages they keep (then a "keep all guides" choice on
+Ready for offline, not a download on first open).
 
 ## 72. Apps, agents and review links take part through reviews and releases; outside reviews never clear a checkpoint
 
