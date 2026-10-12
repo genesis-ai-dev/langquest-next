@@ -2685,6 +2685,17 @@
       "movingSub": "La otra pestaña guarda lo que tiene y se hace a un lado.",
       "elsewhereSub": "Funciona en una sola pestaña a la vez, para que tus grabaciones y cambios queden en un solo lugar. Úsalo aquí o vuelve a la otra pestaña.",
       "useHere": "Usarlo aquí"
+    },
+    "onPhone": {
+      "title": "En este teléfono",
+      "tapToComeBack": "Vuelve con tu código",
+      "typeCode": "Escribe tu código de 4 números",
+      "codeLabel": "Tu código",
+      "wrong": "Ese código no es correcto.",
+      "wait": "Demasiados intentos. Espera un poco y vuelve a intentarlo.",
+      "gone": "Esta sesión terminó. Inicia sesión abajo o escanea un código de ayuda.",
+      "forgot": "¿Olvidaste tu código? Inicia sesión abajo o pide un código de ayuda.",
+      "someoneElse": "Otra persona"
     }
   },
   "account": {
@@ -2960,6 +2971,20 @@
       "events_one": "{{count, number}} evento en este dispositivo",
       "events_many": "{{count, number}} eventos en este dispositivo",
       "events_other": "{{count, number}} eventos en este dispositivo"
+    },
+    "switch": {
+      "button": "Cambiar de persona",
+      "question": "¿Cambiar de persona o cerrar sesión?",
+      "explain": "Cambiar de persona te deja en este teléfono, y vuelves con tu código, incluso sin conexión. Cerrar sesión te quita de este teléfono.",
+      "signOutHelp": "Te quita de este teléfono. Para volver a iniciar sesión hace falta conexión.",
+      "chooseTitle": "Elige tu código",
+      "chooseBody": "Cuatro números que escribirás para volver. Nadie más en este teléfono puede abrir tu trabajo sin ellos.",
+      "codeLabel": "Tu código",
+      "againLabel": "Escríbelo otra vez",
+      "codesDiffer": "Los dos códigos no coinciden. Escríbelos otra vez.",
+      "saveAndSwitch": "Guardar y cambiar",
+      "switching": "Cambiando…",
+      "newCode": "Elegir un código nuevo"
     }
   },
   "study": {

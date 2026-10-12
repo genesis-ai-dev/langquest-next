@@ -2685,6 +2685,17 @@
       "movingSub": "L’autre onglet sauvegarde ce qu’il a et se met en retrait.",
       "elsewhereSub": "Il fonctionne dans un seul onglet à la fois, pour que vos enregistrements et modifications restent au même endroit. Utilisez-le ici, ou retournez à l’autre onglet.",
       "useHere": "L’utiliser ici"
+    },
+    "onPhone": {
+      "title": "Sur ce téléphone",
+      "tapToComeBack": "Revenez avec votre code",
+      "typeCode": "Tapez votre code à 4 chiffres",
+      "codeLabel": "Votre code",
+      "wrong": "Ce code n'est pas le bon.",
+      "wait": "Trop d'essais. Attendez un peu, puis réessayez.",
+      "gone": "Cette connexion a pris fin. Connectez-vous ci-dessous, ou scannez un code d'aide.",
+      "forgot": "Code oublié ? Connectez-vous ci-dessous, ou demandez un code d'aide.",
+      "someoneElse": "Quelqu'un d'autre"
     }
   },
   "account": {
@@ -2960,6 +2971,20 @@
       "events_one": "{{count, number}} événement sur cet appareil",
       "events_many": "{{count, number}} événements sur cet appareil",
       "events_other": "{{count, number}} événements sur cet appareil"
+    },
+    "switch": {
+      "button": "Changer de personne",
+      "question": "Changer de personne ou se déconnecter ?",
+      "explain": "Changer de personne vous garde sur ce téléphone, et vous revenez avec votre code, même hors ligne. Se déconnecter vous retire de ce téléphone.",
+      "signOutHelp": "Vous retire de ce téléphone. Pour vous reconnecter, il faut une connexion.",
+      "chooseTitle": "Choisissez votre code",
+      "chooseBody": "Quatre chiffres à taper pour revenir. Personne d'autre sur ce téléphone ne peut ouvrir votre travail sans eux.",
+      "codeLabel": "Votre code",
+      "againLabel": "Tapez-le à nouveau",
+      "codesDiffer": "Les deux codes sont différents. Tapez-les à nouveau.",
+      "saveAndSwitch": "Enregistrer et changer",
+      "switching": "Changement…",
+      "newCode": "Choisir un nouveau code"
     }
   },
   "study": {

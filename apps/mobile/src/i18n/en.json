@@ -2601,6 +2601,17 @@
       "movingSub": "The other tab saves what it has and steps aside.",
       "elsewhereSub": "It works in one tab at a time, so your recordings and changes stay in one place. Use it here, or go back to the other tab.",
       "useHere": "Use it here"
+    },
+    "onPhone": {
+      "title": "On this phone",
+      "tapToComeBack": "Come back with your code",
+      "typeCode": "Type your 4-number code",
+      "codeLabel": "Your code",
+      "wrong": "That code is not right.",
+      "wait": "Too many tries. Wait a little, then try again.",
+      "gone": "This sign-in has ended. Sign in below, or scan a help code.",
+      "forgot": "Forgot your code? Sign in below, or ask for a help code.",
+      "someoneElse": "Someone else"
     }
   },
   "account": {
@@ -2867,6 +2878,20 @@
       "refusedCount": "Refused · {{n, number}}",
       "events_one": "{{count, number}} event on this device",
       "events_other": "{{count, number}} events on this device"
+    },
+    "switch": {
+      "button": "Switch person",
+      "question": "Switch person or sign out?",
+      "explain": "Switch person keeps you on this phone, and you come back with your code, even offline. Sign Out takes you off this phone.",
+      "signOutHelp": "Takes you off this phone. Signing back in needs a connection.",
+      "chooseTitle": "Choose your code",
+      "chooseBody": "Four numbers you will type to come back. Nobody else on this phone can open your work without them.",
+      "codeLabel": "Your code",
+      "againLabel": "Type it again",
+      "codesDiffer": "The two codes are different. Type them again.",
+      "saveAndSwitch": "Save and switch",
+      "switching": "Switching…",
+      "newCode": "Choose a new code"
     }
   },
   "study": {

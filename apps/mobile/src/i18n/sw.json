@@ -2601,6 +2601,17 @@
       "movingSub": "Kichupo kingine kinahifadhi kilicho nacho na kinakaa kando.",
       "elsewhereSub": "Inafanya kazi katika kichupo kimoja kwa wakati mmoja, ili rekodi na mabadiliko yako yabaki mahali pamoja. Itumie hapa, au rudi kwenye kichupo kingine.",
       "useHere": "Itumie hapa"
+    },
+    "onPhone": {
+      "title": "Kwenye simu hii",
+      "tapToComeBack": "Rudi kwa msimbo wako",
+      "typeCode": "Andika msimbo wako wa namba 4",
+      "codeLabel": "Msimbo wako",
+      "wrong": "Msimbo huo si sahihi.",
+      "wait": "Majaribio mengi mno. Subiri kidogo, kisha ujaribu tena.",
+      "gone": "Kuingia huku kumeisha. Ingia hapa chini, au soma msimbo wa msaada.",
+      "forgot": "Umesahau msimbo wako? Ingia hapa chini, au omba msimbo wa msaada.",
+      "someoneElse": "Mtu mwingine"
     }
   },
   "account": {
@@ -2867,6 +2878,20 @@
       "refusedCount": "Zimekataliwa · {{n, number}}",
       "events_one": "Tukio {{count, number}} kwenye kifaa hiki",
       "events_other": "Matukio {{count, number}} kwenye kifaa hiki"
+    },
+    "switch": {
+      "button": "Badilisha mtu",
+      "question": "Badilisha mtu au toka?",
+      "explain": "Kubadilisha mtu kunakuacha kwenye simu hii, na unarudi kwa msimbo wako, hata bila mtandao. Kutoka kunakuondoa kwenye simu hii.",
+      "signOutHelp": "Kunakuondoa kwenye simu hii. Kuingia tena kunahitaji mtandao.",
+      "chooseTitle": "Chagua msimbo wako",
+      "chooseBody": "Namba nne utakazoandika ili kurudi. Hakuna mtu mwingine kwenye simu hii anayeweza kufungua kazi yako bila hizo.",
+      "codeLabel": "Msimbo wako",
+      "againLabel": "Uandike tena",
+      "codesDiffer": "Misimbo miwili ni tofauti. Iandike tena.",
+      "saveAndSwitch": "Hifadhi na ubadilishe",
+      "switching": "Inabadilisha…",
+      "newCode": "Chagua msimbo mpya"
     }
   },
   "study": {

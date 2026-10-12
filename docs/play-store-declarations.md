@@ -128,6 +128,12 @@ on the phone to choose one; `i18next` and `react-i18next` are code inside the
 app, and every language's words ship in the app. The language someone picks
 stays on the device. Nothing is collected or sent, so no data type changes.
 
+Switching person on a shared phone (decisions.md 88) keeps each person's
+sign-in on the phone with a four-number code they choose. The code is checked
+on the phone and only its salted hash is kept there; nothing is sent, so no
+data type changes. Account creation and sign-in methods are unchanged
+(decisions.md 87 changes only how long a phone keeps a sign-in offline).
+
 Bible text and audio (docs/reference-material.md, decisions.md 62) come
 from Faith Comes By Hearing's Bible Brain through our Worker, which holds the
 key and sends Bible Brain no user data; phones then download the audio from

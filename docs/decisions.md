@@ -2898,3 +2898,40 @@ never held their sign-in without the server.
 Reverse if: a phone keeps acting for an account the server has ended
 (then end it on the first refusal of its requests), or Supabase Auth
 starts answering a lasting refusal with a status this treats as passing.
+
+## 88. On a shared phone, people switch and come back with a four-number code, offline too
+
+Date: 2026-10-12 · By: Caleb Koster · Status: accepted
+
+Reason: amends 12 and 60. Every way into the app needs the server
+(a password, a helper's code, an invite), so on a phone shared by a family
+or a team, once one person signed out offline nobody could get in until it
+was online, which in the field can be months. Caleb asked (2026-10-12) that
+people be able to switch accounts offline. Chosen:
+- On a phone, the sign-out screen leads with **Switch person**. The first
+  time, the person chooses a four-number code (twice). Switching works like
+  a hand-over (60): their session moves to its own key with no server call
+  and the courier sends their unsent work as them, but the session stays
+  after the work has gone (`HandOver.parked`, `switchPerson` in
+  `handOver.ts`). **Sign Out** still takes them off the phone, code and all.
+- Sign In lists the people on this phone. Tapping one and typing their code
+  moves their session back where supabase-js keeps it and opens the app as
+  them (`takeBack`, `OnThisPhone` in `screens/entry.tsx`), offline or not.
+  supabase-js renews it when it next can. If the server ended it meanwhile,
+  the courier drops them and they sign in as before.
+- The code is checked on the phone and never sent or stored: only a salted
+  SHA-256 of it, with the person's id, is kept (`switch-code:<id>` and the
+  hand-over record). Four wrong codes are free; from the fifth each try
+  waits twice as long, from a minute up to an hour. This keeps the next
+  person on the phone out through the app, as the shared-phone password of
+  59 does; someone who can read the phone's storage could read the saved
+  sign-in anyway.
+- A browser forgets everything on sign-out (11), so the web has no
+  switching.
+Nothing new leaves the phone, so no store answer changes
+(`docs/play-store-declarations.md`). Tests
+`apps/mobile/test/switchPerson.test.ts`; checked on an iOS simulator against
+a local stack, switching away and back offline and online.
+Reverse if: people forget their code more often than they come back with
+it (then offer the helper's code first), or a parked session is used by
+someone it does not belong to.

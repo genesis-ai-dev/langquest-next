@@ -35,7 +35,7 @@ import { openReports } from '../moderationData';
 import { decideRequest, pendingRequests, type PendingRequest } from '../invites';
 import {
   Badge, Banner, Card, EmptyState, Field, GhostBtn, Group, Header, Ico, PrimaryBtn, ProgressBar, Row, Screen,
-  SectionLabel, Sheet, ShowMore, SmallBtn, txt, useLayout, useOpenDetail, type IconName
+  LinkBtn, SectionLabel, Sheet, ShowMore, SmallBtn, txt, useLayout, useOpenDetail, type IconName
 } from '../kit';
 import { cachedInbox, enableNotifications, refreshInbox, tryUnregisterNotifications, unregisterNotifications, type RemoteNotification } from '../notifications';
 import { dueText } from '../passageView';
@@ -44,7 +44,8 @@ import { noteExpected, reportError, failureMessage } from '../report';
 import { ReportActions } from '../reportSheet';
 import { contractsFor } from '../screenContracts';
 import { FORGETS_ON_SIGN_OUT, forgetThisBrowser } from '../forgetBrowser';
-import { HANDS_OVER, signOutHandingOver } from '../handOver';
+import { forgetSwitchCode, HANDS_OVER, hasSwitchCode, setSwitchCode, signOutHandingOver, switchPerson } from '../handOver';
+import { isCode } from '../handOverCore';
 import { signOutHere, supabase } from '../supabase';
 import { C, radius, space, target, tile, TINT, type as T } from '../theme';
 import { useAccountActions, useDisplayNames } from '../useAccount';
@@ -751,9 +752,30 @@ export function SignOutConfirm(ctx: Ctx) {
   const needsHelp = ctx.session.isManaged && hasPassword === false;
   // A phone hands unsent work over and sends it as you later (decisions.md 60); a browser waits for it.
   const handsOver = HANDS_OVER && waiting.length > 0;
+  // A shared phone: step aside instead, and come back with a code, offline too (decision 88).
+  const canSwitch = HANDS_OVER;
+  const [codeSaved, setCodeSaved] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (canSwitch) void hasSwitchCode(ctx.session.actorId).then(setCodeSaved, () => setCodeSaved(false));
+  }, [ctx.session.actorId]);
+  const [choosing, setChoosing] = useState(false);
+  const [code, setCode] = useState('');
+  const [again, setAgain] = useState('');
+  const myName = useDisplayNames(ctx.session.actorId)[ctx.session.actorId] ?? signInName(ctx.session.email) ?? ctx.session.email?.split('@')[0] ?? t('common.you');
+  async function switchAway(newCode?: string) {
+    setBusy(true);
+    setError('');
+    try {
+      if (newCode) await setSwitchCode(ctx.session.actorId, newCode);
+      const { orgId, languageId } = ctx.language;
+      await switchPerson(ctx.session.actorId, myName, ctx.language.blobs.unsent().map((ref) => ({ orgId, languageId, ref })));
+    } catch (e) { setError(failure('switch person', e)); setBusy(false); }
+  }
   async function signOut() {
     setBusy(true);
     try {
+      // Signing out takes you off this phone: no code to come back with.
+      if (canSwitch) await forgetSwitchCode(ctx.session.actorId);
       if (handsOver) {
         const { orgId, languageId } = ctx.language;
         await signOutHandingOver(ctx.session.actorId, ctx.language.blobs.unsent().map((ref) => ({ orgId, languageId, ref })));
@@ -787,19 +809,57 @@ export function SignOutConfirm(ctx: Ctx) {
             : online === false ? '' : t('account.signOut.anytime');
   // Every way back in needs the server, so offline the screen says so.
   const why = !blocked && online === false ? [reason, t('account.signOut.offlineBackIn')].filter(Boolean).join(' ') : reason;
+  const onlyDigits = (v: string) => v.replace(/[^0-9]/g, '').slice(0, 4);
+  if (choosing) {
+    const ready = isCode(code) && isCode(again);
+    return (
+      <Screen bodyStyle={styles.centered}
+        footer={
+          <>
+            <PrimaryBtn label={busy ? t('account.switch.switching') : t('account.switch.saveAndSwitch')} icon="swap" disabled={!ready || busy}
+              onPress={() => { if (code !== again) { setError(t('account.switch.codesDiffer')); return; } void switchAway(code); }} />
+            <GhostBtn label={t('common.back')} onPress={() => { setChoosing(false); setCode(''); setAgain(''); setError(''); }} />
+          </>
+        }>
+        <View style={[styles.bigTile, { backgroundColor: C.light }]}>
+          <Ico name="lock" size={32} color={C.primary} />
+        </View>
+        <Text style={[txt.h2, { textAlign: 'center' }]} accessibilityRole="header">{t('account.switch.chooseTitle')}</Text>
+        <Text style={[txt.bodyMuted, { textAlign: 'center' }]}>{t('account.switch.chooseBody')}</Text>
+        <View style={styles.codeFields}>
+          <Field value={code} onChangeText={(v) => { setCode(onlyDigits(v)); setError(''); }} label={t('account.switch.codeLabel')} placeholder="••••" secure keyboardType="number-pad" />
+          <Field value={again} onChangeText={(v) => { setAgain(onlyDigits(v)); setError(''); }} label={t('account.switch.againLabel')} placeholder="••••" secure keyboardType="number-pad" />
+        </View>
+        {error ? <Text style={[txt.error, { textAlign: 'center' }]} accessibilityRole="alert">{error}</Text> : null}
+      </Screen>
+    );
+  }
+  const signOutLabel = busy ? t('account.signOut.signingOut') : t('account.signOut.button');
   return (
     <Screen bodyStyle={styles.centered}
       footer={
         <>
-          <PrimaryBtn label={busy ? t('account.signOut.signingOut') : t('account.signOut.button')} tone="red" onPress={() => void signOut()} disabled={blocked || busy} />
+          {canSwitch ? (
+            <>
+              <PrimaryBtn label={busy ? t('account.switch.switching') : t('account.switch.button')} icon="swap" disabled={busy || codeSaved === null}
+                onPress={() => (codeSaved ? void switchAway() : setChoosing(true))} />
+              <GhostBtn label={signOutLabel} tone="red" onPress={() => void signOut()} disabled={blocked || busy} help={t('account.switch.signOutHelp')} />
+            </>
+          ) : (
+            <PrimaryBtn label={signOutLabel} tone="red" onPress={() => void signOut()} disabled={blocked || busy} />
+          )}
           <GhostBtn label={t('common.cancel')} onPress={ctx.back} />
         </>
       }>
-      <View style={[styles.bigTile, { backgroundColor: waiting.length > 0 ? TINT.amber : TINT.red }]}>
-        <Ico name={waiting.length > 0 ? 'cloud' : 'user'} size={32} color={waiting.length > 0 ? TINT.amberText : C.red} />
+      <View style={[styles.bigTile, { backgroundColor: waiting.length > 0 ? TINT.amber : canSwitch ? C.light : TINT.red }]}>
+        <Ico name={waiting.length > 0 ? 'cloud' : canSwitch ? 'swap' : 'user'} size={32} color={waiting.length > 0 ? TINT.amberText : canSwitch ? C.primary : C.red} />
       </View>
-      <Text style={[txt.h2, { textAlign: 'center' }]} accessibilityRole="header">{blocked ? t('account.signOut.notYet') : t('account.signOut.question')}</Text>
+      <Text style={[txt.h2, { textAlign: 'center' }]} accessibilityRole="header">
+        {blocked ? t('account.signOut.notYet') : canSwitch ? t('account.switch.question') : t('account.signOut.question')}
+      </Text>
+      {canSwitch ? <Text style={[txt.body, { textAlign: 'center' }]}>{t('account.switch.explain')}</Text> : null}
       <Text style={[txt.bodyMuted, { textAlign: 'center' }]}>{why}</Text>
+      {canSwitch && codeSaved ? <LinkBtn label={t('account.switch.newCode')} onPress={() => setChoosing(true)} /> : null}
       {error ? <Text style={[txt.error, { textAlign: 'center' }]} accessibilityRole="alert">{error}</Text> : null}
     </Screen>
   );
@@ -1005,6 +1065,7 @@ const styles = StyleSheet.create({
   avatarBlock: { alignItems: 'center', paddingVertical: space.md },
   centered: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.xl, gap: space.lg },
   bigTile: { width: 64, height: 64, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  codeFields: { alignSelf: 'stretch', gap: space.md },
   tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md },
   tile2: { width: '47%', flexGrow: 1, alignItems: 'center', gap: space.xs, paddingVertical: space.lg, paddingHorizontal: space.sm, borderRadius: radius.xl,
     borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, backgroundColor: C.card },

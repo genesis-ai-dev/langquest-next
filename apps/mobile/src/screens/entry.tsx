@@ -37,6 +37,10 @@ import { noteExpected, reportError, failureMessage } from '../report';
 import { createOrganization } from '../createOrg';
 import { contractsFor } from '../screenContracts';
 import { FORGETS_ON_SIGN_OUT, forgetThisBrowser } from '../forgetBrowser';
+import { takeBack, useParkedPeople, type ParkedPerson } from '../handOver';
+import { isCode } from '../handOverCore';
+import { personLook } from '../people';
+import { PersonAvatar } from '../UserChip';
 import { signOutHere, supabase } from '../supabase';
 import { lift } from '../shadow';
 import { C, TINT, radius, space, tile, type as T, withAlpha } from '../theme';
@@ -99,6 +103,7 @@ export function SignIn(ctx: Ctx) {
 
   const ready = (email.trim().includes('@') || isSignInName(email)) && password.length > 0;
   const joining = ctx.invite.held?.claim.kind === 'next-account';
+  const parked = useParkedPeople();
   return (
     <Screen bodyStyle={styles.signInBody}>
       <LanguageChip />
@@ -109,6 +114,12 @@ export function SignIn(ctx: Ctx) {
         <Text style={[txt.smMuted, { textAlign: 'center' }]}>{t('entry.signIn.tagline')}</Text>
       </View>
       {joining ? <Banner icon="people" title={t('entry.signIn.joinTitle')} body={t('entry.signIn.joinBody')} /> : null}
+      {parked.length > 0 ? (
+        <>
+          <OnThisPhone people={parked} />
+          <OrDivider />
+        </>
+      ) : null}
       {/* Two ways in that never combine (the demo's ADR-031): the fields, or a code. */}
       <Card>
         <Field value={email} onChangeText={setEmail} placeholder={t('entry.signIn.namePlaceholder')} keyboardType="email-address" autoCapitalize="none" />
@@ -129,6 +140,52 @@ export function SignIn(ctx: Ctx) {
         <LinkBtn label={t('entry.signIn.switchPersona')} color={C.muted} onPress={ctx.openDev} style={{ alignSelf: 'center' }} />
       ) : null}
     </Screen>
+  );
+}
+
+/**
+ * People who switched away on this phone come back with their code, with
+ * no server call, so offline too (decision 88). A wrong code counts: from
+ * the fifth, another try waits.
+ */
+function OnThisPhone(props: { people: ParkedPerson[] }) {
+  const [who, setWho] = useState<ParkedPerson | null>(null);
+  const [code, setCode] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  async function comeBack(person: ParkedPerson) {
+    setBusy(true);
+    setError('');
+    try {
+      const result = await takeBack(person.actorId, code);
+      // In: App opens the app as them, and this screen goes.
+      if (result.kind === 'ok') return;
+      setCode('');
+      setError(result.kind === 'wrong' ? t('entry.onPhone.wrong') : result.kind === 'wait' ? t('entry.onPhone.wait') : t('entry.onPhone.gone'));
+    } catch (e) {
+      setError(failureMessage('switch back', e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  const avatar = (p: ParkedPerson) => <PersonAvatar look={personLook(p.actorId, p.name)} size={40} />;
+  return (
+    <Card>
+      <Text style={txt.xsStrong}>{t('entry.onPhone.title')}</Text>
+      {who ? (
+        <>
+          <Row leading={avatar(who)} label={who.name} sub={t('entry.onPhone.typeCode')} last />
+          <Field value={code} onChangeText={(v) => { setCode(v.replace(/[^0-9]/g, '').slice(0, 4)); setError(''); }}
+            label={t('entry.onPhone.codeLabel')} placeholder="••••" secure keyboardType="number-pad" />
+          {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
+          <PrimaryBtn label={busy ? t('entry.shared.signingIn') : t('entry.signIn.button')} onPress={() => void comeBack(who)} disabled={!isCode(code) || busy} />
+          <Text style={[txt.xs, { textAlign: 'center' }]}>{t('entry.onPhone.forgot')}</Text>
+          <LinkBtn label={t('entry.onPhone.someoneElse')} onPress={() => { setWho(null); setCode(''); setError(''); }} style={{ alignSelf: 'center' }} />
+        </>
+      ) : props.people.map((p, i) => (
+        <Row key={p.actorId} leading={avatar(p)} label={p.name} sub={t('entry.onPhone.tapToComeBack')} onPress={() => setWho(p)} last={i === props.people.length - 1} />
+      ))}
+    </Card>
   );
 }
 

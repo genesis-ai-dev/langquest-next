@@ -2601,6 +2601,17 @@
       "movingSub": "Ɗayan shafin zai ajiye abin da yake da shi ya koma gefe.",
       "elsewhereSub": "Yana aiki a shafi ɗaya a lokaci guda, don naɗe-naɗenku da canje-canjenku su kasance a wuri ɗaya. Ku yi amfani da shi a nan, ko ku koma ɗayan shafin.",
       "useHere": "Yi amfani da shi a nan"
+    },
+    "onPhone": {
+      "title": "A wannan waya",
+      "tapToComeBack": "Dawo da lambarku",
+      "typeCode": "Rubuta lambarku mai lambobi 4",
+      "codeLabel": "Lambarku",
+      "wrong": "Wannan lambar ba daidai ba ce.",
+      "wait": "Gwaje-gwaje sun yi yawa. Ku jira kaɗan, sannan ku sake gwadawa.",
+      "gone": "Wannan shigar ta ƙare. Ku shiga a ƙasa, ko ku karanta lambar taimako.",
+      "forgot": "Kun manta lambarku? Ku shiga a ƙasa, ko ku nemi lambar taimako.",
+      "someoneElse": "Wani daban"
     }
   },
   "account": {
@@ -2867,6 +2878,20 @@
       "refusedCount": "An ƙi · {{n, number}}",
       "events_one": "Abu {{count, number}} a wannan na'ura",
       "events_other": "Abubuwa {{count, number}} a wannan na'ura"
+    },
+    "switch": {
+      "button": "Canja mutum",
+      "question": "Canja mutum ko fita?",
+      "explain": "Canja mutum yana barin ku a wannan waya, kuma kuna dawowa da lambarku, ko babu intanet. Fita yana cire ku daga wannan waya.",
+      "signOutHelp": "Yana cire ku daga wannan waya. Sake shiga yana buƙatar intanet.",
+      "chooseTitle": "Zaɓi lambarku",
+      "chooseBody": "Lambobi huɗu da za ku rubuta don dawowa. Babu wani a wannan waya da zai iya buɗe aikinku ba tare da su ba.",
+      "codeLabel": "Lambarku",
+      "againLabel": "Sake rubuta ta",
+      "codesDiffer": "Lambobin biyu ba ɗaya ba ne. Sake rubuta su.",
+      "saveAndSwitch": "Ajiye ku canja",
+      "switching": "Ana canjawa…",
+      "newCode": "Zaɓi sabuwar lamba"
     }
   },
   "study": {

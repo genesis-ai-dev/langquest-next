@@ -2685,6 +2685,17 @@
       "movingSub": "A outra aba salva o que tem e dá lugar a esta.",
       "elsewhereSub": "Ele funciona em uma aba de cada vez, para que as suas gravações e mudanças fiquem em um só lugar. Use aqui, ou volte para a outra aba.",
       "useHere": "Usar aqui"
+    },
+    "onPhone": {
+      "title": "Neste aparelho",
+      "tapToComeBack": "Volte com o seu código",
+      "typeCode": "Digite o seu código de 4 números",
+      "codeLabel": "Seu código",
+      "wrong": "Esse código não está certo.",
+      "wait": "Tentativas demais. Espere um pouco e tente de novo.",
+      "gone": "Esta entrada terminou. Entre abaixo ou leia um código de ajuda.",
+      "forgot": "Esqueceu o seu código? Entre abaixo ou peça um código de ajuda.",
+      "someoneElse": "Outra pessoa"
     }
   },
   "account": {
@@ -2960,6 +2971,20 @@
       "events_one": "{{count, number}} evento neste aparelho",
       "events_many": "{{count, number}} de eventos neste aparelho",
       "events_other": "{{count, number}} eventos neste aparelho"
+    },
+    "switch": {
+      "button": "Trocar de pessoa",
+      "question": "Trocar de pessoa ou sair?",
+      "explain": "Trocar de pessoa mantém você neste aparelho, e você volta com o seu código, mesmo sem internet. Sair tira você deste aparelho.",
+      "signOutHelp": "Tira você deste aparelho. Para entrar de novo, é preciso ter conexão.",
+      "chooseTitle": "Escolha o seu código",
+      "chooseBody": "Quatro números que você vai digitar para voltar. Ninguém mais neste aparelho consegue abrir o seu trabalho sem eles.",
+      "codeLabel": "Seu código",
+      "againLabel": "Digite de novo",
+      "codesDiffer": "Os dois códigos são diferentes. Digite de novo.",
+      "saveAndSwitch": "Salvar e trocar",
+      "switching": "Trocando…",
+      "newCode": "Escolher um código novo"
     }
   },
   "study": {

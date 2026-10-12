@@ -2517,6 +2517,17 @@
       "movingSub": "另一个标签页会保存它的内容，然后让出位置。",
       "elsewhereSub": "它一次只能在一个标签页中运行，这样你的录音和更改都保存在同一个地方。可以在这里使用，或者回到另一个标签页。",
       "useHere": "在这里使用"
+    },
+    "onPhone": {
+      "title": "这部手机上的人",
+      "tapToComeBack": "用你的数字码回来",
+      "typeCode": "输入你的 4 位数字码",
+      "codeLabel": "你的数字码",
+      "wrong": "数字码不对。",
+      "wait": "尝试次数太多。请稍等一会儿再试。",
+      "gone": "这次登录已结束。请在下方登录，或扫描帮助码。",
+      "forgot": "忘了数字码？请在下方登录，或请人给你帮助码。",
+      "someoneElse": "其他人"
     }
   },
   "account": {
@@ -2774,6 +2785,20 @@
       "waitingCount": "等待中 · {{n, number}}",
       "refusedCount": "被拒绝 · {{n, number}}",
       "events_other": "本设备上有 {{count, number}} 个事件"
+    },
+    "switch": {
+      "button": "切换使用者",
+      "question": "切换使用者还是退出登录？",
+      "explain": "切换使用者会让你留在这部手机上，即使离线也能用你的数字码回来。退出登录会把你从这部手机上移除。",
+      "signOutHelp": "把你从这部手机上移除。重新登录需要网络连接。",
+      "chooseTitle": "设置你的数字码",
+      "chooseBody": "回来时要输入的四个数字。没有它，这部手机上的其他人都打不开你的工作。",
+      "codeLabel": "你的数字码",
+      "againLabel": "再输入一次",
+      "codesDiffer": "两次输入的数字码不一样。请重新输入。",
+      "saveAndSwitch": "保存并切换",
+      "switching": "正在切换…",
+      "newCode": "设置新的数字码"
     }
   },
   "study": {
