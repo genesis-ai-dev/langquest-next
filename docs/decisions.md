@@ -2874,6 +2874,10 @@ away. Chosen:
   drives no work: upload and download lists still come from the fold and the
   folder (rules 1 and 9), so it can disagree with the folder without harm,
   and the disagreement is the signal.
+- Phones only. The web keeps no ledger: a browser's SQLite holds at most
+  six files open (expo-sqlite's access handle pool), the event log and
+  diagnostics already fill them, and a third database made the web fail to
+  open its storage. The web app needs a connection anyway (decision 58).
 - At startup the listing the store already makes is compared with the
   ledger. While the app is in use, the folder is listed again (names only,
   one native call off the JS thread) when the app comes back on screen and

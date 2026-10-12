@@ -99,7 +99,10 @@ export function getDiagStore(): Promise<SqliteDiagStore> {
 /**
  * What the file store has kept (blobs.ts, decisions.md 87). Its own file
  * too, so writing down a downloaded file never waits on an event commit.
- * Only the file store opens it.
+ * Only the file store opens it, and only on a phone: a browser's SQLite
+ * keeps at most six files open (expo-sqlite's access handle pool), which
+ * the two databases above already fill, so a third makes the web fail to
+ * open its storage at all.
  */
 export function getFileLedger(): Promise<SqliteFileLedger> {
   ledgerPromise ??= allowed.then(() => open('langquest-files.db')).then((db) => SqliteFileLedger.open(expoDriver(db)))
@@ -127,15 +130,13 @@ export function getStore(): Promise<SqliteStore> {
 
 /**
  * Web only, signing out on a shared computer (decisions.md 11, amended):
- * close and delete the databases. Callers reload the page afterwards, so
+ * close and delete both databases. Callers reload the page afterwards, so
  * nothing holds a handle to what was closed.
  */
 export async function deleteLocalDatabases(): Promise<void> {
   storePromise = undefined;
   diagPromise = undefined;
-  ledgerPromise = undefined;
-  // The file ledger goes with the files (forgetBrowser.ts), or the next sign-in would report them lost.
-  for (const name of ['langquest-next.db', 'langquest-diagnostics.db', 'langquest-files.db']) {
+  for (const name of ['langquest-next.db', 'langquest-diagnostics.db']) {
     await opened.get(name)?.closeAsync().catch(() => undefined);
     opened.delete(name);
     await SQLite.deleteDatabaseAsync(name);

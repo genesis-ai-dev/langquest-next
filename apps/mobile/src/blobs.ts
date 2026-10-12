@@ -30,6 +30,7 @@ import { webFiles, type WebFiles } from './webFiles';
  * before it is deleted, so a crash between the two can never look like a
  * loss. What is found missing is taken off the index (so kept passages
  * download it again) and kept as lost until someone has seen the alert.
+ * Phones only: the web keeps no ledger (see `getBlobStore`).
  *
  * On the web there is no expo-file-system: files live in the browser's
  * origin private file system (webFiles.ts) under the same names, so a
@@ -588,7 +589,8 @@ let store: Promise<BlobStore> | undefined;
 /** The device's one store, opened and listed once; it checks for lost files when the app comes back on screen. */
 export function getBlobStore(): Promise<BlobStore> {
   store ??= (async () => {
-    const s = new BlobStore(undefined, getFileLedger());
+    // Phones only: the browser's SQLite keeps six files open at most, and the two databases fill them (decisions.md 87).
+    const s = new BlobStore(undefined, WEB ? null : getFileLedger());
     await s.init();
     onWake(() => s.recheck());
     return s;
