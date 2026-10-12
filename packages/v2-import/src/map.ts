@@ -300,7 +300,7 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
             facts.push(backTranslationFact(`bt:${child.id}`, `take:${q.id}`, actor(child.creator_id), at(child.created_at), r.cards, text, r.waiting));
             report.backTranslations += 1;
           } else if (text) {
-            facts.push(noteFact(`note:${child.id}`, unitId, actor(child.creator_id), at(child.created_at), `${labelOf(a)}: ${text}`));
+            facts.push(writtenFact(`note:${child.id}`, unitId, actor(child.creator_id), at(child.created_at), `${labelOf(a)}: ${text}`, child.content_type === 'transcription' ? 'transcription' : 'translation'));
             report.notes += 1;
           }
         }
@@ -308,7 +308,7 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
         const r = cardsOf(a);
         const text = textOf(a);
         if (r.cards.length === 0 && !r.waiting && text) {
-          facts.push(noteFact(`note:${a.id}`, unitId, actor(a.creator_id), at(a.created_at), text));
+          facts.push(writtenFact(`note:${a.id}`, unitId, actor(a.creator_id), at(a.created_at), text, 'translation'));
           report.notes += 1;
         }
       }
@@ -344,7 +344,7 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
         if (r.cards.length === 0) {
           const text = textOf(t);
           if (text && !r.waiting) {
-            facts.push(noteFact(`note:${t.id}`, passage, actor(t.creator_id), at(t.created_at), text));
+            facts.push(writtenFact(`note:${t.id}`, passage, actor(t.creator_id), at(t.created_at), text, 'translation'));
             report.notes += 1;
           }
           continue;
@@ -458,7 +458,14 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
     };
   }
 
-  function noteFact(key: string, unitId: string, actorId: string, when: string, text: string): Fact {
+  /**
+   * Written work: a transcription, or a translation with words and no audio.
+   * This app has no written translations yet, so each is a note on its
+   * passage and nothing written is lost. Written translations alongside
+   * audio are being planned; when they exist, this is the one place that
+   * changes (`kind` says which is which).
+   */
+  function writtenFact(key: string, unitId: string, actorId: string, when: string, text: string, _kind: 'transcription' | 'translation'): Fact {
     return {
       key, streamId: languageId, actorId, at: when, unsay: 'redact',
       say: (s) => [{ type: 'v1.NoteAdded', payload: { noteId: `${key}#${s.n}`, unitId, anchor: { kind: 'passage' }, text } }]
