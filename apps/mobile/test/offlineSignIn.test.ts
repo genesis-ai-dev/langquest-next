@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { accessTokenFresh, afterAuthEvent, savedSession } from '../src/authState';
-import { NOT_RENEWED, sessionSafeFetch } from '../src/sessionSafeFetch';
+import { answerAtOnceWhileOffline, NOT_RENEWED, sessionSafeFetch, type RenewalWatch } from '../src/sessionSafeFetch';
 import { signOutThisDevice } from '../src/signOutCore';
 
 // Decision 87: someone offline for months, online for a second, then
@@ -39,11 +39,14 @@ function phone(expiresAt: number | null, network: Network, opts: { safe?: boolea
     requests.push(url);
     return network(url, init);
   }) as typeof fetch;
-  const fetchImpl = opts.safe === false ? base : sessionSafeFetch({ anonKey: ANON, hasSavedSession: async () => stored.has(KEY), base });
+  const watch: RenewalWatch = { failedAt: null };
+  const fetchImpl = opts.safe === false ? base : sessionSafeFetch({ anonKey: ANON, watch, hasSavedSession: async () => stored.has(KEY), base });
   const client: SupabaseClient = createClient(URL_, ANON, {
     auth: { storage, storageKey: KEY, persistSession: true, autoRefreshToken: false, detectSessionInUrl: false },
     global: { fetch: fetchImpl }
   });
+  // As supabase.ts builds every client.
+  if (opts.safe !== false) answerAtOnceWhileOffline(client.auth, { watch, readSaved: () => storage.getItem(KEY) });
   const events: string[] = [];
   client.auth.onAuthStateChange((e) => { events.push(e); });
   return { client, storage, stored, requests, events };
@@ -96,6 +99,27 @@ describe('starting the app offline months after the last connection', () => {
     const p = phone(now() - 3600, offline);
     await settle(p.client.auth.getSession());
     expect(p.stored.has(KEY)).toBe(true);
+  });
+});
+
+describe('offline, calls answer at once instead of after half a minute', () => {
+  it('once a renewal has failed for want of a network, the next calls do not wait for its retries', async () => {
+    const p = phone(now() - 60 * DAY, offline);
+    let first = false;
+    const firstCall = p.client.auth.getSession().then(() => { first = true; });
+    await vi.advanceTimersByTimeAsync(50);
+    let second: unknown = 'waiting';
+    void p.client.rpc('my_organizations').then((r) => { second = r.error?.message; });
+    await vi.advanceTimersByTimeAsync(50);
+    expect(second).toContain(NOT_RENEWED);
+    expect(first).toBe(false); // supabase-js is still retrying the renewal
+    await settle(firstCall);
+  });
+
+  it('a token still good is used as it is', async () => {
+    const p = phone(now() + 3600, offline);
+    const { data } = await p.client.auth.getSession();
+    expect(data.session?.access_token).toBe('access');
   });
 });
 

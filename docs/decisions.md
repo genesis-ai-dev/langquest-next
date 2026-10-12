@@ -2876,6 +2876,12 @@ session per user; `server/README.md`). Chosen:
 - While a sign-in waits to renew, a request that would go out with only the
   public key fails as a network failure. It is offline, never a refusal
   (`supabaseTransport.ts` reads it as `OfflineError`).
+- supabase-js retries a failed renewal for about 25 seconds and every call
+  needing the token waits; offline, a screen waiting on one call stayed
+  blank that long. Right after a renewal failed for want of a network,
+  `getSession` answers at once from the saved sign-in
+  (`answerAtOnceWhileOffline`); supabase-js's own timer keeps renewing in
+  the background.
 - Signing out ends this device's session only (`signOutCore.ts`): `global`
   ended the person's sign-in on every device, and the hand-overs kept for
   them on shared phones. With an expired token it asks the server nothing,
