@@ -73,7 +73,7 @@ function StepRow(props: {
           <Pressable onPress={press} accessibilityRole="button" accessibilityLabel={`${props.n}. ${step.title}. ${step.sub}`}
             accessibilityState={{ selected: lit }} style={({ pressed }) => pressed && { opacity: 0.75 }}>
             {body}
-            <HelpBadge n={spot.n} current={spot.current} />
+            <HelpBadge spot={spot} />
           </Pressable>
         ) : body}
       </View>
@@ -91,7 +91,7 @@ function TeamRow(props: { step: TeamStep; onPress?: () => void }) {
     <Pressable onPress={press} disabled={!press} accessibilityRole="button" accessibilityLabel={`${step.name}, ${step.status}`}
       style={({ pressed }) => [styles.teamRow, pressed && { opacity: 0.7 }]}>
       <Ico name={icon} size={20} color={color} strokeWidth={step.state === 'done' ? 3 : 2.2} />
-      <HelpBadge n={spot.n} current={spot.current} />
+      <HelpBadge spot={spot} />
       <Text style={[styles.teamName, { flex: 1 }]}>
         {step.name}{'  '}
         <Text style={[txt.smMuted, { fontWeight: '400' }, step.state === 'attention' ? { color: TINT.amberText } : null]}>{step.status}</Text>

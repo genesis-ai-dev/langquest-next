@@ -8,7 +8,8 @@ import { Text } from './text';
 import { AudioClip } from './audioClip';
 import { clipSeconds, clock } from './clipPlayer';
 import type { Ctx } from './ctx';
-import { useHelpPress } from './helpContext';
+import { useHelpSpot } from './helpContext';
+import { HelpBadge } from './helpBadge';
 import { t } from './i18n';
 import { Ico, txt } from './kit';
 import { C, radius, space, TINT, withAlpha } from './theme';
@@ -39,8 +40,8 @@ export function BigVoice(props: {
     return () => clearInterval(timer);
   }, [rec.manualOn]);
   const recording = rec.manualOn;
-  const toggle = useHelpPress(props.label, t('recording.bigVoice.toggleHelp'), () => void (recording ? rec.manualUp() : rec.manualDown()));
-  const again = useHelpPress(t('recording.bigVoice.sayAgain'), t('recording.bigVoice.sayAgainHelp'), () => props.onChange(null));
+  const toggle = useHelpSpot(props.label, t('recording.bigVoice.toggleHelp'), () => void (recording ? rec.manualUp() : rec.manualDown()));
+  const again = useHelpSpot(t('recording.bigVoice.sayAgain'), t('recording.bigVoice.sayAgainHelp'), () => props.onChange(null));
 
   if (props.hash && !recording) {
     const secs = length || clipSeconds(props.ctx.language.state, [props.hash]);
@@ -50,9 +51,10 @@ export function BigVoice(props: {
           <AudioClip language={props.ctx.language} hashes={[props.hash]} label={t('recording.bigVoice.playWhatYouSaid')} />
           <Text style={[txt.body, { fontWeight: '800', color: TINT.greenText }]}>{secs > 0 ? t('recording.bigVoice.whatYouSaidLength', { length: clock(secs) }) : t('recording.bigVoice.whatYouSaid')}</Text>
         </View>
-        <Pressable onPress={again} accessibilityRole="button" style={({ pressed }) => [styles.again, pressed && { opacity: 0.7 }]}>
+        <Pressable onPress={again.onPress} accessibilityRole="button" style={({ pressed }) => [styles.again, pressed && { opacity: 0.7 }]}>
           <Ico name="restart" size={18} color={C.dark} />
           <Text style={[txt.sm, { fontWeight: '700' }]}>{t('recording.bigVoice.sayAgain')}</Text>
+          <HelpBadge spot={again} />
         </Pressable>
       </View>
     );
@@ -60,11 +62,12 @@ export function BigVoice(props: {
   const tone = recording || props.red ? C.red : C.primary;
   return (
     <View style={{ alignItems: 'center', gap: space.md }}>
-      <Pressable onPress={toggle} disabled={rec.busy && !recording} accessibilityRole="button" accessibilityLabel={recording ? t('common.stopRecording') : props.label}
+      <Pressable onPress={toggle.onPress} disabled={rec.busy && !recording} accessibilityRole="button" accessibilityLabel={recording ? t('common.stopRecording') : props.label}
         style={({ pressed }) => [styles.halo, { backgroundColor: withAlpha(tone, 0.16) }, pressed && { opacity: 0.85 }]}>
         <View style={[styles.mic, { backgroundColor: tone }]}>
           <Ico name={recording ? 'stop' : 'mic'} size={recording ? 40 : 52} color={C.white} />
         </View>
+        <HelpBadge spot={toggle} />
       </Pressable>
       <Text style={[txt.body, { fontWeight: '800', fontSize: 19 }]}>
         {recording ? t('recording.listening', { time: clock(elapsed) }) : rec.busy ? t('common.saving') : props.label}

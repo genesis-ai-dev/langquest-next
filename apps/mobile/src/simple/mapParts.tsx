@@ -8,7 +8,8 @@ import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../text';
 import type { ChapterStage } from '../canon';
-import { useHelpPress } from '../helpContext';
+import { useHelpSpot } from '../helpContext';
+import { HelpBadge } from '../helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { Ico, type IconName } from '../kit';
@@ -17,13 +18,14 @@ import { C, onColor, radius, space, target, TINT, type as T } from '../theme';
 /** "Next: Luke 15:1–7": this person's next passage, one tap from the map (demo Map). */
 export function NextLink(props: { title: string; icon: IconName; onPress: () => void }) {
   const label = t('map.parts.next', { title: props.title });
-  const onPress = useHelpPress(label, t('map.parts.nextHelp'), props.onPress);
+  const spot = useHelpSpot(label, t('map.parts.nextHelp'), props.onPress);
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={label}
       style={({ pressed }) => [styles.next, pressed && styles.pressed]}>
       <View style={styles.nextDisc}><Ico name={props.icon} size={22} color={C.white} /></View>
       <Text style={styles.nextText} numberOfLines={2}>{label}</Text>
       <Ico name="right" size={22} color={C.muted} />
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -38,11 +40,12 @@ export function Pills<K extends string>(props: { items: { id: K; label: string }
 }
 
 function Pill(props: { label: string; on: boolean; onPress: () => void }) {
-  const onPress = useHelpPress(props.label, t('map.parts.pillHelp'), props.onPress);
+  const spot = useHelpSpot(props.label, t('map.parts.pillHelp'), props.onPress);
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: props.on }}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ selected: props.on }}
       style={({ pressed }) => [styles.pill, props.on && styles.pillOn, pressed && styles.pressed]}>
       <Text style={[styles.pillText, props.on && { color: C.white }]} numberOfLines={1}>{props.label}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -57,20 +60,21 @@ export function BookBar(props: {
   /** Not broken up yet (decision 74): said in place of the bar. */
   waiting?: boolean;
 }) {
-  const onPress = useHelpPress(props.name, props.waiting ? t('map.parts.waitingHelp') : t('map.parts.bookHelp'), props.onPress);
+  const spot = useHelpSpot(props.name, props.waiting ? t('map.parts.waitingHelp') : t('map.parts.bookHelp'), props.onPress);
   if (props.waiting) {
     return (
-      <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
+      <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
         style={({ pressed }) => [styles.book, !props.last && styles.bookBorder, pressed && styles.pressed]}>
         <Text style={styles.bookName} numberOfLines={2}>{props.name}</Text>
         <Text style={[styles.waiting]} numberOfLines={1}>{t('map.waiting')}</Text>
+        <HelpBadge spot={spot} />
       </Pressable>
     );
   }
   const pct = (n: number) => `${props.total ? Math.min(100, (n / props.total) * 100) : 0}%` as const;
   const count = props.count ?? (props.recorded > 0 ? t('map.parts.bookCount', { recorded: formatNumber(props.recorded), total: formatNumber(props.total) }) : '');
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
       accessibilityState={props.current ? { selected: true } : undefined}
       style={({ pressed }) => [styles.book, !props.last && styles.bookBorder, props.current && { backgroundColor: C.light }, pressed && styles.pressed]}>
       <Text style={styles.bookName} numberOfLines={2}>{props.name}</Text>
@@ -79,6 +83,7 @@ export function BookBar(props: {
         <View style={{ width: pct(props.recorded - props.done), backgroundColor: C.primary }} />
       </View>
       <Text style={styles.bookCount} numberOfLines={1}>{count}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -96,9 +101,9 @@ export function ChapterTileView(props: {
   n: number; stage: ChapterStage; dim: boolean; current: boolean; disabled: boolean; label: string; corner?: ReactNode; onPress: () => void;
 }) {
   const look = STAGE[props.stage];
-  const onPress = useHelpPress(t('map.parts.chapter', { n: formatNumber(props.n) }), t('map.parts.chapterHelp'), props.onPress);
+  const spot = useHelpSpot(t('map.parts.chapter', { n: formatNumber(props.n) }), t('map.parts.chapterHelp'), props.onPress);
   return (
-    <Pressable onPress={onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
+    <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
       accessibilityState={{ disabled: props.disabled, selected: props.current }}
       style={({ pressed }) => [styles.tile, { backgroundColor: look.bg, borderColor: look.border, opacity: props.dim ? 0.28 : 1 },
         props.current && { borderColor: C.primary, borderWidth: 3 }, pressed && { transform: [{ scale: 0.95 }] }]}>
@@ -107,6 +112,7 @@ export function ChapterTileView(props: {
         : props.stage === 'started' ? <View style={styles.tileDot} />
         : <View style={{ height: 16 }} />}
       {props.corner}
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -157,13 +163,14 @@ export function FullKey(props: { none: boolean }) {
 
 /** A quiet link with an icon (Filter, Edit passages): the less likely way on, 48pt. */
 export function QuietIconLink(props: { icon: IconName; label: string; onPress: () => void; detail?: string; color?: string }) {
-  const onPress = useHelpPress(props.label, props.detail, props.onPress);
+  const spot = useHelpSpot(props.label, props.detail, props.onPress);
   const color = props.color ?? C.muted;
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={props.label}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.label}
       style={({ pressed }) => [styles.quiet, pressed && styles.pressed]}>
       <Ico name={props.icon} size={18} color={color} />
       <Text style={[styles.quietText, { color }]} numberOfLines={1}>{props.label}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }

@@ -54,6 +54,10 @@ subscription, its pinned version.
 Before either, `library_adopt` gives the organization access to the version
 and everything it depends on. That copy of access is what makes it
 self-contained (PLAN.md invariant 6): no live link to the other organization.
+The phone then fetches the version's document and what it depends on,
+except a Bible source's books and a collection's guides: only their
+numbering comes, and each book or guide is fetched by its own hash when a
+passage reads it (`loadDocs`; decisions.md 71, amended 2026-10-11).
 
 ## Languages
 

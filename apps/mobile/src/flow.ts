@@ -367,6 +367,10 @@ export const EDGES: Edge[] = [
   e('get_ready', 'key_terms'),
   e('get_ready', 'flow_editor', undefined, 'manageFlows'),
   e('get_ready', 'role_editor'),
+  // App only: New language's questions make their own answer where none fits (decision 71):
+  // an outline for something other than the Bible, and "I'll choose the steps"
+  e('new_language', 'template_editor', undefined, 'manageTemplates'),
+  e('new_language', 'flow_editor', undefined, 'manageFlows'),
   // App only: a ready language's page (decision 71, demo ADR-039): who checks, and letting someone in
   e('language_home', 'flow_editor', undefined, 'manageFlows'),
   e('language_home', 'edit_member', undefined, 'assigner')

@@ -25,8 +25,6 @@ async function watchCsp(page: Page): Promise<() => Promise<string[]>> {
 }
 
 async function start(page: Page): Promise<void> {
-  // The first-time screen intros (decision 71) would cover what the smoke taps; they have their own tests.
-  await page.context().addInitScript(() => { (window as unknown as { __lqNoIntros: boolean }).__lqNoIntros = true; });
   await page.goto('/', { waitUntil: 'networkidle' });
   await expect(page.getByText('Create Account', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
 }

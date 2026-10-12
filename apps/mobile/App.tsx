@@ -1,5 +1,5 @@
 import { StudyPrefetch } from './src/study/StudyPrefetch';
-import { HelpModeProvider, useScreenIntro } from './src/helpMode';
+import { HelpModeProvider } from './src/helpMode';
 import { keepHelpAudio } from './src/helpAudio';
 import { languageReady, onLanguageReady } from './src/i18n/start';
 import { HelpScopeContext } from './src/helpContext';
@@ -142,9 +142,7 @@ function hostFor(id: ScreenId) {
   const Screen = SCREENS[id];
   function Host(props: HostProps) {
     const ctx = useContext(CtxContext);
-    // What the screen is for, said the first time it opens (decision 71, demo a-helpFirst).
     const focused = useFocusedSafe();
-    useScreenIntro(id, focused);
     // Playback belongs to the screen it started on: leaving it (another screen pushed over it, or a tab
     // switched away) stops whatever was playing. Popping back unmounts the screen, and its players with it.
     const wasFocused = useRef(focused);

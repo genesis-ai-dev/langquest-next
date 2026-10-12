@@ -86,6 +86,9 @@ These change what the app does, not only how it looks.
 9. **Help mode** (ADR-038): a ? on every screen; while on, a tap explains a
    part (spoken and written) instead of acting. Every screen needs a spoken
    line per part. Replaces Getting started tours for translators.
+   Changed in the app (decision 71, amended 2026-10-10): no screen explains
+   itself on first open; while help is on the screen dims and each part is
+   lit with its number, and a tap shows a tooltip with a play button.
 10. **Getting a language ready** (ADR-039): Language Home becomes a
     four-question checklist (what they record, what helps them, who checks,
     invite) with suggestions picked, then a summary, and a coordinator's My

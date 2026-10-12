@@ -11,7 +11,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../text';
 import type { Ctx } from '../ctx';
 import { t } from '../i18n';
-import { useHelpPress } from '../helpContext';
+import { HelpBadge } from '../helpBadge';
+import { useHelpSpot } from '../helpContext';
 import { Ico, SearchField, txt } from '../kit';
 import { LanguoidPicker, useLanguoidSearch } from '../languoidPicker';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
@@ -108,13 +109,14 @@ export function ReferenceLanguagePage(props: {
 /** Above What will help them: "Bibles and guides in French · Change", back to the language page. */
 export function ReferenceLanguageChip(props: { language: string; onPress: () => void }) {
   const label = t('referenceLanguage.chip', { language: languageLabel(props.language) });
-  const onPress = useHelpPress(label, t('referenceLanguage.chipHelp'), props.onPress);
+  const spot = useHelpSpot(label, t('referenceLanguage.chipHelp'), props.onPress);
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${label}. ${t('referenceLanguage.change')}`}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={`${label}. ${t('referenceLanguage.change')}`}
       style={({ pressed }) => [styles.chip, pressed && { opacity: 0.75 }]}>
       <Ico name="globe" size={18} color={C.primary} />
       <Text style={styles.chipText} numberOfLines={1}>{label}</Text>
       <Text style={styles.chipChange}>{t('referenceLanguage.change')}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }

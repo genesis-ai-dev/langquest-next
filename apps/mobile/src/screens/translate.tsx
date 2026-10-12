@@ -35,6 +35,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../text';
 import type { Ctx } from '../ctx';
 import { screenTitle } from '../flow';
+import { HelpClip } from '../helpBadge';
 import { t } from '../i18n';
 import { indexesFor } from '../indexes';
 import {
@@ -426,55 +427,59 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
           <View style={{ flex: 1 }}>
             <RefChips items={chips} value={chip} onChange={openChip} />
             {chip === 'guide' && study ? <GuideNav ctx={ctx} sp={study} index={step} onIndex={setStep} /> : null}
-            <ScrollView contentContainerStyle={styles.paneBody} keyboardShouldPersistTaps="handled">
-              {chip === 'bible' ? (
-                <BiblePane ctx={ctx} v={v} bible={bible} terms={unitTerms} tied={tied} canNote={!recording} selected={verse} onSelect={setVerse}
-                  footer={<ReferenceRecordings ctx={ctx} unitId={unitId} disabled={false} listen={loop.hooks} onPlay={usage.open} />}
-                  {...(recording ? {} : {
-                    onTerm: (termId: string) => ctx.go('key_term_detail', { ...scope, termId }),
-                    onMoreBibles: () => ctx.go('bible_explore', scope)
-                  })} />
-              ) : chip === 'guide' && study && guide ? (
-                <>
-                  <GuideStep key={study.steps[step]!.step.id} ctx={ctx} v={v} guide={guide} status={study.steps[step]!} spoken={false}
-                    canContribute={!recording} onTerm={(termId) => ctx.go('key_term_detail', { ...scope, termId })} />
-                  <LinkBtn label={t('translate.openStudy')} style={{ alignSelf: 'center' }} onPress={() => ctx.go('study_step', { ...scope, stepId: study.steps[step]!.step.id })} />
-                </>
-              ) : chip === 'terms' ? (
-                <KeyWordsPane ctx={ctx} v={v} terms={trayTerms} rows={bible.rows} draftTakeId={draft?.takeId} canTie={canTie} disabled={blocked}
-                  onHear={(key) => { setChip('bible'); if (key) { setVerse(key); bible.playVerse(key); } }}
-                  allTerms={() => ctx.go('key_terms', scope)} />
-              ) : chip === 'notes' ? (
-                <NotesPane ctx={ctx} v={v} notes={notes} disabled={blocked} top={request ? <RequestNote ctx={ctx} request={request} /> : undefined} />
-              ) : (
-                <EarlierPane ctx={ctx} v={v} {...(revising ? { focusReviewId: revising.id } : {})} />
-              )}
-            </ScrollView>
+            <HelpClip style={{ flex: 1 }}>
+              <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.paneBody} keyboardShouldPersistTaps="handled">
+                {chip === 'bible' ? (
+                  <BiblePane ctx={ctx} v={v} bible={bible} terms={unitTerms} tied={tied} canNote={!recording} selected={verse} onSelect={setVerse}
+                    footer={<ReferenceRecordings ctx={ctx} unitId={unitId} disabled={false} listen={loop.hooks} onPlay={usage.open} />}
+                    {...(recording ? {} : {
+                      onTerm: (termId: string) => ctx.go('key_term_detail', { ...scope, termId }),
+                      onMoreBibles: () => ctx.go('bible_explore', scope)
+                    })} />
+                ) : chip === 'guide' && study && guide ? (
+                  <>
+                    <GuideStep key={study.steps[step]!.step.id} ctx={ctx} v={v} guide={guide} status={study.steps[step]!} spoken={false}
+                      canContribute={!recording} onTerm={(termId) => ctx.go('key_term_detail', { ...scope, termId })} />
+                    <LinkBtn label={t('translate.openStudy')} style={{ alignSelf: 'center' }} onPress={() => ctx.go('study_step', { ...scope, stepId: study.steps[step]!.step.id })} />
+                  </>
+                ) : chip === 'terms' ? (
+                  <KeyWordsPane ctx={ctx} v={v} terms={trayTerms} rows={bible.rows} draftTakeId={draft?.takeId} canTie={canTie} disabled={blocked}
+                    onHear={(key) => { setChip('bible'); if (key) { setVerse(key); bible.playVerse(key); } }}
+                    allTerms={() => ctx.go('key_terms', scope)} />
+                ) : chip === 'notes' ? (
+                  <NotesPane ctx={ctx} v={v} notes={notes} disabled={blocked} top={request ? <RequestNote ctx={ctx} request={request} /> : undefined} />
+                ) : (
+                  <EarlierPane ctx={ctx} v={v} {...(revising ? { focusReviewId: revising.id } : {})} />
+                )}
+              </ScrollView>
+            </HelpClip>
           </View>
         )}
         bottom={({ compact, open, height }) => compact ? (
           <RecorderBar count={list.length} phase={loop.phase} disabled={saving || rec.failureCount > 0} onRecord={record} onOpen={open} />
         ) : (
-          <ScrollView contentContainerStyle={styles.recordBody} accessibilityLabel={t('translate.yourRecording')}>
-            {problem}
-            <RecorderPane ctx={ctx} parts={parts} phase={loop.phase} capturing={rec.vadCapturing} small={height < 360} disabled={blocked}
-              onDelete={(h, label) => void remove(h, label)} onResume={loop.resumeNow}
-              verses={{ keys: verseKeys, marks, onMarks: setMarks, onRecordHere: recordHere }} />
-            {list.length === 0 && !session ? (
-              <Text style={[txt.smMuted, { textAlign: 'center' }]}>{t('translate.tapRed')}</Text>
-            ) : null}
-            {!isFirst && !changed && list.length > 0 ? (
-              <Text style={[txt.xs, { textAlign: 'center' }]}>{t('translate.latestParts', { n: latest.n })}</Text>
-            ) : null}
-            {clipped ? (
-              <View style={styles.clipped}>
-                <Text style={[txt.sm, { color: TINT.amberText, fontWeight: '700' }]}>{t('translate.clipped')}</Text>
-                <SmallBtn label={t('translate.micSetup')} icon="sliders" onPress={() => ctx.go('mic_setup')} />
-              </View>
-            ) : !session ? (
-              <QuietLink label={t('translate.micSetup')} icon="sliders" hint={t('translate.micSetupHint')} onPress={() => ctx.go('mic_setup')} />
-            ) : null}
-          </ScrollView>
+          <HelpClip style={{ flex: 1 }}>
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.recordBody} accessibilityLabel={t('translate.yourRecording')}>
+              {problem}
+              <RecorderPane ctx={ctx} parts={parts} phase={loop.phase} capturing={rec.vadCapturing} small={height < 360} disabled={blocked}
+                onDelete={(h, label) => void remove(h, label)} onResume={loop.resumeNow}
+                verses={{ keys: verseKeys, marks, onMarks: setMarks, onRecordHere: recordHere }} />
+              {list.length === 0 && !session ? (
+                <Text style={[txt.smMuted, { textAlign: 'center' }]}>{t('translate.tapRed')}</Text>
+              ) : null}
+              {!isFirst && !changed && list.length > 0 ? (
+                <Text style={[txt.xs, { textAlign: 'center' }]}>{t('translate.latestParts', { n: latest.n })}</Text>
+              ) : null}
+              {clipped ? (
+                <View style={styles.clipped}>
+                  <Text style={[txt.sm, { color: TINT.amberText, fontWeight: '700' }]}>{t('translate.clipped')}</Text>
+                  <SmallBtn label={t('translate.micSetup')} icon="sliders" onPress={() => ctx.go('mic_setup')} />
+                </View>
+              ) : !session ? (
+                <QuietLink label={t('translate.micSetup')} icon="sliders" hint={t('translate.micSetupHint')} onPress={() => ctx.go('mic_setup')} />
+              ) : null}
+            </ScrollView>
+          </HelpClip>
         )} />
     </Screen>
   );

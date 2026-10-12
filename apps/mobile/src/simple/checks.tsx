@@ -9,7 +9,8 @@ import type { KindDef } from '@langquest-next/core';
 import { useRef, useState } from 'react';
 import { PanResponder, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../text';
-import { useHelpPress } from '../helpContext';
+import { useHelpSpot } from '../helpContext';
+import { HelpBadge } from '../helpBadge';
 import { t } from '../i18n';
 import { Ico, txt } from '../kit';
 import { C, space } from '../theme';
@@ -43,7 +44,7 @@ function StepCard(props: {
     },
     onPanResponderTerminate: () => setDy(0)
   })).current;
-  const open = useHelpPress(title, t('review.checkSteps.openHelp', { who: props.usually }), props.onOpen);
+  const open = useHelpSpot(title, t('review.checkSteps.openHelp', { who: props.usually }), props.onOpen);
   return (
     <View onLayout={(e) => props.onLayout(e.nativeEvent.layout.height)}
       style={[styles.card, dy !== 0 && { transform: [{ translateY: dy }], zIndex: 2, borderColor: C.primary }]}>
@@ -55,13 +56,14 @@ function StepCard(props: {
         }}>
         <Ico name="grip" size={22} color={C.faint} />
       </View>
-      <Pressable onPress={open} disabled={props.readOnly && !props.onOpen} accessibilityRole="button" accessibilityLabel={t('review.checkSteps.cardA11y', { n: i + 1, title, who: props.usually })}
+      <Pressable onPress={open.onPress} disabled={props.readOnly && !props.onOpen} accessibilityRole="button" accessibilityLabel={t('review.checkSteps.cardA11y', { n: i + 1, title, who: props.usually })}
         style={({ pressed }) => [styles.body, pressed && { opacity: 0.7 }]}>
         <View style={styles.num}><Text style={styles.numText}>{i + 1}</Text></View>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={styles.title}>{title}</Text>
           <Text style={[txt.xs, { fontSize: 14 }]} numberOfLines={2}>{t('review.checkSteps.usually', { who: props.usually })}</Text>
         </View>
+        <HelpBadge spot={open} />
       </Pressable>
       <LockToggle on={step.checkpoint} onToggle={props.onLock} disabled={props.readOnly}
         label={step.checkpoint ? t('review.checkSteps.mustPass', { title }) : t('review.checkSteps.canSetAside', { title })} />

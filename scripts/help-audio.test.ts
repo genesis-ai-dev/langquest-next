@@ -9,12 +9,12 @@ describe('help audio lines', () => {
     expect(lineHash('en', 'Got it')).toMatch(/^[0-9a-f]{16}$/);
   });
 
-  it('lists intros first and leaves out lines with names or numbers in them', () => {
+  it('lists each line once and leaves out lines with names or numbers in them', () => {
     const lines = helpLines('en', {
       a: { done: 'Done', hello: 'Hello {{name}}', bold: 'Tap <b>Start</b>' },
-      help: { intros: { my_work: 'This is your work.' } },
+      help: { details: { primary: 'The main thing to do on this screen.' } },
       b: { again: 'Done' }
     });
-    expect(lines.map((l) => l.text)).toEqual(['This is your work.', 'Done']);
+    expect(lines.map((l) => l.text)).toEqual(['Done', 'The main thing to do on this screen.']);
   });
 });

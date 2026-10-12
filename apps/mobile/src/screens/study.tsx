@@ -26,6 +26,7 @@ import { Text } from '../text';
 import { licenseText } from '../coreText';
 import type { Ctx } from '../ctx';
 import { screenTitle } from '../flow';
+import { HelpClip } from '../helpBadge';
 import { t } from '../i18n';
 import { indexesFor } from '../indexes';
 import { EmptyState, GhostBtn, Header, Ico, PrimaryBtn, Screen, SmallBtn, txt } from '../kit';
@@ -173,19 +174,21 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
       header={<Header title={v.title} sub={t('study.screen.study')} onBack={ctx.back} close />}>
       <RefChips items={chips} value={chip} onChange={setChip} />
       {chip === 'guide' ? <GuideNav ctx={ctx} sp={sp} index={index} onIndex={setIndex} sheetFooter={sheetFooter} /> : null}
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
-        {chip === 'guide' ? (
-          <GuideStep key={status.step.id} ctx={ctx} v={v} guide={guide} status={status} spoken canContribute={canContribute} onTerm={openTerm} />
-        ) : chip === 'bible' ? (
-          <BiblePane ctx={ctx} v={v} bible={bible} terms={terms} canNote={canContribute} selected={verse} onSelect={setVerse}
-            onTerm={openTerm} onMoreBibles={() => ctx.go('bible_explore', scope)} />
-        ) : chip === 'terms' ? (
-          <KeyWordsPane ctx={ctx} v={v} terms={terms} rows={bible.rows} draftTakeId={v.p.draftTakeId} canTie={false}
-            onHear={(key) => { setChip('bible'); if (key) { setVerse(key); bible.playVerse(key); } }} />
-        ) : (
-          <NotesPane ctx={ctx} v={v} notes={notes} />
-        )}
-      </ScrollView>
+      <HelpClip style={{ flex: 1 }}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
+          {chip === 'guide' ? (
+            <GuideStep key={status.step.id} ctx={ctx} v={v} guide={guide} status={status} spoken canContribute={canContribute} onTerm={openTerm} />
+          ) : chip === 'bible' ? (
+            <BiblePane ctx={ctx} v={v} bible={bible} terms={terms} canNote={canContribute} selected={verse} onSelect={setVerse}
+              onTerm={openTerm} onMoreBibles={() => ctx.go('bible_explore', scope)} />
+          ) : chip === 'terms' ? (
+            <KeyWordsPane ctx={ctx} v={v} terms={terms} rows={bible.rows} draftTakeId={v.p.draftTakeId} canTie={false}
+              onHear={(key) => { setChip('bible'); if (key) { setVerse(key); bible.playVerse(key); } }} />
+          ) : (
+            <NotesPane ctx={ctx} v={v} notes={notes} />
+          )}
+        </ScrollView>
+      </HelpClip>
       {dock ? (
         <Dock title={t('study.screen.passageDock', { title: v.title })} sub={bible.line()} playing={bible.player.playing} available={!bible.player.loading}
           onToggle={bible.player.toggle} onBack10={() => bible.player.skip(-10)} backDisabled={!bible.player.started} />

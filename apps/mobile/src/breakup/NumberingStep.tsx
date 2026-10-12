@@ -10,7 +10,8 @@ import { bookName } from '../coreText';
 import { formatNumber } from '../i18n/format';
 import { t } from '../i18n';
 import { Text } from '../text';
-import { useHelpPress } from '../helpContext';
+import { useHelpSpot } from '../helpContext';
+import { HelpBadge } from '../helpBadge';
 import { GhostBtn, Ico, SearchField, type IconName } from '../kit';
 import { ChoiceCard, Question, RadioRow } from '../simple/admin';
 import { C, radius, space, TINT, type as T } from '../theme';
@@ -70,11 +71,12 @@ function PsalmLines(props: { numbered: boolean; small?: boolean }) {
 
 /** A full-width outlined button for the other ways to answer. */
 function OtherWay(props: { icon: IconName; label: string; onPress: () => void }) {
-  const onPress = useHelpPress(props.label, undefined, props.onPress);
+  const spot = useHelpSpot(props.label, undefined, props.onPress);
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" style={({ pressed }) => [styles.other, pressed && { opacity: 0.7 }]}>
+    <Pressable onPress={spot.onPress} accessibilityRole="button" style={({ pressed }) => [styles.other, pressed && { opacity: 0.7 }]}>
       <Ico name={props.icon} size={20} color={C.primary} />
       <Text style={styles.otherText}>{props.label}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -224,13 +226,14 @@ export function NumberingChosenPage(props: { choice: NumberingChoice; facts: Num
 
 /** Above the next questions: the numbering chosen, and a way back to change it. */
 export function NumberingContext(props: { choice: NumberingChoice; onPress: () => void }) {
-  const onPress = useHelpPress(t('breakup.numberingStep.context.label'), t('breakup.numberingStep.context.help'), props.onPress);
+  const spot = useHelpSpot(t('breakup.numberingStep.context.label'), t('breakup.numberingStep.context.help'), props.onPress);
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={t('breakup.numberingStep.context.a11y', { name: shortName(props.choice.name) })}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('breakup.numberingStep.context.a11y', { name: shortName(props.choice.name) })}
       style={({ pressed }) => [styles.context, pressed && styles.pressed]}>
       <Ico name="book" size={18} color={C.primary} />
       <Text style={styles.contextText} numberOfLines={1}>{shortName(props.choice.name)}</Text>
       <Text style={styles.contextChange}>{t('breakup.numberingStep.context.change')}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }

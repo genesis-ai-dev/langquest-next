@@ -1,9 +1,9 @@
 // Help mode's recorded voice, per language (LAN-42, docs/localization.md).
 //
 //   npm run help-audio -- lines <lang> [file.csv]
-//     Every line help can say in that language (screen intros first, then
-//     every catalog string without a placeholder), with the file name its
-//     recording must have: <hash>.m4a. Give the sheet to whoever records.
+//     Every line help can say in that language (every catalog string without
+//     a placeholder), with the file name its recording must have:
+//     <hash>.m4a. Give the sheet to whoever records.
 //
 //   npm run help-audio -- upload <lang> <folder> [preview|production]
 //     Puts each <hash>.m4a (or <key>.m4a, named by catalog key) from the
@@ -28,14 +28,12 @@ function leaves(tree: Tree, prefix = ''): [string, string][] {
   return Object.entries(tree).flatMap(([k, v]) => (typeof v === 'string' ? [[prefix + k, v] as [string, string]] : leaves(v, `${prefix}${k}.`)));
 }
 
-/** What help can say in a language: intros first, then every string with no placeholder or tag. */
+/** What help can say in a language: every string with no placeholder or tag, once each. */
 export function helpLines(language: string, catalog: Tree): { key: string; text: string; hash: string }[] {
   const all = leaves(catalog).filter(([, text]) => text.trim() && !/\{\{|<\/?\w+>/.test(text));
-  const intros = all.filter(([k]) => k.startsWith('help.intros.'));
-  const rest = all.filter(([k]) => !k.startsWith('help.intros.'));
   const seen = new Set<string>();
   const out: { key: string; text: string; hash: string }[] = [];
-  for (const [key, text] of [...intros, ...rest]) {
+  for (const [key, text] of all) {
     const hash = lineHash(language, text);
     if (seen.has(hash)) continue;
     seen.add(hash);

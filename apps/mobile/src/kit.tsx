@@ -21,10 +21,10 @@ import {
 import { Text } from './text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { KindState } from '@langquest-next/core';
-import { useHelpMode, useHelpPress, useHelpSpot } from './helpContext';
+import { useHelpMode, useHelpSpot } from './helpContext';
 import { isRtl, t } from './i18n';
 import { formatNumber } from './i18n/format';
-import { HelpBadge } from './helpBadge';
+import { HelpBadge, HelpClip, HelpLit } from './helpBadge';
 import { lift, shadow } from './shadow';
 import { markedParts } from './textMatch';
 import { C, measure, onColor, radius, space, target, TINT, type as T } from './theme';
@@ -122,13 +122,15 @@ export function Screen(props: {
   return (
     <KeyboardSafe style={styles.screen}>
       {props.header}
-      {props.fixed ? (
-        <View style={[{ flex: 1 }, column, props.bodyStyle]}>{props.children}</View>
-      ) : (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.body, column, props.bodyStyle]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          {props.children}
-        </ScrollView>
-      )}
+      <HelpClip style={{ flex: 1 }}>
+        {props.fixed ? (
+          <View style={[{ flex: 1 }, column, props.bodyStyle]}>{props.children}</View>
+        ) : (
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.body, column, props.bodyStyle]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            {props.children}
+          </ScrollView>
+        )}
+      </HelpClip>
       {props.footer ? (
         <View style={[styles.footer, { paddingBottom: space.md }]}
           onLayout={reportFooter ? (e) => reportFooter(e.nativeEvent.layout.height) : undefined}>
@@ -196,11 +198,13 @@ export function Header(props: {
   // Ryder's header on a phone (demo ADR-032): a task screen centres its title between two round
   // buttons, Back (or ✕) and ?, on the screen's own ground; a tab's home keeps its big title at the left.
   const centred = !wide && !!props.onBack;
+  // While help is on the ? is filled and stays lit over the dimmed screen: it is the way out.
   const helpBtn = help ? (
     <Pressable onPress={() => help.setOn(!help.on)} accessibilityRole="button" accessibilityLabel={help.on ? t('help.turnOff') : t('help.explainScreen')}
       accessibilityState={{ selected: help.on }}
       style={({ pressed }) => [styles.helpBtn, help.on && { backgroundColor: C.primary, borderColor: C.primary }, pressed && styles.pressed]}>
       <Ico name="help" size={24} color={help.on ? C.white : C.primary} />
+      <HelpLit />
     </Pressable>
   ) : null;
   const crumbs = props.crumbs && props.crumbs.length > 0 && wide ? (
@@ -249,18 +253,9 @@ export function Header(props: {
       {helpBtn}
     </>
   );
-  // While help is on, say so under the header (demo ADR-038).
-  const banner = help?.on ? (
-    <View style={styles.helpBanner} accessibilityLiveRegion="polite">
-      <Text style={[txt.sm, { flex: 1, color: C.white, fontWeight: '700' }]}>{t('help.banner')}</Text>
-      <Pressable onPress={() => help.setOn(false)} accessibilityRole="button" style={({ pressed }) => [styles.helpDone, pressed && styles.pressed]}>
-        <Text style={[txt.sm, { color: C.primary, fontWeight: '800' }]}>{t('common.done')}</Text>
-      </Pressable>
-    </View>
-  ) : null;
   // Wide: the white bar spans the window, its contents line up with the body's column.
-  if (wide) return <View><View style={styles.headerBar}><View style={[styles.headerRow, styles.column, props.columnWidth ? { maxWidth: props.columnWidth } : null]}>{content}</View></View>{banner}</View>;
-  return <View>{banner ?? null}<View style={centred ? styles.headerCentred : styles.headerHome}>{content}</View></View>;
+  if (wide) return <View style={styles.headerBar}><View style={[styles.headerRow, styles.column, props.columnWidth ? { maxWidth: props.columnWidth } : null]}>{content}</View></View>;
+  return <View style={centred ? styles.headerCentred : styles.headerHome}>{content}</View>;
 }
 
 /** `current`: what this card opened is showing beside the list (a split on a wide window, panes.ts). */
@@ -374,7 +369,7 @@ export function Row(props: {
     <Pressable onPress={onPress} disabled={props.disabled} accessibilityRole={props.role ?? 'button'} accessibilityState={state} accessibilityLabel={props.accessibilityLabel}
       style={({ pressed }) => [...style, pressed && styles.pressed]}>
       {body}
-      <HelpBadge n={spot.n} current={spot.current} inset />
+      <HelpBadge spot={spot} inset />
     </Pressable>
   );
 }
@@ -426,16 +421,17 @@ export function PrimaryBtn(props: { label: string; onPress: () => void; disabled
         !off && lift({ color: bg, opacity: 0.25, y: 5, elevation: 3 }), pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={22} color={C.white} /> : null}
       <Text style={styles.primaryLabel}>{props.busy ? t('common.saving') : props.label}</Text>
-      <HelpBadge n={spot.n} current={spot.current} />
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
 
 /** A secondary action: tinted, same size as the main button. */
-export function GhostBtn(props: { label: string; onPress: () => void; disabled?: boolean; icon?: IconName; full?: boolean; tone?: 'primary' | 'red' | 'amber' }) {
+export function GhostBtn(props: { label: string; onPress: () => void; disabled?: boolean; icon?: IconName; full?: boolean; tone?: 'primary' | 'red' | 'amber';
+  /** What help mode says it does. */ help?: string }) {
   const fg = props.tone === 'red' ? TINT.redText : props.tone === 'amber' ? TINT.amberText : C.primary;
   const bg = props.tone === 'red' ? TINT.red : props.tone === 'amber' ? TINT.amber : C.light;
-  const spot = useHelpSpot(props.label, undefined, props.onPress);
+  const spot = useHelpSpot(props.label, props.help, props.onPress);
   const onPress = spot.onPress;
   return (
     <Pressable onPress={onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
@@ -444,7 +440,7 @@ export function GhostBtn(props: { label: string; onPress: () => void; disabled?:
         props.disabled && { opacity: 0.5 }, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={22} color={fg} /> : null}
       <Text style={[styles.ghostLabel, { color: fg }]}>{props.label}</Text>
-      <HelpBadge n={spot.n} current={spot.current} />
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -461,19 +457,20 @@ export function SmallBtn(props: { label: string; onPress: () => void; icon?: Ico
       style={({ pressed }) => [styles.small, filled ? { backgroundColor: bg, borderColor: bg } : null, props.disabled && { opacity: 0.45 }, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={18} color={filled ? C.white : C.primary} /> : null}
       <Text style={[styles.smallLabel, { color: filled ? C.white : C.primary }]} numberOfLines={1}>{props.label}</Text>
-      <HelpBadge n={spot.n} current={spot.current} />
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
 
 /** A plain text action (Show all, Undo). Still 48pt tall. */
 export function LinkBtn(props: { label: string; onPress: () => void; color?: string; style?: StyleProp<ViewStyle>; accessibilityLabel?: string; expanded?: boolean }) {
-  const onPress = useHelpPress(props.label, undefined, props.onPress);
+  const spot = useHelpSpot(props.label, undefined, props.onPress);
   return (
-    <Pressable onPress={onPress} hitSlop={8} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
+    <Pressable onPress={spot.onPress} hitSlop={8} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
       accessibilityState={props.expanded !== undefined ? { expanded: props.expanded } : undefined}
       style={({ pressed }) => [styles.linkBtn, props.style, pressed && styles.pressed]}>
       <Text style={[txt.link, props.color ? { color: props.color } : null]}>{props.label}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -498,20 +495,21 @@ function QuietLink(props: { label: string; icon: IconName; onPress: () => void }
     <Pressable onPress={onPress} accessibilityRole="button" hitSlop={4} style={({ pressed }) => [styles.quiet, pressed && styles.pressed]}>
       <Ico name={props.icon} size={18} color={C.muted} />
       <Text style={[txt.sm, { color: C.muted, fontWeight: '700' }]}>{props.label}</Text>
-      <HelpBadge n={spot.n} current={spot.current} />
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
 
 export function IconBtn(props: { name: IconName; onPress: () => void; label: string; color?: string; bg?: string; size?: number; disabled?: boolean }) {
   const size = props.size ?? 48;
-  const onPress = useHelpPress(props.label, undefined, props.onPress);
+  const spot = useHelpSpot(props.label, undefined, props.onPress);
   return (
-    <Pressable onPress={onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
+    <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
       accessibilityState={{ disabled: !!props.disabled }} hitSlop={Math.max(0, (target.min - size) / 2)}
       style={({ pressed }) => [{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: props.bg ?? C.bg },
         props.disabled && { opacity: 0.4 }, pressed && styles.pressed]}>
       <Ico name={props.name} size={Math.round(size * 0.46)} color={props.color ?? C.dark} />
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -525,7 +523,7 @@ export function Chip(props: { label: string; on: boolean; onPress: () => void; i
       style={({ pressed }) => [styles.chip, props.on ? { backgroundColor: C.primary, borderColor: C.primary } : null, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={18} color={props.on ? C.white : C.primary} /> : null}
       <Text style={[styles.chipLabel, { color: props.on ? C.white : C.dark }]}>{props.count !== undefined ? t('shell.kit.chipCount', { label: props.label, number: formatNumber(props.count) }) : props.label}</Text>
-      <HelpBadge n={spot.n} current={spot.current} />
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -606,6 +604,33 @@ export function ProgressBar(props: { value: number; color?: string; height?: num
   return (
     <View style={{ height: h, borderRadius: h, backgroundColor: C.border, overflow: 'hidden' }}>
       <View style={{ height: h, borderRadius: h, width: `${Math.max(0, Math.min(100, props.value))}%`, backgroundColor: props.color ?? C.primary }} />
+    </View>
+  );
+}
+
+/**
+ * A bar that keeps moving while something runs whose length is not known, so
+ * a long wait never looks frozen. On a phone it moves on the native side, so
+ * it keeps going while JavaScript is busy.
+ */
+export function MovingBar(props: { color?: string; height?: number }) {
+  const h = props.height ?? 6;
+  const [width, setWidth] = useState(0);
+  const x = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(Animated.timing(x, { toValue: 1, duration: 1300, easing: Easing.inOut(Easing.quad), useNativeDriver: Platform.OS !== 'web' }));
+    loop.start();
+    return () => loop.stop();
+  }, [x]);
+  const run = width * 0.4;
+  const ends = isRtl() ? [width, -run] : [-run, width];
+  return (
+    <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} accessibilityRole="progressbar" accessibilityState={{ busy: true }}
+      style={{ height: h, borderRadius: h, backgroundColor: C.border, overflow: 'hidden' }}>
+      {width ? (
+        <Animated.View style={{ position: 'absolute', left: 0, top: 0, width: run, height: h, borderRadius: h, backgroundColor: props.color ?? C.muted,
+          transform: [{ translateX: x.interpolate({ inputRange: [0, 1], outputRange: ends }) }] }} />
+      ) : null}
     </View>
   );
 }
@@ -883,8 +908,6 @@ const styles = StyleSheet.create({
   smallLabel: { fontSize: T.sm, fontWeight: '700' },
   linkBtn: { minHeight: target.min, justifyContent: 'center' },
   helpBtn: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.border, backgroundColor: C.card },
-  helpBanner: { flexDirection: 'row', alignItems: 'center', gap: space.sm, backgroundColor: C.primary, paddingHorizontal: space.lg, paddingVertical: space.sm },
-  helpDone: { minHeight: 40, paddingHorizontal: space.md, borderRadius: radius.full, backgroundColor: C.white, justifyContent: 'center' },
   quietRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.xs },
   quiet: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: target.min, paddingHorizontal: space.sm },
   chip: { minHeight: target.min, borderRadius: radius.full, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: space.lg },

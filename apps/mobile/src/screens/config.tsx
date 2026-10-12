@@ -33,6 +33,7 @@ import {
   Badge, Banner, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, IconBtn, KindIcon,
   PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, SmallBtn, Toggle, txt, useOpenDetail
 } from '../kit';
+import { cachedDoc } from '../library/docStore';
 import { sourceLine, usesItem, type SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs, useLibraryUpdates, useSharedItems } from '../library/useLibrary';
 import { when } from '../passageView';
@@ -785,10 +786,14 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
   const docs = useLibraryDocs(lib.orgId, [it?.current]);
   const doc = docs.get<FlowDoc>(it?.current);
   const { updates } = useLibraryUpdates(lib.orgId);
-  // A new flow may start from the language's own steps (made a library flow).
-  const [seed] = useState(() => (isNew && ctx.params['languageId'] && state?.flow
-    ? { name: flowName(state), description: '', steps: draftFromLanguage(state) }
-    : { name: '', description: '', steps: [] as DraftStep[] }));
+  // A new flow may start from the language's own steps (made a library flow), or from another
+  // flow's steps under a name given (New language's "I'll choose the steps", `from` and `name`).
+  const [seed] = useState(() => {
+    if (isNew && ctx.params['languageId'] && state?.flow) return { name: flowName(state), description: '', steps: draftFromLanguage(state), kinds: [] as KindDef[] };
+    const from = isNew ? cachedDoc(ctx.params['from']) : null;
+    const start = from?.format === 'flow@1' ? (from as FlowDoc) : null;
+    return { name: isNew ? ctx.params['name'] ?? '' : '', description: '', steps: start ? draftFromDoc(start) : [] as DraftStep[], kinds: start?.kinds ?? [] };
+  });
   const base = useMemo(() => (isNew ? seed : doc ? { name: doc.name, description: doc.description, steps: draftFromDoc(doc) } : null), [isNew, seed, doc]);
   const [name, setName] = useState<string | null>(null);
   const [description, setDescription] = useState<string | null>(null);
@@ -801,9 +806,9 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
   const [busy, setBusy] = useState(false);
   const known = useMemo(() => {
     const out = new Map<string, KindDef>();
-    for (const k of [...(state ? deriveKinds(state) : []), ...(doc?.kinds ?? []).map(localKind)]) if (!out.has(k.id)) out.set(k.id, k);
+    for (const k of [...(state ? deriveKinds(state) : []), ...[...(doc?.kinds ?? []), ...seed.kinds].map(localKind)]) if (!out.has(k.id)) out.set(k.id, k);
     return [...out.values()];
-  }, [state, doc]);
+  }, [state, doc, seed]);
   const kinds = useMemo(() => [...known, ...added.filter((k) => !known.some((x) => x.id === k.id))], [known, added]);
   const canManage = ctx.session.can('manage_flows');
   const followed = it?.source === 'subscription';
@@ -813,6 +818,8 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
   const desc = description ?? base?.description ?? '';
   const dirty = !readOnly && base !== null
     && (label.trim() !== base.name || desc.trim() !== base.description || draftChanged(base.steps, steps) || added.length > 0);
+  // A new flow can be saved as it starts: it is not in the library yet.
+  const canSave = !readOnly && !!label.trim() && (dirty || (isNew && base !== null));
   const language = openLanguageName(ctx);
   const usedHere = !!it && !!language && usesItem(state, it.itemId);
 
@@ -835,7 +842,7 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
 
   /** Save publishes a new version; languages using the flow move to it by themselves (follow.ts). */
   async function save() {
-    if (readOnly || busy || !label.trim()) return;
+    if (!canSave || busy) return;
     const flowDoc = flowDocFrom({ name: label, description: desc, steps, kinds });
     setBusy(true);
     const saved = await libraryAct(ctx, 'save flow', // i18n-ignore: log label
@@ -849,7 +856,7 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
     <Screen
       header={<Header title={label || (isNew ? t('config.flowEditor.newWayToCheck') : t('config.flowEditor.whoChecks'))} sub={it ? sourceLine(it) : t('config.flowEditor.newSub')}
         onBack={() => (dirty ? setLeaving(true) : ctx.back())} />}
-      footer={readOnly ? undefined : <PrimaryBtn label={t('common.save')} icon="check" onPress={() => void save()} disabled={!dirty || !label.trim()} busy={busy} />}>
+      footer={readOnly ? undefined : <PrimaryBtn label={t('common.save')} icon="check" onPress={() => void save()} disabled={!canSave} busy={busy} />}>
       {followed ? (
         <Banner icon="link" title={t('config.library.follows', { org: it!.subscription!.sourceOrgName })} body={t('config.library.followsBody')} />
       ) : !canManage ? <Banner icon="lock" title={t('common.viewOnly')} body={t('config.flowEditor.noPermission')} /> : null}
