@@ -1628,11 +1628,17 @@
       "linedUp": "LangQuest उन्हें पद-दर-पद मिला देता है। जब तक कुछ गलत न लगे, कुछ करने की ज़रूरत नहीं।",
       "psalm": "भजन {{place}}"
     },
-    "others": {
-      "intro_one": "FIA में {{count, number}} पुस्तक ({{books}}) के लिए अंश नहीं हैं। वह पुस्तक:",
-      "intro_other": "FIA में {{count, number}} पुस्तकों ({{books}}) के लिए अंश नहीं हैं। वे पुस्तकें:",
+    "leftOut": {
+      "title_one": "{{way}} में {{count, number}} पुस्तक के लिए अंश नहीं हैं",
+      "title_other": "{{way}} में {{count, number}} पुस्तकों के लिए अंश नहीं हैं",
+      "showAll": "सभी {{total}} दिखाएँ",
+      "showFewer": "कम दिखाएँ",
+      "forThose_one": "उस पुस्तक के लिए",
+      "forThose_other": "उन पुस्तकों के लिए",
       "byChapter": "अध्याय के अनुसार",
-      "wait": "बाँटे जाने का इंतज़ार करें"
+      "wait": "इंतज़ार करें",
+      "waitSub_one": "बाद में इसे अपने तरीके से बाँटें",
+      "waitSub_other": "बाद में इन्हें अपने तरीके से बाँटें"
     },
     "book": {
       "breakDifferently": "अलग तरह से बाँटें",
@@ -1643,9 +1649,6 @@
       "calledIn": "{{language}} में इसे {{name}} कहते हैं",
       "templateCalls": "टेम्पलेट इसे {{name}} कहता है",
       "tapToName": "टीम जो नाम इस्तेमाल करती है, वह देने के लिए दबाएँ",
-      "whatCalled": "{{language}} इसे क्या कहती है",
-      "namingSub": "यह भाषा जहाँ भी पुस्तक दिखाती है, वहाँ यही दिखेगा।",
-      "nameLabel": "इसका नाम",
       "brokenUpByChapter": "{{book}} अध्याय के अनुसार बाँटी गई है।",
       "brokenUpInto": "{{book}} {{way}} में बाँटी गई है।",
       "change": "{{book}} बदलें",
@@ -1659,6 +1662,15 @@
       "alsoUsedTwo": "{{first}} और {{second}} में भी इस्तेमाल होता है। {{book}} को इनमें से किसके लिए बदलें?",
       "alsoUsedMore_one": "{{name}} और {{count, number}} और में भी इस्तेमाल होता है। {{book}} को इनमें से किसके लिए बदलें?",
       "alsoUsedMore_other": "{{name}} और {{count, number}} और में भी इस्तेमाल होता है। {{book}} को इनमें से किसके लिए बदलें?"
+    },
+    "bookName": {
+      "title": "{{language}} {{book}} को क्या कहती है",
+      "sub": "अनुवादक यही नाम देखते हैं",
+      "typeOrTap": "इसे लिखें, या नीचे किसी एक को दबाएँ",
+      "fromBibles": "टीम की बाइबलें इसे क्या कहती हैं",
+      "fromLanguages": "यहाँ की दूसरी भाषाएँ इसे क्या कहती हैं",
+      "use": "इस्तेमाल करें",
+      "useLabel": "{{name}} इस्तेमाल करें ({{from}})"
     },
     "translate": {
       "question": "{{language}} में क्या अनुवाद होगा?",

@@ -1628,11 +1628,17 @@
       "linedUp": "LangQuest yana jera su aya bayan aya. Babu abin da za a yi sai idan wani abu bai yi daidai ba.",
       "psalm": "Zabura ta {{place}}"
     },
-    "others": {
-      "intro_one": "FIA ba shi da nassosi don littafi {{count, number}} ({{books}}). Wannan littafi:",
-      "intro_other": "FIA ba shi da nassosi don littattafai {{count, number}} ({{books}}). Waɗannan littattafai:",
-      "byChapter": "babi-babi",
-      "wait": "suna jiran a raba su"
+    "leftOut": {
+      "title_one": "{{way}} ba shi da nassosi don littafi {{count, number}}",
+      "title_other": "{{way}} ba shi da nassosi don littattafai {{count, number}}",
+      "showAll": "Nuna duka {{total}}",
+      "showFewer": "Nuna kaɗan",
+      "forThose_one": "Don wannan littafi",
+      "forThose_other": "Don waɗannan littattafai",
+      "byChapter": "Babi-babi",
+      "wait": "Jira",
+      "waitSub_one": "Raba shi yadda kake so daga baya",
+      "waitSub_other": "Raba su yadda kake so daga baya"
     },
     "book": {
       "breakDifferently": "Raba ta wata hanya",
@@ -1643,9 +1649,6 @@
       "calledIn": "Ana kiransa {{name}} a {{language}}",
       "templateCalls": "Samfurin yana kiransa {{name}}",
       "tapToName": "Taɓa don ba shi sunan da tawagar take amfani da shi",
-      "whatCalled": "Abin da {{language}} yake kiransa",
-      "namingSub": "Ana nuna shi a duk inda wannan harshe yake nuna littafin.",
-      "nameLabel": "Sunansa",
       "brokenUpByChapter": "An raba {{book}} babi-babi.",
       "brokenUpInto": "An raba {{book}} zuwa {{way}}.",
       "change": "Canja {{book}}",
@@ -1659,6 +1662,15 @@
       "alsoUsedTwo": "Ana amfani da shi a {{first}} da {{second}} ma. A canja {{book}} don wanne daga cikinsu?",
       "alsoUsedMore_one": "Ana amfani da shi a {{name}} da ƙari {{count, number}} ma. A canja {{book}} don wanne daga cikinsu?",
       "alsoUsedMore_other": "Ana amfani da shi a {{name}} da ƙari {{count, number}} ma. A canja {{book}} don wanne daga cikinsu?"
+    },
+    "bookName": {
+      "title": "Abin da {{language}} yake kiran {{book}}",
+      "sub": "Masu fassara suna ganin wannan suna",
+      "typeOrTap": "Rubuta shi, ko ka taɓa ɗaya a ƙasa",
+      "fromBibles": "Abin da Littattafai Masu Tsarki na tawagar suke kiransa",
+      "fromLanguages": "Abin da sauran harsuna a nan suke kiransa",
+      "use": "Yi amfani",
+      "useLabel": "Yi amfani da {{name}} ({{from}})"
     },
     "translate": {
       "question": "Me {{language}} zai fassara?",

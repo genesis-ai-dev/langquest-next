@@ -325,10 +325,21 @@ do $$ declare n int; r record; begin
     perform pg_temp.push1(jsonb_set(pg_temp.ev('tu-5', 'libA', 'alice', 'v1.BookNameSet', '{"book":"gen","name":"x"}'), '{streamId}', '"tu-two"'));
     raise exception 'a lower-case book was accepted';
   exception when others then if sqlerrm not like '%refused%' then raise; end if; end;
+  -- What each language calls a book: its latest name, one row a language (demo ADR-042).
+  perform pg_temp.push(jsonb_build_array(
+    jsonb_set(pg_temp.ev('tu-6', 'libA', 'alice', 'v1.BookNameSet', '{"book":"GEN","name":"Mwanzo"}'), '{streamId}', '"tu-one"'),
+    jsonb_set(pg_temp.ev('tu-7', 'libA', 'alice', 'v1.BookNameSet', '{"book":"GEN","name":"1. Mose"}'), '{streamId}', '"tu-two"')));
+  select count(*) into n from public.language_book_names('libA', 'GEN');
+  if n <> 2 then raise exception 'expected two languages naming Genesis, got %', n; end if;
+  select * into r from public.language_book_names('libA', 'GEN') where language_id = 'tu-two';
+  if r.name <> '1. Mose' then raise exception 'latest book name not returned: %', r.name; end if;
+  if exists (select 1 from public.language_book_names('libA', 'EXO')) then raise exception 'a book nobody named was returned'; end if;
 end $$;
 select set_config('request.jwt.claim.sub', 'mallory', false);
 do $$ begin
   begin perform * from public.library_template_users('libA'); raise exception 'stranger read template users';
+  exception when sqlstate '42501' then null; end;
+  begin perform * from public.language_book_names('libA', 'GEN'); raise exception 'stranger read book names';
   exception when sqlstate '42501' then null; end;
 end $$;
 
@@ -348,6 +359,7 @@ do $$ begin
   end if;
   if not has_function_privilege('authenticated', 'public.library_put_document(text, text)', 'execute')
      or not has_function_privilege('authenticated', 'public.library_template_users(text)', 'execute')
+     or not has_function_privilege('authenticated', 'public.language_book_names(text, text)', 'execute')
      or not has_function_privilege('service_role', 'public.library_seed_events(text, jsonb)', 'execute') then
     raise exception 'library RPCs not granted';
   end if;

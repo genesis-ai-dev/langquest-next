@@ -1572,10 +1572,14 @@
       "linedUp": "LangQuest จัดให้ตรงกันทีละข้อ ไม่ต้องทำอะไร เว้นแต่มีอะไรดูผิด",
       "psalm": "สดุดี {{place}}"
     },
-    "others": {
-      "intro_other": "FIA ไม่มีตอนสำหรับ {{count, number}} เล่ม ({{books}}) เล่มเหล่านั้น:",
+    "leftOut": {
+      "title_other": "{{way}} ไม่มีตอนสำหรับ {{count, number}} เล่ม",
+      "showAll": "แสดงทั้งหมด {{total}}",
+      "showFewer": "แสดงน้อยลง",
+      "forThose_other": "สำหรับเล่มเหล่านั้น",
       "byChapter": "แบ่งตามบท",
-      "wait": "รอการแบ่ง"
+      "wait": "รอ",
+      "waitSub_other": "แบ่งตามแบบของคุณเองภายหลัง"
     },
     "book": {
       "breakDifferently": "แบ่งแบบอื่น",
@@ -1586,9 +1590,6 @@
       "calledIn": "เรียกว่า {{name}} ใน{{language}}",
       "templateCalls": "แม่แบบเรียกว่า {{name}}",
       "tapToName": "แตะเพื่อใส่ชื่อที่ทีมใช้",
-      "whatCalled": "{{language}} เรียกว่าอะไร",
-      "namingSub": "แสดงทุกที่ที่ภาษานี้แสดงเล่มนี้",
-      "nameLabel": "ชื่อ",
       "brokenUpByChapter": "{{book}} แบ่งตามบท",
       "brokenUpInto": "{{book}} แบ่งเป็น{{way}}",
       "change": "เปลี่ยน{{book}}",
@@ -1601,6 +1602,15 @@
       "alsoUsedOne": "ใช้ใน {{name}} ด้วย จะเปลี่ยน{{book}}สำหรับภาษาไหน?",
       "alsoUsedTwo": "ใช้ใน {{first}} และ {{second}} ด้วย จะเปลี่ยน{{book}}สำหรับภาษาไหน?",
       "alsoUsedMore_other": "ใช้ใน {{name}} และอีก {{count, number}} ภาษาด้วย จะเปลี่ยน{{book}}สำหรับภาษาไหน?"
+    },
+    "bookName": {
+      "title": "{{language}} เรียก{{book}}ว่าอะไร",
+      "sub": "ผู้แปลจะเห็นชื่อนี้",
+      "typeOrTap": "พิมพ์ หรือแตะชื่อด้านล่าง",
+      "fromBibles": "พระคัมภีร์ของทีมเรียกว่า",
+      "fromLanguages": "ภาษาอื่นที่นี่เรียกว่า",
+      "use": "ใช้",
+      "useLabel": "ใช้ {{name}} ({{from}})"
     },
     "translate": {
       "question": "{{language}} จะแปลอะไร?",

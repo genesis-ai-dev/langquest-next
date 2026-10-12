@@ -2,7 +2,9 @@
 // 4, "How the Bible is broken up"): a book drawn as its pieces, a way to
 // choose with its count and a Preview, the walk-through, the sheet that asks
 // which languages a change goes to, the warning before a book is broken up
-// again, and the note when a language's Bibles number verses differently.
+// again, the note when a language's Bibles number verses differently, and
+// the books a way leaves out with a choice for them (demo ADR-042,
+// `?simple=helpsLeftOut`).
 import { templateBooks, type NumberingClash, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -11,10 +13,13 @@ import { bookNameOf } from '../contentTemplates';
 import { useHelpSpot } from '../helpContext';
 import { HelpBadge } from '../helpBadge';
 import { t } from '../i18n';
-import { Chip, GhostBtn, Ico, PrimaryBtn, Sheet, txt } from '../kit';
-import { AmberNote, CheckRow, ChoiceCard, Pills } from '../simple/admin';
+import { formatNumber } from '../i18n/format';
+import { Chip, GhostBtn, Ico, LinkBtn, PrimaryBtn, Sheet, txt } from '../kit';
+import { CheckRow, ChoiceCard, Pills, RadioLine } from '../simple/admin';
 import { C, radius, space, TINT } from '../theme';
-import { countLine, lessonSlides, piecesOf, PREVIEW_BOOKS, SAMPLE_BOOK, usedLine, verseSays, type TemplateUser, type WayRow } from './model';
+import {
+  booksLine, CHAPTERS_ITEM, countLine, lessonSlides, piecesOf, PREVIEW_BOOKS, SAMPLE_BOOK, usedLine, verseSays, wayOf, type TemplateUser, type WayRow
+} from './model';
 
 /** A book cut into its pieces, each as wide as its verses. Nothing drawn when the way leaves the book for later. */
 export function PieceBar(props: { doc: TemplateDoc | null; book?: string; v11n: VersificationDoc | null; caption?: boolean }) {
@@ -49,6 +54,8 @@ export function PieceBar(props: { doc: TemplateDoc | null; book?: string; v11n: 
  */
 export function WayCard(props: {
   row: WayRow; doc: TemplateDoc | null; v11n: VersificationDoc | null; on: boolean; onPress: () => void; onPreview: () => void; oneBook?: string; children?: ReactNode;
+  /** Under the card's lines, as wide as the card (the books the way leaves out). */
+  note?: ReactNode;
 }) {
   const { row, doc } = props;
   const lines = [
@@ -76,6 +83,7 @@ export function WayCard(props: {
         )}
         {props.children}
       </View>
+      {props.note}
     </ChoiceCard>
   );
 }
@@ -260,19 +268,34 @@ function readable(ref: string): string {
   return m[1] === 'PSA' ? t('breakup.numbering.psalm', { place: m[2] }) : `${bookNameOf(m[1]!)} ${m[2]}`;
 }
 
-/** A quiet line under the ways: FIA covers some books; what the rest get. */
-export function OthersChoice(props: { empty: string; count: number; on: 'chapters' | 'later'; onPick: (v: 'chapters' | 'later') => void }) {
+/**
+ * The books a way leaves out (demo ADR-042): the way named ("FIA has no
+ * passages for 20 books"), the books listed on request, and a small choice
+ * for them: by chapter, another ready-made way that covers them, or wait
+ * and divide them your own way later. `on` is 'later' or a way's choice key.
+ */
+export function LeftOutNote(props: { way: string; books: string[]; fills: WayRow[]; on: string; onPick: (key: string) => void }) {
+  const [all, setAll] = useState(false);
+  const n = props.books.length;
+  const long = n > 3;
   return (
-    <AmberNote icon="help">
-      {t('breakup.others.intro', { count: props.count, books: props.empty })}{'\n'}
-      <Text onPress={() => props.onPick('chapters')} style={{ fontWeight: props.on === 'chapters' ? '800' : '400', textDecorationLine: props.on === 'chapters' ? 'none' : 'underline' }}>
-        {props.on === 'chapters' ? '● ' : ''}{t('breakup.others.byChapter')}
-      </Text>
-      {'   '}
-      <Text onPress={() => props.onPick('later')} style={{ fontWeight: props.on === 'later' ? '800' : '400', textDecorationLine: props.on === 'later' ? 'none' : 'underline' }}>
-        {props.on === 'later' ? '● ' : ''}{t('breakup.others.wait')}
-      </Text>
-    </AmberNote>
+    <View style={styles.leftOut}>
+      <View style={styles.leftOutHead}>
+        <Ico name="flag" size={20} color={TINT.amberText} />
+        <Text style={[txt.h3, { flex: 1, color: TINT.amberText }]}>{t('breakup.leftOut.title', { way: props.way, count: n })}</Text>
+      </View>
+      <Text style={txt.sm}>{long && !all ? booksLine(props.books) : props.books.join(t('admin.list.separator'))}</Text>
+      {long ? (
+        <LinkBtn label={all ? t('breakup.leftOut.showFewer') : t('breakup.leftOut.showAll', { total: formatNumber(n) })} color={TINT.amberText} expanded={all}
+          style={{ alignSelf: 'flex-start' }} onPress={() => setAll(!all)} />
+      ) : null}
+      <Text style={[txt.sm, styles.leftOutAsk]}>{t('breakup.leftOut.forThose', { count: n })}</Text>
+      {props.fills.map((r) => (
+        <RadioLine key={r.choice.key} label={wayOf(r.choice) === CHAPTERS_ITEM ? t('breakup.leftOut.byChapter') : r.choice.name}
+          on={props.on === r.choice.key} onPress={() => props.onPick(r.choice.key)} />
+      ))}
+      <RadioLine label={t('breakup.leftOut.wait')} sub={t('breakup.leftOut.waitSub', { count: n })} on={props.on === 'later'} onPress={() => props.onPick('later')} />
+    </View>
   );
 }
 
@@ -290,5 +313,8 @@ const styles = StyleSheet.create({
   progress: { flexDirection: 'row', gap: 6 },
   step: { flex: 1, height: 22, borderRadius: 11, backgroundColor: C.border, alignItems: 'center', justifyContent: 'center' },
   danger: { width: 52, height: 52, borderRadius: 26, backgroundColor: TINT.red, alignItems: 'center', justifyContent: 'center' },
-  warn: { backgroundColor: TINT.amber, borderRadius: radius.lg, padding: space.md, gap: space.xs }
+  warn: { backgroundColor: TINT.amber, borderRadius: radius.lg, padding: space.md, gap: space.xs },
+  leftOut: { backgroundColor: TINT.amber, borderRadius: radius.lg, paddingHorizontal: space.md, paddingTop: space.md, paddingBottom: space.xs, gap: space.xs },
+  leftOutHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  leftOutAsk: { fontWeight: '800', marginTop: space.xs }
 });

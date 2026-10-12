@@ -4,7 +4,7 @@
 // to a template becomes its next version or a copy for some languages.
 // Screens and hooks are in parts.tsx and useBreakup.ts.
 import {
-  bookParts, templateBooks, wayPartCount, parseRef,
+  bookParts, templateBooks, wayCovers, wayPartCount, parseRef,
   type LibraryItemView, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import { bookNameOf, STARTER_TEMPLATE, type LibraryChoice } from '../contentTemplates';
@@ -25,6 +25,12 @@ export const WAY_ITEMS = [
 export const LATER_ITEM = 'langquest.bible.book-by-book';
 /** What the books FIA leaves out are broken up with, when the admin says "by chapter". */
 export const CHAPTERS_ITEM = 'langquest.bible.chapters';
+/**
+ * The other ready-made ways offered for the books a way leaves out (demo
+ * ADR-042), after "By chapter" and in this order. OpenBible's long and
+ * short lists are left out to keep the choice small.
+ */
+export const FILL_ITEMS = ['langquest.bible.openbible-usual', 'langquest.bible.unfoldingword'] as const;
 
 /** The book the ways are shown with: short, and every way breaks it up (FIA too). */
 export const SAMPLE_BOOK = 'RUT';
@@ -132,11 +138,50 @@ export function countLine(doc: TemplateDoc, v11n: VersificationDoc | null): stri
 
 /** Books a way leaves for later: "Romans, Hebrews and 18 more". */
 export function emptyLine(doc: TemplateDoc): string {
-  const empty = templateBooks(doc).filter((b) => !b.divide).map((b) => bookNameOf(b.book));
-  if (empty.length <= 1) return empty[0] ?? '';
-  if (empty.length === 2) return t('breakup.emptyBooks.two', { first: empty[0], second: empty[1] });
-  if (empty.length === 3) return t('breakup.emptyBooks.three', { first: empty[0], second: empty[1], third: empty[2] });
-  return t('breakup.emptyBooks.more', { first: empty[0], second: empty[1], count: empty.length - 2 });
+  return booksLine(templateBooks(doc).filter((b) => !b.divide).map((b) => bookNameOf(b.book)));
+}
+
+/** Book names as a short line: "Proverbs, Ecclesiastes and 18 more" past three. */
+export function booksLine(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? '';
+  if (names.length === 2) return t('breakup.emptyBooks.two', { first: names[0], second: names[1] });
+  if (names.length === 3) return t('breakup.emptyBooks.three', { first: names[0], second: names[1], third: names[2] });
+  return t('breakup.emptyBooks.more', { first: names[0], second: names[1], count: names.length - 2 });
+}
+
+/** What a note calls a way: the method it follows ("FIA"), else its own name. */
+export function wayShortName(row: WayRow, doc: TemplateDoc | null): string {
+  return (doc?.format === 'template@2' ? doc.goesWith?.pattern : undefined) || row.choice.name;
+}
+
+/**
+ * The ways that can break up the books `picked` leaves out (demo ADR-042):
+ * by chapter, then the other ready-made ways (`FILL_ITEMS`), each only when
+ * it is offered and has parts for every one of those books.
+ */
+export function fillRows(rows: WayRow[], picked: WayRow, empty: string[], docOf: (r: WayRow) => TemplateDoc | null): WayRow[] {
+  return [CHAPTERS_ITEM, ...FILL_ITEMS].flatMap((id) => {
+    const r = rows.find((x) => x !== picked && !x.later && wayOf(x.choice) === id);
+    const d = r ? docOf(r) : null;
+    return r && d && empty.every((b) => wayCovers(d, b)) ? [r] : [];
+  });
+}
+
+/**
+ * Names for one thing, each once, with who uses it ("Romans": World English
+ * Bible, Berean Standard Bible), in the order first seen. Blank names are
+ * left out.
+ */
+export function groupNames(entries: { name: string; from: string }[]): { name: string; from: string[] }[] {
+  const out = new Map<string, string[]>();
+  for (const e of entries) {
+    const name = e.name.trim();
+    if (!name) continue;
+    const from = out.get(name) ?? [];
+    if (!from.includes(e.from)) from.push(e.from);
+    out.set(name, from);
+  }
+  return [...out].map(([name, from]) => ({ name, from }));
 }
 
 export interface Piece {
