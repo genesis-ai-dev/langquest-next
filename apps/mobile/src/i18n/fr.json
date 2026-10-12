@@ -6263,5 +6263,25 @@
     "theyAnswer": "Ils répondront",
     "forTeam": "Pour l’équipe de {{check}}",
     "forCheck": "Pour {{check}}"
+  },
+  "lostFiles": {
+    "title": "Audio manquant",
+    "deleted_one": "Cet appareil a supprimé {{count, number}} fichier tout seul.",
+    "deleted_many": "Cet appareil a supprimé {{count, number}} fichiers tout seul.",
+    "deleted_other": "Cet appareil a supprimé {{count, number}} fichiers tout seul.",
+    "unsent_one": "{{count, number}} enregistrement n’avait pas été envoyé. Il est perdu.",
+    "unsent_many": "{{count, number}} enregistrements n’avaient pas été envoyés. Ils sont perdus.",
+    "unsent_other": "{{count, number}} enregistrements n’avaient pas été envoyés. Ils sont perdus.",
+    "recordAgain": "Enregistrez à nouveau :",
+    "passage": "• {{passage}}",
+    "morePassages_one": "et {{count, number}} autre passage",
+    "morePassages_many": "et {{count, number}} autres passages",
+    "morePassages_other": "et {{count, number}} autres passages",
+    "safe_one": "{{count, number}} fichier est en sécurité sur le serveur.",
+    "safe_many": "{{count, number}} fichiers sont en sécurité sur le serveur.",
+    "safe_other": "{{count, number}} fichiers sont en sécurité sur le serveur.",
+    "goOnline": "Connectez-vous souvent à Internet pour que votre travail soit envoyé.",
+    "lessSpace": "Cet appareil a peut-être moins d’espace qu’il ne l’indique.",
+    "understand": "J’ai compris"
   }
 }

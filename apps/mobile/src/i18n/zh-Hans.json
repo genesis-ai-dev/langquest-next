@@ -5705,5 +5705,17 @@
     "theyAnswer": "他们会回答",
     "forTeam": "给{{check}}团队",
     "forCheck": "用于{{check}}"
+  },
+  "lostFiles": {
+    "title": "音频丢失了",
+    "deleted_other": "这台设备自己删除了 {{count, number}} 个文件。",
+    "unsent_other": "有 {{count, number}} 段录音还没发送，已经丢失。",
+    "recordAgain": "请重新录制：",
+    "passage": "• {{passage}}",
+    "morePassages_other": "还有 {{count, number}} 个经段",
+    "safe_other": "有 {{count, number}} 个文件安全保存在服务器上。",
+    "goOnline": "请经常连接互联网，让你的工作发送出去。",
+    "lessSpace": "这台设备的实际空间可能比显示的少。",
+    "understand": "我知道了"
   }
 }

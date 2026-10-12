@@ -5984,5 +5984,21 @@
     "theyAnswer": "እነሱ ይመልሳሉ",
     "forTeam": "ለ{{check}} ቡድን",
     "forCheck": "ለ{{check}}"
+  },
+  "lostFiles": {
+    "title": "ድምፅ ጠፍቷል",
+    "deleted_one": "ይህ መሣሪያ {{count, number}} ፋይል በራሱ ሰርዟል።",
+    "deleted_other": "ይህ መሣሪያ {{count, number}} ፋይሎችን በራሱ ሰርዟል።",
+    "unsent_one": "{{count, number}} ቀረጻ አልተላከም። ጠፍቷል።",
+    "unsent_other": "{{count, number}} ቀረጻዎች አልተላኩም። ጠፍተዋል።",
+    "recordAgain": "እንደገና ይቅረጹ፦",
+    "passage": "• {{passage}}",
+    "morePassages_one": "እና ሌላ {{count, number}} ክፍል",
+    "morePassages_other": "እና ሌሎች {{count, number}} ክፍሎች",
+    "safe_one": "{{count, number}} ፋይል በአገልጋዩ ላይ ደህና ነው።",
+    "safe_other": "{{count, number}} ፋይሎች በአገልጋዩ ላይ ደህና ናቸው።",
+    "goOnline": "ሥራዎ እንዲላክ ብዙ ጊዜ ከኢንተርኔት ጋር ይገናኙ።",
+    "lessSpace": "ይህ መሣሪያ ከሚለው ያነሰ ቦታ ሊኖረው ይችላል።",
+    "understand": "ገብቶኛል"
   }
 }

@@ -5984,5 +5984,21 @@
     "theyAnswer": "Watajibu",
     "forTeam": "Kwa timu ya {{check}}",
     "forCheck": "Kwa {{check}}"
+  },
+  "lostFiles": {
+    "title": "Sauti imepotea",
+    "deleted_one": "Kifaa hiki kimefuta faili {{count, number}} chenyewe.",
+    "deleted_other": "Kifaa hiki kimefuta faili {{count, number}} chenyewe.",
+    "unsent_one": "Rekodi {{count, number}} haikutumwa. Imepotea.",
+    "unsent_other": "Rekodi {{count, number}} hazikutumwa. Zimepotea.",
+    "recordAgain": "Rekodi tena:",
+    "passage": "• {{passage}}",
+    "morePassages_one": "na kifungu {{count, number}} kingine",
+    "morePassages_other": "na vifungu {{count, number}} vingine",
+    "safe_one": "Faili {{count, number}} iko salama kwenye seva.",
+    "safe_other": "Faili {{count, number}} ziko salama kwenye seva.",
+    "goOnline": "Unganisha kwenye intaneti mara kwa mara ili kazi yako itumwe.",
+    "lessSpace": "Huenda kifaa hiki kina nafasi ndogo kuliko kinavyosema.",
+    "understand": "Nimeelewa"
   }
 }

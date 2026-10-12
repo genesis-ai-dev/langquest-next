@@ -5705,5 +5705,17 @@
     "theyAnswer": "Mereka akan menjawab",
     "forTeam": "Untuk tim {{check}}",
     "forCheck": "Untuk {{check}}"
+  },
+  "lostFiles": {
+    "title": "Audio hilang",
+    "deleted_other": "Perangkat ini menghapus {{count, number}} file dengan sendirinya.",
+    "unsent_other": "{{count, number}} rekaman belum terkirim. Rekaman itu hilang.",
+    "recordAgain": "Rekam lagi:",
+    "passage": "• {{passage}}",
+    "morePassages_other": "dan {{count, number}} perikop lainnya",
+    "safe_other": "{{count, number}} file aman di server.",
+    "goOnline": "Sering-seringlah tersambung ke internet agar pekerjaan Anda terkirim.",
+    "lessSpace": "Ruang perangkat ini mungkin lebih kecil dari yang tertulis.",
+    "understand": "Saya mengerti"
   }
 }

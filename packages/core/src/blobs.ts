@@ -228,6 +228,35 @@ export function deriveMissingBlobs(state: LanguageState, present: ReadonlySet<st
   return [...referencedBlobs(state).values()].filter((r) => !isStored(state, r.hash) && !present.has(r.hash));
 }
 
+/** What losing files from this device means for one language (decisions.md 92). */
+export interface LostFilesView {
+  /** The server has these, so nothing is lost there; kept passages download them again. */
+  safe: number;
+  /** The server never confirmed these: they may exist nowhere else. */
+  unsent: number;
+  /** Passages that had an unsent file among the lost, in the order first lost, each once. */
+  unitIds: string[];
+}
+
+/**
+ * Sort lost hashes by what the language knows of them. A hash this language
+ * does not name (another language's recording, a source's or a guide's
+ * file) counts in neither total; the caller still counts it as lost.
+ */
+export function lostFilesView(state: LanguageState, hashes: Iterable<string>): LostFilesView {
+  const refs = referencedBlobs(state);
+  const out: LostFilesView = { safe: 0, unsent: 0, unitIds: [] };
+  const units = new Set<string>();
+  for (const hash of hashes) {
+    const ref = refs.get(hash);
+    if (!ref) continue;
+    if (isStored(state, hash)) { out.safe++; continue; }
+    out.unsent++;
+    if (ref.unitId && !units.has(ref.unitId)) { units.add(ref.unitId); out.unitIds.push(ref.unitId); }
+  }
+  return out;
+}
+
 /**
  * Local files this device may delete to reclaim space: referenced by this
  * language, confirmed intact on the server (so they can come back), outside
