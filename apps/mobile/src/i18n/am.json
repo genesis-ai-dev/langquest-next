@@ -3618,7 +3618,9 @@
       "title": "{{book}}ን ይከፋፍሉ",
       "waiting_one": "ማንም ከመቅረጹ በፊት እስኪከፋፈል በመጠበቅ ላይ",
       "waiting_other": "{{count, number}} መጻሕፍት ማንም ከመቅረጻቸው በፊት እስኪከፋፈሉ በመጠበቅ ላይ ናቸው",
-      "leftOut": "{{way}} ለ{{book}} ክፍሎች የሉትም።"
+      "leftOut": "{{way}} ለ{{book}} ክፍሎች የሉትም።",
+      "more_one": "ሌላ {{count, number}} መጽሐፍም ይጠብቃል።",
+      "more_other": "ሌሎች {{count, number}} መጻሕፍትም ይጠብቃሉ።"
     },
     "elsewhere": {
       "title": "በ{{language}} አዲስ ዝማኔዎች",

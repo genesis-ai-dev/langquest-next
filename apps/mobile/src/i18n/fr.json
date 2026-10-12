@@ -3745,7 +3745,10 @@
       "waiting_one": "Attend d’être découpé avant que quiconque l’enregistre",
       "waiting_many": "{{count, number}} livres attendent d’être découpés avant que quiconque les enregistre",
       "waiting_other": "{{count, number}} livres attendent d’être découpés avant que quiconque les enregistre",
-      "leftOut": "{{way}} n’a pas de sections pour {{book}}."
+      "leftOut": "{{way}} n’a pas de sections pour {{book}}.",
+      "more_one": "{{count, number}} autre livre attend aussi.",
+      "more_other": "{{count, number}} autres livres attendent aussi.",
+      "more_many": "{{count, number}} autres livres attendent aussi."
     },
     "elsewhere": {
       "title": "Nouvelles en {{language}}",

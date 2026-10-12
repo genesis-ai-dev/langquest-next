@@ -3745,7 +3745,10 @@
       "waiting_one": "Esperando ser dividido antes que alguém o grave",
       "waiting_many": "{{count, number}} de livros estão esperando ser divididos antes que alguém os grave",
       "waiting_other": "{{count, number}} livros estão esperando ser divididos antes que alguém os grave",
-      "leftOut": "{{way}} não tem seções para {{book}}."
+      "leftOut": "{{way}} não tem seções para {{book}}.",
+      "more_one": "Mais {{count, number}} livro também espera.",
+      "more_other": "Mais {{count, number}} livros também esperam.",
+      "more_many": "Mais {{count, number}} livros também esperam."
     },
     "elsewhere": {
       "title": "Novidades em {{language}}",

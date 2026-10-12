@@ -3618,7 +3618,9 @@
       "title": "{{book}} ভাগ করুন",
       "waiting_one": "কেউ রেকর্ড করার আগে ভাগ হওয়ার অপেক্ষায়",
       "waiting_other": "{{count, number}}টি বই কেউ রেকর্ড করার আগে ভাগ হওয়ার অপেক্ষায়",
-      "leftOut": "{{way}}-এ {{book}}-এর কোনো অংশ নেই।"
+      "leftOut": "{{way}}-এ {{book}}-এর কোনো অংশ নেই।",
+      "more_one": "আরও {{count, number}}টি বই অপেক্ষায়।",
+      "more_other": "আরও {{count, number}}টি বই অপেক্ষায়।"
     },
     "elsewhere": {
       "title": "{{language}}-এ নতুন আপডেট",

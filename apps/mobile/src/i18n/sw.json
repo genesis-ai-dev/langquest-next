@@ -3618,7 +3618,9 @@
       "title": "Gawa {{book}}",
       "waiting_one": "Kinasubiri kugawanywa kabla mtu yeyote hajakirekodi",
       "waiting_other": "Vitabu {{count, number}} vinasubiri kugawanywa kabla mtu yeyote hajavirekodi",
-      "leftOut": "{{way}} haina sehemu za {{book}}."
+      "leftOut": "{{way}} haina sehemu za {{book}}.",
+      "more_one": "Kitabu {{count, number}} kingine kinasubiri pia.",
+      "more_other": "Vitabu {{count, number}} vingine vinasubiri pia."
     },
     "elsewhere": {
       "title": "Taarifa mpya katika {{language}}",

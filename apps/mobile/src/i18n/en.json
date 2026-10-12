@@ -3618,7 +3618,9 @@
       "title": "Divide {{book}}",
       "waiting_one": "Waiting to be divided before anyone records it",
       "waiting_other": "{{count, number}} books are waiting to be divided before anyone records them",
-      "leftOut": "{{way}} has no sections for {{book}}."
+      "leftOut": "{{way}} has no sections for {{book}}.",
+      "more_one": "{{count, number}} more book waits too.",
+      "more_other": "{{count, number}} more books wait too."
     },
     "elsewhere": {
       "title": "New in {{language}}",

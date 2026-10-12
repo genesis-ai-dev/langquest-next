@@ -3491,7 +3491,8 @@
     "divide": {
       "title": "Bagi {{book}}",
       "waiting_other": "{{count, number}} kitab menunggu dibagi sebelum ada yang merekamnya",
-      "leftOut": "{{way}} tidak punya bagian untuk {{book}}."
+      "leftOut": "{{way}} tidak punya bagian untuk {{book}}.",
+      "more_other": "{{count, number}} kitab lain juga menunggu."
     },
     "elsewhere": {
       "title": "Kabar baru di {{language}}",

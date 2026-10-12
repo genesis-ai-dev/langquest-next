@@ -3618,7 +3618,9 @@
       "title": "Raba {{book}}",
       "waiting_one": "Yana jiran a raba shi kafin kowa ya naɗa shi",
       "waiting_other": "Littattafai {{count, number}} suna jiran a raba su kafin kowa ya naɗa su",
-      "leftOut": "{{way}} ba shi da sassa na {{book}} ba."
+      "leftOut": "{{way}} ba shi da sassa na {{book}} ba.",
+      "more_one": "Ƙarin littafi {{count, number}} shi ma yana jira.",
+      "more_other": "Ƙarin littattafai {{count, number}} su ma suna jira."
     },
     "elsewhere": {
       "title": "Sabbin labarai a {{language}}",

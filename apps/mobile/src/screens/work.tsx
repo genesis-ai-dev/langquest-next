@@ -322,7 +322,8 @@ export function MyWork(ctx: Ctx) {
       {toDivide.length > 0 ? (
         <Group>
           <Row icon="cut" label={t('work.divide.title', { book: unitTitle(state, toDivide[0]!) })}
-            sub={[leftOut, t('work.divide.waiting', { count: toDivide.length })].filter(Boolean).join(' ')}
+            sub={!leftOut ? t('work.divide.waiting', { count: toDivide.length })
+              : toDivide.length > 1 ? `${leftOut} ${t('work.divide.more', { count: toDivide.length - 1 })}` : leftOut}
             last onPress={divide} />
         </Group>
       ) : null}

@@ -3491,7 +3491,8 @@
     "divide": {
       "title": "划分{{book}}",
       "waiting_other": "有 {{count, number}} 卷书在等待划分，划分后才能开始录音",
-      "leftOut": "{{way}}没有{{book}}的段落。"
+      "leftOut": "{{way}}没有{{book}}的段落。",
+      "more_other": "另有 {{count, number}} 卷书也在等待。"
     },
     "elsewhere": {
       "title": "{{language}}有新动态",

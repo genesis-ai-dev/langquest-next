@@ -4126,7 +4126,13 @@
       "waiting_few": "{{count, number}} أسفار تنتظر التقسيم قبل أن يسجّلها أحد",
       "waiting_many": "{{count, number}} سفرًا تنتظر التقسيم قبل أن يسجّلها أحد",
       "waiting_other": "{{count, number}} سفر تنتظر التقسيم قبل أن يسجّلها أحد",
-      "leftOut": "لا يحتوي {{way}} على أقسام لـ{{book}}."
+      "leftOut": "لا يحتوي {{way}} على أقسام لـ{{book}}.",
+      "more_one": "وسفر آخر ينتظر أيضًا.",
+      "more_other": "و{{count, number}} أسفار أخرى تنتظر أيضًا.",
+      "more_many": "و{{count, number}} أسفار أخرى تنتظر أيضًا.",
+      "more_zero": "و{{count, number}} أسفار أخرى تنتظر أيضًا.",
+      "more_two": "وسفران آخران ينتظران أيضًا.",
+      "more_few": "و{{count, number}} أسفار أخرى تنتظر أيضًا."
     },
     "elsewhere": {
       "title": "تحديثات جديدة في {{language}}",

@@ -3491,7 +3491,8 @@
     "divide": {
       "title": "แบ่ง{{book}}",
       "waiting_other": "{{count, number}} เล่มรอการแบ่งก่อนที่ใครจะอัดเสียง",
-      "leftOut": "{{way}} ไม่มีตอนของ {{book}}"
+      "leftOut": "{{way}} ไม่มีตอนของ {{book}}",
+      "more_other": "อีก {{count, number}} เล่มก็รออยู่เช่นกัน"
     },
     "elsewhere": {
       "title": "อัปเดตใหม่ใน {{language}}",
