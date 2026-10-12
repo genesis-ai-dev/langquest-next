@@ -2,6 +2,8 @@ import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import { sessionStorageKey } from './sessionKey';
+import { sessionSafeFetch } from './sessionSafeFetch';
+import { signOutThisDevice } from './signOutCore';
 
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const anon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -33,6 +35,12 @@ export const supabaseAnonKey = anon ?? 'unconfigured';
 /** Where the session is kept (sessionKey.ts). */
 export const SESSION_KEY = sessionStorageKey(supabaseUrl);
 
+/** A client's fetch: a busy network never ends a sign-in, and nothing goes out as no one while one waits to renew (sessionSafeFetch.ts). */
+const fetchFor = (storageKey: string) => sessionSafeFetch({
+  anonKey: supabaseAnonKey,
+  hasSavedSession: async () => (await AsyncStorage.getItem(storageKey)) !== null
+});
+
 // A placeholder keeps `createClient` from throwing when the config is
 // missing; nothing calls it, because App shows the error instead.
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -42,8 +50,14 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false
-  }
+  },
+  global: { fetch: fetchFor(SESSION_KEY) }
 });
+
+/** Sign out of this device only, online or not (signOutCore.ts, decision 87). */
+export function signOutHere(): Promise<void> {
+  return signOutThisDevice(supabase, AsyncStorage, SESSION_KEY);
+}
 
 /**
  * A client for someone signed out of this phone whose work is still to
@@ -52,6 +66,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
  */
 export function clientKeptAt(storageKey: string) {
   return createClient(supabaseUrl, supabaseAnonKey, {
-    auth: { storage: AsyncStorage, storageKey, autoRefreshToken: false, persistSession: true, detectSessionInUrl: false }
+    auth: { storage: AsyncStorage, storageKey, autoRefreshToken: false, persistSession: true, detectSessionInUrl: false },
+    global: { fetch: fetchFor(storageKey) }
   });
 }

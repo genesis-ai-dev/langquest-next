@@ -37,7 +37,7 @@ import { noteExpected, reportError, failureMessage } from '../report';
 import { createOrganization } from '../createOrg';
 import { contractsFor } from '../screenContracts';
 import { FORGETS_ON_SIGN_OUT, forgetThisBrowser } from '../forgetBrowser';
-import { supabase } from '../supabase';
+import { signOutHere, supabase } from '../supabase';
 import { lift } from '../shadow';
 import { C, TINT, radius, space, tile, type as T, withAlpha } from '../theme';
 import { useAccountActions, useDisplayNames } from '../useAccount';
@@ -679,8 +679,14 @@ export function IntentChooser(ctx: Ctx) {
       setError(t('entry.intent.stillToSend', { count: queued }));
       return;
     }
-    const { error } = await supabase.auth.signOut();
-    if (error) { setError(authErrorText(error, t('entry.intent.signOutFailed'))); return; }
+    // This device only, and offline too (decision 87).
+    try {
+      await signOutHere();
+    } catch (e) {
+      reportError('sign out', e);
+      setError(t('entry.intent.signOutFailed'));
+      return;
+    }
     await forgetThisBrowser();
   }
   const me = useDisplayNames(ctx.session.actorId)[ctx.session.actorId];

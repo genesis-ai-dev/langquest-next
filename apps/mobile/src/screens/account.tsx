@@ -37,7 +37,7 @@ import {
   Badge, Banner, Card, EmptyState, Field, GhostBtn, Group, Header, Ico, PrimaryBtn, ProgressBar, Row, Screen,
   SectionLabel, Sheet, ShowMore, SmallBtn, txt, useLayout, useOpenDetail, type IconName
 } from '../kit';
-import { cachedInbox, enableNotifications, refreshInbox, unregisterNotifications, type RemoteNotification } from '../notifications';
+import { cachedInbox, enableNotifications, refreshInbox, tryUnregisterNotifications, unregisterNotifications, type RemoteNotification } from '../notifications';
 import { dueText } from '../passageView';
 import { personLook } from '../people';
 import { noteExpected, reportError, failureMessage } from '../report';
@@ -45,7 +45,7 @@ import { ReportActions } from '../reportSheet';
 import { contractsFor } from '../screenContracts';
 import { FORGETS_ON_SIGN_OUT, forgetThisBrowser } from '../forgetBrowser';
 import { HANDS_OVER, signOutHandingOver } from '../handOver';
-import { supabase } from '../supabase';
+import { signOutHere, supabase } from '../supabase';
 import { C, radius, space, target, tile, TINT, type as T } from '../theme';
 import { useAccountActions, useDisplayNames } from '../useAccount';
 import { runningBuildLabel } from '../updateStatus';
@@ -759,9 +759,14 @@ export function SignOutConfirm(ctx: Ctx) {
         await signOutHandingOver(ctx.session.actorId, ctx.language.blobs.unsent().map((ref) => ({ orgId, languageId, ref })));
         return;
       }
-      await unregisterNotifications();
-      const result = await supabase.auth.signOut();
-      if (result.error) throw result.error;
+      if (HANDS_OVER) {
+        // Offline, the courier disconnects this phone's notifications later, as you (decision 87).
+        if (!await tryUnregisterNotifications()) { await signOutHandingOver(ctx.session.actorId, []); return; }
+      } else {
+        await unregisterNotifications();
+      }
+      // This device only: your other devices stay signed in (decision 87).
+      await signOutHere();
       await forgetThisBrowser();
     } catch (e) { setError(failure('sign out', e)); setBusy(false); }
   }
@@ -769,7 +774,7 @@ export function SignOutConfirm(ctx: Ctx) {
   const helpLine = inviter ? t('account.signOut.helpLine', { name: inviter }) : t('account.signOut.helpLineNoName');
   const things = waiting.join(', ');
   // Two whole sentences side by side where both apply.
-  const why = handsOver
+  const reason = handsOver
     ? [t('account.signOut.handsOver', { things }), ...(needsHelp ? [helpLine] : [])].join(' ')
     : blocked
       ? online === false ? t('account.signOut.blockedOffline', { things }) : t('account.signOut.blocked', { things })
@@ -779,7 +784,9 @@ export function SignOutConfirm(ctx: Ctx) {
           ? `${helpLine} ${t('account.signOut.setPasswordFirst')}`
           : FORGETS_ON_SIGN_OUT
             ? t('account.signOut.forgets')
-            : t('account.signOut.anytime');
+            : online === false ? '' : t('account.signOut.anytime');
+  // Every way back in needs the server, so offline the screen says so.
+  const why = !blocked && online === false ? [reason, t('account.signOut.offlineBackIn')].filter(Boolean).join(' ') : reason;
   return (
     <Screen bodyStyle={styles.centered}
       footer={

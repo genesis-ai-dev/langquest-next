@@ -2913,6 +2913,7 @@
       "setPasswordFirst": "Si d’autres personnes utilisent cet appareil, définissez d’abord un mot de passe dans Modifier le profil.",
       "forgets": "Vous pouvez vous reconnecter à tout moment. Ce navigateur oublie tout ce qu’il gardait pour vous, donc la personne suivante n’en verra rien.",
       "anytime": "Vous pouvez vous reconnecter à tout moment.",
+      "offlineBackIn": "Cet appareil est hors ligne, donc pour vous reconnecter il faudra attendre d'avoir une connexion.",
       "signingOut": "Déconnexion…",
       "button": "Se déconnecter",
       "notYet": "Pas encore",

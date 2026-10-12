@@ -9,11 +9,20 @@ export async function enableNotifications(): Promise<void> {
   await AsyncStorage.setItem('push-token', token);
 }
 export async function unregisterNotifications(): Promise<void> {
+  if (!await tryUnregisterNotifications()) throw new Error('Connect once to disconnect notifications before signing out.');
+}
+/**
+ * Disconnect this phone's notifications if the server answers. False means
+ * the token is still registered: offline, a phone hands the disconnect to the
+ * courier instead of refusing to sign out (handOverPushToken, decision 87).
+ */
+export async function tryUnregisterNotifications(): Promise<boolean> {
   const token = await AsyncStorage.getItem('push-token');
-  if (!token) return;
+  if (!token) return true;
   const { error } = await supabase.rpc('unregister_push_token', { p_token: token });
-  if (error) throw new Error('Connect once to disconnect notifications before signing out.');
+  if (error) return false;
   await AsyncStorage.removeItem('push-token');
+  return true;
 }
 /**
  * Sign-out on a shared phone (handOver.ts): disconnect notifications now if
