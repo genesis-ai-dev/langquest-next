@@ -2822,6 +2822,7 @@
       "setPasswordFirst": "If other people use this device, set a password in Edit Profile first.",
       "forgets": "You can sign back in anytime. This browser forgets everything it kept for you, so the next person here sees none of it.",
       "anytime": "You can sign back in anytime.",
+      "offlineBackIn": "This device is offline, so signing back in will have to wait for a connection.",
       "signingOut": "Signing out…",
       "button": "Sign Out",
       "notYet": "Not yet",

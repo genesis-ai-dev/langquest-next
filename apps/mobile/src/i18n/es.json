@@ -2913,6 +2913,7 @@
       "setPasswordFirst": "Si otras personas usan este dispositivo, primero pon una contraseña en Editar perfil.",
       "forgets": "Puedes volver a iniciar sesión cuando quieras. Este navegador olvida todo lo que guardó para ti, así que la próxima persona no verá nada.",
       "anytime": "Puedes volver a iniciar sesión cuando quieras.",
+      "offlineBackIn": "Este dispositivo no tiene conexión, así que para volver a iniciar sesión tendrás que esperar a tenerla.",
       "signingOut": "Cerrando sesión…",
       "button": "Cerrar sesión",
       "notYet": "Todavía no",
