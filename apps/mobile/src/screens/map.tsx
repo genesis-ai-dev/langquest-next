@@ -550,7 +550,9 @@ export function MapHome(ctx: Ctx) {
   const state = openState(ctx, languageId);
   const [query, setQuery] = useState('');
   const [limit, setLimit] = useState(PAGE);
-  const [filter, setFilter] = useState<MapFilter>('all');
+  // A filter can come with the way here ("Feedback to answer" on a report opens the map showing those).
+  const initial = ctx.params['filter'];
+  const [filter, setFilter] = useState<MapFilter>(isMapFilter(initial) ? initial : 'all');
   const [filterOpen, setFilterOpen] = useState(false);
   const [testament, setTestament] = useState<Testament | null>(null);
   const forYou = useForYou(ctx, state);

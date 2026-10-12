@@ -2716,7 +2716,8 @@
       "reportedContent": "Someone reported this for {{reasons}}. It was made by {{name}}. Look at it, then remove it from the record or keep it.",
       "reportsAnonymous": "Reports never say who sent them. The LangQuest team sees every report too.",
       "assignAccept": "Assign role & accept",
-      "decline": "Decline"
+      "decline": "Decline",
+      "inLanguage": "In {{language}}"
     },
     "me": {
       "title": "Me",
@@ -3616,7 +3617,18 @@
     "divide": {
       "title": "Divide {{book}}",
       "waiting_one": "Waiting to be divided before anyone records it",
-      "waiting_other": "{{count, number}} books are waiting to be divided before anyone records them"
+      "waiting_other": "{{count, number}} books are waiting to be divided before anyone records them",
+      "leftOut": "{{way}} has no sections for {{book}}."
+    },
+    "elsewhere": {
+      "title": "New in {{language}}",
+      "sub_one": "{{count, number}} update for you. Tap to switch to {{language}}.",
+      "sub_other": "{{count, number}} updates for you. Tap to switch to {{language}}."
+    },
+    "again": {
+      "title": "Record {{passage}} again",
+      "sub_one": "Its sections changed after it was recorded. The earlier recording is on its page.",
+      "sub_other": "Sections changed after they were recorded: {{count, number}} to record again. Earlier recordings are on their pages."
     }
   },
   "shell": {
@@ -4568,7 +4580,8 @@
       "openInAll_one": "{{count, number}} request open in all",
       "openInAll_other": "{{count, number}} requests open in all",
       "checkpoint": "At a checkpoint",
-      "checkpointSub": "Waiting for a checkpoint review"
+      "checkpointSub": "Waiting for a checkpoint review",
+      "show": "Show them on the map"
     },
     "noReports": {
       "languages": "No languages to show yet",

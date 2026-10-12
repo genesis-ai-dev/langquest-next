@@ -2716,7 +2716,8 @@
       "reportedContent": "Wani ya kai ƙarar wannan saboda {{reasons}}. Wanda ya yi shi: {{name}}. Ku duba shi, sannan ku cire shi daga tarihin ko ku bar shi.",
       "reportsAnonymous": "Ƙararraki ba sa faɗin wanda ya aika su. Tawagar LangQuest ma tana ganin kowace ƙara.",
       "assignAccept": "Ba da matsayi ku karɓa",
-      "decline": "Ƙi"
+      "decline": "Ƙi",
+      "inLanguage": "A cikin {{language}}"
     },
     "me": {
       "title": "Ni",
@@ -3616,7 +3617,18 @@
     "divide": {
       "title": "Raba {{book}}",
       "waiting_one": "Yana jiran a raba shi kafin kowa ya naɗa shi",
-      "waiting_other": "Littattafai {{count, number}} suna jiran a raba su kafin kowa ya naɗa su"
+      "waiting_other": "Littattafai {{count, number}} suna jiran a raba su kafin kowa ya naɗa su",
+      "leftOut": "{{way}} ba shi da sassa na {{book}} ba."
+    },
+    "elsewhere": {
+      "title": "Sabbin labarai a {{language}}",
+      "sub_one": "Sabon labari {{count, number}} gare ku. Taɓa don komawa {{language}}.",
+      "sub_other": "Sababbin labarai {{count, number}} gare ku. Taɓa don komawa {{language}}."
+    },
+    "again": {
+      "title": "Sake naɗa {{passage}}",
+      "sub_one": "Sassansa sun canza bayan an naɗa shi. Naɗin da ya gabata yana shafinsa.",
+      "sub_other": "Sassa sun canza bayan an naɗa su: {{count, number}} da za a sake naɗawa. Naɗe-naɗen da suka gabata suna shafukansu."
     }
   },
   "shell": {
@@ -4568,7 +4580,8 @@
       "openInAll_one": "Buƙata {{count, number}} a buɗe gaba ɗaya",
       "openInAll_other": "Buƙatu {{count, number}} a buɗe gaba ɗaya",
       "checkpoint": "A shingen dubawa",
-      "checkpointSub": "Yana jiran bitar shingen dubawa"
+      "checkpointSub": "Yana jiran bitar shingen dubawa",
+      "show": "Nuna su a taswira"
     },
     "noReports": {
       "languages": "Babu harsunan da za a nuna tukuna",

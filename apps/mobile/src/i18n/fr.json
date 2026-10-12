@@ -2800,7 +2800,8 @@
       "reportedContent": "Quelqu’un a signalé ceci pour {{reasons}}. C’est {{name}} qui l’a fait. Regardez-le, puis retirez-le de l’historique ou gardez-le.",
       "reportsAnonymous": "Les signalements ne disent jamais qui les a envoyés. L’équipe LangQuest voit aussi chaque signalement.",
       "assignAccept": "Attribuer un rôle et accepter",
-      "decline": "Refuser"
+      "decline": "Refuser",
+      "inLanguage": "En {{language}}"
     },
     "me": {
       "title": "Moi",
@@ -3743,7 +3744,20 @@
       "title": "Découper {{book}}",
       "waiting_one": "Attend d’être découpé avant que quiconque l’enregistre",
       "waiting_many": "{{count, number}} livres attendent d’être découpés avant que quiconque les enregistre",
-      "waiting_other": "{{count, number}} livres attendent d’être découpés avant que quiconque les enregistre"
+      "waiting_other": "{{count, number}} livres attendent d’être découpés avant que quiconque les enregistre",
+      "leftOut": "{{way}} n’a pas de sections pour {{book}}."
+    },
+    "elsewhere": {
+      "title": "Nouvelles en {{language}}",
+      "sub_one": "{{count, number}} nouvelle pour vous. Touchez pour passer à {{language}}.",
+      "sub_many": "{{count, number}} nouvelles pour vous. Touchez pour passer à {{language}}.",
+      "sub_other": "{{count, number}} nouvelles pour vous. Touchez pour passer à {{language}}."
+    },
+    "again": {
+      "title": "Enregistrer {{passage}} à nouveau",
+      "sub_one": "Ses sections ont changé après l’enregistrement. L’enregistrement précédent est sur sa page.",
+      "sub_other": "Des sections ont changé après l’enregistrement : {{count, number}} à enregistrer à nouveau. Les enregistrements précédents sont sur leurs pages.",
+      "sub_many": "Des sections ont changé après l’enregistrement : {{count, number}} à enregistrer à nouveau. Les enregistrements précédents sont sur leurs pages."
     }
   },
   "shell": {
@@ -4755,7 +4769,8 @@
       "openInAll_many": "{{count, number}} demandes ouvertes en tout",
       "openInAll_other": "{{count, number}} demandes ouvertes en tout",
       "checkpoint": "À un point de contrôle",
-      "checkpointSub": "En attente d’une révision de point de contrôle"
+      "checkpointSub": "En attente d’une révision de point de contrôle",
+      "show": "Les voir sur la carte"
     },
     "noReports": {
       "languages": "Pas encore de langues à afficher",

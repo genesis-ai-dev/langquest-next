@@ -2716,7 +2716,8 @@
       "reportedContent": "Mtu ameripoti hiki kwa sababu ya {{reasons}}. Kilitengenezwa na {{name}}. Kiangalie, kisha kiondoe kwenye kumbukumbu au kiache.",
       "reportsAnonymous": "Ripoti hazisemi kamwe nani alizituma. Timu ya LangQuest pia inaona kila ripoti.",
       "assignAccept": "Mpe jukumu na ukubali",
-      "decline": "Kataa"
+      "decline": "Kataa",
+      "inLanguage": "Katika {{language}}"
     },
     "me": {
       "title": "Mimi",
@@ -3616,7 +3617,18 @@
     "divide": {
       "title": "Gawa {{book}}",
       "waiting_one": "Kinasubiri kugawanywa kabla mtu yeyote hajakirekodi",
-      "waiting_other": "Vitabu {{count, number}} vinasubiri kugawanywa kabla mtu yeyote hajavirekodi"
+      "waiting_other": "Vitabu {{count, number}} vinasubiri kugawanywa kabla mtu yeyote hajavirekodi",
+      "leftOut": "{{way}} haina sehemu za {{book}}."
+    },
+    "elsewhere": {
+      "title": "Taarifa mpya katika {{language}}",
+      "sub_one": "Taarifa {{count, number}} kwa ajili yako. Gusa ili uhamie {{language}}.",
+      "sub_other": "Taarifa {{count, number}} kwa ajili yako. Gusa ili uhamie {{language}}."
+    },
+    "again": {
+      "title": "Rekodi {{passage}} tena",
+      "sub_one": "Sehemu zake zilibadilika baada ya kurekodiwa. Rekodi ya awali iko kwenye ukurasa wake.",
+      "sub_other": "Sehemu zilibadilika baada ya kurekodiwa: {{count, number}} za kurekodi tena. Rekodi za awali ziko kwenye kurasa zake."
     }
   },
   "shell": {
@@ -4568,7 +4580,8 @@
       "openInAll_one": "Ombi {{count, number}} liko wazi kwa jumla",
       "openInAll_other": "Maombi {{count, number}} yako wazi kwa jumla",
       "checkpoint": "Kwenye kituo cha ukaguzi",
-      "checkpointSub": "Inasubiri ukaguzi wa kituo"
+      "checkpointSub": "Inasubiri ukaguzi wa kituo",
+      "show": "Ziona kwenye ramani"
     },
     "noReports": {
       "languages": "Bado hakuna lugha za kuonyesha",

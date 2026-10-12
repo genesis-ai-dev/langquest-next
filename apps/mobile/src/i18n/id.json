@@ -2632,7 +2632,8 @@
       "reportedContent": "Seseorang melaporkan ini karena {{reasons}}. Ini dibuat oleh {{name}}. Lihatlah, lalu hapus dari riwayat atau biarkan.",
       "reportsAnonymous": "Laporan tidak pernah menyebutkan pengirimnya. Tim LangQuest juga melihat setiap laporan.",
       "assignAccept": "Beri peran & terima",
-      "decline": "Tolak"
+      "decline": "Tolak",
+      "inLanguage": "Di {{language}}"
     },
     "me": {
       "title": "Saya",
@@ -3489,7 +3490,16 @@
     },
     "divide": {
       "title": "Bagi {{book}}",
-      "waiting_other": "{{count, number}} kitab menunggu dibagi sebelum ada yang merekamnya"
+      "waiting_other": "{{count, number}} kitab menunggu dibagi sebelum ada yang merekamnya",
+      "leftOut": "{{way}} tidak punya bagian untuk {{book}}."
+    },
+    "elsewhere": {
+      "title": "Kabar baru di {{language}}",
+      "sub_other": "{{count, number}} kabar untuk Anda. Ketuk untuk pindah ke {{language}}."
+    },
+    "again": {
+      "title": "Rekam {{passage}} lagi",
+      "sub_other": "Bagian-bagian berubah setelah direkam: {{count, number}} perlu direkam lagi. Rekaman sebelumnya ada di halamannya masing-masing."
     }
   },
   "shell": {
@@ -4381,7 +4391,8 @@
       "overdue": "Permintaan terlambat",
       "openInAll_other": "Seluruhnya {{count, number}} permintaan terbuka",
       "checkpoint": "Di titik periksa",
-      "checkpointSub": "Menunggu pemeriksaan titik periksa"
+      "checkpointSub": "Menunggu pemeriksaan titik periksa",
+      "show": "Tampilkan di peta"
     },
     "noReports": {
       "languages": "Belum ada bahasa untuk ditampilkan",

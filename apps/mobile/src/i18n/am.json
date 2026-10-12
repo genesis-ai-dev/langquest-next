@@ -2716,7 +2716,8 @@
       "reportedContent": "አንድ ሰው ይህን በ{{reasons}} ምክንያት ሪፖርት አድርጓል። የሠራው {{name}} ነው። ይመልከቱት፣ ከዚያ ከመዝገቡ ያስወግዱት ወይም ያቆዩት።",
       "reportsAnonymous": "ሪፖርቶች ማን እንደላካቸው ፈጽሞ አይናገሩም። የLangQuest ቡድንም እያንዳንዱን ሪፖርት ያያል።",
       "assignAccept": "ሚና ይመድቡና ይቀበሉ",
-      "decline": "ውድቅ ያድርጉ"
+      "decline": "ውድቅ ያድርጉ",
+      "inLanguage": "በ{{language}}"
     },
     "me": {
       "title": "እኔ",
@@ -3616,7 +3617,18 @@
     "divide": {
       "title": "{{book}}ን ይከፋፍሉ",
       "waiting_one": "ማንም ከመቅረጹ በፊት እስኪከፋፈል በመጠበቅ ላይ",
-      "waiting_other": "{{count, number}} መጻሕፍት ማንም ከመቅረጻቸው በፊት እስኪከፋፈሉ በመጠበቅ ላይ ናቸው"
+      "waiting_other": "{{count, number}} መጻሕፍት ማንም ከመቅረጻቸው በፊት እስኪከፋፈሉ በመጠበቅ ላይ ናቸው",
+      "leftOut": "{{way}} ለ{{book}} ክፍሎች የሉትም።"
+    },
+    "elsewhere": {
+      "title": "በ{{language}} አዲስ ዝማኔዎች",
+      "sub_one": "ለእርስዎ {{count, number}} ዝማኔ። ወደ {{language}} ለመቀየር ይንኩ።",
+      "sub_other": "ለእርስዎ {{count, number}} ዝማኔዎች። ወደ {{language}} ለመቀየር ይንኩ።"
+    },
+    "again": {
+      "title": "{{passage}}ን እንደገና ይቅረጹ",
+      "sub_one": "ከተቀረጸ በኋላ ክፍሎቹ ተለውጠዋል። ቀደም ያለው ቅጂ በገጹ ላይ አለ።",
+      "sub_other": "ከተቀረጹ በኋላ ክፍሎች ተለውጠዋል፦ እንደገና የሚቀረጹ {{count, number}}። ቀደም ያሉ ቅጂዎች በገጾቻቸው ላይ አሉ።"
     }
   },
   "shell": {
@@ -4568,7 +4580,8 @@
       "openInAll_one": "በአጠቃላይ {{count, number}} ክፍት ጥያቄ",
       "openInAll_other": "በአጠቃላይ {{count, number}} ክፍት ጥያቄዎች",
       "checkpoint": "ኬላ ላይ ያሉ",
-      "checkpointSub": "የኬላ ግምገማ በመጠበቅ ላይ"
+      "checkpointSub": "የኬላ ግምገማ በመጠበቅ ላይ",
+      "show": "በካርታው ላይ አሳይ"
     },
     "noReports": {
       "languages": "እስካሁን የሚታዩ ቋንቋዎች የሉም",

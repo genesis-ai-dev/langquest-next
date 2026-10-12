@@ -42,6 +42,7 @@ const APP_ONLY: Record<string, string> = {
   'org_home->new_language': 'no project level (decision 63): languages are added from the organization',
   'org_home->language_home': 'no project level (decision 63): the organization lists its languages',
   'settings_home->sync_status': 'sync status screen: the local event log, realtime state and transfer progress',
+  'sync_status->passage_record': 'a change waiting to send, or refused, opens the passage it is about (design principle 11)',
   'my_work->sync_status': 'the cloud chip on My Work opens the sync status screen',
   'scan_qr->create_account': 'a group invite asks the new person their name before the invite makes the account (flow A, decisions.md 59)',
   'create_account->welcome': 'an email account made while an invite is held (Scan, I already have an account, then Create Account) joins at once and is welcomed (flow B); the demo has no held invite',
@@ -54,6 +55,7 @@ const APP_ONLY: Record<string, string> = {
   'settings_home->delete_account': 'app stores require deleting an account from inside the app (decisions.md 46)',
   'intent_chooser->delete_account': 'someone who never joined an organization can delete their account too',
   'delete_account->sign_in': 'a deleted account is signed out',
+  'reports_language->map_home': "a language report's Needs attention opens the map filtered to those passages (design principle 11)",
   'reports_home->reports_language': 'the Reports section on a wide window opens one language\'s report (decisions.md 57; the web dashboard moved into the app)',
   // Reference material by level (docs/reference-material.md): the demo's one reference library splits
   // into Bibles (with each source's facts and timings), guides and notes, coverage, and one passage's.

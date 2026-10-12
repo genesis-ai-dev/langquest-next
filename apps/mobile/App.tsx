@@ -24,6 +24,8 @@ import { NavChrome } from './src/NavChrome';
 import { lockPhonesToPortrait } from './src/orientation';
 import { paneFor, type SplitSpec } from './src/panes';
 import { onNotificationOpened } from './src/push';
+import { findNotification } from './src/notifications';
+import { notificationTarget, openAfterSwitch } from './src/notificationTarget';
 import { LayoutContext, PaneSelectionContext, type Layout, type OpenDetail } from './src/useLayout';
 import { indexesFor } from './src/indexes';
 import { EmptyState, FooterHeightContext, GhostBtn, ToastView, txt, type ToastSpec } from './src/kit';
@@ -331,6 +333,8 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
   const [decided, setDecided] = useState(false);
   const [selectionRevision, setSelectionRevision] = useState(0);
   const [noOrganizations, setNoOrganizations] = useState(false);
+  // What to open once a newly opened organization is in (an Inbox row or a push from there).
+  const [arrival, setArrival] = useState<Arrival | null>(null);
   const key = `selection:${props.actorId}`;
   // Set once an organization is opened here; a slower "my organizations"
   // reply from before must not overrule it (it once said "none" right
@@ -359,8 +363,9 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
       .finally(() => { if (active) setDecided(true); });
     return () => { active = false; };
   }, [key, props.signedIn]);
-  const openOrganization = useCallback(async (next: string) => {
+  const openOrganization = useCallback(async (next: string, open?: { languageId: string; unitId?: string }) => {
     chosen.current = true;
+    setArrival(open ? { orgId: next, ...open } : null);
     await AsyncStorage.setItem(key, JSON.stringify({ orgId: next }));
     setNoOrganizations(false);
     setOrgId(next);
@@ -371,8 +376,12 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
   // organization it joined cannot interrupt it.
   const invite = useHeldInvite(props.signedIn ? props.actorId : null, openOrganization);
   if (!decided) return <View style={styles.root} accessibilityLabel={t('shell.openingOrganization')} />;
-  return <Workspace key={`${orgId}:${selectionRevision}`} {...props} orgId={orgId} noOrganizations={noOrganizations} openOrganization={openOrganization} invite={invite} />;
+  return <Workspace key={`${orgId}:${selectionRevision}`} {...props} orgId={orgId} noOrganizations={noOrganizations} openOrganization={openOrganization} invite={invite}
+    arrival={arrival?.orgId === orgId ? arrival : null} />;
 }
+
+/** A language, and maybe a passage, to open once an organization opened from elsewhere is in. */
+interface Arrival { orgId: string; languageId: string; unitId?: string }
 
 /**
  * One organization: its stream, and the languages it lists there. Until
@@ -380,7 +389,7 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
  * the first sync has had its chance), which languages it has is unknown, so
  * nothing is opened yet.
  */
-function Workspace(props: { actorId: string; email: string | null; signedIn: boolean; orgId: string | null; noOrganizations: boolean; openOrganization: Ctx['openOrganization']; invite: InviteHandle }) {
+function Workspace(props: { actorId: string; email: string | null; signedIn: boolean; orgId: string | null; noOrganizations: boolean; openOrganization: Ctx['openOrganization']; invite: InviteHandle; arrival: Arrival | null }) {
   const org = useOrg(props.orgId, props.actorId);
   const known = org.state !== null && (org.state.org !== null || org.settled);
   if (!known) return <View style={styles.root} accessibilityLabel={t('shell.openingOrganization')} />;
@@ -395,7 +404,7 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
  * place, without leaving the screen.
  */
 function OrgWork(props: { actorId: string; email: string | null; signedIn: boolean;
-  orgId: string; noOrganizations: boolean; org: OrgHandle; openOrganization: Ctx['openOrganization']; invite: InviteHandle }) {
+  orgId: string; noOrganizations: boolean; org: OrgHandle; openOrganization: Ctx['openOrganization']; invite: InviteHandle; arrival: Arrival | null }) {
   const org = props.org;
   const nav = useNav({ screen: 'sign_in' });
   // ---- the language this person works in (MAP-7), and so the stream open ----
@@ -585,6 +594,15 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     if (loaded) nav.reset({ screen: (!session.isFirstTime && takeUrlSection()) || postSignInScreen(session) });
     else if (cachedHome && !session.isFirstTime) nav.reset({ screen: cachedHome });
   });
+  // Opened from another organization's Inbox row or push: its passage, or its language, once this organization is in.
+  const arrived = useRef(false);
+  useEffect(() => {
+    const open = props.arrival;
+    if (!open || arrived.current || !loaded || !props.signedIn || AUTH_SCREENS.includes(nav.current.screen)) return;
+    arrived.current = true;
+    if (open.unitId) openTask(open.languageId, open.unitId);
+    else setLanguage(open.languageId);
+  });
 
   // Every move follows a declared edge from the screen it starts on: the top
   // of the stack, or the list in a split's pane (`fromKey`), which moves as
@@ -657,15 +675,32 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   const canSwitchPersona = maySwitchPersona(props.email, IS_DEV);
 
   const homeIsWork = homeScreenFor(session) === 'my_work';
+  // A task opened from outside the screens (a push, another organization's Inbox row) opens over the home screen, so Back leads home.
+  const openTask = useCallback((inLanguage: string, unitId: string) => {
+    remember(unitId, inLanguage);
+    const params = { unitId, languageId: inLanguage };
+    if (navRef.isReady()) navRef.dispatch(CommonActions.reset({ index: 1, routes: [{ name: homeScreenFor(session) }, { name: 'passage_record', params }] }));
+    else nav.reset({ screen: 'passage_record', params });
+  }, [remember, session, nav.reset]);
+  const { openOrganization, orgId: thisOrg, actorId } = props;
   useEffect(() => {
     if (!props.signedIn) return;
-    return onNotificationOpened(() => {
-      // People with a My Work reach the Inbox from its bell, so it opens over My Work with Back (no Inbox tab).
+    // People with a My Work reach the Inbox from its bell, so it opens over My Work with Back (no Inbox tab).
+    const inbox = () => {
       if (homeIsWork && navRef.isReady()) {
         navRef.dispatch(CommonActions.reset({ index: 1, routes: [{ name: 'my_work' }, { name: 'inbox_home', params: { from: 'my_work' } }] }));
       } else nav.reset({ screen: 'inbox_home' });
+    };
+    // The push names only its Inbox row; the row says what it is about, and that opens (design principle 11).
+    return onNotificationOpened((id) => {
+      void findNotification(actorId, id).then(async (row) => {
+        const to = row ? notificationTarget(row) : null;
+        if (to && to.orgId !== thisOrg) await openOrganization(to.orgId, openAfterSwitch(to));
+        else if (to?.kind === 'passage') openTask(to.languageId, to.unitId);
+        else inbox();
+      }).catch((e: unknown) => { noteExpected('open pushed notification', e); inbox(); });
     });
-  }, [props.signedIn, nav.reset, homeIsWork]);
+  }, [props.signedIn, nav.reset, homeIsWork, openTask, openOrganization, thisOrg, actorId]);
 
   // Open reports count toward the Inbox badge (the tab, or My Work's bell) for whoever may act on them (decisions.md 48).
   const reportCount = useOpenReportCount(props.orgId, props.signedIn && (session.can('manage_structure') || session.can('invite_members')));

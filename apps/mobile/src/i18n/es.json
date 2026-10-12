@@ -2800,7 +2800,8 @@
       "reportedContent": "Alguien reportó esto por {{reasons}}. Lo hizo {{name}}. Revísalo y luego quítalo del registro o déjalo.",
       "reportsAnonymous": "Los reportes nunca dicen quién los envió. El equipo de LangQuest también ve todos los reportes.",
       "assignAccept": "Asignar rol y aceptar",
-      "decline": "Rechazar"
+      "decline": "Rechazar",
+      "inLanguage": "En {{language}}"
     },
     "me": {
       "title": "Yo",
@@ -3743,7 +3744,20 @@
       "title": "Dividir {{book}}",
       "waiting_one": "Esperando a que lo dividan antes de que alguien lo grabe",
       "waiting_many": "{{count, number}} libros esperan a que los dividan antes de que alguien los grabe",
-      "waiting_other": "{{count, number}} libros esperan a que los dividan antes de que alguien los grabe"
+      "waiting_other": "{{count, number}} libros esperan a que los dividan antes de que alguien los grabe",
+      "leftOut": "{{way}} no tiene secciones para {{book}}."
+    },
+    "elsewhere": {
+      "title": "Novedades en {{language}}",
+      "sub_one": "{{count, number}} novedad para ti. Toca para cambiar a {{language}}.",
+      "sub_many": "{{count, number}} novedades para ti. Toca para cambiar a {{language}}.",
+      "sub_other": "{{count, number}} novedades para ti. Toca para cambiar a {{language}}."
+    },
+    "again": {
+      "title": "Graba {{passage}} otra vez",
+      "sub_one": "Sus secciones cambiaron después de grabarlo. La grabación anterior está en su página.",
+      "sub_other": "Las secciones cambiaron después de grabarlas: {{count, number}} por grabar otra vez. Las grabaciones anteriores están en sus páginas.",
+      "sub_many": "Las secciones cambiaron después de grabarlas: {{count, number}} por grabar otra vez. Las grabaciones anteriores están en sus páginas."
     }
   },
   "shell": {
@@ -4755,7 +4769,8 @@
       "openInAll_many": "{{count, number}} solicitudes abiertas en total",
       "openInAll_other": "{{count, number}} solicitudes abiertas en total",
       "checkpoint": "En un punto de control",
-      "checkpointSub": "Esperando una revisión de punto de control"
+      "checkpointSub": "Esperando una revisión de punto de control",
+      "show": "Verlos en el mapa"
     },
     "noReports": {
       "languages": "Todavía no hay idiomas para mostrar",

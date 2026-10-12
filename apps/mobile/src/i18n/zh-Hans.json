@@ -2632,7 +2632,8 @@
       "reportedContent": "有人因为{{reasons}}举报了这项内容。它是{{name}}发布的。请查看后，从记录中移除或者保留。",
       "reportsAnonymous": "举报永远不会显示是谁发送的。LangQuest 团队也会看到每一条举报。",
       "assignAccept": "分配角色并接受",
-      "decline": "拒绝"
+      "decline": "拒绝",
+      "inLanguage": "在{{language}}中"
     },
     "me": {
       "title": "我",
@@ -3489,7 +3490,16 @@
     },
     "divide": {
       "title": "划分{{book}}",
-      "waiting_other": "有 {{count, number}} 卷书在等待划分，划分后才能开始录音"
+      "waiting_other": "有 {{count, number}} 卷书在等待划分，划分后才能开始录音",
+      "leftOut": "{{way}}没有{{book}}的段落。"
+    },
+    "elsewhere": {
+      "title": "{{language}}有新动态",
+      "sub_other": "有 {{count, number}} 条与你有关。点按切换到{{language}}。"
+    },
+    "again": {
+      "title": "重新录制{{passage}}",
+      "sub_other": "录制后段落有变：{{count, number}} 段需要重新录制。之前的录音在各自的页面上。"
     }
   },
   "shell": {
@@ -4381,7 +4391,8 @@
       "overdue": "逾期的请求",
       "openInAll_other": "共有 {{count, number}} 个请求未完成",
       "checkpoint": "在检查点",
-      "checkpointSub": "等待检查点审核"
+      "checkpointSub": "等待检查点审核",
+      "show": "在地图上查看"
     },
     "noReports": {
       "languages": "还没有可以显示的语言",

@@ -2632,7 +2632,8 @@
       "reportedContent": "มีคนรายงานสิ่งนี้ว่า{{reasons}} สิ่งนี้ทำโดย {{name}} ดูก่อน แล้วนำออกจากประวัติหรือเก็บไว้",
       "reportsAnonymous": "รายงานจะไม่บอกว่าใครเป็นคนส่ง ทีม LangQuest ก็เห็นทุกรายงานด้วย",
       "assignAccept": "มอบหมายบทบาทและรับเข้า",
-      "decline": "ปฏิเสธ"
+      "decline": "ปฏิเสธ",
+      "inLanguage": "ใน {{language}}"
     },
     "me": {
       "title": "ฉัน",
@@ -3489,7 +3490,16 @@
     },
     "divide": {
       "title": "แบ่ง{{book}}",
-      "waiting_other": "{{count, number}} เล่มรอการแบ่งก่อนที่ใครจะอัดเสียง"
+      "waiting_other": "{{count, number}} เล่มรอการแบ่งก่อนที่ใครจะอัดเสียง",
+      "leftOut": "{{way}} ไม่มีตอนของ {{book}}"
+    },
+    "elsewhere": {
+      "title": "อัปเดตใหม่ใน {{language}}",
+      "sub_other": "อัปเดตสำหรับคุณ {{count, number}} รายการ แตะเพื่อสลับไปที่ {{language}}"
+    },
+    "again": {
+      "title": "บันทึก {{passage}} อีกครั้ง",
+      "sub_other": "ตอนต่าง ๆ เปลี่ยนหลังจากบันทึกแล้ว ต้องบันทึกใหม่ {{count, number}} ตอน การบันทึกเดิมอยู่ในหน้าของแต่ละตอน"
     }
   },
   "shell": {
@@ -4381,7 +4391,8 @@
       "overdue": "คำขอที่เลยกำหนด",
       "openInAll_other": "คำขอที่เปิดอยู่ทั้งหมด {{count, number}} รายการ",
       "checkpoint": "อยู่ที่จุดตรวจ",
-      "checkpointSub": "รอการตรวจที่จุดตรวจ"
+      "checkpointSub": "รอการตรวจที่จุดตรวจ",
+      "show": "ดูบนแผนที่"
     },
     "noReports": {
       "languages": "ยังไม่มีภาษาให้แสดง",

@@ -2800,7 +2800,8 @@
       "reportedContent": "Alguém denunciou isto por {{reasons}}. Foi feito por {{name}}. Dê uma olhada e depois remova da ficha ou mantenha.",
       "reportsAnonymous": "As denúncias nunca dizem quem as enviou. A equipe do LangQuest também vê todas as denúncias.",
       "assignAccept": "Atribuir função e aceitar",
-      "decline": "Recusar"
+      "decline": "Recusar",
+      "inLanguage": "Em {{language}}"
     },
     "me": {
       "title": "Eu",
@@ -3743,7 +3744,20 @@
       "title": "Dividir {{book}}",
       "waiting_one": "Esperando ser dividido antes que alguém o grave",
       "waiting_many": "{{count, number}} de livros estão esperando ser divididos antes que alguém os grave",
-      "waiting_other": "{{count, number}} livros estão esperando ser divididos antes que alguém os grave"
+      "waiting_other": "{{count, number}} livros estão esperando ser divididos antes que alguém os grave",
+      "leftOut": "{{way}} não tem seções para {{book}}."
+    },
+    "elsewhere": {
+      "title": "Novidades em {{language}}",
+      "sub_one": "{{count, number}} novidade para você. Toque para mudar para {{language}}.",
+      "sub_many": "{{count, number}} novidades para você. Toque para mudar para {{language}}.",
+      "sub_other": "{{count, number}} novidades para você. Toque para mudar para {{language}}."
+    },
+    "again": {
+      "title": "Grave {{passage}} de novo",
+      "sub_one": "As seções mudaram depois da gravação. A gravação anterior está na página dele.",
+      "sub_other": "As seções mudaram depois da gravação: {{count, number}} para gravar de novo. As gravações anteriores estão nas páginas delas.",
+      "sub_many": "As seções mudaram depois da gravação: {{count, number}} para gravar de novo. As gravações anteriores estão nas páginas delas."
     }
   },
   "shell": {
@@ -4755,7 +4769,8 @@
       "openInAll_many": "{{count, number}} de pedidos abertos no total",
       "openInAll_other": "{{count, number}} pedidos abertos no total",
       "checkpoint": "Em um ponto de controle",
-      "checkpointSub": "Esperando a revisão de um ponto de controle"
+      "checkpointSub": "Esperando a revisão de um ponto de controle",
+      "show": "Ver no mapa"
     },
     "noReports": {
       "languages": "Ainda não há idiomas para mostrar",
