@@ -21,6 +21,7 @@ const APP_ONLY: Record<string, string> = {
   'workspace->mic_setup': 'microphone setup, offered when takes keep clipping or come out quiet (decision 71)',
   'study_guide->key_term_detail': 'the study is one reader for both nodes; its key words and glossary open a key term (decision 71, demo ADR-035)',
   'study_step->guide_editor': 'the steps sheet offers the guide editor from either study node (decision 71)',
+  'my_work->book_structure': "a book waiting to be divided is on the admin's My Work; the row opens that book in the open language (decision 80)",
   'my_work->get_ready': "a coordinator's My Work leads with getting the language ready (decision 71, demo ADR-039)",
   'language_home->get_ready': 'the language page opens the four questions to get it ready (decision 71, demo ADR-039)',
   'get_ready->get_ready': 'each of the four questions is its own screen, opened from the checklist (decision 71, demo ADR-039)',

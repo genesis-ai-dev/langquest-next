@@ -134,6 +134,8 @@ export const EDGES: Edge[] = [
   e('invite_qr', 'my_work', 'popTo'), // tap Done (from My Work)
   e('passage_record', 'my_work', 'back'), // tap Back (from My Work)
   e('my_work', 'templates_home', undefined, 'shapeTemplates'), // tap Open on a content template task
+  e('my_work', 'book_structure', undefined, 'manageTemplates'), // tap Divide Romans (a book waiting to be divided)
+  e('book_structure', 'my_work', 'back'), // tap Back (from My Work)
   e('intent_chooser', 'create_org'), // tap Create an organization
   e('intent_chooser', 'request_access'), // tap Join an existing org
   e('intent_chooser', 'scan_qr'), // tap Join with QR code

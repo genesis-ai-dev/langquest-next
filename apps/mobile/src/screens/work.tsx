@@ -14,7 +14,7 @@
 // the Map. Getting started is gone: help mode (the ? in the header) explains
 // each part for field workers, and the Get ready card leads coordinators.
 import {
-  derivePassage, highlightsFor, languageName, membershipsOf, recommendedFor, unitTitle, upNext, waitingOn,
+  derivePassage, highlightsFor, languageName, membershipsOf, recommendedFor, unitPlace, unitTitle, upNext, waitingOn,
   type Highlight, type KindDef, type LanguageState, type OrgState, type Waiting
 } from '@langquest-next/core';
 import { useEffect, useMemo, useState } from 'react';
@@ -255,7 +255,10 @@ export function MyWork(ctx: Ctx) {
   const map = () => ctx.go(mapScreenFor(ctx.session));
 
   // On the admin's list (decision 80): books waiting to be divided before anyone can record them.
+  // The row opens the first of them in this language, where the ways to divide it are offered.
   const toDivide = languageId && ctx.session.can('manage_templates') ? idx.waiting : [];
+  const divideBook = toDivide.length ? unitPlace(state, toDivide[0]!).bookId : null;
+  const divide = () => (divideBook && languageId && canGo(ctx, 'book_structure') ? ctx.go('book_structure', { languageId, bookId: divideBook }) : map());
   return (
     <Screen header={header}>
       {lead}
@@ -263,7 +266,7 @@ export function MyWork(ctx: Ctx) {
         <Group>
           <Row icon="cut" label={t('work.divide.title', { book: unitTitle(state, toDivide[0]!) })}
             sub={t('work.divide.waiting', { count: toDivide.length })}
-            last onPress={map} />
+            last onPress={divide} />
         </Group>
       ) : null}
       {nothing ? (
