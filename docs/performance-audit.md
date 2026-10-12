@@ -208,6 +208,13 @@ Confirmed.
   head alone.
 - **Measure:** `stale` outcomes in snapshot diagnostics, snapshot writes per
   hour, and how many first opens on slow links finish.
+- **Done (2026-10-12, decision 88):** a new snapshot after 200 new events
+  or an hour (at once when a redaction reaches inside it), and the one
+  before kept until its successor is 24 hours old. In the fleet: no stale
+  downloads in any run (9 of 66 before in `bump-large`); slow joiners at
+  1,200 passages 5 to 6 minutes instead of 14 to 29, at 3,000 passages 25
+  to 27 instead of 42 to 51; snapshots written in four and a half days 38
+  instead of 351.
 
 ### Tier 2
 

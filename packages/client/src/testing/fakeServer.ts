@@ -34,6 +34,14 @@ export class FakeServer {
   /** Clients below this protocol version are refused, like the server RPCs. */
   minClientVersion = 0;
   readonly snapshots = new Map<string, Snapshot>();
+  /**
+   * How long a replaced snapshot can still be downloaded (put_snapshot keeps
+   * it 24 hours, decisions.md 88). 0 drops it at once, as put_snapshot did.
+   */
+  retainMs = 0;
+  /** The server's clock, for retention; the fleet gives it simulated time. */
+  now: () => number = () => Date.now();
+  private replaced = new Map<string, { snapshot: Snapshot; replacedAt: number }[]>();
   /** Snapshot state is served in pieces of this many characters. */
   chunkChars = 1_000_000;
   /** Chunk fetches after this many throw (link dropped mid-snapshot). */
@@ -71,8 +79,10 @@ export class FakeServer {
         if (this.refuse) throw new NotAuthorizedError(this.refuse);
         this.chunkCalls += 1;
         if (this.chunkCalls > this.failChunkAfter) throw new OfflineError('fetch failed');
-        const s = this.snapshots.get(`${orgId}/${streamId}`);
-        if (!s || s.reducerVersion !== reducerVersion || s.serverSeq !== serverSeq) return null;
+        const key = `${orgId}/${streamId}`;
+        const s = [this.snapshots.get(key), ...(this.replaced.get(key) ?? []).map((r) => r.snapshot)]
+          .find((x) => x && x.reducerVersion === reducerVersion && x.serverSeq === serverSeq);
+        if (!s) return null;
         const text = this.textOf(s);
         return text.slice(index * this.chunkChars, (index + 1) * this.chunkChars);
       },
@@ -110,7 +120,14 @@ export class FakeServer {
   /** What the snapshot worker does: fold the whole stream and store it. */
   makeSnapshot(orgId: string, streamId: string): Snapshot {
     const s = takeSnapshot(orgId, streamId, [...this.stream(orgId, streamId)]);
-    this.snapshots.set(`${orgId}/${streamId}`, s);
+    const key = `${orgId}/${streamId}`;
+    const previous = this.snapshots.get(key);
+    const now = this.now();
+    // As put_snapshot: a replaced snapshot goes once its successor has been out `retainMs`.
+    const kept = [...(this.replaced.get(key) ?? []), ...(previous ? [{ snapshot: previous, replacedAt: now }] : [])]
+      .filter((r) => this.retainMs > 0 && now - r.replacedAt < this.retainMs);
+    this.replaced.set(key, kept);
+    this.snapshots.set(key, s);
     return s;
   }
 

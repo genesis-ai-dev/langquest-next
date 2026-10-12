@@ -42,7 +42,7 @@ Baseline numbers for every scenario at several sizes are in
 | --- | --- | --- |
 | `normalDay` | A team on mixed links (phone signal, a town trip every 3 days, a patchy slow signal) working office hours for a week | Sync CPU per run, time for work to reach the others, wakes with no signal |
 | `villageReconnect` | Everyone sets up in town, works out of reach for two weeks, and comes back into signal on the same morning | Backlog size, minutes to drain it, append calls, sync CPU while draining |
-| `reducerBump` | Every phone cold-starts through the server snapshot over an hour, while the team works and the snapshot is rewritten every 5 minutes | Snapshot outcomes, minutes to catch up, megabytes |
+| `reducerBump` | Every phone cold-starts through the server snapshot over an hour, while the team works and the server writes snapshots on its schedule (decision 88) | Snapshot outcomes, minutes to catch up, megabytes |
 | `slowLink` | Phones on a 2 KB/s link join a busy language | Whether each joiner's snapshot went `stale`, minutes, megabytes |
 | `refoldTriggers` | The language is not listed for its first 10 hours (its events refused and re-queued), then the coordinator redacts notes as it goes | Refolds while unlisted and after, the sync CPU they cost, empty snapshot lookups |
 
@@ -65,11 +65,13 @@ Baseline numbers for every scenario at several sizes are in
 
 ## What it showed first (2026-10-12)
 
-- `slowLink` reproduces audit item 5. With today's rule (a new snapshot
-  after any new event), every slow joiner's download went `stale`. Each
-  then pulled the whole log: 14 to 29 minutes and 1.8 to 2.7 MB each. With
-  `--snapshotMinNew=200`, each adopted the snapshot in 6 minutes for
-  0.9 MB.
+- `slowLink` reproduced audit item 5. With the rule of the time (a new
+  snapshot after any new event, the old one deleted at once), every slow
+  joiner's download went `stale`, and each then pulled the whole log: 14 to
+  29 minutes and 1.8 to 2.7 MB each. Decision 88 changed the rule; the same
+  joiners now take 5 to 6 minutes for 0.8 MB (`fleet-baselines.md`). The
+  scenarios model the server's rule by default and the old one with
+  `--snapshotMinNew=1 --snapshotMaxAgeMin=0 --snapshotRetainHours=0`.
 - Bigger teams cost far more than their size, and audit item 3 is why.
   Every append pokes every phone, so syncs grow with phones × appends, and
   every sync that pulls parses the phone's whole checkpoint

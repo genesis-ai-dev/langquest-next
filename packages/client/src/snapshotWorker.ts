@@ -9,13 +9,39 @@ interface SnapshotResult {
   serverSeq: number;
   /** false when the stream had nothing new since its snapshot. */
   updated: boolean;
+  /** A new snapshot was stored (SNAPSHOT_SCHEDULE says when). */
+  written: boolean;
+}
+
+/**
+ * When a language gets a new server snapshot (decisions.md 88): after 200
+ * new events or an hour, whichever comes first, once the stream has moved.
+ * Rewriting it after every event made a slow phone's download go stale and
+ * start over from the log (performance-audit.md item 5). The pass still
+ * folds every changed language for the Inbox; only the write waits.
+ */
+export const SNAPSHOT_SCHEDULE = { minNewEvents: 200, maxAgeMs: 60 * 60 * 1000 };
+
+/**
+ * Should the pass store a new snapshot? Always when there is none, and when
+ * the new events redact something inside it: phones holding the target wait
+ * for a snapshot past the redaction (syncClient resolvePendingRedaction).
+ * Otherwise once enough events or time have passed.
+ */
+export function shouldWriteSnapshot(
+  o: { existing: boolean; newEvents: number; redactsSnapshot: boolean; ageMs: number | null },
+  schedule = SNAPSHOT_SCHEDULE
+): boolean {
+  if (!o.existing || o.redactsSnapshot) return true;
+  if (o.newEvents === 0) return false;
+  return o.newEvents >= schedule.minNewEvents || o.ageMs === null || o.ageMs >= schedule.maxAgeMs;
 }
 
 /**
  * The async projection worker from PLAN.md section 5: off the write path,
  * runs with the service role, folds each stream with the same reducer the
- * phones run, and stores the result via put_snapshot. Incremental: resumes
- * from the last snapshot and folds only the tail, unless a redaction in the
+ * phones run, and stores the result via put_snapshot on SNAPSHOT_SCHEDULE.
+ * Incremental: resumes from the last snapshot and folds only the tail, unless a redaction in the
  * tail targets something inside the snapshot, in which case it refolds the
  * whole log so the target really disappears. `visit`, when given, says
  * which language streams to look at; the others are skipped without
@@ -40,7 +66,7 @@ export async function runSnapshotWorker(
     const tail = await pullAll(transport, orgId, streamId, existing?.serverSeq ?? 0, pageSize);
     if (tail.length === 0) {
       if (existing && observe) await observe(existing);
-      out.push({ orgId, streamId, serverSeq: existing?.serverSeq ?? 0, updated: false });
+      out.push({ orgId, streamId, serverSeq: existing?.serverSeq ?? 0, updated: false, written: false });
       continue;
     }
     const tailIds = new Set(tail.map((e) => e.id));
@@ -60,16 +86,29 @@ export async function runSnapshotWorker(
       snapshot = { orgId, streamId, reducerVersion: REDUCER_VERSION, serverSeq: all[all.length - 1]!.serverSeq!, state };
     }
 
-    const put = await service.rpc('put_snapshot', {
-      p_org_id: orgId,
-      p_stream_id: streamId,
-      p_reducer_version: REDUCER_VERSION,
-      p_server_seq: snapshot.serverSeq,
-      p_state: snapshot.state
-    });
-    if (put.error) throw new Error(`put_snapshot ${orgId}/${streamId}: ${put.error.message}`);
+    // Its age is only needed when the event count alone does not decide.
+    let ageMs: number | null = null;
+    if (existing && !redactsSnapshot && tail.length < SNAPSHOT_SCHEDULE.minNewEvents) {
+      const at = await service.from('snapshots').select('created_at')
+        .eq('org_id', orgId).eq('stream_id', streamId).eq('reducer_version', REDUCER_VERSION)
+        .order('server_seq', { ascending: false }).limit(1);
+      if (at.error) throw new Error(`snapshot age ${orgId}/${streamId}: ${at.error.message}`);
+      const written = (at.data?.[0] as { created_at?: string } | undefined)?.created_at;
+      ageMs = written ? Date.now() - Date.parse(written) : null;
+    }
+    const written = shouldWriteSnapshot({ existing: !!existing, newEvents: tail.length, redactsSnapshot, ageMs });
+    if (written) {
+      const put = await service.rpc('put_snapshot', {
+        p_org_id: orgId,
+        p_stream_id: streamId,
+        p_reducer_version: REDUCER_VERSION,
+        p_server_seq: snapshot.serverSeq,
+        p_state: snapshot.state
+      });
+      if (put.error) throw new Error(`put_snapshot ${orgId}/${streamId}: ${put.error.message}`);
+    }
     if (observe) await observe(snapshot);
-    out.push({ orgId, streamId, serverSeq: snapshot.serverSeq, updated: true });
+    out.push({ orgId, streamId, serverSeq: snapshot.serverSeq, updated: true, written });
   }
   return out;
 }

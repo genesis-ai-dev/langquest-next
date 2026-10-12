@@ -9,6 +9,8 @@
  *
  * Counts (events, syncs, snapshots, minutes) are the same on every run for
  * a seed; real seconds and CPU depend on the machine and what else it does.
+ * Runs ending in `-oldRule` use the snapshot rule from before decision 88,
+ * to keep that comparison.
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -24,14 +26,16 @@ export const BASELINES: [name: string, args: string][] = [
   ['village-default', 'villageReconnect'],
   ['village-large', 'villageReconnect --passages=3000 --translators=40 --reviewers=25 --offlineDays=28'],
   ['bump-default', 'reducerBump'],
-  ['bump-minNew200', 'reducerBump --snapshotMinNew=200'],
+  ['bump-oldRule', 'reducerBump --snapshotMinNew=1 --snapshotMaxAgeMin=0 --snapshotRetainHours=0'],
   ['bump-slow5KBps', 'reducerBump --slowKBps=5 --chunkKB=32'],
-  ['bump-slow5KBps-minNew200', 'reducerBump --slowKBps=5 --chunkKB=32 --snapshotMinNew=200'],
+  ['bump-slow5KBps-oldRule', 'reducerBump --slowKBps=5 --chunkKB=32 --snapshotMinNew=1 --snapshotMaxAgeMin=0 --snapshotRetainHours=0'],
   ['bump-large', 'reducerBump --passages=3000 --translators=40 --reviewers=25'],
+  ['bump-large-oldRule', 'reducerBump --passages=3000 --translators=40 --reviewers=25 --snapshotMinNew=1 --snapshotMaxAgeMin=0 --snapshotRetainHours=0'],
   ['slow-default', 'slowLink'],
-  ['slow-minNew200', 'slowLink --snapshotMinNew=200'],
+  ['slow-oldRule', 'slowLink --snapshotMinNew=1 --snapshotMaxAgeMin=0 --snapshotRetainHours=0'],
   ['slow-8KBps-256KB', 'slowLink --joinerKBps=8 --chunkKB=256'],
   ['slow-large', 'slowLink --passages=3000 --translators=40 --reviewers=25 --joiners=5'],
+  ['slow-large-oldRule', 'slowLink --passages=3000 --translators=40 --reviewers=25 --joiners=5 --snapshotMinNew=1 --snapshotMaxAgeMin=0 --snapshotRetainHours=0'],
   ['refold-default', 'refoldTriggers'],
   ['refold-large', 'refoldTriggers --passages=1200 --translators=20 --reviewers=12']
 ];

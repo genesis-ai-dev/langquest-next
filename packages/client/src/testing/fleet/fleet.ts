@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { emptyLanguageState, foldLanguage } from '@langquest-next/core';
+import { SNAPSHOT_SCHEDULE } from '../../snapshotWorker';
 import { FakeServer } from '../fakeServer';
 import { seededRandom, type Random } from '../random';
 import { VirtualTime } from '../virtualTime';
@@ -24,8 +25,14 @@ export interface CrewOptions {
 export interface FleetOptions {
   seed: number;
   crew: CrewOptions;
-  /** The server's projection pass: how often, and how many new events it waits for (1 is what it does today). */
-  snapshots?: { everyMs: number; minNewEvents: number } | null;
+  /**
+   * The server's projection pass: how often it runs, and when it writes a new
+   * snapshot (after `minNewEvents`, or `maxAgeMs` once the stream moved) and
+   * how long a replaced one stays downloadable. Defaults to the server's own
+   * rule (SNAPSHOT_SCHEDULE, decisions.md 88). The rule before it was
+   * `{ minNewEvents: 1, maxAgeMs: 0, retainMs: 0 }`.
+   */
+  snapshots?: { everyMs: number; minNewEvents: number; maxAgeMs?: number; retainMs?: number } | null;
   /** Characters per snapshot piece; the server's is 256 KB. */
   chunkChars?: number;
   realtime?: { on: boolean; delayMs: number };
@@ -54,6 +61,7 @@ export class Fleet {
   private readonly appendedAt = new Map<string, number>();
   private working = true;
   private lastSnapshotSeq = 0;
+  private lastSnapshotAt = 0;
   private readonly context: FleetContext;
 
   constructor(readonly options: FleetOptions) {
@@ -103,17 +111,27 @@ export class Fleet {
       coord.metrics.appended += events.length;
       for (const e of events) this.appendedAt.set(e.id, this.time.now());
     }
-    const snapshots = this.options.snapshots === undefined ? { everyMs: 5 * TIME.MINUTE, minNewEvents: 1 } : this.options.snapshots;
-    if (snapshots) this.snapshotPass(snapshots);
+    const snapshots = this.options.snapshots === undefined ? { everyMs: 5 * TIME.MINUTE, minNewEvents: SNAPSHOT_SCHEDULE.minNewEvents } : this.options.snapshots;
+    if (snapshots) {
+      this.server.now = this.time.now;
+      this.server.retainMs = snapshots.retainMs ?? 24 * TIME.HOUR;
+      this.snapshotPass({ ...snapshots, maxAgeMs: snapshots.maxAgeMs ?? SNAPSHOT_SCHEDULE.maxAgeMs });
+    }
   }
 
-  /** What the projection pass does to snapshots (server/projectionWorker.ts, every 5 minutes). */
-  private snapshotPass(o: { everyMs: number; minNewEvents: number }): void {
+  /** What the projection pass does to snapshots (server/projectionWorker.ts, every 5 minutes; snapshotWorker shouldWriteSnapshot). */
+  private snapshotPass(o: { everyMs: number; minNewEvents: number; maxAgeMs: number }): void {
     this.time.setTimeout(() => {
       const head = this.server.head(this.orgId, this.streamId);
-      if (head - this.lastSnapshotSeq >= o.minNewEvents) {
+      const moved = head - this.lastSnapshotSeq;
+      const first = this.snapshotsTaken === 0 && head > 0;
+      const tail = this.server.stream(this.orgId, this.streamId).slice(this.lastSnapshotSeq);
+      const tailIds = new Set(tail.map((e) => e.id));
+      const redactsSnapshot = !first && tail.some((e) => e.type === 'v1.Redacted' && !tailIds.has(e.payload.eventId));
+      if (first || redactsSnapshot || moved >= o.minNewEvents || (moved > 0 && this.time.now() - this.lastSnapshotAt >= o.maxAgeMs)) {
         this.server.makeSnapshot(this.orgId, this.streamId);
         this.lastSnapshotSeq = head;
+        this.lastSnapshotAt = this.time.now();
         this.snapshotsTaken += 1;
       }
       this.snapshotPass(o);

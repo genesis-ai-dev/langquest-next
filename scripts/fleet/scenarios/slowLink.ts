@@ -6,20 +6,25 @@ import type { Scenario } from './types';
  * downloading the snapshot takes longer than the gap between two
  * snapshots, the download is thrown away (`stale`) and the phone falls
  * back to pulling the log (audit item 5). Read whether each joiner caught
- * up, how long it took, and what it downloaded. Compare `--snapshotMinNew`
- * values to see the fix. A Bible-scale snapshot is about 52 pieces of
+ * up, how long it took, and what it downloaded. The defaults are the
+ * server's snapshot rule (decisions.md 88); the rule before it is
+ * `--snapshotMinNew=1 --snapshotMaxAgeMin=0 --snapshotRetainHours=0`.
+ * A Bible-scale snapshot is about 52 pieces of
  * 256 KB; a small simulated one cut into small pieces (`--chunkKB`)
  * behaves the same way without folding 100k events on every phone.
  */
 export const slowLink: Scenario = {
   name: 'slowLink',
   summary: 'Phones on a very slow link join a busy language.',
-  defaults: { seed: 1, passages: 1200, translators: 8, reviewers: 5, historyDays: 3, joiners: 3, joinerKBps: 2, snapshotEveryMin: 5, snapshotMinNew: 1, chunkKB: 32 },
+  defaults: { seed: 1, passages: 1200, translators: 8, reviewers: 5, historyDays: 3, joiners: 3, joinerKBps: 2, snapshotEveryMin: 5, snapshotMinNew: 200, snapshotMaxAgeMin: 60, snapshotRetainHours: 24, chunkKB: 32 },
   async run(k) {
     const started = performance.now();
     const fleet = new Fleet({
       seed: k.seed!,
-      snapshots: { everyMs: k.snapshotEveryMin! * TIME.MINUTE, minNewEvents: k.snapshotMinNew! },
+      snapshots: {
+        everyMs: k.snapshotEveryMin! * TIME.MINUTE, minNewEvents: k.snapshotMinNew!,
+        maxAgeMs: k.snapshotMaxAgeMin! * TIME.MINUTE, retainMs: k.snapshotRetainHours! * TIME.HOUR
+      },
       chunkChars: k.chunkKB! * 1024,
       crew: { passages: k.passages!, translators: k.translators!, reviewers: k.reviewers!, link: () => always(NETWORKS.phone, 'phone') }
     });

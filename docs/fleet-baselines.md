@@ -28,7 +28,11 @@ means is in `fleet-simulation.md`.
   runs, and rerun before reading a small difference as real.
 - **Agreement must stay "yes".** Every phone ended with the server's state
   in all 17 runs.
-- **Runs with a different `snapshotMinNew` are close, not identical.** A
+- **The snapshot rule changed after these were taken.** The results below
+  are from before decision 88. `npm run fleet:baselines` now runs the
+  scenarios with the server's new rule and adds `-oldRule` runs with the
+  rule these used; the `-oldRule` runs reproduce these numbers exactly.
+- **Runs with a different snapshot rule are close, not identical.** A
   phone that adopts a snapshot instead of pulling learns of the work at a
   different moment, so its persona acts at different moments, and events
   and syncs differ slightly between those pairs.
@@ -125,6 +129,30 @@ case for every lookup), one transaction rolled back:
 | put_snapshot | 122.5 |
 | get_snapshot_meta | 122.5 |
 | get_snapshot_chunk (first, middle, last) | 61.7, 69.1, 77.5 |
+
+## After item 5: the snapshot schedule and retention (decision 88)
+
+Same seeds, same machine, `npm run fleet:baselines -- --only=bump` and
+`--only=slow`. Each pair runs the new rule and the rule before it.
+
+| Run | Rule | Snapshots stale | Worst cold start, min | Snapshots written | MB down |
+| --- | --- | --- | --- | --- | --- |
+| `bump-default` | new | 0 | 0.77 | 38 | 22.42 |
+| `bump-oldRule` | old | 0 | 0.77 | 356 | 22.57 |
+| `bump-slow5KBps` | new | 0 | 2.73 | 38 | 22.79 |
+| `bump-slow5KBps-oldRule` | old | 1 | 3.7 | 358 | 23.45 |
+| `bump-large` | new | 0 | 3.69 | 54 | 541 |
+| `bump-large-oldRule` | old | 9 | 7.13 | 398 | 571 |
+
+| Run | Rule | Joiner minutes | Joiner MB down | Joiner snapshots |
+| --- | --- | --- | --- | --- |
+| `slow-default` (1,200 passages) | new | 6, 5, 6 | 0.8 each | ok, ok, ok |
+| `slow-oldRule` | old | 14, 14, 29 | 1.8, 1.9, 2.7 | stale, stale, stale |
+| `slow-large` (3,000 passages) | new | 26, 27, 27, 25, 25 | 3.8 each | all ok |
+| `slow-large-oldRule` | old | 43, 48, 42, 43, 51 | 5.8 to 6.5 | all stale (one twice) |
+
+At 2 KB/s a 2.7 MB snapshot takes about 23 minutes to download, so 25 to
+27 minutes is close to what the link allows.
 
 ## What these show
 

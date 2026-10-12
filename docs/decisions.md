@@ -1845,6 +1845,11 @@ treatment, from the language's events, rather than a faster pass. Or if a
 mark lets a language go stale; then bump `PROJECTION_VERSION` and find
 what the mark misses.
 
+Amended (2026-10-12, Carl Sauder): the pass also visits a language whose
+newest snapshot is behind its stream and an hour old, so it gets a new one
+(88); a language whose stream moved is still folded every pass, but its
+snapshot is written only on 88's schedule.
+
 ## 69. Recordings and guide media live in Cloudflare R2, behind the app's Worker
 
 Date: 2026-10-07 · By: Carl Sauder · Status: accepted
@@ -2898,3 +2903,33 @@ never held their sign-in without the server.
 Reverse if: a phone keeps acting for an account the server has ended
 (then end it on the first refusal of its requests), or Supabase Auth
 starts answering a lasting refusal with a status this treats as passing.
+
+## 88. A language's server snapshot is written after 200 new events or an hour, and the one before stays for 24 hours
+
+Date: 2026-10-12 · By: Carl Sauder · Status: accepted
+
+Reason: the projection pass wrote a new snapshot of every language that had
+any new event, every five minutes, and `put_snapshot` deleted the one
+before at once. A phone part-way through downloading a snapshot then found
+its pieces gone, threw the download away and pulled the whole log; on a
+slow link the next try went the same way. The fleet simulator measured it
+(`docs/fleet-baselines.md`, `slowLink`): every joiner on a 2 KB/s link went
+stale and took 14 to 29 minutes at 1,200 passages, 42 to 51 at 3,000.
+Carl chose (2026-10-12, LAN-47):
+- The pass still folds every changed language for the Inbox, but writes a
+  new snapshot only after 200 new events or once the newest is an hour old
+  and the stream has moved (`SNAPSHOT_SCHEDULE`, `shouldWriteSnapshot` in
+  `packages/client/src/snapshotWorker.ts`). It writes at once when there is
+  none, and when the new events redact something inside it, since phones
+  holding the target wait for a snapshot past the redaction. A language
+  that went quiet a few events past its snapshot is visited again once the
+  hour is up (`snapshotDue`, `server/projectionWorker.ts`).
+- A snapshot stays downloadable until the one after it has been out for 24
+  hours (`put_snapshot`, migration `20261012120000_snapshot_retention.sql`).
+  That covers a 13 MB download at 2 KB/s, about two hours, with a wide
+  margin, and a phone that loses its signal and resumes later that day.
+A cold start now pulls up to 200 events, or an hour's, after the snapshot.
+A busy language keeps up to about 25 snapshots, a quiet one one or two.
+Reverse if: snapshot storage grows past what the database plan allows
+(then shorten the retention, or keep pieces in object storage), or cold
+starts spend more time on the tail than they saved.
