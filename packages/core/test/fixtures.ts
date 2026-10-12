@@ -178,6 +178,10 @@ export function buildRecordFixture(): AnyEvent[] {
   // consultant checkpoint; a listener's review arrives through a link; take2 goes live, then down, in one app.
   emit('dA', 'lead', 'v1.FlowStepLinksSet', { stepId: 'standard_bible/s3', allowed: true });
   emit('dE', 'lead2', 'v1.FlowStepLinksSet', { stepId: 'standard_bible/s3', allowed: false });
+  // Helps on a check (decisions.md 91): a register per (kind, help), set from two devices.
+  emit('dA', 'lead', 'v1.CheckHelpSet', { kindId: 'peer', materialId: 'note-names', linked: true });
+  emit('dE', 'lead2', 'v1.CheckHelpSet', { kindId: 'peer', materialId: 'note-names', linked: false });
+  emit('dA', 'lead', 'v1.CheckHelpSet', { kindId: 'community', itemId: 'fia-guides', linked: true });
   emit('dB', 't1', 'v1.ReviewRecorded', { reviewId: 'rv-link', takeId: 'take2', kindId: 'community', outcome: 'looks_good', via: 'link', givenBy: 'Deng', comment: 'Clear.' });
   emit('dA', 'lead', 'v1.VersionReleased', { takeId: 'take2', channel: 'EL app', live: true, url: 'https://el.example/luke1' });
   emit('dE', 'lead2', 'v1.VersionReleased', { takeId: 'take2', channel: 'EL app', live: false });

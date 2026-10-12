@@ -107,6 +107,13 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordE
    */
   'v1.FlowStepLinksSet': { stepId: string; allowed: boolean };
   /**
+   * A help linked to a check (decisions.md 91): a note, a guide or a Bible
+   * whoever does that kind of review sees first. Exactly one of `itemId` (a
+   * library item) or `materialId` (material written in the language).
+   * Register per (kind, help).
+   */
+  'v1.CheckHelpSet': { kindId: string; itemId?: string; materialId?: string; linked: boolean };
+  /**
    * A distribution channel reports a version live, or taken down
    * (decisions.md 72): "v3 is live in the EL app". A fact, not a verdict.
    * Register per (version, channel).

@@ -8,8 +8,10 @@
 // (core derivePassage and friends); every change is a core command through
 // ctx.act, with Undo where the demo offers it.
 import { EarlierNote, EarlierSections, isEarlierSection } from '../breakup/earlier';
+import { Faces, PeopleLine } from '../checks/parts';
+import { checkName, stepTitle } from '../simple/adminModel';
 import {
-  CommandError, commands, draftsBy, feedbackIsMine, isCompleteState, keyTermLinksFor, questionsForKind, recordTimeline, reviewGrid,
+  CommandError, checkPeople, commands, draftsBy, feedbackIsMine, isCompleteState, keyTermLinksFor, questionsForKind, recordTimeline, reviewGrid,
   type Commands, type EventSpec, type FlowStepStatus, type KindState, type KindStatus, type PassageNote, type QuestionSpec, type ReviewView
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -190,6 +192,8 @@ export function PassageRecord(ctx: Ctx) {
     return () => sub.remove();
   }, [page]);
   const [historyShown, setHistoryShown] = useState(HISTORY_STEP);
+  // Which of the checks that happen next the ask page sends (decision 91): the first, unless another is picked.
+  const [askKindId, setAskKindId] = useState<string | null>(null);
   const timeline = useMemo(() => (v ? recordTimeline(v.state, v.p) : []), [v?.state, v?.p]);
   const guide = useStudyGuide(ctx, v?.unitId);
   const study = useMemo(() => (v && guide ? studyProgress(v.state, v.p, guide) : null), [v?.state, v?.p, guide]);
@@ -288,7 +292,8 @@ export function PassageRecord(ctx: Ctx) {
     askedName: (kindId) => {
       const r = p.openRequests.find((x) => x.what === 'review' && x.kindId === kindId);
       if (!r) return undefined;
-      if (r.teamId) return teamName(r.teamId) ?? r.team?.name;
+      // A check's team reads as one (decision 91): "asked the Peer check team".
+      if (r.teamId) { const team = teamName(r.teamId) ?? r.team?.name; return team ? t('passage.record.theTeam', { team }) : undefined; }
       return r.profileId ? ctx.name(r.profileId) : r.guest?.name;
     }
   };
@@ -298,7 +303,8 @@ export function PassageRecord(ctx: Ctx) {
   const feedbackReview = steps.find((st) => st.kind === 'feedback')?.review;
 
   // The next check, for asking (after publishing, or later from the button).
-  const nextKind = asker && p.next ? p.next.kinds.find((k) => !isCompleteState(k.state) && !k.request) : undefined;
+  const nextKinds = asker && p.next ? p.next.kinds.filter((k) => !isCompleteState(k.state) && !k.request) : [];
+  const nextKind = nextKinds.find((k) => k.kindId === askKindId) ?? nextKinds[0];
   const nextTarget = nextKind ? targets[nextKind.kindId] : undefined;
   // A check someone asked of this person.
   const myCheck = p.steps.flatMap((st) => st.kinds.map((k) => ({ k, st })))
@@ -364,7 +370,7 @@ export function PassageRecord(ctx: Ctx) {
   const sheets = (
     <>
       {openStep ? (
-        <Sheet visible title={stepName(kinds, openStep.step)} sub={stepSheetSub(openStep, canAct)} onClose={() => setOpenStepId(null)}>
+        <Sheet visible title={stepTitle(openStep.step.kindIds, kinds)} sub={stepSheetSub(openStep) || undefined} onClose={() => setOpenStepId(null)}>
           <Group>{openStep.kinds.map((k, i) => kindRow(k, openStep, i === 0))}</Group>
           {can.override && openStep.step.checkpoint && !openStep.complete && !openStep.override ? (
             <GhostBtn label={t('passage.page.movePastThis')} tone="red" onPress={() => afterSheet(() => setOverriding(openStep.step.id))} />
@@ -446,20 +452,17 @@ export function PassageRecord(ctx: Ctx) {
     );
   }
 
-  // ---- Published, then ask for a check (demo a-ask, a-btAsk) ----
+  // ---- Published, then ask for a check (demo a-ask, a-btAsk; decision 91: each check with its people) ----
   if (page === 'ask') {
     const bt = publishedParam?.startsWith('bt');
     const latest = p.latest;
-    const members = nextTarget && 'teamId' in nextTarget
-      ? commaList(Object.entries(v.state.teams[nextTarget.teamId]?.members ?? {}).filter(([, m]) => m.value).map(([id]) => ctx.name(id)).slice(0, 4))
-      : nextTarget ? ctx.name(nextTarget.profileId) : '';
     const close = () => { setPage('path'); setAskAfterPublish(false); };
     return (
       <Screen header={askAfterPublish ? undefined : <Header title={t('passage.published.askTitle')} sub={v.title} onBack={close} close />}
         footer={nextKind && can.ask ? (
           <View style={{ gap: space.xs }}>
             <PrimaryBtn label={nextTarget ? t('passage.published.askTarget', { target: sendTargetLabel(nextTarget, ctx.name) })
-              : t('passage.page.askFor', { check: kindInSentence(v.kind(nextKind.kindId).name) })} icon="send"
+              : t('passage.page.askFor', { check: kindInSentence(checkName(nextKind.kindId, kinds)) })} icon="send"
               onPress={() => { close(); sendTo(nextKind.kindId); }} />
             <QuietLinks items={[
               { label: t('passage.published.someoneElse'), icon: 'people', onPress: () => { close(); go('ask_someone', { what: 'review', kindId: nextKind.kindId }); } },
@@ -479,16 +482,21 @@ export function PassageRecord(ctx: Ctx) {
         {nextKind ? (
           <View style={{ gap: space.sm, marginTop: askAfterPublish ? space.lg : 0 }}>
             <Text style={txt.label}>{t('passage.published.nextAsk')}</Text>
-            <View style={styles.askCard}>
-              <View style={styles.askIcon}><Ico name={kindIcon(nextKind.kindId)} size={24} color={C.primary} /></View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={[txt.body, { fontWeight: '800', fontSize: 19 }]}>{v.kind(nextKind.kindId).name}</Text>
-                <Text style={txt.smMuted} numberOfLines={2}>{members || t('passage.published.chooseWho')}</Text>
-              </View>
-            </View>
-            <Text style={txt.smMuted}>
-              {nextTarget ? t('passage.published.setForStep') : t('passage.published.nobodySet')}
-            </Text>
+            {nextKinds.map((k) => {
+              const on = k.kindId === nextKind.kindId;
+              const people = checkPeople(v.state, k.kindId).filter((id) => id !== me);
+              return (
+                <Pressable key={k.kindId} onPress={() => setAskKindId(k.kindId)} accessibilityRole="radio" accessibilityState={{ selected: on }}
+                  style={[styles.askCard, !on && { borderWidth: 1, borderColor: C.border }]}>
+                  <View style={styles.askIcon}><Ico name={kindIcon(k.kindId)} size={24} color={C.primary} /></View>
+                  <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+                    <Text style={[txt.body, { fontWeight: '800', fontSize: 19 }]}>{checkName(k.kindId, kinds)}</Text>
+                    <PeopleLine ctx={ctx} people={people} />
+                  </View>
+                  {nextKinds.length > 1 ? <View style={[styles.radio, on && { borderColor: C.primary }]}>{on ? <View style={styles.radioDot} /> : null}</View> : null}
+                </Pressable>
+              );
+            })}
           </View>
         ) : (
           <Text style={[txt.smMuted, { textAlign: 'center', marginTop: space.lg }]}>
@@ -577,7 +585,7 @@ export function PassageRecord(ctx: Ctx) {
         </Text>
       ) : null}
       <EarlierNote ctx={ctx} unitId={unitId} languageId={languageId} />
-      <PassagePath steps={steps} team={team} onStep={onStep} onTeamStep={onTeamStep} extraFor={extraFor} />
+      <PassagePath ctx={ctx} steps={steps} team={team} peopleOf={(kindId) => checkPeople(v.state, kindId)} onStep={onStep} onTeamStep={onTeamStep} extraFor={extraFor} />
       <EarlierSections ctx={ctx} unitId={unitId} languageId={languageId} />
       {sheets}
     </Screen>
@@ -1174,6 +1182,9 @@ export function ReviewDetail(ctx: Ctx) {
  * when. It asks for exactly what its button belonged to (params `what` and
  * `kindId`); another kind is asked for from its own step.
  */
+/** The ask screen's choice of a check's whole team (decision 91), beside one person's id. */
+const TEAM = '\u0000team';
+
 export function AskSomeone(ctx: Ctx) {
   const v = usePassage(ctx);
   const what: 'record' | 'review' = ctx.params['what'] === 'record' ? 'record' : 'review';
@@ -1204,16 +1215,22 @@ export function AskSomeone(ctx: Ctx) {
 
   const kind = kindId ? v.kind(kindId) : undefined;
   const isRecord = what === 'record';
+  const check = kindId ? checkName(kindId, v.kinds) : '';
   const title = isRecord ? (v.p.recorded ? t('passage.ask.titleNewVersion') : t('passage.ask.titleRecord'))
-    : kind ? t('passage.ask.titleKind', { kind: kind.name }) : t('passage.ask.titleReview');
+    : kind ? t('passage.ask.titleKind', { kind: check }) : t('passage.ask.titleReview');
   const byName = (a: { profileId: string }, b: { profileId: string }) => ctx.name(a.profileId).localeCompare(ctx.name(b.profileId));
-  const usual = candidates.filter((c) => c.usual).sort(byName);
+  const usual = candidates.filter((c) => c.usual).sort((a, b) => Number(b.onCheck) - Number(a.onCheck) || byName(a, b));
   const others = candidates.filter((c) => !c.usual).sort(byName);
-  const existingQuestions = kindId ? questionsForKind(v.state, kindId).length : 0;
+  // The check's team (decision 91): everyone on it gets the request, and it is the first choice.
+  const usualTo = !isRecord && kindId ? usualTargetFor(v.state, ctx.org.state, { languageId: v.languageId, kindId, me }) : undefined;
+  const team = usualTo && 'teamId' in usualTo ? usualTo : undefined;
+  const teamPeople = team ? checkPeople(v.state, kindId!).filter((id) => id !== me) : [];
+  const chosen = who ?? (team ? TEAM : null);
+  const asked = kindId ? questionsForKind(v.state, kindId) : [];
   const dueErr = dueError(dueTyped, today);
   const due = dueTyped.trim() ? (dueErr ? null : dueTyped.trim()) : dueDays === null ? null : addDays(today, dueDays);
   const outside = mode === 'outside' && !isRecord;
-  const target = outside ? guestName.trim() : who ? ctx.name(who) : '';
+  const target = outside ? guestName.trim() : chosen === TEAM && team ? sendTargetLabel(team, ctx.name) : chosen ? ctx.name(chosen) : '';
   const ready = !!target && (!outside || contact.trim().length > 3) && !dueErr;
 
   const send = async () => {
@@ -1222,7 +1239,7 @@ export function AskSomeone(ctx: Ctx) {
     const ok = await perform(ctx, (c) => c.ask({
       commandId: newId(), unitId: v.unitId, what,
       ...(kindId ? { kindId } : {}),
-      ...(outside ? { guest: { name: guestName.trim(), channel, contact: contact.trim() } } : who ? { profileId: who } : {}),
+      ...(outside ? { guest: { name: guestName.trim(), channel, contact: contact.trim() } } : chosen === TEAM && team ? { teamId: team.teamId } : chosen ? { profileId: chosen } : {}),
       ...(due ? { dueDate: due } : {}),
       ...(note.trim() ? { note: note.trim() } : {}),
       ...(noteHash ? { noteBlobHash: noteHash } : {}),
@@ -1249,11 +1266,12 @@ export function AskSomeone(ctx: Ctx) {
 
   return (
     <Screen header={<Header title={title} sub={`${v.title} · ${v.language}`} onBack={ctx.back} close />}
-      footer={<PrimaryBtn label={target ? t('passage.ask.askName', { name: target.split(' ')[0] }) : t('passage.ask.chooseSomeone')} disabled={!ready} busy={busy} onPress={() => void send()} />}>
+      footer={<PrimaryBtn label={chosen === TEAM && team && !outside ? t('passage.published.askTarget', { target }) : target ? t('passage.ask.askName', { name: target.split(' ')[0] }) : t('passage.ask.chooseSomeone')}
+        disabled={!ready} busy={busy} onPress={() => void send()} />}>
       <Card style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
         {kindId ? <KindIcon kindId={kindId} size={44} /> : <View style={[styles.roundTile, { width: 44, height: 44, borderRadius: 14, backgroundColor: C.light }]}><Ico name="mic" size={22} color={C.primary} /></View>}
         <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-          <Text style={txt.h3}>{isRecord ? (v.p.recorded ? t('passage.else.newVersion') : t('passage.ask.recordIt')) : kind?.name}</Text>
+          <Text style={txt.h3}>{isRecord ? (v.p.recorded ? t('passage.else.newVersion') : t('passage.ask.recordIt')) : check}</Text>
           <Text style={txt.xs}>{isRecord ? t('passage.ask.recordSub') : kind?.description}</Text>
         </View>
       </Card>
@@ -1267,9 +1285,14 @@ export function AskSomeone(ctx: Ctx) {
       ) : null}
       {!outside ? (
         <Group>
-          {usual.length > 0 ? <View style={styles.groupHead}><Label text={kind ? t('passage.ask.usuallyDoes', { kind: kind.name }) : t('passage.ask.usuallyDoesThis')} color={C.primary} /></View> : null}
+          {team ? (
+            <Row leading={<Faces people={teamPeople} size={30} />} sub={teamPeople.map((id) => ctx.name(id)).join(t('admin.list.separator'))}
+              label={t('checks.theTeam', { check })} onPress={() => setWho(TEAM)} role="radio" selected={chosen === TEAM}
+              right={<View style={[styles.radio, chosen === TEAM && { backgroundColor: C.primary, borderColor: C.primary }]}>{chosen === TEAM ? <Ico name="check" size={14} color={C.white} strokeWidth={3} /> : null}</View>} />
+          ) : null}
+          {usual.length > 0 && !team ? <View style={styles.groupHead}><Label text={check || t('passage.ask.usuallyDoesThis')} color={C.primary} /></View> : null}
           {usual.map((c, i) => personRow(c, i === usual.length - 1 && others.length === 0))}
-          {others.length > 0 && usual.length > 0 ? <View style={[styles.groupHead, styles.topBorder]}><Label text={t('passage.ask.othersWhoCan')} /></View> : null}
+          {others.length > 0 && (usual.length > 0 || team) ? <View style={[styles.groupHead, styles.topBorder]}><Label text={t('checks.everyoneElse')} /></View> : null}
           {others.slice(0, othersShown).map((c, i) => personRow(c, i === Math.min(others.length, othersShown) - 1))}
           {others.length > othersShown ? (
             <View style={{ padding: space.md }}>
@@ -1304,12 +1327,12 @@ export function AskSomeone(ctx: Ctx) {
 
       {!isRecord ? (
         <>
-          <SectionLabel label={t('passage.ask.ownQuestions')} />
-          <Text style={[txt.xs, { paddingHorizontal: space.xs, marginTop: -space.sm }]}>
-            {existingQuestions ? t('passage.ask.addedToCount', { count: existingQuestions, kind: kind?.name ?? '' }) : t('passage.ask.addedTo', { kind: kind?.name ?? '' })}
-          </Text>
-          {questions.length > 0 ? (
+          <SectionLabel label={t('checks.theyAnswer')} />
+          {asked.length > 0 || questions.length > 0 ? (
             <Group>
+              {asked.map((sq) => (
+                <Row key={sq.q.id} icon="chat" label={sq.q.text} sub={[questionTypeLabel(sq.q.type), sq.required ? t('common.required') : ''].filter(Boolean).join(' · ')} />
+              ))}
               {questions.map((q, i) => (
                 <Row key={q.id} label={q.text} sub={questionTypeLabel(q.type)} last={i === questions.length - 1}
                   right={<IconBtn name="close" label={t('passage.ask.removeQuestion')} onPress={() => setQuestions((qs) => qs.filter((x) => x.id !== q.id))} bg="transparent" color={C.muted} />} />
@@ -1378,6 +1401,7 @@ const styles = StyleSheet.create({
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   answer: { paddingHorizontal: space.lg, paddingVertical: space.md, gap: 2 },
   groupHead: { paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: space.xs },
+  radioDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: C.primary },
   radio: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
   preview: { backgroundColor: TINT.green, borderRadius: radius.lg, padding: space.md, gap: 6, borderWidth: 1, borderColor: withAlpha(C.green, 0.2) }
 });

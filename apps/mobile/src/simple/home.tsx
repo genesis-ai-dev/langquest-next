@@ -39,7 +39,7 @@ export function Bell(props: { count: number; onPress: () => void }) {
  * line saying what to do, and one big button. Hick's law: the likely choice
  * is the obvious one; everything else waits below it.
  */
-export function NextCard(props: { label: string; title: string; sub?: string; cta: string; onPress: () => void; children?: ReactNode }) {
+export function NextCard(props: { label: string; title: string; sub?: string; cta: string; onPress: () => void; children?: ReactNode; below?: ReactNode }) {
   return (
     <View style={styles.next}>
       <Text style={styles.nextLabel}>{props.label}</Text>
@@ -48,6 +48,7 @@ export function NextCard(props: { label: string; title: string; sub?: string; ct
         <Text style={styles.nextTitle} accessibilityRole="header">{props.title}</Text>
         {props.sub ? <Text style={styles.nextSub}>{props.sub}</Text> : null}
       </View>
+      {props.below}
       <PrimaryBtn label={props.cta} icon="right" onPress={props.onPress} />
     </View>
   );

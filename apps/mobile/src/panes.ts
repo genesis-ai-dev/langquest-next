@@ -55,7 +55,6 @@ export const SPLITS: readonly SplitSpec[] = [
   { list: 'reference_bibles', details: ['reference_source'], empty: emptyPane('book', 'bible') },
   { list: 'reference_guides', details: ['material_editor'], empty: emptyPane('sparkle', 'guide') },
   { list: 'reference_coverage', details: ['passage_reference'], empty: emptyPane('map', 'passage') },
-  { list: 'review_teams', details: ['review_team_editor'], empty: emptyPane('people', 'team') },
   { list: 'key_terms', details: ['key_term_detail'], empty: emptyPane('book', 'term') },
   { list: 'org_home', details: ['language_home'] }
 ];

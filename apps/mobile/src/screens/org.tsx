@@ -1,15 +1,16 @@
 // Running the organization (Manage tab). Ports the demo's src/screens/org.tsx:
 // OrgHomeScreen, LanguageHomeScreen (with HomeSection, HomePrimary,
 // HomeSetup, HomeProgressBars), MembersListScreen, InviteMemberScreen
-// (invite and edit), InviteQrScreen, ReviewTeamsScreen,
-// ReviewTeamEditorScreen and NewStructureItemScreen (new language).
+// (invite and edit), InviteQrScreen and NewStructureItemScreen (new
+// language). The demo's review teams are a check's people now, on the check
+// itself (screens/checks.tsx, decision 91).
 // Requirements ORG-1, ORG-2, ORG-5, ORG-6, ORG-7, NAV-6, FLOW-5; ADR-017
 // (admins reach these homes through Manage), ADR-025 (a language owns its
 // template, starting from the one its organization suggests). The demo's
 // Project Home and New Project are not ported: an organization holds its
 // languages directly (docs/decisions.md 63).
 import {
-  CommandError, decodeHlc, deriveFlow, goesWith, isTemplateDoc, emptyLanguageState, isMoreOpen, keyTermsFor, languageInfo, languageName, languageProgress,
+  CommandError, commands, decodeHlc, deriveFlow, goesWith, isTemplateDoc, emptyLanguageState, isMoreOpen, keyTermsFor, languageInfo, languageName, languageProgress,
   libraryItemView, materialsFor, mayChangeLicense, mayChangeMembership, mayGrantRole, mayRenameLanguage, mayRenameOrg, orgLicense, orgName, privilegesFor, SEED_ROLES,
   subscriptionItemId, templateBooks, type EventSpec, type LanguageProgress, type LibraryDoc, type License, type Scope, type ScopeLevel, type SourceDoc
 } from '@langquest-next/core';
@@ -57,6 +58,8 @@ import { useHelpMode } from '../helpContext';
 import { AmberNote, BigTop, ChoiceCard, CountBadge, DashedRow, IconTile, inviteFailureText, NumberedSteps, Pills, Question, QuietLink, RadioRow, WorkSteps } from '../simple/admin';
 import { askedAgo, firstName, flowSub, guideShortName, joinAnd, languageLabel, QUESTIONS, questionLabel, stepTitle } from '../simple/adminModel';
 import { useCheckChoices, type FlowEntry } from '../simple/choices';
+import { rowsOf, stepsOf } from '../checks/model';
+import { setChecksDraft, useChecksDraft } from '../checks/draft';
 import { TranslateQuestion, useTranslate } from '../breakup/TranslateStep';
 import { InviteSomeone } from '../simple/invite';
 import { refKindOf } from '../reference/model';
@@ -219,7 +222,7 @@ function HomeSetup(props: { ctx: Ctx; from: HomeId; level: ScopeLevel; languageI
   );
 }
 
-/** People: who is assigned here (Members), and on a language its review teams. */
+/** People: who is assigned here (Members). A check's people are on the check itself (decision 91). */
 function PeopleRows(props: { ctx: Ctx; level: ScopeLevel; languageId?: string }) {
   const { ctx } = props;
   const entries = useMemo(() => memberEntries(ctx.org.state), [ctx.org.state]);
@@ -227,12 +230,9 @@ function PeopleRows(props: { ctx: Ctx; level: ScopeLevel; languageId?: string })
   const people = new Set(entries.map((e) => e.profileId)).size;
   const sub = props.level === 'language' ? t('org.people.assignedHere', { count: here }) : t('org.people.orgSub', { here: formatNumber(here), total: formatNumber(people) });
   const params = { level: props.level, ...(props.languageId ? { languageId: props.languageId } : {}) };
-  const teams = props.level === 'language';
   return (
     <HomeSection label={t('org.people.title')}>
-      <Row icon="people" label={t('org.people.members')} sub={sub} onPress={() => ctx.go('members_list', params)} last={!teams} />
-      {teams ? <Row icon="people" label={t('org.people.reviewGroups')} sub={t('org.people.reviewGroupsSub')} last
-        onPress={() => ctx.go('review_teams', { languageId: props.languageId ?? '' })} /> : null}
+      <Row icon="people" label={t('org.people.members')} sub={sub} onPress={() => ctx.go('members_list', params)} last />
     </HomeSection>
   );
 }
@@ -527,7 +527,7 @@ export function LanguageHome(ctx: Ctx) {
   );
   const moreCard = (
     <Disclosure icon="settings" title={t('org.more.title')}
-      summary={[t('org.more.summary.progress'), t('org.more.summary.members'), t('org.more.summary.reviewGroups'), t('org.more.summary.roles'),
+      summary={[t('org.more.summary.progress'), t('org.more.summary.members'), t('org.more.summary.roles'),
         listing.may ? t('org.more.summary.publicListing') : '', t('org.more.summary.name'), t('org.more.summary.languageList')].filter(Boolean).join(t('admin.list.separator'))}
       open={more.open} onToggle={more.onToggle}>
       <View style={{ padding: space.lg, gap: space.sm }}>
@@ -537,7 +537,6 @@ export function LanguageHome(ctx: Ctx) {
       {s.readiness.ready ? null : <Row icon="book" label={t('org.more.seeWork')} sub={t('org.more.seeWorkSub')} onPress={openMap} />}
       <Row icon="people" label={t('org.people.members')} sub={t('org.more.membersSub', { count: membersAt(memberEntries(v.org), 'language', languageId).length, language: name })}
         onPress={() => ctx.go('members_list', params)} />
-      <Row icon="people" label={t('org.people.reviewGroups')} sub={t('org.people.reviewGroupsSub')} onPress={() => ctx.go('review_teams', { languageId })} />
       {/* Roles are the organization's: whoever may change them opens them there (decision 63). */}
       <Row icon="star" label={t('org.setup.roles')} sub={t('org.more.rolesSub', { count: liveRoles(ctx).length })}
         onPress={() => ctx.go('roles_home', v.org && privilegesFor(v.org, ctx.session.actorId).has('manage_roles') ? { level: 'org' } : params)} />
@@ -584,7 +583,7 @@ export function LanguageHome(ctx: Ctx) {
       <Group>
         <Row leading={<IconTile icon="file" />} label={t('org.language.theyRecord')} sub={s.lines[0]} onPress={() => ctx.go('get_ready', { languageId, step: '1', only: '1' })} />
         <Row leading={<IconTile icon="listen" />} label={t('org.language.whatHelps')} sub={s.lines[1] ?? t('org.language.nothingOffered')} onPress={() => ctx.go('get_ready', { languageId, step: 'helps' })} />
-        <Row leading={<IconTile icon="people" />} label={t('org.language.whoChecks')} sub={s.lines[2]}
+        <Row leading={<IconTile icon="route" />} label={t('checks.title')} sub={s.lines[2]}
           onPress={can('manage_flows') ? () => ctx.go('flow_editor', { languageId, steps: 'language' }) : () => ctx.go('get_ready', { languageId, step: '3' })} />
         <Row leading={<IconTile icon="qr" />} label={t('org.people.title')} sub={t('org.language.peopleSub', { count: n })} onPress={() => ctx.go('members_list', params)} last={!joinRows} />
         {joinRows}
@@ -1301,22 +1300,19 @@ export function NewLanguage(ctx: Ctx) {
   const reads = readsPicked ?? startingLanguage(refs.choices, reader);
   const offers = useNewLanguageOffers(ctx, reads, refs.sets);
   const doc = tq.finalDoc;
-  // "I'll choose the steps": a new flow for the organization, made in the flow editor and picked here once saved.
+  // "I'll choose the checks": the language's own checks, edited on the Checks screen before it exists
+  // (checks/draft.ts, decision 91), starting from the way picked before that.
   const choosing = flowKey === CHOOSE_STEPS;
   const flow = choosing ? null : chk.entries.find((e) => e.c.key === (flowKey ?? chk.first?.c.key)) ?? null;
-  // The way picked before that, whose steps the new one starts from.
   const lastFlow = useRef<FlowEntry | null>(null);
   if (flow) lastFlow.current = flow;
-  // The organization's own flows when the editor opened: the one that is new when it closes was made there.
-  const ownBefore = useRef<Set<string> | null>(null);
-  const ownKeys = chk.entries.filter((e) => e.c.source === 'ours').map((e) => e.c.key).join('|');
-  useEffect(() => {
-    const before = ownBefore.current;
-    const made = before ? chk.entries.find((e) => e.c.source === 'ours' && !before.has(e.c.key)) : undefined;
-    if (made) { ownBefore.current = null; setFlowKey(made.c.key); }
-    // `ownKeys` names what changes in `chk.entries`.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ownKeys]);
+  const draft = useChecksDraft();
+  // A draft left from an earlier New language is not this one's.
+  useEffect(() => { setChecksDraft(null); return () => setChecksDraft(null); }, []);
+  // What the language starts with: the way picked, copied (decision 91), or its own checks.
+  const checks = choosing
+    ? (draft ? { name: undefined, kinds: draft.kinds, steps: stepsOf(draft.rows) } : null)
+    : flow ? { name: flow.c.name, kinds: chk.kindsOf(flow.doc), steps: flow.doc.steps } : null;
   const orgName = ctx.org.state?.org?.value.name ?? t('org.newLanguage.theOrganization');
   const title = name.trim() || t('org.newLanguage.theLanguage');
   // Names and codes identify nothing, so a second Dinka is only warned about (decision 76).
@@ -1324,14 +1320,16 @@ export function NewLanguage(ctx: Ctx) {
   const alike = useMemo(() => similarLanguages(ctx.org.state, { code: theCode, name }), [ctx.org.state, theCode, name]);
 
   function chooseSteps() {
-    ownBefore.current = new Set(chk.entries.filter((e) => e.c.source === 'ours').map((e) => e.c.key));
-    const from = lastFlow.current?.c.hash;
-    ctx.go('flow_editor', { itemId: 'new', name: t('org.newLanguage.ownFlowName', { language: title }), ...(from ? { from } : {}) });
+    if (!draft) {
+      const from = lastFlow.current;
+      setChecksDraft({ kinds: from ? chk.kindsOf(from.doc) : kinds, rows: from ? rowsOf(from.doc.steps) : [] });
+    }
+    ctx.go('flow_editor', { draft: '1', name: title });
   }
 
   async function create() {
     const languageName = name.trim();
-    if (!languageName || busy || !tq.ready || !flow) return;
+    if (!languageName || busy || !tq.ready || !checks) return;
     setBusy(true);
     setError('');
     // Each part is named on screen before it starts, and the screen is drawn before the work goes on.
@@ -1357,7 +1355,6 @@ export function NewLanguage(ctx: Ctx) {
       if (books && books.length === 0) throw new CommandError(t('getReady.record.chooseABook'));
       const templateItem = use.itemId;
       await part('checks');
-      const flowItem = await adoptChoice(lib, flow.c);
       // What its team is offered, followed first when it is another organization's (as What helps them does).
       // Only each item's own document comes now; a guide loads when a passage reads it (useLibrary `adopt`).
       // A guide set (FIA) is offered in its one chosen language, and its other languages in the library are hidden here.
@@ -1374,10 +1371,12 @@ export function NewLanguage(ctx: Ctx) {
       }
       await part('listing');
       const fresh = emptyLanguageState();
+      // A ready-made flow is copied into the language, its checks the language's own (decision 91).
+      const flowSpecs = commands(fresh).copyFlow({ commandId: `${languageId}:checks`, name: checks.name ?? '', kinds: checks.kinds, steps: checks.steps });
       const plan = addLanguage(org, {
         languageId, code: languoid, name: languageName, languoidId: picked?.id ?? null, sourceCode: reads,
         template: await lib.applySpecs(templateItem, { docHash: use.docHash, into: fresh, ...(books ? { books } : {}) }),
-        flow: await lib.applySpecs(flowItem, { docHash: flow.c.hash, into: fresh })
+        flow: flowSpecs
       });
       const recommend: EventSpec[] = [
         ...offered.filter((id) => ctx.org.state?.recommendations[id]?.value !== true).map((itemId) => ({ itemId, state: 'recommended' as const })),
@@ -1393,6 +1392,7 @@ export function NewLanguage(ctx: Ctx) {
       // The language this person works in is the one the app opens.
       ctx.setLanguage(languageId);
       setCreated({ languageId, name: languageName });
+      setChecksDraft(null);
       setStep(5);
     } catch (e) {
       setError(failure('new language', e));
@@ -1421,7 +1421,7 @@ export function NewLanguage(ctx: Ctx) {
   if (step === 4 && !making) {
     return (
       <Screen header={header} bodyStyle={bodyStyle}
-        footer={<><PrimaryBtn label={t('org.continue')} icon="right" busy={busy} disabled={!flow || !tq.ready || !name.trim()} onPress={() => void create()} />{back}</>}>
+        footer={<><PrimaryBtn label={t('org.continue')} icon="right" busy={busy} disabled={!checks || !tq.ready || !name.trim()} onPress={() => void create()} />{back}</>}>
         <ReferenceLanguagePage team={title} choices={refs.choices} value={reads} first={startingLanguage(refs.choices, reader)} onChange={setReadsPicked} loading={refs.loading}>
           {offers.names.length ? (
             <AmberNote icon="layers">
@@ -1520,14 +1520,21 @@ export function NewLanguage(ctx: Ctx) {
   return (
     <Screen header={header} bodyStyle={bodyStyle}
       footer={<>
-        {choosing ? <PrimaryBtn label={t('getReady.checks.chooseSteps')} icon="right" onPress={chooseSteps} />
-          : <PrimaryBtn label={t('org.continue')} icon="right" disabled={!flow || !tq.ready || !name.trim()} onPress={() => setStep(4)} />}
+        {choosing && !draft ? <PrimaryBtn label={t('getReady.checks.chooseSteps')} icon="right" onPress={chooseSteps} />
+          : <PrimaryBtn label={t('org.continue')} icon="right" disabled={!checks || !tq.ready || !name.trim()} onPress={() => setStep(4)} />}
         {back}
       </>}>
       <Question>{t('org.newLanguage.howChecked')}</Question>
       {[...chk.main, ...spoken].map(flowCard)}
       {ctx.session.can('manage_flows') && chk.loaded ? (
-        <ChoiceCard on={choosing} icon="edit" title={t('getReady.checks.illChoose')} onPress={() => setFlowKey(CHOOSE_STEPS)} />
+        <ChoiceCard on={choosing} icon="edit" title={t('getReady.checks.illChoose')} onPress={() => setFlowKey(CHOOSE_STEPS)}>
+          {choosing && draft ? (
+            <>
+              <NumberedSteps items={stepsOf(draft.rows).map((st) => ({ label: stepTitle(st.kindIds, draft.kinds), lock: st.checkpoint }))} />
+              <QuietLink icon="edit" label={t('checks.change')} onPress={chooseSteps} />
+            </>
+          ) : null}
+        </ChoiceCard>
       ) : null}
       {rest.length ? (moreFlows ? rest.map(flowCard)
         : <QuietLink icon="down" label={t('getReady.checks.otherWaysCount', { total: formatNumber(rest.length) })} onPress={() => setMoreFlows(true)} />) : null}
@@ -1622,141 +1629,5 @@ function NewLanguageInvite(props: { ctx: Ctx; languageId: string; name: string }
   );
 }
 
-// ---- Review Teams (FLOW-5) --------------------------------------------------------------------------------
-
-export function ReviewTeams(ctx: Ctx) {
-  const state = ctx.language.state;
-  const beside = useOpenDetail();
-  const languageId = ctx.language.languageId;
-  const canManage = ctx.session.can('manage_teams');
-  const teams = useMemo(() => Object.entries(state?.teams ?? {})
-    .sort(([, a], [, b]) => a.name.value.localeCompare(b.name.value)), [state]);
-  const language = languageInfo(ctx.org.state, languageId)?.name ?? t('org.teams.thisLanguage');
-  return (
-    <Screen header={<Header title={t('org.teams.title')} onBack={ctx.back}
-      action={canManage ? <SmallBtn label={t('org.teams.add')} icon="plus" tone="primary" onPress={() => ctx.go('review_team_editor', { languageId })} /> : undefined} />}>
-      <Text style={txt.xs}>{t('org.teams.intro', { language })}</Text>
-      {teams.length === 0 ? (
-        <EmptyState icon="people" title={t('org.teams.none')} sub={canManage ? t('org.teams.noneCanManage') : t('org.teams.noneYet')} />
-      ) : teams.map(([teamId, team]) => {
-        const people = state ? teamMembers(state, teamId) : [];
-        return (
-          <Card key={teamId} accessibilityLabel={team.name.value} current={beside?.screen === 'review_team_editor' && beside.params['teamId'] === teamId}
-            onPress={canManage ? () => ctx.go('review_team_editor', { languageId, teamId }) : undefined}>
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.md }}>
-              <View style={{ width: tile.sm, height: tile.sm, borderRadius: radius.md, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' }}>
-                <Ico name="people" size={22} color={C.primary} />
-              </View>
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text style={[txt.body, { fontWeight: '600' }]}>{team.name.value || t('org.teams.reviewTeam')}</Text>
-                <Text style={txt.xs}>
-                  {t('org.members.count', { count: people.length })}{team.kindId?.value && state ? ` · ${t('org.teams.usually', { kind: kindOf(state, team.kindId.value).name })}` : ''}
-                </Text>
-                {people.length > 0 ? <Text style={txt.sm}>{people.map((id) => ctx.name(id)).join(', ')}</Text> : null}
-              </View>
-              {canManage ? <Ico name="right" size={22} color={C.muted} /> : null}
-            </View>
-          </Card>
-        );
-      })}
-    </Screen>
-  );
-}
-
-export function ReviewTeamEditor(ctx: Ctx) {
-  const state = ctx.language.state;
-  const languageId = ctx.language.languageId;
-  const [newId] = useState(() => `team:${Crypto.randomUUID()}`);
-  const teamId = ctx.params['teamId'] ?? newId;
-  const team = state?.teams[teamId];
-  const before = useMemo(() => (state && team ? teamMembers(state, teamId) : []), [state, team, teamId]);
-  const [name, setName] = useState(team?.name.value ?? '');
-  const [chosen, setChosen] = useState<string[]>(before);
-  const kindBefore = team?.kindId?.value ?? null;
-  const [kindId, setKindId] = useState<string | null>(kindBefore);
-  // The language's flow kinds, in flow order, plus the one already chosen if the flow dropped it.
-  const kindIds = useMemo(() => {
-    const ids = state ? deriveFlow(state).steps.flatMap((st) => st.kindIds) : [];
-    return [...new Set([...ids, ...(kindBefore ? [kindBefore] : [])])];
-  }, [state, kindBefore]);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const eligible = useMemo(() => {
-    const ids = new Set([...reviewEligible(ctx.org.state, languageId), ...before]);
-    return [...ids].sort((a, b) => ctx.name(a).localeCompare(ctx.name(b)));
-    // ctx.name reads the same people map for the whole visit.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ctx.org.state, languageId, before]);
-  const toggle = (id: string) => setChosen((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  async function save() {
-    const title = name.trim();
-    if (!state || !title || busy) return;
-    setBusy(true);
-    setError('');
-    try {
-      const commandId = Crypto.randomUUID();
-      const plan = saveTeam(state, { commandId, teamId, name: title, members: chosen });
-      // The kind it usually reviews (ADR-029): written only when it changed.
-      const kindSpec = (id: string, value: string | null): EventSpec => ({ id, type: 'v1.ReviewTeamKindSet', payload: { teamId, kindId: value } } as EventSpec);
-      const kindChanged = kindId !== kindBefore;
-      const specs = kindChanged ? [...plan.specs, kindSpec(`${commandId}:kind`, kindId)] : plan.specs;
-      const undoPlan = plan.undo;
-      const undo = undoPlan ? () => [...undoPlan(), ...(kindChanged ? [kindSpec(`${commandId}:undo:kind`, kindBefore)] : [])] : undefined;
-      // ctx.act says "Not saved" and why; stay on the form to try again.
-      try { await ctx.act(specs, t('org.teamEditor.saved', { name: title, count: chosen.length }), undo); } catch { return; }
-      ctx.back();
-    } catch (e) {
-      setError(failure('save review team', e));
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <Screen header={<Header title={name.trim() || (team ? team.name.value : t('org.teamEditor.newTitle'))} sub={team ? t('org.teams.reviewTeam') : t('org.teamEditor.newSub')} onBack={ctx.back} />}
-      footer={<PrimaryBtn label={t('org.teamEditor.save')} disabled={!name.trim() || !ctx.session.can('manage_teams')} busy={busy} onPress={() => void save()} />}>
-      <Field label={t('org.teamEditor.name')} value={name} onChangeText={setName} placeholder={t('org.teamEditor.name')} autoCapitalize="words" />
-      <SectionLabel label={t('org.teamEditor.usually')} />
-      <Text style={txt.xs}>{t('org.teamEditor.usuallyHelp')}</Text>
-      <Group>
-        {[null, ...kindIds].map((id, i, all) => {
-          const on = kindId === id;
-          return (
-            <Row key={id ?? 'any'} role="radio" selected={on} onPress={() => setKindId(id)} last={i === all.length - 1}
-              {...(id ? { leading: <KindIcon kindId={id} size={36} /> } : { icon: 'people' as const })}
-              label={id && state ? kindOf(state, id).name : t('org.teamEditor.anyKind')}
-              right={
-                <View style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: on ? C.primary : C.border,
-                  alignItems: 'center', justifyContent: 'center' }}>
-                  {on ? <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: C.primary }} /> : null}
-                </View>
-              } />
-          );
-        })}
-      </Group>
-      <SectionLabel label={t('org.teamEditor.members', { total: formatNumber(chosen.length) })} />
-      <Text style={txt.xs}>{t('org.teamEditor.membersHelp')}</Text>
-      {eligible.length === 0 ? (
-        <Banner icon="people" title={t('org.teamEditor.noEligible')} body={t('org.teamEditor.noEligibleBody')} />
-      ) : (
-        <Group>
-          {eligible.map((id, i) => {
-            const on = chosen.includes(id);
-            return (
-              <Row key={id} leading={<Avatar id={id} size={36} />} label={ctx.name(id)} onPress={() => toggle(id)} last={i === eligible.length - 1}
-                right={
-                  <View accessibilityLabel={on ? t('org.teamEditor.inTeam') : t('org.teamEditor.notInTeam')} style={{ width: 28, height: 28, borderRadius: 8, borderWidth: 2,
-                    borderColor: on ? C.primary : C.border, backgroundColor: on ? C.primary : C.card, alignItems: 'center', justifyContent: 'center' }}>
-                    {on ? <Ico name="check" size={18} color={C.white} strokeWidth={3} /> : null}
-                  </View>
-                } />
-            );
-          })}
-        </Group>
-      )}
-      {error ? <Banner icon="flag" tone="amber" title={t('org.notSaved')} body={error} /> : null}
-    </Screen>
-  );
-}
-
 export const contracts = contractsFor('org_home', 'language_home', 'members_list', 'invite_member', 'invite_qr',
-  'edit_member', 'new_language', 'review_teams', 'review_team_editor');
+  'edit_member', 'new_language');
