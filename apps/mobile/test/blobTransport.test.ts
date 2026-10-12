@@ -19,8 +19,12 @@ vi.mock('../src/blobs', () => ({
 const HASH = 'a'.repeat(64);
 const ref = { hash: HASH, format: 'wav' as const };
 const store = {
-  readBytes: async () => new Uint8Array([1, 2, 3]),
+  rechecks: 0,
+  exists: true,
+  readBytes: async (): Promise<Uint8Array | null> => new Uint8Array([1, 2, 3]),
+  recheck() { this.rechecks++; },
   fileFor: () => ({
+    exists: store.exists,
     upload: async (url: string, options: Record<string, unknown>) => { env.uploads.push({ url, options }); return { status: 200, body: '{}' }; }
   })
 };
@@ -60,6 +64,28 @@ describe('blob transport', () => {
     expect(env.uploads).toHaveLength(1);
     expect(env.uploads[0]!.url).toBe(`https://next.example/api/blobs/o/L1/${HASH}.wav`);
     expect(env.uploads[0]!.options['httpMethod']).toBe('PUT');
+  });
+
+  it('a recording gone from the disk is not sent, and the store looks for others gone with it (decisions.md 87)', async () => {
+    const { uploadBlob } = await load('ios');
+    store.exists = false;
+    store.rechecks = 0;
+    try {
+      await expect(uploadBlob('o', 'L1', ref, store as never)).rejects.toThrow(/gone from this device/);
+    } finally {
+      store.exists = true;
+    }
+    expect(env.uploads).toHaveLength(0);
+    expect(store.rechecks).toBe(1);
+    const web = await load('web');
+    const readBytes = store.readBytes;
+    store.readBytes = async () => null;
+    try {
+      await expect(web.uploadBlob('o', 'L1', ref, store as never)).rejects.toThrow(/no bytes/);
+    } finally {
+      store.readBytes = readBytes;
+    }
+    expect(store.rechecks).toBe(2);
   });
 
   it('a read link is the Worker\'s signed path on the Worker\'s address', async () => {

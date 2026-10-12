@@ -5978,5 +5978,21 @@
     "chip": "Bibles and guides in {{language}}",
     "chipHelp": "The language of their Bibles and study guides. Tap to change it.",
     "change": "Change"
+  },
+  "lostFiles": {
+    "title": "Audio is missing",
+    "deleted_one": "This device deleted {{count, number}} file by itself.",
+    "deleted_other": "This device deleted {{count, number}} files by itself.",
+    "unsent_one": "{{count, number}} recording was not sent. It is gone.",
+    "unsent_other": "{{count, number}} recordings were not sent. They are gone.",
+    "recordAgain": "Record again:",
+    "passage": "• {{passage}}",
+    "morePassages_one": "and {{count, number}} more passage",
+    "morePassages_other": "and {{count, number}} more passages",
+    "safe_one": "{{count, number}} file is safe on the server.",
+    "safe_other": "{{count, number}} files are safe on the server.",
+    "goOnline": "Connect to the internet often, so your work is sent.",
+    "lessSpace": "This device may have less space than it says.",
+    "understand": "I understand"
   }
 }

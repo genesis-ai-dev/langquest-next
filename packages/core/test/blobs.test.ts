@@ -1,4 +1,4 @@
-import { audioFormatsFor, defaultOfflineScope, deriveDownloadWork, deriveMissingBlobs, deriveUploadWork, evictableBlobs, isStored, offlineByUnit, offlineSummary, referencedBlobs, unitOffline } from '../src/blobs';
+import { audioFormatsFor, defaultOfflineScope, deriveDownloadWork, deriveMissingBlobs, deriveUploadWork, evictableBlobs, isStored, lostFilesView, offlineByUnit, offlineSummary, referencedBlobs, unitOffline } from '../src/blobs';
 import type { AnyEvent, EventPayloads, EventType } from '../src/events';
 import { foldLanguage } from '../src/reducer';
 import { emptyLanguageState } from '../src/state';
@@ -207,5 +207,16 @@ describe('a voice note recorded in a browser keeps its format (decisions.md 58, 
     for (const type of ['v1.NoteAdded', 'v1.ResponseRecorded', 'v1.KeyTermAdjusted', 'v1.MaterialFieldSet'] as const) {
       expect(named(type, { blobHash: 'd' })).toEqual(['d']);
     }
+  });
+});
+
+describe('files a phone lost behind the app\'s back (decisions.md 87)', () => {
+  const state = fold(events());
+
+  it('a file the server has is safe; an unsent recording is gone, and its passage is named once', () => {
+    // c1 is confirmed, c2 and the overview's audio are not; a hash the language never named counts in neither.
+    expect(lostFilesView(state, ['c1', 'c2', 'sha256:ov1', 'someone-elses'])).toEqual({ safe: 1, unsent: 2, unitIds: ['luke1'] });
+    expect(lostFilesView(state, ['c1'])).toEqual({ safe: 1, unsent: 0, unitIds: [] });
+    expect(lostFilesView(state, [])).toEqual({ safe: 0, unsent: 0, unitIds: [] });
   });
 });

@@ -15,4 +15,5 @@ export * from './v2import';
 export * from './writeQueue';
 export * from './diagnostics';
 export * from './sqliteDiagStore';
+export * from './fileLedger';
 export * from './reports';

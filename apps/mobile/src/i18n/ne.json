@@ -5978,5 +5978,21 @@
     "chip": "{{language}}मा बाइबल र निर्देशिकाहरू",
     "chipHelp": "उनीहरूका बाइबल र अध्ययन निर्देशिकाको भाषा। बदल्न ट्याप गर्नुहोस्।",
     "change": "बदल्नुहोस्"
+  },
+  "lostFiles": {
+    "title": "अडियो हराएको छ",
+    "deleted_one": "यो यन्त्रले आफैं {{count, number}} फाइल मेटायो।",
+    "deleted_other": "यो यन्त्रले आफैं {{count, number}} फाइलहरू मेटायो।",
+    "unsent_one": "{{count, number}} रेकर्डिङ पठाइएको थिएन। त्यो हरायो।",
+    "unsent_other": "{{count, number}} रेकर्डिङ पठाइएका थिएनन्। ती हराए।",
+    "recordAgain": "फेरि रेकर्ड गर्नुहोस्:",
+    "passage": "• {{passage}}",
+    "morePassages_one": "र अरू {{count, number}} खण्ड",
+    "morePassages_other": "र अरू {{count, number}} खण्डहरू",
+    "safe_one": "{{count, number}} फाइल सर्भरमा सुरक्षित छ।",
+    "safe_other": "{{count, number}} फाइलहरू सर्भरमा सुरक्षित छन्।",
+    "goOnline": "तपाईंको काम पठाइयोस् भनेर बारम्बार इन्टरनेट जोड्नुहोस्।",
+    "lessSpace": "यो यन्त्रमा भनेभन्दा कम ठाउँ हुन सक्छ।",
+    "understand": "बुझें"
   }
 }

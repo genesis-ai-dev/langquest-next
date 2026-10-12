@@ -1,4 +1,4 @@
-import { SqliteDiagStore, SqliteStore, type SqlDriver } from '@langquest-next/client';
+import { SqliteDiagStore, SqliteFileLedger, SqliteStore, type SqlDriver } from '@langquest-next/client';
 import * as SQLite from 'expo-sqlite';
 import { Platform } from 'react-native';
 
@@ -54,6 +54,7 @@ function expoDriver(db: SQLite.SQLiteDatabase): SqlDriver {
 
 let storePromise: Promise<SqliteStore> | undefined;
 let diagPromise: Promise<SqliteDiagStore> | undefined;
+let ledgerPromise: Promise<SqliteFileLedger> | undefined;
 /** The open databases, so signing out on the web can close and delete them. */
 const opened = new Map<string, SQLite.SQLiteDatabase>();
 const open = (name: string) => SQLite.openDatabaseAsync(name).then((db) => { opened.set(name, db); return db; });
@@ -95,6 +96,17 @@ export function getDiagStore(): Promise<SqliteDiagStore> {
   return diagPromise;
 }
 
+/**
+ * What the file store has kept (blobs.ts, decisions.md 87). Its own file
+ * too, so writing down a downloaded file never waits on an event commit.
+ * Only the file store opens it.
+ */
+export function getFileLedger(): Promise<SqliteFileLedger> {
+  ledgerPromise ??= allowed.then(() => open('langquest-files.db')).then((db) => SqliteFileLedger.open(expoDriver(db)))
+    .catch((error: unknown) => { ledgerPromise = undefined; throw error; });
+  return ledgerPromise;
+}
+
 /** One local event log per device, shared by every stream this phone syncs. */
 export function getStore(): Promise<SqliteStore> {
   storePromise ??= allowed.then(() => open('langquest-next.db')).then(async (db) => {
@@ -115,13 +127,15 @@ export function getStore(): Promise<SqliteStore> {
 
 /**
  * Web only, signing out on a shared computer (decisions.md 11, amended):
- * close and delete both databases. Callers reload the page afterwards, so
+ * close and delete the databases. Callers reload the page afterwards, so
  * nothing holds a handle to what was closed.
  */
 export async function deleteLocalDatabases(): Promise<void> {
   storePromise = undefined;
   diagPromise = undefined;
-  for (const name of ['langquest-next.db', 'langquest-diagnostics.db']) {
+  ledgerPromise = undefined;
+  // The file ledger goes with the files (forgetBrowser.ts), or the next sign-in would report them lost.
+  for (const name of ['langquest-next.db', 'langquest-diagnostics.db', 'langquest-files.db']) {
     await opened.get(name)?.closeAsync().catch(() => undefined);
     opened.delete(name);
     await SQLite.deleteDatabaseAsync(name);

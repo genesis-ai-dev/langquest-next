@@ -5978,5 +5978,21 @@
     "chip": "{{language}} ভাষায় বাইবেল ও নির্দেশিকা",
     "chipHelp": "তাদের বাইবেল ও অধ্যয়ন নির্দেশিকার ভাষা। বদলাতে ট্যাপ করুন।",
     "change": "বদলান"
+  },
+  "lostFiles": {
+    "title": "অডিও হারিয়ে গেছে",
+    "deleted_one": "এই ডিভাইস নিজে থেকেই {{count, number}}টি ফাইল মুছে ফেলেছে।",
+    "deleted_other": "এই ডিভাইস নিজে থেকেই {{count, number}}টি ফাইল মুছে ফেলেছে।",
+    "unsent_one": "{{count, number}}টি রেকর্ডিং পাঠানো হয়নি। সেটি হারিয়ে গেছে।",
+    "unsent_other": "{{count, number}}টি রেকর্ডিং পাঠানো হয়নি। সেগুলো হারিয়ে গেছে।",
+    "recordAgain": "আবার রেকর্ড করুন:",
+    "passage": "• {{passage}}",
+    "morePassages_one": "আরও {{count, number}}টি অংশ",
+    "morePassages_other": "আরও {{count, number}}টি অংশ",
+    "safe_one": "{{count, number}}টি ফাইল সার্ভারে নিরাপদে আছে।",
+    "safe_other": "{{count, number}}টি ফাইল সার্ভারে নিরাপদে আছে।",
+    "goOnline": "প্রায়ই ইন্টারনেটে যুক্ত হন, যাতে আপনার কাজ পাঠানো হয়।",
+    "lessSpace": "এই ডিভাইসে যতটা জায়গা দেখায়, তার চেয়ে কম থাকতে পারে।",
+    "understand": "বুঝেছি"
   }
 }

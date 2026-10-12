@@ -68,6 +68,7 @@ import { useLibraryFollow } from './src/library/follow';
 import { useSourceOffline } from './src/sources/offline';
 import { useLanguage } from './src/useLanguage';
 import { useHandOvers } from './src/handOver';
+import { LostFilesAlert } from './src/lostFiles';
 import { openLanguage } from './src/languages';
 
 const IS_DEV = __DEV__;
@@ -786,6 +787,8 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
         </View>
         {!wide && showTabs ? navChrome('bar') : null}
       </PeopleContext.Provider>
+      {/* Files this device deleted behind the app's back (decisions.md 87): over every screen until seen. */}
+      <LostFilesAlert state={language.state} />
       {canSwitchPersona ? (
         <DevMenu open={devOpen} onClose={() => setDevOpen(false)} language={language} org={org} currentEmail={props.email} isOwner={session.role === 'owner'} isDev={IS_DEV} jump={(s) => nav.reset({ screen: s })} />
       ) : null}

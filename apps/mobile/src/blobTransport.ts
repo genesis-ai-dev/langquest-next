@@ -46,7 +46,7 @@ export async function uploadBlob(orgId: string, streamId: string, ref: StoredFil
   // Web keeps blobs in the browser's file storage (webFiles.ts): the same request, from those bytes.
   const res = Platform.OS === 'web'
     ? await uploadFromWeb(url, headers, ref, store)
-    : await store.fileFor(ref).upload(url, { httpMethod: 'PUT', uploadType: UploadType.BINARY_CONTENT, headers });
+    : await uploadFromDisk(url, headers, ref, store);
   timings.fetchMs = Date.now() - sent;
   if (res.status < 200 || res.status >= 300) throw new UploadError(res.status, res.body.slice(0, 200));
 }
@@ -99,9 +99,22 @@ export async function downloadBlob(orgId: string, streamId: string, ref: StoredF
   store.commitStaged(ref, bytes.byteLength);
 }
 
+/** A recording the store has but the disk does not was lost (decisions.md 87): the store looks for others and says so. */
+async function uploadFromDisk(url: string, headers: Record<string, string>, ref: StoredFile, store: BlobStore): Promise<{ status: number; body: string }> {
+  const file = store.fileFor(ref);
+  if (!file.exists) {
+    store.recheck(true);
+    throw new Error(`file ${ref.hash} is gone from this device`);
+  }
+  return file.upload(url, { httpMethod: 'PUT', uploadType: UploadType.BINARY_CONTENT, headers });
+}
+
 async function uploadFromWeb(url: string, headers: Record<string, string>, ref: StoredFile, store: BlobStore): Promise<{ status: number; body: string }> {
   const bytes = await store.readBytes(ref);
-  if (!bytes) throw new Error(`no bytes for ${ref.hash} in this browser`);
+  if (!bytes) {
+    store.recheck(true);
+    throw new Error(`no bytes for ${ref.hash} in this browser`);
+  }
   const res = await fetch(url, { method: 'PUT', headers, body: bytes });
   return { status: res.status, body: await res.text() };
 }

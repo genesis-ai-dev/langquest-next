@@ -5978,5 +5978,21 @@
     "chip": "{{language}} में बाइबलें और गाइड",
     "chipHelp": "उनकी बाइबलों और अध्ययन गाइड की भाषा। बदलने के लिए टैप करें।",
     "change": "बदलें"
+  },
+  "lostFiles": {
+    "title": "ऑडियो गायब है",
+    "deleted_one": "इस डिवाइस ने अपने आप {{count, number}} फ़ाइल मिटा दी।",
+    "deleted_other": "इस डिवाइस ने अपने आप {{count, number}} फ़ाइलें मिटा दीं।",
+    "unsent_one": "{{count, number}} रिकॉर्डिंग भेजी नहीं गई थी। वह खो गई।",
+    "unsent_other": "{{count, number}} रिकॉर्डिंग भेजी नहीं गई थीं। वे खो गईं।",
+    "recordAgain": "फिर से रिकॉर्ड करें:",
+    "passage": "• {{passage}}",
+    "morePassages_one": "और {{count, number}} अंश",
+    "morePassages_other": "और {{count, number}} अंश",
+    "safe_one": "{{count, number}} फ़ाइल सर्वर पर सुरक्षित है।",
+    "safe_other": "{{count, number}} फ़ाइलें सर्वर पर सुरक्षित हैं।",
+    "goOnline": "अक्सर इंटरनेट से जुड़ें, ताकि आपका काम भेजा जा सके।",
+    "lessSpace": "हो सकता है इस डिवाइस में बताई गई जगह से कम जगह हो।",
+    "understand": "समझ लिया"
   }
 }
