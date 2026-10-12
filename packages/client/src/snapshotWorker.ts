@@ -2,6 +2,7 @@ import { ORG_STREAM, PERSON_ORG, REDUCER_VERSION, emptyLanguageState, foldLangua
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { SupabaseTransport } from './supabaseTransport';
 import { fetchSnapshot } from './snapshotFetch';
+import { listStreams } from './listStreams';
 
 interface SnapshotResult {
   orgId: string;
@@ -52,11 +53,10 @@ export async function runSnapshotWorker(
   visit?: (orgId: string, streamId: string) => boolean
 ): Promise<SnapshotResult[]> {
   const transport = new SupabaseTransport(service);
-  const { data, error } = await service.rpc('list_streams');
-  if (error) throw new Error(`list_streams: ${error.message}`);
+  const streams = await listStreams(service);
   const out: SnapshotResult[] = [];
 
-  for (const row of (data ?? []) as { org_id: string; stream_id: string }[]) {
+  for (const row of streams) {
     const orgId = row.org_id;
     const streamId = row.stream_id;
     // Only language streams have a server snapshot; the organization and person streams are small.

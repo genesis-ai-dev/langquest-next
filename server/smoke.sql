@@ -279,6 +279,18 @@ do $$ declare m record; v_text text := ''; i int; begin
   if v_text::jsonb <> '{"v":"new"}'::jsonb then raise exception 'chunks do not reassemble: %', v_text; end if;
   if public.get_snapshot_chunk('org1', 'L1', 1, 4, 0) is not null then raise exception 'wrong seq must be null'; end if;
 end $$;
+-- The workers page through every stream (performance-audit.md item 9).
+select set_config('request.jwt.claim.sub', '', false);
+do $$ declare r record; after_org text := ''; after_stream text := ''; n int := 0; page int; begin
+  loop
+    page := 0;
+    for r in select * from public.list_streams_page(after_org, after_stream, 2) loop
+      page := page + 1; n := n + 1; after_org := r.org_id; after_stream := r.stream_id;
+    end loop;
+    exit when page < 2;
+  end loop;
+  if n <> (select count(*) from public.stream_cursors) then raise exception 'paging saw % of % streams', n, (select count(*) from public.stream_cursors); end if;
+end $$;
 -- Pieces are cut once, by bytes, never inside a character (decisions.md 89).
 select set_config('request.jwt.claim.sub', '', false);
 do $$ declare m record; v text := ''; i int; begin
@@ -854,7 +866,7 @@ do $$ declare v text; begin
     and p.proname not in ('preview_invite');
   if v is not null then raise exception 'anon may run security definer functions: %', v; end if;
   select string_agg(f, ', ') into v
-  from unnest(array['put_snapshot', 'list_streams', 'record_blob', 'invalidate_blob', 'org_privileges', 'blob_access',
+  from unnest(array['put_snapshot', 'list_streams', 'list_streams_page', 'record_blob', 'invalidate_blob', 'org_privileges', 'blob_access',
                      '_library_media_readable', 'may_emit']) f
   where exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = f
     and has_function_privilege('authenticated', p.oid, 'execute'));

@@ -22536,6 +22536,21 @@ async function fetchSnapshot(transport, orgId, streamId, reducerVersion, opts = 
   return { orgId, streamId, reducerVersion, serverSeq: meta.serverSeq, state: JSON.parse(pieces.join("")) };
 }
 
+// packages/client/src/listStreams.ts
+async function listStreams(service, pageSize = 1e3) {
+  const out = [];
+  let after = { org: "", stream: "" };
+  for (; ; ) {
+    const { data, error } = await service.rpc("list_streams_page", { p_after_org: after.org, p_after_stream: after.stream, p_limit: pageSize });
+    if (error) throw new Error(`list_streams_page: ${error.message}`);
+    const page = data ?? [];
+    out.push(...page);
+    if (page.length < pageSize) return out;
+    const last = page[page.length - 1];
+    after = { org: last.org_id, stream: last.stream_id };
+  }
+}
+
 // packages/client/src/snapshotWorker.ts
 var SNAPSHOT_SCHEDULE = { minNewEvents: 200, maxAgeMs: 60 * 60 * 1e3 };
 function shouldWriteSnapshot(o, schedule = SNAPSHOT_SCHEDULE) {
@@ -22545,10 +22560,9 @@ function shouldWriteSnapshot(o, schedule = SNAPSHOT_SCHEDULE) {
 }
 async function runSnapshotWorker(service, pageSize = 1e3, observe, visit) {
   const transport = new SupabaseTransport(service);
-  const { data, error } = await service.rpc("list_streams");
-  if (error) throw new Error(`list_streams: ${error.message}`);
+  const streams = await listStreams(service);
   const out = [];
-  for (const row of data ?? []) {
+  for (const row of streams) {
     const orgId = row.org_id;
     const streamId = row.stream_id;
     if (streamId === ORG_STREAM || orgId === PERSON_ORG) continue;
@@ -22649,10 +22663,8 @@ async function runProjections(service) {
     orgs.set(orgId, folded);
     return folded;
   }
-  const streams = await service.rpc("list_streams");
-  check(streams);
   const heads = /* @__PURE__ */ new Map();
-  for (const row of streams.data ?? []) {
+  for (const row of await listStreams(service)) {
     heads.set(streamKey(row.org_id, row.stream_id), Number(row.next_seq) - 1);
   }
   const marks = new Map((await selectAll(service, "projection_marks", "*")).map((m) => [streamKey(m.org_id, m.stream_id), m]));

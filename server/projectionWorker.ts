@@ -3,6 +3,7 @@ import { buildIndexes, foldOrg, languageInfo, languagePeople, languageProgress, 
   REDUCER_VERSION, unitTitle, updatesFor, type AnyEvent, type OrgState, type Update } from '@langquest-next/core';
 import { runSnapshotWorker, SNAPSHOT_SCHEDULE } from '../packages/client/src/snapshotWorker';
 import { SupabaseTransport } from '../packages/client/src/supabaseTransport';
+import { listStreams } from '../packages/client/src/listStreams';
 
 function check(result: { error: { message: string } | null }) {
   if (result.error) throw new Error(result.error.message);
@@ -68,10 +69,8 @@ export async function runProjections(service: SupabaseClient) {
     orgs.set(orgId, folded);
     return folded;
   }
-  const streams = await service.rpc('list_streams');
-  check(streams);
   const heads = new Map<string, number>();
-  for (const row of (streams.data ?? []) as { org_id: string; stream_id: string; next_seq: number }[]) {
+  for (const row of await listStreams(service)) {
     heads.set(streamKey(row.org_id, row.stream_id), Number(row.next_seq) - 1);
   }
   const marks = new Map((await selectAll<Mark>(service, 'projection_marks', '*'))

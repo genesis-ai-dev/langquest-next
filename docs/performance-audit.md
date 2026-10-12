@@ -293,6 +293,11 @@ lock.** Estimated.
 - **Fix:** filter to language streams in SQL, and page by
   `(org_id, stream_id)`.
 - **Measure:** a test with more than 1,000 streams.
+- **Done (2026-10-12):** `list_streams_page` pages by the table's key and
+  the workers ask until a page comes back short (`listStreams`,
+  `packages/client/test/listStreams.test.ts` with 2,500 streams behind a
+  1,000-row cap). `list_streams()` stays for a worker deployed from before.
+  It still includes person streams, which the blob reconciler may need.
 
 ### Tier 3: once the above are in
 
