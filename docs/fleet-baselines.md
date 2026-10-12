@@ -168,6 +168,15 @@ A full download goes from about 4 s of database time to under 10 ms. The
 fleet's fake server already served pieces from memory, so its numbers do
 not change.
 
+## After item 6: offline planning indexed
+
+`npm run bench:core`, `offlineSummary`:
+
+| Passages | Before, ms | After, ms |
+| --- | --- | --- |
+| 1,200 | 38.45 | 4.63 |
+| 5,000 | 582.91 | 21.06 |
+
 ## What these show
 
 - **`normalDay`:** sync CPU grows faster than the team. Going from 14 to 131

@@ -232,6 +232,14 @@ Confirmed.
 - **Fix:** group hashes by unit once per revision.
 - **Measure:** the core benchmark (2.1). It takes 45 → 675 ms today; target
   linear, under 10 ms at 5,000 passages.
+- **Done (2026-10-12):** the audio each unit owns and inherits is indexed
+  once per call, and audio the whole language shares is counted once.
+  `npm run bench:core`: 4.6 ms at 1,200 passages instead of 38, 21 ms at
+  5,000 instead of 582, now linear. The 10 ms target is not met: half of
+  what is left is one `referencedBlobs` scan of the language, which only a
+  per-revision cache would remove (with item 10).
+  `packages/core/test/offlinePlanning.test.ts` holds it to the old
+  algorithm.
 
 **7. Refolds run more often than they need to.** Confirmed and measured
 (2026-10-12) with the fleet's `refoldTriggers` scenario
