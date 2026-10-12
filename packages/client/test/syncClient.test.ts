@@ -405,6 +405,79 @@ describe('SyncClient snapshots (PLAN.md invariant 10, cutover gate 4)', () => {
     expect(await again.pendingCount()).toBe(0);
   });
 
+  it('a sync reads the checkpoint seq beside the checkpoint, never the checkpoint itself', async () => {
+    // Why: the checkpoint is the whole language. Parsing it on every sync
+    // just to learn its seq was 81% of a 45-phone fleet run
+    // (docs/fleet-simulation.md, performance-audit.md item 3).
+    const server = new FakeServer();
+    const store = new MemoryStore();
+    const reads = { checkpoint: 0 };
+    const meta = store.meta.bind(store);
+    store.meta = async (key) => {
+      if (key === 'snapshot:org1/p1') reads.checkpoint += 1;
+      return meta(key);
+    };
+    const wall = { t: 0 };
+    let k = 0;
+    const c = new SyncClient({
+      orgId: 'org1', streamId: 'p1', actorId: 'lead', deviceId: 'dA', store,
+      transport: server.transportFor(), clock: new HlcClock('dA', () => (wall.t += 1)),
+      newId: () => `e${++k}`, checkpointEvery: 5
+    });
+    await c.load();
+    for (let i = 0; i < 12; i++) await c.append('v1.UnitAdded', unit(i));
+    await c.sync();
+    const checkpointSeq = (await c.inspect()).checkpointSeq;
+    expect(checkpointSeq).toBe(12);
+    reads.checkpoint = 0;
+    for (let i = 12; i < 15; i++) {
+      await c.append('v1.UnitAdded', unit(i));
+      await c.sync();
+    }
+    expect(reads.checkpoint).toBe(0);
+    expect((await c.inspect()).checkpointSeq).toBe(12);
+  });
+
+  it('a checkpoint saved before its seq was kept beside it is read once, and the seq is kept from then on', async () => {
+    // Why: a phone updated from an older app has a checkpoint and no seq.
+    const server = new FakeServer();
+    const store = new MemoryStore();
+    const wall = { t: 0 };
+    let k = 0;
+    const mk = () => new SyncClient({
+      orgId: 'org1', streamId: 'p1', actorId: 'lead', deviceId: 'dA', store,
+      transport: server.transportFor(), clock: new HlcClock('dA', () => (wall.t += 1)),
+      newId: () => `e${++k}`, checkpointEvery: 5
+    });
+    const first = mk();
+    await first.load();
+    for (let i = 0; i < 12; i++) await first.append('v1.UnitAdded', unit(i));
+    await first.sync();
+    // As the older app left it: the checkpoint, and no seq beside it.
+    const meta = store.meta.bind(store);
+    let upgraded = false;
+    let reads = 0;
+    const commit = store.commit.bind(store);
+    store.commit = async (batch) => {
+      if (batch.meta && 'snapshotSeq:org1/p1' in batch.meta) upgraded = true;
+      return commit(batch);
+    };
+    store.meta = async (key) => {
+      if (key === 'snapshotSeq:org1/p1' && !upgraded) return undefined;
+      if (key === 'snapshot:org1/p1') reads += 1;
+      return meta(key);
+    };
+    const later = mk();
+    await later.load();
+    reads = 0;
+    await later.sync();
+    await later.sync();
+    expect(upgraded).toBe(true);
+    expect(reads).toBe(1);
+    expect((await later.inspect()).checkpointSeq).toBe(12);
+    expect(Object.keys(later.getState().units)).toHaveLength(12);
+  });
+
   it('a device catching up on a big language checkpoints once, when caught up, and the checkpoint equals the full fold', async () => {
     // Why: every checkpoint serializes the whole state. Taking one per 2000
     // events while a new device pulls a 268k-event stream ran it out of
