@@ -2518,16 +2518,11 @@
       "elsewhereSub": "LangQuest hanya bekerja di satu tab dalam satu waktu, agar rekaman dan perubahan Anda tetap di satu tempat. Pakai di sini, atau kembali ke tab lain.",
       "useHere": "Pakai di sini"
     },
-    "onPhone": {
-      "title": "Di ponsel ini",
-      "tapToComeBack": "Kembali dengan kode Anda",
-      "typeCode": "Ketik kode 4 angka Anda",
-      "codeLabel": "Kode Anda",
-      "wrong": "Kode itu tidak benar.",
+    "lock": {
+      "title": "Keluar dari ponsel ini?",
       "wait": "Terlalu banyak percobaan. Tunggu sebentar, lalu coba lagi.",
-      "gone": "Sesi masuk ini sudah berakhir. Masuk di bawah, atau pindai kode bantuan.",
-      "forgot": "Lupa kode Anda? Masuk di bawah, atau minta kode bantuan.",
-      "someoneElse": "Orang lain"
+      "body": "Gambar pola Anda. Tidak perlu koneksi.",
+      "wrong": "Pola itu tidak benar."
     }
   },
   "account": {
@@ -2735,7 +2730,6 @@
     "signOut": {
       "helpLine": "Untuk masuk kembali, Anda memerlukan kode dari {{name}} atau admin.",
       "helpLineNoName": "Untuk masuk kembali, Anda memerlukan kode dari orang yang mengundang Anda atau admin.",
-      "handsOver": "Masih perlu dikirim: {{things}}. Semuanya tetap akan dikirim atas nama Anda saat perangkat ini online.",
       "blocked": "Masih perlu dikirim: {{things}}. Keluarlah setelah semuanya tersinkron agar tidak tertinggal di sini.",
       "blockedOffline": "Masih perlu dikirim: {{things}}. Perangkat ini sedang offline. Keluarlah setelah semuanya tersinkron agar tidak tertinggal di sini.",
       "refused": "Akun ini tidak dapat menyinkronkan organisasi ini: server menolaknya. Keluar tetap aman; semua yang mengantre tetap di perangkat ini.",
@@ -2786,19 +2780,17 @@
       "refusedCount": "Ditolak · {{n, number}}",
       "events_other": "{{count, number}} peristiwa di perangkat ini"
     },
-    "switch": {
-      "button": "Ganti orang",
-      "question": "Ganti orang atau keluar?",
-      "explain": "Ganti orang membuat Anda tetap di ponsel ini, dan Anda kembali dengan kode Anda, bahkan saat offline. Keluar akan menghapus Anda dari ponsel ini.",
-      "signOutHelp": "Menghapus Anda dari ponsel ini. Masuk kembali memerlukan koneksi.",
-      "chooseTitle": "Pilih kode Anda",
-      "chooseBody": "Empat angka yang Anda ketik untuk kembali. Tidak ada orang lain di ponsel ini yang bisa membuka pekerjaan Anda tanpanya.",
-      "codeLabel": "Kode Anda",
-      "againLabel": "Ketik sekali lagi",
-      "codesDiffer": "Kedua kode berbeda. Ketik lagi.",
-      "saveAndSwitch": "Simpan dan ganti",
-      "switching": "Mengganti…",
-      "newCode": "Pilih kode baru"
+    "lock": {
+      "backWithPassword": "Anda dapat masuk kembali di ponsel ini dengan kata sandi Anda, bahkan tanpa koneksi.",
+      "waitsForYou": "Masih perlu dikirim: {{things}}. Akan dikirim saat Anda masuk kembali.",
+      "backWithPattern": "Anda dapat masuk kembali di ponsel ini dengan pola Anda, bahkan tanpa koneksi.",
+      "chooseTitle": "Gambar pola",
+      "chooseBody": "Hubungkan setidaknya {{n}} titik. Anda akan menggambarnya untuk masuk kembali di ponsel ini, bahkan tanpa koneksi. Tidak ada orang lain di sini yang bisa membuka pekerjaan Anda tanpanya.",
+      "drawAgain": "Gambar sekali lagi",
+      "patternsDiffer": "Itu pola yang berbeda. Mulai lagi.",
+      "tooShort": "Hubungkan setidaknya {{n}} titik.",
+      "patternTaken": "Seseorang di ponsel ini sudah memakai pola itu. Gambar yang lain.",
+      "newPattern": "Gambar pola baru"
     }
   },
   "study": {
@@ -3659,6 +3651,11 @@
       "onlyAdmin": "Hanya admin organisasi yang dapat mengubah ini.",
       "read": "Baca lisensinya",
       "rowLabel": "Lisensi: {{name}}. {{short}}"
+    },
+    "pattern": {
+      "label": "Pola: hubungkan setidaknya {{n}} titik",
+      "dot": "Titik {{n}}",
+      "again": "Mulai lagi"
     }
   },
   "help": {

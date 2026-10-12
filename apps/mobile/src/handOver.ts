@@ -2,16 +2,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SupabaseTransport, SyncScheduler, deliverQueued, ensureDeviceId, type EventStore } from '@langquest-next/client';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import * as Crypto from 'expo-crypto';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import { accountOutbox, sendAs } from './accountData';
 import { getBlobStore, type BlobStore } from './blobs';
 import { UploadError, uploadBlob } from './blobTransport';
-import type { Session } from '@supabase/supabase-js';
-import { savedSession } from './authState';
-import { afterAttempt, checkCode, codeText, parseHandOvers, withHandOver, withoutFinished, type HandOver, type Parked, type PendingUpload } from './handOverCore';
+import { afterAttempt, parseHandOvers, withHandOver, withoutFinished, type HandOver, type PendingUpload } from './handOverCore';
 import { handOverPushToken } from './notifications';
 import { noteExpected } from './report';
+import { releasePushTokens } from './lock';
 import { getStore } from './store';
 import { SESSION_KEY, clientKeptAt, supabase } from './supabase';
 import { onWake } from './wake';
@@ -30,19 +29,14 @@ const sessionKeyFor = (actorId: string) => `hand-over-session:${actorId}`;
 
 let writes: Promise<unknown> = Promise.resolve();
 const added = new Set<() => void>();
-const changed = new Set<() => void>();
 function change(fn: (list: HandOver[]) => HandOver[]): Promise<void> {
-  return locked(async () => {
+  const next = writes.then(async () => {
     const list = fn(parseHandOvers(await AsyncStorage.getItem(LIST_KEY)));
     if (list.length > 0) await AsyncStorage.setItem(LIST_KEY, JSON.stringify(list));
     else await AsyncStorage.removeItem(LIST_KEY);
   });
-}
-/** One change to the hand-overs at a time; whoever is listening hears about it after. */
-function locked<T>(fn: () => Promise<T>): Promise<T> {
-  const next = writes.then(fn);
   writes = next.catch(() => {});
-  return next.finally(() => { for (const listener of changed) listener(); });
+  return next;
 }
 async function handOvers(): Promise<HandOver[]> {
   await writes;
@@ -55,14 +49,14 @@ async function handOvers(): Promise<HandOver[]> {
  * session stays good for the courier; the app then shows the signed-out
  * screen as after any sign-out.
  */
-export async function signOutHandingOver(actorId: string, uploads: PendingUpload[], parked?: Parked): Promise<void> {
+export async function signOutHandingOver(actorId: string, uploads: PendingUpload[]): Promise<void> {
   const pushToken = await handOverPushToken();
   await supabase.auth.stopAutoRefresh();
   try {
     const session = await AsyncStorage.getItem(SESSION_KEY);
     if (session) {
       await AsyncStorage.setItem(sessionKeyFor(actorId), session);
-      await change((list) => withHandOver(list, { actorId, uploads, ...(pushToken ? { pushToken } : {}), savedAt: new Date().toISOString(), ...(parked ? { parked } : {}) }));
+      await change((list) => withHandOver(list, { actorId, uploads, ...(pushToken ? { pushToken } : {}), savedAt: new Date().toISOString() }));
       await AsyncStorage.removeItem(SESSION_KEY);
     }
     // Nothing is stored now, so this asks the server nothing: it forgets
@@ -155,9 +149,8 @@ async function sendAll(signedInAs: string | null): Promise<{ offline: boolean }>
   const blobs = await getBlobStore();
   let offline = false;
   for (const h of list) {
-    // Back in as themselves: their own session sends it from here. A kept copy of the very
-    // session they are using now (a switch back that stopped halfway) must not end it.
-    if (h.actorId === signedInAs) { await forget(h.actorId, !await sameSession(sessionKeyFor(h.actorId), SESSION_KEY)); continue; }
+    // Back in as themselves: their own session sends it from here.
+    if (h.actorId === signedInAs) { await forget(h.actorId, true); continue; }
     try {
       if (await sendFor(h, store, deviceId, blobs)) offline = true;
     } catch (e) {
@@ -177,137 +170,17 @@ async function sendAll(signedInAs: string | null): Promise<{ offline: boolean }>
 export function useHandOvers(signedInAs: string | null | undefined): void {
   useEffect(() => {
     if (!HANDS_OVER || signedInAs === undefined) return;
-    const scheduler = new SyncScheduler({ run: () => sendAll(signedInAs), pollMs: 10 * 60_000 });
+    // Also stops notifications for people who signed out offline (lock.ts, decision 88).
+    const run = async () => {
+      const released = await releasePushTokens();
+      const sent = await sendAll(signedInAs);
+      return { offline: released.offline || sent.offline };
+    };
+    const scheduler = new SyncScheduler({ run, pollMs: 10 * 60_000 });
     const nudge = () => scheduler.nudge();
     added.add(nudge);
     const unwake = onWake(() => scheduler.wake());
     scheduler.start();
     return () => { added.delete(nudge); unwake(); scheduler.stop(); };
   }, [signedInAs]);
-}
-
-async function sameSession(a: string, b: string): Promise<boolean> {
-  const [x, y] = [savedSession(await AsyncStorage.getItem(a)), savedSession(await AsyncStorage.getItem(b))];
-  return !!x && !!y && x.refresh_token === y.refresh_token;
-}
-
-// ---- Switch person (decision 88) -------------------------------------------------------------
-
-const codeKey = (actorId: string) => `switch-code:${actorId}`;
-
-async function sha256(text: string): Promise<string> {
-  return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, text);
-}
-
-/** Whether this person has a code on this phone to come back with. */
-export async function hasSwitchCode(actorId: string): Promise<boolean> {
-  return (await AsyncStorage.getItem(codeKey(actorId))) !== null;
-}
-
-/** Save the code this person will come back with; only its salted hash is kept, on this phone. */
-export async function setSwitchCode(actorId: string, code: string): Promise<void> {
-  const salt = Crypto.randomUUID();
-  await AsyncStorage.setItem(codeKey(actorId), JSON.stringify({ salt, codeHash: await sha256(codeText(salt, actorId, code)) }));
-}
-
-/** Signing out takes the person off this phone, code and all. */
-export async function forgetSwitchCode(actorId: string): Promise<void> {
-  await AsyncStorage.removeItem(codeKey(actorId));
-}
-
-/**
- * Step aside on a shared phone: like signing out with work to hand over
- * (decision 60), but the session stays after the work has gone, for this
- * person to come back with their code. Works offline.
- */
-export async function switchPerson(actorId: string, name: string, uploads: PendingUpload[]): Promise<void> {
-  const raw = await AsyncStorage.getItem(codeKey(actorId));
-  const saved = raw ? (JSON.parse(raw) as { salt: string; codeHash: string }) : null;
-  if (!saved) throw new Error('No code to come back with.');
-  await signOutHandingOver(actorId, uploads, { name, salt: saved.salt, codeHash: saved.codeHash, misses: 0 });
-}
-
-export interface ParkedPerson { actorId: string; name: string }
-
-/** People who switched away on this phone and can come back with their code. */
-export async function parkedPeople(): Promise<ParkedPerson[]> {
-  const out: ParkedPerson[] = [];
-  for (const h of await handOvers()) {
-    if (h.parked && (await AsyncStorage.getItem(sessionKeyFor(h.actorId))) !== null) out.push({ actorId: h.actorId, name: h.parked.name });
-  }
-  return out;
-}
-
-/** The people the Sign In screen offers to come back, kept current as people switch. */
-export function useParkedPeople(): ParkedPerson[] {
-  const [people, setPeople] = useState<ParkedPerson[]>([]);
-  useEffect(() => {
-    if (!HANDS_OVER) return;
-    let active = true;
-    const read = () => { parkedPeople().then((p) => { if (active) setPeople(p); }, (e: unknown) => noteExpected('people on this phone', e)); };
-    read();
-    const off = onHandOversChanged(read);
-    return () => { active = false; off(); };
-  }, []);
-  return people;
-}
-
-/** Hear when the hand-overs change, such as someone switching away or coming back. */
-export function onHandOversChanged(listener: () => void): () => void {
-  changed.add(listener);
-  return () => { changed.delete(listener); };
-}
-
-const takenBack = new Set<(session: Session) => void>();
-/** App hears here who came back with their code: supabase-js has no event for a session put back by hand. */
-export function onTakenBack(listener: (session: Session) => void): () => void {
-  takenBack.add(listener);
-  return () => { takenBack.delete(listener); };
-}
-
-export type TakeBack = { kind: 'ok' } | { kind: 'wrong' } | { kind: 'wait'; ms: number } | { kind: 'gone' };
-
-/**
- * Come back with your code: the session moves back where supabase-js keeps
- * it, with no server call, and App opens the app as you. Someone else must
- * have switched away or signed out first; the Sign In screen is the only
- * place that asks.
- */
-export async function takeBack(actorId: string, code: string): Promise<TakeBack> {
-  const result = await locked(async (): Promise<{ out: TakeBack; session?: Session }> => {
-    const list = parseHandOvers(await AsyncStorage.getItem(LIST_KEY));
-    const h = list.find((x) => x.actorId === actorId);
-    if (!h?.parked) return { out: { kind: 'gone' } };
-    const check = await checkCode(h.parked, actorId, code, sha256, Date.now());
-    if (check.kind === 'wait') return { out: check };
-    if (check.kind === 'wrong') {
-      await AsyncStorage.setItem(LIST_KEY, JSON.stringify(list.map((x) => (x.actorId === actorId ? { ...x, parked: check.parked } : x))));
-      return { out: { kind: 'wrong' } };
-    }
-    const raw = await AsyncStorage.getItem(sessionKeyFor(actorId));
-    const session = savedSession(raw);
-    const rest = list.filter((x) => x.actorId !== actorId);
-    if (!raw || !session) {
-      // The server ended it while they were away: they sign in again.
-      await AsyncStorage.removeItem(sessionKeyFor(actorId));
-      await setList(rest);
-      return { out: { kind: 'gone' } };
-    }
-    if (await AsyncStorage.getItem(SESSION_KEY) !== null) throw new Error('Someone is signed in on this phone.');
-    await AsyncStorage.setItem(SESSION_KEY, raw);
-    await AsyncStorage.removeItem(sessionKeyFor(actorId));
-    await setList(rest);
-    return { out: { kind: 'ok' }, session };
-  });
-  if (result.session) {
-    sendAs(actorId, null);
-    kept.delete(actorId);
-    for (const listener of takenBack) listener(result.session);
-  }
-  return result.out;
-}
-
-async function setList(list: HandOver[]): Promise<void> {
-  if (list.length > 0) await AsyncStorage.setItem(LIST_KEY, JSON.stringify(list));
-  else await AsyncStorage.removeItem(LIST_KEY);
 }

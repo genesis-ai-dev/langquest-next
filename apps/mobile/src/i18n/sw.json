@@ -2602,16 +2602,11 @@
       "elsewhereSub": "Inafanya kazi katika kichupo kimoja kwa wakati mmoja, ili rekodi na mabadiliko yako yabaki mahali pamoja. Itumie hapa, au rudi kwenye kichupo kingine.",
       "useHere": "Itumie hapa"
     },
-    "onPhone": {
-      "title": "Kwenye simu hii",
-      "tapToComeBack": "Rudi kwa msimbo wako",
-      "typeCode": "Andika msimbo wako wa namba 4",
-      "codeLabel": "Msimbo wako",
-      "wrong": "Msimbo huo si sahihi.",
+    "lock": {
+      "title": "Ulitoka kwenye simu hii?",
       "wait": "Majaribio mengi mno. Subiri kidogo, kisha ujaribu tena.",
-      "gone": "Kuingia huku kumeisha. Ingia hapa chini, au soma msimbo wa msaada.",
-      "forgot": "Umesahau msimbo wako? Ingia hapa chini, au omba msimbo wa msaada.",
-      "someoneElse": "Mtu mwingine"
+      "body": "Chora mchoro wako. Huhitaji mtandao.",
+      "wrong": "Mchoro huo si sahihi."
     }
   },
   "account": {
@@ -2826,7 +2821,6 @@
     "signOut": {
       "helpLine": "Ili kuingia tena, utahitaji msimbo kutoka kwa {{name}} au msimamizi.",
       "helpLineNoName": "Ili kuingia tena, utahitaji msimbo kutoka kwa mtu aliyekualika au msimamizi.",
-      "handsOver": "Bado vya kutuma: {{things}}. Vyote vitatumwa, kwa jina lako, kifaa hiki kikiwa mtandaoni.",
       "blocked": "Bado vya kutuma: {{things}}. Toka baada ya kusawazishwa ili visikwame hapa.",
       "blockedOffline": "Bado vya kutuma: {{things}}. Kifaa hiki kiko nje ya mtandao. Toka baada ya kusawazishwa ili visikwame hapa.",
       "refused": "Akaunti hii haiwezi kusawazisha shirika hili: seva imeikataa. Ni salama kutoka; chochote kilichopangwa kinabaki kwenye kifaa hiki.",
@@ -2879,19 +2873,17 @@
       "events_one": "Tukio {{count, number}} kwenye kifaa hiki",
       "events_other": "Matukio {{count, number}} kwenye kifaa hiki"
     },
-    "switch": {
-      "button": "Badilisha mtu",
-      "question": "Badilisha mtu au toka?",
-      "explain": "Kubadilisha mtu kunakuacha kwenye simu hii, na unarudi kwa msimbo wako, hata bila mtandao. Kutoka kunakuondoa kwenye simu hii.",
-      "signOutHelp": "Kunakuondoa kwenye simu hii. Kuingia tena kunahitaji mtandao.",
-      "chooseTitle": "Chagua msimbo wako",
-      "chooseBody": "Namba nne utakazoandika ili kurudi. Hakuna mtu mwingine kwenye simu hii anayeweza kufungua kazi yako bila hizo.",
-      "codeLabel": "Msimbo wako",
-      "againLabel": "Uandike tena",
-      "codesDiffer": "Misimbo miwili ni tofauti. Iandike tena.",
-      "saveAndSwitch": "Hifadhi na ubadilishe",
-      "switching": "Inabadilisha…",
-      "newCode": "Chagua msimbo mpya"
+    "lock": {
+      "backWithPassword": "Unaweza kuingia tena kwenye simu hii kwa nenosiri lako, hata bila mtandao.",
+      "waitsForYou": "Bado vya kutuma: {{things}}. Vitatumwa utakapoingia tena.",
+      "backWithPattern": "Unaweza kuingia tena kwenye simu hii kwa mchoro wako, hata bila mtandao.",
+      "chooseTitle": "Chora mchoro",
+      "chooseBody": "Unganisha angalau nukta {{n}}. Utauchora ili kuingia tena kwenye simu hii, hata bila mtandao. Hakuna mtu mwingine hapa anayeweza kufungua kazi yako bila huo.",
+      "drawAgain": "Uchore tena",
+      "patternsDiffer": "Huo ulikuwa mchoro tofauti. Anza upya.",
+      "tooShort": "Unganisha angalau nukta {{n}}.",
+      "patternTaken": "Mtu mwingine kwenye simu hii tayari anatumia mchoro huo. Chora mwingine.",
+      "newPattern": "Chora mchoro mpya"
     }
   },
   "study": {
@@ -3787,6 +3779,11 @@
       "onlyAdmin": "Msimamizi wa shirika tu ndiye anaweza kubadilisha hili.",
       "read": "Soma leseni",
       "rowLabel": "Leseni: {{name}}. {{short}}"
+    },
+    "pattern": {
+      "label": "Mchoro: unganisha angalau nukta {{n}}",
+      "dot": "Nukta {{n}}",
+      "again": "Anza upya"
     }
   },
   "help": {

@@ -2602,16 +2602,11 @@
       "elsewhereSub": "Yana aiki a shafi ɗaya a lokaci guda, don naɗe-naɗenku da canje-canjenku su kasance a wuri ɗaya. Ku yi amfani da shi a nan, ko ku koma ɗayan shafin.",
       "useHere": "Yi amfani da shi a nan"
     },
-    "onPhone": {
-      "title": "A wannan waya",
-      "tapToComeBack": "Dawo da lambarku",
-      "typeCode": "Rubuta lambarku mai lambobi 4",
-      "codeLabel": "Lambarku",
-      "wrong": "Wannan lambar ba daidai ba ce.",
+    "lock": {
+      "title": "Kun fita daga wannan waya?",
       "wait": "Gwaje-gwaje sun yi yawa. Ku jira kaɗan, sannan ku sake gwadawa.",
-      "gone": "Wannan shigar ta ƙare. Ku shiga a ƙasa, ko ku karanta lambar taimako.",
-      "forgot": "Kun manta lambarku? Ku shiga a ƙasa, ko ku nemi lambar taimako.",
-      "someoneElse": "Wani daban"
+      "body": "Zana zanenku. Ba a buƙatar intanet.",
+      "wrong": "Wannan zanen ba daidai ba ne."
     }
   },
   "account": {
@@ -2826,7 +2821,6 @@
     "signOut": {
       "helpLine": "Don sake shiga, za ku buƙaci lamba daga {{name}} ko mai kula.",
       "helpLineNoName": "Don sake shiga, za ku buƙaci lamba daga wanda ya gayyace ku ko mai kula.",
-      "handsOver": "Saura a aika: {{things}}. Za a aika duka, da sunanku, idan wannan na'ura tana kan intanet.",
       "blocked": "Saura a aika: {{things}}. Ku fita bayan an daidaita su don kada su maƙale a nan.",
       "blockedOffline": "Saura a aika: {{things}}. Wannan na'ura ba ta da intanet. Ku fita bayan an daidaita su don kada su maƙale a nan.",
       "refused": "Wannan asusu ba zai iya daidaita wannan ƙungiya ba: sabar ta ƙi. Fita ba shi da haɗari; duk abin da ke jira zai zauna a wannan na'ura.",
@@ -2879,19 +2873,17 @@
       "events_one": "Abu {{count, number}} a wannan na'ura",
       "events_other": "Abubuwa {{count, number}} a wannan na'ura"
     },
-    "switch": {
-      "button": "Canja mutum",
-      "question": "Canja mutum ko fita?",
-      "explain": "Canja mutum yana barin ku a wannan waya, kuma kuna dawowa da lambarku, ko babu intanet. Fita yana cire ku daga wannan waya.",
-      "signOutHelp": "Yana cire ku daga wannan waya. Sake shiga yana buƙatar intanet.",
-      "chooseTitle": "Zaɓi lambarku",
-      "chooseBody": "Lambobi huɗu da za ku rubuta don dawowa. Babu wani a wannan waya da zai iya buɗe aikinku ba tare da su ba.",
-      "codeLabel": "Lambarku",
-      "againLabel": "Sake rubuta ta",
-      "codesDiffer": "Lambobin biyu ba ɗaya ba ne. Sake rubuta su.",
-      "saveAndSwitch": "Ajiye ku canja",
-      "switching": "Ana canjawa…",
-      "newCode": "Zaɓi sabuwar lamba"
+    "lock": {
+      "backWithPassword": "Kuna iya sake shiga a wannan waya da kalmar sirrinku, ko babu intanet.",
+      "waitsForYou": "Saura a aika: {{things}}. Za a aika idan kun sake shiga.",
+      "backWithPattern": "Kuna iya sake shiga a wannan waya da zanenku, ko babu intanet.",
+      "chooseTitle": "Zana zane",
+      "chooseBody": "Haɗa aƙalla ɗigo {{n}}. Za ku zana shi don sake shiga a wannan waya, ko babu intanet. Babu wani a nan da zai iya buɗe aikinku ba tare da shi ba.",
+      "drawAgain": "Sake zana shi",
+      "patternsDiffer": "Wannan wani zane ne daban. Sake farawa.",
+      "tooShort": "Haɗa aƙalla ɗigo {{n}}.",
+      "patternTaken": "Wani a wannan waya yana amfani da wannan zanen. Zana wani.",
+      "newPattern": "Zana sabon zane"
     }
   },
   "study": {
@@ -3787,6 +3779,11 @@
       "onlyAdmin": "Mai kula da ƙungiya kaɗai ne zai iya canja wannan.",
       "read": "Karanta lasisin",
       "rowLabel": "Lasisi: {{name}}. {{short}}"
+    },
+    "pattern": {
+      "label": "Zane: haɗa aƙalla ɗigo {{n}}",
+      "dot": "Ɗigo {{n}}",
+      "again": "Sake farawa"
     }
   },
   "help": {

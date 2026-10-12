@@ -52,6 +52,7 @@ import { StorageGate, useLeaveGuard } from './src/storageGate';
 import { AUTH_SCREENS, GUEST_SCREENS, deriveSession, edgeAllowed, foldsSettled, homeScreenFor, postSignInScreen, tabsFor, type TabId } from './src/session';
 import { SESSION_KEY, supabase, supabaseConfigError } from './src/supabase';
 import { afterAuthEvent, savedSession } from './src/authState';
+import { onUnlocked } from './src/lock';
 import { C, space } from './src/theme';
 import { recordUserEvent } from './src/accountData';
 import { useAccountSync, useDisplayNames, useProfileName } from './src/useAccount';
@@ -68,7 +69,7 @@ import { useOrg, type OrgHandle } from './src/useOrg';
 import { useLibraryFollow } from './src/library/follow';
 import { useSourceOffline } from './src/sources/offline';
 import { useLanguage } from './src/useLanguage';
-import { onTakenBack, useHandOvers } from './src/handOver';
+import { useHandOvers } from './src/handOver';
 import { openLanguage } from './src/languages';
 
 const IS_DEV = __DEV__;
@@ -295,9 +296,9 @@ export default function App() {
     const fromStorage = (s: AuthSession | null) => { if (active) setAuth((now) => (now === undefined ? s : now)); };
     AsyncStorage.getItem(SESSION_KEY).then((raw) => fromStorage(savedSession(raw)), () => fromStorage(null));
     const { data } = supabase.auth.onAuthStateChange((event, s) => setAuth((now) => afterAuthEvent(now, event, s)));
-    // Back with their code on a shared phone (decision 88): supabase-js has no event for that.
-    const offTakenBack = onTakenBack((s) => setAuth(s));
-    return () => { active = false; data.subscription.unsubscribe(); offTakenBack(); };
+    // Back in from a lock on this phone (decision 88): supabase-js has no event for that.
+    const offUnlocked = onUnlocked((s) => setAuth(s));
+    return () => { active = false; data.subscription.unsubscribe(); offUnlocked(); };
   }, []);
   return (
     <SafeAreaProvider>

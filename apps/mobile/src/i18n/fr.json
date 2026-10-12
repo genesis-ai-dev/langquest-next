@@ -2686,16 +2686,11 @@
       "elsewhereSub": "Il fonctionne dans un seul onglet à la fois, pour que vos enregistrements et modifications restent au même endroit. Utilisez-le ici, ou retournez à l’autre onglet.",
       "useHere": "L’utiliser ici"
     },
-    "onPhone": {
-      "title": "Sur ce téléphone",
-      "tapToComeBack": "Revenez avec votre code",
-      "typeCode": "Tapez votre code à 4 chiffres",
-      "codeLabel": "Votre code",
-      "wrong": "Ce code n'est pas le bon.",
+    "lock": {
+      "title": "Déconnecté de ce téléphone ?",
       "wait": "Trop d'essais. Attendez un peu, puis réessayez.",
-      "gone": "Cette connexion a pris fin. Connectez-vous ci-dessous, ou scannez un code d'aide.",
-      "forgot": "Code oublié ? Connectez-vous ci-dessous, ou demandez un code d'aide.",
-      "someoneElse": "Quelqu'un d'autre"
+      "body": "Dessinez votre schéma. Pas besoin de connexion.",
+      "wrong": "Ce schéma n'est pas le bon."
     }
   },
   "account": {
@@ -2917,7 +2912,6 @@
     "signOut": {
       "helpLine": "Pour vous reconnecter, il vous faudra un code de {{name}} ou d’un administrateur.",
       "helpLineNoName": "Pour vous reconnecter, il vous faudra un code de la personne qui vous a invité ou d’un administrateur.",
-      "handsOver": "Reste à envoyer : {{things}}. Tout sera quand même envoyé, en votre nom, quand cet appareil sera en ligne.",
       "blocked": "Reste à envoyer : {{things}}. Déconnectez-vous une fois la synchronisation faite, pour que rien ne reste bloqué ici.",
       "blockedOffline": "Reste à envoyer : {{things}}. Cet appareil est hors ligne. Déconnectez-vous une fois la synchronisation faite, pour que rien ne reste bloqué ici.",
       "refused": "Ce compte ne peut pas synchroniser cette organisation : le serveur l’a refusé. Vous pouvez vous déconnecter sans risque ; tout ce qui est en attente reste sur cet appareil.",
@@ -2972,19 +2966,17 @@
       "events_many": "{{count, number}} événements sur cet appareil",
       "events_other": "{{count, number}} événements sur cet appareil"
     },
-    "switch": {
-      "button": "Changer de personne",
-      "question": "Changer de personne ou se déconnecter ?",
-      "explain": "Changer de personne vous garde sur ce téléphone, et vous revenez avec votre code, même hors ligne. Se déconnecter vous retire de ce téléphone.",
-      "signOutHelp": "Vous retire de ce téléphone. Pour vous reconnecter, il faut une connexion.",
-      "chooseTitle": "Choisissez votre code",
-      "chooseBody": "Quatre chiffres à taper pour revenir. Personne d'autre sur ce téléphone ne peut ouvrir votre travail sans eux.",
-      "codeLabel": "Votre code",
-      "againLabel": "Tapez-le à nouveau",
-      "codesDiffer": "Les deux codes sont différents. Tapez-les à nouveau.",
-      "saveAndSwitch": "Enregistrer et changer",
-      "switching": "Changement…",
-      "newCode": "Choisir un nouveau code"
+    "lock": {
+      "backWithPassword": "Vous pouvez vous reconnecter sur ce téléphone avec votre mot de passe, même sans connexion.",
+      "waitsForYou": "Reste à envoyer : {{things}}. L'envoi se fera quand vous vous reconnecterez.",
+      "backWithPattern": "Vous pouvez vous reconnecter sur ce téléphone avec votre schéma, même sans connexion.",
+      "chooseTitle": "Dessinez un schéma",
+      "chooseBody": "Reliez au moins {{n}} points. Vous le dessinerez pour vous reconnecter sur ce téléphone, même sans connexion. Personne d'autre ici ne peut ouvrir votre travail sans lui.",
+      "drawAgain": "Dessinez-le à nouveau",
+      "patternsDiffer": "C'était un autre schéma. Recommencez.",
+      "tooShort": "Reliez au moins {{n}} points.",
+      "patternTaken": "Quelqu'un sur ce téléphone utilise déjà ce schéma. Dessinez-en un autre.",
+      "newPattern": "Dessiner un nouveau schéma"
     }
   },
   "study": {
@@ -3915,6 +3907,11 @@
       "onlyAdmin": "Seul un administrateur de l’organisation peut changer cela.",
       "read": "Lire la licence",
       "rowLabel": "Licence : {{name}}. {{short}}"
+    },
+    "pattern": {
+      "label": "Schéma : reliez au moins {{n}} points",
+      "dot": "Point {{n}}",
+      "again": "Recommencer"
     }
   },
   "help": {

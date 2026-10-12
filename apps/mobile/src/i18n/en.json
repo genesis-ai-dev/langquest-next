@@ -2602,16 +2602,11 @@
       "elsewhereSub": "It works in one tab at a time, so your recordings and changes stay in one place. Use it here, or go back to the other tab.",
       "useHere": "Use it here"
     },
-    "onPhone": {
-      "title": "On this phone",
-      "tapToComeBack": "Come back with your code",
-      "typeCode": "Type your 4-number code",
-      "codeLabel": "Your code",
-      "wrong": "That code is not right.",
+    "lock": {
+      "title": "Signed out of this phone?",
       "wait": "Too many tries. Wait a little, then try again.",
-      "gone": "This sign-in has ended. Sign in below, or scan a help code.",
-      "forgot": "Forgot your code? Sign in below, or ask for a help code.",
-      "someoneElse": "Someone else"
+      "body": "Draw your pattern. No connection needed.",
+      "wrong": "That pattern is not right."
     }
   },
   "account": {
@@ -2826,7 +2821,6 @@
     "signOut": {
       "helpLine": "To sign back in, you'll need a code from {{name}} or an admin.",
       "helpLineNoName": "To sign back in, you'll need a code from the person who invited you or an admin.",
-      "handsOver": "Still to send: {{things}}. All of it will still be sent, as you, when this device is online.",
       "blocked": "Still to send: {{things}}. Sign out once they have synced so they are not stranded here.",
       "blockedOffline": "Still to send: {{things}}. This device is offline. Sign out once they have synced so they are not stranded here.",
       "refused": "This account cannot sync this organization: the server refused it. Signing out is safe; anything queued stays on this device.",
@@ -2879,19 +2873,17 @@
       "events_one": "{{count, number}} event on this device",
       "events_other": "{{count, number}} events on this device"
     },
-    "switch": {
-      "button": "Switch person",
-      "question": "Switch person or sign out?",
-      "explain": "Switch person keeps you on this phone, and you come back with your code, even offline. Sign Out takes you off this phone.",
-      "signOutHelp": "Takes you off this phone. Signing back in needs a connection.",
-      "chooseTitle": "Choose your code",
-      "chooseBody": "Four numbers you will type to come back. Nobody else on this phone can open your work without them.",
-      "codeLabel": "Your code",
-      "againLabel": "Type it again",
-      "codesDiffer": "The two codes are different. Type them again.",
-      "saveAndSwitch": "Save and switch",
-      "switching": "Switching…",
-      "newCode": "Choose a new code"
+    "lock": {
+      "backWithPassword": "You can sign back in on this phone with your password, even with no connection.",
+      "waitsForYou": "Still to send: {{things}}. It goes when you sign back in.",
+      "backWithPattern": "You can sign back in on this phone with your pattern, even with no connection.",
+      "chooseTitle": "Draw a pattern",
+      "chooseBody": "Join at least {{n}} dots. You will draw it to sign back in on this phone, even with no connection. Nobody else here can open your work without it.",
+      "drawAgain": "Draw it again",
+      "patternsDiffer": "That was a different pattern. Start again.",
+      "tooShort": "Join at least {{n}} dots.",
+      "patternTaken": "Someone on this phone already uses that pattern. Draw another.",
+      "newPattern": "Draw a new pattern"
     }
   },
   "study": {
@@ -3787,6 +3779,11 @@
       "onlyAdmin": "Only an organization admin can change this.",
       "read": "Read the license",
       "rowLabel": "License: {{name}}. {{short}}"
+    },
+    "pattern": {
+      "label": "Pattern: join at least {{n}} dots",
+      "dot": "Dot {{n}}",
+      "again": "Start again"
     }
   },
   "help": {

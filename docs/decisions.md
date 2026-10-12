@@ -2899,39 +2899,61 @@ Reverse if: a phone keeps acting for an account the server has ended
 (then end it on the first refusal of its requests), or Supabase Auth
 starts answering a lasting refusal with a status this treats as passing.
 
-## 88. On a shared phone, people switch and come back with a four-number code, offline too
+## 88. Signing out of a phone locks the sign-in on it, and the password or a pattern opens it again offline
 
 Date: 2026-10-12 · By: Caleb Koster · Status: accepted
 
-Reason: amends 12 and 60. Every way into the app needs the server
-(a password, a helper's code, an invite), so on a phone shared by a family
-or a team, once one person signed out offline nobody could get in until it
-was online, which in the field can be months. Caleb asked (2026-10-12) that
-people be able to switch accounts offline. Chosen:
-- On a phone, the sign-out screen leads with **Switch person**. The first
-  time, the person chooses a four-number code (twice). Switching works like
-  a hand-over (60): their session moves to its own key with no server call
-  and the courier sends their unsent work as them, but the session stays
-  after the work has gone (`HandOver.parked`, `switchPerson` in
-  `handOver.ts`). **Sign Out** still takes them off the phone, code and all.
-- Sign In lists the people on this phone. Tapping one and typing their code
-  moves their session back where supabase-js keeps it and opens the app as
-  them (`takeBack`, `OnThisPhone` in `screens/entry.tsx`), offline or not.
-  supabase-js renews it when it next can. If the server ended it meanwhile,
-  the courier drops them and they sign in as before.
-- The code is checked on the phone and never sent or stored: only a salted
-  SHA-256 of it, with the person's id, is kept (`switch-code:<id>` and the
-  hand-over record). Four wrong codes are free; from the fifth each try
-  waits twice as long, from a minute up to an hour. This keeps the next
-  person on the phone out through the app, as the shared-phone password of
-  59 does; someone who can read the phone's storage could read the saved
-  sign-in anyway.
-- A browser forgets everything on sign-out (11), so the web has no
-  switching.
-Nothing new leaves the phone, so no store answer changes
-(`docs/play-store-declarations.md`). Tests
-`apps/mobile/test/switchPerson.test.ts`; checked on an iOS simulator against
-a local stack, switching away and back offline and online.
-Reverse if: people forget their code more often than they come back with
-it (then offer the helper's code first), or a parked session is used by
-someone it does not belong to.
+Reason: amends 12 and 60. Every way into the app needed the server (a
+password, a helper's code, an invite), so someone who signed out offline
+could not get back in until the phone was online, which in the field can be
+months, and on a shared phone nobody else could get in either. Caleb said
+(2026-10-12) that signing out and back in must both work offline: field
+users will tap Sign Out, and in countries where Christians are persecuted
+they may do so on purpose before a phone is taken. A sign-out that waits
+for a connection was ruled out. Of the options put to him he chose an
+encrypted lock and no names on Sign In, and a swipe pattern rather than
+digits. Little research covers low-literacy users: less-literate smartphone
+users already lock their phones with a PIN or a pattern; patterns are
+faster and liked, PINs give fewer errors; text-free designs suit
+non-literate users; no field evidence was found for picture passwords. A
+pattern needs no reading and no numbers, in any language. Chosen:
+- On a phone, Sign Out seals the person's session (AES-256-GCM) with a
+  random data key the phone keeps for them while they are signed in, and
+  keeps that key only wrapped under their password and, if they drew one, a
+  pattern (PBKDF2-SHA256, iterations stored per wrap; `@noble/hashes`,
+  `@noble/ciphers`) (`lockCore.ts`, `lock.ts`). It asks the server nothing.
+  Neither the password nor the pattern is stored; their email or sign-in
+  name is kept only as a hash salted per phone.
+- The password wrap is made on every online sign-in with a password and
+  when a password is set (`rememberPassword`). Someone with no password (a
+  QR join or a helper's code) draws a pattern when they first sign out;
+  anyone may add or change one there. Two people on one phone never share
+  a pattern.
+- A pattern joins at least five of nine dots, as on the Android lock screen
+  (`patternPad.tsx`): dragging and lifting finishes it; tapping the dots one
+  at a time and then Done works too, which is also how a screen reader
+  enters one.
+- Sign In tries the typed password against the lock before the server, and
+  shows a pattern pad, naming no one, while someone here can come back with
+  a pattern. A taken phone shows nobody who used it. Wrong guesses count
+  for the whole phone: four are free, then each try waits twice as long,
+  from a minute up to an hour.
+- Unsent work stays queued and goes when the person signs back in, here or
+  anywhere. A locked session cannot be used without them, so the courier of
+  60 no longer takes over at sign-out (hand-overs already on a phone still
+  finish). Their notifications stop as soon as the phone is online:
+  `release_push_token` detaches that device for that person, asking as
+  nobody (migration `20261012180000_release_push_token.sql`).
+- A browser forgets everything on sign-out (11), as before.
+What it guards against: the next person on a shared phone, and someone who
+takes the phone and tries patterns in the app. Someone who copies the
+phone's storage can try all of about 390,000 patterns as fast as their
+computer allows, so a pattern then holds for hours, a long password much
+longer; a pattern is also easier to see over a shoulder than a PIN. A
+helper marking the phone lost (59) ends the session on the server the next
+time the phone is online. Nothing new leaves the phone, so no store answer
+changes (`docs/play-store-declarations.md`). Tests
+`apps/mobile/test/lock.test.ts`.
+Reverse if: people forget their pattern more often than they come back with
+it (then offer a helper's code first), or a locked phone is opened by
+someone it does not belong to (then a larger grid, or a server-held key).

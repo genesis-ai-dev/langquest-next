@@ -16,6 +16,7 @@ from (values
   ('public.my_organizations()'),
   ('public.set_language_visibility(text,text,boolean)'),
   ('public.register_push_token(text)'),
+  ('public.release_push_token(text,text)'),
   ('public.delete_my_account()')
 ) expected(signature)
 where to_regprocedure(signature) is null;

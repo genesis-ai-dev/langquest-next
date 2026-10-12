@@ -2686,16 +2686,11 @@
       "elsewhereSub": "Funciona en una sola pestaña a la vez, para que tus grabaciones y cambios queden en un solo lugar. Úsalo aquí o vuelve a la otra pestaña.",
       "useHere": "Usarlo aquí"
     },
-    "onPhone": {
-      "title": "En este teléfono",
-      "tapToComeBack": "Vuelve con tu código",
-      "typeCode": "Escribe tu código de 4 números",
-      "codeLabel": "Tu código",
-      "wrong": "Ese código no es correcto.",
+    "lock": {
+      "title": "¿Cerraste sesión en este teléfono?",
       "wait": "Demasiados intentos. Espera un poco y vuelve a intentarlo.",
-      "gone": "Esta sesión terminó. Inicia sesión abajo o escanea un código de ayuda.",
-      "forgot": "¿Olvidaste tu código? Inicia sesión abajo o pide un código de ayuda.",
-      "someoneElse": "Otra persona"
+      "body": "Dibuja tu patrón. No hace falta conexión.",
+      "wrong": "Ese patrón no es correcto."
     }
   },
   "account": {
@@ -2917,7 +2912,6 @@
     "signOut": {
       "helpLine": "Para volver a iniciar sesión, necesitarás un código de {{name}} o de un administrador.",
       "helpLineNoName": "Para volver a iniciar sesión, necesitarás un código de la persona que te invitó o de un administrador.",
-      "handsOver": "Falta enviar: {{things}}. Todo se enviará igual, a tu nombre, cuando este dispositivo tenga conexión.",
       "blocked": "Falta enviar: {{things}}. Cierra sesión cuando se hayan sincronizado, para que no se queden atrapados aquí.",
       "blockedOffline": "Falta enviar: {{things}}. Este dispositivo no tiene conexión. Cierra sesión cuando se hayan sincronizado, para que no se queden atrapados aquí.",
       "refused": "Esta cuenta no puede sincronizar esta organización: el servidor lo rechazó. Puedes cerrar sesión sin peligro; lo que esté en cola se queda en este dispositivo.",
@@ -2972,19 +2966,17 @@
       "events_many": "{{count, number}} eventos en este dispositivo",
       "events_other": "{{count, number}} eventos en este dispositivo"
     },
-    "switch": {
-      "button": "Cambiar de persona",
-      "question": "¿Cambiar de persona o cerrar sesión?",
-      "explain": "Cambiar de persona te deja en este teléfono, y vuelves con tu código, incluso sin conexión. Cerrar sesión te quita de este teléfono.",
-      "signOutHelp": "Te quita de este teléfono. Para volver a iniciar sesión hace falta conexión.",
-      "chooseTitle": "Elige tu código",
-      "chooseBody": "Cuatro números que escribirás para volver. Nadie más en este teléfono puede abrir tu trabajo sin ellos.",
-      "codeLabel": "Tu código",
-      "againLabel": "Escríbelo otra vez",
-      "codesDiffer": "Los dos códigos no coinciden. Escríbelos otra vez.",
-      "saveAndSwitch": "Guardar y cambiar",
-      "switching": "Cambiando…",
-      "newCode": "Elegir un código nuevo"
+    "lock": {
+      "backWithPassword": "Puedes volver a iniciar sesión en este teléfono con tu contraseña, incluso sin conexión.",
+      "waitsForYou": "Falta enviar: {{things}}. Se enviará cuando vuelvas a iniciar sesión.",
+      "backWithPattern": "Puedes volver a iniciar sesión en este teléfono con tu patrón, incluso sin conexión.",
+      "chooseTitle": "Dibuja un patrón",
+      "chooseBody": "Une al menos {{n}} puntos. Lo dibujarás para volver a iniciar sesión en este teléfono, incluso sin conexión. Nadie más aquí puede abrir tu trabajo sin él.",
+      "drawAgain": "Dibújalo otra vez",
+      "patternsDiffer": "Ese era otro patrón. Empieza de nuevo.",
+      "tooShort": "Une al menos {{n}} puntos.",
+      "patternTaken": "Alguien en este teléfono ya usa ese patrón. Dibuja otro.",
+      "newPattern": "Dibujar un patrón nuevo"
     }
   },
   "study": {
@@ -3915,6 +3907,11 @@
       "onlyAdmin": "Solo un administrador de la organización puede cambiar esto.",
       "read": "Leer la licencia",
       "rowLabel": "Licencia: {{name}}. {{short}}"
+    },
+    "pattern": {
+      "label": "Patrón: une al menos {{n}} puntos",
+      "dot": "Punto {{n}}",
+      "again": "Empezar de nuevo"
     }
   },
   "help": {

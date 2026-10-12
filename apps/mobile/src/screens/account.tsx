@@ -37,15 +37,16 @@ import {
   Badge, Banner, Card, EmptyState, Field, GhostBtn, Group, Header, Ico, PrimaryBtn, ProgressBar, Row, Screen,
   LinkBtn, SectionLabel, Sheet, ShowMore, SmallBtn, txt, useLayout, useOpenDetail, type IconName
 } from '../kit';
-import { cachedInbox, enableNotifications, refreshInbox, tryUnregisterNotifications, unregisterNotifications, type RemoteNotification } from '../notifications';
+import { cachedInbox, enableNotifications, handOverPushToken, refreshInbox, unregisterNotifications, type RemoteNotification } from '../notifications';
 import { dueText } from '../passageView';
 import { personLook } from '../people';
 import { noteExpected, reportError, failureMessage } from '../report';
 import { ReportActions } from '../reportSheet';
 import { contractsFor } from '../screenContracts';
 import { FORGETS_ON_SIGN_OUT, forgetThisBrowser } from '../forgetBrowser';
-import { forgetSwitchCode, HANDS_OVER, hasSwitchCode, setSwitchCode, signOutHandingOver, switchPerson } from '../handOver';
-import { isCode } from '../handOverCore';
+import { isPattern, MIN_DOTS } from '../lockCore';
+import { forgetLock, lockAndSignOut, lockKinds, LOCKS_ON_SIGN_OUT, rememberPassword, setLockPattern } from '../lock';
+import { PatternPad } from '../patternPad';
 import { signOutHere, supabase } from '../supabase';
 import { C, radius, space, target, tile, TINT, type as T } from '../theme';
 import { useAccountActions, useDisplayNames } from '../useAccount';
@@ -648,6 +649,8 @@ export function ProfileEdit(ctx: Ctx) {
           setError(authErrorText(error, t('account.profile.passwordFailed'), t('account.profile.passwordNeedsConnection')));
           return;
         }
+        // The new password also signs them back in here offline (decision 88).
+        if (ctx.session.email) await rememberPassword(ctx.session.actorId, ctx.session.email, password);
         recheck();
       }
       await queueAccountAction(ctx.session.actorId, 'profile', { displayName: value.trim() });
@@ -750,54 +753,61 @@ export function SignOutConfirm(ctx: Ctx) {
   const inviter = useInviterName(ctx);
   const [hasPassword] = useHasPassword();
   const needsHelp = ctx.session.isManaged && hasPassword === false;
-  // A phone hands unsent work over and sends it as you later (decisions.md 60); a browser waits for it.
-  const handsOver = HANDS_OVER && waiting.length > 0;
-  // A shared phone: step aside instead, and come back with a code, offline too (decision 88).
-  const canSwitch = HANDS_OVER;
-  const [codeSaved, setCodeSaved] = useState<boolean | null>(null);
+  // A phone locks the sign-in on sign-out, so it comes back offline with a password or code (decision 88).
+  const locks = LOCKS_ON_SIGN_OUT;
+  const [kinds, setKinds] = useState<string[] | null>(locks ? null : []);
   useEffect(() => {
-    if (canSwitch) void hasSwitchCode(ctx.session.actorId).then(setCodeSaved, () => setCodeSaved(false));
+    if (locks) void lockKinds(ctx.session.actorId).then(setKinds, () => setKinds([]));
   }, [ctx.session.actorId]);
   const [choosing, setChoosing] = useState(false);
-  const [code, setCode] = useState('');
-  const [again, setAgain] = useState('');
-  const myName = useDisplayNames(ctx.session.actorId)[ctx.session.actorId] ?? signInName(ctx.session.email) ?? ctx.session.email?.split('@')[0] ?? t('common.you');
-  async function switchAway(newCode?: string) {
-    setBusy(true);
-    setError('');
-    try {
-      if (newCode) await setSwitchCode(ctx.session.actorId, newCode);
-      const { orgId, languageId } = ctx.language;
-      await switchPerson(ctx.session.actorId, myName, ctx.language.blobs.unsent().map((ref) => ({ orgId, languageId, ref })));
-    } catch (e) { setError(failure('switch person', e)); setBusy(false); }
+  // The pattern drawn once, waiting to be drawn again; the pad clears when its key changes.
+  const [first, setFirst] = useState<number[] | null>(null);
+  const [padKey, setPadKey] = useState(0);
+  /** Lock and sign out: the push token goes with it when the server cannot be told now. */
+  async function lockOut() {
+    await lockAndSignOut(ctx.session.actorId, (await handOverPushToken()) ?? null);
   }
   async function signOut() {
     setBusy(true);
+    setError('');
     try {
-      // Signing out takes you off this phone: no code to come back with.
-      if (canSwitch) await forgetSwitchCode(ctx.session.actorId);
-      if (handsOver) {
-        const { orgId, languageId } = ctx.language;
-        await signOutHandingOver(ctx.session.actorId, ctx.language.blobs.unsent().map((ref) => ({ orgId, languageId, ref })));
+      if (locks) {
+        if (!kinds?.length) { setChoosing(true); setBusy(false); return; }
+        await lockOut();
         return;
       }
-      if (HANDS_OVER) {
-        // Offline, the courier disconnects this phone's notifications later, as you (decision 87).
-        if (!await tryUnregisterNotifications()) { await signOutHandingOver(ctx.session.actorId, []); return; }
-      } else {
-        await unregisterNotifications();
-      }
+      await unregisterNotifications();
       // This device only: your other devices stay signed in (decision 87).
       await signOutHere();
       await forgetThisBrowser();
     } catch (e) { setError(failure('sign out', e)); setBusy(false); }
   }
-  const blocked = waiting.length > 0 && !handsOver;
+  /** Drawn once, then again to be sure; the second time saves it and signs out. */
+  async function drew(dots: number[]) {
+    setPadKey((k) => k + 1);
+    if (!isPattern(dots)) { setError(t('account.lock.tooShort', { n: MIN_DOTS })); return; }
+    if (first === null) { setFirst(dots); setError(''); return; }
+    if (first.join() !== dots.join()) { setFirst(null); setError(t('account.lock.patternsDiffer')); return; }
+    setBusy(true);
+    setError('');
+    try {
+      if (await setLockPattern(ctx.session.actorId, dots) === 'taken') {
+        setFirst(null);
+        setError(t('account.lock.patternTaken'));
+        setBusy(false);
+        return;
+      }
+      await lockOut();
+    } catch (e) { setError(failure('sign out', e)); setBusy(false); }
+  }
+  // A browser forgets everything, so it waits for unsent work (decision 12); a phone keeps it for your return.
+  const blocked = waiting.length > 0 && !locks;
   const helpLine = inviter ? t('account.signOut.helpLine', { name: inviter }) : t('account.signOut.helpLineNoName');
   const things = waiting.join(', ');
+  const backIn = kinds?.includes('password') ? t('account.lock.backWithPassword') : t('account.lock.backWithPattern');
   // Two whole sentences side by side where both apply.
-  const reason = handsOver
-    ? [t('account.signOut.handsOver', { things }), ...(needsHelp ? [helpLine] : [])].join(' ')
+  const why = locks
+    ? [waiting.length > 0 ? t('account.lock.waitsForYou', { things }) : null, backIn].filter(Boolean).join(' ')
     : blocked
       ? online === false ? t('account.signOut.blockedOffline', { things }) : t('account.signOut.blocked', { things })
       : refused
@@ -805,61 +815,36 @@ export function SignOutConfirm(ctx: Ctx) {
         : needsHelp
           ? `${helpLine} ${t('account.signOut.setPasswordFirst')}`
           : FORGETS_ON_SIGN_OUT
-            ? t('account.signOut.forgets')
-            : online === false ? '' : t('account.signOut.anytime');
-  // Every way back in needs the server, so offline the screen says so.
-  const why = !blocked && online === false ? [reason, t('account.signOut.offlineBackIn')].filter(Boolean).join(' ') : reason;
-  const onlyDigits = (v: string) => v.replace(/[^0-9]/g, '').slice(0, 4);
+            ? online === false ? `${t('account.signOut.forgets')} ${t('account.signOut.offlineBackIn')}` : t('account.signOut.forgets')
+            : t('account.signOut.anytime');
   if (choosing) {
-    const ready = isCode(code) && isCode(again);
     return (
       <Screen bodyStyle={styles.centered}
-        footer={
-          <>
-            <PrimaryBtn label={busy ? t('account.switch.switching') : t('account.switch.saveAndSwitch')} icon="swap" disabled={!ready || busy}
-              onPress={() => { if (code !== again) { setError(t('account.switch.codesDiffer')); return; } void switchAway(code); }} />
-            <GhostBtn label={t('common.back')} onPress={() => { setChoosing(false); setCode(''); setAgain(''); setError(''); }} />
-          </>
-        }>
-        <View style={[styles.bigTile, { backgroundColor: C.light }]}>
-          <Ico name="lock" size={32} color={C.primary} />
-        </View>
-        <Text style={[txt.h2, { textAlign: 'center' }]} accessibilityRole="header">{t('account.switch.chooseTitle')}</Text>
-        <Text style={[txt.bodyMuted, { textAlign: 'center' }]}>{t('account.switch.chooseBody')}</Text>
-        <View style={styles.codeFields}>
-          <Field value={code} onChangeText={(v) => { setCode(onlyDigits(v)); setError(''); }} label={t('account.switch.codeLabel')} placeholder="••••" secure keyboardType="number-pad" />
-          <Field value={again} onChangeText={(v) => { setAgain(onlyDigits(v)); setError(''); }} label={t('account.switch.againLabel')} placeholder="••••" secure keyboardType="number-pad" />
-        </View>
+        footer={<GhostBtn label={t('common.back')} onPress={() => { setChoosing(false); setFirst(null); setError(''); }} disabled={busy} />}>
+        <Text style={[txt.h2, { textAlign: 'center' }]} accessibilityRole="header">
+          {busy ? t('account.signOut.signingOut') : first === null ? t('account.lock.chooseTitle') : t('account.lock.drawAgain')}
+        </Text>
+        <Text style={[txt.bodyMuted, { textAlign: 'center' }]}>{t('account.lock.chooseBody', { n: MIN_DOTS })}</Text>
+        <PatternPad onDone={(dots) => void drew(dots)} disabled={busy} error={!!error} resetKey={padKey} />
         {error ? <Text style={[txt.error, { textAlign: 'center' }]} accessibilityRole="alert">{error}</Text> : null}
       </Screen>
     );
   }
-  const signOutLabel = busy ? t('account.signOut.signingOut') : t('account.signOut.button');
   return (
     <Screen bodyStyle={styles.centered}
       footer={
         <>
-          {canSwitch ? (
-            <>
-              <PrimaryBtn label={busy ? t('account.switch.switching') : t('account.switch.button')} icon="swap" disabled={busy || codeSaved === null}
-                onPress={() => (codeSaved ? void switchAway() : setChoosing(true))} />
-              <GhostBtn label={signOutLabel} tone="red" onPress={() => void signOut()} disabled={blocked || busy} help={t('account.switch.signOutHelp')} />
-            </>
-          ) : (
-            <PrimaryBtn label={signOutLabel} tone="red" onPress={() => void signOut()} disabled={blocked || busy} />
-          )}
+          <PrimaryBtn label={busy ? t('account.signOut.signingOut') : t('account.signOut.button')} tone="red" onPress={() => void signOut()} disabled={blocked || busy || kinds === null} />
           <GhostBtn label={t('common.cancel')} onPress={ctx.back} />
         </>
       }>
-      <View style={[styles.bigTile, { backgroundColor: waiting.length > 0 ? TINT.amber : canSwitch ? C.light : TINT.red }]}>
-        <Ico name={waiting.length > 0 ? 'cloud' : canSwitch ? 'swap' : 'user'} size={32} color={waiting.length > 0 ? TINT.amberText : canSwitch ? C.primary : C.red} />
+      <View style={[styles.bigTile, { backgroundColor: waiting.length > 0 ? TINT.amber : TINT.red }]}>
+        <Ico name={waiting.length > 0 ? 'cloud' : 'user'} size={32} color={waiting.length > 0 ? TINT.amberText : C.red} />
       </View>
-      <Text style={[txt.h2, { textAlign: 'center' }]} accessibilityRole="header">
-        {blocked ? t('account.signOut.notYet') : canSwitch ? t('account.switch.question') : t('account.signOut.question')}
-      </Text>
-      {canSwitch ? <Text style={[txt.body, { textAlign: 'center' }]}>{t('account.switch.explain')}</Text> : null}
+      <Text style={[txt.h2, { textAlign: 'center' }]} accessibilityRole="header">{blocked ? t('account.signOut.notYet') : t('account.signOut.question')}</Text>
       <Text style={[txt.bodyMuted, { textAlign: 'center' }]}>{why}</Text>
-      {canSwitch && codeSaved ? <LinkBtn label={t('account.switch.newCode')} onPress={() => setChoosing(true)} /> : null}
+      {/* Someone with a password may still prefer a pattern; a pattern can be changed. */}
+      {locks && kinds !== null ? <LinkBtn label={kinds.includes('pattern') ? t('account.lock.newPattern') : t('account.lock.chooseTitle')} onPress={() => setChoosing(true)} /> : null}
       {error ? <Text style={[txt.error, { textAlign: 'center' }]} accessibilityRole="alert">{error}</Text> : null}
     </Screen>
   );
@@ -897,7 +882,7 @@ export function DeleteAccount(ctx: Ctx) {
       await deleteAccount(ctx.session.actorId, {
         deleteOnServer: async () => (await supabase.rpc('delete_my_account')).error?.message ?? null,
         storage: AsyncStorage,
-        signOutHere: async () => { await supabase.auth.signOut({ scope: 'local' }); await forgetThisBrowser(); }
+        signOutHere: async () => { await forgetLock(ctx.session.actorId); await supabase.auth.signOut({ scope: 'local' }); await forgetThisBrowser(); }
       });
     } catch (e) { setError(failure('delete account', e)); setBusy(false); }
   }
