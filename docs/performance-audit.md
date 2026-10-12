@@ -230,7 +230,11 @@ Confirmed.
   at once, and every pass is five refused appends and a full refold. A
   1,200-passage template applied before the organization lists the
   language made one phone refold 73,555 times in 10 hours and pull 901 MB.
-  With 300 passages, 120 times.
+  With 300 passages, 120 times. **Fixed (2026-10-12):** `push` stops at
+  the first batch refused as not listed and does not report more work, so
+  sync waits for its next nudge or poll; the refused events are still
+  re-queued on every push (decision 24). The same run: 120 refolds while
+  unlisted instead of 73,555, and 15 s of real time instead of 286 s.
 - Each redaction refolds every phone that pulls it: 21 redactions, 1,277
   refolds across 33 phones.
 - A phone whose stream is still empty asks for a server snapshot on every

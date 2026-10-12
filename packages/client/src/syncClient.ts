@@ -540,9 +540,11 @@ export class SyncClient<S = LanguageState> {
         const results = await this.opts.transport.append(batch.map((p) => p.event));
         this.net.push += this.elapsed() - sent;
         const writes: LocalEvent[] = [];
+        let notListed = false;
         for (const r of results) {
           const local = batch.find((p) => p.event.id === r.id);
           if (!local) continue;
+          if (!r.accepted && rejectCodeOf(r.reason ?? undefined) === 'NOT_LISTED') notListed = true;
           if (r.accepted) {
             accepted += 1;
             writes.push({
@@ -558,6 +560,11 @@ export class SyncClient<S = LanguageState> {
           }
         }
         await this.commit({ events: writes });
+        // The server refuses the whole stream until the language is listed:
+        // the rest would be refused too, and reporting more would run sync
+        // again at once, refolding each time (performance-audit.md item 7).
+        // The next push asks again.
+        if (notListed) break;
       }
       if (clockAhead.length > 0 && !this.opts.deliverOnly) await this.restamp(clockAhead);
     } finally {

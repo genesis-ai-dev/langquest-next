@@ -379,6 +379,32 @@ describe('SyncClient snapshots (PLAN.md invariant 10, cutover gate 4)', () => {
     expect(server.pullCalls).toBe(pullsBefore);
   });
 
+  it('a language not listed yet stops the push at its first refused batch, so sync does not run again at once', async () => {
+    // Why: with more than five batches queued, every refused round reported
+    // more work and the scheduler ran again at once: five refused appends
+    // and a full refold each time, 73,555 refolds in ten hours for one
+    // phone in the fleet (performance-audit.md item 7). The server refuses
+    // the whole stream until it is listed, so one batch is enough to ask.
+    const server = new FakeServer();
+    let listed = false;
+    server.authorize = () => (listed ? null : 'language not listed yet');
+    const { client } = device(server, 'dA', 'lead', { t: 0 });
+    await client.load();
+    await client.appendMany(Array.from({ length: 1200 }, (_, i) => ({ type: 'v1.UnitAdded' as const, payload: unit(i) })));
+    const refused = await client.sync();
+    expect(server.appendCalls).toBe(1);
+    expect(refused.more).toBe(false);
+    expect(refused.rejected).toBe(200);
+    // Still re-queued on every push (decision 24): the next sync asks again.
+    await client.sync();
+    expect(server.appendCalls).toBe(2);
+    listed = true;
+    for (let i = 0; i < 5 && (await client.pendingCount()) > 0; i++) await client.sync();
+    expect(await client.pendingCount()).toBe(0);
+    expect(server.log).toHaveLength(1200);
+    expect(Object.keys(client.getState().units)).toHaveLength(1200);
+  });
+
   it('a device checkpoints locally after enough confirmed events and prunes its log', async () => {
     // Why: replay on launch must be bounded by history since the last
     // checkpoint, not by the age of the stream.
