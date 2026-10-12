@@ -152,8 +152,10 @@ but not measured.
   developer menu's Storage benchmark (`storageBench.ts`) runs both drivers
   on the device. iOS simulator, four runs: an append 0.16 to 0.18 ms
   instead of 0.50 to 0.67, a 500-event page 30 to 32 ms instead of 66 to
-  71. The simulator uses the Mac's CPU and disk: the ratio carries over to
-  a phone, the milliseconds do not. Not yet run on Android.
+  71. Android emulator (Pixel 6 image), three runs: an append 0.46 to 0.56 ms
+  instead of 2.09 to 2.53, a page 85 to 110 ms instead of 248 to 287. Both
+  run on the Mac's CPU and disk: the ratios carry over to a phone, the
+  milliseconds do not.
 
 **2. Every publish makes every screen rebuild its derived views, 2–3 times
 per append.** Confirmed.
@@ -390,6 +392,9 @@ bump the revision once per batch instead of once per event
   the offline poll backs off to 30 minutes as a safety net for a network
   that says it is up but cannot reach the server. `village-small`: 2,962
   wakes with no signal instead of 16,799; work reaches the server as fast.
+  On the Android emulator with a language open, turning airplane mode off
+  woke each of the app's three sync schedulers (organization, language,
+  hand-over) once, and nothing woke while it was on.
 
 - **Privacy:** `pull_events` returns the payloads of redacted events; only
   the fold hides them. Worth deciding on its own.
