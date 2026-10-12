@@ -1,7 +1,7 @@
 import { HlcClock, ORG_STREAM, applyOrgEvent, derivePassage, emptyOrgState, foldOrg, REDUCER_VERSION, type LanguageState, type OrgState } from '@langquest-next/core';
 import { MemoryStore } from '../src/memoryStore';
 import { SyncClient, type Materializer } from '../src/syncClient';
-import { FakeServer } from './fakeServer';
+import { FakeServer } from '../src/testing/fakeServer';
 import { rejectCodeOf } from '../src/types';
 
 /** The organization stream's fold, as the app wires it (apps/mobile useOrg). */
@@ -379,6 +379,32 @@ describe('SyncClient snapshots (PLAN.md invariant 10, cutover gate 4)', () => {
     expect(server.pullCalls).toBe(pullsBefore);
   });
 
+  it('a language not listed yet stops the push at its first refused batch, so sync does not run again at once', async () => {
+    // Why: with more than five batches queued, every refused round reported
+    // more work and the scheduler ran again at once: five refused appends
+    // and a full refold each time, 73,555 refolds in ten hours for one
+    // phone in the fleet (performance-audit.md item 7). The server refuses
+    // the whole stream until it is listed, so one batch is enough to ask.
+    const server = new FakeServer();
+    let listed = false;
+    server.authorize = () => (listed ? null : 'language not listed yet');
+    const { client } = device(server, 'dA', 'lead', { t: 0 });
+    await client.load();
+    await client.appendMany(Array.from({ length: 1200 }, (_, i) => ({ type: 'v1.UnitAdded' as const, payload: unit(i) })));
+    const refused = await client.sync();
+    expect(server.appendCalls).toBe(1);
+    expect(refused.more).toBe(false);
+    expect(refused.rejected).toBe(200);
+    // Still re-queued on every push (decision 24): the next sync asks again.
+    await client.sync();
+    expect(server.appendCalls).toBe(2);
+    listed = true;
+    for (let i = 0; i < 5 && (await client.pendingCount()) > 0; i++) await client.sync();
+    expect(await client.pendingCount()).toBe(0);
+    expect(server.log).toHaveLength(1200);
+    expect(Object.keys(client.getState().units)).toHaveLength(1200);
+  });
+
   it('a device checkpoints locally after enough confirmed events and prunes its log', async () => {
     // Why: replay on launch must be bounded by history since the last
     // checkpoint, not by the age of the stream.
@@ -403,6 +429,79 @@ describe('SyncClient snapshots (PLAN.md invariant 10, cutover gate 4)', () => {
     await again.load();
     expect(Object.keys(again.getState().units).length).toBe(12);
     expect(await again.pendingCount()).toBe(0);
+  });
+
+  it('a sync reads the checkpoint seq beside the checkpoint, never the checkpoint itself', async () => {
+    // Why: the checkpoint is the whole language. Parsing it on every sync
+    // just to learn its seq was 81% of a 45-phone fleet run
+    // (docs/fleet-simulation.md, performance-audit.md item 3).
+    const server = new FakeServer();
+    const store = new MemoryStore();
+    const reads = { checkpoint: 0 };
+    const meta = store.meta.bind(store);
+    store.meta = async (key) => {
+      if (key === 'snapshot:org1/p1') reads.checkpoint += 1;
+      return meta(key);
+    };
+    const wall = { t: 0 };
+    let k = 0;
+    const c = new SyncClient({
+      orgId: 'org1', streamId: 'p1', actorId: 'lead', deviceId: 'dA', store,
+      transport: server.transportFor(), clock: new HlcClock('dA', () => (wall.t += 1)),
+      newId: () => `e${++k}`, checkpointEvery: 5
+    });
+    await c.load();
+    for (let i = 0; i < 12; i++) await c.append('v1.UnitAdded', unit(i));
+    await c.sync();
+    const checkpointSeq = (await c.inspect()).checkpointSeq;
+    expect(checkpointSeq).toBe(12);
+    reads.checkpoint = 0;
+    for (let i = 12; i < 15; i++) {
+      await c.append('v1.UnitAdded', unit(i));
+      await c.sync();
+    }
+    expect(reads.checkpoint).toBe(0);
+    expect((await c.inspect()).checkpointSeq).toBe(12);
+  });
+
+  it('a checkpoint saved before its seq was kept beside it is read once, and the seq is kept from then on', async () => {
+    // Why: a phone updated from an older app has a checkpoint and no seq.
+    const server = new FakeServer();
+    const store = new MemoryStore();
+    const wall = { t: 0 };
+    let k = 0;
+    const mk = () => new SyncClient({
+      orgId: 'org1', streamId: 'p1', actorId: 'lead', deviceId: 'dA', store,
+      transport: server.transportFor(), clock: new HlcClock('dA', () => (wall.t += 1)),
+      newId: () => `e${++k}`, checkpointEvery: 5
+    });
+    const first = mk();
+    await first.load();
+    for (let i = 0; i < 12; i++) await first.append('v1.UnitAdded', unit(i));
+    await first.sync();
+    // As the older app left it: the checkpoint, and no seq beside it.
+    const meta = store.meta.bind(store);
+    let upgraded = false;
+    let reads = 0;
+    const commit = store.commit.bind(store);
+    store.commit = async (batch) => {
+      if (batch.meta && 'snapshotSeq:org1/p1' in batch.meta) upgraded = true;
+      return commit(batch);
+    };
+    store.meta = async (key) => {
+      if (key === 'snapshotSeq:org1/p1' && !upgraded) return undefined;
+      if (key === 'snapshot:org1/p1') reads += 1;
+      return meta(key);
+    };
+    const later = mk();
+    await later.load();
+    reads = 0;
+    await later.sync();
+    await later.sync();
+    expect(upgraded).toBe(true);
+    expect(reads).toBe(1);
+    expect((await later.inspect()).checkpointSeq).toBe(12);
+    expect(Object.keys(later.getState().units)).toHaveLength(12);
   });
 
   it('a device catching up on a big language checkpoints once, when caught up, and the checkpoint equals the full fold', async () => {
@@ -717,6 +816,63 @@ describe('SyncClient after a long offline stretch (audit L1, L2, L3)', () => {
     await b.pull();
     expect(b.getState().units['u1']).toBeUndefined();
     expect(Object.keys(b.getState().units).sort()).toEqual(['u0', 'u2']);
+  });
+
+  it('while it waits for a snapshot past a redaction, it does not download one that is too old', async () => {
+    // Why: every sync in the 30-minute wait downloaded and parsed the whole
+    // server snapshot only to find it older than the redaction: 830 MB in
+    // the fleet's refoldTriggers run (performance-audit.md item 7). The
+    // snapshot's seq is in its meta; check it first.
+    const server = new FakeServer();
+    const a = await seeded(server, 3);
+    server.makeSnapshot('org1', 'p1');
+    const clock = { t: 1_000 };
+    const b = new SyncClient({
+      orgId: 'org1', streamId: 'p1', actorId: 'r1', deviceId: 'dB', store: new MemoryStore(), transport: server.transportFor(),
+      now: () => clock.t
+    });
+    await b.load();
+    await b.pull();
+    const target = server.log.find((e) => e.type === 'v1.UnitAdded' && e.payload.unitId === 'u1')!;
+    await a.client.append('v1.Redacted', { eventId: target.id });
+    await a.client.sync();
+    const chunksBefore = server.chunkCalls;
+    for (let i = 0; i < 3; i++) {
+      clock.t += 60_000;
+      await b.pull();
+    }
+    expect(server.chunkCalls - chunksBefore).toBe(0);
+    server.makeSnapshot('org1', 'p1');
+    await b.pull();
+    expect(server.chunkCalls - chunksBefore).toBeGreaterThan(0);
+    expect(b.getState().units['u1']).toBeUndefined();
+  });
+
+  it('a snapshot past the redaction will do, even if the pull went further than the snapshot', async () => {
+    // Why: the phone asked for a snapshot past the end of what it had
+    // pulled, not past the redaction; one taken right after the redaction
+    // was refused as stale, and with snapshots an hour apart (decision 88)
+    // the phone fell back to the whole log after 30 minutes.
+    const server = new FakeServer();
+    const a = await seeded(server, 3);
+    server.makeSnapshot('org1', 'p1');
+    const clock = { t: 1_000 };
+    const b = new SyncClient({
+      orgId: 'org1', streamId: 'p1', actorId: 'r1', deviceId: 'dB', store: new MemoryStore(), transport: server.transportFor(),
+      now: () => clock.t
+    });
+    await b.load();
+    await b.pull();
+    const target = server.log.find((e) => e.type === 'v1.UnitAdded' && e.payload.unitId === 'u1')!;
+    await a.client.append('v1.Redacted', { eventId: target.id });
+    await a.client.sync();
+    server.makeSnapshot('org1', 'p1'); // the worker writes one at once after a redaction
+    await a.client.append('v1.UnitAdded', unit(9));
+    await a.client.sync();
+    await b.pull(); // the redaction and the unit after the snapshot, in one slice
+    expect(b.getState().units['u1']).toBeUndefined();
+    expect(b.getState().units['u9']).toBeDefined();
+    expect(await b.inspect()).toMatchObject({ checkpointSeq: server.snapshots.get('org1/p1')!.serverSeq });
   });
 
   it('after the wait window with no snapshot, the device falls back to the full log', async () => {

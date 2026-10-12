@@ -4,6 +4,9 @@
 - [cloudflare.md](./cloudflare.md) — Workers Builds: what merging to develop and main deploys; builds hold no secrets
 - [environments.md](./environments.md) — Development, preview and production: branches, where public settings and secrets live, `npm run secrets`, setup
 - [flow-coverage-audit.md](./flow-coverage-audit.md) — Flow coverage audit
+- [performance-audit.md](./performance-audit.md) — Event system performance: today's baseline, how to measure it, and ranked improvements with the metric for each
+- [fleet-simulation.md](./fleet-simulation.md) — Many phones on simulated time against the in-memory server: `npm run fleet`, the scenarios, and how to read them
+- [fleet-baselines.md](./fleet-baselines.md) — Baseline numbers for every fleet scenario at several sizes, to compare before and after a performance change (`npm run fleet:baselines`)
 - [library.md](./library.md) — The library: templates, flows and reference material as versioned documents
 - [languoids.md](./languoids.md) — Languages and regions: v2's reference tables filled from Glottolog, the explorer, search, and the interface-language proposal
 - [v2-project-languages.md](./v2-project-languages.md) — The language each v2 project should get here (many picked English), and the records that follow it
@@ -11,4 +14,5 @@
 - [ux/demo-parity.md](./ux/demo-parity.md) — How the app follows the partner demo, and what is not ported yet
 - [ux/](./ux/) — Earlier interactive mocks (slideshow workflow, one yellow action, VAD takeover), kept as history
   - [ux/follow-ups.md](./ux/follow-ups.md) — Remaining UX-vision alignment work (updated after each fix)
+- [ui-test-suite/](./ui-test-suite/README.md) — The Expo app's UI test suite: 653 tests in 17 areas covering every role, with the fixture world, global preconditions and the known issues found while writing it
 - [journey-tests/](./journey-tests/) — UX journey test findings (2026-09-15, ~74% pass rate vs ng-langquest-ux blueprint)

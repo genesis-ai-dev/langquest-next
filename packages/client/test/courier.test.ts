@@ -2,7 +2,7 @@ import { HlcClock } from '@langquest-next/core';
 import { deliverQueued } from '../src/courier';
 import { MemoryStore } from '../src/memoryStore';
 import { SyncClient } from '../src/syncClient';
-import { FakeServer } from './fakeServer';
+import { FakeServer } from '../src/testing/fakeServer';
 
 /**
  * A shared phone after Akol handed it to Mary (decisions.md 60): his

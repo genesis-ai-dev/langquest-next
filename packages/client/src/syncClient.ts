@@ -120,6 +120,8 @@ interface SyncClientOptions<S = LanguageState> {
 
 /** A sync that moved nothing is recorded only when it took at least this long. */
 const SLOW_SYNC_MS = 2_000;
+/** After the server says it has no snapshot for a stream, how long before asking again. */
+const NO_SNAPSHOT_RECHECK_MS = 5 * 60 * 1000;
 /** A repeated non-ok outcome (offline, refused) is recorded at most this often. */
 const REPEAT_OUTCOME_MS = 60 * 60 * 1000;
 
@@ -160,6 +162,8 @@ export class SyncClient<S = LanguageState> {
   private net = { push: 0, pull: 0, pages: 0 };
   private lastOutcome: { outcome: string; at: number } | null = null;
   private offlineSince: number | null = null;
+  /** The server had no snapshot for this stream; do not ask again before this (elapsed ms). */
+  private noSnapshotUntil = 0;
   private readonly listeners = new Set<(s: PublishedState<S>) => void>();
 
   constructor(private readonly opts: SyncClientOptions<S>) {
@@ -225,14 +229,25 @@ export class SyncClient<S = LanguageState> {
     return () => this.listeners.delete(listener);
   }
 
+  /** The fold revision `subscribe` publishes, for a screen catching up outside a publish. */
+  get publishedRevision(): number {
+    return this.revision;
+  }
+
   private publish(): void {
     const snap = { state: this.state, revision: this.revision, saving: this.writer.size };
     for (const l of this.listeners) l(snap);
   }
 
   /** core `resume` for any materializer: snapshot state plus events after its seq. */
+  /**
+   * Both callers pass a checkpoint `localSnapshot` has just parsed, which
+   * nothing else holds, so its state is folded onto in place: cloning it
+   * first copied the whole language on every load and refold
+   * (performance-audit.md item 7).
+   */
   private resume(snapshot: Snapshot, tail: Iterable<AnyEvent>): S {
-    const state = structuredClone(snapshot.state as unknown as S);
+    const state = snapshot.state as unknown as S;
     const newer = [...tail].filter((e) => e.serverSeq === undefined || e.serverSeq > snapshot.serverSeq);
     return this.m.fold(newer, state);
   }
@@ -245,6 +260,35 @@ export class SyncClient<S = LanguageState> {
 
   private snapshotKey(): string {
     return `snapshot:${this.opts.orgId}/${this.opts.streamId}`;
+  }
+
+  /**
+   * The checkpoint's reducer version and seq (`12:4810`), kept beside it in
+   * the same commit, so a sync learns the seq without parsing the whole
+   * language (performance-audit.md item 3). '' when there is no checkpoint.
+   */
+  private snapshotSeqKey(): string {
+    return `snapshotSeq:${this.opts.orgId}/${this.opts.streamId}`;
+  }
+
+  /** What writes a checkpoint: the snapshot and, beside it, its seq. */
+  private snapshotMeta(snap: Snapshot): Record<string, string> {
+    return { [this.snapshotKey()]: JSON.stringify(snap), [this.snapshotSeqKey()]: `${snap.reducerVersion}:${snap.serverSeq}` };
+  }
+
+  /** The local checkpoint's seq, or null when there is none for this reducer. */
+  private async checkpointSeq(): Promise<number | null> {
+    const kept = await this.opts.store.meta(this.snapshotSeqKey());
+    if (kept === undefined) {
+      // A checkpoint from an app that did not keep the seq: read it once, keep the seq.
+      const raw = await this.opts.store.meta(this.snapshotKey());
+      if (!raw) return null;
+      const snap = JSON.parse(raw) as Snapshot;
+      await this.commit({ meta: { [this.snapshotSeqKey()]: `${snap.reducerVersion}:${snap.serverSeq}` } });
+      return snap.reducerVersion === this.m.version ? snap.serverSeq : null;
+    }
+    const [version, seq] = kept.split(':');
+    return kept !== '' && Number(version) === this.m.version ? Number(seq) : null;
   }
 
   private minSnapshotKey(): string {
@@ -262,7 +306,7 @@ export class SyncClient<S = LanguageState> {
     const { orgId, streamId } = this.opts;
     const seq = Math.max(snap.serverSeq, await this.opts.store.cursor(orgId, streamId));
     await this.commit({
-      meta: { [this.snapshotKey()]: JSON.stringify(snap) },
+      meta: this.snapshotMeta(snap),
       cursor: { orgId, streamId, seq },
       prune: { orgId, streamId, uptoSeq: snap.serverSeq }
     });
@@ -292,6 +336,14 @@ export class SyncClient<S = LanguageState> {
     if (!meta) {
       // A cold device with no snapshot for its reducer folds the whole log: the first thing to check when a first download is slow.
       this.opts.diag?.record('snapshot', { ...this.stream(), n: { ms: this.elapsed() - started }, t: { outcome: 'none' } });
+      this.noSnapshotUntil = this.elapsed() + NO_SNAPSHOT_RECHECK_MS;
+      return 0;
+    }
+    if (meta.serverSeq < minSeq) {
+      // Waiting for a snapshot past a redaction: this one is older, so do not
+      // download it to find that out (performance-audit.md item 7).
+      this.net.pull += this.elapsed() - started;
+      this.opts.diag?.record('snapshot', { ...this.stream(), n: { ms: this.elapsed() - started, seq: meta.serverSeq }, t: { outcome: 'stale' } });
       return 0;
     }
     const savedMap = new Map<number, string>();
@@ -357,7 +409,7 @@ export class SyncClient<S = LanguageState> {
       };
       const { orgId, streamId } = this.opts;
       await this.commit({
-        meta: { [this.snapshotKey()]: JSON.stringify(snap) },
+        meta: this.snapshotMeta(snap),
         prune: { orgId, streamId, uptoSeq: cursor }
       });
       return;
@@ -511,9 +563,11 @@ export class SyncClient<S = LanguageState> {
         const results = await this.opts.transport.append(batch.map((p) => p.event));
         this.net.push += this.elapsed() - sent;
         const writes: LocalEvent[] = [];
+        let notListed = false;
         for (const r of results) {
           const local = batch.find((p) => p.event.id === r.id);
           if (!local) continue;
+          if (!r.accepted && rejectCodeOf(r.reason ?? undefined) === 'NOT_LISTED') notListed = true;
           if (r.accepted) {
             accepted += 1;
             writes.push({
@@ -529,6 +583,11 @@ export class SyncClient<S = LanguageState> {
           }
         }
         await this.commit({ events: writes });
+        // The server refuses the whole stream until the language is listed:
+        // the rest would be refused too, and reporting more would run sync
+        // again at once, refolding each time (performance-audit.md item 7).
+        // The next push asks again.
+        if (notListed) break;
       }
       if (clockAhead.length > 0 && !this.opts.deliverOnly) await this.restamp(clockAhead);
     } finally {
@@ -605,11 +664,16 @@ export class SyncClient<S = LanguageState> {
     if (await this.resolvePendingRedaction()) return await this.pullSlice(budgetMs);
     const started = this.wall();
     let after = await this.opts.store.cursor(this.opts.orgId, this.opts.streamId);
-    if (after === 0 && !(await this.localSnapshot())) after = await this.adoptServerSnapshot();
+    // A stream with nothing yet would ask for a snapshot on every sync; ask again after a while.
+    if (after === 0 && this.elapsed() >= this.noSnapshotUntil && (await this.checkpointSeq()) === null) {
+      after = await this.adoptServerSnapshot();
+    }
     let total = 0;
     let more = false;
     let redacted = false;
     let redactedInsideCheckpoint = false;
+    /** The newest redaction whose target is inside the checkpoint: a snapshot at or past it will do. */
+    let redactionSeq = 0;
     let membershipChanged = false;
     for (;;) {
       const asked = this.elapsed();
@@ -635,7 +699,10 @@ export class SyncClient<S = LanguageState> {
           redacted = true;
           // The target is not in the local log: it lives inside the checkpoint,
           // which cannot be edited. Only a fresh snapshot removes it.
-          if (!(await this.opts.store.get(event.payload.eventId))) redactedInsideCheckpoint = true;
+          if (!(await this.opts.store.get(event.payload.eventId))) {
+            redactedInsideCheckpoint = true;
+            redactionSeq = Math.max(redactionSeq, seq);
+          }
         }
         // What this actor may do changed: their membership, or a role's privileges.
         if (((event.type === 'v1.MemberAdded' || event.type === 'v1.MemberRemoved') && event.payload.profileId === this.opts.actorId)
@@ -665,7 +732,10 @@ export class SyncClient<S = LanguageState> {
       // Prefer a server snapshot at or past this point over re-pulling the
       // whole log (audit L3). Until one exists the checkpoint stays, the
       // target stays visible for a bounded time, and every pull retries.
-      await this.commit({ meta: { [this.minSnapshotKey()]: String(after), [this.redactionKey()]: JSON.stringify({ seq: after, since: this.wall() }) } });
+      // Past the redaction, not past what this slice pulled: a snapshot taken
+      // right after the redaction excludes the target, and the events after
+      // it are already here (performance-audit.md item 7).
+      await this.commit({ meta: { [this.minSnapshotKey()]: String(redactionSeq), [this.redactionKey()]: JSON.stringify({ seq: redactionSeq, since: this.wall() }) } });
       if (await this.resolvePendingRedaction()) {
         const rest = await this.pullSlice(budgetMs);
         return { pulled: total + rest.pulled, more: rest.more };
@@ -678,7 +748,7 @@ export class SyncClient<S = LanguageState> {
     // Still catching up: skip the checkpoint (it serializes the whole state)
     // and take one when the tail is reached. Nothing is pruned before the
     // checkpoint, so a crash mid-catch-up only costs a longer fold on launch.
-    const base = (await this.localSnapshot())?.serverSeq ?? 0;
+    const base = (await this.checkpointSeq()) ?? 0;
     if (!more && after - base >= this.checkpointEvery && !this.opts.deferCheckpoint?.()) await this.checkpoint(after);
     // Our membership changed on the server: work refused for membership
     // reasons may be acceptable now. Queue it; the next push decides. The
@@ -718,7 +788,7 @@ export class SyncClient<S = LanguageState> {
     }
     if (this.wall() - since < SyncClient.REDACTION_SNAPSHOT_WAIT_MS) return false;
     await this.commit({
-      meta: { [this.redactionKey()]: '', [this.snapshotKey()]: '' },
+      meta: { [this.redactionKey()]: '', [this.snapshotKey()]: '', [this.snapshotSeqKey()]: '' },
       cursor: { orgId: this.opts.orgId, streamId: this.opts.streamId, seq: 0 }
     });
     await this.load();
@@ -806,14 +876,14 @@ export class SyncClient<S = LanguageState> {
   /** The local log as the sync status screen shows it. */
   async inspect(): Promise<SyncInspection> {
     const { orgId, streamId } = this.opts;
-    const [pending, rejected, total, cursor, snap] = await Promise.all([
+    const [pending, rejected, total, cursor, checkpointSeq] = await Promise.all([
       this.opts.store.pending(orgId, streamId),
       this.opts.store.rejected(orgId, streamId),
       this.opts.store.count(orgId, streamId),
       this.opts.store.cursor(orgId, streamId),
-      this.localSnapshot()
+      this.checkpointSeq()
     ]);
-    return { pending, rejected, total, cursor, checkpointSeq: snap?.serverSeq ?? null };
+    return { pending, rejected, total, cursor, checkpointSeq };
   }
 
   /**

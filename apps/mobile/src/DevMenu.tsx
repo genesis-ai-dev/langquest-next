@@ -16,6 +16,7 @@ import { Group, Row, SectionLabel, Sheet, txt } from './kit';
 import { loadDocs } from './library/docStore';
 import { subscribeOps, type SharedItem } from './library/model';
 import { reportError } from './report';
+import { runStorageBench } from './storageBench';
 import { supabase } from './supabase';
 import type { OrgHandle } from './useOrg';
 import type { LanguageHandle } from './useLanguage';
@@ -36,6 +37,7 @@ export function DevMenu(props: {
 
   const personas = personasAvailable();
   const canSeed = props.isOwner && maySeedDemoTeam(props.isDev);
+  const [bench, setBench] = useState('');
 
   async function run(label: string, fn: () => Promise<void>) {
     setBusy(label);
@@ -127,6 +129,18 @@ export function DevMenu(props: {
       ) : null}
       {props.isDev ? (
         <>
+          <SectionLabel label="Measure" />
+          <Group>
+            <Row label="Storage benchmark" sub={bench || '200 appends and 4 pull pages, old driver and new (storageBench.ts)'}
+              onPress={busy ? undefined : () => {
+                setBusy('bench');
+                setBench('Running…');
+                void runStorageBench()
+                  .then((rs) => setBench(rs.map((r) => `${r.driver}: append ${r.appendMsEach} ms, page ${r.pageMsEach} ms`).join('; ')))
+                  .catch((e: unknown) => setBench(e instanceof Error ? e.message : 'failed'))
+                  .finally(() => setBusy(''));
+              }} last />
+          </Group>
           <SectionLabel label="Jump to screen (bypasses flow)" />
           <Group>
             {SCREEN_IDS.map((s, i) => (

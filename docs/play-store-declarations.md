@@ -128,6 +128,14 @@ on the phone to choose one; `i18next` and `react-i18next` are code inside the
 app, and every language's words ship in the app. The language someone picks
 stays on the device. Nothing is collected or sent, so no data type changes.
 
+`expo-network` (LAN-47) tells the app when the phone's network comes back,
+so it syncs then instead of polling every few minutes with no signal. It
+reads the connection state on the phone; nothing is collected or sent, so
+no data type changes. Its Android permission, `ACCESS_NETWORK_STATE`, was
+already in the app's merged manifest (from `expo-updates`) and is a normal
+permission the person is never asked for, so no Play Console answer
+changes.
+
 Bible text and audio (docs/reference-material.md, decisions.md 62) come
 from Faith Comes By Hearing's Bible Brain through our Worker, which holds the
 key and sends Bible Brain no user data; phones then download the audio from
@@ -178,7 +186,7 @@ this block.
     "@expo/metro-runtime", "@langquest-next/client", "@langquest-next/core",
     "@react-native-async-storage/async-storage", "@react-navigation/native",
     "@react-navigation/native-stack", "@supabase/supabase-js", "d3-geo", "expo", "expo-audio",
-    "expo-camera", "expo-crypto", "expo-dev-client", "expo-file-system", "expo-localization",
+    "expo-camera", "expo-crypto", "expo-dev-client", "expo-file-system", "expo-localization", "expo-network",
     "expo-notifications", "expo-screen-orientation", "expo-sqlite", "expo-status-bar", "expo-updates",
     "i18n-iso-countries", "i18next", "lucide-react-native", "react", "react-dom", "react-i18next", "react-native", "react-native-qrcode-svg",
     "react-native-safe-area-context", "react-native-screens", "react-native-svg",
