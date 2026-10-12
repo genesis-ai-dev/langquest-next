@@ -791,9 +791,10 @@ export function SignOutConfirm(ctx: Ctx) {
     setBusy(true);
     setError('');
     try {
-      if (await setLockPattern(ctx.session.actorId, dots) === 'taken') {
+      const chosen = await setLockPattern(ctx.session.actorId, dots);
+      if (chosen.kind !== 'ok') {
         setFirst(null);
-        setError(t('account.lock.patternTaken'));
+        setError(chosen.kind === 'wait' ? t('entry.lock.wait') : t('account.lock.patternTaken'));
         setBusy(false);
         return;
       }

@@ -89,17 +89,28 @@ export async function lockKinds(actorId: string): Promise<Wrap['kind'][]> {
   return (await readLocks()).find((l) => l.actorId === actorId)?.wraps.map((w) => w.kind) ?? [];
 }
 
-export type PatternChoice = 'ok' | 'taken';
+export type PatternChoice = { kind: 'ok' } | { kind: 'taken' } | { kind: 'wait'; ms: number };
 
-/** Choose the pattern this person signs back in with. Two people on one phone never share one. */
+/**
+ * Choose the pattern this person signs back in with. Two people on one phone
+ * never share one, so a drawn pattern opens exactly one lock. Being told a
+ * pattern is taken would let someone signed in here try other people's
+ * patterns, so it counts as a wrong guess for the phone, as on Sign In.
+ */
 export function setLockPattern(actorId: string, dots: readonly number[]): Promise<PatternChoice> {
   const secret = patternSecret(dots);
-  return serial(async () => {
+  return serial(async (): Promise<PatternChoice> => {
+    const misses = parseMisses(await AsyncStorage.getItem(MISSES));
+    const ms = waitLeft(misses, Date.now());
+    if (ms > 0) return { kind: 'wait', ms };
     for (const other of (await readLocks()).filter((l) => l.actorId !== actorId)) {
-      if (await openWrap(other, 'pattern', secret)) return 'taken';
+      if (await openWrap(other, 'pattern', secret)) {
+        await AsyncStorage.setItem(MISSES, JSON.stringify(afterMiss(misses, Date.now())));
+        return { kind: 'taken' };
+      }
     }
     await addWrap(actorId, 'pattern', secret);
-    return 'ok';
+    return { kind: 'ok' };
   });
 }
 
