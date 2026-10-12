@@ -11,16 +11,16 @@
  * key; v2 is never written) and its public bucket V2_BUCKET ("assets").
  * Writes this app at SUPABASE_URL with SUPABASE_SERVICE_ROLE_KEY, local by
  * default (`node scripts/with-local-keys.mjs` supplies the keys), and files
- * through the app's Worker at API_URL (`npm run web:dev` locally).
+ * through the app's Worker at API_URL (`npm run web:dev` locally), or into
+ * the folder V2_IMPORT_FILES_DIR when trying it without the Worker.
  * V2_EVERY_LANGUAGE_ID names the Every Language platform account's v2 id
  * while the reader cannot see emails. Downloaded files are kept under
- * V2_IMPORT_CACHE. Output names projects by id only: the repository and
- * its CI logs are public.
+ * V2_IMPORT_CACHE when it is set. On CI, output names projects by id only:
+ * the repository and its CI logs are public.
  */
 import { spawnSync } from 'node:child_process';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
@@ -52,15 +52,35 @@ const v2 = restReader({
 const url = env('SUPABASE_URL', 'http://127.0.0.1:54421');
 const serviceKey = env('SUPABASE_SERVICE_ROLE_KEY');
 const db = createClient(url, serviceKey, { auth: { persistSession: false } });
-const target = supabaseTarget(db, workerBlobs(env('API_URL', 'http://127.0.0.1:8787'), serviceKey));
-const cacheDir = process.env['V2_IMPORT_CACHE'] ?? join(tmpdir(), 'langquest-v2-import');
-await mkdir(cacheDir, { recursive: true });
-const cachePath = (name: string) => join(cacheDir, name.replace(/[^A-Za-z0-9._-]/g, '_'));
-const cache = {
+// V2_IMPORT_FILES_DIR keeps files in a folder instead of R2: for trying the import against a
+// local database without the app's Worker (no BlobStored events are appended that way).
+const filesDir = process.env['V2_IMPORT_FILES_DIR'];
+const folderFiles = (dir: string) => ({
+  async list(prefix: string) {
+    const out: { key: string; size: number }[] = [];
+    const d = join(dir, prefix);
+    for (const name of await readdir(d).catch(() => [] as string[])) out.push({ key: `${prefix}${name}`, size: 0 });
+    return out;
+  },
+  async put(key: string, bytes: Uint8Array) {
+    await mkdir(join(dir, key, '..'), { recursive: true });
+    await writeFile(join(dir, key), bytes);
+  }
+});
+const target = supabaseTarget(db, filesDir ? folderFiles(filesDir) : workerBlobs(env('API_URL', 'http://127.0.0.1:8787'), serviceKey));
+// Keeping downloads only pays for cloned projects, which share files, and v2's audio runs to
+// terabytes, so files are kept only when V2_IMPORT_CACHE names a folder for them.
+const cacheDir = process.env['V2_IMPORT_CACHE'];
+if (cacheDir) await mkdir(cacheDir, { recursive: true });
+const cachePath = (name: string) => join(cacheDir!, name.replace(/[^A-Za-z0-9._-]/g, '_'));
+const cache = cacheDir ? {
   get: (name: string) => readFile(cachePath(name)).then((b) => new Uint8Array(b), () => null),
   put: (name: string, bytes: Uint8Array) => writeFile(cachePath(name), bytes)
-};
-const deps = { v2, target, cache, log: (line: string) => console.log(line) };
+} : undefined;
+// On CI, whose logs are public, a line says only which project and how it went; the dashboard has the words.
+const print = (projectId: string, level: string, message: string) => console.log(process.env['CI'] ? `${projectId || 'pass'} ${level}` : `${projectId ? `${projectId}: ` : ''}${message}`);
+const whoAmI = () => spawnSync('git', ['config', 'user.name'], { encoding: 'utf8' }).stdout.trim();
+const deps = { v2, target, ...(cache ? { cache } : {}), print, by: process.env['V2_IMPORT_BY'] ?? (whoAmI() || 'the command line') };
 
 if (command === 'sync') {
   const reports = await sync(deps, { all: flag('all'), projects: values('project') });
@@ -77,11 +97,39 @@ if (command === 'sync') {
 }
 
 async function board(port: number) {
-  const by = values('as')[0] ?? (spawnSync('git', ['config', 'user.name'], { encoding: 'utf8' }).stdout.trim() || 'unknown');
-  const page = await readFile(join(root, 'server/v2-board.html'), 'utf8');
+  const by = values('as')[0] ?? (whoAmI() || 'unknown');
   const recommendations = parseRecommendations(await readFile(join(root, 'docs/v2-project-languages.csv'), 'utf8'));
   const everyLanguageIds = (process.env['V2_EVERY_LANGUAGE_ID'] ?? '').split(',').map((s) => s.trim()).filter(Boolean);
-  let v2Cache: Promise<[Awaited<ReturnType<typeof v2.projects>>, Awaited<ReturnType<typeof v2.memberships>>]> | null = null;
+  const host = new URL(url).hostname;
+  const where = host === '127.0.0.1' || host === 'localhost' ? 'local' : host.startsWith('xymxnebdwtbkfxlbylch.') ? 'production' : 'hosted';
+
+  // v2's projects and memberships change slowly and take a while to count: read once, again on request.
+  type V2Data = [Awaited<ReturnType<typeof v2.projects>>, Awaited<ReturnType<typeof v2.memberships>>];
+  let v2Data: Promise<V2Data> | null = null;
+  const readV2 = (fresh = false) => {
+    if (fresh || !v2Data) {
+      v2Data = Promise.all([v2.projects({ counts: true }), v2.memberships()]);
+      v2Data.catch(() => { v2Data = null; });
+    }
+    return v2Data;
+  };
+
+  // Transfers started here run one at a time, in the order they were asked for.
+  const queue: string[] = [];
+  let running: string | null = null;
+  const drain = async () => {
+    if (running) return;
+    while (queue.length) {
+      running = queue.shift()!;
+      try {
+        const [projects] = await readV2();
+        await sync({ ...deps, by }, { projects: [running], summaries: projects });
+      } catch (e) {
+        console.error(`${running}: ${(e as Error).message}`);
+      }
+      running = null;
+    }
+  };
 
   const json = (res: import('node:http').ServerResponse, status: number, body: unknown) => {
     res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
@@ -100,14 +148,33 @@ async function board(port: number) {
       if (req.headers.host !== `127.0.0.1:${port}` && req.headers.host !== `localhost:${port}`) return json(res, 403, { error: 'local only' });
       if (req.method === 'GET' && u.pathname === '/') {
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
-        return res.end(page);
+        return res.end(await readFile(join(root, 'server/v2-board.html'), 'utf8'));
       }
       if (req.method === 'GET' && u.pathname === '/api/board') {
-        if (u.searchParams.has('fresh') || !v2Cache) v2Cache = Promise.all([v2.projects(), v2.memberships()]);
-        const [projects, memberships] = await v2Cache;
+        const [projects, memberships] = await readV2(u.searchParams.has('fresh'));
         const ids = [...new Set(memberships.map((m) => m.profile_id))];
-        const data = boardData({ projects, memberships, people: await v2.people(ids), recommendations, plan: await target.plan(), everyLanguageIds });
-        return json(res, 200, { ...data, by });
+        const [names, here, plan] = await Promise.all([v2.people(ids), target.people(ids), target.plan()]);
+        const known = new Map(here.map((p) => [p.id, p]));
+        // Names this app knows (people who signed in, or the import named) stand in for v2's when it hides them.
+        const people = ids.map((id) => ({ id, name: names.find((n) => n.id === id)?.name ?? known.get(id)?.display_name ?? null, email: names.find((n) => n.id === id)?.email ?? null }));
+        const data = boardData({ projects, memberships, people, recommendations, plan, ...(everyLanguageIds.length ? { everyLanguageIds } : {}) });
+        const members: Record<string, { id: string; owner: boolean }[]> = {};
+        for (const m of memberships) if (m.active) (members[m.project_id] ??= []).push({ id: m.profile_id, owner: m.membership === 'owner' });
+        const signedIn: Record<string, string> = {};
+        for (const p of here) if (p.signed_in_at) signedIn[p.id] = p.signed_in_at;
+        const nameOf: Record<string, string> = {};
+        for (const p of people) if (p.name) nameOf[p.id] = p.name;
+        return json(res, 200, { ...data, by, where, host, members, signedIn, nameOf });
+      }
+      if (req.method === 'GET' && u.pathname === '/api/status') {
+        const status = await target.status(Number(u.searchParams.get('after') ?? 0));
+        return json(res, 200, { ...status, queue: [...(running ? [running] : []), ...queue] });
+      }
+      if (req.method === 'GET' && u.pathname === '/api/people') {
+        return json(res, 200, await target.signedIn());
+      }
+      if (req.method === 'GET' && u.pathname.startsWith('/api/project/')) {
+        return json(res, 200, { log: await target.projectLog(decodeURIComponent(u.pathname.slice('/api/project/'.length))) });
       }
       if (req.method === 'GET' && u.pathname === '/api/languoids') {
         const { data, error } = await db.rpc('search_languoids', { search_query: u.searchParams.get('q') ?? '', result_limit: 12, levels: ['language', 'dialect'] });
@@ -119,20 +186,25 @@ async function board(port: number) {
         // A confirmed language needs its readable code: the languoid's ISO code, else its glottocode.
         for (const p of input.placements) {
           if (p.languoid_id && !p.code) p.code = await target.languoidCode(p.languoid_id);
-          if (p.confirmed && (!p.org_id || !p.code)) return json(res, 400, { error: `${p.project_id} needs an organization and a language before it is confirmed` });
+          if (p.confirmed && (!p.org_id || !p.code)) return json(res, 400, { error: 'Choose an organization and a language first.' });
         }
         await target.savePlan(input.orgs, input.placements, by);
         return json(res, 200, { ok: true });
       }
-      if (req.method === 'POST' && u.pathname === '/api/sync') {
-        const { projectId } = (await body(req)) as { projectId: string };
-        return json(res, 200, await sync(deps, { projects: [projectId] }));
+      if (req.method === 'POST' && u.pathname === '/api/transfer') {
+        const { projectIds } = (await body(req)) as { projectIds: string[] };
+        const plan = await target.plan();
+        const ready = new Set(plan.placements.filter((p) => p.confirmed_at && p.org_id).map((p) => p.project_id));
+        const added = projectIds.filter((id) => ready.has(id) && id !== running && !queue.includes(id));
+        queue.push(...added);
+        void drain();
+        return json(res, 200, { queued: added });
       }
       json(res, 404, { error: 'not found' });
     } catch (e) {
       json(res, 500, { error: (e as Error).message });
     }
-  }).listen(port, '127.0.0.1', () => console.log(`The board is at http://127.0.0.1:${port} (saving as ${by})`));
+  }).listen(port, '127.0.0.1', () => console.log(`The dashboard is at http://127.0.0.1:${port} (${where} database, acting as ${by})`));
 }
 
 /**

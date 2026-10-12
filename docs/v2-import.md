@@ -1,7 +1,7 @@
 # Bringing LangQuest v2 into this app, and keeping it coming
 
-Status: proposal, 2026-10-12 (Caleb Koster). The choices marked **(asked)**
-wait on Caleb's answers; the rest is the design they plug into.
+Status: accepted, 2026-10-12 (Caleb Koster), decision 93. Caleb chose 1a–4a,
+6a and 7a; written work (5) waits on written translations in Next.
 
 LangQuest v2 keeps running while people move to this app. Everything a v2
 project holds comes over once, and whatever v2 users add afterwards keeps
@@ -46,33 +46,46 @@ writes to v2 (one way, Caleb, 2026-10-12).
   v2 always wins over an earlier one, and anything a person does here after
   that wins over both.
 
-## 2. Organizations: the board **(asked: where it lives)**
+## 2. Organizations, and the transfer dashboard
 
 v2 has projects and no organizations. Each v2 project becomes one language
-(its id is the v2 project id), in an organization the team chooses on a
-board:
+(its id is the v2 project id), in an organization the team chooses on the
+transfer dashboard, a page that runs on a team member's own computer
+(`npm run v2 -- board`, Caleb 2026-10-12): it reads v2, and keeps the plan
+and every transfer's progress and log in this app's database, so everyone
+who opens it sees the same thing.
 
-- Columns are organizations; cards are v2 projects, showing their name,
-  language (decided, or the recommendation from
-  `docs/v2-project-languages.csv` with its confidence), size, members and
-  last activity.
-- The starting layout, before anyone moves a card: every project with a
-  member whose v2 email is `platform@everylanguage.com` is in **Every
-  Language**; every other project is with its owner's other projects
-  **(asked)**; projects named "Test" and the like with nothing to go on are
-  in **Don't bring over (asked)**.
-- Dragging a card moves it. A project comes over once its organization and
-  its language are confirmed **(asked)**, and keeps syncing after that.
-- Moving a project after it has come over is refused by the board: a
-  language cannot change organization here (its events carry the org), so
-  that would be a second copy. The board says so and offers "bring it over
-  again into …", which hides the first.
+- **Organizations are lanes, projects are cards.** Drag a card to another
+  lane, or onto the last lane to start a new organization. A card shows the
+  project's size, its language (chosen, or the suggestion from
+  `docs/v2-project-languages.csv` with its confidence), how many of its
+  people have signed in to Next, and where its transfer stands.
+- **Where projects start:** every project with the Every Language platform
+  account (`platform@everylanguage.com`, v2 id `03babbbd-…`) is in **Every
+  Language**, run by that account; every other project is with its owner's
+  other projects (the owner runs that organization); projects named "Test"
+  and the like, with nothing to say what language they are, and projects
+  nobody owns, start under **Not coming over**.
+- **Transfer** on a card, or **Transfer N projects** on a lane, confirms the
+  organization and language and starts the transfer at once; a project with
+  no sure language waits for one. A project that has come over cannot move
+  to another organization (its events carry the organization); **Sync**
+  reads it again now instead of waiting for the next scheduled pass.
+- **Status:** each card says Ready, Waiting its turn, Reading v2, Copying
+  audio 340 of 1,200, Storing audio, Adding to Next, In Next · 3 min ago,
+  or its issues (refused changes, audio missing from v2, recordings waiting
+  for their audio, quests that did not match the Bible). The header counts
+  projects in Next, transfers running, projects with issues, and people
+  from v2 who have signed in.
+- **Activity** is the running log of every transfer, newest first; **Signed
+  in** lists the people from v2 who have signed in to Next. A card opens its
+  details: the people and whether each has signed in, its issues, and its
+  own log.
 
-The plan is three small tables in the `v2_import` schema (section 6):
-`v2_import.orgs`, `v2_import.placements` (project → org, language,
-confirmed by whom and when) and `v2_import.people` (who runs each org).
+The plan is in `v2_import.orgs` and `v2_import.placements`; transfers are
+`v2_import.passes` (progress while running) and `v2_import.log` (section 6).
 
-## 3. People **(asked)**
+## 3. People
 
 A v2 account and the v3 account it becomes have **the same id**. Imported
 events name v2 profile ids as their actors and members, so when that person
@@ -100,11 +113,12 @@ signs in here everything they did is already theirs.
   of that language only; a member who recorded is a Translator, one who
   voted a Reviewer, one who did both a Coordinator, as the first import
   already did. v2 lets people who are not members record and vote on open
-  projects; they come over as members with the role their work amounts to. The organization's admins are the people named on the board
-  (Every Language: **asked**); an organization made for one owner has that
-  owner as its admin.
+  projects; they come over as members with the role their work amounts to.
+  An organization's admins are the people named on the dashboard: Every
+  Language is run by its platform account (Caleb, 2026-10-12), and an
+  organization made for one owner by that owner.
 
-## 4. How v2's work maps **(asked: Bible and FIA projects)**
+## 4. How v2's work maps
 
 | v2 | here |
 | --- | --- |
@@ -118,7 +132,7 @@ signs in here everything they did is already theirs.
 | a second quest for the same chapter (`versionLabel` "#2") | another line of versions on the same passage |
 | source material (assets in another language, older projects) | the passage's source material (`MaterialDefined`, a field per text and audio), as the first import did; each translation of one then is a version of its own passage |
 | translation child of a recording (back translation) | a Back Translation review with its audio (`ReviewRecorded`, kind `bt`, outcome `recorded`) |
-| transcription, and text with no audio | a note on the passage (`NoteAdded`) **(asked)** |
+| transcription, and text with no audio | a note on the passage (`NoteAdded`), until written translations exist in Next (`writtenFact` in `map.ts` is the one place to change) |
 | vote | a Community Check review of the version that holds the asset: one per person per version, "needs changes" if any of their votes is down, with their comments |
 | tags, invites, join requests, notifications, closures, clone maps | not brought over; counted in each pass's report |
 | blocked_users | `user_blocks` rows, so a block someone made still holds |
@@ -146,11 +160,28 @@ the rest.
   import did. `v2_import.files` remembers each v2 file name's hash, size,
   duration and format, so later passes and cloned projects (which share
   file names) never download it again.
-- **Where it runs.** `npm run v2 -- sync` does one pass; a scheduled GitHub
-  workflow runs it every 15 minutes against production once Caleb turns it
-  on (a repository variable), and never before. The first pass of a big
-  project is long but resumable. Logs print counts and ids only, since the
+- **Where it runs.** The dashboard runs a transfer on the computer it is
+  open on; `npm run v2 -- sync` does one pass from the command line; and
+  `.github/workflows/v2-import.yml` runs a pass every 15 minutes and a
+  whole read every night against production, once Caleb sets the
+  repository variable `V2_IMPORT_ENABLED` (and its two secrets), never
+  before. All three write the same progress and log. A pass that stops is
+  finished by the next. CI logs name projects by id only, since the
   repository is public.
+- **How much audio.** v2's recordings are mostly WAV, around 2 to 3 MB
+  each (one Bible project measured 1 GB for 418 recordings), so all of v2
+  is likely terabytes. The first copy of the big projects should run where
+  the connection is fast (the scheduled workflow), not on a home
+  connection; downloads are kept only when `V2_IMPORT_CACHE` names a folder.
+- **Reading v2.** Its link tables have no project column, and asking
+  through a join makes v2 scan them whole and hit its statement timeout, so
+  segments, placements and votes are read by slices of the project's own
+  quest and asset ids. v2's own totals (`project_closure`) are no longer
+  kept, so the dashboard counts each project's assets itself.
+- **Trying it.** `npm run v2 -- try --project <id>` maps projects and checks
+  every event against the app's rules, writing nothing;
+  `V2_IMPORT_FILES_DIR` keeps files in a folder instead of R2, for a whole
+  transfer into a local database without the Worker.
 
 ## 6. Storage here
 
@@ -160,7 +191,7 @@ through `v2_import_*` functions, holding the plan (section 2), the ledger
 one row per pass. Nothing in `public` changes except `profiles` names and
 `user_blocks`, which the import fills like any account would.
 
-## 7. People who come over **(screens go to the demo first)**
+## 7. People who come over (demo ADR-043)
 
 The first time someone signs in with a v2 account:
 

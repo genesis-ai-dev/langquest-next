@@ -63,15 +63,37 @@ create table v2_import.files (
   check ((hash is null) = (copied_at is null))
 );
 
--- Each pass over a project, with what it did (section 8), for the board.
+-- Each transfer of a project (a pass, section 8): who started it, its
+-- progress while it runs, and what it did. A pass whose progress stopped
+-- moving with no finish was cut off (its process ended); the next one picks
+-- up where it stopped, since appending is idempotent.
 create table v2_import.passes (
   id bigint generated always as identity primary key,
   project_id text not null,
-  started_at timestamptz not null,
+  org_id text,
+  started_by text,
+  started_at timestamptz not null default now(),
+  progress jsonb not null default '{}',
+  progress_at timestamptz not null default now(),
   finished_at timestamptz,
-  report jsonb not null default '{}'
+  report jsonb,
+  error text
 );
 create index passes_project_idx on v2_import.passes (project_id, started_at desc);
+
+-- The running log the dashboard shows: what each transfer did, line by line.
+create table v2_import.log (
+  id bigint generated always as identity primary key,
+  at timestamptz not null default now(),
+  pass_id bigint references v2_import.passes (id) on delete cascade,
+  project_id text,
+  org_id text,
+  level text not null default 'info' check (level in ('info', 'done', 'warn', 'error')),
+  message text not null check (length(message) <= 2000),
+  counts jsonb
+);
+create index log_at_idx on v2_import.log (id desc);
+create index log_project_idx on v2_import.log (project_id, id desc);
 
 -- Where the last pass that looked for changes started.
 create table v2_import.cursors (
@@ -89,9 +111,75 @@ returns jsonb language sql stable security definer set search_path = v2_import, 
     'placements', coalesce((select jsonb_agg(to_jsonb(p) order by p.project_id) from v2_import.placements p), '[]'),
     'passes', coalesce((
       select jsonb_agg(jsonb_build_object('project_id', l.project_id, 'finished_at', l.finished_at, 'report', l.report))
-      from (select distinct on (project_id) * from v2_import.passes where finished_at is not null
+      from (select distinct on (project_id) * from v2_import.passes where finished_at is not null and error is null
             order by project_id, started_at desc) l), '[]')
   );
+$$;
+
+-- What the dashboard watches: each project's latest transfer (running or
+-- not), how many v2 people have signed in here, and the log after a line.
+create or replace function public.v2_import_status(p_after bigint default 0, p_limit int default 200)
+returns jsonb language sql stable security definer set search_path = v2_import, public as $$
+  select jsonb_build_object(
+    'passes', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'id', l.id, 'project_id', l.project_id, 'org_id', l.org_id, 'started_by', l.started_by, 'started_at', l.started_at,
+        'progress', l.progress, 'progress_at', l.progress_at, 'finished_at', l.finished_at, 'report', l.report, 'error', l.error,
+        'last_done', (select max(d.finished_at) from v2_import.passes d where d.project_id = l.project_id and d.finished_at is not null and d.error is null)))
+      from (select distinct on (project_id) * from v2_import.passes order by project_id, started_at desc) l), '[]'),
+    'log', coalesce((
+      select jsonb_agg(to_jsonb(x) order by x.id)
+      from (select * from v2_import.log where id > coalesce(p_after, 0) order by id desc limit least(greatest(p_limit, 1), 1000)) x), '[]'),
+    'signed_in', (select count(*) from auth.users u where u.raw_user_meta_data ->> 'from_v2' = 'true')
+  );
+$$;
+
+-- v2 people by id: whether each has signed in here, and the name they go by.
+create or replace function public.v2_import_people(p_ids text[])
+returns table (id text, display_name text, signed_in_at timestamptz, last_sign_in_at timestamptz)
+language sql stable security definer set search_path = v2_import, public as $$
+  select i.id, p.display_name, u.created_at, u.last_sign_in_at
+  from unnest(p_ids) i (id)
+  left join auth.users u on u.id::text = i.id
+  left join public.profiles p on p.id = i.id;
+$$;
+
+-- One project's log, newest first, for its details on the dashboard.
+create or replace function public.v2_import_project_log(p_project text, p_limit int default 100)
+returns setof jsonb language sql stable security definer set search_path = v2_import, public as $$
+  select to_jsonb(l) from v2_import.log l where l.project_id = p_project order by l.id desc limit least(greatest(p_limit, 1), 1000);
+$$;
+
+-- People who came from v2 and have signed in here, newest first.
+create or replace function public.v2_import_signed_in(p_limit int default 500)
+returns table (id text, display_name text, signed_in_at timestamptz, last_sign_in_at timestamptz)
+language sql stable security definer set search_path = v2_import, public as $$
+  select u.id::text, p.display_name, u.created_at, u.last_sign_in_at
+  from auth.users u left join public.profiles p on p.id = u.id::text
+  where u.raw_user_meta_data ->> 'from_v2' = 'true'
+  order by u.created_at desc limit least(greatest(p_limit, 1), 5000);
+$$;
+
+create or replace function public.v2_import_pass_start(p_project text, p_org text, p_by text)
+returns bigint language sql security definer set search_path = v2_import, public as $$
+  insert into v2_import.passes (project_id, org_id, started_by) values (p_project, p_org, p_by) returning id;
+$$;
+
+create or replace function public.v2_import_pass_progress(p_id bigint, p_progress jsonb)
+returns void language sql security definer set search_path = v2_import, public as $$
+  update v2_import.passes set progress = p_progress, progress_at = now() where id = p_id and finished_at is null;
+$$;
+
+create or replace function public.v2_import_pass_finish(p_id bigint, p_report jsonb, p_error text default null)
+returns void language sql security definer set search_path = v2_import, public as $$
+  update v2_import.passes set finished_at = now(), report = p_report, error = p_error, progress_at = now() where id = p_id;
+$$;
+
+create or replace function public.v2_import_log_add(p_lines jsonb)
+returns void language sql security definer set search_path = v2_import, public as $$
+  insert into v2_import.log (pass_id, project_id, org_id, level, message, counts)
+  select (l->>'pass_id')::bigint, l->>'project_id', l->>'org_id', coalesce(l->>'level', 'info'), left(l->>'message', 2000), l->'counts'
+  from jsonb_array_elements(p_lines) l;
 $$;
 
 -- Save the board: organizations and placements as the board shows them.
@@ -163,11 +251,6 @@ returns void language sql security definer set search_path = v2_import, public a
     missing_since = case when excluded.hash is null then coalesce(files.missing_since, excluded.missing_since) end;
 $$;
 
-create or replace function public.v2_import_pass(p_project text, p_started timestamptz, p_report jsonb)
-returns void language sql security definer set search_path = v2_import, public as $$
-  insert into v2_import.passes (project_id, started_at, finished_at, report) values (p_project, p_started, now(), p_report);
-$$;
-
 create or replace function public.v2_import_cursor(p_name text, p_value timestamptz default null)
 returns timestamptz language plpgsql security definer set search_path = v2_import, public as $$
 declare v timestamptz;
@@ -215,7 +298,9 @@ do $$
 declare f text;
 begin
   foreach f in array array['v2_import_sign_in_try', 'v2_import_library_grant', 'v2_import_plan', 'v2_import_save_plan', 'v2_import_ledger', 'v2_import_ledger_put',
-                           'v2_import_files', 'v2_import_files_put', 'v2_import_pass', 'v2_import_cursor'] loop
+                           'v2_import_files', 'v2_import_files_put', 'v2_import_cursor', 'v2_import_status', 'v2_import_people',
+                           'v2_import_pass_start', 'v2_import_pass_progress', 'v2_import_pass_finish', 'v2_import_log_add',
+                           'v2_import_project_log', 'v2_import_signed_in'] loop
     execute format('revoke all on function public.%I from public, anon, authenticated', f);
     execute format('grant execute on function public.%I to service_role', f);
   end loop;

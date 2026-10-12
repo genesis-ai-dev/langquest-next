@@ -1,0 +1,48 @@
+# LangQuest v2 → Next, kept up to date (docs/v2-import.md, decisions.md 93).
+# Every 15 minutes it reads the confirmed projects that v2 changed, and every
+# night all of them, whole. The transfer dashboard (npm run v2 -- board) shows
+# each run's progress and log, whoever started it.
+#
+# Nothing runs until the repository variable V2_IMPORT_ENABLED is "true":
+# writing to production waits for Caleb's go-ahead.
+#
+# Repo secrets: V3_SERVICE_ROLE_KEY (this app's production service-role key)
+# and V2_SUPABASE_ANON_KEY (v2's publishable key, for reading v2). Logs name
+# projects by id only, since this repository is public.
+name: v2-import
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+    inputs:
+      all:
+        description: Read every confirmed project whole
+        type: boolean
+        default: false
+
+concurrency:
+  group: v2-import
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: vars.V2_IMPORT_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci --no-audit --no-fund
+      - name: One pass
+        env:
+          CI: 'true'
+          SUPABASE_URL: https://xymxnebdwtbkfxlbylch.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.V3_SERVICE_ROLE_KEY }}
+          API_URL: https://next.langquest.org
+          V2_SUPABASE_ANON_KEY: ${{ secrets.V2_SUPABASE_ANON_KEY }}
+          V2_IMPORT_BY: ${{ github.event_name == 'schedule' && 'the scheduled sync' || github.actor }}
+          ALL: ${{ (github.event.schedule == '17 3 * * *' || inputs.all) && '--all' || '' }}
+        run: npm run v2 -- sync $ALL

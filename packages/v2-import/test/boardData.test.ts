@@ -29,12 +29,12 @@ describe('boardData', () => {
   const plan = { orgs: [], placements: [], passes: [] };
 
   it('starts Every Language from the platform account, found by email or named by id', () => {
-    const byEmail = boardData({ projects: [summary('a', 'A'), summary('b', 'B')], memberships, people: [{ id: 'el', name: null, email: 'platform@everylanguage.com' }], recommendations: new Map(), plan });
+    const byEmail = boardData({ projects: [summary('a', 'A'), summary('b', 'B')], memberships, people: [{ id: 'el', name: null, email: 'platform@everylanguage.com' }], recommendations: new Map(), plan, everyLanguageIds: [] });
     expect(byEmail.cards.map((c) => c.orgId)).toEqual([EVERY_LANGUAGE_ORG, 'org-v2-nyibol']);
     expect(byEmail.orgs.find((o) => o.org_id === EVERY_LANGUAGE_ORG)?.admins).toEqual(['el']);
     const byId = boardData({ projects: [summary('a', 'A')], memberships, people: [], recommendations: new Map(), plan, everyLanguageIds: ['el'] });
     expect(byId.cards[0]?.orgId).toBe(EVERY_LANGUAGE_ORG);
-    const unknown = boardData({ projects: [summary('a', 'A')], memberships, people: [], recommendations: new Map(), plan });
+    const unknown = boardData({ projects: [summary('a', 'A')], memberships, people: [], recommendations: new Map(), plan, everyLanguageIds: [] });
     expect(unknown.everyLanguage).toEqual([]);
     expect(unknown.cards[0]?.orgId).toBe('org-v2-nyibol');
   });
@@ -48,7 +48,7 @@ describe('boardData', () => {
       ],
       passes: []
     };
-    const data = boardData({ projects: [summary('a', 'A'), summary('b', 'B')], memberships, people: [], recommendations: new Map(), plan: saved });
+    const data = boardData({ projects: [summary('a', 'A'), summary('b', 'B')], memberships, people: [], recommendations: new Map(), plan: saved, everyLanguageIds: [] });
     expect(data.cards.map((c) => [c.orgId, c.why, c.code, c.confirmed?.by ?? null])).toEqual([['org-x', 'saved', 'kwa', 'Caleb'], [SKIP, 'saved', null, null]]);
     // An organization nothing is in any more stays only if the board saved it.
     expect(data.orgs.map((o) => o.org_id)).toEqual(['org-x']);

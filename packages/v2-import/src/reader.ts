@@ -12,7 +12,8 @@ export interface V2Reader {
   projectRows(projectId: string): Promise<V2ProjectRows>;
   /** Projects with a row inserted or changed after `since` (by v2's server clock where it has one). */
   changedSince(since: Date): Promise<Set<string>>;
-  projects(): Promise<V2ProjectSummary[]>;
+  /** Every project; with `counts`, each one's asset count and newest asset too (a request per project). */
+  projects(opts?: { counts?: boolean }): Promise<V2ProjectSummary[]>;
   memberships(): Promise<(Pick<V2Membership, 'profile_id' | 'membership' | 'active'> & { project_id: string })[]>;
   /** Names and emails, when this reader may see them; empty otherwise. */
   people(ids: string[]): Promise<{ id: string; name: string | null; email: string | null }[]>;
@@ -134,8 +135,11 @@ export function restReader(src: RestSource): V2Reader {
       return new Set(lists.flat().filter(Boolean));
     },
 
-    async projects() {
+    async projects(opts = {}) {
       const rows = await byKey<V2ProjectRow & { last_updated: string } & Record<string, unknown>>('project?select=id,name,active,private,created_at,creator_id,template,last_updated', 'id');
+      if (!opts.counts) {
+        return rows.map((p) => ({ id: p.id, name: p.name, active: p.active, private: p.private, created_at: p.created_at, creator_id: p.creator_id, template: p.template, assets: 0, lastActivity: p.last_updated }));
+      }
       // v2's own rollups (project_closure) stopped being kept up to date, so count
       // each project's assets, and find its newest, in one small request each.
       const counted = new Map<string, { assets: number; newest: string | null }>();

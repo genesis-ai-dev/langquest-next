@@ -13,6 +13,8 @@
  */
 
 export const EVERY_LANGUAGE_EMAIL = 'platform@everylanguage.com';
+/** That account's v2 id (Caleb, 2026-10-12), for readers that cannot see emails. */
+export const EVERY_LANGUAGE_V2_ID = '03babbbd-0ff4-43ec-9b85-66d975c7e827';
 export const EVERY_LANGUAGE_ORG = 'org-v2-everylanguage';
 /** The board's column for projects that do not come over. */
 export const SKIP = 'skip';

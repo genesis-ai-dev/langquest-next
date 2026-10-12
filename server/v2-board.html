@@ -3,162 +3,371 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>v2 projects into organizations</title>
+<title>v2 → Next transfers</title>
 <style>
   :root {
-    --bg: #f4f3f8; --panel: #fff; --text: #1d1b26; --muted: #6b6879; --line: #e3e1ea;
-    --purple: #6b4fd8; --purple-soft: #efeafe; --green: #1f8a4c; --green-soft: #e3f4ea;
-    --amber: #a86400; --amber-soft: #fdf1dc; --red: #b3261e; --red-soft: #fde7e5; --grey-soft: #eeedf2;
+    --bg: #f5f4f9; --panel: #fff; --text: #1d1b26; --muted: #6e6b7d; --faint: #9a97a8; --line: #e6e4ee;
+    --purple: #6b4fd8; --purple-soft: #efeafe; --blue: #2563eb; --blue-soft: #e5edfd;
+    --green: #1d8048; --green-soft: #e2f3e8; --amber: #a35f00; --amber-soft: #fdf0d9; --red: #c0262d; --red-soft: #fde8e8; --grey-soft: #efeef3;
+    --shadow: 0 1px 2px rgba(25,15,70,.06), 0 1px 1px rgba(25,15,70,.04);
   }
   * { box-sizing: border-box; }
   body { margin: 0; font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
-  header { position: sticky; top: 0; z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line); padding: 12px 20px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
-  header h1 { font-size: 17px; margin: 0 12px 0 0; }
-  header input[type=search] { flex: 1 1 220px; max-width: 360px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
-  header label { color: var(--muted); display: flex; gap: 6px; align-items: center; }
-  .stats { color: var(--muted); margin-left: auto; }
-  .notice { margin: 12px 20px 0; padding: 10px 14px; border-radius: 8px; background: var(--amber-soft); color: var(--amber); }
+  button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--text); padding: 7px 12px; }
+  button:hover:not(:disabled) { border-color: var(--purple); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--purple); border-color: var(--purple); color: #fff; font-weight: 600; }
+  button.primary:hover:not(:disabled) { filter: brightness(1.08); }
+  button.small { padding: 4px 10px; font-size: 13px; }
+  button.link { border: 0; background: none; color: var(--purple); padding: 0; }
+
+  header { position: sticky; top: 0; z-index: 10; background: var(--panel); border-bottom: 1px solid var(--line); }
+  .top { display: flex; align-items: center; gap: 14px; padding: 12px 20px; flex-wrap: wrap; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; }
+  .logo { width: 28px; height: 28px; border-radius: 8px; background: var(--purple); color: #fff; display: grid; place-items: center; font-size: 14px; }
+  .env { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--grey-soft); color: var(--muted); letter-spacing: .02em; }
+  .env.production { background: var(--red); color: #fff; }
+  .env.hosted { background: var(--amber-soft); color: var(--amber); }
+  .kpis { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+  .kpi { border: 1px solid var(--line); border-radius: 10px; padding: 6px 12px; background: var(--panel); text-align: left; min-width: 118px; }
+  .kpi b { display: block; font-size: 18px; line-height: 1.1; }
+  .kpi span { color: var(--muted); font-size: 12px; }
+  .kpi.alert b { color: var(--red); }
+  .kpi.live b { color: var(--blue); }
+  .tools { display: flex; align-items: center; gap: 10px; padding: 0 20px 12px; flex-wrap: wrap; }
+  .tools input[type=search] { flex: 0 1 300px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; background: var(--panel); }
+  .seg button { border: 0; border-radius: 0; border-right: 1px solid var(--line); padding: 6px 11px; color: var(--muted); }
+  .seg button:last-child { border-right: 0; }
+  .seg button.on { background: var(--purple-soft); color: var(--purple); font-weight: 600; }
+  .seg button .n { color: var(--faint); font-weight: 400; margin-left: 4px; }
+  .tools label { color: var(--muted); display: flex; gap: 6px; align-items: center; }
+
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; padding: 16px 20px 60px; align-items: start; }
+  @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } aside { position: static !important; max-height: none !important; } }
+  .notice { margin: 0 0 12px; padding: 10px 14px; border-radius: 10px; background: var(--amber-soft); color: var(--amber); }
   .notice.error { background: var(--red-soft); color: var(--red); }
-  main { padding: 12px 20px 80px; display: flex; flex-direction: column; gap: 14px; }
-  .lane { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
-  .lane.drop { outline: 2px dashed var(--purple); outline-offset: -2px; }
+
+  .lane { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; margin-bottom: 14px; box-shadow: var(--shadow); }
+  .lane.drop { outline: 2px dashed var(--purple); outline-offset: 2px; }
   .lane.skip { background: #fafafc; }
-  .lane-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
-  .lane-head .name { font-weight: 600; font-size: 15px; border: 1px solid transparent; border-radius: 6px; padding: 2px 6px; min-width: 120px; }
-  .lane-head .name:hover { border-color: var(--line); }
-  .lane-head .name:focus { outline: none; border-color: var(--purple); }
-  .lane-head .meta { color: var(--muted); }
-  .chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; background: var(--grey-soft); color: var(--muted); font-size: 12px; white-space: nowrap; }
-  .chip.purple { background: var(--purple-soft); color: var(--purple); }
-  .lane-head .actions { margin-left: auto; display: flex; gap: 8px; }
-  button { font: inherit; border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 6px 10px; cursor: pointer; color: var(--text); }
-  button:hover { border-color: var(--purple); }
-  button.primary { background: var(--purple); border-color: var(--purple); color: #fff; }
-  .cards { display: flex; flex-wrap: wrap; gap: 10px; padding: 12px 14px; min-height: 60px; }
-  .card { width: 260px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--panel); display: flex; flex-direction: column; gap: 6px; cursor: grab; }
-  .card.confirmed { border-color: var(--green); cursor: default; }
-  .card.inactive { opacity: .6; }
-  .card .title { font-weight: 600; word-break: break-word; }
+  .lane-head { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 14px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  .lane-head .chev { border: 0; background: none; padding: 2px 4px; color: var(--muted); grid-row: span 2; }
+  .org-name { font: inherit; font-weight: 700; font-size: 15px; border: 1px solid transparent; border-radius: 6px; padding: 2px 6px; margin-left: -6px; background: transparent; min-width: 60px; width: 100%; max-width: 420px; }
+  .org-name:hover { border-color: var(--line); }
+  .org-name:focus { outline: none; border-color: var(--purple); background: var(--panel); }
+  .lane-meta { color: var(--muted); font-size: 13px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .lane-act { grid-row: span 2; display: flex; gap: 8px; align-items: center; }
+  .meter { display: inline-flex; align-items: center; gap: 8px; }
+  .bar { height: 6px; border-radius: 3px; background: var(--grey-soft); overflow: hidden; width: 120px; }
+  .bar i { display: block; height: 100%; background: var(--green); border-radius: 3px; transition: width .4s; }
+  .bar.live i { background: var(--blue); }
+  .cards { display: flex; flex-wrap: wrap; gap: 10px; padding: 12px 16px 16px; min-height: 56px; }
+  .lane.closed .cards { display: none; }
+  .empty { color: var(--faint); padding: 6px 2px; }
+
+  .card { width: 252px; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px 10px 14px; background: var(--panel); display: flex; flex-direction: column; gap: 6px; position: relative; cursor: pointer; }
+  .card[draggable=true] { cursor: grab; }
+  .card::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 4px; border-radius: 0 4px 4px 0; background: var(--c, var(--line)); }
+  .card:hover { border-color: #cfcadf; }
+  .card.inactive { opacity: .55; }
+  .card .t { font-weight: 650; word-break: break-word; padding-right: 18px; }
+  .card .lock { position: absolute; right: 10px; top: 10px; font-size: 12px; color: var(--faint); }
   .card .sub { color: var(--muted); font-size: 12px; }
-  .card .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-  .lang { cursor: pointer; border: 1px solid transparent; }
-  .lang:hover { border-color: currentColor; }
+  .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; background: var(--grey-soft); color: var(--muted); font-size: 12px; white-space: nowrap; border: 1px solid transparent; }
+  button.chip { cursor: pointer; }
+  button.chip:hover { border-color: currentColor; }
   .c-keep, .c-high, .c-decided { background: var(--green-soft); color: var(--green); }
   .c-medium { background: var(--amber-soft); color: var(--amber); }
   .c-low { background: #fde9d9; color: #b4530b; }
   .c-review, .c-none { background: var(--grey-soft); color: var(--muted); }
-  .card select { font: inherit; font-size: 12px; max-width: 100%; border: 1px solid var(--line); border-radius: 6px; padding: 2px 4px; color: var(--muted); }
-  .bring { display: flex; align-items: center; gap: 6px; font-size: 13px; }
-  .empty { color: var(--muted); padding: 6px 2px; }
-  .picker { position: fixed; z-index: 20; width: 340px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 32px rgba(20,10,60,.18); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .state { font-size: 13px; display: flex; align-items: center; gap: 6px; min-height: 20px; }
+  .state .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c, var(--faint)); flex-shrink: 0; }
+  .state.live .dot { animation: pulse 1.2s infinite; }
+  @keyframes pulse { 50% { opacity: .3; } }
+  .card .bar { width: 100%; }
+  .foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px; }
+  .people { color: var(--muted); font-size: 12px; }
+  .people b { color: var(--green); font-weight: 600; }
+  .s-place { --c: #c9c5d6; } .s-language { --c: var(--amber); } .s-ready, .s-confirmed { --c: var(--purple); }
+  .s-queued, .s-running { --c: var(--blue); } .s-done { --c: var(--green); } .s-issues, .s-stopped { --c: var(--red); } .s-skip { --c: #dedbe6; }
+  .why { color: var(--faint); font-size: 12px; }
+  .issues-chip { background: var(--red-soft); color: var(--red); }
+
+  aside { position: sticky; top: 132px; max-height: calc(100vh - 150px); display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; }
+  .tabs { display: flex; border-bottom: 1px solid var(--line); }
+  .tabs button { flex: 1; border: 0; border-radius: 0; padding: 11px; color: var(--muted); border-bottom: 2px solid transparent; }
+  .tabs button.on { color: var(--purple); border-bottom-color: var(--purple); font-weight: 600; }
+  .feed-tools { display: flex; gap: 8px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+  .feed { overflow-y: auto; flex: 1; }
+  .line { display: grid; grid-template-columns: 44px 1fr; gap: 2px 8px; padding: 8px 12px; border-bottom: 1px solid #f1f0f5; cursor: pointer; }
+  .line:hover { background: #faf9fd; }
+  .line time { color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .line .who { font-size: 12px; color: var(--muted); }
+  .line .msg { grid-column: 2; }
+  .line.done .msg { color: var(--green); }
+  .line.warn .msg { color: var(--amber); }
+  .line.error .msg { color: var(--red); }
+  .person { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid #f1f0f5; }
+  .avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--purple-soft); color: var(--purple); display: grid; place-items: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+  .person .sub { color: var(--muted); font-size: 12px; }
+
+  .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(460px, 100vw); background: var(--panel); border-left: 1px solid var(--line); box-shadow: -12px 0 32px rgba(20,10,60,.12); z-index: 30; display: flex; flex-direction: column; transform: translateX(105%); transition: transform .2s; }
+  .drawer.open { transform: none; }
+  .drawer-head { padding: 16px 18px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+  .drawer-head h2 { margin: 0; font-size: 18px; }
+  .drawer-body { overflow-y: auto; padding: 4px 0 30px; }
+  .drawer h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); margin: 16px 18px 6px; }
+  .issue { margin: 6px 18px; padding: 8px 10px; border-radius: 8px; background: var(--red-soft); color: var(--red); font-size: 13px; }
+  .issue.warn { background: var(--amber-soft); color: var(--amber); }
+  .x { position: absolute; right: 14px; top: 14px; border: 0; font-size: 18px; color: var(--muted); }
+
+  .scrim { position: fixed; inset: 0; background: rgba(20,15,40,.35); z-index: 40; display: grid; place-items: center; }
+  .modal { background: var(--panel); border-radius: 14px; width: min(440px, calc(100vw - 32px)); padding: 20px; box-shadow: 0 20px 48px rgba(20,10,60,.25); display: flex; flex-direction: column; gap: 10px; }
+  .modal h2 { margin: 0; font-size: 17px; }
+  .modal p { margin: 0; color: var(--muted); }
+  .modal .acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
+  .modal input { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
+  .picker { position: fixed; z-index: 50; width: 340px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 32px rgba(20,10,60,.18); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
   .picker input { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
-  .picker .opt { padding: 6px 8px; border-radius: 6px; cursor: pointer; }
-  .picker .opt:hover, .picker .opt:focus { background: var(--purple-soft); outline: none; }
-  .picker .why { color: var(--muted); font-size: 12px; }
-  .saving { position: fixed; bottom: 16px; right: 20px; background: var(--text); color: #fff; padding: 8px 14px; border-radius: 8px; opacity: 0; transition: opacity .2s; }
-  .saving.show { opacity: .9; }
+  .opt { padding: 6px 8px; border-radius: 6px; cursor: pointer; }
+  .opt:hover, .opt:focus { background: var(--purple-soft); outline: none; }
+  .opt .why { display: block; }
+  .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--text); color: #fff; padding: 9px 16px; border-radius: 10px; opacity: 0; transition: opacity .2s; z-index: 60; pointer-events: none; }
+  .toast.show { opacity: .95; }
 </style>
 </head>
 <body>
 <header>
-  <h1>v2 projects into organizations</h1>
-  <input type="search" id="q" placeholder="Find a project, owner or language">
-  <label><input type="checkbox" id="hideInactive" checked> Hide projects v2 turned off</label>
-  <label><input type="checkbox" id="hideSkip"> Hide "Don't bring over"</label>
-  <span class="stats" id="stats"></span>
+  <div class="top">
+    <div class="brand"><span class="logo">LQ</span> v2 → Next transfers</div>
+    <span class="env" id="env">…</span>
+    <div class="kpis" id="kpis"></div>
+  </div>
+  <div class="tools">
+    <input type="search" id="q" placeholder="Find a project, person or language">
+    <div class="seg" id="filters"></div>
+    <label><input type="checkbox" id="showOff"> Show projects v2 turned off</label>
+    <button class="small" id="refresh" title="Read v2's projects and members again">Refresh from v2</button>
+  </div>
 </header>
-<div id="notices"></div>
-<main id="lanes"></main>
-<div class="saving" id="saving">Saved</div>
+<div class="layout">
+  <main id="main"><div class="empty">Reading v2…</div></main>
+  <aside>
+    <div class="tabs"><button class="on" data-tab="activity">Activity</button><button data-tab="people">Signed in</button></div>
+    <div class="feed-tools" id="feedTools"></div>
+    <div class="feed" id="feed"></div>
+  </aside>
+</div>
+<div class="drawer" id="drawer"></div>
+<div class="toast" id="toast"></div>
 <script>
 const SKIP = 'skip';
-const state = { cards: [], orgs: [], by: '', dirtyCards: new Set(), dirtyOrgs: new Set() };
+const S = {
+  cards: [], orgs: [], members: {}, signedIn: {}, nameOf: {}, by: '', where: 'local',
+  passes: new Map(), queue: new Set(), log: [], after: 0, signedInCount: 0,
+  filter: 'all', tab: 'activity', feedIssues: false, closed: new Set(), open: null, people: null
+};
 const $ = (s) => document.querySelector(s);
 const el = (tag, attrs = {}, ...kids) => {
   const n = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
-    if (k === 'class') n.className = v; else if (k.startsWith('on')) n.addEventListener(k.slice(2), v);
-    else if (v === true) n.setAttribute(k, ''); else if (v !== false && v != null) n.setAttribute(k, v);
+    if (v == null || v === false) continue;
+    if (k === 'class') n.className = v; else if (k === 'style') n.setAttribute('style', v);
+    else if (k.startsWith('on')) n.addEventListener(k.slice(2), v); else n.setAttribute(k, v === true ? '' : v);
   }
-  for (const k of kids.flat()) if (k != null) n.append(k.nodeType ? k : document.createTextNode(String(k)));
+  for (const k of kids.flat()) if (k != null && k !== false) n.append(k.nodeType ? k : document.createTextNode(String(k)));
   return n;
 };
 const fmt = new Intl.NumberFormat();
-const when = (iso) => iso ? new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : 'never';
+const ago = (iso) => {
+  if (!iso) return '';
+  const s = (Date.now() - Date.parse(iso)) / 1000;
+  if (s < 60) return 'just now';
+  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+};
+const clock = (iso) => new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
+const day = (iso) => iso ? new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '';
+const plural = (n, one, many = one + 's') => `${fmt.format(n)} ${n === 1 ? one : many}`;
+function toast(text) { const t = $('#toast'); t.textContent = text; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2200); }
 
-async function load(fresh) {
-  const res = await fetch('/api/board' + (fresh ? '?fresh' : ''));
-  const data = await res.json();
-  if (!res.ok) return notice(data.error, true);
-  Object.assign(state, { cards: data.cards, orgs: data.orgs, by: data.by });
-  $('#notices').replaceChildren();
-  if (!data.everyLanguage.length) notice('The Every Language platform account could not be found in v2, so no project starts in Every Language. Set V2_EVERY_LANGUAGE_ID to its v2 id, or use a reader that can see emails.');
-  render();
+// ---- reading -----------------------------------------------------------------------
+async function api(path, body) {
+  const res = await fetch(path, body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {});
+  const out = await res.json();
+  if (!res.ok) throw new Error(out.error || res.status);
+  return out;
 }
-function notice(text, error) { $('#notices').append(el('div', { class: 'notice' + (error ? ' error' : '') }, text)); }
+async function loadBoard(fresh) {
+  try {
+    const d = await api('/api/board' + (fresh ? '?fresh' : ''));
+    Object.assign(S, { cards: d.cards, orgs: d.orgs, members: d.members, signedIn: d.signedIn, nameOf: d.nameOf, by: d.by, where: d.where, everyLanguage: d.everyLanguage });
+    const env = $('#env');
+    env.textContent = d.where === 'production' ? 'PRODUCTION' : d.where === 'local' ? 'Local test database' : d.host;
+    env.className = 'env ' + d.where;
+    render();
+  } catch (e) { $('#main').replaceChildren(el('div', { class: 'notice error' }, `Could not read v2: ${e.message}`)); }
+}
+async function poll() {
+  try {
+    const st = await api('/api/status?after=' + S.after);
+    S.passes = new Map(st.passes.map((p) => [p.project_id, p]));
+    const wasBusy = S.queue.size;
+    S.queue = new Set(st.queue);
+    S.signedInCount = st.signed_in;
+    if (st.log.length) {
+      S.log = [...st.log.reverse(), ...S.log].slice(0, 600);
+      S.after = Math.max(S.after, ...st.log.map((l) => l.id));
+    }
+    // A transfer that finished here may have confirmed or changed what the board shows.
+    if (wasBusy && !S.queue.size) loadBoard();
+    else render();
+  } catch { /* the next poll tries again */ }
+  setTimeout(poll, busy() ? 1500 : 6000);
+}
+const busy = () => S.queue.size > 0 || [...S.passes.values()].some((p) => !p.finished_at && fresh(p));
+const fresh = (p) => Date.now() - Date.parse(p.progress_at) < 120000;
 
-function orgName(id) { return id === SKIP ? "Don't bring over" : state.orgs.find((o) => o.org_id === id)?.name ?? id; }
-function langOf(c) {
-  if (c.code) return { text: c.code, cls: 'c-decided', title: 'Chosen on the board' };
+// ---- what each project is doing ------------------------------------------------------
+const orgName = (id) => id === SKIP ? "Not coming over" : S.orgs.find((o) => o.org_id === id)?.name ?? id;
+const personName = (id) => S.nameOf[id] ?? (S.everyLanguage?.includes(id) ? 'Every Language' : `Person ${id.slice(0, 8)}`);
+function language(c) {
   const r = c.recommendation;
-  if (r.decision) return { text: 'decided in the CSV', cls: 'c-decided', title: r.reason };
-  if (r.code) return { text: `${r.name ?? r.code} [${r.code}] · ${r.confidence}`, cls: `c-${r.confidence}`, title: `Recommended: ${r.reason}` };
-  return { text: 'choose a language', cls: 'c-none', title: r.reason };
+  if (c.code) return { text: c.languoidId && c.languoidId === r.languoidId && r.name ? `${r.name} [${c.code}]` : c.code, cls: 'c-decided', sure: true, title: 'Chosen here' };
+  if (r.decision) return { text: 'chosen in the CSV', cls: 'c-decided', sure: true, title: r.reason };
+  if (r.code) return { text: `${r.name ?? r.code} [${r.code}]`, conf: r.confidence, cls: `c-${r.confidence}`, sure: ['keep', 'high'].includes(r.confidence) && !!r.languoidId, title: `Suggested (${r.confidence}): ${r.reason}` };
+  return { text: 'Choose a language', cls: 'c-none', sure: false, title: r.reason };
 }
+function issuesOf(pass) {
+  if (!pass) return [];
+  const out = [];
+  if (pass.error) out.push({ level: 'error', text: `Stopped: ${pass.error}` });
+  const r = pass.report || {};
+  if (r.rejected?.length) out.push({ level: 'error', text: `${plural(r.append?.rejected ?? r.rejected.length, 'change')} refused: ${r.rejected[0].reason}`, list: r.rejected });
+  if (r.files?.missing) out.push({ level: 'warn', text: `${plural(r.files.missing, 'audio file')} not in v2's storage` });
+  if (r.map?.waiting) out.push({ level: 'warn', text: `${plural(r.map.waiting, 'recording')} waiting for audio to reach v2` });
+  if (r.map?.unmatchedQuests) out.push({ level: 'warn', text: `${plural(r.map.unmatchedQuests, 'quest')} not matched to the Bible (came over as parts of their own)` });
+  return out;
+}
+const STEP = { reading: 'Reading v2', files: 'Copying audio', uploading: 'Storing audio', events: 'Adding to Next', done: 'Finishing' };
+function stateOf(c) {
+  const pass = S.passes.get(c.id);
+  const issues = issuesOf(pass && pass.finished_at ? pass : null).filter((i) => i.level === 'error');
+  if (c.orgId === SKIP) return { key: 'skip', text: 'Not coming over' };
+  if (pass && !pass.finished_at && fresh(pass)) {
+    const p = pass.progress || {};
+    const pct = p.total ? Math.round((100 * (p.done || 0)) / p.total) : null;
+    return { key: 'running', live: true, text: `${STEP[p.step] || 'Starting'}${p.total ? ` · ${fmt.format(p.done || 0)} of ${fmt.format(p.total)}` : ''}`, pct };
+  }
+  if (S.queue.has(c.id)) return { key: 'queued', live: true, text: 'Waiting its turn' };
+  if (pass && !pass.finished_at) return { key: 'stopped', text: `Stopped while ${(STEP[pass.progress?.step] || 'starting').toLowerCase()}` };
+  if (pass?.error) return { key: 'issues', text: 'Stopped with an error' };
+  if (pass?.last_done) return issues.length ? { key: 'issues', text: `In Next · ${plural(issues.length, 'issue')}` } : { key: 'done', text: `In Next · ${ago(pass.last_done)}` };
+  if (c.confirmed) return { key: 'confirmed', text: 'Confirmed, not transferred yet' };
+  if (!language(c).sure) return { key: 'language', text: 'Choose its language first' };
+  return { key: 'ready', text: 'Ready to transfer' };
+}
+const FILTERS = [
+  ['all', 'All', () => true],
+  ['ready', 'Ready', (s) => ['ready', 'confirmed', 'language'].includes(s)],
+  ['running', 'Transferring', (s) => ['running', 'queued'].includes(s)],
+  ['done', 'In Next', (s) => ['done', 'issues'].includes(s)],
+  ['issues', 'Issues', (s) => ['issues', 'stopped'].includes(s)],
+  ['skip', 'Not coming over', (s) => s === 'skip']
+];
+const peopleOf = (c) => {
+  const m = S.members[c.id] || [];
+  return { total: m.length, signed: m.filter((x) => S.signedIn[x.id]).length };
+};
 
+// ---- the page ---------------------------------------------------------------------------
 function render() {
+  const states = new Map(S.cards.map((c) => [c.id, stateOf(c)]));
+  const count = (pred) => S.cards.filter((c) => (S.showOff || c.active) && pred(states.get(c.id).key)).length;
+  const inNext = count((k) => ['done', 'issues'].includes(k));
+  const running = count((k) => ['running', 'queued'].includes(k));
+  const withIssues = count((k) => ['issues', 'stopped'].includes(k));
+  const placed = S.cards.filter((c) => c.active && c.orgId !== SKIP).length;
+  $('#kpis').replaceChildren(
+    el('button', { class: 'kpi', onclick: () => setFilter('done') }, el('b', {}, `${fmt.format(inNext)} / ${fmt.format(placed)}`), el('span', {}, 'projects in Next')),
+    el('button', { class: 'kpi' + (running ? ' live' : ''), onclick: () => setFilter('running') }, el('b', {}, fmt.format(running)), el('span', {}, 'transferring now')),
+    el('button', { class: 'kpi' + (withIssues ? ' alert' : ''), onclick: () => setFilter('issues') }, el('b', {}, fmt.format(withIssues)), el('span', {}, 'with issues')),
+    el('button', { class: 'kpi', onclick: () => setTab('people') }, el('b', {}, fmt.format(S.signedInCount)), el('span', {}, S.signedInCount === 1 ? 'person signed in' : 'people signed in'))
+  );
+  $('#filters').replaceChildren(...FILTERS.map(([id, label, pred]) => el('button', { class: S.filter === id ? 'on' : '', onclick: () => setFilter(id) }, label, el('span', { class: 'n' }, fmt.format(count(pred))))));
+
   const q = $('#q').value.trim().toLowerCase();
-  const hideInactive = $('#hideInactive').checked, hideSkip = $('#hideSkip').checked;
-  const shown = state.cards.filter((c) => (!hideInactive || c.active) && (!q || [c.name, ...c.owners.map((o) => o.name ?? ''), c.recommendation.name ?? '', c.code ?? '', orgName(c.orgId)].join(' ').toLowerCase().includes(q)));
+  const pred = FILTERS.find((f) => f[0] === S.filter)[2];
+  const shown = S.cards.filter((c) => (S.showOff || c.active) && pred(states.get(c.id).key) && (!q || [c.name, c.code ?? '', c.recommendation.name ?? '', orgName(c.orgId), ...(S.members[c.id] || []).map((m) => personName(m.id))].join(' ').toLowerCase().includes(q)));
   const byOrg = new Map();
   for (const c of shown) (byOrg.get(c.orgId) ?? byOrg.set(c.orgId, []).get(c.orgId)).push(c);
   const size = (id) => (byOrg.get(id) ?? []).reduce((n, c) => n + c.assets, 0);
-  const orgIds = state.orgs.map((o) => o.org_id).filter((id) => byOrg.has(id) || !q)
+  const ids = S.orgs.map((o) => o.org_id).filter((id) => byOrg.has(id) || (!q && S.filter === 'all'))
     .sort((a, b) => (a === 'org-v2-everylanguage' ? -1 : b === 'org-v2-everylanguage' ? 1 : size(b) - size(a) || orgName(a).localeCompare(orgName(b))));
-  if (!hideSkip) orgIds.push(SKIP);
-  const confirmed = state.cards.filter((c) => c.confirmed).length;
-  $('#stats').textContent = `${fmt.format(state.cards.length)} projects · ${fmt.format(state.orgs.length)} organizations · ${fmt.format(confirmed)} confirmed`;
-  $('#lanes').replaceChildren(...orgIds.map((id) => lane(id, byOrg.get(id) ?? [])), newLane());
+  if (byOrg.has(SKIP)) ids.push(SKIP);
+  const main = $('#main');
+  const scroll = window.scrollY;
+  const notices = [];
+  if (!S.everyLanguage?.length) notices.push(el('div', { class: 'notice' }, 'The Every Language account is not known, so nothing starts in Every Language.'));
+  main.replaceChildren(...[...notices, ...(ids.length ? ids.map((id) => lane(id, byOrg.get(id) ?? [], states)) : [el('div', { class: 'empty' }, 'Nothing matches.')]), S.filter === 'all' && !q ? newLane() : null].filter(Boolean));
+  window.scrollTo(0, scroll);
+  renderFeed();
+  if (S.open) renderDrawer();
 }
 
-function lane(orgId, cards) {
-  const org = state.orgs.find((o) => o.org_id === orgId);
-  const assets = cards.reduce((n, c) => n + c.assets, 0);
+function lane(orgId, cards, states) {
+  const org = S.orgs.find((o) => o.org_id === orgId);
+  const all = S.cards.filter((c) => c.orgId === orgId && (S.showOff || c.active));
+  const done = all.filter((c) => ['done', 'issues'].includes(states.get(c.id).key)).length;
+  const toSend = all.filter((c) => ['ready', 'confirmed', 'stopped', 'done', 'issues'].includes(states.get(c.id).key));
+  const fresh = toSend.filter((c) => !['done', 'issues'].includes(states.get(c.id).key));
+  const people = all.reduce((acc, c) => { const p = peopleOf(c); return { total: acc.total + p.total, signed: acc.signed + p.signed }; }, { total: 0, signed: 0 });
+  const live = all.some((c) => ['running', 'queued'].includes(states.get(c.id).key));
+  const closed = S.closed.has(orgId);
   const head = el('div', { class: 'lane-head' },
-    orgId === SKIP ? el('span', { class: 'name' }, "Don't bring over")
-      : el('span', { class: 'name', contenteditable: 'true', spellcheck: 'false', onblur: (e) => rename(orgId, e.target.textContent.trim()), onkeydown: (e) => e.key === 'Enter' && (e.preventDefault(), e.target.blur()) }, org?.name ?? orgId),
-    el('span', { class: 'meta' }, `${cards.length} project${cards.length === 1 ? '' : 's'} · ${fmt.format(assets)} recordings`),
-    org ? el('span', { class: 'chip purple', title: 'Run this organization' }, `Admins: ${org.adminNames.map((n, i) => n ?? org.admins[i].slice(0, 8)).join(', ') || 'none yet'}`) : null,
-    org?.existing ? el('span', { class: 'chip' }, 'already in LangQuest') : null,
-    orgId === SKIP ? null : el('div', { class: 'actions' },
-      el('button', { onclick: () => confirmAll(orgId), title: 'Bring over every project here that has a language' }, 'Bring all over'))
+    el('button', { class: 'chev', title: closed ? 'Show its projects' : 'Hide its projects', onclick: () => { closed ? S.closed.delete(orgId) : S.closed.add(orgId); render(); } }, closed ? '▸' : '▾'),
+    orgId === SKIP
+      ? el('b', {}, 'Not coming over')
+      : el('input', { class: 'org-name', value: org?.name ?? orgId, title: 'Rename', onchange: (e) => rename(orgId, e.target.value.trim()), onkeydown: (e) => e.key === 'Enter' && e.target.blur() }),
+    orgId === SKIP ? el('span') : el('div', { class: 'lane-act' },
+      el('button', { class: fresh.length ? 'primary' : '', disabled: !toSend.length || live, onclick: () => transferOrg(orgId) },
+        live ? 'Transferring…' : fresh.length ? `Transfer ${plural(fresh.length, 'project')}` : toSend.length ? 'Sync all again' : 'Nothing to transfer')),
+    el('div', { class: 'lane-meta' },
+      el('span', {}, `${plural(all.length, 'project')} · ${plural(all.reduce((n, c) => n + c.assets, 0), 'recording')}`),
+      orgId === SKIP ? null : el('span', { class: 'meter' }, el('span', { class: 'bar' + (live ? ' live' : '') }, el('i', { style: `width:${all.length ? (100 * done) / all.length : 0}%` })), `${done} of ${all.length} in Next`),
+      orgId === SKIP ? null : el('span', {}, `👤 ${people.signed} of ${people.total} signed in`),
+      org?.admins?.length ? el('span', {}, `Run by ${org.admins.map(personName).join(', ')}`) : null,
+      org?.existing ? el('span', { class: 'chip' }, 'already in Next') : null)
   );
-  const box = el('div', { class: 'cards' }, cards.length ? cards.sort((a, b) => b.assets - a.assets).map(card) : el('div', { class: 'empty' }, 'Drag projects here'));
-  const node = el('section', { class: 'lane' + (orgId === SKIP ? ' skip' : ''), 'data-org': orgId }, head, box);
-  node.addEventListener('dragover', (e) => { e.preventDefault(); node.classList.add('drop'); });
-  node.addEventListener('dragleave', () => node.classList.remove('drop'));
-  node.addEventListener('drop', (e) => { e.preventDefault(); node.classList.remove('drop'); move(e.dataTransfer.getData('text/plain'), orgId); });
+  const node = el('section', { class: 'lane' + (orgId === SKIP ? ' skip' : '') + (closed ? ' closed' : '') }, head,
+    el('div', { class: 'cards' }, cards.length ? cards.sort((a, b) => b.assets - a.assets).map((c) => card(c, states.get(c.id))) : el('div', { class: 'empty' }, 'Drag projects here')));
+  dropTarget(node, (id) => move(id, orgId));
   return node;
 }
 
-function card(c) {
-  const l = langOf(c);
-  const owner = c.owners.map((o) => o.name ?? 'owner ' + o.id.slice(0, 8)).join(', ') || 'no owner';
-  const why = { everylanguage: 'here: Every Language is a member', owner: "here: the owner's other projects", test: 'here: looks like a test', nobody: 'here: nobody owns it', saved: null }[c.why];
-  const node = el('article', { class: 'card' + (c.confirmed ? ' confirmed' : '') + (c.active ? '' : ' inactive'), draggable: c.confirmed ? 'false' : 'true', 'data-id': c.id },
-    el('div', { class: 'title' }, c.private ? '🔒 ' : '', c.name),
-    el('div', { class: 'sub' }, `${fmt.format(c.assets)} recordings · ${c.members} people · last active ${when(c.lastActivity)}`),
-    el('div', { class: 'sub' }, `Owner: ${owner}`),
-    el('div', { class: 'row' }, el('span', { class: `chip lang ${l.cls}`, title: l.title, onclick: (e) => pick(c, e.target) }, l.text), c.template && c.template !== 'unstructured' ? el('span', { class: 'chip' }, c.template === 'fia' ? 'FIA' : 'Bible') : null),
-    why ? el('div', { class: 'sub' }, why) : null,
-    c.confirmed
-      ? el('div', { class: 'sub' }, `✓ Coming over: confirmed by ${c.confirmed.by}, ${when(c.confirmed.at)}${c.lastPass ? ` · last read ${when(c.lastPass.at)}` : ' · not read yet'}`)
-      : el('div', { class: 'row' },
-          el('label', { class: 'bring' }, el('input', { type: 'checkbox', onchange: (e) => confirmOne(c, e.target) }), 'Bring over'),
-          el('select', { 'aria-label': 'Move to', onchange: (e) => e.target.value && move(c.id, e.target.value) },
-            el('option', { value: '' }, 'Move to…'),
-            ...state.orgs.filter((o) => o.org_id !== c.orgId).sort((a, b) => a.name.localeCompare(b.name)).map((o) => el('option', { value: o.org_id }, o.name)),
-            c.orgId !== SKIP ? el('option', { value: SKIP }, "Don't bring over") : null))
+function card(c, st) {
+  const l = language(c);
+  const p = peopleOf(c);
+  const locked = !!c.confirmed || ['running', 'queued', 'done', 'issues', 'stopped'].includes(st.key);
+  const why = { everylanguage: 'Every Language is in it', owner: 'Same owner as the others here', test: 'Looks like a test', nobody: 'Nobody owns it' }[c.why];
+  const action = {
+    ready: ['Transfer', true], confirmed: ['Transfer', true], stopped: ['Transfer again', true], done: ['Sync', false], issues: ['Sync', false]
+  }[st.key];
+  const node = el('article', { class: `card s-${st.key}` + (c.active ? '' : ' inactive'), draggable: locked ? 'false' : 'true', onclick: () => openDrawer(c.id) },
+    el('div', { class: 't' }, c.name),
+    c.private ? el('span', { class: 'lock', title: 'Private in v2' }, '🔒') : null,
+    el('div', { class: 'sub' }, `${plural(c.assets, 'recording')}${c.template && c.template !== 'unstructured' ? ` · ${c.template === 'fia' ? 'FIA' : 'Bible'}` : ''} · active ${ago(c.lastActivity)}`),
+    el('div', { class: 'row' },
+      el('button', { class: `chip ${l.cls}`, title: l.title, disabled: locked || null, onclick: (e) => { e.stopPropagation(); pick(c, e.currentTarget); } }, l.conf ? `${l.text} · ${l.conf}` : l.text)),
+    el('div', { class: 'state' + (st.live ? ' live' : ''), style: `--c: var(--${{ running: 'blue', queued: 'blue', done: 'green', issues: 'red', stopped: 'red', language: 'amber', ready: 'purple', confirmed: 'purple' }[st.key] || 'faint'})` }, el('span', { class: 'dot' }), st.text),
+    st.pct != null ? el('div', { class: 'bar live' }, el('i', { style: `width:${st.pct}%` })) : null,
+    !locked && c.why !== 'saved' && why ? el('div', { class: 'why' }, why) : null,
+    el('div', { class: 'foot' },
+      el('span', { class: 'people', title: 'People in this v2 project who have signed in to Next' }, p.total ? el('span', {}, '👤 ', el('b', {}, p.signed), ` of ${p.total} signed in`) : ''),
+      action ? el('button', { class: 'small' + (action[1] ? ' primary' : ''), onclick: (e) => { e.stopPropagation(); transferOne(c); } }, action[0]) : null)
   );
   node.addEventListener('dragstart', (e) => e.dataTransfer.setData('text/plain', c.id));
   return node;
@@ -166,110 +375,206 @@ function card(c) {
 
 function newLane() {
   const node = el('section', { class: 'lane' }, el('div', { class: 'cards' }, el('div', { class: 'empty' }, 'Drop a project here to start a new organization')));
-  node.addEventListener('dragover', (e) => { e.preventDefault(); node.classList.add('drop'); });
-  node.addEventListener('dragleave', () => node.classList.remove('drop'));
-  node.addEventListener('drop', (e) => {
-    e.preventDefault(); node.classList.remove('drop');
-    const name = prompt('Name of the new organization');
-    if (!name) return;
-    const id = 'org-v2-' + crypto.randomUUID();
-    const c = state.cards.find((x) => x.id === e.dataTransfer.getData('text/plain'));
-    state.orgs.push({ org_id: id, name, existing: false, admins: c ? c.owners.map((o) => o.id).slice(0, 1) : [], adminNames: c ? c.owners.map((o) => o.name).slice(0, 1) : [], saved: false });
-    state.dirtyOrgs.add(id);
-    move(e.dataTransfer.getData('text/plain'), id);
+  dropTarget(node, (id) => {
+    const c = S.cards.find((x) => x.id === id);
+    ask({ title: 'New organization', input: c?.name ? `${c.name} organization` : '', confirm: 'Make it', body: [c ? `${c.name} goes into it.` : ''] }, (name) => {
+      if (!name) return;
+      const orgId = 'org-v2-' + crypto.randomUUID();
+      S.orgs.push({ org_id: orgId, name, existing: false, admins: c ? (S.members[c.id] || []).filter((m) => m.owner).map((m) => m.id).slice(0, 1) : [], saved: false });
+      move(id, orgId, true);
+    });
   });
   return node;
 }
 
-function move(id, orgId) {
-  const c = state.cards.find((x) => x.id === id);
+function dropTarget(node, onDrop) {
+  node.addEventListener('dragover', (e) => { e.preventDefault(); node.classList.add('drop'); });
+  node.addEventListener('dragleave', (e) => { if (!node.contains(e.relatedTarget)) node.classList.remove('drop'); });
+  node.addEventListener('drop', (e) => { e.preventDefault(); node.classList.remove('drop'); onDrop(e.dataTransfer.getData('text/plain')); });
+}
+
+// ---- actions ----------------------------------------------------------------------------
+const placement = (c, confirmed) => ({ project_id: c.id, org_id: c.orgId === SKIP ? null : c.orgId, languoid_id: c.languoidId, code: c.code, confirmed: confirmed ?? !!c.confirmed });
+const orgPayload = (id) => { const o = S.orgs.find((x) => x.org_id === id); return o ? [{ org_id: o.org_id, name: o.name, existing: o.existing, admins: o.admins }] : []; };
+async function save(orgs, placements, message) {
+  try { await api('/api/plan', { orgs, placements }); if (message) toast(message); }
+  catch (e) { toast(e.message); }
+  await loadBoard();
+}
+function move(id, orgId, isNew) {
+  const c = S.cards.find((x) => x.id === id);
   if (!c || c.orgId === orgId) return;
-  if (c.confirmed) return notice(`${c.name} has come over already, so it stays in ${orgName(c.orgId)}.`, true);
+  if (c.confirmed) return toast(`${c.name} has come over already, so it stays in ${orgName(c.orgId)}.`);
   c.orgId = orgId; c.why = 'saved';
-  state.dirtyCards.add(c.id);
-  if (orgId !== SKIP) state.dirtyOrgs.add(orgId);
-  render(); save();
+  render();
+  save(orgId === SKIP ? [] : orgPayload(orgId), [placement(c)], orgId === SKIP ? `${c.name} won't come over` : `${c.name} → ${orgName(orgId)}${isNew ? ' (new)' : ''}`);
 }
 function rename(orgId, name) {
-  const o = state.orgs.find((x) => x.org_id === orgId);
+  const o = S.orgs.find((x) => x.org_id === orgId);
   if (!o || !name || o.name === name) return;
-  o.name = name; state.dirtyOrgs.add(orgId); save();
+  o.name = name;
+  save(orgPayload(orgId), [], `Renamed to ${name}`);
 }
-function useLanguage(c, languoidId, code) {
-  c.languoidId = languoidId; c.code = code; state.dirtyCards.add(c.id);
-  if (c.orgId !== SKIP) state.dirtyOrgs.add(c.orgId);
-  render(); save();
-}
-function confirmOne(c, box) {
-  if (c.orgId === SKIP) { box.checked = false; return notice(`Put ${c.name} in an organization first.`, true); }
-  if (!c.code) {
-    const r = c.recommendation;
-    const id = r.decision ?? (r.confidence === 'keep' || r.confidence === 'high' ? r.languoidId : null);
-    if (!id) { box.checked = false; return notice(`Choose ${c.name}'s language first (click its language).`, true); }
-    c.languoidId = id; c.code = r.decision ? null : r.code;
-  }
-  c.confirmed = { by: state.by, at: new Date().toISOString() };
-  state.dirtyCards.add(c.id); state.dirtyOrgs.add(c.orgId);
-  render(); save();
-}
-function confirmAll(orgId) {
-  // A language chosen here or in the CSV, or a recommendation v2's own target already agrees with.
-  const sure = (c) => c.code || c.recommendation.decision || (['keep', 'high'].includes(c.recommendation.confidence) && c.recommendation.languoidId);
-  const ready = state.cards.filter((c) => c.orgId === orgId && !c.confirmed && sure(c));
-  if (!ready.length) return notice(`Nothing in ${orgName(orgId)} has a language chosen yet.`, true);
-  if (!confirm(`Bring ${ready.length} project${ready.length === 1 ? '' : 's'} over into ${orgName(orgId)}? A project that has come over stays in its organization.`)) return;
-  for (const c of ready) { if (!c.code) { const r = c.recommendation; c.languoidId = r.decision ?? r.languoidId; c.code = r.decision ? null : r.code; } c.confirmed = { by: state.by, at: new Date().toISOString() }; state.dirtyCards.add(c.id); }
-  state.dirtyOrgs.add(orgId); render(); save();
-}
-
-let timer = null;
-function save() {
-  clearTimeout(timer);
-  timer = setTimeout(async () => {
-    const orgs = [...state.dirtyOrgs].map((id) => state.orgs.find((o) => o.org_id === id)).filter(Boolean).map(({ org_id, name, existing, admins }) => ({ org_id, name, existing, admins }));
-    const placements = [...state.dirtyCards].map((id) => state.cards.find((c) => c.id === id)).map((c) => ({
-      project_id: c.id, org_id: c.orgId === SKIP ? null : c.orgId, languoid_id: c.languoidId, code: c.code, confirmed: !!c.confirmed
-    }));
-    const res = await fetch('/api/plan', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ orgs, placements }) });
-    const out = await res.json();
-    if (!res.ok) { notice(out.error, true); return load(); }
-    state.dirtyCards.clear(); state.dirtyOrgs.clear();
-    $('#saving').classList.add('show'); setTimeout(() => $('#saving').classList.remove('show'), 1200);
-    load();
-  }, 400);
-}
-
-let open = null;
-function pick(c, anchor) {
-  open?.remove();
-  if (c.confirmed) return;
+/** The language a project comes over with when it is sent now: chosen, decided in the CSV, or a sure suggestion. */
+function withLanguage(c) {
+  if (c.code) return c;
   const r = c.recommendation;
-  const box = el('div', { class: 'picker' });
+  return { ...c, languoidId: r.decision ?? r.languoidId, code: r.decision ? null : r.code };
+}
+async function send(cards) {
+  const unconfirmed = cards.filter((c) => !c.confirmed);
+  if (unconfirmed.length) {
+    try { await api('/api/plan', { orgs: [...new Set(unconfirmed.map((c) => c.orgId))].flatMap(orgPayload), placements: unconfirmed.map((c) => placement(withLanguage(c), true)) }); }
+    catch (e) { return toast(e.message); }
+  }
+  const { queued } = await api('/api/transfer', { projectIds: cards.map((c) => c.id) });
+  queued.forEach((id) => S.queue.add(id));
+  toast(queued.length === 1 ? `Transferring ${cards.find((c) => c.id === queued[0])?.name}` : `Transferring ${plural(queued.length, 'project')}`);
+  await loadBoard();
+}
+function transferOne(c) {
+  const st = stateOf(c);
+  if (['done', 'issues'].includes(st.key)) return send([c]);
+  const l = language(withLanguage(c));
+  ask({
+    title: `Transfer ${c.name} into ${orgName(c.orgId)}?`,
+    body: [`It becomes the language ${c.code ?? language(c).text}${l.conf ? '' : ''} in ${orgName(c.orgId)}, with ${plural(c.assets, 'recording')}.`, 'After this it stays in this organization and keeps up with v2.'],
+    confirm: 'Transfer'
+  }, () => send([c]));
+}
+function transferOrg(orgId) {
+  const all = S.cards.filter((c) => c.orgId === orgId && (S.showOff || c.active));
+  const states = new Map(all.map((c) => [c.id, stateOf(c).key]));
+  const again = all.filter((c) => ['done', 'issues'].includes(states.get(c.id)));
+  const fresh = all.filter((c) => ['ready', 'confirmed', 'stopped'].includes(states.get(c.id)));
+  const waiting = all.filter((c) => states.get(c.id) === 'language');
+  if (!fresh.length) return send(again);
+  const org = S.orgs.find((o) => o.org_id === orgId);
+  ask({
+    title: `Transfer ${plural(fresh.length, 'project')} into ${orgName(orgId)}?`,
+    body: [
+      `${org?.saved ? '' : `Makes ${orgName(orgId)} in Next. `}Adds ${plural(fresh.length, 'language')} with ${plural(fresh.reduce((n, c) => n + c.assets, 0), 'recording')}.`,
+      waiting.length ? `${plural(waiting.length, 'project')} need a language first and wait.` : '',
+      'They stay in this organization and keep up with v2.'
+    ],
+    confirm: `Transfer ${plural(fresh.length, 'project')}`
+  }, () => send([...fresh, ...again]));
+}
+
+// ---- side panel ---------------------------------------------------------------------------
+function setFilter(f) { S.filter = f; render(); }
+function setTab(t) { S.tab = t; document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === t)); if (t === 'people') loadPeople(); renderFeed(); }
+async function loadPeople() { try { S.people = await api('/api/people'); } catch { S.people = []; } renderFeed(); }
+function renderFeed() {
+  const tools = $('#feedTools');
+  const feed = $('#feed');
+  const nameById = new Map(S.cards.map((c) => [c.id, c.name]));
+  if (S.tab === 'activity') {
+    tools.replaceChildren(el('label', {}, el('input', { type: 'checkbox', checked: S.feedIssues || null, onchange: (e) => { S.feedIssues = e.target.checked; renderFeed(); } }), 'Issues only'), el('span', { style: 'margin-left:auto' }, busy() ? '● live' : ''));
+    const lines = S.log.filter((l) => !S.feedIssues || ['warn', 'error'].includes(l.level));
+    feed.replaceChildren(...(lines.length ? lines.slice(0, 300).map((l) => el('div', { class: `line ${l.level}`, onclick: () => l.project_id && openDrawer(l.project_id) },
+      el('time', { title: new Date(l.at).toLocaleString() }, clock(l.at)),
+      el('span', { class: 'who' }, l.project_id ? `${nameById.get(l.project_id) ?? l.project_id.slice(0, 8)} → ${orgName(l.org_id)}` : ''),
+      el('span', { class: 'msg' }, l.message))) : [el('div', { class: 'empty', style: 'padding:14px' }, 'Nothing has been transferred yet.')]));
+  } else {
+    const people = S.people ?? [];
+    const projectsOf = (id) => Object.entries(S.members).filter(([, ms]) => ms.some((m) => m.id === id)).map(([pid]) => nameById.get(pid)).filter(Boolean);
+    tools.replaceChildren(el('span', {}, `${plural(S.signedInCount, 'person', 'people')} from v2 signed in to Next`));
+    feed.replaceChildren(...(people.length ? people.map((p) => el('div', { class: 'person' },
+      el('span', { class: 'avatar' }, (p.display_name || '?').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()),
+      el('div', {}, el('div', {}, p.display_name || `Person ${p.id.slice(0, 8)}`),
+        el('div', { class: 'sub' }, `Signed in ${ago(p.signed_in_at)}${p.last_sign_in_at ? ` · last seen ${ago(p.last_sign_in_at)}` : ''}`),
+        el('div', { class: 'sub' }, projectsOf(p.id).join(', '))))) : [el('div', { class: 'empty', style: 'padding:14px' }, S.people ? 'Nobody from v2 has signed in yet.' : 'Loading…')]));
+  }
+}
+
+// ---- one project ---------------------------------------------------------------------------
+async function openDrawer(id) {
+  S.open = { id, log: null };
+  renderDrawer();
+  $('#drawer').classList.add('open');
+  try { S.open.log = (await api('/api/project/' + encodeURIComponent(id))).log; } catch { S.open.log = []; }
+  if (S.open?.id === id) renderDrawer();
+}
+function closeDrawer() { S.open = null; $('#drawer').classList.remove('open'); }
+function renderDrawer() {
+  const c = S.cards.find((x) => x.id === S.open.id);
+  if (!c) return closeDrawer();
+  const st = stateOf(c);
+  const pass = S.passes.get(c.id);
+  const issues = issuesOf(pass && pass.finished_at ? pass : null);
+  const members = (S.members[c.id] || []).slice().sort((a, b) => (b.owner - a.owner) || (S.signedIn[b.id] ? 1 : 0) - (S.signedIn[a.id] ? 1 : 0));
+  const l = language(c);
+  const action = { ready: 'Transfer', confirmed: 'Transfer', stopped: 'Transfer again', done: 'Sync now', issues: 'Sync now' }[st.key];
+  $('#drawer').replaceChildren(
+    el('button', { class: 'x', onclick: closeDrawer, title: 'Close' }, '✕'),
+    el('div', { class: 'drawer-head' },
+      el('h2', {}, c.name),
+      el('div', { class: 'sub' }, `${orgName(c.orgId)} · ${plural(c.assets, 'recording')} · ${c.private ? 'private' : 'public'} in v2`),
+      el('div', { class: `state s-${st.key}${st.live ? ' live' : ''}`, style: `--c: var(--${{ running: 'blue', queued: 'blue', done: 'green', issues: 'red', stopped: 'red', language: 'amber' }[st.key] || 'purple'})` }, el('span', { class: 'dot' }), st.text),
+      st.pct != null ? el('div', { class: 'bar live', style: 'width:100%' }, el('i', { style: `width:${st.pct}%` })) : null,
+      el('div', { class: 'row' },
+        el('button', { class: `chip ${l.cls}`, disabled: c.confirmed || null, onclick: (e) => pick(c, e.currentTarget) }, `Language: ${l.conf ? `${l.text} · ${l.conf}` : l.text}`),
+        action ? el('button', { class: 'small primary', onclick: () => transferOne(c) }, action) : null)),
+    el('div', { class: 'drawer-body' },
+      issues.length ? [el('h3', {}, 'Issues'), ...issues.map((i) => el('div', { class: `issue ${i.level}` }, i.text, i.list ? el('div', { style: 'margin-top:4px;font-size:12px;opacity:.85' }, i.list.slice(0, 5).map((x) => x.reason).join(' · ')) : null))] : null,
+      el('h3', {}, `People · ${peopleOf(c).signed} of ${members.length} signed in`),
+      ...members.map((m) => el('div', { class: 'person' },
+        el('span', { class: 'avatar' }, personName(m.id).split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()),
+        el('div', { style: 'flex:1' }, el('div', {}, personName(m.id), m.owner ? el('span', { class: 'chip', style: 'margin-left:6px' }, 'owner') : null),
+          el('div', { class: 'sub' }, S.signedIn[m.id] ? `Signed in ${day(S.signedIn[m.id])}` : 'Not signed in to Next yet')))),
+      el('h3', {}, 'Activity'),
+      ...(S.open.log == null ? [el('div', { class: 'empty', style: 'padding:0 18px' }, 'Loading…')]
+        : S.open.log.length ? S.open.log.map((x) => el('div', { class: `line ${x.level}` }, el('time', {}, clock(x.at)), el('span', { class: 'who' }, day(x.at)), el('span', { class: 'msg' }, x.message)))
+        : [el('div', { class: 'empty', style: 'padding:0 18px' }, 'Not transferred yet.')]))
+  );
+}
+
+// ---- small pieces -------------------------------------------------------------------------
+function ask({ title, body = [], confirm, input }, then) {
+  const field = input != null ? el('input', { value: input }) : null;
+  const scrim = el('div', { class: 'scrim', onclick: (e) => e.target === scrim && scrim.remove() });
+  const ok = () => { scrim.remove(); then(field ? field.value.trim() : undefined); };
+  scrim.append(el('div', { class: 'modal', role: 'dialog' }, el('h2', {}, title), ...body.filter(Boolean).map((b) => el('p', {}, b)), field,
+    el('div', { class: 'acts' }, el('button', { onclick: () => scrim.remove() }, 'Cancel'), el('button', { class: 'primary', onclick: ok }, confirm))));
+  document.body.append(scrim);
+  (field ?? scrim.querySelector('.primary')).focus();
+  scrim.addEventListener('keydown', (e) => { if (e.key === 'Enter') ok(); if (e.key === 'Escape') scrim.remove(); });
+}
+let picker = null;
+function pick(c, anchor) {
+  picker?.remove();
+  const r = c.recommendation;
+  const box = el('div', { class: 'picker', onclick: (e) => e.stopPropagation() });
   const results = el('div');
-  const input = el('input', { type: 'search', placeholder: 'Search the language list', value: '' });
-  const option = (title, why, apply) => el('div', { class: 'opt', tabindex: '0', onclick: () => { apply(); box.remove(); }, onkeydown: (e) => e.key === 'Enter' && (apply(), box.remove()) }, el('div', {}, title), why ? el('div', { class: 'why' }, why) : null);
-  box.append(el('strong', {}, c.name), r.code ? option(`Recommended: ${r.name ?? r.code} [${r.code}]`, `${r.confidence}: ${r.reason}`, () => useLanguage(c, r.languoidId, r.code)) : el('div', { class: 'why' }, r.reason), input, results);
+  const input = el('input', { type: 'search', placeholder: 'Search the language list' });
+  const option = (title, why, apply) => el('div', { class: 'opt', tabindex: '0', onclick: () => { apply(); box.remove(); }, onkeydown: (e) => e.key === 'Enter' && (apply(), box.remove()) }, title, why ? el('span', { class: 'why' }, why) : null);
+  const choose = (languoidId, code) => { c.languoidId = languoidId; c.code = code; render(); save([...orgPayload(c.orgId)], [placement(c)], `${c.name}: ${code}`); };
+  box.append(el('strong', {}, c.name), r.code ? option(`Suggested: ${r.name ?? r.code} [${r.code}]`, `${r.confidence} · ${r.reason}`, () => choose(r.languoidId, r.code)) : el('div', { class: 'why' }, r.reason), input, results);
   let t = null;
   input.addEventListener('input', () => {
     clearTimeout(t);
     t = setTimeout(async () => {
       const q = input.value.trim();
       if (q.length < 2) return results.replaceChildren();
-      const list = await (await fetch('/api/languoids?q=' + encodeURIComponent(q))).json();
-      results.replaceChildren(...(Array.isArray(list) ? list : []).map((x) => option(`${x.name} [${x.iso_code ?? x.glottocode ?? '—'}]`, [x.level, x.parent_name, x.matched_alias_name && `also ${x.matched_alias_name}`].filter(Boolean).join(' · '), () => useLanguage(c, x.id, x.iso_code ?? x.glottocode))));
+      const list = await api('/api/languoids?q=' + encodeURIComponent(q)).catch(() => []);
+      results.replaceChildren(...list.map((x) => option(`${x.name} [${x.iso_code ?? x.glottocode ?? '—'}]`, [x.level, x.parent_name, x.matched_alias_name && `also ${x.matched_alias_name}`].filter(Boolean).join(' · '), () => choose(x.id, x.iso_code ?? x.glottocode))));
     }, 250);
   });
   const rect = anchor.getBoundingClientRect();
-  box.style.left = Math.min(rect.left, innerWidth - 360) + 'px';
-  box.style.top = Math.min(rect.bottom + 6, innerHeight - 320) + 'px';
-  document.body.append(box); open = box; input.focus();
+  box.style.left = Math.max(8, Math.min(rect.left, innerWidth - 360)) + 'px';
+  box.style.top = Math.min(rect.bottom + 6, innerHeight - 330) + 'px';
+  document.body.append(box); picker = box; input.focus();
   setTimeout(() => document.addEventListener('mousedown', function off(e) { if (!box.contains(e.target)) { box.remove(); document.removeEventListener('mousedown', off); } }), 0);
 }
 
 $('#q').addEventListener('input', render);
-$('#hideInactive').addEventListener('change', render);
-$('#hideSkip').addEventListener('change', render);
-load();
+$('#showOff').addEventListener('change', (e) => { S.showOff = e.target.checked; render(); });
+$('#refresh').addEventListener('click', () => { toast('Reading v2 again…'); loadBoard(true); });
+document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => setTab(b.dataset.tab)));
+document.addEventListener('keydown', (e) => e.key === 'Escape' && closeDrawer());
+setInterval(() => { if (S.tab === 'people') loadPeople(); }, 30000);
+loadBoard().then(poll);
 </script>
 </body>
 </html>

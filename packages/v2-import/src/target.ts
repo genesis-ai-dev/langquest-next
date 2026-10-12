@@ -18,7 +18,7 @@ export interface Target {
   files(names: string[]): Promise<Map<string, CopiedFile | { missingSince: string }>>;
   putFiles(files: { name: string; file: CopiedFile | null }[]): Promise<void>;
   /** Append as the service role; every refusal comes back with its reason. */
-  append(events: AnyEvent[]): Promise<{ accepted: number; duplicates: number; rejected: { id: string; reason: string }[] }>;
+  append(events: AnyEvent[], onProgress?: (done: number) => unknown): Promise<{ accepted: number; duplicates: number; rejected: { id: string; reason: string }[] }>;
   /** Hashes already in R2 for one language. */
   stored(orgId: string, streamId: string): Promise<Set<string>>;
   upload(orgId: string, streamId: string, hash: string, format: 'wav' | 'm4a', bytes: Uint8Array): Promise<void>;
@@ -32,7 +32,19 @@ export interface Target {
   orgCreator(orgId: string): Promise<string | null>;
   /** Names for people the import names, only where they have none here yet. */
   addNames(people: { id: string; name: string }[]): Promise<void>;
-  recordPass(projectId: string, started: Date, report: unknown): Promise<void>;
+  /** A transfer of one project starts; its id names it in the log. */
+  passStart(projectId: string, orgId: string, by: string): Promise<number>;
+  passProgress(passId: number, progress: Progress): Promise<void>;
+  passFinish(passId: number, report: unknown, error?: string): Promise<void>;
+  log(lines: LogLine[]): Promise<void>;
+  /** Each project's latest transfer, the log after a line, and how many v2 people have signed in here. */
+  status(after: number): Promise<Status>;
+  /** v2 people by id: their name here, and when they first and last signed in, if they have. */
+  people(ids: string[]): Promise<PersonHere[]>;
+  /** People from v2 who have signed in here, newest first. */
+  signedIn(): Promise<PersonHere[]>;
+  /** One project's log, newest first. */
+  projectLog(projectId: string): Promise<(LogLine & { id: number; at: string })[]>;
   cursor(name: string, value?: Date): Promise<Date | null>;
 }
 
@@ -64,6 +76,50 @@ export interface Plan {
   orgs: PlanOrg[];
   placements: PlanPlacement[];
   passes: { project_id: string; finished_at: string; report: unknown }[];
+}
+
+/** Where a running transfer has got to. */
+export interface Progress {
+  step: 'reading' | 'files' | 'uploading' | 'events' | 'done';
+  done?: number;
+  total?: number;
+}
+
+export interface LogLine {
+  pass_id?: number;
+  project_id?: string;
+  org_id?: string;
+  level: 'info' | 'done' | 'warn' | 'error';
+  message: string;
+  counts?: Record<string, number>;
+}
+
+export interface PassRow {
+  id: number;
+  project_id: string;
+  org_id: string | null;
+  started_by: string | null;
+  started_at: string;
+  progress: Progress | Record<string, never>;
+  progress_at: string;
+  finished_at: string | null;
+  report: unknown;
+  error: string | null;
+  /** When it last finished a transfer without an error. */
+  last_done: string | null;
+}
+
+export interface Status {
+  passes: PassRow[];
+  log: (LogLine & { id: number; at: string })[];
+  signed_in: number;
+}
+
+export interface PersonHere {
+  id: string;
+  display_name: string | null;
+  signed_in_at: string | null;
+  last_sign_in_at: string | null;
 }
 
 export interface BlobFilesLike {
@@ -109,7 +165,7 @@ export function supabaseTarget(db: SupabaseClient, files: BlobFilesLike): Target
       for (let i = 0; i < rows.length; i += 2000) await rpc('v2_import_files_put', { p_files: rows.slice(i, i + 2000) });
     },
 
-    async append(events) {
+    async append(events, onProgress) {
       const out = { accepted: 0, duplicates: 0, rejected: [] as { id: string; reason: string }[] };
       for (let i = 0; i < events.length; i += 200) {
         const page = events.slice(i, i + 200);
@@ -119,6 +175,7 @@ export function supabaseTarget(db: SupabaseClient, files: BlobFilesLike): Target
           else if (r.reason === 'duplicate') out.duplicates += 1;
           else out.accepted += 1;
         }
+        await onProgress?.(i + page.length);
       }
       return out;
     },
@@ -162,7 +219,18 @@ export function supabaseTarget(db: SupabaseClient, files: BlobFilesLike): Target
       }
     },
 
-    recordPass: (projectId, started, report) => rpc('v2_import_pass', { p_project: projectId, p_started: started.toISOString(), p_report: report }),
+    passStart: (projectId, orgId, by) => rpc<number>('v2_import_pass_start', { p_project: projectId, p_org: orgId, p_by: by }).then(Number),
+    passProgress: (passId, progress) => rpc('v2_import_pass_progress', { p_id: passId, p_progress: progress }),
+    passFinish: (passId, report, error) => rpc('v2_import_pass_finish', { p_id: passId, p_report: report ?? null, p_error: error ?? null }),
+    log: (lines) => (lines.length ? rpc('v2_import_log_add', { p_lines: lines }) : Promise.resolve()),
+    status: (after) => rpc<Status>('v2_import_status', { p_after: after, p_limit: 300 }),
+    signedIn: () => rpc<PersonHere[]>('v2_import_signed_in', { p_limit: 2000 }),
+    projectLog: (projectId) => rpc<(LogLine & { id: number; at: string })[]>('v2_import_project_log', { p_project: projectId, p_limit: 200 }),
+    async people(ids) {
+      const out: PersonHere[] = [];
+      for (let i = 0; i < ids.length; i += 1000) out.push(...(await rpc<PersonHere[]>('v2_import_people', { p_ids: ids.slice(i, i + 1000) })));
+      return out;
+    },
     async cursor(name, value) {
       const v = await rpc<string | null>('v2_import_cursor', { p_name: name, p_value: value?.toISOString() ?? null });
       return v ? new Date(v) : null;

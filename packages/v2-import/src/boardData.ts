@@ -1,4 +1,4 @@
-import { defaultBoard, EVERY_LANGUAGE_EMAIL, EVERY_LANGUAGE_ORG, SKIP, type BoardPerson, type Confidence, type Why } from './board';
+import { defaultBoard, EVERY_LANGUAGE_EMAIL, EVERY_LANGUAGE_ORG, EVERY_LANGUAGE_V2_ID, SKIP, type BoardPerson, type Confidence, type Why } from './board';
 import type { V2ProjectSummary } from './reader';
 import type { Plan, PlanOrg } from './target';
 
@@ -52,11 +52,13 @@ export function boardData(input: {
   people: BoardPerson[];
   recommendations: ReadonlyMap<string, Recommendation>;
   plan: Plan;
-  /** v2 ids of the platform account when names and emails cannot be read. */
+  /** v2 ids of the platform account when names and emails cannot be read; its known id by default. */
   everyLanguageIds?: string[];
 }): BoardData {
-  const people = [...input.people];
-  for (const id of input.everyLanguageIds ?? []) if (!people.some((p) => p.id === id)) people.push({ id, name: 'Every Language', email: EVERY_LANGUAGE_EMAIL });
+  // The platform account, known by id, counts as Every Language whatever the reader could see of it.
+  const platform = new Set(input.everyLanguageIds ?? [EVERY_LANGUAGE_V2_ID]);
+  const people = input.people.map((p) => (platform.has(p.id) ? { ...p, name: p.name ?? 'Every Language', email: EVERY_LANGUAGE_EMAIL } : p));
+  for (const id of platform) if (!people.some((p) => p.id === id)) people.push({ id, name: 'Every Language', email: EVERY_LANGUAGE_EMAIL });
   const byId = new Map(people.map((p) => [p.id, p]));
   const members = new Map<string, { owners: string[]; members: string[] }>();
   for (const m of input.memberships) {
