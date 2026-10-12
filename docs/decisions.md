@@ -1738,6 +1738,11 @@ organization, so anyone signed in could learn who holds which role
 elsewhere. `server/smoke.sql` section 15 reads both tables as a signed-in
 caller.
 
+Amended (2026-10-12, Caleb Koster): `release_push_token` joins the short
+list (decision 88). It reads no caller: it deletes only the push token row
+that matches both the device token and the person's id the phone holds, so
+a phone signed out offline can stop that person's notifications.
+
 ## 65. Whoever may admit people sees the name of each person asking to join
 
 Date: 2026-10-07 · By: Carl Sauder · Status: accepted
