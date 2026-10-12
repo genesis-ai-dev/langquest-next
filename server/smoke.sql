@@ -279,6 +279,18 @@ do $$ declare m record; v_text text := ''; i int; begin
   if v_text::jsonb <> '{"v":"new"}'::jsonb then raise exception 'chunks do not reassemble: %', v_text; end if;
   if public.get_snapshot_chunk('org1', 'L1', 1, 4, 0) is not null then raise exception 'wrong seq must be null'; end if;
 end $$;
+-- Pieces are cut once, by bytes, never inside a character (decisions.md 89).
+select set_config('request.jwt.claim.sub', '', false);
+do $$ declare m record; v text := ''; i int; begin
+  perform public.put_snapshot('org1', 'mb', 1, 1, jsonb_build_object('t', repeat('ŋäɔ€𝄞', 120000)));
+  select * into m from public.get_snapshot_meta('org1', 'mb', 1);
+  if m.chunks < 2 then raise exception 'expected several pieces, got %', m.chunks; end if;
+  for i in 0 .. m.chunks - 1 loop v := v || public.get_snapshot_chunk('org1', 'mb', 1, 1, i); end loop;
+  if v::jsonb <> jsonb_build_object('t', repeat('ŋäɔ€𝄞', 120000)) then raise exception 'multi-byte pieces do not reassemble'; end if;
+  if exists (select 1 from public.snapshot_chunks where stream_id = 'mb' and octet_length(piece) > 262144) then raise exception 'a piece is over 256 KB'; end if;
+  delete from public.snapshots where stream_id = 'mb';
+  if exists (select 1 from public.snapshot_chunks where stream_id = 'mb') then raise exception 'pieces should go with their snapshot'; end if;
+end $$;
 select set_config('request.jwt.claim.sub', 'stranger', false);
 do $$ begin
   begin

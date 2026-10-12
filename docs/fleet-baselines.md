@@ -154,6 +154,20 @@ Same seeds, same machine, `npm run fleet:baselines -- --only=bump` and
 At 2 KB/s a 2.7 MB snapshot takes about 23 minutes to download, so 25 to
 27 minutes is close to what the link allows.
 
+## After item 4: snapshot pieces stored once (decision 89)
+
+`npm run bench:server`, the same 14 MB snapshot of 55 pieces:
+
+| Measure | Before, ms | After, ms |
+| --- | --- | --- |
+| `put_snapshot` | 122.5 | 335.8 |
+| `get_snapshot_meta` | 122.5 | 0.5 |
+| `get_snapshot_chunk` (first, middle, last) | 61.7, 69.1, 77.5 | 0.3, 0.1, 0.1 |
+
+A full download goes from about 4 s of database time to under 10 ms. The
+fleet's fake server already served pieces from memory, so its numbers do
+not change.
+
 ## What these show
 
 - **`normalDay`:** sync CPU grows faster than the team. Going from 14 to 131

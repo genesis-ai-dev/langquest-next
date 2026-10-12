@@ -190,6 +190,12 @@ Confirmed.
   serve the snapshot from R2 with Range requests.
 - **Measure:** `get_snapshot_chunk` mean in `rpc_stats`. Target under 5 ms
   per chunk.
+- **Done (2026-10-12, decision 89):** pieces are cut once by `put_snapshot`
+  and kept in `snapshot_chunks`. `npm run bench:server` on the 14 MB
+  snapshot: a piece 0.1 to 0.3 ms instead of 62 to 77, the size 0.5 ms
+  instead of 125, a write 336 ms instead of 125 (at most hourly, decision
+  88). Cutting at character offsets first took 1.6 s, because `substr`
+  walks UTF-8 text from its start; it cuts by bytes.
 
 **5. Snapshot churn makes slow downloads start over from nothing.**
 Confirmed.
