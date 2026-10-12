@@ -37,6 +37,7 @@ const OPTIONAL: Partial<Record<string, string[]>> = {
   'v1.LibraryVersionPublished': ['note'],
   'v1.TemplateSelected': ['books'],
   'v1.FlowSelected': ['itemId', 'docHash', 'name'],
+  'v1.CheckHelpSet': ['itemId', 'materialId'],
   'v1.ReferencesUsed': ['takeId', 'reviewId'],
   'v1.TakeSubmitted': ['questionSetIds'],
   'v1.ResponseRecorded': ['note', 'blobHash'],
@@ -109,6 +110,9 @@ const broken: AnyEvent[] = events.flatMap((e) => {
       break;
     case 'v1.FlowStepLinksSet':
       variants.push({ ...p, allowed: 'yes' }, { ...p, stepId: '' });
+      break;
+    case 'v1.CheckHelpSet':
+      variants.push({ ...p, itemId: 'x', materialId: 'y' }, { kindId: p['kindId'], linked: true }, { ...p, materialId: '' }, { ...p, itemId: '' }, { ...p, kindId: '' });
       break;
     case 'v1.BookNameSet':
       variants.push({ ...p, book: 'luk' }, { ...p, book: 'LUKE' }, { ...p, book: '1 SA' });

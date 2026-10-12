@@ -123,6 +123,13 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
       lww(state.stepLinks ??= {}, event.payload.stepId, event, event.payload.allowed);
       break;
 
+    case 'v1.CheckHelpSet': {
+      const { kindId, itemId, materialId, linked } = event.payload;
+      const key = itemId !== undefined ? `item:${itemId}` : `material:${materialId}`;
+      lww((state.checkHelps ??= {})[kindId] ??= {}, key, event, linked);
+      break;
+    }
+
     case 'v1.VersionReleased': {
       const { takeId, channel, live, url } = event.payload;
       lww((state.releases ??= {})[takeId] ??= {}, channel, event, { live, by: event.actorId, ...(url !== undefined ? { url } : {}) });

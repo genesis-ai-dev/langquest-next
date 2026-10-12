@@ -6,6 +6,7 @@ import {
   CUSTOM_FLOW, DEFAULT_KINDS, flowStepPrefix, flowTemplate, QUESTION_TEMPLATES,
   type Departure, type KindDef, type KindReview, type PassageNote, type PassageRequest, type QuestionSpec
 } from './record';
+import { checkTeamFor } from './checks';
 import { sourceChapters } from './sourceBibles';
 import type { LanguageState } from './state';
 import { stateRevision } from './reducer';
@@ -76,7 +77,7 @@ export function deriveFlow(state: LanguageState): LanguageFlow {
     .filter((d) => d.stepId.startsWith(prefix) && !state.removedSteps[d.stepId])
     .sort((a, b) => (a.order < b.order ? -1 : a.order > b.order ? 1 : a.stepId < b.stepId ? -1 : 1))
     .map((d) => ({ id: d.stepId, kindIds: [...d.kindIds], checkpoint: d.checkpoint }));
-  const name = selection.flowId === CUSTOM_FLOW ? 'Custom flow' : selection.name ?? flowTemplate(selection.flowId)?.name ?? 'Review flow';
+  const name = selection.flowId === CUSTOM_FLOW ? selection.name ?? 'Custom flow' : selection.name ?? flowTemplate(selection.flowId)?.name ?? 'Review flow';
   return { flowId: selection.flowId, itemId: selection.itemId ?? null, docHash: selection.docHash ?? null, name, steps };
 }
 
@@ -502,9 +503,9 @@ export type UsualTarget = { teamId: string; name: string } | { profileId: string
  * it; undefined when neither is clear (then the app opens Ask someone).
  * Advice only: anyone with the permission may still be asked.
  *
- * - Team: one that usually does this kind (v1.ReviewTeamKindSet), with at
- *   least one member other than `me`. A team set to "any kind" is not the
- *   usual target of any one kind.
+ * - Team: the check's people (decisions.md 90, `checkTeamFor`): its own
+ *   team, else an older team set to the kind or to any kind, with at least
+ *   one member other than `me`.
  * - Person: exactly one person other than `me` who reviewed this kind in
  *   the app before.
  *
@@ -517,10 +518,8 @@ export function usualTarget(
   opts: { eligible?: (profileId: string) => boolean } = {}
 ): UsualTarget | undefined {
   const ok = (id: string) => id !== me && (opts.eligible?.(id) ?? true);
-  const kindTeams = Object.entries(state.teams)
-    .filter(([id, t]) => t.kindId?.value === kindId && teamMemberIds(state, id).some(ok))
-    .map(([id]) => id).sort();
-  if (kindTeams[0]) return { teamId: kindTeams[0], name: state.teams[kindTeams[0]]!.name.value };
+  const teamId = checkTeamFor(state, kindId, me, opts.eligible);
+  if (teamId) return { teamId, name: state.teams[teamId]!.name.value };
   const did = new Set<string>();
   for (const r of Object.values(state.kindReviews)) if (r.kindId === kindId && r.via === 'app') did.add(r.by);
   const people = [...did].filter(ok);

@@ -5,7 +5,7 @@ import type { FlowSelection, LanguageState } from './state';
 import { derivePassage, latestDraftBy, type PassageState } from './passage';
 import type { UsedReference } from './references';
 import { cardVerseEvents, type PartMark } from './verses';
-import { CUSTOM_FLOW, flowStepId, flowStepPrefix, type DepartureType, type NoteAnchor, type QuestionSpec, type RecordEvents, type ReviewOutcome, type ReviewVia } from './record';
+import { CUSTOM_FLOW, flowStepId, flowStepPrefix, type DepartureType, type KindDef, type NoteAnchor, type QuestionSpec, type RecordEvents, type ReviewOutcome, type ReviewVia } from './record';
 
 /**
  * Commands: the business operations a screen may ask for, each turned into
@@ -104,7 +104,14 @@ export interface Commands {
   setMaterialFields(c: { commandId: string; materialId: string; fields: { fieldId: string; text?: string; blobHash?: string }[] }): EventSpec[];
   lockMaterial(c: { commandId: string; materialId: string; locked: boolean }): EventSpec[];
   /** Save the language's steps from the flow editor (FLOW-3). The language then owns its steps, as a custom flow. */
-  saveFlowSteps(c: { commandId: string; steps: { stepId?: string; kindIds: string[]; checkpoint: boolean }[] }): EventSpec[];
+  saveFlowSteps(c: { commandId: string; steps: { stepId?: string; kindIds: string[]; checkpoint: boolean }[]; name?: string }): EventSpec[];
+  /**
+   * Start a language's checks from a ready-made flow (decisions.md 90): its
+   * kinds the language lacks, then its steps as the language's own (the
+   * `custom` prefix), so later edits stay with the language and nothing
+   * follows the flow's new versions. `name` says where they came from.
+   */
+  copyFlow(c: { commandId: string; name: string; kinds: readonly KindDef[]; steps: readonly { kindIds: readonly string[]; checkpoint?: boolean }[] }): EventSpec[];
   /**
    * Put the language's flow back as it was (the Undo of choosing a flow or
    * saving steps): the flow it had chosen, whose steps were never removed
@@ -314,6 +321,20 @@ export function commands(state: LanguageState, idx: Indexes = buildIndexes(state
       return [{ id: ids(commandId)(), type: 'v1.ReviewKindDefined', payload: clean(payload) as RecordEvents['v1.ReviewKindDefined'] }];
     },
 
+    copyFlow(c) {
+      const defined = c.kinds.filter((k) => !state.reviewKinds[k.id] && c.steps.some((st) => st.kindIds.includes(k.id))).map((k, i): EventSpec => ({
+        id: `${c.commandId}:kind:${i}`, type: 'v1.ReviewKindDefined',
+        payload: clean({
+          kindId: k.id, name: k.name, description: k.description, usualReviewer: k.usualReviewer,
+          ...(k.withholdsContext ? { withholdsContext: true } : {}), ...(k.produces ? { produces: k.produces } : {})
+        }) as RecordEvents['v1.ReviewKindDefined']
+      }));
+      return [
+        ...defined,
+        ...this.saveFlowSteps({ commandId: c.commandId, name: c.name, steps: c.steps.map((st) => ({ kindIds: [...st.kindIds], checkpoint: !!st.checkpoint })) })
+      ];
+    },
+
     saveFlowSteps(c) {
       const next = ids(c.commandId);
       const prefix = flowStepPrefix(CUSTOM_FLOW);
@@ -326,11 +347,12 @@ export function commands(state: LanguageState, idx: Indexes = buildIndexes(state
         checkpoint: s.checkpoint
       }));
       if (steps.some((s) => s.kindIds.length === 0)) throw new CommandError('Every step needs a kind of review.');
+      const name = c.name;
       const keep = new Set(steps.map((s) => s.stepId));
       const dropped = Object.keys(state.flowSteps).filter((id) => id.startsWith(prefix) && !state.removedSteps[id] && !keep.has(id)).sort();
       return [
         ...dropped.map((stepId) => ({ id: next(), type: 'v1.FlowStepRemoved' as const, payload: { stepId } })),
-        { id: next(), type: 'v1.FlowSelected', payload: { flowId: CUSTOM_FLOW } },
+        { id: next(), type: 'v1.FlowSelected', payload: { flowId: CUSTOM_FLOW, ...(name ? { name } : {}) } },
         ...steps.map((payload) => ({ id: next(), type: 'v1.FlowStepSet' as const, payload }))
       ];
     },

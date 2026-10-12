@@ -259,7 +259,8 @@ describe('asking someone', () => {
     ]);
 
     const review = askCandidates(p.state(), org, { languageId: 'din', what: 'review', kindId: 'peer', me: 'lead' });
-    expect(review.map((c) => c.profileId).sort()).toEqual(['ayen', 'deng', 'nyibol']);
+    // Translators hold Review too (decisions.md 90): a peer check is often another translator.
+    expect(review.map((c) => c.profileId).sort()).toEqual(['akol', 'ayen', 'deng', 'nyibol']);
     expect(review.find((c) => c.profileId === 'deng')).toMatchObject({ usual: true, sub: 'Reviewer · Has done this here before' });
     expect(review.find((c) => c.profileId === 'nyibol')).toMatchObject({ usual: false, sub: 'Community Reviewer' });
 

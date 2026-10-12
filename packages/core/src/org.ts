@@ -132,6 +132,7 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.ReviewTeamMemberSet': 'manage_teams',
   'v1.ReviewTeamKindSet': 'manage_teams',
   'v1.FlowStepLinksSet': 'manage_flows',
+  'v1.CheckHelpSet': 'manage_flows',
   // Whoever runs the work says where it went out.
   'v1.VersionReleased': 'assign_work',
   'v1.RecordingAdded': 'translate',
@@ -236,10 +237,29 @@ export const SEED_ROLES: { roleId: string; name: string; privileges: Privilege[]
     roleId: 'coordinator', name: 'Coordinator', fixed: 'coordinator',
     privileges: PRIVILEGES.filter((p) => p !== 'manage_roles')
   },
-  { roleId: 'translator', name: 'Translator', fixed: 'translator', privileges: ['translate', 'fill_reference', 'send_to_reviewers', 'view_status'] },
+  // Review since decisions.md 90: a peer check is often another translator.
+  { roleId: 'translator', name: 'Translator', fixed: 'translator', privileges: ['translate', 'review', 'fill_reference', 'send_to_reviewers', 'view_status'] },
   { roleId: 'reviewer', name: 'Reviewer', fixed: 'reviewer', privileges: ['review', 'view_status'] },
   { roleId: 'viewer', name: 'Viewer', fixed: 'viewer', privileges: ['view_status'] }
 ];
+
+/** The Translator role's privileges before decisions.md 90 gave it Review. */
+const TRANSLATOR_BEFORE_REVIEW: readonly Privilege[] = ['fill_reference', 'send_to_reviewers', 'translate', 'view_status'];
+
+/**
+ * The role change that gives an organization's Translator role Review
+ * (decisions.md 90), or null: only while the role still has exactly the
+ * privileges it was seeded with, so a role someone changed is left alone.
+ * An admin's phone appends it once (`useTranslatorReview`).
+ */
+export function translatorReviewUpgrade(state: OrgState | null): OrgEventPayloads['v1.RoleDefined'] | null {
+  const role = state?.roles['translator'];
+  if (!role || role.retired) return null;
+  const now = [...(role.privileges.value ?? [])].sort();
+  if (now.length !== TRANSLATOR_BEFORE_REVIEW.length || now.some((p, i) => p !== TRANSLATOR_BEFORE_REVIEW[i])) return null;
+  const seeded = SEED_ROLES.find((r) => r.roleId === 'translator')!;
+  return { roleId: 'translator', name: role.name.value || seeded.name, privileges: [...seeded.privileges] };
+}
 
 /** Privileges of a fixed role. */
 export function privilegesOfFixedRole(role: Role): Set<Privilege> {
