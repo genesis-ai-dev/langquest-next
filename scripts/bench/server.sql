@@ -59,6 +59,21 @@ begin
   end loop;
 end $$;
 
+-- Realtime pokes one 200-event push makes (the notify trigger may wait
+-- for commit, so fire any deferred ones now).
+do $$ declare before bigint; batch jsonb; n bigint; begin
+  select count(*) into before from realtime.messages;
+  select jsonb_agg(jsonb_build_object(
+    'id', format('bench-poke-%s', g), 'type', 'v1.UnitAdded', 'orgId', 'bench-org', 'streamId', 'bench-L',
+    'actorId', 'bench-lead', 'deviceId', 'dA', 'hlc', format('%s:000000:dA', lpad((900000 + g)::text, 15, '0')),
+    'payload', jsonb_build_object('unitId', format('poke-%s', g), 'parentUnitId', null, 'kind', 'passage', 'label', 'P', 'order', 'p')))
+    into batch from generate_series(1, 200) g;
+  perform * from public.append_events(batch);
+  set constraints all immediate;
+  select count(*) - before into n from realtime.messages;
+  raise notice 'bench %', jsonb_build_object('measure', 'realtime messages per 200-event push', 'ms', 0, 'messages', n);
+end $$;
+
 -- One pull page, as a phone asks for it.
 do $$ declare t0 timestamptz; n int; begin
   t0 := clock_timestamp();

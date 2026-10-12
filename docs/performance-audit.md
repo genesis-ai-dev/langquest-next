@@ -317,6 +317,19 @@ lock.** Estimated.
   duplicate index.
 - **Measure:** the two-writer SQL benchmark (2.5), and the `append_events`
   mean in `rpc_stats`.
+- **Done in part (2026-10-12):** one realtime poke per stream per push (a
+  deferred constraint trigger: the first row of a stream in a transaction
+  sends the highest seq, the rest skip) instead of one per row, and
+  `events_pull_idx` dropped (migration `20261012150000_one_poke_per_push.sql`).
+  `npm run bench:server`: 200 realtime messages per 200-event push became 1;
+  a 200-event append 13.5 ms instead of 16 (units) and 23 ms instead of 27
+  (recordings).
+- **Not done, on the numbers:** validating everything before taking the
+  stream's lock and inserting in one statement. The benchmark puts the lock
+  hold at 13 to 27 ms per 200 events, so the largest fleet reconnect
+  (9,000 events in 81 calls) serializes about 2 s of writes on its stream.
+  That does not justify rewriting the write path decision 74 just
+  hardened. Revisit if `rpc_stats` shows `append_events` above 100 ms.
 
 **9. `list_streams` silently stops at 1,000 rows.** Confirmed.
 

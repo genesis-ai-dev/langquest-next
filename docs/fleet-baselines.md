@@ -177,6 +177,16 @@ not change.
 | 1,200 | 38.45 | 4.63 |
 | 5,000 | 582.91 | 21.06 |
 
+## After item 8 (in part): one poke per push, one index fewer
+
+`npm run bench:server`:
+
+| Measure | Before | After |
+| --- | --- | --- |
+| Realtime messages per 200-event push | 200 | 1 |
+| Append 200 units, ms | 15.3 to 17.2 | 12.7 to 14.5 |
+| Append 200 recordings, ms | 26.6 to 29.1 | 22.3 to 26.8 |
+
 ## What these show
 
 - **`normalDay`:** sync CPU grows faster than the team. Going from 14 to 131
