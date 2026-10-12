@@ -1,13 +1,14 @@
 import type { AgentQuery, AgentWrite, Answer, OrgAccess } from './org';
 import { handleMcp } from './mcp';
+import { openApi } from './openapi';
 import type { AgentStore, TokenRecord } from './store';
 import {
   hashSecret, newSecret, newUserCode, normalizeUserCode, parseScopes, SCOPE_TEXT, SCOPES, TOKEN_PREFIX, type Grant, type Scope
 } from './tokens';
 import { handlePublicLink, sessionLinks, tokenLinks } from './links';
 import {
-  isRefusal, parseExternalValue, parseRelease, parseReview, type ApiStatus, type ExternalValueFilter, type ExternalValueOut, type LinkReviewInput, type LinkSpec,
-  type LinkView, type PassageFilter, type ReviewLink, type VoiceNote
+  isRefusal, parseExternalValue, parsePassageQuery, parseRelease, parseReview, type ExternalValueFilter, type ExternalValueOut, type LinkReviewInput, type LinkSpec,
+  type LinkView, type PassageListQuery, type Refusal, type ReviewLink, type VoiceNote
 } from './view';
 import { EXTERNAL_KEY_MAX } from '@langquest-next/core';
 import { readVoiceNote } from './voice';
@@ -55,8 +56,6 @@ export const DEVICE_CODE_TTL_S = 10 * 60;
 export const POLL_INTERVAL_S = 5;
 /** last_used_at is written at most this often per token. */
 const TOUCH_EVERY_MS = 5 * 60 * 1000;
-
-const STATUSES: readonly ApiStatus[] = ['not_started', 'drafting', 'in_review', 'feedback', 'approved'];
 
 /**
  * Any origin may call with a token: it travels in a header, never a cookie,
@@ -136,6 +135,7 @@ export async function handleAgentApi(request: Request, deps: AgentDeps): Promise
     if (parts[0] === 'device') return await deviceRoute(request, parts.slice(1), url, deps);
     if (parts[0] === 'links') return await handlePublicLink(request, parts.slice(1), deps);
     if (parts.length === 0) return json(200, index(url));
+    if (parts.length === 1 && parts[0] === 'openapi.json' && request.method === 'GET') return json(200, openApi(url.origin));
     const auth = await grantFor(request, deps);
     if (auth instanceof Response) return auth;
     if (parts[0] === 'mcp' && parts.length === 1) return await handleMcp(request, auth.grant, deps.org(auth.grant.orgId), url, (data) => withAppNames(auth.grant.orgId, data, deps));
@@ -152,13 +152,14 @@ function index(url: URL) {
     name: 'LangQuest API',
     docs: 'https://github.com/genesis-ai-dev/langquest-next/blob/main/docs/agent-api.md',
     connect: `${url.origin}/connect`,
+    openapi: `${base}/openapi.json`,
     auth: `Authorization: Bearer ${TOKEN_PREFIX}…`,
     scopes: SCOPE_TEXT,
     endpoints: {
       me: `GET ${base}/me`,
       languages: `GET ${base}/languages`,
-      passages: `GET ${base}/languages/{languageId}/passages?status=approved&changedSince=ISO`,
-      passage: `GET ${base}/languages/{languageId}/passages/{unitId}`,
+      passages: `GET ${base}/languages/{languageId}/passages?status=in_review&changedSince=ISO&unitIds={unitId}&unitIds={unitId}&include=audio,reviews,steps,requests,versions&limit=100&after={nextAfter} (returns { passages, nextAfter }; include adds those fields of one passage to each; steps, requests and versions need the read scope, not just read:published)`,
+      passage: `GET ${base}/languages/{languageId}/passages/{unitId} (everything the token may see of one passage)`,
       review: `POST ${base}/languages/{languageId}/passages/{unitId}/reviews`,
       release: `POST ${base}/languages/{languageId}/passages/{unitId}/releases`,
       voiceNote: `PUT ${base}/languages/{languageId}/voice-notes (m4a or WAV body)`,
@@ -193,8 +194,8 @@ async function tokenRoute(request: Request, parts: string[], url: URL, auth: { g
   if (parts[2] === 'external-values') return externalValuesRoute(request, parts.slice(3).join('/'), url, grant, languageId, deps);
   if (parts[2] !== 'passages') return fail(404, 'not_found', 'Not found. GET /api/v1 lists what is here.');
   if (parts.length === 3 && get) {
-    const filter = filterFrom(url);
-    return isRefusal(filter) ? fail(filter.status, filter.code, filter.error) : answer(await org.read(grant, { op: 'passages', languageId, filter }));
+    const query = passageQueryFrom(url);
+    return isRefusal(query) ? fail(query.status, query.code, query.error) : answer(await org.read(grant, { op: 'passages', languageId, query }));
   }
   const last = parts[parts.length - 1];
   const action = parts.length > 4 && (last === 'reviews' || last === 'releases') ? last : undefined;
@@ -272,20 +273,18 @@ export async function withAppNames(orgId: string, data: unknown, deps: AgentDeps
   return data;
 }
 
-export function filterFrom(url: URL): PassageFilter | { status: number; code: string; error: string } {
-  const filter: PassageFilter = {};
-  const status = url.searchParams.get('status');
-  if (status) {
-    if (!(STATUSES as readonly string[]).includes(status)) return { status: 400, code: 'bad_request', error: `status is one of ${STATUSES.join(', ')}.` };
-    filter.status = status as ApiStatus;
-  }
-  const since = url.searchParams.get('changedSince');
-  if (since) {
-    const ms = Date.parse(since);
-    if (Number.isNaN(ms)) return { status: 400, code: 'bad_request', error: 'changedSince must be an ISO date and time.' };
-    filter.changedSince = new Date(ms).toISOString();
-  }
-  return filter;
+/** The list's query string: unitIds repeats (one id each, since an id may hold a comma), include is comma-separated. */
+export function passageQueryFrom(url: URL): PassageListQuery | Refusal {
+  const p = url.searchParams;
+  const limit = p.get('limit');
+  return parsePassageQuery({
+    status: p.get('status') || undefined,
+    changedSince: p.get('changedSince') || undefined,
+    unitIds: p.has('unitIds') ? p.getAll('unitIds') : undefined,
+    include: p.has('include') ? p.get('include')!.split(',').filter(Boolean) : undefined,
+    limit: limit === null ? undefined : /^\d+$/.test(limit) ? Number(limit) : limit,
+    after: p.get('after') ?? undefined
+  });
 }
 
 async function voiceNote(request: Request, grant: Grant, languageId: string, deps: AgentDeps): Promise<Response> {

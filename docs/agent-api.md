@@ -1,11 +1,13 @@
 # The LangQuest API, review links, and MCP
 
-Other apps, AI agents and people without an account can take part in a translation's review. Why it is built this way: `docs/decisions.md` 70 (tokens), 72 (reviews, releases, review links) and 79 (external values).
+Other apps, AI agents and people without an account can take part in a translation's review. Why it is built this way: `docs/decisions.md` 70 (tokens), 72 (reviews, releases, review links), 79 (external values), 85 (the passage list) and 86 (the OpenAPI document).
 
 - **Partner apps and agents** use an access token. They read passages, record reviews, report where a version is published, and store values of their own with a language.
 - **Anyone with a review link** (`/r/<code>`, shared on WhatsApp, say) can hear one version and answer, with any name.
 
 Base address: `https://next.langquest.org/api/v1` (preview: `next-preview.langquest.org`). `GET /api/v1` lists every endpoint.
+
+**Reference:** `GET /api/v1/openapi.json` is the API as OpenAPI 3.1: every route, parameter, request and response field. It needs no token, so client generators and API tools can read it directly. This guide explains what the API is for and how to use it; when the two differ in a detail, the OpenAPI document is right, because the tests hold the API to it. It leaves out `/api/v1/session/*` and `/api/v1/links/*`, which only LangQuest's own connect and review pages call.
 
 ## What outside writes become
 
@@ -57,14 +59,22 @@ A token inside a phone app or a web page can be read by anyone who wants it. The
 T='Authorization: Bearer lqp_…'
 curl -H "$T" https://next.langquest.org/api/v1/me
 curl -H "$T" 'https://next.langquest.org/api/v1/languages/LANG/passages?status=approved&changedSince=2026-10-01T00:00:00Z'
+curl -H "$T" 'https://next.langquest.org/api/v1/languages/LANG/passages?status=in_review&include=steps,requests'
+curl -H "$T" 'https://next.langquest.org/api/v1/languages/LANG/passages?unitIds=UNIT1&unitIds=UNIT2&include=audio,reviews'
 curl -H "$T" https://next.langquest.org/api/v1/languages/LANG/passages/UNIT     # URL-encode the unit id
 ```
 
 - **Languages** say what the token can do there: `can: { read: "all" | "published" | null, review, release, externalValues: { read, write } }`.
-- **Passages** come in display order. Each has `unitId`, `label`, `path` (book, chapter), `status` (`not_started`, `drafting`, `in_review`, `feedback`, `approved`), `version`, `approvedVersion`, `releases` and `listenerFeedback`.
+- **The passage list** returns `{ passages, nextAfter }`, in display order. Each passage has `unitId`, `label`, `path` (book, chapter), `status` (`not_started`, `drafting`, `in_review`, `feedback`, `approved`), `version`, `approvedVersion`, `releases`, `listenerFeedback` and `updatedAt`.
   - `version` is the latest version with `read`, and the approved one with `read:published` alone.
+  - **Pages:** 100 passages at a time, or `limit` (1 to 500). Pass `nextAfter` as `after` for the next page. `nextAfter` is null when nothing more matches.
+  - **Filters:** `status`, `changedSince`, and `unitIds` for particular passages. Repeat `unitIds` once per id, since an id may hold a comma. Ids that do not exist, or that the token cannot see, are left out.
+  - **`include`** adds fields of one passage (below) to every passage on the page, comma-separated: `audio`, `reviews`, `steps`, `requests`, `versions`. Links are signed only for the page. `steps`, `requests` and `versions` need `read`; with `read:published` alone they are refused (`403`, `scope`).
 - **Following changes:** pass the newest `updatedAt` you have seen as `changedSince`. Versions, reviews and releases all count as changes. The server catches up with the log at least once a minute.
-- **One passage** adds `audio`: `version`'s cards in playing order. Each has a `url` that plays without a token for ten minutes, with Range support. It also has `reviews`, plus `steps` and `versions` with `read`.
+- **One passage** has everything the token may see of it: the list's fields, `audio` and `reviews`, plus `steps`, `requests` and `versions` with `read`. It is the list with every include, for one unit.
+  - `audio` is `version`'s cards in playing order. Each has a `url` that plays without a token for ten minutes, with Range support.
+  - Each step lists its `kinds`: `kindId` (what a review of it sends), `name`, `state`, and `apiReviewCounts`, whether a review through this API completes it. It does on an ordinary step that takes links, never on a checkpoint.
+  - `requests` are the ones not done yet: `requestId`, `what` (`review` or `record`), `kindId` and `kind`, `forYou` (to the token's person, or a team they are in), `team`, `dueDate`, `note` and `askedAt`.
 
 ## Writing
 
@@ -79,7 +89,8 @@ curl -X POST -H "$T" -H 'content-type: application/json' \
 ```
 
 - `outcome`: `looks_good` or `needs_changes`.
-- `kindId`: `listener` (the default) or a kind in the language's flow (see `steps` on the passage).
+- `kindId`: `listener` (the default) or a kind in the language's flow (a `kindId` from the passage's `steps`).
+  - **Answering a request needs its `kindId`.** A request is done only when a review of the kind it asked for arrives; listener feedback leaves it open. When the passage has a request with `forYou: true`, send its `kindId`.
 - `reviewerId` is required: your id for whoever gave it. Only a hash is stored. It records one answer per reviewer, version, kind and outcome, so a retry records nothing new. Send `submissionId` to let one reviewer answer again.
 - `reviewerName` is shown to the team.
 - `takeId` defaults to `version`.
@@ -170,6 +181,7 @@ curl -X DELETE -H "$T" https://next.langquest.org/api/v1/languages/LANG/external
 In Claude Code: `claude mcp add --transport http langquest https://next.langquest.org/api/v1/mcp --header "Authorization: Bearer lqp_…"`.
 
 - The tools are `whoami`, `list_languages`, `list_passages`, `get_passage`, `record_review`, `report_release`, `set_external_value` and `get_external_values`. An agent sees only the tools its scopes allow.
+- `list_passages` takes what the list route takes, with `unitIds` and `include` as arrays, and returns the same `{ passages, nextAfter }`.
 - A batch holds at most 20 messages.
 - Reviewers' comments come from people outside the team. An agent that reads them and can also write should treat them as data, not instructions.
 

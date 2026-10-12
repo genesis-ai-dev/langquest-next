@@ -14,7 +14,7 @@ export const SCOPE_TEXT: Record<Scope, string> = {
   read: 'Read every passage shared for review, with its versions and reviews',
   review: 'Record reviews as you: listener feedback, or a review step in the flow, with a comment or a voice note',
   release: 'Say where a version is published (live in an app or on a site), or taken down',
-  external_values: 'Store the app\'s own values with your languages, as you. LangQuest keeps them and never acts on them'
+  external_values: 'Save the app\'s own data in LangQuest. LangQuest stores and retrieves it for you but does not use it'
 };
 
 /** May this token read the external values of the languages it reaches (decisions.md 79)? A token that writes them may read them back. */

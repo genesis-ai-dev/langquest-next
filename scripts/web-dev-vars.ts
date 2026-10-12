@@ -20,8 +20,15 @@ writeFileSync(new URL('../apps/web/.dev.vars', import.meta.url),
 // person applies it, decision 51). Local development runs from a copy that
 // requires it too (apps/web/.wrangler.dev.jsonc, ignored by git), and the
 // assets folder exists even before the app has been exported.
+//
+// The copy has no routes. With one, `wrangler dev` rewrites every request's
+// URL to the route's custom domain, so links the Worker builds from its own
+// address (recording links, review links, /connect) would point at
+// production. Without one, the request keeps the address it came in on:
+// localhost:8787 here, 10.0.2.2:8787 from the Android emulator.
 const config = JSON.parse(readFileSync(new URL('../apps/web/wrangler.jsonc', import.meta.url), 'utf8')
-  .split('\n').filter((l) => !/^\s*\/\//.test(l)).join('\n')) as { secrets?: { required?: string[] } };
+  .split('\n').filter((l) => !/^\s*\/\//.test(l)).join('\n')) as { secrets?: { required?: string[] }; routes?: unknown };
+delete config.routes;
 if (bibleBrain) config.secrets = { required: [...new Set([...(config.secrets?.required ?? []), 'BIBLE_BRAIN_ACCESS_KEY'])] };
 writeFileSync(new URL('../apps/web/.wrangler.dev.jsonc', import.meta.url), JSON.stringify(config, null, 1));
 mkdirSync(new URL('../apps/mobile/dist', import.meta.url), { recursive: true });
