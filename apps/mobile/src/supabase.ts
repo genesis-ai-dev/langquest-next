@@ -2,6 +2,8 @@ import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import { sessionStorageKey } from './sessionKey';
+import { answerAtOnceWhileOffline, sessionSafeFetch, type RenewalWatch } from './sessionSafeFetch';
+import { signOutThisDevice } from './signOutCore';
 
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const anon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -33,17 +35,31 @@ export const supabaseAnonKey = anon ?? 'unconfigured';
 /** Where the session is kept (sessionKey.ts). */
 export const SESSION_KEY = sessionStorageKey(supabaseUrl);
 
+/**
+ * A Supabase client that keeps its sign-in through a busy network, sends
+ * nothing as no one while the sign-in waits to renew, and answers at once
+ * offline instead of after half a minute of retries (sessionSafeFetch.ts).
+ */
+function clientAt(storageKey: string, autoRefreshToken: boolean) {
+  const watch: RenewalWatch = { failedAt: null };
+  const client = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: { storage: AsyncStorage, storageKey, autoRefreshToken, persistSession: true, detectSessionInUrl: false },
+    global: {
+      fetch: sessionSafeFetch({ anonKey: supabaseAnonKey, watch, hasSavedSession: async () => (await AsyncStorage.getItem(storageKey)) !== null })
+    }
+  });
+  answerAtOnceWhileOffline(client.auth, { watch, readSaved: () => AsyncStorage.getItem(storageKey) });
+  return client;
+}
+
 // A placeholder keeps `createClient` from throwing when the config is
 // missing; nothing calls it, because App shows the error instead.
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    storage: AsyncStorage,
-    storageKey: SESSION_KEY,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false
-  }
-});
+export const supabase = clientAt(SESSION_KEY, true);
+
+/** Sign out of this device only, online or not (signOutCore.ts, decision 87). */
+export function signOutHere(): Promise<void> {
+  return signOutThisDevice(supabase, AsyncStorage, SESSION_KEY);
+}
 
 /**
  * A client for someone signed out of this phone whose work is still to
@@ -51,7 +67,5 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
  * token is kept there and survives a restart; it renews only when used.
  */
 export function clientKeptAt(storageKey: string) {
-  return createClient(supabaseUrl, supabaseAnonKey, {
-    auth: { storage: AsyncStorage, storageKey, autoRefreshToken: false, persistSession: true, detectSessionInUrl: false }
-  });
+  return clientAt(storageKey, false);
 }

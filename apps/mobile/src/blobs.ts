@@ -22,7 +22,7 @@ import { webFiles, type WebFiles } from './webFiles';
  * and only for files the caller has proven the server can give back.
  *
  * Some phones claim more storage than they have and delete files behind
- * the app's back (decisions.md 87). So every file kept is also written down
+ * the app's back (decisions.md 91). So every file kept is also written down
  * in a ledger (`FileLedger`), and the folder is compared with it: at
  * startup against the ledger, and while the app is in use against the index,
  * when new files arrive or the app comes back on screen, at most every
@@ -331,7 +331,7 @@ export class BlobStore {
     this.urls.delete(hash);
   }
 
-  // ---- lost files (decisions.md 87) ----
+  // ---- lost files (decisions.md 91) ----
 
   /** Ledger work runs in order; a failure is dropped, and the next check tries again. */
   private enqueue(work: () => Promise<void>): void {
@@ -589,7 +589,7 @@ let store: Promise<BlobStore> | undefined;
 /** The device's one store, opened and listed once; it checks for lost files when the app comes back on screen. */
 export function getBlobStore(): Promise<BlobStore> {
   store ??= (async () => {
-    // Phones only: the browser's SQLite keeps six files open at most, and the two databases fill them (decisions.md 87).
+    // Phones only: the browser's SQLite keeps six files open at most, and the two databases fill them (decisions.md 91).
     const s = new BlobStore(undefined, WEB ? null : getFileLedger());
     await s.init();
     onWake(() => s.recheck());

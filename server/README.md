@@ -128,6 +128,26 @@ together:
 `npm run db:check` shows whether the hosted migrations match `main`;
 `npm run db:apply` still applies them by hand.
 
+### Auth settings in production
+
+The integration does not push auth settings, so production's live in the
+dashboard (Authentication) and are recorded here. People are offline for
+months (decisions.md 87): any limit on how long a session lasts signs them
+out at their next moment online, so these stay as they are. Checked by
+Caleb Koster on 2026-10-12.
+
+| Setting (Authentication → Sessions) | Value | Why |
+| --- | --- | --- |
+| Enforce single session per user | off | A second device would end the first |
+| Time-box user sessions | 0 (never) | Would sign everyone out a set time after signing in |
+| Inactivity timeout | 0 (never) | Would sign out exactly the people who are offline longest |
+| Access token expiry time | 3600 seconds | The app no longer depends on it offline (87) |
+| Detect and revoke potentially compromised refresh tokens | on | A renewal whose reply was lost is still accepted |
+| Refresh token reuse interval | 10 seconds | Supabase's recommendation |
+
+Rate limits (Authentication → Rate Limits) are Supabase's defaults. A 429
+on renewal no longer ends a sign-in (87), so they only slow a renewal down.
+
 The integration does not set secrets. `npm run secrets -- <preview|production>`
 sets the Edge Function secrets and the Vault secrets from the root
 `.env.<environment>` and schedules the projection job (`docs/environments.md`);

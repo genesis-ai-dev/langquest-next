@@ -2913,6 +2913,7 @@
       "setPasswordFirst": "Se outras pessoas usam este aparelho, primeiro crie uma senha em Editar perfil.",
       "forgets": "Você pode entrar de novo quando quiser. Este navegador esquece tudo o que guardou para você, então a próxima pessoa aqui não vê nada disso.",
       "anytime": "Você pode entrar de novo quando quiser.",
+      "offlineBackIn": "Este aparelho está sem internet, então para entrar de novo será preciso esperar uma conexão.",
       "signingOut": "Saindo…",
       "button": "Sair",
       "notYet": "Ainda não",

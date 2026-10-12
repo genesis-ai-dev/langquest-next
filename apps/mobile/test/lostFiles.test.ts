@@ -1,5 +1,5 @@
 /**
- * Files a phone deletes behind the app's back (decisions.md 87): the file
+ * Files a phone deletes behind the app's back (decisions.md 91): the file
  * store writes down what it keeps, notices what goes missing at startup and
  * while in use, and never mistakes its own deletions for a loss. Run on the
  * web store, whose files are an in-memory folder here.
@@ -50,7 +50,7 @@ async function start(web: WebFiles, ledger: MemoryFileLedger) {
   return store;
 }
 
-describe('noticing files the device lost (decisions.md 87)', () => {
+describe('noticing files the device lost (decisions.md 91)', () => {
   it('writes down what is already here the first time, without calling it lost', async () => {
     const { files, web } = folder();
     files.set(`${'a'.repeat(64)}.wav`, bytes('one'));

@@ -8,6 +8,7 @@ export * from './sqliteStore';
 export * from './transferWorker';
 export * from './device';
 export * from './snapshotWorker';
+export * from './listStreams';
 export * from './blobReconciler';
 export * from './workerBlobs';
 export * from './snapshotFetch';

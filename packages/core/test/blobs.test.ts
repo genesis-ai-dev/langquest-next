@@ -210,7 +210,7 @@ describe('a voice note recorded in a browser keeps its format (decisions.md 58, 
   });
 });
 
-describe('files a phone lost behind the app\'s back (decisions.md 87)', () => {
+describe('files a phone lost behind the app\'s back (decisions.md 91)', () => {
   const state = fold(events());
 
   it('a file the server has is safe; an unsent recording is gone, and its passage is named once', () => {

@@ -268,6 +268,9 @@ max_frequency = "5s"
 # 4152127777 = "123456"
 
 # Configure logged in session timeouts.
+# Leave these off here and in production: people are offline for months, and
+# any limit signs them out at their next moment online (decisions.md 87,
+# server/README.md "Auth settings in production").
 # [auth.sessions]
 # Force log out after the specified duration.
 # timebox = "24h"

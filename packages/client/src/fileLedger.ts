@@ -15,7 +15,7 @@ export interface LostFile {
 
 /**
  * What the device's file store has kept, written down apart from the files
- * (decisions.md 87). Some phones sold in the field claim more storage than
+ * (decisions.md 91). Some phones sold in the field claim more storage than
  * they have and silently delete files once it runs out; the folder listing
  * alone cannot tell a file the phone threw away from one that was never
  * here. A file named here but missing from the folder was lost, and stays in

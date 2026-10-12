@@ -37,19 +37,83 @@ function webDriver(db: SQLite.SQLiteDatabase): SqlDriver {
   };
 }
 
-/** expo-sqlite driver; the test twin lives in packages/client/test. */
-function expoDriver(db: SQLite.SQLiteDatabase): SqlDriver {
-  if (Platform.OS === 'web') return webDriver(db);
+/**
+ * The driver as it was: every commit on a connection of its own, opened and
+ * closed by expo's `withExclusiveTransactionAsync`, each statement prepared,
+ * run and finalized. Kept for the storage benchmark (storageBench.ts) only.
+ */
+export function exclusiveTransactionDriver(db: SQLite.SQLiteDatabase): SqlDriver {
   return {
     ...statements(db),
-    // One transaction per commit batch: tens of thousands of events after a
-    // month offline must not be one fsync each. Exclusive, on its own
-    // connection: expo documents that `withTransactionAsync` lets unrelated
-    // concurrent queries run inside the transaction, so a blob-store read
-    // or a pending count could otherwise land in a commit and be rolled
-    // back with it. The batch's statements run on `txn`, nothing else does.
     transaction: (fn) => db.withExclusiveTransactionAsync((txn) => fn({ ...statements(txn) }))
   };
+}
+
+/**
+ * Statements on a connection, each prepared once and kept for the life of
+ * the connection: running one is then one call across the bridge instead of
+ * three (prepare, run, finalize).
+ */
+function preparedRun(db: SQLite.SQLiteDatabase): SqlDriver['run'] {
+  const cache = new Map<string, Promise<SQLite.SQLiteStatement>>();
+  return async (sql, params = []) => {
+    let statement = cache.get(sql);
+    if (!statement) {
+      statement = db.prepareAsync(sql);
+      cache.set(sql, statement);
+      statement.catch(() => cache.delete(sql));
+    }
+    await (await statement).executeAsync(params as SQLite.SQLiteBindParams);
+  };
+}
+
+/**
+ * One transaction per commit batch: tens of thousands of events after a
+ * month offline must not be one fsync each. Commits run one at a time on a
+ * write connection of their own, opened once with the store's pragmas, so
+ * nothing else can land inside a commit and be rolled back with it: expo
+ * documents that `withTransactionAsync` lets unrelated queries in. Opening
+ * a connection for every commit, as `withExclusiveTransactionAsync` does,
+ * cost an open and a close per append and per pull page, and that
+ * connection ran at SQLite's default `synchronous = full`
+ * (performance-audit.md item 1). Reads stay on the main connection; WAL
+ * lets them run while a commit writes.
+ */
+export function writeConnectionDriver(db: SQLite.SQLiteDatabase, writer: SQLite.SQLiteDatabase): SqlDriver {
+  const tx: SqlDriver = { run: preparedRun(writer), all: statements(writer).all };
+  let queue: Promise<unknown> = Promise.resolve();
+  return {
+    ...statements(db),
+    transaction: (fn) => {
+      const next = queue.then(async () => {
+        await writer.execAsync('BEGIN IMMEDIATE');
+        try {
+          await fn(tx);
+          await writer.execAsync('COMMIT');
+        } catch (e) {
+          await writer.execAsync('ROLLBACK').catch(() => {});
+          throw e;
+        }
+      });
+      queue = next.catch(() => {});
+      return next;
+    }
+  };
+}
+
+/** A database's write connection, with the pragmas a connection does not inherit. */
+export async function openWriter(name: string): Promise<SQLite.SQLiteDatabase> {
+  const writer = await SQLite.openDatabaseAsync(name, { useNewConnection: true });
+  await writer.execAsync('pragma journal_mode = wal; pragma synchronous = normal; pragma busy_timeout = 5000;');
+  return writer;
+}
+
+/** expo-sqlite driver; the test twin lives in packages/client/test. */
+async function expoDriver(db: SQLite.SQLiteDatabase, name: string): Promise<SqlDriver> {
+  if (Platform.OS === 'web') return webDriver(db);
+  const writer = await openWriter(name);
+  writers.set(name, writer);
+  return writeConnectionDriver(db, writer);
 }
 
 let storePromise: Promise<SqliteStore> | undefined;
@@ -57,6 +121,8 @@ let diagPromise: Promise<SqliteDiagStore> | undefined;
 let ledgerPromise: Promise<SqliteFileLedger> | undefined;
 /** The open databases, so signing out on the web can close and delete them. */
 const opened = new Map<string, SQLite.SQLiteDatabase>();
+/** Their write connections (phones only). */
+const writers = new Map<string, SQLite.SQLiteDatabase>();
 const open = (name: string) => SQLite.openDatabaseAsync(name).then((db) => { opened.set(name, db); return db; });
 
 /**
@@ -91,13 +157,14 @@ function failed<T>(forget: () => void) {
  */
 export function getDiagStore(): Promise<SqliteDiagStore> {
   // Diagnostics fail quietly (diagnostics.ts); only the event log tells the screen.
-  diagPromise ??= allowed.then(() => open('langquest-diagnostics.db')).then((db) => SqliteDiagStore.open(expoDriver(db)))
+  diagPromise ??= allowed.then(() => open('langquest-diagnostics.db'))
+    .then(async (db) => SqliteDiagStore.open(await expoDriver(db, 'langquest-diagnostics.db')))
     .catch((error: unknown) => { diagPromise = undefined; throw error; });
   return diagPromise;
 }
 
 /**
- * What the file store has kept (blobs.ts, decisions.md 87). Its own file
+ * What the file store has kept (blobs.ts, decisions.md 91). Its own file
  * too, so writing down a downloaded file never waits on an event commit.
  * Only the file store opens it, and only on a phone: a browser's SQLite
  * keeps at most six files open (expo-sqlite's access handle pool), which
@@ -105,7 +172,8 @@ export function getDiagStore(): Promise<SqliteDiagStore> {
  * open its storage at all.
  */
 export function getFileLedger(): Promise<SqliteFileLedger> {
-  ledgerPromise ??= allowed.then(() => open('langquest-files.db')).then((db) => SqliteFileLedger.open(expoDriver(db)))
+  ledgerPromise ??= allowed.then(() => open('langquest-files.db'))
+    .then(async (db) => SqliteFileLedger.open(await expoDriver(db, 'langquest-files.db')))
     .catch((error: unknown) => { ledgerPromise = undefined; throw error; });
   return ledgerPromise;
 }
@@ -113,7 +181,7 @@ export function getFileLedger(): Promise<SqliteFileLedger> {
 /** One local event log per device, shared by every stream this phone syncs. */
 export function getStore(): Promise<SqliteStore> {
   storePromise ??= allowed.then(() => open('langquest-next.db')).then(async (db) => {
-    const driver = expoDriver(db);
+    const driver = await expoDriver(db, 'langquest-next.db');
     const store = await SqliteStore.open(driver);
     // The journey oracle reads the device log directly (smart tests, web dev
     // only). Installed once the schema exists, so its presence means ready.
@@ -137,6 +205,8 @@ export async function deleteLocalDatabases(): Promise<void> {
   storePromise = undefined;
   diagPromise = undefined;
   for (const name of ['langquest-next.db', 'langquest-diagnostics.db']) {
+    await writers.get(name)?.closeAsync().catch(() => undefined);
+    writers.delete(name);
     await opened.get(name)?.closeAsync().catch(() => undefined);
     opened.delete(name);
     await SQLite.deleteDatabaseAsync(name);

@@ -50,7 +50,8 @@ import * as Translate from './src/screens/translate';
 import * as Work from './src/screens/work';
 import { StorageGate, useLeaveGuard } from './src/storageGate';
 import { AUTH_SCREENS, GUEST_SCREENS, deriveSession, edgeAllowed, foldsSettled, homeScreenFor, postSignInScreen, tabsFor, type TabId } from './src/session';
-import { supabase, supabaseConfigError } from './src/supabase';
+import { SESSION_KEY, supabase, supabaseConfigError } from './src/supabase';
+import { afterAuthEvent, savedSession } from './src/authState';
 import { C, space } from './src/theme';
 import { recordUserEvent } from './src/accountData';
 import { useAccountSync, useDisplayNames, useProfileName } from './src/useAccount';
@@ -288,9 +289,14 @@ export default function App() {
   useHandOvers(auth === undefined ? undefined : auth?.user.id ?? null);
   useEffect(() => {
     if (supabaseConfigError) return;
-    supabase.auth.getSession().then(({ data }) => setAuth(data.session));
-    const { data } = supabase.auth.onAuthStateChange((_e, s) => setAuth(s));
-    return () => data.subscription.unsubscribe();
+    let active = true;
+    // Whoever this phone holds a sign-in for, renewable right now or not
+    // (authState.ts, decision 87): offline, supabase-js reports no one once
+    // the token is an hour old, and took half a minute to say so.
+    const fromStorage = (s: AuthSession | null) => { if (active) setAuth((now) => (now === undefined ? s : now)); };
+    AsyncStorage.getItem(SESSION_KEY).then((raw) => fromStorage(savedSession(raw)), () => fromStorage(null));
+    const { data } = supabase.auth.onAuthStateChange((event, s) => setAuth((now) => afterAuthEvent(now, event, s)));
+    return () => { active = false; data.subscription.unsubscribe(); };
   }, []);
   return (
     <SafeAreaProvider>
@@ -787,7 +793,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
         </View>
         {!wide && showTabs ? navChrome('bar') : null}
       </PeopleContext.Provider>
-      {/* Files this device deleted behind the app's back (decisions.md 87): over every screen until seen. */}
+      {/* Files this device deleted behind the app's back (decisions.md 91): over every screen until seen. */}
       <LostFilesAlert state={language.state} />
       {canSwitchPersona ? (
         <DevMenu open={devOpen} onClose={() => setDevOpen(false)} language={language} org={org} currentEmail={props.email} isOwner={session.role === 'owner'} isDev={IS_DEV} jump={(s) => nav.reset({ screen: s })} />

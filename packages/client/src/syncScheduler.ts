@@ -63,7 +63,10 @@ export class SyncScheduler {
     this.o = {
       livePollMs: 5 * 60_000,
       pollMs: 60_000,
-      offlineBackoffMs: [15_000, 30_000, 60_000, 120_000, 300_000],
+      // Up to half an hour with no signal: the app wakes sync when the
+      // network returns (apps/mobile/src/wake.ts), so this poll is only the
+      // safety net for a network that says it is up but cannot reach us.
+      offlineBackoffMs: [15_000, 30_000, 60_000, 120_000, 300_000, 600_000, 1_800_000],
       debounceMs: 250,
       maxDelayMs: 2_000,
       random: Math.random,

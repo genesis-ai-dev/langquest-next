@@ -1845,6 +1845,11 @@ treatment, from the language's events, rather than a faster pass. Or if a
 mark lets a language go stale; then bump `PROJECTION_VERSION` and find
 what the mark misses.
 
+Amended (2026-10-12, Carl Sauder): the pass also visits a language whose
+newest snapshot is behind its stream and an hour old, so it gets a new one
+(88); a language whose stream moved is still folded every pass, but its
+snapshot is written only on 88's schedule.
+
 ## 69. Recordings and guide media live in Cloudflare R2, behind the app's Worker
 
 Date: 2026-10-07 · By: Carl Sauder · Status: accepted
@@ -2852,7 +2857,133 @@ Reverse if: the document is often updated only because the tests fail
 rather than ahead of the change (then generate it from the types), or a
 second API needs one (then a shared generator).
 
-## 87. A phone writes down the files it keeps, and a file it loses behind the app's back is an alarm
+## 87. A phone stays signed in until someone signs out on it or the server ends the sign-in
+
+Date: 2026-10-12 · By: Caleb Koster · Status: accepted
+
+Reason: translators are offline for months and may get a signal for a
+second before going offline again. Caleb asked (2026-10-12) that nothing
+then signs them out or keeps them from their work. An audit found that
+supabase-js reports no one whenever an expired access token (an hour old)
+cannot be renewed, and the app took its word: a phone restarted offline
+showed a blank screen for 25 seconds and then Sign In. Production's session
+settings were already safe (no time-box, no inactivity timeout, no single
+session per user; `server/README.md`). Chosen:
+- The app starts from the sign-in saved on the phone (`authState.ts`,
+  `App.tsx`): supabase-js deletes it only when the server has said no, or
+  the person signed out, and says so with `SIGNED_OUT`, the only event that
+  makes the person a guest.
+- Renewing the sign-in (`sessionSafeFetch.ts`, the fetch of every Supabase
+  client): a 429, a 408, a 5xx, or anything that is not Supabase Auth's own
+  JSON error reaches supabase-js as a network failure, so it keeps the
+  sign-in and tries again. Many phones on one connection, or a page from a
+  hotspot or a proxy, no longer end a sign-in.
+- While a sign-in waits to renew, a request that would go out with only the
+  public key fails as a network failure. It is offline, never a refusal
+  (`supabaseTransport.ts` reads it as `OfflineError`).
+- supabase-js retries a failed renewal for about 25 seconds and every call
+  needing the token waits; offline, a screen waiting on one call stayed
+  blank that long. Right after a renewal failed for want of a network,
+  `getSession` answers at once from the saved sign-in
+  (`answerAtOnceWhileOffline`); supabase-js's own timer keeps renewing in
+  the background.
+- Signing out ends this device's session only (`signOutCore.ts`): `global`
+  ended the person's sign-in on every device, and the hand-overs kept for
+  them on shared phones. With an expired token it asks the server nothing,
+  so it works offline at once. A browser forgets itself even when the
+  server cannot be told (11).
+- A phone whose notifications cannot be disconnected offline hands the
+  disconnect to the courier (60) instead of refusing sign-out, as 12
+  (amended 2026-09-28) says offline alone must not. Offline, the sign-out
+  screen says signing back in will need a connection.
+Tests `apps/mobile/test/offlineSignIn.test.ts` run supabase-js itself.
+Still true: setting a password ends the person's other sessions (Supabase
+Auth has no setting for it), and nobody can sign in on a phone that has
+never held their sign-in without the server.
+Reverse if: a phone keeps acting for an account the server has ended
+(then end it on the first refusal of its requests), or Supabase Auth
+starts answering a lasting refusal with a status this treats as passing.
+
+## 88. A language's server snapshot is written after 200 new events or an hour, and the one before stays for 24 hours
+
+Date: 2026-10-12 · By: Carl Sauder · Status: accepted
+
+Reason: the projection pass wrote a new snapshot of every language that had
+any new event, every five minutes, and `put_snapshot` deleted the one
+before at once. A phone part-way through downloading a snapshot then found
+its pieces gone, threw the download away and pulled the whole log; on a
+slow link the next try went the same way. The fleet simulator measured it
+(`docs/fleet-baselines.md`, `slowLink`): every joiner on a 2 KB/s link went
+stale and took 14 to 29 minutes at 1,200 passages, 42 to 51 at 3,000.
+Carl chose (2026-10-12, LAN-47):
+- The pass still folds every changed language for the Inbox, but writes a
+  new snapshot only after 200 new events or once the newest is an hour old
+  and the stream has moved (`SNAPSHOT_SCHEDULE`, `shouldWriteSnapshot` in
+  `packages/client/src/snapshotWorker.ts`). It writes at once when there is
+  none, and when the new events hold a redaction, since a phone whose own
+  checkpoint holds the target waits for a snapshot past the redaction
+  (whether or not the server's snapshot held it; waiting up to an hour sent
+  such phones back to the whole log after 30 minutes). A language
+  that went quiet a few events past its snapshot is visited again once the
+  hour is up (`snapshotDue`, `server/projectionWorker.ts`).
+- A snapshot stays downloadable until the one after it has been out for 24
+  hours (`put_snapshot`, migration `20261012120000_snapshot_retention.sql`).
+  That covers a 13 MB download at 2 KB/s, about two hours, with a wide
+  margin, and a phone that loses its signal and resumes later that day.
+A cold start now pulls up to 200 events, or an hour's, after the snapshot.
+A busy language keeps up to about 25 snapshots, a quiet one one or two.
+Reverse if: snapshot storage grows past what the database plan allows
+(then shorten the retention, or keep pieces in object storage), or cold
+starts spend more time on the tail than they saved.
+
+## 89. A snapshot's pieces are cut once, when it is written, and kept in their own table
+
+Date: 2026-10-12 · By: Carl Sauder · Status: accepted
+
+Reason: `get_snapshot_chunk` serialized the whole snapshot (`state::text`)
+to return each 256 KB piece (18), and `get_snapshot_meta` did it twice to
+say how big it was. `npm run bench:server` measured 60 to 80 ms of database
+time per piece for a 14 MB snapshot of 55 pieces: about 4 s for each cold
+start and each worker read (performance-audit.md item 4). Carl chose
+(2026-10-12, LAN-47) to keep the pieces in Postgres rather than R2: the
+same RPCs, the same authorization, nothing new to run. `put_snapshot`
+serializes the state once, cuts it by bytes into pieces of at most 256 KB
+that never split a character, and stores them in `snapshot_chunks`, with
+the snapshot's size and piece count on its row (migration
+`20261012130000_snapshot_chunks.sql`). Pieces go with their snapshot (a
+cascading key), so 88's retention holds for them. A snapshot written
+before has no pieces and is read as before until it ages out. Reads now
+take under a millisecond; a write takes about 0.3 s instead of 0.1 s, and
+88 writes at most one an hour per language. The pieces double a
+snapshot's storage beside its `state`, which `get_snapshot` and the
+diagnostics (`diag.language_health`) still read.
+Reverse if: snapshot storage outgrows the database plan (then the pieces
+move to object storage behind the Worker, or `state` stops being kept), or
+a snapshot write has to be faster than that.
+
+## 90. A phone wakes sync when its network comes back, and with no signal polls at most every half hour
+
+Date: 2026-10-12 · By: Carl Sauder · Status: accepted
+
+Reason: the fleet simulator showed a phone out of signal woke sync every
+five minutes, the scheduler's backoff ceiling, for as long as the app was
+open: about 280 times a day on a phone that may be out of reach for weeks.
+On a phone nothing woke sync when the network returned (`wake.ts` listened
+for that only on the web), so the poll was the only way back. Carl chose
+(2026-10-12, LAN-47) to do both: wake on the operating system's network
+state (`expo-network`, `apps/mobile/src/networkWake.ts`, at most once in
+ten seconds while the signal comes and goes), and let the offline backoff
+go on to 10 and then 30 minutes (`SyncScheduler`). The poll stays as the
+safety net, since a phone can report a network that cannot reach the
+server (a captive portal, a SIM with no data left); it no longer carries
+the latency. `expo-network` adds no Android permission and collects
+nothing (`play-store-declarations.md`). Fleet `village-small`: 2,962 wakes
+with no signal instead of 16,799, and work reached the server as fast.
+Reverse if: phones are seen not to report a returning network, so work
+waits for the half-hour poll (then a shorter ceiling, or a reachability
+check of our own).
+
+## 91. A phone writes down the files it keeps, and a file it loses behind the app's back is an alarm
 
 Date: 2026-10-12 · By: Caleb Koster · Status: accepted
 

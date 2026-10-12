@@ -1,0 +1,8 @@
+{
+  "extends": "../../packages/core/tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "paths": { "@langquest-next/core": ["../../packages/core/src/index.ts"] }
+  },
+  "include": ["*.ts", "scenarios/*.ts"]
+}

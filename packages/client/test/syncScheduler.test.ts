@@ -183,4 +183,32 @@ describe('SyncScheduler', () => {
     await h.advance(59_999);
     expect(h.runs).toHaveLength(3);
   });
+
+  it('with no signal, backs off to half an hour by default', async () => {
+    // Why: at a five-minute ceiling a phone out of reach for weeks woke its
+    // radio about 280 times a day; the app now wakes sync when the network
+    // returns, so the poll is only a safety net.
+    const runs: number[] = [];
+    let now = 0;
+    const timers: { at: number; fn: () => void }[] = [];
+    const scheduler = new SyncScheduler({
+      run: async () => { runs.push(now); return { offline: true }; },
+      random: () => 0.5,
+      now: () => now,
+      setTimeout: (fn, ms) => { const t = { at: now + ms, fn }; timers.push(t); return t; },
+      clearTimeout: (h) => { const i = timers.indexOf(h as never); if (i >= 0) timers.splice(i, 1); }
+    });
+    scheduler.start();
+    for (let i = 0; i < 12; i++) {
+      timers.sort((a, b) => a.at - b.at);
+      const next = timers.shift();
+      if (!next) break;
+      now = next.at;
+      next.fn();
+      await new Promise((r) => setImmediate(r));
+    }
+    const gaps = runs.slice(1).map((t, i) => t - runs[i]!);
+    expect(Math.max(...gaps)).toBe(1_800_000);
+    scheduler.stop();
+  });
 });
