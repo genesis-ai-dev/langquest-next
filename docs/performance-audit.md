@@ -383,6 +383,14 @@ bump the revision once per batch instead of once per event
 
 ## 4. Found along the way
 
+- **Waking a phone with no signal (fixed 2026-10-12).** The fleet showed a
+  phone out of signal woke sync every 5 minutes, the scheduler's ceiling,
+  for as long as the app stayed open. A phone now wakes sync when its
+  network comes back (expo-network, `apps/mobile/src/networkWake.ts`), and
+  the offline poll backs off to 30 minutes as a safety net for a network
+  that says it is up but cannot reach the server. `village-small`: 2,962
+  wakes with no signal instead of 16,799; work reaches the server as fast.
+
 - **Privacy:** `pull_events` returns the payloads of redacted events; only
   the fold hides them. Worth deciding on its own.
 - **Doc drift:**
