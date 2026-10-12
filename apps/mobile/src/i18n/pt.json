@@ -1685,9 +1685,9 @@
       "psalm": "Salmo {{place}}"
     },
     "others": {
-      "intro_one": "{{way}} não tem seções para {{count, number}} livro ({{books}}). Esse livro:",
-      "intro_many": "{{way}} não tem seções para {{count, number}} de livros ({{books}}). Esses livros:",
-      "intro_other": "{{way}} não tem seções para {{count, number}} livros ({{books}}). Esses livros:",
+      "intro_one": "O FIA não tem passagens para {{count, number}} livro ({{books}}). Esse livro:",
+      "intro_many": "O FIA não tem passagens para {{count, number}} de livros ({{books}}). Esses livros:",
+      "intro_other": "O FIA não tem passagens para {{count, number}} livros ({{books}}). Esses livros:",
       "byChapter": "por capítulo",
       "wait": "esperam ser divididos"
     },

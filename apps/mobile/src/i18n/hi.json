@@ -1629,8 +1629,8 @@
       "psalm": "भजन {{place}}"
     },
     "others": {
-      "intro_one": "{{way}} में {{count, number}} पुस्तक ({{books}}) के लिए खंड नहीं हैं। वह पुस्तक:",
-      "intro_other": "{{way}} में {{count, number}} पुस्तकों ({{books}}) के लिए खंड नहीं हैं। वे पुस्तकें:",
+      "intro_one": "FIA में {{count, number}} पुस्तक ({{books}}) के लिए अंश नहीं हैं। वह पुस्तक:",
+      "intro_other": "FIA में {{count, number}} पुस्तकों ({{books}}) के लिए अंश नहीं हैं। वे पुस्तकें:",
       "byChapter": "अध्याय के अनुसार",
       "wait": "बाँटे जाने का इंतज़ार करें"
     },

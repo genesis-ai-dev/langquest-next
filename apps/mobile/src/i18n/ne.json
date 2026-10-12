@@ -1629,8 +1629,8 @@
       "psalm": "भजनसंग्रह {{place}}"
     },
     "others": {
-      "intro_one": "{{way}} मा {{count, number}} पुस्तक ({{books}}) का लागि खण्डहरू छैनन्। त्यो पुस्तक:",
-      "intro_other": "{{way}} मा {{count, number}} पुस्तक ({{books}}) का लागि खण्डहरू छैनन्। ती पुस्तकहरू:",
+      "intro_one": "FIA मा {{count, number}} पुस्तक ({{books}}) का लागि खण्डहरू छैनन्। त्यो पुस्तक:",
+      "intro_other": "FIA मा {{count, number}} पुस्तक ({{books}}) का लागि खण्डहरू छैनन्। ती पुस्तकहरू:",
       "byChapter": "अध्याय अनुसार",
       "wait": "टुक्रा पारिन पर्खन्छन्"
     },

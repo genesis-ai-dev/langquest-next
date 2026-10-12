@@ -1573,7 +1573,7 @@
       "psalm": "Mazmur {{place}}"
     },
     "others": {
-      "intro_other": "{{way}} tidak punya bagian untuk {{count, number}} kitab ({{books}}). Kitab-kitab itu:",
+      "intro_other": "FIA tidak punya perikop untuk {{count, number}} kitab ({{books}}). Kitab-kitab itu:",
       "byChapter": "per pasal",
       "wait": "menunggu dibagi"
     },

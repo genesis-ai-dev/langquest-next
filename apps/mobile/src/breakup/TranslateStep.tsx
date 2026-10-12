@@ -173,7 +173,7 @@ export function TranslateQuestion(props: { ctx: Ctx; t: Translate; lang: string;
           <WayCard key={r.choice.key} row={r} doc={q.ways.docOf(r.choice)} v11n={q.ways.v11nOf(q.ways.docOf(r.choice))} on={q.row === r}
             onPress={() => q.setKey(r.choice.key)} onPreview={() => setPeek(r)}>
             {q.row === r && q.empty.length ? (
-              <OthersChoice way={r.choice.name} empty={emptyLine(q.doc!)} count={q.empty.length} on={q.others} onPick={q.setOthers} />
+              <OthersChoice empty={emptyLine(q.doc!)} count={q.empty.length} on={q.others} onPick={q.setOthers} />
             ) : null}
           </WayCard>
         ))}
