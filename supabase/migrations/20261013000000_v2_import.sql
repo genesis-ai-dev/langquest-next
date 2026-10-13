@@ -26,6 +26,8 @@ create table v2_import.orgs (
 -- A v2 project's place: its organization (null: not coming over), the
 -- language decided for it (docs/v2-project-languages.md), and who confirmed
 -- both. A project comes over once confirmed, and keeps coming after that.
+-- With no language decided it comes over by its name, unlinked, and its
+-- admins link it in Next (Caleb, 2026-10-13).
 create table v2_import.placements (
   project_id text primary key check (length(project_id) between 1 and 100),
   org_id text references v2_import.orgs (org_id) on update cascade,
@@ -38,7 +40,7 @@ create table v2_import.placements (
   updated_by text,
   updated_at timestamptz not null default now(),
   check ((confirmed_at is null) = (confirmed_by is null)),
-  check (confirmed_at is null or (org_id is not null and code is not null))
+  check (confirmed_at is null or org_id is not null)
 );
 
 -- A person's role in a project's language once it comes over, when the

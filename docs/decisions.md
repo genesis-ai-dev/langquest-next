@@ -3240,3 +3240,11 @@ translations exist. An FIA project's team is offered FIA's study guides in
 the language it reads, else English, as New language offers them: v2's app
 read FIA's guides from FIA, so without them an FIA team would have the
 passages and nothing to study.
+
+Amended (2026-10-13, Caleb Koster): a project need not have its language
+linked to come over. With none chosen on the dashboard it comes over by its
+name, unlinked (a `LanguageAdded` with a code made from the name, as New
+language makes one, and no `LanguageCodeSet`), and its admins link it in
+Next, as they can any language added unlinked (78). The dashboard's
+suggestions are never linked unless someone uses one: v2's own links, which
+many suggestions repeat, are often wrong.

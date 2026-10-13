@@ -124,7 +124,7 @@ class Run {
   async project(projectId: string): Promise<ProjectReport> {
     const placement = this.plan.placements.find((p) => p.project_id === projectId);
     const org = this.plan.orgs.find((o) => o.org_id === placement?.org_id);
-    if (!placement?.confirmed_at || !org || !placement.code) return { projectId, skipped: 'not confirmed on the board' };
+    if (!placement?.confirmed_at || !org) return { projectId, skipped: 'not confirmed on the board' };
     const name = this.summaries.get(projectId)?.name ?? projectId;
     const passId = await this.deps.target.passStart(projectId, org.org_id, this.deps.by ?? 'unknown');
     const say = (level: LogLine['level'], message: string, counts?: Record<string, number>) => {
@@ -160,12 +160,14 @@ class Run {
       const source = rows.languages.find((l) => l.active && l.language_type === 'source')?.languoid_id;
       const sourceCode = (source && (await this.deps.target.languoidCode(source))) || 'eng';
       const guides = kind === 'fia' ? await this.fiaGuides(org, sourceCode, say) : null;
+      // A language chosen without its code takes the language list's; one not chosen comes over unlinked.
+      const code = placement.code ?? (placement.languoid_id ? await this.deps.target.languoidCode(placement.languoid_id) : null);
       // Roles chosen on the dashboard; an organization role's id stands for the project role with its privileges.
       const ROLE: Record<string, Role | 'none'> = { org_admin: 'owner', coordinator: 'coordinator', translator: 'translator', reviewer: 'reviewer', viewer: 'viewer', none: 'none' };
       const roles = new Map((this.plan.roles ?? []).filter((r) => r.project_id === projectId).map((r) => [r.profile_id, ROLE[r.role]!] as const));
       const mapped = mapProject(rows, {
         orgId: org.org_id,
-        language: { code: placement.code, languoidId: placement.languoid_id, sourceCode, decidedAt: placement.confirmed_at, ...(placement.name ? { name: placement.name } : {}) },
+        language: { code, languoidId: placement.languoid_id, sourceCode, decidedAt: placement.confirmed_at, ...(placement.name ? { name: placement.name } : {}) },
         roles,
         files: files.map,
         templates: template && kind ? { [kind]: template } : {},
@@ -178,6 +180,7 @@ class Run {
       if (report.files.uploaded) await say('info', `Stored ${n(report.files.uploaded)} audio files in Next`);
 
       const outcome = await this.say(projectId, org.org_id, mapped.facts, progress);
+      if (outcome.languageAdded && !code) await say('info', `No language linked yet: it comes over as “${placement.name ?? name}”, and its admins can link it in Next`);
       Object.assign(report, outcome);
       const added = outcome.added ?? {};
       const total = outcome.append?.accepted ?? 0;
@@ -255,7 +258,7 @@ class Run {
   }
 
   /** Reconcile, append the organization stream first (a language stream needs its listing), then save what was accepted. */
-  private async say(scope: string, orgId: string, facts: Fact[], progress?: (p: Progress) => Promise<void>): Promise<Pick<ProjectReport, 'append' | 'rejected' | 'retry' | 'added'> & { created?: boolean }> {
+  private async say(scope: string, orgId: string, facts: Fact[], progress?: (p: Progress) => Promise<void>): Promise<Pick<ProjectReport, 'append' | 'rejected' | 'retry' | 'added'> & { created?: boolean; languageAdded?: boolean }> {
     const ledger = await this.deps.target.ledger(scope);
     const r = reconcile(facts, ledger, { orgId, scope, now: this.now() });
     const orgEvents = r.events.filter((e) => e.streamId === ORG_STREAM);
@@ -294,6 +297,7 @@ class Run {
       append: { accepted: first.accepted + second.accepted, duplicates: first.duplicates + second.duplicates, rejected: rejected.length },
       added,
       created: r.events.some((e) => e.type === 'v1.OrgCreated' && !refused.has(e.id)),
+      languageAdded: r.events.some((e) => e.type === 'v1.LanguageAdded' && !refused.has(e.id)),
       ...(rejected.length ? { rejected: rejected.slice(0, 50), retry: refusedKeys.size } : {})
     };
   }

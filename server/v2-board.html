@@ -112,6 +112,7 @@
   .person { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid #f1f0f5; }
   .avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--purple-soft); color: var(--purple); display: grid; place-items: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
   .person .sub { color: var(--muted); font-size: 12px; }
+  .suggests { font-size: 11px; color: var(--muted); margin-left: 6px; }
   .person .email { font-size: 12px; user-select: all; overflow-wrap: anywhere; }
 
   .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(460px, 100vw); background: var(--panel); border-left: 1px solid var(--line); box-shadow: -12px 0 32px rgba(20,10,60,.12); z-index: 30; display: flex; flex-direction: column; transform: translateX(105%); transition: transform .2s; }
@@ -253,12 +254,17 @@ const fresh = (p) => Date.now() - Date.parse(p.progress_at) < 120000;
 const orgName = (id) => id === SKIP ? "Not coming over" : S.orgs.find((o) => o.org_id === id)?.name ?? id;
 const personName = (id) => S.nameOf[id] ?? (S.everyLanguage?.includes(id) ? 'Every Language' : `Person ${id.slice(0, 8)}`);
 const personEmail = (id) => S.emailOf[id] ?? '';
+/**
+ * The language a card comes over linked to: chosen here, or decided in the
+ * CSV. Anything else comes over unlinked, by its name, and its admins link
+ * it in Next; a suggestion is only ever a suggestion until someone uses it.
+ */
 function language(c) {
   const r = c.recommendation;
-  if (c.code) return { text: c.languoidId && c.languoidId === r.languoidId && r.name ? `${r.name} [${c.code}]` : c.code, cls: 'c-decided', sure: true, title: 'Chosen here' };
-  if (r.decision) return { text: 'chosen in the CSV', cls: 'c-decided', sure: true, title: r.reason };
-  if (r.code) return { text: `${r.name ?? r.code} [${r.code}]`, conf: r.confidence, cls: `c-${r.confidence}`, sure: ['keep', 'high'].includes(r.confidence) && !!r.languoidId, title: `Suggested (${r.confidence}): ${r.reason}` };
-  return { text: 'Choose a language', cls: 'c-none', sure: false, title: r.reason };
+  if (c.code || c.languoidId) return { text: c.languoidId && c.languoidId === r.languoidId && r.name ? `${r.name} [${c.code ?? r.code}]` : c.code ?? 'chosen here', cls: 'c-decided', linked: true, title: 'Chosen here' };
+  if (r.decision) return { text: 'chosen in the CSV', cls: 'c-decided', linked: true, title: r.reason };
+  const suggestion = r.code ? `${r.name ?? r.code} [${r.code}]` : null;
+  return { text: 'Not linked yet', cls: 'c-none', linked: false, suggestion, title: suggestion ? `Comes over unlinked unless you use the suggestion, ${suggestion} (${r.confidence}): ${r.reason}` : 'Comes over unlinked; its admins can link it in Next' };
 }
 function issuesOf(pass) {
   if (!pass) return [];
@@ -286,7 +292,6 @@ function stateOf(c) {
   if (pass?.error) return { key: 'issues', text: 'Stopped with an error' };
   if (pass?.last_done) return issues.length ? { key: 'issues', text: `In Next · ${plural(issues.length, 'issue')}` } : { key: 'done', text: `In Next · ${ago(pass.last_done)}` };
   if (c.confirmed) return { key: 'confirmed', text: 'Confirmed, not transferred yet' };
-  if (!language(c).sure) return { key: 'language', text: 'Choose its language first' };
   return { key: 'ready', text: 'Ready to transfer' };
 }
 const FILTERS = [
@@ -383,7 +388,8 @@ function card(c, st) {
     c.private ? el('span', { class: 'lock', title: 'Private in v2' }, '🔒') : null,
     el('div', { class: 'sub' }, `${plural(c.assets, 'recording')}${c.template && c.template !== 'unstructured' ? ` · ${c.template === 'fia' ? 'FIA' : 'Bible'}` : ''} · active ${ago(c.lastActivity)}`),
     el('div', { class: 'row' },
-      el('button', { class: `chip ${l.cls}`, title: l.title, onclick: (e) => { e.stopPropagation(); openDrawer(c.id, 'language'); } }, l.conf ? `${l.text} · ${l.conf}` : !c.languoidId && c.code ? `${c.code} (no link)` : l.text)),
+      el('button', { class: `chip ${l.cls}`, title: l.title, onclick: (e) => { e.stopPropagation(); openDrawer(c.id, 'language'); } }, l.text),
+      l.suggestion ? el('span', { class: 'suggests', title: l.title }, `suggests ${l.suggestion}`) : null),
     el('div', { class: 'state' + (st.live ? ' live' : ''), style: `--c: var(--${{ running: 'blue', queued: 'blue', done: 'green', issues: 'red', stopped: 'red', language: 'amber', ready: 'purple', confirmed: 'purple' }[st.key] || 'faint'})` }, el('span', { class: 'dot' }), st.text),
     st.pct != null ? el('div', { class: 'bar live' }, el('i', { style: `width:${st.pct}%` })) : null,
     !locked && c.why !== 'saved' && why ? el('div', { class: 'why' }, why) : null,
@@ -446,11 +452,11 @@ function rename(orgId, name) {
   o.name = name;
   save(orgPayload(orgId), [], `Renamed to ${name}`);
 }
-/** The language a project comes over with when it is sent now: chosen, decided in the CSV, or a sure suggestion. */
+/** The language a project comes over with when it is sent now: chosen here, decided in the CSV, or none (unlinked). */
 function withLanguage(c) {
-  if (c.code) return c;
+  if (c.code || c.languoidId) return c;
   const r = c.recommendation;
-  return { ...c, languoidId: r.decision ?? r.languoidId, code: r.decision ? null : r.code };
+  return r.decision ? { ...c, languoidId: r.decision, code: null } : c;
 }
 async function send(cards) {
   const unconfirmed = cards.filter((c) => !c.confirmed);
@@ -466,10 +472,15 @@ async function send(cards) {
 function transferOne(c) {
   const st = stateOf(c);
   if (['done', 'issues'].includes(st.key)) return send([c]);
-  const l = language(withLanguage(c));
+  const l = language(c);
+  const name = c.languageName || c.name;
   ask({
     title: `Transfer ${c.name} into ${orgName(c.orgId)}?`,
-    body: [`It becomes the language ${c.code ?? language(c).text}${l.conf ? '' : ''} in ${orgName(c.orgId)}, with ${plural(c.assets, 'recording')}.`, 'After this it stays in this organization and keeps up with v2.'],
+    body: [
+      `It becomes the language “${name}” in ${orgName(c.orgId)}, with ${plural(c.assets, 'recording')}.`,
+      l.linked ? `Linked to ${l.text}.` : 'Not linked to the language list yet: its admins can link it in Next.',
+      'After this it stays in this organization and keeps up with v2.'
+    ],
     confirm: 'Transfer'
   }, () => send([c]));
 }
@@ -478,14 +489,14 @@ function transferOrg(orgId) {
   const states = new Map(all.map((c) => [c.id, stateOf(c).key]));
   const again = all.filter((c) => ['done', 'issues'].includes(states.get(c.id)));
   const fresh = all.filter((c) => ['ready', 'confirmed', 'stopped'].includes(states.get(c.id)));
-  const waiting = all.filter((c) => states.get(c.id) === 'language');
+  const unlinked = fresh.filter((c) => !language(c).linked);
   if (!fresh.length) return send(again);
   const org = S.orgs.find((o) => o.org_id === orgId);
   ask({
     title: `Transfer ${plural(fresh.length, 'project')} into ${orgName(orgId)}?`,
     body: [
       `${org?.saved ? '' : `Makes ${orgName(orgId)} in Next. `}Adds ${plural(fresh.length, 'language')} with ${plural(fresh.reduce((n, c) => n + c.assets, 0), 'recording')}.`,
-      waiting.length ? `${plural(waiting.length, 'project')} need a language first and wait.` : '',
+      unlinked.length ? `${plural(unlinked.length, 'of them comes', 'of them come')} over without a linked language; their admins can link it in Next.` : '',
       'They stay in this organization and keep up with v2.'
     ],
     confirm: `Transfer ${plural(fresh.length, 'project')}`
@@ -603,9 +614,8 @@ function renderResults() {
     }),
     r.length === 0 && (S.open.query || '').trim().length >= 2 ? el('div', { class: 'empty', style: 'padding:6px 0' }, 'Nothing in the language list matches.') : null,
     el('div', { class: 'result plain' },
-      el('div', { style: 'flex:1' }, el('div', {}, 'Not in the list?'), el('div', { class: 'sub' }, 'Bring it over without a link; it can be linked in Next later.')),
-      el('input', { id: 'freeCode', placeholder: 'code', style: 'width:84px', value: !c.languoidId && c.code ? c.code : '' }),
-      el('button', { class: 'small', onclick: () => { const code = $('#freeCode').value.trim(); if (!code) return toast('Type a short code for it.'); chooseLanguage(c, null, code, `${code} (no link)`); } }, 'Use'))
+      el('div', { style: 'flex:1' }, el('div', {}, 'Not in the list, or not sure?'), el('div', { class: 'sub' }, 'Bring it over by its name alone; its admins link it in Next.')),
+      c.code || c.languoidId ? el('button', { class: 'small', onclick: () => chooseLanguage(c, null, null, 'not linked yet') }, 'Leave unlinked') : el('span', { class: 'chip c-none' }, 'Unlinked'))
   ].filter(Boolean));
 }
 function renderDrawer() {
@@ -641,7 +651,10 @@ function renderDrawer() {
         el('label', { class: 'field' }, el('span', {}, 'Name'),
           el('input', { value: c.languageName ?? '', placeholder: c.name, onchange: (e) => nameLanguage(c, e.target.value) })),
         el('div', { class: 'field' }, el('span', {}, 'Language'),
-          el('span', { class: `chip ${l.cls}` }, l.conf ? `${l.text} · suggested, ${l.conf}` : c.code && !c.languoidId ? `${c.code} (no link)` : l.text)),
+          el('span', { class: `chip ${l.cls}`, title: l.title }, l.text),
+          l.suggestion && r.languoidId ? el('button', { class: 'small', onclick: () => chooseLanguage(c, r.languoidId, r.code, l.suggestion) }, `Use ${l.suggestion}`) : null,
+          l.linked && (c.code || c.languoidId) ? el('button', { class: 'small', onclick: () => chooseLanguage(c, null, null, 'not linked yet') }, 'Leave unlinked') : null),
+        l.linked ? null : el('div', { class: 'sub', style: 'margin:-4px 0 8px' }, `Comes over as “${c.languageName || c.name}”, not linked to the language list. Its admins can link it in Next.`),
         el('dl', { class: 'known' }, ...known.flatMap(([k, v]) => [el('dt', {}, k), el('dd', {}, v)])),
         el('input', { id: 'findLanguage', type: 'search', value: S.open.query ?? '', placeholder: 'Find the language: name, other name, ISO code or glottocode', oninput: (e) => search(e.target.value) }),
         el('div', { id: 'results' })),

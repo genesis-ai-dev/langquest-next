@@ -73,8 +73,12 @@ who opens it sees the same thing.
   put them in danger (Caleb, 2026-10-13). For the same reason a v2 username
   that is an email address is never copied into Next as someone's name.
 - **Transfer** on a card, or **Transfer N projects** on a lane, confirms the
-  organization and language and starts the transfer at once; a project with
-  no sure language waits for one. A project that has come over cannot move
+  organization and language and starts the transfer at once. A language need
+  not be linked first (Caleb, 2026-10-13): a project nobody linked comes
+  over by its name alone, with a code made from it as New language makes
+  one, and its admins link it in Next (Language › link, decision 78). A
+  suggestion is never linked by itself: **Use** it, or the project comes
+  over unlinked. A project that has come over cannot move
   to another organization (its events carry the organization); **Sync**
   reads it again now instead of waiting for the next scheduled pass.
 - **Language:** a project's details show what is known (its name and
@@ -82,8 +86,8 @@ who opens it sees the same thing.
   are tagged with, and the suggestion with its reason) beside a search of
   the language list as New language searches it (`search_languoids`), each
   match with the countries it is spoken in and its family. **Use** links
-  it; a language not in the list comes over unlinked, with a code, and is
-  linked in Next later (decision 78). The language's name in Next can
+  it; **Leave unlinked** takes a link back before it comes over. The
+  language's name in Next can
   differ from the project's ("Berom", not "BEROM FAN EL NIGERIA").
 - **Roles:** each person in a project has a role picker: from their v2 work
   (owners become language admins, others translators or reviewers by what

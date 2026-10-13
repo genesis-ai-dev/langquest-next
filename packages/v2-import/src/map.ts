@@ -32,8 +32,13 @@ export interface TemplateRef {
 
 export interface MapContext {
   orgId: string;
-  /** The language decided for the project (never v2's own, AGENTS.md), when it was decided, and its name in Next when not the project's. */
-  language: { code: string; languoidId: string | null; sourceCode: string; decidedAt: string; name?: string };
+  /**
+   * The language decided for the project (never v2's own, AGENTS.md), when
+   * it was decided, and its name in Next when not the project's. With no
+   * code and no languoid it comes over unlinked, by its name alone, and its
+   * admins link it in Next (Caleb, 2026-10-13).
+   */
+  language: { code: string | null; languoidId: string | null; sourceCode: string; decidedAt: string; name?: string };
   /** Roles chosen on the dashboard, by v2 person; `none` leaves them out. Everyone else's follows their v2 work. */
   roles?: ReadonlyMap<string, Role | 'none'>;
   /** v2 file name → the file as copied here. A name that is absent has not been copied (yet). */
@@ -95,6 +100,11 @@ const usfm = (v2Book: string) => V2_BOOK[v2Book.toLowerCase()] ?? v2Book.toUpper
 
 /** Project role → the seeded organization role with the same privileges, at the language's scope. */
 const ROLE_ID: Record<Role, string> = { owner: 'org_admin', coordinator: 'coordinator', translator: 'translator', reviewer: 'reviewer', viewer: 'viewer' };
+
+/** A code for a language that is not linked yet, made as New language makes one when none is typed: its name's first letters. */
+export function readableCode(name: string): string {
+  return [...name.trim()].slice(0, 3).join('').toLowerCase() || 'und';
+}
 
 const pad = (n: number, w = 6) => String(Math.max(0, Math.trunc(n))).padStart(w, '0');
 const latest = (times: string[]) => times.reduce((a, b) => (Date.parse(b) > Date.parse(a) ? b : a));
@@ -202,20 +212,24 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
   // A v2 project's name is often not its language's ("BEROM FAN EL NIGERIA"); the dashboard may give another.
   const languageName = ctx.language.name?.trim() || rows.project.name;
   const nothing = () => [] as Said[];
+  const code = ctx.language.code;
   facts.push(
     {
       key: 'language', streamId: ORG_STREAM, actorId: owner, at: t0, restate: false, unsay: nothing,
-      say: () => [{ type: 'v1.LanguageAdded', payload: { languageId, name: languageName, code: ctx.language.code, sourceCode: ctx.language.sourceCode } }]
+      say: () => [{ type: 'v1.LanguageAdded', payload: { languageId, name: languageName, code: code ?? readableCode(languageName), sourceCode: ctx.language.sourceCode } }]
     },
     {
       key: 'name', streamId: ORG_STREAM, actorId: owner, at: at(rows.project.last_updated), unsay: nothing,
       say: () => [{ type: 'v1.LanguageRenamed', payload: { languageId, name: languageName } }]
-    },
-    {
-      key: 'code', streamId: ORG_STREAM, actorId: owner, at: ctx.language.decidedAt, unsay: nothing,
-      say: () => [{ type: 'v1.LanguageCodeSet', payload: { languageId, code: ctx.language.code, languoidId: ctx.language.languoidId } }]
     }
   );
+  // Linked only when the dashboard chose a language; otherwise its admins link it in Next.
+  if (code) {
+    facts.push({
+      key: 'code', streamId: ORG_STREAM, actorId: owner, at: ctx.language.decidedAt, unsay: nothing,
+      say: () => [{ type: 'v1.LanguageCodeSet', payload: { languageId, code, languoidId: ctx.language.languoidId } }]
+    });
+  }
 
   // ---- the language's own stream: structure ------------------------------------------------
   // FIA's guides go with FIA's passages: offered to the team, as New language offers them (decision 84).

@@ -243,6 +243,18 @@ describe('mapProject: an older project with source material', () => {
   });
 });
 
+describe('mapProject: a language not linked yet', () => {
+  it('comes over by its name, with a code made from it, and no link for its admins to undo', () => {
+    const { all } = run([{ rows: bible(), ctx: ctx({ language: { code: null, languoidId: null, sourceCode: 'eng', decidedAt: '2026-10-11T00:00:00Z', name: 'Gihara Bhasa' } }) }]);
+    for (const e of all) expect(validateEvent(e), e.id).toBeNull();
+    const org = all.filter((e) => e.streamId === ORG_STREAM);
+    expect(org.some((e) => e.type === 'v1.LanguageCodeSet')).toBe(false);
+    const state = foldOrg([...org]);
+    expect(state.languages['p1']?.added).toMatchObject({ name: 'Gihara Bhasa', code: 'gih' });
+    expect(state.languages['p1']?.codeSet ?? null).toBeNull();
+  });
+});
+
 describe('mapProject: what the dashboard chose', () => {
   it('names the language as chosen, and gives each person the role chosen for them', () => {
     const roles = new Map([['trans', 'coordinator' as const], ['rev', 'none' as const], ['left', 'viewer' as const]]);

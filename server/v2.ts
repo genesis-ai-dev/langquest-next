@@ -288,10 +288,11 @@ async function board(port: number) {
       }
       if (req.method === 'POST' && u.pathname === '/api/plan') {
         const input = (await body(req)) as { orgs: PlanOrg[]; placements: SavedPlacement[] };
-        // A confirmed language needs its readable code: the languoid's ISO code, else its glottocode.
+        // A linked language's readable code is the languoid's ISO code, else its glottocode. One not linked yet
+        // comes over by its name, and its admins link it in Next (Caleb, 2026-10-13).
         for (const p of input.placements) {
           if (p.languoid_id && !p.code) p.code = await target.languoidCode(p.languoid_id);
-          if (p.confirmed && (!p.org_id || !p.code)) return json(res, 400, { error: 'Choose an organization and a language first.' });
+          if (p.confirmed && !p.org_id) return json(res, 400, { error: 'Choose an organization first.' });
         }
         await target.savePlan(input.orgs, input.placements, by);
         return json(res, 200, { ok: true });
