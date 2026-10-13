@@ -140,6 +140,14 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.TakeArchived': 'translate',
   'v1.CardVerseSet': 'translate',
   'v1.TakeSubmitted': 'translate',
+  // Written parts belong to a version (translate) or to something a step made, which reviewers make too (decisions.md 93).
+  'v1.WritingAdded': ['translate', 'review'],
+  // What the team makes is part of what it records, like its template.
+  'v1.MediaAllowedSet': 'manage_templates',
+  'v1.StepMakesSet': 'manage_flows',
+  'v1.CheckLooksAtSet': 'manage_flows',
+  // Whoever does a making step: a back translator holds Review, a voice for the final recording Translate.
+  'v1.Made': ['translate', 'review'],
   'v1.ResponseRecorded': 'translate',
   // Whoever may append an event that names a voice note (voiceNotesOf, blobs.ts).
   'v1.AudioFormatSet': ['translate', 'review', 'assign_work', 'send_to_reviewers', 'override_checkpoints', 'fill_reference'],

@@ -121,6 +121,10 @@ export interface LanguageState extends RecordState, ReferenceState {
   blobs: Record<string, { size: number; hlc: Hlc; eventId: string; stored: boolean }>;
   /** hash -> a voice note's format, when it is not m4a (v1.AudioFormatSet; earliest wins). */
   audioFormats: Record<string, Register<'wav' | 'm4a'>>;
+  /** written part id -> its words (v1.WritingAdded; writing.ts). The id is the words' hash, so any event naming it agrees. Absent in older snapshots. */
+  writings?: Record<string, string>;
+  /** What the team may make (v1.MediaAllowedSet); absent until set, and in older snapshots. */
+  mediaAllowed?: Register<{ recording: boolean; writing: boolean; first: 'recording' | 'writing' }>;
   /** unitId -> card hash -> what verses the part holds (v1.CardVerseSet; verses.ts reads it). */
   cardVerses: Record<string, Record<string, Register<CardVerseMark>>>;
   /** Idempotency guard. Compacted away when a snapshot is taken. */

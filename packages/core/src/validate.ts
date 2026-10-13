@@ -2,6 +2,7 @@ import type { AnyEvent } from './events';
 import { LIBRARY_KINDS } from './libraryDocs';
 import { ORG_STREAM, PRIVILEGES, TARGET_SCOPES } from './orgTerms';
 import { isLicense, LICENSES } from './license';
+import { isWrittenPart, WRITTEN_PART_MAX, WRITTEN_PARTS_PER_EVENT, writtenPartId } from './writing';
 
 /**
  * Shape checks for envelopes and known payloads. The server runs the same
@@ -158,7 +159,30 @@ export function validateEvent(e: AnyEvent): string | null {
     case 'v1.RecordingAdded':
       return str('recordingId', 'unitId') ?? oneOf('kind', ['source', 'target']) ?? cards('cards');
     case 'v1.TakeComposed':
-      return str('takeId', 'unitId') ?? strArray('cardHashes') ?? (p['parentTakeId'] === null ? null : str('parentTakeId'));
+      return str('takeId', 'unitId') ?? strArray('cardHashes') ?? (p['parentTakeId'] === null ? null : str('parentTakeId')) ??
+        // A take holds recorded parts or written ones, never both (decisions.md 93).
+        (oneMedium(p['cardHashes'] as string[]) ? null : 'cardHashes must be all recorded or all written parts');
+    case 'v1.WritingAdded':
+      return str('writingId', 'unitId') ?? writtenPartsError(p['parts']);
+    case 'v1.MediaAllowedSet':
+      return bool('recording') ?? bool('writing') ?? oneOf('first', ['recording', 'writing']) ??
+        (p['recording'] || p['writing'] ? null : 'recording or writing must be allowed') ??
+        (p[p['first'] as string] ? null : 'first must be allowed');
+    case 'v1.StepMakesSet':
+      return str('kindId') ?? (p['makes'] === null ? null : makesError(p['makes']));
+    case 'v1.CheckLooksAtSet':
+      return str('kindId') ?? nullableStr('makerKindId');
+    case 'v1.Made':
+      return (
+        str('madeId', 'unitId') ??
+        optNonEmpty(p, 'kindId', 'fromTakeId', 'fromMadeId', 'takeId', 'requestId') ??
+        ((p['fromTakeId'] === undefined) === (p['fromMadeId'] === undefined) ? 'exactly one of fromTakeId, fromMadeId' : null) ??
+        ((p['parts'] === undefined) === (p['takeId'] === undefined) ? 'exactly one of parts, takeId' : null) ??
+        (p['language'] === undefined || languageCode(p['language']) ? null : 'language must be a language code') ??
+        (p['parts'] === undefined ? null : cards('parts') ??
+          ((p['parts'] as unknown[]).length > 0 ? null : 'parts must not be empty') ??
+          (oneMedium((p['parts'] as { hash: string }[]).map((c) => c.hash)) ? null : 'parts must be all recorded or all written'))
+      );
     case 'v1.TakeArchived':
       return str('takeId');
     case 'v1.TakeSubmitted':
@@ -345,6 +369,8 @@ export function entityKeyOf(e: AnyEvent): string | null {
     case 'v1.KeyTermRenderingAdded': return `rendering:${String(p['termId'])}/${String(p['renderingId'])}`;
     case 'v1.KeyTermAdjusted': return `adjustment:${String(p['termId'])}/${String(p['adjustmentId'])}`;
     case 'v1.AudioFormatSet': return `audioformat:${String(p['hash'])}`;
+    case 'v1.WritingAdded': return `writing:${String(p['writingId'])}`;
+    case 'v1.Made': return `made:${String(p['madeId'])}`;
     default: return null;
   }
 }
@@ -366,3 +392,51 @@ function cardVerseError(p: Record<string, unknown>): string | null {
   if (a === null || b === null) return 'from and to must be chapter:verse';
   return a <= b ? null : 'from must not come after to';
 }
+
+// ---- writing (decisions.md 93) ----
+
+function oneMedium(ids: readonly string[]): boolean {
+  if (ids.length === 0) return true;
+  const written = isWrittenPart(ids[0]!);
+  return ids.every((id) => isWrittenPart(id) === written);
+}
+
+/** A language code as LanguageCodeSet takes one: ISO 639-3 or a glottocode, at most 40 characters. */
+function languageCode(v: unknown): boolean {
+  return typeof v === 'string' && v !== '' && [...v].length <= 40;
+}
+
+function optNonEmpty(p: Record<string, unknown>, ...keys: string[]): string | null {
+  for (const k of keys) if (p[k] !== undefined && (typeof p[k] !== 'string' || p[k] === '')) return `${k} must be a non-empty string`;
+  return null;
+}
+
+function writtenPartsError(v: unknown): string | null {
+  if (!Array.isArray(v) || v.length === 0) return 'parts must be a non-empty array';
+  if (v.length > WRITTEN_PARTS_PER_EVENT) return `parts may hold at most ${WRITTEN_PARTS_PER_EVENT}`;
+  for (const part of v as unknown[]) {
+    if (!isObject(part)) return 'parts entries must be objects';
+    const { id, text } = part as { id: unknown; text: unknown };
+    if (typeof id !== 'string' || !/^w:[0-9a-f]{64}$/.test(id)) return 'parts need an id: w: and a SHA-256 hex digest';
+    if (typeof text !== 'string' || text === '') return 'parts need text';
+    // Characters, as SQL length() counts them.
+    if ([...text].length > WRITTEN_PART_MAX) return `text must be at most ${WRITTEN_PART_MAX} characters`;
+    if (writtenPartId(text) !== id) return 'id must be w: and the SHA-256 of the text';
+  }
+  return null;
+}
+
+function makesError(v: unknown): string | null {
+  if (!isObject(v)) return 'makes must be an object or null';
+  const m = v as Record<string, unknown>;
+  const kinds = ['recording', 'writing', 'either'];
+  if (!kinds.includes(m['from'] as string)) return 'makes.from must be one of recording, writing, either';
+  if (!kinds.includes(m['to'] as string)) return 'makes.to must be one of recording, writing, either';
+  if (m['language'] !== 'same' && m['language'] !== 'other') return 'makes.language must be one of same, other';
+  if (typeof m['becomesVersion'] !== 'boolean') return 'makes.becomesVersion must be a boolean';
+  if (m['otherLanguage'] !== undefined && (m['language'] !== 'other' || !languageCode(m['otherLanguage']))) return 'makes.otherLanguage must be a language code, for another language only';
+  if (m['fromKindId'] !== undefined && (typeof m['fromKindId'] !== 'string' || m['fromKindId'] === '')) return 'makes.fromKindId must be a non-empty string';
+  if (m['becomesVersion'] && (m['language'] !== 'same' || m['to'] === 'either')) return 'only a step that makes recording or writing in the same language can make the next version';
+  return null;
+}
+

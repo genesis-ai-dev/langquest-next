@@ -4,6 +4,7 @@ import type { MaterialEvents } from './materials';
 import type { OrgEventPayloads } from './org';
 import type { RecordEvents } from './record';
 import type { ReferenceWorkEvents } from './references';
+import type { Medium, WrittenPart } from './writing';
 
 /**
  * Event catalog v1. See PLAN.md section 6 and docs/streams-and-languages.md.
@@ -56,6 +57,20 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordE
     parentTakeId: string | null;
   };
   'v1.TakeArchived': { takeId: string };
+  /**
+   * Written parts of a passage (decisions.md 93): short pieces of text,
+   * usually a verse each, named `w:` + the SHA-256 of their words
+   * (writing.ts). The words travel here, not as files. A take may list them
+   * as it lists recorded cards; a take holds one kind or the other. Grow-only,
+   * one event per id, earliest wins (decisions.md 75).
+   */
+  'v1.WritingAdded': { writingId: string; unitId: string; parts: WrittenPart[] };
+  /**
+   * What the language's team may make, recordings, writing or both, and
+   * which leads on a passage (decisions.md 93). Register; recording only
+   * until set.
+   */
+  'v1.MediaAllowedSet': { recording: boolean; writing: boolean; first: Medium };
   /**
    * Which verses a recorded part holds (decisions.md 82). A part keeps how
    * it relates to the parts around it, not a number: `next` is the verse
