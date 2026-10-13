@@ -3165,3 +3165,14 @@ the caller. Their first sign-in lands on Welcome back with or without an
 organization here, never on "What brings you here?": until their work
 arrives they keep recording in the old app, since everything recorded
 there still comes over (`docs/v2-import.md` section 7).
+
+Amended (2026-10-13, Caleb Koster): written work stays in v2 for now. A
+translation or transcription hanging off a recording, and a part with words
+and no audio, are not brought over (Caleb, 2026-10-13): v2 has 99 of them
+in 31 active projects, about half of them tests, and written translations
+in this app will want them attached to the version they came from, not as
+the Back Translation reviews and notes above. They come over once written
+translations exist. An FIA project's team is offered FIA's study guides in
+the language it reads, else English, as New language offers them: v2's app
+read FIA's guides from FIA, so without them an FIA team would have the
+passages and nothing to study.

@@ -36,10 +36,11 @@ const files = new Map<string, CopiedFile>([
   ['t1.m4a', { hash: H('7'), size: 10, durationMs: 7000, format: 'm4a' }]
 ]);
 
+// Written work is on here, to show how it comes over once turned on; it is off in a real pass (Caleb, 2026-10-13).
 const ctx = (over: Partial<MapContext> = {}): MapContext => ({
   orgId: 'org1',
   language: { code: 'kwa', languoidId: '00000000-0000-4000-8000-000000000001', sourceCode: 'eng', decidedAt: '2026-10-11T00:00:00Z' },
-  files, templates: { bible: { itemId: BIBLE, docHash: H('c'), doc: chapters, versification: load('eng') } }, now: NOW, ...over
+  files, templates: { bible: { itemId: BIBLE, docHash: H('c'), doc: chapters, versification: load('eng') } }, now: NOW, writtenWork: true, ...over
 });
 
 const quest = (id: string, meta: unknown, over: Partial<V2Quest> = {}): V2Quest => ({
@@ -137,6 +138,27 @@ describe('mapProject: a Bible project', () => {
     // The back translation is a Back Translation review carrying its audio; the transcription is a note.
     expect(passage.reviews.find((r) => r.kindId === 'bt')).toMatchObject({ outcome: 'recorded', comment: 'In the beginning' });
     expect(passage.notes.map((n) => n.text)).toEqual(['1:3: Kwa words for verse 3']);
+  });
+
+  it('leaves written work and back translations in v2 until they are turned on, then brings them', () => {
+    const off = mapProject(bible(), ctx({ writtenWork: false }));
+    expect(off.report).toMatchObject({ heldBack: 2, heldFiles: ['bt1.wav'], backTranslations: 0, notes: 0 });
+    const { each, all } = run([{ rows: bible(), ctx: ctx({ writtenWork: false }) }, { rows: bible() }]);
+    expect(each[0]!.some((e) => e.type === 'v1.NoteAdded' || (e.type === 'v1.ReviewRecorded' && (e.payload as { kindId: string }).kindId === 'bt'))).toBe(false);
+    expect(each[1]!.map((e) => e.type).sort()).toEqual(['v1.AudioFormatSet', 'v1.NoteAdded', 'v1.ReviewRecorded']);
+    const passage = derivePassage(foldLanguage(all.filter((e) => e.streamId === 'p1')), unit);
+    expect(passage.reviews.find((r) => r.kindId === 'bt')).toMatchObject({ outcome: 'recorded' });
+  });
+
+  it("offers an FIA project's team FIA's guides in the language it reads, and changes them when that changes", () => {
+    const fra = 'sub.langquest.langquest.fia.fra';
+    const eng = 'sub.langquest.langquest.fia.eng';
+    const { each, all } = run([{ rows: bible(), ctx: ctx({ guides: { itemId: fra } }) }, { rows: bible(), ctx: ctx({ guides: { itemId: eng } }) }]);
+    for (const e of all) expect(validateEvent(e), e.id).toBeNull();
+    expect(each[0]!.filter((e) => e.type === 'v1.ReferenceSet').map((e) => e.payload)).toEqual([{ itemId: fra, state: 'recommended' }]);
+    const state = foldLanguage(all.filter((e) => e.streamId === 'p1'));
+    expect(state.languageReferences[fra]?.value).toBe('inherit');
+    expect(state.languageReferences[eng]?.value).toBe('recommended');
   });
 
   it('turns a later publish into a new version, and something removed in v2 into one without it', () => {

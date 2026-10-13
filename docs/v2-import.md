@@ -143,13 +143,13 @@ signs in here everything they did is already theirs.
 | project_language_link | the decided language, never v2's (AGENTS.md, `docs/v2-project-languages.md`); a source language becomes `sourceCode` |
 | profile_project_link | `MemberAdded` at the language's scope, `MemberRemoved` when it goes inactive |
 | Bible or FIA project (`template`) | `TemplateSelected` of LangQuest's Bible by chapters or FIA's passages, for the books it has |
+| FIA project | FIA's study guides in the language its team reads (its v2 source language), else English: the organization follows `langquest.fia.<code>` and the language is offered it (`ReferenceSet` recommended), as New language does. v2 kept no FIA content of its own; its app read FIA's |
 | chapter or FIA passage quest | that passage of the template (`bible.book/chapter`, `fia.bookId/pericopeId/verseRange`) |
 | other quests | units of their own: a quest with quests under it is a book or section, one that holds recordings is a passage |
 | the team's recordings in a quest (assets in the project's language, in `order_index` order) | one recording of the passage: `RecordingAdded` per asset with a card per audio segment, `CardVerseSet` from the asset's verse, a `TakeComposed` of them all, and `TakeSubmitted`. When v2's set changes (a publish), a new take whose parent is the last: a new version |
 | a second quest for the same chapter (`versionLabel` "#2") | another line of versions on the same passage |
 | source material (assets in another language, older projects) | the passage's source material (`MaterialDefined`, a field per text and audio), as the first import did; each translation of one then is a version of its own passage |
-| translation child of a recording (back translation) | a Back Translation review with its audio (`ReviewRecorded`, kind `bt`, outcome `recorded`) |
-| transcription, and text with no audio | a note on the passage (`NoteAdded`), until written translations exist in Next (`writtenFact` in `map.ts` is the one place to change) |
+| translation child of a recording (back translation), transcription, and text with no audio | **left in v2 for now** (Caleb, 2026-10-13): v2 has 99 of them in 31 projects, half of them tests. Counted in each pass's report and log, and their audio is not stored. Turned on (`writtenWork` in `map.ts`), a back translation is a Back Translation review with its audio and the rest notes, until written translations exist (`writtenFact` is the one place to change) |
 | vote | a Community Check review of the version that holds the asset: one per person per version, "needs changes" if any of their votes is down, with their comments |
 | tags, invites, join requests, notifications, closures, clone maps | not brought over; counted in each pass's report |
 | blocked_users | `user_blocks` rows, so a block someone made still holds |

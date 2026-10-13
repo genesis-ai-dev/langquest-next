@@ -26,6 +26,8 @@ export interface Target {
   upload(orgId: string, streamId: string, hash: string, format: 'wav' | 'm4a', bytes: Uint8Array): Promise<void>;
   /** A LangQuest library item's current version, with its versification. */
   template(itemId: string): Promise<{ docHash: string; doc: TemplateDoc; versification: VersificationDoc | null } | null>;
+  /** A LangQuest library item's name and current version, or null when the library has no such item. */
+  libraryItem(itemId: string): Promise<{ name: string; docHash: string } | null>;
   /** Let an organization read a library document and what it depends on. */
   grantLibrary(orgId: string, docHash: string): Promise<void>;
   /** The readable code for a languoid: ISO 639-3, else its glottocode. Null when this database does not have it. */
@@ -204,6 +206,16 @@ export function supabaseTarget(db: SupabaseClient, files: BlobFilesLike): Target
       const doc = await documentBody<TemplateDoc>(docHash);
       const vHash = doc.bible?.versification;
       return { docHash, doc, versification: vHash ? await documentBody<VersificationDoc>(vHash) : null };
+    },
+    async libraryItem(itemId) {
+      const [versions, items] = await Promise.all([
+        db.from('library_versions').select('doc_hash, hlc').eq('org_id', LIBRARY_ORG).eq('item_id', itemId).order('hlc', { ascending: false }).limit(1),
+        db.from('library_items').select('name').eq('org_id', LIBRARY_ORG).eq('item_id', itemId).limit(1)
+      ]);
+      if (versions.error) throw new Error(`library_versions: ${versions.error.message}`);
+      if (items.error) throw new Error(`library_items: ${items.error.message}`);
+      const docHash = versions.data?.[0]?.doc_hash as string | undefined;
+      return docHash ? { name: String(items.data?.[0]?.name ?? itemId), docHash } : null;
     },
     grantLibrary: (orgId, docHash) => rpc('v2_import_library_grant', { p_org: orgId, p_hash: docHash }),
 

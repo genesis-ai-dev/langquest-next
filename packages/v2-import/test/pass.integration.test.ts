@@ -116,4 +116,31 @@ describe.skipIf(!SERVICE)('a pass against the local database', () => {
     const { data: names } = await db.from('profiles').select('id, display_name').in('id', [`${id}-owner`, `${id}-rev`]);
     expect((names ?? []).length).toBe(2);
   }, 60_000);
+
+  it("follows FIA's guides for an FIA project and offers them to its team", async () => {
+    const db = createClient(URL, SERVICE, { auth: { persistSession: false } });
+    const run = `f${Date.now().toString(36)}`;
+    const id = `${run}-p`;
+    const orgId = `org-v2-test-${run}`;
+    const rows = project(id, 0);
+    rows.project.template = 'fia';
+    rows.quests = [];
+    const target = supabaseTarget(db, memoryFiles());
+    await target.savePlan(
+      [{ org_id: orgId, name: `Test ${run}`, existing: false, admins: [`${id}-owner`] }],
+      [{ project_id: id, org_id: orgId, name: 'Kwa', languoid_id: null, code: 'kwa', confirmed: true }], 'test'
+    );
+    const first = await sync({ v2: fakeV2(new Map([[id, rows]])), target }, { projects: [id] });
+    expect(first[0]?.rejected ?? []).toEqual([]);
+    const events = async (stream: string) => {
+      const { data, error } = await db.from('events').select('id, type, org_id, stream_id, actor_id, device_id, hlc, payload').eq('org_id', orgId).eq('stream_id', stream).order('server_seq');
+      if (error) throw error;
+      return (data ?? []).map((e) => ({ id: e.id, type: e.type, orgId: e.org_id, streamId: e.stream_id, actorId: e.actor_id, deviceId: e.device_id, hlc: e.hlc, payload: e.payload }) as AnyEvent);
+    };
+    const guides = 'sub.langquest.langquest.fia.eng';
+    expect(Object.keys(foldOrg(await events('_org')).library)).toEqual(expect.arrayContaining([guides]));
+    const lang = foldLanguage(await events(id));
+    expect(Object.keys(lang.invalidEvents)).toEqual([]);
+    expect(lang.languageReferences[guides]?.value).toBe('recommended');
+  }, 60_000);
 });

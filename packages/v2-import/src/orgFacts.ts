@@ -1,4 +1,4 @@
-import { ORG_STREAM, SEED_ROLES, subscriptionItemId } from '@langquest-next/core';
+import { ORG_STREAM, SEED_ROLES, subscriptionItemId, type LibraryKind } from '@langquest-next/core';
 import type { Fact, Said } from './reconcile';
 
 /**
@@ -49,15 +49,22 @@ export function orgFacts(o: OrgPlan): Fact[] {
       unsay: () => [{ type: 'v1.MemberRemoved', payload: { profileId, scope: { level: 'org' } } }]
     });
   }
-  for (const w of o.ways) {
-    const itemId = subscriptionItemId(LIBRARY_ORG.id, w.sourceItemId);
-    facts.push({
-      key: `library:${w.sourceItemId}`, streamId: ORG_STREAM, actorId, at: o.at, unsay: nothing, value: itemId,
-      say: () => [
-        { type: 'v1.LibrarySubscribed', payload: { itemId, kind: 'template', sourceOrgId: LIBRARY_ORG.id, sourceOrgName: LIBRARY_ORG.name, sourceItemId: w.sourceItemId, name: w.name, autoUpdate: true, active: true } },
-        { type: 'v1.LibraryPinned', payload: { itemId, kind: 'template', docHash: w.docHash } }
-      ]
-    });
-  }
+  for (const w of o.ways) facts.push(libraryFact({ ...w, kind: 'template' }, actorId, o.at));
   return facts;
+}
+
+/**
+ * The organization follows a LangQuest library item, as `library_adopt`
+ * does: subscribed, updated automatically, at the version it has now. Said
+ * once; the library's own updates move the pin from then on.
+ */
+export function libraryFact(w: { sourceItemId: string; name: string; docHash: string; kind: LibraryKind }, actorId: string, at: string): Fact {
+  const itemId = subscriptionItemId(LIBRARY_ORG.id, w.sourceItemId);
+  return {
+    key: `library:${w.sourceItemId}`, streamId: ORG_STREAM, actorId, at, unsay: () => [], value: itemId,
+    say: () => [
+      { type: 'v1.LibrarySubscribed', payload: { itemId, kind: w.kind, sourceOrgId: LIBRARY_ORG.id, sourceOrgName: LIBRARY_ORG.name, sourceItemId: w.sourceItemId, name: w.name, autoUpdate: true, active: true } },
+      { type: 'v1.LibraryPinned', payload: { itemId, kind: w.kind, docHash: w.docHash } }
+    ]
+  };
 }

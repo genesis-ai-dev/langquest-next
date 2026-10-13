@@ -1,7 +1,7 @@
 import { ORG_STREAM, subscriptionItemId, type AnyEvent, type Role } from '@langquest-next/core';
 import { durationMs, formatOf, sha256Hex } from './audio';
 import { mapProject, type CopiedFile, type MapReport, type TemplateRef } from './map';
-import { LIBRARY_ORG, orgFacts } from './orgFacts';
+import { LIBRARY_ORG, libraryFact, orgFacts } from './orgFacts';
 import type { V2Reader, V2ProjectSummary } from './reader';
 import { reconcile, type Fact, type LedgerEntry } from './reconcile';
 import { bucketName, type V2ProjectRows } from './rows';
@@ -46,6 +46,9 @@ export const WAYS = {
   bible: { sourceItemId: 'langquest.bible.chapters', name: 'By chapter' },
   fia: { sourceItemId: 'langquest.bible.fia', name: 'FIA passages' }
 } as const;
+
+/** FIA's study guides, one library item per language (`langquest.fia.fra`); a team gets them in the language it reads, else English. */
+export const FIA_GUIDES = 'langquest.fia';
 
 /** v2's own clocks are phones'; look this far back for rows that arrived late. */
 const OVERLAP_MS = 24 * 3600_000;
@@ -101,6 +104,7 @@ export async function sync(deps: PassDeps, opts: { all?: boolean; projects?: str
 class Run {
   private templates = new Map<string, Promise<TemplateRef | null>>();
   private orgsDone = new Set<string>();
+  private followed = new Map<string, Promise<{ itemId: string; name: string } | null>>();
 
   constructor(private deps: PassDeps, private plan: Plan, private summaries: Map<string, V2ProjectSummary>) {}
 
@@ -154,6 +158,7 @@ class Run {
 
       const source = rows.languages.find((l) => l.active && l.language_type === 'source')?.languoid_id;
       const sourceCode = (source && (await this.deps.target.languoidCode(source))) || 'eng';
+      const guides = kind === 'fia' ? await this.fiaGuides(org, sourceCode, say) : null;
       // Roles chosen on the dashboard; an organization role's id stands for the project role with its privileges.
       const ROLE: Record<string, Role | 'none'> = { org_admin: 'owner', coordinator: 'coordinator', translator: 'translator', reviewer: 'reviewer', viewer: 'viewer', none: 'none' };
       const roles = new Map((this.plan.roles ?? []).filter((r) => r.project_id === projectId).map((r) => [r.profile_id, ROLE[r.role]!] as const));
@@ -163,10 +168,12 @@ class Run {
         roles,
         files: files.map,
         templates: template && kind ? { [kind]: template } : {},
+        ...(guides ? { guides } : {}),
         now: this.now()
       });
       report.map = mapped.report;
-      report.files.uploaded = await this.upload(org.org_id, projectId, files.map, rows, progress);
+      if (mapped.report.heldBack) await say('info', `Left in v2 for now: ${n(mapped.report.heldBack)} written translations, transcriptions and back translations`);
+      report.files.uploaded = await this.upload(org.org_id, projectId, files.map, rows, progress, new Set(mapped.report.heldFiles));
       if (report.files.uploaded) await say('info', `Stored ${n(report.files.uploaded)} audio files in Next`);
 
       const outcome = await this.say(projectId, org.org_id, mapped.facts, progress);
@@ -184,7 +191,7 @@ class Run {
       const names = await this.deps.v2.people([...mapped.roles.keys()]);
       await this.deps.target.addNames(names.flatMap((p) => (p.name ? [{ id: p.id, name: p.name }] : [])));
       await progress({ step: 'done' });
-      await this.deps.target.passFinish(passId, { ...report, map: { ...mapped.report, missingFiles: mapped.report.missingFiles.length } });
+      await this.deps.target.passFinish(passId, { ...report, map: { ...mapped.report, missingFiles: mapped.report.missingFiles.length, heldFiles: mapped.report.heldFiles.length } });
       return report;
     } catch (e) {
       const message = (e as Error).message;
@@ -214,6 +221,35 @@ class Run {
     else if (r.append?.accepted) await say('info', `Updated the organization ${org.name}`);
     if (r.rejected?.length) await say('error', `${org.name}: ${r.rejected[0]!.reason}`);
     this.orgsDone.add(org.org_id);
+  }
+
+  /**
+   * FIA's study guides for an FIA project's team, in the language it reads,
+   * else English: the organization follows them once (in a scope of their
+   * own, so nothing else takes them back) and the language is offered them.
+   */
+  private async fiaGuides(org: PlanOrg, reads: string, say: (level: LogLine['level'], message: string) => Promise<void>): Promise<{ itemId: string } | null> {
+    for (const code of new Set([reads, 'eng'])) {
+      const sourceItemId = `${FIA_GUIDES}.${code}`;
+      const key = `${org.org_id}|${sourceItemId}`;
+      let p = this.followed.get(key);
+      if (!p) {
+        p = (async () => {
+          const item = await this.deps.target.libraryItem(sourceItemId);
+          if (!item) return null;
+          await this.deps.target.grantLibrary(org.org_id, item.docHash);
+          const at = new Date(this.now()).toISOString();
+          const r = await this.say(`org:${org.org_id}:${sourceItemId}`, org.org_id, [libraryFact({ sourceItemId, name: item.name, docHash: item.docHash, kind: 'material' }, org.admins[0] ?? 'v2import', at)]);
+          if (r.rejected?.length) throw new Error(`${item.name}: ${r.rejected[0]!.reason}`);
+          if (r.append?.accepted) await say('info', `${org.name} now follows ${item.name}`);
+          return { itemId: subscriptionItemId(LIBRARY_ORG.id, sourceItemId), name: item.name };
+        })();
+        this.followed.set(key, p);
+      }
+      const followed = await p;
+      if (followed) return { itemId: followed.itemId };
+    }
+    return null;
   }
 
   /** Reconcile, append the organization stream first (a language stream needs its listing), then save what was accepted. */
@@ -298,11 +334,12 @@ class Run {
     return { map, counts: { copied: found.filter((f) => f.file).length, missing: found.filter((f) => !f.file).length } };
   }
 
-  /** Put every file the project uses into R2 for its language, once. */
-  private async upload(orgId: string, languageId: string, files: Map<string, CopiedFile>, rows: V2ProjectRows, progress: (p: Progress) => Promise<void>): Promise<number> {
+  /** Put every file the project uses into R2 for its language, once; not the ones `skip` names (written work left in v2). */
+  private async upload(orgId: string, languageId: string, files: Map<string, CopiedFile>, rows: V2ProjectRows, progress: (p: Progress) => Promise<void>, skip: ReadonlySet<string>): Promise<number> {
     const stored = await this.deps.target.stored(orgId, languageId);
     const todo = new Map<string, { name: string; file: CopiedFile }>();
     for (const name of namesIn(rows)) {
+      if (skip.has(name)) continue;
       const file = files.get(name);
       if (file && !stored.has(file.hash) && !todo.has(file.hash)) todo.set(file.hash, { name, file });
     }

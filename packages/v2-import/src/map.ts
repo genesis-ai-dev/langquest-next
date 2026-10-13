@@ -43,6 +43,16 @@ export interface MapContext {
   now: number;
   /** How long a version waits for files that have not reached v2's bucket. */
   waitMs?: number;
+  /** FIA's study guides in the team's reading language, which this organization follows, offered to the team of an FIA project. */
+  guides?: { itemId: string };
+  /**
+   * Bring over written work and back translations: a translation or
+   * transcription hanging off a part, and parts with words and no audio.
+   * Off until this app has written translations (Caleb, 2026-10-13: v2 has
+   * 99 of them in 31 projects, half of them tests). Turned on, the next
+   * pass brings them in; `writtenFact` and `backTranslationFact` say how.
+   */
+  writtenWork?: boolean;
 }
 
 export interface MapReport {
@@ -54,6 +64,9 @@ export interface MapReport {
   backTranslations: number;
   notes: number;
   materials: number;
+  /** Written work and back translations left in v2 for now (`writtenWork`), and the audio files they name. */
+  heldBack: number;
+  heldFiles: string[];
   /** Recordings waiting for their files, and files given up on. */
   waiting: number;
   missingFiles: string[];
@@ -90,7 +103,7 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
   const languageId = rows.project.id;
   const report: MapReport = {
     quests: 0, passages: 0, recordings: 0, versions: 0, reviews: 0, backTranslations: 0, notes: 0, materials: 0,
-    waiting: 0, missingFiles: [], unmatchedQuests: 0, unplaced: 0
+    heldBack: 0, heldFiles: [], waiting: 0, missingFiles: [], unmatchedQuests: 0, unplaced: 0
   };
   const facts: Fact[] = [];
   const at = (t: string) => isoTime(t);
@@ -151,6 +164,13 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
     return { cards, waiting, lost };
   };
   const textOf = (a: V2Asset) => (contentsOf.get(a.id) ?? []).map((c) => c.text?.trim() ?? '').filter(Boolean).join('\n');
+  /** Written work left in v2 for now (`writtenWork`): counted, and its audio kept out of R2. */
+  const holdBack = (a: V2Asset) => {
+    const names = (contentsOf.get(a.id) ?? []).flatMap((c) => (c.audio ?? []).map(bucketName)).filter((x): x is string => !!x);
+    if (!names.length && !textOf(a)) return;
+    report.heldBack += 1;
+    report.heldFiles.push(...names);
+  };
 
   // ---- where quests go -----------------------------------------------------------------
   const template = rows.project.template === 'bible' ? ctx.templates.bible : rows.project.template === 'fia' ? ctx.templates.fia : undefined;
@@ -198,6 +218,15 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
   );
 
   // ---- the language's own stream: structure ------------------------------------------------
+  // FIA's guides go with FIA's passages: offered to the team, as New language offers them (decision 84).
+  if (ctx.guides) {
+    const itemId = ctx.guides.itemId;
+    facts.push({
+      key: `guide:${itemId}`, streamId: languageId, actorId: owner, at: ctx.language.decidedAt, value: itemId,
+      say: () => [{ type: 'v1.ReferenceSet', payload: { itemId, state: 'recommended' } }],
+      unsay: () => [{ type: 'v1.ReferenceSet', payload: { itemId, state: 'inherit' } }]
+    });
+  }
   facts.push({
     key: 'flow', streamId: languageId, actorId: owner, at: t0, restate: false, unsay: nothing,
     say: () => [
@@ -297,6 +326,7 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
       // What hangs off a part: a back translation with audio, or a transcription or written translation as a note.
       for (const { a } of own) {
         for (const child of childrenOf.get(a.id) ?? []) {
+          if (!ctx.writtenWork) { holdBack(child); continue; }
           const text = textOf(child);
           const r = cardsOf(child);
           report.missingFiles.push(...r.lost);
@@ -312,7 +342,8 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
         // A part with words and no audio: a note, so nothing written is lost.
         const r = cardsOf(a);
         const text = textOf(a);
-        if (r.cards.length === 0 && !r.waiting && text) {
+        if (r.cards.length === 0 && !r.waiting && text && !ctx.writtenWork) report.heldBack += 1;
+        else if (r.cards.length === 0 && !r.waiting && text) {
           facts.push(writtenFact(`note:${a.id}`, unitId, actor(a.creator_id), at(a.created_at), text, 'translation'));
           report.notes += 1;
         }
@@ -348,7 +379,8 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
         if (r.waiting) report.waiting += 1;
         if (r.cards.length === 0) {
           const text = textOf(t);
-          if (text && !r.waiting) {
+          if (text && !r.waiting && !ctx.writtenWork) report.heldBack += 1;
+          else if (text && !r.waiting) {
             facts.push(writtenFact(`note:${t.id}`, passage, actor(t.creator_id), at(t.created_at), text, 'translation'));
             report.notes += 1;
           }
