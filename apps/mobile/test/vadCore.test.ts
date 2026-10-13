@@ -25,7 +25,7 @@ function run(levels: number[], config = {}): { at: number; action: Action }[] {
 const frames = (seconds: number, level: number) => Array.from({ length: Math.round(seconds * 1000 / FRAME_MS) }, () => level);
 const stopOf = (actions: { action: Action }[]) => actions.find((a) => a.action.type === 'stop')?.action as Extract<Action, { type: 'stop' }> | undefined;
 
-describe('the voice detector (decisions.md 94)', () => {
+describe('the voice detector (decisions.md 95)', () => {
   it('keeps a part going while a soft voice stays above half the cutoff', () => {
     // A loud word, then 2 s of speech at 0.07: under the 0.1 cutoff, over half of it.
     const actions = run([...frames(0.2, 0.3), ...frames(2, 0.07), ...frames(1.5, 0.01)]);

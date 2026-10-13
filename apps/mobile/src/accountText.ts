@@ -159,6 +159,9 @@ export function authErrorText(
     case 'validation_failed': return t('entry.errors.badEmail');
     case 'signup_disabled': return t('entry.errors.signupClosed');
     case 'user_banned': return t('entry.errors.suspended');
+    // Signing in with a LangQuest v2 account (v2SignIn.ts).
+    case 'v2_already_here': return t('entry.errors.v2AlreadyHere');
+    case 'v2_same_email': return t('entry.errors.v2SameEmail');
     case 'session_expired':
     case 'session_not_found':
     case 'refresh_token_not_found':

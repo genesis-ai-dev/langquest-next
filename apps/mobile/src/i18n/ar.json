@@ -290,6 +290,7 @@
     "create_account": "إنشاء حساب",
     "scan_qr": "مسح رمز QR",
     "welcome": "مرحبًا",
+    "welcome_back": "مرحبًا بعودتك",
     "vision": "ما هو LangQuest؟",
     "intent_chooser": "ما الذي جاء بك إلى هنا؟",
     "create_org": "إنشاء منظمة",
@@ -2734,7 +2735,9 @@
       "badEmail": "تحقق من عنوان البريد الإلكتروني.",
       "signupClosed": "لا يمكن إنشاء حسابات جديدة الآن.",
       "suspended": "هذا الحساب موقوف.",
-      "sessionEnded": "انتهت جلستك. سجّل الدخول مرة أخرى."
+      "sessionEnded": "انتهت جلستك. سجّل الدخول مرة أخرى.",
+      "v2AlreadyHere": "انتقل هذا الحساب إلى هنا من قبل. استخدم كلمة المرور التي عيّنتها هنا.",
+      "v2SameEmail": "لديك حساب هنا بهذا البريد الإلكتروني من قبل. سجّل الدخول بكلمة المرور التي تستخدمها هنا."
     },
     "signIn": {
       "tagline": "تنسيق ترجمة الكتاب المقدس — من المسودة إلى الموافقة",
@@ -2951,6 +2954,39 @@
         "viewerProgress": "شاهد إلى أين وصلت كل لغة.",
         "viewerOpen": "افتح أي مقطع لتسمع ما حدث."
       }
+    },
+    "welcomeBack": {
+      "greeting": "مرحبًا بعودتك، {{name}}",
+      "title": "مرحبًا بعودتك",
+      "isHere": "عملك من LangQuest موجود هنا.",
+      "onItsWay": "عملك من LangQuest في الطريق.",
+      "wasProject": "{{org}} · كان مشروعك «{{project}}»",
+      "counts": "{{recordings}} · {{passages}}",
+      "onItsWayRow": "في الطريق. سيظهر هنا تلقائيًا.",
+      "recordHere": "<b>سجّل هنا من الآن فصاعدًا.</b> ما تسجّله في التطبيق القديم يصل إلى هنا أيضًا، لكن ما تسجّله هنا لا يعود إليه.",
+      "keepOldApp": "<b>واصل التسجيل في التطبيق القديم حتى يصل عملك.</b> كل ما تسجّله هناك يُنقل إلى هنا، ويظهر تلقائيًا.",
+      "differentTitle": "ما الذي تغيّر",
+      "differentSummary": "المشاريع والمهام والأصوات، هنا",
+      "differentProject": "أصبح <b>مشروعك</b> الآن <b>لغة</b> داخل منظمة.",
+      "differentQuests": "<b>مهامّك</b> (Quests) هي أسفار وأصحاحات ومقاطع، بترتيب الكتاب المقدس.",
+      "differentVersions": "ما سجّلته لأصحاح هو <b>نسخة</b> منه. وفي كل مرة تنشر، تكون نسخة جديدة.",
+      "differentVotes": "<b>الأصوات</b> أصبحت فحوص المجتمع: ما قاله الناس موجود على المقطع.",
+      "checkAgain": "تحقّق مرة أخرى",
+      "notYet": "لم يصل بعد. سيظهر هنا تلقائيًا.",
+      "keepGoing": "تابع {{passage}}",
+      "goToMyWork": "اذهب إلى «عملي»",
+      "recordings_zero": "{{count, number}} تسجيل",
+      "recordings_one": "تسجيل واحد",
+      "recordings_two": "تسجيلان",
+      "recordings_few": "{{count, number}} تسجيلات",
+      "recordings_many": "{{count, number}} تسجيلًا",
+      "recordings_other": "{{count, number}} تسجيل",
+      "passages_zero": "{{count, number}} مقطع",
+      "passages_one": "مقطع واحد",
+      "passages_two": "مقطعان",
+      "passages_few": "{{count, number}} مقاطع",
+      "passages_many": "{{count, number}} مقطعًا",
+      "passages_other": "{{count, number}} مقطع"
     },
     "invite": {
       "expired": "انتهت صلاحية هذه الدعوة. اطلب دعوة جديدة.",

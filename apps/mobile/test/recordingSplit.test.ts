@@ -86,7 +86,7 @@ describe('the split between source and recorder', () => {
 describe('listen, speak, listen', () => {
   it('is recording while the microphone is on, listening while paused for the source, else off', () => {
     expect(loopPhase(true, false)).toBe('recording');
-    // The microphone stays open while the source plays (decisions.md 94).
+    // The microphone stays open while the source plays (decisions.md 95).
     expect(loopPhase(true, true)).toBe('listening');
     // A recorder that stopped by itself (background, error) ends the session, paused or not.
     expect(loopPhase(false, true)).toBe('off');

@@ -152,7 +152,7 @@ export default {
     if (vad.state === 'RECORDING') vad.state = 'IDLE';
     return finish(Date.now(), 0);
   },
-  /** The web keeps its WAV (decisions.md 94): there is no encoder to hand. */
+  /** The web keeps its WAV (decisions.md 95): there is no encoder to hand. */
   async encodeAac(): Promise<string> {
     throw new Error('AAC encoding is not implemented on web.');
   },

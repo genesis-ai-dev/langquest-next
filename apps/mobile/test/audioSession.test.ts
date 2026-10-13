@@ -39,7 +39,7 @@ describe('source playback and microphone coordination', () => {
       .toEqual([false, true]);
   });
 
-  it('leaves the microphone in recording mode while a session holds it through playback (decisions.md 94)', async () => {
+  it('leaves the microphone in recording mode while a session holds it through playback (decisions.md 95)', async () => {
     holdMicrophone(true);
     try {
       await setSessionAudioMode({ allowsRecording: false, playsInSilentMode: true });

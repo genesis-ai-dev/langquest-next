@@ -80,7 +80,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
     await add(at ? pieceFor(at, piece) : piece);
   }, [add]);
   const rec = useRecorder(persist);
-  // A piece too short to keep is said (decisions.md 94).
+  // A piece too short to keep is said (decisions.md 95).
   useOnTooShort(rec.tooShort, () => ctx.toast(t('recording.vad.tooShort')));
   const loop = useListenLoop(rec);
   const session = loop.phase !== 'off';

@@ -172,7 +172,7 @@ same phone (`pendingCountBy`). The web keeps the refusal.
 
 ## 13. Two recorders, on purpose
 
-Date: 2026-09-14 · By: Ryder Wishart · Status: partly superseded by 94
+Date: 2026-09-14 · By: Ryder Wishart · Status: partly superseded by 95
 
 Reason: expo-audio allows one recording at a time and exposes no PCM. v2
 solved this with a custom Expo module (`microphone-energy`) that taps raw
@@ -2512,6 +2512,10 @@ Reverse if: a language needs to be in more than one languoid (a project
 covering two dialects, say); then the link becomes a set rather than a
 register.
 
+Amended (2026-10-12, Caleb Koster): moving v2 imports to `LanguageCodeSet`
+is done (decision 94): an imported language's `LanguageAdded` carries the
+readable code decided on the import's board, and `LanguageCodeSet` links it.
+
 ## 79. Third-party apps keep their own values with a language, as external values LangQuest never acts on
 
 Date: 2026-10-09 · By: Carl Sauder · Status: accepted
@@ -3166,7 +3170,86 @@ not worth their size (then fetch them with the ways), or people need to see
 other languages' key words they have never opened on the phone (then the
 server answers, under a visibility rule for languages).
 
-## 94. A phone records every take with the microphone module, keeps a part going down to half the cutoff, and keeps AAC
+## 94. LangQuest v2 comes over one way and keeps coming, by saying what each v2 project says now, and a v2 account signs in here as itself
+
+Date: 2026-10-12 · By: Caleb Koster · Status: accepted
+
+Reason: v2 keeps running while its users move here, so its data has to come
+over and keep coming, one way only (Caleb, 2026-10-12). The first import
+(PLAN.md step 8) copied a project once, put v2's languoid UUID in
+`LanguageAdded`'s code (78 left that open), made each verse recording a
+passage of its own, and treated a Bible project's own recordings as source
+material. It could not follow v2 after that, because v2 cannot say what
+changed: its `last_updated` is a phone's clock and can be days old when the
+row arrives, server jobs change rows without touching it, and rows are
+deleted outright. So the import reads each v2 project whole, turns it into
+the facts it states now (a member, a unit, a version of a passage, a
+review), and compares them with a ledger of what the import last appended
+for each fact (`packages/v2-import`, `reconcile.ts`): a new fact is said, a
+changed one said again, one v2 no longer has is taken back the way this
+app takes things back (hidden, removed, or `v1.Redacted`), and one that
+returns is said again. Event ids are the import's own (`v2:<project>:<fact>#<n>`)
+and clocks come from v2, never earlier than the import's last word on the
+same fact, so passes are idempotent and a pass that dies is finished by
+the next; v2's timestamps only choose which projects to read, and a nightly
+pass reads all of them. No event changed: v2's work arrives as ordinary
+events. Where each v2 project goes is the team's choice on a board (v2 has
+no organizations): a project with the Every Language platform account goes
+to Every Language, the rest start with their owner's other projects, and a
+project comes over only once its organization and its language are
+confirmed (`docs/v2-project-languages.md`); a project that has come over
+cannot change organization, since its events carry it. A Bible or FIA
+chapter or passage quest becomes that passage of LangQuest's Bible (the
+organization subscribes to `langquest.bible.chapters` or `.fia`), its verse
+recordings one version of it with their verses (`CardVerseSet`), each later
+publish a new version; votes become one Community Check per person,
+back translations Back Translation reviews, and written work notes until
+written translations exist. The plan, ledger, file map and passes live in
+a `v2_import` schema only the service role reaches (migration
+`20261013000000_v2_import.sql`), so the import is retired by dropping it.
+People: a v2 account becomes the account here with the same id, so the
+imported work is already theirs. When Sign In does not know an email and
+password, `v2-sign-in` asks v2's own sign-in once (and signs that session
+out), then makes the account with the v2 id and the same password; ten
+wrong tries per email an hour are refused here, since every try reaches v2
+from the same servers. An email already here under another id is not taken
+over. Design in `docs/v2-import.md`.
+Reverse if: v2 gets a reliable change feed (then read changes, not whole
+projects), or projects routinely need to move between organizations after
+coming over (then a language needs a way to move, which the log does not
+have).
+
+Amended (2026-10-12, Caleb Koster): someone who signs in with a v2 account
+is welcomed back to their work (demo ADR-043; Caleb agreed to the demo's
+screen, 2026-10-12). `v2-sign-in` notes the v2 projects they belong to, as
+v2 lists them to that person, and `v2_welcome()` tells the phone which of
+those have come over and which are still on their way. It is the one
+function in the import's schema a phone may call, and it answers only for
+the caller. Their first sign-in lands on Welcome back with or without an
+organization here, never on "What brings you here?": until their work
+arrives they keep recording in the old app, since everything recorded
+there still comes over (`docs/v2-import.md` section 7).
+
+Amended (2026-10-13, Caleb Koster): written work stays in v2 for now. A
+translation or transcription hanging off a recording, and a part with words
+and no audio, are not brought over (Caleb, 2026-10-13): v2 has 99 of them
+in 31 active projects, about half of them tests, and written translations
+in this app will want them attached to the version they came from, not as
+the Back Translation reviews and notes above. They come over once written
+translations exist. An FIA project's team is offered FIA's study guides in
+the language it reads, else English, as New language offers them: v2's app
+read FIA's guides from FIA, so without them an FIA team would have the
+passages and nothing to study.
+
+Amended (2026-10-13, Caleb Koster): a project need not have its language
+linked to come over. With none chosen on the dashboard it comes over by its
+name, unlinked (a `LanguageAdded` with a code made from the name, as New
+language makes one, and no `LanguageCodeSet`), and its admins link it in
+Next, as they can any language added unlinked (78). The dashboard's
+suggestions are never linked unless someone uses one: v2's own links, which
+many suggestions repeat, are often wrong.
+
+## 95. A phone records every take with the microphone module, keeps a part going down to half the cutoff, and keeps AAC
 
 Date: 2026-10-12 · By: Caleb Koster · Status: accepted
 

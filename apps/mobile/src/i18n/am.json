@@ -282,6 +282,7 @@
     "create_account": "መለያ ይፍጠሩ",
     "scan_qr": "QR ኮድ ይቃኙ",
     "welcome": "እንኳን ደህና መጡ",
+    "welcome_back": "እንኳን በደህና ተመለሱ",
     "vision": "LangQuest ምንድን ነው?",
     "intent_chooser": "ወደዚህ ምን አመጣዎት?",
     "create_org": "ድርጅት ይፍጠሩ",
@@ -2382,7 +2383,9 @@
       "badEmail": "የኢሜይል አድራሻውን ያረጋግጡ።",
       "signupClosed": "አሁን አዲስ መለያዎች መፍጠር አይቻልም።",
       "suspended": "ይህ መለያ ታግዷል።",
-      "sessionEnded": "ክፍለ ጊዜዎ አብቅቷል። እንደገና ይግቡ።"
+      "sessionEnded": "ክፍለ ጊዜዎ አብቅቷል። እንደገና ይግቡ።",
+      "v2AlreadyHere": "ይህ መለያ አስቀድሞ ወደዚህ ተዛውሯል። እዚህ ያዘጋጁትን የይለፍ ቃል ይጠቀሙ።",
+      "v2SameEmail": "በዚህ ኢሜይል እዚህ አስቀድሞ መለያ አለዎት። እዚህ በሚጠቀሙበት የይለፍ ቃል ይግቡ።"
     },
     "signIn": {
       "tagline": "የመጽሐፍ ቅዱስ ትርጉምን ማስተባበር — ከረቂቅ እስከ ማጽደቂያ",
@@ -2595,6 +2598,31 @@
         "viewerProgress": "እያንዳንዱ ቋንቋ ምን ያህል እንደደረሰ ይመልከቱ።",
         "viewerOpen": "ምን እንደተከናወነ ለመስማት ማንኛውንም ክፍል ይክፈቱ።"
       }
+    },
+    "welcomeBack": {
+      "greeting": "እንኳን በደህና ተመለሱ፣ {{name}}",
+      "title": "እንኳን በደህና ተመለሱ",
+      "isHere": "ከLangQuest የመጣው ሥራዎ እዚህ ደርሷል።",
+      "onItsWay": "ከLangQuest የሚመጣው ሥራዎ በመንገድ ላይ ነው።",
+      "wasProject": "{{org}} · ቀድሞ ፕሮጀክትዎ «{{project}}» ነበር",
+      "counts": "{{recordings}} · {{passages}}",
+      "onItsWayRow": "በመንገድ ላይ ነው። ራሱ እዚህ ይታያል።",
+      "recordHere": "<b>ከአሁን በኋላ እዚህ ይቅረጹ።</b> በአሮጌው መተግበሪያ የሚቀርጹት አሁንም ወደዚህ ይመጣል፣ እዚህ የሚቀርጹት ግን ወደዚያ አይመለስም።",
+      "keepOldApp": "<b>እዚህ እስኪደርስ ድረስ በአሮጌው መተግበሪያ መቅረጽዎን ይቀጥሉ።</b> እዚያ የሚቀርጹት ሁሉ ወደዚህ ይመጣል፣ ራሱም እዚህ ይታያል።",
+      "differentTitle": "ምን ተለወጠ",
+      "differentSummary": "ፕሮጀክቶች፣ ኩዌስቶች እና ድምጾች፣ እዚህ",
+      "differentProject": "<b>ፕሮጀክትዎ</b> አሁን በአንድ ድርጅት ውስጥ ያለ <b>ቋንቋ</b> ነው።",
+      "differentQuests": "<b>ኩዌስቶችዎ</b> በመጽሐፍ ቅዱስ ቅደም ተከተል መጻሕፍት፣ ምዕራፎች እና ክፍሎች ናቸው።",
+      "differentVersions": "ለአንድ ምዕራፍ የቀረጹት የእሱ አንድ <b>ስሪት</b> ነው። ባተሙ ቁጥር አዲስ ስሪት ይሆናል።",
+      "differentVotes": "<b>ድምጾች</b> አሁን የማኅበረሰብ ፍተሻዎች ናቸው፤ ሰዎች ያሉት በክፍሉ ላይ አለ።",
+      "checkAgain": "እንደገና ይመልከቱ",
+      "notYet": "ገና አልደረሰም። ራሱ እዚህ ይታያል።",
+      "keepGoing": "በ{{passage}} ይቀጥሉ",
+      "goToMyWork": "ወደ «ሥራዬ» ይሂዱ",
+      "recordings_one": "{{count, number}} ቀረጻ",
+      "recordings_other": "{{count, number}} ቀረጻዎች",
+      "passages_one": "{{count, number}} ክፍል",
+      "passages_other": "{{count, number}} ክፍሎች"
     },
     "invite": {
       "expired": "ይህ ግብዣ ጊዜው አልፏል። አዲስ ይጠይቁ።",

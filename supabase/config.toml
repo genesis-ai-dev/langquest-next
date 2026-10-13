@@ -426,6 +426,8 @@ verify_jwt = false
 verify_jwt = false
 [functions.join]
 verify_jwt = false
+[functions.v2-sign-in]
+verify_jwt = false
 
 # Hosted projects, by environment (docs/environments.md). Scripts find a
 # project's ref here (npm run secrets), and the Workers' SUPABASE_URL vars
