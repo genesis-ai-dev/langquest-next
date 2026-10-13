@@ -8,11 +8,13 @@
 //   Bible         one source: text, audio, timings per testament, offline, copyright; verse timings
 //   Guides/Notes  guides and notes with recommendations and a filter
 //   Coverage      which recommended material reaches each of a language's passages
-//   Reference     one passage: what translators get and why; Add and Hide here (manage_reference)
+//   What helps    one passage: its text a tap away in a Bible you choose, what each help says
+//                 there, Show here / Hide here, and Add a help, a note for translators first
+//                 (demo ADR-042; design principles 12, 13)
 // One main action per screen, the rest one labelled tap away (decision 56).
 // Pure reading lives in src/reference/ (model.ts, coverage.ts, timings.ts, offered.ts).
 import {
-  languageName, languagePassages, libraryUnitRange, linkedTo, materialsFor, passageLink, recommendedFor, testamentOf, unitTitle, versesInChapter,
+  derivePassage, keyTermsForUnit, languageName, languagePassages, libraryUnitRange, linkedTo, materialsFor, passageLink, recommendedFor, testamentOf, unitTitle, versesInChapter,
   type LibraryDoc, type LanguageState, type RecommendationSource, type SourceDoc, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -25,7 +27,7 @@ import { formatNumber } from '../i18n/format';
 import { indexesFor } from '../indexes';
 import {
   Badge, Banner, Card, Chip, ChipRow, Disclosure, EmptyState, GhostBtn, Group, Header, PrimaryBtn, ProgressBar, Row, Screen, SearchField,
-  SectionLabel, Sheet, ShowMore, SmallBtn, txt, useOpenDetail
+  SectionLabel, Sheet, ShowMore, SmallBtn, txt, useOpenDetail, type IconName
 } from '../kit';
 import { sourceLine, type SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
@@ -40,8 +42,16 @@ import {
   levelOf, publishTimingJob, referenceFailure, requestTimings, useRecommend, useRefItems, useTimingJobs, useTimingPublisher,
   versificationHash, type RefItem, type TimingJob
 } from '../reference/useReference';
+import { chosenOnly } from '../reference/guideSets';
 import { docLanguage, languagesLine, teamLanguage } from '../reference/languages';
+import { offeredGuideSources } from '../reference/offered';
+import { termsInText } from '../recording/workspaceModel';
 import { languageLabel } from '../simple/adminModel';
+import { HelpCard, PassageTextBar, WordChip, type HelpPreview } from '../simple/helps';
+import { keyLabel, plain, refInPassage } from '../simple/helpsModel';
+import { DashedBtn } from '../simple/parts';
+import { useBible } from '../simple/reference';
+import { bestGuide } from '../study/guideMatch';
 import { contractsFor } from '../screenContracts';
 import { bibleErrorText } from '../sources/bibleBrain';
 import { space, TINT } from '../theme';
@@ -768,29 +778,49 @@ function whyLabel(why: ReachWhy): string {
     case 'linked': return t('reference.passage.placedByHand');
   }
 }
-const GROUPS: RefKind[] = ['source', 'guide', 'note', 'other'];
-function groupLabel(kind: RefKind): string {
-  switch (kind) {
-    case 'source': return t('reference.bibles.title');
-    case 'guide': return t('reference.passage.studyGuides');
-    case 'note': return t('reference.passage.notes');
-    case 'other': case 'questions': return t('reference.passage.other');
-  }
+
+/** Guides first, then notes and other material; the Bibles, which the text above already opens, last. */
+const ORDER: Record<RefKind, number> = { guide: 0, note: 1, other: 3, questions: 4, source: 6 };
+
+const refIcon = (kind: RefKind): IconName => (kind === 'source' ? 'book' : kind === 'guide' ? 'sparkle' : kind === 'note' ? 'note' : 'layers');
+
+/** A help's card on one passage: what it is, what it says here, and whether it shows. */
+interface HelpRow {
+  key: string;
+  order: number;
+  icon: IconName;
+  name: string;
+  sub: string;
+  preview: HelpPreview | null;
+  shown: boolean;
+  onSet?: (shown: boolean) => void;
+  children?: ReactNode;
 }
 
+/**
+ * What helps on one passage (demo ADR-042 `PassageHelps`, design principle
+ * 13): the passage in a Bible the admin chooses is one tap away at the top,
+ * with key words and notes marked in it; each help says what it says here
+ * (a guide's first step, a note's first words, the key words) above Show
+ * here / Hide here; Add a help writes a note for translators first, or
+ * places something from the library.
+ */
 export function PassageReference(ctx: Ctx) {
   const state = ctx.language.state;
   const unitId = ctx.params['unitId'] ?? '';
   const languageId = ctx.params['languageId'] ?? ctx.languageId ?? '';
   const { rows, docs } = useRefItems(ctx);
   const canManage = ctx.session.can('manage_reference');
+  const canNote = ctx.session.can('translate') || ctx.session.can('review') || ctx.session.can('fill_reference');
   const [adding, setAdding] = useState(false);
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState(false);
+  const text = ctx.details(`reference:passage:${unitId}:text`);
   const passage = useMemo(() => {
     if (!state || !state.units[unitId] || languageId !== ctx.language.languageId) return null;
     return { unitId, label: unitTitle(state, unitId), range: null as ReturnType<typeof libraryUnitRange> };
   }, [state, unitId, languageId, ctx.language.languageId]);
+  const bible = useBible(ctx, passage ? unitId : null, languageId, { hidden: !text.open });
   const sel = state?.template?.value;
   const tdocs = useLibraryDocs(ctx.language.orgId, [sel?.docHash]);
   const offered = useMemo(() => {
@@ -806,12 +836,43 @@ export function PassageReference(ctx: Ctx) {
     const here = coverageFor(state, ps, offered, rows, docs.get).get(unitId) ?? [];
     const all = coverageFor(state, ps, offered, rows, docs.get, false).get(unitId) ?? [];
     const hidden = all.filter((r) => !here.some((h) => h.itemId === r.itemId));
-    return { here, hidden };
+    return { here, hidden, range, versification: v11n };
   }, [state, passage, sel?.docHash, tdocs, unitId, offered, rows, docs.get]);
   const inApp = useMemo(() => (state && passage ? materialsFor(state, { unitId }).filter((m) => m.kind !== 'questions' && m.kind !== 'key_terms') : []), [state, passage, unitId]);
+  // Notes translators see on this passage: on a verse, a run of verses, or the whole of it.
+  const notes = useMemo(() => (state && passage ? derivePassage(state, unitId, indexesFor(state)).notes.filter((n) => n.anchor.kind === 'verse' || n.anchor.kind === 'passage') : []),
+    [state, passage, unitId]);
+  // The language's key words in these verses, as the recorder finds them.
+  const terms = useMemo(() => (state && passage ? keyTermsForUnit(state, unitId) : []), [state, passage, unitId]);
+  const verseText = bible.rows?.map((r) => r.text).join(' ') ?? '';
+  const termsHere = useMemo(() => (verseText ? termsInText(verseText, terms) : []), [verseText, terms]);
+  const reads = teamLanguage(ctx.org.state, state, languageId);
+  // With nothing recommended or placed here that has a study, translators get one from the rest of the
+  // organization's library (reference/offered.ts): it shows here too, and hiding it here takes it away.
+  const ownGuide = useMemo(() => {
+    if (!state || !result || result.here.some((r) => r.kind === 'guide')) return null;
+    const o = offeredGuideSources(ctx.org.state?.library ?? {}, ctx.org.state?.recommendations, state, null);
+    const [, own = []] = chosenOnly([o.recommended, o.own], (h) => docs.get(h));
+    const hit = bestGuide({ unitId, range: result.range, versification: result.versification }, [own], docs.get, reads);
+    const item = hit ? rows.find((r) => r.kind === 'guide' && r.it.current === hit.source.hash) : undefined;
+    return item ? item.it.itemId : null;
+  }, [state, result, ctx.org.state, docs.get, unitId, reads, rows]);
+  // Each guide's study for this passage (a collection's entry), to show its first step.
+  const guideFor = useMemo(() => {
+    const out = new Map<string, string>();
+    if (!result) return out;
+    for (const r of [...result.here, ...result.hidden, ...(ownGuide ? [{ itemId: ownGuide, kind: 'guide' as const }] : [])]) {
+      const row = rows.find((x) => x.it.itemId === r.itemId);
+      if (r.kind !== 'guide' || !row?.it.current) continue;
+      const hit = bestGuide({ unitId, range: result.range, versification: result.versification }, [[{ key: r.itemId, hash: row.it.current }]], docs.get, reads);
+      if (hit) out.set(r.itemId, hit.hash);
+    }
+    return out;
+  }, [result, ownGuide, rows, docs.get, unitId, reads]);
+  const studies = useLibraryDocs(ctx.language.orgId, [...guideFor.values()]);
 
   if (!state || !passage || !result) {
-    return <Screen header={<Header title={t('reference.passage.title')} onBack={ctx.back} />}><EmptyState icon="book" title={state ? t('reference.passage.gone') : t('common.loading')} /></Screen>;
+    return <Screen header={<Header title={t('passage.else.whatHelps')} onBack={ctx.back} />}><EmptyState icon="book" title={state ? t('reference.passage.gone') : t('common.loading')} /></Screen>;
   }
   const byId = new Map(rows.map((r) => [r.it.itemId, r]));
 
@@ -828,55 +889,114 @@ export function PassageReference(ctx: Ctx) {
     }
   }
 
-  const reachRow = (r: Reach, last: boolean, hidden: boolean) => {
+  /** What one library item says on this passage. */
+  const previewOf = (r: Pick<Reach, 'itemId'>, doc: LibraryDoc | null | undefined): HelpPreview | null => {
+    if (!doc) return null;
+    switch (doc.format) {
+      case 'source@1': return { text: sourceSummary(sourceFacts(doc, docs.get, doc.provider.kind === 'biblebrain' ? heldDetail(doc.provider.bibleId) : null)) };
+      case 'study@1': case 'study@2': case 'collection@1': {
+        const study = studies.get(guideFor.get(r.itemId));
+        const first = study && (study.format === 'study@1' || study.format === 'study@2') ? study.steps[0] : undefined;
+        return first ? { lead: t('reference.passageText.step', { n: 1 }), text: plain(first.title) } : null;
+      }
+      case 'material@1': {
+        const refs = (doc.links ?? []).flatMap((l) => ('ref' in l ? [l.ref] : []));
+        const lead = refInPassage(refs, result.range);
+        const found = doc.terms?.filter((x) => termsInText(verseText, [{ termId: x.id, term: x.term }]).length > 0).map((x) => x.term) ?? [];
+        const words = found.length ? found.join(' · ') : plain(doc.body ?? doc.fields?.[0]?.text ?? '');
+        return words || lead ? { ...(lead ? { lead } : {}), text: words } : null;
+      }
+      default: return null;
+    }
+  };
+  const stepsOf = (itemId: string): number | null => {
+    const study = studies.get(guideFor.get(itemId));
+    return study && (study.format === 'study@1' || study.format === 'study@2') ? study.steps.length : null;
+  };
+
+  const libraryRow = (r: Pick<Reach, 'itemId' | 'kind'>, why: string, shown: boolean): HelpRow => {
     const item = byId.get(r.itemId);
     const name = item?.it.name ?? r.itemId;
-    const facts = item?.doc?.format === 'source@1' ? sourceSummary(sourceFacts(item.doc, docs.get, item.doc.provider.kind === 'biblebrain' ? heldDetail(item.doc.provider.bibleId) : null)) : null;
+    const steps = r.kind === 'guide' ? stepsOf(r.itemId) : null;
     const prior = passageLink(state, unitId, r.itemId);
-    return (
-      <Row key={r.itemId} icon={r.kind === 'source' ? 'book' : r.kind === 'guide' ? 'sparkle' : 'note'} label={name} last={last} muted={hidden}
-        sub={hidden ? t('reference.passage.hiddenHere') : [whyLabel(r.why), languagesLine([docLanguage(item?.doc)]), facts].filter(Boolean).join(' · ')}
-        right={canManage ? (hidden
-          ? <SmallBtn label={t('reference.passage.showHere')} disabled={busy} onPress={() => void link(r.itemId, true, t('reference.passage.shownAgain', { name }), false)} />
-          : <SmallBtn label={t('reference.passage.hideHere')} disabled={busy} onPress={() => void link(r.itemId, false, t('reference.passage.hidden', { name }), prior ?? true)} />) : undefined} />
-    );
+    return {
+      key: r.itemId, order: ORDER[r.kind], icon: refIcon(r.kind), name, shown,
+      sub: [steps ? t('reference.passageText.steps', { count: steps }) : null, languagesLine([docLanguage(item?.doc)]), shown ? why : t('reference.passage.hiddenHere')].filter(Boolean).join(' · '),
+      preview: previewOf(r, item?.doc),
+      ...(canManage ? {
+        onSet: (on: boolean) => {
+          if (on === shown) return;
+          void (on ? link(r.itemId, true, t('reference.passage.shownAgain', { name }), false) : link(r.itemId, false, t('reference.passage.hidden', { name }), prior ?? true));
+        }
+      } : {})
+    };
   };
+
+  const ownShown = !!ownGuide && passageLink(state, unitId, ownGuide) !== false;
+  const cards: HelpRow[] = [
+    ...result.here.map((r) => libraryRow(r, whyLabel(r.why), true)),
+    ...(canManage ? result.hidden.map((r) => libraryRow(r, whyLabel(r.why), false)) : []),
+    ...(ownGuide && (ownShown || canManage) ? [libraryRow({ itemId: ownGuide, kind: 'guide' }, t('reference.passageText.fromOwn'), ownShown)] : [])
+  ];
+  if (notes.length) {
+    const latest = notes[notes.length - 1]!;
+    cards.push({
+      key: 'notes', order: 2, icon: 'chat', name: t('reference.passage.notes'), shown: true,
+      sub: t('reference.passageText.notesSub', { count: notes.length }),
+      preview: {
+        lead: latest.anchor.kind === 'verse' ? keyLabel(latest.anchor.verse) : t('reference.passageText.wholePassage'),
+        text: latest.text ? plain(latest.text) : t('common.voiceNote')
+      }
+    });
+  }
+  for (const m of inApp) {
+    const first = m.fields.find((f) => f.text?.trim())?.text;
+    cards.push({ key: m.materialId, order: 2, icon: 'note', name: m.title, sub: t('reference.passage.placedInApp'), shown: true, preview: first ? { text: plain(first) } : null });
+  }
+  if (termsHere.length) {
+    cards.push({
+      key: 'terms', order: 5, icon: 'key', name: t('reference.passageText.keyWords'), shown: true,
+      sub: t('reference.passageText.keyWordsSub', { count: termsHere.length }), preview: null,
+      children: (
+        <View style={styles.words}>
+          {termsHere.map((term) => (
+            <WordChip key={term.termId} label={term.term} help={t('reference.keyWords.openHelp')}
+              onPress={() => ctx.go('key_term_detail', { termId: term.termId, unitId, languageId })} />
+          ))}
+        </View>
+      )
+    });
+  }
+  cards.sort((a, b) => a.order - b.order);
+
   const addable = rows.filter((r) => r.kind && r.kind !== 'questions' && !r.it.archived && !result.here.some((h) => h.itemId === r.it.itemId))
     .filter((r) => !q.trim() || r.it.name.toLowerCase().includes(q.trim().toLowerCase()));
 
   return (
-    <Screen header={<Header title={t('reference.passage.title')} sub={`${passage.label} · ${languageName(ctx.org.state, languageId)}`} onBack={ctx.back} />}
-      footer={canManage ? <PrimaryBtn label={t('reference.passage.add')} icon="plus" onPress={() => setAdding(true)} /> : undefined}>
-      <Intro>{t('reference.passage.intro')}</Intro>
-      {GROUPS.map((kind) => {
-        const here = result.here.filter((r) => r.kind === kind);
-        if (here.length === 0 && kind !== 'source') return null;
-        return (
-          <View key={kind} style={{ gap: space.sm }}>
-            <SectionLabel label={t('reference.passage.group', { group: groupLabel(kind), n: here.length })} />
-            {here.length ? <Group>{here.map((r, i) => reachRow(r, i === here.length - 1, false))}</Group>
-              : <Card><Text style={txt.smMuted}>{t('reference.passage.noBible')}</Text></Card>}
-          </View>
-        );
-      })}
-      {inApp.length ? (
-        <>
-          <SectionLabel label={t('reference.writtenInApp', { n: inApp.length })} />
-          <Group>{inApp.map((m, i) => <Row key={m.materialId} icon="note" label={m.title} sub={t('reference.passage.placedInApp')} last={i === inApp.length - 1} />)}</Group>
-        </>
-      ) : null}
-      {canManage && result.hidden.length ? (
-        <>
-          <SectionLabel label={t('reference.passage.hiddenSection', { n: result.hidden.length })} />
-          <Group>{result.hidden.map((r, i) => reachRow(r, i === result.hidden.length - 1, true))}</Group>
-        </>
-      ) : null}
-      <Sheet visible={adding} title={t('reference.passage.addTitle')} sub={t('reference.passage.addSub')} onClose={() => setAdding(false)}>
+    <Screen header={<Header title={t('passage.else.whatHelps')} sub={languageName(ctx.org.state, languageId)} onBack={ctx.back} />}
+      footer={<PrimaryBtn label={t('common.done')} icon="check" onPress={ctx.back} />}>
+      <PassageTextBar ctx={ctx} bible={bible} title={passage.label} open={text.open} onToggle={text.onToggle} terms={termsHere} notes={notes} />
+      {cards.length === 0 ? <Card><Text style={txt.smMuted}>{t('reference.passageText.none')}</Text></Card> : null}
+      {cards.map((c) => (
+        <HelpCard key={c.key} icon={c.icon} name={c.name} sub={c.sub} preview={c.preview} shown={c.shown} busy={busy} {...(c.onSet ? { onSet: c.onSet } : {})}>
+          {c.children}
+        </HelpCard>
+      ))}
+      {canManage ? <DashedBtn label={t('reference.passageText.addHelp')} icon="plus" hint={t('reference.passageText.addHelpHint')} onPress={() => setAdding(true)} /> : null}
+      <Sheet visible={adding} title={t('reference.passageText.addHelp')} sub={passage.label} onClose={() => setAdding(false)}>
+        {/* Your own first, set apart from the library (design principle 12). */}
+        {canNote ? (
+          <Group>
+            <Row icon="mic" label={t('reference.passageText.writeNote')} sub={t('reference.passageText.writeNoteSub')} last
+              onPress={() => { setAdding(false); ctx.go('material_editor', { unitId, languageId, note: 'new' }); }} />
+          </Group>
+        ) : null}
+        <SectionLabel label={t('reference.passageText.fromLibrary')} />
         <SearchField value={q} onChangeText={setQ} placeholder={t('reference.passage.searchPlaceholder')} />
         {addable.length === 0 ? <Text style={txt.smMuted}>{q ? t('common.nothingMatches', { query: q }) : t('reference.passage.allHere')}</Text> : (
           <Group>
             {addable.slice(0, 50).map((r, i) => (
-              <Row key={r.it.itemId} icon={r.kind === 'source' ? 'book' : r.kind === 'guide' ? 'sparkle' : 'note'} label={r.it.name}
+              <Row key={r.it.itemId} icon={refIcon(r.kind!)} label={r.it.name}
                 sub={[refKindLabel(r.kind!), languagesLine([docLanguage(r.doc)])].join(' · ')} last={i === Math.min(addable.length, 50) - 1} disabled={busy}
                 onPress={() => { setAdding(false); void link(r.it.itemId, true, t('reference.passage.placed', { name: r.it.name }), false); }} />
             ))}
@@ -889,7 +1009,8 @@ export function PassageReference(ctx: Ctx) {
 
 const styles = StyleSheet.create({
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginTop: space.xs },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm }
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  words: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }
 });
 
 export const contracts = contractsFor('reference_bibles', 'reference_source', 'reference_guides', 'reference_coverage', 'passage_reference');

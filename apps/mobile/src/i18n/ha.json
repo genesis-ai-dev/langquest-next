@@ -5636,25 +5636,15 @@
       "noGuideBadge": "Babu jagora"
     },
     "passage": {
-      "title": "Kayan Bincike",
       "gone": "Wannan nassi ba ya nan",
       "placedByHand": "An sanya a nan da hannu",
-      "studyGuides": "Jagororin nazari",
       "notes": "Bayanai ga masu fassara",
-      "other": "Wasu kaya",
       "hiddenHere": "An ɓoye a nan",
       "showHere": "Nuna a nan",
       "hideHere": "Ɓoye a nan",
       "shownAgain": "{{name}} yana sake bayyana a wannan nassi.",
       "hidden": "An ɓoye {{name}} a wannan nassi.",
-      "add": "Ƙara",
-      "intro": "Abin da ake ba masu fassara a wannan nassi, da dalili. Har yanzu za su iya zagaya kowane Littafi Mai Tsarki ta intanet su zaɓa da kansu.",
-      "group": "{{group}} · {{n, number}}",
-      "noBible": "Ba a ba da shawarar wani Littafi Mai Tsarki don wannan nassi ba. Masu fassara har yanzu za su iya zagaya ɗaya.",
       "placedInApp": "An sanya a nan a cikin manhaja",
-      "hiddenSection": "An ɓoye a nan · {{n, number}}",
-      "addTitle": "Ƙara a wannan nassi",
-      "addSub": "An sanya a nan da hannu, ko mene ne wurinsa ya faɗa.",
       "searchPlaceholder": "Nemi a ɗakin karatunku",
       "allHere": "Duk abin da ke ɗakin karatunku yana nan tuni.",
       "placed": "An sanya {{name}} a wannan nassi."
@@ -5781,6 +5771,34 @@
       "yours": "Harshen manhajarka",
       "gaps_one": "A {{language}}, {{name}} yana da jagora don nassi {{count, number}}. Nassosin da ba su da jagora ba za su nuna jagorar nazari ba.",
       "gaps_other": "A {{language}}, {{name}} yana da jagorori don nassosi {{count, number}}. Nassosin da ba su da jagora ba za su nuna jagorar nazari ba."
+    },
+    "passageText": {
+      "bar": "{{passage}} · {{bible}}",
+      "barHelpTitle": "Nassin",
+      "barHelp": "Yana buɗe nassin a cikin Littafi Mai Tsarki da kuka zaɓa, tare da alama a kan muhimman kalmominsa da bayanansa.",
+      "openText": "{{passage}}. Nuna nassin",
+      "closeText": "{{passage}}. Ɓoye nassin",
+      "listen": "Saurara",
+      "listenHelp": "Yana kunna nassin a wannan Littafi Mai Tsarki.",
+      "noteTag": "Bayani",
+      "showHelp": "Masu fassara suna samun wannan a wannan nassi.",
+      "hideHelp": "Masu fassara ba za su ƙara samun wannan a wannan nassi ba.",
+      "step": "Mataki na {{n, number}}",
+      "steps_one": "Mataki {{count, number}}",
+      "steps_other": "Matakai {{count, number}}",
+      "notesSub_one": "Bayani {{count, number}} a wannan nassi",
+      "notesSub_other": "Bayanai {{count, number}} a wannan nassi",
+      "wholePassage": "Dukan nassin",
+      "keyWords": "Muhimman kalmomi",
+      "keyWordsSub_one": "{{count, number}} a waɗannan ayoyi",
+      "keyWordsSub_other": "{{count, number}} a waɗannan ayoyi",
+      "none": "Har yanzu babu taimako a wannan nassi.",
+      "addHelp": "Ƙara taimako",
+      "addHelpHint": "Rubuta bayani ga masu fassara, ko sa wani abu daga ɗakin karatunku.",
+      "writeNote": "Rubuta bayani ga masu fassara",
+      "writeNoteSub": "A ayoyin da kuka zaɓa, da murya ko a rubuce",
+      "fromLibrary": "Daga ɗakin karatunku",
+      "fromOwn": "Daga ɗakin karatun ƙungiyarku"
     }
   },
   "sources": {
@@ -6015,5 +6033,37 @@
     "goOnline": "Ku riƙa haɗa intanet akai-akai don a aika aikinku.",
     "lessSpace": "Wataƙila wannan na'ura tana da ƙarancin wuri fiye da yadda take faɗa.",
     "understand": "Na fahimta"
+  },
+  "notes": {
+    "onVerses": {
+      "title": "Bayani ga masu fassara",
+      "sub": "{{passage}} · {{language}}",
+      "hint": "Taɓa aya, sannan wata don a kai gare ta.",
+      "verseHelp": "Yana sa bayanin a wannan aya. Taɓa wata aya don a kai gare ta.",
+      "on": "A {{where}}",
+      "onWhole": "A dukan nassin",
+      "whole": "Dukan nassin",
+      "say": "Taɓa ka faɗi bayaninka",
+      "saved": "An ajiye bayani a {{where}}.",
+      "savedWhole": "An ajiye bayani a {{passage}}."
+    }
+  },
+  "keyTerms": {
+    "verses": {
+      "title": "Inda take a nan",
+      "none": "“{{word}}” ba ta cikin waɗannan ayoyi a {{bible}}.",
+      "noneHere": "“{{word}}” ba ta cikin waɗannan ayoyi.",
+      "more_one": "Da ƙarin aya {{count, number}}",
+      "more_other": "Da ƙarin ayoyi {{count, number}}"
+    },
+    "others": {
+      "title": "Yadda wasu harsuna a nan suke faɗinta",
+      "none": "Har yanzu babu wani harshe a wannan waya da ke da kalma don “{{word}}”.",
+      "saidOnly": "An faɗa, ba a rubuta ba",
+      "play": "Kunna kalmar a {{language}}",
+      "playHelp": "Yana kunna yadda suke faɗinta.",
+      "suggest": "Wasu harsuna a nan suna amfani da",
+      "suggestHelp": "Ana amfani da ita a nan a {{languages}}. Taɓa don ƙara ta."
+    }
   }
 }

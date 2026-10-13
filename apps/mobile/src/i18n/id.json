@@ -5367,25 +5367,15 @@
       "noGuideBadge": "Tanpa panduan"
     },
     "passage": {
-      "title": "Referensi",
       "gone": "Perikop ini tidak ada di sini",
       "placedByHand": "Ditempatkan di sini secara manual",
-      "studyGuides": "Panduan studi",
       "notes": "Catatan untuk penerjemah",
-      "other": "Bahan lain",
       "hiddenHere": "Disembunyikan di sini",
       "showHere": "Tampilkan di sini",
       "hideHere": "Sembunyikan di sini",
       "shownAgain": "{{name}} ditampilkan lagi pada perikop ini.",
       "hidden": "{{name}} disembunyikan pada perikop ini.",
-      "add": "Tambah",
-      "intro": "Apa yang disediakan bagi penerjemah pada perikop ini, dan alasannya. Mereka tetap dapat menjelajahi Alkitab mana pun secara online dan memilih sendiri.",
-      "group": "{{group}} · {{n, number}}",
-      "noBible": "Belum ada Alkitab yang direkomendasikan untuk perikop ini. Penerjemah tetap dapat menjelajahinya.",
       "placedInApp": "Ditempatkan di sini dalam aplikasi",
-      "hiddenSection": "Disembunyikan di sini · {{n, number}}",
-      "addTitle": "Tambahkan ke perikop ini",
-      "addSub": "Ditempatkan di sini secara manual, apa pun yang disebut koordinatnya.",
       "searchPlaceholder": "Cari di perpustakaan Anda",
       "allHere": "Semua isi perpustakaan Anda sudah ada di sini.",
       "placed": "{{name}} ditempatkan pada perikop ini."
@@ -5508,6 +5498,31 @@
       "passages_other": "Panduan untuk {{count, number}} perikop",
       "yours": "Bahasa aplikasi Anda",
       "gaps_other": "Dalam bahasa {{language}}, {{name}} memiliki panduan untuk {{count, number}} perikop. Perikop tanpa panduan tidak menampilkan panduan studi."
+    },
+    "passageText": {
+      "bar": "{{passage}} · {{bible}}",
+      "barHelpTitle": "Perikop",
+      "barHelp": "Membuka perikop di Alkitab yang Anda pilih, dengan kata kunci dan catatannya ditandai.",
+      "openText": "{{passage}}. Tampilkan perikop",
+      "closeText": "{{passage}}. Sembunyikan perikop",
+      "listen": "Dengarkan",
+      "listenHelp": "Memutar perikop di Alkitab ini.",
+      "noteTag": "Catatan",
+      "showHelp": "Penerjemah mendapatkan ini di perikop ini.",
+      "hideHelp": "Penerjemah tidak lagi mendapatkan ini di perikop ini.",
+      "step": "Langkah {{n, number}}",
+      "steps_other": "{{count, number}} langkah",
+      "notesSub_other": "{{count, number}} catatan di perikop ini",
+      "wholePassage": "Seluruh perikop",
+      "keyWords": "Kata kunci",
+      "keyWordsSub_other": "{{count, number}} di ayat-ayat ini",
+      "none": "Belum ada bantuan di perikop ini.",
+      "addHelp": "Tambah bantuan",
+      "addHelpHint": "Tulis catatan untuk penerjemah, atau taruh sesuatu dari perpustakaan Anda.",
+      "writeNote": "Tulis catatan untuk penerjemah",
+      "writeNoteSub": "Di ayat yang Anda pilih, diucapkan atau diketik",
+      "fromLibrary": "Dari perpustakaan Anda",
+      "fromOwn": "Dari perpustakaan organisasi Anda"
     }
   },
   "sources": {
@@ -5729,5 +5744,36 @@
     "goOnline": "Sering-seringlah tersambung ke internet agar pekerjaan Anda terkirim.",
     "lessSpace": "Ruang perangkat ini mungkin lebih kecil dari yang tertulis.",
     "understand": "Saya mengerti"
+  },
+  "notes": {
+    "onVerses": {
+      "title": "Catatan untuk penerjemah",
+      "sub": "{{passage}} · {{language}}",
+      "hint": "Ketuk satu ayat, lalu ayat lain untuk sampai ke sana.",
+      "verseHelp": "Menaruh catatan di ayat ini. Ketuk ayat lain untuk sampai ke sana.",
+      "on": "Di {{where}}",
+      "onWhole": "Di seluruh perikop",
+      "whole": "Seluruh perikop",
+      "say": "Ketuk dan ucapkan catatan Anda",
+      "saved": "Catatan disimpan di {{where}}.",
+      "savedWhole": "Catatan disimpan di {{passage}}."
+    }
+  },
+  "keyTerms": {
+    "verses": {
+      "title": "Letaknya di sini",
+      "none": "“{{word}}” tidak ada di ayat-ayat ini di {{bible}}.",
+      "noneHere": "“{{word}}” tidak ada di ayat-ayat ini.",
+      "more_other": "Dan {{count, number}} ayat lagi"
+    },
+    "others": {
+      "title": "Cara bahasa lain di sini mengucapkannya",
+      "none": "Belum ada bahasa lain di ponsel ini yang punya kata untuk “{{word}}”.",
+      "saidOnly": "Diucapkan, belum ditulis",
+      "play": "Putar kata dalam {{language}}",
+      "playHelp": "Memutar cara mereka mengucapkannya.",
+      "suggest": "Bahasa lain di sini memakai",
+      "suggestHelp": "Dipakai di sini dalam {{languages}}. Ketuk untuk menambahkannya."
+    }
   }
 }

@@ -6712,25 +6712,15 @@
       "noGuideBadge": "بدون دليل"
     },
     "passage": {
-      "title": "المرجع",
       "gone": "هذا المقطع غير موجود",
       "placedByHand": "وُضع هنا يدويًا",
-      "studyGuides": "أدلة الدراسة",
       "notes": "ملاحظات للمترجمين",
-      "other": "مواد أخرى",
       "hiddenHere": "مخفي هنا",
       "showHere": "اعرضه هنا",
       "hideHere": "أخفِه هنا",
       "shownAgain": "{{name}} يظهر على هذا المقطع مرة أخرى.",
       "hidden": "{{name}} مخفي على هذا المقطع.",
-      "add": "إضافة",
-      "intro": "ما يُقدَّم للمترجمين على هذا المقطع، ولماذا. وما زال يمكنهم استكشاف أي ترجمة للكتاب المقدس عبر الإنترنت والاختيار بأنفسهم.",
-      "group": "{{group}} · {{n, number}}",
-      "noBible": "لا توجد ترجمة للكتاب المقدس موصى بها لهذا المقطع. وما زال يمكن للمترجمين استكشاف واحدة.",
       "placedInApp": "وُضع هنا في التطبيق",
-      "hiddenSection": "مخفي هنا · {{n, number}}",
-      "addTitle": "أضف إلى هذا المقطع",
-      "addSub": "يوضع هنا يدويًا، مهما كانت إحداثياته.",
       "searchPlaceholder": "ابحث في مكتبتك",
       "allHere": "كل ما في مكتبتك موجود هنا من قبل.",
       "placed": "وُضع {{name}} على هذا المقطع."
@@ -6873,6 +6863,46 @@
       "gaps_few": "باللغة {{language}}، لدى {{name}} أدلة لـ {{count, number}} مقاطع. المقاطع التي ليس لها دليل لا يظهر فيها دليل دراسة.",
       "gaps_many": "باللغة {{language}}، لدى {{name}} أدلة لـ {{count, number}} مقطعًا. المقاطع التي ليس لها دليل لا يظهر فيها دليل دراسة.",
       "gaps_other": "باللغة {{language}}، لدى {{name}} أدلة لـ {{count, number}} مقطع. المقاطع التي ليس لها دليل لا يظهر فيها دليل دراسة."
+    },
+    "passageText": {
+      "bar": "{{passage}} · {{bible}}",
+      "barHelpTitle": "المقطع",
+      "barHelp": "يفتح المقطع في الترجمة التي تختارها، مع تمييز كلماته الرئيسية وملاحظاته.",
+      "openText": "{{passage}}. اعرض المقطع",
+      "closeText": "{{passage}}. أخفِ المقطع",
+      "listen": "استمع",
+      "listenHelp": "يشغّل المقطع في هذه الترجمة.",
+      "noteTag": "ملاحظة",
+      "showHelp": "يحصل المترجمون على هذا في هذا المقطع.",
+      "hideHelp": "يتوقف المترجمون عن الحصول على هذا في هذا المقطع.",
+      "step": "الخطوة {{n, number}}",
+      "steps_zero": "{{count, number}} خطوة",
+      "steps_one": "خطوة واحدة",
+      "steps_two": "خطوتان",
+      "steps_few": "{{count, number}} خطوات",
+      "steps_many": "{{count, number}} خطوة",
+      "steps_other": "{{count, number}} خطوة",
+      "notesSub_zero": "{{count, number}} ملاحظة على هذا المقطع",
+      "notesSub_one": "ملاحظة واحدة على هذا المقطع",
+      "notesSub_two": "ملاحظتان على هذا المقطع",
+      "notesSub_few": "{{count, number}} ملاحظات على هذا المقطع",
+      "notesSub_many": "{{count, number}} ملاحظة على هذا المقطع",
+      "notesSub_other": "{{count, number}} ملاحظة على هذا المقطع",
+      "wholePassage": "المقطع كله",
+      "keyWords": "الكلمات الرئيسية",
+      "keyWordsSub_zero": "{{count, number}} في هذه الآيات",
+      "keyWordsSub_one": "واحدة في هذه الآيات",
+      "keyWordsSub_two": "اثنتان في هذه الآيات",
+      "keyWordsSub_few": "{{count, number}} في هذه الآيات",
+      "keyWordsSub_many": "{{count, number}} في هذه الآيات",
+      "keyWordsSub_other": "{{count, number}} في هذه الآيات",
+      "none": "لا شيء يساعد في هذا المقطع بعد.",
+      "addHelp": "أضف مساعدة",
+      "addHelpHint": "اكتب ملاحظة للمترجمين، أو ضع هنا شيئًا من مكتبتك.",
+      "writeNote": "اكتب ملاحظة للمترجمين",
+      "writeNoteSub": "على الآيات التي تختارها، منطوقة أو مكتوبة",
+      "fromLibrary": "من مكتبتك",
+      "fromOwn": "من مكتبة مؤسستك"
     }
   },
   "sources": {
@@ -7159,5 +7189,41 @@
     "goOnline": "اتصل بالإنترنت كثيرًا حتى يُرسل عملك.",
     "lessSpace": "قد تكون مساحة هذا الجهاز أقل مما يقول.",
     "understand": "فهمت"
+  },
+  "notes": {
+    "onVerses": {
+      "title": "ملاحظة للمترجمين",
+      "sub": "{{passage}} · {{language}}",
+      "hint": "المس آية، ثم أخرى لتمتد إليها.",
+      "verseHelp": "يضع الملاحظة على هذه الآية. المس آية أخرى لتمتد إليها.",
+      "on": "على {{where}}",
+      "onWhole": "على المقطع كله",
+      "whole": "المقطع كله",
+      "say": "المس وقل ملاحظتك",
+      "saved": "حُفظت الملاحظة على {{where}}.",
+      "savedWhole": "حُفظت الملاحظة على {{passage}}."
+    }
+  },
+  "keyTerms": {
+    "verses": {
+      "title": "أين هي هنا",
+      "none": "“{{word}}” ليست في هذه الآيات في {{bible}}.",
+      "noneHere": "“{{word}}” ليست في هذه الآيات.",
+      "more_zero": "و{{count, number}} آية أخرى",
+      "more_one": "وآية أخرى",
+      "more_two": "وآيتان أخريان",
+      "more_few": "و{{count, number}} آيات أخرى",
+      "more_many": "و{{count, number}} آية أخرى",
+      "more_other": "و{{count, number}} آية أخرى"
+    },
+    "others": {
+      "title": "كيف تقولها لغات أخرى هنا",
+      "none": "لا توجد بعدُ لغة أخرى على هذا الهاتف لها كلمة لـ “{{word}}”.",
+      "saidOnly": "منطوقة، غير مكتوبة",
+      "play": "شغّل الكلمة بلغة {{language}}",
+      "playHelp": "يشغّل كيف يقولونها.",
+      "suggest": "لغات أخرى هنا تستخدم",
+      "suggestHelp": "تُستخدم هنا في {{languages}}. المسها لإضافتها."
+    }
   }
 }
