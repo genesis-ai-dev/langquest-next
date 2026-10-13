@@ -3101,3 +3101,69 @@ needs the server allowlist and Play declarations changed; a later change).
 Reverse if: the ledger itself proves unreliable on these phones (false
 alarms in the field), or losses turn out to be damaged contents rather than
 missing files, in which case add a slow background spot check of hashes.
+
+## 93. A passage may be written as well as recorded, and a step can turn either into either, in any language
+
+Date: 2026-10-12 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb asked how the app would hold written translations beside
+audio, and chose (thread "Written translations alongside audio", plan page
+https://claude.ai/artifact/Fj4Serxb9kWDQGsbjwPPvF) to make writing a second
+way to hold a passage, with the words kept in the log. He then widened back
+translation into one kind of step: "(text or audio) is turned into (text or
+audio) in the (same or different) language". PLAN.md section 1 listed
+text-first translation as a non-goal ("that is Aquila"); that line is gone.
+Chosen:
+- A written part is a short piece of text, usually a verse, named `w:` and
+  the SHA-256 of its UTF-8 words (core `writing.ts`). Its words travel inside
+  `v1.WritingAdded`, never as a file: they are small, every phone holding
+  the language holds them through months offline, and nothing that handles
+  files (uploads, eviction, the missing-file alarm, decision 92) can mistake
+  one for a blob, whose names are 64 hex characters. `validate_payload` and
+  core both check each name against its words. A take holds recorded parts
+  or written ones, never both, so a version's kind is known from the take
+  alone in any order; drafts, publishing, verse labels (one `set` label per
+  written verse, so an empty verse never shifts the next) and releases are
+  unchanged. Typing is kept on the phone until Publish, like a back
+  translation's parts (decision 30).
+- What a language's team may make, recordings, writing or both, and which
+  leads on a passage, is `v1.MediaAllowedSet`, asked in Get ready's first
+  question; recording only until set. With both, the other is under
+  "Something else?".
+- A making step is a kind with `v1.StepMakesSet { from, to, language,
+  otherLanguage?, fromKindId?, becomesVersion }`: it turns recording or
+  writing (or either) into recording or writing (or the person picks), in the
+  same language or another. A flow many languages share never names a
+  language (Caleb): "another" is the team's reference language (decision 84)
+  unless the language's own copy of the step names one. Ready-made ones come
+  first in Add a step (back translation said and written, write it down, read
+  it aloud, final recording); "Make your own" sets the choices.
+- What a step makes stays with the version it came from (`v1.Made`), in
+  any language, and is never marked out of date when a newer version
+  arrives (Caleb: a transformation's quality is its own, "don't punish the
+  children for the sins of their fathers"). Reviews by version gains a
+  column for each step that made something, and for each kind of thing made
+  with no step (LangQuest v2's transcriptions and translations), only where
+  some exist; a version lists what was made from it. A check can read what
+  an earlier step made instead of the version (`v1.CheckLooksAtSet`).
+- A step can make the passage's next version (a final recording after the
+  consultant, which one partner treats as the validated translation): a
+  switch on the step, on by default when it makes the same kind in the same
+  language and off for writing a recording down (Caleb's answer 11a). The
+  checks before that step then count from the version it was made from
+  (`versionHeardAt`, `approvedVersion`), so the final version can be the
+  approved one; a version recorded by hand inherits nothing.
+- People ask each other for what they need in other languages; there is no
+  language feature for it (Caleb). No AI help for now.
+Not yet: the shipped back translation still records through
+`v1.ReviewRecorded` (its English is a word, not a language); exporting a
+book's writing (USFM); recording from something a step made (a step that
+records works from a version); letters an admin adds to the strip above
+the keyboard (the strip learns from what the team writes); New language's
+own question about writing (Get ready asks it); a final recording left
+unpublished is kept as an ordinary draft, so publishing it from Versions
+makes a version by hand; fonts for scripts the phone lacks.
+Reverse if: a written New Testament with its edits makes the fold too heavy
+on the slowest partner phones (then keep the words in a SQLite read model
+and only their names in the fold), or teams need one step's output reviewed
+as a version of its own.
