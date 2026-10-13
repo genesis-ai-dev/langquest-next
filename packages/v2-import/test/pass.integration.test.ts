@@ -106,8 +106,7 @@ describe.skipIf(!SERVICE)('a pass against the local database', () => {
     const org = foldOrg(await events('_org'));
     expect(org.languages[id]?.added?.name).toBe('Kwa');
     expect(org.members[`${id}-rev`]).toBeTruthy();
-    const rev = Object.values(org.members[`${id}-rev`] ?? {}).map((m) => (m as { roleId?: { value?: string } }).roleId?.value ?? (m as { roleId?: string }).roleId);
-    expect(JSON.stringify(rev)).toContain('coordinator');
+    expect(Object.values(org.members[`${id}-rev`] ?? {}).map((m) => m.roleId.value)).toEqual(['coordinator']);
     expect(Object.keys(org.library)).toEqual(['sub.langquest.langquest.bible.chapters']);
     const lang = foldLanguage(await events(id));
     expect(Object.keys(lang.invalidEvents)).toEqual([]);
