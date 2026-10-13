@@ -3131,7 +3131,7 @@ Chosen:
   question; recording only until set. With both, the other is under
   "Something else?".
 - A making step is a kind with `v1.StepMakesSet { from, to, language,
-  otherLanguage?, fromKindId?, becomesVersion }`: it turns recording or
+  otherLanguage?, fromKindId?, result }`: it turns recording or
   writing (or either) into recording or writing (or the person picks), in the
   same language or another. A flow many languages share never names a
   language (Caleb): "another" is the team's reference language (decision 84)
@@ -3146,13 +3146,36 @@ Chosen:
   with no step (LangQuest v2's transcriptions and translations), only where
   some exist; a version lists what was made from it. A check can read what
   an earlier step made instead of the version (`v1.CheckLooksAtSet`).
-- A step can make the passage's next version (a final recording after the
-  consultant, which one partner treats as the validated translation): a
-  switch on the step, on by default when it makes the same kind in the same
-  language and off for writing a recording down (Caleb's answer 11a). The
-  checks before that step then count from the version it was made from
+- What a step makes does one of three things (`result`), chosen on the
+  step. It stays beside the version (`beside`, the default for anything
+  but the same kind in the same language). It becomes the passage's next
+  version (`version`, a final recording after the consultant, which one
+  partner treats as the validated translation; only in the same language,
+  and the default for the same kind there, Caleb's answer 11a); the checks
+  before that step then count from the version it was made from
   (`versionHeardAt`, `approvedVersion`), so the final version can be the
-  approved one; a version recorded by hand inherits nothing.
+  approved one, and a version recorded by hand inherits nothing. Or it is
+  added to the version (`added`, Caleb, 13 October): only when it turns a
+  recording into writing or writing into a recording, in the team's own
+  language, so one version holds a recording and its words verse by verse;
+  `v1.Made { added: true }` says so, fixed when it is made, and the take
+  stays all recorded or all written. The checks after that step hear and
+  read both, and the version is approved with its words when one of them
+  looks good. Words added before a step that makes the next version stay
+  with the older version; the step's editor says so.
+- Content can change after a review (Caleb, 13 October: "give translators
+  more freedom and record what happened"). Changing what was added to a
+  version keeps the approval; the person changing it decides whether it
+  needs another review, and the history says it changed after that review
+  (core `addedTo`, `changedAfter`). Whether a new recording of an approved
+  passage may keep the approval in the same way is open (it would change
+  70 and 72, where only a version reviewed itself is approved).
+- The access-token API (70, 72, 85, 86) says what each passage's version
+  holds: `medium`, `madeBy` when a step replaced it, and `added` (what steps
+  added, with `changedAfterReview`); a new `text` include gives a written
+  version's words, or the words added to a recording, with their verses;
+  `audio` never names a written part; a new `made` include (team only)
+  lists what was made beside versions. `approvedVersion` keeps its meaning.
 - People ask each other for what they need in other languages; there is no
   language feature for it (Caleb). No AI help for now.
 Not yet: the shipped back translation still records through
@@ -3162,7 +3185,8 @@ records works from a version); letters an admin adds to the strip above
 the keyboard (the strip learns from what the team writes); New language's
 own question about writing (Get ready asks it); a final recording left
 unpublished is kept as an ordinary draft, so publishing it from Versions
-makes a version by hand; fonts for scripts the phone lacks.
+makes a version by hand; fonts for scripts the phone lacks; the review
+link page (72) for a written version.
 Reverse if: a written New Testament with its edits makes the fold too heavy
 on the slowest partner phones (then keep the words in a SQLite read model
 and only their names in the fold), or teams need one step's output reviewed
