@@ -5805,7 +5805,6 @@
       "turn": "转换什么",
       "into": "转成什么",
       "in": "用哪种语言",
-      "becomesVersion": "它会成为新版本",
       "becomesVersionSub": "这一步之后的检查会看它。这一步之前的检查，仍算在它所根据的版本上。",
       "becomesVersionOff": "只有用团队自己的语言制作录音或文字的步骤，才能成为下一个版本。",
       "add": "添加这一步",
@@ -5813,14 +5812,34 @@
       "namePlaceholder": "书面回译",
       "previewVersion": "它制作的内容会成为这个经段的下一个版本。",
       "previewBeside": "它会留在它所根据的版本旁边，供之后的检查使用。它不是一个版本。",
-      "readsLine": "{{from}}转成{{to}}，用{{language}}"
+      "readsLine": "{{from}}转成{{to}}，用{{language}}",
+      "result": {
+        "title": "它制作的内容会怎样",
+        "beside": "留在版本旁边",
+        "besideSub": "供之后的检查使用。它不属于版本。",
+        "added": "添加到版本里",
+        "addedSub": "这样版本就既有录音，也有逐节的文字。这一步之后的检查既能听，也能读。",
+        "addedOff": "只有当它用团队自己的语言把录音转成文字，或把文字转成录音时，才可以这样做。",
+        "version": "它会成为新版本"
+      },
+      "previewAdded": "它制作的内容会添加到它所根据的版本里，这个版本就两样都有了。",
+      "addedBeforeVersion": "{{step}}在后面，会制作新版本，所以这一步添加的内容会留在它之前的版本上。把这一步放到{{step}}之后，才能添加到最终版本里。"
     },
     "version": {
       "words": "文字",
-      "madeFromIt": "根据这个版本制作的内容"
+      "madeFromIt": "根据这个版本制作的内容",
+      "itsWords": "这个版本的文字",
+      "itsRecording": "这个版本的录音",
+      "approvedWithWords": "已批准，包括文字",
+      "approvedWithRecording": "已批准，包括录音",
+      "addedNotChecked": "已批准。添加的内容还没有检查。",
+      "changeWords": "修改文字",
+      "changeRecording": "重新录"
     },
     "grid": {
-      "cell": "{{what}}，根据{{version}}制作"
+      "cell": "{{what}}，根据{{version}}制作",
+      "added": "已添加到版本",
+      "addedCell": "{{what}}，已添加到{{version}}"
     },
     "made": {
       "title": "根据版本制作的内容",
@@ -5830,11 +5849,23 @@
       "writtenDown": "已写成文字",
       "recordedAgain": "已重新录音",
       "fromVersion": "{{what}} · 根据{{version}}",
-      "askCheck": "请人做{{check}}"
+      "askCheck": "请人做{{check}}",
+      "addedTo": "{{what}} · 已添加到{{version}}",
+      "replaced": "之后改过了：版本里现在是更新的内容。"
     },
     "review": {
       "read": "读",
-      "readsMade": "{{what}}根据{{version}}制作的内容"
+      "readsMade": "{{what}}根据{{version}}制作的内容",
+      "itsWords": "{{version}}的文字，由{{step}}添加。每一节都可以播放。",
+      "itsRecording": "{{version}}的录音，由{{step}}添加"
+    },
+    "history": {
+      "madeFrom": "{{what}}，根据{{version}}制作",
+      "wordsAdded": "文字已添加到{{version}}",
+      "recordingAdded": "录音已添加到{{version}}",
+      "wordsChanged": "{{version}}的文字已修改",
+      "recordingChanged": "{{version}}的录音已修改",
+      "changedAfter": "{{check}}后修改过"
     }
   }
 }

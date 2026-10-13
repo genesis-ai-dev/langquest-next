@@ -47,7 +47,7 @@ import { VoiceNote } from '../voiceNote';
 export function BackTranslationBody({ ctx, v, kind, of, make }: {
   ctx: Ctx; v: PassageView; kind: KindDef; of: Version;
   /** A step that makes recording (decisions.md 93): what it says it into, and the language it is in when not the team's own. */
-  make?: { into: string; language?: string };
+  make?: { into: string; language?: string; added?: boolean };
 }) {
   const { state, unitId, languageId, p } = v;
   const produces = kind.produces ?? { what: kind.name, into: make?.into ?? v.language, action: kind.name, checkedBy: '' };
@@ -129,7 +129,7 @@ export function BackTranslationBody({ ctx, v, kind, of, make }: {
         ? [
           ...commands(state, indexesFor(state)).make({
             commandId: Crypto.randomUUID(), unitId, kindId: kind.id, fromTakeId: of.takeId, parts: pieces,
-            ...(make.language ? { language: make.language } : {}), ...(request ? { requestId: request.id } : {})
+            ...(make.language ? { language: make.language } : {}), ...(make.added ? { added: true } : {}), ...(request ? { requestId: request.id } : {})
           }),
           ...(note || noteHash ? commands(state, indexesFor(state)).addNote({ commandId: Crypto.randomUUID(), unitId, anchor: { kind: 'version', takeId: of.takeId },
             ...(note ? { text: note } : {}), ...(noteHash ? { blobHash: noteHash } : {}) }) : [])

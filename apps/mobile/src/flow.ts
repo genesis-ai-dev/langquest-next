@@ -387,7 +387,11 @@ export const EDGES: Edge[] = [
   e('version_detail', 'made_detail'),
   e('made_detail', 'passage_record', 'back'),
   e('made_detail', 'version_detail', 'back'),
-  e('made_detail', 'ask_someone')
+  e('made_detail', 'ask_someone'),
+  e('version_detail', 'back_translation', undefined, 'reviewer'), // tap Change the words (decision 93)
+  e('made_detail', 'back_translation', undefined, 'reviewer'), // tap Change the words (decision 93)
+  e('back_translation', 'version_detail', 'back'),
+  e('back_translation', 'made_detail', 'back')
 ];
 
 /**

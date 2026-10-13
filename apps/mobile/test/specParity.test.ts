@@ -85,7 +85,9 @@ const APP_ONLY: Record<string, string> = {
   'review_capture->material_editor': "a check's help that is a note opens from the review (decision 91)",
   'passage_record->made_detail': "Reviews by version opens something made from a version (decision 93)",
   'version_detail->made_detail': 'a version lists what was made from it (decision 93)',
-  'made_detail->ask_someone': 'ask for the check that reads what a step made (decision 93)'
+  'made_detail->ask_someone': 'ask for the check that reads what a step made (decision 93)',
+  'version_detail->back_translation': 'change the words a step added to a version (decision 93)',
+  'made_detail->back_translation': 'change the words a step added to a version (decision 93)'
 };
 
 /** App-only reference screens (docs/reference-material.md). */

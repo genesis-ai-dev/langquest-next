@@ -7,14 +7,15 @@
 // that a plain keyboard lacks sit above the keyboard. Publish puts the words
 // on the record:
 //   version  a written version of the passage (a team that writes, or "Write it instead")
-//   make     what a making step makes from a version: written down, a written back translation, a translation
+//   make     what a making step makes from a version: written down, a written back translation, a translation,
+//            or words added to the version (it then holds the recording and its words; changing them starts from the words it has)
 //   final    a step whose result is the passage's next version, in writing
 // What is typed is kept on this phone until Publish (like a back
 // translation's parts, decision 30), so nothing half written reaches the
 // grow-only record.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  commands, versesInChapter, writtenCards,
+  addedTo, commands, versesInChapter, writtenCards,
   type EventSpec, type KindDef, type MakesSpec, type Version
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -44,7 +45,7 @@ import { VersePlayRow } from './WrittenText';
 
 export type WritingMode =
   | { kind: 'version' }
-  | { kind: 'make'; step: KindDef; makes: MakesSpec; source: MakingSource; language?: string; requestId?: string }
+  | { kind: 'make'; step: KindDef; makes: MakesSpec; source: MakingSource; language?: string; requestId?: string; added?: boolean }
   | { kind: 'final'; step: KindDef; source: Version; requestId?: string };
 
 type Chip = 'source' | 'bible' | 'notes';
@@ -64,9 +65,15 @@ export function WritingWorkspace({ ctx, v, mode }: { ctx: Ctx; v: PassageView; m
   const start = useMemo<VerseText[]>(() => {
     if (mode.kind === 'version') return latest?.medium === 'writing' ? writtenByVerse(state, unitId, latest.cardHashes, verseKeys) : [];
     if (mode.kind === 'final') return mode.source.medium === 'writing' ? writtenByVerse(state, unitId, mode.source.cardHashes, verseKeys) : [];
+    // Words already added to the version: changing them starts from them.
+    if (mode.added && mode.source.kind === 'version') {
+      const words = addedTo(p, mode.source.version).find((a) => a.medium === 'writing');
+      if (words) return writtenByVerse(state, unitId, words.made.parts.map((c) => c.hash), verseKeys);
+    }
     return [];
-  }, [mode, latest, state, unitId, verseKeys]);
-  const draftKey = `writing:v1:${ctx.language.orgId}:${languageId}:${me}:${unitId}:${mode.kind === 'version' ? 'version' : mode.step.id}`;
+  }, [mode, latest, state, unitId, verseKeys, p]);
+  const draftKey = `writing:v1:${ctx.language.orgId}:${languageId}:${me}:${unitId}:${mode.kind === 'version' ? 'version' : mode.step.id}`
+    + (mode.kind === 'make' && mode.added && mode.source.kind === 'version' ? `:${mode.source.version.takeId}` : '');
   const [boxes, setBoxes] = useState<VerseText[] | null>(null);
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
@@ -145,7 +152,7 @@ export function WritingWorkspace({ ctx, v, mode }: { ctx: Ctx; v: PassageView; m
       } else {
         const from = mode.source.kind === 'version' ? { fromTakeId: mode.source.version.takeId } : { fromMadeId: mode.source.made.id };
         specs = [...w.specs, ...cmd.make({ commandId, unitId, kindId: mode.step.id, ...from, parts: writtenCards(w.ids),
-          ...(mode.language ? { language: mode.language } : {}), ...(mode.requestId ? { requestId: mode.requestId } : {}) })];
+          ...(mode.language ? { language: mode.language } : {}), ...(mode.added ? { added: true } : {}), ...(mode.requestId ? { requestId: mode.requestId } : {}) })];
       }
     } catch (e) {
       ctx.toast(t('writing.notPublished', { reason: failureMessage('writing: publish', e) }));

@@ -6090,7 +6090,6 @@
       "turn": "Turn",
       "into": "Into",
       "in": "In",
-      "becomesVersion": "It becomes the new version",
       "becomesVersionSub": "Checks after this step look at it. Checks before it count from the version it was made from.",
       "becomesVersionOff": "Only a step that makes recording or writing in the team's own language can make the next version.",
       "add": "Add this step",
@@ -6098,14 +6097,34 @@
       "namePlaceholder": "Written back translation",
       "previewVersion": "What it makes becomes the passage's next version.",
       "previewBeside": "It stays beside the version it came from, for the checks after it. It isn't a version.",
-      "readsLine": "{{from}} into {{to}}, in {{language}}"
+      "readsLine": "{{from}} into {{to}}, in {{language}}",
+      "result": {
+        "title": "What happens to what it makes",
+        "beside": "Stays beside the version",
+        "besideSub": "For the checks after it. It isn't part of the version.",
+        "added": "Is added to the version",
+        "addedSub": "The version then has a recording and its words, verse by verse. Checks after this step hear and read both.",
+        "addedOff": "Only when it turns a recording into writing, or writing into a recording, in the team's own language.",
+        "version": "Becomes the new version"
+      },
+      "previewAdded": "What it makes is added to the version it came from, which then holds both.",
+      "addedBeforeVersion": "{{step}} comes later and makes a new version, so what this step adds stays with the version before it. Put this step after {{step}} to add to the final version."
     },
     "version": {
       "words": "The words",
-      "madeFromIt": "Made from this version"
+      "madeFromIt": "Made from this version",
+      "itsWords": "Its words",
+      "itsRecording": "Its recording",
+      "approvedWithWords": "Approved, with its words",
+      "approvedWithRecording": "Approved, with its recording",
+      "addedNotChecked": "Approved. What was added hasn't been checked yet.",
+      "changeWords": "Change the words",
+      "changeRecording": "Record it again"
     },
     "grid": {
-      "cell": "{{what}}, made from {{version}}"
+      "cell": "{{what}}, made from {{version}}",
+      "added": "Added to the version",
+      "addedCell": "{{what}}, added to {{version}}"
     },
     "made": {
       "title": "Made from a version",
@@ -6115,11 +6134,23 @@
       "writtenDown": "Written down",
       "recordedAgain": "Recorded again",
       "fromVersion": "{{what}} · from {{version}}",
-      "askCheck": "Ask someone for the {{check}}"
+      "askCheck": "Ask someone for the {{check}}",
+      "addedTo": "{{what}} · added to {{version}}",
+      "replaced": "Changed since: the version holds a newer one."
     },
     "review": {
       "read": "Read",
-      "readsMade": "What {{what}} made from {{version}}"
+      "readsMade": "What {{what}} made from {{version}}",
+      "itsWords": "{{version}}'s words, added by {{step}}. Each verse plays.",
+      "itsRecording": "{{version}}'s recording, added by {{step}}"
+    },
+    "history": {
+      "madeFrom": "{{what}} made from {{version}}",
+      "wordsAdded": "Words added to {{version}}",
+      "recordingAdded": "A recording added to {{version}}",
+      "wordsChanged": "Words of {{version}} changed",
+      "recordingChanged": "Recording of {{version}} changed",
+      "changedAfter": "Changed after the {{check}}"
     }
   }
 }

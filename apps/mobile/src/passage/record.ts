@@ -6,7 +6,7 @@
 // Requirements REC-1..8 (REC-2/2a: the path top to bottom, per version),
 // ASK-2, ASK-4; ADR-012, 013, 014, 015, 016, 020, 029, 030.
 import {
-  checkPeople, feedbackIsMine, isCompleteState, keyTermView, languagePeople, membershipsOf, privilegesFor, scopeCovers,
+  checkPeople, feedbackIsMine, isCompleteState, keyTermView, languagePeople, madeVersionOf, membershipsOf, privilegesFor, scopeCovers,
   type FlowStepStatus, type KindDef, type KindStatus, type OrgState, type PassageNote, type PassageState,
   type Privilege, type LanguageState, type QuestionSpec, type RecordEntry, type RequestView, type ReviewView, type SourcedQuestion,
   type Version
@@ -406,6 +406,20 @@ export function describeEntry(e: RecordEntry, o: {
         icon: 'note', color: TINT.amberText, title: t('passage.record.entry.note', { anchor: o.anchor(n) }),
         sub: said(n.text ?? (n.blobHash ? t('common.voiceNote') : n.photoHash ? t('passage.record.entry.photo') : '')), who
       };
+    }
+    case 'made': {
+      // Made beside a version, or added to it; a change to what was added says which review it came after (decision 93).
+      const m = e.made;
+      const of = o.p.versions.find((x) => x.takeId === madeVersionOf(o.p, m));
+      const version = of ? versionTitle(of.n) : t('passage.record.anchor.aVersion');
+      const step = m.kindId ? kindName(kinds, m.kindId) : '';
+      const words = m.medium === 'writing';
+      const changed = !!m.added && !!of?.added.some((x) => x.medium === m.medium && x.hlc < m.hlc);
+      const title = !m.added ? t('writing.history.madeFrom', { what: step || (words ? t('writing.made.writtenDown') : t('writing.made.recordedAgain')), version })
+        : changed ? (words ? t('writing.history.wordsChanged', { version }) : t('writing.history.recordingChanged', { version }))
+        : words ? t('writing.history.wordsAdded', { version }) : t('writing.history.recordingAdded', { version });
+      const after = e.changedAfter ? t('writing.history.changedAfter', { check: kindName(kinds, e.changedAfter.kindId) }) : '';
+      return { icon: words ? 'edit' : 'mic', color: e.changedAfter ? TINT.amberText : TINT.greenText, title, sub: [after, m.added ? step : ''].filter(Boolean).join(' · '), who };
     }
     case 'study': {
       const i = o.guide?.id === e.guideId ? o.guide.steps.findIndex((s) => s.id === e.stepId) : -1;

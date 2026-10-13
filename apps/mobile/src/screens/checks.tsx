@@ -471,6 +471,8 @@ export function CheckEditor(ctx: Ctx) {
       before ? () => { const now = ctx.language.state; return now ? commands(now, indexesFor(now)).setStepMakes({ commandId: Crypto.randomUUID(), kindId, makes: before }) : []; } : undefined)
       .catch(() => {});
   };
+  // Words added here, before a step that makes the next version, stay with the older version (decision 93).
+  const laterVersion = makes?.result === 'added' ? rows.slice(i + 1).map((r) => known.find((k) => k.id === r.kindId)).find((k) => k?.makes?.result === 'version') : undefined;
   // A check may read what an earlier step made instead of the version (a spelling check of what was written down).
   const makersBefore = rows.slice(0, i).map((r) => known.find((k) => k.id === r.kindId)).filter((k): k is KindDef => !!k?.makes);
   const looksAt = kind?.looksAt ?? null;
@@ -485,7 +487,8 @@ export function CheckEditor(ctx: Ctx) {
       {makes ? (
         <>
           <SectionLabel label={t('writing.step.whatItMakes')} />
-          <MakesFields makes={makes} own={language} reference={reference} onChange={setMakes} disabled={!mayFlows} />
+          <MakesFields makes={makes} own={language} reference={reference} onChange={setMakes} disabled={!mayFlows}
+            {...(laterVersion ? { warning: t('writing.step.addedBeforeVersion', { step: laterVersion.name }) } : {})} />
         </>
       ) : makersBefore.length > 0 ? (
         <>

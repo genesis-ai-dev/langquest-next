@@ -5805,7 +5805,6 @@
       "turn": "Ubah",
       "into": "Menjadi",
       "in": "Bahasa",
-      "becomesVersion": "Menjadi versi baru",
       "becomesVersionSub": "Pemeriksaan setelah tahap ini melihat versi baru itu. Pemeriksaan sebelumnya tetap berlaku untuk versi asalnya.",
       "becomesVersionOff": "Hanya tahap yang membuat rekaman atau tulisan dalam bahasa tim sendiri yang dapat membuat versi berikutnya.",
       "add": "Tambahkan tahap ini",
@@ -5813,14 +5812,34 @@
       "namePlaceholder": "Terjemahan balik tertulis",
       "previewVersion": "Hasilnya menjadi versi berikutnya untuk perikop ini.",
       "previewBeside": "Hasilnya tetap di samping versi asalnya, untuk pemeriksaan sesudahnya. Hasil ini bukan versi.",
-      "readsLine": "{{from}} menjadi {{to}}, dalam {{language}}"
+      "readsLine": "{{from}} menjadi {{to}}, dalam {{language}}",
+      "result": {
+        "title": "Apa yang terjadi pada hasilnya",
+        "beside": "Tetap di samping versi",
+        "besideSub": "Untuk pemeriksaan sesudahnya. Hasil ini bukan bagian dari versi.",
+        "added": "Ditambahkan ke versi",
+        "addedSub": "Lalu versi itu punya rekaman dan juga kata-katanya, ayat demi ayat. Pemeriksaan setelah tahap ini mendengar dan membaca keduanya.",
+        "addedOff": "Hanya jika tahap ini mengubah rekaman menjadi tulisan, atau tulisan menjadi rekaman, dalam bahasa tim sendiri.",
+        "version": "Menjadi versi baru"
+      },
+      "previewAdded": "Hasilnya ditambahkan ke versi asalnya, sehingga versi itu memuat keduanya.",
+      "addedBeforeVersion": "{{step}} ada sesudahnya dan membuat versi baru, jadi yang ditambahkan tahap ini tetap pada versi sebelumnya. Taruh tahap ini sesudah {{step}} agar ditambahkan ke versi akhir."
     },
     "version": {
       "words": "Kata-katanya",
-      "madeFromIt": "Dibuat dari versi ini"
+      "madeFromIt": "Dibuat dari versi ini",
+      "itsWords": "Kata-katanya",
+      "itsRecording": "Rekamannya",
+      "approvedWithWords": "Disetujui, beserta kata-katanya",
+      "approvedWithRecording": "Disetujui, beserta rekamannya",
+      "addedNotChecked": "Disetujui. Yang ditambahkan belum diperiksa.",
+      "changeWords": "Ubah kata-katanya",
+      "changeRecording": "Rekam lagi"
     },
     "grid": {
-      "cell": "{{what}}, dibuat dari {{version}}"
+      "cell": "{{what}}, dibuat dari {{version}}",
+      "added": "Ditambahkan ke versi",
+      "addedCell": "{{what}}, ditambahkan ke {{version}}"
     },
     "made": {
       "title": "Dibuat dari sebuah versi",
@@ -5830,11 +5849,23 @@
       "writtenDown": "Dituliskan",
       "recordedAgain": "Direkam ulang",
       "fromVersion": "{{what}} · dari {{version}}",
-      "askCheck": "Minta seseorang untuk {{check}}"
+      "askCheck": "Minta seseorang untuk {{check}}",
+      "addedTo": "{{what}} · ditambahkan ke {{version}}",
+      "replaced": "Sudah diubah: versinya sekarang memuat yang lebih baru."
     },
     "review": {
       "read": "Baca",
-      "readsMade": "Yang dibuat {{what}} dari {{version}}"
+      "readsMade": "Yang dibuat {{what}} dari {{version}}",
+      "itsWords": "Kata-kata {{version}}, ditambahkan oleh {{step}}. Setiap ayat bisa diputar.",
+      "itsRecording": "Rekaman {{version}}, ditambahkan oleh {{step}}"
+    },
+    "history": {
+      "madeFrom": "{{what}} dibuat dari {{version}}",
+      "wordsAdded": "Kata-kata ditambahkan ke {{version}}",
+      "recordingAdded": "Rekaman ditambahkan ke {{version}}",
+      "wordsChanged": "Kata-kata {{version}} diubah",
+      "recordingChanged": "Rekaman {{version}} diubah",
+      "changedAfter": "Diubah setelah {{check}}"
     }
   }
 }

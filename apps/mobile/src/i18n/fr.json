@@ -6375,7 +6375,6 @@
       "turn": "Transforme",
       "into": "En",
       "in": "Langue",
-      "becomesVersion": "Devient la nouvelle version",
       "becomesVersionSub": "Les vérifications après cette étape la regardent. Celles d’avant comptent pour la version d’où elle vient.",
       "becomesVersionOff": "Seule une étape qui fait un enregistrement ou un texte écrit dans la langue de l’équipe peut faire la version suivante.",
       "add": "Ajouter cette étape",
@@ -6383,14 +6382,34 @@
       "namePlaceholder": "Rétrotraduction écrite",
       "previewVersion": "Ce qu’elle fait devient la version suivante du passage.",
       "previewBeside": "Le résultat reste à côté de la version d’où il vient, pour les vérifications qui suivent. Ce n’est pas une version.",
-      "readsLine": "De {{from}} vers {{to}}, en {{language}}"
+      "readsLine": "De {{from}} vers {{to}}, en {{language}}",
+      "result": {
+        "title": "Ce que devient ce qu’elle fait",
+        "beside": "Reste à côté de la version",
+        "besideSub": "Pour les vérifications qui suivent. Il ne fait pas partie de la version.",
+        "added": "Est ajouté à la version",
+        "addedSub": "La version a alors un enregistrement et ses mots, verset par verset. Les vérifications après cette étape écoutent et lisent les deux.",
+        "addedOff": "Seulement quand elle transforme un enregistrement en texte écrit, ou un texte écrit en enregistrement, dans la langue de l’équipe.",
+        "version": "Devient la nouvelle version"
+      },
+      "previewAdded": "Ce qu’elle fait est ajouté à la version d’où il vient, qui a alors les deux.",
+      "addedBeforeVersion": "{{step}} vient plus tard et fait une nouvelle version, donc ce que cette étape ajoute reste avec la version d’avant. Mettez cette étape après {{step}} pour l’ajouter à la version finale."
     },
     "version": {
       "words": "Les mots",
-      "madeFromIt": "Fait à partir de cette version"
+      "madeFromIt": "Fait à partir de cette version",
+      "itsWords": "Ses mots",
+      "itsRecording": "Son enregistrement",
+      "approvedWithWords": "Approuvée, avec ses mots",
+      "approvedWithRecording": "Approuvée, avec son enregistrement",
+      "addedNotChecked": "Approuvée. Ce qui a été ajouté n’a pas encore été vérifié.",
+      "changeWords": "Changer les mots",
+      "changeRecording": "L’enregistrer à nouveau"
     },
     "grid": {
-      "cell": "{{what}}, fait à partir de {{version}}"
+      "cell": "{{what}}, fait à partir de {{version}}",
+      "added": "Ajouté à la version",
+      "addedCell": "{{what}}, ajouté à {{version}}"
     },
     "made": {
       "title": "Fait à partir d’une version",
@@ -6400,11 +6419,23 @@
       "writtenDown": "Mis par écrit",
       "recordedAgain": "Enregistré à nouveau",
       "fromVersion": "{{what}} · à partir de {{version}}",
-      "askCheck": "Demander la {{check}} à quelqu’un"
+      "askCheck": "Demander la {{check}} à quelqu’un",
+      "addedTo": "{{what}} · ajouté à {{version}}",
+      "replaced": "Changé depuis : la version en a un plus récent."
     },
     "review": {
       "read": "Lire",
-      "readsMade": "Ce que {{what}} a fait à partir de {{version}}"
+      "readsMade": "Ce que {{what}} a fait à partir de {{version}}",
+      "itsWords": "Les mots de {{version}}, ajoutés par {{step}}. Chaque verset s’écoute séparément.",
+      "itsRecording": "L’enregistrement de {{version}}, ajouté par {{step}}"
+    },
+    "history": {
+      "madeFrom": "{{what}} fait à partir de {{version}}",
+      "wordsAdded": "Mots ajoutés à {{version}}",
+      "recordingAdded": "Un enregistrement ajouté à {{version}}",
+      "wordsChanged": "Mots de {{version}} changés",
+      "recordingChanged": "Enregistrement de {{version}} changé",
+      "changedAfter": "Changé après la {{check}}"
     }
   }
 }

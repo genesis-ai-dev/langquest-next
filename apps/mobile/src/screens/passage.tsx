@@ -11,8 +11,10 @@ import { EarlierNote, EarlierSections, isEarlierSection } from '../breakup/earli
 import { Faces, PeopleLine } from '../checks/parts';
 import { checkName, stepTitle } from '../simple/adminModel';
 import {
-  CommandError, checkPeople, commands, draftsBy, feedbackIsMine, isCompleteState, keyTermLinksFor, madeGrid, madeGroup, madeVersionOf, mediaAllowed, questionsForKind, recordTimeline, reviewGrid,
-  type Commands, type EventSpec, type FlowStepStatus, type KindDef, type KindState, type KindStatus, type MadeColumn, type Medium, type PassageNote, type QuestionSpec, type ReviewView
+  addedTo, approvedVersion, CommandError, checkPeople, commands, draftsBy, feedbackIsMine, isCompleteState, keyTermLinksFor, LISTENER_KIND, madeGrid, madeGroup, madeVersionOf, mediaAllowed,
+  questionsForKind, recordTimeline, reviewGrid,
+  type AddedContent, type Commands, type EventSpec, type FlowStepStatus, type KindDef, type KindState, type KindStatus, type MadeColumn, type Medium, type PassageNote,
+  type QuestionSpec, type ReviewView, type Version
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -554,6 +556,7 @@ export function PassageRecord(ctx: Ctx) {
             if (e.type === 'version') onPress = () => go('version_detail', { takeId: e.version.takeId });
             if (e.type === 'review' || e.type === 'response') onPress = () => go('review_detail', { reviewId: e.review.id });
             if (e.type === 'study') onPress = () => go('study_step', { stepId: e.stepId });
+            if (e.type === 'made') onPress = () => go('made_detail', { madeId: e.made.id });
             if (e.type === 'departure' && !e.departure.undone && can.undo) {
               trailing = <SmallBtn label={t('passage.page.undo')} icon="undo" onPress={() => undoFromHistory(e.departure.id, e.departure.type)} />;
             }
@@ -907,12 +910,14 @@ function ReviewGrid(props: { ctx: Ctx; v: PassageView; kindIds: string[]; onVers
                       </Pressable>
                     ) : last ? (
                       <Pressable onPress={() => props.onMade(last.id)} accessibilityRole="button"
-                        accessibilityLabel={t('writing.grid.cell', { what: c.kindId ? v.kind(c.kindId).name : madeTitle(v, last), version: versionTitle(row.version.n) })}
+                        accessibilityLabel={last.added ? t('writing.grid.addedCell', { what: c.kindId ? v.kind(c.kindId).name : madeTitle(v, last), version: versionTitle(row.version.n) })
+                          : t('writing.grid.cell', { what: c.kindId ? v.kind(c.kindId).name : madeTitle(v, last), version: versionTitle(row.version.n) })}
                         style={({ pressed }) => [styles.gridCell, pressed && { opacity: 0.6 }]}>
                         <View style={[styles.producedMark, { backgroundColor: TINT.green }]}>
-                          <Ico name={c.medium === 'writing' ? 'edit' : 'mic'} size={14} color={TINT.greenText} />
+                          <Ico name={last.medium === 'writing' ? 'edit' : 'mic'} size={14} color={TINT.greenText} />
                         </View>
-                        {here.length > 1 ? <View style={styles.countBadge}><Text style={[txt.xsStrong, { color: C.white }]}>{here.length}</Text></View> : null}
+                        {last.added ? <View style={styles.addedBadge}><Ico name="link" size={10} color={TINT.greenText} strokeWidth={3} /></View>
+                          : here.length > 1 ? <View style={styles.countBadge}><Text style={[txt.xsStrong, { color: C.white }]}>{here.length}</Text></View> : null}
                       </Pressable>
                     ) : <View style={styles.gridEmpty} />}
                   </View>
@@ -944,6 +949,12 @@ function ReviewGrid(props: { ctx: Ctx; v: PassageView; kindIds: string[]; onVers
           <View style={[styles.rowCenter, { gap: 4 }]}>
             <Ico name="edit" size={14} color={TINT.greenText} />
             <Text style={txt.xs}>{t('writing.madeThing')}</Text>
+          </View>
+        ) : null}
+        {v.p.made.some((m) => m.added) ? (
+          <View style={[styles.rowCenter, { gap: 4 }]}>
+            <Ico name="link" size={14} color={TINT.greenText} />
+            <Text style={txt.xs}>{t('writing.grid.added')}</Text>
           </View>
         ) : null}
       </View>
@@ -984,14 +995,20 @@ export function VersionDetail(ctx: Ctx) {
   const key = (part: string) => `version:${unitId}:${languageId}:${version.takeId}:${part}`;
   const params = { unitId, languageId };
   // What was made from this version, by steps or brought over (decision 93); it stays here, never out of date.
-  const made = p.made.filter((m) => madeVersionOf(p, m) === version.takeId);
+  // What a step added to it (words for a recording) is part of it, and shows with it.
+  const made = p.made.filter((m) => !m.added && madeVersionOf(p, m) === version.takeId);
+  const added = addedTo(p, version);
+  const approved = approvedVersion(p)?.takeId === version.takeId;
+  const mayChange = canGo(ctx, 'version_detail', 'back_translation');
   return (
     <Screen header={<Header title={title} crumbs={passageCrumbs(ctx, v, title)} sub={`${ctx.name(version.by)} · ${when(version.hlc)}`} onBack={ctx.back}
       action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'version', version.takeId, version.by, unitId)} />} />}>
       <Card>
         <Label text={version.n === 1 ? t('passage.version.note') : t('passage.version.whatChanged')} />
         <Authored ctx={ctx} by={version.by}>
-          <Text style={txt.body}>{version.changeNote ?? (version.n === 1 ? t('passage.record.entry.firstRecording') : t('passage.version.noChangeNote'))}</Text>
+          <Text style={txt.body}>{version.changeNote ?? (version.n === 1 ? t('passage.record.entry.firstRecording')
+            : version.madeByKindId ? t('writing.made.fromVersion', { what: v.kind(version.madeByKindId).name, version: versionTitle(p.versions.find((x) => x.takeId === version.madeFromTakeId)?.n ?? version.n - 1) })
+            : t('passage.version.noChangeNote'))}</Text>
           {version.changeBlobHash ? <PlayRow ctx={ctx} hashes={[version.changeBlobHash]} label={t('passage.version.changeAloud')} /> : null}
         </Authored>
         {prompted.map((r) => (
@@ -1017,6 +1034,10 @@ export function VersionDetail(ctx: Ctx) {
           </Card>
         )}
       </Authored>
+      {added.map((a) => (
+        <AddedSection key={a.medium} ctx={ctx} v={v} version={version} added={a} verseKeys={verseKeys} approved={approved}
+          {...(mayChange && a.made.kindId ? { onChange: () => ctx.go('back_translation', { ...params, kindId: a.made.kindId!, fromTakeId: version.takeId }) } : {})} />
+      ))}
       {made.length > 0 ? (
         <>
           <SectionLabel label={t('writing.version.madeFromIt')} />
@@ -1074,6 +1095,48 @@ export function VersionDetail(ctx: Ctx) {
         </Disclosure>
       ) : null}
     </Screen>
+  );
+}
+
+/**
+ * What a step added to a version (decision 93; demo wJoinVersion): its words
+ * read verse by verse with the recording, or the recording added to
+ * writing. Approved with them when a check after they were added looked
+ * good; changing them later keeps the approval, and says so.
+ */
+function AddedSection(props: { ctx: Ctx; v: PassageView; version: Version; added: AddedContent; verseKeys: string[]; approved: boolean; onChange?: () => void }) {
+  const { ctx, v, version, added: a } = props;
+  const checked = props.v.p.reviews.some((r) => r.takeId === version.takeId && r.kindId !== LISTENER_KIND && r.outcome === 'looks_good' && r.hlc > a.first.hlc);
+  const words = a.medium === 'writing';
+  const step = a.made.kindId ? v.kind(a.made.kindId).name : '';
+  return (
+    <>
+      <SectionLabel label={words ? t('writing.version.itsWords') : t('writing.version.itsRecording')} />
+      {props.approved ? (
+        <View style={[styles.addedBanner, !checked && { backgroundColor: TINT.gray }]}>
+          <Ico name={checked ? 'check' : 'help'} size={18} color={checked ? TINT.greenText : C.muted} strokeWidth={checked ? 3 : 2} />
+          <Text style={[txt.sm, { flex: 1, fontWeight: '700', color: checked ? TINT.greenText : C.muted }]}>
+            {checked ? (words ? t('writing.version.approvedWithWords') : t('writing.version.approvedWithRecording')) : t('writing.version.addedNotChecked')}
+          </Text>
+        </View>
+      ) : null}
+      <Authored ctx={ctx} by={a.made.by}>
+        {words ? (
+          <WrittenReader ctx={ctx} state={v.state} unitId={v.unitId} parts={a.made.parts.map((c) => c.hash)} verseKeys={props.verseKeys}
+            {...(version.medium === 'recording' ? { heard: version.cardHashes } : {})} />
+        ) : (
+          <Card><PlayRow ctx={ctx} hashes={a.made.parts.map((c) => c.hash)} label={t('writing.version.itsRecording')} /></Card>
+        )}
+      </Authored>
+      <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{[step, ctx.name(a.made.by), when(a.made.hlc)].filter(Boolean).join(' · ')}</Text>
+      {a.changedAfter ? (
+        <View style={styles.changedLine}>
+          <Ico name="history" size={16} color={TINT.amberText} />
+          <Text style={[txt.sm, { flex: 1, color: TINT.amberText }]}>{t('writing.history.changedAfter', { check: v.kind(a.changedAfter.kindId).name })}</Text>
+        </View>
+      ) : null}
+      {props.onChange ? <GhostBtn label={words ? t('writing.version.changeWords') : t('writing.version.changeRecording')} icon={words ? 'edit' : 'mic'} onPress={props.onChange} /> : null}
+    </>
   );
 }
 
@@ -1522,6 +1585,9 @@ const styles = StyleSheet.create({
   historyIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   playRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   inlineLink: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 48 },
+  addedBadge: { position: 'absolute', right: -6, bottom: -4, width: 18, height: 18, borderRadius: 9, backgroundColor: C.card, borderWidth: 1.5, borderColor: TINT.greenText, alignItems: 'center', justifyContent: 'center' },
+  addedBanner: { flexDirection: 'row', alignItems: 'center', gap: space.sm, padding: space.md, borderRadius: radius.lg, backgroundColor: TINT.green },
+  changedLine: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.xs },
   outcome: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.lg, borderRadius: radius.xl },
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   answer: { paddingHorizontal: space.lg, paddingVertical: space.md, gap: 2 },

@@ -6090,7 +6090,6 @@
       "turn": "Yana mayar da",
       "into": "Zuwa",
       "in": "A harshe",
-      "becomesVersion": "Ya zama sabuwar siga",
       "becomesVersionSub": "Dubawar da ke bayan wannan mataki za su duba shi. Dubawar da ke gabaninsa ana ƙidaya su a kan sigar da aka yi shi daga gare ta.",
       "becomesVersionOff": "Mataki da ke yin naɗi ko rubutu a harshen tawagar kanta kaɗai ne zai iya yin siga ta gaba.",
       "add": "Ƙara wannan mataki",
@@ -6098,14 +6097,34 @@
       "namePlaceholder": "Rubutacciyar fassarar baya",
       "previewVersion": "Abin da yake yi zai zama siga ta gaba ta nassin.",
       "previewBeside": "Yana zama kusa da sigar da ya fito daga gare ta, don dubawar da ke bayansa. Ba siga ba ne.",
-      "readsLine": "{{from}} zuwa {{to}}, cikin {{language}}"
+      "readsLine": "{{from}} zuwa {{to}}, cikin {{language}}",
+      "result": {
+        "title": "Abin da ke faruwa da abin da yake yi",
+        "beside": "Yana zama kusa da sigar",
+        "besideSub": "Don dubawar da ke bayansa. Ba ya cikin sigar.",
+        "added": "Ana ƙara shi a sigar",
+        "addedSub": "Sannan sigar tana da naɗi da kalmominsa, aya-aya. Dubawar da ke bayan wannan mataki suna jin duka biyun, suna kuma karanta su.",
+        "addedOff": "Sai idan yana mayar da naɗi zuwa rubutu, ko rubutu zuwa naɗi, a harshen tawagar kanta.",
+        "version": "Ya zama sabuwar siga"
+      },
+      "previewAdded": "Ana ƙara abin da yake yi a sigar da ya fito daga gare ta, sannan ta riƙe duka biyun.",
+      "addedBeforeVersion": "{{step}} yana zuwa daga baya kuma yana yin sabuwar siga, don haka abin da wannan mataki ya ƙara yana zama tare da sigar da ke gabaninta. Ku sa wannan mataki bayan {{step}} don ya ƙara a siga ta ƙarshe."
     },
     "version": {
       "words": "Kalmomin",
-      "madeFromIt": "Abin da aka yi daga wannan siga"
+      "madeFromIt": "Abin da aka yi daga wannan siga",
+      "itsWords": "Kalmominta",
+      "itsRecording": "Naɗinta",
+      "approvedWithWords": "An amince, tare da kalmominta",
+      "approvedWithRecording": "An amince, tare da naɗinta",
+      "addedNotChecked": "An amince. Ba a duba abin da aka ƙara ba tukuna.",
+      "changeWords": "Canja kalmomin",
+      "changeRecording": "Sake naɗa shi"
     },
     "grid": {
-      "cell": "{{what}}, an yi daga {{version}}"
+      "cell": "{{what}}, an yi daga {{version}}",
+      "added": "An ƙara a sigar",
+      "addedCell": "{{what}}, an ƙara a {{version}}"
     },
     "made": {
       "title": "Abin da aka yi daga siga",
@@ -6115,11 +6134,23 @@
       "writtenDown": "An rubuta",
       "recordedAgain": "An sake naɗawa",
       "fromVersion": "{{what}} · daga {{version}}",
-      "askCheck": "Ku nemi {{check}} daga wani"
+      "askCheck": "Ku nemi {{check}} daga wani",
+      "addedTo": "{{what}} · an ƙara a {{version}}",
+      "replaced": "An canja shi tun daga nan: sigar tana riƙe da wani sabo."
     },
     "review": {
       "read": "Karanta",
-      "readsMade": "Abin da {{what}} ya yi daga {{version}}"
+      "readsMade": "Abin da {{what}} ya yi daga {{version}}",
+      "itsWords": "Kalmomin {{version}}, waɗanda {{step}} ya ƙara. Ana kunna kowace aya ita kaɗai.",
+      "itsRecording": "Naɗin {{version}}, wanda {{step}} ya ƙara"
+    },
+    "history": {
+      "madeFrom": "An yi {{what}} daga {{version}}",
+      "wordsAdded": "An ƙara kalmomi a {{version}}",
+      "recordingAdded": "An ƙara naɗi a {{version}}",
+      "wordsChanged": "An canja kalmomin {{version}}",
+      "recordingChanged": "An canja naɗin {{version}}",
+      "changedAfter": "An canja bayan {{check}}"
     }
   }
 }

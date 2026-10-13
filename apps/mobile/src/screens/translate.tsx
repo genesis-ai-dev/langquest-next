@@ -26,7 +26,7 @@
 // listen to the latest version and what you save is content for the next
 // check, not a version.
 import {
-  commands, derivePassage, draftsBy, keyTermsForUnit, latestDraftBy, partMarksFor, partsMedium, versesInChapter,
+  commands, derivePassage, draftsBy, keyTermsForUnit, latestDraftBy, partMarksFor, partsMedium, versesInChapter, versionHeardAt,
   type EventSpec, type KindDef, type LanguageState, type PartMark, type PassageNote, type Version
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -526,24 +526,30 @@ export function BackTranslation(ctx: Ctx) {
 function Making({ ctx, v, kind }: { ctx: Ctx; v: PassageView; kind: KindDef }) {
   const makes = kind.makes!;
   const [picked, setPicked] = useState<'recording' | 'writing' | null>(null);
-  const source = makingSource(v.p, makes);
+  // Changing what a step added to a version opens on that version (decision 93). A step that adds
+  // works on the version it counts for: the latest, or, before a step that makes a newer one, the one before.
+  const stepIndex = v.p.flow.steps.findIndex((st) => st.kindIds.includes(kind.id));
+  const onVersion = v.p.versions.find((x) => x.takeId === ctx.params['fromTakeId'])
+    ?? (makes.result === 'added' && v.p.latest && stepIndex >= 0 ? versionHeardAt(v.p, v.p.latest, stepIndex) : undefined);
+  const source = onVersion ? { kind: 'version' as const, version: onVersion } : makingSource(v.p, makes);
   if (!source) return <Missing ctx={ctx} title={kind.name} text={makes.fromKindId ? t('writing.nothingMadeYet', { step: v.kind(makes.fromKindId).name }) : t('backTranslation.noRecording')} />;
   const to = makes.to === 'either' ? picked : makes.to;
   const language = makingLanguage(makes, teamLanguage(ctx.org.state, v.state, v.languageId));
   const requestId = ctx.params['requestId'] ?? v.p.openRequests.find((r) => r.what === 'review' && r.kindId === kind.id && r.profileId === ctx.session.actorId)?.id;
   if (!to) return <MakeChoice ctx={ctx} v={v} kind={kind} language={language} onPick={setPicked} />;
   if (to === 'writing') {
-    if (makes.becomesVersion && source.kind === 'version') {
+    if (makes.result === 'version' && source.kind === 'version') {
       return <WritingWorkspace ctx={ctx} v={v} mode={{ kind: 'final', step: kind, source: source.version, ...(requestId ? { requestId } : {}) }} />;
     }
-    return <WritingWorkspace ctx={ctx} v={v} mode={{ kind: 'make', step: kind, makes, source, ...(language ? { language } : {}), ...(requestId ? { requestId } : {}) }} />;
+    return <WritingWorkspace ctx={ctx} v={v} mode={{ kind: 'make', step: kind, makes, source, ...(language ? { language } : {}), ...(requestId ? { requestId } : {}),
+      ...(makes.result === 'added' && source.kind === 'version' && !language ? { added: true } : {}) }} />;
   }
   if (source.kind !== 'version') return <Missing ctx={ctx} title={kind.name} text={t('writing.recordFromMadeLater')} />;
-  if (makes.becomesVersion) {
+  if (makes.result === 'version') {
     return <WorkspaceBody ctx={ctx} v={v} making={{ kindId: kind.id, name: kind.name, fromTakeId: source.version.takeId, ...(requestId ? { requestId } : {}) }} />;
   }
   return <BackTranslationBody ctx={ctx} v={v} kind={kind} of={source.version}
-    make={{ into: language ? languageLabel(language) : v.language, ...(language ? { language } : {}) }} />;
+    make={{ into: language ? languageLabel(language) : v.language, ...(language ? { language } : {}), ...(makes.result === 'added' && !language ? { added: true } : {}) }} />;
 }
 
 const styles = StyleSheet.create({

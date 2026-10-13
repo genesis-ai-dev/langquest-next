@@ -6090,7 +6090,6 @@
       "turn": "የሚለውጠው",
       "into": "ወደ",
       "in": "በቋንቋ",
-      "becomesVersion": "አዲሱ ስሪት ይሆናል",
       "becomesVersionSub": "ከዚህ ደረጃ በኋላ ያሉ ፍተሻዎች እሱን ይመለከታሉ። ከእሱ በፊት ያሉ ፍተሻዎች ከተሠራበት ስሪት ይቆጠራሉ።",
       "becomesVersionOff": "ቀጣዩን ስሪት መሥራት የሚችለው በቡድኑ የራሱ ቋንቋ ቀረጻ ወይም ጽሑፍ የሚሠራ ደረጃ ብቻ ነው።",
       "add": "ይህን ደረጃ ያክሉ",
@@ -6098,14 +6097,34 @@
       "namePlaceholder": "የተጻፈ ተመላሽ ትርጉም",
       "previewVersion": "የሚሠራው የክፍሉ ቀጣይ ስሪት ይሆናል።",
       "previewBeside": "ከመጣበት ስሪት ጎን ይቆያል፣ ከእሱ በኋላ ላሉት ፍተሻዎች። ስሪት አይደለም።",
-      "readsLine": "{{from}} ወደ {{to}}፣ በ{{language}}"
+      "readsLine": "{{from}} ወደ {{to}}፣ በ{{language}}",
+      "result": {
+        "title": "የሚሠራው ምን ይሆናል",
+        "beside": "ከስሪቱ ጎን ይቆያል",
+        "besideSub": "ከእሱ በኋላ ላሉት ፍተሻዎች። የስሪቱ አካል አይደለም።",
+        "added": "ወደ ስሪቱ ይታከላል",
+        "addedSub": "ከዚያ ስሪቱ ቀረጻም ቃላቱም ይኖሩታል፣ ቁጥር በቁጥር። ከዚህ ደረጃ በኋላ ያሉ ፍተሻዎች ሁለቱንም ይሰማሉ፣ ያነባሉም።",
+        "addedOff": "ቀረጻን ወደ ጽሑፍ፣ ወይም ጽሑፍን ወደ ቀረጻ በቡድኑ የራሱ ቋንቋ ሲለውጥ ብቻ።",
+        "version": "አዲሱ ስሪት ይሆናል"
+      },
+      "previewAdded": "የሚሠራው ወደመጣበት ስሪት ይታከላል፤ ከዚያ ስሪቱ ሁለቱንም ይይዛል።",
+      "addedBeforeVersion": "{{step}} በኋላ ይመጣና አዲስ ስሪት ይሠራል፤ ስለዚህ ይህ ደረጃ የሚጨምረው ከእሱ በፊት ካለው ስሪት ጋር ይቆያል። ወደ መጨረሻው ስሪት እንዲታከል ይህን ደረጃ ከ{{step}} በኋላ ያድርጉት።"
     },
     "version": {
       "words": "ቃላቱ",
-      "madeFromIt": "ከዚህ ስሪት የተሠሩ"
+      "madeFromIt": "ከዚህ ስሪት የተሠሩ",
+      "itsWords": "የስሪቱ ቃላት",
+      "itsRecording": "የስሪቱ ቀረጻ",
+      "approvedWithWords": "ጸድቋል፣ ከቃላቱ ጋር",
+      "approvedWithRecording": "ጸድቋል፣ ከቀረጻው ጋር",
+      "addedNotChecked": "ጸድቋል። የታከለው ገና አልተፈተሸም።",
+      "changeWords": "ቃላቱን ይለውጡ",
+      "changeRecording": "እንደገና ይቅረጹት"
     },
     "grid": {
-      "cell": "{{what}}፣ ከ{{version}} የተሠራ"
+      "cell": "{{what}}፣ ከ{{version}} የተሠራ",
+      "added": "ወደ ስሪቱ የታከለ",
+      "addedCell": "{{what}}፣ ወደ {{version}} የታከለ"
     },
     "made": {
       "title": "ከስሪት የተሠራ",
@@ -6115,11 +6134,23 @@
       "writtenDown": "የተጻፈ",
       "recordedAgain": "እንደገና የተቀረጸ",
       "fromVersion": "{{what}} · ከ{{version}}",
-      "askCheck": "ለ{{check}} አንድ ሰው ይጠይቁ"
+      "askCheck": "ለ{{check}} አንድ ሰው ይጠይቁ",
+      "addedTo": "{{what}} · ወደ {{version}} የታከለ",
+      "replaced": "ከዚያ ወዲህ ተለውጧል፦ ስሪቱ አዲሱን ይዟል።"
     },
     "review": {
       "read": "ያንብቡ",
-      "readsMade": "{{what}} ከ{{version}} የሠራው"
+      "readsMade": "{{what}} ከ{{version}} የሠራው",
+      "itsWords": "የ{{version}} ቃላት፣ በ{{step}} የታከሉ። እያንዳንዱ ቁጥር ለብቻው ይጫወታል።",
+      "itsRecording": "የ{{version}} ቀረጻ፣ በ{{step}} የታከለ"
+    },
+    "history": {
+      "madeFrom": "{{what}} ከ{{version}} ተሠርቷል",
+      "wordsAdded": "ቃላት ወደ {{version}} ታክለዋል",
+      "recordingAdded": "ቀረጻ ወደ {{version}} ታክሏል",
+      "wordsChanged": "የ{{version}} ቃላት ተለውጠዋል",
+      "recordingChanged": "የ{{version}} ቀረጻ ተለውጧል",
+      "changedAfter": "ከ{{check}} በኋላ ተለውጧል"
     }
   }
 }

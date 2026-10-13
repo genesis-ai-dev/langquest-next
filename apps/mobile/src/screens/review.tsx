@@ -21,7 +21,7 @@
 // keyTermLinksFor) and written with core recordReview / produceContent. A
 // review is grow-only, so sending it offers no Undo.
 import {
-  commands, derivePassage, keyTermLinksFor, languageName, questionsForKind,
+  addedTo, commands, derivePassage, keyTermLinksFor, languageName, questionsForKind,
   type Card as AudioCard, type EventSpec, type KindDef, type PassageNote
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -339,6 +339,20 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           title={mine ? t('review.screen.versionByYou', { n: version.n }) : t('review.screen.versionBy', { n: version.n, name: translator })} sub={listenLine(kind.id, logged)}
           {...(makes || reads.made ? {} : { onNote: (s: number) => setMomentAt(Math.round(s * 1000)) })} />
       )}
+      {/* What a step added to the version is part of it: a check hears and reads them together (decision 93). */}
+      {!reads.made ? addedTo(v.p, version).map((a) => (
+        <View key={a.medium} style={{ gap: space.sm }}>
+          <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>
+            {!a.made.kindId ? (a.medium === 'writing' ? t('writing.version.itsWords') : t('writing.version.itsRecording'))
+              : a.medium === 'writing' ? t('writing.review.itsWords', { version: versionTitle(version.n), step: v.kind(a.made.kindId).name })
+              : t('writing.review.itsRecording', { version: versionTitle(version.n), step: v.kind(a.made.kindId).name })}
+          </Text>
+          {a.medium === 'writing' ? (
+            <WrittenReader ctx={ctx} state={v.state} unitId={v.unitId} parts={a.made.parts.map((c) => c.hash)} verseKeys={verseKeys}
+              {...(version.medium === 'recording' ? { heard: version.cardHashes } : {})} />
+          ) : <AudioClip language={ctx.language} hashes={a.made.parts.map((c) => c.hash)} label={t('writing.version.itsRecording')} />}
+        </View>
+      )) : null}
       <MomentList ctx={ctx} moments={moments} onRemove={(h) => setMoments((m) => m.filter((x) => x.hash !== h))} />
       {changed ? (
         <Card>
