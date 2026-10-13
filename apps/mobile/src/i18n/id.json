@@ -1572,10 +1572,14 @@
       "linedUp": "LangQuest menyejajarkannya ayat demi ayat. Tidak perlu melakukan apa-apa kecuali ada yang tampak salah.",
       "psalm": "Mazmur {{place}}"
     },
-    "others": {
-      "intro_other": "FIA tidak punya perikop untuk {{count, number}} kitab ({{books}}). Kitab-kitab itu:",
-      "byChapter": "per pasal",
-      "wait": "menunggu dibagi"
+    "leftOut": {
+      "title_other": "{{way}} tidak punya perikop untuk {{count, number}} kitab",
+      "showAll": "Tampilkan semua {{total}}",
+      "showFewer": "Tampilkan lebih sedikit",
+      "forThose_other": "Untuk kitab itu",
+      "byChapter": "Per pasal",
+      "wait": "Tunggu",
+      "waitSub_other": "Bagi dengan cara Anda sendiri nanti"
     },
     "book": {
       "breakDifferently": "Bagi dengan cara lain",
@@ -1586,9 +1590,6 @@
       "calledIn": "Disebut {{name}} dalam {{language}}",
       "templateCalls": "Templat menyebutnya {{name}}",
       "tapToName": "Ketuk untuk memberinya nama yang dipakai tim",
-      "whatCalled": "Sebutannya dalam {{language}}",
-      "namingSub": "Ditampilkan di mana pun bahasa ini menampilkan kitab tersebut.",
-      "nameLabel": "Namanya",
       "brokenUpByChapter": "{{book}} dibagi per pasal.",
       "brokenUpInto": "{{book}} dibagi menjadi {{way}}.",
       "change": "Ubah {{book}}",
@@ -1601,6 +1602,15 @@
       "alsoUsedOne": "Juga dipakai di {{name}}. Ubah {{book}} untuk yang mana?",
       "alsoUsedTwo": "Juga dipakai di {{first}} dan {{second}}. Ubah {{book}} untuk yang mana?",
       "alsoUsedMore_other": "Juga dipakai di {{name}} dan {{count, number}} lainnya. Ubah {{book}} untuk yang mana?"
+    },
+    "bookName": {
+      "title": "Sebutan {{book}} dalam {{language}}",
+      "sub": "Penerjemah melihat nama ini",
+      "typeOrTap": "Ketik, atau ketuk salah satu di bawah",
+      "fromBibles": "Sebutannya dalam Alkitab tim",
+      "fromLanguages": "Sebutannya dalam bahasa lain di sini",
+      "use": "Pakai",
+      "useLabel": "Pakai {{name}} ({{from}})"
     },
     "translate": {
       "question": "Apa yang akan diterjemahkan {{language}}?",

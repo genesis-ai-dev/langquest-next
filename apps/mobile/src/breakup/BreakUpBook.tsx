@@ -2,7 +2,9 @@
 // what it is broken up by now and what the language calls it, and the same
 // ways an admin chose from for the whole Bible, to break it up or change
 // it. Changing a book that is already broken up warns first; a change to a
-// template other languages use asks which of them it goes to.
+// template other languages use asks which of them it goes to. Naming the
+// book offers what the team's Bibles and the organization's other
+// languages call it (demo ADR-042, `?simple=helpsBookName`).
 import {
   sameParts, templateBooks, wayCovers, withBookBrokenUp,
   type EventSpec, type LibraryItemView, type TemplateDoc, type VersificationDoc
@@ -13,14 +15,14 @@ import { View } from 'react-native';
 import { Text } from '../text';
 import type { Ctx } from '../ctx';
 import { t } from '../i18n';
-import { Card, Field, GhostBtn, Header, PrimaryBtn, Row, Group, Screen, SectionLabel, Sheet, txt } from '../kit';
+import { Card, Field, GhostBtn, Header, Ico, PrimaryBtn, Row, Group, Screen, SectionLabel, Sheet, txt } from '../kit';
 import { useLibrary, useLibraryDocs } from '../library/useLibrary';
 import { failureMessage } from '../report';
 import { ChoiceCard, Question } from '../simple/admin';
 import { C, space } from '../theme';
 import { type WayRow } from './model';
 import { ApplySheet, PieceBar, PreviewSheet, RedoSheet, WayCard } from './parts';
-import { publishChange, templateUsersOf, useTemplateUsers, useWays } from './useBreakup';
+import { publishChange, templateUsersOf, useBookNameChoices, useTemplateUsers, useWays } from './useBreakup';
 
 /** The numbering a template is in (decision 80): its versification document's code. */
 function useNumberingCode(ctx: Ctx, doc: TemplateDoc | null): string | null {
@@ -45,6 +47,8 @@ export function BookHead(props: {
   const own = ctx.language.state?.bookNames?.[book]?.value;
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState('');
+  const choices = useBookNameChoices(ctx, book, naming);
+  const title = t('breakup.bookName.title', { language: props.language, book: props.templateName });
   async function saveName() {
     const trimmed = name.trim();
     if (!trimmed) return;
@@ -66,13 +70,41 @@ export function BookHead(props: {
       <Group style={{ marginTop: space.md }}>
         <Row icon="edit" label={t('breakup.book.calledIn', { name: own ?? props.templateName, language: props.language })}
           sub={own ? t('breakup.book.templateCalls', { name: props.templateName }) : t('breakup.book.tapToName')} last
-          onPress={props.canShape ? () => { setName(own ?? props.templateName); setNaming(true); } : undefined} />
+          onPress={props.canShape ? () => { setName(own ?? ''); setNaming(true); } : undefined} />
       </Group>
-      <Sheet visible={naming} title={t('breakup.book.whatCalled', { language: props.language })} sub={t('breakup.book.namingSub')} onClose={() => setNaming(false)}
+      <Sheet visible={naming} title={title} sub={t('breakup.bookName.sub')} onClose={() => setNaming(false)}
         footer={<PrimaryBtn label={t('common.save')} icon="check" disabled={!name.trim()} onPress={() => void saveName()} />}>
-        <Field label={t('breakup.book.nameLabel')} value={name} onChangeText={setName} placeholder={props.templateName} autoCapitalize="words" />
+        <Field value={name} onChangeText={setName} accessibilityLabel={title} autoCapitalize="words"
+          placeholder={choices.bibles.length || choices.languages.length ? t('breakup.bookName.typeOrTap') : props.templateName} />
+        {choices.bibles.length ? (
+          <>
+            <SectionLabel label={t('breakup.bookName.fromBibles')} />
+            <NameChoices rows={choices.bibles} current={name.trim()} onPick={setName} />
+          </>
+        ) : null}
+        {choices.languages.length ? (
+          <>
+            <SectionLabel label={t('breakup.bookName.fromLanguages')} />
+            <NameChoices rows={choices.languages} current={name.trim()} onPick={setName} />
+          </>
+        ) : null}
       </Sheet>
     </Card>
+  );
+}
+
+/** Names to fill the field with, each with who uses it; the one in the field is ticked. */
+function NameChoices(props: { rows: { name: string; from: string[] }[]; current: string; onPick: (name: string) => void }) {
+  return (
+    <Group>
+      {props.rows.map((r, i) => (
+        <Row key={r.name} label={r.name} sub={r.from.join(' · ')} last={i === props.rows.length - 1} onPress={() => props.onPick(r.name)}
+          accessibilityLabel={t('breakup.bookName.useLabel', { name: r.name, from: r.from.join(t('admin.list.separator')) })}
+          right={props.current === r.name
+            ? <Ico name="check" size={22} color={C.green} strokeWidth={3} />
+            : <Text style={txt.link}>{t('breakup.bookName.use')}</Text>} />
+      ))}
+    </Group>
   );
 }
 

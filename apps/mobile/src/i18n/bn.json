@@ -1628,11 +1628,17 @@
       "linedUp": "LangQuest পদ ধরে ধরে এগুলো মিলিয়ে নেয়। কিছু ভুল না দেখালে কিছু করার নেই।",
       "psalm": "গীত {{place}}"
     },
-    "others": {
-      "intro_one": "{{count, number}}টি বইয়ের ({{books}}) জন্য FIA-তে কোনো অংশ নেই। সেই বইটি:",
-      "intro_other": "{{count, number}}টি বইয়ের ({{books}}) জন্য FIA-তে কোনো অংশ নেই। সেই বইগুলো:",
+    "leftOut": {
+      "title_one": "{{count, number}}টি বইয়ের জন্য {{way}}-তে কোনো অংশ নেই",
+      "title_other": "{{count, number}}টি বইয়ের জন্য {{way}}-তে কোনো অংশ নেই",
+      "showAll": "সব {{total}}টি দেখুন",
+      "showFewer": "কম দেখুন",
+      "forThose_one": "সেই বইটির জন্য",
+      "forThose_other": "সেই বইগুলোর জন্য",
       "byChapter": "অধ্যায় ধরে",
-      "wait": "ভাগ হওয়ার অপেক্ষায়"
+      "wait": "অপেক্ষা করুন",
+      "waitSub_one": "পরে নিজের মতো করে ভাগ করুন",
+      "waitSub_other": "পরে নিজের মতো করে ভাগ করুন"
     },
     "book": {
       "breakDifferently": "অন্যভাবে ভাগ করুন",
@@ -1643,9 +1649,6 @@
       "calledIn": "{{language}}-এ এর নাম {{name}}",
       "templateCalls": "টেমপ্লেটে এর নাম {{name}}",
       "tapToName": "দল যে নাম ব্যবহার করে সেটি দিতে চাপ দিন",
-      "whatCalled": "{{language}}-এ এর নাম কী",
-      "namingSub": "এই ভাষায় যেখানেই বইটি দেখানো হয়, সেখানে দেখাবে।",
-      "nameLabel": "এর নাম",
       "brokenUpByChapter": "{{book}} অধ্যায় ধরে ভাগ করা হয়েছে।",
       "brokenUpInto": "{{book}} {{way}} অনুযায়ী ভাগ করা হয়েছে।",
       "change": "{{book}} বদলান",
@@ -1659,6 +1662,15 @@
       "alsoUsedTwo": "{{first}} ও {{second}}-এও ব্যবহার হয়। এগুলোর কোনটির জন্য {{book}} বদলাবেন?",
       "alsoUsedMore_one": "{{name}} ও আরও {{count, number}}টিতেও ব্যবহার হয়। এগুলোর কোনটির জন্য {{book}} বদলাবেন?",
       "alsoUsedMore_other": "{{name}} ও আরও {{count, number}}টিতেও ব্যবহার হয়। এগুলোর কোনটির জন্য {{book}} বদলাবেন?"
+    },
+    "bookName": {
+      "title": "{{language}}-এ {{book}}-এর নাম কী",
+      "sub": "অনুবাদকেরা এই নাম দেখেন",
+      "typeOrTap": "লিখুন, অথবা নিচের একটিতে চাপ দিন",
+      "fromBibles": "দলের বাইবেলগুলোতে এর নাম",
+      "fromLanguages": "এখানকার অন্য ভাষাগুলোতে এর নাম",
+      "use": "ব্যবহার করুন",
+      "useLabel": "{{name}} ব্যবহার করুন ({{from}})"
     },
     "translate": {
       "question": "{{language}} কী অনুবাদ করবে?",

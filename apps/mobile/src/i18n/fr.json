@@ -1684,12 +1684,20 @@
       "linedUp": "LangQuest les aligne verset par verset. Rien à faire, sauf si quelque chose semble faux.",
       "psalm": "Psaume {{place}}"
     },
-    "others": {
-      "intro_one": "FIA n’a pas de passages pour {{count, number}} livre ({{books}}). Ce livre :",
-      "intro_many": "FIA n’a pas de passages pour {{count, number}} livres ({{books}}). Ces livres :",
-      "intro_other": "FIA n’a pas de passages pour {{count, number}} livres ({{books}}). Ces livres :",
-      "byChapter": "par chapitre",
-      "wait": "attendre d’être découpés"
+    "leftOut": {
+      "title_one": "{{way}} n’a pas de passages pour {{count, number}} livre",
+      "title_many": "{{way}} n’a pas de passages pour {{count, number}} livres",
+      "title_other": "{{way}} n’a pas de passages pour {{count, number}} livres",
+      "showAll": "Afficher les {{total}}",
+      "showFewer": "Afficher moins",
+      "forThose_one": "Pour ce livre",
+      "forThose_many": "Pour ces livres",
+      "forThose_other": "Pour ces livres",
+      "byChapter": "Par chapitre",
+      "wait": "Attendre",
+      "waitSub_one": "Le découper à votre façon plus tard",
+      "waitSub_many": "Les découper à votre façon plus tard",
+      "waitSub_other": "Les découper à votre façon plus tard"
     },
     "book": {
       "breakDifferently": "Découper autrement",
@@ -1700,9 +1708,6 @@
       "calledIn": "Appelé {{name}} en {{language}}",
       "templateCalls": "Le modèle l’appelle {{name}}",
       "tapToName": "Touchez pour lui donner le nom que l’équipe utilise",
-      "whatCalled": "Comment {{language}} l’appelle",
-      "namingSub": "Affiché partout où cette langue affiche le livre.",
-      "nameLabel": "Son nom",
       "brokenUpByChapter": "{{book}} est découpé par chapitre.",
       "brokenUpInto": "{{book}} est découpé en {{way}}.",
       "change": "Changer {{book}}",
@@ -1717,6 +1722,15 @@
       "alsoUsedMore_one": "Aussi utilisé dans {{name}} et {{count, number}} autre. Changer {{book}} pour lesquelles ?",
       "alsoUsedMore_many": "Aussi utilisé dans {{name}} et {{count, number}} autres. Changer {{book}} pour lesquelles ?",
       "alsoUsedMore_other": "Aussi utilisé dans {{name}} et {{count, number}} autres. Changer {{book}} pour lesquelles ?"
+    },
+    "bookName": {
+      "title": "Comment {{language}} appelle {{book}}",
+      "sub": "Les traducteurs voient ce nom",
+      "typeOrTap": "Tapez-le, ou touchez-en un ci-dessous",
+      "fromBibles": "Comment les Bibles de l’équipe l’appellent",
+      "fromLanguages": "Comment d’autres langues d’ici l’appellent",
+      "use": "Utiliser",
+      "useLabel": "Utiliser {{name}} ({{from}})"
     },
     "translate": {
       "question": "Que va traduire {{language}} ?",

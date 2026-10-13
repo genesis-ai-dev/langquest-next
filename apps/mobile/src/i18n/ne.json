@@ -1628,11 +1628,17 @@
       "linedUp": "LangQuest ले तिनलाई पद-पद गरी मिलाउँछ। केही गलत नदेखिएसम्म केही गर्नुपर्दैन।",
       "psalm": "भजनसंग्रह {{place}}"
     },
-    "others": {
-      "intro_one": "FIA मा {{count, number}} पुस्तक ({{books}}) का लागि खण्डहरू छैनन्। त्यो पुस्तक:",
-      "intro_other": "FIA मा {{count, number}} पुस्तक ({{books}}) का लागि खण्डहरू छैनन्। ती पुस्तकहरू:",
+    "leftOut": {
+      "title_one": "{{way}} मा {{count, number}} पुस्तकका लागि खण्डहरू छैनन्",
+      "title_other": "{{way}} मा {{count, number}} पुस्तकका लागि खण्डहरू छैनन्",
+      "showAll": "सबै {{total}} देखाउनुहोस्",
+      "showFewer": "कम देखाउनुहोस्",
+      "forThose_one": "त्यो पुस्तकका लागि",
+      "forThose_other": "ती पुस्तकहरूका लागि",
       "byChapter": "अध्याय अनुसार",
-      "wait": "टुक्रा पारिन पर्खन्छन्"
+      "wait": "पर्खनुहोस्",
+      "waitSub_one": "पछि आफ्नै तरिकाले टुक्रा पार्नुहोस्",
+      "waitSub_other": "पछि आफ्नै तरिकाले टुक्रा पार्नुहोस्"
     },
     "book": {
       "breakDifferently": "फरक तरिकाले टुक्रा पार्नुहोस्",
@@ -1643,9 +1649,6 @@
       "calledIn": "{{language}} मा {{name}} भनिन्छ",
       "templateCalls": "ढाँचामा यसलाई {{name}} भनिएको छ",
       "tapToName": "टोलीले प्रयोग गर्ने नाम दिन थिच्नुहोस्",
-      "whatCalled": "{{language}} मा यसलाई के भनिन्छ",
-      "namingSub": "यो भाषाले पुस्तक देखाउने हरेक ठाउँमा देखाइन्छ।",
-      "nameLabel": "यसको नाम",
       "brokenUpByChapter": "{{book}} अध्याय अनुसार टुक्रा पारिएको छ।",
       "brokenUpInto": "{{book}} लाई {{way}} मा टुक्रा पारिएको छ।",
       "change": "{{book}} बदल्नुहोस्",
@@ -1659,6 +1662,15 @@
       "alsoUsedTwo": "{{first}} र {{second}} मा पनि प्रयोग भएको छ। {{book}} कुनका लागि बदल्ने?",
       "alsoUsedMore_one": "{{name}} र अरू {{count, number}} मा पनि प्रयोग भएको छ। {{book}} कुनका लागि बदल्ने?",
       "alsoUsedMore_other": "{{name}} र अरू {{count, number}} मा पनि प्रयोग भएको छ। {{book}} कुनका लागि बदल्ने?"
+    },
+    "bookName": {
+      "title": "{{language}} मा {{book}} लाई के भनिन्छ",
+      "sub": "अनुवादकहरूले यो नाम देख्छन्",
+      "typeOrTap": "टाइप गर्नुहोस्, वा तलको एउटा थिच्नुहोस्",
+      "fromBibles": "टोलीका बाइबलहरूमा यसको नाम",
+      "fromLanguages": "यहाँका अरू भाषाहरूमा यसको नाम",
+      "use": "प्रयोग गर्नुहोस्",
+      "useLabel": "{{name}} प्रयोग गर्नुहोस् ({{from}})"
     },
     "translate": {
       "question": "{{language}} मा के अनुवाद गरिनेछ?",

@@ -1628,11 +1628,17 @@
       "linedUp": "LangQuest ቁጥር በቁጥር ያስማማቸዋል። የሆነ ነገር የተሳሳተ ካልመሰለ በስተቀር የሚያደርጉት ነገር የለም።",
       "psalm": "መዝሙር {{place}}"
     },
-    "others": {
-      "intro_one": "FIA ለ{{count, number}} መጽሐፍ ({{books}}) ክፍሎች የሉትም። ያ መጽሐፍ፦",
-      "intro_other": "FIA ለ{{count, number}} መጻሕፍት ({{books}}) ክፍሎች የሉትም። እነዚያ መጻሕፍት፦",
+    "leftOut": {
+      "title_one": "{{way}} ለ{{count, number}} መጽሐፍ ክፍሎች የሉትም",
+      "title_other": "{{way}} ለ{{count, number}} መጻሕፍት ክፍሎች የሉትም",
+      "showAll": "ሁሉንም {{total}} አሳይ",
+      "showFewer": "ጥቂቱን ብቻ አሳይ",
+      "forThose_one": "ለዚያ መጽሐፍ",
+      "forThose_other": "ለእነዚያ መጻሕፍት",
       "byChapter": "በምዕራፍ",
-      "wait": "እስኪከፋፈሉ ይጠብቃሉ"
+      "wait": "ይጠብቁ",
+      "waitSub_one": "በኋላ በራስዎ መንገድ ይከፋፍሉት",
+      "waitSub_other": "በኋላ በራስዎ መንገድ ይከፋፍሏቸው"
     },
     "book": {
       "breakDifferently": "በተለየ መንገድ ይከፋፍሉ",
@@ -1643,9 +1649,6 @@
       "calledIn": "በ{{language}} {{name}} ይባላል",
       "templateCalls": "አብነቱ {{name}} ብሎ ይጠራዋል",
       "tapToName": "ቡድኑ የሚጠቀምበትን ስም ለመስጠት ይንኩ",
-      "whatCalled": "{{language}} የሚጠራው",
-      "namingSub": "ይህ ቋንቋ መጽሐፉን በሚያሳይበት ቦታ ሁሉ ይታያል።",
-      "nameLabel": "ስሙ",
       "brokenUpByChapter": "{{book}} በምዕራፍ ተከፋፍሏል።",
       "brokenUpInto": "{{book}} በ{{way}} ተከፋፍሏል።",
       "change": "{{book}}ን ይቀይሩ",
@@ -1659,6 +1662,15 @@
       "alsoUsedTwo": "በ{{first}} እና በ{{second}}ም ጥቅም ላይ ይውላል። {{book}}ን ለየትኞቹ ይቀይሩት?",
       "alsoUsedMore_one": "በ{{name}} እና በሌላ {{count, number}}ም ጥቅም ላይ ይውላል። {{book}}ን ለየትኞቹ ይቀይሩት?",
       "alsoUsedMore_other": "በ{{name}} እና በሌሎች {{count, number}}ም ጥቅም ላይ ይውላል። {{book}}ን ለየትኞቹ ይቀይሩት?"
+    },
+    "bookName": {
+      "title": "{{language}} {{book}}ን የሚጠራበት ስም",
+      "sub": "ተርጓሚዎች ይህን ስም ያያሉ",
+      "typeOrTap": "ይጻፉት፣ ወይም ከታች አንዱን ይንኩ",
+      "fromBibles": "የቡድኑ መጽሐፍ ቅዱሶች የሚጠሩት",
+      "fromLanguages": "እዚህ ያሉ ሌሎች ቋንቋዎች የሚጠሩት",
+      "use": "ይጠቀሙ",
+      "useLabel": "{{name}}ን ይጠቀሙ ({{from}})"
     },
     "translate": {
       "question": "{{language}} ምን ይተረጉማል?",

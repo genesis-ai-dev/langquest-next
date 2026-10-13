@@ -1628,11 +1628,17 @@
       "linedUp": "LangQuest inaipanga sambamba mstari kwa mstari. Hakuna la kufanya isipokuwa kitu kionekane si sawa.",
       "psalm": "Zaburi {{place}}"
     },
-    "others": {
-      "intro_one": "FIA haina vifungu kwa kitabu {{count, number}} ({{books}}). Kitabu hicho:",
-      "intro_other": "FIA haina vifungu kwa vitabu {{count, number}} ({{books}}). Vitabu hivyo:",
-      "byChapter": "kwa sura",
-      "wait": "vinasubiri kugawanywa"
+    "leftOut": {
+      "title_one": "{{way}} haina vifungu kwa kitabu {{count, number}}",
+      "title_other": "{{way}} haina vifungu kwa vitabu {{count, number}}",
+      "showAll": "Onyesha vyote {{total}}",
+      "showFewer": "Onyesha vichache",
+      "forThose_one": "Kwa kitabu hicho",
+      "forThose_other": "Kwa vitabu hivyo",
+      "byChapter": "Kwa sura",
+      "wait": "Subiri",
+      "waitSub_one": "Kigawe kwa njia yako baadaye",
+      "waitSub_other": "Vigawe kwa njia yako baadaye"
     },
     "book": {
       "breakDifferently": "Gawa kwa njia nyingine",
@@ -1643,9 +1649,6 @@
       "calledIn": "Kinaitwa {{name}} katika {{language}}",
       "templateCalls": "Kiolezo kinakiita {{name}}",
       "tapToName": "Gusa ili kukipa jina ambalo timu inatumia",
-      "whatCalled": "{{language}} inakiitaje",
-      "namingSub": "Huonyeshwa kila mahali lugha hii inapoonyesha kitabu.",
-      "nameLabel": "Jina lake",
       "brokenUpByChapter": "{{book}} kimegawanywa kwa sura.",
       "brokenUpInto": "{{book}} kimegawanywa katika {{way}}.",
       "change": "Badilisha {{book}}",
@@ -1659,6 +1662,15 @@
       "alsoUsedTwo": "Kinatumika pia katika {{first}} na {{second}}. Ubadilishe {{book}} kwa ipi kati yao?",
       "alsoUsedMore_one": "Kinatumika pia katika {{name}} na {{count, number}} nyingine. Ubadilishe {{book}} kwa ipi kati yao?",
       "alsoUsedMore_other": "Kinatumika pia katika {{name}} na {{count, number}} nyingine. Ubadilishe {{book}} kwa zipi kati yao?"
+    },
+    "bookName": {
+      "title": "{{language}} inakiitaje {{book}}",
+      "sub": "Watafsiri wanaona jina hili",
+      "typeOrTap": "Liandike, au gusa moja hapa chini",
+      "fromBibles": "Biblia za timu zinakiitaje",
+      "fromLanguages": "Lugha nyingine hapa zinakiitaje",
+      "use": "Tumia",
+      "useLabel": "Tumia {{name}} ({{from}})"
     },
     "translate": {
       "question": "{{language}} itatafsiri nini?",

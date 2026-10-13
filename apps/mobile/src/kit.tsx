@@ -554,12 +554,14 @@ export function Field(props: {
   keyboardType?: 'default' | 'email-address' | 'phone-pad' | 'number-pad';
   autoCapitalize?: 'none' | 'sentences' | 'words';
   style?: StyleProp<TextStyle>;
+  /** What a screen reader calls a field with no label, when its placeholder does not say it. */
+  accessibilityLabel?: string;
 }) {
   return (
     <View style={{ gap: space.xs }}>
       {props.label ? <Text style={txt.xsStrong}>{props.label}</Text> : null}
       <TextInput value={props.value} onChangeText={props.onChangeText} placeholder={props.placeholder} placeholderTextColor={C.faint}
-        accessibilityLabel={props.label ?? props.placeholder}
+        accessibilityLabel={props.label ?? props.accessibilityLabel ?? props.placeholder}
         multiline={props.multiline} secureTextEntry={props.secure} keyboardType={props.keyboardType} autoCapitalize={props.autoCapitalize}
         style={[styles.field, inputDirection(), props.multiline && { minHeight: 88, textAlignVertical: 'top', paddingTop: 14 }, props.style]} />
     </View>

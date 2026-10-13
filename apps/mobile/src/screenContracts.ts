@@ -136,10 +136,11 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
     reads:['library','recommendedFor','deriveFlow','org.roles','join_requests'],
     rpcs:['issue_invite_v3','library_shared_items','library_get_documents','library_adopt','library_put_document','library_template_users'] },
   // Breaking up a book (decision 74): the language's template moves to its next version, or to a copy split off for the
-  // languages chosen (each moved there by its own TemplateSelected); and what the language calls the book.
+  // languages chosen (each moved there by its own TemplateSelected); and what the language calls the book, offered
+  // from what its Bibles and the organization's other languages call it (demo ADR-042).
   book_structure: { emits:['v1.TemplateSelected','v1.UnitAdded','v1.UnitHidden','v1.BookNameSet','v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySubscribed','v1.LibraryPinned'],
-    reads:['library','derivePassage'],
-    rpcs:['library_shared_items','library_get_documents','library_adopt','library_put_document','library_template_users'] }
+    reads:['library','derivePassage','recommendedFor'],
+    rpcs:['library_shared_items','library_get_documents','library_adopt','library_put_document','library_template_users','language_book_names'] }
 };
 export const SCREEN_CONTRACTS = Object.fromEntries(SCREEN_IDS.map((id) => [id, {
   emits:[],reads:[],rpcs:[],...declarations[id]

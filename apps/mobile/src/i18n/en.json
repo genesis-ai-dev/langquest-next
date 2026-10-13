@@ -1628,11 +1628,17 @@
       "linedUp": "LangQuest lines them up verse by verse. Nothing to do unless something looks wrong.",
       "psalm": "Psalm {{place}}"
     },
-    "others": {
-      "intro_one": "FIA has no passages for {{count, number}} book ({{books}}). That book:",
-      "intro_other": "FIA has no passages for {{count, number}} books ({{books}}). Those books:",
-      "byChapter": "by chapter",
-      "wait": "wait to be broken up"
+    "leftOut": {
+      "title_one": "{{way}} has no passages for {{count, number}} book",
+      "title_other": "{{way}} has no passages for {{count, number}} books",
+      "showAll": "Show all {{total}}",
+      "showFewer": "Show fewer",
+      "forThose_one": "For that book",
+      "forThose_other": "For those books",
+      "byChapter": "By chapter",
+      "wait": "Wait",
+      "waitSub_one": "Divide it your own way later",
+      "waitSub_other": "Divide them your own way later"
     },
     "book": {
       "breakDifferently": "Break up differently",
@@ -1643,9 +1649,6 @@
       "calledIn": "Called {{name}} in {{language}}",
       "templateCalls": "The template calls it {{name}}",
       "tapToName": "Tap to give it the name the team uses",
-      "whatCalled": "What {{language}} calls it",
-      "namingSub": "Shown everywhere this language shows the book.",
-      "nameLabel": "Its name",
       "brokenUpByChapter": "{{book}} is broken up by chapter.",
       "brokenUpInto": "{{book}} is broken up into {{way}}.",
       "change": "Change {{book}}",
@@ -1659,6 +1662,15 @@
       "alsoUsedTwo": "Used in {{first}} and {{second}} too. Change {{book}} for which of them?",
       "alsoUsedMore_one": "Used in {{name}} and {{count, number}} more too. Change {{book}} for which of them?",
       "alsoUsedMore_other": "Used in {{name}} and {{count, number}} more too. Change {{book}} for which of them?"
+    },
+    "bookName": {
+      "title": "What {{language}} calls {{book}}",
+      "sub": "Translators see this name",
+      "typeOrTap": "Type it, or tap one below",
+      "fromBibles": "What the team's Bibles call it",
+      "fromLanguages": "What other languages here call it",
+      "use": "Use",
+      "useLabel": "Use {{name}} ({{from}})"
     },
     "translate": {
       "question": "What will {{language}} translate?",

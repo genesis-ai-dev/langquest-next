@@ -1572,10 +1572,14 @@
       "linedUp": "LangQuest 会逐节对齐它们。除非看起来有问题，否则不需要做什么。",
       "psalm": "诗篇 {{place}}"
     },
-    "others": {
-      "intro_other": "FIA 在 {{count, number}} 卷书中没有经段（{{books}}）。这些书卷：",
+    "leftOut": {
+      "title_other": "{{way}} 在 {{count, number}} 卷书中没有经段",
+      "showAll": "全部显示（{{total}}）",
+      "showFewer": "收起",
+      "forThose_other": "这些书卷",
       "byChapter": "按章划分",
-      "wait": "等待划分"
+      "wait": "等待",
+      "waitSub_other": "以后按你自己的方式划分"
     },
     "book": {
       "breakDifferently": "换一种划分方式",
@@ -1586,9 +1590,6 @@
       "calledIn": "在{{language}}中叫{{name}}",
       "templateCalls": "模板中叫{{name}}",
       "tapToName": "点按填写团队使用的名称",
-      "whatCalled": "{{language}}怎么称呼它",
-      "namingSub": "这个语言显示这卷书的所有地方都会用这个名称。",
-      "nameLabel": "名称",
       "brokenUpByChapter": "{{book}}按章划分。",
       "brokenUpInto": "{{book}}划分为{{way}}。",
       "change": "更改{{book}}",
@@ -1601,6 +1602,15 @@
       "alsoUsedOne": "{{name}}也在使用。要为哪些语言更改{{book}}？",
       "alsoUsedTwo": "{{first}}和{{second}}也在使用。要为哪些语言更改{{book}}？",
       "alsoUsedMore_other": "{{name}}和另外 {{count, number}} 个语言也在使用。要为哪些语言更改{{book}}？"
+    },
+    "bookName": {
+      "title": "{{language}}怎么称呼{{book}}",
+      "sub": "译者会看到这个名称",
+      "typeOrTap": "输入名称，或点按下面的一个",
+      "fromBibles": "团队的圣经怎么称呼",
+      "fromLanguages": "这里的其他语言怎么称呼",
+      "use": "使用",
+      "useLabel": "使用{{name}}（{{from}}）"
     },
     "translate": {
       "question": "{{language}}要翻译什么？",

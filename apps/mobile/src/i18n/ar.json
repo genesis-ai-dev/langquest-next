@@ -1852,15 +1852,29 @@
       "linedUp": "يطابق LangQuest بينها آيةً آية. لا داعي لفعل شيء إلا إذا بدا شيء خاطئًا.",
       "psalm": "المزمور {{place}}"
     },
-    "others": {
-      "intro_zero": "ليس لدى FIA مقاطع لـ {{count, number}} سفر ({{books}}). هذه الأسفار:",
-      "intro_one": "ليس لدى FIA مقاطع لسفر واحد ({{books}}). هذا السفر:",
-      "intro_two": "ليس لدى FIA مقاطع لسفرين ({{books}}). هذان السفران:",
-      "intro_few": "ليس لدى FIA مقاطع لـ {{count, number}} أسفار ({{books}}). هذه الأسفار:",
-      "intro_many": "ليس لدى FIA مقاطع لـ {{count, number}} سفرًا ({{books}}). هذه الأسفار:",
-      "intro_other": "ليس لدى FIA مقاطع لـ {{count, number}} سفر ({{books}}). هذه الأسفار:",
+    "leftOut": {
+      "title_zero": "ليس لدى {{way}} مقاطع لـ {{count, number}} سفر",
+      "title_one": "ليس لدى {{way}} مقاطع لسفر واحد",
+      "title_two": "ليس لدى {{way}} مقاطع لسفرين",
+      "title_few": "ليس لدى {{way}} مقاطع لـ {{count, number}} أسفار",
+      "title_many": "ليس لدى {{way}} مقاطع لـ {{count, number}} سفرًا",
+      "title_other": "ليس لدى {{way}} مقاطع لـ {{count, number}} سفر",
+      "showAll": "عرض الكل ({{total}})",
+      "showFewer": "عرض أقل",
+      "forThose_zero": "لهذه الأسفار",
+      "forThose_one": "لهذا السفر",
+      "forThose_two": "لهذين السفرين",
+      "forThose_few": "لهذه الأسفار",
+      "forThose_many": "لهذه الأسفار",
+      "forThose_other": "لهذه الأسفار",
       "byChapter": "حسب الأصحاح",
-      "wait": "بانتظار التقسيم"
+      "wait": "الانتظار",
+      "waitSub_zero": "قسّمها بطريقتك لاحقًا",
+      "waitSub_one": "قسّمه بطريقتك لاحقًا",
+      "waitSub_two": "قسّمهما بطريقتك لاحقًا",
+      "waitSub_few": "قسّمها بطريقتك لاحقًا",
+      "waitSub_many": "قسّمها بطريقتك لاحقًا",
+      "waitSub_other": "قسّمها بطريقتك لاحقًا"
     },
     "book": {
       "breakDifferently": "قسّمه بطريقة أخرى",
@@ -1871,9 +1885,6 @@
       "calledIn": "اسمه {{name}} في {{language}}",
       "templateCalls": "يسمّيه القالب {{name}}",
       "tapToName": "اضغط لتعطيه الاسم الذي يستخدمه الفريق",
-      "whatCalled": "ما تسمّيه {{language}}",
-      "namingSub": "يظهر في كل مكان تعرض فيه هذه اللغة السفر.",
-      "nameLabel": "اسمه",
       "brokenUpByChapter": "{{book}} مُقسَّم حسب الأصحاح.",
       "brokenUpInto": "{{book}} مُقسَّم إلى {{way}}.",
       "change": "غيّر {{book}}",
@@ -1891,6 +1902,15 @@
       "alsoUsedMore_few": "مُستخدم في {{name}} و{{count, number}} أخرى أيضًا. غيّر {{book}} لأيٍّ منها؟",
       "alsoUsedMore_many": "مُستخدم في {{name}} و{{count, number}} أخرى أيضًا. غيّر {{book}} لأيٍّ منها؟",
       "alsoUsedMore_other": "مُستخدم في {{name}} و{{count, number}} أخرى أيضًا. غيّر {{book}} لأيٍّ منها؟"
+    },
+    "bookName": {
+      "title": "اسم {{book}} في {{language}}",
+      "sub": "يرى المترجمون هذا الاسم",
+      "typeOrTap": "اكتبه، أو اضغط على أحد الأسماء أدناه",
+      "fromBibles": "ما تسمّيه به الكتب المقدسة لدى الفريق",
+      "fromLanguages": "ما تسمّيه به اللغات الأخرى هنا",
+      "use": "استخدام",
+      "useLabel": "استخدام {{name}} ({{from}})"
     },
     "translate": {
       "question": "ماذا ستترجم {{language}}؟",

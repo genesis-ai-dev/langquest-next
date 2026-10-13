@@ -2,13 +2,14 @@
 // Language (step 2) and Get ready (question 1): the Bible or something else;
 // for the Bible, first its numbering, for the whole Bible, then how it is
 // broken up, from the ways in that numbering, what other languages here use
-// first; for something else, the organization's own outlines or a new one.
-// The walk-through is one tap away.
+// first, and for a way that leaves books out, what those books get (demo
+// ADR-042, `?simple=helpsLeftOut`); for something else, the organization's
+// own outlines or a new one. The walk-through is one tap away.
 import { emptyBooks, withEmptyBooksFilled, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { Text } from '../text';
-import { STARTER_TEMPLATE, type LibraryChoice } from '../contentTemplates';
+import { bookNameOf, STARTER_TEMPLATE, type LibraryChoice } from '../contentTemplates';
 import type { Ctx } from '../ctx';
 import { t } from '../i18n';
 import { Chip, SectionLabel, txt } from '../kit';
@@ -19,8 +20,8 @@ import { factsOf, QUIZ } from './numberingGuide';
 import { useRecordChoices } from '../simple/choices';
 import { ChoiceCard, Question, QuietLink } from '../simple/admin';
 import { C, space } from '../theme';
-import { baseWay, CHAPTERS_ITEM, emptyLine, WAY_ITEMS, wayOf, type WayRow } from './model';
-import { LessonSheet, OthersChoice, PreviewSheet, WayCard } from './parts';
+import { baseWay, CHAPTERS_ITEM, fillRows, WAY_ITEMS, wayOf, wayShortName, type WayRow } from './model';
+import { LeftOutNote, LessonSheet, PreviewSheet, WayCard } from './parts';
 import { adoptWay, ownTemplate, useWays } from './useBreakup';
 
 export type Translate = ReturnType<typeof useTranslate>;
@@ -43,8 +44,9 @@ export function useTranslate(ctx: Ctx, forLanguage: string | null) {
   const [what, setWhat] = useState<'bible' | 'else' | null>(null);
   const [key, setKey] = useState<string | null>(null);
   const [outlineKey, setOutlineKey] = useState<string | null>(null);
-  // Books the way leaves out wait to be divided (decision 80), unless the admin says "by chapter".
-  const [others, setOthers] = useState<'chapters' | 'later'>('later');
+  // Books the way leaves out wait to be divided (decision 80), unless the admin picks a way for them
+  // (demo ADR-042): 'later', or the choice key of the way that fills them.
+  const [fill, setFill] = useState<string>('later');
   const outlines = useMemo(() => rec.choices.filter((c) => rec.kindOf(c) === 'outline'), [rec.choices, rec.kindOf]);
   // Already in use here: start from what the language has.
   const inUse = ways.rows.find((r) => r.inUse) ?? null;
@@ -61,9 +63,12 @@ export function useTranslate(ctx: Ctx, forLanguage: string | null) {
   const doc = shownWhat === 'bible' ? ways.docOf(row?.choice) : shownWhat === 'else' ? rec.docs.get<TemplateDoc>(outline?.hash) : null;
   const v11n = ways.v11nOf(doc);
   const empty = doc && shownWhat === 'bible' && row && !row.later && !row.inUse ? emptyBooks(doc) : [];
-  const chaptersDoc = ways.docOf(ways.way(CHAPTERS_ITEM)?.choice);
-  /** What the language gets: the way as it is, or with the books it leaves out broken up by chapter. */
-  const finalDoc = empty.length && others === 'chapters' && doc && chaptersDoc ? withEmptyBooksFilled(doc, chaptersDoc) : doc;
+  // The ways that cover every book left out; one no longer offered falls back to waiting.
+  const fills = row && empty.length ? fillRows(ways.rows, row, empty, (r) => ways.docOf(r.choice)) : [];
+  const fillRow = fills.find((r) => r.choice.key === fill) ?? null;
+  const fillDoc = ways.docOf(fillRow?.choice);
+  /** What the language gets: the way as it is, or with the books it leaves out broken up another way. */
+  const finalDoc = empty.length && doc && fillDoc ? withEmptyBooksFilled(doc, fillDoc) : doc;
 
   async function resolve(): Promise<{ itemId: string; docHash: string; doc: TemplateDoc; unitPrefix?: string }> {
     const lib = ways.lib;
@@ -75,8 +80,10 @@ export function useTranslate(ctx: Ctx, forLanguage: string | null) {
     // The same way in another numbering keeps the language's part ids: parts that stay the same keep their work.
     const keep = here && hereWay && wayOf(row.choice) === hereWay ? { unitPrefix: here.unitPrefix } : {};
     if (finalDoc === doc) return { itemId: await adoptWay(lib, row.choice), docHash: row.choice.hash, doc, ...keep };
-    // FIA's passages, the other books by chapter: the organization's own template, made once and reused.
-    const name = `${row.choice.name}, other books by chapter`; // i18n-ignore: the new template's name, stored in the event log
+    // FIA's passages, the other books by chapter (or another way): the organization's own template, made once and reused.
+    const name = !fillRow || wayOf(fillRow.choice) === CHAPTERS_ITEM
+      ? `${row.choice.name}, other books by chapter` // i18n-ignore: the new template's name, stored in the event log
+      : `${row.choice.name}, other books in ${fillRow.choice.name}`; // i18n-ignore: the new template's name, stored in the event log
     const { hash } = await prepareDoc(finalDoc);
     const existing = lib.items('template').find((it) => !it.archived && it.source !== 'subscription' && it.current === hash);
     if (existing) return { itemId: existing.itemId, docHash: hash, doc: finalDoc, ...keep };
@@ -119,7 +126,7 @@ export function useTranslate(ctx: Ctx, forLanguage: string | null) {
   const canContinue = page === 'what' ? (shownWhat === 'bible' || (shownWhat === 'else' && !!outline))
     : page === 'numbered' ? !!numbering : page === 'ways' ? ready : false;
   return {
-    ways, rec, what: shownWhat, setWhat, row, setKey, outlines, outline, setOutlineKey, others, setOthers, empty, doc, finalDoc, v11n, resolve,
+    ways, rec, what: shownWhat, setWhat, row, setKey, outlines, outline, setOutlineKey, fills, fill: fillRow ? fill : 'later', setFill, empty, doc, finalDoc, v11n, resolve,
     numbering, setNumbering: (c: string) => { setNumberingCode(c); setKey(null); }, numberingChanged: !!hereCode && !!code && code !== hereCode,
     ready, page, found, choose, advance, retreat, canContinue, quizTrail, setQuizTrail,
     setPage: (p: TranslatePage) => { if (p === 'quiz') setQuizTrail([QUIZ.start]); setPage(p); },
@@ -171,11 +178,10 @@ export function TranslateQuestion(props: { ctx: Ctx; t: Translate; lang: string;
         <Question>{t('breakup.translate.howBible')}</Question>
         {q.ways.rows.map((r) => (
           <WayCard key={r.choice.key} row={r} doc={q.ways.docOf(r.choice)} v11n={q.ways.v11nOf(q.ways.docOf(r.choice))} on={q.row === r}
-            onPress={() => q.setKey(r.choice.key)} onPreview={() => setPeek(r)}>
-            {q.row === r && q.empty.length ? (
-              <OthersChoice empty={emptyLine(q.doc!)} count={q.empty.length} on={q.others} onPick={q.setOthers} />
-            ) : null}
-          </WayCard>
+            onPress={() => q.setKey(r.choice.key)} onPreview={() => setPeek(r)}
+            note={q.row === r && q.empty.length ? (
+              <LeftOutNote way={wayShortName(r, q.doc)} books={q.empty.map((b) => bookNameOf(b))} fills={q.fills} on={q.fill} onPick={q.setFill} />
+            ) : null} />
         ))}
         {q.ways.rows.length === 0 ? <Text style={txt.smMuted}>{q.ways.loaded ? t('breakup.translate.nothingYet') : t('common.loading')}</Text> : null}
         <QuietLink icon="help" label={t('breakup.translate.howBrokenUp')} detail={t('breakup.translate.howBrokenUpDetail')} onPress={() => setLesson(true)} />
