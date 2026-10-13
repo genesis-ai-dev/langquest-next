@@ -1572,10 +1572,8 @@
       "linedUp": "LangQuest menyejajarkannya ayat demi ayat. Tidak perlu melakukan apa-apa kecuali ada yang tampak salah.",
       "psalm": "Mazmur {{place}}"
     },
-    "others": {
-      "intro_other": "FIA tidak punya perikop untuk {{count, number}} kitab ({{books}}). Kitab-kitab itu:",
-      "byChapter": "per pasal",
-      "wait": "menunggu dibagi"
+    "leftOut": {
+      "wait_other": "{{books}} menunggu untuk dibagi. Anda bisa membaginya dari peta nanti."
     },
     "book": {
       "breakDifferently": "Bagi dengan cara lain",
@@ -1586,9 +1584,6 @@
       "calledIn": "Disebut {{name}} dalam {{language}}",
       "templateCalls": "Templat menyebutnya {{name}}",
       "tapToName": "Ketuk untuk memberinya nama yang dipakai tim",
-      "whatCalled": "Sebutannya dalam {{language}}",
-      "namingSub": "Ditampilkan di mana pun bahasa ini menampilkan kitab tersebut.",
-      "nameLabel": "Namanya",
       "brokenUpByChapter": "{{book}} dibagi per pasal.",
       "brokenUpInto": "{{book}} dibagi menjadi {{way}}.",
       "change": "Ubah {{book}}",
@@ -1601,6 +1596,15 @@
       "alsoUsedOne": "Juga dipakai di {{name}}. Ubah {{book}} untuk yang mana?",
       "alsoUsedTwo": "Juga dipakai di {{first}} dan {{second}}. Ubah {{book}} untuk yang mana?",
       "alsoUsedMore_other": "Juga dipakai di {{name}} dan {{count, number}} lainnya. Ubah {{book}} untuk yang mana?"
+    },
+    "bookName": {
+      "title": "Sebutan {{book}} dalam {{language}}",
+      "sub": "Penerjemah melihat nama ini",
+      "typeOrTap": "Ketik, atau ketuk salah satu di bawah",
+      "fromBibles": "Sebutannya dalam Alkitab tim",
+      "fromLanguages": "Sebutannya dalam bahasa lain di sini",
+      "use": "Pakai",
+      "useLabel": "Pakai {{name}} ({{from}})"
     },
     "translate": {
       "question": "Apa yang akan diterjemahkan {{language}}?",
@@ -1737,6 +1741,70 @@
         "hebrew": "Ibrani",
         "korean": "Korea"
       }
+    },
+    "own": {
+      "title": "Bagi dengan cara Anda sendiri",
+      "sub": "Baca {{book}} dan pilih di mana setiap bagian dimulai",
+      "orReadyMade": "Atau pilih cara yang sudah jadi",
+      "helps": "Bantuan",
+      "noBibleChip": "Tidak ada Alkitab",
+      "chapterChip": "Pasal {{n}}",
+      "key": "Garis putus-putus menunjukkan di mana Alkitab lain memulai bagian ({{total}} Alkitab bahasa Inggris, dari OpenBible.info). Ketuk salah satunya untuk memulai bagian di sana, atau ketuk ayat mana saja.",
+      "loadingText": "Memuat teks {{book}}…",
+      "noText": "Alkitab tim tidak memiliki teks {{book}}, jadi ayat-ayatnya tampil sebagai angka.",
+      "chapterHead": "Pasal {{n}}",
+      "goesOn": "· bagian {{n}} berlanjut",
+      "verseLabel": "Ayat {{at}}",
+      "alsoBibles": "{{n}} dari {{total}} Alkitab memulai bagian di sini",
+      "bibles": "{{n}} dari {{total}} Alkitab",
+      "startAt": "memulai bagian di sini",
+      "startPill": "Mulai di sini",
+      "suggestionLabel": "Mulai bagian di {{at}}. {{bibles}} memulai bagian di sini.",
+      "bookStarts": "Kitab dimulai di sini",
+      "joinWith": "Gabungkan dengan bagian {{n}}",
+      "startHere": "Mulai bagian di sini",
+      "undo": "Urungkan",
+      "startFrom": "Mulai dari cara yang sudah jadi",
+      "started": "Bagian {{n}} dimulai di {{at}}",
+      "joined": "Digabungkan dengan bagian {{n}}",
+      "usedOutline": "Bagian-bagian dimulai di tempat bagian garis besar dimulai",
+      "saved": "{{book}} sudah dibagi. Tim bisa merekamnya sekarang.",
+      "bibleTitle": "Baca {{book}} dalam",
+      "bibleSub": "Hanya kata-katanya yang berubah. Bagian Anda tetap di tempatnya.",
+      "teamBible": "{{language}} · Alkitab tim",
+      "jumpTitle": "Pergi ke pasal",
+      "jumpSub": "Berapa bagian yang dimulai di setiap pasal",
+      "fromTitle": "Cara yang sudah jadi",
+      "fromSub": "Menggantikan bagian-bagian {{book}}. Urungkan mengembalikannya.",
+      "startedFrom": "{{book}} sekarang dimulai dari {{way}}",
+      "sectionTitle": "Bagian {{n}}",
+      "nameLabel": "Namanya (opsional)",
+      "namePlaceholder": "Sebutan tim untuknya",
+      "joinSub": "Ayat-ayat bagian ini masuk ke bagian sebelumnya",
+      "firstCantJoin": "Bagian pertama tidak bisa digabungkan",
+      "leaveTitle": "Keluar tanpa menyimpan?",
+      "leaveSub": "Bagian-bagian Anda untuk {{book}} belum disimpan.",
+      "leaveAnyway": "Keluar tanpa menyimpan",
+      "helpsTitle": "Bantuan untuk {{book}}",
+      "closeHelps": "Tutup bantuan",
+      "tabOutline": "Garis besar",
+      "tabNotes": "Catatan {{n}}",
+      "tabGuides": "Panduan",
+      "outlineFrom": "Dari {{from}}",
+      "useOutline": "Mulai bagian di tempat bagian-bagian ini dimulai",
+      "noOutline": "Tidak ada panduan yang membagi {{book}} menjadi bagian-bagian.",
+      "noteOn": "{{name}} · tentang {{where}}",
+      "showInText": "Tunjukkan di teks",
+      "noNotes": "Belum ada catatan tentang {{book}}.",
+      "allOf": "Seluruh {{book}}",
+      "nothingFor": "Tidak ada untuk {{book}}",
+      "noHelps": "Belum ada panduan atau catatan yang ditawarkan untuk {{book}}.",
+      "headerSub_other": "Cara Anda · {{count, number}} bagian",
+      "verses_other": "{{count, number}} ayat",
+      "save_other": "Simpan · {{count, number}} bagian",
+      "jumpLabel_other": "Pasal {{chapter}}: {{count, number}} bagian dimulai di sini",
+      "sections_other": "{{count, number}} bagian",
+      "partsIn_other": "{{count, number}} bagian di {{book}}"
     }
   },
   "canon": {
@@ -2586,7 +2654,8 @@
       "reportedContent": "Seseorang melaporkan ini karena {{reasons}}. Ini dibuat oleh {{name}}. Lihatlah, lalu hapus dari riwayat atau biarkan.",
       "reportsAnonymous": "Laporan tidak pernah menyebutkan pengirimnya. Tim LangQuest juga melihat setiap laporan.",
       "assignAccept": "Beri peran & terima",
-      "decline": "Tolak"
+      "decline": "Tolak",
+      "inLanguage": "Di {{language}}"
     },
     "me": {
       "title": "Saya",
@@ -3429,7 +3498,17 @@
     },
     "divide": {
       "title": "Bagi {{book}}",
-      "waiting_other": "{{count, number}} kitab menunggu dibagi sebelum ada yang merekamnya"
+      "waiting_other": "{{count, number}} kitab menunggu dibagi sebelum ada yang merekamnya",
+      "leftOut": "{{way}} tidak punya bagian untuk {{book}}.",
+      "more_other": "{{count, number}} kitab lain juga menunggu."
+    },
+    "elsewhere": {
+      "title": "Kabar baru di {{language}}",
+      "sub_other": "{{count, number}} kabar untuk Anda. Ketuk untuk pindah ke {{language}}."
+    },
+    "again": {
+      "title": "Rekam {{passage}} lagi",
+      "sub_other": "Bagian-bagian berubah setelah direkam: {{count, number}} perlu direkam lagi. Rekaman sebelumnya ada di halamannya masing-masing."
     }
   },
   "shell": {
@@ -4321,7 +4400,8 @@
       "overdue": "Permintaan terlambat",
       "openInAll_other": "Seluruhnya {{count, number}} permintaan terbuka",
       "checkpoint": "Di titik periksa",
-      "checkpointSub": "Menunggu pemeriksaan titik periksa"
+      "checkpointSub": "Menunggu pemeriksaan titik periksa",
+      "show": "Tampilkan di peta"
     },
     "noReports": {
       "languages": "Belum ada bahasa untuk ditampilkan",
@@ -5355,25 +5435,15 @@
       "noGuideBadge": "Tanpa panduan"
     },
     "passage": {
-      "title": "Referensi",
       "gone": "Perikop ini tidak ada di sini",
       "placedByHand": "Ditempatkan di sini secara manual",
-      "studyGuides": "Panduan studi",
       "notes": "Catatan untuk penerjemah",
-      "other": "Bahan lain",
       "hiddenHere": "Disembunyikan di sini",
       "showHere": "Tampilkan di sini",
       "hideHere": "Sembunyikan di sini",
       "shownAgain": "{{name}} ditampilkan lagi pada perikop ini.",
       "hidden": "{{name}} disembunyikan pada perikop ini.",
-      "add": "Tambah",
-      "intro": "Apa yang disediakan bagi penerjemah pada perikop ini, dan alasannya. Mereka tetap dapat menjelajahi Alkitab mana pun secara online dan memilih sendiri.",
-      "group": "{{group}} · {{n, number}}",
-      "noBible": "Belum ada Alkitab yang direkomendasikan untuk perikop ini. Penerjemah tetap dapat menjelajahinya.",
       "placedInApp": "Ditempatkan di sini dalam aplikasi",
-      "hiddenSection": "Disembunyikan di sini · {{n, number}}",
-      "addTitle": "Tambahkan ke perikop ini",
-      "addSub": "Ditempatkan di sini secara manual, apa pun yang disebut koordinatnya.",
       "searchPlaceholder": "Cari di perpustakaan Anda",
       "allHere": "Semua isi perpustakaan Anda sudah ada di sini.",
       "placed": "{{name}} ditempatkan pada perikop ini."
@@ -5496,6 +5566,31 @@
       "passages_other": "Panduan untuk {{count, number}} perikop",
       "yours": "Bahasa aplikasi Anda",
       "gaps_other": "Dalam bahasa {{language}}, {{name}} memiliki panduan untuk {{count, number}} perikop. Perikop tanpa panduan tidak menampilkan panduan studi."
+    },
+    "passageText": {
+      "bar": "{{passage}} · {{bible}}",
+      "barHelpTitle": "Perikop",
+      "barHelp": "Membuka perikop di Alkitab yang Anda pilih, dengan kata kunci dan catatannya ditandai.",
+      "openText": "{{passage}}. Tampilkan perikop",
+      "closeText": "{{passage}}. Sembunyikan perikop",
+      "listen": "Dengarkan",
+      "listenHelp": "Memutar perikop di Alkitab ini.",
+      "noteTag": "Catatan",
+      "showHelp": "Penerjemah mendapatkan ini di perikop ini.",
+      "hideHelp": "Penerjemah tidak lagi mendapatkan ini di perikop ini.",
+      "step": "Langkah {{n, number}}",
+      "steps_other": "{{count, number}} langkah",
+      "notesSub_other": "{{count, number}} catatan di perikop ini",
+      "wholePassage": "Seluruh perikop",
+      "keyWords": "Kata kunci",
+      "keyWordsSub_other": "{{count, number}} di ayat-ayat ini",
+      "none": "Belum ada bantuan di perikop ini.",
+      "addHelp": "Tambah bantuan",
+      "addHelpHint": "Tulis catatan untuk penerjemah, atau taruh sesuatu dari perpustakaan Anda.",
+      "writeNote": "Tulis catatan untuk penerjemah",
+      "writeNoteSub": "Di ayat yang Anda pilih, diucapkan atau diketik",
+      "fromLibrary": "Dari perpustakaan Anda",
+      "fromOwn": "Dari perpustakaan organisasi Anda"
     }
   },
   "sources": {
@@ -5717,5 +5812,36 @@
     "goOnline": "Sering-seringlah tersambung ke internet agar pekerjaan Anda terkirim.",
     "lessSpace": "Ruang perangkat ini mungkin lebih kecil dari yang tertulis.",
     "understand": "Saya mengerti"
+  },
+  "notes": {
+    "onVerses": {
+      "title": "Catatan untuk penerjemah",
+      "sub": "{{passage}} · {{language}}",
+      "hint": "Ketuk satu ayat, lalu ayat lain untuk sampai ke sana.",
+      "verseHelp": "Menaruh catatan di ayat ini. Ketuk ayat lain untuk sampai ke sana.",
+      "on": "Di {{where}}",
+      "onWhole": "Di seluruh perikop",
+      "whole": "Seluruh perikop",
+      "say": "Ketuk dan ucapkan catatan Anda",
+      "saved": "Catatan disimpan di {{where}}.",
+      "savedWhole": "Catatan disimpan di {{passage}}."
+    }
+  },
+  "keyTerms": {
+    "verses": {
+      "title": "Letaknya di sini",
+      "none": "“{{word}}” tidak ada di ayat-ayat ini di {{bible}}.",
+      "noneHere": "“{{word}}” tidak ada di ayat-ayat ini.",
+      "more_other": "Dan {{count, number}} ayat lagi"
+    },
+    "others": {
+      "title": "Cara bahasa lain di sini mengucapkannya",
+      "none": "Belum ada bahasa lain di ponsel ini yang punya kata untuk “{{word}}”.",
+      "saidOnly": "Diucapkan, belum ditulis",
+      "play": "Putar kata dalam {{language}}",
+      "playHelp": "Memutar cara mereka mengucapkannya.",
+      "suggest": "Bahasa lain di sini memakai",
+      "suggestHelp": "Dipakai di sini dalam {{languages}}. Ketuk untuk menambahkannya."
+    }
   }
 }

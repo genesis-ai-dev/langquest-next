@@ -1,6 +1,6 @@
 import { ledgerFor, percent, recencyOf, toCsv, type Coverage, type LanguageReport, type LanguageRow } from '@langquest-next/core';
 import type { ReactNode } from 'react';
-import { Platform, Share, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, Share, StyleSheet, View } from 'react-native';
 import { Text } from '../text';
 import { bookName } from '../coreText';
 import { currentLocale, t, Trans } from '../i18n';
@@ -101,13 +101,23 @@ function wrapEach(children: ReactNode, min: number): ReactNode {
   ));
 }
 
-export function Stat(props: { label: string; value: string; sub?: string | undefined; tone?: Tone | undefined }) {
-  return (
-    <View style={styles.stat} accessible accessibilityLabel={props.sub ? t('reports.stat.spokenWithSub', { label: props.label, value: props.value, sub: props.sub }) : t('reports.stat.spoken', { label: props.label, value: props.value })}>
+/** One figure. With `onOpen`, it opens what it counts (design principle 11), and says so under it. */
+export function Stat(props: { label: string; value: string; sub?: string | undefined; tone?: Tone | undefined; onOpen?: { label: string; onPress: () => void } }) {
+  const spoken = props.sub ? t('reports.stat.spokenWithSub', { label: props.label, value: props.value, sub: props.sub }) : t('reports.stat.spoken', { label: props.label, value: props.value });
+  const body = (
+    <>
       <Text style={[styles.statValue, props.tone ? { color: TONE_TEXT[props.tone] } : null]}>{props.value}</Text>
       <Text style={[txt.sm, { fontWeight: '600' }]}>{props.label}</Text>
       {props.sub ? <Text style={txt.xs}>{props.sub}</Text> : null}
-    </View>
+    </>
+  );
+  if (!props.onOpen) return <View style={styles.stat} accessible accessibilityLabel={spoken}>{body}</View>;
+  return (
+    <Pressable style={({ pressed }) => [styles.stat, pressed && { opacity: 0.7 }]} onPress={props.onOpen.onPress}
+      accessibilityRole="button" accessibilityLabel={`${spoken}. ${props.onOpen.label}`}>
+      {body}
+      <Text style={[txt.sm, { color: C.primary, fontWeight: '700', marginTop: space.xs }]}>{props.onOpen.label} ›</Text>
+    </Pressable>
   );
 }
 
@@ -259,14 +269,19 @@ export function HeadlineStats(props: { total: number; recorded: number; done: nu
   );
 }
 
-export function AttentionPanel(props: { attention: LanguageReport['attention'] }) {
+/**
+ * What a coordinator can move today. With `onShow`, feedback to answer and
+ * open requests open the language's map filtered to those passages.
+ */
+export function AttentionPanel(props: { attention: LanguageReport['attention']; onShow?: (filter: 'feedback' | 'waiting') => void }) {
   const a = props.attention;
   const tone = (n: number, t: Tone): Tone | undefined => (n > 0 ? t : undefined);
+  const show = (n: number, filter: 'feedback' | 'waiting') => (props.onShow && n > 0 ? { label: t('reports.attention.show'), onPress: () => props.onShow!(filter) } : undefined);
   return (
     <Panel title={t('reports.attention.title')} sub={t('reports.attention.sub')}>
       <Stats>
-        <Stat label={t('reports.attention.feedback')} value={num(a.feedback)} tone={tone(a.feedback, 'amber')} sub={t('reports.attention.feedbackSub')} />
-        <Stat label={t('reports.attention.overdue')} value={num(a.overdueRequests)} tone={tone(a.overdueRequests, 'red')} sub={t('reports.attention.openInAll', { count: a.openRequests })} />
+        <Stat label={t('reports.attention.feedback')} value={num(a.feedback)} tone={tone(a.feedback, 'amber')} sub={t('reports.attention.feedbackSub')} onOpen={show(a.feedback, 'feedback')} />
+        <Stat label={t('reports.attention.overdue')} value={num(a.overdueRequests)} tone={tone(a.overdueRequests, 'red')} sub={t('reports.attention.openInAll', { count: a.openRequests })} onOpen={show(a.openRequests, 'waiting')} />
         <Stat label={t('reports.attention.checkpoint')} value={num(a.atCheckpoint)} tone={tone(a.atCheckpoint, 'amber')} sub={t('reports.attention.checkpointSub')} />
       </Stats>
     </Panel>

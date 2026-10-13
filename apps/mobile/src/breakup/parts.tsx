@@ -11,10 +11,13 @@ import { bookNameOf } from '../contentTemplates';
 import { useHelpSpot } from '../helpContext';
 import { HelpBadge } from '../helpBadge';
 import { t } from '../i18n';
-import { Chip, GhostBtn, Ico, PrimaryBtn, Sheet, txt } from '../kit';
-import { AmberNote, CheckRow, ChoiceCard, Pills } from '../simple/admin';
+import { formatNumber } from '../i18n/format';
+import { Chip, GhostBtn, Ico, LinkBtn, PrimaryBtn, Sheet, txt } from '../kit';
+import { CheckRow, ChoiceCard, Pills } from '../simple/admin';
 import { C, radius, space, TINT } from '../theme';
-import { countLine, lessonSlides, piecesOf, PREVIEW_BOOKS, SAMPLE_BOOK, usedLine, verseSays, type TemplateUser, type WayRow } from './model';
+import {
+  booksLine, CHAPTERS_ITEM, countLine, lessonSlides, piecesOf, PREVIEW_BOOKS, SAMPLE_BOOK, usedLine, verseSays, wayOf, type TemplateUser, type WayRow
+} from './model';
 
 /** A book cut into its pieces, each as wide as its verses. Nothing drawn when the way leaves the book for later. */
 export function PieceBar(props: { doc: TemplateDoc | null; book?: string; v11n: VersificationDoc | null; caption?: boolean }) {
@@ -49,6 +52,8 @@ export function PieceBar(props: { doc: TemplateDoc | null; book?: string; v11n: 
  */
 export function WayCard(props: {
   row: WayRow; doc: TemplateDoc | null; v11n: VersificationDoc | null; on: boolean; onPress: () => void; onPreview: () => void; oneBook?: string; children?: ReactNode;
+  /** Under the card's lines, as wide as the card (the books the way leaves out). */
+  note?: ReactNode;
 }) {
   const { row, doc } = props;
   const lines = [
@@ -76,6 +81,7 @@ export function WayCard(props: {
         )}
         {props.children}
       </View>
+      {props.note}
     </ChoiceCard>
   );
 }
@@ -260,21 +266,6 @@ function readable(ref: string): string {
   return m[1] === 'PSA' ? t('breakup.numbering.psalm', { place: m[2] }) : `${bookNameOf(m[1]!)} ${m[2]}`;
 }
 
-/** A quiet line under the ways: FIA covers some books; what the rest get. */
-export function OthersChoice(props: { empty: string; count: number; on: 'chapters' | 'later'; onPick: (v: 'chapters' | 'later') => void }) {
-  return (
-    <AmberNote icon="help">
-      {t('breakup.others.intro', { count: props.count, books: props.empty })}{'\n'}
-      <Text onPress={() => props.onPick('chapters')} style={{ fontWeight: props.on === 'chapters' ? '800' : '400', textDecorationLine: props.on === 'chapters' ? 'none' : 'underline' }}>
-        {props.on === 'chapters' ? '● ' : ''}{t('breakup.others.byChapter')}
-      </Text>
-      {'   '}
-      <Text onPress={() => props.onPick('later')} style={{ fontWeight: props.on === 'later' ? '800' : '400', textDecorationLine: props.on === 'later' ? 'none' : 'underline' }}>
-        {props.on === 'later' ? '● ' : ''}{t('breakup.others.wait')}
-      </Text>
-    </AmberNote>
-  );
-}
 
 const styles = StyleSheet.create({
   indent: { paddingLeft: 52, gap: space.sm },

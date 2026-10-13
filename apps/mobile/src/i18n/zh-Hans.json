@@ -1572,10 +1572,8 @@
       "linedUp": "LangQuest 会逐节对齐它们。除非看起来有问题，否则不需要做什么。",
       "psalm": "诗篇 {{place}}"
     },
-    "others": {
-      "intro_other": "FIA 在 {{count, number}} 卷书中没有经段（{{books}}）。这些书卷：",
-      "byChapter": "按章划分",
-      "wait": "等待划分"
+    "leftOut": {
+      "wait_other": "{{books}}等待划分。你可以以后在地图上划分。"
     },
     "book": {
       "breakDifferently": "换一种划分方式",
@@ -1586,9 +1584,6 @@
       "calledIn": "在{{language}}中叫{{name}}",
       "templateCalls": "模板中叫{{name}}",
       "tapToName": "点按填写团队使用的名称",
-      "whatCalled": "{{language}}怎么称呼它",
-      "namingSub": "这个语言显示这卷书的所有地方都会用这个名称。",
-      "nameLabel": "名称",
       "brokenUpByChapter": "{{book}}按章划分。",
       "brokenUpInto": "{{book}}划分为{{way}}。",
       "change": "更改{{book}}",
@@ -1601,6 +1596,15 @@
       "alsoUsedOne": "{{name}}也在使用。要为哪些语言更改{{book}}？",
       "alsoUsedTwo": "{{first}}和{{second}}也在使用。要为哪些语言更改{{book}}？",
       "alsoUsedMore_other": "{{name}}和另外 {{count, number}} 个语言也在使用。要为哪些语言更改{{book}}？"
+    },
+    "bookName": {
+      "title": "{{language}}怎么称呼{{book}}",
+      "sub": "译者会看到这个名称",
+      "typeOrTap": "输入名称，或点按下面的一个",
+      "fromBibles": "团队的圣经怎么称呼",
+      "fromLanguages": "这里的其他语言怎么称呼",
+      "use": "使用",
+      "useLabel": "使用{{name}}（{{from}}）"
     },
     "translate": {
       "question": "{{language}}要翻译什么？",
@@ -1737,6 +1741,70 @@
         "hebrew": "希伯来语",
         "korean": "韩语"
       }
+    },
+    "own": {
+      "title": "按你自己的方式划分",
+      "sub": "阅读{{book}}，选择每一段从哪里开始",
+      "orReadyMade": "或选择现成的方式",
+      "helps": "帮助",
+      "noBibleChip": "没有圣经",
+      "chapterChip": "第{{n}}章",
+      "key": "虚线表示其他圣经在哪里开始一段（{{total}}本英文圣经，来自 OpenBible.info）。点一条虚线在那里开始一段，或点任何一节。",
+      "loadingText": "正在获取{{book}}的经文…",
+      "noText": "团队的圣经里没有{{book}}的经文，所以只显示节号。",
+      "chapterHead": "第{{n}}章",
+      "goesOn": "· 第{{n}}段继续",
+      "verseLabel": "经节 {{at}}",
+      "alsoBibles": "{{total}}本圣经中有{{n}}本在这里开始一段",
+      "bibles": "{{total}}本圣经中有{{n}}本",
+      "startAt": "在这里开始一段",
+      "startPill": "从这里开始",
+      "suggestionLabel": "在{{at}}开始一段。{{bibles}}在这里开始一段。",
+      "bookStarts": "这卷书从这里开始",
+      "joinWith": "与第{{n}}段合并",
+      "startHere": "在这里开始一段",
+      "undo": "撤销",
+      "startFrom": "从现成的方式开始",
+      "started": "第{{n}}段从{{at}}开始",
+      "joined": "已与第{{n}}段合并",
+      "usedOutline": "各段从大纲各部分开始的地方开始",
+      "saved": "{{book}}已划分好。团队现在可以录音了。",
+      "bibleTitle": "用这本圣经读{{book}}",
+      "bibleSub": "只有文字会变，你的分段保持不变。",
+      "teamBible": "{{language}} · 团队的圣经",
+      "jumpTitle": "跳到某一章",
+      "jumpSub": "每章开始几段",
+      "fromTitle": "现成的方式",
+      "fromSub": "会替换{{book}}的分段。撤销可以恢复。",
+      "startedFrom": "{{book}}现在以{{way}}为起点",
+      "sectionTitle": "第{{n}}段",
+      "nameLabel": "名称（可选）",
+      "namePlaceholder": "团队怎么称呼它",
+      "joinSub": "这一段的经节归入前一段",
+      "firstCantJoin": "第一段不能合并",
+      "leaveTitle": "不保存就离开？",
+      "leaveSub": "你给{{book}}的分段还没有保存。",
+      "leaveAnyway": "不保存就离开",
+      "helpsTitle": "{{book}}的帮助",
+      "closeHelps": "关闭帮助",
+      "tabOutline": "大纲",
+      "tabNotes": "注释 {{n}}",
+      "tabGuides": "指南",
+      "outlineFrom": "来自{{from}}",
+      "useOutline": "在这些部分开始的地方开始分段",
+      "noOutline": "没有指南把{{book}}分成几部分。",
+      "noteOn": "{{name}} · 关于{{where}}",
+      "showInText": "在经文中显示",
+      "noNotes": "还没有关于{{book}}的注释。",
+      "allOf": "整卷{{book}}",
+      "nothingFor": "没有{{book}}的内容",
+      "noHelps": "还没有为{{book}}提供指南或注释。",
+      "headerSub_other": "你自己的方式 · {{count, number}}段",
+      "verses_other": "{{count, number}}节",
+      "save_other": "保存 · {{count, number}}段",
+      "jumpLabel_other": "第{{chapter}}章：这里开始{{count, number}}段",
+      "sections_other": "{{count, number}}段",
+      "partsIn_other": "{{book}}中有{{count, number}}部分"
     }
   },
   "canon": {
@@ -2586,7 +2654,8 @@
       "reportedContent": "有人因为{{reasons}}举报了这项内容。它是{{name}}发布的。请查看后，从记录中移除或者保留。",
       "reportsAnonymous": "举报永远不会显示是谁发送的。LangQuest 团队也会看到每一条举报。",
       "assignAccept": "分配角色并接受",
-      "decline": "拒绝"
+      "decline": "拒绝",
+      "inLanguage": "在{{language}}中"
     },
     "me": {
       "title": "我",
@@ -3429,7 +3498,17 @@
     },
     "divide": {
       "title": "划分{{book}}",
-      "waiting_other": "有 {{count, number}} 卷书在等待划分，划分后才能开始录音"
+      "waiting_other": "有 {{count, number}} 卷书在等待划分，划分后才能开始录音",
+      "leftOut": "{{way}}没有{{book}}的段落。",
+      "more_other": "另有 {{count, number}} 卷书也在等待。"
+    },
+    "elsewhere": {
+      "title": "{{language}}有新动态",
+      "sub_other": "有 {{count, number}} 条与你有关。点按切换到{{language}}。"
+    },
+    "again": {
+      "title": "重新录制{{passage}}",
+      "sub_other": "录制后段落有变：{{count, number}} 段需要重新录制。之前的录音在各自的页面上。"
     }
   },
   "shell": {
@@ -4321,7 +4400,8 @@
       "overdue": "逾期的请求",
       "openInAll_other": "共有 {{count, number}} 个请求未完成",
       "checkpoint": "在检查点",
-      "checkpointSub": "等待检查点审核"
+      "checkpointSub": "等待检查点审核",
+      "show": "在地图上查看"
     },
     "noReports": {
       "languages": "还没有可以显示的语言",
@@ -5355,25 +5435,15 @@
       "noGuideBadge": "没有指南"
     },
     "passage": {
-      "title": "参考资料",
       "gone": "这个经段不在这里",
       "placedByHand": "手动放在这里",
-      "studyGuides": "学习指南",
       "notes": "译者注释",
-      "other": "其他资料",
       "hiddenHere": "在这里隐藏",
       "showHere": "在这里显示",
       "hideHere": "在这里隐藏",
       "shownAgain": "{{name}}已在这个经段上重新显示。",
       "hidden": "{{name}}已在这个经段上隐藏。",
-      "add": "添加",
-      "intro": "这个经段向译者提供哪些资料，以及原因。译者仍然可以在线浏览任何圣经，自己选择。",
-      "group": "{{group}} · {{n, number}}",
-      "noBible": "这个经段没有推荐的圣经。译者仍然可以自己找一本。",
       "placedInApp": "在应用中放在这里",
-      "hiddenSection": "在这里隐藏 · {{n, number}}",
-      "addTitle": "添加到这个经段",
-      "addSub": "手动放在这里，不管它标注的位置是哪里。",
       "searchPlaceholder": "搜索你的资料库",
       "allHere": "你的资料库中的所有内容都已经在这里了。",
       "placed": "{{name}}已放在这个经段上。"
@@ -5496,6 +5566,31 @@
       "passages_other": "涵盖 {{count, number}} 个经段的指南",
       "yours": "你的应用语言",
       "gaps_other": "{{name}}的{{language}}版有 {{count, number}} 个经段的指南。没有指南的经段不会显示学习指南。"
+    },
+    "passageText": {
+      "bar": "{{passage}} · {{bible}}",
+      "barHelpTitle": "经段",
+      "barHelp": "用你选择的圣经打开这个经段，并标出其中的关键词和备注。",
+      "openText": "{{passage}}。显示经文",
+      "closeText": "{{passage}}。隐藏经文",
+      "listen": "听",
+      "listenHelp": "用这本圣经播放这个经段。",
+      "noteTag": "备注",
+      "showHelp": "译者会在这个经段看到它。",
+      "hideHelp": "译者在这个经段不再看到它。",
+      "step": "第 {{n, number}} 步",
+      "steps_other": "{{count, number}} 个步骤",
+      "notesSub_other": "这个经段上有 {{count, number}} 条备注",
+      "wholePassage": "整个经段",
+      "keyWords": "关键词",
+      "keyWordsSub_other": "这些经节中有 {{count, number}} 个",
+      "none": "这个经段还没有帮助。",
+      "addHelp": "添加帮助",
+      "addHelpHint": "给译者写一条备注，或从你的资料库放一样东西到这里。",
+      "writeNote": "给译者写一条备注",
+      "writeNoteSub": "写在你选的经节上，可以说也可以打字",
+      "fromLibrary": "来自你的资料库",
+      "fromOwn": "来自你所在机构的资料库"
     }
   },
   "sources": {
@@ -5717,5 +5812,36 @@
     "goOnline": "请经常连接互联网，让你的工作发送出去。",
     "lessSpace": "这台设备的实际空间可能比显示的少。",
     "understand": "我知道了"
+  },
+  "notes": {
+    "onVerses": {
+      "title": "给译者的备注",
+      "sub": "{{passage}} · {{language}}",
+      "hint": "点一节，再点另一节，选到那一节。",
+      "verseHelp": "把备注放在这一节。再点另一节，选到那一节。",
+      "on": "在 {{where}}",
+      "onWhole": "在整个经段",
+      "whole": "整个经段",
+      "say": "点一下，说出你的备注",
+      "saved": "备注已保存在 {{where}}。",
+      "savedWhole": "备注已保存在 {{passage}}。"
+    }
+  },
+  "keyTerms": {
+    "verses": {
+      "title": "在这里的什么地方",
+      "none": "{{bible}} 的这些经节里没有“{{word}}”。",
+      "noneHere": "这些经节里没有“{{word}}”。",
+      "more_other": "还有 {{count, number}} 节"
+    },
+    "others": {
+      "title": "这里的其他语言怎么说",
+      "none": "这部手机上还没有其他语言为“{{word}}”定下词语。",
+      "saidOnly": "说过，还没写下",
+      "play": "播放{{language}}的说法",
+      "playHelp": "播放他们怎么说。",
+      "suggest": "这里的其他语言用了",
+      "suggestHelp": "{{languages}}在这里用了这个词。点一下即可添加。"
+    }
   }
 }

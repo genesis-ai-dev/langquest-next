@@ -24,6 +24,19 @@ reference material review and design" (2026-10-05).
   through the versification engine, or by template node for outline
   templates. An admin can place an item on one passage by hand or hide a
   match there (`v1.PassageReferenceLinked`).
+- **One passage's helps are decided with its text open** (design principles
+  13 and 14, demo ADR-042). What helps here opens the passage in a Bible the
+  person chooses, with its key words and notes marked, and shows what each
+  help says there (a guide's first step, a note's first words, the key
+  words) above Show here / Hide here; the study translators get from the
+  rest of the organization's library shows there too. A note for
+  translators is written under the text on the verses it is about (a
+  passage note, `v1.NoteAdded`, anchored to a verse key such as `15:12-13`),
+  so translators see it on those verses. A key word on a passage shows the
+  verses it is in and how the organization's other languages say it, read
+  from the other languages this phone holds (`reference/otherLanguages.ts`);
+  a word's recording streams from its language's files when it is not on
+  the phone.
 - **Timings join any text to any recording.** A `timing@1` names the
   recording by SHA-256 and lists each verse's start and end, so any text in
   the same versification can be highlighted against it. Order of preference

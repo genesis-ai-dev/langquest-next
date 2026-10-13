@@ -14,9 +14,10 @@
 // the Map. Getting started is gone: help mode (the ? in the header) explains
 // each part for field workers, and the Get ready card leads coordinators.
 import {
-  checkPeople, derivePassage, highlightsFor, languageName, membershipsOf, recommendedFor, unitTitle, upNext, waitingOn,
+  checkPeople, derivePassage, highlightsFor, languageName, libraryItemView, membershipsOf, recommendedFor, unitPlace, unitTitle, upNext, waitingOn,
   type Highlight, type KindDef, type LanguageState, type OrgState, type Waiting
 } from '@langquest-next/core';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from '../text';
@@ -26,7 +27,10 @@ import { edgeFor, type ScreenId } from '../flow';
 import { t } from '../i18n';
 import { formatAgo } from '../i18n/format';
 import { indexesFor } from '../indexes';
+import { baseWay, LATER_ITEM } from '../breakup/model';
+import { useEarlierSections } from '../breakup/earlier';
 import { pendingRequests, type PendingRequest } from '../invites';
+import { cachedInbox, refreshInbox, type RemoteNotification } from '../notifications';
 import { Card, Group, Header, Ico, Row, Screen, SectionLabel, SmallBtn, StepMarks, txt, type IconName } from '../kit';
 import { dueText, isJustNow, when } from '../passageView';
 import { noteExpected } from '../report';
@@ -106,6 +110,39 @@ function useJoinRequests(ctx: Ctx): PendingRequest[] {
   return rows.filter((r) => !decided[r.id]);
 }
 
+/**
+ * Unread updates for this person in the organization's other languages, by
+ * language (a phone folds only the open language; the server's Inbox rows
+ * cover the rest). My Work is about one language, so it says where else
+ * something is waiting, and tapping a line switches to that language.
+ */
+function useElsewhere(ctx: Ctx): { languageId: string; count: number }[] {
+  const me = ctx.session.actorId;
+  const orgId = ctx.language.orgId;
+  const open = ctx.languageId;
+  const tick = ctx.inbox.unread;
+  const [rows, setRows] = useState<RemoteNotification[]>([]);
+  const [read, setRead] = useState<ReadonlySet<string>>(new Set());
+  useEffect(() => {
+    let live = true;
+    void Promise.all([cachedInbox(me), AsyncStorage.getItem(`inbox-read:${me}`)]).then(([cached, seen]) => {
+      if (!live) return;
+      setRows(cached);
+      setRead(new Set(JSON.parse(seen ?? '[]') as string[]));
+    }).catch((e: unknown) => noteExpected('my work other languages', e));
+    refreshInbox(me).then((fresh) => { if (live) setRows(fresh); }).catch((e: unknown) => noteExpected('my work other languages', e));
+    return () => { live = false; };
+  }, [me, tick]);
+  return useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const r of rows) {
+      if (r.org_id !== orgId || !r.language_id || r.language_id === open || read.has(r.id)) continue;
+      counts.set(r.language_id, (counts.get(r.language_id) ?? 0) + 1);
+    }
+    return [...counts].map(([languageId, count]) => ({ languageId, count }));
+  }, [rows, read, orgId, open]);
+}
+
 /** The sync state, small, beside the bell, only when it needs noticing: work still on this device, offline, or refused. */
 function SyncChip(ctx: Ctx) {
   const p = ctx.language;
@@ -146,6 +183,8 @@ export function MyWork(ctx: Ctx) {
   const recentOpen = ctx.details('work:recent');
   const [moreShown, setMoreShown] = useState(false);
   const joins = useJoinRequests(ctx);
+  const elsewhere = useElsewhere(ctx);
+  const earlier = useEarlierSections(ctx, state);
   // The same four answers the language page and Get ready read (simple/ready.tsx), so Home never disagrees with them.
   const readySummary = useReadySummary(ctx);
 
@@ -258,24 +297,48 @@ export function MyWork(ctx: Ctx) {
     }
   }
 
-  const items = [...joinItems, ...(languageId ? rest.map((h) => toItem(h, languageId)) : [])];
+  // "Everything in Bari" opens Bari's map; only an admin who neither records nor reviews is offered every language.
+  const map = () => (languageId ? ctx.go('map_home', { languageId }) : ctx.go(mapScreenFor(ctx.session)));
+  const everyLanguage = () => ctx.go(mapScreenFor(ctx.session));
+
+  // Each to-do opens the task itself and says why it is there (design principle 11). They join the one list.
+  const tasks: WorkItem[] = [];
+  // Sections whose divisions changed after they were recorded (decision 80): their verses need recording again,
+  // and the earlier recordings wait on their pages. For those who record, and those who divide.
+  const again = (canRecord || ctx.session.can('manage_templates')) && languageId
+    ? [...earlier.over.keys()].filter((u) => state.units[u] && !derivePassage(state, u, idx).recorded) : [];
+  if (again.length && languageId) {
+    tasks.push({ id: 'again', icon: 'mic', tone: 'amber', title: t('work.again.title', { passage: unitTitle(state, again[0]!) }),
+      sub: t('work.again.sub', { count: again.length }), onPress: () => ctx.openPassage(again[0]!, languageId) });
+  }
+  // Books waiting to be divided before anyone can record them (decision 80), for those who divide: the first opens
+  // in this language, and the line says why it waits (FIA has no passages for Romans). Book by book leaves every
+  // book waiting on purpose, so that needs no reason.
+  const toDivide = languageId && ctx.session.can('manage_templates') ? idx.waiting : [];
+  if (toDivide.length && languageId) {
+    const book = unitTitle(state, toDivide[0]!);
+    const bookId = unitPlace(state, toDivide[0]!).bookId;
+    const template = state.template?.value;
+    const way = template ? libraryItemView(ctx.org.state?.library ?? {}, template.itemId) : null;
+    const why = way && (!way.subscription || baseWay(way.subscription.sourceItemId) !== LATER_ITEM) ? t('work.divide.leftOut', { way: way.name, book }) : null;
+    tasks.push({ id: 'divide', icon: 'cut', tone: 'brand', title: t('work.divide.title', { book }),
+      sub: !why ? t('work.divide.waiting', { count: toDivide.length }) : toDivide.length > 1 ? `${why} ${t('work.divide.more', { count: toDivide.length - 1 })}` : why,
+      onPress: () => (bookId && canGo(ctx, 'book_structure') ? ctx.go('book_structure', { languageId, bookId }) : map()) });
+  }
+  // What is new for this person in the organization's other languages: the line switches to that language.
+  for (const e of elsewhere) {
+    const name = languageName(ctx.org.state, e.languageId);
+    tasks.push({ id: `elsewhere:${e.languageId}`, icon: 'globe', tone: 'brand', title: t('work.elsewhere.title', { language: name }),
+      sub: t('work.elsewhere.sub', { count: e.count, language: name }), onPress: () => ctx.setLanguage(e.languageId) });
+  }
+
+  const items = [...joinItems, ...tasks, ...(languageId ? rest.map((h) => toItem(h, languageId)) : [])];
   const shown = moreShown ? items : items.slice(0, THEN_CAP);
   const listLabel = lead && !getReady && !addLanguage && !suggested ? t('work.list.then') : t('work.list.alsoForYou');
   const nothing = !lead && items.length === 0;
-  const map = () => ctx.go(mapScreenFor(ctx.session));
-
-  // On the admin's list (decision 80): books waiting to be divided before anyone can record them.
-  const toDivide = languageId && ctx.session.can('manage_templates') ? idx.waiting : [];
   return (
     <Screen header={header}>
       {lead}
-      {toDivide.length > 0 ? (
-        <Group>
-          <Row icon="cut" label={t('work.divide.title', { book: unitTitle(state, toDivide[0]!) })}
-            sub={t('work.divide.waiting', { count: toDivide.length })}
-            last onPress={map} />
-        </Group>
-      ) : null}
       {nothing ? (
         <Card style={styles.caughtUp}>
           <View style={[styles.tile, { backgroundColor: TINT.green }]}><Ico name="check" size={24} color={TINT.greenText} /></View>
@@ -333,7 +396,7 @@ export function MyWork(ctx: Ctx) {
           </Group>
         ) : null}
         {languageId && (forYou.length === 0 || nothing) ? (
-          <QuietToggle label={isAdminOnly ? t('work.map.everyLanguage') : t('work.map.everything', { language })} onPress={map}
+          <QuietToggle label={isAdminOnly ? t('work.map.everyLanguage') : t('work.map.everything', { language })} onPress={isAdminOnly ? everyLanguage : map}
             detail={t('work.map.help')} />
         ) : null}
       </View>

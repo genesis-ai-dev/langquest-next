@@ -425,6 +425,18 @@ short:
   button; background and history behind one-line summaries.
 - **Built for the field.** 48pt targets, 56pt primary actions, 13pt minimum
   text, status colours that never change and never carry meaning alone.
+- **A to-do opens the task itself** (demo principle 11): a My Work row, an
+  update, a Get ready step or a warning opens the thing to do in its language,
+  book or passage, never a list to search, and says why it is there.
+- **Ready-made choices come with your own** (12): making your own comes
+  first and looks different from the presets, so a growing list never buries
+  it; it can start from a preset.
+- **Decide with the material in front of you** (13): a decision about content
+  is made with the text open in a Bible the person chooses and its reference
+  material beside it.
+- **Show what others usually do** (14): where there is a common answer (where
+  most Bibles start a section, what the organization's other languages use),
+  the choice shows it.
 
 Tokens are `apps/mobile/src/theme.ts` (the demo's `C` and `TINT`);
 primitives are `apps/mobile/src/kit.tsx`. `docs/ux/one-next-action.html`

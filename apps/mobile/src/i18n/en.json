@@ -1628,11 +1628,9 @@
       "linedUp": "LangQuest lines them up verse by verse. Nothing to do unless something looks wrong.",
       "psalm": "Psalm {{place}}"
     },
-    "others": {
-      "intro_one": "FIA has no passages for {{count, number}} book ({{books}}). That book:",
-      "intro_other": "FIA has no passages for {{count, number}} books ({{books}}). Those books:",
-      "byChapter": "by chapter",
-      "wait": "wait to be broken up"
+    "leftOut": {
+      "wait_one": "{{books}} waits to be divided. You can divide it from the map later.",
+      "wait_other": "{{books}} wait to be divided. You can divide them from the map later."
     },
     "book": {
       "breakDifferently": "Break up differently",
@@ -1643,9 +1641,6 @@
       "calledIn": "Called {{name}} in {{language}}",
       "templateCalls": "The template calls it {{name}}",
       "tapToName": "Tap to give it the name the team uses",
-      "whatCalled": "What {{language}} calls it",
-      "namingSub": "Shown everywhere this language shows the book.",
-      "nameLabel": "Its name",
       "brokenUpByChapter": "{{book}} is broken up by chapter.",
       "brokenUpInto": "{{book}} is broken up into {{way}}.",
       "change": "Change {{book}}",
@@ -1659,6 +1654,15 @@
       "alsoUsedTwo": "Used in {{first}} and {{second}} too. Change {{book}} for which of them?",
       "alsoUsedMore_one": "Used in {{name}} and {{count, number}} more too. Change {{book}} for which of them?",
       "alsoUsedMore_other": "Used in {{name}} and {{count, number}} more too. Change {{book}} for which of them?"
+    },
+    "bookName": {
+      "title": "What {{language}} calls {{book}}",
+      "sub": "Translators see this name",
+      "typeOrTap": "Type it, or tap one below",
+      "fromBibles": "What the team's Bibles call it",
+      "fromLanguages": "What other languages here call it",
+      "use": "Use",
+      "useLabel": "Use {{name}} ({{from}})"
     },
     "translate": {
       "question": "What will {{language}} translate?",
@@ -1803,6 +1807,76 @@
         "hebrew": "Hebrew",
         "korean": "Korean"
       }
+    },
+    "own": {
+      "title": "Divide it your own way",
+      "sub": "Read {{book}} and choose where each section starts",
+      "orReadyMade": "Or pick a ready-made way",
+      "helps": "Helps",
+      "noBibleChip": "No Bible",
+      "chapterChip": "Chapter {{n}}",
+      "key": "Dashed lines show where other Bibles start a section ({{total}} English Bibles, from OpenBible.info). Tap one to start a section there, or tap any verse.",
+      "loadingText": "Getting the words of {{book}}…",
+      "noText": "The team's Bibles don't have the words of {{book}}, so its verses show as numbers.",
+      "chapterHead": "Chapter {{n}}",
+      "goesOn": "· section {{n}} goes on",
+      "verseLabel": "Verse {{at}}",
+      "alsoBibles": "{{n}} of {{total}} Bibles start one here",
+      "bibles": "{{n}} of {{total}} Bibles",
+      "startAt": "start a section here",
+      "startPill": "Start here",
+      "suggestionLabel": "Start a section at {{at}}. {{bibles}} start one here.",
+      "bookStarts": "The book starts here",
+      "joinWith": "Join with section {{n}}",
+      "startHere": "Start a section here",
+      "undo": "Undo",
+      "startFrom": "Start from a ready-made way",
+      "started": "Section {{n}} starts at {{at}}",
+      "joined": "Joined with section {{n}}",
+      "usedOutline": "Sections start where the outline's parts do",
+      "saved": "{{book}} is divided. The team can record it now.",
+      "bibleTitle": "Read {{book}} in",
+      "bibleSub": "Only the words change. Your sections stay where they are.",
+      "teamBible": "{{language}} · the team's Bible",
+      "jumpTitle": "Go to a chapter",
+      "jumpSub": "How many sections start in each",
+      "fromTitle": "Ready-made ways",
+      "fromSub": "Replaces the sections in {{book}}. Undo brings them back.",
+      "startedFrom": "{{book}} now starts from {{way}}",
+      "sectionTitle": "Section {{n}}",
+      "nameLabel": "Its name (optional)",
+      "namePlaceholder": "What the team calls it",
+      "joinSub": "This section's verses go to the one before",
+      "firstCantJoin": "The first section can't be joined",
+      "leaveTitle": "Leave without saving?",
+      "leaveSub": "Your sections for {{book}} aren't saved yet.",
+      "leaveAnyway": "Leave without saving",
+      "helpsTitle": "Helps for {{book}}",
+      "closeHelps": "Close helps",
+      "tabOutline": "Outline",
+      "tabNotes": "Notes {{n}}",
+      "tabGuides": "Guides",
+      "outlineFrom": "From {{from}}",
+      "useOutline": "Start sections where these parts start",
+      "noOutline": "No guide here divides {{book}} into parts.",
+      "noteOn": "{{name}} · on {{where}}",
+      "showInText": "Show it in the text",
+      "noNotes": "No notes on {{book}} yet.",
+      "allOf": "All of {{book}}",
+      "nothingFor": "Nothing for {{book}}",
+      "noHelps": "No guides or notes are offered for {{book}} yet.",
+      "headerSub_one": "Your own way · {{count, number}} section",
+      "headerSub_other": "Your own way · {{count, number}} sections",
+      "verses_one": "{{count, number}} verse",
+      "verses_other": "{{count, number}} verses",
+      "save_one": "Save · {{count, number}} section",
+      "save_other": "Save · {{count, number}} sections",
+      "jumpLabel_one": "Chapter {{chapter}}: {{count, number}} section starts here",
+      "jumpLabel_other": "Chapter {{chapter}}: {{count, number}} sections start here",
+      "sections_one": "{{count, number}} section",
+      "sections_other": "{{count, number}} sections",
+      "partsIn_one": "{{count, number}} part in {{book}}",
+      "partsIn_other": "{{count, number}} parts in {{book}}"
     }
   },
   "canon": {
@@ -2669,7 +2743,8 @@
       "reportedContent": "Someone reported this for {{reasons}}. It was made by {{name}}. Look at it, then remove it from the record or keep it.",
       "reportsAnonymous": "Reports never say who sent them. The LangQuest team sees every report too.",
       "assignAccept": "Assign role & accept",
-      "decline": "Decline"
+      "decline": "Decline",
+      "inLanguage": "In {{language}}"
     },
     "me": {
       "title": "Me",
@@ -3553,7 +3628,20 @@
     "divide": {
       "title": "Divide {{book}}",
       "waiting_one": "Waiting to be divided before anyone records it",
-      "waiting_other": "{{count, number}} books are waiting to be divided before anyone records them"
+      "waiting_other": "{{count, number}} books are waiting to be divided before anyone records them",
+      "leftOut": "{{way}} has no sections for {{book}}.",
+      "more_one": "{{count, number}} more book waits too.",
+      "more_other": "{{count, number}} more books wait too."
+    },
+    "elsewhere": {
+      "title": "New in {{language}}",
+      "sub_one": "{{count, number}} update for you. Tap to switch to {{language}}.",
+      "sub_other": "{{count, number}} updates for you. Tap to switch to {{language}}."
+    },
+    "again": {
+      "title": "Record {{passage}} again",
+      "sub_one": "Its sections changed after it was recorded. The earlier recording is on its page.",
+      "sub_other": "Sections changed after they were recorded: {{count, number}} to record again. Earlier recordings are on their pages."
     }
   },
   "shell": {
@@ -4505,7 +4593,8 @@
       "openInAll_one": "{{count, number}} request open in all",
       "openInAll_other": "{{count, number}} requests open in all",
       "checkpoint": "At a checkpoint",
-      "checkpointSub": "Waiting for a checkpoint review"
+      "checkpointSub": "Waiting for a checkpoint review",
+      "show": "Show them on the map"
     },
     "noReports": {
       "languages": "No languages to show yet",
@@ -5621,25 +5710,15 @@
       "noGuideBadge": "No guide"
     },
     "passage": {
-      "title": "Reference",
       "gone": "This passage is not here",
       "placedByHand": "Placed here by hand",
-      "studyGuides": "Study guides",
       "notes": "Notes for translators",
-      "other": "Other material",
       "hiddenHere": "Hidden here",
       "showHere": "Show here",
       "hideHere": "Hide here",
       "shownAgain": "{{name}} shows on this passage again.",
       "hidden": "{{name}} is hidden on this passage.",
-      "add": "Add",
-      "intro": "What translators are offered on this passage, and why. They can still explore any Bible online and choose for themselves.",
-      "group": "{{group}} · {{n, number}}",
-      "noBible": "No Bible is recommended for this passage. Translators can still explore one.",
       "placedInApp": "Placed here in the app",
-      "hiddenSection": "Hidden here · {{n, number}}",
-      "addTitle": "Add to this passage",
-      "addSub": "Placed here by hand, whatever its coordinates say.",
       "searchPlaceholder": "Search your library",
       "allHere": "Everything in your library is here already.",
       "placed": "{{name}} is placed on this passage."
@@ -5766,6 +5845,34 @@
       "yours": "Your app's language",
       "gaps_one": "In {{language}}, {{name}} has a guide for {{count, number}} passage. Passages without one show no study guide.",
       "gaps_other": "In {{language}}, {{name}} has guides for {{count, number}} passages. Passages without one show no study guide."
+    },
+    "passageText": {
+      "bar": "{{passage}} · {{bible}}",
+      "barHelpTitle": "The passage",
+      "barHelp": "Opens the passage in the Bible you choose, with its key words and notes marked.",
+      "openText": "{{passage}}. Show the passage",
+      "closeText": "{{passage}}. Hide the passage",
+      "listen": "Listen",
+      "listenHelp": "Plays the passage in this Bible.",
+      "noteTag": "Note",
+      "showHelp": "Translators get this on this passage.",
+      "hideHelp": "Translators stop getting this on this passage.",
+      "step": "Step {{n, number}}",
+      "steps_one": "{{count, number}} step",
+      "steps_other": "{{count, number}} steps",
+      "notesSub_one": "{{count, number}} note on this passage",
+      "notesSub_other": "{{count, number}} notes on this passage",
+      "wholePassage": "Whole passage",
+      "keyWords": "Key words",
+      "keyWordsSub_one": "{{count, number}} in these verses",
+      "keyWordsSub_other": "{{count, number}} in these verses",
+      "none": "Nothing helps on this passage yet.",
+      "addHelp": "Add a help",
+      "addHelpHint": "Write a note for translators, or place something from your library.",
+      "writeNote": "Write a note for translators",
+      "writeNoteSub": "On the verses you choose, said or typed",
+      "fromLibrary": "From your library",
+      "fromOwn": "From your organization's library"
     }
   },
   "sources": {
@@ -6000,5 +6107,37 @@
     "goOnline": "Connect to the internet often, so your work is sent.",
     "lessSpace": "This device may have less space than it says.",
     "understand": "I understand"
+  },
+  "notes": {
+    "onVerses": {
+      "title": "Note for translators",
+      "sub": "{{passage}} · {{language}}",
+      "hint": "Tap a verse, then another to run to it.",
+      "verseHelp": "Puts the note on this verse. Tap another verse to run to it.",
+      "on": "On {{where}}",
+      "onWhole": "On the whole passage",
+      "whole": "Whole passage",
+      "say": "Tap and say your note",
+      "saved": "Note saved on {{where}}.",
+      "savedWhole": "Note saved on {{passage}}."
+    }
+  },
+  "keyTerms": {
+    "verses": {
+      "title": "Where it is here",
+      "none": "“{{word}}” is not in these verses in {{bible}}.",
+      "noneHere": "“{{word}}” is not in these verses.",
+      "more_one": "And {{count, number}} more verse",
+      "more_other": "And {{count, number}} more verses"
+    },
+    "others": {
+      "title": "How other languages here say it",
+      "none": "No other language on this phone has a word for “{{word}}” yet.",
+      "saidOnly": "Said, not written",
+      "play": "Play the word in {{language}}",
+      "playHelp": "Plays how they say it.",
+      "suggest": "Other languages here use",
+      "suggestHelp": "Used here by {{languages}}. Tap to add it."
+    }
   }
 }

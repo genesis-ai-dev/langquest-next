@@ -77,7 +77,8 @@ export interface Ctx {
    */
   invite: InviteHandle;
   /** Switch to another organization: its stream, and the language it opens to. */
-  openOrganization: (orgId: string) => Promise<void>;
+  /** Switch organization; `open` names the language, and the passage, to open once it is in (an Inbox row from there). */
+  openOrganization: (orgId: string, open?: { languageId: string; unitId?: string }) => Promise<void>;
   openDev: () => void;
   isDev: boolean;
   /** May this session switch persona? Dev builds, or a named tester (dev.ts). */
