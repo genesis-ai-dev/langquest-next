@@ -5441,25 +5441,15 @@
       "noGuideBadge": "没有指南"
     },
     "passage": {
-      "title": "参考资料",
       "gone": "这个经段不在这里",
       "placedByHand": "手动放在这里",
-      "studyGuides": "学习指南",
       "notes": "译者注释",
-      "other": "其他资料",
       "hiddenHere": "在这里隐藏",
       "showHere": "在这里显示",
       "hideHere": "在这里隐藏",
       "shownAgain": "{{name}}已在这个经段上重新显示。",
       "hidden": "{{name}}已在这个经段上隐藏。",
-      "add": "添加",
-      "intro": "这个经段向译者提供哪些资料，以及原因。译者仍然可以在线浏览任何圣经，自己选择。",
-      "group": "{{group}} · {{n, number}}",
-      "noBible": "这个经段没有推荐的圣经。译者仍然可以自己找一本。",
       "placedInApp": "在应用中放在这里",
-      "hiddenSection": "在这里隐藏 · {{n, number}}",
-      "addTitle": "添加到这个经段",
-      "addSub": "手动放在这里，不管它标注的位置是哪里。",
       "searchPlaceholder": "搜索你的资料库",
       "allHere": "你的资料库中的所有内容都已经在这里了。",
       "placed": "{{name}}已放在这个经段上。"
@@ -5582,6 +5572,31 @@
       "passages_other": "涵盖 {{count, number}} 个经段的指南",
       "yours": "你的应用语言",
       "gaps_other": "{{name}}的{{language}}版有 {{count, number}} 个经段的指南。没有指南的经段不会显示学习指南。"
+    },
+    "passageText": {
+      "bar": "{{passage}} · {{bible}}",
+      "barHelpTitle": "经段",
+      "barHelp": "用你选择的圣经打开这个经段，并标出其中的关键词和备注。",
+      "openText": "{{passage}}。显示经文",
+      "closeText": "{{passage}}。隐藏经文",
+      "listen": "听",
+      "listenHelp": "用这本圣经播放这个经段。",
+      "noteTag": "备注",
+      "showHelp": "译者会在这个经段看到它。",
+      "hideHelp": "译者在这个经段不再看到它。",
+      "step": "第 {{n, number}} 步",
+      "steps_other": "{{count, number}} 个步骤",
+      "notesSub_other": "这个经段上有 {{count, number}} 条备注",
+      "wholePassage": "整个经段",
+      "keyWords": "关键词",
+      "keyWordsSub_other": "这些经节中有 {{count, number}} 个",
+      "none": "这个经段还没有帮助。",
+      "addHelp": "添加帮助",
+      "addHelpHint": "给译者写一条备注，或从你的资料库放一样东西到这里。",
+      "writeNote": "给译者写一条备注",
+      "writeNoteSub": "写在你选的经节上，可以说也可以打字",
+      "fromLibrary": "来自你的资料库",
+      "fromOwn": "来自你所在机构的资料库"
     }
   },
   "sources": {
@@ -5803,5 +5818,36 @@
     "goOnline": "请经常连接互联网，让你的工作发送出去。",
     "lessSpace": "这台设备的实际空间可能比显示的少。",
     "understand": "我知道了"
+  },
+  "notes": {
+    "onVerses": {
+      "title": "给译者的备注",
+      "sub": "{{passage}} · {{language}}",
+      "hint": "点一节，再点另一节，选到那一节。",
+      "verseHelp": "把备注放在这一节。再点另一节，选到那一节。",
+      "on": "在 {{where}}",
+      "onWhole": "在整个经段",
+      "whole": "整个经段",
+      "say": "点一下，说出你的备注",
+      "saved": "备注已保存在 {{where}}。",
+      "savedWhole": "备注已保存在 {{passage}}。"
+    }
+  },
+  "keyTerms": {
+    "verses": {
+      "title": "在这里的什么地方",
+      "none": "{{bible}} 的这些经节里没有“{{word}}”。",
+      "noneHere": "这些经节里没有“{{word}}”。",
+      "more_other": "还有 {{count, number}} 节"
+    },
+    "others": {
+      "title": "这里的其他语言怎么说",
+      "none": "这部手机上还没有其他语言为“{{word}}”定下词语。",
+      "saidOnly": "说过，还没写下",
+      "play": "播放{{language}}的说法",
+      "playHelp": "播放他们怎么说。",
+      "suggest": "这里的其他语言用了",
+      "suggestHelp": "{{languages}}在这里用了这个词。点一下即可添加。"
+    }
   }
 }

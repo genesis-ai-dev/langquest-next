@@ -5718,25 +5718,15 @@
       "noGuideBadge": "Hakuna mwongozo"
     },
     "passage": {
-      "title": "Marejeo",
       "gone": "Kifungu hiki hakipo hapa",
       "placedByHand": "Kimewekwa hapa kwa mkono",
-      "studyGuides": "Miongozo ya kujifunza",
       "notes": "Madokezo kwa watafsiri",
-      "other": "Nyenzo nyingine",
       "hiddenHere": "Imefichwa hapa",
       "showHere": "Onyesha hapa",
       "hideHere": "Ficha hapa",
       "shownAgain": "{{name}} inaonekana tena kwenye kifungu hiki.",
       "hidden": "{{name}} imefichwa kwenye kifungu hiki.",
-      "add": "Ongeza",
-      "intro": "Kile watafsiri wanachopewa kwenye kifungu hiki, na kwa nini. Bado wanaweza kuchunguza Biblia yoyote mtandaoni na kujichagulia.",
-      "group": "{{group}} · {{n, number}}",
-      "noBible": "Hakuna Biblia inayopendekezwa kwa kifungu hiki. Watafsiri bado wanaweza kuchunguza moja.",
       "placedInApp": "Kimewekwa hapa katika programu",
-      "hiddenSection": "Vilivyofichwa hapa · {{n, number}}",
-      "addTitle": "Ongeza kwenye kifungu hiki",
-      "addSub": "Kimewekwa hapa kwa mkono, bila kujali mahali kinapoonyesha.",
       "searchPlaceholder": "Tafuta katika maktaba yako",
       "allHere": "Kila kitu katika maktaba yako tayari kiko hapa.",
       "placed": "{{name}} imewekwa kwenye kifungu hiki."
@@ -5863,6 +5853,34 @@
       "yours": "Lugha ya programu yako",
       "gaps_one": "Kwa {{language}}, {{name}} ina mwongozo wa kifungu {{count, number}}. Vifungu visivyo na mwongozo havionyeshi mwongozo wa kujifunza.",
       "gaps_other": "Kwa {{language}}, {{name}} ina miongozo ya vifungu {{count, number}}. Vifungu visivyo na mwongozo havionyeshi mwongozo wa kujifunza."
+    },
+    "passageText": {
+      "bar": "{{passage}} · {{bible}}",
+      "barHelpTitle": "Kifungu",
+      "barHelp": "Hufungua kifungu katika Biblia unayochagua, maneno muhimu na madokezo yakiwa yamewekwa alama.",
+      "openText": "{{passage}}. Onyesha kifungu",
+      "closeText": "{{passage}}. Ficha kifungu",
+      "listen": "Sikiliza",
+      "listenHelp": "Hucheza kifungu katika Biblia hii.",
+      "noteTag": "Dokezo",
+      "showHelp": "Watafsiri wanapata hiki katika kifungu hiki.",
+      "hideHelp": "Watafsiri hawatapata tena hiki katika kifungu hiki.",
+      "step": "Hatua {{n, number}}",
+      "steps_one": "Hatua {{count, number}}",
+      "steps_other": "Hatua {{count, number}}",
+      "notesSub_one": "Dokezo {{count, number}} katika kifungu hiki",
+      "notesSub_other": "Madokezo {{count, number}} katika kifungu hiki",
+      "wholePassage": "Kifungu kizima",
+      "keyWords": "Maneno muhimu",
+      "keyWordsSub_one": "{{count, number}} katika mistari hii",
+      "keyWordsSub_other": "{{count, number}} katika mistari hii",
+      "none": "Bado hakuna msaada katika kifungu hiki.",
+      "addHelp": "Ongeza msaada",
+      "addHelpHint": "Andika dokezo kwa watafsiri, au weka kitu kutoka maktaba yako.",
+      "writeNote": "Andika dokezo kwa watafsiri",
+      "writeNoteSub": "Kwenye mistari unayochagua, kwa sauti au kwa maandishi",
+      "fromLibrary": "Kutoka maktaba yako",
+      "fromOwn": "Kutoka maktaba ya shirika lako"
     }
   },
   "sources": {
@@ -6097,5 +6115,37 @@
     "goOnline": "Unganisha kwenye intaneti mara kwa mara ili kazi yako itumwe.",
     "lessSpace": "Huenda kifaa hiki kina nafasi ndogo kuliko kinavyosema.",
     "understand": "Nimeelewa"
+  },
+  "notes": {
+    "onVerses": {
+      "title": "Dokezo kwa watafsiri",
+      "sub": "{{passage}} · {{language}}",
+      "hint": "Gusa mstari, kisha mwingine ili kufika hadi huo.",
+      "verseHelp": "Huweka dokezo kwenye mstari huu. Gusa mstari mwingine ili kufika hadi huo.",
+      "on": "Kwenye {{where}}",
+      "onWhole": "Kwenye kifungu kizima",
+      "whole": "Kifungu kizima",
+      "say": "Gusa na useme dokezo lako",
+      "saved": "Dokezo limehifadhiwa kwenye {{where}}.",
+      "savedWhole": "Dokezo limehifadhiwa kwenye {{passage}}."
+    }
+  },
+  "keyTerms": {
+    "verses": {
+      "title": "Lilipo hapa",
+      "none": "“{{word}}” halimo katika mistari hii katika {{bible}}.",
+      "noneHere": "“{{word}}” halimo katika mistari hii.",
+      "more_one": "Na mstari {{count, number}} zaidi",
+      "more_other": "Na mistari {{count, number}} zaidi"
+    },
+    "others": {
+      "title": "Jinsi lugha nyingine hapa zinavyolisema",
+      "none": "Bado hakuna lugha nyingine kwenye simu hii yenye neno la “{{word}}”.",
+      "saidOnly": "Limesemwa, halijaandikwa",
+      "play": "Cheza neno katika {{language}}",
+      "playHelp": "Hucheza jinsi wanavyolisema.",
+      "suggest": "Lugha nyingine hapa zinatumia",
+      "suggestHelp": "Linatumika hapa katika {{languages}}. Gusa ili kuliongeza."
+    }
   }
 }

@@ -312,6 +312,12 @@ export const EDGES: Edge[] = [
   e('passage_reference', 'reference_coverage', 'back'),
   e('passage_record', 'passage_reference'),
   e('passage_reference', 'passage_record', 'back'),
+  // What helps here (demo ADR-042): Add a help writes a note for translators under the passage's text,
+  // and a key word in these verses opens with its verses and how other languages say it.
+  e('passage_reference', 'material_editor', undefined, 'manageReference'),
+  e('material_editor', 'passage_reference', 'back'),
+  e('passage_reference', 'key_term_detail'),
+  e('key_term_detail', 'passage_reference', 'back'),
   e('reference_home', 'guide_editor', undefined, 'manageReference'),
   e('guide_editor', 'reference_home', 'back'),
   e('study_guide', 'guide_editor', undefined, 'manageReference'),

@@ -5995,25 +5995,15 @@
       "noGuideBadge": "Sem guia"
     },
     "passage": {
-      "title": "Referência",
       "gone": "Esta passagem não está aqui",
       "placedByHand": "Colocado aqui à mão",
-      "studyGuides": "Guias de estudo",
       "notes": "Notas para tradutores",
-      "other": "Outro material",
       "hiddenHere": "Escondido aqui",
       "showHere": "Mostrar aqui",
       "hideHere": "Esconder aqui",
       "shownAgain": "{{name}} aparece de novo nesta passagem.",
       "hidden": "{{name}} está escondido nesta passagem.",
-      "add": "Adicionar",
-      "intro": "O que é oferecido aos tradutores nesta passagem, e por quê. Eles ainda podem explorar qualquer Bíblia online e escolher por si mesmos.",
-      "group": "{{group}} · {{n, number}}",
-      "noBible": "Nenhuma Bíblia é recomendada para esta passagem. Os tradutores ainda podem explorar uma.",
       "placedInApp": "Colocado aqui no aplicativo",
-      "hiddenSection": "Escondidos aqui · {{n, number}}",
-      "addTitle": "Adicionar a esta passagem",
-      "addSub": "Colocado aqui à mão, independentemente das coordenadas dele.",
       "searchPlaceholder": "Pesquisar na sua biblioteca",
       "allHere": "Tudo o que há na sua biblioteca já está aqui.",
       "placed": "{{name}} foi colocado nesta passagem."
@@ -6144,6 +6134,37 @@
       "gaps_one": "Em {{language}}, {{name}} tem guia para {{count, number}} passagem. As passagens sem guia não mostram nenhum guia de estudo.",
       "gaps_many": "Em {{language}}, {{name}} tem guias para {{count, number}} de passagens. As passagens sem guia não mostram nenhum guia de estudo.",
       "gaps_other": "Em {{language}}, {{name}} tem guias para {{count, number}} passagens. As passagens sem guia não mostram nenhum guia de estudo."
+    },
+    "passageText": {
+      "bar": "{{passage}} · {{bible}}",
+      "barHelpTitle": "A passagem",
+      "barHelp": "Abre a passagem na Bíblia que você escolher, com as palavras-chave e as notas marcadas.",
+      "openText": "{{passage}}. Mostrar a passagem",
+      "closeText": "{{passage}}. Esconder a passagem",
+      "listen": "Ouvir",
+      "listenHelp": "Toca a passagem nesta Bíblia.",
+      "noteTag": "Nota",
+      "showHelp": "Os tradutores recebem isto nesta passagem.",
+      "hideHelp": "Os tradutores deixam de receber isto nesta passagem.",
+      "step": "Passo {{n, number}}",
+      "steps_one": "{{count, number}} passo",
+      "steps_many": "{{count, number}} de passos",
+      "steps_other": "{{count, number}} passos",
+      "notesSub_one": "{{count, number}} nota nesta passagem",
+      "notesSub_many": "{{count, number}} de notas nesta passagem",
+      "notesSub_other": "{{count, number}} notas nesta passagem",
+      "wholePassage": "A passagem inteira",
+      "keyWords": "Palavras-chave",
+      "keyWordsSub_one": "{{count, number}} nestes versículos",
+      "keyWordsSub_many": "{{count, number}} nestes versículos",
+      "keyWordsSub_other": "{{count, number}} nestes versículos",
+      "none": "Ainda não há ajudas nesta passagem.",
+      "addHelp": "Adicionar uma ajuda",
+      "addHelpHint": "Escreva uma nota para os tradutores ou coloque algo da sua biblioteca.",
+      "writeNote": "Escrever uma nota para os tradutores",
+      "writeNoteSub": "Nos versículos que você escolher, falada ou digitada",
+      "fromLibrary": "Da sua biblioteca",
+      "fromOwn": "Da biblioteca da sua organização"
     }
   },
   "sources": {
@@ -6391,5 +6412,38 @@
     "goOnline": "Conecte-se à internet com frequência para que seu trabalho seja enviado.",
     "lessSpace": "Este aparelho pode ter menos espaço do que diz.",
     "understand": "Entendi"
+  },
+  "notes": {
+    "onVerses": {
+      "title": "Nota para tradutores",
+      "sub": "{{passage}} · {{language}}",
+      "hint": "Toque num versículo e depois em outro para ir até ele.",
+      "verseHelp": "Põe a nota neste versículo. Toque em outro versículo para ir até ele.",
+      "on": "Em {{where}}",
+      "onWhole": "Na passagem inteira",
+      "whole": "A passagem inteira",
+      "say": "Toque e diga a sua nota",
+      "saved": "Nota salva em {{where}}.",
+      "savedWhole": "Nota salva em {{passage}}."
+    }
+  },
+  "keyTerms": {
+    "verses": {
+      "title": "Onde está aqui",
+      "none": "“{{word}}” não está nestes versículos na {{bible}}.",
+      "noneHere": "“{{word}}” não está nestes versículos.",
+      "more_one": "E mais {{count, number}} versículo",
+      "more_many": "E mais {{count, number}} de versículos",
+      "more_other": "E mais {{count, number}} versículos"
+    },
+    "others": {
+      "title": "Como outras línguas daqui dizem",
+      "none": "Nenhuma outra língua neste telefone tem ainda uma palavra para “{{word}}”.",
+      "saidOnly": "Falada, não escrita",
+      "play": "Ouvir a palavra em {{language}}",
+      "playHelp": "Toca como eles dizem.",
+      "suggest": "Outras línguas daqui usam",
+      "suggestHelp": "Usada aqui em {{languages}}. Toque para adicioná-la."
+    }
   }
 }

@@ -182,7 +182,7 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
             <BiblePane ctx={ctx} v={v} bible={bible} terms={terms} canNote={canContribute} selected={verse} onSelect={setVerse}
               onTerm={openTerm} onMoreBibles={() => ctx.go('bible_explore', scope)} />
           ) : chip === 'terms' ? (
-            <KeyWordsPane ctx={ctx} v={v} terms={terms} rows={bible.rows} draftTakeId={v.p.draftTakeId} canTie={false}
+            <KeyWordsPane ctx={ctx} v={v} terms={terms} rows={bible.rows} bibleName={bible.option?.abbreviation ?? ''} draftTakeId={v.p.draftTakeId} canTie={false}
               onHear={(key) => { setChip('bible'); if (key) { setVerse(key); bible.playVerse(key); } }} />
           ) : (
             <NotesPane ctx={ctx} v={v} notes={notes} />

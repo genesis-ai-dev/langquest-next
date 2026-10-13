@@ -5718,25 +5718,15 @@
       "noGuideBadge": "መመሪያ የለም"
     },
     "passage": {
-      "title": "ማጣቀሻ",
       "gone": "ይህ ክፍል እዚህ የለም",
       "placedByHand": "እዚህ በእጅ የተቀመጠ",
-      "studyGuides": "የጥናት መመሪያዎች",
       "notes": "ለተርጓሚዎች ማስታወሻዎች",
-      "other": "ሌሎች ጽሑፎች",
       "hiddenHere": "እዚህ የተደበቀ",
       "showHere": "እዚህ ያሳዩ",
       "hideHere": "እዚህ ይደብቁ",
       "shownAgain": "{{name}} በዚህ ክፍል ላይ እንደገና ይታያል።",
       "hidden": "{{name}} በዚህ ክፍል ላይ ተደብቋል።",
-      "add": "ያክሉ",
-      "intro": "በዚህ ክፍል ላይ ለተርጓሚዎች የሚቀርበውና ለምን እንደሆነ። አሁንም ማንኛውንም መጽሐፍ ቅዱስ በመስመር ላይ ማሰስና ራሳቸው መምረጥ ይችላሉ።",
-      "group": "{{group}} · {{n, number}}",
-      "noBible": "ለዚህ ክፍል የተመከረ መጽሐፍ ቅዱስ የለም። ተርጓሚዎች አሁንም አንዱን ማሰስ ይችላሉ።",
       "placedInApp": "በመተግበሪያው ውስጥ እዚህ የተቀመጠ",
-      "hiddenSection": "እዚህ የተደበቁ · {{n, number}}",
-      "addTitle": "ወደዚህ ክፍል ያክሉ",
-      "addSub": "መጋጠሚያዎቹ ምንም ቢሉ እዚህ በእጅ የተቀመጠ።",
       "searchPlaceholder": "ቤተ መጻሕፍትዎን ይፈልጉ",
       "allHere": "በቤተ መጻሕፍትዎ ውስጥ ያለው ሁሉ አስቀድሞ እዚህ አለ።",
       "placed": "{{name}} በዚህ ክፍል ላይ ተቀምጧል።"
@@ -5863,6 +5853,34 @@
       "yours": "የመተግበሪያዎ ቋንቋ",
       "gaps_one": "በ{{language}}፣ {{name}} ለ{{count, number}} ክፍል መመሪያ አለው። መመሪያ የሌላቸው ክፍሎች የጥናት መመሪያ አያሳዩም።",
       "gaps_other": "በ{{language}}፣ {{name}} ለ{{count, number}} ክፍሎች መመሪያዎች አሉት። መመሪያ የሌላቸው ክፍሎች የጥናት መመሪያ አያሳዩም።"
+    },
+    "passageText": {
+      "bar": "{{passage}} · {{bible}}",
+      "barHelpTitle": "ክፍሉ",
+      "barHelp": "ክፍሉን በመረጡት መጽሐፍ ቅዱስ ይከፍታል፤ ዋና ቃላቱና ማስታወሻዎቹ ምልክት ተደርጎባቸዋል።",
+      "openText": "{{passage}}። ክፍሉን አሳይ",
+      "closeText": "{{passage}}። ክፍሉን ደብቅ",
+      "listen": "ያዳምጡ",
+      "listenHelp": "ክፍሉን በዚህ መጽሐፍ ቅዱስ ያጫውታል።",
+      "noteTag": "ማስታወሻ",
+      "showHelp": "ተርጓሚዎች ይህን በዚህ ክፍል ያገኛሉ።",
+      "hideHelp": "ተርጓሚዎች ይህን በዚህ ክፍል ከእንግዲህ አያገኙም።",
+      "step": "ደረጃ {{n, number}}",
+      "steps_one": "{{count, number}} ደረጃ",
+      "steps_other": "{{count, number}} ደረጃዎች",
+      "notesSub_one": "በዚህ ክፍል ላይ {{count, number}} ማስታወሻ",
+      "notesSub_other": "በዚህ ክፍል ላይ {{count, number}} ማስታወሻዎች",
+      "wholePassage": "ሙሉ ክፍሉ",
+      "keyWords": "ዋና ቃላት",
+      "keyWordsSub_one": "በእነዚህ ቁጥሮች {{count, number}}",
+      "keyWordsSub_other": "በእነዚህ ቁጥሮች {{count, number}}",
+      "none": "በዚህ ክፍል ላይ እስካሁን የሚረዳ ነገር የለም።",
+      "addHelp": "እገዛ ያክሉ",
+      "addHelpHint": "ለተርጓሚዎች ማስታወሻ ይጻፉ፣ ወይም ከቤተ መጻሕፍትዎ አንድ ነገር እዚህ ያስቀምጡ።",
+      "writeNote": "ለተርጓሚዎች ማስታወሻ ይጻፉ",
+      "writeNoteSub": "በሚመርጧቸው ቁጥሮች ላይ፣ በድምፅ ወይም በጽሑፍ",
+      "fromLibrary": "ከቤተ መጻሕፍትዎ",
+      "fromOwn": "ከድርጅትዎ ቤተ መጻሕፍት"
     }
   },
   "sources": {
@@ -6097,5 +6115,37 @@
     "goOnline": "ሥራዎ እንዲላክ ብዙ ጊዜ ከኢንተርኔት ጋር ይገናኙ።",
     "lessSpace": "ይህ መሣሪያ ከሚለው ያነሰ ቦታ ሊኖረው ይችላል።",
     "understand": "ገብቶኛል"
+  },
+  "notes": {
+    "onVerses": {
+      "title": "ለተርጓሚዎች ማስታወሻ",
+      "sub": "{{passage}} · {{language}}",
+      "hint": "አንድ ቁጥር ይንኩ፣ ከዚያ እስከዚያ ለመድረስ ሌላ ይንኩ።",
+      "verseHelp": "ማስታወሻውን በዚህ ቁጥር ላይ ያደርጋል። እስከዚያ ለመድረስ ሌላ ቁጥር ይንኩ።",
+      "on": "በ{{where}} ላይ",
+      "onWhole": "በሙሉ ክፍሉ ላይ",
+      "whole": "ሙሉ ክፍሉ",
+      "say": "ይንኩና ማስታወሻዎን ይናገሩ",
+      "saved": "ማስታወሻው በ{{where}} ላይ ተቀምጧል።",
+      "savedWhole": "ማስታወሻው በ{{passage}} ላይ ተቀምጧል።"
+    }
+  },
+  "keyTerms": {
+    "verses": {
+      "title": "እዚህ ያለበት",
+      "none": "«{{word}}» በ{{bible}} በእነዚህ ቁጥሮች ውስጥ የለም።",
+      "noneHere": "«{{word}}» በእነዚህ ቁጥሮች ውስጥ የለም።",
+      "more_one": "እና ሌላ {{count, number}} ቁጥር",
+      "more_other": "እና ሌሎች {{count, number}} ቁጥሮች"
+    },
+    "others": {
+      "title": "ሌሎች ቋንቋዎች እዚህ እንዴት እንደሚሉት",
+      "none": "በዚህ ስልክ ላይ ያለ ሌላ ቋንቋ ለ«{{word}}» እስካሁን ቃል የለውም።",
+      "saidOnly": "ተነግሯል፣ አልተጻፈም",
+      "play": "ቃሉን በ{{language}} ያጫውቱ",
+      "playHelp": "እንዴት እንደሚሉት ያጫውታል።",
+      "suggest": "እዚህ ሌሎች ቋንቋዎች የሚጠቀሙት",
+      "suggestHelp": "እዚህ በ{{languages}} ይጠቀሙበታል። ለማከል ይንኩ።"
+    }
   }
 }

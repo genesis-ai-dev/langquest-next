@@ -5718,25 +5718,15 @@
       "noGuideBadge": "No guide"
     },
     "passage": {
-      "title": "Reference",
       "gone": "This passage is not here",
       "placedByHand": "Placed here by hand",
-      "studyGuides": "Study guides",
       "notes": "Notes for translators",
-      "other": "Other material",
       "hiddenHere": "Hidden here",
       "showHere": "Show here",
       "hideHere": "Hide here",
       "shownAgain": "{{name}} shows on this passage again.",
       "hidden": "{{name}} is hidden on this passage.",
-      "add": "Add",
-      "intro": "What translators are offered on this passage, and why. They can still explore any Bible online and choose for themselves.",
-      "group": "{{group}} · {{n, number}}",
-      "noBible": "No Bible is recommended for this passage. Translators can still explore one.",
       "placedInApp": "Placed here in the app",
-      "hiddenSection": "Hidden here · {{n, number}}",
-      "addTitle": "Add to this passage",
-      "addSub": "Placed here by hand, whatever its coordinates say.",
       "searchPlaceholder": "Search your library",
       "allHere": "Everything in your library is here already.",
       "placed": "{{name}} is placed on this passage."
@@ -5863,6 +5853,34 @@
       "yours": "Your app's language",
       "gaps_one": "In {{language}}, {{name}} has a guide for {{count, number}} passage. Passages without one show no study guide.",
       "gaps_other": "In {{language}}, {{name}} has guides for {{count, number}} passages. Passages without one show no study guide."
+    },
+    "passageText": {
+      "bar": "{{passage}} · {{bible}}",
+      "barHelpTitle": "The passage",
+      "barHelp": "Opens the passage in the Bible you choose, with its key words and notes marked.",
+      "openText": "{{passage}}. Show the passage",
+      "closeText": "{{passage}}. Hide the passage",
+      "listen": "Listen",
+      "listenHelp": "Plays the passage in this Bible.",
+      "noteTag": "Note",
+      "showHelp": "Translators get this on this passage.",
+      "hideHelp": "Translators stop getting this on this passage.",
+      "step": "Step {{n, number}}",
+      "steps_one": "{{count, number}} step",
+      "steps_other": "{{count, number}} steps",
+      "notesSub_one": "{{count, number}} note on this passage",
+      "notesSub_other": "{{count, number}} notes on this passage",
+      "wholePassage": "Whole passage",
+      "keyWords": "Key words",
+      "keyWordsSub_one": "{{count, number}} in these verses",
+      "keyWordsSub_other": "{{count, number}} in these verses",
+      "none": "Nothing helps on this passage yet.",
+      "addHelp": "Add a help",
+      "addHelpHint": "Write a note for translators, or place something from your library.",
+      "writeNote": "Write a note for translators",
+      "writeNoteSub": "On the verses you choose, said or typed",
+      "fromLibrary": "From your library",
+      "fromOwn": "From your organization's library"
     }
   },
   "sources": {
@@ -6097,5 +6115,37 @@
     "goOnline": "Connect to the internet often, so your work is sent.",
     "lessSpace": "This device may have less space than it says.",
     "understand": "I understand"
+  },
+  "notes": {
+    "onVerses": {
+      "title": "Note for translators",
+      "sub": "{{passage}} · {{language}}",
+      "hint": "Tap a verse, then another to run to it.",
+      "verseHelp": "Puts the note on this verse. Tap another verse to run to it.",
+      "on": "On {{where}}",
+      "onWhole": "On the whole passage",
+      "whole": "Whole passage",
+      "say": "Tap and say your note",
+      "saved": "Note saved on {{where}}.",
+      "savedWhole": "Note saved on {{passage}}."
+    }
+  },
+  "keyTerms": {
+    "verses": {
+      "title": "Where it is here",
+      "none": "“{{word}}” is not in these verses in {{bible}}.",
+      "noneHere": "“{{word}}” is not in these verses.",
+      "more_one": "And {{count, number}} more verse",
+      "more_other": "And {{count, number}} more verses"
+    },
+    "others": {
+      "title": "How other languages here say it",
+      "none": "No other language on this phone has a word for “{{word}}” yet.",
+      "saidOnly": "Said, not written",
+      "play": "Play the word in {{language}}",
+      "playHelp": "Plays how they say it.",
+      "suggest": "Other languages here use",
+      "suggestHelp": "Used here by {{languages}}. Tap to add it."
+    }
   }
 }
