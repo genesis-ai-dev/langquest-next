@@ -1685,19 +1685,9 @@
       "psalm": "Psaume {{place}}"
     },
     "leftOut": {
-      "title_one": "{{way}} n’a pas de passages pour {{count, number}} livre",
-      "title_many": "{{way}} n’a pas de passages pour {{count, number}} livres",
-      "title_other": "{{way}} n’a pas de passages pour {{count, number}} livres",
-      "showAll": "Afficher les {{total}}",
-      "showFewer": "Afficher moins",
-      "forThose_one": "Pour ce livre",
-      "forThose_many": "Pour ces livres",
-      "forThose_other": "Pour ces livres",
-      "byChapter": "Par chapitre",
-      "wait": "Attendre",
-      "waitSub_one": "Le découper à votre façon plus tard",
-      "waitSub_many": "Les découper à votre façon plus tard",
-      "waitSub_other": "Les découper à votre façon plus tard"
+      "wait_one": "{{books}} attend d’être découpé. Vous pourrez le découper plus tard depuis la carte.",
+      "wait_many": "{{books}} attendent d’être découpés. Vous pourrez les découper plus tard depuis la carte.",
+      "wait_other": "{{books}} attendent d’être découpés. Vous pourrez les découper plus tard depuis la carte."
     },
     "book": {
       "breakDifferently": "Découper autrement",

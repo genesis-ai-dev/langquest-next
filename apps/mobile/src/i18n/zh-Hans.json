@@ -1573,13 +1573,7 @@
       "psalm": "诗篇 {{place}}"
     },
     "leftOut": {
-      "title_other": "{{way}} 在 {{count, number}} 卷书中没有经段",
-      "showAll": "全部显示（{{total}}）",
-      "showFewer": "收起",
-      "forThose_other": "这些书卷",
-      "byChapter": "按章划分",
-      "wait": "等待",
-      "waitSub_other": "以后按你自己的方式划分"
+      "wait_other": "{{books}}等待划分。你可以以后在地图上划分。"
     },
     "book": {
       "breakDifferently": "换一种划分方式",

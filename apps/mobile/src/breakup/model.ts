@@ -25,13 +25,6 @@ export const WAY_ITEMS = [
 export const LATER_ITEM = 'langquest.bible.book-by-book';
 /** What the books FIA leaves out are broken up with, when the admin says "by chapter". */
 export const CHAPTERS_ITEM = 'langquest.bible.chapters';
-/**
- * The other ready-made ways offered for the books a way leaves out (demo
- * ADR-042), after "By chapter" and in this order. OpenBible's long and
- * short lists are left out to keep the choice small.
- */
-export const FILL_ITEMS = ['langquest.bible.openbible-usual', 'langquest.bible.unfoldingword'] as const;
-
 /** The book the ways are shown with: short, and every way breaks it up (FIA too). */
 export const SAMPLE_BOOK = 'RUT';
 /** Books a preview offers, the sample first. */
@@ -147,24 +140,6 @@ export function booksLine(names: string[]): string {
   if (names.length === 2) return t('breakup.emptyBooks.two', { first: names[0], second: names[1] });
   if (names.length === 3) return t('breakup.emptyBooks.three', { first: names[0], second: names[1], third: names[2] });
   return t('breakup.emptyBooks.more', { first: names[0], second: names[1], count: names.length - 2 });
-}
-
-/** What a note calls a way: the method it follows ("FIA"), else its own name. */
-export function wayShortName(row: WayRow, doc: TemplateDoc | null): string {
-  return (doc?.format === 'template@2' ? doc.goesWith?.pattern : undefined) || row.choice.name;
-}
-
-/**
- * The ways that can break up the books `picked` leaves out (demo ADR-042):
- * by chapter, then the other ready-made ways (`FILL_ITEMS`), each only when
- * it is offered and has parts for every one of those books.
- */
-export function fillRows(rows: WayRow[], picked: WayRow, empty: string[], docOf: (r: WayRow) => TemplateDoc | null): WayRow[] {
-  return [CHAPTERS_ITEM, ...FILL_ITEMS].flatMap((id) => {
-    const r = rows.find((x) => x !== picked && !x.later && wayOf(x.choice) === id);
-    const d = r ? docOf(r) : null;
-    return r && d && empty.every((b) => wayCovers(d, b)) ? [r] : [];
-  });
 }
 
 /**

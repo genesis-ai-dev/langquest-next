@@ -2333,7 +2333,7 @@ language keeps its own overrides on top of a shared template instead.
 
 Amended (2026-10-09, Caleb Koster): decision 80 puts the numbering first, for the whole Bible, and replaces the warning that recordings on old pieces "will no longer show": expired sections that overlap current ones stay reachable under "Earlier sections".
 
-Amended (2026-10-12, Caleb Koster): decision 93 lets the books a way leaves out take another way when the template is made, adds dividing a book your own way, and has naming a book offer what the language's Bibles and the organization's other languages call it.
+Amended (2026-10-12, Caleb Koster): decision 93 drops the choice of what the books a way leaves out get when the template is made (they wait, and are divided from the map), adds dividing a book your own way, and has naming a book offer what the language's Bibles and the organization's other languages call it.
 ## 75. Nobody is added without joining, nobody grants more than they hold, and one id names one event
 
 Date: 2026-10-09 · By: Carl Sauder · Status: accepted
@@ -3138,9 +3138,11 @@ approved the demo's ADR-041 (dividing a book your own way) and ADR-042
   as a ready-made way (`useBookChange`: the warning, the languages a shared
   template changes, Undo), so no new event or format. Listening from a
   section is not built yet.
-- Books a way leaves out can take another way when the template is made:
-  by chapter, OpenBible's usual sections or unfoldingWord's chunks, filled
-  by `withEmptyBooksFilled`; waiting stays the default (amends 74).
+- Books a way leaves out wait, each to be divided from the map when it is
+  needed. Choosing the way says which books will wait, and no longer asks
+  what they get: the "by chapter or wait" choice is dropped, because the
+  list of ways to offer there would only grow (Caleb, 2026-10-13; amends 74
+  and 80).
 - Naming a book offers what the language's Bibles call it (their `source@1`
   books) and what the organization's other languages call it. A phone pulls
   only the languages it opens (37), so the server answers:

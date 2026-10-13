@@ -1299,7 +1299,7 @@ export function NewLanguage(ctx: Ctx) {
   const refs = useReferenceLanguages(ctx, [readsPicked ?? '', reader, 'eng']);
   const reads = readsPicked ?? startingLanguage(refs.choices, reader);
   const offers = useNewLanguageOffers(ctx, reads, refs.sets);
-  const doc = tq.finalDoc;
+  const doc = tq.doc;
   // "I'll choose the checks": the language's own checks, edited on the Checks screen before it exists
   // (checks/draft.ts, decision 91), starting from the way picked before that.
   const choosing = flowKey === CHOOSE_STEPS;
@@ -1425,7 +1425,7 @@ export function NewLanguage(ctx: Ctx) {
         <ReferenceLanguagePage team={title} choices={refs.choices} value={reads} first={startingLanguage(refs.choices, reader)} onChange={setReadsPicked} loading={refs.loading}>
           {offers.names.length ? (
             <AmberNote icon="layers">
-              <Trans i18nKey={goesWith(tq.finalDoc, 'FIA') && offers.names.some((n) => /FIA/.test(n)) ? 'org.newLanguage.offerNoteFia' : 'org.newLanguage.offerNote'}
+              <Trans i18nKey={goesWith(tq.doc, 'FIA') && offers.names.some((n) => /FIA/.test(n)) ? 'org.newLanguage.offerNoteFia' : 'org.newLanguage.offerNote'}
                 values={{ offers: joinAnd(offers.names), language: title }} components={{ b: <Text style={{ fontWeight: '800' }} /> }} />
             </AmberNote>
           ) : offers.may && !refs.loading ? (

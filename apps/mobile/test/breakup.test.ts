@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { foldOrg, libraryItemView, ORG_STREAM, subscriptionItemId, type AnyEvent, type TemplateDocV2, type VersificationDoc } from '@langquest-next/core';
 import {
-  booksLine, copyName, copyOffOps, countLine, emptyLine, fillRows, groupNames, piecesOf, planChange, usedLine, wayOf, wayRows, wayShortName, type TemplateUser, type WayRow
+  booksLine, copyName, copyOffOps, countLine, emptyLine, groupNames, piecesOf, planChange, usedLine, wayOf, wayRows, type TemplateUser
 } from '../src/breakup/model';
 import type { LibraryChoice } from '../src/contentTemplates';
 import { publishOps, subscribeOps, type LibraryOp, type SharedItem } from '../src/library/model';
@@ -70,31 +70,7 @@ describe('the ways to break up the Bible, in the order an admin sees them', () =
 });
 
 describe('the books a way leaves out, and the names a book is given (demo ADR-042)', () => {
-  const left = ['ROM', 'HEB', 'REV', 'JER'];
-  const all = (name: string, divide: 'chapters' | 'passages') => doc(name, [{ book: 'RUT', name: 'Ruth' }, ...left.map((b) => ({ book: b, name: b }))]
-    .map((b) => ({ ...b, divide, ...(divide === 'passages' ? { passages: [{ ref: `${b.book} 1:1-5` }] } : {}) })));
-  const byChapter = all('By chapter', 'chapters');
-  const usual = all('OpenBible: usual sections', 'passages');
-  const long = all('OpenBible: long sections', 'passages');
-  // unfoldingWord's chunks for Ruth and Romans only: it cannot fill Hebrews.
-  const uw = doc('unfoldingWord chunks', [{ book: 'RUT', name: 'Ruth', divide: 'passages', passages: [{ ref: 'RUT 1:1-5' }] }, { book: 'ROM', name: 'Romans', divide: 'passages', passages: [{ ref: 'ROM 1:1-7' }] }]);
-  const fiaWith = { ...fia, goesWith: { pattern: 'FIA' } };
-  const row = (item: string, d: TemplateDocV2, later = false) => ({
-    choice: { key: `shared:${item}`, source: 'shared' as const, shared: share(item, H(item.length.toString(16)), d.name), name: d.name, hash: H('0') }, usedIn: [], inUse: false, later, d
-  });
-  const rows = [row('langquest.bible.fia', fiaWith), row('langquest.bible.unfoldingword', uw), row('langquest.bible.openbible-long', long),
-    row('langquest.bible.openbible-usual', usual), row('langquest.bible.chapters', byChapter), row('langquest.bible.book-by-book', later, true)];
-  const docOf = (r: WayRow) => (r as (typeof rows)[number]).d;
-
-  it('offers by chapter, then the usual sections, and only ways that cover every book left out', () => {
-    expect(fillRows(rows, rows[0]!, left, docOf).map((r) => r.choice.name)).toEqual(['By chapter', 'OpenBible: usual sections']);
-    // The picked way is never offered for its own books; unfoldingWord fills them when it covers them all.
-    expect(fillRows(rows, rows[3]!, ['ROM'], docOf).map((r) => r.choice.name)).toEqual(['By chapter', 'unfoldingWord chunks']);
-  });
-
-  it('names the way by the method it follows, and lists the books short', () => {
-    expect(wayShortName(rows[0]!, fiaWith)).toBe('FIA');
-    expect(wayShortName(rows[3]!, usual)).toBe('OpenBible: usual sections');
+  it('lists the books short', () => {
     const twenty = ['Proverbs', 'Ecclesiastes', ...Array.from({ length: 18 }, (_, i) => `Book ${i}`)];
     expect(booksLine(twenty)).toBe('Proverbs, Ecclesiastes and 18 more');
     expect(booksLine(['Romans', 'Hebrews', 'Revelation'])).toBe('Romans, Hebrews, Revelation');

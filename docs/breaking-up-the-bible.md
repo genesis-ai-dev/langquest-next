@@ -119,9 +119,8 @@ Daniel 14. The admin can divide them further.
 **Books a way does not cover at all** (Tobit, Maccabees, or Romans under
 FIA) stay waiting to be divided until the admin divides them. Choosing a
 way that does not cover the whole numbering shows which books it leaves
-waiting; the admin may go ahead, or pick another way for just those books
-(by chapter, OpenBible's usual sections or unfoldingWord's chunks), which
-fills them when the template is made (decision 93).
+waiting; the admin may go ahead. Those books are divided later, one at a
+time, from the map (decision 93).
 
 ## Dividing a book your own way
 

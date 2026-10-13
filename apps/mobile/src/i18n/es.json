@@ -1685,19 +1685,9 @@
       "psalm": "Salmo {{place}}"
     },
     "leftOut": {
-      "title_one": "{{way}} no tiene pasajes para {{count, number}} libro",
-      "title_many": "{{way}} no tiene pasajes para {{count, number}} libros",
-      "title_other": "{{way}} no tiene pasajes para {{count, number}} libros",
-      "showAll": "Mostrar los {{total}}",
-      "showFewer": "Mostrar menos",
-      "forThose_one": "Para ese libro",
-      "forThose_many": "Para esos libros",
-      "forThose_other": "Para esos libros",
-      "byChapter": "Por capítulo",
-      "wait": "Esperar",
-      "waitSub_one": "Divídelo a tu manera más tarde",
-      "waitSub_many": "Divídelos a tu manera más tarde",
-      "waitSub_other": "Divídelos a tu manera más tarde"
+      "wait_one": "{{books}} espera a ser dividido. Puedes dividirlo desde el mapa más adelante.",
+      "wait_many": "{{books}} esperan a ser divididos. Puedes dividirlos desde el mapa más adelante.",
+      "wait_other": "{{books}} esperan a ser divididos. Puedes dividirlos desde el mapa más adelante."
     },
     "book": {
       "breakDifferently": "Dividir de otra forma",

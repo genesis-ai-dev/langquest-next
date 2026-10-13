@@ -231,26 +231,6 @@ export function RadioRow(props: { icon: AdminIcon; label: string; sub?: string; 
   );
 }
 
-/**
- * A plain radio line inside a note (the books a way leaves out, demo
- * ADR-042): the radio first, then the label and a line under it. 48pt.
- */
-export function RadioLine(props: { label: string; sub?: string; on: boolean; onPress: () => void }) {
-  const spot = useHelpSpot(props.label, props.sub, props.onPress);
-  return (
-    <Pressable onPress={spot.onPress} accessibilityRole="radio" accessibilityState={{ selected: props.on }}
-      accessibilityLabel={props.sub ? `${props.label}. ${props.sub}` : props.label}
-      style={({ pressed }) => [styles.radioLine, pressed && styles.pressed]}>
-      <Radio on={props.on} />
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={styles.radioLabel}>{props.label}</Text>
-        {props.sub ? <Text style={[txt.xs, { fontSize: 14 }]}>{props.sub}</Text> : null}
-      </View>
-      <HelpBadge spot={spot} />
-    </Pressable>
-  );
-}
-
 /** A dashed action ("Add a step", "Something else: make a new role"). */
 export function DashedRow(props: { icon: AdminIcon; label: string; onPress: () => void; detail?: string; centred?: boolean }) {
   const spot = useHelpSpot(props.label, props.detail, props.onPress);
@@ -451,7 +431,6 @@ const styles = StyleSheet.create({
   radioRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 56, paddingHorizontal: 16, paddingVertical: space.sm, borderRadius: radius.lg, backgroundColor: C.card, borderWidth: 2, borderColor: C.border },
   radioRowTall: { minHeight: 66, borderRadius: radius.xl, paddingHorizontal: 16 },
   radioLabel: { fontSize: T.base, fontWeight: '700', color: C.dark },
-  radioLine: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: target.min, paddingVertical: space.xs },
   dashed: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: target.primary, paddingHorizontal: 16, borderRadius: radius.lg, borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.faint },
   pills: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   checkLine: { flexDirection: 'row', alignItems: 'center', minHeight: target.row, paddingRight: space.sm, backgroundColor: C.card },

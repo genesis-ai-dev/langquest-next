@@ -1629,16 +1629,8 @@
       "psalm": "Zaburi {{place}}"
     },
     "leftOut": {
-      "title_one": "{{way}} haina vifungu kwa kitabu {{count, number}}",
-      "title_other": "{{way}} haina vifungu kwa vitabu {{count, number}}",
-      "showAll": "Onyesha vyote {{total}}",
-      "showFewer": "Onyesha vichache",
-      "forThose_one": "Kwa kitabu hicho",
-      "forThose_other": "Kwa vitabu hivyo",
-      "byChapter": "Kwa sura",
-      "wait": "Subiri",
-      "waitSub_one": "Kigawe kwa njia yako baadaye",
-      "waitSub_other": "Vigawe kwa njia yako baadaye"
+      "wait_one": "{{books}} kinasubiri kugawanywa. Unaweza kukigawa kutoka kwenye ramani baadaye.",
+      "wait_other": "{{books}} vinasubiri kugawanywa. Unaweza kuvigawa kutoka kwenye ramani baadaye."
     },
     "book": {
       "breakDifferently": "Gawa kwa njia nyingine",

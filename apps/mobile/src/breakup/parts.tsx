@@ -2,9 +2,7 @@
 // 4, "How the Bible is broken up"): a book drawn as its pieces, a way to
 // choose with its count and a Preview, the walk-through, the sheet that asks
 // which languages a change goes to, the warning before a book is broken up
-// again, the note when a language's Bibles number verses differently, and
-// the books a way leaves out with a choice for them (demo ADR-042,
-// `?simple=helpsLeftOut`).
+// again, and the note when a language's Bibles number verses differently.
 import { templateBooks, type NumberingClash, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -15,7 +13,7 @@ import { HelpBadge } from '../helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { Chip, GhostBtn, Ico, LinkBtn, PrimaryBtn, Sheet, txt } from '../kit';
-import { CheckRow, ChoiceCard, Pills, RadioLine } from '../simple/admin';
+import { CheckRow, ChoiceCard, Pills } from '../simple/admin';
 import { C, radius, space, TINT } from '../theme';
 import {
   booksLine, CHAPTERS_ITEM, countLine, lessonSlides, piecesOf, PREVIEW_BOOKS, SAMPLE_BOOK, usedLine, verseSays, wayOf, type TemplateUser, type WayRow
@@ -268,36 +266,6 @@ function readable(ref: string): string {
   return m[1] === 'PSA' ? t('breakup.numbering.psalm', { place: m[2] }) : `${bookNameOf(m[1]!)} ${m[2]}`;
 }
 
-/**
- * The books a way leaves out (demo ADR-042): the way named ("FIA has no
- * passages for 20 books"), the books listed on request, and a small choice
- * for them: by chapter, another ready-made way that covers them, or wait
- * and divide them your own way later. `on` is 'later' or a way's choice key.
- */
-export function LeftOutNote(props: { way: string; books: string[]; fills: WayRow[]; on: string; onPick: (key: string) => void }) {
-  const [all, setAll] = useState(false);
-  const n = props.books.length;
-  const long = n > 3;
-  return (
-    <View style={styles.leftOut}>
-      <View style={styles.leftOutHead}>
-        <Ico name="flag" size={20} color={TINT.amberText} />
-        <Text style={[txt.h3, { flex: 1, color: TINT.amberText }]}>{t('breakup.leftOut.title', { way: props.way, count: n })}</Text>
-      </View>
-      <Text style={txt.sm}>{long && !all ? booksLine(props.books) : props.books.join(t('admin.list.separator'))}</Text>
-      {long ? (
-        <LinkBtn label={all ? t('breakup.leftOut.showFewer') : t('breakup.leftOut.showAll', { total: formatNumber(n) })} color={TINT.amberText} expanded={all}
-          style={{ alignSelf: 'flex-start' }} onPress={() => setAll(!all)} />
-      ) : null}
-      <Text style={[txt.sm, styles.leftOutAsk]}>{t('breakup.leftOut.forThose', { count: n })}</Text>
-      {props.fills.map((r) => (
-        <RadioLine key={r.choice.key} label={wayOf(r.choice) === CHAPTERS_ITEM ? t('breakup.leftOut.byChapter') : r.choice.name}
-          on={props.on === r.choice.key} onPress={() => props.onPick(r.choice.key)} />
-      ))}
-      <RadioLine label={t('breakup.leftOut.wait')} sub={t('breakup.leftOut.waitSub', { count: n })} on={props.on === 'later'} onPress={() => props.onPick('later')} />
-    </View>
-  );
-}
 
 const styles = StyleSheet.create({
   indent: { paddingLeft: 52, gap: space.sm },
@@ -313,8 +281,5 @@ const styles = StyleSheet.create({
   progress: { flexDirection: 'row', gap: 6 },
   step: { flex: 1, height: 22, borderRadius: 11, backgroundColor: C.border, alignItems: 'center', justifyContent: 'center' },
   danger: { width: 52, height: 52, borderRadius: 26, backgroundColor: TINT.red, alignItems: 'center', justifyContent: 'center' },
-  warn: { backgroundColor: TINT.amber, borderRadius: radius.lg, padding: space.md, gap: space.xs },
-  leftOut: { backgroundColor: TINT.amber, borderRadius: radius.lg, paddingHorizontal: space.md, paddingTop: space.md, paddingBottom: space.xs, gap: space.xs },
-  leftOutHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  leftOutAsk: { fontWeight: '800', marginTop: space.xs }
+  warn: { backgroundColor: TINT.amber, borderRadius: radius.lg, padding: space.md, gap: space.xs }
 });

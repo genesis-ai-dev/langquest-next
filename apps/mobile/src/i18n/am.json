@@ -1629,16 +1629,8 @@
       "psalm": "መዝሙር {{place}}"
     },
     "leftOut": {
-      "title_one": "{{way}} ለ{{count, number}} መጽሐፍ ክፍሎች የሉትም",
-      "title_other": "{{way}} ለ{{count, number}} መጻሕፍት ክፍሎች የሉትም",
-      "showAll": "ሁሉንም {{total}} አሳይ",
-      "showFewer": "ጥቂቱን ብቻ አሳይ",
-      "forThose_one": "ለዚያ መጽሐፍ",
-      "forThose_other": "ለእነዚያ መጻሕፍት",
-      "byChapter": "በምዕራፍ",
-      "wait": "ይጠብቁ",
-      "waitSub_one": "በኋላ በራስዎ መንገድ ይከፋፍሉት",
-      "waitSub_other": "በኋላ በራስዎ መንገድ ይከፋፍሏቸው"
+      "wait_one": "{{books}} ለመከፋፈል ይጠብቃል። በኋላ ከካርታው ሊከፋፍሉት ይችላሉ።",
+      "wait_other": "{{books}} ለመከፋፈል ይጠብቃሉ። በኋላ ከካርታው ሊከፋፍሏቸው ይችላሉ።"
     },
     "book": {
       "breakDifferently": "በተለየ መንገድ ይከፋፍሉ",

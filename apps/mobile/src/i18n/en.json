@@ -1629,16 +1629,8 @@
       "psalm": "Psalm {{place}}"
     },
     "leftOut": {
-      "title_one": "{{way}} has no passages for {{count, number}} book",
-      "title_other": "{{way}} has no passages for {{count, number}} books",
-      "showAll": "Show all {{total}}",
-      "showFewer": "Show fewer",
-      "forThose_one": "For that book",
-      "forThose_other": "For those books",
-      "byChapter": "By chapter",
-      "wait": "Wait",
-      "waitSub_one": "Divide it your own way later",
-      "waitSub_other": "Divide them your own way later"
+      "wait_one": "{{books}} waits to be divided. You can divide it from the map later.",
+      "wait_other": "{{books}} wait to be divided. You can divide them from the map later."
     },
     "book": {
       "breakDifferently": "Break up differently",

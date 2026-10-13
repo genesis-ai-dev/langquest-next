@@ -125,8 +125,8 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
   const [scope, setScope] = useState<LanguageScope | null>(null);
   const [chosen, setChosen] = useState<Set<string> | null>(null);
   const [busy, setBusy] = useState(false);
-  const doc = tq.finalDoc;
-  const inUse = tq.what === 'bible' ? !!tq.row?.inUse && tq.finalDoc === tq.doc : tq.outline === tq.rec.current && !!tq.outline;
+  const doc = tq.doc;
+  const inUse = tq.what === 'bible' ? !!tq.row?.inUse : tq.outline === tq.rec.current && !!tq.outline;
   const books = chosen ?? new Set(inUse ? sel?.books ?? [] : []);
   const pills: LanguageScope = scope ?? (inUse && sel ? scopeOfBooks(doc, sel.books) : 'nt');
   const wanted = doc?.bible ? booksInScope(doc, pills, books) : undefined;

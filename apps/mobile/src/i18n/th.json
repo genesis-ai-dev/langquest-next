@@ -1573,13 +1573,7 @@
       "psalm": "สดุดี {{place}}"
     },
     "leftOut": {
-      "title_other": "{{way}} ไม่มีตอนสำหรับ {{count, number}} เล่ม",
-      "showAll": "แสดงทั้งหมด {{total}}",
-      "showFewer": "แสดงน้อยลง",
-      "forThose_other": "สำหรับเล่มเหล่านั้น",
-      "byChapter": "แบ่งตามบท",
-      "wait": "รอ",
-      "waitSub_other": "แบ่งตามแบบของคุณเองภายหลัง"
+      "wait_other": "{{books}} รอการแบ่ง คุณแบ่งได้จากแผนที่ในภายหลัง"
     },
     "book": {
       "breakDifferently": "แบ่งแบบอื่น",

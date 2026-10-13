@@ -1573,13 +1573,7 @@
       "psalm": "Mazmur {{place}}"
     },
     "leftOut": {
-      "title_other": "{{way}} tidak punya perikop untuk {{count, number}} kitab",
-      "showAll": "Tampilkan semua {{total}}",
-      "showFewer": "Tampilkan lebih sedikit",
-      "forThose_other": "Untuk kitab itu",
-      "byChapter": "Per pasal",
-      "wait": "Tunggu",
-      "waitSub_other": "Bagi dengan cara Anda sendiri nanti"
+      "wait_other": "{{books}} menunggu untuk dibagi. Anda bisa membaginya dari peta nanti."
     },
     "book": {
       "breakDifferently": "Bagi dengan cara lain",

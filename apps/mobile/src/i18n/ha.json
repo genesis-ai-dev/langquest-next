@@ -1629,16 +1629,8 @@
       "psalm": "Zabura ta {{place}}"
     },
     "leftOut": {
-      "title_one": "{{way}} ba shi da nassosi don littafi {{count, number}}",
-      "title_other": "{{way}} ba shi da nassosi don littattafai {{count, number}}",
-      "showAll": "Nuna duka {{total}}",
-      "showFewer": "Nuna kaɗan",
-      "forThose_one": "Don wannan littafi",
-      "forThose_other": "Don waɗannan littattafai",
-      "byChapter": "Babi-babi",
-      "wait": "Jira",
-      "waitSub_one": "Raba shi yadda kake so daga baya",
-      "waitSub_other": "Raba su yadda kake so daga baya"
+      "wait_one": "{{books}} yana jiran a raba shi. Za ka iya raba shi daga taswira daga baya.",
+      "wait_other": "{{books}} suna jiran a raba su. Za ka iya raba su daga taswira daga baya."
     },
     "book": {
       "breakDifferently": "Raba ta wata hanya",
