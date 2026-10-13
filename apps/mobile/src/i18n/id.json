@@ -5763,6 +5763,8 @@
       "made": "sudah dibuat",
       "writeInstead": "Tulis saja",
       "writeInsteadSub": "Ketik ayat demi ayat",
+      "newVersion": "Tulis versi baru",
+      "newVersionSub": "Pemeriksaan sejauh ini tetap pada versi yang mereka baca",
       "recordInstead": "Rekam saja",
       "recordInsteadSub": "Ucapkan bagian demi bagian"
     },

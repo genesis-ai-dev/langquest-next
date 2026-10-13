@@ -6048,6 +6048,8 @@
       "made": "ተሠርቷል",
       "writeInstead": "በምትኩ ይጻፉት",
       "writeInsteadSub": "ቁጥር በቁጥር ይጻፉት",
+      "newVersion": "አዲስ ስሪት ይጻፉ",
+      "newVersionSub": "እስካሁን ያሉ ግምገማዎች ካነበቡት ስሪት ጋር ይቆያሉ",
       "recordInstead": "በምትኩ ይቅረጹት",
       "recordInsteadSub": "ቁራጭ በቁራጭ ይናገሩት"
     },

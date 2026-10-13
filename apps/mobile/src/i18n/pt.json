@@ -6333,6 +6333,8 @@
       "made": "feito",
       "writeInstead": "Escrever em vez disso",
       "writeInsteadSub": "Digite versículo por versículo",
+      "newVersion": "Escrever uma nova versão",
+      "newVersionSub": "As revisões feitas até agora ficam com a versão que leram",
       "recordInstead": "Gravar em vez disso",
       "recordInsteadSub": "Fale parte por parte"
     },

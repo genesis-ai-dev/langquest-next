@@ -6048,6 +6048,8 @@
       "made": "বানানো হয়েছে",
       "writeInstead": "বরং লিখুন",
       "writeInsteadSub": "পদ ধরে ধরে টাইপ করুন",
+      "newVersion": "নতুন সংস্করণ লিখুন",
+      "newVersionSub": "এ পর্যন্ত হওয়া পর্যালোচনা যে সংস্করণ পড়েছে তার সাথেই থাকবে",
       "recordInstead": "বরং রেকর্ড করুন",
       "recordInsteadSub": "ভাগে ভাগে বলুন"
     },

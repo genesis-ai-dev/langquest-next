@@ -5763,6 +5763,8 @@
       "made": "已制作",
       "writeInstead": "改为书写",
       "writeInsteadSub": "逐节打字输入",
+      "newVersion": "书写新版本",
+      "newVersionSub": "目前的审核会保留在他们读过的版本上",
       "recordInstead": "改为录音",
       "recordInsteadSub": "一段一段地说出来"
     },

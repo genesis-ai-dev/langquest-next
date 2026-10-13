@@ -6048,6 +6048,8 @@
       "made": "made",
       "writeInstead": "Write it instead",
       "writeInsteadSub": "Type it verse by verse",
+      "newVersion": "Write a new version",
+      "newVersionSub": "Reviews so far stay with the version they read",
       "recordInstead": "Record it instead",
       "recordInsteadSub": "Say it, part by part"
     },

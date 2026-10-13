@@ -6048,6 +6048,8 @@
       "made": "imetengenezwa",
       "writeInstead": "Iandike badala yake",
       "writeInsteadSub": "Iandike mstari kwa mstari",
+      "newVersion": "Andika toleo jipya",
+      "newVersionSub": "Ukaguzi uliofanyika hadi sasa unabaki na toleo lililosomwa",
       "recordInstead": "Irekodi badala yake",
       "recordInsteadSub": "Iseme, sehemu kwa sehemu"
     },

@@ -11,7 +11,7 @@ import { EarlierNote, EarlierSections, isEarlierSection } from '../breakup/earli
 import { Faces, PeopleLine } from '../checks/parts';
 import { checkName, stepTitle } from '../simple/adminModel';
 import {
-  CommandError, checkPeople, commands, draftsBy, feedbackIsMine, isCompleteState, keyTermLinksFor, madeGrid, madeGroup, madeVersionOf, questionsForKind, recordTimeline, reviewGrid,
+  CommandError, checkPeople, commands, draftsBy, feedbackIsMine, isCompleteState, keyTermLinksFor, madeGrid, madeGroup, madeVersionOf, mediaAllowed, questionsForKind, recordTimeline, reviewGrid,
   type Commands, type EventSpec, type FlowStepStatus, type KindDef, type KindState, type KindStatus, type MadeColumn, type Medium, type PassageNote, type QuestionSpec, type ReviewView
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -60,7 +60,7 @@ import { PersonAvatar, usePerson } from '../UserChip';
 import { BigVoice } from '../bigVoice';
 import { ClipPlayer } from '../clipPlayer';
 import { VoiceNote, voiceFor } from '../voiceNote';
-import { isMaking, leadMedium, otherMedium } from '../writing/model';
+import { isMaking, leadMedium } from '../writing/model';
 import { MadeDetail as MadeDetailScreen, madeTitle } from '../writing/MadeDetail';
 import { WrittenReader, usePassageVerses } from '../writing/WrittenText';
 
@@ -289,8 +289,10 @@ export function PassageRecord(ctx: Ctx) {
 
   // ---- the path ----
   const latestSeconds = p.latest ? clipSeconds(v.state, p.latest.cardHashes) : 0;
-  const lead = leadMedium(v.state);
-  const other = otherMedium(v.state);
+  // A passage goes on the way its latest version was made, else the way the language leads (decision 93).
+  const media = mediaAllowed(v.state);
+  const lead = p.latest && media[p.latest.medium] ? p.latest.medium : leadMedium(v.state);
+  const other = media.recording && media.writing ? (lead === 'writing' ? 'recording' : 'writing') : null;
   const pathInput: PathInput = {
     p, kinds, me, name: ctx.name, when, due: dueText, lead,
     study: study && study.steps.length > 0 ? { name: t('passage.page.studyGuideName', { pattern: study.guide.pattern }), total: study.steps.length, done: study.doneCount } : null,
@@ -439,7 +441,9 @@ export function PassageRecord(ctx: Ctx) {
             <BigOption icon="clock" label={t('common.notNow')} sub={t('passage.else.notNowSub', { check: kindInSentence(v.kind(curKind.kindId).name) })}
               onPress={() => setSkipping({ kindId: curKind.kindId, stepId: curStep.step.id })} />
           ) : null}
-          {can.record && p.recorded && !answersMine ? (
+          {can.record && p.recorded && !answersMine && lead === 'writing' ? (
+            <BigOption icon="edit" label={t('writing.path.newVersion')} sub={t('writing.path.newVersionSub')} onPress={() => go('workspace', { write: '1' })} />
+          ) : can.record && p.recorded && !answersMine ? (
             <BigOption icon="mic" label={myDraft ? t('passage.page.continueRecording') : t('passage.else.newVersion')} sub={t('passage.else.newVersionSub')}
               onPress={recordOrPick} />
           ) : null}

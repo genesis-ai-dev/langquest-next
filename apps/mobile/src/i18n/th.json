@@ -5763,6 +5763,8 @@
       "made": "ทำแล้ว",
       "writeInstead": "เขียนแทน",
       "writeInsteadSub": "พิมพ์ทีละข้อ",
+      "newVersion": "เขียนฉบับใหม่",
+      "newVersionSub": "การตรวจที่ผ่านมาจะอยู่กับฉบับที่ผู้ตรวจได้อ่าน",
       "recordInstead": "อัดเสียงแทน",
       "recordInsteadSub": "พูดทีละช่วง"
     },
