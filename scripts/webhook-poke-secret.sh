@@ -36,6 +36,11 @@ for env in "${envs[@]}"; do
   else
     openssl rand -hex 32 | scripts/env-update.sh "$env" "$KEY"
   fi
+  # Applying needs the environment's hosted project (docs/environments.md, "Setting up preview").
+  if ! grep -q "^\[remotes\.$env\]" supabase/config.toml; then
+    echo "  $env has no hosted project yet ([remotes.$env] in supabase/config.toml); the secret is committed and applies when it is set up"
+    continue
+  fi
   npm run --silent secrets -- "$env" ${apply_args[@]+"${apply_args[@]}"}
 done
 
