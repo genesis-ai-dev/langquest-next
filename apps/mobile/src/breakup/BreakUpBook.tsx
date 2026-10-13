@@ -13,10 +13,10 @@ import { View } from 'react-native';
 import { Text } from '../text';
 import type { Ctx } from '../ctx';
 import { t } from '../i18n';
-import { Card, Field, GhostBtn, Header, PrimaryBtn, Row, Group, Screen, Sheet, txt } from '../kit';
-import { useLibraryDocs } from '../library/useLibrary';
+import { Card, Field, GhostBtn, Header, PrimaryBtn, Row, Group, Screen, SectionLabel, Sheet, txt } from '../kit';
+import { useLibrary, useLibraryDocs } from '../library/useLibrary';
 import { failureMessage } from '../report';
-import { Question } from '../simple/admin';
+import { ChoiceCard, Question } from '../simple/admin';
 import { C, space } from '../theme';
 import { type WayRow } from './model';
 import { ApplySheet, PieceBar, PreviewSheet, RedoSheet, WayCard } from './parts';
@@ -77,74 +77,109 @@ export function BookHead(props: {
 }
 
 /**
- * How should this book be broken up? The same ways as for the whole Bible,
- * with this book drawn in each. Break up / Change applies to this language
- * and, when the template is shared, to the languages chosen.
+ * Changing how one book is divided, whatever the new division is (a ready-made
+ * way, or the language's own): the warning when the book was divided before,
+ * which languages it changes when the template is shared (decision 74), then
+ * the change with Undo. `sheets` renders the warning and the question.
  */
-export function BreakUpBook(props: {
-  ctx: Ctx; book: string; bookName: string; language: string; doc: TemplateDoc; item: LibraryItemView | null; redo: boolean; onClose: () => void;
-}) {
-  const { ctx, book } = props;
-  const code = useNumberingCode(ctx, props.doc);
-  const ways = useWays(ctx, ctx.language.languageId, code);
+export function useBookChange(ctx: Ctx, c: { book: string; bookName: string; doc: TemplateDoc; item: LibraryItemView | null; redo: boolean; onDone: () => void }) {
+  const lib = useLibrary(ctx);
   const { users: rows } = useTemplateUsers(ctx);
   const sel = ctx.language.state?.template?.value;
-  const now = wayNow(ways.rows, (r) => ways.docOf(r.choice), props.doc, book);
-  const offered = ways.rows.filter((r) => !r.later && (() => { const d = ways.docOf(r.choice); return !!d && wayCovers(d, book); })());
-  const [key, setKey] = useState<string | null>(null);
-  const picked = offered.find((r) => r.choice.key === key) ?? null;
-  const [peek, setPeek] = useState<WayRow | null>(null);
+  const [pending, setPending] = useState<{ way: TemplateDoc; note: string; said: string } | null>(null);
   const [warn, setWarn] = useState(false);
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
   const users = sel ? templateUsersOf(ctx, rows, sel.itemId) : null;
   const shared = !!users && users.filter((u) => u.languageId !== ctx.language.languageId).length > 0;
 
-  async function apply(chosen: Set<string>) {
-    const wayDoc = ways.docOf(picked?.choice);
-    if (!picked || !wayDoc || !props.item || !sel) return;
+  async function apply(chosen: Set<string>, change = pending) {
+    if (!change || !c.item || !sel) return;
     setBusy(true);
     try {
-      const next = withBookBrokenUp(props.doc, book, wayDoc);
-      const byChapter = picked.choice.name === 'By chapter';
-      // i18n-ignore: the new version's note, stored in the event log
-      const note = `${props.bookName} is broken up ${byChapter ? 'by chapter' : `into ${picked.choice.name}`}`;
+      const next = withBookBrokenUp(c.doc, c.book, change.way);
       const prev = sel;
-      const undo = prev.docHash ? await ways.lib.applySpecs(prev.itemId, { docHash: prev.docHash, ...(prev.books ? { books: prev.books } : {}) }).catch(() => null) : null;
-      const specs = await publishChange(ctx, ways.lib, { item: props.item, doc: next, users, chosen, label: note });
-      const said = byChapter
-        ? t('breakup.book.brokenUpByChapter', { book: props.bookName })
-        : t('breakup.book.brokenUpInto', { book: props.bookName, way: picked.choice.name });
-      await ctx.act(specs, said, undo ? () => undo : undefined);
+      const undo = prev.docHash ? await lib.applySpecs(prev.itemId, { docHash: prev.docHash, ...(prev.books ? { books: prev.books } : {}) }).catch(() => null) : null;
+      const specs = await publishChange(ctx, lib, { item: c.item, doc: next, users, chosen, label: change.note });
+      await ctx.act(specs, change.said, undo ? () => undo : undefined);
       setBusy(false);
       setAsking(false);
       setWarn(false);
-      props.onClose();
+      setPending(null);
+      c.onDone();
     } catch (e) {
       setBusy(false);
       ctx.toast(failureMessage('break up a book', e));
     }
   }
-  const go = () => {
-    if (props.redo) setWarn(true);
-    else if (shared) setAsking(true);
-    else void apply(new Set([ctx.language.languageId ?? '']));
+  const here = () => new Set([ctx.language.languageId ?? '']);
+  return {
+    busy,
+    /** Divide the book as `way` does; `note` is the new version's note, `said` the toast. */
+    start(way: TemplateDoc, note: string, said: string) {
+      const change = { way, note, said };
+      setPending(change);
+      if (c.redo) setWarn(true);
+      else if (shared) setAsking(true);
+      else void apply(here(), change);
+    },
+    sheets: (
+      <>
+        <RedoSheet visible={warn} book={c.bookName} busy={busy} onClose={() => setWarn(false)}
+          onConfirm={() => { setWarn(false); if (shared) setAsking(true); else void apply(here()); }} />
+        {users && asking ? (
+          <ApplySheet visible={asking} users={users} here={ctx.language.languageId ?? ''} busy={busy} onClose={() => setAsking(false)} onApply={(chosen) => void apply(chosen)}>
+            <Text style={txt.body}>{alsoUsedLine(users.filter((u) => u.languageId !== ctx.language.languageId).map((u) => u.name), c.bookName)}</Text>
+          </ApplySheet>
+        ) : null}
+      </>
+    )
   };
-  const afterWarning = () => {
-    setWarn(false);
-    if (shared) setAsking(true);
-    else void apply(new Set([ctx.language.languageId ?? '']));
+}
+
+/**
+ * How should this book be broken up? Dividing it your own way comes first,
+ * set apart (design principle 12), then the same ready-made ways as for the
+ * whole Bible, with this book drawn in each. Break up / Change applies to
+ * this language and, when the template is shared, to the languages chosen.
+ */
+export function BreakUpBook(props: {
+  ctx: Ctx; book: string; bookName: string; language: string; doc: TemplateDoc; item: LibraryItemView | null; redo: boolean; onClose: () => void; onOwn: () => void;
+}) {
+  const { ctx, book } = props;
+  const code = useNumberingCode(ctx, props.doc);
+  const ways = useWays(ctx, ctx.language.languageId, code);
+  const now = wayNow(ways.rows, (r) => ways.docOf(r.choice), props.doc, book);
+  const offered = ways.rows.filter((r) => !r.later && (() => { const d = ways.docOf(r.choice); return !!d && wayCovers(d, book); })());
+  const [key, setKey] = useState<string | null>(null);
+  const picked = offered.find((r) => r.choice.key === key) ?? null;
+  const [peek, setPeek] = useState<WayRow | null>(null);
+  const change = useBookChange(ctx, { book, bookName: props.bookName, doc: props.doc, item: props.item, redo: props.redo, onDone: props.onClose });
+
+  const go = () => {
+    const wayDoc = ways.docOf(picked?.choice);
+    if (!picked || !wayDoc) return;
+    const byChapter = picked.choice.name === 'By chapter';
+    // i18n-ignore: the new version's note, stored in the event log
+    const note = `${props.bookName} is broken up ${byChapter ? 'by chapter' : `into ${picked.choice.name}`}`;
+    const said = byChapter
+      ? t('breakup.book.brokenUpByChapter', { book: props.bookName })
+      : t('breakup.book.brokenUpInto', { book: props.bookName, way: picked.choice.name });
+    change.start(wayDoc, note, said);
   };
 
   return (
     <Screen header={<Header title={props.bookName} sub={props.language} onBack={props.onClose} />} bodyStyle={{ paddingHorizontal: 20, gap: 14 }}
       footer={<>
-        <PrimaryBtn label={props.redo ? t('breakup.book.change', { book: props.bookName }) : t('breakup.book.breakUp', { book: props.bookName })} icon="check" busy={busy}
+        <PrimaryBtn label={props.redo ? t('breakup.book.change', { book: props.bookName }) : t('breakup.book.breakUp', { book: props.bookName })} icon="check" busy={change.busy}
           disabled={!picked || (!!now && picked === now) || !props.item} onPress={go} />
         <GhostBtn label={t('common.notNow')} icon="clock" onPress={props.onClose} />
       </>}>
       <Question>{props.redo ? t('breakup.book.changeQuestion', { book: props.bookName }) : t('breakup.book.question', { book: props.bookName })}</Question>
       <Text style={[txt.sm, { color: C.muted }]}>{now ? t('breakup.book.nowEachPiece', { way: now.choice.name }) : t('breakup.book.eachPiece')}</Text>
+      {/* Your own way comes first and stands apart, so the list of ready-made ways can grow without burying it. */}
+      <ChoiceCard own chevron on={false} icon="edit" title={t('breakup.own.title')} sub={t('breakup.own.sub', { book: props.bookName })} onPress={props.onOwn} />
+      {offered.length ? <SectionLabel label={t('breakup.own.orReadyMade')} /> : null}
       {offered.map((r) => (
         <WayCard key={r.choice.key} row={{ ...r, usedIn: r.usedIn, inUse: r === now }} doc={ways.docOf(r.choice)} v11n={ways.v11nOf(ways.docOf(r.choice))}
           on={picked === r} onPress={() => setKey(r.choice.key)} onPreview={() => setPeek(r)} oneBook={book} />
@@ -152,12 +187,7 @@ export function BreakUpBook(props: {
       {offered.length === 0 ? <Text style={txt.smMuted}>{ways.loaded ? t('breakup.book.connectForWays') : t('common.loading')}</Text> : null}
       <PreviewSheet key={peek?.choice.key ?? 'none'} visible={!!peek} name={peek?.choice.name ?? ''} doc={ways.docOf(peek?.choice)} v11n={ways.v11nOf(ways.docOf(peek?.choice))}
         book={book} onClose={() => setPeek(null)} onUse={peek ? () => { setKey(peek.choice.key); setPeek(null); } : undefined} />
-      <RedoSheet visible={warn} book={props.bookName} busy={busy} onClose={() => setWarn(false)} onConfirm={afterWarning} />
-      {users && asking ? (
-        <ApplySheet visible={asking} users={users} here={ctx.language.languageId ?? ''} busy={busy} onClose={() => setAsking(false)} onApply={(chosen) => void apply(chosen)}>
-          <Text style={txt.body}>{alsoUsedLine(users.filter((u) => u.languageId !== ctx.language.languageId).map((u) => u.name), props.bookName)}</Text>
-        </ApplySheet>
-      ) : null}
+      {change.sheets}
     </Screen>
   );
 }

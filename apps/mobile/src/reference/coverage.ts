@@ -4,7 +4,7 @@
 // in its own numbering), or by a content template's node; then what an admin
 // placed or hid on one passage by hand. Pure: documents in, answers out.
 import {
-  orgVerses, parseRef, versesInChapter,
+  mapRange, orgVerses, parseRef, versesInChapter,
   type LibraryDoc, type MaterialLink, type RecommendationSource, type VerseRange, type VersificationDoc
 } from '@langquest-next/core';
 import { refKindOf, type RefKind } from './model';
@@ -33,7 +33,8 @@ export interface Reach {
 interface Placement {
   kind: RefKind;
   books: Set<string> | null;
-  ranges: { range: VerseRange; v11n: VersificationDoc | null }[];
+  /** A collection's ranges carry the title of the guide there. */
+  ranges: { range: VerseRange; v11n: VersificationDoc | null; title?: string }[];
   nodes: { template: string; node: string }[];
 }
 
@@ -72,7 +73,7 @@ function placementOf(doc: LibraryDoc | null, get: Get): Placement | null {
       const v11n = v(doc.versification);
       for (const e of doc.entries) {
         const r = parseRef(e.ref, v11n ? (b, c) => versesInChapter(v11n, b, c) : undefined);
-        if (r) p.ranges.push({ range: r, v11n });
+        if (r) p.ranges.push({ range: r, v11n, title: e.title });
       }
       break;
     }
@@ -80,6 +81,27 @@ function placementOf(doc: LibraryDoc | null, get: Get): Placement | null {
     default: return null;
   }
   return p;
+}
+
+/**
+ * Where an item applies in one book, as verse ranges in `into` (the language's
+ * numbering) when both numberings are at hand: a book that is not divided yet
+ * has no passages for coverage to match, so its helps are found by their own
+ * verses. A collection's parts carry their guides' titles. Null when the item
+ * is not reference material, or not loaded.
+ */
+export function itemRangesIn(doc: LibraryDoc | null, get: Get, book: string, into: VersificationDoc | null): {
+  kind: RefKind; parts: { range: VerseRange; title?: string }[]; wholeBook: boolean;
+} | null {
+  const p = placementOf(doc, get);
+  if (!p) return null;
+  const parts: { range: VerseRange; title?: string }[] = [];
+  for (const r of p.ranges) {
+    if (!sameBook(r.range.book, book)) continue;
+    const mapped = r.v11n && into && r.v11n.code !== into.code ? mapRange(r.v11n, into, r.range) : r.range;
+    if (mapped && mapped.book === book) parts.push(r.title ? { range: mapped, title: r.title } : { range: mapped });
+  }
+  return { kind: p.kind, parts, wholeBook: !!p.books?.has(book) };
 }
 
 const before = (a: { chapter: number; verse: number }, b: { chapter: number; verse: number }) => a.chapter < b.chapter || (a.chapter === b.chapter && a.verse <= b.verse);

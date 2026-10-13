@@ -25,6 +25,7 @@ import {
   type LevelDisplay, type LibraryItemView, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import { BookHead, BreakUpBook, templateBookName } from '../breakup/BreakUpBook';
+import { DivideOwnWay } from '../breakup/DivideOwnWay';
 import { useMemo, useRef, useState } from 'react';
 import * as Crypto from 'expo-crypto';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
@@ -1144,6 +1145,7 @@ export function BookStructure(ctx: Ctx) {
   const list = useRef<FlatList<number>>(null);
   const [picking, setPicking] = useState(false);
   const [choosing, setChoosing] = useState(false);
+  const [own, setOwn] = useState(false);
   const canShape = ctx.session.can('shape_templates') || ctx.session.can('manage_templates');
   // Breaking up a book changes the language's template: coordinators and admins (decision 74).
   const canBreak = ctx.session.can('manage_templates');
@@ -1188,9 +1190,16 @@ export function BookStructure(ctx: Ctx) {
   const templateName = templateBookName(doc, usfm, bookName(book.itemId));
   // Not broken up yet, or Break up differently: the ways to choose from (decision 74).
   if (doc?.bible && canBreak && (choosing || data.segments.length === 0)) {
+    // Dividing it your own way: the book's text, where other Bibles start sections, and its helps (decision 93).
+    if (own) {
+      return (
+        <DivideOwnWay ctx={ctx} book={usfm} bookName={data.label} doc={doc} v11n={v11n} fallbackVerses={book.verses} item={item} redo={data.segments.length > 0}
+          onClose={() => setOwn(false)} onDone={() => { setOwn(false); setChoosing(false); }} />
+      );
+    }
     return (
       <BreakUpBook ctx={ctx} book={usfm} bookName={data.label} language={data.language} doc={doc} item={item} redo={data.segments.length > 0}
-        onClose={() => (choosing ? setChoosing(false) : ctx.back())} />
+        onClose={() => (choosing ? setChoosing(false) : ctx.back())} onOwn={() => setOwn(true)} />
     );
   }
   const words = partWords(doc);
