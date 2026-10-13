@@ -47,16 +47,16 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   add_record: { emits:['v1.ReviewRecorded','v1.ReferencesUsed','v1.NoteAdded'],reads:['derivePassage','questionsForKind','recommendedFor'] },
   // What was offered and used goes on the record with the version (docs/reference-material.md).
   // Key words grow during the work (decision 71): say yours, add a word.
-  // Writing the passage instead (decision 93): its words, and its verses.
+  // Writing the passage instead (decision 94): its words, and its verses.
   workspace: { emits:['v1.RecordingAdded','v1.TakeComposed','v1.TakeArchived','v1.TakeSubmitted','v1.WritingAdded',
     'v1.ResponseRecorded','v1.CardVerseSet','v1.NoteAdded','v1.KeyTermLinked','v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted','v1.ReferencesUsed'],
     reads:['derivePassage','keyTermsForUnit','recommendedFor','studyMarksFor'],rpcs:[...REPORTS,'library_get_documents','library_shared_items'] },
   // Its parts are the review's artifacts, not recordings (docs/decisions.md 30).
-  // A step that makes something (decision 93): what it made stays with its version (v1.Made); written, its words and verses;
+  // A step that makes something (decision 94): what it made stays with its version (v1.Made); written, its words and verses;
   // a final recording is published as the next version, as the workspace does.
   back_translation: { emits:['v1.ReviewRecorded','v1.Made','v1.WritingAdded','v1.CardVerseSet','v1.NoteAdded','v1.RecordingAdded','v1.TakeComposed','v1.TakeArchived','v1.TakeSubmitted'],
     reads:['derivePassage'],rpcs:REPORTS },
-  // Something made from a version (decision 93): read or heard, never marked out of date.
+  // Something made from a version (decision 94): read or heard, never marked out of date.
   made_detail: { reads:['derivePassage'] },
   // One reader for both nodes (decision 71): steps, the Bible, key words and notes.
   study_guide: { emits:['v1.StudyStepMarked','v1.NoteAdded','v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted'],
@@ -105,9 +105,11 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
     reads:['library','recommendedFor','sourceOffers'],rpcs:['library_get_documents','library_put_document','request_timings','timing_jobs_for','timing_job_results'] },
   reference_guides: { emits:['v1.ReferenceRecommended','v1.ReferenceSet'],reads:['library','recommendedFor','materialsFor'],rpcs:['library_get_documents'] },
   reference_coverage: { reads:['library','recommendedFor','passageLink','languagePassages'],rpcs:['library_get_documents'] },
-  passage_reference: { emits:['v1.PassageReferenceLinked'],reads:['library','recommendedFor','passageLink','linkedTo','materialsFor'],rpcs:['library_get_documents'] },
+  // The passage's text (its Bibles), its notes and key words beside each help (demo ADR-042).
+  passage_reference: { emits:['v1.PassageReferenceLinked'],reads:['library','recommendedFor','passageLink','linkedTo','materialsFor','derivePassage','keyTermsForUnit'],rpcs:['library_get_documents'] },
   key_terms: { emits:['v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted'],reads:['keyTermsFor'] },
-  key_term_detail: { emits:['v1.KeyTermAdjusted','v1.KeyTermLinked','v1.KeyTermRenderingAdded'],reads:['keyTermView'] },
+  // On a passage: its verses with the word, and other languages' words for it from their logs on this phone (demo ADR-042).
+  key_term_detail: { emits:['v1.KeyTermAdjusted','v1.KeyTermLinked','v1.KeyTermRenderingAdded'],reads:['keyTermView','keyTermsFor'] },
   // Using a library flow for a language; Undo restores the flow and steps it had.
   flows_home: { emits:['v1.FlowSelected','v1.ReviewKindDefined','v1.FlowStepSet','v1.FlowStepRemoved',
     'v1.LibrarySubscribed','v1.LibraryPinned','v1.LibraryItemDefined','v1.LibraryVersionPublished'],
@@ -116,7 +118,8 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // With `steps: 'language'` it saves the open language's own checks (core saveFlowSteps, decision 71).
   flow_editor: { emits:['v1.FlowSelected','v1.FlowStepSet','v1.FlowStepRemoved','v1.ReviewKindDefined','v1.StepMakesSet','v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySharingSet','v1.LibraryItemArchived','v1.LibrarySubscribed','v1.LibraryPinned'],
     reads:['deriveKinds','library'],rpcs:['library_get_documents','library_adopt','library_updates','library_put_document'] },
-  material_editor: { emits:['v1.MaterialDefined','v1.MaterialFieldSet','v1.MaterialLocked','v1.ReferenceRecommended','v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySharingSet','v1.LibraryItemArchived','v1.LibrarySubscribed','v1.LibraryPinned'],
+  // A note for translators on a passage's verses, written under its text, is a passage note (demo ADR-042).
+  material_editor: { emits:['v1.MaterialDefined','v1.MaterialFieldSet','v1.MaterialLocked','v1.ReferenceRecommended','v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySharingSet','v1.LibraryItemArchived','v1.LibrarySubscribed','v1.LibraryPinned','v1.NoteAdded'],
     reads:['materialView','library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
   inbox_home: { reads:['updatesFor','notifications','join_requests','profiles'],
     rpcs:['decide_join_request_v2','org_content_reports','remove_content','dismiss_reports'] },
@@ -142,10 +145,11 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
     reads:['library','recommendedFor','deriveFlow','org.roles','join_requests'],
     rpcs:['issue_invite_v3','library_shared_items','library_get_documents','library_adopt','library_put_document','library_template_users'] },
   // Breaking up a book (decision 74): the language's template moves to its next version, or to a copy split off for the
-  // languages chosen (each moved there by its own TemplateSelected); and what the language calls the book.
+  // languages chosen (each moved there by its own TemplateSelected); and what the language calls the book, offered
+  // from what its Bibles and the organization's other languages call it (demo ADR-042).
   book_structure: { emits:['v1.TemplateSelected','v1.UnitAdded','v1.UnitHidden','v1.BookNameSet','v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySubscribed','v1.LibraryPinned'],
-    reads:['library','derivePassage'],
-    rpcs:['library_shared_items','library_get_documents','library_adopt','library_put_document','library_template_users'] }
+    reads:['library','derivePassage','recommendedFor'],
+    rpcs:['library_shared_items','library_get_documents','library_adopt','library_put_document','library_template_users','language_book_names'] }
 };
 export const SCREEN_CONTRACTS = Object.fromEntries(SCREEN_IDS.map((id) => [id, {
   emits:[],reads:[],rpcs:[],...declarations[id]

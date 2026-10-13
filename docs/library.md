@@ -111,7 +111,10 @@ version; otherwise as a copy split off for the chosen languages
 moved there by a `TemplateSelected` that keeps its `unitPrefix`.
 `library_template_users(p_org)` says which template each language of an
 organization uses; offline, a change is always a copy. What a language
-calls a book is `v1.BookNameSet`, read by `unitTitle` and `unitPlace`.
+calls a book is `v1.BookNameSet`, read by `unitTitle` and `unitPlace`;
+naming one offers what the language's Bibles call it (their `source@1`
+books) and what the organization's other languages call it
+(`language_book_names(p_org, p_book)`, demo ADR-042).
 
 ## Versification
 
@@ -133,6 +136,7 @@ by `_apply_org_event`), `library_documents` (hash, format, body, deps) and
 | Function | Who | What |
 | --- | --- | --- |
 | `library_template_users(p_org) → (language_id, item_id, doc_hash, unit_prefix, books)` | a member of `p_org` | each language's latest `TemplateSelected` (decision 74) |
+| `language_book_names(p_org, p_book) → (language_id, name)` | a member of `p_org` | each language's latest `BookNameSet` for the book, in the languages the caller may read |
 | `library_put_document(p_org, p_body) → hash` | a member of `p_org` who manages templates, flows or reference | stores a document; its deps must already be readable by `p_org` |
 | `library_get_documents(p_org, p_hashes) → (hash, body)` | a member of `p_org` | documents `p_org` may read, plus current versions of shared items (for browsing) |
 | `library_shared_items(p_kind, p_query, p_limit, p_offset)` | anyone signed in | shared, unarchived items of every organization, with their latest version |

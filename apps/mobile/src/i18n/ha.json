@@ -1629,11 +1629,9 @@
       "linedUp": "LangQuest yana jera su aya bayan aya. Babu abin da za a yi sai idan wani abu bai yi daidai ba.",
       "psalm": "Zabura ta {{place}}"
     },
-    "others": {
-      "intro_one": "FIA ba shi da nassosi don littafi {{count, number}} ({{books}}). Wannan littafi:",
-      "intro_other": "FIA ba shi da nassosi don littattafai {{count, number}} ({{books}}). Waɗannan littattafai:",
-      "byChapter": "babi-babi",
-      "wait": "suna jiran a raba su"
+    "leftOut": {
+      "wait_one": "{{books}} yana jiran a raba shi. Za ka iya raba shi daga taswira daga baya.",
+      "wait_other": "{{books}} suna jiran a raba su. Za ka iya raba su daga taswira daga baya."
     },
     "book": {
       "breakDifferently": "Raba ta wata hanya",
@@ -1644,9 +1642,6 @@
       "calledIn": "Ana kiransa {{name}} a {{language}}",
       "templateCalls": "Samfurin yana kiransa {{name}}",
       "tapToName": "Taɓa don ba shi sunan da tawagar take amfani da shi",
-      "whatCalled": "Abin da {{language}} yake kiransa",
-      "namingSub": "Ana nuna shi a duk inda wannan harshe yake nuna littafin.",
-      "nameLabel": "Sunansa",
       "brokenUpByChapter": "An raba {{book}} babi-babi.",
       "brokenUpInto": "An raba {{book}} zuwa {{way}}.",
       "change": "Canja {{book}}",
@@ -1660,6 +1655,15 @@
       "alsoUsedTwo": "Ana amfani da shi a {{first}} da {{second}} ma. A canja {{book}} don wanne daga cikinsu?",
       "alsoUsedMore_one": "Ana amfani da shi a {{name}} da ƙari {{count, number}} ma. A canja {{book}} don wanne daga cikinsu?",
       "alsoUsedMore_other": "Ana amfani da shi a {{name}} da ƙari {{count, number}} ma. A canja {{book}} don wanne daga cikinsu?"
+    },
+    "bookName": {
+      "title": "Abin da {{language}} yake kiran {{book}}",
+      "sub": "Masu fassara suna ganin wannan suna",
+      "typeOrTap": "Rubuta shi, ko ka taɓa ɗaya a ƙasa",
+      "fromBibles": "Abin da Littattafai Masu Tsarki na tawagar suke kiransa",
+      "fromLanguages": "Abin da sauran harsuna a nan suke kiransa",
+      "use": "Yi amfani",
+      "useLabel": "Yi amfani da {{name}} ({{from}})"
     },
     "translate": {
       "question": "Me {{language}} zai fassara?",
@@ -1804,6 +1808,76 @@
         "hebrew": "Ibrananci",
         "korean": "Koreanci"
       }
+    },
+    "own": {
+      "title": "Raba shi yadda kake so",
+      "sub": "Karanta {{book}} ka zaɓi inda kowane sashe zai fara",
+      "orReadyMade": "Ko ka zaɓi hanyar da aka shirya",
+      "helps": "Taimako",
+      "noBibleChip": "Babu Littafi Mai Tsarki",
+      "chapterChip": "Babi {{n}}",
+      "key": "Layukan ɗigo-ɗigo suna nuna inda wasu Littattafai Masu Tsarki suke fara sashe (Littattafai {{total}} na Turanci, daga OpenBible.info). Taɓa ɗaya don fara sashe a can, ko taɓa kowace aya.",
+      "loadingText": "Ana ɗauko kalmomin {{book}}…",
+      "noText": "Littattafan ƙungiyar ba su da kalmomin {{book}}, don haka ayoyinsa suna nuna a matsayin lambobi.",
+      "chapterHead": "Babi {{n}}",
+      "goesOn": "· sashe na {{n}} yana ci gaba",
+      "verseLabel": "Aya {{at}}",
+      "alsoBibles": "Littattafai {{n}} cikin {{total}} suna fara ɗaya a nan",
+      "bibles": "Littattafai {{n}} cikin {{total}}",
+      "startAt": "suna fara sashe a nan",
+      "startPill": "Fara a nan",
+      "suggestionLabel": "Fara sashe a {{at}}. {{bibles}} suna fara ɗaya a nan.",
+      "bookStarts": "Littafin yana farawa a nan",
+      "joinWith": "Haɗa da sashe na {{n}}",
+      "startHere": "Fara sashe a nan",
+      "undo": "Soke",
+      "startFrom": "Fara daga hanyar da aka shirya",
+      "started": "Sashe na {{n}} yana farawa a {{at}}",
+      "joined": "An haɗa da sashe na {{n}}",
+      "usedOutline": "Sassa suna farawa inda sassan taƙaitawar suke farawa",
+      "saved": "An raba {{book}}. Ƙungiyar za ta iya naɗa shi yanzu.",
+      "bibleTitle": "Karanta {{book}} a cikin",
+      "bibleSub": "Kalmomi kaɗai ne suke canzawa. Sassanka suna nan a inda suke.",
+      "teamBible": "{{language}} · Littafin ƙungiyar",
+      "jumpTitle": "Je zuwa babi",
+      "jumpSub": "Sassa nawa ne suke farawa a kowane babi",
+      "fromTitle": "Hanyoyin da aka shirya",
+      "fromSub": "Yana maye gurbin sassan {{book}}. Soke yana dawo da su.",
+      "startedFrom": "{{book}} yanzu yana farawa daga {{way}}",
+      "sectionTitle": "Sashe na {{n}}",
+      "nameLabel": "Sunansa (ba dole ba)",
+      "namePlaceholder": "Abin da ƙungiyar ke kiransa",
+      "joinSub": "Ayoyin wannan sashe za su koma na baya",
+      "firstCantJoin": "Ba za a iya haɗa sashe na farko ba",
+      "leaveTitle": "Fita ba tare da adanawa ba?",
+      "leaveSub": "Ba a adana sassanka na {{book}} ba tukuna.",
+      "leaveAnyway": "Fita ba tare da adanawa ba",
+      "helpsTitle": "Taimako don {{book}}",
+      "closeHelps": "Rufe taimako",
+      "tabOutline": "Taƙaitawa",
+      "tabNotes": "Bayanai {{n}}",
+      "tabGuides": "Jagorori",
+      "outlineFrom": "Daga {{from}}",
+      "useOutline": "Fara sassa inda waɗannan sassan suke farawa",
+      "noOutline": "Babu jagorar da ta raba {{book}} zuwa sassa.",
+      "noteOn": "{{name}} · kan {{where}}",
+      "showInText": "Nuna shi a cikin rubutun",
+      "noNotes": "Babu bayanai kan {{book}} tukuna.",
+      "allOf": "Dukan {{book}}",
+      "nothingFor": "Babu komai don {{book}}",
+      "noHelps": "Ba a ba da jagorori ko bayanai don {{book}} ba tukuna.",
+      "headerSub_one": "Yadda kake so · sashe {{count, number}}",
+      "headerSub_other": "Yadda kake so · sassa {{count, number}}",
+      "verses_one": "aya {{count, number}}",
+      "verses_other": "ayoyi {{count, number}}",
+      "save_one": "Adana · sashe {{count, number}}",
+      "save_other": "Adana · sassa {{count, number}}",
+      "jumpLabel_one": "Babi {{chapter}}: sashe {{count, number}} yana farawa a nan",
+      "jumpLabel_other": "Babi {{chapter}}: sassa {{count, number}} suna farawa a nan",
+      "sections_one": "sashe {{count, number}}",
+      "sections_other": "sassa {{count, number}}",
+      "partsIn_one": "sashe {{count, number}} a cikin {{book}}",
+      "partsIn_other": "sassa {{count, number}} a cikin {{book}}"
     }
   },
   "canon": {
@@ -2670,7 +2744,8 @@
       "reportedContent": "Wani ya kai ƙarar wannan saboda {{reasons}}. Wanda ya yi shi: {{name}}. Ku duba shi, sannan ku cire shi daga tarihin ko ku bar shi.",
       "reportsAnonymous": "Ƙararraki ba sa faɗin wanda ya aika su. Tawagar LangQuest ma tana ganin kowace ƙara.",
       "assignAccept": "Ba da matsayi ku karɓa",
-      "decline": "Ƙi"
+      "decline": "Ƙi",
+      "inLanguage": "A cikin {{language}}"
     },
     "me": {
       "title": "Ni",
@@ -3554,7 +3629,20 @@
     "divide": {
       "title": "Raba {{book}}",
       "waiting_one": "Yana jiran a raba shi kafin kowa ya naɗa shi",
-      "waiting_other": "Littattafai {{count, number}} suna jiran a raba su kafin kowa ya naɗa su"
+      "waiting_other": "Littattafai {{count, number}} suna jiran a raba su kafin kowa ya naɗa su",
+      "leftOut": "{{way}} ba shi da sassa na {{book}} ba.",
+      "more_one": "Ƙarin littafi {{count, number}} shi ma yana jira.",
+      "more_other": "Ƙarin littattafai {{count, number}} su ma suna jira."
+    },
+    "elsewhere": {
+      "title": "Sabbin labarai a {{language}}",
+      "sub_one": "Sabon labari {{count, number}} gare ku. Taɓa don komawa {{language}}.",
+      "sub_other": "Sababbin labarai {{count, number}} gare ku. Taɓa don komawa {{language}}."
+    },
+    "again": {
+      "title": "Sake naɗa {{passage}}",
+      "sub_one": "Sassansa sun canza bayan an naɗa shi. Naɗin da ya gabata yana shafinsa.",
+      "sub_other": "Sassa sun canza bayan an naɗa su: {{count, number}} da za a sake naɗawa. Naɗe-naɗen da suka gabata suna shafukansu."
     }
   },
   "shell": {
@@ -4506,7 +4594,8 @@
       "openInAll_one": "Buƙata {{count, number}} a buɗe gaba ɗaya",
       "openInAll_other": "Buƙatu {{count, number}} a buɗe gaba ɗaya",
       "checkpoint": "A shingen dubawa",
-      "checkpointSub": "Yana jiran bitar shingen dubawa"
+      "checkpointSub": "Yana jiran bitar shingen dubawa",
+      "show": "Nuna su a taswira"
     },
     "noReports": {
       "languages": "Babu harsunan da za a nuna tukuna",
@@ -5622,25 +5711,15 @@
       "noGuideBadge": "Babu jagora"
     },
     "passage": {
-      "title": "Kayan Bincike",
       "gone": "Wannan nassi ba ya nan",
       "placedByHand": "An sanya a nan da hannu",
-      "studyGuides": "Jagororin nazari",
       "notes": "Bayanai ga masu fassara",
-      "other": "Wasu kaya",
       "hiddenHere": "An ɓoye a nan",
       "showHere": "Nuna a nan",
       "hideHere": "Ɓoye a nan",
       "shownAgain": "{{name}} yana sake bayyana a wannan nassi.",
       "hidden": "An ɓoye {{name}} a wannan nassi.",
-      "add": "Ƙara",
-      "intro": "Abin da ake ba masu fassara a wannan nassi, da dalili. Har yanzu za su iya zagaya kowane Littafi Mai Tsarki ta intanet su zaɓa da kansu.",
-      "group": "{{group}} · {{n, number}}",
-      "noBible": "Ba a ba da shawarar wani Littafi Mai Tsarki don wannan nassi ba. Masu fassara har yanzu za su iya zagaya ɗaya.",
       "placedInApp": "An sanya a nan a cikin manhaja",
-      "hiddenSection": "An ɓoye a nan · {{n, number}}",
-      "addTitle": "Ƙara a wannan nassi",
-      "addSub": "An sanya a nan da hannu, ko mene ne wurinsa ya faɗa.",
       "searchPlaceholder": "Nemi a ɗakin karatunku",
       "allHere": "Duk abin da ke ɗakin karatunku yana nan tuni.",
       "placed": "An sanya {{name}} a wannan nassi."
@@ -5767,6 +5846,34 @@
       "yours": "Harshen manhajarka",
       "gaps_one": "A {{language}}, {{name}} yana da jagora don nassi {{count, number}}. Nassosin da ba su da jagora ba za su nuna jagorar nazari ba.",
       "gaps_other": "A {{language}}, {{name}} yana da jagorori don nassosi {{count, number}}. Nassosin da ba su da jagora ba za su nuna jagorar nazari ba."
+    },
+    "passageText": {
+      "bar": "{{passage}} · {{bible}}",
+      "barHelpTitle": "Nassin",
+      "barHelp": "Yana buɗe nassin a cikin Littafi Mai Tsarki da kuka zaɓa, tare da alama a kan muhimman kalmominsa da bayanansa.",
+      "openText": "{{passage}}. Nuna nassin",
+      "closeText": "{{passage}}. Ɓoye nassin",
+      "listen": "Saurara",
+      "listenHelp": "Yana kunna nassin a wannan Littafi Mai Tsarki.",
+      "noteTag": "Bayani",
+      "showHelp": "Masu fassara suna samun wannan a wannan nassi.",
+      "hideHelp": "Masu fassara ba za su ƙara samun wannan a wannan nassi ba.",
+      "step": "Mataki na {{n, number}}",
+      "steps_one": "Mataki {{count, number}}",
+      "steps_other": "Matakai {{count, number}}",
+      "notesSub_one": "Bayani {{count, number}} a wannan nassi",
+      "notesSub_other": "Bayanai {{count, number}} a wannan nassi",
+      "wholePassage": "Dukan nassin",
+      "keyWords": "Muhimman kalmomi",
+      "keyWordsSub_one": "{{count, number}} a waɗannan ayoyi",
+      "keyWordsSub_other": "{{count, number}} a waɗannan ayoyi",
+      "none": "Har yanzu babu taimako a wannan nassi.",
+      "addHelp": "Ƙara taimako",
+      "addHelpHint": "Rubuta bayani ga masu fassara, ko sa wani abu daga ɗakin karatunku.",
+      "writeNote": "Rubuta bayani ga masu fassara",
+      "writeNoteSub": "A ayoyin da kuka zaɓa, da murya ko a rubuce",
+      "fromLibrary": "Daga ɗakin karatunku",
+      "fromOwn": "Daga ɗakin karatun ƙungiyarku"
     }
   },
   "sources": {
@@ -6001,6 +6108,38 @@
     "goOnline": "Ku riƙa haɗa intanet akai-akai don a aika aikinku.",
     "lessSpace": "Wataƙila wannan na'ura tana da ƙarancin wuri fiye da yadda take faɗa.",
     "understand": "Na fahimta"
+  },
+  "notes": {
+    "onVerses": {
+      "title": "Bayani ga masu fassara",
+      "sub": "{{passage}} · {{language}}",
+      "hint": "Taɓa aya, sannan wata don a kai gare ta.",
+      "verseHelp": "Yana sa bayanin a wannan aya. Taɓa wata aya don a kai gare ta.",
+      "on": "A {{where}}",
+      "onWhole": "A dukan nassin",
+      "whole": "Dukan nassin",
+      "say": "Taɓa ka faɗi bayaninka",
+      "saved": "An ajiye bayani a {{where}}.",
+      "savedWhole": "An ajiye bayani a {{passage}}."
+    }
+  },
+  "keyTerms": {
+    "verses": {
+      "title": "Inda take a nan",
+      "none": "“{{word}}” ba ta cikin waɗannan ayoyi a {{bible}}.",
+      "noneHere": "“{{word}}” ba ta cikin waɗannan ayoyi.",
+      "more_one": "Da ƙarin aya {{count, number}}",
+      "more_other": "Da ƙarin ayoyi {{count, number}}"
+    },
+    "others": {
+      "title": "Yadda wasu harsuna a nan suke faɗinta",
+      "none": "Har yanzu babu wani harshe a wannan waya da ke da kalma don “{{word}}”.",
+      "saidOnly": "An faɗa, ba a rubuta ba",
+      "play": "Kunna kalmar a {{language}}",
+      "playHelp": "Yana kunna yadda suke faɗinta.",
+      "suggest": "Wasu harsuna a nan suna amfani da",
+      "suggestHelp": "Ana amfani da ita a nan a {{languages}}. Taɓa don ƙara ta."
+    }
   },
   "writing": {
     "madeThing": "Abin da aka yi daga gare ta",

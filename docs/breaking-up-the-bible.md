@@ -119,7 +119,29 @@ Daniel 14. The admin can divide them further.
 **Books a way does not cover at all** (Tobit, Maccabees, or Romans under
 FIA) stay waiting to be divided until the admin divides them. Choosing a
 way that does not cover the whole numbering shows which books it leaves
-waiting; the admin may go ahead.
+waiting; the admin may go ahead. Those books are divided later, one at a
+time, from the map (decision 93).
+
+## Dividing a book your own way
+
+A book can also be divided by hand (decision 93, demo ADR-041). "Divide it
+your own way" comes first on the list of ways, set apart from it. It opens
+the book as text in a Bible the team has, starting from how the language
+divides it now, else by chapter. Where at least 10 of OpenBible.info's 20
+English Bibles start a section, a dashed line says how many and offers
+"Start here"; each section's card says how many start one there too. The
+counts are bundled in core (`packages/core/src/bibleBreaksData.ts`, made by
+`scripts/bible-breaks.ts` from `library/divisions/openbible-section-counts.tsv`)
+and moved into the language's numbering through the Original (rule 1's
+mapping, `bibleBreaksIn`). Tapping a verse starts a section there, or joins
+it to the one before; a section can be named. The book's outline (guides
+that come as a collection), notes on its verses and the guides offered to
+the language sit in a pane under the text, and their parts can become the
+sections. Any ready-made way can be the starting point, with Undo. Saving
+makes a way with just this book (`ownWayDoc`) and applies it like any other
+way, so the warning, the languages a shared template changes, and Undo are
+the same; in another numbering, sections whose verses differ from the same
+numbers in English are marked `renumbered` (decision 80).
 
 ## When divisions change
 

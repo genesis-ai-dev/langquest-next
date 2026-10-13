@@ -1,7 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { foldOrg, libraryItemView, ORG_STREAM, subscriptionItemId, type AnyEvent, type TemplateDocV2, type VersificationDoc } from '@langquest-next/core';
-import { copyName, copyOffOps, countLine, emptyLine, piecesOf, planChange, usedLine, wayOf, wayRows, type TemplateUser } from '../src/breakup/model';
+import {
+  booksLine, copyName, copyOffOps, countLine, emptyLine, groupNames, piecesOf, planChange, usedLine, wayOf, wayRows, type TemplateUser
+} from '../src/breakup/model';
 import type { LibraryChoice } from '../src/contentTemplates';
 import { publishOps, subscribeOps, type LibraryOp, type SharedItem } from '../src/library/model';
 
@@ -64,6 +66,21 @@ describe('the ways to break up the Bible, in the order an admin sees them', () =
     expect(f.map((p) => p.label)).toEqual(['Ruth 1:1–7', 'Ruth 1:8–19', 'Ruth 1:19–2:2', 'Ruth 2:3–4:22']);
     expect(f[0]!.verses).toBe(7);
     expect(piecesOf(fia, 'ROM', eng)).toEqual([]);
+  });
+});
+
+describe('the books a way leaves out, and the names a book is given (demo ADR-042)', () => {
+  it('lists the books short', () => {
+    const twenty = ['Proverbs', 'Ecclesiastes', ...Array.from({ length: 18 }, (_, i) => `Book ${i}`)];
+    expect(booksLine(twenty)).toBe('Proverbs, Ecclesiastes and 18 more');
+    expect(booksLine(['Romans', 'Hebrews', 'Revelation'])).toBe('Romans, Hebrews, Revelation');
+  });
+
+  it('gives each name once, with everyone who uses it', () => {
+    expect(groupNames([
+      { name: 'Romans', from: 'World English Bible' }, { name: 'Warumi', from: 'Swahili Bible' }, { name: 'Romans ', from: 'Berean Standard Bible' },
+      { name: ' ', from: 'Empty' }, { name: 'Romans', from: 'World English Bible' }
+    ])).toEqual([{ name: 'Romans', from: ['World English Bible', 'Berean Standard Bible'] }, { name: 'Warumi', from: ['Swahili Bible'] }]);
   });
 });
 

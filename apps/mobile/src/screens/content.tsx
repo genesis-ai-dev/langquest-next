@@ -25,6 +25,7 @@ import {
   type LevelDisplay, type LibraryItemView, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import { BookHead, BreakUpBook, templateBookName } from '../breakup/BreakUpBook';
+import { DivideOwnWay } from '../breakup/DivideOwnWay';
 import { useMemo, useRef, useState } from 'react';
 import * as Crypto from 'expo-crypto';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
@@ -48,6 +49,7 @@ import { loadDocs } from '../library/docStore';
 import { sourceLine, usesItem, type SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs, useLibraryUpdates, useSharedItems } from '../library/useLibrary';
 import { failureMessage } from '../report';
+import { DashedRow } from '../simple/admin';
 import { readingsFor } from '../scripture';
 import { contractsFor } from '../screenContracts';
 import { C, radius, space, target, tile, TINT, type as T } from '../theme';
@@ -662,6 +664,8 @@ export function TemplatePicker(ctx: Ctx) {
           <PrimaryBtn label={t('content.picker.use', { name: pick.name })} icon="check" busy={busy} disabled={!canUse} onPress={() => void use(pick)} />
         </>
       ) : undefined}>
+      {/* Making your own comes first and stands apart, so the ready-made list below can grow without burying it (design principle 12). */}
+      {ctx.session.can('manage_templates') ? <DashedRow icon="plus" label={t('breakup.translate.makeOwn')} onPress={() => ctx.go('template_editor', { new: '1' })} /> : null}
       <SectionLabel label={t('content.sections.yourOrganization')} />
       {ours.length === 0 ? (
         <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('content.picker.noneOurs')}</Text>
@@ -736,7 +740,8 @@ function useVersifications(ctx: Ctx, lib: Lib, enabled = true) {
 function NewTemplate({ ctx }: { ctx: Ctx }) {
   const lib = useLibrary(ctx);
   const v = useVersifications(ctx, lib);
-  const [form, setForm] = useState<TemplateForm | null>(null);
+  // Opened from "Something else: Make your own" (`kind: 'outline'`): the outline, without asking again.
+  const [form, setForm] = useState<TemplateForm | null>(() => (ctx.params['kind'] === 'outline' ? newTemplateForm('outline') : null));
   const [bible, setBible] = useState(false);
   const [busy, setBusy] = useState(false);
   if (form) return <TemplateEditorForm ctx={ctx} lib={lib} item={null} initial={form} />;
@@ -1140,6 +1145,7 @@ export function BookStructure(ctx: Ctx) {
   const list = useRef<FlatList<number>>(null);
   const [picking, setPicking] = useState(false);
   const [choosing, setChoosing] = useState(false);
+  const [own, setOwn] = useState(false);
   const canShape = ctx.session.can('shape_templates') || ctx.session.can('manage_templates');
   // Breaking up a book changes the language's template: coordinators and admins (decision 74).
   const canBreak = ctx.session.can('manage_templates');
@@ -1184,9 +1190,16 @@ export function BookStructure(ctx: Ctx) {
   const templateName = templateBookName(doc, usfm, bookName(book.itemId));
   // Not broken up yet, or Break up differently: the ways to choose from (decision 74).
   if (doc?.bible && canBreak && (choosing || data.segments.length === 0)) {
+    // Dividing it your own way: the book's text, where other Bibles start sections, and its helps (decision 93).
+    if (own) {
+      return (
+        <DivideOwnWay ctx={ctx} book={usfm} bookName={data.label} doc={doc} v11n={v11n} fallbackVerses={book.verses} item={item} redo={data.segments.length > 0}
+          onClose={() => setOwn(false)} onDone={() => { setOwn(false); setChoosing(false); }} />
+      );
+    }
     return (
       <BreakUpBook ctx={ctx} book={usfm} bookName={data.label} language={data.language} doc={doc} item={item} redo={data.segments.length > 0}
-        onClose={() => (choosing ? setChoosing(false) : ctx.back())} />
+        onClose={() => (choosing ? setChoosing(false) : ctx.back())} onOwn={() => setOwn(true)} />
     );
   }
   const words = partWords(doc);

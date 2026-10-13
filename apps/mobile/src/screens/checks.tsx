@@ -192,7 +192,7 @@ function CheckList(props: {
   );
 }
 
-/** Add a check: one the organization knows, or a new one by name; with `making`, a step that makes something first (decisions.md 93). */
+/** Add a check: one the organization knows, or a new one by name; with `making`, a step that makes something first (decisions.md 94). */
 function AddCheckSheet(props: {
   visible: boolean; kinds: KindDef[]; taken: string[]; onClose: () => void; onPick: (k: KindDef, isNew: boolean) => void;
   making?: { own: string; reference: string; onPick: (k: KindDef, makes: MakesSpec) => void; onOwn: () => void };
@@ -203,7 +203,7 @@ function AddCheckSheet(props: {
     <Sheet visible={props.visible} title={t('checks.addCheck')} onClose={props.onClose}>
       {props.making ? (
         <>
-          {/* The shipped back translation, when the language has it, stands for the said one (decision 93). */}
+          {/* The shipped back translation, when the language has it, stands for the said one (decision 94). */}
           <MakingPresets taken={[...props.taken, ...props.kinds.map((k) => k.id), ...(props.taken.includes('bt') ? ['make-bt-said'] : [])]} own={props.making.own} reference={props.making.reference}
             onPick={props.making.onPick} onOwn={props.making.onOwn} />
           <SectionLabel label={t('writing.step.checkIt')} />
@@ -262,7 +262,7 @@ function OwnChecks({ ctx }: { ctx: Ctx }) {
   }
   const save = (next: CheckRow[], before: EventSpec[] = []) => void saveRows(ctx, next, t('checks.saved', { language }), before);
   const reference = teamLanguage(ctx.org.state, state, languageId);
-  /** A step that makes something: its kind, what it makes, and its row (decisions.md 93). */
+  /** A step that makes something: its kind, what it makes, and its row (decisions.md 94). */
   const addMaking = (k: KindDef, makes: MakesSpec) => {
     const c = commands(state, indexesFor(state));
     const define = state.reviewKinds[k.id] ? [] : c.defineKind({ commandId: Crypto.randomUUID(), kindId: k.id, name: k.name, description: k.description, usualReviewer: k.usualReviewer });
@@ -459,7 +459,7 @@ export function CheckEditor(ctx: Ctx) {
     .sort((a, b) => ctx.name(a).localeCompare(ctx.name(b)));
   const previous = i > 0 ? checkName(rows[i - 1]!.kindId, known) : '';
 
-  // A step that makes something (decisions.md 93): what it turns, into what, in which language, and the switch.
+  // A step that makes something (decisions.md 94): what it turns, into what, in which language, and the switch.
   const kind = known.find((k) => k.id === kindId);
   const makes = kind?.makes;
   const reference = teamLanguage(org, state, languageId);
@@ -471,7 +471,7 @@ export function CheckEditor(ctx: Ctx) {
       before ? () => { const now = ctx.language.state; return now ? commands(now, indexesFor(now)).setStepMakes({ commandId: Crypto.randomUUID(), kindId, makes: before }) : []; } : undefined)
       .catch(() => {});
   };
-  // Words added here, before a step that makes the next version, stay with the older version (decision 93).
+  // Words added here, before a step that makes the next version, stay with the older version (decision 94).
   const laterVersion = makes?.result === 'added' ? rows.slice(i + 1).map((r) => known.find((k) => k.id === r.kindId)).find((k) => k?.makes?.result === 'version') : undefined;
   // A check may read what an earlier step made instead of the version (a spelling check of what was written down).
   const makersBefore = rows.slice(0, i).map((r) => known.find((k) => k.id === r.kindId)).filter((k): k is KindDef => !!k?.makes);

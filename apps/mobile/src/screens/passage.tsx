@@ -199,6 +199,8 @@ export function PassageRecord(ctx: Ctx) {
   const [historyShown, setHistoryShown] = useState(HISTORY_STEP);
   // Which of the checks that happen next the ask page sends (decision 91): the first, unless another is picked.
   const [askKindId, setAskKindId] = useState<string | null>(null);
+  // Questions added on the ask page, sent with the request (as Someone else can).
+  const [askQuestions, setAskQuestions] = useState<QuestionSpec[]>([]);
   const timeline = useMemo(() => (v ? recordTimeline(v.state, v.p) : []), [v?.state, v?.p]);
   const guide = useStudyGuide(ctx, v?.unitId);
   const study = useMemo(() => (v && guide ? studyProgress(v.state, v.p, guide) : null), [v?.state, v?.p, guide]);
@@ -256,12 +258,12 @@ export function PassageRecord(ctx: Ctx) {
     setTimeout(fn, SHEET_GAP_MS);
   };
   /** One tap: the kind goes to whoever usually does it, with Undo (ADR-029). */
-  const sendTo = (kindId: string) => {
+  const sendTo = (kindId: string, questions: QuestionSpec[] = []) => {
     const target = targets[kindId];
     if (!target) return go('ask_someone', { what: 'review', kindId });
     setOpenStepId(null);
     const label = sendTargetLabel(target, ctx.name);
-    void perform(ctx, (c) => c.ask(sendToInput({ commandId: newId(), unitId, kindId, target })),
+    void perform(ctx, (c) => c.ask({ ...sendToInput({ commandId: newId(), unitId, kindId, target }), ...(questions.length ? { questions } : {}) }),
       'teamId' in target ? t('passage.page.sentToTeam', { target: label }) : t('passage.page.sentToPerson', { target: label }),
       (applied) => (c) => c.withdrawRequest({ commandId: newId(), requestId: payloadField(applied, 'requestId') }));
   };
@@ -291,7 +293,7 @@ export function PassageRecord(ctx: Ctx) {
 
   // ---- the path ----
   const latestSeconds = p.latest ? clipSeconds(v.state, p.latest.cardHashes) : 0;
-  // A passage goes on the way its latest version was made, else the way the language leads (decision 93).
+  // A passage goes on the way its latest version was made, else the way the language leads (decision 94).
   const media = mediaAllowed(v.state);
   const lead = p.latest && media[p.latest.medium] ? p.latest.medium : leadMedium(v.state);
   const other = media.recording && media.writing ? (lead === 'writing' ? 'recording' : 'writing') : null;
@@ -449,7 +451,7 @@ export function PassageRecord(ctx: Ctx) {
             <BigOption icon="mic" label={myDraft ? t('passage.page.continueRecording') : t('passage.else.newVersion')} sub={t('passage.else.newVersionSub')}
               onPress={recordOrPick} />
           ) : null}
-          {/* The other way the language allows (decisions.md 93): write it instead, or record it instead. */}
+          {/* The other way the language allows (decisions.md 94): write it instead, or record it instead. */}
           {can.record && other === 'writing' ? (
             <BigOption icon="edit" label={t('writing.path.writeInstead')} sub={t('writing.path.writeInsteadSub')} onPress={() => go('workspace', { write: '1' })} />
           ) : null}
@@ -484,7 +486,7 @@ export function PassageRecord(ctx: Ctx) {
           <View style={{ gap: space.xs }}>
             <PrimaryBtn label={nextTarget ? t('passage.published.askTarget', { target: sendTargetLabel(nextTarget, ctx.name) })
               : t('passage.page.askFor', { check: kindInSentence(checkName(nextKind.kindId, kinds)) })} icon="send"
-              onPress={() => { close(); sendTo(nextKind.kindId); }} />
+              onPress={() => { close(); sendTo(nextKind.kindId, askQuestions); setAskQuestions([]); }} />
             <QuietLinks items={[
               { label: t('passage.published.someoneElse'), icon: 'people', onPress: () => { close(); go('ask_someone', { what: 'review', kindId: nextKind.kindId }); } },
               { label: t('common.notNow'), icon: 'clock', onPress: close }
@@ -518,6 +520,8 @@ export function PassageRecord(ctx: Ctx) {
                 </Pressable>
               );
             })}
+            {/* With someone to send it to, the questions they'll answer, and more to add. With nobody yet, the button opens Someone else, which has them. */}
+            {can.ask && targets[nextKind.kindId] ? <TheyAnswer asked={questionsForKind(v.state, nextKind.kindId)} questions={askQuestions} setQuestions={setAskQuestions} /> : null}
           </View>
         ) : (
           <Text style={[txt.smMuted, { textAlign: 'center', marginTop: space.lg }]}>
@@ -616,7 +620,7 @@ export function PassageRecord(ctx: Ctx) {
 }
 
 /** One of the ways forward on "Something else?": a big card row. */
-/** What doing a step is called: what it makes (decisions.md 93), back-translating, or doing the check. */
+/** What doing a step is called: what it makes (decisions.md 94), back-translating, or doing the check. */
 function doLabel(kind: KindDef): string {
   if (kind.makes) return kind.name;
   return kind.produces ? t('passage.page.main.backTranslate') : t('passage.page.main.doCheck', { check: kindInSentence(kind.name) });
@@ -741,12 +745,12 @@ function KindActionRow(props: {
   sendTo?: string;
   onAction: (a: RowAction, k: KindStatus, step: FlowStepStatus, askedMe: boolean) => void;
   onMore: () => void;
-  /** Open what a making step made: the made thing, or the version it made (decision 93). */
+  /** Open what a making step made: the made thing, or the version it made (decision 94). */
   onOpenMade?: (m: { madeId?: string; takeId?: string }) => void;
 }) {
   const { ctx, v, status, step } = props;
   const kind = v.kind(status.kindId);
-  // A making step that is done shows what it made, who made it, and opens it (decision 93).
+  // A making step that is done shows what it made, who made it, and opens it (decision 94).
   const made = kind.makes && isCompleteState(status.state) ? madeByStep(v, status.kindId) : undefined;
   const me = ctx.session.actorId;
   const checkedBy = kind.produces ? v.kind(kind.produces.checkedBy).name : undefined;
@@ -831,7 +835,7 @@ function ReviewGrid(props: { ctx: Ctx; v: PassageView; kindIds: string[]; onVers
   const { v } = props;
   const [shown, setShown] = useState(GRID_STEP);
   // Steps that make something are columns of what they made, a version they made among it (a final
-  // recording); what no step made (v2's) gets a column only where some exists (decision 93).
+  // recording); what no step made (v2's) gets a column only where some exists (decision 94).
   const made = madeGrid(v.p);
   const makingIds = [...new Set([...props.kindIds.filter((id) => !!v.kind(id).makes), ...made.columns.flatMap((c) => (c.kindId ? [c.kindId] : []))])];
   const madeColumns: MadeColumn[] = [
@@ -994,7 +998,7 @@ export function VersionDetail(ctx: Ctx) {
   const notes = p.notes.filter((n) => n.anchor.kind !== 'study' && (n.onTakeId === version.takeId || (n.anchor.kind === 'version' && n.anchor.takeId === version.takeId)));
   const key = (part: string) => `version:${unitId}:${languageId}:${version.takeId}:${part}`;
   const params = { unitId, languageId };
-  // What was made from this version, by steps or brought over (decision 93); it stays here, never out of date.
+  // What was made from this version, by steps or brought over (decision 94); it stays here, never out of date.
   // What a step added to it (words for a recording) is part of it, and shows with it.
   const made = p.made.filter((m) => !m.added && madeVersionOf(p, m) === version.takeId);
   const added = addedTo(p, version);
@@ -1023,7 +1027,7 @@ export function VersionDetail(ctx: Ctx) {
       <SectionLabel label={version.medium === 'writing' ? t('writing.version.words') : t('passage.version.recording')} />
       <Authored ctx={ctx} by={version.by}>
         {version.medium === 'writing' ? (
-          // A written version reads verse by verse (decision 93).
+          // A written version reads verse by verse (decision 94).
           <WrittenReader ctx={ctx} state={v.state} unitId={unitId} parts={version.cardHashes} verseKeys={verseKeys} />
         ) : (
           <Card>
@@ -1099,7 +1103,7 @@ export function VersionDetail(ctx: Ctx) {
 }
 
 /**
- * What a step added to a version (decision 93; demo wJoinVersion): its words
+ * What a step added to a version (decision 94; demo wJoinVersion): its words
  * read verse by verse with the recording, or the recording added to
  * writing. Approved with them when a check after they were added looked
  * good; changing them later keeps the approval, and says so.
@@ -1140,7 +1144,7 @@ function AddedSection(props: { ctx: Ctx; v: PassageView; version: Version; added
   );
 }
 
-// ---- made_detail (decision 93): something made from a version ------------------------------
+// ---- made_detail (decision 94): something made from a version ------------------------------
 
 export function MadeDetail(ctx: Ctx) {
   return <MadeDetailScreen {...ctx} />;
@@ -1373,6 +1377,47 @@ export function ReviewDetail(ctx: Ctx) {
 /** The ask screen's choice of a check's whole team (decision 91), beside one person's id. */
 const TEAM = '\u0000team';
 
+/**
+ * What the people asked will answer: the check's own questions (decision 91),
+ * then any added for this request, with a field to add one. On the ask page
+ * after publishing and on Someone else alike.
+ */
+function TheyAnswer(props: { asked: ReturnType<typeof questionsForKind>; questions: QuestionSpec[]; setQuestions: (f: (qs: QuestionSpec[]) => QuestionSpec[]) => void }) {
+  const [draft, setDraft] = useState('');
+  const [type, setType] = useState<QuestionSpec['type']>('yesno');
+  const add = () => {
+    const text = draft.trim();
+    if (!text) return;
+    props.setQuestions((qs) => [...qs, { id: `ask:${newId()}`, text, type }]);
+    setDraft('');
+  };
+  return (
+    <>
+      <SectionLabel label={t('checks.theyAnswer')} />
+      {props.asked.length > 0 || props.questions.length > 0 ? (
+        <Group>
+          {props.asked.map((sq) => (
+            <Row key={sq.q.id} icon="chat" label={sq.q.text} sub={[questionTypeLabel(sq.q.type), sq.required ? t('common.required') : ''].filter(Boolean).join(' · ')} />
+          ))}
+          {props.questions.map((q, i) => (
+            <Row key={q.id} label={q.text} sub={questionTypeLabel(q.type)} last={i === props.questions.length - 1}
+              right={<IconBtn name="close" label={t('passage.ask.removeQuestion')} onPress={() => props.setQuestions((qs) => qs.filter((x) => x.id !== q.id))} bg="transparent" color={C.muted} />} />
+          ))}
+        </Group>
+      ) : null}
+      <Field value={draft} onChangeText={setDraft} placeholder={t('passage.ask.askSpecific')} />
+      <View style={styles.btnRow}>
+        <View style={{ flex: 1 }}>
+          <SmallBtn label={t('passage.ask.answerType', { type: questionTypeLabel(type) })} onPress={() => setType(nextQuestionType)} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <SmallBtn label={t('passage.ask.addQuestion')} icon="plus" tone="primary" disabled={!draft.trim()} onPress={add} />
+        </View>
+      </View>
+    </>
+  );
+}
+
 export function AskSomeone(ctx: Ctx) {
   const v = usePassage(ctx);
   const what: 'record' | 'review' = ctx.params['what'] === 'record' ? 'record' : 'review';
@@ -1387,8 +1432,6 @@ export function AskSomeone(ctx: Ctx) {
   const [note, setNote] = useState('');
   const [noteHash, setNoteHash] = useState<string | null>(null);
   const [questions, setQuestions] = useState<QuestionSpec[]>([]);
-  const [qDraft, setQDraft] = useState('');
-  const [qType, setQType] = useState<QuestionSpec['type']>('yesno');
   const [today] = useState(() => isoDay(new Date()));
   const [dueDays, setDueDays] = useState<number | null>(null);
   const [dueTyped, setDueTyped] = useState('');
@@ -1436,12 +1479,6 @@ export function AskSomeone(ctx: Ctx) {
     (applied) => (c) => c.withdrawRequest({ commandId: newId(), requestId: payloadField(applied, 'requestId') }));
     setBusy(false);
     if (ok) ctx.go('passage_record', { unitId: v.unitId, languageId: v.languageId });
-  };
-  const addQuestion = () => {
-    const text = qDraft.trim();
-    if (!text) return;
-    setQuestions((qs) => [...qs, { id: `ask:${newId()}`, text, type: qType }]);
-    setQDraft('');
   };
   const personRow = (c: { profileId: string; sub: string }, last: boolean) => {
     const on = who === c.profileId;
@@ -1513,31 +1550,7 @@ export function AskSomeone(ctx: Ctx) {
       <VoiceNote ctx={ctx} label={isRecord ? t('passage.ask.sayKeepInMind') : t('passage.ask.sayListenFor')} hash={noteHash} onChange={setNoteHash} />
       <Field value={note} onChangeText={setNote} placeholder={t('passage.ask.orTypeThem')} multiline />
 
-      {!isRecord ? (
-        <>
-          <SectionLabel label={t('checks.theyAnswer')} />
-          {asked.length > 0 || questions.length > 0 ? (
-            <Group>
-              {asked.map((sq) => (
-                <Row key={sq.q.id} icon="chat" label={sq.q.text} sub={[questionTypeLabel(sq.q.type), sq.required ? t('common.required') : ''].filter(Boolean).join(' · ')} />
-              ))}
-              {questions.map((q, i) => (
-                <Row key={q.id} label={q.text} sub={questionTypeLabel(q.type)} last={i === questions.length - 1}
-                  right={<IconBtn name="close" label={t('passage.ask.removeQuestion')} onPress={() => setQuestions((qs) => qs.filter((x) => x.id !== q.id))} bg="transparent" color={C.muted} />} />
-              ))}
-            </Group>
-          ) : null}
-          <Field value={qDraft} onChangeText={setQDraft} placeholder={t('passage.ask.askSpecific')} />
-          <View style={styles.btnRow}>
-            <View style={{ flex: 1 }}>
-              <SmallBtn label={t('passage.ask.answerType', { type: questionTypeLabel(qType) })} onPress={() => setQType(nextQuestionType)} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <SmallBtn label={t('passage.ask.addQuestion')} icon="plus" tone="primary" disabled={!qDraft.trim()} onPress={addQuestion} />
-            </View>
-          </View>
-        </>
-      ) : null}
+      {!isRecord ? <TheyAnswer asked={asked} questions={questions} setQuestions={setQuestions} /> : null}
 
       <SectionLabel label={t('passage.ask.byWhen')} />
       <ChipRow>

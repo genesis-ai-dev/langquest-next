@@ -40,6 +40,8 @@ export async function handOverPushToken(): Promise<string | undefined> {
 export interface RemoteNotification {
   id: string; seq: number; org_id: string; language_id: string | null;
   kind: string; title: string; task_id: string | null;
+  /** The passage an update is about (server/projectionWorker.ts); null for an organization's rows. */
+  unit_id?: string | null;
   active: boolean;
 }
 /** Persist each cursor with its rows, so a restart cannot skip a page. */
@@ -65,4 +67,16 @@ export async function refreshInbox(actorId: string): Promise<RemoteNotification[
 }
 export async function cachedInbox(actorId: string): Promise<RemoteNotification[]> {
   return JSON.parse(await AsyncStorage.getItem(`inbox:${actorId}`) ?? '{"rows":[]}').rows;
+}
+
+/**
+ * The Inbox row a tapped push is about, from this phone's copy of the Inbox,
+ * else from the server: the push carries only the row's id, so nothing
+ * about the work shows on the lock screen (server/projectionWorker.ts).
+ * Null offline when the row has not been seen yet.
+ */
+export async function findNotification(actorId: string, id: string): Promise<RemoteNotification | null> {
+  const saved = (await cachedInbox(actorId)).find((row) => row.id === id);
+  if (saved) return saved;
+  return (await refreshInbox(actorId)).find((row) => row.id === id) ?? null;
 }

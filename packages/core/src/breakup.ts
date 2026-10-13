@@ -75,6 +75,22 @@ function partsOf(b: TemplateBook, from: TemplateBook | null): TemplateBook {
   return out;
 }
 
+/**
+ * The parts ("MAL.3", "PSA.51.1-2") whose verses in `to` are not the verses
+ * the same numbers hold in `from` (decision 80): their unit ids carry the
+ * numbering, so a language that changes numbering keeps only what is the same.
+ */
+export function renumberedParts(nodes: string[], from: VersificationDoc, to: VersificationDoc): string[] {
+  const fromVerses = (bk: string, c: number) => from.maxVerses[bk]?.[c - 1];
+  const toVerses = (bk: string, c: number) => to.maxVerses[bk]?.[c - 1];
+  const same = (a: Set<string>, b: Set<string>) => a.size === b.size && [...a].every((k) => b.has(k));
+  return nodes.filter((node) => {
+    const there = parseRef(node, fromVerses);
+    const here = parseRef(node, toVerses);
+    return !there || !here || !same(orgVerses(from, there), orgVerses(to, here));
+  });
+}
+
 /** Books listed with nothing in them, in the template's order. */
 export function emptyBooks(doc: TemplateDoc): string[] {
   return templateBooks(doc).filter((b) => !b.divide).map((b) => b.book);
@@ -204,14 +220,8 @@ export function convertWay(
 
   // A part whose verses are not those of the part with the same numbers in the way's own numbering
   // gets an id of its own (`renumbered`), so a language changing numbering keeps only what is the same.
-  const fromVerses = (bk: string, c: number) => from.maxVerses[bk]?.[c - 1];
   const toVerses = (bk: string, c: number) => to.doc.maxVerses[bk]?.[c - 1];
-  const same = (a: Set<string>, b: Set<string>) => a.size === b.size && [...a].every((k) => b.has(k));
-  const renumbered = (nodes: string[]) => nodes.filter((node) => {
-    const there = parseRef(node, fromVerses);
-    const here = parseRef(node, toVerses);
-    return !there || !here || !same(orgVerses(from, there), orgVerses(to.doc, here));
-  });
+  const renumbered = (nodes: string[]) => renumberedParts(nodes, from, to.doc);
   const marked = (b: TemplateBook): TemplateBook => {
     const nodes = b.divide === 'chapters'
       ? (to.doc.maxVerses[b.book] ?? []).map((_, i) => `${b.book}.${i + 1}`)

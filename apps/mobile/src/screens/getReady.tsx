@@ -125,8 +125,8 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
   const [scope, setScope] = useState<LanguageScope | null>(null);
   const [chosen, setChosen] = useState<Set<string> | null>(null);
   const [busy, setBusy] = useState(false);
-  const doc = tq.finalDoc;
-  const inUse = tq.what === 'bible' ? !!tq.row?.inUse && tq.finalDoc === tq.doc : tq.outline === tq.rec.current && !!tq.outline;
+  const doc = tq.doc;
+  const inUse = tq.what === 'bible' ? !!tq.row?.inUse : tq.outline === tq.rec.current && !!tq.outline;
   const books = chosen ?? new Set(inUse ? sel?.books ?? [] : []);
   const pills: LanguageScope = scope ?? (inUse && sel ? scopeOfBooks(doc, sel.books) : 'nt');
   const wanted = doc?.bible ? booksInScope(doc, pills, books) : undefined;
@@ -137,7 +137,7 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
   // Any work at all, published or not: a change of numbering moves it (decision 80).
   const worked = useMemo(() => Object.keys(state.recordings).length + Object.keys(state.takes).length > 0, [state]);
   const [warn, setWarn] = useState(false);
-  // What the team may make (decisions.md 93): recordings, writing or both, and which leads.
+  // What the team may make (decisions.md 94): recordings, writing or both, and which leads.
   const allowed = mediaAllowed(state);
   const [media, setMedia] = useState<MediaAllowed>(allowed);
   const mediaChanged = media.recording !== allowed.recording || media.writing !== allowed.writing || media.first !== allowed.first;
@@ -194,7 +194,7 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
         )}
         {tq.page !== 'what' ? <QuietLinks items={[{ label: t('common.back'), icon: 'arrowL', onPress: () => { tq.retreat(); } }]} /> : null}
       </>}>
-      <TranslateQuestion ctx={ctx} t={tq} lang={lang} canMake={canUse} onMake={() => ctx.go('template_editor', { new: '1' })} />
+      <TranslateQuestion ctx={ctx} t={tq} lang={lang} canMake={canUse} onMake={() => ctx.go('template_editor', { new: '1', kind: 'outline' })} />
       {doc?.bible && tq.last ? (
         <>
           <SectionLabel label={t('getReady.record.whichPart')} />
@@ -689,15 +689,16 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
     <Screen header={header} bodyStyle={PAD}
       footer={<PrimaryBtn label={key === 'choose' ? t('getReady.checks.chooseSteps') : t('common.next')} icon="right" busy={busy} onPress={() => void answer()} />}>
       <Question>{questionLabel('checks')}</Question>
+      {/* Making your own comes first, set apart, so the ready-made list below can grow (design principle 12). */}
+      {canUse ? (
+        <ChoiceCard own on={key === 'choose'} icon="edit" title={t('getReady.checks.illChoose')} onPress={() => setPicked('choose')} />
+      ) : null}
       {custom ? (
         <ChoiceCard on={key === 'custom'} icon="people" title={flowTitle(flow.steps, kinds)} sub={t('getReady.checks.ownSteps')} onPress={() => setPicked('custom')}>
           {key === 'custom' ? <NumberedSteps items={flowWho(flow.steps, kinds)} /> : null}
         </ChoiceCard>
       ) : null}
       {main.map(card)}
-      {canUse ? (
-        <ChoiceCard on={key === 'choose'} icon="edit" title={t('getReady.checks.illChoose')} onPress={() => setPicked('choose')} />
-      ) : null}
       {rest.length ? (
         more ? (
           <>
@@ -730,14 +731,15 @@ function InviteStep({ ctx, lang, header, next }: StepProps) {
         {uri ? <QuietLinks items={[{ label: t('admin.invite.shareLink'), icon: 'send', onPress: () => shareInvite(ctx, uri) }]} /> : null}
       </>}>
       <Question>{questionLabel('invite')}</Question>
+      {/* Making a new role comes first, set apart from the roles there are (design principle 12). */}
+      {ctx.session.can('manage_roles') ? (
+        <DashedRow icon="plus" label={t('admin.invite.newRole')} onPress={() => ctx.go('role_editor', { roleId: 'new' })} />
+      ) : null}
       <Pills>
         {roles.choices.map((c) => <Chip key={c.id} label={c.chip} on={choice === c.id} onPress={() => setChoice(c.id)} />)}
         {more ? roles.others.map((r) => <Chip key={r.id} label={r.name} on={choice === r.id} onPress={() => setChoice(r.id)} />) : null}
-        {!more && (roles.others.length || ctx.session.can('manage_roles')) ? <Chip label={t('getReady.invite.somethingElse')} icon="plus" on={false} onPress={() => setMore(true)} /> : null}
+        {!more && roles.others.length ? <Chip label={t('getReady.invite.somethingElse')} icon="plus" on={false} onPress={() => setMore(true)} /> : null}
       </Pills>
-      {more && ctx.session.can('manage_roles') ? (
-        <DashedRow icon="plus" label={t('admin.invite.newRole')} onPress={() => ctx.go('role_editor', { roleId: 'new' })} />
-      ) : null}
       {may ? <InviteCode state={invite} /> : (
         <Banner icon="lock" title={t('getReady.invite.cannotTitle')} body={t('getReady.invite.cannotBody', { language: lang })} />
       )}

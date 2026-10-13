@@ -98,7 +98,7 @@ export function referencedBlobs(state: LanguageState): Map<string, BlobRef> {
     add(r.commentBlobHash, unitId);
     for (const c of r.artifacts ?? []) add(c.hash, unitId, c.format ?? 'wav');
   }
-  // What a making step recorded (decisions.md 93), named only by its v1.Made,
+  // What a making step recorded (decisions.md 94), named only by its v1.Made,
   // like a back translation. Written parts are words in the log, never files.
   for (const m of Object.values(state.made ?? {})) {
     for (const c of m.parts ?? []) if (!isWrittenPart(c.hash)) add(c.hash, m.unitId, c.format ?? 'wav');
