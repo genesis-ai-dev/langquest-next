@@ -284,6 +284,7 @@
     "create_account": "Criar conta",
     "scan_qr": "Ler código QR",
     "welcome": "Boas-vindas",
+    "welcome_back": "Que bom ter você de volta",
     "vision": "O que é o LangQuest?",
     "intent_chooser": "O que traz você aqui?",
     "create_org": "Criar organização",
@@ -2471,7 +2472,9 @@
       "badEmail": "Confira o endereço de e-mail.",
       "signupClosed": "Não é possível criar contas novas agora.",
       "suspended": "Esta conta está suspensa.",
-      "sessionEnded": "A sua sessão terminou. Entre de novo."
+      "sessionEnded": "A sua sessão terminou. Entre de novo.",
+      "v2AlreadyHere": "Esta conta já foi transferida para cá. Use a senha que você definiu aqui.",
+      "v2SameEmail": "Você já tem uma conta aqui com este e-mail. Entre com a senha que você usa aqui."
     },
     "signIn": {
       "tagline": "Coordenando a tradução da Bíblia, do rascunho à aprovação",
@@ -2685,6 +2688,33 @@
         "viewerProgress": "Veja até onde cada idioma chegou.",
         "viewerOpen": "Abra qualquer passagem para ouvir o que aconteceu."
       }
+    },
+    "welcomeBack": {
+      "greeting": "Que bom ter você de volta, {{name}}",
+      "title": "Que bom ter você de volta",
+      "isHere": "Seu trabalho do LangQuest está aqui.",
+      "onItsWay": "Seu trabalho do LangQuest está a caminho.",
+      "wasProject": "{{org}} · era seu projeto “{{project}}”",
+      "counts": "{{recordings}} · {{passages}}",
+      "onItsWayRow": "A caminho. Vai aparecer aqui sozinho.",
+      "recordHere": "<b>De agora em diante, grave aqui.</b> O que você gravar no app antigo continua vindo para cá, mas o que você grava aqui não volta para lá.",
+      "keepOldApp": "<b>Continue gravando no app antigo até que chegue.</b> Tudo o que você grava lá vem para cá e aparece aqui sozinho.",
+      "differentTitle": "O que muda",
+      "differentSummary": "Projetos, missões e votos, aqui",
+      "differentProject": "Seu <b>projeto</b> agora é um <b>idioma</b> em uma organização.",
+      "differentQuests": "Suas <b>missões</b> são livros, capítulos e passagens, na ordem da Bíblia.",
+      "differentVersions": "O que você gravou para um capítulo é uma <b>versão</b> dele. Cada vez que você publica, é uma nova versão.",
+      "differentVotes": "Os <b>votos</b> são verificações com a comunidade: o que as pessoas disseram está na passagem.",
+      "checkAgain": "Verificar de novo",
+      "notYet": "Ainda não chegou. Vai aparecer aqui sozinho.",
+      "keepGoing": "Continuar em {{passage}}",
+      "goToMyWork": "Ir para Meu trabalho",
+      "recordings_one": "{{count, number}} gravação",
+      "recordings_many": "{{count, number}} de gravações",
+      "recordings_other": "{{count, number}} gravações",
+      "passages_one": "{{count, number}} passagem",
+      "passages_many": "{{count, number}} de passagens",
+      "passages_other": "{{count, number}} passagens"
     },
     "invite": {
       "expired": "Este convite expirou. Peça um novo.",

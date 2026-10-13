@@ -74,6 +74,8 @@ import { useLanguage } from './src/useLanguage';
 import { useHandOvers } from './src/handOver';
 import { LostFilesAlert } from './src/lostFiles';
 import { openLanguage } from './src/languages';
+import { hasWelcome, isFromV2 } from './src/welcomeBack';
+import { useWelcomeBack } from './src/useWelcomeBack';
 
 const IS_DEV = __DEV__;
 let initialLinkRead = false;
@@ -81,7 +83,7 @@ let initialLinkRead = false;
 const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   sign_in: Entry.SignIn, terms_privacy: Entry.TermsPrivacy, explore_home: Entry.ExploreHome, create_account: Entry.CreateAccount,
   scan_qr: Entry.ScanQr, vision: Entry.Vision, intent_chooser: Entry.IntentChooser, create_org: Entry.CreateOrg,
-  request_access: Entry.RequestAccess, welcome: Onboarding.Welcome,
+  request_access: Entry.RequestAccess, welcome: Onboarding.Welcome, welcome_back: Onboarding.WelcomeBack,
   my_work: Work.MyWork,
   status_home: MapScreens.StatusHome, map_home: MapScreens.MapHome, book_map: MapScreens.BookMap,
   passage_record: Passage.PassageRecord, version_detail: Passage.VersionDetail, review_detail: Passage.ReviewDetail, made_detail: Passage.MadeDetail,
@@ -313,7 +315,7 @@ export default function App() {
             {/* Help mode: a ? on every screen's header; while on, taps explain (demo ADR-038). */}
             <HelpModeProvider>
             <StorageGate>
-              <Shell key={auth?.user.id ?? 'guest'} actorId={auth?.user.id ?? 'guest'} email={auth?.user.email ?? null} signedIn={!!auth} />
+              <Shell key={auth?.user.id ?? 'guest'} actorId={auth?.user.id ?? 'guest'} email={auth?.user.email ?? null} signedIn={!!auth} fromV2={isFromV2(auth?.user)} />
             </StorageGate>
             </HelpModeProvider>
           </ErrorBoundary>
@@ -327,7 +329,7 @@ export default function App() {
  * Which organization is open. An organization is the unit people switch
  * between: its own stream plus the open language's (decision 63).
  */
-function Shell(props: { actorId: string; email: string | null; signedIn: boolean }) {
+function Shell(props: { actorId: string; email: string | null; signedIn: boolean; fromV2: boolean }) {
   // None until this account's organization is known: a guest, or an account
   // in no organization, syncs nothing. Opening a placeholder instead asked the
   // server for an organization this person is not in.
@@ -391,7 +393,7 @@ interface Arrival { orgId: string; languageId: string; unitId?: string }
  * the first sync has had its chance), which languages it has is unknown, so
  * nothing is opened yet.
  */
-function Workspace(props: { actorId: string; email: string | null; signedIn: boolean; orgId: string | null; noOrganizations: boolean; openOrganization: Ctx['openOrganization']; invite: InviteHandle; arrival: Arrival | null }) {
+function Workspace(props: { actorId: string; email: string | null; signedIn: boolean; fromV2: boolean; orgId: string | null; noOrganizations: boolean; openOrganization: Ctx['openOrganization']; invite: InviteHandle; arrival: Arrival | null }) {
   const org = useOrg(props.orgId, props.actorId);
   const known = org.state !== null && (org.state.org !== null || org.settled);
   if (!known) return <View style={styles.root} accessibilityLabel={t('shell.openingOrganization')} />;
@@ -405,7 +407,7 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
  * language's, and a screen about another language opens that one, in
  * place, without leaving the screen.
  */
-function OrgWork(props: { actorId: string; email: string | null; signedIn: boolean;
+function OrgWork(props: { actorId: string; email: string | null; signedIn: boolean; fromV2: boolean;
   orgId: string; noOrganizations: boolean; org: OrgHandle; openOrganization: Ctx['openOrganization']; invite: InviteHandle; arrival: Arrival | null }) {
   const org = props.org;
   const nav = useNav({ screen: 'sign_in' });
@@ -454,10 +456,12 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     })().catch(() => { if (active) setOnboardingLoaded(true); });
     return () => { active = false; };
   }, [props.actorId]);
+  // Someone from v2 is welcomed back to their work instead (demo ADR-043).
+  const welcomeBack = useWelcomeBack(props.actorId, props.fromV2 && props.signedIn && onboardingLoaded && !welcomed);
 
   const session = useMemo(
-    () => deriveSession(props.actorId, props.email, welcomed, org.state, languageId),
-    [props.actorId, props.email, welcomed, org.state, languageId]
+    () => deriveSession(props.actorId, props.email, welcomed, org.state, languageId, hasWelcome(welcomeBack.data)),
+    [props.actorId, props.email, welcomed, org.state, languageId, welcomeBack.data]
   );
   // Languages follow the library versions their template and flow are at (docs/library.md).
   useLibraryFollow(language, org, session);
@@ -592,7 +596,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
       if (!GUEST_SCREENS.includes(nav.current.screen)) nav.reset({ screen: 'sign_in' });
       return;
     }
-    if (!onboardingLoaded) return;
+    if (!onboardingLoaded || !welcomeBack.loaded) return;
     if (!AUTH_SCREENS.includes(nav.current.screen)) return;
     if (loaded) nav.reset({ screen: (!session.isFirstTime && takeUrlSection()) || postSignInScreen(session) });
     else if (cachedHome && !session.isFirstTime) nav.reset({ screen: cachedHome });
@@ -730,6 +734,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     name,
     blocks,
     inbox: { updates, unread: inboxCount, isRead: (id) => readIds.has(id), markRead },
+    ...(hasWelcome(welcomeBack.data) ? { welcomeBack: { data: welcomeBack.data, refresh: welcomeBack.refresh } } : {}),
     markWelcomed: async () => {
       await recordUserEvent(props.actorId, 'v1.VisionSeen');
       await AsyncStorage.multiSet([[`vision:${props.actorId}`, '1'], [`joined:${props.actorId}`, '0']]);

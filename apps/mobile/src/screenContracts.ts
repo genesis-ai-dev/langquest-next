@@ -19,6 +19,8 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   sign_in: { emits:['v1.TermsAccepted'],rpcs:['record_user_event'] },
   create_account: { emits:['v1.TermsAccepted'],rpcs:['record_user_event','save_profile'] },
   welcome: { emits:['v1.VisionSeen'],rpcs:['record_user_event'] },
+  // What came over from v2 and what is on its way (welcomeBack.ts, demo ADR-043).
+  welcome_back: { emits:['v1.VisionSeen'],rpcs:['record_user_event','v2_welcome'],reads:['highlightsFor'] },
   // A new organization's stream (createOrg.ts) and the welcome it skips
   // (markWelcomed). Its languages are added afterwards from Getting started
   // (ONB-5), each with a stream of its own (decisions.md 63).
@@ -47,16 +49,16 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   add_record: { emits:['v1.ReviewRecorded','v1.ReferencesUsed','v1.NoteAdded'],reads:['derivePassage','questionsForKind','recommendedFor'] },
   // What was offered and used goes on the record with the version (docs/reference-material.md).
   // Key words grow during the work (decision 71): say yours, add a word.
-  // Writing the passage instead (decision 94): its words, and its verses.
+  // Writing the passage instead (decision 95): its words, and its verses.
   workspace: { emits:['v1.RecordingAdded','v1.TakeComposed','v1.TakeArchived','v1.TakeSubmitted','v1.WritingAdded',
     'v1.ResponseRecorded','v1.CardVerseSet','v1.NoteAdded','v1.KeyTermLinked','v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted','v1.ReferencesUsed'],
     reads:['derivePassage','keyTermsForUnit','recommendedFor','studyMarksFor'],rpcs:[...REPORTS,'library_get_documents','library_shared_items'] },
   // Its parts are the review's artifacts, not recordings (docs/decisions.md 30).
-  // A step that makes something (decision 94): what it made stays with its version (v1.Made); written, its words and verses;
+  // A step that makes something (decision 95): what it made stays with its version (v1.Made); written, its words and verses;
   // a final recording is published as the next version, as the workspace does.
   back_translation: { emits:['v1.ReviewRecorded','v1.Made','v1.WritingAdded','v1.CardVerseSet','v1.NoteAdded','v1.RecordingAdded','v1.TakeComposed','v1.TakeArchived','v1.TakeSubmitted'],
     reads:['derivePassage'],rpcs:REPORTS },
-  // Something made from a version (decision 94): read or heard, never marked out of date.
+  // Something made from a version (decision 95): read or heard, never marked out of date.
   made_detail: { reads:['derivePassage'] },
   // One reader for both nodes (decision 71): steps, the Bible, key words and notes.
   study_guide: { emits:['v1.StudyStepMarked','v1.NoteAdded','v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted'],

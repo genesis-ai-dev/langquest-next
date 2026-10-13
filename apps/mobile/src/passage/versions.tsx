@@ -117,7 +117,7 @@ function ItemCard(props: {
 }) {
   const written = partsMedium(props.hashes) === 'writing';
   const clip = useClip(props.ctx.language, written ? [] : props.hashes);
-  // A written version shows its first words, and a pen where a recording has play (decision 94).
+  // A written version shows its first words, and a pen where a recording has play (decision 95).
   const words = written ? props.hashes.map((h) => writtenText(props.ctx.language.state!, h) ?? '').join(' ').trim() : '';
   const body = (
     <>

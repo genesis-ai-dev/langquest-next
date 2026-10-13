@@ -38,9 +38,11 @@ describe('secrets', () => {
       .flatMap((dir) => readdirSync(new URL(`../supabase/functions/${dir}`, import.meta.url))
         .filter((file) => file.endsWith('.ts'))
         .map((file) => `supabase/functions/${dir}/${file}`))
-      .flatMap((file) => [...read(file).matchAll(/Deno\.env\.get\(['"]([A-Z_]+)['"]\)/g)].map((m) => m[1]))
+      .flatMap((file) => [...read(file).matchAll(/Deno\.env\.get\(['"]([A-Z0-9_]+)['"]\)/g)].map((m) => m[1]))
       .filter((name) => !name.startsWith('SUPABASE_'));
-    expect(Object.keys(destinations('production', values, 'ref', 'k').functions).sort()).toEqual([...new Set(names)].sort());
+    expect(Object.keys(destinations('production', { ...values, V2_SUPABASE_ANON_KEY: 'v2' }, 'ref', 'k').functions).sort()).toEqual([...new Set(names)].sort());
+    // Without v2's key, signing in with a v2 account is simply not set up.
+    expect(destinations('production', values, 'ref', 'k').functions).not.toHaveProperty('V2_SUPABASE_ANON_KEY');
   });
 
   it('writes the Vault names the projection cron job reads', () => {

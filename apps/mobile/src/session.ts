@@ -29,6 +29,11 @@ export interface Session {
   hasNoOrg: boolean;
   /** Has not been welcomed yet (ADR-022) on this account. */
   isFirstTime: boolean;
+  /**
+   * Came from LangQuest v2 with work to be welcomed back to: some of it
+   * here, or on its way (demo ADR-043, welcomeBack.ts).
+   */
+  fromV2: boolean;
   /** Not signed in at all (browsing public listings). */
   isGuest: boolean;
   /**
@@ -44,7 +49,8 @@ export function deriveSession(
   email: string | null,
   seenVision: boolean,
   org: OrgState | null = null,
-  languageId?: string | null
+  languageId?: string | null,
+  fromV2 = false
 ): Session {
   const privileges = org ? privilegesFor(org, actorId, languageId ?? undefined) : new Set<Privilege>();
   const isManaged = isManagedEmail(email);
@@ -65,6 +71,7 @@ export function deriveSession(
     isViewer,
     hasNoOrg: privileges.size === 0,
     isFirstTime: !seenVision,
+    fromV2,
     isGuest: actorId === 'guest',
     isManaged
   };
@@ -150,8 +157,14 @@ export function foldsSettled(orgSynced: boolean, languageLoaded: boolean, noOrga
   return orgSynced && (languageLoaded || noOrganizations);
 }
 
-/** Demo `postSignInScreen`: a first sign-in gets the welcome (ADR-022), unless there is no org to welcome you to yet. */
+/**
+ * Demo `postSignInScreen`: a first sign-in gets the welcome (ADR-022),
+ * unless there is no org to welcome you to yet. Someone coming from v2 is
+ * welcomed back to their work instead (ADR-043), organization or not: until
+ * their work arrives, it says it is on its way, never "What brings you here?".
+ */
 export function postSignInScreen(s: Session): ScreenId {
+  if (s.isFirstTime && s.fromV2) return 'welcome_back';
   return s.isFirstTime && !s.hasNoOrg ? 'welcome' : homeScreenFor(s);
 }
 

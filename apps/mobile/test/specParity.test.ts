@@ -90,11 +90,11 @@ const APP_ONLY: Record<string, string> = {
   'settings_more->delete_account': 'More settings: Delete account, moved from Settings (decision 71; store rules, decisions.md 46)',
   'flow_editor->check_editor': "a language's Checks open one check, with its people, questions and helps (decision 91)",
   'review_capture->material_editor': "a check's help that is a note opens from the review (decision 91)",
-  'passage_record->made_detail': "Reviews by version opens something made from a version (decision 94)",
-  'version_detail->made_detail': 'a version lists what was made from it (decision 94)',
-  'made_detail->ask_someone': 'ask for the check that reads what a step made (decision 94)',
-  'version_detail->back_translation': 'change the words a step added to a version (decision 94)',
-  'made_detail->back_translation': 'change the words a step added to a version (decision 94)'
+  'passage_record->made_detail': "Reviews by version opens something made from a version (decision 95)",
+  'version_detail->made_detail': 'a version lists what was made from it (decision 95)',
+  'made_detail->ask_someone': 'ask for the check that reads what a step made (decision 95)',
+  'version_detail->back_translation': 'change the words a step added to a version (decision 95)',
+  'made_detail->back_translation': 'change the words a step added to a version (decision 95)'
 };
 
 /** App-only reference screens (docs/reference-material.md). */
@@ -183,6 +183,11 @@ describe('UX spec parity', () => {
     // A first sign-in gets the welcome (ADR-022), unless there is no org to welcome you to.
     expect(postSignInScreen(firstTime)).toBe('welcome');
     expect(postSignInScreen(firstNoOrg)).toBe('intent_chooser');
+    // Someone from v2 is welcomed back to their work instead (ADR-043), organization or not; Sign In is the only way in for them.
+    expect(postSignInScreen({ ...firstTime, fromV2: true })).toBe('welcome_back');
+    expect(postSignInScreen({ ...firstNoOrg, fromV2: true })).toBe('welcome_back');
+    expect(postSignInScreen({ ...roleSession('translator'), fromV2: true })).toBe('my_work');
+    expect(EDGES.some((e) => e.from === 'sign_in' && e.to === 'welcome_back')).toBe(true);
 
     const missing: string[] = [];
     for (const from of AUTH_SCREENS) {

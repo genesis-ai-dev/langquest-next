@@ -14,7 +14,7 @@ import { t } from './i18n';
 
 export const SCREEN_IDS = [
   // 1 Getting in
-  'sign_in', 'terms_privacy', 'explore_home', 'create_account', 'scan_qr', 'welcome', 'vision',
+  'sign_in', 'terms_privacy', 'explore_home', 'create_account', 'scan_qr', 'welcome', 'welcome_back', 'vision',
   // 2 No organization yet
   'intent_chooser', 'create_org', 'request_access',
   // 3 Home and finding passages
@@ -46,7 +46,7 @@ export const SCREEN_IDS = [
   'settings_more',
   // App only: one of a language's checks, with its people, questions and helps (decision 91)
   'check_editor',
-  // App only: something made from a version, by a step or brought over from v2 (decision 94)
+  // App only: something made from a version, by a step or brought over from v2 (decision 95)
   'made_detail'
 ] as const;
 
@@ -102,6 +102,7 @@ const e = (from: NodeId, to: NodeId, mode?: Mode, when?: Gate): Edge => ({
 
 export const EDGES: Edge[] = [
   e('sign_in', 'welcome', 'replace'), // Sign In · email contains “first”
+  e('sign_in', 'welcome_back', 'replace'), // Sign In · a LangQuest v2 account
   e('sign_in', 'terms_privacy', undefined, 'guest'), // tap Terms & Privacy
   e('sign_in', 'home_hub', 'replace'), // Sign In
   e('sign_in', 'create_account', undefined, 'guest'), // tap Create Account
@@ -120,6 +121,8 @@ export const EDGES: Edge[] = [
   e('welcome', 'passage_record', 'reset', 'contributor'), // tap Show me how · practice passage
   e('welcome', 'home_hub', 'replace'), // tap Skip for now / Get started
   e('welcome', 'vision'), // tap What is LangQuest?
+  e('welcome_back', 'passage_record', 'reset'), // tap Keep going on {passage}
+  e('welcome_back', 'home_hub', 'replace'), // tap Go to My Work
   e('vision', 'welcome', 'back'), // tap Back / Done (from welcome)
   e('explore_home', 'sign_in', 'reset', 'guest'), // tap Sign In (guest only)
   e('explore_home', 'sign_in', 'back', 'guest'), // tap Back (from sign-in)
@@ -394,14 +397,14 @@ export const EDGES: Edge[] = [
   // A language's checks (decision 91): one check, and a help a reviewer opens from it.
   e('flow_editor', 'check_editor'),
   e('review_capture', 'material_editor'),
-  // Something made from a version (decision 94): from the passage's Reviews by version, and from the version.
+  // Something made from a version (decision 95): from the passage's Reviews by version, and from the version.
   e('passage_record', 'made_detail'),
   e('version_detail', 'made_detail'),
   e('made_detail', 'passage_record', 'back'),
   e('made_detail', 'version_detail', 'back'),
   e('made_detail', 'ask_someone'),
-  e('version_detail', 'back_translation', undefined, 'reviewer'), // tap Change the words (decision 94)
-  e('made_detail', 'back_translation', undefined, 'reviewer'), // tap Change the words (decision 94)
+  e('version_detail', 'back_translation', undefined, 'reviewer'), // tap Change the words (decision 95)
+  e('made_detail', 'back_translation', undefined, 'reviewer'), // tap Change the words (decision 95)
   e('back_translation', 'version_detail', 'back'),
   e('back_translation', 'made_detail', 'back')
 ];

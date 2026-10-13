@@ -120,7 +120,7 @@ export interface Commands {
    */
   restoreFlow(c: { commandId: string; previous: { flow: FlowSelection | null; steps: { id: string; kindIds: string[]; checkpoint: boolean }[] } }): EventSpec[];
 
-  // ---- writing, and steps that make something (writing.ts, decisions.md 94) ----
+  // ---- writing, and steps that make something (writing.ts, decisions.md 95) ----
 
   /** Written parts the log lacks, at most 100 an event. Ids are the caller's `writtenPartId` of NFC text. */
   addWriting(c: { commandId: string; unitId: string; parts: readonly WrittenPart[] }): EventSpec[];

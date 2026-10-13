@@ -184,7 +184,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const group = isGroupKind(kind.id);
   const here = all.find((p) => p.unitId === v.unitId);
   const asker = request?.by ? ctx.name(request.by) : undefined;
-  // What this check reads (decision 94): what an earlier step made from this version, or the version; writing is read.
+  // What this check reads (decision 95): what an earlier step made from this version, or the version; writing is read.
   const reads = readsFor(v.p, kind, version);
   const stages = reviewStages({ questions: questions.length, logged, makes: !!makes, reads: reads.medium === 'writing' });
   const at = stageAt(stages, stageId);
@@ -339,7 +339,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           title={mine ? t('review.screen.versionByYou', { n: version.n }) : t('review.screen.versionBy', { n: version.n, name: translator })} sub={listenLine(kind.id, logged)}
           {...(makes || reads.made ? {} : { onNote: (s: number) => setMomentAt(Math.round(s * 1000)) })} />
       )}
-      {/* What a step added to the version is part of it: a check hears and reads them together (decision 94). */}
+      {/* What a step added to the version is part of it: a check hears and reads them together (decision 95). */}
       {!reads.made ? addedTo(v.p, version).map((a) => (
         <View key={a.medium} style={{ gap: space.sm }}>
           <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>
