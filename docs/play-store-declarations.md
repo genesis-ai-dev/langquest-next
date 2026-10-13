@@ -136,12 +136,12 @@ already in the app's merged manifest (from `expo-updates`) and is a normal
 permission the person is never asked for, so no Play Console answer
 changes.
 
-`expo-keep-awake` (decisions.md 93) keeps the screen on while the
+`expo-keep-awake` (decisions.md 94) keeps the screen on while the
 microphone is recording, so a hands-free session is not ended by the
 screen timeout. It sets a flag on the app's window; it needs no Android
 permission and collects or sends nothing, so no Play Console answer changes.
 
-Recordings (decisions.md 93) are kept and uploaded as AAC (`.m4a`) on a
+Recordings (decisions.md 94) are kept and uploaded as AAC (`.m4a`) on a
 phone instead of WAV: the same voice recordings in a smaller file, so the
 "Voice or sound recordings" answer is unchanged.
 

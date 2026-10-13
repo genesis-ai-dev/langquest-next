@@ -8,6 +8,6 @@ import type { VADConfig } from '../../modules/microphone-energy';
 export const VAD_BASE: VADConfig = {
   onsetMultiplier: 0.1, maxOnsetDuration: 250, rewindHalfPause: true,
   minSegmentDuration: 200, minActiveAudioDuration: 250,
-  // An open part keeps going down to half the cutoff (decisions.md 93).
+  // An open part keeps going down to half the cutoff (decisions.md 94).
   sustainMultiplier: 0.5
 };

@@ -247,7 +247,7 @@ class MicrophoneEnergyModule : Module() {
       }
       "RECORDING" -> {
         // An open part keeps going while the voice stays above the sustain
-        // level (decisions.md 93): a soft stretch is speech, not a pause.
+        // level (decisions.md 94): a soft stretch is speech, not a pause.
         val deltaMs = now - lastFrameTime
         if (rawPeak > vadThreshold * vadSustainMultiplier) {
           lastAboveThresholdTime = now
@@ -424,7 +424,7 @@ class SegmentWriter(val file: java.io.File, private val sampleRate: Int) {
 }
 
 /**
- * A finished WAV part as AAC in MP4 (`.m4a`, decisions.md 93): mono 128 kb/s,
+ * A finished WAV part as AAC in MP4 (`.m4a`, decisions.md 94): mono 128 kb/s,
  * the bitrate hold-to-record always used, about a fifth of the WAV's size.
  * Reads the 16-bit PCM WAVs SegmentWriter writes; any other input throws, and
  * the caller keeps the WAV.

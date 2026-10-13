@@ -186,7 +186,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     if (partsLookClipped(sessionLengths.current)) setClipped(true);
   }, [unitId]);
   const rec = useRecorder(persist, { orgId: ctx.language.orgId, languageId, unitId });
-  // A part too short to keep is said, and counts as a clipped one (decisions.md 93).
+  // A part too short to keep is said, and counts as a clipped one (decisions.md 94).
   useOnTooShort(rec.tooShort, () => {
     ctx.toast(t('recording.vad.tooShort'));
     sessionLengths.current.push(0);
@@ -449,7 +449,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
                     <LinkBtn label={t('translate.openStudy')} style={{ alignSelf: 'center' }} onPress={() => ctx.go('study_step', { ...scope, stepId: study.steps[step]!.step.id })} />
                   </>
                 ) : chip === 'terms' ? (
-                  <KeyWordsPane ctx={ctx} v={v} terms={trayTerms} rows={bible.rows} draftTakeId={draft?.takeId} canTie={canTie} disabled={blocked}
+                  <KeyWordsPane ctx={ctx} v={v} terms={trayTerms} rows={bible.rows} bibleName={bible.option?.abbreviation ?? ''} draftTakeId={draft?.takeId} canTie={canTie} disabled={blocked}
                     onHear={(key) => { setChip('bible'); if (key) { setVerse(key); bible.playVerse(key); } }}
                     allTerms={() => ctx.go('key_terms', scope)} />
                 ) : chip === 'notes' ? (

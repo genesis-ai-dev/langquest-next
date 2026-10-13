@@ -18,6 +18,9 @@ export class FakeServer {
   private snapshotText = new WeakMap<Snapshot, string>();
   /** Told of every newly accepted batch, as realtime is (the fleet pokes devices with it). */
   readonly appended = new Set<(events: AnyEvent[]) => void>();
+  /** Audio files the server holds, by hash, with their size (R2, behind the Worker). */
+  readonly blobs = new Map<string, number>();
+  private serviceCount = 0;
   offline = false;
   /**
    * Reachable, but every RPC refuses this caller, as the RPCs do with
@@ -115,6 +118,27 @@ export class FakeServer {
       id: `svc${seq}`, type, orgId: 'org1', streamId: 'p1', actorId: 'service', deviceId: 'storage',
       hlc: `${String(1_800_000_000_000 + seq).padStart(15, '0')}:000000:storage`, payload, serverSeq: seq
     } as AnyEvent);
+  }
+
+  /**
+   * What the Worker does when an upload lands (decision 69): keep the file
+   * and append `v1.BlobStored` to the stream, so every phone learns through
+   * its normal pull that the audio can be fetched.
+   */
+  storeBlob(orgId: string, streamId: string, hash: string, size: number): AnyEvent {
+    this.blobs.set(hash, size);
+    const key = `${orgId}/${streamId}`;
+    const seq = (this.seqs.get(key) ?? 0) + 1;
+    this.seqs.set(key, seq);
+    this.serviceCount += 1;
+    const event = {
+      id: `blob:${hash}:${this.serviceCount}`, type: 'v1.BlobStored', orgId, streamId, actorId: 'service', deviceId: 'storage',
+      hlc: `${String(this.now()).padStart(15, '0')}:${String(this.serviceCount % 1_000_000).padStart(6, '0')}:storage`,
+      payload: { hash, size }, serverSeq: seq
+    } as AnyEvent;
+    this.record(event);
+    for (const listener of this.appended) listener([event]);
+    return event;
   }
 
   /** What the snapshot worker does: fold the whole stream and store it. */

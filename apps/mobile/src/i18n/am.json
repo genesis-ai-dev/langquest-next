@@ -1628,11 +1628,9 @@
       "linedUp": "LangQuest ቁጥር በቁጥር ያስማማቸዋል። የሆነ ነገር የተሳሳተ ካልመሰለ በስተቀር የሚያደርጉት ነገር የለም።",
       "psalm": "መዝሙር {{place}}"
     },
-    "others": {
-      "intro_one": "FIA ለ{{count, number}} መጽሐፍ ({{books}}) ክፍሎች የሉትም። ያ መጽሐፍ፦",
-      "intro_other": "FIA ለ{{count, number}} መጻሕፍት ({{books}}) ክፍሎች የሉትም። እነዚያ መጻሕፍት፦",
-      "byChapter": "በምዕራፍ",
-      "wait": "እስኪከፋፈሉ ይጠብቃሉ"
+    "leftOut": {
+      "wait_one": "{{books}} ለመከፋፈል ይጠብቃል። በኋላ ከካርታው ሊከፋፍሉት ይችላሉ።",
+      "wait_other": "{{books}} ለመከፋፈል ይጠብቃሉ። በኋላ ከካርታው ሊከፋፍሏቸው ይችላሉ።"
     },
     "book": {
       "breakDifferently": "በተለየ መንገድ ይከፋፍሉ",
@@ -1643,9 +1641,6 @@
       "calledIn": "በ{{language}} {{name}} ይባላል",
       "templateCalls": "አብነቱ {{name}} ብሎ ይጠራዋል",
       "tapToName": "ቡድኑ የሚጠቀምበትን ስም ለመስጠት ይንኩ",
-      "whatCalled": "{{language}} የሚጠራው",
-      "namingSub": "ይህ ቋንቋ መጽሐፉን በሚያሳይበት ቦታ ሁሉ ይታያል።",
-      "nameLabel": "ስሙ",
       "brokenUpByChapter": "{{book}} በምዕራፍ ተከፋፍሏል።",
       "brokenUpInto": "{{book}} በ{{way}} ተከፋፍሏል።",
       "change": "{{book}}ን ይቀይሩ",
@@ -1659,6 +1654,15 @@
       "alsoUsedTwo": "በ{{first}} እና በ{{second}}ም ጥቅም ላይ ይውላል። {{book}}ን ለየትኞቹ ይቀይሩት?",
       "alsoUsedMore_one": "በ{{name}} እና በሌላ {{count, number}}ም ጥቅም ላይ ይውላል። {{book}}ን ለየትኞቹ ይቀይሩት?",
       "alsoUsedMore_other": "በ{{name}} እና በሌሎች {{count, number}}ም ጥቅም ላይ ይውላል። {{book}}ን ለየትኞቹ ይቀይሩት?"
+    },
+    "bookName": {
+      "title": "{{language}} {{book}}ን የሚጠራበት ስም",
+      "sub": "ተርጓሚዎች ይህን ስም ያያሉ",
+      "typeOrTap": "ይጻፉት፣ ወይም ከታች አንዱን ይንኩ",
+      "fromBibles": "የቡድኑ መጽሐፍ ቅዱሶች የሚጠሩት",
+      "fromLanguages": "እዚህ ያሉ ሌሎች ቋንቋዎች የሚጠሩት",
+      "use": "ይጠቀሙ",
+      "useLabel": "{{name}}ን ይጠቀሙ ({{from}})"
     },
     "translate": {
       "question": "{{language}} ምን ይተረጉማል?",
@@ -1803,6 +1807,76 @@
         "hebrew": "ዕብራይስጥ",
         "korean": "ኮሪያኛ"
       }
+    },
+    "own": {
+      "title": "በራስዎ መንገድ ይከፋፍሉት",
+      "sub": "{{book}}ን ያንብቡና እያንዳንዱ ክፍል የት እንደሚጀምር ይምረጡ",
+      "orReadyMade": "ወይም የተዘጋጀ መንገድ ይምረጡ",
+      "helps": "እገዛዎች",
+      "noBibleChip": "መጽሐፍ ቅዱስ የለም",
+      "chapterChip": "ምዕራፍ {{n}}",
+      "key": "ነጠብጣብ መስመሮች ሌሎች መጽሐፍ ቅዱሶች ክፍል የሚጀምሩበትን ያሳያሉ ({{total}} የእንግሊዝኛ መጽሐፍ ቅዱሶች፣ ከOpenBible.info)። እዚያ ክፍል ለመጀመር አንዱን ይንኩ፣ ወይም ማንኛውንም ቁጥር ይንኩ።",
+      "loadingText": "የ{{book}} ቃላት እየተጫኑ ነው…",
+      "noText": "የቡድኑ መጽሐፍ ቅዱሶች የ{{book}} ቃላት የላቸውም፤ ስለዚህ ቁጥሮቹ እንደ ቁጥር ብቻ ይታያሉ።",
+      "chapterHead": "ምዕራፍ {{n}}",
+      "goesOn": "· ክፍል {{n}} ይቀጥላል",
+      "verseLabel": "ቁጥር {{at}}",
+      "alsoBibles": "ከ{{total}} መጽሐፍ ቅዱሶች {{n}}ዱ እዚህ ክፍል ይጀምራሉ",
+      "bibles": "ከ{{total}} መጽሐፍ ቅዱሶች {{n}}",
+      "startAt": "እዚህ ክፍል ይጀምራሉ",
+      "startPill": "እዚህ ይጀምሩ",
+      "suggestionLabel": "በ{{at}} ክፍል ይጀምሩ። {{bibles}} እዚህ ክፍል ይጀምራሉ።",
+      "bookStarts": "መጽሐፉ እዚህ ይጀምራል",
+      "joinWith": "ከክፍል {{n}} ጋር ያዋህዱ",
+      "startHere": "እዚህ ክፍል ይጀምሩ",
+      "undo": "ቀልብስ",
+      "startFrom": "ከተዘጋጀ መንገድ ይጀምሩ",
+      "started": "ክፍል {{n}} በ{{at}} ይጀምራል",
+      "joined": "ከክፍል {{n}} ጋር ተዋህዷል",
+      "usedOutline": "ክፍሎቹ የዝርዝሩ ክፍሎች በሚጀምሩበት ይጀምራሉ",
+      "saved": "{{book}} ተከፋፍሏል። ቡድኑ አሁን ሊቀርጸው ይችላል።",
+      "bibleTitle": "{{book}}ን በዚህ ያንብቡ",
+      "bibleSub": "የሚቀየሩት ቃላቱ ብቻ ናቸው። ክፍሎችዎ ባሉበት ይቆያሉ።",
+      "teamBible": "{{language}} · የቡድኑ መጽሐፍ ቅዱስ",
+      "jumpTitle": "ወደ ምዕራፍ ይሂዱ",
+      "jumpSub": "በእያንዳንዱ ስንት ክፍሎች እንደሚጀምሩ",
+      "fromTitle": "የተዘጋጁ መንገዶች",
+      "fromSub": "የ{{book}}ን ክፍሎች ይተካል። ቀልብስ መልሶ ያመጣቸዋል።",
+      "startedFrom": "{{book}} አሁን ከ{{way}} ይጀምራል",
+      "sectionTitle": "ክፍል {{n}}",
+      "nameLabel": "ስሙ (አማራጭ)",
+      "namePlaceholder": "ቡድኑ የሚጠራው",
+      "joinSub": "የዚህ ክፍል ቁጥሮች ወደ ቀደመው ይሄዳሉ",
+      "firstCantJoin": "የመጀመሪያው ክፍል ሊዋሃድ አይችልም",
+      "leaveTitle": "ሳያስቀምጡ ይውጡ?",
+      "leaveSub": "የ{{book}} ክፍሎችዎ ገና አልተቀመጡም።",
+      "leaveAnyway": "ሳያስቀምጡ ይውጡ",
+      "helpsTitle": "ለ{{book}} እገዛዎች",
+      "closeHelps": "እገዛዎቹን ዝጋ",
+      "tabOutline": "ዝርዝር",
+      "tabNotes": "ማስታወሻዎች {{n}}",
+      "tabGuides": "መመሪያዎች",
+      "outlineFrom": "ከ{{from}}",
+      "useOutline": "እነዚህ ክፍሎች በሚጀምሩበት ክፍሎችን ይጀምሩ",
+      "noOutline": "{{book}}ን ወደ ክፍሎች የሚከፍል መመሪያ የለም።",
+      "noteOn": "{{name}} · ስለ {{where}}",
+      "showInText": "በጽሑፉ ውስጥ አሳይ",
+      "noNotes": "ስለ {{book}} ገና ማስታወሻዎች የሉም።",
+      "allOf": "{{book}} በሙሉ",
+      "nothingFor": "ለ{{book}} ምንም የለም",
+      "noHelps": "ለ{{book}} ገና የቀረቡ መመሪያዎች ወይም ማስታወሻዎች የሉም።",
+      "headerSub_one": "የራስዎ መንገድ · {{count, number}} ክፍል",
+      "headerSub_other": "የራስዎ መንገድ · {{count, number}} ክፍሎች",
+      "verses_one": "{{count, number}} ቁጥር",
+      "verses_other": "{{count, number}} ቁጥሮች",
+      "save_one": "አስቀምጥ · {{count, number}} ክፍል",
+      "save_other": "አስቀምጥ · {{count, number}} ክፍሎች",
+      "jumpLabel_one": "ምዕራፍ {{chapter}}፦ {{count, number}} ክፍል እዚህ ይጀምራል",
+      "jumpLabel_other": "ምዕራፍ {{chapter}}፦ {{count, number}} ክፍሎች እዚህ ይጀምራሉ",
+      "sections_one": "{{count, number}} ክፍል",
+      "sections_other": "{{count, number}} ክፍሎች",
+      "partsIn_one": "በ{{book}} ውስጥ {{count, number}} ክፍል",
+      "partsIn_other": "በ{{book}} ውስጥ {{count, number}} ክፍሎች"
     }
   },
   "canon": {
@@ -2669,7 +2743,8 @@
       "reportedContent": "አንድ ሰው ይህን በ{{reasons}} ምክንያት ሪፖርት አድርጓል። የሠራው {{name}} ነው። ይመልከቱት፣ ከዚያ ከመዝገቡ ያስወግዱት ወይም ያቆዩት።",
       "reportsAnonymous": "ሪፖርቶች ማን እንደላካቸው ፈጽሞ አይናገሩም። የLangQuest ቡድንም እያንዳንዱን ሪፖርት ያያል።",
       "assignAccept": "ሚና ይመድቡና ይቀበሉ",
-      "decline": "ውድቅ ያድርጉ"
+      "decline": "ውድቅ ያድርጉ",
+      "inLanguage": "በ{{language}}"
     },
     "me": {
       "title": "እኔ",
@@ -3553,7 +3628,20 @@
     "divide": {
       "title": "{{book}}ን ይከፋፍሉ",
       "waiting_one": "ማንም ከመቅረጹ በፊት እስኪከፋፈል በመጠበቅ ላይ",
-      "waiting_other": "{{count, number}} መጻሕፍት ማንም ከመቅረጻቸው በፊት እስኪከፋፈሉ በመጠበቅ ላይ ናቸው"
+      "waiting_other": "{{count, number}} መጻሕፍት ማንም ከመቅረጻቸው በፊት እስኪከፋፈሉ በመጠበቅ ላይ ናቸው",
+      "leftOut": "{{way}} ለ{{book}} ክፍሎች የሉትም።",
+      "more_one": "ሌላ {{count, number}} መጽሐፍም ይጠብቃል።",
+      "more_other": "ሌሎች {{count, number}} መጻሕፍትም ይጠብቃሉ።"
+    },
+    "elsewhere": {
+      "title": "በ{{language}} አዲስ ዝማኔዎች",
+      "sub_one": "ለእርስዎ {{count, number}} ዝማኔ። ወደ {{language}} ለመቀየር ይንኩ።",
+      "sub_other": "ለእርስዎ {{count, number}} ዝማኔዎች። ወደ {{language}} ለመቀየር ይንኩ።"
+    },
+    "again": {
+      "title": "{{passage}}ን እንደገና ይቅረጹ",
+      "sub_one": "ከተቀረጸ በኋላ ክፍሎቹ ተለውጠዋል። ቀደም ያለው ቅጂ በገጹ ላይ አለ።",
+      "sub_other": "ከተቀረጹ በኋላ ክፍሎች ተለውጠዋል፦ እንደገና የሚቀረጹ {{count, number}}። ቀደም ያሉ ቅጂዎች በገጾቻቸው ላይ አሉ።"
     }
   },
   "shell": {
@@ -4506,7 +4594,8 @@
       "openInAll_one": "በአጠቃላይ {{count, number}} ክፍት ጥያቄ",
       "openInAll_other": "በአጠቃላይ {{count, number}} ክፍት ጥያቄዎች",
       "checkpoint": "ኬላ ላይ ያሉ",
-      "checkpointSub": "የኬላ ግምገማ በመጠበቅ ላይ"
+      "checkpointSub": "የኬላ ግምገማ በመጠበቅ ላይ",
+      "show": "በካርታው ላይ አሳይ"
     },
     "noReports": {
       "languages": "እስካሁን የሚታዩ ቋንቋዎች የሉም",
@@ -5622,25 +5711,15 @@
       "noGuideBadge": "መመሪያ የለም"
     },
     "passage": {
-      "title": "ማጣቀሻ",
       "gone": "ይህ ክፍል እዚህ የለም",
       "placedByHand": "እዚህ በእጅ የተቀመጠ",
-      "studyGuides": "የጥናት መመሪያዎች",
       "notes": "ለተርጓሚዎች ማስታወሻዎች",
-      "other": "ሌሎች ጽሑፎች",
       "hiddenHere": "እዚህ የተደበቀ",
       "showHere": "እዚህ ያሳዩ",
       "hideHere": "እዚህ ይደብቁ",
       "shownAgain": "{{name}} በዚህ ክፍል ላይ እንደገና ይታያል።",
       "hidden": "{{name}} በዚህ ክፍል ላይ ተደብቋል።",
-      "add": "ያክሉ",
-      "intro": "በዚህ ክፍል ላይ ለተርጓሚዎች የሚቀርበውና ለምን እንደሆነ። አሁንም ማንኛውንም መጽሐፍ ቅዱስ በመስመር ላይ ማሰስና ራሳቸው መምረጥ ይችላሉ።",
-      "group": "{{group}} · {{n, number}}",
-      "noBible": "ለዚህ ክፍል የተመከረ መጽሐፍ ቅዱስ የለም። ተርጓሚዎች አሁንም አንዱን ማሰስ ይችላሉ።",
       "placedInApp": "በመተግበሪያው ውስጥ እዚህ የተቀመጠ",
-      "hiddenSection": "እዚህ የተደበቁ · {{n, number}}",
-      "addTitle": "ወደዚህ ክፍል ያክሉ",
-      "addSub": "መጋጠሚያዎቹ ምንም ቢሉ እዚህ በእጅ የተቀመጠ።",
       "searchPlaceholder": "ቤተ መጻሕፍትዎን ይፈልጉ",
       "allHere": "በቤተ መጻሕፍትዎ ውስጥ ያለው ሁሉ አስቀድሞ እዚህ አለ።",
       "placed": "{{name}} በዚህ ክፍል ላይ ተቀምጧል።"
@@ -5767,6 +5846,34 @@
       "yours": "የመተግበሪያዎ ቋንቋ",
       "gaps_one": "በ{{language}}፣ {{name}} ለ{{count, number}} ክፍል መመሪያ አለው። መመሪያ የሌላቸው ክፍሎች የጥናት መመሪያ አያሳዩም።",
       "gaps_other": "በ{{language}}፣ {{name}} ለ{{count, number}} ክፍሎች መመሪያዎች አሉት። መመሪያ የሌላቸው ክፍሎች የጥናት መመሪያ አያሳዩም።"
+    },
+    "passageText": {
+      "bar": "{{passage}} · {{bible}}",
+      "barHelpTitle": "ክፍሉ",
+      "barHelp": "ክፍሉን በመረጡት መጽሐፍ ቅዱስ ይከፍታል፤ ዋና ቃላቱና ማስታወሻዎቹ ምልክት ተደርጎባቸዋል።",
+      "openText": "{{passage}}። ክፍሉን አሳይ",
+      "closeText": "{{passage}}። ክፍሉን ደብቅ",
+      "listen": "ያዳምጡ",
+      "listenHelp": "ክፍሉን በዚህ መጽሐፍ ቅዱስ ያጫውታል።",
+      "noteTag": "ማስታወሻ",
+      "showHelp": "ተርጓሚዎች ይህን በዚህ ክፍል ያገኛሉ።",
+      "hideHelp": "ተርጓሚዎች ይህን በዚህ ክፍል ከእንግዲህ አያገኙም።",
+      "step": "ደረጃ {{n, number}}",
+      "steps_one": "{{count, number}} ደረጃ",
+      "steps_other": "{{count, number}} ደረጃዎች",
+      "notesSub_one": "በዚህ ክፍል ላይ {{count, number}} ማስታወሻ",
+      "notesSub_other": "በዚህ ክፍል ላይ {{count, number}} ማስታወሻዎች",
+      "wholePassage": "ሙሉ ክፍሉ",
+      "keyWords": "ዋና ቃላት",
+      "keyWordsSub_one": "በእነዚህ ቁጥሮች {{count, number}}",
+      "keyWordsSub_other": "በእነዚህ ቁጥሮች {{count, number}}",
+      "none": "በዚህ ክፍል ላይ እስካሁን የሚረዳ ነገር የለም።",
+      "addHelp": "እገዛ ያክሉ",
+      "addHelpHint": "ለተርጓሚዎች ማስታወሻ ይጻፉ፣ ወይም ከቤተ መጻሕፍትዎ አንድ ነገር እዚህ ያስቀምጡ።",
+      "writeNote": "ለተርጓሚዎች ማስታወሻ ይጻፉ",
+      "writeNoteSub": "በሚመርጧቸው ቁጥሮች ላይ፣ በድምፅ ወይም በጽሑፍ",
+      "fromLibrary": "ከቤተ መጻሕፍትዎ",
+      "fromOwn": "ከድርጅትዎ ቤተ መጻሕፍት"
     }
   },
   "sources": {
@@ -6001,5 +6108,37 @@
     "goOnline": "ሥራዎ እንዲላክ ብዙ ጊዜ ከኢንተርኔት ጋር ይገናኙ።",
     "lessSpace": "ይህ መሣሪያ ከሚለው ያነሰ ቦታ ሊኖረው ይችላል።",
     "understand": "ገብቶኛል"
+  },
+  "notes": {
+    "onVerses": {
+      "title": "ለተርጓሚዎች ማስታወሻ",
+      "sub": "{{passage}} · {{language}}",
+      "hint": "አንድ ቁጥር ይንኩ፣ ከዚያ እስከዚያ ለመድረስ ሌላ ይንኩ።",
+      "verseHelp": "ማስታወሻውን በዚህ ቁጥር ላይ ያደርጋል። እስከዚያ ለመድረስ ሌላ ቁጥር ይንኩ።",
+      "on": "በ{{where}} ላይ",
+      "onWhole": "በሙሉ ክፍሉ ላይ",
+      "whole": "ሙሉ ክፍሉ",
+      "say": "ይንኩና ማስታወሻዎን ይናገሩ",
+      "saved": "ማስታወሻው በ{{where}} ላይ ተቀምጧል።",
+      "savedWhole": "ማስታወሻው በ{{passage}} ላይ ተቀምጧል።"
+    }
+  },
+  "keyTerms": {
+    "verses": {
+      "title": "እዚህ ያለበት",
+      "none": "«{{word}}» በ{{bible}} በእነዚህ ቁጥሮች ውስጥ የለም።",
+      "noneHere": "«{{word}}» በእነዚህ ቁጥሮች ውስጥ የለም።",
+      "more_one": "እና ሌላ {{count, number}} ቁጥር",
+      "more_other": "እና ሌሎች {{count, number}} ቁጥሮች"
+    },
+    "others": {
+      "title": "ሌሎች ቋንቋዎች እዚህ እንዴት እንደሚሉት",
+      "none": "በዚህ ስልክ ላይ ያለ ሌላ ቋንቋ ለ«{{word}}» እስካሁን ቃል የለውም።",
+      "saidOnly": "ተነግሯል፣ አልተጻፈም",
+      "play": "ቃሉን በ{{language}} ያጫውቱ",
+      "playHelp": "እንዴት እንደሚሉት ያጫውታል።",
+      "suggest": "እዚህ ሌሎች ቋንቋዎች የሚጠቀሙት",
+      "suggestHelp": "እዚህ በ{{languages}} ይጠቀሙበታል። ለማከል ይንኩ።"
+    }
   }
 }

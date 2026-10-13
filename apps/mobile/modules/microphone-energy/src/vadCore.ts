@@ -84,7 +84,7 @@ export class Vad {
         return null;
       case 'RECORDING': {
         // An open part keeps going while the voice stays above `sustainMultiplier`
-        // of the cutoff (decisions.md 93): a soft stretch is speech, not a pause.
+        // of the cutoff (decisions.md 94): a soft stretch is speech, not a pause.
         if (energy > s.threshold * s.sustainMultiplier) {
           this.lastAboveThresholdTime = now;
           this.activeAudioTime += now - this.lastFrameTime;

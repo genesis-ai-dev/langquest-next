@@ -22,11 +22,12 @@ export async function requestPushToken(): Promise<string> {
   })).data;
 }
 
-/** Calls `open` for the notification that launched the app, and for each one tapped while it runs. */
-export function onNotificationOpened(open: () => void): () => void {
+/** Calls `open` with the Inbox row's id for the notification that launched the app, and for each one tapped while it runs. */
+export function onNotificationOpened(open: (notificationId: string) => void): () => void {
   const receive = (response: Notifications.NotificationResponse | null) => {
-    if (!response?.notification.request.content.data?.notificationId) return;
-    open();
+    const id = response?.notification.request.content.data?.notificationId;
+    if (typeof id !== 'string' || !id) return;
+    open(id);
     void Notifications.clearLastNotificationResponseAsync();
   };
   void Notifications.getLastNotificationResponseAsync().then(receive);

@@ -37,6 +37,13 @@ export interface FleetOptions {
   chunkChars?: number;
   realtime?: { on: boolean; delayMs: number };
   /**
+   * Move the audio too: each card is a file of this many bytes per second
+   * of recording (the app's AAC is about 16,000), uploaded and downloaded
+   * by the app's transfer workers over the same link as sync. Off by
+   * default, so runs without it count exactly what they always did.
+   */
+  audio?: { bytesPerSecond: number } | null;
+  /**
    * The server refuses the language's events as not listed until this
    * simulated time, as it does when a phone pushes a new language's events
    * before the organization stream lists it (they are re-queued on every push).
@@ -74,7 +81,9 @@ export class Fleet {
       streamId: this.streamId,
       appendedAt: this.appendedAt,
       realtime: options.realtime ?? { on: true, delayMs: 1_000 },
-      working: () => this.working
+      working: () => this.working,
+      audio: options.audio ?? null,
+      recordedAt: new Map()
     };
     const { crew } = options;
     const work = crew.work ?? OFFICE_HOURS;
@@ -134,6 +143,13 @@ export class Fleet {
       }
       this.snapshotPass(o);
     }, o.everyMs);
+  }
+
+  /** Audio recorded on phones that the server does not hold yet. */
+  audioBacklog(): number {
+    let n = 0;
+    for (const hash of this.context.recordedAt.keys()) if (!this.server.blobs.has(hash)) n += 1;
+    return n;
   }
 
   runFor(ms: number): Promise<void> {
@@ -213,6 +229,21 @@ export class Fleet {
         pushDelayMinutes: stats(flat((d) => d.metrics.pushDelayMs).map((ms) => ms / TIME.MINUTE))
       },
       coldStarts: colds,
+      audio: this.context.audio ? {
+        recorded: this.context.recordedAt.size,
+        onServer: this.server.blobs.size,
+        lost: all.reduce((n, d) => n + d.unsentAudio(), 0),
+        uploads: sum((d) => d.metrics.uploads),
+        uploadFailures: sum((d) => d.metrics.uploadFailures),
+        mbUp: round(sum((d) => d.metrics.uploadBytes) / 1e6),
+        downloads: sum((d) => d.metrics.downloads),
+        downloadFailures: sum((d) => d.metrics.downloadFailures),
+        mbDown: round(sum((d) => d.metrics.downloadBytes) / 1e6),
+        toServerMinutes: stats(flat((d) => d.metrics.uploadDelayMs).map((ms) => ms / TIME.MINUTE)),
+        playableElsewhereMinutes: stats(flat((d) => d.metrics.playableMs).map((ms) => ms / TIME.MINUTE)),
+        workLists: sum((d) => d.metrics.workLists),
+        workListCpuSeconds: round(sum((d) => d.metrics.workListCpuMs) / 1000)
+      } : null,
       agreement,
       errors: this.time.errors.map((e) => (e instanceof Error ? e.message : String(e)))
     };
@@ -261,6 +292,27 @@ export interface FleetReport {
     pushDelayMinutes: Stats;
   };
   coldStarts: { device: string; link: string; minutes: number | null }[];
+  /** Audio, when the run moved it (FleetOptions.audio). */
+  audio: {
+    /** Files recorded on phones, and how many the server holds. */
+    recorded: number;
+    onServer: number;
+    /** Recorded but still only on a phone when the run ended: work a lost phone would take with it. */
+    lost: number;
+    uploads: number;
+    uploadFailures: number;
+    mbUp: number;
+    downloads: number;
+    downloadFailures: number;
+    mbDown: number;
+    /** From recording to the server holding the file. */
+    toServerMinutes: Stats;
+    /** From recording on one phone to the file being playable on another. */
+    playableElsewhereMinutes: Stats;
+    /** How often the transfer workers worked out what to move, and the real CPU it cost. */
+    workLists: number;
+    workListCpuSeconds: number;
+  } | null;
   agreement: Agreement | null;
   errors: string[];
 }

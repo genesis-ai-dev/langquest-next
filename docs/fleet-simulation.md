@@ -99,6 +99,46 @@ Baseline numbers for every scenario at several sizes are in
   batches and refolding: 73,555 refolds in 10 hours on one phone with a
   1,200-passage template.
 
+## Audio
+
+`--audio=1` on `normalDay` and `villageReconnect` moves the audio as well as
+the events (`--audioKBps`, 16 by default: the app records AAC at about
+128 kbit/s). Each card a translator records becomes a file on their phone,
+as big as its duration. Each phone runs the app's own `TransferWorker`s
+with its upload and download defaults (`useLanguage.ts`), on simulated
+time:
+
+- **Uploads:** what was recorded on the phone and is not confirmed yet
+  (`deriveUploadWork`). The bytes cross the phone's link, then the fake
+  server keeps the file and appends `v1.BlobStored`, as the Worker does.
+- **Downloads:** what the person's offline scope needs and the server holds
+  (`deriveDownloadWork`). A reviewer keeps the passages waiting for them
+  offline, and reviews a version only once its audio is on the phone.
+- **One link, both ways.** Sync calls and audio share the link's
+  bandwidth in each direction (`LinkPipe`). Transfers pause while a sync
+  runs, and wait while the last sync could not reach the server, as on
+  the phone.
+
+The report's audio section counts files recorded, on the server and
+**lost** (still only on a phone at the end; a run with any lost fails),
+megabytes and failed transfers each way, the time from recording to the
+server and to being playable on another phone, and the real CPU the
+workers spent working out what to move.
+
+First runs (2026-10-12):
+
+- **Working out what to move costs more than syncing.** Every pass of each
+  worker scans the whole language's audio (`deriveUploadWork`,
+  `deriveDownloadWork`), and a pass follows every sync, every poke and
+  every minute's tick. `normalDay`: 581,439 work lists and 45.6 s of CPU
+  across 14 phones in a week, against about 2 s of sync CPU.
+- **Audio did not hold events back at these sizes.** A card is 64 to 190 KB.
+  Events reached the server as fast with audio as without, and after
+  14 days out of signal the village's 3,637 files (432 MB) were all on the
+  server 7 minutes after it reconnected; its events took one.
+- **Reviewers download a lot.** Every version under review comes down to
+  each reviewer of it: 2.6 GB across 6 reviewers in `villageReconnect`.
+
 ## Where the code is
 
 - `packages/client/src/testing/`: the engine, Node only; the app never
@@ -119,12 +159,21 @@ Baseline numbers for every scenario at several sizes are in
 - **Every app is open all the time.** A real phone runs sync timers only
   while the app is open; the simulator never closes it. Counts of syncs
   with no signal are upper bounds.
-- **One language stream.** No organization stream, memberships or blobs.
-  The fake server accepts everything unless a scenario says otherwise
+- **One language stream.** No organization stream or memberships. The
+  fake server accepts everything unless a scenario says otherwise
   (`refoldTriggers` refuses the language as not listed for a while).
+- **Audio is sizes, not files.** No disk, hashing or decoding: those are
+  the phone's own costs and need a device run. The phone's cache never
+  fills, so nothing is evicted, and source Bible audio and study guides
+  are not downloaded.
 - **Personas are simple.** Translators record each assigned passage and
   re-record what is sent back; reviewers review submitted versions for
-  one kind and sometimes leave a note. A synthetic language's snapshot is
+  one kind and sometimes leave a note. A person knows what reached their
+  phone: the events it pulled, and after it adopts a server snapshot, the
+  fold (`SimDevice.observeFold`). Until 2026-10-12 a phone that caught up
+  through a snapshot told its person nothing of what was in it, so a
+  translator whose phone first connected after the first snapshot never
+  worked; the baselines were rerun with the fix. A synthetic language's snapshot is
   far smaller than a Bible's, so `--chunkKB` stands in for the number of
   pieces a large one has.
 - **Phone storage is MemoryStore, not SQLite.** Commit costs on a device

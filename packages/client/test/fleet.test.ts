@@ -49,4 +49,20 @@ describe('a fleet of phones on simulated time', () => {
     expect(r.phones.pushDelayMinutes.max).toBeGreaterThan(24 * 60);
     expect(r.phones.refolds).toBe(0);
   });
+
+  it('moves the audio too: every recording reaches the server, and reviewers hear what they review', async () => {
+    // Why: work is audio. An event that arrives without its recording is a
+    // passage nobody can review, and a recording that never leaves the phone
+    // is work lost with the phone.
+    const fleet = new Fleet({ seed: 5, audio: { bytesPerSecond: 16_000 }, crew: { passages: 12, translators: 2, reviewers: 2, link: mixed } });
+    await fleet.start();
+    await fleet.runFor(2 * TIME.DAY);
+    const r = fleet.report(await fleet.settle(), 0);
+    expect(r.errors).toEqual([]);
+    expect(r.agreement?.agree).toBe(true);
+    expect(r.audio).toMatchObject({ lost: 0 });
+    expect(r.audio!.recorded).toBeGreaterThan(0);
+    expect(r.audio!.onServer).toBe(r.audio!.recorded);
+    expect(r.audio!.downloads).toBeGreaterThan(0);
+  });
 });
