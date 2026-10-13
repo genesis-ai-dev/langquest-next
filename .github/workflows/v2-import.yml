@@ -6,9 +6,10 @@
 # Nothing runs until the repository variable V2_IMPORT_ENABLED is "true":
 # writing to production waits for Caleb's go-ahead.
 #
-# Repo secrets: V3_SERVICE_ROLE_KEY (this app's production service-role key)
-# and V2_SUPABASE_ANON_KEY (v2's publishable key, for reading v2). Logs name
-# projects by id only, since this repository is public.
+# Repo secrets: V3_SERVICE_ROLE_KEY (this app's production service-role key),
+# V2_SUPABASE_ANON_KEY (v2's publishable key, for reading v2) and, for
+# people's names, V2_DATABASE_URL (scripts/v2-access.sh). Logs name projects
+# by id only, since this repository is public.
 name: v2-import
 
 on:
@@ -43,6 +44,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.V3_SERVICE_ROLE_KEY }}
           API_URL: https://next.langquest.org
           V2_SUPABASE_ANON_KEY: ${{ secrets.V2_SUPABASE_ANON_KEY }}
+          V2_DATABASE_URL: ${{ secrets.V2_DATABASE_URL }}
           V2_IMPORT_BY: ${{ github.event_name == 'schedule' && 'the scheduled sync' || github.actor }}
           ALL: ${{ (github.event.schedule == '17 3 * * *' || inputs.all) && '--all' || '' }}
         run: npm run v2 -- sync $ALL

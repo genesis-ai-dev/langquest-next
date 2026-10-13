@@ -6,6 +6,7 @@
  *   npm run v2 -- sync --all                   every confirmed project, read whole (the nightly pass)
  *   npm run v2 -- sync --project <v2 id> …     just these
  *   npm run v2 -- try --project <v2 id> …      map v2 projects and check the result, writing nothing
+ *   … --production                              against the hosted projects (docs/v2-import.md, "Going live")
  *
  * Reads v2 with V2_SUPABASE_URL / V2_SUPABASE_ANON_KEY (v2's publishable
  * key; v2 is never written) and its public bucket V2_BUCKET ("assets").
@@ -13,8 +14,9 @@
  * default (`node scripts/with-local-keys.mjs` supplies the keys), and files
  * through the app's Worker at API_URL (`npm run web:dev` locally), or into
  * the folder V2_IMPORT_FILES_DIR when trying it without the Worker.
- * V2_EVERY_LANGUAGE_ID names the Every Language platform account's v2 id
- * while the reader cannot see emails. Downloaded files are kept under
+ * V2_DATABASE_URL, a read-only login on v2 (scripts/v2-access.sh), gives
+ * people's names. V2_EVERY_LANGUAGE_ID overrides the Every Language
+ * platform account's v2 id. Downloaded files are kept under
  * V2_IMPORT_CACHE when it is set. On CI, output names projects by id only:
  * the repository and its CI logs are public.
  */
@@ -44,10 +46,46 @@ const env = (name: string, fallback?: string): string => {
   return v;
 };
 
+// --production reads and writes the hosted projects with the keys the team already keeps: v2's
+// key and read-only login from .env.production (dotenvx; needs .env.keys), and this app's
+// service-role key from the Supabase CLI you are logged in with. Nothing is printed.
+const PRODUCTION_REF = 'xymxnebdwtbkfxlbylch';
+if (flag('production') && !process.env['V2_HOSTED_RUN']) {
+  const keys = spawnSync('npx', ['supabase', 'projects', 'api-keys', '--project-ref', PRODUCTION_REF, '-o', 'json'], { cwd: root, encoding: 'utf8' });
+  const list = keys.status === 0 ? (JSON.parse(keys.stdout.slice(keys.stdout.indexOf('['))) as { name: string; api_key: string }[]) : [];
+  const service = list.find((k) => k.name === 'service_role')?.api_key;
+  if (!service) {
+    console.error('x could not read the production service key with the Supabase CLI; run npx supabase login first');
+    process.exit(1);
+  }
+  const r = spawnSync('npx', ['dotenvx', 'run', '-f', '.env.production', '-fk', '.env.keys', '--strict', '--', 'npx', 'tsx', ...process.argv.slice(1)], {
+    cwd: root, stdio: 'inherit',
+    env: { ...process.env, V2_HOSTED_RUN: '1', SUPABASE_URL: `https://${PRODUCTION_REF}.supabase.co`, SUPABASE_SERVICE_ROLE_KEY: service, API_URL: 'https://next.langquest.org' }
+  });
+  process.exit(r.status ?? 1);
+}
+
+// Names come from v2's database through a read-only login (scripts/v2-access.sh), when there is one.
+const v2Db = process.env['V2_DATABASE_URL'];
+async function v2Names(ids: string[]) {
+  const out: { id: string; name: string | null; email: null }[] = [];
+  const uuids = ids.filter((id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
+  for (let i = 0; i < uuids.length; i += 500) {
+    const r = spawnSync('psql', [v2Db!, '-X', '-A', '-t', '-q', '-v', 'ON_ERROR_STOP=1', '-v', `ids={${uuids.slice(i, i + 500).join(',')}}`], {
+      input: "select coalesce(json_agg(json_build_object('id', id, 'name', username)), '[]') from public.profile where id = any(:'ids'::uuid[]);\n",
+      encoding: 'utf8'
+    });
+    if (r.error || r.status !== 0) throw new Error(`v2 names: ${(r.stderr || r.error?.message || '').trim()}`);
+    for (const p of JSON.parse(r.stdout.trim() || '[]') as { id: string; name: string | null }[]) out.push({ id: p.id, name: p.name?.trim() || null, email: null });
+  }
+  return out;
+}
+
 const v2 = restReader({
   url: env('V2_SUPABASE_URL', 'https://unsxkmlcyxgtgmtzfonb.supabase.co'),
   key: env('V2_SUPABASE_ANON_KEY'),
-  bucket: env('V2_BUCKET', 'assets')
+  bucket: env('V2_BUCKET', 'assets'),
+  ...(v2Db ? { people: v2Names } : {})
 });
 const url = env('SUPABASE_URL', 'http://127.0.0.1:54421');
 const serviceKey = env('SUPABASE_SERVICE_ROLE_KEY');

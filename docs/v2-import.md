@@ -215,3 +215,27 @@ Per project: rows read, events appended by type, facts withdrawn, files
 copied, files missing in v2, versions waiting for audio, and what was left
 out (tags, text without audio if not imported, and so on). The board shows
 the last pass per project.
+
+## 9. Going live
+
+In order; each step is safe to stop after.
+
+1. **Merge the PR.** Merging deploys the `v2_import` tables and the
+   `v2-sign-in` function (decision 42) and ships Sign In's fallback to
+   testers. Until step 3, signing in with a v2 account just says the
+   password is wrong, and nothing is transferred.
+2. **Names (optional, once):** `scripts/v2-access.sh` adds `v2_reader` to
+   v2's production database, a login that may read each person's id and
+   username and nothing else, and keeps its address encrypted in
+   `.env.production`. Without it, people show by id until they sign in.
+3. **Keys and the switch:** `npm run env:update -- production
+   V2_SUPABASE_ANON_KEY` (v2's publishable key), then
+   `scripts/v2-go-live.sh`, which gives the workflow its secrets, puts v2's
+   key in the Edge Function (`npm run secrets -- production`) and, when
+   asked, sets `V2_IMPORT_ENABLED`.
+4. **Place and transfer:** `npm run v2 -- board --production`. Drag
+   projects into organizations, choose the languages the suggestions are
+   not sure of, and press Transfer; or confirm them and let the scheduled
+   sync copy them, which is faster for the big ones.
+5. **Tell people:** once a project shows "In Next", its people sign in to
+   Next with their LangQuest email and password.

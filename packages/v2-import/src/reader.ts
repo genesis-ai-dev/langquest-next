@@ -33,6 +33,8 @@ export interface RestSource {
   /** The public bucket v2 keeps audio in. */
   bucket: string;
   fetch?: typeof fetch;
+  /** Names, from a reader that may see them (v2's publishable key may not): a read-only login on v2. */
+  people?: V2Reader['people'];
 }
 
 const PAGE = 1000;
@@ -162,8 +164,8 @@ export function restReader(src: RestSource): V2Reader {
       return byOffset('profile_project_link?select=profile_id,project_id,membership,active&order=project_id,profile_id');
     },
 
-    async people() {
-      return [];
+    async people(ids) {
+      return src.people ? src.people(ids) : [];
     },
 
     async download(name) {
