@@ -112,6 +112,7 @@
   .person { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid #f1f0f5; }
   .avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--purple-soft); color: var(--purple); display: grid; place-items: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
   .person .sub { color: var(--muted); font-size: 12px; }
+  .person .email { font-size: 12px; user-select: all; overflow-wrap: anywhere; }
 
   .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(460px, 100vw); background: var(--panel); border-left: 1px solid var(--line); box-shadow: -12px 0 32px rgba(20,10,60,.12); z-index: 30; display: flex; flex-direction: column; transform: translateX(105%); transition: transform .2s; }
   .drawer.open { transform: none; }
@@ -182,7 +183,7 @@
 <script>
 const SKIP = 'skip';
 const S = {
-  cards: [], orgs: [], members: {}, signedIn: {}, nameOf: {}, roles: {}, by: '', where: 'local',
+  cards: [], orgs: [], members: {}, signedIn: {}, nameOf: {}, emailOf: {}, roles: {}, by: '', where: 'local',
   passes: new Map(), queue: new Set(), log: [], after: 0, signedInCount: 0,
   filter: 'all', tab: 'activity', feedIssues: false, closed: new Set(), open: null, people: null
 };
@@ -221,7 +222,7 @@ async function api(path, body) {
 async function loadBoard(fresh) {
   try {
     const d = await api('/api/board' + (fresh ? '?fresh' : ''));
-    Object.assign(S, { cards: d.cards, orgs: d.orgs, members: d.members, signedIn: d.signedIn, nameOf: d.nameOf, roles: d.roles ?? {}, by: d.by, where: d.where, everyLanguage: d.everyLanguage });
+    Object.assign(S, { cards: d.cards, orgs: d.orgs, members: d.members, signedIn: d.signedIn, nameOf: d.nameOf, emailOf: d.emailOf ?? {}, roles: d.roles ?? {}, by: d.by, where: d.where, everyLanguage: d.everyLanguage });
     const env = $('#env');
     env.textContent = d.where === 'production' ? 'PRODUCTION' : d.where === 'local' ? 'Local test database' : d.host;
     env.className = 'env ' + d.where;
@@ -251,6 +252,7 @@ const fresh = (p) => Date.now() - Date.parse(p.progress_at) < 120000;
 // ---- what each project is doing ------------------------------------------------------
 const orgName = (id) => id === SKIP ? "Not coming over" : S.orgs.find((o) => o.org_id === id)?.name ?? id;
 const personName = (id) => S.nameOf[id] ?? (S.everyLanguage?.includes(id) ? 'Every Language' : `Person ${id.slice(0, 8)}`);
+const personEmail = (id) => S.emailOf[id] ?? '';
 function language(c) {
   const r = c.recommendation;
   if (c.code) return { text: c.languoidId && c.languoidId === r.languoidId && r.name ? `${r.name} [${c.code}]` : c.code, cls: 'c-decided', sure: true, title: 'Chosen here' };
@@ -318,7 +320,7 @@ function render() {
 
   const q = $('#q').value.trim().toLowerCase();
   const pred = FILTERS.find((f) => f[0] === S.filter)[2];
-  const shown = S.cards.filter((c) => (S.showOff || c.active) && pred(states.get(c.id).key) && (!q || [c.name, c.code ?? '', c.recommendation.name ?? '', orgName(c.orgId), ...(S.members[c.id] || []).map((m) => personName(m.id))].join(' ').toLowerCase().includes(q)));
+  const shown = S.cards.filter((c) => (S.showOff || c.active) && pred(states.get(c.id).key) && (!q || [c.name, c.code ?? '', c.recommendation.name ?? '', orgName(c.orgId), ...(S.members[c.id] || []).flatMap((m) => [personName(m.id), personEmail(m.id)])].join(' ').toLowerCase().includes(q)));
   const byOrg = new Map();
   for (const c of shown) (byOrg.get(c.orgId) ?? byOrg.set(c.orgId, []).get(c.orgId)).push(c);
   const size = (id) => (byOrg.get(id) ?? []).reduce((n, c) => n + c.assets, 0);
@@ -386,7 +388,7 @@ function card(c, st) {
     st.pct != null ? el('div', { class: 'bar live' }, el('i', { style: `width:${st.pct}%` })) : null,
     !locked && c.why !== 'saved' && why ? el('div', { class: 'why' }, why) : null,
     el('div', { class: 'foot' },
-      el('span', { class: 'people', title: 'People in this v2 project who have signed in to Next' }, p.total ? el('span', {}, '👤 ', el('b', {}, p.signed), ` of ${p.total} signed in`) : ''),
+      el('span', { class: 'people', title: (S.members[c.id] || []).map((m) => [personName(m.id), personEmail(m.id)].filter(Boolean).join(' · ')).join('\n') || 'Nobody in this v2 project' }, p.total ? el('span', {}, '👤 ', el('b', {}, p.signed), ` of ${p.total} signed in`) : ''),
       action ? el('button', { class: 'small' + (action[1] ? ' primary' : ''), onclick: (e) => { e.stopPropagation(); transferOne(c); } }, action[0]) : null)
   );
   node.addEventListener('dragstart', (e) => e.dataTransfer.setData('text/plain', c.id));
@@ -511,6 +513,7 @@ function renderFeed() {
     feed.replaceChildren(...(people.length ? people.map((p) => el('div', { class: 'person' },
       el('span', { class: 'avatar' }, (p.display_name || '?').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()),
       el('div', {}, el('div', {}, p.display_name || `Person ${p.id.slice(0, 8)}`),
+        personEmail(p.id) ? el('div', { class: 'email' }, personEmail(p.id)) : null,
         el('div', { class: 'sub' }, `Signed in ${ago(p.signed_in_at)}${p.last_sign_in_at ? ` · last seen ${ago(p.last_sign_in_at)}` : ''}`),
         el('div', { class: 'sub' }, projectsOf(p.id).join(', '))))) : [el('div', { class: 'empty', style: 'padding:14px' }, S.people ? 'Nobody from v2 has signed in yet.' : 'Loading…')]));
   }
@@ -648,6 +651,7 @@ function renderDrawer() {
           el('span', { class: 'avatar' }, personName(m.id).split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()),
           el('div', { style: 'flex:1;min-width:0' },
             el('div', {}, personName(m.id), m.owner ? el('span', { class: 'chip', style: 'margin-left:6px' }, 'owner in v2') : null),
+            personEmail(m.id) ? el('div', { class: 'email' }, personEmail(m.id)) : null,
             el('div', { class: 'sub' }, `${ROLE_HINT[role](m)} · ${S.signedIn[m.id] ? `signed in ${day(S.signedIn[m.id])}` : 'not signed in yet'}`)),
           el('select', { class: 'role', 'aria-label': `Role for ${personName(m.id)}`, onchange: (e) => setRole(c, m.id, e.target.value) },
             ...ROLES.map(([v, label]) => el('option', { value: v, selected: v === role || null }, label))));

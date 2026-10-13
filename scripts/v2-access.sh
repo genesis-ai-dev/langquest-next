@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # A read-only login on LangQuest v2 for the v2 import (docs/v2-import.md), so
-# the transfer dashboard and Next show people's names. It may read each v2
-# person's id and username, nothing else, and can change nothing.
+# the transfer dashboard shows people's usernames and emails and Next their
+# names. It may read each v2 person's id, username and email, nothing else,
+# and can change nothing.
 #
 #   scripts/v2-access.sh       once; running it again rotates the password
 #
@@ -35,10 +36,10 @@ do \$\$ begin
 end \$\$;
 alter role v2_reader set default_transaction_read_only = on;
 grant usage on schema public to v2_reader;
-grant select (id, username) on public.profile to v2_reader;
+grant select (id, username, email) on public.profile to v2_reader;
 SQL
 npx supabase db query --linked --project-ref "$ref" --workdir "$work" -f "$work/role.sql" > /dev/null
-echo "✓ v2_reader can read v2's names, and nothing else"
+echo "✓ v2_reader can read v2's usernames and emails, and nothing else"
 
 DOTENVX_NO_NATIVE=true npx dotenvx set V2_DATABASE_URL \
   "postgresql://v2_reader.$ref:$pw@$host:5432/postgres" -f "$file" -fk .env.keys > /dev/null

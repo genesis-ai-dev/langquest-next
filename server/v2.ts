@@ -15,13 +15,16 @@
  * through the app's Worker at API_URL (`npm run web:dev` locally), or into
  * the folder V2_IMPORT_FILES_DIR when trying it without the Worker.
  * V2_DATABASE_URL, a read-only login on v2 (scripts/v2-access.sh), gives
- * people's names. V2_EVERY_LANGUAGE_ID overrides the Every Language
+ * people's usernames and emails; without it, the dashboard reads them with
+ * the Supabase CLI you are logged in with, when it may read v2 (never on
+ * CI). V2_EVERY_LANGUAGE_ID overrides the Every Language
  * platform account's v2 id. Downloaded files are kept under
  * V2_IMPORT_CACHE when it is set. On CI, output names projects by id only:
  * the repository and its CI logs are public.
  */
 import { spawnSync } from 'node:child_process';
-import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { createServer } from 'node:http';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -65,27 +68,70 @@ if (flag('production') && !process.env['V2_HOSTED_RUN']) {
   process.exit(r.status ?? 1);
 }
 
-// Names come from v2's database through a read-only login (scripts/v2-access.sh), when there is one.
+// Usernames and emails are in v2's profile table, which v2's publishable key cannot read: they
+// come through a read-only login (scripts/v2-access.sh), or else, on the dashboard, through the
+// Supabase CLI you are logged in with. Each is read once; the page only ever shows them on this machine.
 const v2Db = process.env['V2_DATABASE_URL'];
-async function v2Names(ids: string[]) {
-  const out: { id: string; name: string | null; email: null }[] = [];
-  const uuids = ids.filter((id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
-  for (let i = 0; i < uuids.length; i += 500) {
-    const r = spawnSync('psql', [v2Db!, '-X', '-A', '-t', '-q', '-v', 'ON_ERROR_STOP=1', '-v', `ids={${uuids.slice(i, i + 500).join(',')}}`], {
-      input: "select coalesce(json_agg(json_build_object('id', id, 'name', username)), '[]') from public.profile where id = any(:'ids'::uuid[]);\n",
-      encoding: 'utf8'
-    });
-    if (r.error || r.status !== 0) throw new Error(`v2 names: ${(r.stderr || r.error?.message || '').trim()}`);
-    for (const p of JSON.parse(r.stdout.trim() || '[]') as { id: string; name: string | null }[]) out.push({ id: p.id, name: p.name?.trim() || null, email: null });
+const V2_REF = 'unsxkmlcyxgtgmtzfonb';
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+type V2Person = { id: string; name: string | null; email: string | null };
+const PEOPLE_SQL = "select coalesce(json_agg(json_build_object('id', id, 'name', username, 'email', email)), '[]') as people from public.profile where id = any";
+const seen = new Map<string, V2Person>();
+let cliDir: string | null = null;
+let cliFailedAt = 0;
+// One lookup at a time: two pages asking at once would read everyone twice.
+let peopleQueue: Promise<unknown> = Promise.resolve();
+function v2People(ids: string[]): Promise<V2Person[]> {
+  const next = peopleQueue.then(() => readPeople(ids));
+  peopleQueue = next.catch(() => {});
+  return next;
+}
+async function readPeople(ids: string[]): Promise<V2Person[]> {
+  const todo = [...new Set(ids)].filter((id) => UUID.test(id) && !seen.has(id));
+  for (let i = 0; i < todo.length; i += 500) {
+    const batch = todo.slice(i, i + 500);
+    let rows: { id: string; name: string | null; email: string | null }[];
+    if (v2Db) {
+      const r = spawnSync('psql', [v2Db, '-X', '-A', '-t', '-q', '-v', 'ON_ERROR_STOP=1', '-v', `ids={${batch.join(',')}}`], {
+        input: `${PEOPLE_SQL}(:'ids'::uuid[]);\n`, encoding: 'utf8'
+      });
+      if (r.error || r.status !== 0) throw new Error(`v2 people: ${(r.stderr || r.error?.message || '').trim()}`);
+      rows = JSON.parse(r.stdout.trim() || '[]');
+    } else {
+      // After a failure, try again in five minutes rather than on every refresh.
+      if (Date.now() - cliFailedAt < 5 * 60_000) break;
+      // Read-only, through Supabase's API as you; from an empty folder, so this checkout's link is not used.
+      cliDir ??= await mkdtemp(join(tmpdir(), 'v2-people-'));
+      const r = spawnSync(join(root, 'node_modules/.bin/supabase'), ['db', 'query', '--linked', '--project-ref', V2_REF, '--output-format', 'json',
+        `${PEOPLE_SQL}(array[${batch.map((id) => `'${id}'`).join(',')}]::uuid[])`], { cwd: cliDir, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+      // The rows come bare, or wrapped as { rows } when the CLI thinks an agent is reading; an update notice may follow.
+      let list: { people: typeof rows }[] | null = null;
+      try {
+        if (r.status === 0) {
+          const text = r.stdout;
+          const parsed = JSON.parse(text.slice(text.search(/[[{]/), Math.max(text.lastIndexOf(']'), text.lastIndexOf('}')) + 1)) as unknown;
+          list = Array.isArray(parsed) ? parsed : ((parsed as { rows?: { people: typeof rows }[] }).rows ?? null);
+        }
+      } catch { list = null; }
+      if (!list) {
+        cliFailedAt = Date.now();
+        const why = (r.error?.message ?? r.stderr ?? '').split('\n').map((l) => l.trim()).filter((l) => l && !/^(Initialising|A new version|We recommend)/.test(l))[0] ?? `exit ${r.status}`;
+        console.error(`v2 usernames and emails are not shown for now (${why}): log in with npx supabase login, or set V2_DATABASE_URL`);
+        break;
+      }
+      rows = list[0]?.people ?? [];
+    }
+    for (const id of batch) seen.set(id, { id, name: null, email: null });
+    for (const p of rows) seen.set(p.id, { id: p.id, name: p.name?.trim() || null, email: p.email?.trim() || null });
   }
-  return out;
+  return ids.flatMap((id) => (seen.has(id) ? [seen.get(id)!] : []));
 }
 
 const v2 = restReader({
   url: env('V2_SUPABASE_URL', 'https://unsxkmlcyxgtgmtzfonb.supabase.co'),
   key: env('V2_SUPABASE_ANON_KEY'),
   bucket: env('V2_BUCKET', 'assets'),
-  ...(v2Db ? { people: v2Names } : {})
+  ...(v2Db || (command === 'board' && !process.env['CI']) ? { people: v2People } : {})
 });
 const url = env('SUPABASE_URL', 'http://127.0.0.1:54421');
 const serviceKey = env('SUPABASE_SERVICE_ROLE_KEY');
@@ -202,9 +248,11 @@ async function board(port: number) {
         for (const p of here) if (p.signed_in_at) signedIn[p.id] = p.signed_in_at;
         const nameOf: Record<string, string> = {};
         for (const p of people) if (p.name) nameOf[p.id] = p.name;
+        const emailOf: Record<string, string> = {};
+        for (const p of people) if (p.email) emailOf[p.id] = p.email;
         const roles: Record<string, Record<string, string>> = {};
         for (const r of plan.roles ?? []) (roles[r.project_id] ??= {})[r.profile_id] = r.role;
-        return json(res, 200, { ...data, by, where, host, members, signedIn, nameOf, roles });
+        return json(res, 200, { ...data, by, where, host, members, signedIn, nameOf, emailOf, roles });
       }
       if (req.method === 'GET' && u.pathname === '/api/status') {
         const status = await target.status(Number(u.searchParams.get('after') ?? 0));

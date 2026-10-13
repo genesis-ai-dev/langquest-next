@@ -255,9 +255,13 @@ In order; each step is safe to stop after.
    testers. Until step 3, signing in with a v2 account just says the
    password is wrong, and nothing is transferred.
 2. **Names (optional, once):** `scripts/v2-access.sh` adds `v2_reader` to
-   v2's production database, a login that may read each person's id and
-   username and nothing else, and keeps its address encrypted in
-   `.env.production`. Without it, people show by id until they sign in.
+   v2's production database, a login that may read each person's id,
+   username and email and nothing else, and keeps its address encrypted in
+   `.env.production`. The scheduled sync needs it to name people. The
+   dashboard shows each project's people with their usernames and emails
+   through it, or else through the Supabase CLI you are logged in with
+   (read only, on your machine); with neither, people show by id until
+   they sign in.
 3. **Keys and the switch:** `npm run env:update -- production
    V2_SUPABASE_ANON_KEY` (v2's publishable key), then
    `scripts/v2-go-live.sh`, which gives the workflow its secrets, puts v2's
