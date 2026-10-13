@@ -54,7 +54,7 @@ if (out) {
   writeFileSync(out, JSON.stringify({ scenario: name, knobs, findings, report }, null, 2));
   console.log(`\nFull report: ${out}`);
 }
-process.exit(report.errors.length > 0 || report.agreement?.agree === false ? 1 : 0);
+process.exit(report.errors.length > 0 || report.agreement?.agree === false || (report.audio?.lost ?? 0) > 0 ? 1 : 0);
 
 function print(scenarioName: string, k: Knobs, r: FleetReport, f: Record<string, unknown>): void {
   const s = (x: Stats, unit: string) => `p50 ${x.p50}${unit}, p95 ${x.p95}${unit}, max ${x.max}${unit} (n ${x.n})`;
@@ -70,6 +70,13 @@ function print(scenarioName: string, k: Knobs, r: FleetReport, f: Record<string,
   console.log(`  downloaded    ${p.mbDown} MB; ${p.pulled} events pulled; ${p.pushedDuplicates} duplicate pushes; most pending ${p.maxPending}`);
   console.log(`  reach others  ${s(p.propagationMinutes, ' min')}`);
   console.log(`  reach server  ${s(p.pushDelayMinutes, ' min')}`);
+  if (r.audio) {
+    const a = r.audio;
+    console.log(`  audio         ${a.recorded} recorded, ${a.onServer} on the server, ${a.lost} lost; ${a.uploads} up (${a.mbUp} MB, ${a.uploadFailures} failed), ${a.downloads} down (${a.mbDown} MB, ${a.downloadFailures} failed)`);
+    console.log(`  audio reaches server    ${s(a.toServerMinutes, ' min')}`);
+    console.log(`  playable elsewhere      ${s(a.playableElsewhereMinutes, ' min')}`);
+    console.log(`  transfer work lists     ${a.workLists} built, ${a.workListCpuSeconds} s CPU`);
+  }
   if (r.agreement) {
     const a = r.agreement;
     console.log(`  agreement     ${a.agree ? 'every phone matches the server' : `MISMATCH on ${a.disagree.join(', ') || '(not caught up)'}`} after settling ${Math.round(a.settleMs / 60_000)} min`);
