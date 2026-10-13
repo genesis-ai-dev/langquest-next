@@ -2,9 +2,9 @@
 --
 --   v1.WritingAdded    { writingId, unitId, parts: [{ id, text }] }
 --   v1.MediaAllowedSet { recording, writing, first }
---   v1.StepMakesSet    { kindId, makes: { from, to, language, otherLanguage?, fromKindId?, becomesVersion } | null }
+--   v1.StepMakesSet    { kindId, makes: { from, to, language, otherLanguage?, fromKindId?, result: beside | added | version } | null }
 --   v1.CheckLooksAtSet { kindId, makerKindId | null }
---   v1.Made            { madeId, unitId, kindId?, fromTakeId | fromMadeId, language?, parts | takeId, requestId? }
+--   v1.Made            { madeId, unitId, kindId?, fromTakeId | fromMadeId, language?, parts | takeId, added?: true, requestId? }
 --
 -- A written part is a short piece of text named `w:` and the SHA-256 of its
 -- UTF-8 words (core writing.ts); the words travel in the event, never as a
@@ -55,13 +55,16 @@ begin
   if not public._is_one_of(m->'from', array['recording', 'writing', 'either']) then return 'makes.from must be one of recording, writing, either'; end if;
   if not public._is_one_of(m->'to', array['recording', 'writing', 'either']) then return 'makes.to must be one of recording, writing, either'; end if;
   if not public._is_one_of(m->'language', array['same', 'other']) then return 'makes.language must be one of same, other'; end if;
-  if not public._is_bool(m->'becomesVersion') then return 'makes.becomesVersion must be a boolean'; end if;
+  if not public._is_one_of(m->'result', array['beside', 'added', 'version']) then return 'makes.result must be one of beside, added, version'; end if;
   if m ? 'otherLanguage' and not (m->>'language' = 'other' and public._is_str(m->'otherLanguage') and length(m->>'otherLanguage') <= 40) then
     return 'makes.otherLanguage must be a language code, for another language only';
   end if;
   if m ? 'fromKindId' and not public._is_str(m->'fromKindId') then return 'makes.fromKindId must be a non-empty string'; end if;
-  if (m->>'becomesVersion')::boolean and (m->>'language' <> 'same' or m->>'to' = 'either') then
+  if m->>'result' = 'version' and (m->>'language' <> 'same' or m->>'to' = 'either') then
     return 'only a step that makes recording or writing in the same language can make the next version';
+  end if;
+  if m->>'result' = 'added' and (m->>'language' <> 'same' or m->>'to' = 'either' or m->>'from' = 'either' or m->>'from' = m->>'to') then
+    return 'only a step that turns recording into writing, or writing into recording, in the same language can add to the version';
   end if;
   return null;
 end $$;
@@ -259,6 +262,10 @@ begin
       if (p ? 'fromTakeId') = (p ? 'fromMadeId') then return 'exactly one of fromTakeId, fromMadeId'; end if;
       if (p ? 'parts') = (p ? 'takeId') then return 'exactly one of parts, takeId'; end if;
       if p ? 'language' and not (public._is_str(p->'language') and length(p->>'language') <= 40) then return 'language must be a language code'; end if;
+      if p ? 'added' then
+        if jsonb_typeof(p->'added') is distinct from 'boolean' or not (p->>'added')::boolean then return 'added must be true when present'; end if;
+        if not (p ? 'fromTakeId') or not (p ? 'parts') or p ? 'language' then return 'added needs fromTakeId and parts, in the team''s own language'; end if;
+      end if;
       if p ? 'parts' then
         if not public._is_cards(p->'parts') then return 'parts must be cards'; end if;
         if jsonb_array_length(p->'parts') = 0 then return 'parts must not be empty'; end if;

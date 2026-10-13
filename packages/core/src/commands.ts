@@ -5,7 +5,7 @@ import type { FlowSelection, LanguageState } from './state';
 import { derivePassage, latestDraftBy, type PassageState } from './passage';
 import type { UsedReference } from './references';
 import { cardVerseEvents, type PartMark } from './verses';
-import { isWrittenPart, WRITTEN_PARTS_PER_EVENT, type MakesSpec, type MediaAllowed, type WrittenPart } from './writing';
+import { isWrittenPart, partsMedium, resultAllowed, WRITTEN_PARTS_PER_EVENT, type MakesSpec, type MediaAllowed, type WrittenPart } from './writing';
 import { CUSTOM_FLOW, flowStepId, flowStepPrefix, type DepartureType, type KindDef, type NoteAnchor, type QuestionSpec, type RecordEvents, type ReviewOutcome, type ReviewVia } from './record';
 
 /**
@@ -134,8 +134,10 @@ export interface Commands {
    * Save what a making step made from a version, or from something made
    * from one: its parts, recorded or written. It stays with what it came
    * from. `language`: the language it is in, when not the team's own.
+   * `added`: it is added to the version `fromTakeId`, which then holds both
+   * (the other kind, in the team's own language).
    */
-  make(c: { commandId: string; unitId: string; kindId?: string; fromTakeId?: string; fromMadeId?: string; language?: string; parts: Card[]; requestId?: string }): EventSpec[];
+  make(c: { commandId: string; unitId: string; kindId?: string; fromTakeId?: string; fromMadeId?: string; language?: string; parts: Card[]; added?: boolean; requestId?: string }): EventSpec[];
   /**
    * A making step whose output is the passage's next version (a final
    * recording): publish it as a version made from `fromTakeId`, and record
@@ -461,7 +463,11 @@ export function commands(state: LanguageState, idx: Indexes = buildIndexes(state
     },
 
     setStepMakes(c) {
-      if (c.makes?.becomesVersion && c.makes.language !== 'same') throw new CommandError('Only a step in the same language can make the next version.');
+      if (c.makes && !resultAllowed(c.makes, c.makes.result)) {
+        throw new CommandError(c.makes.result === 'added'
+          ? 'Only a step that turns recording into writing, or writing into recording, in the same language can add to the version.'
+          : 'Only a step in the same language can make the next version.');
+      }
       const makes = c.makes ? clean({ ...c.makes }) as MakesSpec : null;
       return [{ id: ids(c.commandId)(), type: 'v1.StepMakesSet', payload: { kindId: c.kindId, makes } }];
     },
@@ -477,12 +483,17 @@ export function commands(state: LanguageState, idx: Indexes = buildIndexes(state
       if (c.fromMadeId && !state.made?.[c.fromMadeId]) throw new CommandError('That is not here yet.');
       const written = isWrittenPart(c.parts[0]!.hash);
       if (c.parts.some((x) => isWrittenPart(x.hash) !== written)) throw new CommandError('Recorded and written parts are kept apart.');
+      if (c.added) {
+        const take = c.fromTakeId ? state.takes[c.fromTakeId] : undefined;
+        if (!take || c.language) throw new CommandError('Only something in the team\'s own language can be added to a version.');
+        if (partsMedium(take.cardHashes) === (written ? 'writing' : 'recording')) throw new CommandError('A version can only gain the other kind: words for a recording, a recording for writing.');
+      }
       return [{
         id: ids(c.commandId)(), type: 'v1.Made', payload: {
           madeId: `made:${c.commandId}`, unitId: c.unitId,
           parts: c.parts.map((x) => ({ hash: x.hash, durationMs: written ? 0 : x.durationMs, ...(x.format ? { format: x.format } : {}), ...(x.atMs !== undefined ? { atMs: Math.max(0, Math.round(x.atMs)) } : {}) })),
           ...(c.kindId ? { kindId: c.kindId } : {}), ...(c.fromTakeId ? { fromTakeId: c.fromTakeId } : {}), ...(c.fromMadeId ? { fromMadeId: c.fromMadeId } : {}),
-          ...(c.language ? { language: c.language } : {}), ...(c.requestId ? { requestId: c.requestId } : {})
+          ...(c.language ? { language: c.language } : {}), ...(c.added ? { added: true } : {}), ...(c.requestId ? { requestId: c.requestId } : {})
         }
       }];
     },

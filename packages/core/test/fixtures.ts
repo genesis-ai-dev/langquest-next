@@ -244,10 +244,10 @@ export function buildRecordFixture(): AnyEvent[] {
   emit('dA', 'lead', 'v1.MediaAllowedSet', { recording: true, writing: true, first: 'recording' });
   emit('dE', 'lead2', 'v1.MediaAllowedSet', { recording: false, writing: true, first: 'writing' });
   emit('dA', 'lead', 'v1.ReviewKindDefined', { kindId: 'writedown', name: 'Write it down' });
-  emit('dA', 'lead', 'v1.StepMakesSet', { kindId: 'writedown', makes: { from: 'recording', to: 'writing', language: 'same', becomesVersion: false } });
+  emit('dA', 'lead', 'v1.StepMakesSet', { kindId: 'writedown', makes: { from: 'recording', to: 'writing', language: 'same', result: 'beside' } });
   emit('dE', 'lead2', 'v1.StepMakesSet', { kindId: 'writedown', makes: null });
-  emit('dA', 'lead', 'v1.StepMakesSet', { kindId: 'btw', makes: { from: 'either', to: 'writing', language: 'other', otherLanguage: 'eng', becomesVersion: false } });
-  emit('dA', 'lead', 'v1.StepMakesSet', { kindId: 'polish', makes: { from: 'recording', to: 'recording', language: 'same', becomesVersion: true } });
+  emit('dA', 'lead', 'v1.StepMakesSet', { kindId: 'btw', makes: { from: 'either', to: 'writing', language: 'other', otherLanguage: 'eng', result: 'beside' } });
+  emit('dA', 'lead', 'v1.StepMakesSet', { kindId: 'polish', makes: { from: 'recording', to: 'recording', language: 'same', result: 'version' } });
   emit('dA', 'lead', 'v1.CheckLooksAtSet', { kindId: 'spelling', makerKindId: 'writedown' });
   emit('dE', 'lead2', 'v1.CheckLooksAtSet', { kindId: 'spelling', makerKindId: null });
   emit('dB', 't1', 'v1.Made', { madeId: 'm1', unitId: 'luke1', kindId: 'writedown', fromTakeId: 'take2', parts: [{ hash: w4.id, durationMs: 0 }, { hash: w5.id, durationMs: 0 }] });
@@ -257,6 +257,11 @@ export function buildRecordFixture(): AnyEvent[] {
   emit('dB', 't1', 'v1.TakeComposed', { takeId: 'takeFinal', unitId: 'luke1', cardHashes: ['c1', 'c3', 'c4'], parentTakeId: 'take2' });
   emit('dB', 't1', 'v1.TakeSubmitted', { takeId: 'takeFinal' });
   emit('dB', 't1', 'v1.Made', { madeId: 'm4', unitId: 'luke1', kindId: 'polish', fromTakeId: 'take2', takeId: 'takeFinal' });
+  // Words added to the final recording, checked, then changed (decisions.md 93).
+  emit('dA', 'lead', 'v1.StepMakesSet', { kindId: 'transcribe', makes: { from: 'recording', to: 'writing', language: 'same', result: 'added' } });
+  emit('dB', 't1', 'v1.Made', { madeId: 'm5', unitId: 'luke1', kindId: 'transcribe', fromTakeId: 'takeFinal', added: true, parts: [{ hash: w4.id, durationMs: 0 }, { hash: w5.id, durationMs: 0 }] });
+  emit('dC', 'r1', 'v1.ReviewRecorded', { reviewId: 'rvFinal', takeId: 'takeFinal', kindId: 'community', outcome: 'looks_good', via: 'app' });
+  emit('dB', 't1', 'v1.Made', { madeId: 'm6', unitId: 'luke1', kindId: 'transcribe', fromTakeId: 'takeFinal', added: true, parts: [{ hash: w5.id, durationMs: 0 }] });
 
   // Ties the merge rules must settle without looking at arrival order
   // (event-sourced-sync, "Tests to write"): the same review id from two

@@ -150,13 +150,17 @@ const broken: AnyEvent[] = events.flatMap((e) => {
       variants.push({ ...p, recording: 'yes' });
       break;
     case 'v1.StepMakesSet': {
-      const m = { from: 'recording', to: 'writing', language: 'same', becomesVersion: false };
-      variants.push({ ...p, makes: m }, { ...p, makes: { ...m, becomesVersion: true } }, { ...p, makes: { ...m, to: 'recording', becomesVersion: true } },
-        { ...p, makes: { ...m, to: 'either', becomesVersion: true } }, { ...p, makes: { ...m, language: 'other', to: 'recording', becomesVersion: true } },
+      const m = { from: 'recording', to: 'writing', language: 'same', result: 'beside' };
+      variants.push({ ...p, makes: m }, { ...p, makes: { ...m, result: 'version' } }, { ...p, makes: { ...m, to: 'recording', result: 'version' } },
+        { ...p, makes: { ...m, to: 'either', result: 'version' } }, { ...p, makes: { ...m, language: 'other', to: 'recording', result: 'version' } },
+        { ...p, makes: { ...m, result: 'added' } }, { ...p, makes: { ...m, to: 'recording', result: 'added' } }, { ...p, makes: { ...m, from: 'either', result: 'added' } },
+        { ...p, makes: { ...m, to: 'either', result: 'added' } }, { ...p, makes: { ...m, language: 'other', result: 'added' } },
+        { ...p, makes: { ...m, from: 'writing', to: 'recording', result: 'added' } },
         { ...p, makes: { ...m, otherLanguage: 'eng' } }, { ...p, makes: { ...m, language: 'other', otherLanguage: 'eng' } },
         { ...p, makes: { ...m, language: 'other', otherLanguage: '' } }, { ...p, makes: { ...m, language: 'other', otherLanguage: 'x'.repeat(41) } },
         { ...p, makes: { ...m, from: 'video' } }, { ...p, makes: { ...m, to: 5 } }, { ...p, makes: { ...m, language: 'English' } },
-        { ...p, makes: { ...m, becomesVersion: 'no' } }, { ...p, makes: { ...m, fromKindId: 'write' } }, { ...p, makes: { ...m, fromKindId: '' } },
+        { ...p, makes: { ...m, result: 'no' } }, { ...p, makes: { ...m, result: true } }, { ...p, makes: { from: 'recording', to: 'writing', language: 'same' } },
+        { ...p, makes: { ...m, fromKindId: 'write' } }, { ...p, makes: { ...m, fromKindId: '' } },
         { ...p, makes: [] }, { ...p, makes: 'write' });
       break;
     }
@@ -171,7 +175,9 @@ const broken: AnyEvent[] = events.flatMap((e) => {
         { ...base, fromTakeId: 't', parts: [] }, { ...base, fromTakeId: 't', parts: [{ hash: 'b', durationMs: 1 }, { hash: writtenPartId('x'), durationMs: 0 }] },
         { ...base, fromTakeId: 't', parts: [{ hash: writtenPartId('x'), durationMs: 0 }] }, { ...base, fromTakeId: 't', parts: [{ hash: 'b' }] },
         { ...base, fromTakeId: 't', parts, language: 'eng' }, { ...base, fromTakeId: 't', parts, language: 'x'.repeat(40) }, { ...base, fromTakeId: 't', parts, language: 'x'.repeat(41) },
-        { ...base, fromTakeId: 't', parts: [{ hash: 'b', durationMs: 1, atMs: -1 }] });
+        { ...base, fromTakeId: 't', parts: [{ hash: 'b', durationMs: 1, atMs: -1 }] },
+        { ...base, fromTakeId: 't', parts, added: true }, { ...base, fromTakeId: 't', parts, added: false }, { ...base, fromTakeId: 't', parts, added: 'yes' },
+        { ...base, fromMadeId: 'm', parts, added: true }, { ...base, fromTakeId: 't', takeId: 't2', added: true }, { ...base, fromTakeId: 't', parts, language: 'eng', added: true });
       break;
     }
     case 'v1.FlowSelected':

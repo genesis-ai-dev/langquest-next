@@ -11,7 +11,7 @@ import { sourceChapters } from './sourceBibles';
 import type { LanguageState } from './state';
 import { stateRevision } from './reducer';
 import { madeGroup, madeIn, partsMedium, type MadeView, type Medium } from './writing';
-import type { MadeRecord } from './record';
+import { LISTENER_KIND, type MadeRecord } from './record';
 
 /**
  * Reading a passage's record against its language's flow (UX demo
@@ -109,6 +109,8 @@ export interface Version {
   madeByKindId?: string;
   /** The version it was made from, then. */
   madeFromTakeId?: string;
+  /** What steps added to it (decisions.md 93): words for a recording, a recording for writing; oldest first. */
+  added: MadeView[];
   by: string;
   hlc: Hlc;
   cardHashes: string[];
@@ -337,6 +339,7 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
   if (hit) return hit;
   const flow = ri.flow;
 
+  const madeViews = madeIn(state, key);
   const versions: Version[] = (ri.versions.get(key) ?? []).map((takeId, i) => {
     const t = state.takes[takeId]!;
     const response = state.responses[takeId];
@@ -347,6 +350,7 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
     return {
       takeId, n: i + 1, by: state.submissions[takeId]?.actorId ?? t.actorId, hlc: state.submissions[takeId]!.hlc,
       cardHashes: t.cardHashes, parentTakeId: t.parentTakeId, medium: partsMedium(t.cardHashes),
+      added: madeViews.filter((m) => m.added && m.fromTakeId === takeId),
       ...(madeBy?.kindId ? { madeByKindId: madeBy.kindId } : {}), ...(madeBy?.fromTakeId ? { madeFromTakeId: madeBy.fromTakeId } : {}),
       ...(note ? { changeNote: note } : {}), ...(blob ? { changeBlobHash: blob } : {})
     };
@@ -389,14 +393,20 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
   });
   const openRequests = requests.filter((r) => r.status === 'open');
 
-  const kindStatus = (kindId: string, linksAllowed: boolean): KindStatus => {
+  const kindStatus = (kindId: string, linksAllowed: boolean, stepIndex: number): KindStatus => {
     const review = [...reviews].reverse().find((r) => r.kindId === kindId && (linksAllowed || r.via !== 'link'));
     const request = openRequests.find((r) => r.what === 'review' && r.kindId === kindId);
     const departure = active((d) => d.type === 'skip' && d.kindId === kindId);
     // A making step (decisions.md 93) is done once it made something, from
-    // any version: what it made stays with that version and is never out of date.
-    if (ri.kinds.find((k) => k.id === kindId)?.makes) {
-      if (madeHere.some((m) => m.kindId === kindId)) return { kindId, state: 'approved', ...(request ? { request } : {}) };
+    // any version: what it made stays with that version and is never out of
+    // date. What it adds to a version is part of that version, so a step
+    // that adds is done only for the version it counts for here (the latest,
+    // or the one a later step made it into).
+    const makes = ri.kinds.find((k) => k.id === kindId)?.makes;
+    if (makes) {
+      const last = versions.at(-1);
+      const heard = makes.result === 'added' && last ? versionHeardAt({ versions, flow }, last, stepIndex).takeId : undefined;
+      if (madeHere.some((m) => m.kindId === kindId && (!heard || (m.added && m.fromTakeId === heard)))) return { kindId, state: 'approved', ...(request ? { request } : {}) };
       if (request) return { kindId, state: 'asked', request };
       if (departure) return { kindId, state: 'skipped', departure };
       return { kindId, state: 'todo' };
@@ -419,7 +429,7 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
   let gate: string | undefined;
   flow.steps.forEach((step, index) => {
     const linksAllowed = stepAllowsLinks(state, step);
-    const statuses = step.kindIds.map((kindId) => kindStatus(kindId, linksAllowed));
+    const statuses = step.kindIds.map((kindId) => kindStatus(kindId, linksAllowed, index));
     const override = active((d) => d.type === 'override' && d.stepId === step.id);
     const lockedBy = gate;
     const kindsShown = lockedBy ? statuses.map((s) => (s.state === 'todo' ? { ...s, state: 'locked' as const } : s)) : statuses;
@@ -448,7 +458,7 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
     done: recorded && steps.every((s) => s.complete),
     awaitingResponse: reviews.filter((r) => r.outcome === 'needs_changes' && !r.response && r.versionN === latest?.n),
     notes: ri.notes.get(key) ?? [],
-    made: madeIn(state, key).filter((m) => !m.takeId),
+    made: madeViews.filter((m) => !m.takeId),
     makingKindIds: flow.steps.flatMap((st) => st.kindIds).filter((id) => !!ri.kinds.find((k) => k.id === id)?.makes),
     ...(latest ? { latest } : {}),
     ...(draftTakeId ? { draftTakeId, draftBy: state.takes[draftTakeId]!.actorId } : {}),
@@ -792,7 +802,9 @@ export type RecordEntry =
   | { type: 'request'; hlc: Hlc; by: string; request: RequestView }
   | { type: 'departure'; hlc: Hlc; by: string; departure: DepartureView }
   | { type: 'note'; hlc: Hlc; by: string; note: PassageNote }
-  | { type: 'study'; hlc: Hlc; by: string; guideId: string; stepId: string };
+  | { type: 'study'; hlc: Hlc; by: string; guideId: string; stepId: string }
+  /** Something a step made, beside a version or added to it; `changedAfter` when it changed what a review had already seen. */
+  | { type: 'made'; hlc: Hlc; by: string; made: MadeView; changedAfter?: ReviewView };
 
 /** Everything on the record, newest first (REC-8). Study notes stay with the study; finished steps are one entry each. */
 export function recordTimeline(state: LanguageState, s: PassageState): RecordEntry[] {
@@ -803,12 +815,55 @@ export function recordTimeline(state: LanguageState, s: PassageState): RecordEnt
     ...s.requests.map((r) => ({ type: 'request' as const, hlc: r.hlc, by: r.by, request: r })),
     ...s.departures.map((d) => ({ type: 'departure' as const, hlc: d.hlc, by: d.by, departure: d })),
     ...s.notes.filter((n) => n.anchor.kind !== 'study').map((n) => ({ type: 'note' as const, hlc: n.hlc, by: n.by, note: n })),
-    ...studyMarksFor(state, s.unitId).map((m) => ({ type: 'study' as const, hlc: m.hlc, by: m.by, guideId: m.guideId, stepId: m.stepId }))
+    ...studyMarksFor(state, s.unitId).map((m) => ({ type: 'study' as const, hlc: m.hlc, by: m.by, guideId: m.guideId, stepId: m.stepId })),
+    ...s.made.map((m) => {
+      const changedAfter = m.added ? changedAfterReview(s, m) : undefined;
+      return { type: 'made' as const, hlc: m.hlc, by: m.by, made: m, ...(changedAfter ? { changedAfter } : {}) };
+    })
   ];
   // Same instant (a version and the feedback it answered): the day's usual
   // order, so the answer reads above the version that carries it.
-  const rank: Record<RecordEntry['type'], number> = { study: 0, version: 0, note: 1, request: 2, review: 3, departure: 3, response: 4 };
+  const rank: Record<RecordEntry['type'], number> = { study: 0, version: 0, made: 1, note: 1, request: 2, review: 3, departure: 3, response: 4 };
   return out.sort((a, b) => (a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : rank[b.type] - rank[a.type]));
+}
+
+/**
+ * What steps added to a version (decisions.md 93), one per kind: the latest
+ * holds, and `first` is when that kind was first added. `changedAfter` is
+ * the newest review of the version that saw an earlier one: the content
+ * changed after it. The approval stands either way (Caleb, 2026-10-13: the
+ * person changing it decides whether it needs another review, and the
+ * record shows it changed); a review or listener feedback given since sees
+ * the change.
+ */
+export interface AddedContent {
+  medium: Medium;
+  made: MadeView;
+  first: MadeView;
+  changedAfter?: ReviewView;
+}
+
+export function addedTo(s: Pick<PassageState, 'reviews'>, v: Pick<Version, 'added'>): AddedContent[] {
+  const out: AddedContent[] = [];
+  for (const medium of ['writing', 'recording'] as const) {
+    const of = v.added.filter((m) => m.medium === medium);
+    const made = of.at(-1);
+    if (!made) continue;
+    const changedAfter = changedAfterReview(s, made, of);
+    out.push({ medium, made, first: of[0]!, ...(changedAfter ? { changedAfter } : {}) });
+  }
+  return out;
+}
+
+/** The newest review of the version that saw something added before `m` of the same kind, if any: `m` changed what it saw. */
+function changedAfterReview(s: Pick<PassageState, 'reviews'> & { versions?: Version[] }, m: MadeView, siblings?: MadeView[]): ReviewView | undefined {
+  const before = (siblings ?? s.versions?.find((v) => v.takeId === m.fromTakeId)?.added.filter((x) => x.medium === m.medium) ?? [])
+    .filter((x) => x.hlc < m.hlc);
+  if (before.length === 0) return undefined;
+  const firstHlc = before[0]!.hlc;
+  let last: ReviewView | undefined;
+  for (const r of s.reviews) if (r.takeId === m.fromTakeId && r.kindId !== LISTENER_KIND && r.hlc > firstHlc && r.hlc < m.hlc) last = r;
+  return last;
 }
 
 /** Versions newest first × kinds: which versions have had which kinds of review (REC-8). */

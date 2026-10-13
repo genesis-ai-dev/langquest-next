@@ -18,11 +18,14 @@ import type { LanguageState } from './state';
  * A language says what its team may make (`v1.MediaAllowedSet`): recordings,
  * writing or both, and which leads. A step in its flow may make something
  * (`v1.StepMakesSet`): turn recording or writing into recording or writing,
- * in the same language or another. What it makes stays with the version it
- * was made from (`v1.Made`) and is never marked out of date; a newer
- * version gets its own. A step may instead make the passage's next version
- * (a final recording after the consultant), and then the checks before it
- * count from the version it was made from (`approvedVersion`).
+ * in the same language or another. What it makes does one of three things
+ * (`MakesResult`): it stays beside the version it was made from (`v1.Made`),
+ * never marked out of date, and a newer version gets its own; it is added
+ * to that version (a transcription of a recording, in the team's own
+ * language), so the version holds both and the checks after the step hear
+ * and read them together; or it becomes the passage's next version (a final
+ * recording after the consultant), and then the checks before it count from
+ * the version it was made from (`approvedVersion`).
  */
 
 export type Medium = 'recording' | 'writing';
@@ -83,6 +86,16 @@ export function mediaAllowed(state: LanguageState): MediaAllowed {
 // ---- steps that make something --------------------------------------------------
 
 /**
+ * What happens to what a making step makes: it stays beside the version, is
+ * added to it (only when it turns recording into writing or writing into
+ * recording, in the same language), or becomes the next version (only in
+ * the same language).
+ */
+export type MakesResult = 'beside' | 'added' | 'version';
+
+export const MAKES_RESULTS: readonly MakesResult[] = ['beside', 'added', 'version'];
+
+/**
  * What a making step does. A flow many languages share never names a
  * language: `language` is the same as the team's, or another, and the
  * language's own copy of the step says which other (`otherLanguage`, ISO
@@ -95,8 +108,8 @@ export interface MakesSpec {
   otherLanguage?: string;
   /** The step turns what an earlier making step made, not the version (a back translation of the writing). */
   fromKindId?: string;
-  /** What it makes is the passage's next version (a final recording); only in the same language. */
-  becomesVersion: boolean;
+  /** What happens to what it makes (`MakesResult`). */
+  result: MakesResult;
 }
 
 /** The making spec of a kind, if it makes something. */
@@ -111,21 +124,32 @@ export function looksAtOf(state: LanguageState, kindId: string): string | null {
 
 /** Ready-made making steps, offered first when a step is added. Ids are stable so two admins adding one offline agree. */
 export const MAKING_PRESETS: readonly { id: string; name: string; makes: MakesSpec }[] = [
-  { id: 'make-bt-said', name: 'Back translation', makes: { from: 'either', to: 'recording', language: 'other', becomesVersion: false } },
-  { id: 'make-bt-written', name: 'Written back translation', makes: { from: 'either', to: 'writing', language: 'other', becomesVersion: false } },
-  { id: 'make-write-down', name: 'Write it down', makes: { from: 'recording', to: 'writing', language: 'same', becomesVersion: false } },
-  { id: 'make-read-aloud', name: 'Read it aloud', makes: { from: 'writing', to: 'recording', language: 'same', becomesVersion: false } },
-  { id: 'make-final', name: 'Final recording', makes: { from: 'recording', to: 'recording', language: 'same', becomesVersion: true } }
+  { id: 'make-bt-said', name: 'Back translation', makes: { from: 'either', to: 'recording', language: 'other', result: 'beside' } },
+  { id: 'make-bt-written', name: 'Written back translation', makes: { from: 'either', to: 'writing', language: 'other', result: 'beside' } },
+  { id: 'make-write-down', name: 'Write it down', makes: { from: 'recording', to: 'writing', language: 'same', result: 'beside' } },
+  { id: 'make-read-aloud', name: 'Read it aloud', makes: { from: 'writing', to: 'recording', language: 'same', result: 'beside' } },
+  { id: 'make-final', name: 'Final recording', makes: { from: 'recording', to: 'recording', language: 'same', result: 'version' } }
 ];
 
 /**
- * The switch's starting position (decisions.md 93): a step that makes the
- * same kind in the same language makes the next version; anything else
- * stays with the version it came from. Writing a recording down is the same
- * language but another kind, so it never replaces the recording.
+ * Where the choice starts (decisions.md 93): a step that makes the same
+ * kind in the same language makes the next version; anything else stays
+ * beside the version it came from. Being added to the version is never the
+ * default: an admin picks it.
  */
-export function defaultBecomesVersion(m: Pick<MakesSpec, 'from' | 'to' | 'language'>): boolean {
-  return m.language === 'same' && m.from !== 'either' && m.from === m.to;
+export function defaultResult(m: Pick<MakesSpec, 'from' | 'to' | 'language'>): MakesResult {
+  return m.language === 'same' && m.from !== 'either' && m.from === m.to ? 'version' : 'beside';
+}
+
+/**
+ * Whether a step with these choices may have this result: added only when
+ * it turns recording into writing or writing into recording, in the same
+ * language; the next version only in the same language and a known kind.
+ */
+export function resultAllowed(m: Pick<MakesSpec, 'from' | 'to' | 'language'>, result: MakesResult): boolean {
+  if (result === 'beside') return true;
+  if (m.language !== 'same' || m.to === 'either') return false;
+  return result === 'version' || (m.from !== 'either' && m.from !== m.to);
 }
 
 // ---- what was made ---------------------------------------------------------------
@@ -143,6 +167,8 @@ export interface MadeView {
   /** Its parts, or the version it became. */
   parts: Card[];
   takeId?: string;
+  /** It was added to the version it came from (`fromTakeId`): that version holds both. */
+  added?: true;
   by: string;
   hlc: Hlc;
 }
@@ -162,7 +188,8 @@ export function madeIn(state: LanguageState, unitId: string): MadeView[] {
       ...(m.fromTakeId !== undefined ? { fromTakeId: m.fromTakeId } : {}),
       ...(m.fromMadeId !== undefined ? { fromMadeId: m.fromMadeId } : {}),
       ...(m.language !== undefined ? { language: m.language } : {}),
-      ...(m.takeId !== undefined ? { takeId: m.takeId } : {})
+      ...(m.takeId !== undefined ? { takeId: m.takeId } : {}),
+      ...(m.added ? { added: true as const } : {})
     });
   }
   return out.sort((a, b) => (a.hlc < b.hlc ? -1 : a.hlc > b.hlc ? 1 : a.id < b.id ? -1 : 1));

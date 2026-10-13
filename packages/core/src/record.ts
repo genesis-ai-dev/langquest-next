@@ -164,7 +164,11 @@ export type RecordEvents = {
    * `takeId` (it became the passage's next version). `kindId` is the step
    * that made it, absent when none did (brought over from LangQuest v2);
    * `language` is the language it is in when not the team's own. It stays
-   * with what it came from and is never marked out of date. Grow-only.
+   * with what it came from and is never marked out of date. `added`: it was
+   * added to the version it came from (`fromTakeId`, with `parts` of the
+   * other kind, in the team's own language), so that version holds both; a
+   * later one added to the same version replaces it there, and the record
+   * keeps both. Grow-only.
    */
   'v1.Made': {
     madeId: string;
@@ -175,6 +179,7 @@ export type RecordEvents = {
     language?: string;
     parts?: Card[];
     takeId?: string;
+    added?: true;
     requestId?: string;
   };
 };

@@ -3,10 +3,10 @@ import { deriveUploadWork, referencedBlobs } from '../src/blobs';
 import { commands } from '../src/commands';
 import type { AnyEvent, EventType } from '../src/events';
 import { encodeHlc } from '../src/hlc';
-import { approvedVersion, derivePassage, madeGrid } from '../src/passage';
+import { addedTo, approvedVersion, derivePassage, madeGrid, recordTimeline } from '../src/passage';
 import { foldLanguage } from '../src/reducer';
 import { validateEvent } from '../src/validate';
-import { defaultBecomesVersion, isWrittenPart, mediaAllowed, partsMedium, sha256Hex, writtenPartId, writtenText } from '../src/writing';
+import { defaultResult, isWrittenPart, mediaAllowed, partsMedium, resultAllowed, sha256Hex, writtenPartId, writtenText } from '../src/writing';
 
 /**
  * Writing beside recording, and steps that make something (decisions.md 93).
@@ -53,10 +53,15 @@ describe('validation', () => {
     expect(validateEvent(env('v1.MediaAllowedSet', { recording: true, writing: true, first: 'writing' }))).toBeNull();
   });
 
-  it('lets only a step in the same language make the next version', () => {
-    const makes = (m: object) => validateEvent(env('v1.StepMakesSet', { kindId: 'k', makes: { from: 'recording', to: 'recording', language: 'same', becomesVersion: false, ...m } }));
-    expect(makes({ becomesVersion: true })).toBeNull();
-    expect(makes({ becomesVersion: true, language: 'other' })).toMatch(/same language/);
+  it('lets only a step in the same language make the next version, and only one that changes kind add to it', () => {
+    const makes = (m: object) => validateEvent(env('v1.StepMakesSet', { kindId: 'k', makes: { from: 'recording', to: 'recording', language: 'same', result: 'beside', ...m } }));
+    expect(makes({ result: 'version' })).toBeNull();
+    expect(makes({ result: 'version', language: 'other' })).toMatch(/same language/);
+    expect(makes({ result: 'added' })).toMatch(/add to the version/);
+    expect(makes({ result: 'added', to: 'writing' })).toBeNull();
+    expect(makes({ result: 'added', to: 'writing', language: 'other' })).toMatch(/add to the version/);
+    expect(makes({ result: 'added', from: 'either', to: 'writing' })).toMatch(/add to the version/);
+    expect(makes({ result: true })).toMatch(/beside, added, version/);
     expect(makes({ otherLanguage: 'eng' })).toMatch(/another language only/);
     expect(makes({ language: 'other', otherLanguage: 'eng' })).toBeNull();
     expect(validateEvent(env('v1.StepMakesSet', { kindId: 'k', makes: null }))).toBeNull();
@@ -72,6 +77,10 @@ describe('validation', () => {
     expect(made({ fromTakeId: 't', parts: [] })).toMatch(/must not be empty/);
     expect(made({ fromTakeId: 't', parts: [{ hash: 'b', durationMs: 1 }, { hash: writtenPartId('x'), durationMs: 0 }] })).toMatch(/all recorded or all written/);
     expect(made({ fromTakeId: 't', language: '', parts: [{ hash: 'b', durationMs: 1 }] })).toMatch(/language code/);
+    expect(made({ fromTakeId: 't', added: true, parts: [{ hash: writtenPartId('x'), durationMs: 0 }] })).toBeNull();
+    expect(made({ fromTakeId: 't', added: false, parts: [{ hash: writtenPartId('x'), durationMs: 0 }] })).toMatch(/added must be true/);
+    expect(made({ fromMadeId: 'm0', added: true, parts: [{ hash: writtenPartId('x'), durationMs: 0 }] })).toMatch(/added needs fromTakeId/);
+    expect(made({ fromTakeId: 't', added: true, language: 'eng', parts: [{ hash: writtenPartId('x'), durationMs: 0 }] })).toMatch(/added needs fromTakeId/);
   });
 });
 
@@ -83,7 +92,7 @@ function world(...extra: [EventType, unknown][]) {
     ['v1.FlowStepSet', { stepId: 'f/s1', order: 's00', kindIds: ['peer'], checkpoint: false }],
     ['v1.FlowStepSet', { stepId: 'f/s2', order: 's01', kindIds: ['consultant'], checkpoint: true }],
     ['v1.ReviewKindDefined', { kindId: 'final', name: 'Final recording' }],
-    ['v1.StepMakesSet', { kindId: 'final', makes: { from: 'recording', to: 'recording', language: 'same', becomesVersion: true } }],
+    ['v1.StepMakesSet', { kindId: 'final', makes: { from: 'recording', to: 'recording', language: 'same', result: 'version' } }],
     ['v1.FlowStepSet', { stepId: 'f/s3', order: 's02', kindIds: ['final'], checkpoint: false }],
     ['v1.FlowStepSet', { stepId: 'f/s4', order: 's03', kindIds: ['community'], checkpoint: false }],
     ['v1.TakeComposed', { takeId: 't1', unitId: 'u', cardHashes: ['a'.repeat(64)], parentTakeId: null }],
@@ -132,7 +141,7 @@ describe('things made from a version', () => {
   const words = ['Ŋa lo kɔn.', 'Ku lɔ yinga.'].map((text) => ({ id: writtenPartId(text), text }));
   const writeDown: [EventType, unknown][] = [
     ['v1.ReviewKindDefined', { kindId: 'write', name: 'Write it down' }],
-    ['v1.StepMakesSet', { kindId: 'write', makes: { from: 'recording', to: 'writing', language: 'same', becomesVersion: false } }],
+    ['v1.StepMakesSet', { kindId: 'write', makes: { from: 'recording', to: 'writing', language: 'same', result: 'beside' } }],
     ['v1.FlowStepSet', { stepId: 'f/s5', order: 's04', kindIds: ['write'], checkpoint: false }]
   ];
 
@@ -217,11 +226,71 @@ describe('commands', () => {
   });
 });
 
-describe('the switch on a making step', () => {
-  it('starts on for the same kind in the same language, and off for writing a recording down', () => {
-    expect(defaultBecomesVersion({ from: 'recording', to: 'recording', language: 'same' })).toBe(true);
-    expect(defaultBecomesVersion({ from: 'writing', to: 'writing', language: 'same' })).toBe(true);
-    expect(defaultBecomesVersion({ from: 'recording', to: 'writing', language: 'same' })).toBe(false);
-    expect(defaultBecomesVersion({ from: 'recording', to: 'recording', language: 'other' })).toBe(false);
+describe('what happens to what a step makes', () => {
+  it('starts as the next version for the same kind in the same language, and beside it otherwise; added is never the default', () => {
+    expect(defaultResult({ from: 'recording', to: 'recording', language: 'same' })).toBe('version');
+    expect(defaultResult({ from: 'writing', to: 'writing', language: 'same' })).toBe('version');
+    expect(defaultResult({ from: 'recording', to: 'writing', language: 'same' })).toBe('beside');
+    expect(defaultResult({ from: 'recording', to: 'recording', language: 'other' })).toBe('beside');
+  });
+
+  it('may be added only when it changes kind in the same language', () => {
+    expect(resultAllowed({ from: 'recording', to: 'writing', language: 'same' }, 'added')).toBe(true);
+    expect(resultAllowed({ from: 'writing', to: 'recording', language: 'same' }, 'added')).toBe(true);
+    expect(resultAllowed({ from: 'recording', to: 'recording', language: 'same' }, 'added')).toBe(false);
+    expect(resultAllowed({ from: 'either', to: 'writing', language: 'same' }, 'added')).toBe(false);
+    expect(resultAllowed({ from: 'recording', to: 'writing', language: 'other' }, 'added')).toBe(false);
+    expect(resultAllowed({ from: 'recording', to: 'writing', language: 'other' }, 'beside')).toBe(true);
+  });
+});
+
+describe('words added to a version', () => {
+  const words = ['Ŋa lo kɔn.', 'Ku lɔ yinga.', 'Ku lɔ yinga ŋutu.'].map((text) => ({ id: writtenPartId(text), text }));
+  const transcribe: [EventType, unknown][] = [
+    ['v1.ReviewKindDefined', { kindId: 'transcribe', name: 'Transcription' }],
+    ['v1.StepMakesSet', { kindId: 'transcribe', makes: { from: 'recording', to: 'writing', language: 'same', result: 'added' } }],
+    ['v1.FlowStepSet', { stepId: 'f/s3', order: 's02', kindIds: ['transcribe'], checkpoint: false }],
+    ['v1.WritingAdded', { writingId: 'w', unitId: 'u', parts: words }]
+  ];
+  const add = (madeId: string, ids: string[]): [EventType, unknown] =>
+    ['v1.Made', { madeId, unitId: 'u', kindId: 'transcribe', fromTakeId: 't1', added: true, parts: ids.map((hash) => ({ hash, durationMs: 0 })) }];
+
+  it('belong to the version, which is approved with them when the checks after the step look good', () => {
+    const { s } = world(...transcribe, looksGood('r1', 't1', 'peer'), looksGood('r2', 't1', 'consultant'), add('m1', [words[0]!.id, words[1]!.id]), looksGood('r3', 't1', 'community'));
+    expect(approvedVersion(s)?.takeId).toBe('t1');
+    const [content] = addedTo(s, s.versions[0]!);
+    expect(content).toMatchObject({ medium: 'writing', made: { id: 'm1', added: true } });
+    expect(content?.changedAfter).toBeUndefined();
+  });
+
+  it('may change after a review: the approval stands, and the change names the review it came after', () => {
+    const { state, s } = world(...transcribe, looksGood('r1', 't1', 'peer'), looksGood('r2', 't1', 'consultant'), add('m1', [words[0]!.id, words[1]!.id]),
+      looksGood('r3', 't1', 'community'), add('m2', [words[0]!.id, words[2]!.id]));
+    expect(approvedVersion(s)?.takeId).toBe('t1');
+    const [content] = addedTo(s, s.versions[0]!);
+    expect(content).toMatchObject({ made: { id: 'm2' }, first: { id: 'm1' }, changedAfter: { id: 'r3' } });
+    const entries = recordTimeline(state, s).filter((e) => e.type === 'made');
+    expect(entries.map((e) => [e.type === 'made' && e.made.id, e.type === 'made' && e.changedAfter?.id])).toEqual([['m2', 'r3'], ['m1', undefined]]);
+  });
+
+  it('belong to their version, so a newer version needs its own', () => {
+    const state = (s: ReturnType<typeof world>['s']) => s.steps.find((st) => st.step.kindIds.includes('transcribe'))?.kinds[0]?.state;
+    const newer: [EventType, unknown][] = [['v1.TakeComposed', { takeId: 't2', unitId: 'u', cardHashes: ['b'.repeat(64)], parentTakeId: 't1' }], ['v1.TakeSubmitted', { takeId: 't2' }]];
+    expect(state(world(...transcribe, add('m1', [words[0]!.id])).s)).toBe('approved');
+    expect(state(world(...transcribe, add('m1', [words[0]!.id]), ...newer).s)).not.toBe('approved');
+    expect(state(world(...transcribe, add('m1', [words[0]!.id]), ...newer,
+      ['v1.Made', { madeId: 'm2', unitId: 'u', kindId: 'transcribe', fromTakeId: 't2', added: true, parts: [{ hash: words[1]!.id, durationMs: 0 }] }]).s)).toBe('approved');
+  });
+
+  it('are never a change when first added after a review', () => {
+    const { s } = world(...transcribe, looksGood('r1', 't1', 'peer'), add('m1', [words[0]!.id]));
+    expect(addedTo(s, s.versions[0]!)[0]?.changedAfter).toBeUndefined();
+  });
+
+  it('can only be the other kind, in the team\'s own language', () => {
+    const { state } = world(...transcribe);
+    expect(() => commands(state).make({ commandId: 'c', unitId: 'u', kindId: 'transcribe', fromTakeId: 't1', added: true, parts: [{ hash: 'b'.repeat(64), durationMs: 1 }] })).toThrow(/other kind/);
+    expect(() => commands(state).make({ commandId: 'c', unitId: 'u', kindId: 'transcribe', fromTakeId: 't1', added: true, language: 'eng', parts: [{ hash: words[0]!.id, durationMs: 0 }] })).toThrow(/own language/);
+    expect(commands(state).make({ commandId: 'c', unitId: 'u', kindId: 'transcribe', fromTakeId: 't1', added: true, parts: [{ hash: words[0]!.id, durationMs: 0 }] })[0]!.payload).toMatchObject({ added: true, fromTakeId: 't1' });
   });
 });
