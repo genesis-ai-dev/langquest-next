@@ -21,6 +21,12 @@ export interface Env {
    * until a person applies it. Never sent to a phone.
    */
   BIBLE_BRAIN_ACCESS_KEY?: string;
+  /**
+   * What the database's poke sends (migration 20261013120000_api_webhooks.sql,
+   * decisions.md 95). Optional: without it pokes are refused and webhooks
+   * wait for the cron, at most ten minutes.
+   */
+  WEBHOOK_POKE_SECRET?: string;
 }
 
 export function serviceClient(env: Env): SupabaseClient {

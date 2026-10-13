@@ -49,15 +49,20 @@ Bible routes (`docs/reference-material.md`). That one is optional: it is not
 in the Worker's `secrets.required`, so a deploy never waits for it, and
 until a person sets it (`npm run env:update -- <env> BIBLE_BRAIN_ACCESS_KEY`,
 then `npm run secrets -- <env>`) the Bible routes answer 503.
+`WEBHOOK_POKE_SECRET` is optional the same way: with it, the database pokes
+the Worker within seconds of a push to an organization that has webhooks
+(decisions.md 95); without it, webhooks wait for the Worker's ten-minute
+cron. Make one with
+`npm run env:update -- <env> WEBHOOK_POKE_SECRET "$(openssl rand -hex 32)"`.
 `npm run secrets` puts each where it is used, as `scripts/secrets.mjs`
 declares:
 
 | Destination | Gets |
 | --- | --- |
-| dashboard Worker | `SUPABASE_SERVICE_ROLE_KEY`, read from Supabase each run, never stored in the repo; `BIBLE_BRAIN_ACCESS_KEY` when the file has it |
+| dashboard Worker | `SUPABASE_SERVICE_ROLE_KEY`, read from Supabase each run, never stored in the repo; `BIBLE_BRAIN_ACCESS_KEY` and `WEBHOOK_POKE_SECRET` when the file has them |
 | invite-email Worker | `INVITE_RELAY_SECRET` |
 | Edge Function secrets | `INVITE_RELAY_SECRET`, `PROJECTION_WORKER_SECRET`, `INVITE_RELAY_URL` (public, derived from the Worker's name) |
-| Vault | `langquest_project_url`, `langquest_projection_worker_secret` |
+| Vault | `langquest_project_url`, `langquest_projection_worker_secret`; with `WEBHOOK_POKE_SECRET`, also `langquest_webhook_poke_secret` and `langquest_dashboard_url` (public, the dashboard Worker's route) |
 | pg_cron | the projection and push-delivery jobs: their migration (`20261007200001_schedule_push_delivery.sql`) schedules them only where Vault already has the secrets, so this runs that migration again |
 
 Worker secrets stay on the Worker across deploys, and wrangler refuses a

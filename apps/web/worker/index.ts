@@ -11,6 +11,14 @@ import { publishLangQuestTimings } from './timings';
 
 export { OrgSnapshot } from './orgSnapshot';
 
+/** Compared by digest, so the time taken says nothing about the secret. */
+async function sameSecret(given: string, expected: string): Promise<boolean> {
+  const [a, b] = await Promise.all([sha256Hex(given), sha256Hex(expected)]);
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 /** The dashboard's server: `/api/*` here, everything else is the built page. */
 export default {
   async fetch(request, env, ctx) {
@@ -22,6 +30,14 @@ export default {
     const review = /^\/r\/([A-Za-z0-9_-]{22})\/?$/.exec(url.pathname);
     if (review && request.method === 'GET') return reviewPage(review[1]!, pageLanguage(request));
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
+    // The database says an organization's log moved (decisions.md 95); its object looks a few seconds later.
+    if (url.pathname === '/api/internal/poke' && request.method === 'POST') {
+      if (!env.WEBHOOK_POKE_SECRET || !(await sameSecret(request.headers.get('x-poke-secret') ?? '', env.WEBHOOK_POKE_SECRET))) return new Response(null, { status: 401 });
+      const orgId = ((await request.json().catch(() => null)) as { orgId?: unknown } | null)?.orgId;
+      if (typeof orgId !== 'string' || !orgId) return new Response(null, { status: 400 });
+      ctx.waitUntil(env.ORG_SNAPSHOTS.get(env.ORG_SNAPSHOTS.idFromName(orgId)).webhookPoke(orgId));
+      return new Response(null, { status: 202 });
+    }
     // Verified here against the project's signing keys when it has
     // asymmetric ones (the keys are fetched once and cached); otherwise
     // supabase-js asks Auth, as getUser did.
@@ -74,7 +90,12 @@ export default {
             mayRevokeLink: (profileId, link) => plain(object.agentMayRevokeLink(orgId, profileId, link)),
             checkLink: (profileId, spec) => plain(object.agentCheckLink(orgId, profileId, spec)),
             linkInfo: (link) => plain(object.agentLinkInfo(orgId, link, url.origin)),
-            linkReview: (link, input) => plain(object.agentLinkReview(orgId, link, input))
+            linkReview: (link, input) => plain(object.agentLinkReview(orgId, link, input)),
+            changes: (grant, languageId, after, limit) => plain(object.agentChanges(orgId, grant, languageId, after, limit)),
+            scanWebhooks: () => plain(object.agentScanWebhooks(orgId)),
+            webhooksEnded: (webhooks) => plain(object.agentWebhooksEnded(orgId, webhooks)),
+            pingWebhook: (webhook) => plain(object.agentPingWebhook(orgId, webhook)),
+            webhookDeliveries: (webhookId) => plain(object.agentWebhookDeliveries(orgId, webhookId))
           };
         },
         // Named by its hash like every file (decision 69); R2 checks the bytes against it.
@@ -99,5 +120,9 @@ export default {
     // App requests for a token, a day after they lapsed: anyone may make one, so they must not pile up.
     ctx.waitUntil(supabaseAgentStore(serviceClient(env)).deleteGrantsExpiredBefore(new Date(Date.now() - 86_400_000).toISOString())
       .catch((e: unknown) => console.error('device grant cleanup', e)));
+    // A poke the database lost, or never sent (no secret yet), waits at most this long (decisions.md 95).
+    ctx.waitUntil(supabaseAgentStore(serviceClient(env)).webhookOrgs()
+      .then((orgs) => Promise.all(orgs.map((orgId) => env.ORG_SNAPSHOTS.get(env.ORG_SNAPSHOTS.idFromName(orgId)).webhookPoke(orgId))))
+      .catch((e: unknown) => console.error('webhook catch-up', e)));
   }
 } satisfies ExportedHandler<Env>;
