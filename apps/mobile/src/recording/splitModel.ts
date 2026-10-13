@@ -107,9 +107,14 @@ export function rememberSplit(key: string, fraction: number): void {
  */
 export type LoopPhase = 'off' | 'recording' | 'listening';
 
+/**
+ * The session's phase. The microphone stays on while the source plays
+ * (decisions.md 93), so a session is on exactly while the recorder is, and
+ * listening while the source has it paused.
+ */
 export function loopPhase(vadOn: boolean, listening: boolean): LoopPhase {
-  if (vadOn) return 'recording';
-  return listening ? 'listening' : 'off';
+  if (!vadOn) return 'off';
+  return listening ? 'listening' : 'recording';
 }
 
 /** What a session's recordings are called where it counts them. */
@@ -130,4 +135,35 @@ export function loopStatus(phase: LoopPhase, capturing: boolean, count: number, 
   if (phase === 'listening') return t('recording.loop.pausedForSource', { soFar: so });
   if (phase === 'recording') return capturing ? t('recording.loop.capturing') : t('recording.loop.listeningForYou', { soFar: so });
   return so;
+}
+
+// ---- the level meter and its cutoff line --------------------------------------------------
+
+/**
+ * How tall a level is drawn (0..1). Bars and the cutoff line use this one
+ * scale, so a bar reaches the line exactly when the detector hears it
+ * (decisions.md 93). The square-root-like curve keeps soft speech visible.
+ */
+export function meterHeight(level: number): number {
+  return Math.pow(Math.min(1, Math.max(0, level)), 0.6);
+}
+
+/** The level drawn at a height: the inverse of `meterHeight`, for dragging the line. */
+export function levelAtHeight(height: number): number {
+  return Math.pow(Math.min(1, Math.max(0, height)), 1 / 0.6);
+}
+
+/** The cutoff a person can set, as the recorder keeps it (useRecorder.setCutoff). */
+export function clampCutoff(level: number): number {
+  return Math.max(0.04, Math.min(0.92, level));
+}
+
+/**
+ * The cutoff after dragging its line by `dy` points on a meter `height`
+ * tall. `centred` bars grow both ways from the middle, so the line (on their
+ * top edge) moves half as far per unit of height.
+ */
+export function cutoffAfterDrag(start: number, dy: number, height: number, centred: boolean): number {
+  if (height <= 0) return start;
+  return clampCutoff(levelAtHeight(meterHeight(start) - (centred ? 2 : 1) * dy / height));
 }

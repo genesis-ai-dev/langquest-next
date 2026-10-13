@@ -17,7 +17,7 @@ export const DEFAULT_PREROLL_MS = 200;
 type VadSettings = Required<Omit<VADConfig, 'confirmMultiplier'>>;
 const VAD_DEFAULTS: VadSettings = {
   threshold: 0.05, onsetMultiplier: 0.1, maxOnsetDuration: 250, silenceDuration: 300,
-  minSegmentDuration: 500, rewindHalfPause: true, minActiveAudioDuration: 250
+  minSegmentDuration: 500, rewindHalfPause: true, minActiveAudioDuration: 250, sustainMultiplier: 0.5
 };
 
 /** Peak amplitude, clamped to -60..0 dB and returned as a linear 0..1 value. */
@@ -83,7 +83,12 @@ export class Vad {
         if (energy <= onsetThreshold) this.state = 'IDLE';
         return null;
       case 'RECORDING': {
-        if (energy > s.threshold) this.activeAudioTime += now - this.lastFrameTime;
+        // An open part keeps going while the voice stays above `sustainMultiplier`
+        // of the cutoff (decisions.md 93): a soft stretch is speech, not a pause.
+        if (energy > s.threshold * s.sustainMultiplier) {
+          this.lastAboveThresholdTime = now;
+          this.activeAudioTime += now - this.lastFrameTime;
+        }
         this.lastFrameTime = now;
         const silent = now - this.lastAboveThresholdTime >= s.silenceDuration;
         if (silent && now - this.recordingStartTime >= s.minSegmentDuration) {

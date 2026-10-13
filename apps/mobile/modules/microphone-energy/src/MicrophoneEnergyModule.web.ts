@@ -138,7 +138,8 @@ export default {
     await c?.ctx.close();
   },
   async configureVAD(config: VADConfig) { vad.configure(config); },
-  async enableVAD() { vadEnabled = true; vad.reset(); },
+  /** As on the phones, what was heard while the detector was off never heads a part. */
+  async enableVAD() { vadEnabled = true; vad.reset(); ring.length = 0; },
   async disableVAD() { vadEnabled = false; vad.state = 'IDLE'; finish(Date.now(), 0); },
   async startSegment(options?: { prerollMs?: number }) {
     if (!capture) {
@@ -150,6 +151,10 @@ export default {
   async stopSegment(): Promise<string | null> {
     if (vad.state === 'RECORDING') vad.state = 'IDLE';
     return finish(Date.now(), 0);
+  },
+  /** The web keeps its WAV (decisions.md 93): there is no encoder to hand. */
+  async encodeAac(): Promise<string> {
+    throw new Error('AAC encoding is not implemented on web.');
   },
   async renderAudio(): Promise<string> {
     throw new Error('Audio export is not implemented on web.');

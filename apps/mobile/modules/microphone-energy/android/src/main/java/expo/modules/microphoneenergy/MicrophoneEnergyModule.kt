@@ -2,7 +2,13 @@
 
 import android.media.AudioFormat
 import android.media.AudioRecord
+import android.media.MediaCodec
+import android.media.MediaCodecInfo
+import android.media.MediaFormat
+import android.media.MediaMuxer
 import android.media.MediaRecorder
+import android.os.Handler
+import android.os.Looper
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
@@ -12,11 +18,17 @@ import kotlin.math.log10
 import kotlin.math.max
 import kotlin.math.pow
 
+/** Samples per frame: the iOS tap's size, and what vadCore.ts assumes. */
+private const val FRAME_SAMPLES = 2048
+
 class MicrophoneEnergyModule : Module() {
   private var audioRecord: AudioRecord? = null
   private var isActive = false
   private var recordingScope: CoroutineScope? = null
   private var writeScope: CoroutineScope? = null
+  private val encodeScope = CoroutineScope(Dispatchers.Default)
+  // Meter events go to the main thread without the capture loop waiting for it.
+  private val main = Handler(Looper.getMainLooper())
   private val configLock = Any()
   @Volatile private var pendingWrites = 0
   private val writeWaiters = mutableListOf<() -> Unit>()
@@ -40,6 +52,7 @@ class MicrophoneEnergyModule : Module() {
   private var vadMinSegmentDuration = 500
   private var vadRewindHalfPause = true
   private var vadMinActiveAudioDuration = 250  // Discard clips with less active audio than this
+  private var vadSustainMultiplier = 0.5f     // An open part keeps going above this share of the threshold
   
   private var vadState = "IDLE"
   private var preOnsetCutPoint: Long = 0
@@ -63,6 +76,18 @@ class MicrophoneEnergyModule : Module() {
     AsyncFunction("disableVAD") { promise: Promise -> disableVAD { promise.resolve(null) } }
     AsyncFunction("startSegment") { options: Map<String, Any?>?, promise: Promise -> startSegment(options, promise) }
     AsyncFunction("stopSegment") { promise: Promise -> stopSegment(promise) }
+    AsyncFunction("encodeAac") { uri: String, promise: Promise ->
+      encodeScope.launch {
+        try {
+          val wav = java.io.File(java.net.URI(uri))
+          val m4a = java.io.File(wav.parentFile, wav.nameWithoutExtension + ".m4a")
+          AacEncoder.encode(wav, m4a)
+          promise.resolve("file://${m4a.absolutePath}")
+        } catch (e: Exception) {
+          promise.reject("ENCODE_ERROR", "Could not convert the recording: ${e.message}", e)
+        }
+      }
+    }
   }
 
   private fun startEnergyDetection(promise: Promise) {
@@ -73,7 +98,11 @@ class MicrophoneEnergyModule : Module() {
     try {
       val channelConfig = AudioFormat.CHANNEL_IN_MONO
       val audioFormat = AudioFormat.ENCODING_PCM_16BIT
-      val bufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
+      // Read whole 2048-sample frames, as the iOS tap and vadCore.ts do, from a
+      // buffer that holds about 0.37 s: a busy phone that is late to read
+      // loses nothing (the smallest buffer Android allows holds about one frame).
+      val minBuffer = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
+      val bufferSize = max(minBuffer, FRAME_SAMPLES * 2 * 8)
       audioRecord = AudioRecord(MediaRecorder.AudioSource.DEFAULT, sampleRate, channelConfig, audioFormat, bufferSize)
       if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) throw Exception("AudioRecord initialization failed")
       audioRecord?.startRecording()
@@ -81,10 +110,10 @@ class MicrophoneEnergyModule : Module() {
       promise.resolve(null)
       recordingScope = CoroutineScope(Dispatchers.IO)
       recordingScope?.launch {
-        val audioData = ShortArray(bufferSize / 2)
+        val audioData = ShortArray(FRAME_SAMPLES)
         while (isActive && audioRecord != null) {
-          val bytesRead = audioRecord!!.read(audioData, 0, audioData.size)
-          if (bytesRead > 0) processAudioData(audioData, bytesRead)
+          val samplesRead = audioRecord!!.read(audioData, 0, audioData.size)
+          if (samplesRead > 0) processAudioData(audioData, samplesRead)
         }
       }
     } catch (e: SecurityException) {
@@ -142,12 +171,15 @@ class MicrophoneEnergyModule : Module() {
     (config["maxOnsetDuration"] as? Number)?.let { vadMaxOnsetDuration = it.toInt() }
     (config["rewindHalfPause"] as? Boolean)?.let { vadRewindHalfPause = it }
     (config["minActiveAudioDuration"] as? Number)?.let { vadMinActiveAudioDuration = it.toInt() }
+    (config["sustainMultiplier"] as? Number)?.let { vadSustainMultiplier = it.toFloat() }
   }
   
   private fun enableVAD() {
     synchronized(configLock) {
       vadEnabled = true; vadState = "IDLE"; preOnsetCutPoint = 0; lockedOnsetTime = 0; lastAboveThresholdTime = 0
       activeAudioTime = 0; lastFrameTime = 0
+      // What the microphone heard while the detector was off (a source playing) never heads a part.
+      synchronized(ringBuffer) { ringBuffer.clear() }
     }
   }
   
@@ -168,7 +200,7 @@ class MicrophoneEnergyModule : Module() {
     stopSegment(p)
   }
 
-  private suspend fun processAudioData(audioData: ShortArray, bytesRead: Int) {
+  private fun processAudioData(audioData: ShortArray, bytesRead: Int) {
     val now = System.currentTimeMillis()
     val dataCopy = audioData.copyOf(bytesRead)
     var peakAmplitude = 0.0
@@ -189,7 +221,7 @@ class MicrophoneEnergyModule : Module() {
       }
       if (vadEnabled) handleVAD(normalizedAmplitude, now)
     }
-    withContext(Dispatchers.Main) { sendEvent("onEnergyResult", mapOf("energy" to normalizedAmplitude.toDouble(), "timestamp" to now.toDouble())) }
+    main.post { sendEvent("onEnergyResult", mapOf("energy" to normalizedAmplitude.toDouble(), "timestamp" to now.toDouble())) }
   }
   
   private fun handleVAD(rawPeak: Float, now: Long) {
@@ -214,9 +246,11 @@ class MicrophoneEnergyModule : Module() {
         when { rawPeak > vadThreshold -> confirmAndStartRecording(now); rawPeak <= onsetThreshold -> vadState = "IDLE" }
       }
       "RECORDING" -> {
-        // Track cumulative time above threshold
+        // An open part keeps going while the voice stays above the sustain
+        // level (decisions.md 93): a soft stretch is speech, not a pause.
         val deltaMs = now - lastFrameTime
-        if (rawPeak > vadThreshold) {
+        if (rawPeak > vadThreshold * vadSustainMultiplier) {
+          lastAboveThresholdTime = now
           activeAudioTime += deltaMs
         }
         lastFrameTime = now
@@ -288,7 +322,7 @@ class MicrophoneEnergyModule : Module() {
         val writer = SegmentWriter(java.io.File(dir, "segment_${java.util.UUID.randomUUID()}.wav"), sampleRate)
         segmentStartTime = System.currentTimeMillis()
         synchronized(ringBuffer) {
-          val maxPrerollBuffers = (prerollMs / (2048.0 / (sampleRate / 1000.0))).toInt()
+          val maxPrerollBuffers = (prerollMs / (FRAME_SAMPLES / (sampleRate / 1000.0))).toInt()
           val buffersToWrite = kotlin.math.min(ringBuffer.size, maxPrerollBuffers)
           for (entry in ringBuffer.takeLast(buffersToWrite)) writer.append(entry.buffer, 0)
         }
@@ -386,5 +420,96 @@ class SegmentWriter(val file: java.io.File, private val sampleRate: Int) {
     header.putShort((channels * bitsPerSample / 8).toShort()); header.putShort(bitsPerSample.toShort())
     header.put("data".toByteArray()); header.putInt(dataSize.toInt())
     return header.array()
+  }
+}
+
+/**
+ * A finished WAV part as AAC in MP4 (`.m4a`, decisions.md 93): mono 128 kb/s,
+ * the bitrate hold-to-record always used, about a fifth of the WAV's size.
+ * Reads the 16-bit PCM WAVs SegmentWriter writes; any other input throws, and
+ * the caller keeps the WAV.
+ */
+object AacEncoder {
+  private const val BIT_RATE = 128_000
+  private const val TIMEOUT_US = 10_000L
+
+  fun encode(wav: java.io.File, out: java.io.File) {
+    java.io.RandomAccessFile(wav, "r").use { input ->
+      val header = ByteArray(44)
+      input.readFully(header)
+      val h = java.nio.ByteBuffer.wrap(header).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+      if (String(header, 0, 4) != "RIFF" || String(header, 8, 4) != "WAVE" || String(header, 36, 4) != "data") throw IllegalArgumentException("not a recorder WAV")
+      val channels = h.getShort(22).toInt()
+      val rate = h.getInt(24)
+      if (h.getShort(34).toInt() != 16 || channels < 1) throw IllegalArgumentException("not 16-bit PCM")
+      var remaining = minOf(h.getInt(40).toLong() and 0xffffffffL, input.length() - 44)
+      if (remaining <= 0) throw IllegalArgumentException("empty recording")
+      val frameBytes = 2 * channels
+      out.delete()
+      val format = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, rate, channels).apply {
+        setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC)
+        setInteger(MediaFormat.KEY_BIT_RATE, BIT_RATE)
+        setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 16384)
+      }
+      val codec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC)
+      val muxer = MediaMuxer(out.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+      var track = -1
+      var started = false
+      var ok = false
+      try {
+        codec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+        codec.start()
+        val info = MediaCodec.BufferInfo()
+        val chunk = ByteArray(16384)
+        var samples = 0L
+        var inputDone = false
+        var outputDone = false
+        while (!outputDone) {
+          if (!inputDone) {
+            val i = codec.dequeueInputBuffer(TIMEOUT_US)
+            if (i >= 0) {
+              val buf = codec.getInputBuffer(i)!!
+              buf.clear()
+              val want = (minOf(buf.capacity().toLong(), chunk.size.toLong(), remaining).toInt() / frameBytes) * frameBytes
+              val n = if (want > 0) input.read(chunk, 0, want) else -1
+              val ptsUs = samples * 1_000_000L / rate
+              if (n <= 0) {
+                codec.queueInputBuffer(i, 0, 0, ptsUs, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                inputDone = true
+              } else {
+                buf.put(chunk, 0, n)
+                codec.queueInputBuffer(i, 0, n, ptsUs, 0)
+                samples += n / frameBytes
+                remaining -= n
+              }
+            }
+          }
+          val o = codec.dequeueOutputBuffer(info, TIMEOUT_US)
+          if (o == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+            track = muxer.addTrack(codec.outputFormat)
+            muxer.start()
+            started = true
+          } else if (o >= 0) {
+            val buf = codec.getOutputBuffer(o)!!
+            if (info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG != 0) info.size = 0
+            if (info.size > 0 && started) {
+              buf.position(info.offset)
+              buf.limit(info.offset + info.size)
+              muxer.writeSampleData(track, buf, info)
+            }
+            codec.releaseOutputBuffer(o, false)
+            if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) outputDone = true
+          }
+        }
+        ok = started
+      } finally {
+        try { codec.stop() } catch (_: Exception) {}
+        codec.release()
+        try { if (started) muxer.stop() } catch (_: Exception) { ok = false }
+        muxer.release()
+        if (!ok) out.delete()
+      }
+      if (!ok) throw IllegalStateException("the encoder produced nothing")
+    }
   }
 }

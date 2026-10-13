@@ -22,6 +22,7 @@ import { Header, Ico, PrimaryBtn, Screen, txt } from '../kit';
 import { noteExpected } from '../report';
 import { C, radius, space, target, TINT, type as T, withAlpha } from '../theme';
 import { claimVad, MicrophoneRefused, useEnergyHistory, VAD_BASE } from '../useRecorder';
+import { clampCutoff, cutoffAfterDrag, meterHeight } from '../recording/splitModel';
 import { cachedMicSettings, loadMicSettings, saveMicSettings } from './micSettings';
 import { DEFAULT_MIC, MIC_TRIES, mmss, QUIET_MS, thresholdFromNoise, type MicSettings } from './model';
 import { QuietLink, RecordBtn, styles as ps } from './parts';
@@ -335,7 +336,7 @@ function ByHand(props: { ctx: Ctx; onDone: () => void }) {
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
     onPanResponderGrant: () => { start.current = latest.current.cutoff; },
-    onPanResponderMove: (_, g) => setCutoff(Math.max(0.04, Math.min(0.92, start.current - g.dy / latest.current.height)))
+    onPanResponderMove: (_, g) => setCutoff(cutoffAfterDrag(start.current, g.dy, latest.current.height, false))
   })).current;
   async function save() {
     await saveMicSettings({ threshold: Math.round(cutoff * 1000) / 1000, pauseMs: pause });
@@ -346,12 +347,15 @@ function ByHand(props: { ctx: Ctx; onDone: () => void }) {
     <Screen header={<Header title={t('recording.micSetup.byHand')} sub={t('recording.micSetup.title')} onBack={props.onDone} />}
       footer={<PrimaryBtn label={t('recording.micSetup.saveSettings')} icon="check" onPress={() => void save()} />}>
       <Text style={styles.lead}>{t('recording.micSetup.byHandLead')}</Text>
-      <View style={styles.meter} onLayout={(e) => setHeight(e.nativeEvent.layout.height)} {...pan.panHandlers}
+      <View style={styles.meter} {...pan.panHandlers}
         accessible accessibilityRole="adjustable" accessibilityLabel={t('recording.micSetup.sensitivityLine')} accessibilityValue={{ min: 4, max: 92, now: Math.round(cutoff * 100) }}
         accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
-        onAccessibilityAction={(e) => setCutoff((c) => Math.max(0.04, Math.min(0.92, c + (e.nativeEvent.actionName === 'increment' ? 0.02 : -0.02))))}>
-        <Bars />
-        <View style={[{ pointerEvents: 'none' }, styles.cutoff, { top: `${(1 - cutoff) * 100}%` }]} />
+        onAccessibilityAction={(e) => setCutoff((c) => clampCutoff(c + (e.nativeEvent.actionName === 'increment' ? 0.02 : -0.02)))}>
+        {/* Bars and line in one box, on one scale: a bar reaches the line exactly when the detector hears it. */}
+        <View style={styles.meterBars} onLayout={(e) => setHeight(e.nativeEvent.layout.height)}>
+          <Bars />
+          <View style={[{ pointerEvents: 'none' }, styles.cutoff, { top: `${(1 - meterHeight(cutoff)) * 100}%` }]} />
+        </View>
       </View>
       {problem ? <Text style={txt.error} accessibilityRole="alert">{problem}</Text> : null}
       <Text style={[txt.label, { paddingHorizontal: space.xs }]}>{t('recording.micSetup.pauseEndsPart')}</Text>
@@ -364,7 +368,7 @@ function ByHand(props: { ctx: Ctx; onDone: () => void }) {
 
 function Bars() {
   const history = useEnergyHistory(false, 48);
-  return <>{history.map((b, i) => <View key={i} style={[styles.bar, { height: `${Math.max(2, Math.pow(Math.min(1, Math.max(0, b.energy)), 0.6) * 100)}%` }]} />)}</>;
+  return <>{history.map((b, i) => <View key={i} style={[styles.bar, { height: `${Math.max(2, meterHeight(b.energy) * 100)}%` }]} />)}</>;
 }
 
 function PauseChip(props: { label: string; dots: number; on: boolean; onPress: () => void }) {
@@ -397,7 +401,8 @@ const styles = StyleSheet.create({
   tryLength: { fontSize: T.sm, fontWeight: '600', color: C.muted },
   radio: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: C.faint, alignItems: 'center', justifyContent: 'center' },
   radioDot: { width: 14, height: 14, borderRadius: 7, backgroundColor: C.primary },
-  meter: { height: 180, flexDirection: 'row', alignItems: 'flex-end', gap: 2, padding: space.sm, borderRadius: radius.lg, backgroundColor: C.card, borderWidth: 1, borderColor: C.border },
+  meter: { height: 180, padding: space.sm, borderRadius: radius.lg, backgroundColor: C.card, borderWidth: 1, borderColor: C.border },
+  meterBars: { flex: 1, flexDirection: 'row', alignItems: 'flex-end', gap: 2 },
   bar: { flex: 1, borderRadius: 2, backgroundColor: withAlpha(C.primary, 0.7) },
   cutoff: { position: 'absolute', left: 0, right: 0, borderTopWidth: 2, borderStyle: 'dashed', borderColor: TINT.redText },
   pauses: { flexDirection: 'row', gap: space.sm },

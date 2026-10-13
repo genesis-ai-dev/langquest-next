@@ -48,6 +48,7 @@ public class MicrophoneEnergyModule: Module {
     private var vadMinSegmentDuration: Int = 500
     private var vadRewindHalfPause = true
     private var vadMinActiveAudioDuration: Int = 250  // Discard clips with less active audio than this
+    private var vadSustainMultiplier: Float = 0.5     // An open part keeps going above this share of the threshold
     
     // VAD state machine
     private var vadState = "IDLE"
@@ -69,6 +70,7 @@ public class MicrophoneEnergyModule: Module {
         AsyncFunction("disableVAD") { () -> Void in await self.disableVAD() }
         AsyncFunction("startSegment") { (options: [String: Any?]?) -> Void in try self.startSegment(options: options) }
         AsyncFunction("stopSegment") { () -> String? in return try self.stopSegment() }
+        AsyncFunction("encodeAac") { (uri: String) -> String in try AacEncoder.encode(uri: uri) }
     }
     
     private func startEnergyDetection() async throws {
@@ -188,6 +190,7 @@ public class MicrophoneEnergyModule: Module {
         if let maxOnsetDuration = config["maxOnsetDuration"] as? NSNumber { vadMaxOnsetDuration = maxOnsetDuration.intValue }
         if let rewindHalfPause = config["rewindHalfPause"] as? Bool { vadRewindHalfPause = rewindHalfPause }
         if let minActiveAudioDuration = config["minActiveAudioDuration"] as? NSNumber { vadMinActiveAudioDuration = minActiveAudioDuration.intValue }
+        if let sustainMultiplier = config["sustainMultiplier"] as? NSNumber { vadSustainMultiplier = sustainMultiplier.floatValue }
     }
     
     private func enableVAD() {
@@ -199,6 +202,8 @@ public class MicrophoneEnergyModule: Module {
         lastAboveThresholdTime = 0
         activeAudioTime = 0
         lastFrameTime = 0
+        // What the microphone heard while the detector was off (a source playing) never heads a part.
+        ringBuffer.removeAll()
         configLock.unlock()
     }
     
@@ -293,9 +298,11 @@ public class MicrophoneEnergyModule: Module {
             if rawPeak > vadThreshold { confirmAndStartRecording(now: now) }
             else if rawPeak <= onsetThreshold { vadState = "IDLE" }
         case "RECORDING":
-            // Track cumulative time above threshold
+            // An open part keeps going while the voice stays above the sustain
+            // level (decisions.md 93): a soft stretch is speech, not a pause.
             let deltaMs = now - lastFrameTime
-            if rawPeak > vadThreshold {
+            if rawPeak > vadThreshold * vadSustainMultiplier {
+                lastAboveThresholdTime = now
                 activeAudioTime += deltaMs
             }
             lastFrameTime = now
@@ -524,5 +531,52 @@ final class SegmentWriter {
         header.append("data".data(using: .ascii)!)
         header.append(contentsOf: withUnsafeBytes(of: UInt32(dataSize).littleEndian) { Data($0) })
         try fileHandle.write(contentsOf: header)
+    }
+}
+
+/**
+ * A finished WAV part as AAC in MP4 (`.m4a`, decisions.md 93): mono 128 kb/s,
+ * the bitrate hold-to-record always used, about a fifth of the WAV's size.
+ * Throws on anything it cannot read; the caller then keeps the WAV.
+ */
+enum AacEncoder {
+    static func encode(uri: String) throws -> String {
+        guard let source = URL(string: uri), source.isFileURL else {
+            throw NSError(domain: "MicrophoneEnergy", code: 6, userInfo: [NSLocalizedDescriptionKey: "Not a file: \(uri)"])
+        }
+        let target = source.deletingPathExtension().appendingPathExtension("m4a")
+        try? FileManager.default.removeItem(at: target)
+        do {
+            try write(from: source, to: target)
+        } catch {
+            try? FileManager.default.removeItem(at: target)
+            throw error
+        }
+        return target.absoluteString
+    }
+
+    /// In its own scope so the output file is closed (and its header finished) before the caller reads it.
+    private static func write(from source: URL, to target: URL) throws {
+        let input = try AVAudioFile(forReading: source)
+        guard input.length > 0 else {
+            throw NSError(domain: "MicrophoneEnergy", code: 7, userInfo: [NSLocalizedDescriptionKey: "Empty recording"])
+        }
+        let format = input.processingFormat
+        let settings: [String: Any] = [
+            AVFormatIDKey: kAudioFormatMPEG4AAC,
+            AVSampleRateKey: input.fileFormat.sampleRate,
+            AVNumberOfChannelsKey: input.fileFormat.channelCount,
+            AVEncoderBitRateKey: 128_000
+        ]
+        let output = try AVAudioFile(forWriting: target, settings: settings, commonFormat: format.commonFormat, interleaved: format.isInterleaved)
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 16_384) else {
+            throw NSError(domain: "MicrophoneEnergy", code: 8, userInfo: [NSLocalizedDescriptionKey: "No buffer"])
+        }
+        while input.framePosition < input.length {
+            try input.read(into: buffer)
+            if buffer.frameLength == 0 { break }
+            try output.write(from: buffer)
+        }
+        if #available(iOS 18.0, *) { output.close() }
     }
 }

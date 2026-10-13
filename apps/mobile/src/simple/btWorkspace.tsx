@@ -41,7 +41,7 @@ import { failureMessage, reportError } from '../report';
 import { RequestBanner } from '../reviewing/parts';
 import { lift } from '../shadow';
 import { C, radius, space, target, TINT, type as T, withAlpha } from '../theme';
-import { useRecorder, type RecordedCard } from '../useRecorder';
+import { useOnTooShort, useRecorder, type RecordedCard } from '../useRecorder';
 import { VoiceNote } from '../voiceNote';
 
 export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: PassageView; kind: KindDef; of: Version }) {
@@ -80,6 +80,8 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
     await add(at ? pieceFor(at, piece) : piece);
   }, [add]);
   const rec = useRecorder(persist);
+  // A piece too short to keep is said (decisions.md 93).
+  useOnTooShort(rec.tooShort, () => ctx.toast(t('recording.vad.tooShort')));
   const loop = useListenLoop(rec);
   const session = loop.phase !== 'off';
   const recording = session || rec.manualOn;

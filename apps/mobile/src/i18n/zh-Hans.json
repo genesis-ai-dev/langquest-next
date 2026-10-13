@@ -3987,7 +3987,8 @@
       "pausedForSource": "播放源音频时已暂停",
       "startsAgain": "源音频停止后会重新开始录音。",
       "cutoff": "声音门限",
-      "pauseBetween": "段与段之间的停顿"
+      "pauseBetween": "段与段之间的停顿",
+      "tooShort": "太短了，没有保存。如果您刚才在说话，请再说一遍。"
     },
     "split": {
       "referenceOneLine": "参考资料缩成一行",
