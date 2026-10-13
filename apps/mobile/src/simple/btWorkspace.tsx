@@ -44,9 +44,13 @@ import { C, radius, space, target, TINT, type as T, withAlpha } from '../theme';
 import { useRecorder, type RecordedCard } from '../useRecorder';
 import { VoiceNote } from '../voiceNote';
 
-export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: PassageView; kind: KindDef; of: Version }) {
+export function BackTranslationBody({ ctx, v, kind, of, make }: {
+  ctx: Ctx; v: PassageView; kind: KindDef; of: Version;
+  /** A step that makes recording (decisions.md 93): what it says it into, and the language it is in when not the team's own. */
+  make?: { into: string; language?: string };
+}) {
   const { state, unitId, languageId, p } = v;
-  const produces = kind.produces!;
+  const produces = kind.produces ?? { what: kind.name, into: make?.into ?? v.language, action: kind.name, checkedBy: '' };
   const shipped = shippedBackTranslation(kind);
   const me = ctx.session.actorId;
   const checkedBy = produces.checkedBy ? v.kind(produces.checkedBy).name : undefined;
@@ -120,10 +124,20 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
     const note = noteText(notes, extra);
     let specs: EventSpec[];
     try {
-      specs = commands(state, indexesFor(state)).produceContent({
-        commandId: Crypto.randomUUID(), fromTakeId: of.takeId, kindId: kind.id, cards: pieces,
-        ...(note ? { note } : {}), ...(noteHash ? { noteBlobHash: noteHash } : {}), ...(request ? { requestId: request.id } : {})
-      });
+      specs = make
+        // What a making step said stays with the version it came from (v1.Made); its notes go on the passage.
+        ? [
+          ...commands(state, indexesFor(state)).make({
+            commandId: Crypto.randomUUID(), unitId, kindId: kind.id, fromTakeId: of.takeId, parts: pieces,
+            ...(make.language ? { language: make.language } : {}), ...(request ? { requestId: request.id } : {})
+          }),
+          ...(note || noteHash ? commands(state, indexesFor(state)).addNote({ commandId: Crypto.randomUUID(), unitId, anchor: { kind: 'version', takeId: of.takeId },
+            ...(note ? { text: note } : {}), ...(noteHash ? { blobHash: noteHash } : {}) }) : [])
+        ]
+        : commands(state, indexesFor(state)).produceContent({
+          commandId: Crypto.randomUUID(), fromTakeId: of.takeId, kindId: kind.id, cards: pieces,
+          ...(note ? { note } : {}), ...(noteHash ? { noteBlobHash: noteHash } : {}), ...(request ? { requestId: request.id } : {})
+        });
     } catch (e) {
       ctx.toast(t('backTranslation.notPublished', { reason: failureMessage('back translation: save', e) }));
       return;

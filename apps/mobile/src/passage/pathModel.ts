@@ -21,6 +21,8 @@ export interface PathStep {
   state: PathStepState;
   /** Feedback the step is about (Hear the feedback). */
   review?: ReviewView;
+  /** Written, not recorded (decision 93): the step shows a pen. */
+  written?: boolean;
 }
 
 export interface TeamStep {
@@ -50,6 +52,8 @@ export interface PathInput {
   askedName?: (kindId: string) => string | undefined;
   /** A due date as people say it ("due Oct 11"). */
   due?: (iso: string) => string;
+  /** What the language leads with (decisions.md 93): a team that writes first sees Write. */
+  lead?: 'recording' | 'writing';
 }
 
 // A check's one name on every screen (decision 91).
@@ -92,13 +96,15 @@ export function pathSteps(input: PathInput): PathStep[] {
   const recordAsk = p.openRequests.find((r) => r.what === 'record');
   const askedLine = recordAsk ? [whoAsked(recordAsk, input), recordAsk.dueDate ? (input.due ? input.due(recordAsk.dueDate) : t('passage.path.dueOn', { date: recordAsk.dueDate })) : '']
     .filter(Boolean).join(' · ') : '';
+  // Write when the latest version is written, or, before there is one, when the language leads with writing (decision 93).
+  const writes = latest ? latest.medium === 'writing' : input.lead === 'writing';
   out.push({
-    kind: 'record', title: t('passage.path.record'),
+    kind: 'record', title: writes ? t('writing.path.write') : t('passage.path.record'), ...(writes ? { written: true } : {}),
     sub: p.recorded && latest
       ? [versionTitle(latest.n), input.latestSeconds ? formatClock(input.latestSeconds * 1000) : ''].filter(Boolean).join(' · ')
       : p.drafting
         ? (p.draftBy === me ? t('passage.path.yourTakes') : t('passage.path.someTakes'))
-        : askedLine ? t('passage.path.recordHintAsked', { asked: askedLine }) : t('passage.path.recordHint'),
+        : askedLine ? t('passage.path.recordHintAsked', { asked: askedLine }) : writes ? t('writing.path.writeHint') : t('passage.path.recordHint'),
     state: p.recorded ? 'done' : 'todo'
   });
 
@@ -155,7 +161,9 @@ export function teamSteps(input: PathInput): TeamStep[] {
       if (s.complete || isCompleteState(k.state)) {
         state = 'done';
         status = s.override ? t('passage.path.status.movedPast') : k.state === 'skipped' ? t('passage.path.status.setAside')
-          : k.state === 'addressed' ? t('passage.path.status.answered') : t('passage.path.status.looksGood');
+          : k.state === 'addressed' ? t('passage.path.status.answered')
+          // A step that makes something is done when it made it, never "looks good" (decisions.md 93).
+          : kinds.find((x) => x.id === k.kindId)?.makes ? t('writing.path.made') : t('passage.path.status.looksGood');
       } else if (k.state === 'suggestions') {
         state = 'attention'; status = t('passage.path.status.needsChanges');
       } else if (s.lockedBy) {

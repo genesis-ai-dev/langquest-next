@@ -30,6 +30,8 @@ import { StyleSheet, View } from 'react-native';
 import { Text } from '../text';
 import { AudioClip } from '../audioClip';
 import { ClipPlayer } from '../clipPlayer';
+import { WrittenReader, usePassageVerses } from '../writing/WrittenText';
+import { readsFor } from '../writing/model';
 import type { Ctx } from '../ctx';
 import { screenTitle } from '../flow';
 import { t } from '../i18n';
@@ -93,6 +95,7 @@ export function AddRecord(ctx: Ctx) {
 function Capture(props: { ctx: Ctx; logged: boolean }) {
   const { ctx, logged } = props;
   const v = usePassage(ctx);
+  const verseKeys = usePassageVerses(ctx, v?.unitId ?? '', v?.languageId ?? '');
   const actorId = ctx.session.actorId;
   const kindId = ctx.params['kindId'] ?? (v ? v.p.next?.step.kindIds[0] ?? v.p.flow.steps[0]?.kindIds[0] ?? 'peer' : 'peer');
   const kind = v?.kind(kindId);
@@ -181,7 +184,9 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const group = isGroupKind(kind.id);
   const here = all.find((p) => p.unitId === v.unitId);
   const asker = request?.by ? ctx.name(request.by) : undefined;
-  const stages = reviewStages({ questions: questions.length, logged, makes: !!makes });
+  // What this check reads (decision 93): what an earlier step made from this version, or the version; writing is read.
+  const reads = readsFor(v.p, kind, version);
+  const stages = reviewStages({ questions: questions.length, logged, makes: !!makes, reads: reads.medium === 'writing' });
   const at = stageAt(stages, stageId);
   const stage = stages[at]!.id;
   const next = stages[at + 1];
@@ -323,9 +328,17 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
         </Text>
       ) : null}
       {directions ? <RequestBanner ctx={ctx} request={request} /> : null}
-      <ClipPlayer language={ctx.language} hashes={version.cardHashes} big
-        title={mine ? t('review.screen.versionByYou', { n: version.n }) : t('review.screen.versionBy', { n: version.n, name: translator })} sub={listenLine(kind.id, logged)}
-        {...(makes ? {} : { onNote: (s: number) => setMomentAt(Math.round(s * 1000)) })} />
+      {reads.made ? (
+        <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('writing.review.readsMade', { what: v.kind(reads.made.kindId ?? '').name, version: versionTitle(version.n) })}</Text>
+      ) : null}
+      {reads.medium === 'writing' ? (
+        <WrittenReader ctx={ctx} state={v.state} unitId={v.unitId} parts={reads.parts} verseKeys={verseKeys}
+          {...(reads.made && version.medium === 'recording' ? { heard: version.cardHashes } : {})} />
+      ) : (
+        <ClipPlayer language={ctx.language} hashes={reads.parts} big
+          title={mine ? t('review.screen.versionByYou', { n: version.n }) : t('review.screen.versionBy', { n: version.n, name: translator })} sub={listenLine(kind.id, logged)}
+          {...(makes || reads.made ? {} : { onNote: (s: number) => setMomentAt(Math.round(s * 1000)) })} />
+      )}
       <MomentList ctx={ctx} moments={moments} onRemove={(h) => setMoments((m) => m.filter((x) => x.hash !== h))} />
       {changed ? (
         <Card>

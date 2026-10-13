@@ -253,12 +253,13 @@ export function kindRowActions(o: {
   const mine = o.mine ?? namesMe(o.me);
   const askedMe = s === 'asked' && !!o.status.request && mine(o.status.request);
   const cleared = o.step.step.checkpoint ? s === 'approved' : isCompleteState(s);
-  const doIt: RowAction | undefined = o.can.review ? { id: 'do', label: o.kind.produces ? o.kind.produces.action : t('passage.record.actions.reviewNow') } : undefined;
+  const doIt: RowAction | undefined = o.can.review ? { id: 'do', label: o.kind.makes ? o.kind.name : o.kind.produces ? o.kind.produces.action : t('passage.record.actions.reviewNow') } : undefined;
   const send: RowAction | undefined = o.can.ask && s !== 'asked' && s !== 'addressed' && o.isAuthor && o.sendTo
     ? { id: 'send', label: t('passage.record.actions.sendTo', { target: o.sendTo }) } : undefined;
   const ask: RowAction | undefined = o.can.ask && s !== 'asked'
     ? { id: 'ask', label: s === 'addressed' ? t('passage.record.actions.askAgain') : send ? t('passage.record.actions.sendElsewhere') : t('passage.record.actions.askSomeone') } : undefined;
-  const log: RowAction | undefined = o.can.log ? { id: 'log', label: t('passage.record.actions.alreadyHappened') } : undefined;
+  // What a step makes is made here, not logged afterwards (decision 93).
+  const log: RowAction | undefined = o.can.log && !o.kind.makes ? { id: 'log', label: t('passage.record.actions.alreadyHappened') } : undefined;
   const skip: RowAction | undefined = o.can.skip && !o.step.step.checkpoint ? { id: 'skip', label: t('passage.record.actions.setAside') } : undefined;
   const primary = askedMe ? doIt : s === 'asked' ? undefined : o.isAuthor || !doIt ? send ?? ask ?? doIt : doIt;
   const second = s === 'asked' ? undefined : send && primary === send ? ask : log;

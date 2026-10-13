@@ -1,0 +1,155 @@
+// Steps that make something (decisions.md 93; demo branch
+// caleb-written-translations wStepPick, wStepOwn, wStepFinal): in a
+// language's checks, a step can turn recording or writing into recording or
+// writing, in the team's language or another, and can make the passage's
+// next version. Ready-made ones come first, each drawn as what it turns and
+// what it makes (a microphone or a pen) and the language; "Make your own"
+// sets the three choices and the switch. A shared flow never names a
+// language: "another" is the team's reference language unless the
+// language's own copy of the step says which.
+import {
+  defaultBecomesVersion, MAKING_PRESETS,
+  type KindDef, type MakesSpec, type Medium
+} from '@langquest-next/core';
+import { useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
+import { useHelpSpot } from '../helpContext';
+import { HelpBadge } from '../helpBadge';
+import { t } from '../i18n';
+import { Chip, ChipRow, Field, Group, Ico, PrimaryBtn, Row, SectionLabel, Sheet, Toggle, txt } from '../kit';
+import { languageLabel } from '../simple/adminModel';
+import { C, radius, space, TINT } from '../theme';
+
+type Side = Medium | 'either';
+
+/** A preset's name in the language showing. */
+export function presetName(id: string): string {
+  switch (id) {
+    case 'make-bt-said': return t('writing.presets.btSaid');
+    case 'make-bt-written': return t('writing.presets.btWritten');
+    case 'make-write-down': return t('writing.presets.writeDown');
+    case 'make-read-aloud': return t('writing.presets.readAloud');
+    case 'make-final': return t('writing.presets.final');
+    default: return id;
+  }
+}
+
+/** Recording into writing, drawn: a microphone or a pen, an arrow, and the language. */
+export function MakesLine({ makes, language }: { makes: Pick<MakesSpec, 'from' | 'to' | 'language'>; language: string }) {
+  const dot = (side: Side) => {
+    const written = side === 'writing';
+    return (
+      <View style={[styles.dot, { backgroundColor: written ? TINT.green : side === 'either' ? TINT.gray : C.light }]}>
+        {side === 'either' ? <Text style={styles.either}>…</Text> : <Ico name={written ? 'edit' : 'mic'} size={16} color={written ? TINT.greenText : C.primary} />}
+      </View>
+    );
+  };
+  return (
+    <View style={styles.line} accessibilityLabel={t('writing.step.readsLine', { from: sideName(makes.from), to: sideName(makes.to), language })}>
+      {dot(makes.from)}
+      <Ico name="arrowR" size={14} color={C.muted} />
+      {dot(makes.to)}
+      <View style={styles.lang}><Text style={styles.langText} numberOfLines={1}>{language}</Text></View>
+    </View>
+  );
+}
+
+function sideName(side: Side): string {
+  return side === 'recording' ? t('writing.step.recording') : side === 'writing' ? t('writing.step.writing') : t('writing.step.either');
+}
+
+/** The ready-made making steps, for Add a step. */
+export function MakingPresets(props: { taken: string[]; own: string; reference: string; onPick: (k: KindDef, makes: MakesSpec) => void; onOwn: () => void }) {
+  const left = MAKING_PRESETS.filter((p) => !props.taken.includes(p.id));
+  return (
+    <>
+      <SectionLabel label={t('writing.step.makeSomething')} />
+      <Group>
+        {left.map((p, i) => (
+          <Row key={p.id} leading={<MakesLine makes={p.makes} language={p.makes.language === 'same' ? props.own : languageLabel(props.reference)} />}
+            label={presetName(p.id)} sub={p.makes.language === 'same' ? t('writing.step.ownLanguage') : t('writing.step.referenceLanguage')}
+            onPress={() => props.onPick({ id: p.id, name: presetName(p.id), description: '', usualReviewer: '' }, { ...p.makes })} last={i === left.length - 1} />
+        ))}
+      </Group>
+      <OwnButton onPress={props.onOwn} />
+    </>
+  );
+}
+
+function OwnButton({ onPress }: { onPress: () => void }) {
+  const spot = useHelpSpot(t('writing.step.makeYourOwn'), t('writing.step.makeYourOwnHint'), onPress);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="button" style={({ pressed }) => [styles.dashed, pressed && { opacity: 0.7 }]}>
+      <Ico name="plus" size={20} color={C.primary} />
+      <Text style={[txt.body, { color: C.primary, fontWeight: '700' }]}>{t('writing.step.makeYourOwn')}</Text>
+      <HelpBadge spot={spot} />
+    </Pressable>
+  );
+}
+
+/** The three choices and the switch, for Make your own and for a making step's editor. */
+export function MakesFields(props: { makes: MakesSpec; own: string; reference: string; onChange: (m: MakesSpec) => void; disabled?: boolean }) {
+  const { makes } = props;
+  const set = (patch: Partial<MakesSpec>) => {
+    const next = { ...makes, ...patch };
+    // The switch follows the choices until someone sets it (decisions.md 93); it never stays on where it cannot be.
+    const canBecome = next.language === 'same' && next.to !== 'either';
+    const becomes = canBecome && ('becomesVersion' in patch ? !!patch.becomesVersion : ('from' in patch || 'to' in patch || 'language' in patch) ? defaultBecomesVersion(next) : next.becomesVersion);
+    if (next.language === 'same') delete next.otherLanguage;
+    props.onChange({ ...next, becomesVersion: becomes });
+  };
+  const sides = (value: Side, onPick: (s: Side) => void, last: string) => (
+    <ChipRow>
+      <Chip label={t('writing.step.recording')} icon="mic" on={value === 'recording'} onPress={() => !props.disabled && onPick('recording')} />
+      <Chip label={t('writing.step.writing')} icon="edit" on={value === 'writing'} onPress={() => !props.disabled && onPick('writing')} />
+      <Chip label={last} on={value === 'either'} onPress={() => !props.disabled && onPick('either')} />
+    </ChipRow>
+  );
+  const canBecome = makes.language === 'same' && makes.to !== 'either';
+  return (
+    <View style={{ gap: space.sm }}>
+      <SectionLabel label={t('writing.step.turn')} />
+      {sides(makes.from, (from) => set({ from }), t('writing.step.either'))}
+      <SectionLabel label={t('writing.step.into')} />
+      {sides(makes.to, (to) => set({ to }), t('writing.step.theyPick'))}
+      <SectionLabel label={t('writing.step.in')} />
+      <ChipRow>
+        <Chip label={props.own} on={makes.language === 'same'} onPress={() => !props.disabled && set({ language: 'same' })} />
+        <Chip label={languageLabel(makes.otherLanguage ?? props.reference)} icon="globe" on={makes.language === 'other'} onPress={() => !props.disabled && set({ language: 'other' })} />
+      </ChipRow>
+      <Group>
+        <Row icon="layers" label={t('writing.step.becomesVersion')} sub={canBecome ? t('writing.step.becomesVersionSub') : t('writing.step.becomesVersionOff')}
+          role="switch" checked={makes.becomesVersion}
+          right={<Toggle on={makes.becomesVersion} label={t('writing.step.becomesVersion')} disabled={!canBecome || props.disabled} onToggle={() => set({ becomesVersion: !makes.becomesVersion })} />} last />
+      </Group>
+    </View>
+  );
+}
+
+/** Make your own: the choices, a name to call it, then Add. */
+export function MakeStepSheet(props: { visible: boolean; own: string; reference: string; onClose: () => void; onAdd: (name: string, makes: MakesSpec) => void }) {
+  const [makes, setMakes] = useState<MakesSpec>({ from: 'recording', to: 'writing', language: 'other', becomesVersion: false });
+  const [name, setName] = useState('');
+  return (
+    <Sheet visible={props.visible} title={t('writing.step.makeYourOwn')} onClose={props.onClose}
+      footer={<PrimaryBtn label={t('writing.step.add')} icon="plus" disabled={!name.trim()} onPress={() => { props.onAdd(name.trim(), makes); setName(''); }} />}>
+      <MakesFields makes={makes} own={props.own} reference={props.reference} onChange={setMakes} />
+      <Field label={t('writing.step.name')} value={name} onChangeText={setName} placeholder={t('writing.step.namePlaceholder')} autoCapitalize="sentences" />
+      <View style={styles.preview}>
+        <MakesLine makes={makes} language={makes.language === 'same' ? props.own : languageLabel(props.reference)} />
+        <Text style={[txt.smMuted, { flex: 1 }]}>{makes.becomesVersion ? t('writing.step.previewVersion') : t('writing.step.previewBeside')}</Text>
+      </View>
+    </Sheet>
+  );
+}
+
+const styles = StyleSheet.create({
+  line: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  dot: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  either: { fontSize: 16, fontWeight: '800', color: C.muted },
+  lang: { marginLeft: 4, maxWidth: 88, paddingHorizontal: 7, height: 24, borderRadius: radius.sm, backgroundColor: TINT.gray, justifyContent: 'center' },
+  langText: { fontSize: 12, fontWeight: '800', color: C.dark },
+  dashed: { minHeight: 52, borderRadius: radius.lg, borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.faint, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm },
+  preview: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, borderRadius: radius.lg, backgroundColor: C.bg, borderWidth: 1, borderColor: C.border }
+});

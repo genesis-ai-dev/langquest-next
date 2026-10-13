@@ -45,7 +45,9 @@ export const SCREEN_IDS = [
   // App only: the simple redesign's Me keeps five rows; everything else Settings had is one tap deeper (decision 71)
   'settings_more',
   // App only: one of a language's checks, with its people, questions and helps (decision 91)
-  'check_editor'
+  'check_editor',
+  // App only: something made from a version, by a step or brought over from v2 (decision 93)
+  'made_detail'
 ] as const;
 
 export type ScreenId = (typeof SCREEN_IDS)[number];
@@ -379,7 +381,13 @@ export const EDGES: Edge[] = [
   e('language_home', 'edit_member', undefined, 'assigner'),
   // A language's checks (decision 91): one check, and a help a reviewer opens from it.
   e('flow_editor', 'check_editor'),
-  e('review_capture', 'material_editor')
+  e('review_capture', 'material_editor'),
+  // Something made from a version (decision 93): from the passage's Reviews by version, and from the version.
+  e('passage_record', 'made_detail'),
+  e('version_detail', 'made_detail'),
+  e('made_detail', 'passage_record', 'back'),
+  e('made_detail', 'version_detail', 'back'),
+  e('made_detail', 'ask_someone')
 ];
 
 /**

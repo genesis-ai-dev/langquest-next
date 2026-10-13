@@ -23,6 +23,8 @@ import { styles as ps } from './parts';
 export function PublishScreen(props: {
   ctx: Ctx; v: PassageView; n: number; first: boolean; cards: string[]; totalMs: number | undefined; bible: string | undefined;
   busy: boolean; answers: ReviewView[]; tied: number; revisingKind?: string;
+  /** A step makes this version (a final recording, decisions.md 93): the step says what it is, so no change note. */
+  making?: boolean;
   onClose: () => void; onPublish: (note: string, hash: string | null) => void;
 }) {
   const { ctx, v } = props;
@@ -31,7 +33,7 @@ export function PublishScreen(props: {
   const [text, setText] = useState(props.revisingKind ? t('recording.publish.revisedAfter', { kind: props.revisingKind }) : '');
   const [hash, setHash] = useState<string | null>(null);
   const [saying, setSaying] = useState(false);
-  const needsNote = !props.first;
+  const needsNote = !props.first && !props.making;
   // A screen inside the workspace: Back returns to it, never past it.
   const onClose = props.onClose;
   useEffect(() => {
@@ -47,7 +49,7 @@ export function PublishScreen(props: {
       footer={<PrimaryBtn label={t('recording.publish.publishVersion', { version: title })} icon="send" busy={props.busy} disabled={needsNote && !said} onPress={() => props.onPublish(text, hash)} />}>
       <ClipPlayer language={ctx.language} hashes={props.cards} title={title} sub={sub}
         onNote={(at) => { setText((prev) => `${prev.trim() ? `${prev.trim()} ` : ''}${t('recording.publish.atMoment', { time: mmss(at * 1000) })} `); setSaying(true); }} />
-      <SayRow said={said} needsNote={needsNote} text={text} hasVoice={!!hash} prior={props.n - 1} onPress={() => setSaying(true)} />
+      {props.making ? null : <SayRow said={said} needsNote={needsNote} text={text} hasVoice={!!hash} prior={props.n - 1} onPress={() => setSaying(true)} />}
       <Text style={styles.explain}>{t('recording.publish.explain', { version: title })}</Text>
       {props.answers.length > 0 || props.tied > 0 ? (
         <View style={{ gap: space.xs, paddingHorizontal: space.xs }}>

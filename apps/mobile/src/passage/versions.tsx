@@ -4,7 +4,7 @@
 // newest first, each to hear, open, or edit into a new draft (a published
 // version never changes), and the latest one asked for its next check. The
 // footer starts a new version from nothing. The record's history follows.
-import { commands, draftsBy, type DraftView, type Version } from '@langquest-next/core';
+import { commands, draftsBy, partsMedium, writtenText, type DraftView, type Version } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -19,7 +19,7 @@ import { cardDurations, sameCards } from '../recording/workspaceModel';
 import { mmss, totalMs } from '../simple/model';
 import { useClip } from '../simple/useClip';
 import { Text } from '../text';
-import { C, radius, space, target } from '../theme';
+import { C, radius, space, target, TINT } from '../theme';
 import { versionReviewsSummary } from './record';
 import { draftName, startedFrom } from './versionsModel';
 
@@ -37,7 +37,8 @@ export function VersionsPage(props: {
   const me = ctx.session.actorId;
   const mine = draftsBy(p, me);
   const durations = cardDurations(state, unitId);
-  const length = (hashes: readonly string[]) => t('recording.parts.groupSub', { count: hashes.length, length: mmss(totalMs(hashes.map((h) => durations.get(h)))) });
+  const length = (hashes: readonly string[]) => partsMedium(hashes) === 'writing' ? t('writing.publishSub', { count: hashes.length })
+    : t('recording.parts.groupSub', { count: hashes.length, length: mmss(totalMs(hashes.map((h) => durations.get(h)))) });
   const saved = (hlc: string) => {
     const w = when(hlc);
     return w === t('time.justNow') ? t('passage.versions.savedJustNow') : t('passage.versions.saved', { when: w });
@@ -85,7 +86,7 @@ export function VersionsPage(props: {
       {[...p.versions].reverse().map((ver) => (
         <VersionCard key={ver.takeId} ctx={ctx} v={v} ver={ver} latest={ver.takeId === p.latest?.takeId} length={length(ver.cardHashes)}
           canRecord={props.canRecord} {...(ver.takeId === p.latest?.takeId && props.ask ? { ask: props.ask } : {})}
-          onOpen={() => props.go('version_detail', { takeId: ver.takeId })} onEdit={() => props.go('workspace', { from: ver.takeId })} />
+          onOpen={() => props.go('version_detail', { takeId: ver.takeId })} onEdit={() => props.go('workspace', ver.medium === 'writing' ? { write: '1' } : { from: ver.takeId })} />
       ))}
       {props.history}
     </Screen>
@@ -114,23 +115,33 @@ function ItemCard(props: {
   ctx: Ctx; hashes: string[]; title: string; lines: string[]; badge?: string | undefined; trailing?: ReactNode;
   onOpen?: () => void; children?: ReactNode;
 }) {
-  const clip = useClip(props.ctx.language, props.hashes);
+  const written = partsMedium(props.hashes) === 'writing';
+  const clip = useClip(props.ctx.language, written ? [] : props.hashes);
+  // A written version shows its first words, and a pen where a recording has play (decision 93).
+  const words = written ? props.hashes.map((h) => writtenText(props.ctx.language.state!, h) ?? '').join(' ').trim() : '';
   const body = (
     <>
       <View style={styles.titleRow}>
         <Text style={styles.title} numberOfLines={1}>{props.title}</Text>
         {props.badge ? <Badge label={props.badge} tone="brand" /> : null}
       </View>
+      {words ? <Text style={txt.sm} numberOfLines={2}>{words}</Text> : null}
       {props.lines.map((l, i) => <Text key={i} style={txt.smMuted} numberOfLines={2}>{l}</Text>)}
     </>
   );
   return (
     <View style={styles.card}>
       <View style={styles.head}>
-        <Pressable onPress={clip.toggle} disabled={!clip.available} accessibilityRole="button" accessibilityLabel={clip.playing ? t('recording.recorder.pausePart', { part: props.title }) : t('recording.player.playTitle', { title: props.title })}
-          style={({ pressed }) => [styles.play, !clip.available && { opacity: 0.4 }, pressed && { opacity: 0.7 }]}>
-          <Ico name={clip.playing ? 'pause' : 'play'} size={20} color={C.primary} strokeWidth={2.6} fill={C.primary} />
-        </Pressable>
+        {written ? (
+          <View style={[styles.play, { backgroundColor: TINT.green }]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+            <Ico name="edit" size={20} color={TINT.greenText} />
+          </View>
+        ) : (
+          <Pressable onPress={clip.toggle} disabled={!clip.available} accessibilityRole="button" accessibilityLabel={clip.playing ? t('recording.recorder.pausePart', { part: props.title }) : t('recording.player.playTitle', { title: props.title })}
+            style={({ pressed }) => [styles.play, !clip.available && { opacity: 0.4 }, pressed && { opacity: 0.7 }]}>
+            <Ico name={clip.playing ? 'pause' : 'play'} size={20} color={C.primary} strokeWidth={2.6} fill={C.primary} />
+          </Pressable>
+        )}
         {props.onOpen ? (
           <Pressable onPress={props.onOpen} accessibilityRole="button" accessibilityLabel={t('passage.versions.open', { title: props.title })}
             style={({ pressed }) => [{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center' }, pressed && { opacity: 0.7 }]}>

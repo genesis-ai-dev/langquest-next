@@ -11,8 +11,8 @@ import { EarlierNote, EarlierSections, isEarlierSection } from '../breakup/earli
 import { Faces, PeopleLine } from '../checks/parts';
 import { checkName, stepTitle } from '../simple/adminModel';
 import {
-  CommandError, checkPeople, commands, draftsBy, feedbackIsMine, isCompleteState, keyTermLinksFor, questionsForKind, recordTimeline, reviewGrid,
-  type Commands, type EventSpec, type FlowStepStatus, type KindState, type KindStatus, type PassageNote, type QuestionSpec, type ReviewView
+  CommandError, checkPeople, commands, draftsBy, feedbackIsMine, isCompleteState, keyTermLinksFor, madeGrid, madeGroup, madeVersionOf, questionsForKind, recordTimeline, reviewGrid,
+  type Commands, type EventSpec, type FlowStepStatus, type KindDef, type KindState, type KindStatus, type MadeColumn, type Medium, type PassageNote, type QuestionSpec, type ReviewView
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -60,6 +60,9 @@ import { PersonAvatar, usePerson } from '../UserChip';
 import { BigVoice } from '../bigVoice';
 import { ClipPlayer } from '../clipPlayer';
 import { VoiceNote, voiceFor } from '../voiceNote';
+import { isMaking, leadMedium, otherMedium } from '../writing/model';
+import { MadeDetail as MadeDetailScreen, madeTitle } from '../writing/MadeDetail';
+import { WrittenReader, usePassageVerses } from '../writing/WrittenText';
 
 // ---- shared plumbing -----------------------------------------------------------------
 
@@ -263,7 +266,7 @@ export function PassageRecord(ctx: Ctx) {
   const onRowAction = (a: RowAction, k: KindStatus, step: FlowStepStatus, askedMe: boolean) => {
     const kind = v.kind(k.kindId);
     const request: Record<string, string> = askedMe && k.request ? { requestId: k.request.id } : {};
-    if (a.id === 'do') go(kind.produces ? 'back_translation' : 'review_capture', { kindId: k.kindId, ...request });
+    if (a.id === 'do') go(isMaking(kind) ? 'back_translation' : 'review_capture', { kindId: k.kindId, ...request });
     if (a.id === 'send') sendTo(k.kindId);
     if (a.id === 'ask') go('ask_someone', { what: 'review', kindId: k.kindId });
     if (a.id === 'log') go('add_record', { kindId: k.kindId });
@@ -275,7 +278,8 @@ export function PassageRecord(ctx: Ctx) {
       <KindActionRow key={k.kindId} ctx={ctx} v={v} status={k} step={step} can={can} isAuthor={isAuthor} first={first} compact={false}
         mine={mine} teamName={teamName} {...(target ? { sendTo: sendTargetLabel(target, ctx.name) } : {})}
         {...(fbKindIds.length && !fbKindIds.includes(k.kindId) ? { waitFor: fbNames } : {})}
-        onAction={onRowAction} onMore={() => setOpenStepId(step.step.id)} />
+        onAction={onRowAction} onMore={() => setOpenStepId(step.step.id)}
+        onOpenMade={(m) => (m.madeId ? go('made_detail', { madeId: m.madeId }) : go('version_detail', { takeId: m.takeId ?? '' }))} />
     );
   };
   const undoFromHistory = (departureId: string, type: string) => void perform(ctx, (c) => c.undoDeparture({ commandId: newId(), departureId }),
@@ -285,8 +289,10 @@ export function PassageRecord(ctx: Ctx) {
 
   // ---- the path ----
   const latestSeconds = p.latest ? clipSeconds(v.state, p.latest.cardHashes) : 0;
+  const lead = leadMedium(v.state);
+  const other = otherMedium(v.state);
   const pathInput: PathInput = {
-    p, kinds, me, name: ctx.name, when, due: dueText,
+    p, kinds, me, name: ctx.name, when, due: dueText, lead,
     study: study && study.steps.length > 0 ? { name: t('passage.page.studyGuideName', { pattern: study.guide.pattern }), total: study.steps.length, done: study.doneCount } : null,
     latestSeconds,
     askedName: (kindId) => {
@@ -319,18 +325,20 @@ export function PassageRecord(ctx: Ctx) {
     main = { label: t('passage.page.main.hearFeedback'), icon: 'listen', onPress: () => go('review_detail', { reviewId: feedbackReview.id }) };
   } else if (myCheck) {
     const kind = v.kind(myCheck.k.kindId);
-    main = { label: kind.produces ? t('passage.page.main.backTranslate') : t('passage.page.main.doCheck', { check: kindInSentence(kind.name) }), icon: kind.produces ? 'globe' : 'check',
-      onPress: () => go(kind.produces ? 'back_translation' : 'review_capture', { kindId: myCheck.k.kindId, ...(myCheck.k.request ? { requestId: myCheck.k.request.id } : {}) }) };
+    main = { label: doLabel(kind), icon: doIcon(kind),
+      onPress: () => go(isMaking(kind) ? 'back_translation' : 'review_capture', { kindId: myCheck.k.kindId, ...(myCheck.k.request ? { requestId: myCheck.k.request.id } : {}) }) };
   } else if (lit?.kind === 'study') {
     main = { label: t('passage.page.main.study'), icon: 'star', onPress: () => go('study_guide') };
+  } else if (lit?.kind === 'record' && can.record && lead === 'writing') {
+    main = { label: t('writing.path.write'), icon: 'edit', onPress: () => go('workspace', { write: '1' }) };
   } else if (lit?.kind === 'record' && can.record) {
     main = { label: myDraft ? t('passage.page.continueRecording') : t('passage.page.main.record'), icon: 'mic', onPress: recordOrPick };
   } else if (nextKind && can.ask) {
     main = { label: t('passage.page.askFor', { check: kindInSentence(v.kind(nextKind.kindId).name) }), icon: 'send', onPress: () => { setAskAfterPublish(false); setPage('ask'); } };
   } else if (openCheck) {
     const kind = v.kind(openCheck.kindId);
-    main = { label: kind.produces ? t('passage.page.main.backTranslate') : t('passage.page.main.doCheck', { check: kindInSentence(kind.name) }), icon: kind.produces ? 'globe' : 'check',
-      onPress: () => go(kind.produces ? 'back_translation' : 'review_capture', { kindId: openCheck.kindId }) };
+    main = { label: doLabel(kind), icon: doIcon(kind),
+      onPress: () => go(isMaking(kind) ? 'back_translation' : 'review_capture', { kindId: openCheck.kindId }) };
   }
 
   // An earlier section (decision 80) is kept to be heard, not worked on.
@@ -345,7 +353,7 @@ export function PassageRecord(ctx: Ctx) {
     if (st.kind === 'study') return () => go('study_guide');
     if (st.kind === 'record') {
       if (st.state === 'done' && p.latest) { const takeId = p.latest.takeId; return () => go('version_detail', { takeId }); }
-      return can.record ? () => go('workspace') : undefined;
+      return can.record ? () => go('workspace', lead === 'writing' ? { write: '1' } : {}) : undefined;
     }
     if (st.kind === 'publish') {
       if (st.state === 'done' && p.latest) { const takeId = p.latest.takeId; return () => go('version_detail', { takeId }); }
@@ -435,6 +443,13 @@ export function PassageRecord(ctx: Ctx) {
             <BigOption icon="mic" label={myDraft ? t('passage.page.continueRecording') : t('passage.else.newVersion')} sub={t('passage.else.newVersionSub')}
               onPress={recordOrPick} />
           ) : null}
+          {/* The other way the language allows (decisions.md 93): write it instead, or record it instead. */}
+          {can.record && other === 'writing' ? (
+            <BigOption icon="edit" label={t('writing.path.writeInstead')} sub={t('writing.path.writeInsteadSub')} onPress={() => go('workspace', { write: '1' })} />
+          ) : null}
+          {can.record && other === 'recording' ? (
+            <BigOption icon="mic" label={t('writing.path.recordInstead')} sub={t('writing.path.recordInsteadSub')} onPress={recordOrPick} />
+          ) : null}
           {lockedCheckpoint ? (
             <BigOption icon="lock" label={t('passage.else.movePast')} sub={t('passage.else.movePastSub', { step: stepName(kinds, lockedCheckpoint.step) })}
               onPress={() => setOverriding(lockedCheckpoint.step.id)} />
@@ -519,10 +534,11 @@ export function PassageRecord(ctx: Ctx) {
           <Row icon="sparkle" label={t('passage.page.openStudy')} onPress={() => go('study_guide')} last />
         </Disclosure>
       ) : null}
-      {p.versions.length > 0 && gridIds.length > 0 ? (
+      {p.versions.length > 0 && (gridIds.length > 0 || p.made.length > 0) ? (
         <Disclosure icon="chat" title={t('passage.page.reviewsByVersion')} summary={reviewsSummary(p)} {...ctx.details(`passage:${unitId}:${languageId}:reviews`)}>
           <ReviewGrid ctx={ctx} v={v} kindIds={gridIds}
-            onVersion={(takeId) => go('version_detail', { takeId })} onReview={(reviewId) => go('review_detail', { reviewId })} />
+            onVersion={(takeId) => go('version_detail', { takeId })} onReview={(reviewId) => go('review_detail', { reviewId })}
+            onMade={(madeId) => go('made_detail', { madeId })} />
         </Disclosure>
       ) : null}
       {timeline.length > 0 ? (
@@ -593,6 +609,17 @@ export function PassageRecord(ctx: Ctx) {
 }
 
 /** One of the ways forward on "Something else?": a big card row. */
+/** What doing a step is called: what it makes (decisions.md 93), back-translating, or doing the check. */
+function doLabel(kind: KindDef): string {
+  if (kind.makes) return kind.name;
+  return kind.produces ? t('passage.page.main.backTranslate') : t('passage.page.main.doCheck', { check: kindInSentence(kind.name) });
+}
+
+function doIcon(kind: KindDef): IconName {
+  if (kind.makes) return kind.makes.to === 'writing' ? 'edit' : 'mic';
+  return kind.produces ? 'globe' : 'check';
+}
+
 function BigOption(props: { icon: IconName; label: string; sub: string; onPress: () => void }) {
   return (
     <Group>
@@ -707,13 +734,17 @@ function KindActionRow(props: {
   sendTo?: string;
   onAction: (a: RowAction, k: KindStatus, step: FlowStepStatus, askedMe: boolean) => void;
   onMore: () => void;
+  /** Open what a making step made: the made thing, or the version it made (decision 93). */
+  onOpenMade?: (m: { madeId?: string; takeId?: string }) => void;
 }) {
   const { ctx, v, status, step } = props;
   const kind = v.kind(status.kindId);
+  // A making step that is done shows what it made, who made it, and opens it (decision 93).
+  const made = kind.makes && isCompleteState(status.state) ? madeByStep(v, status.kindId) : undefined;
   const me = ctx.session.actorId;
   const checkedBy = kind.produces ? v.kind(kind.produces.checkedBy).name : undefined;
   const acts = kindRowActions({ status, kind, step, can: props.can, isAuthor: props.isAuthor, me, mine: props.mine, ...(props.sendTo ? { sendTo: props.sendTo } : {}) });
-  const sub = kindRowSub({
+  const sub = made ? `${ctx.name(made.by)} · ${when(made.hlc)}` : kindRowSub({
     status, kind, step, me, name: ctx.name, mine: props.mine, teamName: props.teamName,
     ...(checkedBy ? { checkedBy } : {}), ...(props.waitFor ? { waitFor: props.waitFor } : {})
   });
@@ -724,13 +755,21 @@ function KindActionRow(props: {
   return (
     <View style={[styles.kindRow, !props.first && styles.topBorder]}>
       <View style={styles.rowCenter}>
-        <KindIcon kindId={status.kindId} size={40} />
+        <KindIcon kindId={status.kindId} size={40} {...(kind.makes ? { icon: doIcon(kind) } : {})} />
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={[txt.sm, { fontWeight: '700' }]}>{kind.name}</Text>
           {sub ? <Text style={[txt.xs, { marginTop: 2 }]}>{sub}</Text> : null}
         </View>
         <View accessibilityLabel={stateLabel(status.state)}><StateMark state={status.state} size={22} /></View>
       </View>
+      {made && props.onOpenMade && !props.compact ? (
+        <View style={styles.btnRow}>
+          <View style={{ flex: 1 }}>
+            <SmallBtn label={made.medium === 'writing' ? t('writing.review.read') : t('review.parts.listen')} tone="primary"
+              onPress={() => props.onOpenMade?.(made.madeId ? { madeId: made.madeId } : { takeId: made.takeId })} />
+          </View>
+        </View>
+      ) : null}
       {acts.actionable && props.compact && (acts.primary || others > 0) ? (
         <View style={styles.btnRow}>
           {acts.primary ? <View style={{ flex: 1 }}>{btn(acts.primary, props.waitFor ? 'plain' : 'primary')}</View> : null}
@@ -760,6 +799,14 @@ function KindActionRow(props: {
   );
 }
 
+/** The latest thing a making step made here: something beside a version, or a version it made (a final recording). */
+function madeByStep(v: PassageView, kindId: string): { madeId?: string; takeId?: string; by: string; hlc: string; medium: Medium } | undefined {
+  const m = [...v.p.made].reverse().find((x) => x.kindId === kindId);
+  const ver = [...v.p.versions].reverse().find((x) => x.madeByKindId === kindId);
+  if (ver && (!m || ver.hlc > m.hlc)) return { takeId: ver.takeId, by: ver.by, hlc: ver.hlc, medium: ver.medium };
+  return m ? { madeId: m.id, by: m.by, hlc: m.hlc, medium: m.medium } : undefined;
+}
+
 // ---- details (REC-8) ---------------------------------------------------------------
 
 function StudyRows(props: { ctx: Ctx; study: StudyProgress; onOpen: (stepId: string) => void }) {
@@ -773,9 +820,18 @@ function StudyRows(props: { ctx: Ctx; study: StudyProgress; onOpen: (stepId: str
 }
 
 /** Versions (rows, newest first) against kinds (columns): which versions have had which reviews. */
-function ReviewGrid(props: { ctx: Ctx; v: PassageView; kindIds: string[]; onVersion: (takeId: string) => void; onReview: (reviewId: string) => void }) {
-  const { v, kindIds } = props;
+function ReviewGrid(props: { ctx: Ctx; v: PassageView; kindIds: string[]; onVersion: (takeId: string) => void; onReview: (reviewId: string) => void; onMade: (madeId: string) => void }) {
+  const { v } = props;
   const [shown, setShown] = useState(GRID_STEP);
+  // Steps that make something are columns of what they made, a version they made among it (a final
+  // recording); what no step made (v2's) gets a column only where some exists (decision 93).
+  const made = madeGrid(v.p);
+  const makingIds = [...new Set([...props.kindIds.filter((id) => !!v.kind(id).makes), ...made.columns.flatMap((c) => (c.kindId ? [c.kindId] : []))])];
+  const madeColumns: MadeColumn[] = [
+    ...makingIds.map((id) => made.columns.find((c) => c.kindId === id) ?? { key: madeGroup({ kindId: id, medium: 'recording' }), kindId: id, medium: v.kind(id).makes?.to === 'writing' ? 'writing' as const : 'recording' as const }),
+    ...made.columns.filter((c) => !c.kindId)
+  ];
+  const kindIds = props.kindIds.filter((id) => !makingIds.includes(id));
   const rows = reviewGrid(v.p, kindIds);
   const kinds = v.p.steps.flatMap((st) => st.kinds);
   const skipped = new Set(kinds.filter((k) => k.state === 'skipped').map((k) => k.kindId));
@@ -791,6 +847,14 @@ function ReviewGrid(props: { ctx: Ctx; v: PassageView; kindIds: string[]; onVers
               <View key={id} style={styles.gridCol}>
                 <Ico name={kindIcon(id)} size={16} color={C.muted} />
                 <Text style={[txt.xs, { fontWeight: '600', textAlign: 'center' }]} numberOfLines={1}>{v.kind(id).name.split(' ')[0]}</Text>
+              </View>
+            ))}
+            {madeColumns.map((c) => (
+              <View key={c.key} style={styles.gridCol}>
+                <Ico name={c.medium === 'writing' ? 'edit' : 'mic'} size={16} color={TINT.greenText} />
+                <Text style={[txt.xs, { fontWeight: '600', textAlign: 'center', color: TINT.greenText }]} numberOfLines={1}>
+                  {(c.kindId ? v.kind(c.kindId).name : madeTitle(v, { medium: c.medium, ...(c.language ? { language: c.language } : {}) })).split(' ')[0]}
+                </Text>
               </View>
             ))}
           </View>
@@ -824,6 +888,32 @@ function ReviewGrid(props: { ctx: Ctx; v: PassageView; kindIds: string[]; onVers
                   </View>
                 );
               })}
+              {madeColumns.map((c) => {
+                const here = made.byVersion.get(row.version.takeId)?.get(c.key) ?? [];
+                const last = here.at(-1);
+                return (
+                  <View key={c.key} style={styles.gridCol}>
+                    {c.kindId && row.version.madeByKindId === c.kindId ? (
+                      <Pressable onPress={() => props.onVersion(row.version.takeId)} accessibilityRole="button"
+                        accessibilityLabel={t('passage.page.openVersion', { version: versionTitle(row.version.n) })}
+                        style={({ pressed }) => [styles.gridCell, pressed && { opacity: 0.6 }]}>
+                        <View style={[styles.producedMark, { backgroundColor: TINT.green }]}>
+                          <Ico name={row.version.medium === 'writing' ? 'edit' : 'mic'} size={14} color={TINT.greenText} />
+                        </View>
+                      </Pressable>
+                    ) : last ? (
+                      <Pressable onPress={() => props.onMade(last.id)} accessibilityRole="button"
+                        accessibilityLabel={t('writing.grid.cell', { what: c.kindId ? v.kind(c.kindId).name : madeTitle(v, last), version: versionTitle(row.version.n) })}
+                        style={({ pressed }) => [styles.gridCell, pressed && { opacity: 0.6 }]}>
+                        <View style={[styles.producedMark, { backgroundColor: TINT.green }]}>
+                          <Ico name={c.medium === 'writing' ? 'edit' : 'mic'} size={14} color={TINT.greenText} />
+                        </View>
+                        {here.length > 1 ? <View style={styles.countBadge}><Text style={[txt.xsStrong, { color: C.white }]}>{here.length}</Text></View> : null}
+                      </Pressable>
+                    ) : <View style={styles.gridEmpty} />}
+                  </View>
+                );
+              })}
             </View>
           ))}
         </View>
@@ -846,6 +936,12 @@ function ReviewGrid(props: { ctx: Ctx; v: PassageView; kindIds: string[]; onVers
             <Text style={txt.xs}>{t('passage.grid.kindRecorded', { kind: k.name })}</Text>
           </View>
         ))}
+        {madeColumns.length > 0 ? (
+          <View style={[styles.rowCenter, { gap: 4 }]}>
+            <Ico name="edit" size={14} color={TINT.greenText} />
+            <Text style={txt.xs}>{t('writing.madeThing')}</Text>
+          </View>
+        ) : null}
       </View>
     </View>
   );
@@ -871,6 +967,7 @@ function HistoryRow(props: { text: EntryText; when: string; last: boolean; trail
 export function VersionDetail(ctx: Ctx) {
   const v = usePassage(ctx);
   const guide = useStudyGuide(ctx, v?.unitId);
+  const verseKeys = usePassageVerses(ctx, v?.unitId ?? '', v?.languageId ?? '');
   if (!v) return <Missing ctx={ctx} id="version_detail" />;
   const { p, unitId, languageId } = v;
   const version = p.versions.find((x) => x.takeId === ctx.params['takeId']) ?? p.latest;
@@ -882,6 +979,8 @@ export function VersionDetail(ctx: Ctx) {
   const notes = p.notes.filter((n) => n.anchor.kind !== 'study' && (n.onTakeId === version.takeId || (n.anchor.kind === 'version' && n.anchor.takeId === version.takeId)));
   const key = (part: string) => `version:${unitId}:${languageId}:${version.takeId}:${part}`;
   const params = { unitId, languageId };
+  // What was made from this version, by steps or brought over (decision 93); it stays here, never out of date.
+  const made = p.made.filter((m) => madeVersionOf(p, m) === version.takeId);
   return (
     <Screen header={<Header title={title} crumbs={passageCrumbs(ctx, v, title)} sub={`${ctx.name(version.by)} · ${when(version.hlc)}`} onBack={ctx.back}
       action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'version', version.takeId, version.by, unitId)} />} />}>
@@ -900,15 +999,31 @@ export function VersionDetail(ctx: Ctx) {
         ))}
       </Card>
 
-      <SectionLabel label={t('passage.version.recording')} />
+      <SectionLabel label={version.medium === 'writing' ? t('writing.version.words') : t('passage.version.recording')} />
       <Authored ctx={ctx} by={version.by}>
-        <Card>
-          <PlayRow ctx={ctx} hashes={version.cardHashes} label={t('passage.journey.playVersion', { version: title })} sub={t('passage.journey.takes', { count: version.cardHashes.length })} />
-          {version.cardHashes.length > 1 ? version.cardHashes.map((h, i) => (
-            <PlayRow key={`${h}-${i}`} ctx={ctx} hashes={[h]} label={t('passage.version.take', { n: i + 1 })} />
-          )) : null}
-        </Card>
+        {version.medium === 'writing' ? (
+          // A written version reads verse by verse (decision 93).
+          <WrittenReader ctx={ctx} state={v.state} unitId={unitId} parts={version.cardHashes} verseKeys={verseKeys} />
+        ) : (
+          <Card>
+            <PlayRow ctx={ctx} hashes={version.cardHashes} label={t('passage.journey.playVersion', { version: title })} sub={t('passage.journey.takes', { count: version.cardHashes.length })} />
+            {version.cardHashes.length > 1 ? version.cardHashes.map((h, i) => (
+              <PlayRow key={`${h}-${i}`} ctx={ctx} hashes={[h]} label={t('passage.version.take', { n: i + 1 })} />
+            )) : null}
+          </Card>
+        )}
       </Authored>
+      {made.length > 0 ? (
+        <>
+          <SectionLabel label={t('writing.version.madeFromIt')} />
+          <Group>
+            {made.map((m, i) => (
+              <Row key={m.id} icon={m.medium === 'writing' ? 'edit' : 'mic'} label={madeTitle(v, m)} sub={`${ctx.name(m.by)} · ${when(m.hlc)}`}
+                onPress={() => ctx.go('made_detail', { ...params, madeId: m.id })} last={i === made.length - 1} />
+            ))}
+          </Group>
+        </>
+      ) : null}
       <UsedLine ctx={ctx} state={v.state} subject={{ takeId: version.takeId }} detailsKey={key('used')} />
 
       {terms.length > 0 || reviews.length > 0 || notes.length > 0 ? <SectionLabel label={t('passage.version.details')} /> : null}
@@ -956,6 +1071,12 @@ export function VersionDetail(ctx: Ctx) {
       ) : null}
     </Screen>
   );
+}
+
+// ---- made_detail (decision 93): something made from a version ------------------------------
+
+export function MadeDetail(ctx: Ctx) {
+  return <MadeDetailScreen {...ctx} />;
 }
 
 // ---- review_detail (REC-10) --------------------------------------------------------------

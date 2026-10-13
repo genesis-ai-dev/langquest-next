@@ -7,7 +7,7 @@
 import {
   checkHelps, checkHelpSpecs, checkPeople, checkPeopleSpecs, commands, deriveFlow, formatQuestionField, languageName, languagePeople, materialsFor,
   membershipsOf, questionsForKind, scopeCovers,
-  type CheckHelp, type EventSpec, type KindDef, type LanguageState, type OrgState, type QuestionSpec
+  type CheckHelp, type EventSpec, type KindDef, type LanguageState, type MakesSpec, type OrgState, type QuestionSpec
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useRef, useState } from 'react';
@@ -36,6 +36,8 @@ import { addRow, moveRow, removeRow, rowNumbers, rowsOf, setCheckpoint, setToget
 import { setChecksDraft, useChecksDraft } from '../checks/draft';
 import { PeopleLine } from '../checks/parts';
 import { newKindId, nextFieldId, referenceKindName } from './configModel';
+import { teamLanguage } from '../reference/languages';
+import { MakeStepSheet, MakesFields, MakingPresets } from '../writing/StepMaking';
 
 // ---- shared parts ------------------------------------------------------------------------
 
@@ -190,12 +192,23 @@ function CheckList(props: {
   );
 }
 
-/** Add a check: one the organization knows, or a new one by name. */
-function AddCheckSheet(props: { visible: boolean; kinds: KindDef[]; taken: string[]; onClose: () => void; onPick: (k: KindDef, isNew: boolean) => void }) {
+/** Add a check: one the organization knows, or a new one by name; with `making`, a step that makes something first (decisions.md 93). */
+function AddCheckSheet(props: {
+  visible: boolean; kinds: KindDef[]; taken: string[]; onClose: () => void; onPick: (k: KindDef, isNew: boolean) => void;
+  making?: { own: string; reference: string; onPick: (k: KindDef, makes: MakesSpec) => void; onOwn: () => void };
+}) {
   const [name, setName] = useState('');
-  const left = props.kinds.filter((k) => !props.taken.includes(k.id));
+  const left = props.kinds.filter((k) => !props.taken.includes(k.id) && !k.makes);
   return (
     <Sheet visible={props.visible} title={t('checks.addCheck')} onClose={props.onClose}>
+      {props.making ? (
+        <>
+          {/* The shipped back translation, when the language has it, stands for the said one (decision 93). */}
+          <MakingPresets taken={[...props.taken, ...props.kinds.map((k) => k.id), ...(props.taken.includes('bt') ? ['make-bt-said'] : [])]} own={props.making.own} reference={props.making.reference}
+            onPick={props.making.onPick} onOwn={props.making.onOwn} />
+          <SectionLabel label={t('writing.step.checkIt')} />
+        </>
+      ) : null}
       {left.length ? (
         <Group>
           {left.map((k, i) => (
@@ -241,12 +254,20 @@ function OwnChecks({ ctx }: { ctx: Ctx }) {
   const known = useMemo(() => (state ? deriveKinds(state) : []), [state]);
   const rows = useMemo(() => (state ? rowsOf(deriveFlow(state).steps) : []), [state]);
   const [adding, setAdding] = useState(false);
+  const [owning, setOwning] = useState(false);
   const [flows, setFlows] = useState(false);
   const canManage = ctx.session.can('manage_flows');
   if (!state) {
     return <Screen header={<Header title={t('checks.title')} onBack={ctx.back} />}><EmptyState icon="flow" title={t('common.loading')} /></Screen>;
   }
   const save = (next: CheckRow[], before: EventSpec[] = []) => void saveRows(ctx, next, t('checks.saved', { language }), before);
+  const reference = teamLanguage(ctx.org.state, state, languageId);
+  /** A step that makes something: its kind, what it makes, and its row (decisions.md 93). */
+  const addMaking = (k: KindDef, makes: MakesSpec) => {
+    const c = commands(state, indexesFor(state));
+    const define = state.reviewKinds[k.id] ? [] : c.defineKind({ commandId: Crypto.randomUUID(), kindId: k.id, name: k.name, description: k.description, usualReviewer: k.usualReviewer });
+    save(addRow(rows, k.id), [...define, ...c.setStepMakes({ commandId: Crypto.randomUUID(), kindId: k.id, makes })]);
+  };
   return (
     <Screen header={<Header title={t('checks.title')} sub={language} onBack={ctx.back} />}>
       {!canManage ? <Banner icon="lock" title={t('common.viewOnly')} body={t('config.flowEditor.viewOnlyBody')} /> : null}
@@ -267,6 +288,14 @@ function OwnChecks({ ctx }: { ctx: Ctx }) {
         const c = commands(state, indexesFor(state));
         const define = isNew ? c.defineKind({ commandId: Crypto.randomUUID(), kindId: k.id, name: k.name, description: k.description, usualReviewer: k.usualReviewer }) : [];
         save(addRow(rows, k.id), define);
+      }} making={{
+        own: language, reference,
+        onPick: (k, makes) => { setAdding(false); addMaking(k, makes); },
+        onOwn: () => { setAdding(false); setOwning(true); }
+      }} />
+      <MakeStepSheet visible={owning} own={language} reference={reference} onClose={() => setOwning(false)} onAdd={(name, makes) => {
+        setOwning(false);
+        addMaking({ id: newKindId(name, known.map((x) => x.id)), name, description: '', usualReviewer: '' }, makes);
       }} />
       <FlowsSheet ctx={ctx} visible={flows} kinds={known} language={language} onClose={() => setFlows(false)} onUse={(e, kinds) => {
         setFlows(false);
@@ -430,8 +459,44 @@ export function CheckEditor(ctx: Ctx) {
     .sort((a, b) => ctx.name(a).localeCompare(ctx.name(b)));
   const previous = i > 0 ? checkName(rows[i - 1]!.kindId, known) : '';
 
+  // A step that makes something (decisions.md 93): what it turns, into what, in which language, and the switch.
+  const kind = known.find((k) => k.id === kindId);
+  const makes = kind?.makes;
+  const reference = teamLanguage(org, state, languageId);
+  const setMakes = (next: MakesSpec) => {
+    const s = ctx.language.state;
+    if (!s) return;
+    const before = makes;
+    void ctx.act(commands(s, indexesFor(s)).setStepMakes({ commandId: Crypto.randomUUID(), kindId, makes: next }), t('checks.saved', { language }),
+      before ? () => { const now = ctx.language.state; return now ? commands(now, indexesFor(now)).setStepMakes({ commandId: Crypto.randomUUID(), kindId, makes: before }) : []; } : undefined)
+      .catch(() => {});
+  };
+  // A check may read what an earlier step made instead of the version (a spelling check of what was written down).
+  const makersBefore = rows.slice(0, i).map((r) => known.find((k) => k.id === r.kindId)).filter((k): k is KindDef => !!k?.makes);
+  const looksAt = kind?.looksAt ?? null;
+  const setLooksAt = (maker: string | null) => {
+    const s = ctx.language.state;
+    if (!s || maker === looksAt) return;
+    void ctx.act(commands(s, indexesFor(s)).setCheckLooksAt({ commandId: Crypto.randomUUID(), kindId, makerKindId: maker }), t('checks.saved', { language })).catch(() => {});
+  };
+
   return (
     <Screen header={<Header title={name} sub={t('checks.checkOf', { n: formatNumber(number), language })} onBack={ctx.back} />}>
+      {makes ? (
+        <>
+          <SectionLabel label={t('writing.step.whatItMakes')} />
+          <MakesFields makes={makes} own={language} reference={reference} onChange={setMakes} disabled={!mayFlows} />
+        </>
+      ) : makersBefore.length > 0 ? (
+        <>
+          <SectionLabel label={t('writing.step.reads')} />
+          <ChipRow>
+            <Chip label={t('writing.step.theVersion')} on={!looksAt} onPress={() => mayFlows && setLooksAt(null)} />
+            {makersBefore.map((m) => <Chip key={m.id} label={t('writing.step.whatMade', { step: m.name })} icon={m.makes!.to === 'writing' ? 'edit' : 'mic'}
+              on={looksAt === m.id} onPress={() => mayFlows && setLooksAt(m.id)} />)}
+          </ChipRow>
+        </>
+      ) : null}
       <SectionLabel label={t('checks.people')} />
       <Group>
         {people.map((id, j) => (

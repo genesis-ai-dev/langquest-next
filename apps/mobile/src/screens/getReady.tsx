@@ -13,8 +13,8 @@
 // question 1 alone, as "What to translate" from a ready language's page.
 import {
   commands, CUSTOM_FLOW, deriveFlow, keyTermsFor, languageName, languageProgress, materialsFor,
-  goesWith, isTemplateDoc, recommendedFor, subscriptionItemId, templateBooks,
-  type CollectionDoc, type EventSpec, type LibraryDoc, type SourceDoc
+  goesWith, isTemplateDoc, mediaAllowed, recommendedFor, subscriptionItemId, templateBooks,
+  type CollectionDoc, type EventSpec, type LibraryDoc, type MediaAllowed, type SourceDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState, type ReactNode } from 'react';
@@ -137,9 +137,25 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
   // Any work at all, published or not: a change of numbering moves it (decision 80).
   const worked = useMemo(() => Object.keys(state.recordings).length + Object.keys(state.takes).length > 0, [state]);
   const [warn, setWarn] = useState(false);
+  // What the team may make (decisions.md 93): recordings, writing or both, and which leads.
+  const allowed = mediaAllowed(state);
+  const [media, setMedia] = useState<MediaAllowed>(allowed);
+  const mediaChanged = media.recording !== allowed.recording || media.writing !== allowed.writing || media.first !== allowed.first;
+  const mediaSpecs = (): EventSpec[] => (mediaChanged ? commands(state, indexesFor(state)).setMediaAllowed({ commandId: Crypto.randomUUID(), ...media }) : []);
+  const toggleMedium = (m: 'recording' | 'writing') => setMedia((cur) => {
+    const next = { ...cur, [m]: !cur[m] };
+    if (!next.recording && !next.writing) return cur; // one of them, always
+    return { ...next, first: next[next.first] ? next.first : m === 'recording' ? 'writing' : 'recording' };
+  });
 
   async function answer(confirmed = false) {
     if (busy) return;
+    if (!changed && mediaChanged) {
+      if (!canUse) { ctx.toast(t('getReady.record.onlySetUp')); return; }
+      try { await ctx.act(mediaSpecs(), t('writing.setup.saved', { language: lang })); } catch { return; }
+      next();
+      return;
+    }
     if (!changed) { next(); return; }
     // A new numbering changes sections that may hold work: say so first (decision 80).
     if (tq.numberingChanged && worked && !confirmed) { setWarn(true); return; }
@@ -154,7 +170,7 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
         ? await lib.applySpecs(prev.itemId, { docHash: prev.docHash, ...(prev.books ? { books: prev.books } : {}) }).catch(() => null)
         : null;
       const use = await tq.resolve();
-      const specs = await lib.applySpecs(use.itemId, { docHash: use.docHash, ...(wanted ? { books: wanted } : {}), ...(use.unitPrefix ? { unitPrefix: use.unitPrefix } : {}) });
+      const specs = [...await lib.applySpecs(use.itemId, { docHash: use.docHash, ...(wanted ? { books: wanted } : {}), ...(use.unitPrefix ? { unitPrefix: use.unitPrefix } : {}) }), ...mediaSpecs()];
       try {
         await ctx.act(specs, t('getReady.record.saved', { language: lang, what: recordSummary(use.doc, wanted, use.doc.name) }), undo ? () => undo : undefined);
       } catch { setBusy(false); return; }
@@ -173,7 +189,7 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
         {!tq.last ? (
           tq.showContinue ? <PrimaryBtn label={t('common.next')} icon="right" disabled={!tq.canContinue} onPress={() => { tq.advance(); }} /> : null
         ) : (
-          <PrimaryBtn label={only ? (changed ? t('getReady.record.useThis') : t('getReady.record.keepIt')) : t('common.next')} icon={only ? 'check' : 'right'} busy={busy} disabled={!tq.ready && !only}
+          <PrimaryBtn label={only ? (changed || mediaChanged ? t('getReady.record.useThis') : t('getReady.record.keepIt')) : t('common.next')} icon={only ? 'check' : 'right'} busy={busy} disabled={!tq.ready && !only}
             onPress={() => void answer()} />
         )}
         {tq.page !== 'what' ? <QuietLinks items={[{ label: t('common.back'), icon: 'arrowL', onPress: () => { tq.retreat(); } }]} /> : null}
@@ -195,6 +211,27 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
                   onPress={() => setChosen(() => { const nextSet = new Set(books); if (nextSet.has(b.book)) nextSet.delete(b.book); else nextSet.add(b.book); return nextSet; })} />
               ))}
             </Pills>
+          ) : null}
+        </>
+      ) : null}
+      {tq.last ? (
+        <>
+          <SectionLabel label={t('writing.setup.how')} />
+          <Group>
+            <SwitchRow icon="mic" label={t('writing.setup.recordings')} sub={t('writing.setup.recordingsSub', { language: lang })} on={media.recording}
+              disabled={!canUse} onToggle={() => toggleMedium('recording')} />
+            <SwitchRow icon="edit" label={t('writing.setup.writing')} sub={t('writing.setup.writingSub', { language: lang })} on={media.writing}
+              disabled={!canUse} onToggle={() => toggleMedium('writing')} last />
+          </Group>
+          {media.recording && media.writing ? (
+            <>
+              <SectionLabel label={t('writing.setup.startWith')} />
+              <Pills>
+                <Chip label={t('writing.setup.recording')} icon="mic" on={media.first === 'recording'} onPress={() => setMedia((m) => ({ ...m, first: 'recording' }))} />
+                <Chip label={t('writing.setup.writingFirst')} icon="edit" on={media.first === 'writing'} onPress={() => setMedia((m) => ({ ...m, first: 'writing' }))} />
+              </Pills>
+              <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('writing.setup.otherOneTap')}</Text>
+            </>
           ) : null}
         </>
       ) : null}

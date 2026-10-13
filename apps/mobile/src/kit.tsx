@@ -695,11 +695,11 @@ export function StepMarks(props: { steps: { kinds: { kindId: string; state: Kind
   );
 }
 
-export function KindIcon(props: { kindId: string; size?: number }) {
+export function KindIcon(props: { kindId: string; size?: number; icon?: IconName }) {
   const size = props.size ?? 44;
   return (
     <View style={[styles.iconTile, { width: size, height: size }]}>
-      <Ico name={kindIcon(props.kindId)} size={Math.round(size * 0.5)} color={C.primary} />
+      <Ico name={props.icon ?? kindIcon(props.kindId)} size={Math.round(size * 0.5)} color={C.primary} />
     </View>
   );
 }

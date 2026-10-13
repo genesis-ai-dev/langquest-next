@@ -57,7 +57,7 @@ function StepRow(props: {
   const body = (
     <View style={lit ? styles.litCard : styles.plain}>
       <View style={styles.titleRow}>
-        <Ico name={STEP_ICON[step.kind]} size={20} color={step.state === 'done' ? C.dark : lit ? C.primary : C.muted} />
+        <Ico name={(step.written ? 'edit' : STEP_ICON[step.kind])} size={20} color={step.state === 'done' ? C.dark : lit ? C.primary : C.muted} />
         <Text style={[styles.stepTitle, step.state === 'todo' || step.state === 'passed' ? { color: C.muted } : null]}>{step.title}</Text>
       </View>
       <Text style={[txt.smMuted, { marginTop: 2 }]}>{step.sub}</Text>
