@@ -134,20 +134,27 @@
     return bodies.filter(b => b.el !== step && b.corners.some(c =>
       (c[0] - p[0]) * n[0] + (c[1] - p[1]) * n[1] + (c[2] - p[2]) * n[2] > limit)).map(b => b.el);
   }
-  function cull(...stepsInView) {
+  // Overview frames are huge (whole-path is 1920x1080 scaled 11.4). While the
+  // camera zooms, Safari can draw them at the zoom's far end and run out of
+  // memory. They are empty but for a caption, so show one only when the
+  // camera rests on it.
+  function cull(stepsInView, moving) {
     const out = new Set(stepsInView.flatMap(nearEye));
     stepsInView.forEach(s => out.delete(s));
-    bodies.forEach(b => { b.el.style.display = out.has(b.el) ? 'none' : ''; });
+    bodies.forEach(({ el }) => {
+      if (el.classList.contains('overview') && (moving || !stepsInView.includes(el))) out.add(el);
+      el.style.display = out.has(el) ? 'none' : '';
+    });
   }
-  document.addEventListener('impress:stepleave', e => cull(e.target, (e.detail && e.detail.next) || e.target));
-  document.addEventListener('impress:stepenter', e => cull(e.target));
-  addEventListener('resize', () => { const s = root.querySelector('.step.active'); if (s) cull(s); });
+  document.addEventListener('impress:stepleave', e => cull([e.target, (e.detail && e.detail.next) || e.target], true));
+  document.addEventListener('impress:stepenter', e => cull([e.target], false));
+  addEventListener('resize', () => { const s = root.querySelector('.step.active'); if (s) cull([s], false); });
 
   const api = impress();
   api.init();
   // The first goto (from the URL) moves the camera without a stepleave.
   const first = root.querySelector('.step.active');
-  if (first) cull(first);
+  if (first) cull([first], false);
 
   document.getElementById('prev').addEventListener('click', () => api.prev());
   document.getElementById('next').addEventListener('click', () => api.next());
