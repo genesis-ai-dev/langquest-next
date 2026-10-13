@@ -23,6 +23,8 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - '!apps/mobile/.eas/**'
+      # Web-only pages the Worker serves (privacy, languages, talks): never in a phone build.
+      - '!apps/mobile/public/**'
       - '!**/*.md'
 
 # Node 24, as on developer machines and in GitHub CI: its npm 11 wrote the

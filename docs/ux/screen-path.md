@@ -24,6 +24,9 @@ always a way back to a home.
 | Version | What changed, the takes | Play | Reviews of this version | Key terms, notes, report | Back to the passage |
 | Review | The outcome and the feedback | Record a fix (the author) | Keep it, say why (the author) | Answers, report | Back to the passage |
 | Study guide / step | The step's material | Done with this step (or Next step) | Record the first draft (last step) | Passage view, notes | Back to the passage |
+| What helps here (one passage) | The passage's text one tap away in a Bible you choose; each help with what it says here | Done | Show here / Hide here on each help (managers); Add a help (a note for translators first) | A key word in these verses | Back to the passage |
+| Note for translators | The passage's text, the verses chosen in grey | Save note | Whole passage; say it, or type it | The Bible chip | ✕ to What helps here |
+| Key word | Where it is in the passage, how other languages here say it | Tie to your draft (while drafting) | Add a rendering | Why it's rendered this way; where it's used | Back |
 
 ## Finding a passage
 

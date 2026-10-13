@@ -3,6 +3,8 @@
 // AppliedCatalogScreen for review flows, FlowStepsInline, FlowEditorScreen,
 // KindPickerSheet, ReferenceLibraryScreen, KeyTermsScreen, AddKeyTermSheet,
 // KeyTermDetailScreen, AdjustKeyTermSheet) and review.tsx MaterialEditorScreen,
+// with ADR-042's key word on a passage (its verses, how other languages say
+// it) and note for translators on verses (simple/helps.tsx),
 // with the working material editor from main (fields as registers, lock,
 // new material) in the new look. Review flows and reference material are
 // library items (docs/library.md): the organization's own, copies and
@@ -45,6 +47,11 @@ import { sourceText } from '../scripture';
 import { C, radius, space, TINT } from '../theme';
 import { VoiceNote } from '../voiceNote';
 import { CheckSteps } from '../simple/checks';
+import { BibleChip, bibleMissing, OthersSay, OwnWord, PassageNoteEditor, WhereItIs } from '../simple/helps';
+import { othersSay } from '../simple/helpsModel';
+import { bookOf } from '../simple/model';
+import { useBible } from '../simple/reference';
+import { useOtherLanguageTerms } from '../reference/otherLanguages';
 import { LanguageChecks } from './checks';
 import { SwitchRow } from '../simple/admin';
 import { flipSwitch, ROLE_SWITCHES, stepTitle, stepWho, switchState } from '../simple/adminModel';
@@ -952,8 +959,14 @@ function normalizedQuestion(raw: string): string {
   return storedQuestion({ text, type, required });
 }
 
-/** One screen, two kinds of material: the library's (`itemId`) and the organization's own in the app (`materialId`, or new). */
+/**
+ * One screen, three kinds of material: the library's (`itemId`), the
+ * organization's own in the app (`materialId`, or new), and a note for
+ * translators on one passage's verses, written under its text (`unitId`
+ * with `note`, from What helps here; demo ADR-042).
+ */
 export function MaterialEditor(ctx: Ctx) {
+  if (ctx.params['note'] && ctx.params['unitId']) return <PassageNoteEditor ctx={ctx} />;
   return ctx.params['itemId'] ? <LibraryMaterialEditor ctx={ctx} /> : <AppMaterialEditor ctx={ctx} />;
 }
 
@@ -1566,6 +1579,11 @@ export function KeyTermDetail(ctx: Ctx) {
   const [usedShown, setUsedShown] = useState(STEP);
   const why = ctx.details(`term:${termId}:why`);
   const used = ctx.details(`term:${termId}:used`);
+  // Opened on a passage: the word in its verses, in a Bible you choose, and how the
+  // organization's other languages say it, before this language's own (demo ADR-042).
+  const bible = useBible(ctx, passage ? passage.unitId : null, languageId, {});
+  const others = useOtherLanguageTerms(ctx, !!term);
+  const say = useMemo(() => (term ? othersSay(others.languages, term) : []), [others.languages, term]);
 
   if (!state || !term) {
     return <Screen header={<Header title={t('config.keyTerm.title')} onBack={ctx.back} />}><EmptyState icon="book" title={state ? t('config.keyTerm.gone') : t('common.loading')} /></Screen>;
@@ -1610,12 +1628,19 @@ export function KeyTermDetail(ctx: Ctx) {
   }
 
   const scopeTitles = term.unitScope.map((u) => unitTitle(state, u));
+  const voice = [...term.adjustments].reverse().find((a) => a.blobHash)?.blobHash;
   return (
     <Screen header={<Header title={term.term} sub={isFiaTerm(term) ? t('config.keyTerm.fiaSub', { language }) : t('config.keyTerm.sub', { language })} onBack={ctx.back} />}>
       <Card style={{ backgroundColor: C.light }}>
         <Text style={txt.body}>{term.gloss || t('config.keyTerm.noMeaning')}</Text>
         <Text style={[txt.xsStrong, { color: C.primary }]}>{scopeTitles.length ? t('config.keyTerm.appearsIn', { places: listOf(scopeTitles) }) : t('config.keyTerm.everyPassage')}</Text>
       </Card>
+
+      {passageLabel ? (
+        <WhereItIs rows={bible.rows} book={bookOf(passageLabel)} word={term.term} bibleName={bible.option?.abbreviation ?? ''} missing={bibleMissing(bible)}
+          chip={<BibleChip ctx={ctx} bible={bible} />} />
+      ) : null}
+      <OthersSay ctx={ctx} items={say} loading={others.loading} word={term.term} />
 
       {canTie ? (
         <Card onPress={isLinked ? undefined : () => void tie()} accessibilityLabel={isLinked ? t('config.keyTerm.tiedToDraft') : t('config.keyTerm.tieToDraft')}
@@ -1635,13 +1660,15 @@ export function KeyTermDetail(ctx: Ctx) {
       ) : null}
 
       <SectionLabel label={t('config.keyTerm.inLanguage', { language })} />
-      {term.renderings.length === 0 ? (
+      {term.renderings.length === 0 && !voice ? (
         <Card onPress={canEdit ? () => setAdjusting(true) : undefined} style={{ backgroundColor: TINT.amber, borderStyle: 'dashed', borderWidth: 1.5, borderColor: `${C.amber}99` }}>
           <Text style={[txt.body, { fontWeight: '700', color: TINT.amberText }]}>{t('config.keyTerm.noRendering')}</Text>
           <Text style={[txt.sm, { color: TINT.amberText }]}>{t('config.keyTerm.addHow', { language })}</Text>
         </Card>
       ) : (
         <Group>
+          {/* The word as the team said it (the recorder's Say yours), when it was said. */}
+          {voice ? <View style={term.renderings.length > 0 ? styles.rowBorder : null}><OwnWord ctx={ctx} hash={voice} term={term.term} /></View> : null}
           {term.renderings.map((r, i) => (
             <View key={r.renderingId} style={[styles.rendering, i < term.renderings.length - 1 && styles.rowBorder]}>
               <Text style={[txt.h3, { color: C.primary }]}>{r.rendering}</Text>

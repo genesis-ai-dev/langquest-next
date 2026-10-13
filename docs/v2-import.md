@@ -1,6 +1,6 @@
 # Bringing LangQuest v2 into this app, and keeping it coming
 
-Status: accepted, 2026-10-12 (Caleb Koster), decision 93. Caleb chose 1a–4a,
+Status: accepted, 2026-10-12 (Caleb Koster), decision 94. Caleb chose 1a–4a,
 6a and 7a; written work (5) waits on written translations in Next.
 
 LangQuest v2 keeps running while people move to this app. Everything a v2

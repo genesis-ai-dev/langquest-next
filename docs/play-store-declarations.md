@@ -84,7 +84,7 @@ Expected rating: about Teen / 12+ with "Users Interact".
 | --- | --- |
 | Collects or shares required data types | Yes |
 | Encrypted in transit | Yes: Supabase, the app's Cloudflare Worker (reports, decisions.md 44; recordings and guide media, kept in Cloudflare R2, decisions.md 69), Bible text and audio (Bible Brain's CDN, OpenBible) over HTTPS; no cleartext allowed |
-| Account creation | Username, password and other authentication: an email and password (someone with a LangQuest v2 account signs in with that account's email and password, which our server checks with LangQuest v2, our own app, once; decisions.md 93); or, for someone joining by invite with no email, the invite itself (a one-time QR code) makes the account, and they get back in with a one-time code from someone who can invite them, or with their sign-in name and a password if they set one (docs/invites-and-accounts.md, decisions.md 59); no OAuth |
+| Account creation | Username, password and other authentication: an email and password (someone with a LangQuest v2 account signs in with that account's email and password, which our server checks with LangQuest v2, our own app, once; decisions.md 94); or, for someone joining by invite with no email, the invite itself (a one-time QR code) makes the account, and they get back in with a one-time code from someone who can invite them, or with their sign-in name and a password if they set one (docs/invites-and-accounts.md, decisions.md 59); no OAuth |
 | Account deletion URL | https://next.langquest.org/delete-account |
 | Delete some data without deleting the account | No. Account data is deleted with the account; an organization's work belongs to it, and requests about it go to its admins |
 

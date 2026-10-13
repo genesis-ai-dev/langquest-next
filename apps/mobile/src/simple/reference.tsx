@@ -4,7 +4,7 @@
 // Bible (play, Back 10 s, a Bible picker, the verses with the one playing
 // lit, a note on a verse or a moment), key words (hear each, your word or
 // say yours, add a word), notes, and everything recorded so far.
-import { commands, keyTermView, type KeyTermView, type PassageNote } from '@langquest-next/core';
+import { commands, keyTermsFor, keyTermView, type KeyTermView, type PassageNote } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -30,7 +30,10 @@ import { useChipMarks, usePassageSource, useSources } from '../sources/useSource
 import { saveNote } from '../study/ui';
 import { C, radius, space, target, TINT, type as T } from '../theme';
 import { VoiceNote } from '../voiceNote';
-import { languageLabel } from './adminModel';
+import { joinAnd, languageLabel } from './adminModel';
+import { OthersSay, WhereItIs, WordChip } from './helps';
+import { keyLabel, keyTouches, othersSay, suggestedWords, type WordSuggestion } from './helpsModel';
+import { useOtherLanguageTerms } from '../reference/otherLanguages';
 import { bookOf, mmss, passageClock, verseRefs } from './model';
 import { Back10, DashedBtn, MiniPlayer, PlayBtn, PlayRow, styles as ps } from './parts';
 import { useClip } from './useClip';
@@ -113,7 +116,9 @@ export function BiblePane(props: {
   const [picking, setPicking] = useState(false);
   const [noting, setNoting] = useState<{ verse?: string; at?: string } | null>(null);
   const verseNotes = useMemo(() => v.p.notes.filter((n) => n.anchor.kind === 'verse'), [v.p.notes]);
-  const count = (key: string) => verseNotes.filter((n) => n.anchor.kind === 'verse' && n.anchor.verse === key).length;
+  // A note on a run of verses (demo ADR-042) is on each verse of the run.
+  const on = (n: PassageNote, row: VerseRow) => n.anchor.kind === 'verse' && (n.anchor.verse === row.key || keyTouches(n.anchor.verse, row));
+  const count = (row: VerseRow) => verseNotes.filter((n) => on(n, row)).length;
   const abbr = option?.abbreviation ?? '';
   const many = bible.passage.options.length > 1;
   const note = () => {
@@ -128,6 +133,7 @@ export function BiblePane(props: {
     if (bible.timed) player.playFrom(row);
   };
   const terms = props.terms ?? [];
+  const selectedRow = props.selected ? src?.rows?.find((r) => r.key === props.selected) ?? null : null;
   return (
     <View style={{ gap: space.md }}>
       {props.header}
@@ -146,7 +152,7 @@ export function BiblePane(props: {
           {src.rows.map((row) => {
             const here = player.started && player.current?.key === row.key;
             const sel = props.selected === row.key;
-            const n = count(row.key);
+            const n = count(row);
             return (
               <Verse key={row.key} row={row} here={here} selected={sel} notes={n} onPress={() => tap(row)} timed={bible.timed}>
                 {markTerms(row.text, terms).map((part, i) => {
@@ -166,7 +172,7 @@ export function BiblePane(props: {
       ) : (
         <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{!option ? (bible.passage.loading ? t('common.loading') : t('sources.reader.noBible')) : src?.loading || !src ? t('common.loading') : src.textProblem}</Text>
       )}
-      {props.selected ? <VerseNotes ctx={ctx} notes={verseNotes.filter((n) => n.anchor.kind === 'verse' && n.anchor.verse === props.selected)} /> : null}
+      {selectedRow ? <VerseNotes ctx={ctx} notes={verseNotes.filter((n) => on(n, selectedRow))} /> : null}
       {option && src ? (
         <View style={{ gap: 2, paddingHorizontal: space.xs }}>
           {option.kind === 'builtin' ? <Text style={txt.xs}>{t('sources.reader.builtIn')}</Text>
@@ -223,7 +229,8 @@ function BiblePick(props: { label: string; onPress: () => void }) {
   );
 }
 
-function BibleSheet(props: { ctx: Ctx; bible: Bible; onClose: () => void; onMoreBibles?: () => void }) {
+/** Choose a Bible for the passage: the ones offered here, with what each has. */
+export function BibleSheet(props: { ctx: Ctx; bible: Bible; onClose: () => void; onMoreBibles?: () => void }) {
   const { bible } = props;
   const marks = useChipMarks(props.ctx, bible.passage);
   return (
@@ -288,6 +295,8 @@ function voiceOf(term: KeyTermView): string | undefined {
 export function KeyWordsPane(props: {
   ctx: Ctx; v: PassageView; terms: KeyTermView[]; rows: VerseRow[] | null; draftTakeId: string | undefined;
   canTie: boolean; onHear: (verseKey: string | null) => void; allTerms?: () => void; disabled?: boolean;
+  /** The Bible the verses are in ("WEB"), for Add a key word's verses. */
+  bibleName?: string;
 }) {
   const { ctx, v } = props;
   const canEdit = ctx.session.can('fill_reference') || ctx.session.can('manage_reference');
@@ -314,7 +323,7 @@ export function KeyWordsPane(props: {
       {canEdit ? <DashedBtn label={t('reference.keyWords.add')} onPress={() => setAdding(true)} disabled={props.disabled} hint={t('reference.keyWords.addHint')} /> : null}
       {props.allTerms ? <LinkBtn label={t('reference.keyWords.all')} style={{ alignSelf: 'center' }} onPress={props.allTerms} /> : null}
       {saying ? <SayYoursSheet ctx={ctx} v={v} term={saying} draftTakeId={props.draftTakeId} canTie={props.canTie} onClose={() => setSaying(null)} /> : null}
-      {adding ? <AddWordSheet ctx={ctx} v={v} draftTakeId={props.draftTakeId} onClose={() => setAdding(false)} /> : null}
+      {adding ? <AddWordSheet ctx={ctx} v={v} draftTakeId={props.draftTakeId} rows={props.rows} bibleName={props.bibleName ?? ''} onClose={() => setAdding(false)} /> : null}
     </View>
   );
 }
@@ -403,14 +412,30 @@ function SayYoursSheet(props: { ctx: Ctx; v: PassageView; term: KeyTermView; dra
   );
 }
 
-function AddWordSheet(props: { ctx: Ctx; v: PassageView; draftTakeId: string | undefined; onClose: () => void }) {
+/**
+ * Add a key word (TERM-6; demo ADR-042 `KeyWord`): the word, with what the
+ * organization's other languages already use in these verses offered first
+ * (principle 14); then where it is in the passage, marked, and how other
+ * languages say it, before saying or typing this language's own. A word
+ * taken from another language keeps that language's id, so the two stay
+ * one key term.
+ */
+function AddWordSheet(props: { ctx: Ctx; v: PassageView; draftTakeId: string | undefined; rows: VerseRow[] | null; bibleName: string; onClose: () => void }) {
   const { ctx, v } = props;
   const [term, setTerm] = useState('');
   const [gloss, setGloss] = useState('');
   const [hash, setHash] = useState<string | null>(null);
   const [rendering, setRendering] = useState('');
   const [busy, setBusy] = useState(false);
-  const ready = !!term.trim() && (!!hash || !!rendering.trim());
+  const [taken, setTaken] = useState<WordSuggestion | null>(null);
+  const others = useOtherLanguageTerms(ctx, true);
+  const own = useMemo(() => (ctx.language.state ? keyTermsFor(ctx.language.state) : []), [ctx.language.state]);
+  const suggestions = useMemo(() => suggestedWords(others.languages, props.rows, own).slice(0, 6), [others.languages, props.rows, own]);
+  const word = term.trim();
+  // A word taken from another language and not changed since.
+  const from = taken && taken.term.toLowerCase() === word.toLowerCase() ? taken : null;
+  const say = useMemo(() => (word.length > 1 ? othersSay(others.languages, { termId: from?.termId ?? '', term: word }) : []), [others.languages, word, from?.termId]);
+  const ready = !!word && (!!hash || !!rendering.trim());
   async function save() {
     const state = ctx.language.state;
     if (!state || busy || !ready) return;
@@ -420,11 +445,11 @@ function AddWordSheet(props: { ctx: Ctx; v: PassageView; draftTakeId: string | u
     try {
       // TERM-6: the word, how the language says it (said, typed or both), recorded as its first adjustment.
       await ctx.act(commands(state, indexesFor(state)).defineKeyTerm({
-        commandId: Crypto.randomUUID(), termId: `kt-${Crypto.randomUUID()}`, term, gloss, unitScope: [book],
+        commandId: Crypto.randomUUID(), termId: from?.termId ?? `kt-${Crypto.randomUUID()}`, term, gloss, unitScope: [book],
         // i18n-ignore: the term's first note is stored in the event log
         rendering, note: rendering.trim() ? `First rendering: ${rendering.trim()}.` : 'Said in a voice note.',
         ...(hash ? { blobHash: hash } : {}), ...(duringTakeId ? { duringTakeId } : {})
-      }), t('reference.keyWords.added', { term: term.trim() }));
+      }), t('reference.keyWords.added', { term: word }));
       props.onClose();
     } catch { /* ctx.act said what went wrong */ }
     finally { setBusy(false); }
@@ -432,8 +457,25 @@ function AddWordSheet(props: { ctx: Ctx; v: PassageView; draftTakeId: string | u
   return (
     <Sheet visible title={t('reference.keyWords.add')} sub={t('reference.keyWords.addSub', { language: v.language })}
       onClose={props.onClose} footer={<PrimaryBtn label={t('reference.keyWords.addWord')} icon="plus" busy={busy} disabled={!ready} onPress={() => void save()} />}>
+      {suggestions.length && !word ? (
+        <View style={{ gap: space.xs }}>
+          <Text style={txt.xsStrong}>{t('keyTerms.others.suggest')}</Text>
+          <View style={styles.wordRow}>
+            {suggestions.map((x) => (
+              <WordChip key={x.termId} label={x.term} help={t('keyTerms.others.suggestHelp', { languages: joinAnd(x.languages) })}
+                onPress={() => { setTerm(x.term); setGloss(x.gloss); setTaken(x); }} />
+            ))}
+          </View>
+        </View>
+      ) : null}
       <Field value={term} onChangeText={setTerm} placeholder={t('reference.keyWords.wordPlaceholder')} />
       <Field value={gloss} onChangeText={setGloss} placeholder={t('reference.keyWords.meaningPlaceholder')} autoCapitalize="sentences" />
+      {word.length > 1 ? (
+        <>
+          <WhereItIs rows={props.rows} book={bookOf(v.title)} word={word} bibleName={props.bibleName} missing={t('common.loading')} max={3} />
+          <OthersSay ctx={ctx} items={say} loading={others.loading} word={word} />
+        </>
+      ) : null}
       <VoiceNote ctx={ctx} label={t('reference.keyWords.sayItIn', { language: v.language })} hash={hash} onChange={setHash} />
       <Field value={rendering} onChangeText={setRendering} placeholder={t('common.orTypeIt')} />
     </Sheet>
@@ -450,7 +492,7 @@ export function noteLabel(ctx: Ctx, n: PassageNote, versionN?: (takeId: string) 
     switch (n.anchor.kind) {
       case 'passage': return null;
       case 'verse': {
-        const verse = n.anchor.verse.includes(':') ? n.anchor.verse.slice(n.anchor.verse.indexOf(':') + 1) : n.anchor.verse;
+        const verse = keyLabel(n.anchor.verse.includes(':') ? n.anchor.verse.slice(n.anchor.verse.indexOf(':') + 1) : n.anchor.verse);
         return { on: t('reference.notes.onVerse', { verse }), note: t('reference.notes.noteOnVerse', { verse }) };
       }
       case 'version': {
@@ -586,7 +628,7 @@ export function EarlierPane(props: { ctx: Ctx; v: PassageView; focusReviewId?: s
     }
     for (const n of v.p.notes) {
       if (!n.blobHash || n.anchor.kind === 'study' || (n.anchor.kind === 'version' && n.anchor.role === 'change')) continue;
-      const verse = n.anchor.kind === 'verse' ? n.anchor.verse.slice(n.anchor.verse.indexOf(':') + 1) : null;
+      const verse = n.anchor.kind === 'verse' ? keyLabel(n.anchor.verse.slice(n.anchor.verse.indexOf(':') + 1)) : null;
       const title = n.by === me
         ? (verse ? t('reference.earlier.yourNoteOnVerse', { verse }) : t('reference.earlier.yourNote'))
         : (verse ? t('reference.earlier.theirNoteOnVerse', { name: ctx.name(n.by), verse }) : t('reference.earlier.theirNote', { name: ctx.name(n.by) }));
@@ -650,5 +692,6 @@ const styles = StyleSheet.create({
   noteText: { fontSize: T.base, lineHeight: 25, color: C.dark },
   where: { backgroundColor: C.card, borderLeftWidth: 3, borderColor: C.primary, borderRadius: radius.md, paddingHorizontal: space.md, paddingVertical: space.sm },
   focus: { backgroundColor: TINT.amber },
+  wordRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   earlierText: { paddingLeft: 68, paddingRight: space.lg, paddingBottom: space.md, marginTop: -space.sm }
 });

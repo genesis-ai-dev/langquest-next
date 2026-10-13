@@ -1685,12 +1685,10 @@
       "linedUp": "O LangQuest alinha os versículos um por um. Não precisa fazer nada, a não ser que algo pareça errado.",
       "psalm": "Salmo {{place}}"
     },
-    "others": {
-      "intro_one": "O FIA não tem passagens para {{count, number}} livro ({{books}}). Esse livro:",
-      "intro_many": "O FIA não tem passagens para {{count, number}} de livros ({{books}}). Esses livros:",
-      "intro_other": "O FIA não tem passagens para {{count, number}} livros ({{books}}). Esses livros:",
-      "byChapter": "por capítulo",
-      "wait": "esperam ser divididos"
+    "leftOut": {
+      "wait_one": "{{books}} espera ser dividido. Você pode dividi-lo pelo mapa mais tarde.",
+      "wait_many": "{{books}} esperam ser divididos. Você pode dividi-los pelo mapa mais tarde.",
+      "wait_other": "{{books}} esperam ser divididos. Você pode dividi-los pelo mapa mais tarde."
     },
     "book": {
       "breakDifferently": "Dividir de outro jeito",
@@ -1701,9 +1699,6 @@
       "calledIn": "Chamado {{name}} em {{language}}",
       "templateCalls": "O modelo o chama de {{name}}",
       "tapToName": "Toque para dar o nome que a equipe usa",
-      "whatCalled": "Como {{language}} o chama",
-      "namingSub": "Aparece em todo lugar em que este idioma mostra o livro.",
-      "nameLabel": "Nome",
       "brokenUpByChapter": "{{book}} está dividido por capítulo.",
       "brokenUpInto": "{{book}} está dividido em {{way}}.",
       "change": "Mudar {{book}}",
@@ -1718,6 +1713,15 @@
       "alsoUsedMore_one": "Também usado em {{name}} e mais {{count, number}}. Mudar {{book}} em qual deles?",
       "alsoUsedMore_many": "Também usado em {{name}} e mais {{count, number}}. Mudar {{book}} em qual deles?",
       "alsoUsedMore_other": "Também usado em {{name}} e mais {{count, number}}. Mudar {{book}} em qual deles?"
+    },
+    "bookName": {
+      "title": "Como {{language}} chama {{book}}",
+      "sub": "Os tradutores veem este nome",
+      "typeOrTap": "Digite ou toque em um abaixo",
+      "fromBibles": "Como as Bíblias da equipe o chamam",
+      "fromLanguages": "Como outros idiomas daqui o chamam",
+      "use": "Usar",
+      "useLabel": "Usar {{name}} ({{from}})"
     },
     "translate": {
       "question": "O que {{language}} vai traduzir?",
@@ -1870,6 +1874,82 @@
         "hebrew": "Hebraico",
         "korean": "Coreano"
       }
+    },
+    "own": {
+      "title": "Divida do seu jeito",
+      "sub": "Leia {{book}} e escolha onde cada seção começa",
+      "orReadyMade": "Ou escolha uma forma pronta",
+      "helps": "Ajudas",
+      "noBibleChip": "Sem Bíblia",
+      "chapterChip": "Capítulo {{n}}",
+      "key": "As linhas tracejadas mostram onde outras Bíblias começam uma seção ({{total}} Bíblias em inglês, do OpenBible.info). Toque em uma para começar uma seção ali, ou toque em qualquer versículo.",
+      "loadingText": "Carregando o texto de {{book}}…",
+      "noText": "As Bíblias da equipe não têm o texto de {{book}}, então os versículos aparecem como números.",
+      "chapterHead": "Capítulo {{n}}",
+      "goesOn": "· a seção {{n}} continua",
+      "verseLabel": "Versículo {{at}}",
+      "alsoBibles": "{{n}} de {{total}} Bíblias começam uma aqui",
+      "bibles": "{{n}} de {{total}} Bíblias",
+      "startAt": "começam uma seção aqui",
+      "startPill": "Começar aqui",
+      "suggestionLabel": "Começar uma seção em {{at}}. {{bibles}} começam uma aqui.",
+      "bookStarts": "O livro começa aqui",
+      "joinWith": "Juntar com a seção {{n}}",
+      "startHere": "Começar uma seção aqui",
+      "undo": "Desfazer",
+      "startFrom": "Começar de uma forma pronta",
+      "started": "A seção {{n}} começa em {{at}}",
+      "joined": "Juntada com a seção {{n}}",
+      "usedOutline": "As seções começam onde começam as partes do esboço",
+      "saved": "{{book}} está dividido. A equipe já pode gravá-lo.",
+      "bibleTitle": "Ler {{book}} em",
+      "bibleSub": "Só as palavras mudam. Suas seções ficam onde estão.",
+      "teamBible": "{{language}} · a Bíblia da equipe",
+      "jumpTitle": "Ir para um capítulo",
+      "jumpSub": "Quantas seções começam em cada um",
+      "fromTitle": "Formas prontas",
+      "fromSub": "Substitui as seções de {{book}}. Desfazer as traz de volta.",
+      "startedFrom": "{{book}} agora parte de {{way}}",
+      "sectionTitle": "Seção {{n}}",
+      "nameLabel": "O nome dela (opcional)",
+      "namePlaceholder": "Como a equipe a chama",
+      "joinSub": "Os versículos desta seção vão para a anterior",
+      "firstCantJoin": "A primeira seção não pode ser juntada",
+      "leaveTitle": "Sair sem salvar?",
+      "leaveSub": "Suas seções de {{book}} ainda não foram salvas.",
+      "leaveAnyway": "Sair sem salvar",
+      "helpsTitle": "Ajudas para {{book}}",
+      "closeHelps": "Fechar ajudas",
+      "tabOutline": "Esboço",
+      "tabNotes": "Notas {{n}}",
+      "tabGuides": "Guias",
+      "outlineFrom": "De {{from}}",
+      "useOutline": "Começar seções onde estas partes começam",
+      "noOutline": "Nenhum guia divide {{book}} em partes.",
+      "noteOn": "{{name}} · sobre {{where}}",
+      "showInText": "Mostrar no texto",
+      "noNotes": "Ainda não há notas sobre {{book}}.",
+      "allOf": "Todo {{book}}",
+      "nothingFor": "Nada para {{book}}",
+      "noHelps": "Ainda não há guias nem notas oferecidos para {{book}}.",
+      "headerSub_one": "Do seu jeito · {{count, number}} seção",
+      "headerSub_other": "Do seu jeito · {{count, number}} seções",
+      "headerSub_many": "Do seu jeito · {{count, number}} seções",
+      "verses_one": "{{count, number}} versículo",
+      "verses_other": "{{count, number}} versículos",
+      "verses_many": "{{count, number}} versículos",
+      "save_one": "Salvar · {{count, number}} seção",
+      "save_other": "Salvar · {{count, number}} seções",
+      "save_many": "Salvar · {{count, number}} seções",
+      "jumpLabel_one": "Capítulo {{chapter}}: {{count, number}} seção começa aqui",
+      "jumpLabel_other": "Capítulo {{chapter}}: {{count, number}} seções começam aqui",
+      "jumpLabel_many": "Capítulo {{chapter}}: {{count, number}} seções começam aqui",
+      "sections_one": "{{count, number}} seção",
+      "sections_other": "{{count, number}} seções",
+      "sections_many": "{{count, number}} seções",
+      "partsIn_one": "{{count, number}} parte em {{book}}",
+      "partsIn_other": "{{count, number}} partes em {{book}}",
+      "partsIn_many": "{{count, number}} partes em {{book}}"
     }
   },
   "canon": {
@@ -2782,7 +2862,8 @@
       "reportedContent": "Alguém denunciou isto por {{reasons}}. Foi feito por {{name}}. Dê uma olhada e depois remova da ficha ou mantenha.",
       "reportsAnonymous": "As denúncias nunca dizem quem as enviou. A equipe do LangQuest também vê todas as denúncias.",
       "assignAccept": "Atribuir função e aceitar",
-      "decline": "Recusar"
+      "decline": "Recusar",
+      "inLanguage": "Em {{language}}"
     },
     "me": {
       "title": "Eu",
@@ -3707,7 +3788,23 @@
       "title": "Dividir {{book}}",
       "waiting_one": "Esperando ser dividido antes que alguém o grave",
       "waiting_many": "{{count, number}} de livros estão esperando ser divididos antes que alguém os grave",
-      "waiting_other": "{{count, number}} livros estão esperando ser divididos antes que alguém os grave"
+      "waiting_other": "{{count, number}} livros estão esperando ser divididos antes que alguém os grave",
+      "leftOut": "{{way}} não tem seções para {{book}}.",
+      "more_one": "Mais {{count, number}} livro também espera.",
+      "more_other": "Mais {{count, number}} livros também esperam.",
+      "more_many": "Mais {{count, number}} livros também esperam."
+    },
+    "elsewhere": {
+      "title": "Novidades em {{language}}",
+      "sub_one": "{{count, number}} novidade para você. Toque para mudar para {{language}}.",
+      "sub_many": "{{count, number}} novidades para você. Toque para mudar para {{language}}.",
+      "sub_other": "{{count, number}} novidades para você. Toque para mudar para {{language}}."
+    },
+    "again": {
+      "title": "Grave {{passage}} de novo",
+      "sub_one": "As seções mudaram depois da gravação. A gravação anterior está na página dele.",
+      "sub_other": "As seções mudaram depois da gravação: {{count, number}} para gravar de novo. As gravações anteriores estão nas páginas delas.",
+      "sub_many": "As seções mudaram depois da gravação: {{count, number}} para gravar de novo. As gravações anteriores estão nas páginas delas."
     }
   },
   "shell": {
@@ -4719,7 +4816,8 @@
       "openInAll_many": "{{count, number}} de pedidos abertos no total",
       "openInAll_other": "{{count, number}} pedidos abertos no total",
       "checkpoint": "Em um ponto de controle",
-      "checkpointSub": "Esperando a revisão de um ponto de controle"
+      "checkpointSub": "Esperando a revisão de um ponto de controle",
+      "show": "Ver no mapa"
     },
     "noReports": {
       "languages": "Ainda não há idiomas para mostrar",
@@ -5917,25 +6015,15 @@
       "noGuideBadge": "Sem guia"
     },
     "passage": {
-      "title": "Referência",
       "gone": "Esta passagem não está aqui",
       "placedByHand": "Colocado aqui à mão",
-      "studyGuides": "Guias de estudo",
       "notes": "Notas para tradutores",
-      "other": "Outro material",
       "hiddenHere": "Escondido aqui",
       "showHere": "Mostrar aqui",
       "hideHere": "Esconder aqui",
       "shownAgain": "{{name}} aparece de novo nesta passagem.",
       "hidden": "{{name}} está escondido nesta passagem.",
-      "add": "Adicionar",
-      "intro": "O que é oferecido aos tradutores nesta passagem, e por quê. Eles ainda podem explorar qualquer Bíblia online e escolher por si mesmos.",
-      "group": "{{group}} · {{n, number}}",
-      "noBible": "Nenhuma Bíblia é recomendada para esta passagem. Os tradutores ainda podem explorar uma.",
       "placedInApp": "Colocado aqui no aplicativo",
-      "hiddenSection": "Escondidos aqui · {{n, number}}",
-      "addTitle": "Adicionar a esta passagem",
-      "addSub": "Colocado aqui à mão, independentemente das coordenadas dele.",
       "searchPlaceholder": "Pesquisar na sua biblioteca",
       "allHere": "Tudo o que há na sua biblioteca já está aqui.",
       "placed": "{{name}} foi colocado nesta passagem."
@@ -6066,6 +6154,37 @@
       "gaps_one": "Em {{language}}, {{name}} tem guia para {{count, number}} passagem. As passagens sem guia não mostram nenhum guia de estudo.",
       "gaps_many": "Em {{language}}, {{name}} tem guias para {{count, number}} de passagens. As passagens sem guia não mostram nenhum guia de estudo.",
       "gaps_other": "Em {{language}}, {{name}} tem guias para {{count, number}} passagens. As passagens sem guia não mostram nenhum guia de estudo."
+    },
+    "passageText": {
+      "bar": "{{passage}} · {{bible}}",
+      "barHelpTitle": "A passagem",
+      "barHelp": "Abre a passagem na Bíblia que você escolher, com as palavras-chave e as notas marcadas.",
+      "openText": "{{passage}}. Mostrar a passagem",
+      "closeText": "{{passage}}. Esconder a passagem",
+      "listen": "Ouvir",
+      "listenHelp": "Toca a passagem nesta Bíblia.",
+      "noteTag": "Nota",
+      "showHelp": "Os tradutores recebem isto nesta passagem.",
+      "hideHelp": "Os tradutores deixam de receber isto nesta passagem.",
+      "step": "Passo {{n, number}}",
+      "steps_one": "{{count, number}} passo",
+      "steps_many": "{{count, number}} de passos",
+      "steps_other": "{{count, number}} passos",
+      "notesSub_one": "{{count, number}} nota nesta passagem",
+      "notesSub_many": "{{count, number}} de notas nesta passagem",
+      "notesSub_other": "{{count, number}} notas nesta passagem",
+      "wholePassage": "A passagem inteira",
+      "keyWords": "Palavras-chave",
+      "keyWordsSub_one": "{{count, number}} nestes versículos",
+      "keyWordsSub_many": "{{count, number}} nestes versículos",
+      "keyWordsSub_other": "{{count, number}} nestes versículos",
+      "none": "Ainda não há ajudas nesta passagem.",
+      "addHelp": "Adicionar uma ajuda",
+      "addHelpHint": "Escreva uma nota para os tradutores ou coloque algo da sua biblioteca.",
+      "writeNote": "Escrever uma nota para os tradutores",
+      "writeNoteSub": "Nos versículos que você escolher, falada ou digitada",
+      "fromLibrary": "Da sua biblioteca",
+      "fromOwn": "Da biblioteca da sua organização"
     }
   },
   "sources": {
@@ -6313,5 +6432,38 @@
     "goOnline": "Conecte-se à internet com frequência para que seu trabalho seja enviado.",
     "lessSpace": "Este aparelho pode ter menos espaço do que diz.",
     "understand": "Entendi"
+  },
+  "notes": {
+    "onVerses": {
+      "title": "Nota para tradutores",
+      "sub": "{{passage}} · {{language}}",
+      "hint": "Toque num versículo e depois em outro para ir até ele.",
+      "verseHelp": "Põe a nota neste versículo. Toque em outro versículo para ir até ele.",
+      "on": "Em {{where}}",
+      "onWhole": "Na passagem inteira",
+      "whole": "A passagem inteira",
+      "say": "Toque e diga a sua nota",
+      "saved": "Nota salva em {{where}}.",
+      "savedWhole": "Nota salva em {{passage}}."
+    }
+  },
+  "keyTerms": {
+    "verses": {
+      "title": "Onde está aqui",
+      "none": "“{{word}}” não está nestes versículos na {{bible}}.",
+      "noneHere": "“{{word}}” não está nestes versículos.",
+      "more_one": "E mais {{count, number}} versículo",
+      "more_many": "E mais {{count, number}} de versículos",
+      "more_other": "E mais {{count, number}} versículos"
+    },
+    "others": {
+      "title": "Como outras línguas daqui dizem",
+      "none": "Nenhuma outra língua neste telefone tem ainda uma palavra para “{{word}}”.",
+      "saidOnly": "Falada, não escrita",
+      "play": "Ouvir a palavra em {{language}}",
+      "playHelp": "Toca como eles dizem.",
+      "suggest": "Outras línguas daqui usam",
+      "suggestHelp": "Usada aqui em {{languages}}. Toque para adicioná-la."
+    }
   }
 }

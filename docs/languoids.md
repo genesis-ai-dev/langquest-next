@@ -33,7 +33,7 @@ organization stream (decision 78); with none it is unlinked. Its `code`
 stays something people read: the languoid's ISO 639-3 code, else its
 glottocode, and `LanguageAdded`'s until a `LanguageCodeSet` replaces it.
 Languages imported from v2 carry the readable code decided on the
-import's board, and a `LanguageCodeSet` with the languoid (decision 93).
+import's board, and a `LanguageCodeSet` with the languoid (decision 94).
 A languoid LangQuest v2 also
 had keeps v2's id, so imported v2 projects point at the same language; v2's
 ids are read for that match only, never its rows. A languoid's glottocode

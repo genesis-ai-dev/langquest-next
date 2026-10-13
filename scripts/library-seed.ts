@@ -325,7 +325,7 @@ export function buildLibrary(opts: { fiaDirs?: string[]; examples?: boolean } = 
 // ---- ways to break up the Bible ---------------------------------------------------------
 
 /** OpenBible.info's OSIS book names, as USFM codes. */
-const OSIS: Record<string, string> = {
+export const OSIS: Record<string, string> = {
   Gen: 'GEN', Exod: 'EXO', Lev: 'LEV', Num: 'NUM', Deut: 'DEU', Josh: 'JOS', Judg: 'JDG', Ruth: 'RUT', '1Sam': '1SA', '2Sam': '2SA',
   '1Kgs': '1KI', '2Kgs': '2KI', '1Chr': '1CH', '2Chr': '2CH', Ezra: 'EZR', Neh: 'NEH', Esth: 'EST', Job: 'JOB', Ps: 'PSA', Prov: 'PRO',
   Eccl: 'ECC', Song: 'SNG', Isa: 'ISA', Jer: 'JER', Lam: 'LAM', Ezek: 'EZK', Dan: 'DAN', Hos: 'HOS', Joel: 'JOL', Amos: 'AMO',
