@@ -66,6 +66,12 @@ who opens it sees the same thing.
   other projects (the owner runs that organization); projects named "Test"
   and the like, with nothing to say what language they are, and projects
   nobody owns, start under **Not coming over**.
+- **Organizations are never named after a person.** One with a single
+  project takes the project's name; one with several is "To be named"
+  until its admins rename it in the app (Organization › name). Anyone can
+  look through organizations, and a translator's name or email there could
+  put them in danger (Caleb, 2026-10-13). For the same reason a v2 username
+  that is an email address is never copied into Next as someone's name.
 - **Transfer** on a card, or **Transfer N projects** on a lane, confirms the
   organization and language and starts the transfer at once; a project with
   no sure language waits for one. A project that has come over cannot move

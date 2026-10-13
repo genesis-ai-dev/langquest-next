@@ -399,7 +399,8 @@ function newLane() {
   const node = el('section', { class: 'lane' }, el('div', { class: 'cards' }, el('div', { class: 'empty' }, 'Drop a project here to start a new organization')));
   dropTarget(node, (id) => {
     const c = S.cards.find((x) => x.id === id);
-    ask({ title: 'New organization', input: c?.name ? `${c.name} organization` : '', confirm: 'Make it', body: [c ? `${c.name} goes into it.` : ''] }, (name) => {
+    // Named after its project, never a person (organizations can be looked through by anyone).
+    ask({ title: 'New organization', input: c?.name && !c.name.includes('@') ? c.name : 'To be named', confirm: 'Make it', body: [c ? `${c.name} goes into it.` : ''] }, (name) => {
       if (!name) return;
       const orgId = 'org-v2-' + crypto.randomUUID();
       S.orgs.push({ org_id: orgId, name, existing: false, admins: c ? (S.members[c.id] || []).filter((m) => m.owner).map((m) => m.id).slice(0, 1) : [], saved: false });

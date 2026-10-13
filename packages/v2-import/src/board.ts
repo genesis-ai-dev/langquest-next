@@ -9,6 +9,11 @@
  *   starts as "Don't bring over";
  * - every other project goes with its owner's other projects.
  *
+ * An organization is named after its one project, or "To be named" when it
+ * has several, never after a person: organizations can be looked through
+ * by anyone, and a translator's name or email there could put them in
+ * danger (Caleb, 2026-10-13). An admin renames it in the app.
+ *
  * Pure: the runner and the board page both call it with what they read.
  */
 
@@ -18,6 +23,14 @@ export const EVERY_LANGUAGE_V2_ID = '03babbbd-0ff4-43ec-9b85-66d975c7e827';
 export const EVERY_LANGUAGE_ORG = 'org-v2-everylanguage';
 /** The board's column for projects that do not come over. */
 export const SKIP = 'skip';
+/** What an organization of several projects is called until its people name it. */
+export const TO_BE_NAMED = 'To be named';
+
+/** A name to show others, or null when it is an email address: v2 usernames and project names sometimes are. */
+export function shownName(name: string | null | undefined): string | null {
+  const n = name?.trim();
+  return n && !n.includes('@') ? n : null;
+}
 
 export type Confidence = 'keep' | 'high' | 'medium' | 'low' | 'review' | 'none';
 
@@ -68,7 +81,6 @@ export function ownerOrgId(profileId: string): string {
 }
 
 export function defaultBoard(projects: readonly BoardProject[], people: readonly BoardPerson[]): { orgs: BoardOrg[]; placements: Placement[] } {
-  const byId = new Map(people.map((p) => [p.id, p]));
   const platform = new Set(people.filter((p) => p.email?.trim().toLowerCase() === EVERY_LANGUAGE_EMAIL).map((p) => p.id));
   const orgs = new Map<string, BoardOrg>();
   const placements: Placement[] = [];
@@ -89,14 +101,14 @@ export function defaultBoard(projects: readonly BoardProject[], people: readonly
       continue;
     }
     const id = ownerOrgId(owner);
-    if (!orgs.has(id)) orgs.set(id, { id, name: orgNameFor(byId.get(owner), p.name), existing: false });
+    if (!orgs.has(id)) orgs.set(id, { id, name: TO_BE_NAMED, existing: false });
     placements.push({ projectId: p.id, orgId: id, why: 'owner' });
   }
+  const names = new Map(projects.map((p) => [p.id, p.name]));
+  for (const o of orgs.values()) {
+    if (o.id === EVERY_LANGUAGE_ORG) continue;
+    const mine = placements.filter((x) => x.orgId === o.id);
+    o.name = mine.length === 1 ? shownName(names.get(mine[0]!.projectId)) ?? TO_BE_NAMED : TO_BE_NAMED;
+  }
   return { orgs: [...orgs.values()], placements };
-}
-
-/** The owner's name when it can be read; else their first project's, so the team can still tell organizations apart. */
-function orgNameFor(person: BoardPerson | undefined, firstProject: string): string {
-  const name = person?.name?.trim();
-  return name ? `${name}'s organization` : `${firstProject.trim() || 'LangQuest'} organization`;
 }

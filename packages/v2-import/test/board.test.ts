@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defaultBoard, EVERY_LANGUAGE_ORG, looksLikeTest, ownerOrgId, SKIP, type BoardProject } from '../src/board';
+import { defaultBoard, EVERY_LANGUAGE_ORG, looksLikeTest, ownerOrgId, shownName, SKIP, type BoardProject } from '../src/board';
 
 const project = (id: string, over: Partial<BoardProject> = {}): BoardProject => ({
   id, name: `Project ${id}`, active: true, private: false, createdAt: `2025-01-0${id.length}T00:00:00Z`, creatorId: null,
@@ -31,8 +31,15 @@ describe('defaultBoard', () => {
       project('ccc', { owners: ['ana'] })
     ], people);
     expect(placements.map((p) => p.orgId)).toEqual([ownerOrgId('nyibol'), ownerOrgId('nyibol'), ownerOrgId('ana')]);
-    // Without the owner's name, their first project's names the organization until someone renames it.
-    expect(orgs.map((o) => o.name)).toEqual(["Nyibol's organization", 'Project ccc organization']);
+    // Never after a person: one project names its organization, several leave it to be named in the app.
+    expect(orgs.map((o) => o.name)).toEqual(['To be named', 'Project ccc']);
+  });
+
+  it('never names an organization after an email address', () => {
+    const { orgs } = defaultBoard([project('a', { name: ' someone@example.org ', owners: ['nyibol'] })], people);
+    expect(orgs.map((o) => o.name)).toEqual(['To be named']);
+    expect(shownName('Nyibol')).toBe('Nyibol');
+    expect(shownName('nyibol@example.org')).toBeNull();
   });
 
   it('starts test projects with nothing to go on, and projects nobody owns, as not coming over', () => {

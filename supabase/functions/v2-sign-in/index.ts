@@ -80,7 +80,9 @@ Deno.serve(async (request) => {
     return reply(BUSY, 503);
   }
   // A name for someone the import has not named yet; one already there is theirs.
-  const name = typeof v2.user.user_metadata?.['username'] === 'string' ? (v2.user.user_metadata['username'] as string).trim().slice(0, 100) : '';
+  // Not an email address, which some v2 usernames are: names are shown to others.
+  const username = typeof v2.user.user_metadata?.['username'] === 'string' ? (v2.user.user_metadata['username'] as string).trim().slice(0, 100) : '';
+  const name = username.includes('@') ? '' : username;
   if (name) await service.from('profiles').upsert({ id: v2Id, display_name: name }, { onConflict: 'id', ignoreDuplicates: true });
   // What Welcome back checks for: which of these have come over (v2_welcome).
   await service.rpc('v2_import_arrived', { p_profile: v2Id, p_projects: projects });

@@ -1,6 +1,7 @@
 import { ORG_STREAM, subscriptionItemId, type AnyEvent, type Role } from '@langquest-next/core';
 import { durationMs, formatOf, sha256Hex } from './audio';
 import { mapProject, type CopiedFile, type MapReport, type TemplateRef } from './map';
+import { shownName } from './board';
 import { LIBRARY_ORG, libraryFact, orgFacts } from './orgFacts';
 import type { V2Reader, V2ProjectSummary } from './reader';
 import { reconcile, type Fact, type LedgerEntry } from './reconcile';
@@ -189,7 +190,8 @@ class Run {
       if (mapped.report.unmatchedQuests) await say('warn', `${n(mapped.report.unmatchedQuests)} quests did not match a place in the Bible; they came over as parts of their own`);
 
       const names = await this.deps.v2.people([...mapped.roles.keys()]);
-      await this.deps.target.addNames(names.flatMap((p) => (p.name ? [{ id: p.id, name: p.name }] : [])));
+      // A username that is an email address is not shown to others as a name.
+      await this.deps.target.addNames(names.flatMap((p) => { const name = shownName(p.name); return name ? [{ id: p.id, name }] : []; }));
       await progress({ step: 'done' });
       await this.deps.target.passFinish(passId, { ...report, map: { ...mapped.report, missingFiles: mapped.report.missingFiles.length, heldFiles: mapped.report.heldFiles.length } });
       return report;
