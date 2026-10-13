@@ -282,6 +282,7 @@
     "create_account": "Buɗe Asusu",
     "scan_qr": "Karanta Lambar QR",
     "welcome": "Barka da Zuwa",
+    "welcome_back": "Barka da dawowa",
     "vision": "Mene ne LangQuest?",
     "intent_chooser": "Me ya kawo ku nan?",
     "create_org": "Kafa Ƙungiya",
@@ -2382,7 +2383,9 @@
       "badEmail": "Ku duba adireshin imel.",
       "signupClosed": "Ba za a iya buɗe sababbin asusu ba a yanzu.",
       "suspended": "An dakatar da wannan asusu.",
-      "sessionEnded": "Zamanku ya ƙare. Ku sake shiga."
+      "sessionEnded": "Zamanku ya ƙare. Ku sake shiga.",
+      "v2AlreadyHere": "Wannan asusun ya riga ya koma nan. Yi amfani da kalmar sirrin da kuka sa a nan.",
+      "v2SameEmail": "Kuna da asusu a nan da wannan imel tuni. Ku shiga da kalmar sirrin da kuke amfani da ita a nan."
     },
     "signIn": {
       "tagline": "Gudanar da fassarar Littafi Mai Tsarki — daga daftari zuwa amincewa",
@@ -2595,6 +2598,31 @@
         "viewerProgress": "Ku ga nisan da kowane harshe ya kai.",
         "viewerOpen": "Ku buɗe kowane nassi don jin abin da ya faru."
       }
+    },
+    "welcomeBack": {
+      "greeting": "Barka da dawowa, {{name}}",
+      "title": "Barka da dawowa",
+      "isHere": "Aikinku daga LangQuest ya iso nan.",
+      "onItsWay": "Aikinku daga LangQuest yana kan hanya.",
+      "wasProject": "{{org}} · a da project ɗinku ne “{{project}}”",
+      "counts": "{{recordings}} · {{passages}}",
+      "onItsWayRow": "Yana kan hanya. Zai bayyana a nan da kansa.",
+      "recordHere": "<b>Daga yanzu, ku naɗa a nan.</b> Abin da kuka naɗa a tsohuwar manhaja har yanzu yana zuwa nan, amma abin da kuka naɗa a nan ba ya komawa can.",
+      "keepOldApp": "<b>Ku ci gaba da naɗawa a tsohuwar manhaja har sai ya iso nan.</b> Duk abin da kuka naɗa a can ana kawo shi nan, kuma yana bayyana a nan da kansa.",
+      "differentTitle": "Abin da ya bambanta",
+      "differentSummary": "Projects, quests da ƙuri'u, a nan",
+      "differentProject": "<b>Project</b> ɗinku yanzu <b>harshe</b> ne a cikin ƙungiya.",
+      "differentQuests": "<b>Quests</b> ɗinku yanzu littattafai ne, babobi da nassosi, bisa jerin Littafi Mai Tsarki.",
+      "differentVersions": "Abin da kuka naɗa don babi ɗaya <b>siga</b> ɗaya ce tasa. Duk lokacin da kuka wallafa, sabuwar siga ce.",
+      "differentVotes": "<b>Ƙuri'u</b> yanzu Duban Al'umma ne: abin da mutane suka faɗa yana kan nassin.",
+      "checkAgain": "Sake dubawa",
+      "notYet": "Bai iso ba tukuna. Zai bayyana a nan da kansa.",
+      "keepGoing": "Ci gaba da {{passage}}",
+      "goToMyWork": "Je zuwa Aikina",
+      "recordings_one": "naɗi {{count, number}}",
+      "recordings_other": "naɗe-naɗe {{count, number}}",
+      "passages_one": "Nassi {{count, number}}",
+      "passages_other": "Nassosi {{count, number}}"
     },
     "invite": {
       "expired": "Wannan gayyata ta ƙare. Ku nemi sabuwa.",

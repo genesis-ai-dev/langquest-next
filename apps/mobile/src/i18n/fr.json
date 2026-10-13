@@ -284,6 +284,7 @@
     "create_account": "Créer un compte",
     "scan_qr": "Scanner un code QR",
     "welcome": "Bienvenue",
+    "welcome_back": "Bon retour",
     "vision": "Qu’est-ce que LangQuest ?",
     "intent_chooser": "Qu’est-ce qui vous amène ?",
     "create_org": "Créer une organisation",
@@ -2470,7 +2471,9 @@
       "badEmail": "Vérifiez l’adresse e-mail.",
       "signupClosed": "Impossible de créer de nouveaux comptes pour le moment.",
       "suspended": "Ce compte est suspendu.",
-      "sessionEnded": "Votre session a pris fin. Connectez-vous à nouveau."
+      "sessionEnded": "Votre session a pris fin. Connectez-vous à nouveau.",
+      "v2AlreadyHere": "Ce compte a déjà été transféré ici. Utilisez le mot de passe choisi ici.",
+      "v2SameEmail": "Vous avez déjà un compte ici avec cet e-mail. Connectez-vous avec le mot de passe que vous utilisez ici."
     },
     "signIn": {
       "tagline": "Coordonner la traduction de la Bible, du brouillon à l’approbation",
@@ -2684,6 +2687,33 @@
         "viewerProgress": "Voyez où en est chaque langue.",
         "viewerOpen": "Ouvrez n’importe quel passage pour entendre ce qui s’est passé."
       }
+    },
+    "welcomeBack": {
+      "greeting": "Bon retour, {{name}}",
+      "title": "Bon retour",
+      "isHere": "Votre travail de LangQuest est ici.",
+      "onItsWay": "Votre travail de LangQuest est en route.",
+      "wasProject": "{{org}} · c’était votre projet « {{project}} »",
+      "counts": "{{recordings}} · {{passages}}",
+      "onItsWayRow": "En route. Il apparaîtra ici tout seul.",
+      "recordHere": "<b>Enregistrez ici désormais.</b> Ce que vous enregistrez dans l’ancienne application arrive toujours ici, mais ce que vous enregistrez ici n’y retourne pas.",
+      "keepOldApp": "<b>Continuez d’enregistrer dans l’ancienne application en attendant.</b> Tout ce que vous y enregistrez est transféré, et apparaît ici tout seul.",
+      "differentTitle": "Ce qui change",
+      "differentSummary": "Projets, quêtes et votes, ici",
+      "differentProject": "Votre <b>projet</b> est maintenant une <b>langue</b> dans une organisation.",
+      "differentQuests": "Vos <b>quêtes</b> sont des livres, des chapitres et des passages, dans l’ordre de la Bible.",
+      "differentVersions": "Ce que vous avez enregistré pour un chapitre en est une <b>version</b>. Chaque fois que vous publiez, c’est une nouvelle version.",
+      "differentVotes": "Les <b>votes</b> sont des vérifications communautaires : ce que les gens ont dit se trouve sur le passage.",
+      "checkAgain": "Vérifier à nouveau",
+      "notYet": "Pas encore arrivé. Il apparaîtra ici tout seul.",
+      "keepGoing": "Continuer {{passage}}",
+      "goToMyWork": "Aller à Mon travail",
+      "recordings_one": "{{count, number}} enregistrement",
+      "recordings_many": "{{count, number}} enregistrements",
+      "recordings_other": "{{count, number}} enregistrements",
+      "passages_one": "{{count, number}} passage",
+      "passages_many": "{{count, number}} passages",
+      "passages_other": "{{count, number}} passages"
     },
     "invite": {
       "expired": "Cette invitation a expiré. Demandez-en une nouvelle.",

@@ -333,12 +333,13 @@ langquest-next/
 7. **Snapshot worker done** (`packages/client/src/snapshotWorker.ts`,
    incremental, refolds fully when a redaction targets the snapshot). Org
    dashboard: step 14, folded by the dashboard's own server (decision 44).
-8. **Done.** Import path from LangQuest v2 rows into v1 events:
-   `server/importV2.ts` (`npm run import:v2`) reads v2 anonymously, copies
-   audio by content hash into R2 through the Worker, and appends deterministic
-   events (`packages/client/src/v2import.ts`), so re-runs are duplicates.
-   Text-only v2 translations have no oral equivalent and are counted, not
-   imported. Verified on three production projects in the simulator.
+8. **Done, and kept up to date.** LangQuest v2 comes over one way and keeps
+   coming while v2 runs (`docs/v2-import.md`): `packages/v2-import` reads a
+   v2 project whole, maps it to what it says now, compares that with what
+   the import already appended (a ledger per fact) and appends only the
+   differences; `npm run v2 -- board` places projects into organizations
+   and `npm run v2 -- sync` runs a pass. Audio is copied by content hash
+   into R2 through the Worker.
 9. **Done in part.** Flow coverage proof and read indexes
    (`docs/flow-coverage-audit.md`): `apps/mobile/test/specParity.test.ts`
    holds the app's flow machine to the spec's, edge by edge, with the spec's

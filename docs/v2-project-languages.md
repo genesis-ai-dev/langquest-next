@@ -10,7 +10,10 @@ can't be copied over as it is.
 language for every v2 project: 442 projects, built 2026-10-07 from v2
 production (read with the publishable key). **Anyone who imports v2 records
 into this app uses it** (AGENTS.md says so too). A person decides each row
-before that project comes over. Nothing imports it automatically yet.
+before that project comes over: the import's board (`npm run v2 -- board`,
+`docs/v2-import.md`) shows each project's recommendation, and the language
+confirmed there is the one the project comes over with. A `decision`
+written here is offered first.
 
 ## Columns
 
