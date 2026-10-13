@@ -68,8 +68,8 @@ const folderFiles = (dir: string) => ({
   }
 });
 const target = supabaseTarget(db, filesDir ? folderFiles(filesDir) : workerBlobs(env('API_URL', 'http://127.0.0.1:8787'), serviceKey));
-// Keeping downloads only pays for cloned projects, which share files, and v2's audio runs to
-// terabytes, so files are kept only when V2_IMPORT_CACHE names a folder for them.
+// Keeping downloads only pays for cloned projects, which share files, and v2's audio is about
+// 230 GB (docs/v2-import.md), so files are kept only when V2_IMPORT_CACHE names a folder for them.
 const cacheDir = process.env['V2_IMPORT_CACHE'];
 if (cacheDir) await mkdir(cacheDir, { recursive: true });
 const cachePath = (name: string) => join(cacheDir!, name.replace(/[^A-Za-z0-9._-]/g, '_'));

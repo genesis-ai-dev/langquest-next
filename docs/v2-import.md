@@ -168,11 +168,15 @@ the rest.
   before. All three write the same progress and log. A pass that stops is
   finished by the next. CI logs name projects by id only, since the
   repository is public.
-- **How much audio.** v2's recordings are mostly WAV, around 2 to 3 MB
-  each (one Bible project measured 1 GB for 418 recordings), so all of v2
-  is likely terabytes. The first copy of the big projects should run where
-  the connection is fast (the scheduled workflow), not on a home
-  connection; downloads are kept only when `V2_IMPORT_CACHE` names a folder.
+- **How much audio.** Measured on 2026-10-12 from v2's `storage.objects`
+  (`metadata->>'size'`): the `assets` bucket holds 808,198 files, 232 GB
+  (215 GB WAV, 12 GB m4a, 300 kB on average). Live recordings name
+  1,020,047 files, of which 807,199 (231 GB) are in storage; the other
+  212,848 were never stored, nearly all in a few Every Language projects
+  recorded March to September 2026, and cannot come over unless they turn
+  up. The first copy of the big projects should still run where the
+  connection is fast (the scheduled workflow); downloads are kept only when
+  `V2_IMPORT_CACHE` names a folder.
 - **Reading v2.** Its link tables have no project column, and asking
   through a join makes v2 scan them whole and hit its statement timeout, so
   segments, placements and votes are read by slices of the project's own
