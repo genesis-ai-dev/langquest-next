@@ -84,8 +84,70 @@
     if (s.classList.contains('objection') && !s.querySelector('.substep-visible')) s.classList.remove('answered');
   });
 
+  // Safari crashes ("A problem repeatedly occurred") when a 3D layer reaches
+  // behind the camera. On curved rows (rotate-y) far slides do: from setup-5,
+  // the cover is 6,600px behind the eye. So before each move, take out every
+  // card that comes near the eye at either end, and put it back after.
+  const rad = d => d * Math.PI / 180;
+  const num = (v, d) => (v === undefined || v === '' ? d : Number(v));
+  // CSS rotateX(rx) rotateY(ry) rotateZ(rz) applied to v, impress's default order.
+  const turn = ([x, y, z], rx, ry, rz) => {
+    let c = Math.cos(rad(rz)), s = Math.sin(rad(rz));
+    [x, y] = [x * c - y * s, x * s + y * c];
+    c = Math.cos(rad(ry)); s = Math.sin(rad(ry));
+    [x, z] = [x * c + z * s, -x * s + z * c];
+    c = Math.cos(rad(rx)); s = Math.sin(rad(rx));
+    [y, z] = [y * c - z * s, y * s + z * c];
+    return [x, y, z];
+  };
+  const pose = el => {
+    const d = el.dataset;
+    if (el.classList.contains('step')) {
+      return {
+        p: [num(d.x, 0), num(d.y, 0), num(d.z, 0)],
+        r: [num(d.rotateX, 0), num(d.rotateY, 0), num(d.rotateZ, num(d.rotate, 0))],
+        s: num(d.scale, 1),
+      };
+    }
+    const t = (el.style.transform.match(/translate3d\(([^)]*)\)/) || [, '0,0,0'])[1].split(',').map(parseFloat);
+    return { p: t, r: [0, 0, 0], s: 1 };
+  };
+  const bodies = [...root.querySelectorAll('.step, .decor')].map(el => {
+    const { p, r, s } = pose(el);
+    const w = el.offsetWidth * s / 2, h = el.offsetHeight * s / 2;
+    const corners = [[-w, -h], [w, -h], [w, h], [-w, h]].map(([x, y]) => {
+      const v = turn([x, y, 0], ...r);
+      return [v[0] + p[0], v[1] + p[1], v[2] + p[2]];
+    });
+    return { el, corners };
+  });
+  const perspective = num(root.dataset.perspective, 1000);
+  const windowScale = () => {
+    const s = Math.min(innerWidth / num(root.dataset.width, 1024), innerHeight / num(root.dataset.height, 768));
+    return Math.min(num(root.dataset.maxScale, 1), Math.max(num(root.dataset.minScale, 0), s));
+  };
+  // Cards whose nearest corner is closer than 0.6 of the camera distance.
+  function nearEye(step) {
+    const { p, r, s } = pose(step);
+    const n = turn([0, 0, 1], ...r);
+    const limit = 0.6 * perspective * s / windowScale();
+    return bodies.filter(b => b.el !== step && b.corners.some(c =>
+      (c[0] - p[0]) * n[0] + (c[1] - p[1]) * n[1] + (c[2] - p[2]) * n[2] > limit)).map(b => b.el);
+  }
+  function cull(...stepsInView) {
+    const out = new Set(stepsInView.flatMap(nearEye));
+    stepsInView.forEach(s => out.delete(s));
+    bodies.forEach(b => { b.el.style.display = out.has(b.el) ? 'none' : ''; });
+  }
+  document.addEventListener('impress:stepleave', e => cull(e.target, (e.detail && e.detail.next) || e.target));
+  document.addEventListener('impress:stepenter', e => cull(e.target));
+  addEventListener('resize', () => { const s = root.querySelector('.step.active'); if (s) cull(s); });
+
   const api = impress();
   api.init();
+  // The first goto (from the URL) moves the camera without a stepleave.
+  const first = root.querySelector('.step.active');
+  if (first) cull(first);
 
   document.getElementById('prev').addEventListener('click', () => api.prev());
   document.getElementById('next').addEventListener('click', () => api.next());
