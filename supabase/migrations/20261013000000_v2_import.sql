@@ -28,6 +28,8 @@ create table v2_import.orgs (
 create table v2_import.placements (
   project_id text primary key check (length(project_id) between 1 and 100),
   org_id text references v2_import.orgs (org_id) on update cascade,
+  -- The language's name in Next, when not the v2 project's own.
+  name text check (length(name) between 1 and 200),
   languoid_id uuid,
   code text check (length(code) between 1 and 40),
   confirmed_by text,
@@ -36,6 +38,19 @@ create table v2_import.placements (
   updated_at timestamptz not null default now(),
   check ((confirmed_at is null) = (confirmed_by is null)),
   check (confirmed_at is null or (org_id is not null and code is not null))
+);
+
+-- A person's role in a project's language once it comes over, when the
+-- dashboard sets one (Caleb, 2026-10-13: "we need freedom in this");
+-- otherwise it follows what they did in v2 (map.ts). 'none' leaves them out.
+-- Who runs a whole organization is v2_import.orgs.admins.
+create table v2_import.roles (
+  project_id text not null,
+  profile_id text not null,
+  role text not null check (role in ('org_admin', 'coordinator', 'translator', 'reviewer', 'viewer', 'none')),
+  updated_by text,
+  updated_at timestamptz not null default now(),
+  primary key (project_id, profile_id)
 );
 
 -- ---- what the import has said (section 1) ----------------------------------------------------
@@ -109,6 +124,7 @@ returns jsonb language sql stable security definer set search_path = v2_import, 
   select jsonb_build_object(
     'orgs', coalesce((select jsonb_agg(to_jsonb(o) order by o.name) from v2_import.orgs o), '[]'),
     'placements', coalesce((select jsonb_agg(to_jsonb(p) order by p.project_id) from v2_import.placements p), '[]'),
+    'roles', coalesce((select jsonb_agg(jsonb_build_object('project_id', r.project_id, 'profile_id', r.profile_id, 'role', r.role)) from v2_import.roles r), '[]'),
     'passes', coalesce((
       select jsonb_agg(jsonb_build_object('project_id', l.project_id, 'finished_at', l.finished_at, 'report', l.report))
       from (select distinct on (project_id) * from v2_import.passes where finished_at is not null and error is null
@@ -206,17 +222,29 @@ begin
     raise exception 'v2 project % has come over already; it cannot move to another organization', v_moved using errcode = '23514';
   end if;
 
-  insert into v2_import.placements (project_id, org_id, languoid_id, code, confirmed_by, confirmed_at, updated_by, updated_at)
-  select n->>'project_id', nullif(n->>'org_id', ''), nullif(n->>'languoid_id', '')::uuid, nullif(n->>'code', ''),
+  insert into v2_import.placements (project_id, org_id, name, languoid_id, code, confirmed_by, confirmed_at, updated_by, updated_at)
+  select n->>'project_id', nullif(n->>'org_id', ''), nullif(btrim(n->>'name'), ''), nullif(n->>'languoid_id', '')::uuid, nullif(n->>'code', ''),
          case when (n->>'confirmed')::boolean then coalesce(p.confirmed_by, p_by) end,
          case when (n->>'confirmed')::boolean then coalesce(p.confirmed_at, now()) end,
          p_by, now()
   from jsonb_array_elements(coalesce(p_placements, '[]')) n
   left join v2_import.placements p on p.project_id = n->>'project_id'
-  on conflict (project_id) do update set org_id = excluded.org_id, languoid_id = excluded.languoid_id, code = excluded.code,
+  on conflict (project_id) do update set org_id = excluded.org_id, name = excluded.name, languoid_id = excluded.languoid_id, code = excluded.code,
     confirmed_by = excluded.confirmed_by, confirmed_at = excluded.confirmed_at, updated_by = excluded.updated_by, updated_at = excluded.updated_at
-  where (placements.org_id, placements.languoid_id, placements.code, placements.confirmed_at)
-    is distinct from (excluded.org_id, excluded.languoid_id, excluded.code, excluded.confirmed_at);
+  where (placements.org_id, placements.name, placements.languoid_id, placements.code, placements.confirmed_at)
+    is distinct from (excluded.org_id, excluded.name, excluded.languoid_id, excluded.code, excluded.confirmed_at);
+end $$;
+
+-- A person's role in one project's language; null goes back to what their v2 work says.
+create or replace function public.v2_import_set_role(p_project text, p_profile text, p_role text, p_by text)
+returns void language plpgsql security definer set search_path = v2_import, public as $$
+begin
+  if p_role is null then
+    delete from v2_import.roles where project_id = p_project and profile_id = p_profile;
+  else
+    insert into v2_import.roles (project_id, profile_id, role, updated_by) values (p_project, p_profile, p_role, p_by)
+    on conflict (project_id, profile_id) do update set role = excluded.role, updated_by = excluded.updated_by, updated_at = now();
+  end if;
 end $$;
 
 -- A scope's ledger, a page at a time, in key order.
@@ -297,7 +325,7 @@ end $$;
 do $$
 declare f text;
 begin
-  foreach f in array array['v2_import_sign_in_try', 'v2_import_library_grant', 'v2_import_plan', 'v2_import_save_plan', 'v2_import_ledger', 'v2_import_ledger_put',
+  foreach f in array array['v2_import_set_role', 'v2_import_sign_in_try', 'v2_import_library_grant', 'v2_import_plan', 'v2_import_save_plan', 'v2_import_ledger', 'v2_import_ledger_put',
                            'v2_import_files', 'v2_import_files_put', 'v2_import_cursor', 'v2_import_status', 'v2_import_people',
                            'v2_import_pass_start', 'v2_import_pass_progress', 'v2_import_pass_finish', 'v2_import_log_add',
                            'v2_import_project_log', 'v2_import_signed_in'] loop

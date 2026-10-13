@@ -1,4 +1,4 @@
-import { ORG_STREAM, subscriptionItemId, type AnyEvent } from '@langquest-next/core';
+import { ORG_STREAM, subscriptionItemId, type AnyEvent, type Role } from '@langquest-next/core';
 import { durationMs, formatOf, sha256Hex } from './audio';
 import { mapProject, type CopiedFile, type MapReport, type TemplateRef } from './map';
 import { LIBRARY_ORG, orgFacts } from './orgFacts';
@@ -154,9 +154,13 @@ class Run {
 
       const source = rows.languages.find((l) => l.active && l.language_type === 'source')?.languoid_id;
       const sourceCode = (source && (await this.deps.target.languoidCode(source))) || 'eng';
+      // Roles chosen on the dashboard; an organization role's id stands for the project role with its privileges.
+      const ROLE: Record<string, Role | 'none'> = { org_admin: 'owner', coordinator: 'coordinator', translator: 'translator', reviewer: 'reviewer', viewer: 'viewer', none: 'none' };
+      const roles = new Map((this.plan.roles ?? []).filter((r) => r.project_id === projectId).map((r) => [r.profile_id, ROLE[r.role]!] as const));
       const mapped = mapProject(rows, {
         orgId: org.org_id,
-        language: { code: placement.code, languoidId: placement.languoid_id, sourceCode, decidedAt: placement.confirmed_at },
+        language: { code: placement.code, languoidId: placement.languoid_id, sourceCode, decidedAt: placement.confirmed_at, ...(placement.name ? { name: placement.name } : {}) },
+        roles,
         files: files.map,
         templates: template && kind ? { [kind]: template } : {},
         now: this.now()

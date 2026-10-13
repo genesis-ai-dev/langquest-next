@@ -19,9 +19,12 @@ export interface V2Reader {
   people(ids: string[]): Promise<{ id: string; name: string | null; email: string | null }[]>;
   /** A file from v2's bucket, or null when the bucket does not have it. */
   download(name: string): Promise<Uint8Array | null>;
+  /** The languages v2 links to a project, by name: what its team picked, right or wrong. */
+  projectLanguages(projectId: string): Promise<{ type: 'source' | 'target'; name: string; active: boolean }[]>;
 }
 
 export interface V2ProjectSummary extends Pick<V2ProjectRow, 'id' | 'name' | 'active' | 'private' | 'created_at' | 'creator_id' | 'template'> {
+  description?: string | null;
   assets: number;
   lastActivity: string | null;
 }
@@ -138,9 +141,9 @@ export function restReader(src: RestSource): V2Reader {
     },
 
     async projects(opts = {}) {
-      const rows = await byKey<V2ProjectRow & { last_updated: string } & Record<string, unknown>>('project?select=id,name,active,private,created_at,creator_id,template,last_updated', 'id');
+      const rows = await byKey<V2ProjectRow & { last_updated: string } & Record<string, unknown>>('project?select=id,name,description,active,private,created_at,creator_id,template,last_updated', 'id');
       if (!opts.counts) {
-        return rows.map((p) => ({ id: p.id, name: p.name, active: p.active, private: p.private, created_at: p.created_at, creator_id: p.creator_id, template: p.template, assets: 0, lastActivity: p.last_updated }));
+        return rows.map((p) => ({ id: p.id, name: p.name, description: p.description, active: p.active, private: p.private, created_at: p.created_at, creator_id: p.creator_id, template: p.template, assets: 0, lastActivity: p.last_updated }));
       }
       // v2's own rollups (project_closure) stopped being kept up to date, so count
       // each project's assets, and find its newest, in one small request each.
@@ -154,7 +157,7 @@ export function restReader(src: RestSource): V2Reader {
         counted.set(p.id, { assets: Number(res.headers.get('content-range')?.split('/')[1] ?? 0), newest: body[0]?.created_at ?? null });
       });
       return rows.map((p) => ({
-        id: p.id, name: p.name, active: p.active, private: p.private, created_at: p.created_at, creator_id: p.creator_id, template: p.template,
+        id: p.id, name: p.name, description: p.description, active: p.active, private: p.private, created_at: p.created_at, creator_id: p.creator_id, template: p.template,
         assets: counted.get(p.id)?.assets ?? 0,
         lastActivity: [p.last_updated, counted.get(p.id)?.newest].filter((x): x is string => !!x).sort().at(-1) ?? null
       }));
@@ -166,6 +169,13 @@ export function restReader(src: RestSource): V2Reader {
 
     async people(ids) {
       return src.people ? src.people(ids) : [];
+    },
+
+    async projectLanguages(projectId) {
+      const rows = await get<{ language_type: 'source' | 'target'; active: boolean; languoid: { name: string | null } | null }>(
+        `project_language_link?select=language_type,active,languoid:languoid_id(name)&project_id=eq.${encodeURIComponent(projectId)}`
+      );
+      return rows.map((r) => ({ type: r.language_type, name: r.languoid?.name ?? 'unknown', active: r.active }));
     },
 
     async download(name) {

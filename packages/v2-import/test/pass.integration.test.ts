@@ -58,6 +58,7 @@ function fakeV2(rows: Map<string, V2ProjectRows>): V2Reader {
     },
     async memberships() { return []; },
     async people(ids) { return ids.map((id) => ({ id, name: `Person ${id}`, email: null })); },
+    async projectLanguages() { return []; },
     async download(name) {
       const n = Number(/a(\d+)\.wav$/.exec(name)?.[1] ?? 0);
       return n ? wav(500 + n * 100, n) : null;
@@ -81,8 +82,10 @@ describe.skipIf(!SERVICE)('a pass against the local database', () => {
     const target = supabaseTarget(db, files);
     await target.savePlan(
       [{ org_id: orgId, name: `Test ${run}`, existing: false, admins: [`${id}-owner`] }],
-      [{ project_id: id, org_id: orgId, languoid_id: null, code: 'kwa', confirmed: true }], 'test'
+      [{ project_id: id, org_id: orgId, name: 'Kwa', languoid_id: null, code: 'kwa', confirmed: true }], 'test'
     );
+    // The reviewer is made a coordinator on the dashboard.
+    await target.setRole(id, `${id}-rev`, 'coordinator', 'test');
     const deps = { v2: fakeV2(rows), target };
 
     const first = await sync(deps, { projects: [id] });
@@ -101,7 +104,10 @@ describe.skipIf(!SERVICE)('a pass against the local database', () => {
       return (data ?? []).map((e) => ({ id: e.id, type: e.type, orgId: e.org_id, streamId: e.stream_id, actorId: e.actor_id, deviceId: e.device_id, hlc: e.hlc, payload: e.payload }) as AnyEvent);
     };
     const org = foldOrg(await events('_org'));
-    expect(org.languages[id]?.added?.name).toBe(`Kwa ${id}`);
+    expect(org.languages[id]?.added?.name).toBe('Kwa');
+    expect(org.members[`${id}-rev`]).toBeTruthy();
+    const rev = Object.values(org.members[`${id}-rev`] ?? {}).map((m) => (m as { roleId?: { value?: string } }).roleId?.value ?? (m as { roleId?: string }).roleId);
+    expect(JSON.stringify(rev)).toContain('coordinator');
     expect(Object.keys(org.library)).toEqual(['sub.langquest.langquest.bible.chapters']);
     const lang = foldLanguage(await events(id));
     expect(Object.keys(lang.invalidEvents)).toEqual([]);

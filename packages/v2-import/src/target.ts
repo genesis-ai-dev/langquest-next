@@ -12,6 +12,8 @@ import type { LedgerEntry } from './reconcile';
 export interface Target {
   plan(): Promise<Plan>;
   savePlan(orgs: PlanOrg[], placements: SavedPlacement[], by: string): Promise<void>;
+  /** A person's role in one project's language; null goes back to what their v2 work says. */
+  setRole(projectId: string, profileId: string, role: ChosenRole | null, by: string): Promise<void>;
   ledger(scope: string): Promise<Map<string, LedgerEntry>>;
   putLedger(scope: string, entries: LedgerEntry[]): Promise<void>;
   /** Files by v2 name: copied, or missing from v2's bucket since when. */
@@ -58,6 +60,7 @@ export interface PlanOrg {
 export interface PlanPlacement {
   project_id: string;
   org_id: string | null;
+  name?: string | null;
   languoid_id: string | null;
   code: string | null;
   confirmed_by: string | null;
@@ -67,14 +70,19 @@ export interface PlanPlacement {
 export interface SavedPlacement {
   project_id: string;
   org_id: string | null;
+  name?: string | null;
   languoid_id: string | null;
   code: string | null;
   confirmed: boolean;
 }
 
+/** A role chosen on the dashboard: an organization role's id at the language's scope, or none. */
+export type ChosenRole = 'org_admin' | 'coordinator' | 'translator' | 'reviewer' | 'viewer' | 'none';
+
 export interface Plan {
   orgs: PlanOrg[];
   placements: PlanPlacement[];
+  roles: { project_id: string; profile_id: string; role: ChosenRole }[];
   passes: { project_id: string; finished_at: string; report: unknown }[];
 }
 
@@ -138,6 +146,7 @@ export function supabaseTarget(db: SupabaseClient, files: BlobFilesLike): Target
   return {
     plan: () => rpc<Plan>('v2_import_plan', {}),
     savePlan: (orgs, placements, by) => rpc('v2_import_save_plan', { p_orgs: orgs, p_placements: placements, p_by: by }),
+    setRole: (projectId, profileId, role, by) => rpc('v2_import_set_role', { p_project: projectId, p_profile: profileId, p_role: role, p_by: by }),
 
     async ledger(scope) {
       const out = new Map<string, LedgerEntry>();

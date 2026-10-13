@@ -134,6 +134,23 @@
   .opt { padding: 6px 8px; border-radius: 6px; cursor: pointer; }
   .opt:hover, .opt:focus { background: var(--purple-soft); outline: none; }
   .opt .why { display: block; }
+  .block { margin: 0 18px; display: flex; flex-direction: column; gap: 10px; }
+  .field { display: grid; grid-template-columns: 80px 1fr; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+  .field input { padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; font: inherit; color: var(--text); }
+  .known { display: grid; grid-template-columns: 120px 1fr; gap: 4px 10px; margin: 0; padding: 10px 12px; background: #faf9fd; border-radius: 10px; font-size: 13px; }
+  .known dt { color: var(--faint); }
+  .known dd { margin: 0; word-break: break-word; }
+  #findLanguage { padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px; font: inherit; }
+  #findLanguage:focus { outline: none; border-color: var(--purple); }
+  .result { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 6px; }
+  .result.on { border-color: var(--green); background: var(--green-soft); }
+  .result.plain { border-style: dashed; }
+  .result input { padding: 5px 8px; border: 1px solid var(--line); border-radius: 7px; font: inherit; }
+  .result .sub, .person .sub { color: var(--muted); font-size: 12px; }
+  select.role { font: inherit; font-size: 13px; padding: 5px 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); max-width: 170px; }
+  .admins { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  .chip-x { border: 0; background: none; padding: 0 0 0 2px; color: inherit; font-size: 11px; opacity: .7; }
+  .chip-x:hover { opacity: 1; }
   .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--text); color: #fff; padding: 9px 16px; border-radius: 10px; opacity: 0; transition: opacity .2s; z-index: 60; pointer-events: none; }
   .toast.show { opacity: .95; }
 </style>
@@ -165,7 +182,7 @@
 <script>
 const SKIP = 'skip';
 const S = {
-  cards: [], orgs: [], members: {}, signedIn: {}, nameOf: {}, by: '', where: 'local',
+  cards: [], orgs: [], members: {}, signedIn: {}, nameOf: {}, roles: {}, by: '', where: 'local',
   passes: new Map(), queue: new Set(), log: [], after: 0, signedInCount: 0,
   filter: 'all', tab: 'activity', feedIssues: false, closed: new Set(), open: null, people: null
 };
@@ -204,7 +221,7 @@ async function api(path, body) {
 async function loadBoard(fresh) {
   try {
     const d = await api('/api/board' + (fresh ? '?fresh' : ''));
-    Object.assign(S, { cards: d.cards, orgs: d.orgs, members: d.members, signedIn: d.signedIn, nameOf: d.nameOf, by: d.by, where: d.where, everyLanguage: d.everyLanguage });
+    Object.assign(S, { cards: d.cards, orgs: d.orgs, members: d.members, signedIn: d.signedIn, nameOf: d.nameOf, roles: d.roles ?? {}, by: d.by, where: d.where, everyLanguage: d.everyLanguage });
     const env = $('#env');
     env.textContent = d.where === 'production' ? 'PRODUCTION' : d.where === 'local' ? 'Local test database' : d.host;
     env.className = 'env ' + d.where;
@@ -315,7 +332,8 @@ function render() {
   main.replaceChildren(...[...notices, ...(ids.length ? ids.map((id) => lane(id, byOrg.get(id) ?? [], states)) : [el('div', { class: 'empty' }, 'Nothing matches.')]), S.filter === 'all' && !q ? newLane() : null].filter(Boolean));
   window.scrollTo(0, scroll);
   renderFeed();
-  if (S.open) renderDrawer();
+  // A poll never redraws the details under someone typing or choosing in them.
+  if (S.open && !$('#drawer').contains(document.activeElement)) renderDrawer();
 }
 
 function lane(orgId, cards, states) {
@@ -339,7 +357,9 @@ function lane(orgId, cards, states) {
       el('span', {}, `${plural(all.length, 'project')} · ${plural(all.reduce((n, c) => n + c.assets, 0), 'recording')}`),
       orgId === SKIP ? null : el('span', { class: 'meter' }, el('span', { class: 'bar' + (live ? ' live' : '') }, el('i', { style: `width:${all.length ? (100 * done) / all.length : 0}%` })), `${done} of ${all.length} in Next`),
       orgId === SKIP ? null : el('span', {}, `👤 ${people.signed} of ${people.total} signed in`),
-      org?.admins?.length ? el('span', {}, `Run by ${org.admins.map(personName).join(', ')}`) : null,
+      orgId === SKIP ? null : el('span', { class: 'admins' }, 'Run by ',
+        ...(org?.admins?.length ? org.admins.map((id) => el('span', { class: 'chip purple' }, personName(id),
+          el('button', { class: 'chip-x', title: `${personName(id)} no longer runs ${org.name}`, onclick: () => removeAdmin(orgId, id) }, '✕'))) : [el('span', { class: 'why' }, 'nobody yet: make someone Organization admin in a project')])),
       org?.existing ? el('span', { class: 'chip' }, 'already in Next') : null)
   );
   const node = el('section', { class: 'lane' + (orgId === SKIP ? ' skip' : '') + (closed ? ' closed' : '') }, head,
@@ -361,7 +381,7 @@ function card(c, st) {
     c.private ? el('span', { class: 'lock', title: 'Private in v2' }, '🔒') : null,
     el('div', { class: 'sub' }, `${plural(c.assets, 'recording')}${c.template && c.template !== 'unstructured' ? ` · ${c.template === 'fia' ? 'FIA' : 'Bible'}` : ''} · active ${ago(c.lastActivity)}`),
     el('div', { class: 'row' },
-      el('button', { class: `chip ${l.cls}`, title: l.title, disabled: locked || null, onclick: (e) => { e.stopPropagation(); pick(c, e.currentTarget); } }, l.conf ? `${l.text} · ${l.conf}` : l.text)),
+      el('button', { class: `chip ${l.cls}`, title: l.title, onclick: (e) => { e.stopPropagation(); openDrawer(c.id, 'language'); } }, l.conf ? `${l.text} · ${l.conf}` : !c.languoidId && c.code ? `${c.code} (no link)` : l.text)),
     el('div', { class: 'state' + (st.live ? ' live' : ''), style: `--c: var(--${{ running: 'blue', queued: 'blue', done: 'green', issues: 'red', stopped: 'red', language: 'amber', ready: 'purple', confirmed: 'purple' }[st.key] || 'faint'})` }, el('span', { class: 'dot' }), st.text),
     st.pct != null ? el('div', { class: 'bar live' }, el('i', { style: `width:${st.pct}%` })) : null,
     !locked && c.why !== 'saved' && why ? el('div', { class: 'why' }, why) : null,
@@ -394,12 +414,14 @@ function dropTarget(node, onDrop) {
 }
 
 // ---- actions ----------------------------------------------------------------------------
-const placement = (c, confirmed) => ({ project_id: c.id, org_id: c.orgId === SKIP ? null : c.orgId, languoid_id: c.languoidId, code: c.code, confirmed: confirmed ?? !!c.confirmed });
+const placement = (c, confirmed) => ({ project_id: c.id, org_id: c.orgId === SKIP ? null : c.orgId, name: c.languageName, languoid_id: c.languoidId, code: c.code, confirmed: confirmed ?? !!c.confirmed });
 const orgPayload = (id) => { const o = S.orgs.find((x) => x.org_id === id); return o ? [{ org_id: o.org_id, name: o.name, existing: o.existing, admins: o.admins }] : []; };
 async function save(orgs, placements, message) {
   try { await api('/api/plan', { orgs, placements }); if (message) toast(message); }
   catch (e) { toast(e.message); }
   await loadBoard();
+  // The details show what was just chosen there, even while focus is still on them.
+  if (S.open) renderDrawer();
 }
 function move(id, orgId, isNew) {
   const c = S.cards.find((x) => x.id === id);
@@ -408,6 +430,12 @@ function move(id, orgId, isNew) {
   c.orgId = orgId; c.why = 'saved';
   render();
   save(orgId === SKIP ? [] : orgPayload(orgId), [placement(c)], orgId === SKIP ? `${c.name} won't come over` : `${c.name} → ${orgName(orgId)}${isNew ? ' (new)' : ''}`);
+}
+function removeAdmin(orgId, id) {
+  const o = S.orgs.find((x) => x.org_id === orgId);
+  if (!o) return;
+  o.admins = o.admins.filter((x) => x !== id);
+  save(orgPayload(orgId), [], `${personName(id)} no longer runs ${o.name}`);
 }
 function rename(orgId, name) {
   const o = S.orgs.find((x) => x.org_id === orgId);
@@ -489,14 +517,93 @@ function renderFeed() {
 }
 
 // ---- one project ---------------------------------------------------------------------------
-async function openDrawer(id) {
-  S.open = { id, log: null };
+async function openDrawer(id, focus) {
+  const c = S.cards.find((x) => x.id === id);
+  // The search starts from what is most likely the language: the suggestion, else the project's name.
+  const query = c ? (c.recommendation.name || c.name).replace(/\b(bible|project|test|nt|ot|el|stories|translation)\b/gi, '').trim() : '';
+  S.open = { id, log: null, languages: null, query, results: null, focus };
   renderDrawer();
   $('#drawer').classList.add('open');
-  try { S.open.log = (await api('/api/project/' + encodeURIComponent(id))).log; } catch { S.open.log = []; }
+  search(query);
+  try { Object.assign(S.open, await api('/api/project/' + encodeURIComponent(id))); } catch { S.open.log = []; S.open.languages = []; }
   if (S.open?.id === id) renderDrawer();
 }
 function closeDrawer() { S.open = null; $('#drawer').classList.remove('open'); }
+let searching = null;
+function search(q) {
+  const open = S.open;
+  if (!open) return;
+  open.query = q;
+  clearTimeout(searching);
+  searching = setTimeout(async () => {
+    if (q.trim().length < 2) { open.results = []; return renderDrawer(); }
+    open.results = null;
+    renderResults();
+    const list = await api('/api/languoids?q=' + encodeURIComponent(q.trim())).catch(() => []);
+    if (S.open === open && open.query === q) { open.results = list; renderResults(); }
+  }, 250);
+}
+const ROLES = [
+  ['', 'From their v2 work'], ['org-admin', 'Organization admin'], ['org_admin', 'Language admin'],
+  ['coordinator', 'Coordinator'], ['translator', 'Translator'], ['reviewer', 'Reviewer'], ['viewer', 'Viewer'], ['none', 'Leave out']
+];
+const ROLE_HINT = {
+  '': (m) => (m.owner ? 'Owner in v2, so a language admin' : 'Translator or reviewer, by what they did in v2'),
+  'org-admin': () => 'Runs the whole organization', org_admin: () => 'Runs this language', coordinator: () => 'Records, reviews and asks others',
+  translator: () => 'Records and reviews', reviewer: () => 'Reviews', viewer: () => 'Sees progress only', none: () => 'Does not come over'
+};
+function roleOf(c, id) {
+  const org = S.orgs.find((o) => o.org_id === c.orgId);
+  return org?.admins?.includes(id) ? 'org-admin' : (S.roles[c.id]?.[id] ?? '');
+}
+async function setRole(c, id, value) {
+  const org = S.orgs.find((o) => o.org_id === c.orgId);
+  try {
+    if (org && (value === 'org-admin') !== org.admins.includes(id)) {
+      org.admins = value === 'org-admin' ? [...org.admins, id] : org.admins.filter((x) => x !== id);
+      await api('/api/plan', { orgs: orgPayload(c.orgId), placements: [] });
+    }
+    await api('/api/role', { projectId: c.id, profileId: id, role: value === 'org-admin' || value === '' ? null : value });
+    (S.roles[c.id] ??= {})[id] = value === 'org-admin' || value === '' ? undefined : value;
+    toast(`${personName(id)}: ${ROLES.find((r) => r[0] === value)[1]}${c.confirmed ? ' · applies at the next sync' : ''}`);
+  } catch (e) { toast(e.message); }
+  render();
+  if (S.open) renderDrawer();
+}
+function chooseLanguage(c, languoidId, code, label) {
+  c.languoidId = languoidId; c.code = code;
+  render();
+  save(orgPayload(c.orgId), [placement(c)], `${c.name} → ${label}${c.confirmed ? ' · applies at the next sync' : ''}`);
+}
+function nameLanguage(c, name) {
+  const value = name.trim();
+  if ((c.languageName ?? '') === value || (!c.languageName && value === c.name)) return;
+  c.languageName = value && value !== c.name ? value : null;
+  save(orgPayload(c.orgId), [placement(c)], `Named ${value || c.name} in Next`);
+}
+function renderResults() {
+  const box = $('#results');
+  if (!box || !S.open) return;
+  const c = S.cards.find((x) => x.id === S.open.id);
+  const r = S.open.results;
+  if (r == null) return box.replaceChildren(el('div', { class: 'empty', style: 'padding:6px 0' }, 'Searching…'));
+  box.replaceChildren(...[
+    ...r.slice(0, 10).map((x) => {
+      const code = x.iso_code ?? x.glottocode;
+      const chosen = c.languoidId === x.id;
+      return el('div', { class: 'result' + (chosen ? ' on' : '') },
+        el('div', { style: 'flex:1;min-width:0' },
+          el('div', {}, el('b', {}, x.name), ` [${code ?? '—'}]`, x.level === 'dialect' ? el('span', { class: 'chip', style: 'margin-left:6px' }, 'dialect') : null),
+          el('div', { class: 'sub' }, [x.countries?.slice(0, 3).join(', '), x.parent_name && `in ${x.parent_name}`, x.matched_alias_name && `also called ${x.matched_alias_name}`].filter(Boolean).join(' · '))),
+        chosen ? el('span', { class: 'chip c-decided' }, 'Linked') : el('button', { class: 'small', onclick: () => chooseLanguage(c, x.id, code, `${x.name} [${code}]`) }, 'Use'));
+    }),
+    r.length === 0 && (S.open.query || '').trim().length >= 2 ? el('div', { class: 'empty', style: 'padding:6px 0' }, 'Nothing in the language list matches.') : null,
+    el('div', { class: 'result plain' },
+      el('div', { style: 'flex:1' }, el('div', {}, 'Not in the list?'), el('div', { class: 'sub' }, 'Bring it over without a link; it can be linked in Next later.')),
+      el('input', { id: 'freeCode', placeholder: 'code', style: 'width:84px', value: !c.languoidId && c.code ? c.code : '' }),
+      el('button', { class: 'small', onclick: () => { const code = $('#freeCode').value.trim(); if (!code) return toast('Type a short code for it.'); chooseLanguage(c, null, code, `${code} (no link)`); } }, 'Use'))
+  ].filter(Boolean));
+}
 function renderDrawer() {
   const c = S.cards.find((x) => x.id === S.open.id);
   if (!c) return closeDrawer();
@@ -505,7 +612,16 @@ function renderDrawer() {
   const issues = issuesOf(pass && pass.finished_at ? pass : null);
   const members = (S.members[c.id] || []).slice().sort((a, b) => (b.owner - a.owner) || (S.signedIn[b.id] ? 1 : 0) - (S.signedIn[a.id] ? 1 : 0));
   const l = language(c);
+  const r = c.recommendation;
   const action = { ready: 'Transfer', confirmed: 'Transfer', stopped: 'Transfer again', done: 'Sync now', issues: 'Sync now' }[st.key];
+  const v2Languages = S.open.languages?.filter((x) => x.active) ?? [];
+  const known = [
+    ['Project name', c.name],
+    c.description ? ['Description', c.description] : null,
+    ['v2 says', v2Languages.length ? v2Languages.map((x) => `${x.name} (${x.type})`).join(' · ') : [r.v2Target && `${r.v2Target} (target)`, r.v2Source && r.v2Source !== '—' && `${r.v2Source} (source)`].filter(Boolean).join(' · ') || '—'],
+    r.tagged ? ['Recordings tagged', r.tagged] : null,
+    r.name ? ['Suggested', `${r.name} [${r.code}] · ${r.confidence} — ${r.reason}`] : ['Suggested', r.reason || 'nothing']
+  ].filter(Boolean);
   $('#drawer').replaceChildren(
     el('button', { class: 'x', onclick: closeDrawer, title: 'Close' }, '✕'),
     el('div', { class: 'drawer-head' },
@@ -513,21 +629,36 @@ function renderDrawer() {
       el('div', { class: 'sub' }, `${orgName(c.orgId)} · ${plural(c.assets, 'recording')} · ${c.private ? 'private' : 'public'} in v2`),
       el('div', { class: `state s-${st.key}${st.live ? ' live' : ''}`, style: `--c: var(--${{ running: 'blue', queued: 'blue', done: 'green', issues: 'red', stopped: 'red', language: 'amber' }[st.key] || 'purple'})` }, el('span', { class: 'dot' }), st.text),
       st.pct != null ? el('div', { class: 'bar live', style: 'width:100%' }, el('i', { style: `width:${st.pct}%` })) : null,
-      el('div', { class: 'row' },
-        el('button', { class: `chip ${l.cls}`, disabled: c.confirmed || null, onclick: (e) => pick(c, e.currentTarget) }, `Language: ${l.conf ? `${l.text} · ${l.conf}` : l.text}`),
-        action ? el('button', { class: 'small primary', onclick: () => transferOne(c) }, action) : null)),
+      action ? el('div', { class: 'row' }, el('button', { class: 'small primary', onclick: () => transferOne(c) }, action)) : null),
     el('div', { class: 'drawer-body' },
       issues.length ? [el('h3', {}, 'Issues'), ...issues.map((i) => el('div', { class: `issue ${i.level}` }, i.text, i.list ? el('div', { style: 'margin-top:4px;font-size:12px;opacity:.85' }, i.list.slice(0, 5).map((x) => x.reason).join(' · ')) : null))] : null,
+      el('h3', {}, 'Language in Next'),
+      el('div', { class: 'block' },
+        el('label', { class: 'field' }, el('span', {}, 'Name'),
+          el('input', { value: c.languageName ?? '', placeholder: c.name, onchange: (e) => nameLanguage(c, e.target.value) })),
+        el('div', { class: 'field' }, el('span', {}, 'Language'),
+          el('span', { class: `chip ${l.cls}` }, l.conf ? `${l.text} · suggested, ${l.conf}` : c.code && !c.languoidId ? `${c.code} (no link)` : l.text)),
+        el('dl', { class: 'known' }, ...known.flatMap(([k, v]) => [el('dt', {}, k), el('dd', {}, v)])),
+        el('input', { id: 'findLanguage', type: 'search', value: S.open.query ?? '', placeholder: 'Find the language: name, other name, ISO code or glottocode', oninput: (e) => search(e.target.value) }),
+        el('div', { id: 'results' })),
       el('h3', {}, `People · ${peopleOf(c).signed} of ${members.length} signed in`),
-      ...members.map((m) => el('div', { class: 'person' },
-        el('span', { class: 'avatar' }, personName(m.id).split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()),
-        el('div', { style: 'flex:1' }, el('div', {}, personName(m.id), m.owner ? el('span', { class: 'chip', style: 'margin-left:6px' }, 'owner') : null),
-          el('div', { class: 'sub' }, S.signedIn[m.id] ? `Signed in ${day(S.signedIn[m.id])}` : 'Not signed in to Next yet')))),
+      ...members.map((m) => {
+        const role = roleOf(c, m.id);
+        return el('div', { class: 'person' },
+          el('span', { class: 'avatar' }, personName(m.id).split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()),
+          el('div', { style: 'flex:1;min-width:0' },
+            el('div', {}, personName(m.id), m.owner ? el('span', { class: 'chip', style: 'margin-left:6px' }, 'owner in v2') : null),
+            el('div', { class: 'sub' }, `${ROLE_HINT[role](m)} · ${S.signedIn[m.id] ? `signed in ${day(S.signedIn[m.id])}` : 'not signed in yet'}`)),
+          el('select', { class: 'role', 'aria-label': `Role for ${personName(m.id)}`, onchange: (e) => setRole(c, m.id, e.target.value) },
+            ...ROLES.map(([v, label]) => el('option', { value: v, selected: v === role || null }, label))));
+      }),
       el('h3', {}, 'Activity'),
       ...(S.open.log == null ? [el('div', { class: 'empty', style: 'padding:0 18px' }, 'Loading…')]
         : S.open.log.length ? S.open.log.map((x) => el('div', { class: `line ${x.level}` }, el('time', {}, clock(x.at)), el('span', { class: 'who' }, day(x.at)), el('span', { class: 'msg' }, x.message)))
         : [el('div', { class: 'empty', style: 'padding:0 18px' }, 'Not transferred yet.')]))
   );
+  renderResults();
+  if (S.open.focus === 'language') { S.open.focus = null; $('#findLanguage')?.focus(); }
 }
 
 // ---- small pieces -------------------------------------------------------------------------
@@ -540,32 +671,6 @@ function ask({ title, body = [], confirm, input }, then) {
   document.body.append(scrim);
   (field ?? scrim.querySelector('.primary')).focus();
   scrim.addEventListener('keydown', (e) => { if (e.key === 'Enter') ok(); if (e.key === 'Escape') scrim.remove(); });
-}
-let picker = null;
-function pick(c, anchor) {
-  picker?.remove();
-  const r = c.recommendation;
-  const box = el('div', { class: 'picker', onclick: (e) => e.stopPropagation() });
-  const results = el('div');
-  const input = el('input', { type: 'search', placeholder: 'Search the language list' });
-  const option = (title, why, apply) => el('div', { class: 'opt', tabindex: '0', onclick: () => { apply(); box.remove(); }, onkeydown: (e) => e.key === 'Enter' && (apply(), box.remove()) }, title, why ? el('span', { class: 'why' }, why) : null);
-  const choose = (languoidId, code) => { c.languoidId = languoidId; c.code = code; render(); save([...orgPayload(c.orgId)], [placement(c)], `${c.name}: ${code}`); };
-  box.append(el('strong', {}, c.name), r.code ? option(`Suggested: ${r.name ?? r.code} [${r.code}]`, `${r.confidence} · ${r.reason}`, () => choose(r.languoidId, r.code)) : el('div', { class: 'why' }, r.reason), input, results);
-  let t = null;
-  input.addEventListener('input', () => {
-    clearTimeout(t);
-    t = setTimeout(async () => {
-      const q = input.value.trim();
-      if (q.length < 2) return results.replaceChildren();
-      const list = await api('/api/languoids?q=' + encodeURIComponent(q)).catch(() => []);
-      results.replaceChildren(...list.map((x) => option(`${x.name} [${x.iso_code ?? x.glottocode ?? '—'}]`, [x.level, x.parent_name, x.matched_alias_name && `also ${x.matched_alias_name}`].filter(Boolean).join(' · '), () => choose(x.id, x.iso_code ?? x.glottocode))));
-    }, 250);
-  });
-  const rect = anchor.getBoundingClientRect();
-  box.style.left = Math.max(8, Math.min(rect.left, innerWidth - 360)) + 'px';
-  box.style.top = Math.min(rect.bottom + 6, innerHeight - 330) + 'px';
-  document.body.append(box); picker = box; input.focus();
-  setTimeout(() => document.addEventListener('mousedown', function off(e) { if (!box.contains(e.target)) { box.remove(); document.removeEventListener('mousedown', off); } }), 0);
 }
 
 $('#q').addEventListener('input', render);

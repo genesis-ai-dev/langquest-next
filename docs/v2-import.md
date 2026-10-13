@@ -71,6 +71,21 @@ who opens it sees the same thing.
   no sure language waits for one. A project that has come over cannot move
   to another organization (its events carry the organization); **Sync**
   reads it again now instead of waiting for the next scheduled pass.
+- **Language:** a project's details show what is known (its name and
+  description, the languages v2 links to it, the languages its recordings
+  are tagged with, and the suggestion with its reason) beside a search of
+  the language list as New language searches it (`search_languoids`), each
+  match with the countries it is spoken in and its family. **Use** links
+  it; a language not in the list comes over unlinked, with a code, and is
+  linked in Next later (decision 78). The language's name in Next can
+  differ from the project's ("Berom", not "BEROM FAN EL NIGERIA").
+- **Roles:** each person in a project has a role picker: from their v2 work
+  (owners become language admins, others translators or reviewers by what
+  they did), Organization admin (runs the whole organization), Language
+  admin, Coordinator, Translator, Reviewer, Viewer, or Leave out (Caleb,
+  2026-10-13: "we need freedom in this"). Organization admins also show on
+  the organization's lane, where one can be taken off. A change to a
+  project that has come over applies at its next sync.
 - **Status:** each card says Ready, Waiting its turn, Reading v2, Copying
   audio 340 of 1,200, Storing audio, Adding to Next, In Next · 3 min ago,
   or its issues (refused changes, audio missing from v2, recordings waiting
@@ -82,7 +97,8 @@ who opens it sees the same thing.
   details: the people and whether each has signed in, its issues, and its
   own log.
 
-The plan is in `v2_import.orgs` and `v2_import.placements`; transfers are
+The plan is in `v2_import.orgs`, `v2_import.placements` and
+`v2_import.roles`; transfers are
 `v2_import.passes` (progress while running) and `v2_import.log` (section 6).
 
 ## 3. People

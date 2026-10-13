@@ -29,7 +29,7 @@ import { createClient } from '@supabase/supabase-js';
 import { workerBlobs } from '@langquest-next/client';
 import { createHash } from 'node:crypto';
 import { foldLanguage, foldOrg, ORG_STREAM, subscriptionItemId, validateEvent } from '@langquest-next/core';
-import { bucketName, boardData, mapProject, parseRecommendations, reconcile, restReader, supabaseTarget, sync, WAYS, LIBRARY_ORG, type CopiedFile, type SavedPlacement, type PlanOrg, type TemplateRef } from '@langquest-next/v2-import';
+import { bucketName, boardData, mapProject, parseRecommendations, reconcile, restReader, supabaseTarget, sync, WAYS, LIBRARY_ORG, type ChosenRole, type CopiedFile, type SavedPlacement, type PlanOrg, type TemplateRef } from '@langquest-next/v2-import';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const args = process.argv.slice(2);
@@ -202,7 +202,9 @@ async function board(port: number) {
         for (const p of here) if (p.signed_in_at) signedIn[p.id] = p.signed_in_at;
         const nameOf: Record<string, string> = {};
         for (const p of people) if (p.name) nameOf[p.id] = p.name;
-        return json(res, 200, { ...data, by, where, host, members, signedIn, nameOf });
+        const roles: Record<string, Record<string, string>> = {};
+        for (const r of plan.roles ?? []) (roles[r.project_id] ??= {})[r.profile_id] = r.role;
+        return json(res, 200, { ...data, by, where, host, members, signedIn, nameOf, roles });
       }
       if (req.method === 'GET' && u.pathname === '/api/status') {
         const status = await target.status(Number(u.searchParams.get('after') ?? 0));
@@ -212,12 +214,29 @@ async function board(port: number) {
         return json(res, 200, await target.signedIn());
       }
       if (req.method === 'GET' && u.pathname.startsWith('/api/project/')) {
-        return json(res, 200, { log: await target.projectLog(decodeURIComponent(u.pathname.slice('/api/project/'.length))) });
+        const id = decodeURIComponent(u.pathname.slice('/api/project/'.length));
+        const [log, languages] = await Promise.all([target.projectLog(id), v2.projectLanguages(id).catch(() => [])]);
+        return json(res, 200, { log, languages });
       }
       if (req.method === 'GET' && u.pathname === '/api/languoids') {
-        const { data, error } = await db.rpc('search_languoids', { search_query: u.searchParams.get('q') ?? '', result_limit: 12, levels: ['language', 'dialect'] });
+        // The language list, as New language searches it, with where each is spoken to tell same-named ones apart.
+        const { data, error } = await db.rpc('search_languoids', { search_query: u.searchParams.get('q') ?? '', result_limit: 15, levels: ['language', 'dialect'] });
         if (error) return json(res, 500, { error: error.message });
-        return json(res, 200, data);
+        const found = (data ?? []) as { id: string }[];
+        const places = new Map<string, string[]>();
+        if (found.length) {
+          const { data: links } = await db.from('languoid_region').select('languoid_id, region:region_id(name, level)').in('languoid_id', found.map((l) => l.id)).eq('active', true);
+          for (const l of (links ?? []) as unknown as { languoid_id: string; region: { name: string | null; level: string } | null }[]) {
+            if (l.region?.level === 'nation' && l.region.name) (places.get(l.languoid_id) ?? places.set(l.languoid_id, []).get(l.languoid_id)!).push(l.region.name);
+          }
+        }
+        return json(res, 200, found.map((l) => ({ ...l, countries: (places.get(l.id) ?? []).sort() })));
+      }
+      if (req.method === 'POST' && u.pathname === '/api/role') {
+        const { projectId, profileId, role } = (await body(req)) as { projectId: string; profileId: string; role: ChosenRole | null };
+        if (role !== null && !['org_admin', 'coordinator', 'translator', 'reviewer', 'viewer', 'none'].includes(role)) return json(res, 400, { error: 'Unknown role.' });
+        await target.setRole(projectId, profileId, role, by);
+        return json(res, 200, { ok: true });
       }
       if (req.method === 'POST' && u.pathname === '/api/plan') {
         const input = (await body(req)) as { orgs: PlanOrg[]; placements: SavedPlacement[] };

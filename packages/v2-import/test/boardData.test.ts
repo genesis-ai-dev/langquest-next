@@ -26,7 +26,7 @@ describe('boardData', () => {
     { profile_id: 'nyibol', project_id: 'a', membership: 'owner', active: true },
     { profile_id: 'nyibol', project_id: 'b', membership: 'owner', active: true }
   ];
-  const plan = { orgs: [], placements: [], passes: [] };
+  const plan = { orgs: [], placements: [], roles: [], passes: [] };
 
   it('starts Every Language from the platform account, found by email or named by id', () => {
     const byEmail = boardData({ projects: [summary('a', 'A'), summary('b', 'B')], memberships, people: [{ id: 'el', name: null, email: 'platform@everylanguage.com' }], recommendations: new Map(), plan, everyLanguageIds: [] });
@@ -46,6 +46,7 @@ describe('boardData', () => {
         { project_id: 'a', org_id: 'org-x', languoid_id: null, code: 'kwa', confirmed_by: 'Caleb', confirmed_at: '2026-10-12T00:00:00Z' },
         { project_id: 'b', org_id: null, languoid_id: null, code: null, confirmed_by: null, confirmed_at: null }
       ],
+      roles: [],
       passes: []
     };
     const data = boardData({ projects: [summary('a', 'A'), summary('b', 'B')], memberships, people: [], recommendations: new Map(), plan: saved, everyLanguageIds: [] });

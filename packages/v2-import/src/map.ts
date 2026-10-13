@@ -32,8 +32,10 @@ export interface TemplateRef {
 
 export interface MapContext {
   orgId: string;
-  /** The language decided for the project (never v2's own, AGENTS.md), and when it was decided. */
-  language: { code: string; languoidId: string | null; sourceCode: string; decidedAt: string };
+  /** The language decided for the project (never v2's own, AGENTS.md), when it was decided, and its name in Next when not the project's. */
+  language: { code: string; languoidId: string | null; sourceCode: string; decidedAt: string; name?: string };
+  /** Roles chosen on the dashboard, by v2 person; `none` leaves them out. Everyone else's follows their v2 work. */
+  roles?: ReadonlyMap<string, Role | 'none'>;
   /** v2 file name → the file as copied here. A name that is absent has not been copied (yet). */
   files: ReadonlyMap<string, CopiedFile>;
   /** LangQuest's Bible by chapters and FIA's passages, when a Bible or FIA project's quests become their passages. */
@@ -177,15 +179,17 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
 
   // ---- the language, in the organization's stream ------------------------------------------
   const t0 = at(rows.project.created_at);
+  // A v2 project's name is often not its language's ("BEROM FAN EL NIGERIA"); the dashboard may give another.
+  const languageName = ctx.language.name?.trim() || rows.project.name;
   const nothing = () => [] as Said[];
   facts.push(
     {
       key: 'language', streamId: ORG_STREAM, actorId: owner, at: t0, restate: false, unsay: nothing,
-      say: () => [{ type: 'v1.LanguageAdded', payload: { languageId, name: rows.project.name, code: ctx.language.code, sourceCode: ctx.language.sourceCode } }]
+      say: () => [{ type: 'v1.LanguageAdded', payload: { languageId, name: languageName, code: ctx.language.code, sourceCode: ctx.language.sourceCode } }]
     },
     {
       key: 'name', streamId: ORG_STREAM, actorId: owner, at: at(rows.project.last_updated), unsay: nothing,
-      say: () => [{ type: 'v1.LanguageRenamed', payload: { languageId, name: rows.project.name } }]
+      say: () => [{ type: 'v1.LanguageRenamed', payload: { languageId, name: languageName } }]
     },
     {
       key: 'code', streamId: ORG_STREAM, actorId: owner, at: ctx.language.decidedAt, unsay: nothing,
@@ -387,6 +391,11 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
   for (const m of owners) roles.set(m.profile_id, 'owner');
   // Someone who left a v2 project has left the language, whatever they did there.
   for (const m of rows.members) if (!m.active) roles.delete(m.profile_id);
+  // What the dashboard chose wins over all of that.
+  for (const [id, role] of ctx.roles ?? []) {
+    if (role === 'none') roles.delete(id);
+    else roles.set(id, role);
+  }
   const scope = { level: 'language' as const, languageId };
   const membership = new Map(rows.members.map((m) => [m.profile_id, m]));
   const firstWork = (id: string) => {

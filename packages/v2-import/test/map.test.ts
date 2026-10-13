@@ -220,3 +220,20 @@ describe('mapProject: an older project with source material', () => {
     expect(passage.notes.map((n) => n.text)).toEqual(['written only']);
   });
 });
+
+describe('mapProject: what the dashboard chose', () => {
+  it('names the language as chosen, and gives each person the role chosen for them', () => {
+    const roles = new Map([['trans', 'coordinator' as const], ['rev', 'none' as const], ['left', 'viewer' as const]]);
+    const { all } = run([{ rows: bible(), ctx: ctx({ language: { ...ctx().language, name: 'Kwa' }, roles }) }]);
+    const org = foldOrg(all.filter((e) => e.streamId === ORG_STREAM));
+    expect(org.languages['p1']?.added?.name).toBe('Kwa');
+    const members = all.filter((e) => e.type === 'v1.MemberAdded').map((e) => [(e.payload as { profileId: string }).profileId, (e.payload as { roleId: string }).roleId]);
+    // The reviewer is left out, the one who left v2 is back as a viewer, the translator coordinates.
+    expect(members.sort()).toEqual([['left', 'viewer'], ['owner', 'org_admin'], ['trans', 'coordinator']]);
+  });
+
+  it('takes someone out when the dashboard leaves them out after they came over', () => {
+    const { each } = run([{ rows: bible() }, { rows: bible(), ctx: ctx({ roles: new Map([['rev', 'none' as const]]) }) }]);
+    expect(each[1]!.map((e) => [e.type, (e.payload as { profileId?: string }).profileId])).toEqual([['v1.MemberRemoved', 'rev']]);
+  });
+});

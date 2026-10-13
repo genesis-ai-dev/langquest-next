@@ -17,6 +17,10 @@ export interface Recommendation {
   reason: string;
   /** A person's decision written in the CSV, if any (a languoid id). */
   decision: string | null;
+  /** What v2 said, as the CSV read it: its target and source, and the languages its recordings are tagged with. */
+  v2Target?: string;
+  v2Source?: string;
+  tagged?: string;
 }
 
 export interface BoardCard {
@@ -35,6 +39,9 @@ export interface BoardCard {
   /** The language chosen on the board, or none yet. */
   languoidId: string | null;
   code: string | null;
+  /** The language's name in Next, when the dashboard gave one other than the project's. */
+  languageName: string | null;
+  description: string | null;
   confirmed: { by: string; at: string } | null;
   lastPass: { at: string; report: unknown } | null;
 }
@@ -91,6 +98,8 @@ export function boardData(input: {
       why: s ? 'saved' : d.why,
       languoidId: s?.languoid_id ?? null,
       code: s?.code ?? null,
+      languageName: s?.name ?? null,
+      description: p.description ?? null,
       confirmed: s?.confirmed_at && s.confirmed_by ? { by: s.confirmed_by, at: s.confirmed_at } : null,
       lastPass: pass ? { at: pass.finished_at, report: pass.report } : null
     };
@@ -132,7 +141,10 @@ export function parseRecommendations(csv: string): Map<string, Recommendation> {
       code,
       confidence: (['keep', 'high', 'medium', 'low', 'review'].includes(conf) ? conf : 'none') as Confidence,
       reason: get('reason'),
-      decision: get('decision') || null
+      decision: get('decision') || null,
+      v2Target: get('current_target'),
+      v2Source: get('current_source'),
+      tagged: get('content_tagged')
     });
   }
   return out;
