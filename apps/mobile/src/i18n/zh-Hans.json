@@ -280,6 +280,7 @@
     "create_account": "创建账号",
     "scan_qr": "扫描二维码",
     "welcome": "欢迎",
+    "welcome_back": "欢迎回来",
     "vision": "LangQuest 是什么？",
     "intent_chooser": "你来这里想做什么？",
     "create_org": "创建机构",
@@ -2440,6 +2441,29 @@
         "viewerProgress": "查看每个语言的进展。",
         "viewerOpen": "打开任何一个经段，听听经过了哪些步骤。"
       }
+    },
+    "welcomeBack": {
+      "greeting": "欢迎回来，{{name}}",
+      "title": "欢迎回来",
+      "isHere": "你在 LangQuest 的工作已经到了。",
+      "onItsWay": "你在 LangQuest 的工作正在转过来。",
+      "wasProject": "{{org}} · 原来是你的项目“{{project}}”",
+      "counts": "{{recordings}} · {{passages}}",
+      "onItsWayRow": "正在转过来。到了会自动显示在这里。",
+      "recordHere": "<b>从现在起，请在这里录音。</b>你在旧应用中的录音仍会转到这里，但在这里录的不会回到旧应用。",
+      "keepOldApp": "<b>在它到达之前，请继续在旧应用中录音。</b>你在那里录的一切都会转过来，并自动显示在这里。",
+      "differentTitle": "有什么不同",
+      "differentSummary": "项目、任务和投票，在这里",
+      "differentProject": "你的<b>项目</b>现在是一个机构中的一种<b>语言</b>。",
+      "differentQuests": "你的<b>任务</b>现在是书卷、章和经段，按圣经的顺序排列。",
+      "differentVersions": "你为一章录的内容是它的一个<b>版本</b>。每次发布，就是一个新版本。",
+      "differentVotes": "<b>投票</b>现在是社区检查：大家说的话都在经段上。",
+      "checkAgain": "再查看一次",
+      "notYet": "还没有到。到了会自动显示在这里。",
+      "keepGoing": "继续 {{passage}}",
+      "goToMyWork": "前往“我的工作”",
+      "recordings_other": "{{count, number}} 段录音",
+      "passages_other": "{{count, number}} 个经段"
     },
     "invite": {
       "expired": "这个邀请已过期。请重新索取一个。",

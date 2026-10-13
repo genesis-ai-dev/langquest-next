@@ -171,6 +171,11 @@ describe('UX spec parity', () => {
     // A first sign-in gets the welcome (ADR-022), unless there is no org to welcome you to.
     expect(postSignInScreen(firstTime)).toBe('welcome');
     expect(postSignInScreen(firstNoOrg)).toBe('intent_chooser');
+    // Someone from v2 is welcomed back to their work instead (ADR-043), organization or not; Sign In is the only way in for them.
+    expect(postSignInScreen({ ...firstTime, fromV2: true })).toBe('welcome_back');
+    expect(postSignInScreen({ ...firstNoOrg, fromV2: true })).toBe('welcome_back');
+    expect(postSignInScreen({ ...roleSession('translator'), fromV2: true })).toBe('my_work');
+    expect(EDGES.some((e) => e.from === 'sign_in' && e.to === 'welcome_back')).toBe(true);
 
     const missing: string[] = [];
     for (const from of AUTH_SCREENS) {

@@ -14,7 +14,7 @@ import { t } from './i18n';
 
 export const SCREEN_IDS = [
   // 1 Getting in
-  'sign_in', 'terms_privacy', 'explore_home', 'create_account', 'scan_qr', 'welcome', 'vision',
+  'sign_in', 'terms_privacy', 'explore_home', 'create_account', 'scan_qr', 'welcome', 'welcome_back', 'vision',
   // 2 No organization yet
   'intent_chooser', 'create_org', 'request_access',
   // 3 Home and finding passages
@@ -100,6 +100,7 @@ const e = (from: NodeId, to: NodeId, mode?: Mode, when?: Gate): Edge => ({
 
 export const EDGES: Edge[] = [
   e('sign_in', 'welcome', 'replace'), // Sign In · email contains “first”
+  e('sign_in', 'welcome_back', 'replace'), // Sign In · a LangQuest v2 account
   e('sign_in', 'terms_privacy', undefined, 'guest'), // tap Terms & Privacy
   e('sign_in', 'home_hub', 'replace'), // Sign In
   e('sign_in', 'create_account', undefined, 'guest'), // tap Create Account
@@ -118,6 +119,8 @@ export const EDGES: Edge[] = [
   e('welcome', 'passage_record', 'reset', 'contributor'), // tap Show me how · practice passage
   e('welcome', 'home_hub', 'replace'), // tap Skip for now / Get started
   e('welcome', 'vision'), // tap What is LangQuest?
+  e('welcome_back', 'passage_record', 'reset'), // tap Keep going on {passage}
+  e('welcome_back', 'home_hub', 'replace'), // tap Go to My Work
   e('vision', 'welcome', 'back'), // tap Back / Done (from welcome)
   e('explore_home', 'sign_in', 'reset', 'guest'), // tap Sign In (guest only)
   e('explore_home', 'sign_in', 'back', 'guest'), // tap Back (from sign-in)

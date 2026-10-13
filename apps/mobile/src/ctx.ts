@@ -5,6 +5,7 @@ import type { Session } from './session';
 import type { InviteHandle } from './useHeldInvite';
 import type { OrgHandle } from './useOrg';
 import type { LanguageHandle } from './useLanguage';
+import type { V2Welcome } from './welcomeBack';
 
 /** A passage someone opened lately (WORK-2), newest first. */
 export interface RecentPassage {
@@ -64,6 +65,12 @@ export interface Ctx {
   /** Record-derived updates for the Inbox and which of them this device has shown. */
   inbox: { updates: Update[]; unread: number; isRead: (id: string) => boolean; markRead: (ids: string[]) => void };
 
+  /**
+   * Someone who came from LangQuest v2 and has not been welcomed yet: what
+   * of their v2 work has arrived, and a way to look again (welcomeBack.ts,
+   * demo ADR-043). Absent for everyone else.
+   */
+  welcomeBack?: { data: V2Welcome; refresh: () => Promise<V2Welcome | null> };
   /** The first sign-in welcome was seen (ADR-022). */
   markWelcomed: () => Promise<void>;
   /** Terms accepted by signing in (AUTH-1); pass the new account's id right after sign-in. */

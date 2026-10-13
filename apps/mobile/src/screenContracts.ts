@@ -19,6 +19,8 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   sign_in: { emits:['v1.TermsAccepted'],rpcs:['record_user_event'] },
   create_account: { emits:['v1.TermsAccepted'],rpcs:['record_user_event','save_profile'] },
   welcome: { emits:['v1.VisionSeen'],rpcs:['record_user_event'] },
+  // What came over from v2 and what is on its way (welcomeBack.ts, demo ADR-043).
+  welcome_back: { emits:['v1.VisionSeen'],rpcs:['record_user_event','v2_welcome'],reads:['highlightsFor'] },
   // A new organization's stream (createOrg.ts) and the welcome it skips
   // (markWelcomed). Its languages are added afterwards from Getting started
   // (ONB-5), each with a stream of its own (decisions.md 63).

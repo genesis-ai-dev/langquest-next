@@ -280,6 +280,7 @@
     "create_account": "Buat Akun",
     "scan_qr": "Pindai Kode QR",
     "welcome": "Selamat Datang",
+    "welcome_back": "Selamat datang kembali",
     "vision": "Apa itu LangQuest?",
     "intent_chooser": "Apa tujuan Anda di sini?",
     "create_org": "Buat Organisasi",
@@ -2440,6 +2441,29 @@
         "viewerProgress": "Lihat sejauh mana perkembangan setiap bahasa.",
         "viewerOpen": "Buka perikop mana saja untuk mendengar apa yang sudah terjadi."
       }
+    },
+    "welcomeBack": {
+      "greeting": "Selamat datang kembali, {{name}}",
+      "title": "Selamat datang kembali",
+      "isHere": "Pekerjaan Anda dari LangQuest sudah ada di sini.",
+      "onItsWay": "Pekerjaan Anda dari LangQuest sedang dalam perjalanan.",
+      "wasProject": "{{org}} · dulu proyek Anda “{{project}}”",
+      "counts": "{{recordings}} · {{passages}}",
+      "onItsWayRow": "Sedang dalam perjalanan. Akan muncul di sini dengan sendirinya.",
+      "recordHere": "<b>Mulai sekarang, rekam di sini.</b> Rekaman yang Anda buat di aplikasi lama tetap masuk ke sini, tetapi yang Anda rekam di sini tidak kembali ke sana.",
+      "keepOldApp": "<b>Tetap rekam di aplikasi lama sampai pekerjaan Anda tiba.</b> Semua yang Anda rekam di sana akan dipindahkan dan muncul di sini dengan sendirinya.",
+      "differentTitle": "Apa yang berbeda",
+      "differentSummary": "Proyek, misi, dan suara, di sini",
+      "differentProject": "<b>Proyek</b> Anda sekarang menjadi sebuah <b>bahasa</b> dalam sebuah organisasi.",
+      "differentQuests": "<b>Misi</b> Anda adalah kitab, pasal, dan perikop, sesuai urutan Alkitab.",
+      "differentVersions": "Yang Anda rekam untuk satu pasal adalah satu <b>versi</b> darinya. Setiap kali Anda menerbitkan, itu menjadi versi baru.",
+      "differentVotes": "<b>Suara</b> adalah Pemeriksaan Komunitas: apa yang dikatakan orang ada di perikop itu.",
+      "checkAgain": "Periksa lagi",
+      "notYet": "Belum tiba. Akan muncul di sini dengan sendirinya.",
+      "keepGoing": "Lanjutkan {{passage}}",
+      "goToMyWork": "Ke Pekerjaan Saya",
+      "recordings_other": "{{count, number}} rekaman",
+      "passages_other": "{{count, number}} perikop"
     },
     "invite": {
       "expired": "Undangan ini sudah kedaluwarsa. Minta yang baru.",

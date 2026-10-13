@@ -4,6 +4,7 @@
   "create_account",
   "terms_privacy",
   "welcome",
+  "welcome_back",
   "vision",
   "explore_home",
   "scan_qr",
@@ -61,6 +62,13 @@
    "mode": "replace",
    "when": null,
    "label": "Sign In · email contains “first”"
+  },
+  {
+   "from": "sign_in",
+   "to": "welcome_back",
+   "mode": "replace",
+   "when": null,
+   "label": "Sign In · a LangQuest v2 account (email contains “v2”)"
   },
   {
    "from": "sign_in",
@@ -187,6 +195,20 @@
    "mode": "push",
    "when": null,
    "label": "tap What is LangQuest?"
+  },
+  {
+   "from": "welcome_back",
+   "to": "passage_record",
+   "mode": "reset",
+   "when": null,
+   "label": "tap Keep going on {passage}"
+  },
+  {
+   "from": "welcome_back",
+   "to": "home_hub",
+   "mode": "replace",
+   "when": null,
+   "label": "tap Go to My Work"
   },
   {
    "from": "vision",

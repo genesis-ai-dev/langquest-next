@@ -115,7 +115,8 @@ signs in here everything they did is already theirs.
   has email and password accounts only, so this covers everyone. Every try
   reaches v2 from the same few servers, so after ten wrong passwords for
   one email in an hour the function refuses that email itself, before v2
-  starts refusing everyone (`v2_import.sign_in_failures`). It needs v2's
+  starts refusing everyone (`v2_import.sign_in_failures`). It also notes
+  which v2 projects they belong to, for Welcome back (section 7). It needs v2's
   publishable key as a function secret (`V2_SUPABASE_ANON_KEY` in
   `.env.<env>`, placed by `npm run secrets`); without it, Sign In simply
   says the password is wrong.
@@ -213,17 +214,30 @@ one row per pass. Nothing in `public` changes except `profiles` names and
 
 ## 7. People who come over (demo ADR-043)
 
-The first time someone signs in with a v2 account:
+The first time someone signs in with a v2 account they land on **Welcome
+back** (`welcome_back`, `apps/mobile/src/screens/onboarding.tsx`), never on
+the plain welcome or "What brings you here?":
 
-1. **Welcome back.** "Your LangQuest work is here." One card per language
-   they worked in (the v2 project's name, its organization, recordings and
-   passages), and Keep going, which opens My Work in the language they
-   worked in last.
-2. A project still waiting on the board shows as "On its way: the
-   LangQuest team is moving it", and appears by itself when it arrives.
-3. One line on what to expect: work they record in the old app still comes
-   here; work they record here does not go back. Nothing else to learn
-   first (no intros, decision 71).
+1. When `v2-sign-in` makes their account it reads, as them, the projects
+   they belong to in v2 and keeps that list (`v2_import.arrivals`).
+2. The app asks `v2_welcome()`, the one `v2_import` function a phone may
+   call, which answers for the person signed in: each of those projects
+   that has come over and that they can open here (the language, its
+   organization, the project's v2 name, what they recorded in it and the
+   passage they recorded last), and each one still on its way. A project
+   the board leaves out (Not coming over) is not mentioned. The answer is
+   kept on the phone (`useWelcomeBack.ts`).
+3. Work here: one card per language, "Record here from now on" (work they
+   record in the old app still comes here; work they record here does not
+   go back), a collapsed "What's different", and Keep going, which opens
+   what is waiting for them first, else the passage they recorded last.
+4. Nothing here yet: their projects show as on their way, "Keep recording
+   in the old app until it's here", and Check again. When one arrives, its
+   organization opens and the screen says it is here.
+
+Someone whose v2 projects all stay behind gets the ordinary welcome. Leaving
+Welcome back (Keep going or Go to My Work) marks them welcomed, as Welcome
+does; until then it is what they see on opening the app.
 
 ## 8. What a pass reports
 

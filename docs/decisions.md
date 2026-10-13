@@ -3154,3 +3154,14 @@ Reverse if: v2 gets a reliable change feed (then read changes, not whole
 projects), or projects routinely need to move between organizations after
 coming over (then a language needs a way to move, which the log does not
 have).
+
+Amended (2026-10-12, Caleb Koster): someone who signs in with a v2 account
+is welcomed back to their work (demo ADR-043; Caleb agreed to the demo's
+screen, 2026-10-12). `v2-sign-in` notes the v2 projects they belong to, as
+v2 lists them to that person, and `v2_welcome()` tells the phone which of
+those have come over and which are still on their way. It is the one
+function in the import's schema a phone may call, and it answers only for
+the caller. Their first sign-in lands on Welcome back with or without an
+organization here, never on "What brings you here?": until their work
+arrives they keep recording in the old app, since everything recorded
+there still comes over (`docs/v2-import.md` section 7).

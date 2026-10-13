@@ -55,11 +55,14 @@ Deno.serve(async (request) => {
     return reply(UNREACHABLE, 503);
   }
   const v2Id = v2.user?.id;
+  const valid = !!v2Id && UUID.test(v2Id) && !!v2.user?.email_confirmed_at;
+  // Their projects, read as them, while v2 still has them signed in.
+  const projects = valid && v2.access_token ? await projectsOf(v2Url, v2Key, v2.access_token, v2Id!) : [];
   if (v2.access_token) {
     // Leave no v2 session behind: the person signed in here, not there.
     void fetch(`${v2Url}/auth/v1/logout?scope=local`, { method: 'POST', headers: { apikey: v2Key, authorization: `Bearer ${v2.access_token}` } }).catch(() => {});
   }
-  if (!v2Id || !UUID.test(v2Id) || !v2.user?.email_confirmed_at) return reply(WRONG, 400);
+  if (!valid) return reply(WRONG, 400);
 
   const existing = await service.auth.admin.getUserById(v2Id);
   if (existing.data.user) {
@@ -79,9 +82,32 @@ Deno.serve(async (request) => {
   // A name for someone the import has not named yet; one already there is theirs.
   const name = typeof v2.user.user_metadata?.['username'] === 'string' ? (v2.user.user_metadata['username'] as string).trim().slice(0, 100) : '';
   if (name) await service.from('profiles').upsert({ id: v2Id, display_name: name }, { onConflict: 'id', ignoreDuplicates: true });
+  // What Welcome back checks for: which of these have come over (v2_welcome).
+  await service.rpc('v2_import_arrived', { p_profile: v2Id, p_projects: projects });
   try {
     return reply({ session: await signInAs(service, address), fromV2: true });
   } catch {
     return reply(BUSY, 503);
   }
 });
+
+/**
+ * The projects someone belongs to in v2, [{ id, name }], as v2 lists them to
+ * that person. Best effort: without them Welcome back only shows what has
+ * already arrived, so a slow or failed read never holds up signing in.
+ */
+async function projectsOf(url: string, key: string, token: string, id: string): Promise<{ id: string; name: string }[]> {
+  const get = async <T>(path: string): Promise<T[]> => {
+    const res = await fetch(`${url}/rest/v1/${path}`, { headers: { apikey: key, authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(5000) });
+    return res.ok ? (await res.json()) as T[] : [];
+  };
+  try {
+    const links = await get<{ project_id: string }>(`profile_project_link?select=project_id&profile_id=eq.${id}&active=eq.true&limit=200`);
+    const ids = [...new Set(links.map((l) => l.project_id).filter((p) => UUID.test(p)))];
+    if (!ids.length) return [];
+    const rows = await get<{ id: string; name: string | null }>(`project?select=id,name&active=eq.true&id=in.(${ids.join(',')})&order=name`);
+    return rows.map((r) => ({ id: r.id, name: (r.name ?? '').trim().slice(0, 200) }));
+  } catch {
+    return [];
+  }
+}

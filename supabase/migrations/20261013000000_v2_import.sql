@@ -2,8 +2,9 @@
 -- (docs/v2-import.md). Everything the import keeps is in its own schema,
 -- reached only by the service role through the v2_import_* functions below,
 -- so retiring the import is dropping this schema and those functions. v2's
--- work itself arrives as ordinary events through append_events; nothing
--- here is read by a phone.
+-- work itself arrives as ordinary events through append_events. A phone
+-- reads one thing here, through v2_welcome: which of its person's v2
+-- projects have arrived (Welcome back).
 
 create schema if not exists v2_import;
 revoke all on schema v2_import from public, anon, authenticated;
@@ -310,6 +311,69 @@ begin
   return (select count(*) from v2_import.sign_in_failures where email = lower(p_email)) < 10;
 end $$;
 
+-- What someone had in v2 when they first signed in here (functions/v2-sign-in):
+-- their projects, as v2 listed them then, [{ id, name }]. Welcome back says
+-- which of these have arrived and which are still on their way.
+create table v2_import.arrivals (
+  profile_id text primary key,
+  projects jsonb not null default '[]' check (jsonb_typeof(projects) = 'array'),
+  at timestamptz not null default now()
+);
+
+create or replace function public.v2_import_arrived(p_profile text, p_projects jsonb)
+returns void language sql security definer set search_path = v2_import, public as $$
+  insert into v2_import.arrivals (profile_id, projects) values (p_profile, coalesce(p_projects, '[]'))
+  on conflict (profile_id) do update set projects = excluded.projects, at = now();
+$$;
+
+-- Welcome back (the app's welcome_back, demo ADR-043), for the person signed
+-- in: each of their v2 projects that has arrived and that they can open here,
+-- with what they recorded in it and the passage they recorded last, and each
+-- one still on its way. A project the board leaves out (Not coming over) is
+-- not mentioned, nor one that arrived without them in it.
+create or replace function public.v2_welcome()
+returns jsonb language sql stable security definer set search_path = '' as $$
+  with mine as (
+    select x.p->>'id' as project_id, x.p->>'name' as was, x.ord
+    from v2_import.arrivals a cross join lateral jsonb_array_elements(a.projects) with ordinality as x (p, ord)
+    where a.profile_id = public.caller_id()
+  ),
+  placed as (
+    select m.*, pl.project_id is not null as on_board, pl.org_id,
+      coalesce(nullif(l.renamed, ''), nullif(l.added_name, ''), pl.name, m.was) as language_name,
+      pl.confirmed_at is not null and l.language_id is not null
+        and exists (select 1 from v2_import.ledger g where g.scope = m.project_id) as arrived
+    from mine m
+    left join v2_import.placements pl on pl.project_id = m.project_id
+    left join public.languages l on l.org_id = pl.org_id and l.language_id = m.project_id
+  ),
+  here as (
+    select p.*, r.recordings, r.passages, r.last_unit, r.last_hlc
+    from placed p
+    cross join lateral (
+      select count(*) as recordings, count(distinct e.payload->>'unitId') as passages,
+        (array_agg(e.payload->>'unitId' order by e.hlc collate "C" desc))[1] as last_unit,
+        max(e.hlc collate "C") as last_hlc
+      from public.events e
+      where e.org_id = p.org_id and e.stream_id = p.project_id and e.type = 'v1.RecordingAdded' and e.actor_id = public.caller_id()
+    ) r
+    where p.arrived and exists (
+      select 1 from public.org_memberships om
+      where om.org_id = p.org_id and om.profile_id = public.caller_id() and not om.removed
+        and (om.scope_level = 'org' or om.language_id = p.project_id)
+    )
+  )
+  select jsonb_build_object(
+    'here', coalesce((select jsonb_agg(jsonb_build_object(
+        'languageId', h.project_id, 'orgId', h.org_id, 'orgName', coalesce(public.org_name(h.org_id), h.org_id),
+        'name', h.language_name, 'was', h.was, 'recordings', h.recordings, 'passages', h.passages,
+        'lastUnitId', h.last_unit, 'lastAt', h.last_hlc
+      ) order by h.recordings desc, h.ord) from here h), '[]'),
+    'onTheirWay', coalesce((select jsonb_agg(jsonb_build_object('id', p.project_id, 'name', p.was) order by p.ord)
+      from placed p where not p.arrived and (not p.on_board or p.org_id is not null)), '[]')
+  );
+$$;
+
 -- An organization the import fills uses LangQuest's Bible as any
 -- organization does: subscribed in its stream, and allowed to read the
 -- document (as library_adopt grants it to a member who subscribes).
@@ -328,8 +392,12 @@ begin
   foreach f in array array['v2_import_set_role', 'v2_import_sign_in_try', 'v2_import_library_grant', 'v2_import_plan', 'v2_import_save_plan', 'v2_import_ledger', 'v2_import_ledger_put',
                            'v2_import_files', 'v2_import_files_put', 'v2_import_cursor', 'v2_import_status', 'v2_import_people',
                            'v2_import_pass_start', 'v2_import_pass_progress', 'v2_import_pass_finish', 'v2_import_log_add',
-                           'v2_import_project_log', 'v2_import_signed_in'] loop
+                           'v2_import_project_log', 'v2_import_signed_in', 'v2_import_arrived'] loop
     execute format('revoke all on function public.%I from public, anon, authenticated', f);
     execute format('grant execute on function public.%I to service_role', f);
   end loop;
 end $$;
+
+-- The one a phone calls: it answers only for the person signed in.
+revoke all on function public.v2_welcome from public, anon;
+grant execute on function public.v2_welcome to authenticated, service_role;
