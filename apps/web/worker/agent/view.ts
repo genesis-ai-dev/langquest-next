@@ -1,7 +1,8 @@
 import {
-  approvedVersion, buildIndexes, decodeHlc, derivePassage, encodeHlc, externalKeyError, kindOf, languageInfo, LISTENER_KIND, mayViewLanguage, orgLanguages, passageWork,
-  privilegesFor, referencedBlobs, releasesOf, stateRevision, stepAllowsLinks, validateEvent,
-  type AnyEvent, type Card, type KindState, type LanguageState, type OrgState, type PassageState, type Version
+  addedTo, approvedVersion, buildIndexes, decodeHlc, derivePassage, encodeHlc, externalKeyError, isWrittenPart, kindOf, languageInfo, LISTENER_KIND,
+  madeRootTake, madeVersionOf, mayViewLanguage, orgLanguages, passageWork, privilegesFor, referencedBlobs, releasesOf, stateRevision, stepAllowsLinks,
+  validateEvent, writtenText,
+  type AnyEvent, type Card, type KindState, type LanguageState, type Medium, type OrgState, type PassageState, type Version
 } from '@langquest-next/core';
 import { canRead, canReadValues, coversLanguage, sha256Hex, type Grant } from './tokens';
 
@@ -22,6 +23,86 @@ export interface LanguageView {
   can: { read: 'all' | 'published' | null; review: boolean; release: boolean; externalValues: { read: boolean; write: boolean } };
 }
 
+/** A version is recorded or written (decisions.md 93), known from its parts. */
+export const MEDIA = ['recording', 'writing'] as const satisfies readonly Medium[];
+
+/**
+ * A step made this version from an earlier one (a final recording after the
+ * consultant): it replaces that version, and the checks before the step
+ * count from the version it was made from (core approvedVersion).
+ */
+export interface MadeByOut {
+  kindId: string;
+  kind: string;
+  fromVersionN: number;
+}
+
+/**
+ * What steps added to a version (core addedTo), one entry per medium: words
+ * added to a recording, or a recording added to writing. It belongs to the
+ * version; the latest holds.
+ */
+export interface AddedOut {
+  medium: Medium;
+  /** The step that added it, when a step did. */
+  kindId?: string;
+  kind?: string;
+  /** When this medium was first added to the version. */
+  addedAt: string;
+  /** When it last changed, if it changed after it was first added. */
+  changedAt?: string;
+  /**
+   * The newest review of the version given after it was first added and
+   * before its last change: the content changed after that review. The
+   * approval stands; the person who changed it decides whether it needs
+   * another review (Caleb, 2026-10-13).
+   */
+  changedAfterReview?: { kindId: string; kind: string; at: string };
+}
+
+export interface VersionOut {
+  n: number;
+  takeId: string;
+  submittedAt: string;
+  /** The length of what `audio` plays: the version's own recording, or for a written version the recording added to it; 0 when there is none. */
+  durationMs: number;
+  medium: Medium;
+  /** Present when a step made this version from an earlier one. */
+  madeBy?: MadeByOut;
+  /** Present when a step added something to this version. */
+  added?: AddedOut[];
+}
+
+/** A written part's words, with the verses it holds when someone set them. */
+export interface TextPart {
+  text: string;
+  /** `chapter:verse`, from and to; absent when no verses were set for the part. */
+  verses?: { from: string; to: string };
+}
+
+/**
+ * Something a step made beside a version (a back translation, a written
+ * copy), or added to one, or brought over from LangQuest v2 with no step.
+ * Team material: needs `read`.
+ */
+export interface MadeOut {
+  madeId: string;
+  kindId?: string;
+  kind?: string;
+  medium: Medium;
+  /** The language it is in, when not the team's own (ISO 639-3 or a glottocode). */
+  language?: string;
+  /** The version it was made from, directly or from something made from it. */
+  fromVersionN: number;
+  /** It was added to that version, which holds it (`version.added`). */
+  added: boolean;
+  at: string;
+  /** Its words, when written. */
+  text?: TextPart[];
+  /** Its recording, when recorded. */
+  audio?: AudioCard[];
+}
+
 export interface PassageSummary {
   unitId: string;
   label: string;
@@ -32,14 +113,14 @@ export interface PassageSummary {
    * The version this token hears: the latest shared for review with `read`,
    * the approved one with `read:published` alone. Null when there is none.
    */
-  version: { n: number; takeId: string; submittedAt: string; durationMs: number } | null;
+  version: VersionOut | null;
   /** The newest version every step approved on its own (core approvedVersion); what a listening app should play. */
-  approvedVersion: { n: number; takeId: string } | null;
+  approvedVersion: { n: number; takeId: string; medium: Medium } | null;
   /** Where a version is live, one entry per channel (core releasesOf). */
   releases: { channel: string; versionN: number; takeId: string; url?: string; at: string }[];
   /** Listener feedback on `version`. */
   listenerFeedback: { looksGood: number; needsChanges: number };
-  /** The newest thing that happened to the passage's versions or reviews. */
+  /** The newest thing that happened to the passage's versions, reviews or releases, or that a step made or added. */
   updatedAt: string | null;
 }
 
@@ -66,8 +147,18 @@ export interface ReviewOut {
 }
 
 export interface PassageDetail extends PassageSummary {
-  /** `version`'s cards, in playing order. Empty when there is none. */
+  /**
+   * What `version` plays, in order: a recorded version's own cards, or the
+   * recording a step added to a written version. Empty when there is none.
+   * Written parts are never files, so never here.
+   */
   audio: AudioCard[];
+  /**
+   * `version`'s words, in order: a written version's own parts, or the words
+   * a step added to a recorded version. Parts whose words have not arrived
+   * are left out; empty when there are none.
+   */
+  text: TextPart[];
   /** With `read`: every review of every version. With `read:published` only: listener reviews of `version`. */
   reviews: ReviewOut[];
   /**
@@ -83,12 +174,16 @@ export interface PassageDetail extends PassageSummary {
    * `kindId` answers it.
    */
   requests?: { requestId: string; what: 'record' | 'review'; kindId?: string; kind?: string; forYou: boolean; team?: string; dueDate?: string; note?: string; askedAt: string }[];
-  versions?: { n: number; takeId: string; submittedAt: string }[];
+  versions?: { n: number; takeId: string; submittedAt: string; medium: Medium; madeBy?: MadeByOut }[];
+  /** With `read`: what was made beside the passage's versions, and added to them, oldest first; never a version a step made. */
+  made?: MadeOut[];
 }
 
 /** What a list may add to each passage, named as one passage's own fields. */
-export const PASSAGE_INCLUDES = ['audio', 'reviews', 'steps', 'requests', 'versions'] as const;
+export const PASSAGE_INCLUDES = ['audio', 'text', 'reviews', 'steps', 'requests', 'versions', 'made'] as const;
 export type PassageInclude = (typeof PASSAGE_INCLUDES)[number];
+/** The flow, the work asked for, older versions and what was made beside them are the team's; read:published never gets them. */
+export const TEAM_ONLY: readonly PassageInclude[] = ['steps', 'requests', 'versions', 'made'];
 
 /** A passage on the list: its summary, and what the caller included. */
 export type PassageListItem = PassageSummary & Partial<Pick<PassageDetail, PassageInclude>>;
@@ -149,6 +244,77 @@ function cardsOf(state: LanguageState): Map<string, Card> {
   return cards;
 }
 
+/**
+ * Recorded parts as cards, never a written one (written parts are not
+ * files, decisions.md 93). A part a recording holds takes that recording's
+ * length and format, as the stored file does (core referencedBlobs); else
+ * the card a step made it with.
+ */
+function recordedCards(state: LanguageState, parts: readonly (string | Card)[]): Card[] {
+  const cards = cardsOf(state);
+  const out: Card[] = [];
+  for (const p of parts) {
+    const hash = typeof p === 'string' ? p : p.hash;
+    if (isWrittenPart(hash)) continue;
+    out.push(cards.get(hash) ?? (typeof p === 'string' ? { hash, durationMs: 0 } : p));
+  }
+  return out;
+}
+
+/** What a version plays: its own recording, or the recording a step added to a written version (the latest). */
+function playedCards(state: LanguageState, s: PassageState, v: Version): Card[] {
+  if (v.medium === 'recording') return recordedCards(state, v.cardHashes);
+  return recordedCards(state, addedTo(s, v).find((a) => a.medium === 'recording')?.made.parts ?? []);
+}
+
+/** Written parts' words in order, each with its verses when they were set; parts whose words have not arrived are left out. */
+function textOf(state: LanguageState, unitId: string, ids: readonly string[]): TextPart[] {
+  const out: TextPart[] = [];
+  for (const id of ids) {
+    if (!isWrittenPart(id)) continue;
+    const text = writtenText(state, id);
+    if (text === undefined) continue;
+    const m = state.cardVerses?.[unitId]?.[id]?.value;
+    out.push({ text, ...(m?.mark === 'set' && m.from && m.to ? { verses: { from: m.from, to: m.to } } : {}) });
+  }
+  return out;
+}
+
+/** A version's words: a written version's own, or the words a step added to a recorded one (the latest). */
+function versionText(state: LanguageState, s: PassageState, v: Version): TextPart[] {
+  if (v.medium === 'writing') return textOf(state, s.unitId, v.cardHashes);
+  return textOf(state, s.unitId, (addedTo(s, v).find((a) => a.medium === 'writing')?.made.parts ?? []).map((p) => p.hash));
+}
+
+/** The step that made this version, and the version it made it from; absent when someone published it by hand. */
+function madeByOf(state: LanguageState, s: PassageState, v: Version): MadeByOut | undefined {
+  if (!v.madeByKindId) return undefined;
+  // Made from something made from a version (a reading of the written copy): the version that thing came from.
+  const record = v.madeFromTakeId ? undefined : Object.values(state.made ?? {}).find((m) => m.takeId === v.takeId);
+  const fromTakeId = v.madeFromTakeId ?? (record ? madeRootTake(state, record) : undefined);
+  const from = s.versions.find((x) => x.takeId === fromTakeId);
+  return from ? { kindId: v.madeByKindId, kind: kindOf(state, v.madeByKindId).name, fromVersionN: from.n } : undefined;
+}
+
+function addedOut(state: LanguageState, s: PassageState, v: Version): AddedOut[] {
+  return addedTo(s, v).map((a) => ({
+    medium: a.medium,
+    ...(a.made.kindId ? { kindId: a.made.kindId, kind: kindOf(state, a.made.kindId).name } : {}),
+    addedAt: iso(a.first.hlc),
+    ...(a.made.id !== a.first.id ? { changedAt: iso(a.made.hlc) } : {}),
+    ...(a.changedAfter ? { changedAfterReview: { kindId: a.changedAfter.kindId, kind: kindOf(state, a.changedAfter.kindId).name, at: iso(a.changedAfter.hlc) } } : {})
+  }));
+}
+
+function versionOut(state: LanguageState, s: PassageState, v: Version): VersionOut {
+  const madeBy = madeByOf(state, s, v);
+  const added = addedOut(state, s, v);
+  return {
+    n: v.n, takeId: v.takeId, submittedAt: iso(v.hlc), durationMs: playedCards(state, s, v).reduce((t, c) => t + c.durationMs, 0), medium: v.medium,
+    ...(madeBy ? { madeBy } : {}), ...(added.length ? { added } : {})
+  };
+}
+
 function pathOf(state: LanguageState, unitId: string): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
@@ -172,13 +338,14 @@ const statusOf = (s: PassageState): ApiStatus => {
 const heard = (grant: Grant, s: PassageState): Version | null => (canRead(grant, true) ? s.latest ?? null : approvedVersion(s));
 
 function summarize(grant: Grant, state: LanguageState, s: PassageState): PassageSummary {
-  const cards = cardsOf(state);
   const v = heard(grant, s);
   const approved = approvedVersion(s);
   const onVersion = v ? s.reviews.filter((r) => r.takeId === v.takeId && r.kindId === LISTENER_KIND) : [];
   const releases = releasesOf(state, s);
   let newest: string | null = s.latest?.hlc ?? null;
   for (const r of s.reviews) if (!newest || r.hlc > newest) newest = r.hlc;
+  // Words added to a version change what it holds; things made beside one are new too (decisions.md 93).
+  for (const m of s.made) if (!newest || m.hlc > newest) newest = m.hlc;
   // A take-down leaves no release behind, so every report on any version counts as a change.
   for (const v of s.versions) for (const reg of Object.values(state.releases?.[v.takeId] ?? {})) if (!newest || reg.hlc > newest) newest = reg.hlc;
   return {
@@ -186,10 +353,8 @@ function summarize(grant: Grant, state: LanguageState, s: PassageState): Passage
     label: state.units[s.unitId]?.label ?? s.unitId,
     path: pathOf(state, s.unitId),
     status: statusOf(s),
-    version: v
-      ? { n: v.n, takeId: v.takeId, submittedAt: iso(v.hlc), durationMs: v.cardHashes.reduce((t, h) => t + (cards.get(h)?.durationMs ?? 0), 0) }
-      : null,
-    approvedVersion: approved ? { n: approved.n, takeId: approved.takeId } : null,
+    version: v ? versionOut(state, s, v) : null,
+    approvedVersion: approved ? { n: approved.n, takeId: approved.takeId, medium: approved.medium } : null,
     releases: releases.map((r) => ({ channel: r.channel, versionN: r.versionN, takeId: r.takeId, at: iso(r.hlc), ...(r.url !== undefined ? { url: r.url } : {}) })),
     listenerFeedback: {
       looksGood: onVersion.filter((r) => r.outcome === 'looks_good').length,
@@ -203,8 +368,6 @@ function summarize(grant: Grant, state: LanguageState, s: PassageState): Passage
 const visible = (grant: Grant, s: PassageState) => canRead(grant, true) || (canRead(grant) && approvedVersion(s) !== null);
 
 export const API_STATUSES: readonly ApiStatus[] = ['not_started', 'drafting', 'in_review', 'feedback', 'approved'];
-/** The flow, the work asked for and older versions are the team's; read:published never gets them. */
-const TEAM_ONLY: readonly PassageInclude[] = ['steps', 'requests', 'versions'];
 /** Passages on a page when the caller does not say, and the most one page holds. */
 export const PASSAGES_PAGE = 100;
 export const PASSAGES_PAGE_MAX = 500;
@@ -310,16 +473,17 @@ async function passageOut(
     const l = await sign(`${orgId}/${languageId}/${hash}.${format}`);
     return { url: l.url, expiresAt: new Date(l.expiresAt).toISOString() };
   };
-  const v = heard(grant, s);
-  if (include.has('audio')) {
-    const cards = cardsOf(state);
-    out.audio = [];
-    for (const hash of v?.cardHashes ?? []) {
-      const card = cards.get(hash);
-      const format = card?.format ?? 'wav';
-      out.audio.push({ hash, format, durationMs: card?.durationMs ?? 0, ...(await link(hash, format)) });
+  const audioOf = async (cards: Card[]): Promise<AudioCard[]> => {
+    const audio: AudioCard[] = [];
+    for (const c of cards) {
+      const format = c.format ?? 'wav';
+      audio.push({ hash: c.hash, format, durationMs: c.durationMs, ...(await link(c.hash, format)) });
     }
-  }
+    return audio;
+  };
+  const v = heard(grant, s);
+  if (include.has('audio')) out.audio = v ? await audioOf(playedCards(state, s, v)) : [];
+  if (include.has('text')) out.text = v ? versionText(state, s, v) : [];
   if (include.has('reviews')) {
     const all = canRead(grant, true);
     out.reviews = [];
@@ -333,7 +497,7 @@ async function passageOut(
       const notes: Card[] = [
         ...(r.commentBlobHash ? [{ hash: r.commentBlobHash, durationMs: 0, format: state.audioFormats[r.commentBlobHash]?.value ?? 'm4a' }] : []),
         ...(r.outcome !== 'recorded' ? r.artifacts ?? [] : [])
-      ];
+      ].filter((n) => !isWrittenPart(n.hash));
       if (notes.length) {
         review.voiceNotes = [];
         for (const n of notes) review.voiceNotes.push({ ...(await link(n.hash, n.format ?? 'wav')), durationMs: n.durationMs, ...(n.atMs !== undefined ? { atMs: n.atMs } : {}) });
@@ -359,7 +523,30 @@ async function passageOut(
       askedAt: iso(r.hlc)
     }));
   }
-  if (include.has('versions')) out.versions = s.versions.map((ver) => ({ n: ver.n, takeId: ver.takeId, submittedAt: iso(ver.hlc) }));
+  if (include.has('versions')) {
+    out.versions = s.versions.map((ver) => {
+      const madeBy = madeByOf(state, s, ver);
+      return { n: ver.n, takeId: ver.takeId, submittedAt: iso(ver.hlc), medium: ver.medium, ...(madeBy ? { madeBy } : {}) };
+    });
+  }
+  if (include.has('made')) {
+    out.made = [];
+    for (const m of s.made) {
+      // Only what came from a version of this passage: that is where a reader finds it.
+      const from = s.versions.find((x) => x.takeId === madeVersionOf(s, m));
+      if (!from) continue;
+      out.made.push({
+        madeId: m.id,
+        ...(m.kindId ? { kindId: m.kindId, kind: kindOf(state, m.kindId).name } : {}),
+        medium: m.medium,
+        ...(m.language !== undefined ? { language: m.language } : {}),
+        fromVersionN: from.n, added: !!m.added, at: iso(m.hlc),
+        ...(m.medium === 'writing'
+          ? { text: textOf(state, s.unitId, m.parts.map((p) => p.hash)) }
+          : { audio: await audioOf(recordedCards(state, m.parts)) })
+      });
+    }
+  }
   return out;
 }
 
@@ -747,14 +934,13 @@ export async function linkView(link: ReviewLink, org: OrgState, state: LanguageS
   const v = s.versions.find((x) => x.takeId === link.takeId);
   if (!v) return refuse(404, 'gone', 'This passage is no longer here.');
   const open = linkIsOpen(link, org, now);
-  const cards = cardsOf(state);
   const audio: AudioCard[] = [];
   // A closed link plays nothing: revoking it is how a sharer takes the audio back.
-  for (const hash of open ? v.cardHashes : []) {
-    const card = cards.get(hash);
-    const format = card?.format ?? 'wav';
-    const l = await sign(`${link.orgId}/${link.languageId}/${hash}.${format}`);
-    audio.push({ hash, format, durationMs: card?.durationMs ?? 0, url: l.url, expiresAt: new Date(l.expiresAt).toISOString() });
+  // A written version plays the recording added to it, if any; its words are never files (decisions.md 93).
+  for (const card of open ? playedCards(state, s, v) : []) {
+    const format = card.format ?? 'wav';
+    const l = await sign(`${link.orgId}/${link.languageId}/${card.hash}.${format}`);
+    audio.push({ hash: card.hash, format, durationMs: card.durationMs, url: l.url, expiresAt: new Date(l.expiresAt).toISOString() });
   }
   const kind = kindOf(state, link.kindId);
   return {

@@ -1,5 +1,5 @@
 import {
-  encodeHlc, foldOrg, privilegeAllows, privilegeFor, privilegesFor, SEED_ROLES, type AnyEvent
+  encodeHlc, foldOrg, privilegeAllows, privilegeFor, privilegesFor, SEED_ROLES, writtenPartId, type AnyEvent
 } from '@langquest-next/core';
 import type { AppendResult } from '@langquest-next/client';
 import { handleAgentApi, type AgentDeps, type OrgStub } from '../worker/agent/http';
@@ -279,13 +279,13 @@ describe('reading', () => {
     log.add('din', 'v1.RequestMade', { requestId: 'q-rev', unitId: 'd2', what: 'review', kindId: 'peer', profileId: 'rev' }, 'tr');
     const t = await token('rev', { scopes: ['read'] });
     const plain = await call('GET', '/api/v1/languages/din/passages', t);
-    expect(plain.body.passages.every((p: any) => Object.keys(p).every((k) => !['steps', 'requests', 'reviews', 'versions', 'audio'].includes(k)))).toBe(true);
+    expect(plain.body.passages.every((p: any) => Object.keys(p).every((k) => !['steps', 'requests', 'reviews', 'versions', 'audio', 'text', 'made'].includes(k)))).toBe(true);
     const one = await call('GET', '/api/v1/languages/din/passages/d2', t);
     const progress = await call('GET', '/api/v1/languages/din/passages?status=in_review&include=steps,requests', t);
-    expect(progress.body.passages).toEqual([{ ...withoutKeys(one.body, ['audio', 'reviews', 'versions']) }]);
+    expect(progress.body.passages).toEqual([{ ...withoutKeys(one.body, ['audio', 'text', 'reviews', 'versions', 'made']) }]);
     expect(progress.body.passages[0].requests).toMatchObject([{ requestId: 'q-rev', forYou: true }]);
     // Everything one passage gives, for several picked passages, in display order.
-    const picked = await call('GET', '/api/v1/languages/din/passages?unitIds=d2&unitIds=d1&unitIds=nope&include=audio,reviews,steps,requests,versions', t);
+    const picked = await call('GET', '/api/v1/languages/din/passages?unitIds=d2&unitIds=d1&unitIds=nope&include=audio,text,reviews,steps,requests,versions,made', t);
     expect(picked.body.passages.map((p: any) => p.unitId)).toEqual(['d1', 'd2']);
     expect(picked.body.passages[1]).toEqual(one.body);
     expect((await call('GET', '/api/v1/languages/din/passages?include=steps,colour', t)).body).toMatchObject({ code: 'bad_request' });
@@ -295,9 +295,9 @@ describe('reading', () => {
     const { call, token } = setup();
     const listener = await token('admin', { scopes: ['read:published'] });
     const one = await call('GET', '/api/v1/languages/din/passages/d1', listener);
-    const list = await call('GET', '/api/v1/languages/din/passages?include=audio,reviews', listener);
+    const list = await call('GET', '/api/v1/languages/din/passages?include=audio,text,reviews', listener);
     expect(list.body.passages).toEqual([one.body]);
-    for (const include of ['steps', 'requests', 'versions']) {
+    for (const include of ['steps', 'requests', 'versions', 'made']) {
       expect((await call('GET', `/api/v1/languages/din/passages?include=${include}`, listener)).body).toMatchObject({ code: 'scope' });
     }
   });
@@ -383,6 +383,140 @@ describe('reading', () => {
     advance(86_400_000 + 1);
     expect((await call('GET', '/api/v1/languages', soon)).body.code).toBe('expired');
     expect(store.tokens.every((x) => !JSON.stringify(x).includes(t))).toBe(true); // only hashes are kept
+  });
+});
+
+describe('what an approved passage holds (decisions.md 93)', () => {
+  const words = (...texts: string[]) => texts.map((text) => ({ id: writtenPartId(text), text }));
+  const written = (parts: { id: string }[]) => parts.map((p) => ({ hash: p.id, durationMs: 0 }));
+  /** A step that writes a recording down and adds the words to the version. */
+  const transcription = (log: Log) => {
+    log.add('din', 'v1.ReviewKindDefined', { kindId: 'transcribe', name: 'Transcription' });
+    log.add('din', 'v1.StepMakesSet', { kindId: 'transcribe', makes: { from: 'recording', to: 'writing', language: 'same', result: 'added' } });
+  };
+
+  it('serves a written version as its words with their verses, and never signs a link for a written part', async () => {
+    const { call, token, log, signed } = setup();
+    const parts = words('In the beginning was the Word.', 'He was with God in the beginning.', 'Through him all things were made.');
+    log.add('din', 'v1.UnitAdded', unit('d5', 'Luke 5'));
+    // The third part's words have not reached the server yet.
+    log.add('din', 'v1.WritingAdded', { writingId: 'w-d5', unitId: 'd5', parts: parts.slice(0, 2) }, 'tr');
+    log.add('din', 'v1.CardVerseSet', { unitId: 'd5', hash: parts[0]!.id, mark: 'set', from: '5:1', to: '5:1' }, 'tr');
+    log.add('din', 'v1.CardVerseSet', { unitId: 'd5', hash: parts[1]!.id, mark: 'set', from: '5:2', to: '5:3' }, 'tr');
+    log.add('din', 'v1.TakeComposed', { takeId: 'take-d5', unitId: 'd5', cardHashes: parts.map((p) => p.id), parentTakeId: null }, 'tr');
+    log.add('din', 'v1.TakeSubmitted', { takeId: 'take-d5' }, 'tr');
+    log.add('din', 'v1.ReviewRecorded', { reviewId: 'peer-d5', takeId: 'take-d5', kindId: 'peer', outcome: 'looks_good', via: 'app' }, 'rev');
+    const listener = await token('admin', { scopes: ['read:published'] });
+    const before = signed();
+    const d5 = await call('GET', '/api/v1/languages/din/passages/d5', listener);
+    expect(d5.body).toMatchObject({
+      status: 'approved', version: { n: 1, medium: 'writing', durationMs: 0 }, approvedVersion: { n: 1, takeId: 'take-d5', medium: 'writing' }, audio: []
+    });
+    expect(d5.body.version.added).toBeUndefined();
+    expect(d5.body.text).toEqual([
+      { text: 'In the beginning was the Word.', verses: { from: '5:1', to: '5:1' } },
+      { text: 'He was with God in the beginning.', verses: { from: '5:2', to: '5:3' } }
+    ]);
+    expect(signed()).toBe(before);
+
+    // A step reads it aloud and adds the recording to it: the written version now plays that.
+    log.add('din', 'v1.ReviewKindDefined', { kindId: 'read-aloud', name: 'Read it aloud' });
+    log.add('din', 'v1.StepMakesSet', { kindId: 'read-aloud', makes: { from: 'writing', to: 'recording', language: 'same', result: 'added' } });
+    log.add('din', 'v1.Made', { madeId: 'aloud-d5', unitId: 'd5', kindId: 'read-aloud', fromTakeId: 'take-d5', added: true, parts: [card('d5r', 3000)] }, 'tr');
+    const aloud = await call('GET', '/api/v1/languages/din/passages/d5', listener);
+    expect(aloud.body.version).toMatchObject({ medium: 'writing', durationMs: 3000, added: [{ medium: 'recording', kindId: 'read-aloud', kind: 'Read it aloud', addedAt: aloud.body.updatedAt }] });
+    expect(aloud.body.audio.map((a: any) => a.hash)).toEqual([card('d5r').hash]);
+    expect(aloud.body.text).toEqual(d5.body.text);
+    // The list and MCP give the same; a review link plays the same.
+    const listed = await call('GET', '/api/v1/languages/din/passages?unitIds=d5&include=audio,text', listener);
+    expect(listed.body.passages).toEqual([withoutKeys(aloud.body, ['reviews'])]);
+    const mcp = await call('POST', '/api/v1/mcp', listener, { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'list_passages', arguments: { languageId: 'din', unitIds: ['d5'], include: ['audio', 'text'] } } });
+    expect(JSON.parse(mcp.body.result.content[0].text).passages).toEqual(listed.body.passages);
+    const link = await call('POST', '/api/v1/session/review-links', 'jwt:tr', { orgId: ORG, languageId: 'din', unitId: 'd5', kindId: 'peer', counts: false });
+    const page = await call('GET', `/api/v1/links/${link.body.url.slice(link.body.url.lastIndexOf('/') + 1)}`);
+    expect(page.body.audio.map((a: any) => a.hash)).toEqual([card('d5r').hash]);
+  });
+
+  it('gives a recorded version the words a step added to it, and keeps what was made beside it for the team', async () => {
+    const { call, token, log } = setup();
+    const parts = words('Zechariah served as priest.', 'He was chosen by lot.');
+    transcription(log);
+    log.add('din', 'v1.ReviewKindDefined', { kindId: 'make-bt-said', name: 'Back translation' });
+    log.add('din', 'v1.StepMakesSet', { kindId: 'make-bt-said', makes: { from: 'either', to: 'recording', language: 'other', result: 'beside' } });
+    log.add('din', 'v1.WritingAdded', { writingId: 'w-d1', unitId: 'd1', parts }, 'tr');
+    log.add('din', 'v1.CardVerseSet', { unitId: 'd1', hash: parts[0]!.id, mark: 'set', from: '1:8', to: '1:8' }, 'tr');
+    log.add('din', 'v1.Made', { madeId: 'words-d1', unitId: 'd1', kindId: 'transcribe', fromTakeId: 'take-d1', added: true, parts: written(parts) }, 'tr');
+    log.add('din', 'v1.Made', { madeId: 'bt-d1', unitId: 'd1', kindId: 'make-bt-said', fromTakeId: 'take-d1', language: 'eng', parts: [card('bt1', 5000)] }, 'tr');
+    const listener = await token('admin', { scopes: ['read:published'] });
+    const d1 = await call('GET', '/api/v1/languages/din/passages/d1', listener);
+    expect(d1.body.version).toEqual({
+      n: 1, takeId: 'take-d1', submittedAt: expect.any(String), durationMs: 4000, medium: 'recording',
+      added: [{ medium: 'writing', kindId: 'transcribe', kind: 'Transcription', addedAt: expect.any(String) }]
+    });
+    expect(d1.body.audio.map((a: any) => a.hash)).toEqual([card('d1a').hash, card('d1b').hash]);
+    expect(d1.body.text).toEqual([{ text: 'Zechariah served as priest.', verses: { from: '1:8', to: '1:8' } }, { text: 'He was chosen by lot.' }]);
+    // What was made beside the version is the team's.
+    expect(d1.body.made).toBeUndefined();
+    expect((await call('GET', '/api/v1/languages/din/passages?include=made', listener)).body).toMatchObject({ code: 'scope' });
+    const team = await token('admin', { scopes: ['read'] });
+    const made = (await call('GET', '/api/v1/languages/din/passages?unitIds=d1&include=made', team)).body.passages[0].made;
+    expect(made).toEqual([
+      { madeId: 'words-d1', kindId: 'transcribe', kind: 'Transcription', medium: 'writing', fromVersionN: 1, added: true, at: d1.body.version.added[0].addedAt, text: d1.body.text },
+      {
+        madeId: 'bt-d1', kindId: 'make-bt-said', kind: 'Back translation', medium: 'recording', language: 'eng', fromVersionN: 1, added: false, at: expect.any(String),
+        audio: [{ hash: card('bt1').hash, format: 'm4a', durationMs: 5000, url: `https://lq.test/api/blobs/${ORG}/din/${card('bt1').hash}.m4a?sig=x`, expiresAt: expect.any(String) }]
+      }
+    ]);
+    // Something made is a change to follow.
+    expect(d1.body.updatedAt).toBe(made[1].at);
+  });
+
+  it('shows words changed after a review, and the approval stands', async () => {
+    const { call, token, log } = setup();
+    transcription(log);
+    const first = words('Mary went to the hill country.');
+    const fixed = words('Mary hurried to the hill country.');
+    log.add('din', 'v1.WritingAdded', { writingId: 'w-1', unitId: 'd2', parts: first }, 'tr');
+    log.add('din', 'v1.Made', { madeId: 'words-1', unitId: 'd2', kindId: 'transcribe', fromTakeId: 'take-d2', added: true, parts: written(first) }, 'tr');
+    log.add('din', 'v1.ReviewRecorded', { reviewId: 'peer-d2', takeId: 'take-d2', kindId: 'peer', outcome: 'looks_good', via: 'app' }, 'rev');
+    const listener = await token('admin', { scopes: ['read:published'] });
+    const approved = await call('GET', '/api/v1/languages/din/passages/d2', listener);
+    expect(approved.body.version.added).toEqual([{ medium: 'writing', kindId: 'transcribe', kind: 'Transcription', addedAt: expect.any(String) }]);
+    log.add('din', 'v1.WritingAdded', { writingId: 'w-2', unitId: 'd2', parts: fixed }, 'tr');
+    log.add('din', 'v1.Made', { madeId: 'words-2', unitId: 'd2', kindId: 'transcribe', fromTakeId: 'take-d2', added: true, parts: written(fixed) }, 'tr');
+    const changed = await call('GET', '/api/v1/languages/din/passages/d2', listener);
+    expect(changed.body).toMatchObject({ status: 'approved', approvedVersion: { n: 1, takeId: 'take-d2', medium: 'recording' }, text: [{ text: 'Mary hurried to the hill country.' }] });
+    const team = await token('admin', { scopes: ['read'] });
+    const review = (await call('GET', '/api/v1/languages/din/passages/d2', team)).body.reviews.find((r: any) => r.kindId === 'peer');
+    expect(changed.body.version.added).toEqual([{
+      medium: 'writing', kindId: 'transcribe', kind: 'Transcription', addedAt: approved.body.version.added[0].addedAt,
+      changedAt: changed.body.updatedAt, changedAfterReview: { kindId: 'peer', kind: 'Peer Review', at: review.at }
+    }]);
+  });
+
+  it('says which step made a version, which is approved with the checks before that step counted from the version it replaced', async () => {
+    const { call, token, log } = setup();
+    log.add('nus', 'v1.ReviewKindDefined', { kindId: 'make-final', name: 'Final recording' });
+    log.add('nus', 'v1.StepMakesSet', { kindId: 'make-final', makes: { from: 'recording', to: 'recording', language: 'same', result: 'version' } });
+    log.add('nus', 'v1.FlowStepSet', { stepId: 'peer_only/s3', order: 's02', kindIds: ['make-final'], checkpoint: false });
+    const t = await token('admin', { scopes: ['read'] });
+    // n1 passed peer review and the consultant; its final recording is still to be made.
+    expect((await call('GET', '/api/v1/languages/nus/passages/n1', t)).body.approvedVersion).toBeNull();
+    recorded(log, 'nus', 'n1', { take: 'take-n1-final' });
+    log.add('nus', 'v1.Made', { madeId: 'final-n1', unitId: 'n1', kindId: 'make-final', fromTakeId: 'take-n1', takeId: 'take-n1-final' }, 'tr');
+    const n1 = await call('GET', '/api/v1/languages/nus/passages/n1', t);
+    const madeBy = { kindId: 'make-final', kind: 'Final recording', fromVersionN: 1 };
+    expect(n1.body).toMatchObject({
+      status: 'approved', version: { n: 2, takeId: 'take-n1-final', medium: 'recording', madeBy }, approvedVersion: { n: 2, takeId: 'take-n1-final', medium: 'recording' }
+    });
+    expect(n1.body.versions).toEqual([
+      { n: 1, takeId: 'take-n1', submittedAt: expect.any(String), medium: 'recording' },
+      { n: 2, takeId: 'take-n1-final', submittedAt: expect.any(String), medium: 'recording', madeBy }
+    ]);
+    // A version a step made is a version, not something made beside one.
+    expect(n1.body.made).toEqual([]);
+    const listener = await token('admin', { scopes: ['read:published'] });
+    expect((await call('GET', '/api/v1/languages/nus/passages/n1', listener)).body.version).toMatchObject({ n: 2, madeBy });
   });
 });
 
