@@ -337,7 +337,8 @@
     "mic_setup": "设置麦克风",
     "get_ready": "准备工作",
     "settings_more": "更多设置",
-    "check_editor": "检查"
+    "check_editor": "检查",
+    "made_detail": "根据版本制作的内容"
   },
   "native": {
     "microphone": "LangQuest 会录下你的声音，用来翻译经段。",
@@ -5717,5 +5718,121 @@
     "goOnline": "请经常连接互联网，让你的工作发送出去。",
     "lessSpace": "这台设备的实际空间可能比显示的少。",
     "understand": "我知道了"
+  },
+  "writing": {
+    "madeThing": "根据它制作的内容",
+    "sourceHint": "你对照着写的内容。每一节都可以单独播放。",
+    "notPublished": "未发布：{{reason}}",
+    "versionPublished": "{{version}}已发布。",
+    "madePublished": "{{what}}已发布。",
+    "writingVersion": "正在写{{version}}",
+    "stepInto": "{{step}} · 用{{language}}",
+    "savedOnPhone": "已保存在这部手机上",
+    "nothingYet": "还没有写任何内容",
+    "openReference": "打开你对照着写的内容",
+    "yourWriting": "你写的内容",
+    "tapToWrite": "点按来写",
+    "partBox": "第 {{n}} 段",
+    "verseBox": "第 {{verse}} 节",
+    "addPart": "添加一段",
+    "publishVersion": "发布{{version}}",
+    "publishMade": "发布{{what}}",
+    "publishSub_other": "已写 {{count, number}} 节",
+    "whatChanged": "改了什么？",
+    "whatChangedHint": "说明你在上一个版本之后改了什么",
+    "publishVersionBody": "发布会把它保存到经段中。团队中的每个人都能读到。手机联网后就会发出。",
+    "publishMadeBody": "它会和它所根据的版本放在一起。团队中的每个人都能读到。",
+    "sourceHelp": "播放一节，然后写下你听到的内容。",
+    "letters": "你的团队书写用的字母",
+    "addLetter": "输入{{letter}}",
+    "playVerse": "播放第 {{verse}} 节",
+    "parts_other": "{{count, number}} 段",
+    "notHereYet": "这些文字还没有传到这部手机上。",
+    "makingFrom": "{{step}} · 根据{{version}}",
+    "nothingMadeYet": "还没有可以依据的内容：{{step}}还没有为这个经段制作任何东西。",
+    "recordFromMadeLater": "这一步要根据另一个步骤制作的内容来录音，但手机上还不能这样做。请你的协调员把它改成根据版本来做。",
+    "sayOrWrite": "说出来，还是写下来？",
+    "sayIt": "说出来",
+    "sayItSub": "一段一段地说，用你自己的话",
+    "writeIt": "写下来",
+    "writeItSub": "逐节书写，给要读的人看",
+    "sayOrWriteNote": "无论选哪种，下一项检查都会收到。另一种可以以后再做。",
+    "path": {
+      "write": "书写",
+      "writeHint": "用你的语言写出每一节。书写时，圣经、指南、关键词和备注就在你上方。",
+      "made": "已制作",
+      "writeInstead": "改为书写",
+      "writeInsteadSub": "逐节打字输入",
+      "recordInstead": "改为录音",
+      "recordInsteadSub": "一段一段地说出来"
+    },
+    "setup": {
+      "how": "他们怎样制作",
+      "recordings": "录音",
+      "recordingsSub": "用{{language}}说出每个经段",
+      "writing": "文字",
+      "writingSub": "用{{language}}写出每个经段",
+      "startWith": "先做",
+      "recording": "录音",
+      "writingFirst": "书写",
+      "otherOneTap": "在每个经段上，点一下就能换成另一种。“谁来检查”中的步骤可以把一种转成另一种。",
+      "saved": "已保存{{language}}团队的制作方式。"
+    },
+    "presets": {
+      "btSaid": "回译",
+      "btWritten": "书面回译",
+      "writeDown": "写下来",
+      "readAloud": "朗读出来",
+      "final": "最终录音"
+    },
+    "step": {
+      "reads": "它要看的内容",
+      "theVersion": "版本",
+      "whatMade": "{{step}}制作的内容",
+      "whatItMakes": "它制作什么",
+      "makeSomething": "根据它制作新内容",
+      "checkIt": "检查它",
+      "makeYourOwn": "自己制作",
+      "makeYourOwnHint": "选择它转换什么、转成什么，以及用哪种语言",
+      "ownLanguage": "他们自己的语言",
+      "referenceLanguage": "他们的参考语言",
+      "recording": "录音",
+      "writing": "文字",
+      "either": "任一种",
+      "theyPick": "由他们选",
+      "turn": "转换什么",
+      "into": "转成什么",
+      "in": "用哪种语言",
+      "becomesVersion": "它会成为新版本",
+      "becomesVersionSub": "这一步之后的检查会看它。这一步之前的检查，仍算在它所根据的版本上。",
+      "becomesVersionOff": "只有用团队自己的语言制作录音或文字的步骤，才能成为下一个版本。",
+      "add": "添加这一步",
+      "name": "名称",
+      "namePlaceholder": "书面回译",
+      "previewVersion": "它制作的内容会成为这个经段的下一个版本。",
+      "previewBeside": "它会留在它所根据的版本旁边，供之后的检查使用。它不是一个版本。",
+      "readsLine": "{{from}}转成{{to}}，用{{language}}"
+    },
+    "version": {
+      "words": "文字",
+      "madeFromIt": "根据这个版本制作的内容"
+    },
+    "grid": {
+      "cell": "{{what}}，根据{{version}}制作"
+    },
+    "made": {
+      "title": "根据版本制作的内容",
+      "gone": "这部手机上没有这项内容。",
+      "writtenIn": "用{{language}}写的",
+      "saidIn": "用{{language}}说的",
+      "writtenDown": "已写成文字",
+      "recordedAgain": "已重新录音",
+      "fromVersion": "{{what}} · 根据{{version}}",
+      "askCheck": "请人做{{check}}"
+    },
+    "review": {
+      "read": "读",
+      "readsMade": "{{what}}根据{{version}}制作的内容"
+    }
   }
 }

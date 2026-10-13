@@ -339,7 +339,8 @@
     "mic_setup": "Shirya makirufo ɗinku",
     "get_ready": "Ku shirya",
     "settings_more": "Ƙarin saituna",
-    "check_editor": "Dubawa"
+    "check_editor": "Dubawa",
+    "made_detail": "Abin da aka yi daga siga"
   },
   "native": {
     "microphone": "LangQuest yana naɗar muryarku don fassara nassosi.",
@@ -6000,5 +6001,123 @@
     "goOnline": "Ku riƙa haɗa intanet akai-akai don a aika aikinku.",
     "lessSpace": "Wataƙila wannan na'ura tana da ƙarancin wuri fiye da yadda take faɗa.",
     "understand": "Na fahimta"
+  },
+  "writing": {
+    "madeThing": "Abin da aka yi daga gare ta",
+    "sourceHint": "Abin da kuke rubutawa daga gare shi. Ana kunna kowace aya ita kaɗai.",
+    "notPublished": "Ba a wallafa ba: {{reason}}",
+    "versionPublished": "An wallafa {{version}}.",
+    "madePublished": "An wallafa {{what}}.",
+    "writingVersion": "Kuna rubuta {{version}}",
+    "stepInto": "{{step}} · zuwa {{language}}",
+    "savedOnPhone": "An ajiye a wannan waya",
+    "nothingYet": "Ba a rubuta komai ba tukuna",
+    "openReference": "Buɗe abin da kuke rubutawa daga gare shi",
+    "yourWriting": "Rubutunku",
+    "tapToWrite": "Taɓa don rubutu",
+    "partBox": "Sashe na {{n}}",
+    "verseBox": "Aya ta {{verse}}",
+    "addPart": "Ƙara sashe",
+    "publishVersion": "Wallafa {{version}}",
+    "publishMade": "Wallafa {{what}}",
+    "publishSub_one": "An rubuta aya {{count, number}}",
+    "publishSub_other": "An rubuta ayoyi {{count, number}}",
+    "whatChanged": "Me ya canja?",
+    "whatChangedHint": "Faɗi abin da kuka canja tun sigar da ta gabata",
+    "publishVersionBody": "Wallafawa tana ajiye ta a cikin nassin. Kowa a tawagar zai iya karanta ta. Za ta tafi idan wayar tana da intanet.",
+    "publishMadeBody": "Yana zama tare da sigar da aka yi shi daga gare ta. Kowa a tawagar zai iya karanta shi.",
+    "sourceHelp": "Kunna aya, sannan ku rubuta abin da kuka ji.",
+    "letters": "Haruffan da tawagarku take rubutawa",
+    "addLetter": "Ƙara {{letter}}",
+    "playVerse": "Kunna aya ta {{verse}}",
+    "parts_one": "Sashe {{count, number}}",
+    "parts_other": "Sassa {{count, number}}",
+    "notHereYet": "Kalmomin ba su iso wannan waya ba tukuna.",
+    "makingFrom": "{{step}} · daga {{version}}",
+    "nothingMadeYet": "Babu abin da za a yi aiki da shi tukuna: {{step}} bai yi komai ba don wannan nassi.",
+    "recordFromMadeLater": "Wannan mataki yana naɗawa daga abin da wani mataki ya yi, kuma hakan bai shirya a waya ba tukuna. Ku roƙi mai gudanarwarku ya sa shi ya yi aiki daga sigar.",
+    "sayOrWrite": "Ku faɗe shi, ko ku rubuta shi?",
+    "sayIt": "Faɗe shi",
+    "sayItSub": "Sashe-sashe, da kalmominku",
+    "writeIt": "Rubuta shi",
+    "writeItSub": "Aya-aya, don mai karatu",
+    "sayOrWriteNote": "Ko wanne kuka zaɓa, dubawa ta gaba za ta karɓe shi. Kuna iya yin ɗayan daga baya.",
+    "path": {
+      "write": "Rubuta",
+      "writeHint": "Ku rubuta kowace aya a harshenku. Littafi Mai Tsarki, jagorar, muhimman kalmomi da bayanai suna sama yayin da kuke rubutu.",
+      "made": "an yi",
+      "writeInstead": "Ku rubuta shi maimakon haka",
+      "writeInsteadSub": "Ku rubuta shi aya-aya",
+      "recordInstead": "Ku naɗa shi maimakon haka",
+      "recordInsteadSub": "Ku faɗe shi, sashe-sashe"
+    },
+    "setup": {
+      "how": "Yadda suke yin sa",
+      "recordings": "Naɗe-naɗe",
+      "recordingsSub": "Faɗin kowane nassi cikin {{language}}",
+      "writing": "Rubutu",
+      "writingSub": "Rubuta kowane nassi cikin {{language}}",
+      "startWith": "Fara da",
+      "recording": "Naɗi",
+      "writingFirst": "Rubutu",
+      "otherOneTap": "Ɗayan yana nan da taɓawa ɗaya a kowane nassi. Matakai a \"Masu dubawa\" za su iya mayar da ɗaya zuwa ɗayan.",
+      "saved": "An ajiye abin da tawagar {{language}} take yi."
+    },
+    "presets": {
+      "btSaid": "Fassarar baya",
+      "btWritten": "Rubutacciyar fassarar baya",
+      "writeDown": "Rubuta abin da aka faɗa",
+      "readAloud": "Karanta shi da murya",
+      "final": "Naɗi na ƙarshe"
+    },
+    "step": {
+      "reads": "Abin da yake dubawa",
+      "theVersion": "Sigar",
+      "whatMade": "Abin da {{step}} ya yi",
+      "whatItMakes": "Abin da yake yi",
+      "makeSomething": "Yi wani abu daga gare ta",
+      "checkIt": "Duba ta",
+      "makeYourOwn": "Yi naku",
+      "makeYourOwnHint": "Zaɓi abin da yake mayarwa, abin da yake yi, da kuma a wane harshe",
+      "ownLanguage": "Harshensu",
+      "referenceLanguage": "Harshen kayan bincikensu",
+      "recording": "Naɗi",
+      "writing": "Rubutu",
+      "either": "Ko wanne",
+      "theyPick": "Su za su zaɓa",
+      "turn": "Yana mayar da",
+      "into": "Zuwa",
+      "in": "A harshe",
+      "becomesVersion": "Ya zama sabuwar siga",
+      "becomesVersionSub": "Dubawar da ke bayan wannan mataki za su duba shi. Dubawar da ke gabaninsa ana ƙidaya su a kan sigar da aka yi shi daga gare ta.",
+      "becomesVersionOff": "Mataki da ke yin naɗi ko rubutu a harshen tawagar kanta kaɗai ne zai iya yin siga ta gaba.",
+      "add": "Ƙara wannan mataki",
+      "name": "Suna",
+      "namePlaceholder": "Rubutacciyar fassarar baya",
+      "previewVersion": "Abin da yake yi zai zama siga ta gaba ta nassin.",
+      "previewBeside": "Yana zama kusa da sigar da ya fito daga gare ta, don dubawar da ke bayansa. Ba siga ba ne.",
+      "readsLine": "{{from}} zuwa {{to}}, cikin {{language}}"
+    },
+    "version": {
+      "words": "Kalmomin",
+      "madeFromIt": "Abin da aka yi daga wannan siga"
+    },
+    "grid": {
+      "cell": "{{what}}, an yi daga {{version}}"
+    },
+    "made": {
+      "title": "Abin da aka yi daga siga",
+      "gone": "Wannan ba ya kan wannan waya.",
+      "writtenIn": "An rubuta cikin {{language}}",
+      "saidIn": "An faɗa cikin {{language}}",
+      "writtenDown": "An rubuta",
+      "recordedAgain": "An sake naɗawa",
+      "fromVersion": "{{what}} · daga {{version}}",
+      "askCheck": "Ku nemi {{check}} daga wani"
+    },
+    "review": {
+      "read": "Karanta",
+      "readsMade": "Abin da {{what}} ya yi daga {{version}}"
+    }
   }
 }

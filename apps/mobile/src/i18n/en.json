@@ -339,7 +339,8 @@
     "mic_setup": "Set up your microphone",
     "get_ready": "Get ready",
     "settings_more": "More settings",
-    "check_editor": "Check"
+    "check_editor": "Check",
+    "made_detail": "Made from a version"
   },
   "native": {
     "microphone": "LangQuest records your voice to translate passages.",
@@ -6000,5 +6001,123 @@
     "goOnline": "Connect to the internet often, so your work is sent.",
     "lessSpace": "This device may have less space than it says.",
     "understand": "I understand"
+  },
+  "writing": {
+    "madeThing": "Made from it",
+    "sourceHint": "What you are writing from. Each verse plays on its own.",
+    "notPublished": "Not published: {{reason}}",
+    "versionPublished": "{{version}} published.",
+    "madePublished": "{{what}} published.",
+    "writingVersion": "Writing {{version}}",
+    "stepInto": "{{step}} · into {{language}}",
+    "savedOnPhone": "Saved on this phone",
+    "nothingYet": "Nothing written yet",
+    "openReference": "Open what you are writing from",
+    "yourWriting": "Your writing",
+    "tapToWrite": "Tap to write",
+    "partBox": "Part {{n}}",
+    "verseBox": "Verse {{verse}}",
+    "addPart": "Add a part",
+    "publishVersion": "Publish {{version}}",
+    "publishMade": "Publish {{what}}",
+    "publishSub_one": "{{count, number}} verse written",
+    "publishSub_other": "{{count, number}} verses written",
+    "whatChanged": "What changed?",
+    "whatChangedHint": "Say what you changed since the last version",
+    "publishVersionBody": "Publishing saves it to the passage. Everyone on the team can read it. It goes out when the phone has internet.",
+    "publishMadeBody": "It stays with the version it was made from. Everyone on the team can read it.",
+    "sourceHelp": "Play a verse, then write what you heard.",
+    "letters": "Letters your team writes",
+    "addLetter": "Add {{letter}}",
+    "playVerse": "Play verse {{verse}}",
+    "parts_one": "{{count, number}} part",
+    "parts_other": "{{count, number}} parts",
+    "notHereYet": "The words have not reached this phone yet.",
+    "makingFrom": "{{step}} · from {{version}}",
+    "nothingMadeYet": "Nothing to work from yet: {{step}} has not made anything for this passage.",
+    "recordFromMadeLater": "This step records from something another step made, and that is not ready on phones yet. Ask your coordinator to have it work from the version.",
+    "sayOrWrite": "Say it, or write it?",
+    "sayIt": "Say it",
+    "sayItSub": "Part by part, in your own words",
+    "writeIt": "Write it",
+    "writeItSub": "Verse by verse, for someone who reads",
+    "sayOrWriteNote": "Either way, the next check gets it. You can do the other later.",
+    "path": {
+      "write": "Write",
+      "writeHint": "Write each verse in your language. The Bible, the guide, key words and notes are above you while you write.",
+      "made": "made",
+      "writeInstead": "Write it instead",
+      "writeInsteadSub": "Type it verse by verse",
+      "recordInstead": "Record it instead",
+      "recordInsteadSub": "Say it, part by part"
+    },
+    "setup": {
+      "how": "How they make it",
+      "recordings": "Recordings",
+      "recordingsSub": "Say each passage in {{language}}",
+      "writing": "Writing",
+      "writingSub": "Write each passage in {{language}}",
+      "startWith": "Start with",
+      "recording": "Recording",
+      "writingFirst": "Writing",
+      "otherOneTap": "The other is one tap away on every passage. Steps in who checks can turn one into the other.",
+      "saved": "Saved what {{language}}'s team makes."
+    },
+    "presets": {
+      "btSaid": "Back translation",
+      "btWritten": "Written back translation",
+      "writeDown": "Write it down",
+      "readAloud": "Read it aloud",
+      "final": "Final recording"
+    },
+    "step": {
+      "reads": "What it looks at",
+      "theVersion": "The version",
+      "whatMade": "What {{step}} made",
+      "whatItMakes": "What it makes",
+      "makeSomething": "Make something from it",
+      "checkIt": "Check it",
+      "makeYourOwn": "Make your own",
+      "makeYourOwnHint": "Choose what it turns, what it makes, and in which language",
+      "ownLanguage": "Their own language",
+      "referenceLanguage": "Their reference language",
+      "recording": "Recording",
+      "writing": "Writing",
+      "either": "Either",
+      "theyPick": "They pick",
+      "turn": "Turn",
+      "into": "Into",
+      "in": "In",
+      "becomesVersion": "It becomes the new version",
+      "becomesVersionSub": "Checks after this step look at it. Checks before it count from the version it was made from.",
+      "becomesVersionOff": "Only a step that makes recording or writing in the team's own language can make the next version.",
+      "add": "Add this step",
+      "name": "Name",
+      "namePlaceholder": "Written back translation",
+      "previewVersion": "What it makes becomes the passage's next version.",
+      "previewBeside": "It stays beside the version it came from, for the checks after it. It isn't a version.",
+      "readsLine": "{{from}} into {{to}}, in {{language}}"
+    },
+    "version": {
+      "words": "The words",
+      "madeFromIt": "Made from this version"
+    },
+    "grid": {
+      "cell": "{{what}}, made from {{version}}"
+    },
+    "made": {
+      "title": "Made from a version",
+      "gone": "This is not on this phone.",
+      "writtenIn": "Written in {{language}}",
+      "saidIn": "Said in {{language}}",
+      "writtenDown": "Written down",
+      "recordedAgain": "Recorded again",
+      "fromVersion": "{{what}} · from {{version}}",
+      "askCheck": "Ask someone for the {{check}}"
+    },
+    "review": {
+      "read": "Read",
+      "readsMade": "What {{what}} made from {{version}}"
+    }
   }
 }

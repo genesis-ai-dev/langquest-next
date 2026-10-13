@@ -339,7 +339,8 @@
     "mic_setup": "ማይክሮፎንዎን ያዘጋጁ",
     "get_ready": "ይዘጋጁ",
     "settings_more": "ተጨማሪ ቅንብሮች",
-    "check_editor": "ፍተሻ"
+    "check_editor": "ፍተሻ",
+    "made_detail": "ከስሪት የተሠራ"
   },
   "native": {
     "microphone": "LangQuest ክፍሎችን ለመተርጎም ድምፅዎን ይቀርጻል።",
@@ -6000,5 +6001,123 @@
     "goOnline": "ሥራዎ እንዲላክ ብዙ ጊዜ ከኢንተርኔት ጋር ይገናኙ።",
     "lessSpace": "ይህ መሣሪያ ከሚለው ያነሰ ቦታ ሊኖረው ይችላል።",
     "understand": "ገብቶኛል"
+  },
+  "writing": {
+    "madeThing": "ከእሱ የተሠራ",
+    "sourceHint": "የሚጽፉበት ምንጭ። እያንዳንዱ ቁጥር ለብቻው ይጫወታል።",
+    "notPublished": "አልታተመም፦ {{reason}}",
+    "versionPublished": "{{version}} ታትሟል።",
+    "madePublished": "{{what}} ታትሟል።",
+    "writingVersion": "{{version}}ን እየጻፉ ነው",
+    "stepInto": "{{step}} · ወደ {{language}}",
+    "savedOnPhone": "በዚህ ስልክ ላይ ተቀምጧል",
+    "nothingYet": "እስካሁን ምንም አልተጻፈም",
+    "openReference": "የሚጽፉበትን ምንጭ ይክፈቱ",
+    "yourWriting": "የእርስዎ ጽሑፍ",
+    "tapToWrite": "ለመጻፍ ይንኩ",
+    "partBox": "ቁራጭ {{n}}",
+    "verseBox": "ቁጥር {{verse}}",
+    "addPart": "ቁራጭ ያክሉ",
+    "publishVersion": "{{version}}ን ያትሙ",
+    "publishMade": "{{what}}ን ያትሙ",
+    "publishSub_one": "{{count, number}} ቁጥር ተጽፏል",
+    "publishSub_other": "{{count, number}} ቁጥሮች ተጽፈዋል",
+    "whatChanged": "ምን ተለወጠ?",
+    "whatChangedHint": "ካለፈው ስሪት ወዲህ ምን እንደለወጡ ይናገሩ",
+    "publishVersionBody": "ማተም በክፍሉ ላይ ያስቀምጠዋል። በቡድኑ ውስጥ ያለ ሁሉም ሰው ሊያነበው ይችላል። ስልኩ ኢንተርኔት ሲያገኝ ይላካል።",
+    "publishMadeBody": "ከተሠራበት ስሪት ጋር ይቆያል። በቡድኑ ውስጥ ያለ ሁሉም ሰው ሊያነበው ይችላል።",
+    "sourceHelp": "አንድ ቁጥር ያጫውቱ፣ ከዚያ የሰሙትን ይጻፉ።",
+    "letters": "ቡድንዎ የሚጽፋቸው ፊደላት",
+    "addLetter": "{{letter}}ን ያክሉ",
+    "playVerse": "ቁጥር {{verse}}ን ያጫውቱ",
+    "parts_one": "{{count, number}} ቁራጭ",
+    "parts_other": "{{count, number}} ቁራጮች",
+    "notHereYet": "ቃላቱ ገና ወደዚህ ስልክ አልደረሱም።",
+    "makingFrom": "{{step}} · ከ{{version}}",
+    "nothingMadeYet": "እስካሁን የሚሠሩበት ነገር የለም፦ {{step}} ለዚህ ክፍል ምንም አልሠራም።",
+    "recordFromMadeLater": "ይህ ደረጃ ሌላ ደረጃ ከሠራው ነገር ይቀርጻል፤ ያ ደግሞ ገና በስልኮች ላይ አልተዘጋጀም። ከስሪቱ እንዲሠራ እንዲያደርጉት አስተባባሪዎን ይጠይቁ።",
+    "sayOrWrite": "ይናገሩት ወይስ ይጻፉት?",
+    "sayIt": "ይናገሩት",
+    "sayItSub": "ቁራጭ በቁራጭ፣ በራስዎ አባባል",
+    "writeIt": "ይጻፉት",
+    "writeItSub": "ቁጥር በቁጥር፣ ለሚያነብ ሰው",
+    "sayOrWriteNote": "በየትኛውም መንገድ ቀጣዩ ፍተሻ ይቀበለዋል። ሌላውን በኋላ ማድረግ ይችላሉ።",
+    "path": {
+      "write": "ይጻፉ",
+      "writeHint": "እያንዳንዱን ቁጥር በቋንቋዎ ይጻፉ። መጽሐፍ ቅዱሱ፣ መመሪያው፣ ዋና ቃላቱና ማስታወሻዎቹ ሲጽፉ ከላይ ይታያሉ።",
+      "made": "ተሠርቷል",
+      "writeInstead": "በምትኩ ይጻፉት",
+      "writeInsteadSub": "ቁጥር በቁጥር ይጻፉት",
+      "recordInstead": "በምትኩ ይቅረጹት",
+      "recordInsteadSub": "ቁራጭ በቁራጭ ይናገሩት"
+    },
+    "setup": {
+      "how": "እንዴት እንደሚሠሩት",
+      "recordings": "ቀረጻዎች",
+      "recordingsSub": "እያንዳንዱን ክፍል በ{{language}} መናገር",
+      "writing": "ጽሑፍ",
+      "writingSub": "እያንዳንዱን ክፍል በ{{language}} መጻፍ",
+      "startWith": "በምን ይጀምሩ",
+      "recording": "ቀረጻ",
+      "writingFirst": "ጽሑፍ",
+      "otherOneTap": "ሌላው በእያንዳንዱ ክፍል ላይ በአንድ ንክኪ ይገኛል። በ«የሚፈትሸው ማን ነው» ውስጥ ያሉ ደረጃዎች አንዱን ወደ ሌላው መለወጥ ይችላሉ።",
+      "saved": "የ{{language}} ቡድን የሚሠራው ተቀምጧል።"
+    },
+    "presets": {
+      "btSaid": "ተመላሽ ትርጉም",
+      "btWritten": "የተጻፈ ተመላሽ ትርጉም",
+      "writeDown": "የተነገረውን ይጻፉ",
+      "readAloud": "ጮክ ብለው ያንብቡት",
+      "final": "የመጨረሻ ቀረጻ"
+    },
+    "step": {
+      "reads": "የሚመለከተው",
+      "theVersion": "ስሪቱ",
+      "whatMade": "{{step}} የሠራው",
+      "whatItMakes": "የሚሠራው",
+      "makeSomething": "ከእሱ አንድ ነገር ይሥሩ",
+      "checkIt": "ይፈትሹት",
+      "makeYourOwn": "የራስዎን ይሥሩ",
+      "makeYourOwnHint": "የሚለውጠውን፣ የሚሠራውንና በየትኛው ቋንቋ እንደሆነ ይምረጡ",
+      "ownLanguage": "የራሳቸው ቋንቋ",
+      "referenceLanguage": "የማጣቀሻ ቋንቋቸው",
+      "recording": "ቀረጻ",
+      "writing": "ጽሑፍ",
+      "either": "ማንኛውም",
+      "theyPick": "እነሱ ይመርጣሉ",
+      "turn": "የሚለውጠው",
+      "into": "ወደ",
+      "in": "በቋንቋ",
+      "becomesVersion": "አዲሱ ስሪት ይሆናል",
+      "becomesVersionSub": "ከዚህ ደረጃ በኋላ ያሉ ፍተሻዎች እሱን ይመለከታሉ። ከእሱ በፊት ያሉ ፍተሻዎች ከተሠራበት ስሪት ይቆጠራሉ።",
+      "becomesVersionOff": "ቀጣዩን ስሪት መሥራት የሚችለው በቡድኑ የራሱ ቋንቋ ቀረጻ ወይም ጽሑፍ የሚሠራ ደረጃ ብቻ ነው።",
+      "add": "ይህን ደረጃ ያክሉ",
+      "name": "ስም",
+      "namePlaceholder": "የተጻፈ ተመላሽ ትርጉም",
+      "previewVersion": "የሚሠራው የክፍሉ ቀጣይ ስሪት ይሆናል።",
+      "previewBeside": "ከመጣበት ስሪት ጎን ይቆያል፣ ከእሱ በኋላ ላሉት ፍተሻዎች። ስሪት አይደለም።",
+      "readsLine": "{{from}} ወደ {{to}}፣ በ{{language}}"
+    },
+    "version": {
+      "words": "ቃላቱ",
+      "madeFromIt": "ከዚህ ስሪት የተሠሩ"
+    },
+    "grid": {
+      "cell": "{{what}}፣ ከ{{version}} የተሠራ"
+    },
+    "made": {
+      "title": "ከስሪት የተሠራ",
+      "gone": "ይህ በዚህ ስልክ ላይ የለም።",
+      "writtenIn": "በ{{language}} የተጻፈ",
+      "saidIn": "በ{{language}} የተነገረ",
+      "writtenDown": "የተጻፈ",
+      "recordedAgain": "እንደገና የተቀረጸ",
+      "fromVersion": "{{what}} · ከ{{version}}",
+      "askCheck": "ለ{{check}} አንድ ሰው ይጠይቁ"
+    },
+    "review": {
+      "read": "ያንብቡ",
+      "readsMade": "{{what}} ከ{{version}} የሠራው"
+    }
   }
 }

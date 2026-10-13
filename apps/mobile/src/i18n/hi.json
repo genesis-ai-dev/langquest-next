@@ -339,7 +339,8 @@
     "mic_setup": "अपना माइक्रोफ़ोन सेट करें",
     "get_ready": "तैयारी करें",
     "settings_more": "और सेटिंग",
-    "check_editor": "जाँच"
+    "check_editor": "जाँच",
+    "made_detail": "वर्शन से बना"
   },
   "native": {
     "microphone": "LangQuest अंशों का अनुवाद करने के लिए आपकी आवाज़ रिकॉर्ड करता है।",
@@ -6000,5 +6001,123 @@
     "goOnline": "अक्सर इंटरनेट से जुड़ें, ताकि आपका काम भेजा जा सके।",
     "lessSpace": "हो सकता है इस डिवाइस में बताई गई जगह से कम जगह हो।",
     "understand": "समझ लिया"
+  },
+  "writing": {
+    "madeThing": "इससे बना",
+    "sourceHint": "जिससे आप लिख रहे हैं। हर पद अलग से चलता है।",
+    "notPublished": "प्रकाशित नहीं हुआ: {{reason}}",
+    "versionPublished": "{{version}} प्रकाशित हो गया।",
+    "madePublished": "{{what}} प्रकाशित हो गया।",
+    "writingVersion": "{{version}} लिख रहे हैं",
+    "stepInto": "{{step}} · {{language}} में",
+    "savedOnPhone": "इस फ़ोन पर सहेजा गया",
+    "nothingYet": "अभी कुछ नहीं लिखा गया",
+    "openReference": "जिससे आप लिख रहे हैं, उसे खोलें",
+    "yourWriting": "आपका लिखा हुआ",
+    "tapToWrite": "लिखने के लिए दबाएँ",
+    "partBox": "हिस्सा {{n}}",
+    "verseBox": "पद {{verse}}",
+    "addPart": "हिस्सा जोड़ें",
+    "publishVersion": "{{version}} प्रकाशित करें",
+    "publishMade": "{{what}} प्रकाशित करें",
+    "publishSub_one": "{{count, number}} पद लिखा गया",
+    "publishSub_other": "{{count, number}} पद लिखे गए",
+    "whatChanged": "क्या बदला?",
+    "whatChangedHint": "बताएँ कि पिछले वर्शन के बाद आपने क्या बदला",
+    "publishVersionBody": "प्रकाशित करने से यह अंश में सहेजा जाता है। टीम में हर कोई इसे पढ़ सकता है। फ़ोन पर इंटरनेट आते ही यह भेज दिया जाता है।",
+    "publishMadeBody": "यह उसी वर्शन के साथ रहता है जिससे यह बना था। टीम में हर कोई इसे पढ़ सकता है।",
+    "sourceHelp": "एक पद चलाएँ, फिर जो सुना वह लिखें।",
+    "letters": "आपकी टीम जो अक्षर लिखती है",
+    "addLetter": "{{letter}} जोड़ें",
+    "playVerse": "पद {{verse}} चलाएँ",
+    "parts_one": "{{count, number}} हिस्सा",
+    "parts_other": "{{count, number}} हिस्से",
+    "notHereYet": "शब्द अभी इस फ़ोन तक नहीं पहुँचे हैं।",
+    "makingFrom": "{{step}} · {{version}} से",
+    "nothingMadeYet": "अभी काम करने के लिए कुछ नहीं है: {{step}} ने इस अंश के लिए अभी कुछ नहीं बनाया है।",
+    "recordFromMadeLater": "यह चरण किसी दूसरे चरण की बनाई चीज़ से रिकॉर्ड करता है, और फ़ोन पर अभी ऐसा नहीं हो सकता। अपने समन्वयक से कहें कि यह चरण वर्शन से काम करे।",
+    "sayOrWrite": "बोलें, या लिखें?",
+    "sayIt": "बोलें",
+    "sayItSub": "हिस्सा-दर-हिस्सा, अपने शब्दों में",
+    "writeIt": "लिखें",
+    "writeItSub": "पद-दर-पद, पढ़ने वाले किसी व्यक्ति के लिए",
+    "sayOrWriteNote": "किसी भी तरह, अगली जाँच को यह मिल जाता है। दूसरा तरीका आप बाद में कर सकते हैं।",
+    "path": {
+      "write": "लिखें",
+      "writeHint": "हर पद अपनी भाषा में लिखें। लिखते समय बाइबल, गाइड, मुख्य शब्द और नोट ऊपर ही रहते हैं।",
+      "made": "बन गया",
+      "writeInstead": "इसके बजाय लिखें",
+      "writeInsteadSub": "पद-दर-पद टाइप करें",
+      "recordInstead": "इसके बजाय रिकॉर्ड करें",
+      "recordInsteadSub": "हिस्सा-दर-हिस्सा बोलें"
+    },
+    "setup": {
+      "how": "वे इसे कैसे बनाते हैं",
+      "recordings": "रिकॉर्डिंग",
+      "recordingsSub": "हर अंश {{language}} में बोलें",
+      "writing": "लिखित",
+      "writingSub": "हर अंश {{language}} में लिखें",
+      "startWith": "किससे शुरू करें",
+      "recording": "रिकॉर्डिंग",
+      "writingFirst": "लिखित",
+      "otherOneTap": "हर अंश पर दूसरा तरीका बस एक बार दबाने पर मिल जाता है। “कौन जाँचता है” के चरण एक को दूसरे में बदल सकते हैं।",
+      "saved": "{{language}} की टीम क्या बनाती है, यह सहेजा गया।"
+    },
+    "presets": {
+      "btSaid": "वापसी अनुवाद",
+      "btWritten": "लिखित वापसी अनुवाद",
+      "writeDown": "इसे लिख लें",
+      "readAloud": "इसे पढ़कर सुनाएँ",
+      "final": "अंतिम रिकॉर्डिंग"
+    },
+    "step": {
+      "reads": "यह किसे देखता है",
+      "theVersion": "वर्शन",
+      "whatMade": "{{step}} ने जो बनाया",
+      "whatItMakes": "यह क्या बनाता है",
+      "makeSomething": "इससे कुछ बनाएँ",
+      "checkIt": "इसे जाँचें",
+      "makeYourOwn": "अपना बनाएँ",
+      "makeYourOwnHint": "चुनें कि यह किसे बदलता है, क्या बनाता है, और किस भाषा में",
+      "ownLanguage": "उनकी अपनी भाषा",
+      "referenceLanguage": "उनकी बाइबल और गाइड की भाषा",
+      "recording": "रिकॉर्डिंग",
+      "writing": "लिखित",
+      "either": "कोई भी",
+      "theyPick": "वे चुनें",
+      "turn": "किसे बदलें",
+      "into": "किसमें",
+      "in": "किस भाषा में",
+      "becomesVersion": "यह नया वर्शन बन जाता है",
+      "becomesVersionSub": "इस चरण के बाद की जाँचें इसे देखती हैं। इससे पहले की जाँचें उसी वर्शन से मानी जाती हैं जिससे यह बना था।",
+      "becomesVersionOff": "सिर्फ़ वही चरण अगला वर्शन बना सकता है जो टीम की अपनी भाषा में रिकॉर्ड करता है या लिखता है।",
+      "add": "यह चरण जोड़ें",
+      "name": "नाम",
+      "namePlaceholder": "लिखित वापसी अनुवाद",
+      "previewVersion": "यह जो बनाता है, वह अंश का अगला वर्शन बन जाता है।",
+      "previewBeside": "यह बाद की जाँचों के लिए उसी वर्शन के साथ रहता है जिससे यह बना। यह कोई वर्शन नहीं है।",
+      "readsLine": "{{from}} से {{to}}, {{language}} में"
+    },
+    "version": {
+      "words": "शब्द",
+      "madeFromIt": "इस वर्शन से बना"
+    },
+    "grid": {
+      "cell": "{{what}}, {{version}} से बना"
+    },
+    "made": {
+      "title": "वर्शन से बना",
+      "gone": "यह इस फ़ोन पर नहीं है।",
+      "writtenIn": "{{language}} में लिखा गया",
+      "saidIn": "{{language}} में बोला गया",
+      "writtenDown": "लिख लिया गया",
+      "recordedAgain": "फिर से रिकॉर्ड किया गया",
+      "fromVersion": "{{what}} · {{version}} से",
+      "askCheck": "किसी से {{check}} के लिए कहें"
+    },
+    "review": {
+      "read": "पढ़ें",
+      "readsMade": "{{what}} ने {{version}} से जो बनाया"
+    }
   }
 }

@@ -337,7 +337,8 @@
     "mic_setup": "Atur mikrofon Anda",
     "get_ready": "Bersiap",
     "settings_more": "Pengaturan lain",
-    "check_editor": "Pemeriksaan"
+    "check_editor": "Pemeriksaan",
+    "made_detail": "Dibuat dari sebuah versi"
   },
   "native": {
     "microphone": "LangQuest merekam suara Anda untuk menerjemahkan perikop.",
@@ -5717,5 +5718,121 @@
     "goOnline": "Sering-seringlah tersambung ke internet agar pekerjaan Anda terkirim.",
     "lessSpace": "Ruang perangkat ini mungkin lebih kecil dari yang tertulis.",
     "understand": "Saya mengerti"
+  },
+  "writing": {
+    "madeThing": "Dibuat dari versinya",
+    "sourceHint": "Yang Anda tulis berasal dari sini. Setiap ayat diputar terpisah.",
+    "notPublished": "Tidak diterbitkan: {{reason}}",
+    "versionPublished": "{{version}} diterbitkan.",
+    "madePublished": "{{what}} diterbitkan.",
+    "writingVersion": "Menulis {{version}}",
+    "stepInto": "{{step}} · ke dalam {{language}}",
+    "savedOnPhone": "Tersimpan di ponsel ini",
+    "nothingYet": "Belum ada yang ditulis",
+    "openReference": "Buka sumber tulisan Anda",
+    "yourWriting": "Tulisan Anda",
+    "tapToWrite": "Ketuk untuk menulis",
+    "partBox": "Bagian {{n}}",
+    "verseBox": "Ayat {{verse}}",
+    "addPart": "Tambah bagian",
+    "publishVersion": "Terbitkan {{version}}",
+    "publishMade": "Terbitkan {{what}}",
+    "publishSub_other": "{{count, number}} ayat ditulis",
+    "whatChanged": "Apa yang berubah?",
+    "whatChangedHint": "Sebutkan apa yang Anda ubah sejak versi terakhir",
+    "publishVersionBody": "Menerbitkan akan menyimpannya ke perikop. Semua orang di tim dapat membacanya. Tulisan ini terkirim saat ponsel terhubung ke internet.",
+    "publishMadeBody": "Ini tetap bersama versi asalnya. Semua orang di tim dapat membacanya.",
+    "sourceHelp": "Putar satu ayat, lalu tulis apa yang Anda dengar.",
+    "letters": "Huruf yang ditulis tim Anda",
+    "addLetter": "Tambah {{letter}}",
+    "playVerse": "Putar ayat {{verse}}",
+    "parts_other": "{{count, number}} bagian",
+    "notHereYet": "Kata-katanya belum sampai ke ponsel ini.",
+    "makingFrom": "{{step}} · dari {{version}}",
+    "nothingMadeYet": "Belum ada yang bisa dikerjakan: {{step}} belum membuat apa pun untuk perikop ini.",
+    "recordFromMadeLater": "Tahap ini merekam dari sesuatu yang dibuat tahap lain, dan itu belum siap di ponsel. Minta koordinator Anda mengatur tahap ini agar memakai versinya.",
+    "sayOrWrite": "Ucapkan atau tulis?",
+    "sayIt": "Ucapkan",
+    "sayItSub": "Bagian demi bagian, dengan kata-kata Anda sendiri",
+    "writeIt": "Tulis",
+    "writeItSub": "Ayat demi ayat, untuk orang yang membaca",
+    "sayOrWriteNote": "Apa pun pilihannya, pemeriksaan berikutnya akan menerimanya. Anda bisa mengerjakan yang lain nanti.",
+    "path": {
+      "write": "Tulis",
+      "writeHint": "Tulis setiap ayat dalam bahasa Anda. Alkitab, panduan, kata kunci, dan catatan ada di atas selama Anda menulis.",
+      "made": "sudah dibuat",
+      "writeInstead": "Tulis saja",
+      "writeInsteadSub": "Ketik ayat demi ayat",
+      "recordInstead": "Rekam saja",
+      "recordInsteadSub": "Ucapkan bagian demi bagian"
+    },
+    "setup": {
+      "how": "Cara mereka membuatnya",
+      "recordings": "Rekaman",
+      "recordingsSub": "Ucapkan setiap perikop dalam {{language}}",
+      "writing": "Tulisan",
+      "writingSub": "Tulis setiap perikop dalam {{language}}",
+      "startWith": "Mulai dengan",
+      "recording": "Rekaman",
+      "writingFirst": "Tulisan",
+      "otherOneTap": "Di setiap perikop, cara yang lain tinggal satu ketukan. Tahap-tahap di “Siapa yang memeriksa” dapat mengubah yang satu menjadi yang lain.",
+      "saved": "Yang dibuat tim {{language}} sudah disimpan."
+    },
+    "presets": {
+      "btSaid": "Terjemahan balik",
+      "btWritten": "Terjemahan balik tertulis",
+      "writeDown": "Tuliskan",
+      "readAloud": "Bacakan",
+      "final": "Rekaman akhir"
+    },
+    "step": {
+      "reads": "Yang diperiksa",
+      "theVersion": "Versinya",
+      "whatMade": "Yang dibuat {{step}}",
+      "whatItMakes": "Yang dibuatnya",
+      "makeSomething": "Buat sesuatu dari versinya",
+      "checkIt": "Periksa",
+      "makeYourOwn": "Buat sendiri",
+      "makeYourOwnHint": "Pilih apa yang diubahnya, menjadi apa, dan dalam bahasa apa",
+      "ownLanguage": "Bahasa mereka sendiri",
+      "referenceLanguage": "Bahasa referensi mereka",
+      "recording": "Rekaman",
+      "writing": "Tulisan",
+      "either": "Salah satu",
+      "theyPick": "Mereka pilih",
+      "turn": "Ubah",
+      "into": "Menjadi",
+      "in": "Bahasa",
+      "becomesVersion": "Menjadi versi baru",
+      "becomesVersionSub": "Pemeriksaan setelah tahap ini melihat versi baru itu. Pemeriksaan sebelumnya tetap berlaku untuk versi asalnya.",
+      "becomesVersionOff": "Hanya tahap yang membuat rekaman atau tulisan dalam bahasa tim sendiri yang dapat membuat versi berikutnya.",
+      "add": "Tambahkan tahap ini",
+      "name": "Nama",
+      "namePlaceholder": "Terjemahan balik tertulis",
+      "previewVersion": "Hasilnya menjadi versi berikutnya untuk perikop ini.",
+      "previewBeside": "Hasilnya tetap di samping versi asalnya, untuk pemeriksaan sesudahnya. Hasil ini bukan versi.",
+      "readsLine": "{{from}} menjadi {{to}}, dalam {{language}}"
+    },
+    "version": {
+      "words": "Kata-katanya",
+      "madeFromIt": "Dibuat dari versi ini"
+    },
+    "grid": {
+      "cell": "{{what}}, dibuat dari {{version}}"
+    },
+    "made": {
+      "title": "Dibuat dari sebuah versi",
+      "gone": "Ini tidak ada di ponsel ini.",
+      "writtenIn": "Ditulis dalam {{language}}",
+      "saidIn": "Diucapkan dalam {{language}}",
+      "writtenDown": "Dituliskan",
+      "recordedAgain": "Direkam ulang",
+      "fromVersion": "{{what}} · dari {{version}}",
+      "askCheck": "Minta seseorang untuk {{check}}"
+    },
+    "review": {
+      "read": "Baca",
+      "readsMade": "Yang dibuat {{what}} dari {{version}}"
+    }
   }
 }
