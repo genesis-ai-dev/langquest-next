@@ -314,3 +314,6 @@ em.mark { font-style: normal; color: var(--violet); }
 .dots.all.substep-visible i { animation: none; }
   .substep { transition: none; }
 }
+
+/* ---------- September photo collage (faces blurred in the image itself) ---------- */
+.collage { display: block; width: 1384px; height: 600px; margin-top: 26px; border-radius: 14px; box-shadow: 0 0 0 1px rgba(255, 255, 255, .12); }
