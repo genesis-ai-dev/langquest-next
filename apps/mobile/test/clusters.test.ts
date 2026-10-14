@@ -1,7 +1,7 @@
 import { encodeHlc, foldOrg, type AnyEvent } from '@langquest-next/core';
 import { clusterEvents, clusterNamed, filterByCluster, inCluster, languagesOutsideClusters, newClusterId, ungroupEvents } from '../src/clusters/model';
 
-// Clusters (decision 104, demo ADR-045): a name on some of an organization's
+// Clusters (decision 106, demo ADR-045): a name on some of an organization's
 // languages. The screens append what these return; nothing else changes.
 
 let seq = 0;

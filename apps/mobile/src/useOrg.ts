@@ -1,11 +1,11 @@
-import { SupabaseTransport, SyncClient, SyncScheduler, ensureDeviceId, type Materializer, type SyncInspection } from '@langquest-next/client';
-import { applyOrgEvent, emptyOrgState, foldOrg, ORG_STREAM, REDUCER_VERSION, type EventPayloads, type OrgEventType, type OrgState } from '@langquest-next/core';
+import { OrgSession, ensureDeviceId, type OrgStatus, type SyncInspection } from '@langquest-next/sync';
+import { emptyOrgState, type EventPayloads, type OrgEventType, type OrgState } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getStore } from './store';
 import { trackSync } from './syncActivity';
 import { onWake } from './wake';
-import { supabase } from './supabase';
+import { serverTransport } from './server/sync';
 import { diagnostics } from './diagnostics';
 
 export interface OrgHandle {
@@ -31,121 +31,65 @@ export interface OrgHandle {
   membershipEpoch: number;
 }
 
-export const ORG_MATERIALIZER: Materializer<OrgState> = {
-  empty: emptyOrgState,
-  apply: applyOrgEvent,
-  fold: foldOrg,
-  compact: (s) => {
-    s.appliedEventIds = {};
-  },
-  version: REDUCER_VERSION
-};
+const NOTHING_YET: OrgStatus = { pending: 0, live: false, pulled: false, settled: false, membershipEpoch: 0 };
 
 /**
  * The organization stream on this device (decision 63): roles,
- * memberships, languages, the library. Same sync client as a language,
- * different fold. Small enough to pull whole. With no organization (a
- * guest, or an account in none yet) there is no stream to sync: an empty
- * fold, settled at once, and every write a no-op.
+ * memberships, languages, the library. The stream itself is an
+ * `OrgSession` in packages/sync (decisions.md 104); this hook opens one
+ * with the phone's store and transport and follows it into React state.
+ * With no organization (a guest, or an account in none yet) there is no
+ * stream to sync: an empty fold, settled at once, and every write a no-op.
  */
 export function useOrg(orgId: string | null, actorId: string): OrgHandle {
-  const clientRef = useRef<SyncClient<OrgState> | null>(null);
+  const sessionRef = useRef<OrgSession | null>(null);
   const [state, setState] = useState<OrgState | null>(null);
-  const [pending, setPending] = useState(0);
-  const [live, setLive] = useState(false);
-  const [pulled, setPulled] = useState(false);
-  const [settled, setSettled] = useState(false);
-  const [membershipEpoch, setMembershipEpoch] = useState(0);
-  const schedulerRef = useRef<SyncScheduler | null>(null);
-  const onlineRef = useRef<boolean | null>(null);
-
-  const refresh = useCallback(async () => {
-    const c = clientRef.current;
-    if (!c) return;
-    setState({ ...c.getState() });
-    // The count is a query; it must not hold the state update.
-    void c.pendingCount().then(setPending).catch(() => {});
-  }, []);
-
-  const sync = useCallback(async () => {
-    const c = clientRef.current;
-    if (!c) return;
-    let changed = true;
-    try {
-      const r = await trackSync(() => c.sync());
-      onlineRef.current = !r.offline;
-      if (!r.offline && !r.refused && !r.more) setPulled(true);
-      changed = r.pushed > 0 || r.pulled > 0 || r.rejected > 0;
-    } catch {
-      // Offline or refused: state is whatever the local log says. Honest and quiet.
-    }
-    if (changed) await refresh();
-    setSettled(true);
-  }, [refresh]);
+  const [status, setStatus] = useState<OrgStatus>(NOTHING_YET);
 
   // Back on screen or back online: sync now rather than at the end of a backoff.
-  useEffect(() => onWake(() => schedulerRef.current?.wake()), []);
+  useEffect(() => onWake(() => sessionRef.current?.wake()), []);
 
   useEffect(() => {
     if (!orgId) {
       setState(emptyOrgState());
-      setSettled(true);
+      setStatus({ ...NOTHING_YET, settled: true });
       return;
     }
     let cancelled = false;
-    let unwatch = () => {};
+    let opened: OrgSession | null = null;
+    let stop = () => {};
     (async () => {
       const store = await getStore();
       const deviceId = await ensureDeviceId(store, () => Crypto.randomUUID());
-      const transport = new SupabaseTransport(supabase);
-      const client = new SyncClient<OrgState>({
-        materializer: ORG_MATERIALIZER,
-        orgId,
-        streamId: ORG_STREAM,
-        actorId,
-        deviceId,
-        store,
-        transport,
-        newId: () => Crypto.randomUUID(),
-        diag: diagnostics,
-        onMembershipChanged: () => setMembershipEpoch((n) => n + 1)
+      const session = await OrgSession.open({
+        orgId, actorId, deviceId, store,
+        transport: serverTransport(),
+        client: { newId: () => Crypto.randomUUID(), diag: diagnostics },
+        aroundSync: trackSync
       });
-      await client.load();
-      if (cancelled) return;
-      clientRef.current = client;
-      const scheduler = new SyncScheduler({
-        run: async () => { await sync(); return { offline: onlineRef.current === false }; }
+      if (cancelled) { session.close(); return; }
+      opened = session;
+      sessionRef.current = session;
+      // A new object on every change to the fold; its fields are the fold's own (OrgHandle.state).
+      stop = session.subscribe((what) => {
+        if (what === 'state') setState({ ...session.state });
+        setStatus(session.status);
       });
-      schedulerRef.current = scheduler;
-      unwatch = transport.watch(orgId, ORG_STREAM, {
-        onPoke: () => scheduler.nudge(),
-        onStatus: (connected) => { setLive(connected); scheduler.connection(connected); }
-      });
-      await refresh();
-      scheduler.start();
+      session.start();
     })();
     return () => {
       cancelled = true;
-      unwatch();
-      schedulerRef.current?.stop();
-      schedulerRef.current = null;
-      clientRef.current = null;
+      stop();
+      opened?.close();
+      sessionRef.current = null;
     };
-  }, [orgId, actorId, refresh, sync]);
+  }, [orgId, actorId]);
 
-  const append = useCallback(
-    async <T extends OrgEventType>(type: T, payload: EventPayloads[T]) => {
-      const c = clientRef.current;
-      if (!c) return;
-      const written = c.append(type, payload);
-      setState({ ...c.getState() });
-      await written;
-      await refresh();
-      schedulerRef.current?.nudge();
-    },
-    [refresh]
-  );
-
-  const inspect = useCallback(() => clientRef.current?.inspect() ?? Promise.resolve(null), []);
+  const sync = useCallback(async () => { await sessionRef.current?.sync(); }, []);
+  const append = useCallback(async <T extends OrgEventType>(type: T, payload: EventPayloads[T]) => {
+    await sessionRef.current?.append(type, payload);
+  }, []);
+  const inspect = useCallback(() => sessionRef.current?.inspect() ?? Promise.resolve(null), []);
+  const { pending, live, pulled, settled, membershipEpoch } = status;
   return { state, pending, append, sync, live, inspect, pulled, settled, membershipEpoch };
 }

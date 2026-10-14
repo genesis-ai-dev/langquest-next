@@ -164,8 +164,8 @@ when the databases were reset (decision 63); nothing older survives.
 | `v1.LanguageCodeSet` | languageId, code, languoidId (a languoid's UUID, or null) | register per language; takes over `LanguageAdded`'s code and links the language to the language list; none means unlinked (decision 78) |
 | `v1.LanguageCountrySet` | languageId, country (ISO 3166-1 alpha-2) | register per language; the dashboard's geography (decision 41) |
 | `v1.LanguageTargetSet` | languageId, scope (gospels, nt, ot, bible), startDate, targetDate | register per language; the dashboard's pace (decision 41) |
-| `v1.ClusterNamed` | clusterId, name | register per cluster: making one and renaming it; a cluster is a name on some languages, not a level (decision 104) |
-| `v1.LanguageClusterSet` | languageId, clusterId, inCluster | register per (language, cluster): a tag, so a language may be in several clusters or none; a cluster none is in is gone (decision 104) |
+| `v1.ClusterNamed` | clusterId, name | register per cluster: making one and renaming it; a cluster is a name on some languages, not a level (decision 106) |
+| `v1.LanguageClusterSet` | languageId, clusterId, inCluster | register per (language, cluster): a tag, so a language may be in several clusters or none; a cluster none is in is gone (decision 106) |
 | `v1.ReferenceRecommended` | itemId, recommended | register per item; recommended to every language (decision 62) |
 | `v1.LibraryItemDefined` | itemId, kind (template, flow, material, versification, source, sourceBook, timing…), name, description, copiedFrom? | kind and copiedFrom earliest wins, name and description registers (docs/library.md) |
 | `v1.LibraryVersionPublished` | itemId, kind, docHash, note? | grow-only per (item, hash), earliest wins; numbered by clock |
@@ -286,10 +286,12 @@ langquest-next/
   PLAN.md            this file
   CLAUDE.md          agent entry point
   packages/core/     events, reducer, workflow, HLC, snapshot; pure TS + tests
-  packages/client/   SyncClient (local log, fold on append, outbox push, cursor
-                     pull), EventStore and Transport interfaces, MemoryStore,
-                     SupabaseTransport; unit tests on a fake server plus an
-                     integration test against local Supabase
+  packages/sync/     keeps and moves what is queued for the server: SyncClient
+                     (local log, fold on append, outbox push, cursor pull),
+                     EventStore and Transport interfaces, snapshots, file
+                     transfer, the account outbox and hand-overs (decisions
+                     104); unit tests on a fake server plus an integration
+                     test against local Supabase
   apps/mobile/       Expo app; SQLite EventStore, blob store, screens
   apps/web/          the Cloudflare Worker that serves the app's web export
                      (decisions 57, 58) and the reports API: one Durable
@@ -306,7 +308,7 @@ langquest-next/
 2. **Done.** `server`: `append_events` with the membership fold, `pull_events`
    by cursor, append-only triggers, local Supabase via colima. `npm run
    db:test` runs `server/smoke.sql`.
-3. **Done.** `packages/client`: `SyncClient` with fold-on-append, outbox push
+3. **Done.** `packages/sync`: `SyncClient` with fold-on-append, outbox push
    that keeps rejected events, paged pull, offline no-op. Verified by
    `npm run test:integration` with two real users.
 4. **Done.** `apps/mobile`: Expo 57 shell, `SqliteStore` on
@@ -327,12 +329,12 @@ langquest-next/
    takes, both microphone sessions open at once as in v2. Cards are ingested
    into a content-addressed store (`apps/mobile/src/blobs.ts`), appended as
    `RecordingAdded`, and the draft take is recomposed. Uploads and downloads
-   run on `TransferWorker` (packages/client) per section 14, through the
+   run on `TransferWorker` (packages/sync) per section 14, through the
    app's Worker into R2 (decisions.md 69), which appends `BlobStored` as the
    only confirmation. Needs a
    dev client (`npm run ios`, which decrypts the env file); Expo Go cannot load the native module.
 6. Review UI driven entirely by `deriveTakeStatus`.
-7. **Snapshot worker done** (`packages/client/src/snapshotWorker.ts`,
+7. **Snapshot worker done** (`packages/sync/src/snapshotWorker.ts`,
    incremental, refolds fully when a redaction targets the snapshot). Org
    dashboard: step 14, folded by the dashboard's own server (decision 44).
 8. **Done, and kept up to date.** LangQuest v2 comes over one way and keeps

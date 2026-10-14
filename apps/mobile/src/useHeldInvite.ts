@@ -8,7 +8,7 @@ import { claim, deadMessage, holdScanned, learnFromPreview, nextStep, outcomeOfE
 import { writeHeld, useHeld } from './heldInviteStore';
 import { FunctionError, joinByInvite, redeemInvite } from './invites';
 import { noteExpected } from './report';
-import { supabase } from './supabase';
+import { setSession } from './server/auth';
 
 /** What happened to the held invite last, for the screens to say. */
 type InviteStatus =
@@ -119,7 +119,7 @@ export function useHeldInvite(actorId: string | null, joined: (orgId: string) =>
     setStatus({ kind: 'joining' });
     try {
       const joined = await joinByInvite(bound.token, bound.joinId, name);
-      const { data, error } = await supabase.auth.setSession(joined.session);
+      const { data, error } = await setSession(joined.session);
       if (error) throw error;
       if (data.user && signedIn) await signedIn(data.user.id).catch((e: unknown) => { noteExpected('after join', e); });
       return null;

@@ -366,7 +366,7 @@ test('SETUP-021 Only organization-scope setters add languages', async ({ page, b
 });
 
 test('SETUP-074 A cluster of a new language and one already here, then ungrouped @p0', async ({ page }) => {
-  // A cluster is a name on some languages (decision 104, demo ADR-045): made in New language, shown on Org home and its own page.
+  // A cluster is a name on some languages (decision 106, demo ADR-045): made in New language, shown on Org home and its own page.
   const w = world();
   const cluster = `Cluster ${tag()}`;
   const name = `Kilo ${tag()}`;

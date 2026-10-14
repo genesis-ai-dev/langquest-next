@@ -4,7 +4,7 @@
 // server (decision 44), which a phone could not total itself (decision 37).
 // Ports the web dashboard's shell and language page (apps/web/src/screens:
 // shell, Language); the sections and their parts are in src/reports/.
-import { appendConfirmed, ensureDeviceId, NotSavedError, SupabaseTransport } from '@langquest-next/client';
+import { appendConfirmed, ensureDeviceId, NotSavedError } from '@langquest-next/sync';
 import {
   clustersOf, dayPercents, mayViewLanguage, orgClusters, ORG_STREAM, paceOf, percent, privilegesFor, recencyOf, TARGET_SCOPES,
   type LanguageReport, type LanguageRow, type TargetScope
@@ -19,7 +19,7 @@ import { contractsFor } from '../screenContracts';
 import { Chip, ChipRow, EmptyState, Field, Header, IconBtn, Screen, SearchField, Sheet, SmallBtn, txt } from '../kit';
 import { getStore } from '../store';
 import { filterByCluster, type ClusterFilter } from '../clusters/model';
-import { supabase } from '../supabase';
+import { serverTransport } from '../server/sync';
 import { C, measure, space } from '../theme';
 import { ActivityChart, DayBars, ProgressLine, WorkBar } from '../reports/charts';
 import { countryCodes, countryName } from '../reports/countries';
@@ -40,7 +40,7 @@ export function ReportsHome(ctx: Ctx) {
   const [section, setSection] = useState<SectionId>(SECTIONS.some((s) => s.id === ctx.params['section']) ? ctx.params['section'] as SectionId : 'overview');
   const [country, setCountry] = useState(ctx.params['country'] ?? '');
   const [days, setDays] = useState<7 | 14>(7);
-  // One cluster's languages, those in none, or all (decision 104): the organization's own record says which are in which.
+  // One cluster's languages, those in none, or all (decision 106): the organization's own record says which are in which.
   const [cluster, setCluster] = useState<ClusterFilter>(ctx.params['cluster'] ? { kind: 'cluster', clusterId: ctx.params['cluster'] } : { kind: 'all' });
   const now = Date.now();
   const spec = SECTIONS.find((s) => s.id === section)!;
@@ -315,7 +315,7 @@ function SettingsPanel(props: { ctx: Ctx; row: LanguageRow; refresh: () => void 
     setStatus(null);
     try {
       const deviceId = await ensureDeviceId(await getStore(), () => Crypto.randomUUID());
-      const who = { orgId: row.orgId, streamId: ORG_STREAM, actorId: ctx.session.actorId, deviceId, transport: new SupabaseTransport(supabase) };
+      const who = { orgId: row.orgId, streamId: ORG_STREAM, actorId: ctx.session.actorId, deviceId, transport: serverTransport() };
       if (what === 'country') await appendConfirmed(who, 'v1.LanguageCountrySet', { languageId: r.languageId, country });
       else await appendConfirmed(who, 'v1.LanguageTargetSet', { languageId: r.languageId, scope, startDate: start, targetDate: end });
       setStatus({ tone: 'green', text: t('reports.settings.saved') });

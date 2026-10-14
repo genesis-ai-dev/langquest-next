@@ -8,13 +8,13 @@
 // (admins reach these homes through Manage), ADR-025 (a language owns its
 // template, starting from the one its organization suggests). The demo's
 // Project Home and New Project are not ported: an organization holds its
-// languages directly (docs/decisions.md 63). A cluster (decision 104, demo
+// languages directly (docs/decisions.md 63). A cluster (decision 106, demo
 // ADR-045) is a name on some of them, with a page of its own (ClusterHome).
 import {
   clusterName, clustersOf, mayManageClusters, orgClusters,
-  CommandError, commands, decodeHlc, deriveFlow, goesWith, isTemplateDoc, emptyLanguageState, isMoreOpen, keyTermsFor, languageInfo, languageName, languageProgress,
+  decodeHlc, deriveFlow, goesWith, isMoreOpen, keyTermsFor, languageInfo, languageName, languageProgress,
   leavesNoRoleManager, libraryItemView, materialsFor, mayChangeLicense, mayChangeMembership, mayGrantRole, mayRenameLanguage, mayRenameOrg, orgLicense, orgName, privilegesFor, SEED_ROLES,
-  subscriptionItemId, templateBooks, type EventSpec, type LanguageProgress, type LibraryDoc, type License, type Scope, type ScopeLevel, type SourceDoc
+  subscriptionItemId, templateBooks, type LanguageProgress, type LibraryDoc, type License, type Scope, type ScopeLevel, type SourceDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -24,7 +24,7 @@ import QRCode from 'react-native-qrcode-svg';
 import { type LibraryChoice } from '../contentTemplates';
 import { deriveKinds, kindOf, licenseText } from '../coreText';
 import type { Ctx } from '../ctx';
-import { currentLanguage, t, Trans } from '../i18n';
+import { t, Trans } from '../i18n';
 import { formatAgo, formatClock, formatDayYear, formatNumber } from '../i18n/format';
 import { indexesFor } from '../indexes';
 import { canHelpSignIn, decideRequest, inviteUri, issueInvite, issueSignInCode, pendingRequests, type NewInvite, type PendingRequest } from '../invites';
@@ -36,24 +36,26 @@ import {
 } from '../kit';
 import { edgeFor } from '../flow';
 import { loadDocs } from '../library/docStore';
-import { type SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
 import {
-  addLanguage, assignableLevels, booksInScope, changeMembership, grantableLanguages, groupBelow, inviteScope, LANGUAGE_SCOPES, languageScopeLabel, levelLabel,
-  mayGrantAt, membersAbove, membersAt, memberEntries, newLanguageId, parseLevel, progressLine, removeMembership, reviewEligible,
+  assignableLevels, booksInScope, changeMembership, grantableLanguages, groupBelow, inviteScope, LANGUAGE_SCOPES, languageScopeLabel, levelLabel,
+  mayGrantAt, membersAbove, membersAt, memberEntries, parseLevel, progressLine, removeMembership, reviewEligible,
   saveTeam, similarLanguages, sumProgress, teamMembers,
   type HomeProgress, type LanguageScope, type MemberEntry, type OrgOp
 } from '../orgAdmin';
 import { noteExpected, reportError, failureMessage } from '../report';
 import { LicenseRow, LicenseSheet } from '../licenseSheet';
 import { appendToLanguage } from '../languageWriter';
+import { createLanguages, newLanguageParts, type Making, type NewOne, type Offer } from '../org/newLanguage';
+import { emailInvite } from '../org/emailInvite';
+import { looksLikeEmail, signInFailure } from '../org/model';
+import { usePublicListing } from '../org/usePublicListing';
 import { contractsFor } from '../screenContracts';
 import { languageFigures } from '../orgFigures';
 import { LanguoidPicker, useLanguoidName, useLanguoidSearch } from '../languoidPicker';
 import type { LanguoidHit } from '../languoidModel';
 import { edgeAllowed } from '../session';
 import { shareText } from '../share';
-import { supabase } from '../supabase';
 import { C, radius, space, tile, TINT } from '../theme';
 import { useOrgSummary } from '../useOrgSummary';
 import { useHelpMode } from '../helpContext';
@@ -65,7 +67,7 @@ import { setChecksDraft, useChecksDraft } from '../checks/draft';
 import { TranslateQuestion, useTranslate } from '../breakup/TranslateStep';
 import { InviteSomeone } from '../simple/invite';
 import { refKindOf } from '../reference/model';
-import { chooseSetLanguage, type GuideSet, type ReferenceSay, type SetMember } from '../reference/guideSets';
+import { type GuideSet } from '../reference/guideSets';
 import { memberIn, startingLanguage } from '../reference/languageChoices';
 import { docLanguage, readerLanguage, sameLanguage } from '../reference/languages';
 import { ReferenceLanguagePage, useReferenceLanguages } from '../reference/ReferenceLanguagePage';
@@ -268,7 +270,7 @@ export function OrgHome(ctx: Ctx) {
   const mayAdd = privilegesFor(v.org, ctx.session.actorId).has('manage_structure');
   // The demo's "Invite people" (gate assigner), and Invite itself, which a role may hold without assigning: it asks both.
   const canInvite = edgeAllowed(edgeFor('org_home', 'invite_member')!, ctx.session) && ctx.session.can('invite_members');
-  // Clusters first, then the languages in none (decision 104): a language in a cluster shows under it.
+  // Clusters first, then the languages in none (decision 106): a language in a cluster shows under it.
   const clusters = orgClusters(v.org);
   const loose = languagesOutsideClusters(v.org, v.languages);
   return (
@@ -325,7 +327,7 @@ function LanguageListRow(props: { ctx: Ctx; v: ReturnType<typeof useOrgView>; la
 // ---- A cluster -----------------------------------------------------------------------------------
 
 /**
- * A cluster's page (decision 104, demo ADR-045): its languages and their
+ * A cluster's page (decision 106, demo ADR-045): its languages and their
  * progress together, and what changes it: adding a language, new or
  * already here, renaming it, and ungrouping it. A cluster is only a name:
  * none of this changes a language, its people or its stream.
@@ -570,43 +572,6 @@ function LicenseSection(props: { ctx: Ctx }) {
   );
 }
 
-/** Why the listing could not be read or changed: the server's refusal (its words are a developer's English), or the connection. */
-function listingFailure(e: { code?: string }): string {
-  return e.code === '42501' ? t('org.listing.notAllowed') : t('common.tryWhenConnected');
-}
-
-/** Whether the open language is listed on Explore (one listing per language). */
-function usePublicListing(ctx: Ctx) {
-  const may = ctx.session.can('manage_structure');
-  const { orgId, languageId } = ctx.language;
-  const [listed, setListed] = useState(false);
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-  useEffect(() => {
-    if (!may || !languageId) return;
-    let active = true;
-    void supabase.from('language_visibility').select('listed').eq('org_id', orgId).eq('language_id', languageId).maybeSingle()
-      .then(({ data, error: failed }) => {
-        if (!active) return;
-        // Offline or refused: say so rather than showing "not listed".
-        if (failed) { noteExpected('read listing', failed); setError(listingFailure(failed)); } else setListed(data?.listed ?? false);
-      });
-    return () => { active = false; };
-  }, [may, orgId, languageId]);
-  async function set(value: boolean) {
-    setBusy(true);
-    try {
-      const { error: failed } = await supabase.rpc('set_language_visibility', { p_org: orgId, p_language: languageId, p_listed: value });
-      if (failed) { noteExpected('change listing', failed); setError(listingFailure(failed)); } else { setListed(value); setError(''); }
-    } catch (e) {
-      setError(failure('change listing', e));
-    } finally {
-      setBusy(false);
-    }
-  }
-  return { may, listed, error, busy, set };
-}
-
 // ---- Language Home ----------------------------------------------------------------------------------
 
 /**
@@ -689,7 +654,7 @@ export function LanguageHome(ctx: Ctx) {
         save={(next) => ctx.org.append('v1.LanguageRenamed', { languageId, name: next }).then(() => undefined)} />
       <LanguoidLinkRow ctx={ctx} languageId={languageId} name={name} code={info.code} languoidId={info.languoidId}
         may={mayRenameLanguage(v.org, ctx.session.actorId, languageId)} last={!showClusters} />
-      {/* The clusters it is in (decision 104): a name the organization puts on it, nothing more. */}
+      {/* The clusters it is in (decision 106): a name the organization puts on it, nothing more. */}
       <LanguageClustersRow ctx={ctx} languageId={languageId} language={name} last />
     </Disclosure>
   );
@@ -912,18 +877,6 @@ function scopeOf(value: Assignment): Scope | null {
   return value.languageId ? { level: 'language', languageId: value.languageId } : null;
 }
 
-/** Why the invite email was not sent, by the send-invite function's status (its own words are English). */
-function sendFailure(status: number): string {
-  switch (status) {
-    case 503: return t('org.invite.emailNotSetUp');
-    case 409: return t('org.invite.emailPending');
-    case 502: return t('org.invite.emailFailed');
-    case 401: case 403: return t('org.invite.emailUnavailable');
-    case 0: return t('common.tryWhenConnected');
-    default: return t('org.invite.emailRetry');
-  }
-}
-
 /**
  * Invite someone (decision 71, demo ADR-039; the prototype's Invite): what
  * will they do, in plain words, then a code to scan. The email invite and a
@@ -947,18 +900,12 @@ export function InviteMember(ctx: Ctx) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   async function send() {
-    if (!email || !/\S+@\S+\.\S+/.test(address.trim())) return;
+    if (!email || !looksLikeEmail(address)) return;
     setBusy(true);
     setError('');
     try {
-      const invite = await issueInvite(ctx.language.orgId, email.roleId, email.scope);
-      const { error: failed } = await supabase.functions.invoke('send-invite', { body: { inviteId: invite.inviteId, token: invite.token, email: address.trim(), locale: currentLanguage() } });
-      if (failed) {
-        // The function's own words are English; its status says which refusal it was (supabase/functions/send-invite).
-        noteExpected('send invite', failed);
-        setError(sendFailure(failed.context instanceof Response ? failed.context.status : 0));
-        return;
-      }
+      const refused = await emailInvite(ctx.language.orgId, email.roleId, email.scope, address);
+      if (refused) { setError(refused); return; }
       ctx.toast(t('org.invite.sent', { address: address.trim(), role: roleName(ctx, email.roleId) }));
       setEmail(null);
       ctx.back();
@@ -987,7 +934,7 @@ export function InviteMember(ctx: Ctx) {
         ]} />
       <Sheet visible={!!email} title={t('org.invite.emailTitle')} sub={email ? `${roleName(ctx, email.roleId)} · ${email.scope.level === 'org' ? v.orgName : v.label(email.scope.languageId)}` : undefined}
         onClose={() => setEmail(null)}
-        footer={<PrimaryBtn label={t('org.invite.send')} icon="send" busy={busy} disabled={!/\S+@\S+\.\S+/.test(address.trim())} onPress={() => void send()} />}>
+        footer={<PrimaryBtn label={t('org.invite.send')} icon="send" busy={busy} disabled={!looksLikeEmail(address)} onPress={() => void send()} />}>
         <Field label={t('org.invite.emailLabel')} value={address} onChangeText={setAddress} placeholder={t('org.invite.emailPlaceholder')} keyboardType="email-address" autoCapitalize="none" />
         {error ? <Banner icon="flag" tone="amber" title={t('org.invite.notSent')} body={error} /> : null}
       </Sheet>
@@ -1210,11 +1157,6 @@ function MemberEditor(ctx: Ctx) {
  */
 const HELP_ROW = { flexDirection: 'row', alignItems: 'center', gap: space.md } as const;
 
-/** Why no sign-in code was made: the server's refusal (its words are a developer's English), or the connection. */
-function signInFailure(e: unknown): string {
-  return e instanceof Error && /not allowed/i.test(e.message) ? t('org.signIn.notAllowed') : t('common.tryWhenConnected');
-}
-
 function HelpSignIn(props: { memberId: string; who: string }) {
   const [may, setMay] = useState(false);
   const [lost, setLost] = useState(false);
@@ -1393,12 +1335,6 @@ async function adoptChoice(lib: ReturnType<typeof useLibrary>, c: LibraryChoice)
 /** Step 3's "I'll choose the steps" card. */
 const CHOOSE_STEPS = 'choose';
 
-/** The parts of adding a language, in order, as step 3 names them while Continue runs: with a cluster, one per language and the grouping. */
-type Making = 'passages' | 'checks' | 'helps' | 'listing' | 'saving' | 'cluster' | `language:${number}`;
-
-/** A language New language will add: its name, and its code and languoid when it was found in the language list. */
-interface NewOne { key: string; name: string; code: string; languoidId: string | null }
-
 /** "In a cluster?" on one language: a new cluster, named below it. */
 const NEW_CLUSTER = 'new';
 
@@ -1428,7 +1364,7 @@ export function NewLanguage(ctx: Ctx) {
   // Picked from the language list (docs/languoids.md); none leaves it unlinked, to link from its page later.
   const [picked, setPicked] = useState<LanguoidHit | null>(null);
   const search = useLanguoidSearch(name, !picked);
-  // One language, or a cluster of several (decision 104, demo ADR-045). Opened from a cluster's page, one language already in it.
+  // One language, or a cluster of several (decision 106, demo ADR-045). Opened from a cluster's page, one language already in it.
   const fromCluster = ctx.params['clusterId'] ?? null;
   const mayGroup = mayManageClusters(ctx.org.state, ctx.session.actorId);
   const [many, setMany] = useState(false);
@@ -1528,100 +1464,39 @@ export function NewLanguage(ctx: Ctx) {
     setError('');
     const target = clusterTarget();
     // Each part is named on screen before it starts, and the screen is drawn before the work goes on.
-    const parts: Making[] = ['passages', 'checks', ...(offers.items.length ? ['helps' as const] : []),
-      ...(many ? list.map((_, i) => `language:${i}` as const) : ['listing' as const, 'saving' as const]), ...(target ? ['cluster' as const] : [])];
-    const part = async (now: Making) => {
-      setMaking({ parts, now });
-      await new Promise<void>((done) => requestAnimationFrame(() => setTimeout(done, 0)));
-    };
+    const parts = newLanguageParts(offers.items.length > 0, { ...(many ? { each: list.length } : {}), cluster: !!target });
     try {
-      const org = ctx.org.state;
-      // The new language has no members yet: its first events go in under org-scope privileges.
-      const mine = org ? privilegesFor(org, ctx.session.actorId) : new Set<string>();
-      if (!mine.has('manage_templates') || !mine.has('manage_flows')) {
-        throw new CommandError(t('org.newLanguage.needsPermission'));
-      }
-      await part('passages');
-      const use = await tq.resolve();
-      const loaded = (await loadDocs(lib.orgId, [use.docHash])).get(use.docHash);
-      if (!loaded || !isTemplateDoc(loaded)) throw new CommandError(t('org.newLanguage.templateMissing'));
-      const books = booksInScope(loaded, scope, chosenBooks);
-      if (books && books.length === 0) throw new CommandError(t('getReady.record.chooseABook'));
-      const templateItem = use.itemId;
-      await part('checks');
-      // What its team is offered, followed first when it is another organization's (as What helps them does).
-      // Only each item's own document comes now; a guide loads when a passage reads it (useLibrary `adopt`).
-      // A guide set (FIA) is offered in its one chosen language, and its other languages in the library are hidden here.
-      // A cluster's new languages are offered the same, followed once.
-      const offered: string[] = [];
-      const setSays: ReferenceSay[] = [];
-      if (offers.items.length) await part('helps');
-      // Its Bibles and guides are offered in the language chosen for them, which it is added with (`sourceCode`).
-      // Following one another organization shares needs the server; offline, or if it is refused, the language is
-      // still added (decisions 71 and 76: what helps is never required, and a language can be added offline), and
-      // the toast names what to offer later under What helps.
-      const notOffered: string[] = [];
-      for (const o of offers.items) {
-        let itemId = o.itemId;
-        if (!itemId) {
-          try {
-            itemId = o.shared!.subscribable ? await lib.subscribe(o.shared!, true) : await lib.copy(o.shared!);
-          } catch (e) {
-            noteExpected('new language offer', e);
-            notOffered.push(o.label);
-            continue;
-          }
-        }
-        if (o.set && o.member) {
-          const held = { ...o.set, members: o.set.members.map((m) => (m === o.member ? { ...m, itemId, shared: null } : m)) };
-          setSays.push(...chooseSetLanguage(held, itemId, null).says);
-        } else offered.push(itemId);
-      }
-      const made: { languageId: string; name: string }[] = [];
-      for (const [i, one] of list.entries()) {
-        await part(many ? `language:${i}` : 'listing');
-        const done = madeRef.current.get(one.key);
-        if (done) { made.push(done); continue; }
-        const languoid = one.code || one.name.slice(0, 3);
-        const languageId = newLanguageId(languoid, Crypto.randomUUID());
-        const fresh = emptyLanguageState();
-        // A ready-made flow is copied into the language, its checks the language's own (decision 91).
-        const flowSpecs = commands(fresh).copyFlow({ commandId: `${languageId}:checks`, name: checks.name ?? '', kinds: checks.kinds, steps: checks.steps });
-        const plan = addLanguage(ctx.org.state, {
-          languageId, code: languoid, name: one.name, languoidId: one.languoidId, sourceCode: reads,
-          template: await lib.applySpecs(templateItem, { docHash: use.docHash, into: fresh, ...(books ? { books } : {}) }),
-          flow: flowSpecs
-        });
-        const recommend: EventSpec[] = [
-          ...offered.filter((id) => ctx.org.state?.recommendations[id]?.value !== true).map((itemId) => ({ itemId, state: 'recommended' as const })),
-          ...setSays
-        ].map((payload, n) => ({ id: `${languageId}:offer:${n}`, type: 'v1.ReferenceSet', payload } as EventSpec));
-        await ctx.org.append('v1.LanguageAdded', plan.added);
-        if (plan.link) await ctx.org.append('v1.LanguageCodeSet', plan.link);
-        // Its stream takes events once the organization's lists it: send that first when connected.
-        await ctx.org.sync().catch((e: unknown) => noteExpected('new language listing', e));
-        if (!many) await part('saving');
-        await appendToLanguage({ orgId: ctx.language.orgId, languageId, actorId: ctx.session.actorId, specs: [...plan.specs, ...recommend] });
-        madeRef.current.set(one.key, { languageId, name: one.name });
-        made.push({ languageId, name: one.name });
-      }
-      // The cluster is a name on them (decision 104): the new ones, and those already here it takes in.
-      if (target) {
-        await part('cluster');
-        await appendClusterEvents(ctx, clusterEvents(ctx.org.state, { ...target, add: [...made.map((m) => m.languageId), ...(many ? existing : [])] }));
-      }
+      const made = await createLanguages({
+        org: ctx.org.state, actorId: ctx.session.actorId, reads, scope, chosenBooks, checks, offers: offers.items,
+        languages: list, each: many, done: madeRef.current,
+        cluster: target ? { ...target, ...(many ? { existing: [...existing] } : {}) } : null
+      }, {
+        resolveTemplate: () => tq.resolve(),
+        loadDoc: async (hash) => (await loadDocs(lib.orgId, [hash])).get(hash) ?? undefined,
+        adopt: (shared) => (shared.subscribable ? lib.subscribe(shared, true) : lib.copy(shared)),
+        applySpecs: (itemId, opts) => lib.applySpecs(itemId, opts),
+        appendOrg: (type, payload) => ctx.org.append(type, payload),
+        syncOrg: () => ctx.org.sync(),
+        appendToLanguage: (languageId, specs) => appendToLanguage({ orgId: ctx.language.orgId, languageId, actorId: ctx.session.actorId, specs }),
+        newId: () => Crypto.randomUUID(),
+        onPart: async (now) => {
+          setMaking({ parts, now });
+          await new Promise<void>((done) => requestAnimationFrame(() => setTimeout(done, 0)));
+        },
+        note: noteExpected
+      });
       const group = target ? target.name ?? clusterName(ctx.org.state, target.clusterId) ?? null : null;
-      const first = made[0]!;
+      const first = made.languages[0]!;
       ctx.toast(many
-        ? (notOffered.length
-          ? t('clusters.newLanguage.addedNotOffered', { count: made.length, org: orgName, cluster: group ?? title, offers: joinAnd(notOffered) })
-          : t('clusters.newLanguage.added', { count: made.length, org: orgName, cluster: group ?? title }))
-        : notOffered.length
-          ? t('org.newLanguage.addedNotOffered', { language: first.name, org: orgName, offers: joinAnd(notOffered) })
+        ? (made.notOffered.length
+          ? t('clusters.newLanguage.addedNotOffered', { count: made.languages.length, org: orgName, cluster: group ?? title, offers: joinAnd(made.notOffered) })
+          : t('clusters.newLanguage.added', { count: made.languages.length, org: orgName, cluster: group ?? title }))
+        : made.notOffered.length
+          ? t('org.newLanguage.addedNotOffered', { language: first.name, org: orgName, offers: joinAnd(made.notOffered) })
           : t('org.newLanguage.added', { language: first.name, org: orgName }));
       // The language this person works in is the one the app opens: a cluster's first.
       ctx.setLanguage(first.languageId);
-      setCreated({ languages: made, cluster: many ? group : null });
+      setCreated({ languages: made.languages, cluster: many ? group : null });
       setChecksDraft(null);
       setStep(5);
     } catch (e) {
@@ -1687,7 +1562,7 @@ export function NewLanguage(ctx: Ctx) {
           : <PrimaryBtn label={t('org.continue')} icon="right" disabled={!ready1} onPress={() => setStep(2)} />}>
         {mayGroup ? (
           <>
-            {/* One language, or a cluster of several (decision 104): asked first, with one language picked. */}
+            {/* One language, or a cluster of several (decision 106): asked first, with one language picked. */}
             <Question>{t('clusters.newLanguage.what')}</Question>
             <ChoiceCard on={!many} icon="globe" title={t('clusters.newLanguage.one')} sub={t('clusters.newLanguage.oneSub')} onPress={() => setMany(false)} />
             <ChoiceCard on={many} icon="layers" title={t('clusters.newLanguage.cluster')} sub={t('clusters.newLanguage.clusterSub')} onPress={() => { setMany(true); setPicked(null); }}>
@@ -1747,7 +1622,7 @@ export function NewLanguage(ctx: Ctx) {
             {picked ? null : <Field label={t('org.newLanguage.codeLabel')} value={code} onChangeText={setCode} placeholder={t('org.newLanguage.codePlaceholder')} autoCapitalize="none" />}
             {mayGroup ? (
               <>
-                {/* Which cluster it joins, if any: made right here when it is new (decision 104). */}
+                {/* Which cluster it joins, if any: made right here when it is new (decision 106). */}
                 <SectionLabel label={t('clusters.newLanguage.inCluster')} />
                 <Pills>
                   <Chip label={t('clusters.newLanguage.no')} on={joins === null} onPress={() => setJoins(null)} />
@@ -1895,7 +1770,6 @@ function useNewLanguageOffers(ctx: Ctx, reads: string, sets: readonly GuideSet[]
   const docs = useLibraryDocs(lib.orgId, [...own.map((it) => it.current), ...others.map((s) => s.latest_hash)], { deps: false });
   const fia = (n: string) => (/fia/i.test(n) ? 0 : /example/i.test(n) ? 2 : 1);
   const web = (n: string) => (/world english/i.test(n) ? 0 : 1);
-  type Offer = { itemId: string | null; shared: SharedItem | null; name: string; label: string; set?: GuideSet; member?: SetMember };
   const pickSet = (): Offer | null => {
     for (const set of [...sets].sort((a, b) => fia(a.name) - fia(b.name))) {
       const member = memberIn(set, reads);
@@ -1942,7 +1816,7 @@ function bibleOffer(name: string): string {
 /**
  * Last: invite the new language's translators (the prototype's Invite, after
  * NewLangFlow). After a cluster, its new languages are chips: a code is for
- * one language, as a membership is (decision 104: a cluster is no scope).
+ * one language, as a membership is (decision 106: a cluster is no scope).
  */
 function NewLanguageInvite(props: { ctx: Ctx; languages: { languageId: string; name: string }[]; cluster: string | null }) {
   const { ctx } = props;

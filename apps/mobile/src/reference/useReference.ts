@@ -13,7 +13,7 @@ import { cachedDoc, hashOf, keepNewDoc, loadDocs } from '../library/docStore';
 import type { SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs } from '../library/useLibrary';
 import { failureMessage, noteExpected } from '../report';
-import { supabase } from '../supabase';
+import * as server from '../server/reference';
 import { BibleError } from '../bibleBrain';
 import { recMessage, recState, recUndo, recWrite, refKindOf, type Level, type RecAction, type RecWrite, type RefKind } from './model';
 import { timingPublication, type TimingPublication, type TimingResultRow } from '@langquest-next/core';
@@ -144,7 +144,7 @@ export function useTimingJobs(orgId: string, itemId: string | null, enabled: boo
   const refresh = useCallback(async () => {
     if (!itemId) return;
     try {
-      const { data, error: failed } = await supabase.rpc('timing_jobs_for', { p_org: orgId });
+      const { data, error: failed } = await server.timingJobs(orgId);
       if (failed) throw new Error(failed.message);
       setJobs(((data ?? []) as TimingJob[]).filter((j) => j.item_id === itemId));
       setError('');
@@ -170,11 +170,7 @@ export function useTimingJobs(orgId: string, itemId: string | null, enabled: boo
 
 /** Ask for verse timings for some books of one source's audio. One open job per audio is enough; asking again returns it. */
 export async function requestTimings(orgId: string, c: { itemId: string; bibleId: string; audioFileset: string; textFileset: string | null; books: string[]; versification: string; publishTo?: { org: string; item: string } }): Promise<string> {
-  const { data, error } = await supabase.rpc('request_timings', {
-    p_org: orgId, p_item: c.itemId, p_bible_id: c.bibleId, p_audio_fileset: c.audioFileset, p_text_fileset: c.textFileset,
-    p_books: c.books, p_versification: c.versification,
-    ...(c.publishTo ? { p_publish_org: c.publishTo.org, p_publish_item: c.publishTo.item } : {})
-  });
+  const { data, error } = await server.requestTimings(orgId, c);
   if (error) throw serverRefusal(error);
   return data as string;
 }
@@ -186,7 +182,7 @@ export async function requestTimings(orgId: string, c: { itemId: string; bibleId
  */
 export async function publishTimingJob(lib: ReturnType<typeof useLibrary>, it: LibraryItemView, jobId: string, base: string | null = it.current): Promise<TimingPublication> {
   if (it.source === 'subscription') throw new CommandError(t('reference.errors.followedNoTimings'));
-  const { data, error } = await supabase.rpc('timing_job_results', { p_org: lib.orgId, p_job: jobId });
+  const { data, error } = await server.timingJobResults(lib.orgId, jobId);
   if (error) throw serverRefusal(error);
   const rows = (data ?? []) as TimingResultRow[];
   const loaded = await loadDocs(lib.orgId, [base]);

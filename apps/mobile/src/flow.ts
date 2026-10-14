@@ -46,7 +46,7 @@ export const SCREEN_IDS = [
   'settings_more',
   // App only: one of a language's checks, with its people, questions and helps (decision 91)
   'check_editor',
-  // App only: a cluster of languages, a name the organization puts on them (decision 104, demo ADR-045)
+  // App only: a cluster of languages, a name the organization puts on them (decision 106, demo ADR-045)
   'cluster_home'
 ] as const;
 
@@ -410,7 +410,7 @@ export const EDGES: Edge[] = [
   // App only: signing out of "Join your team" goes through the same confirmation as Me (NOORG-004, decision 60)
   e('intent_chooser', 'sign_out_confirm'),
   e('sign_out_confirm', 'intent_chooser', 'back'),
-  // App only: a cluster's page (decision 104, demo ADR-045): its languages, a new one already in it,
+  // App only: a cluster's page (decision 106, demo ADR-045): its languages, a new one already in it,
   // and New language opening the cluster it made of languages already here
   e('org_home', 'cluster_home'),
   e('cluster_home', 'language_home'),

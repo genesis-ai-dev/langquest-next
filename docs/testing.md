@@ -8,15 +8,15 @@ strategy above it.
 ## The shape
 
 Tests sit in five layers. Each layer is cheaper and more precise than the one
-above it, so a check goes in the lowest layer that can hold it.
+below it, so a check goes in the lowest-numbered layer that can hold it.
 
-| Layer | What it proves | Where | Runs |
-| --- | --- | --- | --- |
-| 1. Unit and property | Core folds and commands, client sync, mobile models, scripts. The PLAN.md invariants as property tests (fast-check). | `packages/*/test`, `apps/*/test`, `scripts/*.test.ts` | every `npm test`, pre-push, CI on every PR |
-| 2. Server | SQL smokes, SQL-to-core parity (`validate_payload`, `event_privilege`), the client integration test, a fleet scenario on simulated time | `server/*.sql`, `scripts/db-test.mjs`, `packages/client/test/integration.test.ts`, `scripts/fleet` | CI on every PR (fleet nightly) |
-| 3. Screen models | What a screen shows for a state and a role: main button, path steps, team rows, tabs. Pure functions in `apps/mobile/src/*Model.ts`, tested with the core fixtures and `test/sessions.ts`. | `apps/mobile/test` | every `npm test` |
-| 4. End-to-end, web | A person does a job in the real app, signed in, against the local server: the release web export served by the Worker. Playwright. | `e2e/ui` | `@p0` on every PR; the whole suite nightly and before a store release |
-| 5. End-to-end, phones | What only a phone shows: recording, permissions, backgrounding, airplane mode, hand-over, the P0 smoke set. Maestro on a Release test build. | `apps/mobile/test/maestro` | before a store release, and after a change to the recorder, sync or sign-in |
+| Layer | What it proves | Framework | Where | Runs |
+| --- | --- | --- | --- | --- |
+| 1. Unit and property | Core folds and commands, client sync, mobile models, scripts. The PLAN.md invariants as property tests. | Vitest, with fast-check for the property tests | `packages/*/test`, `apps/*/test`, `scripts/*.test.ts` | every `npm test`, pre-push, CI on every PR |
+| 2. Server | SQL smokes, SQL-to-core parity (`validate_payload`, `event_privilege`), the sync integration test, a fleet scenario on simulated time | Plain SQL run by `psql` from a Node script (`scripts/db-test.mjs`); the parity check and the fleet are `tsx` scripts; the integration test is Vitest | `server/*.sql`, `scripts/db-test.mjs`, `packages/sync/test/integration.test.ts`, `scripts/fleet` | CI on every PR (fleet nightly) |
+| 3. Screen models | What a screen shows for a state and a role: main button, path steps, team rows, tabs. Pure functions in `apps/mobile/src/*Model.ts`, tested with the core fixtures and `test/sessions.ts`. | Vitest | `apps/mobile/test` | every `npm test` |
+| 4. End-to-end, web | A person does a job in the real app, signed in, against the local server: the release web export served by the Worker. | Playwright (Chromium) | `e2e/ui` | `@p0` on every PR; the whole suite nightly and before a store release |
+| 5. End-to-end, phones | What only a phone shows: recording, permissions, backgrounding, airplane mode, hand-over, the P0 smoke set. On a Release test build. | Maestro (YAML flows) | `apps/mobile/test/maestro` | before a store release, and after a change to the recorder, sync or sign-in |
 
 Beside them:
 
@@ -24,7 +24,7 @@ Beside them:
   Firefox and WebKit, checking the platform itself (storage, tabs, headers,
   sign-out). CI on every PR.
 - **Coverage** (`npm run test:coverage`): V8 coverage of layers 1 to 3 with
-  thresholds for `packages/core` and `packages/client`, which are pure and
+  thresholds for `packages/core` and `packages/sync`, which are pure and
   must stay near fully covered. CI fails under the threshold. On 2026-10-14 core was at 95% lines and client at 90%; thresholds are 93 and 88.
 - **Mutation testing** (`npm run mutate:core`): Stryker over `packages/core`,
   nightly. Coverage says a line ran; mutation says a test would notice it
@@ -106,6 +106,9 @@ These keep the suite fast enough to run and stable enough to trust.
 - **Phones run the P0 smoke set and phone-only behaviour.** A test that can
   run on the web runs on the web. Maestro runs sharded across simulators
   (`--shards N`) and on a Release test build (`npm run test:ui:build`).
+  The runner skips the flows a run cannot hold and prints which: flows
+  tagged `voice` without `--voice` or `--mic`, `android-only` flows on iOS,
+  `wrapped` flows without `--wrapped`. A skipped flow is not a finding.
 
 ## What runs where
 
