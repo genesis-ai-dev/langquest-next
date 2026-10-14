@@ -3664,11 +3664,14 @@ ones, each of which then owns its copy (decision 91). Manage lists clusters
 above the languages in none; a cluster's page shows its languages and their
 progress together, adds a new language or ones already here, renames and
 ungroups it; a language's page names its clusters and More › Cluster
-changes them; All languages on the Map tab filters by cluster. Inviting
-stays per language: after a cluster, the invite offers its new languages as
-chips. Not built: clusters in the Reports dashboard (the server has no
-clusters), inviting to every language of a cluster at once, and settings
-shared across a cluster.
+changes them; All languages on the Map tab filters by cluster. The Reports
+dashboard on the web (decision 57) picks all languages, one cluster or
+those in none, sums each cluster in Overview, and names a language's
+clusters in its row, its page and the CSV; the device filters the rows the
+server sent with its own fold of the organization, so the server still
+knows nothing of clusters. Inviting stays per language: after a cluster,
+the invite offers its new languages as chips. Not built: inviting to every
+language of a cluster at once, and settings shared across a cluster.
 
 Reverse if: organizations need a cluster to carry people or settings for
 all its languages (an invite or a template for the cluster); then a cluster

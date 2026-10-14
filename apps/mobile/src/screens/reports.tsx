@@ -6,7 +6,7 @@
 // shell, Language); the sections and their parts are in src/reports/.
 import { appendConfirmed, ensureDeviceId, NotSavedError, SupabaseTransport } from '@langquest-next/client';
 import {
-  dayPercents, mayViewLanguage, ORG_STREAM, paceOf, percent, privilegesFor, recencyOf, TARGET_SCOPES,
+  clustersOf, dayPercents, mayViewLanguage, orgClusters, ORG_STREAM, paceOf, percent, privilegesFor, recencyOf, TARGET_SCOPES,
   type LanguageReport, type LanguageRow, type TargetScope
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -18,6 +18,7 @@ import { t, Trans } from '../i18n';
 import { contractsFor } from '../screenContracts';
 import { Chip, ChipRow, EmptyState, Field, Header, IconBtn, Screen, SearchField, Sheet, SmallBtn, txt } from '../kit';
 import { getStore } from '../store';
+import { filterByCluster, type ClusterFilter } from '../clusters/model';
 import { supabase } from '../supabase';
 import { C, measure, space } from '../theme';
 import { ActivityChart, DayBars, ProgressLine, WorkBar } from '../reports/charts';
@@ -39,20 +40,39 @@ export function ReportsHome(ctx: Ctx) {
   const [section, setSection] = useState<SectionId>(SECTIONS.some((s) => s.id === ctx.params['section']) ? ctx.params['section'] as SectionId : 'overview');
   const [country, setCountry] = useState(ctx.params['country'] ?? '');
   const [days, setDays] = useState<7 | 14>(7);
+  // One cluster's languages, those in none, or all (decision 103): the organization's own record says which are in which.
+  const [cluster, setCluster] = useState<ClusterFilter>(ctx.params['cluster'] ? { kind: 'cluster', clusterId: ctx.params['cluster'] } : { kind: 'all' });
   const now = Date.now();
   const spec = SECTIONS.find((s) => s.id === section)!;
-  const all = reports.status === 'ready' ? reports.rows : [];
+  const every = reports.status === 'ready' ? reports.rows : [];
+  const org = ctx.org.state;
+  // The clusters among the languages this person sees, each with only those.
+  const clusters = useMemo(() => {
+    const seen = new Set(every.map((r) => r.languageId));
+    return orgClusters(org).map((c) => ({ ...c, languageIds: c.languageIds.filter((id) => seen.has(id)) })).filter((c) => c.languageIds.length > 0);
+  }, [org, every]);
+  const filter: ClusterFilter = cluster.kind === 'cluster' && !clusters.some((c) => c.clusterId === cluster.clusterId) ? { kind: 'all' } : cluster;
+  const kept = new Set(filterByCluster(org, every.map((r) => r.languageId), filter));
+  const outside = filterByCluster(org, every.map((r) => r.languageId), { kind: 'none' }).length;
+  const all = filter.kind === 'all' ? every : every.filter((r) => kept.has(r.languageId));
   const rows = spec.filterCountry && country ? all.filter((r) => (r.report.country ?? '') === country) : all;
   const countries = useMemo(() => [...new Set(all.map((r) => r.report.country ?? ''))]
     .sort((a, b) => countryName(a || null).localeCompare(countryName(b || null))), [all]);
   const alerts = reports.status === 'ready' ? openAlerts(all, reports.asOf, now) : 0;
+  const clusterName = filter.kind === 'cluster' ? clusters.find((c) => c.clusterId === filter.clusterId)?.name ?? ''
+    : filter.kind === 'none' ? t('clusters.status.none') : '';
+  // A cluster's report is named for it too: the field report's heading and the files it downloads.
+  const reportName = [orgName, clusterName].filter(Boolean).join(' · ');
   const props: SectionProps = {
-    rows, all, now, orgName, asOf: reports.status === 'ready' ? reports.asOf : new Date(now).toISOString(),
+    rows, all, now, orgName: reportName, asOf: reports.status === 'ready' ? reports.asOf : new Date(now).toISOString(),
     open: (row) => ctx.go('reports_language', { languageId: row.languageId }),
-    show: (to, c) => { setSection(to); if (c !== undefined) setCountry(c); }
+    show: (to, c) => { setSection(to); if (c !== undefined) setCountry(c); },
+    clusters: filter.kind === 'all' ? clusters : [],
+    clustersOf: (languageId) => clustersOf(org, languageId).map((c) => c.name),
+    pickCluster: (clusterId) => { setCluster({ kind: 'cluster', clusterId }); setCountry(''); }
   };
   const header = (
-    <Header title={sectionLabel(section)} sub={[orgName, t('reports.title')].filter(Boolean).join(' · ')} columnWidth={COLUMN}
+    <Header title={sectionLabel(section)} sub={[orgName, clusterName, t('reports.title')].filter(Boolean).join(' · ')} columnWidth={COLUMN}
       action={<IconBtn name="restart" label={t('reports.home.catchUp')} onPress={reports.refresh} disabled={reports.status === 'ready' && reports.refreshing} />} />
   );
   return (
@@ -63,6 +83,16 @@ export function ReportsHome(ctx: Ctx) {
             {...(s.id === 'alerts' && alerts > 0 ? { count: alerts, accessibilityLabel: t('reports.home.alertsChip', { count: alerts }) } : {})} />
         ))}
       </ChipRow>
+      {clusters.length ? (
+        <ChipRow>
+          <Chip label={t('reports.home.allLanguages')} icon="globe" count={every.length} on={filter.kind === 'all'} onPress={() => { setCluster({ kind: 'all' }); setCountry(''); }} />
+          {clusters.map((c) => (
+            <Chip key={c.clusterId} label={c.name} icon="layers" count={c.languageIds.length} on={filter.kind === 'cluster' && filter.clusterId === c.clusterId}
+              onPress={() => { setCluster({ kind: 'cluster', clusterId: c.clusterId }); setCountry(''); }} />
+          ))}
+          {outside ? <Chip label={t('clusters.status.none')} count={outside} on={filter.kind === 'none'} onPress={() => { setCluster({ kind: 'none' }); setCountry(''); }} /> : null}
+        </ChipRow>
+      ) : null}
       {spec.filterCountry && countries.length > 1 ? (
         <ChipRow>
           <Chip label={t('reports.home.allCountries')} icon="globe" on={!country} onPress={() => setCountry('')} />
@@ -103,7 +133,8 @@ export function ReportsLanguage(ctx: Ctx) {
   const row = reports.status === 'ready' && mayView ? reports.rows.find((r) => r.languageId === languageId) : undefined;
   const title = row?.report.name ?? t('reports.language.fallbackTitle');
   const header = (
-    <Header title={title} sub={orgName} columnWidth={COLUMN} onBack={ctx.back} crumbs={[{ label: t('reports.title'), onPress: ctx.back }]}
+    <Header title={title} sub={[orgName, ...clustersOf(ctx.org.state, languageId).map((c) => c.name)].filter(Boolean).join(' · ')} columnWidth={COLUMN}
+      onBack={ctx.back} crumbs={[{ label: t('reports.title'), onPress: ctx.back }]}
       action={row ? (
         <View style={{ flexDirection: 'row', gap: space.sm }}>
           <IconBtn name="download" label={t('reports.language.downloadBooks')} onPress={() => exportCsv(fileName(t('reports.files.books', { name: row.report.name })), languageCsv(row.report))} />

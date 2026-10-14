@@ -4668,7 +4668,8 @@
       "newChapters": "নতুন অধ্যায়",
       "books": "বই",
       "chaptersByBook": "বই অনুযায়ী অধ্যায়",
-      "total": "মোট"
+      "total": "মোট",
+      "clusters": "গুচ্ছ"
     },
     "errors": {
       "noServer": "এই বিল্ড জানে না প্রতিবেদনের সার্ভার কোথায়।",
@@ -4762,7 +4763,8 @@
       "alertsChip_other": "সতর্কতা, {{count, number}}টিতে কাউকে দরকার",
       "allCountries": "সব দেশ",
       "loading": "প্রতিবেদন লোড হচ্ছে…",
-      "couldNotRead": "প্রতিবেদন পড়া যায়নি"
+      "couldNotRead": "প্রতিবেদন পড়া যায়নি",
+      "allLanguages": "সব ভাষা"
     },
     "overview": {
       "across_one": "{{count, number}}টি ভাষা জুড়ে · গত চার সপ্তাহে {{recent}}",
@@ -5065,6 +5067,12 @@
       "findCountry": "একটি দেশ খুঁজুন",
       "typeToFind_one": "বাকি {{count, number}}টি খুঁজতে লিখুন।",
       "typeToFind_other": "বাকি {{count, number}}টি খুঁজতে লিখুন।"
+    },
+    "clusters": {
+      "title": "গুচ্ছ",
+      "sub": "প্রতিটি গুচ্ছের ভাষা একসাথে। শুধু তার ভাষাগুলি দেখতে একটি বেছে নিন।",
+      "languages_one": "{{count, number}}টি ভাষা",
+      "languages_other": "{{count, number}}টি ভাষা"
     }
   },
   "review": {

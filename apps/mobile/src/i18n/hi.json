@@ -4668,7 +4668,8 @@
       "newChapters": "नए अध्याय",
       "books": "पुस्तकें",
       "chaptersByBook": "पुस्तक के अनुसार अध्याय",
-      "total": "कुल"
+      "total": "कुल",
+      "clusters": "समूह"
     },
     "errors": {
       "noServer": "इस बिल्ड को नहीं पता कि रिपोर्ट सर्वर कहाँ है।",
@@ -4762,7 +4763,8 @@
       "alertsChip_other": "चेतावनियाँ, {{count, number}} पर किसी का ध्यान चाहिए",
       "allCountries": "सभी देश",
       "loading": "रिपोर्ट लोड हो रही हैं…",
-      "couldNotRead": "रिपोर्ट पढ़ी नहीं जा सकीं"
+      "couldNotRead": "रिपोर्ट पढ़ी नहीं जा सकीं",
+      "allLanguages": "सभी भाषाएँ"
     },
     "overview": {
       "across_one": "{{count, number}} भाषा में · पिछले चार हफ़्तों में {{recent}}",
@@ -5065,6 +5067,12 @@
       "findCountry": "देश ढूँढें",
       "typeToFind_one": "बाकी {{count, number}} को ढूँढने के लिए लिखें।",
       "typeToFind_other": "बाकी {{count, number}} को ढूँढने के लिए लिखें।"
+    },
+    "clusters": {
+      "title": "समूह",
+      "sub": "हर समूह की भाषाएँ एक साथ। सिर्फ़ उसकी भाषाएँ देखने के लिए एक चुनें।",
+      "languages_one": "{{count, number}} भाषा",
+      "languages_other": "{{count, number}} भाषाएँ"
     }
   },
   "review": {

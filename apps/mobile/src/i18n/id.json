@@ -4475,7 +4475,8 @@
       "newChapters": "Pasal baru",
       "books": "Kitab",
       "chaptersByBook": "Pasal per kitab",
-      "total": "Jumlah"
+      "total": "Jumlah",
+      "clusters": "Rumpun"
     },
     "errors": {
       "noServer": "Versi aplikasi ini tidak tahu di mana server laporan berada.",
@@ -4553,7 +4554,8 @@
       "alertsChip_other": "Peringatan, {{count, number}} perlu ditangani",
       "allCountries": "Semua negara",
       "loading": "Memuat laporan…",
-      "couldNotRead": "Laporan tidak dapat dibaca"
+      "couldNotRead": "Laporan tidak dapat dibaca",
+      "allLanguages": "Semua bahasa"
     },
     "overview": {
       "across_other": "Dari {{count, number}} bahasa · {{recent}} dalam empat minggu terakhir",
@@ -4825,6 +4827,11 @@
       "saveTarget": "Simpan target",
       "findCountry": "Cari negara",
       "typeToFind_other": "Ketik untuk mencari {{count, number}} lainnya."
+    },
+    "clusters": {
+      "title": "Rumpun",
+      "sub": "Bahasa setiap rumpun bersama-sama. Pilih satu untuk melihat bahasanya saja.",
+      "languages_other": "{{count, number}} bahasa"
     }
   },
   "review": {

@@ -4668,7 +4668,8 @@
       "newChapters": "Sababbin babobi",
       "books": "Littattafai",
       "chaptersByBook": "Babobi bisa littafi",
-      "total": "Jimla"
+      "total": "Jimla",
+      "clusters": "Rukunoni"
     },
     "errors": {
       "noServer": "Wannan ginin manhaja bai san inda sabar rahotanni take ba.",
@@ -4762,7 +4763,8 @@
       "alertsChip_other": "Faɗakarwa, {{count, number}} na buƙatar wani",
       "allCountries": "Dukan ƙasashe",
       "loading": "Ana loda rahotanni…",
-      "couldNotRead": "An kasa karanta rahotannin"
+      "couldNotRead": "An kasa karanta rahotannin",
+      "allLanguages": "Duk harsuna"
     },
     "overview": {
       "across_one": "A cikin harshe {{count, number}} · {{recent}} a makonni huɗu na ƙarshe",
@@ -5065,6 +5067,12 @@
       "findCountry": "Nemo ƙasa",
       "typeToFind_one": "Ku rubuta don nemo sauran {{count, number}}.",
       "typeToFind_other": "Ku rubuta don nemo sauran {{count, number}}."
+    },
+    "clusters": {
+      "title": "Rukunoni",
+      "sub": "Harsunan kowane rukuni a tare. Zaɓi ɗaya don ganin harsunansa kawai.",
+      "languages_one": "Harshe {{count, number}}",
+      "languages_other": "Harsuna {{count, number}}"
     }
   },
   "review": {

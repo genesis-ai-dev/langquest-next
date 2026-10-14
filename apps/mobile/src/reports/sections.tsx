@@ -7,7 +7,7 @@ import {
   activityWindow, alertsFor, attentionCount, combinedActivity, countryCounts, coverageAverage, defaultLedgerMonth, fieldReport,
   isSettled, ledgerFor, ledgerMonths, logByDay, mergedDaily, milestonesSince, orgTotals, paceGroups,
   paceOf, portfolioCounts, portfolioOf, recencyOf, SETTLE_DAYS, sortLanguages, topLanguages, watchList,
-  weeklyCards, type AlertLevel, type LanguageRow, type LanguageSortKey, type Portfolio, type ReportWindow, type SortDir
+  weeklyCards, type AlertLevel, type ClusterInfo, type LanguageRow, type LanguageSortKey, type Portfolio, type ReportWindow, type SortDir
 } from '@langquest-next/core';
 import { useState, type ReactNode } from 'react';
 import { Platform, Pressable, ScrollView, Share, View } from 'react-native';
@@ -68,6 +68,12 @@ export interface SectionProps {
   open: (row: LanguageRow) => void;
   /** Switch section, optionally with a country filter. */
   show: (section: SectionId, country?: string) => void;
+  /** The clusters among these languages, when none is picked yet (decision 103); empty otherwise. */
+  clusters: ClusterInfo[];
+  /** The names of the clusters a language is in. */
+  clustersOf: (languageId: string) => string[];
+  /** Show one cluster's languages. */
+  pickCluster: (clusterId: string) => void;
 }
 
 const bold = <Text style={{ fontWeight: '700' }} />;
@@ -92,6 +98,28 @@ function Rec(props: { count: number }) {
 }
 
 // ---- Overview ---------------------------------------------------------------------
+
+/** Each cluster's languages together (decision 103): passages recorded and done; its name shows only that cluster. */
+function ClusterPanel(p: SectionProps) {
+  const byId = new Map(p.rows.map((r) => [r.languageId, r]));
+  return (
+    <Panel title={t('reports.clusters.title')} sub={t('reports.clusters.sub')}>
+      {p.clusters.map((c) => {
+        const totals = orgTotals(c.languageIds.flatMap((id) => (byId.has(id) ? [byId.get(id)!] : [])));
+        return (
+          <ListLine key={c.clusterId}
+            right={<Text style={txt.xs}>{t('reports.clusters.languages', { count: c.languageIds.length })}</Text>}>
+            <Pressable onPress={() => p.pickCluster(c.clusterId)} accessibilityRole="link" hitSlop={8}
+              style={({ pressed }) => [{ minHeight: 32, justifyContent: 'center' }, pressed && { opacity: 0.6 }]}>
+              <Text style={[txt.sm, { color: C.primary, fontWeight: '700' }]}>{c.name}</Text>
+            </Pressable>
+            <ProgressPair total={totals.total} recorded={totals.recorded} done={totals.done} />
+          </ListLine>
+        );
+      })}
+    </Panel>
+  );
+}
 
 export function Overview(p: SectionProps) {
   const { rows, now } = p;
@@ -122,6 +150,7 @@ export function Overview(p: SectionProps) {
         </View>
       </Panel>
       <HeadlineStats languages={totals.languages} total={totals.total} recorded={totals.recorded} done={totals.done} />
+      {p.clusters.length ? <ClusterPanel {...p} /> : null}
       <Columns>
         <Panel title={t('reports.coverage.title')} eyebrow={t('reports.overview.averageAcross')}>
           <CoverageRows recorded={coverageAverage(rows, 'recorded')} done={coverageAverage(rows, 'done')} />
@@ -261,7 +290,7 @@ export function Languages(p: SectionProps) {
   return (
     <>
       <View style={{ alignSelf: 'flex-start' }}>
-        <SmallBtn label={t('reports.downloadCsv')} icon="download" onPress={() => exportCsv(fileName(t('reports.files.languages', { org: p.orgName })), languagesCsv(rows, now))} />
+        <SmallBtn label={t('reports.downloadCsv')} icon="download" onPress={() => exportCsv(fileName(t('reports.files.languages', { org: p.orgName })), languagesCsv(rows, now, p.clustersOf))} />
       </View>
       <Panel eyebrow={t('reports.languages.uploadActivity')} title={t('reports.languages.uploadedTitle', { active: num(counts.active), count: rows.length })}
         sub={t('reports.languages.uploadedSub')}>
@@ -281,7 +310,7 @@ export function Languages(p: SectionProps) {
         <ChipRow>
           {filters.map(([v, label]) => <Chip key={v} label={label} on={status === v} onPress={() => setStatus(v)} />)}
         </ChipRow>
-        <LanguageTable rows={shown} now={now} open={p.open} />
+        <LanguageTable rows={shown} now={now} open={p.open} clustersOf={p.clustersOf} />
       </Panel>
     </>
   );
@@ -311,12 +340,13 @@ function columnLabel(id: ColumnId): string {
   }
 }
 
-function LanguageTable(props: { rows: LanguageRow[]; now: number; open: (row: LanguageRow) => void }) {
+function LanguageTable(props: { rows: LanguageRow[]; now: number; open: (row: LanguageRow) => void; clustersOf: (languageId: string) => string[] }) {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<{ key: LanguageSortKey; dir: SortDir }>({ key: 'name', dir: 'asc' });
   const q = search.trim().toLowerCase();
-  const filtered = q ? props.rows.filter(({ report: r }) =>
-    r.name.toLowerCase().includes(q) || r.code.toLowerCase().includes(q) || countryName(r.country).toLowerCase().includes(q)) : props.rows;
+  const filtered = q ? props.rows.filter(({ languageId, report: r }) =>
+    r.name.toLowerCase().includes(q) || r.code.toLowerCase().includes(q) || countryName(r.country).toLowerCase().includes(q) ||
+    props.clustersOf(languageId).some((c) => c.toLowerCase().includes(q))) : props.rows;
   // "Upload status" sorts by most recent upload first when ascending.
   const rows = sort.key === 'upload' ? sortLanguages(filtered, 'upload', sort.dir === 'asc' ? 'desc' : 'asc') : sortLanguages(filtered, sort.key, sort.dir);
   const cell = (flex: number, children: ReactNode, right = false) => (
@@ -350,7 +380,8 @@ function LanguageTable(props: { rows: LanguageRow[]; now: number; open: (row: La
             const attention = attentionCount(r);
             return (
               <View key={`${row.languageId}/${row.languageId}`} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: space.sm, borderBottomWidth: 1, borderColor: C.border }}>
-                {cell(2, <><LanguageLink row={row} open={props.open} /><Text style={txt.xs}>{r.code.toUpperCase()} · {r.country ? countryName(r.country) : t('reports.noCountry')}</Text></>)}
+                {cell(2, <><LanguageLink row={row} open={props.open} /><Text style={txt.xs}>
+                  {[r.code.toUpperCase(), r.country ? countryName(r.country) : t('reports.noCountry'), ...props.clustersOf(row.languageId)].join(' · ')}</Text></>)}
                 {cell(1.5, <><View style={{ alignSelf: 'flex-start' }}><RecencyBadge report={r} now={props.now} /></View>
                   <Text style={txt.xs}>{r.uploads.lastAt ? `${shortDate(r.uploads.lastAt)} · ${ago(r.uploads.lastAt, props.now)}` : t('reports.languages.never')}</Text></>)}
                 {cell(1.6, <CoverageMini coverage={r.coverage.recorded} name={r.name} />)}

@@ -4861,7 +4861,8 @@
       "newChapters": "Capítulos novos",
       "books": "Livros",
       "chaptersByBook": "Capítulos por livro",
-      "total": "Total"
+      "total": "Total",
+      "clusters": "Grupos"
     },
     "errors": {
       "noServer": "Esta versão do aplicativo não sabe onde está o servidor de relatórios.",
@@ -4971,7 +4972,8 @@
       "alertsChip_other": "Alertas, {{count, number}} precisam de alguém",
       "allCountries": "Todos os países",
       "loading": "Carregando relatórios…",
-      "couldNotRead": "Não foi possível ler os relatórios"
+      "couldNotRead": "Não foi possível ler os relatórios",
+      "allLanguages": "Todos os idiomas"
     },
     "overview": {
       "across_one": "Em {{count, number}} idioma · {{recent}} nas últimas quatro semanas",
@@ -5305,6 +5307,13 @@
       "typeToFind_one": "Digite para encontrar o outro.",
       "typeToFind_many": "Digite para encontrar os outros {{count, number}}.",
       "typeToFind_other": "Digite para encontrar os outros {{count, number}}."
+    },
+    "clusters": {
+      "title": "Grupos",
+      "sub": "Os idiomas de cada grupo juntos. Escolha um para ver só os idiomas dele.",
+      "languages_one": "{{count, number}} idioma",
+      "languages_many": "{{count, number}} idiomas",
+      "languages_other": "{{count, number}} idiomas"
     }
   },
   "review": {

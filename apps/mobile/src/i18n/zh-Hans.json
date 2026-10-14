@@ -4475,7 +4475,8 @@
       "newChapters": "新增章数",
       "books": "书卷",
       "chaptersByBook": "各书卷章数",
-      "total": "合计"
+      "total": "合计",
+      "clusters": "语言群"
     },
     "errors": {
       "noServer": "这个版本不知道报告服务器在哪里。",
@@ -4553,7 +4554,8 @@
       "alertsChip_other": "提醒，{{count, number}} 项需要人处理",
       "allCountries": "所有国家",
       "loading": "正在加载报告……",
-      "couldNotRead": "无法读取报告"
+      "couldNotRead": "无法读取报告",
+      "allLanguages": "所有语言"
     },
     "overview": {
       "across_other": "共 {{count, number}} 个语言 · 最近四周 {{recent}}",
@@ -4825,6 +4827,11 @@
       "saveTarget": "保存目标",
       "findCountry": "查找国家",
       "typeToFind_other": "输入文字查找其他 {{count, number}} 个国家。"
+    },
+    "clusters": {
+      "title": "语言群",
+      "sub": "每个语言群中的语言合在一起。选择一个，只看其中的语言。",
+      "languages_other": "{{count, number}} 种语言"
     }
   },
   "review": {

@@ -4668,7 +4668,8 @@
       "newChapters": "አዳዲስ ምዕራፎች",
       "books": "መጻሕፍት",
       "chaptersByBook": "ምዕራፎች በመጽሐፍ",
-      "total": "ድምር"
+      "total": "ድምር",
+      "clusters": "ቡድኖች"
     },
     "errors": {
       "noServer": "ይህ ስሪት የሪፖርቶች አገልጋዩ የት እንዳለ አያውቅም።",
@@ -4762,7 +4763,8 @@
       "alertsChip_other": "ማንቂያዎች፣ {{count, number}} ሰው ያስፈልጋቸዋል",
       "allCountries": "ሁሉም አገሮች",
       "loading": "ሪፖርቶችን በመጫን ላይ…",
-      "couldNotRead": "ሪፖርቶቹን ማንበብ አልተቻለም"
+      "couldNotRead": "ሪፖርቶቹን ማንበብ አልተቻለም",
+      "allLanguages": "ሁሉም ቋንቋዎች"
     },
     "overview": {
       "across_one": "በ{{count, number}} ቋንቋ ውስጥ · ባለፉት አራት ሳምንታት {{recent}}",
@@ -5065,6 +5067,12 @@
       "findCountry": "አገር ይፈልጉ",
       "typeToFind_one": "ሌላውን {{count, number}} ለማግኘት ይጻፉ።",
       "typeToFind_other": "ሌሎቹን {{count, number}} ለማግኘት ይጻፉ።"
+    },
+    "clusters": {
+      "title": "ቡድኖች",
+      "sub": "የእያንዳንዱ ቡድን ቋንቋዎች በአንድነት። የቡድኑን ቋንቋዎች ብቻ ለማየት አንዱን ምረጥ።",
+      "languages_one": "{{count, number}} ቋንቋ",
+      "languages_other": "{{count, number}} ቋንቋዎች"
     }
   },
   "review": {

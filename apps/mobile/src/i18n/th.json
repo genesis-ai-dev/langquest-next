@@ -4475,7 +4475,8 @@
       "newChapters": "บทใหม่",
       "books": "เล่ม",
       "chaptersByBook": "บทตามเล่ม",
-      "total": "รวม"
+      "total": "รวม",
+      "clusters": "กลุ่มภาษา"
     },
     "errors": {
       "noServer": "บิลด์นี้ไม่รู้ว่าเซิร์ฟเวอร์รายงานอยู่ที่ไหน",
@@ -4553,7 +4554,8 @@
       "alertsChip_other": "การแจ้งเตือน {{count, number}} รายการต้องมีคนดูแล",
       "allCountries": "ทุกประเทศ",
       "loading": "กำลังโหลดรายงาน…",
-      "couldNotRead": "อ่านรายงานไม่ได้"
+      "couldNotRead": "อ่านรายงานไม่ได้",
+      "allLanguages": "ทุกภาษา"
     },
     "overview": {
       "across_other": "ใน {{count, number}} ภาษา · {{recent}} ในสี่สัปดาห์ที่ผ่านมา",
@@ -4825,6 +4827,11 @@
       "saveTarget": "บันทึกเป้าหมาย",
       "findCountry": "หาประเทศ",
       "typeToFind_other": "พิมพ์เพื่อหาอีก {{count, number}} ประเทศ"
+    },
+    "clusters": {
+      "title": "กลุ่มภาษา",
+      "sub": "ภาษาในแต่ละกลุ่มรวมกัน เลือกหนึ่งกลุ่มเพื่อดูเฉพาะภาษาในกลุ่มนั้น",
+      "languages_other": "{{count, number}} ภาษา"
     }
   },
   "review": {

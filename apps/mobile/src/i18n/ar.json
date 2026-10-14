@@ -5440,7 +5440,8 @@
       "newChapters": "أصحاحات جديدة",
       "books": "الأسفار",
       "chaptersByBook": "الأصحاحات حسب السفر",
-      "total": "الإجمالي"
+      "total": "الإجمالي",
+      "clusters": "المجموعات"
     },
     "errors": {
       "noServer": "هذا الإصدار من التطبيق لا يعرف مكان خادم التقارير.",
@@ -5598,7 +5599,8 @@
       "alertsChip_other": "التنبيهات، {{count, number}} تحتاج إلى متابعة",
       "allCountries": "كل البلدان",
       "loading": "جارٍ تحميل التقارير…",
-      "couldNotRead": "تعذّرت قراءة التقارير"
+      "couldNotRead": "تعذّرت قراءة التقارير",
+      "allLanguages": "كل اللغات"
     },
     "overview": {
       "across_zero": "في {{count, number}} لغة · {{recent}} في آخر أربعة أسابيع",
@@ -6025,6 +6027,16 @@
       "typeToFind_few": "اكتب لتجد البلدان الأخرى ({{count, number}}).",
       "typeToFind_many": "اكتب لتجد البلدان الأخرى ({{count, number}}).",
       "typeToFind_other": "اكتب لتجد البلدان الأخرى ({{count, number}})."
+    },
+    "clusters": {
+      "title": "المجموعات",
+      "sub": "لغات كل مجموعة معًا. اختر واحدة لترى لغاتها فقط.",
+      "languages_zero": "{{count, number}} لغة",
+      "languages_one": "لغة واحدة",
+      "languages_two": "لغتان",
+      "languages_few": "{{count, number}} لغات",
+      "languages_many": "{{count, number}} لغة",
+      "languages_other": "{{count, number}} لغة"
     }
   },
   "review": {

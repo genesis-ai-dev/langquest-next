@@ -4668,7 +4668,8 @@
       "newChapters": "New chapters",
       "books": "Books",
       "chaptersByBook": "Chapters by book",
-      "total": "Total"
+      "total": "Total",
+      "clusters": "Clusters"
     },
     "errors": {
       "noServer": "This build does not know where the reports server is.",
@@ -4762,7 +4763,8 @@
       "alertsChip_other": "Alerts, {{count, number}} need someone",
       "allCountries": "All countries",
       "loading": "Loading reports…",
-      "couldNotRead": "The reports could not be read"
+      "couldNotRead": "The reports could not be read",
+      "allLanguages": "All languages"
     },
     "overview": {
       "across_one": "Across {{count, number}} language · {{recent}} in the last four weeks",
@@ -5065,6 +5067,12 @@
       "findCountry": "Find a country",
       "typeToFind_one": "Type to find the other {{count, number}}.",
       "typeToFind_other": "Type to find the other {{count, number}}."
+    },
+    "clusters": {
+      "title": "Clusters",
+      "sub": "Each cluster's languages together. Pick one to see only its languages.",
+      "languages_one": "{{count, number}} language",
+      "languages_other": "{{count, number}} languages"
     }
   },
   "review": {

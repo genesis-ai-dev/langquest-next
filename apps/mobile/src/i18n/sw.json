@@ -4668,7 +4668,8 @@
       "newChapters": "Sura mpya",
       "books": "Vitabu",
       "chaptersByBook": "Sura kwa kitabu",
-      "total": "Jumla"
+      "total": "Jumla",
+      "clusters": "Makundi"
     },
     "errors": {
       "noServer": "Toleo hili la programu halijui seva ya ripoti iko wapi.",
@@ -4762,7 +4763,8 @@
       "alertsChip_other": "Tahadhari, {{count, number}} zinahitaji mtu",
       "allCountries": "Nchi zote",
       "loading": "Inapakia ripoti…",
-      "couldNotRead": "Ripoti hazikuweza kusomwa"
+      "couldNotRead": "Ripoti hazikuweza kusomwa",
+      "allLanguages": "Lugha zote"
     },
     "overview": {
       "across_one": "Katika lugha {{count, number}} · {{recent}} katika wiki nne zilizopita",
@@ -5065,6 +5067,12 @@
       "findCountry": "Tafuta nchi",
       "typeToFind_one": "Andika ili kupata {{count, number}} nyingine.",
       "typeToFind_other": "Andika ili kupata {{count, number}} nyingine."
+    },
+    "clusters": {
+      "title": "Makundi",
+      "sub": "Lugha za kila kundi kwa pamoja. Chagua moja uone lugha zake tu.",
+      "languages_one": "Lugha {{count, number}}",
+      "languages_other": "Lugha {{count, number}}"
     }
   },
   "review": {
