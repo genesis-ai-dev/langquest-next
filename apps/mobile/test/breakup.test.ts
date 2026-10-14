@@ -1,8 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { foldOrg, libraryItemView, ORG_STREAM, subscriptionItemId, type AnyEvent, type TemplateDocV2, type VersificationDoc } from '@langquest-next/core';
+import { withBookBrokenUp } from '@langquest-next/core';
 import {
-  booksLine, copyName, copyOffOps, countLine, emptyLine, groupNames, piecesOf, planChange, usedLine, wayOf, wayRows, type TemplateUser
+  booksLine, copyName, copyOffOps, countLine, divisionLine, emptyLine, groupNames, isItself, piecesOf, planChange, sharedTemplateShown, usedLine, wayNow, wayOf, wayRows,
+  type TemplateUser
 } from '../src/breakup/model';
 import type { LibraryChoice } from '../src/contentTemplates';
 import { publishOps, subscribeOps, type LibraryOp, type SharedItem } from '../src/library/model';
@@ -66,6 +68,50 @@ describe('the ways to break up the Bible, in the order an admin sees them', () =
     expect(f.map((p) => p.label)).toEqual(['Ruth 1:1–7', 'Ruth 1:8–19', 'Ruth 1:19–2:2', 'Ruth 2:3–4:22']);
     expect(f[0]!.verses).toBe(7);
     expect(piecesOf(fia, 'ROM', eng)).toEqual([]);
+  });
+});
+
+describe('how a book is divided now, and what lists offer (decision 103)', () => {
+  const follow = (s: { org_id: string; item_id: string }) => subscriptionItemId(s.org_id, s.item_id);
+  // The language's own copy ("Book by book (Kara)"), with Ruth divided its own way and Romans as By chapter has it.
+  const ownLib = fold(publishOps({}, { itemId: 'kara', kind: 'template', name: 'Book by book (Kara)', description: '', docHash: H('k') }));
+  const kara = libraryItemView(ownLib, 'kara')!;
+  const own = withBookBrokenUp(withBookBrokenUp(doc('Book by book (Kara)', [{ book: 'RUT', name: 'Ruth' }, { book: 'ROM', name: 'Romans' }]), 'RUT',
+    doc('own', [{ book: 'RUT', name: 'Ruth', divide: 'passages', part: 'Section', passages: [{ ref: 'RUT 1:1-5' }, { ref: 'RUT 1:6-4:22' }] }])), 'ROM', chapters);
+  const choices: LibraryChoice[] = [
+    { key: 'ours:kara', source: 'ours', item: kara, name: kara.name, hash: H('k') },
+    { key: 'shared:chapters', source: 'shared', shared: share('langquest.bible.chapters', H('c'), 'By chapter'), name: 'By chapter', hash: H('c') }
+  ];
+  const all = new Map([...docs, [H('k'), own]]);
+  const rows = wayRows({ choices, docOf: (h) => all.get(h) ?? null, others: [], current: 'kara', follow });
+  const docOf = (r: (typeof rows)[number]) => all.get(r.choice.hash) ?? null;
+
+  it("names the ready-made way a book matches, never the language's own template", () => {
+    expect(isItself(rows.find((r) => r.choice.key === 'ours:kara')!)).toBe(true);
+    expect(wayNow(rows, docOf, own, 'ROM')?.choice.name).toBe('By chapter');
+    // Ruth is divided its own way: the copy holds it as it is, but that is not a way it was divided by.
+    expect(wayNow(rows, docOf, own, 'RUT')).toBeNull();
+    // Editing the template from Content Templates while another language is open: the item edited is still itself.
+    const elsewhere = wayRows({ choices, docOf: (h) => all.get(h) ?? null, others: [], current: null, follow });
+    expect(wayNow(elsewhere, docOf, own, 'RUT', 'kara')).toBeNull();
+    expect(wayNow(elsewhere, docOf, own, 'RUT')?.choice.name).toBe('Book by book (Kara)');
+  });
+
+  it('says how each book is divided in a line', () => {
+    expect(divisionLine(own, 'ROM', 'By chapter', eng)).toBe('By chapter · 16 pieces');
+    expect(divisionLine(own, 'RUT', null, eng)).toBe('Its own way · 2 pieces');
+    expect(divisionLine(fia, 'ROM', null, eng)).toBe('Waiting to be broken up');
+  });
+
+  it("lists LangQuest's ways once, in the numbering, and not its older templates", () => {
+    const lq = (item_id: string) => ({ org_id: 'langquest', item_id });
+    expect(sharedTemplateShown(lq('langquest.bible.fia'), 'eng')).toBe(true);
+    expect(sharedTemplateShown(lq('langquest.bible.openbible-usual'), 'eng')).toBe(true);
+    expect(sharedTemplateShown(lq('langquest.bible.fia.org-66'), 'eng')).toBe(false);
+    expect(sharedTemplateShown(lq('langquest.bible.fia.org-66'), 'org')).toBe(true);
+    expect(sharedTemplateShown(lq('langquest.bible.fia'), 'org')).toBe(false);
+    expect(sharedTemplateShown(lq('langquest.template.bible-chapters-rso'), 'eng')).toBe(false);
+    expect(sharedTemplateShown({ org_id: 'spoken', item_id: 'spoken-sections' }, 'org')).toBe(true);
   });
 });
 

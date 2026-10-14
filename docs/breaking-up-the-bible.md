@@ -143,6 +143,15 @@ way, so the warning, the languages a shared template changes, and Undo are
 the same; in another numbering, sections whose verses differ from the same
 numbers in English are marked `renumbered` (decision 80).
 
+The same page opens from the template editor (decision 103): Manage ›
+Content Templates › a template, or New template › Scripture, then a book.
+There a ready-made way or your own way changes the template being edited,
+and Save publishes it. New template › Scripture asks what New language
+asks: the Bible the team translates from (or the quiz), then how the Bible
+is divided, with "Divide it your own way" first (LangQuest's "Book by
+book": every book waits until it is divided). When the team has no Bible
+of its own, LangQuest's shared Bibles in its language show the words.
+
 ## When divisions change
 
 Divisions change three ways: a way of dividing publishes a new version

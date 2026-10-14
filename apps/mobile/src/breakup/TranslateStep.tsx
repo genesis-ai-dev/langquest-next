@@ -1,8 +1,9 @@
 // "What will they translate?" (decisions.md 74 and 80), shared by New
 // Language (step 2) and Get ready (question 1): the Bible or something else;
 // for the Bible, first its numbering, for the whole Bible, then how it is
-// broken up, from the ways in that numbering, what other languages here use
-// first, with a line naming the books it leaves waiting (they are divided
+// broken up, from the ways in that numbering, your own way (book by book)
+// first and set apart, then what other languages here use, with a line
+// naming the books it leaves waiting (they are divided
 // later, from the map; decision 93); for something else, the organization's
 // own outlines or a new one. The walk-through is one tap away.
 import { emptyBooks, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
@@ -149,11 +150,22 @@ export function TranslateQuestion(props: { ctx: Ctx; t: Translate; lang: string;
     return <NumberingChosenPage choice={q.numbering} facts={factsFor(q.numbering)} {...q.found} onChange={() => q.setPage('find')} />;
   }
   if (q.page === 'ways' || q.page === 'numbered') {
+    // Your own way comes first and stands apart (design principle 12, decision 103): every book waits until
+    // someone reads it and chooses where its sections start, from the map or My Work. It is LangQuest's
+    // "Book by book", which used to come last.
+    const own = q.ways.rows.find((r) => r.later) ?? null;
+    const ready = q.ways.rows.filter((r) => !r.later);
     return (
       <>
         {q.numbering ? <NumberingContext choice={q.numbering} onPress={() => q.setPage('find')} /> : null}
         <Question>{t('breakup.translate.howBible')}</Question>
-        {q.ways.rows.map((r) => (
+        {own ? (
+          <ChoiceCard own on={q.row === own} icon="edit" title={t('breakup.own.title')} sub={t('breakup.translate.ownSub')} onPress={() => q.setKey(own.choice.key)}>
+            {q.row === own ? <Text style={[txt.smMuted, { marginTop: space.sm }]}>{t('breakup.translate.ownNote')}</Text> : null}
+          </ChoiceCard>
+        ) : null}
+        {own && ready.length ? <SectionLabel label={t('breakup.own.orReadyMade')} /> : null}
+        {ready.map((r) => (
           <WayCard key={r.choice.key} row={r} doc={q.ways.docOf(r.choice)} v11n={q.ways.v11nOf(q.ways.docOf(r.choice))} on={q.row === r}
             onPress={() => q.setKey(r.choice.key)} onPreview={() => setPeek(r)}
             note={q.row === r && q.empty.length ? (

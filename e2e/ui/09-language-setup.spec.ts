@@ -521,24 +521,24 @@ test('SETUP-033 Follow or copy a template another organization shares', async ({
   const w = world();
   await openAs(page, w, 'ADMIN');
   await contentTemplates(page, w);
-  await page.getByRole('button', { name: 'Bible chapters (English), from LangQuest' }).click();
+  await page.getByRole('button', { name: 'By chapter, from LangQuest' }).click();
   await expectOnScreen(page, /From LangQuest · \d+ versions?/, 'Follow', 'Use LangQuest\'s versions as they publish them.', 'Copy', 'Make it ours to change.');
   await text(page, 'Follow').click();
   await text(page, 'Update automatically').click();
-  await expectToast(page, 'Following Bible chapters (English) from LangQuest.');
+  await expectToast(page, 'Following By chapter from LangQuest.');
   await undoToast(page);
   await expectToast(page, 'Undone.');
   // Undo stopped following it: it is under Your organization, stopped, and offered again from LangQuest.
-  await page.getByRole('button', { name: 'Bible chapters (English), from LangQuest' }).click();
+  await page.getByRole('button', { name: 'By chapter, from LangQuest' }).click();
   await text(page, 'Follow').click();
   await text(page, 'I\'ll take updates').click();
-  await expectToast(page, 'Following Bible chapters (English) from LangQuest.');
-  await page.getByRole('button', { name: 'Bible books (English), from LangQuest' }).click();
+  await expectToast(page, 'Following By chapter from LangQuest.');
+  await page.getByRole('button', { name: 'OpenBible: long sections, from LangQuest' }).click();
   await text(page, 'Copy').click();
-  await expectToast(page, 'Bible books (English) copied. The copy is yours to change.');
+  await expectToast(page, 'OpenBible: long sections copied. The copy is yours to change.');
   await expectOnScreen(page, /copied from LangQuest/);
   // A followed template opens read only.
-  await cardWith(page, 'Bible chapters (English)', 'View').getByRole('button', { name: 'View', exact: true }).click();
+  await cardWith(page, 'By chapter', 'View').getByRole('button', { name: 'View', exact: true }).click();
   await expectOnScreen(page, 'It follows LangQuest', 'Copy to change it');
   await back(page).click();
   await expectOrgSent(page, w);
@@ -553,7 +553,7 @@ test('SETUP-033 Follow or copy a template another organization shares', async ({
 
 test('SETUP-034 Share, let follow and archive a template', async ({ page }) => {
   const w = world();
-  const name = 'Bible books (English)';
+  const name = 'OpenBible: long sections';
   await openAs(page, w, 'ADMIN');
   await contentTemplates(page, w);
   const options = () => cardWith(page, name, 'Options').getByRole('button', { name: 'Options', exact: true }).click();
@@ -572,7 +572,7 @@ test('SETUP-034 Share, let follow and archive a template', async ({ page }) => {
   await expectToast(page, `${name} archived. Languages using it keep it.`);
   await expectOnScreen(page, 'Archived', '1 template · languages using them keep them');
   await text(page, 'Archived').click();
-  await page.getByRole('button', { name: /^Bible books \(English\).*copied from LangQuest/ }).last().click();
+  await page.getByRole('button', { name: /^OpenBible: long sections.*copied from LangQuest/ }).last().click();
   await text(page, 'Unarchive').click();
   await expectToast(page, `${name} is back in the list.`);
   // Taking an update needs an owner who publishes a newer version: the preview environment.
@@ -610,10 +610,12 @@ test('SETUP-036 Choose a different template for a language', async ({ page }) =>
   await text(page, 'Every way to divide the work').click();
   await text(page, 'Change template').click();
   await expectOnScreen(page, 'Choose a Template', 'For Alpha · now FIA passages (English)', 'FIA passages (English) · in use');
-  await text(page, 'Bible books (English)').click();
+  // LangQuest's older templates are not offered, nor its ways in other numberings (decision 103).
+  await expectNotOnScreen(page, 'Bible books (English)', 'Bible chapters (Russian Orthodox)');
+  await text(page, 'OpenBible: long sections').click();
   await expectOnScreen(page, /Alpha's current passages are hidden, not deleted\. \d+ parts have recordings — change back to this template to bring them back\./);
-  await button(page, 'Use Bible books (English)').click();
-  await expectToast(page, 'Alpha now uses Bible books (English).');
+  await button(page, 'Use OpenBible: long sections').click();
+  await expectToast(page, 'Alpha now uses OpenBible: long sections.');
   await undoToast(page);
   await expectSent(page, w);
   await expectNothingRefused(page, w);
@@ -631,13 +633,28 @@ test('SETUP-037 Make a Scripture template', async ({ page }) => {
   await button(page, 'Template').click();
   await expectOnScreen(page, 'What will languages record with it?', 'Scripture', 'Books and chapters of the Bible, divided into passages as teams go.', 'Something else');
   await text(page, 'Scripture').click();
-  await text(page, 'Like most English Bibles · 66 books').click();
+  // The questions New language asks (decision 103): the Bible translated from, then how it is divided, your own way first.
+  await expectOnScreen(page, 'Which Bible do you translate from?', 'Not listed? Answer a few questions');
+  await text(page, 'King James Version').click();
+  await expectOnScreen(page, 'Like most English Bibles');
+  await primary(page).click();
+  await expectOnScreen(page, 'How should the Bible be broken up?', 'Divide it your own way', 'Book by book: read each one and choose where its sections start');
+  await text(page, 'By chapter').click();
+  await primary(page).click();
   await expect(primary(page)).toBeDisabled();
   await field(page, 'Name').fill(name);
-  await expectOnScreen(page, 'Divide into', 'Whole books', 'Chapters');
-  await text(page, 'Chapters').click();
-  // A book's sheet: its name in the language, and taking it out.
+  await expectOnScreen(page, 'Tap a book to choose how it\'s divided.');
+  await expectNotOnScreen(page, 'Whole books');
+  // A book: your own way first, then the ready-made ways.
   await text(page, 'Genesis').click();
+  await expectOnScreen(page, 'Change how Genesis is broken up', 'Divide it your own way', 'Or pick a ready-made way', 'Rename or remove Genesis');
+  await text(page, 'OpenBible: usual sections').click();
+  await button(page, 'Change Genesis').click();
+  await expectToast(page, 'Genesis is divided. Save the template to keep it.');
+  await expectOnScreen(page, /OpenBible: usual sections · \d+ pieces/);
+  // Its name in the language, and taking it out.
+  await text(page, 'Exodus').click();
+  await text(page, 'Rename or remove Exodus').click();
   await expectOnScreen(page, 'Name in the language', 'Remove this book', 'Languages using the template keep anything recorded in it; its parts are set aside, not deleted.');
   await text(page, 'Remove this book').click();
   await expectOnScreen(page, 'Books · 65');
@@ -707,9 +724,9 @@ test('SETUP-040 Divide a book that waits, for this language', async ({ page }) =
   await byId(page, 'header-close').click();
   await more(page);
   await text(page, 'Every way to divide the work').click();
-  // Only books already broken up are listed here; one that waits is opened from the map.
+  // Books that wait are listed here too, and open the ways to divide them (decision 103); here it is divided from the map.
   await page.getByPlaceholder('Find a book').fill('Proverbs');
-  await expectOnScreen(page, 'No book matches “Proverbs”.');
+  await expectOnScreen(page, 'Proverbs', 'Waiting to be broken up');
   await page.goto('/');
   await waitForApp(page);
   await tab(page, 'map').click();
