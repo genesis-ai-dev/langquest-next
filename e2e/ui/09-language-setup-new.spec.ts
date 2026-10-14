@@ -45,7 +45,7 @@ async function finish(page: Page): Promise<void> {
 
 async function addLanguage(page: Page, w: UiWorld, name: string, code?: string): Promise<void> {
   await orgHome(page, w);
-  await text(page, 'New language').click();
+  await text(page, 'New language or cluster').click();
   await nameStep(page, name, code);
   await bibleStep(page);
   await finish(page);
@@ -56,7 +56,7 @@ test('SETUP-010 Create a language end to end @p0', async ({ page }) => {
   const name = `Charlie ${tag()}`;
   await openAs(page, w, 'ADMIN');
   await orgHome(page, w);
-  await text(page, 'New language').click();
+  await text(page, 'New language or cluster').click();
   await expectOnScreen(page, 'New language', 'Step 1 of 5', `It goes in ${w.orgName}. You can invite its translators at the end.`);
   await nameStep(page, name, 'chr');
   await expectOnScreen(page, 'Step 2 of 5');
@@ -88,7 +88,7 @@ test('SETUP-011 Pick the language from the language list', async ({ page }) => {
   const w = world();
   await openAs(page, w, 'ADMIN');
   await orgHome(page, w);
-  await text(page, 'New language').click();
+  await text(page, 'New language or cluster').click();
   await field(page, 'Its name').fill('H');
   await page.waitForTimeout(1000); // sleep: the language search's typing debounce; absence of a search has no signal
   await expectNotOnScreen(page, 'Searching the language list…', 'Is it one of these?');
@@ -109,14 +109,14 @@ test('SETUP-012 Add a language offline, unlinked, and link it later', async ({ p
   await openAs(page, w, 'ADMIN');
   // Open New language online once, so its library documents are on this device.
   await orgHome(page, w);
-  await text(page, 'New language').click();
+  await text(page, 'New language or cluster').click();
   await nameStep(page, 'Warm up');
   await bibleStep(page, { way: 'FIA passages (English)' });
   await expectOnScreen(page, 'How will recordings get checked?', 'Standard Bible Flow');
   await page.context().setOffline(true);
   await back(page).click();
   await orgHome(page, w);
-  await text(page, 'New language').click();
+  await text(page, 'New language or cluster').click();
   await field(page, 'Its name').fill(name);
   await expectOnScreen(page, 'Can\'t search the language list', 'You can still add it. It is added unlinked; link it from its page once you are online.', 'Try again');
   await primary(page).click();
@@ -136,7 +136,7 @@ test('SETUP-013 A repeated language is warned about, not refused', async ({ page
   const w = world();
   await openAs(page, w, 'ADMIN');
   await orgHome(page, w);
-  await text(page, 'New language').click();
+  await text(page, 'New language or cluster').click();
   const warning = `Alpha (ALP) is already here. Adding it again makes a separate language, and its work stays apart from the first. Go back and open that one if it is the same.`;
   for (const typed of ['alpha', 'Álpha!']) {
     await field(page, 'Its name').fill(typed);
@@ -156,7 +156,7 @@ test('SETUP-014 Choose which books a new language translates', async ({ page }) 
   const name = `Foxtrot ${tag()}`;
   await openAs(page, w, 'ADMIN');
   await orgHome(page, w);
-  await text(page, 'New language').click();
+  await text(page, 'New language or cluster').click();
   await nameStep(page, name);
   await text(page, 'The Bible').click();
   await primary(page).click();
@@ -205,7 +205,7 @@ test('SETUP-015 Numbering is chosen first, by Bible, by list or by questions', a
   const w = world();
   await openAs(page, w, 'ADMIN');
   await orgHome(page, w);
-  await text(page, 'New language').click();
+  await text(page, 'New language or cluster').click();
   await nameStep(page, `Numbers ${tag()}`);
   await text(page, 'The Bible').click();
   await primary(page).click();
@@ -238,7 +238,7 @@ test('SETUP-016 Adding a language names each part as it starts, and ✕ says wai
   const name = `Golf ${tag()}`;
   await openAs(page, w, 'ADMIN');
   await orgHome(page, w);
-  await text(page, 'New language').click();
+  await text(page, 'New language or cluster').click();
   await nameStep(page, name);
   await bibleStep(page);
   await primary(page).click();
@@ -261,7 +261,7 @@ test('SETUP-017 "Make your own" opens the template editor from New language', as
   const w = world();
   await openAs(page, w, 'ADMIN');
   await orgHome(page, w);
-  await text(page, 'New language').click();
+  await text(page, 'New language or cluster').click();
   await nameStep(page, `Songs lang ${tag()}`);
   await text(page, 'Something else').click();
   await expectOnScreen(page, 'Stories, songs, lessons');
@@ -276,7 +276,7 @@ test('SETUP-018 "I\'ll choose the checks" edits the new language\'s own checks',
   const name = `Hotel ${tag()}`;
   await openAs(page, w, 'ADMIN');
   await orgHome(page, w);
-  await text(page, 'New language').click();
+  await text(page, 'New language or cluster').click();
   await nameStep(page, name);
   await bibleStep(page);
   await text(page, 'Standard Bible Flow').click();
@@ -314,7 +314,7 @@ test('SETUP-019 The language of a new team\'s Bibles and guides', async ({ page 
   const name = `Lima ${tag()}`;
   await openAs(page, w, 'ADMIN');
   await orgHome(page, w);
-  await text(page, 'New language').click();
+  await text(page, 'New language or cluster').click();
   await nameStep(page, name);
   await bibleStep(page);
   await primary(page).click();
@@ -359,8 +359,49 @@ test('SETUP-021 Only organization-scope setters add languages', async ({ page, b
   await more(p);
   await text(p, 'The organization\'s page').click();
   await expect(text(p, w.orgName).first()).toBeVisible();
-  await expect(text(p, 'New language')).toHaveCount(0);
+  await expect(text(p, 'New language or cluster')).toHaveCount(0);
   await tab(p, 'work').click();
   await expectNotOnScreen(p, 'Add a language');
   await lead.context.close();
+});
+
+test('SETUP-074 A cluster of a new language and one already here, then ungrouped @p0', async ({ page }) => {
+  // A cluster is a name on some languages (decision 103, demo ADR-045): made in New language, shown on Org home and its own page.
+  const w = world();
+  const cluster = `Cluster ${tag()}`;
+  const name = `Kilo ${tag()}`;
+  await openAs(page, w, 'ADMIN');
+  await orgHome(page, w);
+  await text(page, 'New language or cluster').click();
+  await expectOnScreen(page, 'What are you adding?', 'One language', 'A cluster of languages');
+  await text(page, 'A cluster of languages').click();
+  await field(page, "The cluster's name").fill(cluster);
+  // The local language list is not seeded: the name is added as typed.
+  await field(page, 'Add a language').fill(name);
+  await button(page, `Add “${name}”`).click();
+  await button(page, 'Bravo').click();
+  await expectOnScreen(page, 'Its languages · 2', 'Languages already here keep everything they have. The new one is set up in the next steps.');
+  await primary(page).click();
+  await bibleStep(page);
+  await expectOnScreen(page, 'How will recordings get checked?', `For the new language in ${cluster}. It can change its own later.`);
+  await primary(page).click();
+  await primary(page).click();
+  await expect(text(page, 'Invite someone')).toBeVisible({ timeout: 60_000 });
+  await expectToast(page, `1 language added to ${w.orgName}, in ${cluster}.`);
+  await text(page, 'Later').click();
+  // Org home: the cluster above the languages in none; Bravo is under it now.
+  await orgHome(page, w);
+  await expectOnScreen(page, cluster, `2 languages · Bravo, ${name}`);
+  await expect(text(page, 'Bravo')).toHaveCount(0);
+  await text(page, cluster).click();
+  await expectOnScreen(page, `Cluster · 2 languages`, 'Its languages', 'Bravo', name, 'Add a language to it');
+  // Ungrouping takes the name off; both languages stay.
+  await button(page, 'Ungroup').click();
+  await expectOnScreen(page, `Ungroup ${cluster}?`, 'Its 2 languages stay, with their people, recordings and checks. Only the name that groups them goes.');
+  await button(page, 'Ungroup').click();
+  await expectToast(page, `${cluster} ungrouped. Its languages are still here.`);
+  await orgHome(page, w);
+  await expect(text(page, 'Bravo')).toBeVisible();
+  await expect(text(page, name)).toBeVisible();
+  await expect(text(page, cluster)).toHaveCount(0);
 });

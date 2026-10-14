@@ -288,7 +288,8 @@ Preconditions (in addition to the global ones):
 - Resets: adds a language "Charlie {run}".
 
 Steps:
-1. Open Org home and tap "New language".
+1. Open Org home and tap "New language or cluster". Leave "One language"
+   chosen under "What are you adding?".
 2. Type "Charlie {run}" in "Its name". Do not pick a list entry. Type
    "chr" in "Its code, if it has one". Tap "Continue".
 3. Tap "The Bible". Choose the numbering: type "World English" under "Which
@@ -616,6 +617,47 @@ Expected:
   review flows for the whole organization."
 
 ---
+
+### SETUP-074 A cluster of a new language and one already here, then ungrouped
+Roles: ADMIN · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
+
+A cluster is a name an organization puts on some of its languages
+(decision 103, demo ADR-045). Nothing about a language changes with it.
+
+Preconditions (in addition to the global ones):
+- Online. The library is seeded (G2).
+- Resets: adds a language "Kilo {run}" and a cluster "Cluster {run}", then
+  ungroups the cluster, so Bravo ends as it began.
+
+Steps:
+1. Open Org home and tap "New language or cluster".
+2. Tap "A cluster of languages". Type "Cluster {run}" in "The cluster's
+   name".
+3. Type "Kilo {run}" in "Add a language" and tap "Add “Kilo {run}”" (the
+   local language list finds nothing). Tap "Bravo" under "Already in UI
+   Test Org". Tap "Continue".
+4. Choose the Bible and FIA passages as in SETUP-010. Tap "Continue" under
+   "How will recordings get checked?" and under the Bibles' language.
+5. Wait for the invite screen and tap "Later".
+6. Open Org home, then "Cluster {run}".
+7. Tap "Ungroup", then "Ungroup" in the sheet. Open Org home.
+
+Expected:
+- Step 1 asks "What are you adding?" with "One language" chosen and "A
+  cluster of languages".
+- After step 3: "Its languages · 2", and "Languages already here keep
+  everything they have. The new one is set up in the next steps."
+- Step 4 says "For the new language in Cluster {run}. It can change its own
+  later."
+- Toast "1 language added to UI Test Org, in Cluster {run}."
+- Org home lists "Cluster {run}" (amber) with "2 languages · Bravo, Kilo
+  {run}", and Bravo no longer on its own.
+- The cluster's page: "Cluster · 2 languages", Bravo and Kilo {run} under
+  "Its languages", and "Add a language to it".
+- The sheet says "Its 2 languages stay, with their people, recordings and
+  checks. Only the name that groups them goes." Toast "Cluster {run}
+  ungrouped. Its languages are still here." Org home lists Bravo and Kilo
+  {run} again, and no cluster.
 
 ## Get ready
 

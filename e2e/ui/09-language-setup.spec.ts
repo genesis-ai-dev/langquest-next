@@ -53,7 +53,7 @@ test('SETUP-002 Only an organization admin renames the organization and changes 
   await more(p);
   await text(p, 'The organization\'s page').click();
   await expect(text(p, w.orgName).first()).toBeVisible();
-  await expect(text(p, 'New language')).toHaveCount(0);
+  await expect(text(p, 'New language or cluster')).toHaveCount(0);
   await setup(p);
   await text(p, 'Name').click();
   await expect(text(p, 'Rename the organization')).toHaveCount(0);
