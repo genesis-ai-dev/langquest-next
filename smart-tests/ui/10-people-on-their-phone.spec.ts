@@ -9,6 +9,7 @@ import type { SyncClient } from '@langquest-next/client';
 import { installMicControl, openWorkspace, recordParts } from './06-recording-helpers';
 import { alphaMembers, deviceAs, deviceForNew, issueInviteAs, newPerson, quietReloads, toTabs } from './people-helpers';
 import { clientAs, send, signIn } from './fixture';
+import { caughtUp } from './sync-helpers';
 import {
   back, button, deviceEvents, expect, expectSyncIdle, expectToast, openAs, primary, screenChanged, screenText, syncNow, tab, tabsShown, test, text, undoToast, useWorld
 } from './support';
@@ -64,7 +65,9 @@ test('PEOPLE-046 A removed member\'s next sync is refused, and they are told', a
   await expect(tab(p, 'work')).toBeVisible({ timeout: 60_000 });
   // Alpha is on the device first; then one recording made offline, before the removal.
   await syncNow(p);
-  await expect.poll(async () => (await deviceEvents(p, w.orgId, w.languages.A.languageId)).length, { timeout: 60_000 }).toBeGreaterThan(100);
+  // On the device means its cursors reach the server's. Not a count of rows in its log: a
+  // device that adopts the server's snapshot of Alpha (decision 88) keeps only the events after it.
+  await caughtUp(p, w, 'ADMIN', 'A');
   await p.context().setOffline(true);
   await openWorkspace(p, w, 'P-NEW');
   await recordParts(p, 1);

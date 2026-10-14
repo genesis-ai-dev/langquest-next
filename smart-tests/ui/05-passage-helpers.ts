@@ -362,16 +362,13 @@ export async function myWork(page: Page, until?: string | RegExp): Promise<strin
 }
 
 /**
- * In the workspace: record until one more part is kept, then stop (06-recording-helpers
- * recordParts, with room for a busy machine: voice detection ends a part in the voice
- * file's quiet, and under load that can take longer than one loop of the file).
+ * In the workspace: record exactly one more part, then stop (06-recording-helpers
+ * recordSaid). The tone microphone speaks once and falls quiet, so the part count
+ * goes up by one and stays there. The looping voice file kept talking while the test
+ * waited to see exactly one part, and on a busy machine (a parallel run) the first read
+ * that found the card already counted 14: PASS-031, 2026-10-14.
  */
 export async function recordOnePart(page: Page): Promise<void> {
-  const { expectIdle, expectParts, partCount } = await import('./06-recording-helpers');
-  const before = await partCount(page);
-  await byId(page, 'record-button').click();
-  await expect(byId(page, 'record-button')).toHaveAttribute('aria-label', 'Stop recording');
-  await expectParts(page, before + 1, 45_000);
-  await byId(page, 'record-button').click();
-  await expectIdle(page);
+  const { recordSaid } = await import('./06-recording-helpers');
+  await recordSaid(page, [2000]);
 }

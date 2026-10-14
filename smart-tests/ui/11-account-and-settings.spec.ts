@@ -590,7 +590,9 @@ test('ACCT-032 On the web, the page reloads in the language and sets its directi
   expect(loads).toBe(1);
   expect(await page.evaluate(() => [document.documentElement.lang, document.documentElement.dir])).toEqual(['ar', 'rtl']);
   // The French catalog cannot be fetched: the app opens in English, with no raw keys.
-  await page.route('**/i18n/fr.json', (r) => r.abort());
+  // The export asks for /i18n/fr.json?v=<build> (catalogs.web.ts), so the query is matched too.
+  const french = /\/i18n\/fr\.json(\?|$)/;
+  await page.route(french, (r) => r.abort());
   await tab(page, 'me').click();
   await row(page, say(ar, 'uiLanguage.row')).click();
   await page.getByRole('radio', { name: /^Français/ }).click();
@@ -601,7 +603,7 @@ test('ACCT-032 On the web, the page reloads in the language and sets its directi
   expect(all).toContain('More settings');
   expect(all).not.toMatch(/account\.me\.|\{\{/);
   await expectNoCrash(page);
-  await page.unroute('**/i18n/fr.json');
+  await page.unroute(french);
   await row(page, 'Language').click();
   await page.getByRole('radio', { name: /^Same as this browser/ }).click();
   await page.waitForLoadState('load');

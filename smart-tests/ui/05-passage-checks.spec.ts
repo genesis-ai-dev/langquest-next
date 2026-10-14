@@ -8,7 +8,7 @@
 // (05-passage-helpers actAs), and reads the record afterwards. Recording a
 // part uses Chrome's fake microphone (06-recording-helpers).
 import type { Browser, Page } from '@playwright/test';
-import { back, button, byId, expect, field, screenText, tab, test, text, type AccountKey } from './support';
+import { back, button, byId, expect, expectSyncIdle, field, screenText, syncNow, tab, test, text, type AccountKey } from './support';
 import { useRunWorld } from './reviewing-helpers';
 
 import {
@@ -315,7 +315,13 @@ test('PASS-032 TRANS Add a note', async ({ browser }) => {
 });
 
 test('PASS-032 TREV The note is in History', async ({ browser }) => {
+  // TRANS's note (the test before) has left TRANS's device, then TREV's pulls it.
+  const trans = await pageFor(browser, world(), 'TRANS');
+  await syncNow(trans);
+  await expectSyncIdle(trans);
   const t = await recordAs(browser, world(), 'TREV', 'P-SUBMITTED');
+  await syncNow(t);
+  await expectSyncIdle(t);
   const h = await history(t);
   expect(h).toMatch(new RegExp(`Note · Whole passage ${nameOf('TRANS')} · .+ — Watch the names in verse 12`));
   await expect(t.getByRole('button', { name: /^Report/ }).locator('visible=true').first()).toBeVisible();

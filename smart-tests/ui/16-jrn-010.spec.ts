@@ -21,7 +21,8 @@ test('JRN-010 A viewer follows progress @p0 @wide', async ({ page }) => {
   await expect(text(page, 'Progress')).toBeVisible();
   await expect(text(page, /All languages/)).toBeVisible();
   expect(await screenText(page)).not.toMatch(/My Work|Next for you/);
-  expect(await tabsShown(page)).toEqual(['map', 'inbox', 'me']);
+  // The tab bar draws a moment after the overview's header: wait for it, not one read.
+  await expect.poll(() => tabsShown(page), { message: "VIEW's tabs" }).toEqual(['map', 'inbox', 'me']);
 
   // Step 2: Alpha → Luke → chapter 16 → P-DONE: every step complete, nothing to act on.
   await button(page, /^Alpha: .*Open its map/).click();
