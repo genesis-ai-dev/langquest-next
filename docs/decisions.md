@@ -3644,6 +3644,18 @@ the web UI suite and the web smoke, both Playwright, the end-to-end
 layer of `docs/testing.md`. Not `web-tests/`, which read like a sibling
 of `apps/web/test`, the Worker's unit tests.
 
+Amended (2026-10-14, Carl Sauder): the phone runner skips the flows a run
+cannot hold and says why, instead of running them to a failure. The first
+unattended iOS run reported 10 of 33 flows failed, and every one was a
+flow that could not pass as run: seven needed a microphone signal (no
+`--voice`), one Android's airplane mode, two a step from outside mid-run.
+Failures that are not findings hide the ones that are. So flows carry
+tags for what they need (`voice`, `android-only`, `wrapped`), a test holds
+the tags to the flows' steps, and `scripts/maestro-plan.mjs` turns the
+run's flags into exclusions and a printed list. The flows had been written
+to fail rather than pass silently; a skip that is printed keeps that
+honesty without the noise. Named flows (`--flow`) still run as asked.
+
 ## 103. `packages/client` is `packages/sync`, and it owns anything a device queues for the server
 
 Date: 2026-10-14 · By: Carl Sauder · Status: accepted
