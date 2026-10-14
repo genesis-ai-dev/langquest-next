@@ -16,7 +16,7 @@ export default defineConfig({
       reportsDirectory: 'coverage',
       include: [
         'packages/core/src/**',
-        'packages/client/src/**',
+        'packages/sync/src/**',
         'apps/mobile/src/**',
         'apps/web/worker/**',
         'scripts/**'
@@ -33,7 +33,7 @@ export default defineConfig({
       ],
       thresholds: {
         'packages/core/src/**': { lines: 93, branches: 79, functions: 90, statements: 88 },
-        'packages/client/src/**': { lines: 88, branches: 77, functions: 85, statements: 86 }
+        'packages/sync/src/**': { lines: 88, branches: 77, functions: 85, statements: 86 }
       }
     }
   }

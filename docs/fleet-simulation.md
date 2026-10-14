@@ -2,7 +2,7 @@
 
 Many phones and one server in one process, on simulated time. Every phone
 runs the app's real sync code: `SyncClient`, `SyncScheduler` and
-`Diagnostics` from `packages/client`, wired the way
+`Diagnostics` from `packages/sync`, wired the way
 `apps/mobile/src/useLanguage.ts` wires them. The people on the phones are
 personas, the server is the in-memory `FakeServer`, and each phone talks to
 it over a shaped link (latency, bandwidth, lost calls, no signal). A month
@@ -28,7 +28,7 @@ deterministic for a seed. `npm run fleet` gives Node a 16 GB heap ceiling
 (the default here is about 4 GB). Each phone holds about 18 MB for a
 3,000-passage language, so that is room for roughly 800 such phones;
 garbage collection stayed near 2% of a run up to 196 phones. It exits non-zero if any phone disagrees with
-the server or an error was thrown. `packages/client/test/fleet.test.ts`
+the server or an error was thrown. `packages/sync/test/fleet.test.ts`
 runs a small fleet in `npm test` (under 2 seconds) and checks that every
 phone agrees with the server, that a seed gives the same run twice, and
 that a village that reconnects drains its backlog.
@@ -141,7 +141,7 @@ First runs (2026-10-12):
 
 ## Where the code is
 
-- `packages/client/src/testing/`: the engine, Node only; the app never
+- `packages/sync/src/testing/`: the engine, Node only; the app never
   imports it.
   - `fakeServer.ts`: the in-memory server the client tests also use.
   - `virtualTime.ts`: simulated timers.

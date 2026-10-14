@@ -8,7 +8,7 @@ import { join } from 'node:path';
  * `partition` in a new file is the old model returning by habit.
  */
 
-const ROOTS = ['packages/core/src', 'packages/client/src', 'packages/v2-import/src', 'apps/mobile/src', 'apps/mobile/App.tsx', 'apps/web/worker', 'server', 'supabase/migrations', 'scripts'];
+const ROOTS = ['packages/core/src', 'packages/sync/src', 'packages/v2-import/src', 'apps/mobile/src', 'apps/mobile/App.tsx', 'apps/web/worker', 'server', 'supabase/migrations', 'scripts'];
 const SKIP = new Set(['node_modules', 'scripts/vocabulary.test.ts']);
 
 /** "partition", "lane" or "project" as a word or a camelCase part, singular or plural. */
@@ -27,7 +27,7 @@ const ALLOWED: { path: string; words: RegExp; why: string }[] = [
   { path: 'scripts/linear-sync', words: /^lanes?$/i, why: 'deploy lanes (iOS, Android), not languages' },
   { path: 'supabase/migrations/20261006000001_schedule_projections.sql', words: /^partition$/i, why: 'unscheduling the job by its old name' },
   { path: 'supabase/migrations/20261009000000_languoids.sql', words: /^(partition|projects)$/i, why: 'SQL window clauses (partition by), and the v2 projects whose languages it keeps' },
-  { path: 'packages/client/src/sqliteStore.ts', words: /^lane$/i, why: 'dropping a table older apps made' }
+  { path: 'packages/sync/src/sqliteStore.ts', words: /^lane$/i, why: 'dropping a table older apps made' }
 ];
 
 function files(path: string): string[] {

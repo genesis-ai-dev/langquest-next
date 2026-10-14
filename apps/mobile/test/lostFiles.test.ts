@@ -4,7 +4,7 @@
  * while in use, and never mistakes its own deletions for a loss. Run on the
  * web store, whose files are an in-memory folder here.
  */
-import { MemoryFileLedger, type KeptFile } from '@langquest-next/client';
+import { MemoryFileLedger, type KeptFile } from '@langquest-next/sync';
 import type { WebFiles } from '../src/webFiles';
 
 vi.mock('react-native', () => ({ Platform: { OS: 'web' } }));

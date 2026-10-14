@@ -1,4 +1,4 @@
-import { always, Fleet, NETWORKS, patchy, TIME, village } from '@langquest-next/client/src/testing';
+import { always, Fleet, NETWORKS, patchy, TIME, village } from '@langquest-next/sync/src/testing';
 import type { Scenario } from './types';
 
 /**

@@ -1,4 +1,4 @@
-import { classifyTransferFailure, Diagnostics, ensureDeviceId, sanitizeContext, type DiagContext, type DiagStore } from '@langquest-next/client';
+import { classifyTransferFailure, Diagnostics, ensureDeviceId, sanitizeContext, type DiagContext, type DiagStore } from '@langquest-next/sync';
 import { CLIENT_PROTOCOL_VERSION, REDUCER_VERSION } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { Paths } from 'expo-file-system';
@@ -7,12 +7,13 @@ import { Platform } from 'react-native';
 import { applyDiagnosticsOn, readDiagnosticsOn, saveDiagnosticsOn } from './diagnosticsSetting';
 import { getDiagStore, getStore } from './store';
 import { BUILD_ID } from './webBuild';
-import { supabase } from './supabase';
+import { currentSession } from './server/auth';
+import { ingestDiagnostics } from './server/diagnostics';
 
 // Field diagnostics (docs/diagnostics.md, decisions.md 39). One recorder for
 // the app: the sync clients, the transfer workers and report.ts write to
 // it; `flushDiagnostics` delivers what it holds once the phone's own work
-// is out of the way. Nothing recorded is content (packages/client
+// is out of the way. Nothing recorded is content (packages/sync
 // diagnostics.ts holds the allowlist).
 
 /** At most one delivery attempt this often; weeks of records drain over a few syncs. */
@@ -83,8 +84,7 @@ export async function flushDiagnostics(device: { blobCacheBytes?: number; blobsW
   flushing = true;
   lastAttempt = Date.now();
   try {
-    const { data } = await supabase.auth.getSession();
-    if (!data.session) return;
+    if (!await currentSession()) return;
     const n: Record<string, number> = {};
     // The web's expo-file-system answers 0 rather than throwing, which would
     // read as a full disk; a browser leaves the numbers out.
@@ -99,7 +99,7 @@ export async function flushDiagnostics(device: { blobCacheBytes?: number; blobsW
     diagnostics.record('device', { n });
     const ctx = await context();
     await diagnostics.flush(async (records) => {
-      const { error } = await supabase.rpc('diag_ingest', { p_context: ctx, p_records: records });
+      const { error } = await ingestDiagnostics(ctx, records);
       if (error) throw new Error(error.message);
     });
   } catch {

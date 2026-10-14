@@ -11,7 +11,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../text';
 import type { BlobFile } from '../blobs';
-import { streamUrl } from '../blobTransport';
+import { streamUrl } from '../server/blobTransport';
 import type { Ctx } from '../ctx';
 import { useHelpSpot } from '../helpContext';
 import { HelpBadge } from '../helpBadge';
