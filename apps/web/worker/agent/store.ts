@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Scope } from './tokens';
 import type { ReviewLink } from './view';
+import type { WebhookEvent } from './webhooks';
 
 /** A token as stored (migration 20261008000000_api_tokens.sql), without its hash. */
 export interface TokenRecord {
@@ -34,12 +35,30 @@ export interface DeviceGrant {
 
 export type NewToken = Omit<TokenRecord, 'id' | 'createdAt' | 'revokedAt' | 'lastUsedAt'> & { tokenHash: string };
 
+/** A webhook as stored (migration 20261013120000_api_webhooks.sql). It belongs to one token and stops with it. */
+export interface WebhookRecord {
+  id: string;
+  orgId: string;
+  tokenId: string;
+  url: string;
+  events: WebhookEvent[];
+  /** Null: every language the token reaches. */
+  languageIds: string[] | null;
+  /** Signs every delivery; shown once, when it is made. */
+  secret: string;
+  createdAt: string;
+  disabledAt: string | null;
+  disabledReason: string | null;
+}
+
+export type NewWebhook = Pick<WebhookRecord, 'orgId' | 'tokenId' | 'url' | 'events' | 'languageIds' | 'secret'>;
+
 /** Where tokens and device grants live. Supabase with the service role in the Worker; a map in tests. */
 export interface AgentStore {
   tokenByHash(hash: string): Promise<TokenRecord | null>;
   insertToken(token: NewToken): Promise<TokenRecord>;
   tokensOf(orgId: string, profileId: string): Promise<TokenRecord[]>;
-  /** False when there is no such live token of theirs. */
+  /** False when there is no such live token of theirs. Its review links close and its webhooks stop with it. */
   revokeToken(id: string, profileId: string): Promise<boolean>;
   touchToken(id: string, at: string): Promise<void>;
   /** tokenId -> what its app is called (its client name, else the token's name), for tokens of this organization. */
@@ -63,6 +82,19 @@ export interface AgentStore {
   openLinkCount(orgId: string, profileId: string, now: string): Promise<number>;
   /** False when there is no such open link. Who may revoke is the caller's to decide. */
   revokeLink(id: string): Promise<boolean>;
+  insertWebhook(webhook: NewWebhook): Promise<WebhookRecord>;
+  /** A token's webhooks, stopped ones too, newest first. */
+  webhooksOfToken(tokenId: string): Promise<WebhookRecord[]>;
+  /** False when the token has no such webhook. */
+  deleteWebhook(id: string, tokenId: string): Promise<boolean>;
+  /** An organization's running webhooks, each with its token. */
+  liveWebhooks(orgId: string): Promise<{ webhook: WebhookRecord; token: TokenRecord }[]>;
+  /** These webhooks, stopped ones too; deleted ones are left out. */
+  webhooksByIds(ids: string[]): Promise<WebhookRecord[]>;
+  /** Stop running webhooks and say why; stopped ones keep their first reason. */
+  disableWebhooks(ids: string[], reason: string): Promise<void>;
+  /** Organizations with a running webhook, for the cron's catch-up. */
+  webhookOrgs(): Promise<string[]>;
 }
 
 type Row = Record<string, unknown>;
@@ -90,6 +122,14 @@ function must<T>(what: string, r: { data: T; error: { message: string } | null }
   if (r.error) throw new Error(`${what}: ${r.error.message}`);
   return r.data;
 }
+
+const WEBHOOK_COLUMNS = 'id, org_id, token_id, url, events, language_ids, secret, created_at, disabled_at, disabled_reason';
+
+const webhookOf = (r: Row): WebhookRecord => ({
+  id: r['id'] as string, orgId: r['org_id'] as string, tokenId: r['token_id'] as string, url: r['url'] as string,
+  events: r['events'] as WebhookEvent[], languageIds: (r['language_ids'] as string[] | null) ?? null, secret: r['secret'] as string,
+  createdAt: r['created_at'] as string, disabledAt: (r['disabled_at'] as string | null) ?? null, disabledReason: (r['disabled_reason'] as string | null) ?? null
+});
 
 const LINK_COLUMNS = 'id, org_id, language_id, unit_id, take_id, kind_id, counts, label, created_by, token_id, created_at, expires_at, revoked_at';
 
@@ -123,8 +163,9 @@ export function supabaseAgentStore(service: SupabaseClient): AgentStore {
       const data = must('api_tokens revoke', await service.from('api_tokens').update({ revoked_at: at })
         .eq('id', id).eq('profile_id', profileId).is('revoked_at', null).select('id'));
       if ((data as Row[]).length === 0) return false;
-      // The review links it shared close with it (decisions.md 75).
+      // The review links it shared close with it (decisions.md 75), and its webhooks stop (95).
       must('review_links revoke with token', await service.from('review_links').update({ revoked_at: at }).eq('token_id', id).is('revoked_at', null));
+      must('api_webhooks stop with token', await service.from('api_webhooks').update({ disabled_at: at, disabled_reason: 'token_revoked' }).eq('token_id', id).is('disabled_at', null));
       return true;
     },
     async touchToken(id, at) {
@@ -196,6 +237,39 @@ export function supabaseAgentStore(service: SupabaseClient): AgentStore {
       const data = must('review_links revoke', await service.from('review_links').update({ revoked_at: new Date().toISOString() })
         .eq('id', id).is('revoked_at', null).select('id'));
       return (data as Row[]).length > 0;
+    },
+    async insertWebhook(w) {
+      const data = must('api_webhooks insert', await service.from('api_webhooks').insert({
+        org_id: w.orgId, token_id: w.tokenId, url: w.url, events: w.events, language_ids: w.languageIds, secret: w.secret
+      }).select(WEBHOOK_COLUMNS).single());
+      return webhookOf(data as Row);
+    },
+    async webhooksOfToken(tokenId) {
+      const data = must('api_webhooks', await service.from('api_webhooks').select(WEBHOOK_COLUMNS).eq('token_id', tokenId).order('created_at', { ascending: false }).limit(100));
+      return (data as Row[]).map(webhookOf);
+    },
+    async deleteWebhook(id, tokenId) {
+      const data = must('api_webhooks delete', await service.from('api_webhooks').delete().eq('id', id).eq('token_id', tokenId).select('id'));
+      return (data as Row[]).length > 0;
+    },
+    async liveWebhooks(orgId) {
+      const data = must('api_webhooks live', await service.from('api_webhooks').select(`${WEBHOOK_COLUMNS}, api_tokens!inner(${TOKEN_COLUMNS})`)
+        .eq('org_id', orgId).is('disabled_at', null).limit(1000));
+      return (data as Row[]).map((r) => ({ webhook: webhookOf(r), token: tokenOf(r['api_tokens'] as Row) }));
+    },
+    async webhooksByIds(ids) {
+      if (ids.length === 0) return [];
+      const data = must('api_webhooks by id', await service.from('api_webhooks').select(WEBHOOK_COLUMNS).in('id', ids));
+      return (data as Row[]).map(webhookOf);
+    },
+    async disableWebhooks(ids, reason) {
+      if (ids.length === 0) return;
+      must('api_webhooks disable', await service.from('api_webhooks').update({ disabled_at: new Date().toISOString(), disabled_reason: reason })
+        .in('id', ids).is('disabled_at', null));
+    },
+    async webhookOrgs() {
+      const data = must('api_webhooks orgs', await service.from('api_webhooks').select('org_id').is('disabled_at', null).limit(10000));
+      return [...new Set((data as Row[]).map((r) => r['org_id'] as string))].sort();
     },
     async orgsOf(profileId) {
       const data = must('org_memberships', await service.from('org_memberships').select('org_id').eq('profile_id', profileId).eq('removed', false));

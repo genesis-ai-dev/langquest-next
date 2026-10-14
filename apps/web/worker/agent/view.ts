@@ -1,5 +1,5 @@
 import {
-  approvedVersion, buildIndexes, decodeHlc, derivePassage, encodeHlc, externalKeyError, kindOf, languageInfo, LISTENER_KIND, mayViewLanguage, orgLanguages, passageWork,
+  approvedVersion, buildIndexes, decodeHlc, derivePassage, encodeHlc, externalKeyError, kindOf, languageInfo, libraryUnitRange, LISTENER_KIND, mayViewLanguage, orgLanguages, passageWork,
   privilegesFor, referencedBlobs, releasesOf, stateRevision, stepAllowsLinks, validateEvent,
   type AnyEvent, type Card, type KindState, type LanguageState, type OrgState, type PassageState, type Version
 } from '@langquest-next/core';
@@ -27,6 +27,12 @@ export interface PassageSummary {
   label: string;
   /** Labels of the units that hold it, outermost first ("Genesis", "Chapter 1"). */
   path: string[];
+  /** What the template calls it, such as passage or chapter. */
+  kind: string;
+  /** Sorts passages into display order, compared as plain strings. */
+  order: string;
+  /** The verses it holds, read from its unit id; null for a unit made by hand. */
+  reference: PassageReference | null;
   status: ApiStatus;
   /**
    * The version this token hears: the latest shared for review with `read`,
@@ -103,6 +109,28 @@ export const isRefusal = (x: unknown): x is Refusal => typeof x === 'object' && 
 
 /** Signs a read link for an object key; the Worker's own `readPath`, absolute. */
 export type Signer = (key: string) => Promise<{ url: string; expiresAt: number }>;
+
+/** A whole chapter has null verses; a whole book, null chapters too. A range may end in a later chapter. */
+export interface PassageReference {
+  book: string;
+  chapter: number | null;
+  verse: number | null;
+  endChapter: number | null;
+  endVerse: number | null;
+}
+
+/** "GEN" + "1.1-2.3", in the template's own numbering ("~org" or not, decisions.md 80). Core reads an unknown end as 999. */
+export function referenceOf(unitId: string): PassageReference | null {
+  const r = libraryUnitRange(unitId);
+  if (!r) return null;
+  const wholeBook = r.end.chapter >= 999;
+  const wholeChapters = r.end.verse >= 999;
+  return {
+    book: r.book,
+    chapter: wholeBook ? null : r.start.chapter, verse: wholeChapters ? null : r.start.verse,
+    endChapter: wholeBook ? null : r.end.chapter, endVerse: wholeChapters ? null : r.end.verse
+  };
+}
 
 const wallOf = (hlc: string): number => Number(hlc.slice(0, hlc.indexOf(':')));
 const iso = (hlc: string) => new Date(wallOf(hlc)).toISOString();
@@ -185,6 +213,9 @@ function summarize(grant: Grant, state: LanguageState, s: PassageState): Passage
     unitId: s.unitId,
     label: state.units[s.unitId]?.label ?? s.unitId,
     path: pathOf(state, s.unitId),
+    kind: state.units[s.unitId]?.kind ?? 'passage',
+    order: state.units[s.unitId]?.order ?? '',
+    reference: referenceOf(s.unitId),
     status: statusOf(s),
     version: v
       ? { n: v.n, takeId: v.takeId, submittedAt: iso(v.hlc), durationMs: v.cardHashes.reduce((t, h) => t + (cards.get(h)?.durationMs ?? 0), 0) }

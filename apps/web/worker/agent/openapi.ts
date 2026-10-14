@@ -3,6 +3,9 @@ import { LINK_DAYS, LINK_MAX_DAYS } from './links';
 import { UPLOADS_PER_HOUR, WRITES_PER_HOUR } from './org';
 import { SCOPE_TEXT, SCOPES, TOKEN_PREFIX } from './tokens';
 import {
+  CHANGES_PAGE, CHANGES_PAGE_MAX, DELIVERIES_KEPT, DELIVERY_TIMEOUT_MS, SECRET_PREFIX, UNIT_IDS_PER_DELIVERY, WEBHOOK_EVENTS, WEBHOOKS_PER_TOKEN
+} from './webhooks';
+import {
   API_STATUSES, EXTERNAL_DATA_MAX_BYTES, EXTERNAL_VALUES_PAGE, MAX_VOICE_NOTES, PASSAGE_INCLUDES, PASSAGES_PAGE, PASSAGES_PAGE_MAX
 } from './view';
 
@@ -49,6 +52,7 @@ const VALUE_KEY = {
   name: 'key', in: 'path', required: true, schema: text(undefined, { maxLength: EXTERNAL_KEY_MAX }),
   description: 'A key your app chose: segments of letters, digits and . _ ~ : @ + - joined by /. Start it with your app\'s own name, such as org.example.app/plays/….'
 };
+const WEBHOOK_ID = { name: 'webhookId', in: 'path', required: true, schema: text(), description: 'A webhookId from POST /webhooks.' };
 const CHANGED_SINCE = { name: 'changedSince', in: 'query', schema: time(), description: 'Only what changed after this time. Pass the newest updatedAt (or at) you have seen to follow changes.' };
 
 function schemas(): Record<string, Schema> {
@@ -56,6 +60,9 @@ function schemas(): Record<string, Schema> {
     unitId: text(),
     label: text('Such as "Matthew 5".'),
     path: list(text(), 'Labels of the units that hold it, outermost first ("Matthew").'),
+    kind: text('What the template calls it, such as passage or chapter.'),
+    order: text('Sorts passages into display order, compared as plain strings.'),
+    reference: nullable(ref('PassageReference')),
     status: ref('Status'),
     version: nullable(obj({ n: int(), takeId: text(), submittedAt: time(), durationMs: int() }, [],
       'The version this token hears: the latest with read, the approved one with read:published alone. Null when there is none.')),
@@ -98,7 +105,51 @@ function schemas(): Record<string, Schema> {
         review: bool(), release: bool(), externalValues: obj({ read: bool(), write: bool() })
       }, [], 'What this token can do here, given its scopes and its person\'s privileges today.')
     }),
-    Me: obj({ token: ref('Token'), languages: list(ref('Language')) }),
+    Me: obj({ token: ref('Token'), org: obj({ id: text(), name: text() }, [], 'The organization the token belongs to.'), languages: list(ref('Language')) }),
+    PassageReference: obj({
+      book: text('A USFM book code, such as GEN.'),
+      chapter: nullable(int('Null for a whole book.')), verse: nullable(int('Null for whole chapters.')),
+      endChapter: nullable(int('The same as chapter unless the passage runs into a later one.')), endVerse: nullable(int())
+    }, [], 'The verses it holds, read from its unit id, in the template\'s own numbering. Null for a unit made by hand.'),
+    WebhookEvent: text(undefined, { enum: [...WEBHOOK_EVENTS] }),
+    WebhookInput: obj({
+      url: text('Where to POST: an https address on a public host.', { pattern: '^https://', maxLength: 2000 }),
+      events: list(ref('WebhookEvent'), undefined, { minItems: 1 }),
+      languageIds: nullable(list(text(), 'Only these languages; every language the token reaches when left out.'))
+    }, ['languageIds']),
+    Webhook: obj({
+      id: text(), url: text(), events: list(ref('WebhookEvent')), languageIds: nullable(list(text())), createdAt: time(),
+      disabledAt: nullable(time('When it stopped: its token was revoked, or deliveries failed for a day.')), disabledReason: nullable(text())
+    }),
+    WebhookCreated: obj({
+      webhookId: text(),
+      secret: text(`Signs every delivery; starts with ${SECRET_PREFIX}. Only this answer has it.`),
+      webhook: ref('Webhook')
+    }),
+    Delivery: obj({
+      eventId: text(), type: text('A webhook event, or ping.'), attempt: int(),
+      status: nullable(int('What the app answered; null when it did not answer in time or could not be reached.')),
+      error: nullable(text()), durationMs: int(), at: time()
+    }),
+    Change: obj({
+      cursor: text('Pass the last one as after.'), type: ref('WebhookEvent'), unitId: text(),
+      at: time('When LangQuest saw it, not when it was recorded: a phone may push days later.')
+    }),
+    ChangePage: obj({
+      changes: list(ref('Change'), 'Oldest first. A passage that left the list (hidden, or its book divided again) is unit.deleted.'),
+      cursor: text('Where to read from next, as after.'),
+      more: bool('True when another page waits now.')
+    }),
+    WebhookDelivery: obj({
+      id: text('Also in the LangQuest-Event-Id header. A retry has the same id: keep the ids you have handled.'),
+      type: { oneOf: [ref('WebhookEvent'), { const: 'ping' }] },
+      occurredAt: time(), orgId: text(),
+      languageId: text(), unitIds: list(text(), `At most ${UNIT_IDS_PER_DELIVERY}; the feed has the rest.`),
+      moreUnits: { const: true, description: 'More passages changed than unitIds names.' },
+      cursor: text('Where these changes are in the language\'s feed. Read the feed from your own last cursor, not this one.'),
+      tokenId: text(), reason: text(undefined, { enum: ['revoked', 'expired'] }), webhookId: text()
+    }, ['languageId', 'unitIds', 'moreUnits', 'cursor', 'tokenId', 'reason', 'webhookId'],
+    'A nudge, never the data: read the change feed, or the passages by unitIds, with your token.'),
     Status: text(undefined, { enum: [...API_STATUSES] }),
     Release: obj({ channel: text(), versionN: int(), takeId: text(), url: text(), at: time() }, ['url']),
     AudioCard: obj({
@@ -297,6 +348,51 @@ function paths(): Record<string, Schema> {
         responses: { 200: json(ref('ReviewLink'), 'The link, with its url.'), ...ERRORS }
       }
     },
+    '/token': {
+      delete: {
+        ...auth, operationId: 'revokeToken', summary: 'Revoke this token, as an app\'s "Disconnect" does. Its webhooks hear token.revoked, then stop.',
+        responses: { 200: json(obj({ revoked: { const: true } }), 'Revoked; it no longer works.'), ...ERRORS }
+      }
+    },
+    '/languages/{languageId}/changes': {
+      get: {
+        ...auth, operationId: 'listChanges',
+        summary: 'What changed in the language, in the order LangQuest saw it, deletions included. Needs read.',
+        description: 'Without after: no changes, and the cursor to start from after listing the passages. Changes are kept 90 days; an older cursor is 410 cursor_expired.',
+        parameters: [
+          LANGUAGE_ID,
+          { name: 'after', in: 'query', schema: text('A cursor from this feed or a webhook delivery.', { pattern: '^\\d+$' }) },
+          { name: 'limit', in: 'query', schema: int(`Changes per page; ${CHANGES_PAGE} when left out.`, { minimum: 1, maximum: CHANGES_PAGE_MAX }) }
+        ],
+        responses: { 200: json(ref('ChangePage'), 'A page of changes.'), ...ERRORS }
+      }
+    },
+    '/webhooks': {
+      get: { ...auth, operationId: 'listWebhooks', summary: 'This token\'s webhooks, stopped ones too. Needs read.', responses: { 200: json(obj({ webhooks: list(ref('Webhook')) }), 'Webhooks.'), ...ERRORS } },
+      post: {
+        ...auth, operationId: 'createWebhook',
+        summary: 'Be told when something changes. Needs read.',
+        description: `A token may have ${WEBHOOKS_PER_TOKEN} running. Each delivery is a POST with LangQuest-Event-Id and LangQuest-Signature: t=<unix seconds>,v1=<hex HMAC-SHA256(secret, t + "." + body)>. Answer 2xx within ${DELIVERY_TIMEOUT_MS / 1000} seconds; anything else is retried for a day, then the webhook stops.`,
+        requestBody: body(ref('WebhookInput')),
+        responses: { 200: json(ref('WebhookCreated'), 'Made; keep the secret.'), ...ERRORS }
+      }
+    },
+    '/webhooks/{webhookId}': {
+      get: { ...auth, operationId: 'getWebhook', parameters: [WEBHOOK_ID], summary: 'One webhook.', responses: { 200: json(ref('Webhook'), 'The webhook.'), ...ERRORS } },
+      delete: { ...auth, operationId: 'deleteWebhook', parameters: [WEBHOOK_ID], summary: 'Delete a webhook; nothing more is sent to it.', responses: { 200: json(obj({ id: text(), deleted: { const: true } }), 'Deleted.'), ...ERRORS } }
+    },
+    '/webhooks/{webhookId}/ping': {
+      post: {
+        ...auth, operationId: 'pingWebhook', parameters: [WEBHOOK_ID], summary: 'Send a ping now, signed like any delivery, and say how it went. Not retried.',
+        responses: { 200: json(obj({ delivery: ref('Delivery') }), 'The attempt.'), ...ERRORS }
+      }
+    },
+    '/webhooks/{webhookId}/deliveries': {
+      get: {
+        ...auth, operationId: 'listDeliveries', parameters: [WEBHOOK_ID], summary: `The last ${DELIVERIES_KEPT} attempts, newest first, and how many events wait.`,
+        responses: { 200: json(obj({ deliveries: list(ref('Delivery')), pending: int() }), 'Attempts.'), ...ERRORS }
+      }
+    },
     '/mcp': {
       post: {
         ...auth, operationId: 'mcp',
@@ -334,6 +430,19 @@ function paths(): Record<string, Schema> {
   };
 }
 
+const WEBHOOK_TEXT: Record<(typeof WEBHOOK_EVENTS)[number], string> = {
+  'passage.version.submitted': 'A new version of these passages was shared for review.',
+  'passage.status.changed': 'These passages\' status or approved version changed.',
+  'passage.review.created': 'These passages were reviewed.',
+  'passage.release.created': 'A version of these passages went live somewhere, or was taken down.',
+  'unit.created': 'These passages joined the list.',
+  'unit.updated': 'These passages\' label, order or place in the book changed.',
+  'unit.deleted': 'These passages left the list: hidden, or their book divided another way.',
+  'language.added': 'The token can now open this language.',
+  'language.removed': 'The token can no longer open this language.',
+  'token.revoked': 'The token was revoked or expired; this is the webhook\'s last delivery.'
+};
+
 /** The document, with the address it is served from. */
 export function openApi(origin: string): Schema {
   return {
@@ -352,6 +461,13 @@ export function openApi(origin: string): Schema {
       },
       schemas: schemas()
     },
-    paths: paths()
+    paths: paths(),
+    webhooks: Object.fromEntries(WEBHOOK_EVENTS.map((e) => [e, {
+      post: {
+        operationId: `on.${e}`, summary: WEBHOOK_TEXT[e],
+        requestBody: body(ref('WebhookDelivery')),
+        responses: { 200: { description: 'Any 2xx within ten seconds counts as delivered.' } }
+      }
+    }]))
   };
 }

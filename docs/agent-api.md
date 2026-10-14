@@ -1,6 +1,6 @@
 # The LangQuest API, review links, and MCP
 
-Other apps, AI agents and people without an account can take part in a translation's review. Why it is built this way: `docs/decisions.md` 70 (tokens), 72 (reviews, releases, review links), 79 (external values), 85 (the passage list) and 86 (the OpenAPI document).
+Other apps, AI agents and people without an account can take part in a translation's review. Why it is built this way: `docs/decisions.md` 70 (tokens), 72 (reviews, releases, review links), 79 (external values), 85 (the passage list), 86 (the OpenAPI document) and 95 (webhooks and the change feed).
 
 - **Partner apps and agents** use an access token. They read passages, record reviews, report where a version is published, and store values of their own with a language.
 - **Anyone with a review link** (`/r/<code>`, shared on WhatsApp, say) can hear one version and answer, with any name.
@@ -35,7 +35,7 @@ A token belongs to one person in one organization. **It can never do more than t
 | `release` | Report where a version is published, or taken down. | to assign work (a coordinator) |
 | `external_values` | Store, read and delete the app's own values with a language. | to translate, review or fill reference material |
 
-A token can be limited to some languages. It never expires unless given an expiry, and is revoked on `/connect`. Only its hash is stored.
+A token can be limited to some languages. It never expires unless given an expiry, and is revoked on `/connect`, or by the app itself with `DELETE /api/v1/token` (an app's "Disconnect"). Only its hash is stored.
 
 ### Where to keep a token
 
@@ -64,13 +64,15 @@ curl -H "$T" 'https://next.langquest.org/api/v1/languages/LANG/passages?unitIds=
 curl -H "$T" https://next.langquest.org/api/v1/languages/LANG/passages/UNIT     # URL-encode the unit id
 ```
 
+- **`/me`** gives the token, its organization (`org: { id, name }`, to label the connection) and its languages.
 - **Languages** say what the token can do there: `can: { read: "all" | "published" | null, review, release, externalValues: { read, write } }`.
-- **The passage list** returns `{ passages, nextAfter }`, in display order. Each passage has `unitId`, `label`, `path` (book, chapter), `status` (`not_started`, `drafting`, `in_review`, `feedback`, `approved`), `version`, `approvedVersion`, `releases`, `listenerFeedback` and `updatedAt`.
+- **The passage list** returns `{ passages, nextAfter }`, in display order. Each passage has `unitId`, `label`, `path` (book, chapter), `kind`, `order` (sorts as plain strings), `reference` (below), `status` (`not_started`, `drafting`, `in_review`, `feedback`, `approved`), `version`, `approvedVersion`, `releases`, `listenerFeedback` and `updatedAt`.
   - `version` is the latest version with `read`, and the approved one with `read:published` alone.
   - **Pages:** 100 passages at a time, or `limit` (1 to 500). Pass `nextAfter` as `after` for the next page. `nextAfter` is null when nothing more matches.
   - **Filters:** `status`, `changedSince`, and `unitIds` for particular passages. Repeat `unitIds` once per id, since an id may hold a comma. Ids that do not exist, or that the token cannot see, are left out.
   - **`include`** adds fields of one passage (below) to every passage on the page, comma-separated: `audio`, `reviews`, `steps`, `requests`, `versions`. Links are signed only for the page. `steps`, `requests` and `versions` need `read`; with `read:published` alone they are refused (`403`, `scope`).
-- **Following changes:** pass the newest `updatedAt` you have seen as `changedSince`. Versions, reviews and releases all count as changes. The server catches up with the log at least once a minute.
+- **`reference`** is the verses the passage holds, read from its unit id so you need not parse `GEN.1.1-2.3~org`: `{ book, chapter, verse, endChapter, endVerse }`, in the template's own numbering. A whole chapter has null verses, a whole book null chapters too. It is null for a unit someone made by hand.
+- **Following changes:** pass the newest `updatedAt` you have seen as `changedSince`. Versions, reviews and releases all count as changes. The server catches up with the log at least once a minute. `changedSince` never sees a passage leave the list or change its label; follow the change feed (below) for those.
 - **One passage** has everything the token may see of it: the list's fields, `audio` and `reviews`, plus `steps`, `requests` and `versions` with `read`. It is the list with every include, for one unit.
   - `audio` is `version`'s cards in playing order. Each has a `url` that plays without a token for ten minutes, with Range support.
   - Each step lists its `kinds`: `kindId` (what a review of it sends), `name`, `state`, and `apiReviewCounts`, whether a review through this API completes it. It does on an ordinary step that takes links, never on a checkpoint.
@@ -171,6 +173,70 @@ curl -X DELETE -H "$T" https://next.langquest.org/api/v1/languages/LANG/external
 - **Following changes:** pass `changedSince`. Deleted keys then come back with `data: null`; without it, they are left out.
 - Values are not shown on a passage, and nothing in a value points to one. To tie a value to a passage, put its unit id in the key.
 
+## Webhooks and the change feed
+
+A webhook says "something changed in this language, read from here". It never carries the data: read it with your token, which gets fresh audio links and checks what the token may see today. Deliveries can be late, repeated or out of order, and some may never arrive, so treat each as a nudge and the change feed as the truth. Both need the `read` scope.
+
+### The change feed
+
+```bash
+curl -H "$T" https://next.langquest.org/api/v1/languages/LANG/changes            # → { changes: [], cursor: "812", more: false }
+curl -H "$T" 'https://next.langquest.org/api/v1/languages/LANG/changes?after=812'
+```
+
+1. List the passages, then ask for the feed without `after`. You get the `cursor` to start from.
+2. Later, ask with `after=<cursor>`. Each change is `{ cursor, type, unitId, at }`, oldest first, up to 500 (`limit`, at most 1000). Store the response's `cursor` and pass it next time. While `more` is true, ask again at once.
+3. Read the passages it names with `…/passages?unitIds=…`. A `unit.deleted` passage has left the list: it was hidden, or its book was divided another way.
+
+- The cursor is the order LangQuest received changes in, not when they were recorded. A phone that was offline for three days pushes takes with old clocks, and they still come after every cursor you hold.
+- `at` is when LangQuest saw the change.
+- Changes are kept for 90 days. An older cursor answers `410 cursor_expired`: list the passages again and start over.
+- One change per passage per look. Three takes recorded within seconds can be one `passage.version.submitted`.
+
+### Webhooks
+
+```bash
+curl -X POST -H "$T" -H 'content-type: application/json' https://next.langquest.org/api/v1/webhooks \
+  -d '{"url":"https://app.example/langquest","events":["passage.version.submitted","passage.status.changed","unit.deleted","token.revoked"]}'
+# → { "webhookId": "…", "secret": "whsec_…", "webhook": { … } }   (the secret is shown once)
+```
+
+| Event | Means |
+| --- | --- |
+| `passage.version.submitted` | A new version was shared for review. |
+| `passage.status.changed` | The status or the approved version changed (approval included). |
+| `passage.review.created` | A review was recorded. |
+| `passage.release.created` | A version went live somewhere, or was taken down. |
+| `unit.created`, `unit.updated`, `unit.deleted` | A passage joined the list, changed its label, order or place in the book, or left the list. |
+| `language.added`, `language.removed` | The token can now open, or can no longer open, a language. |
+| `token.revoked` | The token was revoked or expired. This is the webhook's last delivery: show "Reconnect LangQuest". |
+
+- `languageIds` limits a webhook to some languages. Leave it out for every language the token reaches.
+- A webhook belongs to its token. `GET /webhooks` lists that token's webhooks. `GET` or `DELETE /webhooks/{id}` works on one. A token may have 10 running.
+- `POST /webhooks/{id}/ping` sends a `ping` now, signed like any delivery, and answers with how it went. `GET /webhooks/{id}/deliveries` lists the last 100 attempts with their status codes, and how many events wait.
+
+**A delivery** is a `POST` with a JSON body:
+
+```json
+{ "id": "evt_…", "type": "passage.version.submitted", "occurredAt": "…", "orgId": "…", "languageId": "…",
+  "unitIds": ["…"], "cursor": "845" }
+```
+
+- Language events have `languageId` only. `token.revoked` has `tokenId` and `reason` (`revoked` or `expired`).
+- `unitIds` names at most 100 passages. `moreUnits: true` says the feed has more.
+- `cursor` is where these changes are in the feed. Read the feed from your own stored cursor, not this one: a delivery you missed may lie between them.
+- One delivery goes out per language and event for each look, and a burst of changes waits about three seconds. A recording session therefore becomes a few deliveries, not one per take.
+
+**Check it:**
+- `LangQuest-Signature: t=<unix seconds>,v1=<hex>`. The hex is HMAC-SHA256 with the secret as key over `t + "." + body`, the exact bytes received. Refuse a `t` more than five minutes old.
+- `LangQuest-Event-Id` is the same as `id`, and stays the same on every retry. Keep the ids you have handled and skip repeats.
+
+**Answer** with any 2xx within 10 seconds. Anything else, including a redirect, counts as a failure.
+- A failure is retried after 30 seconds, 2 and 10 minutes, half an hour, then 1, 2, 4, 8 and 16 hours. The last try is a day after the first.
+- If that last try fails, the webhook stops, and `disabledReason` says why. Make a new one. Nothing is lost if you then read the feed.
+
+LangQuest usually delivers within seconds. If the database's nudge to LangQuest's server is lost, it is at most ten minutes late.
+
 ## MCP (Claude, ChatGPT and other agents)
 
 ```json
@@ -195,7 +261,7 @@ Errors are JSON: `{ "error": "what happened, in words", "code": "short_code" }`.
 | `403` | a scope or role that does not allow it |
 | `404` | not there, or not visible to this token |
 | `409` | not approved, or not that version |
-| `410` | a closed review link |
+| `410` | a closed review link, or a change-feed cursor older than 90 days |
 | `413` | an external value's data over 4096 bytes |
 | `429` | a write or request limit |
 
@@ -206,12 +272,13 @@ The device endpoints use OAuth's error codes.
 | Part | Code |
 | --- | --- |
 | Routes, device flow, signed-in routes | `apps/web/worker/agent/http.ts` |
+| Webhooks and the change feed: routes, what changed, sending | `apps/web/worker/agent/webhookRoutes.ts`, `webhooks.ts`, `dispatch.ts` (in the `OrgSnapshot` Durable Object, with its alarm) |
 | Review links | `apps/web/worker/agent/links.ts`, page `reviewPage.ts` |
 | What a token or link sees and writes | `apps/web/worker/agent/view.ts` |
 | Per-organization reads and writes, limits | `apps/web/worker/agent/org.ts`, in the `OrgSnapshot` Durable Object |
 | MCP | `apps/web/worker/agent/mcp.ts` |
 | `/connect` | `apps/web/worker/agent/connectPage.ts` |
 | Voice note checks | `apps/web/worker/agent/voice.ts` |
-| Tables (service role only) | `supabase/migrations/20261008000000_api_tokens.sql`, `20261008140000_review_links_releases.sql` |
+| Tables (service role only) | `supabase/migrations/20261008000000_api_tokens.sql`, `20261008140000_review_links_releases.sql`, `20261013120000_api_webhooks.sql` (also the poke) |
 | Approved version, releases, links per step | core `approvedVersion`, `releasesOf`, `stepAllowsLinks`; events `v1.VersionReleased`, `v1.FlowStepLinksSet` |
 | Tests | `apps/web/test/agentApi.test.ts`, `packages/core/test/externalReview.test.ts` |

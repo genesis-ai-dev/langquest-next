@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 
 import { parseJsonc, wranglerFor } from './env-files.mjs';
 import {
-  FILE_KEYS, OPTIONAL_KEYS, REQUIRED_KEYS, SCHEDULE_MIGRATION, WORKERS, destinations, digest, drift, failure, queryRows, relayUrl, summarize, unknownKeys, vaultSql
+  FILE_KEYS, OPTIONAL_KEYS, REQUIRED_KEYS, SCHEDULE_MIGRATION, WEBHOOK_MIGRATION, WORKERS, destinations, digest, drift, failure, queryRows, relayUrl, summarize, unknownKeys, vaultSql
 } from './secrets.mjs';
 
 const read = (file: string) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
@@ -50,6 +50,16 @@ describe('secrets', () => {
     const { vault } = destinations('preview', values, 'abc', 'k');
     for (const name of Object.keys(vault)) expect(sql).toMatch(new RegExp(`name\\s*=\\s*'${name}'`));
     expect(vault.langquest_project_url).toBe('https://abc.supabase.co');
+  });
+
+  it('gives the webhook poke one secret at both ends and the Worker\'s own address, only when the file has it', () => {
+    const sql = read(WEBHOOK_MIGRATION);
+    const wanted = destinations('preview', { ...values, WEBHOOK_POKE_SECRET: 'poke' }, 'abc', 'k');
+    expect(wanted.vault.langquest_webhook_poke_secret).toBe(wanted.workers.dashboard.WEBHOOK_POKE_SECRET);
+    expect(wanted.vault.langquest_dashboard_url).toBe('https://next-preview.langquest.org');
+    for (const name of ['langquest_dashboard_url', 'langquest_webhook_poke_secret']) expect(sql).toMatch(new RegExp(`name\\s*=\\s*'${name}'`));
+    expect(destinations('production', { ...values, WEBHOOK_POKE_SECRET: 'poke' }, 'abc', 'k').vault.langquest_dashboard_url).toBe('https://next.langquest.org');
+    expect(Object.keys(destinations('preview', values, 'abc', 'k').vault)).not.toContain('langquest_webhook_poke_secret');
   });
 
   it('sends one relay secret to both ends, so they cannot drift apart', () => {
