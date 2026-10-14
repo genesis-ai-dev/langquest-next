@@ -21847,7 +21847,7 @@ function deriveFlow(state) {
 function stepName(kinds, step) {
   return step.kindIds.map((id) => kinds.find((k) => k.id === id)?.name ?? humanize(id)).join(" + ");
 }
-var COMPLETE = ["approved", "addressed", "skipped"];
+var COMPLETE = ["approved", "skipped"];
 var isCompleteState = (s) => COMPLETE.includes(s);
 var cache = /* @__PURE__ */ new WeakMap();
 function push(m, k, v) {
@@ -22005,7 +22005,7 @@ function derivePassage(state, unitId, idx) {
   const latest = versions.at(-1);
   const draftTakeId = ri.drafts.get(key)?.[0];
   const drafts = (ri.drafts.get(key) ?? []).map((takeId) => draftView(state, takeId)).sort((a, b) => a.startedHlc < b.startedHlc ? -1 : a.startedHlc > b.startedHlc ? 1 : a.rootTakeId < b.rootTakeId ? -1 : 1);
-  const next = recorded ? open.find((s) => !s.override) ?? open[0] : void 0;
+  const next = recorded ? open.find((s) => !s.override) : void 0;
   const result = {
     unitId,
     flow,
@@ -22018,7 +22018,7 @@ function derivePassage(state, unitId, idx) {
     steps,
     drafts,
     drafting: draftTakeId !== void 0,
-    done: recorded && steps.every((s) => s.complete),
+    done: recorded && steps.every((s) => s.complete || !!s.override),
     awaitingResponse: reviews.filter((r) => r.outcome === "needs_changes" && !r.response && r.versionN === latest?.n),
     notes: ri.notes.get(key) ?? [],
     ...latest ? { latest } : {},
