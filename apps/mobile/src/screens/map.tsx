@@ -12,7 +12,7 @@
 // book, plus search and filters that narrow to counts first (ADR-009).
 // Progress is several counts, never one number (ADR-004).
 import {
-  deriveFlow, libraryItemView, derivePassage, highlightsFor, languageInfo, languageName, languageProgress,
+  deriveFlow, libraryItemView, derivePassage, highlightsFor, languageInfo, languageName, languageProgress, orgClusters,
   percent, unitPlace, unitTitle, upNext,
   type KindDef, type LanguageProgress, type OrgState, type PassageState, type LanguageState, type UnitPlace
 } from '@langquest-next/core';
@@ -44,6 +44,7 @@ import { useVerseNumbering } from '../breakup/useBreakup';
 import { ChangedMark, useEarlierSections } from '../breakup/earlier';
 import { BookBar, ChapterTileView, FullKey, NextLink, Pills, QuietIconLink, ShortKey } from '../simple/mapParts';
 import { chapterColumns } from '../layout';
+import { filterByCluster, type ClusterFilter } from '../clusters/model';
 import { contractsFor } from '../screenContracts';
 import { edgeAllowed, mapScreenFor } from '../session';
 import { C, onColor, radius, space, TINT, type as T } from '../theme';
@@ -316,6 +317,8 @@ export function StatusHome(ctx: Ctx) {
   const beside = useOpenDetail();
   const [query, setQuery] = useState('');
   const [limit, setLimit] = useState(PAGE);
+  // One cluster at a time (decision 103, demo ADR-045); opened from a cluster's page, that one.
+  const [cluster, setCluster] = useState<ClusterFilter>(ctx.params['clusterId'] ? { kind: 'cluster', clusterId: ctx.params['clusterId'] } : { kind: 'all' });
   // Every language the organization has; each is its own stream (decision
   // 63). This phone folds the one it has open; the dashboard's server
   // answers for the rest (decision 44), as of when it last caught up.
@@ -345,26 +348,43 @@ export function StatusHome(ctx: Ctx) {
   const header = <Header title={t('map.status.title')} sub={[orgName, t('map.status.allLanguages')].filter(Boolean).join(' · ')} />;
   if (!state) return <Screen header={header}><EmptyState icon="progress" title={t('common.loading')} /></Screen>;
 
-  const known = languages.flatMap((l) => (l.progress ? [l.progress] : []));
-  const asOf = oldestAsOf(languages.flatMap((l) => (l.progress ? [{ progress: l.progress, asOf: l.asOf }] : [])));
+  // The clusters among the languages listed here, and the languages the chosen one holds.
+  const listedIds = languages.map((l) => l.languageId);
+  const clusters = orgClusters(ctx.org.state).map((c) => ({ ...c, languageIds: c.languageIds.filter((id) => listedIds.includes(id)) })).filter((c) => c.languageIds.length > 0);
+  const filter = cluster.kind === 'cluster' && !clusters.some((c) => c.clusterId === cluster.clusterId) ? { kind: 'all' as const } : cluster;
+  const kept = new Set(filterByCluster(ctx.org.state, listedIds, filter));
+  const outside = filterByCluster(ctx.org.state, listedIds, { kind: 'none' }).length;
+  const inView = languages.filter((l) => kept.has(l.languageId));
+  const known = inView.flatMap((l) => (l.progress ? [l.progress] : []));
+  const asOf = oldestAsOf(inView.flatMap((l) => (l.progress ? [{ progress: l.progress, asOf: l.asOf }] : [])));
   const total = known.reduce((n, p) => n + p.total, 0);
   const recorded = known.reduce((n, p) => n + p.recorded, 0);
   const done = known.reduce((n, p) => n + p.done, 0);
   const waiting = known.reduce((n, p) => n + p.waiting, 0);
   const q = query.trim().toLowerCase();
-  const shown = q ? languages.filter((l) => `${l.name} ${l.code}`.toLowerCase().includes(q)) : languages;
+  const shown = q ? inView.filter((l) => `${l.name} ${l.code}`.toLowerCase().includes(q)) : inView;
   // The param opens that language's stream.
   const open = (languageId: string) => ctx.go('map_home', { languageId });
   const isOpen = (languageId: string) => beside?.screen === 'map_home' && beside.params['languageId'] === languageId;
 
   return (
     <Screen header={header}>
+      {clusters.length ? (
+        <ChipRow>
+          <Chip label={t('clusters.status.all')} count={languages.length} on={filter.kind === 'all'} onPress={() => { setCluster({ kind: 'all' }); setLimit(PAGE); }} />
+          {clusters.map((c) => (
+            <Chip key={c.clusterId} label={c.name} icon="layers" count={c.languageIds.length} on={filter.kind === 'cluster' && filter.clusterId === c.clusterId}
+              onPress={() => { setCluster({ kind: 'cluster', clusterId: c.clusterId }); setLimit(PAGE); }} />
+          ))}
+          {outside ? <Chip label={t('clusters.status.none')} count={outside} on={filter.kind === 'none'} onPress={() => { setCluster({ kind: 'none' }); setLimit(PAGE); }} /> : null}
+        </ChipRow>
+      ) : null}
       {languages.length === 0 ? (
         <EmptyState icon="globe" title={t('map.noLanguages')} sub={t('map.status.noLanguagesSub')} />
       ) : (
         <Card>
           <Text style={[txt.sm, { color: C.muted, fontWeight: '600' }]}>
-            {known.length === languages.length ? t('map.status.across', { count: languages.length }) : t('map.status.counted', { count: languages.length, known: fmt(known.length) })} · {t('map.passages', { count: total })}
+            {known.length === inView.length ? t('map.status.across', { count: inView.length }) : t('map.status.counted', { count: inView.length, known: fmt(known.length) })} · {t('map.passages', { count: total })}
           </Text>
           {asOf ? <Text style={txt.smMuted}>{t('map.status.asOf', { ago: agoWords(asOf) })}</Text> : null}
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space.xl }}>

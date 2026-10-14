@@ -340,7 +340,8 @@
     "mic_setup": "ማይክሮፎንዎን ያዘጋጁ",
     "get_ready": "ይዘጋጁ",
     "settings_more": "ተጨማሪ ቅንብሮች",
-    "check_editor": "ፍተሻ"
+    "check_editor": "ፍተሻ",
+    "cluster_home": "ቡድን"
   },
   "native": {
     "microphone": "LangQuest ክፍሎችን ለመተርጎም ድምፅዎን ይቀርጻል።",
@@ -656,7 +657,8 @@
       "languagesTitle": "ቋንቋዎች",
       "newLanguage": "አዲስ ቋንቋ",
       "noLanguages": "እስካሁን ቋንቋዎች የሉም። ቡድንዎ የሚቀርጸውን የመጀመሪያውን ቋንቋ ያክሉ።",
-      "openToBring": "ወደዚህ መሣሪያ ለማምጣት ይክፈቱት"
+      "openToBring": "ወደዚህ መሣሪያ ለማምጣት ይክፈቱት",
+      "newLanguageOrCluster": "አዲስ ቋንቋ ወይም ቡድን"
     },
     "rename": {
       "done": "ስሙ ወደ {{name}} ተቀይሯል።",
@@ -724,7 +726,8 @@
         "roles": "ሚናዎች",
         "publicListing": "የሕዝብ ዝርዝር",
         "name": "ስም",
-        "languageList": "የቋንቋዎች ዝርዝር"
+        "languageList": "የቋንቋዎች ዝርዝር",
+        "cluster": "ቡድን"
       },
       "orgAndCode": "{{org}} · ኮድ {{code}}",
       "seeWork": "ሥራቸውን ይመልከቱ",
@@ -6176,6 +6179,104 @@
       "playHelp": "እንዴት እንደሚሉት ያጫውታል።",
       "suggest": "እዚህ ሌሎች ቋንቋዎች የሚጠቀሙት",
       "suggestHelp": "እዚህ በ{{languages}} ይጠቀሙበታል። ለማከል ይንኩ።"
+    }
+  },
+  "clusters": {
+    "row": {
+      "sub_one": "{{count, number}} ቋንቋ · {{names}}",
+      "sub_other": "{{count, number}} ቋንቋዎች · {{names}}",
+      "namesMore": "{{names}}…"
+    },
+    "home": {
+      "sub_one": "ቡድን · {{count, number}} ቋንቋ",
+      "sub_other": "ቡድን · {{count, number}} ቋንቋዎች",
+      "together": "በአንድነት",
+      "itsLanguages": "ቋንቋዎቹ",
+      "add": "ቋንቋ ጨምርበት",
+      "rename": "ስም ቀይር",
+      "ungroup": "ቡድኑን አፍርስ",
+      "gone": "ይህ ቡድን አሁን ምንም ቋንቋ የለውም",
+      "goneSub": "ቋንቋዎቹ ከቡድኑ ወጥተዋል። ሁሉም አሁንም በ{{org}} ውስጥ ናቸው።",
+      "notSaved": "አልተቀመጠም"
+    },
+    "add": {
+      "title": "ወደ {{cluster}} ጨምር",
+      "newLanguage": "አዲስ ቋንቋ",
+      "newLanguageSub": "አዘጋጀው፣ ቀድሞውኑ በ{{cluster}} ውስጥ",
+      "alreadyIn": "ቀድሞውኑ በ{{org}} ውስጥ",
+      "none": "የ{{org}} ቋንቋዎች ሁሉ ቀድሞውኑ በውስጡ ናቸው።",
+      "button": "ጨምር",
+      "done_one": "{{count, number}} ቋንቋ ወደ {{cluster}} ተጨምሯል።",
+      "done_other": "{{count, number}} ቋንቋዎች ወደ {{cluster}} ተጨምረዋል።"
+    },
+    "rename": {
+      "title": "የ{{cluster}}ን ስም ቀይር",
+      "label": "ስሙ",
+      "save": "አስቀምጥ",
+      "done": "ስሙ ወደ {{name}} ተቀይሯል።"
+    },
+    "ungroup": {
+      "title": "{{cluster}}ን ታፈርሳለህ?",
+      "body_one": "ቋንቋው ከሰዎቹ፣ ከቅጂዎቹና ከፍተሻዎቹ ጋር ይቆያል። የሚሄደው የሚያሰባስበው ስም ብቻ ነው።",
+      "body_other": "{{count, number}} ቋንቋዎቹ ከሰዎቻቸው፣ ከቅጂዎቻቸውና ከፍተሻዎቻቸው ጋር ይቆያሉ። የሚሄደው የሚያሰባስባቸው ስም ብቻ ነው።",
+      "confirm": "አፍርስ",
+      "keep": "ይቆይ",
+      "done": "{{cluster}} ፈርሷል። ቋንቋዎቹ አሁንም እዚህ አሉ።"
+    },
+    "language": {
+      "label": "ቡድን",
+      "none": "በቡድን ውስጥ የለም",
+      "sheetTitle": "በየትኛው ቡድን ውስጥ ነው?",
+      "count_one": "{{count, number}} ቋንቋ",
+      "count_other": "{{count, number}} ቋንቋዎች",
+      "newLabel": "ወይም አዲስ ቡድን",
+      "firstLabel": "በአዲስ ቡድን ውስጥ አስገባው",
+      "note": "አንድ ቋንቋ ከአንድ በላይ ቡድን ውስጥ ሊሆን ይችላል፣ ወይም በምንም ውስጥ ላይሆን ይችላል። በቋንቋው ላይ ምንም አይቀየርም።",
+      "done": "ተጠናቋል",
+      "saved": "የ{{language}} ቡድኖች ተቀምጠዋል።"
+    },
+    "newLanguage": {
+      "what": "ምን እየጨመርክ ነው?",
+      "one": "አንድ ቋንቋ",
+      "oneSub": "የራሱ ቅጂዎች፣ ፍተሻዎችና ሰዎች ያሉት",
+      "cluster": "የቋንቋዎች ቡድን",
+      "clusterSub": "በአንድነት የሚዘጋጁ በርካታ ተዛማጅ ቋንቋዎች",
+      "clusterName": "የቡድኑ ስም",
+      "clusterPlaceholder": "ለምሳሌ Dar Khamsa",
+      "theCluster": "ቡድኑ",
+      "inCluster": "በቡድን ውስጥ? በኋላ መምረጥ ትችላለህ",
+      "no": "አይ",
+      "newCluster": "አዲስ ቡድን",
+      "joinsNamed": "{{org}} ቀድሞውኑ {{cluster}} አለው። እነዚህ ቋንቋዎች ይቀላቀሉታል።",
+      "itsLanguages": "ቋንቋዎቹ · {{number}}",
+      "addOne": "ቋንቋ ጨምር",
+      "unlisted": "አልተገኘም? እንደጻፍከው ጨምረው፣ ኮድ ካለው ከኮዱ ጋር።",
+      "addTyped": "“{{name}}”ን ጨምር",
+      "new": "አዲስ",
+      "newWithCode": "{{code}} · አዲስ",
+      "already": "ቀድሞውኑ በ{{org}} ውስጥ",
+      "takeOut": "አውጣ",
+      "note_one": "እዚህ ያሉ ቋንቋዎች ያላቸውን ሁሉ ይዘው ይቆያሉ። አዲሱ ቋንቋ በሚቀጥሉት ደረጃዎች ይዘጋጃል።",
+      "note_other": "እዚህ ያሉ ቋንቋዎች ያላቸውን ሁሉ ይዘው ይቆያሉ። {{count, number}} አዲሶቹ ቋንቋዎች በሚቀጥሉት ደረጃዎች በአንድነት ይዘጋጃሉ።",
+      "onlyExisting": "የሚዘጋጅ አዲስ ነገር የለም፤ እዚህ ያሉ ቋንቋዎች ያላቸውን ሁሉ ይዘው ይቆያሉ።",
+      "make": "ቡድኑን ፍጠር",
+      "made_one": "{{cluster}} ተፈጥሯል፣ ከ{{count, number}} ቋንቋ ጋር።",
+      "made_other": "{{cluster}} ተፈጥሯል፣ ከ{{count, number}} ቋንቋዎች ጋር።",
+      "forNew_one": "በ{{cluster}} ውስጥ ላለው አዲስ ቋንቋ። በኋላ የራሱን መቀየር ይችላል።",
+      "forNew_other": "በ{{cluster}} ውስጥ ላሉት {{count, number}} አዲስ ቋንቋዎች። እያንዳንዳቸው በኋላ የራሳቸውን መቀየር ይችላሉ።",
+      "added_one": "{{count, number}} ቋንቋ ወደ {{org}} ተጨምሯል፣ በ{{cluster}} ውስጥ።",
+      "added_other": "{{count, number}} ቋንቋዎች ወደ {{org}} ተጨምረዋል፣ በ{{cluster}} ውስጥ።",
+      "addedNotOffered_one": "{{count, number}} ቋንቋ ወደ {{org}} ተጨምሯል፣ በ{{cluster}} ውስጥ። መስመር ላይ ስትሆን {{offers}}ን በሚረዳቸው ስር አቅርብ።",
+      "addedNotOffered_other": "{{count, number}} ቋንቋዎች ወደ {{org}} ተጨምረዋል፣ በ{{cluster}} ውስጥ። መስመር ላይ ስትሆን {{offers}}ን በሚረዳቸው ስር አቅርብ።",
+      "notMade": "አልተጨመረም",
+      "making": {
+        "adding": "{{language}}ን በመጨመር ላይ",
+        "grouping": "ወደ {{cluster}} በመጨመር ላይ"
+      }
+    },
+    "status": {
+      "all": "ሁሉም",
+      "none": "በቡድን ውስጥ የሌሉ"
     }
   }
 }

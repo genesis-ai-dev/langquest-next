@@ -340,7 +340,8 @@
     "mic_setup": "Set up your microphone",
     "get_ready": "Get ready",
     "settings_more": "More settings",
-    "check_editor": "Check"
+    "check_editor": "Check",
+    "cluster_home": "Cluster"
   },
   "native": {
     "microphone": "LangQuest records your voice to translate passages.",
@@ -656,7 +657,8 @@
       "languagesTitle": "Languages",
       "newLanguage": "New language",
       "noLanguages": "No languages yet. Add the first one your team will record.",
-      "openToBring": "Open it to bring it onto this device"
+      "openToBring": "Open it to bring it onto this device",
+      "newLanguageOrCluster": "New language or cluster"
     },
     "rename": {
       "done": "Renamed to {{name}}.",
@@ -724,7 +726,8 @@
         "roles": "roles",
         "publicListing": "public listing",
         "name": "name",
-        "languageList": "language list"
+        "languageList": "language list",
+        "cluster": "cluster"
       },
       "orgAndCode": "{{org}} · Code {{code}}",
       "seeWork": "See their work",
@@ -6176,6 +6179,104 @@
       "playHelp": "Plays how they say it.",
       "suggest": "Other languages here use",
       "suggestHelp": "Used here by {{languages}}. Tap to add it."
+    }
+  },
+  "clusters": {
+    "row": {
+      "sub_one": "{{count, number}} language · {{names}}",
+      "sub_other": "{{count, number}} languages · {{names}}",
+      "namesMore": "{{names}}…"
+    },
+    "home": {
+      "sub_one": "Cluster · {{count, number}} language",
+      "sub_other": "Cluster · {{count, number}} languages",
+      "together": "Together",
+      "itsLanguages": "Its languages",
+      "add": "Add a language to it",
+      "rename": "Rename",
+      "ungroup": "Ungroup",
+      "gone": "This cluster has no languages now",
+      "goneSub": "Its languages were taken out of it. They are all still in {{org}}.",
+      "notSaved": "Not saved"
+    },
+    "add": {
+      "title": "Add to {{cluster}}",
+      "newLanguage": "A new language",
+      "newLanguageSub": "Set it up, already in {{cluster}}",
+      "alreadyIn": "Already in {{org}}",
+      "none": "Every language in {{org}} is in it already.",
+      "button": "Add",
+      "done_one": "{{count, number}} language added to {{cluster}}.",
+      "done_other": "{{count, number}} languages added to {{cluster}}."
+    },
+    "rename": {
+      "title": "Rename {{cluster}}",
+      "label": "Its name",
+      "save": "Save",
+      "done": "Renamed to {{name}}."
+    },
+    "ungroup": {
+      "title": "Ungroup {{cluster}}?",
+      "body_one": "Its language stays, with its people, recordings and checks. Only the name that groups it goes.",
+      "body_other": "Its {{count, number}} languages stay, with their people, recordings and checks. Only the name that groups them goes.",
+      "confirm": "Ungroup",
+      "keep": "Keep it",
+      "done": "{{cluster}} ungrouped. Its languages are still here."
+    },
+    "language": {
+      "label": "Cluster",
+      "none": "Not in a cluster",
+      "sheetTitle": "Which cluster is it in?",
+      "count_one": "{{count, number}} language",
+      "count_other": "{{count, number}} languages",
+      "newLabel": "Or a new cluster",
+      "firstLabel": "Put it in a new cluster",
+      "note": "A language can be in more than one cluster, or none. Nothing about the language changes.",
+      "done": "Done",
+      "saved": "{{language}}'s clusters saved."
+    },
+    "newLanguage": {
+      "what": "What are you adding?",
+      "one": "One language",
+      "oneSub": "Its own recordings, checks and people",
+      "cluster": "A cluster of languages",
+      "clusterSub": "Several related languages, set up together",
+      "clusterName": "The cluster's name",
+      "clusterPlaceholder": "e.g. Dar Khamsa",
+      "theCluster": "the cluster",
+      "inCluster": "In a cluster? You can choose later",
+      "no": "No",
+      "newCluster": "New cluster",
+      "joinsNamed": "{{org}} already has {{cluster}}. These languages join it.",
+      "itsLanguages": "Its languages · {{number}}",
+      "addOne": "Add a language",
+      "unlisted": "Not there? Add it as you typed it, with its code if it has one.",
+      "addTyped": "Add “{{name}}”",
+      "new": "New",
+      "newWithCode": "{{code}} · new",
+      "already": "Already in {{org}}",
+      "takeOut": "Take out",
+      "note_one": "Languages already here keep everything they have. The new one is set up in the next steps.",
+      "note_other": "Languages already here keep everything they have. The {{count, number}} new ones are set up together in the next steps.",
+      "onlyExisting": "Nothing new to set up: languages already here keep everything they have.",
+      "make": "Make the cluster",
+      "made_one": "{{cluster}} made, with {{count, number}} language.",
+      "made_other": "{{cluster}} made, with {{count, number}} languages.",
+      "forNew_one": "For the new language in {{cluster}}. It can change its own later.",
+      "forNew_other": "For the {{count, number}} new languages in {{cluster}}. Each one can change its own later.",
+      "added_one": "{{count, number}} language added to {{org}}, in {{cluster}}.",
+      "added_other": "{{count, number}} languages added to {{org}}, in {{cluster}}.",
+      "addedNotOffered_one": "{{count, number}} language added to {{org}}, in {{cluster}}. Offer {{offers}} under What helps once you are online.",
+      "addedNotOffered_other": "{{count, number}} languages added to {{org}}, in {{cluster}}. Offer {{offers}} under What helps once you are online.",
+      "notMade": "Not added",
+      "making": {
+        "adding": "Adding {{language}}",
+        "grouping": "Adding to {{cluster}}"
+      }
+    },
+    "status": {
+      "all": "All",
+      "none": "Not in a cluster"
     }
   }
 }

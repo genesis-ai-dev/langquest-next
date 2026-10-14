@@ -340,7 +340,8 @@
     "mic_setup": "মাইক্রোফোন ঠিক করুন",
     "get_ready": "প্রস্তুত হন",
     "settings_more": "আরও সেটিংস",
-    "check_editor": "যাচাই"
+    "check_editor": "যাচাই",
+    "cluster_home": "গুচ্ছ"
   },
   "native": {
     "microphone": "অংশ অনুবাদ করতে LangQuest আপনার কণ্ঠ রেকর্ড করে।",
@@ -656,7 +657,8 @@
       "languagesTitle": "ভাষা",
       "newLanguage": "নতুন ভাষা",
       "noLanguages": "এখনও কোনো ভাষা নেই। আপনার দল প্রথম যে ভাষায় রেকর্ড করবে সেটি যোগ করুন।",
-      "openToBring": "এই ডিভাইসে আনতে এটি খুলুন"
+      "openToBring": "এই ডিভাইসে আনতে এটি খুলুন",
+      "newLanguageOrCluster": "নতুন ভাষা বা গুচ্ছ"
     },
     "rename": {
       "done": "নাম বদলে {{name}} রাখা হয়েছে।",
@@ -724,7 +726,8 @@
         "roles": "ভূমিকা",
         "publicListing": "সবার জন্য তালিকাভুক্তি",
         "name": "নাম",
-        "languageList": "ভাষার তালিকা"
+        "languageList": "ভাষার তালিকা",
+        "cluster": "গুচ্ছ"
       },
       "orgAndCode": "{{org}} · কোড {{code}}",
       "seeWork": "তাদের কাজ দেখুন",
@@ -6176,6 +6179,104 @@
       "playHelp": "তারা কীভাবে বলে তা চালায়।",
       "suggest": "এখানকার অন্য ভাষাগুলো ব্যবহার করে",
       "suggestHelp": "এখানে {{languages}}-এ ব্যবহৃত। যোগ করতে ছুঁয়ে দিন।"
+    }
+  },
+  "clusters": {
+    "row": {
+      "sub_one": "{{count, number}}টি ভাষা · {{names}}",
+      "sub_other": "{{count, number}}টি ভাষা · {{names}}",
+      "namesMore": "{{names}}…"
+    },
+    "home": {
+      "sub_one": "গুচ্ছ · {{count, number}}টি ভাষা",
+      "sub_other": "গুচ্ছ · {{count, number}}টি ভাষা",
+      "together": "একসাথে",
+      "itsLanguages": "এর ভাষাগুলি",
+      "add": "এতে একটি ভাষা যোগ করুন",
+      "rename": "নাম বদলান",
+      "ungroup": "গুচ্ছ ভাঙুন",
+      "gone": "এই গুচ্ছে এখন কোনো ভাষা নেই",
+      "goneSub": "এর ভাষাগুলি এখান থেকে সরানো হয়েছে। সেগুলি এখনও {{org}}-এ আছে।",
+      "notSaved": "সংরক্ষিত হয়নি"
+    },
+    "add": {
+      "title": "{{cluster}}-এ যোগ করুন",
+      "newLanguage": "একটি নতুন ভাষা",
+      "newLanguageSub": "এটি প্রস্তুত করুন, আগে থেকেই {{cluster}}-এ",
+      "alreadyIn": "আগে থেকেই {{org}}-এ",
+      "none": "{{org}}-এর প্রতিটি ভাষা আগে থেকেই এতে আছে।",
+      "button": "যোগ করুন",
+      "done_one": "{{count, number}}টি ভাষা {{cluster}}-এ যোগ হয়েছে।",
+      "done_other": "{{count, number}}টি ভাষা {{cluster}}-এ যোগ হয়েছে।"
+    },
+    "rename": {
+      "title": "{{cluster}}-এর নাম বদলান",
+      "label": "এর নাম",
+      "save": "সংরক্ষণ করুন",
+      "done": "নাম বদলে {{name}} হয়েছে।"
+    },
+    "ungroup": {
+      "title": "{{cluster}} গুচ্ছ ভাঙবেন?",
+      "body_one": "এর ভাষাটি এর লোকজন, রেকর্ডিং ও যাচাই নিয়ে থেকে যায়। শুধু যে নামটি এটিকে গুচ্ছে রাখে সেটি চলে যায়।",
+      "body_other": "এর {{count, number}}টি ভাষা তাদের লোকজন, রেকর্ডিং ও যাচাই নিয়ে থেকে যায়। শুধু যে নামটি সেগুলিকে গুচ্ছে রাখে সেটি চলে যায়।",
+      "confirm": "গুচ্ছ ভাঙুন",
+      "keep": "রেখে দিন",
+      "done": "{{cluster}} গুচ্ছ ভাঙা হয়েছে। এর ভাষাগুলি এখনও এখানে আছে।"
+    },
+    "language": {
+      "label": "গুচ্ছ",
+      "none": "কোনো গুচ্ছে নেই",
+      "sheetTitle": "এটি কোন গুচ্ছে আছে?",
+      "count_one": "{{count, number}}টি ভাষা",
+      "count_other": "{{count, number}}টি ভাষা",
+      "newLabel": "অথবা একটি নতুন গুচ্ছ",
+      "firstLabel": "এটিকে একটি নতুন গুচ্ছে রাখুন",
+      "note": "একটি ভাষা একাধিক গুচ্ছে থাকতে পারে, অথবা কোনোটিতেই নয়। ভাষাটির কিছুই বদলায় না।",
+      "done": "হয়ে গেছে",
+      "saved": "{{language}}-এর গুচ্ছ সংরক্ষিত হয়েছে।"
+    },
+    "newLanguage": {
+      "what": "আপনি কী যোগ করছেন?",
+      "one": "একটি ভাষা",
+      "oneSub": "এর নিজস্ব রেকর্ডিং, যাচাই ও লোকজন",
+      "cluster": "ভাষার একটি গুচ্ছ",
+      "clusterSub": "কয়েকটি সম্পর্কিত ভাষা, একসাথে প্রস্তুত করা",
+      "clusterName": "গুচ্ছের নাম",
+      "clusterPlaceholder": "যেমন Dar Khamsa",
+      "theCluster": "গুচ্ছটি",
+      "inCluster": "কোনো গুচ্ছে? পরে বেছে নিতে পারেন",
+      "no": "না",
+      "newCluster": "নতুন গুচ্ছ",
+      "joinsNamed": "{{org}}-এ আগে থেকেই {{cluster}} আছে। এই ভাষাগুলি তাতে যোগ দেবে।",
+      "itsLanguages": "এর ভাষাগুলি · {{number}}",
+      "addOne": "একটি ভাষা যোগ করুন",
+      "unlisted": "পাওয়া যাচ্ছে না? যেভাবে লিখেছেন সেভাবে যোগ করুন, কোড থাকলে সেটিসহ।",
+      "addTyped": "“{{name}}” যোগ করুন",
+      "new": "নতুন",
+      "newWithCode": "{{code}} · নতুন",
+      "already": "আগে থেকেই {{org}}-এ",
+      "takeOut": "সরান",
+      "note_one": "এখানে আগে থেকে থাকা ভাষাগুলি তাদের সবকিছু রাখে। নতুন ভাষাটি পরের ধাপগুলিতে প্রস্তুত হয়।",
+      "note_other": "এখানে আগে থেকে থাকা ভাষাগুলি তাদের সবকিছু রাখে। {{count, number}}টি নতুন ভাষা পরের ধাপগুলিতে একসাথে প্রস্তুত হয়।",
+      "onlyExisting": "নতুন কিছু প্রস্তুত করার নেই: এখানে আগে থেকে থাকা ভাষাগুলি তাদের সবকিছু রাখে।",
+      "make": "গুচ্ছ তৈরি করুন",
+      "made_one": "{{cluster}} তৈরি হয়েছে, {{count, number}}টি ভাষা নিয়ে।",
+      "made_other": "{{cluster}} তৈরি হয়েছে, {{count, number}}টি ভাষা নিয়ে।",
+      "forNew_one": "{{cluster}}-এর নতুন ভাষাটির জন্য। এটি পরে নিজেরটা বদলাতে পারে।",
+      "forNew_other": "{{cluster}}-এর {{count, number}}টি নতুন ভাষার জন্য। প্রতিটি পরে নিজেরটা বদলাতে পারে।",
+      "added_one": "{{count, number}}টি ভাষা {{org}}-এ যোগ হয়েছে, {{cluster}}-এ।",
+      "added_other": "{{count, number}}টি ভাষা {{org}}-এ যোগ হয়েছে, {{cluster}}-এ।",
+      "addedNotOffered_one": "{{count, number}}টি ভাষা {{org}}-এ যোগ হয়েছে, {{cluster}}-এ। অনলাইনে এলে কী সাহায্য করে-তে {{offers}} দিন।",
+      "addedNotOffered_other": "{{count, number}}টি ভাষা {{org}}-এ যোগ হয়েছে, {{cluster}}-এ। অনলাইনে এলে কী সাহায্য করে-তে {{offers}} দিন।",
+      "notMade": "যোগ হয়নি",
+      "making": {
+        "adding": "{{language}} যোগ হচ্ছে",
+        "grouping": "{{cluster}}-এ যোগ হচ্ছে"
+      }
+    },
+    "status": {
+      "all": "সব",
+      "none": "কোনো গুচ্ছে নেই"
     }
   }
 }
