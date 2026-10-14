@@ -4,7 +4,7 @@
 #
 # Wrapping: REV's voice note is made beside the flow, once this flow shows
 # Sync (it waits up to three minutes):
-#   npx tsx web-tests/ui/sync-wrap.ts rev-voice-note web-tests/results/maestro/<platform>/world.json
+#   npx tsx e2e/ui/sync-wrap.ts rev-voice-note e2e/results/maestro/<platform>/world.json
 appId: com.frontierrnd.langquestnext
 name: "SYNC-026 Audio another device made comes down by itself"
 tags:

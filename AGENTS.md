@@ -42,7 +42,7 @@ Rules specific to this folder:
   (`apps/mobile/src/screens/reports.tsx`, parts in `src/reports/`), and
   report logic is `packages/core/src/portfolio.ts`. Web-only code goes behind
   `Platform.OS === 'web'` or in a `.web.tsx` file, and
-  `npm run test:web` (web-tests/web-smoke) must pass.
+  `npm run test:web` (e2e/web-smoke) must pass.
 - No `status` columns. Status comes from `passage.ts`.
 - No local versus synced tables. Sync status is a column on the events table.
 - Run `npm test` and `npm run typecheck` in this folder before finishing.

@@ -21,7 +21,7 @@ You work one LangQuest Next (team LAN) issue in Todo, start to Verifying.
    A person reviews it.
 5. Verify before you claim anything. Run `npm run typecheck` and
    `npx vitest run`. For a change a user can see, run the relevant web UI spec
-   (`npm run test:ui:web -- web-tests/ui/<file>`) and keep the result. Move the issue to Verifying and comment the
+   (`npm run test:ui:web -- e2e/ui/<file>`) and keep the result. Move the issue to Verifying and comment the
    evidence: commands run, results, spec result or screenshot. If something
    was skipped, say so; "tests pass" is wrong if any were skipped.
 6. Push to main with the issue ID in the commit message (`... (LAN-12)`). Never

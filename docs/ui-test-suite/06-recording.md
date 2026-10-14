@@ -431,7 +431,7 @@ Expected:
 - The button returns to "Record". No part is made, and "Publish" stays disabled.
 - Step 4 shows the same message again without a crash. On iOS and Android the system does not ask a second time.
 - The app does not hang: ✕ still returns to the record, and nothing is written.
-- Automation: phones, `apps/mobile/test/maestro/flows/REC-020.yaml` (Maestro grants permissions at launch, so the app is started again with the microphone denied). Web, `web-tests/ui/06-recording-mic.spec.ts`: Chrome runs with `--use-fake-ui-for-media-stream`, which answers every prompt "Allow" even with the site's permission set to denied through DevTools, so "Block" is the page's microphone refusing (getUserMedia fails with NotAllowedError, as after a person blocks it).
+- Automation: phones, `apps/mobile/test/maestro/flows/REC-020.yaml` (Maestro grants permissions at launch, so the app is started again with the microphone denied). Web, `e2e/ui/06-recording-mic.spec.ts`: Chrome runs with `--use-fake-ui-for-media-stream`, which answers every prompt "Allow" even with the site's permission set to denied through DevTools, so "Block" is the page's microphone refusing (getUserMedia fails with NotAllowedError, as after a person blocks it).
 
 ### REC-021 Recording works once the microphone is allowed in Settings
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto

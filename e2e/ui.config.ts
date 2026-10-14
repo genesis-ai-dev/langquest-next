@@ -5,9 +5,9 @@ import { writeVoice } from './fixtures/voice';
 
 // The UI test suite on the web (docs/ui-test-suite, decisions.md 95, 102): by
 // default the app's release export of the local stack, served by the Worker
-// (web-tests/ui-web.sh); UI_TARGET=dev runs Metro's dev build instead,
+// (e2e/ui-web.sh); UI_TARGET=dev runs Metro's dev build instead,
 // against the local stack, one fresh fixture world per
-// spec file (web-tests/ui/fixture.ts), so files run in parallel without
+// spec file (e2e/ui/fixture.ts), so files run in parallel without
 // touching each other. Tests inside a file run in order: they share its world.
 const directory = path.dirname(fileURLToPath(import.meta.url));
 // One id per run, set in the runner process and inherited by its workers: a
@@ -54,7 +54,7 @@ export default defineConfig({
   webServer: dev
     ? [
         {
-          command: `bash web-tests/web.sh ${port}`,
+          command: `bash e2e/web.sh ${port}`,
           cwd: path.join(directory, '..'),
           url: `http://localhost:${port}`,
           reuseExistingServer: true,
@@ -73,7 +73,7 @@ export default defineConfig({
         // Exports the app, then serves it and /api from one Worker. A Worker already on this
         // port is reused as it is: stop it first to serve a fresh export (README, Running the suite).
         {
-          command: `bash web-tests/ui-web.sh ${port}`,
+          command: `bash e2e/ui-web.sh ${port}`,
           cwd: path.join(directory, '..'),
           url: `http://localhost:${port}/version.json`,
           reuseExistingServer: true,

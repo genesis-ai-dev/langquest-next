@@ -37,7 +37,7 @@
     "docs",
     "supabase",
     "scripts",
-    "web-tests",
+    "e2e",
     "server",
     "library",
     "coverage",

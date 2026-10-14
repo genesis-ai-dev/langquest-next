@@ -1,6 +1,6 @@
 // Helpers for the recording tests (docs/ui-test-suite/06-recording.md).
 //
-// The microphone. Chrome plays web-tests/fixtures/voice-mic.wav as the
+// The microphone. Chrome plays e2e/fixtures/voice-mic.wav as the
 // microphone (ui.config.ts, fixtures/voice.ts): 1.5 s of voice, then 2.5 s
 // of quiet, on its own clock (not restarted when the app opens the
 // microphone), so voice detection ends one part about every four seconds. A test that needs the room quiet,

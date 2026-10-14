@@ -10,17 +10,17 @@
  * --device; an iOS run with none uses N booted simulators), through Maestro's
  * --shard-split. Maestro keeps flowsOrder only inside one shard, so the flows
  * config.yaml orders run first, in order, on the first device; the rest are
- * split across all N. --voice (macOS) loops web-tests/fixtures/voice.wav
+ * split across all N. --voice (macOS) loops e2e/fixtures/voice.wav
  * into a virtual audio device for the run, for the flows that need a
  * microphone signal (the Maestro section of docs/ui-test-suite/README.md).
  *
- * Builds a fresh fixture world on the local stack (web-tests/ui/fixture.ts),
+ * Builds a fresh fixture world on the local stack (e2e/ui/fixture.ts),
  * hands its accounts and passages to Maestro as variables, and runs
  * apps/mobile/test/maestro on the test build installed on the device
  * (`npm run test:ui:build`, its JavaScript inside). With `--app dev` it runs
  * on a dev client instead, loading this checkout's code from Metro on --port
  * (start it with `npm start -w mobile -- --dev-client --port 8095`). Results
- * go to web-tests/results/maestro/<platform>/<label>/.
+ * go to e2e/results/maestro/<platform>/<label>/.
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync } from 'node:fs';
@@ -61,7 +61,7 @@ function pickDevices() {
 const devices = pickDevices();
 if (devices.length !== shards) throw new Error(`--shards ${shards} needs ${shards} devices named with --device (got ${devices.length})`);
 const device = devices[0];
-const results = join(root, 'web-tests/results/maestro', platform, value('label', 'run'));
+const results = join(root, 'e2e/results/maestro', platform, value('label', 'run'));
 mkdirSync(results, { recursive: true });
 
 function run(cmd, cmdArgs, opts = {}) {
@@ -155,7 +155,7 @@ const flowsDir = join(root, 'apps/mobile/test/maestro');
 // clip into a virtual audio device (BlackHole or similar) for the run.
 if (args.includes('--voice')) startVoice();
 function startVoice() {
-  const wav = join(root, 'web-tests/fixtures/voice.wav');
+  const wav = join(root, 'e2e/fixtures/voice.wav');
   if (process.platform !== 'darwin') throw new Error('--voice is for macOS hosts: on Linux, loop voice.wav into a PulseAudio null sink and make its monitor the default source');
   const out = spawnSync('system_profiler', ['SPAudioDataType'], { encoding: 'utf8' }).stdout ?? '';
   const virtual = [...out.matchAll(/^\s{8}(.+):$/gm)].map((m) => m[1]).find((n) => /blackhole|loopback|soundflower|vb-cable|virtual/i.test(n));

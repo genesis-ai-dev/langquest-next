@@ -3631,5 +3631,7 @@ how to do a job) slips through, which is the one thing a goal-driven agent
 checks and scripts do not. Then Jev returns as a nightly signal.
 
 Amended (2026-10-14, Carl Sauder): the folder `smart-tests/` is now
-`web-tests/`. "Smart" was Jev's word for its journeys; what is left in it is
-the web UI suite and the web smoke, both Playwright.
+`e2e/`. "Smart" was Jev's word for its journeys; what is left in it is
+the web UI suite and the web smoke, both Playwright, the end-to-end
+layer of `docs/testing.md`. Not `web-tests/`, which read like a sibling
+of `apps/web/test`, the Worker's unit tests.

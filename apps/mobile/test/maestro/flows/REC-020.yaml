@@ -1,5 +1,5 @@
 # REC-020 (docs/ui-test-suite/06-recording.md) on a phone: the microphone
-# refused. The web run (web-tests/ui/06-recording-mic.spec.ts) covers the
+# refused. The web run (e2e/ui/06-recording-mic.spec.ts) covers the
 # same test in Chrome; this one covers the system's own answer.
 #
 # Maestro grants every permission when it launches an app unless told

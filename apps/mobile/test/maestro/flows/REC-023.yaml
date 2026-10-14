@@ -3,7 +3,7 @@
 #
 # Passage: P-T (Luke 12:49-59), which no other phone flow touches; it starts
 # with no parts, so the two that end before the kill are "Parts 1–2".
-# Audio: G8, the host's microphone playing web-tests/fixtures/voice.wav in
+# Audio: G8, the host's microphone playing e2e/fixtures/voice.wav in
 # a loop (1.5 s of voice, 2.5 s of quiet), so a part ends about every four
 # seconds and "Recording…" shows while the voice plays. With a silent
 # microphone no part is made: the flow then stops at "Parts 1–2", having

@@ -9,7 +9,7 @@ export default defineConfig({
   },
   test: {
     globals: true,
-    include: ['packages/*/test/**/*.test.ts', 'apps/*/test/**/*.test.ts', 'scripts/**/*.test.ts', 'web-tests/**/*.test.ts'],
+    include: ['packages/*/test/**/*.test.ts', 'apps/*/test/**/*.test.ts', 'scripts/**/*.test.ts', 'e2e/**/*.test.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text-summary', 'json-summary', 'lcov'],

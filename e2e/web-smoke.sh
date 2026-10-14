@@ -4,7 +4,7 @@
 # /api, as production serves it. Needs the local Supabase (npm run db:start).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-source "$ROOT/web-tests/env.sh" || { echo "local Supabase is not running (npm run db:start)" >&2; exit 1; }
+source "$ROOT/e2e/env.sh" || { echo "local Supabase is not running (npm run db:start)" >&2; exit 1; }
 cd "$ROOT"
 npm run export:web -w mobile -- development
 npx tsx scripts/web-dev-vars.ts

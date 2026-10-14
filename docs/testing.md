@@ -15,12 +15,12 @@ above it, so a check goes in the lowest layer that can hold it.
 | 1. Unit and property | Core folds and commands, client sync, mobile models, scripts. The PLAN.md invariants as property tests (fast-check). | `packages/*/test`, `apps/*/test`, `scripts/*.test.ts` | every `npm test`, pre-push, CI on every PR |
 | 2. Server | SQL smokes, SQL-to-core parity (`validate_payload`, `event_privilege`), the client integration test, a fleet scenario on simulated time | `server/*.sql`, `scripts/db-test.mjs`, `packages/client/test/integration.test.ts`, `scripts/fleet` | CI on every PR (fleet nightly) |
 | 3. Screen models | What a screen shows for a state and a role: main button, path steps, team rows, tabs. Pure functions in `apps/mobile/src/*Model.ts`, tested with the core fixtures and `test/sessions.ts`. | `apps/mobile/test` | every `npm test` |
-| 4. End-to-end, web | A person does a job in the real app, signed in, against the local server: the release web export served by the Worker. Playwright. | `web-tests/ui` | `@p0` on every PR; the whole suite nightly and before a store release |
+| 4. End-to-end, web | A person does a job in the real app, signed in, against the local server: the release web export served by the Worker. Playwright. | `e2e/ui` | `@p0` on every PR; the whole suite nightly and before a store release |
 | 5. End-to-end, phones | What only a phone shows: recording, permissions, backgrounding, airplane mode, hand-over, the P0 smoke set. Maestro on a Release test build. | `apps/mobile/test/maestro` | before a store release, and after a change to the recorder, sync or sign-in |
 
 Beside them:
 
-- **Web smoke** (`web-tests/web-smoke`): the release export in Chromium,
+- **Web smoke** (`e2e/web-smoke`): the release export in Chromium,
   Firefox and WebKit, checking the platform itself (storage, tabs, headers,
   sign-out). CI on every PR.
 - **Coverage** (`npm run test:coverage`): V8 coverage of layers 1 to 3 with
@@ -76,7 +76,7 @@ A test that could be in a lower layer is moved there in review.
 These keep the suite fast enough to run and stable enough to trust.
 
 - **The export, not Metro.** The web suite runs against `npm run export:web`
-  served by the Worker (`web-tests/ui-web.sh`), the build people get.
+  served by the Worker (`e2e/ui-web.sh`), the build people get.
   `UI_TARGET=dev` runs it on Metro for working on a test against live code.
 - **Signals, not sleeps.** A test waits on something it can observe: a
   locator, the device log, or the test-state probe the app exposes in test
@@ -125,8 +125,8 @@ These keep the suite fast enough to run and stable enough to trust.
 - Layer 1 to 3: beside the code's existing tests, titled with the spec ID
   when it implements one.
 - Layer 4: a `test('ID title @p0', …)` in the area's spec file, using the
-  helpers in `web-tests/ui/support.ts`. Run the file alone first:
-  `npm run test:ui:web -- web-tests/ui/<file>`.
+  helpers in `e2e/ui/support.ts`. Run the file alone first:
+  `npm run test:ui:web -- e2e/ui/<file>`.
 - Layer 5: one flow per ID in `apps/mobile/test/maestro/flows`, tagged.
 - Every automated spec keeps its line in `docs/ui-test-suite` and its `Run`
   value says which layer holds it (`Auto`, `Auto (model)`, `Device`,

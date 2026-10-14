@@ -1,5 +1,5 @@
 /**
- * The UI test suite's fixture world (web-tests/ui/fixture.ts, decision 95),
+ * The UI test suite's fixture world (e2e/ui/fixture.ts, decision 95),
  * built fresh on the local server:
  *
  *   npm run ui:fixture -- --out world.json [--unwelcomed]
@@ -11,7 +11,7 @@
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { buildWorld, localServer, PASSAGE_KEYS } from '../web-tests/ui/fixture';
+import { buildWorld, localServer, PASSAGE_KEYS } from '../e2e/ui/fixture';
 
 async function main(argv: string[]) {
   const i = argv.indexOf('--out');

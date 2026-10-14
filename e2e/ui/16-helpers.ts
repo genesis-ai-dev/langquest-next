@@ -17,7 +17,7 @@ export async function partsCount(page: Page): Promise<number> {
 
 /**
  * In the recording workspace: tap the red button, let the microphone's voice
- * (web-tests/fixtures/voice.ts: 1.5 s of voice, 2.5 s of quiet, looped)
+ * (e2e/fixtures/voice.ts: 1.5 s of voice, 2.5 s of quiet, looped)
  * make `parts` new parts, then tap stop.
  */
 export async function recordParts(page: Page, parts: number): Promise<void> {

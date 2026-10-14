@@ -29,7 +29,7 @@ accounts are in [the README](README.md).
   `zbarimg`), then open it as a link.
 - Accounts made by joining (looked-after accounts) are deleted at the end of
   the run, as the README says for NEW.
-- Automation (`web-tests/ui/01-getting-in.spec.ts`, and
+- Automation (`e2e/ui/01-getting-in.spec.ts`, and
   `01-getting-in-welcome.spec.ts` for AUTH-056 to 059 on a never-welcomed
   world) issues invites and helpers' codes through the server as the app
   does, and opens links by loading them in the browser. So that one test's

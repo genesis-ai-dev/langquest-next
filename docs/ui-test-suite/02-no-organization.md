@@ -20,7 +20,7 @@ preconditions G1 to G10, the fixture and the accounts are in
   Device 2 (COORD or ADMIN).
 - Organizations made here are named "UI New Org {run}", unless a test says
   otherwise. Delete them, or leave them for the run's clean-up.
-- Automation (`web-tests/ui/02-no-organization.spec.ts`): tests that would
+- Automation (`e2e/ui/02-no-organization.spec.ts`): tests that would
   leave NOORG a member or a request use a fresh account with no
   organization, named in the test, so each starts on "Join your team" with
   nothing asked. LANG-A's row is written as the projection worker writes it.

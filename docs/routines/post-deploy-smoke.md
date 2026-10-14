@@ -9,10 +9,10 @@ Check that what reached Live actually works, and undo it if not.
 1. List LAN issues in Live whose comments have no line starting `Smoke `. If
    none, stop.
 2. For each, take the commit SHA from its `Deploying <sha>` comment. Pick the
-   spec file in web-tests/ui that covers the area the issue changed; if
+   spec file in e2e/ui that covers the area the issue changed; if
    none does, run 01-getting-in.spec.ts.
 3. Run it against the deployed web build:
-   `npm run test:ui:web -- web-tests/ui/<file>`. Check the evidence (event
+   `npm run test:ui:web -- e2e/ui/<file>`. Check the evidence (event
    log, blob store, server), not just that the page rendered. A spec that
    could not run is a failure to report, never a pass.
 4. Pass: comment `Smoke <sha> ok` with the spec file names. Fail: comment

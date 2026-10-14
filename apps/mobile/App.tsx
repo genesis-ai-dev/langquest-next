@@ -427,7 +427,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   useEffect(() => { if (languageId && languageId === paramLanguage && languageId !== savedLanguage) setLanguage(languageId); }, [languageId, paramLanguage, savedLanguage, setLanguage]);
   const languages = useMemo(() => orgLanguages(org.state), [org.state]);
   const language = useLanguage(props.orgId, languageId, props.actorId, org.membershipEpoch);
-  // Test builds only (testBuild.ts): the UI tests' "Sync now" and sync state (web-tests/ui/support.ts), beside the read-only log probe (store.ts).
+  // Test builds only (testBuild.ts): the UI tests' "Sync now" and sync state (e2e/ui/support.ts), beside the read-only log probe (store.ts).
   useEffect(() => {
     if (!(isTestBuild() && Platform.OS === 'web')) return;
     const g = globalThis as { __langquestSyncNow?: () => Promise<void>; __langquestTestState?: () => Promise<unknown> };
@@ -764,7 +764,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     else nav.reset({ screen: 'passage_record', params });
   }, [remember, session, nav.reset]);
   // Test builds only (testBuild.ts): open a passage's record the way a pushed notification does (home under it), so a
-  // test that only reads the record does not walk through the Map's search (web-tests/ui/support.ts, enterPassage).
+  // test that only reads the record does not walk through the Map's search (e2e/ui/support.ts, enterPassage).
   useEffect(() => {
     if (!(isTestBuild() && Platform.OS === 'web')) return;
     const g = globalThis as { __langquestOpenPassage?: typeof openTask };

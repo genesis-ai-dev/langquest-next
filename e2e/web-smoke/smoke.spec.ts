@@ -79,7 +79,7 @@ async function appFiles(page: Page): Promise<string[]> {
 async function blobStored(hash: string): Promise<boolean> {
   const url = process.env['EXPO_PUBLIC_SUPABASE_URL'] ?? 'http://127.0.0.1:54421';
   const key = process.env['SUPABASE_SERVICE_ROLE_KEY'];
-  if (!key) throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set (source web-tests/env.sh).');
+  if (!key) throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set (source e2e/env.sh).');
   const res = await fetch(`${url}/rest/v1/events?type=eq.v1.BlobStored&payload->>hash=eq.${hash}&select=id`, { headers: { apikey: key, Authorization: `Bearer ${key}` } });
   return res.ok && ((await res.json()) as unknown[]).length > 0;
 }

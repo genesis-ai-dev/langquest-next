@@ -106,7 +106,7 @@ export const isLocalUrl = (url: string): boolean => /^https?:\/\/(127\.0\.0\.1|l
 
 let server: Server | null = null;
 
-/** The local Supabase's URL and keys from `supabase status` (as web-tests/env.sh reads them), and the local Worker. */
+/** The local Supabase's URL and keys from `supabase status` (as e2e/env.sh reads them), and the local Worker. */
 export function localServer(): Server {
   if (server) return server;
   let status: Record<string, string> = {};

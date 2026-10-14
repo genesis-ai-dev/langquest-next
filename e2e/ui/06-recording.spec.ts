@@ -6,7 +6,7 @@
 // test opens its own page (a fresh browser profile), so whatever a test
 // leaves for the next one is on the server before it ends (expectUploaded).
 //
-// The microphone is web-tests/fixtures/voice-mic.wav (a part about every
+// The microphone is e2e/fixtures/voice-mic.wav (a part about every
 // four seconds) unless a test needs quiet or speech of a set length; then
 // it switches to the tone microphone in 06-recording-helpers.ts.
 //

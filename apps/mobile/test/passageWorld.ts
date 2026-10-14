@@ -1,4 +1,4 @@
-// The UI suite's fixture world (web-tests/ui/fixture.ts `buildWorld`;
+// The UI suite's fixture world (e2e/ui/fixture.ts `buildWorld`;
 // docs/ui-test-suite/README.md, "The fixture world") in memory, for the
 // screen-model tests (docs/testing.md layer 3): the same roles in ORG, and
 // language Alpha's passages built by the same core commands in the same

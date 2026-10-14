@@ -79,7 +79,7 @@ function titles(paths: string[], fn: string): string[] {
 const all = specs();
 const live = all.filter((s) => !s.retired);
 
-const web = new Set(titles(files('web-tests/ui', (n) => n.endsWith('.spec.ts')), 'test'));
+const web = new Set(titles(files('e2e/ui', (n) => n.endsWith('.spec.ts')), 'test'));
 const phone = new Set(files('apps/mobile/test/maestro/flows', (n) => /^[A-Z0-9]+-\d+\.yaml$/.test(n)).map((p) => p.replace(/.*\//, '').replace('.yaml', '')));
 const modelFiles = [
   ...files('apps/mobile/test', (n) => n.endsWith('.test.ts')),

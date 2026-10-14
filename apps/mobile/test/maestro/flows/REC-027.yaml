@@ -5,7 +5,7 @@
 #
 # Passage: P-DRAFT (Luke 14:1-14), after REC-026 (flows run in name order);
 # parts are not counted here, only the recorder's state.
-# Audio: G8, the host's microphone playing web-tests/fixtures/voice.wav.
+# Audio: G8, the host's microphone playing e2e/fixtures/voice.wav.
 # Expected: iOS makes the app inactive, so recording stops ("Record" after
 # Control Center closes); Android keeps it active, so recording goes on
 # ("Stop recording"), and the flow stops it.
