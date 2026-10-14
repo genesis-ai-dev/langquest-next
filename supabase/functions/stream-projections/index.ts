@@ -22569,7 +22569,7 @@ function shouldWriteSnapshot(o, schedule = SNAPSHOT_SCHEDULE) {
 }
 async function runSnapshotWorker(service, pageSize = 1e3, observe, visit) {
   const transport = new SupabaseTransport(service);
-  const streams = await listStreams(service);
+  const streams = (await listStreams(service)).sort((a, b) => Number(a.next_seq) - Number(b.next_seq));
   const out = [];
   for (const row of streams) {
     const orgId = row.org_id;
@@ -22644,6 +22644,10 @@ var UPDATE_TITLES = {
   request_done: "What you asked for is done"
 };
 var PROJECTION_VERSION = `${REDUCER_VERSION}:1`;
+var LARGE = { chars: 1e7, events: 25e3 };
+function isLarge(o, limits = LARGE) {
+  return o.chars >= limits.chars || o.head - o.snapshotSeq >= limits.events;
+}
 var streamKey = (orgId, streamId) => JSON.stringify([orgId, streamId]);
 async function selectAll(service, table, columns) {
   const out = [];
@@ -22655,7 +22659,7 @@ async function selectAll(service, table, columns) {
     if (rows.length < 1e3) return out;
   }
 }
-async function runProjections(service) {
+async function runProjections(service, scope2 = "all") {
   const transport = new SupabaseTransport(service);
   const orgs = /* @__PURE__ */ new Map();
   async function orgState(orgId) {
@@ -22687,13 +22691,20 @@ async function runProjections(service) {
   for (const s of await selectAll(
     service,
     "snapshots",
-    "org_id,stream_id,reducer_version,server_seq,created_at"
+    "org_id,stream_id,reducer_version,server_seq,created_at,chars"
   )) {
     if (s.reducer_version !== REDUCER_VERSION) continue;
     const key = streamKey(s.org_id, s.stream_id);
     const seen = snapshotOf.get(key);
-    if (!seen || Number(s.server_seq) > seen.seq) snapshotOf.set(key, { seq: Number(s.server_seq), at: Date.parse(s.created_at) });
+    if (!seen || Number(s.server_seq) > seen.seq) {
+      snapshotOf.set(key, { seq: Number(s.server_seq), at: Date.parse(s.created_at), chars: Number(s.chars ?? 0) });
+    }
   }
+  const large = (orgId, streamId) => {
+    const snap = snapshotOf.get(streamKey(orgId, streamId));
+    return isLarge({ chars: snap?.chars ?? 0, head: heads.get(streamKey(orgId, streamId)) ?? 0, snapshotSeq: snap?.seq ?? 0 });
+  };
+  const inScope = (orgId, streamId) => scope2 === "all" || scope2 === "large" === large(orgId, streamId);
   const snapshotDue = (orgId, streamId) => {
     const snap = snapshotOf.get(streamKey(orgId, streamId));
     const head2 = heads.get(streamKey(orgId, streamId)) ?? 0;
@@ -22715,11 +22726,11 @@ async function runProjections(service) {
   };
   for (const [key, head2] of heads) {
     const [orgId, streamId] = JSON.parse(key);
-    if (streamId !== ORG_STREAM || orgId === PERSON_ORG || !changed(orgId, ORG_STREAM)) continue;
+    if (scope2 === "large" || streamId !== ORG_STREAM || orgId === PERSON_ORG || !changed(orgId, ORG_STREAM)) continue;
     check(await service.rpc("refresh_org_notifications", { p_org: orgId }));
     await mark(orgId, ORG_STREAM, head2, head2, false);
   }
-  await runSnapshotWorker(service, 1e3, async (snapshot) => {
+  const results = await runSnapshotWorker(service, 1e3, async (snapshot) => {
     const { org, seq: orgSeq } = await orgState(snapshot.orgId);
     const languageId = snapshot.streamId;
     const state = snapshot.state;
@@ -22753,7 +22764,8 @@ async function runProjections(service) {
       }));
     }
     await mark(snapshot.orgId, languageId, snapshot.serverSeq, orgSeq, isListed);
-  }, (orgId, streamId) => changed(orgId, streamId) || snapshotDue(orgId, streamId));
+  }, (orgId, streamId) => inScope(orgId, streamId) && (changed(orgId, streamId) || snapshotDue(orgId, streamId)));
+  return { languages: results.filter((r) => r.updated).length, snapshots: results.filter((r) => r.written).length };
 }
 async function deliverPushes(service, fetcher = fetch) {
   const claimed = await service.rpc("claim_notification_pushes");
@@ -22832,7 +22844,7 @@ Deno.serve(async (request) => {
   const body = await request.json().catch(() => ({}));
   try {
     if (body.task === "pushes") await deliverPushes(service);
-    else await runProjections(service);
+    else await runProjections(service, "small");
     return Response.json({ ok: true });
   } catch (error) {
     console.error("Projection worker failed", error instanceof Error ? error.message : "unknown");

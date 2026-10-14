@@ -54,7 +54,9 @@ export async function runSnapshotWorker(
   visit?: (orgId: string, streamId: string) => boolean
 ): Promise<SnapshotResult[]> {
   const transport = new SupabaseTransport(service);
-  const streams = await listStreams(service);
+  // Smallest first: a language too big for this run (decisions.md 103) can
+  // then hold up only languages bigger than itself, not every one after it.
+  const streams = (await listStreams(service)).sort((a, b) => Number(a.next_seq) - Number(b.next_seq));
   const out: SnapshotResult[] = [];
 
   for (const row of streams) {
