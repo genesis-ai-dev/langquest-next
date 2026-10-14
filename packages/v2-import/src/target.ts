@@ -166,6 +166,8 @@ export interface BlobFilesLike {
 }
 
 const LIBRARY_ORG = 'langquest';
+/** The most rows the API returns from one call (supabase/config.toml `max_rows`). */
+const ROWS = 1000;
 
 export function supabaseTarget(db: SupabaseClient, files: BlobFilesLike): Target {
   const rpc = async <T>(fn: string, args: Record<string, unknown>): Promise<T> => {
@@ -178,12 +180,14 @@ export function supabaseTarget(db: SupabaseClient, files: BlobFilesLike): Target
     savePlan: (orgs, placements, by) => rpc('v2_import_save_plan', { p_orgs: orgs, p_placements: placements, p_by: by }),
     setRole: (projectId, profileId, role, by) => rpc('v2_import_set_role', { p_project: projectId, p_profile: profileId, p_role: role, p_by: by }),
 
+    // The API returns at most 1,000 rows a call (supabase/config.toml max_rows), however many are asked for:
+    // reads that may be longer go a page at a time, until a page comes back empty.
     async ledger(scope) {
       const out = new Map<string, LedgerEntry>();
       for (let after = ''; ; ) {
-        const page = await rpc<LedgerEntry[]>('v2_import_ledger', { p_scope: scope, p_after: after, p_limit: 5000 });
+        const page = await rpc<LedgerEntry[]>('v2_import_ledger', { p_scope: scope, p_after: after, p_limit: ROWS });
+        if (page.length === 0) return out;
         for (const e of page) out.set(e.key, e);
-        if (page.length < 5000) return out;
         after = page[page.length - 1]!.key;
       }
     },
@@ -193,8 +197,8 @@ export function supabaseTarget(db: SupabaseClient, files: BlobFilesLike): Target
 
     async files(names) {
       const out = new Map<string, CopiedFile | { missingSince: string }>();
-      for (let i = 0; i < names.length; i += 2000) {
-        const rows = await rpc<{ name: string; hash: string | null; size: number; duration_ms: number; format: 'wav' | 'm4a'; missing_since: string | null }[]>('v2_import_files', { p_names: names.slice(i, i + 2000) });
+      for (let i = 0; i < names.length; i += ROWS) {
+        const rows = await rpc<{ name: string; hash: string | null; size: number; duration_ms: number; format: 'wav' | 'm4a'; missing_since: string | null }[]>('v2_import_files', { p_names: names.slice(i, i + ROWS) });
         for (const r of rows) out.set(r.name, r.hash ? { hash: r.hash, size: Number(r.size), durationMs: r.duration_ms, format: r.format } : { missingSince: r.missing_since ?? new Date(0).toISOString() });
       }
       return out;
@@ -273,7 +277,7 @@ export function supabaseTarget(db: SupabaseClient, files: BlobFilesLike): Target
     passFinish: (passId, report, error) => rpc('v2_import_pass_finish', { p_id: passId, p_report: report ?? null, p_error: error ?? null }),
     log: (lines) => (lines.length ? rpc('v2_import_log_add', { p_lines: lines }) : Promise.resolve()),
     status: (after) => rpc<Status>('v2_import_status', { p_after: after, p_limit: 300 }),
-    signedIn: () => rpc<PersonHere[]>('v2_import_signed_in', { p_limit: 2000 }),
+    signedIn: () => rpc<PersonHere[]>('v2_import_signed_in', { p_limit: ROWS }),
     projectLog: (projectId) => rpc<(LogLine & { id: number; at: string })[]>('v2_import_project_log', { p_project: projectId, p_limit: 200 }),
     async people(ids) {
       const out: PersonHere[] = [];
