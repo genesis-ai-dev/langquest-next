@@ -36,14 +36,12 @@ import { dueText, isJustNow, when } from '../passageView';
 import { noteExpected } from '../report';
 import { contractsFor } from '../screenContracts';
 import { edgeAllowed, mapScreenFor } from '../session';
-import { Bell, NextCard, OrgChip, QuietToggle, ReadyCard } from '../simple/home';
+import { Bell, NextCard, QuietToggle, ReadyCard } from '../simple/home';
 import { checkName } from '../simple/adminModel';
 import { Faces } from '../checks/parts';
 import { useReadySummary, type ReadySummary } from '../simple/ready';
 import { nextSub, readiness, readySteps, THEN_CAP, waitingWhat, waitingWho, workIcon, workSub, workTarget, workWhat, type Readiness } from '../simple/homeModel';
-import { inSeveral } from '../simple/meModel';
 import { C, space, TINT } from '../theme';
-import { useOrganizations } from '../useOrganizations';
 
 const RECENT_CAP = 5;
 
@@ -193,7 +191,6 @@ export function MyWork(ctx: Ctx) {
   const earlier = useEarlierSections(ctx, state);
   // The same four answers the language page and Get ready read (simple/ready.tsx), so Home never disagrees with them.
   const readySummary = useReadySummary(ctx);
-  const orgs = useOrganizations(actorId).rows;
 
   // Everything here is in the open language: its stream is the one on this phone.
   const languageId = ctx.languageId;
@@ -213,11 +210,8 @@ export function MyWork(ctx: Ctx) {
   const orgName = ctx.org.state?.org?.value.name ?? '';
   const language = languageId ? languageName(ctx.org.state, languageId) : '';
   const bell = canGo(ctx, 'inbox_home') ? <Bell count={ctx.inbox.unread} onPress={() => ctx.go('inbox_home', { from: 'my_work' })} /> : null;
-  // Someone in several organizations switches from the organization's name here (decision 71, amended 2026-10-14).
-  const switchable = !!orgName && inSeveral(orgs) && canGo(ctx, 'org_switcher');
   const header = (
-    <Header title={t('work.title')} sub={(switchable ? language : [language, orgName].filter(Boolean).join(' · ')) || undefined}
-      {...(switchable ? { below: <OrgChip org={orgName} onPress={() => ctx.go('org_switcher')} /> } : {})}
+    <Header title={t('work.title')} sub={[language, orgName].filter(Boolean).join(' · ') || undefined}
       action={<View style={styles.headerActions}><SyncChip {...ctx} />{bell}</View>} />
   );
   if (!state || !lists) {

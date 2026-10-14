@@ -31,8 +31,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   scan_qr: { emits:['v1.TermsAccepted'],rpcs:['preview_invite','redeem_invite_v2','my_organizations','record_user_event'] },
   explore_home: { reads:['public_languages'] },
   // People asking to join show under a coordinator's Get ready card (decision 71).
-  // Its organization chip shows to someone in several organizations (decision 71, amended 2026-10-14).
-  my_work: { reads:['highlightsFor','waitingOn','derivePassage','upNext','recommendedFor','join_requests','profiles'],rpcs:['my_organizations'] },
+  my_work: { reads:['highlightsFor','waitingOn','derivePassage','upNext','recommendedFor','join_requests','profiles'] },
   status_home: { reads:['languageProgress'] },
   // A section whose divisions changed since it was recorded is marked (earlier.tsx, decision 80):
   // the numberings come from the library.

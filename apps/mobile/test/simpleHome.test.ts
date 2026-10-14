@@ -87,16 +87,16 @@ describe('the simple tabs (decision 71)', () => {
     }
   });
 
-  it('lets someone in several organizations switch from My Work and Me, not only under More settings', () => {
+  it('lets someone in several organizations switch from Me, not only under More settings', () => {
     // Why: Caleb and a partner found Switch Organization hard to find under
     // Me › More settings (decision 71, amended 2026-10-14).
     for (const role of ['translator', 'reviewer', 'coordinator'] as const) {
       const s = roleSession(role);
-      for (const from of ['my_work', 'settings_home', 'settings_more'] as const) {
+      for (const from of ['settings_home', 'settings_more'] as const) {
         expect(EDGES.some((e) => e.from === from && e.to === 'org_switcher' && edgeAllowed(e, s)), `${role} from ${from}`).toBe(true);
       }
     }
-    // Known to be in several: Me and My Work offer it. Unknown or one: More settings keeps it, to start a new one.
+    // Known to be in several: Me offers it. Unknown or one: More settings keeps it, to start a new one.
     expect(inSeveral([{ org_id: 'a' }, { org_id: 'b' }])).toBe(true);
     expect(inSeveral([{ org_id: 'a' }])).toBe(false);
     expect(inSeveral([])).toBe(false);

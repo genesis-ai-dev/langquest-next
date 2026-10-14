@@ -10,7 +10,7 @@ import {
   askTeam, askToJoin, createEmptyOrg, headerTitle, labels, leaveBookWaiting, litTab, settled
 } from './nav-helpers';
 import {
-  back, button, byId, expect, openAs, orgChip, primary, screenChanged, screenText, syncNow, tab, tabsShown, test, text, useWorld,
+  back, button, byId, expect, openAs, primary, screenChanged, screenText, syncNow, tab, tabsShown, test, text, useWorld,
   type AccountKey, type PassageKey, type UiWorld
 } from './support';
 
@@ -444,13 +444,7 @@ for (const who of ['COORD', 'ADMIN'] as const) {
     await button(page, /^Bravo/).click();
     await expect(text(page, 'No passages yet')).toBeVisible({ timeout: 60_000 });
     await tab(page, 'work').click();
-    // ADMIN is in two organizations: theirs is a chip that switches (decision 71, amended 2026-10-14).
-    if (who === 'ADMIN') {
-      await expect(text(page, 'Bravo')).toBeVisible();
-      await expect(orgChip(page, W().orgName)).toBeVisible();
-    } else {
-      await expect(text(page, `Bravo · ${W().orgName}`)).toBeVisible();
-    }
+    await expect(text(page, `Bravo · ${W().orgName}`)).toBeVisible();
     await expect(text(page, /^Get Bravo ready · \d of 4$/)).toBeVisible();
     await expect(page.getByRole('progressbar', { name: /^\d of 4 questions? answered$/ }).locator('visible=true')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'What will they record?' }).locator('visible=true')).toBeVisible();

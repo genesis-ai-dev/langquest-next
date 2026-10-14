@@ -3455,10 +3455,6 @@
       "help": "与你有关的事：请求、反馈、申请加入的人。",
       "overMax": "{{max}}+"
     },
-    "org": {
-      "label": "{{org}}，切换机构",
-      "help": "你现在所在的机构。点按可切换到其他机构。"
-    },
     "readyCard": {
       "label": "为{{language}}做准备 · {{done}}/{{total}}",
       "choose": "选择",

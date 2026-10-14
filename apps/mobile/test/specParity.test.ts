@@ -88,7 +88,6 @@ const APP_ONLY: Record<string, string> = {
   'settings_home->settings_more': 'Me keeps five rows; everything else Settings had is under More settings (decision 71, demo ADR-032)',
   'settings_more->profile_edit': 'More settings: setting a password on a looked-after account (decisions.md 59)',
   'settings_more->org_switcher': 'More settings: Switch Organization for someone in one organization, where it starts a new one (decision 71)',
-  'my_work->org_switcher': 'My Work: the organization chip for someone in several organizations (decision 71, amended 2026-10-14)',
   'settings_more->sync_status': 'More settings: Sync, moved from Settings › Advanced (decision 71)',
   'settings_more->delete_account': 'More settings: Delete account, moved from Settings (decision 71; store rules, decisions.md 46)',
   'flow_editor->check_editor': "a language's Checks open one check, with its people, questions and helps (decision 91)",

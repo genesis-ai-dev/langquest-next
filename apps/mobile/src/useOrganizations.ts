@@ -1,5 +1,5 @@
 // The organizations this account belongs to, for Switch Organization and
-// the places that open it (My Work's organization chip, Me's row).
+// the rows that open it (on Me or under More settings).
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 import { t } from './i18n';

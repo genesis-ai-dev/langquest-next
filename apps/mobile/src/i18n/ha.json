@@ -3580,10 +3580,6 @@
       "help": "Abin da ya faru da ya shafe ku: buƙatu, sharhi, mutanen da ke son shiga.",
       "overMax": "{{max}}+"
     },
-    "org": {
-      "label": "{{org}}, sauya ƙungiya",
-      "help": "Ƙungiyar da kuke ciki yanzu. Taɓa don sauya zuwa wata."
-    },
     "readyCard": {
       "label": "Shirya {{language}} · {{done}} cikin {{total}}",
       "choose": "Zaɓi",

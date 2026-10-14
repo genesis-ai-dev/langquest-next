@@ -3455,10 +3455,6 @@
       "help": "Hal-hal yang menyangkut Anda: permintaan, masukan, orang yang minta bergabung.",
       "overMax": "{{max}}+"
     },
-    "org": {
-      "label": "{{org}}, ganti organisasi",
-      "help": "Organisasi tempat Anda sekarang. Ketuk untuk pindah ke organisasi lain."
-    },
     "readyCard": {
       "label": "Siapkan {{language}} · {{done}} dari {{total}}",
       "choose": "Pilih",

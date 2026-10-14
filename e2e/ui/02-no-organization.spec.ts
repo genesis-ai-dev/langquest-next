@@ -12,7 +12,7 @@ import {
   issueInvite, newAccount, openFresh, openNew, paste, projectListing, quiet, settled, signInWithForm, type Fresh
 } from './auth-helpers';
 import { signIn } from './fixture';
-import { back, button, byId, expect, expectSyncIdle, expectToast, field, orgChip, primary, screenText, tab, tabsShown, test, text, useWorld } from './support';
+import { back, button, byId, expect, expectSyncIdle, expectToast, field, primary, screenText, tab, tabsShown, test, text, useWorld } from './support';
 
 const world = useWorld();
 test.beforeEach(async ({ context }) => { await quiet(context); });
@@ -363,11 +363,9 @@ test('NOORG-013 A member starts a second organization', async ({ page }) => {
   await text(page, org(), false).click();
   await expect(tab(page, 'manage')).toBeVisible({ timeout: 60_000 });
   await expect.poll(() => tabsShown(page)).toEqual(['work', 'map', 'manage', 'me']);
-  await expect(text(page, 'Alpha')).toBeVisible();
-  await expect(orgChip(page, org())).toBeVisible();
-  // My Work's organization chip opens the same list.
-  await orgChip(page, org()).click();
-  await expect(page.getByRole('button', { name: `${org()}, active` }).or(text(page, `${org()} (active)`))).toBeVisible();
+  await expect(text(page, `Alpha · ${org()}`, false)).toBeVisible();
+  await tab(page, 'me').click();
+  await text(page, 'Switch Organization').click();
   await text(page, world().org2Name, false).click();
   await expect(tab(page, 'work')).toBeVisible({ timeout: 60_000 });
   await expect.poll(() => tabsShown(page)).toEqual(['work', 'map', 'me']);
