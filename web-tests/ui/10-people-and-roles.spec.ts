@@ -776,8 +776,11 @@ for (const who of ['ADMIN', 'COORD'] as const) {
       await p.getByRole('radio', { name: 'Reviewer', exact: true }).locator('visible=true').first().click();
       await primary(p).click();
       await expectToast(p, `${rev} is now Reviewer`);
-      await (d as { context: import('@playwright/test').BrowserContext }).context.close();
     }
+    // The change (and its Undo, or the change back) is written on this device and uploads on its next
+    // sync: wait for it to be sent before reading the server, and before COORD's device is closed with it.
+    await expectSyncIdle(p);
+    if (who === 'COORD') await (d as { context: import('@playwright/test').BrowserContext }).context.close();
     await expect.poll(async () => (await membership(w.accounts.REV.id)).find((m) => !m.removed)?.role_id, { timeout: 30_000 }).toBe('reviewer');
   });
 }

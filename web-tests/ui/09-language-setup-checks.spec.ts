@@ -6,7 +6,7 @@
 // back the way the fixture left them (Undo, or the same change reversed).
 import type { Page } from '@playwright/test';
 import {
-  back, button, byId, deviceFor, expect, expectNothingRefused, expectSent, expectToast, field, openAs, primary, screenText, tab, test, text, undoToast,
+  back, button, byId, deviceFor, expect, expectNothingRefused, expectSent, expectToast, field, languageArrived, openAs, primary, screenText, tab, test, text, undoToast,
   useWorld, type AccountKey, type UiWorld
 } from './support';
 import { closeSheet, expectNotOnScreen, expectOnScreen, expectOrgSent, goBack, languagePage, more, orgRefused } from './setup-helpers';
@@ -39,6 +39,21 @@ const PEER_PEOPLE = /Peer check .*(Rita Reviewer, Trevor Both|Trevor Both, Rita 
 const cardWith = (page: Page, title: string, button: string) => page.locator('div')
   .filter({ has: page.getByText(title, { exact: true }) })
   .filter({ has: page.getByRole('button', { name: button, exact: true }) }).last();
+
+/**
+ * A flow's card on Review Flows, once the device holds the flow's version:
+ * the card draws the version's steps where it said "Loading…" (config.tsx
+ * `DocSteps`), and only then does its Use have a version to copy. The
+ * listing arrives first; the version document is a separate fetch
+ * (library/docStore.ts `loadDocs`), slower on a loaded machine.
+ */
+async function flowCard(page: Page, title: string, ...steps: string[]) {
+  const card = cardWith(page, title, 'Use');
+  await expect(card).toBeVisible();
+  await expect(card).not.toContainText('Loading…');
+  for (const s of steps) await expect(card).toContainText(s);
+  return card;
+}
 
 /** The people on the open check, as its People group lists them. */
 async function onCheck(page: Page): Promise<string> {
@@ -77,7 +92,12 @@ test('SETUP-044 Use a ready-made flow for a language @p0', async ({ page, browse
   await more(page);
   await text(page, 'Every way to check').click();
   // "Use" copies the flow's checks into Alpha (decision 91); Quick Check is a peer check, then sign-off.
-  await cardWith(page, 'Quick Check', 'Use').getByRole('button', { name: 'Use', exact: true }).click();
+  // The copy replaces the checks this device holds, and its Undo is the flow it read: Alpha's record must
+  // have arrived (a fresh device pulls it in pages), or the old checks stay beside the new ones and Undo is missing.
+  await languageArrived(page);
+  await expectOnScreen(page, /Alpha uses Custom flow Peer Review Back Translation Community Check Consultant Check Final Approval Save as a flow/);
+  const quick = await flowCard(page, 'Quick Check', 'Peer Review', 'Final Approval');
+  await quick.getByRole('button', { name: 'Use', exact: true }).click();
   await expectToast(page, 'Alpha now uses Quick Check.');
   await expect(byId(page, 'toast-undo')).toBeVisible();
   await back(page).click();
@@ -92,7 +112,8 @@ test('SETUP-044 Use a ready-made flow for a language @p0', async ({ page, browse
   // Back to Alpha's checks: Standard Bible Flow again, the same way.
   await more(page);
   await text(page, 'Every way to check').click();
-  await cardWith(page, 'Standard Bible Flow', 'Use').getByRole('button', { name: 'Use', exact: true }).click();
+  const standard = await flowCard(page, 'Standard Bible Flow', 'Consultant Check', 'Final Approval');
+  await standard.getByRole('button', { name: 'Use', exact: true }).click();
   await expectToast(page, 'Alpha now uses Standard Bible Flow.');
   await undoToast(page);
   await expectToast(page, 'Undone.');
