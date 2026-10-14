@@ -10,7 +10,7 @@
  * flow's clean start takes seconds instead of a bundle download, and every
  * flow sees the code as built. Rebuild after changing the app's code.
  *
- * It is marked a local release (EXPO_PUBLIC_LOCAL_RELEASE, src/supabase.ts),
+ * It is marked a local release (EXPO_PUBLIC_LOCAL_RELEASE, src/server/supabase.ts),
  * and two settings change in the generated native folders only (they are
  * ignored by version control; `expo prebuild --clean` drops the changes),
  * never in app.json, so no store build can carry them: over-the-air updates
@@ -36,7 +36,7 @@ if (!device) throw new Error('--device is required (a simulator udid, or an Andr
 
 // The repository's tools (dotenvx, expo) as `npm run` would find them.
 const PATH = [join(app, 'node_modules/.bin'), join(root, 'node_modules/.bin'), process.env.PATH].join(':');
-// A release build refuses a local server unless told it is a local test build (src/supabase.ts).
+// A release build refuses a local server unless told it is a local test build (src/server/supabase.ts).
 // Its own empty Metro cache, so that setting reaches every file (metro.config.js).
 const METRO_CACHE_DIR = join(app, '.expo/ui-test-build-metro-cache');
 rmSync(METRO_CACHE_DIR, { recursive: true, force: true });

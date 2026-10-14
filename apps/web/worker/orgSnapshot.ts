@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
-import { SupabaseTransport } from '@langquest-next/client';
+import { SupabaseTransport } from '@langquest-next/sync';
 import type { OrgReportsResponse } from '@langquest-next/core';
 import { serviceClient, type Env } from './env';
 import { OrgFolder } from './orgFolder';

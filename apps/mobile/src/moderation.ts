@@ -6,7 +6,7 @@
  * content policy asks for both; the partner demo has neither, so the sheet
  * that offers them is app-only (`reportSheet.tsx`).
  */
-import type { AccountAction } from './durableOutbox';
+import type { AccountAction } from '@langquest-next/sync';
 import { t } from './i18n';
 
 export type ReportKind = 'version' | 'review' | 'note' | 'request' | 'person';

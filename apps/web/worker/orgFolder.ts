@@ -2,7 +2,7 @@ import {
   emptyLanguageState, emptyOrgState, foldLanguage, foldOrg, languageInfo, languageReport, mayViewLanguage, ORG_STREAM, orgLanguages,
   REDUCER_VERSION, REPORT_VERSION, type AnyEvent, type LanguageReport, type LanguageState, type OrgState
 } from '@langquest-next/core';
-import { fetchSnapshot, type Transport } from '@langquest-next/client';
+import { fetchSnapshot, type Transport } from '@langquest-next/sync';
 import type { OrgReportsResponse } from '@langquest-next/core';
 
 /** What the folder reads from the server, with the service role. */

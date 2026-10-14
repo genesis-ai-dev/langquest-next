@@ -2,7 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import {
   encodeHlc, foldOrg, privilegeAllows, privilegeFor, privilegesFor, SEED_ROLES, type AnyEvent
 } from '@langquest-next/core';
-import type { AppendResult } from '@langquest-next/client';
+import type { AppendResult } from '@langquest-next/sync';
 import { handleAgentApi, type AgentDeps, type OrgStub } from '../worker/agent/http';
 import { AgentOrg } from '../worker/agent/org';
 import type { AgentStore, DeviceGrant, NewToken, NewWebhook, TokenRecord, WebhookRecord } from '../worker/agent/store';

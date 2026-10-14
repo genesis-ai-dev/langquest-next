@@ -1,11 +1,13 @@
 # JRN-004 A translator-reviewer records, checks their own work, and checks a
 # colleague's (docs/ui-test-suite/16-role-journeys.md). One phone, the people
 # in turn (each signs in after the app is cleared): TREV, COORD, TREV, TRANS,
-# TREV. Recording needs the host's microphone (G8).
+# TREV. Recording needs the host's microphone (G8): tag voice, so the runner
+# skips this flow unless the run has one (--voice or --mic).
 appId: com.frontierrnd.langquestnext
 name: "JRN-004 A translator-reviewer records, checks their own work, and checks a colleague's"
 tags:
   - jrn
+  - voice
 ---
 # Step 1: TREV records P-Q4 and publishes Version 1, then "Not now".
 - runFlow: ../common/launch.yaml

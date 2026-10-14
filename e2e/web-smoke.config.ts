@@ -22,7 +22,8 @@ export default defineConfig({
   forbidOnly: Boolean(process.env['CI']),
   timeout: 240_000,
   reporter: [['line']],
-  outputDir: path.join(directory, 'results'),
+  // Its own folder: Playwright empties outputDir, and results/ also holds ui/ and maestro/.
+  outputDir: path.join(directory, 'results/web-smoke'),
   use: { baseURL: `http://localhost:${port}`, trace: 'off', screenshot: 'off', video: 'off' },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'], ...chrome, viewport: { width: 1280, height: 900 }, permissions: ['microphone'], launchOptions: chromiumMic } },

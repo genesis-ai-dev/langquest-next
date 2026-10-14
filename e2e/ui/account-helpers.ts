@@ -6,7 +6,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
 import { commands, type LanguageState } from '@langquest-next/core';
-import type { SyncClient } from '@langquest-next/client';
+import type { SyncClient } from '@langquest-next/sync';
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import { clientAs, localServer, send, signIn, type UiWorld } from './fixture';
 import { button, expect, field, openAs, openPassage, primary, text, waitForApp, type AccountKey, type PassageKey } from './support';

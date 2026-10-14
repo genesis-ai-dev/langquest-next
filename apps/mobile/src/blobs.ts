@@ -1,4 +1,4 @@
-import type { FileLedger, LostFile } from '@langquest-next/client';
+import type { FileLedger, LostFile } from '@langquest-next/sync';
 import type { BlobRef } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { Directory, File, Paths } from 'expo-file-system';

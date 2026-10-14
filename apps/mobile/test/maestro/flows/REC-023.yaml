@@ -6,8 +6,8 @@
 # Audio: G8, the host's microphone playing e2e/fixtures/voice.wav in
 # a loop (1.5 s of voice, 2.5 s of quiet), so a part ends about every four
 # seconds and "Recording…" shows while the voice plays. With a silent
-# microphone no part is made: the flow then stops at "Parts 1–2", having
-# still checked the UI path (record, kill, start again, the passage opens).
+# microphone no part is made, so the flow is tagged voice and the runner
+# skips it unless the run has one (--voice or --mic).
 # Known issue (2026-10-12): the part being spoken at the kill is lost
 # (useRecorder.ts journals a part only once voice detection ends it), so the
 # draft has the two parts that ended, not three.
@@ -16,6 +16,7 @@ name: "REC-023 The app killed mid-recording keeps every part that ended"
 tags:
   - rec
   - p0
+  - voice
 ---
 - runFlow: ../common/launch.yaml
 - runFlow:

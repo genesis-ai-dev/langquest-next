@@ -124,7 +124,7 @@ signs in here everything they did is already theirs.
   the app asks the `v2-sign-in` Edge Function, which checks them with v2's
   own sign-in once (as the old app would) and signs that v2 session straight
   out again, then makes this app's account with the v2 id, the same email
-  and password, and signs the phone in (`apps/mobile/src/v2SignIn.ts`). v2
+  and password, and signs the phone in (`apps/mobile/src/server/v2.ts`). v2
   has email and password accounts only, so this covers everyone. Every try
   reaches v2 from the same few servers, so after ten wrong passwords for
   one email in an hour the function refuses that email itself, before v2
