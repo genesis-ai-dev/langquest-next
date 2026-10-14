@@ -50,7 +50,7 @@ describe('screen action contracts', () => {
     const viaCtx: Record<string, string> = { 'v1.VisionSeen': '.markWelcomed(', 'v1.TermsAccepted': '.acceptTerms(' };
     const src = path.join(root, 'src');
     const skip = new Set(['screenContracts.ts', 'flow.ts']);
-    // Two levels: a screen's rules live in feature modules, which build on models (decisions.md 104).
+    // Two levels: a screen's rules live in feature modules, which build on models (decisions.md 105).
     const imported = (file: ts.SourceFile, dir: string, depth = 2): string[] => file.statements.flatMap((stmt) => {
       if (!ts.isImportDeclaration(stmt) || !ts.isStringLiteral(stmt.moduleSpecifier)) return [];
       const spec = stmt.moduleSpecifier.text;

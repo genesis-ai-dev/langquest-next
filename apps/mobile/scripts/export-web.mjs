@@ -67,7 +67,7 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // them (5.67 MB then). The other languages' catalogs stay out of it: a browser
 // fetches only the one chosen (src/i18n/catalogs.web.ts). Raised to 6.1 MB
 // when the app's logic moved out of its screens into small modules
-// (decision 104): Metro wraps each module, about half a kilobyte apiece,
+// (decision 105): Metro wraps each module, about half a kilobyte apiece,
 // and 57 new ones cost 30 KB beyond the code they moved (6.01 MB then).
 const BUDGET_BYTES = 6.1 * 1024 * 1024;
 

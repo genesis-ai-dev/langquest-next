@@ -1,4 +1,4 @@
-// Small hooks the template screens share (decision 104).
+// Small hooks the template screens share (decision 105).
 import { useMemo, useState } from 'react';
 import { libraryChoices } from '../contentTemplates';
 import type { Ctx } from '../ctx';

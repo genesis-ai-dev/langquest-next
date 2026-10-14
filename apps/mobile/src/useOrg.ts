@@ -36,7 +36,7 @@ const NOTHING_YET: OrgStatus = { pending: 0, live: false, pulled: false, settled
 /**
  * The organization stream on this device (decision 63): roles,
  * memberships, languages, the library. The stream itself is an
- * `OrgSession` in packages/sync (decisions.md 103); this hook opens one
+ * `OrgSession` in packages/sync (decisions.md 104); this hook opens one
  * with the phone's store and transport and follows it into React state.
  * With no organization (a guest, or an account in none yet) there is no
  * stream to sync: an empty fold, settled at once, and every write a no-op.

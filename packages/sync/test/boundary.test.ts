@@ -3,7 +3,7 @@ import { join, relative } from 'node:path';
 
 /**
  * packages/sync keeps and moves what a device queues for the server
- * (decisions.md 103), for every runtime that does so: the phone, the
+ * (decisions.md 104), for every runtime that does so: the phone, the
  * Worker, server jobs and scripts. A platform gets in as a constructor
  * argument, never as an import, so this package imports only core,
  * supabase-js and its own files. `src/testing` runs in Node only and may
@@ -37,6 +37,6 @@ describe('packages/sync imports no platform', () => {
         outside.push(`${name}: ${spec}`);
       }
     }
-    expect(outside, 'Pass the platform in through an interface instead (AGENTS.md, decisions.md 103).').toEqual([]);
+    expect(outside, 'Pass the platform in through an interface instead (AGENTS.md, decisions.md 104).').toEqual([]);
   });
 });

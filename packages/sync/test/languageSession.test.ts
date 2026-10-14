@@ -47,7 +47,7 @@ function phone(over: Partial<LanguageSessionOptions> = {}) {
 
 const unit = (label: string) => ({ unitId: label, parentUnitId: null, kind: 'passage', label, order: 'a' });
 
-describe('LanguageSession: one language kept and moved (decisions.md 103)', () => {
+describe('LanguageSession: one language kept and moved (decisions.md 104)', () => {
   it('a write is pending until a sync, and the status says what the server answered', async () => {
     const { open } = phone();
     const session = await open();

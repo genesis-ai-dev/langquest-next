@@ -1,4 +1,4 @@
-// What the template screens decide, kept out of the screens (decision 104):
+// What the template screens decide, kept out of the screens (decision 105):
 // which view of templates this is, the lines and counts a card shows, which
 // choices the picker offers, and when the editor may save. Pure: no React, no
 // I/O. Ports content.tsx's rules (TPL-1, TPL-2, TPL-7, TPL-9).

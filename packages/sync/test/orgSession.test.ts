@@ -13,7 +13,7 @@ function phone() {
   return { server, open };
 }
 
-describe('OrgSession: the organization stream on a device (decisions.md 103)', () => {
+describe('OrgSession: the organization stream on a device (decisions.md 104)', () => {
   it('is settled after the first attempt, and pulled only once the server answered', async () => {
     const { server, open } = phone();
     const session = await open();

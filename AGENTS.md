@@ -22,7 +22,7 @@ Rules specific to this folder:
 - `packages/core` is pure TypeScript with no I/O and no runtime dependencies.
   If you need SQLite, HTTP, or the filesystem, you are in the wrong package.
 - `packages/core` says what the data means; `packages/sync` keeps it and
-  moves it (decisions.md 103). Sync owns anything queued for the server: the
+  moves it (decisions.md 104). Sync owns anything queued for the server: the
   local event log, push and pull, snapshots, file transfer, the account
   outbox, a shared phone's hand-overs, diagnostics delivery, and the
   per-language session that runs them. It runs wherever data is kept or
@@ -32,7 +32,7 @@ Rules specific to this folder:
   stores, `AsyncStorage` and configured clients live in the app that uses
   them, which never reimplements sync.
 - Apps decide what to do, what to write and what to show. In `apps/mobile`
-  every Supabase call lives in `src/server/` (decisions.md 104,
+  every Supabase call lives in `src/server/` (decisions.md 105,
   `apps/mobile/test/serverBoundary.test.ts`); screens and hooks call its
   functions.
 - Every new event type needs: a type in `events.ts` (or `record.ts`), a case

@@ -288,7 +288,7 @@ langquest-next/
                      (local log, fold on append, outbox push, cursor pull),
                      EventStore and Transport interfaces, snapshots, file
                      transfer, the account outbox and hand-overs (decisions
-                     103); unit tests on a fake server plus an integration
+                     104); unit tests on a fake server plus an integration
                      test against local Supabase
   apps/mobile/       Expo app; SQLite EventStore, blob store, screens
   apps/web/          the Cloudflare Worker that serves the app's web export

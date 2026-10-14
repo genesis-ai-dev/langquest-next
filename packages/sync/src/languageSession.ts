@@ -84,7 +84,7 @@ const keepKey = (orgId: string, languageId: string) => `keep:${orgId}/${language
 
 /**
  * One language's stream on this device, kept and moved (decisions.md 37,
- * 103): its SyncClient, the upload and download workers for its
+ * 104): its SyncClient, the upload and download workers for its
  * recordings, the scheduler that decides when to sync, the realtime
  * watch, storage reclaim, and which units are kept offline. Platform
  * pieces (the store, transport, files and transfers) are passed in.

@@ -3,7 +3,7 @@ import { join, relative } from 'node:path';
 
 /**
  * Every call this app makes to Supabase lives in src/server (decisions.md
- * 104): screens, hooks and models call its functions, so RPC names, their
+ * 105): screens, hooks and models call its functions, so RPC names, their
  * parameters and what a refusal looks like are in one place, and the logic
  * around them can be tested without a server. Outside that folder nothing
  * imports the client or supabase-js (types aside), or calls `.rpc(`,
@@ -40,6 +40,6 @@ describe('Supabase calls live in src/server', () => {
       const source = code(readFileSync(file, 'utf8'));
       for (const rule of RULES) if (rule.test.test(source)) found.push(`${relative(APP, file)} ${rule.what}`);
     }
-    expect(found, 'Add a function to src/server and call it instead (decisions.md 104).').toEqual([]);
+    expect(found, 'Add a function to src/server and call it instead (decisions.md 105).').toEqual([]);
   });
 });

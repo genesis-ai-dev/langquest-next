@@ -108,7 +108,7 @@ const NOTHING_YET: LanguageStatus = {
 /**
  * The open language's stream for screens. The stream itself (its
  * SyncClient, transfers, scheduler and reclaim) is a `LanguageSession` in
- * packages/sync (decisions.md 103); this hook opens one with the phone's
+ * packages/sync (decisions.md 104); this hook opens one with the phone's
  * store, files and transport, follows it into React state, and adds what is
  * the phone's own: playable URLs, transfer speeds, and finishing a
  * recording a crash interrupted. Screens read `state` and call `append`;

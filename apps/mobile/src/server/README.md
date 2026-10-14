@@ -1,7 +1,7 @@
 # src/server
 
 Every call this app makes to Supabase, and the blob transfers through the
-Worker, live here (decisions.md 104). Screens, hooks and models call these
+Worker, live here (decisions.md 105). Screens, hooks and models call these
 functions; nothing outside this folder imports `supabase.ts` or calls
 `.rpc(`, `.auth.` or `.functions.invoke(` (`test/serverBoundary.test.ts`).
 

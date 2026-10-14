@@ -1,6 +1,6 @@
 // What the Divide a Book screen derives from the open language: the book's
 // parts, which are recorded, the words under each verse, and the chapter
-// jump grid. Pure: no React, no I/O (decision 104; TPL-5, ADR-027).
+// jump grid. Pure: no React, no I/O (decision 105; TPL-5, ADR-027).
 import { derivePassage, languageName, type Indexes, type LanguageState, type OrgState } from '@langquest-next/core';
 import { bookRows, bookSegments, fiaStarts, type BibleBook, type Segment } from '../contentTemplates';
 import { bookName } from '../coreText';

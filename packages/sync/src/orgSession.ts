@@ -42,7 +42,7 @@ export interface OrgSessionOptions {
 }
 
 /**
- * The organization stream on this device (decisions.md 63, 103): the same
+ * The organization stream on this device (decisions.md 63, 104): the same
  * sync client as a language, a different fold, small enough to pull whole,
  * with its scheduler and realtime watch. `open` loads it, `start` begins
  * syncing, `close` stops.
