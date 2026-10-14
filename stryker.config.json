@@ -43,10 +43,10 @@
     "coverage",
     "reports",
     ".stryker-tmp",
-    "packages/client",
+    "packages/sync",
     "packages/v2-import",
     "apps/**",
-    "packages/client/**",
+    "packages/sync/**",
     "packages/v2-import/**"
   ],
   "ignoreStatic": true

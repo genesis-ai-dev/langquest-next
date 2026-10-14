@@ -389,7 +389,6 @@ test('NOORG-014 Find an organization by name or language', async ({ page }) => {
   await expect(text(page, 'Not here? Ask someone on your team to show you their code.')).toBeVisible();
   await search.fill(world().org2Name.toLowerCase());
   await expect(askRow(page, world().org2Name)).toHaveCount(0);
-  await search.fill(`ALPHA`);
   // Every row matches by a language now; this world's is among them.
   await search.fill(`ALPHA`);
   await expect(page.getByRole('button', { name: /^Ask .+ to let you in$/ }).first()).toBeVisible();

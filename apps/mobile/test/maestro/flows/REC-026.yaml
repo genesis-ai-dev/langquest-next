@@ -6,13 +6,14 @@
 # Audio: G8, the host's microphone playing e2e/fixtures/voice.wav
 # (1.5 s of voice, 2.5 s of quiet, looping); Home is pressed while
 # "Recording…" shows, that is while the voice plays. With a silent
-# microphone "Recording…" never shows and the flow stops there, having
-# checked the workspace and the record button. The OS's microphone dot
+# microphone "Recording…" never shows, so the flow is tagged voice and the
+# runner skips it unless the run has one (--voice or --mic). The OS's microphone dot
 # (REC-026's last point) is for a person to watch on a device.
 appId: com.frontierrnd.langquestnext
 name: "REC-026 Putting the app in the background stops recording and keeps the last part"
 tags:
   - rec
+  - voice
 ---
 - runFlow: ../common/launch.yaml
 - runFlow:

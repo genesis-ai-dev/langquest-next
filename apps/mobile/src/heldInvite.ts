@@ -176,3 +176,18 @@ export function inviteCard(p: InvitePreview | null): { title: string; detail: st
   const detail = [p.roleName, where].filter(Boolean).join(' · ') || null;
   return { title, detail, from: p.invitedBy ?? null };
 }
+
+/**
+ * What the scan screen says about a held invite: why it will never work
+ * (the app found out using it, or the server said so before), whether this
+ * person is already in, and the one person it names. A one-person invite
+ * names who it is for, who then joins with one tap; any other (a group, or
+ * no name on it) asks their name first.
+ */
+export function scanVerdict(preview: InvitePreview | null, status: { kind: string; message?: string }): { dead: string | null; alreadyIn: boolean; named: string | null } {
+  const dead = status.kind === 'dead' ? status.message ?? null
+    : preview && ['expired', 'used', 'not_found', 'retired'].includes(preview.status)
+      ? deadMessage(preview.status as DeadReason, preview.invitedBy) : null;
+  const named = preview?.status === 'ok' && preview.label && !preview.group ? preview.label : null;
+  return { dead, alreadyIn: preview?.status === 'joined', named };
+}

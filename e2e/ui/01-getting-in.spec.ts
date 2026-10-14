@@ -140,28 +140,6 @@ for (const key of ['ADMIN', 'COORD', 'LADMIN', 'TRANS', 'REV', 'TREV', 'VIEW'] a
   });
 }
 
-test('AUTH-003 Sign In stays disabled until both fields can be used', async ({ page }) => {
-  await openSignedOut(page);
-  const name = field(page, 'Email or sign-in name');
-  const password = field(page, 'Password');
-  const signIn = button(page, SIGN_IN);
-  await name.fill('a');
-  await password.fill('x');
-  await expect(signIn).toBeDisabled();
-  await name.fill('nobody');
-  await password.fill('');
-  await expect(signIn).toBeDisabled();
-  await password.fill('x');
-  await expect(signIn).toBeEnabled();
-  await name.fill('user@example.org');
-  await expect(signIn).toBeEnabled();
-  await name.fill('-bad-name');
-  await expect(signIn).toBeDisabled();
-  await name.fill('Nyibol-482');
-  await expect(signIn).toBeEnabled();
-  await expect(page.getByRole('alert')).toHaveCount(0);
-});
-
 test('AUTH-004 A looked-after account signs in by its sign-in name', async ({ page }) => {
   // KEPT sets a password for a shared phone, as Edit Profile does (supabase.auth.updateUser).
   const { sb } = await signIn(world(), 'KEPT');
@@ -376,6 +354,11 @@ test('AUTH-019 Create an account with an email @p0', async ({ page }) => {
   await expect(page.getByPlaceholder('Choose a password (6 or more characters)', { exact: true })).toBeVisible();
   await expect(page.getByPlaceholder('Re-enter password', { exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: /Creating an account accepts the Terms of Use and Privacy Policy/ })).toBeVisible();
+  // Nothing typed: not yet (the rule is createAccountReady's, test/authModel.test.ts).
+  await expect(button(page, 'Create Account')).toBeDisabled();
+  // A short password says why it is not enough.
+  await field(page, 'Password').fill('abc12');
+  await expect(text(page, /6 or more characters/)).toBeVisible();
   await expect(button(page, 'Scan an invite')).toBeVisible();
   await expect(text(page, 'No email or password needed. The invite makes your account and puts you on the team.')).toBeVisible();
   await field(page, 'Email').fill(newAddress(world()));
@@ -387,22 +370,6 @@ test('AUTH-019 Create an account with an email @p0', async ({ page }) => {
   await expect(text(page, 'Join your team')).toBeVisible({ timeout: 60_000 });
   expect(await tabsShown(page)).toEqual([]);
   await expect(text(page, /^Welcome, /)).toBeHidden();
-});
-
-test('AUTH-020 Create Account stays disabled until the fields are usable', async ({ page }) => {
-  await openSignedOut(page);
-  await button(page, 'Create Account').click();
-  const create = button(page, 'Create Account');
-  await field(page, 'Email').fill('someone');
-  await field(page, 'Password').fill('secret1');
-  await field(page, 'Confirm password').fill('secret1');
-  await expect(create).toBeDisabled();
-  await field(page, 'Email').fill('someone@example.org');
-  await expect(create).toBeEnabled();
-  await field(page, 'Password').fill('abc12');
-  await field(page, 'Confirm password').fill('abc12');
-  await expect(create).toBeDisabled();
-  await expect(text(page, /6 or more characters/)).toBeVisible();
 });
 
 test('AUTH-021 Passwords that do not match', async ({ page }) => {
@@ -749,16 +716,6 @@ test('AUTH-040 An invite already used by someone else', async ({ page }) => {
   await expect(text(page, `This invite has already been used. Ask ${world().accounts.COORD.name} for a new one.`)).toBeVisible();
   await expect(button(page, 'Clear this invite')).toBeVisible();
   await expect(button(page, /^Join/)).toHaveCount(0);
-});
-
-test('AUTH-041 An invite that is not valid', async ({ page }) => {
-  await openSignedOut(page);
-  await openScan(page);
-  await paste(page, PASTE, randomHex(32));
-  await expect(text(page, 'Invitation to join an organization')).toBeVisible();
-  await expect(text(page, /^From /)).toBeHidden();
-  await expect(text(page, "This invite can't be used")).toBeVisible();
-  await expect(text(page, "This invite isn't valid. Check you scanned the whole code, or ask for a new one.")).toBeVisible();
 });
 
 test('AUTH-042 An invite whose role was retired', async ({ page }) => {

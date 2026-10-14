@@ -4,7 +4,8 @@ import { needsConnection, openableLanguages } from '../src/simple/mapModel';
 import { EDGES } from '../src/flow';
 import { edgeAllowed, tabsFor } from '../src/session';
 import { nextSub, readiness, readySteps, waitingWhat, waitingWho, workIcon, workSub, workTarget, workWhat } from '../src/simple/homeModel';
-import { inSeveral, offlineCount } from '../src/simple/meModel';
+import { offlineCount } from '../src/simple/meModel';
+import { inSeveral } from '../src/account/model';
 import { roleSession } from './sessions';
 
 describe('the simple My Work (decision 71)', () => {

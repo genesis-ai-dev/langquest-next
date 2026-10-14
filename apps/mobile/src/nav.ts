@@ -96,3 +96,6 @@ export function useNav(initial: Route) {
     [current, stack, ready, initial, push, replace, reset, back, popTo, fromRoute, onReady, onStateChange]
   );
 }
+
+/** The shell's navigation: the stack as react-navigation reports it, and the moves on it. */
+export type Nav = ReturnType<typeof useNav>;

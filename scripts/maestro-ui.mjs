@@ -3,16 +3,25 @@
  * The UI test suite's phone flows (docs/ui-test-suite, decisions.md 95):
  *
  *   npm run test:ui:phone -- --platform ios|android [--device <udid|serial>]
- *     [--app build|dev] [--port 8095] [--tags p0,auth] [--exclude-tags wrapped]
- *     [--label run] [--reuse-world] [--flow <file>]... [--shards N] [--voice]
+ *     [--app build|dev] [--port 8095] [--tags p0,auth] [--exclude-tags rec]
+ *     [--label run] [--reuse-world] [--flow <file>]... [--shards N]
+ *     [--voice | --mic] [--wrapped]
+ *
+ * Flows a run cannot hold are skipped, and the run says which and why
+ * (scripts/maestro-plan.mjs): flows tagged `voice` need a microphone signal
+ * (--voice loops e2e/fixtures/voice.wav into the host input; --mic says the
+ * input already carries voice, as on a device with a person speaking),
+ * `android-only` flows need Android's airplane mode, and `wrapped` flows
+ * need a step from outside mid-run (--wrapped, and their headers say which).
+ * Flows named with --flow run as asked.
  *
  * --shards N runs the flows across N devices (name each with a repeated
  * --device; an iOS run with none uses N booted simulators), through Maestro's
  * --shard-split. Maestro keeps flowsOrder only inside one shard, so the flows
  * config.yaml orders run first, in order, on the first device; the rest are
  * split across all N. --voice (macOS) loops e2e/fixtures/voice.wav
- * into a virtual audio device for the run, for the flows that need a
- * microphone signal (the Maestro section of docs/ui-test-suite/README.md).
+ * into a virtual audio device for the run (the Maestro section of
+ * docs/ui-test-suite/README.md).
  *
  * Builds a fresh fixture world on the local stack (e2e/ui/fixture.ts),
  * hands its accounts and passages to Maestro as variables, and runs
@@ -23,9 +32,10 @@
  * go to e2e/results/maestro/<platform>/<label>/.
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, readFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { flowTags, plannedSkips, skipReport } from './maestro-plan.mjs';
 
 const root = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -148,8 +158,13 @@ for (const [key, l] of Object.entries(world.languages)) env[`LANG_${key}`] = l.n
 
 const flows = all('flow');
 const tags = value('tags', '');
-const excludeTags = value('exclude-tags', '');
 const flowsDir = join(root, 'apps/mobile/test/maestro');
+const flowFiles = readdirSync(join(flowsDir, 'flows')).filter((f) => f.endsWith('.yaml')).sort().map((f) => join(flowsDir, 'flows', f));
+
+// What this run cannot hold is skipped and said, not failed (scripts/maestro-plan.mjs).
+const skips = plannedSkips({ platform, voice: args.includes('--voice'), mic: args.includes('--mic'), wrapped: args.includes('--wrapped'), flows });
+for (const line of skipReport(skips, flowFiles.map((f) => ({ name: f.replace(/^.*\//, '').replace(/\.yaml$/, ''), tags: flowTags(readFileSync(f, 'utf8')) })))) console.log(line);
+const excludeTags = [...value('exclude-tags', '').split(',').filter(Boolean), ...skips.map((s) => s.tag)].join(',');
 
 // --voice: the simulator and emulator hear the host's input, so loop the voice
 // clip into a virtual audio device (BlackHole or similar) for the run.
@@ -192,10 +207,9 @@ if (shards === 1) {
 
 // Sharded. Maestro orders flows only within a shard, so run the ordered ones
 // first, one after another on the first device, then split the rest.
-const { readdirSync } = await import('node:fs');
 const config = readFileSync(join(flowsDir, 'config.yaml'), 'utf8');
 const ordered = [...(config.split('flowsOrder:')[1] ?? '').matchAll(/^\s+-\s+"([^"]+)"/gm)].map((m) => m[1]);
-const files = flows.length ? flows : readdirSync(join(flowsDir, 'flows')).filter((f) => f.endsWith('.yaml')).sort().map((f) => join(flowsDir, 'flows', f));
+const files = flows.length ? flows : flowFiles;
 const nameOf = (f) => /^name:\s*"?(.+?)"?\s*$/m.exec(readFileSync(f, 'utf8'))?.[1];
 const byName = new Map(files.map((f) => [nameOf(f), f]));
 const first = ordered.map((n) => byName.get(n)).filter(Boolean);

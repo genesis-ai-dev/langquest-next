@@ -20,12 +20,12 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
 import {
-  applyOrgEvent, checkPeopleSpecs, commands, derivePassage, emptyLanguageState, emptyOrgState, foldOrg, formatQuestionField, ORG_STREAM,
-  PRIVILEGES, REDUCER_VERSION, SEED_ROLES, selectTemplateSpecs, subscriptionItemId, USFM_BOOKS,
+  checkPeopleSpecs, commands, derivePassage, emptyLanguageState, formatQuestionField, ORG_STREAM,
+  PRIVILEGES, SEED_ROLES, selectTemplateSpecs, subscriptionItemId, USFM_BOOKS,
   type CollectionDoc, type EventSpec, type FlowDoc, type KindDef, type LanguageState, type LibraryDoc, type License, type OrgState,
   type Privilege, type Scope, type SourceDoc, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
-import { blobKey, MemoryStore, SupabaseTransport, SyncClient, workerBlobs, type Materializer } from '@langquest-next/client';
+import { blobKey, MemoryStore, ORG_MATERIALIZER, SupabaseTransport, SyncClient, workerBlobs, type Materializer } from '@langquest-next/sync';
 
 // ---- the world's shape ----------------------------------------------------------------
 
@@ -138,11 +138,6 @@ const TERMS_VERSION = /TERMS_VERSION = '([^']+)'/.exec(
 // ---- people and their clients -----------------------------------------------------
 
 interface Person extends UiAccount { key: AccountKey; sb: SupabaseClient }
-
-const ORG_MATERIALIZER: Materializer<OrgState> = {
-  empty: emptyOrgState, apply: applyOrgEvent, fold: foldOrg,
-  compact: (s) => { s.appliedEventIds = {}; }, version: REDUCER_VERSION
-};
 
 function anonClient(): SupabaseClient {
   const s = localServer();

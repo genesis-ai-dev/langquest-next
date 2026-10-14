@@ -5,7 +5,8 @@
 #
 # Passage: P-DRAFT (Luke 14:1-14), after REC-026 (flows run in name order);
 # parts are not counted here, only the recorder's state.
-# Audio: G8, the host's microphone playing e2e/fixtures/voice.wav.
+# Audio: G8, the host's microphone playing e2e/fixtures/voice.wav (tag voice:
+# the runner skips this flow unless the run has one, --voice or --mic).
 # Expected: iOS makes the app inactive, so recording stops ("Record" after
 # Control Center closes); Android keeps it active, so recording goes on
 # ("Stop recording"), and the flow stops it.
@@ -13,6 +14,7 @@ appId: com.frontierrnd.langquestnext
 name: "REC-027 Pulling down Control Center or the notification shade while recording"
 tags:
   - rec
+  - voice
 ---
 - runFlow: ../common/launch.yaml
 - runFlow:

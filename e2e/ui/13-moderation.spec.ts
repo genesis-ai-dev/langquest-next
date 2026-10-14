@@ -6,7 +6,7 @@
 import type { Page } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { commands, derivePassage } from '@langquest-next/core';
-import type { SyncClient } from '@langquest-next/client';
+import type { SyncClient } from '@langquest-next/sync';
 import {
   expectAccountSent, languageAs, languageLoaded, newAccount, noteAs, openHistory, outboxRows, quietDevice, quietDevServer,
   reportAs, serverBlocks, setBlocked, toTabs
@@ -773,7 +773,7 @@ test('MOD-023 Reports need a connection to read and to act on', async ({ page })
 
 /** A short WAV uploaded where the app keeps the language's files, for a version made through the server. */
 async function uploadVoice(w: UiWorld, key: AccountKey) {
-  const { blobKey, workerBlobs } = await import('@langquest-next/client');
+  const { blobKey, workerBlobs } = await import('@langquest-next/sync');
   const { createHash } = await import('node:crypto');
   const { signIn } = await import('./fixture');
   const rate = 16000;

@@ -2,13 +2,15 @@
 # publishes Version 1, then asks the check's team (JRN-002 / JRN-011 on the
 # web cover the rest). P-Q1 was asked of TRANS and nobody else touches it.
 # Audio: the parts come from the host's microphone (G8: a loopback playing
-# e2e/fixtures/voice.wav). With a silent microphone no part is made
-# and the flow stops at "Publish", which is then the finding to read.
+# e2e/fixtures/voice.wav). With a silent microphone no part is made, so the
+# flow is tagged voice and the runner skips it unless the run has one
+# (--voice or --mic).
 appId: com.frontierrnd.langquestnext
 name: "P0 A translator records and publishes a version"
 tags:
   - p0
   - smoke
+  - voice
 ---
 - runFlow: ../common/launch.yaml
 - runFlow:

@@ -9,7 +9,7 @@
  * The output is real user data: write it outside the repo.
  */
 import { createClient } from '@supabase/supabase-js';
-import { SupabaseTransport } from '@langquest-next/client';
+import { SupabaseTransport } from '@langquest-next/sync';
 import { createWriteStream, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 

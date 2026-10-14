@@ -5,12 +5,14 @@
 # which left two parts; this flow records more until there are five, none
 # with a verse, then slides from Part 3's space past Part 5's.
 # Audio: G8, the host's microphone playing e2e/fixtures/voice.wav (a
-# part about every four seconds). With a silent microphone the flow stops
-# waiting for "Parts 1–5".
+# part about every four seconds). With a silent microphone no part is made,
+# so the flow is tagged voice and the runner skips it unless the run has one
+# (--voice or --mic).
 appId: com.frontierrnd.langquestnext
 name: "REC-043 Slide down the spaces to number many parts"
 tags:
   - rec
+  - voice
 ---
 - runFlow: ../common/launch.yaml
 - runFlow:

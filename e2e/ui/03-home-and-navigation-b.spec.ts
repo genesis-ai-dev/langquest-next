@@ -4,7 +4,7 @@
 import { randomUUID } from 'node:crypto';
 import { commands, derivePassage, type EventSpec } from '@langquest-next/core';
 import type { Page } from '@playwright/test';
-import type { SyncClient } from '@langquest-next/client';
+import type { SyncClient } from '@langquest-next/sync';
 import { send } from './fixture';
 import { act, headerTitle, invite, languageAs, orgAs, settled, upload } from './nav-helpers';
 import { button, expect, openAs, screenText, syncNow, tab, test, text, useWorld, type AccountKey } from './support';
