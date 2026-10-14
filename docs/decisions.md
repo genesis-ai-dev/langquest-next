@@ -3716,8 +3716,11 @@ those in none, sums each cluster in Overview, and names a language's
 clusters in its row, its page and the CSV; the device filters the rows the
 server sent with its own fold of the organization, so the server still
 knows nothing of clusters. Inviting stays per language: after a cluster,
-the invite offers its new languages as chips. Not built: inviting to every
-language of a cluster at once, and settings shared across a cluster.
+the invite offers its new languages as chips. The web app's JavaScript
+budget (decision 58, `apps/mobile/scripts/export-web.mjs`) rises from 6 to
+6.5 MB: main was 22 KB under it and clusters add 26 KB. Not built: inviting
+to every language of a cluster at once, and settings shared across a
+cluster.
 
 Reverse if: organizations need a cluster to carry people or settings for
 all its languages (an invite or a template for the cluster); then a cluster
