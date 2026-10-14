@@ -821,6 +821,9 @@
       "introPending": "Esta persona creó una cuenta y pidió unirse. Asígnale un rol y un alcance para darle acceso.",
       "intro": "Elige un rol y luego el alcance de esta asignación. El alcance puede ser este nivel o uno inferior.",
       "outranked": "{{name}} tiene más permisos aquí que tú, así que solo alguien con los mismos permisos puede cambiar esto.",
+      "onlyManager": "{{name}} es la única persona que puede gestionar roles",
+      "onlyManagerYou": "Eres la única persona que puede gestionar roles",
+      "onlyManagerSub": "Primero da a otra persona un rol con Gestionar roles. Después se podrá cambiar o quitar este rol.",
       "viewOnly": "Solo quienes pueden invitar miembros cambian los roles.",
       "removeFromOrg": "Quitar de la organización",
       "removeFromLanguage": "Quitar del idioma"
@@ -880,6 +883,7 @@
       "needsPermission": "Para agregar un idioma necesitas permiso para administrar plantillas y flujos de revisión de toda la organización.",
       "templateMissing": "Su plantilla todavía no está en este dispositivo. Inténtalo de nuevo cuando tengas conexión.",
       "added": "{{language}} se agregó a {{org}}.",
+      "addedNotOffered": "{{language}} se agregó a {{org}}. Ofrece {{offers}} en Qué les ayuda cuando tengas conexión.",
       "step": "Paso {{step}} de {{total}}",
       "called": "¿Cómo se llama el idioma?",
       "namePlaceholder": "p. ej., hadiyya",
@@ -2548,6 +2552,7 @@
       "confirmLabel": "Confirmar contraseña",
       "confirmPlaceholder": "Vuelve a escribir la contraseña",
       "mismatch": "Las contraseñas no coinciden.",
+      "tooShort": "La contraseña necesita 6 caracteres o más.",
       "scanInvite": "Escanear una invitación",
       "scanHint": "No necesitas correo ni contraseña. La invitación crea tu cuenta y te agrega al equipo.",
       "failed": "No se pudo crear la cuenta. Inténtalo de nuevo."
@@ -2605,10 +2610,6 @@
       "startSub": "Para el líder de un equipo",
       "lookTitle": "Primero echa un vistazo",
       "lookSub": "Trabajo de traducción publicado para todos",
-      "stillToSend_one": "Falta enviar: un cambio de la cuenta. Cierra sesión cuando vuelvas a tener conexión y se haya enviado.",
-      "stillToSend_many": "Falta enviar: {{count, number}} cambios de la cuenta. Cierra sesión cuando vuelvas a tener conexión y se hayan enviado.",
-      "stillToSend_other": "Falta enviar: {{count, number}} cambios de la cuenta. Cierra sesión cuando vuelvas a tener conexión y se hayan enviado.",
-      "signOutFailed": "No se pudo cerrar sesión. Inténtalo de nuevo.",
       "title": "Únete a tu equipo",
       "joiningInvite": "Uniéndote con tu invitación…",
       "inviteSavedTitle": "Tu invitación está guardada",
@@ -2664,8 +2665,6 @@
       "member": "miembro",
       "yourOrganization": "tu organización",
       "languageTeam": "el equipo de {{language}} en {{org}}",
-      "showMe": "Muéstrame cómo",
-      "skip": "Omitir por ahora",
       "getStarted": "Empezar",
       "invitedYou": "{{name}} te invitó",
       "greeting": "Te damos la bienvenida, {{name}}",
@@ -2876,6 +2875,7 @@
       "tourSub": "Escucha un recorrido corto",
       "more": "Más ajustes",
       "moreRefused": "Esta cuenta no puede sincronizar · contraseña, notificaciones, cuenta",
+      "moreRefusedEvents": "Rechazados · {{n, number}} · contraseña, notificaciones, sincronización, cuenta",
       "morePending_one": "{{count, number}} esperando para enviar · contraseña, notificaciones, sincronización, cuenta",
       "morePending_many": "{{count, number}} esperando para enviar · contraseña, notificaciones, sincronización, cuenta",
       "morePending_other": "{{count, number}} esperando para enviar · contraseña, notificaciones, sincronización, cuenta",
@@ -3368,8 +3368,8 @@
       "studySteps_other": "{{name}} · {{done}} de {{count, number}} pasos",
       "dueOn": "vence {{date}}",
       "record": "Grabar",
-      "yourTakes": "Tus tomas están grabadas, pero todavía no se publicaron.",
-      "someTakes": "Algunas tomas están grabadas, pero todavía no se publicaron.",
+      "yourParts": "Tus partes están grabadas, pero todavía no se publicaron.",
+      "someParts": "Algunas partes están grabadas, pero todavía no se publicaron.",
       "recordHint": "Cuéntalo en tu idioma. La Biblia, las palabras clave y las notas están a tu lado mientras grabas.",
       "recordHintAsked": "{{asked}}. Cuéntalo en tu idioma. La Biblia, las palabras clave y las notas están a tu lado mientras grabas.",
       "asked": {
@@ -3382,6 +3382,7 @@
       },
       "publish": "Publicar",
       "publishedWhen": "Publicado {{when}}",
+      "publishedJustNow": "Publicado hace un momento",
       "someoneInSentence": "alguien",
       "thenAskFor": "Luego pide la {{check}}",
       "saveForTeam": "Guárdalo para que el equipo lo escuche",
@@ -3393,6 +3394,7 @@
         "movedPast": "superado",
         "setAside": "apartado",
         "answered": "respondido",
+        "answeredBack": "respondida · vuelve a la revisión",
         "looksGood": "está bien",
         "needsChanges": "necesita cambios",
         "after": "después de la {{check}}",
@@ -3426,7 +3428,7 @@
       },
       "kindOnVersion": "{{kind}} en {{version}}",
       "recording": "Grabación",
-      "takesNotPublished": "Tomas grabadas, todavía sin publicar",
+      "partsNotPublished": "Partes grabadas, todavía sin publicar",
       "notRecorded": "Todavía no se grabó",
       "backToLatest": "Volver a la última versión",
       "pill": {
@@ -3446,9 +3448,9 @@
       "newer": "Versión más nueva",
       "versions": "Versiones",
       "playVersion": "Reproducir {{version}}",
-      "takes_one": "{{count, number}} toma",
-      "takes_many": "{{count, number}} tomas",
-      "takes_other": "{{count, number}} tomas",
+      "parts_one": "{{count, number}} parte",
+      "parts_many": "{{count, number}} partes",
+      "parts_other": "{{count, number}} partes",
       "openRecording": "Abrir la grabación",
       "madeAfter": "Hecha después de",
       "madeAfterShow": "Hecha después de {{label}}. Mostrar esa versión",
@@ -3518,6 +3520,7 @@
       "playNote": "Reproducir la nota de {{name}}",
       "whoseNote": "Nota de {{name}}",
       "playFeedback": "Reproducir los comentarios de {{name}}",
+      "playYourFeedback": "Reproducir tus comentarios",
       "more": "Más",
       "options": "Opciones",
       "openVersion": "Abrir {{version}}"
@@ -3547,6 +3550,8 @@
       "version": "Versión {{n, number}} publicada",
       "versionNoNumber": "Versión publicada",
       "savedHere": "{{title}} · guardado en este dispositivo · se envía cuando tengas conexión",
+      "sent": "{{title}} · enviado al equipo",
+      "sending": "{{title}} · enviando ahora",
       "nextAsk": "Ahora, pide una verificación",
       "allDone": "Todas las verificaciones están listas.",
       "alreadyAsked": "La siguiente verificación ya está pedida."
@@ -3583,7 +3588,6 @@
       "changeAloud": "Qué cambió, dicho en voz alta",
       "inResponseTo": "En respuesta a la {{kind}} de {{who}}",
       "recording": "Grabación",
-      "take": "Toma {{n, number}}",
       "details": "Detalles",
       "keyTerms": "Términos clave",
       "termsTied_one": "{{count, number}} término ligado · {{terms}}",
@@ -3822,6 +3826,7 @@
       "tellCode": "Si sigue pasando, dile a tu equipo este código: {{code}}",
       "goBack": "Volver",
       "goToMyWork": "Ir a Mi trabajo",
+      "goHome": "Ir al inicio",
       "codeForTeam": "Código para tu equipo: {{code}}",
       "notConfigured": "Esta compilación no está configurada"
     },
@@ -4123,6 +4128,7 @@
     "toast": {
       "reportedAndBlocked": "Reportaste y bloqueaste a {{name}}. Gracias.",
       "reported": "Reportado. Gracias. Se envía cuando tengas conexión.",
+      "reportedSent": "Reportado. Gracias.",
       "unblocked": "Desbloqueaste a {{name}}.",
       "blocked": "Bloqueaste a {{name}}. Lo que agregue queda oculto para ti.",
       "removed": "Se quitó del registro. Los dispositivos dejarán de mostrarlo cuando vuelvan a sincronizar.",
@@ -4207,7 +4213,6 @@
       "couldNotSeek": "No se pudo mover el audio (código {{code}}).",
       "rewindSource": "Retroceder la fuente 10 segundos",
       "forwardSource": "Adelantar la fuente 10 segundos",
-      "pausePlayback": "Pausar la reproducción",
       "playAudio": "Reproducir audio",
       "back10Help": "Escucha otra vez los últimos segundos.",
       "note": "Nota",
@@ -4330,9 +4335,6 @@
     "resumeRecordingNow": "Seguir grabando ahora",
     "loop": {
       "capturing": "Grabando lo que dices",
-      "takesSoFar_one": "{{count, number}} toma hasta ahora",
-      "takesSoFar_many": "{{count, number}} tomas hasta ahora",
-      "takesSoFar_other": "{{count, number}} tomas hasta ahora",
       "partsSoFar_one": "{{count, number}} parte hasta ahora",
       "partsSoFar_many": "{{count, number}} partes hasta ahora",
       "partsSoFar_other": "{{count, number}} partes hasta ahora",
@@ -4384,7 +4386,7 @@
       "tiedBadge": "Ligado",
       "tying": "Ligando…",
       "tie": "Ligar a tu borrador",
-      "recordFirst": "Primero graba una toma; luego podrás ligar términos a tu borrador.",
+      "recordFirst": "Primero graba una parte; luego podrás ligar términos a tu borrador.",
       "allTerms": "Todos los términos clave →",
       "studyTitle": "Estudio de {{pattern}} · {{passage}}",
       "openStudy": "Abrir el estudio →",
@@ -4419,7 +4421,7 @@
       "dividerHint": "Desliza hacia arriba o hacia abajo para dar más espacio a una de las dos"
     },
     "take": {
-      "record": "Grabar una toma",
+      "record": "Grabar una parte",
       "recordHint": "Habla y haz pausas entre partes. Toca detener cuando termines."
     },
     "backTranslation": {
@@ -4427,10 +4429,6 @@
       "partsSaid_one": "{{said}} de {{count, number}} parte dicha",
       "partsSaid_many": "{{said}} de {{count, number}} partes dichas",
       "partsSaid_other": "{{said}} de {{count, number}} partes dichas"
-    },
-    "workspace": {
-      "take": "Toma {{n}}",
-      "newTake": "Toma nueva {{n}}"
     },
     "verses": {
       "verse": "Versículo {{verse}}",
@@ -4623,6 +4621,8 @@
       "noLanguagesSub": "Cuando se agregue un idioma, sus pasajes aparecerán aquí.",
       "noPassages": "Todavía no hay pasajes",
       "noPassagesSub": "Cuando {{language}} tenga pasajes para grabar, aparecerán aquí por libro y capítulo.",
+      "needsConnection": "{{language}} todavía no está en este dispositivo",
+      "needsConnectionSub": "Conéctate a internet para traerlo aquí. Se abrirá solo cuando tengas conexión.",
       "summary": "{{recorded}} de {{total}} grabados · {{done}} listos · {{waiting}} con revisores",
       "find": "Buscar “Juan 3”",
       "bookHits_one": "{{count, number}} libro · agrega un número de capítulo para ir directo a él",
@@ -5535,7 +5535,11 @@
       "skipTitle": "¿Dejar esta pregunta sin responder?",
       "skipSub": "Las preguntas obligatorias se pueden saltar: la razón se guarda con tu revisión.",
       "skipConfirm": "Saltar pregunta",
-      "skipFootnote": "La razón se guarda con tu revisión."
+      "skipFootnote": "La razón se guarda con tu revisión.",
+      "leaveTitle": "¿Salir sin guardar?",
+      "leaveSub": "Lo que dijiste y respondiste aquí no se guarda hasta que envíes la revisión.",
+      "keepReviewing": "Seguir revisando",
+      "leave": "Salir"
     },
     "guest": {
       "previewSub": "Vista previa · lo que ve alguien sin la app",
@@ -5722,6 +5726,7 @@
     "noteSubNext": "¿Qué fue difícil de decir aquí? La siguiente verificación lo escucha junto con tu retrotraducción.",
     "addNote": "Agregar nota",
     "typeNoMatch": "O escríbelo; p. ej., una palabra que no tiene equivalente en inglés",
+    "oneSpokenNote": "Por ahora, una sola nota hablada por retrotraducción: escribe esta.",
     "publishThe": "¿Publicar la {{what}}?",
     "publishSubCheck": "De la versión {{n}}. Después la escucha la {{check}}.",
     "publishSub": "De la versión {{n}}. Queda en el registro del pasaje.",
@@ -5740,7 +5745,8 @@
     "missing": "Este pasaje todavía no está en este dispositivo.",
     "missingSub": "Puede que todavía se esté cargando.",
     "orgLoading": "Tu organización todavía se está cargando.",
-    "takesNotInDraft": "Tus tomas están guardadas en este dispositivo, pero todavía no en tu borrador. {{reason}}",
+    "languageLoading": "Este idioma todavía se está cargando. Inténtalo de nuevo en un momento.",
+    "partsNotInDraft": "Tus partes están guardadas en este dispositivo, pero todavía no en tu borrador. {{reason}}",
     "partDeleted": "{{part}} eliminada.",
     "chips": {
       "bible": "Biblia",
@@ -6322,7 +6328,9 @@
       "remove": "Quitar de Mis Biblias",
       "chapter": "Capítulo {{n, number}}",
       "previousChapter": "Capítulo anterior",
-      "nextChapter": "Capítulo siguiente"
+      "nextChapter": "Capítulo siguiente",
+      "removed": "{{abbr}} se quitó de Mis Biblias",
+      "notRemoved": "No se quitó. Inténtalo de nuevo."
     }
   },
   "referenceLanguage": {

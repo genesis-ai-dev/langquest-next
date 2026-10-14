@@ -805,6 +805,9 @@
       "introPending": "Wannan mutum ya buɗe asusu ya nemi shiga. Ku ba da matsayi da iyaka don ba su izinin shiga.",
       "intro": "Ku zaɓi matsayi, sannan ku zaɓi iyakar da wannan sanyawa ta shafa. Iyaka za ta iya zama wannan mataki ko ƙasa da shi.",
       "outranked": "{{name}} na da iko fiye da ku a nan, don haka sai wanda ke da iko daidai da haka ne zai iya canja wannan.",
+      "onlyManager": "{{name}} ne kaɗai zai iya sarrafa matsayi",
+      "onlyManagerYou": "Kai kaɗai ne za ka iya sarrafa matsayi",
+      "onlyManagerSub": "Da farko ka ba wani matsayi mai Sarrafa matsayi. Sannan za a iya canza wannan matsayi ko cire shi.",
       "viewOnly": "Masu iya gayyatar membobi kaɗai ne suke canja matsayai.",
       "removeFromOrg": "Cire daga ƙungiya",
       "removeFromLanguage": "Cire daga harshe"
@@ -861,6 +864,7 @@
       "needsPermission": "Ƙara harshe yana buƙatar izinin kula da samfura da tsare-tsaren bita na dukan ƙungiyar.",
       "templateMissing": "Samfurinsa ba ya kan wannan na'ura tukuna. Ku sake gwadawa idan an haɗa.",
       "added": "An ƙara {{language}} zuwa {{org}}.",
+      "addedNotOffered": "An ƙara {{language}} zuwa {{org}}. Ku ba da {{offers}} a ƙarƙashin Abin da ke taimaka musu idan kun sami intanet.",
       "step": "Mataki na {{step}} cikin {{total}}",
       "called": "Me ake kiran harshen?",
       "namePlaceholder": "misali Hadiyya",
@@ -2460,6 +2464,7 @@
       "confirmLabel": "Tabbatar da kalmar sirri",
       "confirmPlaceholder": "Sake shigar da kalmar sirri",
       "mismatch": "Kalmomin sirri ba su yi daidai ba.",
+      "tooShort": "Kalmar sirri tana bukatar haruffa 6 ko fiye.",
       "scanInvite": "Karanta gayyata",
       "scanHint": "Ba a buƙatar imel ko kalmar sirri. Gayyatar tana buɗe muku asusu kuma ta sa ku cikin tawagar.",
       "failed": "An kasa buɗe asusun. Ku sake gwadawa."
@@ -2517,9 +2522,6 @@
       "startSub": "Don shugaban tawaga",
       "lookTitle": "Ku fara dubawa",
       "lookSub": "Ayyukan fassara da aka lissafa a fili",
-      "stillToSend_one": "Saura a aika: canjin asusu ɗaya. Ku fita da zarar kun dawo kan intanet kuma an aika shi.",
-      "stillToSend_other": "Saura a aika: canje-canjen asusu {{count, number}}. Ku fita da zarar kun dawo kan intanet kuma an aika su.",
-      "signOutFailed": "An kasa fita. Ku sake gwadawa.",
       "title": "Shiga tawagarku",
       "joiningInvite": "Ana shiga da gayyatarku…",
       "inviteSavedTitle": "An ajiye gayyatarku",
@@ -2575,8 +2577,6 @@
       "member": "memba",
       "yourOrganization": "ƙungiyarku",
       "languageTeam": "tawagar {{language}} a {{org}}",
-      "showMe": "Nuna mini yadda ake yi",
-      "skip": "Tsallake yanzu",
       "getStarted": "Fara",
       "invitedYou": "Gayyata daga {{name}}",
       "greeting": "Barka da zuwa, {{name}}",
@@ -2785,6 +2785,7 @@
       "tourSub": "Saurari gajeren bayani",
       "more": "Ƙarin saituna",
       "moreRefused": "Wannan asusu ba zai iya daidaitawa ba · kalmar sirri, sanarwa, asusu",
+      "moreRefusedEvents": "An ƙi · {{n, number}} · kalmar sirri, sanarwa, daidaitawa, asusu",
       "morePending_one": "{{count, number}} yana jiran a aika · kalmar sirri, sanarwa, daidaitawa, asusu",
       "morePending_other": "{{count, number}} suna jiran a aika · kalmar sirri, sanarwa, daidaitawa, asusu",
       "signOut": "Fita",
@@ -3251,8 +3252,8 @@
       "studySteps_other": "{{name}} · matakai {{done}} cikin {{count, number}}",
       "dueOn": "wa'adi {{date}}",
       "record": "Naɗa",
-      "yourTakes": "An naɗa naɗe-naɗenku, ba a wallafa ba tukuna.",
-      "someTakes": "An naɗa wasu naɗe-naɗe, ba a wallafa ba tukuna.",
+      "yourParts": "An naɗa sassanku, ba a wallafa ba tukuna.",
+      "someParts": "An naɗa wasu sassa, ba a wallafa ba tukuna.",
       "recordHint": "Ku faɗe shi a harshenku. Littafi Mai Tsarki, muhimman kalmomi da bayanai suna kusa da ku yayin da kuke naɗawa.",
       "recordHintAsked": "{{asked}}. Ku faɗe shi a harshenku. Littafi Mai Tsarki, muhimman kalmomi da bayanai suna kusa da ku yayin da kuke naɗawa.",
       "asked": {
@@ -3265,6 +3266,7 @@
       },
       "publish": "Wallafa",
       "publishedWhen": "An wallafa {{when}}",
+      "publishedJustNow": "An wallafa yanzu",
       "someoneInSentence": "wani",
       "thenAskFor": "Sannan ku nemi {{check}}",
       "saveForTeam": "Ajiye shi don tawagar ta ji",
@@ -3276,6 +3278,7 @@
         "movedPast": "an wuce",
         "setAside": "an ajiye a gefe",
         "answered": "an amsa",
+        "answeredBack": "an amsa · ta koma ga dubawa",
         "looksGood": "yana da kyau",
         "needsChanges": "yana buƙatar gyara",
         "after": "bayan {{check}}",
@@ -3309,7 +3312,7 @@
       },
       "kindOnVersion": "{{kind}} a kan {{version}}",
       "recording": "Naɗi",
-      "takesNotPublished": "An naɗa naɗe-naɗe, ba a wallafa ba tukuna",
+      "partsNotPublished": "An naɗa sassa, ba a wallafa ba tukuna",
       "notRecorded": "Ba a naɗa ba tukuna",
       "backToLatest": "Koma sigar ƙarshe",
       "pill": {
@@ -3329,8 +3332,8 @@
       "newer": "Sabuwar siga",
       "versions": "Sigogi",
       "playVersion": "Kunna {{version}}",
-      "takes_one": "Naɗi {{count, number}}",
-      "takes_other": "Naɗe-naɗe {{count, number}}",
+      "parts_one": "Sashe {{count, number}}",
+      "parts_other": "Sassa {{count, number}}",
       "openRecording": "Buɗe naɗin",
       "madeAfter": "An yi bayan",
       "madeAfterShow": "An yi bayan {{label}}. Nuna wannan siga",
@@ -3400,6 +3403,7 @@
       "playNote": "Kunna bayanin {{name}}",
       "whoseNote": "Bayanin {{name}}",
       "playFeedback": "Kunna sharhin {{name}}",
+      "playYourFeedback": "Kunna sharhinka",
       "more": "Ƙari",
       "options": "Zaɓuɓɓuka",
       "openVersion": "Buɗe {{version}}"
@@ -3429,6 +3433,8 @@
       "version": "An wallafa Siga ta {{n, number}}",
       "versionNoNumber": "An wallafa siga",
       "savedHere": "{{title}} · an ajiye a wannan na'ura · za a aika idan kuna kan intanet",
+      "sent": "{{title}} · an aika wa ƙungiya",
+      "sending": "{{title}} · ana aikawa yanzu",
       "nextAsk": "Na gaba, ku nemi dubawa",
       "allDone": "An gama kowace dubawa.",
       "alreadyAsked": "An riga an nemi dubawa ta gaba."
@@ -3464,7 +3470,6 @@
       "changeAloud": "Abin da ya canja, an faɗa da murya",
       "inResponseTo": "Don amsa {{kind}} daga {{who}}",
       "recording": "Naɗi",
-      "take": "Naɗi na {{n, number}}",
       "details": "Cikakken bayani",
       "keyTerms": "Muhimman kalmomi",
       "termsTied_one": "An haɗa kalma {{count, number}} · {{terms}}",
@@ -3687,6 +3692,7 @@
       "tellCode": "Idan ya ci gaba da faruwa, ku faɗa wa tawagarku wannan lamba: {{code}}",
       "goBack": "Koma baya",
       "goToMyWork": "Je zuwa Aikina",
+      "goHome": "Je zuwa farko",
       "codeForTeam": "Lamba don tawagarku: {{code}}",
       "notConfigured": "Ba a saita wannan ginin manhaja ba"
     },
@@ -3973,6 +3979,7 @@
     "toast": {
       "reportedAndBlocked": "An kai ƙarar {{name}} kuma an toshe. Na gode.",
       "reported": "An kai ƙara. Na gode. Za a aika idan kuna da intanet.",
+      "reportedSent": "An kai ƙara. Na gode.",
       "unblocked": "An cire toshewar {{name}}.",
       "blocked": "An toshe {{name}}. Abin da suke ƙarawa an ɓoye muku.",
       "removed": "An cire daga tarihin. Na'urori za su daina nuna shi idan sun sake daidaitawa.",
@@ -4054,7 +4061,6 @@
       "couldNotSeek": "An kasa matsar da sautin (lamba {{code}}).",
       "rewindSource": "Mayar da asali baya daƙiƙa 10",
       "forwardSource": "Gaba da asali daƙiƙa 10",
-      "pausePlayback": "Dakatar da kunnawa",
       "playAudio": "Kunna sauti",
       "back10Help": "Sake jin 'yan daƙiƙun ƙarshe.",
       "note": "Bayani",
@@ -4177,8 +4183,6 @@
     "resumeRecordingNow": "Ci gaba da naɗawa yanzu",
     "loop": {
       "capturing": "Ana naɗa abin da kuke faɗa",
-      "takesSoFar_one": "Naɗi {{count, number}} zuwa yanzu",
-      "takesSoFar_other": "Naɗe-naɗe {{count, number}} zuwa yanzu",
       "partsSoFar_one": "Sashe {{count, number}} zuwa yanzu",
       "partsSoFar_other": "Sassa {{count, number}} zuwa yanzu",
       "piecesSoFar_one": "Gutsure {{count, number}} zuwa yanzu",
@@ -4226,7 +4230,7 @@
       "tiedBadge": "An haɗa",
       "tying": "Ana haɗawa…",
       "tie": "Haɗa da daftarinku",
-      "recordFirst": "Ku fara naɗa wani naɗi; sannan za ku iya haɗa kalmomi da daftarinku.",
+      "recordFirst": "Ku fara naɗa wani sashe; sannan za ku iya haɗa kalmomi da daftarinku.",
       "allTerms": "Dukan muhimman kalmomi →",
       "studyTitle": "Nazarin {{pattern}} · {{passage}}",
       "openStudy": "Buɗe nazarin →",
@@ -4261,17 +4265,13 @@
       "dividerHint": "Ja sama ko ƙasa don ba ɗayansu ƙarin wuri"
     },
     "take": {
-      "record": "Naɗa naɗi",
+      "record": "Naɗa sashe",
       "recordHint": "Ku yi magana, kuna dakatawa tsakanin sassa. Taɓa tsaya idan kun gama."
     },
     "backTranslation": {
       "draftUnreadable": "An kasa karanta sassanku na baya a wannan na'ura (lamba {{code}}). Ba a goge komai ba.",
       "partsSaid_one": "An faɗi sashe {{said}} cikin {{count, number}}",
       "partsSaid_other": "An faɗi sassa {{said}} cikin {{count, number}}"
-    },
-    "workspace": {
-      "take": "Naɗi na {{n}}",
-      "newTake": "Sabon naɗi na {{n}}"
     },
     "verses": {
       "verse": "Aya ta {{verse}}",
@@ -4444,6 +4444,8 @@
       "noLanguagesSub": "Da zarar an ƙara harshe, nassosinsa za su bayyana a nan.",
       "noPassages": "Babu nassosi tukuna",
       "noPassagesSub": "Da zarar {{language}} yana da nassosin da za a naɗa, za su bayyana a nan bisa littafi da babi.",
+      "needsConnection": "{{language}} bai shigo wannan na'urar ba tukuna",
+      "needsConnectionSub": "Haɗa da intanet don kawo shi nan. Zai buɗe da kansa da zarar kun haɗa.",
       "summary": "An naɗa {{recorded}} cikin {{total}} · an gama {{done}} · {{waiting}} a wurin masu bita",
       "find": "Nemo “Yahaya 3”",
       "bookHits_one": "Littafi {{count, number}} · ƙara lambar babi don tsallakawa kai tsaye zuwa gare shi",
@@ -5283,7 +5285,11 @@
       "skipTitle": "A bar wannan tambaya ba amsa?",
       "skipSub": "Ana iya tsallake tambayoyin dole — ana ajiye dalili tare da bitarku.",
       "skipConfirm": "Tsallake tambaya",
-      "skipFootnote": "Ana ajiye dalili tare da bitarku."
+      "skipFootnote": "Ana ajiye dalili tare da bitarku.",
+      "leaveTitle": "A fita ba tare da ajiyewa ba?",
+      "leaveSub": "Abin da kuka faɗa da amsoshinku a nan ba a ajiye su ba sai kun aika da bitar.",
+      "keepReviewing": "Ci gaba da bita",
+      "leave": "Fita"
     },
     "guest": {
       "previewSub": "Duba farko · abin da wanda ba shi da manhajar yake gani",
@@ -5465,6 +5471,7 @@
     "noteSubNext": "Me ya yi wuyar faɗa a nan? Duba na gaba zai ji shi tare da fassararku ta baya.",
     "addNote": "Ƙara bayani",
     "typeNoMatch": "Ko ku rubuta shi — misali kalmar da ba ta da daidai a Turanci",
+    "oneSpokenNote": "A yanzu, rubutun murya ɗaya kawai ga kowace fassarar dawowa: rubuta wannan.",
     "publishThe": "A wallafa {{what}}?",
     "publishSubCheck": "Na Siga ta {{n}}. {{check}} zai saurare ta na gaba.",
     "publishSub": "Na Siga ta {{n}}. Zai shiga tarihin nassin.",
@@ -5481,7 +5488,8 @@
     "missing": "Wannan nassi ba ya kan wannan na'ura tukuna.",
     "missingSub": "Wataƙila har yanzu yana lodawa.",
     "orgLoading": "Ƙungiyarku tana lodawa har yanzu.",
-    "takesNotInDraft": "An ajiye naɗe-naɗenku a wannan na'ura amma ba su shiga daftarinku ba tukuna. {{reason}}",
+    "languageLoading": "Har yanzu ana loda wannan harshe. Sake gwadawa nan da ɗan lokaci.",
+    "partsNotInDraft": "An ajiye sassanku a wannan na'ura amma ba su shiga daftarinku ba tukuna. {{reason}}",
     "partDeleted": "An goge {{part}}.",
     "chips": {
       "bible": "Littafi Mai Tsarki",
@@ -6035,7 +6043,9 @@
       "remove": "Cire daga Littattafai Masu Tsarki nawa",
       "chapter": "Babi na {{n, number}}",
       "previousChapter": "Babin baya",
-      "nextChapter": "Babi na gaba"
+      "nextChapter": "Babi na gaba",
+      "removed": "An cire {{abbr}} daga Littattafai Masu Tsarki nawa",
+      "notRemoved": "Ba a cire ba. Ku sake gwadawa."
     }
   },
   "referenceLanguage": {

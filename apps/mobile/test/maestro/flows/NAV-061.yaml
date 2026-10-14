@@ -1,0 +1,65 @@
+# NAV-061, Android's back button (docs/ui-test-suite/03-home-and-navigation.md):
+# the system Back steps out of Something else?, Versions, Ask someone, the
+# record, the chapter grid and the map one level at a time, as the header's
+# Back and ✕ do (NAV-060 runs those on the web). P-ASIDE: its Peer check is
+# not asked yet, so "Someone else should do this" is offered. iOS has no
+# system Back: there the flow only signs in.
+appId: com.frontierrnd.langquestnext
+name: "NAV-061 Android's back button"
+tags:
+  - nav
+---
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${TRANS_EMAIL}
+      PASSWORD: ${TRANS_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- extendedWaitUntil:
+    visible:
+      id: "tab-map"
+    timeout: 60000
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn:
+          id: "tab-map"
+      - tapOn: "Luke"
+      - tapOn: "16"
+      - tapOn: ${P_ASIDE}
+      - extendedWaitUntil:
+          visible: "Versions and history"
+          timeout: 30000
+      # 1–2. Back from Something else? returns to the record's path.
+      - tapOn: "Something else\\?"
+      - assertVisible: "What helps here"
+      - back
+      - assertVisible: "Versions and history"
+      - assertNotVisible: "What helps here"
+      # 3. Back from Versions returns to the record.
+      - tapOn: "Versions and history"
+      - back
+      - assertVisible: "Something else\\?"
+      # 4. Back from Ask someone returns to Something else? (where it was opened), with nothing sent; again, the path.
+      - tapOn: "Something else\\?"
+      - tapOn: "Someone else should do this"
+      - extendedWaitUntil:
+          visible: "Ask for Peer check"
+          timeout: 10000
+      - back
+      - assertVisible: "What helps here"
+      - back
+      - assertVisible: "Versions and history"
+      - assertNotVisible: "Asked"
+      # 5. The record, then the chapter grid, then the map.
+      - back
+      - assertVisible:
+          id: "tab-map"
+      - assertVisible: "Chapter 16.*|16"
+      - back
+      - assertVisible: "Find.*"
+      # Back on the tab's root leaves the app or goes to the previous tab, as Android does; never a blank screen.
+      - back
+      - assertNotVisible: "This screen could not open"

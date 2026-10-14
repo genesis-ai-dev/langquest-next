@@ -1,6 +1,7 @@
-import { SqliteDiagStore, SqliteFileLedger, SqliteStore, type SqlDriver } from '@langquest-next/client';
+import { SqliteDiagStore, SqliteFileLedger, SqliteStore, type SqlDriver } from '@langquest-next/sync';
 import * as SQLite from 'expo-sqlite';
 import { Platform } from 'react-native';
+import { isTestBuild } from './testBuild';
 
 /** Statements on one connection: the database, or a transaction's own connection. */
 function statements(db: SQLite.SQLiteDatabase): Pick<SqlDriver, 'run' | 'all'> {
@@ -108,7 +109,7 @@ export async function openWriter(name: string): Promise<SQLite.SQLiteDatabase> {
   return writer;
 }
 
-/** expo-sqlite driver; the test twin lives in packages/client/test. */
+/** expo-sqlite driver; the test twin lives in packages/sync/test. */
 async function expoDriver(db: SQLite.SQLiteDatabase, name: string): Promise<SqlDriver> {
   if (Platform.OS === 'web') return webDriver(db);
   const writer = await openWriter(name);
@@ -183,9 +184,9 @@ export function getStore(): Promise<SqliteStore> {
   storePromise ??= allowed.then(() => open('langquest-next.db')).then(async (db) => {
     const driver = await expoDriver(db, 'langquest-next.db');
     const store = await SqliteStore.open(driver);
-    // The journey oracle reads the device log directly (smart tests, web dev
-    // only). Installed once the schema exists, so its presence means ready.
-    if (__DEV__ && Platform.OS === 'web') (globalThis as { __langquestLog?: unknown }).__langquestLog = {
+    // The web UI suite reads the device log directly (e2e/ui, web dev
+    // and local-stack exports only (testBuild.ts)). Installed once the schema exists, so its presence means ready.
+    if (isTestBuild() && Platform.OS === 'web') (globalThis as { __langquestLog?: unknown }).__langquestLog = {
       select: (sql: string, params?: unknown[]) => {
         if (!/^\s*select\b/i.test(sql)) throw new Error('__langquestLog is read-only.');
         return driver.all(sql, params);

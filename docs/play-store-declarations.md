@@ -110,7 +110,7 @@ every type.
 | Personal info | Phone number (a guest reviewer's contact, typed in by a user) | Yes | No | Optional | App functionality |
 | Messages | Other in-app messages (review comments, join request messages) | Yes | No | Optional | App functionality |
 | Audio | Voice or sound recordings | Yes | No | Required | App functionality |
-| App activity | Other user-generated content (written translations, transcriptions and back translations, decisions.md 95; reviews, notes, answers, reports of content or people, blocked people, which Bibles and guides were used for a version or review) | Yes | No | Required | App functionality |
+| App activity | Other user-generated content (written translations, transcriptions and back translations, decisions.md 106; reviews, notes, answers, reports of content or people, blocked people, which Bibles and guides were used for a version or review) | Yes | No | Required | App functionality |
 | Photos and videos | Photos (pictures and maps an admin adds to a study guide) | Yes | No | Optional | App functionality |
 | Photos and videos | Videos (films an admin adds to a study guide) | Yes | No | Optional | App functionality |
 | Audio | Other audio files (step and glossary audio an admin uploads to a study guide) | Yes | No | Optional | App functionality |
@@ -183,7 +183,7 @@ this block.
     "expo-sqlite"
   ],
   "mobileDependencies": [
-    "@expo/metro-runtime", "@langquest-next/client", "@langquest-next/core",
+    "@expo/metro-runtime", "@langquest-next/core", "@langquest-next/sync",
     "@react-native-async-storage/async-storage", "@react-navigation/native",
     "@react-navigation/native-stack", "@supabase/supabase-js", "d3-geo", "expo", "expo-audio",
     "expo-camera", "expo-crypto", "expo-dev-client", "expo-file-system", "expo-localization", "expo-network",

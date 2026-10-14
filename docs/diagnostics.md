@@ -9,7 +9,7 @@ people or their work. The decision behind it is `decisions.md` 39.
 
 ## What a phone records
 
-Small, content-free records (`packages/client/src/diagnostics.ts`), each one
+Small, content-free records (`packages/sync/src/diagnostics.ts`), each one
 of these kinds, each with a fixed list of fields (`DIAG_SCHEMA`):
 
 | Kind | When | Fields |

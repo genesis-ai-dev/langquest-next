@@ -1,4 +1,4 @@
-// Steps that make something (decisions.md 95; demo branch
+// Steps that make something (decisions.md 106; demo branch
 // caleb-written-translations wStepPick, wStepOwn, wStepFinal): in a
 // language's checks, a step can turn recording or writing into recording or
 // writing, in the team's language or another. What it makes stays beside
@@ -100,7 +100,7 @@ export function MakesFields(props: { makes: MakesSpec; own: string; reference: s
   const set = (patch: Partial<MakesSpec>) => {
     const next = { ...makes, ...patch };
     if (next.language === 'same') delete next.otherLanguage;
-    // The result follows the choices until someone picks it (decisions.md 95); it never stays where it cannot be.
+    // The result follows the choices until someone picks it (decisions.md 106); it never stays where it cannot be.
     const result: MakesResult = 'result' in patch ? patch.result! : ('from' in patch || 'to' in patch || 'language' in patch) ? defaultResult(next) : next.result;
     props.onChange({ ...next, result: resultAllowed(next, result) ? result : 'beside' });
   };

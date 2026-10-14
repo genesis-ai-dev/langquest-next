@@ -46,7 +46,7 @@ export const SCREEN_IDS = [
   'settings_more',
   // App only: one of a language's checks, with its people, questions and helps (decision 91)
   'check_editor',
-  // App only: something made from a version, by a step or brought over from v2 (decision 95)
+  // App only: something made from a version, by a step or brought over from v2 (decision 106)
   'made_detail'
 ] as const;
 
@@ -66,6 +66,15 @@ export const DROPPED_SCREENS: Record<string, string> = {
   // i18n-ignore: reasons for developers, read by the parity tests
   review_team_editor: 'no review teams (docs/decisions.md 91): people are put on a check, on the check itself (check_editor)'
 };
+/**
+ * Demo edges the app leaves out on purpose, with the reason. The parity test
+ * holds every other demo edge.
+ */
+export const DROPPED_EDGES: Record<string, string> = {
+  // i18n-ignore: reasons for developers, read by the parity tests
+  'intent_chooser->sign_in': '"Join your team" has no Back: a signed-in person with no organization leaves only by Sign out, which confirms first (NOORG-003, decided 2026-10-13)'
+};
+
 export type NodeId = ScreenId | 'home_hub';
 
 export type Mode = 'push' | 'replace' | 'back' | 'reset' | 'popTo';
@@ -151,7 +160,6 @@ export const EDGES: Edge[] = [
   e('intent_chooser', 'request_access'), // tap Join an existing org
   e('intent_chooser', 'scan_qr'), // tap Join with QR code
   e('intent_chooser', 'explore_home'), // tap Explore projects
-  e('intent_chooser', 'sign_in', 'reset'), // tap Back
   e('create_org', 'my_work', 'replace'), // tap Create Organization → org-admin
   e('create_org', 'intent_chooser', 'back'), // tap Back
   e('request_access', 'intent_chooser', 'replace'), // tap Send request · shown sent
@@ -397,14 +405,19 @@ export const EDGES: Edge[] = [
   // A language's checks (decision 91): one check, and a help a reviewer opens from it.
   e('flow_editor', 'check_editor'),
   e('review_capture', 'material_editor'),
-  // Something made from a version (decision 95): from the passage's Reviews by version, and from the version.
+  // App only: Content Templates' "By language" rows open that language's own template view (TPL-1, SETUP-032)
+  e('templates_home', 'templates_home', undefined, 'manageTemplates'),
+  // App only: signing out of "Join your team" goes through the same confirmation as Me (NOORG-004, decision 60)
+  e('intent_chooser', 'sign_out_confirm'),
+  e('sign_out_confirm', 'intent_chooser', 'back'),
+  // Something made from a version (decision 106): from the passage's Reviews by version, and from the version.
   e('passage_record', 'made_detail'),
   e('version_detail', 'made_detail'),
   e('made_detail', 'passage_record', 'back'),
   e('made_detail', 'version_detail', 'back'),
   e('made_detail', 'ask_someone'),
-  e('version_detail', 'back_translation', undefined, 'reviewer'), // tap Change the words (decision 95)
-  e('made_detail', 'back_translation', undefined, 'reviewer'), // tap Change the words (decision 95)
+  e('version_detail', 'back_translation', undefined, 'reviewer'), // tap Change the words (decision 106)
+  e('made_detail', 'back_translation', undefined, 'reviewer'), // tap Change the words (decision 106)
   e('back_translation', 'version_detail', 'back'),
   e('back_translation', 'made_detail', 'back')
 ];

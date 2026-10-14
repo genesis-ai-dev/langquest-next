@@ -2,8 +2,9 @@
 // passage reader (the UX demo's src/bible.ts and src/chapterText.ts,
 // STUDY-5, ADR-019). Public-domain text ships with the app for the passages
 // the demo covers: the study guides' passages in BSB, WEB and KJV, and whole
-// WEB chapters for Genesis 1–3, Luke 14–16 and John 2–4. Elsewhere there is
-// none yet and screens say so. It is the readers' last resort
+// WEB chapters for Genesis 1–3, Luke 14–16 and John 2–4. A passage outside
+// that set is still the built-in Bible; offline, the reader says the audio
+// is not on the device (STUDY-036). It is the readers' last resort
 // (sources/useSources.ts), labelled as built in: the sources an
 // organization recommends come first. No timings are made up for it.
 import type { LanguageState } from '@langquest-next/core';
@@ -37,6 +38,12 @@ function verseText(code: string, book: string, chapter: number, verse: number): 
     if (hit) return hit[1];
   }
   return code === 'WEB' ? CHAPTER_TEXT[`${book} ${chapter}`]?.[verse - 1] : undefined;
+}
+
+/** The built-in Bible with audio, offered when this passage's verses are not in the bundle. */
+export function carriedBible(): { code: string; translation: string } {
+  const bible = TRANSLATIONS[0]!;
+  return { code: bible.code, translation: bible.name };
 }
 
 /** The translations that have every verse of a range. */

@@ -54,7 +54,7 @@ export function HelpButton() {
   const help = useHelpMode();
   if (!help) return <View style={{ width: target.min }} />;
   return (
-    <Pressable onPress={() => help.setOn(!help.on)} accessibilityRole="button" accessibilityLabel={help.on ? t('admin.help.turnOff') : t('admin.help.turnOn')}
+    <Pressable testID="header-help" onPress={() => help.setOn(!help.on)} accessibilityRole="button" accessibilityLabel={help.on ? t('admin.help.turnOff') : t('admin.help.turnOn')}
       accessibilityState={{ selected: help.on }}
       style={({ pressed }) => [styles.round, help.on && { backgroundColor: C.primary, borderColor: C.primary }, pressed && styles.pressed]}>
       <Ico name="help" size={24} color={help.on ? C.white : C.primary} />
@@ -75,7 +75,7 @@ export function BigTop(props: { onBack?: () => void; over?: string; title: strin
     <View style={styles.bigTop}>
       <View style={styles.bigTopBar}>
         {props.onBack ? (
-          <Pressable onPress={props.onBack} accessibilityRole="button" accessibilityLabel={t('common.back')} style={({ pressed }) => [styles.round, pressed && styles.pressed]}>
+          <Pressable testID="header-back" onPress={props.onBack} accessibilityRole="button" accessibilityLabel={t('common.back')} style={({ pressed }) => [styles.round, pressed && styles.pressed]}>
             <Ico name="arrowL" size={24} color={C.dark} />
           </Pressable>
         ) : <View />}
@@ -218,7 +218,7 @@ export function NumberedSteps(props: { items: { label: string; lock?: boolean }[
 export function RadioRow(props: { icon: AdminIcon; label: string; sub?: string; on: boolean; onPress: () => void; tile?: boolean; subLines?: number }) {
   const spot = useHelpSpot(props.label, props.sub, props.onPress);
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole="radio" accessibilityState={{ selected: props.on }} accessibilityLabel={props.label}
+    <Pressable onPress={spot.onPress} accessibilityRole="radio" accessibilityState={{ selected: props.on }} aria-checked={props.on} accessibilityLabel={props.label}
       style={({ pressed }) => [styles.radioRow, props.tile && styles.radioRowTall, props.on && styles.choiceOn, pressed && styles.pressed]}>
       {props.tile ? <IconTile icon={props.icon} size={44} /> : <Glyph name={props.icon} size={24} />}
       <View style={{ flex: 1, minWidth: 0 }}>
@@ -291,6 +291,8 @@ export function SwitchRow(props: { label: string; sub?: string; on: boolean; onT
   const spot = useHelpSpot(props.label, props.on ? t('admin.switchRow.on') : t('admin.switchRow.off'), props.onToggle);
   return (
     <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="switch" accessibilityState={{ checked: props.on, disabled: !!props.disabled }}
+      // The web reads its state from aria-* (react-native-web ignores accessibilityState there).
+      aria-checked={props.on} aria-disabled={!!props.disabled}
       accessibilityLabel={props.label} style={({ pressed }) => [styles.switchRow, !props.last && styles.rowBorder, pressed && styles.pressed]}>
       {props.icon ? <IconTile icon={props.icon} /> : null}
       <View style={{ flex: 1, minWidth: 0 }}>

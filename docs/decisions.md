@@ -435,6 +435,10 @@ must not reach version 2 without revisiting this. Merge shapes are the existing 
 registers, and an add-wins undo. Reverse if: partners want gates back; then
 checkpoints can cover more steps without new events.
 
+Amended (2026-10-13, Carl Sauder): undoing an override needs Override
+checkpoints too, held by the server (97). Answered feedback no longer
+completes an ordinary step (96).
+
 ## 30. The record's own audio is named by the event that uses it
 
 Date: 2026-09-28 · By: Caleb Koster · Status: accepted
@@ -1481,6 +1485,22 @@ both `.well-known` files are unchanged. To turn it on: enable Associated
 Domains on `com.frontierrnd.langquestnext` in the developer portal, make a
 new App Store profile (`eas credentials`), and put `associatedDomains` back.
 
+Amended (2026-10-13, Carl Sauder): one tab at a time no longer mistakes a
+reload for another tab. After a reload, the page that went still held the
+Web Lock for a moment, and about one reload in eight said "LangQuest is open
+in another tab". Now a taken lock is asked for again every 250 ms for two
+seconds before the page says another tab has it. Stopping releases the lock,
+and a page keeps one lock however often its storage gate remounts
+(`tabLock.ts`, `storageGate.tsx`).
+
+Amended (2026-10-14, Carl Sauder): the export's JavaScript budget is 6.1 MB
+(`apps/mobile/scripts/export-web.mjs`). It was raised from 5.5 to 6 MB with
+localization (81), and is raised again because moving the app's logic out of
+its screens into feature modules (105) added 57 small modules: Metro wraps
+each one, about half a kilobyte apiece, so the move cost 30 KB beyond the
+code it moved (5.98 MB on main, 6.01 MB after). The budget still says when
+the download grows; one module per concern is worth that half kilobyte.
+
 ## 59. Joining by invite needs no password, and whoever can invite you can get you back in
 
 Date: 2026-10-05 · By: Caleb Koster · Status: accepted
@@ -1791,6 +1811,14 @@ chose not to be found and can invite instead.
 Reverse if: organizations that list nothing need people to find them
 without an invite; then give each a short code an admin can share.
 
+Amended (2026-10-13, Carl Sauder): the phone receives the first 500 listed
+organizations by name, and searching only that list hid every organization
+after them. Typing now also asks the server, which searches every listed
+organization by its name or any language it lists
+(`listed_organizations_search`). What it finds joins the phone's own
+matches. Offline, the saved list is searched as before. The UI test suite
+found this (JRN-005) once the local database listed more than 500.
+
 ## 67. Whoever holds Invite may invite and admit people, with or without an email of their own
 
 Date: 2026-10-07 · By: Carl Sauder · Status: accepted
@@ -1970,6 +1998,14 @@ something (then it joins the flow as a checkpoint kind instead).
 Amended (2026-10-12, Carl Sauder): the passage list now returns
 `{ passages, nextAfter }` a page at a time, picks passages by `unitIds`,
 and adds any part of one passage with `include` (85).
+
+Amended (2026-10-13, Carl Sauder): an answered "needs changes" no longer
+counts toward `done`: the check stays open until its reviewer passes the
+new version (96).
+
+Amended (2026-10-13, Ryder Wishart): a token can revoke itself
+(`DELETE /api/v1/token`) and have webhooks, and `/me` names its
+organization (101).
 
 ## 71. One simpler set of screens for everyone, keeping every capability
 
@@ -2152,6 +2188,18 @@ Reverse if: teams need every guide on the phone before they go out of
 signal, beyond the passages they keep (then a "keep all guides" choice on
 Ready for offline, not a download on first open).
 
+Amended (2026-10-13, Carl Sauder): the "seven-tone key one tap deeper" above
+is no longer what the app shows. A book's chapters show three states, and
+the key under Filter has five lines: done, started, not started, no passage,
+and kept on this device. The seven tones survive only in each chapter
+tile's spoken label. The UI test suite (decision 95, MAP-021) holds the
+app to this.
+
+Amended (2026-10-13, Carl Sauder): the welcome offered "Show me how" and
+"Skip for now", which both went to My Work once the Getting started card was
+gone. It now offers one "Get started" for every role (AUTH-057). The tour
+"Show me how" stood for was never built.
+
 ## 72. Apps, agents and review links take part through reviews and releases; outside reviews never clear a checkpoint
 
 Date: 2026-10-08 · By: Ryder Wishart · Status: partly superseded by 79
@@ -2238,6 +2286,9 @@ it, and a person may have 200 open in an organization. Voice notes take
 their own budget, 100 an hour per token or link. A review given by link
 counts toward a step only while the step takes links, read in the fold, so
 turning links off also stops links and tokens already out (75).
+
+Amended (2026-10-13, Carl Sauder): an answered "needs changes" no longer
+counts toward `done` (96).
 
 ## 73. Languages and regions are LangQuest v2's reference tables, filled from Glottolog itself and kept outside the event log
 
@@ -2406,6 +2457,23 @@ the Worker, a voice note must be stored no more than six hours before it is
 attached, since a redaction drops the event but not the file, so a hash
 seen before a removal cannot bring the audio back; a closed review link
 answers only that it closed; and files are served with `nosniff`.
+
+Amended (2026-10-13, Carl Sauder): the app now offers a write only where
+the server will take it. Library events go in the organization's stream,
+so they need the privilege at organization scope (`languageOfOrgEvent`,
+`may_emit`). A language lead's role in one language does not cover them,
+but the screens asked `session.can`, which counts it. So the screens
+offered template edits and updates, breaking up a book, new or followed
+flows, guides, library material and "Add a Bible", and the server then
+refused them, some after a success toast. Those controls are now hidden
+from anyone without the privilege at organization scope (`mayWriteLibrary`
+in `library/model.ts`, `lib.canWrite`). Choosing one of the organization's
+own templates or flows for the language, its own checks, and recommending
+or hiding a Bible are the language's own events, and stay available to the
+lead. The UI test suite holds this (SETUP-061 to 066, MAP-023).
+
+Amended (2026-10-13, Carl Sauder): nobody may leave the organization
+without someone who can manage roles (98).
 
 ## 76. Names identify nothing: a repeated language is warned about, and an organization can be renamed
 
@@ -2703,6 +2771,31 @@ space; a part with the same verse as the part above shows that verse hollow
 and grey instead of joining a card; a part's own verse is a soft grey tile
 with a dark number, so the labels stay quiet beside the parts. The marks, the event and the tap rules are
 unchanged.
+
+Amended (2026-10-14, Caleb Koster): a published version shows its verses
+too. Caleb found a version's page listing "Play Version 1 (2 takes)", "Take
+1", "Take 2" as three rows that looked the same, with no verses. A take
+suggests another try at the same audio; these are pieces that together make
+the recording. So a version's page (`passage/versionParts.tsx`) plays the
+whole version in the clip player, then lists its parts read only, "Part 1",
+"Part 2", each with its verse tile as the recorder draws it (`VerseTile`,
+hollow for more of the verse above, read by `readPartVerses`). Nowhere on
+screen are parts called takes any more; the words "take" and "takes" for a
+part are gone from all 15 catalogs (the demo's REC-W2 says takes; this
+departs from it on Caleb's word). A part whose stored verses equal the part
+above's reads as more of that verse even when both were chosen, and the
+v2 import (decision 94) now records such a part as a join, as the recorder
+would.
+
+Verses are shown where they exist and never asked for (Caleb, 2026-10-14:
+many teams are not required to number verses, and published work needs no
+labelling). A part with no verse shows nothing where its tile would be, a
+version with none shows no tile column, and no screen counts or flags
+verses still missing. Where a version is shown, its verses show too when it
+has them: the reviewer's Listen lists the parts under the player (only when
+a part has a verse), each part of a back translation names its verse, and
+the passage page and Versions page add "Verses 1–4" (first to last) to the
+version's line.
 
 ## 83. A person may keep several drafts of a passage, each one the line of takes its changes made
 
@@ -3002,6 +3095,13 @@ Reverse if: phones are seen not to report a returning network, so work
 waits for the half-hour poll (then a shorter ceiling, or a reachability
 check of our own).
 
+Amended (2026-10-13, Carl Sauder): losing the network wakes sync too: a
+browser's `offline` event, and on a phone the connected-to-disconnected edge
+(`wakeOnReconnect`'s `onLoss`, at most once in ten seconds). The attempt
+fails at once, so My Work says "Offline" when the signal goes, instead of
+40 to 50 seconds later when the live channel times out (SYNC-002, SYNC-007).
+It costs one failing attempt per loss.
+
 ## 91. A language's checks carry their own people, questions and helps, and a ready-made flow is copied
 
 Date: 2026-10-12 · By: Caleb Koster · Status: accepted
@@ -3058,6 +3158,14 @@ to write the team membership at redeem time).
 Reverse if: teams need someone on a check who must not review anything else
 (then a check's people need a grant of their own), or one check needs
 several groups with different people (then groups come back, within a check).
+
+Amended (2026-10-13, Carl Sauder): with Review on the Translator role, the
+role chooser's "Back-translate" (decision 71) gave the same role as
+"Translate". It now gives a role named for back translation if one exists,
+else the smallest role that both translates and reviews but runs nothing
+(other than Translate's own role), else the checking role. With only the
+seed roles, that is Reviewer (`plainRoleChoices` in `simple/adminModel.ts`,
+PEOPLE-003).
 
 ## 92. A phone writes down the files it keeps, and a file it loses behind the app's back is an alarm
 
@@ -3249,9 +3357,444 @@ Next, as they can any language added unlinked (78). The dashboard's
 suggestions are never linked unless someone uses one: v2's own links, which
 many suggestions repeat, are often wrong.
 
-## 95. A passage may be written as well as recorded, and a step can turn either into either, in any language
+Amended (2026-10-14, Caleb Koster): a v2 person whose email already has an
+account in Next is linked to it only when someone on the team confirms it
+on the dashboard (Same email, Same person). Next does not confirm emails at
+sign-up, so an email match alone is no proof, and linking by it would let
+anyone claim a translator's work, or an organization, by signing up with
+their address first. A confirmed link makes the import name the Next
+account wherever it named the v2 one, so memberships and organization
+admins move to it at the next sync; work already brought over keeps its v2
+author. Changes to who is in an organization are now signed by an admin the
+import made there already, and so are take-backs of facts v2 no longer
+states, which the import's device id could not sign.
 
-Date: 2026-10-12 · By: Caleb Koster · Status: accepted
+Amended (2026-10-14, Caleb Koster): nothing v2 deletes or turns off is
+taken back here ("the point of an event log is that nothing disappears").
+Recordings, reviews, notes, units and members that v2 removes stay; a v2
+publish without a recording becomes a new version without it, and the
+earlier version stays. This replaces taking back by hiding, removing or
+`v1.Redacted` above. The import takes back only its own decisions: Leave
+out, a link's move, an organization admin dropped on the dashboard, and FIA
+guides no longer offered. A member who leaves a v2 project keeps their
+place here until an admin removes them.
+
+## 95. The app's UI tests run on Maestro on phones and Playwright on the web; Jev stays for journeys judged by outcome
+
+Date: 2026-10-12 · By: Carl Sauder · Status: partly superseded by 102
+
+Reason: `docs/ui-test-suite/` specifies the app's end-to-end UI tests, per
+role, and about 550 of them can be automated. Carl chose (2026-10-12):
+- **Maestro** for iOS and Android (`apps/mobile/test/maestro/`). It drives
+  the dev client or a release build from YAML flows without instrumenting
+  the app. It handles permission dialogs, backgrounding, killing the app,
+  deep links and two devices, which the recording, sign-out and offline
+  tests need. The `run-app` skill already used it.
+- **Playwright** for the web export (`smart-tests/ui/`). It already ran the
+  web smoke test (58) and hosts Jev's driver, and Chrome plays a WAV file as
+  the microphone.
+- Each automated test is written once. A test whose platforms include the
+  web runs in Playwright, which is faster and runs in parallel. A test of
+  phone-only behaviour runs in Maestro. A set of P0 flows runs in Maestro on
+  both phones, so the core jobs are also proven on devices.
+- One fixture world, built through the real server so every event passes
+  validation and permissions like a phone's, serves both
+  (`smart-tests/ui/fixture.ts`, `npm run ui:fixture`). Each Playwright file
+  and each Maestro run gets a fresh organization, so runs share the local
+  database without touching each other.
+- Screens get `testID`s on their main action, Back and ✕, and the tabs, so
+  flows hold across the app's fifteen languages.
+
+Not chosen:
+- **Detox.** It is synchronized with React Native, so it is less flaky. But
+  it needs native build configuration and is heavier to keep working.
+- **Appium.** It is slow and flaky.
+- **Jev as the main framework.** It drives only the web, its runs vary, and
+  every step is a paid model call. It cannot check a toast's words, Undo or
+  a permission boundary. It stays the tool for journeys judged by their
+  outcome in the event log, once it is ported (`smart-tests/README.md`).
+
+Reverse if:
+- Maestro's flakiness costs more than Detox's setup would.
+- Bugs that only phones show slip through the web runs. Then run the web
+  tests' flows on phones too.
+
+Amended (2026-10-13, Carl Sauder): the phone flows run on a test build, not
+on the dev client. A dev client loads its JavaScript from Metro after every
+clean start, which took about 40 s per flow on iOS. On Android it took 2.5
+minutes, because the server's address had to be typed into the launcher.
+`npm run test:ui:build` (`scripts/maestro-build.mjs`) makes a Release build
+with the JavaScript inside, pointed at the local stack. A clean start then
+takes seconds: 31 s and 43 s per flow, sign-in included.
+- The build is marked a local release (`EXPO_PUBLIC_LOCAL_RELEASE`, which
+  `src/supabase.ts` already allowed for the web export). It bundles from an
+  empty Metro cache of its own (`METRO_CACHE_DIR`, `metro.config.js`):
+  Expo writes `EXPO_PUBLIC_*` values into files as Metro transforms them,
+  and the cache every Metro on a machine shares would otherwise hand the
+  build files made with other settings.
+- Two settings change only in the generated `ios/` and `android/` folders,
+  which version control ignores, so no store build can carry them.
+  Over-the-air updates are off, and Android allows plain http to the local
+  stack.
+- The runner's `--app dev` still runs the flows on a dev client and Metro,
+  for working on a flow against live code.
+
+## 96. Answered feedback keeps a check open until its reviewer says it looks good
+
+Date: 2026-10-13 · By: Carl Sauder · Status: accepted
+
+Reason: a check that asked for changes counted as complete as soon as the
+translator answered it (a new version, or keeping it with a reason). Core
+`isCompleteState` counted `addressed`, so the new version was never offered
+to the check again unless someone asked, though the record told the
+translator "Then it goes back to the check". The UI test suite found it
+(JRN-002, JRN-011). Answering is not a verdict, so the check stays open:
+`addressed` is no longer complete, the step is not done, and its reviewer is
+offered the new version. A checkpoint already worked this way (72).
+- The passage record shows the step as open, "answered · back to the check"
+  (`passage/record.ts`, `pathModel.ts`), not ticked green. Older versions
+  still show what they heard (`oldStepState`).
+- `done` in reports and the API (70, 72) follows: a passage whose last
+  feedback was answered is not done until the check passes it.
+
+Reverse if: teams find re-checking every answered note slows them more than
+the missed second look costs. Then let a flow mark a check as one that an
+answer completes.
+
+## 97. Taking back a checkpoint override needs Override checkpoints
+
+Date: 2026-10-13 · By: Carl Sauder · Status: accepted
+
+Reason: only Override checkpoints may move a passage past a checkpoint (29),
+but anyone with Translate, Review or Assign work could undo that override,
+because `v1.DepartureUndone` names only the departure and its privilege came
+from its own payload. The UI test suite found it (PASS-056). The server's
+`may_emit` now looks the departure up in the same stream and asks for
+Override checkpoints when it undoes an override
+(`20261013140000_override_undo_privilege.sql`, `server/grantsSmoke.sql` 10).
+Undoing a set-aside or a kept version keeps the wider list. The app shows
+Undo on an override only to those who hold it (`screens/passage.tsx`).
+Core `privilegeFor` stays payload-only, so it still names the wide list for
+this event; the event's shape did not change.
+
+Reverse if: a team wants translators to bring a checkpoint back themselves.
+Then it is a role setting, not a code change.
+
+## 98. An organization always keeps someone who can manage roles
+
+Date: 2026-10-13 · By: Carl Sauder · Status: accepted
+
+Reason: nothing stopped an admin removing themselves, demoting the last
+admin, or taking Manage roles off the only role that had it. Then nobody
+could give it back except support. The UI test suite found it (PEOPLE-026).
+The server refuses any membership or role change that would leave no
+org-scope member with a live role holding Manage roles
+(`_grant_refusal`, `20261013150000_keep_a_role_manager.sql`,
+`server/grantsSmoke.sql` 11). Core `leavesNoRoleManager` mirrors it, so the
+member page says "You are the only one who can manage roles" and offers no
+Remove or demotion (`screens/org.tsx`). Removing yourself while another
+admin remains is still allowed, as before (75).
+
+Reverse if: organizations need to be handed back to support on purpose.
+Then that is a support tool, not a gap in the rule.
+
+## 99. For now a back translation carries one spoken note
+
+Date: 2026-10-13 · By: Carl Sauder · Status: accepted
+
+Reason: a back translation's notes at moments each keep their words, but
+the event has one voice note (`noteBlobHash`). Every spoken note after the
+first was silently replaced by the last one said. The UI test suite found it
+(REV-035). Until a versioned event can carry a voice note per moment, the
+first note said aloud keeps the voice note, and later notes, including the
+publish sheet's, are typed. The sheet says so ("One spoken note per back
+translation for now: type this one.", `simple/btWorkspace.tsx`).
+
+Reverse if: the event that carries a voice note per moment ships; this
+entry is then superseded by it.
+
+## 100. "Join your team" has no Back to Sign In, unlike the partner demo
+
+Date: 2026-10-13 · By: Carl Sauder · Status: accepted
+
+Reason: the demo's flow has an edge from the intent chooser back to Sign
+In. In the app the person is already signed in there, so Back would only
+look like signing out without the unsent-work check of 12. Sign out is its
+own action on that screen. The edge is dropped deliberately, listed in
+`DROPPED_EDGES` (`apps/mobile/src/flow.ts`), and the parity test checks that
+it is a real demo edge the app does not have (NOORG-003).
+
+Reverse if: the demo's flow gets a signed-out chooser. Then the edge
+belongs back.
+
+## 101. Webhooks are nudges, and the change feed is ordered by when the server saw a change, found by comparing what the API shows
+
+Date: 2026-10-13 · By: Ryder Wishart · Status: accepted
+
+Reason: Aquilla imports takes from LangQuest and must notice structure
+changes and deletions, which polling `changedSince` misses: hiding a
+passage or dividing a book again never moves `updatedAt`. Their request:
+a webhook that only nudges, and a feed that stays right after a missed
+delivery or a three-day outage. Chosen:
+- **The feed** (`GET …/languages/{id}/changes?after=`) is one row per
+  passage change, numbered in the order the organization's Durable Object
+  saw it (`apps/web/worker/agent/dispatch.ts`). It is not ordered by HLC.
+  A phone offline for days pushes events with old clocks, and an HLC
+  cursor would skip them for good.
+- **Changes are found by comparing digests.** A digest is what the passage
+  list shows of each passage (`webhooks.ts` `digestOf`): label, order,
+  parent, path, latest take, status, approved take, newest review and
+  release. The DO compares the digest before and after the log moves. The
+  log has no unit-updated, unit-deleted or language-removed event: a
+  passage leaves the list by `v1.UnitHidden`, a template change or a book
+  divided again, and a language leaves a token's reach by membership. So
+  reading event types would miss them, and a comparison catches every
+  path, now and later. The first look at a language only records where
+  its feed starts.
+- **A webhook belongs to a token.** It needs `read` and stops when the
+  token is revoked or expires, after one last `token.revoked`. It is a row
+  in Supabase (`api_webhooks`, migration `20261013120000_api_webhooks.sql`,
+  service role only) so the database and revocation can see it. Its
+  secret is kept as it is: signing needs it. A leaked secret forges only a
+  nudge that carries no data.
+- **Delivery** happens in the DO, from an outbox in its SQLite:
+  - each delivery is signed `t=…,v1=HMAC-SHA256(secret, t.body)` with a
+    stable event id;
+  - it is retried on a non-2xx or a 10-second timeout, for a day;
+  - a webhook whose event still fails after a day is stopped, with a reason.
+- **Waking.** `events_notify` already runs once per stream per push. It
+  now also posts to `/api/internal/poke` with `pg_net` when the
+  organization has a running webhook. The DO's alarm waits three seconds,
+  so a recording session becomes one delivery per language and kind, not
+  one per take. The Worker's ten-minute cron pokes every such organization
+  in case a poke was lost.
+Rejected:
+- The DO subscribing to Supabase Realtime: an outbound socket keeps the
+  object awake around the clock, needs a channel per language, and still
+  needs a poll when it drops.
+- A Worker cron alone: a minute or more late, and Workers cron cannot run
+  more often.
+- Webhook payloads with content or audio links: links expire, and
+  permissions must be checked when the data is read, not when it is sent.
+Reverse if:
+- digesting a large language on each look shows up in the DO's CPU (then
+  compare only the units the new events touch);
+- partners need delivery order or exactly-once (then a queue per webhook);
+- the feed is wanted from before a language's first look (then derive it
+  from the log itself).
+
+## 102. Five test layers, the lowest that can hold a check; end-to-end on the export, with a budget; Jev shelved
+
+Date: 2026-10-14 · By: Carl Sauder · Status: accepted
+
+Reason: a review of the repo's tests on 2026-10-14 (`docs/testing.md`)
+found a strong unit and property layer (1,400 tests in under five seconds),
+no coverage measurement, no layer between the pure models and the
+end-to-end suite, and a 537-test web suite that ran nowhere automatically.
+The suite had found about 90 product bugs (95), so the problem was
+proportion, not tools: it carried role-by-passage matrices that are pure
+functions of state and role, it slept where it could have waited on a
+signal (86 fixed waits), it found most things by their English words
+(13 `testID`s in the app), it ran on Metro's dev build rather than the
+export people get, and a failure mid-file burned a ceiling of up to twenty
+minutes. Carl chose (2026-10-14):
+
+- Five layers (unit and property, server, screen models, end-to-end web,
+  end-to-end phones), and a check goes in the lowest that can hold it. The
+  matrices move down to screen-model tests titled with their spec IDs; one
+  end-to-end test per screen proves the model reaches the glass.
+- The web suite runs against the release export served by the Worker, the
+  way the smoke test does; Metro stays for authoring (`UI_TARGET=dev`).
+- Waits are on signals: locators, the device log, and a test-state probe the
+  app exposes in test builds. `waitForTimeout` fails the hygiene test unless
+  the line says why nothing observable exists.
+- One test per role, the default timeout as the ceiling, screens entered
+  directly (sections by address; a passage record, which has no address
+  by 58, through the entry notifications use, in test builds only),
+  structure found by `testID` and copy by catalog key.
+- Retries stay at zero (95); a test that fails without a product cause goes
+  to `@quarantine` with an owner, and pass rates come from the kept reports.
+- `@p0` runs on every PR and before `npm run ship`; the whole suite, a fleet
+  scenario and Stryker on core run nightly; phones and the run sheet before a
+  store release.
+- Coverage is measured with thresholds for core and client; a traceability
+  test holds every `Auto` spec to an implementation and every P0 to
+  automation, with known gaps listed by reason.
+- Jev is shelved: the journeys, driver, bridge and Python environment leave
+  the tree, and the manual-dispatch CI job with them. It drove only the web,
+  varied between runs, cost a model call per step and could not say what a
+  screen showed; its port to the organization-and-language model had been
+  waiting since 2026-09-29. Not chosen either: Detox (native setup for a
+  flake rate not yet shown to need it), Jest with React Native Testing
+  Library (a second runner for screens that hold little logic), screenshot
+  comparison (later, once the suite is stable on the export).
+
+Amends 95: the automated tests stay on Maestro and Playwright; Jev no longer
+"stays for journeys judged by outcome".
+
+Reverse if: a screen's behaviour cannot be expressed as a model and
+end-to-end tests pile up again; Maestro's flake rate stays above a few
+percent after the fixes; or a discoverability problem (people cannot find
+how to do a job) slips through, which is the one thing a goal-driven agent
+checks and scripts do not. Then Jev returns as a nightly signal.
+
+Amended (2026-10-14, Carl Sauder): the folder `smart-tests/` is now
+`e2e/`. "Smart" was Jev's word for its journeys; what is left in it is
+the web UI suite and the web smoke, both Playwright, the end-to-end
+layer of `docs/testing.md`. Not `web-tests/`, which read like a sibling
+of `apps/web/test`, the Worker's unit tests.
+
+Amended (2026-10-14, Carl Sauder): the phone runner skips the flows a run
+cannot hold and says why, instead of running them to a failure. The first
+unattended iOS run reported 10 of 33 flows failed, and every one was a
+flow that could not pass as run: seven needed a microphone signal (no
+`--voice`), one Android's airplane mode, two a step from outside mid-run.
+Failures that are not findings hide the ones that are. So flows carry
+tags for what they need (`voice`, `android-only`, `wrapped`), a test holds
+the tags to the flows' steps, and `scripts/maestro-plan.mjs` turns the
+run's flags into exclusions and a printed list. The flows had been written
+to fail rather than pass silently; a skip that is printed keeps that
+honesty without the noise. Named flows (`--flow`) still run as asked.
+
+## 103. Large languages are projected by a scheduled GitHub job; the Edge pass leaves them out
+
+Date: 2026-10-14 · By: Caleb Koster · Status: accepted
+
+Reason: the projection pass (decisions.md 68) runs in the
+`stream-projections` Edge Function, and a run there gets 256 MB and 2 s of
+CPU (Supabase's limits). The v2 transfer brought languages far past that:
+folding Santhali omt bible (225,000 events, a 61 MB state) took about
+850 MB in Node. From 15:30 on 2026-10-14 most passes ended with
+`WORKER_RESOURCE_LIMIT` (546), so six of the largest languages had no
+server snapshot, and every language the pass reached after them waited for
+its Inbox rows and snapshot. Chosen:
+- A language is large when its newest snapshot is 10 MB or more, or 25,000
+  events or more have arrived since it (its whole log when it has none):
+  `isLarge` and `LARGE` in `server/projectionWorker.ts`. Koro Miyan's
+  40 MB snapshot did pass in the Edge Function at times; 10 MB leaves room
+  for the tail, the indexes and the Inbox rows.
+- The Edge pass projects only the small ones (`runProjections(service,
+  'small')`) and visits languages smallest first, so a language too big for
+  one run holds up only bigger ones.
+- `.github/workflows/projections.yml` runs the same pass for the large ones
+  every ten minutes with Node's memory (`server/projections.ts`), using the
+  service-role secret the v2 import already has. The repository is public,
+  so Actions minutes cost nothing, and the log prints counts only.
+- Inbox rows in a large language can arrive about ten minutes later than in
+  a small one (GitHub can start scheduled runs late). Pushes still go every
+  minute once a row exists.
+- The service role's requests get two minutes instead of the 8 s they
+  inherit from `authenticator` (migration
+  `20261014180000_service_role_timeout.sql`): `put_snapshot` for Kuturmi,
+  Halbi and Santhali (35 to 61 MB) was cancelled at 8 s. Only the server's
+  own jobs use that role; people's requests keep 3 s (anon) and 8 s
+  (authenticated). Caleb chose this over writing a snapshot in several calls.
+- The large pass goes on past a language that fails and lists it by id, so
+  one failure holds up no other language.
+
+Not chosen: a bigger Edge Function (the limit is fixed per run); folding page
+by page in the Edge Function (the state alone outgrows 256 MB); a Worker or
+server of our own (another deployable to run for what is meant to be
+temporary). The lasting fix is loading per unit, so no single fold holds a
+whole language (the report "Big languages on phones: what to change").
+
+Reverse if: per-unit state makes every language fit the Edge Function, or
+GitHub's schedule lags enough that people in large languages notice late
+Inbox updates. Then the pass moves to a host with a steady schedule.
+
+## 104. `packages/client` is `packages/sync`, and it owns anything a device queues for the server
+
+Date: 2026-10-14 · By: Carl Sauder · Status: accepted
+
+Reason: the package began as the client half of the sync protocol (the
+first scaffold, PLAN.md section 10), and the name was never written down
+or revisited. It since took on jobs that run on servers (`snapshotWorker`,
+`blobReconciler`, `workerBlobs`, `v2import`), and is imported by the Worker,
+`server/`, the scripts and the tests as well as the phone, while most
+readers take "client" to mean "the app". That made its boundary hard to
+explain, and two outbound queues had grown up in `apps/mobile` beside it:
+the account outbox (`durableOutbox.ts`) and the uploads of a shared phone's
+hand-over (`handOverCore.ts`, 60). Carl chose (2026-10-14):
+
+- Three layers, by the question each answers. `core`: what does the data
+  mean? `sync`: is it kept, sent, received and current? The apps: what does
+  a person do and see, and what runs it on this platform?
+- `sync`'s scope is anything queued for the server, not only events and
+  their files, so the account outbox, a hand-over's delivery attempt and
+  the per-language session (the `SyncClient`, both `TransferWorker`s, the
+  scheduler and storage reclaim, formerly built inside `useLanguage`) move
+  into it. Each takes its platform pieces as arguments.
+- The boundary is held by what a file imports: core, supabase-js and its
+  own files, plus Node built-ins under `src/testing`
+  (`packages/sync/test/boundary.test.ts`). Drivers, file stores,
+  `AsyncStorage` and configured clients stay in the app that uses them.
+- The reasons: every runtime that keeps or moves data runs the same queuing
+  and transfer code, so none copies it and gets it subtly wrong; everything
+  a device queues for the server goes through one tested place; and the
+  name now says what the package does. `sync` rather than `eventsync`,
+  since not all of it is events, and `core` keeps its name: its contents
+  still match it and the no-I/O rule stops it collecting everything shared.
+
+Older entries and records that say `packages/client` mean this package.
+
+Reverse if: a second app needs a different outbound policy than the phone
+(the queues would split back into the apps behind a shared interface), or
+the server-side jobs grow their own dependencies that the phone must not
+carry, which would argue for a separate server package.
+
+## 105. In `apps/mobile`, server calls live in `src/server/`, logic outside screens, and folders by feature
+
+Date: 2026-10-14 · By: Carl Sauder · Status: accepted
+
+Reason: a review of `apps/mobile` on 2026-10-14 found the packages well
+separated but the app less so. Supabase was called from 28 files, four
+screens among them: sign-in's whole policy (a v2 account, recreating the
+dev account, recording the terms) sat in a button handler in `entry.tsx`,
+and `org.tsx` read and wrote Explore listings and sent invite emails
+itself. The largest screens (`config.tsx` 1,738 lines, `org.tsx` 1,639,
+`passage.tsx` 1,420, `content.tsx` 1,366) mixed state, rules and layout,
+though the pure-model pattern (`configModel.ts`, `adminModel.ts`) already
+existed. `OrgWork` in `App.tsx` kept recent passages, Inbox reads,
+onboarding, toasts and navigation in one component; the language's sync
+engine was built inside `useLanguage`'s effect; and `src/` held about 110
+files in one folder, with `simple/` (named for the redesign of 71, not a
+concern) imported both ways by half the feature folders. Carl chose
+(2026-10-14):
+
+- Every Supabase call is a named function in `src/server/`, one file per
+  area, returning supabase-js's `{ data, error }` so each caller keeps
+  saying what a refusal means. Nothing else imports the client or calls
+  `.rpc(`, `.auth.` or `.functions.invoke(`
+  (`apps/mobile/test/serverBoundary.test.ts`). One folder rather than an
+  `api.ts` per feature, so RPC names, error handling and offline behaviour
+  can be read and checked in one place.
+- Screens lay out; rules go in a pure `model.ts` (or `<thing>Model.ts`
+  where a folder has several) tested without rendering, and state in
+  `use*` hooks. `OrgWork` assembles `Ctx` from hooks of its own.
+- The stream engines run outside React (`LanguageSession`, `OrgSession`,
+  104); the hooks follow them.
+- Folders by feature: `screens/` keeps only the entry files `App.tsx`
+  registers, and each concern (auth, account, org, sync, audio, web,
+  notifications, ui, shell, and the parts `simple/` held: recording,
+  review, helps, admin, mic) gets a folder with its model, hooks, parts
+  and anything it needs from `server/`. Pure files are `model.ts` or
+  `<thing>Model.ts`; `*Core.ts` names go. The moves wait for the open
+  recording and writing branches (pull requests 96 and 97) to land, so
+  they rebase onto edits, not moves.
+- The reasons: the logic that most often goes wrong (sign-in, membership,
+  listing, sync wiring) is tested without rendering; a person or agent
+  finds a feature's model, server calls and parts in one place; and every
+  server call can be checked in one place, with a test keeping it there.
+
+Reverse if: the thin server functions grow their own policy (retries,
+caching) that callers then duplicate, which would argue for a typed
+client per area with errors mapped once; or feature folders start
+importing each other in a cycle, which would mean a shared layer belongs
+below them.
+
+## 106. A passage may be written as well as recorded, and a step can turn either into either, in any language
+
+Date: 2026-10-14 · By: Caleb Koster · Status: accepted
 
 Reason: Caleb asked how the app would hold written translations beside
 audio, and chose (thread "Written translations alongside audio", plan page

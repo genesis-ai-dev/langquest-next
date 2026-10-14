@@ -403,6 +403,16 @@ bump the revision once per batch instead of once per event
   woke each of the app's three sync schedulers (organization, language,
   hand-over) once, and nothing woke while it was on.
 
+- **Reading people's names (fixed 2026-10-13).** The app read `profiles`
+  with no filter and left the row policy (`profile_visible`) to choose, so
+  every read ran a membership join for every profile on the server. The UI
+  test suite (decision 95) found it: with 11,500 profiles in the local
+  database and six browsers at once, the app's retries ran out and members
+  showed as placeholder names ("Blue Hexagon"). The table grows with every
+  person who signs up. The app now calls `my_directory()` (migration
+  `20261013121000_my_directory.sql`), which starts from the caller's own
+  memberships and returns the same set.
+
 - **Privacy:** `pull_events` returns the payloads of redacted events; only
   the fold hides them. Worth deciding on its own.
 - **Doc drift:**

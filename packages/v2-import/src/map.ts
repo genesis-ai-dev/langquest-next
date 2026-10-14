@@ -39,6 +39,22 @@ export interface MapContext {
    * admins link it in Next (Caleb, 2026-10-13).
    */
   language: { code: string | null; languoidId: string | null; sourceCode: string; decidedAt: string; name?: string };
+  /**
+   * v2 people confirmed on the dashboard as an account that already exists
+   * in Next (v2 id → Next account id): the import names that account
+   * wherever it would have named the v2 one.
+   */
+  people?: ReadonlyMap<string, string>;
+  /** Links undone on the dashboard (v2 id → the Next account they had pointed to): that account's membership is taken back. */
+  released?: ReadonlyMap<string, string>;
+  /**
+   * Who signs membership changes and the language's own setup (adding it,
+   * its name and code, flow, template, guides, passages, source material and
+   * audio formats): an admin of the organization already, so they are signed
+   * by someone who may, even when the v2 owner is not in the organization or
+   * a translator made the quest. The owner when not given.
+   */
+  manager?: string;
   /** Roles chosen on the dashboard, by v2 person; `none` leaves them out. Everyone else's follows their v2 work. */
   roles?: ReadonlyMap<string, Role | 'none'>;
   /** v2 file name → the file as copied here. A name that is absent has not been copied (yet). */
@@ -90,6 +106,12 @@ export interface Mapped {
 }
 
 export const SYSTEM_ACTOR = 'v2import';
+/**
+ * A project's facts that are chosen here, not stated by v2: the guides its
+ * team is offered. One no longer chosen is taken back; nothing v2 removes is
+ * (decision 94, amended 2026-10-14).
+ */
+export const chosenHere = (key: string) => key.startsWith('guide:');
 const WAIT_MS = 7 * 24 * 3600_000;
 const COMMUNITY = 'community';
 const BACK_TRANSLATION = 'bt';
@@ -100,6 +122,8 @@ const usfm = (v2Book: string) => V2_BOOK[v2Book.toLowerCase()] ?? v2Book.toUpper
 
 /** Project role → the seeded organization role with the same privileges, at the language's scope. */
 const ROLE_ID: Record<Role, string> = { owner: 'org_admin', coordinator: 'coordinator', translator: 'translator', reviewer: 'reviewer', viewer: 'viewer' };
+/** Roles from least to most a person may do, to keep the larger when two v2 people are one account. */
+const RANK: Role[] = ['viewer', 'reviewer', 'translator', 'coordinator', 'owner'];
 
 /** A code for a language that is not linked yet, made as New language makes one when none is typed: its name's first letters. */
 export function readableCode(name: string): string {
@@ -120,8 +144,18 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
 
   // ---- who ---------------------------------------------------------------------------
   const owners = rows.members.filter((m) => m.active && m.membership === 'owner').sort((a, b) => a.created_at.localeCompare(b.created_at));
-  const owner = owners[0]?.profile_id ?? rows.project.creator_id ?? SYSTEM_ACTOR;
-  const actor = (id: string | null) => id ?? owner;
+  // A v2 person confirmed as an account already in Next is named by that account (ctx.people).
+  const who = (id: string) => ctx.people?.get(id) ?? id;
+  const v2Owner = owners[0]?.profile_id ?? rows.project.creator_id ?? SYSTEM_ACTOR;
+  const owner = who(v2Owner);
+  /** The v2 person who did something, or the owner when v2 does not say. */
+  const v2Actor = (id: string | null) => id ?? v2Owner;
+  const actor = (id: string | null) => who(v2Actor(id));
+  // The language and how it is set up (its passages, source material and audio formats too) are said by an
+  // admin of the organization, who may: the v2 owner need not be in the organization at all (Every
+  // Language's are admins of their languages only), and whoever made a quest or a piece of source material
+  // in v2 may be a translator here, who may not add passages ("may not emit v1.UnitAdded").
+  const steward = ctx.manager ?? owner;
 
   // ---- what v2 holds, indexed ----------------------------------------------------------
   const v2Target = rows.languages.find((l) => l.active && l.language_type === 'target')?.languoid_id ?? null;
@@ -215,18 +249,18 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
   const code = ctx.language.code;
   facts.push(
     {
-      key: 'language', streamId: ORG_STREAM, actorId: owner, at: t0, restate: false, unsay: nothing,
+      key: 'language', streamId: ORG_STREAM, actorId: steward, at: t0, restate: false, unsay: nothing,
       say: () => [{ type: 'v1.LanguageAdded', payload: { languageId, name: languageName, code: code ?? readableCode(languageName), sourceCode: ctx.language.sourceCode } }]
     },
     {
-      key: 'name', streamId: ORG_STREAM, actorId: owner, at: at(rows.project.last_updated), unsay: nothing,
+      key: 'name', streamId: ORG_STREAM, actorId: steward, at: at(rows.project.last_updated), unsay: nothing,
       say: () => [{ type: 'v1.LanguageRenamed', payload: { languageId, name: languageName } }]
     }
   );
   // Linked only when the dashboard chose a language; otherwise its admins link it in Next.
   if (code) {
     facts.push({
-      key: 'code', streamId: ORG_STREAM, actorId: owner, at: ctx.language.decidedAt, unsay: nothing,
+      key: 'code', streamId: ORG_STREAM, actorId: steward, at: ctx.language.decidedAt, unsay: nothing,
       say: () => [{ type: 'v1.LanguageCodeSet', payload: { languageId, code, languoidId: ctx.language.languoidId } }]
     });
   }
@@ -236,13 +270,13 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
   if (ctx.guides) {
     const itemId = ctx.guides.itemId;
     facts.push({
-      key: `guide:${itemId}`, streamId: languageId, actorId: owner, at: ctx.language.decidedAt, value: itemId,
+      key: `guide:${itemId}`, streamId: languageId, actorId: steward, at: ctx.language.decidedAt, value: itemId,
       say: () => [{ type: 'v1.ReferenceSet', payload: { itemId, state: 'recommended' } }],
       unsay: () => [{ type: 'v1.ReferenceSet', payload: { itemId, state: 'inherit' } }]
     });
   }
   facts.push({
-    key: 'flow', streamId: languageId, actorId: owner, at: t0, restate: false, unsay: nothing,
+    key: 'flow', streamId: languageId, actorId: steward, at: t0, restate: false, unsay: nothing,
     say: () => [
       { type: 'v1.FlowSelected', payload: { flowId: CUSTOM_FLOW } },
       { type: 'v1.FlowStepSet', payload: { stepId: `${CUSTOM_FLOW}/${COMMUNITY}`, order: 's00', kindIds: [COMMUNITY], checkpoint: false } }
@@ -252,13 +286,13 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
     const units = templateUnits(template.doc, template.itemId, template.versification);
     const sorted = [...books].sort();
     facts.push({
-      key: 'template', streamId: languageId, actorId: owner, at: t0, unsay: nothing,
+      key: 'template', streamId: languageId, actorId: steward, at: t0, unsay: nothing,
       say: () => [{ type: 'v1.TemplateSelected', payload: { itemId: template.itemId, docHash: template.docHash, unitPrefix: template.itemId, books: sorted } }]
     });
     for (const book of sorted) {
       const mine = units.filter((u) => u.unitId.slice(template.itemId.length + 1, template.itemId.length + 4) === book);
       facts.push({
-        key: `book:${book}`, streamId: languageId, actorId: owner, at: t0, restate: false, unsay: nothing,
+        key: `book:${book}`, streamId: languageId, actorId: steward, at: t0, restate: false, unsay: nothing,
         say: () => mine.map((payload) => ({ type: 'v1.UnitAdded', payload }))
       });
     }
@@ -272,7 +306,7 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
     const parent = q.parent_id && questIds.has(q.parent_id) ? q.parent_id : null;
     const kind = childQuests.has(q.id) || holdsMaterial ? (parent ? 'folder' : 'book') : 'passage';
     const parentUnitId = parent ? unitOf.get(parent) ?? parent : null;
-    facts.push(unitFact(`unit:${q.id}`, q.id, parentUnitId, kind, q.name?.trim() || `Quest ${i + 1}`, pad(i), q.creator_id ?? owner, at(q.created_at), !live(q), at(q.last_updated)));
+    facts.push(unitFact(`unit:${q.id}`, q.id, parentUnitId, kind, q.name?.trim() || `Quest ${i + 1}`, pad(i), steward, at(q.created_at), !live(q), at(q.last_updated)));
     if (live(q)) unitOf.set(q.id, q.id);
   });
   report.quests = quests.length;
@@ -307,7 +341,7 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
         if (r.waiting) { waiting = true; report.waiting += 1; }
         if (r.cards.length === 0) continue;
         parts.push({ a, cards: r.cards });
-        recorded.add(actor(a.creator_id));
+        recorded.add(v2Actor(a.creator_id));
         const verse = verses.get(a.id) ?? null;
         facts.push({
           key: `rec:${q.id}:${a.id}`, streamId: languageId, actorId: actor(a.creator_id), at: at(a.created_at), unsay: 'redact', hold: r.waiting,
@@ -322,6 +356,18 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
         });
         report.recordings += 1;
       }
+      // A recording with the same verses as the one right above it is more of that verse, which Next keeps as a join
+      // (decision 82); its own fact sets the verses, so this says join just after it.
+      parts.forEach(({ a, cards }, i) => {
+        const v = verses.get(a.id);
+        const above = i > 0 ? verses.get(parts[i - 1]!.a.id) : null;
+        if (!v || !above || v.from !== above.from || v.to !== above.to) return;
+        const hash = cards[0]!.hash;
+        facts.push({
+          key: `join:${q.id}:${a.id}`, streamId: languageId, actorId: actor(a.creator_id), at: new Date(Date.parse(at(a.created_at)) + 1).toISOString(),
+          unsay: 'redact', say: () => [{ type: 'v1.CardVerseSet', payload: { unitId, hash, mark: 'join' } }]
+        });
+      });
       const cardHashes = parts.flatMap((x) => x.cards.map((c) => c.hash));
       const last = parts.reduce<V2Asset | null>((m, x) => (!m || Date.parse(at(x.a.created_at)) > Date.parse(at(m.created_at)) ? x.a : m), null);
       if (last) {
@@ -368,7 +414,7 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
     material.forEach(({ p, a }, i) => {
       const passage = a.id;
       const label = a.name?.trim() || textOf(a).slice(0, 60) || `Part ${i + 1}`;
-      facts.push(unitFact(`unit:${a.id}`, passage, unitId, 'passage', label, `${pad(p.order_index)}.${pad(i)}`, actor(a.creator_id), at(a.created_at), false, at(a.last_updated)));
+      facts.push(unitFact(`unit:${a.id}`, passage, unitId, 'passage', label, `${pad(p.order_index)}.${pad(i)}`, steward, at(a.created_at), false, at(a.last_updated)));
       report.passages += 1;
       const fields: Said[] = [];
       for (const [j, c] of (contentsOf.get(a.id) ?? []).entries()) {
@@ -382,7 +428,7 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
       }
       if (fields.length > 0) {
         facts.push({
-          key: `src:${a.id}`, streamId: languageId, actorId: actor(a.creator_id), at: at(a.created_at), unsay: 'redact',
+          key: `src:${a.id}`, streamId: languageId, actorId: steward, at: at(a.created_at), unsay: 'redact',
           say: () => [{ type: 'v1.MaterialDefined', payload: { materialId: `v2src:${a.id}`, kind: 'source', title: 'Source', scope: { unitId: passage } } }, ...fields]
         });
         report.materials += 1;
@@ -400,7 +446,7 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
           }
           continue;
         }
-        recorded.add(actor(t.creator_id));
+        recorded.add(v2Actor(t.creator_id));
         facts.push({
           key: `rec:${t.id}`, streamId: languageId, actorId: actor(t.creator_id), at: at(t.created_at), unsay: 'redact', hold: r.waiting,
           say: (s) => [{ type: 'v1.RecordingAdded', payload: { recordingId: `rec:${t.id}#${s.n}`, unitId: passage, kind: 'target', cards: r.cards } }]
@@ -420,7 +466,7 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
   // A file that is not m4a, used where only the log can say so (decisions.md 77).
   for (const hash of [...wavHashes].sort()) {
     facts.push({
-      key: `format:${hash}`, streamId: languageId, actorId: owner, at: t0, restate: false, unsay: nothing,
+      key: `format:${hash}`, streamId: languageId, actorId: steward, at: t0, restate: false, unsay: nothing,
       say: () => [{ type: 'v1.AudioFormatSet', payload: { hash, format: 'wav' } }]
     });
   }
@@ -444,19 +490,38 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
   }
   const scope = { level: 'language' as const, languageId };
   const membership = new Map(rows.members.map((m) => [m.profile_id, m]));
-  const firstWork = (id: string) => {
-    const times = [...rows.assets, ...rows.votes].filter((r) => r.creator_id === id).map((r) => at(r.created_at));
+  const firstWork = (ids: readonly string[]) => {
+    const times = [...rows.assets, ...rows.votes].filter((r) => r.creator_id && ids.includes(r.creator_id)).map((r) => at(r.created_at));
     return times.length ? times.reduce((a, b) => (Date.parse(a) < Date.parse(b) ? a : b)) : t0;
   };
-  const people = new Set([...roles.keys(), ...rows.members.map((m) => m.profile_id)]);
-  for (const id of [...people].sort()) {
-    const m = membership.get(id);
-    const role = roles.get(id);
+  // One membership per account: two v2 people linked to the same Next account get the larger of their roles.
+  // Leaving v2 never takes anyone off a language here (nothing said here disappears); Leave out on the dashboard does.
+  const leftOut = new Set([...(ctx.roles ?? [])].filter(([, r]) => r === 'none').map(([id]) => id));
+  const accounts = new Map<string, string[]>();
+  for (const id of new Set([...roles.keys(), ...rows.members.map((m) => m.profile_id), ...leftOut])) accounts.set(who(id), [...(accounts.get(who(id)) ?? []), id]);
+  for (const [account, ids] of [...accounts].sort(([a], [b]) => a.localeCompare(b))) {
+    const role = ids.map((id) => roles.get(id)).filter((r): r is Role => !!r).sort((a, b) => RANK.indexOf(b) - RANK.indexOf(a))[0];
+    const m = ids.map((id) => membership.get(id)).find((x) => !!x);
+    const withdraw = role === undefined && ids.some((id) => leftOut.has(id));
     facts.push({
-      key: `member:${id}`, streamId: ORG_STREAM, actorId: owner,
-      at: m ? at(role === undefined ? m.last_updated : m.created_at) : firstWork(id),
-      gone: role === undefined,
-      say: () => [{ type: 'v1.MemberAdded', payload: { profileId: id, roleId: ROLE_ID[role ?? 'translator'], scope } }],
+      key: `member:${account}`, streamId: ORG_STREAM, actorId: steward,
+      at: m ? at(role === undefined ? m.last_updated : m.created_at) : firstWork(ids),
+      gone: role === undefined && !withdraw,
+      ...(withdraw ? { withdraw: true } : {}),
+      say: () => [{ type: 'v1.MemberAdded', payload: { profileId: account, roleId: ROLE_ID[role ?? 'translator'], scope } }],
+      unsay: () => [{ type: 'v1.MemberRemoved', payload: { profileId: account, scope } }]
+    });
+  }
+  // A person a link moved to their Next account no longer holds a membership under their v2 id; one whose link
+  // was undone no longer holds it under that Next account. These are the dashboard's decisions, so they are taken back.
+  const moved = new Set<string>();
+  for (const ids of accounts.values()) for (const id of ids) if (who(id) !== id) moved.add(id);
+  for (const [v2Id, next] of ctx.released ?? []) if (accounts.has(v2Id) && !accounts.has(next)) moved.add(next);
+  for (const id of [...moved].sort()) {
+    if (accounts.has(id)) continue;
+    facts.push({
+      key: `member:${id}`, streamId: ORG_STREAM, actorId: steward, at: new Date(ctx.now).toISOString(), withdraw: true,
+      say: () => [],
       unsay: () => [{ type: 'v1.MemberRemoved', payload: { profileId: id, scope } }]
     });
   }
@@ -488,7 +553,7 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
       .map((v) => (v.label ? `${v.label}: ${v.comment!.trim()}` : v.comment!.trim())).join('\n');
     const value = { outcome: down ? 'needs_changes' : 'looks_good', comment };
     return {
-      key, streamId: languageId, actorId: person, at: latest(votes.map((v) => at(v.created_at))), unsay: 'redact', value,
+      key, streamId: languageId, actorId: who(person), at: latest(votes.map((v) => at(v.created_at))), unsay: 'redact', value,
       say: (s, look) => {
         const take = look(takeKey);
         if (!take?.lastSaid) return [];

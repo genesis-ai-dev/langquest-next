@@ -40,7 +40,7 @@ import { Bell, NextCard, QuietToggle, ReadyCard } from '../simple/home';
 import { checkName } from '../simple/adminModel';
 import { Faces } from '../checks/parts';
 import { useReadySummary, type ReadySummary } from '../simple/ready';
-import { nextSub, readiness, readySteps, THEN_CAP, workIcon, workSub, workTarget, workWhat, type Readiness } from '../simple/homeModel';
+import { nextSub, readiness, readySteps, THEN_CAP, waitingWhat, waitingWho, workIcon, workSub, workTarget, workWhat, type Readiness } from '../simple/homeModel';
 import { C, space, TINT } from '../theme';
 
 const RECENT_CAP = 5;
@@ -58,8 +58,10 @@ function askedWhen(hlc: string): string {
 
 function waitingText(state: LanguageState, kinds: KindDef[], w: Waiting, name: Ctx['name']): { title: string; sub: string } {
   const r = w.request;
-  const what = r.what === 'record' ? t('work.waiting.recording') : kinds.find((k) => k.id === r.kindId)?.name ?? t('work.waiting.review');
-  const who = r.profileId ? name(r.profileId) : r.guest?.name ?? t('work.waiting.someone');
+  const check = (kindId: string) => checkName(kindId, kinds);
+  const what = waitingWhat(r, check);
+  // A check asked of its team names the team, not "someone" (decisions.md 91).
+  const who = waitingWho(r, { name: (id) => name(id), checkName: check });
   return { title: unitTitle(state, w.unitId), sub: `${what} · ${who} · ${r.dueDate ? dueText(r.dueDate) : askedWhen(r.hlc)}` };
 }
 
@@ -143,11 +145,13 @@ function useElsewhere(ctx: Ctx): { languageId: string; count: number }[] {
   }, [rows, read, orgId, open]);
 }
 
-/** The sync state, small, beside the bell, only when it needs noticing: work still on this device, offline, or refused. */
+/** The sync state, small, beside the bell, only when it needs noticing: work still on this device, offline, or refused (all of it, or some events). */
 function SyncChip(ctx: Ctx) {
   const p = ctx.language;
   if (!canGo(ctx, 'sync_status')) return null;
-  const label = p.refused ? t('work.sync.refused') : p.pending > 0 ? t('work.sync.toSend', { count: p.pending }) : p.online === false ? t('work.sync.offline') : null;
+  // Work the server refused one event at a time is kept and must be seen (PLAN.md invariant 1).
+  const label = p.refused ? t('work.sync.refused') : p.refusedEvents > 0 ? t('account.sync.refusedCount', { n: p.refusedEvents })
+    : p.pending > 0 ? t('work.sync.toSend', { count: p.pending }) : p.online === false ? t('work.sync.offline') : null;
   if (!label) return null;
   return <SmallBtn icon="cloud" label={label} onPress={() => ctx.go('sync_status')} />;
 }

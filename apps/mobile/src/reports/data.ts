@@ -1,4 +1,4 @@
-import { fetchOrgReports, ReportsError } from '@langquest-next/client';
+import { fetchOrgReports, ReportsError } from '@langquest-next/sync';
 import type { LanguageRow } from '@langquest-next/core';
 import { useEffect, useSyncExternalStore } from 'react';
 import { t } from '../i18n';
@@ -47,6 +47,8 @@ function loadReports(orgId: string, fresh = false): Promise<void> {
     return Promise.resolve();
   }
   if (e.state.status === 'ready') set(e, { ...e.state, refreshing: true });
+  // Try again after a failed first load: say it is loading again, rather than leave the old error up until the answer.
+  else if (e.state.status === 'error') set(e, { status: 'loading' });
   const run = (async () => {
     try {
       const answer = await fetchOrgReports(reportsServer!, orgId, { fresh, etag: e.state.status === 'ready' ? e.etag : null });

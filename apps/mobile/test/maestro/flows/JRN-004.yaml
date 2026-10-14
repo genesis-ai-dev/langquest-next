@@ -1,0 +1,227 @@
+# JRN-004 A translator-reviewer records, checks their own work, and checks a
+# colleague's (docs/ui-test-suite/16-role-journeys.md). One phone, the people
+# in turn (each signs in after the app is cleared): TREV, COORD, TREV, TRANS,
+# TREV. Recording needs the host's microphone (G8): tag voice, so the runner
+# skips this flow unless the run has one (--voice or --mic).
+appId: com.frontierrnd.langquestnext
+name: "JRN-004 A translator-reviewer records, checks their own work, and checks a colleague's"
+tags:
+  - jrn
+  - voice
+---
+# Step 1: TREV records P-Q4 and publishes Version 1, then "Not now".
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${TREV_EMAIL}
+      PASSWORD: ${TREV_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- extendedWaitUntil:
+    visible:
+      id: "tab-work"
+    timeout: 60000
+- assertVisible:
+    id: "tab-map"
+- assertVisible:
+    id: "tab-me"
+- assertNotVisible:
+    id: "tab-manage"
+- tapOn:
+    id: "tab-map"
+- tapOn: "Find.*"
+- inputText: ${P_Q4.split(':')[0]}
+- runFlow:
+    file: ../common/dismiss-keyboard.yaml
+    env:
+      LABEL: ${LANG_A}
+- tapOn:
+    text: "${P_Q4}.*"
+    index: 0
+- extendedWaitUntil:
+    visible: "(?i)Then the team"
+    timeout: 30000
+# Both kinds of control: Record, and the checks under Then the team.
+- assertVisible: "1\\. Record\\..*"
+- assertVisible: "Peer check, .*"
+- tapOn: "1\\. Record\\..*"
+- tapOn:
+    id: "record-button"
+- runFlow:
+    when:
+      visible: "(?i)Allow|While using the app"
+    commands:
+      - tapOn: "(?i)Allow|While using the app"
+- extendedWaitUntil:
+    visible: "Parts 1–2.*"
+    timeout: 30000
+- tapOn:
+    id: "record-button"
+- tapOn:
+    id: "publish-button"
+- tapOn: "Publish Version 1"
+- extendedWaitUntil:
+    visible: "Version 1 published\\..*"
+    timeout: 20000
+- tapOn: "Not now"
+# Not asked, so no check of one's own version is offered.
+- assertNotVisible: "Do the peer (check|review)"
+# Step 2: COORD asks TREV by name for the peer check.
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${COORD_EMAIL}
+      PASSWORD: ${COORD_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- extendedWaitUntil:
+    visible:
+      id: "tab-map"
+    timeout: 60000
+- tapOn:
+    id: "tab-map"
+- tapOn: "${LANG_A}: .*Open its map.*"
+- tapOn: "Find.*"
+- inputText: ${P_Q4.split(':')[0]}
+- runFlow:
+    file: ../common/dismiss-keyboard.yaml
+    env:
+      LABEL: ${LANG_A}
+- tapOn:
+    text: "${P_Q4}.*"
+    index: 0
+- extendedWaitUntil:
+    visible: "(?i)Then the team"
+    timeout: 30000
+- tapOn: "Peer check, .*"
+# The sheet offers "Send to someone else" when it has a suggested person, else "Ask someone".
+- tapOn: "Send to someone else|Ask someone"
+- tapOn: ".*${TREV_NAME}.*"
+- tapOn:
+    id: "primary-action"
+    waitToSettleTimeoutMs: 0
+- extendedWaitUntil:
+    visible:
+      id: "toast"
+    timeout: 20000
+# Step 3: TREV does the peer check of their own version: looks good.
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${TREV_EMAIL}
+      PASSWORD: ${TREV_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- extendedWaitUntil:
+    visible:
+      id: "tab-map"
+    timeout: 60000
+- tapOn:
+    id: "tab-map"
+- tapOn: "Find.*"
+- inputText: ${P_Q4.split(':')[0]}
+- runFlow:
+    file: ../common/dismiss-keyboard.yaml
+    env:
+      LABEL: ${LANG_A}
+- tapOn:
+    text: "${P_Q4}.*"
+    index: 0
+- extendedWaitUntil:
+    visible: "Do the peer (check|review)"
+    timeout: 60000
+- tapOn: "Do the peer (check|review)"
+- tapOn: "Play .*"
+- tapOn:
+    id: "primary-action"
+- tapOn: "Looks good"
+- extendedWaitUntil:
+    visible: "Looks good · on the record.*"
+    timeout: 20000
+# Step 4: TRANS records P-Q3, publishes, asks the check's team.
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${TRANS_EMAIL}
+      PASSWORD: ${TRANS_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- extendedWaitUntil:
+    visible:
+      id: "tab-map"
+    timeout: 60000
+- tapOn:
+    id: "tab-map"
+- tapOn: "Find.*"
+- inputText: ${P_Q3.split(':')[0]}
+- runFlow:
+    file: ../common/dismiss-keyboard.yaml
+    env:
+      LABEL: ${LANG_A}
+- tapOn:
+    text: "${P_Q3}.*"
+    index: 0
+- extendedWaitUntil:
+    visible: "(?i)Then the team"
+    timeout: 30000
+- tapOn: "1\\. Record\\..*"
+- tapOn:
+    id: "record-button"
+- runFlow:
+    when:
+      visible: "(?i)Allow|While using the app"
+    commands:
+      - tapOn: "(?i)Allow|While using the app"
+- extendedWaitUntil:
+    visible: "Parts 1–2.*"
+    timeout: 30000
+- tapOn:
+    id: "record-button"
+- tapOn:
+    id: "publish-button"
+- tapOn: "Publish Version 1"
+- extendedWaitUntil:
+    visible: "Version 1 published\\..*"
+    timeout: 20000
+- tapOn: "Ask the Peer check team"
+- assertVisible: "Sent to the Peer check team.*"
+# Step 5: TREV checks the colleague's version: looks good, sent to TRANS.
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${TREV_EMAIL}
+      PASSWORD: ${TREV_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- extendedWaitUntil:
+    visible:
+      id: "tab-work"
+    timeout: 60000
+# My Work lists it (the team was asked), then the record offers the check.
+- extendedWaitUntil:
+    visible: ".*${P_Q3}.*"
+    timeout: 60000
+- tapOn:
+    id: "tab-map"
+- tapOn: "Find.*"
+- inputText: ${P_Q3.split(':')[0]}
+- runFlow:
+    file: ../common/dismiss-keyboard.yaml
+    env:
+      LABEL: ${LANG_A}
+- tapOn:
+    text: "${P_Q3}.*"
+    index: 0
+- extendedWaitUntil:
+    visible: "Do the peer (check|review)"
+    timeout: 60000
+- tapOn: "Do the peer (check|review)"
+- extendedWaitUntil:
+    visible: "Listen to all of it first"
+    timeout: 30000
+- tapOn:
+    id: "primary-action"
+- tapOn: "Looks good"
+- extendedWaitUntil:
+    visible: "Looks good · sent to ${TRANS_NAME}.*"
+    timeout: 20000

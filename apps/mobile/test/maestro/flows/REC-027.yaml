@@ -1,0 +1,90 @@
+# REC-027 (docs/ui-test-suite/06-recording.md): Control Center (iOS) or the
+# notification shade (Android) pulled down while recording. The spec's Run
+# is Device; this flow drives the gestures on a simulator or emulator and
+# checks what the screen says, and a person confirms on a device.
+#
+# Passage: P-DRAFT (Luke 14:1-14), after REC-026 (flows run in name order);
+# parts are not counted here, only the recorder's state.
+# Audio: G8, the host's microphone playing e2e/fixtures/voice.wav (tag voice:
+# the runner skips this flow unless the run has one, --voice or --mic).
+# Expected: iOS makes the app inactive, so recording stops ("Record" after
+# Control Center closes); Android keeps it active, so recording goes on
+# ("Stop recording"), and the flow stops it.
+appId: com.frontierrnd.langquestnext
+name: "REC-027 Pulling down Control Center or the notification shade while recording"
+tags:
+  - rec
+  - voice
+---
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${TRANS_EMAIL}
+      PASSWORD: ${TRANS_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- runFlow:
+    file: ../rec/open-workspace.yaml
+    env:
+      PASSAGE: ${P_DRAFT}
+- tapOn:
+    id: "record-button"
+- runFlow:
+    when:
+      visible: "(?i)Allow|While using the app|OK"
+    commands:
+      - tapOn: "(?i)Allow|While using the app|OK"
+- assertVisible: "Stop recording"
+- extendedWaitUntil:
+    visible: "Recording…"
+    timeout: 10000
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      # Control Center: down from the top right corner, three seconds, then up again.
+      - swipe:
+          start: 90%, 1%
+          end: 90%, 60%
+          duration: 400
+      - extendedWaitUntil:
+          visible: "REC-027 never shown"
+          timeout: 3000
+          optional: true
+      - swipe:
+          start: 50%, 95%
+          end: 50%, 20%
+          duration: 400
+      - extendedWaitUntil:
+          visible:
+            id: "record-button"
+          timeout: 10000
+      - assertVisible:
+          id: "record-button"
+          text: "Record"
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      # The notification shade: down from the top, three seconds, then Back.
+      - swipe:
+          start: 50%, 1%
+          end: 50%, 60%
+          duration: 400
+      - extendedWaitUntil:
+          visible: "REC-027 never shown"
+          timeout: 3000
+          optional: true
+      - back
+      - extendedWaitUntil:
+          visible:
+            id: "record-button"
+          timeout: 10000
+      - assertVisible: "Stop recording"
+      - tapOn:
+          id: "record-button"
+      - assertVisible:
+          id: "record-button"
+          text: "Record"
+- assertNotVisible: "This screen could not open"
+- assertNotVisible: "A part did not save\\."

@@ -64,6 +64,21 @@ export function grantFloor(org: OrgState | null, actorId: string, view: ScopeLev
   return assignableLevels(org, actorId, view)[0] ?? null;
 }
 
+/**
+ * Where an invite made from a view applies (Invite by QR): the organization
+ * when the person may grant there from this view, else a language: the one
+ * the screen was asked for when they may grant in it ("In which language?"
+ * on Invite someone), else the open one, else their only one.
+ */
+export function inviteScope(org: OrgState | null, actorId: string, view: ScopeLevel, asked: string | undefined, open: string): Scope {
+  const floor = grantFloor(org, actorId, view) ?? view;
+  if (floor === 'org') return { level: 'org' };
+  const granted = grantableLanguages(org, actorId);
+  const languageId = asked && granted.includes(asked) ? asked
+    : granted.includes(open) ? open : granted.length === 1 ? granted[0]! : open;
+  return { level: 'language', languageId };
+}
+
 // ---- progress ----------------------------------------------------------------------
 
 /** Recorded and done, never one "% done" (ORG-1). */

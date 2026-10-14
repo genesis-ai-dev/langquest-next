@@ -131,7 +131,7 @@ const broken: AnyEvent[] = events.flatMap((e) => {
     case 'v1.UnitAdded':
     case 'v1.TakeComposed':
       variants.push({ ...p, parentUnitId: 'x', parentTakeId: 'x' });
-      // A take holds recorded parts or written ones, never both (decisions.md 95).
+      // A take holds recorded parts or written ones, never both (decisions.md 106).
       if (e.type === 'v1.TakeComposed') variants.push({ ...p, cardHashes: [HASH, writtenPartId('x')] }, { ...p, cardHashes: [writtenPartId('x'), writtenPartId('y')] }, { ...p, cardHashes: [] });
       break;
     case 'v1.WritingAdded': {

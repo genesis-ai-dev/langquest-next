@@ -159,7 +159,7 @@ export function authErrorText(
     case 'validation_failed': return t('entry.errors.badEmail');
     case 'signup_disabled': return t('entry.errors.signupClosed');
     case 'user_banned': return t('entry.errors.suspended');
-    // Signing in with a LangQuest v2 account (v2SignIn.ts).
+    // Signing in with a LangQuest v2 account (server/v2.ts).
     case 'v2_already_here': return t('entry.errors.v2AlreadyHere');
     case 'v2_same_email': return t('entry.errors.v2SameEmail');
     case 'session_expired':
@@ -217,6 +217,18 @@ export function outboxErrorText(error: string | undefined, fallback: string = t(
     case 'You have blocked as many people as one account can.': return t('account.outbox.tooManyBlocks');
     default: return fallback;
   }
+}
+
+/**
+ * Your own name on Me and More settings (ACCT-015, ACCT-017): a name still
+ * waiting to send first, so a change shows at once offline; then the
+ * server's; then the part of the email before "@"; then `fallback` ("You").
+ * A change the server turned down is not your name.
+ */
+export function ownName(profileChanges: readonly { status: string; payload: Record<string, unknown> }[], serverName: string | undefined,
+  email: string | null | undefined, fallback: string): string {
+  const waiting = profileChanges.filter((a) => a.status === 'queued').at(-1);
+  return String(waiting?.payload['displayName'] ?? '').trim() || serverName?.trim() || email?.split('@')[0] || fallback;
 }
 
 // ---- Welcome (ONB-1, ADR-022) ------------------------------------------------------------

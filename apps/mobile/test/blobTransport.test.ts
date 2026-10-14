@@ -7,7 +7,7 @@
 const env = vi.hoisted(() => ({ platform: { OS: 'web' as string }, uploads: [] as { url: string; options: Record<string, unknown> }[] }));
 
 vi.mock('react-native', () => ({ Platform: env.platform }));
-vi.mock('../src/supabase', () => ({
+vi.mock('../src/server/supabase', () => ({
   supabase: { auth: { getSession: async () => ({ data: { session: { access_token: 'tok' } }, error: null }) } }
 }));
 vi.mock('expo-file-system', () => ({ File: class {}, UploadType: { BINARY_CONTENT: 0 } }));
@@ -32,7 +32,7 @@ const store = {
 async function load(os: string) {
   env.platform.OS = os;
   vi.resetModules();
-  return import('../src/blobTransport');
+  return import('../src/server/blobTransport');
 }
 
 describe('blob transport', () => {

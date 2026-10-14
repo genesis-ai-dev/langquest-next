@@ -17,13 +17,14 @@ import { feedbackSource, versionTitle, type PassageView } from '../passageView';
 import type { ReviewView } from '@langquest-next/core';
 import { C, radius, space, target, TINT, type as T } from '../theme';
 import { VoiceNote } from '../voiceNote';
+import { checkName } from './adminModel';
 import { mmss } from './model';
 import { styles as ps } from './parts';
 
 export function PublishScreen(props: {
   ctx: Ctx; v: PassageView; n: number; first: boolean; cards: string[]; totalMs: number | undefined; bible: string | undefined;
   busy: boolean; answers: ReviewView[]; tied: number; revisingKind?: string;
-  /** A step makes this version (a final recording, decisions.md 95): the step says what it is, so no change note. */
+  /** A step makes this version (a final recording, decisions.md 106): the step says what it is, so no change note. */
   making?: boolean;
   onClose: () => void; onPublish: (note: string, hash: string | null) => void;
 }) {
@@ -56,7 +57,7 @@ export function PublishScreen(props: {
           {props.answers.map((r) => (
             <View key={r.id} style={styles.check}>
               <Ico name="check" size={16} color={TINT.greenText} strokeWidth={3} />
-              <Text style={[txt.sm, { flex: 1 }]}>{t('recording.publish.answers', { kind: v.kind(r.kindId).name, from: feedbackSource(r, ctx.name) })}</Text>
+              <Text style={[txt.sm, { flex: 1 }]}>{t('recording.publish.answers', { kind: checkName(r.kindId, v.kinds), from: feedbackSource(r, ctx.name) })}</Text>
             </View>
           ))}
           {props.tied > 0 ? (

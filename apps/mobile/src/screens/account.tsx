@@ -12,15 +12,14 @@
 import { signInName } from '../accounts';
 import { readHelp, type SignInHelp } from '../signInHelp';
 import { CommandError, decodeHlc, languageName, unitTitle, type Update } from '@langquest-next/core';
-import type { SyncInspection } from '@langquest-next/client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Updates from 'expo-updates';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../text';
 import { accountOutbox, queueAccountAction } from '../accountData';
 import { deleteAccount } from '../accountDeletion';
-import { authErrorText, groupByRead, outboxErrorText, remoteTitle, roleWords, updateText } from '../accountText';
+import { authErrorText, groupByRead, outboxErrorText, ownName, remoteTitle, roleWords, updateText } from '../accountText';
 import { deriveKinds, kindOf } from '../coreText';
 import type { Ctx } from '../ctx';
 import { t } from '../i18n';
@@ -29,29 +28,36 @@ import { OfflineCard, useOfflineSummary } from '../offline';
 import { offlineCount, moreSettingsSub } from '../simple/meModel';
 import { useHelpSpot } from '../helpContext';
 import { HelpBadge } from '../helpBadge';
-import { diagnosticsEnabled, setDiagnosticsEnabled } from '../diagnostics';
-import { groupReports, reasonLabel, reportSummary, reportTitle, type ReportGroup } from '../moderation';
-import { openReports } from '../moderationData';
-import { decideRequest, pendingRequests, type PendingRequest } from '../invites';
+import { reasonLabel, reportSummary, reportTitle, type ReportGroup } from '../moderation';
+import { decideRequest, type PendingRequest } from '../invites';
 import {
   Badge, Banner, Card, EmptyState, Field, GhostBtn, Group, Header, Ico, PrimaryBtn, ProgressBar, Row, Screen,
   SectionLabel, Sheet, ShowMore, SmallBtn, txt, useLayout, useOpenDetail, type IconName
 } from '../kit';
-import { cachedInbox, enableNotifications, refreshInbox, tryUnregisterNotifications, unregisterNotifications, type RemoteNotification } from '../notifications';
+import { enableNotifications, tryUnregisterNotifications, unregisterNotifications, type RemoteNotification } from '../notifications';
 import { notificationTarget, openAfterSwitch } from '../notificationTarget';
 import { dueText } from '../passageView';
 import { personLook } from '../people';
-import { noteExpected, reportError, failureMessage } from '../report';
+import { noteExpected, failureMessage } from '../report';
 import { ReportActions } from '../reportSheet';
 import { contractsFor } from '../screenContracts';
 import { FORGETS_ON_SIGN_OUT, forgetThisBrowser } from '../forgetBrowser';
 import { HANDS_OVER, signOutHandingOver } from '../handOver';
-import { signOutHere, supabase } from '../supabase';
+import { choosePassword, signOutHere, signOutLocally } from '../server/auth';
+import { deleteMyAccount } from '../server/account';
 import { C, radius, space, target, tile, TINT, type as T } from '../theme';
 import { useAccountActions, useDisplayNames } from '../useAccount';
 import { runningBuildLabel } from '../updateStatus';
 import { PersonAvatar } from '../UserChip';
 import { LanguageRow } from '../uiLanguage';
+import { refusedHere, remoteRowView, speed, syncSummary } from '../account/model';
+import { useSyncInspection } from '../account/useSyncInspection';
+import { useDiagnosticsSwitch } from '../account/useDiagnosticsSwitch';
+import { useHasPassword } from '../account/useHasPassword';
+import { useJoinRequests, useOpenReports, useServerInbox } from '../account/useInboxSources';
+import { useInviterName } from '../account/useInviterName';
+import { useOrganizations } from '../account/useOrganizations';
+import { useUnsent } from '../account/useUnsent';
 
 // ---- Inbox (INBOX-1, INBOX-2) ---------------------------------------------------------------
 
@@ -103,59 +109,20 @@ export function InboxHome(ctx: Ctx) {
 
   // Join requests for this organization, for those who may admit people.
   const canAdmit = ctx.session.can('invite_members');
-  const [requests, setRequests] = useState<PendingRequest[] | null>(null);
-  const [requestsTick, setRequestsTick] = useState(0);
-  useEffect(() => {
-    if (!canAdmit) return;
-    let active = true;
-    pendingRequests(orgId).then((rows) => { if (active) setRequests(rows); }).catch((e: unknown) => {
-      // Offline: the server notifications below stand in for the list.
-      noteExpected('inbox join requests', e);
-      if (active) setRequests(null);
-    });
-    return () => { active = false; };
-  }, [canAdmit, orgId, requestsTick]);
+  const { requests, reload: reloadRequests } = useJoinRequests(orgId, canAdmit);
   const [openRequest, setOpenRequest] = useState<PendingRequest | null>(null);
   const [declining, setDeclining] = useState(false);
 
   // Open reports for those who act on them (decisions.md 48): content for
   // whoever manages the language, people for whoever admits members.
-  // Needs the server; offline, the server notifications below stand in.
   const canModerate = ctx.session.can('manage_structure') || canAdmit;
-  const [reports, setReports] = useState<ReportGroup[] | null>(null);
-  const [reportsTick, setReportsTick] = useState(0);
-  useEffect(() => {
-    if (!canModerate) return;
-    let active = true;
-    openReports(orgId).then((rows) => { if (active) setReports(groupReports(orgId, rows)); }).catch((e: unknown) => {
-      noteExpected('inbox reports', e);
-      if (active) setReports(null);
-    });
-    return () => { active = false; };
-  }, [canModerate, orgId, reportsTick]);
+  const { reports, reload: reloadReports } = useOpenReports(orgId, canModerate);
   const [openReport, setOpenReport] = useState<ReportGroup | null>(null);
 
   // Server notifications about other organizations (and join requests when the list above is unavailable).
-  const [remote, setRemote] = useState<RemoteNotification[]>([]);
-  const [remoteRead, setRemoteRead] = useState<string[]>([]);
-  useEffect(() => {
-    let active = true;
-    void (async () => {
-      const [cached, seen] = await Promise.all([cachedInbox(me), AsyncStorage.getItem(`inbox-read:${me}`)]);
-      if (active) { setRemote(cached); setRemoteRead(JSON.parse(seen ?? '[]')); }
-      const rows = await refreshInbox(me);
-      if (active) setRemote(rows);
-    })().catch((e: unknown) => {
-      // Offline or the server is away: the saved notifications stay shown.
-      noteExpected('inbox refresh', e);
-    });
-    return () => { active = false; };
-  }, [me]);
+  const { remote, seen, markSeen } = useServerInbox(me);
   async function openRemote(row: RemoteNotification) {
-    const next = [...new Set([...remoteRead, row.id])];
-    setRemoteRead(next);
-    // Losing the read mark costs only a dot shown again: report it, carry on.
-    await AsyncStorage.setItem(`inbox-read:${me}`, JSON.stringify(next)).catch((e: unknown) => { reportError('inbox mark read', e); });
+    await markSeen(row.id);
     // The row opens what it is about: the passage, in its language and organization (design principle 11).
     const to = notificationTarget(row);
     if (to.orgId !== orgId) {
@@ -212,20 +179,17 @@ export function InboxHome(ctx: Ctx) {
       });
     }
   }
-  const seen = new Set(remoteRead);
   for (const row of remote) {
-    const here = row.org_id === orgId;
-    // This organization's updates are derived above, and its join requests and reports too once they are listed.
-    if (here && row.kind === 'join_request' && (requests !== null || !(canAdmit && ctx.session.can('assign_work')))) continue;
-    if (here && row.kind === 'content_report' && (reports !== null || !canModerate)) continue;
-    // The open language's updates are derived above; the organization's other languages come from the server.
-    const otherLanguage = here && !!row.language_id && row.language_id !== languageId;
-    if (here && row.kind !== 'join_request' && row.kind !== 'content_report' && !otherLanguage) continue;
+    const view = remoteRowView(row, {
+      orgId, languageId, requestsListed: requests !== null, reportsListed: reports !== null,
+      mayAdmitAndAssign: canAdmit && ctx.session.can('assign_work'), mayModerate: canModerate
+    });
+    if (!view) continue;
     items.push({
       id: `remote:${row.id}`, icon: row.kind === 'join_request' ? 'people' : row.kind === 'content_report' ? 'flag' : 'notif', title: remoteTitle(row),
-      body: !here ? t('account.inbox.otherOrg')
-        : otherLanguage ? t('account.inbox.inLanguage', { language: languageName(ctx.org.state, row.language_id!) })
-        : row.kind === 'content_report' ? t('account.inbox.connectToSee') : t('account.inbox.openMembers'),
+      body: view === 'otherOrg' ? t('account.inbox.otherOrg')
+        : view === 'otherLanguage' ? t('account.inbox.inLanguage', { language: languageName(ctx.org.state, row.language_id!) })
+        : view === 'connectToSee' ? t('account.inbox.connectToSee') : t('account.inbox.openMembers'),
       read: seen.has(row.id), onPress: () => void openRemote(row)
     });
   }
@@ -241,7 +205,7 @@ export function InboxHome(ctx: Ctx) {
       await decideRequest(r.id, false);
       ctx.toast(t('account.inbox.declined'));
       setOpenRequest(null);
-      setRequestsTick((n) => n + 1);
+      reloadRequests();
     } catch (e) {
       // Offline or refused (the server's answer, in English, goes to the log).
       noteExpected('decline join request', e);
@@ -307,7 +271,7 @@ export function InboxHome(ctx: Ctx) {
         <Sheet visible title={reportTitle(openReport.target, ctx.name)} sub={`${reportSummary(openReport)} · ${formatShortDate(openReport.latest)}`}
           onClose={() => setOpenReport(null)}
           footer={<ReportActions ctx={ctx} target={openReport.target}
-            onDone={() => { setOpenReport(null); setReportsTick((n) => n + 1); }}
+            onDone={() => { setOpenReport(null); reloadReports(); }}
             onOpen={() => {
               const target = openReport.target;
               setOpenReport(null);
@@ -360,31 +324,6 @@ function ago(hlc: string): string {
 
 // ---- Getting back in, for an account without email (decisions.md 59) ---------------------------------
 
-/** Who invited this person, by the invite they redeemed: the one to ask on a new phone. */
-function useInviterName(ctx: Ctx): string | undefined {
-  const me = ctx.session.actorId;
-  const invite = Object.values(ctx.org.state?.invites ?? {}).find((i) => i.redeemedBy === me);
-  return invite?.issuedBy && invite.issuedBy !== me ? ctx.name(invite.issuedBy) : undefined;
-}
-
-/**
- * Whether a looked-after account has a password: one made by joining has
- * none until its owner sets one (the `join` function marks it); older ones
- * chose one when they joined. Null until read from the stored session.
- */
-function useHasPassword(): [boolean | null, () => void] {
-  const [has, setHas] = useState<boolean | null>(null);
-  const [tick, setTick] = useState(0);
-  useEffect(() => {
-    let active = true;
-    void supabase.auth.getSession().then(({ data }) => {
-      if (active) setHas(data.session?.user.user_metadata?.['has_password'] !== false);
-    });
-    return () => { active = false; };
-  }, [tick]);
-  return [has, () => setTick((n) => n + 1)];
-}
-
 // ---- Me (AUTH-7, AUTH-8, ONB-2; decision 71) -------------------------------------------------------
 
 /**
@@ -394,14 +333,15 @@ function useHasPassword(): [boolean | null, () => void] {
  * (that lives under Manage).
  */
 export function SettingsHome(ctx: Ctx) {
-  const names = useDisplayNames(ctx.session.actorId);
-  const s = ctx.session;
-  const name = names[s.actorId] ?? s.email?.split('@')[0] ?? t('common.you');
+  const name = useOwnName(ctx);
   const offline = useOfflineSummary(ctx);
-  // The language's sync needs noticing when work is waiting to send: say so on More settings' row.
+  // Sync needs noticing when work is waiting to send: say so on More settings' row. The organization's
+  // changes count too (a language or organization made offline), as they do before sign-out.
   const p = ctx.language;
+  const waiting = p.pending + ctx.org.pending;
   const moreSub = p.refused ? t('account.me.moreRefused')
-    : p.pending > 0 ? t('account.me.morePending', { count: p.pending }) : moreSettingsSub();
+    : p.refusedEvents > 0 ? t('account.me.moreRefusedEvents', { n: p.refusedEvents })
+    : waiting > 0 ? t('account.me.morePending', { count: waiting }) : moreSettingsSub();
   return (
     <Screen header={<Header title={t('account.me.title')} />}>
       <Group>
@@ -412,11 +352,24 @@ export function SettingsHome(ctx: Ctx) {
         <Row icon="help" label={t('account.me.tour')} sub={t('account.me.tourSub')} onPress={() => ctx.go('vision')} />
         <LanguageRow />
         <Row icon="settings" label={t('account.me.more')} sub={moreSub} onPress={() => ctx.go('settings_more')}
-          {...(p.pending > 0 ? { badge: formatNumber(p.pending) } : {})} last />
+          {...(waiting > 0 ? { badge: formatNumber(waiting) } : {})} last />
       </Group>
       <DangerLink label={t('account.me.signOut')} onPress={() => ctx.go('sign_out_confirm')} />
     </Screen>
   );
+}
+
+/**
+ * Your own name as you last saved it (ACCT-015, ACCT-017): a change still
+ * waiting to send first, so it shows at once offline, then the server's,
+ * read again each time a change has gone. A change the server turned down
+ * is left out (Edit Profile and the Inbox say why).
+ */
+function useOwnName(ctx: Ctx): string {
+  const me = ctx.session.actorId;
+  const profiles = useAccountActions(me).filter((a) => a.kind === 'profile');
+  const names = useDisplayNames(me, String(profiles.filter((a) => a.status === 'sent').length));
+  return ownName(profiles, names[me], ctx.session.email, t('common.you'));
 }
 
 /** A red line of text for leaving (Sign out): plain, centred, 56pt, never louder than the card above it. */
@@ -442,20 +395,15 @@ export function SettingsMore(ctx: Ctx) {
   const [notificationMessage, setNotificationMessage] = useState('');
   const [blockedOpen, setBlockedOpen] = useState(false);
   const diag = useDiagnosticsSwitch(ctx);
-  const names = useDisplayNames(ctx.session.actorId);
   const s = ctx.session;
   const { roleName, orgName } = useAccountLine(ctx);
   const inviter = useInviterName(ctx);
   const [hasPassword] = useHasPassword();
   const [help, setHelp] = useState<SignInHelp | null>(null);
   useEffect(() => { void readHelp(s.actorId).then(setHelp); }, [s.actorId]);
-  const name = names[s.actorId] ?? s.email?.split('@')[0] ?? t('common.you');
+  const name = useOwnName(ctx);
   const p = ctx.language;
-  const syncSub = p.refused ? t('account.more.syncRefused')
-    : p.pending > 0 ? t('account.more.syncPending', { count: p.pending })
-    : p.live ? t('account.more.syncLive')
-    : p.online === false ? t('account.more.syncOffline')
-    : lastSyncText(p.lastSync);
+  const syncSub = syncSummary(p);
   // Switch Organization is always offered (it also starts a new one); with only one organization it says so.
   const orgs = useOrganizations(s.actorId).rows;
   const canSwitch = orgs === null || orgs.length > 1;
@@ -533,46 +481,6 @@ export function SettingsMore(ctx: Ctx) {
 }
 
 /**
- * The last sync, from useLanguage's `lastSync` (a diagnostic token, not
- * words: 'never', 'offline', 'up to date', 'pushed N, pulled N, rejected N',
- * 'refused: …', 'error: …').
- */
-function lastSyncText(lastSync: string): string {
-  if (lastSync === 'up to date' || lastSync.startsWith('pushed ')) return t('account.more.syncUpToDate');
-  if (lastSync === 'offline') return t('account.more.syncOffline');
-  if (lastSync.startsWith('refused')) return t('account.more.syncRefused');
-  if (lastSync.startsWith('error')) return t('account.more.syncError');
-  return t('account.more.syncSaved');
-}
-
-type OrgRow = { org_id: string; name: string };
-
-/**
- * The organizations this account belongs to: those saved on this phone at
- * once (null when none were ever listed here), then the server's list, saved
- * for next time. Offline, the saved list stays and `error` says so.
- */
-function useOrganizations(actorId: string): { rows: OrgRow[] | null; error: string } {
-  const [rows, setRows] = useState<OrgRow[] | null>(null);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let active = true;
-    const key = `organizations:${actorId}`;
-    void (async () => {
-      const saved = await AsyncStorage.getItem(key);
-      if (active && saved) setRows(JSON.parse(saved) as OrgRow[]);
-      const { data, error } = await supabase.rpc('my_organizations');
-      if (error) { if (active) setError(t('account.orgs.stale')); return; }
-      const orgs = ((data ?? []) as OrgRow[]).map((r) => ({ org_id: r.org_id, name: r.name }));
-      await AsyncStorage.setItem(key, JSON.stringify(orgs));
-      if (active) setRows(orgs);
-    })().catch((e: unknown) => { if (active) setError(failure('org switcher', e)); });
-    return () => { active = false; };
-  }, [actorId]);
-  return { rows, error };
-}
-
-/**
  * Who this account blocked, each with Unblock. Blocking happens from the
  * flag on something they made. Someone unblocked here stays listed, with
  * Block again, until the sheet closes: a toast would sit behind the sheet.
@@ -612,26 +520,6 @@ function BlockedPeople(props: { ctx: Ctx; onClose: () => void }) {
   );
 }
 
-/** The diagnostics switch: the saved choice once read (null until then), flipped at once and put back if saving fails. */
-function useDiagnosticsSwitch(ctx: Ctx): { on: boolean | null; toggle: () => void } {
-  const [on, setOn] = useState<boolean | null>(null);
-  useEffect(() => {
-    let active = true;
-    void diagnosticsEnabled().then((v) => { if (active) setOn(v); });
-    return () => { active = false; };
-  }, []);
-  function toggle() {
-    if (on === null) return;
-    const next = !on;
-    setOn(next);
-    void setDiagnosticsEnabled(next).catch((e: unknown) => {
-      setOn(!next);
-      ctx.toast(failure('diagnostics setting', e));
-    });
-  }
-  return { on, toggle };
-}
-
 // ---- Edit Profile (AUTH-7) ------------------------------------------------------------------------------
 
 /** Your name, saved on this phone and sent when connected. */
@@ -647,14 +535,18 @@ export function ProfileEdit(ctx: Ctx) {
   const value = name ?? String(pending?.payload.displayName ?? names[ctx.session.actorId] ?? '');
   const managed = ctx.session.isManaged;
   const handle = signInName(ctx.session.email);
+  // Saving stays off while the name is empty, except a too-short password:
+  // that has to be tappable so this screen can refuse it (ACCT-019).
+  const passwordTooShort = managed && password.length > 0 && password.length < 6;
   async function save() {
     setBusy(true);
     setError('');
     try {
       // A password goes to the server now (it needs a connection); the name syncs whenever it can.
+      // A too-short one is refused here and nothing is written, name included.
       if (managed && password) {
-        if (password.length < 6) { setError(t('account.profile.shortPassword')); return; }
-        const { error } = await supabase.auth.updateUser({ password, data: { has_password: true } });
+        if (passwordTooShort) { setError(t('account.profile.shortPassword')); return; }
+        const { error } = await choosePassword(password);
         if (error) {
           noteExpected('set password', error);
           setError(authErrorText(error, t('account.profile.passwordFailed'), t('account.profile.passwordNeedsConnection')));
@@ -671,7 +563,7 @@ export function ProfileEdit(ctx: Ctx) {
   return (
     <Screen
       header={<Header title={t('account.profile.title')} onBack={ctx.back} />}
-      footer={<PrimaryBtn label={t('account.profile.save')} onPress={() => void save()} disabled={!value.trim()} busy={busy} />}
+      footer={<PrimaryBtn label={t('account.profile.save')} onPress={() => void save()} disabled={!value.trim() && !passwordTooShort} busy={busy} />}
     >
       <View style={styles.avatarBlock}>
         <PersonAvatar look={personLook(ctx.session.actorId, value)} size={72} />
@@ -818,17 +710,6 @@ export function SignOutConfirm(ctx: Ctx) {
   );
 }
 
-/** What this session could still deliver from this phone; sign-out and deletion wait for it. */
-function useUnsent(ctx: Ctx): string[] {
-  const { pending, refused } = ctx.language;
-  const accountQueued = useAccountActions(ctx.session.actorId).filter((a) => a.status === 'queued').length;
-  return [
-    !refused && pending > 0 ? t('account.unsent.changes', { count: pending }) : null,
-    ctx.org.pending > 0 ? t('account.unsent.orgChanges', { count: ctx.org.pending }) : null,
-    !refused && ctx.language.blobs.pendingUp > 0 ? t('account.unsent.recordings', { count: ctx.language.blobs.pendingUp }) : null,
-    accountQueued > 0 ? t('account.unsent.accountChanges', { count: accountQueued }) : null
-  ].filter((w): w is string => w !== null);
-}
 
 // ---- Delete Account (app only: store rules; decisions.md 46) -------------------------------------------------
 
@@ -848,9 +729,9 @@ export function DeleteAccount(ctx: Ctx) {
     setBusy(true);
     try {
       await deleteAccount(ctx.session.actorId, {
-        deleteOnServer: async () => (await supabase.rpc('delete_my_account')).error?.message ?? null,
+        deleteOnServer: deleteMyAccount,
         storage: AsyncStorage,
-        signOutHere: async () => { await supabase.auth.signOut({ scope: 'local' }); await forgetThisBrowser(); }
+        signOutHere: async () => { await signOutLocally(); await forgetThisBrowser(); }
       });
     } catch (e) { setError(failure('delete account', e)); setBusy(false); }
   }
@@ -889,34 +770,12 @@ export function DeleteAccount(ctx: Ctx) {
  */
 export function SyncStatus(ctx: Ctx) {
   const { language, org } = ctx;
-  const [ins, setIns] = useState<SyncInspection | null>(null);
-  const [orgIns, setOrgIns] = useState<SyncInspection | null>(null);
-  const [rates, setRates] = useState({ up: 0, down: 0 });
+  const { ins, orgIns, logged, rates } = useSyncInspection(language, org, (e) => ctx.toast(failure('sync inspect', e)));
   const [busy, setBusy] = useState(false);
-  // Polled every second: report a failing read once per visit, not per tick.
-  const reported = useRef(false);
-  useEffect(() => {
-    let alive = true;
-    const failed = (e: unknown) => {
-      if (reported.current) return;
-      reported.current = true;
-      ctx.toast(failure('sync inspect', e));
-    };
-    const tick = () => {
-      void language.inspect().then((i) => { if (alive) setIns(i); }).catch(failed);
-      void org.inspect().then((i) => { if (alive) setOrgIns(i); }).catch(failed);
-      setRates(language.blobs.rates());
-    };
-    tick();
-    const timer = setInterval(tick, 1000);
-    return () => { alive = false; clearInterval(timer); };
-    // ctx.toast is stable for the visit; language and org drive the poll.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [language, org]);
   const offline = language.online === false;
   const offlineSummaryNow = useOfflineSummary(ctx);
   const pendingEvents = (ins?.pending.length ?? 0) + (orgIns?.pending.length ?? 0);
-  const rejected = [...(ins?.rejected ?? []), ...(orgIns?.rejected ?? [])];
+  const rejected = refusedHere(ins, orgIns, logged);
   const syncNow = async () => {
     setBusy(true);
     try { await Promise.all([language.sync(), org.sync()]); language.triggerUpload(); }
@@ -927,16 +786,17 @@ export function SyncStatus(ctx: Ctx) {
     <Screen header={<Header title={t('account.more.sync')} onBack={ctx.back} />}
       footer={<PrimaryBtn label={busy ? t('account.sync.syncing') : t('account.sync.syncNow')} icon="restart" onPress={() => void syncNow()} disabled={language.tooOld || busy} />}>
       {/* The server's refusal is English (its reason goes to the log): say what it means. */}
-      <Banner icon="cloud" tone={language.live ? 'green' : offline ? 'amber' : 'brand'}
-        title={language.live ? t('account.more.syncLive') : offline ? t('account.more.syncOffline') : t('account.sync.checking')}
+      {/* The last try failing to reach the server outranks the live channel, which can take a minute to notice a lost network. */}
+      <Banner icon="cloud" tone={offline ? 'amber' : language.live ? 'green' : 'brand'}
+        title={offline ? t('account.more.syncOffline') : language.live ? t('account.more.syncLive') : t('account.sync.checking')}
         body={language.refused ? t('account.sync.refused') : language.tooOld ? t('account.sync.tooOld') : undefined} />
       {/* Settings' "Ready for offline" opens here (decisions.md 61): what comes along comes first. */}
       <OfflineCard ctx={ctx} s={offlineSummaryNow} />
       <View style={styles.tiles}>
-        <Stat icon="up" color={pendingEvents ? C.primary : C.green} value={pendingEvents} label={t('account.sync.waitingUpload')} />
-        <Stat icon="flag" color={rejected.length ? TINT.redText : C.muted} value={rejected.length} label={t('account.sync.refusedByServer')} />
-        <Stat icon="check" color={C.green} value={ins?.cursor ?? 0} label={t('account.sync.latestConfirmed')} />
-        <Stat icon="layers" color={C.muted} value={ins?.checkpointSeq ?? 0} label={t('account.sync.localCheckpoint')} />
+        <Stat id="waiting" icon="up" color={pendingEvents ? C.primary : C.green} value={pendingEvents} label={t('account.sync.waitingUpload')} />
+        <Stat id="refused" icon="flag" color={rejected.length ? TINT.redText : C.muted} value={rejected.length} label={t('account.sync.refusedByServer')} />
+        <Stat id="confirmed" icon="check" color={C.green} value={Math.max(ins?.cursor ?? 0, logged?.cursor ?? 0)} label={t('account.sync.latestConfirmed')} />
+        <Stat id="checkpoint" icon="layers" color={C.muted} value={ins?.checkpointSeq ?? 0} label={t('account.sync.localCheckpoint')} />
       </View>
       <Transfer icon="up" pending={language.blobs.pendingUp} peak={language.blobs.peakUp} rate={rates.up} label={t('account.sync.audioUp')} />
       <Transfer icon="download" pending={language.blobs.pendingDown} peak={language.blobs.peakDown} rate={rates.down} label={t('account.sync.audioDown')} />
@@ -960,7 +820,8 @@ export function SyncStatus(ctx: Ctx) {
           </Group>
         </>
       ) : null}
-      <Text style={[txt.xs, { textAlign: 'center' }]}>{ins ? t('account.sync.events', { count: ins.total }) : ''}</Text>
+      {/* Refused events are on this device too (PLAN.md invariant 1); the log's count leaves them out. */}
+      <Text style={[txt.xs, { textAlign: 'center' }]}>{ins ? t('account.sync.events', { count: ins.total + ins.rejected.length }) : ''}</Text>
       <Text style={[txt.xs, { textAlign: 'center' }]} selectable>
         {runningBuildLabel({ updateId: Updates.updateId ?? undefined, createdAt: Updates.createdAt ?? undefined, isEmbeddedLaunch: Updates.isEmbeddedLaunch })}
       </Text>
@@ -992,11 +853,11 @@ function clock(hlc: string): string {
   try { return formatTime(decodeHlc(hlc).wallMs, { seconds: true }); } catch { return ''; }
 }
 
-function Stat(props: { icon: IconName; color: string; value: number; label: string }) {
+function Stat(props: { id: string; icon: IconName; color: string; value: number; label: string }) {
   // Two by two on a phone; one row of four once the column is wide enough.
   const { kind, contentWidth } = useLayout();
   return (
-    <View style={[styles.tile2, kind !== 'phone' && contentWidth >= 600 && { width: '22%' }]} accessible
+    <View testID={`sync-tile-${props.id}`} style={[styles.tile2, kind !== 'phone' && contentWidth >= 600 && { width: '22%' }]} accessible
       accessibilityLabel={t('account.sync.statLabel', { value: formatNumber(props.value), label: props.label })}>
       <Ico name={props.icon} size={24} color={props.color} />
       <Text style={[styles.statValue, { color: props.color }]}>{formatNumber(props.value)}</Text>
@@ -1009,23 +870,20 @@ function Transfer(props: { icon: IconName; pending: number; peak: number; rate: 
   const total = Math.max(props.peak, props.pending);
   const done = total - props.pending;
   const idle = props.pending === 0;
+  // The card itself is not focusable when it has no action (kit Card), so the words a screen reader hears sit on this group.
   return (
-    <Card accessibilityLabel={idle ? t('account.sync.transferIdle', { label: props.label })
-      : t('account.sync.transferBusy', { label: props.label, done, total, speed: speed(props.rate) })}>
-      <View style={styles.profile}>
-        <Ico name={props.icon} size={22} color={idle ? C.muted : C.primary} />
-        <Text style={[txt.sm, { flex: 1, fontWeight: '600' }]}>{props.label}</Text>
-        {idle ? <Badge label={t('account.more.syncUpToDate')} tone="green" /> : <Text style={txt.xs}>{t('account.sync.left', { count: props.pending, speed: speed(props.rate) })}</Text>}
+    <Card>
+      <View accessible accessibilityLabel={idle ? t('account.sync.transferIdle', { label: props.label })
+        : t('account.sync.transferBusy', { label: props.label, done, total, speed: speed(props.rate) })} style={{ gap: space.sm }}>
+        <View style={styles.profile}>
+          <Ico name={props.icon} size={22} color={idle ? C.muted : C.primary} />
+          <Text style={[txt.sm, { flex: 1, fontWeight: '600' }]}>{props.label}</Text>
+          {idle ? <Badge label={t('account.more.syncUpToDate')} tone="green" /> : <Text style={txt.xs}>{t('account.sync.left', { count: props.pending, speed: speed(props.rate) })}</Text>}
+        </View>
+        {idle ? null : <ProgressBar value={total ? (done / total) * 100 : 100} />}
       </View>
-      {idle ? null : <ProgressBar value={total ? (done / total) * 100 : 100} />}
     </Card>
   );
-}
-
-function speed(bytesPerSecond: number): string {
-  if (bytesPerSecond < 1024) return t('account.sync.speedB', { value: formatNumber(Math.round(bytesPerSecond)) });
-  if (bytesPerSecond < 1024 * 1024) return t('account.sync.speedKB', { value: formatNumber(bytesPerSecond / 1024, { maximumFractionDigits: 0 }) });
-  return t('account.sync.speedMB', { value: formatNumber(bytesPerSecond / (1024 * 1024), { minimumFractionDigits: 1, maximumFractionDigits: 1 }) });
 }
 
 const styles = StyleSheet.create({

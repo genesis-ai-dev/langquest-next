@@ -140,7 +140,7 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.TakeArchived': 'translate',
   'v1.CardVerseSet': 'translate',
   'v1.TakeSubmitted': 'translate',
-  // Written parts belong to a version (translate) or to something a step made, which reviewers make too (decisions.md 95).
+  // Written parts belong to a version (translate) or to something a step made, which reviewers make too (decisions.md 106).
   'v1.WritingAdded': ['translate', 'review'],
   // What the team makes is part of what it records, like its template.
   'v1.MediaAllowedSet': 'manage_templates',
@@ -635,6 +635,27 @@ export function mayChangeMembership(state: OrgState | null, actorId: string, pro
   if (!current || current.removed.value !== false) return true;
   const role = state.roles[current.roleId.value];
   return !role || role.retired || (role.privileges.value ?? []).every((p) => mine.has(p));
+}
+
+/**
+ * Would this change leave the organization with nobody who can manage roles?
+ * Someone who can is an org-scope member whose live role holds
+ * manage_roles. `next` is the role this person would hold at org scope
+ * after it, or undefined when they would hold none there (removed, or moved
+ * to a language). The server refuses such a change (`_grant_refusal`,
+ * decided 2026-10-13, PEOPLE-026); this lets a screen say why first.
+ */
+export function leavesNoRoleManager(state: OrgState | null, profileId: string, next: string | undefined): boolean {
+  if (!state) return false;
+  const manages = (roleId: string | undefined) => {
+    const role = roleId ? state.roles[roleId] : undefined;
+    return !!role && !role.retired && (role.privileges.value ?? []).includes('manage_roles');
+  };
+  const managers = Object.entries(state.members).filter(([, ms]) => {
+    const m = ms[scopeKey({ level: 'org' })];
+    return !!m && m.removed.value === false && manages(m.roleId.value);
+  }).map(([id]) => id);
+  return managers.length > 0 && managers.every((id) => id === profileId) && !manages(next);
 }
 
 /** Active memberships of a profile, at any scope. */

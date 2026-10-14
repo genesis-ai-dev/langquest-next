@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Update } from '@langquest-next/core';
 import {
-  firstName, groupByRead, joinRequestIdOf, teamLabel, updateText, VISION_STEPS, welcomeRoleFor,
+  firstName, groupByRead, joinRequestIdOf, ownName, teamLabel, updateText, VISION_STEPS, welcomeRoleFor,
   WELCOME_POINTS, withArticle
 } from '../src/accountText';
 
@@ -94,6 +94,20 @@ describe('welcome', () => {
   it("has three short Vision cards (ONB-2), in the demo's words", () => {
     expect(VISION_STEPS.map((s) => s.title)).toEqual(['Scripture in every language', 'Every passage keeps a record', 'Do it, or ask someone']);
     for (const s of VISION_STEPS) expect(s.body.length).toBeLessThan(110);
+  });
+});
+
+describe('your own name on Me (ACCT-015, ACCT-017)', () => {
+  const change = (status: string, displayName: string) => ({ status, payload: { displayName } });
+  it('shows a name still waiting to send, so a change shows at once offline', () => {
+    expect(ownName([change('sent', 'Old'), change('queued', 'New ')], 'Old', 'tom@example.org', 'You')).toBe('New');
+  });
+  it("then the server's name; a change it turned down is not your name", () => {
+    expect(ownName([change('sent', 'Tom'), change('failed', 'x'.repeat(101))], 'Tom', 'tom@example.org', 'You')).toBe('Tom');
+  });
+  it('falls back to the email, then to "You"', () => {
+    expect(ownName([], undefined, 'tom@example.org', 'You')).toBe('tom');
+    expect(ownName([], '  ', null, 'You')).toBe('You');
   });
 });
 

@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import { Directory, File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
-import { supabase } from '../supabase';
+import * as server from '../server/library';
 import { webFiles } from '../webFiles';
 
 /**
@@ -116,7 +116,7 @@ export async function flushOutbox(orgId: string): Promise<number> {
     if (sent.has(h) || !docs.has(h)) return;
     const { doc, text } = docs.get(h)!;
     for (const d of doc.format === 'versification@1' ? [] : doc.deps) await send(d);
-    const { data, error } = await supabase.rpc('library_put_document', { p_org: orgId, p_body: text });
+    const { data, error } = await server.putDocument(orgId, text);
     if (error) throw new Error(error.message);
     if (data !== h) throw new Error('The server named the document differently.');
     sent.add(h);
@@ -159,7 +159,7 @@ export async function loadDocs(orgId: string, hashes: (string | null | undefined
     for (let i = 0; i < missing.length && !failed; i += 100) {
       let rows: { hash: string; body: string }[];
       try {
-        const { data, error } = await supabase.rpc('library_get_documents', { p_org: orgId, p_hashes: missing.slice(i, i + 100) });
+        const { data, error } = await server.getDocuments(orgId, missing.slice(i, i + 100));
         if (error) throw new Error(error.message);
         rows = (data ?? []) as { hash: string; body: string }[];
       } catch (e) {

@@ -86,7 +86,8 @@ export function GuideEditorScreen({ ctx }: { ctx: Ctx }) {
   const orgId = lib.orgId;
   const itemId = ctx.params['itemId'];
   const from = ctx.params['from'];
-  const canManage = ctx.session.can('manage_reference');
+  // A guide is published to the organization's library, which needs organization scope (library/model.ts `mayWriteLibrary`).
+  const canManage = lib.canWrite('material');
   const it = itemId ? lib.item(itemId) : null;
   const sourceHash = itemId ? it?.current ?? null : from ?? null;
   const own = useMemo(() => lib.items('material').filter((i) => i.current && !i.archived && i.source !== 'subscription'), [lib]);

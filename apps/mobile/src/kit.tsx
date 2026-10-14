@@ -204,7 +204,7 @@ export function Header(props: {
   const centred = !wide && !!props.onBack;
   // While help is on the ? is filled and stays lit over the dimmed screen: it is the way out.
   const helpBtn = help ? (
-    <Pressable onPress={() => help.setOn(!help.on)} accessibilityRole="button" accessibilityLabel={help.on ? t('help.turnOff') : t('help.explainScreen')}
+    <Pressable testID="header-help" onPress={() => help.setOn(!help.on)} accessibilityRole="button" accessibilityLabel={help.on ? t('help.turnOff') : t('help.explainScreen')}
       accessibilityState={{ selected: help.on }}
       style={({ pressed }) => [styles.helpBtn, help.on && { backgroundColor: C.primary, borderColor: C.primary }, pressed && styles.pressed]}>
       <Ico name="help" size={24} color={help.on ? C.white : C.primary} />
@@ -229,7 +229,7 @@ export function Header(props: {
   ) : null;
   const content = centred ? (
     <>
-      <Pressable onPress={props.onBack} accessibilityRole="button" accessibilityLabel={props.close ? t('common.close') : t('common.back')}
+      <Pressable testID={props.close ? 'header-close' : 'header-back'} onPress={props.onBack} accessibilityRole="button" accessibilityLabel={props.close ? t('common.close') : t('common.back')}
         style={({ pressed }) => [styles.roundBtn, pressed && styles.pressed]}>
         <Ico name={props.close ? 'close' : 'arrowL'} size={24} color={C.dark} />
       </Pressable>
@@ -243,7 +243,7 @@ export function Header(props: {
   ) : (
     <>
       {props.onBack ? (
-        <Pressable onPress={props.onBack} accessibilityRole="button" accessibilityLabel={props.close ? t('common.close') : t('common.back')}
+        <Pressable testID={props.close ? 'header-close' : 'header-back'} onPress={props.onBack} accessibilityRole="button" accessibilityLabel={props.close ? t('common.close') : t('common.back')}
           style={({ pressed }) => [styles.headerBack, pressed && styles.pressed]}>
           <Ico name={props.close ? 'close' : 'left'} size={props.close ? 24 : 28} color={C.dark} />
         </Pressable>
@@ -268,6 +268,9 @@ export function Card(props: { children: ReactNode; onPress?: () => void; style?:
     return (
       <Pressable onPress={props.onPress} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
         accessibilityState={props.current ? { selected: true } : undefined}
+        // aria-selected is not allowed on a button. aria-current is, and a screen reader says "current".
+        // accessibilityState.selected stays for native; react-native-web does not turn it into aria-selected.
+        aria-current={props.current ? true : undefined}
         style={({ pressed }) => [styles.card, props.style, props.current && styles.cardCurrent, pressed && styles.pressed]}>
         {props.children}
       </Pressable>
@@ -336,6 +339,8 @@ export function Row(props: {
   accessibilityLabel?: string;
   /** Text someone searched for: where it appears in the label and sub, it is bold (textMatch.ts). */
   highlight?: string;
+  /** For the UI tests: a stable handle for the row (`person-<id>`). */
+  testID?: string;
 }) {
   const state = {
     ...(props.selected !== undefined ? { selected: props.selected } : props.current ? { selected: true } : {}),
@@ -368,9 +373,14 @@ export function Row(props: {
     </>
   );
   const style = [styles.row, !props.last && styles.rowBorder, props.current && styles.rowCurrent];
-  if (!props.onPress) return <View style={style}>{body}</View>;
+  const id = props.testID ? { testID: props.testID } : {};
+  if (!props.onPress) return <View {...id} style={style}>{body}</View>;
   return (
-    <Pressable onPress={onPress} disabled={props.disabled} accessibilityRole={props.role ?? 'button'} accessibilityState={state} accessibilityLabel={props.accessibilityLabel}
+    <Pressable {...id} onPress={onPress} disabled={props.disabled} accessibilityRole={props.role ?? 'button'} accessibilityState={state} accessibilityLabel={props.accessibilityLabel}
+      // react-native-web drops accessibilityState.selected, and aria-selected is not allowed on a button: a current row says aria-current.
+      aria-current={props.current ? true : undefined}
+      // The web reads only aria-*: a radio, checkbox or switch says whether it is on.
+      aria-checked={props.role === 'radio' ? !!(props.selected ?? props.current) : props.role === 'switch' || props.role === 'checkbox' ? props.checked === true : undefined}
       style={({ pressed }) => [...style, pressed && styles.pressed]}>
       {body}
       <HelpBadge spot={spot} inset />
@@ -420,7 +430,7 @@ export function PrimaryBtn(props: { label: string; onPress: () => void; disabled
   const spot = useHelpSpot(props.label, t('help.details.primary'), props.onPress);
   const onPress = spot.onPress;
   return (
-    <Pressable onPress={onPress} disabled={off} accessibilityRole="button" accessibilityLabel={props.label} accessibilityState={{ disabled: !!off, busy: !!props.busy }}
+    <Pressable testID="primary-action" onPress={onPress} disabled={off} accessibilityRole="button" accessibilityLabel={props.label} accessibilityState={{ disabled: !!off, busy: !!props.busy }}
       style={({ pressed }) => [styles.primary, { backgroundColor: off ? C.faint : bg }, props.full === false && { alignSelf: 'flex-start', paddingHorizontal: space.xl },
         !off && lift({ color: bg, opacity: 0.25, y: 5, elevation: 3 }), pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={22} color={C.white} /> : null}
@@ -504,11 +514,11 @@ function QuietLink(props: { label: string; icon: IconName; onPress: () => void }
   );
 }
 
-export function IconBtn(props: { name: IconName; onPress: () => void; label: string; color?: string; bg?: string; size?: number; disabled?: boolean }) {
+export function IconBtn(props: { name: IconName; onPress: () => void; label: string; color?: string; bg?: string; size?: number; disabled?: boolean; testID?: string }) {
   const size = props.size ?? 48;
   const spot = useHelpSpot(props.label, undefined, props.onPress);
   return (
-    <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
+    <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
       accessibilityState={{ disabled: !!props.disabled }} hitSlop={Math.max(0, (target.min - size) / 2)}
       style={({ pressed }) => [{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: props.bg ?? C.bg },
         props.disabled && { opacity: 0.4 }, pressed && styles.pressed]}>
@@ -524,6 +534,8 @@ export function Chip(props: { label: string; on: boolean; onPress: () => void; i
   const onPress = spot.onPress;
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: props.on }} accessibilityLabel={props.accessibilityLabel}
+      // A chip is a toggle: on the web, a pressed button ("Mark, pressed"). react-native-web drops accessibilityState.selected.
+      aria-pressed={props.on}
       style={({ pressed }) => [styles.chip, props.on ? { backgroundColor: C.primary, borderColor: C.primary } : null, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={18} color={props.on ? C.white : C.primary} /> : null}
       <Text style={[styles.chipLabel, { color: props.on ? C.white : C.dark }]}>{props.count !== undefined ? t('shell.kit.chipCount', { label: props.label, number: formatNumber(props.count) }) : props.label}</Text>
@@ -537,9 +549,9 @@ export function ChipRow(props: { children: ReactNode }) {
   return <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm, paddingVertical: 2 }}>{props.children}</ScrollView>;
 }
 
-export function Toggle(props: { on: boolean; onToggle: () => void; label: string; disabled?: boolean }) {
+export function Toggle(props: { on: boolean; onToggle: () => void; label: string; disabled?: boolean; testID?: string }) {
   return (
-    <Switch value={props.on} onValueChange={props.onToggle} disabled={props.disabled} accessibilityLabel={props.label}
+    <Switch {...(props.testID ? { testID: props.testID } : {})} value={props.on} onValueChange={props.onToggle} disabled={props.disabled} accessibilityLabel={props.label}
       trackColor={{ true: C.primary, false: C.border }} thumbColor={C.white} ios_backgroundColor={C.border} />
   );
 }
@@ -556,6 +568,10 @@ export function Field(props: {
   keyboardType?: 'default' | 'email-address' | 'phone-pad' | 'number-pad';
   autoCapitalize?: 'none' | 'sentences' | 'words';
   style?: StyleProp<TextStyle>;
+  /** What Enter (or the keyboard's Go) does in a one-line field: the screen's main action, where there is one. */
+  onSubmit?: () => void;
+  /** For the UI tests: iOS does not expose a multi-line field's placeholder. */
+  testID?: string;
   /** What a screen reader calls a field with no label, when its placeholder does not say it. */
   accessibilityLabel?: string;
 }) {
@@ -564,17 +580,19 @@ export function Field(props: {
       {props.label ? <Text style={txt.xsStrong}>{props.label}</Text> : null}
       <TextInput value={props.value} onChangeText={props.onChangeText} placeholder={props.placeholder} placeholderTextColor={C.faint}
         accessibilityLabel={props.label ?? props.accessibilityLabel ?? props.placeholder}
+        {...(props.onSubmit && !props.multiline ? { onSubmitEditing: props.onSubmit, returnKeyType: 'go' as const } : {})}
+        {...(props.testID ? { testID: props.testID } : {})}
         multiline={props.multiline} secureTextEntry={props.secure} keyboardType={props.keyboardType} autoCapitalize={props.autoCapitalize}
         style={[styles.field, inputDirection(), props.multiline && { minHeight: 88, textAlignVertical: 'top', paddingTop: 14 }, props.style]} />
     </View>
   );
 }
 
-export function SearchField(props: { value: string; onChangeText: (v: string) => void; placeholder: string }) {
+export function SearchField(props: { value: string; onChangeText: (v: string) => void; placeholder: string; testID?: string }) {
   return (
     <View style={styles.search}>
       <Ico name="search" size={24} color={C.muted} />
-      <TextInput value={props.value} onChangeText={props.onChangeText} placeholder={props.placeholder} placeholderTextColor={C.faint}
+      <TextInput {...(props.testID ? { testID: props.testID } : {})} value={props.value} onChangeText={props.onChangeText} placeholder={props.placeholder} placeholderTextColor={C.faint}
         autoCapitalize="none" autoCorrect={false} returnKeyType="search" accessibilityLabel={props.placeholder} style={[styles.searchInput, inputDirection()]} />
       {props.value ? <IconBtn name="close" label={t('shell.kit.clearSearch')} onPress={() => props.onChangeText('')} bg="transparent" color={C.muted} /> : null}
     </View>
@@ -756,14 +774,14 @@ export function Sheet(props: { visible: boolean; title: string; sub?: string; on
     <Modal visible={props.visible} transparent animationType={wide ? 'fade' : 'slide'} onRequestClose={props.onClose}>
       <KeyboardSafe style={[{ flex: 1 }, wide && styles.dialogFrame]}>
         <Pressable style={wide ? styles.dialogBackdrop : styles.sheetBackdrop} onPress={props.onClose} accessibilityLabel={t('common.close')} />
-        <View style={wide ? styles.dialog : [styles.sheet, { paddingBottom: Math.max(insets.bottom, space.lg) }]}>
+        <View testID="sheet" style={wide ? styles.dialog : [styles.sheet, { paddingBottom: Math.max(insets.bottom, space.lg) }]}>
           {wide ? null : <View style={styles.sheetGrip} />}
           <View style={styles.sheetHead}>
             <View style={{ flex: 1 }}>
               <Text style={txt.title}>{props.title}</Text>
               {props.sub ? <Text style={[txt.smMuted, { marginTop: 4 }]}>{props.sub}</Text> : null}
             </View>
-            <IconBtn name="close" label={t('common.close')} onPress={props.onClose} bg={C.card} color={C.muted} />
+            <IconBtn testID="sheet-close" name="close" label={t('common.close')} onPress={props.onClose} bg={C.card} color={C.muted} />
           </View>
           <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={{ gap: space.md, paddingHorizontal: space.xl, paddingBottom: space.lg }} keyboardShouldPersistTaps="handled">
             {props.children}
@@ -851,13 +869,13 @@ export function ToastView(props: { toast: ToastSpec | null; onDismiss: () => voi
   return (
     <View style={[{ pointerEvents: 'box-none' }, styles.toastWrap, { bottom: props.bottom }]}>
       <View style={[styles.toast, wide && { maxWidth: measure.toast }]}>
-        <Pressable onPress={props.onDismiss} accessibilityRole="button" accessibilityLabel={t('shell.toast.dismissLabel', { message: toast.message })}
+        <Pressable testID="toast" onPress={props.onDismiss} accessibilityRole="button" accessibilityLabel={t('shell.toast.dismissLabel', { message: toast.message })}
           accessibilityLiveRegion="polite" style={styles.toastMessage}>
           <Ico name="check" size={20} color={C.green} />
           <Text style={[txt.sm, { color: C.white, flex: 1, fontWeight: '600' }]}>{toast.message}</Text>
         </Pressable>
         {toast.undo ? (
-          <Pressable onPress={() => { void Promise.resolve(toast.undo?.()).catch(() => undefined); props.onDismiss(); }} hitSlop={10}
+          <Pressable testID="toast-undo" onPress={() => { void Promise.resolve(toast.undo?.()).catch(() => undefined); props.onDismiss(); }} hitSlop={10}
             accessibilityRole="button" accessibilityLabel={t('shell.toast.undo')} style={styles.toastUndo}>
             <Text style={[txt.sm, { color: C.light, fontWeight: '800' }]}>{t('shell.toast.undo')}</Text>
           </Pressable>

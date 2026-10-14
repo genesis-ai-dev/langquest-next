@@ -4,36 +4,30 @@ import { keepHelpAudio } from './src/helpAudio';
 import { languageReady, onLanguageReady } from './src/i18n/start';
 import { HelpScopeContext } from './src/helpContext';
 import { stopAudioPlayback } from './src/audioSession';
-import { CommandError, highlightsFor, orgLanguages, updatesFor, type EventSpec } from '@langquest-next/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session as AuthSession } from '@supabase/supabase-js';
 import { StatusBar } from 'expo-status-bar';
-import { CommonActions, NavigationContainer, NavigationContext, type RouteProp } from '@react-navigation/native';
+import { NavigationContainer, NavigationContext, type RouteProp } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Component, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
-import { AccessibilityInfo, Dimensions, Linking, Platform, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { AccessibilityInfo, Platform, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Text } from './src/text';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import type { Ctx, RecentPassage } from './src/ctx';
+import type { Ctx } from './src/ctx';
 import { DevMenu } from './src/DevMenu';
 import { UpdateBanner } from './src/UpdateBanner';
 import { maySwitchPersona } from './src/dev';
-import { edgeFor, MAP_SCREENS, PASSAGE_READING, SCREEN_IDS, TAB_SCREENS, type ScreenId } from './src/flow';
+import { MAP_SCREENS, PASSAGE_READING, SCREEN_IDS, TAB_SCREENS, type ScreenId } from './src/flow';
 import { chromeVisible, frame, layoutKind } from './src/layout';
 import { NavChrome } from './src/NavChrome';
 import { lockPhonesToPortrait } from './src/orientation';
 import { paneFor, type SplitSpec } from './src/panes';
-import { onNotificationOpened } from './src/push';
-import { findNotification } from './src/notifications';
-import { notificationTarget, openAfterSwitch } from './src/notificationTarget';
 import { LayoutContext, PaneSelectionContext, type Layout, type OpenDetail } from './src/useLayout';
-import { indexesFor } from './src/indexes';
 import { EmptyState, FooterHeightContext, GhostBtn, ToastView, txt, type ToastSpec } from './src/kit';
-import { installGlobalHandlers, noteExpected, reportError } from './src/report';
-import { commandErrorText } from './src/coreText';
+import { installGlobalHandlers, reportError } from './src/report';
 import { t } from './src/i18n';
 import { personLook } from './src/people';
-import { navRef, useNav, type Route, type StackParams } from './src/nav';
+import { navRef, useNav, type StackParams } from './src/nav';
 import * as Account from './src/screens/account';
 import * as Checks from './src/screens/checks';
 import * as Config from './src/screens/config';
@@ -52,20 +46,15 @@ import * as Study from './src/screens/study';
 import * as Translate from './src/screens/translate';
 import * as Work from './src/screens/work';
 import { StorageGate, useLeaveGuard } from './src/storageGate';
-import { AUTH_SCREENS, GUEST_SCREENS, deriveSession, edgeAllowed, foldsSettled, homeScreenFor, postSignInScreen, tabsFor, type TabId } from './src/session';
-import { SESSION_KEY, supabase, supabaseConfigError } from './src/supabase';
+import { deriveSession, foldsSettled, homeScreenFor, tabsFor, type TabId } from './src/session';
+import { SESSION_KEY, onAuthChange, serverConfigError } from './src/server/auth';
 import { afterAuthEvent, savedSession } from './src/authState';
 import { C, space } from './src/theme';
 import { recordUserEvent } from './src/accountData';
 import { useAccountSync, useDisplayNames, useProfileName } from './src/useAccount';
-import { usePendingRequestCount } from './src/invites';
-import { useBlocks, useOpenReportCount } from './src/moderationData';
+import { useBlocks } from './src/moderationData';
 import { PeopleContext } from './src/UserChip';
-import { forgetKeyInAddress } from './src/appUrl';
-import { sectionAtLoad, useWebHistory } from './src/webHistory';
 import { titleFor } from './src/webPaths';
-import { parseKey } from './src/inviteCode';
-import { nextStep } from './src/heldInvite';
 import { useHeldInvite, type InviteHandle } from './src/useHeldInvite';
 import { useOrg, type OrgHandle } from './src/useOrg';
 import { useLibraryFollow, useTranslatorReview } from './src/library/follow';
@@ -73,12 +62,21 @@ import { useSourceOffline } from './src/sources/offline';
 import { useLanguage } from './src/useLanguage';
 import { useHandOvers } from './src/handOver';
 import { LostFilesAlert } from './src/lostFiles';
-import { openLanguage } from './src/languages';
 import { hasWelcome, isFromV2 } from './src/welcomeBack';
 import { useWelcomeBack } from './src/useWelcomeBack';
+import { useActions } from './src/shell/useActions';
+import { useDetails } from './src/shell/useDetails';
+import { useIncoming } from './src/shell/useIncoming';
+import { useInbox } from './src/shell/useInbox';
+import { useNavActions } from './src/shell/useNavActions';
+import { useOnboarding } from './src/shell/useOnboarding';
+import { useOpenOrganization, type Arrival } from './src/shell/useOpenOrganization';
+import { useRecentPassages } from './src/shell/useRecentPassages';
+import { useRouting } from './src/shell/useRouting';
+import { useTestProbes } from './src/shell/useTestProbes';
+import { useWorkingLanguage } from './src/shell/useWorkingLanguage';
 
 const IS_DEV = __DEV__;
-let initialLinkRead = false;
 
 const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   sign_in: Entry.SignIn, terms_privacy: Entry.TermsPrivacy, explore_home: Entry.ExploreHome, create_account: Entry.CreateAccount,
@@ -167,7 +165,8 @@ function hostFor(id: ScreenId) {
     // never takes the recorder, or the rest of the app, down with it.
     return (
       <FooterHeightContext.Provider value={onFooter}>
-        <ScreenBoundary screen={id} onBack={ctx.back} onHome={ctx.home}>
+        <ScreenBoundary screen={id} onBack={ctx.back} onHome={ctx.home}
+          homeLabel={homeScreenFor(ctx.session) === 'my_work' ? t('shell.errors.goToMyWork') : t('shell.errors.goHome')}>
           {/* Help mode numbers only the showing screen's parts. */}
           <HelpScopeContext.Provider value={focused}>
             <Screen {...ctx} params={props.route.params ?? {}} />
@@ -219,7 +218,7 @@ function PaneSlot(props: { route: { screen: ScreenId; key: string; params?: Reco
  * Whatever is wrong, the app says so. A release build has no redbox: an
  * uncaught error there is a white screen, which tells a tester on TestFlight
  * nothing and a developer less. Two backstops, because they catch different
- * moments: `supabaseConfigError` for a build that was assembled without its
+ * moments: `serverConfigError` for a build that was assembled without its
  * configuration, and this boundary for anything thrown while rendering.
  */
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null; id: string }> {
@@ -244,7 +243,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
  * A screen that failed to draw. Says what was kept before what went wrong,
  * gives an id to read to support, and offers a way out (error-tracking §3).
  */
-class ScreenBoundary extends Component<{ screen: ScreenId; onBack: () => void; onHome: () => void; children: ReactNode }, { error: Error | null; id: string }> {
+class ScreenBoundary extends Component<{ screen: ScreenId; onBack: () => void; onHome: () => void; homeLabel: string; children: ReactNode }, { error: Error | null; id: string }> {
   override state: { error: Error | null; id: string } = { error: null, id: '' };
 
   static getDerivedStateFromError(error: Error) {
@@ -264,7 +263,8 @@ class ScreenBoundary extends Component<{ screen: ScreenId; onBack: () => void; o
         <Text style={txt.body}>{t('shell.errors.safe')}</Text>
         <Text style={txt.smMuted} selectable>{t('shell.errors.tellCode', { code: this.state.id })}</Text>
         <GhostBtn label={t('shell.errors.goBack')} icon="left" onPress={reset(this.props.onBack)} />
-        <GhostBtn label={t('shell.errors.goToMyWork')} icon="home" onPress={reset(this.props.onHome)} />
+        {/* A viewer's home is Progress, not My Work (NAV-070). */}
+        <GhostBtn label={this.props.homeLabel} icon="home" onPress={reset(this.props.onHome)} />
       </ScrollView>
     );
   }
@@ -293,23 +293,23 @@ export default function App() {
   // Work people left unsent when they signed out of this phone goes as them (decisions.md 60).
   useHandOvers(auth === undefined ? undefined : auth?.user.id ?? null);
   useEffect(() => {
-    if (supabaseConfigError) return;
+    if (serverConfigError) return;
     let active = true;
     // Whoever this phone holds a sign-in for, renewable right now or not
     // (authState.ts, decision 87): offline, supabase-js reports no one once
     // the token is an hour old, and took half a minute to say so.
     const fromStorage = (s: AuthSession | null) => { if (active) setAuth((now) => (now === undefined ? s : now)); };
     AsyncStorage.getItem(SESSION_KEY).then((raw) => fromStorage(savedSession(raw)), () => fromStorage(null));
-    const { data } = supabase.auth.onAuthStateChange((event, s) => setAuth((now) => afterAuthEvent(now, event, s)));
-    return () => { active = false; data.subscription.unsubscribe(); };
+    const unsubscribe = onAuthChange((event, s) => setAuth((now) => afterAuthEvent(now, event, s)));
+    return () => { active = false; unsubscribe(); };
   }, []);
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.root}>
         <StatusBar style="dark" />
         <UpdateBanner />
-        {supabaseConfigError ? (
-          <Fatal title={t('shell.errors.notConfigured')} detail={supabaseConfigError} />
+        {serverConfigError ? (
+          <Fatal title={t('shell.errors.notConfigured')} detail={serverConfigError} />
         ) : auth === undefined || !wordsReady ? null : (
           <ErrorBoundary>
             {/* Help mode: a ? on every screen's header; while on, taps explain (demo ADR-038). */}
@@ -330,52 +330,7 @@ export default function App() {
  * between: its own stream plus the open language's (decision 63).
  */
 function Shell(props: { actorId: string; email: string | null; signedIn: boolean; fromV2: boolean }) {
-  // None until this account's organization is known: a guest, or an account
-  // in no organization, syncs nothing. Opening a placeholder instead asked the
-  // server for an organization this person is not in.
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [decided, setDecided] = useState(false);
-  const [selectionRevision, setSelectionRevision] = useState(0);
-  const [noOrganizations, setNoOrganizations] = useState(false);
-  // What to open once a newly opened organization is in (an Inbox row or a push from there).
-  const [arrival, setArrival] = useState<Arrival | null>(null);
-  const key = `selection:${props.actorId}`;
-  // Set once an organization is opened here; a slower "my organizations"
-  // reply from before must not overrule it (it once said "none" right
-  // after an invite had been used, docs/invites-and-accounts.md section 1).
-  const chosen = useRef(false);
-  useEffect(() => {
-    let active = true;
-    void (async () => {
-      if (!props.signedIn) return;
-      const raw = await AsyncStorage.getItem(key);
-      // Saved before decision 34 as { orgId, languageId }: the org is what counts.
-      const saved = raw ? (JSON.parse(raw) as { orgId?: string }).orgId : undefined;
-      if (saved) { if (active) setOrgId(saved); return; }
-      // Nothing chosen on this device yet: open the first organization this
-      // account belongs to, so someone just added to a team lands in it.
-      const { data, error } = await supabase.rpc('my_organizations');
-      if (error) { noteExpected('restore organization', error); return; }
-      const first = (data as { org_id: string }[] | null)?.[0];
-      if (!active || chosen.current) return;
-      // The server's own list is empty: a new account, in no organization yet.
-      setNoOrganizations(!first);
-      if (!first) return;
-      await AsyncStorage.setItem(key, JSON.stringify({ orgId: first.org_id }));
-      setOrgId(first.org_id);
-    })().catch((e: unknown) => { reportError('restore organization', e); })
-      .finally(() => { if (active) setDecided(true); });
-    return () => { active = false; };
-  }, [key, props.signedIn]);
-  const openOrganization = useCallback(async (next: string, open?: { languageId: string; unitId?: string }) => {
-    chosen.current = true;
-    setArrival(open ? { orgId: next, ...open } : null);
-    await AsyncStorage.setItem(key, JSON.stringify({ orgId: next }));
-    setNoOrganizations(false);
-    setOrgId(next);
-    setDecided(true);
-    setSelectionRevision((revision) => revision + 1);
-  }, [key]);
+  const { orgId, decided, selectionRevision, noOrganizations, arrival, openOrganization } = useOpenOrganization(props.actorId, props.signedIn);
   // The held invite is used here, above the organization, so opening the
   // organization it joined cannot interrupt it.
   const invite = useHeldInvite(props.signedIn ? props.actorId : null, openOrganization);
@@ -383,9 +338,6 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
   return <Workspace key={`${orgId}:${selectionRevision}`} {...props} orgId={orgId} noOrganizations={noOrganizations} openOrganization={openOrganization} invite={invite}
     arrival={arrival?.orgId === orgId ? arrival : null} />;
 }
-
-/** A language, and maybe a passage, to open once an organization opened from elsewhere is in. */
-interface Arrival { orgId: string; languageId: string; unitId?: string }
 
 /**
  * One organization: its stream, and the languages it lists there. Until
@@ -411,17 +363,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   orgId: string; noOrganizations: boolean; org: OrgHandle; openOrganization: Ctx['openOrganization']; invite: InviteHandle; arrival: Arrival | null }) {
   const org = props.org;
   const nav = useNav({ screen: 'sign_in' });
-  // ---- the language this person works in (MAP-7), and so the stream open ----
-  const languageKey = `language:${props.actorId}:${props.orgId}`;
-  const [savedLanguage, setSavedLanguage] = useState<string | null>(null);
-  useEffect(() => { AsyncStorage.getItem(languageKey).then(setSavedLanguage).catch(() => {}); }, [languageKey]);
-  const setLanguage = useCallback((id: string) => { setSavedLanguage(id); AsyncStorage.setItem(languageKey, id).catch(() => {}); }, [languageKey]);
-  const paramLanguage = nav.current.params?.['languageId'];
-  const languageId = useMemo(() => openLanguage(org.state, props.actorId, { param: paramLanguage, saved: savedLanguage }),
-    [org.state, props.actorId, paramLanguage, savedLanguage]);
-  // A screen about a language makes it the one this person works in.
-  useEffect(() => { if (languageId && languageId === paramLanguage && languageId !== savedLanguage) setLanguage(languageId); }, [languageId, paramLanguage, savedLanguage, setLanguage]);
-  const languages = useMemo(() => orgLanguages(org.state), [org.state]);
+  const { languageId, setLanguage, languages } = useWorkingLanguage(org.state, props.actorId, props.orgId, nav.current.params?.['languageId']);
   const language = useLanguage(props.orgId, languageId, props.actorId, org.membershipEpoch);
   // Web: warn before the tab closes with work still to send (storageGate.tsx).
   useLeaveGuard(!language.refused && (language.pending > 0 || language.blobs.pendingUp > 0) || org.pending > 0);
@@ -431,37 +373,14 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   // Read names again when someone joins, or a new member shows as a placeholder until restart.
   // Keyed on the state, not its members: the fold adds members in place (OrgHandle.state).
   const memberIds = useMemo(() => Object.keys(org.state?.members ?? {}).sort().join(','), [org.state]);
-  const profileNames = useDisplayNames(props.actorId, memberIds);
-  const people = profileNames;
-  const [welcomed, setWelcomed] = useState(false);
-  const [onboardingLoaded, setOnboardingLoaded] = useState(false);
+  const people = useDisplayNames(props.actorId, memberIds);
   const [devOpen, setDevOpen] = useState(false);
-
-  // The first sign-in welcome (ADR-022) is shown once per account. The flag
-  // is the one the vision screen used to set, so people already past
-  // onboarding are not welcomed again.
-  useEffect(() => {
-    let active = true;
-    void (async () => {
-      const [local, joined] = await Promise.all([AsyncStorage.getItem(`vision:${props.actorId}`), AsyncStorage.getItem(`joined:${props.actorId}`)]);
-      // Joining by invite always gets the welcome (ADR-022): who invited
-      // you and your role on which team are new even to a returning account.
-      if (active) { setWelcomed(local === '1' && joined !== '1'); setOnboardingLoaded(true); }
-      if (!props.signedIn || joined === '1') return;
-      const { data, error } = await supabase.rpc('get_user_state');
-      if (!error && data?.visionSeen) {
-        await AsyncStorage.setItem(`vision:${props.actorId}`, '1');
-        if (active) setWelcomed(true);
-      }
-    })().catch(() => { if (active) setOnboardingLoaded(true); });
-    return () => { active = false; };
-  }, [props.actorId]);
+  const onboarding = useOnboarding(props.actorId, props.signedIn);
   // Someone from v2 is welcomed back to their work instead (demo ADR-043).
-  const welcomeBack = useWelcomeBack(props.actorId, props.fromV2 && props.signedIn && onboardingLoaded && !welcomed);
-
+  const welcomeBack = useWelcomeBack(props.actorId, props.fromV2 && props.signedIn && onboarding.loaded && !onboarding.welcomed);
   const session = useMemo(
-    () => deriveSession(props.actorId, props.email, welcomed, org.state, languageId, hasWelcome(welcomeBack.data)),
-    [props.actorId, props.email, welcomed, org.state, languageId, welcomeBack.data]
+    () => deriveSession(props.actorId, props.email, onboarding.welcomed, org.state, languageId, hasWelcome(welcomeBack.data)),
+    [props.actorId, props.email, onboarding.welcomed, org.state, languageId, welcomeBack.data]
   );
   // Languages follow the library versions their template and flow are at (docs/library.md).
   useLibraryFollow(language, org, session);
@@ -469,251 +388,30 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   // Sources phones may keep follow the offline scope (docs/reference-material.md).
   useSourceOffline(language, org, session);
 
-  // ---- passages opened lately (WORK-2) ----
-  const recentKey = `recent:${props.actorId}:${props.orgId}`;
-  const [recent, setRecent] = useState<RecentPassage[]>([]);
-  useEffect(() => { AsyncStorage.getItem(recentKey).then((v) => setRecent(v ? JSON.parse(v) : [])).catch(() => {}); }, [recentKey]);
-  const remember = useCallback((unitId: string, inLanguage: string) => {
-    setRecent((prev) => {
-      const next = [{ unitId, languageId: inLanguage, at: Date.now() }, ...prev.filter((r) => r.unitId !== unitId || r.languageId !== inLanguage)].slice(0, 12);
-      AsyncStorage.setItem(recentKey, JSON.stringify(next)).catch(() => {});
-      return next;
-    });
-  }, [recentKey]);
-
-  // ---- details on request (ADR-013), kept for the session ----
-  const [openDetails, setOpenDetails] = useState<Record<string, boolean>>({});
-  const details = useCallback((key: string) => ({
-    open: !!openDetails[key],
-    onToggle: () => setOpenDetails((d) => ({ ...d, [key]: !d[key] }))
-  }), [openDetails]);
-
-  // ---- toasts (CORE-5) ----
-  // Toasts live in their own component, so showing one never re-renders
-  // the screens on the stack; `toast` only hands the message over.
-  const showToast = useRef<(spec: ToastSpec) => void>(() => {});
-  const toast = useCallback((message: string, undo?: () => void | Promise<void>) => {
-    const spec: ToastSpec = { id: Date.now(), message, ...(undo ? { undo } : {}) };
-    showToast.current(spec);
-  }, []);
-  const languageRef = useRef(language);
-  languageRef.current = language;
-  const act = useCallback(async (specs: EventSpec[], message: string, undo?: () => EventSpec[]) => {
-    try {
-      await languageRef.current.run(specs);
-    } catch (e) {
-      // Core's refusal in words; anything else is a fault, with its code.
-      toast(e instanceof CommandError ? t('shell.toast.notSaved', { reason: commandErrorText(e) }) : t('shell.toast.notSavedCode', { code: reportError('save change', e) }));
-      throw e;
-    }
-    toast(message, undo ? async () => {
-      try { await languageRef.current.run(undo()); toast(t('common.undone')); } catch (e) {
-        toast(e instanceof CommandError ? t('shell.toast.notUndone', { reason: commandErrorText(e) }) : t('shell.toast.notUndoneCode', { code: reportError('undo change', e) }));
-      }
-    } : undefined);
-  }, [toast]);
-
-  // ---- names: the signed-in person is always "you" (CORE-6) ----
+  const { recent, remember } = useRecentPassages(props.actorId, props.orgId);
+  const details = useDetails();
+  const { toast, act, registerToast } = useActions(language);
+  // Names: the signed-in person is always "you" (CORE-6).
   const name = useCallback((id: string, lower = false) => {
     if (id === props.actorId) return lower ? t('shell.youInSentence') : t('common.you');
     return people[id] ?? personLook(id).name;
   }, [people, props.actorId]);
+  const inbox = useInbox({ state: language.state, actorId: props.actorId, orgId: props.orgId, session, blocks, signedIn: props.signedIn });
 
-  // ---- what is waiting, and what happened (WORK-1, INBOX-1) ----
-  const forYou = useMemo(() => language.state
-    ? highlightsFor(language.state, props.actorId, { canRecord: session.can('translate'), canReview: session.can('review') }, indexesFor(language.state)).length
-    : 0, [language.state, props.actorId, session]);
-  // Nothing from someone this person blocked reaches their Inbox (decisions.md 48).
-  const updates = useMemo(() => language.state
-    ? updatesFor(language.state, props.actorId, indexesFor(language.state)).filter((u) => !blocks.has(u.by))
-    : [], [language.state, props.actorId, blocks]);
-  const readKey = `inbox-read:${props.actorId}:${props.orgId}`;
-  const [readIds, setReadIds] = useState<ReadonlySet<string>>(new Set());
-  useEffect(() => { AsyncStorage.getItem(readKey).then((v) => setReadIds(new Set(v ? JSON.parse(v) as string[] : []))).catch(() => {}); }, [readKey]);
-  const markRead = useCallback((ids: string[]) => {
-    setReadIds((prev) => {
-      const next = new Set(prev);
-      for (const id of ids) next.add(id);
-      AsyncStorage.setItem(readKey, JSON.stringify([...next].slice(-2000))).catch(() => {});
-      return next;
-    });
-  }, [readKey]);
-  const unread = updates.filter((u) => !readIds.has(u.id)).length;
-
-  // Auth routing is an invariant, not a transition: a signed-in session is
-  // never on a pre-auth screen, a signed-out one is only on the screens a
-  // guest may see. Checked every render because it is a property of the
-  // state, not of an edge; each branch makes its own guard false, so it
-  // settles in one extra render.
-  //
-  // Both folds must be loaded first, the org synced once (foldsSettled):
-  // postSignInScreen reads the role out of them, and routing early sends an
-  // admin to the wrong home, or a new member to no home at all.
-  const loaded = foldsSettled(org.state !== null && org.settled, language.state !== null, props.noOrganizations);
-  // Rendering must not wait on the log fold. The home screen for this
-  // actor is remembered from the last session and routed to at once; every
-  // screen already renders a light placeholder while its state is null.
-  // A role change is caught below once both folds are in.
-  // Web: the section the address named when the page loaded (a refresh), if this person may open it (webHistory.ts).
-  const urlSection = useRef<ScreenId | null>(sectionAtLoad);
-  const takeUrlSection = (): ScreenId | null => {
-    const s = urlSection.current;
-    urlSection.current = null;
-    if (!s) return null;
-    const tabScreens = tabsFor(session, undefined, { wide: layoutKind(Dimensions.get('window').width) !== 'phone' }).map((t) => t.screen);
-    const allowed = tabScreens.includes(s)
-      || (s === 'map_home' && tabScreens.some((t) => t === 'status_home' || t === 'map_home'))
-      || (s === 'language_home' && tabScreens.includes('org_home'));
-    return allowed ? s : null;
-  };
-  useWebHistory(nav.stack, nav.back);
-  // A returning person first lands on their cached home; once the session is
-  // in, the section in the address (a refresh) takes over, if they may open it.
-  useEffect(() => {
-    if (!loaded || !props.signedIn || !urlSection.current || session.isFirstTime) return;
-    if (AUTH_SCREENS.includes(nav.current.screen)) return;
-    const s = takeUrlSection();
-    if (s && nav.current.screen !== s) nav.reset({ screen: s });
+  const { goFrom, go, openPassage, openTask } = useNavActions({ nav, session, toast, remember });
+  useRouting({
+    nav, session, signedIn: props.signedIn, actorId: props.actorId, orgId: props.orgId, arrival: props.arrival, openTask, setLanguage,
+    loaded: foldsSettled(org.state !== null && org.settled, language.state !== null, props.noOrganizations),
+    ready: onboarding.loaded && welcomeBack.loaded
   });
-  const homeKey = `home:${props.actorId}:${props.orgId}`;
-  const [cachedHome, setCachedHome] = useState<ScreenId | null | undefined>(undefined);
-  useEffect(() => {
-    AsyncStorage.getItem(homeKey).then((v) => setCachedHome((v as ScreenId | null) ?? null)).catch(() => setCachedHome(null));
-  }, [homeKey]);
-  useEffect(() => {
-    if (!loaded || !props.signedIn) return;
-    const home = homeScreenFor(session);
-    if (home !== cachedHome) {
-      setCachedHome(home);
-      AsyncStorage.setItem(homeKey, home).catch(() => {});
-      if (cachedHome && nav.current.screen === cachedHome) nav.reset({ screen: home });
-    }
-  }, [loaded, props.signedIn, session, cachedHome, homeKey, nav]);
-  useEffect(() => {
-    if (!props.signedIn) {
-      // Not "anything but sign_in": a guest legitimately walks to Create
-      // account, Browse public languages, the terms and the invite scanner.
-      if (!GUEST_SCREENS.includes(nav.current.screen)) nav.reset({ screen: 'sign_in' });
-      return;
-    }
-    if (!onboardingLoaded || !welcomeBack.loaded) return;
-    if (!AUTH_SCREENS.includes(nav.current.screen)) return;
-    if (loaded) nav.reset({ screen: (!session.isFirstTime && takeUrlSection()) || postSignInScreen(session) });
-    else if (cachedHome && !session.isFirstTime) nav.reset({ screen: cachedHome });
-  });
-  // Opened from another organization's Inbox row or push: its passage, or its language, once this organization is in.
-  const arrived = useRef(false);
-  useEffect(() => {
-    const open = props.arrival;
-    if (!open || arrived.current || !loaded || !props.signedIn || AUTH_SCREENS.includes(nav.current.screen)) return;
-    arrived.current = true;
-    if (open.unitId) openTask(open.languageId, open.unitId);
-    else setLanguage(open.languageId);
-  });
-
-  // Every move follows a declared edge from the screen it starts on: the top
-  // of the stack, or the list in a split's pane (`fromKey`), which moves as
-  // if it were on top (panes.ts).
-  const goFrom = useCallback(
-    (from: ScreenId, fromKey: string | undefined, to: ScreenId, params?: Record<string, string>) => {
-      const edge = edgeFor(from, to) ?? (edgeFor(from, 'home_hub') && to === homeScreenFor(session) ? edgeFor(from, 'home_hub') : undefined);
-      const route: Route = params ? { screen: to, params } : { screen: to };
-      if (!edge) {
-        if (TAB_SCREENS.includes(to)) return nav.reset(route);
-        reportError(`flow blocked ${from} -> ${to}: no edge`, new Error('undeclared transition'));
-        toast(t('shell.nav.cannotOpenHere'));
-        return;
-      }
-      // Gates are permissions (who MAY act), part of the machine: a screen
-      // must not offer an affordance the session cannot take.
-      if (!edgeAllowed(edge, session)) {
-        reportError(`flow blocked ${from} -> ${to}: gate ${edge.when}`, new Error('gate not met'));
-        toast(t('shell.nav.noPermission'));
-        return;
-      }
-      const mode = edge.mode ?? 'push';
-      if (fromKey && fromKey !== nav.stack[nav.stack.length - 1]?.key) return nav.fromRoute(fromKey, mode, route);
-      switch (mode) {
-        case 'push': return nav.push(route);
-        case 'replace': return nav.replace(route);
-        case 'reset': return nav.reset(route);
-        case 'back': return nav.back();
-        case 'popTo': return nav.popTo(to, params);
-      }
-    },
-    [nav, session]
-  );
-  const go = useCallback((to: ScreenId, params?: Record<string, string>) => goFrom(nav.current.screen, undefined, to, params),
-    [goFrom, nav.current.screen]);
-
-  const openPassage = useCallback((unitId: string, inLanguage: string, extra?: Record<string, string>) => {
-    remember(unitId, inLanguage);
-    go('passage_record', { unitId, languageId: inLanguage, ...extra });
-  }, [go, remember]);
-
-  // A link that opens the app is a scan (docs/invites-and-accounts.md flow D).
-  const { invite } = props;
-  useEffect(() => {
-    const receive = (url: string) => {
-      const key = parseKey(url);
-      if (!key) return;
-      forgetKeyInAddress();
-      if (key.kind === 'signin') { nav.reset({ screen: 'scan_qr', params: { code: url } }); return; }
-      void invite.scan(key).then(() => nav.reset({ screen: 'scan_qr' }));
-    };
-    if (!initialLinkRead) {
-      initialLinkRead = true;
-      void Linking.getInitialURL().then((url) => { if (url) receive(url); });
-    }
-    const listener = Linking.addEventListener('url', ({ url }) => receive(url));
-    return () => listener.remove();
-  }, [nav.reset, invite.scan]);
-  // An invite nobody has claimed is shown to whoever is signed in, once, to
-  // ask "Join as you?"; it never joins on its own (heldInvite.ts).
-  const asked = useRef<string | null>(null);
-  useEffect(() => {
-    if (!props.signedIn || !onboardingLoaded || !invite.held) return;
-    const step = nextStep(invite.held, props.actorId, Date.now());
-    if (step.step !== 'ask' || asked.current === invite.held.token) return;
-    asked.current = invite.held.token;
-    if (nav.current.screen !== 'scan_qr') nav.reset({ screen: 'scan_qr' });
-  }, [props.signedIn, onboardingLoaded, invite.held, props.actorId, nav]);
-
-  const canSwitchPersona = maySwitchPersona(props.email, IS_DEV);
-
   const homeIsWork = homeScreenFor(session) === 'my_work';
-  // A task opened from outside the screens (a push, another organization's Inbox row) opens over the home screen, so Back leads home.
-  const openTask = useCallback((inLanguage: string, unitId: string) => {
-    remember(unitId, inLanguage);
-    const params = { unitId, languageId: inLanguage };
-    if (navRef.isReady()) navRef.dispatch(CommonActions.reset({ index: 1, routes: [{ name: homeScreenFor(session) }, { name: 'passage_record', params }] }));
-    else nav.reset({ screen: 'passage_record', params });
-  }, [remember, session, nav.reset]);
-  const { openOrganization, orgId: thisOrg, actorId } = props;
-  useEffect(() => {
-    if (!props.signedIn) return;
-    // People with a My Work reach the Inbox from its bell, so it opens over My Work with Back (no Inbox tab).
-    const inbox = () => {
-      if (homeIsWork && navRef.isReady()) {
-        navRef.dispatch(CommonActions.reset({ index: 1, routes: [{ name: 'my_work' }, { name: 'inbox_home', params: { from: 'my_work' } }] }));
-      } else nav.reset({ screen: 'inbox_home' });
-    };
-    // The push names only its Inbox row; the row says what it is about, and that opens (design principle 11).
-    return onNotificationOpened((id) => {
-      void findNotification(actorId, id).then(async (row) => {
-        const to = row ? notificationTarget(row) : null;
-        if (to && to.orgId !== thisOrg) await openOrganization(to.orgId, openAfterSwitch(to));
-        else if (to?.kind === 'passage') openTask(to.languageId, to.unitId);
-        else inbox();
-      }).catch((e: unknown) => { noteExpected('open pushed notification', e); inbox(); });
-    });
-  }, [props.signedIn, nav.reset, homeIsWork, openTask, openOrganization, thisOrg, actorId]);
-
-  // Open reports count toward the Inbox badge (the tab, or My Work's bell) for whoever may act on them (decisions.md 48).
-  const reportCount = useOpenReportCount(props.orgId, props.signedIn && (session.can('manage_structure') || session.can('invite_members')));
-  // People asking to join count too, for whoever may admit them.
-  const requestCount = usePendingRequestCount(props.orgId, props.signedIn && session.can('invite_members'));
-  const inboxCount = unread + reportCount + requestCount;
+  const { invite } = props;
+  useIncoming({
+    nav, invite, signedIn: props.signedIn, onboardingLoaded: onboarding.loaded, actorId: props.actorId, orgId: props.orgId,
+    homeIsWork, toast, openTask, openOrganization: props.openOrganization
+  });
+  useTestProbes({ org, language, languageId, orgId: props.orgId, go, openTask });
+  const canSwitchPersona = maySwitchPersona(props.email, IS_DEV);
 
   const ctx: Ctx = {
     language,
@@ -733,13 +431,9 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     openPassage,
     name,
     blocks,
-    inbox: { updates, unread: inboxCount, isRead: (id) => readIds.has(id), markRead },
+    inbox: { updates: inbox.updates, unread: inbox.unread, isRead: inbox.isRead, markRead: inbox.markRead },
     ...(hasWelcome(welcomeBack.data) ? { welcomeBack: { data: welcomeBack.data, refresh: welcomeBack.refresh } } : {}),
-    markWelcomed: async () => {
-      await recordUserEvent(props.actorId, 'v1.VisionSeen');
-      await AsyncStorage.multiSet([[`vision:${props.actorId}`, '1'], [`joined:${props.actorId}`, '0']]);
-      setWelcomed(true);
-    },
+    markWelcomed: onboarding.markWelcomed,
     acceptTerms: (actorId = props.actorId) => recordUserEvent(actorId, 'v1.TermsAccepted'),
     markJoined: (actorId) => AsyncStorage.setItem(`joined:${actorId}`, '1'),
     invite,
@@ -755,7 +449,12 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   const kind = layoutKind(width);
   const wide = kind !== 'phone';
   const showTabs = props.signedIn && homeScreenFor(session) !== 'intent_chooser' && chromeVisible(kind, screen);
-  const tabs = tabsFor(session, { forYou, unread: inboxCount }, { wide });
+  // Reports is a wide window's section (decisions.md 57): a window made narrow while
+  // on it has no tab to leave by, so it goes home (RPT-002).
+  useEffect(() => {
+    if (kind === 'phone' && (screen === 'reports_home' || screen === 'reports_language')) nav.reset({ screen: homeScreenFor(session) });
+  }, [kind, screen, nav, session]);
+  const tabs = tabsFor(session, { forYou: inbox.forYou, unread: inbox.unread }, { wide });
   // The lit tab is the one you came from (the bottom of the stack), so a
   // passage opened from My Work stays under My Work.
   const bottom = nav.stack[0]?.screen;
@@ -794,7 +493,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   }, []);
   const topKey = nav.stack[nav.stack.length - 1]?.key;
   const toastAbove = (topKey ? footers[topKey] ?? 0 : 0) + space.lg;
-  const toastHost = (bottom: number) => <ToastHost register={(show) => { showToast.current = show; }} bottom={bottom} />;
+  const toastHost = (bottom: number) => <ToastHost register={registerToast} bottom={bottom} />;
   const openDetail: OpenDetail | null = split?.detail ? { screen: split.detail.screen, params: split.detail.params ?? {} } : null;
 
   return (
@@ -854,8 +553,24 @@ const styles = StyleSheet.create({
  * Shows one toast at a time for about 7 s with Undo, 3.5 s without, and
  * twice as long while a screen reader is on, so Undo can be reached.
  */
+/**
+ * The toast showing now, kept outside any component: signing in or opening an
+ * organization remounts the shell, and with it the host, right after the
+ * screen that said what happened ("Signed in", "… is ready to grow"). The new
+ * host shows it for the rest of its time (AUTH-049, NOORG-009). Its Undo is
+ * not carried: the shell remounts when the account or the organization
+ * changes, and an Undo from before would then act for the account or in the
+ * organization that was left.
+ */
+let showing: { message: string; until: number } | null = null;
+
 function ToastHost(props: { register: (show: (spec: ToastSpec) => void) => void; bottom: number }) {
-  const [spec, setSpec] = useState<ToastSpec | null>(null);
+  const [spec, setSpec] = useState<ToastSpec | null>(() => {
+    const left = showing ? showing.until - Date.now() : 0;
+    return showing && left > 1000
+      ? { id: Date.now(), message: showing.message, ms: left }
+      : null;
+  });
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reader = useRef(false);
   useEffect(() => {
@@ -869,10 +584,18 @@ function ToastHost(props: { register: (show: (spec: ToastSpec) => void) => void;
     props.register((next) => {
       if (timer.current) clearTimeout(timer.current);
       const ms = (next.undo ? 7000 : 3500) * (reader.current ? 2 : 1);
+      showing = { message: next.message, until: Date.now() + ms };
       setSpec({ ...next, ms });
       timer.current = setTimeout(() => setSpec((t) => (t?.id === next.id ? null : t)), ms);
     });
   }, [props.register]);
-  return <ToastView toast={spec} onDismiss={() => setSpec(null)} bottom={props.bottom} />;
+  // A toast carried over from the host before goes when its time is up.
+  useEffect(() => {
+    if (!spec?.ms || timer.current) return;
+    const id = spec.id;
+    const t = setTimeout(() => setSpec((cur) => (cur?.id === id ? null : cur)), spec.ms);
+    return () => clearTimeout(t);
+  }, [spec]);
+  return <ToastView toast={spec} onDismiss={() => { showing = null; setSpec(null); }} bottom={props.bottom} />;
 }
 

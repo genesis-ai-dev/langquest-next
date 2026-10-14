@@ -46,5 +46,8 @@ jobs:
           V2_SUPABASE_ANON_KEY: ${{ secrets.V2_SUPABASE_ANON_KEY }}
           V2_DATABASE_URL: ${{ secrets.V2_DATABASE_URL }}
           V2_IMPORT_BY: ${{ github.event_name == 'schedule' && 'the scheduled sync' || github.actor }}
+          # Files copied at once; the repository variable tunes it without a change here (8 when unset).
+          V2_IMPORT_CONCURRENCY: ${{ vars.V2_IMPORT_CONCURRENCY || '8' }}
           ALL: ${{ (github.event.schedule == '17 3 * * *' || inputs.all) && '--all' || '' }}
-        run: npm run v2 -- sync $ALL
+        # Straight to tsx: `npm run v2` first looks for a local Supabase's keys, and there is none here.
+        run: npx tsx server/v2.ts sync $ALL

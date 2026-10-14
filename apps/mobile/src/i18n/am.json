@@ -805,6 +805,9 @@
       "introPending": "ይህ ሰው መለያ ፈጥሮ ለመቀላቀል ጠይቋል። እንዲገባ ለመፍቀድ ሚናና ወሰን ይመድቡለት።",
       "intro": "ሚና ይምረጡ፣ ከዚያ ይህ ምደባ የሚሠራበትን ወሰን ይምረጡ። ወሰኑ ይህ ደረጃ ወይም ከዚህ በታች ሊሆን ይችላል።",
       "outranked": "{{name}} እዚህ ከእርስዎ የበለጠ ሥልጣን አለው፤ ስለዚህ ይህን መለወጥ የሚችለው እኩል ሥልጣን ያለው ሰው ብቻ ነው።",
+      "onlyManager": "ሚናዎችን ማስተዳደር የሚችለው {{name}} ብቻ ነው",
+      "onlyManagerYou": "ሚናዎችን ማስተዳደር የሚችሉት እርስዎ ብቻ ነዎት",
+      "onlyManagerSub": "መጀመሪያ ለሌላ ሰው ሚናዎችን የማስተዳደር ፈቃድ ያለው ሚና ይስጡ። ከዚያ ይህ ሚና ሊቀየር ወይም ሊወገድ ይችላል።",
       "viewOnly": "ሚናዎችን የሚለውጡት አባላትን መጋበዝ የሚችሉ ሰዎች ብቻ ናቸው።",
       "removeFromOrg": "ከድርጅቱ ያስወግዱ",
       "removeFromLanguage": "ከቋንቋው ያስወግዱ"
@@ -861,6 +864,7 @@
       "needsPermission": "ቋንቋ ማከል ለመላው ድርጅት አብነቶችንና የግምገማ ሂደቶችን የማስተዳደር ፈቃድ ይፈልጋል።",
       "templateMissing": "አብነቱ ገና በዚህ መሣሪያ ላይ የለም። ኢንተርኔት ሲገናኝ እንደገና ይሞክሩ።",
       "added": "{{language}} ወደ {{org}} ታክሏል።",
+      "addedNotOffered": "{{language}} ወደ {{org}} ታክሏል። በመስመር ላይ ሲሆኑ {{offers}}ን በየሚረዳቸው ሥር ያቅርቡ።",
       "step": "ደረጃ {{step}} ከ{{total}}",
       "called": "ቋንቋው ምን ተብሎ ይጠራል?",
       "namePlaceholder": "ለምሳሌ ሀዲይኛ",
@@ -2460,6 +2464,7 @@
       "confirmLabel": "የይለፍ ቃሉን ያረጋግጡ",
       "confirmPlaceholder": "የይለፍ ቃሉን እንደገና ያስገቡ",
       "mismatch": "የይለፍ ቃሎቹ አይመሳሰሉም።",
+      "tooShort": "የይለፍ ቃሉ 6 ወይም ከዚያ በላይ ፊደላት ያስፈልገዋል።",
       "scanInvite": "ግብዣ ይቃኙ",
       "scanHint": "ኢሜይል ወይም የይለፍ ቃል አያስፈልግም። ግብዣው መለያዎን ፈጥሮ ቡድኑ ውስጥ ያስገባዎታል።",
       "failed": "መለያውን መፍጠር አልተቻለም። እንደገና ይሞክሩ።"
@@ -2517,9 +2522,6 @@
       "startSub": "ለቡድን መሪ",
       "lookTitle": "መጀመሪያ ዙሪያውን ይመልከቱ",
       "lookSub": "ለሕዝብ የቀረበ የትርጉም ሥራ",
-      "stillToSend_one": "ገና የሚላክ፦ አንድ የመለያ ለውጥ። ተመልሰው መስመር ላይ ሲሆኑና ሲላክ ይውጡ።",
-      "stillToSend_other": "ገና የሚላኩ፦ {{count, number}} የመለያ ለውጦች። ተመልሰው መስመር ላይ ሲሆኑና ሲላኩ ይውጡ።",
-      "signOutFailed": "መውጣት አልተቻለም። እንደገና ይሞክሩ።",
       "title": "ቡድንዎን ይቀላቀሉ",
       "joiningInvite": "በግብዣዎ በመቀላቀል ላይ…",
       "inviteSavedTitle": "ግብዣዎ ተቀምጧል",
@@ -2575,8 +2577,6 @@
       "member": "አባል",
       "yourOrganization": "ድርጅትዎ",
       "languageTeam": "በ{{org}} ያለው የ{{language}} ቡድን",
-      "showMe": "እንዴት እንደሆነ አሳዩኝ",
-      "skip": "ለአሁን ይዝለሉ",
       "getStarted": "ይጀምሩ",
       "invitedYou": "{{name}} ጋብዞዎታል",
       "greeting": "እንኳን ደህና መጡ፣ {{name}}",
@@ -2785,6 +2785,7 @@
       "tourSub": "አጭር ጉብኝት ያዳምጡ",
       "more": "ተጨማሪ ቅንብሮች",
       "moreRefused": "ይህ መለያ ማመሳሰል አይችልም · የይለፍ ቃል፣ ማሳወቂያዎች፣ መለያ",
+      "moreRefusedEvents": "ውድቅ የተደረጉ · {{n, number}} · የይለፍ ቃል፣ ማሳወቂያዎች፣ ማመሳሰል፣ መለያ",
       "morePending_one": "{{count, number}} ለመላክ በመጠበቅ ላይ · የይለፍ ቃል፣ ማሳወቂያዎች፣ ማመሳሰል፣ መለያ",
       "morePending_other": "{{count, number}} ለመላክ በመጠበቅ ላይ · የይለፍ ቃል፣ ማሳወቂያዎች፣ ማመሳሰል፣ መለያ",
       "signOut": "ይውጡ",
@@ -3251,8 +3252,8 @@
       "studySteps_other": "{{name}} · {{done}} ከ{{count, number}} ደረጃዎች",
       "dueOn": "የማብቂያ ቀን {{date}}",
       "record": "ይቅረጹ",
-      "yourTakes": "ሙከራዎችዎ ተቀርጸዋል፣ ገና አልታተሙም።",
-      "someTakes": "አንዳንድ ሙከራዎች ተቀርጸዋል፣ ገና አልታተሙም።",
+      "yourParts": "ቁራጮችዎ ተቀርጸዋል፣ ገና አልታተሙም።",
+      "someParts": "አንዳንድ ቁራጮች ተቀርጸዋል፣ ገና አልታተሙም።",
       "recordHint": "በቋንቋዎ ይተርኩት። መጽሐፍ ቅዱሱ፣ ዋና ቃላቱና ማስታወሻዎቹ ሲቀርጹ ከጎንዎ ናቸው።",
       "recordHintAsked": "{{asked}}። በቋንቋዎ ይተርኩት። መጽሐፍ ቅዱሱ፣ ዋና ቃላቱና ማስታወሻዎቹ ሲቀርጹ ከጎንዎ ናቸው።",
       "asked": {
@@ -3265,6 +3266,7 @@
       },
       "publish": "ያትሙ",
       "publishedWhen": "{{when}} ታትሟል",
+      "publishedJustNow": "አሁን ታትሟል",
       "someoneInSentence": "አንድ ሰው",
       "thenAskFor": "ከዚያ {{check}} ይጠይቁ",
       "saveForTeam": "ቡድኑ እንዲሰማው ያስቀምጡት",
@@ -3276,6 +3278,7 @@
         "movedPast": "ታልፏል",
         "setAside": "ወደ ጎን ተትቷል",
         "answered": "ተመልሷል",
+        "answeredBack": "ተመልሷል · ወደ ፍተሻው ይመለሳል",
         "looksGood": "ጥሩ ነው",
         "needsChanges": "ለውጥ ያስፈልገዋል",
         "after": "ከ{{check}} በኋላ",
@@ -3309,7 +3312,7 @@
       },
       "kindOnVersion": "{{kind}} በ{{version}} ላይ",
       "recording": "ቀረጻ",
-      "takesNotPublished": "ሙከራዎች ተቀርጸዋል፣ ገና አልታተሙም",
+      "partsNotPublished": "ቁራጮች ተቀርጸዋል፣ ገና አልታተሙም",
       "notRecorded": "ገና አልተቀረጸም",
       "backToLatest": "ወደ የቅርብ ጊዜው ስሪት ይመለሱ",
       "pill": {
@@ -3329,8 +3332,8 @@
       "newer": "አዲስ ስሪት",
       "versions": "ስሪቶች",
       "playVersion": "{{version}}ን ያጫውቱ",
-      "takes_one": "{{count, number}} ሙከራ",
-      "takes_other": "{{count, number}} ሙከራዎች",
+      "parts_one": "{{count, number}} ክፍል",
+      "parts_other": "{{count, number}} ክፍሎች",
       "openRecording": "ቀረጻውን ይክፈቱ",
       "madeAfter": "የተሠራው ከዚህ በኋላ",
       "madeAfterShow": "ከ{{label}} በኋላ የተሠራ። ያንን ስሪት ያሳዩ",
@@ -3400,6 +3403,7 @@
       "playNote": "የ{{name}}ን ማስታወሻ ያጫውቱ",
       "whoseNote": "የ{{name}} ማስታወሻ",
       "playFeedback": "የ{{name}}ን አስተያየት ያጫውቱ",
+      "playYourFeedback": "አስተያየትዎን ያጫውቱ",
       "more": "ተጨማሪ",
       "options": "አማራጮች",
       "openVersion": "{{version}}ን ይክፈቱ"
@@ -3429,6 +3433,8 @@
       "version": "ስሪት {{n, number}} ታትሟል",
       "versionNoNumber": "ስሪቱ ታትሟል",
       "savedHere": "{{title}} · በዚህ መሣሪያ ላይ ተቀምጧል · መስመር ላይ ሲሆኑ ይላካል",
+      "sent": "{{title}} · ለቡድኑ ተልኳል",
+      "sending": "{{title}} · አሁን እየተላከ ነው",
       "nextAsk": "ቀጥሎ ፍተሻ ይጠይቁ",
       "allDone": "ሁሉም ፍተሻዎች ተከናውነዋል።",
       "alreadyAsked": "ቀጣዩ ፍተሻ አስቀድሞ ተጠይቋል።"
@@ -3464,7 +3470,6 @@
       "changeAloud": "የተለወጠው፣ በድምፅ የተነገረ",
       "inResponseTo": "ከ{{who}} ለመጣው {{kind}} ምላሽ",
       "recording": "ቀረጻ",
-      "take": "ሙከራ {{n, number}}",
       "details": "ዝርዝሮች",
       "keyTerms": "ቁልፍ ቃላት",
       "termsTied_one": "{{count, number}} ቃል ተያይዟል · {{terms}}",
@@ -3687,6 +3692,7 @@
       "tellCode": "መደጋገሙን ከቀጠለ ይህን ኮድ ለቡድንዎ ይንገሩ፦ {{code}}",
       "goBack": "ይመለሱ",
       "goToMyWork": "ወደ «ሥራዬ» ይሂዱ",
+      "goHome": "ወደ መነሻ ሂድ",
       "codeForTeam": "ለቡድንዎ የሚሆን ኮድ፦ {{code}}",
       "notConfigured": "ይህ ስሪት አልተዋቀረም"
     },
@@ -3973,6 +3979,7 @@
     "toast": {
       "reportedAndBlocked": "{{name}} ሪፖርት ተደርጎ ታግዷል። እናመሰግናለን።",
       "reported": "ሪፖርት ተደርጓል። እናመሰግናለን። ከኢንተርኔት ጋር ሲገናኙ ይላካል።",
+      "reportedSent": "ሪፖርት ተደርጓል። እናመሰግናለን።",
       "unblocked": "የ{{name}} እገዳ ተነስቷል።",
       "blocked": "{{name}} ታግዷል። የሚያክሉት ለእርስዎ ተደብቋል።",
       "removed": "ከመዝገቡ ተወግዷል። መሣሪያዎች በሚቀጥለው ጊዜ ሲያመሳስሉ ማሳየታቸውን ያቆማሉ።",
@@ -4054,7 +4061,6 @@
       "couldNotSeek": "ድምፁን ወደተፈለገው ቦታ ማንቀሳቀስ አልተቻለም (ኮድ {{code}})።",
       "rewindSource": "ምንጩን 10 ሰከንድ ወደኋላ",
       "forwardSource": "ምንጩን 10 ሰከንድ ወደፊት",
-      "pausePlayback": "ማጫወቱን ለአፍታ ያቁሙ",
       "playAudio": "ድምፁን ያጫውቱ",
       "back10Help": "የመጨረሻዎቹን ጥቂት ሰከንዶች እንደገና ይስሙ።",
       "note": "ማስታወሻ",
@@ -4177,8 +4183,6 @@
     "resumeRecordingNow": "መቅረጽዎን አሁን ይቀጥሉ",
     "loop": {
       "capturing": "የሚናገሩትን በመቅረጽ ላይ",
-      "takesSoFar_one": "እስካሁን {{count, number}} ሙከራ",
-      "takesSoFar_other": "እስካሁን {{count, number}} ሙከራዎች",
       "partsSoFar_one": "እስካሁን {{count, number}} ቁራጭ",
       "partsSoFar_other": "እስካሁን {{count, number}} ቁራጮች",
       "piecesSoFar_one": "እስካሁን {{count, number}} ቁራጭ",
@@ -4226,7 +4230,7 @@
       "tiedBadge": "ተያይዟል",
       "tying": "በማያያዝ ላይ…",
       "tie": "ከረቂቅዎ ጋር ያያይዙ",
-      "recordFirst": "መጀመሪያ አንድ ሙከራ ይቅረጹ፤ ከዚያ ቃላትን ከረቂቅዎ ጋር ማያያዝ ይችላሉ።",
+      "recordFirst": "መጀመሪያ አንድ ቁራጭ ይቅረጹ፤ ከዚያ ቃላትን ከረቂቅዎ ጋር ማያያዝ ይችላሉ።",
       "allTerms": "ሁሉም ቁልፍ ቃላት →",
       "studyTitle": "የ{{pattern}} ጥናት · {{passage}}",
       "openStudy": "ጥናቱን ይክፈቱ →",
@@ -4261,17 +4265,13 @@
       "dividerHint": "ለአንዱ ተጨማሪ ቦታ ለመስጠት ወደ ላይ ወይም ወደ ታች ይጎትቱ"
     },
     "take": {
-      "record": "ሙከራ ይቅረጹ",
+      "record": "ቁራጭ ይቅረጹ",
       "recordHint": "በቁራጮች መካከል ቆም እያሉ ይናገሩ። ሲጨርሱ «ያቁሙ»ን ይንኩ።"
     },
     "backTranslation": {
       "draftUnreadable": "ቀደም ያሉት ቁራጮችዎ በዚህ መሣሪያ ላይ ሊነበቡ አልቻሉም (ኮድ {{code}})። ምንም ነገር አልተሰረዘም።",
       "partsSaid_one": "ከ{{count, number}} ቁራጭ {{said}} ተነግሯል",
       "partsSaid_other": "ከ{{count, number}} ቁራጮች {{said}} ተነግረዋል"
-    },
-    "workspace": {
-      "take": "ሙከራ {{n}}",
-      "newTake": "አዲስ ሙከራ {{n}}"
     },
     "verses": {
       "verse": "ቁጥር {{verse}}",
@@ -4444,6 +4444,8 @@
       "noLanguagesSub": "ቋንቋ ከታከለ በኋላ ክፍሎቹ እዚህ ይታያሉ።",
       "noPassages": "እስካሁን ክፍሎች የሉም",
       "noPassagesSub": "{{language}} የሚቀረጹ ክፍሎች ሲኖሩት በመጽሐፍና በምዕራፍ እዚህ ይታያሉ።",
+      "needsConnection": "{{language}} እስካሁን በዚህ መሣሪያ ላይ የለም",
+      "needsConnectionSub": "እዚህ ለማምጣት ከኢንተርኔት ጋር ይገናኙ። ሲገናኙ በራሱ ይከፈታል።",
       "summary": "ከ{{total}} {{recorded}} ተቀርጿል · {{done}} ተከናውኗል · {{waiting}} በገምጋሚዎች ዘንድ",
       "find": "«ዮሐንስ 3»ን ይፈልጉ",
       "bookHits_one": "{{count, number}} መጽሐፍ · በቀጥታ ለመሄድ የምዕራፍ ቁጥር ያክሉ",
@@ -5283,7 +5285,11 @@
       "skipTitle": "ይህን ጥያቄ ሳይመልሱ ይተዉታል?",
       "skipSub": "የግድ የሆኑ ጥያቄዎችን መዝለል ይቻላል — ምክንያቱ ከግምገማዎ ጋር ይቀመጣል።",
       "skipConfirm": "ጥያቄውን ይዝለሉ",
-      "skipFootnote": "ምክንያቱ ከግምገማዎ ጋር ይቀመጣል።"
+      "skipFootnote": "ምክንያቱ ከግምገማዎ ጋር ይቀመጣል።",
+      "leaveTitle": "ሳያስቀምጡ ይወጣሉ?",
+      "leaveSub": "እዚህ የተናገሩትና የመለሱት ግምገማውን እስኪልኩ ድረስ አልተቀመጠም።",
+      "keepReviewing": "መገምገምዎን ይቀጥሉ",
+      "leave": "ይውጡ"
     },
     "guest": {
       "previewSub": "ቅድመ እይታ · መተግበሪያው የሌለው ሰው የሚያየው",
@@ -5465,6 +5471,7 @@
     "noteSubNext": "እዚህ ለመናገር የከበደው ምንድን ነው? ቀጣዩ ፍተሻ ከተመላሽ ትርጉምዎ ጋር ይሰማዋል።",
     "addNote": "ማስታወሻ ያክሉ",
     "typeNoMatch": "ወይም ይጻፉት — ለምሳሌ በእንግሊዝኛ አቻ የሌለው ቃል",
+    "oneSpokenNote": "ለአሁን ለእያንዳንዱ የመመለሻ ትርጉም አንድ የድምፅ ማስታወሻ ብቻ ነው፤ ይህን ይጻፉት።",
     "publishThe": "{{what}}ን ያትማሉ?",
     "publishSubCheck": "የስሪት {{n}}። ቀጥሎ {{check}} ያዳምጠዋል።",
     "publishSub": "የስሪት {{n}}። በክፍሉ መዝገብ ላይ ይሰፍራል።",
@@ -5481,7 +5488,8 @@
     "missing": "ይህ ክፍል ገና በዚህ መሣሪያ ላይ የለም።",
     "missingSub": "ገና በመጫን ላይ ሊሆን ይችላል።",
     "orgLoading": "ድርጅትዎ ገና በመጫን ላይ ነው።",
-    "takesNotInDraft": "ሙከራዎችዎ በዚህ መሣሪያ ላይ ተቀምጠዋል፣ ግን ገና በረቂቅዎ ውስጥ አልገቡም። {{reason}}",
+    "languageLoading": "ይህ ቋንቋ አሁንም እየተጫነ ነው። ከትንሽ ቆይታ በኋላ እንደገና ይሞክሩ።",
+    "partsNotInDraft": "ቁራጮችዎ በዚህ መሣሪያ ላይ ተቀምጠዋል፣ ግን ገና በረቂቅዎ ውስጥ አልገቡም። {{reason}}",
     "partDeleted": "{{part}} ተሰርዟል።",
     "chips": {
       "bible": "መጽሐፍ ቅዱስ",
@@ -6035,7 +6043,9 @@
       "remove": "ከ«የእኔ መጽሐፍ ቅዱሶች» ያስወግዱ",
       "chapter": "ምዕራፍ {{n, number}}",
       "previousChapter": "የቀድሞው ምዕራፍ",
-      "nextChapter": "ቀጣዩ ምዕራፍ"
+      "nextChapter": "ቀጣዩ ምዕራፍ",
+      "removed": "{{abbr}} ከ«የእኔ መጽሐፍ ቅዱሶች» ተወግዷል",
+      "notRemoved": "አልተወገደም። እንደገና ይሞክሩ።"
     }
   },
   "referenceLanguage": {

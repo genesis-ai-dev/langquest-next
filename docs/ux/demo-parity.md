@@ -122,7 +122,8 @@ Demo-only tools are out of scope (see above). Beyond those:
 
 **Deliberately left out for now**
 - Practice passages, coach-mark tours and celebrations (ONB-3, ONB-4, ONB-6
-  beyond creating an organization): the Getting started card is built.
+  beyond creating an organization). The Getting started card was built and
+  then removed (decision 71); the welcome offers one "Get started".
 - A native date picker when asking someone (chips plus a typed date).
 
 **Events built without a core command**

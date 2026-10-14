@@ -10,10 +10,10 @@ import type { Ctx } from './ctx';
 import { Field, GhostBtn, Group, Ico, IconBtn, LinkBtn, PrimaryBtn, Row, Sheet, txt } from './kit';
 import { t } from './i18n';
 import {
-  hiddenText, personTarget, reasonLabel, reasonSub, removeThingTitle, REPORT_REASON_IDS, reportThingLabel, thingByLine,
+  hiddenText, personTarget, reasonLabel, reasonSub, removeThingTitle, reportedMessage, REPORT_REASON_IDS, reportThingLabel, thingByLine,
   type ReportKind, type ReportReason, type ReportTarget
 } from './moderation';
-import { dismissReports, queueReport, removeContent, reportsChanged } from './moderationData';
+import { dismissReports, removeContent, reportsChanged, sendReport } from './moderationData';
 import { failureMessage, noteExpected } from './report';
 import { C, radius, space, TINT } from './theme';
 
@@ -25,6 +25,17 @@ export function recordTarget(ctx: Ctx, kind: Exclude<ReportKind, 'person'>, id: 
 /** May this person take it out of the record, or act on a report about someone? The server checks again. */
 function canModerate(ctx: Ctx, target: ReportTarget): boolean {
   return target.kind === 'person' ? ctx.session.can('invite_members') : ctx.session.can('manage_structure');
+}
+
+/**
+ * The server wrote the removal (`v1.Redacted`) into the language's log:
+ * this device fetches it now, so what was removed leaves its own screen at
+ * once (MOD-015) instead of at the next sync. Other devices drop it when
+ * they next sync.
+ */
+function pullRemoval(ctx: Ctx, target: ReportTarget): void {
+  if (target.languageId !== ctx.language.languageId) return;
+  ctx.language.sync().catch((e: unknown) => { noteExpected('sync after removal', e); });
 }
 
 /** A server's refusal or a lost connection, as a reason to show: never the server's own English. */
@@ -64,9 +75,9 @@ function ReportSheet(props: { ctx: Ctx; target: ReportTarget; onClose: () => voi
     if (!reason) return;
     setBusy(true);
     try {
-      await queueReport(ctx.session.actorId, of, reason, details);
+      const sent = await sendReport(ctx.session.actorId, of, reason, details);
       if (alsoBlock && !blocked) await ctx.blocks.set(target.profileId, true);
-      ctx.toast(alsoBlock ? t('moderation.toast.reportedAndBlocked', { name: who }) : t('moderation.toast.reported'));
+      ctx.toast(alsoBlock ? t('moderation.toast.reportedAndBlocked', { name: who }) : reportedMessage(sent));
       props.onClose();
     } catch (e) {
       ctx.toast(failureMessage('report content', e));
@@ -93,6 +104,7 @@ function ReportSheet(props: { ctx: Ctx; target: ReportTarget; onClose: () => voi
       // i18n-ignore: the reason stored with the removal on the server
       await removeContent(target, 'Removed by a moderator');
       reportsChanged();
+      pullRemoval(ctx, target);
       ctx.toast(t('moderation.toast.removed'));
       props.onClose();
     } catch (e) {
@@ -170,12 +182,15 @@ function ReportSheet(props: { ctx: Ctx; target: ReportTarget; onClose: () => voi
 
 /**
  * A moderator's choices for an open report: look at it, take it out of the
- * record, or keep it. A report about a person points to Members, where
+ * record (asked once more, as from the flag), or keep it. A report about a
+ * person points to Members, where
  * they can be removed.
  */
 export function ReportActions(props: { ctx: Ctx; target: ReportTarget; onDone: () => void; onOpen: () => void }) {
   const { ctx, target } = props;
   const [busy, setBusy] = useState(false);
+  // Removing is for everyone and cannot be undone: asked once more, as from the flag.
+  const [confirming, setConfirming] = useState(false);
   async function run(what: 'remove' | 'keep') {
     setBusy(true);
     try {
@@ -183,6 +198,7 @@ export function ReportActions(props: { ctx: Ctx; target: ReportTarget; onDone: (
       if (what === 'remove') await removeContent(target, 'Removed after a report');
       else await dismissReports(target);
       reportsChanged();
+      if (what === 'remove') pullRemoval(ctx, target);
       ctx.toast(what === 'remove' ? t('moderation.toast.removed') : t('moderation.toast.kept'));
       props.onDone();
     } catch (e) {
@@ -192,13 +208,22 @@ export function ReportActions(props: { ctx: Ctx; target: ReportTarget; onDone: (
       setBusy(false);
     }
   }
+  if (confirming && target.kind !== 'person') {
+    return (
+      <>
+        <Text style={txt.body}>{t('moderation.remove.sub')} {t('moderation.remove.body')}</Text>
+        <PrimaryBtn label={t('moderation.remove.confirm')} icon="trash" tone="red" disabled={busy} busy={busy} onPress={() => void run('remove')} />
+        <GhostBtn label={t('common.cancel')} disabled={busy} onPress={() => setConfirming(false)} />
+      </>
+    );
+  }
   return (
     <>
       {target.kind === 'person' ? (
         <PrimaryBtn label={t('moderation.actions.openMembers')} icon="people" onPress={props.onOpen} />
       ) : (
         <>
-          <PrimaryBtn label={t('moderation.removeFromRecord')} icon="trash" tone="red" disabled={busy} busy={busy} onPress={() => void run('remove')} />
+          <PrimaryBtn label={t('moderation.removeFromRecord')} icon="trash" tone="red" disabled={busy} onPress={() => setConfirming(true)} />
           {target.unitId ? <GhostBtn label={t('moderation.actions.openPassage')} onPress={props.onOpen} /> : null}
         </>
       )}

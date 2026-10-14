@@ -1,13 +1,14 @@
 import { Linking, Platform, Share } from 'react-native';
 
 /**
- * Hand text to the share sheet. A browser without one (most desktop
- * browsers) copies it instead, and the caller says so; nothing is lost
- * silently either way.
+ * Hand text to the share sheet. A browser copies it instead: desktop
+ * Chrome has a share API, but its sheet does not finish on its own and
+ * the link would never land on the clipboard. The caller says which
+ * happened, so nothing is lost silently either way.
  */
 export async function shareText(message: string): Promise<'shared' | 'copied' | 'failed'> {
   try {
-    if (Platform.OS === 'web' && typeof navigator !== 'undefined' && !navigator.share) {
+    if (Platform.OS === 'web') {
       await navigator.clipboard.writeText(message);
       return 'copied';
     }

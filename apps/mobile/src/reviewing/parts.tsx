@@ -35,7 +35,7 @@ import {
  */
 function Choice(props: { label: string; on: boolean; onPress: () => void; big?: boolean }) {
   return (
-    <Pressable onPress={props.onPress} accessibilityRole="radio" accessibilityState={{ checked: props.on }} accessibilityLabel={props.label}
+    <Pressable onPress={props.onPress} accessibilityRole="radio" accessibilityState={{ checked: props.on }} aria-checked={props.on} accessibilityLabel={props.label}
       style={({ pressed }) => [styles.choice, props.on ? { backgroundColor: C.primary } : null, pressed && { opacity: 0.7 }]}>
       <Text style={[props.big ? styles.choiceBig : styles.choiceLabel, { color: props.on ? C.white : C.dark }]}>{props.label}</Text>
     </Pressable>

@@ -113,12 +113,11 @@ export function loopPhase(vadOn: boolean, listening: boolean): LoopPhase {
 }
 
 /** What a session's recordings are called where it counts them. */
-export type LoopNoun = 'take' | 'part' | 'piece';
+export type LoopNoun = 'part' | 'piece';
 
-/** "2 takes so far". */
+/** "2 parts so far". */
 function soFar(count: number, noun: LoopNoun): string {
   switch (noun) {
-    case 'take': return t('recording.loop.takesSoFar', { count });
     case 'part': return t('recording.loop.partsSoFar', { count });
     case 'piece': return t('recording.loop.piecesSoFar', { count });
   }

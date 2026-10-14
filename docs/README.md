@@ -1,5 +1,6 @@
 # Documentation
 
+- [testing.md](./testing.md) — The testing strategy: five layers, which one a test belongs in, the end-to-end rules, and what runs on a PR, nightly and before a release
 - [decisions.md](./decisions.md) — The ADR log: every design decision, who made it and when, with reasoning and reversal conditions
 - [cloudflare.md](./cloudflare.md) — Workers Builds: what merging to develop and main deploys; builds hold no secrets
 - [environments.md](./environments.md) — Development, preview and production: branches, where public settings and secrets live, `npm run secrets`, setup
@@ -15,4 +16,4 @@
 - [ux/](./ux/) — Earlier interactive mocks (slideshow workflow, one yellow action, VAD takeover), kept as history
   - [ux/follow-ups.md](./ux/follow-ups.md) — Remaining UX-vision alignment work (updated after each fix)
 - [ui-test-suite/](./ui-test-suite/README.md) — The Expo app's UI test suite: 653 tests in 17 areas covering every role, with the fixture world, global preconditions and the known issues found while writing it
-- [journey-tests/](./journey-tests/) — UX journey test findings (2026-09-15, ~74% pass rate vs ng-langquest-ux blueprint)
+- [journey-tests/](./journey-tests/) — Historical: UX journey findings of 2026-09-15 against the ng-langquest-ux blueprint, before the UI test suite

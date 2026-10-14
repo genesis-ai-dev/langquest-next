@@ -1,13 +1,26 @@
 // Pure reading of the recording workspace (demo `screens/translate.tsx`,
-// REC-W1..5, REV-5, TERM-4): which cards are on the list, what they are
-// called, which key terms are tied, and the events a change to the list
-// means. No React, no I/O, so the rules are tested in test/workspace.test.ts.
+// REC-W1..5, REV-5, TERM-4): which cards are on the list, which key terms
+// are tied, and the events a change to the list means. No React, no I/O,
+// so the rules are tested in test/workspace.test.ts.
 import {
   commands,
-  type Card, type EventSpec, type Indexes, type KeyTermView, type LanguageState
+  type Card, type DraftView, type EventSpec, type Indexes, type KeyTermView, type LanguageState
 } from '@langquest-next/core';
-import { t } from '../i18n';
-import { formatClock, formatNumber } from '../i18n/format';
+import { formatClock } from '../i18n/format';
+
+/**
+ * Which of a person's drafts the workspace opens (decisions.md 83), named by
+ * the take it started with: the one asked for by `draftId` (its first or
+ * any later take), else, unless the workspace starts a new one (from a
+ * version or empty), the one they changed last. Null: a new draft.
+ */
+export function draftToOpen(mine: readonly Pick<DraftView, 'takeId' | 'rootTakeId' | 'hlc'>[], draftId: string | undefined, startsNew: boolean): string | null {
+  if (draftId) return mine.find((d) => d.takeId === draftId || d.rootTakeId === draftId)?.rootTakeId ?? null;
+  if (startsNew) return null;
+  let latest: Pick<DraftView, 'takeId' | 'rootTakeId' | 'hlc'> | undefined;
+  for (const d of mine) if (!latest || d.hlc > latest.hlc || (d.hlc === latest.hlc && d.takeId > latest.takeId)) latest = d;
+  return latest?.rootTakeId ?? null;
+}
 
 export function sameCards(a: readonly string[], b: readonly string[]): boolean {
   return a.length === b.length && a.every((x, i) => x === b[i]);
@@ -34,20 +47,6 @@ export function workingCards(input: {
 /** Something to publish: cards, and not the latest version's cards again (REC-W3). */
 export function canPublish(list: readonly string[], latestCards: readonly string[] | undefined): boolean {
   return list.length > 0 && !(latestCards && sameCards(list, latestCards));
-}
-
-/**
- * What each card is called, as the demo names them: "Take 1", "Take 2" for a
- * first version; on a revision the latest version's cards keep their number
- * and new ones are "New take 1", "New take 2".
- */
-export function cardLabels(list: readonly string[], latestCards: readonly string[] | undefined): string[] {
-  if (!latestCards || latestCards.length === 0) return list.map((_, i) => t('recording.workspace.take', { n: formatNumber(i + 1) }));
-  let fresh = 0;
-  return list.map((h) => {
-    const at = latestCards.indexOf(h);
-    return at >= 0 ? t('recording.workspace.take', { n: formatNumber(at + 1) }) : t('recording.workspace.newTake', { n: formatNumber(++fresh) });
-  });
 }
 
 /** Card lengths for one passage, by hash. */

@@ -1,4 +1,4 @@
-import { always, Fleet, FLEET_EPOCH, NETWORKS, TIME, type SimDevice } from '@langquest-next/client/src/testing';
+import { always, Fleet, FLEET_EPOCH, NETWORKS, TIME, type SimDevice } from '@langquest-next/sync/src/testing';
 import { cpuSince, mark, type Scenario } from './types';
 
 /**

@@ -22,6 +22,7 @@ import { Text } from '../text';
 import { C, radius, space, target, TINT } from '../theme';
 import { versionReviewsSummary } from './record';
 import { draftName, startedFrom } from './versionsModel';
+import { useVersesHeld } from './versionParts';
 
 export function VersionsPage(props: {
   ctx: Ctx; v: PassageView; canRecord: boolean;
@@ -37,8 +38,10 @@ export function VersionsPage(props: {
   const me = ctx.session.actorId;
   const mine = draftsBy(p, me);
   const durations = cardDurations(state, unitId);
+  const versesHeld = useVersesHeld(ctx, state, unitId);
+  // "2 parts · 0:17", and the verses they hold when they have any: "2 parts · 0:17 · Verses 1–2". Written: "3 verses written" (decisions.md 106).
   const length = (hashes: readonly string[]) => partsMedium(hashes) === 'writing' ? t('writing.publishSub', { count: hashes.length })
-    : t('recording.parts.groupSub', { count: hashes.length, length: mmss(totalMs(hashes.map((h) => durations.get(h)))) });
+    : [t('recording.parts.groupSub', { count: hashes.length, length: mmss(totalMs(hashes.map((h) => durations.get(h)))) }), versesHeld(hashes)].filter(Boolean).join(' · ');
   const saved = (hlc: string) => {
     const w = when(hlc);
     return w === t('time.justNow') ? t('passage.versions.savedJustNow') : t('passage.versions.saved', { when: w });
@@ -117,7 +120,7 @@ function ItemCard(props: {
 }) {
   const written = partsMedium(props.hashes) === 'writing';
   const clip = useClip(props.ctx.language, written ? [] : props.hashes);
-  // A written version shows its first words, and a pen where a recording has play (decision 95).
+  // A written version shows its first words, and a pen where a recording has play (decision 106).
   const words = written ? props.hashes.map((h) => writtenText(props.ctx.language.state!, h) ?? '').join(' ').trim() : '';
   const body = (
     <>

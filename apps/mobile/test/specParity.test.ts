@@ -1,4 +1,4 @@
-import { DROPPED_SCREENS as DROPPED, EDGES, SCREEN_IDS, type Edge } from '../src/flow';
+import { DROPPED_EDGES, DROPPED_SCREENS as DROPPED, EDGES, SCREEN_IDS, type Edge } from '../src/flow';
 import { AUTH_SCREENS, GUEST_SCREENS, deriveSession, edgeAllowed, homeScreenFor, manageHomeFor, postSignInScreen } from '../src/session';
 import spec from './spec-flow.json';
 import { ORG, roleSession } from './sessions';
@@ -41,6 +41,8 @@ const APP_ONLY: Record<string, string> = {
   'new_language->role_editor': 'New language, invite its translators: Something else, make a new role, as on Get ready and Invite (design principle 12)',
   'new_language->flow_editor': "New language, how recordings get checked: I'll choose the steps (decision 71, amended 2026-10-11)",
   'language_home->edit_member': 'a ready language lists join requests: tap to let them in (decision 71, demo ADR-039)',
+  'intent_chooser->sign_out_confirm': 'signing out of Join your team asks first and hands over what waits, as Me does (NOORG-004, decision 60)',
+  'templates_home->templates_home': "Content Templates' By language rows open that language's template view (TPL-1, SETUP-032)",
   'org_home->new_language': 'no project level (decision 63): languages are added from the organization',
   'org_home->language_home': 'no project level (decision 63): the organization lists its languages',
   'settings_home->sync_status': 'sync status screen: the local event log, realtime state and transfer progress',
@@ -90,11 +92,11 @@ const APP_ONLY: Record<string, string> = {
   'settings_more->delete_account': 'More settings: Delete account, moved from Settings (decision 71; store rules, decisions.md 46)',
   'flow_editor->check_editor': "a language's Checks open one check, with its people, questions and helps (decision 91)",
   'review_capture->material_editor': "a check's help that is a note opens from the review (decision 91)",
-  'passage_record->made_detail': "Reviews by version opens something made from a version (decision 95)",
-  'version_detail->made_detail': 'a version lists what was made from it (decision 95)',
-  'made_detail->ask_someone': 'ask for the check that reads what a step made (decision 95)',
-  'version_detail->back_translation': 'change the words a step added to a version (decision 95)',
-  'made_detail->back_translation': 'change the words a step added to a version (decision 95)'
+  'passage_record->made_detail': "Reviews by version opens something made from a version (decision 106)",
+  'version_detail->made_detail': 'a version lists what was made from it (decision 106)',
+  'made_detail->ask_someone': 'ask for the check that reads what a step made (decision 106)',
+  'version_detail->back_translation': 'change the words a step added to a version (decision 106)',
+  'made_detail->back_translation': 'change the words a step added to a version (decision 106)'
 };
 
 /** App-only reference screens (docs/reference-material.md). */
@@ -121,12 +123,15 @@ describe('UX spec parity', () => {
     // has walked end to end.
     const missing: string[] = [];
     for (const s of specEdges) {
+      if (key(s) in DROPPED_EDGES) continue;
       // Parallel edges (the same move for different people) are matched by gate too.
       const same = appEdges.filter((x) => x.from === s.from && x.to === s.to && (x.mode ?? 'push') === s.mode);
       if (!same.length) missing.push(`${key(s)} [${s.mode}] "${s.label}"`);
       else if (!same.some((a) => (a.when ?? null) === s.when)) missing.push(`${key(s)} gate spec=${s.when} app=${same.map((a) => a.when ?? null).join('/')}`);
     }
     expect(missing).toEqual([]);
+    // Each dropped edge is a demo edge the app really leaves out.
+    expect(Object.keys(DROPPED_EDGES).filter((k) => !specEdges.some((x) => key(x) === k) || appEdges.some((x) => key(x) === k))).toEqual([]);
   });
 
   it('every app transition is in the spec or in the drift log with a reason', () => {

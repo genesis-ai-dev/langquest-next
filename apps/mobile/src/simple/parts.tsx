@@ -53,7 +53,7 @@ function RefChip<T extends string>(props: { item: ChipItem<T>; on: boolean; onPr
   const label = it.count ? t('recording.parts.chipCount', { label: it.label, n: formatNumber(it.count) }) : it.label;
   const spot = useHelpSpot(label, it.hint, props.onPress);
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole="tab" accessibilityState={{ selected: props.on }} accessibilityLabel={label}
+    <Pressable onPress={spot.onPress} accessibilityRole="tab" accessibilityState={{ selected: props.on }} aria-selected={props.on} accessibilityLabel={label}
       style={({ pressed }) => [styles.chip, props.on && styles.chipOn, pressed && styles.pressed]}>
       <Ico name={it.icon} size={18} color={props.on ? C.white : C.dark} />
       <Text style={[styles.chipLabel, props.on && { color: C.white }]}>{label}</Text>
@@ -294,7 +294,7 @@ export function RecordBtn(props: { size?: number; recording: boolean; onPress: (
   const off = props.disabled && !props.recording;
   return (
     <View style={{ padding: halo, borderRadius: (size + halo * 2) / 2, backgroundColor: withAlpha(C.red, off ? 0.06 : 0.14) }}>
-      <Pressable onPress={spot.onPress} disabled={off} accessibilityRole="button" accessibilityLabel={props.recording ? t('common.stopRecording') : t('common.record')}
+      <Pressable testID="record-button" onPress={spot.onPress} disabled={off} accessibilityRole="button" accessibilityLabel={props.recording ? t('common.stopRecording') : t('common.record')}
         accessibilityState={{ disabled: !!off }}
         style={({ pressed }) => [{ width: size, height: size, borderRadius: size / 2, backgroundColor: C.red, alignItems: 'center', justifyContent: 'center' },
           off && { opacity: 0.45 }, !off && lift({ color: C.red, opacity: 0.3, radius: 10, y: 4, elevation: 3 }), pressed && { transform: [{ scale: 0.95 }] }]}>
@@ -328,7 +328,8 @@ export const styles = StyleSheet.create({
   chipOn: { backgroundColor: C.primary, borderColor: C.primary },
   chipLabel: { fontSize: T.base, fontWeight: '700', color: C.dark },
   round: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.border, backgroundColor: C.card },
-  roundWord: { fontSize: 11, fontWeight: '800', marginTop: -1 },
+  // The field rule's smallest text (13pt, PLAN.md section 12); a tight line keeps it under the icon in 48pt.
+  roundWord: { fontSize: T.xs, lineHeight: 14, fontWeight: '800', marginTop: -1 },
   mini: { backgroundColor: C.card, borderRadius: radius.lg, borderWidth: 1, borderColor: C.border, padding: space.sm + 2, gap: space.xs },
   miniRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm + 2 },
   miniTitle: { fontSize: T.base, fontWeight: '800', color: C.dark },

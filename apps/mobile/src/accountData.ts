@@ -1,51 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { SupabaseClient } from '@supabase/supabase-js';
 import * as Crypto from 'expo-crypto';
-import { DurableOutbox, DeliveryError, type AccountAction } from './durableOutbox';
-import { supabase } from './supabase';
-
-/** Sessions kept for people signed out of this phone with work still to go (handOver.ts). */
-const keptFor = new Map<string, SupabaseClient>();
-export function sendAs(actorId: string, client: SupabaseClient | null) {
-  if (client) keptFor.set(actorId, client);
-  else keptFor.delete(actorId);
-}
+import { DurableOutbox, type AccountAction } from '@langquest-next/sync';
+import * as server from './server/account';
 
 const outboxes = new Map<string, DurableOutbox>();
 export function accountOutbox(actorId: string): DurableOutbox {
   let outbox = outboxes.get(actorId);
   if (!outbox) {
-    outbox = new DurableOutbox(actorId, AsyncStorage, async (action) => {
-      const { data } = await supabase.auth.getSession();
-      const client = data.session?.user.id === actorId ? supabase : keptFor.get(actorId);
-      if (!client) {
-        // i18n-ignore: kept in the account outbox; shown through outboxErrorText (accountText.ts)
-        throw new DeliveryError('Sign in again to send your saved changes.', true);
-      }
-      const p = action.payload;
-      const { error } = action.kind === 'join_request'
-        ? await client.rpc('create_join_request', {
-          p_request_id: action.id, p_org: p.orgId, p_message: p.message
-        })
-        : action.kind === 'profile'
-          ? await client.rpc('save_profile', { p_display_name: p.displayName })
-          : action.kind === 'report'
-            // Reports and blocks (decisions.md 48): rows on the server, never events.
-            ? await client.rpc('report_content', {
-              p_id: action.id, p_org: p.orgId, p_language: p.languageId ?? null, p_kind: p.kind,
-              p_target: p.targetId, p_profile: p.profileId, p_reason: p.reason,
-              p_details: p.details ?? null, p_unit: p.unitId ?? null
-            })
-            : action.kind === 'block'
-              ? await client.rpc('set_blocked', { p_profile: p.profileId, p_blocked: p.blocked })
-              : await client.rpc('record_user_event', {
-                p_id: action.id, p_type: p.type, p_payload: p.payload
-              });
-      if (error) {
-        const permanent = ['22023', '42501', '23514'].includes(error.code);
-        throw new DeliveryError(error.message, !permanent);
-      }
-    });
+    outbox = new DurableOutbox(actorId, AsyncStorage, (action) => server.deliverAccountAction(actorId, action));
     outboxes.set(actorId, outbox);
   }
   return outbox;
@@ -72,9 +34,7 @@ export interface PublicLanguage {
   translated_pct: number; updated_at: string; license: string;
 }
 export async function publicLanguages(): Promise<PublicLanguage[]> {
-  const { data, error } = await supabase.from('public_languages')
-    .select('org_id,language_id,name,code,translated_pct,updated_at,license')
-    .order('name').limit(100);
+  const { data, error } = await server.publicLanguages();
   if (error) throw new Error(error.message);
   await AsyncStorage.setItem('public-languages', JSON.stringify(data));
   return data as PublicLanguage[];
@@ -87,9 +47,18 @@ export interface ListedOrganization {
   org_id: string; name: string; languages: string[];
 }
 export async function listedOrganizations(): Promise<ListedOrganization[]> {
-  const { data, error } = await supabase.rpc('listed_organizations');
+  const { data, error } = await server.listedOrganizations();
   if (error) throw new Error(error.message);
   await AsyncStorage.setItem('listed-organizations', JSON.stringify(data));
+  return data as ListedOrganization[];
+}
+/**
+ * Every listed organization whose name, or a language it lists, holds `query`,
+ * searched on the server: the list above is only the first 500 by name.
+ */
+export async function searchListedOrganizations(query: string): Promise<ListedOrganization[]> {
+  const { data, error } = await server.searchListedOrganizations(query);
+  if (error) throw new Error(error.message);
   return data as ListedOrganization[];
 }
 export async function cachedListedOrganizations(): Promise<ListedOrganization[]> {

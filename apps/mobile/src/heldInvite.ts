@@ -60,6 +60,16 @@ export function withExpiry(held: HeldInvite, expiresAtIso: string | undefined): 
   return Number.isFinite(at) ? { ...held, expiresAt: at } : held;
 }
 
+/**
+ * What the scan screen's preview teaches the held invite: when a usable one
+ * expires. One the server says cannot be used keeps no expiry from it, so it
+ * is not let go the moment it is read: its card and the reason stay until the
+ * person clears it ("Clear this invite"), or a week passes.
+ */
+export function learnFromPreview(held: HeldInvite, preview: Pick<InvitePreview, 'status' | 'expiresAt'> | null): HeldInvite {
+  return preview?.status === 'ok' ? withExpiry(held, preview.expiresAt) : held;
+}
+
 /** The person said who is joining. */
 export function claim(held: HeldInvite, who: 'next-account' | { actorId: string }): HeldInvite {
   return { ...held, claim: who === 'next-account' ? { kind: 'next-account' } : { kind: 'account', actorId: who.actorId } };
@@ -115,6 +125,20 @@ export function outcomeOfError(message: string): Outcome {
   return { kind: 'retry' };
 }
 
+/**
+ * Why an Edge Function call (`join`, `sign-in-code`) failed: the function's
+ * own words when it answered, else the client's. Unreached (offline), the
+ * error's context is the failed fetch, not a reply, and its message
+ * ("Failed to send a request…") is what says there was no connection.
+ */
+export async function functionRefusal(error: { message: string; context?: unknown }): Promise<[message: string, needsName: boolean]> {
+  const context = error.context as { json?: () => Promise<unknown> } | undefined;
+  const reply = typeof context?.json === 'function'
+    ? await context.json().catch(() => null) as { error?: string; needsName?: boolean } | null
+    : null;
+  return [reply?.error ?? error.message, reply?.needsName === true];
+}
+
 /** What the server says about a key before it is used (`preview_invite`). */
 export interface InvitePreview {
   status: 'ok' | 'joined' | 'expired' | 'used' | 'not_found' | 'retired';
@@ -151,4 +175,19 @@ export function inviteCard(p: InvitePreview | null): { title: string; detail: st
   const where = p.scopeLevel === 'language' && p.languageName ? `${p.languageName} · ${p.orgName ?? ''}`.replace(/ · $/, '') : p.orgName ?? null;
   const detail = [p.roleName, where].filter(Boolean).join(' · ') || null;
   return { title, detail, from: p.invitedBy ?? null };
+}
+
+/**
+ * What the scan screen says about a held invite: why it will never work
+ * (the app found out using it, or the server said so before), whether this
+ * person is already in, and the one person it names. A one-person invite
+ * names who it is for, who then joins with one tap; any other (a group, or
+ * no name on it) asks their name first.
+ */
+export function scanVerdict(preview: InvitePreview | null, status: { kind: string; message?: string }): { dead: string | null; alreadyIn: boolean; named: string | null } {
+  const dead = status.kind === 'dead' ? status.message ?? null
+    : preview && ['expired', 'used', 'not_found', 'retired'].includes(preview.status)
+      ? deadMessage(preview.status as DeadReason, preview.invitedBy) : null;
+  const named = preview?.status === 'ok' && preview.label && !preview.group ? preview.label : null;
+  return { dead, alreadyIn: preview?.status === 'joined', named };
 }

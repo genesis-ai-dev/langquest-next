@@ -34,6 +34,7 @@ import { checkName, checksLine, dropIndex } from '../simple/adminModel';
 import { useCheckChoices, type FlowEntry } from '../simple/choices';
 import { addRow, moveRow, removeRow, rowNumbers, rowsOf, setCheckpoint, setTogether, stepsOf, type CheckRow } from '../checks/model';
 import { setChecksDraft, useChecksDraft } from '../checks/draft';
+import { restoreChecks } from '../checks/undo';
 import { PeopleLine } from '../checks/parts';
 import { newKindId, nextFieldId, referenceKindName } from './configModel';
 import { teamLanguage } from '../reference/languages';
@@ -74,7 +75,7 @@ async function saveRows(ctx: Ctx, rows: CheckRow[], message: string, before: Eve
   }
   const undo = () => {
     const s = ctx.language.state;
-    return s ? commands(s, indexesFor(s)).restoreFlow({ commandId: Crypto.randomUUID(), previous }) : [];
+    return s ? restoreChecks(s, previous, Crypto.randomUUID()) : [];
   };
   try {
     await ctx.act(specs, message, undo);
@@ -192,7 +193,7 @@ function CheckList(props: {
   );
 }
 
-/** Add a check: one the organization knows, or a new one by name; with `making`, a step that makes something first (decisions.md 95). */
+/** Add a check: one the organization knows, or a new one by name; with `making`, a step that makes something first (decisions.md 106). */
 function AddCheckSheet(props: {
   visible: boolean; kinds: KindDef[]; taken: string[]; onClose: () => void; onPick: (k: KindDef, isNew: boolean) => void;
   making?: { own: string; reference: string; onPick: (k: KindDef, makes: MakesSpec) => void; onOwn: () => void };
@@ -203,7 +204,7 @@ function AddCheckSheet(props: {
     <Sheet visible={props.visible} title={t('checks.addCheck')} onClose={props.onClose}>
       {props.making ? (
         <>
-          {/* The shipped back translation, when the language has it, stands for the said one (decision 95). */}
+          {/* The shipped back translation, when the language has it, stands for the said one (decision 106). */}
           <MakingPresets taken={[...props.taken, ...props.kinds.map((k) => k.id), ...(props.taken.includes('bt') ? ['make-bt-said'] : [])]} own={props.making.own} reference={props.making.reference}
             onPick={props.making.onPick} onOwn={props.making.onOwn} />
           <SectionLabel label={t('writing.step.checkIt')} />
@@ -262,7 +263,7 @@ function OwnChecks({ ctx }: { ctx: Ctx }) {
   }
   const save = (next: CheckRow[], before: EventSpec[] = []) => void saveRows(ctx, next, t('checks.saved', { language }), before);
   const reference = teamLanguage(ctx.org.state, state, languageId);
-  /** A step that makes something: its kind, what it makes, and its row (decisions.md 95). */
+  /** A step that makes something: its kind, what it makes, and its row (decisions.md 106). */
   const addMaking = (k: KindDef, makes: MakesSpec) => {
     const c = commands(state, indexesFor(state));
     const define = state.reviewKinds[k.id] ? [] : c.defineKind({ commandId: Crypto.randomUUID(), kindId: k.id, name: k.name, description: k.description, usualReviewer: k.usualReviewer });
@@ -309,7 +310,7 @@ function OwnChecks({ ctx }: { ctx: Ctx }) {
         }
         const undo = () => {
           const s = ctx.language.state;
-          return s ? commands(s, indexesFor(s)).restoreFlow({ commandId: Crypto.randomUUID(), previous }) : [];
+          return s ? restoreChecks(s, previous, Crypto.randomUUID()) : [];
         };
         void ctx.act(specs, t('checks.flows.used', { name: e.c.name, language }), undo).catch(() => {});
       }} />
@@ -321,18 +322,39 @@ function OwnChecks({ ctx }: { ctx: Ctx }) {
 function DraftChecks({ ctx }: { ctx: Ctx }) {
   const draft = useChecksDraft();
   const [adding, setAdding] = useState(false);
+  // A check of the draft, opened: what one check's page offers before the language exists (no people,
+  // questions or helps yet, since those are the language's own records).
+  const [open, setOpen] = useState<number | null>(null);
   const title = ctx.params['name'] ?? '';
   if (!draft) return <Screen header={<Header title={t('checks.title')} onBack={ctx.back} />}><EmptyState icon="flow" title={t('common.loading')} /></Screen>;
   const set = (rows: CheckRow[]) => setChecksDraft({ ...draft, rows });
+  const row = open !== null ? draft.rows[open] ?? null : null;
+  const name = row ? checkName(row.kindId, draft.kinds) : '';
+  const previous = open !== null && open > 0 ? checkName(draft.rows[open - 1]!.kindId, draft.kinds) : '';
   return (
     <Screen header={<Header title={t('checks.title')} sub={title} onBack={ctx.back} />}
       footer={<PrimaryBtn label={t('common.done')} icon="check" onPress={ctx.back} />}>
-      <CheckList ctx={ctx} rows={draft.rows} kinds={draft.kinds} readOnly={false} onChange={set} />
+      <CheckList ctx={ctx} rows={draft.rows} kinds={draft.kinds} readOnly={false} onChange={set} onOpen={setOpen} />
       <DashedRow icon="plus" label={t('checks.addCheck')} centred onPress={() => setAdding(true)} />
       <AddCheckSheet visible={adding} kinds={draft.kinds} taken={draft.rows.map((r) => r.kindId)} onClose={() => setAdding(false)} onPick={(k) => {
         setAdding(false);
         setChecksDraft({ kinds: draft.kinds.some((x) => x.id === k.id) ? draft.kinds : [...draft.kinds, k], rows: addRow(draft.rows, k.id) });
       }} />
+      <Sheet visible={row !== null} title={name} sub={open !== null ? t('checks.checkOf', { n: formatNumber(rowNumbers(draft.rows)[open]!), language: title }) : undefined}
+        onClose={() => setOpen(null)}>
+        {row && open !== null ? (
+          <Group>
+            <Row icon="lock" label={t('checks.mustPass')} role="switch" checked={row.checkpoint}
+              right={<Toggle testID="toggle-must-pass" on={row.checkpoint} label={t('checks.mustPass')} onToggle={() => set(setCheckpoint(draft.rows, open, !row.checkpoint))} />} />
+            {open > 0 ? (
+              <Row icon="swap" label={t('checks.sameTimeAs', { check: previous })} role="switch" checked={row.together}
+                right={<Toggle testID="toggle-same-time" on={row.together} label={t('checks.sameTimeAs', { check: previous })} onToggle={() => set(setTogether(draft.rows, open, !row.together))} />} />
+            ) : null}
+            <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label={t('checks.remove')} last
+              onPress={() => { set(removeRow(draft.rows, open)); setOpen(null); }} />
+          </Group>
+        ) : null}
+      </Sheet>
     </Screen>
   );
 }
@@ -459,7 +481,7 @@ export function CheckEditor(ctx: Ctx) {
     .sort((a, b) => ctx.name(a).localeCompare(ctx.name(b)));
   const previous = i > 0 ? checkName(rows[i - 1]!.kindId, known) : '';
 
-  // A step that makes something (decisions.md 95): what it turns, into what, in which language, and the switch.
+  // A step that makes something (decisions.md 106): what it turns, into what, in which language, and the switch.
   const kind = known.find((k) => k.id === kindId);
   const makes = kind?.makes;
   const reference = teamLanguage(org, state, languageId);
@@ -471,7 +493,7 @@ export function CheckEditor(ctx: Ctx) {
       before ? () => { const now = ctx.language.state; return now ? commands(now, indexesFor(now)).setStepMakes({ commandId: Crypto.randomUUID(), kindId, makes: before }) : []; } : undefined)
       .catch(() => {});
   };
-  // Words added here, before a step that makes the next version, stay with the older version (decision 95).
+  // Words added here, before a step that makes the next version, stay with the older version (decision 106).
   const laterVersion = makes?.result === 'added' ? rows.slice(i + 1).map((r) => known.find((k) => k.id === r.kindId)).find((k) => k?.makes?.result === 'version') : undefined;
   // A check may read what an earlier step made instead of the version (a spelling check of what was written down).
   const makersBefore = rows.slice(0, i).map((r) => known.find((k) => k.id === r.kindId)).filter((k): k is KindDef => !!k?.makes);
@@ -543,10 +565,10 @@ export function CheckEditor(ctx: Ctx) {
       {mayFlows ? (
         <Group>
           <Row icon="lock" label={t('checks.mustPass')} role="switch" checked={row.checkpoint}
-            right={<Toggle on={row.checkpoint} label={t('checks.mustPass')} onToggle={() => void saveRows(ctx, setCheckpoint(rows, i, !row.checkpoint), t('checks.saved', { language }))} />} />
+            right={<Toggle testID="toggle-must-pass" on={row.checkpoint} label={t('checks.mustPass')} onToggle={() => void saveRows(ctx, setCheckpoint(rows, i, !row.checkpoint), t('checks.saved', { language }))} />} />
           {i > 0 ? (
             <Row icon="swap" label={t('checks.sameTimeAs', { check: previous })} role="switch" checked={row.together}
-              right={<Toggle on={row.together} label={t('checks.sameTimeAs', { check: previous })} onToggle={() => void saveRows(ctx, setTogether(rows, i, !row.together), t('checks.saved', { language }))} />} />
+              right={<Toggle testID="toggle-same-time" on={row.together} label={t('checks.sameTimeAs', { check: previous })} onToggle={() => void saveRows(ctx, setTogether(rows, i, !row.together), t('checks.saved', { language }))} />} />
           ) : null}
           <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label={t('checks.remove')} last
             onPress={() => { void saveRows(ctx, removeRow(rows, i), t('checks.removed', { check: name })).then((ok) => { if (ok) ctx.back(); }); }} />
@@ -589,7 +611,7 @@ export function CheckEditor(ctx: Ctx) {
             </ChipRow>
             <Group>
               <Row icon="lock" label={t('common.required')} role="switch" checked={question.required} last
-                right={<Toggle on={question.required} label={t('common.required')} onToggle={() => setQuestion({ ...question, required: !question.required })} />} />
+                right={<Toggle testID="toggle-required" on={question.required} label={t('common.required')} onToggle={() => setQuestion({ ...question, required: !question.required })} />} />
             </Group>
           </>
         ) : null}

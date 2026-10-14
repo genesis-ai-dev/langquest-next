@@ -1,5 +1,5 @@
 import {
-  addedTo, approvedVersion, buildIndexes, decodeHlc, derivePassage, encodeHlc, externalKeyError, isWrittenPart, kindOf, languageInfo, LISTENER_KIND,
+  addedTo, approvedVersion, buildIndexes, decodeHlc, derivePassage, encodeHlc, externalKeyError, isWrittenPart, kindOf, languageInfo, libraryUnitRange, LISTENER_KIND,
   madeRootTake, madeVersionOf, mayViewLanguage, orgLanguages, passageWork, privilegesFor, referencedBlobs, releasesOf, stateRevision, stepAllowsLinks,
   validateEvent, writtenText,
   type AnyEvent, type Card, type KindState, type LanguageState, type Medium, type OrgState, type PassageState, type Version
@@ -23,7 +23,7 @@ export interface LanguageView {
   can: { read: 'all' | 'published' | null; review: boolean; release: boolean; externalValues: { read: boolean; write: boolean } };
 }
 
-/** A version is recorded or written (decisions.md 95), known from its parts. */
+/** A version is recorded or written (decisions.md 106), known from its parts. */
 export const MEDIA = ['recording', 'writing'] as const satisfies readonly Medium[];
 
 /**
@@ -108,6 +108,12 @@ export interface PassageSummary {
   label: string;
   /** Labels of the units that hold it, outermost first ("Genesis", "Chapter 1"). */
   path: string[];
+  /** What the template calls it, such as passage or chapter. */
+  kind: string;
+  /** Sorts passages into display order, compared as plain strings. */
+  order: string;
+  /** The verses it holds, read from its unit id; null for a unit made by hand. */
+  reference: PassageReference | null;
   status: ApiStatus;
   /**
    * The version this token hears: the latest shared for review with `read`,
@@ -199,6 +205,28 @@ export const isRefusal = (x: unknown): x is Refusal => typeof x === 'object' && 
 /** Signs a read link for an object key; the Worker's own `readPath`, absolute. */
 export type Signer = (key: string) => Promise<{ url: string; expiresAt: number }>;
 
+/** A whole chapter has null verses; a whole book, null chapters too. A range may end in a later chapter. */
+export interface PassageReference {
+  book: string;
+  chapter: number | null;
+  verse: number | null;
+  endChapter: number | null;
+  endVerse: number | null;
+}
+
+/** "GEN" + "1.1-2.3", in the template's own numbering ("~org" or not, decisions.md 80). Core reads an unknown end as 999. */
+export function referenceOf(unitId: string): PassageReference | null {
+  const r = libraryUnitRange(unitId);
+  if (!r) return null;
+  const wholeBook = r.end.chapter >= 999;
+  const wholeChapters = r.end.verse >= 999;
+  return {
+    book: r.book,
+    chapter: wholeBook ? null : r.start.chapter, verse: wholeChapters ? null : r.start.verse,
+    endChapter: wholeBook ? null : r.end.chapter, endVerse: wholeChapters ? null : r.end.verse
+  };
+}
+
 const wallOf = (hlc: string): number => Number(hlc.slice(0, hlc.indexOf(':')));
 const iso = (hlc: string) => new Date(wallOf(hlc)).toISOString();
 
@@ -246,7 +274,7 @@ function cardsOf(state: LanguageState): Map<string, Card> {
 
 /**
  * Recorded parts as cards, never a written one (written parts are not
- * files, decisions.md 95). A part a recording holds takes that recording's
+ * files, decisions.md 106). A part a recording holds takes that recording's
  * length and format, as the stored file does (core referencedBlobs); else
  * the card a step made it with.
  */
@@ -344,7 +372,7 @@ function summarize(grant: Grant, state: LanguageState, s: PassageState): Passage
   const releases = releasesOf(state, s);
   let newest: string | null = s.latest?.hlc ?? null;
   for (const r of s.reviews) if (!newest || r.hlc > newest) newest = r.hlc;
-  // Words added to a version change what it holds; things made beside one are new too (decisions.md 95).
+  // Words added to a version change what it holds; things made beside one are new too (decisions.md 106).
   for (const m of s.made) if (!newest || m.hlc > newest) newest = m.hlc;
   // A take-down leaves no release behind, so every report on any version counts as a change.
   for (const v of s.versions) for (const reg of Object.values(state.releases?.[v.takeId] ?? {})) if (!newest || reg.hlc > newest) newest = reg.hlc;
@@ -352,6 +380,9 @@ function summarize(grant: Grant, state: LanguageState, s: PassageState): Passage
     unitId: s.unitId,
     label: state.units[s.unitId]?.label ?? s.unitId,
     path: pathOf(state, s.unitId),
+    kind: state.units[s.unitId]?.kind ?? 'passage',
+    order: state.units[s.unitId]?.order ?? '',
+    reference: referenceOf(s.unitId),
     status: statusOf(s),
     version: v ? versionOut(state, s, v) : null,
     approvedVersion: approved ? { n: approved.n, takeId: approved.takeId, medium: approved.medium } : null,
@@ -936,7 +967,7 @@ export async function linkView(link: ReviewLink, org: OrgState, state: LanguageS
   const open = linkIsOpen(link, org, now);
   const audio: AudioCard[] = [];
   // A closed link plays nothing: revoking it is how a sharer takes the audio back.
-  // A written version plays the recording added to it, if any; its words are never files (decisions.md 95).
+  // A written version plays the recording added to it, if any; its words are never files (decisions.md 106).
   for (const card of open ? playedCards(state, s, v) : []) {
     const format = card.format ?? 'wav';
     const l = await sign(`${link.orgId}/${link.languageId}/${card.hash}.${format}`);

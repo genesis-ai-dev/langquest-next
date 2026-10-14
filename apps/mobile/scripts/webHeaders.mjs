@@ -3,7 +3,8 @@
 //
 // - Content security policy from what the app loads: its own files; the
 //   database's WebAssembly; the audio worklet and object URLs for recordings
-//   (blob:); Supabase over HTTPS and its realtime socket; study images from
+//   (blob:); Supabase over HTTPS and its realtime socket; study images, and
+//   Bible audio (a source's recordings, such as openbible.com's), from
 //   anywhere on HTTPS. react-native-web writes its styles at run time, so
 //   inline styles are allowed; inline scripts are not.
 // - No cross-origin isolation headers: the app uses expo-sqlite's async API
@@ -24,7 +25,7 @@ export function headersFor({ supabaseUrl }) {
     // The reports API is 'self': the Worker serving the page answers it.
     `connect-src 'self' ${supabase.origin} ${wss}${local} blob:`,
     `img-src 'self' data: blob: https:`,
-    `media-src 'self' blob: ${supabase.origin}`,
+    `media-src 'self' blob: ${supabase.origin} https:`,
     "font-src 'self' data:",
     "object-src 'none'",
     "base-uri 'self'",

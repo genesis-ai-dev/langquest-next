@@ -26,10 +26,15 @@ export async function loadMicSettings(): Promise<MicSettings | null> {
   return cached;
 }
 
+/**
+ * Keep the settings, then let every recorder follow them. Written first: a
+ * device that cannot keep them throws, and nothing starts using settings the
+ * person was just told were not saved.
+ */
 export async function saveMicSettings(s: MicSettings): Promise<void> {
+  await AsyncStorage.setItem(KEY, JSON.stringify(s));
   cached = s;
   for (const l of listeners) l(s);
-  await AsyncStorage.setItem(KEY, JSON.stringify(s));
 }
 
 /** Told when the settings change on this device. */

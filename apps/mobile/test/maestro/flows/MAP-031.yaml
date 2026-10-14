@@ -1,0 +1,68 @@
+# MAP-031, marks for passages kept on this device (docs/ui-test-suite/04-map.md,
+# decision 61): TRANS's five requests in Luke 13 are kept, so chapter 13 gets
+# the corner mark and the key adds "On this device"; VIEW keeps nothing until
+# "Keep offline" on P-DONE, then chapter 16 is marked once its audio is in.
+appId: com.frontierrnd.langquestnext
+name: "MAP-031 Marks for passages kept on this device"
+tags:
+  - map
+---
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${TRANS_EMAIL}
+      PASSWORD: ${TRANS_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- extendedWaitUntil:
+    visible:
+      id: "tab-map"
+    timeout: 60000
+- tapOn:
+    id: "tab-map"
+- tapOn: "Luke.*"
+# Kept (asked of TRANS) and downloaded: the tile's spoken label says so, and the key adds the mark.
+- extendedWaitUntil:
+    visible: "Chapter 13: .*(all parts|5 of 5 parts) on this device.*"
+    timeout: 180000
+- assertVisible: ".*[Oo]n this device.*"
+- assertVisible: "A tick means done, a dot means started, a cloud means kept on this device"
+- tapOn: "Chapter 13: .*"
+- assertVisible: "${P_NEW}.*[Oo]n this device.*"
+- assertVisible: "${P_Q4}.*[Oo]n this device.*"
+
+# VIEW keeps nothing at first.
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${VIEW_EMAIL}
+      PASSWORD: ${VIEW_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- extendedWaitUntil:
+    visible: "Progress"
+    timeout: 60000
+- tapOn: "Alpha:.*"
+- tapOn: "Luke.*"
+- extendedWaitUntil:
+    visible: "Chapter 16: .*"
+    timeout: 30000
+- assertNotVisible: "On this device"
+- assertNotVisible: "Chapter 16: .*on this device.*"
+- tapOn: "Chapter 16: .*"
+- tapOn:
+    text: "${P_DONE}.*"
+    index: 0
+- tapOn: "Something else\\?"
+- tapOn:
+    text: "Keep offline"
+    waitToSettleTimeoutMs: 0
+- assertVisible: ".*Kept on this device. It downloads while you are connected..*"
+- tapOn:
+    id: "header-close"
+- tapOn:
+    id: "header-back"
+- extendedWaitUntil:
+    visible: "Chapter 16: .*on this device.*"
+    timeout: 180000
+- assertVisible: ".*[Oo]n this device.*"

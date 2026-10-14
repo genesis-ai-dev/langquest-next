@@ -1,0 +1,14 @@
+# Give the parts room: a recorder pane shorter than 360 points folds the parts
+# into "Parts 1–N recorded · drag up to see them" (06-recording.md), and the
+# phones' panes are that short with the Bible pane at its usual half. Drag the
+# divider up until the parts show.
+appId: com.frontierrnd.langquestnext
+---
+- runFlow:
+    when:
+      visible: ".*drag up to see them.*"
+    commands:
+      - swipe:
+          from: "Divider between reference and your recording.*"
+          direction: UP
+          duration: 600

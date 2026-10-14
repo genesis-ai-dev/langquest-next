@@ -27,9 +27,11 @@ import {
 import * as Crypto from 'expo-crypto';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useHardwareBack } from '../hardwareBack';
 import { Text } from '../text';
 import { AudioClip } from '../audioClip';
 import { ClipPlayer } from '../clipPlayer';
+import { VersionParts } from '../passage/versionParts';
 import { WrittenReader, usePassageVerses } from '../writing/WrittenText';
 import { readsFor } from '../writing/model';
 import type { Ctx } from '../ctx';
@@ -124,6 +126,8 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const [why, setWhy] = useState(false);
   const [sheet, setSheet] = useState<'background' | 'who' | 'details' | 'say' | 'retell' | null>(null);
   const [momentAt, setMomentAt] = useState<number | null>(null);
+  // Leaving with something said or answered asks first: nothing is saved until the review is sent (REV-024).
+  const [leaving, setLeaving] = useState(false);
   // The check's helps (decision 91), and a Bible one of them opens in Background.
   const helps = useCheckHelpRows(ctx, v?.state, kindId);
   const [bible, setBible] = useState<string | null>(null);
@@ -134,6 +138,17 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   };
   // A wide window names the passage in the crumbs above the title, so the title is the kind.
   const wide = useLayout().kind !== 'phone';
+  // Anything said, answered or chosen here lives only on this screen until the review is sent.
+  const dirty = moments.length > 0 || Object.keys(answers).some((k) => !!answers[k]?.trim()) || Object.keys(voice).length > 0
+    || Object.keys(skipped).length > 0 || !!comment.trim() || !!feedback || !!evidence || people > 0 || !!place.trim() || !!givenBy.trim()
+    || made.length > 0 || also.length > 0;
+  const leave = () => (dirty && !busy ? setLeaving(true) : ctx.back());
+  // A phone's Back does what the header's arrow does: from "What should change?" to Decide, and asks before throwing a review away.
+  useHardwareBack(why || dirty || leaving, () => {
+    if (leaving) setLeaving(false);
+    else if (why) setWhy(false);
+    else setLeaving(true);
+  });
 
   const version = v ? versionFor(v.p, takeId) : undefined;
   const request = useMemo(() => v ? requestFor(v.p, kindId, actorId, { ...(ctx.params['requestId'] ? { requestId: ctx.params['requestId'] } : {}), mineOnly: logged }) : undefined,
@@ -174,7 +189,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   if (!logged && kind.produces) {
     return (
       <Screen header={<Header title={title} sub={sub} crumbs={crumbs} onBack={ctx.back} close />}>
-        <EmptyState icon="swap" title={t('review.screen.makesRecording', { kind: kind.name })} sub={t('review.screen.makesRecordingSub', { action: kind.produces.action })} />
+        <EmptyState icon="swap" title={t('review.screen.makesRecording', { kind: check })} sub={t('review.screen.makesRecordingSub', { action: kind.produces.action })} />
       </Screen>
     );
   }
@@ -184,7 +199,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const group = isGroupKind(kind.id);
   const here = all.find((p) => p.unitId === v.unitId);
   const asker = request?.by ? ctx.name(request.by) : undefined;
-  // What this check reads (decision 95): what an earlier step made from this version, or the version; writing is read.
+  // What this check reads (decision 106): what an earlier step made from this version, or the version; writing is read.
   const reads = readsFor(v.p, kind, version);
   const stages = reviewStages({ questions: questions.length, logged, makes: !!makes, reads: reads.medium === 'writing' });
   const at = stageAt(stages, stageId);
@@ -253,7 +268,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
               ...(theseArtifacts.length ? { artifacts: theseArtifacts } : {}), ...(req ? { requestId: req.id } : {})
             })));
         });
-        message = targets.length > 1 ? t('review.screen.addedToPassages', { kind: kind.name, count: targets.length }) : t('review.screen.addedToRecord', { kind: kind.name });
+        message = targets.length > 1 ? t('review.screen.addedToPassages', { kind: check, count: targets.length }) : t('review.screen.addedToRecord', { kind: check });
       }
       // Each review of this passage names what its Background offered and what was opened.
       const used = usage.items();
@@ -324,7 +339,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     <>
       {logged ? (
         <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>
-          {t('review.screen.loggedIntro', { kind: kindInSentence(kind.name) })}
+          {t('review.screen.loggedIntro', { kind: kindInSentence(check) })}
         </Text>
       ) : null}
       {directions ? <RequestBanner ctx={ctx} request={request} /> : null}
@@ -339,7 +354,9 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           title={mine ? t('review.screen.versionByYou', { n: version.n }) : t('review.screen.versionBy', { n: version.n, name: translator })} sub={listenLine(kind.id, logged)}
           {...(makes || reads.made ? {} : { onNote: (s: number) => setMomentAt(Math.round(s * 1000)) })} />
       )}
-      {/* What a step added to the version is part of it: a check hears and reads them together (decision 95). */}
+      {/* Its parts with their verses, when they have verses, so a reviewer can say where (decisions.md 82). */}
+      {!reads.made && reads.medium === 'recording' ? <VersionParts ctx={ctx} state={v.state} unitId={v.unitId} hashes={version.cardHashes} onlyNumbered /> : null}
+      {/* What a step added to the version is part of it: a check hears and reads them together (decision 106). */}
       {!reads.made ? addedTo(v.p, version).map((a) => (
         <View key={a.medium} style={{ gap: space.sm }}>
           <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>
@@ -486,7 +503,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           </View>
         ) : <BigMic label={t('review.screen.tapAndSpeak')} onClip={setFeedback} />}
         {typeFeedback || comment ? (
-          <Field value={comment} onChangeText={setComment} placeholder={logged ? t('review.screen.typeWhatPeopleUnderstood') : t('review.screen.typeWhatWorked')} multiline />
+          <Field value={comment} onChangeText={setComment} placeholder={logged ? t('review.screen.typeWhatPeopleUnderstood') : t('review.screen.typeWhatWorked')} multiline testID="feedback-text" />
         ) : <LinkBtn label={t('common.orTypeIt')} style={{ alignSelf: 'center' }} onPress={() => setTypeFeedback(true)} />}
       </Centre>
       {evidence ? (
@@ -504,7 +521,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     <Header title={title} sub={sub} crumbs={crumbs} onBack={() => setWhy(false)} />
   ) : (
     <>
-      <Header title={title} sub={sub} crumbs={crumbs} onBack={ctx.back} close />
+      <Header title={title} sub={sub} crumbs={crumbs} onBack={leave} close />
       <StepStrip stages={stages} at={at} onGo={goStage} />
     </>
   );
@@ -584,6 +601,16 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           <View style={{ paddingVertical: space.lg }}>
             <BigMic label={t('review.screen.tapAndSpeak')} size={96} onClip={(clip) => { const atMs = momentAt; setMoments((m) => [...m.filter((x) => x.hash !== clip.hash), { ...clip, atMs }]); setMomentAt(null); }} />
           </View>
+        </Sheet>
+      ) : null}
+
+      {leaving ? (
+        <Sheet visible title={t('review.screen.leaveTitle')} sub={t('review.screen.leaveSub')} onClose={() => setLeaving(false)}
+          footer={<>
+            <PrimaryBtn label={t('review.screen.keepReviewing')} onPress={() => setLeaving(false)} />
+            <GhostBtn label={t('review.screen.leave')} tone="red" onPress={() => { setLeaving(false); ctx.back(); }} />
+          </>}>
+          {null}
         </Sheet>
       ) : null}
 
@@ -676,7 +703,7 @@ export function GuestReview(ctx: Ctx) {
           <Badge label={t('review.guest.noAccount')} />
         </View>
         <Text style={txt.title}>{headline}</Text>
-        <Text style={txt.xs}>{v.language} · {kind.name}</Text>
+        <Text style={txt.xs}>{v.language} · {checkName(kind.id, v.kinds)}</Text>
       </Card>
       {request?.note ? <Card style={{ backgroundColor: C.light }}><Text style={txt.body}>{t('review.guest.quoted', { note: request.note })}</Text></Card> : null}
       {request?.noteBlobHash ? <AudioClip language={ctx.language} hashes={[request.noteBlobHash]} label={t('review.parts.playDirections')} /> : null}

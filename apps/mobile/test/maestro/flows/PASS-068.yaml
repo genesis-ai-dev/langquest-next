@@ -1,0 +1,114 @@
+# PASS-068, asking, setting aside and noting offline (docs/ui-test-suite/05-passage-record.md).
+# Android only: Maestro turns the network off with airplane mode, which the
+# iOS simulator does not offer (run the iOS case by hand). Each act shows its
+# toast at once, the record changes straight away, My Work counts what is
+# waiting, and it all sends once the network is back.
+appId: com.frontierrnd.langquestnext
+name: "PASS-068 Asking, setting aside and noting offline"
+tags:
+  - pass
+---
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${TRANS_EMAIL}
+      PASSWORD: ${TRANS_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- extendedWaitUntil:
+    visible:
+      id: "tab-map"
+    timeout: 60000
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - setAirplaneMode: enabled
+      - extendedWaitUntil:
+          visible: "Offline"
+          timeout: 120000
+      # P-SUBMITTED: set the Back translation aside, with a reason.
+      - tapOn:
+          id: "tab-map"
+      - tapOn: "Find.*"
+      - inputText: ${P_SUBMITTED.split(':')[0]}
+      - runFlow:
+          file: ../common/dismiss-keyboard.yaml
+          env:
+            LABEL: ${LANG_A}
+      - tapOn:
+          text: "${P_SUBMITTED}.*"
+          index: 0
+      - extendedWaitUntil:
+          visible: "(?i)Then the team"
+          timeout: 30000
+      - tapOn: "Back translation, .*"
+      # The Back translation's own Set aside is the sheet's second.
+      - tapOn:
+          text: "Set aside"
+          index: 1
+      - tapOn: "Not needed for this passage"
+      - tapOn:
+          text: "Set aside"
+          waitToSettleTimeoutMs: 0
+      - assertVisible: "Back translation set aside · reason saved"
+      - assertVisible:
+          id: "toast-undo"
+      # A note on the passage.
+      - tapOn: "Something else\\?"
+      - tapOn: "Add a note"
+      - tapOn: ".*Or type it.*"
+      - inputText: "Offline note"
+      - runFlow:
+          file: ../common/dismiss-keyboard.yaml
+          env:
+            LABEL: "Add a note"
+      - tapOn:
+          text: "Add note"
+          waitToSettleTimeoutMs: 0
+      - assertVisible:
+          id: "toast"
+          text: ".*Note added — it follows this passage.*"
+      - tapOn:
+          id: "header-close"
+      - tapOn:
+          id: "header-back"
+      # Ask TREV for P-ASIDE's Peer check.
+      - tapOn:
+          text: "${P_SUBMITTED.split(':')[0]}"
+          index: 0
+      - eraseText
+      - inputText: ${P_ASIDE.split(':')[0]}
+      - runFlow:
+          file: ../common/dismiss-keyboard.yaml
+          env:
+            LABEL: ${LANG_A}
+      - tapOn:
+          text: "${P_ASIDE}.*"
+          index: 0
+      - extendedWaitUntil:
+          visible: "(?i)Then the team"
+          timeout: 30000
+      - tapOn: "Peer check, .*"
+      - tapOn:
+          text: "Send to someone else"
+          index: 0
+      - tapOn: "${TREV_NAME}.*"
+      - tapOn:
+          text: "Ask ${TREV_FIRST}"
+          waitToSettleTimeoutMs: 0
+      - assertVisible:
+          id: "toast"
+          text: ".*${TREV_NAME} will see it on their My Work.*"
+      - assertVisible: "Peer check, asked ${TREV_NAME}|asked ${TREV_NAME}"
+      # My Work counts what waits to send.
+      - tapOn:
+          id: "header-back"
+      - tapOn:
+          id: "tab-work"
+      - assertVisible: "\\d+ to send"
+      - setAirplaneMode: disabled
+      - extendedWaitUntil:
+          notVisible: "\\d+ to send"
+          timeout: 60000
+      - assertNotVisible: "Offline"

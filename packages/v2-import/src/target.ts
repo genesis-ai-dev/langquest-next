@@ -47,6 +47,11 @@ export interface Target {
   people(ids: string[]): Promise<PersonHere[]>;
   /** People from v2 who have signed in here, newest first. */
   signedIn(): Promise<PersonHere[]>;
+  /** Next's accounts with these emails. */
+  nextAccounts(emails: string[]): Promise<NextAccount[]>;
+  /** Confirm that a v2 person is this Next account, or take that back. */
+  link(v2Id: string, nextId: string, email: string | null, by: string): Promise<void>;
+  unlink(v2Id: string, by?: string): Promise<void>;
   /** One project's log, newest first. */
   projectLog(projectId: string): Promise<(LogLine & { id: number; at: string })[]>;
   cursor(name: string, value?: Date): Promise<Date | null>;
@@ -85,7 +90,30 @@ export interface Plan {
   orgs: PlanOrg[];
   placements: PlanPlacement[];
   roles: { project_id: string; profile_id: string; role: ChosenRole }[];
+  /** v2 people confirmed on the dashboard as an account that already exists in Next. */
+  links?: PersonLink[];
   passes: { project_id: string; finished_at: string; report: unknown }[];
+}
+
+/** A v2 person and the Next account someone on the team confirmed is the same person. */
+export interface PersonLink {
+  v2_id: string;
+  next_id: string;
+  email: string | null;
+  confirmed_by: string;
+  confirmed_at: string;
+  /** False once Undo took it back: kept, so the Next account's membership is taken back too. */
+  active?: boolean;
+}
+
+/** An account in Next, as the dashboard's Same email list shows it. */
+export interface NextAccount {
+  id: string;
+  email: string;
+  created_at: string;
+  last_sign_in_at: string | null;
+  display_name: string | null;
+  from_v2: boolean;
 }
 
 /** Where a running transfer has got to. */
@@ -138,24 +166,34 @@ export interface BlobFilesLike {
 }
 
 const LIBRARY_ORG = 'langquest';
+/** The most rows the API returns from one call (supabase/config.toml `max_rows`). */
+const ROWS = 1000;
 
 export function supabaseTarget(db: SupabaseClient, files: BlobFilesLike): Target {
+  // A call the server could not take just then (a 5xx, a rate limit, a dropped connection) is tried again,
+  // five times in all; anything it refused for a reason is not. Every call here may be repeated: appends
+  // are kept by event id and the rest write what they are given.
   const rpc = async <T>(fn: string, args: Record<string, unknown>): Promise<T> => {
-    const { data, error } = await db.rpc(fn, args);
-    if (error) throw new Error(`${fn}: ${error.message}`);
-    return data as T;
+    for (let attempt = 1; ; attempt++) {
+      const { data, error, status } = await db.rpc(fn, args);
+      if (!error) return data as T;
+      if (attempt >= 5 || (status > 0 && status < 500 && status !== 429)) throw new Error(`${fn}: ${error.message}`);
+      await new Promise((r) => setTimeout(r, 1000 * 2 ** (attempt - 1)));
+    }
   };
   return {
     plan: () => rpc<Plan>('v2_import_plan', {}),
     savePlan: (orgs, placements, by) => rpc('v2_import_save_plan', { p_orgs: orgs, p_placements: placements, p_by: by }),
     setRole: (projectId, profileId, role, by) => rpc('v2_import_set_role', { p_project: projectId, p_profile: profileId, p_role: role, p_by: by }),
 
+    // The API returns at most 1,000 rows a call (supabase/config.toml max_rows), however many are asked for:
+    // reads that may be longer go a page at a time, until a page comes back empty.
     async ledger(scope) {
       const out = new Map<string, LedgerEntry>();
       for (let after = ''; ; ) {
-        const page = await rpc<LedgerEntry[]>('v2_import_ledger', { p_scope: scope, p_after: after, p_limit: 5000 });
+        const page = await rpc<LedgerEntry[]>('v2_import_ledger', { p_scope: scope, p_after: after, p_limit: ROWS });
+        if (page.length === 0) return out;
         for (const e of page) out.set(e.key, e);
-        if (page.length < 5000) return out;
         after = page[page.length - 1]!.key;
       }
     },
@@ -165,8 +203,8 @@ export function supabaseTarget(db: SupabaseClient, files: BlobFilesLike): Target
 
     async files(names) {
       const out = new Map<string, CopiedFile | { missingSince: string }>();
-      for (let i = 0; i < names.length; i += 2000) {
-        const rows = await rpc<{ name: string; hash: string | null; size: number; duration_ms: number; format: 'wav' | 'm4a'; missing_since: string | null }[]>('v2_import_files', { p_names: names.slice(i, i + 2000) });
+      for (let i = 0; i < names.length; i += ROWS) {
+        const rows = await rpc<{ name: string; hash: string | null; size: number; duration_ms: number; format: 'wav' | 'm4a'; missing_since: string | null }[]>('v2_import_files', { p_names: names.slice(i, i + ROWS) });
         for (const r of rows) out.set(r.name, r.hash ? { hash: r.hash, size: Number(r.size), durationMs: r.duration_ms, format: r.format } : { missingSince: r.missing_since ?? new Date(0).toISOString() });
       }
       return out;
@@ -245,13 +283,20 @@ export function supabaseTarget(db: SupabaseClient, files: BlobFilesLike): Target
     passFinish: (passId, report, error) => rpc('v2_import_pass_finish', { p_id: passId, p_report: report ?? null, p_error: error ?? null }),
     log: (lines) => (lines.length ? rpc('v2_import_log_add', { p_lines: lines }) : Promise.resolve()),
     status: (after) => rpc<Status>('v2_import_status', { p_after: after, p_limit: 300 }),
-    signedIn: () => rpc<PersonHere[]>('v2_import_signed_in', { p_limit: 2000 }),
+    signedIn: () => rpc<PersonHere[]>('v2_import_signed_in', { p_limit: ROWS }),
     projectLog: (projectId) => rpc<(LogLine & { id: number; at: string })[]>('v2_import_project_log', { p_project: projectId, p_limit: 200 }),
     async people(ids) {
       const out: PersonHere[] = [];
       for (let i = 0; i < ids.length; i += 1000) out.push(...(await rpc<PersonHere[]>('v2_import_people', { p_ids: ids.slice(i, i + 1000) })));
       return out;
     },
+    async nextAccounts(emails) {
+      const out: NextAccount[] = [];
+      for (let i = 0; i < emails.length; i += 500) out.push(...(await rpc<NextAccount[]>('v2_import_next_accounts', { p_emails: emails.slice(i, i + 500) })));
+      return out;
+    },
+    link: (v2Id, nextId, email, by) => rpc('v2_import_link', { p_v2: v2Id, p_next: nextId, p_email: email, p_by: by }),
+    unlink: (v2Id, by) => rpc('v2_import_unlink', { p_v2: v2Id, p_by: by ?? null }),
     async cursor(name, value) {
       const v = await rpc<string | null>('v2_import_cursor', { p_name: name, p_value: value?.toISOString() ?? null });
       return v ? new Date(v) : null;
