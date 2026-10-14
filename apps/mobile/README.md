@@ -66,7 +66,7 @@ scripts, not `npx expo` directly: they load `.env.development` and turn off
 Expo's own `.env` loading. Your
 own dev login goes in `.env.development.local` (git ignores it).
 Recording lives in `src/useRecorder.ts` (native VAD plus expo-audio),
-`src/blobs.ts` (content-addressed store), `src/blobTransport.ts` (Supabase
+`src/blobs.ts` (content-addressed store), `src/server/blobTransport.ts` (Supabase
 Storage), and `src/screens/translate.tsx` with `src/recording/`. `EXPO_PUBLIC_DEV_EMAIL`
 and `EXPO_PUBLIC_DEV_PASSWORD` prefill the auth screen in dev builds only.
 Event ids come from expo-crypto because Hermes has no `crypto.randomUUID`.

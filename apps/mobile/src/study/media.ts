@@ -7,7 +7,7 @@
 import { ORG_STREAM } from '@langquest-next/core';
 import { useEffect, useState } from 'react';
 import { getBlobStore, isStoredFormat, type BlobStore, type StoredFile } from '../blobs';
-import { downloadBlob } from '../blobTransport';
+import { downloadBlob } from '../server/blobTransport';
 import { noteExpected } from '../report';
 import type { StudyFile } from './guides';
 

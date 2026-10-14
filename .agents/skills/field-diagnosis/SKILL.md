@@ -47,7 +47,7 @@ role on a hosted database (`DIAG_DATABASE_URL`) or the local database.
    window, the hosted project's API and storage logs, filtered by time.
 6. **Cross-check with code**: sync is `packages/sync/src/syncClient.ts`
    (`pullSlice`, `adoptServerSnapshot`), transfers are
-   `apps/mobile/src/blobTransport.ts` and `transferWorker.ts`, snapshots
+   `apps/mobile/src/server/blobTransport.ts` and `transferWorker.ts`, snapshots
    `server/snapshotWorker.ts`. Use `systematic-debugging` before proposing
    a fix.
 7. **Answer** with: what the person is experiencing, the cause with the

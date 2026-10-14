@@ -24,3 +24,8 @@ export async function signInWithV2Account(email: string, password: string): Prom
   const session = (data as { session?: { access_token: string; refresh_token: string } } | null)?.session;
   return session ? { session } : { code: 'unavailable' };
 }
+
+/** What of this person's LangQuest v2 work has arrived here (welcomeBack.ts). */
+export function v2Welcome() {
+  return supabase.rpc('v2_welcome');
+}

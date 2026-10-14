@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { accessTokenFresh, afterAuthEvent, savedSession } from '../src/authState';
 import { answerAtOnceWhileOffline, NOT_RENEWED, sessionSafeFetch, type RenewalWatch } from '../src/sessionSafeFetch';
-import { signOutThisDevice } from '../src/signOutCore';
+import { signOutThisDevice } from '../src/server/signOut';
 
 // Decision 87: someone offline for months, online for a second, then
 // offline again, keeps their sign-in and their work. These run the app's own
@@ -190,7 +190,7 @@ describe('nothing goes out as no one while a sign-in waits to renew', () => {
   });
 });
 
-describe('signing out of this device only (signOutCore.ts)', () => {
+describe('signing out of this device only (server/signOut.ts)', () => {
   it('online, ends just this session on the server and forgets it here', async () => {
     const seen: string[] = [];
     const p = phone(now() + 3600, async (url) => { seen.push(url); return new Response(null, { status: 204 }); });

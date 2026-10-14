@@ -25,7 +25,8 @@ import { recordHelp } from '../signInHelp';
 import { deadMessage, inviteCard, type DeadReason, type InvitePreview } from '../heldInvite';
 import { parseKey } from '../inviteCode';
 import type { Ctx } from '../ctx';
-import { DEV_PASSWORD, ensurePersonaAccount, personasAvailable } from '../dev';
+import { DEV_PASSWORD, personasAvailable } from '../dev';
+import { ensurePersonaAccount } from '../server/personas';
 import { previewInvite, redeemSignInCode, useRequestOutcome } from '../invites';
 import { latestRequest } from '../requestOutcome';
 import {
@@ -39,8 +40,8 @@ import { createOrganization } from '../createOrg';
 import { navRef } from '../nav';
 import { contractsFor } from '../screenContracts';
 import { FORGETS_ON_SIGN_OUT, forgetThisBrowser } from '../forgetBrowser';
-import { signOutHere, supabase } from '../supabase';
-import { signInWithV2Account } from '../v2SignIn';
+import { setSession, signInWithPassword, signOutHere, signUp } from '../server/auth';
+import { signInWithV2Account } from '../server/v2';
 import { lift } from '../shadow';
 import { C, TINT, radius, space, tile, type as T, withAlpha } from '../theme';
 import { useAccountActions, useDisplayNames } from '../useAccount';
@@ -70,19 +71,19 @@ export function SignIn(ctx: Ctx) {
     setError('');
     try {
       // One field: an email, or a looked-after account's sign-in name (accounts.ts).
-      let { data, error } = await supabase.auth.signInWithPassword({ email: signInAddress(email), password });
+      let { data, error } = await signInWithPassword(signInAddress(email), password);
       // Dev on a local server: `npm run db:test` wipes auth users. Recreate
       // the dev account instead of stranding the developer at sign-in.
       if (error && ctx.isDev && personasAvailable().ok && email.trim() === process.env.EXPO_PUBLIC_DEV_EMAIL && password === DEV_PASSWORD) {
         await ensurePersonaAccount({ id: 'dev', email: email.trim() });
-        ({ data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password }));
+        ({ data, error } = await signInWithPassword(email.trim(), password));
       }
       // Someone who used LangQuest v2: this app does not know them until v2
       // says the email and password are theirs (docs/v2-import.md section 3).
       if (error?.code === 'invalid_credentials' && email.trim().includes('@')) {
         const v2 = await signInWithV2Account(email, password);
         if ('session' in v2) {
-          const moved = await supabase.auth.setSession(v2.session);
+          const moved = await setSession(v2.session);
           if (moved.error) { noteExpected('sign in with a v2 account', moved.error); setError(authErrorText(moved.error, t('entry.signIn.failed'))); return; }
           if (moved.data.user) await recordTerms(moved.data.user.id);
           return;
@@ -382,7 +383,7 @@ function EmailAccount(ctx: Ctx) {
     setBusy(true);
     setError('');
     try {
-      const { data, error } = await supabase.auth.signUp({ email: email.trim(), password });
+      const { data, error } = await signUp(email.trim(), password);
       if (error) { noteExpected('sign up', error); setError(authErrorText(error, t('entry.createAccount.failed'))); return; }
       // Creating the account accepts the terms (AUTH-1). With a session they
       // are recorded now (the account outbox retries until delivered) and the
@@ -671,7 +672,7 @@ function SignInKey(props: { ctx: Ctx; code: string; onCancel: () => void }) {
     setError('');
     try {
       const help = await redeemSignInCode(props.code);
-      const { data, error } = await supabase.auth.setSession(help.session);
+      const { data, error } = await setSession(help.session);
       if (error) { noteExpected('sign in with code', error); setError(authErrorText(error, t('entry.signInKey.failed'))); return; }
       if (data.user) {
         await recordHelp(data.user.id, help.helper).catch((e: unknown) => { reportError('record sign-in help', e); });

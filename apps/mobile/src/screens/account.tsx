@@ -47,7 +47,8 @@ import { ReportActions } from '../reportSheet';
 import { contractsFor } from '../screenContracts';
 import { FORGETS_ON_SIGN_OUT, forgetThisBrowser } from '../forgetBrowser';
 import { HANDS_OVER, signOutHandingOver } from '../handOver';
-import { signOutHere, supabase } from '../supabase';
+import { choosePassword, currentSession, onAuthChange, signOutHere, signOutLocally } from '../server/auth';
+import { accountSteward, deleteMyAccount, myOrganizations, profileName } from '../server/account';
 import { C, radius, space, target, tile, TINT, type as T } from '../theme';
 import { useAccountActions, useDisplayNames } from '../useAccount';
 import { runningBuildLabel } from '../updateStatus';
@@ -382,7 +383,7 @@ function useInviterName(ctx: Ctx): string | undefined {
     let active = true;
     void (async () => {
       try {
-        const { data, error } = await supabase.from('account_stewards').select('steward_id').eq('profile_id', me).maybeSingle();
+        const { data, error } = await accountSteward(me);
         if (!active) return;
         if (error) { noteExpected('who invited you', error); return; }
         const id = typeof data?.steward_id === 'string' ? data.steward_id : '';
@@ -401,7 +402,7 @@ function useInviterName(ctx: Ctx): string | undefined {
     void (async () => {
       for (let attempt = 0; attempt < 4 && active; attempt++) {
         try {
-          const { data, error } = await supabase.from('profiles').select('display_name').eq('id', id).maybeSingle();
+          const { data, error } = await profileName(id);
           if (error) throw error;
           const name = typeof data?.display_name === 'string' ? data.display_name.trim() : '';
           if (name) { if (active) setFetchedName(name); return; }
@@ -426,15 +427,14 @@ function useHasPassword(): [boolean | null, () => void] {
   const [tick, setTick] = useState(0);
   useEffect(() => {
     let active = true;
-    void supabase.auth.getSession().then(({ data }) => {
-      if (active) setHas(data.session?.user.user_metadata?.['has_password'] !== false);
+    void currentSession().then((session) => {
+      if (active) setHas(session?.user.user_metadata?.['has_password'] !== false);
     });
     return () => { active = false; };
   }, [tick]);
   // A password set on Edit Profile updates the user: More settings, still open under it, reads it again (ACCT-021).
   useEffect(() => {
-    const { data } = supabase.auth.onAuthStateChange((event) => { if (event === 'USER_UPDATED') setTick((n) => n + 1); });
-    return () => data.subscription.unsubscribe();
+    return onAuthChange((event) => { if (event === 'USER_UPDATED') setTick((n) => n + 1); });
   }, []);
   return [has, () => setTick((n) => n + 1)];
 }
@@ -628,7 +628,7 @@ function useOrganizations(actorId: string): { rows: OrgRow[] | null; error: stri
     void (async () => {
       const saved = await AsyncStorage.getItem(key);
       if (active && saved) setRows(JSON.parse(saved) as OrgRow[]);
-      const { data, error } = await supabase.rpc('my_organizations');
+      const { data, error } = await myOrganizations();
       if (error) { if (active) setError(t('account.orgs.stale')); return; }
       const orgs = ((data ?? []) as OrgRow[]).map((r) => ({ org_id: r.org_id, name: r.name }));
       await AsyncStorage.setItem(key, JSON.stringify(orgs));
@@ -725,7 +725,7 @@ export function ProfileEdit(ctx: Ctx) {
       // A too-short one is refused here and nothing is written, name included.
       if (managed && password) {
         if (passwordTooShort) { setError(t('account.profile.shortPassword')); return; }
-        const { error } = await supabase.auth.updateUser({ password, data: { has_password: true } });
+        const { error } = await choosePassword(password);
         if (error) {
           noteExpected('set password', error);
           setError(authErrorText(error, t('account.profile.passwordFailed'), t('account.profile.passwordNeedsConnection')));
@@ -919,9 +919,9 @@ export function DeleteAccount(ctx: Ctx) {
     setBusy(true);
     try {
       await deleteAccount(ctx.session.actorId, {
-        deleteOnServer: async () => (await supabase.rpc('delete_my_account')).error?.message ?? null,
+        deleteOnServer: deleteMyAccount,
         storage: AsyncStorage,
-        signOutHere: async () => { await supabase.auth.signOut({ scope: 'local' }); await forgetThisBrowser(); }
+        signOutHere: async () => { await signOutLocally(); await forgetThisBrowser(); }
       });
     } catch (e) { setError(failure('delete account', e)); setBusy(false); }
   }

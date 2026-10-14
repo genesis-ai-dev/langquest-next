@@ -44,7 +44,7 @@ execFileSync('npx', ['dotenvx', 'run', '-f', `.env.${env}`, '--strict', '--', 'n
     // The Worker that serves this build answers its /api too: always the page's own origin, whichever
     // address it was opened at (EXPO_PUBLIC_API_URL is for phones and Metro). dotenvx keeps a value already set.
     EXPO_PUBLIC_API_URL: '',
-    // A development export is a release build of the local stack, for the web smoke test (src/supabase.ts).
+    // A development export is a release build of the local stack, for the web smoke test (src/server/supabase.ts).
     ...(env === 'development' ? { EXPO_PUBLIC_LOCAL_RELEASE: '1' } : {})
   }
 });

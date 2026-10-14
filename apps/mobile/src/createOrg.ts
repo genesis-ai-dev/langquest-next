@@ -1,8 +1,8 @@
-import { ORG_MATERIALIZER, SupabaseTransport, SyncClient, ensureDeviceId } from '@langquest-next/sync';
+import { ORG_MATERIALIZER, SyncClient, ensureDeviceId } from '@langquest-next/sync';
 import { DEFAULT_LICENSE, ORG_STREAM, SEED_ROLES, type License, type OrgState } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { getStore } from './store';
-import { supabase } from './supabase';
+import { serverTransport } from './server/sync';
 
 /**
  * Start a new organization (ONB-6) in its own stream, never the one that
@@ -24,7 +24,7 @@ export async function createOrganization(c: { actorId: string; name: string; lic
     actorId: c.actorId,
     deviceId,
     store,
-    transport: new SupabaseTransport(supabase),
+    transport: serverTransport(),
     newId: () => Crypto.randomUUID()
   });
   await client.load();

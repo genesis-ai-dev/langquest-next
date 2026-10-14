@@ -1,16 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SupabaseTransport, SyncScheduler, afterAttempt, deliverHandOver, ensureDeviceId, parseHandOvers, withHandOver, withoutFinished, type EventStore, type HandOver, type PendingUpload } from '@langquest-next/sync';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { SyncScheduler, afterAttempt, deliverHandOver, ensureDeviceId, parseHandOvers, withHandOver, withoutFinished, type EventStore, type HandOver, type PendingUpload } from '@langquest-next/sync';
 import * as Crypto from 'expo-crypto';
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
-import { accountOutbox, sendAs } from './accountData';
+import { accountOutbox } from './accountData';
 import { getBlobStore, type BlobStore } from './blobs';
-import { UploadError, uploadBlob } from './blobTransport';
 import { handOverPushToken } from './notifications';
 import { noteExpected } from './report';
 import { getStore } from './store';
-import { SESSION_KEY, clientKeptAt, supabase } from './supabase';
+import { actAs, forgetKeptSession, keepSessionAndSignOut, keptSession } from './server/handOver';
 import { onWake } from './wake';
 
 /**
@@ -23,7 +21,6 @@ import { onWake } from './wake';
 export const HANDS_OVER = Platform.OS !== 'web';
 
 const LIST_KEY = 'hand-overs';
-const sessionKeyFor = (actorId: string) => `hand-over-session:${actorId}`;
 
 let writes: Promise<unknown> = Promise.resolve();
 const added = new Set<() => void>();
@@ -49,72 +46,30 @@ async function handOvers(): Promise<HandOver[]> {
  */
 export async function signOutHandingOver(actorId: string, uploads: PendingUpload[]): Promise<void> {
   const pushToken = await handOverPushToken();
-  await supabase.auth.stopAutoRefresh();
-  try {
-    const session = await AsyncStorage.getItem(SESSION_KEY);
-    if (session) {
-      await AsyncStorage.setItem(sessionKeyFor(actorId), session);
-      await change((list) => withHandOver(list, { actorId, uploads, ...(pushToken ? { pushToken } : {}), savedAt: new Date().toISOString() }));
-      await AsyncStorage.removeItem(SESSION_KEY);
-    }
-    // Nothing is stored now, so this asks the server nothing: it forgets
-    // the session here and tells the app.
-    const { error } = await supabase.auth.signOut({ scope: 'local' });
-    if (error) throw error;
-  } finally {
-    void supabase.auth.startAutoRefresh();
-  }
+  await keepSessionAndSignOut(actorId, () =>
+    change((list) => withHandOver(list, { actorId, uploads, ...(pushToken ? { pushToken } : {}), savedAt: new Date().toISOString() })));
   for (const listener of added) listener();
-}
-
-const kept = new Map<string, SupabaseClient>();
-function keptClient(actorId: string): SupabaseClient {
-  let client = kept.get(actorId);
-  if (!client) {
-    client = clientKeptAt(sessionKeyFor(actorId));
-    kept.set(actorId, client);
-  }
-  return client;
 }
 
 /** Stop acting for this person. `endSession` signs the kept session out on the server too. */
 async function forget(actorId: string, endSession: boolean): Promise<void> {
-  sendAs(actorId, null);
-  if (endSession) await keptClient(actorId).auth.signOut({ scope: 'local' }).catch(() => {});
-  kept.delete(actorId);
-  await AsyncStorage.removeItem(sessionKeyFor(actorId));
+  await forgetKeptSession(actorId, endSession);
   await change((list) => list.filter((h) => h.actorId !== actorId));
 }
 
 /** One person's work, sent as them. Resolves to whether the server was out of reach. */
 async function sendFor(h: HandOver, store: EventStore, deviceId: string, blobs: BlobStore): Promise<boolean> {
-  const client = keptClient(h.actorId);
-  const { data } = await client.auth.getSession();
-  if (!data.session) {
-    // supabase-js drops a session the server refused to renew; one it could
-    // not renew for want of a network stays.
-    if (await AsyncStorage.getItem(sessionKeyFor(h.actorId)) !== null) return true;
-    await forget(h.actorId, false);
-    return false;
-  }
-  sendAs(h.actorId, client);
+  const session = await keptSession(h.actorId);
+  // supabase-js drops a session the server refused to renew; one it could
+  // not renew for want of a network stays.
+  if (session === 'unreachable') return true;
+  if (session === 'gone') { await forget(h.actorId, false); return false; }
   const { attempt, offline } = await deliverHandOver(h, {
+    ...actAs(h.actorId, blobs),
     store,
-    transport: new SupabaseTransport(client),
     deviceId,
-    unregisterPush: async (token) => !(await client.rpc('unregister_push_token', { p_token: token })).error,
     outbox: accountOutbox(h.actorId),
     hasFile: (ref) => blobs.exists(ref),
-    upload: async (u) => {
-      try {
-        await uploadBlob(u.orgId, u.languageId, u.ref, blobs, {}, client);
-        return 'sent';
-      } catch (e) {
-        if (!(e instanceof UploadError && e.refused)) throw e;
-        noteExpected('hand-over upload', e);
-        return 'refused';
-      }
-    },
     note: noteExpected
   });
   const next = afterAttempt(h, attempt);

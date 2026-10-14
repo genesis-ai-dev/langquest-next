@@ -6,7 +6,8 @@ import { functionRefusal, type InvitePreview } from './heldInvite';
 import { parseInvite } from './inviteCode';
 import { noteExpected } from './report';
 import { requestOutcome, type RequestOutcome } from './requestOutcome';
-import { supabase } from './supabase';
+import { myOrganizations, profileNames } from './server/account';
+import * as server from './server/invites';
 
 /**
  * Invites and join requests (docs/flow-coverage-audit.md 5.B). A person who is
@@ -68,15 +69,15 @@ export async function issueInvite(
   const expiresAt = new Date(Date.now() + (options.ttlDays ?? DEFAULT_TTL_DAYS) * 86_400_000).toISOString();
   // The label (who it is for) is shown to whoever scans it, from the server,
   // and kept out of the log (docs/invites-and-accounts.md section 4).
-  const { error } = await supabase.rpc('issue_invite_v3', {
-    p_org: orgId,
-    p_invite_id: inviteId,
-    p_token_hash: await sha256Hex(token),
-    p_role_id: roleId,
-    p_scope: scope,
-    p_expires_at: expiresAt,
-    p_label: options.label?.trim() || null,
-    p_max_uses: options.maxUses ?? 1
+  const { error } = await server.issueInvite({
+    orgId,
+    inviteId,
+    tokenHash: await sha256Hex(token),
+    roleId,
+    scope,
+    expiresAt,
+    label: options.label?.trim() || null,
+    maxUses: options.maxUses ?? 1
   });
   if (error) throw new Error(error.message);
   return { inviteId, token, expiresAt };
@@ -90,7 +91,7 @@ export async function issueInvite(
 export async function redeemInvite(input: string): Promise<{ orgId: string }> {
   const parsed = parseInvite(input);
   if (!parsed) throw new Error('That does not look like an invite code.');
-  const { data, error } = await supabase.rpc('redeem_invite_v2', { p_token: parsed.token });
+  const { data, error } = await server.redeemInvite(parsed.token);
   if (error) throw new Error(error.message);
   const orgId = data as string | null;
   if (!orgId) throw new Error('invite not found');
@@ -102,7 +103,7 @@ export async function redeemInvite(input: string): Promise<{ orgId: string }> {
  * not be asked (offline): the screen then claims nothing.
  */
 export async function previewInvite(token: string): Promise<InvitePreview | null> {
-  const { data, error } = await supabase.rpc('preview_invite', { p_token: token });
+  const { data, error } = await server.previewInvite(token);
   if (error || !data) return null;
   return data as InvitePreview;
 }
@@ -115,14 +116,14 @@ export async function previewInvite(token: string): Promise<InvitePreview | null
  */
 export async function issueSignInCode(profileId: string, lost = false): Promise<{ code: string; signInName: string }> {
   const code = newToken();
-  const { data, error } = await supabase.rpc('issue_sign_in_code_v2', { p_profile: profileId, p_code_hash: await sha256Hex(code), p_lost: lost });
+  const { data, error } = await server.issueSignInCode(profileId, await sha256Hex(code), lost);
   if (error) throw new Error(error.message);
   return { code, signInName: data as string };
 }
 
 /** May this session help that person sign in? False on any doubt. */
 export async function canHelpSignIn(profileId: string): Promise<boolean> {
-  const { data, error } = await supabase.rpc('can_help_sign_in', { p_profile: profileId });
+  const { data, error } = await server.canHelpSignIn(profileId);
   return !error && data === true;
 }
 
@@ -135,7 +136,7 @@ export class FunctionError extends Error {
 }
 
 async function invoke<T>(name: string, body: Record<string, unknown>): Promise<T> {
-  const { data, error } = await supabase.functions.invoke(name, { body });
+  const { data, error } = await server.invokeFunction(name, body);
   if (error) throw new FunctionError(...await functionRefusal(error));
   return data as T;
 }
@@ -162,26 +163,18 @@ export async function redeemSignInCode(code: string): Promise<{ session: Tokens;
 
 /** Ask to join an org. One row per (org, requester); asking twice is not an error. */
 export async function requestAccess(orgId: string, message: string): Promise<void> {
-  const { error } = await supabase.rpc('create_join_request', {
-    p_org: orgId,
-    p_request_id: Crypto.randomUUID(),
-    p_message: message
-  });
+  const { error } = await server.createJoinRequest(orgId, Crypto.randomUUID(), message);
   if (error) throw new Error(error.message);
 }
 
 /** Pending requests an admin may act on. Empty for everyone else, by RLS. */
 export async function pendingRequests(orgId: string): Promise<PendingRequest[]> {
-  const { data, error } = await supabase
-    .from('join_requests')
-    .select('id,profile_id,message,created_at')
-    .eq('org_id', orgId)
-    .order('created_at', { ascending: true });
+  const { data, error } = await server.joinRequests(orgId);
   if (error) throw new Error(error.message);
   const ids = (data ?? []).map((r) => r.profile_id as string);
   // Without names the requests still show, under placeholders.
   const { data: profiles } = ids.length
-    ? await supabase.from('profiles').select('id,display_name').in('id', ids)
+    ? await profileNames(ids)
     : { data: [] };
   const names = new Map((profiles ?? []).map((p) => [p.id as string, p.display_name as string]));
   return (data ?? []).map((r) => ({
@@ -200,12 +193,7 @@ export async function pendingRequests(orgId: string): Promise<PendingRequest[]> 
  */
 export async function decideRequest(id: string, accepted: boolean, roleId?: string, scope: Scope = { level: 'org' }): Promise<void> {
   if (accepted && !roleId) throw new Error('Pick a role before admitting someone.');
-  const { error } = await supabase.rpc('decide_join_request_v2', {
-    p_request_id: id,
-    p_accepted: accepted,
-    p_role_id: accepted ? roleId : null,
-    p_scope: scope
-  });
+  const { error } = await server.decideJoinRequest(id, accepted, accepted ? roleId ?? null : null, scope);
   if (error) throw new Error(error.message);
   for (const listener of requestListeners) listener();
 }
@@ -226,8 +214,7 @@ export function usePendingRequestCount(orgId: string, enabled: boolean): number 
     let active = true;
     const load = () => {
       void (async () => {
-        const { count: open, error } = await supabase.from('join_requests')
-          .select('id', { count: 'exact', head: true }).eq('org_id', orgId);
+        const { count: open, error } = await server.joinRequestCount(orgId);
         if (error) throw new Error(error.message);
         if (active) setCount(open ?? 0);
       })().catch((e: unknown) => { noteExpected('pending request count', e); });
@@ -257,9 +244,9 @@ export function useRequestOutcome(actorId: string, request: { id: string; orgId:
     let active = true;
     const check = async () => {
       const [orgs, open] = await Promise.all([
-        supabase.rpc('my_organizations'),
+        myOrganizations(),
         // Their own request, by organization: asking again keeps the first id.
-        supabase.from('join_requests').select('id').eq('org_id', orgId).eq('profile_id', actorId).limit(1)
+        server.ownJoinRequest(orgId, actorId)
       ]);
       if (orgs.error) throw new Error(orgs.error.message);
       if (open.error) throw new Error(open.error.message);

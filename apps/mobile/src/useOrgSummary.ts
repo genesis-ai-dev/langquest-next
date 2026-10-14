@@ -3,7 +3,7 @@ import { fetchOrgSummary, type ReportsServer } from '@langquest-next/sync';
 import type { OrgSummaryResponse } from '@langquest-next/core';
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
-import { supabase } from './supabase';
+import { accessToken } from './server/auth';
 
 /**
  * Where the dashboard's server is (decision 44). The web build is served by
@@ -14,7 +14,7 @@ const apiUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') || (Platform.
 
 export const reportsServer: ReportsServer | null = apiUrl === null ? null : {
   baseUrl: apiUrl,
-  token: async () => (await supabase.auth.getSession()).data.session?.access_token ?? null
+  token: accessToken
 };
 
 /** How often an open overview asks again; the server answers 304 when nothing changed. */

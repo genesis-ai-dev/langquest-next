@@ -51,7 +51,8 @@ import { LanguoidPicker, useLanguoidName, useLanguoidSearch } from '../languoidP
 import type { LanguoidHit } from '../languoidModel';
 import { edgeAllowed } from '../session';
 import { shareText } from '../share';
-import { supabase } from '../supabase';
+import { languageListing, setLanguageListing } from '../server/languages';
+import { invokeFunction } from '../server/invites';
 import { C, radius, space, tile, TINT } from '../theme';
 import { useOrgSummary } from '../useOrgSummary';
 import { useHelpMode } from '../helpContext';
@@ -460,7 +461,7 @@ function usePublicListing(ctx: Ctx) {
   useEffect(() => {
     if (!may || !languageId) return;
     let active = true;
-    void supabase.from('language_visibility').select('listed').eq('org_id', orgId).eq('language_id', languageId).maybeSingle()
+    void languageListing(orgId, languageId)
       .then(({ data, error: failed }) => {
         if (!active) return;
         // Offline or refused: say so rather than showing "not listed".
@@ -471,7 +472,7 @@ function usePublicListing(ctx: Ctx) {
   async function set(value: boolean) {
     setBusy(true);
     try {
-      const { error: failed } = await supabase.rpc('set_language_visibility', { p_org: orgId, p_language: languageId, p_listed: value });
+      const { error: failed } = await setLanguageListing(orgId, languageId, value);
       if (failed) { noteExpected('change listing', failed); setError(listingFailure(failed)); } else { setListed(value); setError(''); }
     } catch (e) {
       setError(failure('change listing', e));
@@ -821,7 +822,7 @@ export function InviteMember(ctx: Ctx) {
     setError('');
     try {
       const invite = await issueInvite(ctx.language.orgId, email.roleId, email.scope);
-      const { error: failed } = await supabase.functions.invoke('send-invite', { body: { inviteId: invite.inviteId, token: invite.token, email: address.trim(), locale: currentLanguage() } });
+      const { error: failed } = await invokeFunction('send-invite', { inviteId: invite.inviteId, token: invite.token, email: address.trim(), locale: currentLanguage() });
       if (failed) {
         // The function's own words are English; its status says which refusal it was (supabase/functions/send-invite).
         noteExpected('send invite', failed);

@@ -7,7 +7,8 @@ import { Platform } from 'react-native';
 import { applyDiagnosticsOn, readDiagnosticsOn, saveDiagnosticsOn } from './diagnosticsSetting';
 import { getDiagStore, getStore } from './store';
 import { BUILD_ID } from './webBuild';
-import { supabase } from './supabase';
+import { currentSession } from './server/auth';
+import { ingestDiagnostics } from './server/diagnostics';
 
 // Field diagnostics (docs/diagnostics.md, decisions.md 39). One recorder for
 // the app: the sync clients, the transfer workers and report.ts write to
@@ -83,8 +84,7 @@ export async function flushDiagnostics(device: { blobCacheBytes?: number; blobsW
   flushing = true;
   lastAttempt = Date.now();
   try {
-    const { data } = await supabase.auth.getSession();
-    if (!data.session) return;
+    if (!await currentSession()) return;
     const n: Record<string, number> = {};
     // The web's expo-file-system answers 0 rather than throwing, which would
     // read as a full disk; a browser leaves the numbers out.
@@ -99,7 +99,7 @@ export async function flushDiagnostics(device: { blobCacheBytes?: number; blobsW
     diagnostics.record('device', { n });
     const ctx = await context();
     await diagnostics.flush(async (records) => {
-      const { error } = await supabase.rpc('diag_ingest', { p_context: ctx, p_records: records });
+      const { error } = await ingestDiagnostics(ctx, records);
       if (error) throw new Error(error.message);
     });
   } catch {

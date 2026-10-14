@@ -206,7 +206,7 @@ interface TransferSample {
   verifyMs?: number;
 }
 
-/** Why a transfer failed, from our own error texts (apps/mobile/src/blobTransport.ts). Never from user content. */
+/** Why a transfer failed, from our own error texts (apps/mobile/src/server/blobTransport.ts). Never from user content. */
 export function classifyTransferFailure(error: unknown): FailureClass {
   const name = error instanceof Error ? error.name : '';
   const message = error instanceof Error ? error.message : '';

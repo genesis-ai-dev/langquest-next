@@ -1,11 +1,11 @@
-import { OrgSession, SupabaseTransport, ensureDeviceId, type OrgStatus, type SyncInspection } from '@langquest-next/sync';
+import { OrgSession, ensureDeviceId, type OrgStatus, type SyncInspection } from '@langquest-next/sync';
 import { emptyOrgState, type EventPayloads, type OrgEventType, type OrgState } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getStore } from './store';
 import { trackSync } from './syncActivity';
 import { onWake } from './wake';
-import { supabase } from './supabase';
+import { serverTransport } from './server/sync';
 import { diagnostics } from './diagnostics';
 
 export interface OrgHandle {
@@ -63,7 +63,7 @@ export function useOrg(orgId: string | null, actorId: string): OrgHandle {
       const deviceId = await ensureDeviceId(store, () => Crypto.randomUUID());
       const session = await OrgSession.open({
         orgId, actorId, deviceId, store,
-        transport: new SupabaseTransport(supabase),
+        transport: serverTransport(),
         client: { newId: () => Crypto.randomUUID(), diag: diagnostics },
         aroundSync: trackSync
       });

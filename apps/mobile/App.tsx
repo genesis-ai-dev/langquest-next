@@ -53,7 +53,8 @@ import * as Translate from './src/screens/translate';
 import * as Work from './src/screens/work';
 import { StorageGate, useLeaveGuard } from './src/storageGate';
 import { AUTH_SCREENS, GUEST_SCREENS, deriveSession, edgeAllowed, foldsSettled, homeScreenFor, postSignInScreen, tabsFor, type TabId } from './src/session';
-import { SESSION_KEY, supabase, supabaseConfigError } from './src/supabase';
+import { SESSION_KEY, onAuthChange, serverConfigError } from './src/server/auth';
+import { myOrganizations, userState } from './src/server/account';
 import { afterAuthEvent, savedSession } from './src/authState';
 import { C, space } from './src/theme';
 import { recordUserEvent } from './src/accountData';
@@ -222,7 +223,7 @@ function PaneSlot(props: { route: { screen: ScreenId; key: string; params?: Reco
  * Whatever is wrong, the app says so. A release build has no redbox: an
  * uncaught error there is a white screen, which tells a tester on TestFlight
  * nothing and a developer less. Two backstops, because they catch different
- * moments: `supabaseConfigError` for a build that was assembled without its
+ * moments: `serverConfigError` for a build that was assembled without its
  * configuration, and this boundary for anything thrown while rendering.
  */
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null; id: string }> {
@@ -297,23 +298,23 @@ export default function App() {
   // Work people left unsent when they signed out of this phone goes as them (decisions.md 60).
   useHandOvers(auth === undefined ? undefined : auth?.user.id ?? null);
   useEffect(() => {
-    if (supabaseConfigError) return;
+    if (serverConfigError) return;
     let active = true;
     // Whoever this phone holds a sign-in for, renewable right now or not
     // (authState.ts, decision 87): offline, supabase-js reports no one once
     // the token is an hour old, and took half a minute to say so.
     const fromStorage = (s: AuthSession | null) => { if (active) setAuth((now) => (now === undefined ? s : now)); };
     AsyncStorage.getItem(SESSION_KEY).then((raw) => fromStorage(savedSession(raw)), () => fromStorage(null));
-    const { data } = supabase.auth.onAuthStateChange((event, s) => setAuth((now) => afterAuthEvent(now, event, s)));
-    return () => { active = false; data.subscription.unsubscribe(); };
+    const unsubscribe = onAuthChange((event, s) => setAuth((now) => afterAuthEvent(now, event, s)));
+    return () => { active = false; unsubscribe(); };
   }, []);
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.root}>
         <StatusBar style="dark" />
         <UpdateBanner />
-        {supabaseConfigError ? (
-          <Fatal title={t('shell.errors.notConfigured')} detail={supabaseConfigError} />
+        {serverConfigError ? (
+          <Fatal title={t('shell.errors.notConfigured')} detail={serverConfigError} />
         ) : auth === undefined || !wordsReady ? null : (
           <ErrorBoundary>
             {/* Help mode: a ? on every screen's header; while on, taps explain (demo ADR-038). */}
@@ -358,7 +359,7 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
       if (saved) { if (active) setOrgId(saved); return; }
       // Nothing chosen on this device yet: open the first organization this
       // account belongs to, so someone just added to a team lands in it.
-      const { data, error } = await supabase.rpc('my_organizations');
+      const { data, error } = await myOrganizations();
       if (error) { noteExpected('restore organization', error); return; }
       const first = (data as { org_id: string }[] | null)?.[0];
       if (!active || chosen.current) return;
@@ -471,7 +472,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
       // welcomed on another device was welcomed again (AUTH-058). Offline, or slow,
       // it goes on after a few seconds as before.
       if (!seen && props.signedIn && joined !== '1') {
-        const asked = supabase.rpc('get_user_state').then(({ data, error }) => !error && !!data?.visionSeen, () => false);
+        const asked = userState().then(({ data, error }) => !error && !!data?.visionSeen, () => false);
         const timeout = new Promise<boolean>((done) => setTimeout(() => done(false), 4000));
         if (await Promise.race([asked, timeout])) {
           await AsyncStorage.setItem(`vision:${props.actorId}`, '1');

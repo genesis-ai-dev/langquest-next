@@ -7,7 +7,7 @@ import { Text } from './text';
 import { t } from './i18n';
 import { Banner, Group, LinkBtn, Row, SectionLabel, SmallBtn, txt } from './kit';
 import { hitLine, languoidHits, type LanguoidHit, type LanguoidRow } from './languoidModel';
-import { supabase } from './supabase';
+import { languoidName, searchLanguoids } from './server/languages';
 import { C, space } from './theme';
 
 /** How many matches one search shows, closest first; they scroll in a box of their own. */
@@ -36,7 +36,7 @@ export function useLanguoidSearch(query: string, enabled = true): LanguoidSearch
     setResult((r) => ({ status: 'searching', hits: r.hits }));
     const unreachable = () => { if (live) setResult({ status: 'unreachable', hits: [] }); };
     const timer = setTimeout(() => {
-      supabase.rpc('search_languoids', { search_query: q, result_limit: LANGUOID_RESULTS, levels: ['language', 'dialect'] }).then(({ data, error }) => {
+      searchLanguoids(q, LANGUOID_RESULTS).then(({ data, error }) => {
         if (!live) return;
         if (error) return unreachable();
         const hits = languoidHits((data ?? []) as LanguoidRow[]);
@@ -54,7 +54,7 @@ export function useLanguoidName(id: string | null): string | null {
   useEffect(() => {
     if (!id) return;
     let live = true;
-    supabase.from('languoid').select('name').eq('id', id).maybeSingle().then(({ data }) => {
+    languoidName(id).then(({ data }) => {
       if (live && data?.name) setName({ id, name: data.name as string });
     }, () => undefined);
     return () => { live = false; };

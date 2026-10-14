@@ -1,9 +1,9 @@
 import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
-import { sessionStorageKey } from './sessionKey';
-import { answerAtOnceWhileOffline, sessionSafeFetch, type RenewalWatch } from './sessionSafeFetch';
-import { signOutThisDevice } from './signOutCore';
+import { sessionStorageKey } from '../sessionKey';
+import { answerAtOnceWhileOffline, sessionSafeFetch, type RenewalWatch } from '../sessionSafeFetch';
+import { signOutThisDevice } from './signOut';
 
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const anon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -56,7 +56,7 @@ function clientAt(storageKey: string, autoRefreshToken: boolean) {
 // missing; nothing calls it, because App shows the error instead.
 export const supabase = clientAt(SESSION_KEY, true);
 
-/** Sign out of this device only, online or not (signOutCore.ts, decision 87). */
+/** Sign out of this device only, online or not (signOut.ts, decision 87). */
 export function signOutHere(): Promise<void> {
   return signOutThisDevice(supabase, AsyncStorage, SESSION_KEY);
 }

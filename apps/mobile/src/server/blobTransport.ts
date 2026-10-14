@@ -1,8 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { File, UploadType } from 'expo-file-system';
 import { Platform } from 'react-native';
-import { BlobStore, mimeOf, type StoredFile } from './blobs';
-import type { TransferTimings } from './diagnostics';
+import { BlobStore, mimeOf, type StoredFile } from '../blobs';
+import type { TransferTimings } from '../diagnostics';
 import { supabase } from './supabase';
 
 /**

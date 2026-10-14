@@ -6,7 +6,8 @@ import { reportError } from './report';
 import { accountOutbox, queueAccountAction } from './accountData';
 import { profileNameToSave } from './accounts';
 import type { AccountAction } from '@langquest-next/sync';
-import { supabase } from './supabase';
+import { myDirectory, profileName } from './server/account';
+import { onAuthChange } from './server/auth';
 
 /** One scheduler for durable writes outside any organization or language. */
 export function useAccountSync(actorId: string) {
@@ -62,7 +63,7 @@ export function useProfileName(actorId: string, email: string | null) {
       let sawSession = false;
       for (let i = 0; i < 6 && active; i++) {
         try {
-          const { data, error } = await supabase.from('profiles').select('display_name').eq('id', actorId).maybeSingle();
+          const { data, error } = await profileName(actorId);
           if (error) throw error;
           sawSession = true;
           if (data) {
@@ -100,7 +101,7 @@ export function useDisplayNames(actorId: string, refresh = '') {
       if (actorId === 'guest') return true;
       // One set-based read of the names this person may see (migration my_directory),
       // not every profile checked one by one by the row policy.
-      const { data, error } = await supabase.rpc('my_directory') as { data: { id: string; display_name: string }[] | null; error: unknown };
+      const { data, error } = await myDirectory();
       if (error || !data?.length) return false;
       const value = Object.fromEntries(data.flatMap((p) => (p.display_name ? [[p.id, p.display_name] as const] : [])));
       if (!Object.keys(value).length) return false;
@@ -119,8 +120,8 @@ export function useDisplayNames(actorId: string, refresh = '') {
         await new Promise((done) => setTimeout(done, 500 * (i + 1)));
       }
     })();
-    const { data } = supabase.auth.onAuthStateChange(() => { void read().catch(() => undefined); });
-    return () => { active = false; data.subscription.unsubscribe(); };
+    const unsubscribe = onAuthChange(() => { void read().catch(() => undefined); });
+    return () => { active = false; unsubscribe(); };
   }, [actorId, refresh]);
   return names;
 }

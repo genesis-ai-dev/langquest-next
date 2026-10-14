@@ -1,7 +1,7 @@
-import { DEFAULT_TRANSFER_BUDGET_BYTES, LanguageSession, SupabaseTransport, TransferBudget, ensureDeviceId, type LanguageStatus, type SyncInspection } from '@langquest-next/sync';
+import { DEFAULT_TRANSFER_BUDGET_BYTES, LanguageSession, TransferBudget, ensureDeviceId, type LanguageStatus, type SyncInspection } from '@langquest-next/sync';
 import { CommandError, emptyLanguageState, type BlobRef, type EventPayloads, type EventSpec, type EventType, type LanguageState } from '@langquest-next/core';
 import { getBlobStore, type BlobFile, type BlobStore } from './blobs';
-import { downloadBlob, streamUrl, uploadBlob } from './blobTransport';
+import { downloadBlob, streamUrl, uploadBlob } from './server/blobTransport';
 import { diagnostics, flushDiagnostics, timedTransfer, type TransferTimings } from './diagnostics';
 import { getRecordingJournal } from './recordingJournal';
 import { isRecording } from './useRecorder';
@@ -11,7 +11,7 @@ import { RateMeter } from './rate';
 import { getStore } from './store';
 import { trackSync } from './syncActivity';
 import { onWake } from './wake';
-import { supabase } from './supabase';
+import { serverTransport } from './server/sync';
 import { stateCopier } from './publishedState';
 import { t } from './i18n';
 
@@ -159,7 +159,7 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
       const where = { orgId, streamId: languageId };
       const session = await LanguageSession.open({
         orgId, languageId, actorId, deviceId, store, files,
-        transport: new SupabaseTransport(supabase),
+        transport: serverTransport(),
         upload: (ref) => metered(upMeter.current, files, ref, 'up', where, (timings) => uploadBlob(orgId, languageId, ref, files, timings)),
         download: (ref) => metered(downMeter.current, files, ref, 'down', where, (timings) => downloadBlob(orgId, languageId, ref, files, timings)),
         budget: transferBudget,

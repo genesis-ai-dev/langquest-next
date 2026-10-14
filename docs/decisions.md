@@ -3675,3 +3675,53 @@ Reverse if: a second app needs a different outbound policy than the phone
 (the queues would split back into the apps behind a shared interface), or
 the server-side jobs grow their own dependencies that the phone must not
 carry, which would argue for a separate server package.
+
+## 104. In `apps/mobile`, server calls live in `src/server/`, logic outside screens, and folders by feature
+
+Date: 2026-10-14 · By: Carl Sauder · Status: accepted
+
+Reason: a review of `apps/mobile` on 2026-10-14 found the packages well
+separated but the app less so. Supabase was called from 28 files, four
+screens among them: sign-in's whole policy (a v2 account, recreating the
+dev account, recording the terms) sat in a button handler in `entry.tsx`,
+and `org.tsx` read and wrote Explore listings and sent invite emails
+itself. The largest screens (`config.tsx` 1,738 lines, `org.tsx` 1,639,
+`passage.tsx` 1,420, `content.tsx` 1,366) mixed state, rules and layout,
+though the pure-model pattern (`configModel.ts`, `adminModel.ts`) already
+existed. `OrgWork` in `App.tsx` kept recent passages, Inbox reads,
+onboarding, toasts and navigation in one component; the language's sync
+engine was built inside `useLanguage`'s effect; and `src/` held about 110
+files in one folder, with `simple/` (named for the redesign of 71, not a
+concern) imported both ways by half the feature folders. Carl chose
+(2026-10-14):
+
+- Every Supabase call is a named function in `src/server/`, one file per
+  area, returning supabase-js's `{ data, error }` so each caller keeps
+  saying what a refusal means. Nothing else imports the client or calls
+  `.rpc(`, `.auth.` or `.functions.invoke(`
+  (`apps/mobile/test/serverBoundary.test.ts`). One folder rather than an
+  `api.ts` per feature, so RPC names, error handling and offline behaviour
+  can be read and checked in one place.
+- Screens lay out; rules go in a pure `model.ts` (or `<thing>Model.ts`
+  where a folder has several) tested without rendering, and state in
+  `use*` hooks. `OrgWork` assembles `Ctx` from hooks of its own.
+- The stream engines run outside React (`LanguageSession`, `OrgSession`,
+  103); the hooks follow them.
+- Folders by feature: `screens/` keeps only the entry files `App.tsx`
+  registers, and each concern (auth, account, org, sync, audio, web,
+  notifications, ui, shell, and the parts `simple/` held: recording,
+  review, helps, admin, mic) gets a folder with its model, hooks, parts
+  and anything it needs from `server/`. Pure files are `model.ts` or
+  `<thing>Model.ts`; `*Core.ts` names go. The moves wait for the open
+  recording and writing branches (pull requests 96 and 97) to land, so
+  they rebase onto edits, not moves.
+- The reasons: the logic that most often goes wrong (sign-in, membership,
+  listing, sync wiring) is tested without rendering; a person or agent
+  finds a feature's model, server calls and parts in one place; and every
+  server call can be checked in one place, with a test keeping it there.
+
+Reverse if: the thin server functions grow their own policy (retries,
+caching) that callers then duplicate, which would argue for a typed
+client per area with errors mapped once; or feature folders start
+importing each other in a cycle, which would mean a shared layer belongs
+below them.
