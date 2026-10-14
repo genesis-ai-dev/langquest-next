@@ -15,6 +15,13 @@ import {
 
 const world = useWorld();
 const W = () => world();
+
+/** Setups that change the world, done once however many role tests ask (each says so under "Resets"). */
+const once = (make: () => Promise<void>) => { let done: Promise<void> | undefined; return () => (done ??= make()); };
+/** Jude listed but not broken up (decision 74). Resets: Jude's passages are hidden in Alpha. */
+const judeWaiting = once(() => leaveBookWaiting(W(), 'COORD', 'JUD'));
+/** Luke 3 taken through all four checks (MAP-020). Resets: Luke 3 is done. */
+const luke3Done = once(async () => finishPassages(W(), await chapterUnits(W(), 3)));
 const label = (k: PassageKey) => W().passages[k].label;
 const screen = (page: Page) => screenText(page);
 
@@ -52,9 +59,8 @@ const closeSheet = (page: Page) => page.getByRole('button', { name: 'Close' }).l
 
 // ---- All languages -------------------------------------------------------------------------
 
-test('MAP-001 All languages, per role @p0', async ({ browser }) => {
-  test.setTimeout(600_000);
-  for (const who of ['ADMIN', 'COORD', 'LADMIN', 'VIEW'] as const) {
+for (const who of ['ADMIN', 'LADMIN'] as const) {
+  test(`MAP-001 ${who} All languages @p0`, async ({ browser }) => {
     const { context, page } = await device(browser, who);
     await tab(page, 'map').click();
     await expect.poll(() => headerTitle(page), { message: who }).toBe('Progress');
@@ -80,11 +86,10 @@ test('MAP-001 All languages, per role @p0', async ({ browser }) => {
       await expect.poll(() => headings(page)).toEqual(expect.arrayContaining(['Progress', 'Alpha']));
     }
     await context.close();
-  }
-});
+  });
+}
 
 test('MAP-002 Finding a language among many', async ({ page }) => {
-  test.setTimeout(300_000);
   // Resets: ORG has 26 languages from here on.
   await addLanguages(W(), ['Delta', 'Echo', 'Foxtrot', 'Golf']);
   await open(page, 'ADMIN');
@@ -124,9 +129,8 @@ test('MAP-003 No languages yet', async ({ page }) => {
 
 // ---- A language's map --------------------------------------------------------------------------
 
-test('MAP-010 The language map\'s header and Back, per role @p0', async ({ browser }) => {
-  test.setTimeout(600_000);
-  for (const who of ['TRANS', 'REV', 'TREV', 'KEPT', 'COORD'] as const) {
+for (const who of ['TRANS', 'COORD'] as const) {
+  test(`MAP-010 ${who} The language map's header and Back @p0`, async ({ browser }) => {
     const { context, page } = await device(browser, who);
     await alphaMap(page);
     if (who === 'COORD') {
@@ -155,12 +159,11 @@ test('MAP-010 The language map\'s header and Back, per role @p0', async ({ brows
       await expect.poll(() => headerTitle(page)).toBe('Progress');
     }
     await context.close();
-  }
-});
+  });
+}
 
-test('MAP-011 Finding a passage by search @p0', async ({ browser }) => {
-  test.setTimeout(300_000);
-  for (const who of ['TRANS', 'VIEW'] as const) {
+for (const who of ['TRANS', 'VIEW'] as const) {
+  test(`MAP-011 ${who} Finding a passage by search @p0`, async ({ browser }) => {
     const { context, page } = await device(browser, who);
     await alphaMap(page);
     await search(page).fill('Luke 15');
@@ -181,8 +184,8 @@ test('MAP-011 Finding a passage by search @p0', async ({ browser }) => {
       await expect(text(page, '2 passages')).toBeVisible();
     }
     await context.close();
-  }
-});
+  });
+}
 
 test('MAP-012 Searching by book, and no match', async ({ page }) => {
   await open(page, 'TRANS');
@@ -202,12 +205,12 @@ test('MAP-012 Searching by book, and no match', async ({ page }) => {
   await expect.poll(() => headerTitle(page)).toBe('Luke');
 });
 
-test('MAP-013 Next on the map', async ({ browser }) => {
-  test.setTimeout(600_000);
-  const want: Record<string, string | null> = {
-    TRANS: label('P-Q4'), REV: label('P-BT'), TREV: 'Matthew 1:1–17', ADMIN: 'Matthew 1:1–17', VIEW: null
-  };
-  for (const [who, next] of Object.entries(want)) {
+const nextFor = (): Record<string, string | null> => ({
+  TRANS: label('P-Q4'), REV: label('P-BT'), TREV: 'Matthew 1:1–17', ADMIN: 'Matthew 1:1–17', VIEW: null
+});
+for (const who of ['TRANS', 'REV', 'TREV', 'ADMIN', 'VIEW'] as const) {
+  test(`MAP-013 ${who} Next on the map`, async ({ browser }) => {
+    const next = nextFor()[who]!;
     const { context, page } = await device(browser, who as AccountKey);
     if (next) {
       // The same passage My Work leads with.
@@ -222,8 +225,8 @@ test('MAP-013 Next on the map', async ({ browser }) => {
       await expect.poll(() => headerTitle(page), { message: who }).toBe(next);
     }
     await context.close();
-  }
-});
+  });
+}
 
 test('MAP-014 Testament pills', async ({ page }) => {
   // Step 2 (Ruth listed in Alpha) needs 09 SETUP's book choice; with the fixture's New Testament there are no pills.
@@ -234,9 +237,8 @@ test('MAP-014 Testament pills', async ({ page }) => {
   await expect(text(page, 'Old Testament')).toHaveCount(0);
 });
 
-test('MAP-015 The filter, one tap deeper', async ({ browser }) => {
-  test.setTimeout(300_000);
-  for (const who of ['TRANS', 'COORD'] as const) {
+for (const who of ['TRANS', 'COORD'] as const) {
+  test(`MAP-015 ${who} The filter, one tap deeper`, async ({ browser }) => {
     const { context, page } = await device(browser, who);
     await alphaMap(page);
     await button(page, 'Filter').click();
@@ -261,16 +263,15 @@ test('MAP-015 The filter, one tap deeper', async ({ browser }) => {
     await button(page, 'Clear filter').click();
     await expect(button(page, /^Matthew\./)).toBeVisible();
     await context.close();
-  }
-});
+  });
+}
 
 // ---- A book's chapters ----------------------------------------------------------------------------
 
-test('MAP-020 Chapters in three states @p0', async ({ browser }) => {
-  test.setTimeout(600_000);
-  // Luke 3 taken through all four checks (README: MAP-020 makes one chapter done). Resets: Luke 3 is done.
-  await finishPassages(W(), await chapterUnits(W(), 3));
-  for (const who of ['TRANS', 'VIEW'] as const) {
+// Luke 3 is taken through all four checks (luke3Done).
+for (const who of ['TRANS', 'VIEW'] as const) {
+  test(`MAP-020 ${who} Chapters in three states @p0`, async ({ browser }) => {
+    await luke3Done();
     const { context, page } = await device(browser, who);
     await alphaMap(page);
     await button(page, /^Luke\./).click();
@@ -298,8 +299,8 @@ test('MAP-020 Chapters in three states @p0', async ({ browser }) => {
       await expect(page.getByRole('link', { name: 'Alpha' }).locator('visible=true')).toBeVisible();
     }
     await context.close();
-  }
-});
+  });
+}
 
 test('MAP-021 The full key and the old tones, one tap deeper', async ({ page }) => {
   await open(page, 'TRANS');
@@ -339,11 +340,10 @@ test('MAP-022 A chapter with several passages', async ({ page }) => {
   await expect(text(page, '3 parts — pick one')).toHaveCount(0);
 });
 
-test('MAP-023 A book not broken up yet', async ({ browser }) => {
-  test.setTimeout(600_000);
-  // Jude listed but not broken up (decision 74). Resets: Jude's passages are hidden in Alpha.
-  await leaveBookWaiting(W(), 'COORD', 'JUD');
-  for (const who of ['ADMIN', 'COORD', 'LADMIN', 'TRANS', 'REV', 'VIEW'] as const) {
+// Resets: Jude's passages are hidden in Alpha (judeWaiting).
+for (const who of ['ADMIN', 'COORD', 'LADMIN', 'TRANS', 'REV', 'VIEW'] as const) {
+  test(`MAP-023 ${who} A book not broken up yet`, async ({ browser }) => {
+    await judeWaiting();
     const { context, page } = await device(browser, who);
     await alphaMap(page);
     await expect(button(page, /^Jude\./)).toContainText('Waiting to be broken up');
@@ -369,12 +369,11 @@ test('MAP-023 A book not broken up yet', async ({ browser }) => {
       await expect(primary(page)).toHaveCount(0);
     }
     await context.close();
-  }
-});
+  });
+}
 
-test('MAP-024 Edit passages ("Break up differently") only for those who shape templates', async ({ browser }) => {
-  test.setTimeout(600_000);
-  for (const who of ['ADMIN', 'COORD', 'LADMIN', 'TRANS', 'TREV', 'VIEW'] as const) {
+for (const who of ['COORD'] as const) {
+  test(`MAP-024 ${who} Break up differently, for those who shape templates`, async ({ browser }) => {
     const { context, page } = await device(browser, who);
     await alphaMap(page);
     await button(page, /^Luke\./).click();
@@ -389,14 +388,13 @@ test('MAP-024 Edit passages ("Break up differently") only for those who shape te
       await expect(button(page, 'Break up differently')).toHaveCount(0);
     }
     await context.close();
-  }
-});
+  });
+}
 
 // ---- Scale, offline and other languages ---------------------------------------------------------------
 
-test('MAP-032 Bravo, a language that is not ready', async ({ browser }) => {
-  test.setTimeout(300_000);
-  for (const who of ['COORD', 'ADMIN'] as const) {
+for (const who of ['COORD', 'ADMIN'] as const) {
+  test(`MAP-032 ${who} Bravo, a language that is not ready`, async ({ browser }) => {
     const { context, page } = await device(browser, who);
     await tab(page, 'map').click();
     await button(page, /^Bravo/).click();
@@ -413,8 +411,8 @@ test('MAP-032 Bravo, a language that is not ready', async ({ browser }) => {
     await tab(page, 'work').click();
     await expect(text(page, /^Get Bravo ready · \d of 4$/)).toBeVisible();
     await context.close();
-  }
-});
+  });
+}
 
 test('MAP-034 Switching language from the map', async ({ page }) => {
   // TRANS also holds Translator at Bravo (10 PEOPLE). Bravo has no template here, so its map is empty. Resets: TRANS is in Bravo.

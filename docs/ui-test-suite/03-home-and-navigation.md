@@ -20,6 +20,11 @@ Sources: `src/session.ts` (`homeScreenFor`, `mapScreenFor`,
 `src/simple/home.tsx`, `src/screens/account.tsx` (`InboxHome`) and
 `src/screens/map.tsx` (`StatusHome`).
 
+Layers (decision 101): the per-role tables for NAV-001 to NAV-004, NAV-010
+and NAV-050 (home, tabs, what the Map and Manage tabs open, the gated edges)
+are held by `apps/mobile/test/navMatrix.test.ts`, one `it` per spec ID.
+The web tests prove one role each reaches the glass, titled `NAV-00N ROLE`.
+
 ## Tabs and where they go
 
 ### NAV-001 Tabs on a phone, per role

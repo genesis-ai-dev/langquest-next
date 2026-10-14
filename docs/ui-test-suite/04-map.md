@@ -27,6 +27,12 @@ Sources: `src/screens/map.tsx` (`StatusHome`, `MapHome`, `BookMap`),
 `src/simple/mapParts.tsx`, `src/canon.ts` (search and filters) and
 `src/offline.tsx` (marks). Decisions 61, 71 and 74.
 
+Layers (decision 101): which Map each role lands on (MAP-001, MAP-010), who
+may "Break up differently" (MAP-024) and what a viewer cannot take
+(MAP-035) are held by `apps/mobile/test/navMatrix.test.ts`, one `it` per
+spec ID. The web tests prove a role or two reaches the glass; tests that
+read a screen's contents run once per role.
+
 ## All languages
 
 ### MAP-001 All languages, per role

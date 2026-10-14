@@ -44,7 +44,6 @@ test('NAV-017 Nothing is waiting on you', async ({ page }) => {
 });
 
 test('NAV-033 The viewer\'s Inbox tab and its badge', async ({ page, browser }) => {
-  test.setTimeout(300_000);
   await open(page, 'VIEW');
   await expect(tab(page, 'inbox')).toHaveAttribute('aria-label', 'Inbox');
 

@@ -41,6 +41,13 @@ async function device(browser: Browser, who: AccountKey, width = 430) {
 }
 
 const W = () => world();
+
+/** Setups that change the world, done once however many role tests ask (each says so under "Resets"). */
+const once = (make: () => Promise<void>) => { let done: Promise<void> | undefined; return () => (done ??= make()); };
+/** NOORG's request to join, waiting for the organization-scope admins (NAV-019). */
+const joinRequest = once(() => askToJoin(W(), 'NOORG', 'I translate for Alpha'));
+/** Jude listed but not broken up (decision 74). Resets: Jude's passages are hidden in Alpha. */
+const judeWaiting = once(() => leaveBookWaiting(W(), 'COORD', 'JUD'));
 const label = (k: PassageKey) => W().passages[k].label;
 const orgSub = () => `${W().orgName} · All languages`;
 /** P-NEW's due date as the app words it: 14 days after the world was built, "Oct 27". */
@@ -76,83 +83,96 @@ const PHONE_TABS: Record<string, { home: string; tabs: string[]; lit: string }> 
   KEPT: { home: 'My Work', tabs: ['work', 'map', 'me'], lit: 'work' }
 };
 
-test('NAV-001 Tabs on a phone, per role @p0', async ({ browser }) => {
-  test.setTimeout(600_000);
-  for (const [who, want] of Object.entries(PHONE_TABS)) {
-    const { context, page } = await device(browser, who as AccountKey);
-    await expect.poll(() => headerTitle(page), { message: `${who}'s home` }).toBe(want.home);
-    await expect.poll(() => tabsShown(page), { message: `${who}'s tabs` }).toEqual(want.tabs);
-    await expect.poll(() => litTab(page), { message: `${who}'s lit tab` }).toBe(want.lit);
-    if (want.tabs.includes('work')) await expect(tab(page, 'work')).toHaveAttribute('aria-label', 'Work');
-    await context.close();
-  }
+// The per-role tables (home, tabs, Map and Manage targets) are held by apps/mobile/test/navMatrix.test.ts
+// (NAV-001 to NAV-004, NAV-010, NAV-050); each test here proves one role's table reaches the glass.
+test('NAV-001 TRANS Tabs on a phone @p0', async ({ browser }) => {
+  const want = PHONE_TABS.TRANS!;
+  const { context, page } = await device(browser, 'TRANS');
+  await expect.poll(() => headerTitle(page), { message: "TRANS's home" }).toBe(want.home);
+  await expect.poll(() => tabsShown(page), { message: "TRANS's tabs" }).toEqual(want.tabs);
+  await expect.poll(() => litTab(page), { message: "TRANS's lit tab" }).toBe(want.lit);
+  await expect(tab(page, 'work')).toHaveAttribute('aria-label', 'Work');
+  await context.close();
+});
+
+test('NAV-001 VIEW Tabs on a phone: Progress is home, Map is lit @p0', async ({ browser }) => {
+  const want = PHONE_TABS.VIEW!;
+  const { context, page } = await device(browser, 'VIEW');
+  await expect.poll(() => headerTitle(page), { message: "VIEW's home" }).toBe(want.home);
+  await expect.poll(() => tabsShown(page), { message: "VIEW's tabs" }).toEqual(want.tabs);
+  await expect.poll(() => litTab(page), { message: "VIEW's lit tab" }).toBe(want.lit);
+  await context.close();
+});
+
+test('NAV-001 NOORG No tabs without an organization @p0', async ({ browser }) => {
   const { context, page } = await device(browser, 'NOORG');
   await expect(text(page, 'Join your team')).toBeVisible({ timeout: 60_000 });
   await expect.poll(() => tabsShown(page)).toEqual([]);
   await context.close();
 });
 
-test('NAV-002 What the Map tab opens, per role @p0', async ({ browser }) => {
-  test.setTimeout(600_000);
-  for (const who of ['ADMIN', 'COORD', 'LADMIN', 'VIEW', 'TRANS', 'REV', 'TREV', 'KEPT'] as const) {
-    const { context, page } = await device(browser, who);
-    await tab(page, 'map').click();
-    if (['ADMIN', 'COORD', 'LADMIN', 'VIEW'].includes(who)) {
-      await expect.poll(() => headerTitle(page), { message: who }).toBe('Progress');
-      await expect(text(page, orgSub())).toBeVisible();
-    } else {
-      await expect.poll(() => headerTitle(page), { message: who }).toBe('Alpha');
-      await expect(page.getByPlaceholder('Find “John 3”').locator('visible=true')).toBeVisible();
-    }
-    await noBack(page);
-    await expect.poll(() => litTab(page), { message: who }).toBe('map');
-    await context.close();
-  }
+test('NAV-002 TRANS What the Map tab opens: their language @p0', async ({ browser }) => {
+  const { context, page } = await device(browser, 'TRANS');
+  await tab(page, 'map').click();
+  await expect.poll(() => headerTitle(page)).toBe('Alpha');
+  await expect(page.getByPlaceholder('Find “John 3”').locator('visible=true')).toBeVisible();
+  await noBack(page);
+  await expect.poll(() => litTab(page)).toBe('map');
+  await context.close();
 });
 
-test('NAV-003 What the Manage tab opens @p0', async ({ browser }) => {
-  test.setTimeout(300_000);
-  for (const who of ['ADMIN', 'COORD', 'LADMIN'] as const) {
-    const { context, page } = await device(browser, who);
-    await tab(page, 'manage').click();
-    if (who === 'LADMIN') {
-      await expect.poll(() => headerTitle(page)).toBe('Alpha');
-      const words = await screen(page);
-      expect(words).not.toContain('Bravo');
-      expect(words).not.toContain('Content templates, reference, review flows, roles');
-    } else {
-      await expect.poll(() => headerTitle(page), { message: who }).toBe(W().orgName);
-      await expect(text(page, 'Alpha')).toBeVisible();
-    }
-    // Tapping the tab again on its own home does nothing: the same screen stays, not a new one.
-    const heading = await page.getByRole('heading').locator('visible=true').first().elementHandle();
-    await tab(page, 'manage').click();
-    await page.waitForTimeout(500);
-    expect(await heading!.evaluate((e) => e.isConnected), `${who}: the home was not redrawn`).toBe(true);
-    await context.close();
-  }
+test('NAV-002 COORD What the Map tab opens: Progress @p0', async ({ browser }) => {
+  const { context, page } = await device(browser, 'COORD');
+  await tab(page, 'map').click();
+  await expect.poll(() => headerTitle(page)).toBe('Progress');
+  await expect(text(page, orgSub())).toBeVisible();
+  await noBack(page);
+  await expect.poll(() => litTab(page)).toBe('map');
+  await context.close();
 });
 
-test('NAV-004 The Reports tab shows only on wide windows @wide', async ({ browser }) => {
-  test.setTimeout(300_000);
-  const wide: Record<string, string[]> = {
-    ADMIN: ['work', 'map', 'reports', 'manage', 'me'], TRANS: ['work', 'map', 'reports', 'me'], VIEW: ['map', 'reports', 'inbox', 'me']
-  };
-  for (const [who, tabs] of Object.entries(wide)) {
-    const { context, page } = await device(browser, who as AccountKey, 390);
-    await expect.poll(() => tabsShown(page), { message: `${who} at 390 px` }).not.toContain('reports');
-    await page.setViewportSize({ width: 1280, height: 900 });
-    await expect.poll(() => tabsShown(page), { message: `${who} wide` }).toEqual(tabs);
-    await tab(page, 'reports').click();
-    await page.setViewportSize({ width: 390, height: 900 });
-    await expect.poll(() => tabsShown(page), { message: `${who} narrowed` }).not.toContain('reports');
-    await expect(text(page, 'This screen could not open')).toHaveCount(0);
-    await context.close();
-  }
+/** Tapping Manage again on its own home does nothing: the same screen stays, not a new one. */
+async function manageTwice(page: Page, who: string): Promise<void> {
+  const heading = await page.getByRole('heading').locator('visible=true').first().elementHandle();
+  await tab(page, 'manage').click();
+  await page.waitForTimeout(500); // sleep: nothing observable says a redraw did not happen
+  expect(await heading!.evaluate((e) => e.isConnected), `${who}: the home was not redrawn`).toBe(true);
+}
+
+test('NAV-003 COORD What the Manage tab opens: the organization @p0', async ({ browser }) => {
+  const { context, page } = await device(browser, 'COORD');
+  await tab(page, 'manage').click();
+  await expect.poll(() => headerTitle(page)).toBe(W().orgName);
+  await expect(text(page, 'Alpha')).toBeVisible();
+  await manageTwice(page, 'COORD');
+  await context.close();
+});
+
+test('NAV-003 LADMIN What the Manage tab opens: their language only @p0', async ({ browser }) => {
+  const { context, page } = await device(browser, 'LADMIN');
+  await tab(page, 'manage').click();
+  await expect.poll(() => headerTitle(page)).toBe('Alpha');
+  const words = await screen(page);
+  expect(words).not.toContain('Bravo');
+  expect(words).not.toContain('Content templates, reference, review flows, roles');
+  await manageTwice(page, 'LADMIN');
+  await context.close();
+});
+
+test('NAV-004 ADMIN The Reports tab shows only on wide windows @wide', async ({ browser }) => {
+  const tabs = ['work', 'map', 'reports', 'manage', 'me'];
+  const { context, page } = await device(browser, 'ADMIN', 390);
+  await expect.poll(() => tabsShown(page), { message: 'ADMIN at 390 px' }).not.toContain('reports');
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await expect.poll(() => tabsShown(page), { message: 'ADMIN wide' }).toEqual(tabs);
+  await tab(page, 'reports').click();
+  await page.setViewportSize({ width: 390, height: 900 });
+  await expect.poll(() => tabsShown(page), { message: 'ADMIN narrowed' }).not.toContain('reports');
+  await expect(text(page, 'This screen could not open')).toHaveCount(0);
+  await context.close();
 });
 
 test('NAV-005 Pressing a tab resets its stack', async ({ browser }) => {
-  test.setTimeout(300_000);
   const t = await device(browser, 'TRANS');
   await tab(t.page, 'map').click();
   await button(t.page, /^Luke\./).click();
@@ -246,7 +266,6 @@ test('NAV-007 Task screens hide the tabs and close with ✕', async ({ page }) =
 });
 
 test('NAV-008 Which tab is lit @wide', async ({ browser }) => {
-  test.setTimeout(300_000);
   const t = await device(browser, 'TRANS', 1280);
   await button(t.page, /^Updates/).click();
   await expect.poll(() => headerTitle(t.page)).toBe('Inbox');
@@ -275,17 +294,14 @@ test('NAV-008 Which tab is lit @wide', async ({ browser }) => {
 
 // ---- My Work ------------------------------------------------------------------------------
 
-test('NAV-010 My Work\'s header @p0', async ({ browser }) => {
-  test.setTimeout(600_000);
-  for (const who of ['ADMIN', 'COORD', 'LADMIN', 'TRANS', 'REV', 'TREV', 'KEPT'] as const) {
-    const { context, page } = await device(browser, who);
-    expect(await headerTitle(page), who).toBe('My Work');
-    await expect(text(page, `Alpha · ${W().orgName}`)).toBeVisible();
-    await noBack(page);
-    await expect(button(page, /^Updates(, \d+ new)?$/)).toBeVisible();
-    for (const chip of ['Offline', 'Not syncing', /^\d+ to send$/]) await expect(page.getByRole('button', { name: chip }).locator('visible=true'), `${who}: no sync chip`).toHaveCount(0);
-    await context.close();
-  }
+test('NAV-010 TRANS My Work\'s header @p0', async ({ browser }) => {
+  const { context, page } = await device(browser, 'TRANS');
+  expect(await headerTitle(page)).toBe('My Work');
+  await expect(text(page, `Alpha · ${W().orgName}`)).toBeVisible();
+  await noBack(page);
+  await expect(button(page, /^Updates(, \d+ new)?$/)).toBeVisible();
+  for (const chip of ['Offline', 'Not syncing', /^\d+ to send$/]) await expect(page.getByRole('button', { name: chip }).locator('visible=true'), 'no sync chip').toHaveCount(0);
+  await context.close();
 });
 
 test('NAV-011 Next for you: a record request opens the passage @p0', async ({ page }) => {
@@ -352,9 +368,8 @@ test('NAV-013 Next for you: a check, and a back translation @p0', async ({ page 
   await expect.poll(() => headerTitle(page)).toBe('My Work');
 });
 
-test('NAV-014 A good place to start, when nothing is asked', async ({ browser }) => {
-  test.setTimeout(300_000);
-  for (const who of ['TREV', 'KEPT'] as const) {
+for (const who of ['TREV', 'KEPT'] as const) {
+  test(`NAV-014 ${who} A good place to start, when nothing is asked`, async ({ browser }) => {
     const { context, page } = await device(browser, who);
     await expect(text(page, 'A good place to start')).toBeVisible();
     // The first passage of Alpha's template nobody has recorded or is drafting.
@@ -369,8 +384,8 @@ test('NAV-014 A good place to start, when nothing is asked', async ({ browser })
     await button(page, 'Everything in Alpha').click();
     await expect.poll(() => headerTitle(page)).toBe('Alpha');
     await context.close();
-  }
-});
+  });
+}
 
 test('NAV-015 Waiting on others opens in place', async ({ page }) => {
   // A check asked of a whole team (decision 91): COORD asks the Peer check team for P-ASIDE.
@@ -396,7 +411,6 @@ test('NAV-015 Waiting on others opens in place', async ({ page }) => {
 });
 
 test('NAV-016 Opened lately opens in place', async ({ page }) => {
-  test.setTimeout(300_000);
   await open(page, 'TRANS');
   // P-SUBMITTED is on My Work already (TRANS asked its Peer Review), so it is left out.
   for (const k of ['P-SUBMITTED', 'P-CHECK', 'P-ASIDE', 'P-DONE', 'P-S', 'P-T'] as const) {
@@ -421,9 +435,8 @@ test('NAV-016 Opened lately opens in place', async ({ page }) => {
   await expect.poll(() => headerTitle(page)).toBe('Luke 12:22–34');
 });
 
-test('NAV-018 The coordinator\'s Get ready card @p0', async ({ browser }) => {
-  test.setTimeout(300_000);
-  for (const who of ['COORD', 'ADMIN'] as const) {
+for (const who of ['COORD', 'ADMIN'] as const) {
+  test(`NAV-018 ${who} The coordinator's Get ready card @p0`, async ({ browser }) => {
     const { context, page } = await device(browser, who);
     await tab(page, 'map').click();
     await button(page, /^Bravo/).click();
@@ -442,13 +455,12 @@ test('NAV-018 The coordinator\'s Get ready card @p0', async ({ browser }) => {
     await expect(text(page, /^\d of 4$/)).toBeVisible();
     await expect(text(page, 'What will Bravo translate?')).toBeVisible();
     await context.close();
-  }
-});
+  });
+}
 
-test('NAV-019 Join requests on My Work, for organization-scope admins only', async ({ browser }) => {
-  test.setTimeout(300_000);
-  await askToJoin(W(), 'NOORG', 'I translate for Alpha');
-  for (const who of ['ADMIN', 'COORD'] as const) {
+for (const who of ['ADMIN', 'COORD'] as const) {
+  test(`NAV-019 ${who} Join requests on My Work, for organization-scope admins only`, async ({ browser }) => {
+    await joinRequest();
     const { context, page } = await device(browser, who);
     await expect(text(page, 'Nora Noorg wants to join')).toBeVisible();
     await expect(text(page, 'I translate for Alpha')).toBeVisible();
@@ -463,13 +475,8 @@ test('NAV-019 Join requests on My Work, for organization-scope admins only', asy
       await expect(button(page, 'Let Nora in')).toBeVisible();
     }
     await context.close();
-  }
-  const { context, page } = await device(browser, 'LADMIN');
-  await expect(text(page, 'A good place to start')).toBeVisible();
-  await expect(text(page, 'Nora Noorg wants to join')).toHaveCount(0);
-  await expect(button(page, 'Updates')).toBeVisible();
-  await context.close();
-});
+  });
+}
 
 test('NAV-021 An organization with no language: Add a language', async ({ page }) => {
   // NOORG starts "UI Empty Org" (02 NOORG makes it on screen; here through the server). Resets: NOORG now has an organization.
@@ -487,11 +494,10 @@ test('NAV-021 An organization with no language: Add a language', async ({ page }
   await expect.poll(() => headerTitle(page)).toBe('My Work');
 });
 
-test('NAV-022 Divide a book from My Work', async ({ browser }) => {
-  test.setTimeout(300_000);
-  // Jude listed but not broken up (decision 74). Resets: Jude's passages are hidden in Alpha.
-  await leaveBookWaiting(W(), 'COORD', 'JUD');
-  for (const who of ['ADMIN', 'COORD', 'LADMIN'] as const) {
+// Resets: Jude's passages are hidden in Alpha (judeWaiting).
+for (const who of ['ADMIN', 'COORD', 'LADMIN'] as const) {
+  test(`NAV-022 ${who} Divide a book from My Work`, async ({ browser }) => {
+    await judeWaiting();
     const { context, page } = await device(browser, who);
     await expect(text(page, 'Divide Jude')).toBeVisible();
     // Alpha's way is FIA, which has none for Jude, so the row says why (decision 93 / 85934a9).
@@ -500,7 +506,20 @@ test('NAV-022 Divide a book from My Work', async ({ browser }) => {
     // It opens the book itself, in the open language (decision 93), not the Map.
     await expect.poll(() => headerTitle(page), { message: who }).toBe('Jude');
     await context.close();
-  }
+  });
+}
+
+test('NAV-019 LADMIN has no join requests on My Work', async ({ browser }) => {
+  await joinRequest();
+  const { context, page } = await device(browser, 'LADMIN');
+  await expect(text(page, 'A good place to start')).toBeVisible();
+  await expect(text(page, 'Nora Noorg wants to join')).toHaveCount(0);
+  await expect(button(page, 'Updates')).toBeVisible();
+  await context.close();
+});
+
+test('NAV-022 TRANS is not offered to divide a book', async ({ browser }) => {
+  await judeWaiting();
   const { context, page } = await device(browser, 'TRANS');
   await expect(text(page, 'Next for you')).toBeVisible();
   await expect(text(page, /^Divide /)).toHaveCount(0);
@@ -579,9 +598,8 @@ test('NAV-040 Progress, the viewer\'s home @p0', async ({ page }) => {
   await expect(page.getByPlaceholder('Find a language')).toHaveCount(0);
 });
 
-test('NAV-041 Drilling into a language from Progress @p0', async ({ browser }) => {
-  test.setTimeout(300_000);
-  for (const who of ['VIEW', 'ADMIN'] as const) {
+for (const who of ['VIEW', 'ADMIN'] as const) {
+  test(`NAV-041 ${who} Drilling into a language from Progress @p0`, async ({ browser }) => {
     const { context, page } = await device(browser, who);
     await tab(page, 'map').click();
     await button(page, /^Alpha: /).click();
@@ -600,8 +618,8 @@ test('NAV-041 Drilling into a language from Progress @p0', async ({ browser }) =
       await expect.poll(() => litTab(page)).toBe('map');
     }
     await context.close();
-  }
-});
+  });
+}
 
 test('NAV-042 A language lead opening a language outside its scope', async ({ page }) => {
   await open(page, 'LADMIN');
@@ -667,9 +685,9 @@ const GATES: Record<string, { record: boolean; review: boolean; ask: boolean; al
   VIEW: { record: false, review: false, ask: false, already: false, movePast: false }
 };
 
-test('NAV-050 Controls a role may not use are never offered', async ({ browser }) => {
-  test.setTimeout(900_000);
-  for (const [who, want] of Object.entries(GATES)) {
+for (const who of Object.keys(GATES)) {
+  test(`NAV-050 ${who} Controls a role may not use are never offered`, async ({ browser }) => {
+    const want = GATES[who]!;
     const { context, page } = await device(browser, who as AccountKey);
     await expect.poll(() => tabsShown(page), { message: `${who}: Manage only for those who manage` }).toEqual(PHONE_TABS[who]!.tabs);
     const seen = await offered(page);
@@ -683,11 +701,10 @@ test('NAV-050 Controls a role may not use are never offered', async ({ browser }
     expect(got, `${who} is offered\n${seen}`).toEqual(want);
     expect(seen, who).not.toContain("You don't have permission to open that.");
     await context.close();
-  }
-});
+  });
+}
 
 test('NAV-051 Forced navigation is refused without a crash (web addresses)', async ({ browser }) => {
-  test.setTimeout(300_000);
   // Steps 1–3 need a role change to land between a sheet drawing and a tap (manual); the web addresses are scripted.
   for (const [path, home] of [['/manage', 'Progress'], ['/work', 'Progress'], ['/manage/language', 'Progress']] as const) {
     const context = await browser.newContext({ viewport: { width: 430, height: 932 } });
@@ -722,7 +739,6 @@ test('NAV-060 Header Back and ✕', async ({ page }) => {
 // ---- Sync chip ---------------------------------------------------------------------------------
 
 test('NAV-095 The sync chip on My Work', async ({ page }) => {
-  test.setTimeout(300_000);
   await open(page, 'TRANS');
   await page.context().setOffline(true);
   await syncNow(page).catch(() => undefined);
