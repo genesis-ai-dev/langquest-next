@@ -1,11 +1,9 @@
 import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
-import { Platform } from 'react-native';
 import { sessionStorageKey } from '../sessionKey';
 import { answerAtOnceWhileOffline, sessionSafeFetch, type RenewalWatch } from '../sessionSafeFetch';
 import { signOutThisDevice } from './signOut';
-import { textFetch } from './textFetch';
 
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const anon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -47,11 +45,7 @@ function clientAt(storageKey: string, autoRefreshToken: boolean) {
   const client = createClient(supabaseUrl, supabaseAnonKey, {
     auth: { storage: AsyncStorage, storageKey, autoRefreshToken, persistSession: true, detectSessionInUrl: false },
     global: {
-      fetch: sessionSafeFetch({
-        anonKey: supabaseAnonKey, watch, hasSavedSession: async () => (await AsyncStorage.getItem(storageKey)) !== null,
-        // Database calls read their answers as text and let them go at once (textFetch.ts).
-        ...(Platform.OS === 'web' ? {} : { data: textFetch })
-      })
+      fetch: sessionSafeFetch({ anonKey: supabaseAnonKey, watch, hasSavedSession: async () => (await AsyncStorage.getItem(storageKey)) !== null })
     }
   });
   answerAtOnceWhileOffline(client.auth, { watch, readSaved: () => AsyncStorage.getItem(storageKey) });

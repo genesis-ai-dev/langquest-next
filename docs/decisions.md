@@ -3831,12 +3831,10 @@ counts and the default offline scope come from core's own functions, run
 on a view that adds exactly the rows a question needs (`LanguageFiles`).
 The rest of the language (passages, versions, reviews, notes, requests)
 stays in memory; it is small for now (Koro: 4.7 MB). The server, its
-snapshots and the reducer are unchanged. Measured on the emulator, Koro
-now adds 39 MB once open (peak 192 MB while opening, 38 s). Phones also
-read database answers through Expo's native fetch: React Native's keeps
-each body in its blob store until the JavaScript heap is collected, which
-a small heap seldom does, and a 158 MB download filled Android's 192 MB
-Java limit.
+snapshots and the reducer are unchanged. Measured on the emulator (a
+debug build, whose network inspector copies every answer), Koro now adds
+2 to 39 MB once open instead of about 235, and peaks at 170 to 190 MB
+while it opens.
 Reverse if: the part left in memory outgrows cheap phones (then versions,
 reviews and notes move per passage the same way), or reading rows makes
 moving between passages noticeably slow on a cheap phone.
