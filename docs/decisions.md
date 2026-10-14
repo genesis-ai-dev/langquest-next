@@ -1493,6 +1493,14 @@ seconds before the page says another tab has it. Stopping releases the lock,
 and a page keeps one lock however often its storage gate remounts
 (`tabLock.ts`, `storageGate.tsx`).
 
+Amended (2026-10-14, Carl Sauder): the export's JavaScript budget is 6.1 MB
+(`apps/mobile/scripts/export-web.mjs`). It was raised from 5.5 to 6 MB with
+localization (81), and is raised again because moving the app's logic out of
+its screens into feature modules (104) added 57 small modules: Metro wraps
+each one, about half a kilobyte apiece, so the move cost 30 KB beyond the
+code it moved (5.98 MB on main, 6.01 MB after). The budget still says when
+the download grows; one module per concern is worth that half kilobyte.
+
 ## 59. Joining by invite needs no password, and whoever can invite you can get you back in
 
 Date: 2026-10-05 · By: Caleb Koster · Status: accepted
