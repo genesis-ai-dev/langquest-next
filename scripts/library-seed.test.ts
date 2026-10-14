@@ -9,7 +9,9 @@ const build = buildLibrary();
 const doc = (hash: string) => build.documents.find((d) => d.hash === hash)!.body;
 const item = (itemId: string) => build.items.find((i) => i.itemId === itemId)!;
 
-describe('LangQuest library seed', () => {
+// Some tests build the whole library again (over a second alone, several
+// under coverage on a busy CI runner), more than vitest's default 5 s allows.
+describe('LangQuest library seed', { timeout: 30_000 }, () => {
   it('names every document by the SHA-256 of its canonical text, and every one validates', () => {
     for (const d of build.documents) {
       expect(createHash('sha256').update(canonicalJson(d.body)).digest('hex')).toBe(d.hash);
