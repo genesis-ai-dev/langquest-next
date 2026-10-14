@@ -1,8 +1,8 @@
-# Sourced by run.sh, web.sh, stop-hook.sh and gate.sh. Journeys only ever talk
+# Sourced by web.sh, web-smoke.sh and test:web. The tests only ever talk
 # to the local Supabase stack, so its URL and keys come from `supabase status`,
 # never from the encrypted env files: no .env.keys is needed here or in CI.
 # The app's files go through the local Worker (decisions.md 69), which
-# playwright.config.ts starts (npm run web:dev) beside the app.
+# the Playwright configs start (npm run web:dev) beside the app.
 # Returns non-zero when the stack is not running.
 _sb="$(npx supabase status -o json 2>/dev/null)" || return 1
 eval "$(printf '%s' "$_sb" | node -e '

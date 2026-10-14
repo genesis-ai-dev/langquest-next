@@ -10,5 +10,5 @@
     "types": ["node", "vitest/globals"]
   },
   "include": ["**/*.ts"],
-  "exclude": [".venv", "results", "journeys-to-port"]
+  "exclude": ["results"]
 }

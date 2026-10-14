@@ -1,4 +1,2 @@
-.venv/
 results/
 fixtures/*.wav
-.hook/
