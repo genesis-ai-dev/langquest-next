@@ -13,7 +13,7 @@ import {
 } from './account-helpers';
 import { send, signIn, type UiWorld } from './fixture';
 import {
-  back, button, byId, expect, expectNothingRefused, expectToast, field, openAs, openPassage, openSignedOut, primary, screenText, syncNow, tab, test, text,
+  back, button, byId, expect, expectNothingRefused, expectToast, field, languageArrived, openAs, openPassage, openSignedOut, primary, screenText, syncNow, tab, test, text,
   undoToast, useWorld, type AccountKey
 } from './support';
 
@@ -610,7 +610,11 @@ test('MOD-018 Removed content stays gone for everyone', async ({ browser }) => {
       await goPassage(d.page, 'P-BT');
       await openHistory(d.page);
       await expect(text(d.page, /^\d+ entr(y|ies)/)).toBeVisible();
-      expect(await screenText(d.page), `${key} sees the removed note`).not.toContain('Moderation check');
+      // A fresh device pulls the language in pages: the note can land a page before its
+      // v1.Redacted, and the history draws in between. What counts is the record once it has all
+      // arrived, read as it redraws.
+      await languageArrived(d.page);
+      await expect.poll(() => screenText(d.page), { message: `${key} sees the removed note` }).not.toContain('Moderation check');
       await expectNothingRefused(d.page, w2);
       await d.context.close();
     }

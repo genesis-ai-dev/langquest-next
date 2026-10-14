@@ -139,6 +139,10 @@ test('NOORG-003 There is no way back past "Join your team"', async ({ page }) =>
   await text(page, 'Find your organization').click();
   await back(page).click();
   await expect(text(page, 'Join your team')).toBeVisible();
+  // The list Find your organization asked for may still be in the route above when the browser
+  // leaves the app, and leaving disposes its response mid-read. That list is not what this test
+  // is about, so the route goes first and a late error in it is dropped.
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
   await page.goBack();
   // Either the browser left the app, or the app shows where it stayed.
   await expect.poll(async () => !page.url().startsWith(base()) || /Join your team|Find your organization/.test(await screenText(page).catch(() => ''))).toBe(true);

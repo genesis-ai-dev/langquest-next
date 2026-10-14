@@ -734,6 +734,9 @@ test('SETUP-042 What a language calls a book, and what translators see', async (
   await languagePage(page, w, 'Alpha');
   await more(page);
   await text(page, 'Every way to divide the work').click();
+  // The list shows eight books at a time; by now earlier tests have broken up enough that Luke is
+  // past the first eight, so it is found by name, as a person would.
+  await page.getByPlaceholder('Find a book').fill('Luke');
   await text(page, 'Luke').click();
   await text(page, 'Tap to give it the name the team uses').click();
   await expectOnScreen(page, 'What Alpha calls Luke', 'Translators see this name');

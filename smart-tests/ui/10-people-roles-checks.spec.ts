@@ -68,7 +68,8 @@ test('PEOPLE-032 Roles, for an organization admin', async ({ page }) => {
   await expect(button(page, 'Role')).toBeVisible();
   await expect(text(page, 'Roles are privilege sets without a fixed scope. Scope is chosen when assigning a role to a member. Roles created here can be assigned at any level.')).toBeVisible();
   // The seed roles first, then the organization's own by name; Translator has Review since decision 91.
-  expect((await between(page, 'Defined at Organization', null)).trim()).toBe([
+  // The heading draws before the rows and their member counts, so the list is read until it settles.
+  await expect.poll(async () => (await between(page, 'Defined at Organization', null)).trim()).toBe([
     'Organization Admin 1 member · 15 privileges', 'Coordinator 1 member · 14 privileges', 'Translator 2 members · 5 privileges',
     'Reviewer 1 member · 2 privileges', 'Viewer 1 member · 1 privilege', 'Language Lead 1 member · 13 privileges', 'Translator-Reviewer 1 member · 5 privileges'
   ].join(' '));

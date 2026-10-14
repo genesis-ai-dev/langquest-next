@@ -131,3 +131,30 @@ These keep the suite fast enough to run and stable enough to trust.
 - Every automated spec keeps its line in `docs/ui-test-suite` and its `Run`
   value says which layer holds it (`Auto`, `Auto (model)`, `Device`,
   `Manual`).
+
+## Where it stands
+
+Measured on 2026-10-14, after decision 101 landed, on a MacBook with the
+local stack (4 Playwright workers):
+
+| | Before | After |
+| --- | --- | --- |
+| Unit, property and model tests (`npm test`) | 1,406 in 4.6 s | 1,365 in about 5 s (the matrices moved down are fewer, broader tests; the fast-check properties replaced fixed shuffles) |
+| Web UI tests | 537, no automatic run, 18.8 min for the passage-record file alone | 666 (one role per test), 654 passed, 5 open, 7 skipped, 12.9 min for the whole suite; median test 1.2 s, 90th percentile 6.4 s |
+| Fixed waits in the web suite | 86 sleeps, 121 raised ceilings | 31 sleeps, each with its reason; 8 ceilings, each with its reason |
+| `testID`s in the app | 13 | 33: path steps, team rows, rows, sheets, search, toggles, tiles, menus |
+| Coverage | not measured | core 95% lines (threshold 93), client 90% (threshold 88) |
+| Mutation score, core | not measured | 52.5%, 7 min |
+| CI | unit, server, web smoke | plus `@p0` web UI tests on every PR; whole suite, fleet and Stryker nightly |
+
+The five open tests were test bugs, fixed after that run (a response read
+after navigation, three reads before a draw, a book past the first page of
+a list, a join request that only the once-a-minute Inbox count fetches).
+MOD-016 and MOD-020 failed once each in later runs under load and are the
+first candidates for a look, with `scripts/ui-flakes.mjs` over the kept
+reports.
+
+Phone flows were not re-run on devices that day: the runner's sharding and
+microphone options were checked for their arguments only. The CI jobs were
+written but had not run on GitHub yet. Those are the first things to do
+before trusting either.

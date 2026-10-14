@@ -170,6 +170,20 @@ export async function expectSyncIdle(page: Page, timeoutMs = 30_000): Promise<vo
   }, { timeout: timeoutMs, message: 'waiting for sync to go idle' }).toBe(true);
 }
 
+/**
+ * A fresh device draws a record before its language has arrived (no versions,
+ * "Record" as the main button, a note whose removal is a later page) and
+ * redraws as the pull lands: wait until a sync has finished with nothing more
+ * to pull or send. Offline, the record is what the device has.
+ */
+export async function languageArrived(page: Page): Promise<void> {
+  await expect.poll(async () => {
+    if (!(await page.evaluate(() => navigator.onLine))) return true;
+    const s = await testState(page).catch(() => null);
+    return !!s && !s.syncing && s.pending === 0 && !s.lastPullMore && s.lastSyncAt !== null;
+  }, { timeout: 30_000, message: 'waiting for the language to arrive' }).toBe(true);
+}
+
 /** Device log rows for a stream: status and type, oldest first. */
 export async function deviceEvents(page: Page, orgId: string, streamId: string): Promise<{ status: string; type: string; rejectReason: string | null }[]> {
   return page.evaluate(async ([org, stream]) => {

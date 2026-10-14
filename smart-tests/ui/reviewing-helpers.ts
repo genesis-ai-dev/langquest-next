@@ -10,7 +10,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Browser, BrowserContext, Locator, Page } from '@playwright/test';
 import { buildWorld, clientAs, send, signIn, type UiWorld } from './fixture';
-import { button, byId, expect, openAs, tab, test, testState, text, type AccountKey, type PassageKey } from './support';
+import { button, byId, expect, languageArrived, openAs, tab, test, text, type AccountKey, type PassageKey } from './support';
 
 export const visible = (l: Locator): Locator => l.locator('visible=true');
 
@@ -259,20 +259,6 @@ export async function openLabel(page: Page, label: string): Promise<void> {
   await visible(page.getByText(label, { exact: true })).first().click();
   await expect(visible(page.getByRole('button', { name: 'Versions and history' })).first()).toBeVisible();
   await languageArrived(page);
-}
-
-/**
- * A fresh device draws a record before its language has arrived (no versions,
- * "Record" as the main button) and redraws as the pull lands: wait until a
- * sync has finished with nothing more to pull or send. Offline, the record is
- * what the device has.
- */
-async function languageArrived(page: Page): Promise<void> {
-  await expect.poll(async () => {
-    if (!(await page.evaluate(() => navigator.onLine))) return true;
-    const s = await testState(page).catch(() => null);
-    return !!s && !s.syncing && s.pending === 0 && !s.lastPullMore && s.lastSyncAt !== null;
-  }, { timeout: 30_000, message: 'waiting for the language to arrive' }).toBe(true);
 }
 
 /** The record's main button for a check: "Do the peer check" (decision 91), or the older "Do the peer review". */

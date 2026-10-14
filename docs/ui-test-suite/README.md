@@ -364,6 +364,11 @@ npm run test:ui:phone -- --platform ios --tags smoke
   most text as `.*words.*`. A toast lives about 3.5 s, so a tap before a
   toast check uses `waitToSettleTimeoutMs: 0`.
 
+**Web results (2026-10-14, the release export, 4 workers):** 666 tests, 654
+passed, 5 open, 7 skipped, in 12.9 minutes; median test 1.2 s. The five
+were test bugs, fixed the same day; MOD-016 and MOD-020 failed once each
+under load afterwards (`node scripts/ui-flakes.mjs` over the kept reports).
+
 **Phone results (2026-10-13, after merging main), test builds:** 23 of 31
 flows pass on iOS and 24 of 31 on Android (the two `wrapped` flows run on
 their own). SYNC-016 (iOS) and PASS-068 (Android) failed once in the full

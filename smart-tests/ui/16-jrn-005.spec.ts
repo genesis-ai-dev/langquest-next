@@ -121,7 +121,17 @@ test('JRN-005 A coordinator gets a language ready and starts its team @p0 @wide'
     // Step 5: COORD lets NOORG in, as a checker in Bravo.
     const noraName = w.accounts.NOORG.name;
     const noraFirst = noraName.split(' ')[0]!;
-    await syncUntil(coord, async () => (await coord.getByText(`${noraName} wants to join`).locator('visible=true').count()) > 0, 60_000, 'the join request');
+    // A request is a row on the server, not an event: syncing does not bring it. The server has it first...
+    const { sb: coraSb } = await signIn(w, 'COORD');
+    await expect.poll(async () => {
+      const { data } = await coraSb.from('join_requests').select('id').eq('org_id', w.orgId);
+      return (data ?? []).length;
+    }, { timeout: 30_000, message: 'the server holds NOORG\'s join request' }).toBeGreaterThan(0);
+    // ...then My Work reads the requests when the Inbox count moves, and the app reads that count once
+    // a minute (invites.ts usePendingRequestCount, decision 68): up to a minute, plus the reads under a
+    // full parallel run.
+    await syncUntil(coord, async () => (await coord.getByText(`${noraName} wants to join`).locator('visible=true').count()) > 0, 90_000,
+      'the join request on My Work (read on the app\'s one-minute request count)');
     await coord.getByText(`${noraName} wants to join`).locator('visible=true').first().click();
     await expect(text(coord, 'What will they do?')).toBeVisible();
     await coord.getByRole('radio', { name: /^Check recordings/ }).or(coord.getByRole('button', { name: /^Check recordings/ })).first().click();
