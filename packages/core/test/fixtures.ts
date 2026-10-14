@@ -341,6 +341,16 @@ export function buildOrgFixture(): AnyEvent[] {
   raw('code-a', 'dB', '001800000966000:000000:dB', 'v1.LanguageCodeSet', { languageId: 'L1', code: 'dib', languoidId: '0a1b2c3d-0000-4000-8000-000000000001' });
   raw('code-b', 'dC', '001800000966000:000000:dB', 'v1.LanguageCodeSet', { languageId: 'L1', code: 'dik', languoidId: '0a1b2c3d-0000-4000-8000-000000000002' });
   raw('code-c', 'dB', '001800000962500:000000:dB', 'v1.LanguageCodeSet', { languageId: 'L1', code: 'din', languoidId: null });
+  // A cluster (decision 103): named, renamed from two devices at one clock
+  // (the higher id stands), a language tagged in and out from two devices,
+  // and a tag that arrives before its cluster's name.
+  emit('v1.ClusterNamed', { clusterId: 'cl1', name: 'Dinka cluster' });
+  emit('v1.LanguageClusterSet', { languageId: 'L1', clusterId: 'cl1', inCluster: true });
+  raw('cl-a', 'dB', '001800000967000:000000:dB', 'v1.ClusterNamed', { clusterId: 'cl1', name: 'Dinka languages' });
+  raw('cl-b', 'dC', '001800000967000:000000:dB', 'v1.ClusterNamed', { clusterId: 'cl1', name: 'Jieng' });
+  raw('cl-c', 'dB', '001800000968000:000000:dB', 'v1.LanguageClusterSet', { languageId: 'L1', clusterId: 'cl1', inCluster: false });
+  raw('cl-d', 'dC', '001800000968000:000000:dB', 'v1.LanguageClusterSet', { languageId: 'L1', clusterId: 'cl1', inCluster: true });
+  raw('cl-e', 'dB', '001800000969000:000000:dB', 'v1.LanguageClusterSet', { languageId: 'L1', clusterId: 'cl-unnamed', inCluster: true });
   // The license only opens (license.ts): a later, more closed choice from
   // an admin who was offline changes nothing, and two devices opening to the
   // same license at the same clock settle on the lower id.
