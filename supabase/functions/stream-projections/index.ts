@@ -22431,7 +22431,7 @@ function orgLicense(state) {
 // packages/core/src/version.ts
 var CLIENT_PROTOCOL_VERSION = 1;
 
-// packages/client/src/types.ts
+// packages/sync/src/types.ts
 var OfflineError = class extends Error {
   name = "OfflineError";
 };
@@ -22442,7 +22442,7 @@ var ClientTooOldError = class extends Error {
   name = "ClientTooOldError";
 };
 
-// packages/client/src/supabaseTransport.ts
+// packages/sync/src/supabaseTransport.ts
 var SupabaseTransport = class {
   constructor(supabase) {
     this.supabase = supabase;
@@ -22527,7 +22527,7 @@ function toError(error) {
   return new Error(`${error.code ?? "rpc"}: ${error.message}`);
 }
 
-// packages/client/src/snapshotFetch.ts
+// packages/sync/src/snapshotFetch.ts
 async function fetchSnapshot(transport, orgId, streamId, reducerVersion, opts = {}) {
   const meta = opts.meta ?? await transport.snapshotMeta(orgId, streamId, reducerVersion);
   if (!meta) return null;
@@ -22564,7 +22564,7 @@ async function fetchSnapshot(transport, orgId, streamId, reducerVersion, opts = 
   return { orgId, streamId, reducerVersion, serverSeq: meta.serverSeq, state: JSON.parse(pieces.join("")) };
 }
 
-// packages/client/src/listStreams.ts
+// packages/sync/src/listStreams.ts
 async function listStreams(service, pageSize = 1e3) {
   const out = [];
   let after = { org: "", stream: "" };
@@ -22579,67 +22579,77 @@ async function listStreams(service, pageSize = 1e3) {
   }
 }
 
-// packages/client/src/snapshotWorker.ts
+// packages/sync/src/snapshotWorker.ts
 var SNAPSHOT_SCHEDULE = { minNewEvents: 200, maxAgeMs: 60 * 60 * 1e3 };
 function shouldWriteSnapshot(o, schedule = SNAPSHOT_SCHEDULE) {
   if (!o.existing || o.redaction) return true;
   if (o.newEvents === 0) return false;
   return o.newEvents >= schedule.minNewEvents || o.ageMs === null || o.ageMs >= schedule.maxAgeMs;
 }
-async function runSnapshotWorker(service, pageSize = 1e3, observe, visit) {
+async function runSnapshotWorker(service, pageSize = 1e3, observe, visit, onError) {
   const transport = new SupabaseTransport(service);
-  const streams = await listStreams(service);
+  const streams = (await listStreams(service)).sort((a, b) => Number(a.next_seq) - Number(b.next_seq));
   const out = [];
   for (const row of streams) {
     const orgId = row.org_id;
     const streamId = row.stream_id;
     if (streamId === ORG_STREAM || orgId === PERSON_ORG) continue;
     if (visit && !visit(orgId, streamId)) continue;
-    const existing = await fetchSnapshot(transport, orgId, streamId, REDUCER_VERSION);
-    const tail = await pullAll(transport, orgId, streamId, existing?.serverSeq ?? 0, pageSize);
-    if (tail.length === 0) {
-      if (existing && observe) await observe(existing);
-      out.push({ orgId, streamId, serverSeq: existing?.serverSeq ?? 0, updated: false, written: false });
+    if (!onError) {
+      out.push(await snapshotOne(service, transport, orgId, streamId, pageSize, observe));
       continue;
     }
-    const tailIds = new Set(tail.map((e) => e.id));
-    const redactsSnapshot = tail.some(
-      (e) => e.type === "v1.Redacted" && !tailIds.has(e.payload.eventId)
-    );
-    let snapshot;
-    if (existing && !redactsSnapshot) {
-      const state = resume(existing, tail);
-      state.appliedEventIds = {};
-      snapshot = { ...existing, serverSeq: tail[tail.length - 1].serverSeq, state };
-    } else {
-      const all = existing || redactsSnapshot ? await pullAll(transport, orgId, streamId, 0, pageSize) : tail;
-      const state = foldLanguage(all, emptyLanguageState());
-      state.appliedEventIds = {};
-      snapshot = { orgId, streamId, reducerVersion: REDUCER_VERSION, serverSeq: all[all.length - 1].serverSeq, state };
+    try {
+      out.push(await snapshotOne(service, transport, orgId, streamId, pageSize, observe));
+    } catch (error) {
+      onError(orgId, streamId, error);
     }
-    const redaction = tail.some((e) => e.type === "v1.Redacted");
-    let ageMs = null;
-    if (existing && !redaction && tail.length < SNAPSHOT_SCHEDULE.minNewEvents) {
-      const at = await service.from("snapshots").select("created_at").eq("org_id", orgId).eq("stream_id", streamId).eq("reducer_version", REDUCER_VERSION).order("server_seq", { ascending: false }).limit(1);
-      if (at.error) throw new Error(`snapshot age ${orgId}/${streamId}: ${at.error.message}`);
-      const written2 = at.data?.[0]?.created_at;
-      ageMs = written2 ? Date.now() - Date.parse(written2) : null;
-    }
-    const written = shouldWriteSnapshot({ existing: !!existing, newEvents: tail.length, redaction, ageMs });
-    if (written) {
-      const put2 = await service.rpc("put_snapshot", {
-        p_org_id: orgId,
-        p_stream_id: streamId,
-        p_reducer_version: REDUCER_VERSION,
-        p_server_seq: snapshot.serverSeq,
-        p_state: snapshot.state
-      });
-      if (put2.error) throw new Error(`put_snapshot ${orgId}/${streamId}: ${put2.error.message}`);
-    }
-    if (observe) await observe(snapshot);
-    out.push({ orgId, streamId, serverSeq: snapshot.serverSeq, updated: true, written });
   }
   return out;
+}
+async function snapshotOne(service, transport, orgId, streamId, pageSize, observe) {
+  const existing = await fetchSnapshot(transport, orgId, streamId, REDUCER_VERSION);
+  const tail = await pullAll(transport, orgId, streamId, existing?.serverSeq ?? 0, pageSize);
+  if (tail.length === 0) {
+    if (existing && observe) await observe(existing);
+    return { orgId, streamId, serverSeq: existing?.serverSeq ?? 0, updated: false, written: false };
+  }
+  const tailIds = new Set(tail.map((e) => e.id));
+  const redactsSnapshot = tail.some(
+    (e) => e.type === "v1.Redacted" && !tailIds.has(e.payload.eventId)
+  );
+  let snapshot;
+  if (existing && !redactsSnapshot) {
+    const state = resume(existing, tail);
+    state.appliedEventIds = {};
+    snapshot = { ...existing, serverSeq: tail[tail.length - 1].serverSeq, state };
+  } else {
+    const all = existing || redactsSnapshot ? await pullAll(transport, orgId, streamId, 0, pageSize) : tail;
+    const state = foldLanguage(all, emptyLanguageState());
+    state.appliedEventIds = {};
+    snapshot = { orgId, streamId, reducerVersion: REDUCER_VERSION, serverSeq: all[all.length - 1].serverSeq, state };
+  }
+  const redaction = tail.some((e) => e.type === "v1.Redacted");
+  let ageMs = null;
+  if (existing && !redaction && tail.length < SNAPSHOT_SCHEDULE.minNewEvents) {
+    const at = await service.from("snapshots").select("created_at").eq("org_id", orgId).eq("stream_id", streamId).eq("reducer_version", REDUCER_VERSION).order("server_seq", { ascending: false }).limit(1);
+    if (at.error) throw new Error(`snapshot age ${orgId}/${streamId}: ${at.error.message}`);
+    const written2 = at.data?.[0]?.created_at;
+    ageMs = written2 ? Date.now() - Date.parse(written2) : null;
+  }
+  const written = shouldWriteSnapshot({ existing: !!existing, newEvents: tail.length, redaction, ageMs });
+  if (written) {
+    const put2 = await service.rpc("put_snapshot", {
+      p_org_id: orgId,
+      p_stream_id: streamId,
+      p_reducer_version: REDUCER_VERSION,
+      p_server_seq: snapshot.serverSeq,
+      p_state: snapshot.state
+    });
+    if (put2.error) throw new Error(`put_snapshot ${orgId}/${streamId}: ${put2.error.message}`);
+  }
+  if (observe) await observe(snapshot);
+  return { orgId, streamId, serverSeq: snapshot.serverSeq, updated: true, written };
 }
 async function pullAll(transport, orgId, streamId, after, pageSize) {
   const all = [];
@@ -22663,6 +22673,10 @@ var UPDATE_TITLES = {
   request_done: "What you asked for is done"
 };
 var PROJECTION_VERSION = `${REDUCER_VERSION}:1`;
+var LARGE = { chars: 1e7, events: 25e3 };
+function isLarge(o, limits = LARGE) {
+  return o.chars >= limits.chars || o.head - o.snapshotSeq >= limits.events;
+}
 var streamKey = (orgId, streamId) => JSON.stringify([orgId, streamId]);
 async function selectAll(service, table, columns) {
   const out = [];
@@ -22674,7 +22688,7 @@ async function selectAll(service, table, columns) {
     if (rows.length < 1e3) return out;
   }
 }
-async function runProjections(service) {
+async function runProjections(service, scope2 = "all") {
   const transport = new SupabaseTransport(service);
   const orgs = /* @__PURE__ */ new Map();
   async function orgState(orgId) {
@@ -22706,13 +22720,20 @@ async function runProjections(service) {
   for (const s of await selectAll(
     service,
     "snapshots",
-    "org_id,stream_id,reducer_version,server_seq,created_at"
+    "org_id,stream_id,reducer_version,server_seq,created_at,chars"
   )) {
     if (s.reducer_version !== REDUCER_VERSION) continue;
     const key = streamKey(s.org_id, s.stream_id);
     const seen = snapshotOf.get(key);
-    if (!seen || Number(s.server_seq) > seen.seq) snapshotOf.set(key, { seq: Number(s.server_seq), at: Date.parse(s.created_at) });
+    if (!seen || Number(s.server_seq) > seen.seq) {
+      snapshotOf.set(key, { seq: Number(s.server_seq), at: Date.parse(s.created_at), chars: Number(s.chars ?? 0) });
+    }
   }
+  const large = (orgId, streamId) => {
+    const snap = snapshotOf.get(streamKey(orgId, streamId));
+    return isLarge({ chars: snap?.chars ?? 0, head: heads.get(streamKey(orgId, streamId)) ?? 0, snapshotSeq: snap?.seq ?? 0 });
+  };
+  const inScope = (orgId, streamId) => scope2 === "all" || scope2 === "large" === large(orgId, streamId);
   const snapshotDue = (orgId, streamId) => {
     const snap = snapshotOf.get(streamKey(orgId, streamId));
     const head2 = heads.get(streamKey(orgId, streamId)) ?? 0;
@@ -22734,45 +22755,57 @@ async function runProjections(service) {
   };
   for (const [key, head2] of heads) {
     const [orgId, streamId] = JSON.parse(key);
-    if (streamId !== ORG_STREAM || orgId === PERSON_ORG || !changed(orgId, ORG_STREAM)) continue;
+    if (scope2 === "large" || streamId !== ORG_STREAM || orgId === PERSON_ORG || !changed(orgId, ORG_STREAM)) continue;
     check(await service.rpc("refresh_org_notifications", { p_org: orgId }));
     await mark(orgId, ORG_STREAM, head2, head2, false);
   }
-  await runSnapshotWorker(service, 1e3, async (snapshot) => {
-    const { org, seq: orgSeq } = await orgState(snapshot.orgId);
-    const languageId = snapshot.streamId;
-    const state = snapshot.state;
-    const idx = buildIndexes(state);
-    const notifications = [...languagePeople(org, languageId).keys()].flatMap((profileId) => updatesFor(state, profileId, idx).map((update) => ({
-      id: JSON.stringify([snapshot.orgId, languageId, profileId, update.id]),
-      profile_id: profileId,
-      kind: update.kind,
-      title: `${UPDATE_TITLES[update.kind]}: ${unitTitle(state, update.unitId)}`,
-      task_id: null,
-      unit_id: update.unitId
-    })));
-    check(await service.rpc("reconcile_notifications", {
-      p_org: snapshot.orgId,
-      p_language: languageId,
-      p_rows: notifications
-    }));
-    const isListed = listed.has(streamKey(snapshot.orgId, languageId));
-    const info = languageInfo(org, languageId);
-    if (isListed && info) {
-      const progress = languageProgress(state, idx);
-      check(await service.from("public_languages").upsert({
-        org_id: snapshot.orgId,
-        language_id: languageId,
-        name: info.name,
-        code: info.code,
-        translated_pct: progress.total ? 100 * progress.recorded / progress.total : 0,
-        // What someone browsing may do with the work (docs/licensing.md).
-        license: orgLicense(org),
-        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+  const failed = [];
+  const results = await runSnapshotWorker(
+    service,
+    1e3,
+    async (snapshot) => {
+      const { org, seq: orgSeq } = await orgState(snapshot.orgId);
+      const languageId = snapshot.streamId;
+      const state = snapshot.state;
+      const idx = buildIndexes(state);
+      const notifications = [...languagePeople(org, languageId).keys()].flatMap((profileId) => updatesFor(state, profileId, idx).map((update) => ({
+        id: JSON.stringify([snapshot.orgId, languageId, profileId, update.id]),
+        profile_id: profileId,
+        kind: update.kind,
+        title: `${UPDATE_TITLES[update.kind]}: ${unitTitle(state, update.unitId)}`,
+        task_id: null,
+        unit_id: update.unitId
+      })));
+      check(await service.rpc("reconcile_notifications", {
+        p_org: snapshot.orgId,
+        p_language: languageId,
+        p_rows: notifications
       }));
-    }
-    await mark(snapshot.orgId, languageId, snapshot.serverSeq, orgSeq, isListed);
-  }, (orgId, streamId) => changed(orgId, streamId) || snapshotDue(orgId, streamId));
+      const isListed = listed.has(streamKey(snapshot.orgId, languageId));
+      const info = languageInfo(org, languageId);
+      if (isListed && info) {
+        const progress = languageProgress(state, idx);
+        check(await service.from("public_languages").upsert({
+          org_id: snapshot.orgId,
+          language_id: languageId,
+          name: info.name,
+          code: info.code,
+          translated_pct: progress.total ? 100 * progress.recorded / progress.total : 0,
+          // What someone browsing may do with the work (docs/licensing.md).
+          license: orgLicense(org),
+          updated_at: (/* @__PURE__ */ new Date()).toISOString()
+        }));
+      }
+      await mark(snapshot.orgId, languageId, snapshot.serverSeq, orgSeq, isListed);
+    },
+    (orgId, streamId) => inScope(orgId, streamId) && (changed(orgId, streamId) || snapshotDue(orgId, streamId)),
+    // The large pass goes on past a language that fails, so the next waits only
+    // for its own turn; the Edge pass stops at the first error, as before.
+    scope2 === "large" ? (_orgId, streamId, error) => {
+      failed.push({ streamId, error: error instanceof Error ? error.message : String(error) });
+    } : void 0
+  );
+  return { languages: results.filter((r) => r.updated).length, snapshots: results.filter((r) => r.written).length, failed };
 }
 async function deliverPushes(service, fetcher = fetch) {
   const claimed = await service.rpc("claim_notification_pushes");
@@ -22851,7 +22884,7 @@ Deno.serve(async (request) => {
   const body = await request.json().catch(() => ({}));
   try {
     if (body.task === "pushes") await deliverPushes(service);
-    else await runProjections(service);
+    else await runProjections(service, "small");
     return Response.json({ ok: true });
   } catch (error) {
     console.error("Projection worker failed", error instanceof Error ? error.message : "unknown");

@@ -13,13 +13,13 @@
 // Requirements ORG-3, ORG-4, ORG-8, TERM-1..6, FLOW-1..4.
 // ADR-002 (one model for reference), ADR-004 (done is read from the record),
 // ADR-005 (kinds arranged by the flow designer), ADR-016 (parallel kinds).
-// Pure reading lives in configModel.ts.
+// Pure reading lives in configModel.ts and the feature models (roles/, flows/,
+// keyTerms/, reference/materialModel.ts); the screens here lay it out.
 import {
-  CommandError, commands, CUSTOM_FLOW, deriveFlow, derivePassage, formatQuestionField, keyTermsFor, keyTermView, languageName,
-  materialView, parseQuestionField, PRIVILEGES, privilegesFor, recommendedFor, subscriptionItemId,
-  takesLinkingTerm, templateFields, unitPrefixOf, unitTitle,
-  type EventSpec, type FlowDoc, type FlowStep, type KeyTermView, type KindDef, type LibraryDoc, type LibraryItemView, type MaterialDoc,
-  type MaterialView, type Privilege, type LanguageState, type QuestionSpec, type VersificationDoc
+  CommandError, commands, derivePassage, keyTermsFor, keyTermView, languageName,
+  materialView, privilegesFor, recommendedFor, subscriptionItemId,
+  unitTitle,
+  type EventSpec, type FlowDoc, type FlowStep, type KeyTermView, type KindDef, type LibraryDoc, type LibraryItemView, type MaterialView, type Privilege, type VersificationDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
@@ -55,12 +55,22 @@ import { bookOf } from '../simple/model';
 import { useBible } from '../simple/reference';
 import { useOtherLanguageTerms } from '../reference/otherLanguages';
 import { LanguageChecks } from './checks';
-import { SwitchRow } from '../simple/admin';
-import { flipSwitch, ROLE_SWITCHES, stepTitle, stepWho, switchState } from '../simple/adminModel';
-import { teamMembers } from '../orgAdmin';
+import { addPickedKind, copyFlowSpecs, currentFlowLine, flowEditorBase, flowEditorSeed, flowEditorStatus, knownKinds, newKindDef, usuallyFor, withAddedKinds } from '../flows/model';
 import {
-  draftChanged, draftFromDoc, draftFromLanguage, fieldLabel, flowDocFrom, flowLabel, flowName, flowUndoFor, flowUse, holdersOf, isFiaTerm,
-  levelLabel, libraryMaterialLine, libraryQuestions, matchesTerm, materialDocFrom, materialItemId, moveStep, newKindId,
+  adjustDuringTake, adjustmentNote, adjustmentReady, defineTermInput, EMPTY_TERM_DRAFT, groupTerms, termDraftReady, termUsedIn, tieState,
+  versionOfTake, type TermDraft
+} from '../keyTerms/model';
+import {
+  addPart, baseVersificationChoice, defineMaterialInput, fieldRestores, fieldWrites, libraryMaterialDoc, LIBRARY_MATERIAL_KINDS,
+  materialChanges, materialFieldIds, materialReady, materialScopeName, partOfUnit, questionTypes, sortQuestionSets, templatePartChoices,
+  versificationChoices, type VersificationChoice
+} from '../reference/materialModel';
+import { privilegesOn, roleDefinition, roleDirty, roleSnapshot } from '../roles/model';
+import { SwitchRow } from '../simple/admin';
+import { flipSwitch, ROLE_SWITCHES, stepTitle, switchState } from '../simple/adminModel';
+import {
+  fieldLabel, flowDocFrom, flowLabel, flowUndoFor, flowUse, holdersOf, isFiaTerm,
+  levelLabel, libraryMaterialLine, libraryQuestions, materialDocFrom, materialItemId, moveStep, newKindId,
   nextFieldId, parseRefLinks, PRIVILEGE_INFO, questionCount, questionCountLabel, questionDrafts, questionSetToReviews,
   referenceKinds, referenceKindName, referenceView, roleRows, scopeName, setKindName, termsInPassage, viewLevelFrom,
   type DraftStep, type QuestionDraft
@@ -210,10 +220,7 @@ export function RoleEditor(ctx: Ctx) {
   const privileges = picked ?? existing?.privileges.value ?? [];
   const holders = useMemo(() => (isNew ? [] : holdersOf(org, roleId)), [isNew, org, roleId]);
   const canAssign = ctx.session.can('assign_work');
-  const dirty = isNew
-    ? label.trim() !== ''
-    : !!existing && (label.trim() !== existing.name.value
-      || privileges.length !== existing.privileges.value.length || privileges.some((p) => !existing.privileges.value.includes(p)));
+  const dirty = roleDirty(isNew, existing, label, privileges);
 
   if (!isNew && !existing) {
     return (
@@ -225,8 +232,8 @@ export function RoleEditor(ctx: Ctx) {
 
   async function save() {
     if (readOnly || busy || !label.trim()) return;
-    const next = { roleId, name: label.trim(), privileges: PRIVILEGES.filter((p) => privileges.includes(p)) };
-    const prev = existing ? { roleId, name: existing.name.value, privileges: [...existing.privileges.value] } : null;
+    const next = roleDefinition(roleId, label, privileges);
+    const prev = roleSnapshot(roleId, existing);
     setBusy(true);
     try {
       await ctx.org.append('v1.RoleDefined', next);
@@ -258,7 +265,7 @@ export function RoleEditor(ctx: Ctx) {
               const state = switchState(privileges, row);
               return (
                 <SwitchRow key={row.label} label={row.label} on={state !== 'off'} disabled={readOnly || busy} last={i === g.rows.length - 1}
-                  {...(state === 'some' ? { sub: t('config.roleEditor.onlySome', { privileges: listOf(row.privileges.filter((p) => privileges.includes(p)).map((p) => PRIVILEGE_INFO[p].label)) }) } : {})}
+                  {...(state === 'some' ? { sub: t('config.roleEditor.onlySome', { privileges: listOf(privilegesOn(row.privileges, privileges).map((p) => PRIVILEGE_INFO[p].label)) }) } : {})}
                   onToggle={() => setPicked(flipSwitch(privileges, row))} />
               );
             })}
@@ -534,7 +541,7 @@ export function FlowsHome(ctx: Ctx) {
       const doc = docs.get<FlowDoc>(hash);
       if (!doc) throw new CommandError(t('config.errors.flowHasNoVersion'));
       name = 'shared' in target ? target.shared.name : lib.item(target.itemId)?.name ?? doc.name;
-      specs = commands(state, indexesFor(state)).copyFlow({ commandId: Crypto.randomUUID(), name, kinds: [...doc.kinds, ...kinds], steps: doc.steps });
+      specs = copyFlowSpecs(state, { commandId: Crypto.randomUUID(), name, doc, kinds });
     } catch (e) {
       ctx.toast(t('common.notSaved', { reason: libraryFailure('use flow', e) })); // i18n-ignore: log label
       setBusy(false);
@@ -550,7 +557,6 @@ export function FlowsHome(ctx: Ctx) {
 
   const open = (itemId: string) => (canManage ? () => ctx.go('flow_editor', { itemId }) : undefined);
   const currentItem = current?.itemId ? lib.item(current.itemId) : null;
-  const versionOf = currentItem?.versions.find((v) => v.docHash === current?.docHash)?.n;
 
   return (
     <Screen header={<Header title={t('config.flows.title')} sub={language ?? orgName(ctx)} onBack={ctx.back}
@@ -564,7 +570,7 @@ export function FlowsHome(ctx: Ctx) {
               <Text style={txt.h3}>{flowLabel(current)}</Text>
               {currentItem ? (
                 <Text style={txt.xs}>
-                  {[versionOf ? t('config.flows.version', { n: versionOf }) : '', currentItem.current && currentItem.current !== current.docHash ? t('config.flows.movingToNewest') : '', sourceLine(currentItem)].filter(Boolean).join(' · ')}
+                  {currentFlowLine(currentItem, current)}
                 </Text>
               ) : null}
               <FlowStepsInline steps={current.steps} kinds={kinds} />
@@ -609,21 +615,6 @@ export function FlowsHome(ctx: Ctx) {
       )}
     </Screen>
   );
-}
-
-/**
- * Who usually does a step: the review group that usually takes its kind (by
- * name, or its one member's), else who usually does that kind.
- */
-function usuallyFor(ctx: Ctx, state: LanguageState, kinds: KindDef[]) {
-  return (kindIds: string[]) => {
-    const who = kinds.find((k) => k.id === kindIds[0])?.usualReviewer || stepWho(kindIds, kinds);
-    const team = Object.entries(state.teams).find(([, tm]) => tm.kindId?.value && kindIds.includes(tm.kindId.value));
-    if (!team) return who || t('config.flowEditor.anyoneTeamAsks');
-    const [teamId, tm] = team;
-    const people = teamMembers(state, teamId);
-    return people.length === 1 ? `${who} · ${ctx.name(people[0]!)}` : tm.name.value || who;
-  };
 }
 
 /**
@@ -683,13 +674,8 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
   const { updates } = useLibraryUpdates(lib.orgId);
   // A new flow may start from the language's own steps (made a library flow), or from another
   // flow's steps under a name given (New language's "I'll choose the steps", `from` and `name`).
-  const [seed] = useState(() => {
-    if (isNew && ctx.params['languageId'] && state?.flow) return { name: flowName(state), description: '', steps: draftFromLanguage(state), kinds: [] as KindDef[] };
-    const from = isNew ? cachedDoc(ctx.params['from']) : null;
-    const start = from?.format === 'flow@1' ? (from as FlowDoc) : null;
-    return { name: isNew ? ctx.params['name'] ?? '' : '', description: '', steps: start ? draftFromDoc(start) : [] as DraftStep[], kinds: start?.kinds ?? [] };
-  });
-  const base = useMemo(() => (isNew ? seed : doc ? { name: doc.name, description: doc.description, steps: draftFromDoc(doc) } : null), [isNew, seed, doc]);
+  const [seed] = useState(() => flowEditorSeed(state, isNew, { languageId: ctx.params['languageId'], name: ctx.params['name'] }, isNew ? cachedDoc(ctx.params['from']) : null));
+  const base = useMemo(() => flowEditorBase(isNew, seed, doc), [isNew, seed, doc]);
   const [name, setName] = useState<string | null>(null);
   const [description, setDescription] = useState<string | null>(null);
   const [edited, setEdited] = useState<DraftStep[] | null>(null);
@@ -699,12 +685,8 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
   const [newKind, setNewKind] = useState('');
   const [leaving, setLeaving] = useState(false);
   const [busy, setBusy] = useState(false);
-  const known = useMemo(() => {
-    const out = new Map<string, KindDef>();
-    for (const k of [...(state ? deriveKinds(state) : []), ...[...(doc?.kinds ?? []), ...seed.kinds].map(localKind)]) if (!out.has(k.id)) out.set(k.id, k);
-    return [...out.values()];
-  }, [state, doc, seed]);
-  const kinds = useMemo(() => [...known, ...added.filter((k) => !known.some((x) => x.id === k.id))], [known, added]);
+  const known = useMemo(() => knownKinds(state ? deriveKinds(state) : [], doc?.kinds ?? [], seed.kinds), [state, doc, seed]);
+  const kinds = useMemo(() => withAddedKinds(known, added), [known, added]);
   // A library flow is the organization's: saving publishes a version (organization scope, `mayWriteLibrary`).
   const canManage = lib.canWrite('flow');
   const followed = it?.source === 'subscription';
@@ -712,10 +694,7 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
   const steps = edited ?? base?.steps ?? [];
   const label = name ?? base?.name ?? '';
   const desc = description ?? base?.description ?? '';
-  const dirty = !readOnly && base !== null
-    && (label.trim() !== base.name || desc.trim() !== base.description || draftChanged(base.steps, steps) || added.length > 0);
-  // A new flow can be saved as it starts: it is not in the library yet.
-  const canSave = !readOnly && !!label.trim() && (dirty || (isNew && base !== null));
+  const { dirty, canSave } = flowEditorStatus({ readOnly, isNew, base, label, desc, steps, added });
   const language = openLanguageName(ctx);
   const usedHere = !!it && !!language && usesItem(state, it.itemId);
 
@@ -731,8 +710,7 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
   const title = (i: number) => stepTitle(steps[i]?.kindIds ?? [], kinds);
   const picking = typeof pickFor === 'number' ? steps[pickFor] : undefined;
   const pick = (id: string) => {
-    if (pickFor === 'new') change([...steps, { key: Crypto.randomUUID(), kindIds: [id], checkpoint: false }]);
-    else if (typeof pickFor === 'number') change(steps.map((s, j) => (j === pickFor ? { ...s, kindIds: [...s.kindIds, id] } : s)));
+    if (pickFor !== null) change(addPickedKind(steps, pickFor, id, Crypto.randomUUID()));
     setPickFor(null);
   };
 
@@ -764,7 +742,7 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
               <Field label={t('config.flowEditor.descriptionLabel')} value={desc} onChangeText={setDescription} placeholder={t('config.flowEditor.descriptionPlaceholder')} autoCapitalize="sentences" multiline />
             </>
           )}
-          <CheckSteps steps={steps} kinds={kinds} readOnly={readOnly} usually={usuallyFor(ctx, state, kinds)} onChange={change}
+          <CheckSteps steps={steps} kinds={kinds} readOnly={readOnly} usually={usuallyFor(state, kinds, ctx.name)} onChange={change}
             onAdd={() => setPickFor('new')} onOpen={(i) => { if (!readOnly) setOpen(i); }} />
           {!readOnly && steps.length > 0 ? (
             <SmallBtn label={t('config.flowEditor.noChecks')} onPress={() => change([])} />
@@ -794,7 +772,7 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
         <Field label={t('config.flowEditor.newKindLabel')} value={newKind} onChangeText={setNewKind} placeholder={t('config.flowEditor.newKindPlaceholder')} autoCapitalize="words" />
         <SmallBtn label={t('config.flowEditor.addThisKind')} icon="plus" tone="primary" disabled={!newKind.trim()} onPress={() => {
           if (!newKind.trim()) return;
-          const k: KindDef = { id: newKindId(newKind, kinds.map((x) => x.id)), name: newKind.trim(), description: t('config.flowEditor.newKindDescription'), usualReviewer: t('config.flowEditor.newKindReviewer') };
+          const k = newKindDef(newKind, kinds);
           setAdded([...added, k]);
           setNewKind('');
           pick(k.id);
@@ -813,10 +791,6 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
 }
 
 // ─── Reference library (ORG-8) ─────────────────────────────────────────────────────
-
-function materialScopeName(state: LanguageState, m: Pick<MaterialView, 'scope'>, language: string): string {
-  return m.scope.unitId ? unitTitle(state, m.scope.unitId) : t('config.reference.languageTeam', { language });
-}
 
 /** The versification a study or material document names, by name, once loaded. */
 function versificationNameOf(docs: ReturnType<typeof useLibraryDocs>, doc: LibraryDoc | null): string | null {
@@ -852,10 +826,7 @@ export function ReferenceHome(ctx: Ctx) {
       current={beside?.screen === 'material_editor' && beside.params['materialId'] === m.materialId}
       sub={`${referenceKindName(m.kind)} · ${materialScopeName(state, m, own ?? '')}${m.blanks > 0 ? ` · ${t('config.reference.blanks', { count: m.blanks })}` : ''}`} onPress={open(m)} />
   );
-  const sets = [...view.questionSets].sort((a, b) => {
-    const ia = kinds.findIndex((k) => k.id === a.scope.stepId), ib = kinds.findIndex((k) => k.id === b.scope.stepId);
-    return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib);
-  });
+  const sets = sortQuestionSets(view.questionSets, kinds);
   const libraryRow = (m: LibraryItemView, last: boolean) => {
     const doc = docs.get(m.current);
     const what = libraryMaterialLine(doc, versificationNameOf(docs, doc), kinds);
@@ -945,26 +916,6 @@ function OfferedRows(props: { ctx: Ctx; languageId: string | null; offered: Map<
   );
 }
 
-/** How a question is answered, by name in the language showing. */
-function questionTypes(): { id: QuestionSpec['type']; label: string }[] {
-  return [
-    { id: 'text', label: t('config.questionTypes.text') },
-    { id: 'yesno', label: t('config.questionTypes.yesNo') },
-    { id: 'rating', label: t('config.questionTypes.rating', { low: formatNumber(1), high: formatNumber(5) }) }
-  ];
-}
-
-/** A question field as stored: `[yesno!] Is it clear?`; an empty question clears the field. */
-function storedQuestion(q: Pick<QuestionDraft, 'text' | 'type' | 'required'>): string {
-  return q.text.trim() ? formatQuestionField({ text: q.text.trim(), type: q.type, required: q.required }) : '';
-}
-/** Legacy question text without a type prefix reads as the same question once formatted. */
-function normalizedQuestion(raw: string): string {
-  if (!raw.trim()) return '';
-  const [type, required, text] = parseQuestionField(raw);
-  return storedQuestion({ text, type, required });
-}
-
 /**
  * One screen, three kinds of material: the library's (`itemId`), the
  * organization's own in the app (`materialId`, or new), and a note for
@@ -1016,30 +967,12 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
   const qs = questions ?? baseQuestions;
   const before = (fieldId: string) => existing?.fields.find((f) => f.fieldId === fieldId)?.text ?? '';
   // A new FIA study follows its template (summary, key ideas, scenes, discussion); other new material starts with one section.
-  const newTemplateRef = isNew && materialKind === 'fia_study' ? 'fia_study' : undefined;
-  const fieldIds = [...new Set([
-    ...templateFields(existing?.templateRef ?? newTemplateRef), ...(existing?.fields.map((f) => f.fieldId) ?? []),
-    ...(isNew && !newTemplateRef ? ['body'] : []), ...extraFields
-  ])];
+  const fieldIds = materialFieldIds({ existing, isNew, materialKind, extraFields });
   const valueOf = (fieldId: string) => texts[fieldId] ?? before(fieldId);
 
   // What saving would write.
-  const changes: { fieldId: string; text: string; before: string }[] = [];
-  if (isQuestions) {
-    for (const q of qs) {
-      const text = storedQuestion(q);
-      if (text !== normalizedQuestion(before(q.fieldId))) changes.push({ fieldId: q.fieldId, text, before: before(q.fieldId) });
-    }
-    for (const q of baseQuestions) if (!qs.some((x) => x.fieldId === q.fieldId)) changes.push({ fieldId: q.fieldId, text: '', before: before(q.fieldId) });
-  } else {
-    for (const fieldId of fieldIds) {
-      const draft = texts[fieldId];
-      if (draft !== undefined && draft.trim() !== before(fieldId)) changes.push({ fieldId, text: draft.trim(), before: before(fieldId) });
-    }
-  }
-  const ready = isNew
-    ? title.trim() !== '' && (!isQuestions || changes.some((c) => c.text)) && (toLibrary || !!language)
-    : changes.length > 0;
+  const changes = materialChanges({ isQuestions, questions: qs, baseQuestions, fieldIds, texts, before });
+  const ready = materialReady({ isNew, title, isQuestions, changes, toLibrary, hasLanguage: !!language });
 
   async function save() {
     if (!canFill || busy || !ready) return;
@@ -1047,17 +980,13 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
     const s = state!;
     const id = existing?.materialId ?? `${materialKind}-${Crypto.randomUUID()}`;
     const c = commands(s, indexesFor(s));
-    const fields = changes.map((f) => ({ fieldId: f.fieldId, text: f.text }));
+    const fields = fieldWrites(changes);
     setBusy(true);
     const saved = await actCommand(ctx, 'save material', () => (isNew // i18n-ignore: log label
-      ? c.defineMaterial({
-        commandId: Crypto.randomUUID(), materialId: id, kind: materialKind, title: title.trim(), fields,
-        ...(newTemplateRef ? { templateRef: newTemplateRef } : {}),
-        scope: isQuestions ? { stepId: reviewKind } : {}
-      })
+      ? c.defineMaterial(defineMaterialInput({ commandId: Crypto.randomUUID(), materialId: id, materialKind, title, changes, isQuestions, reviewKind }))
       : c.setMaterialFields({ commandId: Crypto.randomUUID(), materialId: id, fields })),
     isNew ? t('config.material.added', { title: title.trim() }) : t('config.material.saved'),
-    isNew ? undefined : () => c.setMaterialFields({ commandId: Crypto.randomUUID(), materialId: id, fields: changes.map((f) => ({ fieldId: f.fieldId, text: f.before })) }));
+    isNew ? undefined : () => c.setMaterialFields({ commandId: Crypto.randomUUID(), materialId: id, fields: fieldRestores(changes) }));
     if (saved) ctx.back();
     else setBusy(false);
   }
@@ -1065,7 +994,7 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
   /** New material for every language: a library item, recommended to every language (decision 63). */
   async function saveToLibrary() {
     const name = title.trim();
-    const doc = { ...materialDocFrom({ kind: materialKind, title: name, scope: {}, fields: changes.map((f) => ({ fieldId: f.fieldId, text: f.text })) }, fieldTitle), language: libraryLanguage };
+    const doc = { ...materialDocFrom({ kind: materialKind, title: name, scope: {}, fields: fieldWrites(changes) }, fieldTitle), language: libraryLanguage };
     setBusy(true);
     const saved = await libraryAct(ctx, 'save material', async () => { // i18n-ignore: log label
       const { itemId } = await lib.publish({ kind: 'material', name, description: referenceKindName(materialKind), doc });
@@ -1234,14 +1163,8 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
   );
 }
 
-/** Kinds of simple material the library editor makes; question sets and study guides come from elsewhere. */
-const LIBRARY_MATERIAL_KINDS = ['note', 'tg', 'tmf', 'brief', 'document'];
-
 /** A verse link as the parser reads it (USFM book codes), the same in every language: not words to translate. */
 const REF_EXAMPLE = 'RUT 1:1-16';
-
-/** A versification a verse link can be read in: one this organization has, or one another shares (followed or copied on Save). */
-interface VersificationChoice { key: string; label: string; hash: string | null; shared?: SharedItem }
 
 function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
   const state = ctx.language.state;
@@ -1280,25 +1203,10 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
   const linked = parts ?? baseParts;
   const lang = language ?? material?.language ?? (isNew ? readerLanguage() : null);
   const own = lib.items('versification').filter((v) => v.current && !v.archived);
-  const choices: VersificationChoice[] = [
-    { key: 'none', label: t('config.libraryMaterial.eachLanguagesOwn'), hash: null },
-    ...own.map((v) => ({ key: v.itemId, label: v.name, hash: v.current })),
-    ...sharedV.rows.filter((s) => !lib.item(subscriptionItemId(s.org_id, s.item_id))?.subscription?.active)
-      .map((s) => ({ key: `${s.org_id}/${s.item_id}`, label: `${s.name} · ${s.org_name}`, hash: s.latest_hash, shared: s }))
-  ];
-  const baseHash = material?.versification ?? null;
-  const baseChoice: VersificationChoice = choices.find((c) => c.hash === baseHash && !c.shared)
-    ?? { key: 'doc', label: versificationNameOf(docs, material) ?? t('common.loading'), hash: baseHash };
+  const choices = versificationChoices(own, sharedV.rows, (id) => !!lib.item(id)?.subscription?.active);
+  const baseChoice = baseVersificationChoice(choices, material?.versification ?? null, versificationNameOf(docs, material));
   const chosen = v11n ?? baseChoice;
-  const units = useMemo(() => {
-    if (!state || !picking) return [];
-    const needle = q.trim().toLowerCase();
-    return Object.keys(state.units)
-      .filter((u) => unitPrefixOf(u) !== null)
-      .map((u) => ({ unitId: u, label: unitTitle(state, u) }))
-      .filter((u) => !needle || u.label.toLowerCase().includes(needle))
-      .sort((x, y) => x.label.localeCompare(y.label));
-  }, [state, picking, q]);
+  const units = useMemo(() => (state && picking ? templatePartChoices(state, q) : []), [state, picking, q]);
   const dirty = editable && (kind !== null || title !== null || body !== null || refsText !== null || parts !== null || v11n !== null || language !== null);
   const ready = editable && titleText.trim() !== '' && !!lang && refs.bad.length === 0 && (isNew || dirty);
 
@@ -1321,12 +1229,7 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
         await (s.subscribable ? lib.subscribe(s, true) : lib.copy(s));
         hash = s.latest_hash;
       }
-      const { links: _links, versification: _v, body: _b, language: _l, ...rest } = material ?? { format: 'material@1' as const, kind: k, title: titleText, deps: [] };
-      const links = [...refs.refs.map((ref) => ({ ref })), ...linked];
-      const out: MaterialDoc = {
-        ...rest, format: 'material@1', kind: k, title: titleText.trim(), deps: [], ...(lang ? { language: lang } : {}),
-        ...(b.trim() ? { body: b.trim() } : {}), ...(links.length ? { links } : {}), ...(hash ? { versification: hash } : {})
-      };
+      const out = libraryMaterialDoc({ material, kind: k, title: titleText, language: lang, body: b, refs: refs.refs, linked, versification: hash });
       await lib.publish({ kind: 'material', ...(it ? { itemId: it.itemId } : {}), name: out.title, description: it?.description || referenceKindName(k), doc: out });
     }, isNew ? t('config.libraryMaterial.inLibrary', { title: titleText.trim() }) : t('config.libraryMaterial.savedVersion', { title: titleText.trim() }));
     if (saved) ctx.back();
@@ -1447,9 +1350,8 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
         <SearchField value={q} onChangeText={setQ} placeholder={t('config.libraryMaterial.searchParts')} />
         <Capped items={units} empty={q ? t('common.nothingMatches', { query: q }) : t('config.libraryMaterial.noTemplates')} render={(u, last) => (
           <Row key={u.unitId} icon="template" label={u.label} last={last} onPress={() => {
-            const slash = u.unitId.indexOf('/');
-            const link = { template: u.unitId.slice(0, slash), node: u.unitId.slice(slash + 1) };
-            if (!linked.some((l) => l.template === link.template && l.node === link.node)) setParts([...linked, link]);
+            const next = addPart(linked, partOfUnit(u.unitId));
+            if (next !== linked) setParts(next);
             setPicking(false);
           }} />
         )} />
@@ -1459,22 +1361,6 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
 }
 
 // ─── Key terms (TERM-1..6) ─────────────────────────────────────────────────────────
-
-/**
- * A new term's first adjustment, when nobody wrote why: written into the
- * event log in English (everyone reads the same log), and said in the
- * language showing wherever it is shown here (`adjustmentNote`).
- */
-function firstRenderingNote(rendering: string): string {
-  return `First rendering: ${rendering}.`; // i18n-ignore: stored in the event log; adjustmentNote shows it translated
-}
-const FIRST_RENDERING = /^First rendering: ([\s\S]*)\.$/;
-
-/** An adjustment's note as written, or the app's own first-rendering note in the language showing. */
-function adjustmentNote(note: string): string {
-  const m = FIRST_RENDERING.exec(note);
-  return m ? t('config.keyTerm.firstRendering', { rendering: m[1] }) : note;
-}
 
 function TermRow(props: { term: KeyTermView; language: string; onPress: () => void; last: boolean }) {
   const { term } = props;
@@ -1495,7 +1381,7 @@ export function KeyTerms(ctx: Ctx) {
   const takeId = ctx.params['takeId'];
   const [q, setQ] = useState('');
   const [adding, setAdding] = useState(false);
-  const [draft, setDraft] = useState({ term: '', gloss: '', rendering: '', context: '' });
+  const [draft, setDraft] = useState<TermDraft>(EMPTY_TERM_DRAFT);
   const [busy, setBusy] = useState(false);
   const terms = useMemo(() => (state ? keyTermsFor(state) : []), [state]);
   const here = useMemo(() => (state && unitId && state.units[unitId] ? termsInPassage(state, terms, unitId, sourceText(state, unitId)) : new Set<string>()), [state, terms, unitId]);
@@ -1504,26 +1390,19 @@ export function KeyTerms(ctx: Ctx) {
     return <Screen header={<Header title={t('config.keyTerms.title')} onBack={ctx.back} />}><EmptyState icon="book" title={state ? t('config.keyTerms.chooseLanguage') : t('common.loading')} /></Screen>;
   }
   const language = languageName(ctx.org.state, languageId);
-  const matching = terms.filter((term) => matchesTerm(term, q));
-  const inPassage = matching.filter((term) => here.has(term.termId));
-  const rest = matching.filter((term) => !here.has(term.termId));
+  const { inPassage, rest } = groupTerms(terms, here, q);
   const open = (term: KeyTermView) => ctx.go('key_term_detail', { termId: term.termId, languageId, ...(unitId ? { unitId } : {}), ...(takeId ? { takeId } : {}) });
 
   async function add() {
-    if (!state || busy || !draft.term.trim() || !draft.rendering.trim()) return;
+    if (!state || busy || !termDraftReady(draft)) return;
     const termId = `kt-${Crypto.randomUUID()}`;
-    const book = unitId ? state.units[unitId]?.parentUnitId ?? unitId : null;
-    const during = unitId && state.units[unitId] ? derivePassage(state, unitId, indexesFor(state)) : null;
-    const duringTakeId = during?.draftTakeId ?? during?.latest?.takeId;
     setBusy(true);
     // TERM-6: the concept, its first rendering, and that as its first adjustment (who, when, which passage).
-    const saved = await actCommand(ctx, 'add key term', () => commands(state, indexesFor(state)).defineKeyTerm({ // i18n-ignore: log label
-      commandId: Crypto.randomUUID(), termId, term: draft.term, gloss: draft.gloss, unitScope: book ? [book] : [],
-      rendering: draft.rendering, context: draft.context,
-      note: draft.context.trim() || firstRenderingNote(draft.rendering.trim()), ...(duringTakeId ? { duringTakeId } : {})
-    }), t('config.keyTerms.added', { term: draft.term.trim() }));
+    const saved = await actCommand(ctx, 'add key term', () => commands(state, indexesFor(state)).defineKeyTerm( // i18n-ignore: log label
+      defineTermInput(state, draft, unitId, { commandId: Crypto.randomUUID(), termId })
+    ), t('config.keyTerms.added', { term: draft.term.trim() }));
     if (saved) {
-      setDraft({ term: '', gloss: '', rendering: '', context: '' });
+      setDraft(EMPTY_TERM_DRAFT);
       setAdding(false);
     }
     setBusy(false);
@@ -1550,7 +1429,7 @@ export function KeyTerms(ctx: Ctx) {
       <Intro>{t('config.keyTerms.intro', { language })}</Intro>
 
       <Sheet visible={adding} title={t('config.keyTerms.newKeyTerm')} sub={t('config.keyTerms.newSub', { language })} onClose={() => setAdding(false)}
-        footer={<PrimaryBtn label={t('config.keyTerms.addTerm')} onPress={() => void add()} disabled={!draft.term.trim() || !draft.rendering.trim()} busy={busy} />}>
+        footer={<PrimaryBtn label={t('config.keyTerms.addTerm')} onPress={() => void add()} disabled={!termDraftReady(draft)} busy={busy} />}>
         <Field value={draft.term} onChangeText={(v) => setDraft({ ...draft, term: v })} placeholder={t('config.keyTerms.termPlaceholder')} />
         <Field value={draft.gloss} onChangeText={(v) => setDraft({ ...draft, gloss: v })} placeholder={t('config.keyTerms.meaningPlaceholder')} autoCapitalize="sentences" />
         <Field value={draft.rendering} onChangeText={(v) => setDraft({ ...draft, rendering: v })} placeholder={t('config.keyTerms.renderingPlaceholder', { language })} />
@@ -1567,16 +1446,7 @@ export function KeyTermDetail(ctx: Ctx) {
   const term = useMemo(() => (state ? keyTermView(state, termId) : null), [state, termId]);
   const languageId = ctx.language.languageId;
   const passage = useMemo(() => (state && unitId && state.units[unitId] ? derivePassage(state, unitId, indexesFor(state)) : null), [state, unitId]);
-  const usedIn = useMemo(() => {
-    if (!state) return [];
-    const idx = indexesFor(state);
-    return takesLinkingTerm(state, termId).flatMap((l) => {
-      const take = state.takes[l.takeId];
-      if (!take) return [];
-      const v = derivePassage(state, take.unitId, idx).versions.find((x) => x.takeId === l.takeId);
-      return v ? [{ ...l, unitId: take.unitId, title: unitTitle(state, take.unitId), n: v.n, by: v.by, hlc: v.hlc }] : [];
-    });
-  }, [state, termId]);
+  const usedIn = useMemo(() => (state ? termUsedIn(state, termId) : []), [state, termId]);
   const [adjusting, setAdjusting] = useState(false);
   const [rendering, setRendering] = useState('');
   const [context, setContext] = useState('');
@@ -1599,18 +1469,10 @@ export function KeyTermDetail(ctx: Ctx) {
   const canEdit = ctx.session.can('fill_reference') || ctx.session.can('manage_reference');
   // The draft this person has open, never the passage's first draft by anyone (STUDY-025, decision 83).
   const draftTakeId = draftToTie(passage, ctx.session.actorId, ctx.params['draftId']);
-  // TERM-4 is offered from the workspace, which passes the draft (or no take); a version's page passes that version.
-  const fromDraft = !ctx.params['takeId'] || ctx.params['takeId'] === draftTakeId;
-  const canTie = !!draftTakeId && fromDraft && ctx.session.can('translate') && canEdit;
-  const isLinked = !!draftTakeId && !!state.keyTermLinks[draftTakeId]?.[termId];
+  const { canTie, isLinked } = tieState(state, termId, draftTakeId, ctx.params['takeId'], { translate: ctx.session.can('translate'), edit: canEdit });
   const passageLabel = passage ? unitTitle(state, passage.unitId) : null;
   const adjustments = [...term.adjustments].reverse();
-  const versionOf = (takeId?: string) => {
-    const take = takeId ? state.takes[takeId] : undefined;
-    if (!take || !takeId) return null;
-    const v = derivePassage(state, take.unitId, indexesFor(state)).versions.find((x) => x.takeId === takeId);
-    return { unitId: take.unitId, takeId, title: unitTitle(state, take.unitId), n: v?.n ?? null };
-  };
+  const versionOf = (takeId?: string) => versionOfTake(state, takeId);
   const openVersion = (v: { unitId: string; takeId: string }) => ctx.go('version_detail', { unitId: v.unitId, languageId, takeId: v.takeId });
 
   async function tie() {
@@ -1622,8 +1484,8 @@ export function KeyTermDetail(ctx: Ctx) {
   }
 
   async function saveAdjustment() {
-    if (!canEdit || busy || (!note.trim() && !hash)) return;
-    const duringTakeId = draftTakeId ?? passage?.latest?.takeId;
+    if (!canEdit || busy || !adjustmentReady(note, hash)) return;
+    const duringTakeId = adjustDuringTake(draftTakeId, passage);
     setBusy(true);
     const saved = await actCommand(ctx, 'adjust key term', () => commands(state!, indexesFor(state!)).adjustKeyTermRendering({ // i18n-ignore: log label
       commandId: Crypto.randomUUID(), termId, rendering, context, note,
@@ -1716,7 +1578,7 @@ export function KeyTermDetail(ctx: Ctx) {
       ) : null}
       <Sheet visible={adjusting} title={t('config.keyTerm.adjustTitle', { language, term: term.term })} onClose={() => setAdjusting(false)}
         sub={canTie ? t('config.keyTerm.adjustSubTie', { passage: passageLabel ?? '' }) : t('config.keyTerm.adjustSub')}
-        footer={<PrimaryBtn label={t('common.save')} onPress={() => void saveAdjustment()} disabled={!note.trim() && !hash} busy={busy} />}>
+        footer={<PrimaryBtn label={t('common.save')} onPress={() => void saveAdjustment()} disabled={!adjustmentReady(note, hash)} busy={busy} />}>
         <Field value={rendering} onChangeText={setRendering} placeholder={t('config.keyTerm.newRendering')} />
         {rendering.trim() ? <Field value={context} onChangeText={setContext} placeholder={t('config.keyTerm.whenToUse')} multiline autoCapitalize="sentences" /> : null}
         {passage ? <VoiceNote ctx={ctx} label={t('config.keyTerm.sayWhy')} hash={hash} onChange={setHash} /> : null}

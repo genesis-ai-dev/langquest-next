@@ -1,4 +1,4 @@
-import { fetchOrgReports, ReportsError } from '@langquest-next/client';
+import { fetchOrgReports, ReportsError } from '@langquest-next/sync';
 import type { LanguageRow } from '@langquest-next/core';
 import { useEffect, useSyncExternalStore } from 'react';
 import { t } from '../i18n';

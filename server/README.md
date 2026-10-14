@@ -62,6 +62,10 @@ a local secret in the ignored `supabase/functions/.env`, the Vault values, the
 job every minute) and seed the library when there is none. `npm run db:test`
 resets with `supabase db reset` directly, so no pass runs under its smokes. `select * from cron.job` shows the one job,
 `net._http_response` its answers.
+The Edge pass leaves out languages too big for its 256 MB (a 10 MB snapshot,
+or 25,000 events past it); `.github/workflows/projections.yml` projects
+those every ten minutes with `server/projections.ts` (decisions.md 103).
+Locally, run `npx tsx server/projections.ts` after importing a large language.
 `send-invite` validates the caller and invite before contacting the
 Cloudflare email Worker in `apps/invite-email`. The Worker sends through
 its email binding as `LangQuest <invites@frontierrnd.com>`. A Durable Object
@@ -111,7 +115,12 @@ integration (decisions.md 42). No token is stored in GitHub. It applies new
 migrations and deploys the functions and storage buckets declared in
 `supabase/config.toml`; auth, API and seed settings are not pushed by it.
 The guardrails `checks` job refuses a worker bundle behind its source, since
-the bundle is what gets deployed.
+the bundle is what gets deployed. Nobody rebuilds it by hand: the
+`pre-commit` and `post-merge` hooks in `.githooks` (enabled by
+`npm install`) run `npm run worker:build` when a commit or a merge commit
+changes what it is built from, and add the result to it. A rebase, or a
+commit made with `--no-verify`, skips them; the guardrails check then says
+to run `npm run worker:build`.
 
 The integration's settings live in the Supabase dashboard (Project Settings,
 Integrations, GitHub), so they are recorded here. Change them there and here

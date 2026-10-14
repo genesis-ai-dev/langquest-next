@@ -1506,6 +1506,14 @@ seconds before the page says another tab has it. Stopping releases the lock,
 and a page keeps one lock however often its storage gate remounts
 (`tabLock.ts`, `storageGate.tsx`).
 
+Amended (2026-10-14, Carl Sauder): the export's JavaScript budget is 6.1 MB
+(`apps/mobile/scripts/export-web.mjs`). It was raised from 5.5 to 6 MB with
+localization (81), and is raised again because moving the app's logic out of
+its screens into feature modules (105) added 57 small modules: Metro wraps
+each one, about half a kilobyte apiece, so the move cost 30 KB beyond the
+code it moved (5.98 MB on main, 6.01 MB after). The budget still says when
+the download grows; one module per concern is worth that half kilobyte.
+
 ## 59. Joining by invite needs no password, and whoever can invite you can get you back in
 
 Date: 2026-10-05 · By: Caleb Koster · Status: accepted
@@ -3648,3 +3656,151 @@ Amended (2026-10-14, Carl Sauder): the folder `smart-tests/` is now
 the web UI suite and the web smoke, both Playwright, the end-to-end
 layer of `docs/testing.md`. Not `web-tests/`, which read like a sibling
 of `apps/web/test`, the Worker's unit tests.
+
+Amended (2026-10-14, Carl Sauder): the phone runner skips the flows a run
+cannot hold and says why, instead of running them to a failure. The first
+unattended iOS run reported 10 of 33 flows failed, and every one was a
+flow that could not pass as run: seven needed a microphone signal (no
+`--voice`), one Android's airplane mode, two a step from outside mid-run.
+Failures that are not findings hide the ones that are. So flows carry
+tags for what they need (`voice`, `android-only`, `wrapped`), a test holds
+the tags to the flows' steps, and `scripts/maestro-plan.mjs` turns the
+run's flags into exclusions and a printed list. The flows had been written
+to fail rather than pass silently; a skip that is printed keeps that
+honesty without the noise. Named flows (`--flow`) still run as asked.
+
+## 103. Large languages are projected by a scheduled GitHub job; the Edge pass leaves them out
+
+Date: 2026-10-14 · By: Caleb Koster · Status: accepted
+
+Reason: the projection pass (decisions.md 68) runs in the
+`stream-projections` Edge Function, and a run there gets 256 MB and 2 s of
+CPU (Supabase's limits). The v2 transfer brought languages far past that:
+folding Santhali omt bible (225,000 events, a 61 MB state) took about
+850 MB in Node. From 15:30 on 2026-10-14 most passes ended with
+`WORKER_RESOURCE_LIMIT` (546), so six of the largest languages had no
+server snapshot, and every language the pass reached after them waited for
+its Inbox rows and snapshot. Chosen:
+- A language is large when its newest snapshot is 10 MB or more, or 25,000
+  events or more have arrived since it (its whole log when it has none):
+  `isLarge` and `LARGE` in `server/projectionWorker.ts`. Koro Miyan's
+  40 MB snapshot did pass in the Edge Function at times; 10 MB leaves room
+  for the tail, the indexes and the Inbox rows.
+- The Edge pass projects only the small ones (`runProjections(service,
+  'small')`) and visits languages smallest first, so a language too big for
+  one run holds up only bigger ones.
+- `.github/workflows/projections.yml` runs the same pass for the large ones
+  every ten minutes with Node's memory (`server/projections.ts`), using the
+  service-role secret the v2 import already has. The repository is public,
+  so Actions minutes cost nothing, and the log prints counts only.
+- Inbox rows in a large language can arrive about ten minutes later than in
+  a small one (GitHub can start scheduled runs late). Pushes still go every
+  minute once a row exists.
+- The service role's requests get two minutes instead of the 8 s they
+  inherit from `authenticator` (migration
+  `20261014180000_service_role_timeout.sql`): `put_snapshot` for Kuturmi,
+  Halbi and Santhali (35 to 61 MB) was cancelled at 8 s. Only the server's
+  own jobs use that role; people's requests keep 3 s (anon) and 8 s
+  (authenticated). Caleb chose this over writing a snapshot in several calls.
+- The large pass goes on past a language that fails and lists it by id, so
+  one failure holds up no other language.
+
+Not chosen: a bigger Edge Function (the limit is fixed per run); folding page
+by page in the Edge Function (the state alone outgrows 256 MB); a Worker or
+server of our own (another deployable to run for what is meant to be
+temporary). The lasting fix is loading per unit, so no single fold holds a
+whole language (the report "Big languages on phones: what to change").
+
+Reverse if: per-unit state makes every language fit the Edge Function, or
+GitHub's schedule lags enough that people in large languages notice late
+Inbox updates. Then the pass moves to a host with a steady schedule.
+
+## 104. `packages/client` is `packages/sync`, and it owns anything a device queues for the server
+
+Date: 2026-10-14 · By: Carl Sauder · Status: accepted
+
+Reason: the package began as the client half of the sync protocol (the
+first scaffold, PLAN.md section 10), and the name was never written down
+or revisited. It since took on jobs that run on servers (`snapshotWorker`,
+`blobReconciler`, `workerBlobs`, `v2import`), and is imported by the Worker,
+`server/`, the scripts and the tests as well as the phone, while most
+readers take "client" to mean "the app". That made its boundary hard to
+explain, and two outbound queues had grown up in `apps/mobile` beside it:
+the account outbox (`durableOutbox.ts`) and the uploads of a shared phone's
+hand-over (`handOverCore.ts`, 60). Carl chose (2026-10-14):
+
+- Three layers, by the question each answers. `core`: what does the data
+  mean? `sync`: is it kept, sent, received and current? The apps: what does
+  a person do and see, and what runs it on this platform?
+- `sync`'s scope is anything queued for the server, not only events and
+  their files, so the account outbox, a hand-over's delivery attempt and
+  the per-language session (the `SyncClient`, both `TransferWorker`s, the
+  scheduler and storage reclaim, formerly built inside `useLanguage`) move
+  into it. Each takes its platform pieces as arguments.
+- The boundary is held by what a file imports: core, supabase-js and its
+  own files, plus Node built-ins under `src/testing`
+  (`packages/sync/test/boundary.test.ts`). Drivers, file stores,
+  `AsyncStorage` and configured clients stay in the app that uses them.
+- The reasons: every runtime that keeps or moves data runs the same queuing
+  and transfer code, so none copies it and gets it subtly wrong; everything
+  a device queues for the server goes through one tested place; and the
+  name now says what the package does. `sync` rather than `eventsync`,
+  since not all of it is events, and `core` keeps its name: its contents
+  still match it and the no-I/O rule stops it collecting everything shared.
+
+Older entries and records that say `packages/client` mean this package.
+
+Reverse if: a second app needs a different outbound policy than the phone
+(the queues would split back into the apps behind a shared interface), or
+the server-side jobs grow their own dependencies that the phone must not
+carry, which would argue for a separate server package.
+
+## 105. In `apps/mobile`, server calls live in `src/server/`, logic outside screens, and folders by feature
+
+Date: 2026-10-14 · By: Carl Sauder · Status: accepted
+
+Reason: a review of `apps/mobile` on 2026-10-14 found the packages well
+separated but the app less so. Supabase was called from 28 files, four
+screens among them: sign-in's whole policy (a v2 account, recreating the
+dev account, recording the terms) sat in a button handler in `entry.tsx`,
+and `org.tsx` read and wrote Explore listings and sent invite emails
+itself. The largest screens (`config.tsx` 1,738 lines, `org.tsx` 1,639,
+`passage.tsx` 1,420, `content.tsx` 1,366) mixed state, rules and layout,
+though the pure-model pattern (`configModel.ts`, `adminModel.ts`) already
+existed. `OrgWork` in `App.tsx` kept recent passages, Inbox reads,
+onboarding, toasts and navigation in one component; the language's sync
+engine was built inside `useLanguage`'s effect; and `src/` held about 110
+files in one folder, with `simple/` (named for the redesign of 71, not a
+concern) imported both ways by half the feature folders. Carl chose
+(2026-10-14):
+
+- Every Supabase call is a named function in `src/server/`, one file per
+  area, returning supabase-js's `{ data, error }` so each caller keeps
+  saying what a refusal means. Nothing else imports the client or calls
+  `.rpc(`, `.auth.` or `.functions.invoke(`
+  (`apps/mobile/test/serverBoundary.test.ts`). One folder rather than an
+  `api.ts` per feature, so RPC names, error handling and offline behaviour
+  can be read and checked in one place.
+- Screens lay out; rules go in a pure `model.ts` (or `<thing>Model.ts`
+  where a folder has several) tested without rendering, and state in
+  `use*` hooks. `OrgWork` assembles `Ctx` from hooks of its own.
+- The stream engines run outside React (`LanguageSession`, `OrgSession`,
+  104); the hooks follow them.
+- Folders by feature: `screens/` keeps only the entry files `App.tsx`
+  registers, and each concern (auth, account, org, sync, audio, web,
+  notifications, ui, shell, and the parts `simple/` held: recording,
+  review, helps, admin, mic) gets a folder with its model, hooks, parts
+  and anything it needs from `server/`. Pure files are `model.ts` or
+  `<thing>Model.ts`; `*Core.ts` names go. The moves wait for the open
+  recording and writing branches (pull requests 96 and 97) to land, so
+  they rebase onto edits, not moves.
+- The reasons: the logic that most often goes wrong (sign-in, membership,
+  listing, sync wiring) is tested without rendering; a person or agent
+  finds a feature's model, server calls and parts in one place; and every
+  server call can be checked in one place, with a test keeping it there.
+
+Reverse if: the thin server functions grow their own policy (retries,
+caching) that callers then duplicate, which would argue for a typed
+client per area with errors mapped once; or feature folders start
+importing each other in a cycle, which would mean a shared layer belongs
+below them.

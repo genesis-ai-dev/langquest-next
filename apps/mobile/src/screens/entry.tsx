@@ -9,24 +9,28 @@
 // here only what the phone knows, since a link's claims are unchecked).
 import { CommandError, DEFAULT_LICENSE, isLicense, LICENSE_INFO, type License } from '@langquest-next/core';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { BackHandler, Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../text';
 import {
-  cachedListedOrganizations, cachedPublicLanguages, listedOrganizations, publicLanguages, queueAccountAction, searchListedOrganizations, TERMS_VERSION,
+  cachedListedOrganizations, cachedPublicLanguages, listedOrganizations, publicLanguages, queueAccountAction, TERMS_VERSION,
   type ListedOrganization
 } from '../accountData';
 import { authErrorText, firstName, outboxErrorText, signInCodeErrorText, VISION_STEPS } from '../accountText';
-import { isSignInName, signInAddress, signInName } from '../accounts';
+import { signInName } from '../accounts';
 import { licenseText } from '../coreText';
 import { t, Trans } from '../i18n';
 import { formatPercent } from '../i18n/format';
 import { recordHelp } from '../signInHelp';
-import { deadMessage, inviteCard, type DeadReason, type InvitePreview } from '../heldInvite';
+import { inviteCard, scanVerdict } from '../heldInvite';
 import { parseKey } from '../inviteCode';
 import type { Ctx } from '../ctx';
-import { DEV_PASSWORD, ensurePersonaAccount, personasAvailable } from '../dev';
-import { previewInvite, redeemSignInCode, useRequestOutcome } from '../invites';
+import { recreateDevAccount } from '../server/personas';
+import { createAccountReady, MIN_PASSWORD } from '../auth/model';
+import { signIn, signInReady } from '../auth/signIn';
+import { useInvitePreview } from '../auth/useInvitePreview';
+import { useOrganizationSearch } from '../auth/useOrganizationSearch';
+import { redeemSignInCode, useRequestOutcome } from '../invites';
 import { latestRequest } from '../requestOutcome';
 import {
   Badge, Banner, Card, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, OrDivider, PrimaryBtn, ProgressBar, QuietLinks, Row, Screen, SearchField, SectionLabel,
@@ -39,8 +43,8 @@ import { createOrganization } from '../createOrg';
 import { navRef } from '../nav';
 import { contractsFor } from '../screenContracts';
 import { FORGETS_ON_SIGN_OUT, forgetThisBrowser } from '../forgetBrowser';
-import { signOutHere, supabase } from '../supabase';
-import { signInWithV2Account } from '../v2SignIn';
+import { setSession, signInWithPassword, signUp } from '../server/auth';
+import { signInWithV2Account } from '../server/v2';
 import { lift } from '../shadow';
 import { C, TINT, radius, space, tile, type as T, withAlpha } from '../theme';
 import { useAccountActions, useDisplayNames } from '../useAccount';
@@ -65,41 +69,20 @@ export function SignIn(ctx: Ctx) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  async function signIn() {
+  async function submit() {
     setBusy(true);
     setError('');
     try {
-      // One field: an email, or a looked-after account's sign-in name (accounts.ts).
-      let { data, error } = await supabase.auth.signInWithPassword({ email: signInAddress(email), password });
-      // Dev on a local server: `npm run db:test` wipes auth users. Recreate
-      // the dev account instead of stranding the developer at sign-in.
-      if (error && ctx.isDev && personasAvailable().ok && email.trim() === process.env.EXPO_PUBLIC_DEV_EMAIL && password === DEV_PASSWORD) {
-        await ensurePersonaAccount({ id: 'dev', email: email.trim() });
-        ({ data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password }));
-      }
-      // Someone who used LangQuest v2: this app does not know them until v2
-      // says the email and password are theirs (docs/v2-import.md section 3).
-      if (error?.code === 'invalid_credentials' && email.trim().includes('@')) {
-        const v2 = await signInWithV2Account(email, password);
-        if ('session' in v2) {
-          const moved = await supabase.auth.setSession(v2.session);
-          if (moved.error) { noteExpected('sign in with a v2 account', moved.error); setError(authErrorText(moved.error, t('entry.signIn.failed'))); return; }
-          if (moved.data.user) await recordTerms(moved.data.user.id);
-          return;
-        }
-        if (v2.code !== 'invalid_credentials') {
-          noteExpected('sign in with a v2 account', v2.code);
-          setError(authErrorText({ code: v2.code, ...(v2.code === 'network' ? { name: 'AuthRetryableFetchError' } : {}) }, t('entry.signIn.failed')));
-          return;
-        }
-      }
+      const outcome = await signIn(email, password, {
+        signInWithPassword, setSession, signInWithV2Account, ...(ctx.isDev ? { recreateDevAccount } : {})
+      });
       // A wrong password or no connection: the server's answer, said in the language showing.
-      if (error) { noteExpected('sign in', error); setError(authErrorText(error, t('entry.signIn.failed'))); return; }
+      if (outcome.kind === 'refused') { noteExpected(outcome.where, outcome.raw); setError(authErrorText(outcome.reason, t('entry.signIn.failed'))); return; }
       // Signing in accepts the terms (AUTH-1). The session this screen was
       // given belongs to the guest, so record it for the account that just
       // signed in; the account outbox delivers (and retries) it once the new
       // session is up.
-      if (data.user) await recordTerms(data.user.id);
+      if (outcome.userId) await recordTerms(outcome.userId);
     } catch (e) {
       setError(failure('sign in', e));
     } finally {
@@ -116,7 +99,7 @@ export function SignIn(ctx: Ctx) {
     }
   }
 
-  const ready = (email.trim().includes('@') || isSignInName(email)) && password.length > 0;
+  const ready = signInReady(email, password);
   const joining = ctx.invite.held?.claim.kind === 'next-account';
   return (
     <Screen bodyStyle={styles.signInBody}>
@@ -132,9 +115,9 @@ export function SignIn(ctx: Ctx) {
       <Card>
         <Field value={email} onChangeText={setEmail} placeholder={t('entry.signIn.namePlaceholder')} keyboardType="email-address" autoCapitalize="none" />
         <Field value={password} onChangeText={setPassword} placeholder={t('entry.fields.password')} secure autoCapitalize="none"
-          onSubmit={() => { if (ready && !busy) void signIn(); }} />
+          onSubmit={() => { if (ready && !busy) void submit(); }} />
         {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
-        <PrimaryBtn label={busy ? t('entry.shared.signingIn') : t('entry.signIn.button')} onPress={() => void signIn()} disabled={!ready || busy} />
+        <PrimaryBtn label={busy ? t('entry.shared.signingIn') : t('entry.signIn.button')} onPress={() => void submit()} disabled={!ready || busy} />
         <TermsLink ctx={ctx} i18nKey="entry.termsLine.signingIn" />
       </Card>
       <OrDivider />
@@ -375,14 +358,13 @@ function EmailAccount(ctx: Ctx) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [checkEmail, setCheckEmail] = useState(false);
-  const emailOk = email.trim().includes('@');
-  const matches = password.length >= 6 && password === confirm;
+  const ready = createAccountReady(email, password, confirm);
 
   async function create() {
     setBusy(true);
     setError('');
     try {
-      const { data, error } = await supabase.auth.signUp({ email: email.trim(), password });
+      const { data, error } = await signUp(email.trim(), password);
       if (error) { noteExpected('sign up', error); setError(authErrorText(error, t('entry.createAccount.failed'))); return; }
       // Creating the account accepts the terms (AUTH-1). With a session they
       // are recorded now (the account outbox retries until delivered) and the
@@ -418,10 +400,10 @@ function EmailAccount(ctx: Ctx) {
       <Field label={t('entry.fields.password')} value={password} onChangeText={setPassword} placeholder={t('entry.createAccount.passwordPlaceholder')} secure autoCapitalize="none" />
       <Field label={t('entry.createAccount.confirmLabel')} value={confirm} onChangeText={setConfirm} placeholder={t('entry.createAccount.confirmPlaceholder')} secure autoCapitalize="none" />
       {/* The placeholder that says so is gone once typing starts: say why the button stays off. */}
-      {password.length > 0 && password.length < 6 ? <Text style={txt.error}>{t('entry.createAccount.tooShort')}</Text> : null}
+      {password.length > 0 && password.length < MIN_PASSWORD ? <Text style={txt.error}>{t('entry.createAccount.tooShort')}</Text> : null}
       {confirm.length > 0 && password !== confirm ? <Text style={txt.error}>{t('entry.createAccount.mismatch')}</Text> : null}
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
-      <PrimaryBtn label={busy ? t('entry.shared.creating') : t('entry.createAccount.button')} onPress={() => void create()} disabled={!emailOk || !matches || busy} />
+      <PrimaryBtn label={busy ? t('entry.shared.creating') : t('entry.createAccount.button')} onPress={() => void create()} disabled={!ready || busy} />
       <TermsLink ctx={ctx} i18nKey="entry.termsLine.creating" />
       <OrDivider />
       <GhostBtn label={t('entry.createAccount.scanInvite')} icon="qr" onPress={() => ctx.go('scan_qr')} />
@@ -431,9 +413,6 @@ function EmailAccount(ctx: Ctx) {
 }
 
 // ---- Scan QR (AUTH-3, ADR-028) -------------------------------------------------------------------------
-
-/** How often the scan screen asks again about an invite the server could not be asked about. */
-const PREVIEW_RETRY_MS = 10_000;
 
 /**
  * The one scanner (docs/invites-and-accounts.md). It reads both kinds of
@@ -476,28 +455,7 @@ export function ScanQr(ctx: Ctx) {
   }, []);
 
   // What the server says about the held key; null when it cannot be asked.
-  const [preview, setPreview] = useState<InvitePreview | null>(null);
-  // The server has been asked (and may not have answered: offline).
-  const [asked, setAsked] = useState(false);
-  useEffect(() => {
-    let active = true;
-    let retry: ReturnType<typeof setTimeout> | null = null;
-    setPreview(null);
-    setAsked(false);
-    if (!held) return;
-    // Not answered (offline): ask again now and then, so the card fills in once there is a connection.
-    const ask = () => void previewInvite(held.token).then((p) => {
-      if (!active) return;
-      setPreview(p);
-      setAsked(true);
-      if (!p) retry = setTimeout(ask, PREVIEW_RETRY_MS);
-    });
-    ask();
-    return () => { active = false; if (retry) clearTimeout(retry); };
-  }, [held?.token, invite.status.kind]);
-  // Hold the invite as long as it lasts, now the server has said.
-  const { learn } = invite;
-  useEffect(() => { void learn(preview); }, [preview, learn]);
+  const { preview, asked } = useInvitePreview(invite);
 
   // Nothing read yet: open the camera, so pointing it is the only step.
   useEffect(() => {
@@ -527,16 +485,10 @@ export function ScanQr(ctx: Ctx) {
   }
 
   const card = inviteCard(preview);
-  const dead = invite.status.kind === 'dead' ? invite.status.message
-    : preview && ['expired', 'used', 'not_found', 'retired'].includes(preview.status)
-      ? deadMessage(preview.status as DeadReason, preview.invitedBy) : null;
-  const alreadyIn = preview?.status === 'joined';
+  const { dead, alreadyIn, named } = scanVerdict(preview, invite.status);
   const claimedHere = held?.claim.kind === 'next-account';
   const me = useDisplayNames(ctx.session.actorId)[ctx.session.actorId]
     ?? signInName(ctx.session.email) ?? ctx.session.email?.split('@')[0] ?? null;
-  // A one-person invite names who it is for: they join with one tap. Any
-  // other (a group, or no name on it) asks their name first.
-  const named = preview?.status === 'ok' && preview.label && !preview.group ? preview.label : null;
   const joining = invite.status.kind === 'joining';
 
   async function joinNamed() {
@@ -671,7 +623,7 @@ function SignInKey(props: { ctx: Ctx; code: string; onCancel: () => void }) {
     setError('');
     try {
       const help = await redeemSignInCode(props.code);
-      const { data, error } = await supabase.auth.setSession(help.session);
+      const { data, error } = await setSession(help.session);
       if (error) { noteExpected('sign in with code', error); setError(authErrorText(error, t('entry.signInKey.failed'))); return; }
       if (data.user) {
         await recordHelp(data.user.id, help.helper).catch((e: unknown) => { reportError('record sign-in help', e); });
@@ -886,26 +838,9 @@ export function RequestAccess(ctx: Ctx) {
   const [busy, setBusy] = useState(false);
   const orgId = given || picked?.org_id || '';
   const orgName = given ? givenName : picked?.name;
-  const query = find.trim().toLowerCase();
   // The list on the phone is the first 500 by name: online, the server searches
   // them all, and what it finds joins what the phone has (offline, the phone's alone).
-  const [found, setFound] = useState<{ query: string; list: ListedOrganization[] }>({ query: '', list: [] });
-  useEffect(() => {
-    if (!query) return;
-    let active = true;
-    const wait = setTimeout(() => {
-      searchListedOrganizations(query)
-        .then((list) => { if (active) setFound({ query, list }); })
-        .catch((e: unknown) => noteExpected('request access search', e));
-    }, 300);
-    return () => { active = false; clearTimeout(wait); };
-  }, [query]);
-  const matches = useMemo(() => {
-    if (!query) return listed;
-    const here = listed.filter((o) => o.name.toLowerCase().includes(query) || o.languages.some((l) => l.toLowerCase().includes(query)));
-    const there = found.query === query ? found.list.filter((o) => !here.some((h) => h.org_id === o.org_id)) : [];
-    return there.length ? [...here, ...there].sort((a, b) => a.name.localeCompare(b.name)) : here;
-  }, [listed, query, found]);
+  const matches = useOrganizationSearch(listed, find.trim().toLowerCase());
 
   async function sendTo(o: ListedOrganization) {
     setBusy(true);

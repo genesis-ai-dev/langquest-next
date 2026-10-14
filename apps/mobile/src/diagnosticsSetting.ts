@@ -1,4 +1,4 @@
-import type { Diagnostics, DiagStore } from '@langquest-next/client';
+import type { Diagnostics, DiagStore } from '@langquest-next/sync';
 
 // The person's diagnostics choice (docs/diagnostics.md, decisions.md 39):
 // on by default, off from Settings. Kept apart from diagnostics.ts, which

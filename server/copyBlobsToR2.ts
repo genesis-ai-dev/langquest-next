@@ -17,7 +17,7 @@
  * `npm run web:dev`.
  */
 import { createClient } from '@supabase/supabase-js';
-import { workerBlobs } from '@langquest-next/client';
+import { workerBlobs } from '@langquest-next/sync';
 
 const BUCKET = 'blobs';
 /** The only names the Worker serves (apps/web/worker/blobs.ts): anything else could never be read again. */

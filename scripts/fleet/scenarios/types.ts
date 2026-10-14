@@ -1,4 +1,4 @@
-import { stats, type FleetReport, type SimDevice, type Stats } from '@langquest-next/client/src/testing';
+import { stats, type FleetReport, type SimDevice, type Stats } from '@langquest-next/sync/src/testing';
 
 /** Knobs a scenario takes, all numbers; set any with `--name=value`. */
 export type Knobs = Record<string, number>;

@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { noteExpected } from './report';
-import { supabase } from './supabase';
+import { v2Welcome } from './server/v2';
 import { parseWelcome, type V2Welcome } from './welcomeBack';
 
 /**
@@ -23,7 +23,7 @@ export function useWelcomeBack(actorId: string, wanted: boolean): {
   useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
 
   const ask = useCallback(async (): Promise<V2Welcome | null> => {
-    const { data: raw, error } = await supabase.rpc('v2_welcome');
+    const { data: raw, error } = await v2Welcome();
     if (error) { noteExpected('v2 welcome', error); return null; }
     const w = parseWelcome(raw);
     if (w) {

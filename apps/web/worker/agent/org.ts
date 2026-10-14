@@ -1,5 +1,5 @@
 import { languageName, privilegesFor, mayViewLanguage, orgLanguages, type AnyEvent, type LanguageState, type OrgState } from '@langquest-next/core';
-import type { AppendResult } from '@langquest-next/client';
+import type { AppendResult } from '@langquest-next/sync';
 import type { OrgFolder } from '../orgFolder';
 import type { Grant } from './tokens';
 import type { ChangePage, DeliveryOut, WebhookDispatcher } from './dispatch';
