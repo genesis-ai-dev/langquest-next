@@ -72,6 +72,17 @@ function memoryFiles(): BlobFilesLike & { keys: Set<string> } {
 }
 
 describe.skipIf(!SERVICE)('a pass against the local database', () => {
+  it('reads back more than the 1,000 rows the API returns from one call', async () => {
+    const target = supabaseTarget(createClient(URL, SERVICE, { auth: { persistSession: false } }), memoryFiles());
+    const tag = `rows-${Date.now().toString(36)}`;
+    const keys = Array.from({ length: 2500 }, (_, i) => `k${String(i).padStart(5, '0')}`);
+    await target.putLedger(tag, keys.map((key) => ({ key, streamId: '_org', n: 1, lastSaid: 1, digest: 'd', hlc: '', live: [], withdrawn: false })));
+    expect((await target.ledger(tag)).size).toBe(2500);
+    const names = keys.map((k) => `${tag}/${k}.wav`);
+    await target.putFiles(names.map((name) => ({ name, file: { hash: 'a'.repeat(64), size: 1, durationMs: 1, format: 'wav' as const } })));
+    expect((await target.files(names)).size).toBe(2500);
+  });
+
   it('brings a confirmed project over once, then only what changes', async () => {
     const db = createClient(URL, SERVICE, { auth: { persistSession: false } });
     const run = `t${Date.now().toString(36)}`;
