@@ -645,6 +645,11 @@ async function browserTraces(page: Page): Promise<{ local: string[]; session: st
   });
 }
 
+/** Only the traces that remain, so a failure names them (an empty object when the browser forgot everything). */
+function leftBehind(t: Awaited<ReturnType<typeof browserTraces>>): Partial<Awaited<ReturnType<typeof browserTraces>>> {
+  return Object.fromEntries(Object.entries(t).filter(([, v]) => (Array.isArray(v) ? v.length > 0 : v !== 0)));
+}
+
 test('WEB-023 Signing out forgets this browser @p0', async ({ page }) => {
   const w = world();
   await openAsOnce(page, w, 'TRANS');
@@ -663,8 +668,8 @@ test('WEB-023 Signing out forgets this browser @p0', async ({ page }) => {
   await primary(page).click();
   // Sign In, in the browser's language: the language picked here is forgotten too.
   await expect(page.getByText('Create Account', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
-  // The browser forgets as the page reloads: wait until nothing of TRANS's is left.
-  await expect.poll(async () => { const t = await browserTraces(page); return t.local.length + t.session.length + t.idb.length + t.files.length + t.events; }, { timeout: 15_000 }).toBe(0);
+  // The browser forgot before the page reloaded (a download writing a file then no longer keeps the files: webFiles.ts). Nothing of TRANS's is left; a failure lists what is.
+  await expect.poll(async () => leftBehind(await browserTraces(page)), { timeout: 15_000, message: 'what this browser still holds of TRANS\'s after signing out' }).toEqual({});
   const traces = await browserTraces(page);
   expect(traces.local).toEqual([]);
   expect(traces.session).toEqual([]);

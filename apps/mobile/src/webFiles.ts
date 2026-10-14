@@ -81,11 +81,30 @@ export function webFiles(path: string, root: () => Promise<DirHandle> = browserR
   };
 }
 
-/** Every web store's files, for signing out on a shared computer. */
-export async function clearAllWebFiles(root: () => Promise<DirHandle> = browserRoot): Promise<void> {
-  try {
-    await (await root()).removeEntry(ROOT_DIR, { recursive: true });
-  } catch (e) {
-    if (!notFound(e)) throw e;
+/** A file in the directory has a write open: the browser refuses to remove any of it until that write closes. */
+const writeOpen = (e: unknown) => e instanceof Error && e.name === 'NoModificationAllowedError';
+
+/**
+ * Every web store's files, for signing out on a shared computer. A download
+ * may be writing its file as this runs, and while it is, the browser refuses
+ * the whole removal and every file stays; so it tries again until the write
+ * closes, for up to `patienceMs`. A write that starts after the removal
+ * holds a handle to the removed directory and fails, so it leaves nothing.
+ */
+export async function clearAllWebFiles(
+  root: () => Promise<DirHandle> = browserRoot,
+  patienceMs = 10_000,
+  pause: (ms: number) => Promise<void> = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+): Promise<void> {
+  const until = Date.now() + patienceMs;
+  for (;;) {
+    try {
+      await (await root()).removeEntry(ROOT_DIR, { recursive: true });
+      return;
+    } catch (e) {
+      if (notFound(e)) return;
+      if (!writeOpen(e) || Date.now() >= until) throw e;
+      await pause(50);
+    }
   }
 }
