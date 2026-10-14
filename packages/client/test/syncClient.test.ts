@@ -638,6 +638,47 @@ describe('SyncClient snapshot download in chunks (weak links make progress)', ()
     const total = Math.ceil(JSON.stringify(server.snapshots.get('org1/p1')!.state).length / 4000);
     expect(server.chunkCalls - fetchedBeforeDrop).toBe(total - 2);
   });
+
+  it('saving the pieces does not redraw the screen once per piece', async () => {
+    // Why: every piece saved through the writer told screens twice that a
+    // save started and ended. On a 2 GB phone those redraws were three
+    // quarters of a 46-second first open of a 40 MB language (152 pieces).
+    const server = new FakeServer();
+    await bigLanguage(server);
+    server.chunkChars = 1000;
+    const b = device(server, 'dB', 'r1', { t: 0 });
+    await b.client.load();
+    let publishes = 0;
+    b.client.subscribe(() => { publishes += 1; });
+    await b.client.pull();
+    expect(server.chunkCalls).toBeGreaterThan(20);
+    expect(Object.keys(b.client.getState().units).length).toBe(300);
+    expect(publishes).toBeLessThan(10);
+  });
+
+  it('asks for a few pieces at a time, so a far server is not waited on once per piece', async () => {
+    const server = new FakeServer();
+    await bigLanguage(server);
+    server.chunkChars = 4000;
+    const inner = server.transportFor();
+    let inFlight = 0;
+    let most = 0;
+    const transport: typeof inner = {
+      ...inner,
+      snapshotChunk: async (...args) => {
+        inFlight += 1;
+        most = Math.max(most, inFlight);
+        await new Promise((resolve) => setTimeout(resolve, 1));
+        try { return await inner.snapshotChunk(...args); } finally { inFlight -= 1; }
+      }
+    };
+    const b = new SyncClient({ orgId: 'org1', streamId: 'p1', actorId: 'r1', deviceId: 'dB', store: new MemoryStore(), transport, clock: new HlcClock('dB', () => 1) });
+    await b.load();
+    await b.pull();
+    expect(Object.keys(b.getState().units).length).toBe(300);
+    expect(most).toBeGreaterThan(1);
+    expect(most).toBeLessThanOrEqual(3);
+  });
 });
 
 describe('SyncClient after a long offline stretch (audit L1, L2, L3)', () => {

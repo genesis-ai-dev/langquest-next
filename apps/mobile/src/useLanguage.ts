@@ -49,12 +49,6 @@ export interface LanguageHandle {
   /** Blob transfer state (PLAN.md section 14). Downloads follow `keptUnits` plus the actor's own work. */
   /** The realtime channel is up: appends elsewhere reach this phone in seconds. */
   live: boolean;
-  /**
-   * A local write is queued or in flight: what the screen shows is in
-   * memory but not yet on disk. False means everything shown is saved
-   * locally (it may still be pending upload: see `pending`).
-   */
-  saving: boolean;
   /** Fold revision, bumped on every local or pulled change. */
   revision: number;
   /** The local log as the sync screen shows it; null before load. */
@@ -128,7 +122,6 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
   const [peakUp, setPeakUp] = useState(0);
   const [peakDown, setPeakDown] = useState(0);
   const [live, setLive] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [revision, setRevision] = useState(0);
   const schedulerRef = useRef<SyncScheduler | null>(null);
   const upMeter = useRef(new RateMeter());
@@ -272,11 +265,12 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
       // screen follows that, not the call sites. The fold mutates in place,
       // so copy the top level, but only when the fold changed: identity is
       // the revision, and a publish that only says a write was saved keeps it.
+      // Nothing on screen shows that a write is still on its way to disk, so
+      // that news redraws nothing: it redrew the whole app twice per commit.
       copyRef.current = stateCopier();
       const unsubscribe = client.subscribe((s) => {
         const next = copyRef.current(s.state, s.revision);
         if (next) setState(next);
-        setSaving(s.saving > 0);
         setRevision(s.revision);
       });
 
@@ -472,7 +466,7 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
   const triggerUpload = useCallback(() => upRef.current?.trigger(), []);
   const inspect = useCallback(() => clientRef.current?.inspect() ?? Promise.resolve(null), []);
 
-  return { orgId, languageId, state, pending, lastSync, online, tooOld, refused, refusedEvents, pulled, live, saving, revision, inspect, blobs, triggerUpload, append, appendMany, run, sync };
+  return { orgId, languageId, state, pending, lastSync, online, tooOld, refused, refusedEvents, pulled, live, revision, inspect, blobs, triggerUpload, append, appendMany, run, sync };
 }
 
 /** Time one transfer, credit its bytes to the meter once it succeeds, and tally it for diagnostics either way. */
