@@ -3248,3 +3248,25 @@ language makes one, and no `LanguageCodeSet`), and its admins link it in
 Next, as they can any language added unlinked (78). The dashboard's
 suggestions are never linked unless someone uses one: v2's own links, which
 many suggestions repeat, are often wrong.
+
+Amended (2026-10-14, Caleb Koster): a v2 person whose email already has an
+account in Next is linked to it only when someone on the team confirms it
+on the dashboard (Same email, Same person). Next does not confirm emails at
+sign-up, so an email match alone is no proof, and linking by it would let
+anyone claim a translator's work, or an organization, by signing up with
+their address first. A confirmed link makes the import name the Next
+account wherever it named the v2 one, so memberships and organization
+admins move to it at the next sync; work already brought over keeps its v2
+author. Changes to who is in an organization are now signed by an admin the
+import made there already, and so are take-backs of facts v2 no longer
+states, which the import's device id could not sign.
+
+Amended (2026-10-14, Caleb Koster): nothing v2 deletes or turns off is
+taken back here ("the point of an event log is that nothing disappears").
+Recordings, reviews, notes, units and members that v2 removes stay; a v2
+publish without a recording becomes a new version without it, and the
+earlier version stays. This replaces taking back by hiding, removing or
+`v1.Redacted` above. The import takes back only its own decisions: Leave
+out, a link's move, an organization admin dropped on the dashboard, and FIA
+guides no longer offered. A member who leaves a v2 project keeps their
+place here until an admin removes them.

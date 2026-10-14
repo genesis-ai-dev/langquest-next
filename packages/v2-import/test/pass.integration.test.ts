@@ -115,6 +115,23 @@ describe.skipIf(!SERVICE)('a pass against the local database', () => {
     expect(passage.reviews.map((r) => r.outcome)).toEqual(['looks_good']);
     const { data: names } = await db.from('profiles').select('id, display_name').in('id', [`${id}-owner`, `${id}-rev`]);
     expect((names ?? []).length).toBe(2);
+
+    // The reviewer turns out to have an account in Next already: confirmed on the dashboard, their membership moves to it.
+    await target.link(`${id}-rev`, `${id}-next`, null, 'test');
+    const linked = await sync(deps, { projects: [id] });
+    expect(linked[0]?.rejected ?? []).toEqual([]);
+    const after = foldOrg(await events('_org'));
+    const live = (who: string) => Object.values(after.members[who] ?? {}).filter((m) => !m.removed.value).map((m) => m.roleId.value);
+    expect(live(`${id}-next`)).toEqual(['coordinator']);
+    expect(live(`${id}-rev`)).toEqual([]);
+    // Undo: the membership goes back to the v2 id.
+    await target.unlink(`${id}-rev`, 'test');
+    const undone = await sync(deps, { projects: [id] });
+    expect(undone[0]?.rejected ?? []).toEqual([]);
+    const back = foldOrg(await events('_org'));
+    const liveBack = (who: string) => Object.values(back.members[who] ?? {}).filter((m) => !m.removed.value).map((m) => m.roleId.value);
+    expect(liveBack(`${id}-rev`)).toEqual(['coordinator']);
+    expect(liveBack(`${id}-next`)).toEqual([]);
   }, 60_000);
 
   it("follows FIA's guides for an FIA project and offers them to its team", async () => {
