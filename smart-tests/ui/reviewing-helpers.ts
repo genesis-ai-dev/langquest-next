@@ -10,9 +10,24 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Browser, BrowserContext, Locator, Page } from '@playwright/test';
 import { buildWorld, clientAs, send, signIn, type UiWorld } from './fixture';
-import { button, byId, expect, openAs, tab, test, text, type AccountKey, type PassageKey } from './support';
+import { button, byId, expect, openAs, tab, test, testState, text, type AccountKey, type PassageKey } from './support';
 
 export const visible = (l: Locator): Locator => l.locator('visible=true');
+
+/**
+ * Wait until a tap-to-record microphone (bigVoice, voiceNote, reviewVoice) has
+ * run for `seconds` by its own clock ("Listening… 0:04", "Recording · 0:04 ·
+ * tap to stop"). These recorders keep whatever the microphone hears, with no
+ * voice detector and so no "N pieces so far" count; the voice file speaks
+ * 1.5 s in every 4 s, so three or more seconds always hold some of it.
+ */
+export async function recordedFor(page: Page, seconds: number): Promise<void> {
+  const clock = visible(page.getByText(/^(Listening… |Recording · )\d+:\d\d/)).first();
+  await expect.poll(async () => {
+    const m = /(\d+):(\d\d)/.exec(await clock.innerText().catch(() => ''));
+    return m ? Number(m[1]) * 60 + Number(m[2]) : -1;
+  }, { timeout: seconds * 1000 + 10_000 }).toBeGreaterThanOrEqual(seconds);
+}
 
 /**
  * One world for the whole run of a spec file, like support.ts `useWorld`,
@@ -221,7 +236,7 @@ export async function device(browser: Browser, world: UiWorld, who: AccountKey):
 export async function toTabs(page: Page): Promise<void> {
   for (let i = 0; i < 6; i++) {
     const out = byId(page, 'header-back').or(byId(page, 'header-close')).first();
-    await expect(tab(page, 'map').or(out)).toBeVisible();
+    await expect(tab(page, 'map').or(out).first()).toBeVisible();
     if (await tab(page, 'map').isVisible().catch(() => false)) return;
     await out.click();
   }
@@ -243,6 +258,21 @@ export async function openLabel(page: Page, label: string): Promise<void> {
   await search.fill(label);
   await visible(page.getByText(label, { exact: true })).first().click();
   await expect(visible(page.getByRole('button', { name: 'Versions and history' })).first()).toBeVisible();
+  await languageArrived(page);
+}
+
+/**
+ * A fresh device draws a record before its language has arrived (no versions,
+ * "Record" as the main button) and redraws as the pull lands: wait until a
+ * sync has finished with nothing more to pull or send. Offline, the record is
+ * what the device has.
+ */
+async function languageArrived(page: Page): Promise<void> {
+  await expect.poll(async () => {
+    if (!(await page.evaluate(() => navigator.onLine))) return true;
+    const s = await testState(page).catch(() => null);
+    return !!s && !s.syncing && s.pending === 0 && !s.lastPullMore && s.lastSyncAt !== null;
+  }, { timeout: 30_000, message: 'waiting for the language to arrive' }).toBe(true);
 }
 
 /** The record's main button for a check: "Do the peer check" (decision 91), or the older "Do the peer review". */

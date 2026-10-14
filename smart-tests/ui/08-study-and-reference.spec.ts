@@ -14,9 +14,9 @@
 import type { Page } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { commands, derivePassage } from '@langquest-next/core';
-import { button, byId, deviceEvents, expect, expectSent, field, primary, screenText, test, text, undoToast } from './support';
+import { button, byId, deviceEvents, expect, expectSent, expectStill, expectSyncIdle, field, primary, screenText, test, text, undoToast } from './support';
 import { recordButton, publishButton, recordParts } from './06-recording-helpers';
-import { act, device, langAs, offerExampleGuides, open, openLabel, openRecord, sawToast, uploadVoice, useRunWorld, visible } from './reviewing-helpers';
+import { act, device, langAs, offerExampleGuides, open, openLabel, openRecord, recordedFor, sawToast, uploadVoice, useRunWorld, visible } from './reviewing-helpers';
 
 // One world for the run, kept when a failed test restarts the worker (reviewing-helpers.ts useRunWorld).
 const world = useRunWorld('08-study', offerExampleGuides);
@@ -41,6 +41,11 @@ async function openStudy(page: Page): Promise<void> {
  */
 async function openWorkspace(page: Page): Promise<void> {
   await openRecord(page, world(), 'P-SUBMITTED');
+  // A fresh device draws the record before the language arrives ("Record", no versions):
+  // read the main button once Version 1 shows and the footer holds still.
+  await expect(text(page, /^Version 1 · \d+:\d\d$/)).toBeVisible();
+  await expectSyncIdle(page);
+  await expectStill(primary(page));
   const main = (await primary(page).innerText().catch(() => '')).trim();
   if (/^(Record|Continue recording)$/.test(main)) await primary(page).click();
   else {
@@ -50,11 +55,10 @@ async function openWorkspace(page: Page): Promise<void> {
   await expect(text(page, /^Recording Version \d+$/)).toBeVisible();
 }
 
-async function speakInto(page: Page, mic: string, _ms = 3500): Promise<void> {
+async function speakInto(page: Page, mic: string, ms = 3500): Promise<void> {
   await button(page, mic).click();
   await expect(button(page, 'Stop recording')).toBeVisible();
-  // The voice file speaks 1.5 s in every 4 s: stop once a piece has been heard.
-  await expect(visible(page.getByLabel(/[1-9]\d* pieces? so far/)).first()).toBeVisible({ timeout: 15_000 });
+  await recordedFor(page, Math.ceil(ms / 1000));
   await button(page, 'Stop recording').click();
 }
 
@@ -172,14 +176,16 @@ test('STUDY-004 The last step, then "Record the first draft"', async ({ page }) 
   // A passage with no version: every step done, then the first draft.
   await openLabel(page, JOHN);
   await primary(page).click();
-  for (let i = 0; i < 12 && await button(page, 'Done with this step').isVisible().catch(() => false); i++) {
-    const before = await screenText(page);
+  // Each "Done" moves the reader to the next step; after the sixth it offers the first draft.
+  for (let n = 1; n <= 6; n++) {
+    await expect(stepBar(page, n)).toBeVisible();
     await button(page, 'Done with this step').click();
-    await expect.poll(() => screenText(page)).not.toBe(before);
   }
   await expect(button(page, 'Record the first draft')).toBeVisible();
   await button(page, 'Record the first draft').click();
   await expect(text(page, 'Recording Version 1')).toBeVisible();
+  // STUDY-005 takes back one of these steps through the server.
+  await expectSent(page, world());
 });
 
 test('STUDY-005 Reviewers see the next step, not "Done"', async ({ page }) => {
