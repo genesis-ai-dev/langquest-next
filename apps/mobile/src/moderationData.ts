@@ -4,7 +4,7 @@ import { AppState } from 'react-native';
 import { accountOutbox, queueAccountAction } from './accountData';
 import { blockedIds, groupReports, reportPayload, type OpenReport, type ReportReason, type ReportTarget } from './moderation';
 import { noteExpected } from './report';
-import { supabase } from './supabase';
+import * as server from './server/moderation';
 
 // Reports and blocks reach the server through the account outbox, so they
 // are saved offline and sent when connected, like a profile name. Acting on
@@ -35,7 +35,7 @@ export function useBlocks(actorId: string): Blocks {
       if (actorId === 'guest') return;
       // Changes queued before the read are newer than anything it returns.
       const waiting = (await accountOutbox(actorId).list()).filter((a) => a.status === 'queued');
-      const { data, error } = await supabase.from('user_blocks').select('blocked_id');
+      const { data, error } = await server.blockedPeople();
       if (error) throw new Error(error.message);
       const next = blockedIds((data ?? []).map((r) => r.blocked_id as string), waiting);
       await AsyncStorage.setItem(key, JSON.stringify(next));
@@ -82,7 +82,7 @@ export async function sendReport(actorId: string, target: ReportTarget, reason: 
 
 /** Open reports this person may act on, in this organization. Needs the server. */
 export async function openReports(orgId: string): Promise<OpenReport[]> {
-  const { data, error } = await supabase.rpc('org_content_reports', { p_org: orgId });
+  const { data, error } = await server.orgContentReports(orgId);
   if (error) throw new Error(error.message);
   return (data ?? []) as OpenReport[];
 }
@@ -118,17 +118,13 @@ export function useOpenReportCount(orgId: string, enabled: boolean): number {
 
 /** Take something out of the record for everyone (`v1.Redacted`, appended by the server as the caller). */
 export async function removeContent(t: ReportTarget, reason: string): Promise<number> {
-  const { data, error } = await supabase.rpc('remove_content', {
-    p_org: t.orgId, p_language: t.languageId ?? null, p_kind: t.kind, p_target: t.id, p_reason: reason
-  });
+  const { data, error } = await server.removeContent(t, reason);
   if (error) throw new Error(error.message);
   return Number(data ?? 0);
 }
 
 /** Looked at it and leaving it: closes every open report about it. */
 export async function dismissReports(t: ReportTarget): Promise<void> {
-  const { error } = await supabase.rpc('dismiss_reports', {
-    p_org: t.orgId, p_language: t.languageId ?? null, p_kind: t.kind, p_target: t.id
-  });
+  const { error } = await server.dismissReports(t);
   if (error) throw new Error(error.message);
 }

@@ -18,7 +18,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { DatabaseSync } from 'node:sqlite';
-import { SyncClient, SqliteStore, type SqlDriver, type Transport } from '@langquest-next/client';
+import { SyncClient, SqliteStore, type SqlDriver, type Transport } from '@langquest-next/sync';
 import type { AnyEvent } from '@langquest-next/core';
 
 /** node:sqlite driver, the same shape as the test driver in storeContract.test.ts but on a file. */

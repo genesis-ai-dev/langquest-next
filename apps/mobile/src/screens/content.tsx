@@ -12,7 +12,7 @@
 // plus what other organizations share. A language uses one version of one;
 // when the item moves to a new version the language follows it
 // (library/follow.ts). A Bible template's books are divided one by one,
-// here in the editor as from the map (decisions.md 74, 93, 104).
+// here in the editor as from the map (decisions.md 74, 93, 106).
 //
 // Below the organization there are only languages (docs/decisions.md 63).
 // templates_home params: `level` ('org' | 'language') and/or `languageId`.
@@ -21,14 +21,13 @@
 // book_structure: `languageId`, `bookId`. A `languageId` param opens that
 // language, so its state is the open language's.
 import {
-  bookParts, chaptersInBook, derivePassage, languageName, languageProgress, libraryItemView, sameParts, templateBooks, usfmOf, withBookBrokenUp,
-  type LevelDisplay, type LibraryItemView, type TemplateDoc, type VersificationDoc
+  bookParts, chaptersInBook, languageName, languageProgress, libraryItemView, usfmOf,
+  type LibraryItemView, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import { BookHead, BreakUpBook, templateBookName } from '../breakup/BreakUpBook';
 import { DivideOwnWay, useBookText } from '../breakup/DivideOwnWay';
-import { divisionLine, sharedTemplateShown, wayNow, booksLine } from '../breakup/model';
+import { booksLine, divisionLine, sharedTemplateShown, wayNow } from '../breakup/model';
 import { atOf } from '../breakup/ownWay';
-import { chipLabel as sourceChip } from '../sources/SourceReader';
 import { RedoSheet } from '../breakup/parts';
 import { TranslateQuestion, useTranslate } from '../breakup/TranslateStep';
 import { useWays } from '../breakup/useBreakup';
@@ -37,10 +36,10 @@ import * as Crypto from 'expo-crypto';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../text';
 import {
-  bibleBook, bookNameOf, bookRows, withWaitingBooks, bookSegments, chapterBlocks, chipLabel, choiceLine, continuesInto, countOutline, addNode, docFromForm,
-  docLevels, fiaStarts, formChanged, formFromDoc, levelsForDivide,
+  bibleBook, bookNameOf, bookRows, withWaitingBooks, chapterBlocks, chipLabel, choiceLine, continuesInto, addNode,
+  docLevels, formFromDoc, levelsForDivide,
   levelsForOutline, libraryChoices, moveNode, newTemplateForm, partWords, recordedCount, removeNode, renameNode,
-  setAsideCount, siblingsOf, findNode, STARTER_TEMPLATE, templateLine, templateOf, versesText, versificationBooks, versionNumber,
+  setAsideCount, siblingsOf, findNode, STARTER_TEMPLATE, templateLine, templateOf, versesText, versificationBooks,
   type BibleBook, type Block, type LibraryChoice, type Segment, type TemplateForm
 } from '../contentTemplates';
 import { bookName } from '../coreText';
@@ -51,13 +50,22 @@ import {
   Banner, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, PrimaryBtn, QuietLinks, Row, Screen, SearchField,
   SectionLabel, SmallBtn, Sheet, ShowMore, Toggle, txt, useOpenDetail
 } from '../kit';
-import { mayWriteLibrary, sourceLine, usesItem, type SharedItem } from '../library/model';
+import { mayWriteLibrary, sourceLine, type SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs, useLibraryUpdates, useSharedItems } from '../library/useLibrary';
 import { failureMessage } from '../report';
 import { DashedRow } from '../simple/admin';
-import { readingsFor } from '../scripture';
 import { contractsFor } from '../screenContracts';
+import { chipLabel as sourceChip } from '../sources/SourceReader';
 import { C, radius, space, target, tile, TINT, type as T } from '../theme';
+import { bookStructureData, chapterNumbers, chapterTileLabel, partsStartingIn } from '../templates/bookStructureModel';
+import { useRunner, type Lib } from '../templates/hooks';
+import {
+  bookRowSub, choiceInUse, defaultDisplay, displayExample, filterBooks, isOpenLanguage, joinNames, languageSummary, languageVersionView,
+  levelNameAt, levelSub, lower, missingBooks, orgNameOf, outlineHolds, outlineSummary, partsCount, pendingUpdate, pickerLists, pickerNote,
+  renamedTitle, splitArchived, templatesLevel, usersOf
+} from '../templates/model';
+import { usePickTemplate } from '../templates/usePickTemplate';
+import { useTemplateEditor } from '../templates/useTemplateEditor';
 
 /**
  * What to say when something fails (error-tracking): a command's own reason,
@@ -65,52 +73,15 @@ import { C, radius, space, target, tile, TINT, type as T } from '../theme';
  */
 const failure = failureMessage;
 
-const lower = (s: string) => s.toLowerCase();
-const NO_VERSES: readonly number[] = [];
-
-/** "Dinka", "Dinka and Nuer", "Dinka, Nuer and Shilluk". */
-function joinNames(names: string[]): string {
-  return names.length <= 1 ? names.join('') : t('content.list.and', { items: names.slice(0, -1).join(t('content.list.separator')), last: names.at(-1) });
-}
-
-/** "Dinka moves to it by itself." / "Dinka and Nuer move to it by themselves." */
-function movesLine(names: string[]): string {
-  if (names.length === 0) return '';
-  return t('content.moves', { count: names.length, names: joinNames(names) });
-}
-
-/** "12 passages", "1 story": a count of what a language records, in the template's word for it. */
-function partsCount(count: number, words: { one: string; many: string }): string {
-  return t('content.partsCount', { count, part: lower(words.one), parts: lower(words.many) });
-}
-
-type Level = 'org' | 'language';
-type Lib = ReturnType<typeof useLibrary>;
-
 /** Which view of templates this is: the level from params, else the viewer's own scope (ADR-017). */
-function levelOf(ctx: Ctx): { level: Level; languageId: string | null } {
-  const level = ctx.params['level'];
-  const languageParam = ctx.params['languageId'];
-  if (level === 'org') return { level: 'org', languageId: null };
-  if (level === 'language' || languageParam) return { level: 'language', languageId: languageParam ?? ctx.languageId };
-  const scope = ctx.session.adminScope;
-  if (scope?.level === 'org') return { level: 'org', languageId: null };
-  return { level: 'language', languageId: scope?.languageId ?? ctx.languageId };
-}
+const levelOf = (ctx: Ctx) => templatesLevel(ctx.params, ctx.session.adminScope, ctx.languageId);
 
 /** Is this the open language (whose state the screen reads)? */
-function isOpen(ctx: Ctx, languageId: string | null | undefined): languageId is string {
-  return !!languageId && languageId === ctx.language.languageId;
-}
+const isOpen = (ctx: Ctx, languageId: string | null | undefined): languageId is string => isOpenLanguage(ctx.language.languageId, languageId);
 
-/** The languages using a template: the open one, when it does (other languages' choices are in their own logs). */
-function usersOf(ctx: Ctx, itemId: string): string[] {
-  return usesItem(ctx.language.state, itemId) ? [languageName(ctx.org.state, ctx.language.languageId)] : [];
-}
+const NO_VERSES: readonly number[] = [];
 
-function orgName(ctx: Ctx): string {
-  return ctx.org.state?.org?.value.name ?? t('content.orgFallback');
-}
+const orgName = (ctx: Ctx) => orgNameOf(ctx.org.state);
 
 /** Book › Chapter › Passage: folders, then what's recorded (TPL-2). */
 function LevelsLine(props: { levels: string[] }) {
@@ -149,23 +120,6 @@ function SharedOffline(props: { error: string; empty: boolean }) {
   );
 }
 
-/** Run one library action: busy while it runs, and "Not saved" with the reason when it fails. */
-function useRunner(ctx: Ctx) {
-  const [busy, setBusy] = useState(false);
-  async function run(what: string, fn: () => Promise<void>) {
-    if (busy) return;
-    setBusy(true);
-    try {
-      await fn();
-    } catch (e) {
-      ctx.toast(t('common.notSaved', { reason: failure(what, e) }));
-    } finally {
-      setBusy(false);
-    }
-  }
-  return { busy, run };
-}
-
 // ---- Content Templates -------------------------------------------------------------------
 
 export function TemplatesHome(ctx: Ctx) {
@@ -182,10 +136,9 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
   // The organization's library is written at organization scope (library/model.ts `mayWriteLibrary`).
   const canManage = lib.canWrite('template');
   const all = lib.items('template');
-  const active = all.filter((i) => !i.archived);
-  const archived = all.filter((i) => i.archived);
+  const { active, archived } = splitArchived(all);
   const shared = useSharedItems('template', lib.orgId);
-  // LangQuest's ways once each (English numbering here), not its older templates or the same ways in every numbering (decision 104).
+  // LangQuest's ways once each (English numbering here), not its older templates or the same ways in every numbering (decision 106).
   const others = useMemo(() => libraryChoices(library ?? {}, [], shared.rows.filter((r) => sharedTemplateShown(r, 'eng')), STARTER_TEMPLATE.name), [library, shared.rows]);
   const { updates } = useLibraryUpdates(lib.orgId);
   const [limit, setLimit] = useState(8);
@@ -202,8 +155,8 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
 
   const itemCard = (it: LibraryItemView) => {
     const doc = docs.get<TemplateDoc>(it.current);
-    const users = usersOf(ctx, it.itemId);
-    const update = it.source === 'subscription' && it.subscription?.active && !it.subscription.autoUpdate ? updates[it.itemId] : undefined;
+    const users = usersOf(state, ctx.org.state, ctx.language.languageId, it.itemId);
+    const update = it.source === 'subscription' ? pendingUpdate(it, updates) : undefined;
     return (
       <Card key={it.itemId} current={beside?.screen === 'template_editor' && beside.params['itemId'] === it.itemId}>
         <View style={styles.head}>
@@ -425,20 +378,6 @@ function SharedTemplateSheet(props: { ctx: Ctx; lib: Lib; shared: SharedItem; ca
   );
 }
 
-/** "Version 2 · from LangQuest", "Version 3 · copied from LangQuest", "from LangQuest", or nothing. */
-function versionLineOf(n: number | null, item: LibraryItemView | null): string {
-  const sub = item?.subscription ? item.subscription.sourceOrgName : null;
-  const copied = item?.copiedFrom ? item.copiedFrom.orgName : null;
-  if (n) {
-    if (sub !== null) return t('content.language.versionFrom', { n, org: sub });
-    if (copied !== null) return t('content.language.versionCopied', { n, org: copied });
-    return t('content.language.version', { n });
-  }
-  if (sub !== null) return t('content.language.from', { org: sub });
-  if (copied !== null) return t('content.language.copied', { org: copied });
-  return '';
-}
-
 /** A language: its template and version, its levels and counts, Change, and the books (TPL-1, TPL-7). */
 function LanguageTemplateView({ ctx, languageId }: { ctx: Ctx; languageId: string | null }) {
   const state = ctx.language.state;
@@ -455,7 +394,7 @@ function LanguageTemplateView({ ctx, languageId }: { ctx: Ctx; languageId: strin
     const idx = indexesFor(state);
     return {
       language: languageName(ctx.org.state, languageId),
-      // Books waiting to be divided are listed too, so they can be opened and divided here (decision 104).
+      // Books waiting to be divided are listed too, so they can be opened and divided here (decision 106).
       books: withWaitingBooks(bookRows(state, idx), state, idx),
       progress: languageProgress(state, idx),
       setAside: setAsideCount(state)
@@ -479,12 +418,11 @@ function LanguageTemplateView({ ctx, languageId }: { ctx: Ctx; languageId: strin
   const v11n = doc?.bible ? docs.get<VersificationDoc>(doc.bible.versification) : null;
   const levels = doc ? docLevels(doc) : [];
   const words = partWords(doc);
-  const q = query.trim().toLowerCase();
-  const books = data.books.filter((b) => !q || [b.label, bookName(b.book.itemId), b.book.label].some((name) => name.toLowerCase().includes(q)));
-  const n = versionNumber(item, sel?.docHash);
-  const versionLine = versionLineOf(n, item);
-  const newer = item?.current && sel && item.current !== sel.docHash ? versionNumber(item, item.current) : null;
-  const update = item?.subscription?.active && !item.subscription.autoUpdate ? updates[item.itemId] : undefined;
+  const books = filterBooks(data.books, query, bookName);
+  const { versionLine, newer, update } = languageVersionView(item, sel, updates);
+  const { bibleLine, countsLine } = languageSummary({
+    doc, chosenBooks: sel?.books ? sel.books.length : null, v11n, bookRows: data.books.length, progress: data.progress, words
+  });
 
   return (
     <Screen header={<Header title={t('content.language.title')} sub={data.language} onBack={ctx.back} />}>
@@ -496,23 +434,8 @@ function LanguageTemplateView({ ctx, languageId }: { ctx: Ctx; languageId: strin
             <Text style={[txt.smMuted, { marginTop: 2 }]}>{versionLine}</Text>
           </View>
           {!doc ? <LoadingLine /> : <LevelsLine levels={levels} />}
-          {doc?.bible ? (
-            <Text style={txt.sm}>
-              {[
-                sel?.books
-                  ? t('content.language.booksOfIts', { chosen: sel.books.length, count: doc.bible.books.length })
-                  : t('content.books', { count: doc.bible.books.length }),
-                v11n ? t('content.language.versification', { name: v11n.name }) : t('content.language.versificationLoading')
-              ].join(' · ')}
-            </Text>
-          ) : null}
-          <Text style={txt.sm}>
-            {[
-              ...(data.books.length && !doc?.bible ? [t('content.books', { count: data.books.length })] : []),
-              partsCount(data.progress.total, words),
-              t('content.language.recorded', { count: data.progress.recorded })
-            ].join(' · ')}
-          </Text>
+          {bibleLine !== null ? <Text style={txt.sm}>{bibleLine}</Text> : null}
+          <Text style={txt.sm}>{countsLine}</Text>
           {newer ? (
             <Text style={[txt.sm, { color: C.primary, fontWeight: '600' }]}>{t('content.language.newerOut', { n: newer, language: data.language })}</Text>
           ) : update ? (
@@ -584,20 +507,19 @@ export function TemplatePicker(ctx: Ctx) {
   const library = ctx.org.state?.library;
   const shared = useSharedItems('template', lib.orgId);
   const choices = useMemo(() => libraryChoices(library ?? {}, lib.items('template'), shared.rows, STARTER_TEMPLATE.name), [library, lib.items, shared.rows]);
-  const ours = choices.filter((c) => c.source === 'ours');
   const [picked, setPicked] = useState<string | null>(null);
   const [sharedLimit, setSharedLimit] = useState(5);
-  const [busy, setBusy] = useState(false);
   const open = isOpen(ctx, languageId);
   const sel = state && open ? templateOf(state) : null;
   const pick = choices.find((c) => c.key === picked);
   const docs = useLibraryDocs(lib.orgId, [pick?.hash, sel?.docHash]);
   const selDoc = sel ? docs.get<TemplateDoc>(sel.docHash) : null;
-  const numberingCode = (selDoc?.bible ? docs.get<VersificationDoc>(selDoc.bible.versification)?.code : null) ?? 'eng';
-  // Using another organization's template follows it first, an organization write (`mayWriteLibrary`). LangQuest's
-  // ways are offered once, in the numbering the language uses now, without its older templates (decision 104).
-  const others = lib.canWrite('template') ? choices.filter((c) => c.source === 'shared' && sharedTemplateShown(c.shared, numberingCode)) : [];
+  // Using another organization's template follows it first, an organization write (`mayWriteLibrary`); LangQuest's
+  // ways are offered in the numbering the language uses now (decision 106).
+  const numbering = (selDoc?.bible ? docs.get<VersificationDoc>(selDoc.bible.versification)?.code : null) ?? 'eng';
+  const { ours, others } = pickerLists(choices, lib.canWrite('template'), numbering);
   const recorded = useMemo(() => (state && open ? recordedCount(state) : 0), [state, open]);
+  const { busy, use } = usePickTemplate(ctx, lib, state, languageId);
   if (!state) return <Loading title={t('content.picker.title')} onBack={ctx.back} />;
   if (!isOpen(ctx, languageId)) {
     return (
@@ -609,34 +531,9 @@ export function TemplatePicker(ctx: Ctx) {
   const language = languageName(ctx.org.state, languageId);
   const canUse = ctx.session.can('manage_templates');
   const currentName = sel ? lib.item(sel.itemId)?.name ?? t('content.picker.itsTemplate') : null;
-  const inUse = (c: LibraryChoice) => !!sel && c.source === 'ours' && c.item.itemId === sel.itemId;
+  const inUse = (c: LibraryChoice) => choiceInUse(c, sel);
   const currentDoc = sel ? docs.get<TemplateDoc>(sel.docHash) : null;
   const currentParts = lower(partWords(currentDoc).many);
-
-  async function use(c: LibraryChoice) {
-    if (!state || busy || !canUse) return;
-    setBusy(true);
-    try {
-      const prev = state.template?.value;
-      const books = prev?.books;
-      // Undo re-applies the version used before, worked out now (none when that version's document is not on the phone).
-      const undo = prev?.itemId && prev.docHash
-        ? await lib.applySpecs(prev.itemId, { docHash: prev.docHash, ...(books ? { books } : {}) }).catch(() => null)
-        : null;
-      // Another organization's template is followed, with automatic updates, before it is used.
-      const itemId = c.source === 'shared' ? await lib.subscribe(c.shared, true) : c.item.itemId;
-      const specs = await lib.applySpecs(itemId, { docHash: c.hash, ...(books ? { books } : {}) });
-      // ctx.act says "Not saved" and why itself; stay here to try again.
-      try {
-        await ctx.act(specs, t('content.picker.nowUses', { language, name: c.name }), undo ? () => undo : undefined);
-      } catch { return; }
-      ctx.go('templates_home', { languageId });
-    } catch (e) {
-      ctx.toast(failure('use template', e));
-    } finally {
-      setBusy(false);
-    }
-  }
 
   const card = (c: LibraryChoice) => {
     const on = picked === c.key;
@@ -669,14 +566,7 @@ export function TemplatePicker(ctx: Ctx) {
         sub={currentName ? t('content.picker.forNow', { language, template: currentName }) : t('content.picker.for', { language })} onBack={ctx.back} />}
       footer={changing && pick ? (
         <>
-          <Text style={txt.smMuted}>
-            {sel
-              ? recorded
-                ? t('content.picker.hiddenRecorded', { language, parts: currentParts, count: recorded })
-                : t('content.picker.hidden', { language, parts: currentParts })
-              : t('content.picker.willRecord', { language, name: pick.name })}
-            {pick.source === 'shared' ? ` ${t('content.picker.followsIt', { org: pick.shared.org_name, language })}` : ''}
-          </Text>
+          <Text style={txt.smMuted}>{pickerNote({ hasCurrent: !!sel, recorded, language, currentParts, pick })}</Text>
           <PrimaryBtn label={t('content.picker.use', { name: pick.name })} icon="check" busy={busy} disabled={!canUse} onPress={() => void use(pick)} />
         </>
       ) : undefined}>
@@ -699,16 +589,6 @@ export function TemplatePicker(ctx: Ctx) {
 }
 
 // ---- Template editor (TPL-9) -------------------------------------------------------------------
-
-/** What a level is for: the last is recorded (and how each is shown), the one above holds it, the rest hold folders. */
-function levelSub(i: number, count: number, display?: LevelDisplay): string {
-  if (i < count - 1) return i === count - 2 ? t('content.editor.levelHolds') : t('content.editor.levelFolders');
-  switch (display ?? 'reference') {
-    case 'reference': return t('content.editor.levelShownByReference');
-    case 'name': return t('content.editor.levelShownByName');
-    case 'both': return t('content.editor.levelShownByBoth');
-  }
-}
 
 export function TemplateEditor(ctx: Ctx) {
   const languageId = ctx.params['languageId'] ?? ctx.languageId;
@@ -747,18 +627,9 @@ function LibraryTemplate({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
   return <TemplateEditorForm key={item.current} ctx={ctx} lib={lib} item={item} initial={formFromDoc(doc, item.name, item.description)} />;
 }
 
-/** The versifications a Bible template can be numbered in: the organization's, then shared ones (LangQuest's English first). */
-function useVersifications(ctx: Ctx, lib: Lib, enabled = true) {
-  const shared = useSharedItems('versification', lib.orgId, enabled);
-  const library = ctx.org.state?.library;
-  // i18n-ignore: LangQuest's English versification by its library name, matched to list it first
-  const choices = useMemo(() => libraryChoices(library ?? {}, lib.items('versification'), shared.rows, 'English'), [library, lib.items, shared.rows]);
-  return { choices, error: shared.error };
-}
-
 /**
  * "New template": Scripture, or an outline built by hand. Scripture asks
- * what New language asks (decision 104): the Bible the team translates
+ * what New language asks (decision 106): the Bible the team translates
  * from (or the quiz, or the list), then how the Bible is divided, your own
  * way first. The template starts as that way divides it, and each book can
  * then be divided on its own in the editor.
@@ -823,8 +694,6 @@ function NewTemplate({ ctx }: { ctx: Ctx }) {
  * Save publishes the next version. A followed template opens read-only.
  */
 function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; item: LibraryItemView | null; initial: TemplateForm }) {
-  const state = ctx.language.state;
-  const [f, setF] = useState<TemplateForm>(initial);
   const [editingLevel, setEditingLevel] = useState<number | null>(null);
   const [editingBook, setEditingBook] = useState<string | null>(null);
   const [addingBook, setAddingBook] = useState(false);
@@ -832,97 +701,47 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
   const [editingNode, setEditingNode] = useState<string | null>(null);
   const [leaving, setLeaving] = useState(false);
   const [bookLimit, setBookLimit] = useState(12);
-  // The book being divided (decision 104), and whether it is being divided its own way.
+  // The book being divided (decision 106), and whether it is being divided its own way.
   const [dividing, setDividing] = useState<string | null>(null);
   const [ownWay, setOwnWay] = useState(false);
-  const [redoing, setRedoing] = useState(false);
-  const { busy, run } = useRunner(ctx);
-  const v = useVersifications(ctx, lib, f.structure === 'bible');
-  const docs = useLibraryDocs(lib.orgId, [f.versification]);
-  const v11n = docs.get<VersificationDoc>(f.versification);
-  const ways = useWays(ctx, ctx.language.languageId, f.structure === 'bible' ? v11n?.code ?? null : null);
-  const formDoc = useMemo(() => docFromForm(f), [f]);
-  const startDoc = useMemo(() => docFromForm(initial), [initial]);
-  const set = (patch: Partial<TemplateForm>) => setF((prev) => ({ ...prev, ...patch }));
-  const isNew = item === null;
-  const followed = item?.source === 'subscription';
-  const readOnly = !lib.canWrite('template') || followed;
-  const changed = isNew || formChanged(f, initial) || f.name.trim() !== initial.name || f.description.trim() !== initial.description;
-  const users = item ? usersOf(ctx, item.itemId) : [];
-  const bible = f.structure === 'bible';
-  const v11nChoice = v.choices.find((c) => c.hash === f.versification);
-  const v11nName = v11n?.name ?? v11nChoice?.name ?? (f.versification ? t('common.loading') : t('content.editor.chooseOne'));
-  const ready = !!f.name.trim() && (!bible || (!!f.versification && f.books.length > 0)) && (bible || f.outline.length > 0);
-
-  // Books divided before that are divided differently now: what languages recorded on them moves to Earlier sections.
-  const redone = bible && users.length > 0
-    ? f.books.filter((b) => bookParts(startDoc, b.book) && !sameParts(startDoc, formDoc, b.book)).map((b) => b.name)
-    : [];
-  // Each book divides on its own once the template is a template@2 (decision 74), or once one book is divided here.
-  const perBook = !!f.bookParts;
-
-  /** Divide a book of the form as `way` does; Save publishes it. */
-  const applyWay = (book: string, bookLabel: string) => (way: TemplateDoc) => {
-    const next = withBookBrokenUp(formDoc, book, way);
-    set({ bookParts: templateBooks(next) });
-    setOwnWay(false);
-    setDividing(null);
-    ctx.toast(t('content.divide.done', { book: bookLabel }));
-  };
-
-  function save() {
-    if (redone.length && !redoing) { setRedoing(true); return; }
-    setRedoing(false);
-    void run('save template', async () => { // i18n-ignore: log label
-      const name = f.name.trim();
-      // A versification another organization shares is followed (or copied) first, so this organization may name it.
-      if (bible && v11nChoice?.source === 'shared') {
-        if (v11nChoice.shared.subscribable) await lib.subscribe(v11nChoice.shared, true);
-        else await lib.copy(v11nChoice.shared);
-      }
-      const { docHash } = await lib.publish({
-        kind: 'template', ...(item ? { itemId: item.itemId } : {}), name, description: f.description.trim(), doc: docFromForm(f)
-      });
-      const n = (item?.versions.length ?? 0) + (item?.versions.some((x) => x.docHash === docHash) ? 0 : 1);
-      ctx.toast(isNew ? t('content.editor.created', { name }) : `${t('content.editor.savedAs', { name, n })} ${movesLine(users)}`.trim());
-      ctx.back();
-    });
-  }
-
-  const sub = isNew ? t('content.editor.subNew', { org: orgName(ctx) }) : followed ? sourceLine(item) : t('content.editor.subTemplate', { source: sourceLine(item) });
+  const {
+    f, set, busy, run, v, v11n, isNew, followed, readOnly, changed, users, bible, v11nName, ready, sub, save, doc, perBook, divide, redone, redoing, cancelRedo
+  } = useTemplateEditor(ctx, lib, item, initial);
+  const ways = useWays(ctx, ctx.language.languageId, bible ? v11n?.code ?? null : null);
   const shownBooks = f.books.slice(0, bookLimit);
   const bookSheet = editingBook ? f.books.find((b) => b.book === editingBook) : undefined;
-  const missing = v11n ? versificationBooks(v11n).filter((b) => !f.books.some((x) => x.book === b)) : [];
+  const missing = missingBooks(v11n ? versificationBooks(v11n) : null, f.books);
   const node = editingNode ? findNode(f.outline, editingNode) : undefined;
   const nodeSiblings = editingNode ? siblingsOf(f.outline, editingNode) : [];
   const templateName = f.name.trim() || t('content.editor.untitled');
+  const bookSheetView = bookSheet ? (
+    <BookSheet book={bookSheet} onClose={() => setEditingBook(null)}
+      onSave={(name) => { set({ books: f.books.map((b) => (b.book === bookSheet.book ? { ...b, name } : b)) }); setEditingBook(null); }}
+      onRemove={() => { set({ books: f.books.filter((b) => b.book !== bookSheet.book) }); setEditingBook(null); setDividing(null); }} />
+  ) : null;
 
-  // A book of the template, divided here as it is from the map: your own way first, then the ready-made ways (decision 104).
+  // A book of the template, divided here as it is from the map: your own way first, then the ready-made ways (decision 106).
   const divided = dividing ? f.books.find((b) => b.book === dividing) : undefined;
   if (bible && divided) {
-    const apply = applyWay(divided.book, divided.name);
-    const withSheet = (screen: ReactNode) => (
-      <>
-        {screen}
-        {bookSheet ? (
-          <BookSheet book={bookSheet} onClose={() => setEditingBook(null)}
-            onSave={(name) => { set({ books: f.books.map((b) => (b.book === bookSheet.book ? { ...b, name } : b)) }); setEditingBook(null); }}
-            onRemove={() => { set({ books: f.books.filter((b) => b.book !== bookSheet.book) }); setEditingBook(null); setDividing(null); }} />
-        ) : null}
-      </>
-    );
+    const apply = (way: TemplateDoc) => {
+      divide(divided.book, way);
+      setOwnWay(false);
+      setDividing(null);
+      ctx.toast(t('content.divide.done', { book: divided.name }));
+    };
     if (ownWay) {
       return (
-        <DivideOwnWay ctx={ctx} book={divided.book} bookName={divided.name} doc={formDoc} v11n={v11n} fallbackVerses={v11n?.maxVerses[divided.book] ?? []}
+        <DivideOwnWay ctx={ctx} book={divided.book} bookName={divided.name} doc={doc} v11n={v11n} fallbackVerses={v11n?.maxVerses[divided.book] ?? []}
           item={item} redo={false} apply={apply} onClose={() => setOwnWay(false)} onDone={() => { setOwnWay(false); setDividing(null); }} />
       );
     }
-    return withSheet(
-      <BreakUpBook ctx={ctx} book={divided.book} bookName={divided.name} language={templateName} doc={formDoc} item={item}
-        redo={!!bookParts(formDoc, divided.book)} apply={apply} self={item?.itemId ?? null}
+    const page: ReactNode = (
+      <BreakUpBook ctx={ctx} book={divided.book} bookName={divided.name} language={templateName} doc={doc} item={item}
+        redo={!!bookParts(doc, divided.book)} apply={apply} self={item?.itemId ?? null}
         onClose={() => setDividing(null)} onOwn={() => setOwnWay(true)}
         extra={<QuietLinks items={[{ label: t('content.divide.nameOrRemove', { book: divided.name }), icon: 'edit', onPress: () => setEditingBook(divided.book) }]} />} />
     );
+    return <>{page}{bookSheetView}</>;
   }
 
   return (
@@ -962,7 +781,7 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
       <Group>
         {f.levels.map((l, i) => (
           <Row key={`${l.name}-${i}`} icon={i === f.levels.length - 1 ? 'media' : 'folder'} label={l.name}
-            sub={levelSub(i, f.levels.length, l.display ?? (bible ? 'reference' : 'name'))}
+            sub={levelSub(i, f.levels.length, defaultDisplay(l, bible))}
             onPress={readOnly ? undefined : () => setEditingLevel(i)} right={readOnly ? undefined : <Ico name="edit" size={20} color={C.muted} />}
             last={i === f.levels.length - 1} />
         ))}
@@ -1003,12 +822,11 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
               {shownBooks.map((b, i) => {
                 const known = bookNameOf(b.book);
                 const chapters = v11n ? chaptersInBook(v11n, b.book) : 0;
-                // How it is divided: the ready-made way it matches, its own way, or waiting (decision 104).
-                const way = perBook ? wayNow(ways.rows, (r) => ways.docOf(r.choice), formDoc, b.book, item?.itemId ?? null) : null;
-                const how = perBook ? divisionLine(formDoc, b.book, way?.choice.name ?? null, v11n) : null;
+                // How it is divided: the ready-made way it matches, its own way, or waiting (decision 106).
+                const way = perBook ? wayNow(ways.rows, (r) => ways.docOf(r.choice), doc, b.book, item?.itemId ?? null) : null;
                 return (
                   <Row key={b.book} icon="book" label={b.name}
-                    sub={[...(known !== b.name ? [known] : []), ...(how ? [how] : chapters ? [t('content.editor.chapterCount', { count: chapters })] : [])].join(' · ') || b.book}
+                    sub={perBook ? [...(known !== b.name ? [known] : []), divisionLine(doc, b.book, way?.choice.name ?? null, v11n)].join(' · ') : bookRowSub(b.book, b.name, known, chapters)}
                     onPress={readOnly ? undefined : () => setDividing(b.book)} right={readOnly ? undefined : <Ico name="right" size={20} color={C.muted} />}
                     last={i === shownBooks.length - 1} />
                 );
@@ -1031,11 +849,7 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
         <LevelSheet level={f.levels[editingLevel]!} last={editingLevel === f.levels.length - 1} bible={bible} onClose={() => setEditingLevel(null)}
           onSave={(l) => { set({ levels: f.levels.map((x, i) => (i === editingLevel ? l : x)) }); setEditingLevel(null); }} />
       ) : null}
-      {bookSheet ? (
-        <BookSheet book={bookSheet} onClose={() => setEditingBook(null)}
-          onSave={(name) => { set({ books: f.books.map((b) => (b.book === bookSheet.book ? { ...b, name } : b)) }); setEditingBook(null); }}
-          onRemove={() => { set({ books: f.books.filter((b) => b.book !== bookSheet.book) }); setEditingBook(null); }} />
-      ) : null}
+      {bookSheetView}
       {addingBook ? (
         <AddBookSheet books={missing} onClose={() => setAddingBook(false)}
           onAdd={(book) => set({ books: [...f.books, { book, name: bookNameOf(book) }] })} />
@@ -1058,7 +872,7 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
           onMove={(by) => set({ outline: moveNode(f.outline, node.id, by) })}
           onRemove={() => { const outline = removeNode(f.outline, node.id); set({ outline, levels: levelsForOutline(outline, f.levels) }); setEditingNode(null); }} />
       ) : null}
-      <RedoSheet visible={redoing} book={booksLine(redone)} busy={busy} onClose={() => setRedoing(false)} onConfirm={save} />
+      <RedoSheet visible={redoing} book={booksLine(redone)} busy={busy} onClose={cancelRedo} onConfirm={save} />
       {leaving ? (
         <Sheet visible title={t('content.editor.leaveTitle')} sub={t('content.editor.leaveSub')} onClose={() => setLeaving(false)}
           footer={<>
@@ -1075,7 +889,7 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
 /** A level: what the team calls it, and for a Bible template's last level how each part is shown (the demo's LevelSheet). */
 function LevelSheet(props: { level: TemplateForm['levels'][number]; last: boolean; bible: boolean; onClose: () => void; onSave: (l: TemplateForm['levels'][number]) => void }) {
   const [name, setName] = useState(props.level.name);
-  const [display, setDisplay] = useState(props.level.display ?? (props.bible ? 'reference' : 'name'));
+  const [display, setDisplay] = useState(defaultDisplay(props.level, props.bible));
   const example = `${bookName('luk')} 15:11–32`;
   return (
     <Sheet visible title={t('content.levelSheet.title')} sub={t('content.levelSheet.sub')} onClose={props.onClose}
@@ -1089,9 +903,7 @@ function LevelSheet(props: { level: TemplateForm['levels'][number]; last: boolea
             <Chip label={t('content.name')} on={display === 'name'} onPress={() => setDisplay('name')} />
             <Chip label={t('content.levelSheet.both')} on={display === 'both'} onPress={() => setDisplay('both')} />
           </ChipRow>
-          <Text style={txt.smMuted}>
-            {display === 'reference' ? example : display === 'name' ? t('content.levelSheet.exampleName') : t('content.levelSheet.exampleBoth', { reference: example })}
-          </Text>
+          <Text style={txt.smMuted}>{displayExample(display, example)}</Text>
         </>
       ) : null}
     </Sheet>
@@ -1140,7 +952,7 @@ function OutlineScroll(props: {
   outline: TemplateForm['outline']; levels: TemplateForm['levels']; readOnly: boolean;
   onChange: (outline: TemplateForm['outline'], edit?: string) => void; onEdit: (id: string) => void;
 }) {
-  const levelName = (d: number) => props.levels[Math.min(d, props.levels.length - 1)]?.name ?? t('content.levels.part');
+  const levelName = (d: number) => levelNameAt(props.levels, d);
 
   function add(parentId: string | null, folder: boolean, depth: number) {
     const id = `n${Crypto.randomUUID().replace(/-/g, '').slice(0, 10)}`;
@@ -1149,7 +961,7 @@ function OutlineScroll(props: {
   }
 
   function render(list: TemplateForm['outline'], depth: number, parentId: string | null) {
-    const holds = list.length === 0 ? 'either' : list[0]!.children ? 'folders' : 'items';
+    const holds = outlineHolds(list);
     return (
       <View style={depth ? styles.outlineIndent : null}>
         {list.map((n) => n.children ? (
@@ -1159,7 +971,7 @@ function OutlineScroll(props: {
               <Ico name="folder" size={depth ? 18 : 22} color={C.primary} />
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={[depth ? txt.body : txt.h3, { fontWeight: '700' }]} numberOfLines={1}>{n.title}</Text>
-                <Text style={txt.smMuted}>{(() => { const c = countOutline(n.children); return c.folders ? t('content.outline.folders', { count: c.folders }) : t('content.outline.items', { count: c.items }); })()}</Text>
+                <Text style={txt.smMuted}>{outlineSummary(n.children)}</Text>
               </View>
               {!props.readOnly ? <Ico name="edit" size={20} color={C.muted} /> : null}
             </Pressable>
@@ -1198,7 +1010,8 @@ function NodeSheet(props: {
   const [title, setTitle] = useState(props.node.title);
   const folder = !!props.node.children;
   const done = () => {
-    if (title.trim() && title.trim() !== props.node.title) props.onRename(title.trim());
+    const renamed = renamedTitle(title, props.node.title);
+    if (renamed) props.onRename(renamed);
     props.onClose();
   };
   return (
@@ -1236,33 +1049,16 @@ export function BookStructure(ctx: Ctx) {
   const doc = sel ? docs.get<TemplateDoc>(sel.docHash) : null;
   const v11n = doc?.bible ? docs.get<VersificationDoc>(doc.bible.versification) : null;
   const usfmCode = book ? usfmOf(book.itemId) : '';
-  // The words in a Bible the team has, as the own-way editor reads them, where the app has none of its own.
+  // The words in a Bible the team has, as the own-way editor reads them, where the app has none of its own (decision 106).
   const bookText = useBookText(ctx, usfmCode, v11n?.maxVerses[usfmCode] ?? book?.verses ?? NO_VERSES);
 
   const data = useMemo(() => {
     if (!state || !open || !book) return null;
-    const idx = indexesFor(state);
-    const segments = bookSegments(state, idx, book);
-    const recorded = new Set(segments.filter((s) => derivePassage(state, s.unitId, idx).recorded).map((s) => s.unitId));
-    // The words, where the app has them (scripture.ts); verse numbers otherwise.
-    const text = new Map<string, string>();
-    const translation = new Map<number, string>();
-    for (const s of segments) {
-      const reading = readingsFor(state, s.unitId)[0];
-      if (!reading) continue;
-      for (const v of reading.verses) {
-        text.set(`${v.chapter}:${v.verse}`, v.text);
-        translation.set(v.chapter, reading.code);
-      }
-    }
-    // FIA's breaks show only where the language divides differently (TPL-5): where a part starts there, no mark.
-    const textOf = (c: number, v: number) => text.get(`${c}:${v}`);
-    const label = bookRows(state, idx).find((r) => r.book.itemId === book.itemId)?.label ?? bookName(book.itemId);
-    return { language: languageName(ctx.org.state, languageId!), label, segments, recorded, textOf, translation, fia: fiaStarts(book) };
+    return bookStructureData(state, indexesFor(state), book, ctx.org.state, languageId!);
   }, [state, open, languageId, book, ctx.org.state]);
-
   const textOf = useCallback((c: number, v: number) => data?.textOf(c, v) ?? (bookText.byAt.get(atOf(c, v)) || undefined), [data, bookText.byAt]);
   const sourceName = bookText.option ? sourceChip(bookText.option, bookText.options) : undefined;
+
   if (!state) return <Loading title={t('content.book.title')} onBack={ctx.back} />;
   if (!book || !data || !languageId) {
     return (
@@ -1291,7 +1087,7 @@ export function BookStructure(ctx: Ctx) {
   const words = partWords(doc);
   const part = words.one;
   const parts = lower(words.many);
-  const chapters = book.verses.map((_, i) => i + 1);
+  const chapters = chapterNumbers(book);
   const fia = canShape ? data.fia : new Set<number>();
   const jump = (c: number) => list.current?.scrollToIndex({ index: c - 1, animated: true });
 
@@ -1335,10 +1131,10 @@ export function BookStructure(ctx: Ctx) {
       <Sheet visible={picking} title={data.label} sub={t('content.book.jump')} onClose={() => setPicking(false)}>
         <View style={styles.grid}>
           {chapters.map((c) => {
-            const n = data.segments.filter((s) => s.from.c === c).length;
+            const n = partsStartingIn(data.segments, c);
             return (
               <Pressable key={c} onPress={() => { setPicking(false); jump(c); }} accessibilityRole="button"
-                accessibilityLabel={n > 1 ? t('content.book.chapterParts', { chapter: c, count: n, part: lower(part), parts }) : t('content.book.chapter', { chapter: c })}
+                accessibilityLabel={chapterTileLabel(c, n, part, parts)}
                 style={({ pressed }) => [styles.chapterTile, pressed && { opacity: 0.7 }]}>
                 <Text style={[txt.h3, { fontVariant: ['tabular-nums'] }]}>{c}</Text>
                 {n > 1 ? <Text style={txt.xsStrong}>{n}</Text> : null}

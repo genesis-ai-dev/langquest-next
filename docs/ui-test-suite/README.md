@@ -314,7 +314,7 @@ npm run test:ui:build -- --platform ios --device <simulator udid>
 ```
 
 ```bash
-npm run test:ui:phone -- --platform ios --tags smoke
+npm run test:ui:phone -- --platform ios --voice --tags smoke
 ```
 
 - `test:ui:web` runs on the release export, as people get it (decision 102):
@@ -336,9 +336,15 @@ npm run test:ui:phone -- --platform ios --tags smoke
   simulator or emulator (an AVD name such as `Pixel_6` for Android).
   Rebuild after changing app code. `test:ui:phone -- --app dev` runs the
   flows on a dev client and Metro instead.
-- Flows that need the microphone need the host's input playing
+- `test:ui:phone` skips the flows the run cannot hold and prints which and
+  why (`scripts/maestro-plan.mjs`): flows tagged `voice` without `--voice`
+  or `--mic`, `android-only` flows on iOS, and `wrapped` flows without
+  `--wrapped`. A skipped flow is not a finding; a failed one is. Flows named
+  with `--flow` run as asked.
+- Flows tagged `voice` need the host's input playing
   `e2e/fixtures/voice.wav` (G8). Route taken: the host, with
-  `--voice` (macOS). The app's capture is native (the local
+  `--voice` (macOS); `--mic` says the input already carries voice, as on a
+  device with a person speaking. The app's capture is native (the local
   `microphone-energy` module for voice detection and expo-audio's recorder
   writing the file), so JavaScript never sees samples and a test-build fake
   input would need native code; the web suite's shim works only because the
@@ -353,8 +359,8 @@ npm run test:ui:phone -- --platform ios --tags smoke
   orders flows only inside a shard, so the flows in `config.yaml`'s
   `flowsOrder` run first on the first device, then the rest are split.
   Reports: `report-ordered.xml` and `report.xml`. Flows tagged `wrapped` need a step
-  from outside mid-run (their headers say which); `android-only` flows turn
-  airplane mode on.
+  from outside mid-run (their headers say which) and run only with
+  `--wrapped`; `android-only` flows turn airplane mode on.
 - On Android, airplane mode does not cut `adb reverse`, so the runner runs
   `adb root` and, while airplane mode is on, rejects the phone's loopback
   traffic to the local stack (ports 54421 and 8787) with `iptables`. It

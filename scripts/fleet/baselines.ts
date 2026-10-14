@@ -16,7 +16,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { FleetReport } from '@langquest-next/client/src/testing';
+import type { FleetReport } from '@langquest-next/sync/src/testing';
 
 export const BASELINES: [name: string, args: string][] = [
   ['normalDay-default', 'normalDay'],

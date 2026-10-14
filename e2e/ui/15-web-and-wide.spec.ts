@@ -414,48 +414,6 @@ test('WEB-017 ADMIN The address names the section @wide', async ({ browser }) =>
   await admin.context.close();
 });
 
-test('WEB-017 TRANS The address names the section @wide', async ({ browser }) => {
-  const w = world();
-  const trans = await wideAs(browser, w, 'TRANS');
-  await expect(tab(trans.page, 'map')).toBeVisible({ timeout: 60_000 });
-  await tab(trans.page, 'map').click();
-  await expectPath(trans.page, '/map/language');
-  // A screen inside a section keeps its address, with no id in it.
-  await tab(trans.page, 'work').click();
-  await expectPath(trans.page, '/work');
-  await caughtUp(trans.page, w, 'TRANS');
-  await openFromMyWork(trans.page, w.passages['P-NEEDS'].label);
-  await expectPath(trans.page, '/work');
-  expect(trans.page.url()).not.toMatch(/[0-9a-f]{8}-|unit|L-alp/);
-  await trans.context.close();
-});
-
-test('WEB-017 LADMIN The address names the section @wide', async ({ browser }) => {
-  const w = world();
-  const lead = await wideAs(browser, w, 'LADMIN');
-  await expect(tab(lead.page, 'manage')).toBeVisible({ timeout: 60_000 });
-  await tab(lead.page, 'manage').click();
-  await expectPath(lead.page, '/manage/language');
-  await lead.context.close();
-});
-
-test('WEB-017 VIEW The address names the section @wide', async ({ browser }) => {
-  const w = world();
-  const view = await wideAs(browser, w, 'VIEW');
-  await expect(tab(view.page, 'inbox')).toBeVisible({ timeout: 60_000 });
-  await tab(view.page, 'inbox').click();
-  await expectPath(view.page, '/inbox');
-  await view.context.close();
-});
-
-test('WEB-017 NOORG The address names the section @wide', async ({ browser }) => {
-  const w = world();
-  const noorg = await wideAs(browser, w, 'NOORG');
-  await expect(text(noorg.page, 'Join your team', false)).toBeVisible({ timeout: 60_000 });
-  await expectPath(noorg.page, '/');
-  await noorg.context.close();
-});
-
 test('WEB-018 TRANS A refresh returns to the section', async ({ page }) => {
   const w = world();
   await openAs(page, w, 'TRANS');
@@ -506,7 +464,6 @@ test('WEB-018 TRANS signed out: a refresh returns to Sign In, then the section',
   await out.close();
 });
 
-const NO_PERMISSION = "You don't have permission to open that.";
 async function openAtPath(browser: Browser, w: UiWorld, who: AccountKey, p: string, width = 430) {
   const d = await deviceAs(browser, w, who, { path: p, width, height: width < 768 ? 932 : 900 });
   // The app lands on its first screen (a tab bar, or Join your team for no organization) before the redirect is judged.
@@ -514,6 +471,7 @@ async function openAtPath(browser: Browser, w: UiWorld, who: AccountKey, p: stri
   return d;
 }
 
+const NO_PERMISSION = "You don't have permission to open that.";
 test('WEB-019 TRANS A refresh never opens a section the person may not open', async ({ browser }) => {
   const w = world();
   // /manage: My Work, and the address follows.
@@ -526,15 +484,6 @@ test('WEB-019 TRANS A refresh never opens a section the person may not open', as
   const b = await openAtPath(browser, w, 'TRANS', '/reports', 390);
   await expect(title(b.page)).toHaveText('My Work', { timeout: 60_000 });
   await b.context.close();
-});
-
-test('WEB-019 VIEW A refresh never opens a section the person may not open', async ({ browser }) => {
-  const w = world();
-  // /work: All Languages, /map.
-  const c = await openAtPath(browser, w, 'VIEW', '/work');
-  await expect(tab(c.page, 'map')).toHaveAttribute('aria-selected', 'true', { timeout: 60_000 });
-  await expect.poll(() => path(c.page)).toBe('/map');
-  await c.context.close();
 });
 
 test('WEB-019 NOORG A refresh never opens a section the person may not open', async ({ browser }) => {

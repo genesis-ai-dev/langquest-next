@@ -168,7 +168,7 @@ export function useBookChange(ctx: Ctx, c: { book: string; bookName: string; doc
  * set apart (design principle 12), then the same ready-made ways as for the
  * whole Bible, with this book drawn in each. Break up / Change applies to
  * this language and, when the template is shared, to the languages chosen.
- * In the template editor (decision 104) `apply` takes the way instead: the
+ * In the template editor (decision 106) `apply` takes the way instead: the
  * book changes in the template being edited, which Save publishes, and
  * `self` is that template, `sub` its name and `extra` what else the editor
  * offers for the book (its name, removing it).

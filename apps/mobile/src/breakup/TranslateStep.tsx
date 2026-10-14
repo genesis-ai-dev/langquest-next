@@ -150,7 +150,7 @@ export function TranslateQuestion(props: { ctx: Ctx; t: Translate; lang: string;
     return <NumberingChosenPage choice={q.numbering} facts={factsFor(q.numbering)} {...q.found} onChange={() => q.setPage('find')} />;
   }
   if (q.page === 'ways' || q.page === 'numbered') {
-    // Your own way comes first and stands apart (design principle 12, decision 104): every book waits until
+    // Your own way comes first and stands apart (design principle 12, decision 106): every book waits until
     // someone reads it and chooses where its sections start, from the map or My Work. It is LangQuest's
     // "Book by book", which used to come last.
     const own = q.ways.rows.find((r) => r.later) ?? null;

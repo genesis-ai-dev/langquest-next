@@ -11,7 +11,7 @@
  * machine, in Node: compare runs with each other, not with a phone.
  */
 import { writeFileSync } from 'node:fs';
-import type { FleetReport, Stats } from '@langquest-next/client/src/testing';
+import type { FleetReport, Stats } from '@langquest-next/sync/src/testing';
 import { SCENARIOS } from './scenarios';
 import type { Knobs } from './scenarios/types';
 

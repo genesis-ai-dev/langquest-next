@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { blobKey, MemoryStore, SupabaseTransport, SyncClient, workerBlobs } from '@langquest-next/client';
+import { blobKey, MemoryStore, SupabaseTransport, SyncClient, workerBlobs } from '@langquest-next/sync';
 import {
   applyLanguageEvent, commands, deriveFlow, deriveKinds, derivePassage, encodeHlc, languagePassages, ORG_STREAM, unitPlace,
   type AnyEvent, type EventSpec, type LanguageState

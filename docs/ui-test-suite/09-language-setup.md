@@ -930,7 +930,7 @@ Expected:
   it".
 - LangQuest's ways are listed once each, in English numbering; its older
   templates ("Bible chapters (English)", "Bible books (English)") and its
-  ways in other numberings are not (decision 104).
+  ways in other numberings are not (decision 106).
 - Offline: "Could not refresh this list" with "Showing the list this device
   saved."
 
@@ -987,7 +987,7 @@ Expected:
 - "zzz" says "No book matches “zzz”."
 - "Luke" opens Luke ("Alpha · {n} passages"). Books waiting to be divided
   are listed too, as "Waiting to be broken up", and open the ways to divide
-  them (decision 104).
+  them (decision 106).
 
 ### SETUP-036 Choose a different template for a language
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -1035,7 +1035,7 @@ Expected:
 - "What will languages record with it?" offers "Scripture" ("Books and
   chapters of the Bible, divided into passages as teams go.") and
   "Something else".
-- Scripture asks what New language asks (decision 104): "Which Bible do you
+- Scripture asks what New language asks (decision 106): "Which Bible do you
   translate from?" with "Not listed? Answer a few questions", then "How
   should the Bible be broken up?" with "Divide it your own way" first.
 - The editor has no "Whole books" or "Chapters" choice; it says "Tap a book to choose how
@@ -1106,7 +1106,7 @@ Steps:
 
 Expected:
 - The template view lists Proverbs as "Waiting to be broken up" (books that
-  wait are listed there too, decision 104).
+  wait are listed there too, decision 106).
 - "How should Proverbs be broken up?" with way cards ("By chapter" and
   others, each with a preview).
 - When another language uses the template, "Which languages should

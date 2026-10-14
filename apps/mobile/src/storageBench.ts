@@ -8,7 +8,7 @@
  * developer menu; the results show there and go to the Metro log as
  * `LQ_STORAGE_BENCH {...}`.
  */
-import { SqliteStore, type SqlDriver } from '@langquest-next/client';
+import { SqliteStore, type SqlDriver } from '@langquest-next/sync';
 import type { AnyEvent } from '@langquest-next/core';
 import * as SQLite from 'expo-sqlite';
 import { exclusiveTransactionDriver, openWriter, writeConnectionDriver } from './store';

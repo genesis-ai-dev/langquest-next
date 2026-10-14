@@ -115,7 +115,12 @@ integration (decisions.md 42). No token is stored in GitHub. It applies new
 migrations and deploys the functions and storage buckets declared in
 `supabase/config.toml`; auth, API and seed settings are not pushed by it.
 The guardrails `checks` job refuses a worker bundle behind its source, since
-the bundle is what gets deployed.
+the bundle is what gets deployed. Nobody rebuilds it by hand: the
+`pre-commit` and `post-merge` hooks in `.githooks` (enabled by
+`npm install`) run `npm run worker:build` when a commit or a merge commit
+changes what it is built from, and add the result to it. A rebase, or a
+commit made with `--no-verify`, skips them; the guardrails check then says
+to run `npm run worker:build`.
 
 The integration's settings live in the Supabase dashboard (Project Settings,
 Integrations, GitHub), so they are recorded here. Change them there and here

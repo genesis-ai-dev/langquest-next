@@ -20,7 +20,8 @@ import { flushOutbox, keepNewDoc, loadDocs, prepareDoc } from '../library/docSto
 import { newItemId } from '../library/model';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
 import { noteExpected } from '../report';
-import { supabase } from '../supabase';
+import { templateUsers } from '../server/library';
+import { bookNames } from '../server/languages';
 import { copyName, copyOffOps, groupNames, itemIdOf, NUMBERING_ITEMS, planChange, wayOf, wayRows, type TemplateUser, type WayRow } from './model';
 
 interface UserRow {
@@ -41,7 +42,7 @@ export function useTemplateUsers(ctx: Ctx) {
   const [rows, setRows] = useState<UserRow[] | null>(null);
   const refresh = useCallback(async () => {
     try {
-      const { data, error } = await supabase.rpc('library_template_users', { p_org: orgId });
+      const { data, error } = await templateUsers(orgId);
       if (error) throw new Error(error.message);
       setRows((data ?? []) as UserRow[]);
     } catch (e) {
@@ -300,7 +301,7 @@ export function useBookNameChoices(ctx: Ctx, book: string, open: boolean) {
     let live = true;
     void (async () => {
       try {
-        const { data, error } = await supabase.rpc('language_book_names', { p_org: orgId, p_book: book });
+        const { data, error } = await bookNames(orgId, book);
         if (error) throw new Error(error.message);
         if (live) setAnswer({ book, rows: (data ?? []) as { language_id: string; name: string }[] });
       } catch (e) {
