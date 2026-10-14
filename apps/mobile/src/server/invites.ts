@@ -65,3 +65,8 @@ export function ownJoinRequest(orgId: string, profileId: string) {
 export function decideJoinRequest(requestId: string, accepted: boolean, roleId: string | null, scope: Scope) {
   return supabase.rpc('decide_join_request_v2', { p_request_id: requestId, p_accepted: accepted, p_role_id: roleId, p_scope: scope });
 }
+
+/** Email an invite through the send-invite function; a refusal's status says which (supabase/functions/send-invite). */
+export function sendInviteEmail(inviteId: string, token: string, email: string, locale: string) {
+  return supabase.functions.invoke('send-invite', { body: { inviteId, token, email, locale } });
+}

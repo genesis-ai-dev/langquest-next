@@ -50,13 +50,18 @@ describe('screen action contracts', () => {
     const viaCtx: Record<string, string> = { 'v1.VisionSeen': '.markWelcomed(', 'v1.TermsAccepted': '.acceptTerms(' };
     const src = path.join(root, 'src');
     const skip = new Set(['screenContracts.ts', 'flow.ts']);
-    const imported = (file: ts.SourceFile, dir: string) => file.statements.flatMap((stmt) => {
+    // Two levels: a screen's rules live in feature modules, which build on models (decisions.md 104).
+    const imported = (file: ts.SourceFile, dir: string, depth = 2): string[] => file.statements.flatMap((stmt) => {
       if (!ts.isImportDeclaration(stmt) || !ts.isStringLiteral(stmt.moduleSpecifier)) return [];
       const spec = stmt.moduleSpecifier.text;
       if (!spec.startsWith('.')) return [];
       const base = path.resolve(dir, spec);
       const hit = ['.ts', '.tsx'].map((ext) => base + ext).find((f) => fs.existsSync(f));
-      return hit && hit.startsWith(src) && !skip.has(path.basename(hit)) ? [fs.readFileSync(hit, 'utf8')] : [];
+      if (!hit || !hit.startsWith(src) || skip.has(path.basename(hit))) return [];
+      const text = fs.readFileSync(hit, 'utf8');
+      if (depth <= 1) return [text];
+      const inner = ts.createSourceFile(hit, text, ts.ScriptTarget.Latest, true, hit.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
+      return [text, ...imported(inner, path.dirname(hit), depth - 1)];
     });
     let checked = 0;
     for (const filename of fs.readdirSync(path.join(root, 'src/screens'))) {

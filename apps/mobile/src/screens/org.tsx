@@ -10,9 +10,9 @@
 // Project Home and New Project are not ported: an organization holds its
 // languages directly (docs/decisions.md 63).
 import {
-  CommandError, commands, decodeHlc, deriveFlow, goesWith, isTemplateDoc, emptyLanguageState, isMoreOpen, keyTermsFor, languageInfo, languageName, languageProgress,
+  decodeHlc, deriveFlow, goesWith, isMoreOpen, keyTermsFor, languageInfo, languageName, languageProgress,
   leavesNoRoleManager, libraryItemView, materialsFor, mayChangeLicense, mayChangeMembership, mayGrantRole, mayRenameLanguage, mayRenameOrg, orgLicense, orgName, privilegesFor, SEED_ROLES,
-  subscriptionItemId, templateBooks, type EventSpec, type LanguageProgress, type LibraryDoc, type License, type Scope, type ScopeLevel, type SourceDoc
+  subscriptionItemId, templateBooks, type LanguageProgress, type LibraryDoc, type License, type Scope, type ScopeLevel, type SourceDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -22,7 +22,7 @@ import QRCode from 'react-native-qrcode-svg';
 import { type LibraryChoice } from '../contentTemplates';
 import { deriveKinds, kindOf, licenseText } from '../coreText';
 import type { Ctx } from '../ctx';
-import { currentLanguage, t, Trans } from '../i18n';
+import { t, Trans } from '../i18n';
 import { formatAgo, formatClock, formatDayYear, formatNumber } from '../i18n/format';
 import { indexesFor } from '../indexes';
 import { canHelpSignIn, decideRequest, inviteUri, issueInvite, issueSignInCode, pendingRequests, type NewInvite, type PendingRequest } from '../invites';
@@ -34,25 +34,26 @@ import {
 } from '../kit';
 import { edgeFor } from '../flow';
 import { loadDocs } from '../library/docStore';
-import { type SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
 import {
-  addLanguage, assignableLevels, booksInScope, changeMembership, grantableLanguages, groupBelow, inviteScope, LANGUAGE_SCOPES, languageScopeLabel, levelLabel,
-  mayGrantAt, membersAbove, membersAt, memberEntries, newLanguageId, parseLevel, progressLine, removeMembership, reviewEligible,
+  assignableLevels, booksInScope, changeMembership, grantableLanguages, groupBelow, inviteScope, LANGUAGE_SCOPES, languageScopeLabel, levelLabel,
+  mayGrantAt, membersAbove, membersAt, memberEntries, parseLevel, progressLine, removeMembership, reviewEligible,
   saveTeam, similarLanguages, sumProgress, teamMembers,
   type HomeProgress, type LanguageScope, type MemberEntry, type OrgOp
 } from '../orgAdmin';
 import { noteExpected, reportError, failureMessage } from '../report';
 import { LicenseRow, LicenseSheet } from '../licenseSheet';
 import { appendToLanguage } from '../languageWriter';
+import { createLanguage, newLanguageParts, type Making, type Offer } from '../org/newLanguage';
+import { emailInvite } from '../org/emailInvite';
+import { looksLikeEmail, signInFailure } from '../org/model';
+import { usePublicListing } from '../org/usePublicListing';
 import { contractsFor } from '../screenContracts';
 import { languageFigures } from '../orgFigures';
 import { LanguoidPicker, useLanguoidName, useLanguoidSearch } from '../languoidPicker';
 import type { LanguoidHit } from '../languoidModel';
 import { edgeAllowed } from '../session';
 import { shareText } from '../share';
-import { languageListing, setLanguageListing } from '../server/languages';
-import { invokeFunction } from '../server/invites';
 import { C, radius, space, tile, TINT } from '../theme';
 import { useOrgSummary } from '../useOrgSummary';
 import { useHelpMode } from '../helpContext';
@@ -64,7 +65,7 @@ import { setChecksDraft, useChecksDraft } from '../checks/draft';
 import { TranslateQuestion, useTranslate } from '../breakup/TranslateStep';
 import { InviteSomeone } from '../simple/invite';
 import { refKindOf } from '../reference/model';
-import { chooseSetLanguage, type GuideSet, type ReferenceSay, type SetMember } from '../reference/guideSets';
+import { type GuideSet } from '../reference/guideSets';
 import { memberIn, startingLanguage } from '../reference/languageChoices';
 import { docLanguage, readerLanguage, sameLanguage } from '../reference/languages';
 import { ReferenceLanguagePage, useReferenceLanguages } from '../reference/ReferenceLanguagePage';
@@ -446,43 +447,6 @@ function LicenseSection(props: { ctx: Ctx }) {
   );
 }
 
-/** Why the listing could not be read or changed: the server's refusal (its words are a developer's English), or the connection. */
-function listingFailure(e: { code?: string }): string {
-  return e.code === '42501' ? t('org.listing.notAllowed') : t('common.tryWhenConnected');
-}
-
-/** Whether the open language is listed on Explore (one listing per language). */
-function usePublicListing(ctx: Ctx) {
-  const may = ctx.session.can('manage_structure');
-  const { orgId, languageId } = ctx.language;
-  const [listed, setListed] = useState(false);
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-  useEffect(() => {
-    if (!may || !languageId) return;
-    let active = true;
-    void languageListing(orgId, languageId)
-      .then(({ data, error: failed }) => {
-        if (!active) return;
-        // Offline or refused: say so rather than showing "not listed".
-        if (failed) { noteExpected('read listing', failed); setError(listingFailure(failed)); } else setListed(data?.listed ?? false);
-      });
-    return () => { active = false; };
-  }, [may, orgId, languageId]);
-  async function set(value: boolean) {
-    setBusy(true);
-    try {
-      const { error: failed } = await setLanguageListing(orgId, languageId, value);
-      if (failed) { noteExpected('change listing', failed); setError(listingFailure(failed)); } else { setListed(value); setError(''); }
-    } catch (e) {
-      setError(failure('change listing', e));
-    } finally {
-      setBusy(false);
-    }
-  }
-  return { may, listed, error, busy, set };
-}
-
 // ---- Language Home ----------------------------------------------------------------------------------
 
 /**
@@ -782,18 +746,6 @@ function scopeOf(value: Assignment): Scope | null {
   return value.languageId ? { level: 'language', languageId: value.languageId } : null;
 }
 
-/** Why the invite email was not sent, by the send-invite function's status (its own words are English). */
-function sendFailure(status: number): string {
-  switch (status) {
-    case 503: return t('org.invite.emailNotSetUp');
-    case 409: return t('org.invite.emailPending');
-    case 502: return t('org.invite.emailFailed');
-    case 401: case 403: return t('org.invite.emailUnavailable');
-    case 0: return t('common.tryWhenConnected');
-    default: return t('org.invite.emailRetry');
-  }
-}
-
 /**
  * Invite someone (decision 71, demo ADR-039; the prototype's Invite): what
  * will they do, in plain words, then a code to scan. The email invite and a
@@ -817,18 +769,12 @@ export function InviteMember(ctx: Ctx) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   async function send() {
-    if (!email || !/\S+@\S+\.\S+/.test(address.trim())) return;
+    if (!email || !looksLikeEmail(address)) return;
     setBusy(true);
     setError('');
     try {
-      const invite = await issueInvite(ctx.language.orgId, email.roleId, email.scope);
-      const { error: failed } = await invokeFunction('send-invite', { inviteId: invite.inviteId, token: invite.token, email: address.trim(), locale: currentLanguage() });
-      if (failed) {
-        // The function's own words are English; its status says which refusal it was (supabase/functions/send-invite).
-        noteExpected('send invite', failed);
-        setError(sendFailure(failed.context instanceof Response ? failed.context.status : 0));
-        return;
-      }
+      const refused = await emailInvite(ctx.language.orgId, email.roleId, email.scope, address);
+      if (refused) { setError(refused); return; }
       ctx.toast(t('org.invite.sent', { address: address.trim(), role: roleName(ctx, email.roleId) }));
       setEmail(null);
       ctx.back();
@@ -857,7 +803,7 @@ export function InviteMember(ctx: Ctx) {
         ]} />
       <Sheet visible={!!email} title={t('org.invite.emailTitle')} sub={email ? `${roleName(ctx, email.roleId)} · ${email.scope.level === 'org' ? v.orgName : v.label(email.scope.languageId)}` : undefined}
         onClose={() => setEmail(null)}
-        footer={<PrimaryBtn label={t('org.invite.send')} icon="send" busy={busy} disabled={!/\S+@\S+\.\S+/.test(address.trim())} onPress={() => void send()} />}>
+        footer={<PrimaryBtn label={t('org.invite.send')} icon="send" busy={busy} disabled={!looksLikeEmail(address)} onPress={() => void send()} />}>
         <Field label={t('org.invite.emailLabel')} value={address} onChangeText={setAddress} placeholder={t('org.invite.emailPlaceholder')} keyboardType="email-address" autoCapitalize="none" />
         {error ? <Banner icon="flag" tone="amber" title={t('org.invite.notSent')} body={error} /> : null}
       </Sheet>
@@ -1080,11 +1026,6 @@ function MemberEditor(ctx: Ctx) {
  */
 const HELP_ROW = { flexDirection: 'row', alignItems: 'center', gap: space.md } as const;
 
-/** Why no sign-in code was made: the server's refusal (its words are a developer's English), or the connection. */
-function signInFailure(e: unknown): string {
-  return e instanceof Error && /not allowed/i.test(e.message) ? t('org.signIn.notAllowed') : t('common.tryWhenConnected');
-}
-
 function HelpSignIn(props: { memberId: string; who: string }) {
   const [may, setMay] = useState(false);
   const [lost, setLost] = useState(false);
@@ -1263,9 +1204,6 @@ async function adoptChoice(lib: ReturnType<typeof useLibrary>, c: LibraryChoice)
 /** Step 3's "I'll choose the steps" card. */
 const CHOOSE_STEPS = 'choose';
 
-/** The parts of adding a language, in order, as step 3 names them while Continue runs. */
-type Making = 'passages' | 'checks' | 'helps' | 'listing' | 'saving';
-
 /**
  * A new language (ORG-2, decision 63; decision 71 and the prototype's
  * NewLang and NewLangFlow): one question per step, the likely answer picked.
@@ -1340,85 +1278,36 @@ export function NewLanguage(ctx: Ctx) {
   }
 
   async function create() {
-    const languageName = name.trim();
-    if (!languageName || busy || !tq.ready || !checks) return;
+    if (!name.trim() || busy || !tq.ready || !checks) return;
     setBusy(true);
     setError('');
     // Each part is named on screen before it starts, and the screen is drawn before the work goes on.
-    const parts: Making[] = ['passages', 'checks', ...(offers.items.length ? ['helps' as const] : []), 'listing', 'saving'];
-    const part = async (now: Making) => {
-      setMaking({ parts, now });
-      await new Promise<void>((done) => requestAnimationFrame(() => setTimeout(done, 0)));
-    };
+    const parts = newLanguageParts(offers.items.length > 0);
     try {
-      const org = ctx.org.state;
-      // The new language has no members yet: its first events go in under org-scope privileges.
-      const mine = org ? privilegesFor(org, ctx.session.actorId) : new Set<string>();
-      if (!mine.has('manage_templates') || !mine.has('manage_flows')) {
-        throw new CommandError(t('org.newLanguage.needsPermission'));
-      }
-      const languoid = theCode.trim() || languageName.slice(0, 3);
-      const languageId = newLanguageId(languoid, Crypto.randomUUID());
-      await part('passages');
-      const use = await tq.resolve();
-      const loaded = (await loadDocs(lib.orgId, [use.docHash])).get(use.docHash);
-      if (!loaded || !isTemplateDoc(loaded)) throw new CommandError(t('org.newLanguage.templateMissing'));
-      const books = booksInScope(loaded, scope, chosenBooks);
-      if (books && books.length === 0) throw new CommandError(t('getReady.record.chooseABook'));
-      const templateItem = use.itemId;
-      await part('checks');
-      // What its team is offered, followed first when it is another organization's (as What helps them does).
-      // Only each item's own document comes now; a guide loads when a passage reads it (useLibrary `adopt`).
-      // A guide set (FIA) is offered in its one chosen language, and its other languages in the library are hidden here.
-      const offered: string[] = [];
-      const setSays: ReferenceSay[] = [];
-      if (offers.items.length) await part('helps');
-      // Its Bibles and guides are offered in the language chosen for them, which it is added with (`sourceCode`).
-      // Following one another organization shares needs the server; offline, or if it is refused, the language is
-      // still added (decisions 71 and 76: what helps is never required, and a language can be added offline), and
-      // the toast names what to offer later under What helps.
-      const notOffered: string[] = [];
-      for (const o of offers.items) {
-        let itemId = o.itemId;
-        if (!itemId) {
-          try {
-            itemId = o.shared!.subscribable ? await lib.subscribe(o.shared!, true) : await lib.copy(o.shared!);
-          } catch (e) {
-            noteExpected('new language offer', e);
-            notOffered.push(o.label);
-            continue;
-          }
-        }
-        if (o.set && o.member) {
-          const held = { ...o.set, members: o.set.members.map((m) => (m === o.member ? { ...m, itemId, shared: null } : m)) };
-          setSays.push(...chooseSetLanguage(held, itemId, null).says);
-        } else offered.push(itemId);
-      }
-      await part('listing');
-      const fresh = emptyLanguageState();
-      // A ready-made flow is copied into the language, its checks the language's own (decision 91).
-      const flowSpecs = commands(fresh).copyFlow({ commandId: `${languageId}:checks`, name: checks.name ?? '', kinds: checks.kinds, steps: checks.steps });
-      const plan = addLanguage(org, {
-        languageId, code: languoid, name: languageName, languoidId: picked?.id ?? null, sourceCode: reads,
-        template: await lib.applySpecs(templateItem, { docHash: use.docHash, into: fresh, ...(books ? { books } : {}) }),
-        flow: flowSpecs
+      const made = await createLanguage({
+        org: ctx.org.state, actorId: ctx.session.actorId, name, code: theCode, languoidId: picked?.id ?? null, reads,
+        scope, chosenBooks, checks, offers: offers.items
+      }, {
+        resolveTemplate: () => tq.resolve(),
+        loadDoc: async (hash) => (await loadDocs(lib.orgId, [hash])).get(hash) ?? undefined,
+        adopt: (shared) => (shared.subscribable ? lib.subscribe(shared, true) : lib.copy(shared)),
+        applySpecs: (itemId, opts) => lib.applySpecs(itemId, opts),
+        appendOrg: (type, payload) => ctx.org.append(type, payload),
+        syncOrg: () => ctx.org.sync(),
+        appendToLanguage: (languageId, specs) => appendToLanguage({ orgId: ctx.language.orgId, languageId, actorId: ctx.session.actorId, specs }),
+        newId: () => Crypto.randomUUID(),
+        onPart: async (now) => {
+          setMaking({ parts, now });
+          await new Promise<void>((done) => requestAnimationFrame(() => setTimeout(done, 0)));
+        },
+        note: noteExpected
       });
-      const recommend: EventSpec[] = [
-        ...offered.filter((id) => ctx.org.state?.recommendations[id]?.value !== true).map((itemId) => ({ itemId, state: 'recommended' as const })),
-        ...setSays
-      ].map((payload, i) => ({ id: `${languageId}:offer:${i}`, type: 'v1.ReferenceSet', payload } as EventSpec));
-      await ctx.org.append('v1.LanguageAdded', plan.added);
-      if (plan.link) await ctx.org.append('v1.LanguageCodeSet', plan.link);
-      // Its stream takes events once the organization's lists it: send that first when connected.
-      await ctx.org.sync().catch((e: unknown) => noteExpected('new language listing', e));
-      await part('saving');
-      await appendToLanguage({ orgId: ctx.language.orgId, languageId, actorId: ctx.session.actorId, specs: [...plan.specs, ...recommend] });
-      ctx.toast(notOffered.length
-        ? t('org.newLanguage.addedNotOffered', { language: languageName, org: orgName, offers: joinAnd(notOffered) })
-        : t('org.newLanguage.added', { language: languageName, org: orgName }));
+      ctx.toast(made.notOffered.length
+        ? t('org.newLanguage.addedNotOffered', { language: made.name, org: orgName, offers: joinAnd(made.notOffered) })
+        : t('org.newLanguage.added', { language: made.name, org: orgName }));
       // The language this person works in is the one the app opens.
-      ctx.setLanguage(languageId);
-      setCreated({ languageId, name: languageName });
+      ctx.setLanguage(made.languageId);
+      setCreated({ languageId: made.languageId, name: made.name });
       setChecksDraft(null);
       setStep(5);
     } catch (e) {
@@ -1603,7 +1492,6 @@ function useNewLanguageOffers(ctx: Ctx, reads: string, sets: readonly GuideSet[]
   const docs = useLibraryDocs(lib.orgId, [...own.map((it) => it.current), ...others.map((s) => s.latest_hash)], { deps: false });
   const fia = (n: string) => (/fia/i.test(n) ? 0 : /example/i.test(n) ? 2 : 1);
   const web = (n: string) => (/world english/i.test(n) ? 0 : 1);
-  type Offer = { itemId: string | null; shared: SharedItem | null; name: string; label: string; set?: GuideSet; member?: SetMember };
   const pickSet = (): Offer | null => {
     for (const set of [...sets].sort((a, b) => fia(a.name) - fia(b.name))) {
       const member = memberIn(set, reads);
