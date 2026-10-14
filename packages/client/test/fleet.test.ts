@@ -18,7 +18,10 @@ async function run(seed: number, link = mixed, days = 4) {
   return fleet.report(agreement, 0);
 }
 
-describe('a fleet of phones on simulated time', () => {
+// Each scenario is CPU-bound: a second or two alone, many times that on a machine busy with other
+// builds, where the default 5 s timed out the pre-push run (2026-10-14). Simulated time keeps the
+// result the same however long it takes.
+describe('a fleet of phones on simulated time', { timeout: 60_000 }, () => {
   it('ends with every phone holding the same state as the server, on mixed links', async () => {
     // Why: invariant 2 across a fleet. Phones that work offline for days,
     // lose calls mid-answer and catch up in slices must all fold to what

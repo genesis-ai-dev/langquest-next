@@ -3,26 +3,12 @@
 // feedback on P-NEEDS and P-SUBMITTED.
 import { randomUUID } from 'node:crypto';
 import { commands, type LanguageState } from '@langquest-next/core';
-import type { Page } from '@playwright/test';
 import { Devices, expectClean, openBell, partsCount, recordParts, syncUntil, watch } from './16-helpers';
+import { holdPart } from './06-recording-helpers';
 import { clientAs, send } from './fixture';
-import { back, button, byId, expect, expectStill, expectToast, openAs, primary, screenText, tab, test, text, useWorld } from './support';
+import { back, button, byId, expect, expectToast, openAs, primary, screenText, tab, test, text, useWorld } from './support';
 
 const world = useWorld();
-
-/** Hold a part's row (the gutter) to open its sheet: verses, Auto, None and delete. */
-async function holdPart(page: Page, n: number): Promise<void> {
-  const row = page.getByRole('button', { name: new RegExp(`^Part ${n}, `) }).locator('visible=true').first();
-  await row.scrollIntoViewIfNeeded();
-  // The list settles after a recording stops (the new part's row arrives); hold where the row is then.
-  await expectStill(row);
-  const box = (await row.boundingBox())!;
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.down();
-  await page.waitForTimeout(900); // sleep: the press must be held for a long-press; the sheet opens on release
-  await page.mouse.up();
-  await expect(button(page, `Delete Part ${n}`), 'holding the part opens its sheet').toBeVisible({ timeout: 5_000 });
-}
 
 test('JRN-002 A translator answers feedback: one fix, one kept with a reason @p0', async ({ page, browser }) => {
   const w = world();

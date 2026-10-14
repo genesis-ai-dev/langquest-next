@@ -131,6 +131,11 @@ export class BlobStore {
     if (this.files) {
       for (const { name, size } of await this.files.list()) {
         const [hash, ext] = name.split('.');
+        // An empty file is a write that never finished: the browser makes the file when a write starts and
+        // fills it only when the write closes, so a reload in between (picking another language reloads the
+        // page) leaves it empty. Taken as kept, it would never be downloaded again, and its size would make
+        // it an upload the server refuses, so signing out would wait for it forever (WEB-023, 2026-10-14).
+        if (hash && size === 0) { await this.files.remove(name).catch(() => undefined); continue; }
         if (hash) {
           this.present.add(hash);
           this.sizeByHash.set(hash, size);

@@ -9,6 +9,10 @@ export default defineConfig({
   },
   test: {
     globals: true,
+    // Some suites are CPU-bound (the catalog scan, the library build, the fleet): a second or two alone, past
+    // vitest's 5 s default on a busy CI runner or a Mac running other builds, where they failed as timeouts
+    // (2026-10-14). A test that truly hangs still fails, after 30 s.
+    testTimeout: 30_000,
     include: ['packages/*/test/**/*.test.ts', 'apps/*/test/**/*.test.ts', 'scripts/**/*.test.ts', 'e2e/**/*.test.ts'],
     coverage: {
       provider: 'v8',

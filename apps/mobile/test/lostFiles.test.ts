@@ -193,3 +193,19 @@ describe('noticing files the device lost (decisions.md 92)', () => {
     expect(await store.lostFiles()).toEqual([]);
   });
 });
+
+describe('a write a reload cut short (WEB-023)', () => {
+  it('is not kept: an empty file is removed at startup, so the file is fetched again rather than sent', async () => {
+    const { files, web } = folder();
+    const empty = `${'c'.repeat(64)}.wav`;
+    files.set(empty, new Uint8Array(0) as Uint8Array<ArrayBuffer>);
+    files.set(`${'d'.repeat(64)}.wav`, bytes('kept'));
+    const store = new BlobStore(web, null);
+    await store.init();
+    await store.settle();
+    expect(store.has('c'.repeat(64))).toBe(false);
+    expect(store.has('d'.repeat(64))).toBe(true);
+    expect(files.has(empty)).toBe(false);
+    expect(store.sizes().has('c'.repeat(64))).toBe(false);
+  });
+});
