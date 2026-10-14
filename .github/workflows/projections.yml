@@ -1,0 +1,35 @@
+# The projection pass for large languages (decisions.md 103). The Edge
+# Function's pass (every five minutes, server/projectionEdge.ts) leaves out
+# the languages too big for its 256 MB; this runs the same pass for those,
+# with Node's memory: Inbox rows, the public listing and server snapshots.
+#
+# Repo secret: V3_SERVICE_ROLE_KEY (this app's production service-role key,
+# shared with v2-import.yml). The repository is public, so the log has counts
+# only, never a language's name.
+name: projections
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: projections
+  cancel-in-progress: false
+
+jobs:
+  large:
+    if: github.repository == 'genesis-ai-dev/langquest-next'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci --no-audit --no-fund
+      - name: Large languages
+        env:
+          SUPABASE_URL: https://xymxnebdwtbkfxlbylch.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.V3_SERVICE_ROLE_KEY }}
+          NODE_OPTIONS: --max-old-space-size=6144
+        run: npx tsx server/projections.ts
