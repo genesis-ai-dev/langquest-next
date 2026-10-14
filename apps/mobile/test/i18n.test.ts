@@ -32,7 +32,9 @@ const pluralBases = new Set([...en.keys()].filter((k) => PLURAL.test(k)).map((k)
 const placeholders = (s: string) => new Set([...s.matchAll(/\{\{\s*([\w.]+)[^}]*\}\}/g)].map((m) => m[1]!));
 const tags = (s: string) => [...s.matchAll(/<\/?(\w+)\s*\/?>/g)].map((m) => m[0]).sort();
 
-describe('the app writes no words into its code (LAN-42)', () => {
+// Every test here reads or parses each app file, so they grow with the app: on a shared CI
+// runner under coverage they took over the 5 s default.
+describe('the app writes no words into its code (LAN-42)', { timeout: 30_000 }, () => {
   const files = appFiles(ROOT);
 
   it('every word on screen comes from a catalog', () => {
@@ -40,8 +42,7 @@ describe('the app writes no words into its code (LAN-42)', () => {
     // `npx tsx apps/mobile/test/uiText.ts` lists them. Put each in src/i18n/en.json and use t();
     // a string that is not for people gets an `i18n-ignore` comment saying why.
     expect(found.map((f) => `${f.file}:${f.line} ${f.text}`)).toEqual([]);
-    // It parses every app file, so it grows with the app: a shared CI runner under coverage took over 5 s.
-  }, 30_000);
+  });
 
   it('draws text through src/text.tsx, so iOS lays it out in the reading direction', () => {
     const direct = files.filter((path) => !path.endsWith('src/text.tsx') && /import\s*\{[^}]*(?<![\w.])Text(?![\w])[^}]*\}\s*from\s*'react-native'/.test(readFileSync(path, 'utf8')));

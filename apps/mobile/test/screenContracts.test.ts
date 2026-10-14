@@ -13,7 +13,9 @@ const app = fs.readFileSync(path.join(root,'App.tsx'),'utf8');
 const componentScreen = new Map([...app.matchAll(/(\w+): (?:Entry|Onboarding|Org|Config|Checks|Content|Account|Work|MapScreens|Passage|Review|Translate|Study|Reports|Reference|Sources|Simple)\.(\w+)/g)]
   .map((m) => [m[2]!,m[1]! as ScreenId]));
 
-describe('screen action contracts', () => {
+// These parse the screens and what they import, so they grow with the app: on a shared CI
+// runner under coverage the slowest took over the 5 s default.
+describe('screen action contracts', { timeout: 30_000 }, () => {
   it('every rendered screen declares the events in its implementation', () => {
     const seen = new Set<string>();
     for (const filename of fs.readdirSync(path.join(root,'src/screens'))) {
@@ -93,8 +95,7 @@ describe('screen action contracts', () => {
       }
     }
     expect(checked).toBeGreaterThan(10);
-    // It parses every screen and two levels of what they import: a shared CI runner under coverage took over 5 s.
-  }, 30_000);
+  });
 
   it('walks every persona through allowed edges and checks emitted fixture actions', () => {
     const fixture = [...buildFixture(), ...buildOrgFixture()];
