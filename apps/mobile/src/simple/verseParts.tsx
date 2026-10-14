@@ -252,12 +252,11 @@ function PartRow(props: {
 
 /**
  * A part's verses as the recorder draws them, without its taps: a soft grey
- * tile, hollow when it is more of the verse above, and a faint empty space
- * when the part has none. Pages that only show parts use it.
+ * tile, hollow when it is more of the verse above. Pages that only show parts
+ * use it, and show nothing for a part with no verse: verses are never asked for there.
  */
-export function VerseTile(props: { verses: string[]; label: PartLabel | null; same: boolean }) {
+export function VerseTile(props: { verses: string[]; label: PartLabel; same: boolean }) {
   const l = props.label;
-  if (!l) return <View style={styles.ghost} />;
   return (
     <View style={[styles.badge, props.same && styles.badgeSame]}>
       <Text style={l.s === l.e ? styles.badgeText : styles.badgeRange} numberOfLines={1}>{spanShort(props.verses, l.s, l.e)}</Text>

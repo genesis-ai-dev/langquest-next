@@ -30,6 +30,7 @@ import { StyleSheet, View } from 'react-native';
 import { Text } from '../text';
 import { AudioClip } from '../audioClip';
 import { ClipPlayer } from '../clipPlayer';
+import { VersionParts } from '../passage/versionParts';
 import type { Ctx } from '../ctx';
 import { screenTitle } from '../flow';
 import { t } from '../i18n';
@@ -326,6 +327,8 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       <ClipPlayer language={ctx.language} hashes={version.cardHashes} big
         title={mine ? t('review.screen.versionByYou', { n: version.n }) : t('review.screen.versionBy', { n: version.n, name: translator })} sub={listenLine(kind.id, logged)}
         {...(makes ? {} : { onNote: (s: number) => setMomentAt(Math.round(s * 1000)) })} />
+      {/* Its parts with their verses, when they have verses, so a reviewer can say where (decisions.md 82). */}
+      <VersionParts ctx={ctx} state={v.state} unitId={v.unitId} hashes={version.cardHashes} onlyNumbered />
       <MomentList ctx={ctx} moments={moments} onRemove={(h) => setMoments((m) => m.filter((x) => x.hash !== h))} />
       {changed ? (
         <Card>

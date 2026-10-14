@@ -2719,6 +2719,16 @@ above's reads as more of that verse even when both were chosen, and the
 v2 import (decision 94) now records such a part as a join, as the recorder
 would.
 
+Verses are shown where they exist and never asked for (Caleb, 2026-10-14:
+many teams are not required to number verses, and published work needs no
+labelling). A part with no verse shows nothing where its tile would be, a
+version with none shows no tile column, and no screen counts or flags
+verses still missing. Where a version is shown, its verses show too when it
+has them: the reviewer's Listen lists the parts under the player (only when
+a part has a verse), each part of a back translation names its verse, and
+the passage page and Versions page add "Verses 1–4" (first to last) to the
+version's line.
+
 ## 83. A person may keep several drafts of a passage, each one the line of takes its changes made
 
 Date: 2026-10-10 · By: Caleb Koster · Status: accepted

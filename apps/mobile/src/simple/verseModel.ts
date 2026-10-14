@@ -56,3 +56,14 @@ export function readPartVerses(marks: readonly PartMark[], count: number): { lab
     return { label: l, same: !!l && !!above && (l.kind === 'join' || (l.s === above.s && l.e === above.e)) };
   });
 }
+
+/**
+ * The verses a list of parts holds, first to last ("Verse 1", "Verses 1–4"),
+ * or null when none of them has one. Verses are never required: a version
+ * with none simply says nothing about them.
+ */
+export function versesHeld(marks: readonly PartMark[], keys: readonly string[]): string | null {
+  const labels = derivePartVerses(marks, keys.length).labels.filter((l): l is PartLabel => !!l && l.s >= 0 && l.e < keys.length);
+  if (labels.length === 0) return null;
+  return spanName(keys, Math.min(...labels.map((l) => l.s)), Math.max(...labels.map((l) => l.e)));
+}

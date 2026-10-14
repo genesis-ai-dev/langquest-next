@@ -37,7 +37,7 @@ import {
 } from '../passage/record';
 import { PassagePath } from '../passage/path';
 import { VersionsPage } from '../passage/versions';
-import { VersionRecording } from '../passage/versionParts';
+import { useVersesHeld, VersionRecording } from '../passage/versionParts';
 import { pathSteps, teamSteps, type PathInput, type PathStep, type TeamStep } from '../passage/pathModel';
 import { clipSeconds, clock as clockOf } from '../clipPlayer';
 import { useHelpSpot } from '../helpContext';
@@ -200,6 +200,7 @@ export function PassageRecord(ctx: Ctx) {
   const timeline = useMemo(() => (v ? recordTimeline(v.state, v.p) : []), [v?.state, v?.p]);
   const guide = useStudyGuide(ctx, v?.unitId);
   const study = useMemo(() => (v && guide ? studyProgress(v.state, v.p, guide) : null), [v?.state, v?.p, guide]);
+  const versesHeld = useVersesHeld(ctx, v?.state, v?.unitId);
   const me = ctx.session.actorId;
   const isAuthor = !!v?.p.latest && v.p.latest.by === me;
   // Whoever just published (a version, or a back translation) asks for the next check (demo ADR-034).
@@ -292,6 +293,7 @@ export function PassageRecord(ctx: Ctx) {
     p, kinds, me, name: ctx.name, when, due: dueText,
     study: study && study.steps.length > 0 ? { name: t('passage.page.studyGuideName', { pattern: study.guide.pattern }), total: study.steps.length, done: study.doneCount } : null,
     latestSeconds,
+    latestVerses: p.latest ? versesHeld(p.latest.cardHashes) : null,
     askedName: (kindId) => {
       const r = p.openRequests.find((x) => x.what === 'review' && x.kindId === kindId);
       if (!r) return undefined;
