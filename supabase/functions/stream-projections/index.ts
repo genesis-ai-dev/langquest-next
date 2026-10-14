@@ -22529,19 +22529,38 @@ function toError(error) {
 
 // packages/client/src/snapshotFetch.ts
 async function fetchSnapshot(transport, orgId, streamId, reducerVersion, opts = {}) {
-  const meta = await transport.snapshotMeta(orgId, streamId, reducerVersion);
+  const meta = opts.meta ?? await transport.snapshotMeta(orgId, streamId, reducerVersion);
   if (!meta) return null;
-  const pieces = [];
-  for (let i = 0; i < meta.chunks; i++) {
-    let text = opts.saved?.get(i);
-    if (text === void 0) {
-      const fetched = await transport.snapshotChunk(orgId, streamId, reducerVersion, meta.serverSeq, i);
-      if (fetched === null) return null;
-      text = fetched;
-      await opts.onChunk?.(meta.serverSeq, i, text);
+  const pieces = new Array(meta.chunks);
+  let next = 0;
+  let stale = false;
+  let failed = false;
+  const fetchPieces = async () => {
+    while (!stale && !failed && next < meta.chunks) {
+      const i = next++;
+      const saved = opts.saved?.get(i);
+      if (saved !== void 0) {
+        pieces[i] = saved;
+        continue;
+      }
+      try {
+        const text = await transport.snapshotChunk(orgId, streamId, reducerVersion, meta.serverSeq, i);
+        if (text === null) {
+          stale = true;
+          return;
+        }
+        await opts.onChunk?.(meta.serverSeq, i, text);
+        pieces[i] = text;
+      } catch (error) {
+        failed = true;
+        throw error;
+      }
     }
-    pieces.push(text);
-  }
+  };
+  const runs = await Promise.allSettled(Array.from({ length: Math.max(1, opts.inFlight ?? 1) }, fetchPieces));
+  const failure = runs.find((r) => r.status === "rejected");
+  if (failure) throw failure.reason;
+  if (stale) return null;
   return { orgId, streamId, reducerVersion, serverSeq: meta.serverSeq, state: JSON.parse(pieces.join("")) };
 }
 
