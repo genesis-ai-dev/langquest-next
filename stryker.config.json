@@ -37,7 +37,7 @@
     "docs",
     "supabase",
     "scripts",
-    "smart-tests",
+    "web-tests",
     "server",
     "library",
     "coverage",

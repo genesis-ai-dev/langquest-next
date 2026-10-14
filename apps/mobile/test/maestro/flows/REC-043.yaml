@@ -4,7 +4,7 @@
 # Passage: P-T (Luke 12:49-59), after REC-023 (flows run in name order),
 # which left two parts; this flow records more until there are five, none
 # with a verse, then slides from Part 3's space past Part 5's.
-# Audio: G8, the host's microphone playing smart-tests/fixtures/voice.wav (a
+# Audio: G8, the host's microphone playing web-tests/fixtures/voice.wav (a
 # part about every four seconds). With a silent microphone the flow stops
 # waiting for "Parts 1–5".
 appId: com.frontierrnd.langquestnext

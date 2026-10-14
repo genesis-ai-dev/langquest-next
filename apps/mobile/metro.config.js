@@ -9,7 +9,7 @@
 // module with nothing to read, and process.env is used as it is in a
 // release build.
 //
-// Web is a test target (smart-tests): the browser runs the same SqliteStore on
+// Web is a test target (web-tests): the browser runs the same SqliteStore on
 // expo-sqlite's wasm build, so journeys exercise the real event log. That
 // build needs the .wasm asset and cross-origin isolation (SharedArrayBuffer).
 const { getDefaultConfig } = require('expo/metro-config');

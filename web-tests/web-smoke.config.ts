@@ -31,7 +31,7 @@ export default defineConfig({
     { name: 'webkit', use: { ...devices['Desktop Safari'], viewport: { width: 1280, height: 900 } } }
   ],
   webServer: {
-    command: `smart-tests/web-smoke.sh ${port}`,
+    command: `web-tests/web-smoke.sh ${port}`,
     cwd: path.join(directory, '..'),
     url: `http://localhost:${port}/version.json`,
     reuseExistingServer: true,

@@ -22,7 +22,7 @@ else should do this".
 
 **Automation (decision 95).** Journeys with Web or Wide run in Playwright,
 each in its own file with a fresh world and one browser per person
-(`smart-tests/ui/16-jrn-NNN.spec.ts`, helpers in `16-helpers.ts`). Phone-only
+(`web-tests/ui/16-jrn-NNN.spec.ts`, helpers in `16-helpers.ts`). Phone-only
 journeys are Maestro flows (`apps/mobile/test/maestro/flows/JRN-NNN.yaml`);
 one phone plays each person in turn, signing in after the app is cleared.
 

@@ -174,7 +174,7 @@ Expected:
 - The record button is at least 56 pt. It is 72 pt in the footer and 120 pt on microphone setup.
 - Adjacent targets do not overlap.
 
-Web (`smart-tests/ui/17-accessibility.spec.ts`): walks Sign In, Join your
+Web (`web-tests/ui/17-accessibility.spec.ts`): walks Sign In, Join your
 team, My Work, the language map, Luke's chapters, the passage record, the
 workspace (empty, and with P-DRAFT's two parts), Publish, Something else?,
 Ask someone (to record P-S), Me, Review it (Listen and Decide on
@@ -278,7 +278,7 @@ Expected:
 - No screen has dark text on a dark background, or the reverse.
 
 Automated companion on the web (test "A11Y-axe" in
-`smart-tests/ui/17-accessibility.spec.ts`): axe (WCAG 2 A and AA) on every
+`web-tests/ui/17-accessibility.spec.ts`): axe (WCAG 2 A and AA) on every
 key screen of A11Y-009, failing on serious or critical findings. It does not
 replace this test: axe cannot judge colour over images or in dark appearance.
 

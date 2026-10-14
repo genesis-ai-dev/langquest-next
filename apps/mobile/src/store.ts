@@ -184,7 +184,7 @@ export function getStore(): Promise<SqliteStore> {
   storePromise ??= allowed.then(() => open('langquest-next.db')).then(async (db) => {
     const driver = await expoDriver(db, 'langquest-next.db');
     const store = await SqliteStore.open(driver);
-    // The web UI suite reads the device log directly (smart-tests/ui, web dev
+    // The web UI suite reads the device log directly (web-tests/ui, web dev
     // and local-stack exports only (testBuild.ts)). Installed once the schema exists, so its presence means ready.
     if (isTestBuild() && Platform.OS === 'web') (globalThis as { __langquestLog?: unknown }).__langquestLog = {
       select: (sql: string, params?: unknown[]) => {

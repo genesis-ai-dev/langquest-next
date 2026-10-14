@@ -15,7 +15,7 @@ import { ID, labelOf, NAMES, passageWorld, unitOf, type WorldPassage, type World
  * held at the screen-model layer (docs/testing.md, decision 102): what each
  * role sees on each of the fixture world's passages, read from the models
  * the record draws (recordModel.ts, pathModel.ts). The strings are the ones
- * the end-to-end tests read off the screen; smart-tests/ui/05-passage-record.spec.ts
+ * the end-to-end tests read off the screen; web-tests/ui/05-passage-record.spec.ts
  * keeps one role per spec to prove the model reaches the glass.
  */
 

@@ -2,13 +2,13 @@
  * Steps a phone flow cannot take itself, for the coordinator to run beside
  * it (docs/ui-test-suite/12-sync-and-offline.md):
  *
- *   npx tsx smart-tests/ui/sync-wrap.ts rev-voice-note <world.json>
+ *   npx tsx web-tests/ui/sync-wrap.ts rev-voice-note <world.json>
  *     SYNC-026: REV records a 30-second voice note on P-SUBMITTED on their
  *     own device. Run it once SYNC-026's flow shows TRANS's Sync screen
  *     (the flow waits up to three minutes for it).
  *
  * <world.json> is the run's world (scripts/maestro-ui.mjs writes it to
- * smart-tests/results/maestro/<platform>/world.json).
+ * web-tests/results/maestro/<platform>/world.json).
  */
 import { readFileSync } from 'node:fs';
 import type { UiWorld } from './fixture';

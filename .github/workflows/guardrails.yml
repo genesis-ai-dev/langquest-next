@@ -3,14 +3,14 @@
 # checks:   the pre-push gate again (typecheck + unit and property tests).
 # server:   the SQL smokes, SQL parity and client integration test against a
 #           local Supabase started here from the migrations.
-# web-smoke: the release web build in three browser engines (smart-tests/web-smoke).
-# ui-web:   the P0 web UI tests (smart-tests/ui, `@p0`) on the release export
+# web-smoke: the release web build in three browser engines (web-tests/web-smoke).
+# ui-web:   the P0 web UI tests (web-tests/ui, `@p0`) on the release export
 #           served by the Worker, against a local Supabase with the library
 #           seeded and the projection worker scheduled (docs/testing.md).
 # nightly:  the whole web UI suite, a fleet scenario and Stryker on core,
 #           on a schedule; reported, not blocking (docs/testing.md).
 #
-# smart-tests/env.sh reads the local stack's URL and keys from `supabase
+# web-tests/env.sh reads the local stack's URL and keys from `supabase
 # status`, so no dotenvx key is needed in any job.
 name: guardrails
 
@@ -106,14 +106,14 @@ jobs:
         run: npm run library:seed
       - name: Smoke-test the web app
         shell: bash
-        run: source smart-tests/env.sh && npx playwright test -c smart-tests/web-smoke.config.ts
+        run: source web-tests/env.sh && npx playwright test -c web-tests/web-smoke.config.ts
       # What the page showed when a step failed (error-context.md), so a CI-only failure can be read.
       - name: Keep the smoke results
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: web-smoke-results
-          path: smart-tests/results
+          path: web-tests/results
           if-no-files-found: ignore
 
   ui-web:
@@ -145,9 +145,9 @@ jobs:
         with:
           name: ui-web-p0-results
           path: |
-            smart-tests/results/ui/report.json
-            smart-tests/results/ui/**/*.png
-            smart-tests/results/ui/**/error-context.md
+            web-tests/results/ui/report.json
+            web-tests/results/ui/**/*.png
+            web-tests/results/ui/**/error-context.md
           if-no-files-found: ignore
 
   nightly-ui-web:
@@ -176,9 +176,9 @@ jobs:
         with:
           name: ui-web-nightly-results
           path: |
-            smart-tests/results/ui/report.json
-            smart-tests/results/ui/**/*.png
-            smart-tests/results/ui/**/error-context.md
+            web-tests/results/ui/report.json
+            web-tests/results/ui/**/*.png
+            web-tests/results/ui/**/error-context.md
           if-no-files-found: ignore
 
   nightly-quarantine:
@@ -207,7 +207,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ui-web-quarantine-results
-          path: smart-tests/results/ui/report.json
+          path: web-tests/results/ui/report.json
           if-no-files-found: ignore
 
   nightly-fleet:

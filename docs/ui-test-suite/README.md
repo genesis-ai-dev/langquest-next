@@ -9,7 +9,7 @@ them:
 - `npm test` covers the reducer, validation and the flow parity tests
   (`specParity.test.ts` holds every edge of `src/flow.ts`).
 - `npm run test:web` runs the web smoke test.
-- `smart-tests/` holds this suite (`ui/`), the web smoke (`web-smoke/`) and their fixtures.
+- `web-tests/` holds this suite (`ui/`), the web smoke (`web-smoke/`) and their fixtures.
 
 What this suite adds is the check that a person can do each job on a device.
 It checks what they see, what they tap, what the app says back, and that the
@@ -149,7 +149,7 @@ These hold for every test unless the test says otherwise.
 - No toast is showing.
 
 **G8. Audio**
-- Recording tests play `smart-tests/fixtures/voice.wav` into the
+- Recording tests play `web-tests/fixtures/voice.wav` into the
   microphone:
   - Web: Chrome's `--use-file-for-fake-audio-capture`.
   - Simulators: the host's input device, set to a loopback that plays the
@@ -287,12 +287,12 @@ The table follows `src/session.ts` (`homeScreenFor`, `mapScreenFor`,
 ## Running the suite
 
 The automated tests live beside the app (decision 95):
-- **Web:** Playwright specs in `smart-tests/ui/`, one or more files per area
+- **Web:** Playwright specs in `web-tests/ui/`, one or more files per area
   (`01-getting-in.spec.ts` …). A test's title starts with its ID.
 - **Phones:** Maestro flows in `apps/mobile/test/maestro/flows/`, one file
   per test ID (`REC-023.yaml`), plus the P0 smoke set (`P0-*.yaml`, tag
   `smoke`).
-- **Fixture:** `smart-tests/ui/fixture.ts` builds a fresh world through the
+- **Fixture:** `web-tests/ui/fixture.ts` builds a fresh world through the
   real server in about a second (`npm run ui:fixture -- --out world.json`
   writes one to look at). Every web spec file gets its own world, and so
   does every phone run.
@@ -306,7 +306,7 @@ npm run test:ui:web
 ```
 
 ```bash
-npm run test:ui:web -- smart-tests/ui/05-passage-record.spec.ts --project phone
+npm run test:ui:web -- web-tests/ui/05-passage-record.spec.ts --project phone
 ```
 
 ```bash
@@ -318,7 +318,7 @@ npm run test:ui:phone -- --platform ios --tags smoke
 ```
 
 - `test:ui:web` runs on the release export, as people get it (decision 102):
-  `smart-tests/ui-web.sh` exports the app for the local stack (about 20 s)
+  `web-tests/ui-web.sh` exports the app for the local stack (about 20 s)
   and serves it with `/api` from one Worker on :8787, or reuses a Worker
   already there. A reused Worker serves `apps/mobile/dist` as it is, so after
   app changes run `npm run export:web -w mobile -- development` (it refreshes
@@ -337,7 +337,7 @@ npm run test:ui:phone -- --platform ios --tags smoke
   Rebuild after changing app code. `test:ui:phone -- --app dev` runs the
   flows on a dev client and Metro instead.
 - Flows that need the microphone need the host's input playing
-  `smart-tests/fixtures/voice.wav` (G8). Route taken: the host, with
+  `web-tests/fixtures/voice.wav` (G8). Route taken: the host, with
   `--voice` (macOS). The app's capture is native (the local
   `microphone-energy` module for voice detection and expo-audio's recorder
   writing the file), so JavaScript never sees samples and a test-build fake
@@ -386,7 +386,7 @@ a product cause is tagged `@quarantine` (with an issue and an owner in a
 comment), runs on its own in the nightly workflow, and is left out of the
 P0 and nightly runs with `--grep-invert @quarantine`. Pass rates per test
 come from the kept reports: `node scripts/ui-flakes.mjs keep` after a run
-copies its `report.json` into `smart-tests/results/history/`, and
+copies its `report.json` into `web-tests/results/history/`, and
 `node scripts/ui-flakes.mjs` lists every test that did not pass every time
 (`docs/testing.md`).
 

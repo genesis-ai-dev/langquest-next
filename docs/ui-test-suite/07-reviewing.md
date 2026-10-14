@@ -34,7 +34,7 @@ Code under test: `src/screens/review.tsx` (ReviewCapture),
   uses P-Q1's feedback (REV-043), and P-Q1 gets Version 2 in REV-048.
 When a test is run alone, bring its passage to the state its Preconditions
 name by following the test that creates it. The automated tests
-(`smart-tests/ui/07-reviewing.spec.ts`) make these versions and requests
+(`web-tests/ui/07-reviewing.spec.ts`) make these versions and requests
 through the server as the person who would.
 
 **Questions in the fixture.** Peer check has no questions. Consultant check

@@ -3,7 +3,7 @@
 #
 # Passage: P-DRAFT (Luke 14:1-14), TRANS's fixture draft of two parts, which
 # no other phone flow touches. The part spoken before Home becomes Part 3.
-# Audio: G8, the host's microphone playing smart-tests/fixtures/voice.wav
+# Audio: G8, the host's microphone playing web-tests/fixtures/voice.wav
 # (1.5 s of voice, 2.5 s of quiet, looping); Home is pressed while
 # "Recording…" shows, that is while the voice plays. With a silent
 # microphone "Recording…" never shows and the flow stops there, having

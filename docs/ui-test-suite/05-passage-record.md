@@ -27,13 +27,13 @@ fixture world and the role matrix hold for every test here.
   08 STUDY. Here a test only checks that the record's buttons open them, and
   that the record shows the result when they finish. The automated tests
   make the review itself through the server as that person, with a core
-  command (`smart-tests/ui/05-passage-helpers.ts` `actAs`).
+  command (`web-tests/ui/05-passage-helpers.ts` `actAs`).
 - Out of scope: `guest_review` (the "Review by Link" preview). Nothing in the
   app navigates to it (`flow.ts` declares `ask_someone → guest_review` but no
   screen calls it), and replies by link need a server endpoint that is not
   built. Add tests when Ask someone links to it.
 
-Automated in `smart-tests/ui/05-passage-record.spec.ts` (reading the fixture
+Automated in `web-tests/ui/05-passage-record.spec.ts` (reading the fixture
 as one role per test), `05-passage-asking.spec.ts` and `05-passage-checks.spec.ts`
 (each with a world of its own, and spare Luke passages for tests that need a
 fresh one), and Maestro flows `PASS-035`, `PASS-036` and `PASS-068`. The

@@ -1,4 +1,4 @@
-# Smart tests
+# Web tests
 
 Browser tests that run against the web export and the local Supabase stack.
 

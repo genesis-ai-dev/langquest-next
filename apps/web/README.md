@@ -20,6 +20,6 @@ Locally:
   (`npm run web -w mobile`) and point it at the Worker for Reports:
   `EXPO_PUBLIC_API_URL=http://localhost:8787`.
 - `npm run test:web` builds the release export for the local stack and runs
-  the browser smoke test (smart-tests/web-smoke) against it.
+  the browser smoke test (web-tests/web-smoke) against it.
 
 `npm run web:deploy[:preview]` is what Workers Builds runs (docs/cloudflare.md).

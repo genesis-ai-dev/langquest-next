@@ -3629,3 +3629,7 @@ end-to-end tests pile up again; Maestro's flake rate stays above a few
 percent after the fixes; or a discoverability problem (people cannot find
 how to do a job) slips through, which is the one thing a goal-driven agent
 checks and scripts do not. Then Jev returns as a nightly signal.
+
+Amended (2026-10-14, Carl Sauder): the folder `smart-tests/` is now
+`web-tests/`. "Smart" was Jev's word for its journeys; what is left in it is
+the web UI suite and the web smoke, both Playwright.

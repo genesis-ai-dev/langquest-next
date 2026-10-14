@@ -604,7 +604,7 @@ Expected:
 Roles: TRANS, REV · Priority: P2 · Platforms: iOS, Android · Run: Auto
 
 Automated as a Maestro flow; REV's voice note is made beside it with
-`npx tsx smart-tests/ui/sync-wrap.ts rev-voice-note <world.json>`.
+`npx tsx web-tests/ui/sync-wrap.ts rev-voice-note <world.json>`.
 
 Preconditions:
 - Device 1 (TRANS) is on Sync.

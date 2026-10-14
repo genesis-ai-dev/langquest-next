@@ -2,7 +2,7 @@
 # publishes Version 1, then asks the check's team (JRN-002 / JRN-011 on the
 # web cover the rest). P-Q1 was asked of TRANS and nobody else touches it.
 # Audio: the parts come from the host's microphone (G8: a loopback playing
-# smart-tests/fixtures/voice.wav). With a silent microphone no part is made
+# web-tests/fixtures/voice.wav). With a silent microphone no part is made
 # and the flow stops at "Publish", which is then the finding to read.
 appId: com.frontierrnd.langquestnext
 name: "P0 A translator records and publishes a version"

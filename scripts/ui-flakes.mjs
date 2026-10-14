@@ -5,7 +5,7 @@
  * verdict per test; this reads many runs and lists the tests that did not
  * pass every time.
  *
- *   node scripts/ui-flakes.mjs keep                 copy this run's report into smart-tests/results/history/
+ *   node scripts/ui-flakes.mjs keep                 copy this run's report into web-tests/results/history/
  *   node scripts/ui-flakes.mjs [dir-or-report ...]  pass rates over the given reports (default: the history)
  *   node scripts/ui-flakes.mjs --min 3              only tests seen in at least 3 runs
  *
@@ -17,8 +17,8 @@ import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(fileURLToPath(new URL('.', import.meta.url)), '..');
-const results = join(root, 'smart-tests/results/ui');
-const history = join(root, 'smart-tests/results/history');
+const results = join(root, 'web-tests/results/ui');
+const history = join(root, 'web-tests/results/history');
 const args = process.argv.slice(2);
 
 if (args[0] === 'keep') {

@@ -14,8 +14,8 @@ import { describe, expect, it } from 'vitest';
  * (only to drop fixed entries; never to excuse new ones).
  */
 
-const DIR = 'smart-tests/ui';
-const CONFIG = 'smart-tests/ui.config.ts';
+const DIR = 'web-tests/ui';
+const CONFIG = 'web-tests/ui.config.ts';
 const BASELINE = 'scripts/uiSuiteHygiene.baseline.json';
 const CEILING = 240_000;
 
