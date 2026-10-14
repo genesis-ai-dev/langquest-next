@@ -51,6 +51,8 @@ export async function openRecord(page: Page, world: UiWorld, p: Passage): Promis
   // A tap while the app is still starting can be lost, and the app may put its home back once the
   // language opens: keep going until the passage's record shows.
   await expect(async () => {
+    // A tap that opened the record slower than the check below is not tapped again.
+    if ((await header(page).innerText({ timeout: 1_000 }).catch(() => '')).trim() === label) return;
     if (await search.isVisible()) {
       await search.fill(label);
       await visible(page.getByText(label, { exact: true })).first().click({ timeout: 5_000 });

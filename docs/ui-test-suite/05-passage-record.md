@@ -34,12 +34,19 @@ fixture world and the role matrix hold for every test here.
   built. Add tests when Ask someone links to it.
 
 Automated in `smart-tests/ui/05-passage-record.spec.ts` (reading the fixture
-as each role), `05-passage-asking.spec.ts` and `05-passage-checks.spec.ts`
+as one role per test), `05-passage-asking.spec.ts` and `05-passage-checks.spec.ts`
 (each with a world of its own, and spare Luke passages for tests that need a
-fresh one), and Maestro flows `PASS-035`, `PASS-036` and `PASS-068`.
+fresh one), and Maestro flows `PASS-035`, `PASS-036` and `PASS-068`. The
+role-by-passage tables (what each role's main button, path, "Then the team",
+step sheets, "Something else?" and Versions page show) are held at the
+screen-model layer (docs/testing.md, decision 101) in
+`apps/mobile/test/passageRecordMatrix.test.ts`, on the fixture world built in
+memory (`test/passageWorld.ts`) and read through `src/passage/recordModel.ts`;
+the end-to-end test of each such spec reads one role, to prove the model
+reaches the screen. A spec run only there says `Run: Auto (model)`.
 
 Sources: `src/screens/passage.tsx`, `src/passage/` (`pathModel.ts`,
-`record.ts`, `versions.tsx`), `src/screens/review.tsx` (Already happened),
+`recordModel.ts`, `record.ts`, `versions.tsx`), `src/screens/review.tsx` (Already happened),
 `src/screens/reference.tsx` (`PassageReference`), `src/offline.tsx`,
 `src/reportSheet.tsx`, and core `passage.ts` (decisions 29, 56, 61, 71, 72,
 80, 83).
@@ -92,8 +99,8 @@ Steps:
 2. Read the "Record" step and the footer.
 
 Expected:
-- The "Record" step is lit. Its sub is "Your takes are recorded, not
-  published yet." for TRANS, and "Some takes are recorded, not published
+- The "Record" step is lit. Its sub is "Your parts are recorded, not
+  published yet." for TRANS, and "Some parts are recorded, not published
   yet." for everyone else.
 - The main button:
 
@@ -997,7 +1004,7 @@ Expected:
 Resets: withdraw the request (PASS-044).
 
 ### PASS-043 Who may ask
-Roles: TRANS, REV, TREV, COORD, LADMIN, KEPT, VIEW · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+Roles: TRANS, REV, TREV, COORD, LADMIN, KEPT, VIEW · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto (model)
 
 Steps:
 1. Open P-BT and P-NEW. Look for every way to ask: the main button, the step
@@ -1390,8 +1397,8 @@ Expected:
   on what changed.", and "In response to the Peer check from {REV}". The
   link opens that review. On Version 1, the card is labelled "Note" and
   reads "First recording."
-- "Recording": "Play Version 2" with "{n} takes", then "Take {n}" rows and
-  the sources-used line.
+- "Recording": "Version 2" with "{n} parts · {m:ss}", then "Part {n}" rows
+  and the sources-used line.
 - "Details": "Key terms" ("{n} terms tied · …"), "Reviews of this version"
   (or "No reviews of this version yet.") and "Notes".
 - The crumb (wide windows; crumbs are not drawn on a phone) or Back returns
