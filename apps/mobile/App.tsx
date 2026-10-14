@@ -28,6 +28,7 @@ import { findNotification } from './src/notifications';
 import { notificationTarget, openAfterSwitch } from './src/notificationTarget';
 import { LayoutContext, PaneSelectionContext, type Layout, type OpenDetail } from './src/useLayout';
 import { indexesFor } from './src/indexes';
+import { nearUnits } from './src/nearUnits';
 import { EmptyState, FooterHeightContext, GhostBtn, ToastView, txt, type ToastSpec } from './src/kit';
 import { installGlobalHandlers, noteExpected, reportError } from './src/report';
 import { commandErrorText } from './src/coreText';
@@ -427,6 +428,16 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   useEffect(() => { if (languageId && languageId === paramLanguage && languageId !== savedLanguage) setLanguage(languageId); }, [languageId, paramLanguage, savedLanguage, setLanguage]);
   const languages = useMemo(() => orgLanguages(org.state), [org.state]);
   const language = useLanguage(props.orgId, languageId, props.actorId, org.membershipEpoch);
+  // Memory holds the recordings of the passage on screen and those next to
+  // it, so moving on is instant; the rest stay on the phone (decisions.md 103).
+  const openUnit = nav.current.params?.['unitId'];
+  const languageReady = language.state !== null;
+  const { loadUnits } = language;
+  useEffect(() => {
+    const state = languageRef.current.state;
+    if (!openUnit || !state) return;
+    loadUnits(nearUnits(indexesFor(state).passages, openUnit));
+  }, [openUnit, languageReady, loadUnits]);
   // Test builds only (testBuild.ts): the UI tests' "Sync now" and sync state (e2e/ui/support.ts), beside the read-only log probe (store.ts).
   useEffect(() => {
     if (!(isTestBuild() && Platform.OS === 'web')) return;
@@ -923,7 +934,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
         {!wide && showTabs ? navChrome('bar') : null}
       </PeopleContext.Provider>
       {/* Files this device deleted behind the app's back (decisions.md 92): over every screen until seen. */}
-      <LostFilesAlert state={language.state} />
+      <LostFilesAlert state={language.state} whatWere={language.blobs.lost} />
       {canSwitchPersona ? (
         <DevMenu open={devOpen} onClose={() => setDevOpen(false)} language={language} org={org} currentEmail={props.email} isOwner={session.role === 'owner'} isDev={IS_DEV} jump={(s) => nav.reset({ screen: s })} />
       ) : null}

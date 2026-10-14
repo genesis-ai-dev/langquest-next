@@ -68,7 +68,7 @@ export class SqliteStore implements EventStore {
       primary key (org_id, stream_id)
     )`);
     await db.run(`create table if not exists meta (key text primary key, value text not null)`);
-    // Records a big language keeps here rather than in memory (decisions.md 104).
+    // Records a big language keeps here rather than in memory (decisions.md 103).
     await db.run(`create table if not exists kept (
       org_id text not null,
       stream_id text not null,

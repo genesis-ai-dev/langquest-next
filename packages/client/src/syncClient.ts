@@ -122,7 +122,7 @@ interface SyncClientOptions<S = LanguageState> {
   /**
    * A language stream only: keep its recordings and file verdicts on the
    * phone rather than in memory, and hold in memory only the passages
-   * `loadUnits` asks for (decisions.md 104).
+   * `loadUnits` asks for (decisions.md 103).
    */
   keepOnDisk?: boolean;
 }
@@ -438,7 +438,7 @@ export class SyncClient<S = LanguageState> {
 
   /**
    * Read a downloaded snapshot back one piece at a time, writing its
-   * recordings and file verdicts to disk as they pass (decisions.md 104).
+   * recordings and file verdicts to disk as they pass (decisions.md 103).
    * Returns the rest of the language, which is what memory keeps: 4.7 of
    * Koro Miyan's 40 MB. The records go under a stream id of their own, and
    * the checkpoint that follows moves them in, so a phone that dies part-way
@@ -483,7 +483,7 @@ export class SyncClient<S = LanguageState> {
       this.m.compact(state as unknown as S);
       let kept: WriteBatch['kept'];
       if (this.kept) {
-        // Recordings and verdicts go to disk with this checkpoint (decisions.md 104), taken as they are now.
+        // Recordings and verdicts go to disk with this checkpoint (decisions.md 103), taken as they are now.
         const rows = await this.kept.rowsFor({ ...state, recordings: { ...state.recordings }, blobs: { ...state.blobs } });
         // Something was folded while the stored copies were read: the state is no longer the confirmed one; next time.
         if (revision !== this.revision || this.writer.size !== 0) return;
@@ -526,7 +526,7 @@ export class SyncClient<S = LanguageState> {
 
   /**
    * Hold these passages' recordings in memory, for a screen that shows them
-   * and the passages next to it (decisions.md 104). A language that keeps
+   * and the passages next to it (decisions.md 103). A language that keeps
    * everything in memory has nothing to do.
    */
   async loadUnits(unitIds: readonly string[]): Promise<void> {

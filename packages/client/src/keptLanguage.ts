@@ -6,7 +6,7 @@ type Verdict = LanguageState['blobs'][string];
 
 /**
  * What a big language keeps on the phone instead of in memory (decisions.md
- * 104): its recordings, and the server's verdict on each audio file. In
+ * 103): its recordings, and the server's verdict on each audio file. In
  * Koro Miyan they are 33 of the language's 40 MB, and they grow with every
  * recording. Everything else about the language stays in memory.
  *
@@ -44,7 +44,7 @@ export function withoutKept(state: LanguageState): LanguageState {
   return { ...state, recordings: {}, blobs: {} };
 }
 
-/** Does this state still hold kept maps' entries (a checkpoint from before decision 104)? */
+/** Does this state still hold kept maps' entries (a checkpoint from before decision 103)? */
 export function holdsKept(state: LanguageState): boolean {
   for (const _ in state.recordings) return true;
   for (const _ in state.blobs) return true;

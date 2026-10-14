@@ -7,7 +7,7 @@ import { FakeServer } from '../src/testing/fakeServer';
 /**
  * A big language keeps its recordings and file verdicts on the phone, not
  * in memory, and holds in memory only the passages a screen has open
- * (decisions.md 104). Why these tests: memory must shrink without the
+ * (decisions.md 103). Why these tests: memory must shrink without the
  * phone's language ever differing from what folding everything in memory
  * gives, whatever order things arrive in, and without losing anything to a
  * dropped link, an old checkpoint or a redaction.

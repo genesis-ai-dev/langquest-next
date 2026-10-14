@@ -1,5 +1,5 @@
-import { DEFAULT_TRANSFER_BUDGET_BYTES, DOWNLOAD_DEFAULTS, SupabaseTransport, SyncClient, TransferBudget, TransferWorker, UPLOAD_DEFAULTS, ensureDeviceId, SyncScheduler, type SyncInspection } from '@langquest-next/client';
-import { audioFormatsFor, CommandError, defaultOfflineScope, emptyLanguageState, deriveDownloadWork, deriveUploadWork, evictableBlobs, type BlobRef, type EventPayloads, type EventSpec, type EventType, type LanguageState } from '@langquest-next/core';
+import { DEFAULT_TRANSFER_BUDGET_BYTES, DOWNLOAD_DEFAULTS, LanguageFiles, SupabaseTransport, SyncClient, TransferBudget, TransferWorker, UPLOAD_DEFAULTS, ensureDeviceId, SyncScheduler, type SyncInspection } from '@langquest-next/client';
+import { audioFormatsFor, CommandError, emptyLanguageState, type BlobRef, type EventPayloads, type EventSpec, type EventType, type LanguageState, type OfflineSummary, type UnitOffline } from '@langquest-next/core';
 import { getBlobStore, type BlobFile, type BlobStore } from './blobs';
 import { downloadBlob, streamUrl, uploadBlob } from './blobTransport';
 import { diagnostics, flushDiagnostics, timedTransfer, type TransferTimings } from './diagnostics';
@@ -70,8 +70,25 @@ export interface LanguageHandle {
     /** Audio files on this phone now; a new set whenever one arrives or is reclaimed. */
     present: ReadonlySet<string>;
     /** Recordings here the server has not confirmed: what a hand-over must still send (handOver.ts). */
-    unsent: () => BlobRef[];
+    unsent: () => Promise<BlobRef[]>;
+    /**
+     * The passages kept offline and how much of each one's audio is here,
+     * and the whole scope at a glance; null until first worked out. Worked
+     * out from the phone's table for a language kept on disk (decisions.md
+     * 103), after changes, so a screen reads them without waiting.
+     */
+    keptOffline: ReadonlyMap<string, UnitOffline> | null;
+    offlineSummary: OfflineSummary | null;
+    /** The passages this person keeps offline by default (asked of them or worked in). */
+    scope: ReadonlySet<string>;
+    /** What these files a phone lost were (decisions.md 92). */
+    lost: (hashes: readonly string[]) => Promise<{ safe: number; unsent: number; unitIds: string[] }>;
   };
+  /**
+   * Hold these passages' recordings in memory: the one a screen shows and
+   * those next to it (decisions.md 103). Others stay on the phone's disk.
+   */
+  loadUnits: (unitIds: readonly string[]) => void;
   /** Call after recording: clears upload backoff and starts a pass now. */
   triggerUpload: () => void;
   append: <T extends EventType>(type: T, payload: EventPayloads[T], parentEventId?: string) => Promise<void>;
@@ -90,6 +107,8 @@ export interface LanguageHandle {
 /** Keep this much free for recording, and cap the cache; evict only what the server can give back. */
 const MIN_FREE_BYTES = 500 * 1024 * 1024;
 const MAX_CACHE_BYTES = 2 * 1024 * 1024 * 1024;
+/** How long after a change the offline counts are worked out again: one count for a burst of changes. */
+const OFFLINE_RECOUNT_MS = 750;
 
 /** One budget per device, shared by every language's workers. */
 const transferBudget = new TransferBudget(DEFAULT_TRANSFER_BUDGET_BYTES);
@@ -117,6 +136,11 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
   const keptRef = useRef<ReadonlySet<string>>(new Set());
   const keepKey = `keep:${orgId}/${languageId}`;
   const [present, setPresent] = useState<ReadonlySet<string>>(new Set());
+  const filesRef = useRef<LanguageFiles | null>(null);
+  const recountRef = useRef<() => void>(() => {});
+  const [keptOffline, setKeptOffline] = useState<ReadonlyMap<string, UnitOffline> | null>(null);
+  const [offlineSummary, setOfflineSummary] = useState<OfflineSummary | null>(null);
+  const [scope, setScope] = useState<ReadonlySet<string>>(new Set());
   const [pendingUp, setPendingUp] = useState(0);
   const [pendingDown, setPendingDown] = useState(0);
   const [peakUp, setPeakUp] = useState(0);
@@ -254,12 +278,16 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
         // whole-state clone a checkpoint takes waits until recording is over.
         yieldBetweenPages: () => new Promise<void>((resolve) => setTimeout(resolve, 0)),
         deferCheckpoint: isRecording,
-        diag: diagnostics
+        diag: diagnostics,
+        // Recordings and file verdicts stay on the phone; memory holds the passages on screen (decisions.md 103).
+        keepOnDisk: true
       });
       await client.load();
+      const files = new LanguageFiles(client, store, orgId, languageId);
       const blobStore = await getBlobStore();
       if (cancelled) return;
       clientRef.current = client;
+      filesRef.current = files;
       storeRef.current = blobStore;
       // The client publishes after every fold change and every commit; the
       // screen follows that, not the call sites. The fold mutates in place,
@@ -281,28 +309,52 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
         isDeferred: isRecording,
         budget: transferBudget,
         // Upload size from disk; download size from the server's confirmation.
-        sizeOf: (ref: BlobRef) => blobStore.sizeOf(ref.hash) ?? client.getState().blobs[ref.hash]?.size
+        sizeOf: (ref: BlobRef) => blobStore.sizeOf(ref.hash) ?? files.sizeOf(ref.hash)
       };
-      const scopeNow = () => {
-        const scope = defaultOfflineScope(client.getState(), actorId);
+      const scopeNow = async () => {
+        const scope = await files.scope(actorId);
         for (const u of keptRef.current) scope.add(u);
         return scope;
       };
       // Storage pressure must never reach the recorder: after any change to
       // what is on disk, give back out-of-scope files the server still has.
-      const reclaim = () => {
+      const reclaim = async () => {
         try {
+          const present = blobStore.snapshot();
           blobStore.reclaim(
-            evictableBlobs(client.getState(), blobStore.snapshot(), scopeNow(), blobStore.sizes()),
+            await files.evictable(present, await scopeNow(), blobStore.sizes()),
             { minFreeBytes: MIN_FREE_BYTES, maxTotalBytes: MAX_CACHE_BYTES }
           );
         } catch { /* disk queries can fail on some devices; try again next change */ }
       };
+      // The offline marks and Settings' summary, worked out after changes rather than on every draw.
+      let offlineAgain: ReturnType<typeof setTimeout> | undefined;
+      const recountOffline = () => {
+        if (offlineAgain) clearTimeout(offlineAgain);
+        offlineAgain = setTimeout(() => {
+          void (async () => {
+            const present = blobStore.snapshot();
+            const own = await files.scope(actorId);
+            const kept = await scopeNow();
+            const [byUnit, summary] = await Promise.all([
+              files.byUnit([...kept], present, actorId, keptRef.current),
+              files.summary(present, actorId, keptRef.current)
+            ]);
+            if (cancelled) return;
+            setScope(own);
+            setKeptOffline(byUnit);
+            setOfflineSummary(summary);
+          })().catch(() => { /* counts are shown again after the next change */ });
+        }, OFFLINE_RECOUNT_MS);
+      };
+      recountOffline();
+      recountRef.current = recountOffline;
+      const unsubRecount = client.subscribe(recountOffline);
       const up = new TransferWorker({
         ...UPLOAD_DEFAULTS,
         ...common,
         // Size from the confirmation versus the file here: a mismatch reopens the upload.
-        work: () => deriveUploadWork(client.getState(), blobStore.snapshot(), blobStore.sizes()),
+        work: () => files.upload(blobStore.snapshot(), blobStore.sizes()),
         transfer: (ref) => metered(upMeter.current, blobStore, ref, 'up', { orgId, streamId: languageId }, (t) => uploadBlob(orgId, languageId, ref, blobStore, t)),
         onChange: (n) => { pendingUpRef.current = n; setPendingUp(n); setPeakUp((p) => (n === 0 ? 0 : Math.max(p, n))); }
       });
@@ -311,7 +363,7 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
         ...common,
         // Rule 10: by scope, never the whole language. Scope is the actor's
         // own units plus what they explicitly chose to keep offline.
-        work: () => deriveDownloadWork(client.getState(), blobStore.snapshot(), scopeNow()),
+        work: async () => files.download(blobStore.snapshot(), await scopeNow()),
         transfer: (ref) => metered(downMeter.current, blobStore, ref, 'down', { orgId, streamId: languageId }, (t) => downloadBlob(orgId, languageId, ref, blobStore, t)),
         onChange: (n) => { pendingDownRef.current = n; setPendingDown(n); setPeakDown((p) => (n === 0 ? 0 : Math.max(p, n))); }
       });
@@ -323,8 +375,8 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
         up.nudge();
         down.nudge();
       });
-      reclaim();
-      const unsubReclaim = blobStore.onChange(reclaim);
+      void reclaim();
+      const unsubReclaim = blobStore.onChange(() => { void reclaim(); recountOffline(); });
       // What is on this phone, for the offline marks on passages and in Settings.
       setPresent(blobStore.snapshot());
       const unsubPresent = blobStore.onChange(() => setPresent(blobStore.snapshot()));
@@ -342,6 +394,8 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
       });
       cleanupBlobs = () => {
         unsubscribe();
+        unsubRecount();
+        if (offlineAgain) clearTimeout(offlineAgain);
         unsub();
         unsubReclaim();
         unsubPresent();
@@ -364,7 +418,7 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
           const { ref, size } = await blobStore.ingest(uri, format, (ref, size) => beforeMove(ref.hash, size));
           return { hash: ref.hash, size };
         },
-        hasRecording: (id) => !!client.getState().recordings[id],
+        hasRecording: (id) => files.hasRecording(id),
         append: async (e) => {
           await client.append('v1.RecordingAdded', {
             recordingId: e.id, unitId: e.target.unitId, kind: 'target',
@@ -380,6 +434,7 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
       cancelled = true;
       cleanupBlobs();
       clientRef.current = null;
+      filesRef.current = null;
       upRef.current = null;
       downRef.current = null;
     };
@@ -441,10 +496,13 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
       const store = await getStore();
       await store.setMeta(keepKey, JSON.stringify([...next]));
       downRef.current?.nudge();
+      recountRef.current();
     },
     [keepKey]
   );
 
+  // Stable, so the lost-files alert asks again only when what was lost changes.
+  const lost = useCallback(async (hashes: readonly string[]) => (filesRef.current ? filesRef.current.lost(hashes) : { safe: 0, unsent: 0, unitIds: [] }), []);
   const blobs = {
     pendingUp,
     pendingDown,
@@ -457,16 +515,21 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
     peakUp,
     peakDown,
     rates: () => ({ up: upMeter.current.perSecond(), down: downMeter.current.perSecond() }),
-    unsent: () => {
-      const c = clientRef.current;
+    unsent: async () => {
+      const files = filesRef.current;
       const store = storeRef.current;
-      return c && store ? deriveUploadWork(c.getState(), store.snapshot(), store.sizes()) : [];
-    }
+      return files && store ? files.upload(store.snapshot(), store.sizes()) : [];
+    },
+    keptOffline,
+    offlineSummary,
+    scope,
+    lost
   };
+  const loadUnits = useCallback((unitIds: readonly string[]) => { void clientRef.current?.loadUnits(unitIds); }, []);
   const triggerUpload = useCallback(() => upRef.current?.trigger(), []);
   const inspect = useCallback(() => clientRef.current?.inspect() ?? Promise.resolve(null), []);
 
-  return { orgId, languageId, state, pending, lastSync, online, tooOld, refused, refusedEvents, pulled, live, revision, inspect, blobs, triggerUpload, append, appendMany, run, sync };
+  return { orgId, languageId, state, pending, lastSync, online, tooOld, refused, refusedEvents, pulled, live, revision, inspect, blobs, loadUnits, triggerUpload, append, appendMany, run, sync };
 }
 
 /** Time one transfer, credit its bytes to the meter once it succeeds, and tally it for diagnostics either way. */

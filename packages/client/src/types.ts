@@ -12,7 +12,7 @@ export interface WriteBatch {
   prune?: { orgId: string; streamId: string; uptoSeq: number };
   /**
    * Records a language keeps on the phone instead of in memory (decisions.md
-   * 104): upsert these. `clear` first drops every kept record of the
+   * 103): upsert these. `clear` first drops every kept record of the
    * stream; `replaceFrom` then moves in the records written under another
    * stream id while a fresh snapshot was read, so the language switches to
    * them in the same commit as its new checkpoint.

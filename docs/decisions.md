@@ -3648,3 +3648,32 @@ Amended (2026-10-14, Carl Sauder): the folder `smart-tests/` is now
 the web UI suite and the web smoke, both Playwright, the end-to-end
 layer of `docs/testing.md`. Not `web-tests/`, which read like a sibling
 of `apps/web/test`, the Worker's unit tests.
+
+## 103. A big language keeps its recordings and file verdicts on the phone's disk, and memory holds only the passages on screen
+
+Date: 2026-10-14 · By: Caleb Koster · Status: accepted
+
+Reason: a phone held a whole language in memory, and recordings and the
+server's verdicts on audio files are most of it (Koro Miyan: 33 of 40 MB),
+growing with every recording; a language four times Koro's size ran a
+2 GB test phone out of memory. Caleb asked for this to be solved before
+cheap phones open big projects in the field. With `keepOnDisk` (on for
+every language in the app, `useLanguage.ts`), the sync client writes those
+two maps to a `kept` table, one row per recording, per card and per file
+verdict, in the same commit as each checkpoint; the checkpoint holds the
+rest. A first download is read back one piece at a time (`stateSplitter`),
+so neither the whole text nor the whole state is ever in memory. Memory
+holds the recordings of the passage on screen and two on each side
+(`loadUnits`, `nearUnits.ts`), what arrived since the last checkpoint, and
+the verdicts on files anything in memory names (`keptLanguage.ts`). Rows
+combine with later events by the fold's own rules (`keptRecording`,
+`keptVerdict`), so the result is the in-memory fold's in any order. Which
+files to send, fetch or free, the offline counts and the default offline
+scope come from core's own functions, run on a view that adds exactly the
+rows a question needs (`LanguageFiles`). The rest of the language
+(passages, versions, reviews, notes, requests) stays in memory; it is small
+for now (Koro: 4.7 MB). The server, its snapshots and the reducer are
+unchanged.
+Reverse if: the part left in memory outgrows cheap phones (then versions,
+reviews and notes move per passage the same way), or reading rows makes
+moving between passages noticeably slow on a cheap phone.

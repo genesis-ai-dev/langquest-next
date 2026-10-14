@@ -230,7 +230,7 @@ describe.each(impls)('%s batch and rejected contract', (_name, make) => {
     expect((await s.rejected('o', 'p')).map((e) => e.event.id)).toEqual(['x', 'y']);
   });
 
-  it('keeps a language\'s records out of memory, found by passage, id or author (decisions.md 104)', async () => {
+  it('keeps a language\'s records out of memory, found by passage, id or author (decisions.md 103)', async () => {
     const s = await make();
     const rec = (id: string, unitId: string, actorId = 'a') => ({ kind: 'recording' as const, id, unitId, actorId, json: `{"id":"${id}"}` });
     await s.commit({ kept: { orgId: 'o', streamId: 'p', upsert: [rec('r1', 'u1'), rec('r2', 'u2', 'b'), { kind: 'file', id: 'h1', unitId: '', actorId: '', json: '{"size":1}' }] } });

@@ -2,7 +2,6 @@
 // mounted once with the app, it finds each kept passage's guide and hands
 // its addresses to `studyFiles.ts`, which downloads what is missing while
 // connected. Draws nothing.
-import { defaultOfflineScope } from '@langquest-next/core';
 import { useEffect, useMemo } from 'react';
 import type { Ctx } from '../ctx';
 import { useStudyGuides } from './libraryGuides';
@@ -12,10 +11,10 @@ export function StudyPrefetch(props: { ctx: Ctx }) {
   const { ctx } = props;
   const state = ctx.language.state;
   const kept = ctx.language.blobs.keptUnits;
-  const me = ctx.session.actorId;
   let key = '';
   if (state && STUDY_FILES_OFFLINE) {
-    const scope = defaultOfflineScope(state, me);
+    // The default scope comes worked out from the phone's table too (decisions.md 103).
+    const scope = new Set(ctx.language.blobs.scope);
     for (const u of kept) scope.add(u);
     key = [...scope].sort().join(',');
   }

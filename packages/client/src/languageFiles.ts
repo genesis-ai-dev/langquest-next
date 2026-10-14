@@ -11,7 +11,7 @@ type Verdict = LanguageState['blobs'][string];
 /**
  * Which audio files to send, fetch or free, and how much of each passage
  * is on the phone, for a language that keeps its recordings on disk
- * (decisions.md 104). Each answer is core's own (`deriveUploadWork` and the
+ * (decisions.md 103). Each answer is core's own (`deriveUploadWork` and the
  * rest), run on a view of the language that adds from disk exactly the
  * recordings and verdicts the question is about: the files on the phone,
  * or the passages kept offline. Memory then follows those, not the whole

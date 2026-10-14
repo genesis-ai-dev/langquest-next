@@ -840,7 +840,7 @@ export function SignOutConfirm(ctx: Ctx) {
     try {
       if (handsOver) {
         const { orgId, languageId } = ctx.language;
-        await signOutHandingOver(ctx.session.actorId, ctx.language.blobs.unsent().map((ref) => ({ orgId, languageId, ref })));
+        await signOutHandingOver(ctx.session.actorId, (await ctx.language.blobs.unsent()).map((ref) => ({ orgId, languageId, ref })));
         return;
       }
       if (HANDS_OVER) {
