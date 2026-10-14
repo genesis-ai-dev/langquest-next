@@ -1,4 +1,5 @@
 node_modules/
+coverage/
 # Env files are committed encrypted with dotenvx (npm run env:check guards it).
 # Private keys and personal overrides never are.
 .env
@@ -26,3 +27,7 @@ apps/mobile/credentials.json
 .screenshots/
 /.preview/
 apps/web/.wrangler.dev.jsonc
+
+# Stryker
+.stryker-tmp/
+reports/

@@ -25,7 +25,7 @@ Beside them:
   sign-out). CI on every PR.
 - **Coverage** (`npm run test:coverage`): V8 coverage of layers 1 to 3 with
   thresholds for `packages/core` and `packages/client`, which are pure and
-  must stay near fully covered. CI fails under the threshold.
+  must stay near fully covered. CI fails under the threshold. On 2026-10-14 core was at 95% lines and client at 90%; thresholds are 93 and 88.
 - **Mutation testing** (`npm run mutate:core`): Stryker over `packages/core`,
   nightly. Coverage says a line ran; mutation says a test would notice it
   changing. Core holds the invariants, so it gets both.
