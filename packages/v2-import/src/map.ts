@@ -48,9 +48,10 @@ export interface MapContext {
   /** Links undone on the dashboard (v2 id → the Next account they had pointed to): that account's membership is taken back. */
   released?: ReadonlyMap<string, string>;
   /**
-   * Who signs membership changes: an admin of the organization already, so
-   * a link or unlink that swaps who someone is is signed by a member. The
-   * owner when not given.
+   * Who signs membership changes and the language's own setup (adding it,
+   * its name and code, flow, template and guides): an admin of the
+   * organization already, so they are signed by a member even when the v2
+   * owner is not in the organization. The owner when not given.
    */
   manager?: string;
   /** Roles chosen on the dashboard, by v2 person; `none` leaves them out. Everyone else's follows their v2 work. */
@@ -149,6 +150,10 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
   /** The v2 person who did something, or the owner when v2 does not say. */
   const v2Actor = (id: string | null) => id ?? v2Owner;
   const actor = (id: string | null) => who(v2Actor(id));
+  // The language and how it is set up are said by an admin of the organization, who may: the v2 owner need
+  // not be in the organization at all (Every Language's are admins of their languages only), and then the
+  // server refuses "not a member" and everything in the language waits on it.
+  const steward = ctx.manager ?? owner;
 
   // ---- what v2 holds, indexed ----------------------------------------------------------
   const v2Target = rows.languages.find((l) => l.active && l.language_type === 'target')?.languoid_id ?? null;
@@ -242,18 +247,18 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
   const code = ctx.language.code;
   facts.push(
     {
-      key: 'language', streamId: ORG_STREAM, actorId: owner, at: t0, restate: false, unsay: nothing,
+      key: 'language', streamId: ORG_STREAM, actorId: steward, at: t0, restate: false, unsay: nothing,
       say: () => [{ type: 'v1.LanguageAdded', payload: { languageId, name: languageName, code: code ?? readableCode(languageName), sourceCode: ctx.language.sourceCode } }]
     },
     {
-      key: 'name', streamId: ORG_STREAM, actorId: owner, at: at(rows.project.last_updated), unsay: nothing,
+      key: 'name', streamId: ORG_STREAM, actorId: steward, at: at(rows.project.last_updated), unsay: nothing,
       say: () => [{ type: 'v1.LanguageRenamed', payload: { languageId, name: languageName } }]
     }
   );
   // Linked only when the dashboard chose a language; otherwise its admins link it in Next.
   if (code) {
     facts.push({
-      key: 'code', streamId: ORG_STREAM, actorId: owner, at: ctx.language.decidedAt, unsay: nothing,
+      key: 'code', streamId: ORG_STREAM, actorId: steward, at: ctx.language.decidedAt, unsay: nothing,
       say: () => [{ type: 'v1.LanguageCodeSet', payload: { languageId, code, languoidId: ctx.language.languoidId } }]
     });
   }
@@ -263,13 +268,13 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
   if (ctx.guides) {
     const itemId = ctx.guides.itemId;
     facts.push({
-      key: `guide:${itemId}`, streamId: languageId, actorId: owner, at: ctx.language.decidedAt, value: itemId,
+      key: `guide:${itemId}`, streamId: languageId, actorId: steward, at: ctx.language.decidedAt, value: itemId,
       say: () => [{ type: 'v1.ReferenceSet', payload: { itemId, state: 'recommended' } }],
       unsay: () => [{ type: 'v1.ReferenceSet', payload: { itemId, state: 'inherit' } }]
     });
   }
   facts.push({
-    key: 'flow', streamId: languageId, actorId: owner, at: t0, restate: false, unsay: nothing,
+    key: 'flow', streamId: languageId, actorId: steward, at: t0, restate: false, unsay: nothing,
     say: () => [
       { type: 'v1.FlowSelected', payload: { flowId: CUSTOM_FLOW } },
       { type: 'v1.FlowStepSet', payload: { stepId: `${CUSTOM_FLOW}/${COMMUNITY}`, order: 's00', kindIds: [COMMUNITY], checkpoint: false } }
@@ -279,13 +284,13 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
     const units = templateUnits(template.doc, template.itemId, template.versification);
     const sorted = [...books].sort();
     facts.push({
-      key: 'template', streamId: languageId, actorId: owner, at: t0, unsay: nothing,
+      key: 'template', streamId: languageId, actorId: steward, at: t0, unsay: nothing,
       say: () => [{ type: 'v1.TemplateSelected', payload: { itemId: template.itemId, docHash: template.docHash, unitPrefix: template.itemId, books: sorted } }]
     });
     for (const book of sorted) {
       const mine = units.filter((u) => u.unitId.slice(template.itemId.length + 1, template.itemId.length + 4) === book);
       facts.push({
-        key: `book:${book}`, streamId: languageId, actorId: owner, at: t0, restate: false, unsay: nothing,
+        key: `book:${book}`, streamId: languageId, actorId: steward, at: t0, restate: false, unsay: nothing,
         say: () => mine.map((payload) => ({ type: 'v1.UnitAdded', payload }))
       });
     }
@@ -497,7 +502,7 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
     const m = ids.map((id) => membership.get(id)).find((x) => !!x);
     const withdraw = role === undefined && ids.some((id) => leftOut.has(id));
     facts.push({
-      key: `member:${account}`, streamId: ORG_STREAM, actorId: ctx.manager ?? owner,
+      key: `member:${account}`, streamId: ORG_STREAM, actorId: steward,
       at: m ? at(role === undefined ? m.last_updated : m.created_at) : firstWork(ids),
       gone: role === undefined && !withdraw,
       ...(withdraw ? { withdraw: true } : {}),
@@ -513,7 +518,7 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
   for (const id of [...moved].sort()) {
     if (accounts.has(id)) continue;
     facts.push({
-      key: `member:${id}`, streamId: ORG_STREAM, actorId: ctx.manager ?? owner, at: new Date(ctx.now).toISOString(), withdraw: true,
+      key: `member:${id}`, streamId: ORG_STREAM, actorId: steward, at: new Date(ctx.now).toISOString(), withdraw: true,
       say: () => [],
       unsay: () => [{ type: 'v1.MemberRemoved', payload: { profileId: id, scope } }]
     });

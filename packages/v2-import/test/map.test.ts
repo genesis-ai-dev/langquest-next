@@ -140,6 +140,14 @@ describe('mapProject: a Bible project', () => {
     expect(passage.notes.map((n) => n.text)).toEqual(['1:3: Kwa words for verse 3']);
   });
 
+  it("has an admin of the organization add the language and set it up, since its v2 owner may not be in the organization", () => {
+    const { all } = run([{ rows: bible(), ctx: ctx({ manager: 'el-admin' }) }]);
+    const by = (type: string) => [...new Set(all.filter((e) => e.type === type).map((e) => e.actorId))];
+    for (const type of ['v1.LanguageAdded', 'v1.LanguageRenamed', 'v1.LanguageCodeSet', 'v1.FlowSelected', 'v1.TemplateSelected', 'v1.UnitAdded']) expect(by(type), type).toEqual(['el-admin']);
+    // The work stays its makers'.
+    expect(by('v1.RecordingAdded')).toEqual(['trans']);
+  });
+
   it('makes a recording of the same verses as the one above more of that verse, as Next records it', () => {
     const same = bible();
     same.placements = [place('ch1', 'a1', 1000000, [3, 3]), place('ch1', 'a2', 3000000, [3, 3])];
