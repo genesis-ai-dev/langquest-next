@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 /**
  * Hygiene for the web UI suite (docs/testing.md "Signals, not sleeps"):
- * - a waitForTimeout( needs a trailing `// sleep: <reason>` comment;
+ * - a waitForTimeout( needs a trailing `// sleep: <reason>` comment (or `/* sleep: … */` mid-line);
  * - test.setTimeout( above 240_000 needs a trailing `// ceiling: <reason>`;
  * - ui.config.ts keeps `retries: 0`.
  *
@@ -31,9 +31,9 @@ function offences(): string[] {
     for (const raw of readFileSync(f, 'utf8').split('\n')) {
       const line = raw.trim();
       if (line.startsWith('//') || line.startsWith('*')) continue;
-      if (line.includes('waitForTimeout(') && !/\/\/\s*sleep:/.test(line)) out.push(`${f}:${line}`);
+      if (line.includes('waitForTimeout(') && !/(\/\/|\/\*)\s*sleep:/.test(line)) out.push(`${f}:${line}`);
       const t = /test\.setTimeout\(\s*([^)]*)\)/.exec(line);
-      if (t && !/\/\/\s*ceiling:/.test(line)) {
+      if (t && !/(\/\/|\/\*)\s*ceiling:/.test(line)) {
         const n = Number(t[1]!.replace(/_/g, ''));
         if (!(n <= CEILING)) out.push(`${f}:${line}`);
       }

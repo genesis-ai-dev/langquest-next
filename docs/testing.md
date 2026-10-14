@@ -87,9 +87,12 @@ These keep the suite fast enough to run and stable enough to trust.
   per role, titled `ID role`, so each stays under about a minute, failures
   isolate, and files shard. The default timeout (`ui.config.ts`) is the
   ceiling; a test that raises it says why.
-- **Enter by URL.** A test that only reads a screen opens it at its path
-  (`openAs(page, world, who, { path })`), not by tapping through the Map.
-  Navigation itself is tested once per edge.
+- **Enter directly.** A test that only reads a screen opens it directly,
+  not by tapping through the Map: sections by their address
+  (`pathTo`, `openAs(page, world, who, { path })`), and a passage record,
+  which has no address (decision 58), through the entry pushed
+  notifications use, exposed in test builds (`enterPassage`). Navigation
+  itself is tested once per edge.
 - **IDs for structure, words for copy.** Path steps, team rows, list rows,
   sheets, the search field, toggles and the tabs carry `testID`s; tests find
   them by ID and read their words. Assertions on words are for tests about

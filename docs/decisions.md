@@ -3540,8 +3540,10 @@ minutes. Carl chose (2026-10-14):
 - Waits are on signals: locators, the device log, and a test-state probe the
   app exposes in test builds. `waitForTimeout` fails the hygiene test unless
   the line says why nothing observable exists.
-- One test per role, the default timeout as the ceiling, screens entered by
-  URL, structure found by `testID` and copy by catalog key.
+- One test per role, the default timeout as the ceiling, screens entered
+  directly (sections by address; a passage record, which has no address
+  by 58, through the entry notifications use, in test builds only),
+  structure found by `testID` and copy by catalog key.
 - Retries stay at zero (95); a test that fails without a product cause goes
   to `@quarantine` with an owner, and pass rates come from the kept reports.
 - `@p0` runs on every PR and before `npm run ship`; the whole suite, a fleet
