@@ -7,7 +7,6 @@ import { button, expect, openAs, tab, tabsShown, test, text, useWorld } from './
 const world = useWorld();
 
 test('JRN-009 Organization admin switches to the organization where they translate', async ({ page }) => {
-  test.setTimeout(240_000);
   const w = world();
   await watch(page, 'ADMIN');
   await openAs(page, w, 'ADMIN');

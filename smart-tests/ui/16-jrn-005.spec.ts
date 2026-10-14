@@ -17,7 +17,7 @@ async function readyCount(page: Page): Promise<number> {
 }
 
 test('JRN-005 A coordinator gets a language ready and starts its team @p0 @wide', async ({ browser }) => {
-  test.setTimeout(600_000);
+  test.setTimeout(300_000); // ceiling: ran 3.5 min on the export (many screens across five devices), over the 180 s default
   const w = world();
   const devices = new Devices(browser, world);
   try {

@@ -10,7 +10,7 @@
 // person's device would have before they set out.
 import type { Page } from '@playwright/test';
 import {
-  button, expect, expectNothingRefused, expectSent, openAs, screenText, syncNow, tab, test, text, useWorld
+  button, expect, expectNothingRefused, expectSent, expectSyncIdle, openAs, screenText, syncNow, tab, test, text, useWorld
 } from './support';
 import {
   addNote, caughtUp, deviceAs, keptHere, noteAs, openByLabel, openRecord, openSync, passageAs, quietReloads, recordAndPublish, serverHasAudio, setOffline, syncChip, tile, tileLocator, toTab
@@ -33,7 +33,7 @@ test('SYNC-001 The Sync screen, online', async ({ page }) => {
   await openAs(page, w, 'TRANS');
   await caughtUp(page, w, 'TRANS');
   await openSync(page);
-  await page.waitForTimeout(5000);
+  await expectSyncIdle(page);
   await expect(text(page, LIVE).or(text(page, POLLING)).first()).toBeVisible();
   await expect(text(page, 'The server refused this account for this organization.')).toBeHidden();
   await expect(text(page, 'Ready for offline')).toBeVisible();
@@ -41,7 +41,7 @@ test('SYNC-001 The Sync screen, online', async ({ page }) => {
   await expect(text(page, 'Needs a connection')).toBeVisible();
   expect(await tile(page, 'waiting to upload')).toBe(0);
   expect(await tile(page, 'refused by the server')).toBe(0);
-  expect(await tile(page, 'latest confirmed')).toBeGreaterThan(0);
+  await expect.poll(() => tile(page, 'latest confirmed')).toBeGreaterThan(0);
   await expect(tileLocator(page, 'local checkpoint')).toBeVisible();
   // Two by two on a phone.
   const boxes = await Promise.all(['waiting to upload', 'refused by the server', 'latest confirmed', 'local checkpoint'].map((l) => tileLocator(page, l).boundingBox()));
@@ -79,7 +79,6 @@ test('SYNC-002 The Sync screen, offline', async ({ page, context }) => {
 });
 
 test('SYNC-003 Waiting work is listed until it goes', async ({ page, context }) => {
-  test.setTimeout(240_000);
   const w = world();
   await openAs(page, w, 'TRANS');
   await caughtUp(page, w, 'TRANS');
@@ -137,9 +136,8 @@ test('SYNC-007 My Work\'s sync chip shows only when it matters', async ({ page, 
   await expect(tab(page, 'work')).toBeVisible();
   await expect(syncChip(page)).toBeHidden();
   await setOffline(context, true);
-  await page.waitForTimeout(10_000);
   // Known issue (wake.ts, decision 90): nothing tries the server when the network goes, so the app does not know yet.
-  await expect.soft(syncChip(page), 'the chip says Offline within 10 seconds').toHaveAccessibleName('Offline', { timeout: 5_000 });
+  await expect.soft(syncChip(page), 'the chip says Offline within 10 seconds').toHaveAccessibleName('Offline', { timeout: 15_000 });
   await addNote(page, w, 'P-SUBMITTED', 'SYNC-007 offline note');
   await toTab(page, 'work');
   const chip = syncChip(page);
@@ -169,7 +167,6 @@ test('SYNC-008 Changes from another device arrive by themselves', async ({ page 
 });
 
 test('SYNC-009 A translator records and publishes offline @p0', async ({ page, context, browser }) => {
-  test.setTimeout(300_000);
   const w = world();
   await openAs(page, w, 'TRANS');
   await caughtUp(page, w, 'TRANS');
@@ -199,7 +196,6 @@ test('SYNC-009 A translator records and publishes offline @p0', async ({ page, c
 });
 
 test('SYNC-010 A reviewer reviews offline @p0', async ({ page, context, browser }) => {
-  test.setTimeout(240_000);
   const w = world();
   await openAs(page, w, 'REV');
   await caughtUp(page, w, 'REV');
@@ -231,7 +227,6 @@ test('SYNC-010 A reviewer reviews offline @p0', async ({ page, context, browser 
 });
 
 test('SYNC-011 A coordinator asks someone offline', async ({ page, context, browser }) => {
-  test.setTimeout(240_000);
   const w = world();
   const label = 'Luke 17:11–19';
   await openAs(page, w, 'COORD');
@@ -257,7 +252,6 @@ test('SYNC-011 A coordinator asks someone offline', async ({ page, context, brow
 });
 
 test('SYNC-012 A translator answers feedback offline', async ({ page, context, browser }) => {
-  test.setTimeout(300_000);
   const w = world();
   await openAs(page, w, 'TRANS');
   await caughtUp(page, w, 'TRANS');
@@ -282,7 +276,6 @@ test('SYNC-012 A translator answers feedback offline', async ({ page, context, b
 });
 
 test('SYNC-014 Notes added offline on two devices end in the same order', async ({ page, context, browser }) => {
-  test.setTimeout(300_000);
   const w = world();
   await openAs(page, w, 'REV');
   const trans = await deviceAs(browser, w, 'TRANS');
@@ -291,9 +284,7 @@ test('SYNC-014 Notes added offline on two devices end in the same order', async 
   await setOffline(context, true);
   await setOffline(trans.context, true);
   await addNote(page, w, 'P-BT', 'SYNC-014 A');
-  await page.waitForTimeout(1100);
   await addNote(trans.page, w, 'P-BT', 'SYNC-014 B');
-  await trans.page.waitForTimeout(1100);
   await addNote(page, w, 'P-BT', 'SYNC-014 C', { open: false });
   await setOffline(context, false);
   await setOffline(trans.context, false);
@@ -322,14 +313,13 @@ test('SYNC-032 The web offers a reload for a new version', async ({ page }) => {
   await page.route('**/version.json', async (route) => { asked++; await route.fulfill({ json: { build: 'ui-test-newer-build' } }); });
   await openAs(page, world(), 'TRANS');
   await expect(tab(page, 'work')).toBeVisible();
-  await page.waitForTimeout(3000);
   // A Metro page has no build id (webBuild.ts) and never asks; the export (the default target) does.
-  test.skip(process.env['UI_TARGET'] === 'dev' && asked === 0, 'Metro\'s dev page has no build id (EXPO_PUBLIC_BUILD_ID): run on the export (the default UI_TARGET).');
-  expect(asked, 'the export asks version.json for its build').toBeGreaterThan(0);
+  test.skip(process.env['UI_TARGET'] === 'dev', 'Metro\'s dev page has no build id (EXPO_PUBLIC_BUILD_ID): run on the export (the default UI_TARGET).');
+  await expect.poll(() => asked, { message: 'the export asks version.json for its build' }).toBeGreaterThan(0);
   const banner = button(page, 'A new version of LangQuest is ready. Reload to use it.');
   await expect(banner).toBeVisible();
   // It never reloads by itself.
-  await page.waitForTimeout(3000);
+  await page.waitForTimeout(3000); // sleep: proves a negative (the page does not reload by itself); nothing on screen changes to wait for
   await expect(banner).toBeVisible();
   const reloaded = page.waitForEvent('load');
   await banner.click();

@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import type { Browser, BrowserContext, Locator, Page } from '@playwright/test';
 import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
 import { localServer } from './fixture';
-import { back, button, expect, field, openAs, openSignedOut, primary, screenText, tab, text, waitForApp, type AccountKey, type UiWorld } from './support';
+import { back, button, expect, field, openAs, openSignedOut, leaveScreen, primary, screenText, tab, text, waitForApp, type AccountKey, type UiWorld } from './support';
 
 const TERMS_VERSION = /TERMS_VERSION = '([^']+)'/.exec(
   readFileSync(new URL('../../apps/mobile/src/accountData.ts', import.meta.url), 'utf8'))![1]!;
@@ -260,9 +260,7 @@ export async function deviceAs(browser: Browser, world: UiWorld, who: AccountKey
 export async function toTabs(page: Page): Promise<void> {
   for (let i = 0; i < 40; i++) {
     if (await tab(page, 'me').isVisible()) return;
-    const b = back(page);
-    if (await b.isVisible()) await b.click({ timeout: 5_000 }).catch(() => {});
-    await page.waitForTimeout(250);
+    if (!(await leaveScreen(page))) await tab(page, 'me').or(back(page)).first().waitFor({ timeout: 2_000 }).catch(() => {});
   }
   await expect(tab(page, 'me'), 'the tab bar').toBeVisible();
 }

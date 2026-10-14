@@ -7,7 +7,7 @@ import type { Browser, BrowserContext, Locator, Page } from '@playwright/test';
 import { commands, derivePassage, ORG_STREAM, SEED_ROLES, type EventSpec, type LanguageState, type OrgState, type Scope } from '@langquest-next/core';
 import { blobKey, MemoryStore, SupabaseTransport, SyncClient, workerBlobs } from '@langquest-next/client';
 import { clientAs, send, signIn } from './fixture';
-import { back, button, byId, expect, expectToast, openAs, openPassage, primary, tab, text, type AccountKey, type PassageKey, type UiWorld } from './support';
+import { back, button, byId, expect, expectSyncIdle, expectToast, openAs, openPassage, primary, tab, text, type AccountKey, type PassageKey, type UiWorld } from './support';
 
 export const id = (): string => randomUUID();
 
@@ -59,7 +59,7 @@ export async function toTab(page: Page, which: TabId): Promise<void> {
   const shown = () => tab(page, which).isVisible().catch(() => false);
   for (let i = 0; i < 10 && !(await shown()); i++) {
     const b = back(page);
-    if (!(await b.isVisible().catch(() => false))) { await page.waitForTimeout(500); continue; }
+    if (!(await b.isVisible().catch(() => false))) { await tab(page, which).or(b).first().waitFor({ timeout: 5000 }).catch(() => {}); continue; }
     const was = await heading(page);
     await b.click();
     await expect.poll(async () => (await shown()) || (await heading(page)) !== was, { timeout: 5000 }).toBe(true);
@@ -86,8 +86,8 @@ export async function caughtUp(page: Page, world: UiWorld, who: AccountKey, lang
       return rows[0]?.seq ?? 0;
     }, [orgId, stream] as const), { timeout: 60_000, message: `the device has caught up with ${stream}` }).toBeGreaterThanOrEqual(seq);
   }
-  // The fold follows the log within a moment.
-  await page.waitForTimeout(1500);
+  // The fold follows the log: wait for the app to say it is idle.
+  await expectSyncIdle(page, 15_000);
 }
 
 /** Wait until the open passage's offline line says it is all on this device. */

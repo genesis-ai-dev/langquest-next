@@ -7,7 +7,7 @@
 // same state again on P-Q3. PLAN.md invariant 1: refused work stays on the
 // device, marked, with its reason, and is shown.
 import type { Browser, BrowserContext, Page } from '@playwright/test';
-import { button, deviceEvents, expect, syncNow, test, text, useWorld } from './support';
+import { button, deviceEvents, expect, expectSyncIdle, syncNow, test, text, useWorld } from './support';
 import {
   atA, caughtUp, deviceAs, eventsHere, openRecord, openSync, passageAs, quietReloads, recordAndPublish, serverHasAudio, setMembership, setOffline, syncChip, tile, toTab
 } from './sync-helpers';
@@ -43,14 +43,12 @@ async function makeRefused(browser: Browser, key: 'P-Q2' | 'P-Q3'): Promise<{ co
   // Device 2 (COORD): TRANS is a Reviewer at LANG-A now (a new role at the same scope).
   await setMembership(w, 'COORD', 'TRANS', { add: { roleId: 'reviewer', scope: atA(w) } });
   await setOffline(context, false);
-  await page.waitForTimeout(3000);
-  await syncNow(page);
-  await expect.poll(async () => (await refusedOn(page)).length, { timeout: 60_000, message: 'the server refuses the work' }).toBeGreaterThan(0);
+  await expect.poll(async () => { await syncNow(page).catch(() => {}); return (await refusedOn(page)).length; },
+    { timeout: 60_000, intervals: [1_000, 2_000], message: 'the server refuses the work' }).toBeGreaterThan(0);
   return { ...d, before };
 }
 
 test('SYNC-019 Work refused after a role change is kept and shown @p0', async ({ browser }) => {
-  test.setTimeout(300_000);
   const w = world();
   device = await makeRefused(browser, 'P-Q2');
   const { page, before } = device;
@@ -81,7 +79,6 @@ test('SYNC-019 Work refused after a role change is kept and shown @p0', async ({
 });
 
 test('SYNC-020 Refused work goes again when access returns', async ({ browser }) => {
-  test.setTimeout(420_000);
   const w = world();
   const key = device ? 'P-Q2' : 'P-Q3';
   if (!device) {
@@ -94,8 +91,9 @@ test('SYNC-020 Refused work goes again when access returns', async ({ browser })
   // Device 2 (COORD): TRANS is a Translator at LANG-A again.
   await setMembership(w, 'COORD', 'TRANS', { add: { roleId: 'translator', scope: atA(w) } });
 
-  // The app hears of the role change and opens its section again (it left Sync for Me in an earlier run), so Sync is opened after the wait.
-  await page.waitForTimeout(60_000);
+  // The app hears of the role change and opens its section again (it left Sync for Me in an earlier run), so Sync is opened after a forced pull.
+  await syncNow(page);
+  await expectSyncIdle(page);
   await openSync(page);
   await button(page, 'Sync now').click();
   await expect(button(page, 'Sync now')).toBeEnabled({ timeout: 30_000 });

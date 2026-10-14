@@ -32,7 +32,6 @@ async function onMyWork(page: Page, title: RegExp): Promise<void> {
 }
 
 test('JRN-011 One passage from first recording to done, across every role @p0', async ({ browser }) => {
-  test.setTimeout(900_000);
   const w = world();
   const tom = w.accounts.TRANS.name;
   const devices = new Devices(browser, world);

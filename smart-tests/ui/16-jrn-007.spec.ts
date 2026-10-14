@@ -7,7 +7,6 @@ import { back, button, byId, expect, expectToast, field, openSignedOut, primary,
 const world = useWorld();
 
 test('JRN-007 An organization admin starts from nothing @p0', async ({ page }) => {
-  test.setTimeout(300_000);
   const w = world();
   const orgName = `Journey Org ${w.run}`;
   const email = `ui-${w.run}-jrn007@example.org`;

@@ -4,7 +4,7 @@
 // passage, the bell, syncing, and a person's own device.
 import type { Browser, BrowserContext, Locator, Page } from '@playwright/test';
 import {
-  button, byId, expect, expectNothingRefused, expectSent, primary, openAs, syncNow, tab, test, text, type AccountKey, type PassageKey, type UiWorld
+  button, byId, expect, expectNothingRefused, expectSent, leaveScreen, primary, openAs, screenChanged, screenText, syncNow, tab, test, text, type AccountKey, type PassageKey, type UiWorld
 } from './support';
 
 /** The parts card's count ("Parts 1–3 · 3 parts"), or 0 before the first part. */
@@ -41,7 +41,7 @@ export async function sayEachPart(page: Page, parts: number): Promise<void> {
     if (await said(n).count()) continue;
     await page.getByRole('button', { name: new RegExp(`^Record part ${n}`) }).locator('visible=true').first().click();
     await expect(page.getByRole('button', { name: 'Stop recording' }).locator('visible=true').first()).toBeVisible();
-    await page.waitForTimeout(6_500);
+    await page.waitForTimeout(6_500); // sleep: the fake microphone must play one full voice loop (about 4 s) and a pause; the screen shows no running time
     await page.getByRole('button', { name: 'Stop recording' }).locator('visible=true').first().click();
     await expect(said(n).first()).toBeVisible({ timeout: 10_000 });
   }
@@ -83,7 +83,9 @@ export async function passageRow(page: Page, label: string, language = 'Alpha'):
     page.getByRole('button', { name: new RegExp(`^${language}: .*Open its map`) })
   ].map((l) => l.locator('visible=true').first());
   for (let i = 0; i < 8 && !(await row.isVisible()); i++) {
-    await page.waitForTimeout(400);
+    const [first, ...rest] = [row, ...ways];
+    await first!.or(rest[0]!).or(rest[1]!).or(rest[2]!).first().waitFor({ timeout: 5_000 }).catch(() => {});
+    if (await row.isVisible()) break;
     for (const way of ways) {
       if (await way.isVisible()) { await way.click(); break; }
     }
@@ -114,8 +116,9 @@ export async function throughToDecide(page: Page): Promise<void> {
     if (await four.count()) await four.first().click();
     else if (await yes.count()) await yes.first().click();
     else if (await typed.count()) await typed.first().fill('It reads well');
+    const before = await screenText(page);
     await byId(page, 'primary-action').click();
-    await page.waitForTimeout(300);
+    await screenChanged(page, before);
   }
   await expect(verdict.first()).toBeVisible();
 }
@@ -127,8 +130,7 @@ export async function backToTabs(page: Page): Promise<void> {
   await expect(tabs.first().or(leave.first())).toBeVisible({ timeout: 60_000 });
   for (let i = 0; i < 6; i++) {
     if (await tabs.count()) return;
-    await page.getByTestId('header-back').or(page.getByTestId('header-close')).locator('visible=true').last().click();
-    await page.waitForTimeout(300);
+    await leaveScreen(page);
   }
   await expect(page.locator('[data-testid^="tab-"]').locator('visible=true').first()).toBeVisible();
 }

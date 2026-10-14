@@ -3,7 +3,7 @@
 // own world: it takes TRANS out of LANG-A and leaves them out. PLAN.md
 // invariant 1: the refused work stays on the device, marked, with its reason,
 // and is shown.
-import { deviceEvents, expect, openAs, screenText, syncNow, test, text, useWorld } from './support';
+import { deviceEvents, expect, expectSyncIdle, openAs, screenText, syncNow, test, text, useWorld } from './support';
 import {
   atA, caughtUp, eventsHere, openRecord, openSync, passageAs, quietReloads, recordAndPublish, setMembership, setOffline, syncChip, tile, toTab
 } from './sync-helpers';
@@ -15,7 +15,6 @@ test.beforeEach(async ({ context }) => { await quietReloads(context); });
 
 
 test('SYNC-018 Work refused after removal is kept and shown @p0', async ({ page, context }) => {
-  test.setTimeout(300_000);
   const w = world();
   const A = w.languages.A;
   await openAs(page, w, 'TRANS');
@@ -42,7 +41,9 @@ test('SYNC-018 Work refused after removal is kept and shown @p0', async ({ page,
   expect(rows.filter((r) => r.status === 'rejected').every((r) => !!r.rejectReason)).toBe(true);
 
   // Known issue (2026-10-12): with no privileges left the app may route to "Join your team", where Sync cannot be opened.
-  await page.waitForTimeout(5000);
+  await expectSyncIdle(page);
+  // Either the app routes away, or the Sync screen it is on says the server refused the account.
+  await expect(text(page, 'Join your team', false).or(text(page, 'The server refused this account for this organization.'))).toBeVisible();
   const joinTeam = await text(page, 'Join your team', false).isVisible().catch(() => false);
   test.info().annotations.push({ type: 'SYNC-018 route', description: joinTeam ? 'went to Join your team (known issue)' : 'stayed in the organization' });
   expect.soft(joinTeam, 'the device stays where Sync can be opened').toBe(false);

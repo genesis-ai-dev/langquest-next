@@ -7,7 +7,6 @@ import { back, button, byId, expect, expectToast, openAs, primary, screenText, t
 const world = useWorld();
 
 test('JRN-003 A reviewer\'s round: one check, one back translation @p0', async ({ page, browser }) => {
-  test.setTimeout(300_000);
   const w = world();
   const trans = w.accounts.TRANS;
   const transFirst = trans.name.split(' ')[0]!;
@@ -39,7 +38,7 @@ test('JRN-003 A reviewer\'s round: one check, one back translation @p0', async (
   await expect(text(page, 'What should change?')).toBeVisible();
   await button(page, 'Tap and speak').click();
   await expect(button(page, 'Stop recording')).toBeVisible();
-  await page.waitForTimeout(5_000);
+  await page.waitForTimeout(5_000); // sleep: the fake microphone must record some voice (a 4 s loop); the screen shows no running time
   await button(page, 'Stop recording').click();
   await expect(button(page, /^Play Your feedback/)).toBeVisible();
 

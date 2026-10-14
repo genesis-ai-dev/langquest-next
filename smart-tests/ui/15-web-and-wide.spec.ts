@@ -162,7 +162,7 @@ test('WEB-005 Language explorer opens in a new tab @wide', async ({ page, contex
   expect(new URL(explorer.url()).pathname).toBe('/languages');
   expect(page.url()).toBe(before);
   // The app's tab keeps the database: it is not told LangQuest moved.
-  await page.waitForTimeout(2000);
+  await page.waitForTimeout(2000); // sleep: proves a negative (the app is not told LangQuest moved); nothing to observe
   await expect(text(page, 'LangQuest moved to another tab')).toBeHidden();
   await expect(tab(page, 'work')).toBeVisible();
   await explorer.close();
@@ -248,7 +248,6 @@ test('WEB-009 Sync\'s tiles in one row on a wide window @wide', async ({ page })
 });
 
 test('WEB-010 Where the tabs show @wide', async ({ page }) => {
-  test.setTimeout(240_000);
   const w = world();
   await openAs(page, w, 'TRANS');
   await expect(tab(page, 'work')).toBeVisible({ timeout: 60_000 });
@@ -312,7 +311,6 @@ test('WEB-012 A second tab says LangQuest is open elsewhere', async ({ page, con
 });
 
 test('WEB-013 "Use it here" moves the app to the new tab', async ({ page, context }) => {
-  test.setTimeout(240_000);
   const w = world();
   await openAs(page, w, 'TRANS');
   await caughtUp(page, w, 'TRANS');
@@ -401,10 +399,10 @@ test('WEB-016 The browser\'s Back is the app\'s Back', async ({ page }) => {
   test.info().annotations.push({ type: 'WEB-016 forward', description: `${page.url()}: ${(await screenText(page)).slice(0, 120)}` });
 });
 
-test('WEB-017 The address names the section @wide', async ({ browser }) => {
-  test.setTimeout(240_000);
+const expectPath = async (page: Page, p: string) => expect.poll(() => path(page)).toBe(p);
+
+test('WEB-017 ADMIN The address names the section @wide', async ({ browser }) => {
   const w = world();
-  const expectPath = async (page: Page, p: string) => expect.poll(() => path(page)).toBe(p);
   const admin = await wideAs(browser, w, 'ADMIN');
   await expect(tab(admin.page, 'work')).toBeVisible({ timeout: 60_000 });
   for (const [id, p] of [['work', '/work'], ['map', '/map'], ['reports', '/reports'], ['manage', '/manage'], ['me', '/settings']] as const) {
@@ -412,6 +410,10 @@ test('WEB-017 The address names the section @wide', async ({ browser }) => {
     await expectPath(admin.page, p);
   }
   await admin.context.close();
+});
+
+test('WEB-017 TRANS The address names the section @wide', async ({ browser }) => {
+  const w = world();
   const trans = await wideAs(browser, w, 'TRANS');
   await expect(tab(trans.page, 'map')).toBeVisible({ timeout: 60_000 });
   await tab(trans.page, 'map').click();
@@ -424,24 +426,35 @@ test('WEB-017 The address names the section @wide', async ({ browser }) => {
   await expectPath(trans.page, '/work');
   expect(trans.page.url()).not.toMatch(/[0-9a-f]{8}-|unit|L-alp/);
   await trans.context.close();
+});
+
+test('WEB-017 LADMIN The address names the section @wide', async ({ browser }) => {
+  const w = world();
   const lead = await wideAs(browser, w, 'LADMIN');
   await expect(tab(lead.page, 'manage')).toBeVisible({ timeout: 60_000 });
   await tab(lead.page, 'manage').click();
   await expectPath(lead.page, '/manage/language');
   await lead.context.close();
+});
+
+test('WEB-017 VIEW The address names the section @wide', async ({ browser }) => {
+  const w = world();
   const view = await wideAs(browser, w, 'VIEW');
   await expect(tab(view.page, 'inbox')).toBeVisible({ timeout: 60_000 });
   await tab(view.page, 'inbox').click();
   await expectPath(view.page, '/inbox');
   await view.context.close();
+});
+
+test('WEB-017 NOORG The address names the section @wide', async ({ browser }) => {
+  const w = world();
   const noorg = await wideAs(browser, w, 'NOORG');
   await expect(text(noorg.page, 'Join your team', false)).toBeVisible({ timeout: 60_000 });
   await expectPath(noorg.page, '/');
   await noorg.context.close();
 });
 
-test('WEB-018 A refresh returns to the section', async ({ page, browser }) => {
-  test.setTimeout(240_000);
+test('WEB-018 TRANS A refresh returns to the section', async ({ page }) => {
   const w = world();
   await openAs(page, w, 'TRANS');
   await openSync(page);
@@ -458,6 +471,10 @@ test('WEB-018 A refresh returns to the section', async ({ page, browser }) => {
   await expect(page.getByRole('searchbox').or(page.getByPlaceholder(/Search|Find/)).locator('visible=true').first()).toBeVisible({ timeout: 60_000 });
   // The address follows the screen a render later.
   await expect.poll(() => path(page)).toBe('/map/language');
+});
+
+test('WEB-018 ADMIN A refresh returns to the section', async ({ browser }) => {
+  const w = world();
   // ADMIN on a wide window: Reports, then Pace, then a refresh: Reports on Overview.
   const admin = await wideAs(browser, w, 'ADMIN');
   await expect(tab(admin.page, 'reports')).toBeVisible({ timeout: 60_000 });
@@ -469,6 +486,10 @@ test('WEB-018 A refresh returns to the section', async ({ page, browser }) => {
   await waitForApp(admin.page);
   await expect(title(admin.page)).toHaveText('Overview', { timeout: 60_000 });
   await admin.context.close();
+});
+
+test('WEB-018 TRANS signed out: a refresh returns to Sign In, then the section', async ({ browser }) => {
+  const w = world();
   // Signed out, /settings: Sign In first, then Me.
   const out = await browser.newContext({ viewport: { width: 430, height: 932 } });
   await quietReloads(out);
@@ -483,33 +504,42 @@ test('WEB-018 A refresh returns to the section', async ({ page, browser }) => {
   await out.close();
 });
 
-test('WEB-019 A refresh never opens a section the person may not open', async ({ browser }) => {
-  test.setTimeout(240_000);
+const NO_PERMISSION = "You don't have permission to open that.";
+async function openAtPath(browser: Browser, w: UiWorld, who: AccountKey, p: string, width = 430) {
+  const d = await deviceAs(browser, w, who, { path: p, width, height: width < 768 ? 932 : 900 });
+  // The app lands on its first screen (a tab bar, or Join your team for no organization) before the redirect is judged.
+  await expect(d.page.locator('[data-testid^="tab-"]').locator('visible=true').first().or(text(d.page, 'Join your team', false)).first()).toBeVisible({ timeout: 60_000 });
+  return d;
+}
+
+test('WEB-019 TRANS A refresh never opens a section the person may not open', async ({ browser }) => {
   const w = world();
-  const noPermission = "You don't have permission to open that.";
-  const at = async (who: AccountKey, p: string, width = 430) => {
-    const d = await deviceAs(browser, w, who, { path: p, width, height: width < 768 ? 932 : 900 });
-    await d.page.waitForTimeout(3000);
-    return d;
-  };
-  // TRANS, /manage: My Work, and the address follows.
-  const a = await at('TRANS', '/manage');
+  // /manage: My Work, and the address follows.
+  const a = await openAtPath(browser, w, 'TRANS', '/manage');
   await expect(title(a.page)).toHaveText('My Work', { timeout: 60_000 });
   await expect.poll(() => path(a.page)).toBe('/work');
-  await expect(text(a.page, noPermission)).toBeHidden();
+  await expect(text(a.page, NO_PERMISSION)).toBeHidden();
   await a.context.close();
-  // TRANS at 390, /reports: My Work.
-  const b = await at('TRANS', '/reports', 390);
+  // At 390, /reports: My Work.
+  const b = await openAtPath(browser, w, 'TRANS', '/reports', 390);
   await expect(title(b.page)).toHaveText('My Work', { timeout: 60_000 });
   await b.context.close();
-  // VIEW, /work: All Languages, /map.
-  const c = await at('VIEW', '/work');
+});
+
+test('WEB-019 VIEW A refresh never opens a section the person may not open', async ({ browser }) => {
+  const w = world();
+  // /work: All Languages, /map.
+  const c = await openAtPath(browser, w, 'VIEW', '/work');
   await expect(tab(c.page, 'map')).toHaveAttribute('aria-selected', 'true', { timeout: 60_000 });
   await expect.poll(() => path(c.page)).toBe('/map');
   await c.context.close();
-  // NOORG (welcome seen, as one that left an organization would be), /settings: Join your team, /.
+});
+
+test('WEB-019 NOORG A refresh never opens a section the person may not open', async ({ browser }) => {
+  const w = world();
+  // Welcome seen, as one that left an organization would be, /settings: Join your team, /.
   // Known issue (2026-10-12): the check counts Me, Map and Inbox as sections an account with no organization may open (App.tsx).
-  const d = await at('NOORG', '/settings');
+  const d = await openAtPath(browser, w, 'NOORG', '/settings');
   await expect.soft(text(d.page, 'Join your team', false), 'NOORG lands on Join your team').toBeVisible({ timeout: 30_000 });
   await expect.soft.poll(() => path(d.page)).toBe('/');
   await expect(d.page.getByText('This screen could not open')).toHaveCount(0);
@@ -614,7 +644,6 @@ async function browserTraces(page: Page): Promise<{ local: string[]; session: st
 }
 
 test('WEB-023 Signing out forgets this browser @p0', async ({ page }) => {
-  test.setTimeout(240_000);
   const w = world();
   await openAsOnce(page, w, 'TRANS');
   await caughtUp(page, w, 'TRANS');
@@ -632,7 +661,8 @@ test('WEB-023 Signing out forgets this browser @p0', async ({ page }) => {
   await primary(page).click();
   // Sign In, in the browser's language: the language picked here is forgotten too.
   await expect(page.getByText('Create Account', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
-  await page.waitForTimeout(2000);
+  // The browser forgets as the page reloads: wait until nothing of TRANS's is left.
+  await expect.poll(async () => { const t = await browserTraces(page); return t.local.length + t.session.length + t.idb.length + t.files.length + t.events; }, { timeout: 15_000 }).toBe(0);
   const traces = await browserTraces(page);
   expect(traces.local).toEqual([]);
   expect(traces.session).toEqual([]);
@@ -683,10 +713,9 @@ test('WEB-026 The update banner waits while recording', async ({ page }) => {
   await page.route('**/version.json', async (route) => { asked++; await route.fulfill({ json: { build } }); });
   await openAs(page, w, 'TRANS');
   await expect(tab(page, 'work')).toBeVisible({ timeout: 60_000 });
-  await page.waitForTimeout(3000);
   // A Metro page has no build id (webBuild.ts) and never asks; the export (the default target) does.
-  test.skip(process.env['UI_TARGET'] === 'dev' && asked === 0, 'Metro\'s dev page has no build id (EXPO_PUBLIC_BUILD_ID): run on the export (the default UI_TARGET).');
-  expect(asked, 'the export asks version.json for its build').toBeGreaterThan(0);
+  test.skip(process.env['UI_TARGET'] === 'dev', 'Metro\'s dev page has no build id (EXPO_PUBLIC_BUILD_ID): run on the export (the default UI_TARGET).');
+  await expect.poll(() => asked, { message: 'the export asks version.json for its build' }).toBeGreaterThan(0);
   build = 'ui-test-newer-build';
   await page.evaluate(() => {
     Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
@@ -703,7 +732,7 @@ test('WEB-026 The update banner waits while recording', async ({ page }) => {
   let reloaded = false;
   page.once('load', () => { reloaded = true; });
   await banner.click();
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(1500); // sleep: proves a negative (tapping Reload while recording must not reload); nothing to observe
   expect(reloaded).toBe(false);
   await expect(byId(page, 'record-button')).toHaveAttribute('aria-label', 'Stop recording');
   await byId(page, 'record-button').click();

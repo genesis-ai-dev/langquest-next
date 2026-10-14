@@ -7,7 +7,6 @@ import { button, expect, openAs, screenText, tab, tabsShown, test, text, useWorl
 const world = useWorld({ welcomed: false });
 
 test('JRN-010 A viewer follows progress @p0 @wide', async ({ page }) => {
-  test.setTimeout(240_000);
   const w = world();
   const done = w.passages['P-DONE'].label;
   await watch(page, 'VIEW');

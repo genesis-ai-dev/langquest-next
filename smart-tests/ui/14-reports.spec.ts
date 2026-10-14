@@ -7,7 +7,7 @@
 // `append_events`. Every test runs in the wide project (@wide); RPT-002
 // changes the window's width itself.
 import type { Browser, Page, Route } from '@playwright/test';
-import { button, expect, openAs, screenText, tab, tabsShown, test, text, useWorld, type AccountKey, type UiWorld } from './support';
+import { button, expect, openAs, screenText, tab, tabsShown, test, testState, text, useWorld, type AccountKey, type UiWorld } from './support';
 import { browserStateFor } from './fixture';
 import {
   atA, createEmptyOrgFor, orgWrite, publishAs, quietReloads, setMembership, setOffline
@@ -58,28 +58,27 @@ async function openAlpha(page: Page): Promise<void> {
   await expect(title(page)).toHaveText('Alpha');
 }
 
-test('RPT-001 The Reports tab is there for anyone who may view status @wide', async ({ browser }) => {
-  test.setTimeout(300_000);
-  const w = world();
-  const expected: Partial<Record<AccountKey, string[]>> = {
-    ADMIN: ['work', 'map', 'reports', 'manage', 'me'],
-    COORD: ['work', 'map', 'reports', 'manage', 'me'],
-    LADMIN: ['work', 'map', 'reports', 'manage', 'me'],
-    TRANS: ['work', 'map', 'reports', 'me'],
-    REV: ['work', 'map', 'reports', 'me'],
-    TREV: ['work', 'map', 'reports', 'me'],
-    VIEW: ['map', 'reports', 'inbox', 'me'],
-    KEPT: ['work', 'map', 'reports', 'me']
-  };
-  for (const [who, tabs] of Object.entries(expected) as [AccountKey, string[]][]) {
+const RPT001: Partial<Record<AccountKey, string[]>> = {
+  ADMIN: ['work', 'map', 'reports', 'manage', 'me'],
+  COORD: ['work', 'map', 'reports', 'manage', 'me'],
+  LADMIN: ['work', 'map', 'reports', 'manage', 'me'],
+  TRANS: ['work', 'map', 'reports', 'me'],
+  REV: ['work', 'map', 'reports', 'me'],
+  TREV: ['work', 'map', 'reports', 'me'],
+  VIEW: ['map', 'reports', 'inbox', 'me'],
+  KEPT: ['work', 'map', 'reports', 'me']
+};
+for (const [who, tabs] of Object.entries(RPT001) as [AccountKey, string[]][]) {
+  test(`RPT-001 ${who} The Reports tab is there for anyone who may view status @wide`, async ({ browser }) => {
+    const w = world();
     const { context, page } = await wideAs(browser, w, who);
     await expect(tab(page, 'reports')).toBeVisible({ timeout: 60_000 });
     await expect.poll(() => tabsShown(page), { message: `${who}'s tabs` }).toEqual(tabs);
     await openReports(page);
     await expect(chip(page, 'Overview')).toBeVisible();
     await context.close();
-  }
-});
+  });
+}
 
 test('RPT-002 Never on a phone, and not without an organization @wide', async ({ page, browser }) => {
   const w = world();
@@ -155,11 +154,10 @@ test('RPT-004 Each chip opens its section @wide', async ({ page, context }) => {
   await openAlpha(page);
 });
 
-test('RPT-006 Each role sees the languages its role covers @wide', async ({ browser }) => {
-  test.setTimeout(240_000);
-  const w = world();
-  const sees: [AccountKey, string[]][] = [['VIEW', ['Alpha', 'Bravo']], ['TRANS', ['Alpha']], ['LADMIN', ['Alpha']]];
-  for (const [who, names] of sees) {
+const RPT006: [AccountKey, string[]][] = [['VIEW', ['Alpha', 'Bravo']], ['TRANS', ['Alpha']], ['LADMIN', ['Alpha']]];
+for (const [who, names] of RPT006) {
+  test(`RPT-006 ${who} Each role sees the languages its role covers @wide`, async ({ browser }) => {
+    const w = world();
     const { context, page } = await wideAs(browser, w, who);
     await openReports(page);
     await section(page, 'Languages');
@@ -168,8 +166,8 @@ test('RPT-006 Each role sees the languages its role covers @wide', async ({ brow
         .toHaveCount(names.includes(n) ? 1 : 0);
     }
     await context.close();
-  }
-});
+  });
+}
 
 test('RPT-007 Catch up with the server shows new work @wide', async ({ page }) => {
   const w = world();
@@ -332,15 +330,16 @@ test('RPT-013 Alpha\'s page @wide', async ({ page }) => {
 });
 
 test('RPT-016 A language whose report you cannot see @wide', async ({ page }) => {
-  test.setTimeout(240_000);
   const w = world();
   await openAs(page, w, 'VIEW');
   await openReports(page);
   await section(page, 'Languages');
   await expect(page.getByText('Bravo', { exact: true }).locator('visible=true')).toHaveCount(1);
   // Device 2 (ADMIN): VIEW's scope becomes LANG-A only.
+  const pulledBefore = (await testState(page)).lastSyncAt ?? 0;
   await setMembership(w, 'ADMIN', 'VIEW', { add: { roleId: 'viewer', scope: atA(w) }, remove: { level: 'org' } });
-  await page.waitForTimeout(10_000);
+  // The live channel brings the change by itself (no catching up from Reports): wait for the app's pull.
+  await expect.poll(async () => ((await testState(page)).lastSyncAt ?? 0) > pulledBefore, { timeout: 30_000, message: 'the app pulled the change' }).toBe(true);
   // Without catching up, Bravo from the list already showing.
   await page.getByText('Bravo', { exact: true }).locator('visible=true').first().click();
   await expect(text(page, 'This language has no report you can see')).toBeVisible({ timeout: 30_000 });
@@ -365,11 +364,10 @@ test('RPT-017 A language\'s page keeps its figures offline @wide', async ({ page
   await expect(text(page, 'The report could not be read')).toBeHidden();
 });
 
-test('RPT-018 Only people who manage the language see its settings @wide', async ({ browser }) => {
-  test.setTimeout(300_000);
-  const w = world();
-  const manages: [AccountKey, boolean][] = [['ADMIN', true], ['COORD', true], ['LADMIN', true], ['TRANS', false], ['REV', false], ['VIEW', false]];
-  for (const [who, may] of manages) {
+const RPT018: [AccountKey, boolean][] = [['ADMIN', true], ['COORD', true], ['LADMIN', true], ['TRANS', false], ['REV', false], ['VIEW', false]];
+for (const [who, may] of RPT018) {
+  test(`RPT-018 ${who} Only people who manage the language see its settings @wide`, async ({ browser }) => {
+    const w = world();
     const { context, page } = await wideAs(browser, w, who);
     await openReports(page);
     await openAlpha(page);
@@ -382,8 +380,8 @@ test('RPT-018 Only people who manage the language see its settings @wide', async
       await expect(page.getByText('Language settings', { exact: true }).locator('visible=true')).toHaveCount(1);
     }
     await context.close();
-  }
-});
+  });
+}
 
 test('RPT-019 Choose and save a country @wide', async ({ page, browser }) => {
   const w = world();

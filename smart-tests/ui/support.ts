@@ -204,3 +204,32 @@ export async function openPassage(page: Page, world: UiWorld, key: keyof UiWorld
   await visible(page.getByText(label, { exact: false })).first().click();
   await expect(text(page, label, false)).toBeVisible();
 }
+
+/**
+ * Press the visible Back (or ✕) and wait until that very button is gone, so the
+ * next look sees the screen behind it. Returns false when there was none.
+ */
+export async function leaveScreen(page: Page): Promise<boolean> {
+  const b = back(page);
+  const handle = await b.elementHandle({ timeout: 2_000 }).catch(() => null);
+  if (!handle) return false;
+  await b.click();
+  await handle.waitForElementState('hidden', { timeout: 5_000 }).catch(() => { /* the screen may reuse the button */ });
+  return true;
+}
+
+/** Wait until the page's words differ from `before` (a screen moved on); false when they never did. */
+export async function screenChanged(page: Page, before: string, timeoutMs = 5_000): Promise<boolean> {
+  return expect.poll(async () => (await screenText(page)) !== before, { timeout: timeoutMs }).toBe(true).then(() => true, () => false);
+}
+
+/** Wait until the element has stopped moving (same box on two looks in a row), e.g. a list settling after a row arrives. */
+export async function expectStill(target: Locator): Promise<void> {
+  let last = '';
+  await expect.poll(async () => {
+    const now = JSON.stringify(await target.boundingBox());
+    const same = now === last;
+    last = now;
+    return same;
+  }, { intervals: [100, 100, 200], timeout: 10_000, message: 'waiting for the element to settle' }).toBe(true);
+}

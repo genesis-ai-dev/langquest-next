@@ -10,7 +10,7 @@ import { installMicControl, openWorkspace, recordParts } from './06-recording-he
 import { alphaMembers, deviceAs, deviceForNew, issueInviteAs, newPerson, quietReloads, toTabs } from './people-helpers';
 import { clientAs, send, signIn } from './fixture';
 import {
-  back, button, deviceEvents, expect, expectToast, openAs, primary, screenText, syncNow, tab, tabsShown, test, text, undoToast, useWorld
+  back, button, deviceEvents, expect, expectSyncIdle, expectToast, openAs, primary, screenChanged, screenText, syncNow, tab, tabsShown, test, text, undoToast, useWorld
 } from './support';
 
 const world = useWorld();
@@ -118,8 +118,10 @@ test('PEOPLE-047 A member at Alpha cannot see Bravo\'s work', async ({ page, bro
   await tab(lead.page, 'map').click();
   const bravo = text(lead.page, 'Bravo');
   if (await bravo.count()) {
+    const before = await screenText(lead.page);
     await bravo.click();
-    await lead.page.waitForTimeout(2000);
+    await screenChanged(lead.page, before);
+    await expectSyncIdle(lead.page);
     const all = await screenText(lead.page);
     expect(all).not.toContain('This screen could not open');
     expect(all).not.toMatch(/Version \d|recorded/);

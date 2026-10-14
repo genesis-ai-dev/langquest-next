@@ -10,7 +10,7 @@ import {
 } from './people-helpers';
 import { clientAs, send, signIn } from './fixture';
 import {
-  back, button, byId, expect, expectToast, field, openAs, primary, screenText, syncNow, tab, tabsShown, test, text, undoToast,
+  back, button, byId, expect, expectSyncIdle, expectToast, field, openAs, primary, screenText, syncNow, tab, tabsShown, test, text, undoToast,
   useWorld
 } from './support';
 
@@ -376,7 +376,7 @@ test('PEOPLE-008 Invite by QR targets the language chosen on Invite someone', as
   expect((await inviteRow(token))['scope']).toEqual({ level: 'language', languageId: w.languages.B.languageId });
 });
 
-test('PEOPLE-009 Make a new role while inviting', async ({ page, browser }) => {
+test('PEOPLE-009 ADMIN Make a new role while inviting', async ({ page }) => {
   const w = world();
   const role = `Storyteller ${run()}`;
   await openAs(page, w, 'ADMIN');
@@ -399,16 +399,20 @@ test('PEOPLE-009 Make a new role while inviting', async ({ page, browser }) => {
   await expect(text(page, 'Ask them to scan this')).toBeVisible();
   await expect(text(page, 'No password needed. Works for a whole group.')).toBeVisible();
 
-  // COORD and LADMIN may not make roles.
-  for (const [who, lead] of [['COORD', false], ['LADMIN', true]] as const) {
+});
+
+// COORD and LADMIN may not make roles.
+for (const [who, lead] of [['COORD', false], ['LADMIN', true]] as const) {
+  test(`PEOPLE-009 ${who} May not make a new role while inviting`, async ({ browser }) => {
+    const w = world();
     const d = await deviceAs(browser, w, who);
     await alphaMembers(d.page, w, { lead });
     await button(d.page, 'Invite').click();
     await expect(text(d.page, 'What will they do?')).toBeVisible();
     await expect(text(d.page, 'Something else: make a new role')).toHaveCount(0);
     await d.context.close();
-  }
-});
+  });
+}
 
 test('PEOPLE-010 No code is made offline', async ({ page }) => {
   const w = world();
@@ -476,8 +480,8 @@ test('PEOPLE-014 Who may help someone sign in', async ({ page, browser }) => {
   await alphaMembers(page, w);
   await text(page, w.accounts.TRANS.name).click();
   await expect(text(page, 'Pick a role, then choose the scope this assignment applies to. Scope can be this level or below.')).toBeVisible();
-  // Give the server's answer time to arrive before saying it is not there.
-  await page.waitForTimeout(2000);
+  // Let the server's answer arrive before saying it is not there.
+  await expectSyncIdle(page);
   await expect(text(page, 'Help them sign in')).toHaveCount(0);
   await back(page).click();
 
@@ -651,7 +655,7 @@ test('PEOPLE-019 Say no from the request screen', async ({ page }) => {
   await expect(t.getByTestId('toast-undo')).toHaveCount(0);
   await expect(text(page, `${person.name} wants to join`)).toHaveCount(0);
   await alphaMembers(page, w);
-  await page.waitForTimeout(1500);
+  await expectSyncIdle(page);
   await expect(text(page, person.name)).toHaveCount(0);
   await openInbox(page);
   await expect(text(page, asked(person.name))).toHaveCount(0);
@@ -669,13 +673,13 @@ test('PEOPLE-020 A language-scope admin never sees join requests', async ({ page
 
     await openAs(page, w, 'LADMIN');
     await expect(tab(page, 'work')).toBeVisible();
-    await page.waitForTimeout(3000);
+    await expectSyncIdle(page);
     expect(await screenText(page)).not.toContain(person.name);
     await expect(page.getByRole('button', { name: /^Updates, \d+ new$/ })).toHaveCount(0);
     await openInbox(page);
     expect(await screenText(page)).not.toContain('Join request');
     await alphaMembers(page, w, { lead: true });
-    await page.waitForTimeout(2000);
+    await expectSyncIdle(page);
     expect(await screenText(page)).not.toContain(person.name);
     expect(await screenText(page)).not.toContain('Pending');
     await back(page).click();
@@ -727,7 +731,7 @@ test('PEOPLE-022 Join requests offline', async ({ page }) => {
     // Members, opened offline, lists no requests rather than claiming nobody asked; the bell keeps its count.
     await toTabs(page);
     await orgMembers(page, w);
-    await page.waitForTimeout(1500);
+    await expectSyncIdle(page);
     expect(await screenText(page)).not.toContain(person.name);
     await toTabs(page);
     await tab(page, 'work').click();
@@ -741,10 +745,10 @@ test('PEOPLE-022 Join requests offline', async ({ page }) => {
 
 // ---- Editing a member -----------------------------------------------------------------------
 
-test('PEOPLE-023 Change a member\'s role @p0', async ({ page, browser }) => {
-  const w = world();
-  const rev = w.accounts.REV.name;
-  for (const who of ['ADMIN', 'COORD'] as const) {
+for (const who of ['ADMIN', 'COORD'] as const) {
+  test(`PEOPLE-023 ${who} Change a member's role @p0`, async ({ page, browser }) => {
+    const w = world();
+    const rev = w.accounts.REV.name;
     const d = who === 'ADMIN' ? { page } : await deviceAs(browser, w, who);
     if (who === 'ADMIN') await openAs(page, w, 'ADMIN');
     const p = d.page;
@@ -775,8 +779,8 @@ test('PEOPLE-023 Change a member\'s role @p0', async ({ page, browser }) => {
       await (d as { context: import('@playwright/test').BrowserContext }).context.close();
     }
     await expect.poll(async () => (await membership(w.accounts.REV.id)).find((m) => !m.removed)?.role_id, { timeout: 30_000 }).toBe('reviewer');
-  }
-});
+  });
+}
 
 test('PEOPLE-024 Move a membership between organization and language scope', async ({ page }) => {
   const w = world();
@@ -874,9 +878,9 @@ test('PEOPLE-027 A member who holds more than you is view only', async ({ page }
   await expect(text(page, 'Remove from organization')).toHaveCount(0);
 });
 
-test('PEOPLE-028 Opening a member page you may not edit', async ({ page, browser }) => {
-  const w = world();
-  for (const who of ['VIEW', 'TRANS'] as const) {
+for (const who of ['VIEW', 'TRANS'] as const) {
+  test(`PEOPLE-028 ${who} Opening a member page you may not edit`, async ({ browser }) => {
+    const w = world();
     const d = await deviceAs(browser, w, who);
     const p = d.page;
     await expect(tab(p, 'me')).toBeVisible({ timeout: 60_000 });
@@ -884,14 +888,14 @@ test('PEOPLE-028 Opening a member page you may not edit', async ({ page, browser
     // The web's address for the organization's home.
     await p.goto('/manage');
     await expect(tab(p, 'me')).toBeVisible({ timeout: 60_000 });
-    await p.waitForTimeout(1500);
+    await expectSyncIdle(p);
     const all = await screenText(p);
     expect(all).not.toContain('This screen could not open');
     expect(all).not.toMatch(/Organization members · |Language members · /);
     expect(all).not.toContain('Invite people');
     await d.context.close();
-  }
-});
+  });
+}
 
 // ---- The limits on granting --------------------------------------------------------------------
 
