@@ -4,7 +4,15 @@
  *
  *   npm run test:ui:phone -- --platform ios|android [--device <udid|serial>]
  *     [--app build|dev] [--port 8095] [--tags p0,auth] [--exclude-tags wrapped]
- *     [--label run] [--reuse-world] [--flow <file>]...
+ *     [--label run] [--reuse-world] [--flow <file>]... [--shards N] [--voice]
+ *
+ * --shards N runs the flows across N devices (name each with a repeated
+ * --device; an iOS run with none uses N booted simulators), through Maestro's
+ * --shard-split. Maestro keeps flowsOrder only inside one shard, so the flows
+ * config.yaml orders run first, in order, on the first device; the rest are
+ * split across all N. --voice (macOS) loops smart-tests/fixtures/voice.wav
+ * into a virtual audio device for the run, for the flows that need a
+ * microphone signal (the Maestro section of docs/ui-test-suite/README.md).
  *
  * Builds a fresh fixture world on the local stack (smart-tests/ui/fixture.ts),
  * hands its accounts and passages to Maestro as variables, and runs
@@ -35,13 +43,24 @@ const port = value('port', '8095');
  * picks the first device it finds, which is the Android emulator when both
  * are running: an "iOS" run then tests whatever Android build is installed.
  */
-function bootedSimulator() {
+function bootedSimulators() {
   const r = spawnSync('xcrun', ['simctl', 'list', 'devices', 'booted', '-j'], { encoding: 'utf8' });
-  const booted = Object.values(JSON.parse(r.stdout || '{}').devices ?? {}).flat().filter((d) => d.state === 'Booted');
-  if (booted.length !== 1) throw new Error(`${booted.length} simulators are booted: name one with --device <udid> (or UI_IOS_DEVICE)`);
-  return booted[0].udid;
+  return Object.values(JSON.parse(r.stdout || '{}').devices ?? {}).flat().filter((d) => d.state === 'Booted').map((d) => d.udid);
 }
-const device = value('device', platform === 'android' ? 'emulator-5554' : process.env.UI_IOS_DEVICE || bootedSimulator());
+const shards = Number(value('shards', '1'));
+if (!Number.isInteger(shards) || shards < 1) throw new Error('--shards is a whole number of devices');
+function pickDevices() {
+  const named = all('device');
+  if (named.length) return named;
+  if (platform === 'android') return shards > 1 ? [] : ['emulator-5554'];
+  if (process.env.UI_IOS_DEVICE && shards === 1) return [process.env.UI_IOS_DEVICE];
+  const booted = bootedSimulators();
+  if (booted.length !== shards) throw new Error(`${booted.length} simulators are booted but ${shards} wanted: name them with --device <udid> (or UI_IOS_DEVICE)`);
+  return booted;
+}
+const devices = pickDevices();
+if (devices.length !== shards) throw new Error(`--shards ${shards} needs ${shards} devices named with --device (got ${devices.length})`);
+const device = devices[0];
 const results = join(root, 'smart-tests/results/maestro', platform, value('label', 'run'));
 mkdirSync(results, { recursive: true });
 
@@ -53,9 +72,11 @@ function run(cmd, cmdArgs, opts = {}) {
 // The emulator reaches this machine's Metro, Supabase and Worker through adb reverse.
 // adbd runs as root so the offline watcher below can use iptables.
 if (platform === 'android') {
-  run('adb', ['-s', device, 'root'], { stdio: 'ignore' });
-  run('adb', ['-s', device, 'wait-for-device']);
-  for (const p of [port, '54421', '8787']) run('adb', ['-s', device, 'reverse', `tcp:${p}`, `tcp:${p}`]);
+  for (const dev of devices) {
+    run('adb', ['-s', dev, 'root'], { stdio: 'ignore' });
+    run('adb', ['-s', dev, 'wait-for-device']);
+    for (const p of [port, '54421', '8787']) run('adb', ['-s', dev, 'reverse', `tcp:${p}`, `tcp:${p}`]);
+  }
 }
 
 // Airplane mode does not cut adb reverse ports, and a connection already open
@@ -65,7 +86,7 @@ if (platform === 'android') {
 // emulator) when it is in airplane mode and lets it through when it is not.
 // Metro's port stays open.
 const OFFLINE_PORTS = ['54421', '8787'];
-if (platform === 'android') {
+if (platform === 'android') for (const device of devices) {
   const script = `
     const { spawnSync } = require('node:child_process');
     const dev = ${JSON.stringify(device)}, ports = ${JSON.stringify(OFFLINE_PORTS)};
@@ -128,12 +149,61 @@ for (const [key, l] of Object.entries(world.languages)) env[`LANG_${key}`] = l.n
 const flows = all('flow');
 const tags = value('tags', '');
 const excludeTags = value('exclude-tags', '');
-const maestroArgs = [
-  ...(device ? ['--device', device] : []), 'test',
+const flowsDir = join(root, 'apps/mobile/test/maestro');
+
+// --voice: the simulator and emulator hear the host's input, so loop the voice
+// clip into a virtual audio device (BlackHole or similar) for the run.
+if (args.includes('--voice')) startVoice();
+function startVoice() {
+  const wav = join(root, 'smart-tests/fixtures/voice.wav');
+  if (process.platform !== 'darwin') throw new Error('--voice is for macOS hosts: on Linux, loop voice.wav into a PulseAudio null sink and make its monitor the default source');
+  const out = spawnSync('system_profiler', ['SPAudioDataType'], { encoding: 'utf8' }).stdout ?? '';
+  const virtual = [...out.matchAll(/^\s{8}(.+):$/gm)].map((m) => m[1]).find((n) => /blackhole|loopback|soundflower|vb-cable|virtual/i.test(n));
+  if (!virtual) {
+    throw new Error([
+      '--voice needs a virtual audio device and none is installed.',
+      '  1. brew install --cask blackhole-2ch   (then restart CoreAudio or log out and in)',
+      '  2. System Settings > Sound > Input: choose "BlackHole 2ch" (the iOS Simulator and the',
+      '     Android emulator use the Mac\'s input; for the emulator also turn on',
+      '     Extended controls > Microphone > "Virtual microphone uses host audio input").',
+      '  3. Send voice.wav to the device: Audio MIDI Setup > create a Multi-Output Device with',
+      '     BlackHole 2ch and set it as the output (afplay plays to the system output).',
+      '  Then run again with --voice.'
+    ].join('\n'));
+  }
+  console.log(`--voice: looping voice.wav to the default output (found ${virtual}; set it as the Mac's input, and the output to it or a Multi-Output Device)`);
+  // afplay has no device switch: it plays to the system output, so the output must be the virtual device
+  // (or a Multi-Output Device that includes it). Loop until the run ends.
+  const player = spawn('bash', ['-c', `while true; do afplay ${JSON.stringify(wav)}; done`], { stdio: 'ignore', detached: true });
+  process.on('exit', () => { try { process.kill(-player.pid); } catch { /* already gone */ } });
+}
+
+const baseArgs = (deviceIds) => [
+  ...(deviceIds.length ? ['--device', deviceIds.join(',')] : []), 'test',
   ...Object.entries(env).flatMap(([k, v]) => ['-e', `${k}=${v}`]),
   ...(tags ? ['--include-tags', tags] : []),
-  ...(excludeTags ? ['--exclude-tags', excludeTags] : []),
-  '--format', 'junit', '--output', join(results, 'report.xml'), '--test-output-dir', results,
-  ...(flows.length ? flows : [join(root, 'apps/mobile/test/maestro')])
+  ...(excludeTags ? ['--exclude-tags', excludeTags] : [])
 ];
-process.exit(run('maestro', maestroArgs));
+const report = (name) => ['--format', 'junit', '--output', join(results, name), '--test-output-dir', results];
+
+if (shards === 1) {
+  process.exit(run('maestro', [...baseArgs(devices), ...report('report.xml'), ...(flows.length ? flows : [flowsDir])]));
+}
+
+// Sharded. Maestro orders flows only within a shard, so run the ordered ones
+// first, one after another on the first device, then split the rest.
+const { readdirSync } = await import('node:fs');
+const config = readFileSync(join(flowsDir, 'config.yaml'), 'utf8');
+const ordered = [...(config.split('flowsOrder:')[1] ?? '').matchAll(/^\s+-\s+"([^"]+)"/gm)].map((m) => m[1]);
+const files = flows.length ? flows : readdirSync(join(flowsDir, 'flows')).filter((f) => f.endsWith('.yaml')).sort().map((f) => join(flowsDir, 'flows', f));
+const nameOf = (f) => /^name:\s*"?(.+?)"?\s*$/m.exec(readFileSync(f, 'utf8'))?.[1];
+const byName = new Map(files.map((f) => [nameOf(f), f]));
+const first = ordered.map((n) => byName.get(n)).filter(Boolean);
+const rest = files.filter((f) => !first.includes(f));
+let status = 0;
+if (first.length) status = run('maestro', [...baseArgs([device]), ...report('report-ordered.xml'), ...first]);
+if (rest.length) {
+  // Maestro writes one junit report for the run, covering every shard.
+  status = run('maestro', [...baseArgs(devices), '--shard-split', String(shards), ...report('report.xml'), ...rest]) || status;
+}
+process.exit(status);

@@ -326,7 +326,22 @@ npm run test:ui:phone -- --platform ios --tags smoke
   Rebuild after changing app code. `test:ui:phone -- --app dev` runs the
   flows on a dev client and Metro instead.
 - Flows that need the microphone need the host's input playing
-  `smart-tests/fixtures/voice.wav` (G8). Flows tagged `wrapped` need a step
+  `smart-tests/fixtures/voice.wav` (G8). Route taken: the host, with
+  `--voice` (macOS). The app's capture is native (the local
+  `microphone-energy` module for voice detection and expo-audio's recorder
+  writing the file), so JavaScript never sees samples and a test-build fake
+  input would need native code; the web suite's shim works only because the
+  browser exposes `getUserMedia`. `--voice` looks for a virtual audio device
+  (`system_profiler SPAudioDataType`), loops the clip with `afplay` for the
+  run, and prints what to install when none exists: `brew install --cask
+  blackhole-2ch`, make it the Mac's input, and make the output a Multi-Output
+  Device that includes it (the emulator also needs "Virtual microphone uses
+  host audio input").
+- `--shards N` spreads the flows over N devices (`--device a --device b`,
+  or N booted simulators on iOS) with Maestro's `--shard-split`. Maestro
+  orders flows only inside a shard, so the flows in `config.yaml`'s
+  `flowsOrder` run first on the first device, then the rest are split.
+  Reports: `report-ordered.xml` and `report.xml`. Flows tagged `wrapped` need a step
   from outside mid-run (their headers say which); `android-only` flows turn
   airplane mode on.
 - On Android, airplane mode does not cut `adb reverse`, so the runner runs
