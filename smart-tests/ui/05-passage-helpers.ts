@@ -6,7 +6,7 @@ import { blobKey, workerBlobs, type SyncClient } from '@langquest-next/client';
 import type { Browser, BrowserContext, Locator, Page } from '@playwright/test';
 import { createHash, randomUUID } from 'node:crypto';
 import { clientAs, localServer, send, signIn } from './fixture';
-import { button, byId, expect, openAs, screenText, tab, text, waitForApp, type AccountKey, type PassageKey, type UiWorld } from './support';
+import { button, byId, enterPassage, expect, openAs, screenText, tab, text, waitForApp, type AccountKey, type PassageKey, type UiWorld } from './support';
 
 const visible = (l: Locator) => l.locator('visible=true');
 
@@ -34,6 +34,23 @@ export async function reloadApp(page: Page): Promise<void> {
   }
 }
 
+/**
+ * Load the app afresh at an address (`pathTo`), as typing it would. A new navigation, not a reload:
+ * a reload keeps the old document's history depth, and the app then steps back out of a screen opened by the tests' entry.
+ */
+export async function gotoApp(page: Page, path = '/'): Promise<void> {
+  for (let i = 0; ; i++) {
+    try {
+      await page.goto(path);
+      await waitForApp(page);
+      return;
+    } catch (e) {
+      if (i >= 2) throw e;
+      await page.waitForTimeout(1_000);
+    }
+  }
+}
+
 /** Back to a tab: reload when the tab bar is not showing (a pushed screen). */
 export async function toTabs(page: Page): Promise<void> {
   if (await tab(page, 'map').isVisible().catch(() => false)) return;
@@ -41,12 +58,35 @@ export async function toTabs(page: Page): Promise<void> {
   await expect(tab(page, 'map')).toBeVisible({ timeout: 60_000 });
 }
 
-/** Open a passage's record through the Map's search, from whichever Map the role lands on. */
+/**
+ * Open a passage's record by the test build's entry (support.ts enterPassage), not the Map's search.
+ * The navigation and search tests use `openRecordBySearch`.
+ */
 export async function openRecord(page: Page, world: UiWorld, p: Passage): Promise<void> {
   const label = labelOf(world, p);
   await toTabs(page);
+  await expect(async () => {
+    if ((await header(page).innerText({ timeout: 1_000 }).catch(() => '')).trim() === label) return;
+    if (!(await enterPassage(page, world, unitOf(world, p)))) throw new Error('no test entry in this build');
+    await expect(header(page)).toHaveText(label, { timeout: 4_000 });
+  }).toPass({ timeout: 120_000 }).catch(async () => openRecordBySearch(page, world, p));
+  await settleRecord(page, world);
+}
+
+async function settleRecord(page: Page, world: UiWorld): Promise<void> {
+  await expect(visible(page.getByText('Then the team', { exact: true })).first()).toBeVisible({ timeout: 30_000 });
+  // Names come with the organization: wait for the checks' people, by name.
+  await expect(visible(page.getByText(new RegExp(`${world.accounts.TREV.name}|${world.accounts.REV.name}`))).first()).toBeVisible({ timeout: 30_000 });
+  // The session's privileges come from the organization's fold: let the footer settle.
+  await page.waitForTimeout(600);
+}
+
+/** Open a passage's record through the Map's search, from whichever Map the role lands on. */
+export async function openRecordBySearch(page: Page, world: UiWorld, p: Passage): Promise<void> {
+  const label = labelOf(world, p);
+  await toTabs(page);
   // Admins land on All languages ("Progress"), with Alpha as a row; workers on Alpha's own map.
-  const search = visible(page.getByPlaceholder(/Search|Find/)).first();
+  const search = byId(page, 'map-search');
   const all = visible(page.getByRole('heading', { name: 'Progress', exact: true })).first();
   // A tap while the app is still starting can be lost, and the app may put its home back once the
   // language opens: keep going until the passage's record shows.
@@ -65,11 +105,7 @@ export async function openRecord(page: Page, world: UiWorld, p: Passage): Promis
     }
     await expect(header(page)).toHaveText(label, { timeout: 4_000 });
   }).toPass({ timeout: 120_000 });
-  await expect(visible(page.getByText('Then the team', { exact: true })).first()).toBeVisible({ timeout: 30_000 });
-  // Names come with the organization: wait for the checks' people, by name.
-  await expect(visible(page.getByText(new RegExp(`${world.accounts.TREV.name}|${world.accounts.REV.name}`))).first()).toBeVisible({ timeout: 30_000 });
-  // The session's privileges come from the organization's fold: let the footer settle.
-  await page.waitForTimeout(600);
+  await settleRecord(page, world);
 }
 
 /** One page per role for the whole file, signed in once. */
@@ -89,7 +125,7 @@ export async function pageFor(browser: Browser, world: UiWorld, who: AccountKey)
 /** `who`'s page, on a passage's record. */
 export async function recordAs(browser: Browser, world: UiWorld, who: AccountKey, p: Passage): Promise<Page> {
   const page = await pageFor(browser, world, who);
-  await reloadApp(page);
+  await gotoApp(page);
   await expect(tab(page, 'map')).toBeVisible({ timeout: 60_000 });
   await openRecord(page, world, p);
   return page;
@@ -97,7 +133,7 @@ export async function recordAs(browser: Browser, world: UiWorld, who: AccountKey
 
 /** Pull from the server now and reopen the record (another account changed it). */
 export async function refreshRecord(page: Page, world: UiWorld, p: Passage): Promise<void> {
-  await reloadApp(page);
+  await gotoApp(page);
   await expect(tab(page, 'map')).toBeVisible({ timeout: 60_000 });
   await openRecord(page, world, p);
 }
@@ -118,9 +154,16 @@ export function escape(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+/** The check kind each "Then the team" row carries in its testID (`team-row-<kindId>`). */
+const TEAM_KIND: Record<string, string> = { 'Peer check': 'peer', 'Back translation': 'bt', 'Community check': 'community', 'Consultant check': 'consultant', 'Final approval': 'final' };
+
+/** The path step each title stands for (`path-step-<kind>`). */
+const STEP_KIND: Record<string, string> = { Study: 'study', Record: 'record', Publish: 'publish', 'Hear the feedback': 'feedback', 'Fix it, or keep it and say why': 'fix' };
+
 /** A "Then the team" row, by its check's name (spoken "{name}, {status}"). */
 export function teamRow(page: Page, name: string): Locator {
-  return visible(page.getByRole('button', { name: new RegExp(`^${escape(name)}, `) })).first();
+  const kindId = TEAM_KIND[name];
+  return kindId ? visible(page.getByTestId(`team-row-${kindId}`)).first() : visible(page.getByRole('button', { name: new RegExp(`^${escape(name)}, `) })).first();
 }
 
 /** Every "Then the team" row, as "{name}, {status}". */
@@ -133,12 +176,14 @@ export async function teamRows(page: Page): Promise<string[]> {
 
 /** A path step ("2. Publish. …"), by its title; its spoken name holds its sub. */
 export function pathStep(page: Page, title: string): Locator {
+  const kind = STEP_KIND[title];
+  if (kind) return visible(page.getByTestId(`path-step-${kind}`)).first();
   return visible(page.getByRole('button', { name: new RegExp(`^\\d+\\. ${escape(title)}\\. `) })).first();
 }
 
 /** The open sheet (a modal dialog). */
 export function sheet(page: Page): Locator {
-  return visible(page.getByRole('dialog')).last();
+  return visible(page.getByTestId('sheet')).last();
 }
 
 export async function sheetText(page: Page): Promise<string> {
@@ -152,7 +197,7 @@ export async function sheetButtons(page: Page): Promise<string[]> {
 }
 
 export async function closeSheet(page: Page): Promise<void> {
-  await sheet(page).getByRole('button', { name: 'Close' }).last().click();
+  await sheet(page).getByTestId('sheet-close').click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
 }
 

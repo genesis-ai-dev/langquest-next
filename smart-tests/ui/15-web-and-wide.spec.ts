@@ -231,7 +231,7 @@ test('WEB-009 Sync\'s tiles in one row on a wide window @wide', async ({ page })
   await openAs(page, w, 'TRANS');
   await openSync(page);
   const labels = ['waiting to upload', 'refused by the server', 'latest confirmed', 'local checkpoint'];
-  const tiles = labels.map((l) => page.locator(`[aria-label$=" ${l}"]`).locator('visible=true').first());
+  const tiles = ['waiting', 'refused', 'confirmed', 'checkpoint'].map((id) => page.getByTestId(`sync-tile-${id}`).locator('visible=true').first());
   await expect(tiles[0]!).toBeVisible();
   const boxes = await Promise.all(tiles.map((t) => t.boundingBox()));
   for (const b of boxes) expect(Math.abs(b!.y - boxes[0]!.y)).toBeLessThan(4);
@@ -468,7 +468,7 @@ test('WEB-018 TRANS A refresh returns to the section', async ({ page }) => {
   await expect.poll(() => path(page)).toBe('/map/language');
   await page.reload();
   await waitForApp(page);
-  await expect(page.getByRole('searchbox').or(page.getByPlaceholder(/Search|Find/)).locator('visible=true').first()).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByTestId('map-search').locator('visible=true').first()).toBeVisible({ timeout: 60_000 });
   // The address follows the screen a render later.
   await expect.poll(() => path(page)).toBe('/map/language');
 });

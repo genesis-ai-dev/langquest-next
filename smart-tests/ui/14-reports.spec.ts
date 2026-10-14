@@ -392,7 +392,7 @@ test('RPT-019 Choose and save a country @wide', async ({ page, browser }) => {
   await expect(save).toBeDisabled();
   const country = page.getByRole('button', { name: /^Country: .*\. Change it\.$/ }).locator('visible=true').first();
   await country.click();
-  const sheet = page.getByRole('dialog').locator('visible=true').last();
+  const sheet = page.getByTestId('sheet').locator('visible=true').last();
   await expect(sheet.getByText('Country', { exact: true })).toBeVisible();
   await expect(sheet.getByText('Alpha', { exact: true })).toBeVisible();
   const find = sheet.getByPlaceholder('Find a country');

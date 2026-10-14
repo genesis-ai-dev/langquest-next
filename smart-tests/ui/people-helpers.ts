@@ -218,6 +218,11 @@ export function memberRow(page: Page, name: string): Locator {
   return text(page, name);
 }
 
+/** A member's row in Members, by profile id (`person-<profileId>`). */
+export function personRow(page: Page, profileId: string): Locator {
+  return visible(page.getByTestId(`person-${profileId}`)).first();
+}
+
 /** Open a member's page from Members, and wait for its header. */
 export async function openMember(page: Page, name: string): Promise<void> {
   await memberRow(page, name).click();

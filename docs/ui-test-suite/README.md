@@ -414,6 +414,23 @@ the world under the tests after it: the world is kept for the whole run
 - `tab-work`, `tab-map`, `tab-reports`, `tab-manage`, `tab-inbox` and
   `tab-me` for the tabs.
 - `feedback-text` for a review's typed feedback.
+- Structure, by ID rather than by words (the labels stay for screen readers):
+  `path-step-<kind>` (study, record, publish, feedback, fix) and
+  `team-row-<kindId>` (peer, bt, community, consultant, final) on the passage
+  record; `map-search` on the Map's search field; `row-<unitId>` on a passage
+  row, `row-<bookKey>` on a book and `row-<bookKey>-<chapter>` on a chapter
+  tile; `sheet` on an open sheet and `sheet-close` on its close button;
+  `else-<option>[-<kindId>]` on the Something else? options (`else-note`,
+  `else-reference` for its tiles); `person-<profileId>` on a member's row;
+  `toggle-must-pass`, `toggle-same-time` and `toggle-required` on the checks
+  setup switches; `sync-tile-<waiting|refused|confirmed|checkpoint>` on the
+  Sync screen's tiles.
+- Entering: the web's addresses name sections only (`pathTo` in `support.ts`,
+  `openAs(..., { path })`). A passage's record has none, so a test that only
+  reads one calls `openRecord` (`05-passage-helpers.ts`), which uses the
+  test build's `__langquestOpenPassage` (`enterPassage` in `support.ts`);
+  `openRecordBySearch` walks through the Map for the tests of the search
+  itself. `gotoApp` loads afresh (a reload keeps the old history depth).
 
 Maestro's text selectors are regular expressions: escape `? ( ) + .`. A
 row's text includes its sub-line, so match `"Members.*"`. Inside `${…}`,

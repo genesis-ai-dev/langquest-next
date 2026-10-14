@@ -1009,10 +1009,10 @@ export function SyncStatus(ctx: Ctx) {
       {/* Settings' "Ready for offline" opens here (decisions.md 61): what comes along comes first. */}
       <OfflineCard ctx={ctx} s={offlineSummaryNow} />
       <View style={styles.tiles}>
-        <Stat icon="up" color={pendingEvents ? C.primary : C.green} value={pendingEvents} label={t('account.sync.waitingUpload')} />
-        <Stat icon="flag" color={rejected.length ? TINT.redText : C.muted} value={rejected.length} label={t('account.sync.refusedByServer')} />
-        <Stat icon="check" color={C.green} value={Math.max(ins?.cursor ?? 0, logged?.cursor ?? 0)} label={t('account.sync.latestConfirmed')} />
-        <Stat icon="layers" color={C.muted} value={ins?.checkpointSeq ?? 0} label={t('account.sync.localCheckpoint')} />
+        <Stat id="waiting" icon="up" color={pendingEvents ? C.primary : C.green} value={pendingEvents} label={t('account.sync.waitingUpload')} />
+        <Stat id="refused" icon="flag" color={rejected.length ? TINT.redText : C.muted} value={rejected.length} label={t('account.sync.refusedByServer')} />
+        <Stat id="confirmed" icon="check" color={C.green} value={Math.max(ins?.cursor ?? 0, logged?.cursor ?? 0)} label={t('account.sync.latestConfirmed')} />
+        <Stat id="checkpoint" icon="layers" color={C.muted} value={ins?.checkpointSeq ?? 0} label={t('account.sync.localCheckpoint')} />
       </View>
       <Transfer icon="up" pending={language.blobs.pendingUp} peak={language.blobs.peakUp} rate={rates.up} label={t('account.sync.audioUp')} />
       <Transfer icon="download" pending={language.blobs.pendingDown} peak={language.blobs.peakDown} rate={rates.down} label={t('account.sync.audioDown')} />
@@ -1085,11 +1085,11 @@ function clock(hlc: string): string {
   try { return formatTime(decodeHlc(hlc).wallMs, { seconds: true }); } catch { return ''; }
 }
 
-function Stat(props: { icon: IconName; color: string; value: number; label: string }) {
+function Stat(props: { id: string; icon: IconName; color: string; value: number; label: string }) {
   // Two by two on a phone; one row of four once the column is wide enough.
   const { kind, contentWidth } = useLayout();
   return (
-    <View style={[styles.tile2, kind !== 'phone' && contentWidth >= 600 && { width: '22%' }]} accessible
+    <View testID={`sync-tile-${props.id}`} style={[styles.tile2, kind !== 'phone' && contentWidth >= 600 && { width: '22%' }]} accessible
       accessibilityLabel={t('account.sync.statLabel', { value: formatNumber(props.value), label: props.label })}>
       <Ico name={props.icon} size={24} color={props.color} />
       <Text style={[styles.statValue, { color: props.color }]}>{formatNumber(props.value)}</Text>

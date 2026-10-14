@@ -74,7 +74,7 @@ function StepRow(props: {
       <View style={{ flex: 1, minWidth: 0, paddingBottom: props.last ? 0 : space.lg }}>
         <View style={lit ? styles.litCard : styles.plain}>
           {press ? (
-            <Pressable onPress={press} accessibilityRole="button" accessibilityLabel={`${props.n}. ${step.title}. ${step.sub}`}
+            <Pressable testID={`path-step-${step.kind}`} onPress={press} accessibilityRole="button" accessibilityLabel={`${props.n}. ${step.title}. ${step.sub}`}
               accessibilityState={{ selected: lit }} style={({ pressed }) => pressed && { opacity: 0.75 }}>
               {head}
               <HelpBadge spot={spot} />
@@ -94,7 +94,7 @@ function TeamRow(props: { ctx: Ctx; step: TeamStep; people: string[] | null; onP
   const icon: IconName = step.state === 'done' ? 'check' : step.state === 'locked' || step.checkpoint ? 'lock' : step.state === 'attention' ? 'chat' : step.state === 'waiting' ? 'clock' : 'people';
   const color = step.state === 'done' ? TINT.greenText : step.state === 'attention' ? TINT.amberText : step.state === 'waiting' ? C.primary : C.faint;
   return (
-    <Pressable onPress={press} disabled={!press} accessibilityRole="button" accessibilityLabel={`${step.name}, ${step.status}`}
+    <Pressable testID={`team-row-${step.kindId}`} onPress={press} disabled={!press} accessibilityRole="button" accessibilityLabel={`${step.name}, ${step.status}`}
       style={({ pressed }) => [styles.teamRow, pressed && { opacity: 0.7 }]}>
       <Ico name={icon} size={20} color={color} strokeWidth={step.state === 'done' ? 3 : 2.2} />
       <HelpBadge spot={spot} />

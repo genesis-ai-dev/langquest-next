@@ -1174,7 +1174,7 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
                       <Text style={[txt.sm, { fontWeight: '700' }]}>{q.required ? t('common.required') : t('config.material.suggested')}</Text>
                       <Text style={txt.xs}>{q.required ? t('config.material.requiredHelp') : t('config.material.suggestedHelp')}</Text>
                     </View>
-                    <Toggle on={q.required} label={t('common.required')} onToggle={() => setQuestion(i, { required: !q.required })} />
+                    <Toggle testID="toggle-required" on={q.required} label={t('common.required')} onToggle={() => setQuestion(i, { required: !q.required })} />
                   </View>
                   <SmallBtn label={t('config.material.removeQuestion')} icon="trash" onPress={() => setQuestions(qs.filter((_, j) => j !== i))} />
                 </>

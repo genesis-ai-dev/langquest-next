@@ -57,7 +57,7 @@ const dueDay = () => new Date(Date.parse(W().builtAt) + 14 * 86_400_000).toLocal
 async function openByMap(page: Page, k: PassageKey): Promise<void> {
   await tab(page, 'map').click();
   if (await headerTitle(page) === 'Progress') await button(page, /^Alpha: /).click();
-  await page.getByPlaceholder('Find “John 3”').locator('visible=true').fill(W().passages[k].ref);
+  await page.getByTestId('map-search').locator('visible=true').fill(W().passages[k].ref);
   await page.getByRole('button', { name: new RegExp(`^${label(k)}\\.`) }).locator('visible=true').first().click();
   await expect.poll(() => headerTitle(page)).toBe(label(k));
 }
@@ -115,7 +115,7 @@ test('NAV-002 TRANS What the Map tab opens: their language @p0', async ({ browse
   const { context, page } = await device(browser, 'TRANS');
   await tab(page, 'map').click();
   await expect.poll(() => headerTitle(page)).toBe('Alpha');
-  await expect(page.getByPlaceholder('Find “John 3”').locator('visible=true')).toBeVisible();
+  await expect(page.getByTestId('map-search').locator('visible=true')).toBeVisible();
   await noBack(page);
   await expect.poll(() => litTab(page)).toBe('map');
   await context.close();
@@ -221,7 +221,7 @@ test('NAV-006 The tab bar is hidden on a passage and its pages on a phone', asyn
     await back(page).click();
   }
   await expect.poll(() => tabsShown(page), { message: 'the map' }).toEqual(['work', 'map', 'me']);
-  await page.getByPlaceholder('Find “John 3”').locator('visible=true').fill('');
+  await page.getByTestId('map-search').locator('visible=true').fill('');
   await button(page, /^Luke\./).click();
   await expect.poll(() => tabsShown(page), { message: 'chapters' }).toEqual(['work', 'map', 'me']);
   await tab(page, 'work').click();
@@ -417,7 +417,7 @@ test('NAV-016 Opened lately opens in place', async ({ page }) => {
     await openByMap(page, k);
     await back(page).click();
   }
-  await page.getByPlaceholder('Find “John 3”').locator('visible=true').fill('Luke 12:22');
+  await page.getByTestId('map-search').locator('visible=true').fill('Luke 12:22');
   await button(page, /^Luke 12:22–34\./).click();
   await back(page).click();
   await tab(page, 'work').click();
@@ -665,7 +665,7 @@ async function offered(page: Page): Promise<string> {
   parts.push(`PEER: ${await screen(page)}`);
   await page.getByRole('button', { name: 'Close' }).locator('visible=true').first().click({ position: { x: 10, y: 10 }, timeout: 3000 }).catch(() => undefined);
   await toTabs(page);
-  await page.getByPlaceholder('Find “John 3”').locator('visible=true').fill('').catch(() => undefined);
+  await page.getByTestId('map-search').locator('visible=true').fill('').catch(() => undefined);
   await openByMap(page, 'P-CHECK');
   await page.getByRole('button', { name: /^Consultant check, / }).locator('visible=true').first().click({ timeout: 5000 }).catch(() => undefined);
   await page.waitForTimeout(800);

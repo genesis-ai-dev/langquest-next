@@ -53,7 +53,7 @@ async function alphaMap(page: Page): Promise<void> {
   await expect.poll(() => headerTitle(page)).toBe('Alpha');
 }
 
-const search = (page: Page) => page.getByPlaceholder('Find “John 3”').locator('visible=true');
+const search = (page: Page) => page.getByTestId('map-search').locator('visible=true');
 const chapter = (page: Page, n: number) => button(page, new RegExp(`^Chapter ${n}:`));
 const closeSheet = (page: Page) => page.getByRole('button', { name: 'Close' }).locator('visible=true').first().click({ position: { x: 10, y: 10 } });
 
@@ -94,7 +94,7 @@ test('MAP-002 Finding a language among many', async ({ page }) => {
   await addLanguages(W(), ['Delta', 'Echo', 'Foxtrot', 'Golf']);
   await open(page, 'ADMIN');
   await tab(page, 'map').click();
-  const find = page.getByPlaceholder('Find a language').locator('visible=true');
+  const find = page.getByTestId('map-search').locator('visible=true');
   await expect(find).toBeVisible();
   await find.fill('alp');
   await expect(button(page, /^Alpha: /)).toBeVisible();

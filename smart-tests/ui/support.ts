@@ -233,3 +233,34 @@ export async function expectStill(target: Locator): Promise<void> {
     return same;
   }, { intervals: [100, 100, 200], timeout: 10_000, message: 'waiting for the element to settle' }).toBe(true);
 }
+
+// ---- entering by address -------------------------------------------------------------------
+
+/**
+ * The web app's addresses name sections only (apps/mobile/src/webPaths.ts, decision 58): a deeper
+ * screen has no address, because its place depends on what was opened before it. `pathTo` is the
+ * address of a section; `openAs(page, world, who, { path: pathTo('map') })` lands there.
+ * A role that may not open a section lands on its own home, as a person typing the address would.
+ */
+const SECTION_PATH = {
+  work: '/work', map: '/map', language: '/map/language', reports: '/reports',
+  org: '/manage', 'org-language': '/manage/language', inbox: '/inbox', me: '/settings'
+} as const;
+export type Section = keyof typeof SECTION_PATH;
+export const pathTo = (section: Section): string => SECTION_PATH[section];
+
+/**
+ * Open a passage's record without walking through the Map's search: the test build's
+ * `__langquestOpenPassage` opens it the way a pushed notification does (the role's home under it).
+ * Needs the app signed in and on a tab (the hook is installed once the workspace is up).
+ * Returns false when this build has no hook (the caller falls back to the search).
+ */
+export async function enterPassage(page: Page, world: UiWorld, unitId: string, language: 'A' | 'B' | 'C' = 'A'): Promise<boolean> {
+  const languageId = world.languages[language].languageId;
+  const has = await page.waitForFunction(() => typeof (globalThis as { __langquestOpenPassage?: unknown }).__langquestOpenPassage === 'function', undefined, { timeout: 10_000 }).then(() => true, () => false);
+  if (!has) return false;
+  // The workspace is up and has pulled once (so its folds are in): before that the app is still choosing its home, and would put it back.
+  await expect.poll(async () => { const t = await testState(page).catch(() => null); return !!t?.orgId && !!t.languageId && t.lastSyncAt !== null && !t.syncing; }, { timeout: 30_000, message: 'waiting for the workspace' }).toBe(true);
+  await page.evaluate(([lang, unit]) => (globalThis as unknown as { __langquestOpenPassage: (l: string, u: string) => void }).__langquestOpenPassage(lang!, unit!), [languageId, unitId] as const);
+  return true;
+}

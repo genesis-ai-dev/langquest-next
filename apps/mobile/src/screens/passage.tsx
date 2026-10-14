@@ -375,10 +375,10 @@ export function PassageRecord(ctx: Ctx) {
           </View>
         ) : undefined}>
         <View style={{ gap: space.md }}>
-          {options.map((o) => <BigOption key={o.id} icon={o.icon} label={o.label} sub={o.sub} onPress={() => onOption(o)} />)}
+          {options.map((o) => <BigOption key={o.id} testID={`else-${o.id}${o.kindId ? `-${o.kindId}` : ''}`} icon={o.icon} label={o.label} sub={o.sub} onPress={() => onOption(o)} />)}
           <View style={styles.tiles}>
-            {can.note ? <SmallOption icon="chat" label={t('common.addNote')} onPress={() => setNoting('note')} /> : null}
-            <SmallOption icon="book" label={t('passage.else.whatHelps')} onPress={() => go('passage_reference')} />
+            {can.note ? <SmallOption testID="else-note" icon="chat" label={t('common.addNote')} onPress={() => setNoting('note')} /> : null}
+            <SmallOption testID="else-reference" icon="book" label={t('passage.else.whatHelps')} onPress={() => go('passage_reference')} />
           </View>
           {/* What comes along without a connection (decisions.md 61). */}
           <PassageOffline ctx={ctx} unitId={unitId} hasStudy={!!guide} />
@@ -536,18 +536,18 @@ export function PassageRecord(ctx: Ctx) {
 }
 
 /** One of the ways forward on "Something else?": a big card row. */
-function BigOption(props: { icon: IconName; label: string; sub: string; onPress: () => void }) {
+function BigOption(props: { icon: IconName; label: string; sub: string; onPress: () => void; testID?: string }) {
   return (
     <Group>
-      <Row icon={props.icon} label={props.label} sub={props.sub} onPress={props.onPress} last />
+      <Row {...(props.testID ? { testID: props.testID } : {})} icon={props.icon} label={props.label} sub={props.sub} onPress={props.onPress} last />
     </Group>
   );
 }
 
-function SmallOption(props: { icon: IconName; label: string; onPress: () => void }) {
+function SmallOption(props: { icon: IconName; label: string; onPress: () => void; testID?: string }) {
   const spot = useHelpSpot(props.label, undefined, props.onPress);
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole="button" style={({ pressed }) => [styles.tile, pressed && { opacity: 0.7 }]}>
+    <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} accessibilityRole="button" style={({ pressed }) => [styles.tile, pressed && { opacity: 0.7 }]}>
       <Ico name={props.icon} size={20} color={props.icon === 'chat' ? TINT.amberText : C.primary} />
       <Text style={[txt.sm, { fontWeight: '700', flex: 1 }]}>{props.label}</Text>
       <HelpBadge spot={spot} />

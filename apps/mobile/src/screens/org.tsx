@@ -608,7 +608,7 @@ function MemberRow(props: { ctx: Ctx; e: MemberEntry; target: string; editable: 
   const { ctx, e } = props;
   const beside = useOpenDetail();
   return (
-    <Row leading={<Avatar id={e.profileId} />} label={ctx.name(e.profileId)} muted={!props.editable} last={props.last}
+    <Row testID={`person-${e.profileId}`} leading={<Avatar id={e.profileId} />} label={ctx.name(e.profileId)} muted={!props.editable} last={props.last}
       current={beside?.screen === 'edit_member' && beside.params['memberId'] === e.profileId}
       sub={e.since ? t('org.members.joined', { target: props.target, when: formatAgo(decodeHlc(e.since).wallMs) }) : props.target}
       onPress={props.editable ? () => ctx.go('edit_member', { memberId: e.profileId, entry: e.key, level: props.level }) : undefined}

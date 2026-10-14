@@ -316,10 +316,10 @@ function DraftChecks({ ctx }: { ctx: Ctx }) {
         {row && open !== null ? (
           <Group>
             <Row icon="lock" label={t('checks.mustPass')} role="switch" checked={row.checkpoint}
-              right={<Toggle on={row.checkpoint} label={t('checks.mustPass')} onToggle={() => set(setCheckpoint(draft.rows, open, !row.checkpoint))} />} />
+              right={<Toggle testID="toggle-must-pass" on={row.checkpoint} label={t('checks.mustPass')} onToggle={() => set(setCheckpoint(draft.rows, open, !row.checkpoint))} />} />
             {open > 0 ? (
               <Row icon="swap" label={t('checks.sameTimeAs', { check: previous })} role="switch" checked={row.together}
-                right={<Toggle on={row.together} label={t('checks.sameTimeAs', { check: previous })} onToggle={() => set(setTogether(draft.rows, open, !row.together))} />} />
+                right={<Toggle testID="toggle-same-time" on={row.together} label={t('checks.sameTimeAs', { check: previous })} onToggle={() => set(setTogether(draft.rows, open, !row.together))} />} />
             ) : null}
             <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label={t('checks.remove')} last
               onPress={() => { set(removeRow(draft.rows, open)); setOpen(null); }} />
@@ -497,10 +497,10 @@ export function CheckEditor(ctx: Ctx) {
       {mayFlows ? (
         <Group>
           <Row icon="lock" label={t('checks.mustPass')} role="switch" checked={row.checkpoint}
-            right={<Toggle on={row.checkpoint} label={t('checks.mustPass')} onToggle={() => void saveRows(ctx, setCheckpoint(rows, i, !row.checkpoint), t('checks.saved', { language }))} />} />
+            right={<Toggle testID="toggle-must-pass" on={row.checkpoint} label={t('checks.mustPass')} onToggle={() => void saveRows(ctx, setCheckpoint(rows, i, !row.checkpoint), t('checks.saved', { language }))} />} />
           {i > 0 ? (
             <Row icon="swap" label={t('checks.sameTimeAs', { check: previous })} role="switch" checked={row.together}
-              right={<Toggle on={row.together} label={t('checks.sameTimeAs', { check: previous })} onToggle={() => void saveRows(ctx, setTogether(rows, i, !row.together), t('checks.saved', { language }))} />} />
+              right={<Toggle testID="toggle-same-time" on={row.together} label={t('checks.sameTimeAs', { check: previous })} onToggle={() => void saveRows(ctx, setTogether(rows, i, !row.together), t('checks.saved', { language }))} />} />
           ) : null}
           <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label={t('checks.remove')} last
             onPress={() => { void saveRows(ctx, removeRow(rows, i), t('checks.removed', { check: name })).then((ok) => { if (ok) ctx.back(); }); }} />
@@ -543,7 +543,7 @@ export function CheckEditor(ctx: Ctx) {
             </ChipRow>
             <Group>
               <Row icon="lock" label={t('common.required')} role="switch" checked={question.required} last
-                right={<Toggle on={question.required} label={t('common.required')} onToggle={() => setQuestion({ ...question, required: !question.required })} />} />
+                right={<Toggle testID="toggle-required" on={question.required} label={t('common.required')} onToggle={() => setQuestion({ ...question, required: !question.required })} />} />
             </Group>
           </>
         ) : null}

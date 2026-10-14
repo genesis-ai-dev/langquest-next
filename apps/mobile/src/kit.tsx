@@ -339,6 +339,8 @@ export function Row(props: {
   accessibilityLabel?: string;
   /** Text someone searched for: where it appears in the label and sub, it is bold (textMatch.ts). */
   highlight?: string;
+  /** For the UI tests: a stable handle for the row (`person-<id>`). */
+  testID?: string;
 }) {
   const state = {
     ...(props.selected !== undefined ? { selected: props.selected } : props.current ? { selected: true } : {}),
@@ -371,9 +373,10 @@ export function Row(props: {
     </>
   );
   const style = [styles.row, !props.last && styles.rowBorder, props.current && styles.rowCurrent];
-  if (!props.onPress) return <View style={style}>{body}</View>;
+  const id = props.testID ? { testID: props.testID } : {};
+  if (!props.onPress) return <View {...id} style={style}>{body}</View>;
   return (
-    <Pressable onPress={onPress} disabled={props.disabled} accessibilityRole={props.role ?? 'button'} accessibilityState={state} accessibilityLabel={props.accessibilityLabel}
+    <Pressable {...id} onPress={onPress} disabled={props.disabled} accessibilityRole={props.role ?? 'button'} accessibilityState={state} accessibilityLabel={props.accessibilityLabel}
       // The web reads only aria-*: a radio, checkbox or switch says whether it is on.
       aria-checked={props.role === 'radio' ? !!(props.selected ?? props.current) : props.role === 'switch' || props.role === 'checkbox' ? props.checked === true : undefined}
       style={({ pressed }) => [...style, pressed && styles.pressed]}>
@@ -509,11 +512,11 @@ function QuietLink(props: { label: string; icon: IconName; onPress: () => void }
   );
 }
 
-export function IconBtn(props: { name: IconName; onPress: () => void; label: string; color?: string; bg?: string; size?: number; disabled?: boolean }) {
+export function IconBtn(props: { name: IconName; onPress: () => void; label: string; color?: string; bg?: string; size?: number; disabled?: boolean; testID?: string }) {
   const size = props.size ?? 48;
   const spot = useHelpSpot(props.label, undefined, props.onPress);
   return (
-    <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
+    <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
       accessibilityState={{ disabled: !!props.disabled }} hitSlop={Math.max(0, (target.min - size) / 2)}
       style={({ pressed }) => [{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: props.bg ?? C.bg },
         props.disabled && { opacity: 0.4 }, pressed && styles.pressed]}>
@@ -544,9 +547,9 @@ export function ChipRow(props: { children: ReactNode }) {
   return <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm, paddingVertical: 2 }}>{props.children}</ScrollView>;
 }
 
-export function Toggle(props: { on: boolean; onToggle: () => void; label: string; disabled?: boolean }) {
+export function Toggle(props: { on: boolean; onToggle: () => void; label: string; disabled?: boolean; testID?: string }) {
   return (
-    <Switch value={props.on} onValueChange={props.onToggle} disabled={props.disabled} accessibilityLabel={props.label}
+    <Switch {...(props.testID ? { testID: props.testID } : {})} value={props.on} onValueChange={props.onToggle} disabled={props.disabled} accessibilityLabel={props.label}
       trackColor={{ true: C.primary, false: C.border }} thumbColor={C.white} ios_backgroundColor={C.border} />
   );
 }
@@ -583,11 +586,11 @@ export function Field(props: {
   );
 }
 
-export function SearchField(props: { value: string; onChangeText: (v: string) => void; placeholder: string }) {
+export function SearchField(props: { value: string; onChangeText: (v: string) => void; placeholder: string; testID?: string }) {
   return (
     <View style={styles.search}>
       <Ico name="search" size={24} color={C.muted} />
-      <TextInput value={props.value} onChangeText={props.onChangeText} placeholder={props.placeholder} placeholderTextColor={C.faint}
+      <TextInput {...(props.testID ? { testID: props.testID } : {})} value={props.value} onChangeText={props.onChangeText} placeholder={props.placeholder} placeholderTextColor={C.faint}
         autoCapitalize="none" autoCorrect={false} returnKeyType="search" accessibilityLabel={props.placeholder} style={[styles.searchInput, inputDirection()]} />
       {props.value ? <IconBtn name="close" label={t('shell.kit.clearSearch')} onPress={() => props.onChangeText('')} bg="transparent" color={C.muted} /> : null}
     </View>
@@ -769,14 +772,14 @@ export function Sheet(props: { visible: boolean; title: string; sub?: string; on
     <Modal visible={props.visible} transparent animationType={wide ? 'fade' : 'slide'} onRequestClose={props.onClose}>
       <KeyboardSafe style={[{ flex: 1 }, wide && styles.dialogFrame]}>
         <Pressable style={wide ? styles.dialogBackdrop : styles.sheetBackdrop} onPress={props.onClose} accessibilityLabel={t('common.close')} />
-        <View style={wide ? styles.dialog : [styles.sheet, { paddingBottom: Math.max(insets.bottom, space.lg) }]}>
+        <View testID="sheet" style={wide ? styles.dialog : [styles.sheet, { paddingBottom: Math.max(insets.bottom, space.lg) }]}>
           {wide ? null : <View style={styles.sheetGrip} />}
           <View style={styles.sheetHead}>
             <View style={{ flex: 1 }}>
               <Text style={txt.title}>{props.title}</Text>
               {props.sub ? <Text style={[txt.smMuted, { marginTop: 4 }]}>{props.sub}</Text> : null}
             </View>
-            <IconBtn name="close" label={t('common.close')} onPress={props.onClose} bg={C.card} color={C.muted} />
+            <IconBtn testID="sheet-close" name="close" label={t('common.close')} onPress={props.onClose} bg={C.card} color={C.muted} />
           </View>
           <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={{ gap: space.md, paddingHorizontal: space.xl, paddingBottom: space.lg }} keyboardShouldPersistTaps="handled">
             {props.children}

@@ -763,6 +763,14 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     if (navRef.isReady()) navRef.dispatch(CommonActions.reset({ index: 1, routes: [{ name: homeScreenFor(session) }, { name: 'passage_record', params }] }));
     else nav.reset({ screen: 'passage_record', params });
   }, [remember, session, nav.reset]);
+  // Test builds only (testBuild.ts): open a passage's record the way a pushed notification does (home under it), so a
+  // test that only reads the record does not walk through the Map's search (smart-tests/ui/support.ts, enterPassage).
+  useEffect(() => {
+    if (!(isTestBuild() && Platform.OS === 'web')) return;
+    const g = globalThis as { __langquestOpenPassage?: typeof openTask };
+    g.__langquestOpenPassage = openTask;
+    return () => { delete g.__langquestOpenPassage; };
+  }, [openTask]);
   const { openOrganization, orgId: thisOrg, actorId } = props;
   useEffect(() => {
     if (!props.signedIn) return;
