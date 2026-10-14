@@ -97,11 +97,18 @@ describe.skipIf(!SERVICE)('a pass against the local database', () => {
     );
     // The reviewer is made a coordinator on the dashboard.
     await target.setRole(id, `${id}-rev`, 'coordinator', 'test');
-    const deps = { v2: fakeV2(rows), target };
+    const v2 = fakeV2(rows);
+    const downloads: string[] = [];
+    const download = v2.download.bind(v2);
+    v2.download = async (name) => { downloads.push(name); return download(name); };
+    const deps = { v2, target };
 
     const first = await sync(deps, { projects: [id] });
     expect(first[0]?.rejected ?? []).toEqual([]);
     expect(first[0]?.files).toMatchObject({ copied: 2, uploaded: 2 });
+    // Each file is downloaded once: stored in Next as it is copied, not fetched again to upload.
+    expect(downloads.sort()).toEqual([`${id}-a1.wav`, `${id}-a2.wav`]);
+    expect([...files.keys].filter((k) => k.startsWith(`${orgId}/${id}/`))).toHaveLength(2);
     const second = await sync(deps, { projects: [id] });
     expect(second[0]?.append).toMatchObject({ accepted: 0 });
 
