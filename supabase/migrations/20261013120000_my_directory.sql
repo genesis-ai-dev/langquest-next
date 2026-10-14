@@ -34,5 +34,5 @@ language sql stable security definer set search_path = '' as $$
   join seen on seen.profile_id = p.id;
 $$;
 
-revoke all on function public.my_directory() from public;
+revoke all on function public.my_directory() from public, anon;
 grant execute on function public.my_directory() to authenticated;
