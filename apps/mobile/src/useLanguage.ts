@@ -9,6 +9,7 @@ import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { RateMeter } from './rate';
 import { getStore } from './store';
+import { trackSync } from './syncActivity';
 import { onWake } from './wake';
 import { supabase } from './supabase';
 import { stateCopier } from './publishedState';
@@ -161,7 +162,7 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
     let more = false;
     try {
       pullingRef.current = true;
-      const r = await c.sync();
+      const r = await trackSync(() => c.sync());
       pullingRef.current = false;
       more = r.more;
       changed = r.pushed > 0 || r.pulled > 0 || r.rejected > 0;

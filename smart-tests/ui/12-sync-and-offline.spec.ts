@@ -323,8 +323,9 @@ test('SYNC-032 The web offers a reload for a new version', async ({ page }) => {
   await openAs(page, world(), 'TRANS');
   await expect(tab(page, 'work')).toBeVisible();
   await page.waitForTimeout(3000);
-  // A dev server's page has no build id (webBuild.ts) and never asks: this runs against an exported build.
-  test.skip(asked === 0, 'This page has no build id (EXPO_PUBLIC_BUILD_ID): run against the exported web build (npm run export:web).');
+  // A Metro page has no build id (webBuild.ts) and never asks; the export (the default target) does.
+  test.skip(process.env['UI_TARGET'] === 'dev' && asked === 0, 'Metro\'s dev page has no build id (EXPO_PUBLIC_BUILD_ID): run on the export (the default UI_TARGET).');
+  expect(asked, 'the export asks version.json for its build').toBeGreaterThan(0);
   const banner = button(page, 'A new version of LangQuest is ready. Reload to use it.');
   await expect(banner).toBeVisible();
   // It never reloads by itself.

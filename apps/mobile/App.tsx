@@ -71,6 +71,8 @@ import { useOrg, type OrgHandle } from './src/useOrg';
 import { useLibraryFollow, useTranslatorReview } from './src/library/follow';
 import { useSourceOffline } from './src/sources/offline';
 import { useLanguage } from './src/useLanguage';
+import { isTestBuild } from './src/testBuild';
+import { syncActivity } from './src/syncActivity';
 import { useHandOvers } from './src/handOver';
 import { LostFilesAlert } from './src/lostFiles';
 import { openLanguage } from './src/languages';
@@ -425,13 +427,22 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   useEffect(() => { if (languageId && languageId === paramLanguage && languageId !== savedLanguage) setLanguage(languageId); }, [languageId, paramLanguage, savedLanguage, setLanguage]);
   const languages = useMemo(() => orgLanguages(org.state), [org.state]);
   const language = useLanguage(props.orgId, languageId, props.actorId, org.membershipEpoch);
-  // Dev web builds only: the UI tests' "Sync now" (smart-tests/ui/support.ts), beside the read-only log probe (store.ts).
+  // Test builds only (testBuild.ts): the UI tests' "Sync now" and sync state (smart-tests/ui/support.ts), beside the read-only log probe (store.ts).
   useEffect(() => {
-    if (!(IS_DEV && Platform.OS === 'web')) return;
-    const g = globalThis as { __langquestSyncNow?: () => Promise<void> };
+    if (!(isTestBuild() && Platform.OS === 'web')) return;
+    const g = globalThis as { __langquestSyncNow?: () => Promise<void>; __langquestTestState?: () => Promise<unknown> };
     g.__langquestSyncNow = async () => { await org.sync(); if (languageId) { for (let i = 0; i < 10 && (await language.sync()).more; i++) { /* page on */ } } };
-    return () => { delete g.__langquestSyncNow; };
-  }, [org, language, languageId]);
+    g.__langquestTestState = async () => {
+      const [o, l] = await Promise.all([org.inspect(), language.inspect()]);
+      return {
+        ...syncActivity(),
+        pending: (o?.pending.length ?? 0) + (l?.pending.length ?? 0),
+        rejected: (o?.rejected.length ?? 0) + (l?.rejected.length ?? 0),
+        orgId: props.orgId, languageId
+      };
+    };
+    return () => { delete g.__langquestSyncNow; delete g.__langquestTestState; };
+  }, [org, language, languageId, props.orgId]);
   // Web: warn before the tab closes with work still to send (storageGate.tsx).
   useLeaveGuard(!language.refused && (language.pending > 0 || language.blobs.pendingUp > 0) || org.pending > 0);
   useAccountSync(props.actorId);
@@ -689,10 +700,10 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   );
   const go = useCallback((to: ScreenId, params?: Record<string, string>) => goFrom(nav.current.screen, undefined, to, params),
     [goFrom, nav.current.screen]);
-  // Dev web builds only: lets the UI tests ask for a move the screens never offer, to check the
+  // Test builds only (testBuild.ts): lets the UI tests ask for a move the screens never offer, to check the
   // flow's gates refuse it (NAV-051). It goes through `go`, so the gates still decide.
   useEffect(() => {
-    if (!(IS_DEV && Platform.OS === 'web')) return;
+    if (!(isTestBuild() && Platform.OS === 'web')) return;
     const g = globalThis as { __langquestGo?: typeof go };
     g.__langquestGo = go;
     return () => { delete g.__langquestGo; };

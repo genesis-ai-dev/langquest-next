@@ -151,6 +151,25 @@ export async function syncNow(page: Page): Promise<void> {
   await page.evaluate(() => (globalThis as { __langquestSyncNow?: () => Promise<void> }).__langquestSyncNow?.());
 }
 
+/** What the app says it is doing: the test probe in App.tsx (test builds only). */
+export interface TestState { syncing: boolean; pending: number; rejected: number; lastSyncAt: number | null; lastPullMore: boolean; orgId: string | null; languageId: string | null }
+
+export async function testState(page: Page): Promise<TestState> {
+  return page.evaluate(async () => {
+    const probe = (globalThis as { __langquestTestState?: () => Promise<unknown> }).__langquestTestState;
+    if (!probe) throw new Error('__langquestTestState is not installed: not signed in yet, or not a test build.');
+    return await probe();
+  }) as Promise<TestState>;
+}
+
+/** Wait until no sync is running and nothing is waiting to upload (organization and open language). */
+export async function expectSyncIdle(page: Page, timeoutMs = 30_000): Promise<void> {
+  await expect.poll(async () => {
+    const t = await testState(page).catch(() => null);
+    return t !== null && !t.syncing && t.pending === 0;
+  }, { timeout: timeoutMs, message: 'waiting for sync to go idle' }).toBe(true);
+}
+
 /** Device log rows for a stream: status and type, oldest first. */
 export async function deviceEvents(page: Page, orgId: string, streamId: string): Promise<{ status: string; type: string; rejectReason: string | null }[]> {
   return page.evaluate(async ([org, stream]) => {

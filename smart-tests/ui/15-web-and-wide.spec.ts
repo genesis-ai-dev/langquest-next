@@ -684,7 +684,9 @@ test('WEB-026 The update banner waits while recording', async ({ page }) => {
   await openAs(page, w, 'TRANS');
   await expect(tab(page, 'work')).toBeVisible({ timeout: 60_000 });
   await page.waitForTimeout(3000);
-  test.skip(asked === 0, 'This page has no build id (EXPO_PUBLIC_BUILD_ID): run against the exported web build (npm run export:web).');
+  // A Metro page has no build id (webBuild.ts) and never asks; the export (the default target) does.
+  test.skip(process.env['UI_TARGET'] === 'dev' && asked === 0, 'Metro\'s dev page has no build id (EXPO_PUBLIC_BUILD_ID): run on the export (the default UI_TARGET).');
+  expect(asked, 'the export asks version.json for its build').toBeGreaterThan(0);
   build = 'ui-test-newer-build';
   await page.evaluate(() => {
     Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });

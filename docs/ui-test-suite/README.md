@@ -317,7 +317,18 @@ npm run test:ui:build -- --platform ios --device <simulator udid>
 npm run test:ui:phone -- --platform ios --tags smoke
 ```
 
-- `test:ui:web` starts the app's web dev server on :8097, or reuses one.
+- `test:ui:web` runs on the release export, as people get it (decision 101):
+  `smart-tests/ui-web.sh` exports the app for the local stack (about 20 s)
+  and serves it with `/api` from one Worker on :8787, or reuses a Worker
+  already there. A reused Worker serves `apps/mobile/dist` as it is, so after
+  app changes run `npm run export:web -w mobile -- development` (it refreshes
+  a running Worker without a restart), or stop the Worker so the suite starts
+  its own. `UI_TARGET=dev` runs on Metro's dev build instead (:8097, plus the
+  Worker from `npm run web:dev` on :8787); the two update-banner tests skip
+  there, because a dev page has no build id. The tests read the app through
+  probes that exist only in test builds (`src/testBuild.ts`: dev, or an export
+  with `EXPO_PUBLIC_LOCAL_RELEASE=1`): the log, Sync now, and
+  `__langquestTestState` (`testState`, `expectSyncIdle` in `support.ts`).
   `UI_WORKERS` sets how many files run at once (4 by default). The `phone`
   project runs everything at 430×932; the `wide` project runs the tests
   tagged `@wide` at 1280×900.
