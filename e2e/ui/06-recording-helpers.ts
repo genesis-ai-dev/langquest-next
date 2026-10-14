@@ -15,7 +15,7 @@ import path from 'node:path';
 import type { Browser, BrowserContext, Locator, Page } from '@playwright/test';
 import { buildWorld } from './fixture';
 import { installMic } from './mic';
-import { button, byId, expect, expectSyncIdle, openAs, openPassage, primary, syncNow, test, text, type UiWorld } from './support';
+import { button, byId, expect, expectStill, expectSyncIdle, openAs, openPassage, primary, syncNow, test, text, type UiWorld } from './support';
 
 type PassageKey = keyof UiWorld['passages'];
 
@@ -188,16 +188,29 @@ export async function recordSaid(page: Page, lengths: number[]): Promise<void> {
 export const verseSpace = (page: Page, n: number): Locator =>
   page.getByRole('button', { name: new RegExp(`^Part ${n}, (no verse yet|Verses? )`) }).locator('visible=true').first();
 
-/** Hold a part's verse space (the sheet with its verses, Auto, None and Delete). */
+/**
+ * Hold a part's verse space (the sheet with its verses, Auto, None and Delete). The press is held
+ * until the sheet opens, not for a fixed time: on a busy page (a part just recorded, the list
+ * settling) the timer that turns a press into a hold runs late, so a press let go at the threshold
+ * lands as a tap and gives the part a verse instead (JRN-002 failed so in CI). A press that lands
+ * as a tap anyway is undone with its toast's Undo, and held again.
+ */
 export async function holdPart(page: Page, n: number): Promise<void> {
-  const space = verseSpace(page, n);
-  await space.scrollIntoViewIfNeeded();
-  const box = (await space.boundingBox())!;
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.down();
-  await page.waitForTimeout(700); // sleep: the long-press threshold, the product's own
-  await page.mouse.up();
-  await expect(page.getByRole('button', { name: `Delete Part ${n}`, exact: true }).locator('visible=true').first()).toBeVisible();
+  const sheet = page.getByRole('button', { name: `Delete Part ${n}`, exact: true }).locator('visible=true').first();
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const space = verseSpace(page, n);
+    await space.scrollIntoViewIfNeeded();
+    await expectStill(space);
+    const box = (await space.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await sheet.waitFor({ state: 'visible', timeout: 5_000 }).catch(() => undefined);
+    await page.mouse.up();
+    if (await sheet.waitFor({ state: 'visible', timeout: 3_000 }).then(() => true, () => false)) return;
+    const undo = byId(page, 'toast-undo');
+    if (await undo.isVisible().catch(() => false)) await undo.click();
+  }
+  await expect(sheet, 'holding the part opens its sheet').toBeVisible();
 }
 
 /** Delete a part as a person does: hold its space, then "Delete Part N". */
