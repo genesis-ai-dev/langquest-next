@@ -1,12 +1,4 @@
 [
-  "smart-tests/ui/03-home-and-navigation.spec.ts:await page.waitForTimeout(3000);",
-  "smart-tests/ui/03-home-and-navigation.spec.ts:await page.waitForTimeout(500);",
-  "smart-tests/ui/03-home-and-navigation.spec.ts:await page.waitForTimeout(500);",
-  "smart-tests/ui/03-home-and-navigation.spec.ts:await page.waitForTimeout(600);",
-  "smart-tests/ui/03-home-and-navigation.spec.ts:await page.waitForTimeout(600);",
-  "smart-tests/ui/03-home-and-navigation.spec.ts:await page.waitForTimeout(800);",
-  "smart-tests/ui/03-home-and-navigation.spec.ts:await page.waitForTimeout(800);",
-  "smart-tests/ui/04-map.spec.ts:await page.waitForTimeout(800);",
   "smart-tests/ui/05-passage-asking.spec.ts:test.setTimeout(300_000);",
   "smart-tests/ui/05-passage-asking.spec.ts:test.setTimeout(300_000);",
   "smart-tests/ui/05-passage-asking.spec.ts:test.setTimeout(300_000);",
@@ -42,11 +34,5 @@
   "smart-tests/ui/05-passage-checks.spec.ts:test.setTimeout(400_000);",
   "smart-tests/ui/05-passage-checks.spec.ts:test.setTimeout(500_000);",
   "smart-tests/ui/05-passage-checks.spec.ts:test.setTimeout(600_000);",
-  "smart-tests/ui/05-passage-checks.spec.ts:test.setTimeout(600_000);",
-  "smart-tests/ui/05-passage-helpers.ts:await page.waitForTimeout(1_000);",
-  "smart-tests/ui/05-passage-helpers.ts:await page.waitForTimeout(1_000);",
-  "smart-tests/ui/05-passage-helpers.ts:await page.waitForTimeout(1_000);",
-  "smart-tests/ui/05-passage-helpers.ts:await page.waitForTimeout(500);",
-  "smart-tests/ui/05-passage-helpers.ts:await page.waitForTimeout(600);",
-  "smart-tests/ui/06-recording.spec.ts:await page.mouse.down(); await page.waitForTimeout(700); /* sleep: the long-press threshold, the product's own */ await page.mouse.up();"
+  "smart-tests/ui/05-passage-checks.spec.ts:test.setTimeout(600_000);"
 ]

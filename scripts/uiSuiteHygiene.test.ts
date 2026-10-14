@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 /**
  * Hygiene for the web UI suite (docs/testing.md "Signals, not sleeps"):
- * - a waitForTimeout( needs a trailing `// sleep: <reason>` comment (or `/* sleep: … */` mid-line);
+ * - a waitForTimeout( needs a trailing `// sleep: <reason>` comment (a block comment with the same words also counts mid-line);
  * - test.setTimeout( above 240_000 needs a trailing `// ceiling: <reason>`;
  * - ui.config.ts keeps `retries: 0`.
  *
