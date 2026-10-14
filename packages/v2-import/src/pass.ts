@@ -27,6 +27,8 @@ export interface PassDeps {
   /** Bytes already downloaded, so a second upload (a cloned project's files) need not download again. */
   cache?: { get(name: string): Promise<Uint8Array | null>; put(name: string, bytes: Uint8Array): Promise<void> };
   concurrency?: number;
+  /** How a retry waits (tests pass one that does not). */
+  wait?: (ms: number) => Promise<void>;
 }
 
 export interface ProjectReport {
@@ -376,7 +378,7 @@ class Run {
     await pool([...todo.values()], this.deps.concurrency ?? 8, async ({ name, file }) => {
       const bytes = await this.bytes(name);
       if (bytes) {
-        await this.deps.target.upload(orgId, languageId, file.hash, file.format, bytes);
+        await again(() => this.deps.target.upload(orgId, languageId, file.hash, file.format, bytes), this.deps.wait);
         uploaded += 1;
       }
       tried += 1;
@@ -388,7 +390,7 @@ class Run {
   private async bytes(name: string): Promise<Uint8Array | null> {
     const cached = await this.deps.cache?.get(name);
     if (cached) return cached;
-    const bytes = await this.deps.v2.download(name);
+    const bytes = await again(() => this.deps.v2.download(name), this.deps.wait);
     if (bytes) await this.deps.cache?.put(name, bytes);
     return bytes;
   }
@@ -404,6 +406,22 @@ const n = (x: number) => x.toLocaleString('en-US');
 /** Every bucket file a project's live segments name. */
 function namesIn(rows: V2ProjectRows): string[] {
   return [...new Set(rows.contents.filter((c) => c.active).flatMap((c) => (c.audio ?? []).map(bucketName)).filter((x): x is string => !!x))];
+}
+
+/**
+ * A file step tried again after a passing failure (Next's storage answered 502, a connection dropped):
+ * five tries in all, waiting 1, 2, 4 and 8 seconds. One hiccup among a big project's thousands of
+ * files used to stop the whole transfer before anything was saved.
+ */
+export async function again<T>(work: () => Promise<T>, wait: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms))): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await work();
+    } catch (e) {
+      if (attempt >= 5) throw e;
+      await wait(1000 * 2 ** (attempt - 1));
+    }
+  }
 }
 
 async function pool<T>(items: readonly T[], size: number, work: (t: T) => Promise<void>): Promise<void> {

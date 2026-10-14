@@ -170,10 +170,16 @@ const LIBRARY_ORG = 'langquest';
 const ROWS = 1000;
 
 export function supabaseTarget(db: SupabaseClient, files: BlobFilesLike): Target {
+  // A call the server could not take just then (a 5xx, a rate limit, a dropped connection) is tried again,
+  // five times in all; anything it refused for a reason is not. Every call here may be repeated: appends
+  // are kept by event id and the rest write what they are given.
   const rpc = async <T>(fn: string, args: Record<string, unknown>): Promise<T> => {
-    const { data, error } = await db.rpc(fn, args);
-    if (error) throw new Error(`${fn}: ${error.message}`);
-    return data as T;
+    for (let attempt = 1; ; attempt++) {
+      const { data, error, status } = await db.rpc(fn, args);
+      if (!error) return data as T;
+      if (attempt >= 5 || (status > 0 && status < 500 && status !== 429)) throw new Error(`${fn}: ${error.message}`);
+      await new Promise((r) => setTimeout(r, 1000 * 2 ** (attempt - 1)));
+    }
   };
   return {
     plan: () => rpc<Plan>('v2_import_plan', {}),
