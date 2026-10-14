@@ -1,6 +1,6 @@
 import { foldOrg, ORG_STREAM, type AnyEvent } from '@langquest-next/core';
 import { deriveSession } from '../src/session';
-import { claim, deadMessage, functionRefusal, HOLD_MS, holdScanned, inviteCard, learnFromPreview, nextStep, outcomeOfError, withExpiry, type HeldInvite } from '../src/heldInvite';
+import { claim, deadMessage, functionRefusal, HOLD_MS, holdScanned, inviteCard, learnFromPreview, nextStep, outcomeOfError, scanVerdict, withExpiry, type HeldInvite } from '../src/heldInvite';
 import { inviteUri, parseKey, signInUri } from '../src/inviteCode';
 import { isManagedEmail, makeSignInName, MANAGED_DOMAIN, signInAddress, signInName } from '../src/accounts';
 
@@ -192,5 +192,24 @@ describe('who may invite', () => {
     expect(managed.can('manage_structure')).toBe(true);
     const own = deriveSession('me', 'ryder@example.org', true, org);
     expect(own.can('invite_members')).toBe(true);
+  });
+});
+
+describe('what the scan screen says about a held invite (scanVerdict)', () => {
+  const ok = { status: 'ok' as const, label: 'Akol', group: false };
+  it('names the one person a single invite is for, and no one for a group', () => {
+    expect(scanVerdict(ok, { kind: 'idle' })).toEqual({ dead: null, alreadyIn: false, named: 'Akol' });
+    expect(scanVerdict({ ...ok, group: true }, { kind: 'idle' }).named).toBeNull();
+    expect(scanVerdict({ status: 'ok' }, { kind: 'idle' }).named).toBeNull();
+  });
+
+  it('an invite the server says is spent, or the app found dead, says why', () => {
+    expect(scanVerdict({ status: 'expired', invitedBy: 'Mary' }, { kind: 'idle' }).dead).toBe(deadMessage('expired', 'Mary'));
+    expect(scanVerdict(ok, { kind: 'dead', message: 'Gone' }).dead).toBe('Gone');
+    expect(scanVerdict(null, { kind: 'idle' }).dead).toBeNull();
+  });
+
+  it('already in: said, not dead', () => {
+    expect(scanVerdict({ status: 'joined' }, { kind: 'idle' })).toEqual({ dead: null, alreadyIn: true, named: null });
   });
 });

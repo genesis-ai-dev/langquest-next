@@ -1,6 +1,6 @@
 // i18n-ignore-file: developer tools, shown only in development builds.
 import { createClient } from '@supabase/supabase-js';
-import { personaPassword, type Persona } from '../dev';
+import { DEV_PASSWORD, personaPassword, personasAvailable, type Persona } from '../dev';
 import { supabase } from './supabase';
 
 // Dev-build personas (dev.ts): accounts on a local server, made and signed
@@ -45,3 +45,14 @@ export async function switchToPersona(p: Pick<Persona, 'id' | 'email'>): Promise
   if (error) throw error;
 }
 
+
+/**
+ * Dev on a local server: `npm run db:test` wipes auth users. The dev
+ * account is made again when these are its email and password, instead of
+ * stranding the developer at sign-in. Answers whether it was.
+ */
+export async function recreateDevAccount(email: string, password: string): Promise<boolean> {
+  if (!personasAvailable().ok || email !== process.env.EXPO_PUBLIC_DEV_EMAIL || password !== DEV_PASSWORD) return false;
+  await ensurePersonaAccount({ id: 'dev', email });
+  return true;
+}
