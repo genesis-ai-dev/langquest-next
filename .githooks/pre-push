@@ -1,12 +1,26 @@
 #!/bin/bash
 # Before a push leaves this machine: the deterministic sync guardrails
 # (order-independence and idempotence property tests, the event registry's
-# "no shipped event removed" checks, the rest of the unit suite) and the
-# typecheck. About 10 s, no keys, no servers. The UI suite runs in CI
-# (.github/workflows/guardrails.yml) and before `npm run ship` (docs/testing.md).
+# "no shipped event removed" checks, the rest of the unit suite), the
+# typecheck, and the projection worker's bundle against its source. About
+# 10 s, no keys, no servers. The UI suite runs in CI
+# (.github/workflows/guardrails.yml) and before `npm run ship`;
+# `npm run guardrails` runs the CI jobs here (docs/testing.md).
 # Skip once with `git push --no-verify`; never make that the habit.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 echo "pre-push: typecheck + tests"
 npm run --silent typecheck
 npx vitest run --reporter=dot
+# The pre-commit and post-merge hooks keep the bundle current, but a rebase,
+# a commit made with --no-verify, or a branch started before those hooks
+# skips them, and the guardrails `checks` job then fails. Only when the
+# source it is built from is committed, so the build is of what is pushed.
+BUNDLE=supabase/functions/stream-projections/index.ts
+if git diff --quiet HEAD -- server packages/core/src packages/sync/src scripts/build-projection-worker.mjs "$BUNDLE"; then
+  npm run --silent worker:build
+  if ! git diff --quiet HEAD -- "$BUNDLE"; then
+    echo "pre-push: $BUNDLE was behind its source and is rebuilt now. Commit it and push again." >&2
+    exit 1
+  fi
+fi
