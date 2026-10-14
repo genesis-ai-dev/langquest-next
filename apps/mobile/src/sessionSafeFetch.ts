@@ -30,6 +30,14 @@ export interface SessionSafeOptions {
   watch?: RenewalWatch;
   /** The fetch underneath; the global one when left out. */
   base?: typeof fetch;
+  /**
+   * The fetch for the database, files and functions, when it should differ
+   * from `base`: on a phone, Expo's native fetch. React Native's own keeps
+   * every response body in its blob store until the JavaScript garbage
+   * collector frees it, which a small heap seldom does: downloading a
+   * 158 MB language filled Android's 192 MB limit and crashed the app.
+   */
+  data?: typeof fetch;
 }
 
 /** When a renewal last failed for want of a network (or a busy one); null once one has worked. */
@@ -61,7 +69,7 @@ export function sessionSafeFetch(opts: SessionSafeOptions): typeof fetch {
     if (isData(url) && bearerOf(input, init) === opts.anonKey && await opts.hasSavedSession()) {
       throw new TypeError(NOT_RENEWED);
     }
-    return base(input, init);
+    return isData(url) && opts.data ? opts.data(input, init) : base(input, init);
   };
 }
 

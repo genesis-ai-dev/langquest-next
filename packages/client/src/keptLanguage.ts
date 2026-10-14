@@ -33,10 +33,11 @@ export function fileRow(hash: string, v: Verdict): KeptRecord {
   return { kind: 'file', id: hash, unitId: '', actorId: '', json: JSON.stringify(v) };
 }
 
-/** Rows for one entry of a kept map, read from a snapshot's text. */
+/** Rows for one entry of a kept map, read from a snapshot's text: the text as it came, not written out again. */
 export function rowsFromText(map: string, id: string, json: string): KeptRecord[] {
-  if (map === 'recordings') return recordingRows(id, JSON.parse(json) as Recording);
-  return [{ kind: 'file', id, unitId: '', actorId: '', json }];
+  if (map !== 'recordings') return [{ kind: 'file', id, unitId: '', actorId: '', json }];
+  const [row, ...cards] = recordingRows(id, JSON.parse(json) as Recording);
+  return [{ ...row!, json }, ...cards];
 }
 
 /** A state without its kept maps: what a checkpoint holds. */

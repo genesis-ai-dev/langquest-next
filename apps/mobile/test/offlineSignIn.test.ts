@@ -215,3 +215,23 @@ describe('signing out of this device only (signOutCore.ts)', () => {
     expect(p.events).toContain('SIGNED_OUT');
   });
 });
+
+describe('which fetch carries which call', () => {
+  it('database, file and function calls go through the data fetch; sign-in renewal does not', async () => {
+    // Why: on a phone the data fetch is Expo's native one. React Native's
+    // keeps every answer in its blob store until garbage collection, and a
+    // 158 MB language download filled Android's 192 MB limit and crashed.
+    const seen: string[] = [];
+    const answer = (who: string) => (async (input: RequestInfo | URL) => { seen.push(`${who} ${String(input)}`); return new Response('{}', { status: 200 }); }) as typeof fetch;
+    const f = sessionSafeFetch({ anonKey: 'anon', hasSavedSession: async () => true, base: answer('base'), data: answer('data') });
+    const signedIn = { headers: { Authorization: 'Bearer person' } };
+    await f('https://x.supabase.co/rest/v1/rpc/get_snapshot_chunk', signedIn);
+    await f('https://x.supabase.co/storage/v1/object/a', signedIn);
+    await f('https://x.supabase.co/auth/v1/token?grant_type=refresh_token', {});
+    expect(seen).toEqual([
+      'data https://x.supabase.co/rest/v1/rpc/get_snapshot_chunk',
+      'data https://x.supabase.co/storage/v1/object/a',
+      'base https://x.supabase.co/auth/v1/token?grant_type=refresh_token'
+    ]);
+  });
+});

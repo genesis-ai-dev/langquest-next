@@ -1,6 +1,8 @@
 import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
+import { fetch as nativeFetch } from 'expo/fetch';
+import { Platform } from 'react-native';
 import { sessionStorageKey } from './sessionKey';
 import { answerAtOnceWhileOffline, sessionSafeFetch, type RenewalWatch } from './sessionSafeFetch';
 import { signOutThisDevice } from './signOutCore';
@@ -45,7 +47,11 @@ function clientAt(storageKey: string, autoRefreshToken: boolean) {
   const client = createClient(supabaseUrl, supabaseAnonKey, {
     auth: { storage: AsyncStorage, storageKey, autoRefreshToken, persistSession: true, detectSessionInUrl: false },
     global: {
-      fetch: sessionSafeFetch({ anonKey: supabaseAnonKey, watch, hasSavedSession: async () => (await AsyncStorage.getItem(storageKey)) !== null })
+      fetch: sessionSafeFetch({
+        anonKey: supabaseAnonKey, watch, hasSavedSession: async () => (await AsyncStorage.getItem(storageKey)) !== null,
+        // Database calls read their answers natively, not through React Native's blob store (sessionSafeFetch.ts).
+        ...(Platform.OS === 'web' ? {} : { data: nativeFetch as unknown as typeof fetch })
+      })
     }
   });
   answerAtOnceWhileOffline(client.auth, { watch, readSaved: () => AsyncStorage.getItem(storageKey) });
