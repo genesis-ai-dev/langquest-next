@@ -12,6 +12,8 @@ export * from './listStreams';
 export * from './blobReconciler';
 export * from './workerBlobs';
 export * from './snapshotFetch';
+export * from './languageFiles';
+export * from './keptLanguage';
 export * from './writeQueue';
 export * from './diagnostics';
 export * from './sqliteDiagStore';

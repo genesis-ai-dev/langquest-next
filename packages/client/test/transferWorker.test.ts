@@ -136,7 +136,7 @@ describe('TransferWorker (PLAN.md section 14)', () => {
     await h.advance(UPLOAD_DEFAULTS.debounceMs);
     expect(sent).toEqual([]);
     expect(counts[0]).toBe(3);
-    expect(w.pending()).toBe(3);
+    expect(await w.pending()).toBe(3);
 
     online = true;
     pulling = true;

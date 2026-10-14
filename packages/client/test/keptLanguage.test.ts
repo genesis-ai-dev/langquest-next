@@ -1,6 +1,7 @@
 import { HlcClock, type LanguageState } from '@langquest-next/core';
 import { MemoryStore } from '../src/memoryStore';
 import { SyncClient } from '../src/syncClient';
+import { LanguageFiles } from '../src/languageFiles';
 import { FakeServer } from '../src/testing/fakeServer';
 
 /**
@@ -154,5 +155,46 @@ describe('a language that keeps its recordings on disk', () => {
     expect(await store.keptCount('org1', 'p1', 'recording')).toBe(9);
     await client.loadUnits(['u2']);
     expect(client.getState().recordings['r2']).toBeUndefined();
+  });
+});
+
+describe('file planning for a language kept on disk', () => {
+  it('still sends a recording made here whose file never went up, after the recording went to disk', async () => {
+    // Why: the recording's event can reach the server before its audio does.
+    // If the checkpoint then moves the recording to disk, a planner that
+    // looked only in memory would never send the file: lost audio.
+    const server = new FakeServer();
+    await language(server, 12);
+    const { client, store } = phone(server, 'dB', 't1', { keepOnDisk: true, checkpointEvery: 3 });
+    await client.load();
+    await client.sync();
+    await client.append('v1.RecordingAdded', { recordingId: 'mine', unitId: 'u7', kind: 'target', cards: [{ hash: 'unsent', durationMs: 3 }] });
+    await client.sync();
+    // More work arrives, a checkpoint takes the recording to disk, and memory lets it go.
+    const other = phone(server, 'dX', 't2');
+    await other.client.load();
+    for (let i = 0; i < 6; i++) await other.client.append('v1.UnitAdded', { unitId: `n${i}`, parentUnitId: null, kind: 'passage', label: `N${i}`, order: `z${i}` });
+    await other.client.sync();
+    await client.sync();
+    expect(client.getState().recordings['mine']).toBeUndefined();
+    expect(await store.keptById('org1', 'p1', 'recording', ['mine'])).toHaveLength(1);
+
+    const files = new LanguageFiles(client, store, 'org1', 'p1');
+    const present = new Set(['unsent', 'h2']);
+    expect((await files.upload(present)).map((r) => r.hash)).toEqual(['unsent']);
+    expect(await files.hasRecording('mine')).toBe(true);
+    // The passage this person recorded in is theirs to keep offline.
+    expect([...(await files.scope('t1'))]).toContain('u7');
+    // Kept offline: the stored files of u2 and u7 come down, with the server's size; the unsent one cannot.
+    const down = await files.download(new Set(), new Set(['u2', 'u7']));
+    expect(down.map((r) => r.hash)).toEqual(['h2', 'h7']);
+    expect(files.sizeOf('h2')).toBe(102);
+    // Room: h2 may go once u2 is not kept; the unsent file never may.
+    expect((await files.evictable(present, new Set(['u7']))).map((r) => r.hash)).toEqual(['h2']);
+    expect(await files.evictable(present, new Set(['u2', 'u7']))).toEqual([]);
+    const counts = await files.byUnit(['u2', 'u7'], present, 't1', new Set());
+    expect(counts.get('u2')).toMatchObject({ audio: 1, here: 1 });
+    expect(counts.get('u7')).toMatchObject({ audio: 2, here: 1, toFetch: 1, reason: 'worked' });
+    expect(await files.lost(['unsent'])).toMatchObject({ unsent: 1, unitIds: ['u7'] });
   });
 });

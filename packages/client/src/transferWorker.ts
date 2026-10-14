@@ -19,7 +19,8 @@ import type { BlobRef } from '@langquest-next/core';
  * finishing together cannot spike a weak phone.
  */
 interface TransferWorkerOptions {
-  work: () => BlobRef[];
+  /** The work list; a language that keeps recordings on disk works it out from there (decisions.md 104). */
+  work: () => BlobRef[] | Promise<BlobRef[]>;
   transfer: (ref: BlobRef) => Promise<void>;
   isOnline: () => boolean;
   isPulling: () => boolean;
@@ -95,8 +96,8 @@ export class TransferWorker {
   }
 
   /** Work outstanding right now, regardless of backoff. Honest even offline. */
-  pending(): number {
-    return this.o.work().length;
+  async pending(): Promise<number> {
+    return (await this.o.work()).length;
   }
 
   private scheduleTick(): void {
@@ -143,7 +144,7 @@ export class TransferWorker {
   }
 
   private async pass(): Promise<void> {
-    const list = this.o.work();
+    const list = await this.o.work();
     // Drop attempt records for hashes that got confirmed or disappeared.
     const live = new Set(list.map((r) => r.hash));
     for (const h of [...this.attempts.keys()]) if (!live.has(h)) this.attempts.delete(h);
@@ -196,7 +197,7 @@ export class TransferWorker {
     // A pull or a recording that began mid-batch left files waiting: the same.
     if (queue.length > 0 && !this.stopped && (this.o.isPulling() || this.o.isDeferred?.())) this.requestPass(Math.max(this.o.debounceMs, HELD_RETRY_MS));
     // Re-derive at pass end so the published count is exact.
-    this.publish(this.o.work().length);
+    this.publish((await this.o.work()).length);
   }
 
   private publish(pending: number): void {
