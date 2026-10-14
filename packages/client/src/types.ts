@@ -10,7 +10,33 @@ export interface WriteBatch {
   meta?: Record<string, string>;
   /** Drop confirmed events at or below `uptoSeq`; a checkpoint holds them now. */
   prune?: { orgId: string; streamId: string; uptoSeq: number };
+  /**
+   * Records a language keeps on the phone instead of in memory (decisions.md
+   * 104): upsert these. `clear` first drops every kept record of the
+   * stream; `replaceFrom` then moves in the records written under another
+   * stream id while a fresh snapshot was read, so the language switches to
+   * them in the same commit as its new checkpoint.
+   */
+  kept?: { orgId: string; streamId: string; clear?: boolean; replaceFrom?: string; upsert?: KeptRecord[] };
 }
+
+/**
+ * One record a big language keeps on the phone rather than in memory: a
+ * recording, one of its cards (so a file can be traced to its passage), or
+ * the server's verdict on an audio file. `json` is the record as the state
+ * holds it.
+ */
+export interface KeptRecord {
+  kind: KeptKind;
+  id: string;
+  /** The passage it belongs to; '' for a file verdict. */
+  unitId: string;
+  /** Who made it: a recording's author; '' otherwise. */
+  actorId: string;
+  json: string;
+}
+
+export type KeptKind = 'recording' | 'card' | 'file';
 
 /** An event as held on the device: the envelope plus sync bookkeeping. */
 export interface LocalEvent {
@@ -59,6 +85,14 @@ export interface EventStore {
   setCursor(orgId: string, streamId: string, seq: number): Promise<void>;
   /** Drop confirmed events at or below `uptoSeq`; they live in a checkpoint now. */
   prune(orgId: string, streamId: string, uptoSeq: number): Promise<void>;
+  /** Kept records of one kind whose passage is one of these. */
+  keptByUnit(orgId: string, streamId: string, kind: KeptKind, unitIds: readonly string[]): Promise<KeptRecord[]>;
+  /** Kept records of one kind with these ids. */
+  keptById(orgId: string, streamId: string, kind: KeptKind, ids: readonly string[]): Promise<KeptRecord[]>;
+  /** Passages holding a kept recording by this person. */
+  keptUnitsBy(orgId: string, streamId: string, actorId: string): Promise<string[]>;
+  /** How many records of one kind a stream keeps. */
+  keptCount(orgId: string, streamId: string, kind: KeptKind): Promise<number>;
   /** Small device-level key/value state: device id, persisted clocks. */
   meta(key: string): Promise<string | undefined>;
   setMeta(key: string, value: string): Promise<void>;

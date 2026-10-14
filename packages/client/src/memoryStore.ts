@@ -1,5 +1,5 @@
 import { WriteQueue } from './writeQueue';
-import type { EventStore, LocalEvent, WriteBatch } from './types';
+import type { EventStore, KeptKind, KeptRecord, LocalEvent, WriteBatch } from './types';
 
 /** In-memory EventStore for tests. The SQLite one mirrors this shape. */
 export class MemoryStore implements EventStore {
@@ -7,6 +7,8 @@ export class MemoryStore implements EventStore {
   private events = new Map<string, LocalEvent>();
   private cursors = new Map<string, number>();
   private metas = new Map<string, string>();
+  /** `${org}/${stream}` -> `${kind}:${id}` -> record. */
+  private kept = new Map<string, Map<string, KeptRecord>>();
 
   commit(batch: WriteBatch): Promise<void> {
     return this.writer.run(() => this.commitNow(batch));
@@ -19,6 +21,40 @@ export class MemoryStore implements EventStore {
     if (batch.cursor) this.cursors.set(`${batch.cursor.orgId}/${batch.cursor.streamId}`, batch.cursor.seq);
     for (const [k, v] of Object.entries(batch.meta ?? {})) this.metas.set(k, v);
     if (batch.prune) await this.pruneNow(batch.prune.orgId, batch.prune.streamId, batch.prune.uptoSeq);
+    if (batch.kept) {
+      const key = `${batch.kept.orgId}/${batch.kept.streamId}`;
+      if (batch.kept.clear) this.kept.delete(key);
+      if (batch.kept.replaceFrom !== undefined) {
+        const from = `${batch.kept.orgId}/${batch.kept.replaceFrom}`;
+        this.kept.set(key, this.kept.get(from) ?? new Map());
+        this.kept.delete(from);
+      }
+      const rows = this.kept.get(key) ?? new Map<string, KeptRecord>();
+      for (const r of batch.kept.upsert ?? []) rows.set(`${r.kind}:${r.id}`, { ...r });
+      this.kept.set(key, rows);
+    }
+  }
+
+  private keptRows(orgId: string, streamId: string, kind: KeptKind): KeptRecord[] {
+    return [...(this.kept.get(`${orgId}/${streamId}`)?.values() ?? [])].filter((r) => r.kind === kind);
+  }
+
+  async keptByUnit(orgId: string, streamId: string, kind: KeptKind, unitIds: readonly string[]): Promise<KeptRecord[]> {
+    const units = new Set(unitIds);
+    return this.keptRows(orgId, streamId, kind).filter((r) => units.has(r.unitId));
+  }
+
+  async keptById(orgId: string, streamId: string, kind: KeptKind, ids: readonly string[]): Promise<KeptRecord[]> {
+    const rows = this.kept.get(`${orgId}/${streamId}`);
+    return ids.map((id) => rows?.get(`${kind}:${id}`)).filter((r): r is KeptRecord => !!r);
+  }
+
+  async keptUnitsBy(orgId: string, streamId: string, actorId: string): Promise<string[]> {
+    return [...new Set(this.keptRows(orgId, streamId, 'recording').filter((r) => r.actorId === actorId).map((r) => r.unitId))];
+  }
+
+  async keptCount(orgId: string, streamId: string, kind: KeptKind): Promise<number> {
+    return this.keptRows(orgId, streamId, kind).length;
   }
 
   async put(local: LocalEvent): Promise<void> {

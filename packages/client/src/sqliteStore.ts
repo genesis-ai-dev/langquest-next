@@ -1,6 +1,6 @@
 import { WriteQueue } from './writeQueue';
 import type { AnyEvent } from '@langquest-next/core';
-import type { EventStore, LocalEvent, WriteBatch } from './types';
+import type { EventStore, KeptKind, KeptRecord, LocalEvent, WriteBatch } from './types';
 
 /**
  * Minimal SQL driver so the same store runs on expo-sqlite in the app and on
@@ -68,6 +68,19 @@ export class SqliteStore implements EventStore {
       primary key (org_id, stream_id)
     )`);
     await db.run(`create table if not exists meta (key text primary key, value text not null)`);
+    // Records a big language keeps here rather than in memory (decisions.md 104).
+    await db.run(`create table if not exists kept (
+      org_id text not null,
+      stream_id text not null,
+      kind text not null,
+      id text not null,
+      unit_id text not null,
+      actor_id text not null,
+      json text not null,
+      primary key (org_id, stream_id, kind, id)
+    )`);
+    await db.run(`create index if not exists kept_unit on kept (org_id, stream_id, kind, unit_id)`);
+    await db.run(`create index if not exists kept_actor on kept (org_id, stream_id, kind, actor_id)`);
     return new SqliteStore(db);
   }
 
@@ -77,6 +90,20 @@ export class SqliteStore implements EventStore {
       if (batch.cursor) await this.setCursorOn(tx, batch.cursor.orgId, batch.cursor.streamId, batch.cursor.seq);
       for (const [k, v] of Object.entries(batch.meta ?? {})) await this.setMetaOn(tx, k, v);
       if (batch.prune) await this.pruneOn(tx, batch.prune.orgId, batch.prune.streamId, batch.prune.uptoSeq);
+      if (batch.kept) {
+        const { orgId, streamId } = batch.kept;
+        if (batch.kept.clear || batch.kept.replaceFrom !== undefined) await tx.run(`delete from kept where org_id = ? and stream_id = ?`, [orgId, streamId]);
+        if (batch.kept.replaceFrom !== undefined) {
+          await tx.run(`update kept set stream_id = ? where org_id = ? and stream_id = ?`, [streamId, orgId, batch.kept.replaceFrom]);
+        }
+        for (const r of batch.kept.upsert ?? []) {
+          await tx.run(
+            `insert into kept (org_id, stream_id, kind, id, unit_id, actor_id, json) values (?, ?, ?, ?, ?, ?, ?)
+             on conflict(org_id, stream_id, kind, id) do update set unit_id = excluded.unit_id, actor_id = excluded.actor_id, json = excluded.json`,
+            [orgId, streamId, r.kind, r.id, r.unitId, r.actorId, r.json]
+          );
+        }
+      }
     };
     await this.writer.run(async () => {
       if (this.db.transaction) await this.db.transaction(write);
@@ -216,6 +243,44 @@ export class SqliteStore implements EventStore {
     );
   }
 
+  async keptByUnit(orgId: string, streamId: string, kind: KeptKind, unitIds: readonly string[]): Promise<KeptRecord[]> {
+    return this.keptWhere('unit_id', orgId, streamId, kind, unitIds);
+  }
+
+  async keptById(orgId: string, streamId: string, kind: KeptKind, ids: readonly string[]): Promise<KeptRecord[]> {
+    return this.keptWhere('id', orgId, streamId, kind, ids);
+  }
+
+  /** In slices, so no statement carries more parameters than SQLite allows. */
+  private async keptWhere(column: 'unit_id' | 'id', orgId: string, streamId: string, kind: KeptKind, values: readonly string[]): Promise<KeptRecord[]> {
+    const out: KeptRecord[] = [];
+    for (let i = 0; i < values.length; i += KEPT_SLICE) {
+      const slice = values.slice(i, i + KEPT_SLICE);
+      const rows = await this.db.all<{ kind: KeptKind; id: string; unit_id: string; actor_id: string; json: string }>(
+        `select kind, id, unit_id, actor_id, json from kept where org_id = ? and stream_id = ? and kind = ? and ${column} in (${slice.map(() => '?').join(',')})`,
+        [orgId, streamId, kind, ...slice]
+      );
+      for (const r of rows) out.push({ kind: r.kind, id: r.id, unitId: r.unit_id, actorId: r.actor_id, json: r.json });
+    }
+    return out;
+  }
+
+  async keptUnitsBy(orgId: string, streamId: string, actorId: string): Promise<string[]> {
+    const rows = await this.db.all<{ unit_id: string }>(
+      `select distinct unit_id from kept where org_id = ? and stream_id = ? and kind = 'recording' and actor_id = ?`,
+      [orgId, streamId, actorId]
+    );
+    return rows.map((r) => r.unit_id);
+  }
+
+  async keptCount(orgId: string, streamId: string, kind: KeptKind): Promise<number> {
+    const rows = await this.db.all<{ n: number }>(
+      `select count(*) as n from kept where org_id = ? and stream_id = ? and kind = ?`,
+      [orgId, streamId, kind]
+    );
+    return Number(rows[0]?.n ?? 0);
+  }
+
   async meta(key: string): Promise<string | undefined> {
     const rows = await this.db.all<{ value: string }>(`select value from meta where key = ?`, [key]);
     return rows[0]?.value;
@@ -241,6 +306,9 @@ export class SqliteStore implements EventStore {
     return rows.map(toLocal);
   }
 }
+
+/** Ids per lookup: well under SQLite's parameter limit. */
+const KEPT_SLICE = 400;
 
 function toLocal(row: Row): LocalEvent {
   const event = JSON.parse(row.json) as AnyEvent;
