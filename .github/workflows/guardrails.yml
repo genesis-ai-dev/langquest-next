@@ -58,9 +58,16 @@ jobs:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: node scripts/linear-sync.mjs lane --name checks --status failed --sha "$GITHUB_SHA" --url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
       # Supabase deploys the committed worker bundle on merge (server/README.md,
-      # Deploying); refuse one that is behind its source.
+      # Deploying); refuse one that is behind its source. The pre-commit and
+      # pre-merge-commit hooks (.githooks, enabled by npm install) rebuild it,
+      # so this fails only for a commit made without them.
       - name: Worker bundle matches its source
-        run: npm run worker:build && git diff --exit-code -- supabase/functions
+        run: |
+          npm run worker:build
+          git diff --exit-code -- supabase/functions || {
+            echo "::error::The projection worker's bundle is behind its source. Run npm run worker:build and commit supabase/functions, or run npm install once so the git hooks in .githooks rebuild it on every commit."
+            exit 1
+          }
 
   server:
     # The server against a local Supabase built from the migrations: the SQL

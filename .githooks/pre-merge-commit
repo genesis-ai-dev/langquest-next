@@ -1,0 +1,5 @@
+#!/bin/bash
+# A merge with no conflicts commits without pre-commit, and two branches
+# that each kept the worker bundle current can still merge into one that
+# is not: rebuild it the same way (pre-commit).
+exec "$(dirname "$0")/pre-commit"
