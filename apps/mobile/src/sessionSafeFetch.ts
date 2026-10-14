@@ -32,10 +32,10 @@ export interface SessionSafeOptions {
   base?: typeof fetch;
   /**
    * The fetch for the database, files and functions, when it should differ
-   * from `base`: on a phone, Expo's native fetch. React Native's own keeps
-   * every response body in its blob store until the JavaScript garbage
-   * collector frees it, which a small heap seldom does: downloading a
-   * 158 MB language filled Android's 192 MB limit and crashed the app.
+   * from `base`: on a phone, one that reads answers as text and lets them
+   * go (server/textFetch.ts). React Native's own keeps every response body
+   * until the JavaScript heap is collected, which a small heap seldom is:
+   * downloading a 158 MB language filled Android's 192 MB limit.
    */
   data?: typeof fetch;
 }
