@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import * as Crypto from 'expo-crypto';
-import { DurableOutbox, DeliveryError, type AccountAction } from './durableOutbox';
+import { DurableOutbox, DeliveryError, type AccountAction } from '@langquest-next/sync';
 import { supabase } from './supabase';
 
 /** Sessions kept for people signed out of this phone with work still to go (handOver.ts). */

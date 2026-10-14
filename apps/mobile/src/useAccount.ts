@@ -5,7 +5,7 @@ import { AppState } from 'react-native';
 import { reportError } from './report';
 import { accountOutbox, queueAccountAction } from './accountData';
 import { profileNameToSave } from './accounts';
-import type { AccountAction } from './durableOutbox';
+import type { AccountAction } from '@langquest-next/sync';
 import { supabase } from './supabase';
 
 /** One scheduler for durable writes outside any organization or language. */

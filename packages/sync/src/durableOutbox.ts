@@ -13,6 +13,11 @@ export interface AccountAction {
 export class DeliveryError extends Error {
   constructor(message: string, readonly retryable: boolean) { super(message); }
 }
+/** The action with a new status and no error left over from an earlier try. */
+function cleared(r: AccountAction, status: AccountAction['status']): AccountAction {
+  const { error: _error, ...rest } = r;
+  return { ...rest, status };
+}
 export class DurableOutbox {
   private writes: Promise<unknown> = Promise.resolve();
   private draining: Promise<boolean> | null = null;
@@ -54,7 +59,7 @@ export class DurableOutbox {
   }
   retry(id: string) {
     return this.mutate((rows) => rows.map((r) => r.id === id
-      ? { ...r, status: 'queued', error: undefined } : r), 'queued');
+      ? cleared(r, 'queued') : r), 'queued');
   }
   /** False means retry later. A permanent refusal remains visible. */
   flush(): Promise<boolean> {
@@ -69,7 +74,7 @@ export class DurableOutbox {
       try {
         await this.deliver(action);
         await this.mutate((rows) => rows.map((r) => r.id === action.id
-          ? { ...r, status: 'sent', error: undefined } : r));
+          ? cleared(r, 'sent') : r));
       } catch (error) {
         const retryable = !(error instanceof DeliveryError) || error.retryable;
         await this.mutate((rows) => rows.map((r) => r.id === action.id

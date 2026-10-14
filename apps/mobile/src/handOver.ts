@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SupabaseTransport, SyncScheduler, deliverQueued, ensureDeviceId, type EventStore } from '@langquest-next/sync';
+import { SupabaseTransport, SyncScheduler, afterAttempt, deliverHandOver, ensureDeviceId, parseHandOvers, withHandOver, withoutFinished, type EventStore, type HandOver, type PendingUpload } from '@langquest-next/sync';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import * as Crypto from 'expo-crypto';
 import { useEffect } from 'react';
@@ -7,7 +7,6 @@ import { Platform } from 'react-native';
 import { accountOutbox, sendAs } from './accountData';
 import { getBlobStore, type BlobStore } from './blobs';
 import { UploadError, uploadBlob } from './blobTransport';
-import { afterAttempt, parseHandOvers, withHandOver, withoutFinished, type HandOver, type PendingUpload } from './handOverCore';
 import { handOverPushToken } from './notifications';
 import { noteExpected } from './report';
 import { getStore } from './store';
@@ -99,44 +98,30 @@ async function sendFor(h: HandOver, store: EventStore, deviceId: string, blobs: 
     return false;
   }
   sendAs(h.actorId, client);
-  let offline = false;
-  let eventsLeft = 0;
-  try {
-    eventsLeft = (await deliverQueued({ store, transport: new SupabaseTransport(client), actorId: h.actorId, deviceId })).left;
-  } catch (e) {
-    offline = true;
-    eventsLeft = (await store.pendingStreamsBy(h.actorId)).length;
-    noteExpected('hand-over events', e);
-  }
-  let unregistered = false;
-  if (h.pushToken) {
-    const { error } = await client.rpc('unregister_push_token', { p_token: h.pushToken });
-    if (error) offline = true;
-    else unregistered = true;
-  }
-  const outbox = accountOutbox(h.actorId);
-  if (!await outbox.flush()) offline = true;
-  const accountLeft = (await outbox.list()).filter((a) => a.status === 'queued').length;
-  const finished: string[] = [];
-  for (const u of h.uploads) {
-    if (offline) break;
-    // Still unconfirmed, so nothing evicts it; gone only if the app's data was cleared.
-    if (!blobs.exists(u.ref)) { finished.push(u.ref.hash); continue; }
-    try {
-      await uploadBlob(u.orgId, u.languageId, u.ref, blobs, {}, client);
-      finished.push(u.ref.hash);
-    } catch (e) {
-      // Refused (no longer a member of that language): the file stays on the phone.
-      if (e instanceof UploadError && e.refused) finished.push(u.ref.hash);
-      else offline = true;
-      noteExpected('hand-over upload', e);
-    }
-  }
-  const next = afterAttempt(h, { sessionGone: false, eventsLeft, accountLeft, finished, unregistered });
+  const { attempt, offline } = await deliverHandOver(h, {
+    store,
+    transport: new SupabaseTransport(client),
+    deviceId,
+    unregisterPush: async (token) => !(await client.rpc('unregister_push_token', { p_token: token })).error,
+    outbox: accountOutbox(h.actorId),
+    hasFile: (ref) => blobs.exists(ref),
+    upload: async (u) => {
+      try {
+        await uploadBlob(u.orgId, u.languageId, u.ref, blobs, {}, client);
+        return 'sent';
+      } catch (e) {
+        if (!(e instanceof UploadError && e.refused)) throw e;
+        noteExpected('hand-over upload', e);
+        return 'refused';
+      }
+    },
+    note: noteExpected
+  });
+  const next = afterAttempt(h, attempt);
   if (next.kind === 'done') await forget(h.actorId, true);
   else if (next.kind === 'drop') await forget(h.actorId, false);
   // Read again: a sign-out since this began may have named more recordings.
-  else await change((list) => list.map((x) => (x.actorId === h.actorId ? withoutFinished(x, finished, unregistered) : x)));
+  else await change((list) => list.map((x) => (x.actorId === h.actorId ? withoutFinished(x, attempt.finished, attempt.unregistered) : x)));
   return offline;
 }
 
