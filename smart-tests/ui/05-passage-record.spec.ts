@@ -3,7 +3,7 @@
 // the step sheets, Something else?, the checkpoint's hard stop, Versions and
 // history, and the version and review pages. One role per test (docs/testing.md,
 // "One test, one role"): what every other role sees is held by the screen
-// models (apps/mobile/test/passageRecordMatrix.test.ts, decision 101), and
+// models (apps/mobile/test/passageRecordMatrix.test.ts, decision 102), and
 // each test here proves that model reaches the screen for the most telling
 // role, tapping where the spec is about tapping. Nothing here changes the
 // world until PASS-066 adds a note last.

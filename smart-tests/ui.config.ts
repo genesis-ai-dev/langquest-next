@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeVoice } from './fixtures/voice';
 
-// The UI test suite on the web (docs/ui-test-suite, decisions.md 95, 101): by
+// The UI test suite on the web (docs/ui-test-suite, decisions.md 95, 102): by
 // default the app's release export of the local stack, served by the Worker
 // (smart-tests/ui-web.sh); UI_TARGET=dev runs Metro's dev build instead,
 // against the local stack, one fresh fixture world per

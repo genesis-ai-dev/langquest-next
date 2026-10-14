@@ -20,7 +20,7 @@ export function splitText(text: string, size = PART_CHARS): string[] {
 }
 
 /** The two calls of a Durable Object's storage the cache needs. */
-interface SqlStore {
+export interface SqlStore {
   exec(query: string, ...bindings: unknown[]): { toArray(): Record<string, unknown>[] };
   transactionSync<T>(fn: () => T): T;
 }

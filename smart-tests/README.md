@@ -11,5 +11,5 @@ Browser tests that run against the web export and the local Supabase stack.
 - `results/` is output and is not committed.
 
 How the layers fit together: `docs/testing.md`. Jev, the model-driven journey
-harness that used to live here, was shelved on 2026-10-14 (decision 101) and
+harness that used to live here, was shelved on 2026-10-14 (decision 102) and
 lives in git history.

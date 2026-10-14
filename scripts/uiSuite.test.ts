@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 /**
  * Traceability for the UI test suite (docs/testing.md "Spec traceability",
- * decision 101): every automated or P0 spec has an implementation, every
+ * decision 102): every automated or P0 spec has an implementation, every
  * implementation names a spec, and the README's count is true.
  */
 

@@ -164,7 +164,9 @@ const cache = cacheDir ? {
 // On CI, whose logs are public, a line says only which project and how it went; the dashboard has the words.
 const print = (projectId: string, level: string, message: string) => console.log(process.env['CI'] ? `${projectId || 'pass'} ${level}` : `${projectId ? `${projectId}: ` : ''}${message}`);
 const whoAmI = () => spawnSync('git', ['config', 'user.name'], { encoding: 'utf8' }).stdout.trim();
-const deps = { v2, target, ...(cache ? { cache } : {}), print, by: process.env['V2_IMPORT_BY'] ?? (whoAmI() || 'the command line') };
+// Files copied at once (8 unless V2_IMPORT_CONCURRENCY says): more is faster, and more load on v2's storage and Next's.
+const concurrency = Math.max(1, Math.min(64, Number(process.env['V2_IMPORT_CONCURRENCY']) || 8));
+const deps = { v2, target, ...(cache ? { cache } : {}), print, concurrency, by: process.env['V2_IMPORT_BY'] ?? (whoAmI() || 'the command line') };
 
 if (command === 'sync') {
   const reports = await sync(deps, { all: flag('all'), projects: values('project') });

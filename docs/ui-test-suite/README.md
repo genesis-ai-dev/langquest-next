@@ -317,7 +317,7 @@ npm run test:ui:build -- --platform ios --device <simulator udid>
 npm run test:ui:phone -- --platform ios --tags smoke
 ```
 
-- `test:ui:web` runs on the release export, as people get it (decision 101):
+- `test:ui:web` runs on the release export, as people get it (decision 102):
   `smart-tests/ui-web.sh` exports the app for the local stack (about 20 s)
   and serves it with `/api` from one Worker on :8787, or reuses a Worker
   already there. A reused Worker serves `apps/mobile/dist` as it is, so after

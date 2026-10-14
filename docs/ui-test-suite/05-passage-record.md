@@ -39,7 +39,7 @@ as one role per test), `05-passage-asking.spec.ts` and `05-passage-checks.spec.t
 fresh one), and Maestro flows `PASS-035`, `PASS-036` and `PASS-068`. The
 role-by-passage tables (what each role's main button, path, "Then the team",
 step sheets, "Something else?" and Versions page show) are held at the
-screen-model layer (docs/testing.md, decision 101) in
+screen-model layer (docs/testing.md, decision 102) in
 `apps/mobile/test/passageRecordMatrix.test.ts`, on the fixture world built in
 memory (`test/passageWorld.ts`) and read through `src/passage/recordModel.ts`;
 the end-to-end test of each such spec reads one role, to prove the model

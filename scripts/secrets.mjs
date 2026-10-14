@@ -30,17 +30,27 @@ import { HOSTED, decrypt, envKeyNames, parseJsonc, projectRef, root, secretsPath
  * Keys .env.<env> may hold. DIAG_DATABASE_URL is read on a laptop (npm run diag -- --hosted), and
  * V2_DATABASE_URL by the v2 import (npm run v2 -- --production, scripts/v2-access.sh); neither is pushed.
  */
-export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PROJECTION_WORKER_SECRET', 'DIAG_DATABASE_URL', 'BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL'];
+export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PROJECTION_WORKER_SECRET', 'DIAG_DATABASE_URL', 'BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET'];
 export const REQUIRED_KEYS = ['INVITE_RELAY_SECRET', 'PROJECTION_WORKER_SECRET'];
 /**
  * Placed when the file has them, never required: the Worker answers without
  * them (the Bible routes say 503), so neither a deploy nor this script waits
  * for one. Not in the Worker's `secrets.required` for the same reason.
  */
-export const OPTIONAL_KEYS = ['BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY'];
+export const OPTIONAL_KEYS = ['BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'WEBHOOK_POKE_SECRET'];
 
 /** LangQuest v2's production project, read (never written) by the v2 import and v2-sign-in (docs/v2-import.md). */
 export const V2_SUPABASE_URL = 'https://unsxkmlcyxgtgmtzfonb.supabase.co';
+
+/** Where the dashboard Worker answers in an environment, from its own routes. */
+export function dashboardUrl(environment) {
+  const config = parseJsonc(readFileSync(join(root, WORKERS.dashboard), 'utf8'));
+  const routes = environment === 'production' ? config.routes : config.env?.[environment]?.routes;
+  return `https://${routes[0].pattern}`;
+}
+
+/** Read by the database's webhook poke (decisions.md 95). */
+export const WEBHOOK_MIGRATION = 'supabase/migrations/20261013120000_api_webhooks.sql';
 
 export const WORKERS = {
   dashboard: 'apps/web/wrangler.jsonc',
@@ -65,7 +75,8 @@ export function destinations(environment, values, ref, serviceRoleKey) {
     workers: {
       dashboard: {
         SUPABASE_SERVICE_ROLE_KEY: serviceRoleKey,
-        ...(values.BIBLE_BRAIN_ACCESS_KEY ? { BIBLE_BRAIN_ACCESS_KEY: values.BIBLE_BRAIN_ACCESS_KEY } : {})
+        ...(values.BIBLE_BRAIN_ACCESS_KEY ? { BIBLE_BRAIN_ACCESS_KEY: values.BIBLE_BRAIN_ACCESS_KEY } : {}),
+        ...(values.WEBHOOK_POKE_SECRET ? { WEBHOOK_POKE_SECRET: values.WEBHOOK_POKE_SECRET } : {})
       },
       'invite-email': { INVITE_RELAY_SECRET: values.INVITE_RELAY_SECRET }
     },
@@ -81,7 +92,9 @@ export function destinations(environment, values, ref, serviceRoleKey) {
     // Read by the projection job (SCHEDULE_MIGRATION).
     vault: {
       langquest_project_url: `https://${ref}.supabase.co`,
-      langquest_projection_worker_secret: values.PROJECTION_WORKER_SECRET
+      langquest_projection_worker_secret: values.PROJECTION_WORKER_SECRET,
+      // Read by events_notify (WEBHOOK_MIGRATION); without them it pokes nobody and the cron catches up.
+      ...(values.WEBHOOK_POKE_SECRET ? { langquest_dashboard_url: dashboardUrl(environment), langquest_webhook_poke_secret: values.WEBHOOK_POKE_SECRET } : {})
     }
   };
 }

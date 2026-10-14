@@ -1,10 +1,14 @@
+import { DatabaseSync } from 'node:sqlite';
 import {
   encodeHlc, foldOrg, privilegeAllows, privilegeFor, privilegesFor, SEED_ROLES, type AnyEvent
 } from '@langquest-next/core';
 import type { AppendResult } from '@langquest-next/client';
 import { handleAgentApi, type AgentDeps, type OrgStub } from '../worker/agent/http';
 import { AgentOrg } from '../worker/agent/org';
-import type { AgentStore, DeviceGrant, NewToken, TokenRecord } from '../worker/agent/store';
+import type { AgentStore, DeviceGrant, NewToken, NewWebhook, TokenRecord, WebhookRecord } from '../worker/agent/store';
+import { WebhookDispatcher } from '../worker/agent/dispatch';
+import { RETRY_AT_MS, signature } from '../worker/agent/webhooks';
+import { referenceOf } from '../worker/agent/view';
 import { hashSecret } from '../worker/agent/tokens';
 import type { ReviewLink } from '../worker/agent/view';
 import { sniffVoiceNote } from '../worker/agent/voice';
@@ -129,6 +133,7 @@ class MemoryStore implements AgentStore {
     const t = this.tokens.find((x) => x.id === id && x.profileId === profileId && !x.revokedAt);
     if (t) t.revokedAt = new Date(T0).toISOString();
     if (t) for (const l of this.links) if (l.tokenId === id && !l.revokedAt) l.revokedAt = t.revokedAt;
+    if (t) for (const w of this.webhooks) if (w.tokenId === id && !w.disabledAt) Object.assign(w, { disabledAt: t.revokedAt, disabledReason: 'token_revoked' });
     return !!t;
   }
   async touchToken(id: string, at: string) { const t = this.tokens.find((x) => x.id === id); if (t) t.lastUsedAt = at; }
@@ -170,7 +175,47 @@ class MemoryStore implements AgentStore {
     if (l) l.revokedAt = new Date(T0).toISOString();
     return !!l;
   }
+  readonly webhooks: WebhookRecord[] = [];
+  async insertWebhook(w: NewWebhook) {
+    const row = { ...w, id: `wh${++this.n}`, createdAt: new Date(T0).toISOString(), disabledAt: null, disabledReason: null };
+    this.webhooks.push(row);
+    return { ...row };
+  }
+  async webhooksOfToken(tokenId: string) { return this.webhooks.filter((w) => w.tokenId === tokenId).map((w) => ({ ...w })).reverse(); }
+  async deleteWebhook(id: string, tokenId: string) {
+    const i = this.webhooks.findIndex((w) => w.id === id && w.tokenId === tokenId);
+    if (i >= 0) this.webhooks.splice(i, 1);
+    return i >= 0;
+  }
+  async liveWebhooks(orgId: string) {
+    return this.webhooks.filter((w) => w.orgId === orgId && !w.disabledAt)
+      .map((w) => ({ webhook: { ...w }, token: this.strip(this.tokens.find((t) => t.id === w.tokenId)!) }));
+  }
+  async webhooksByIds(ids: string[]) { return this.webhooks.filter((w) => ids.includes(w.id)).map((w) => ({ ...w })); }
+  async disableWebhooks(ids: string[], reason: string) {
+    for (const w of this.webhooks) if (ids.includes(w.id) && !w.disabledAt) Object.assign(w, { disabledAt: new Date(T0).toISOString(), disabledReason: reason });
+  }
+  async webhookOrgs() { return [...new Set(this.webhooks.filter((w) => !w.disabledAt).map((w) => w.orgId))]; }
 }
+
+/** The object's SQLite, as worker.test.ts runs it. */
+function sqlite() {
+  const db = new DatabaseSync(':memory:');
+  return {
+    exec: (query: string, ...bindings: unknown[]) => {
+      const statement = db.prepare(query);
+      const rows = /^\s*select/i.test(query) ? statement.all(...(bindings as never[])) : (statement.run(...(bindings as never[])), []);
+      return { toArray: () => rows as Record<string, unknown>[] };
+    },
+    transactionSync: <T>(fn: () => T): T => {
+      db.exec('begin');
+      try { const out = fn(); db.exec('commit'); return out; } catch (e) { db.exec('rollback'); throw e; }
+    }
+  };
+}
+
+/** What a webhook's server received. */
+interface Received { url: string; headers: Record<string, string>; body: any; raw: string }
 
 const withoutKeys = (o: Record<string, unknown>, keys: string[]) => Object.fromEntries(Object.entries(o).filter(([k]) => !keys.includes(k)));
 
@@ -179,13 +224,31 @@ function setup() {
   const store = new MemoryStore();
   let now = T0 + 10_000_000;
   let signed = 0;
-  const agent = new AgentOrg(new OrgFolder(log, ORG, new MemoryCache(), () => now, 0), ORG, {
+  const folder = new OrgFolder(log, ORG, new MemoryCache(), () => now, 0);
+  const received: Received[] = [];
+  // What the app's server answers; a status, or 'down' for no answer at all.
+  let answerWith: number | 'down' = 200;
+  const dispatcher = new WebhookDispatcher(sqlite(), ORG, {
+    store,
+    orgState: () => folder.orgState(true),
+    languageState: (id) => folder.languageState(id),
+    heads: async () => Object.fromEntries([...log.streams].map(([id, list]) => [id, list.length])),
+    fetch: async (url, init) => {
+      const raw = init.body as string;
+      received.push({ url, headers: init.headers as Record<string, string>, body: JSON.parse(raw), raw });
+      if (answerWith === 'down') throw new TypeError('fetch failed');
+      return new Response('ok', { status: answerWith });
+    },
+    now: () => now
+  });
+  const agent = new AgentOrg(folder, ORG, {
     append: (events) => log.append(events),
     sign: async (key) => {
       signed += 1;
       return { url: `https://lq.test/api/blobs/${key}?sig=x`, expiresAt: now + 600_000 };
     },
-    now: () => now
+    now: () => now,
+    webhooks: dispatcher
   });
   const deps: AgentDeps = {
     store,
@@ -217,7 +280,12 @@ function setup() {
     if (r.status !== 200) throw new Error(JSON.stringify(r.body));
     return r.body.token as string;
   };
-  return { log, store, call, token, advance: (ms: number) => { now += ms; }, signed: () => signed };
+  return {
+    log, store, call, token, advance: (ms: number) => { now += ms; }, signed: () => signed,
+    dispatcher, received, answer: (a: number | 'down') => { answerWith = a; },
+    /** What the alarm does after a poke: look, then send what is due. */
+    tick: async () => { await dispatcher.scan(); await dispatcher.deliverDue(); }
+  };
 }
 
 describe('reading', () => {
@@ -885,6 +953,159 @@ describe('external values (decisions.md 79)', () => {
     expect(JSON.parse(got.body.result.content[0].text).values).toMatchObject([{ key: 'agent/notes', data: { seen: true }, writtenBy: { app: 'Agent' } }]);
     const gone = await call('POST', '/api/v1/mcp', t, rpc(4, 'tools/call', { name: 'set_external_value', arguments: { languageId: 'din', key: 'agent/notes', data: null } }));
     expect(JSON.parse(gone.body.result.content[0].text)).toEqual({ key: 'agent/notes', deleted: true });
+  });
+});
+
+describe('webhooks and the change feed (decisions.md 101)', () => {
+  const HOOK = 'https://app.example/langquest';
+  const make = async (call: Awaited<ReturnType<typeof setup>>['call'], t: string, events: string[], extra: Record<string, unknown> = {}) => {
+    const r = await call('POST', '/api/v1/webhooks', t, { url: HOOK, events, ...extra });
+    if (r.status !== 200) throw new Error(JSON.stringify(r.body));
+    return r.body as { webhookId: string; secret: string };
+  };
+
+  it('nudges once per language and kind for a burst of takes, signed, with ids and a cursor and never the content', async () => {
+    const { log, call, token, tick, received } = setup();
+    const t = await token('rev', { scopes: ['read'] });
+    const { secret } = await make(call, t, ['passage.version.submitted']);
+    // A recording session: two takes before anyone looks.
+    recorded(log, 'din', 'd3', { take: 'take-d3b' });
+    recorded(log, 'din', 'd4');
+    await tick();
+    expect(received).toHaveLength(1);
+    const [got] = received;
+    expect(got!.url).toBe(HOOK);
+    expect(Object.keys(got!.body).sort()).toEqual(['cursor', 'id', 'languageId', 'occurredAt', 'orgId', 'type', 'unitIds']);
+    expect(got!.body).toMatchObject({ type: 'passage.version.submitted', orgId: ORG, languageId: 'din', unitIds: ['d3', 'd4'] });
+    expect(got!.headers['langquest-event-id']).toBe(got!.body.id);
+    // The app checks the signature with its secret, over the exact bytes sent.
+    const t0 = Number(/t=(\d+)/.exec(got!.headers['langquest-signature']!)![1]);
+    expect(got!.headers['langquest-signature']).toBe(await signature(secret, t0, got!.raw));
+    await tick();
+    expect(received).toHaveLength(1);
+  });
+
+  it('lists every change in order, deletions and late pushes included, so a missed delivery or an outage loses nothing', async () => {
+    const { log, call, token } = setup();
+    const t = await token('rev', { scopes: ['read'] });
+    const start = await call('GET', '/api/v1/languages/din/changes', t);
+    expect(start.body.changes).toEqual([]);
+    log.add('din', 'v1.UnitHidden', { unitId: 'd4', hidden: true });
+    log.add('din', 'v1.ReviewRecorded', { reviewId: 'peer-take-d2', takeId: 'take-d2', kindId: 'peer', outcome: 'looks_good', via: 'app' }, 'rev');
+    // A phone three days offline shares its take now; its clock says three days ago.
+    log.push({ id: 'late', type: 'v1.TakeSubmitted', orgId: ORG, streamId: 'din', actorId: 'tr', deviceId: 'offline', hlc: encodeHlc(T0 - 3 * 86_400_000, 0, 'offline'), payload: { takeId: 'take-d3' } } as AnyEvent);
+    const page = await call('GET', `/api/v1/languages/din/changes?after=${start.body.cursor}`, t);
+    expect(page.body.changes.map((c: { type: string; unitId: string }) => [c.type, c.unitId])).toEqual([
+      ['unit.deleted', 'd4'],
+      ['passage.status.changed', 'd2'],
+      ['passage.review.created', 'd2'],
+      ['passage.version.submitted', 'd3'],
+      ['passage.status.changed', 'd3']
+    ]);
+    expect(page.body.more).toBe(false);
+    const again = await call('GET', `/api/v1/languages/din/changes?after=${page.body.cursor}`, t);
+    expect(again.body.changes).toEqual([]);
+    const paged = await call('GET', `/api/v1/languages/din/changes?after=${start.body.cursor}&limit=2`, t);
+    expect(paged.body).toMatchObject({ more: true, cursor: paged.body.changes[1].cursor });
+  });
+
+  it('needs read, and says when a cursor is older than the changes kept', async () => {
+    const { log, call, token, tick, advance } = setup();
+    const published = await token('rev', { scopes: ['read:published'] });
+    expect((await call('GET', '/api/v1/languages/din/changes', published)).body.code).toBe('scope');
+    expect((await call('POST', '/api/v1/webhooks', published, { url: HOOK, events: ['unit.created'] })).body.code).toBe('scope');
+    const t = await token('rev', { scopes: ['read'] });
+    await make(call, t, ['unit.created']);
+    const start = await call('GET', '/api/v1/languages/din/changes', t);
+    expect((await call('GET', '/api/v1/languages/din/changes?after=x', t)).status).toBe(400);
+    recorded(log, 'din', 'd4');
+    expect((await call('GET', `/api/v1/languages/din/changes?after=${start.body.cursor}`, t)).body.changes.length).toBeGreaterThan(0);
+    advance(91 * 86_400_000);
+    await tick();
+    expect((await call('GET', `/api/v1/languages/din/changes?after=${start.body.cursor}`, t))).toMatchObject({ status: 410, body: { code: 'cursor_expired' } });
+  });
+
+  it('retries a failing app with the same event id for a day, then stops the webhook and says why', async () => {
+    const { log, call, token, tick, received, answer, advance, dispatcher, store } = setup();
+    const t = await token('rev', { scopes: ['read'] });
+    const { webhookId } = await make(call, t, ['passage.version.submitted']);
+    answer(500);
+    recorded(log, 'din', 'd4');
+    await tick();
+    expect(received).toHaveLength(1);
+    await dispatcher.deliverDue();
+    expect(received).toHaveLength(1);
+    for (let i = 1; i < RETRY_AT_MS.length; i++) {
+      advance(RETRY_AT_MS[i]! - RETRY_AT_MS[i - 1]!);
+      await dispatcher.deliverDue();
+      expect(received).toHaveLength(i + 1);
+    }
+    expect(new Set(received.map((r) => r.body.id)).size).toBe(1);
+    expect(store.webhooks[0]!.disabledReason).toMatch(/failed for a day/);
+    const log2 = await call('GET', `/api/v1/webhooks/${webhookId}/deliveries`, t);
+    expect(log2.body.pending).toBe(0);
+    expect(log2.body.deliveries).toHaveLength(RETRY_AT_MS.length);
+    expect(log2.body.deliveries[0]).toMatchObject({ status: 500, attempt: RETRY_AT_MS.length });
+    expect((await call('POST', `/api/v1/webhooks/${webhookId}/ping`, t)).body.code).toBe('disabled');
+  });
+
+  it('tells an app its token was revoked, as its webhook\'s last delivery', async () => {
+    const { log, call, token, tick, received, dispatcher, store } = setup();
+    const t = await token('rev', { scopes: ['read'] });
+    await make(call, t, ['token.revoked', 'passage.version.submitted']);
+    expect((await call('DELETE', '/api/v1/token', t)).body).toEqual({ revoked: true });
+    await dispatcher.deliverDue();
+    expect(received.map((r) => r.body)).toEqual([expect.objectContaining({ type: 'token.revoked', tokenId: store.tokens[0]!.id, reason: 'revoked' })]);
+    expect((await call('GET', '/api/v1/me', t)).body.code).toBe('revoked');
+    recorded(log, 'din', 'd4');
+    await tick();
+    expect(received).toHaveLength(1);
+  });
+
+  it('says when the languages a token reaches change, as its person gains or loses them', async () => {
+    const { log, call, token, tick, received } = setup();
+    const t = await token('dinka', { scopes: ['read'] });
+    await make(call, t, ['language.added', 'language.removed']);
+    log.add('_org', 'v1.MemberAdded', { profileId: 'dinka', roleId: 'viewer', scope: { level: 'language', languageId: 'nus' } });
+    await tick();
+    log.add('_org', 'v1.MemberRemoved', { profileId: 'dinka', scope: { level: 'language', languageId: 'din' } });
+    await tick();
+    expect(received.map((r) => [r.body.type, r.body.languageId])).toEqual([['language.added', 'nus'], ['language.removed', 'din']]);
+  });
+
+  it('belongs to its token: made with a public https address in its languages, pinged, listed without the secret, deleted', async () => {
+    const { log, call, token, tick, received } = setup();
+    const t = await token('dinka', { scopes: ['read'] });
+    for (const bad of [{ url: 'http://app.example/x' }, { url: 'https://127.0.0.1/x' }, { url: 'https://localhost./x' }, { events: ['unit.moved'] }, { languageIds: ['nus'] }]) {
+      expect((await call('POST', '/api/v1/webhooks', t, { url: HOOK, events: ['unit.created'], ...bad })).status).toBe(400);
+    }
+    const { webhookId, secret } = await make(call, t, ['unit.created'], { languageIds: ['din'] });
+    expect(secret).toMatch(/^whsec_/);
+    const listed = await call('GET', '/api/v1/webhooks', t);
+    expect(listed.body.webhooks).toEqual([expect.objectContaining({ id: webhookId, languageIds: ['din'] })]);
+    expect(JSON.stringify(listed.body)).not.toContain(secret);
+    expect((await call('GET', `/api/v1/webhooks/${webhookId}`, t)).body.id).toBe(webhookId);
+    const ping = await call('POST', `/api/v1/webhooks/${webhookId}/ping`, t);
+    expect(ping.body.delivery).toMatchObject({ type: 'ping', status: 200, attempt: 1 });
+    expect(received.at(-1)!.body).toMatchObject({ type: 'ping', webhookId });
+    expect((await call('GET', `/api/v1/webhooks/${webhookId}/deliveries`, t)).body.deliveries[0].type).toBe('ping');
+    const other = await token('rev', { scopes: ['read'] });
+    expect((await call('GET', `/api/v1/webhooks/${webhookId}`, other)).status).toBe(404);
+    expect((await call('DELETE', `/api/v1/webhooks/${webhookId}`, t)).body).toEqual({ id: webhookId, deleted: true });
+    log.add('din', 'v1.UnitAdded', unit('d5', 'Luke 5'));
+    await tick();
+    expect(received).toHaveLength(1);
+  });
+
+  it('names the organization in /me, and gives each passage its kind, order and verses, so an app need not parse unit ids', async () => {
+    const { call, token } = setup();
+    const t = await token('rev', { scopes: ['read'] });
+    expect((await call('GET', '/api/v1/me', t)).body.org).toEqual({ id: ORG, name: 'Org' });
+    const d1 = (await call('GET', '/api/v1/languages/din/passages/d1', t)).body;
+    expect(d1).toMatchObject({ kind: 'passage', order: 'd1', reference: null });
+    expect(referenceOf('bsb/GEN.1.1-2.3~org')).toEqual({ book: 'GEN', chapter: 1, verse: 1, endChapter: 2, endVerse: 3 });
+    expect(referenceOf('bsb/MAT.5')).toEqual({ book: 'MAT', chapter: 5, verse: null, endChapter: 5, endVerse: null });
+    expect(referenceOf('bsb/MRK')).toEqual({ book: 'MRK', chapter: null, verse: null, endChapter: null, endVerse: null });
   });
 });
 

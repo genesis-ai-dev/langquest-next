@@ -6,6 +6,9 @@ import { OrgFolder } from './orgFolder';
 import { AgentOrg, type AgentQuery, type AgentWrite, type OrgAccess } from './agent/org';
 import type { Grant } from './agent/tokens';
 import type { LinkReviewInput, LinkSpec, ReviewLink } from './agent/view';
+import { WebhookDispatcher } from './agent/dispatch';
+import { supabaseAgentStore, type WebhookRecord } from './agent/store';
+import { COALESCE_MS } from './agent/webhooks';
 import { readPath } from './blobs';
 import { SqlCache } from './sqlCache';
 
@@ -65,6 +68,90 @@ export class OrgSnapshot extends DurableObject<Env> {
     return this.agentFor(orgId, '').access(profileId);
   }
 
+  // Webhooks and the change feed (agent/dispatch.ts, decisions.md 101). The
+  // database pokes when the log moves; a burst waits COALESCE_MS, so one
+  // alarm looks once and a recording session becomes one delivery.
+
+  async agentChanges(orgId: string, grant: Grant, languageId: string, after: number | null, limit: number) {
+    return this.agentFor(orgId, '').changes(grant, languageId, after, limit);
+  }
+
+  async agentScanWebhooks(orgId: string): Promise<void> {
+    await this.ctx.storage.put('webhooks:org', orgId);
+    await this.agentFor(orgId, '').scanWebhooks();
+    const next = this.dispatcherFor(orgId).nextDue();
+    if (next !== null) await this.wakeBy(next);
+  }
+
+  async agentWebhooksEnded(orgId: string, webhooks: WebhookRecord[]): Promise<void> {
+    await this.ctx.storage.put('webhooks:org', orgId);
+    await this.agentFor(orgId, '').webhooksEnded(webhooks);
+    await this.wakeBy(Date.now());
+  }
+
+  async agentPingWebhook(orgId: string, webhook: WebhookRecord) {
+    return this.agentFor(orgId, '').pingWebhook(webhook);
+  }
+
+  async agentWebhookDeliveries(orgId: string, webhookId: string) {
+    return this.agentFor(orgId, '').webhookDeliveries(webhookId);
+  }
+
+  /** Something was appended to the organization's log: look for changes shortly. */
+  async webhookPoke(orgId: string): Promise<void> {
+    await this.ctx.storage.put({ 'webhooks:org': orgId, 'webhooks:scanDue': Date.now() });
+    await this.wakeBy(Date.now() + COALESCE_MS);
+  }
+
+  /** Make sure the alarm goes off by `at`, never later than one already set. */
+  private async wakeBy(at: number): Promise<void> {
+    const current = await this.ctx.storage.getAlarm();
+    if (current === null || current > at) await this.ctx.storage.setAlarm(at);
+  }
+
+  async alarm(): Promise<void> {
+    const orgId = await this.ctx.storage.get<string>('webhooks:org');
+    if (!orgId) return;
+    const dispatcher = this.dispatcherFor(orgId);
+    const due = await this.ctx.storage.get<number>('webhooks:scanDue');
+    if (due !== undefined) {
+      await dispatcher.scan();
+      // A poke while scanning asks for another look.
+      if ((await this.ctx.storage.get<number>('webhooks:scanDue')) === due) await this.ctx.storage.delete('webhooks:scanDue');
+    }
+    await dispatcher.deliverDue();
+    const next = dispatcher.nextDue();
+    if ((await this.ctx.storage.get('webhooks:scanDue')) !== undefined) await this.wakeBy(Date.now() + COALESCE_MS);
+    if (next !== null) await this.wakeBy(Math.max(next, Date.now() + 1000));
+  }
+
+  private dispatcher: WebhookDispatcher | null = null;
+
+  private dispatcherFor(orgId: string): WebhookDispatcher {
+    if (!this.dispatcher) {
+      const storage = this.ctx.storage;
+      const folder = this.folderFor(orgId);
+      this.dispatcher = new WebhookDispatcher({
+        exec: (query, ...bindings) => storage.sql.exec(query, ...bindings),
+        transactionSync: (fn) => storage.transactionSync(fn)
+      }, orgId, {
+        store: supabaseAgentStore(serviceClient(this.env)),
+        orgState: () => folder.orgState(true),
+        languageState: (languageId) => folder.languageState(languageId),
+        heads: () => this.heads(orgId),
+        fetch: (url, init) => fetch(url, init),
+        now: Date.now
+      });
+    }
+    return this.dispatcher;
+  }
+
+  private async heads(orgId: string): Promise<Record<string, number>> {
+    const { data, error } = await serviceClient(this.env).rpc('stream_heads', { p_org_id: orgId });
+    if (error) throw new Error(`stream_heads: ${error.message}`);
+    return Object.fromEntries(((data ?? []) as { stream_id: string; head: number }[]).map((r) => [r.stream_id, Number(r.head)]));
+  }
+
   private origin = '';
 
   private agentFor(orgId: string, origin: string): AgentOrg {
@@ -76,7 +163,8 @@ export class OrgSnapshot extends DurableObject<Env> {
         sign: async (key) => {
           const { path, expiresAt } = await readPath(key, { serviceKey: this.env.SUPABASE_SERVICE_ROLE_KEY });
           return { url: `${this.origin}${path}`, expiresAt };
-        }
+        },
+        webhooks: this.dispatcherFor(orgId)
       });
     }
     return this.agent;
@@ -90,11 +178,7 @@ export class OrgSnapshot extends DurableObject<Env> {
         pull: transport.pull.bind(transport),
         snapshotMeta: transport.snapshotMeta.bind(transport),
         snapshotChunk: transport.snapshotChunk.bind(transport),
-        heads: async (org: string) => {
-          const { data, error } = await service.rpc('stream_heads', { p_org_id: org });
-          if (error) throw new Error(`stream_heads: ${error.message}`);
-          return Object.fromEntries(((data ?? []) as { stream_id: string; head: number }[]).map((r) => [r.stream_id, Number(r.head)]));
-        }
+        heads: (org: string) => this.heads(org)
       };
       const storage = this.ctx.storage;
       this.folder = new OrgFolder(source, orgId, new SqlCache({

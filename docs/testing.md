@@ -1,7 +1,7 @@
 # Testing strategy
 
 How this repo is tested, which layer a new test belongs in, and what runs
-where. Decision 101 records why. The UI test suite's own manual is
+where. Decision 102 records why. The UI test suite's own manual is
 [ui-test-suite/README.md](./ui-test-suite/README.md); this page is the
 strategy above it.
 
@@ -44,7 +44,7 @@ Not used, and why:
 
 - **Jev** (model-driven journeys judged by outcome). It drives only the web,
   its runs vary, every step is a paid model call, and it cannot say what a
-  screen showed. It was shelved on 2026-10-14 (decision 101); history keeps
+  screen showed. It was shelved on 2026-10-14 (decision 102); history keeps
   the harness. It returns, if at all, as a nightly discoverability signal,
   never as a gate.
 - **Detox**. Steadier than Maestro on React Native but needs native build
@@ -134,7 +134,7 @@ These keep the suite fast enough to run and stable enough to trust.
 
 ## Where it stands
 
-Measured on 2026-10-14, after decision 101 landed, on a MacBook with the
+Measured on 2026-10-14, after decision 102 landed, on a MacBook with the
 local stack (4 Playwright workers):
 
 | | Before | After |

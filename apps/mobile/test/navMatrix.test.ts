@@ -6,7 +6,7 @@ import { deriveSession, edgeAllowed, homeScreenFor, manageHomeFor, mapScreenFor,
 /**
  * The role matrices of 03 Home and navigation and 04 The Map
  * (docs/ui-test-suite), held here instead of in a browser per role
- * (decision 101). The organization is built as smart-tests/ui/fixture.ts
+ * (decision 102). The organization is built as smart-tests/ui/fixture.ts
  * builds the end-to-end one: the seed roles, a Language Lead (every
  * privilege but manage_roles and override_checkpoints) and a
  * Translator-Reviewer, each held at Alpha only, ADMIN and COORD and VIEW at

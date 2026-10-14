@@ -1,6 +1,6 @@
 import { ORG_STREAM, subscriptionItemId, type AnyEvent, type Role } from '@langquest-next/core';
 import { durationMs, formatOf, sha256Hex } from './audio';
-import { chosenHere, mapProject, type CopiedFile, type MapReport, type TemplateRef } from './map';
+import { chosenHere, mapProject, type CopiedFile, type MapContext, type MapReport, type TemplateRef } from './map';
 import { shownName } from './board';
 import { LIBRARY_ORG, libraryFact, orgFacts } from './orgFacts';
 import type { V2Reader, V2ProjectSummary } from './reader';
@@ -27,6 +27,8 @@ export interface PassDeps {
   /** Bytes already downloaded, so a second upload (a cloned project's files) need not download again. */
   cache?: { get(name: string): Promise<Uint8Array | null>; put(name: string, bytes: Uint8Array): Promise<void> };
   concurrency?: number;
+  /** How a retry waits (tests pass one that does not). */
+  wait?: (ms: number) => Promise<void>;
 }
 
 export interface ProjectReport {
@@ -159,10 +161,6 @@ class Run {
       const rows = await this.deps.v2.projectRows(projectId);
       await say('info', `Read ${n(rows.assets.length)} recordings in ${n(rows.quests.length)} quests, and ${n(rows.votes.length)} votes (${((this.now() - t0) / 1000).toFixed(1)} s)`);
 
-      const files = await this.copyFiles(rows, progress);
-      report.files = { ...files.counts, uploaded: 0 };
-      if (files.counts.copied) await say('info', `Copied ${n(files.counts.copied)} audio files from v2`);
-      if (files.counts.missing) await say('warn', `${n(files.counts.missing)} audio files are not in v2's storage`);
       const kind = rows.project.template === 'bible' || rows.project.template === 'fia' ? rows.project.template : null;
       const template = kind ? await this.template(kind) : null;
       if (template) await this.deps.target.grantLibrary(org.org_id, template.docHash);
@@ -175,21 +173,31 @@ class Run {
       // Roles chosen on the dashboard; an organization role's id stands for the project role with its privileges.
       const ROLE: Record<string, Role | 'none'> = { org_admin: 'owner', coordinator: 'coordinator', translator: 'translator', reviewer: 'reviewer', viewer: 'viewer', none: 'none' };
       const roles = new Map((this.plan.roles ?? []).filter((r) => r.project_id === projectId).map((r) => [r.profile_id, ROLE[r.role]!] as const));
-      const mapped = mapProject(rows, {
+      const decidedAt = placement.confirmed_at;
+      const context = (files: ReadonlyMap<string, CopiedFile>): MapContext => ({
         orgId: org.org_id,
-        language: { code, languoidId: placement.languoid_id, sourceCode, decidedAt: placement.confirmed_at, ...(placement.name ? { name: placement.name } : {}) },
+        language: { code, languoidId: placement.languoid_id, sourceCode, decidedAt, ...(placement.name ? { name: placement.name } : {}) },
         roles,
         people: this.people,
         released: this.released,
         ...(this.managers.get(org.org_id) ? { manager: this.managers.get(org.org_id)! } : {}),
-        files: files.map,
+        files,
         templates: template && kind ? { [kind]: template } : {},
         ...(guides ? { guides } : {}),
         now: this.now()
       });
+      // Which files stay in v2 (written work) does not depend on the files, so it is known before copying,
+      // and each file the language uses is stored in Next as soon as it is downloaded: once, not twice.
+      const held = new Set(mapProject(rows, context(new Map())).report.heldFiles);
+      const files = await this.copyFiles(rows, progress, { orgId: org.org_id, languageId: projectId, skip: held });
+      report.files = { ...files.counts, uploaded: files.counts.stored };
+      if (files.counts.copied) await say('info', `Copied ${n(files.counts.copied)} audio files from v2`);
+      if (files.counts.missing) await say('warn', `${n(files.counts.missing)} audio files are not in v2's storage`);
+      const mapped = mapProject(rows, context(files.map));
       report.map = mapped.report;
       if (mapped.report.heldBack) await say('info', `Left in v2 for now: ${n(mapped.report.heldBack)} written translations, transcriptions and back translations`);
-      report.files.uploaded = await this.upload(org.org_id, projectId, files.map, rows, progress, new Set(mapped.report.heldFiles));
+      // Files copied on an earlier pass (or by another project) that this language does not have yet.
+      report.files.uploaded += await this.upload(org.org_id, projectId, files.map, rows, progress, new Set(mapped.report.heldFiles));
       if (report.files.uploaded) await say('info', `Stored ${n(report.files.uploaded)} audio files in Next`);
 
       // The guides a team is offered are chosen here, so one no longer chosen is taken back; nothing from v2 is.
@@ -325,12 +333,15 @@ class Run {
 
   /**
    * Every file the project names: known ones from the file map, new ones
-   * downloaded, hashed and measured. A file v2 did not have is looked for
-   * again for a week, then left to the report.
+   * downloaded, hashed and measured, and stored for the language there and
+   * then unless `store.skip` names it (written work left in v2). A file v2
+   * did not have is looked for again for a week, then left to the report.
    */
-  private async copyFiles(rows: V2ProjectRows, progress: (p: Progress) => Promise<void>): Promise<{ map: Map<string, CopiedFile>; counts: { copied: number; missing: number } }> {
+  private async copyFiles(rows: V2ProjectRows, progress: (p: Progress) => Promise<void>, store: { orgId: string; languageId: string; skip: ReadonlySet<string> }): Promise<{ map: Map<string, CopiedFile>; counts: { copied: number; missing: number; stored: number } }> {
     const names = namesIn(rows);
     const known = await this.deps.target.files(names);
+    const stored = await this.deps.target.stored(store.orgId, store.languageId);
+    let storedNow = 0;
     const map = new Map<string, CopiedFile>();
     for (const [name, f] of known) if (!('missingSince' in f)) map.set(name, f);
     const todo = names.filter((n) => {
@@ -346,6 +357,11 @@ class Run {
       if (!bytes || !format) found.push({ name, file: null });
       else {
         const file: CopiedFile = { hash: await sha256Hex(bytes), size: bytes.length, durationMs: durationMs(bytes, format), format };
+        if (!store.skip.has(name) && !stored.has(file.hash)) {
+          stored.add(file.hash);
+          await again(() => this.deps.target.upload(store.orgId, store.languageId, file.hash, file.format, bytes), this.deps.wait);
+          storedNow += 1;
+        }
         map.set(name, file);
         found.push({ name, file });
       }
@@ -358,7 +374,7 @@ class Run {
       }
     });
     if (found.length > saved) await this.deps.target.putFiles(found.slice(saved));
-    return { map, counts: { copied: found.filter((f) => f.file).length, missing: found.filter((f) => !f.file).length } };
+    return { map, counts: { copied: found.filter((f) => f.file).length, missing: found.filter((f) => !f.file).length, stored: storedNow } };
   }
 
   /** Put every file the project uses into R2 for its language, once; not the ones `skip` names (written work left in v2). */
@@ -376,7 +392,7 @@ class Run {
     await pool([...todo.values()], this.deps.concurrency ?? 8, async ({ name, file }) => {
       const bytes = await this.bytes(name);
       if (bytes) {
-        await this.deps.target.upload(orgId, languageId, file.hash, file.format, bytes);
+        await again(() => this.deps.target.upload(orgId, languageId, file.hash, file.format, bytes), this.deps.wait);
         uploaded += 1;
       }
       tried += 1;
@@ -388,7 +404,7 @@ class Run {
   private async bytes(name: string): Promise<Uint8Array | null> {
     const cached = await this.deps.cache?.get(name);
     if (cached) return cached;
-    const bytes = await this.deps.v2.download(name);
+    const bytes = await again(() => this.deps.v2.download(name), this.deps.wait);
     if (bytes) await this.deps.cache?.put(name, bytes);
     return bytes;
   }
@@ -404,6 +420,22 @@ const n = (x: number) => x.toLocaleString('en-US');
 /** Every bucket file a project's live segments name. */
 function namesIn(rows: V2ProjectRows): string[] {
   return [...new Set(rows.contents.filter((c) => c.active).flatMap((c) => (c.audio ?? []).map(bucketName)).filter((x): x is string => !!x))];
+}
+
+/**
+ * A file step tried again after a passing failure (Next's storage answered 502, a connection dropped):
+ * five tries in all, waiting 1, 2, 4 and 8 seconds. One hiccup among a big project's thousands of
+ * files used to stop the whole transfer before anything was saved.
+ */
+export async function again<T>(work: () => Promise<T>, wait: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms))): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await work();
+    } catch (e) {
+      if (attempt >= 5) throw e;
+      await wait(1000 * 2 ** (attempt - 1));
+    }
+  }
 }
 
 async function pool<T>(items: readonly T[], size: number, work: (t: T) => Promise<void>): Promise<void> {

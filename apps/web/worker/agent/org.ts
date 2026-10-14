@@ -2,6 +2,8 @@ import { languageName, privilegesFor, mayViewLanguage, orgLanguages, type AnyEve
 import type { AppendResult } from '@langquest-next/client';
 import type { OrgFolder } from '../orgFolder';
 import type { Grant } from './tokens';
+import type { ChangePage, DeliveryOut, WebhookDispatcher } from './dispatch';
+import type { WebhookRecord } from './store';
 import {
   checkLinkSpec, externalValueEvent, externalValueFor, externalValuesFor, isRefusal, languageAccess, languagesFor, linkIsOpen, linkReviewEvent, linkView,
   mayRevokeLinks, mayStoreValues, passageFor, passagesFor, releaseEvent, reviewEvent,
@@ -56,7 +58,7 @@ export class AgentOrg {
   constructor(
     private readonly folder: OrgFolder,
     private readonly orgId: string,
-    private readonly deps: { append(events: AnyEvent[]): Promise<AppendResult[]>; sign: Signer; now?: () => number }
+    private readonly deps: { append(events: AnyEvent[]): Promise<AppendResult[]>; sign: Signer; now?: () => number; webhooks?: WebhookDispatcher }
   ) {}
 
   private now() {
@@ -129,6 +131,44 @@ export class AgentOrg {
     if (w.data === null) return yes({ key: w.key, deleted: true as const });
     const value = after ? externalValueFor(after.state, w.key) : null;
     return value && !isRefusal(value) ? yes(value) : no({ status: 502, code: 'unavailable', error: 'Stored, but it could not be read back just now. Read the key again.' });
+  }
+
+  // ---- the change feed and webhooks (decisions.md 101) --------------------------------
+
+  /** The language's changes after a cursor (dispatch.ts). Needs read: the feed names versions not yet approved. */
+  async changes(grant: Grant, languageId: string, after: number | null, limit: number): Promise<Answer<ChangePage>> {
+    const can = await this.read(grant, { op: 'can', languageId });
+    if (!can.ok) return can;
+    if ((can.data as LanguageView['can']).read !== 'all') return no({ status: 403, code: 'scope', error: 'The change feed needs the read scope.' });
+    const page = await this.webhooks().changes(languageId, after, limit);
+    return page ? yes(page) : no({
+      status: 410, code: 'cursor_expired',
+      error: 'That cursor is older than the changes LangQuest keeps (90 days). List the passages again, then follow from the cursor given without after.'
+    });
+  }
+
+  /** Look for changes now: a webhook was just made, so the languages it sees must have a starting point before anything else happens. */
+  async scanWebhooks(): Promise<void> {
+    await this.webhooks().scan();
+  }
+
+  /** Queue token.revoked for these webhooks; they stop after it. */
+  async webhooksEnded(webhooks: WebhookRecord[]): Promise<void> {
+    this.webhooks().tokenEnded(webhooks, 'revoked');
+  }
+
+  async pingWebhook(webhook: WebhookRecord): Promise<DeliveryOut> {
+    return this.webhooks().ping(webhook);
+  }
+
+  async webhookDeliveries(webhookId: string): Promise<{ deliveries: DeliveryOut[]; pending: number }> {
+    const w = this.webhooks();
+    return { deliveries: w.deliveries(webhookId), pending: w.pending(webhookId) };
+  }
+
+  private webhooks(): WebhookDispatcher {
+    if (!this.deps.webhooks) throw new Error('webhooks are not set up in this object');
+    return this.deps.webhooks;
   }
 
   /** Count an upload (a voice note) against a token's or a link's hourly uploads. */
