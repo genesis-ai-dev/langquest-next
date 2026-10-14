@@ -3369,7 +3369,7 @@ place here until an admin removes them.
 
 ## 95. The app's UI tests run on Maestro on phones and Playwright on the web; Jev stays for journeys judged by outcome
 
-Date: 2026-10-12 · By: Carl Sauder · Status: accepted
+Date: 2026-10-12 · By: Carl Sauder · Status: partly superseded by 101
 
 Reason: `docs/ui-test-suite/` specifies the app's end-to-end UI tests, per
 role, and about 550 of them can be automated. Carl chose (2026-10-12):
@@ -3514,3 +3514,56 @@ it is a real demo edge the app does not have (NOORG-003).
 
 Reverse if: the demo's flow gets a signed-out chooser. Then the edge
 belongs back.
+
+## 101. Five test layers, the lowest that can hold a check; end-to-end on the export, with a budget; Jev shelved
+
+Date: 2026-10-14 · By: Carl Sauder · Status: accepted
+
+Reason: a review of the repo's tests on 2026-10-14 (`docs/testing.md`)
+found a strong unit and property layer (1,400 tests in under five seconds),
+no coverage measurement, no layer between the pure models and the
+end-to-end suite, and a 537-test web suite that ran nowhere automatically.
+The suite had found about 90 product bugs (95), so the problem was
+proportion, not tools: it carried role-by-passage matrices that are pure
+functions of state and role, it slept where it could have waited on a
+signal (86 fixed waits), it found most things by their English words
+(13 `testID`s in the app), it ran on Metro's dev build rather than the
+export people get, and a failure mid-file burned a ceiling of up to twenty
+minutes. Carl chose (2026-10-14):
+
+- Five layers (unit and property, server, screen models, end-to-end web,
+  end-to-end phones), and a check goes in the lowest that can hold it. The
+  matrices move down to screen-model tests titled with their spec IDs; one
+  end-to-end test per screen proves the model reaches the glass.
+- The web suite runs against the release export served by the Worker, the
+  way the smoke test does; Metro stays for authoring (`UI_TARGET=dev`).
+- Waits are on signals: locators, the device log, and a test-state probe the
+  app exposes in test builds. `waitForTimeout` fails the hygiene test unless
+  the line says why nothing observable exists.
+- One test per role, the default timeout as the ceiling, screens entered by
+  URL, structure found by `testID` and copy by catalog key.
+- Retries stay at zero (95); a test that fails without a product cause goes
+  to `@quarantine` with an owner, and pass rates come from the kept reports.
+- `@p0` runs on every PR and before `npm run ship`; the whole suite, a fleet
+  scenario and Stryker on core run nightly; phones and the run sheet before a
+  store release.
+- Coverage is measured with thresholds for core and client; a traceability
+  test holds every `Auto` spec to an implementation and every P0 to
+  automation, with known gaps listed by reason.
+- Jev is shelved: the journeys, driver, bridge and Python environment leave
+  the tree, and the manual-dispatch CI job with them. It drove only the web,
+  varied between runs, cost a model call per step and could not say what a
+  screen showed; its port to the organization-and-language model had been
+  waiting since 2026-09-29. Not chosen either: Detox (native setup for a
+  flake rate not yet shown to need it), Jest with React Native Testing
+  Library (a second runner for screens that hold little logic), screenshot
+  comparison (later, once the suite is stable on the export).
+
+Amends 95: the automated tests stay on Maestro and Playwright; Jev no longer
+"stays for journeys judged by outcome".
+
+Reverse if: a screen's behaviour cannot be expressed as a model and
+end-to-end tests pile up again; Maestro's flake rate stays above a few
+percent after the fixes; or a discoverability problem (people cannot find
+how to do a job) slips through, which is the one thing a goal-driven agent
+checks and scripts do not. Then Jev returns as a nightly signal.
