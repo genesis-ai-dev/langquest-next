@@ -259,6 +259,16 @@ describe('mapProject: an older project with source material', () => {
     // A written translation is not lost: it is a note on the passage.
     expect(passage.notes.map((n) => n.text)).toEqual(['written only']);
   });
+
+  it('has an admin of the organization add its passages and source material, whoever made them in v2', () => {
+    const rows = older();
+    rows.quests = [quest('creation', null, { creator_id: 'trans' })];
+    rows.assets[0] = asset('s1', { creator_id: 'trans' });
+    const { all } = run([{ rows, ctx: ctx({ manager: 'admin' }) }]);
+    const by = (type: string) => [...new Set(all.filter((e) => e.type === type).map((e) => e.actorId))];
+    for (const type of ['v1.UnitAdded', 'v1.MaterialDefined', 'v1.MaterialFieldSet']) expect(by(type), type).toEqual(['admin']);
+    expect(by('v1.RecordingAdded')).toEqual(['trans']);
+  });
 });
 
 describe('mapProject: a v2 person confirmed as an account already in Next', () => {

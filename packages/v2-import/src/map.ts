@@ -49,9 +49,10 @@ export interface MapContext {
   released?: ReadonlyMap<string, string>;
   /**
    * Who signs membership changes and the language's own setup (adding it,
-   * its name and code, flow, template and guides): an admin of the
-   * organization already, so they are signed by a member even when the v2
-   * owner is not in the organization. The owner when not given.
+   * its name and code, flow, template, guides, passages, source material and
+   * audio formats): an admin of the organization already, so they are signed
+   * by someone who may, even when the v2 owner is not in the organization or
+   * a translator made the quest. The owner when not given.
    */
   manager?: string;
   /** Roles chosen on the dashboard, by v2 person; `none` leaves them out. Everyone else's follows their v2 work. */
@@ -150,9 +151,10 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
   /** The v2 person who did something, or the owner when v2 does not say. */
   const v2Actor = (id: string | null) => id ?? v2Owner;
   const actor = (id: string | null) => who(v2Actor(id));
-  // The language and how it is set up are said by an admin of the organization, who may: the v2 owner need
-  // not be in the organization at all (Every Language's are admins of their languages only), and then the
-  // server refuses "not a member" and everything in the language waits on it.
+  // The language and how it is set up (its passages, source material and audio formats too) are said by an
+  // admin of the organization, who may: the v2 owner need not be in the organization at all (Every
+  // Language's are admins of their languages only), and whoever made a quest or a piece of source material
+  // in v2 may be a translator here, who may not add passages ("may not emit v1.UnitAdded").
   const steward = ctx.manager ?? owner;
 
   // ---- what v2 holds, indexed ----------------------------------------------------------
@@ -304,7 +306,7 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
     const parent = q.parent_id && questIds.has(q.parent_id) ? q.parent_id : null;
     const kind = childQuests.has(q.id) || holdsMaterial ? (parent ? 'folder' : 'book') : 'passage';
     const parentUnitId = parent ? unitOf.get(parent) ?? parent : null;
-    facts.push(unitFact(`unit:${q.id}`, q.id, parentUnitId, kind, q.name?.trim() || `Quest ${i + 1}`, pad(i), actor(q.creator_id), at(q.created_at), !live(q), at(q.last_updated)));
+    facts.push(unitFact(`unit:${q.id}`, q.id, parentUnitId, kind, q.name?.trim() || `Quest ${i + 1}`, pad(i), steward, at(q.created_at), !live(q), at(q.last_updated)));
     if (live(q)) unitOf.set(q.id, q.id);
   });
   report.quests = quests.length;
@@ -412,7 +414,7 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
     material.forEach(({ p, a }, i) => {
       const passage = a.id;
       const label = a.name?.trim() || textOf(a).slice(0, 60) || `Part ${i + 1}`;
-      facts.push(unitFact(`unit:${a.id}`, passage, unitId, 'passage', label, `${pad(p.order_index)}.${pad(i)}`, actor(a.creator_id), at(a.created_at), false, at(a.last_updated)));
+      facts.push(unitFact(`unit:${a.id}`, passage, unitId, 'passage', label, `${pad(p.order_index)}.${pad(i)}`, steward, at(a.created_at), false, at(a.last_updated)));
       report.passages += 1;
       const fields: Said[] = [];
       for (const [j, c] of (contentsOf.get(a.id) ?? []).entries()) {
@@ -426,7 +428,7 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
       }
       if (fields.length > 0) {
         facts.push({
-          key: `src:${a.id}`, streamId: languageId, actorId: actor(a.creator_id), at: at(a.created_at), unsay: 'redact',
+          key: `src:${a.id}`, streamId: languageId, actorId: steward, at: at(a.created_at), unsay: 'redact',
           say: () => [{ type: 'v1.MaterialDefined', payload: { materialId: `v2src:${a.id}`, kind: 'source', title: 'Source', scope: { unitId: passage } } }, ...fields]
         });
         report.materials += 1;
@@ -464,7 +466,7 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
   // A file that is not m4a, used where only the log can say so (decisions.md 77).
   for (const hash of [...wavHashes].sort()) {
     facts.push({
-      key: `format:${hash}`, streamId: languageId, actorId: owner, at: t0, restate: false, unsay: nothing,
+      key: `format:${hash}`, streamId: languageId, actorId: steward, at: t0, restate: false, unsay: nothing,
       say: () => [{ type: 'v1.AudioFormatSet', payload: { hash, format: 'wav' } }]
     });
   }
