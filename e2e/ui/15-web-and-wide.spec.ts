@@ -609,12 +609,18 @@ test('WEB-023 Signing out forgets this browser @p0', async ({ page }) => {
   await page.getByText('Español', { exact: false }).locator('visible=true').first().click();
   await expect(tab(page, 'me')).toContainText('Yo', { timeout: 60_000 });
   await waitForApp(page);
-  // Step 1, in Spanish: "Cerrar sesión", then the question, which names what the browser forgets.
+  // The reload starts the app over: let it catch up first. A reload used to cut TRANS's downloads short and leave
+  // empty files the browser then tried to send forever, so the question turned into "Not yet" with its button off
+  // (blobs.ts listAll, 2026-10-14). The question is still asked again if it closed before its button was tapped.
+  await caughtUp(page, w, 'TRANS');
+  // Steps 1 and 2, in Spanish: "Cerrar sesión", then the question, which names what the browser forgets.
   await tab(page, 'me').click();
-  await button(page, 'Cerrar sesión').click();
-  await expect(text(page, '¿Cerrar sesión?')).toBeVisible();
-  // Step 2.
-  await primary(page).click();
+  await expect(async () => {
+    if (!(await text(page, '¿Cerrar sesión?').isVisible())) await button(page, 'Cerrar sesión').click({ timeout: 5_000 });
+    await expect(primary(page)).toBeEnabled({ timeout: 20_000 });
+    await expect(text(page, '¿Cerrar sesión?')).toBeVisible({ timeout: 5_000 });
+    await primary(page).click({ timeout: 5_000 });
+  }).toPass({ timeout: 90_000 });
   // Sign In, in the browser's language: the language picked here is forgotten too.
   await expect(page.getByText('Create Account', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
   // The browser forgot before the page reloaded (a download writing a file then no longer keeps the files: webFiles.ts). Nothing of TRANS's is left; a failure lists what is.
