@@ -278,13 +278,17 @@ Steps:
 1. Alpha's members → "Invite". Tap "Something else: make a new role".
 2. Name it "Storyteller {run}". Turn on "Record" and "Ask for checks". Tap
    Save.
-3. Back on "Invite someone", tap "Other roles · 4".
+3. Back on "Invite someone", read the roles. Tap Continue ("Show the code to
+   scan").
 
 Expected:
 - The role editor opens on a new role ("What is it called?").
 - Toast "Storyteller {run} created."
-- "Storyteller {run}" is among the other roles, and can be chosen and shown
-  as a code.
+- "Storyteller {run}" comes back chosen, with the other roles open (the
+  "Other roles · n" link is gone), and shows as a code.
+- Updated (2026-10-13): main's "Ready-made choices come with your own,
+  starting from the one picked" (4b9c582, design principle 12): the new role
+  used to be found under "Other roles · 4" and tapped.
 - COORD and LADMIN do not see "Something else: make a new role".
 
 Fixed (2026-10-13): a code for a role made a moment ago could fail with

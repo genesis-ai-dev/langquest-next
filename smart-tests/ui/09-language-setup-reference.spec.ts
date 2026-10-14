@@ -93,18 +93,18 @@ test('SETUP-053 Coverage and a passage\'s reference', async ({ page }) => {
     for (let i = 0; i < 12 && !(await page.getByText('Luke 15:11–32').count()); i++) await text(page, /^Show 25 more/).click();
     await text(page, 'Luke 15:11–32').click();
   });
-  await expectOnScreen(page, 'Reference', 'What translators are offered on this passage, and why.');
-  const guide = page.getByRole('button', { name: 'Hide here' }).first();
+  await expectOnScreen(page, 'What helps here');
+  const guide = page.getByRole('radio', { name: 'Hide here' }).first();
   if (await guide.count()) {
     await guide.click();
     await expectToast(page, /is hidden on this passage\.$/);
     await undoToast(page);
-    await page.getByRole('button', { name: 'Hide here' }).first().click();
-    await page.getByRole('button', { name: 'Show here' }).first().click();
+    await page.getByRole('radio', { name: 'Hide here' }).first().click();
+    await page.getByRole('radio', { name: 'Show here' }).first().click();
     await expectToast(page, /shows on this passage again\.$/);
   }
-  await text(page, 'Add').click();
-  await expectOnScreen(page, 'Add to this passage', 'Placed here by hand, whatever its coordinates say.');
+  await text(page, 'Add a help').click();
+  await expectOnScreen(page, 'Write a note for translators', 'From your library');
   await closeSheet(page);
   await expectSent(page, w);
   await expectNothingRefused(page, w);

@@ -168,6 +168,15 @@ test('SETUP-014 Choose which books a new language translates', async ({ page }) 
     'A coordinator can break up any book differently later, from the map.');
   await text(page, 'Choose books').click();
   await expectOnScreen(page, 'Mark', 'Luke');
+  // A book chip says whether it is on (aria-pressed on the web).
+  await expect(page.getByRole('button', { name: 'Mark', exact: true }).locator('visible=true').first()).toHaveAttribute('aria-pressed', 'true');
+  // Choose books starts from the part picked before (the New Testament), to change: every book of the New Testament is on, so one tap each clears it.
+  for (const book of ['Matthew', 'Mark', 'Luke', 'John', 'Acts', 'Romans', '1 Corinthians', '2 Corinthians', 'Galatians', 'Ephesians',
+    'Philippians', 'Colossians', '1 Thessalonians', '2 Thessalonians', '1 Timothy', '2 Timothy', 'Titus', 'Philemon', 'Hebrews',
+    'James', '1 Peter', '2 Peter', '1 John', '2 John', '3 John', 'Jude', 'Revelation']) {
+    const chip = text(page, book);
+    if (await chip.count()) await chip.click();
+  }
   await primary(page).click();
   await primary(page).click();
   await primary(page).click();
@@ -178,6 +187,8 @@ test('SETUP-014 Choose which books a new language translates', async ({ page }) 
   await expectOnScreen(page, 'How should the Bible be broken up?');
   await text(page, 'Mark').click();
   await text(page, 'Luke').click();
+  await expect(page.getByRole('button', { name: 'Luke', exact: true }).locator('visible=true').first()).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'John', exact: true }).locator('visible=true').first()).toHaveAttribute('aria-pressed', 'false');
   await primary(page).click();
   await finish(page);
   await text(page, 'Later').click();

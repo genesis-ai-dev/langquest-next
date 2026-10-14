@@ -338,13 +338,15 @@ npm run test:ui:phone -- --platform ios --tags smoke
   most text as `.*words.*`. A toast lives about 3.5 s, so a tap before a
   toast check uses `waitToSettleTimeoutMs: 0`.
 
-**Phone results (2026-10-13), test builds:** 19 of 30 flows pass on iOS and
-19 of 30 on Android (the two `wrapped` flows run on their own). The rest
-were the product bugs since fixed below (JRN-006, NAV-061 on Android,
-NOORG-010), the flows that need a microphone signal (JRN-001, JRN-004,
-REC-023, REC-026, REC-027, REC-043, P0-translator-publish: the simulator and
-emulator heard silence on this host, which has no loopback input), and
-NOORG-010 on iOS, which is Android-only by design. SYNC-027 needs `pfctl` to
+**Phone results (2026-10-13, after merging main), test builds:** 23 of 31
+flows pass on iOS and 24 of 31 on Android (the two `wrapped` flows run on
+their own). SYNC-016 (iOS) and PASS-068 (Android) failed once in the full
+run and passed alone. The rest are the flows that need a microphone signal
+(JRN-001, JRN-004, REC-023, REC-026, REC-027, REC-043,
+P0-translator-publish: the simulator and emulator heard silence on this
+host, which has no loopback input), and NOORG-010 on iOS, which is
+Android-only by design. Name the simulator with `--device` when an emulator
+is also running (the runner otherwise takes the one booted simulator). SYNC-027 needs `pfctl` to
 cut the network on iOS, and SYNC-026's "N of M" line passes too fast on a
 local stack to catch; both stay manual there.
 

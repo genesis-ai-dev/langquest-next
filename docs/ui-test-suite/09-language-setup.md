@@ -419,19 +419,25 @@ Preconditions (in addition to the global ones):
 Steps:
 1. Org home → "New language". Name it "Foxtrot {run}". Continue.
 2. Choose "The Bible", a numbering and a way.
-3. Under "Which part of the Bible?" tap "Choose books". Tap no book.
+3. Under "Which part of the Bible?" tap "Choose books". Tap each chosen
+   book to clear it, so no book is chosen.
 4. Continue through steps 3 and 4.
 5. Go back to step 2 with "Back". Tap "Mark" and "Luke". Continue to the
    end.
 
 Expected:
 - The chips are "New Testament" (chosen first), "Old Testament", "Whole
-  Bible" and "Choose books". "Choose books" shows one chip per book.
+  Bible" and "Choose books". "Choose books" shows one chip per book, with
+  every book of the part picked before (the New Testament) already on, to
+  change.
 - The note "A coordinator can break up any book differently later, from
   the map." shows.
 - At the end of step 4 with no book chosen: banner "Not added" with "Choose
   at least one book." Nothing is added.
 - After step 5 the language is added and its map has only Mark and Luke.
+- Updated (2026-10-13): main's "Ready-made choices come with your own,
+  starting from the one picked" (4b9c582, design principle 12): Choose books
+  used to start empty.
 
 ### SETUP-015 Numbering is chosen first, by Bible, by list or by questions
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -1129,13 +1135,18 @@ Preconditions (in addition to the global ones):
 Steps:
 1. ADMIN: Alpha's template view → "Luke". Tap "Tap to give it the name the
    team uses".
-2. Type "Luka" in "Its name". Tap "Save".
+2. Type "Luka" in the name field (it is labelled with the sheet's title).
+   Tap "Save".
 3. TRANS: Sync now. Open the map. Open a book still waiting (if any).
 4. ADMIN: name it "Luke" again.
 
 Expected:
-- The sheet is "What Alpha calls it" with "Shown everywhere this language
-  shows the book."
+- The sheet is "What Alpha calls Luke" with "Translators see this name". Under
+  the field it offers "What the team's Bibles call it" and "What other
+  languages here call it" when there are any, each name with "Use".
+- Updated (2026-10-13): main's "Merge books a way leaves out and naming a
+  book (demo ADR-042)": the sheet was "What Alpha calls it" with a field
+  labelled "Its name".
 - Toast "Alpha calls it Luka." with no Undo. The line reads "Called Luka in
   Alpha".
 - TRANS sees "Luka" on the map and in passage titles.
@@ -1540,19 +1551,24 @@ Steps:
 3. Tap Luke 15:11-32 (P-SUBMITTED).
 4. On its FIA guide tap "Hide here". Tap "Undo". Tap "Hide here" again,
    then "Show here".
-5. Tap "Add", pick a note.
+5. Tap "Add a help".
 
 Expected:
 - Summary: "{n} passages", "{n} with a Bible · {n} with a guide · {n} with
   a note", and the amber "{n} passages without a guide or note".
 - Rows without a guide say "Nothing recommended reaches it" with "No
   guide".
-- The passage page is "Reference", grouped "Study guides", "Notes for
-  translators", "Other material".
+- The passage page is "What helps here": the passage a tap away at the top,
+  then a card for each help with Show here / Hide here (PASS-034).
 - Toasts "{name} is hidden on this passage." and "{name} shows on this
   passage again.", with Undo.
-- Adding: "{name} is placed on this passage." It shows under "Placed here by
-  hand".
+- Adding: "Add a help" opens a sheet with "Write a note for translators"
+  first, set apart, then "From your library". Placing a library item says
+  "{name} is placed on this passage." and shows it with "Placed here by hand".
+- Updated (2026-10-13): main's 0a6934c (demo ADR-042): the passage's "Reference"
+  page is "What helps here"; "Add" is "Add a help". The automated test checks
+  Hide/Show only when a guide is offered on that passage, and only opens and
+  closes the Add a help sheet.
 
 ### SETUP-054 Write a note and a question set
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto

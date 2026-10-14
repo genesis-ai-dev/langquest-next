@@ -26,7 +26,9 @@ Deno.serve(async (request) => {
   if (request.method !== 'POST') return reply({ error: 'Method not allowed' }, 405);
   const v2Url = Deno.env.get('V2_SUPABASE_URL');
   const v2Key = Deno.env.get('V2_SUPABASE_ANON_KEY');
-  if (!v2Url || !v2Key) return reply({ error: 'Signing in with a LangQuest account is not set up here.', code: 'unavailable' }, 503);
+  // Only production reaches v2. Elsewhere there is no v2 account to find, so Sign In says what it would have said
+  // without asking: the email or password is wrong (v2SignIn.ts reads this code).
+  if (!v2Url || !v2Key) return reply({ error: 'Signing in with a LangQuest account is not set up here.', code: 'v2_not_set_up' }, 503);
 
   let email: unknown, password: unknown;
   try { ({ email, password } = await request.json()); } catch { return reply({ error: 'Invalid request' }, 400); }

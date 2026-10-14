@@ -30,7 +30,18 @@ const all = (name) => args.flatMap((a, i) => (a === `--${name}` && args[i + 1] ?
 const platform = value('platform', 'ios');
 if (!['ios', 'android'].includes(platform)) throw new Error('--platform is ios or android');
 const port = value('port', '8095');
-const device = value('device', platform === 'android' ? 'emulator-5554' : process.env.UI_IOS_DEVICE ?? '');
+/**
+ * The booted simulator, for an iOS run given no device. Without one Maestro
+ * picks the first device it finds, which is the Android emulator when both
+ * are running: an "iOS" run then tests whatever Android build is installed.
+ */
+function bootedSimulator() {
+  const r = spawnSync('xcrun', ['simctl', 'list', 'devices', 'booted', '-j'], { encoding: 'utf8' });
+  const booted = Object.values(JSON.parse(r.stdout || '{}').devices ?? {}).flat().filter((d) => d.state === 'Booted');
+  if (booted.length !== 1) throw new Error(`${booted.length} simulators are booted: name one with --device <udid> (or UI_IOS_DEVICE)`);
+  return booted[0].udid;
+}
+const device = value('device', platform === 'android' ? 'emulator-5554' : process.env.UI_IOS_DEVICE || bootedSimulator());
 const results = join(root, 'smart-tests/results/maestro', platform, value('label', 'run'));
 mkdirSync(results, { recursive: true });
 

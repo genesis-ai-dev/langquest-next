@@ -90,9 +90,11 @@ test('SYNC-003 Waiting work is listed until it goes', async ({ page, context }) 
   await expect.poll(() => tile(page, 'waiting to upload')).toBeGreaterThanOrEqual(3);
   const waiting = await tile(page, 'waiting to upload');
   await expect(text(page, `Waiting · ${waiting}`)).toBeVisible();
-  // One row per event: its type without the version prefix, and the time it was made, to the second.
-  await expect(page.getByText('NoteAdded', { exact: true }).locator('visible=true')).toHaveCount(3);
-  expect((await screenText(page)).match(/NoteAdded \d{1,2}:\d{2}:\d{2}/g)).toHaveLength(3);
+  // One row per event: its type without the version prefix and the passage it is about (design principle 11),
+  // and the time it was made, to the second.
+  const row = `NoteAdded · ${w.passages['P-SUBMITTED'].label}`;
+  await expect(page.getByText(row, { exact: true }).locator('visible=true')).toHaveCount(3);
+  expect((await screenText(page)).split(row + ' ').filter((rest) => /^\d{1,2}:\d{2}:\d{2}/.test(rest))).toHaveLength(3);
   expect(await screenText(page)).not.toContain('v1.NoteAdded');
   const confirmed = await tile(page, 'latest confirmed');
   await setOffline(context, false);

@@ -289,7 +289,7 @@ test('SETUP-022 Get a language ready, question by question @p0', async ({ page, 
   await expectOnScreen(page, 'What will help them?', 'Bibles they understand');
   // The local library has no Bible (no source@1 is seeded): there is none to tick here.
   await primary(page).click();
-  await expectOnScreen(page, '3 of 4', 'Who checks the recordings?');
+  await expectOnScreen(page, '3 of 4', 'Who checks the recordings?', 'Suggested');
   await primary(page).click();
   await expectToast(page, /checks the recordings\.$/);
   await expectOnScreen(page, '4 of 4', 'Invite your translators', 'Translate', 'Check', 'Back-translate', 'Help run the team', 'Something else');
@@ -734,8 +734,8 @@ test('SETUP-042 What a language calls a book, and what translators see', async (
   await text(page, 'Every way to divide the work').click();
   await text(page, 'Luke').click();
   await text(page, 'Tap to give it the name the team uses').click();
-  await expectOnScreen(page, 'What Alpha calls it', 'Shown everywhere this language shows the book.');
-  await field(page, 'Its name').fill('Luka');
+  await expectOnScreen(page, 'What Alpha calls Luke', 'Translators see this name');
+  await field(page, 'What Alpha calls Luke').fill('Luka');
   await button(page, 'Save').click();
   await expectToast(page, 'Alpha calls it Luka.');
   await expect(byId(page, 'toast-undo')).toHaveCount(0);
@@ -748,7 +748,7 @@ test('SETUP-042 What a language calls a book, and what translators see', async (
   await trans.context.close();
   // Put the name back for the tests after this one.
   await text(page, 'Called Luka in Alpha').click();
-  await field(page, 'Its name').fill('Luke');
+  await field(page, 'What Alpha calls Luke').fill('Luke');
   await button(page, 'Save').click();
   await expectToast(page, 'Alpha calls it Luke.');
   await expectSent(page, w);

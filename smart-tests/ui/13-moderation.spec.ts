@@ -707,7 +707,10 @@ test('MOD-021 Reports about a person', async ({ page, browser }) => {
   await expect(button(page, 'Open Members')).toBeVisible();
   await expect(button(page, 'Close the report')).toBeVisible();
   await button(page, 'Open Members').click();
-  await expect(heading(page, 'Members')).toBeVisible();
+  // Updated (2026-10-13, main's 7f26068): a reported person opens that member, where they can be removed.
+  await expect(heading(page, nameOf('TRANS'))).toBeVisible();
+  await expect(text(page, 'Remove from language')).toBeVisible();
+  await back(page).click();
   await openBell(page);
   await row(page, reported).click();
   await button(page, 'Close the report').click();

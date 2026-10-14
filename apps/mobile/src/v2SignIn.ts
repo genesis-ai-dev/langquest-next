@@ -15,7 +15,10 @@ export async function signInWithV2Account(email: string, password: string): Prom
   if (error) {
     const context = (error as { context?: Response }).context;
     const reply = context ? ((await context.json().catch(() => null)) as { code?: string } | null) : null;
-    // No reply at all is a connection that failed: say so as Sign In does.
+    // Where v2 sign-in is not set up (only production has it) or not deployed, there is no v2 account to
+    // find: the answer is this app's own, the email or password is wrong. No reply at all is a connection
+    // that failed: say so as Sign In does.
+    if (reply?.code === 'v2_not_set_up' || context?.status === 404) return { code: 'invalid_credentials' };
     return { code: reply?.code ?? (context ? 'unavailable' : 'network') };
   }
   const session = (data as { session?: { access_token: string; refresh_token: string } } | null)?.session;

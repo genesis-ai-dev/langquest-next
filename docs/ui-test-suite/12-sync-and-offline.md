@@ -90,8 +90,9 @@ Steps:
 Expected:
 - Step 2: "waiting to upload" is 3 (or the number of events those notes
   made). A section "Waiting · 3" lists one row per event: its type without
-  the version prefix (for example "NoteAdded", not "v1.NoteAdded") and the
-  time it was made, to the second.
+  the version prefix and the passage it is about (for example "NoteAdded ·
+  Luke 15:11–32", not "v1.NoteAdded"; updated 2026-10-13 for main's change
+  labels), and the time it was made, to the second.
 - Never more than 20 rows, however many are waiting.
 - Step 3: the rows go, "waiting to upload" returns to 0, "latest confirmed"
   rises, and the section disappears.

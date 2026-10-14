@@ -529,6 +529,8 @@ export function Chip(props: { label: string; on: boolean; onPress: () => void; i
   const onPress = spot.onPress;
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: props.on }} accessibilityLabel={props.accessibilityLabel}
+      // A chip is a toggle: on the web, a pressed button ("Mark, pressed"). react-native-web drops accessibilityState.selected.
+      aria-pressed={props.on}
       style={({ pressed }) => [styles.chip, props.on ? { backgroundColor: C.primary, borderColor: C.primary } : null, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={18} color={props.on ? C.white : C.primary} /> : null}
       <Text style={[styles.chipLabel, { color: props.on ? C.white : C.dark }]}>{props.count !== undefined ? t('shell.kit.chipCount', { label: props.label, number: formatNumber(props.count) }) : props.label}</Text>

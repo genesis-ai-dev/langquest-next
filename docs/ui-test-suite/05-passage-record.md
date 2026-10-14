@@ -775,22 +775,27 @@ Steps:
 3. COORD and LADMIN: on a study guide, tap "Hide here", then "Undo".
 
 Expected:
-- The header is "Reference", with the sub "Luke 15:11-32 · Alpha" and Back.
-  There is no tab bar on a phone.
-- The intro reads "What translators are offered on this passage, and why.
-  They can still explore any Bible online and choose for themselves."
-- Groups read "{group} · {n}" for Bibles, Study guides, Notes for
-  translators and Other material. Bibles always shows. Each row says why it
-  is offered and its language.
-- TRANS and VIEW see the list only, with no "Hide here", "Show here" or
-  "Add".
-- COORD and LADMIN (Reference material) get "Hide here" on each offered
-  item, which shows "{name} is hidden on this passage." with "Undo". Undo
-  restores the link. They also get a footer "Add" (08 STUDY covers adding).
-  The fixture offers nothing for Luke 15 but the Bibles group ("Bibles · 0":
-  FIA's English guides cover Genesis), so the automated test checks "Hide
-  here" only when an item is offered.
+- The header is "What helps here", with the sub "Alpha" and Back. There is no
+  tab bar on a phone.
+- At the top the passage is one tap away: "{passage} · {Bible}" (Luke
+  15:11-32 · BSB), which opens its text with key words and notes marked.
+- Each help is a card: its name, its steps and language and where it comes
+  from, and what it says on this passage (a guide's first step, a note's
+  first words, the key words), above Show here / Hide here. The Bibles come
+  last. With nothing recommended or placed here, translators get the study
+  from the organization's library ("From your organization's library"). With
+  nothing at all the page says "Nothing helps on this passage yet."
+- TRANS and VIEW see the cards only, with no "Hide here", "Show here" or
+  "Add a help".
+- COORD and LADMIN (Reference material) get "Show here" / "Hide here" on each
+  card; "Hide here" shows "{name} is hidden on this passage." with "Undo".
+  Undo restores the link. They also get "Add a help" (a note for translators
+  first, then the library; 08 STUDY covers adding). The automated test checks
+  "Hide here" only when a card is offered.
 - Back returns to "Something else?".
+- Updated (2026-10-13): main's "Decide about a passage with its text open"
+  (0a6934c, demo ADR-042, design principles 12 and 13): the page was titled
+  "Reference" and listed groups ("Bibles · {n}") with an "Add" footer.
 
 ### PASS-035 Keep a passage on this device
 Roles: TRANS, VIEW · Priority: P1 · Platforms: iOS, Android · Run: Auto

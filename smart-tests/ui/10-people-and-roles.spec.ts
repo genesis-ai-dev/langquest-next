@@ -382,7 +382,7 @@ test('PEOPLE-009 Make a new role while inviting', async ({ page, browser }) => {
   await openAs(page, w, 'ADMIN');
   await alphaMembers(page, w);
   await button(page, 'Invite').click();
-  const before = Number(/Other roles · (\d+)/.exec(await screenText(page))![1]);
+  await expect(text(page, /^Other roles · \d+$/)).toBeVisible();
   await text(page, 'Something else: make a new role').click();
   await expect(field(page, 'What is it called?')).toBeVisible();
   await field(page, 'What is it called?').fill(role);
@@ -391,9 +391,9 @@ test('PEOPLE-009 Make a new role while inviting', async ({ page, browser }) => {
   await primary(page).click();
   await expectToast(page, `${role} created.`);
   await expect(text(page, 'Invite someone')).toBeVisible();
-  await expect(text(page, `Other roles · ${before + 1}`)).toBeVisible();
-  await openOtherRoles(page);
-  await text(page, role).click();
+  // The role made from here comes back chosen, with the other roles open (design principle 12).
+  await expect(page.getByRole('radio', { name: role }).locator('visible=true').first()).toBeChecked();
+  await expect(text(page, /^Other roles · \d+$/)).toHaveCount(0);
   await primary(page).click();
   await expect(text(page, `${role} · Alpha`)).toBeVisible();
   await expect(text(page, 'Ask them to scan this')).toBeVisible();

@@ -358,8 +358,7 @@ Expected:
   passage on the Map to keep going."
 - COORD sees the same title with "Set up people, languages and review flows
   under Manage, or find any passage on the Map."
-- COORD also sees "Divide {book}" with "{n} books are waiting to be divided
-  before anyone records them" (NAV-022).
+- COORD also sees "Divide {book}" with the reason it waits (NAV-022).
 - "Everything in Alpha" (or "Everything in Bravo") shows, and opens the Map
   tab's screen.
 
@@ -471,9 +470,15 @@ Steps:
 
 Expected:
 - ADMIN, COORD and LADMIN see "Divide {book}" with a scissors icon, and
-  "Waiting to be divided before anyone records it" (or "{n} books are
+  the reason it waits: "{way} has no sections for {book}." (Alpha's way is
+  FIA, which has none for Jude), followed by "{n} more books wait too." when
+  there are several. A way chosen as "book by book" has no reason, so the row
+  says "Waiting to be divided before anyone records it" (or "{n} books are
   waiting to be divided before anyone records them").
-- Tapping it opens the Map tab's screen.
+- Tapping it opens that book's screen in the open language (the book's
+  header, e.g. "Jude").
+- Updated (2026-10-13): main's decision 93 and "My Work: the reason a book
+  waits fits beside it" (85934a9); the row used to open the Map tab's screen.
 - TRANS does not see the row.
 
 ## The bell and the Inbox

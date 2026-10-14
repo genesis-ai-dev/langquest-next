@@ -673,7 +673,9 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
   };
   return (
     <Screen header={header} bodyStyle={PAD}
-      footer={<PrimaryBtn label={key === 'choose' ? t('getReady.checks.chooseSteps') : t('common.next')} icon="right" busy={busy} onPress={() => void answer()} />}>
+      // Next waits for the ready-made list: pressed while it loads, it moved on without the suggested checks.
+      footer={<PrimaryBtn label={key === 'choose' ? t('getReady.checks.chooseSteps') : t('common.next')} icon="right" busy={busy}
+        disabled={!loaded && key === null} onPress={() => void answer()} />}>
       <Question>{questionLabel('checks')}</Question>
       {/* Making your own comes first, set apart, so the ready-made list below can grow (design principle 12). */}
       {canUse ? (

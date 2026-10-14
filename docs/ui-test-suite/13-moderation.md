@@ -514,7 +514,8 @@ Expected:
   bullying. You can remove them from the organization under Members." and
   "Reports never say who sent them. The LangQuest team sees every report
   too." Buttons "Open Members" and "Close the report".
-- Step 2: "Members" opens.
+- Step 2: the reported person's member page opens, where they can be
+  removed (updated 2026-10-13: main opens the member, not the Members list).
 - Step 3: the toast "Kept. The report is closed." The row leaves the Inbox.
 - Step 4, before step 3: COORD sees the report; LADMIN never does (LADMIN
   invites only at LANG-A). After step 3, COORD no longer sees it.

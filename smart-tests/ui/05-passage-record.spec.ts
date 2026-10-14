@@ -374,23 +374,23 @@ test('PASS-034 What helps here (the passage\'s reference)', async ({ browser }) 
     const page = await recordAs(browser, world(), who, 'P-SUBMITTED');
     await somethingElse(page);
     await button(page, 'What helps here').click();
-    await expect(header(page), who).toHaveText('Reference');
+    await expect(header(page), who).toHaveText('What helps here');
     const all = await screenText(page);
-    expect(all, who).toContain(`Reference ${label('P-SUBMITTED')} · Alpha`);
-    expect(all, who).toContain('What translators are offered on this passage, and why. They can still explore any Bible online and choose for themselves.');
-    expect(all, who).toMatch(/Bibles · \d+/i);
+    // Decision 93 / demo ADR-042: the passage is a tap away at the top ("{passage} · {Bible}"), and each help
+    // says what it says here above Show here / Hide here (those two are for whoever manages reference).
+    expect(all, who).toContain(`What helps here Alpha ${label('P-SUBMITTED')} · `);
     const manages = ['COORD', 'LADMIN'].includes(who);
-    // Reference material: Add for whoever holds it. "Hide here" is on each offered item, and this
-    // world offers nothing for Luke 15 beyond the Bibles group (FIA's English guides cover Genesis).
-    expect(all.trim().endsWith('Add'), `${who}: ${all}`).toBe(manages);
-    const offered = all.includes('Study guides ·') || all.includes('Notes for translators ·') || all.includes('Other material ·') || /BIBLES · [1-9]/i.test(all);
+    // "Add a help" for whoever holds Manage reference. This world offers Luke 15 no recommended material, so the
+    // organization's own study guide is the one card, and managers can hide it here.
+    expect(all.includes('Add a help'), `${who}: ${all}`).toBe(manages);
+    const offered = !all.includes('Nothing helps on this passage yet.');
     expect(all.includes('Hide here'), `${who}: ${all}`).toBe(manages && offered);
     expect(await byId(page, 'tab-map').isVisible(), `${who}: no tab bar`).toBe(false);
     if (manages && offered) {
-      await button(page, 'Hide here').click();
+      await text(page, 'Hide here').click();
       await expect(byId(page, 'toast')).toContainText('is hidden on this passage.');
       await byId(page, 'toast-undo').click();
-      await expect(button(page, 'Hide here')).toBeVisible();
+      await expect(text(page, 'Hide here')).toBeVisible();
     }
     await back(page).click();
     await expect(header(page), `${who}: Back`).toHaveText('Something else?');

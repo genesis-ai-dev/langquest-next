@@ -494,10 +494,11 @@ test('NAV-022 Divide a book from My Work', async ({ browser }) => {
   for (const who of ['ADMIN', 'COORD', 'LADMIN'] as const) {
     const { context, page } = await device(browser, who);
     await expect(text(page, 'Divide Jude')).toBeVisible();
-    await expect(text(page, 'Waiting to be divided before anyone records it')).toBeVisible();
+    // Alpha's way is FIA, which has none for Jude, so the row says why (decision 93 / 85934a9).
+    await expect(text(page, 'FIA passages (English) has no sections for Jude.')).toBeVisible();
     await text(page, 'Divide Jude').click();
-    await expect.poll(() => headerTitle(page), { message: who }).toBe('Progress');
-    await expect.poll(() => litTab(page)).toBe('map');
+    // It opens the book itself, in the open language (decision 93), not the Map.
+    await expect.poll(() => headerTitle(page), { message: who }).toBe('Jude');
     await context.close();
   }
   const { context, page } = await device(browser, 'TRANS');
