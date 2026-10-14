@@ -122,3 +122,57 @@ describe('LanguageSession: one language kept and moved (decisions.md 104)', () =
     expect(told).toBe(0);
   });
 });
+
+describe('LanguageSession: commands, waking and what settles', () => {
+  it('a command and a batch go in as one write each, and the counts follow', async () => {
+    const { open } = phone();
+    const session = await open();
+    await session.run([{ id: 'c1', type: 'v1.UnitAdded', payload: unit('Luke 1') }]);
+    await session.appendMany([{ type: 'v1.UnitAdded', payload: unit('Luke 2') }, { type: 'v1.UnitAdded', payload: unit('Luke 3') }]);
+    await session.run([]);
+    await session.appendMany([]);
+    await until(() => session.status.pending === 3);
+    expect(Object.keys(session.state.units).sort()).toEqual(['Luke 1', 'Luke 2', 'Luke 3']);
+    expect((await session.inspect()).pending).toHaveLength(3);
+    session.close();
+  });
+
+  it('a sync that leaves nothing of its own to send is the moment to send diagnostics', async () => {
+    const settled: number[] = [];
+    const { open } = phone({ onSettled: ({ blobsWanted }) => settled.push(blobsWanted) });
+    const session = await open();
+    await session.sync();
+    await until(() => settled.length === 1);
+    expect(settled).toEqual([0]);
+    session.close();
+  });
+
+  it('a sync that throws says so, and leaves online where it was', async () => {
+    const { open } = phone({ aroundSync: async () => { throw new Error('boom'); } });
+    const session = await open();
+    await session.sync();
+    expect(session.status).toMatchObject({ lastSync: 'error: boom', online: null });
+    session.close();
+  });
+
+  it('woken, it syncs; a membership change sends refused work again', async () => {
+    const { open } = phone();
+    const session = await open();
+    session.start();
+    session.wake();
+    await until(() => session.status.online === true);
+    await session.membershipChanged();
+    await session.refresh();
+    expect(session.status.refused).toBeNull();
+    session.close();
+  });
+
+  it('a unit no longer kept is let go', async () => {
+    const { open } = phone();
+    const session = await open();
+    await session.keepOffline('Luke 2', true);
+    await session.keepOffline('Luke 2', false);
+    expect([...session.status.keptUnits]).toEqual([]);
+    session.close();
+  });
+});

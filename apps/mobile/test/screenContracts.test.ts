@@ -51,6 +51,17 @@ describe('screen action contracts', () => {
     const src = path.join(root, 'src');
     const skip = new Set(['screenContracts.ts', 'flow.ts']);
     // Two levels: a screen's rules live in feature modules, which build on models (decisions.md 105).
+    // Each module is read and parsed once, however many screens import it.
+    const read = new Map<string, { text: string; file: ts.SourceFile }>();
+    const load = (hit: string) => {
+      let got = read.get(hit);
+      if (!got) {
+        const text = fs.readFileSync(hit, 'utf8');
+        got = { text, file: ts.createSourceFile(hit, text, ts.ScriptTarget.Latest, true, hit.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS) };
+        read.set(hit, got);
+      }
+      return got;
+    };
     const imported = (file: ts.SourceFile, dir: string, depth = 2): string[] => file.statements.flatMap((stmt) => {
       if (!ts.isImportDeclaration(stmt) || !ts.isStringLiteral(stmt.moduleSpecifier)) return [];
       const spec = stmt.moduleSpecifier.text;
@@ -58,10 +69,8 @@ describe('screen action contracts', () => {
       const base = path.resolve(dir, spec);
       const hit = ['.ts', '.tsx'].map((ext) => base + ext).find((f) => fs.existsSync(f));
       if (!hit || !hit.startsWith(src) || skip.has(path.basename(hit))) return [];
-      const text = fs.readFileSync(hit, 'utf8');
-      if (depth <= 1) return [text];
-      const inner = ts.createSourceFile(hit, text, ts.ScriptTarget.Latest, true, hit.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
-      return [text, ...imported(inner, path.dirname(hit), depth - 1)];
+      const { text, file: inner } = load(hit);
+      return depth <= 1 ? [text] : [text, ...imported(inner, path.dirname(hit), depth - 1)];
     });
     let checked = 0;
     for (const filename of fs.readdirSync(path.join(root, 'src/screens'))) {
@@ -84,7 +93,8 @@ describe('screen action contracts', () => {
       }
     }
     expect(checked).toBeGreaterThan(10);
-  });
+    // It parses every screen and two levels of what they import: a shared CI runner under coverage took over 5 s.
+  }, 30_000);
 
   it('walks every persona through allowed edges and checks emitted fixture actions', () => {
     const fixture = [...buildFixture(), ...buildOrgFixture()];

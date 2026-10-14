@@ -61,3 +61,35 @@ describe('durable outbox', () => {
     expect(deliver).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('durable outbox: a refused change, tried again', () => {
+  it('a permanent refusal stays visible; retry queues it again, and listeners hear each change', async () => {
+    const map = new Map<string, string>();
+    const storage = { getItem: async (k: string) => map.get(k) ?? null, setItem: async (k: string, v: string) => { map.set(k, v); } };
+    let refuse = true;
+    const outbox = new DurableOutbox('ana', storage, async () => {
+      if (refuse) throw new DeliveryError('not allowed', false);
+    });
+    const heard: string[] = [];
+    const stop = outbox.subscribe((reason) => heard.push(reason));
+    await outbox.enqueue({ id: 'r1', kind: 'report', payload: {} });
+    await expect(outbox.flush()).resolves.toBe(true);
+    expect(await outbox.list()).toEqual([expect.objectContaining({ id: 'r1', status: 'failed', error: 'not allowed' })]);
+    refuse = false;
+    await outbox.retry('r1');
+    await expect(outbox.flush()).resolves.toBe(true);
+    const [sent] = await outbox.list();
+    expect(sent).toMatchObject({ id: 'r1', status: 'sent' });
+    expect(sent).not.toHaveProperty('error');
+    expect(heard[0]).toBe('queued');
+    expect(heard).toContain('updated');
+    stop();
+    await outbox.enqueue({ id: 'r2', kind: 'report', payload: {} });
+    expect(heard.filter((r) => r === 'queued')).toHaveLength(2);
+  });
+
+  it('a guest has no outbox to write to', async () => {
+    const outbox = new DurableOutbox('guest', { getItem: async () => null, setItem: async () => {} }, async () => {});
+    await expect(outbox.enqueue({ id: 'g', kind: 'profile', payload: {} })).rejects.toThrow();
+  });
+});

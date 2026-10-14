@@ -40,7 +40,8 @@ describe('the app writes no words into its code (LAN-42)', () => {
     // `npx tsx apps/mobile/test/uiText.ts` lists them. Put each in src/i18n/en.json and use t();
     // a string that is not for people gets an `i18n-ignore` comment saying why.
     expect(found.map((f) => `${f.file}:${f.line} ${f.text}`)).toEqual([]);
-  });
+    // It parses every app file, so it grows with the app: a shared CI runner under coverage took over 5 s.
+  }, 30_000);
 
   it('draws text through src/text.tsx, so iOS lays it out in the reading direction', () => {
     const direct = files.filter((path) => !path.endsWith('src/text.tsx') && /import\s*\{[^}]*(?<![\w.])Text(?![\w])[^}]*\}\s*from\s*'react-native'/.test(readFileSync(path, 'utf8')));
