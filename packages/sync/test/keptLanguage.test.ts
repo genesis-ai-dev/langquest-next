@@ -1,5 +1,8 @@
+import { DatabaseSync } from 'node:sqlite';
 import { HlcClock, type LanguageState } from '@langquest-next/core';
 import { MemoryStore } from '../src/memoryStore';
+import { SqliteStore, type SqlDriver } from '../src/sqliteStore';
+import type { EventStore } from '../src/types';
 import { SyncClient } from '../src/syncClient';
 import { LanguageFiles } from '../src/languageFiles';
 import { FakeServer } from '../src/testing/fakeServer';
@@ -15,8 +18,25 @@ import { FakeServer } from '../src/testing/fakeServer';
 type Lang = LanguageState;
 let ids = 0;
 
-function phone(server: FakeServer, deviceId: string, actorId: string, opts: { keepOnDisk?: boolean; checkpointEvery?: number; store?: MemoryStore } = {}) {
-  const store = opts.store ?? new MemoryStore();
+/** node:sqlite, the test twin of the phone's driver: the kept table's SQL runs for real. */
+function sqlite(): EventStore {
+  const db = new DatabaseSync(':memory:');
+  const driver: SqlDriver = {
+    run: async (sql, params = []) => { db.prepare(sql).run(...(params as never[])); },
+    all: async <T,>(sql: string, params: unknown[] = []) => db.prepare(sql).all(...(params as never[])) as T[],
+    transaction: async (fn) => { db.exec('begin'); try { await fn(driver); db.exec('commit'); } catch (e) { db.exec('rollback'); throw e; } }
+  };
+  let opened: Promise<SqliteStore> | null = null;
+  const store = () => (opened ??= SqliteStore.open(driver));
+  // Every method waits for the schema, so the store can be handed over at once.
+  return new Proxy({} as EventStore, { get: (_t, k) => async (...a: unknown[]) => ((await store()) as unknown as Record<string, (...x: unknown[]) => unknown>)[k as string]!(...a) });
+}
+
+/** Each test runs on both stores: the memory twin, and SQLite as the phone runs it. */
+let makeStore: () => EventStore = () => new MemoryStore();
+
+function phone(server: FakeServer, deviceId: string, actorId: string, opts: { keepOnDisk?: boolean; checkpointEvery?: number; store?: EventStore } = {}) {
+  const store = opts.store ?? makeStore();
   const client = new SyncClient({
     orgId: 'org1', streamId: 'p1', actorId, deviceId, store, transport: server.transportFor(),
     clock: new HlcClock(deviceId, () => ++ids), newId: () => `${deviceId}-${++ids}`,
@@ -27,7 +47,7 @@ function phone(server: FakeServer, deviceId: string, actorId: string, opts: { ke
 }
 
 /** The language as a phone that keeps records on disk has it: memory plus what is kept. */
-async function whole(c: SyncClient, store: MemoryStore): Promise<Lang> {
+async function whole(c: SyncClient, store: EventStore): Promise<Lang> {
   const s = structuredClone(c.getState()) as Lang;
   for (const row of await store.keptByUnit('org1', 'p1', 'recording', Object.keys(s.units).concat(['u-other']))) {
     s.recordings[row.id] ??= JSON.parse(row.json);
@@ -51,6 +71,9 @@ async function language(server: FakeServer, n: number) {
   for (let i = 0; i < n; i++) server.storeBlob('org1', 'p1', `h${i}`, 100 + i);
   return lead;
 }
+
+describe.each([['memory', () => new MemoryStore() as EventStore], ['SQLite', sqlite]] as const)('on the %s store', (_name, make) => {
+beforeEach(() => { makeStore = make; });
 
 describe('a language that keeps its recordings on disk', () => {
   it('opens from a server snapshot holding no recordings in memory until a passage opens', async () => {
@@ -124,7 +147,7 @@ describe('a language that keeps its recordings on disk', () => {
   it('moves a checkpoint from before onto disk the first time it opens', async () => {
     const server = new FakeServer();
     await language(server, 20);
-    const store = new MemoryStore();
+    const store = makeStore();
     const old = phone(server, 'dB', 'r1', { store, checkpointEvery: 5 });
     await old.client.load();
     await old.client.pull();
@@ -197,4 +220,5 @@ describe('file planning for a language kept on disk', () => {
     expect(counts.get('u7')).toMatchObject({ audio: 2, here: 1, toFetch: 1, reason: 'worked' });
     expect(await files.lost(['unsent'])).toMatchObject({ unsent: 1, unitIds: ['u7'] });
   });
+});
 });

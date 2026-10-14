@@ -215,3 +215,40 @@ describe('LanguageSession: a language kept on disk (decisions.md 106)', () => {
     session.close();
   });
 });
+
+describe('LanguageSession: uploads keep moving while sync runs again and again', () => {
+  /** A store like a browser's: one lock for every read and write, each a few ms. */
+  function lockedStore() {
+    const inner = new MemoryStore();
+    let lock: Promise<unknown> = Promise.resolve();
+    const exclusive = <T,>(fn: () => Promise<T>): Promise<T> => {
+      const next = lock.then(async () => { await new Promise((r) => setTimeout(r, 8)); return fn(); });
+      lock = next.catch(() => {});
+      return next;
+    };
+    return new Proxy(inner, {
+      get: (t, k) => {
+        const v = (t as unknown as Record<string, unknown>)[k as string];
+        return typeof v === 'function' ? (...a: unknown[]) => exclusive(() => (v as (...x: unknown[]) => Promise<unknown>).apply(t, a)) : v;
+      }
+    });
+  }
+
+  for (const keepOnDisk of [false, true]) {
+    it(`a recording goes up between syncs (${keepOnDisk ? 'kept on disk' : 'kept in memory'})`, async () => {
+      // Why: an upload waits while a pull runs. A work list read from the
+      // phone's table each time waited behind the sync's own writes, and by
+      // then the next sync had started: on the web UI tests, whose probe
+      // syncs again and again, a recording made offline never went up.
+      const { files, uploaded, open } = phone({ store: lockedStore(), keepOnDisk });
+      const session = await open();
+      session.start();
+      files.put('h1', 10);
+      await session.append('v1.RecordingAdded', { recordingId: 'r1', unitId: 'Luke 1', kind: 'target', cards: [{ hash: 'h1', durationMs: 1000, format: 'm4a' }] });
+      const started = Date.now();
+      while (!uploaded.includes('h1') && Date.now() - started < 3000) await session.sync();
+      session.close();
+      expect(uploaded).toContain('h1');
+    });
+  }
+});

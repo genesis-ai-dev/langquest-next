@@ -55,6 +55,7 @@ export function holdsKept(state: LanguageState): boolean {
 export class KeptLanguage {
   /** Passages whose recordings memory holds, most recently asked for last. */
   private open: string[] = [];
+  private revision = 0;
 
   constructor(
     private readonly store: EventStore,
@@ -67,6 +68,15 @@ export class KeptLanguage {
   /** The passages whose recordings are in memory. */
   openUnits(): readonly string[] {
     return this.open;
+  }
+
+  /** Bumped whenever the rows on disk change (a checkpoint, a fresh snapshot), so lookups cached from them start again. */
+  get version(): number {
+    return this.revision;
+  }
+
+  changed(): void {
+    this.revision += 1;
   }
 
   /**

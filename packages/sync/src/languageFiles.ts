@@ -81,31 +81,71 @@ export class LanguageFiles {
     return this.client.getState().blobs[hash]?.size ?? this.sizes.get(hash);
   }
 
+  /**
+   * What was read from disk, kept until the rows there change (a checkpoint,
+   * a fresh snapshot): the transfer workers ask after every sync and every
+   * file, and a work list that waited on the database each time (behind the
+   * sync's own writes, on the web) kept missing the moments between syncs
+   * when uploads may run, so a recording made offline could wait minutes.
+   */
+  private cache = { version: -1, unitRecordings: new Map<string, string[]>(), cardRecording: new Map<string, string | null>(), recordings: new Map<string, Recording | null>(), verdicts: new Map<string, Verdict | null>() };
+
   /** Memory's language plus, from disk, these passages' recordings and the recordings holding these files, with their verdicts. */
   private async view(about: { units?: Iterable<string>; hashes?: Iterable<string> }): Promise<LanguageState> {
     const live = this.client.getState();
-    if (!this.client.keptRecords()) return live;
+    const kept = this.client.keptRecords();
+    if (!kept) return live;
     const { orgId, streamId } = this;
-    const recordings: Record<string, Recording> = { ...live.recordings };
-    const blobs: Record<string, Verdict> = { ...live.blobs };
-    const add = (id: string, json: string) => {
-      const kept = JSON.parse(json) as Recording;
-      const here = recordings[id];
-      recordings[id] = here ? keptRecording(kept, here) : kept;
-    };
-    const units = [...(about.units ?? [])];
-    if (units.length) for (const r of await this.store.keptByUnit(orgId, streamId, 'recording', units)) add(r.id, r.json);
-    const hashes = [...(about.hashes ?? [])];
-    if (hashes.length) {
-      const holding = new Set((await this.store.keptById(orgId, streamId, 'card', hashes)).map((c) => (JSON.parse(c.json) as { recordingId: string }).recordingId));
-      for (const r of await this.store.keptById(orgId, streamId, 'recording', [...holding])) add(r.id, r.json);
+    let c = this.cache;
+    if (c.version !== kept.version) {
+      c = this.cache = { version: kept.version, unitRecordings: new Map(), cardRecording: new Map(), recordings: new Map(), verdicts: new Map() };
     }
+    const hold = (id: string, json: string) => { c.recordings.set(id, JSON.parse(json) as Recording); };
+
+    const units = [...(about.units ?? [])];
+    const newUnits = units.filter((u) => !c.unitRecordings.has(u));
+    if (newUnits.length) {
+      for (const u of newUnits) c.unitRecordings.set(u, []);
+      for (const r of await this.store.keptByUnit(orgId, streamId, 'recording', newUnits)) {
+        hold(r.id, r.json);
+        c.unitRecordings.get(r.unitId)?.push(r.id);
+      }
+    }
+    const hashes = [...(about.hashes ?? [])];
+    const newHashes = hashes.filter((h) => !c.cardRecording.has(h));
+    if (newHashes.length) {
+      for (const h of newHashes) c.cardRecording.set(h, null);
+      for (const card of await this.store.keptById(orgId, streamId, 'card', newHashes)) {
+        c.cardRecording.set(card.id, (JSON.parse(card.json) as { recordingId: string }).recordingId);
+      }
+      const missing = [...new Set(newHashes.map((h) => c.cardRecording.get(h)).filter((id): id is string => !!id && !c.recordings.has(id)))];
+      for (const id of missing) c.recordings.set(id, null);
+      if (missing.length) for (const r of await this.store.keptById(orgId, streamId, 'recording', missing)) hold(r.id, r.json);
+    }
+
+    const recordings: Record<string, Recording> = { ...live.recordings };
+    const add = (id: string) => {
+      const keptCopy = c.recordings.get(id);
+      if (!keptCopy) return;
+      const here = recordings[id];
+      recordings[id] = here ? keptRecording(keptCopy, here) : keptCopy;
+    };
+    for (const u of units) for (const id of c.unitRecordings.get(u) ?? []) add(id);
+    for (const h of hashes) { const id = c.cardRecording.get(h); if (id) add(id); }
+
     const files = new Set(hashes);
-    for (const r of Object.values(recordings)) for (const c of r.cards) files.add(c.hash);
-    for (const v of await this.store.keptById(orgId, streamId, 'file', [...files])) {
-      const kept = JSON.parse(v.json) as Verdict;
-      const here = blobs[v.id];
-      blobs[v.id] = here ? keptVerdict(kept, here) : kept;
+    for (const r of Object.values(recordings)) for (const card of r.cards) files.add(card.hash);
+    const newFiles = [...files].filter((h) => !c.verdicts.has(h));
+    if (newFiles.length) {
+      for (const h of newFiles) c.verdicts.set(h, null);
+      for (const v of await this.store.keptById(orgId, streamId, 'file', newFiles)) c.verdicts.set(v.id, JSON.parse(v.json) as Verdict);
+    }
+    const blobs: Record<string, Verdict> = { ...live.blobs };
+    for (const h of files) {
+      const keptCopy = c.verdicts.get(h);
+      if (!keptCopy) continue;
+      const here = blobs[h];
+      blobs[h] = here ? keptVerdict(keptCopy, here) : keptCopy;
     }
     return { ...live, recordings, blobs };
   }

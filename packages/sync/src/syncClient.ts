@@ -238,7 +238,9 @@ export class SyncClient<S = LanguageState> {
     if (batch.meta && Object.keys(batch.meta).length === 0) delete batch.meta;
     if (batch.events?.length === 0) delete batch.events;
     if (Object.keys(batch).length === 0) return Promise.resolve();
-    return this.writer.run(() => this.opts.store.commit(batch));
+    // What the language keeps on disk changed: lookups cached from it are out of date.
+    const keptChanged = batch.kept?.streamId === this.opts.streamId;
+    return this.writer.run(() => this.opts.store.commit(batch)).then(() => { if (keptChanged) this.kept?.changed(); });
   }
 
   /** How many local writes are queued or in flight; zero means everything shown is on disk. */
