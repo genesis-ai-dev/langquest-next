@@ -22431,7 +22431,7 @@ function orgLicense(state) {
 // packages/core/src/version.ts
 var CLIENT_PROTOCOL_VERSION = 1;
 
-// packages/client/src/types.ts
+// packages/sync/src/types.ts
 var OfflineError = class extends Error {
   name = "OfflineError";
 };
@@ -22442,7 +22442,7 @@ var ClientTooOldError = class extends Error {
   name = "ClientTooOldError";
 };
 
-// packages/client/src/supabaseTransport.ts
+// packages/sync/src/supabaseTransport.ts
 var SupabaseTransport = class {
   constructor(supabase) {
     this.supabase = supabase;
@@ -22527,7 +22527,7 @@ function toError(error) {
   return new Error(`${error.code ?? "rpc"}: ${error.message}`);
 }
 
-// packages/client/src/snapshotFetch.ts
+// packages/sync/src/snapshotFetch.ts
 async function fetchSnapshot(transport, orgId, streamId, reducerVersion, opts = {}) {
   const meta = await transport.snapshotMeta(orgId, streamId, reducerVersion);
   if (!meta) return null;
@@ -22545,7 +22545,7 @@ async function fetchSnapshot(transport, orgId, streamId, reducerVersion, opts = 
   return { orgId, streamId, reducerVersion, serverSeq: meta.serverSeq, state: JSON.parse(pieces.join("")) };
 }
 
-// packages/client/src/listStreams.ts
+// packages/sync/src/listStreams.ts
 async function listStreams(service, pageSize = 1e3) {
   const out = [];
   let after = { org: "", stream: "" };
@@ -22560,7 +22560,7 @@ async function listStreams(service, pageSize = 1e3) {
   }
 }
 
-// packages/client/src/snapshotWorker.ts
+// packages/sync/src/snapshotWorker.ts
 var SNAPSHOT_SCHEDULE = { minNewEvents: 200, maxAgeMs: 60 * 60 * 1e3 };
 function shouldWriteSnapshot(o, schedule = SNAPSHOT_SCHEDULE) {
   if (!o.existing || o.redaction) return true;

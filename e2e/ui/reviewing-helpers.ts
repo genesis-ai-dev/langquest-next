@@ -4,7 +4,7 @@
 // a few screen steps both files share.
 import { createHash, randomUUID } from 'node:crypto';
 import { commands, derivePassage, type EventSpec, type LanguageState, type OrgState } from '@langquest-next/core';
-import { blobKey, workerBlobs, type SyncClient } from '@langquest-next/client';
+import { blobKey, workerBlobs, type SyncClient } from '@langquest-next/sync';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

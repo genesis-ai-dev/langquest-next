@@ -7,7 +7,7 @@
 // simply not shown. Each fold is kept until that language's log changes.
 // A word's recording plays from this phone, or streams from its language's
 // files when the server lets this person have them (helps.tsx).
-import { SupabaseTransport, SyncClient, ensureDeviceId } from '@langquest-next/client';
+import { SyncClient, ensureDeviceId } from '@langquest-next/sync';
 import { keyTermsFor, type KeyTermView } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useEffect, useState } from 'react';
@@ -16,7 +16,7 @@ import type { Ctx } from '../ctx';
 import { noteExpected } from '../report';
 import type { LanguageTerms } from '../simple/helpsModel';
 import { getStore } from '../store';
-import { supabase } from '../supabase';
+import { serverTransport } from '../server/sync';
 
 interface Held { terms: KeyTermView[]; formats: Record<string, string> }
 const held = new Map<string, { mark: string } & Held>();
@@ -35,7 +35,7 @@ async function termsOnPhone(c: { orgId: string; languageId: string; actorId: str
   if (hit && hit.mark === mark) return hit;
   const deviceId = await ensureDeviceId(store, () => Crypto.randomUUID());
   // Loading reads the log on this phone; the transport is never asked for anything.
-  const client = new SyncClient({ orgId: c.orgId, streamId: c.languageId, actorId: c.actorId, deviceId, store, transport: new SupabaseTransport(supabase) });
+  const client = new SyncClient({ orgId: c.orgId, streamId: c.languageId, actorId: c.actorId, deviceId, store, transport: serverTransport() });
   const state = await client.load();
   const terms = keyTermsFor(state);
   // How each recording of a word was saved (decisions.md 77), to play it from that language's files.

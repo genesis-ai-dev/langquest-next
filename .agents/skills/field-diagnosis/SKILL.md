@@ -1,6 +1,6 @@
 ---
 name: field-diagnosis
-description: Diagnose a problem someone in the field is having with LangQuest (slow downloads, sync that never finishes, crashes, a screen that will not open, missing work) from field diagnostics and server records, without asking them to describe it. Use when a report names an org, a language, a person's role, or an error code like "E-7K2Q01", or asks why the app is slow or failing for someone. Also use when changing what diagnostics record or how they are read (packages/client/src/diagnostics.ts, the diag schema, scripts/diag.ts).
+description: Diagnose a problem someone in the field is having with LangQuest (slow downloads, sync that never finishes, crashes, a screen that will not open, missing work) from field diagnostics and server records, without asking them to describe it. Use when a report names an org, a language, a person's role, or an error code like "E-7K2Q01", or asks why the app is slow or failing for someone. Also use when changing what diagnostics record or how they are read (packages/sync/src/diagnostics.ts, the diag schema, scripts/diag.ts).
 license: MIT
 ---
 
@@ -45,9 +45,9 @@ role on a hosted database (`DIAG_DATABASE_URL`) or the local database.
    with the update id's source maps.
 5. **Server side**: `diag.rpc_stats()` is in the report. For a specific
    window, the hosted project's API and storage logs, filtered by time.
-6. **Cross-check with code**: sync is `packages/client/src/syncClient.ts`
+6. **Cross-check with code**: sync is `packages/sync/src/syncClient.ts`
    (`pullSlice`, `adoptServerSnapshot`), transfers are
-   `apps/mobile/src/blobTransport.ts` and `transferWorker.ts`, snapshots
+   `apps/mobile/src/server/blobTransport.ts` and `transferWorker.ts`, snapshots
    `server/snapshotWorker.ts`. Use `systematic-debugging` before proposing
    a fix.
 7. **Answer** with: what the person is experiencing, the cause with the

@@ -19,7 +19,7 @@ secrets `npm run secrets` set on it (decisions.md 51).
 | Build command | | | | |
 | Deploy command | `npm run email:deploy` | `npm run web:deploy` | `npm run email:deploy:preview` | `npm run web:deploy:preview` |
 | Build variables and secrets | none | none | none | none |
-| Include paths | `apps/invite-email/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs` | `apps/web/*`, `apps/mobile/*`, `packages/core/*`, `packages/client/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs` | as invite email | as dashboard |
+| Include paths | `apps/invite-email/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs` | `apps/web/*`, `apps/mobile/*`, `packages/core/*`, `packages/sync/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs` | as invite email | as dashboard |
 
 Leave the default dependency install on. The web app's deploy command builds
 the Expo web export first (`npm run export:web`, a few minutes), reading

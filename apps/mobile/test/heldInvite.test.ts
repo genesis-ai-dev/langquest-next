@@ -1,6 +1,6 @@
 import { foldOrg, ORG_STREAM, type AnyEvent } from '@langquest-next/core';
 import { deriveSession } from '../src/session';
-import { claim, deadMessage, functionRefusal, HOLD_MS, holdScanned, inviteCard, learnFromPreview, nextStep, outcomeOfError, withExpiry, type HeldInvite } from '../src/heldInvite';
+import { claim, deadMessage, functionRefusal, HOLD_MS, holdScanned, inviteCard, learnFromPreview, nextStep, outcomeOfError, scanVerdict, withExpiry, type HeldInvite } from '../src/heldInvite';
 import { inviteUri, parseKey, signInUri } from '../src/inviteCode';
 import { isManagedEmail, makeSignInName, MANAGED_DOMAIN, signInAddress, signInName } from '../src/accounts';
 
@@ -192,5 +192,52 @@ describe('who may invite', () => {
     expect(managed.can('manage_structure')).toBe(true);
     const own = deriveSession('me', 'ryder@example.org', true, org);
     expect(own.can('invite_members')).toBe(true);
+  });
+});
+
+describe('what the scan screen says about a held invite (scanVerdict)', () => {
+  const ok = { status: 'ok' as const, label: 'Akol', group: false };
+  it('names the one person a single invite is for, and no one for a group', () => {
+    expect(scanVerdict(ok, { kind: 'idle' })).toEqual({ dead: null, alreadyIn: false, named: 'Akol' });
+    expect(scanVerdict({ ...ok, group: true }, { kind: 'idle' }).named).toBeNull();
+    expect(scanVerdict({ status: 'ok' }, { kind: 'idle' }).named).toBeNull();
+  });
+
+  it('an invite the server says is spent, or the app found dead, says why', () => {
+    expect(scanVerdict({ status: 'expired', invitedBy: 'Mary' }, { kind: 'idle' }).dead).toBe(deadMessage('expired', 'Mary'));
+    expect(scanVerdict(ok, { kind: 'dead', message: 'Gone' }).dead).toBe('Gone');
+    expect(scanVerdict(null, { kind: 'idle' }).dead).toBeNull();
+  });
+
+  it('already in: said, not dead', () => {
+    expect(scanVerdict({ status: 'joined' }, { kind: 'idle' })).toEqual({ dead: null, alreadyIn: true, named: null });
+  });
+});
+
+describe('a dead invite says why, and who to ask (AUTH-039, AUTH-040, AUTH-041, AUTH-042)', () => {
+  const words = {
+    expired: ['AUTH-039', 'This invite has expired.'],
+    used: ['AUTH-040', 'This invite has already been used.'],
+    not_found: ['AUTH-041', "This invite isn't valid. Check you scanned the whole code, or"],
+    retired: ['AUTH-042', 'This invite can no longer be used.']
+  } as const;
+
+  for (const reason of ['expired', 'used', 'not_found', 'retired'] as const) {
+    const [id, start] = words[reason];
+    it(`${id} ${reason}: the message, with and without the person who invited`, () => {
+      expect(deadMessage(reason, 'Mary')).toContain(start);
+      expect(deadMessage(reason, 'Mary')).toMatch(/ask Mary for a new one\.$/i);
+      expect(deadMessage(reason)).toMatch(/ask for a new one\.$/i);
+      expect(deadMessage(reason, null)).toBe(deadMessage(reason));
+    });
+
+    it(`${id} ${reason}: the scan screen shows it as dead, not joinable`, () => {
+      expect(scanVerdict({ status: reason, invitedBy: 'Mary' }, { kind: 'idle' })).toEqual({ dead: deadMessage(reason, 'Mary'), alreadyIn: false, named: null });
+      expect(scanVerdict({ status: reason }, { kind: 'idle' }).dead).toBe(deadMessage(reason));
+    });
+  }
+
+  it('AUTH-041 an invalid code claims nothing: the generic card, no sender', () => {
+    expect(inviteCard({ status: 'not_found' })).toEqual({ title: 'Invitation to join an organization', detail: null, from: null });
   });
 });

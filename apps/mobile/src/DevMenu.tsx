@@ -8,7 +8,8 @@ import * as Crypto from 'expo-crypto';
 import { useState } from 'react';
 
 import { Text } from './text';
-import { ensurePersonaAccount, joinAsPersona, maySeedDemoTeam, PERSONAS, personasAvailable, switchToPersona, type Persona } from './dev';
+import { maySeedDemoTeam, PERSONAS, personasAvailable, type Persona } from './dev';
+import { ensurePersonaAccount, joinAsPersona, switchToPersona } from './server/personas';
 import { issueInvite } from './invites';
 import { indexesFor } from './indexes';
 import { SCREEN_IDS, screenTitle, type ScreenId } from './flow';
@@ -17,7 +18,7 @@ import { loadDocs } from './library/docStore';
 import { subscribeOps, type SharedItem } from './library/model';
 import { reportError } from './report';
 import { runStorageBench } from './storageBench';
-import { supabase } from './supabase';
+import * as library from './server/library';
 import type { OrgHandle } from './useOrg';
 import type { LanguageHandle } from './useLanguage';
 
@@ -62,11 +63,11 @@ export function DevMenu(props: {
    */
   async function useStandardFlow() {
     const orgId = props.language.orgId;
-    const { data, error: failed } = await supabase.rpc('library_shared_items', { p_kind: 'flow', p_query: 'Standard Bible Flow', p_limit: 5, p_offset: 0 });
+    const { data, error: failed } = await library.sharedItems('flow', 'Standard Bible Flow', 5);
     if (failed) throw new Error(failed.message);
     const shared = ((data ?? []) as SharedItem[]).find((r) => r.org_id === 'langquest');
     if (!shared) throw new Error('LangQuest\'s flows are not on this server yet: run npm run library:seed.');
-    const { error: denied } = await supabase.rpc('library_adopt', { p_org: orgId, p_source_org: shared.org_id, p_source_item: shared.item_id, p_hash: shared.latest_hash });
+    const { error: denied } = await library.adopt(orgId, shared.org_id, shared.item_id, shared.latest_hash);
     if (denied) throw new Error(denied.message);
     const { itemId, ops } = subscribeOps(shared, true);
     for (const op of ops) await props.org.append(op.type, op.payload as never);

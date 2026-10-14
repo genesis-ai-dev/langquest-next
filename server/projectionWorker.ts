@@ -1,9 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { buildIndexes, foldOrg, languageInfo, languagePeople, languageProgress, ORG_STREAM, orgLicense, PERSON_ORG,
   REDUCER_VERSION, unitTitle, updatesFor, type AnyEvent, type OrgState, type Update } from '@langquest-next/core';
-import { runSnapshotWorker, SNAPSHOT_SCHEDULE } from '../packages/client/src/snapshotWorker';
-import { SupabaseTransport } from '../packages/client/src/supabaseTransport';
-import { listStreams } from '../packages/client/src/listStreams';
+import { runSnapshotWorker, SNAPSHOT_SCHEDULE } from '../packages/sync/src/snapshotWorker';
+import { SupabaseTransport } from '../packages/sync/src/supabaseTransport';
+import { listStreams } from '../packages/sync/src/listStreams';
 
 function check(result: { error: { message: string } | null }) {
   if (result.error) throw new Error(result.error.message);

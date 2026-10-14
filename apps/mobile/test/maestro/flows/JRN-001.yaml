@@ -5,12 +5,14 @@
 # team. Ana has no password, so COORD cannot come back on this phone: the
 # coordinator's "Ask someone" (steps 7-9) and the other devices' checks are
 # run on the web in JRN-011 (e2e/ui/16-jrn-011.spec.ts).
-# Audio comes from the host's microphone (G8).
+# Audio comes from the host's microphone (G8): tag voice, so the runner skips
+# this flow unless the run has one (--voice or --mic).
 appId: com.frontierrnd.langquestnext
 name: "JRN-001 A new translator's first day: invited, welcomed, records and asks for a check"
 tags:
   - jrn
   - p0
+  - voice
 ---
 - runFlow: ../common/launch.yaml
 - runFlow:

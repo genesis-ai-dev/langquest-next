@@ -30,7 +30,7 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { MemoryStore, SupabaseTransport, SyncClient } from '@langquest-next/client';
+import { MemoryStore, SupabaseTransport, SyncClient } from '@langquest-next/sync';
 import {
   applyOrgEvent, emptyLanguageState, emptyOrgState, foldOrg, ORG_STREAM, REDUCER_VERSION, SEED_ROLES, selectFlowSpecs, selectTemplateSpecs,
   subscriptionItemId, type EventSpec, type FlowDoc, type LibraryDoc, type OrgState, type TemplateDoc, type VersificationDoc

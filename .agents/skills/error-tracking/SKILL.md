@@ -33,7 +33,7 @@ local log with a reason and are shown to the user. A tracker may count them by
 ## 2. Errors in code
 
 - **Typed errors with a `name`**, as `OfflineError` and `NotAuthorizedError` in
-  `packages/client/src/types.ts` do. Callers branch on type, not on message
+  `packages/sync/src/types.ts` do. Callers branch on type, not on message
   text. Wrap with `new Error(msg, { cause })` so the chain survives.
 - **Expected failures across module boundaries are return values** (a
   discriminated union such as `{ ok: true, value } | { ok: false, reason }`).

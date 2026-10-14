@@ -1,9 +1,9 @@
-import { SupabaseTransport, SyncClient, ensureDeviceId } from '@langquest-next/client';
+import { SyncClient, ensureDeviceId } from '@langquest-next/sync';
 import type { EventSpec } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { noteExpected } from './report';
 import { getStore } from './store';
-import { supabase } from './supabase';
+import { serverTransport } from './server/sync';
 
 /**
  * Write events into a language's stream this phone does not have open: a
@@ -21,7 +21,7 @@ export async function appendToLanguage(c: { orgId: string; languageId: string; a
     actorId: c.actorId,
     deviceId,
     store,
-    transport: new SupabaseTransport(supabase),
+    transport: serverTransport(),
     newId: () => Crypto.randomUUID()
   });
   await client.load();
