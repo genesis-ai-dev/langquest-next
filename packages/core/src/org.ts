@@ -72,7 +72,7 @@ export interface OrgEventPayloads extends LibraryEvents, ReferenceOrgEvents {
   'v1.LanguageTargetSet': { languageId: string } & LanguageTarget;
   /**
    * A cluster's name: a group the organization puts some of its languages
-   * in (decision 103). Not a level: nothing about a language, its people
+   * in (decision 104). Not a level: nothing about a language, its people
    * or its stream depends on it. Register per cluster; making one and
    * renaming it are the same event.
    */
@@ -348,7 +348,7 @@ interface OrgLanguage {
 }
 
 /**
- * A cluster as the organization knows it (decision 103). Its name and each
+ * A cluster as the organization knows it (decision 104). Its name and each
  * language's place in it are written by different events, so they commute:
  * a language tagged before the cluster's name arrives waits for the name.
  */
@@ -624,7 +624,7 @@ export function languageName(org: OrgState | null, languageId: string): string {
   return l?.name || l?.code.toUpperCase() || languageId;
 }
 
-/** A cluster of the organization's languages (decision 103). */
+/** A cluster of the organization's languages (decision 104). */
 export interface ClusterInfo {
   clusterId: string;
   name: string;

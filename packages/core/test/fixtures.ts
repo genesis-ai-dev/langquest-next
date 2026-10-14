@@ -341,7 +341,7 @@ export function buildOrgFixture(): AnyEvent[] {
   raw('code-a', 'dB', '001800000966000:000000:dB', 'v1.LanguageCodeSet', { languageId: 'L1', code: 'dib', languoidId: '0a1b2c3d-0000-4000-8000-000000000001' });
   raw('code-b', 'dC', '001800000966000:000000:dB', 'v1.LanguageCodeSet', { languageId: 'L1', code: 'dik', languoidId: '0a1b2c3d-0000-4000-8000-000000000002' });
   raw('code-c', 'dB', '001800000962500:000000:dB', 'v1.LanguageCodeSet', { languageId: 'L1', code: 'din', languoidId: null });
-  // A cluster (decision 103): named, renamed from two devices at one clock
+  // A cluster (decision 104): named, renamed from two devices at one clock
   // (the higher id stands), a language tagged in and out from two devices,
   // and a tag that arrives before its cluster's name.
   emit('v1.ClusterNamed', { clusterId: 'cl1', name: 'Dinka cluster' });

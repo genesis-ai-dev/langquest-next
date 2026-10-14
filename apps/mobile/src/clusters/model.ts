@@ -1,4 +1,4 @@
-// Clusters (decision 103, demo ADR-045): a name an organization puts on
+// Clusters (decision 104, demo ADR-045): a name an organization puts on
 // some of its languages. Nothing here touches a language's stream, people
 // or setup; a cluster is two kinds of organization event, a name and a tag
 // per (language, cluster). Pure: the screens append what this returns.

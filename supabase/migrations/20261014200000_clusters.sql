@@ -1,4 +1,4 @@
--- Clusters: a name an organization puts on some of its languages (decisions.md 103).
+-- Clusters: a name an organization puts on some of its languages (decisions.md 104).
 --
 --   v1.ClusterNamed        { clusterId, name }
 --   v1.LanguageClusterSet  { languageId, clusterId, inCluster }
@@ -11,7 +11,7 @@
 -- one does (language_of_org_event leaves both at org scope).
 --
 -- validate_payload and event_privilege are restated whole, as `create or
--- replace`, from 20261012200000_check_helps.sql's, plus these events.
+-- replace`, from 20261012200000_check_helps.sql's, plus these events (no later migration restates them).
 -- scripts/record-parity-sql.ts holds them to core.
 
 create or replace function public.validate_payload(p_type text, p jsonb)
