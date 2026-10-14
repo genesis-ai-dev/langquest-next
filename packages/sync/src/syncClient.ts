@@ -51,7 +51,7 @@ interface PublishedState<S = LanguageState> {
 }
 
 /** What one `sync()` attempt did, and why it did nothing when it did nothing. */
-interface SyncResult {
+export interface SyncResult {
   pushed: number;
   rejected: number;
   pulled: number;
@@ -65,7 +65,7 @@ interface SyncResult {
   more: boolean;
 }
 
-interface SyncClientOptions<S = LanguageState> {
+export interface SyncClientOptions<S = LanguageState> {
   /** Defaults to the language reducer. */
   materializer?: Materializer<S>;
   orgId: string;

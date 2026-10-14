@@ -1,14 +1,11 @@
-import { HlcClock, ORG_STREAM, applyOrgEvent, derivePassage, emptyOrgState, foldOrg, REDUCER_VERSION, type LanguageState, type OrgState } from '@langquest-next/core';
+import { HlcClock, ORG_STREAM, derivePassage, type LanguageState, type OrgState } from '@langquest-next/core';
 import { MemoryStore } from '../src/memoryStore';
-import { SyncClient, type Materializer } from '../src/syncClient';
+import { SyncClient } from '../src/syncClient';
+import { ORG_MATERIALIZER } from '../src/orgSession';
 import { FakeServer } from '../src/testing/fakeServer';
 import { rejectCodeOf } from '../src/types';
 
 /** The organization stream's fold, as the app wires it (apps/mobile useOrg). */
-const ORG_MATERIALIZER: Materializer<OrgState> = {
-  empty: emptyOrgState, apply: applyOrgEvent, fold: foldOrg, compact: (s) => { s.appliedEventIds = {}; }, version: REDUCER_VERSION
-};
-
 const unit = (i: number | string, label = `P${i}`) =>
   ({ unitId: `u${i}`, parentUnitId: null, kind: 'passage', label, order: `a${i}` });
 

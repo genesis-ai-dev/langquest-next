@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import {
-  applyOrgEvent, derivePassage, deriveUploadWork, emptyOrgState, foldOrg, isStored, ORG_STREAM, REDUCER_VERSION, SEED_ROLES,
+  derivePassage, deriveUploadWork, isStored, ORG_STREAM, SEED_ROLES,
   type OrgState, type Scope
 } from '@langquest-next/core';
 import { MemoryStore } from '../src/memoryStore';
@@ -9,7 +9,8 @@ import { runBlobReconciler } from '../src/blobReconciler';
 import type { BlobFiles } from '../src/workerBlobs';
 import { BadDigest, handleBlobs, type BlobBucket, type BlobDeps } from '../../../apps/web/worker/blobs';
 import { SupabaseTransport } from '../src/supabaseTransport';
-import { SyncClient, type Materializer } from '../src/syncClient';
+import { SyncClient } from '../src/syncClient';
+import { ORG_MATERIALIZER } from '../src/orgSession';
 
 /**
  * Runs against the local Supabase started by `npm run db:start`. Skipped when
@@ -18,10 +19,6 @@ import { SyncClient, type Materializer } from '../src/syncClient';
 const URL = process.env['SUPABASE_URL'] ?? 'http://127.0.0.1:54421';
 const ANON = process.env['SUPABASE_ANON_KEY'] ?? '';
 const SERVICE = process.env['SUPABASE_SERVICE_ROLE_KEY'] ?? '';
-
-const ORG_MATERIALIZER: Materializer<OrgState> = {
-  empty: emptyOrgState, apply: applyOrgEvent, fold: foldOrg, compact: (s) => { s.appliedEventIds = {}; }, version: REDUCER_VERSION
-};
 
 async function reachable(): Promise<boolean> {
   try {

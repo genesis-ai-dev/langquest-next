@@ -1,5 +1,5 @@
-import { DEFAULT_TRANSFER_BUDGET_BYTES, DOWNLOAD_DEFAULTS, SupabaseTransport, SyncClient, TransferBudget, TransferWorker, UPLOAD_DEFAULTS, ensureDeviceId, SyncScheduler, type SyncInspection } from '@langquest-next/sync';
-import { audioFormatsFor, CommandError, defaultOfflineScope, emptyLanguageState, deriveDownloadWork, deriveUploadWork, evictableBlobs, type BlobRef, type EventPayloads, type EventSpec, type EventType, type LanguageState } from '@langquest-next/core';
+import { DEFAULT_TRANSFER_BUDGET_BYTES, LanguageSession, SupabaseTransport, TransferBudget, ensureDeviceId, type LanguageStatus, type SyncInspection } from '@langquest-next/sync';
+import { CommandError, emptyLanguageState, type BlobRef, type EventPayloads, type EventSpec, type EventType, type LanguageState } from '@langquest-next/core';
 import { getBlobStore, type BlobFile, type BlobStore } from './blobs';
 import { downloadBlob, streamUrl, uploadBlob } from './blobTransport';
 import { diagnostics, flushDiagnostics, timedTransfer, type TransferTimings } from './diagnostics';
@@ -94,149 +94,60 @@ export interface LanguageHandle {
 }
 
 /** Keep this much free for recording, and cap the cache; evict only what the server can give back. */
-const MIN_FREE_BYTES = 500 * 1024 * 1024;
-const MAX_CACHE_BYTES = 2 * 1024 * 1024 * 1024;
+const LIMITS = { minFreeBytes: 500 * 1024 * 1024, maxTotalBytes: 2 * 1024 * 1024 * 1024 };
 
 /** One budget per device, shared by every language's workers. */
 const transferBudget = new TransferBudget(DEFAULT_TRANSFER_BUDGET_BYTES);
 
+const NOTHING_YET: LanguageStatus = {
+  revision: 0, saving: false, pending: 0, refusedEvents: 0, lastSync: 'never', online: null, tooOld: false,
+  refused: null, pulled: false, live: false, pendingUp: 0, pendingDown: 0, peakUp: 0, peakDown: 0,
+  present: new Set(), keptUnits: new Set()
+};
+
 /**
- * Owns one SyncClient for one language stream on this device. Screens read `state`
- * and call `append`; nothing else in the app touches events or sync.
+ * The open language's stream for screens. The stream itself (its
+ * SyncClient, transfers, scheduler and reclaim) is a `LanguageSession` in
+ * packages/sync (decisions.md 103); this hook opens one with the phone's
+ * store, files and transport, follows it into React state, and adds what is
+ * the phone's own: playable URLs, transfer speeds, and finishing a
+ * recording a crash interrupted. Screens read `state` and call `append`;
+ * nothing else in the app touches events or sync.
  */
 export function useLanguage(orgId: string, openId: string | null, actorId: string, membershipEpoch = 0): LanguageHandle {
   // Before the organization has a language there is no stream to sync: an
   // empty language, and every write a no-op.
   const languageId = openId ?? '';
-  const clientRef = useRef<SyncClient | null>(null);
+  const sessionRef = useRef<LanguageSession | null>(null);
+  const filesRef = useRef<BlobStore | null>(null);
   const [state, setState] = useState<LanguageState | null>(null);
-  const [pending, setPending] = useState(0);
-  const [lastSync, setLastSync] = useState('never');
-  const [online, setOnline] = useState<boolean | null>(null);
+  const [status, setStatus] = useState<LanguageStatus>(NOTHING_YET);
   // Bumped when a web recording's URL is ready (blobs.ts uriFor); only its re-render matters.
   const [, setUrlsReady] = useState(0);
-  const [tooOld, setTooOld] = useState(false);
-  const [refused, setRefused] = useState<string | null>(null);
-  const [refusedEvents, setRefusedEvents] = useState(0);
-  const [pulled, setPulled] = useState(false);
-  const [keptUnits, setKeptUnits] = useState<ReadonlySet<string>>(new Set());
-  const keptRef = useRef<ReadonlySet<string>>(new Set());
-  const keepKey = `keep:${orgId}/${languageId}`;
-  const [present, setPresent] = useState<ReadonlySet<string>>(new Set());
-  const [pendingUp, setPendingUp] = useState(0);
-  const [pendingDown, setPendingDown] = useState(0);
-  const [peakUp, setPeakUp] = useState(0);
-  const [peakDown, setPeakDown] = useState(0);
-  const [live, setLive] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [revision, setRevision] = useState(0);
-  const schedulerRef = useRef<SyncScheduler | null>(null);
   const upMeter = useRef(new RateMeter());
   const downMeter = useRef(new RateMeter());
-  const storeRef = useRef<BlobStore | null>(null);
-  const upRef = useRef<TransferWorker | null>(null);
-  const downRef = useRef<TransferWorker | null>(null);
-  const onlineRef = useRef<boolean | null>(null);
-  const pullingRef = useRef(false);
-  const pendingUpRef = useRef(0);
-  const pendingDownRef = useRef(0);
-
-  // One copy per change to the fold, however often the client publishes (publishedState.ts).
-  const copyRef = useRef(stateCopier());
-
-  const refresh = useCallback(async () => {
-    const c = clientRef.current;
-    if (!c) return;
-    // The fold mutates in place; copy the top level so React sees a change.
-    const next = copyRef.current(c.getState(), c.publishedRevision);
-    if (next) setState(next);
-    // The count is a query; it must not hold the state update.
-    void c.pendingCount().then(setPending).catch(() => {});
-    void c.refusedCount().then(setRefusedEvents).catch(() => {});
-  }, []);
-
-  const sync = useCallback(async (): Promise<{ more: boolean }> => {
-    const c = clientRef.current;
-    if (!c) return { more: false };
-    let changed = true;
-    let more = false;
-    try {
-      pullingRef.current = true;
-      const r = await trackSync(() => c.sync());
-      pullingRef.current = false;
-      more = r.more;
-      changed = r.pushed > 0 || r.pulled > 0 || r.rejected > 0;
-      setTooOld(r.tooOld);
-      setRefused(r.refused);
-      if (!r.offline && !r.refused && !r.more) setPulled(true);
-      // Diagnostics go only after this phone's own work: outbox empty, uploads idle.
-      if (!r.offline && !r.more && pendingUpRef.current === 0) {
-        void c.pendingCount()
-          .then((n) => (n === 0 ? flushDiagnostics({ blobCacheBytes: storeRef.current?.totalBytes(), blobsWanted: pendingDownRef.current }) : undefined))
-          .catch(() => {});
-      }
-      // Online is exactly "the server answered". A refusal is an answer, so a
-      // device whose membership is missing is online and says so; it must not
-      // be shown, or treated, as offline.
-      const wasOnline = onlineRef.current;
-      onlineRef.current = !r.offline;
-      setOnline(!r.offline);
-      // New confirmations may have arrived: re-derive. Reconnect retries now,
-      // which clears waits. A finished sync while not recording runs the
-      // waiting upload pass now: nudge()'s debounce, restarted by every
-      // following sync, held a just-recorded file until the minute tick.
-      // Failure backoff stays put; only trigger() clears it.
-      if (!r.offline && wasOnline === false) upRef.current?.trigger();
-      else if (!r.offline && !isRecording()) upRef.current?.nudge(0);
-      else upRef.current?.nudge();
-      downRef.current?.nudge();
-      setLastSync(
-        r.offline
-          ? 'offline'
-          : r.refused
-            ? `refused: ${r.refused}`
-            : r.pushed === 0 && r.pulled === 0 && r.rejected === 0
-              // i18n-ignore: a sync status for diagnostics, not words on screen
-              ? 'up to date'
-              : `pushed ${r.pushed}, pulled ${r.pulled}, rejected ${r.rejected}`
-      );
-    } catch (err) {
-      // Not a transport failure: those come back as `offline` above. We do not
-      // know whether the server is reachable, so leave the flag where it was
-      // rather than claiming offline.
-      pullingRef.current = false;
-      setLastSync(`error: ${(err as Error).message}`);
-    }
-    if (changed) await refresh();
-    return { more };
-  }, [refresh]);
 
   // Back on screen or back online: sync now rather than at the end of a backoff.
-  useEffect(() => onWake(() => schedulerRef.current?.wake()), []);
+  useEffect(() => onWake(() => sessionRef.current?.wake()), []);
 
   // The organization stream changed someone's membership or a role: work
   // the server refused for want of one may be accepted now (NOT_MEMBER).
   useEffect(() => {
     if (membershipEpoch === 0) return;
-    const c = clientRef.current;
-    if (!c) return;
-    void c.retryRejected(['NOT_MEMBER', 'NOT_ALLOWED']).then((n) => {
-      if (n > 0) schedulerRef.current?.nudge();
-    }).catch(() => {});
+    void sessionRef.current?.membershipChanged().catch(() => {});
   }, [membershipEpoch]);
 
   useEffect(() => {
     let cancelled = false;
-    let cleanupBlobs = () => {};
+    let opened: LanguageSession | null = null;
+    const stops: (() => void)[] = [];
     // Another language opened (docs/decisions.md 37): nothing from the last
     // language may show under this one while it loads.
     setState(null);
-    setPulled(false);
-    setOnline(null);
-    onlineRef.current = null;
+    setStatus(NOTHING_YET);
     if (!openId) {
       setState(emptyLanguageState());
-      setPulled(true);
+      setStatus({ ...NOTHING_YET, pulled: true });
       return;
     }
     (async () => {
@@ -244,233 +155,120 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
       // One random id per install, persisted. Every device must differ or
       // clocks can tie and the fold becomes order-dependent.
       const deviceId = await ensureDeviceId(store, () => Crypto.randomUUID());
-      const kept = new Set<string>(JSON.parse((await store.meta(keepKey)) || '[]') as string[]);
-      keptRef.current = kept;
-      setKeptUnits(kept);
-      const transport = new SupabaseTransport(supabase);
-      const client = new SyncClient({
-        orgId,
-        streamId: languageId,
-        actorId,
-        deviceId,
-        store,
-        transport,
-        // Hermes has no global crypto.randomUUID.
-        newId: () => Crypto.randomUUID(),
-        // A long catch-up shares the thread with taps and the meter, and the
-        // whole-state clone a checkpoint takes waits until recording is over.
-        yieldBetweenPages: () => new Promise<void>((resolve) => setTimeout(resolve, 0)),
-        deferCheckpoint: isRecording,
-        diag: diagnostics
-      });
-      await client.load();
-      const blobStore = await getBlobStore();
-      if (cancelled) return;
-      clientRef.current = client;
-      storeRef.current = blobStore;
-      // The client publishes after every fold change and every commit; the
-      // screen follows that, not the call sites. The fold mutates in place,
-      // so copy the top level, but only when the fold changed: identity is
-      // the revision, and a publish that only says a write was saved keeps it.
-      copyRef.current = stateCopier();
-      const unsubscribe = client.subscribe((s) => {
-        const next = copyRef.current(s.state, s.revision);
-        if (next) setState(next);
-        setSaving(s.saving > 0);
-        setRevision(s.revision);
-      });
-
-      const common = {
-        isOnline: () => onlineRef.current !== false,
-        isPulling: () => pullingRef.current,
-        // Recording and local saves come first; transfers wait.
-        isDeferred: isRecording,
+      const files = await getBlobStore();
+      const where = { orgId, streamId: languageId };
+      const session = await LanguageSession.open({
+        orgId, languageId, actorId, deviceId, store, files,
+        transport: new SupabaseTransport(supabase),
+        upload: (ref) => metered(upMeter.current, files, ref, 'up', where, (timings) => uploadBlob(orgId, languageId, ref, files, timings)),
+        download: (ref) => metered(downMeter.current, files, ref, 'down', where, (timings) => downloadBlob(orgId, languageId, ref, files, timings)),
         budget: transferBudget,
-        // Upload size from disk; download size from the server's confirmation.
-        sizeOf: (ref: BlobRef) => blobStore.sizeOf(ref.hash) ?? client.getState().blobs[ref.hash]?.size
-      };
-      const scopeNow = () => {
-        const scope = defaultOfflineScope(client.getState(), actorId);
-        for (const u of keptRef.current) scope.add(u);
-        return scope;
-      };
-      // Storage pressure must never reach the recorder: after any change to
-      // what is on disk, give back out-of-scope files the server still has.
-      const reclaim = () => {
-        try {
-          blobStore.reclaim(
-            evictableBlobs(client.getState(), blobStore.snapshot(), scopeNow(), blobStore.sizes()),
-            { minFreeBytes: MIN_FREE_BYTES, maxTotalBytes: MAX_CACHE_BYTES }
-          );
-        } catch { /* disk queries can fail on some devices; try again next change */ }
-      };
-      const up = new TransferWorker({
-        ...UPLOAD_DEFAULTS,
-        ...common,
-        // Size from the confirmation versus the file here: a mismatch reopens the upload.
-        work: () => deriveUploadWork(client.getState(), blobStore.snapshot(), blobStore.sizes()),
-        transfer: (ref) => metered(upMeter.current, blobStore, ref, 'up', { orgId, streamId: languageId }, (t) => uploadBlob(orgId, languageId, ref, blobStore, t)),
-        onChange: (n) => { pendingUpRef.current = n; setPendingUp(n); setPeakUp((p) => (n === 0 ? 0 : Math.max(p, n))); }
+        limits: LIMITS,
+        // Recording comes first: transfers, and the whole-state clone a checkpoint takes, wait.
+        isDeferred: isRecording,
+        client: {
+          // Hermes has no global crypto.randomUUID.
+          newId: () => Crypto.randomUUID(),
+          // A long catch-up shares the thread with taps and the meter.
+          yieldBetweenPages: () => new Promise<void>((resolve) => setTimeout(resolve, 0)),
+          diag: diagnostics
+        },
+        aroundSync: trackSync,
+        onSettled: ({ blobsWanted }) => { void flushDiagnostics({ blobCacheBytes: files.totalBytes(), blobsWanted }).catch(() => {}); }
       });
-      const down = new TransferWorker({
-        ...DOWNLOAD_DEFAULTS,
-        ...common,
-        // Rule 10: by scope, never the whole language. Scope is the actor's
-        // own units plus what they explicitly chose to keep offline.
-        work: () => deriveDownloadWork(client.getState(), blobStore.snapshot(), scopeNow()),
-        transfer: (ref) => metered(downMeter.current, blobStore, ref, 'down', { orgId, streamId: languageId }, (t) => downloadBlob(orgId, languageId, ref, blobStore, t)),
-        onChange: (n) => { pendingDownRef.current = n; setPendingDown(n); setPeakDown((p) => (n === 0 ? 0 : Math.max(p, n))); }
-      });
-      upRef.current = up;
-      downRef.current = down;
-      up.start();
-      down.start();
-      const unsub = blobStore.onChange(() => {
-        up.nudge();
-        down.nudge();
-      });
-      reclaim();
-      const unsubReclaim = blobStore.onChange(reclaim);
-      // What is on this phone, for the offline marks on passages and in Settings.
-      setPresent(blobStore.snapshot());
-      const unsubPresent = blobStore.onChange(() => setPresent(blobStore.snapshot()));
+      if (cancelled) { session.close(); return; }
+      opened = session;
+      sessionRef.current = session;
+      filesRef.current = files;
+      // The fold mutates in place, so copy the top level, but only when the
+      // fold changed: identity is the revision (publishedState.ts).
+      const copy = stateCopier();
+      const publish = () => {
+        const next = copy(session.state, session.status.revision);
+        if (next) setState(next);
+        setStatus(session.status);
+      };
+      stops.push(session.subscribe(publish));
       // Web: a recording's playable URL is read from the browser's files on first ask; draw again once it is.
-      const unsubUrls = blobStore.onUrlReady(() => setUrlsReady((n) => n + 1));
-      // Sync on a poke from the server, after a local append, and on a
-      // fallback poll that backs off while offline (SyncScheduler).
-      const scheduler = new SyncScheduler({
-        run: async () => { const { more } = await sync(); return { offline: onlineRef.current === false, more }; }
-      });
-      schedulerRef.current = scheduler;
-      const unwatch = transport.watch(orgId, languageId, {
-        onPoke: () => scheduler.nudge(),
-        onStatus: (connected) => { setLive(connected); scheduler.connection(connected); }
-      });
-      cleanupBlobs = () => {
-        unsubscribe();
-        unsub();
-        unsubReclaim();
-        unsubPresent();
-        unsubUrls();
-        up.stop();
-        down.stop();
-        unwatch();
-        scheduler.stop();
-        schedulerRef.current = null;
-      };
-
-      await refresh();
-      scheduler.start();
+      stops.push(files.onUrlReady(() => setUrlsReady((n) => n + 1)));
+      session.start();
+      publish();
       // Finish any save a crash or kill interrupted (recordingJournalCore.ts).
       // Idempotent by recordingId; runs after the workers so the upload
       // pass sees the recovered card.
       const resumed = await getRecordingJournal().resume({ orgId, languageId }, {
-        blobExists: (hash, format) => blobStore.exists({ hash, format }),
+        blobExists: (hash, format) => files.exists({ hash, format }),
         ingest: async (uri, format, beforeMove) => {
-          const { ref, size } = await blobStore.ingest(uri, format, (ref, size) => beforeMove(ref.hash, size));
+          const { ref, size } = await files.ingest(uri, format, (ref, size) => beforeMove(ref.hash, size));
           return { hash: ref.hash, size };
         },
-        hasRecording: (id) => !!client.getState().recordings[id],
+        hasRecording: (id) => !!session.state.recordings[id],
         append: async (e) => {
-          await client.append('v1.RecordingAdded', {
+          await session.client.append('v1.RecordingAdded', {
             recordingId: e.id, unitId: e.target.unitId, kind: 'target',
             cards: [{ hash: e.hash, durationMs: e.durationMs, format: e.format }]
           });
         }
       }).catch(() => null);
       if (cancelled || !resumed?.resumed.length) return;
-      await refresh();
-      up.trigger();
+      await session.refresh();
+      session.triggerUpload();
     })();
     return () => {
       cancelled = true;
-      cleanupBlobs();
-      clientRef.current = null;
-      upRef.current = null;
-      downRef.current = null;
+      for (const stop of stops) stop();
+      opened?.close();
+      sessionRef.current = null;
+      filesRef.current = null;
     };
-  }, [orgId, languageId, openId, actorId, refresh, sync, keepKey]);
+  }, [orgId, languageId, openId, actorId]);
 
-  // A voice note this device stored as WAV (a browser without MP4) goes
-  // with an event saying so, ahead of the event that names it (decisions.md 77).
-  const formatsFor = useCallback((items: readonly { type: EventType; payload: unknown }[]) => {
-    const store = storeRef.current;
-    const c = clientRef.current;
-    return store && c ? audioFormatsFor(c.getState(), items, (hash) => store.formatOf(hash)) : [];
-  }, []);
+  const sync = useCallback(() => sessionRef.current?.sync() ?? Promise.resolve({ more: false }), []);
 
   const append = useCallback(
     async <T extends EventType>(type: T, payload: EventPayloads[T], parentEventId?: string) => {
-      const c = clientRef.current;
-      if (!c) return;
-      const formats = formatsFor([{ type, payload }]);
-      if (formats.length) await c.appendMany(formats);
-      await c.append(type, payload, parentEventId);
-      await refresh();
-      schedulerRef.current?.nudge();
+      await sessionRef.current?.append(type, payload, parentEventId);
     },
-    [refresh, formatsFor]
+    []
   );
 
   const appendMany = useCallback(
     async <T extends EventType>(items: { type: T; payload: EventPayloads[T] }[]) => {
-      const c = clientRef.current;
-      if (!c || items.length === 0) return;
-      await c.appendMany<EventType>([...formatsFor(items), ...items]);
-      await refresh();
-      schedulerRef.current?.nudge();
+      await sessionRef.current?.appendMany(items);
     },
-    [refresh, formatsFor]
+    []
   );
 
-  const run = useCallback(
-    async (specs: EventSpec[]) => {
-      const c = clientRef.current;
-      if (specs.length === 0) return;
-      // Nothing to write into yet: say so, rather than skip it and let the screen
-      // say it was saved (REC-035). ctx.act shows it as "Not saved: …".
-      if (!c) throw new CommandError(t('translate.languageLoading'));
-      await c.appendMany<EventType>([...formatsFor(specs), ...specs]);
-      await refresh();
-      schedulerRef.current?.nudge();
-    },
-    [refresh, formatsFor]
-  );
+  const run = useCallback(async (specs: EventSpec[]) => {
+    const session = sessionRef.current;
+    if (specs.length === 0) return;
+    // Nothing to write into yet: say so, rather than skip it and let the screen
+    // say it was saved (REC-035). ctx.act shows it as "Not saved: …".
+    if (!session) throw new CommandError(t('translate.languageLoading'));
+    await session.run(specs);
+  }, []);
 
-  const keepOffline = useCallback(
-    async (unitId: string, keep: boolean) => {
-      const next = new Set(keptRef.current);
-      if (keep) next.add(unitId);
-      else next.delete(unitId);
-      keptRef.current = next;
-      setKeptUnits(next);
-      const store = await getStore();
-      await store.setMeta(keepKey, JSON.stringify([...next]));
-      downRef.current?.nudge();
-    },
-    [keepKey]
-  );
+  const keepOffline = useCallback(async (unitId: string, keep: boolean) => {
+    await sessionRef.current?.keepOffline(unitId, keep);
+  }, []);
 
   const blobs = {
-    pendingUp,
-    pendingDown,
-    uriFor: (ref: BlobFile) => storeRef.current?.uriFor(ref) ?? null,
+    pendingUp: status.pendingUp,
+    pendingDown: status.pendingDown,
+    uriFor: (ref: BlobFile) => filesRef.current?.uriFor(ref) ?? null,
     streamUri: (ref: BlobFile) => streamUrl(orgId, languageId, ref),
-    store: storeRef.current,
-    keptUnits,
+    store: filesRef.current,
+    keptUnits: status.keptUnits,
     keepOffline,
-    present,
-    peakUp,
-    peakDown,
+    present: status.present,
+    peakUp: status.peakUp,
+    peakDown: status.peakDown,
     rates: () => ({ up: upMeter.current.perSecond(), down: downMeter.current.perSecond() }),
-    unsent: () => {
-      const c = clientRef.current;
-      const store = storeRef.current;
-      return c && store ? deriveUploadWork(c.getState(), store.snapshot(), store.sizes()) : [];
-    }
+    unsent: () => sessionRef.current?.unsent() ?? []
   };
-  const triggerUpload = useCallback(() => upRef.current?.trigger(), []);
-  const inspect = useCallback(() => clientRef.current?.inspect() ?? Promise.resolve(null), []);
+  const triggerUpload = useCallback(() => sessionRef.current?.triggerUpload(), []);
+  const inspect = useCallback(() => sessionRef.current?.inspect() ?? Promise.resolve(null), []);
+  const { pending, lastSync, online, tooOld, refused, refusedEvents, pulled, live, saving, revision } = status;
 
   return { orgId, languageId, state, pending, lastSync, online, tooOld, refused, refusedEvents, pulled, live, saving, revision, inspect, blobs, triggerUpload, append, appendMany, run, sync };
 }

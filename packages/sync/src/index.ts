@@ -1,5 +1,7 @@
 export * from './types';
 export * from './syncClient';
+export * from './languageSession';
+export * from './orgSession';
 export * from './courier';
 export * from './durableOutbox';
 export * from './handOver';
