@@ -672,6 +672,16 @@ test('REC-033 Record and publish in airplane mode @p0', async ({ page, context }
   const w = world();
   const label = w.passages['P-Q1'].label;
   await openAs(page, w, 'TRANS');
+  // Precondition: TRANS's draft of P-Q1, two parts. In the whole file REC-031
+  // leaves it; when only the @p0 tests run (the PR job) this test records it.
+  if ((await onServer(w, 'P-Q1')).drafts.length === 0) {
+    await openWorkspace(page, w, 'P-Q1', 'Record');
+    await recordSaid(page, [3000, 3000]);
+    await expectParts(page, 2);
+    await expectUploaded(page, w);
+    await page.goto('/');
+    await waitForApp(page);
+  }
   // Opened online once, so the passage is on the device.
   await openWorkspace(page, w, 'P-Q1', 'Continue recording');
   await expectParts(page, 2);
