@@ -3250,8 +3250,8 @@
       "studySteps_other": "{{name}} · {{done}} of {{count, number}} steps",
       "dueOn": "due {{date}}",
       "record": "Record",
-      "yourTakes": "Your takes are recorded, not published yet.",
-      "someTakes": "Some takes are recorded, not published yet.",
+      "yourParts": "Your parts are recorded, not published yet.",
+      "someParts": "Some parts are recorded, not published yet.",
       "recordHint": "Tell it in your language. The Bible, key words and notes are beside you while you record.",
       "recordHintAsked": "{{asked}}. Tell it in your language. The Bible, key words and notes are beside you while you record.",
       "asked": {
@@ -3308,7 +3308,7 @@
       },
       "kindOnVersion": "{{kind}} on {{version}}",
       "recording": "Recording",
-      "takesNotPublished": "Takes recorded, not published yet",
+      "partsNotPublished": "Parts recorded, not published yet",
       "notRecorded": "Not recorded yet",
       "backToLatest": "Back to the latest version",
       "pill": {
@@ -3328,8 +3328,8 @@
       "newer": "Newer version",
       "versions": "Versions",
       "playVersion": "Play {{version}}",
-      "takes_one": "{{count, number}} take",
-      "takes_other": "{{count, number}} takes",
+      "parts_one": "{{count, number}} part",
+      "parts_other": "{{count, number}} parts",
       "openRecording": "Open the recording",
       "madeAfter": "Made after",
       "madeAfterShow": "Made after {{label}}. Show that version",
@@ -3463,7 +3463,6 @@
       "changeAloud": "What changed, said aloud",
       "inResponseTo": "In response to the {{kind}} from {{who}}",
       "recording": "Recording",
-      "take": "Take {{n, number}}",
       "details": "Details",
       "keyTerms": "Key terms",
       "termsTied_one": "{{count, number}} term tied · {{terms}}",
@@ -4176,8 +4175,6 @@
     "resumeRecordingNow": "Resume recording now",
     "loop": {
       "capturing": "Recording what you say",
-      "takesSoFar_one": "{{count, number}} take so far",
-      "takesSoFar_other": "{{count, number}} takes so far",
       "partsSoFar_one": "{{count, number}} part so far",
       "partsSoFar_other": "{{count, number}} parts so far",
       "piecesSoFar_one": "{{count, number}} piece so far",
@@ -4225,7 +4222,7 @@
       "tiedBadge": "Tied",
       "tying": "Tying…",
       "tie": "Tie to your draft",
-      "recordFirst": "Record a take first; then you can tie terms to your draft.",
+      "recordFirst": "Record a part first; then you can tie terms to your draft.",
       "allTerms": "All key terms →",
       "studyTitle": "{{pattern}} study · {{passage}}",
       "openStudy": "Open the study →",
@@ -4260,17 +4257,13 @@
       "dividerHint": "Drag up or down to give either one more room"
     },
     "take": {
-      "record": "Record a take",
+      "record": "Record a part",
       "recordHint": "Speak, pausing between parts. Tap stop when you finish."
     },
     "backTranslation": {
       "draftUnreadable": "Your earlier parts could not be read on this device (code {{code}}). Nothing was deleted.",
       "partsSaid_one": "{{said}} of {{count, number}} part said",
       "partsSaid_other": "{{said}} of {{count, number}} parts said"
-    },
-    "workspace": {
-      "take": "Take {{n}}",
-      "newTake": "New take {{n}}"
     },
     "verses": {
       "verse": "Verse {{verse}}",
@@ -5480,7 +5473,7 @@
     "missing": "This passage isn't on this device yet.",
     "missingSub": "It may still be loading.",
     "orgLoading": "Your organization is still loading.",
-    "takesNotInDraft": "Your takes are saved on this device but not yet in your draft. {{reason}}",
+    "partsNotInDraft": "Your parts are saved on this device but not yet in your draft. {{reason}}",
     "partDeleted": "{{part}} deleted.",
     "chips": {
       "bible": "Bible",

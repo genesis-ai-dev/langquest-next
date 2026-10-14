@@ -50,7 +50,7 @@ import { MIN_BOTTOM, MIN_BOTTOM_RECORDING, rememberedSplit } from '../recording/
 import { useListenLoop } from '../recording/useListenLoop';
 import { VadControls, VadPanel } from '../recording/VadTakeover';
 import {
-  backTranslationDraftKey, canPublish, cardDurations, cardLabels, removeCardSpecs, sameCards,
+  backTranslationDraftKey, canPublish, cardDurations, removeCardSpecs, sameCards,
   termsInText, tiedTermIds, tieTermsSpecs, unsavedParts, workingCards
 } from '../recording/workspaceModel';
 import { getReferenceSlides } from '../passageResources';
@@ -218,7 +218,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     }
     adopt(specs);
     ctx.language.run(specs)
-      .catch((e: unknown) => setComposeError(t('translate.takesNotInDraft', { reason: failureMessage('workspace: save draft', e) })))
+      .catch((e: unknown) => setComposeError(t('translate.partsNotInDraft', { reason: failureMessage('workspace: save draft', e) })))
       .finally(() => { composeLock.current = false; setComposing(false); });
     // `composing` is a dependency so a card that landed mid-compose is composed next.
   }, [state, pending, list, composing, composeError, ctx.language, idx, unitId, me, insertBefore]);

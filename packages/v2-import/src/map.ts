@@ -354,6 +354,18 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
         });
         report.recordings += 1;
       }
+      // A recording with the same verses as the one right above it is more of that verse, which Next keeps as a join
+      // (decision 82); its own fact sets the verses, so this says join just after it.
+      parts.forEach(({ a, cards }, i) => {
+        const v = verses.get(a.id);
+        const above = i > 0 ? verses.get(parts[i - 1]!.a.id) : null;
+        if (!v || !above || v.from !== above.from || v.to !== above.to) return;
+        const hash = cards[0]!.hash;
+        facts.push({
+          key: `join:${q.id}:${a.id}`, streamId: languageId, actorId: actor(a.creator_id), at: new Date(Date.parse(at(a.created_at)) + 1).toISOString(),
+          unsay: 'redact', say: () => [{ type: 'v1.CardVerseSet', payload: { unitId, hash, mark: 'join' } }]
+        });
+      });
       const cardHashes = parts.flatMap((x) => x.cards.map((c) => c.hash));
       const last = parts.reduce<V2Asset | null>((m, x) => (!m || Date.parse(at(x.a.created_at)) > Date.parse(at(m.created_at)) ? x.a : m), null);
       if (last) {

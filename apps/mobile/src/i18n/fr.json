@@ -3367,8 +3367,8 @@
       "studySteps_other": "{{name}} · {{done}} étapes sur {{count, number}}",
       "dueOn": "échéance : {{date}}",
       "record": "Enregistrer",
-      "yourTakes": "Vos prises sont enregistrées, pas encore publiées.",
-      "someTakes": "Certaines prises sont enregistrées, pas encore publiées.",
+      "yourParts": "Vos parties sont enregistrées, pas encore publiées.",
+      "someParts": "Certaines parties sont enregistrées, pas encore publiées.",
       "recordHint": "Racontez-le dans votre langue. La Bible, les mots clés et les notes sont à côté de vous pendant que vous enregistrez.",
       "recordHintAsked": "{{asked}}. Racontez-le dans votre langue. La Bible, les mots clés et les notes sont à côté de vous pendant que vous enregistrez.",
       "asked": {
@@ -3425,7 +3425,7 @@
       },
       "kindOnVersion": "{{kind}} sur {{version}}",
       "recording": "Enregistrement",
-      "takesNotPublished": "Prises enregistrées, pas encore publiées",
+      "partsNotPublished": "Parties enregistrées, pas encore publiées",
       "notRecorded": "Pas encore enregistré",
       "backToLatest": "Retour à la dernière version",
       "pill": {
@@ -3445,9 +3445,9 @@
       "newer": "Version plus récente",
       "versions": "Versions",
       "playVersion": "Écouter {{version}}",
-      "takes_one": "{{count, number}} prise",
-      "takes_many": "{{count, number}} prises",
-      "takes_other": "{{count, number}} prises",
+      "parts_one": "{{count, number}} partie",
+      "parts_many": "{{count, number}} parties",
+      "parts_other": "{{count, number}} parties",
       "openRecording": "Ouvrir l’enregistrement",
       "madeAfter": "Fait après",
       "madeAfterShow": "Fait après {{label}}. Afficher cette version",
@@ -3582,7 +3582,6 @@
       "changeAloud": "Ce qui a changé, dit à voix haute",
       "inResponseTo": "En réponse aux remarques de {{who}} ({{kind}})",
       "recording": "Enregistrement",
-      "take": "Prise {{n, number}}",
       "details": "Détails",
       "keyTerms": "Termes clés",
       "termsTied_one": "{{count, number}} terme lié · {{terms}}",
@@ -4329,9 +4328,6 @@
     "resumeRecordingNow": "Reprendre l’enregistrement maintenant",
     "loop": {
       "capturing": "Enregistrement de ce que vous dites",
-      "takesSoFar_one": "{{count, number}} prise jusqu’ici",
-      "takesSoFar_many": "{{count, number}} prises jusqu’ici",
-      "takesSoFar_other": "{{count, number}} prises jusqu’ici",
       "partsSoFar_one": "{{count, number}} partie jusqu’ici",
       "partsSoFar_many": "{{count, number}} parties jusqu’ici",
       "partsSoFar_other": "{{count, number}} parties jusqu’ici",
@@ -4383,7 +4379,7 @@
       "tiedBadge": "Lié",
       "tying": "Liaison…",
       "tie": "Lier à votre brouillon",
-      "recordFirst": "Enregistrez d’abord une prise ; ensuite vous pourrez lier des termes à votre brouillon.",
+      "recordFirst": "Enregistrez d’abord une partie ; ensuite vous pourrez lier des termes à votre brouillon.",
       "allTerms": "Tous les termes clés →",
       "studyTitle": "Étude {{pattern}} · {{passage}}",
       "openStudy": "Ouvrir l’étude →",
@@ -4418,7 +4414,7 @@
       "dividerHint": "Tirez vers le haut ou le bas pour donner plus de place à l’un ou à l’autre"
     },
     "take": {
-      "record": "Enregistrer une prise",
+      "record": "Enregistrer une partie",
       "recordHint": "Parlez, en faisant une pause entre les parties. Touchez Arrêter quand vous avez fini."
     },
     "backTranslation": {
@@ -4426,10 +4422,6 @@
       "partsSaid_one": "{{said}} partie dite sur {{count, number}}",
       "partsSaid_many": "{{said}} parties dites sur {{count, number}}",
       "partsSaid_other": "{{said}} parties dites sur {{count, number}}"
-    },
-    "workspace": {
-      "take": "Prise {{n}}",
-      "newTake": "Nouvelle prise {{n}}"
     },
     "verses": {
       "verse": "Verset {{verse}}",
@@ -5739,7 +5731,7 @@
     "missing": "Ce passage n’est pas encore sur cet appareil.",
     "missingSub": "Il est peut-être encore en chargement.",
     "orgLoading": "Votre organisation est encore en chargement.",
-    "takesNotInDraft": "Vos prises sont gardées sur cet appareil mais pas encore dans votre brouillon. {{reason}}",
+    "partsNotInDraft": "Vos parties sont gardées sur cet appareil mais pas encore dans votre brouillon. {{reason}}",
     "partDeleted": "{{part}} supprimée.",
     "chips": {
       "bible": "Bible",
