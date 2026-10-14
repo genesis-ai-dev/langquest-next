@@ -4,7 +4,7 @@
 // Luke 12:1–12, which nobody in the fixture touches.
 import type { Page } from '@playwright/test';
 import {
-  Devices, backToTabs, deviceLog, expectClean, openByLabel, passageRow, publishVersion, recordParts, sayEachPart, syncUntil, throughToDecide
+  Devices, backToTabs, deviceTail, expectClean, openByLabel, passageRow, publishVersion, recordParts, sayEachPart, syncUntil, throughToDecide
 } from './16-helpers';
 import { button, byId, expect, expectToast, primary, screenText, syncNow, tab, test, text, useWorld } from './support';
 
@@ -131,6 +131,8 @@ test('JRN-011 One passage from first recording to done, across every role @p0', 
     await expect(button(trans, /^Community check, looks good/)).toBeVisible();
     await trans.getByRole('button', { name: /^Community check, / }).locator('visible=true').first().click();
     await expect(text(trans, /Village church/)).toBeVisible();
+    // The row opened a sheet, whose backdrop covers the header's Back (a run here failed so): close it first.
+    await byId(trans, 'sheet-close').click();
     await backToTabs(trans);
 
     // Step 8: COORD does the consultant check (its required question answered): looks good.
@@ -155,17 +157,32 @@ test('JRN-011 One passage from first recording to done, across every role @p0', 
     }, 90_000);
     await expect(await passageRow(view, PX)).toHaveAccessibleName(new RegExp(`^${PX}\\. Done`));
 
-    // On every device: nothing refused, nothing waiting, and the same events in the same order. Every device
-    // pulls until they all hold the same log: none is the reference, since the first may itself be a pull behind
-    // (CI failed so, waiting a minute for a device to match a log shorter than its own).
+    // On every device: nothing refused, nothing waiting, and the same events in the same order after the latest
+    // server snapshot any of them started from (`deviceTail`: a device that opened after a snapshot never stores the
+    // events before it). Every device pulls until they all agree; none is the reference, since the first may itself
+    // be a pull behind. A failure says which device lacks which events.
     const pages = [coord, trans, rev, trev, view];
+    const who = ['COORD', 'TRANS', 'REV', 'TREV', 'VIEW'];
     for (const page of pages) await expectClean(page, w);
     let logs: string[][] = [];
+    let floor = 0;
+    const differences = () => {
+      const union = new Set(logs.flat());
+      return logs.map((l, i) => {
+        const has = new Set(l);
+        const lacks = [...union].filter((e) => !has.has(e));
+        return `${who[i]}: ${l.length} events after seq ${floor}${lacks.length ? `, lacks ${lacks.length}: ${lacks.slice(0, 8).join(', ')}` : ''}`;
+      }).join('\n');
+    };
     await expect.poll(async () => {
       for (const page of pages) await syncNow(page);
-      logs = await Promise.all(pages.map((page) => deviceLog(page, w)));
+      const tails = await Promise.all(pages.map((page) => deviceTail(page, w)));
+      floor = Math.max(...tails.map((t) => t.from));
+      logs = tails.map((t) => t.events.filter((e) => e.seq > floor).map((e) => e.key));
       return logs.every((l) => JSON.stringify(l) === JSON.stringify(logs[0]));
-    }, { timeout: 90_000, intervals: [1_000, 2_000, 3_000], message: 'every device holds the same events' }).toBe(true);
+    }, { timeout: 90_000, intervals: [1_000, 2_000, 3_000], message: 'every device holds the same events' }).toBe(true).catch((e: unknown) => {
+      throw new Error(`The devices never held the same events:\n${differences()}\n${String(e)}`);
+    });
     for (const l of logs.slice(1)) expect(l).toEqual(logs[0]);
     expect(await screenText(view)).not.toMatch(/This screen could not open/);
   } finally {

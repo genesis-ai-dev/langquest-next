@@ -198,6 +198,25 @@ export async function deviceLog(page: Page, world: UiWorld, language: 'A' | 'B' 
   }, [l.orgId, l.languageId] as const);
 }
 
+/**
+ * The part of Alpha's log every device must hold the same: its confirmed events with their server
+ * order, and the server snapshot it started from (`from`, 0 for none). A device opened while the
+ * server had a snapshot starts from it (PLAN.md invariant 10) and never stores the events before it,
+ * so whole logs differ by when each device first opened; what comes after the latest snapshot any of
+ * them started from must not. CI's projection worker makes snapshots every minute, so a journey that
+ * compared whole logs failed whenever one landed while its devices were opening (JRN-011).
+ */
+export async function deviceTail(page: Page, world: UiWorld, language: 'A' | 'B' | 'C' = 'A'): Promise<{ from: number; events: { seq: number; key: string }[] }> {
+  const l = world.languages[language];
+  return page.evaluate(async ([org, stream]) => {
+    const log = (globalThis as { __langquestLog?: { select(sql: string, p?: unknown[]): Promise<unknown[]> } }).__langquestLog!;
+    const rows = await log.select("select server_seq, json from events where org_id = ? and stream_id = ? and status = 'confirmed' order by server_seq", [org, stream]) as { server_seq: number; json: string }[];
+    const meta = await log.select('select value from meta where key = ?', [`snapshotSeq:${org}/${stream}`]) as { value: string }[];
+    const from = Number(meta[0]?.value.split(':')[1] ?? 0) || 0;
+    return { from, events: rows.map((r) => { const e = JSON.parse(r.json) as { id: string; type: string }; return { seq: r.server_seq, key: `${e.type} ${e.id}` }; }) };
+  }, [l.orgId, l.languageId] as const);
+}
+
 /** G10.2 and G10.3 on one device: everything sent, nothing refused. */
 export async function expectClean(page: Page, world: UiWorld, language: 'A' | 'B' | 'C' = 'A'): Promise<void> {
   await expectSent(page, world, language);
