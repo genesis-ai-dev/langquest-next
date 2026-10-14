@@ -3250,8 +3250,8 @@
       "studySteps_other": "{{name}} · {{done}} ከ{{count, number}} ደረጃዎች",
       "dueOn": "የማብቂያ ቀን {{date}}",
       "record": "ይቅረጹ",
-      "yourTakes": "ሙከራዎችዎ ተቀርጸዋል፣ ገና አልታተሙም።",
-      "someTakes": "አንዳንድ ሙከራዎች ተቀርጸዋል፣ ገና አልታተሙም።",
+      "yourParts": "ቁራጮችዎ ተቀርጸዋል፣ ገና አልታተሙም።",
+      "someParts": "አንዳንድ ቁራጮች ተቀርጸዋል፣ ገና አልታተሙም።",
       "recordHint": "በቋንቋዎ ይተርኩት። መጽሐፍ ቅዱሱ፣ ዋና ቃላቱና ማስታወሻዎቹ ሲቀርጹ ከጎንዎ ናቸው።",
       "recordHintAsked": "{{asked}}። በቋንቋዎ ይተርኩት። መጽሐፍ ቅዱሱ፣ ዋና ቃላቱና ማስታወሻዎቹ ሲቀርጹ ከጎንዎ ናቸው።",
       "asked": {
@@ -3308,7 +3308,7 @@
       },
       "kindOnVersion": "{{kind}} በ{{version}} ላይ",
       "recording": "ቀረጻ",
-      "takesNotPublished": "ሙከራዎች ተቀርጸዋል፣ ገና አልታተሙም",
+      "partsNotPublished": "ቁራጮች ተቀርጸዋል፣ ገና አልታተሙም",
       "notRecorded": "ገና አልተቀረጸም",
       "backToLatest": "ወደ የቅርብ ጊዜው ስሪት ይመለሱ",
       "pill": {
@@ -3328,8 +3328,8 @@
       "newer": "አዲስ ስሪት",
       "versions": "ስሪቶች",
       "playVersion": "{{version}}ን ያጫውቱ",
-      "takes_one": "{{count, number}} ሙከራ",
-      "takes_other": "{{count, number}} ሙከራዎች",
+      "parts_one": "{{count, number}} ክፍል",
+      "parts_other": "{{count, number}} ክፍሎች",
       "openRecording": "ቀረጻውን ይክፈቱ",
       "madeAfter": "የተሠራው ከዚህ በኋላ",
       "madeAfterShow": "ከ{{label}} በኋላ የተሠራ። ያንን ስሪት ያሳዩ",
@@ -3463,7 +3463,6 @@
       "changeAloud": "የተለወጠው፣ በድምፅ የተነገረ",
       "inResponseTo": "ከ{{who}} ለመጣው {{kind}} ምላሽ",
       "recording": "ቀረጻ",
-      "take": "ሙከራ {{n, number}}",
       "details": "ዝርዝሮች",
       "keyTerms": "ቁልፍ ቃላት",
       "termsTied_one": "{{count, number}} ቃል ተያይዟል · {{terms}}",
@@ -4176,8 +4175,6 @@
     "resumeRecordingNow": "መቅረጽዎን አሁን ይቀጥሉ",
     "loop": {
       "capturing": "የሚናገሩትን በመቅረጽ ላይ",
-      "takesSoFar_one": "እስካሁን {{count, number}} ሙከራ",
-      "takesSoFar_other": "እስካሁን {{count, number}} ሙከራዎች",
       "partsSoFar_one": "እስካሁን {{count, number}} ቁራጭ",
       "partsSoFar_other": "እስካሁን {{count, number}} ቁራጮች",
       "piecesSoFar_one": "እስካሁን {{count, number}} ቁራጭ",
@@ -4225,7 +4222,7 @@
       "tiedBadge": "ተያይዟል",
       "tying": "በማያያዝ ላይ…",
       "tie": "ከረቂቅዎ ጋር ያያይዙ",
-      "recordFirst": "መጀመሪያ አንድ ሙከራ ይቅረጹ፤ ከዚያ ቃላትን ከረቂቅዎ ጋር ማያያዝ ይችላሉ።",
+      "recordFirst": "መጀመሪያ አንድ ቁራጭ ይቅረጹ፤ ከዚያ ቃላትን ከረቂቅዎ ጋር ማያያዝ ይችላሉ።",
       "allTerms": "ሁሉም ቁልፍ ቃላት →",
       "studyTitle": "የ{{pattern}} ጥናት · {{passage}}",
       "openStudy": "ጥናቱን ይክፈቱ →",
@@ -4260,17 +4257,13 @@
       "dividerHint": "ለአንዱ ተጨማሪ ቦታ ለመስጠት ወደ ላይ ወይም ወደ ታች ይጎትቱ"
     },
     "take": {
-      "record": "ሙከራ ይቅረጹ",
+      "record": "ቁራጭ ይቅረጹ",
       "recordHint": "በቁራጮች መካከል ቆም እያሉ ይናገሩ። ሲጨርሱ «ያቁሙ»ን ይንኩ።"
     },
     "backTranslation": {
       "draftUnreadable": "ቀደም ያሉት ቁራጮችዎ በዚህ መሣሪያ ላይ ሊነበቡ አልቻሉም (ኮድ {{code}})። ምንም ነገር አልተሰረዘም።",
       "partsSaid_one": "ከ{{count, number}} ቁራጭ {{said}} ተነግሯል",
       "partsSaid_other": "ከ{{count, number}} ቁራጮች {{said}} ተነግረዋል"
-    },
-    "workspace": {
-      "take": "ሙከራ {{n}}",
-      "newTake": "አዲስ ሙከራ {{n}}"
     },
     "verses": {
       "verse": "ቁጥር {{verse}}",
@@ -5480,7 +5473,7 @@
     "missing": "ይህ ክፍል ገና በዚህ መሣሪያ ላይ የለም።",
     "missingSub": "ገና በመጫን ላይ ሊሆን ይችላል።",
     "orgLoading": "ድርጅትዎ ገና በመጫን ላይ ነው።",
-    "takesNotInDraft": "ሙከራዎችዎ በዚህ መሣሪያ ላይ ተቀምጠዋል፣ ግን ገና በረቂቅዎ ውስጥ አልገቡም። {{reason}}",
+    "partsNotInDraft": "ቁራጮችዎ በዚህ መሣሪያ ላይ ተቀምጠዋል፣ ግን ገና በረቂቅዎ ውስጥ አልገቡም። {{reason}}",
     "partDeleted": "{{part}} ተሰርዟል።",
     "chips": {
       "bible": "መጽሐፍ ቅዱስ",

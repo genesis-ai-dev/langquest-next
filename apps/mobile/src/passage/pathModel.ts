@@ -97,7 +97,7 @@ export function pathSteps(input: PathInput): PathStep[] {
     sub: p.recorded && latest
       ? [versionTitle(latest.n), input.latestSeconds ? formatClock(input.latestSeconds * 1000) : ''].filter(Boolean).join(' · ')
       : p.drafting
-        ? (p.draftBy === me ? t('passage.path.yourTakes') : t('passage.path.someTakes'))
+        ? (p.draftBy === me ? t('passage.path.yourParts') : t('passage.path.someParts'))
         : askedLine ? t('passage.path.recordHintAsked', { asked: askedLine }) : t('passage.path.recordHint'),
     state: p.recorded ? 'done' : 'todo'
   });

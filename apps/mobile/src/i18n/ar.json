@@ -3718,8 +3718,8 @@
       "studySteps_other": "{{name}} · {{done}} من {{count, number}} خطوة",
       "dueOn": "موعده {{date}}",
       "record": "سجّل",
-      "yourTakes": "محاولاتك مُسجَّلة، ولم تُنشر بعد.",
-      "someTakes": "بعض المحاولات مُسجَّلة، ولم تُنشر بعد.",
+      "yourParts": "أجزاؤك مُسجَّلة، ولم تُنشر بعد.",
+      "someParts": "بعض الأجزاء مُسجَّلة، ولم تُنشر بعد.",
       "recordHint": "احكِه بلغتك. الكتاب المقدس والكلمات الرئيسية والملاحظات بجانبك وأنت تسجّل.",
       "recordHintAsked": "{{asked}}. احكِه بلغتك. الكتاب المقدس والكلمات الرئيسية والملاحظات بجانبك وأنت تسجّل.",
       "asked": {
@@ -3776,7 +3776,7 @@
       },
       "kindOnVersion": "{{kind}} على {{version}}",
       "recording": "التسجيل",
-      "takesNotPublished": "محاولات مُسجَّلة، لم تُنشر بعد",
+      "partsNotPublished": "أجزاء مُسجَّلة، لم تُنشر بعد",
       "notRecorded": "لم يُسجَّل بعد",
       "backToLatest": "ارجع إلى أحدث نسخة",
       "pill": {
@@ -3796,12 +3796,12 @@
       "newer": "نسخة أحدث",
       "versions": "النسخ",
       "playVersion": "شغّل {{version}}",
-      "takes_zero": "{{count, number}} محاولة",
-      "takes_one": "محاولة واحدة",
-      "takes_two": "محاولتان",
-      "takes_few": "{{count, number}} محاولات",
-      "takes_many": "{{count, number}} محاولة",
-      "takes_other": "{{count, number}} محاولة",
+      "parts_zero": "{{count, number}} جزء",
+      "parts_one": "جزء واحد",
+      "parts_two": "جزءان",
+      "parts_few": "{{count, number}} أجزاء",
+      "parts_many": "{{count, number}} جزءًا",
+      "parts_other": "{{count, number}} جزء",
       "openRecording": "افتح التسجيل",
       "madeAfter": "صُنعت بعد",
       "madeAfterShow": "صُنعت بعد {{label}}. اعرض تلك النسخة",
@@ -3939,7 +3939,6 @@
       "changeAloud": "ما الذي تغيّر، بالصوت",
       "inResponseTo": "ردًا على {{kind}} من {{who}}",
       "recording": "التسجيل",
-      "take": "المحاولة {{n, number}}",
       "details": "التفاصيل",
       "keyTerms": "المصطلحات الرئيسية",
       "termsTied_zero": "{{count, number}} مصطلح مربوط · {{terms}}",
@@ -4788,12 +4787,6 @@
     "resumeRecordingNow": "استأنف التسجيل الآن",
     "loop": {
       "capturing": "جارٍ تسجيل ما تقوله",
-      "takesSoFar_zero": "{{count, number}} محاولة حتى الآن",
-      "takesSoFar_one": "محاولة واحدة حتى الآن",
-      "takesSoFar_two": "محاولتان حتى الآن",
-      "takesSoFar_few": "{{count, number}} محاولات حتى الآن",
-      "takesSoFar_many": "{{count, number}} محاولة حتى الآن",
-      "takesSoFar_other": "{{count, number}} محاولة حتى الآن",
       "partsSoFar_zero": "{{count, number}} جزء حتى الآن",
       "partsSoFar_one": "جزء واحد حتى الآن",
       "partsSoFar_two": "جزءان حتى الآن",
@@ -4857,7 +4850,7 @@
       "tiedBadge": "مربوط",
       "tying": "جارٍ الربط…",
       "tie": "اربطه بمسودتك",
-      "recordFirst": "سجّل محاولة أولًا؛ ثم يمكنك ربط المصطلحات بمسودتك.",
+      "recordFirst": "سجّل جزءًا أولًا؛ ثم يمكنك ربط المصطلحات بمسودتك.",
       "allTerms": "كل المصطلحات الرئيسية ←",
       "studyTitle": "دراسة {{pattern}} · {{passage}}",
       "openStudy": "افتح الدراسة ←",
@@ -4892,7 +4885,7 @@
       "dividerHint": "اسحب إلى الأعلى أو الأسفل لتعطي أحدهما مساحة أكبر"
     },
     "take": {
-      "record": "سجّل محاولة",
+      "record": "سجّل جزءًا",
       "recordHint": "تكلم، وتوقف قليلًا بين الأجزاء. اضغط إيقاف عندما تنتهي."
     },
     "backTranslation": {
@@ -4903,10 +4896,6 @@
       "partsSaid_few": "قيل {{said}} من {{count, number}} أجزاء",
       "partsSaid_many": "قيل {{said}} من {{count, number}} جزءًا",
       "partsSaid_other": "قيل {{said}} من {{count, number}} جزء"
-    },
-    "workspace": {
-      "take": "المحاولة {{n}}",
-      "newTake": "محاولة جديدة {{n}}"
     },
     "verses": {
       "verse": "الآية {{verse}}",
@@ -6516,7 +6505,7 @@
     "missing": "هذا المقطع ليس على هذا الجهاز بعد.",
     "missingSub": "ربما ما زال يُحمَّل.",
     "orgLoading": "منظمتك ما زالت تُحمَّل.",
-    "takesNotInDraft": "محاولاتك محفوظة على هذا الجهاز لكنها ليست في مسودتك بعد. {{reason}}",
+    "partsNotInDraft": "أجزاؤك محفوظة على هذا الجهاز لكنها ليست في مسودتك بعد. {{reason}}",
     "partDeleted": "حُذف {{part}}.",
     "chips": {
       "bible": "الكتاب المقدس",

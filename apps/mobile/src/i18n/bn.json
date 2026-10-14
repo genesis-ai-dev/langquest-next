@@ -3250,8 +3250,8 @@
       "studySteps_other": "{{name}} · {{count, number}}টি ধাপের মধ্যে {{done}}টি",
       "dueOn": "{{date}}-এর মধ্যে",
       "record": "রেকর্ড করুন",
-      "yourTakes": "আপনার টেকগুলো রেকর্ড হয়েছে, এখনও প্রকাশিত হয়নি।",
-      "someTakes": "কিছু টেক রেকর্ড হয়েছে, এখনও প্রকাশিত হয়নি।",
+      "yourParts": "আপনার ভাগগুলো রেকর্ড হয়েছে, এখনও প্রকাশিত হয়নি।",
+      "someParts": "কিছু ভাগ রেকর্ড হয়েছে, এখনও প্রকাশিত হয়নি।",
       "recordHint": "আপনার ভাষায় বলুন। রেকর্ড করার সময় বাইবেল, মূল শব্দ ও নোট আপনার পাশে থাকে।",
       "recordHintAsked": "{{asked}}। আপনার ভাষায় বলুন। রেকর্ড করার সময় বাইবেল, মূল শব্দ ও নোট আপনার পাশে থাকে।",
       "asked": {
@@ -3308,7 +3308,7 @@
       },
       "kindOnVersion": "{{version}}-এ {{kind}}",
       "recording": "রেকর্ডিং",
-      "takesNotPublished": "টেক রেকর্ড হয়েছে, এখনও প্রকাশিত হয়নি",
+      "partsNotPublished": "ভাগ রেকর্ড হয়েছে, এখনও প্রকাশিত হয়নি",
       "notRecorded": "এখনও রেকর্ড হয়নি",
       "backToLatest": "সর্বশেষ সংস্করণে ফিরে যান",
       "pill": {
@@ -3328,8 +3328,8 @@
       "newer": "নতুন সংস্করণ",
       "versions": "সংস্করণ",
       "playVersion": "{{version}} চালান",
-      "takes_one": "{{count, number}}টি টেক",
-      "takes_other": "{{count, number}}টি টেক",
+      "parts_one": "{{count, number}}টি ভাগ",
+      "parts_other": "{{count, number}}টি ভাগ",
       "openRecording": "রেকর্ডিং খুলুন",
       "madeAfter": "যার পরে বানানো",
       "madeAfterShow": "{{label}}-এর পরে বানানো। সেই সংস্করণ দেখান",
@@ -3463,7 +3463,6 @@
       "changeAloud": "কী বদলেছে, মুখে বলা",
       "inResponseTo": "{{who}}-এর {{kind}}-এর জবাবে",
       "recording": "রেকর্ডিং",
-      "take": "টেক {{n, number}}",
       "details": "বিস্তারিত",
       "keyTerms": "মূল শব্দ",
       "termsTied_one": "{{count, number}}টি শব্দ যুক্ত · {{terms}}",
@@ -4176,8 +4175,6 @@
     "resumeRecordingNow": "এখন আবার রেকর্ড শুরু করুন",
     "loop": {
       "capturing": "আপনি যা বলছেন তা রেকর্ড হচ্ছে",
-      "takesSoFar_one": "এ পর্যন্ত {{count, number}}টি টেক",
-      "takesSoFar_other": "এ পর্যন্ত {{count, number}}টি টেক",
       "partsSoFar_one": "এ পর্যন্ত {{count, number}}টি ভাগ",
       "partsSoFar_other": "এ পর্যন্ত {{count, number}}টি ভাগ",
       "piecesSoFar_one": "এ পর্যন্ত {{count, number}}টি টুকরো",
@@ -4225,7 +4222,7 @@
       "tiedBadge": "যুক্ত",
       "tying": "যুক্ত হচ্ছে…",
       "tie": "আপনার খসড়ার সাথে যুক্ত করুন",
-      "recordFirst": "আগে একটি টেক রেকর্ড করুন; তারপর আপনার খসড়ার সাথে শব্দ যুক্ত করতে পারবেন।",
+      "recordFirst": "আগে একটি ভাগ রেকর্ড করুন; তারপর আপনার খসড়ার সাথে শব্দ যুক্ত করতে পারবেন।",
       "allTerms": "সব মূল শব্দ →",
       "studyTitle": "{{pattern}} অধ্যয়ন · {{passage}}",
       "openStudy": "অধ্যয়ন খুলুন →",
@@ -4260,17 +4257,13 @@
       "dividerHint": "যেকোনো একটিকে বেশি জায়গা দিতে ওপরে বা নিচে টানুন"
     },
     "take": {
-      "record": "একটি টেক রেকর্ড করুন",
+      "record": "একটি ভাগ রেকর্ড করুন",
       "recordHint": "কথা বলুন, ভাগগুলোর মাঝে থামুন। শেষ হলে থামান চাপুন।"
     },
     "backTranslation": {
       "draftUnreadable": "আপনার আগের ভাগগুলো এই ডিভাইসে পড়া যায়নি (কোড {{code}})। কিছুই মোছা হয়নি।",
       "partsSaid_one": "{{count, number}}টি ভাগের মধ্যে {{said}}টি বলা হয়েছে",
       "partsSaid_other": "{{count, number}}টি ভাগের মধ্যে {{said}}টি বলা হয়েছে"
-    },
-    "workspace": {
-      "take": "টেক {{n}}",
-      "newTake": "নতুন টেক {{n}}"
     },
     "verses": {
       "verse": "পদ {{verse}}",
@@ -5480,7 +5473,7 @@
     "missing": "এই অংশটি এখনও এই ডিভাইসে নেই।",
     "missingSub": "এটি হয়তো এখনও লোড হচ্ছে।",
     "orgLoading": "আপনার সংস্থা এখনও লোড হচ্ছে।",
-    "takesNotInDraft": "আপনার টেকগুলো এই ডিভাইসে সংরক্ষিত, কিন্তু এখনও খসড়ায় যোগ হয়নি। {{reason}}",
+    "partsNotInDraft": "আপনার ভাগগুলো এই ডিভাইসে সংরক্ষিত, কিন্তু এখনও খসড়ায় যোগ হয়নি। {{reason}}",
     "partDeleted": "{{part}} মুছে ফেলা হয়েছে।",
     "chips": {
       "bible": "বাইবেল",

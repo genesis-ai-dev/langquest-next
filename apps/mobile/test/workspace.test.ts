@@ -3,7 +3,7 @@ import {
   type AnyEvent, type EventPayloads, type EventSpec, type EventType
 } from '@langquest-next/core';
 import {
-  backTranslationDraftKey, canPublish, cardDurations, cardLabels, markTerms, mmss, parseBackTranslationDraft, removeCardSpecs,
+  backTranslationDraftKey, canPublish, cardDurations, markTerms, mmss, parseBackTranslationDraft, removeCardSpecs,
   termsInText, tiedTermIds, tieTermsSpecs, unsavedParts, withoutPart, withPart, workingCards
 } from '../src/recording/workspaceModel';
 import { pendingPassageCards } from '../src/recordingFlow';
@@ -28,7 +28,7 @@ function history() {
 
 const passage = (s: ReturnType<ReturnType<typeof history>['state']>) => derivePassage(s, 'passage');
 
-describe('the list of takes', () => {
+describe('the list of parts', () => {
   it('starts from the draft, else the latest version, then saved cards not yet in a take', () => {
     expect(workingCards({ draftCards: ['a', 'b'], latestCards: ['a'], pending: ['c'], cleared: false })).toEqual(['a', 'b', 'c']);
     expect(workingCards({ latestCards: ['a'], pending: ['c'], cleared: false })).toEqual(['a', 'c']);
@@ -43,9 +43,7 @@ describe('the list of takes', () => {
     expect(canPublish(['b', 'a'], ['a', 'b'])).toBe(true);
   });
 
-  it('names takes as the demo does', () => {
-    expect(cardLabels(['a', 'b'], undefined)).toEqual(['Take 1', 'Take 2']);
-    expect(cardLabels(['a', 'x', 'c', 'y'], ['a', 'b', 'c'])).toEqual(['Take 1', 'New take 1', 'Take 3', 'New take 2']);
+  it('writes lengths as minutes and seconds', () => {
     expect(mmss(7200)).toBe('0:07');
     expect(mmss(92_000)).toBe('1:32');
     expect(mmss(undefined)).toBe('0:00');

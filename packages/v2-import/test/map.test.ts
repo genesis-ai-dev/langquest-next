@@ -140,6 +140,19 @@ describe('mapProject: a Bible project', () => {
     expect(passage.notes.map((n) => n.text)).toEqual(['1:3: Kwa words for verse 3']);
   });
 
+  it('makes a recording of the same verses as the one above more of that verse, as Next records it', () => {
+    const same = bible();
+    same.placements = [place('ch1', 'a1', 1000000, [3, 3]), place('ch1', 'a2', 3000000, [3, 3])];
+    const { each, all } = run([{ rows: same }, { rows: same }]);
+    for (const e of all) expect(validateEvent(e), e.id).toBeNull();
+    expect(each[1]).toEqual([]);
+    const state = foldLanguage(all.filter((e) => e.streamId === 'p1'));
+    expect(state.cardVerses[unit]?.[H('1')]?.value).toEqual({ mark: 'set', from: '1:3', to: '1:3' });
+    // a2's own fact set its first card to 1:3; the join just after it wins, so the list reads in order.
+    expect(state.cardVerses[unit]?.[H('2')]?.value).toEqual({ mark: 'join' });
+    expect(state.cardVerses[unit]?.[H('3')]?.value).toEqual({ mark: 'join' });
+  });
+
   it('leaves written work and back translations in v2 until they are turned on, then brings them', () => {
     const off = mapProject(bible(), ctx({ writtenWork: false }));
     expect(off.report).toMatchObject({ heldBack: 2, heldFiles: ['bt1.wav'], backTranslations: 0, notes: 0 });

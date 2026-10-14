@@ -3133,8 +3133,8 @@
       "studySteps_other": "{{name}} · {{done}} dari {{count, number}} langkah",
       "dueOn": "batas waktu {{date}}",
       "record": "Rekam",
-      "yourTakes": "Hasil rekaman Anda sudah direkam, belum diterbitkan.",
-      "someTakes": "Sebagian hasil rekaman sudah direkam, belum diterbitkan.",
+      "yourParts": "Bagian-bagian Anda sudah direkam, belum diterbitkan.",
+      "someParts": "Beberapa bagian sudah direkam, belum diterbitkan.",
       "recordHint": "Ceritakan dalam bahasa Anda. Alkitab, kata kunci, dan catatan ada di dekat Anda selama merekam.",
       "recordHintAsked": "{{asked}}. Ceritakan dalam bahasa Anda. Alkitab, kata kunci, dan catatan ada di dekat Anda selama merekam.",
       "asked": {
@@ -3191,7 +3191,7 @@
       },
       "kindOnVersion": "{{kind}} pada {{version}}",
       "recording": "Merekam",
-      "takesNotPublished": "Hasil rekaman sudah direkam, belum diterbitkan",
+      "partsNotPublished": "Bagian sudah direkam, belum diterbitkan",
       "notRecorded": "Belum direkam",
       "backToLatest": "Kembali ke versi terbaru",
       "pill": {
@@ -3211,7 +3211,7 @@
       "newer": "Versi lebih baru",
       "versions": "Versi",
       "playVersion": "Putar {{version}}",
-      "takes_other": "{{count, number}} hasil rekaman",
+      "parts_other": "{{count, number}} bagian",
       "openRecording": "Buka rekaman",
       "madeAfter": "Dibuat setelah",
       "madeAfterShow": "Dibuat setelah {{label}}. Tampilkan versi itu",
@@ -3344,7 +3344,6 @@
       "changeAloud": "Apa yang berubah, diucapkan",
       "inResponseTo": "Menanggapi {{kind}} dari {{who}}",
       "recording": "Rekaman",
-      "take": "Hasil rekaman {{n, number}}",
       "details": "Detail",
       "keyTerms": "Istilah kunci",
       "termsTied_other": "{{count, number}} istilah terkait · {{terms}}",
@@ -4023,7 +4022,6 @@
     "resumeRecordingNow": "Lanjutkan merekam sekarang",
     "loop": {
       "capturing": "Merekam apa yang Anda ucapkan",
-      "takesSoFar_other": "Sejauh ini {{count, number}} hasil rekaman",
       "partsSoFar_other": "Sejauh ini {{count, number}} bagian",
       "piecesSoFar_other": "Sejauh ini {{count, number}} potongan",
       "pausedForSource": "Dijeda selama sumber diputar. {{soFar}}",
@@ -4067,7 +4065,7 @@
       "tiedBadge": "Terkait",
       "tying": "Mengaitkan…",
       "tie": "Kaitkan dengan draf Anda",
-      "recordFirst": "Rekam dulu satu hasil rekaman; lalu Anda dapat mengaitkan istilah dengan draf Anda.",
+      "recordFirst": "Rekam dulu satu bagian; lalu Anda dapat mengaitkan istilah dengan draf Anda.",
       "allTerms": "Semua istilah kunci →",
       "studyTitle": "Studi {{pattern}} · {{passage}}",
       "openStudy": "Buka studi →",
@@ -4102,16 +4100,12 @@
       "dividerHint": "Tarik ke atas atau ke bawah untuk memberi ruang lebih pada salah satunya"
     },
     "take": {
-      "record": "Rekam satu hasil rekaman",
+      "record": "Rekam satu bagian",
       "recordHint": "Bicaralah, dengan jeda di antara bagian. Ketuk berhenti setelah selesai."
     },
     "backTranslation": {
       "draftUnreadable": "Bagian-bagian Anda sebelumnya tidak dapat dibaca di perangkat ini (kode {{code}}). Tidak ada yang dihapus.",
       "partsSaid_other": "{{said}} dari {{count, number}} bagian sudah diucapkan"
-    },
-    "workspace": {
-      "take": "Hasil rekaman {{n}}",
-      "newTake": "Hasil rekaman baru {{n}}"
     },
     "verses": {
       "verse": "Ayat {{verse}}",
@@ -5221,7 +5215,7 @@
     "missing": "Perikop ini belum ada di perangkat ini.",
     "missingSub": "Mungkin masih dimuat.",
     "orgLoading": "Organisasi Anda masih dimuat.",
-    "takesNotInDraft": "Hasil rekaman Anda tersimpan di perangkat ini tetapi belum masuk ke draf Anda. {{reason}}",
+    "partsNotInDraft": "Bagian-bagian Anda tersimpan di perangkat ini tetapi belum masuk ke draf Anda. {{reason}}",
     "partDeleted": "{{part}} dihapus.",
     "chips": {
       "bible": "Alkitab",

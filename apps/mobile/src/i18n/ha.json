@@ -3250,8 +3250,8 @@
       "studySteps_other": "{{name}} · matakai {{done}} cikin {{count, number}}",
       "dueOn": "wa'adi {{date}}",
       "record": "Naɗa",
-      "yourTakes": "An naɗa naɗe-naɗenku, ba a wallafa ba tukuna.",
-      "someTakes": "An naɗa wasu naɗe-naɗe, ba a wallafa ba tukuna.",
+      "yourParts": "An naɗa sassanku, ba a wallafa ba tukuna.",
+      "someParts": "An naɗa wasu sassa, ba a wallafa ba tukuna.",
       "recordHint": "Ku faɗe shi a harshenku. Littafi Mai Tsarki, muhimman kalmomi da bayanai suna kusa da ku yayin da kuke naɗawa.",
       "recordHintAsked": "{{asked}}. Ku faɗe shi a harshenku. Littafi Mai Tsarki, muhimman kalmomi da bayanai suna kusa da ku yayin da kuke naɗawa.",
       "asked": {
@@ -3308,7 +3308,7 @@
       },
       "kindOnVersion": "{{kind}} a kan {{version}}",
       "recording": "Naɗi",
-      "takesNotPublished": "An naɗa naɗe-naɗe, ba a wallafa ba tukuna",
+      "partsNotPublished": "An naɗa sassa, ba a wallafa ba tukuna",
       "notRecorded": "Ba a naɗa ba tukuna",
       "backToLatest": "Koma sigar ƙarshe",
       "pill": {
@@ -3328,8 +3328,8 @@
       "newer": "Sabuwar siga",
       "versions": "Sigogi",
       "playVersion": "Kunna {{version}}",
-      "takes_one": "Naɗi {{count, number}}",
-      "takes_other": "Naɗe-naɗe {{count, number}}",
+      "parts_one": "Sashe {{count, number}}",
+      "parts_other": "Sassa {{count, number}}",
       "openRecording": "Buɗe naɗin",
       "madeAfter": "An yi bayan",
       "madeAfterShow": "An yi bayan {{label}}. Nuna wannan siga",
@@ -3463,7 +3463,6 @@
       "changeAloud": "Abin da ya canja, an faɗa da murya",
       "inResponseTo": "Don amsa {{kind}} daga {{who}}",
       "recording": "Naɗi",
-      "take": "Naɗi na {{n, number}}",
       "details": "Cikakken bayani",
       "keyTerms": "Muhimman kalmomi",
       "termsTied_one": "An haɗa kalma {{count, number}} · {{terms}}",
@@ -4176,8 +4175,6 @@
     "resumeRecordingNow": "Ci gaba da naɗawa yanzu",
     "loop": {
       "capturing": "Ana naɗa abin da kuke faɗa",
-      "takesSoFar_one": "Naɗi {{count, number}} zuwa yanzu",
-      "takesSoFar_other": "Naɗe-naɗe {{count, number}} zuwa yanzu",
       "partsSoFar_one": "Sashe {{count, number}} zuwa yanzu",
       "partsSoFar_other": "Sassa {{count, number}} zuwa yanzu",
       "piecesSoFar_one": "Gutsure {{count, number}} zuwa yanzu",
@@ -4225,7 +4222,7 @@
       "tiedBadge": "An haɗa",
       "tying": "Ana haɗawa…",
       "tie": "Haɗa da daftarinku",
-      "recordFirst": "Ku fara naɗa wani naɗi; sannan za ku iya haɗa kalmomi da daftarinku.",
+      "recordFirst": "Ku fara naɗa wani sashe; sannan za ku iya haɗa kalmomi da daftarinku.",
       "allTerms": "Dukan muhimman kalmomi →",
       "studyTitle": "Nazarin {{pattern}} · {{passage}}",
       "openStudy": "Buɗe nazarin →",
@@ -4260,17 +4257,13 @@
       "dividerHint": "Ja sama ko ƙasa don ba ɗayansu ƙarin wuri"
     },
     "take": {
-      "record": "Naɗa naɗi",
+      "record": "Naɗa sashe",
       "recordHint": "Ku yi magana, kuna dakatawa tsakanin sassa. Taɓa tsaya idan kun gama."
     },
     "backTranslation": {
       "draftUnreadable": "An kasa karanta sassanku na baya a wannan na'ura (lamba {{code}}). Ba a goge komai ba.",
       "partsSaid_one": "An faɗi sashe {{said}} cikin {{count, number}}",
       "partsSaid_other": "An faɗi sassa {{said}} cikin {{count, number}}"
-    },
-    "workspace": {
-      "take": "Naɗi na {{n}}",
-      "newTake": "Sabon naɗi na {{n}}"
     },
     "verses": {
       "verse": "Aya ta {{verse}}",
@@ -5480,7 +5473,7 @@
     "missing": "Wannan nassi ba ya kan wannan na'ura tukuna.",
     "missingSub": "Wataƙila har yanzu yana lodawa.",
     "orgLoading": "Ƙungiyarku tana lodawa har yanzu.",
-    "takesNotInDraft": "An ajiye naɗe-naɗenku a wannan na'ura amma ba su shiga daftarinku ba tukuna. {{reason}}",
+    "partsNotInDraft": "An ajiye sassanku a wannan na'ura amma ba su shiga daftarinku ba tukuna. {{reason}}",
     "partDeleted": "An goge {{part}}.",
     "chips": {
       "bible": "Littafi Mai Tsarki",

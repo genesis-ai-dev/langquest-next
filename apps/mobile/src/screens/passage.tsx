@@ -37,6 +37,7 @@ import {
 } from '../passage/record';
 import { PassagePath } from '../passage/path';
 import { VersionsPage } from '../passage/versions';
+import { VersionRecording } from '../passage/versionParts';
 import { pathSteps, teamSteps, type PathInput, type PathStep, type TeamStep } from '../passage/pathModel';
 import { clipSeconds, clock as clockOf } from '../clipPlayer';
 import { useHelpSpot } from '../helpContext';
@@ -906,12 +907,7 @@ export function VersionDetail(ctx: Ctx) {
 
       <SectionLabel label={t('passage.version.recording')} />
       <Authored ctx={ctx} by={version.by}>
-        <Card>
-          <PlayRow ctx={ctx} hashes={version.cardHashes} label={t('passage.journey.playVersion', { version: title })} sub={t('passage.journey.takes', { count: version.cardHashes.length })} />
-          {version.cardHashes.length > 1 ? version.cardHashes.map((h, i) => (
-            <PlayRow key={`${h}-${i}`} ctx={ctx} hashes={[h]} label={t('passage.version.take', { n: i + 1 })} />
-          )) : null}
-        </Card>
+        <VersionRecording ctx={ctx} state={v.state} unitId={unitId} title={title} hashes={version.cardHashes} />
       </Authored>
       <UsedLine ctx={ctx} state={v.state} subject={{ takeId: version.takeId }} detailsKey={key('used')} />
 

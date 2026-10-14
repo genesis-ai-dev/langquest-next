@@ -2704,6 +2704,21 @@ and grey instead of joining a card; a part's own verse is a soft grey tile
 with a dark number, so the labels stay quiet beside the parts. The marks, the event and the tap rules are
 unchanged.
 
+Amended (2026-10-14, Caleb Koster): a published version shows its verses
+too. Caleb found a version's page listing "Play Version 1 (2 takes)", "Take
+1", "Take 2" as three rows that looked the same, with no verses. A take
+suggests another try at the same audio; these are pieces that together make
+the recording. So a version's page (`passage/versionParts.tsx`) plays the
+whole version in the clip player, then lists its parts read only, "Part 1",
+"Part 2", each with its verse tile as the recorder draws it (`VerseTile`,
+hollow for more of the verse above, read by `readPartVerses`). Nowhere on
+screen are parts called takes any more; the words "take" and "takes" for a
+part are gone from all 15 catalogs (the demo's REC-W2 says takes; this
+departs from it on Caleb's word). A part whose stored verses equal the part
+above's reads as more of that verse even when both were chosen, and the
+v2 import (decision 94) now records such a part as a join, as the recorder
+would.
+
 ## 83. A person may keep several drafts of a passage, each one the line of takes its changes made
 
 Date: 2026-10-10 · By: Caleb Koster · Status: accepted

@@ -3133,8 +3133,8 @@
       "studySteps_other": "{{name}} · {{done}} จาก {{count, number}} ขั้นตอน",
       "dueOn": "กำหนด {{date}}",
       "record": "อัดเสียง",
-      "yourTakes": "อัดเสียงแล้ว แต่ยังไม่ได้เผยแพร่",
-      "someTakes": "อัดเสียงไว้บางส่วนแล้ว แต่ยังไม่ได้เผยแพร่",
+      "yourParts": "อัดช่วงต่างๆ ของคุณแล้ว แต่ยังไม่ได้เผยแพร่",
+      "someParts": "อัดไว้บางช่วงแล้ว แต่ยังไม่ได้เผยแพร่",
       "recordHint": "เล่าเป็นภาษาของคุณ พระคัมภีร์ คำสำคัญ และโน้ตอยู่ข้างๆ คุณขณะอัดเสียง",
       "recordHintAsked": "{{asked}} เล่าเป็นภาษาของคุณ พระคัมภีร์ คำสำคัญ และโน้ตอยู่ข้างๆ คุณขณะอัดเสียง",
       "asked": {
@@ -3191,7 +3191,7 @@
       },
       "kindOnVersion": "{{kind}} ใน{{version}}",
       "recording": "กำลังอัดเสียง",
-      "takesNotPublished": "อัดเสียงแล้ว แต่ยังไม่ได้เผยแพร่",
+      "partsNotPublished": "อัดช่วงต่างๆ แล้ว แต่ยังไม่ได้เผยแพร่",
       "notRecorded": "ยังไม่ได้อัด",
       "backToLatest": "กลับไปที่ฉบับล่าสุด",
       "pill": {
@@ -3211,7 +3211,7 @@
       "newer": "ฉบับที่ใหม่กว่า",
       "versions": "ฉบับต่างๆ",
       "playVersion": "เล่น{{version}}",
-      "takes_other": "อัด {{count, number}} ครั้ง",
+      "parts_other": "{{count, number}} ช่วง",
       "openRecording": "เปิดเสียงที่อัด",
       "madeAfter": "ทำหลังจาก",
       "madeAfterShow": "ทำหลังจาก {{label}} แสดงฉบับนั้น",
@@ -3344,7 +3344,6 @@
       "changeAloud": "สิ่งที่เปลี่ยนไป แบบพูดออกเสียง",
       "inResponseTo": "ตอบ{{kind}}จาก {{who}}",
       "recording": "เสียงที่อัด",
-      "take": "ครั้งที่ {{n, number}}",
       "details": "รายละเอียด",
       "keyTerms": "คำสำคัญ",
       "termsTied_other": "ผูกแล้ว {{count, number}} คำ · {{terms}}",
@@ -4023,7 +4022,6 @@
     "resumeRecordingNow": "อัดเสียงต่อเลย",
     "loop": {
       "capturing": "กำลังอัดสิ่งที่คุณพูด",
-      "takesSoFar_other": "อัดแล้ว {{count, number}} ครั้ง",
       "partsSoFar_other": "อัดแล้ว {{count, number}} ช่วง",
       "piecesSoFar_other": "อัดแล้ว {{count, number}} ชิ้น",
       "pausedForSource": "หยุดชั่วคราวขณะต้นฉบับเล่น {{soFar}}",
@@ -4067,7 +4065,7 @@
       "tiedBadge": "ผูกแล้ว",
       "tying": "กำลังผูก…",
       "tie": "ผูกกับฉบับร่างของคุณ",
-      "recordFirst": "อัดเสียงก่อน แล้วจึงผูกคำกับฉบับร่างได้",
+      "recordFirst": "อัดหนึ่งช่วงก่อน แล้วจึงผูกคำกับฉบับร่างได้",
       "allTerms": "คำสำคัญทั้งหมด →",
       "studyTitle": "การศึกษา {{pattern}} · {{passage}}",
       "openStudy": "เปิดการศึกษา →",
@@ -4102,16 +4100,12 @@
       "dividerHint": "ลากขึ้นหรือลงเพื่อให้ฝั่งใดฝั่งหนึ่งมีพื้นที่มากขึ้น"
     },
     "take": {
-      "record": "อัดเสียงหนึ่งครั้ง",
+      "record": "อัดหนึ่งช่วง",
       "recordHint": "พูดโดยเว้นช่วงระหว่างแต่ละช่วง แตะหยุดเมื่อพูดจบ"
     },
     "backTranslation": {
       "draftUnreadable": "อ่านช่วงที่คุณทำไว้ก่อนหน้าในเครื่องนี้ไม่ได้ (รหัส {{code}}) ไม่มีอะไรถูกลบ",
       "partsSaid_other": "พูดแล้ว {{said}} จาก {{count, number}} ช่วง"
-    },
-    "workspace": {
-      "take": "ครั้งที่ {{n}}",
-      "newTake": "อัดใหม่ ครั้งที่ {{n}}"
     },
     "verses": {
       "verse": "ข้อ {{verse}}",
@@ -5221,7 +5215,7 @@
     "missing": "ตอนพระคัมภีร์นี้ยังไม่อยู่ในเครื่องนี้",
     "missingSub": "อาจยังโหลดอยู่",
     "orgLoading": "องค์กรของคุณยังโหลดอยู่",
-    "takesNotInDraft": "เสียงที่คุณอัดบันทึกไว้ในเครื่องนี้แล้ว แต่ยังไม่อยู่ในฉบับร่าง {{reason}}",
+    "partsNotInDraft": "ช่วงที่คุณอัดบันทึกไว้ในเครื่องนี้แล้ว แต่ยังไม่อยู่ในฉบับร่าง {{reason}}",
     "partDeleted": "ลบ {{part}} แล้ว",
     "chips": {
       "bible": "พระคัมภีร์",

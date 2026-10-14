@@ -93,8 +93,8 @@ describe('listen, speak, listen', () => {
   });
 
   it('says plainly that recording is paused while the source plays', () => {
-    expect(loopStatus('listening', false, 2, 'take')).toBe('Paused while the source plays. 2 takes so far');
-    expect(loopStatus('recording', true, 2, 'take')).toBe('Recording what you say');
+    expect(loopStatus('listening', false, 2, 'part')).toBe('Paused while the source plays. 2 parts so far');
+    expect(loopStatus('recording', true, 2, 'part')).toBe('Recording what you say');
     expect(loopStatus('recording', false, 1, 'part')).toBe('Listening for you. 1 part so far');
   });
 });
