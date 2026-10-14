@@ -284,10 +284,12 @@ langquest-next/
   PLAN.md            this file
   CLAUDE.md          agent entry point
   packages/core/     events, reducer, workflow, HLC, snapshot; pure TS + tests
-  packages/client/   SyncClient (local log, fold on append, outbox push, cursor
-                     pull), EventStore and Transport interfaces, MemoryStore,
-                     SupabaseTransport; unit tests on a fake server plus an
-                     integration test against local Supabase
+  packages/sync/     keeps and moves what is queued for the server: SyncClient
+                     (local log, fold on append, outbox push, cursor pull),
+                     EventStore and Transport interfaces, snapshots, file
+                     transfer, the account outbox and hand-overs (decisions
+                     103); unit tests on a fake server plus an integration
+                     test against local Supabase
   apps/mobile/       Expo app; SQLite EventStore, blob store, screens
   apps/web/          the Cloudflare Worker that serves the app's web export
                      (decisions 57, 58) and the reports API: one Durable
@@ -304,7 +306,7 @@ langquest-next/
 2. **Done.** `server`: `append_events` with the membership fold, `pull_events`
    by cursor, append-only triggers, local Supabase via colima. `npm run
    db:test` runs `server/smoke.sql`.
-3. **Done.** `packages/client`: `SyncClient` with fold-on-append, outbox push
+3. **Done.** `packages/sync`: `SyncClient` with fold-on-append, outbox push
    that keeps rejected events, paged pull, offline no-op. Verified by
    `npm run test:integration` with two real users.
 4. **Done.** `apps/mobile`: Expo 57 shell, `SqliteStore` on
@@ -325,12 +327,12 @@ langquest-next/
    takes, both microphone sessions open at once as in v2. Cards are ingested
    into a content-addressed store (`apps/mobile/src/blobs.ts`), appended as
    `RecordingAdded`, and the draft take is recomposed. Uploads and downloads
-   run on `TransferWorker` (packages/client) per section 14, through the
+   run on `TransferWorker` (packages/sync) per section 14, through the
    app's Worker into R2 (decisions.md 69), which appends `BlobStored` as the
    only confirmation. Needs a
    dev client (`npm run ios`, which decrypts the env file); Expo Go cannot load the native module.
 6. Review UI driven entirely by `deriveTakeStatus`.
-7. **Snapshot worker done** (`packages/client/src/snapshotWorker.ts`,
+7. **Snapshot worker done** (`packages/sync/src/snapshotWorker.ts`,
    incremental, refolds fully when a redaction targets the snapshot). Org
    dashboard: step 14, folded by the dashboard's own server (decision 44).
 8. **Done, and kept up to date.** LangQuest v2 comes over one way and keeps

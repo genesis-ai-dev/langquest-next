@@ -1,4 +1,4 @@
-import { SupabaseTransport, SyncClient, ensureDeviceId } from '@langquest-next/client';
+import { SupabaseTransport, SyncClient, ensureDeviceId } from '@langquest-next/sync';
 import { DEFAULT_LICENSE, ORG_STREAM, SEED_ROLES, type License, type OrgState } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { getStore } from './store';

@@ -6,7 +6,7 @@
  * lag coordinators can tolerate; translators never wait on it.
  */
 import { createClient } from '@supabase/supabase-js';
-import { runSnapshotWorker } from '@langquest-next/client';
+import { runSnapshotWorker } from '@langquest-next/sync';
 
 const url = process.env['SUPABASE_URL'] ?? 'http://127.0.0.1:54421';
 const key = process.env['SUPABASE_SERVICE_ROLE_KEY'];

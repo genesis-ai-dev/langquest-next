@@ -1,4 +1,4 @@
-import { classifyTransferFailure, Diagnostics, ensureDeviceId, sanitizeContext, type DiagContext, type DiagStore } from '@langquest-next/client';
+import { classifyTransferFailure, Diagnostics, ensureDeviceId, sanitizeContext, type DiagContext, type DiagStore } from '@langquest-next/sync';
 import { CLIENT_PROTOCOL_VERSION, REDUCER_VERSION } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { Paths } from 'expo-file-system';
@@ -12,7 +12,7 @@ import { supabase } from './supabase';
 // Field diagnostics (docs/diagnostics.md, decisions.md 39). One recorder for
 // the app: the sync clients, the transfer workers and report.ts write to
 // it; `flushDiagnostics` delivers what it holds once the phone's own work
-// is out of the way. Nothing recorded is content (packages/client
+// is out of the way. Nothing recorded is content (packages/sync
 // diagnostics.ts holds the allowlist).
 
 /** At most one delivery attempt this often; weeks of records drain over a few syncs. */

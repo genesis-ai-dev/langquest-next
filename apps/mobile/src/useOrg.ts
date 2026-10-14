@@ -1,4 +1,4 @@
-import { SupabaseTransport, SyncClient, SyncScheduler, ensureDeviceId, type Materializer, type SyncInspection } from '@langquest-next/client';
+import { SupabaseTransport, SyncClient, SyncScheduler, ensureDeviceId, type Materializer, type SyncInspection } from '@langquest-next/sync';
 import { applyOrgEvent, emptyOrgState, foldOrg, ORG_STREAM, REDUCER_VERSION, type EventPayloads, type OrgEventType, type OrgState } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useRef, useState } from 'react';

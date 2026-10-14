@@ -3635,3 +3635,43 @@ Amended (2026-10-14, Carl Sauder): the folder `smart-tests/` is now
 the web UI suite and the web smoke, both Playwright, the end-to-end
 layer of `docs/testing.md`. Not `web-tests/`, which read like a sibling
 of `apps/web/test`, the Worker's unit tests.
+
+## 103. `packages/client` is `packages/sync`, and it owns anything a device queues for the server
+
+Date: 2026-10-14 · By: Carl Sauder · Status: accepted
+
+Reason: the package began as the client half of the sync protocol (the
+first scaffold, PLAN.md section 10), and the name was never written down
+or revisited. It since took on jobs that run on servers (`snapshotWorker`,
+`blobReconciler`, `workerBlobs`, `v2import`), and is imported by the Worker,
+`server/`, the scripts and the tests as well as the phone, while most
+readers take "client" to mean "the app". That made its boundary hard to
+explain, and two outbound queues had grown up in `apps/mobile` beside it:
+the account outbox (`durableOutbox.ts`) and the uploads of a shared phone's
+hand-over (`handOverCore.ts`, 60). Carl chose (2026-10-14):
+
+- Three layers, by the question each answers. `core`: what does the data
+  mean? `sync`: is it kept, sent, received and current? The apps: what does
+  a person do and see, and what runs it on this platform?
+- `sync`'s scope is anything queued for the server, not only events and
+  their files, so the account outbox, a hand-over's delivery attempt and
+  the per-language session (the `SyncClient`, both `TransferWorker`s, the
+  scheduler and storage reclaim, formerly built inside `useLanguage`) move
+  into it. Each takes its platform pieces as arguments.
+- The boundary is held by what a file imports: core, supabase-js and its
+  own files, plus Node built-ins under `src/testing`
+  (`packages/sync/test/boundary.test.ts`). Drivers, file stores,
+  `AsyncStorage` and configured clients stay in the app that uses them.
+- The reasons: every runtime that keeps or moves data runs the same queuing
+  and transfer code, so none copies it and gets it subtly wrong; everything
+  a device queues for the server goes through one tested place; and the
+  name now says what the package does. `sync` rather than `eventsync`,
+  since not all of it is events, and `core` keeps its name: its contents
+  still match it and the no-I/O rule stops it collecting everything shared.
+
+Older entries and records that say `packages/client` mean this package.
+
+Reverse if: a second app needs a different outbound policy than the phone
+(the queues would split back into the apps behind a shared interface), or
+the server-side jobs grow their own dependencies that the phone must not
+carry, which would argue for a separate server package.

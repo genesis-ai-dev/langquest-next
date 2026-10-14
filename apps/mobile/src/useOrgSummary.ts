@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { fetchOrgSummary, type ReportsServer } from '@langquest-next/client';
+import { fetchOrgSummary, type ReportsServer } from '@langquest-next/sync';
 import type { OrgSummaryResponse } from '@langquest-next/core';
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';

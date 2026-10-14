@@ -4,7 +4,7 @@
 // server (decision 44), which a phone could not total itself (decision 37).
 // Ports the web dashboard's shell and language page (apps/web/src/screens:
 // shell, Language); the sections and their parts are in src/reports/.
-import { appendConfirmed, ensureDeviceId, NotSavedError, SupabaseTransport } from '@langquest-next/client';
+import { appendConfirmed, ensureDeviceId, NotSavedError, SupabaseTransport } from '@langquest-next/sync';
 import {
   dayPercents, mayViewLanguage, ORG_STREAM, paceOf, percent, privilegesFor, recencyOf, TARGET_SCOPES,
   type LanguageReport, type LanguageRow, type TargetScope

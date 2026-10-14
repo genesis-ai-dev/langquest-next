@@ -5,7 +5,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type { Browser, BrowserContext, Locator, Page } from '@playwright/test';
 import { commands, derivePassage, ORG_STREAM, SEED_ROLES, type EventSpec, type LanguageState, type OrgState, type Scope } from '@langquest-next/core';
-import { blobKey, MemoryStore, SupabaseTransport, SyncClient, workerBlobs } from '@langquest-next/client';
+import { blobKey, MemoryStore, SupabaseTransport, SyncClient, workerBlobs } from '@langquest-next/sync';
 import { clientAs, send, signIn } from './fixture';
 import { back, button, byId, expect, expectSyncIdle, expectToast, openAs, openPassage, primary, tab, text, type AccountKey, type PassageKey, type UiWorld } from './support';
 

@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SupabaseTransport, SyncScheduler, deliverQueued, ensureDeviceId, type EventStore } from '@langquest-next/client';
+import { SupabaseTransport, SyncScheduler, deliverQueued, ensureDeviceId, type EventStore } from '@langquest-next/sync';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import * as Crypto from 'expo-crypto';
 import { useEffect } from 'react';

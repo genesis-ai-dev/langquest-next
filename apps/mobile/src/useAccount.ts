@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SyncScheduler } from '@langquest-next/client';
+import { SyncScheduler } from '@langquest-next/sync';
 import { useEffect, useState } from 'react';
 import { AppState } from 'react-native';
 import { reportError } from './report';

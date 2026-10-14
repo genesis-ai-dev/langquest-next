@@ -1,4 +1,4 @@
-import { SupabaseTransport, SyncClient, ensureDeviceId } from '@langquest-next/client';
+import { SupabaseTransport, SyncClient, ensureDeviceId } from '@langquest-next/sync';
 import type { EventSpec } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { noteExpected } from './report';

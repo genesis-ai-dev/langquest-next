@@ -12,7 +12,7 @@
 import { signInName } from '../accounts';
 import { readHelp, type SignInHelp } from '../signInHelp';
 import { CommandError, decodeHlc, languageName, ORG_STREAM, orgLanguages, unitTitle, type Update } from '@langquest-next/core';
-import type { LocalEvent, SyncInspection } from '@langquest-next/client';
+import type { LocalEvent, SyncInspection } from '@langquest-next/sync';
 import { getStore } from '../store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Updates from 'expo-updates';

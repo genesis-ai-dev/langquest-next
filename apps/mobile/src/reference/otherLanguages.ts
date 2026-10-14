@@ -7,7 +7,7 @@
 // simply not shown. Each fold is kept until that language's log changes.
 // A word's recording plays from this phone, or streams from its language's
 // files when the server lets this person have them (helps.tsx).
-import { SupabaseTransport, SyncClient, ensureDeviceId } from '@langquest-next/client';
+import { SupabaseTransport, SyncClient, ensureDeviceId } from '@langquest-next/sync';
 import { keyTermsFor, type KeyTermView } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useEffect, useState } from 'react';

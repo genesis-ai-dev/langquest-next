@@ -25,7 +25,7 @@ import {
   type CollectionDoc, type EventSpec, type FlowDoc, type KindDef, type LanguageState, type LibraryDoc, type License, type OrgState,
   type Privilege, type Scope, type SourceDoc, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
-import { blobKey, MemoryStore, SupabaseTransport, SyncClient, workerBlobs, type Materializer } from '@langquest-next/client';
+import { blobKey, MemoryStore, SupabaseTransport, SyncClient, workerBlobs, type Materializer } from '@langquest-next/sync';
 
 // ---- the world's shape ----------------------------------------------------------------
 

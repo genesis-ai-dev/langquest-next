@@ -21,9 +21,20 @@ Rules specific to this folder:
 
 - `packages/core` is pure TypeScript with no I/O and no runtime dependencies.
   If you need SQLite, HTTP, or the filesystem, you are in the wrong package.
-- `packages/client` owns sync. It talks to storage and the server only through
-  the `EventStore` and `Transport` interfaces. Platform code (SQLite, Expo)
-  implements those interfaces in `apps/mobile`; it never reimplements sync.
+- `packages/core` says what the data means; `packages/sync` keeps it and
+  moves it (decisions.md 103). Sync owns anything queued for the server: the
+  local event log, push and pull, snapshots, file transfer, the account
+  outbox, a shared phone's hand-overs, diagnostics delivery, and the
+  per-language session that runs them. It runs wherever data is kept or
+  moved (phone, Worker, server jobs, scripts), and it imports only core,
+  supabase-js and its own files (`packages/sync/test/boundary.test.ts`).
+  A platform gets in as a constructor argument: expo-sqlite drivers, file
+  stores, `AsyncStorage` and configured clients live in the app that uses
+  them, which never reimplements sync.
+- Apps decide what to do, what to write and what to show. In `apps/mobile`
+  every Supabase call lives in `src/server/` (decisions.md 104,
+  `apps/mobile/test/serverBoundary.test.ts`); screens and hooks call its
+  functions.
 - Every new event type needs: a type in `events.ts` (or `record.ts`), a case
   in `reducer.ts`, a case in `validate.ts` and in the SQL `validate_payload`
   and `event_privilege` (a new migration), and coverage in the

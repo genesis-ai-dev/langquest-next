@@ -3,7 +3,7 @@
 Expo 57 app, run as a development build (the native recorder module does not load in Expo Go). Owns exactly three things:
 
 1. `src/store.ts`: the expo-sqlite driver behind `SqliteStore` from
-   `@langquest-next/client`. The store logic itself lives in the client
+   `@langquest-next/sync`. The store logic itself lives in the sync
    package and is contract-tested there against node:sqlite.
 2. `src/usePartition.ts`: one `SyncClient` on the open language's partition
    with `SupabaseTransport`, sync on open and every 15 s, a pending count.

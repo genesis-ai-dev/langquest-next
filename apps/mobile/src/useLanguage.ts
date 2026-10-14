@@ -1,4 +1,4 @@
-import { DEFAULT_TRANSFER_BUDGET_BYTES, DOWNLOAD_DEFAULTS, SupabaseTransport, SyncClient, TransferBudget, TransferWorker, UPLOAD_DEFAULTS, ensureDeviceId, SyncScheduler, type SyncInspection } from '@langquest-next/client';
+import { DEFAULT_TRANSFER_BUDGET_BYTES, DOWNLOAD_DEFAULTS, SupabaseTransport, SyncClient, TransferBudget, TransferWorker, UPLOAD_DEFAULTS, ensureDeviceId, SyncScheduler, type SyncInspection } from '@langquest-next/sync';
 import { audioFormatsFor, CommandError, defaultOfflineScope, emptyLanguageState, deriveDownloadWork, deriveUploadWork, evictableBlobs, type BlobRef, type EventPayloads, type EventSpec, type EventType, type LanguageState } from '@langquest-next/core';
 import { getBlobStore, type BlobFile, type BlobStore } from './blobs';
 import { downloadBlob, streamUrl, uploadBlob } from './blobTransport';

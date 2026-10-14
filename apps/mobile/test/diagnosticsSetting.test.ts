@@ -1,4 +1,4 @@
-import { Diagnostics, MemoryDiagStore, MemoryStore } from '@langquest-next/client';
+import { Diagnostics, MemoryDiagStore, MemoryStore } from '@langquest-next/sync';
 import { applyDiagnosticsOn, DIAG_OFF_KEY, readDiagnosticsOn, saveDiagnosticsOn } from '../src/diagnosticsSetting';
 
 // The Settings switch for field diagnostics (docs/diagnostics.md, decisions.md 39).

@@ -9,7 +9,7 @@
     "build:preview": "npm run export:web -w mobile -- preview"
   },
   "dependencies": {
-    "@langquest-next/client": "*",
+    "@langquest-next/sync": "*",
     "@langquest-next/core": "*",
     "@supabase/supabase-js": "^2.117.2"
   },

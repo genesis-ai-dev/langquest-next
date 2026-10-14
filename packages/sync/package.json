@@ -1,5 +1,5 @@
 {
-  "name": "@langquest-next/client",
+  "name": "@langquest-next/sync",
   "private": true,
   "version": "0.0.1",
   "type": "module",
