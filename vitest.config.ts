@@ -26,6 +26,8 @@ export default defineConfig({
         'scripts/**'
       ],
       exclude: [
+        // Folders' READMEs (apps/mobile/src/server/README.md): not code, and parsing them prints a stack.
+        '**/*.md',
         '**/*.test.{ts,tsx}',
         '**/*.d.ts',
         '**/generated/**',
