@@ -37,7 +37,7 @@ const SUGGEST = 10;
 /** The book in a Bible the team has (the language's Bibles, the one chosen last on this phone first), else one LangQuest shares. */
 export function useBookText(ctx: Ctx, book: string, maxVerses: readonly number[]) {
   const languageId = ctx.language.languageId;
-  // A book opened in the template editor may have no team behind it: LangQuest's Bibles stand in (decision 103).
+  // A book opened in the template editor may have no team behind it: LangQuest's Bibles stand in (decision 104).
   const sources = useSources(ctx, null, languageId, { wholeBook: true });
   const [chosen, choose] = useChoice(choiceKey(ctx.session.actorId, ctx.language.orgId, languageId ?? ''));
   const option = sources.options.find((o) => o.itemId === chosen) ?? sources.options[0];
@@ -82,7 +82,7 @@ type Panel = null | 'bible' | 'jump' | 'from' | 'helps' | 'leave' | { section: A
 export function DivideOwnWay(props: {
   ctx: Ctx; book: string; bookName: string; doc: TemplateDoc; v11n: VersificationDoc | null; fallbackVerses: readonly number[];
   item: LibraryItemView | null; redo: boolean; onClose: () => void; onDone: () => void;
-  /** In the template editor (decision 103): take the book's new sections instead of changing the language's template. */
+  /** In the template editor (decision 104): take the book's new sections instead of changing the language's template. */
   apply?: (way: TemplateDoc, note: string, said: string) => void;
 }) {
   const { ctx, book, bookName } = props;
