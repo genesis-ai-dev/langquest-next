@@ -105,6 +105,11 @@ export function button(page: Page, name: string | RegExp): Locator {
   return visible(page.getByRole('button', { name, exact: typeof name === 'string' })).last();
 }
 
+/** My Work's organization chip, shown to someone in several organizations (decision 71, amended 2026-10-14). */
+export function orgChip(page: Page, org: string): Locator {
+  return button(page, `${org}, switch organization`);
+}
+
 /** Text on screen, exact by default. */
 export function text(page: Page, value: string | RegExp, exact = true): Locator {
   return visible(page.getByText(value, { exact: typeof value === 'string' ? exact : undefined })).first();

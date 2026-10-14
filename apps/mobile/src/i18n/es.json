@@ -3705,6 +3705,10 @@
       "help": "Lo que pasó y te concierne: solicitudes, comentarios, personas que piden unirse.",
       "overMax": "{{max}}+"
     },
+    "org": {
+      "label": "{{org}}, cambiar de organización",
+      "help": "La organización en la que estás ahora. Toca para cambiar a otra."
+    },
     "readyCard": {
       "label": "Prepara {{language}} · {{done}} de {{total}}",
       "choose": "Elegir",

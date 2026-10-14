@@ -3580,6 +3580,10 @@
       "help": "What happened that concerns you: requests, feedback, people asking to join.",
       "overMax": "{{max}}+"
     },
+    "org": {
+      "label": "{{org}}, switch organization",
+      "help": "The organization you're in now. Tap to switch to another one."
+    },
     "readyCard": {
       "label": "Get {{language}} ready · {{done}} of {{total}}",
       "choose": "Choose",

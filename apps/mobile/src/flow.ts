@@ -380,6 +380,9 @@ export const EDGES: Edge[] = [
   e('sync_status', 'settings_more', 'back'),
   e('settings_more', 'delete_account'),
   e('delete_account', 'settings_more', 'back'),
+  // App only: someone in several organizations switches from My Work's organization chip (decision 71, amended 2026-10-14)
+  e('my_work', 'org_switcher'),
+  e('org_switcher', 'my_work', 'back'),
   // App only: the four questions, one screen each, and where each answer is made in full (decision 71, demo ADR-039)
   e('get_ready', 'get_ready'),
   e('get_ready', 'template_editor', undefined, 'manageTemplates'),

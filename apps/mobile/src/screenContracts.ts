@@ -31,7 +31,8 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   scan_qr: { emits:['v1.TermsAccepted'],rpcs:['preview_invite','redeem_invite_v2','my_organizations','record_user_event'] },
   explore_home: { reads:['public_languages'] },
   // People asking to join show under a coordinator's Get ready card (decision 71).
-  my_work: { reads:['highlightsFor','waitingOn','derivePassage','upNext','recommendedFor','join_requests','profiles'] },
+  // Its organization chip shows to someone in several organizations (decision 71, amended 2026-10-14).
+  my_work: { reads:['highlightsFor','waitingOn','derivePassage','upNext','recommendedFor','join_requests','profiles'],rpcs:['my_organizations'] },
   status_home: { reads:['languageProgress'] },
   // A section whose divisions changed since it was recorded is marked (earlier.tsx, decision 80):
   // the numberings come from the library.
@@ -121,7 +122,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
     rpcs:['decide_join_request_v2','org_content_reports','remove_content','dismiss_reports'] },
   profile_edit: { rpcs:['save_profile'],reads:['profiles'] },
   org_switcher: { rpcs:['my_organizations'] },
-  settings_home: { reads:['offlineSummary'] },
+  settings_home: { reads:['offlineSummary'],rpcs:['my_organizations'] },
   // What Settings had beyond Me's five rows (decision 71).
   settings_more: { rpcs:['register_push_token','set_blocked','my_organizations'],reads:['user_blocks'] },
   sign_out_confirm: { rpcs:['unregister_push_token'] },

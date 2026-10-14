@@ -1,7 +1,8 @@
 // The simple My Work's parts (decision 71; demo ADR-032, ADR-039): the bell
-// in place of an Inbox tab, one "Next for you" card with one big button, the
-// coordinator's "Get ‹language› ready" card, and quiet links that open in
-// place. Built on the kit, and every press goes through help mode.
+// in place of an Inbox tab, the organization chip for someone in several,
+// one "Next for you" card with one big button, the coordinator's "Get
+// ‹language› ready" card, and quiet links that open in place. Built on the
+// kit, and every press goes through help mode.
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../text';
@@ -29,6 +30,26 @@ export function Bell(props: { count: number; onPress: () => void }) {
           <Text style={styles.badgeText}>{props.count > 99 ? t('work.bell.overMax', { max: formatNumber(99) }) : formatNumber(props.count)}</Text>
         </View>
       ) : null}
+      <HelpBadge spot={spot} />
+    </Pressable>
+  );
+}
+
+/**
+ * The organization under My Work's title, for someone in more than one: a
+ * chip with a ⌄ that opens Switch Organization (decision 71, amended
+ * 2026-10-14). On its own line, so a long name has the room. Someone in one
+ * organization sees its name as plain text beside the language.
+ */
+export function OrgChip(props: { org: string; onPress: () => void }) {
+  const spot = useHelpSpot(props.org, t('work.org.help'), props.onPress);
+  return (
+    <Pressable onPress={spot.onPress} hitSlop={{ top: 6, bottom: 6 }} accessibilityRole="button"
+      accessibilityLabel={t('work.org.label', { org: props.org })}
+      style={({ pressed }) => [styles.org, pressed && styles.pressed]}>
+      <Ico name="building" size={16} color={C.primary} />
+      <Text style={styles.orgText} numberOfLines={1}>{props.org}</Text>
+      <Ico name="down" size={16} color={C.primary} />
       <HelpBadge spot={spot} />
     </Pressable>
   );
@@ -103,6 +124,9 @@ const styles = StyleSheet.create({
   nextSub: { ...txt.smMuted, fontSize: T.base, lineHeight: 23 },
   segments: { flexDirection: 'row', gap: space.sm },
   segment: { flex: 1, height: 6, borderRadius: 3 },
+  org: { minHeight: 36, maxWidth: '100%', alignSelf: 'flex-start', marginTop: space.sm, flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: space.md, borderRadius: radius.full, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card },
+  orgText: { flexShrink: 1, fontSize: T.sm, fontWeight: '700', color: C.primary },
   quiet: { minHeight: target.min, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.xs, alignSelf: 'center', paddingHorizontal: space.md },
   quietText: { fontSize: T.base, fontWeight: '600', color: C.muted }
 });

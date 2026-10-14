@@ -3580,6 +3580,10 @@
       "help": "Yaliyotokea yanayokuhusu: maombi, maoni, watu wanaoomba kujiunga.",
       "overMax": "{{max}}+"
     },
+    "org": {
+      "label": "{{org}}, badilisha shirika",
+      "help": "Shirika ulilomo sasa. Gusa ili kubadili kwenda jingine."
+    },
     "readyCard": {
       "label": "Andaa {{language}} · {{done}} kati ya {{total}}",
       "choose": "Chagua",

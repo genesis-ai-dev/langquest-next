@@ -280,13 +280,13 @@ Automation: Maestro `JRN-008.yaml`.
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Steps:
-1. Me → More settings → Switch Organization. Tap "UI Second Org".
+1. On My Work, tap the organization chip under the title ("UI Test Org ⌄"). Tap "UI Second Org".
 2. Look at the tabs and My Work.
-3. Switch back to "UI Test Org".
+3. Me → Switch Organization. Switch back to "UI Test Org".
 
 Expected:
 - Step 1: the blank "Opening your organization" view, then My Work.
-- Step 2: the tabs are Work, Map and Me (no Manage). The Map opens the ORG2 language's map.
+- Step 2: the tabs are Work, Map and Me (no Manage). My Work's chip says "UI Second Org". The Map opens the ORG2 language's map.
 - Step 3: Manage is back, and My Work shows ORG's items.
 
 ## Viewer

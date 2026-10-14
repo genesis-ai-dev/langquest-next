@@ -4,7 +4,7 @@ import { needsConnection, openableLanguages } from '../src/simple/mapModel';
 import { EDGES } from '../src/flow';
 import { edgeAllowed, tabsFor } from '../src/session';
 import { nextSub, readiness, readySteps, waitingWhat, waitingWho, workIcon, workSub, workTarget, workWhat } from '../src/simple/homeModel';
-import { offlineCount } from '../src/simple/meModel';
+import { inSeveral, offlineCount } from '../src/simple/meModel';
 import { roleSession } from './sessions';
 
 describe('the simple My Work (decision 71)', () => {
@@ -85,6 +85,22 @@ describe('the simple tabs (decision 71)', () => {
     for (const to of ['org_switcher', 'sync_status', 'delete_account', 'profile_edit'] as const) {
       expect(EDGES.some((e) => e.from === 'settings_more' && e.to === to && edgeAllowed(e, s)), to).toBe(true);
     }
+  });
+
+  it('lets someone in several organizations switch from My Work and Me, not only under More settings', () => {
+    // Why: Caleb and a partner found Switch Organization hard to find under
+    // Me › More settings (decision 71, amended 2026-10-14).
+    for (const role of ['translator', 'reviewer', 'coordinator'] as const) {
+      const s = roleSession(role);
+      for (const from of ['my_work', 'settings_home', 'settings_more'] as const) {
+        expect(EDGES.some((e) => e.from === from && e.to === 'org_switcher' && edgeAllowed(e, s)), `${role} from ${from}`).toBe(true);
+      }
+    }
+    // Known to be in several: Me and My Work offer it. Unknown or one: More settings keeps it, to start a new one.
+    expect(inSeveral([{ org_id: 'a' }, { org_id: 'b' }])).toBe(true);
+    expect(inSeveral([{ org_id: 'a' }])).toBe(false);
+    expect(inSeveral([])).toBe(false);
+    expect(inSeveral(null)).toBe(false);
   });
 
   it('lets someone who admits people open a join request from My Work, and nobody else', () => {

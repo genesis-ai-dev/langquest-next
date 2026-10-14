@@ -377,7 +377,9 @@ Steps:
 4. Tap "Choose".
 
 Expected:
-- My Work's sub reads "Bravo · UI Test Org".
+- My Work's sub reads "Bravo · UI Test Org" for COORD. ADMIN, in two
+  organizations, sees "Bravo" and the organization chip "UI Test Org ⌄"
+  (decision 71, amended 2026-10-14).
 - The first card is labelled "Get Bravo ready · {done} of 4", with a
   four-segment bar spoken as "{done} of 4 questions answered".
 - The title is the first open question, in this order: "What will they

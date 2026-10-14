@@ -190,6 +190,8 @@ function AndroidKeyboardSafe(props: { style?: StyleProp<ViewStyle>; children: Re
 export function Header(props: {
   title: string;
   sub?: string;
+  /** Under the title and sub, such as My Work's organization chip. */
+  below?: ReactNode;
   crumbs?: { label: string; onPress?: () => void }[];
   onBack?: () => void;
   close?: boolean;
@@ -236,6 +238,7 @@ export function Header(props: {
       <View style={{ flex: 1, minWidth: 0, alignItems: 'center' }}>
         <Text style={styles.centredTitle} numberOfLines={2} accessibilityRole="header">{props.title}</Text>
         {props.sub ? <Text style={[txt.xs, { marginTop: 2, textAlign: 'center' }]} numberOfLines={2}>{props.sub}</Text> : null}
+        {props.below}
       </View>
       {props.action}
       {helpBtn ?? <View style={{ width: 48 }} />}
@@ -252,6 +255,7 @@ export function Header(props: {
         {crumbs}
         <Text style={wide || props.onBack ? txt.title : styles.homeTitle} numberOfLines={2} accessibilityRole="header">{props.title}</Text>
         {props.sub ? <Text style={[txt.xs, { marginTop: 2 }]} numberOfLines={2}>{props.sub}</Text> : null}
+        {props.below}
       </View>
       {props.action}
       {helpBtn}

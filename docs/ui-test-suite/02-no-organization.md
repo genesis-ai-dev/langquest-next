@@ -261,17 +261,17 @@ Preconditions (in addition to the global ones):
 Resets: ADMIN now has "UI Admin Org". AUTH-030 relies on it.
 
 Steps:
-1. Me → More settings → "Switch Organization".
+1. Me → "Switch Organization" (on Me itself: ADMIN is in two organizations).
 2. Tap "New organization", then the back arrow.
 3. Tap "New organization" again. Type "UI Admin Org" and tap "Create Organization".
-4. Me → More settings → "Switch Organization" → "UI Test Org".
-5. Switch to "UI Second Org".
+4. Me → "Switch Organization" → "UI Test Org".
+5. On My Work, tap the organization chip and switch to "UI Second Org".
 
 Expected:
 - Step 1: "Switch Organization" lists UI Test Org (ticked, read out as "UI Test Org, active") and UI Second Org. Then "New organization" / "You'll be its admin. Your place in the others stays as it is."
 - Step 2: "Create Organization" opens. Back returns to "Switch Organization".
 - Step 3: UI Admin Org opens on My Work with "Get UI Admin Org ready", and no welcome. Manage opens its home.
-- Step 4: UI Test Org opens, with LANG-A as the open language. ADMIN is still Organization Admin there, with all four tabs.
+- Step 4: UI Test Org opens, with LANG-A as the open language. ADMIN is still Organization Admin there, with all four tabs. My Work shows "Alpha" and the chip "UI Test Org ⌄".
 - Step 5: ADMIN is still a Translator in UI Second Org (Work, Map and Me tabs).
 
 ## Find your organization

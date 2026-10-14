@@ -18,3 +18,13 @@ export function offlineCount(s: { kept: number; ready: number } | null): string 
 export function moreSettingsSub(): string {
   return t('map.me.moreSettingsSub');
 }
+
+/**
+ * Someone known to be in more than one organization: Switch Organization is
+ * on Me and My Work's organization chip opens it (decision 71, amended
+ * 2026-10-14). Unknown (never listed on this device) or one: it stays under
+ * More settings, where it also starts a new one.
+ */
+export function inSeveral(orgs: readonly unknown[] | null): boolean {
+  return orgs !== null && orgs.length > 1;
+}
