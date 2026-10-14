@@ -292,10 +292,10 @@ export const FLOWS: FlowTemplate[] = [
     description: 'No reviews: a passage is done once it is recorded.',
     steps: [] },
   { id: 'spoken_oral', name: 'Spoken Oral Method',
-    description: 'Community check on the first draft, peer review of the second, back translation, consultant sessions until approved, then a local check of the polished recording.',
+    description: 'Peer review of the first draft, community check of the second, back translation, consultant sessions until approved, then a local check of the polished recording.',
     steps: [
-      { stepId: 's1', kindIds: ['community'] },
-      { stepId: 's2', kindIds: ['peer'] },
+      { stepId: 's1', kindIds: ['peer'] },
+      { stepId: 's2', kindIds: ['community'] },
       { stepId: 's3', kindIds: ['bt'] },
       { stepId: 's4', kindIds: ['consultant'], checkpoint: true },
       { stepId: 's5', kindIds: ['local'] }
