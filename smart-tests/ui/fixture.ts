@@ -1,5 +1,5 @@
 // The UI test suite's fixture world (docs/ui-test-suite/README.md, "The
-// fixture world"; decisions.md 93), built through the real local server:
+// fixture world"; decisions.md 95), built through the real local server:
 // every event goes through the ordinary sync path as the person who would
 // write it, so it passes the server's validation and permissions like a
 // phone's would. Each call makes a fresh, uniquely named world, so parallel

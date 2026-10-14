@@ -168,12 +168,13 @@ function Radio(props: { on: boolean; size?: number }) {
 }
 
 /** A big radio card: icon, title, a line under it, and, when given, examples or steps below. */
-export function ChoiceCard(props: { on: boolean; icon: AdminIcon; title: string; sub?: string; onPress: () => void; children?: ReactNode; chevron?: boolean }) {
+/** One choice of several. `own` marks making your own: it comes first and looks set apart from the ready-made ones (design principle 12). */
+export function ChoiceCard(props: { on: boolean; icon: AdminIcon; title: string; sub?: string; onPress: () => void; children?: ReactNode; chevron?: boolean; own?: boolean }) {
   const spot = useHelpSpot(props.title, props.sub, props.onPress);
   return (
     <Pressable onPress={spot.onPress} accessibilityRole={props.chevron ? 'button' : 'radio'} accessibilityState={props.chevron ? undefined : { selected: props.on }}
       accessibilityLabel={`${props.title}${props.sub ? `. ${props.sub}` : ''}`}
-      style={({ pressed }) => [styles.choice, props.on && styles.choiceOn, pressed && styles.pressed]}>
+      style={({ pressed }) => [styles.choice, props.own && styles.choiceOwn, props.on && styles.choiceOn, pressed && styles.pressed]}>
       <View style={styles.choiceHead}>
         <IconTile icon={props.icon} size={40} />
         <View style={{ flex: 1, minWidth: 0 }}>
@@ -421,6 +422,7 @@ const styles = StyleSheet.create({
   radio: { borderWidth: 2, borderColor: C.faint, alignItems: 'center', justifyContent: 'center' },
   choice: { padding: 14, borderRadius: radius.xl, backgroundColor: C.card, borderWidth: 2, borderColor: C.border, gap: 10 },
   choiceOn: { borderColor: C.primary },
+  choiceOwn: { borderStyle: 'dashed', borderColor: C.primary, backgroundColor: C.light },
   choiceHead: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   choiceTitle: { fontSize: T.base, fontWeight: '800', color: C.dark, lineHeight: 25 },
   indent: { paddingLeft: 52, gap: 6 },

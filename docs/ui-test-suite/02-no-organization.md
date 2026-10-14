@@ -82,7 +82,7 @@ Expected:
 - The header has no back arrow: a signed-in person with no organization leaves only by "Sign out", which asks first. It never leaves a blank screen, and never signs out without saying so.
 - Android back and browser Back keep NOORG on "Join your team", or leave the app. They do not show another account's screens or a blank page.
 
-Decided (2026-10-13, decisions.md 98): no back arrow here; the demo's Back edge from this screen is dropped (`DROPPED_EDGES` in `flow.ts`).
+Decided (2026-10-13, decisions.md 100): no back arrow here; the demo's Back edge from this screen is dropped (`DROPPED_EDGES` in `flow.ts`).
 
 ### NOORG-004 Sign out from "Join your team"
 Roles: NOORG · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto

@@ -196,6 +196,8 @@ export function PassageRecord(ctx: Ctx) {
   const [historyShown, setHistoryShown] = useState(HISTORY_STEP);
   // Which of the checks that happen next the ask page sends (decision 91): the first, unless another is picked.
   const [askKindId, setAskKindId] = useState<string | null>(null);
+  // Questions added on the ask page, sent with the request (as Someone else can).
+  const [askQuestions, setAskQuestions] = useState<QuestionSpec[]>([]);
   const timeline = useMemo(() => (v ? recordTimeline(v.state, v.p) : []), [v?.state, v?.p]);
   const guide = useStudyGuide(ctx, v?.unitId);
   const study = useMemo(() => (v && guide ? studyProgress(v.state, v.p, guide) : null), [v?.state, v?.p, guide]);
@@ -255,12 +257,12 @@ export function PassageRecord(ctx: Ctx) {
     setTimeout(fn, SHEET_GAP_MS);
   };
   /** One tap: the kind goes to whoever usually does it, with Undo (ADR-029). */
-  const sendTo = (kindId: string) => {
+  const sendTo = (kindId: string, questions: QuestionSpec[] = []) => {
     const target = targets[kindId];
     if (!target) return go('ask_someone', { what: 'review', kindId });
     setOpenStepId(null);
     const label = sendTargetLabel(target, ctx.name);
-    void perform(ctx, (c) => c.ask(sendToInput({ commandId: newId(), unitId, kindId, target })),
+    void perform(ctx, (c) => c.ask({ ...sendToInput({ commandId: newId(), unitId, kindId, target }), ...(questions.length ? { questions } : {}) }),
       'teamId' in target ? t('passage.page.sentToTeam', { target: label }) : t('passage.page.sentToPerson', { target: label }),
       (applied) => (c) => c.withdrawRequest({ commandId: newId(), requestId: payloadField(applied, 'requestId') }));
   };
@@ -481,7 +483,7 @@ export function PassageRecord(ctx: Ctx) {
           <View style={{ gap: space.xs }}>
             <PrimaryBtn label={nextTarget ? t('passage.published.askTarget', { target: sendTargetLabel(nextTarget, ctx.name) })
               : t('passage.page.askFor', { check: kindInSentence(checkName(nextKind.kindId, kinds)) })} icon="send"
-              onPress={() => { close(); sendTo(nextKind.kindId); }} />
+              onPress={() => { close(); sendTo(nextKind.kindId, askQuestions); setAskQuestions([]); }} />
             <QuietLinks items={[
               { label: t('passage.published.someoneElse'), icon: 'people', onPress: () => { close(); go('ask_someone', { what: 'review', kindId: nextKind.kindId }); } },
               { label: t('common.notNow'), icon: 'clock', onPress: close }
@@ -515,6 +517,8 @@ export function PassageRecord(ctx: Ctx) {
                 </Pressable>
               );
             })}
+            {/* With someone to send it to, the questions they'll answer, and more to add. With nobody yet, the button opens Someone else, which has them. */}
+            {can.ask && targets[nextKind.kindId] ? <TheyAnswer asked={questionsForKind(v.state, nextKind.kindId)} questions={askQuestions} setQuestions={setAskQuestions} /> : null}
           </View>
         ) : can.ask ? (
           <Text style={[txt.smMuted, { textAlign: 'center', marginTop: space.lg }]}>
@@ -1209,6 +1213,47 @@ export function ReviewDetail(ctx: Ctx) {
 /** The ask screen's choice of a check's whole team (decision 91), beside one person's id. */
 const TEAM = '\u0000team';
 
+/**
+ * What the people asked will answer: the check's own questions (decision 91),
+ * then any added for this request, with a field to add one. On the ask page
+ * after publishing and on Someone else alike.
+ */
+function TheyAnswer(props: { asked: ReturnType<typeof questionsForKind>; questions: QuestionSpec[]; setQuestions: (f: (qs: QuestionSpec[]) => QuestionSpec[]) => void }) {
+  const [draft, setDraft] = useState('');
+  const [type, setType] = useState<QuestionSpec['type']>('yesno');
+  const add = () => {
+    const text = draft.trim();
+    if (!text) return;
+    props.setQuestions((qs) => [...qs, { id: `ask:${newId()}`, text, type }]);
+    setDraft('');
+  };
+  return (
+    <>
+      <SectionLabel label={t('checks.theyAnswer')} />
+      {props.asked.length > 0 || props.questions.length > 0 ? (
+        <Group>
+          {props.asked.map((sq) => (
+            <Row key={sq.q.id} icon="chat" label={sq.q.text} sub={[questionTypeLabel(sq.q.type), sq.required ? t('common.required') : ''].filter(Boolean).join(' · ')} />
+          ))}
+          {props.questions.map((q, i) => (
+            <Row key={q.id} label={q.text} sub={questionTypeLabel(q.type)} last={i === props.questions.length - 1}
+              right={<IconBtn name="close" label={t('passage.ask.removeQuestion')} onPress={() => props.setQuestions((qs) => qs.filter((x) => x.id !== q.id))} bg="transparent" color={C.muted} />} />
+          ))}
+        </Group>
+      ) : null}
+      <Field value={draft} onChangeText={setDraft} placeholder={t('passage.ask.askSpecific')} />
+      <View style={styles.btnRow}>
+        <View style={{ flex: 1 }}>
+          <SmallBtn label={t('passage.ask.answerType', { type: questionTypeLabel(type) })} onPress={() => setType(nextQuestionType)} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <SmallBtn label={t('passage.ask.addQuestion')} icon="plus" tone="primary" disabled={!draft.trim()} onPress={add} />
+        </View>
+      </View>
+    </>
+  );
+}
+
 export function AskSomeone(ctx: Ctx) {
   const v = usePassage(ctx);
   const what: 'record' | 'review' = ctx.params['what'] === 'record' ? 'record' : 'review';
@@ -1223,8 +1268,6 @@ export function AskSomeone(ctx: Ctx) {
   const [note, setNote] = useState('');
   const [noteHash, setNoteHash] = useState<string | null>(null);
   const [questions, setQuestions] = useState<QuestionSpec[]>([]);
-  const [qDraft, setQDraft] = useState('');
-  const [qType, setQType] = useState<QuestionSpec['type']>('yesno');
   const [today] = useState(() => isoDay(new Date()));
   const [dueDays, setDueDays] = useState<number | null>(null);
   const [dueTyped, setDueTyped] = useState('');
@@ -1272,12 +1315,6 @@ export function AskSomeone(ctx: Ctx) {
     (applied) => (c) => c.withdrawRequest({ commandId: newId(), requestId: payloadField(applied, 'requestId') }));
     setBusy(false);
     if (ok) ctx.go('passage_record', { unitId: v.unitId, languageId: v.languageId, asked: String(Date.now()) });
-  };
-  const addQuestion = () => {
-    const text = qDraft.trim();
-    if (!text) return;
-    setQuestions((qs) => [...qs, { id: `ask:${newId()}`, text, type: qType }]);
-    setQDraft('');
   };
   const personRow = (c: { profileId: string; sub: string }, last: boolean) => {
     const on = who === c.profileId;
@@ -1349,31 +1386,7 @@ export function AskSomeone(ctx: Ctx) {
       <VoiceNote ctx={ctx} label={isRecord ? t('passage.ask.sayKeepInMind') : t('passage.ask.sayListenFor')} hash={noteHash} onChange={setNoteHash} />
       <Field value={note} onChangeText={setNote} placeholder={t('passage.ask.orTypeThem')} multiline />
 
-      {!isRecord ? (
-        <>
-          <SectionLabel label={t('checks.theyAnswer')} />
-          {asked.length > 0 || questions.length > 0 ? (
-            <Group>
-              {asked.map((sq) => (
-                <Row key={sq.q.id} icon="chat" label={sq.q.text} sub={[questionTypeLabel(sq.q.type), sq.required ? t('common.required') : ''].filter(Boolean).join(' · ')} />
-              ))}
-              {questions.map((q, i) => (
-                <Row key={q.id} label={q.text} sub={questionTypeLabel(q.type)} last={i === questions.length - 1}
-                  right={<IconBtn name="close" label={t('passage.ask.removeQuestion')} onPress={() => setQuestions((qs) => qs.filter((x) => x.id !== q.id))} bg="transparent" color={C.muted} />} />
-              ))}
-            </Group>
-          ) : null}
-          <Field value={qDraft} onChangeText={setQDraft} placeholder={t('passage.ask.askSpecific')} />
-          <View style={styles.btnRow}>
-            <View style={{ flex: 1 }}>
-              <SmallBtn label={t('passage.ask.answerType', { type: questionTypeLabel(qType) })} onPress={() => setQType(nextQuestionType)} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <SmallBtn label={t('passage.ask.addQuestion')} icon="plus" tone="primary" disabled={!qDraft.trim()} onPress={addQuestion} />
-            </View>
-          </View>
-        </>
-      ) : null}
+      {!isRecord ? <TheyAnswer asked={asked} questions={questions} setQuestions={setQuestions} /> : null}
 
       <SectionLabel label={t('passage.ask.byWhen')} />
       <ChipRow>

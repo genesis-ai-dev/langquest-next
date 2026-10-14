@@ -1,4 +1,4 @@
-# P0 smoke on phones (decision 93): a reviewer does the check asked of them
+# P0 smoke on phones (decision 95): a reviewer does the check asked of them
 # (P-SUBMITTED's Peer check, asked of REV in the fixture), finds both
 # verdicts on offer, and sends "Needs changes" with typed words. The web
 # runs the whole round (16-jrn-003.spec.ts); this proves the job on a phone.

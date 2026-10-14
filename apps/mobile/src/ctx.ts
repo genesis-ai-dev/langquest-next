@@ -5,6 +5,7 @@ import type { Session } from './session';
 import type { InviteHandle } from './useHeldInvite';
 import type { OrgHandle } from './useOrg';
 import type { LanguageHandle } from './useLanguage';
+import type { V2Welcome } from './welcomeBack';
 
 /** A passage someone opened lately (WORK-2), newest first. */
 export interface RecentPassage {
@@ -65,6 +66,12 @@ export interface Ctx {
   /** Record-derived updates for the Inbox and which of them this device has shown. */
   inbox: { updates: Update[]; unread: number; isRead: (id: string) => boolean; markRead: (ids: string[]) => void };
 
+  /**
+   * Someone who came from LangQuest v2 and has not been welcomed yet: what
+   * of their v2 work has arrived, and a way to look again (welcomeBack.ts,
+   * demo ADR-043). Absent for everyone else.
+   */
+  welcomeBack?: { data: V2Welcome; refresh: () => Promise<V2Welcome | null> };
   /** The first sign-in welcome was seen (ADR-022). */
   markWelcomed: () => Promise<void>;
   /** Terms accepted by signing in (AUTH-1); pass the new account's id right after sign-in. */
@@ -78,7 +85,8 @@ export interface Ctx {
    */
   invite: InviteHandle;
   /** Switch to another organization: its stream, and the language it opens to. */
-  openOrganization: (orgId: string) => Promise<void>;
+  /** Switch organization; `open` names the language, and the passage, to open once it is in (an Inbox row from there). */
+  openOrganization: (orgId: string, open?: { languageId: string; unitId?: string }) => Promise<void>;
   openDev: () => void;
   isDev: boolean;
   /** May this session switch persona? Dev builds, or a named tester (dev.ts). */

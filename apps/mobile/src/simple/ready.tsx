@@ -89,18 +89,24 @@ export function useReadySummary(ctx: Ctx): ReadySummary {
   }, [docs, sel, org, state, offered, languageId]);
 }
 
-/** Join requests this person may decide; empty for everyone else, and offline (a server read). */
+/**
+ * Join requests this person may decide; empty for everyone else, and offline
+ * (a server read). Read again when the bell's count moves, and a request
+ * decided on this phone leaves at once, as on My Work.
+ */
 export function usePendingRequests(ctx: Ctx): PendingRequest[] {
   const may = ctx.session.can('invite_members');
   const orgId = ctx.language.orgId;
+  const tick = ctx.inbox.unread;
   const [requests, setRequests] = useState<PendingRequest[]>([]);
   useEffect(() => {
     if (!may) return;
     let live = true;
     void pendingRequests(orgId).then((r) => { if (live) setRequests(r); }).catch((e: unknown) => noteExpected('language join requests', e));
     return () => { live = false; };
-  }, [may, orgId]);
-  return requests;
+  }, [may, orgId, tick]);
+  const decided = ctx.org.state?.joinDecisions ?? {};
+  return requests.filter((r) => !decided[r.id]);
 }
 
 /** The four questions as a checklist; each opens its own step screen. */

@@ -712,7 +712,7 @@ Expected:
 - The published note lists each note with its part and time ("Part 2 · 0:07: No word for 'disciple'").
 - The second note's sheet, and the publish sheet's "Anything hard to say back?", read "One spoken note per back translation for now: type this one." and offer no "Say it".
 
-Decided (2026-10-13, decisions.md 97, interim): a back translation carries one spoken note; the first said aloud keeps it and later notes are typed. A voice per moment still needs a change to what the event carries.
+Decided (2026-10-13, decisions.md 99, interim): a back translation carries one spoken note; the first said aloud keeps it and later notes are typed. A voice per moment still needs a change to what the event carries.
 
 Known issue (2026-10-12, before the decision): the notes at moments and the publish sheet share one voice recording (`btWorkspace.tsx` `noteHash`). The second voice note replaces the first, the publish sheet opens already holding it, and a voice-only note at a moment is saved as the text "said in the voice note". Notes at moments are also kept only on screen: ✕ or a crash loses them, though the parts are kept. Not fixed here: `produceContent` records one note recording (`commentBlobHash`), and its artifacts are the back translation's own parts, so keeping a voice per moment needs a change to what the event carries (a design decision, PLAN.md section 6).
 

@@ -23,6 +23,7 @@ export * from './libraryDocs';
 export * from './library';
 export * from './libraryApply';
 export * from './breakup';
+export * from './bibleBreaks';
 export * from './references';
 export * from './timingPublication';
 export * from './verses';

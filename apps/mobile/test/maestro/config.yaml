@@ -1,4 +1,4 @@
-# The UI test suite's phone flows (docs/ui-test-suite, decisions.md 93).
+# The UI test suite's phone flows (docs/ui-test-suite, decisions.md 95).
 # Run them with `npm run test:ui:phone -- --platform ios|android`
 # (scripts/maestro-ui.mjs), which builds a fresh fixture world and passes its
 # accounts and passages in as variables.

@@ -1,4 +1,4 @@
-# P0 smoke on phones (decision 93): a coordinator asks someone to record a
+# P0 smoke on phones (decision 95): a coordinator asks someone to record a
 # passage (P-Q2 → TRANS, due in a week) and moves P-CHECK past its
 # checkpoint, the Consultant check, with a reason (JRN-006's middle), then
 # undoes it from the toast.

@@ -1,12 +1,13 @@
-import type { AnyEvent } from '@langquest-next/core';
+import { defaultOfflineScope, deriveDownloadWork, deriveUploadWork, type AnyEvent, type BlobRef } from '@langquest-next/core';
 import { Diagnostics, MemoryDiagStore } from '../../diagnostics';
 import { MemoryStore } from '../../memoryStore';
 import { SyncClient } from '../../syncClient';
 import { SyncScheduler } from '../../syncScheduler';
-import type { Transport } from '../../types';
+import { DEFAULT_TRANSFER_BUDGET_BYTES, DOWNLOAD_DEFAULTS, TransferBudget, TransferWorker, UPLOAD_DEFAULTS } from '../../transferWorker';
+import { OfflineError, type Transport } from '../../types';
 import type { FakeServer } from '../fakeServer';
 import type { Random } from '../random';
-import { shapeTransport } from '../shapedTransport';
+import { LinkPipe, shapeTransport } from '../shapedTransport';
 import type { VirtualTime } from '../virtualTime';
 import type { Link } from './links';
 import type { Persona } from './personas';
@@ -34,6 +35,10 @@ export interface FleetContext {
   realtime: { on: boolean; delayMs: number };
   /** False once the fleet is settling: people stop working. */
   working: () => boolean;
+  /** Audio files move too: their size per second of recording. Null: events only. */
+  audio: { bytesPerSecond: number } | null;
+  /** When each audio file was recorded, for the time until it is on the server and on another phone. */
+  recordedAt: Map<string, number>;
 }
 
 /** One device's numbers. CPU is real milliseconds in this process; delays are simulated milliseconds. */
@@ -56,6 +61,19 @@ export class DeviceMetrics {
   bytesDown = 0;
   /** Cold starts: simulated ms to catch up to where the server was when it began. */
   coldStarts: { ms: number | null; startedAt: number; targetSeq: number }[] = [];
+  uploads = 0;
+  uploadBytes = 0;
+  uploadFailures = 0;
+  /** From recording here to the server holding the file. */
+  uploadDelayMs: number[] = [];
+  downloads = 0;
+  downloadBytes = 0;
+  downloadFailures = 0;
+  /** From recording on another phone to the file being playable here. */
+  playableMs: number[] = [];
+  /** Real CPU the transfer workers spent working out what to move (they scan the whole language each pass). */
+  workListCpuMs = 0;
+  workLists = 0;
 }
 
 /**
@@ -74,8 +92,19 @@ export class SimDevice {
   private linkTimer: unknown = null;
   private workTimer: unknown = null;
   private netWallMs = 0;
+  /** Snapshot outcomes already looked at, to notice an adoption. */
+  private snapshotsSeen = 0;
   private maxSeen = 0;
   private installs = 0;
+  /** Audio files on this phone and their sizes; they survive a reinstall (a new reducer keeps the files). */
+  private readonly present = new Set<string>();
+  private readonly sizes = new Map<string, number>();
+  /** The link's bandwidth each way, shared by sync and audio. */
+  private readonly pipes = { up: new LinkPipe(), down: new LinkPipe() };
+  private up: TransferWorker | null = null;
+  private down: TransferWorker | null = null;
+  private pulling = false;
+  private online: boolean | null = null;
 
   constructor(
     readonly id: string,
@@ -95,7 +124,8 @@ export class SimDevice {
       link: () => this.link,
       now: time.now,
       sleep: time.sleep,
-      random: this.random
+      random: this.random,
+      pipes: this.pipes
     });
     this.client = new SyncClient({
       orgId: this.fleet.orgId,
@@ -119,6 +149,86 @@ export class SimDevice {
     this.scheduler.start();
     this.applyLink();
     this.scheduleWork();
+    if (this.fleet.audio) this.startTransfers();
+  }
+
+  /**
+   * The app's own upload and download workers (useLanguage.ts), on
+   * simulated time: uploads what was recorded here until the server holds
+   * it, downloads what this person's offline scope needs once the server
+   * has it. They pause while a sync runs and wait while the last sync could
+   * not reach the server, as on the phone.
+   */
+  private startTransfers(): void {
+    const { time } = this.fleet;
+    const budget = new TransferBudget(DEFAULT_TRANSFER_BUDGET_BYTES);
+    const common = {
+      isOnline: () => this.online !== false,
+      isPulling: () => this.pulling,
+      budget,
+      sizeOf: (ref: BlobRef) => this.sizes.get(ref.hash) ?? this.client.getState().blobs[ref.hash]?.size,
+      now: time.now,
+      setTimer: time.setTimeout,
+      clearTimer: time.clearTimeout
+    };
+    this.up = new TransferWorker({
+      ...UPLOAD_DEFAULTS, ...common,
+      work: () => this.workList(() => deriveUploadWork(this.client.getState(), this.present, this.sizes)),
+      transfer: (ref) => this.upload(ref)
+    });
+    this.down = new TransferWorker({
+      ...DOWNLOAD_DEFAULTS, ...common,
+      work: () => this.workList(() => deriveDownloadWork(this.client.getState(), this.present, this.offlineScope())),
+      transfer: (ref) => this.download(ref)
+    });
+    this.up.start();
+    this.down.start();
+  }
+
+  private workList(derive: () => BlobRef[]): BlobRef[] {
+    const started = performance.now();
+    try {
+      return derive();
+    } finally {
+      this.metrics.workListCpuMs += performance.now() - started;
+      this.metrics.workLists += 1;
+    }
+  }
+
+  /** PUT to the Worker: the bytes cross the link, then the server keeps the file and says so (v1.BlobStored). */
+  private async upload(ref: BlobRef): Promise<void> {
+    const { time, server } = this.fleet;
+    const size = this.sizes.get(ref.hash) ?? 0;
+    if (!this.link.online(time.now())) throw new OfflineError('offline');
+    await this.pipes.up.carry(size + REQUEST_OVERHEAD, this.link, time.now, time.sleep);
+    if (!this.link.online(time.now()) || this.random() < this.link.dropRate) {
+      this.metrics.uploadFailures += 1;
+      throw new OfflineError('fetch failed');
+    }
+    server.storeBlob(this.fleet.orgId, this.fleet.streamId, ref.hash, size);
+    this.metrics.uploads += 1;
+    this.metrics.uploadBytes += size;
+    const at = this.fleet.recordedAt.get(ref.hash);
+    if (at !== undefined) this.metrics.uploadDelayMs.push(time.now() - at);
+  }
+
+  /** GET from the Worker: the file the server confirmed crosses the link and is kept here. */
+  private async download(ref: BlobRef): Promise<void> {
+    const { time, server } = this.fleet;
+    const size = this.client.getState().blobs[ref.hash]?.size ?? server.blobs.get(ref.hash) ?? 0;
+    if (!this.link.online(time.now())) throw new OfflineError('offline');
+    if (!server.blobs.has(ref.hash)) throw new Error('404 not found');
+    await this.pipes.down.carry(size + REQUEST_OVERHEAD, this.link, time.now, time.sleep);
+    if (!this.link.online(time.now()) || this.random() < this.link.dropRate) {
+      this.metrics.downloadFailures += 1;
+      throw new OfflineError('fetch failed');
+    }
+    this.present.add(ref.hash);
+    this.sizes.set(ref.hash, size);
+    this.metrics.downloads += 1;
+    this.metrics.downloadBytes += size;
+    const at = this.fleet.recordedAt.get(ref.hash);
+    if (at !== undefined) this.metrics.playableMs.push(time.now() - at);
   }
 
   /**
@@ -144,6 +254,8 @@ export class SimDevice {
 
   stop(): void {
     this.scheduler?.stop();
+    this.up?.stop();
+    this.down?.stop();
     this.fleet.time.clearTimeout(this.linkTimer);
     this.fleet.time.clearTimeout(this.workTimer);
   }
@@ -151,14 +263,55 @@ export class SimDevice {
   /** Has this phone everything the server has, and sent everything it made? */
   async caughtUp(): Promise<boolean> {
     const view = await this.client.inspect();
-    return view.pending.length === 0 && view.cursor >= this.fleet.server.head(this.fleet.orgId, this.fleet.streamId);
+    const events = view.pending.length === 0 && view.cursor >= this.fleet.server.head(this.fleet.orgId, this.fleet.streamId);
+    if (!events || !this.fleet.audio) return events;
+    const state = this.client.getState();
+    return deriveUploadWork(state, this.present, this.sizes).length === 0
+      && deriveDownloadWork(state, this.present, this.offlineScope()).length === 0;
+  }
+
+  /** What the app keeps offline for this person, plus what they chose to keep (useLanguage scopeNow). */
+  private offlineScope(): Set<string> {
+    const scope = defaultOfflineScope(this.client.getState(), this.actorId);
+    for (const unitId of this.persona.wants?.() ?? []) scope.add(unitId);
+    return scope;
+  }
+
+  /**
+   * After adopting a server snapshot, the events inside it were never
+   * pulled one by one, so the person learns what is on their phone from the
+   * fold, as they would from its screens. Without this, a phone whose first
+   * contact came after the first snapshot never saw the language's
+   * passages, and its person never worked.
+   */
+  private observeFold(): void {
+    const s = this.client.getState();
+    const seen = (type: string, payload: unknown, actorId = '', id = '') => this.persona.observe({ id, type, payload, actorId } as AnyEvent);
+    for (const [unitId, u] of Object.entries(s.units)) seen('v1.UnitAdded', { unitId, ...u });
+    for (const [takeId, t] of Object.entries(s.takes)) if (t.unitId) seen('v1.TakeComposed', { takeId, unitId: t.unitId, cardHashes: t.cardHashes, parentTakeId: t.parentTakeId }, t.actorId);
+    const mine = new Set(Object.values(s.kindReviews).filter((r) => r.by === this.actorId).map((r) => r.takeId));
+    for (const sub of Object.values(s.submissions)) if (!mine.has(sub.takeId)) seen('v1.TakeSubmitted', { takeId: sub.takeId }, sub.actorId);
+    for (const r of Object.values(s.kindReviews)) seen('v1.ReviewRecorded', { reviewId: r.id, takeId: r.takeId, kindId: r.kindId, outcome: r.outcome, via: r.via }, r.by);
+    for (const n of Object.values(s.notes)) seen('v1.NoteAdded', { noteId: n.id, unitId: n.unitId, anchor: n.anchor }, n.by, n.eventId);
+  }
+
+  /** Audio recorded here that the server does not hold: a lost recording if the phone were lost now. */
+  unsentAudio(): number {
+    return [...this.present].filter((hash) => this.fleet.recordedAt.has(hash) && !this.fleet.server.blobs.has(hash)).length;
   }
 
   private async run(): Promise<{ offline: boolean; more?: boolean }> {
     const started = performance.now();
     const net = this.netWallMs;
     try {
-      const r = await this.client.sync();
+      this.pulling = true;
+      const r = await this.client.sync().finally(() => { this.pulling = false; });
+      // As useLanguage: back online after an offline run retries transfers now; otherwise a nudge.
+      const was = this.online;
+      this.online = !r.offline;
+      if (!r.offline && was === false) this.up?.trigger(); else this.up?.nudge();
+      this.down?.nudge();
+      await this.noticeSnapshot();
       this.metrics.syncs += 1;
       if (r.offline) this.metrics.offlineSyncs += 1;
       this.metrics.syncCpuMs.push(performance.now() - started - (this.netWallMs - net));
@@ -233,6 +386,35 @@ export class SimDevice {
     if (Number.isFinite(next)) this.linkTimer = time.setTimeout(() => this.applyLink(), next - time.now());
   }
 
+  /** Did the last sync adopt a server snapshot? Then read the fold (observeFold). */
+  private async noticeSnapshot(): Promise<void> {
+    const records = this.diag.records;
+    let adopted = false;
+    for (let i = this.snapshotsSeen; i < records.length; i++) {
+      const r = records[i]!;
+      if (r.kind === 'snapshot' && r.t.outcome === 'ok') adopted = true;
+    }
+    this.snapshotsSeen = records.length;
+    if (adopted) {
+      this.observeFold();
+      this.maxSeen = Math.max(this.maxSeen, (await this.client.inspect()).cursor);
+    }
+  }
+
+  /** The cards just recorded are files on this phone, as big as their audio. */
+  private recorded(events: AnyEvent[]): void {
+    const audio = this.fleet.audio!;
+    for (const e of events) {
+      if (e.type !== 'v1.RecordingAdded') continue;
+      for (const card of e.payload.cards) {
+        this.present.add(card.hash);
+        this.sizes.set(card.hash, Math.round((card.durationMs / 1000) * audio.bytesPerSecond));
+        this.fleet.recordedAt.set(card.hash, this.fleet.time.now());
+      }
+    }
+    this.up?.nudge();
+  }
+
   private scheduleWork(): void {
     const { time } = this.fleet;
     const at = nextWorkTime(time.now(), this.work, this.random);
@@ -241,7 +423,7 @@ export class SimDevice {
 
   private async act(): Promise<void> {
     if (!this.fleet.working()) return;
-    const action = this.persona.next();
+    const action = this.persona.next(this.fleet.audio ? { hasAudio: (hashes) => hashes.every((h) => this.present.has(h)) } : undefined);
     if (action) {
       const started = performance.now();
       try {
@@ -249,6 +431,7 @@ export class SimDevice {
         this.metrics.appendCpuMs.push(performance.now() - started);
         this.metrics.appended += events.length;
         for (const e of events) this.fleet.appendedAt.set(e.id, this.fleet.time.now());
+        if (this.fleet.audio) this.recorded(events);
         this.scheduler.nudge();
       } catch (err) {
         this.fleet.time.errors.push(err);
@@ -257,6 +440,9 @@ export class SimDevice {
     this.scheduleWork();
   }
 }
+
+/** Headers and the signed URL a transfer carries besides the file. */
+const REQUEST_OVERHEAD = 1_000;
 
 const HOUR = 3_600_000;
 

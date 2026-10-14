@@ -436,8 +436,8 @@ registers, and an add-wins undo. Reverse if: partners want gates back; then
 checkpoints can cover more steps without new events.
 
 Amended (2026-10-13, Carl Sauder): undoing an override needs Override
-checkpoints too, held by the server (95). Answered feedback no longer
-completes an ordinary step (94).
+checkpoints too, held by the server (97). Answered feedback no longer
+completes an ordinary step (96).
 
 ## 30. The record's own audio is named by the event that uses it
 
@@ -1993,7 +1993,7 @@ and adds any part of one passage with `include` (85).
 
 Amended (2026-10-13, Carl Sauder): an answered "needs changes" no longer
 counts toward `done`: the check stays open until its reviewer passes the
-new version (94).
+new version (96).
 
 ## 71. One simpler set of screens for everyone, keeping every capability
 
@@ -2180,7 +2180,7 @@ Amended (2026-10-13, Carl Sauder): the "seven-tone key one tap deeper" above
 is no longer what the app shows. A book's chapters show three states, and
 the key under Filter has five lines: done, started, not started, no passage,
 and kept on this device. The seven tones survive only in each chapter
-tile's spoken label. The UI test suite (decision 93, MAP-021) holds the
+tile's spoken label. The UI test suite (decision 95, MAP-021) holds the
 app to this.
 
 Amended (2026-10-13, Carl Sauder): the welcome offered "Show me how" and
@@ -2276,7 +2276,7 @@ counts toward a step only while the step takes links, read in the fold, so
 turning links off also stops links and tokens already out (75).
 
 Amended (2026-10-13, Carl Sauder): an answered "needs changes" no longer
-counts toward `done` (94).
+counts toward `done` (96).
 
 ## 73. Languages and regions are LangQuest v2's reference tables, filled from Glottolog itself and kept outside the event log
 
@@ -2371,6 +2371,8 @@ language keeps its own overrides on top of a shared template instead.
 
 
 Amended (2026-10-09, Caleb Koster): decision 80 puts the numbering first, for the whole Bible, and replaces the warning that recordings on old pieces "will no longer show": expired sections that overlap current ones stay reachable under "Earlier sections".
+
+Amended (2026-10-12, Caleb Koster): decision 93 drops the choice of what the books a way leaves out get when the template is made (they wait, and are divided from the map), adds dividing a book your own way, and has naming a book offer what the language's Bibles and the organization's other languages call it.
 ## 75. Nobody is added without joining, nobody grants more than they hold, and one id names one event
 
 Date: 2026-10-09 · By: Carl Sauder · Status: accepted
@@ -2459,7 +2461,7 @@ or hiding a Bible are the language's own events, and stay available to the
 lead. The UI test suite holds this (SETUP-061 to 066, MAP-023).
 
 Amended (2026-10-13, Carl Sauder): nobody may leave the organization
-without someone who can manage roles (96).
+without someone who can manage roles (98).
 
 ## 76. Names identify nothing: a repeated language is warned about, and an organization can be renamed
 
@@ -2565,6 +2567,10 @@ in `LanguageAdded`'s code, to `LanguageCodeSet`.
 Reverse if: a language needs to be in more than one languoid (a project
 covering two dialects, say); then the link becomes a set rather than a
 register.
+
+Amended (2026-10-12, Caleb Koster): moving v2 imports to `LanguageCodeSet`
+is done (decision 94): an imported language's `LanguageAdded` carries the
+readable code decided on the import's board, and `LanguageCodeSet` links it.
 
 ## 79. Third-party apps keep their own values with a language, as external values LangQuest never acts on
 
@@ -3173,7 +3179,148 @@ Reverse if: the ledger itself proves unreliable on these phones (false
 alarms in the field), or losses turn out to be damaged contents rather than
 missing files, in which case add a slow background spot check of hashes.
 
-## 93. The app's UI tests run on Maestro on phones and Playwright on the web; Jev stays for journeys judged by outcome
+## 93. A to-do opens its task, making your own comes first, and content is decided with its text, its helps and what others do in view
+
+Date: 2026-10-12 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb tapped My Work's "Divide Romans" and got the list of
+languages; the ways to break up a book had no way of his own; and nothing
+showed the book's text, its helps or where other Bibles start sections
+(2026-10-12). He asked for the principles behind his notes to be applied
+across the app (PLAN.md section 12, demo design principles 11–14), then
+approved the demo's ADR-041 (dividing a book your own way) and ADR-042
+(the same principles on other screens) and asked for all of it to be built.
+- A to-do opens the task itself, in its language (11). My Work's Divide row
+  opens the waiting book (`book_structure`, an app-only edge in the drift
+  log); a notification, an Inbox row from another language, "New in
+  <language>", "Record <passage> again" and a report's Needs attention
+  open their passage, language or filtered map (`notificationTarget.ts`).
+- Making your own comes first and looks different (12), so a growing list
+  never buries it: a dashed card (`ChoiceCard own`) heads the ways to break
+  up a book, Choose a Template, the checks and the roles, and it can start
+  from a preset.
+- A book can be divided your own way (`breakup/DivideOwnWay.tsx`, model
+  `ownWay.ts`, docs/breaking-up-the-bible.md). The text is a Bible the team
+  has, so the editor uses the language's sources (`useSources`). Where many
+  of OpenBible.info's 20 English Bibles start a section is shown per verse,
+  so the counts are bundled in core (`bibleBreaks.ts`, about 50 KB,
+  generated by `scripts/bible-breaks.ts`; CC BY 4.0, credited on the
+  screen) rather than fetched: they work offline, as `FIA_PERICOPES` does,
+  and are moved into the language's numbering through the Original (80).
+  The pane under the text holds the outline (a guide collection's parts),
+  notes on the book's verses and the offered guides (`itemRangesIn`).
+  Saving makes a one-book way (`ownWayDoc`) and goes through the same path
+  as a ready-made way (`useBookChange`: the warning, the languages a shared
+  template changes, Undo), so no new event or format. Listening from a
+  section is not built yet.
+- Books a way leaves out wait, each to be divided from the map when it is
+  needed. Choosing the way says which books will wait, and no longer asks
+  what they get: the "by chapter or wait" choice is dropped, because the
+  list of ways to offer there would only grow (Caleb, 2026-10-13; amends 74
+  and 80).
+- Naming a book offers what the language's Bibles call it (their `source@1`
+  books) and what the organization's other languages call it. A phone pulls
+  only the languages it opens (37), so the server answers:
+  `language_book_names(p_org, p_book)` (migration
+  `20261012213000_language_book_names.sql`), read-only, the latest
+  `BookNameSet` per language, only in languages the caller may read.
+- What helps here shows the passage's text in a chosen Bible, with key words
+  and notes marked, and each help as a card that can be shown or hidden
+  there. A note for translators is written on the verses chosen in that
+  text, said or typed; it is a passage note (`v1.NoteAdded`, anchored to a
+  verse or a run of verses), not library material, because library notes
+  have no voice and do not reach the recorder. A key word lists the verses
+  of the passage it is in and how the organization's other languages say
+  it. Those are read only from languages this phone already holds, so a
+  language never opened here is not shown, which keeps the visibility of
+  other languages as it is.
+- Asking a check's team can add questions before sending, as Someone else
+  could (the ask already carries `questions`; 91).
+Reverse if: teams divide books by hand so rarely that the bundled counts are
+not worth their size (then fetch them with the ways), or people need to see
+other languages' key words they have never opened on the phone (then the
+server answers, under a visibility rule for languages).
+
+## 94. LangQuest v2 comes over one way and keeps coming, by saying what each v2 project says now, and a v2 account signs in here as itself
+
+Date: 2026-10-12 · By: Caleb Koster · Status: accepted
+
+Reason: v2 keeps running while its users move here, so its data has to come
+over and keep coming, one way only (Caleb, 2026-10-12). The first import
+(PLAN.md step 8) copied a project once, put v2's languoid UUID in
+`LanguageAdded`'s code (78 left that open), made each verse recording a
+passage of its own, and treated a Bible project's own recordings as source
+material. It could not follow v2 after that, because v2 cannot say what
+changed: its `last_updated` is a phone's clock and can be days old when the
+row arrives, server jobs change rows without touching it, and rows are
+deleted outright. So the import reads each v2 project whole, turns it into
+the facts it states now (a member, a unit, a version of a passage, a
+review), and compares them with a ledger of what the import last appended
+for each fact (`packages/v2-import`, `reconcile.ts`): a new fact is said, a
+changed one said again, one v2 no longer has is taken back the way this
+app takes things back (hidden, removed, or `v1.Redacted`), and one that
+returns is said again. Event ids are the import's own (`v2:<project>:<fact>#<n>`)
+and clocks come from v2, never earlier than the import's last word on the
+same fact, so passes are idempotent and a pass that dies is finished by
+the next; v2's timestamps only choose which projects to read, and a nightly
+pass reads all of them. No event changed: v2's work arrives as ordinary
+events. Where each v2 project goes is the team's choice on a board (v2 has
+no organizations): a project with the Every Language platform account goes
+to Every Language, the rest start with their owner's other projects, and a
+project comes over only once its organization and its language are
+confirmed (`docs/v2-project-languages.md`); a project that has come over
+cannot change organization, since its events carry it. A Bible or FIA
+chapter or passage quest becomes that passage of LangQuest's Bible (the
+organization subscribes to `langquest.bible.chapters` or `.fia`), its verse
+recordings one version of it with their verses (`CardVerseSet`), each later
+publish a new version; votes become one Community Check per person,
+back translations Back Translation reviews, and written work notes until
+written translations exist. The plan, ledger, file map and passes live in
+a `v2_import` schema only the service role reaches (migration
+`20261013000000_v2_import.sql`), so the import is retired by dropping it.
+People: a v2 account becomes the account here with the same id, so the
+imported work is already theirs. When Sign In does not know an email and
+password, `v2-sign-in` asks v2's own sign-in once (and signs that session
+out), then makes the account with the v2 id and the same password; ten
+wrong tries per email an hour are refused here, since every try reaches v2
+from the same servers. An email already here under another id is not taken
+over. Design in `docs/v2-import.md`.
+Reverse if: v2 gets a reliable change feed (then read changes, not whole
+projects), or projects routinely need to move between organizations after
+coming over (then a language needs a way to move, which the log does not
+have).
+
+Amended (2026-10-12, Caleb Koster): someone who signs in with a v2 account
+is welcomed back to their work (demo ADR-043; Caleb agreed to the demo's
+screen, 2026-10-12). `v2-sign-in` notes the v2 projects they belong to, as
+v2 lists them to that person, and `v2_welcome()` tells the phone which of
+those have come over and which are still on their way. It is the one
+function in the import's schema a phone may call, and it answers only for
+the caller. Their first sign-in lands on Welcome back with or without an
+organization here, never on "What brings you here?": until their work
+arrives they keep recording in the old app, since everything recorded
+there still comes over (`docs/v2-import.md` section 7).
+
+Amended (2026-10-13, Caleb Koster): written work stays in v2 for now. A
+translation or transcription hanging off a recording, and a part with words
+and no audio, are not brought over (Caleb, 2026-10-13): v2 has 99 of them
+in 31 active projects, about half of them tests, and written translations
+in this app will want them attached to the version they came from, not as
+the Back Translation reviews and notes above. They come over once written
+translations exist. An FIA project's team is offered FIA's study guides in
+the language it reads, else English, as New language offers them: v2's app
+read FIA's guides from FIA, so without them an FIA team would have the
+passages and nothing to study.
+
+Amended (2026-10-13, Caleb Koster): a project need not have its language
+linked to come over. With none chosen on the dashboard it comes over by its
+name, unlinked (a `LanguageAdded` with a code made from the name, as New
+language makes one, and no `LanguageCodeSet`), and its admins link it in
+Next, as they can any language added unlinked (78). The dashboard's
+suggestions are never linked unless someone uses one: v2's own links, which
+many suggestions repeat, are often wrong.
+
+## 95. The app's UI tests run on Maestro on phones and Playwright on the web; Jev stays for journeys judged by outcome
 
 Date: 2026-10-12 · By: Carl Sauder · Status: accepted
 
@@ -3233,7 +3380,7 @@ takes seconds: 31 s and 43 s per flow, sign-in included.
 - The runner's `--app dev` still runs the flows on a dev client and Metro,
   for working on a flow against live code.
 
-## 94. Answered feedback keeps a check open until its reviewer says it looks good
+## 96. Answered feedback keeps a check open until its reviewer says it looks good
 
 Date: 2026-10-13 · By: Carl Sauder · Status: accepted
 
@@ -3255,7 +3402,7 @@ Reverse if: teams find re-checking every answered note slows them more than
 the missed second look costs. Then let a flow mark a check as one that an
 answer completes.
 
-## 95. Taking back a checkpoint override needs Override checkpoints
+## 97. Taking back a checkpoint override needs Override checkpoints
 
 Date: 2026-10-13 · By: Carl Sauder · Status: accepted
 
@@ -3274,7 +3421,7 @@ this event; the event's shape did not change.
 Reverse if: a team wants translators to bring a checkpoint back themselves.
 Then it is a role setting, not a code change.
 
-## 96. An organization always keeps someone who can manage roles
+## 98. An organization always keeps someone who can manage roles
 
 Date: 2026-10-13 · By: Carl Sauder · Status: accepted
 
@@ -3292,7 +3439,7 @@ admin remains is still allowed, as before (75).
 Reverse if: organizations need to be handed back to support on purpose.
 Then that is a support tool, not a gap in the rule.
 
-## 97. For now a back translation carries one spoken note
+## 99. For now a back translation carries one spoken note
 
 Date: 2026-10-13 · By: Carl Sauder · Status: accepted
 
@@ -3307,7 +3454,7 @@ translation for now: type this one.", `simple/btWorkspace.tsx`).
 Reverse if: the event that carries a voice note per moment ships; this
 entry is then superseded by it.
 
-## 98. "Join your team" has no Back to Sign In, unlike the partner demo
+## 100. "Join your team" has no Back to Sign In, unlike the partner demo
 
 Date: 2026-10-13 · By: Carl Sauder · Status: accepted
 

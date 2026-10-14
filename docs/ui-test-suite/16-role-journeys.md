@@ -20,7 +20,7 @@ TREV, and "Ask the Peer check team" reaches both. The Review Teams screens
 are gone. "Ask someone" on the record is now "Something else?" → "Someone
 else should do this".
 
-**Automation (decision 93).** Journeys with Web or Wide run in Playwright,
+**Automation (decision 95).** Journeys with Web or Wide run in Playwright,
 each in its own file with a fresh world and one browser per person
 (`smart-tests/ui/16-jrn-NNN.spec.ts`, helpers in `16-helpers.ts`). Phone-only
 journeys are Maestro flows (`apps/mobile/test/maestro/flows/JRN-NNN.yaml`);
@@ -100,7 +100,7 @@ Expected:
   - "Hear the feedback" is gone.
 - Step 9: the toast reads "Kept · your reason is on the record" with Undo. On the record, Versions and history shows the departure and its reason.
 - REV, after syncing: the Inbox shows both answers ("{TRANS first} revised {P-NEEDS}" and "{TRANS first} kept {P-SUBMITTED} as is", with the reason), and P-NEEDS offers "Do the peer check" on Version 2.
-- Decided (2026-10-13, decisions.md 94): answered feedback keeps the check open, so Version 2 goes back to the peer check, as the record told the translator. The peer check reads "answered · back to the check" until REV passes it.
+- Decided (2026-10-13, decisions.md 96): answered feedback keeps the check open, so Version 2 goes back to the peer check, as the record told the translator. The peer check reads "answered · back to the check" until REV passes it.
 - Fixed (2026-10-13): playing the feedback, then leaving for the workspace, logs an unhandled "play() request was interrupted by a call to pause()" (web).
 
 ## Reviewer
@@ -341,7 +341,7 @@ Expected:
 - Step 7: the Community Check is credited to TRANS as logged, with the place.
 - Step 10: the passage is done. The book bar and the chapter mark count it as done.
 - On every device: "refused by the server" is 0, and the four histories list the same events in the same order of what happened.
-- Step 5: REV is offered the peer check on Version 2 (decided 2026-10-13, decisions.md 94: answering keeps the check open).
+- Step 5: REV is offered the peer check on Version 2 (decided 2026-10-13, decisions.md 96: answering keeps the check open).
 
 Automation: Playwright `16-jrn-011.spec.ts`, five browsers (COORD, TRANS, REV, TREV, VIEW) on the web; P-X is Luke 12:1–12. The device check compares every browser's confirmed events in order.
 

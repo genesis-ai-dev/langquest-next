@@ -165,7 +165,7 @@ test('PASS-019 Record a fix', async ({ browser }) => {
   await expect(byId(page, 'primary-action')).toHaveText('Publish Version 2');
   await byId(page, 'primary-action').click();
   await expect(text(page, 'Version 2 published')).toBeVisible({ timeout: 30_000 });
-  // Answered feedback keeps the check open (decisions.md 94): the peer check is the one asked for again.
+  // Answered feedback keeps the check open (decisions.md 96): the peer check is the one asked for again.
   expect((await screenText(page)).toLowerCase()).toContain('next, ask for a check peer check');
   await expect(button(page, 'Ask the Peer check team')).toBeVisible();
   await button(page, 'Not now').click();

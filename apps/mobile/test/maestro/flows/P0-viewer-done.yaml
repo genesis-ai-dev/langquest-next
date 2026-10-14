@@ -1,4 +1,4 @@
-# P0 smoke on phones (decision 93): a viewer opens a finished passage
+# P0 smoke on phones (decision 95): a viewer opens a finished passage
 # (P-DONE) and finds every check looked good, with nothing to act on.
 appId: com.frontierrnd.langquestnext
 name: "P0 A viewer opens a done passage, read-only"

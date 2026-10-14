@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeVoice } from './fixtures/voice';
 
-// The UI test suite on the web (docs/ui-test-suite, decisions.md 93): the
+// The UI test suite on the web (docs/ui-test-suite, decisions.md 95): the
 // app's dev web build against the local stack, one fresh fixture world per
 // spec file (smart-tests/ui/fixture.ts), so files run in parallel without
 // touching each other. Tests inside a file run in order: they share its world.

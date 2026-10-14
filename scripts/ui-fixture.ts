@@ -1,5 +1,5 @@
 /**
- * The UI test suite's fixture world (smart-tests/ui/fixture.ts, decision 93),
+ * The UI test suite's fixture world (smart-tests/ui/fixture.ts, decision 95),
  * built fresh on the local server:
  *
  *   npm run ui:fixture -- --out world.json [--unwelcomed]

@@ -14,7 +14,7 @@ import { t } from './i18n';
 
 export const SCREEN_IDS = [
   // 1 Getting in
-  'sign_in', 'terms_privacy', 'explore_home', 'create_account', 'scan_qr', 'welcome', 'vision',
+  'sign_in', 'terms_privacy', 'explore_home', 'create_account', 'scan_qr', 'welcome', 'welcome_back', 'vision',
   // 2 No organization yet
   'intent_chooser', 'create_org', 'request_access',
   // 3 Home and finding passages
@@ -109,6 +109,7 @@ const e = (from: NodeId, to: NodeId, mode?: Mode, when?: Gate): Edge => ({
 
 export const EDGES: Edge[] = [
   e('sign_in', 'welcome', 'replace'), // Sign In · email contains “first”
+  e('sign_in', 'welcome_back', 'replace'), // Sign In · a LangQuest v2 account
   e('sign_in', 'terms_privacy', undefined, 'guest'), // tap Terms & Privacy
   e('sign_in', 'home_hub', 'replace'), // Sign In
   e('sign_in', 'create_account', undefined, 'guest'), // tap Create Account
@@ -127,6 +128,8 @@ export const EDGES: Edge[] = [
   e('welcome', 'passage_record', 'reset', 'contributor'), // tap Show me how · practice passage
   e('welcome', 'home_hub', 'replace'), // tap Skip for now / Get started
   e('welcome', 'vision'), // tap What is LangQuest?
+  e('welcome_back', 'passage_record', 'reset'), // tap Keep going on {passage}
+  e('welcome_back', 'home_hub', 'replace'), // tap Go to My Work
   e('vision', 'welcome', 'back'), // tap Back / Done (from welcome)
   e('explore_home', 'sign_in', 'reset', 'guest'), // tap Sign In (guest only)
   e('explore_home', 'sign_in', 'back', 'guest'), // tap Back (from sign-in)
@@ -149,6 +152,8 @@ export const EDGES: Edge[] = [
   e('invite_qr', 'my_work', 'popTo'), // tap Done (from My Work)
   e('passage_record', 'my_work', 'back'), // tap Back (from My Work)
   e('my_work', 'templates_home', undefined, 'shapeTemplates'), // tap Open on a content template task
+  e('my_work', 'book_structure', undefined, 'manageTemplates'), // tap Divide Romans (a book waiting to be divided)
+  e('book_structure', 'my_work', 'back'), // tap Back (from My Work)
   e('intent_chooser', 'create_org'), // tap Create an organization
   e('intent_chooser', 'request_access'), // tap Join an existing org
   e('intent_chooser', 'scan_qr'), // tap Join with QR code
@@ -252,6 +257,7 @@ export const EDGES: Edge[] = [
   e('template_picker', 'templates_home', 'popTo'), // tap Use for this language
   e('template_picker', 'templates_home', 'back'), // tap Back
   e('templates_home', 'template_editor', undefined, 'manageTemplates'), // tap Edit levels / a template / New template
+  e('template_picker', 'template_editor', undefined, 'manageTemplates'), // tap Make your own
   e('template_editor', 'templates_home', 'back'), // tap Save / Back
   e('templates_home', 'book_structure', undefined, 'shapeTemplates'), // tap a book / Open the outline
   e('book_structure', 'templates_home', 'back'), // tap Back
@@ -283,6 +289,7 @@ export const EDGES: Edge[] = [
   // ---- app only (reasons in test/specParity.test.ts) ----
   e('settings_home', 'sync_status'),
   e('my_work', 'sync_status'),
+  e('sync_status', 'passage_record'), // tap a change waiting or refused: the passage it is about
   e('sync_status', 'settings_home', 'back'),
   e('scan_qr', 'create_account', undefined, 'guest'),
   e('create_account', 'welcome', 'replace'),
@@ -300,6 +307,7 @@ export const EDGES: Edge[] = [
   e('delete_account', 'settings_home', 'back'),
   e('delete_account', 'intent_chooser', 'back'),
   e('reports_home', 'reports_language'),
+  e('reports_language', 'map_home'), // tap Feedback to answer / Overdue requests: the map, filtered to them
   e('reports_language', 'reports_home', 'back'),
   e('reference_home', 'reference_bibles', undefined, 'manageReference'),
   e('reference_bibles', 'reference_home', 'back'),
@@ -315,6 +323,12 @@ export const EDGES: Edge[] = [
   e('passage_reference', 'reference_coverage', 'back'),
   e('passage_record', 'passage_reference'),
   e('passage_reference', 'passage_record', 'back'),
+  // What helps here (demo ADR-042): Add a help writes a note for translators under the passage's text,
+  // and a key word in these verses opens with its verses and how other languages say it.
+  e('passage_reference', 'material_editor', undefined, 'manageReference'),
+  e('material_editor', 'passage_reference', 'back'),
+  e('passage_reference', 'key_term_detail'),
+  e('key_term_detail', 'passage_reference', 'back'),
   e('reference_home', 'guide_editor', undefined, 'manageReference'),
   e('guide_editor', 'reference_home', 'back'),
   e('study_guide', 'guide_editor', undefined, 'manageReference'),
@@ -378,6 +392,7 @@ export const EDGES: Edge[] = [
   e('get_ready', 'key_terms'),
   e('get_ready', 'flow_editor', undefined, 'manageFlows'),
   e('get_ready', 'role_editor'),
+  e('new_language', 'role_editor'), // Invite its translators: Something else, make a new role
   // App only: New language's questions make their own answer where none fits (decision 71):
   // an outline for something other than the Bible, and "I'll choose the steps"
   e('new_language', 'template_editor', undefined, 'manageTemplates'),

@@ -39,6 +39,7 @@ import {
   SectionLabel, Sheet, ShowMore, SmallBtn, txt, useLayout, useOpenDetail, type IconName
 } from '../kit';
 import { cachedInbox, enableNotifications, refreshInbox, tryUnregisterNotifications, unregisterNotifications, type RemoteNotification } from '../notifications';
+import { notificationTarget, openAfterSwitch } from '../notificationTarget';
 import { dueText } from '../passageView';
 import { personLook } from '../people';
 import { noteExpected, reportError, failureMessage } from '../report';
@@ -156,11 +157,14 @@ export function InboxHome(ctx: Ctx) {
     setRemoteRead(next);
     // Losing the read mark costs only a dot shown again: report it, carry on.
     await AsyncStorage.setItem(`inbox-read:${me}`, JSON.stringify(next)).catch((e: unknown) => { reportError('inbox mark read', e); });
-    if (row.org_id !== orgId) {
-      await ctx.openOrganization(row.org_id)
+    // The row opens what it is about: the passage, in its language and organization (design principle 11).
+    const to = notificationTarget(row);
+    if (to.orgId !== orgId) {
+      await ctx.openOrganization(to.orgId, openAfterSwitch(to))
         .catch((e: unknown) => ctx.toast(failure('inbox open organization', e)));
-    } else if (row.kind === 'join_request') ctx.go('members_list');
-    else if (row.kind === 'content_report') ctx.toast(t('account.inbox.reportsNeedConnection'));
+    } else if (to.kind === 'passage') ctx.openPassage(to.unitId, to.languageId);
+    else if (to.kind === 'join') ctx.go('members_list');
+    else if (to.kind === 'report') ctx.toast(t('account.inbox.reportsNeedConnection'));
   }
 
   // The words for each record-derived update, memoized on the fold. Updates are the open language's.
@@ -187,9 +191,12 @@ export function InboxHome(ctx: Ctx) {
       time: formatShortDate(r.createdAt), onPress: () => setOpenRequest(r)
     });
   }
+  // Someone in more than one language is told which one each row is about.
+  const manyLanguages = ctx.languages.length > 1;
   for (const g of reports ?? []) {
     const target = g.target;
-    const where = target.unitId && target.languageId === languageId && state?.units[target.unitId] ? ` · ${unitTitle(state, target.unitId)}` : '';
+    const where = target.unitId && target.languageId === languageId && state?.units[target.unitId] ? ` · ${unitTitle(state, target.unitId)}`
+      : target.languageId && target.languageId !== languageId ? ` · ${languageName(ctx.org.state, target.languageId)}` : '';
     items.push({
       id: `report:${g.key}`, icon: 'flag', title: reportTitle(target, ctx.name), read: false,
       body: `${reportSummary(g)}${where}`, time: formatShortDate(g.latest), onPress: () => setOpenReport(g)
@@ -198,8 +205,10 @@ export function InboxHome(ctx: Ctx) {
   if (words) {
     for (const u of ctx.inbox.updates) {
       const w = words(u);
+      // Requests and finished checks name the language in their own words.
+      const named = u.kind === 'request' || (u.kind === 'request_done' && u.request?.what !== 'record');
       items.push({
-        id: u.id, icon: w.icon, title: w.title, body: w.body, time: ago(u.hlc), read: ctx.inbox.isRead(u.id), unitId: u.unitId,
+        id: u.id, icon: w.icon, title: w.title, body: w.body, time: manyLanguages && !named ? `${language} · ${ago(u.hlc)}` : ago(u.hlc), read: ctx.inbox.isRead(u.id), unitId: u.unitId,
         onPress: () => { ctx.inbox.markRead([u.id]); ctx.openPassage(u.unitId, languageId); }
       });
     }
@@ -210,10 +219,13 @@ export function InboxHome(ctx: Ctx) {
     // This organization's updates are derived above, and its join requests and reports too once they are listed.
     if (here && row.kind === 'join_request' && (requests !== null || !(canAdmit && ctx.session.can('assign_work')))) continue;
     if (here && row.kind === 'content_report' && (reports !== null || !canModerate)) continue;
-    if (here && row.kind !== 'join_request' && row.kind !== 'content_report') continue;
+    // The open language's updates are derived above; the organization's other languages come from the server.
+    const otherLanguage = here && !!row.language_id && row.language_id !== languageId;
+    if (here && row.kind !== 'join_request' && row.kind !== 'content_report' && !otherLanguage) continue;
     items.push({
       id: `remote:${row.id}`, icon: row.kind === 'join_request' ? 'people' : row.kind === 'content_report' ? 'flag' : 'notif', title: remoteTitle(row),
       body: !here ? t('account.inbox.otherOrg')
+        : otherLanguage ? t('account.inbox.inLanguage', { language: languageName(ctx.org.state, row.language_id!) })
         : row.kind === 'content_report' ? t('account.inbox.connectToSee') : t('account.inbox.openMembers'),
       read: seen.has(row.id), onPress: () => void openRemote(row)
     });
@@ -300,7 +312,8 @@ export function InboxHome(ctx: Ctx) {
             onOpen={() => {
               const target = openReport.target;
               setOpenReport(null);
-              if (target.kind === 'person') ctx.go('members_list');
+              // The person reported, where they can be removed; the list for those who may not edit members.
+              if (target.kind === 'person') ctx.go(canAssign ? 'edit_member' : 'members_list', canAssign ? { memberId: target.profileId } : undefined);
               else if (target.unitId && target.languageId) ctx.openPassage(target.unitId, target.languageId);
             }} />}>
           <View style={styles.requestBody}>
@@ -1008,7 +1021,7 @@ export function SyncStatus(ctx: Ctx) {
           <SectionLabel label={t('account.sync.waitingCount', { n: ins.pending.length })} />
           <Group>
             {ins.pending.slice(0, 20).map((l, i, a) => (
-              <Row key={l.event.id} icon="cloud" label={l.event.type.replace(/^v\d\./, '')} sub={clock(l.event.hlc)} last={i === a.length - 1} />
+              <Row key={l.event.id} icon="cloud" label={eventLabel(ctx, l.event)} sub={clock(l.event.hlc)} last={i === a.length - 1} onPress={openUnit(ctx, l.event)} />
             ))}
           </Group>
         </>
@@ -1018,7 +1031,7 @@ export function SyncStatus(ctx: Ctx) {
           <SectionLabel label={t('account.sync.refusedCount', { n: rejected.length })} />
           <Group>
             {rejected.slice(0, 20).map((l, i, a) => (
-              <Row key={l.event.id} icon="flag" iconColor={TINT.redText} label={l.event.type.replace(/^v\d\./, '')} sub={l.rejectReason ?? clock(l.event.hlc)} last={i === a.length - 1} />
+              <Row key={l.event.id} icon="flag" iconColor={TINT.redText} label={eventLabel(ctx, l.event)} sub={l.rejectReason ?? clock(l.event.hlc)} last={i === a.length - 1} onPress={openUnit(ctx, l.event)} />
             ))}
           </Group>
         </>
@@ -1046,6 +1059,26 @@ function refusedHere(...sources: ({ rejected: LocalEvent[] } | null)[]): LocalEv
   const byId = new Map<string, LocalEvent>();
   for (const s of sources) for (const l of s?.rejected ?? []) byId.set(l.event.id, l);
   return [...byId.values()].sort((a, b) => (a.event.hlc < b.event.hlc ? -1 : a.event.hlc > b.event.hlc ? 1 : 0));
+}
+
+/** The passage a change on this phone is about, when it names one the open language has. */
+function unitOf(ctx: Ctx, event: { payload: unknown }): string | null {
+  const unitId = (event.payload as { unitId?: unknown } | null)?.unitId;
+  return typeof unitId === 'string' && ctx.language.state?.units[unitId] ? unitId : null;
+}
+
+/** A change as its kind and the passage it is about ("TakeComposed · Luke 15:11–32"), so people can tell what is stuck. */
+function eventLabel(ctx: Ctx, event: { type: string; payload: unknown }): string {
+  const kind = event.type.replace(/^v\d\./, '');
+  const unitId = unitOf(ctx, event);
+  return unitId && ctx.language.state ? `${kind} · ${unitTitle(ctx.language.state, unitId)}` : kind;
+}
+
+/** Tapping a change about a passage opens that passage (design principle 11). */
+function openUnit(ctx: Ctx, event: { payload: unknown }): (() => void) | undefined {
+  const unitId = unitOf(ctx, event);
+  const languageId = ctx.language.languageId;
+  return unitId && languageId ? () => ctx.openPassage(unitId, languageId) : undefined;
 }
 
 function clock(hlc: string): string {

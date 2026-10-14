@@ -38,7 +38,9 @@ import { noteExpected, reportError, failureMessage } from '../report';
 import { createOrganization } from '../createOrg';
 import { navRef } from '../nav';
 import { contractsFor } from '../screenContracts';
-import { supabase } from '../supabase';
+import { FORGETS_ON_SIGN_OUT, forgetThisBrowser } from '../forgetBrowser';
+import { signOutHere, supabase } from '../supabase';
+import { signInWithV2Account } from '../v2SignIn';
 import { lift } from '../shadow';
 import { C, TINT, radius, space, tile, type as T, withAlpha } from '../theme';
 import { useAccountActions, useDisplayNames } from '../useAccount';
@@ -74,6 +76,22 @@ export function SignIn(ctx: Ctx) {
       if (error && ctx.isDev && personasAvailable().ok && email.trim() === process.env.EXPO_PUBLIC_DEV_EMAIL && password === DEV_PASSWORD) {
         await ensurePersonaAccount({ id: 'dev', email: email.trim() });
         ({ data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password }));
+      }
+      // Someone who used LangQuest v2: this app does not know them until v2
+      // says the email and password are theirs (docs/v2-import.md section 3).
+      if (error?.code === 'invalid_credentials' && email.trim().includes('@')) {
+        const v2 = await signInWithV2Account(email, password);
+        if ('session' in v2) {
+          const moved = await supabase.auth.setSession(v2.session);
+          if (moved.error) { noteExpected('sign in with a v2 account', moved.error); setError(authErrorText(moved.error, t('entry.signIn.failed'))); return; }
+          if (moved.data.user) await recordTerms(moved.data.user.id);
+          return;
+        }
+        if (v2.code !== 'invalid_credentials') {
+          noteExpected('sign in with a v2 account', v2.code);
+          setError(authErrorText({ code: v2.code, ...(v2.code === 'network' ? { name: 'AuthRetryableFetchError' } : {}) }, t('entry.signIn.failed')));
+          return;
+        }
       }
       // A wrong password or no connection: the server's answer, said in the language showing.
       if (error) { noteExpected('sign in', error); setError(authErrorText(error, t('entry.signIn.failed'))); return; }

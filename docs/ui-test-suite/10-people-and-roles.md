@@ -672,7 +672,7 @@ Expected:
   roles off the only role with it, or retiring that role
   (`server/grantsSmoke.sql` 11).
 
-Decided (2026-10-13, decisions.md 96): an organization always keeps someone
+Decided (2026-10-13, decisions.md 98): an organization always keeps someone
 who can manage roles. Before, nothing stopped it, and the toast's Undo was
 refused once you no longer held the role.
 

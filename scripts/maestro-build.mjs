@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * The app build the phone flows run on (decisions.md 93):
+ * The app build the phone flows run on (decisions.md 95):
  *
  *   npm run test:ui:build -- --platform ios --device <simulator udid>
  *   npm run test:ui:build -- --platform android --device <avd name, e.g. Pixel_6>

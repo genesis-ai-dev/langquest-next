@@ -1,4 +1,4 @@
-# P0 smoke on phones (decision 93): signing out with work still to send
+# P0 smoke on phones (decision 95): signing out with work still to send
 # hands it over (decisions 60, 87; JRN-013). On Android the phone goes
 # offline (airplane mode), TRANS adds a note to P-Q3, signs out, and the
 # sign-out says the note will still be sent as them; back online, REV signs

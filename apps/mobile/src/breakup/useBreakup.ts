@@ -1,12 +1,13 @@
 // The hooks behind breaking up the Bible (decisions.md 74): which template
 // each language of the organization uses (the server knows; a phone pulls
 // only the languages it opens), the ways to choose from in the order an
-// admin sees them, and publishing a change to a template for the languages
-// chosen. Pure parts are in model.ts.
+// admin sees them, publishing a change to a template for the languages
+// chosen, and the names to offer when a language names a book (demo
+// ADR-042). Pure parts are in model.ts.
 import {
   CommandError, isTemplateDoc, languageName, libraryItemView, orgLanguages, privilegesFor, recommendedFor, selectTemplateSpecs, subscriptionItemId,
   templateBooks, verseNumbering,
-  type EventSpec, type LibraryItemView, type TemplateDoc, type VersificationDoc
+  type EventSpec, type LibraryItemView, type SourceDoc, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
@@ -20,7 +21,7 @@ import { newItemId } from '../library/model';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
 import { noteExpected } from '../report';
 import { supabase } from '../supabase';
-import { copyName, copyOffOps, itemIdOf, NUMBERING_ITEMS, planChange, wayOf, wayRows, type TemplateUser, type WayRow } from './model';
+import { copyName, copyOffOps, groupNames, itemIdOf, NUMBERING_ITEMS, planChange, wayOf, wayRows, type TemplateUser, type WayRow } from './model';
 
 interface UserRow {
   language_id: string;
@@ -266,4 +267,54 @@ export function useVerseNumbering(ctx: Ctx) {
     void AsyncStorage.setItem(store, result.key).catch(() => undefined);
   }, [store, result.key]);
   return { code: result.code, clash: result.clash && ignored !== result.key ? result.clash : null, ignore };
+}
+
+/**
+ * Names for a book to choose from when a language names it (demo ADR-042):
+ * what the Bibles recommended to the open language call it (their `source@1`
+ * books, which hold Bible Brain's names for a Bible Brain Bible), and what
+ * the organization's other languages call it (`v1.BookNameSet`). A phone
+ * folds only the languages it opens, so the server says those
+ * (`language_book_names`, only languages this person may read), asked when
+ * `open`; offline that list is empty.
+ */
+export function useBookNameChoices(ctx: Ctx, book: string, open: boolean) {
+  const org = ctx.org.state;
+  const state = ctx.language.state;
+  const orgId = ctx.language.orgId;
+  // Keyed on the org state itself: the fold changes its fields in place (orgStateDeps.test.ts).
+  const hashes = useMemo(() => [...recommendedFor(org?.recommendations, state).keys()]
+    .map((id) => (org ? libraryItemView(org.library, id)?.current : null)), [org, state]);
+  const docs = useLibraryDocs(orgId, hashes, { deps: false });
+  const bibles = useMemo(() => groupNames(hashes.flatMap((h) => {
+    const d = docs.get<SourceDoc>(h);
+    const b = d?.format === 'source@1' ? d.books.find((x) => x.book === book) : undefined;
+    return d && b ? [{ name: b.name, from: d.name }] : [];
+  })),
+  // docs.get changes when documents arrive.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [hashes, docs.get, book]);
+  const [answer, setAnswer] = useState<{ book: string; rows: { language_id: string; name: string }[] } | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    let live = true;
+    void (async () => {
+      try {
+        const { data, error } = await supabase.rpc('language_book_names', { p_org: orgId, p_book: book });
+        if (error) throw new Error(error.message);
+        if (live) setAnswer({ book, rows: (data ?? []) as { language_id: string; name: string }[] });
+      } catch (e) {
+        // Offline, or a server without it: only the Bibles' names are offered.
+        noteExpected('book names in other languages', e);
+      }
+    })();
+    return () => { live = false; };
+  }, [open, orgId, book]);
+  const here = ctx.language.languageId;
+  const languages = useMemo(() => {
+    const names = new Map(orgLanguages(org).map((l) => [l.languageId, l.name]));
+    const rows = answer?.book === book ? answer.rows : [];
+    return groupNames(rows.filter((r) => r.language_id !== here && names.has(r.language_id)).map((r) => ({ name: r.name, from: names.get(r.language_id)! })));
+  }, [answer, book, here, org]);
+  return { bibles, languages };
 }

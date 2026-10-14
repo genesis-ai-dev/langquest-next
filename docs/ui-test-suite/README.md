@@ -15,7 +15,7 @@ What this suite adds is the check that a person can do each job on a device.
 It checks what they see, what they tap, what the app says back, and that the
 work reaches the server.
 
-Written 2026-10-12 against `main` at `df1ad11` (after decision 86), and brought up to date with decisions 87 to 92 as the tests were automated (decision 93). The
+Written 2026-10-12 against `main` at `df1ad11` (after decision 86), and brought up to date with decisions 87 to 92 as the tests were automated (decision 95). The
 screens follow the simple redesign (decision 71 and its amendments) and
 `docs/ux/screen-path.md`.
 
@@ -286,7 +286,7 @@ The table follows `src/session.ts` (`homeScreenFor`, `mapScreenFor`,
 
 ## Running the suite
 
-The automated tests live beside the app (decision 93):
+The automated tests live beside the app (decision 95):
 - **Web:** Playwright specs in `smart-tests/ui/`, one or more files per area
   (`01-getting-in.spec.ts` …). A test's title starts with its ID.
 - **Phones:** Maestro flows in `apps/mobile/test/maestro/flows/`, one file
@@ -428,16 +428,16 @@ its test. Among the larger ones:
   characters.
 
 Six product questions the tests raised were decided on 2026-10-13
-(decisions.md 94 to 98), and the tests now hold them:
+(decisions.md 96 to 100), and the tests now hold them:
 - Answering feedback keeps the check open until its reviewer says it looks
-  good (94; JRN-002, JRN-011).
+  good (96; JRN-002, JRN-011).
 - Taking back a checkpoint override needs Override checkpoints, held by the
-  server (95; PASS-056).
+  server (97; PASS-056).
 - An organization always keeps someone who can manage roles, held by the
-  server (96; PEOPLE-026).
+  server (98; PEOPLE-026).
 - For now a back translation carries one spoken note; later notes are typed
-  (97; REV-035). A voice note per moment needs a new event.
-- "Join your team" has no Back, unlike the demo (98; NOORG-003).
+  (99; REV-035). A voice note per moment needs a new event.
+- "Join your team" has no Back, unlike the demo (100; NOORG-003).
 - Web sign-out still forgets everything, a held invite included (decision
   11 as amended on 2026-10-03; AUTH-034).
 

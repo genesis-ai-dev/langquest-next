@@ -333,12 +333,13 @@ langquest-next/
 7. **Snapshot worker done** (`packages/client/src/snapshotWorker.ts`,
    incremental, refolds fully when a redaction targets the snapshot). Org
    dashboard: step 14, folded by the dashboard's own server (decision 44).
-8. **Done.** Import path from LangQuest v2 rows into v1 events:
-   `server/importV2.ts` (`npm run import:v2`) reads v2 anonymously, copies
-   audio by content hash into R2 through the Worker, and appends deterministic
-   events (`packages/client/src/v2import.ts`), so re-runs are duplicates.
-   Text-only v2 translations have no oral equivalent and are counted, not
-   imported. Verified on three production projects in the simulator.
+8. **Done, and kept up to date.** LangQuest v2 comes over one way and keeps
+   coming while v2 runs (`docs/v2-import.md`): `packages/v2-import` reads a
+   v2 project whole, maps it to what it says now, compares that with what
+   the import already appended (a ledger per fact) and appends only the
+   differences; `npm run v2 -- board` places projects into organizations
+   and `npm run v2 -- sync` runs a pass. Audio is copied by content hash
+   into R2 through the Worker.
 9. **Done in part.** Flow coverage proof and read indexes
    (`docs/flow-coverage-audit.md`): `apps/mobile/test/specParity.test.ts`
    holds the app's flow machine to the spec's, edge by edge, with the spec's
@@ -425,6 +426,18 @@ short:
   button; background and history behind one-line summaries.
 - **Built for the field.** 48pt targets, 56pt primary actions, 13pt minimum
   text, status colours that never change and never carry meaning alone.
+- **A to-do opens the task itself** (demo principle 11): a My Work row, an
+  update, a Get ready step or a warning opens the thing to do in its language,
+  book or passage, never a list to search, and says why it is there.
+- **Ready-made choices come with your own** (12): making your own comes
+  first and looks different from the presets, so a growing list never buries
+  it; it can start from a preset.
+- **Decide with the material in front of you** (13): a decision about content
+  is made with the text open in a Bible the person chooses and its reference
+  material beside it.
+- **Show what others usually do** (14): where there is a common answer (where
+  most Bibles start a section, what the organization's other languages use),
+  the choice shows it.
 
 Tokens are `apps/mobile/src/theme.ts` (the demo's `C` and `TINT`);
 primitives are `apps/mobile/src/kit.tsx`. `docs/ux/one-next-action.html`

@@ -102,10 +102,13 @@ Many v2 projects carry the wrong language: people picked English (or their
 own copy of it, or a national language) and put the real language in the
 project name. Before you import or map any v2 project, or any record tied
 to its language (`project_language_link`, `asset_content_link.languoid_id`),
-read `docs/v2-project-languages.md`. Use the language the CSV's `decision`
-column gives for that project. If the decision is empty, ask the developer
-rather than using v2's language or the CSV's recommendation. Languoids that
-v2 users made are never imported (`docs/languoids.md`).
+read `docs/v2-project-languages.md`. Use the language confirmed for that
+project on the import's board (`npm run v2 -- board`), or the CSV's
+`decision` column. If neither says, ask the developer rather than using v2's
+language or the CSV's recommendation. Languoids that v2 users made are never
+imported (`docs/languoids.md`). The import itself is `packages/v2-import`
+and `docs/v2-import.md` (decision 94); change it there, never by appending
+v2 events by hand.
 
 The parent repository is LangQuest v2. Do not import from it. Its data model is
 what this app replaces; see PLAN.md section 2 for why.

@@ -11,7 +11,8 @@ import {
   House, Image, Inbox, LayoutTemplate, Link, Lock, Map as MapIcon, MapPin, MessageCircle, MessageSquareText, Mic, Pause, Pencil,
   Play, Plus, QrCode, RotateCcw, Scissors, Search, Settings, Share2, SkipForward, Sparkles, Square, Star, StickyNote,
   ThumbsUp, Trash2, Undo2, User, Users, Video, Volume2, Workflow, X, Bell, Headphones, Layers,
-  ArrowLeft, Send, KeyRound, List, Smartphone, GripVertical, SlidersHorizontal, CircleCheck, TriangleAlert
+  ArrowLeft, Send, KeyRound, List, Smartphone, GripVertical, SlidersHorizontal, CircleCheck, TriangleAlert,
+  ChevronsUpDown, FileText, Eye, EyeOff
 } from 'lucide-react-native';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
@@ -46,7 +47,9 @@ const ICONS = {
   template: LayoutTemplate, thumbUp: ThumbsUp, trash: Trash2, undo: Undo2, up: ChevronUp, user: User, video: Video,
   work: Briefcase, inbox: Inbox, listen: Headphones, layers: Layers, onPhone: CloudCheck, notOnPhone: CloudOff,
   arrowL: ArrowLeft, send: Send, key: KeyRound, list: List, phone: Smartphone, grip: GripVertical, sliders: SlidersHorizontal, done: CircleCheck,
-  warning: TriangleAlert
+  warning: TriangleAlert, join: ChevronsUpDown, file: FileText,
+  // Show here / Hide here on a passage's helps (demo ADR-042).
+  eye: Eye, eyeOff: EyeOff
 } satisfies Record<string, LucideIcon>;
 export type IconName = keyof typeof ICONS;
 
@@ -562,12 +565,14 @@ export function Field(props: {
   onSubmit?: () => void;
   /** For the UI tests: iOS does not expose a multi-line field's placeholder. */
   testID?: string;
+  /** What a screen reader calls a field with no label, when its placeholder does not say it. */
+  accessibilityLabel?: string;
 }) {
   return (
     <View style={{ gap: space.xs }}>
       {props.label ? <Text style={txt.xsStrong}>{props.label}</Text> : null}
       <TextInput value={props.value} onChangeText={props.onChangeText} placeholder={props.placeholder} placeholderTextColor={C.faint}
-        accessibilityLabel={props.label ?? props.placeholder}
+        accessibilityLabel={props.label ?? props.accessibilityLabel ?? props.placeholder}
         {...(props.onSubmit && !props.multiline ? { onSubmitEditing: props.onSubmit, returnKeyType: 'go' as const } : {})}
         {...(props.testID ? { testID: props.testID } : {})}
         multiline={props.multiline} secureTextEntry={props.secure} keyboardType={props.keyboardType} autoCapitalize={props.autoCapitalize}

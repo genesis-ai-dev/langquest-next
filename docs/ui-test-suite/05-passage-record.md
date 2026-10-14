@@ -459,7 +459,7 @@ Expected:
 - The workspace opens on P-NEEDS, tied to REV's review.
 - Afterwards the record shows "Version 2 published". The check it offers
   first is the Peer check again, with "Ask the Peer check team": answered
-  feedback keeps the check open (decided 2026-10-13, decisions.md 94).
+  feedback keeps the check open (decided 2026-10-13, decisions.md 96).
 - On the path, "Hear the feedback" and "Fix it…" are gone.
 - In the sheet, the Peer check is marked "Feedback answered".
 - "Versions and history" → "History" lists "Revised after Peer Review".
@@ -1223,7 +1223,7 @@ Expected:
 - The entry now reads "… · brought back {when}". The record keeps both acts.
 - TRANS sees no "Undo" on "Moved past a checkpoint", and the server
   refuses TRANS's undo ("may not emit v1.DepartureUndone"). Decided
-  (2026-10-13, decisions.md 95): taking back an override needs Override
+  (2026-10-13, decisions.md 97): taking back an override needs Override
   checkpoints, as making one does. Undoing a set-aside does not.
 
 ### PASS-057 Not now at a checkpoint

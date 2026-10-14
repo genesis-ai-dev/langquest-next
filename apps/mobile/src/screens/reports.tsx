@@ -192,7 +192,7 @@ function LanguageBody(props: { ctx: Ctx; row: LanguageRow; refresh: () => void }
           </Text>
         </Panel>
       ) : null}
-      <AttentionPanel attention={r.attention} />
+      <AttentionPanel attention={r.attention} onShow={(filter) => ctx.go('map_home', { languageId: row.languageId, filter })} />
       <Columns>
         <FlowPanel report={r} />
         <Panel title={t('reports.whereStand.title')} sub={t('reports.whereStand.once')}><WorkBar work={r.work} /></Panel>

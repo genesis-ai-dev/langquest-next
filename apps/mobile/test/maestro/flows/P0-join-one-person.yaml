@@ -1,4 +1,4 @@
-# P0 smoke on phones (decision 93): a new person joins with a one-person
+# P0 smoke on phones (decision 95): a new person joins with a one-person
 # invite code (JRN-001's first half). COORD makes the code on this phone and
 # copies its typed form; the app is then cleared, as a fresh install, and the
 # code is pasted on Sign In's "Scan a code".

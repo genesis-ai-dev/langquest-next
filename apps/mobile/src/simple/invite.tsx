@@ -3,7 +3,7 @@
 // invite RPC Invite by QR uses) works for a whole workshop table and needs no
 // password. Used by Invite Member and by a new language's last step.
 import type { Scope } from '@langquest-next/core';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { Text } from '../text';
 import type { Ctx } from '../ctx';
@@ -61,6 +61,17 @@ export function InviteSomeone(props: {
   }
   const uri = invite && 'uri' in invite ? invite.uri : null;
   const what = roles.choices.find((c) => c.id === choice)?.label ?? roles.others.find((r) => r.id === choice)?.name ?? '';
+  // A role made from here ("Something else: make a new role") comes back chosen (design principle 12).
+  const rolesBefore = useRef<Set<string> | null>(null);
+  const otherIds = roles.others.map((r) => r.id).join('|');
+  useEffect(() => {
+    const before = rolesBefore.current;
+    const made = before ? roles.others.find((r) => !before.has(r.id)) : undefined;
+    if (made) { rolesBefore.current = null; setChoice(made.id); setOthers(true); }
+    // `otherIds` names what changes in `roles.others`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [otherIds]);
+  const newRole = props.onNewRole ? () => { rolesBefore.current = new Set(roles.others.map((r) => r.id)); props.onNewRole!(); } : undefined;
 
   if (shown) {
     return (
@@ -84,13 +95,14 @@ export function InviteSomeone(props: {
         {props.links ? <QuietLinks items={props.links(roleId, scope)} /> : null}
       </>}>
       <Question>{t('admin.invite.whatWillTheyDo')}</Question>
+      {/* Making a new role comes first, set apart from the roles there are (design principle 12). */}
+      {newRole ? <DashedRow icon="plus" label={t('admin.invite.newRole')} onPress={newRole} /> : null}
       {roles.choices.map((c) => (
         <RadioRow key={c.id} tile icon={c.icon as IconName} label={c.label} on={choice === c.id} onPress={() => setChoice(c.id)} />
       ))}
       {roles.others.length ? (others ? roles.others.map((r) => (
         <RadioRow key={r.id} tile icon="star" label={r.name} on={choice === r.id} onPress={() => setChoice(r.id)} />
       )) : <QuietLink icon="down" label={t('admin.invite.otherRoles', { total: formatNumber(roles.others.length) })} onPress={() => setOthers(true)} />) : null}
-      {props.onNewRole ? <DashedRow icon="plus" label={t('admin.invite.newRole')} onPress={props.onNewRole} /> : null}
       {props.scopes.length > 1 ? (
         <>
           <SectionLabel label={t('admin.invite.whichLanguage')} />

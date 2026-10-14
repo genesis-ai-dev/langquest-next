@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * The UI test suite's phone flows (docs/ui-test-suite, decisions.md 93):
+ * The UI test suite's phone flows (docs/ui-test-suite, decisions.md 95):
  *
  *   npm run test:ui:phone -- --platform ios|android [--device <udid|serial>]
  *     [--app build|dev] [--port 8095] [--tags p0,auth] [--exclude-tags wrapped]

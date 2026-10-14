@@ -28,16 +28,108 @@ means is in `fleet-simulation.md`.
   runs, and rerun before reading a small difference as real.
 - **Agreement must stay "yes".** Every phone ended with the server's state
   in all 17 runs.
-- **The snapshot rule changed after these were taken.** The results below
-  are from before decision 88. `npm run fleet:baselines` now runs the
-  scenarios with the server's new rule and adds `-oldRule` runs with the
-  rule these used; the `-oldRule` runs reproduce these numbers exactly.
+- **Two sets.** "Current" is today's code with every LAN-47 fix and the
+  persona fix below, and is what the next change compares against.
+  "Before LAN-47's fixes" is the first set, kept for the before-and-after
+  sections that follow it. `-oldRule` runs use the snapshot rule from
+  before decision 88; with the persona fix they come close to the first
+  set's numbers but no longer match them exactly.
+- **The persona fix (2026-10-12).** In the first set a phone that caught
+  up through a server snapshot told its person nothing of what was in
+  it, so a translator whose phone first connected after the first
+  snapshot never worked. Its comparisons hold (both sides ran the same
+  people), but it counts less work: `normalDay` appended 1,415 events
+  where it now appends 1,842.
 - **Runs with a different snapshot rule are close, not identical.** A
   phone that adopts a snapshot instead of pulling learns of the work at a
   different moment, so its persona acts at different moments, and events
   and syncs differ slightly between those pairs.
 
-## Results
+## Current (2026-10-12, after LAN-47's fixes, with the persona fix and audio)
+
+### Audio (runs with --audio=1)
+
+| Run | Recorded | Lost | MB up | MB down | Failed transfers | To server p50 min | To server p95 min | Playable elsewhere p50 min | Playable elsewhere p95 min | Work lists | Work-list CPU s |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| normalDay-audio | 1,105 | 0 | 134 | 669 | 68 | 0.08 | 3,093 | 0.3 | 3,145 | 581,439 | 48.02 |
+| village-audio | 3,637 | 0 | 432 | 2,594 | 130 | 15,422 | 19,923 | 15,427 | 19,930 | 790,156 | 21.29 |
+
+### normalDay
+
+| Run | Phones | Passages | Sim days | Real s | Heap MB | Events | Syncs | Sync CPU s | Sync CPU p95 ms | Refolds | MB down | Reach server p95 min | Reach others p95 min | Agree |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| normalDay-default | 14 | 300 | 7 | 2.2 | 49 | 1,842 | 24,876 | 0.6 | 0.05 | 0 | 9.97 | 2,943 | 3,278 | yes |
+| normalDay-45 | 45 | 1,000 | 7 | 8.4 | 274 | 5,684 | 84,790 | 2.4 | 0.06 | 0 | 95.98 | 2,942 | 3,437 | yes |
+| normalDay-131 | 131 | 3,000 | 7 | 59.2 | 2,778 | 16,563 | 377,944 | 26.6 | 0.15 | 0 | 810 | 2,908 | 3,193 | yes |
+| normalDay-audio | 14 | 300 | 7 | 60.9 | 126 | 2,959 | 34,109 | 0.9 | 0.06 | 0 | 15.19 | 2,909 | 3,269 | yes |
+
+### villageReconnect
+
+| Run | Phones | Passages | Sim days | Real s | Heap MB | Events | Syncs | Sync CPU s | Sync CPU p95 ms | Refolds | MB down | Reach server p95 min | Reach others p95 min | Agree |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| village-small | 9 | 300 | 7.29 | 0.46 | 34 | 1,213 | 5,289 | 0.1 | 0.03 | 0 | 4.65 | 9,886 | 9,887 | yes |
+| village-default | 17 | 1,200 | 14.29 | 2.19 | 120 | 4,835 | 16,206 | 0.8 | 0.06 | 0 | 35.15 | 19,858 | 19,858 | yes |
+| village-large | 66 | 3,000 | 28.29 | 11.33 | 755 | 12,080 | 100,130 | 3.5 | 0.02 | 0 | 343 | 40,114 | 40,114 | yes |
+| village-audio | 17 | 1,200 | 14.3 | 47.14 | 139 | 8,472 | 23,271 | 1.3 | 0.1 | 0 | 56.8 | 19,858 | 19,858 | yes |
+
+| Run | Backlog at reconnect | Minutes to drain | Append calls to drain | Sync CPU while draining, total ms | p95 ms | max ms |
+| --- | --- | --- | --- | --- | --- | --- |
+| village-small | 900 | 1 | 5 | 21.27 | 2.99 | 2.99 |
+| village-default | 3,600 | 1 | 20 | 186 | 6.21 | 12.18 |
+| village-large | 9,000 | 1 | 80 | 1,842 | 7.67 | 16.71 |
+| village-audio | 3,600 | 1 | 20 | 560 | 0.27 | 11.88 |
+
+### reducerBump
+
+| Run | Phones | Passages | Sim days | Real s | Heap MB | Events | Syncs | Sync CPU s | Sync CPU p95 ms | Refolds | MB down | Reach server p95 min | Reach others p95 min | Agree |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| bump-default | 14 | 600 | 4.38 | 2.62 | 65 | 2,578 | 26,893 | 0.8 | 0.06 | 0 | 22.42 | 0.01 | 0.15 | yes |
+| bump-oldRule | 14 | 600 | 4.38 | 3.58 | 112 | 2,610 | 27,026 | 0.8 | 0.06 | 0 | 22.57 | 0.01 | 0.15 | yes |
+| bump-slow5KBps | 14 | 600 | 4.38 | 2.65 | 73 | 2,616 | 26,949 | 0.8 | 0.06 | 0 | 22.79 | 0.02 | 0.54 | yes |
+| bump-slow5KBps-oldRule | 14 | 600 | 4.38 | 3.64 | 141 | 2,646 | 27,115 | 0.8 | 0.06 | 0 | 23.45 | 0.02 | 0.54 | yes |
+| bump-large | 66 | 3,000 | 4.38 | 52.59 | 1,086 | 12,979 | 339,006 | 28.1 | 0.18 | 0 | 538 | 0.03 | 0.32 | yes |
+| bump-large-oldRule | 66 | 3,000 | 4.38 | 59.3 | 984 | 13,025 | 339,597 | 28.6 | 0.18 | 0 | 565 | 0.03 | 0.32 | yes |
+
+| Run | Cold starts | Never caught up | Worst minutes | Snapshots ok | Snapshots stale | Snapshot pieces fetched | Snapshots taken |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| bump-default | 14 | 0 | 0.77 | 14 | 0 | 41 | 38 |
+| bump-oldRule | 14 | 0 | 0.77 | 14 | 0 | 43 | 356 |
+| bump-slow5KBps | 14 | 0 | 2.73 | 14 | 0 | 240 | 38 |
+| bump-slow5KBps-oldRule | 14 | 0 | 3.7 | 13 | 1 | 230 | 358 |
+| bump-large | 66 | 0 | 3.52 | 66 | 0 | 731 | 54 |
+| bump-large-oldRule | 66 | 0 | 6.81 | 59 | 7 | 717 | 397 |
+
+### slowLink
+
+| Run | Phones | Passages | Sim days | Real s | Heap MB | Events | Syncs | Sync CPU s | Sync CPU p95 ms | Refolds | MB down | Reach server p95 min | Reach others p95 min | Agree |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| slow-default | 14 | 1,200 | 4.38 | 2.81 | 130 | 3,249 | 26,720 | 0.9 | 0.07 | 0 | 19.93 | 0.01 | 0.04 | yes |
+| slow-oldRule | 14 | 1,200 | 4.38 | 4.14 | 113 | 3,223 | 26,516 | 0.9 | 0.07 | 0 | 23.56 | 0.01 | 0.04 | yes |
+| slow-8KBps-256KB | 14 | 1,200 | 4.38 | 2.79 | 100 | 3,239 | 26,671 | 0.8 | 0.07 | 0 | 19.87 | 0.01 | 0.04 | yes |
+| slow-large | 66 | 3,000 | 4.38 | 54.28 | 793 | 13,180 | 344,841 | 29.3 | 0.19 | 0 | 376 | 0.03 | 0.06 | yes |
+| slow-large-oldRule | 66 | 3,000 | 4.38 | 61.05 | 734 | 13,183 | 345,369 | 29.8 | 0.19 | 0 | 388 | 0.03 | 0.06 | yes |
+
+| Run | Snapshot KB at join | Joiner minutes | Joiner MB down | Joiner snapshot outcomes | Snapshots taken |
+| --- | --- | --- | --- | --- | --- |
+| slow-default | 614 | 6, 5, 6 | 0.8, 0.8, 0.8 | ok, ok, ok | 38 |
+| slow-oldRule | 624 | 14, 14, 29 | 1.8, 1.9, 2.7 | stale, stale, stale | 351 |
+| slow-8KBps-256KB | 614 | 2, 1, 2 | 0.8, 0.8, 0.8 | ok, ok, ok | 38 |
+| slow-large | 2,727 | 25, 24, 26, 26, 25 | 3.9, 3.9, 3.9, 3.9, 3.9 | ok, ok, ok, ok, ok | 55 |
+| slow-large-oldRule | 2,738 | 48, 43, 45, 48, 43 | 6.6, 6.1, 6, 6.6, 6.1 | stale, stale, stale, stale, stale | 397 |
+
+### refoldTriggers
+
+| Run | Phones | Passages | Sim days | Real s | Heap MB | Events | Syncs | Sync CPU s | Sync CPU p95 ms | Refolds | MB down | Reach server p95 min | Reach others p95 min | Agree |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| refold-default | 14 | 300 | 3 | 2.58 | 38 | 1,637 | 18,381 | 1.2 | 0.07 | 496 | 9.53 | 600 | 600 | yes |
+| refold-large | 33 | 1,200 | 3 | 10.65 | 393 | 4,597 | 69,407 | 5.5 | 0.07 | 903 | 537 | 600 | 600 | yes |
+
+| Run | Hours unlisted | Refolds while unlisted | Worst phone | Redactions | Refolds after listing | Per phone | Sync CPU after listing, ms | Empty snapshot lookups |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| refold-default | 10 | 120 | 120 | 25 | 376 | 27 | 1,139 | 1,681 |
+| refold-large | 10 | 120 | 120 | 23 | 1,410 | 43 | 5,186 | 3,961 |
+
+## Before LAN-47's fixes
 
 ### normalDay
 

@@ -26,15 +26,21 @@ import { fileURLToPath } from 'node:url';
 import { authArgs, targetArgs } from './cloudflare-deploy.mjs';
 import { HOSTED, decrypt, envKeyNames, parseJsonc, projectRef, root, secretsPath } from './env-files.mjs';
 
-/** Keys .env.<env> may hold. DIAG_DATABASE_URL is read on a laptop (npm run diag -- --hosted), never pushed. */
-export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PROJECTION_WORKER_SECRET', 'DIAG_DATABASE_URL', 'BIBLE_BRAIN_ACCESS_KEY'];
+/**
+ * Keys .env.<env> may hold. DIAG_DATABASE_URL is read on a laptop (npm run diag -- --hosted), and
+ * V2_DATABASE_URL by the v2 import (npm run v2 -- --production, scripts/v2-access.sh); neither is pushed.
+ */
+export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PROJECTION_WORKER_SECRET', 'DIAG_DATABASE_URL', 'BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL'];
 export const REQUIRED_KEYS = ['INVITE_RELAY_SECRET', 'PROJECTION_WORKER_SECRET'];
 /**
  * Placed when the file has them, never required: the Worker answers without
  * them (the Bible routes say 503), so neither a deploy nor this script waits
  * for one. Not in the Worker's `secrets.required` for the same reason.
  */
-export const OPTIONAL_KEYS = ['BIBLE_BRAIN_ACCESS_KEY'];
+export const OPTIONAL_KEYS = ['BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY'];
+
+/** LangQuest v2's production project, read (never written) by the v2 import and v2-sign-in (docs/v2-import.md). */
+export const V2_SUPABASE_URL = 'https://unsxkmlcyxgtgmtzfonb.supabase.co';
 
 export const WORKERS = {
   dashboard: 'apps/web/wrangler.jsonc',
@@ -68,7 +74,9 @@ export function destinations(environment, values, ref, serviceRoleKey) {
     functions: {
       INVITE_RELAY_URL: relayUrl(environment),
       INVITE_RELAY_SECRET: values.INVITE_RELAY_SECRET,
-      PROJECTION_WORKER_SECRET: values.PROJECTION_WORKER_SECRET
+      PROJECTION_WORKER_SECRET: values.PROJECTION_WORKER_SECRET,
+      // v2's publishable key is public (its app ships it); without it, signing in with a v2 account answers 503.
+      ...(values.V2_SUPABASE_ANON_KEY ? { V2_SUPABASE_URL, V2_SUPABASE_ANON_KEY: values.V2_SUPABASE_ANON_KEY } : {})
     },
     // Read by the projection job (SCHEDULE_MIGRATION).
     vault: {
