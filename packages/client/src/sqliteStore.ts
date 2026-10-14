@@ -96,11 +96,17 @@ export class SqliteStore implements EventStore {
         if (batch.kept.replaceFrom !== undefined) {
           await tx.run(`update kept set stream_id = ? where org_id = ? and stream_id = ?`, [streamId, orgId, batch.kept.replaceFrom]);
         }
-        for (const r of batch.kept.upsert ?? []) {
+        // A thousand rows a statement, handed over as one JSON array: a first
+        // download writes 160,000 rows for a language like Koro Miyan, and a
+        // statement per row took over a minute on a test phone.
+        const upsert = batch.kept.upsert ?? [];
+        for (let i = 0; i < upsert.length; i += KEPT_ROWS_PER_STATEMENT) {
+          const rows = upsert.slice(i, i + KEPT_ROWS_PER_STATEMENT).map((r) => [r.kind, r.id, r.unitId, r.actorId, r.json]);
           await tx.run(
-            `insert into kept (org_id, stream_id, kind, id, unit_id, actor_id, json) values (?, ?, ?, ?, ?, ?, ?)
+            `insert into kept (org_id, stream_id, kind, id, unit_id, actor_id, json)
+             select ?, ?, value ->> 0, value ->> 1, value ->> 2, value ->> 3, value ->> 4 from json_each(?) where true
              on conflict(org_id, stream_id, kind, id) do update set unit_id = excluded.unit_id, actor_id = excluded.actor_id, json = excluded.json`,
-            [orgId, streamId, r.kind, r.id, r.unitId, r.actorId, r.json]
+            [orgId, streamId, JSON.stringify(rows)]
           );
         }
       }
@@ -309,6 +315,8 @@ export class SqliteStore implements EventStore {
 
 /** Ids per lookup: well under SQLite's parameter limit. */
 const KEPT_SLICE = 400;
+/** Kept rows written per statement. */
+const KEPT_ROWS_PER_STATEMENT = 1_000;
 
 function toLocal(row: Row): LocalEvent {
   const event = JSON.parse(row.json) as AnyEvent;
