@@ -70,4 +70,14 @@ describe('signing in (AUTH-1, docs/v2-import.md section 3)', () => {
     expect(signInReady('ana@x.org', '')).toBe(false);
     expect(signInReady('not a name!', 'pw')).toBe(false);
   });
+
+  it('AUTH-003 Sign In stays disabled until both fields can be used', () => {
+    expect(signInReady('', '')).toBe(false);
+    expect(signInReady('a', 'x')).toBe(false); // a sign-in name is two characters or more
+    expect(signInReady('nobody', '')).toBe(false);
+    expect(signInReady('nobody', 'x')).toBe(true);
+    expect(signInReady('user@example.org', 'x')).toBe(true);
+    expect(signInReady('-bad-name', 'x')).toBe(false);
+    expect(signInReady('Nyibol-482', 'x')).toBe(true);
+  });
 });

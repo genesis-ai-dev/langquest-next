@@ -1,5 +1,5 @@
 import type { ListedOrganization } from '../src/accountData';
-import { matchOrganizations } from '../src/auth/model';
+import { createAccountReady, matchOrganizations } from '../src/auth/model';
 
 const org = (org_id: string, name: string, languages: string[] = []): ListedOrganization => ({ org_id, name, languages });
 const listed = [org('a', 'Akobo Team', ['Nuer']), org('b', 'Bor Translators', ['Dinka'])];
@@ -21,5 +21,17 @@ describe('organizations Request Access lists (AUTH-5, decisions.md 66)', () => {
 
   it('finds for other words are not shown', () => {
     expect(matchOrganizations(listed, 'bor', { query: 'team', list: [org('c', 'Aweil Team')] }).map((o) => o.org_id)).toEqual(['b']);
+  });
+});
+
+describe('Create Account is ready', () => {
+  it('AUTH-020 needs an email, and a password of 6 or more typed twice alike', () => {
+    expect(createAccountReady('someone', 'secret1', 'secret1')).toBe(false);
+    expect(createAccountReady('someone@example.org', 'secret1', 'secret1')).toBe(true);
+    expect(createAccountReady(' someone@example.org ', 'secret1', 'secret1')).toBe(true);
+    expect(createAccountReady('someone@example.org', 'abc12', 'abc12')).toBe(false);
+    expect(createAccountReady('someone@example.org', 'secret12', 'secret13')).toBe(false);
+    expect(createAccountReady('someone@example.org', 'secret12', '')).toBe(false);
+    expect(createAccountReady('', '', '')).toBe(false);
   });
 });

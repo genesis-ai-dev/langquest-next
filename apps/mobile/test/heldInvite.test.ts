@@ -213,3 +213,31 @@ describe('what the scan screen says about a held invite (scanVerdict)', () => {
     expect(scanVerdict({ status: 'joined' }, { kind: 'idle' })).toEqual({ dead: null, alreadyIn: true, named: null });
   });
 });
+
+describe('a dead invite says why, and who to ask (AUTH-039, AUTH-040, AUTH-041, AUTH-042)', () => {
+  const words = {
+    expired: ['AUTH-039', 'This invite has expired.'],
+    used: ['AUTH-040', 'This invite has already been used.'],
+    not_found: ['AUTH-041', "This invite isn't valid. Check you scanned the whole code, or"],
+    retired: ['AUTH-042', 'This invite can no longer be used.']
+  } as const;
+
+  for (const reason of ['expired', 'used', 'not_found', 'retired'] as const) {
+    const [id, start] = words[reason];
+    it(`${id} ${reason}: the message, with and without the person who invited`, () => {
+      expect(deadMessage(reason, 'Mary')).toContain(start);
+      expect(deadMessage(reason, 'Mary')).toMatch(/ask Mary for a new one\.$/i);
+      expect(deadMessage(reason)).toMatch(/ask for a new one\.$/i);
+      expect(deadMessage(reason, null)).toBe(deadMessage(reason));
+    });
+
+    it(`${id} ${reason}: the scan screen shows it as dead, not joinable`, () => {
+      expect(scanVerdict({ status: reason, invitedBy: 'Mary' }, { kind: 'idle' })).toEqual({ dead: deadMessage(reason, 'Mary'), alreadyIn: false, named: null });
+      expect(scanVerdict({ status: reason }, { kind: 'idle' }).dead).toBe(deadMessage(reason));
+    });
+  }
+
+  it('AUTH-041 an invalid code claims nothing: the generic card, no sender', () => {
+    expect(inviteCard({ status: 'not_found' })).toEqual({ title: 'Invitation to join an organization', detail: null, from: null });
+  });
+});

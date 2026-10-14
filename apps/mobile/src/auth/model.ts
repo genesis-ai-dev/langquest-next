@@ -12,3 +12,11 @@ export function matchOrganizations(listed: ListedOrganization[], query: string, 
   const there = found.query === query ? found.list.filter((o) => !here.some((h) => h.org_id === o.org_id)) : [];
   return there.length ? [...here, ...there].sort((a, b) => a.name.localeCompare(b.name)) : here;
 }
+
+/** The shortest password Create Account takes. */
+export const MIN_PASSWORD = 6;
+
+/** Whether Create Account can be pressed: an email, and a password of 6 or more typed twice alike (AUTH-020). */
+export function createAccountReady(email: string, password: string, confirm: string): boolean {
+  return email.trim().includes('@') && password.length >= MIN_PASSWORD && password === confirm;
+}

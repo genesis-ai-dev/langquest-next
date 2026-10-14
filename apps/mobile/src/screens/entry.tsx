@@ -26,6 +26,7 @@ import { inviteCard, scanVerdict } from '../heldInvite';
 import { parseKey } from '../inviteCode';
 import type { Ctx } from '../ctx';
 import { recreateDevAccount } from '../server/personas';
+import { createAccountReady, MIN_PASSWORD } from '../auth/model';
 import { signIn, signInReady } from '../auth/signIn';
 import { useInvitePreview } from '../auth/useInvitePreview';
 import { useOrganizationSearch } from '../auth/useOrganizationSearch';
@@ -357,8 +358,7 @@ function EmailAccount(ctx: Ctx) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [checkEmail, setCheckEmail] = useState(false);
-  const emailOk = email.trim().includes('@');
-  const matches = password.length >= 6 && password === confirm;
+  const ready = createAccountReady(email, password, confirm);
 
   async function create() {
     setBusy(true);
@@ -400,10 +400,10 @@ function EmailAccount(ctx: Ctx) {
       <Field label={t('entry.fields.password')} value={password} onChangeText={setPassword} placeholder={t('entry.createAccount.passwordPlaceholder')} secure autoCapitalize="none" />
       <Field label={t('entry.createAccount.confirmLabel')} value={confirm} onChangeText={setConfirm} placeholder={t('entry.createAccount.confirmPlaceholder')} secure autoCapitalize="none" />
       {/* The placeholder that says so is gone once typing starts: say why the button stays off. */}
-      {password.length > 0 && password.length < 6 ? <Text style={txt.error}>{t('entry.createAccount.tooShort')}</Text> : null}
+      {password.length > 0 && password.length < MIN_PASSWORD ? <Text style={txt.error}>{t('entry.createAccount.tooShort')}</Text> : null}
       {confirm.length > 0 && password !== confirm ? <Text style={txt.error}>{t('entry.createAccount.mismatch')}</Text> : null}
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
-      <PrimaryBtn label={busy ? t('entry.shared.creating') : t('entry.createAccount.button')} onPress={() => void create()} disabled={!emailOk || !matches || busy} />
+      <PrimaryBtn label={busy ? t('entry.shared.creating') : t('entry.createAccount.button')} onPress={() => void create()} disabled={!ready || busy} />
       <TermsLink ctx={ctx} i18nKey="entry.termsLine.creating" />
       <OrDivider />
       <GhostBtn label={t('entry.createAccount.scanInvite')} icon="qr" onPress={() => ctx.go('scan_qr')} />
