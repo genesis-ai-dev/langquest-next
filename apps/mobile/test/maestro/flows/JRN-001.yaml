@@ -1,0 +1,129 @@
+# JRN-001 A new translator's first day (docs/ui-test-suite/16-role-journeys.md).
+# One phone stands in for both devices: COORD makes Ana's one-person code and
+# copies its typed form, the app is cleared (a fresh install) and Ana joins,
+# is welcomed, then records P-NEW, publishes Version 1 and asks the check's
+# team. Ana has no password, so COORD cannot come back on this phone: the
+# coordinator's "Ask someone" (steps 7-9) and the other devices' checks are
+# run on the web in JRN-011 (smart-tests/ui/16-jrn-011.spec.ts).
+# Audio comes from the host's microphone (G8).
+appId: com.frontierrnd.langquestnext
+name: "JRN-001 A new translator's first day: invited, welcomed, records and asks for a check"
+tags:
+  - jrn
+  - p0
+---
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${COORD_EMAIL}
+      PASSWORD: ${COORD_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- extendedWaitUntil:
+    visible:
+      id: "tab-manage"
+    timeout: 60000
+# Steps 1-2: Manage → Members → Invite, one person by name, Translator in Alpha.
+- tapOn:
+    id: "tab-manage"
+- tapOn: "Members.*"
+- tapOn: "Invite"
+- tapOn: "Translate"
+- tapOn: "${LANG_A}"
+- tapOn: "One person, by name"
+- tapOn: "e.g. Nyibol Deng"
+- inputText: "Ana Test"
+- runFlow:
+    file: ../common/dismiss-keyboard.yaml
+    env:
+      LABEL: "Invite by QR"
+- tapOn:
+    id: "primary-action"
+- extendedWaitUntil:
+    visible: "Or type this code"
+    timeout: 30000
+- copyTextFrom:
+    text: "[0-9a-f]{64}"
+# Steps 3-5: a fresh install; Scan a code, paste, join as Ana.
+- runFlow: ../common/launch.yaml
+- tapOn: "Scan a code"
+# The code goes in as its link. Typing or pasting it into the field cannot be
+# automated: Maestro types one character at a time, and the field takes any 32
+# hex characters as a whole code (inviteCode.ts parseInvite, entry.tsx
+# onChangeText), so a typed code is read at its 32nd character and fails; and
+# on Android a pasted code reaches the server as an unknown invite (preview_invite
+# answers not_found for the token the field sends).
+- openLink: "langquestnext://invite?token=${maestro.copiedText}"
+- extendedWaitUntil:
+    visible: "Invite for Ana Test"
+    timeout: 30000
+- assertVisible: "Translator · ${LANG_A} · ${ORG_NAME}"
+- tapOn: "Join as Ana"
+# Step 6: Welcome.
+- extendedWaitUntil:
+    visible: "You're a .*Translator.* on the ${LANG_A} team at ${ORG_NAME}\\."
+    timeout: 60000
+- assertVisible: "Record passages in your language\\."
+- assertVisible: "Your team listens and says what to change\\."
+- assertVisible: "My Work shows what's next for you\\."
+- tapOn: "Get started"
+# After Welcome: Work, Map and Me; no email yet.
+- extendedWaitUntil:
+    visible:
+      id: "tab-work"
+    timeout: 30000
+- assertVisible:
+    id: "tab-map"
+- assertVisible:
+    id: "tab-me"
+- assertNotVisible:
+    id: "tab-manage"
+- tapOn:
+    id: "tab-me"
+- tapOn: "More settings.*"
+- assertVisible: "No email yet"
+- tapOn:
+    id: "header-back"
+# Steps 10-12: P-NEW from the Map; the Record step row (it leads with Study: FIA has a guide).
+- tapOn:
+    id: "tab-map"
+- tapOn: "Find.*"
+- inputText: ${P_NEW.split(':')[0]}
+- runFlow:
+    file: ../common/dismiss-keyboard.yaml
+    env:
+      LABEL: ${LANG_A}
+- tapOn:
+    text: "${P_NEW}.*"
+    index: 0
+- extendedWaitUntil:
+    visible: "(?i)Then the team"
+    timeout: 30000
+- tapOn: "1\\. Record\\..*"
+- extendedWaitUntil:
+    visible: "Recording Version 1"
+    timeout: 30000
+- tapOn:
+    id: "record-button"
+- runFlow:
+    when:
+      visible: "(?i)Allow|While using the app"
+    commands:
+      - tapOn: "(?i)Allow|While using the app"
+# Speak, pause, speak: two parts.
+- extendedWaitUntil:
+    visible: "Parts 1–2.*"
+    timeout: 30000
+- tapOn:
+    id: "record-button"
+- tapOn:
+    id: "publish-button"
+- tapOn: "Publish Version 1"
+- extendedWaitUntil:
+    visible: "Version 1 published\\..*"
+    timeout: 20000
+- assertVisible: "(?i)Next, ask for a check"
+# Step 13: the check's team (decision 91: "Ask the Peer check team").
+- tapOn: "Ask the Peer check team"
+- assertVisible: "Sent to the Peer check team.*"
+- assertVisible: "Peer check, asked the Peer check team"

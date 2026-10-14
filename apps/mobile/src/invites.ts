@@ -2,7 +2,7 @@ import type { Scope } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useEffect, useState } from 'react';
 import { AppState } from 'react-native';
-import type { InvitePreview } from './heldInvite';
+import { functionRefusal, type InvitePreview } from './heldInvite';
 import { parseInvite } from './inviteCode';
 import { noteExpected } from './report';
 import { requestOutcome, type RequestOutcome } from './requestOutcome';
@@ -136,13 +136,10 @@ export class FunctionError extends Error {
 
 async function invoke<T>(name: string, body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke(name, { body });
-  if (error) {
-    const context = (error as { context?: Response }).context;
-    const reply = context ? await context.json().catch(() => null) as { error?: string; needsName?: boolean } | null : null;
-    throw new FunctionError(reply?.error ?? error.message, reply?.needsName === true);
-  }
+  if (error) throw new FunctionError(...await functionRefusal(error));
   return data as T;
 }
+
 
 /**
  * Join with an invite as a new person (flow A, decisions.md 59): no email, no

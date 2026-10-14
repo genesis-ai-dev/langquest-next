@@ -1,0 +1,62 @@
+# REC-043 (docs/ui-test-suite/06-recording.md, decision 82): slide a finger
+# down the parts' verse spaces to number several parts at once.
+#
+# Passage: P-T (Luke 12:49-59), after REC-023 (flows run in name order),
+# which left two parts; this flow records more until there are five, none
+# with a verse, then slides from Part 3's space past Part 5's.
+# Audio: G8, the host's microphone playing smart-tests/fixtures/voice.wav (a
+# part about every four seconds). With a silent microphone the flow stops
+# waiting for "Parts 1–5".
+appId: com.frontierrnd.langquestnext
+name: "REC-043 Slide down the spaces to number many parts"
+tags:
+  - rec
+---
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${TRANS_EMAIL}
+      PASSWORD: ${TRANS_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- runFlow:
+    file: ../rec/open-workspace.yaml
+    env:
+      PASSAGE: ${P_T}
+- tapOn:
+    id: "record-button"
+- runFlow:
+    when:
+      visible: "(?i)Allow|While using the app|OK"
+    commands:
+      - tapOn: "(?i)Allow|While using the app|OK"
+- extendedWaitUntil:
+    visible: "Parts 1–5.*"
+    timeout: 40000
+- tapOn:
+    id: "record-button"
+- assertVisible:
+    id: "record-button"
+    text: "Record"
+# Give the parts the whole screen: the divider dragged up (the reference as one line).
+- swipe:
+    from:
+      text: "Divider between reference and your recording"
+    direction: UP
+    duration: 600
+- assertVisible: "Part 3, no verse yet"
+- assertVisible: "Part 5, no verse yet"
+# Press on Part 3's space and slide down past Part 5's without lifting.
+- swipe:
+    from:
+      text: "Part 3, no verse yet"
+    direction: DOWN
+    duration: 1500
+- extendedWaitUntil:
+    visible: "3 parts numbered\\..*"
+    timeout: 5000
+- assertVisible:
+    id: "toast-undo"
+- assertNotVisible: "Part 3, no verse yet"
+- assertNotVisible: "Part 4, no verse yet"
+- assertNotVisible: "Part 5, no verse yet"

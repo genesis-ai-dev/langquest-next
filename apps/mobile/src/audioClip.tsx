@@ -155,7 +155,7 @@ export function AudioClip(props: {
         {props.seekControls ? <IconBtn name="restart" label={t('recording.player.rewindSource')} size={target.min}
           bg={C.light} color={C.primary} disabled={props.disabled || !available} onPress={() => void seek(-10)} /> : null}
         <IconBtn name={available ? playing ? 'pause' : 'play' : 'download'} size={target.primary} bg={C.light} color={C.primary}
-          label={available ? playing ? t('recording.player.pausePlayback') : props.label ?? t('recording.player.playAudio') : t('recording.player.notOnDevice')}
+          label={available ? playing ? t('common.pause') : props.label ?? t('recording.player.playAudio') : t('recording.player.notOnDevice')}
           disabled={!available || props.disabled} onPress={() => void toggle()} />
         {props.seekControls ? <IconBtn name="skip" label={t('recording.player.forwardSource')} size={target.min}
           bg={C.light} color={C.primary} disabled={props.disabled || !available} onPress={() => void seek(10)} /> : null}

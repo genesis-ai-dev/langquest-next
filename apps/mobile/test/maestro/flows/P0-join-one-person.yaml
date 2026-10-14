@@ -1,0 +1,83 @@
+# P0 smoke on phones (decision 93): a new person joins with a one-person
+# invite code (JRN-001's first half). COORD makes the code on this phone and
+# copies its typed form; the app is then cleared, as a fresh install, and the
+# code is pasted on Sign In's "Scan a code".
+appId: com.frontierrnd.langquestnext
+name: "P0 A new account joins with a one-person invite code"
+tags:
+  - p0
+  - smoke
+---
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${COORD_EMAIL}
+      PASSWORD: ${COORD_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- extendedWaitUntil:
+    visible:
+      id: "tab-manage"
+    timeout: 60000
+- tapOn:
+    id: "tab-manage"
+- tapOn: "Members.*"
+- tapOn: "Invite"
+- assertVisible: "What will they do\\?"
+- tapOn: "Translate"
+- tapOn: "${LANG_A}"
+- tapOn: "One person, by name"
+- assertVisible: "Invite by QR"
+- tapOn: "e.g. Nyibol Deng"
+- inputText: "Ana Test"
+- runFlow:
+    file: ../common/dismiss-keyboard.yaml
+    env:
+      LABEL: "Invite by QR"
+- tapOn:
+    id: "primary-action"
+- extendedWaitUntil:
+    visible: "Or type this code"
+    timeout: 30000
+- assertVisible: "Translator · ${LANG_A}"
+# The typed form of the code: 64 hex characters.
+- copyTextFrom:
+    text: "[0-9a-f]{64}"
+# A fresh install: nothing kept from COORD.
+- runFlow: ../common/launch.yaml
+- tapOn: "Scan a code"
+# The code goes in as its link. Typing or pasting it into the field cannot be
+# automated: Maestro types one character at a time, and the field takes any 32
+# hex characters as a whole code (inviteCode.ts parseInvite, entry.tsx
+# onChangeText), so a typed code is read at its 32nd character and fails; and
+# on Android a pasted code reaches the server as an unknown invite (preview_invite
+# answers not_found for the token the field sends).
+- openLink: "langquestnext://invite?token=${maestro.copiedText}"
+- extendedWaitUntil:
+    visible: "Invite for Ana Test"
+    timeout: 30000
+- assertVisible: "Translator · ${LANG_A} · ${ORG_NAME}"
+- tapOn: "Join as Ana"
+# Welcome: the role and the team, then My Work.
+- extendedWaitUntil:
+    visible: "You're a .*Translator.* on the ${LANG_A} team at ${ORG_NAME}\\."
+    timeout: 60000
+- assertVisible: "Record passages in your language\\."
+- assertVisible: "Your team listens and says what to change\\."
+- assertVisible: "My Work shows what's next for you\\."
+- tapOn: "Get started"
+- extendedWaitUntil:
+    visible:
+      id: "tab-work"
+    timeout: 30000
+- assertVisible:
+    id: "tab-map"
+- assertVisible:
+    id: "tab-me"
+- assertNotVisible:
+    id: "tab-manage"
+# No email: Me → More settings says so.
+- tapOn:
+    id: "tab-me"
+- tapOn: "More settings.*"
+- assertVisible: "No email yet"

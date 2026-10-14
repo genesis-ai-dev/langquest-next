@@ -1,0 +1,42 @@
+# AUTH-035 on a phone: an invite link opens the app on "Scan a code", signed
+# out, and Back (the arrow, and Android's back) leads to Sign In with the
+# invite still held. The runner has no invite to hand, so the link carries a
+# well-formed code the server does not know: the card is the generic one and
+# says it cannot be used, which is enough to see where the link lands.
+appId: com.frontierrnd.langquestnext
+name: "AUTH-035 An invite link opens the app, signed out"
+tags:
+  - auth
+---
+- runFlow: ../common/launch.yaml
+- extendedWaitUntil:
+    visible: "Email or sign-in name"
+    timeout: 60000
+- openLink: "langquestnext://invite?org=org-ui-made-up&token=5f0c1a7e9d2b4c6e8a0f1b3d5c7e9a1b2c4d6e8f0a1b3c5d7e9f0a2b4c6d8e0f"
+- extendedWaitUntil:
+    visible: "Invitation to join an organization"
+    timeout: 30000
+- assertVisible: "Scan a code"
+# An invite is held, so the camera does not start.
+- assertVisible: "Code read"
+- assertNotVisible: "Stop camera"
+- tapOn:
+    id: "header-back"
+- extendedWaitUntil:
+    visible: "Email or sign-in name"
+    timeout: 15000
+- tapOn: "Scan a code"
+- assertVisible: "Invitation to join an organization"
+# Android's back from a link-opened scan screen also leads to Sign In.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - openLink: "langquestnext://invite?org=org-ui-made-up&token=5f0c1a7e9d2b4c6e8a0f1b3d5c7e9a1b2c4d6e8f0a1b3c5d7e9f0a2b4c6d8e0f"
+      - extendedWaitUntil:
+          visible: "Invitation to join an organization"
+          timeout: 30000
+      - back
+      - extendedWaitUntil:
+          visible: "Email or sign-in name"
+          timeout: 15000

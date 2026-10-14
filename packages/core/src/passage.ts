@@ -140,7 +140,9 @@ export const KIND_STATE_LABEL: Record<KindState, string> = {
   locked: 'Waits for checkpoint'
 };
 
-const COMPLETE: KindState[] = ['approved', 'addressed', 'skipped'];
+// Answered feedback is not a verdict: the check stays open until its reviewer
+// listens again and says it looks good (decided 2026-10-13, JRN-002/JRN-011).
+const COMPLETE: KindState[] = ['approved', 'skipped'];
 export const isCompleteState = (s: KindState): boolean => COMPLETE.includes(s);
 
 export interface KindStatus {
@@ -397,11 +399,12 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
   const draftTakeId = ri.drafts.get(key)?.[0];
   const drafts = (ri.drafts.get(key) ?? []).map((takeId) => draftView(state, takeId))
     .sort((a, b) => (a.startedHlc < b.startedHlc ? -1 : a.startedHlc > b.startedHlc ? 1 : a.rootTakeId < b.rootTakeId ? -1 : 1));
-  const next = recorded ? open.find((s) => !s.override) ?? open[0] : undefined;
+  // An overridden checkpoint is cleared (decision 29): it is never next, and it does not hold the passage back from done.
+  const next = recorded ? open.find((s) => !s.override) : undefined;
   const result: PassageState = {
     unitId, flow, versions, recorded, departures, reviews, requests, openRequests, steps, drafts,
     drafting: draftTakeId !== undefined,
-    done: recorded && steps.every((s) => s.complete),
+    done: recorded && steps.every((s) => s.complete || !!s.override),
     awaitingResponse: reviews.filter((r) => r.outcome === 'needs_changes' && !r.response && r.versionN === latest?.n),
     notes: ri.notes.get(key) ?? [],
     ...(latest ? { latest } : {}),

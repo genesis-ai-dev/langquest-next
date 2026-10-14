@@ -155,6 +155,14 @@ export function reportSummary(g: ReportGroup): string {
   return g.count > 1 ? t('moderation.reported.summary', { reasons, count: g.count }) : reasons;
 }
 
+/**
+ * The toast after a report. It goes through the account outbox: the toast
+ * says it waits for a connection only when it has not reached the server.
+ */
+export function reportedMessage(sent: boolean): string {
+  return sent ? t('moderation.toast.reportedSent') : t('moderation.toast.reported');
+}
+
 /** What stands in for words, audio or photos from someone this person blocked. */
 export function hiddenText(): string {
   return t('moderation.hidden.text');

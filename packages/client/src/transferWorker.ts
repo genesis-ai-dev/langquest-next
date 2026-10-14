@@ -45,11 +45,16 @@ interface Attempt {
   lastError?: string;
 }
 
+/** How soon a pass held back by a pull or a recording looks again. */
+const HELD_RETRY_MS = 1000;
+
 export class TransferWorker {
   private attempts = new Map<string, Attempt>();
   private draining = false;
   private dirty = false;
   private debounceId: unknown;
+  /** When the scheduled pass is due. A later request must not move this later. */
+  private passAt: number | undefined;
   private tickId: unknown;
   private stopped = false;
   private lastPending = -1;
@@ -74,6 +79,7 @@ export class TransferWorker {
     if (this.debounceId !== undefined) this.clearTimer(this.debounceId);
     if (this.tickId !== undefined) this.clearTimer(this.tickId);
     this.debounceId = undefined;
+    this.passAt = undefined;
     this.tickId = undefined;
   }
 
@@ -83,9 +89,9 @@ export class TransferWorker {
     this.requestPass(0);
   }
 
-  /** Ask for a pass without touching backoff or grace. */
-  nudge(): void {
-    this.requestPass(this.o.debounceMs);
+  /** Ask for a pass without touching backoff or grace. `delay` defaults to the debounce. */
+  nudge(delay = this.o.debounceMs): void {
+    this.requestPass(delay);
   }
 
   /** Work outstanding right now, regardless of backoff. Honest even offline. */
@@ -102,11 +108,20 @@ export class TransferWorker {
     }, this.o.tickMs);
   }
 
+  /**
+   * One pass. A later request keeps an earlier deadline; a sooner request
+   * replaces it. Restarting the timer on every signal used to postpone an
+   * upload for as long as syncs kept arriving inside the debounce.
+   */
   private requestPass(delay: number): void {
     if (this.stopped) return;
+    const at = this.now() + delay;
+    if (this.debounceId !== undefined && this.passAt !== undefined && at >= this.passAt) return;
     if (this.debounceId !== undefined) this.clearTimer(this.debounceId);
+    this.passAt = at;
     this.debounceId = this.setTimer(() => {
       this.debounceId = undefined;
+      this.passAt = undefined;
       void this.drain();
     }, delay);
   }
@@ -134,7 +149,13 @@ export class TransferWorker {
     for (const h of [...this.attempts.keys()]) if (!live.has(h)) this.attempts.delete(h);
     this.publish(list.length);
 
-    if (!this.o.isOnline() || this.o.isPulling() || this.o.isDeferred?.()) return;
+    if (!this.o.isOnline()) return;
+    // Held back by a pull or a recording: look again once it may be over, not at
+    // the next tick a minute later (a part recorded just now went up only then).
+    if (this.o.isPulling() || this.o.isDeferred?.()) {
+      if (list.length > 0) this.requestPass(Math.max(this.o.debounceMs, HELD_RETRY_MS));
+      return;
+    }
 
     const now = this.now();
     const queue = list.filter((r) => (this.attempts.get(r.hash)?.nextAttemptAt ?? 0) <= now);
@@ -172,6 +193,8 @@ export class TransferWorker {
       }
     };
     await Promise.all(Array.from({ length: Math.max(1, this.o.concurrency) }, worker));
+    // A pull or a recording that began mid-batch left files waiting: the same.
+    if (queue.length > 0 && !this.stopped && (this.o.isPulling() || this.o.isDeferred?.())) this.requestPass(Math.max(this.o.debounceMs, HELD_RETRY_MS));
     // Re-derive at pass end so the published count is exact.
     this.publish(this.o.work().length);
   }

@@ -30,6 +30,7 @@ import { indexesFor } from '../indexes';
 import { Banner, Field, Header, Ico, IconBtn, PrimaryBtn, Screen, Sheet, txt, useLayout } from '../kit';
 import { passageCrumbs, type PassageView } from '../passageView';
 import { useBackTranslationDraft } from '../recording/backTranslationDraft';
+import { checkName } from './adminModel';
 import { backParts, nextPart, noteText, partAfter, pieceFor, piecesInOrder, saidLine, sourceParts, type BackPart, type MomentNote } from '../recording/backTranslationParts';
 import { SaveProblem } from '../recording/parts';
 import { SplitPane } from '../recording/SplitPane';
@@ -49,7 +50,8 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
   const produces = kind.produces!;
   const shipped = shippedBackTranslation(kind);
   const me = ctx.session.actorId;
-  const checkedBy = produces.checkedBy ? v.kind(produces.checkedBy).name : undefined;
+  // One name for a check on every screen (decision 91): "The Consultant check listens to it next."
+  const checkedBy = produces.checkedBy ? checkName(produces.checkedBy, v.kinds) : undefined;
   // A wide window names the passage in the crumbs above the title.
   const wide = useLayout().kind !== 'phone';
   const drafts = useBackTranslationDraft(backTranslationDraftKey({ languageId, actorId: me, unitId, kindId: kind.id }), of.takeId);
@@ -89,7 +91,9 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
   // When a part has been said and recording stops, the next part to say lights up.
   const saidFor = useRef<number | null>(null);
   useEffect(() => {
-    if (session) { saidFor.current = focusRef.current; return; }
+    // A session keeps to the part it started on: "the next part to say" moves as soon as a piece
+    // lands, and every later piece of the same session would otherwise go to the part after it.
+    if (session) { saidFor.current = focusRef.current; setPicked((p) => p ?? focusRef.current); return; }
     if (saidFor.current === null || rec.busy) return;
     const was = saidFor.current;
     if (parts[was]?.cards.length) { saidFor.current = null; setPicked(partAfter(parts, was)); }
@@ -112,6 +116,9 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
   // ---- notes at moments, and publishing ----
   const [notes, setNotes] = useState<MomentNote[]>([]);
   const [noteHash, setNoteHash] = useState<string | null>(null);
+  // The one voice note a back translation carries (one noteBlobHash, REV-035): the first moment note
+  // that is said aloud keeps it, and later notes are typed, until the event can carry one each.
+  const [voiceInMoment, setVoiceInMoment] = useState(false);
   const [noteAt, setNoteAt] = useState<number | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -222,9 +229,11 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
         )} />
 
       {noteAt !== null && part ? (
-        <MomentSheet ctx={ctx} part={part.index} atMs={noteAt} hash={noteHash} onHash={setNoteHash} checkedBy={checkedBy}
-          onClose={() => setNoteAt(null)}
-          onSave={(text) => {
+        <MomentSheet ctx={ctx} part={part.index} atMs={noteAt} hash={voiceInMoment ? null : noteHash} spokenTaken={voiceInMoment}
+          onHash={setNoteHash} checkedBy={checkedBy}
+          onClose={() => { if (!voiceInMoment) setNoteHash(null); setNoteAt(null); }}
+          onSave={(text, spoken) => {
+            if (spoken) setVoiceInMoment(true);
             // i18n-ignore: stored in the event log with the back translation's note (noteText)
             setNotes((n) => [...n, { part: part.index, atMs: noteAt, text: text || 'said in the voice note' }]);
             setNoteAt(null);
@@ -232,7 +241,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
       ) : null}
       {confirming ? (
         <PublishSheet ctx={ctx} what={produces.what} of={of} checkedBy={checkedBy} parts={parts} notes={notes} busy={saving}
-          hash={noteHash} onHash={setNoteHash} onClose={() => setConfirming(false)} onPublish={(extra) => void publish(extra)} />
+          hash={noteHash} spokenTaken={voiceInMoment} onHash={setNoteHash} onClose={() => setConfirming(false)} onPublish={(extra) => void publish(extra)} />
       ) : null}
     </Screen>
   );
@@ -303,14 +312,19 @@ function PublishBtn(props: { disabled: boolean; onPress: () => void }) {
 /** A note at a moment of a part, for whoever checks the back translation. */
 function MomentSheet(props: {
   ctx: Ctx; part: number; atMs: number; hash: string | null; checkedBy: string | undefined;
-  onHash: (h: string | null) => void; onClose: () => void; onSave: (text: string) => void;
+  /** An earlier note already holds the one voice note: this one is typed. */
+  spokenTaken: boolean;
+  onHash: (h: string | null) => void; onClose: () => void; onSave: (text: string, spoken: boolean) => void;
 }) {
   const [text, setText] = useState('');
+  const spoken = !props.spokenTaken && !!props.hash;
   return (
     <Sheet visible title={t('backTranslation.noteAtPart', { time: formatClock(props.atMs), part: props.part + 1 })}
       sub={props.checkedBy ? t('backTranslation.noteSub', { check: props.checkedBy }) : t('backTranslation.noteSubNext')} onClose={props.onClose}
-      footer={<PrimaryBtn label={t('backTranslation.addNote')} disabled={!text.trim() && !props.hash} onPress={() => props.onSave(text.trim())} />}>
-      <VoiceNote ctx={props.ctx} label={t('common.sayIt')} hash={props.hash} onChange={(h) => props.onHash(h)} />
+      footer={<PrimaryBtn label={t('backTranslation.addNote')} disabled={!text.trim() && !spoken} onPress={() => props.onSave(text.trim(), spoken)} />}>
+      {props.spokenTaken
+        ? <Text style={txt.smMuted}>{t('backTranslation.oneSpokenNote')}</Text>
+        : <VoiceNote ctx={props.ctx} label={t('common.sayIt')} hash={props.hash} onChange={(h) => props.onHash(h)} />}
       <Field value={text} onChangeText={setText} placeholder={t('backTranslation.typeNoMatch')} multiline />
     </Sheet>
   );
@@ -319,7 +333,7 @@ function MomentSheet(props: {
 /** Publishing is a real step, so it confirms (ADR-028): what is said, what is missing, and a last word. */
 function PublishSheet(props: {
   ctx: Ctx; what: string; of: Version; checkedBy: string | undefined; parts: BackPart[]; notes: MomentNote[]; busy: boolean;
-  hash: string | null; onHash: (h: string | null) => void; onClose: () => void; onPublish: (extra: string) => void;
+  hash: string | null; spokenTaken: boolean; onHash: (h: string | null) => void; onClose: () => void; onPublish: (extra: string) => void;
 }) {
   const [text, setText] = useState('');
   const missing = props.parts.filter((x) => x.cards.length === 0).map((x) => x.index + 1);
@@ -336,7 +350,9 @@ function PublishSheet(props: {
         {props.notes.length ? <Text style={txt.sm}>✓ {t('backTranslation.notesAtMoments', { count: props.notes.length })}</Text> : null}
       </View>
       <Text style={[txt.sm, { fontWeight: '700' }]}>{t('backTranslation.hardToSayBack')} <Text style={[txt.sm, { color: C.muted, fontWeight: '400' }]}>{t('backTranslation.optional')}</Text></Text>
-      <VoiceNote ctx={props.ctx} label={t('common.sayIt')} hash={props.hash} onChange={(h) => props.onHash(h)} />
+      {props.spokenTaken
+        ? <Text style={txt.smMuted}>{t('backTranslation.oneSpokenNote')}</Text>
+        : <VoiceNote ctx={props.ctx} label={t('common.sayIt')} hash={props.hash} onChange={(h) => props.onHash(h)} />}
       <Field value={text} onChangeText={setText} placeholder={t('backTranslation.typeNoMatch')} multiline />
     </Sheet>
   );

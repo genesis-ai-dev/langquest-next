@@ -10,7 +10,7 @@ import { t } from '../i18n';
 import { noteExpected } from '../report';
 import { supabase } from '../supabase';
 import { cachedDoc, flushOutbox, keepNewDoc, loadDocs, onDocs, prepareDoc } from './docStore';
-import { copyOps, followOps, newItemId, publishOps, subscribeOps, type LibraryOp, type SharedItem } from './model';
+import { copyOps, followOps, mayWriteLibrary, newItemId, publishOps, subscribeOps, type LibraryOp, type SharedItem } from './model';
 
 /**
  * Why `library_adopt` refused, in the language showing: its known reasons
@@ -139,7 +139,10 @@ export function useLibrary(ctx: Ctx) {
     throw new CommandError(t('library.errors.onlyTemplatesAndFlows'));
   }, [ctx.language.state, library, orgId]);
 
-  return { orgId, items, item, publish, setSharing, archive, copy, copyFollowed, subscribe, follow, takeUpdate, applySpecs };
+  /** May this person write the organization's library for this kind (organization scope, `mayWriteLibrary`)? */
+  const canWrite = useCallback((kind: LibraryKind) => mayWriteLibrary(orgState ?? null, ctx.session.actorId, kind), [orgState, ctx.session.actorId]);
+
+  return { orgId, items, item, publish, setSharing, archive, copy, copyFollowed, subscribe, follow, takeUpdate, applySpecs, canWrite };
 }
 
 /** Documents for these hashes (and their deps, unless `deps: false`), re-rendering as they arrive. */

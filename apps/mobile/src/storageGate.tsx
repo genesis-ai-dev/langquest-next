@@ -48,6 +48,35 @@ function browserTab(): TabDeps | null {
   };
 }
 
+interface TabControl {
+  state: TabState;
+  listeners: Set<(s: TabState) => void>;
+  useHere(): void;
+}
+const TAB_KEY = '__langquestTabLock';
+
+/**
+ * One lock per page, however often the gate mounts. The lock is held for the
+ * page's life, so a gate mounted again in the same page (Fast Refresh remounts
+ * it in development) must not ask for it again: it would find it taken, by
+ * itself, and say LangQuest is open in another tab. Kept on the page's global
+ * object so a reloaded module finds it too.
+ */
+function tabControl(): TabControl | null {
+  const g = globalThis as { [TAB_KEY]?: TabControl };
+  if (g[TAB_KEY]) return g[TAB_KEY];
+  const deps = browserTab();
+  if (!deps) return null;
+  const control: TabControl = { state: 'checking', listeners: new Set(), useHere: () => {} };
+  const lock = startTab(deps, (s) => {
+    control.state = s;
+    for (const l of control.listeners) l(s);
+  });
+  control.useHere = () => { tookFlag('set'); lock.useHere(); };
+  g[TAB_KEY] = control;
+  return control;
+}
+
 /**
  * Ask the browser to keep this site's files when space runs low (it may say
  * no; Chrome grants it to sites people use, Safari after the site is added
@@ -82,15 +111,16 @@ export function StorageGate(props: { children: ReactNode }) {
 
   useEffect(() => {
     if (!WEB) return;
-    const deps = browserTab();
-    if (!deps) {
+    const control = tabControl();
+    if (!control) {
       // No Web Locks (an old browser): open as before.
       setTab('ready');
       return;
     }
-    const lock = startTab(deps, setTab);
-    setActions({ useHere: () => { tookFlag('set'); lock.useHere(); } });
-    return () => lock.stop();
+    setTab(control.state);
+    control.listeners.add(setTab);
+    setActions({ useHere: control.useHere });
+    return () => { control.listeners.delete(setTab); };
   }, []);
 
   const last = useRef<TabState>(tab);

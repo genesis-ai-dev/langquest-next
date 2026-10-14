@@ -135,7 +135,8 @@ export function ReferenceBibles(ctx: Ctx) {
 
   return (
     <Screen header={<Header title={t('reference.bibles.title')} sub={levelName(ctx, level)} onBack={ctx.back} />}
-      footer={canAct || ctx.session.can('manage_reference') ? <PrimaryBtn label={t('reference.bibles.add')} icon="plus" onPress={() => setAdding(true)} /> : undefined}>
+      // Adding a Bible follows LangQuest's or publishes Bible Brain's in the organization's library (`mayWriteLibrary`).
+      footer={lib.canWrite('material') ? <PrimaryBtn label={t('reference.bibles.add')} icon="plus" onPress={() => setAdding(true)} /> : undefined}>
       <Intro>{level.kind === 'org' ? t('reference.bibles.introOrg') : t('reference.bibles.introLanguage')}</Intro>
       <SectionLabel label={t('reference.bibles.recommended', { n: on.length })} />
       {on.length ? on.slice(0, n).map(card) : (

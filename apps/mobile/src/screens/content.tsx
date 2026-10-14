@@ -45,7 +45,7 @@ import {
   SectionLabel, SmallBtn, Sheet, ShowMore, Toggle, txt, useOpenDetail
 } from '../kit';
 import { loadDocs } from '../library/docStore';
-import { sourceLine, usesItem, type SharedItem } from '../library/model';
+import { mayWriteLibrary, sourceLine, usesItem, type SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs, useLibraryUpdates, useSharedItems } from '../library/useLibrary';
 import { failureMessage } from '../report';
 import { readingsFor } from '../scripture';
@@ -171,7 +171,8 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
   const state = ctx.language.state;
   const lib = useLibrary(ctx);
   const library = ctx.org.state?.library;
-  const canManage = ctx.session.can('manage_templates');
+  // The organization's library is written at organization scope (library/model.ts `mayWriteLibrary`).
+  const canManage = lib.canWrite('template');
   const all = lib.items('template');
   const active = all.filter((i) => !i.archived);
   const archived = all.filter((i) => i.archived);
@@ -459,6 +460,9 @@ function LanguageTemplateView({ ctx, languageId }: { ctx: Ctx; languageId: strin
     );
   }
   const canManage = ctx.session.can('manage_templates');
+  // Editing the template, taking an update and following one are the organization's library (`mayWriteLibrary`);
+  // choosing which template the language uses is the language's own.
+  const canWrite = lib.canWrite('template');
   const canShape = ctx.session.can('shape_templates') || canManage;
   const item = sel ? lib.item(sel.itemId) : null;
   const doc = docs.get<TemplateDoc>(sel?.docHash);
@@ -504,7 +508,7 @@ function LanguageTemplateView({ ctx, languageId }: { ctx: Ctx; languageId: strin
           ) : update ? (
             <>
               <Text style={[txt.sm, { color: TINT.amberText }]}>{t('content.newerVersion', { org: item!.subscription!.sourceOrgName })}</Text>
-              {canManage ? (
+              {canWrite ? (
                 <SmallBtn label={t('content.options.takeUpdate')} icon="download" disabled={busy} onPress={() => void run('take template update', async () => { // i18n-ignore: log label
                   await lib.takeUpdate(item!, update);
                   ctx.toast(t('content.language.movesToNew', { language: data.language, name: item!.name }));
@@ -514,7 +518,7 @@ function LanguageTemplateView({ ctx, languageId }: { ctx: Ctx; languageId: strin
           ) : null}
           {canManage ? (
             <View style={{ gap: space.sm }}>
-              <GhostBtn label={item && item.source !== 'subscription' ? t('content.language.editTemplate') : t('content.language.viewTemplate')} icon="edit"
+              <GhostBtn label={item && item.source !== 'subscription' && canWrite ? t('content.language.editTemplate') : t('content.language.viewTemplate')} icon="edit"
                 onPress={() => ctx.go('template_editor', { itemId: sel.itemId })} />
               <GhostBtn label={t('content.language.changeTemplate')} icon="swap" onPress={() => ctx.go('template_picker', { languageId })} />
             </View>
@@ -571,7 +575,8 @@ export function TemplatePicker(ctx: Ctx) {
   const shared = useSharedItems('template', lib.orgId);
   const choices = useMemo(() => libraryChoices(library ?? {}, lib.items('template'), shared.rows, STARTER_TEMPLATE.name), [library, lib.items, shared.rows]);
   const ours = choices.filter((c) => c.source === 'ours');
-  const others = choices.filter((c) => c.source === 'shared');
+  // Using another organization's template follows it first, an organization write (`mayWriteLibrary`).
+  const others = lib.canWrite('template') ? choices.filter((c) => c.source === 'shared') : [];
   const [picked, setPicked] = useState<string | null>(null);
   const [sharedLimit, setSharedLimit] = useState(5);
   const [busy, setBusy] = useState(false);
@@ -666,9 +671,13 @@ export function TemplatePicker(ctx: Ctx) {
       {ours.length === 0 ? (
         <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('content.picker.noneOurs')}</Text>
       ) : ours.map(card)}
-      <SectionLabel label={t('content.sections.fromOthers')} />
-      <SharedOffline error={shared.error} empty={shared.rows.length === 0} />
-      {others.slice(0, sharedLimit).map(card)}
+      {lib.canWrite('template') ? (
+        <>
+          <SectionLabel label={t('content.sections.fromOthers')} />
+          <SharedOffline error={shared.error} empty={shared.rows.length === 0} />
+          {others.slice(0, sharedLimit).map(card)}
+        </>
+      ) : null}
       <ShowMore remaining={others.length - sharedLimit} step={5} onMore={() => setSharedLimit((l) => l + 5)} />
     </Screen>
   );
@@ -817,7 +826,7 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
   const set = (patch: Partial<TemplateForm>) => setF((prev) => ({ ...prev, ...patch }));
   const isNew = item === null;
   const followed = item?.source === 'subscription';
-  const readOnly = !ctx.session.can('manage_templates') || followed;
+  const readOnly = !lib.canWrite('template') || followed;
   const changed = isNew || formChanged(f, initial) || f.name.trim() !== initial.name || f.description.trim() !== initial.description;
   const users = item ? usersOf(ctx, item.itemId) : [];
   const bible = f.structure === 'bible';
@@ -858,7 +867,7 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
       {followed ? (
         <>
           <Banner icon="lock" title={t('content.editor.follows', { org: item!.subscription!.sourceOrgName })} body={t('content.editor.followsBody')} />
-          {ctx.session.can('manage_templates') ? (
+          {lib.canWrite('template') ? (
             <GhostBtn label={t('content.options.copyToChange')} icon="edit" disabled={busy} onPress={() => void run('copy template', async () => { // i18n-ignore: log label
               await lib.copyFollowed(item!);
               ctx.toast(t('content.editor.copiedFind', { name: item!.name }));
@@ -1141,8 +1150,9 @@ export function BookStructure(ctx: Ctx) {
   const [picking, setPicking] = useState(false);
   const [choosing, setChoosing] = useState(false);
   const canShape = ctx.session.can('shape_templates') || ctx.session.can('manage_templates');
-  // Breaking up a book changes the language's template: coordinators and admins (decision 74).
-  const canBreak = ctx.session.can('manage_templates');
+  // Breaking up a book changes the language's template: coordinators and admins (decision 74). It publishes a
+  // version of the template in the organization's library, so it needs organization scope (`mayWriteLibrary`).
+  const canBreak = mayWriteLibrary(ctx.org.state, ctx.session.actorId, 'template');
   const open = isOpen(ctx, languageId);
   const sel = state && open ? templateOf(state) : null;
   const docs = useLibraryDocs(ctx.language.orgId, [sel?.docHash]);

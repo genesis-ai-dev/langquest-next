@@ -25,7 +25,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   create_org: { emits:['v1.OrgCreated','v1.RoleDefined','v1.MemberAdded','v1.LicenseSet','v1.VisionSeen'],rpcs:['record_user_event','save_profile'],reads:['profiles'] },
   // A sent request is watched for its answer (useRequestOutcome).
   intent_chooser: { rpcs:['my_organizations'],reads:['join_requests'] },
-  request_access: { rpcs:['create_join_request','listed_organizations'] },
+  request_access: { rpcs:['create_join_request','listed_organizations','listed_organizations_search'] },
   scan_qr: { emits:['v1.TermsAccepted'],rpcs:['preview_invite','redeem_invite_v2','my_organizations','record_user_event'] },
   explore_home: { reads:['public_languages'] },
   // People asking to join show under a coordinator's Get ready card (decision 71).

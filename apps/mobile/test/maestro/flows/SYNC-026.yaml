@@ -1,0 +1,63 @@
+# SYNC-026 Audio another device made comes down by itself (docs/ui-test-suite/12-sync-and-offline.md).
+# TRANS waits on Sync; REV's 30-second voice note on P-SUBMITTED (kept on
+# TRANS's phone: TRANS recorded it) downloads without Sync now.
+#
+# Wrapping: REV's voice note is made beside the flow, once this flow shows
+# Sync (it waits up to three minutes):
+#   npx tsx smart-tests/ui/sync-wrap.ts rev-voice-note smart-tests/results/maestro/<platform>/world.json
+appId: com.frontierrnd.langquestnext
+name: "SYNC-026 Audio another device made comes down by itself"
+tags:
+  - sync
+  - wrapped
+---
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${TRANS_EMAIL}
+      PASSWORD: ${TRANS_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- extendedWaitUntil:
+    visible:
+      id: "tab-me"
+    timeout: 60000
+- tapOn:
+    id: "tab-me"
+# Everything kept is here first, so the next download is REV's note.
+- extendedWaitUntil:
+    visible: ".*12 passages on this device.*"
+    timeout: 300000
+- tapOn: "More settings.*"
+- tapOn: "Sync.*"
+- scrollUntilVisible:
+    element: ".*Audio downloading.*"
+    direction: DOWN
+- assertVisible: ".*Audio downloading: nothing.*"
+# (The coordinator runs sync-wrap.ts rev-voice-note now.)
+- extendedWaitUntil:
+    visible: ".*Audio downloading: \\d+ of \\d+, .*"
+    timeout: 180000
+- assertVisible: ".*\\d+ left · .*(B|KB|MB)/s.*"
+- extendedWaitUntil:
+    visible: ".*Audio downloading: nothing.*"
+    timeout: 120000
+# It plays offline on the passage: its file is on this phone.
+- tapOn:
+    id: "header-back"
+- tapOn:
+    id: "header-back"
+- tapOn:
+    id: "tab-map"
+- tapOn: "Find.*"
+- inputText: ${P_SUBMITTED.split(':')[0]}
+- runFlow:
+    file: ../common/dismiss-keyboard.yaml
+    env:
+      LABEL: ${LANG_A}
+- tapOn:
+    text: "${P_SUBMITTED}.*"
+    index: 0
+- extendedWaitUntil:
+    visible: "On this device"
+    timeout: 60000

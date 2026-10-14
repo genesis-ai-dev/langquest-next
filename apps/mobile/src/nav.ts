@@ -2,6 +2,7 @@ import { CommonActions, StackActions, createNavigationContainerRef, type Navigat
 import { useCallback, useMemo, useState } from 'react';
 import type { Mode, ScreenId } from './flow';
 import { routesAfter } from './panes';
+import { pushHistoryEntry } from './webPaths';
 
 /** A navigation stack entry: a spec screen id plus screen-specific params. */
 export interface Route {
@@ -50,7 +51,10 @@ export function useNav(initial: Route) {
   }, []);
 
   const push = useCallback((r: Route) => {
-    if (navRef.isReady()) navRef.dispatch(StackActions.push(r.screen, r.params));
+    if (!navRef.isReady()) return;
+    const depth = navRef.getRootState()?.routes.length ?? 0;
+    navRef.dispatch(StackActions.push(r.screen, r.params));
+    pushHistoryEntry(depth + 1);
   }, []);
   const replace = useCallback((r: Route) => {
     if (navRef.isReady()) navRef.dispatch(StackActions.replace(r.screen, r.params));

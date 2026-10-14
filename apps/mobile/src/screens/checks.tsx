@@ -34,6 +34,7 @@ import { checkName, checksLine, dropIndex } from '../simple/adminModel';
 import { useCheckChoices, type FlowEntry } from '../simple/choices';
 import { addRow, moveRow, removeRow, rowNumbers, rowsOf, setCheckpoint, setTogether, stepsOf, type CheckRow } from '../checks/model';
 import { setChecksDraft, useChecksDraft } from '../checks/draft';
+import { restoreChecks } from '../checks/undo';
 import { PeopleLine } from '../checks/parts';
 import { newKindId, nextFieldId, referenceKindName } from './configModel';
 
@@ -72,7 +73,7 @@ async function saveRows(ctx: Ctx, rows: CheckRow[], message: string, before: Eve
   }
   const undo = () => {
     const s = ctx.language.state;
-    return s ? commands(s, indexesFor(s)).restoreFlow({ commandId: Crypto.randomUUID(), previous }) : [];
+    return s ? restoreChecks(s, previous, Crypto.randomUUID()) : [];
   };
   try {
     await ctx.act(specs, message, undo);
@@ -280,7 +281,7 @@ function OwnChecks({ ctx }: { ctx: Ctx }) {
         }
         const undo = () => {
           const s = ctx.language.state;
-          return s ? commands(s, indexesFor(s)).restoreFlow({ commandId: Crypto.randomUUID(), previous }) : [];
+          return s ? restoreChecks(s, previous, Crypto.randomUUID()) : [];
         };
         void ctx.act(specs, t('checks.flows.used', { name: e.c.name, language }), undo).catch(() => {});
       }} />
@@ -292,18 +293,39 @@ function OwnChecks({ ctx }: { ctx: Ctx }) {
 function DraftChecks({ ctx }: { ctx: Ctx }) {
   const draft = useChecksDraft();
   const [adding, setAdding] = useState(false);
+  // A check of the draft, opened: what one check's page offers before the language exists (no people,
+  // questions or helps yet, since those are the language's own records).
+  const [open, setOpen] = useState<number | null>(null);
   const title = ctx.params['name'] ?? '';
   if (!draft) return <Screen header={<Header title={t('checks.title')} onBack={ctx.back} />}><EmptyState icon="flow" title={t('common.loading')} /></Screen>;
   const set = (rows: CheckRow[]) => setChecksDraft({ ...draft, rows });
+  const row = open !== null ? draft.rows[open] ?? null : null;
+  const name = row ? checkName(row.kindId, draft.kinds) : '';
+  const previous = open !== null && open > 0 ? checkName(draft.rows[open - 1]!.kindId, draft.kinds) : '';
   return (
     <Screen header={<Header title={t('checks.title')} sub={title} onBack={ctx.back} />}
       footer={<PrimaryBtn label={t('common.done')} icon="check" onPress={ctx.back} />}>
-      <CheckList ctx={ctx} rows={draft.rows} kinds={draft.kinds} readOnly={false} onChange={set} />
+      <CheckList ctx={ctx} rows={draft.rows} kinds={draft.kinds} readOnly={false} onChange={set} onOpen={setOpen} />
       <DashedRow icon="plus" label={t('checks.addCheck')} centred onPress={() => setAdding(true)} />
       <AddCheckSheet visible={adding} kinds={draft.kinds} taken={draft.rows.map((r) => r.kindId)} onClose={() => setAdding(false)} onPick={(k) => {
         setAdding(false);
         setChecksDraft({ kinds: draft.kinds.some((x) => x.id === k.id) ? draft.kinds : [...draft.kinds, k], rows: addRow(draft.rows, k.id) });
       }} />
+      <Sheet visible={row !== null} title={name} sub={open !== null ? t('checks.checkOf', { n: formatNumber(rowNumbers(draft.rows)[open]!), language: title }) : undefined}
+        onClose={() => setOpen(null)}>
+        {row && open !== null ? (
+          <Group>
+            <Row icon="lock" label={t('checks.mustPass')} role="switch" checked={row.checkpoint}
+              right={<Toggle on={row.checkpoint} label={t('checks.mustPass')} onToggle={() => set(setCheckpoint(draft.rows, open, !row.checkpoint))} />} />
+            {open > 0 ? (
+              <Row icon="swap" label={t('checks.sameTimeAs', { check: previous })} role="switch" checked={row.together}
+                right={<Toggle on={row.together} label={t('checks.sameTimeAs', { check: previous })} onToggle={() => set(setTogether(draft.rows, open, !row.together))} />} />
+            ) : null}
+            <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label={t('checks.remove')} last
+              onPress={() => { set(removeRow(draft.rows, open)); setOpen(null); }} />
+          </Group>
+        ) : null}
+      </Sheet>
     </Screen>
   );
 }

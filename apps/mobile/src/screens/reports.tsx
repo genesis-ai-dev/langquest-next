@@ -6,7 +6,7 @@
 // shell, Language); the sections and their parts are in src/reports/.
 import { appendConfirmed, ensureDeviceId, NotSavedError, SupabaseTransport } from '@langquest-next/client';
 import {
-  dayPercents, ORG_STREAM, paceOf, percent, privilegesFor, recencyOf, TARGET_SCOPES,
+  dayPercents, mayViewLanguage, ORG_STREAM, paceOf, percent, privilegesFor, recencyOf, TARGET_SCOPES,
   type LanguageReport, type LanguageRow, type TargetScope
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -96,7 +96,11 @@ export function ReportsLanguage(ctx: Ctx) {
   const orgName = ctx.org.state?.org?.value.name ?? '';
   const reports = useReports(orgId);
   const languageId = ctx.params['languageId'] ?? '';
-  const row = reports.status === 'ready' ? reports.rows.find((r) => r.languageId === languageId) : undefined;
+  // The list was read when Reports opened; the organization's own record on
+  // this device is newer when a role changed since, so a language the role no
+  // longer covers is not shown from the old list (RPT-016).
+  const mayView = !ctx.org.state || mayViewLanguage(ctx.org.state, ctx.session.actorId, languageId);
+  const row = reports.status === 'ready' && mayView ? reports.rows.find((r) => r.languageId === languageId) : undefined;
   const title = row?.report.name ?? t('reports.language.fallbackTitle');
   const header = (
     <Header title={title} sub={orgName} columnWidth={COLUMN} onBack={ctx.back} crumbs={[{ label: t('reports.title'), onPress: ctx.back }]}
@@ -110,7 +114,11 @@ export function ReportsLanguage(ctx: Ctx) {
   return (
     <Screen header={header} columnWidth={COLUMN}>
       {reports.status === 'loading' ? <EmptyState icon="progress" title={t('reports.language.loading')} /> : null}
-      {reports.status === 'error' ? <Notice tone={reports.offline ? 'amber' : 'red'} title={reports.offline ? t('reports.offlineTitle') : t('reports.language.couldNotRead')} body={reports.message} /> : null}
+      {reports.status === 'error' ? (
+        <Notice tone={reports.offline ? 'amber' : 'red'} title={reports.offline ? t('reports.offlineTitle') : t('reports.language.couldNotRead')} body={reports.message}>
+          <View style={{ alignSelf: 'flex-start', marginTop: space.sm }}><SmallBtn label={t('common.tryAgain')} icon="restart" onPress={reports.reload} /></View>
+        </Notice>
+      ) : null}
       {reports.status === 'ready' && !row ? (
         reports.rows.length === 0 ? <NoReports what="languageReport" /> : (
           <Notice tone="gray" title={t('reports.language.notVisible')} body={t('reports.language.notVisibleBody')} />

@@ -803,6 +803,9 @@
       "introPending": "This person created an account and asked to join. Assign a role and scope to give them access.",
       "intro": "Pick a role, then choose the scope this assignment applies to. Scope can be this level or below.",
       "outranked": "{{name}} holds more here than you do, so only someone who holds as much can change this.",
+      "onlyManager": "{{name}} is the only one who can manage roles",
+      "onlyManagerYou": "You are the only one who can manage roles",
+      "onlyManagerSub": "Give someone else a role with Manage roles first. Then this role can change, or be removed.",
       "viewOnly": "Only people who can invite members change roles.",
       "removeFromOrg": "Remove from organization",
       "removeFromLanguage": "Remove from language"
@@ -859,6 +862,7 @@
       "needsPermission": "Adding a language needs permission to manage templates and review flows for the whole organization.",
       "templateMissing": "Its template is not on this device yet. Try again when connected.",
       "added": "{{language}} added to {{org}}.",
+      "addedNotOffered": "{{language}} added to {{org}}. Offer {{offers}} under What helps once you are online.",
       "step": "Step {{step}} of {{total}}",
       "called": "What is the language called?",
       "namePlaceholder": "e.g. Hadiyya",
@@ -2382,6 +2386,7 @@
       "confirmLabel": "Confirm password",
       "confirmPlaceholder": "Re-enter password",
       "mismatch": "Passwords do not match.",
+      "tooShort": "The password needs 6 or more characters.",
       "scanInvite": "Scan an invite",
       "scanHint": "No email or password needed. The invite makes your account and puts you on the team.",
       "failed": "Could not create the account. Try again."
@@ -2439,9 +2444,6 @@
       "startSub": "For a team leader",
       "lookTitle": "Look around first",
       "lookSub": "Translation work listed publicly",
-      "stillToSend_one": "Still to send: an account change. Sign out once you are back online and they have gone.",
-      "stillToSend_other": "Still to send: {{count, number}} account changes. Sign out once you are back online and they have gone.",
-      "signOutFailed": "Could not sign out. Try again.",
       "title": "Join your team",
       "joiningInvite": "Joining with your invite…",
       "inviteSavedTitle": "Your invite is saved",
@@ -2497,8 +2499,6 @@
       "member": "member",
       "yourOrganization": "your organization",
       "languageTeam": "the {{language}} team at {{org}}",
-      "showMe": "Show me how",
-      "skip": "Skip for now",
       "getStarted": "Get started",
       "invitedYou": "{{name}} invited you",
       "greeting": "Welcome, {{name}}",
@@ -2681,6 +2681,7 @@
       "tourSub": "Listen to a short tour",
       "more": "More settings",
       "moreRefused": "This account cannot sync · password, notifications, account",
+      "moreRefusedEvents": "Refused · {{n, number}} · password, notifications, sync, account",
       "morePending_one": "{{count, number}} waiting to send · password, notifications, sync, account",
       "morePending_other": "{{count, number}} waiting to send · password, notifications, sync, account",
       "signOut": "Sign out",
@@ -3161,6 +3162,7 @@
       },
       "publish": "Publish",
       "publishedWhen": "Published {{when}}",
+      "publishedJustNow": "Published just now",
       "someoneInSentence": "someone",
       "thenAskFor": "Then ask for the {{check}}",
       "saveForTeam": "Save it for the team to hear",
@@ -3172,6 +3174,7 @@
         "movedPast": "moved past",
         "setAside": "set aside",
         "answered": "answered",
+        "answeredBack": "answered · back to the check",
         "looksGood": "looks good",
         "needsChanges": "needs changes",
         "after": "after the {{check}}",
@@ -3296,6 +3299,7 @@
       "playNote": "Play {{name}}'s note",
       "whoseNote": "{{name}}'s note",
       "playFeedback": "Play {{name}}'s feedback",
+      "playYourFeedback": "Play your feedback",
       "more": "More",
       "options": "Options",
       "openVersion": "Open {{version}}"
@@ -3325,6 +3329,8 @@
       "version": "Version {{n, number}} published",
       "versionNoNumber": "Version published",
       "savedHere": "{{title}} · saved on this device · sends when you're online",
+      "sent": "{{title}} · sent to the team",
+      "sending": "{{title}} · sending now",
       "nextAsk": "Next, ask for a check",
       "allDone": "Every check is done.",
       "alreadyAsked": "The next check is already asked for."
@@ -3570,6 +3576,7 @@
       "tellCode": "If it keeps happening, tell your team this code: {{code}}",
       "goBack": "Go back",
       "goToMyWork": "Go to My Work",
+      "goHome": "Go home",
       "codeForTeam": "Code for your team: {{code}}",
       "notConfigured": "This build is not configured"
     },
@@ -3856,6 +3863,7 @@
     "toast": {
       "reportedAndBlocked": "Reported and blocked {{name}}. Thank you.",
       "reported": "Reported. Thank you. It is sent when you are connected.",
+      "reportedSent": "Reported. Thank you.",
       "unblocked": "Unblocked {{name}}.",
       "blocked": "Blocked {{name}}. What they add is hidden for you.",
       "removed": "Removed from the record. Devices stop showing it when they next sync.",
@@ -3937,7 +3945,6 @@
       "couldNotSeek": "Audio could not seek (code {{code}}).",
       "rewindSource": "Rewind source 10 seconds",
       "forwardSource": "Forward source 10 seconds",
-      "pausePlayback": "Pause playback",
       "playAudio": "Play audio",
       "back10Help": "Hear the last few seconds again.",
       "note": "Note",
@@ -4327,6 +4334,8 @@
       "noLanguagesSub": "Once a language is added, its passages show here.",
       "noPassages": "No passages yet",
       "noPassagesSub": "Once {{language}} has passages to record, they show here by book and chapter.",
+      "needsConnection": "{{language}} isn't on this device yet",
+      "needsConnectionSub": "Connect to the internet to bring it here. It opens on its own once you're connected.",
       "summary": "{{recorded}} of {{total}} recorded · {{done}} done · {{waiting}} with reviewers",
       "find": "Find “John 3”",
       "bookHits_one": "{{count, number}} book · add a chapter number to jump straight to it",
@@ -5165,7 +5174,11 @@
       "skipTitle": "Leave this question unanswered?",
       "skipSub": "Required questions can be skipped — the reason is saved with your review.",
       "skipConfirm": "Skip question",
-      "skipFootnote": "The reason is saved with your review."
+      "skipFootnote": "The reason is saved with your review.",
+      "leaveTitle": "Leave without saving?",
+      "leaveSub": "What you said and answered here is not saved until you send the review.",
+      "keepReviewing": "Keep reviewing",
+      "leave": "Leave"
     },
     "guest": {
       "previewSub": "Preview · what someone without the app sees",
@@ -5347,6 +5360,7 @@
     "noteSubNext": "What was hard to say here? The next check hears it with your back translation.",
     "addNote": "Add note",
     "typeNoMatch": "Or type it — e.g. a word with no English match",
+    "oneSpokenNote": "One spoken note per back translation for now: type this one.",
     "publishThe": "Publish the {{what}}?",
     "publishSubCheck": "Of Version {{n}}. The {{check}} listens to it next.",
     "publishSub": "Of Version {{n}}. It goes on the passage record.",
@@ -5363,6 +5377,7 @@
     "missing": "This passage isn't on this device yet.",
     "missingSub": "It may still be loading.",
     "orgLoading": "Your organization is still loading.",
+    "languageLoading": "This language is still loading. Try again in a moment.",
     "takesNotInDraft": "Your takes are saved on this device but not yet in your draft. {{reason}}",
     "partDeleted": "{{part}} deleted.",
     "chips": {
@@ -5899,7 +5914,9 @@
       "remove": "Remove from My Bibles",
       "chapter": "Chapter {{n, number}}",
       "previousChapter": "Previous chapter",
-      "nextChapter": "Next chapter"
+      "nextChapter": "Next chapter",
+      "removed": "{{abbr}} removed from My Bibles",
+      "notRemoved": "Not removed. Try again."
     }
   },
   "referenceLanguage": {

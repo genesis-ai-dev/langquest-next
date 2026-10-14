@@ -1,0 +1,80 @@
+# REV-008, the phone's own Back (docs/ui-test-suite/07-reviewing.md): on
+# "What should change?" Android's system Back returns to Decide, as the
+# header's back arrow does, and keeps what was typed. The web steps run in
+# Playwright (smart-tests/ui/07-reviewing.spec.ts); iOS has no system Back,
+# so there the header's arrow is used.
+appId: com.frontierrnd.langquestnext
+name: "REV-008 Back from \"What should change?\" returns to Decide"
+tags:
+  - rev
+---
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${REV_EMAIL}
+      PASSWORD: ${REV_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- extendedWaitUntil:
+    visible:
+      id: "tab-map"
+    timeout: 60000
+- tapOn:
+    id: "tab-map"
+- tapOn: "Find.*"
+- inputText: ${P_SUBMITTED.split(':')[0]}
+- runFlow:
+    file: ../common/dismiss-keyboard.yaml
+    env:
+      LABEL: ${LANG_A}
+# The search result for P-SUBMITTED, asked of REV (its sub line names REV's turn).
+- tapOn: ".*Your turn: Peer.*"
+- tapOn: "Do the peer (check|review)"
+- extendedWaitUntil:
+    visible: "Next: decide"
+    timeout: 30000
+- tapOn: "Next: decide"
+- tapOn: "Needs changes"
+- assertVisible: "What should change\\?"
+- tapOn: ".*Or type it.*"
+- tapOn:
+    id: "feedback-text"
+- inputText: "Too quiet at the start"
+- runFlow:
+    file: ../common/dismiss-keyboard.yaml
+    env:
+      LABEL: "What should change\\?"
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - back
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          id: "header-back"
+- assertVisible: "Is it accurate and natural\\?"
+- assertVisible:
+    id: "header-close"
+# What was typed is still there.
+- tapOn: "Needs changes"
+- assertVisible: "Too quiet at the start"
+# Back again, then ✕ asks before throwing the review away (REV-024).
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - back
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          id: "header-back"
+- tapOn:
+    id: "header-close"
+- assertVisible: "Leave without saving\\?"
+- tapOn: "Leave"
+- assertVisible: "Versions and history"

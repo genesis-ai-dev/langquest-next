@@ -35,12 +35,14 @@ import {
 } from '../kit';
 import { cachedDoc } from '../library/docStore';
 import { sourceLine, usesItem, type SharedItem } from '../library/model';
+import { restoreChecks } from '../checks/undo';
 import { useLibrary, useLibraryDocs, useLibraryUpdates, useSharedItems } from '../library/useLibrary';
 import { when } from '../passageView';
 import { failureMessage } from '../report';
 import { LanguageField } from '../reference/LanguageField';
 import { readerLanguage } from '../reference/languages';
 import { contractsFor } from '../screenContracts';
+import { draftToTie } from '../study/keyTermDraft';
 import { sourceText } from '../scripture';
 import { C, radius, space, TINT } from '../theme';
 import { VoiceNote } from '../voiceNote';
@@ -347,11 +349,11 @@ function SharedItems(props: {
           <Text style={txt.xsStrong}>{`${s.org_name} · ${t('config.library.versions', { count: s.version_count })}`}</Text>
           {s.description ? <Text style={txt.smMuted}>{s.description}</Text> : null}
           {props.detail?.(s)}
-          {props.canManage ? (
+          {props.canManage || props.use ? (
             <View style={styles.actions}>
               {props.use ? <SmallBtn label={props.use.label} tone="primary" disabled={busy || props.use.disabled} onPress={() => props.use!.onUse(s)} /> : null}
-              {s.subscribable ? <SmallBtn label={t('config.library.follow')} icon="link" disabled={busy} onPress={() => setFollowing(s)} /> : null}
-              <SmallBtn label={t('common.copy')} icon="plus" disabled={busy} onPress={() => void copy(s)} />
+              {props.canManage && s.subscribable ? <SmallBtn label={t('config.library.follow')} icon="link" disabled={busy} onPress={() => setFollowing(s)} /> : null}
+              {props.canManage ? <SmallBtn label={t('common.copy')} icon="plus" disabled={busy} onPress={() => void copy(s)} /> : null}
             </View>
           ) : null}
         </Card>
@@ -492,7 +494,10 @@ export function FlowsHome(ctx: Ctx) {
   const current = useMemo(() => (state ? flowUse(state) : null), [state]);
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
   const live = useLatest(ctx);
+  // Using a flow copies its checks into the language, the language's own (decision 91); making, following or
+  // copying a flow writes the organization's library, at organization scope (library/model.ts `mayWriteLibrary`).
   const canManage = ctx.session.can('manage_flows');
+  const canWrite = lib.canWrite('flow');
   const flows = lib.items('flow');
   const shared = useSharedItems('flow', lib.orgId);
   const { updates } = useLibraryUpdates(lib.orgId);
@@ -515,7 +520,7 @@ export function FlowsHome(ctx: Ctx) {
       if (previous) {
         undo = () => {
           const s = live.current.language.state;
-          return s ? commands(s, indexesFor(s)).restoreFlow({ commandId: Crypto.randomUUID(), previous }) : [];
+          return s ? restoreChecks(s, previous, Crypto.randomUUID()) : [];
         };
       }
       const hash = 'shared' in target ? target.shared.latest_hash : lib.item(target.itemId)?.current;
@@ -542,7 +547,7 @@ export function FlowsHome(ctx: Ctx) {
 
   return (
     <Screen header={<Header title={t('config.flows.title')} sub={language ?? orgName(ctx)} onBack={ctx.back}
-      action={canManage ? <SmallBtn label={t('config.flows.addFlow')} icon="plus" tone="primary" onPress={() => ctx.go('flow_editor', { itemId: 'new' })} /> : undefined} />}>
+      action={canWrite ? <SmallBtn label={t('config.flows.addFlow')} icon="plus" tone="primary" onPress={() => ctx.go('flow_editor', { itemId: 'new' })} /> : undefined} />}>
       {!state ? <EmptyState icon="flow" title={t('common.loading')} /> : (
         <>
           {!language ? <EmptyState icon="globe" title={t('config.flows.noLanguages')} sub={t('config.flows.noLanguagesSub')} /> : null}
@@ -557,7 +562,7 @@ export function FlowsHome(ctx: Ctx) {
               ) : null}
               <FlowStepsInline steps={current.steps} kinds={kinds} />
               {canManage && currentItem ? <SmallBtn label={t('config.flows.openFlow')} icon="edit" onPress={() => ctx.go('flow_editor', { itemId: currentItem.itemId })} /> : null}
-              {canManage && !current.itemId && current.chosen && current.steps.length ? (
+              {canWrite && !current.itemId && current.chosen && current.steps.length ? (
                 <SmallBtn label={t('config.flows.saveAsFlow')} icon="plus" onPress={() => ctx.go('flow_editor', { itemId: 'new', languageId: ctx.language.languageId })} />
               ) : null}
             </Card>
@@ -590,9 +595,9 @@ export function FlowsHome(ctx: Ctx) {
           })}
           <ShowMore remaining={flows.length - shown} step={STEP} onMore={() => setShown(shown + STEP)} />
 
-          <SharedItems ctx={ctx} lib={lib} shared={shared} canManage={canManage}
+          <SharedItems ctx={ctx} lib={lib} shared={shared} canManage={canWrite}
             detail={(s) => <DocSteps doc={docs.get<FlowDoc>(s.latest_hash)} kinds={kinds} />}
-            {...(language ? { use: { label: t('config.flows.use'), onUse: (s: SharedItem) => void use({ shared: s }), disabled: busy } } : {})} />
+            {...(language && canManage ? { use: { label: t('config.flows.use'), onUse: (s: SharedItem) => void use({ shared: s }), disabled: busy } } : {})} />
         </>
       )}
     </Screen>
@@ -693,7 +698,8 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
     return [...out.values()];
   }, [state, doc, seed]);
   const kinds = useMemo(() => [...known, ...added.filter((k) => !known.some((x) => x.id === k.id))], [known, added]);
-  const canManage = ctx.session.can('manage_flows');
+  // A library flow is the organization's: saving publishes a version (organization scope, `mayWriteLibrary`).
+  const canManage = lib.canWrite('flow');
   const followed = it?.source === 'subscription';
   const readOnly = !canManage || followed;
   const steps = edited ?? base?.steps ?? [];
@@ -871,12 +877,12 @@ export function ReferenceHome(ctx: Ctx) {
       </Group>
 
       <SectionLabel label={withCount(t('config.reference.libraryOrg'), materials.length)}
-        action={canManage ? <SmallBtn label={t('config.reference.new')} icon="plus" onPress={() => ctx.go('material_editor', { itemId: 'new', ...params })} /> : undefined} />
+        action={canManage && lib.canWrite('material') ? <SmallBtn label={t('config.reference.new')} icon="plus" onPress={() => ctx.go('material_editor', { itemId: 'new', ...params })} /> : undefined} />
       <Capped items={materials} render={libraryRow}
         empty={t('config.reference.libraryEmpty')} />
-      {canManage ? <Group><Row icon="sparkle" label={t('config.reference.writeGuide')} sub={t('config.reference.writeGuideSub')} last
+      {canManage && lib.canWrite('material') ? <Group><Row icon="sparkle" label={t('config.reference.writeGuide')} sub={t('config.reference.writeGuideSub')} last
         onPress={() => ctx.go('guide_editor', params)} /></Group> : null}
-      <SharedItems ctx={ctx} lib={lib} shared={shared} canManage={canManage}
+      <SharedItems ctx={ctx} lib={lib} shared={shared} canManage={canManage && lib.canWrite('material')}
         detail={(s) => {
           const doc = docs.get(s.latest_hash);
           const what = libraryMaterialLine(doc, versificationNameOf(docs, doc), kinds);
@@ -1200,7 +1206,7 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
         </>
       )}
 
-      {existing && canManage ? (
+      {existing && canManage && lib.canWrite('material') ? (
         <>
           <SectionLabel label={t('config.library.sectionTitle')} />
           <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>
@@ -1235,7 +1241,8 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
   const material = doc?.format === 'material@1' ? doc : null;
   const { updates } = useLibraryUpdates(lib.orgId);
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
-  const canManage = ctx.session.can('manage_reference');
+  // Library material is the organization's: publishing, sharing and following need organization scope (`mayWriteLibrary`).
+  const canManage = lib.canWrite('material');
   const editable = canManage && it?.source !== 'subscription' && (isNew || material !== null);
   const sharedV = useSharedItems('versification', lib.orgId, editable);
   const [kind, setKind] = useState<string | null>(null);
@@ -1572,7 +1579,8 @@ export function KeyTermDetail(ctx: Ctx) {
   }
   const language = languageName(ctx.org.state, languageId);
   const canEdit = ctx.session.can('fill_reference') || ctx.session.can('manage_reference');
-  const draftTakeId = passage?.draftTakeId;
+  // The draft this person has open, never the passage's first draft by anyone (STUDY-025, decision 83).
+  const draftTakeId = draftToTie(passage, ctx.session.actorId, ctx.params['draftId']);
   // TERM-4 is offered from the workspace, which passes the draft (or no take); a version's page passes that version.
   const fromDraft = !ctx.params['takeId'] || ctx.params['takeId'] === draftTakeId;
   const canTie = !!draftTakeId && fromDraft && ctx.session.can('translate') && canEdit;

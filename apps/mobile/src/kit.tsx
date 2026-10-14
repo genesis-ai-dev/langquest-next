@@ -201,7 +201,7 @@ export function Header(props: {
   const centred = !wide && !!props.onBack;
   // While help is on the ? is filled and stays lit over the dimmed screen: it is the way out.
   const helpBtn = help ? (
-    <Pressable onPress={() => help.setOn(!help.on)} accessibilityRole="button" accessibilityLabel={help.on ? t('help.turnOff') : t('help.explainScreen')}
+    <Pressable testID="header-help" onPress={() => help.setOn(!help.on)} accessibilityRole="button" accessibilityLabel={help.on ? t('help.turnOff') : t('help.explainScreen')}
       accessibilityState={{ selected: help.on }}
       style={({ pressed }) => [styles.helpBtn, help.on && { backgroundColor: C.primary, borderColor: C.primary }, pressed && styles.pressed]}>
       <Ico name="help" size={24} color={help.on ? C.white : C.primary} />
@@ -226,7 +226,7 @@ export function Header(props: {
   ) : null;
   const content = centred ? (
     <>
-      <Pressable onPress={props.onBack} accessibilityRole="button" accessibilityLabel={props.close ? t('common.close') : t('common.back')}
+      <Pressable testID={props.close ? 'header-close' : 'header-back'} onPress={props.onBack} accessibilityRole="button" accessibilityLabel={props.close ? t('common.close') : t('common.back')}
         style={({ pressed }) => [styles.roundBtn, pressed && styles.pressed]}>
         <Ico name={props.close ? 'close' : 'arrowL'} size={24} color={C.dark} />
       </Pressable>
@@ -240,7 +240,7 @@ export function Header(props: {
   ) : (
     <>
       {props.onBack ? (
-        <Pressable onPress={props.onBack} accessibilityRole="button" accessibilityLabel={props.close ? t('common.close') : t('common.back')}
+        <Pressable testID={props.close ? 'header-close' : 'header-back'} onPress={props.onBack} accessibilityRole="button" accessibilityLabel={props.close ? t('common.close') : t('common.back')}
           style={({ pressed }) => [styles.headerBack, pressed && styles.pressed]}>
           <Ico name={props.close ? 'close' : 'left'} size={props.close ? 24 : 28} color={C.dark} />
         </Pressable>
@@ -265,6 +265,9 @@ export function Card(props: { children: ReactNode; onPress?: () => void; style?:
     return (
       <Pressable onPress={props.onPress} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
         accessibilityState={props.current ? { selected: true } : undefined}
+        // aria-selected is not allowed on a button. aria-current is, and a screen reader says "current".
+        // accessibilityState.selected stays for native; react-native-web does not turn it into aria-selected.
+        aria-current={props.current ? true : undefined}
         style={({ pressed }) => [styles.card, props.style, props.current && styles.cardCurrent, pressed && styles.pressed]}>
         {props.children}
       </Pressable>
@@ -368,6 +371,8 @@ export function Row(props: {
   if (!props.onPress) return <View style={style}>{body}</View>;
   return (
     <Pressable onPress={onPress} disabled={props.disabled} accessibilityRole={props.role ?? 'button'} accessibilityState={state} accessibilityLabel={props.accessibilityLabel}
+      // The web reads only aria-*: a radio, checkbox or switch says whether it is on.
+      aria-checked={props.role === 'radio' ? !!(props.selected ?? props.current) : props.role === 'switch' || props.role === 'checkbox' ? props.checked === true : undefined}
       style={({ pressed }) => [...style, pressed && styles.pressed]}>
       {body}
       <HelpBadge spot={spot} inset />
@@ -417,7 +422,7 @@ export function PrimaryBtn(props: { label: string; onPress: () => void; disabled
   const spot = useHelpSpot(props.label, t('help.details.primary'), props.onPress);
   const onPress = spot.onPress;
   return (
-    <Pressable onPress={onPress} disabled={off} accessibilityRole="button" accessibilityLabel={props.label} accessibilityState={{ disabled: !!off, busy: !!props.busy }}
+    <Pressable testID="primary-action" onPress={onPress} disabled={off} accessibilityRole="button" accessibilityLabel={props.label} accessibilityState={{ disabled: !!off, busy: !!props.busy }}
       style={({ pressed }) => [styles.primary, { backgroundColor: off ? C.faint : bg }, props.full === false && { alignSelf: 'flex-start', paddingHorizontal: space.xl },
         !off && lift({ color: bg, opacity: 0.25, y: 5, elevation: 3 }), pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={22} color={C.white} /> : null}
@@ -553,12 +558,18 @@ export function Field(props: {
   keyboardType?: 'default' | 'email-address' | 'phone-pad' | 'number-pad';
   autoCapitalize?: 'none' | 'sentences' | 'words';
   style?: StyleProp<TextStyle>;
+  /** What Enter (or the keyboard's Go) does in a one-line field: the screen's main action, where there is one. */
+  onSubmit?: () => void;
+  /** For the UI tests: iOS does not expose a multi-line field's placeholder. */
+  testID?: string;
 }) {
   return (
     <View style={{ gap: space.xs }}>
       {props.label ? <Text style={txt.xsStrong}>{props.label}</Text> : null}
       <TextInput value={props.value} onChangeText={props.onChangeText} placeholder={props.placeholder} placeholderTextColor={C.faint}
         accessibilityLabel={props.label ?? props.placeholder}
+        {...(props.onSubmit && !props.multiline ? { onSubmitEditing: props.onSubmit, returnKeyType: 'go' as const } : {})}
+        {...(props.testID ? { testID: props.testID } : {})}
         multiline={props.multiline} secureTextEntry={props.secure} keyboardType={props.keyboardType} autoCapitalize={props.autoCapitalize}
         style={[styles.field, inputDirection(), props.multiline && { minHeight: 88, textAlignVertical: 'top', paddingTop: 14 }, props.style]} />
     </View>
@@ -846,13 +857,13 @@ export function ToastView(props: { toast: ToastSpec | null; onDismiss: () => voi
   return (
     <View style={[{ pointerEvents: 'box-none' }, styles.toastWrap, { bottom: props.bottom }]}>
       <View style={[styles.toast, wide && { maxWidth: measure.toast }]}>
-        <Pressable onPress={props.onDismiss} accessibilityRole="button" accessibilityLabel={t('shell.toast.dismissLabel', { message: toast.message })}
+        <Pressable testID="toast" onPress={props.onDismiss} accessibilityRole="button" accessibilityLabel={t('shell.toast.dismissLabel', { message: toast.message })}
           accessibilityLiveRegion="polite" style={styles.toastMessage}>
           <Ico name="check" size={20} color={C.green} />
           <Text style={[txt.sm, { color: C.white, flex: 1, fontWeight: '600' }]}>{toast.message}</Text>
         </Pressable>
         {toast.undo ? (
-          <Pressable onPress={() => { void Promise.resolve(toast.undo?.()).catch(() => undefined); props.onDismiss(); }} hitSlop={10}
+          <Pressable testID="toast-undo" onPress={() => { void Promise.resolve(toast.undo?.()).catch(() => undefined); props.onDismiss(); }} hitSlop={10}
             accessibilityRole="button" accessibilityLabel={t('shell.toast.undo')} style={styles.toastUndo}>
             <Text style={[txt.sm, { color: C.light, fontWeight: '800' }]}>{t('shell.toast.undo')}</Text>
           </Pressable>

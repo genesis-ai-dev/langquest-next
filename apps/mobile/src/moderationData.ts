@@ -63,6 +63,23 @@ export function queueReport(actorId: string, target: ReportTarget, reason: Repor
   return queueAccountAction(actorId, 'report', reportPayload(target, reason, details));
 }
 
+/**
+ * Save a report and try to send it now, waiting at most `waitMs`: true
+ * when the server has it, so the toast can say so; otherwise it stays saved
+ * and goes when connected (MOD-004, MOD-013).
+ */
+export async function sendReport(actorId: string, target: ReportTarget, reason: ReportReason, details: string, waitMs = 4000): Promise<boolean> {
+  const id = await queueReport(actorId, target, reason, details);
+  const outbox = accountOutbox(actorId);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  await Promise.race([
+    outbox.flush().catch(() => false),
+    new Promise<void>((resolve) => { timer = setTimeout(resolve, waitMs); })
+  ]);
+  clearTimeout(timer);
+  return (await outbox.list()).find((a) => a.id === id)?.status === 'sent';
+}
+
 /** Open reports this person may act on, in this organization. Needs the server. */
 export async function openReports(orgId: string): Promise<OpenReport[]> {
   const { data, error } = await supabase.rpc('org_content_reports', { p_org: orgId });

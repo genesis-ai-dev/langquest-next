@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { SourceDoc, TimingDoc, UsedReference } from '@langquest-next/core';
 import { BibleBrainClient, BibleError, CACHE_PREFIX, type BibleDetail, type JsonCache } from '../src/sources/bibleBrain';
 import {
-  chipMarks, filesetsFor, madeWithLine, sourceEvictions, offersFor, orderOptions, passageRows, playPlan, refText, resolveTiming, rowAt, seekTargetFor, sourceUsed,
+  bibleNotOnDevice, chipMarks, emptyBibleText, filesetsFor, isOfferedSourceId, madeWithLine, sourceEvictions, offersFor, orderOptions, passageRows, playPlan, refText, resolveTiming, rowAt, seekTargetFor, sourceUsed,
   unitCoordinates, usedItems, type SourceOption
 } from '../src/sources/model';
 
@@ -91,6 +91,36 @@ describe('timings', () => {
     ]);
     expect(resolveTiming({ fcbhRows: [] })).toEqual({ timing: null, source: 'none' });
     expect(resolveTiming({})).toEqual({ timing: null, source: 'none' });
+  });
+});
+
+describe('an empty Bible', () => {
+  const noBible = 'No Bible for this passage yet';
+
+  it('says the audio is not on this device when an offered Bible was never downloaded', () => {
+    expect(bibleNotOnDevice({ loading: false, documentMissing: true, options: 0 })).toBe(true);
+    expect(emptyBibleText({ loading: false, notOnDevice: true }, noBible)).toBe('Audio is not on this device yet.');
+  });
+
+  it('keeps no Bible when nothing was offered', () => {
+    expect(bibleNotOnDevice({ loading: false, documentMissing: false, options: 0 })).toBe(false);
+    expect(emptyBibleText({ loading: false, notOnDevice: false }, noBible)).toBe(noBible);
+  });
+
+  it('waits while a missing document is still on its way', () => {
+    expect(bibleNotOnDevice({ loading: true, documentMissing: true, options: 0 })).toBe(false);
+    expect(emptyBibleText({ loading: true, notOnDevice: false }, noBible)).toBe('Loading…');
+  });
+
+  it('does not call a Bible missing when another one can be shown', () => {
+    expect(bibleNotOnDevice({ loading: false, documentMissing: true, options: 1 })).toBe(false);
+  });
+
+  it('recognises an offered source from its item id when the snapshot has no document', () => {
+    expect(isOfferedSourceId('sub.org-1.langquest.source.bsb-fs')).toBe(true);
+    expect(isOfferedSourceId('berean-standard-bible-read-by-frederick-surrey-ab12cd34')).toBe(true);
+    expect(isOfferedSourceId('sub.org-1.langquest.examples.eng')).toBe(false);
+    expect(isOfferedSourceId('langquest.collection.fia-eng')).toBe(false);
   });
 });
 

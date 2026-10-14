@@ -60,6 +60,16 @@ export function withExpiry(held: HeldInvite, expiresAtIso: string | undefined): 
   return Number.isFinite(at) ? { ...held, expiresAt: at } : held;
 }
 
+/**
+ * What the scan screen's preview teaches the held invite: when a usable one
+ * expires. One the server says cannot be used keeps no expiry from it, so it
+ * is not let go the moment it is read: its card and the reason stay until the
+ * person clears it ("Clear this invite"), or a week passes.
+ */
+export function learnFromPreview(held: HeldInvite, preview: Pick<InvitePreview, 'status' | 'expiresAt'> | null): HeldInvite {
+  return preview?.status === 'ok' ? withExpiry(held, preview.expiresAt) : held;
+}
+
 /** The person said who is joining. */
 export function claim(held: HeldInvite, who: 'next-account' | { actorId: string }): HeldInvite {
   return { ...held, claim: who === 'next-account' ? { kind: 'next-account' } : { kind: 'account', actorId: who.actorId } };
@@ -113,6 +123,20 @@ export function outcomeOfError(message: string): Outcome {
   if (/not found|does not look like an invite/.test(m)) return { kind: 'dead', reason: 'not_found' };
   if (/no longer available/.test(m)) return { kind: 'dead', reason: 'retired' };
   return { kind: 'retry' };
+}
+
+/**
+ * Why an Edge Function call (`join`, `sign-in-code`) failed: the function's
+ * own words when it answered, else the client's. Unreached (offline), the
+ * error's context is the failed fetch, not a reply, and its message
+ * ("Failed to send a request…") is what says there was no connection.
+ */
+export async function functionRefusal(error: { message: string; context?: unknown }): Promise<[message: string, needsName: boolean]> {
+  const context = error.context as { json?: () => Promise<unknown> } | undefined;
+  const reply = typeof context?.json === 'function'
+    ? await context.json().catch(() => null) as { error?: string; needsName?: boolean } | null
+    : null;
+  return [reply?.error ?? error.message, reply?.needsName === true];
 }
 
 /** What the server says about a key before it is used (`preview_invite`). */

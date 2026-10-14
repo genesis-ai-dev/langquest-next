@@ -1,7 +1,7 @@
 import { inviteUri, parseInvite } from '../src/inviteCode';
 
 describe('invite codes', () => {
-  const token = 'a'.repeat(48);
+  const token = 'a'.repeat(64); // as invites.ts newToken makes them
 
   it('puts only the org and the token in the link', () => {
     // Why: the scan screen would show anything else a link carried as fact,
@@ -18,6 +18,8 @@ describe('invite codes', () => {
     // Why: people forward the code in chat, not the whole deep link, and an
     // invite that only works from a scanner is an invite most people cannot use.
     expect(parseInvite(`  ${token}  `)).toEqual({ token });
+    // Typed by hand, a code is not read half way (it would be refused at its 32nd character).
+    expect(parseInvite(token.slice(0, 32))).toBeNull();
   });
 
   it('survives an org id that needs escaping', () => {

@@ -1,0 +1,74 @@
+# REC-020 (docs/ui-test-suite/06-recording.md) on a phone: the microphone
+# refused. The web run (smart-tests/ui/06-recording-mic.spec.ts) covers the
+# same test in Chrome; this one covers the system's own answer.
+#
+# Maestro grants every permission when it launches an app unless told
+# otherwise, so the app is started again with the microphone denied
+# (rec/relaunch.yaml MIC=deny): the system then refuses without asking, as it
+# does after a person chose "Don't Allow" once. If the system does ask (a
+# Maestro that leaves permissions unset), the flow answers "Don't Allow".
+# Passage: P-Q2 (Luke 13:18-21), asked of TRANS and never recorded by any flow
+# (JRN-004 records P-Q4); nothing is written. No audio needed.
+appId: com.frontierrnd.langquestnext
+name: "REC-020 Microphone permission refused"
+tags:
+  - rec
+  - p0
+---
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${TRANS_EMAIL}
+      PASSWORD: ${TRANS_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- stopApp
+- runFlow:
+    file: ../rec/relaunch.yaml
+    env:
+      MIC: deny
+- runFlow:
+    file: ../rec/open-workspace.yaml
+    env:
+      PASSAGE: ${P_Q2}
+- tapOn:
+    id: "record-button"
+- runFlow:
+    when:
+      visible: "(?i)Don.t Allow|Don.t allow"
+    commands:
+      - tapOn: "(?i)Don.t Allow|Don.t allow"
+- extendedWaitUntil:
+    visible: "Microphone permission is required\\."
+    timeout: 10000
+# The button is back to Record, no part was made, and Publish stays off.
+- assertVisible:
+    id: "record-button"
+    text: "Record"
+- assertNotVisible: "Parts 1.*|Play Part 1|Part 1, .*"
+# Again: the same message, and the system does not ask a second time.
+- tapOn:
+    id: "record-button"
+# iOS does not ask a second time. Android may, until the answer is "don't ask again".
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertNotVisible: "(?i)Don.t Allow|Don.t allow"
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runFlow:
+          when:
+            visible: "(?i)Don.t Allow|Don.t allow"
+          commands:
+            - tapOn: "(?i)Don.t Allow|Don.t allow"
+- assertVisible: "Microphone permission is required\\."
+- assertNotVisible: "This screen could not open"
+# ✕ still returns to the record.
+- tapOn:
+    id: "header-close"
+- extendedWaitUntil:
+    visible: "(?i)Then the team"
+    timeout: 10000

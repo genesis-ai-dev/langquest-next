@@ -1,0 +1,64 @@
+# P0 smoke on phones (decision 93): a reviewer does the check asked of them
+# (P-SUBMITTED's Peer check, asked of REV in the fixture), finds both
+# verdicts on offer, and sends "Needs changes" with typed words. The web
+# runs the whole round (16-jrn-003.spec.ts); this proves the job on a phone.
+appId: com.frontierrnd.langquestnext
+name: "P0 A reviewer reviews: looks good or needs changes, with words"
+tags:
+  - p0
+  - smoke
+---
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${REV_EMAIL}
+      PASSWORD: ${REV_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- extendedWaitUntil:
+    visible:
+      id: "tab-work"
+    timeout: 60000
+# My Work: the newest ask leads (P-BT's back translation); P-SUBMITTED's check is under Then.
+- tapOn: "Check ${P_SUBMITTED}.*"
+- extendedWaitUntil:
+    visible: "Listen to all of it first"
+    timeout: 30000
+- assertVisible: "Version 1 · recorded by ${TRANS_FIRST}"
+- tapOn: "Play Version 1 · recorded by ${TRANS_FIRST}"
+- extendedWaitUntil:
+    visible: "Pause"
+    timeout: 30000
+- tapOn:
+    id: "primary-action"
+# Decide: both verdicts on offer, nothing required left open.
+- assertVisible: "Is it accurate and natural\\?"
+- assertVisible:
+    text: "Looks good"
+    enabled: true
+- assertVisible:
+    text: "Needs changes"
+    enabled: true
+- tapOn: "Needs changes"
+- assertVisible: "What should change\\?"
+# "Or type it" reveals the field; the words go into that field, then a
+# title tap dismisses the keyboard (iOS hideKeyboard hits the button under it).
+- tapOn: ".*Or type it.*"
+- tapOn:
+    id: "feedback-text"
+- inputText: "Verse 20 is too fast"
+- runFlow:
+    file: ../common/dismiss-keyboard.yaml
+    env:
+      LABEL: "What should change\\?"
+- tapOn:
+    id: "primary-action"
+    waitToSettleTimeoutMs: 0
+# One assertion on the toast itself: it is gone a few seconds after the tap.
+- extendedWaitUntil:
+    visible:
+      id: "toast"
+      text: ".*Feedback sent to ${TRANS_NAME}.*"
+    timeout: 20000
+# Back on the record: the check reads as needs changes.
+- assertVisible: "Peer check, needs changes"

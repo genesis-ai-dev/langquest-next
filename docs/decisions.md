@@ -435,6 +435,10 @@ must not reach version 2 without revisiting this. Merge shapes are the existing 
 registers, and an add-wins undo. Reverse if: partners want gates back; then
 checkpoints can cover more steps without new events.
 
+Amended (2026-10-13, Carl Sauder): undoing an override needs Override
+checkpoints too, held by the server (95). Answered feedback no longer
+completes an ordinary step (94).
+
 ## 30. The record's own audio is named by the event that uses it
 
 Date: 2026-09-28 · By: Caleb Koster · Status: accepted
@@ -1481,6 +1485,14 @@ both `.well-known` files are unchanged. To turn it on: enable Associated
 Domains on `com.frontierrnd.langquestnext` in the developer portal, make a
 new App Store profile (`eas credentials`), and put `associatedDomains` back.
 
+Amended (2026-10-13, Carl Sauder): one tab at a time no longer mistakes a
+reload for another tab. After a reload, the page that went still held the
+Web Lock for a moment, and about one reload in eight said "LangQuest is open
+in another tab". Now a taken lock is asked for again every 250 ms for two
+seconds before the page says another tab has it. Stopping releases the lock,
+and a page keeps one lock however often its storage gate remounts
+(`tabLock.ts`, `storageGate.tsx`).
+
 ## 59. Joining by invite needs no password, and whoever can invite you can get you back in
 
 Date: 2026-10-05 · By: Caleb Koster · Status: accepted
@@ -1791,6 +1803,14 @@ chose not to be found and can invite instead.
 Reverse if: organizations that list nothing need people to find them
 without an invite; then give each a short code an admin can share.
 
+Amended (2026-10-13, Carl Sauder): the phone receives the first 500 listed
+organizations by name, and searching only that list hid every organization
+after them. Typing now also asks the server, which searches every listed
+organization by its name or any language it lists
+(`listed_organizations_search`). What it finds joins the phone's own
+matches. Offline, the saved list is searched as before. The UI test suite
+found this (JRN-005) once the local database listed more than 500.
+
 ## 67. Whoever holds Invite may invite and admit people, with or without an email of their own
 
 Date: 2026-10-07 · By: Carl Sauder · Status: accepted
@@ -1970,6 +1990,10 @@ something (then it joins the flow as a checkpoint kind instead).
 Amended (2026-10-12, Carl Sauder): the passage list now returns
 `{ passages, nextAfter }` a page at a time, picks passages by `unitIds`,
 and adds any part of one passage with `include` (85).
+
+Amended (2026-10-13, Carl Sauder): an answered "needs changes" no longer
+counts toward `done`: the check stays open until its reviewer passes the
+new version (94).
 
 ## 71. One simpler set of screens for everyone, keeping every capability
 
@@ -2152,6 +2176,18 @@ Reverse if: teams need every guide on the phone before they go out of
 signal, beyond the passages they keep (then a "keep all guides" choice on
 Ready for offline, not a download on first open).
 
+Amended (2026-10-13, Carl Sauder): the "seven-tone key one tap deeper" above
+is no longer what the app shows. A book's chapters show three states, and
+the key under Filter has five lines: done, started, not started, no passage,
+and kept on this device. The seven tones survive only in each chapter
+tile's spoken label. The UI test suite (decision 93, MAP-021) holds the
+app to this.
+
+Amended (2026-10-13, Carl Sauder): the welcome offered "Show me how" and
+"Skip for now", which both went to My Work once the Getting started card was
+gone. It now offers one "Get started" for every role (AUTH-057). The tour
+"Show me how" stood for was never built.
+
 ## 72. Apps, agents and review links take part through reviews and releases; outside reviews never clear a checkpoint
 
 Date: 2026-10-08 · By: Ryder Wishart · Status: partly superseded by 79
@@ -2238,6 +2274,9 @@ it, and a person may have 200 open in an organization. Voice notes take
 their own budget, 100 an hour per token or link. A review given by link
 counts toward a step only while the step takes links, read in the fold, so
 turning links off also stops links and tokens already out (75).
+
+Amended (2026-10-13, Carl Sauder): an answered "needs changes" no longer
+counts toward `done` (94).
 
 ## 73. Languages and regions are LangQuest v2's reference tables, filled from Glottolog itself and kept outside the event log
 
@@ -2404,6 +2443,23 @@ the Worker, a voice note must be stored no more than six hours before it is
 attached, since a redaction drops the event but not the file, so a hash
 seen before a removal cannot bring the audio back; a closed review link
 answers only that it closed; and files are served with `nosniff`.
+
+Amended (2026-10-13, Carl Sauder): the app now offers a write only where
+the server will take it. Library events go in the organization's stream,
+so they need the privilege at organization scope (`languageOfOrgEvent`,
+`may_emit`). A language lead's role in one language does not cover them,
+but the screens asked `session.can`, which counts it. So the screens
+offered template edits and updates, breaking up a book, new or followed
+flows, guides, library material and "Add a Bible", and the server then
+refused them, some after a success toast. Those controls are now hidden
+from anyone without the privilege at organization scope (`mayWriteLibrary`
+in `library/model.ts`, `lib.canWrite`). Choosing one of the organization's
+own templates or flows for the language, its own checks, and recommending
+or hiding a Bible are the language's own events, and stay available to the
+lead. The UI test suite holds this (SETUP-061 to 066, MAP-023).
+
+Amended (2026-10-13, Carl Sauder): nobody may leave the organization
+without someone who can manage roles (96).
 
 ## 76. Names identify nothing: a repeated language is warned about, and an organization can be renamed
 
@@ -2996,6 +3052,13 @@ Reverse if: phones are seen not to report a returning network, so work
 waits for the half-hour poll (then a shorter ceiling, or a reachability
 check of our own).
 
+Amended (2026-10-13, Carl Sauder): losing the network wakes sync too: a
+browser's `offline` event, and on a phone the connected-to-disconnected edge
+(`wakeOnReconnect`'s `onLoss`, at most once in ten seconds). The attempt
+fails at once, so My Work says "Offline" when the signal goes, instead of
+40 to 50 seconds later when the live channel times out (SYNC-002, SYNC-007).
+It costs one failing attempt per loss.
+
 ## 91. A language's checks carry their own people, questions and helps, and a ready-made flow is copied
 
 Date: 2026-10-12 · By: Caleb Koster · Status: accepted
@@ -3053,6 +3116,14 @@ Reverse if: teams need someone on a check who must not review anything else
 (then a check's people need a grant of their own), or one check needs
 several groups with different people (then groups come back, within a check).
 
+Amended (2026-10-13, Carl Sauder): with Review on the Translator role, the
+role chooser's "Back-translate" (decision 71) gave the same role as
+"Translate". It now gives a role named for back translation if one exists,
+else the smallest role that both translates and reviews but runs nothing
+(other than Translate's own role), else the checking role. With only the
+seed roles, that is Reviewer (`plainRoleChoices` in `simple/adminModel.ts`,
+PEOPLE-003).
+
 ## 92. A phone writes down the files it keeps, and a file it loses behind the app's back is an alarm
 
 Date: 2026-10-12 · By: Caleb Koster · Status: accepted
@@ -3101,3 +3172,151 @@ needs the server allowlist and Play declarations changed; a later change).
 Reverse if: the ledger itself proves unreliable on these phones (false
 alarms in the field), or losses turn out to be damaged contents rather than
 missing files, in which case add a slow background spot check of hashes.
+
+## 93. The app's UI tests run on Maestro on phones and Playwright on the web; Jev stays for journeys judged by outcome
+
+Date: 2026-10-12 · By: Carl Sauder · Status: accepted
+
+Reason: `docs/ui-test-suite/` specifies the app's end-to-end UI tests, per
+role, and about 550 of them can be automated. Carl chose (2026-10-12):
+- **Maestro** for iOS and Android (`apps/mobile/test/maestro/`). It drives
+  the dev client or a release build from YAML flows without instrumenting
+  the app. It handles permission dialogs, backgrounding, killing the app,
+  deep links and two devices, which the recording, sign-out and offline
+  tests need. The `run-app` skill already used it.
+- **Playwright** for the web export (`smart-tests/ui/`). It already ran the
+  web smoke test (58) and hosts Jev's driver, and Chrome plays a WAV file as
+  the microphone.
+- Each automated test is written once. A test whose platforms include the
+  web runs in Playwright, which is faster and runs in parallel. A test of
+  phone-only behaviour runs in Maestro. A set of P0 flows runs in Maestro on
+  both phones, so the core jobs are also proven on devices.
+- One fixture world, built through the real server so every event passes
+  validation and permissions like a phone's, serves both
+  (`smart-tests/ui/fixture.ts`, `npm run ui:fixture`). Each Playwright file
+  and each Maestro run gets a fresh organization, so runs share the local
+  database without touching each other.
+- Screens get `testID`s on their main action, Back and ✕, and the tabs, so
+  flows hold across the app's fifteen languages.
+
+Not chosen:
+- **Detox.** It is synchronized with React Native, so it is less flaky. But
+  it needs native build configuration and is heavier to keep working.
+- **Appium.** It is slow and flaky.
+- **Jev as the main framework.** It drives only the web, its runs vary, and
+  every step is a paid model call. It cannot check a toast's words, Undo or
+  a permission boundary. It stays the tool for journeys judged by their
+  outcome in the event log, once it is ported (`smart-tests/README.md`).
+
+Reverse if:
+- Maestro's flakiness costs more than Detox's setup would.
+- Bugs that only phones show slip through the web runs. Then run the web
+  tests' flows on phones too.
+
+Amended (2026-10-13, Carl Sauder): the phone flows run on a test build, not
+on the dev client. A dev client loads its JavaScript from Metro after every
+clean start, which took about 40 s per flow on iOS. On Android it took 2.5
+minutes, because the server's address had to be typed into the launcher.
+`npm run test:ui:build` (`scripts/maestro-build.mjs`) makes a Release build
+with the JavaScript inside, pointed at the local stack. A clean start then
+takes seconds: 31 s and 43 s per flow, sign-in included.
+- The build is marked a local release (`EXPO_PUBLIC_LOCAL_RELEASE`, which
+  `src/supabase.ts` already allowed for the web export). It bundles from an
+  empty Metro cache of its own (`METRO_CACHE_DIR`, `metro.config.js`):
+  Expo writes `EXPO_PUBLIC_*` values into files as Metro transforms them,
+  and the cache every Metro on a machine shares would otherwise hand the
+  build files made with other settings.
+- Two settings change only in the generated `ios/` and `android/` folders,
+  which version control ignores, so no store build can carry them.
+  Over-the-air updates are off, and Android allows plain http to the local
+  stack.
+- The runner's `--app dev` still runs the flows on a dev client and Metro,
+  for working on a flow against live code.
+
+## 94. Answered feedback keeps a check open until its reviewer says it looks good
+
+Date: 2026-10-13 · By: Carl Sauder · Status: accepted
+
+Reason: a check that asked for changes counted as complete as soon as the
+translator answered it (a new version, or keeping it with a reason). Core
+`isCompleteState` counted `addressed`, so the new version was never offered
+to the check again unless someone asked, though the record told the
+translator "Then it goes back to the check". The UI test suite found it
+(JRN-002, JRN-011). Answering is not a verdict, so the check stays open:
+`addressed` is no longer complete, the step is not done, and its reviewer is
+offered the new version. A checkpoint already worked this way (72).
+- The passage record shows the step as open, "answered · back to the check"
+  (`passage/record.ts`, `pathModel.ts`), not ticked green. Older versions
+  still show what they heard (`oldStepState`).
+- `done` in reports and the API (70, 72) follows: a passage whose last
+  feedback was answered is not done until the check passes it.
+
+Reverse if: teams find re-checking every answered note slows them more than
+the missed second look costs. Then let a flow mark a check as one that an
+answer completes.
+
+## 95. Taking back a checkpoint override needs Override checkpoints
+
+Date: 2026-10-13 · By: Carl Sauder · Status: accepted
+
+Reason: only Override checkpoints may move a passage past a checkpoint (29),
+but anyone with Translate, Review or Assign work could undo that override,
+because `v1.DepartureUndone` names only the departure and its privilege came
+from its own payload. The UI test suite found it (PASS-056). The server's
+`may_emit` now looks the departure up in the same stream and asks for
+Override checkpoints when it undoes an override
+(`20261013140000_override_undo_privilege.sql`, `server/grantsSmoke.sql` 10).
+Undoing a set-aside or a kept version keeps the wider list. The app shows
+Undo on an override only to those who hold it (`screens/passage.tsx`).
+Core `privilegeFor` stays payload-only, so it still names the wide list for
+this event; the event's shape did not change.
+
+Reverse if: a team wants translators to bring a checkpoint back themselves.
+Then it is a role setting, not a code change.
+
+## 96. An organization always keeps someone who can manage roles
+
+Date: 2026-10-13 · By: Carl Sauder · Status: accepted
+
+Reason: nothing stopped an admin removing themselves, demoting the last
+admin, or taking Manage roles off the only role that had it. Then nobody
+could give it back except support. The UI test suite found it (PEOPLE-026).
+The server refuses any membership or role change that would leave no
+org-scope member with a live role holding Manage roles
+(`_grant_refusal`, `20261013150000_keep_a_role_manager.sql`,
+`server/grantsSmoke.sql` 11). Core `leavesNoRoleManager` mirrors it, so the
+member page says "You are the only one who can manage roles" and offers no
+Remove or demotion (`screens/org.tsx`). Removing yourself while another
+admin remains is still allowed, as before (75).
+
+Reverse if: organizations need to be handed back to support on purpose.
+Then that is a support tool, not a gap in the rule.
+
+## 97. For now a back translation carries one spoken note
+
+Date: 2026-10-13 · By: Carl Sauder · Status: accepted
+
+Reason: a back translation's notes at moments each keep their words, but
+the event has one voice note (`noteBlobHash`). Every spoken note after the
+first was silently replaced by the last one said. The UI test suite found it
+(REV-035). Until a versioned event can carry a voice note per moment, the
+first note said aloud keeps the voice note, and later notes, including the
+publish sheet's, are typed. The sheet says so ("One spoken note per back
+translation for now: type this one.", `simple/btWorkspace.tsx`).
+
+Reverse if: the event that carries a voice note per moment ships; this
+entry is then superseded by it.
+
+## 98. "Join your team" has no Back to Sign In, unlike the partner demo
+
+Date: 2026-10-13 · By: Carl Sauder · Status: accepted
+
+Reason: the demo's flow has an edge from the intent chooser back to Sign
+In. In the app the person is already signed in there, so Back would only
+look like signing out without the unsent-work check of 12. Sign out is its
+own action on that screen. The edge is dropped deliberately, listed in
+`DROPPED_EDGES` (`apps/mobile/src/flow.ts`), and the parity test checks that
+it is a real demo edge the app does not have (NOORG-003).
+
+Reverse if: the demo's flow gets a signed-out chooser. Then the edge
+belongs back.

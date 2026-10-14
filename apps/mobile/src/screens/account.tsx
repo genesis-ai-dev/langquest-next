@@ -11,8 +11,9 @@
 // them), CORE-12 (sign-out never strands work).
 import { signInName } from '../accounts';
 import { readHelp, type SignInHelp } from '../signInHelp';
-import { CommandError, decodeHlc, languageName, unitTitle, type Update } from '@langquest-next/core';
-import type { SyncInspection } from '@langquest-next/client';
+import { CommandError, decodeHlc, languageName, ORG_STREAM, orgLanguages, unitTitle, type Update } from '@langquest-next/core';
+import type { LocalEvent, SyncInspection } from '@langquest-next/client';
+import { getStore } from '../store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Updates from 'expo-updates';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -20,7 +21,7 @@ import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../text';
 import { accountOutbox, queueAccountAction } from '../accountData';
 import { deleteAccount } from '../accountDeletion';
-import { authErrorText, groupByRead, outboxErrorText, remoteTitle, roleWords, updateText } from '../accountText';
+import { authErrorText, groupByRead, outboxErrorText, ownName, remoteTitle, roleWords, updateText } from '../accountText';
 import { deriveKinds, kindOf } from '../coreText';
 import type { Ctx } from '../ctx';
 import { t } from '../i18n';
@@ -347,11 +348,59 @@ function ago(hlc: string): string {
 
 // ---- Getting back in, for an account without email (decisions.md 59) ---------------------------------
 
-/** Who invited this person, by the invite they redeemed: the one to ask on a new phone. */
+/**
+ * Who invited this person: the one to ask on a new phone (decisions.md 59).
+ * The invite in the organization log names them when this phone has it. The
+ * steward row is that same person, and the account can read its own row
+ * when the log's issuer has not arrived. A color-and-shape stand-in is not
+ * a name, so the screen uses "the person who invited you" until a real one
+ * is known. Who helped onto this device is a separate line (`readHelp`).
+ */
 function useInviterName(ctx: Ctx): string | undefined {
   const me = ctx.session.actorId;
+  const names = useDisplayNames(me);
+  const managed = ctx.session.isManaged;
   const invite = Object.values(ctx.org.state?.invites ?? {}).find((i) => i.redeemedBy === me);
-  return invite?.issuedBy && invite.issuedBy !== me ? ctx.name(invite.issuedBy) : undefined;
+  const fromInvite = invite?.issuedBy && invite.issuedBy !== me ? invite.issuedBy : undefined;
+  const [stewardId, setStewardId] = useState<string | undefined>();
+  const [fetchedName, setFetchedName] = useState('');
+  useEffect(() => {
+    if (!managed || me === 'guest') return;
+    let active = true;
+    void (async () => {
+      try {
+        const { data, error } = await supabase.from('account_stewards').select('steward_id').eq('profile_id', me).maybeSingle();
+        if (!active) return;
+        if (error) { noteExpected('who invited you', error); return; }
+        const id = typeof data?.steward_id === 'string' ? data.steward_id : '';
+        if (id && id !== me) setStewardId(id);
+      } catch (e) {
+        if (active) noteExpected('who invited you', e);
+      }
+    })();
+    return () => { active = false; };
+  }, [managed, me]);
+  const id = fromInvite ?? stewardId;
+  const known = (id && names[id]?.trim()) || '';
+  useEffect(() => {
+    if (!id || known) return;
+    let active = true;
+    void (async () => {
+      for (let attempt = 0; attempt < 4 && active; attempt++) {
+        try {
+          const { data, error } = await supabase.from('profiles').select('display_name').eq('id', id).maybeSingle();
+          if (error) throw error;
+          const name = typeof data?.display_name === 'string' ? data.display_name.trim() : '';
+          if (name) { if (active) setFetchedName(name); return; }
+        } catch (e) {
+          if (attempt === 3 && active) noteExpected('inviter name', e);
+        }
+        await new Promise((done) => setTimeout(done, 300 * (attempt + 1)));
+      }
+    })();
+    return () => { active = false; };
+  }, [id, known]);
+  return known || fetchedName || undefined;
 }
 
 /**
@@ -369,6 +418,11 @@ function useHasPassword(): [boolean | null, () => void] {
     });
     return () => { active = false; };
   }, [tick]);
+  // A password set on Edit Profile updates the user: More settings, still open under it, reads it again (ACCT-021).
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange((event) => { if (event === 'USER_UPDATED') setTick((n) => n + 1); });
+    return () => data.subscription.unsubscribe();
+  }, []);
   return [has, () => setTick((n) => n + 1)];
 }
 
@@ -381,14 +435,15 @@ function useHasPassword(): [boolean | null, () => void] {
  * (that lives under Manage).
  */
 export function SettingsHome(ctx: Ctx) {
-  const names = useDisplayNames(ctx.session.actorId);
-  const s = ctx.session;
-  const name = names[s.actorId] ?? s.email?.split('@')[0] ?? t('common.you');
+  const name = useOwnName(ctx);
   const offline = useOfflineSummary(ctx);
-  // The language's sync needs noticing when work is waiting to send: say so on More settings' row.
+  // Sync needs noticing when work is waiting to send: say so on More settings' row. The organization's
+  // changes count too (a language or organization made offline), as they do before sign-out.
   const p = ctx.language;
+  const waiting = p.pending + ctx.org.pending;
   const moreSub = p.refused ? t('account.me.moreRefused')
-    : p.pending > 0 ? t('account.me.morePending', { count: p.pending }) : moreSettingsSub();
+    : p.refusedEvents > 0 ? t('account.me.moreRefusedEvents', { n: p.refusedEvents })
+    : waiting > 0 ? t('account.me.morePending', { count: waiting }) : moreSettingsSub();
   return (
     <Screen header={<Header title={t('account.me.title')} />}>
       <Group>
@@ -399,11 +454,24 @@ export function SettingsHome(ctx: Ctx) {
         <Row icon="help" label={t('account.me.tour')} sub={t('account.me.tourSub')} onPress={() => ctx.go('vision')} />
         <LanguageRow />
         <Row icon="settings" label={t('account.me.more')} sub={moreSub} onPress={() => ctx.go('settings_more')}
-          {...(p.pending > 0 ? { badge: formatNumber(p.pending) } : {})} last />
+          {...(waiting > 0 ? { badge: formatNumber(waiting) } : {})} last />
       </Group>
       <DangerLink label={t('account.me.signOut')} onPress={() => ctx.go('sign_out_confirm')} />
     </Screen>
   );
+}
+
+/**
+ * Your own name as you last saved it (ACCT-015, ACCT-017): a change still
+ * waiting to send first, so it shows at once offline, then the server's,
+ * read again each time a change has gone. A change the server turned down
+ * is left out (Edit Profile and the Inbox say why).
+ */
+function useOwnName(ctx: Ctx): string {
+  const me = ctx.session.actorId;
+  const profiles = useAccountActions(me).filter((a) => a.kind === 'profile');
+  const names = useDisplayNames(me, String(profiles.filter((a) => a.status === 'sent').length));
+  return ownName(profiles, names[me], ctx.session.email, t('common.you'));
 }
 
 /** A red line of text for leaving (Sign out): plain, centred, 56pt, never louder than the card above it. */
@@ -429,14 +497,13 @@ export function SettingsMore(ctx: Ctx) {
   const [notificationMessage, setNotificationMessage] = useState('');
   const [blockedOpen, setBlockedOpen] = useState(false);
   const diag = useDiagnosticsSwitch(ctx);
-  const names = useDisplayNames(ctx.session.actorId);
   const s = ctx.session;
   const { roleName, orgName } = useAccountLine(ctx);
   const inviter = useInviterName(ctx);
   const [hasPassword] = useHasPassword();
   const [help, setHelp] = useState<SignInHelp | null>(null);
   useEffect(() => { void readHelp(s.actorId).then(setHelp); }, [s.actorId]);
-  const name = names[s.actorId] ?? s.email?.split('@')[0] ?? t('common.you');
+  const name = useOwnName(ctx);
   const p = ctx.language;
   const syncSub = p.refused ? t('account.more.syncRefused')
     : p.pending > 0 ? t('account.more.syncPending', { count: p.pending })
@@ -634,13 +701,17 @@ export function ProfileEdit(ctx: Ctx) {
   const value = name ?? String(pending?.payload.displayName ?? names[ctx.session.actorId] ?? '');
   const managed = ctx.session.isManaged;
   const handle = signInName(ctx.session.email);
+  // Saving stays off while the name is empty, except a too-short password:
+  // that has to be tappable so this screen can refuse it (ACCT-019).
+  const passwordTooShort = managed && password.length > 0 && password.length < 6;
   async function save() {
     setBusy(true);
     setError('');
     try {
       // A password goes to the server now (it needs a connection); the name syncs whenever it can.
+      // A too-short one is refused here and nothing is written, name included.
       if (managed && password) {
-        if (password.length < 6) { setError(t('account.profile.shortPassword')); return; }
+        if (passwordTooShort) { setError(t('account.profile.shortPassword')); return; }
         const { error } = await supabase.auth.updateUser({ password, data: { has_password: true } });
         if (error) {
           noteExpected('set password', error);
@@ -658,7 +729,7 @@ export function ProfileEdit(ctx: Ctx) {
   return (
     <Screen
       header={<Header title={t('account.profile.title')} onBack={ctx.back} />}
-      footer={<PrimaryBtn label={t('account.profile.save')} onPress={() => void save()} disabled={!value.trim()} busy={busy} />}
+      footer={<PrimaryBtn label={t('account.profile.save')} onPress={() => void save()} disabled={!value.trim() && !passwordTooShort} busy={busy} />}
     >
       <View style={styles.avatarBlock}>
         <PersonAvatar look={personLook(ctx.session.actorId, value)} size={72} />
@@ -878,6 +949,9 @@ export function SyncStatus(ctx: Ctx) {
   const { language, org } = ctx;
   const [ins, setIns] = useState<SyncInspection | null>(null);
   const [orgIns, setOrgIns] = useState<SyncInspection | null>(null);
+  // Straight from the device's log, whichever language's client is open: refused work in any of the
+  // organization's streams, and the open language's confirmed position (PLAN.md invariant 1).
+  const [logged, setLogged] = useState<{ rejected: LocalEvent[]; cursor: number } | null>(null);
   const [rates, setRates] = useState({ up: 0, down: 0 });
   const [busy, setBusy] = useState(false);
   // Polled every second: report a failing read once per visit, not per tick.
@@ -892,6 +966,7 @@ export function SyncStatus(ctx: Ctx) {
     const tick = () => {
       void language.inspect().then((i) => { if (alive) setIns(i); }).catch(failed);
       void org.inspect().then((i) => { if (alive) setOrgIns(i); }).catch(failed);
+      void readLog(language.orgId, language.languageId, org.state).then((l) => { if (alive) setLogged(l); }).catch(failed);
       setRates(language.blobs.rates());
     };
     tick();
@@ -903,7 +978,7 @@ export function SyncStatus(ctx: Ctx) {
   const offline = language.online === false;
   const offlineSummaryNow = useOfflineSummary(ctx);
   const pendingEvents = (ins?.pending.length ?? 0) + (orgIns?.pending.length ?? 0);
-  const rejected = [...(ins?.rejected ?? []), ...(orgIns?.rejected ?? [])];
+  const rejected = refusedHere(ins, orgIns, logged);
   const syncNow = async () => {
     setBusy(true);
     try { await Promise.all([language.sync(), org.sync()]); language.triggerUpload(); }
@@ -914,15 +989,16 @@ export function SyncStatus(ctx: Ctx) {
     <Screen header={<Header title={t('account.more.sync')} onBack={ctx.back} />}
       footer={<PrimaryBtn label={busy ? t('account.sync.syncing') : t('account.sync.syncNow')} icon="restart" onPress={() => void syncNow()} disabled={language.tooOld || busy} />}>
       {/* The server's refusal is English (its reason goes to the log): say what it means. */}
-      <Banner icon="cloud" tone={language.live ? 'green' : offline ? 'amber' : 'brand'}
-        title={language.live ? t('account.more.syncLive') : offline ? t('account.more.syncOffline') : t('account.sync.checking')}
+      {/* The last try failing to reach the server outranks the live channel, which can take a minute to notice a lost network. */}
+      <Banner icon="cloud" tone={offline ? 'amber' : language.live ? 'green' : 'brand'}
+        title={offline ? t('account.more.syncOffline') : language.live ? t('account.more.syncLive') : t('account.sync.checking')}
         body={language.refused ? t('account.sync.refused') : language.tooOld ? t('account.sync.tooOld') : undefined} />
       {/* Settings' "Ready for offline" opens here (decisions.md 61): what comes along comes first. */}
       <OfflineCard ctx={ctx} s={offlineSummaryNow} />
       <View style={styles.tiles}>
         <Stat icon="up" color={pendingEvents ? C.primary : C.green} value={pendingEvents} label={t('account.sync.waitingUpload')} />
         <Stat icon="flag" color={rejected.length ? TINT.redText : C.muted} value={rejected.length} label={t('account.sync.refusedByServer')} />
-        <Stat icon="check" color={C.green} value={ins?.cursor ?? 0} label={t('account.sync.latestConfirmed')} />
+        <Stat icon="check" color={C.green} value={Math.max(ins?.cursor ?? 0, logged?.cursor ?? 0)} label={t('account.sync.latestConfirmed')} />
         <Stat icon="layers" color={C.muted} value={ins?.checkpointSeq ?? 0} label={t('account.sync.localCheckpoint')} />
       </View>
       <Transfer icon="up" pending={language.blobs.pendingUp} peak={language.blobs.peakUp} rate={rates.up} label={t('account.sync.audioUp')} />
@@ -947,12 +1023,29 @@ export function SyncStatus(ctx: Ctx) {
           </Group>
         </>
       ) : null}
-      <Text style={[txt.xs, { textAlign: 'center' }]}>{ins ? t('account.sync.events', { count: ins.total }) : ''}</Text>
+      {/* Refused events are on this device too (PLAN.md invariant 1); the log's count leaves them out. */}
+      <Text style={[txt.xs, { textAlign: 'center' }]}>{ins ? t('account.sync.events', { count: ins.total + ins.rejected.length }) : ''}</Text>
       <Text style={[txt.xs, { textAlign: 'center' }]} selectable>
         {runningBuildLabel({ updateId: Updates.updateId ?? undefined, createdAt: Updates.createdAt ?? undefined, isEmbeddedLaunch: Updates.isEmbeddedLaunch })}
       </Text>
     </Screen>
   );
+}
+
+/** The device's log for this organization: refused events in every stream it holds, and the open language's cursor. */
+async function readLog(orgId: string, languageId: string, org: Parameters<typeof orgLanguages>[0]): Promise<{ rejected: LocalEvent[]; cursor: number }> {
+  if (!orgId) return { rejected: [], cursor: 0 };
+  const store = await getStore();
+  const streams = [ORG_STREAM, ...orgLanguages(org).map((l) => l.languageId)];
+  const rejected = (await Promise.all(streams.map((s) => store.rejected(orgId, s)))).flat();
+  return { rejected, cursor: languageId ? await store.cursor(orgId, languageId) : 0 };
+}
+
+/** Every refused event, once: the clients' own view and the log's, which also covers a language whose client is not open. */
+function refusedHere(...sources: ({ rejected: LocalEvent[] } | null)[]): LocalEvent[] {
+  const byId = new Map<string, LocalEvent>();
+  for (const s of sources) for (const l of s?.rejected ?? []) byId.set(l.event.id, l);
+  return [...byId.values()].sort((a, b) => (a.event.hlc < b.event.hlc ? -1 : a.event.hlc > b.event.hlc ? 1 : 0));
 }
 
 function clock(hlc: string): string {
@@ -976,15 +1069,18 @@ function Transfer(props: { icon: IconName; pending: number; peak: number; rate: 
   const total = Math.max(props.peak, props.pending);
   const done = total - props.pending;
   const idle = props.pending === 0;
+  // The card itself is not focusable when it has no action (kit Card), so the words a screen reader hears sit on this group.
   return (
-    <Card accessibilityLabel={idle ? t('account.sync.transferIdle', { label: props.label })
-      : t('account.sync.transferBusy', { label: props.label, done, total, speed: speed(props.rate) })}>
-      <View style={styles.profile}>
-        <Ico name={props.icon} size={22} color={idle ? C.muted : C.primary} />
-        <Text style={[txt.sm, { flex: 1, fontWeight: '600' }]}>{props.label}</Text>
-        {idle ? <Badge label={t('account.more.syncUpToDate')} tone="green" /> : <Text style={txt.xs}>{t('account.sync.left', { count: props.pending, speed: speed(props.rate) })}</Text>}
+    <Card>
+      <View accessible accessibilityLabel={idle ? t('account.sync.transferIdle', { label: props.label })
+        : t('account.sync.transferBusy', { label: props.label, done, total, speed: speed(props.rate) })} style={{ gap: space.sm }}>
+        <View style={styles.profile}>
+          <Ico name={props.icon} size={22} color={idle ? C.muted : C.primary} />
+          <Text style={[txt.sm, { flex: 1, fontWeight: '600' }]}>{props.label}</Text>
+          {idle ? <Badge label={t('account.more.syncUpToDate')} tone="green" /> : <Text style={txt.xs}>{t('account.sync.left', { count: props.pending, speed: speed(props.rate) })}</Text>}
+        </View>
+        {idle ? null : <ProgressBar value={total ? (done / total) * 100 : 100} />}
       </View>
-      {idle ? null : <ProgressBar value={total ? (done / total) * 100 : 100} />}
     </Card>
   );
 }

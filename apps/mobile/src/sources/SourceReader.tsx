@@ -20,7 +20,7 @@ import { markTerms } from '../recording/workspaceModel';
 import { openContentLink } from '../share';
 import { lift } from '../shadow';
 import { C, radius, space, target, TINT, type as T, withAlpha } from '../theme';
-import { filesetsFor, sourceUsed, type SourceOption, type VerseRow } from './model';
+import { emptyBibleText, filesetsFor, sourceUsed, type SourceOption, type VerseRow } from './model';
 import { PlayError, usePassagePlayer } from './player';
 import type { Usage } from './used';
 import { useChipMarks, usePassageSource, useSources, type PassageSources } from './useSources';
@@ -225,8 +225,8 @@ export function SourceView(props: SourceReaderProps & {
   const terms = props.terms ?? [];
   const verses = !option ? (
     <View style={styles.card}>
-      <Text style={txt.smMuted}>{passage.loading ? t('common.loading') : t('sources.reader.noBible')}</Text>
-      {!passage.loading && props.onMoreBibles ? <Text style={txt.xs}>{t('sources.reader.findMore')}</Text> : null}
+      <Text style={txt.smMuted}>{emptyBibleText({ loading: passage.loading, notOnDevice: passage.notOnDevice }, t('sources.reader.noBible'))}</Text>
+      {!passage.loading && !passage.notOnDevice && props.onMoreBibles ? <Text style={txt.xs}>{t('sources.reader.findMore')}</Text> : null}
     </View>
   ) : (
     <View style={styles.textCard} onLayout={(e) => { listY.current = e.nativeEvent.layout.y; }}>

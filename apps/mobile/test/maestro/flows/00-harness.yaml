@@ -1,0 +1,24 @@
+# The harness itself: the dev client opens on this run's Metro, a fixture
+# account signs in, and lands on My Work with its tabs.
+appId: com.frontierrnd.langquestnext
+name: "harness: the translator signs in and lands on My Work"
+tags:
+  - harness
+---
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${TRANS_EMAIL}
+      PASSWORD: ${TRANS_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- extendedWaitUntil:
+    visible:
+      id: "tab-work"
+    timeout: 60000
+- assertVisible:
+    id: "tab-map"
+- assertVisible:
+    id: "tab-me"
+- assertNotVisible:
+    id: "tab-manage"

@@ -819,6 +819,9 @@
       "introPending": "Esta pessoa criou uma conta e pediu para entrar. Atribua uma função e um alcance para dar acesso a ela.",
       "intro": "Escolha uma função e depois o alcance em que esta atribuição vale. O alcance pode ser este nível ou um abaixo.",
       "outranked": "{{name}} tem mais permissões aqui do que você, então só alguém com as mesmas permissões pode mudar isso.",
+      "onlyManager": "{{name}} é a única pessoa que pode gerenciar funções",
+      "onlyManagerYou": "Você é a única pessoa que pode gerenciar funções",
+      "onlyManagerSub": "Primeiro dê a outra pessoa uma função com Gerenciar funções. Depois esta função poderá mudar ou ser removida.",
       "viewOnly": "Só quem pode convidar membros muda funções.",
       "removeFromOrg": "Remover da organização",
       "removeFromLanguage": "Remover do idioma"
@@ -878,6 +881,7 @@
       "needsPermission": "Para adicionar um idioma, é preciso ter permissão para gerenciar modelos e fluxos de revisão de toda a organização.",
       "templateMissing": "O modelo dele ainda não está neste aparelho. Tente de novo quando tiver conexão.",
       "added": "{{language}} adicionado a {{org}}.",
+      "addedNotOffered": "{{language}} adicionado a {{org}}. Ofereça {{offers}} em O que os ajuda quando estiver on-line.",
       "step": "Etapa {{step}} de {{total}}",
       "called": "Como se chama o idioma?",
       "namePlaceholder": "ex.: Hadiyya",
@@ -2464,6 +2468,7 @@
       "confirmLabel": "Confirmar senha",
       "confirmPlaceholder": "Digite a senha de novo",
       "mismatch": "As senhas não são iguais.",
+      "tooShort": "A senha precisa de 6 caracteres ou mais.",
       "scanInvite": "Ler um convite",
       "scanHint": "Não precisa de e-mail nem de senha. O convite cria a sua conta e coloca você na equipe.",
       "failed": "Não foi possível criar a conta. Tente de novo."
@@ -2521,10 +2526,6 @@
       "startSub": "Para um líder de equipe",
       "lookTitle": "Olhar primeiro",
       "lookSub": "Trabalhos de tradução na lista pública",
-      "stillToSend_one": "Ainda falta enviar: uma mudança na conta. Saia quando estiver com internet de novo e ela tiver sido enviada.",
-      "stillToSend_many": "Ainda falta enviar: {{count, number}} de mudanças na conta. Saia quando estiver com internet de novo e elas tiverem sido enviadas.",
-      "stillToSend_other": "Ainda falta enviar: {{count, number}} mudanças na conta. Saia quando estiver com internet de novo e elas tiverem sido enviadas.",
-      "signOutFailed": "Não foi possível sair. Tente de novo.",
       "title": "Entre na sua equipe",
       "joiningInvite": "Entrando com o seu convite…",
       "inviteSavedTitle": "O seu convite está salvo",
@@ -2580,8 +2581,6 @@
       "member": "membro",
       "yourOrganization": "sua organização",
       "languageTeam": "equipe de {{language}} em {{org}}",
-      "showMe": "Mostre como",
-      "skip": "Pular por enquanto",
       "getStarted": "Começar",
       "invitedYou": "{{name}} convidou você",
       "greeting": "Boas-vindas, {{name}}",
@@ -2764,6 +2763,7 @@
       "tourSub": "Ouça uma apresentação curta",
       "more": "Mais configurações",
       "moreRefused": "Esta conta não pode sincronizar · senha, notificações, conta",
+      "moreRefusedEvents": "Recusados · {{n, number}} · senha, notificações, sincronização, conta",
       "morePending_one": "{{count, number}} esperando para enviar · senha, notificações, sincronização, conta",
       "morePending_many": "{{count, number}} esperando para enviar · senha, notificações, sincronização, conta",
       "morePending_other": "{{count, number}} esperando para enviar · senha, notificações, sincronização, conta",
@@ -3270,6 +3270,7 @@
       },
       "publish": "Publicar",
       "publishedWhen": "Publicado {{when}}",
+      "publishedJustNow": "Publicado agora mesmo",
       "someoneInSentence": "alguém",
       "thenAskFor": "Depois peça a {{check}}",
       "saveForTeam": "Salvar para a equipe ouvir",
@@ -3281,6 +3282,7 @@
         "movedPast": "passou",
         "setAside": "deixada de lado",
         "answered": "respondida",
+        "answeredBack": "respondida · volta para a verificação",
         "looksGood": "está bom",
         "needsChanges": "precisa de mudanças",
         "after": "depois da {{check}}",
@@ -3406,6 +3408,7 @@
       "playNote": "Tocar a nota de {{name}}",
       "whoseNote": "Nota de {{name}}",
       "playFeedback": "Tocar os comentários de {{name}}",
+      "playYourFeedback": "Ouvir seus comentários",
       "more": "Mais",
       "options": "Opções",
       "openVersion": "Abrir {{version}}"
@@ -3435,6 +3438,8 @@
       "version": "Versão {{n, number}} publicada",
       "versionNoNumber": "Versão publicada",
       "savedHere": "{{title}} · salvo neste aparelho · será enviado quando você estiver com internet",
+      "sent": "{{title}} · enviado para a equipe",
+      "sending": "{{title}} · enviando agora",
       "nextAsk": "Agora peça uma verificação",
       "allDone": "Todas as verificações estão feitas.",
       "alreadyAsked": "A próxima verificação já foi pedida."
@@ -3694,6 +3699,7 @@
       "tellCode": "Se continuar acontecendo, diga este código à sua equipe: {{code}}",
       "goBack": "Voltar",
       "goToMyWork": "Ir para Meu trabalho",
+      "goHome": "Ir para o início",
       "codeForTeam": "Código para a sua equipe: {{code}}",
       "notConfigured": "Esta versão do aplicativo não está configurada"
     },
@@ -3995,6 +4001,7 @@
     "toast": {
       "reportedAndBlocked": "{{name}} foi denunciado e bloqueado. Obrigado.",
       "reported": "Denúncia feita. Obrigado. Ela é enviada quando você estiver conectado.",
+      "reportedSent": "Denúncia feita. Obrigado.",
       "unblocked": "{{name}} foi desbloqueado.",
       "blocked": "{{name}} foi bloqueado. O que essa pessoa adicionar fica escondido para você.",
       "removed": "Removido da ficha. Os aparelhos deixam de mostrar na próxima sincronização.",
@@ -4079,7 +4086,6 @@
       "couldNotSeek": "Não foi possível avançar ou voltar o áudio (código {{code}}).",
       "rewindSource": "Voltar o texto-fonte 10 segundos",
       "forwardSource": "Avançar o texto-fonte 10 segundos",
-      "pausePlayback": "Pausar",
       "playAudio": "Tocar o áudio",
       "back10Help": "Ouvir de novo os últimos segundos.",
       "note": "Nota",
@@ -4495,6 +4501,8 @@
       "noLanguagesSub": "Quando um idioma for adicionado, as passagens dele aparecem aqui.",
       "noPassages": "Ainda não há passagens",
       "noPassagesSub": "Quando {{language}} tiver passagens para gravar, elas aparecem aqui por livro e capítulo.",
+      "needsConnection": "{{language}} ainda não está neste dispositivo",
+      "needsConnectionSub": "Conecte-se à internet para trazê-lo para cá. Ele abre sozinho quando você estiver conectado.",
       "summary": "{{recorded}} de {{total}} gravadas · {{done}} prontas · {{waiting}} com revisores",
       "find": "Encontrar “João 3”",
       "bookHits_one": "{{count, number}} livro · acrescente o número do capítulo para ir direto a ele",
@@ -5406,7 +5414,11 @@
       "skipTitle": "Deixar esta pergunta sem resposta?",
       "skipSub": "As perguntas obrigatórias podem ser puladas: o motivo fica salvo com a sua revisão.",
       "skipConfirm": "Pular pergunta",
-      "skipFootnote": "O motivo fica salvo com a sua revisão."
+      "skipFootnote": "O motivo fica salvo com a sua revisão.",
+      "leaveTitle": "Sair sem salvar?",
+      "leaveSub": "O que você disse e respondeu aqui não é salvo até você enviar a revisão.",
+      "keepReviewing": "Continuar revisando",
+      "leave": "Sair"
     },
     "guest": {
       "previewSub": "Prévia · o que alguém sem o aplicativo vê",
@@ -5593,6 +5605,7 @@
     "noteSubNext": "O que foi difícil de dizer aqui? A próxima verificação ouve isto junto com a sua retrotradução.",
     "addNote": "Adicionar nota",
     "typeNoMatch": "Ou digite, ex.: uma palavra sem equivalente em inglês",
+    "oneSpokenNote": "Por enquanto, uma só nota falada por retrotradução: digite esta.",
     "publishThe": "Publicar a {{what}}?",
     "publishSubCheck": "Da versão {{n}}. A {{check}} ouve em seguida.",
     "publishSub": "Da versão {{n}}. Vai para a ficha da passagem.",
@@ -5611,6 +5624,7 @@
     "missing": "Esta passagem ainda não está neste aparelho.",
     "missingSub": "Talvez ainda esteja carregando.",
     "orgLoading": "A sua organização ainda está carregando.",
+    "languageLoading": "Este idioma ainda está carregando. Tente de novo daqui a pouco.",
     "takesNotInDraft": "As suas tentativas estão salvas neste aparelho, mas ainda não estão no seu rascunho. {{reason}}",
     "partDeleted": "{{part}} apagada.",
     "chips": {
@@ -6172,7 +6186,9 @@
       "remove": "Remover de Minhas Bíblias",
       "chapter": "Capítulo {{n, number}}",
       "previousChapter": "Capítulo anterior",
-      "nextChapter": "Próximo capítulo"
+      "nextChapter": "Próximo capítulo",
+      "removed": "{{abbr}} removida de Minhas Bíblias",
+      "notRemoved": "Não foi removida. Tente de novo."
     }
   },
   "referenceLanguage": {

@@ -29,12 +29,13 @@ import { formatClock, formatNumber } from '../i18n/format';
 import { indexesFor } from '../indexes';
 import { Banner, Chip, EmptyState, Group, Header, PrimaryBtn, QuietLinks, Row, Screen, SectionLabel, Sheet, txt } from '../kit';
 import { sourceLine, type SharedItem } from '../library/model';
+import { restoreChecks } from '../checks/undo';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
 import { booksInScope, LANGUAGE_SCOPES, languageScopeLabel, mayGrantAt, type LanguageScope } from '../orgAdmin';
 import { recState, refKindOf, sourceFacts, type RefKind } from '../reference/model';
 import { referenceFailure, useRecommend } from '../reference/useReference';
 import { GuideLanguageSheet } from '../reference/GuideLanguageSheet';
-import { chooseSetLanguage, guideSets, hideSet, originOf, setKeyOf, setReach, type GuideSet, type ReferenceSay, type SetMember } from '../reference/guideSets';
+import { chooseSetLanguage, guideSets, hideSet, originOf, patternOf, setKeyOf, setReach, type GuideSet, type ReferenceSay, type SetMember } from '../reference/guideSets';
 import { docLanguage, languagesLine, readerLanguage, sameLanguage, teamLanguage } from '../reference/languages';
 import { memberIn } from '../reference/languageChoices';
 import { ReferenceLanguageChip, ReferenceLanguagePage, useReferenceLanguages } from '../reference/ReferenceLanguagePage';
@@ -178,7 +179,7 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
         )}
         {tq.page !== 'what' ? <QuietLinks items={[{ label: t('common.back'), icon: 'arrowL', onPress: () => { tq.retreat(); } }]} /> : null}
       </>}>
-      <TranslateQuestion ctx={ctx} t={tq} lang={lang} canMake={canUse} onMake={() => ctx.go('template_editor', { new: '1' })} />
+      <TranslateQuestion ctx={ctx} t={tq} lang={lang} canMake={lib.canWrite('template')} onMake={() => ctx.go('template_editor', { new: '1' })} />
       {doc?.bible && tq.last ? (
         <>
           <SectionLabel label={t('getReady.record.whichPart')} />
@@ -251,7 +252,14 @@ function useHelpItems(ctx: Ctx) {
   // FIA's collections, one per language, are one row whose language is chosen (decision 84).
   const sets = guideSets(items.map((it) => ({ it, doc: docs.get(it.current) })), others.map((s) => ({ s, doc: docs.get(s.latest_hash) })));
   const setKeys = new Set(sets.map((x) => x.key));
+  // Sibling languages arrive after the one already in the library. Until their
+  // documents are here, a patterned collection is not its own switch: tapping
+  // that switch would turn FIA off instead of asking which language.
+  const docsPending = others.some((s) => !!s.latest_hash && !docs.get(s.latest_hash));
+  const guidesIncoming = (!shared.loaded || docsPending) && !docs.error;
   for (const set of sets) {
+    // Wait until every shared document is in, so the sheet lists every language, not the first two that arrived.
+    if (guidesIncoming) continue;
     const reach = setReach(set, org?.recommendations, state);
     const first = reach[0] ?? set.members[0]!;
     const doc = first.itemId ? docs.get(lib.item(first.itemId)?.current) : docs.get(first.shared?.latest_hash);
@@ -265,6 +273,7 @@ function useHelpItems(ctx: Ctx) {
     const kind = refKindOf(doc);
     if (!doc || !kind || kind === 'questions') continue;
     if (setKeys.has(setKeyOf(originOf(it), doc) ?? '')) continue;
+    if (guidesIncoming && kind === 'guide' && doc.format === 'collection@1' && patternOf(doc)) continue;
     // A Bible reaches the team when recommended; a guide or note in the library reaches it unless hidden here (reference/offered.ts).
     const on = kind === 'source' ? offered.has(it.itemId) : say[it.itemId]?.value !== 'hidden';
     const following = it.source === 'subscription' && it.subscription?.active ? it.subscription.sourceOrgName : null;
@@ -275,6 +284,7 @@ function useHelpItems(ctx: Ctx) {
     const kind = refKindOf(doc);
     if (!doc || (kind !== 'source' && kind !== 'guide')) continue;
     if (setKeys.has(setKeyOf(s.org_id, doc) ?? '')) continue;
+    if (guidesIncoming && kind === 'guide' && doc.format === 'collection@1' && patternOf(doc)) continue;
     // Another organization's guides in a language the team may read: the language's own or the reader's.
     const lang = docLanguage(doc);
     if (kind === 'guide' && lang && !sameLanguage(lang, reads) && !sameLanguage(lang, reader)) continue;
@@ -336,7 +346,20 @@ function useHelpItems(ctx: Ctx) {
     await sayAll(hideSet(h.set.set, ctx.language.state), t('getReady.helps.setOff', { name: guideShortName(h.set.set.name) }));
     setBusy(false);
   }
-  return { items: out, toggle, chooseLanguage, setOff, busy, may, reads, loading: !shared.loaded, get: docs.get };
+  return { items: out, toggle, chooseLanguage, setOff, busy, may, reads, loading: (!shared.loaded || docsPending) && !docs.error, get: docs.get };
+}
+
+/**
+ * A guide set's row asks which language, including when the set is already
+ * on. Turning it off is the sheet's own control ("Don't offer …"). A
+ * patterned collection that is on is the same choice, never a switch off.
+ */
+function onHelpPress(x: HelpItem, items: readonly HelpItem[], open: (x: HelpItem) => void, toggle: (x: HelpItem) => void) {
+  if (x.set) { open(x); return; }
+  const joined = x.itemId ? items.find((i) => i.set?.set.members.some((m) => m.itemId === x.itemId)) : undefined;
+  if (joined) { open(joined); return; }
+  if (x.on && x.kind === 'guide' && x.doc.format === 'collection@1' && patternOf(x.doc)) return;
+  toggle(x);
 }
 
 /** What a guide row says of its language: the set's languages chosen, or how many it comes in; a single guide's own. */
@@ -497,7 +520,7 @@ function HelpsList({ ctx, lang, header, next, onLanguage }: StepProps & { onLang
           {guides.map((g, i) => (
             <SwitchRow key={g.key} icon="star" label={guides.length === 1 ? t('getReady.helps.studyGuides') : t('getReady.helps.namedGuides', { name: guideShortName(g.name) })}
               sub={[guides.length === 1 ? guideShortName(g.name) : fromLine(g), guideLanguageLine(g), g.on ? t('getReady.helps.onInline') : t('getReady.helps.offInline'), comes(g)].filter(Boolean).join(' · ')}
-              on={g.on} disabled={!h.may || h.busy} onToggle={() => (g.set ? sheet.open(g) : void h.toggle(g))} last={i === guides.length - 1} />
+              on={g.on} disabled={!h.may || h.busy} onToggle={() => onHelpPress(g, h.items, sheet.open, (x) => void h.toggle(x))} last={i === guides.length - 1} />
           ))}
         </Group>
       ) : h.loading ? <Text style={txt.smMuted}>{t('getReady.helps.lookingForGuides')}</Text> : null}
@@ -531,7 +554,7 @@ function HelpsPage({ ctx }: { ctx: Ctx }) {
   const terms = useMemo(() => keyTermsFor(state), [state]);
   const written = useMemo(() => materialsFor(state).filter((m) => m.kind !== 'questions' && m.kind !== 'key_terms' && m.kind !== 'fia_study'), [state]);
   const switchRow = (x: HelpItem, last: boolean, sub: string) => (
-    <SwitchRow key={x.key} label={plainName(x.name, reads)} sub={sub} on={x.on} disabled={!h.may || h.busy} onToggle={() => (x.set ? sheet.open(x) : void h.toggle(x))} last={last} />
+    <SwitchRow key={x.key} label={plainName(x.name, reads)} sub={sub} on={x.on} disabled={!h.may || h.busy} onToggle={() => onHelpPress(x, h.items, sheet.open, (item) => void h.toggle(item))} last={last} />
   );
   const none = (label: string) => <Row label={label} sub={t('getReady.page.addToOffer')} muted last />;
   const bibles = h.items.filter((x) => x.kind === 'source');
@@ -555,7 +578,7 @@ function HelpsPage({ ctx }: { ctx: Ctx }) {
           // A set counts the passages of the languages chosen; off, none.
           const entries = g.set ? g.set.reach.reduce((n, m) => Math.max(n, m.passages), 0) : g.doc.format === 'collection@1' ? (g.doc as CollectionDoc).entries.length : 0;
           return switchRow(g, i === guides.length - 1, [fromLine(g), guideLanguageLine(g), entries ? t('getReady.page.passagesCovered', { count: entries }) : ''].filter(Boolean).join(' · '));
-        }) : none(t('getReady.page.noGuides'))}
+        }) : h.loading ? <Text style={txt.smMuted}>{t('getReady.helps.lookingForGuides')}</Text> : none(t('getReady.page.noGuides'))}
       </Group>
       <SectionLabel label={t('getReady.page.keyWords')} />
       <Group>
@@ -630,7 +653,7 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
     const previous = state.flow?.value ? { flow: state.flow.value, steps: flow.steps } : null;
     const undo = previous ? () => {
       const s = ctx.language.state;
-      return s ? commands(s, indexesFor(s)).restoreFlow({ commandId: Crypto.randomUUID(), previous }) : [];
+      return s ? restoreChecks(s, previous, Crypto.randomUUID()) : [];
     } : undefined;
     try {
       await ctx.act(specs, t('getReady.checks.saved', { title: titleOf(pick.doc) }), undo);

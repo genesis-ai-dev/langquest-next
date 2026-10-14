@@ -29,4 +29,13 @@ describe('https links', () => {
     expect(parseSignInKey(`${app}/#code=${code}`)).toBeNull();
     expect(parseSignInKey(`${app}/signin#code=${code.slice(1)}`)).toBeNull();
   });
+
+  it('reads back the links a web app served on this machine makes, over plain http', () => {
+    for (const local of ['http://localhost:8097', 'http://127.0.0.1:8081', 'http://[::1]:19006', 'http://app.localhost']) {
+      expect(parseInvite(inviteUri('org1', token, local))).toEqual({ orgId: 'org1', token });
+      expect(parseKey(signInUri(code, local))).toEqual({ kind: 'signin', code });
+    }
+    expect(parseInvite(`http://localhost.example.org/invite#token=${token}`)).toBeNull();
+    expect(parseInvite(`http://192.168.1.5:8097/invite#token=${token}`)).toBeNull();
+  });
 });

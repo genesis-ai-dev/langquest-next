@@ -1,7 +1,9 @@
+import { foldOrg, SEED_ROLES, type AnyEvent } from '@langquest-next/core';
 import { chapterStage, chapterTone, type PassageFacts } from '../src/canon';
+import { needsConnection, openableLanguages } from '../src/simple/mapModel';
 import { EDGES } from '../src/flow';
 import { edgeAllowed, tabsFor } from '../src/session';
-import { nextSub, readiness, readySteps, workIcon, workSub, workTarget, workWhat } from '../src/simple/homeModel';
+import { nextSub, readiness, readySteps, waitingWhat, waitingWho, workIcon, workSub, workTarget, workWhat } from '../src/simple/homeModel';
 import { offlineCount } from '../src/simple/meModel';
 import { roleSession } from './sessions';
 
@@ -49,6 +51,19 @@ describe('the simple My Work (decision 71)', () => {
     // The Next card has room for both.
     expect(nextSub('record', 'Record', { by: 'Mary', due: 'due Oct 11' })).toBe('Record it · asked by Mary · due Oct 11');
   });
+
+  it('names who a request is waiting on: the person, the check\'s team, an older team, or the guest', () => {
+    // Why: a check carries its own people (decisions.md 91) and "Ask the Peer
+    // check team" reaches all of them; Waiting on others said "someone" (NAV-015).
+    const opts = { name: (id: string) => (id === 'p1' ? 'Rita' : id), checkName: (k: string) => (k === 'peer' ? 'Peer check' : k) };
+    expect(waitingWho({ what: 'review', kindId: 'peer', profileId: 'p1' }, opts)).toBe('Rita');
+    expect(waitingWho({ what: 'review', kindId: 'peer', teamId: 'check:peer', team: { name: 'old name' } }, opts)).toBe('the Peer check team');
+    expect(waitingWho({ what: 'review', kindId: 'peer', teamId: 'team-1', team: { name: 'Alpha checkers' } }, opts)).toBe('the Alpha checkers team');
+    expect(waitingWho({ what: 'review', kindId: 'peer', guest: { name: 'Pastor John' } }, opts)).toBe('Pastor John');
+    expect(waitingWho({ what: 'review', kindId: 'peer' }, opts)).toBe('someone');
+    expect(waitingWhat({ what: 'record' }, opts.checkName)).toBe('Recording');
+    expect(waitingWhat({ what: 'review', kindId: 'peer' }, opts.checkName)).toBe('Peer check');
+  });
 });
 
 describe('the simple tabs (decision 71)', () => {
@@ -80,6 +95,35 @@ describe('the simple tabs (decision 71)', () => {
 });
 
 describe('the simple Map (decision 71)', () => {
+  it('says a language needs a connection only when nothing of it is here and the server cannot be reached (MAP-033)', () => {
+    // Why: offline, a language never opened on this phone loaded for ever or
+    // looked empty, and only the Sync card said it needed a connection.
+    const base = { showing: 'b', open: 'b', pulled: false, online: false as boolean | null, empty: true };
+    expect(needsConnection(base)).toBe(true);
+    expect(needsConnection({ ...base, online: null })).toBe(false);
+    expect(needsConnection({ ...base, online: true })).toBe(false);
+    expect(needsConnection({ ...base, pulled: true })).toBe(false);
+    expect(needsConnection({ ...base, empty: false })).toBe(false);
+    expect(needsConnection({ ...base, open: 'a' })).toBe(false);
+  });
+
+  it('lists only the languages a person holds a role in, so opening one never leaves them with no privileges (NAV-042)', () => {
+    // Why: a language lead opening a language outside their scope had no
+    // privileges there, so the app treated them as having no organization.
+    const org = foldOrg([
+      { type: 'v1.LanguageAdded', payload: { languageId: 'a', name: 'Alpha', code: 'alp', sourceCode: 'eng' } },
+      { type: 'v1.LanguageAdded', payload: { languageId: 'b', name: 'Bravo', code: 'bra', sourceCode: 'eng' } },
+      ...SEED_ROLES.map((r) => ({ type: 'v1.RoleDefined', payload: { roleId: r.roleId, name: r.name, privileges: r.privileges } })),
+      { type: 'v1.MemberAdded', payload: { profileId: 'lead', roleId: 'coordinator', scope: { level: 'language', languageId: 'a' } } },
+      { type: 'v1.MemberAdded', payload: { profileId: 'viewer', roleId: 'viewer', scope: { level: 'org' } } }
+    ].map((e, i) => ({ ...e, id: `m${i}`, orgId: 'o', streamId: '_org', actorId: 'x', deviceId: 'd', hlc: `${String(i + 1).padStart(15, '0')}:000000:d` }) as AnyEvent));
+    const all = [{ languageId: 'a', name: 'Alpha' }, { languageId: 'b', name: 'Bravo' }];
+    expect(openableLanguages(org, 'lead', all).map((l) => l.name)).toEqual(['Alpha']);
+    expect(openableLanguages(org, 'viewer', all).map((l) => l.name)).toEqual(['Alpha', 'Bravo']);
+    expect(openableLanguages(org, 'stranger', all)).toEqual([]);
+    expect(openableLanguages(null, 'lead', all)).toEqual([]);
+  });
+
   const s = (o: Partial<PassageFacts>): PassageFacts => ({ recorded: false, done: false, drafting: false, awaitingResponse: [], openRequests: [], ...o });
 
   it('shows a chapter in three states: done, started, not started', () => {

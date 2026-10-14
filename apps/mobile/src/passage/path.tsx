@@ -54,15 +54,16 @@ function StepRow(props: {
   const lit = step.state === 'current';
   const spot = useHelpSpot(step.title, stepHelp(step.kind), props.onPress);
   const press = spot.onPress;
-  const body = (
-    <View style={lit ? styles.litCard : styles.plain}>
+  // The card's own words are the step's button; what sits inside the lit card (a note or the feedback to
+  // play) has buttons of its own, so it stays outside that button (a button in a button breaks the web).
+  const head = (
+    <>
       <View style={styles.titleRow}>
         <Ico name={STEP_ICON[step.kind]} size={20} color={step.state === 'done' ? C.dark : lit ? C.primary : C.muted} />
         <Text style={[styles.stepTitle, step.state === 'todo' || step.state === 'passed' ? { color: C.muted } : null]}>{step.title}</Text>
       </View>
       <Text style={[txt.smMuted, { marginTop: 2 }]}>{step.sub}</Text>
-      {props.extra ? <View style={{ marginTop: space.sm }}>{props.extra}</View> : null}
-    </View>
+    </>
   );
   return (
     <View style={styles.row}>
@@ -71,13 +72,16 @@ function StepRow(props: {
         {!props.last ? <View style={[styles.line, { backgroundColor: props.lineDone ? C.green : C.border }]} /> : null}
       </View>
       <View style={{ flex: 1, minWidth: 0, paddingBottom: props.last ? 0 : space.lg }}>
-        {press ? (
-          <Pressable onPress={press} accessibilityRole="button" accessibilityLabel={`${props.n}. ${step.title}. ${step.sub}`}
-            accessibilityState={{ selected: lit }} style={({ pressed }) => pressed && { opacity: 0.75 }}>
-            {body}
-            <HelpBadge spot={spot} />
-          </Pressable>
-        ) : body}
+        <View style={lit ? styles.litCard : styles.plain}>
+          {press ? (
+            <Pressable onPress={press} accessibilityRole="button" accessibilityLabel={`${props.n}. ${step.title}. ${step.sub}`}
+              accessibilityState={{ selected: lit }} style={({ pressed }) => pressed && { opacity: 0.75 }}>
+              {head}
+              <HelpBadge spot={spot} />
+            </Pressable>
+          ) : head}
+          {props.extra ? <View style={{ marginTop: space.sm }}>{props.extra}</View> : null}
+        </View>
       </View>
     </View>
   );

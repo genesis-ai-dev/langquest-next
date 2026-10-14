@@ -1,0 +1,190 @@
+// SETUP: scope limits on setup (docs/ui-test-suite/09-language-setup.md,
+// SETUP-061 to SETUP-066). LADMIN holds every setup privilege but only at
+// Alpha. A language's own choices (its template, checks and offers) are
+// Alpha's events, which LADMIN may write; the organization's library and
+// recommendations are organization-stream events that need organization
+// scope (core `languageOfOrgEvent`, SQL `may_emit`), so they are not
+// offered (library/model.ts `mayWriteLibrary`).
+import type { Page } from '@playwright/test';
+import {
+  back, button, byId, deviceFor, expect, expectNothingRefused, expectSent, expectToast, field, openAs, primary, screenText, tab, tabsShown, test, text,
+  undoToast, useWorld
+} from './support';
+import { closeSheet, expectNotOnScreen, expectOnScreen, expectOrgSent, more, orgRefused, setup } from './setup-helpers';
+
+const world = useWorld();
+
+async function alphaPage(page: Page): Promise<void> {
+  await openAs(page, world(), 'LADMIN');
+  await tab(page, 'manage').click();
+  await expectOnScreen(page, 'Alpha', 'They record');
+}
+
+test('SETUP-061 LADMIN\'s Manage tab is Alpha\'s page', async ({ page }) => {
+  await alphaPage(page);
+  await expect(byId(page, 'header-back')).toHaveCount(0);
+  await more(page);
+  await expectOnScreen(page, 'Members', 'Roles', 'Every way to divide the work', 'Bibles, guides and notes', 'Every way to check', 'Show on the public list',
+    'The organization\'s page', 'Name', 'In the language list');
+  await expectNotOnScreen(page, 'Review groups');
+  // Bravo is not LADMIN's: none of its setup or its work.
+  await tab(page, 'map').click();
+  const bravo = text(page, 'Bravo');
+  if (await bravo.count()) {
+    await bravo.click();
+    await expectNotOnScreen(page, 'They record', 'Get Bravo ready', 'Who checks the recordings?');
+  }
+  await expectNotOnScreen(page, 'This screen could not open');
+});
+
+/** ADMIN follows LangQuest's "FIA passages", so ORG's library holds a second template of its own. */
+async function secondTemplate(page: Page): Promise<void> {
+  const w = world();
+  const admin = await deviceFor(page.context().browser()!, w, 'ADMIN');
+  const p = admin.page;
+  await tab(p, 'manage').click();
+  await setup(p);
+  await text(p, 'Content Templates').click();
+  for (let i = 0; i < 10 && !(await text(p, 'FIA passages').count()); i++) await text(p, /^Show 5 more/).click();
+  await text(p, 'FIA passages').click();
+  await text(p, 'Follow').click();
+  await text(p, 'Update automatically').click();
+  await expectToast(p, /^Following FIA passages/);
+  await expectOrgSent(p, w);
+  await admin.context.close();
+}
+
+test('SETUP-062 LADMIN chooses Alpha\'s own template and checks', async ({ page }) => {
+  const w = world();
+  await secondTemplate(page);
+  await alphaPage(page);
+  // A ready-made flow: its checks are copied into Alpha (decision 91), Alpha's own events.
+  await more(page);
+  await text(page, 'Every way to check').click();
+  const quick = page.locator('div').filter({ has: page.getByText('Quick Check', { exact: true }) })
+    .filter({ has: page.getByRole('button', { name: 'Use', exact: true }) }).last();
+  await quick.getByRole('button', { name: 'Use', exact: true }).click();
+  await expectToast(page, 'Alpha now uses Quick Check.');
+  await undoToast(page);
+  await expectToast(page, 'Undone.');
+  await back(page).click();
+  // One of Alpha's checks taken out and put back.
+  await text(page, 'Checks').click();
+  await text(page, 'Final approval').click();
+  await text(page, 'Remove this check').click();
+  await expectToast(page, 'Final approval removed');
+  await undoToast(page);
+  await expectOnScreen(page, 'Final approval');
+  await back(page).click();
+  // Another of the organization's own templates: Change template offers only those (following another
+  // organization's is a library write).
+  await more(page);
+  await text(page, 'Every way to divide the work').click();
+  await text(page, 'Change template').click();
+  await expectOnScreen(page, 'Choose a Template', 'FIA passages (English) · in use');
+  await expectNotOnScreen(page, 'From other organizations', 'Bible chapters (English)');
+  await text(page, 'FIA passages', true).click();
+  await button(page, 'Use FIA passages').click();
+  await expectToast(page, 'Alpha now uses FIA passages.');
+  await undoToast(page);
+  await expectSent(page, w);
+  await expectNothingRefused(page, w);
+  await expectOrgSent(page, w);
+  expect(await orgRefused(page, w)).toEqual([]);
+});
+
+test('SETUP-063 LADMIN is not offered the organization\'s library writes', async ({ page }) => {
+  const w = world();
+  await alphaPage(page);
+  await more(page);
+  // The template Alpha uses: viewed, not edited; its books are read, not broken up.
+  await text(page, 'Every way to divide the work').click();
+  await expectOnScreen(page, 'View template', 'Change template');
+  await expectNotOnScreen(page, 'Edit template');
+  await text(page, 'Luke').click();
+  await expectOnScreen(page, 'Luke', 'Called Luke in Alpha');
+  await expectNotOnScreen(page, 'Break up differently');
+  await back(page).click();
+  await text(page, 'View template').click();
+  await expectNotOnScreen(page, 'Save changes', 'Copy to change it', 'Create template');
+  await back(page).click();
+  await back(page).click();
+  // Review flows: Use (Alpha's own checks), but no new flow, Follow or Copy.
+  await more(page);
+  await text(page, 'Every way to check').click();
+  await expectOnScreen(page, 'Review Flows', 'Use');
+  await expect(button(page, 'Follow')).toHaveCount(0);
+  await expect(button(page, 'Copy')).toHaveCount(0);
+  await expect(button(page, 'Flow')).toHaveCount(0);
+  await expectNotOnScreen(page, 'Save as a flow');
+  await back(page).click();
+  // The organization's Content Templates: no Options, no new template, no Follow or Copy.
+  await more(page);
+  await text(page, 'The organization\'s page').click();
+  await setup(page);
+  await text(page, 'Content Templates').click();
+  await expectOnScreen(page, 'Content Templates', 'View');
+  await expectNotOnScreen(page, 'Options');
+  await expect(button(page, 'Template')).toHaveCount(0);
+  await text(page, 'Bible chapters (English)').click();
+  await expect(button(page, 'Follow')).toHaveCount(0);
+  await expect(button(page, 'Copy')).toHaveCount(0);
+  await closeSheet(page);
+  // Nothing went to the organization's stream to be refused (G10.2).
+  await expectOrgSent(page, w);
+  expect(await orgRefused(page, w)).toEqual([]);
+});
+
+test('SETUP-064 LADMIN\'s Bibles: recommendations are Alpha\'s; adding one to the library is not offered', async ({ page }) => {
+  const w = world();
+  await alphaPage(page);
+  await more(page);
+  await text(page, 'Bibles, guides and notes').click();
+  await text(page, 'Bibles').click();
+  await expectOnScreen(page, 'Bibles', 'What this language’s team is offered');
+  // Adding a Bible follows LangQuest's or publishes Bible Brain's in the organization's library.
+  await expect(button(page, 'Add a Bible')).toHaveCount(0);
+  // The local library has no Bible (no source@1 is seeded): Hide, Follow organization and Recommend need the preview environment.
+  await expectOrgSent(page, w);
+  expect(await orgRefused(page, w)).toEqual([]);
+});
+
+test('SETUP-065 LADMIN\'s guides and material are Alpha\'s own', async ({ page }) => {
+  const w = world();
+  const title = `Names in Luke ${w.run.slice(-4)}`;
+  await alphaPage(page);
+  await more(page);
+  await text(page, 'Bibles, guides and notes').click();
+  await expectNotOnScreen(page, 'Write a guide');
+  await expect(button(page, 'New')).toHaveCount(0);
+  await expect(button(page, 'Follow')).toHaveCount(0);
+  await primary(page).click();
+  await expectNotOnScreen(page, 'Where it applies', 'All languages');
+  await field(page, 'Title').fill(title);
+  await primary(page).click();
+  await expectToast(page, `${title} added.`);
+  await text(page, title).click();
+  await expectNotOnScreen(page, 'Publish to library');
+  await expectSent(page, w);
+  await expectNothingRefused(page, w);
+  await expectOrgSent(page, w);
+  expect(await orgRefused(page, w)).toEqual([]);
+});
+
+test('SETUP-066 Members without setup privileges never reach setup screens', async ({ browser }) => {
+  const w = world();
+  for (const who of ['TRANS', 'REV', 'TREV', 'VIEW', 'KEPT'] as const) {
+    const d = await deviceFor(browser, w, who);
+    const p = d.page;
+    expect(await tabsShown(p)).not.toContain('manage');
+    if (who !== 'VIEW') {
+      await tab(p, 'work').click();
+      await expect.poll(() => screenText(p)).not.toMatch(/Get .* ready · \d of 4/);
+    }
+    // The web address of a setup section.
+    await p.goto('/manage/language');
+    await expect.poll(() => screenText(p), { timeout: 30_000 }).not.toMatch(/They record|Every way to divide the work|Content Templates/);
+    await expectNotOnScreen(p, 'This screen could not open');
+    await d.context.close();
+  }
+});

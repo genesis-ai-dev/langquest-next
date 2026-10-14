@@ -178,7 +178,7 @@ export function RecorderFooter(props: { count: number; phase: LoopPhase; recordD
       <Text style={[styles.side, { textAlign: 'right', color: recording ? TINT.redText : C.muted }]} numberOfLines={2}>{recording ? t('recording.recorder.nextRecording', { part: lines.next }) : lines.next}</Text>
       <RecordBtn size={72} recording={recording} disabled={props.recordDisabled} onPress={props.onRecord} />
       <View style={styles.sideBox}>
-        <Pressable onPress={publish.onPress} disabled={props.publishDisabled} accessibilityRole="button" accessibilityLabel={t('common.publish')} accessibilityState={{ disabled: props.publishDisabled }}
+        <Pressable testID="publish-button" onPress={publish.onPress} disabled={props.publishDisabled} accessibilityRole="button" accessibilityLabel={t('common.publish')} accessibilityState={{ disabled: props.publishDisabled }}
           style={({ pressed }) => [styles.publish, props.publishDisabled && { opacity: 0.45 }, pressed && ps.pressed]}>
           <Text style={styles.publishLabel}>{t('common.publish')}</Text>
           <HelpBadge spot={publish} />
@@ -192,11 +192,11 @@ const styles = StyleSheet.create({
   card: { backgroundColor: C.card, borderRadius: radius.lg, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
   head: { flexDirection: 'row', alignItems: 'center', gap: space.sm + 2, minHeight: 56, paddingLeft: space.md, paddingRight: space.xs },
   title: { fontSize: T.base, fontWeight: '800', color: C.dark },
-  iconTap: { width: 44, height: target.min, alignItems: 'center', justifyContent: 'center' },
+  iconTap: { width: target.min, height: target.min, alignItems: 'center', justifyContent: 'center' },
   parts: { borderTopWidth: 1, borderColor: C.border, paddingLeft: 50, paddingRight: space.xs, paddingVertical: space.xs },
   versePart: { borderTopWidth: 1, borderColor: C.border },
   partRow: { flexDirection: 'row', alignItems: 'center' },
-  partPlay: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 40 },
+  partPlay: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: target.min },
   next: { flexDirection: 'row', alignItems: 'center', gap: space.sm + 2, minHeight: 56, paddingHorizontal: space.md, borderRadius: radius.lg, borderWidth: 2, borderColor: C.primary, backgroundColor: C.card },
   meter: { width: 64, height: 28, flexDirection: 'row', alignItems: 'center', gap: 2 },
   meterBar: { flex: 1, borderRadius: 2, backgroundColor: C.red },

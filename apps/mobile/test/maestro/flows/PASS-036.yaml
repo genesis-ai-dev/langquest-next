@@ -1,0 +1,102 @@
+# PASS-036, the offline status on the record (docs/ui-test-suite/05-passage-record.md,
+# decision 61): just under the header, without scrolling, each passage says
+# whether it is on this device. Online on both phones; on Android the
+# network is then turned off (airplane mode) and the record still opens.
+# P-S nobody asked for or worked on (not kept); P-NEW was asked of TRANS (kept).
+appId: com.frontierrnd.langquestnext
+name: "PASS-036 Offline indicators on the record"
+tags:
+  - pass
+---
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${TRANS_EMAIL}
+      PASSWORD: ${TRANS_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- extendedWaitUntil:
+    visible:
+      id: "tab-map"
+    timeout: 60000
+# P-NEW first, while online, so its kept audio is on the phone.
+- tapOn:
+    id: "tab-map"
+- tapOn: "Find.*"
+- inputText: ${P_NEW.split(':')[0]}
+- runFlow:
+    file: ../common/dismiss-keyboard.yaml
+    env:
+      LABEL: ${LANG_A}
+- tapOn:
+    text: "${P_NEW}.*"
+    index: 0
+- extendedWaitUntil:
+    visible: "(?i)Then the team"
+    timeout: 30000
+- extendedWaitUntil:
+    visible: ".*On this device.*"
+    timeout: 60000
+- tapOn:
+    id: "header-back"
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - setAirplaneMode: enabled
+# P-S: not kept. The line is under the header, before the path.
+- tapOn:
+    text: "${P_NEW.split(':')[0]}"
+    index: 0
+- eraseText
+- inputText: ${P_S.split(':')[0]}
+- runFlow:
+    file: ../common/dismiss-keyboard.yaml
+    env:
+      LABEL: ${LANG_A}
+- tapOn:
+    text: "${P_S}.*"
+    index: 0
+- extendedWaitUntil:
+    visible: "(?i)Then the team"
+    timeout: 30000
+- assertVisible: ".*(Not kept on this device|Audio not on this device).*"
+- tapOn: "Something else\\?"
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - extendedWaitUntil:
+          visible: ".*Audio not on this device.*"
+          timeout: 120000
+      - assertVisible: ".*You can read it and record, but its audio needs a connection\\..*"
+- tapOn:
+    id: "header-close"
+# The record's status and history show while offline.
+- tapOn: "Versions and history"
+- assertVisible: ".*Versions.*"
+- tapOn:
+    id: "header-close"
+- tapOn:
+    id: "header-back"
+- tapOn:
+    text: "${P_S.split(':')[0]}"
+    index: 0
+- eraseText
+- inputText: ${P_NEW.split(':')[0]}
+- runFlow:
+    file: ../common/dismiss-keyboard.yaml
+    env:
+      LABEL: ${LANG_A}
+- tapOn:
+    text: "${P_NEW}.*"
+    index: 0
+- extendedWaitUntil:
+    visible: "(?i)Then the team"
+    timeout: 30000
+- assertVisible: ".*On this device.*"
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - setAirplaneMode: disabled

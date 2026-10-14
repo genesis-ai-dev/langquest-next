@@ -23,20 +23,29 @@ export function inviteUri(orgId: string, token: string, appUrl?: string | null):
   return appUrl ? `${appUrl}/invite#${params}` : `langquestnext://invite?${params}`;
 }
 
-/** The parameters of a link for `path` (`invite`, `signin`), in either form; null when it is not one. */
+/**
+ * The parameters of a link for `path` (`invite`, `signin`), in either form; null when it is not one.
+ * Plain http only on this machine: the web app served locally makes its links
+ * from its own address (appUrl.ts), and must read back the links it makes.
+ */
 function linkParams(raw: string, path: 'invite' | 'signin'): string | null {
   const scheme = new RegExp(`^langquestnext://${path}\\?(.*)$`, 'i').exec(raw);
   if (scheme) return scheme[1]!;
-  const https = new RegExp(`^https://[^/?#\\s]+/${path}/?[?#](.*)$`, 'i').exec(raw);
+  const https = new RegExp(`^(?:https://[^/?#\\s]+|http://${LOCAL_HOST}(?::\\d+)?)/${path}/?[?#](.*)$`, 'i').exec(raw);
   return https ? https[1]! : null;
 }
+
+/** This machine, by the names a local web server answers to. */
+const LOCAL_HOST = '(?:localhost|127\\.0\\.0\\.1|\\[::1\\]|[a-z0-9-]+\\.localhost)';
 
 export function parseInvite(input: string): { orgId?: string; token: string } | null {
   const raw = input.trim();
   if (!raw) return null;
   const params = linkParams(raw, 'invite');
   if (params === null) {
-    return /^[0-9a-f]{32,128}$/i.test(raw) ? { token: raw } : null;
+    // A bare code is read only whole: every invite is 64 hex characters (invites.ts newToken), and a
+    // code typed by hand would otherwise be read, and fail, at its 32nd character.
+    return /^[0-9a-f]{64}$/i.test(raw) ? { token: raw } : null;
   }
   const query = `&${params}`;
   const m = /[?&#]token=([^&\s#]+)/.exec(query);

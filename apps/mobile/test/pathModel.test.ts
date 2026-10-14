@@ -108,6 +108,8 @@ describe('the passage path (decision 71)', () => {
     expect(steps[2]!.sub).toBe('Peer check · needs changes');
     expect(steps[2]!.review?.comment).toBe('Verse 4 is hard to follow.');
     expect(teamSteps(l.input('akol'))[0]).toMatchObject({ state: 'attention', status: 'needs changes' });
+    // Only the version's author answers it: a reviewer's path stays the recording's own.
+    expect(shape(pathSteps(l.input('ayen')))).toEqual(['record:done', 'publish:done']);
     // A new version answers it: the path is the recording's again.
     l.record('akol', 'h2', 'Said verse 4 more simply.');
     expect(shape(pathSteps(l.input('akol')))).toEqual(['record:done', 'publish:done']);
@@ -125,6 +127,13 @@ describe('the passage path (decision 71)', () => {
     expect(team[1]).toMatchObject({ kindId: 'bt', state: 'done', status: 'set aside' });
     expect(team[2]).toMatchObject({ kindId: 'community', state: 'todo', status: 'next' });
     expect(team[3]).toMatchObject({ status: 'after the community check' });
+  });
+
+  it('says "Published just now", not "Published Just now"', () => {
+    const l = language();
+    l.record('akol', 'h1');
+    expect(pathSteps(l.input('akol', { when: () => 'Just now' }))[1]!.sub).toBe('Published just now');
+    expect(pathSteps(l.input('akol'))[1]!.sub).toBe('Published Tuesday');
   });
 
   it('says a check in a sentence', () => {

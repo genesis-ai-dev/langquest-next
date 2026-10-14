@@ -185,7 +185,7 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
             <KeyWordsPane ctx={ctx} v={v} terms={terms} rows={bible.rows} draftTakeId={v.p.draftTakeId} canTie={false}
               onHear={(key) => { setChip('bible'); if (key) { setVerse(key); bible.playVerse(key); } }} />
           ) : (
-            <NotesPane ctx={ctx} v={v} notes={notes} />
+            <NotesPane ctx={ctx} v={v} notes={notes} canAdd={canContribute} />
           )}
         </ScrollView>
       </HelpClip>

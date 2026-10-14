@@ -1,6 +1,6 @@
 import { foldOrg, ORG_STREAM, type AnyEvent } from '@langquest-next/core';
 import { deriveSession } from '../src/session';
-import { claim, deadMessage, HOLD_MS, holdScanned, inviteCard, nextStep, outcomeOfError, withExpiry, type HeldInvite } from '../src/heldInvite';
+import { claim, deadMessage, functionRefusal, HOLD_MS, holdScanned, inviteCard, learnFromPreview, nextStep, outcomeOfError, withExpiry, type HeldInvite } from '../src/heldInvite';
 import { inviteUri, parseKey, signInUri } from '../src/inviteCode';
 import { isManagedEmail, makeSignInName, MANAGED_DOMAIN, signInAddress, signInName } from '../src/accounts';
 
@@ -64,11 +64,38 @@ describe('the held invite', () => {
     expect(nextStep(held, 'caleb', t0 - HOLD_MS - 1)).toEqual({ step: 'drop' });
   });
 
+  it('learns an expiry only from an invite that can be used, so a dead one stays on screen until cleared', () => {
+    // Why: an expired invite's own date is in the past; held to it, it vanished with its reason a moment after it was read.
+    const held = scanned();
+    const later = new Date(t0 + 86_400_000).toISOString();
+    expect(learnFromPreview(held, { status: 'ok', expiresAt: later }).expiresAt).toBe(Date.parse(later));
+    const past = new Date(t0 - 60_000).toISOString();
+    for (const status of ['expired', 'used', 'retired', 'not_found', 'joined'] as const) {
+      const learned = learnFromPreview(held, { status, expiresAt: past });
+      expect(learned).toEqual(held);
+      expect(nextStep(learned, null, t0 + 1000)).toEqual({ step: 'none' });
+    }
+    expect(learnFromPreview(held, null)).toEqual(held);
+  });
+
   it('scanning the same code again keeps its expiry and its join id', () => {
     const held = { ...withExpiry(scanned(), new Date(t0 + 86_400_000).toISOString()), joinId: 'j1' };
     const again = holdScanned(held, { token }, t0 + 5000);
     expect(again.expiresAt).toBe(held.expiresAt);
     expect(again.joinId).toBe('j1');
+  });
+});
+
+describe('why a join or sign-in code call failed', () => {
+  it('reads the function\'s reply, and says no connection when there was none', async () => {
+    // Why: offline, the error's context is the failed fetch; reading it as a reply threw, and the person saw "Try again" instead of "needs a connection".
+    const reply = new Response(JSON.stringify({ error: 'Type your name to join.', needsName: true }), { status: 400 });
+    expect(await functionRefusal({ message: 'Edge Function returned a non-2xx status code', context: reply })).toEqual(['Type your name to join.', true]);
+    const offline = { message: 'Failed to send a request to the Edge Function', context: new TypeError('Failed to fetch') };
+    expect(await functionRefusal(offline)).toEqual(['Failed to send a request to the Edge Function', false]);
+    expect(await functionRefusal({ message: 'boom' })).toEqual(['boom', false]);
+    const garbled = new Response('<html>', { status: 502 });
+    expect(await functionRefusal({ message: 'Edge Function returned a non-2xx status code', context: garbled })).toEqual(['Edge Function returned a non-2xx status code', false]);
   });
 });
 

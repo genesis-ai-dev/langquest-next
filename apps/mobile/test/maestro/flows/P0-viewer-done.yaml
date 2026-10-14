@@ -1,0 +1,49 @@
+# P0 smoke on phones (decision 93): a viewer opens a finished passage
+# (P-DONE) and finds every check looked good, with nothing to act on.
+appId: com.frontierrnd.langquestnext
+name: "P0 A viewer opens a done passage, read-only"
+tags:
+  - p0
+  - smoke
+---
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${VIEW_EMAIL}
+      PASSWORD: ${VIEW_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+# The viewer's home is Progress, with Map, Inbox and Me.
+- extendedWaitUntil:
+    visible: "Progress"
+    timeout: 60000
+- assertVisible:
+    id: "tab-inbox"
+- assertNotVisible:
+    id: "tab-work"
+- tapOn: "${LANG_A}: .*Open its map.*"
+- tapOn: "Find.*"
+- inputText: ${P_DONE.split(':')[0]}
+- runFlow:
+    file: ../common/dismiss-keyboard.yaml
+    env:
+      LABEL: ${LANG_A}
+- tapOn:
+    text: "${P_DONE}.*"
+    index: 0
+- extendedWaitUntil:
+    visible: "(?i)Then the team"
+    timeout: 30000
+- assertVisible: "Peer check, looks good"
+- assertVisible: "Back translation, looks good"
+- assertVisible: "Community check, looks good"
+- assertVisible: "Consultant check, looks good"
+- assertVisible: "Final approval, looks good"
+# Read only: no record, check, ask or main action.
+- assertNotVisible: "Do the .*"
+- assertNotVisible: "Ask .*"
+- assertNotVisible:
+    id: "primary-action"
+- tapOn: "Versions and history"
+- assertVisible: ".*Version 1.*"
+- assertNotVisible: "New version"

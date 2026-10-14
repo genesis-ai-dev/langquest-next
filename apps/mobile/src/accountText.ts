@@ -216,6 +216,18 @@ export function outboxErrorText(error: string | undefined, fallback: string = t(
   }
 }
 
+/**
+ * Your own name on Me and More settings (ACCT-015, ACCT-017): a name still
+ * waiting to send first, so a change shows at once offline; then the
+ * server's; then the part of the email before "@"; then `fallback` ("You").
+ * A change the server turned down is not your name.
+ */
+export function ownName(profileChanges: readonly { status: string; payload: Record<string, unknown> }[], serverName: string | undefined,
+  email: string | null | undefined, fallback: string): string {
+  const waiting = profileChanges.filter((a) => a.status === 'queued').at(-1);
+  return String(waiting?.payload['displayName'] ?? '').trim() || serverName?.trim() || email?.split('@')[0] || fallback;
+}
+
 // ---- Welcome (ONB-1, ADR-022) ------------------------------------------------------------
 
 type WelcomeRole = 'translator' | 'reviewer' | 'admin' | 'viewer';

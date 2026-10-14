@@ -1,6 +1,6 @@
 import type { AnyEvent, EventType } from '../src/events';
 import { encodeHlc } from '../src/hlc';
-import { emptyOrgState, foldOrg, mayChangeMembership, mayGrantRole, SEED_ROLES } from '../src/org';
+import { emptyOrgState, foldOrg, leavesNoRoleManager, mayChangeMembership, mayGrantRole, SEED_ROLES } from '../src/org';
 import { approvedVersion, derivePassage } from '../src/passage';
 import { foldLanguage } from '../src/reducer';
 import { emptyLanguageState } from '../src/state';
@@ -138,5 +138,17 @@ describe('who may grant what', () => {
     expect(mayChangeMembership(s, 'lead', 'tr', L)).toBe(true);
     expect(mayChangeMembership(s, 'lead', 'coord', ORG)).toBe(false);
     expect(mayChangeMembership(s, 'tr', 'tr', L)).toBe(false); // no Invite
+  });
+
+  it('always leaves someone who can manage roles (PEOPLE-026)', () => {
+    const s = org();
+    // The owner is the only one: removed, moved to a language or made a coordinator, nobody could give roles again.
+    expect(leavesNoRoleManager(s, 'owner', undefined)).toBe(true);
+    expect(leavesNoRoleManager(s, 'owner', 'coordinator')).toBe(true);
+    expect(leavesNoRoleManager(s, 'owner', 'org_admin')).toBe(false);
+    expect(leavesNoRoleManager(s, 'coord', undefined)).toBe(false);
+    // With a second admin, either may go.
+    const two = foldOrg([{ ...ev('v1.MemberAdded', { profileId: 'coord', roleId: 'org_admin', scope: ORG }, 'owner'), streamId: '_org' } as AnyEvent], s);
+    expect(leavesNoRoleManager(two, 'owner', undefined)).toBe(false);
   });
 });

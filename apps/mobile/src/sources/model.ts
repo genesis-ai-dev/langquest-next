@@ -55,6 +55,35 @@ export function offlineAllowed(o: SourceOption): boolean {
   return !!o.bible?.offline.audio;
 }
 
+/**
+ * An offered Bible whose document is not on this device. That is not "no
+ * Bible": offline, the reader says the audio has not been downloaded.
+ * Still waiting on the document is neither.
+ */
+export function bibleNotOnDevice(o: { loading: boolean; documentMissing: boolean; options: number }): boolean {
+  return !o.loading && o.documentMissing && o.options === 0;
+}
+
+/**
+ * A library source, from its item id alone. Sources are seeded as
+ * `langquest.source.*` and a subscription keeps that in its id; a copy made
+ * from a Bible's name still says "bible". Guides do not.
+ */
+export function isOfferedSourceId(id: string): boolean {
+  return id.includes('.source.') || /\bbible\b/i.test(id);
+}
+
+/**
+ * The empty Bible line. `noBible` is the caller's sentence for when nothing
+ * was offered. A Bible that exists but is not on this device uses the
+ * offline sentence instead.
+ */
+export function emptyBibleText(o: { loading: boolean; notOnDevice: boolean }, noBible: string): string {
+  if (o.loading) return t('common.loading');
+  if (o.notOnDevice) return t('recording.player.notOnDeviceYet');
+  return noBible;
+}
+
 /** The Bible Brain filesets a source reads a book from, when it reads from Bible Brain. */
 export function filesetsFor(o: SourceOption, book: string): { text: string | null; audio: string | null } {
   const t = testamentOf(book);

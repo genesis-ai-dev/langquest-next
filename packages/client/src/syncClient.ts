@@ -895,4 +895,9 @@ export class SyncClient<S = LanguageState> {
   async pendingCount(): Promise<number> {
     return this.opts.store.pendingCountBy(this.opts.orgId, this.opts.streamId, this.opts.actorId);
   }
+
+  /** Events of this stream the server refused, kept in the log (invariant 1): what the person must be told about. */
+  async refusedCount(): Promise<number> {
+    return (await this.opts.store.rejected(this.opts.orgId, this.opts.streamId)).length;
+  }
 }

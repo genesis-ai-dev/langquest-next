@@ -65,9 +65,11 @@ Deno.serve(async (request) => {
     name = (p.label && !p.group ? p.label : typeof typedName === 'string' ? typedName : '').trim();
     if (name.length < 1 || name.length > 100) return reply({ error: 'Type your name to join.', needsName: true }, 400);
 
-    // Three digits keep sign-in names apart; on the rare clash, new digits.
-    for (let attempt = 0; attempt < 5 && !profileId; attempt++) {
-      const candidate = `${makeSignInName(name, crypto.getRandomValues(new Uint16Array(1))[0]!)}@${MANAGED_DOMAIN}`;
+    // Three digits keep sign-in names apart; on a clash, new digits, and after
+    // five clashes five digits (a name many people share fills its thousand).
+    for (let attempt = 0; attempt < 10 && !profileId; attempt++) {
+      const width = attempt < 5 ? 3 : 5;
+      const candidate = `${makeSignInName(name, crypto.getRandomValues(new Uint32Array(1))[0]!, width)}@${MANAGED_DOMAIN}`;
       // `has_password: false` tells the app there is no password to sign back in with until they set one.
       const made = await service.auth.admin.createUser({
         email: candidate, password: randomPassword(), email_confirm: true, user_metadata: { has_password: false }

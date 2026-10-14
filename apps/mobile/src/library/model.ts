@@ -2,9 +2,31 @@
 // an action writes and which languages need to move to a newer version. Kept
 // free of React Native so it can be tested.
 import {
-  libraryItemView, subscriptionItemId, type EventPayloads, type LibraryItemState, type LibraryKind, type LanguageState
+  libraryItemView, privilegesFor, subscriptionItemId, type EventPayloads, type LibraryItemState, type LibraryKind, type LanguageState, type OrgState,
+  type Privilege
 } from '@langquest-next/core';
 import { t } from '../i18n';
+
+/** The privilege that manages each kind of library item (core org.ts `LIBRARY_PRIVILEGE`). */
+const LIBRARY_PRIVILEGE: Record<LibraryKind, Privilege> = {
+  template: 'manage_templates',
+  versification: 'manage_templates',
+  flow: 'manage_flows',
+  material: 'manage_reference'
+};
+
+/**
+ * May this person write the organization's library: publish a version,
+ * share, archive, follow, copy, or recommend to every language? Those are
+ * organization-stream events, so the server asks for the privilege at
+ * organization scope (core `languageOfOrgEvent`, SQL `may_emit`). A
+ * language lead holds it only at their language: the screens offer them
+ * what their own language uses (its template, checks and offers), never a
+ * write the server would refuse after a success toast.
+ */
+export function mayWriteLibrary(org: OrgState | null, profileId: string, kind: LibraryKind): boolean {
+  return !!org && privilegesFor(org, profileId).has(LIBRARY_PRIVILEGE[kind]);
+}
 
 /** One organization-stream write, in the order to apply it. */
 export type LibraryOp = { [T in keyof EventPayloads]: { type: T; payload: EventPayloads[T] } }[

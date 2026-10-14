@@ -1,0 +1,143 @@
+# P0 smoke on phones (decision 93): signing out with work still to send
+# hands it over (decisions 60, 87; JRN-013). On Android the phone goes
+# offline (airplane mode), TRANS adds a note to P-Q3, signs out, and the
+# sign-out says the note will still be sent as them; back online, REV signs
+# in on the same phone and finds the note credited to TRANS.
+# iOS: the simulator cannot go offline from Maestro, so there the note may
+# already be sent; the flow checks the sign-out and the hand-over's result.
+# Note: Android reaches the local stack through `adb reverse`, which airplane
+# mode may not cut; the app goes by the phone's own network state.
+appId: com.frontierrnd.langquestnext
+name: "P0 Sign out with work waiting hands it over"
+tags:
+  - p0
+  - smoke
+---
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${TRANS_EMAIL}
+      PASSWORD: ${TRANS_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- extendedWaitUntil:
+    visible:
+      id: "tab-map"
+    timeout: 60000
+# Open P-Q3 while online, so its record is on the phone.
+- tapOn:
+    id: "tab-map"
+- tapOn: "Find.*"
+- inputText: ${P_Q3.split(':')[0]}
+- runFlow:
+    file: ../common/dismiss-keyboard.yaml
+    env:
+      LABEL: ${LANG_A}
+- tapOn:
+    text: "${P_Q3}.*"
+    index: 0
+- extendedWaitUntil:
+    visible: "(?i)Then the team"
+    timeout: 30000
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - setAirplaneMode: enabled
+# A note on the passage: work that must reach the team.
+- tapOn: "Something else\\?"
+- tapOn: "Add a note"
+- tapOn: ".*Or type it.*"
+- inputText: "Elders asked for the old word for lost"
+- runFlow:
+    file: ../common/dismiss-keyboard.yaml
+    env:
+      LABEL: "Add a note"
+- tapOn:
+    text: "Add note"
+    waitToSettleTimeoutMs: 0
+- extendedWaitUntil:
+    visible:
+      id: "toast"
+    timeout: 20000
+# Sign out from Me.
+- tapOn:
+    id: "header-close"
+- tapOn:
+    id: "header-back"
+- runFlow:
+    when:
+      notVisible:
+        id: "tab-me"
+    commands:
+      - tapOn:
+          id: "header-back"
+- tapOn:
+    id: "tab-me"
+- tapOn: "Sign out"
+- assertVisible: "Sign out\\?"
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible: "Still to send: .*All of it will still be sent, as you, when this device is online\\..*"
+- assertVisible:
+    text: "Sign Out"
+    enabled: true
+- tapOn: "Sign Out"
+- extendedWaitUntil:
+    visible: "Email or sign-in name"
+    timeout: 60000
+# Online again; REV signs in on the same phone.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - setAirplaneMode: disabled
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${REV_EMAIL}
+      PASSWORD: ${REV_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- extendedWaitUntil:
+    visible:
+      id: "tab-map"
+    timeout: 60000
+- tapOn:
+    id: "tab-map"
+- tapOn: "Find.*"
+- inputText: ${P_Q3.split(':')[0]}
+- runFlow:
+    file: ../common/dismiss-keyboard.yaml
+    env:
+      LABEL: ${LANG_A}
+- tapOn:
+    text: "${P_Q3}.*"
+    index: 0
+- extendedWaitUntil:
+    visible: "(?i)Then the team"
+    timeout: 30000
+# The note went out as TRANS's, not REV's.
+- tapOn: "Versions and history"
+- tapOn: "History.*"
+- extendedWaitUntil:
+    visible: ".*Elders asked for the old word for lost.*"
+    timeout: 90000
+- assertVisible: ".*${TRANS_FIRST}.*"
+- tapOn:
+    id: "header-close"
+# REV's Sync shows nothing refused.
+- runFlow:
+    when:
+      notVisible:
+        id: "tab-me"
+    commands:
+      - tapOn:
+          id: "header-back"
+- tapOn:
+    id: "tab-me"
+- tapOn: "More settings.*"
+- tapOn: "Sync.*"
+- assertVisible: ".*0 refused by the server.*"
+- assertNotVisible: "Refused · .*"

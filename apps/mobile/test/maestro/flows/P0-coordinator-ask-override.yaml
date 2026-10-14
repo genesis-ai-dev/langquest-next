@@ -1,0 +1,106 @@
+# P0 smoke on phones (decision 93): a coordinator asks someone to record a
+# passage (P-Q2 → TRANS, due in a week) and moves P-CHECK past its
+# checkpoint, the Consultant check, with a reason (JRN-006's middle), then
+# undoes it from the toast.
+appId: com.frontierrnd.langquestnext
+name: "P0 A coordinator asks someone and overrides a checkpoint"
+tags:
+  - p0
+  - smoke
+---
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${COORD_EMAIL}
+      PASSWORD: ${COORD_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- extendedWaitUntil:
+    visible:
+      id: "tab-map"
+    timeout: 60000
+# Ask someone: the Map opens All languages for a coordinator.
+- tapOn:
+    id: "tab-map"
+- tapOn: "${LANG_A}: .*Open its map.*"
+- tapOn: "Find.*"
+- inputText: ${P_Q2.split(':')[0]}
+- runFlow:
+    file: ../common/dismiss-keyboard.yaml
+    env:
+      LABEL: ${LANG_A}
+- tapOn:
+    text: "${P_Q2}.*"
+    index: 0
+- extendedWaitUntil:
+    visible: "(?i)Then the team"
+    timeout: 30000
+- tapOn: "Something else\\?"
+- tapOn: "Someone else should do this.*"
+- assertVisible: "Ask someone to record"
+- tapOn: ".*${TRANS_NAME}.*"
+- scroll
+- tapOn: "In a week"
+- tapOn:
+    id: "primary-action"
+    waitToSettleTimeoutMs: 0
+- extendedWaitUntil:
+    visible:
+      id: "toast"
+    timeout: 20000
+- assertVisible:
+    id: "toast-undo"
+# Override: P-CHECK waits at the Consultant check, a checkpoint.
+- tapOn:
+    id: "header-back"
+- tapOn: "Find.*"
+- eraseText: 40
+- inputText: ${P_CHECK.split(':')[0]}
+- runFlow:
+    file: ../common/dismiss-keyboard.yaml
+    env:
+      LABEL: ${LANG_A}
+- tapOn:
+    text: "${P_CHECK}.*"
+    index: 0
+- extendedWaitUntil:
+    visible: "(?i)Then the team"
+    timeout: 30000
+- tapOn: "Consultant check, .*"
+- assertVisible: "Checkpoint — later steps wait for this one\\."
+- tapOn: "Move past this checkpoint…"
+- assertVisible: "Move past the checkpoint\\?"
+- tapOn: ".*Or type the reason.*"
+- inputText: "Consultant visit postponed to March"
+- runFlow:
+    file: ../common/dismiss-keyboard.yaml
+    env:
+      LABEL: "Move past the checkpoint\\?"
+- tapOn:
+    text: "Move past checkpoint"
+    waitToSettleTimeoutMs: 0
+# Undo (the toast offers it, so the tap proves it is there) puts the checkpoint
+# back, so JRN-006 finds P-CHECK as the fixture left it. The toast goes in a few
+# seconds and a Maestro command takes about one on a phone, so the tap is the
+# first thing after the button. (The toast's message and that the next step, the
+# final approval, is offered are checked by JRN-006.)
+- tapOn:
+    id: "toast-undo"
+    waitToSettleTimeoutMs: 0
+    optional: true
+# Android's commands are slower still and the toast may be gone: History offers the same Undo.
+- runFlow:
+    when:
+      platform: Android
+      visible: "Consultant check, moved past"
+    commands:
+      - tapOn: "Versions and history"
+      - tapOn: "History.*"
+      - tapOn:
+          text: "Undo"
+          index: 0
+      - tapOn:
+          id: "header-close"
+- extendedWaitUntil:
+    visible: "Consultant check, next"
+    timeout: 20000

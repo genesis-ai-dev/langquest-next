@@ -251,11 +251,11 @@ describe('reading', () => {
     expect(one.body.version).toMatchObject({ n: 1, takeId: 'take-d1' });
     expect(one.body.audio.map((a: any) => a.hash)).toEqual([card('d1a').hash, card('d1b').hash]);
     expect((await call('POST', '/api/v1/languages/din/passages/d1/reviews', t, { outcome: 'looks_good', reviewerId: 'a', takeId: 'take-d1-v2' })).status).toBe(404);
-    // Feedback answered by a revision is "addressed" for the team, but nobody approved the revision.
+    // Feedback answered by a revision keeps the check open (decisions.md 94): still in review, nothing approved.
     const reader = await token('admin', { scopes: ['read'] });
     log.add('din', 'v1.ReviewRecorded', { reviewId: 'peer-d2-no', takeId: 'take-d2', kindId: 'peer', outcome: 'needs_changes', via: 'app' }, 'rev');
     recorded(log, 'din', 'd2', { take: 'take-d2-v2' });
-    expect((await call('GET', '/api/v1/languages/din/passages/d2', reader)).body).toMatchObject({ status: 'approved', approvedVersion: null });
+    expect((await call('GET', '/api/v1/languages/din/passages/d2', reader)).body).toMatchObject({ status: 'in_review', approvedVersion: null });
     expect((await call('GET', '/api/v1/languages/din/passages/d2', t)).status).toBe(404);
   });
 

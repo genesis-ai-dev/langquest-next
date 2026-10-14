@@ -16,7 +16,8 @@ import {
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { BackHandler, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useHardwareBack } from '../hardwareBack';
 import { Text } from '../text';
 import { AudioClip } from '../audioClip';
 import { commandErrorText, stateLabel, stepName } from '../coreText';
@@ -30,8 +31,8 @@ import {
   type IconName
 } from '../kit';
 import {
-  addDays, anchorLabel, answeredQuestions, askCandidates, channelLabel, currentStepId, describeEntry, dueChoices, dueError, feedbackNames,
-  gridKindIds, guestMessage, heroHeadline, historySummary, isoDay, kindRowActions, kindRowSub, nextQuestionType, questionTypeLabel,
+  addDays, anchorLabel, answeredQuestions, askCandidates, channelLabel, currentStepId, describeEntry, dueChoices, dueError, elseChoices,
+  gridKindIds, guestMessage, heroHeadline, historySummary, isoDay, kindCleared, kindRowActions, kindRowSub, nextQuestionType, openCheckFor, questionTypeLabel,
   reviewMark, reviewsSummary, SAID_BY_VOICE, sendTargetLabel, stepSheetSub, versionReviewsSummary, type EntryText, type KindRowCan, type MineFn,
   type RowAction
 } from '../passage/record';
@@ -43,7 +44,7 @@ import { useHelpSpot } from '../helpContext';
 import { HelpBadge } from '../helpBadge';
 import { requestIsMine, sendToInput, teamNameIn, usualTargetFor, type UsualTarget } from '../passage/sendTarget';
 import {
-  commaList, dueText, dueTitle, feedbackSource, kindInSentence, outcomeText, passageCrumbs, usePassage, versionTitle, viaText, when, type PassageView
+  andList, commaList, dueText, dueTitle, feedbackSource, kindInSentence, outcomeText, passageCrumbs, usePassage, versionTitle, viaText, when, type PassageView
 } from '../passageView';
 import { PassageOffline, PassageOfflineLine } from '../offline';
 import { noteExpected, reportError } from '../report';
@@ -96,7 +97,9 @@ async function perform(
   ctx: Ctx,
   build: (c: Commands) => EventSpec[],
   message: string,
-  undo?: (applied: EventSpec[]) => (c: Commands) => EventSpec[]
+  undo?: (applied: EventSpec[]) => (c: Commands) => EventSpec[],
+  /** What Undo says once it has undone (ctx.act's default is "Undone."). */
+  undone?: string
 ): Promise<boolean> {
   const state = ctx.language.state;
   if (!state) return false;
@@ -112,7 +115,7 @@ async function perform(
     await ctx.act(specs, message, undo ? () => {
       const now = ctx.language.state ?? state;
       return undo(specs)(commands(now, indexesFor(now)));
-    } : undefined);
+    } : undefined, undone);
     return true;
   } catch (e) {
     // ctx.act already said "Not saved"; only the caller's busy state is left to reset.
@@ -186,11 +189,10 @@ export function PassageRecord(ctx: Ctx) {
   const [askAfterPublish, setAskAfterPublish] = useState(!!publishedParam);
   // Publishing returns to a record that may already be open (the stack pops back to it): open the ask then too.
   useEffect(() => { if (publishedParam) { setPage('ask'); setAskAfterPublish(true); } }, [publishedParam]);
-  useEffect(() => {
-    if (page === 'path') return;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => { setPage('path'); return true; });
-    return () => sub.remove();
-  }, [page]);
+  // Asking someone comes back to the path, where the request shows, even when it started from "Something else?".
+  const askedParam = ctx.params['asked'];
+  useEffect(() => { if (askedParam) setPage('path'); }, [askedParam]);
+  useHardwareBack(page !== 'path', () => setPage('path'));
   const [historyShown, setHistoryShown] = useState(HISTORY_STEP);
   // Which of the checks that happen next the ask page sends (decision 91): the first, unless another is picked.
   const [askKindId, setAskKindId] = useState<string | null>(null);
@@ -213,6 +215,8 @@ export function PassageRecord(ctx: Ctx) {
   if (!v) return <Missing ctx={ctx} id="passage_record" />;
 
   const { p, kinds, unitId, languageId } = v;
+  // A check's one name on every screen (decision 91): "Peer check", in a sentence "the peer check".
+  const nameOf = (kindId: string) => checkName(kindId, kinds);
   const s = ctx.session;
   const can: RecordCan = {
     record: canGo(ctx, 'passage_record', 'workspace'),
@@ -235,7 +239,7 @@ export function PassageRecord(ctx: Ctx) {
   const myDraft = myDrafts.length > 0;
   const recordOrPick = () => (myDrafts.length > 1 ? setPage('versions') : go('workspace'));
   const fbKindIds = p.awaitingResponse.map((r) => r.kindId);
-  const fbNames = feedbackNames(p, kinds);
+  const fbNames = andList([...new Set(fbKindIds)].map(nameOf));
   const openStep = openStepId ? p.steps.find((st) => st.step.id === openStepId) : undefined;
   const anchor = (n: PassageNote) => anchorLabel(n, { state: v.state, p, guide });
   const describe = (e: (typeof timeline)[number]) => describeEntry(e, { p, kinds, name: ctx.name, anchor, guide, hidden: (id) => id !== me && ctx.blocks.has(id) });
@@ -269,11 +273,17 @@ export function PassageRecord(ctx: Ctx) {
     if (a.id === 'log') go('add_record', { kindId: k.kindId });
     if (a.id === 'skip') afterSheet(() => setSkipping({ kindId: k.kindId, stepId: step.step.id }));
   };
+  /** The checkpoint a step waits for, by its checks' one names (decision 91). */
+  const lockedNameFor = (step: FlowStepStatus): string | undefined => {
+    const gate = step.lockedBy ? p.steps.slice(0, step.index).find((st) => st.step.checkpoint && !st.complete && !st.override) : undefined;
+    return gate ? stepTitle(gate.step.kindIds, kinds) : undefined;
+  };
   const kindRow = (k: KindStatus, step: FlowStepStatus, first: boolean) => {
     const target = targets[k.kindId];
+    const lockedName = lockedNameFor(step);
     return (
       <KindActionRow key={k.kindId} ctx={ctx} v={v} status={k} step={step} can={can} isAuthor={isAuthor} first={first} compact={false}
-        mine={mine} teamName={teamName} {...(target ? { sendTo: sendTargetLabel(target, ctx.name) } : {})}
+        mine={mine} teamName={teamName} {...(target ? { sendTo: sendTargetLabel(target, ctx.name) } : {})} nameOf={nameOf} {...(lockedName ? { lockedName } : {})}
         {...(fbKindIds.length && !fbKindIds.includes(k.kindId) ? { waitFor: fbNames } : {})}
         onAction={onRowAction} onMore={() => setOpenStepId(step.step.id)} />
     );
@@ -303,15 +313,17 @@ export function PassageRecord(ctx: Ctx) {
   const feedbackReview = steps.find((st) => st.kind === 'feedback')?.review;
 
   // The next check, for asking (after publishing, or later from the button).
-  const nextKinds = asker && p.next ? p.next.kinds.filter((k) => !isCompleteState(k.state) && !k.request) : [];
+  const nextStep = p.next;
+  // Not a check whose feedback waits for its answer: that one goes back to its reviewer once answered.
+  const nextKinds = asker && can.ask && nextStep ? nextStep.kinds.filter((k) => !kindCleared(k, nextStep) && !k.request && k.state !== 'suggestions') : [];
   const nextKind = nextKinds.find((k) => k.kindId === askKindId) ?? nextKinds[0];
   const nextTarget = nextKind ? targets[nextKind.kindId] : undefined;
   // A check someone asked of this person.
   const myCheck = p.steps.flatMap((st) => st.kinds.map((k) => ({ k, st })))
     .find(({ k }) => k.request && k.request.status === 'open' && !isCompleteState(k.state) && mine(k.request));
-  // A check this person may do without being asked (the next one, on someone else's version).
-  const openCheck = !isAuthor && p.recorded && can.review && p.next
-    ? p.next.kinds.find((k) => !isCompleteState(k.state) && k.state !== 'locked') : undefined;
+  // A check this person may do without being asked (the next one, on someone else's version): none while
+  // feedback waits on the translator, since the next check is best done on the version they keep.
+  const openCheck = openCheckFor(p, { isAuthor, canReview: can.review });
 
   type Main = { label: string; icon: IconName; onPress: () => void };
   let main: Main | null = null;
@@ -319,17 +331,17 @@ export function PassageRecord(ctx: Ctx) {
     main = { label: t('passage.page.main.hearFeedback'), icon: 'listen', onPress: () => go('review_detail', { reviewId: feedbackReview.id }) };
   } else if (myCheck) {
     const kind = v.kind(myCheck.k.kindId);
-    main = { label: kind.produces ? t('passage.page.main.backTranslate') : t('passage.page.main.doCheck', { check: kindInSentence(kind.name) }), icon: kind.produces ? 'globe' : 'check',
+    main = { label: kind.produces ? t('passage.page.main.backTranslate') : t('passage.page.main.doCheck', { check: kindInSentence(nameOf(kind.id)) }), icon: kind.produces ? 'globe' : 'check',
       onPress: () => go(kind.produces ? 'back_translation' : 'review_capture', { kindId: myCheck.k.kindId, ...(myCheck.k.request ? { requestId: myCheck.k.request.id } : {}) }) };
   } else if (lit?.kind === 'study') {
     main = { label: t('passage.page.main.study'), icon: 'star', onPress: () => go('study_guide') };
   } else if (lit?.kind === 'record' && can.record) {
     main = { label: myDraft ? t('passage.page.continueRecording') : t('passage.page.main.record'), icon: 'mic', onPress: recordOrPick };
   } else if (nextKind && can.ask) {
-    main = { label: t('passage.page.askFor', { check: kindInSentence(v.kind(nextKind.kindId).name) }), icon: 'send', onPress: () => { setAskAfterPublish(false); setPage('ask'); } };
+    main = { label: t('passage.page.askFor', { check: kindInSentence(nameOf(nextKind.kindId)) }), icon: 'send', onPress: () => { setAskAfterPublish(false); setPage('ask'); } };
   } else if (openCheck) {
     const kind = v.kind(openCheck.kindId);
-    main = { label: kind.produces ? t('passage.page.main.backTranslate') : t('passage.page.main.doCheck', { check: kindInSentence(kind.name) }), icon: kind.produces ? 'globe' : 'check',
+    main = { label: kind.produces ? t('passage.page.main.backTranslate') : t('passage.page.main.doCheck', { check: kindInSentence(nameOf(kind.id)) }), icon: kind.produces ? 'globe' : 'check',
       onPress: () => go(kind.produces ? 'back_translation' : 'review_capture', { kindId: openCheck.kindId }) };
   }
 
@@ -345,11 +357,11 @@ export function PassageRecord(ctx: Ctx) {
     if (st.kind === 'study') return () => go('study_guide');
     if (st.kind === 'record') {
       if (st.state === 'done' && p.latest) { const takeId = p.latest.takeId; return () => go('version_detail', { takeId }); }
-      return can.record ? () => go('workspace') : undefined;
+      return can.record ? recordOrPick : undefined;
     }
     if (st.kind === 'publish') {
       if (st.state === 'done' && p.latest) { const takeId = p.latest.takeId; return () => go('version_detail', { takeId }); }
-      return can.record && p.drafting ? () => go('workspace') : undefined;
+      return can.record && p.drafting ? recordOrPick : undefined;
     }
     if ((st.kind === 'feedback' || st.kind === 'fix') && feedbackReview) return () => go('review_detail', { reviewId: feedbackReview.id });
     return undefined;
@@ -364,13 +376,14 @@ export function PassageRecord(ctx: Ctx) {
     return null;
   };
   const curStep = p.steps.find((st) => st.step.id === currentStepId(p));
-  const curKind = curStep ? (curStep.kinds.find((k) => !isCompleteState(k.state)) ?? curStep.kinds[0]) : undefined;
+  const curKind = curStep ? (curStep.kinds.find((k) => !kindCleared(k, curStep)) ?? curStep.kinds[0]) : undefined;
+  const elseOffers = curKind && curStep ? elseChoices(curKind, curStep, { recorded: p.recorded }) : { ask: false, log: false, skip: false };
   const gridIds = gridKindIds(p);
 
   const sheets = (
     <>
       {openStep ? (
-        <Sheet visible title={stepTitle(openStep.step.kindIds, kinds)} sub={stepSheetSub(openStep) || undefined} onClose={() => setOpenStepId(null)}>
+        <Sheet visible title={stepTitle(openStep.step.kindIds, kinds)} sub={stepSheetSub(openStep, lockedNameFor(openStep)) || undefined} onClose={() => setOpenStepId(null)}>
           <Group>{openStep.kinds.map((k, i) => kindRow(k, openStep, i === 0))}</Group>
           {can.override && openStep.step.checkpoint && !openStep.complete && !openStep.override ? (
             <GhostBtn label={t('passage.page.movePastThis')} tone="red" onPress={() => afterSheet(() => setOverriding(openStep.step.id))} />
@@ -378,14 +391,14 @@ export function PassageRecord(ctx: Ctx) {
         </Sheet>
       ) : null}
       {skipping ? (
-        <ReasonSheet visible title={t('passage.page.skip.title', { kind: v.kind(skipping.kindId).name })}
+        <ReasonSheet visible title={t('passage.page.skip.title', { kind: nameOf(skipping.kindId) })}
           sub={t('passage.page.skip.sub')}
           quickReasons={skipReasons()} confirmLabel={t('passage.page.skip.confirm')} voice={voiceFor(ctx)} onClose={() => setSkipping(null)}
           onConfirm={(r) => {
             const { kindId, stepId } = skipping;
             setSkipping(null);
             void perform(ctx, (c) => c.depart({ commandId: newId(), unitId, type: 'skip', kindId, stepId, reason: r.reason, ...(r.blobHash ? { reasonBlobHash: r.blobHash } : {}) }),
-              t('passage.page.skip.done', { kind: v.kind(kindId).name }), undoDepart);
+              t('passage.page.skip.done', { kind: nameOf(kindId) }), undoDepart);
           }} />
       ) : null}
       {overriding ? (
@@ -405,7 +418,8 @@ export function PassageRecord(ctx: Ctx) {
 
   // ---- Something else? (demo a-else) ----
   if (page === 'else') {
-    const lockedCheckpoint = can.override ? p.steps.find((st) => st.step.checkpoint && !st.complete && !st.override) : undefined;
+    // Moving past is offered at the checkpoint itself, when it is the step the passage is at.
+    const lockedCheckpoint = can.override && curStep?.step.checkpoint && !curStep.complete && !curStep.override ? curStep : undefined;
     return (
       <Screen header={<Header title={t('passage.else.title')} sub={[v.title, lit?.title ?? ''].filter(Boolean).join(' · ')} onBack={() => setPage('path')} close />}
         footer={can.note ? (
@@ -419,16 +433,16 @@ export function PassageRecord(ctx: Ctx) {
             <BigOption icon="people" label={t('passage.else.someoneElse')} sub={t('passage.else.someoneElseRecord')}
               onPress={() => go('ask_someone', { what: 'record' })} />
           ) : null}
-          {p.recorded && curKind && can.ask ? (
-            <BigOption icon="people" label={t('passage.else.someoneElse')} sub={t('passage.else.someoneElseCheck', { kind: v.kind(curKind.kindId).name })}
+          {curKind && elseOffers.ask && can.ask ? (
+            <BigOption icon="people" label={t('passage.else.someoneElse')} sub={t('passage.else.someoneElseCheck', { kind: nameOf(curKind.kindId) })}
               onPress={() => go('ask_someone', { what: 'review', kindId: curKind.kindId })} />
           ) : null}
-          {p.recorded && curKind && can.log ? (
-            <BigOption icon="check" label={t('passage.else.alreadyDid')} sub={t('passage.else.alreadyDidSub', { check: kindInSentence(v.kind(curKind.kindId).name) })}
+          {curKind && elseOffers.log && can.log ? (
+            <BigOption icon="check" label={t('passage.else.alreadyDid')} sub={t('passage.else.alreadyDidSub', { check: kindInSentence(nameOf(curKind.kindId)) })}
               onPress={() => go('add_record', { kindId: curKind.kindId })} />
           ) : null}
-          {p.recorded && curKind && curStep && can.skip ? (
-            <BigOption icon="clock" label={t('common.notNow')} sub={t('passage.else.notNowSub', { check: kindInSentence(v.kind(curKind.kindId).name) })}
+          {curKind && curStep && elseOffers.skip && can.skip ? (
+            <BigOption icon="clock" label={t('common.notNow')} sub={t('passage.else.notNowSub', { check: kindInSentence(nameOf(curKind.kindId)) })}
               onPress={() => setSkipping({ kindId: curKind.kindId, stepId: curStep.step.id })} />
           ) : null}
           {can.record && p.recorded && !answersMine ? (
@@ -436,7 +450,7 @@ export function PassageRecord(ctx: Ctx) {
               onPress={recordOrPick} />
           ) : null}
           {lockedCheckpoint ? (
-            <BigOption icon="lock" label={t('passage.else.movePast')} sub={t('passage.else.movePastSub', { step: stepName(kinds, lockedCheckpoint.step) })}
+            <BigOption icon="lock" label={t('passage.else.movePast')} sub={t('passage.else.movePastSub', { step: stepTitle(lockedCheckpoint.step.kindIds, kinds) })}
               onPress={() => setOverriding(lockedCheckpoint.step.id)} />
           ) : null}
           <View style={styles.tiles}>
@@ -457,6 +471,10 @@ export function PassageRecord(ctx: Ctx) {
     const bt = publishedParam?.startsWith('bt');
     const latest = p.latest;
     const close = () => { setPage('path'); setAskAfterPublish(false); };
+    // Where the new version is: sent, sending, or kept here until there is a connection.
+    const waiting = ctx.language.pending > 0 || ctx.language.blobs.pendingUp > 0;
+    const sendLine = !waiting ? t('passage.published.sent', { title: v.title })
+      : ctx.language.online === false ? t('passage.published.savedHere', { title: v.title }) : t('passage.published.sending', { title: v.title });
     return (
       <Screen header={askAfterPublish ? undefined : <Header title={t('passage.published.askTitle')} sub={v.title} onBack={close} close />}
         footer={nextKind && can.ask ? (
@@ -476,17 +494,17 @@ export function PassageRecord(ctx: Ctx) {
             <Text style={[txt.h2, { textAlign: 'center', fontSize: 26, fontWeight: '800' }]} accessibilityRole="header">
               {bt ? t('passage.published.backTranslation') : latest ? t('passage.published.version', { n: latest.n }) : t('passage.published.versionNoNumber')}
             </Text>
-            <Text style={[txt.smMuted, { textAlign: 'center' }]}>{t('passage.published.savedHere', { title: v.title })}</Text>
+            <Text style={[txt.smMuted, { textAlign: 'center' }]}>{sendLine}</Text>
           </View>
         ) : null}
-        {nextKind ? (
+        {nextKind && can.ask ? (
           <View style={{ gap: space.sm, marginTop: askAfterPublish ? space.lg : 0 }}>
             <Text style={txt.label}>{t('passage.published.nextAsk')}</Text>
             {nextKinds.map((k) => {
               const on = k.kindId === nextKind.kindId;
               const people = checkPeople(v.state, k.kindId).filter((id) => id !== me);
               return (
-                <Pressable key={k.kindId} onPress={() => setAskKindId(k.kindId)} accessibilityRole="radio" accessibilityState={{ selected: on }}
+                <Pressable key={k.kindId} onPress={() => setAskKindId(k.kindId)} accessibilityRole="radio" accessibilityState={{ selected: on, checked: on }} aria-checked={on}
                   style={[styles.askCard, !on && { borderWidth: 1, borderColor: C.border }]}>
                   <View style={styles.askIcon}><Ico name={kindIcon(k.kindId)} size={24} color={C.primary} /></View>
                   <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
@@ -498,11 +516,11 @@ export function PassageRecord(ctx: Ctx) {
               );
             })}
           </View>
-        ) : (
+        ) : can.ask ? (
           <Text style={[txt.smMuted, { textAlign: 'center', marginTop: space.lg }]}>
             {p.done ? t('passage.published.allDone') : t('passage.published.alreadyAsked')}
           </Text>
-        )}
+        ) : null}
         {sheets}
       </Screen>
     );
@@ -534,7 +552,8 @@ export function PassageRecord(ctx: Ctx) {
             if (e.type === 'version') onPress = () => go('version_detail', { takeId: e.version.takeId });
             if (e.type === 'review' || e.type === 'response') onPress = () => go('review_detail', { reviewId: e.review.id });
             if (e.type === 'study') onPress = () => go('study_step', { stepId: e.stepId });
-            if (e.type === 'departure' && !e.departure.undone && can.undo) {
+            // Taking back an override is the override's own permission (decided 2026-10-13, PASS-056; may_emit holds it).
+            if (e.type === 'departure' && !e.departure.undone && (e.departure.type === 'override' ? can.override : can.undo)) {
               trailing = <SmallBtn label={t('passage.page.undo')} icon="undo" onPress={() => undoFromHistory(e.departure.id, e.departure.type)} />;
             }
             if (e.type === 'request' && e.request.status === 'open' && can.withdraw && (e.request.by === me || s.can('assign_work'))) {
@@ -561,7 +580,7 @@ export function PassageRecord(ctx: Ctx) {
     return (
       <>
         <VersionsPage ctx={ctx} v={v} canRecord={can.record} go={go} onBack={() => setPage('path')} history={history}
-          {...(nextKind && can.ask ? { ask: { label: t('passage.page.askFor', { check: kindInSentence(v.kind(nextKind.kindId).name) }), onPress: () => { setAskAfterPublish(false); setPage('ask'); } } } : {})} />
+          {...(nextKind && can.ask ? { ask: { label: t('passage.page.askFor', { check: kindInSentence(nameOf(nextKind.kindId)) }), onPress: () => { setAskAfterPublish(false); setPage('ask'); } } } : {})} />
         {sheets}
       </>
     );
@@ -579,6 +598,8 @@ export function PassageRecord(ctx: Ctx) {
   );
   return (
     <Screen header={<Header title={v.title} sub={v.language} onBack={ctx.back} />} footer={footer}>
+      {/* Whether this passage comes along without a connection, without scrolling (decisions.md 61). */}
+      <PassageOfflineLine ctx={ctx} unitId={unitId} />
       {p.awaitingResponse.length > 0 && !answersMine ? (
         <Text style={[txt.sm, { color: TINT.amberText }]}>
           {t('passage.page.waitingOnAnswer', { name: p.latest ? ctx.name(p.latest.by, true) : t('passage.record.theTranslator'), kinds: fbNames })}
@@ -635,7 +656,10 @@ function FeedbackPill(props: { ctx: Ctx; review: ReviewView }) {
   const secs = review.commentBlobHash ? clipSeconds(ctx.language.state, [review.commentBlobHash]) : 0;
   return (
     <View style={styles.notePill}>
-      {review.commentBlobHash ? <AudioClip language={ctx.language} hashes={[review.commentBlobHash]} label={t('passage.page.playFeedback', { name: who })} /> : <Ico name="chat" size={18} color={TINT.amberText} />}
+      {review.commentBlobHash ? (
+        <AudioClip language={ctx.language} hashes={[review.commentBlobHash]}
+          label={who === ctx.name(ctx.session.actorId) ? t('passage.page.playYourFeedback') : t('passage.page.playFeedback', { name: who })} />
+      ) : <Ico name="chat" size={18} color={TINT.amberText} />}
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={[txt.sm, { fontWeight: '800', color: C.dark }]}>{who}{secs > 0 ? ` · ${clockOf(secs)}` : ''}</Text>
         {review.comment ? <Text style={[txt.sm, { color: C.dark }]} numberOfLines={3}>{t('passage.quote', { text: authoredText(ctx, review.by, review.comment) })}</Text> : null}
@@ -657,7 +681,7 @@ function KeepSheet(props: { ctx: Ctx; v: PassageView; reviewId: string; onClose:
         void perform(ctx, (c) => c.depart({
           commandId: newId(), unitId: v.unitId, type: 'keep', reviewId: props.reviewId, reason: r.reason,
           ...(r.blobHash ? { reasonBlobHash: r.blobHash } : {})
-        }), t('passage.keep.done'), undoDepart);
+        }), t('passage.keep.done'), undoDepart, t('passage.page.undone.keep'));
       }} />
   );
 }
@@ -703,6 +727,9 @@ function KindActionRow(props: {
   compact: boolean;
   mine: MineFn;
   teamName: (teamId: string) => string | undefined;
+  /** A check's one name (decision 91). */
+  nameOf: (kindId: string) => string;
+  lockedName?: string;
   /** Who this kind usually goes to, as its button says it ("the Community team"). */
   sendTo?: string;
   onAction: (a: RowAction, k: KindStatus, step: FlowStepStatus, askedMe: boolean) => void;
@@ -711,11 +738,11 @@ function KindActionRow(props: {
   const { ctx, v, status, step } = props;
   const kind = v.kind(status.kindId);
   const me = ctx.session.actorId;
-  const checkedBy = kind.produces ? v.kind(kind.produces.checkedBy).name : undefined;
+  const checkedBy = kind.produces ? props.nameOf(kind.produces.checkedBy) : undefined;
   const acts = kindRowActions({ status, kind, step, can: props.can, isAuthor: props.isAuthor, me, mine: props.mine, ...(props.sendTo ? { sendTo: props.sendTo } : {}) });
   const sub = kindRowSub({
     status, kind, step, me, name: ctx.name, mine: props.mine, teamName: props.teamName,
-    ...(checkedBy ? { checkedBy } : {}), ...(props.waitFor ? { waitFor: props.waitFor } : {})
+    ...(checkedBy ? { checkedBy } : {}), ...(props.waitFor ? { waitFor: props.waitFor } : {}), ...(props.lockedName ? { lockedName: props.lockedName } : {})
   });
   const btn = (a: RowAction, tone: 'primary' | 'plain') => (
     <SmallBtn label={a.label} tone={tone} onPress={() => props.onAction(a, status, step, acts.askedMe)} />
@@ -726,7 +753,7 @@ function KindActionRow(props: {
       <View style={styles.rowCenter}>
         <KindIcon kindId={status.kindId} size={40} />
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={[txt.sm, { fontWeight: '700' }]}>{kind.name}</Text>
+          <Text style={[txt.sm, { fontWeight: '700' }]}>{props.nameOf(status.kindId)}</Text>
           {sub ? <Text style={[txt.xs, { marginTop: 2 }]}>{sub}</Text> : null}
         </View>
         <View accessibilityLabel={stateLabel(status.state)}><StateMark state={status.state} size={22} /></View>
@@ -803,7 +830,7 @@ function ReviewGrid(props: { ctx: Ctx; v: PassageView; kindIds: string[]; onVers
               </Pressable>
               {row.cells.map((cell) => {
                 const r = cell.reviews.at(-1);
-                const kind = v.kind(cell.kindId);
+                const kind = { ...v.kind(cell.kindId), name: checkName(cell.kindId, v.kinds) };
                 return (
                   <View key={cell.kindId} style={styles.gridCol}>
                     {r ? (
@@ -843,7 +870,7 @@ function ReviewGrid(props: { ctx: Ctx; v: PassageView; kindIds: string[]; onVers
         {producing.map((k) => (
           <View key={k.id} style={[styles.rowCenter, { gap: 4 }]}>
             <Ico name={kindIcon(k.id)} size={14} color={C.primary} />
-            <Text style={txt.xs}>{t('passage.grid.kindRecorded', { kind: k.name })}</Text>
+            <Text style={txt.xs}>{t('passage.grid.kindRecorded', { kind: checkName(k.id, v.kinds) })}</Text>
           </View>
         ))}
       </View>
@@ -895,7 +922,7 @@ export function VersionDetail(ctx: Ctx) {
           <Pressable key={r.id} onPress={() => ctx.go('review_detail', { ...params, reviewId: r.id })} accessibilityRole="link"
             style={({ pressed }) => [styles.inlineLink, pressed && { opacity: 0.6 }]}>
             <Ico name="chat" size={16} color={C.primary} />
-            <Text style={[txt.link, { flex: 1 }]}>{t('passage.version.inResponseTo', { kind: v.kind(r.kindId).name, who: feedbackSource(r, ctx.name) })}</Text>
+            <Text style={[txt.link, { flex: 1 }]}>{t('passage.version.inResponseTo', { kind: checkName(r.kindId, v.kinds), who: feedbackSource(r, ctx.name) })}</Text>
           </Pressable>
         ))}
       </Card>
@@ -928,7 +955,7 @@ export function VersionDetail(ctx: Ctx) {
       {reviews.length > 0 ? (
         <Disclosure icon="chat" title={t('passage.version.reviews')} summary={versionReviewsSummary(reviews, v.kinds)} {...ctx.details(key('reviews'))}>
           {reviews.map((r, i) => {
-            const kind = v.kind(r.kindId);
+            const kind = { ...v.kind(r.kindId), name: checkName(r.kindId, v.kinds) };
             return (
               <Row key={r.id} leading={kind.produces ? <KindIcon kindId={r.kindId} size={36} /> : <StateMark state={reviewMark(r)} size={24} />}
                 label={`${kind.name} · ${outcomeText(kind, r.outcome)}`} sub={`${feedbackSource(r, ctx.name)} · ${when(r.hlc)} · ${viaText(r, ctx.name)}`}
@@ -972,7 +999,7 @@ function KeepPage(props: { ctx: Ctx; v: PassageView; review: ReviewView; source:
     const ok = await perform(ctx, (c) => c.depart({
       commandId: newId(), unitId: v.unitId, type: 'keep', reviewId: review.id, reason: text.trim() || SAID_BY_VOICE,
       ...(hash ? { reasonBlobHash: hash } : {})
-    }), t('passage.keep.done'), undoDepart);
+    }), t('passage.keep.done'), undoDepart, t('passage.page.undone.keep'));
     setBusy(false);
     if (ok) ctx.back();
   };
@@ -997,20 +1024,17 @@ export function ReviewDetail(ctx: Ctx) {
   // Feedback to answer opens as Ryder's "Feedback came back" (demo r-Feedback), with "Keep it, say why" as its own page.
   const [keepPage, setKeepPage] = useState(false);
   const look = usePerson();
-  useEffect(() => {
-    if (!keepPage) return;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => { setKeepPage(false); return true; });
-    return () => sub.remove();
-  }, [keepPage]);
+  useHardwareBack(keepPage, () => setKeepPage(false));
   if (!v) return <Missing ctx={ctx} id="review_detail" />;
   const { p, unitId, languageId } = v;
   const review = p.reviews.find((r) => r.id === ctx.params['reviewId']) ?? p.reviews.at(-1);
   if (!review) return <Missing ctx={ctx} id="review_detail" crumbsOf={v} text={t('passage.review.noReviews')} />;
   const me = ctx.session.actorId;
   const params = { unitId, languageId };
-  const kind = v.kind(review.kindId);
+  // A check's one name on every screen (decision 91), "Peer check".
+  const kind = { ...v.kind(review.kindId), name: checkName(review.kindId, v.kinds) };
   const makes = kind.produces;
-  const checkedBy = makes ? v.kind(makes.checkedBy).name : undefined;
+  const checkedBy = makes ? checkName(makes.checkedBy, v.kinds) : undefined;
   const good = review.outcome !== 'needs_changes';
   const request = review.requestId ? p.requests.find((r) => r.id === review.requestId) : undefined;
   const questions = questionsForKind(v.state, review.kindId, request);
@@ -1048,7 +1072,7 @@ export function ReviewDetail(ctx: Ctx) {
         <View style={{ alignItems: 'center', gap: space.sm, paddingTop: space.xl }}>
           <View style={styles.amberPill}>
             <Ico name="chat" size={16} color={TINT.amberText} />
-            <Text style={[txt.sm, { fontWeight: '800', color: TINT.amberText }]}>{t('passage.path.feedbackSub', { kind: kind.name })}</Text>
+            <Text style={[txt.sm, { fontWeight: '800', color: TINT.amberText }]}>{t('passage.path.feedbackSub', { kind: checkName(review.kindId, v.kinds) })}</Text>
           </View>
           <View style={{ marginTop: space.md }}><PersonAvatar look={look(review.by)} size={72} /></View>
           <Text style={[txt.h2, { fontWeight: '800' }]}>{source}</Text>
@@ -1247,7 +1271,7 @@ export function AskSomeone(ctx: Ctx) {
     }), outside ? t('passage.ask.doneOutside', { name: target }) : t('passage.ask.doneTeam', { name: target }),
     (applied) => (c) => c.withdrawRequest({ commandId: newId(), requestId: payloadField(applied, 'requestId') }));
     setBusy(false);
-    if (ok) ctx.go('passage_record', { unitId: v.unitId, languageId: v.languageId });
+    if (ok) ctx.go('passage_record', { unitId: v.unitId, languageId: v.languageId, asked: String(Date.now()) });
   };
   const addQuestion = () => {
     const text = qDraft.trim();
