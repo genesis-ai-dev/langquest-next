@@ -3663,6 +3663,14 @@ its Inbox rows and snapshot. Chosen:
 - Inbox rows in a large language can arrive about ten minutes later than in
   a small one (GitHub can start scheduled runs late). Pushes still go every
   minute once a row exists.
+- The service role's requests get two minutes instead of the 8 s they
+  inherit from `authenticator` (migration
+  `20261014180000_service_role_timeout.sql`): `put_snapshot` for Kuturmi,
+  Halbi and Santhali (35 to 61 MB) was cancelled at 8 s. Only the server's
+  own jobs use that role; people's requests keep 3 s (anon) and 8 s
+  (authenticated). Caleb chose this over writing a snapshot in several calls.
+- The large pass goes on past a language that fails and lists it by id, so
+  one failure holds up no other language.
 
 Not chosen: a bigger Edge Function (the limit is fixed per run); folding page
 by page in the Edge Function (the state alone outgrows 256 MB); a Worker or
