@@ -51,7 +51,8 @@ export function shouldWriteSnapshot(
  */
 export async function runSnapshotWorker(
   service: SupabaseClient, pageSize = 1000, observe?: (snapshot: Snapshot) => Promise<void>,
-  visit?: (orgId: string, streamId: string) => boolean
+  visit?: (orgId: string, streamId: string) => boolean,
+  onError?: (orgId: string, streamId: string, error: unknown) => void
 ): Promise<SnapshotResult[]> {
   const transport = new SupabaseTransport(service);
   // Smallest first: a language too big for this run (decisions.md 103) can
@@ -65,56 +66,72 @@ export async function runSnapshotWorker(
     // Only language streams have a server snapshot; the organization and person streams are small.
     if (streamId === ORG_STREAM || orgId === PERSON_ORG) continue;
     if (visit && !visit(orgId, streamId)) continue;
-    const existing = await fetchSnapshot(transport, orgId, streamId, REDUCER_VERSION);
-    const tail = await pullAll(transport, orgId, streamId, existing?.serverSeq ?? 0, pageSize);
-    if (tail.length === 0) {
-      if (existing && observe) await observe(existing);
-      out.push({ orgId, streamId, serverSeq: existing?.serverSeq ?? 0, updated: false, written: false });
+    if (!onError) {
+      out.push(await snapshotOne(service, transport, orgId, streamId, pageSize, observe));
       continue;
     }
-    const tailIds = new Set(tail.map((e) => e.id));
-    const redactsSnapshot = tail.some(
-      (e) => e.type === 'v1.Redacted' && !tailIds.has(e.payload.eventId)
-    );
-
-    let snapshot: Snapshot;
-    if (existing && !redactsSnapshot) {
-      const state = resume(existing, tail);
-      state.appliedEventIds = {};
-      snapshot = { ...existing, serverSeq: tail[tail.length - 1]!.serverSeq!, state };
-    } else {
-      const all = existing || redactsSnapshot ? await pullAll(transport, orgId, streamId, 0, pageSize) : tail;
-      const state = foldLanguage(all, emptyLanguageState());
-      state.appliedEventIds = {};
-      snapshot = { orgId, streamId, reducerVersion: REDUCER_VERSION, serverSeq: all[all.length - 1]!.serverSeq!, state };
+    // With onError, one language that fails (a write that times out) is
+    // reported and the pass goes on to the next.
+    try {
+      out.push(await snapshotOne(service, transport, orgId, streamId, pageSize, observe));
+    } catch (error) {
+      onError(orgId, streamId, error);
     }
-
-    // Its age is only needed when the event count alone does not decide.
-    const redaction = tail.some((e) => e.type === 'v1.Redacted');
-    let ageMs: number | null = null;
-    if (existing && !redaction && tail.length < SNAPSHOT_SCHEDULE.minNewEvents) {
-      const at = await service.from('snapshots').select('created_at')
-        .eq('org_id', orgId).eq('stream_id', streamId).eq('reducer_version', REDUCER_VERSION)
-        .order('server_seq', { ascending: false }).limit(1);
-      if (at.error) throw new Error(`snapshot age ${orgId}/${streamId}: ${at.error.message}`);
-      const written = (at.data?.[0] as { created_at?: string } | undefined)?.created_at;
-      ageMs = written ? Date.now() - Date.parse(written) : null;
-    }
-    const written = shouldWriteSnapshot({ existing: !!existing, newEvents: tail.length, redaction, ageMs });
-    if (written) {
-      const put = await service.rpc('put_snapshot', {
-        p_org_id: orgId,
-        p_stream_id: streamId,
-        p_reducer_version: REDUCER_VERSION,
-        p_server_seq: snapshot.serverSeq,
-        p_state: snapshot.state
-      });
-      if (put.error) throw new Error(`put_snapshot ${orgId}/${streamId}: ${put.error.message}`);
-    }
-    if (observe) await observe(snapshot);
-    out.push({ orgId, streamId, serverSeq: snapshot.serverSeq, updated: true, written });
   }
   return out;
+}
+
+async function snapshotOne(
+  service: SupabaseClient, transport: SupabaseTransport, orgId: string, streamId: string, pageSize: number,
+  observe?: (snapshot: Snapshot) => Promise<void>
+): Promise<SnapshotResult> {
+  const existing = await fetchSnapshot(transport, orgId, streamId, REDUCER_VERSION);
+  const tail = await pullAll(transport, orgId, streamId, existing?.serverSeq ?? 0, pageSize);
+  if (tail.length === 0) {
+    if (existing && observe) await observe(existing);
+    return { orgId, streamId, serverSeq: existing?.serverSeq ?? 0, updated: false, written: false };
+  }
+  const tailIds = new Set(tail.map((e) => e.id));
+  const redactsSnapshot = tail.some(
+    (e) => e.type === 'v1.Redacted' && !tailIds.has(e.payload.eventId)
+  );
+
+  let snapshot: Snapshot;
+  if (existing && !redactsSnapshot) {
+    const state = resume(existing, tail);
+    state.appliedEventIds = {};
+    snapshot = { ...existing, serverSeq: tail[tail.length - 1]!.serverSeq!, state };
+  } else {
+    const all = existing || redactsSnapshot ? await pullAll(transport, orgId, streamId, 0, pageSize) : tail;
+    const state = foldLanguage(all, emptyLanguageState());
+    state.appliedEventIds = {};
+    snapshot = { orgId, streamId, reducerVersion: REDUCER_VERSION, serverSeq: all[all.length - 1]!.serverSeq!, state };
+  }
+
+  // Its age is only needed when the event count alone does not decide.
+  const redaction = tail.some((e) => e.type === 'v1.Redacted');
+  let ageMs: number | null = null;
+  if (existing && !redaction && tail.length < SNAPSHOT_SCHEDULE.minNewEvents) {
+    const at = await service.from('snapshots').select('created_at')
+      .eq('org_id', orgId).eq('stream_id', streamId).eq('reducer_version', REDUCER_VERSION)
+      .order('server_seq', { ascending: false }).limit(1);
+    if (at.error) throw new Error(`snapshot age ${orgId}/${streamId}: ${at.error.message}`);
+    const written = (at.data?.[0] as { created_at?: string } | undefined)?.created_at;
+    ageMs = written ? Date.now() - Date.parse(written) : null;
+  }
+  const written = shouldWriteSnapshot({ existing: !!existing, newEvents: tail.length, redaction, ageMs });
+  if (written) {
+    const put = await service.rpc('put_snapshot', {
+      p_org_id: orgId,
+      p_stream_id: streamId,
+      p_reducer_version: REDUCER_VERSION,
+      p_server_seq: snapshot.serverSeq,
+      p_state: snapshot.state
+    });
+    if (put.error) throw new Error(`put_snapshot ${orgId}/${streamId}: ${put.error.message}`);
+  }
+  if (observe) await observe(snapshot);
+  return { orgId, streamId, serverSeq: snapshot.serverSeq, updated: true, written };
 }
 
 async function pullAll(transport: SupabaseTransport, orgId: string, streamId: string, after: number, pageSize: number): Promise<AnyEvent[]> {

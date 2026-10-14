@@ -69,7 +69,9 @@ async function selectAll<T>(service: SupabaseClient, table: string, columns: str
  * rows refreshed too; the database already refreshes them when a join
  * request or report changes (refresh_org_notifications).
  */
-export async function runProjections(service: SupabaseClient, scope: ProjectionScope = 'all'): Promise<{ languages: number; snapshots: number }> {
+export async function runProjections(
+  service: SupabaseClient, scope: ProjectionScope = 'all'
+): Promise<{ languages: number; snapshots: number; failed: { streamId: string; error: string }[] }> {
   const transport = new SupabaseTransport(service);
   const orgs = new Map<string, { org: OrgState; seq: number }>();
   async function orgState(orgId: string) {
@@ -142,6 +144,7 @@ export async function runProjections(service: SupabaseClient, scope: ProjectionS
 
   // Each changed language stream: everyone who may open the language gets
   // the updates that concern them (core updatesFor, the phone's Inbox).
+  const failed: { streamId: string; error: string }[] = [];
   const results = await runSnapshotWorker(service, 1000, async (snapshot) => {
     const { org, seq: orgSeq } = await orgState(snapshot.orgId);
     const languageId = snapshot.streamId;
@@ -171,8 +174,13 @@ export async function runProjections(service: SupabaseClient, scope: ProjectionS
       }));
     }
     await mark(snapshot.orgId, languageId, snapshot.serverSeq, orgSeq, isListed);
-  }, (orgId, streamId) => inScope(orgId, streamId) && (changed(orgId, streamId) || snapshotDue(orgId, streamId)));
-  return { languages: results.filter((r) => r.updated).length, snapshots: results.filter((r) => r.written).length };
+  }, (orgId, streamId) => inScope(orgId, streamId) && (changed(orgId, streamId) || snapshotDue(orgId, streamId)),
+  // The large pass goes on past a language that fails, so the next waits only
+  // for its own turn; the Edge pass stops at the first error, as before.
+  scope === 'large' ? (_orgId, streamId, error) => {
+    failed.push({ streamId, error: error instanceof Error ? error.message : String(error) });
+  } : undefined);
+  return { languages: results.filter((r) => r.updated).length, snapshots: results.filter((r) => r.written).length, failed };
 }
 
 /** Push contains no language name or personal content on the lock screen. */

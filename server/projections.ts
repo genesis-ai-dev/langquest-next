@@ -19,4 +19,7 @@ if (!key) {
 const scope = process.argv.includes('--all') ? 'all' : 'large';
 const started = Date.now();
 const done = await runProjections(createClient(url, key, { auth: { persistSession: false } }), scope);
-console.log(`${scope} languages: ${done.languages} projected, ${done.snapshots} new snapshots, ${Math.round((Date.now() - started) / 1000)} s`);
+console.log(`${scope} languages: ${done.languages} projected, ${done.snapshots} new snapshots, ${done.failed.length} failed, ${Math.round((Date.now() - started) / 1000)} s`);
+// Ids only: the workflow's log is public.
+for (const f of done.failed) console.error(`failed ${f.streamId}: ${f.error}`);
+if (done.failed.length) process.exit(1);
