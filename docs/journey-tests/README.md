@@ -1,3 +1,5 @@
+Historical (2026-10-14): findings from 2026-09-15 against the blueprint, before the UI test suite (docs/ui-test-suite) and the testing strategy (docs/testing.md). Kept for the record; nothing here is maintained.
+
 # UX Journey Test Findings
 
 **Test Date:** 2026-09-15  

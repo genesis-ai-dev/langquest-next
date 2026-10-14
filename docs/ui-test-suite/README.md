@@ -9,7 +9,7 @@ them:
 - `npm test` covers the reducer, validation and the flow parity tests
   (`specParity.test.ts` holds every edge of `src/flow.ts`).
 - `npm run test:web` runs the web smoke test.
-- `smart-tests/` holds the Jev journeys, which are not yet ported.
+- `smart-tests/` holds this suite (`ui/`), the web smoke (`web-smoke/`) and their fixtures.
 
 What this suite adds is the check that a person can do each job on a device.
 It checks what they see, what they tap, what the app says back, and that the
@@ -41,7 +41,7 @@ screens follow the simple redesign (decision 71 and its amendments) and
 | 16 | [16-role-journeys.md](16-role-journeys.md) | Whole jobs per role, and the passage lifecycle across every role | `JRN` | 14 |
 | 17 | [17-accessibility-and-field-use.md](17-accessibility-and-field-use.md) | Screen readers, target sizes, text size, colour, RTL, outdoor and low-end use | `A11Y` | 24 |
 
-**653 tests in all.**
+**658 tests in all.**
 
 ## How a test is written
 
@@ -459,3 +459,11 @@ note, until each is resolved.
 | PEOPLE-039 | Retiring a role is not built. |
 | NAV-051 | No screen offers a forbidden move, so the permission refusal can only be checked through the dev hook `__langquestGo`. |
 | SETUP-026, MOD-018, SYNC-018 | Seen once while automating, not reproduced in the full run of 2026-10-13: a book change followed by Undo upsetting "What helps them"; a removed note showing on a fresh device until the next snapshot (decision 88's design); a translator removed from their only language landing on "Join your team". |
+
+## Run sheets
+
+Specs marked Manual or Device are run by hand against each release candidate.
+`run-sheets/TEMPLATE.md` lists them, one table per area. Regenerate it with
+`node scripts/run-sheet.mjs > docs/ui-test-suite/run-sheets/TEMPLATE.md`. For a
+release candidate, copy the template to `run-sheets/<date>-<build>.md`, fill in
+the build, devices and results, and commit it with the results.
