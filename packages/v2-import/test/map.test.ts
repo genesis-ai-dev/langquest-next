@@ -243,6 +243,27 @@ describe('mapProject: an older project with source material', () => {
   });
 });
 
+describe('mapProject: a v2 person confirmed as an account already in Next', () => {
+  const members = (events: AnyEvent[]) => events.filter((e) => e.type === 'v1.MemberAdded' || e.type === 'v1.MemberRemoved')
+    .map((e) => `${e.type === 'v1.MemberAdded' ? '+' : '-'}${(e.payload as { profileId: string }).profileId}`).sort();
+  it('names that account as the member, and moves the membership over when the link comes later', () => {
+    const { each, all } = run([{ rows: bible() }, { rows: bible(), ctx: ctx({ people: new Map([['trans', 'next-trans']]) }) }]);
+    for (const e of all) expect(validateEvent(e), e.id).toBeNull();
+    expect(members(each[0]!)).toEqual(['+owner', '+rev', '+trans']);
+    expect(members(each[1]!)).toEqual(['+next-trans', '-trans']);
+    const state = foldOrg(all.filter((e) => e.streamId === ORG_STREAM));
+    expect(Object.values(state.members['next-trans'] ?? {}).map((m) => m.roleId.value)).toEqual(['translator']);
+  });
+
+  it('gives one account the larger role when two v2 people are the same person', () => {
+    const { all } = run([{ rows: bible(), ctx: ctx({ people: new Map([['trans', 'me'], ['owner', 'me']]) }) }]);
+    const added = all.filter((e) => e.type === 'v1.MemberAdded').map((e) => e.payload as { profileId: string; roleId: string });
+    expect(added.filter((p) => p.profileId === 'me')).toEqual([expect.objectContaining({ roleId: 'org_admin' })]);
+    // Their work from then on is theirs too.
+    expect(all.filter((e) => e.type === 'v1.RecordingAdded').every((e) => e.actorId === 'me')).toBe(true);
+  });
+});
+
 describe('mapProject: a language not linked yet', () => {
   it('comes over by its name, with a code made from it, and no link for its admins to undo', () => {
     const { all } = run([{ rows: bible(), ctx: ctx({ language: { code: null, languoidId: null, sourceCode: 'eng', decidedAt: '2026-10-11T00:00:00Z', name: 'Gihara Bhasa' } }) }]);

@@ -103,7 +103,8 @@ who opens it sees the same thing.
   projects in Next, transfers running, projects with issues, and people
   from v2 who have signed in.
 - **Activity** is the running log of every transfer, newest first; **Signed
-  in** lists the people from v2 who have signed in to Next. A card opens its
+  in** lists the people from v2 who have signed in to Next; **Same email**
+  lists v2 people whose email already has an account in Next (section 3). A card opens its
   details: the people and whether each has signed in, its issues, and its
   own log.
 
@@ -131,9 +132,19 @@ signs in here everything they did is already theirs.
   `.env.<env>`, placed by `npm run secrets`); without it, Sign In simply
   says the password is wrong.
 - Someone who already has an account here with the same email signs in as
-  usual; Settings, "Bring my LangQuest work" checks their v2 sign-in and
-  adds them where their v2 self is a member. Their v2 work still shows
-  under their v2 name, which is theirs too.
+  usual, and is not given their v2 work by the email alone: Next does not
+  confirm emails at sign-up (`enable_confirmations = false`), so anyone
+  could make an account with a translator's address before they arrive.
+  The dashboard's **Same email** list shows every v2 person whose email has
+  an account here under another id, with their v2 projects and when the
+  Next account was made; someone on the team who knows it is them presses
+  **Same person** (Caleb, 2026-10-14, `v2_import.people_links`). From then
+  on the import names that Next account wherever it named the v2 one: their
+  memberships and the organizations they run move to it at the next sync
+  (which the dashboard starts), and so does their work from then on. Work
+  already brought over keeps its v2 author, under the same name. **Undo**
+  moves it all back. A "Bring my LangQuest work" in Settings, where the
+  person proves it with their v2 password, can come later.
 - Names: the import writes `profiles.display_name` from v2's `username`
   for every v2 person it names, so work shows who did it before they come.
 - Roles: v2 has owner and member. An owner becomes an Organization Admin

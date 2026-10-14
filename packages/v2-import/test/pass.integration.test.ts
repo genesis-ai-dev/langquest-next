@@ -115,6 +115,16 @@ describe.skipIf(!SERVICE)('a pass against the local database', () => {
     expect(passage.reviews.map((r) => r.outcome)).toEqual(['looks_good']);
     const { data: names } = await db.from('profiles').select('id, display_name').in('id', [`${id}-owner`, `${id}-rev`]);
     expect((names ?? []).length).toBe(2);
+
+    // The reviewer turns out to have an account in Next already: confirmed on the dashboard, their membership moves to it.
+    await target.link(`${id}-rev`, `${id}-next`, null, 'test');
+    const linked = await sync(deps, { projects: [id] });
+    expect(linked[0]?.rejected ?? []).toEqual([]);
+    const after = foldOrg(await events('_org'));
+    const live = (who: string) => Object.values(after.members[who] ?? {}).filter((m) => !m.removed.value).map((m) => m.roleId.value);
+    expect(live(`${id}-next`)).toEqual(['coordinator']);
+    expect(live(`${id}-rev`)).toEqual([]);
+    await target.unlink(`${id}-rev`);
   }, 60_000);
 
   it("follows FIA's guides for an FIA project and offers them to its team", async () => {

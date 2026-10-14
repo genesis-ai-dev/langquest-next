@@ -111,6 +111,13 @@ export interface ReconcileContext {
   scope: string;
   /** Now, in ms; no event is stamped later (the server refuses clocks ahead of its own). */
   now: number;
+  /**
+   * Who signs the taking back of a fact v2 no longer states at all (there is
+   * no fact to say who): a member who may, such as an admin. Without one the
+   * import's own device id signs, which the server only accepts where no
+   * membership is needed.
+   */
+  actor?: string;
 }
 
 const REASON = 'removed in LangQuest v2';
@@ -180,7 +187,7 @@ export function reconcile(facts: readonly Fact[], ledger: ReadonlyMap<string, Le
     const said: Said[] = rule === 'redact'
       ? entry.live.map((eventId) => ({ type: 'v1.Redacted', payload: { eventId, reason: REASON } }))
       : rule;
-    return { ...emit(entry, s.n, said, fact?.actorId ?? DEVICE, at, 'unsay'), digest: '' };
+    return { ...emit(entry, s.n, said, fact?.actorId ?? ctx.actor ?? DEVICE, at, 'unsay'), digest: '' };
   }
 }
 

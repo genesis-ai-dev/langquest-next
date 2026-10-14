@@ -39,6 +39,18 @@ export interface MapContext {
    * admins link it in Next (Caleb, 2026-10-13).
    */
   language: { code: string | null; languoidId: string | null; sourceCode: string; decidedAt: string; name?: string };
+  /**
+   * v2 people confirmed on the dashboard as an account that already exists
+   * in Next (v2 id → Next account id): the import names that account
+   * wherever it would have named the v2 one.
+   */
+  people?: ReadonlyMap<string, string>;
+  /**
+   * Who signs membership changes: an admin of the organization already, so
+   * a link or unlink that swaps who someone is is signed by a member. The
+   * owner when not given.
+   */
+  manager?: string;
   /** Roles chosen on the dashboard, by v2 person; `none` leaves them out. Everyone else's follows their v2 work. */
   roles?: ReadonlyMap<string, Role | 'none'>;
   /** v2 file name → the file as copied here. A name that is absent has not been copied (yet). */
@@ -100,6 +112,8 @@ const usfm = (v2Book: string) => V2_BOOK[v2Book.toLowerCase()] ?? v2Book.toUpper
 
 /** Project role → the seeded organization role with the same privileges, at the language's scope. */
 const ROLE_ID: Record<Role, string> = { owner: 'org_admin', coordinator: 'coordinator', translator: 'translator', reviewer: 'reviewer', viewer: 'viewer' };
+/** Roles from least to most a person may do, to keep the larger when two v2 people are one account. */
+const RANK: Role[] = ['viewer', 'reviewer', 'translator', 'coordinator', 'owner'];
 
 /** A code for a language that is not linked yet, made as New language makes one when none is typed: its name's first letters. */
 export function readableCode(name: string): string {
@@ -120,8 +134,13 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
 
   // ---- who ---------------------------------------------------------------------------
   const owners = rows.members.filter((m) => m.active && m.membership === 'owner').sort((a, b) => a.created_at.localeCompare(b.created_at));
-  const owner = owners[0]?.profile_id ?? rows.project.creator_id ?? SYSTEM_ACTOR;
-  const actor = (id: string | null) => id ?? owner;
+  // A v2 person confirmed as an account already in Next is named by that account (ctx.people).
+  const who = (id: string) => ctx.people?.get(id) ?? id;
+  const v2Owner = owners[0]?.profile_id ?? rows.project.creator_id ?? SYSTEM_ACTOR;
+  const owner = who(v2Owner);
+  /** The v2 person who did something, or the owner when v2 does not say. */
+  const v2Actor = (id: string | null) => id ?? v2Owner;
+  const actor = (id: string | null) => who(v2Actor(id));
 
   // ---- what v2 holds, indexed ----------------------------------------------------------
   const v2Target = rows.languages.find((l) => l.active && l.language_type === 'target')?.languoid_id ?? null;
@@ -272,7 +291,7 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
     const parent = q.parent_id && questIds.has(q.parent_id) ? q.parent_id : null;
     const kind = childQuests.has(q.id) || holdsMaterial ? (parent ? 'folder' : 'book') : 'passage';
     const parentUnitId = parent ? unitOf.get(parent) ?? parent : null;
-    facts.push(unitFact(`unit:${q.id}`, q.id, parentUnitId, kind, q.name?.trim() || `Quest ${i + 1}`, pad(i), q.creator_id ?? owner, at(q.created_at), !live(q), at(q.last_updated)));
+    facts.push(unitFact(`unit:${q.id}`, q.id, parentUnitId, kind, q.name?.trim() || `Quest ${i + 1}`, pad(i), actor(q.creator_id), at(q.created_at), !live(q), at(q.last_updated)));
     if (live(q)) unitOf.set(q.id, q.id);
   });
   report.quests = quests.length;
@@ -307,7 +326,7 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
         if (r.waiting) { waiting = true; report.waiting += 1; }
         if (r.cards.length === 0) continue;
         parts.push({ a, cards: r.cards });
-        recorded.add(actor(a.creator_id));
+        recorded.add(v2Actor(a.creator_id));
         const verse = verses.get(a.id) ?? null;
         facts.push({
           key: `rec:${q.id}:${a.id}`, streamId: languageId, actorId: actor(a.creator_id), at: at(a.created_at), unsay: 'redact', hold: r.waiting,
@@ -400,7 +419,7 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
           }
           continue;
         }
-        recorded.add(actor(t.creator_id));
+        recorded.add(v2Actor(t.creator_id));
         facts.push({
           key: `rec:${t.id}`, streamId: languageId, actorId: actor(t.creator_id), at: at(t.created_at), unsay: 'redact', hold: r.waiting,
           say: (s) => [{ type: 'v1.RecordingAdded', payload: { recordingId: `rec:${t.id}#${s.n}`, unitId: passage, kind: 'target', cards: r.cards } }]
@@ -444,20 +463,22 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
   }
   const scope = { level: 'language' as const, languageId };
   const membership = new Map(rows.members.map((m) => [m.profile_id, m]));
-  const firstWork = (id: string) => {
-    const times = [...rows.assets, ...rows.votes].filter((r) => r.creator_id === id).map((r) => at(r.created_at));
+  const firstWork = (ids: readonly string[]) => {
+    const times = [...rows.assets, ...rows.votes].filter((r) => r.creator_id && ids.includes(r.creator_id)).map((r) => at(r.created_at));
     return times.length ? times.reduce((a, b) => (Date.parse(a) < Date.parse(b) ? a : b)) : t0;
   };
-  const people = new Set([...roles.keys(), ...rows.members.map((m) => m.profile_id)]);
-  for (const id of [...people].sort()) {
-    const m = membership.get(id);
-    const role = roles.get(id);
+  // One membership per account: two v2 people linked to the same Next account get the larger of their roles.
+  const accounts = new Map<string, string[]>();
+  for (const id of new Set([...roles.keys(), ...rows.members.map((m) => m.profile_id)])) accounts.set(who(id), [...(accounts.get(who(id)) ?? []), id]);
+  for (const [account, ids] of [...accounts].sort(([a], [b]) => a.localeCompare(b))) {
+    const role = ids.map((id) => roles.get(id)).filter((r): r is Role => !!r).sort((a, b) => RANK.indexOf(b) - RANK.indexOf(a))[0];
+    const m = ids.map((id) => membership.get(id)).find((x) => !!x);
     facts.push({
-      key: `member:${id}`, streamId: ORG_STREAM, actorId: owner,
-      at: m ? at(role === undefined ? m.last_updated : m.created_at) : firstWork(id),
+      key: `member:${account}`, streamId: ORG_STREAM, actorId: ctx.manager ?? owner,
+      at: m ? at(role === undefined ? m.last_updated : m.created_at) : firstWork(ids),
       gone: role === undefined,
-      say: () => [{ type: 'v1.MemberAdded', payload: { profileId: id, roleId: ROLE_ID[role ?? 'translator'], scope } }],
-      unsay: () => [{ type: 'v1.MemberRemoved', payload: { profileId: id, scope } }]
+      say: () => [{ type: 'v1.MemberAdded', payload: { profileId: account, roleId: ROLE_ID[role ?? 'translator'], scope } }],
+      unsay: () => [{ type: 'v1.MemberRemoved', payload: { profileId: account, scope } }]
     });
   }
   return { facts, roles, owner, report };
@@ -488,7 +509,7 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
       .map((v) => (v.label ? `${v.label}: ${v.comment!.trim()}` : v.comment!.trim())).join('\n');
     const value = { outcome: down ? 'needs_changes' : 'looks_good', comment };
     return {
-      key, streamId: languageId, actorId: person, at: latest(votes.map((v) => at(v.created_at))), unsay: 'redact', value,
+      key, streamId: languageId, actorId: who(person), at: latest(votes.map((v) => at(v.created_at))), unsay: 'redact', value,
       say: (s, look) => {
         const take = look(takeKey);
         if (!take?.lastSaid) return [];
