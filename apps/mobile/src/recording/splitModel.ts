@@ -109,7 +109,7 @@ export type LoopPhase = 'off' | 'recording' | 'listening';
 
 /**
  * The session's phase. The microphone stays on while the source plays
- * (decisions.md 95), so a session is on exactly while the recorder is, and
+ * (decisions.md 106), so a session is on exactly while the recorder is, and
  * listening while the source has it paused.
  */
 export function loopPhase(vadOn: boolean, listening: boolean): LoopPhase {
@@ -118,12 +118,11 @@ export function loopPhase(vadOn: boolean, listening: boolean): LoopPhase {
 }
 
 /** What a session's recordings are called where it counts them. */
-export type LoopNoun = 'take' | 'part' | 'piece';
+export type LoopNoun = 'part' | 'piece';
 
-/** "2 takes so far". */
+/** "2 parts so far". */
 function soFar(count: number, noun: LoopNoun): string {
   switch (noun) {
-    case 'take': return t('recording.loop.takesSoFar', { count });
     case 'part': return t('recording.loop.partsSoFar', { count });
     case 'piece': return t('recording.loop.piecesSoFar', { count });
   }
@@ -142,7 +141,7 @@ export function loopStatus(phase: LoopPhase, capturing: boolean, count: number, 
 /**
  * How tall a level is drawn (0..1). Bars and the cutoff line use this one
  * scale, so a bar reaches the line exactly when the detector hears it
- * (decisions.md 95). The square-root-like curve keeps soft speech visible.
+ * (decisions.md 106). The square-root-like curve keeps soft speech visible.
  */
 export function meterHeight(level: number): number {
   return Math.pow(Math.min(1, Math.max(0, level)), 0.6);

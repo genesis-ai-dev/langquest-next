@@ -54,8 +54,8 @@ export function NavChrome(props: {
           const active = tab.id === props.active;
           const color = active ? C.primary : C.dark;
           return (
-            <Pressable key={tab.id} onPress={() => props.onSelect(tab)} accessibilityRole="tab"
-              accessibilityLabel={tabLabel(tab)} accessibilityState={{ selected: active }}
+            <Pressable key={tab.id} testID={`tab-${tab.id}`} onPress={() => props.onSelect(tab)} accessibilityRole="tab"
+              accessibilityLabel={tabLabel(tab)} accessibilityState={{ selected: active }} aria-selected={active}
               style={({ pressed }) => [styles.sideItem, active && { backgroundColor: C.light }, pressed && { opacity: 0.6 }]}>
               <TabIcon id={tab.id} size={22} color={active ? C.primary : C.muted} />
               <Text style={[txt.body, { flex: 1, fontWeight: active ? '700' : '600', color }]} numberOfLines={1}>{tab.label}</Text>
@@ -85,10 +85,12 @@ export function NavChrome(props: {
         return (
           <Pressable
             key={tab.id}
+            testID={`tab-${tab.id}`}
             onPress={() => props.onSelect(tab)}
             accessibilityRole="tab"
             accessibilityLabel={tabLabel(tab)}
             accessibilityState={{ selected: active }}
+            aria-selected={active}
             style={({ pressed }) => [rail ? styles.railItem : styles.tab, pressed && { opacity: 0.6 }]}
           >
             {/* The lit tab is its colour, with no pill behind it (demo ADR-032); the rail keeps the pill. */}

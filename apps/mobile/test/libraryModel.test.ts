@@ -1,5 +1,6 @@
 import { emptyLanguageState, foldOrg, ORG_STREAM, type AnyEvent } from '@langquest-next/core';
-import { behindLibrary, copyOps, followOps, newItemId, publishOps, sourceLine, subscribeOps, usesItem, type LibraryOp, type SharedItem } from '../src/library/model';
+import { behindLibrary, copyOps, followOps, mayWriteLibrary, newItemId, publishOps, sourceLine, subscribeOps, usesItem, type LibraryOp, type SharedItem } from '../src/library/model';
+import { ORG } from './sessions';
 import { libraryItemView } from '@langquest-next/core';
 
 const H = (c: string) => c.repeat(64);
@@ -80,5 +81,26 @@ describe('a language behind its items', () => {
     const state = emptyLanguageState();
     state.template = { value: { itemId: 'ruth2', docHash: H('1'), unitPrefix: 'ruth2' }, hlc: 'x', eventId: 'x' };
     expect(behindLibrary(state, library)).toEqual([]);
+  });
+});
+
+describe('who may write the organization\'s library', () => {
+  // Library events go in the organization's stream: the server asks for the privilege at organization scope
+  // (core languageOfOrgEvent, SQL may_emit), so a privilege held only at one language does not count.
+  it('needs the kind\'s manage privilege at organization scope', () => {
+    expect(mayWriteLibrary(ORG, 'owner', 'template')).toBe(true);
+    expect(mayWriteLibrary(ORG, 'coordinator', 'flow')).toBe(true);
+    expect(mayWriteLibrary(ORG, 'coordinator', 'material')).toBe(true);
+    expect(mayWriteLibrary(ORG, 'translator', 'template')).toBe(false);
+    expect(mayWriteLibrary(ORG, 'viewer', 'material')).toBe(false);
+    expect(mayWriteLibrary(null, 'owner', 'template')).toBe(false);
+  });
+  it('is refused to someone who holds the privilege only at a language', () => {
+    const events = [
+      { type: 'v1.RoleDefined', payload: { roleId: 'lead', name: 'Language Lead', privileges: ['manage_templates', 'manage_flows', 'manage_reference', 'translate'] } },
+      { type: 'v1.MemberAdded', payload: { profileId: 'lena', roleId: 'lead', scope: { level: 'language', languageId: 'din' } } }
+    ].map((e, i) => ({ ...e, id: `l${i}`, orgId: 'o', streamId: ORG_STREAM, actorId: 'a', deviceId: 'd', hlc: `${String(i + 1).padStart(15, '0')}:000000:d` }) as AnyEvent);
+    const org = foldOrg(events);
+    for (const kind of ['template', 'versification', 'flow', 'material'] as const) expect(mayWriteLibrary(org, 'lena', kind)).toBe(false);
   });
 });

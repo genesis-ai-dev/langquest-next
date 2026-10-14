@@ -6,7 +6,7 @@
  * content policy asks for both; the partner demo has neither, so the sheet
  * that offers them is app-only (`reportSheet.tsx`).
  */
-import type { AccountAction } from './durableOutbox';
+import type { AccountAction } from '@langquest-next/sync';
 import { t } from './i18n';
 
 export type ReportKind = 'version' | 'review' | 'note' | 'request' | 'person';
@@ -153,6 +153,14 @@ export function reportTitle(target: ReportTarget, name: (id: string) => string):
 export function reportSummary(g: ReportGroup): string {
   const reasons = g.reasons.map(reasonLabel).join(t('moderation.listSeparator'));
   return g.count > 1 ? t('moderation.reported.summary', { reasons, count: g.count }) : reasons;
+}
+
+/**
+ * The toast after a report. It goes through the account outbox: the toast
+ * says it waits for a connection only when it has not reached the server.
+ */
+export function reportedMessage(sent: boolean): string {
+  return sent ? t('moderation.toast.reportedSent') : t('moderation.toast.reported');
 }
 
 /** What stands in for words, audio or photos from someone this person blocked. */

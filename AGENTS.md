@@ -21,9 +21,23 @@ Rules specific to this folder:
 
 - `packages/core` is pure TypeScript with no I/O and no runtime dependencies.
   If you need SQLite, HTTP, or the filesystem, you are in the wrong package.
-- `packages/client` owns sync. It talks to storage and the server only through
-  the `EventStore` and `Transport` interfaces. Platform code (SQLite, Expo)
-  implements those interfaces in `apps/mobile`; it never reimplements sync.
+- `packages/core` says what the data means; `packages/sync` keeps it and
+  moves it (decisions.md 104). Sync owns anything queued for the server: the
+  local event log, push and pull, snapshots, file transfer, the account
+  outbox, a shared phone's hand-overs, diagnostics delivery, and the
+  per-language session that runs them. It runs wherever data is kept or
+  moved (phone, Worker, server jobs, scripts), and it imports only core,
+  supabase-js and its own files (`packages/sync/test/boundary.test.ts`).
+  A platform gets in as a constructor argument: expo-sqlite drivers, file
+  stores, `AsyncStorage` and configured clients live in the app that uses
+  them, which never reimplements sync.
+- Apps decide what to do, what to write and what to show. In `apps/mobile`
+  every Supabase call lives in `src/server/` (decisions.md 105,
+  `apps/mobile/test/serverBoundary.test.ts`); screens and hooks call its
+  functions.
+- A branch started before pull request 116 (the restructure above): read
+  `docs/merging-onto-the-restructure.md` before merging `main`. It says
+  where moved code went and how to resolve the conflicts.
 - Every new event type needs: a type in `events.ts` (or `record.ts`), a case
   in `reducer.ts`, a case in `validate.ts` and in the SQL `validate_payload`
   and `event_privilege` (a new migration), and coverage in the
@@ -42,10 +56,12 @@ Rules specific to this folder:
   (`apps/mobile/src/screens/reports.tsx`, parts in `src/reports/`), and
   report logic is `packages/core/src/portfolio.ts`. Web-only code goes behind
   `Platform.OS === 'web'` or in a `.web.tsx` file, and
-  `npm run test:web` (smart-tests/web-smoke) must pass.
+  `npm run test:web` (e2e/web-smoke) must pass.
 - No `status` columns. Status comes from `passage.ts`.
 - No local versus synced tables. Sync status is a column on the events table.
 - Run `npm test` and `npm run typecheck` in this folder before finishing.
+  `docs/testing.md` says which layer a new test belongs in and the rules the
+  end-to-end suites keep (no sleeps, one role per test, IDs for structure).
 - Put the Linear issue ID (`LAN-12`) in the commit message of work that comes
   from an issue. The pipeline moves that issue to Deploying, then Live or
   Outage (`scripts/linear-sync.mjs`, decisions.md 53). No ID, no status change.

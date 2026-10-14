@@ -54,7 +54,14 @@ export function installGlobalHandlers(): void {
     reportError(fatal ? 'global (fatal)' : 'global', e, !!fatal);
     previous?.(e, fatal);
   });
-  g.addEventListener?.('unhandledrejection', (event) => { reportError('unhandled promise', event.reason); });
+  g.addEventListener?.('unhandledrejection', (event) => {
+    // A browser's media element refuses a play() that a pause() overtook (leaving a
+    // player mid-start, JRN-002). expo-audio's web player does not hand that promise
+    // back to catch; it is expected, not a fault to report.
+    const r = event.reason as { name?: unknown } | undefined;
+    if (r && r.name === 'AbortError') { noteExpected('media play interrupted', event.reason); return; }
+    reportError('unhandled promise', event.reason);
+  });
   // A browser has no ErrorUtils: an error thrown outside React and outside a promise arrives here.
   if (typeof document !== 'undefined') g.addEventListener?.('error', (event) => { reportError('global (web)', event.error); });
 }

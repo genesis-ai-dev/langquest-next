@@ -136,12 +136,12 @@ already in the app's merged manifest (from `expo-updates`) and is a normal
 permission the person is never asked for, so no Play Console answer
 changes.
 
-`expo-keep-awake` (decisions.md 95) keeps the screen on while the
+`expo-keep-awake` (decisions.md 106) keeps the screen on while the
 microphone is recording, so a hands-free session is not ended by the
 screen timeout. It sets a flag on the app's window; it needs no Android
 permission and collects or sends nothing, so no Play Console answer changes.
 
-Recordings (decisions.md 95) are kept and uploaded as AAC (`.m4a`) on a
+Recordings (decisions.md 106) are kept and uploaded as AAC (`.m4a`) on a
 phone instead of WAV: the same voice recordings in a smaller file, so the
 "Voice or sound recordings" answer is unchanged.
 
@@ -192,7 +192,7 @@ this block.
     "expo-sqlite"
   ],
   "mobileDependencies": [
-    "@expo/metro-runtime", "@langquest-next/client", "@langquest-next/core",
+    "@expo/metro-runtime", "@langquest-next/core", "@langquest-next/sync",
     "@react-native-async-storage/async-storage", "@react-navigation/native",
     "@react-navigation/native-stack", "@supabase/supabase-js", "d3-geo", "expo", "expo-audio",
     "expo-camera", "expo-crypto", "expo-dev-client", "expo-file-system", "expo-keep-awake", "expo-localization", "expo-network",

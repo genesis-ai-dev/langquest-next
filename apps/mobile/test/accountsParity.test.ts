@@ -20,4 +20,10 @@ describe('sign-in names: the server and the app agree', () => {
   ])('%s', (name, digits) => {
     expect(serverName(name, digits)).toBe(makeSignInName(name, digits));
   });
+
+  it('widens to more digits when three keep clashing', () => {
+    expect(makeSignInName('Kept Person', 1234567, 5)).toBe('kept-person-34567');
+    expect(serverName('Kept Person', 1234567, 5)).toBe(makeSignInName('Kept Person', 1234567, 5));
+    expect(makeSignInName('Kept Person', 7, 5)).toBe('kept-person-00007');
+  });
 });

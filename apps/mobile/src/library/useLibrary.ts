@@ -8,9 +8,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Ctx } from '../ctx';
 import { t } from '../i18n';
 import { noteExpected } from '../report';
-import { supabase } from '../supabase';
+import * as server from '../server/library';
 import { cachedDoc, flushOutbox, keepNewDoc, loadDocs, onDocs, prepareDoc } from './docStore';
-import { copyOps, followOps, newItemId, publishOps, subscribeOps, type LibraryOp, type SharedItem } from './model';
+import { copyOps, followOps, mayWriteLibrary, newItemId, publishOps, subscribeOps, type LibraryOp, type SharedItem } from './model';
 
 /**
  * Why `library_adopt` refused, in the language showing: its known reasons
@@ -70,7 +70,7 @@ export function useLibrary(ctx: Ctx) {
 
   /** Get access to a shared version (and what it depends on) before naming it here. A collection's guides stay on the server (`loadDocs`). */
   const adopt = useCallback(async (s: SharedItem, hash = s.latest_hash) => {
-    const { error } = await supabase.rpc('library_adopt', { p_org: orgId, p_source_org: s.org_id, p_source_item: s.item_id, p_hash: hash });
+    const { error } = await server.adopt(orgId, s.org_id, s.item_id, hash);
     if (error) throw adoptError(error);
     await loadDocs(orgId, [hash]);
   }, [orgId]);
@@ -108,7 +108,7 @@ export function useLibrary(ctx: Ctx) {
   const takeUpdate = useCallback(async (it: LibraryItemView, hash: string) => {
     const sub = it.subscription;
     if (!sub) return;
-    const { error } = await supabase.rpc('library_adopt', { p_org: orgId, p_source_org: sub.sourceOrgId, p_source_item: sub.sourceItemId, p_hash: hash });
+    const { error } = await server.adopt(orgId, sub.sourceOrgId, sub.sourceItemId, hash);
     if (error) throw adoptError(error);
     await loadDocs(orgId, [hash]);
     await run([{ type: 'v1.LibraryPinned', payload: { itemId: it.itemId, kind: it.kind, docHash: hash } }]);
@@ -139,7 +139,10 @@ export function useLibrary(ctx: Ctx) {
     throw new CommandError(t('library.errors.onlyTemplatesAndFlows'));
   }, [ctx.language.state, library, orgId]);
 
-  return { orgId, items, item, publish, setSharing, archive, copy, copyFollowed, subscribe, follow, takeUpdate, applySpecs };
+  /** May this person write the organization's library for this kind (organization scope, `mayWriteLibrary`)? */
+  const canWrite = useCallback((kind: LibraryKind) => mayWriteLibrary(orgState ?? null, ctx.session.actorId, kind), [orgState, ctx.session.actorId]);
+
+  return { orgId, items, item, publish, setSharing, archive, copy, copyFollowed, subscribe, follow, takeUpdate, applySpecs, canWrite };
 }
 
 /** Documents for these hashes (and their deps, unless `deps: false`), re-rendering as they arrive. */
@@ -178,7 +181,7 @@ export function useSharedItems(kind: LibraryKind, orgId: string, enabled = true)
     try {
       const cached = await AsyncStorage.getItem(key);
       if (cached) setRows(JSON.parse(cached));
-      const { data, error: failed } = await supabase.rpc('library_shared_items', { p_kind: kind, p_query: null, p_limit: 200, p_offset: 0 });
+      const { data, error: failed } = await server.sharedItems(kind);
       if (failed) throw new Error(failed.message);
       const list = ((data ?? []) as SharedItem[]).filter((r) => r.org_id !== orgId);
       setRows(list);
@@ -200,7 +203,7 @@ export function useLibraryUpdates(orgId: string) {
   const [updates, setUpdates] = useState<Record<string, string>>({});
   const refresh = useCallback(async () => {
     try {
-      const { data, error } = await supabase.rpc('library_updates', { p_org: orgId });
+      const { data, error } = await server.updates(orgId);
       if (error) throw new Error(error.message);
       const out: Record<string, string> = {};
       for (const r of (data ?? []) as { item_id: string; pinned_hash: string | null; latest_hash: string | null }[]) {

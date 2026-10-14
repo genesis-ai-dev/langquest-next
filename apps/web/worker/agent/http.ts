@@ -1,7 +1,9 @@
 import type { AgentQuery, AgentWrite, Answer, OrgAccess } from './org';
 import { handleMcp } from './mcp';
 import { openApi } from './openapi';
-import type { AgentStore, TokenRecord } from './store';
+import type { AgentStore, TokenRecord, WebhookRecord } from './store';
+import type { ChangePage, DeliveryOut } from './dispatch';
+import { changesRoute, revokeWithWebhooks, webhookRoute } from './webhookRoutes';
 import {
   hashSecret, newSecret, newUserCode, normalizeUserCode, parseScopes, SCOPE_TEXT, SCOPES, TOKEN_PREFIX, type Grant, type Scope
 } from './tokens';
@@ -36,6 +38,12 @@ export interface OrgStub {
   checkLink(profileId: string, spec: LinkSpec): Promise<Answer<{ takeId: string }>>;
   linkInfo(link: ReviewLink): Promise<Answer<LinkView>>;
   linkReview(link: ReviewLink, input: LinkReviewInput): Promise<Answer<{ duplicate: boolean }>>;
+  /** The change feed and webhooks (webhookRoutes.ts, decisions.md 101). */
+  changes(grant: Grant, languageId: string, after: number | null, limit: number): Promise<Answer<ChangePage>>;
+  scanWebhooks(): Promise<void>;
+  webhooksEnded(webhooks: WebhookRecord[]): Promise<void>;
+  pingWebhook(webhook: WebhookRecord): Promise<DeliveryOut>;
+  webhookDeliveries(webhookId: string): Promise<{ deliveries: DeliveryOut[]; pending: number }>;
 }
 
 export interface AgentDeps {
@@ -166,6 +174,10 @@ function index(url: URL) {
       externalValues: `GET ${base}/languages/{languageId}/external-values?keyPrefix=&changedSince=ISO&after= (values your apps store with the language; LangQuest keeps them and never acts on them)`,
       externalValue: `PUT | GET | DELETE ${base}/languages/{languageId}/external-values/{key} (PUT body: { "data": { … } }, at most 4 KB)`,
       reviewLink: `POST ${base}/review-links`,
+      changes: `GET ${base}/languages/{languageId}/changes?after={cursor}&limit=500 (what changed, in order, deletions included; without after, the cursor to start from)`,
+      webhooks: `POST | GET ${base}/webhooks (POST body: { "url": "https://…", "events": [ … ], "languageIds": [ … ] }; needs the read scope)`,
+      webhook: `GET | DELETE ${base}/webhooks/{webhookId}; POST …/ping; GET …/deliveries`,
+      revokeToken: `DELETE ${base}/token (this token revokes itself)`,
       mcp: `POST ${base}/mcp (Model Context Protocol, streamable HTTP)`,
       deviceCode: `POST ${base}/device/code`,
       deviceToken: `POST ${base}/device/token`
@@ -178,9 +190,15 @@ async function tokenRoute(request: Request, parts: string[], url: URL, auth: { g
   const org = deps.org(grant.orgId);
   const get = request.method === 'GET';
   if (parts[0] === 'me' && parts.length === 1 && get) {
-    const languages = await org.read(grant, { op: 'languages' });
-    return json(200, { token: tokenOut(auth.token), languages: languages.ok ? languages.data : [] });
+    const [languages, access] = await Promise.all([org.read(grant, { op: 'languages' }), org.access(grant.profileId)]);
+    return json(200, { token: tokenOut(auth.token), org: { id: grant.orgId, name: access?.name ?? '' }, languages: languages.ok ? languages.data : [] });
   }
+  // An app's own "Disconnect": the token revokes itself.
+  if (parts[0] === 'token' && parts.length === 1 && request.method === 'DELETE') {
+    await revokeWithWebhooks(auth.token, auth.token.profileId, deps);
+    return json(200, { revoked: true });
+  }
+  if (parts[0] === 'webhooks') return webhookRoute(request, parts.slice(1), grant, deps);
   if (parts[0] === 'review-links') return tokenLinks(request, parts.slice(1), url, grant, auth.token, deps);
   if (parts[0] !== 'languages') return fail(404, 'not_found', 'Not found. GET /api/v1 lists what is here.');
   if (parts.length === 1 && get) return answer(await org.read(grant, { op: 'languages' }));
@@ -192,6 +210,7 @@ async function tokenRoute(request: Request, parts: string[], url: URL, auth: { g
   }
   if (parts[2] === 'voice-notes' && parts.length === 3 && request.method === 'PUT') return voiceNote(request, grant, languageId, deps);
   if (parts[2] === 'external-values') return externalValuesRoute(request, parts.slice(3).join('/'), url, grant, languageId, deps);
+  if (parts[2] === 'changes' && parts.length === 3 && get) return changesRoute(url, grant, languageId, deps);
   if (parts[2] !== 'passages') return fail(404, 'not_found', 'Not found. GET /api/v1 lists what is here.');
   if (parts.length === 3 && get) {
     const query = passageQueryFrom(url);
@@ -379,7 +398,7 @@ async function sessionRoute(request: Request, parts: string[], url: URL, deps: A
       return json(200, { token: secret, record: tokenOut(token) }, false);
     }
     if (parts.length === 3 && parts[2] === 'revoke' && request.method === 'POST') {
-      return (await deps.store.revokeToken(parts[1]!, profileId)) ? json(200, { revoked: true }, false) : fail(404, 'not_found', 'There is no live token of yours with that id.', false);
+      return (await revokeWithWebhooks({ id: parts[1]! }, profileId, deps)) ? json(200, { revoked: true }, false) : fail(404, 'not_found', 'There is no live token of yours with that id.', false);
     }
   }
 

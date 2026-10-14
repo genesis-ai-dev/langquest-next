@@ -4,7 +4,7 @@
 // is needed. The file store notices (blobs.ts); this says so where nobody
 // can miss it: over every screen, until someone taps "I understand". It
 // says what can come back and which passages need recording again.
-import type { LostFile } from '@langquest-next/client';
+import type { LostFile } from '@langquest-next/sync';
 import { lostFilesView, unitTitle, type LanguageState } from '@langquest-next/core';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Modal, ScrollView, StyleSheet, View } from 'react-native';

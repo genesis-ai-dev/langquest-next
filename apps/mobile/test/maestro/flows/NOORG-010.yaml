@@ -1,0 +1,53 @@
+# NOORG-010: a new account starts an organization with no connection, and
+# it reaches the server once the phone is back online. Android only: the
+# iOS simulator has no airplane mode, so on iOS this flow fails at once
+# rather than pass without going offline. The second-device check
+# ("Switch Organization" lists it) is left to a person.
+appId: com.frontierrnd.langquestnext
+name: "NOORG-010 Starting an organization with no connection"
+tags:
+  - noorg
+  - android-only
+---
+- assertTrue:
+    condition: ${maestro.platform == 'android'}
+    label: "NOORG-010 needs Android: the iOS simulator cannot go offline"
+- evalScript: ${output.stamp = String(Date.now())}
+- runFlow: ../common/launch.yaml
+# A NEW account, made through Create Account while online.
+- tapOn: "Create Account"
+- tapOn: "Email"
+- inputText: "ui-${output.stamp}-new-1@example.test"
+- tapOn: "Password"
+- inputText: "secret12"
+- tapOn: "Confirm password"
+- inputText: "secret12"
+- hideKeyboard
+- tapOn:
+    id: "primary-action"
+- extendedWaitUntil:
+    visible: "Join your team"
+    timeout: 60000
+- setAirplaneMode: enabled
+- tapOn: "Start a new one"
+- tapOn: "What's it called\\?"
+- inputText: "UI Offline Org ${output.stamp}"
+- hideKeyboard
+- tapOn:
+    id: "primary-action"
+- extendedWaitUntil:
+    visible: "Get UI Offline Org ${output.stamp} ready"
+    timeout: 60000
+- assertNotVisible: "Something went wrong.*"
+- tapOn:
+    id: "tab-manage"
+- assertVisible: "UI Offline Org ${output.stamp}"
+- tapOn:
+    id: "tab-me"
+- extendedWaitUntil:
+    visible: ".*waiting to send.*"
+    timeout: 120000
+- setAirplaneMode: disabled
+- extendedWaitUntil:
+    notVisible: ".*waiting to send.*"
+    timeout: 60000

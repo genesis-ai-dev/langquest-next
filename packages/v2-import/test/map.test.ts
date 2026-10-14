@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { derivePassage, foldLanguage, foldOrg, ORG_STREAM, validateEvent, withDeps, type AnyEvent, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
-import { mapProject, type CopiedFile, type MapContext } from '../src/map';
+import { chosenHere, mapProject, type CopiedFile, type MapContext } from '../src/map';
 import { reconcile, type LedgerEntry } from '../src/reconcile';
 import type { V2Asset, V2Content, V2Placement, V2ProjectRows, V2Quest, V2Vote } from '../src/rows';
 
@@ -96,7 +96,7 @@ function run(passes: { rows: V2ProjectRows; ctx?: MapContext }[]) {
   const each: AnyEvent[][] = [];
   for (const p of passes) {
     const mapped = mapProject(p.rows, p.ctx ?? ctx());
-    const r = reconcile(mapped.facts, ledger, { orgId: 'org1', scope: p.rows.project.id, now: NOW });
+    const r = reconcile(mapped.facts, ledger, { orgId: 'org1', scope: p.rows.project.id, now: NOW, takeBackAbsent: chosenHere });
     for (const [k, e] of r.entries) ledger.set(k, e);
     each.push(r.events);
   }
@@ -140,6 +140,27 @@ describe('mapProject: a Bible project', () => {
     expect(passage.notes.map((n) => n.text)).toEqual(['1:3: Kwa words for verse 3']);
   });
 
+  it("has an admin of the organization add the language and set it up, since its v2 owner may not be in the organization", () => {
+    const { all } = run([{ rows: bible(), ctx: ctx({ manager: 'el-admin' }) }]);
+    const by = (type: string) => [...new Set(all.filter((e) => e.type === type).map((e) => e.actorId))];
+    for (const type of ['v1.LanguageAdded', 'v1.LanguageRenamed', 'v1.LanguageCodeSet', 'v1.FlowSelected', 'v1.TemplateSelected', 'v1.UnitAdded']) expect(by(type), type).toEqual(['el-admin']);
+    // The work stays its makers'.
+    expect(by('v1.RecordingAdded')).toEqual(['trans']);
+  });
+
+  it('makes a recording of the same verses as the one above more of that verse, as Next records it', () => {
+    const same = bible();
+    same.placements = [place('ch1', 'a1', 1000000, [3, 3]), place('ch1', 'a2', 3000000, [3, 3])];
+    const { each, all } = run([{ rows: same }, { rows: same }]);
+    for (const e of all) expect(validateEvent(e), e.id).toBeNull();
+    expect(each[1]).toEqual([]);
+    const state = foldLanguage(all.filter((e) => e.streamId === 'p1'));
+    expect(state.cardVerses[unit]?.[H('1')]?.value).toEqual({ mark: 'set', from: '1:3', to: '1:3' });
+    // a2's own fact set its first card to 1:3; the join just after it wins, so the list reads in order.
+    expect(state.cardVerses[unit]?.[H('2')]?.value).toEqual({ mark: 'join' });
+    expect(state.cardVerses[unit]?.[H('3')]?.value).toEqual({ mark: 'join' });
+  });
+
   it('leaves written work and back translations in v2 until they are turned on, then brings them', () => {
     const off = mapProject(bible(), ctx({ writtenWork: false }));
     expect(off.report).toMatchObject({ heldBack: 2, heldFiles: ['bt1.wav'], backTranslations: 0, notes: 0 });
@@ -175,9 +196,9 @@ describe('mapProject: a Bible project', () => {
     const state = foldLanguage(all.filter((e) => e.streamId === 'p1'));
     const passage = derivePassage(state, unit);
     expect(passage.versions.map((v) => v.cardHashes)).toEqual([[H('1'), H('2'), H('3')], [H('1'), H('2'), H('3'), H('4')], [H('2'), H('3'), H('4')]]);
-    // a1's recording (and its verse mark) is taken back, and so is the back translation hanging off it.
-    const redacted = each[3]!.filter((e) => e.type === 'v1.Redacted').map((e) => (e.payload as { eventId: string }).eventId);
-    expect(redacted.sort()).toEqual(['v2:p1:bt:bt1#1:ReviewRecorded', 'v2:p1:rec:ch1:a1#1:CardVerseSet', 'v2:p1:rec:ch1:a1#1:RecordingAdded']);
+    // a1's recording stays, and so does the back translation hanging off it: nothing said here disappears.
+    expect(each[3]!.filter((e) => e.type === 'v1.Redacted')).toEqual([]);
+    expect(Object.keys(state.recordings ?? {}).length).toBeGreaterThan(0);
   });
 
   it('holds a version until its files reach v2, then brings it over', () => {
@@ -198,15 +219,12 @@ describe('mapProject: a Bible project', () => {
     expect((take?.payload as { cardHashes: string[] }).cardHashes).toEqual([H('1'), H('2')]);
   });
 
-  it('takes a review back when the vote is removed, and a member when they leave or their only work goes', () => {
+  it('keeps a review when the vote is removed in v2, and a member when they leave it', () => {
     const later = bible();
     later.votes = later.votes.map((v) => ({ ...v, active: false }));
     later.members.find((m) => m.profile_id === 'trans')!.active = false;
     const { each } = run([{ rows: bible() }, { rows: later }]);
-    // The reviewer was never a v2 member: with their votes gone, nothing keeps them on the language.
-    expect(each[1]!.map((e) => [e.type, (e.payload as { profileId?: string }).profileId ?? '']).sort()).toEqual([
-      ['v1.MemberRemoved', 'rev'], ['v1.MemberRemoved', 'trans'], ['v1.Redacted', '']
-    ]);
+    expect(each[1]).toEqual([]);
   });
 });
 
@@ -240,6 +258,44 @@ describe('mapProject: an older project with source material', () => {
     expect(passage.reviews.map((r) => r.outcome)).toEqual(['looks_good']);
     // A written translation is not lost: it is a note on the passage.
     expect(passage.notes.map((n) => n.text)).toEqual(['written only']);
+  });
+
+  it('has an admin of the organization add its passages and source material, whoever made them in v2', () => {
+    const rows = older();
+    rows.quests = [quest('creation', null, { creator_id: 'trans' })];
+    rows.assets[0] = asset('s1', { creator_id: 'trans' });
+    const { all } = run([{ rows, ctx: ctx({ manager: 'admin' }) }]);
+    const by = (type: string) => [...new Set(all.filter((e) => e.type === type).map((e) => e.actorId))];
+    for (const type of ['v1.UnitAdded', 'v1.MaterialDefined', 'v1.MaterialFieldSet']) expect(by(type), type).toEqual(['admin']);
+    expect(by('v1.RecordingAdded')).toEqual(['trans']);
+  });
+});
+
+describe('mapProject: a v2 person confirmed as an account already in Next', () => {
+  const members = (events: AnyEvent[]) => events.filter((e) => e.type === 'v1.MemberAdded' || e.type === 'v1.MemberRemoved')
+    .map((e) => `${e.type === 'v1.MemberAdded' ? '+' : '-'}${(e.payload as { profileId: string }).profileId}`).sort();
+  it('names that account as the member, and moves the membership over when the link comes later', () => {
+    const { each, all } = run([{ rows: bible() }, { rows: bible(), ctx: ctx({ people: new Map([['trans', 'next-trans']]) }) }]);
+    for (const e of all) expect(validateEvent(e), e.id).toBeNull();
+    expect(members(each[0]!)).toEqual(['+owner', '+rev', '+trans']);
+    expect(members(each[1]!)).toEqual(['+next-trans', '-trans']);
+    const state = foldOrg(all.filter((e) => e.streamId === ORG_STREAM));
+    expect(Object.values(state.members['next-trans'] ?? {}).map((m) => m.roleId.value)).toEqual(['translator']);
+  });
+
+  it("gives the membership back to the v2 id when the link is undone", () => {
+    const linked = ctx({ people: new Map([['trans', 'next-trans']]) });
+    const undone = ctx({ released: new Map([['trans', 'next-trans']]) });
+    const { each } = run([{ rows: bible(), ctx: linked }, { rows: bible(), ctx: undone }]);
+    expect(members(each[1]!)).toEqual(['+trans', '-next-trans']);
+  });
+
+  it('gives one account the larger role when two v2 people are the same person', () => {
+    const { all } = run([{ rows: bible(), ctx: ctx({ people: new Map([['trans', 'me'], ['owner', 'me']]) }) }]);
+    const added = all.filter((e) => e.type === 'v1.MemberAdded').map((e) => e.payload as { profileId: string; roleId: string });
+    expect(added.filter((p) => p.profileId === 'me')).toEqual([expect.objectContaining({ roleId: 'org_admin' })]);
+    // Their work from then on is theirs too.
+    expect(all.filter((e) => e.type === 'v1.RecordingAdded').every((e) => e.actorId === 'me')).toBe(true);
   });
 });
 

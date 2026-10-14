@@ -14,6 +14,7 @@ import {
 import { latinDigits } from '../textMatch';
 import { stateLabel, stepName } from '../coreText';
 import { t } from '../i18n';
+import { checkName } from '../simple/adminModel';
 import type { IconName } from '../kit';
 import { hiddenText } from '../moderation';
 import { storedAnswerText } from '../reviewing/capture';
@@ -24,7 +25,8 @@ import { C, TINT } from '../theme';
 /** `ctx.name`: a display name, "You"/"you" for the viewer. */
 export type NameFn = (profileId: string, lower?: boolean) => string;
 
-const kindName = (kinds: KindDef[], id?: string) => kinds.find((k) => k.id === id)?.name ?? t('passage.record.unknownKind');
+// One name for a check on every screen (decision 91): "Peer check", not the library's "Peer Review".
+const kindName = (kinds: KindDef[], id?: string) => (id && kinds.some((k) => k.id === id) ? checkName(id, kinds) : t('passage.record.unknownKind'));
 
 /** "Community Check" -> "Community": the path is too narrow for full kind names. */
 function pathLabel(name: string): string {
@@ -81,22 +83,32 @@ export function heroHeadline(p: PassageState, kinds: KindDef[], me: string, name
   return t('passage.record.hero.next', { kind: openName });
 }
 
-/** "answered": done because its feedback was answered, not because someone said it looks good. */
+/** "answered": an older version's step whose feedback was answered (`oldStepState`). */
 export type PathState = 'complete' | 'answered' | 'current' | 'todo' | 'locked' | 'attention' | 'waiting';
 
 /** One step on the path (REC-2). */
 export function pathState(s: FlowStepStatus, isNext: boolean): PathState {
-  if (s.complete) return !s.override && s.kinds.some((k) => k.state === 'addressed') ? 'answered' : 'complete';
+  // Answered feedback leaves its step open, back with the reviewer (decided 2026-10-13).
+  if (s.complete) return 'complete';
   if (s.lockedBy) return 'locked';
   if (s.kinds.some((k) => k.state === 'suggestions' || (s.step.checkpoint && k.state === 'addressed'))) return 'attention';
   if (s.kinds.some((k) => k.state === 'asked')) return 'waiting';
   return isNext ? 'current' : 'todo';
 }
 
+/**
+ * Is a kind done for its step? A checkpoint clears only with approval given
+ * in the app (decision 72, core `derivePassage`); a check logged afterwards
+ * or given by link leaves it open.
+ */
+export function kindCleared(k: Pick<KindStatus, 'state' | 'review'>, s: { step: { checkpoint: boolean } }): boolean {
+  return s.step.checkpoint ? k.state === 'approved' && k.review?.via === 'app' : isCompleteState(k.state);
+}
+
 /** One kind's path within a step with several kinds, so separate pieces of work never read as one review. */
 export function kindPathState(k: KindStatus, s: FlowStepStatus, isNext: boolean): PathState {
   if (s.override && s.complete) return 'complete';
-  if (s.step.checkpoint ? k.state === 'approved' : isCompleteState(k.state)) return k.state === 'addressed' ? 'answered' : 'complete';
+  if (kindCleared(k, s)) return 'complete';
   if (s.lockedBy || k.state === 'locked') return 'locked';
   if (k.state === 'suggestions' || (s.step.checkpoint && k.state === 'addressed')) return 'attention';
   if (k.state === 'asked') return 'waiting';
@@ -104,8 +116,9 @@ export function kindPathState(k: KindStatus, s: FlowStepStatus, isNext: boolean)
 }
 
 /** What tapping a step says about it, above its kinds' actions. */
-export function stepSheetSub(s: FlowStepStatus): string {
-  if (s.lockedBy) return t('passage.record.sheet.waitsFor', { step: s.lockedBy });
+export function stepSheetSub(s: FlowStepStatus, lockedName?: string): string {
+  // `lockedName`: the checkpoint by its check's one name (decision 91); core's step name otherwise.
+  if (s.lockedBy) return t('passage.record.sheet.waitsFor', { step: lockedName ?? s.lockedBy });
   if (s.complete) return t('passage.record.sheet.done');
   if (s.override) return t('passage.record.sheet.movedPast');
   if (s.step.checkpoint) return t('passage.record.sheet.checkpoint');
@@ -200,8 +213,8 @@ export function oldKindLineText(r: ReviewView | undefined, kind: KindDef | undef
 }
 
 /** "Starts after the Consultant Check checkpoint", for a step (or a kind) that waits for one. */
-function startsAfter(s: Pick<FlowStepStatus, 'lockedBy'>): string {
-  return s.lockedBy ? t('passage.record.startsAfter', { step: s.lockedBy }) : t('passage.record.startsAfterCheckpoint');
+function startsAfter(s: Pick<FlowStepStatus, 'lockedBy'>, lockedName?: string): string {
+  return s.lockedBy ? t('passage.record.startsAfter', { step: lockedName ?? s.lockedBy }) : t('passage.record.startsAfterCheckpoint');
 }
 
 /** What a usual target is called on its button: "the Community team" or the person's name. */
@@ -252,8 +265,10 @@ export function kindRowActions(o: {
   const s = o.status.state;
   const mine = o.mine ?? namesMe(o.me);
   const askedMe = s === 'asked' && !!o.status.request && mine(o.status.request);
-  const cleared = o.step.step.checkpoint ? s === 'approved' : isCompleteState(s);
-  const doIt: RowAction | undefined = o.can.review ? { id: 'do', label: o.kind.produces ? o.kind.produces.action : t('passage.record.actions.reviewNow') } : undefined;
+  const cleared = kindCleared(o.status, o.step);
+  // Nobody checks their own version unless they were asked to (the role matrix: Review, "not their own version unless asked").
+  const doIt: RowAction | undefined = o.can.review && (!o.isAuthor || askedMe)
+    ? { id: 'do', label: o.kind.produces ? o.kind.produces.action : t('passage.record.actions.reviewNow') } : undefined;
   const send: RowAction | undefined = o.can.ask && s !== 'asked' && s !== 'addressed' && o.isAuthor && o.sendTo
     ? { id: 'send', label: t('passage.record.actions.sendTo', { target: o.sendTo }) } : undefined;
   const ask: RowAction | undefined = o.can.ask && s !== 'asked'
@@ -269,17 +284,42 @@ export function kindRowActions(o: {
   };
 }
 
+/**
+ * A check someone may do without being asked: the next one on someone else's
+ * version, not yet done. None while feedback waits on the translator (the
+ * next check is best done on the version they keep), and none on a check
+ * whose feedback needs changes (the step sheet offers it nothing either).
+ */
+export function openCheckFor(p: PassageState, o: { isAuthor: boolean; canReview: boolean }): KindStatus | undefined {
+  const next = p.next;
+  if (o.isAuthor || !o.canReview || !p.recorded || !next || p.awaitingResponse.length > 0) return undefined;
+  return next.kinds.find((k) => !kindCleared(k, next) && k.state !== 'locked' && k.state !== 'suggestions');
+}
+
+/**
+ * What "Something else?" offers for the current check, the way its step
+ * sheet does (`kindRowActions`): nothing once it is done, locked or waiting on
+ * an answer to its feedback; asking only while nobody has been asked; and no
+ * setting aside at a checkpoint, which only an override moves past.
+ */
+export function elseChoices(k: KindStatus, s: FlowStepStatus, o: { recorded: boolean }): { ask: boolean; log: boolean; skip: boolean } {
+  const actionable = o.recorded && !kindCleared(k, s) && k.state !== 'locked' && k.state !== 'suggestions';
+  return { ask: actionable && k.state !== 'asked', log: actionable, skip: actionable && !s.step.checkpoint };
+}
+
 /** The line under a kind's name: its state, who, and the advice that goes with it. */
 export function kindRowSub(o: {
   status: KindStatus; kind: KindDef; step: FlowStepStatus; me: string; name: NameFn; checkedBy?: string; waitFor?: string;
   mine?: MineFn; teamName?: (teamId: string) => string | undefined;
+  /** The checkpoint a locked kind waits for, by its check's one name. */
+  lockedName?: string;
 }): string {
   const { status, kind, step, name } = o;
   const mine = o.mine ?? namesMe(o.me);
   const s = status.state;
   const req = status.request;
   const makes = kind.produces;
-  const cleared = step.step.checkpoint ? s === 'approved' : isCompleteState(s);
+  const cleared = kindCleared(status, step);
   const due = req?.dueDate ? dueText(req.dueDate) : '';
   const checked = makes && o.checkedBy ? t('passage.record.sub.reviewsIt', { kind: o.checkedBy }) : '';
   const line = (...parts: string[]) => parts.filter(Boolean).join(' · ');
@@ -301,7 +341,7 @@ export function kindRowSub(o: {
     return line(status.review ? t('passage.record.sub.recordedBy', { who: feedbackSource(status.review, name, true) }) : t('passage.record.sub.recorded'), checked);
   }
   if (cleared) return line(stateLabel(s), status.review ? feedbackSource(status.review, name) : '');
-  if (s === 'locked') return startsAfter(step);
+  if (s === 'locked') return startsAfter(step, o.lockedName);
   if (o.waitFor) return t('passage.record.sub.bestAfter', { kind: o.waitFor });
   if (makes) return line(t('passage.record.sub.recordsItIn', { who: kind.usualReviewer || t('common.someone'), language: makes.into }), checked);
   return kind.usualReviewer;
@@ -381,12 +421,14 @@ export function describeEntry(e: RecordEntry, o: {
       return { icon: 'edit', color: C.primary, title: t('passage.record.entry.revisedAfter', { kind: kindName(kinds, e.review.kindId) }), sub: said(e.response.note ?? ''), who };
     case 'request': {
       const r = e.request;
+      const teamOf = () => r.team?.name || undefined;
       const status = r.status === 'open' ? (r.dueDate ? dueText(r.dueDate) : t('passage.record.entry.status.open'))
         : r.status === 'done' ? t('passage.record.entry.status.done') : t('passage.record.entry.status.withdrawn');
       return {
         icon: r.guest ? 'link' : 'people', color: C.muted,
-        title: r.what === 'record' ? t('passage.record.entry.askedToRecord', { who: requestee(r, name, true) })
-          : t('passage.record.entry.askedFor', { who: requestee(r, name, true), kind: kindName(kinds, r.kindId) }),
+        // A request to a check's team names the team (decision 91), not "a reviewer".
+        title: r.what === 'record' ? t('passage.record.entry.askedToRecord', { who: requestee(r, name, true, teamOf) })
+          : t('passage.record.entry.askedFor', { who: requestee(r, name, true, teamOf), kind: kindName(kinds, r.kindId) }),
         sub: [r.guest ? t('passage.record.entry.byLinkOver', { channel: channelLabel(r.guest.channel) }) : '', status].filter(Boolean).join(' · '),
         who: r.by ? who : t('passage.record.entry.assigned')
       };

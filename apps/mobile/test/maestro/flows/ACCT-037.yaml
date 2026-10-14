@@ -1,0 +1,74 @@
+# docs/ui-test-suite/11-account-and-settings.md, ACCT-037: signing out of a
+# phone with nothing waiting. Cancel returns to Me; Sign Out lands on Sign
+# In, and the phone keeps its data for the next person, who signs in.
+appId: com.frontierrnd.langquestnext
+name: "ACCT-037 Sign out of a phone with nothing waiting"
+tags:
+  - acct
+  - p0
+---
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${TRANS_EMAIL}
+      PASSWORD: ${TRANS_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- extendedWaitUntil:
+    visible:
+      id: "tab-me"
+    timeout: 60000
+- tapOn:
+    id: "tab-me"
+- extendedWaitUntil:
+    visible: "More settings.*"
+    timeout: 20000
+- tapOn: "Sign out"
+# No header, no tabs, no ?: the title, the line under it, Sign Out and Cancel.
+- extendedWaitUntil:
+    visible: "Sign out\\?"
+    timeout: 20000
+- assertVisible: "You can sign back in anytime\\."
+- assertVisible: "Sign Out"
+- assertVisible: "Cancel"
+- assertNotVisible:
+    id: "tab-me"
+- assertNotVisible:
+    id: "header-help"
+- assertNotVisible:
+    id: "header-back"
+- tapOn: "Cancel"
+- extendedWaitUntil:
+    visible:
+      id: "tab-me"
+    timeout: 20000
+- assertVisible: "More settings.*"
+- tapOn: "Sign out"
+- extendedWaitUntil:
+    visible: "Sign out\\?"
+    timeout: 20000
+- tapOn:
+    id: "primary-action"
+- extendedWaitUntil:
+    visible: "Email or sign-in name"
+    timeout: 60000
+# The phone keeps the language's data for others: REV signs in here and lands on REV's home.
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${REV_EMAIL}
+      PASSWORD: ${REV_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- extendedWaitUntil:
+    visible:
+      id: "tab-work"
+    timeout: 60000
+- assertVisible:
+    id: "tab-map"
+- assertVisible:
+    id: "tab-me"
+- assertNotVisible:
+    id: "tab-manage"
+- tapOn:
+    id: "tab-me"
+- assertVisible: ".*${REV_NAME}.*"

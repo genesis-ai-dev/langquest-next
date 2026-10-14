@@ -2,9 +2,9 @@
 // block list while changes wait to send, what a report sends, and how open
 // reports read to whoever acts on them.
 import { describe, expect, it } from 'vitest';
-import type { AccountAction } from '../src/durableOutbox';
+import type { AccountAction } from '@langquest-next/sync';
 import {
-  blockedIds, groupReports, personTarget, reportPayload, reportSummary, reportTitle, type OpenReport, type ReportTarget
+  blockedIds, groupReports, personTarget, reportedMessage, reportPayload, reportSummary, reportTitle, type OpenReport, type ReportTarget
 } from '../src/moderation';
 
 const block = (id: string, profileId: string, blocked: boolean, status: AccountAction['status'] = 'queued'): AccountAction =>
@@ -41,6 +41,11 @@ describe('a report', () => {
     const person = personTarget(note);
     expect(person).toEqual({ kind: 'person', id: 'deng', profileId: 'deng', orgId: 'org' });
     expect(reportPayload(person, 'harassment', '')).toMatchObject({ languageId: null, kind: 'person', targetId: 'deng' });
+  });
+
+  it('says it waits for a connection only when it has not reached the server (MOD-004, MOD-013)', () => {
+    expect(reportedMessage(true)).toBe('Reported. Thank you.');
+    expect(reportedMessage(false)).toBe('Reported. Thank you. It is sent when you are connected.');
   });
 });
 

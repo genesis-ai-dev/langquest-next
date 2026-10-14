@@ -2,9 +2,9 @@ import {
   commands, derivePassage, foldOrg, HlcClock, instantiateFlow, ORG_STREAM, SEED_ROLES,
   type AnyEvent, type EventPayloads, type EventSpec, type EventType
 } from '@langquest-next/core';
-import { MemoryStore } from '../../../packages/client/src/memoryStore';
-import { SyncClient } from '../../../packages/client/src/syncClient';
-import { FakeServer } from '../../../packages/client/src/testing/fakeServer';
+import { MemoryStore } from '../../../packages/sync/src/memoryStore';
+import { SyncClient } from '../../../packages/sync/src/syncClient';
+import { FakeServer } from '../../../packages/sync/src/testing/fakeServer';
 import { EDGES, TAB_SCREENS, type ScreenId } from '../src/flow';
 import { deriveSession, edgeAllowed, homeScreenFor } from '../src/session';
 import { screenMayEmit } from '../src/screenContracts';

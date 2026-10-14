@@ -19,7 +19,8 @@ Deno.serve(async (request) => {
   const body = await request.json().catch(() => ({})) as { task?: string };
   try {
     if (body.task === 'pushes') await deliverPushes(service);
-    else await runProjections(service);
+    // Large languages are projected by the scheduled job instead (decisions.md 103).
+    else await runProjections(service, 'small');
     return Response.json({ ok: true });
   } catch (error) {
     console.error('Projection worker failed', error instanceof Error ? error.message : 'unknown');

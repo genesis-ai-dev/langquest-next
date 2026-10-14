@@ -299,7 +299,7 @@ public class MicrophoneEnergyModule: Module {
             else if rawPeak <= onsetThreshold { vadState = "IDLE" }
         case "RECORDING":
             // An open part keeps going while the voice stays above the sustain
-            // level (decisions.md 95): a soft stretch is speech, not a pause.
+            // level (decisions.md 106): a soft stretch is speech, not a pause.
             let deltaMs = now - lastFrameTime
             if rawPeak > vadThreshold * vadSustainMultiplier {
                 lastAboveThresholdTime = now
@@ -535,7 +535,7 @@ final class SegmentWriter {
 }
 
 /**
- * A finished WAV part as AAC in MP4 (`.m4a`, decisions.md 95): mono 128 kb/s,
+ * A finished WAV part as AAC in MP4 (`.m4a`, decisions.md 106): mono 128 kb/s,
  * the bitrate hold-to-record always used, about a fifth of the WAV's size.
  * Throws on anything it cannot read; the caller then keeps the WAV.
  */

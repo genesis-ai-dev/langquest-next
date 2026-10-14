@@ -8,7 +8,7 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import MicrophoneEnergy from '../modules/microphone-energy';
-import { VAD_BASE } from './recording/vadSettings';
+import { VAD_BASE } from './recording/vadModel';
 import { preferredRecordingType } from './audioFormat';
 import { getBlobStore } from './blobs';
 import { t } from './i18n';
@@ -25,7 +25,7 @@ const WEB_TYPE = WEB && typeof MediaRecorder !== 'undefined' ? preferredRecordin
 /**
  * Hold-to-record takes on a browser still go through expo-audio's
  * MediaRecorder (small MP4 where it can). A phone records them with the
- * microphone module, like voice-detected parts (decisions.md 95), so a phone
+ * microphone module, like voice-detected parts (decisions.md 106), so a phone
  * never has two recorders open and a take starts as soon as the microphone
  * does. The choice is fixed when the app loads, so the hook order never changes.
  */
@@ -173,7 +173,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
               durationMs: entry().durationMs };
           } else {
             await journal.put(previous ?? { ...entry(), stage: 'recorded' });
-            // A phone keeps AAC, about a fifth of the WAV (decisions.md 95). The
+            // A phone keeps AAC, about a fifth of the WAV (decisions.md 106). The
             // journal names the AAC copy before the WAV goes, so a restart finds
             // one of them; if encoding fails, the WAV is kept as it is.
             if (!WEB && file.format === 'wav') {
@@ -255,7 +255,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
           recorder.record();
         } else {
           // The take is the module's own segment: it starts with the open
-          // microphone, with no second recorder to prepare (decisions.md 95).
+          // microphone, with no second recorder to prepare (decisions.md 106).
           if (!wanted.current || !mounted.current) return;
           manualSegment.current = true;
           // Its file is this recorder's: no other recorder may take it for a part.
@@ -344,7 +344,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
   /**
    * The source is about to play: the detector stops (an open part is kept,
    * untrimmed) but the microphone stays open, so picking up again is instant
-   * (decisions.md 95). What it hears meanwhile is never kept.
+   * (decisions.md 106). What it hears meanwhile is never kept.
    */
   const pauseVad = useCallback(async (): Promise<void> => {
     await vadStarting.current;
@@ -424,7 +424,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
         if (vadOwner !== self || manualSegment.current) return;
         setVadCapturing(false);
         if (e.uri) void deliver({ id: Crypto.randomUUID(), uri: e.uri, format: 'wav', durationMs: e.duration });
-        // Too little voice to be speech: the module deleted it. Say so (decisions.md 95).
+        // Too little voice to be speech: the module deleted it. Say so (decisions.md 106).
         else if (vadActive.current && mounted.current) setTooShort((n) => n + 1);
       })
     ];
@@ -475,7 +475,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
   };
 }
 
-/** Calls `said` each time the recorder's count of too-short parts grows (decisions.md 95). */
+/** Calls `said` each time the recorder's count of too-short parts grows (decisions.md 106). */
 export function useOnTooShort(count: number, said: () => void): void {
   const seen = useRef(count);
   const latest = useRef(said);

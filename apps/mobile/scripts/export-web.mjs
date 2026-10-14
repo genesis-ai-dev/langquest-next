@@ -44,7 +44,7 @@ execFileSync('npx', ['dotenvx', 'run', '-f', `.env.${env}`, '--strict', '--', 'n
     // The Worker that serves this build answers its /api too: always the page's own origin, whichever
     // address it was opened at (EXPO_PUBLIC_API_URL is for phones and Metro). dotenvx keeps a value already set.
     EXPO_PUBLIC_API_URL: '',
-    // A development export is a release build of the local stack, for the web smoke test (src/supabase.ts).
+    // A development export is a release build of the local stack, for the web smoke test (src/server/supabase.ts).
     ...(env === 'development' ? { EXPO_PUBLIC_LOCAL_RELEASE: '1' } : {})
   }
 });
@@ -65,8 +65,11 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // with localization (decision 81): the app's words moved from the code into
 // the English catalog, which also carries their keys, and i18next came with
 // them (5.67 MB then). The other languages' catalogs stay out of it: a browser
-// fetches only the one chosen (src/i18n/catalogs.web.ts).
-const BUDGET_BYTES = 6 * 1024 * 1024;
+// fetches only the one chosen (src/i18n/catalogs.web.ts). Raised to 6.1 MB
+// when the app's logic moved out of its screens into small modules
+// (decision 105): Metro wraps each module, about half a kilobyte apiece,
+// and 57 new ones cost 30 KB beyond the code they moved (6.01 MB then).
+const BUDGET_BYTES = 6.1 * 1024 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;

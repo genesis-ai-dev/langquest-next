@@ -6,7 +6,7 @@
 // it one snap at a time. A pane at an end snap shows a one-line version of
 // itself, so neither is ever hidden (splitModel.ts).
 import { useRef, useState, type ReactNode } from 'react';
-import { PanResponder, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { PanResponder, Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { t } from '../i18n';
 import { C, radius, target } from '../theme';
 import {
@@ -60,6 +60,15 @@ export function SplitPane(props: {
     onPanResponderTerminate: () => { setDragging(false); settle(start.current); }
   })).current;
 
+  // The web has no screen-reader swipe for everyone: the arrow keys move the divider a stop, Home and End to its ends.
+  const keys = Platform.OS === 'web' ? {
+    onKeyDown: (e: { key: string; preventDefault(): void }) => {
+      const to = ({ ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 } as Record<string, 1 | -1>)[e.key];
+      if (to !== undefined) { e.preventDefault(); settle(stepSnap(shown(), to)); }
+      else if (e.key === 'Home') { e.preventDefault(); settle(0); }
+      else if (e.key === 'End') { e.preventDefault(); settle(1); }
+    }
+  } : {};
   const measured = available > 0;
   const open = () => settle(DEFAULT_SPLIT);
   const render = (c: PaneContent, compact: boolean, height: number) => (typeof c === 'function' ? c({ compact, open, height }) : c);
@@ -70,9 +79,11 @@ export function SplitPane(props: {
         accessible accessibilityRole="adjustable"
         accessibilityLabel={t('recording.split.divider')}
         accessibilityHint={t('recording.split.dividerHint')}
-        accessibilityValue={{ text: splitValueText(heights) }}
+        // The text as an aria prop too: react-native-web reads only that one.
+        accessibilityValue={{ text: splitValueText(heights) }} aria-valuetext={splitValueText(heights)}
         accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
-        onAccessibilityAction={(e) => settle(stepSnap(shown(), e.nativeEvent.actionName === 'increment' ? 1 : -1))}>
+        onAccessibilityAction={(e) => settle(stepSnap(shown(), e.nativeEvent.actionName === 'increment' ? 1 : -1))}
+        aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(fraction * 100)} focusable {...keys}>
         <View style={styles.band}>
           <View style={[styles.grip, dragging && { backgroundColor: C.primary, width: 56 }]} />
         </View>

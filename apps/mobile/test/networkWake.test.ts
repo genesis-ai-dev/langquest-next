@@ -4,11 +4,13 @@ function harness() {
   let emit: (s: NetworkSignal) => void = () => {};
   let t = 0;
   let wakes = 0;
-  const stop = wakeOnReconnect((cb) => { emit = cb; return () => { emit = () => {}; }; }, () => { wakes++; }, () => t);
+  let losses = 0;
+  const stop = wakeOnReconnect((cb) => { emit = cb; return () => { emit = () => {}; }; }, () => { wakes++; }, () => t, 10_000, () => { losses++; });
   return {
     signal: (s: NetworkSignal) => emit(s),
     later: (ms: number) => { t += ms; },
     wakes: () => wakes,
+    losses: () => losses,
     stop
   };
 }
@@ -56,5 +58,21 @@ describe('waking sync when the network comes back', () => {
     h.stop();
     h.signal({ isConnected: true });
     expect(h.wakes()).toBe(0);
+  });
+
+  it('says when the network goes, once, so the app shows Offline at once (SYNC-002)', () => {
+    const h = harness();
+    h.signal({ isConnected: false });
+    expect(h.losses()).toBe(0);
+    h.signal({ isConnected: true, isInternetReachable: true });
+    h.signal({ isConnected: false });
+    expect(h.losses()).toBe(1);
+    h.signal({ isConnected: true });
+    h.signal({ isConnected: false });
+    expect(h.losses()).toBe(1);
+    h.later(10_000);
+    h.signal({ isConnected: true });
+    h.signal({ isConnected: false });
+    expect(h.losses()).toBe(2);
   });
 });

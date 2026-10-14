@@ -59,7 +59,7 @@ permutation and idempotence tests then cover it), and
 
 - **Nothing is dropped** (invariant 1). A server refusal marks the local event
   `rejected` with `rejectReason`; the UI shows it. Classify with `rejectCodeOf`
-  in `packages/client/src/types.ts`: `CLOCK_AHEAD` re-stamps, `NOT_MEMBER`
+  in `packages/sync/src/types.ts`: `CLOCK_AHEAD` re-stamps, `NOT_MEMBER`
   retries when membership changes, `INVALID` never retries.
 - **Offline is not unauthorized.** `OfflineError` means the request never reached the server, so
   queue and retry. `NotAuthorizedError` means the server refused, so tell the user;
@@ -112,7 +112,7 @@ writer. Reject it here unless a `docs/decisions.md` entry says otherwise:
 - A new merge rule: add a property test that includes the tie case (same HLC,
   same actor, arrival before its parent). The `property-based-testing` skill
   covers generators and shrinking.
-- Client behaviour: `packages/client/test/fakeServer.ts` and
+- Client behaviour: `packages/sync/test/fakeServer.ts` and
   `syncClient.test.ts` for rejected, duplicate, timeout-after-accept, and
   resume-after-crash cases; `storeContract.test.ts` for any new `EventStore`.
 

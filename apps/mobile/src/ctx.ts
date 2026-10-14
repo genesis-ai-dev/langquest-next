@@ -44,9 +44,10 @@ export interface Ctx {
   /**
    * Apply a command's events (core `commands()`), then say what changed
    * (CORE-5). With `undo`, the toast offers Undo for about 7 seconds; undo
-   * appends the inverse events, never deletes.
+   * appends the inverse events, never deletes. `undone` says what the Undo
+   * brought back, when "Undone." alone would not.
    */
-  act: (specs: EventSpec[], message: string, undo?: () => EventSpec[]) => Promise<void>;
+  act: (specs: EventSpec[], message: string, undo?: () => EventSpec[], undone?: string) => Promise<void>;
   /** Say what happened, with Undo when it can be undone. */
   toast: (message: string, undo?: () => void | Promise<void>) => void;
   /** Details on request (ADR-013): open state per thing shown, kept across a visit and Back. */

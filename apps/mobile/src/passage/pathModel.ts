@@ -9,6 +9,7 @@ import { checkName } from '../simple/adminModel';
 import { t } from '../i18n';
 import { formatClock, formatNumber } from '../i18n/format';
 import { kindInSentence, versionTitle } from '../passageView';
+import { kindCleared } from './record';
 
 export type PathStepKind = 'study' | 'record' | 'publish' | 'feedback' | 'fix';
 /** done: finished; current: the lit step; todo: still to come; passed: left behind (a study nobody finished before recording). */
@@ -46,6 +47,8 @@ export interface PathInput {
   when: (hlc: string) => string;
   /** Seconds in the latest version, when known. */
   latestSeconds?: number;
+  /** The verses the latest version holds ("Verses 1–4"), when its parts have any. */
+  latestVerses?: string | null;
   /** Who a request went to, as people say it ("the Community team", "Mary"). */
   askedName?: (kindId: string) => string | undefined;
   /** A due date as people say it ("due Oct 11"). */
@@ -75,7 +78,9 @@ export function pathSteps(input: PathInput): PathStep[] {
   const out: PathStep[] = [];
   const latest = p.latest;
   const feedback = latest ? p.awaitingResponse.filter((r) => r.versionN === latest.n) : [];
-  const answering = feedback.length > 0;
+  // Hear the feedback and Fix it are the steps of whoever answers it, the latest version's author
+  // (core feedbackIsMine); everyone else reads that the passage waits on them.
+  const answering = feedback.length > 0 && latest?.by === me;
   const first = firstCheck(p);
   const firstName = first ? kindName(kinds, first.kindId) : undefined;
 
@@ -95,9 +100,9 @@ export function pathSteps(input: PathInput): PathStep[] {
   out.push({
     kind: 'record', title: t('passage.path.record'),
     sub: p.recorded && latest
-      ? [versionTitle(latest.n), input.latestSeconds ? formatClock(input.latestSeconds * 1000) : ''].filter(Boolean).join(' · ')
+      ? [versionTitle(latest.n), input.latestVerses ?? '', input.latestSeconds ? formatClock(input.latestSeconds * 1000) : ''].filter(Boolean).join(' · ')
       : p.drafting
-        ? (p.draftBy === me ? t('passage.path.yourTakes') : t('passage.path.someTakes'))
+        ? (p.draftBy === me ? t('passage.path.yourParts') : t('passage.path.someParts'))
         : askedLine ? t('passage.path.recordHintAsked', { asked: askedLine }) : t('passage.path.recordHint'),
     state: p.recorded ? 'done' : 'todo'
   });
@@ -107,7 +112,7 @@ export function pathSteps(input: PathInput): PathStep[] {
     kind: 'publish', title: t('passage.path.publish'),
     sub: p.recorded && latest
       ? [
-        t('passage.path.publishedWhen', { when: input.when(latest.hlc) }),
+        publishedLine(input.when(latest.hlc)),
         asked ? t('passage.path.status.askedWho', { who: input.askedName?.(asked.kindId ?? '') ?? (asked.profileId ? input.name(asked.profileId) : asked.team?.name ?? t('passage.path.someoneInSentence')) }) : ''
       ].filter(Boolean).join(' · ')
       : firstName ? t('passage.path.thenAskFor', { check: kindInSentence(firstName) }) : t('passage.path.saveForTeam'),
@@ -124,6 +129,11 @@ export function pathSteps(input: PathInput): PathStep[] {
   const lit = out.find((s) => s.state !== 'done' && s.state !== 'passed');
   if (lit) lit.state = 'current';
   return out;
+}
+
+/** "Published Tuesday", or "Published just now" (the time word is a sentence's start on its own). */
+function publishedLine(when: string): string {
+  return when === t('time.justNow') ? t('passage.path.publishedJustNow') : t('passage.path.publishedWhen', { when });
 }
 
 /** "after the community check" */
@@ -152,12 +162,18 @@ export function teamSteps(input: PathInput): TeamStep[] {
       const name = kindName(kinds, k.kindId);
       let status: string;
       let state: TeamStep['state'];
-      if (s.complete || isCompleteState(k.state)) {
+      // A checkpoint clears only with approval given in the app (decision 72; core derivePassage), so a check
+      // logged afterwards leaves it open; moving past it (an override) is done for the path, though core never counts it complete.
+      const kindDone = kindCleared(k, s);
+      if (s.complete || s.override || kindDone) {
         state = 'done';
-        status = s.override ? t('passage.path.status.movedPast') : k.state === 'skipped' ? t('passage.path.status.setAside')
+        status = s.override && !kindDone ? t('passage.path.status.movedPast') : k.state === 'skipped' ? t('passage.path.status.setAside')
           : k.state === 'addressed' ? t('passage.path.status.answered') : t('passage.path.status.looksGood');
       } else if (k.state === 'suggestions') {
         state = 'attention'; status = t('passage.path.status.needsChanges');
+      } else if (k.state === 'addressed' && !s.lockedBy) {
+        // Answered feedback goes back to the check (decided 2026-10-13).
+        state = 'todo'; status = t('passage.path.status.answeredBack');
       } else if (s.lockedBy) {
         state = 'locked'; status = after(s.lockedBy);
       } else if (k.state === 'asked') {
@@ -175,7 +191,7 @@ export function teamSteps(input: PathInput): TeamStep[] {
       return { stepId: s.step.id, kindId: k.kindId, together: j > 0, name, status, state, checkpoint: s.step.checkpoint };
     });
     // Later steps say the step before by its first check, so the line stays short.
-    previous = { name: kindName(kinds, s.step.kindIds[0] ?? ''), complete: s.complete };
+    previous = { name: kindName(kinds, s.step.kindIds[0] ?? ''), complete: s.complete || !!s.override };
     return rows;
   });
 }

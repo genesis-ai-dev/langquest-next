@@ -2,7 +2,9 @@
 // language LangQuest speaks to you in. Each language is named in itself, so
 // someone who reads only that language finds it, with its name in the
 // language showing under it. A draft (not yet approved, i18n/languages.ts)
-// says so. Picking one restarts the app in it.
+// says so. Picking one restarts the app in it; picking the one showing
+// saves the choice and closes the sheet.
+import { getLocales } from 'expo-localization';
 import { useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from './text';
@@ -10,6 +12,12 @@ import { languageInfo, t, UI_LANGUAGES, currentLanguage, type UiLanguage } from 
 import { chooseLanguage, chosenLanguage, phoneLanguage } from './i18n/start';
 import { Ico, Row, Sheet, txt } from './kit';
 import { C, radius, space, target } from './theme';
+import { choiceChangesLanguage } from './uiLanguageChoice';
+
+/** The phone's or browser's languages, as i18n/start.ts reads them. */
+function deviceTags(): string[] {
+  try { return getLocales().map((l) => l.languageTag); } catch { return []; }
+}
 
 /** The language's name in the language showing: "Arabic", "Árabe", "阿拉伯语". */
 function nameHere(code: UiLanguage): string {
@@ -37,6 +45,12 @@ export function LanguageSheet(props: { visible: boolean; onClose: () => void }) 
   const chosen = chosenLanguage();
   const phone = phoneLanguage();
   const pick = (code: UiLanguage | null) => {
+    // The language already showing: the choice is saved, nothing restarts, so the sheet just closes.
+    if (!choiceChangesLanguage(code, currentLanguage(), deviceTags())) {
+      chooseLanguage(code);
+      props.onClose();
+      return;
+    }
     setChanging(true);
     // Let the sheet say so before the app restarts.
     setTimeout(() => chooseLanguage(code), 50);

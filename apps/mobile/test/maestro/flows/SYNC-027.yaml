@@ -1,0 +1,182 @@
+# SYNC-027 The app opens offline where it was (docs/ui-test-suite/12-sync-and-offline.md,
+# decision 87). TRANS reaches My Work online, leaves a note waiting offline,
+# the app is killed and opened again offline: it opens on My Work, not on a
+# spinner or Sign In, with "1 to send"; online again, the note goes.
+#
+# Wrapping (offline means the app cannot reach the local Supabase :54421 and
+# Worker :8787, while Metro :8095 still serves the bundle). Run it in three
+# parts with PART=a, b, c and cut the server between them:
+#   PART=a   online: fresh install, sign in, My Work.
+#   (cut)    Android: adb -s emulator-5554 reverse --remove tcp:54421; adb reverse --remove tcp:8787
+#            iOS: block 127.0.0.1 ports 54421 and 8787 on the host (pfctl), keep 8095.
+#   PART=b   offline: a note, kill, reopen, checks.
+#   (restore) Android: adb reverse tcp:54421 tcp:54421; adb reverse tcp:8787 tcp:8787. iOS: unblock.
+#   PART=c   online: the note goes.
+# Without PART it runs all three with Android's airplane mode, which only
+# works where the emulator reaches the server over its own network (airplane
+# mode does not cut adb reverse ports).
+appId: com.frontierrnd.langquestnext
+name: "SYNC-027 The app opens offline where it was"
+tags:
+  - sync
+  - wrapped
+---
+- evalScript: "${output.part = (typeof PART === 'undefined' || !PART) ? 'all' : PART}"
+# Part a: online.
+- runFlow:
+    when:
+      true: ${output.part === 'all' || output.part === 'a'}
+    commands:
+      - runFlow: ../common/launch.yaml
+      - runFlow:
+          file: ../common/sign-in.yaml
+          env:
+            EMAIL: ${TRANS_EMAIL}
+            PASSWORD: ${TRANS_PASSWORD}
+      - runFlow: ../common/welcome-skip.yaml
+      - extendedWaitUntil:
+          visible:
+            id: "tab-work"
+          timeout: 60000
+      # Let the first sync finish, so the home is remembered and the language is on the phone.
+      - waitForAnimationToEnd:
+          timeout: 15000
+- runFlow:
+    when:
+      true: ${output.part === 'all'}
+    commands:
+      - runFlow:
+          when:
+            platform: Android
+          commands:
+            - setAirplaneMode: enabled
+# Part b: offline. One note waits; the app is killed and opened again.
+- runFlow:
+    when:
+      true: ${output.part === 'all' || output.part === 'b'}
+    commands:
+      - tapOn:
+          id: "tab-map"
+      - tapOn: "Find.*"
+      - inputText: ${P_SUBMITTED.split(':')[0]}
+      - runFlow:
+          file: ../common/dismiss-keyboard.yaml
+          env:
+            LABEL: ${LANG_A}
+      - tapOn:
+          text: "${P_SUBMITTED}.*"
+          index: 0
+      - extendedWaitUntil:
+          visible: "(?i)Then the team"
+          timeout: 30000
+      - tapOn: "Something else\\?"
+      - tapOn: "Add a note"
+      - tapOn: ".*Or type it.*"
+      - inputText: "SYNC-027 waiting note"
+      - runFlow:
+          file: ../common/dismiss-keyboard.yaml
+          env:
+            LABEL: "Add a note"
+      - tapOn:
+          text: "Add note"
+          waitToSettleTimeoutMs: 0
+      - assertVisible:
+          id: "toast"
+          text: ".*Note added — it follows this passage.*"
+      - tapOn:
+          id: "header-close"
+      - tapOn:
+          id: "header-back"
+      - tapOn:
+          id: "tab-work"
+      - extendedWaitUntil:
+          visible: "1 to send"
+          timeout: 30000
+      - stopApp
+      - launchApp:
+          clearState: false
+      - runFlow:
+          when:
+            platform: iOS
+          commands:
+            - openLink: ${DEV_CLIENT_URL}
+            - runFlow:
+                when:
+                  visible: "Open"
+                commands:
+                  - tapOn: "Open"
+      - runFlow:
+          when:
+            visible: "New development server"
+          commands:
+            - tapOn: "http://127.0.0.1.*"
+      - runFlow:
+          when:
+            visible: "Toggle element inspector"
+          commands:
+            - back
+      - runFlow:
+          when:
+            visible: "Close"
+          commands:
+            - tapOn: "Close"
+      # My Work at once: no Sign In, no long spinner.
+      - extendedWaitUntil:
+          visible:
+            id: "tab-work"
+          timeout: 20000
+      - assertNotVisible: "Create Account"
+      - assertVisible: "My Work"
+      - assertVisible: "1 to send"
+      # The Map and Me work from what is on the phone.
+      - tapOn:
+          id: "tab-map"
+      - tapOn: "Find.*"
+      - inputText: ${P_SUBMITTED.split(':')[0]}
+      - runFlow:
+          file: ../common/dismiss-keyboard.yaml
+          env:
+            LABEL: ${LANG_A}
+      - tapOn:
+          text: "${P_SUBMITTED}.*"
+          index: 0
+      - extendedWaitUntil:
+          visible: "(?i)Then the team"
+          timeout: 30000
+      - tapOn:
+          id: "header-back"
+      - tapOn:
+          id: "tab-me"
+      - assertVisible: ".*\\d+ passages? on this device.*"
+      - tapOn:
+          id: "tab-work"
+- runFlow:
+    when:
+      true: ${output.part === 'all'}
+    commands:
+      - runFlow:
+          when:
+            platform: Android
+          commands:
+            - setAirplaneMode: disabled
+# Part c: online again, the note goes.
+- runFlow:
+    when:
+      true: ${output.part === 'all' || output.part === 'c'}
+    commands:
+      - runFlow:
+          when:
+            notVisible:
+              id: "tab-work"
+          commands:
+            - launchApp:
+                clearState: false
+      - extendedWaitUntil:
+          visible:
+            id: "tab-work"
+          timeout: 60000
+      - tapOn:
+          id: "tab-work"
+      - extendedWaitUntil:
+          notVisible: "\\d+ to send"
+          timeout: 120000

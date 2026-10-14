@@ -36,8 +36,10 @@ writes to v2 (one way, Caleb, 2026-10-12).
   outright (section 5). So each pass reads every row of each project that
   may have changed, maps it to the events that would say the same thing
   here, and compares that with what the import has already appended (the
-  ledger). Only the differences are appended. Running a pass twice appends
-  nothing; a pass that dies half way is finished by the next.
+  ledger). Only the differences are appended, and only ever added: what
+  v2 deletes or turns off is never taken back here (below, Deletes).
+  Running a pass twice appends nothing; a pass that dies half way is
+  finished by the next.
 - **Event ids are the import's own** (`v2:` is a server prefix people
   cannot use, decision 75): `v2:<v2 project>:<fact>#<n>`, where the fact is
   what the event says ("member:<person>", "take:<quest>") and `n` counts the
@@ -103,7 +105,8 @@ who opens it sees the same thing.
   projects in Next, transfers running, projects with issues, and people
   from v2 who have signed in.
 - **Activity** is the running log of every transfer, newest first; **Signed
-  in** lists the people from v2 who have signed in to Next. A card opens its
+  in** lists the people from v2 who have signed in to Next; **Same email**
+  lists v2 people whose email already has an account in Next (section 3). A card opens its
   details: the people and whether each has signed in, its issues, and its
   own log.
 
@@ -121,7 +124,7 @@ signs in here everything they did is already theirs.
   the app asks the `v2-sign-in` Edge Function, which checks them with v2's
   own sign-in once (as the old app would) and signs that v2 session straight
   out again, then makes this app's account with the v2 id, the same email
-  and password, and signs the phone in (`apps/mobile/src/v2SignIn.ts`). v2
+  and password, and signs the phone in (`apps/mobile/src/server/v2.ts`). v2
   has email and password accounts only, so this covers everyone. Every try
   reaches v2 from the same few servers, so after ten wrong passwords for
   one email in an hour the function refuses that email itself, before v2
@@ -131,9 +134,19 @@ signs in here everything they did is already theirs.
   `.env.<env>`, placed by `npm run secrets`); without it, Sign In simply
   says the password is wrong.
 - Someone who already has an account here with the same email signs in as
-  usual; Settings, "Bring my LangQuest work" checks their v2 sign-in and
-  adds them where their v2 self is a member. Their v2 work still shows
-  under their v2 name, which is theirs too.
+  usual, and is not given their v2 work by the email alone: Next does not
+  confirm emails at sign-up (`enable_confirmations = false`), so anyone
+  could make an account with a translator's address before they arrive.
+  The dashboard's **Same email** list shows every v2 person whose email has
+  an account here under another id, with their v2 projects and when the
+  Next account was made; someone on the team who knows it is them presses
+  **Same person** (Caleb, 2026-10-14, `v2_import.people_links`). From then
+  on the import names that Next account wherever it named the v2 one: their
+  memberships and the organizations they run move to it at the next sync
+  (which the dashboard starts), and so does their work from then on. Work
+  already brought over keeps its v2 author, under the same name. **Undo**
+  moves it all back. A "Bring my LangQuest work" in Settings, where the
+  person proves it with their v2 password, can come later.
 - Names: the import writes `profiles.display_name` from v2's `username`
   for every v2 person it names, so work shows who did it before they come.
 - Roles: v2 has owner and member. An owner becomes an Organization Admin
@@ -151,12 +164,12 @@ signs in here everything they did is already theirs.
 | --- | --- |
 | project | a language: `LanguageAdded` (name, readable code, source code) and `LanguageCodeSet` with the decided languoid (decision 78), in the organization's stream; `LanguageRenamed` when the v2 name changes |
 | project_language_link | the decided language, never v2's (AGENTS.md, `docs/v2-project-languages.md`); a source language becomes `sourceCode` |
-| profile_project_link | `MemberAdded` at the language's scope, `MemberRemoved` when it goes inactive |
+| profile_project_link | `MemberAdded` at the language's scope. Leaving the v2 project does not remove them here; **Leave out** on the dashboard does (`MemberRemoved`) |
 | Bible or FIA project (`template`) | `TemplateSelected` of LangQuest's Bible by chapters or FIA's passages, for the books it has |
 | FIA project | FIA's study guides in the language its team reads (its v2 source language), else English: the organization follows `langquest.fia.<code>` and the language is offered it (`ReferenceSet` recommended), as New language does. v2 kept no FIA content of its own; its app read FIA's |
 | chapter or FIA passage quest | that passage of the template (`bible.book/chapter`, `fia.bookId/pericopeId/verseRange`) |
 | other quests | units of their own: a quest with quests under it is a book or section, one that holds recordings is a passage |
-| the team's recordings in a quest (assets in the project's language, in `order_index` order) | one recording of the passage: `RecordingAdded` per asset with a card per audio segment, `CardVerseSet` from the asset's verse, a `TakeComposed` of them all, and `TakeSubmitted`. When v2's set changes (a publish), a new take whose parent is the last: a new version |
+| the team's recordings in a quest (assets in the project's language, in `order_index` order) | one recording of the passage: `RecordingAdded` per asset with a card per audio segment, `CardVerseSet` from the asset's verse (a join when it has the same verses as the asset above it, decision 82), a `TakeComposed` of them all, and `TakeSubmitted`. When v2's set changes (a publish), a new take whose parent is the last: a new version |
 | a second quest for the same chapter (`versionLabel` "#2") | another line of versions on the same passage |
 | source material (assets in another language, older projects) | the passage's source material (`MaterialDefined`, a field per text and audio), as the first import did; each translation of one then is a version of its own passage |
 | translation child of a recording (back translation), transcription, and text with no audio | **left in v2 for now** (Caleb, 2026-10-13): v2 has 99 of them in 31 projects, half of them tests. Counted in each pass's report and log, and their audio is not stored. Turned on (`writtenWork` in `map.ts`), a back translation is a Back Translation review with its audio and the rest notes, until written translations exist (`writtenFact` is the one place to change) |
@@ -178,10 +191,17 @@ the rest.
   read whole and reconciled. Once a night every confirmed project is read
   whole anyway: that catches server-side changes that leave no timestamp
   and rows that were deleted outright.
-- **Deletes.** A row that is gone or inactive in v2 is taken back here the
-  way this app takes things back: a unit is hidden (`UnitHidden`), a
-  membership removed, and a recording, take, review or note redacted
-  (`v1.Redacted`, reason "removed in LangQuest v2").
+- **Deletes.** Nothing v2 deletes or turns off is taken back here (Caleb,
+  2026-10-14: "the point of an event log is that nothing disappears"). A
+  unit stays, a member stays on the language, and a recording, review or
+  note stays. What a removal changes is what comes next: a publish in v2
+  without a recording becomes a new version without it, and the earlier
+  version stays in its history. Only the dashboard's own decisions are
+  taken back: Leave out removes a member, a link moves a membership to the
+  person's Next account (section 3), dropping an organization admin removes
+  them, and a team whose reading language changes is offered the other
+  FIA guides instead. Something deleted in v2 before it ever came over is
+  not brought over.
 - **Audio.** Each file is downloaded once, hashed, and put in R2 through the
   Worker (`PUT /api/blobs/…`, which appends `BlobStored`), as the first
   import did. `v2_import.files` remembers each v2 file name's hash, size,

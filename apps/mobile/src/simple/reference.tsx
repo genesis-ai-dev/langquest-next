@@ -23,7 +23,7 @@ import { Authored, recordTarget, ReportFlag } from '../reportSheet';
 import { RequestBanner } from '../reviewing/parts';
 import { openContentLink } from '../share';
 import { anchorClock, chipLabel, choiceKey, copyrightLine, useChoice, useOffer } from '../sources/SourceReader';
-import type { SourceOption, VerseRow } from '../sources/model';
+import { emptyBibleText, type SourceOption, type VerseRow } from '../sources/model';
 import { PlayError, usePassagePlayer } from '../sources/player';
 import type { Usage } from '../sources/used';
 import { useChipMarks, usePassageSource, useSources } from '../sources/useSources';
@@ -72,11 +72,13 @@ export function useBible(ctx: Ctx, unitId: string | null, languageId: string | n
   });
   const clock = plan ? passageClock(plan.parts, player.part, player.ms) : null;
   const timed = !!plan && plan.parts.some((p) => p.timing);
+  // Offline, audio that was never downloaded is not a Bible with nothing to play.
+  const audioAbsent = !!src?.audioNotHere || (ctx.language.online === false && !!src && src.chapters.length > 0 && src.chapters.every((c) => !c.local));
   return {
-    passage, option, src, plan, rows, player, clock, timed,
+    passage, option, src, plan, rows, player, clock, timed, audioAbsent,
     /** Has verses at all: an outline item has none, so no Bible chip and no dock. */
     hasVerses: !!passage.range,
-    hasAudio: !!plan,
+    hasAudio: !!plan && !audioAbsent,
     choose: (o: SourceOption) => { setChosen(o.itemId); usage?.open(o.itemId); },
     /** "0:42 / 1:18", or why there is nothing to play. */
     time: (): string => {
@@ -88,7 +90,8 @@ export function useBible(ctx: Ctx, unitId: string | null, languageId: string | n
     },
     /** "World English Bible · 0:42 / 1:18" */
     line: (): string => {
-      if (!option) return passage.loading ? t('common.loading') : t('reference.bible.noBible');
+      if (!option) return emptyBibleText({ loading: passage.loading, notOnDevice: passage.notOnDevice }, t('reference.bible.noBible'));
+      if (audioAbsent) return t('recording.player.notOnDeviceYet');
       if (src?.loading && !plan) return t('reference.bible.nameLoading', { name: option.name });
       if (!plan) return t('reference.bible.nameNoAudio', { name: option.name });
       const total = clock?.total;
@@ -98,7 +101,7 @@ export function useBible(ctx: Ctx, unitId: string | null, languageId: string | n
     /** Play from the first verse that holds a word; false when it cannot (no timed audio). */
     playVerse: (key: string) => {
       const row = rows?.find((r) => r.key === key);
-      return !!row && !!plan && timed && player.playFrom(row);
+      return !!row && !!plan && !audioAbsent && timed && player.playFrom(row);
     }
   };
 }
@@ -130,19 +133,23 @@ export function BiblePane(props: {
   };
   const tap = (row: VerseRow) => {
     props.onSelect(props.selected === row.key ? null : row.key);
-    if (bible.timed) player.playFrom(row);
+    if (bible.hasAudio && bible.timed) player.playFrom(row);
   };
   const terms = props.terms ?? [];
+  const gap = !option
+    ? emptyBibleText({ loading: bible.passage.loading, notOnDevice: bible.passage.notOnDevice }, t('sources.reader.noBible'))
+    : bible.audioAbsent ? t('recording.player.notOnDeviceYet')
+      : src?.loading || !src ? t('common.loading') : src.textProblem;
   const selectedRow = props.selected ? src?.rows?.find((r) => r.key === props.selected) ?? null : null;
   return (
     <View style={{ gap: space.md }}>
       {props.header}
-      <MiniPlayer title={v.title} sub={bible.line()} playing={player.playing} available={bible.hasAudio && !player.loading} none={!bible.hasAudio}
+      <MiniPlayer title={v.title} sub={bible.line()} playing={player.playing} available={bible.hasAudio && !player.loading} none={!bible.hasAudio && !bible.passage.notOnDevice && !bible.audioAbsent}
         onToggle={player.toggle} onBack10={() => player.skip(-10)} backDisabled={!player.started}
         under={many ? (
           <View style={styles.under}>
             <BiblePick label={abbr} onPress={() => setPicking(true)} />
-            <Text style={[txt.smMuted, { flex: 1 }]} numberOfLines={1}>{bible.time()}</Text>
+            <Text style={[txt.smMuted, { flex: 1 }]} numberOfLines={1}>{bible.audioAbsent ? t('recording.player.notOnDeviceYet') : bible.time()}</Text>
           </View>
         ) : undefined}
         {...(props.canNote ? { onNote: note } : {})}
@@ -154,7 +161,7 @@ export function BiblePane(props: {
             const sel = props.selected === row.key;
             const n = count(row);
             return (
-              <Verse key={row.key} row={row} here={here} selected={sel} notes={n} onPress={() => tap(row)} timed={bible.timed}>
+              <Verse key={row.key} row={row} here={here} selected={sel} notes={n} onPress={() => tap(row)} timed={bible.hasAudio && bible.timed}>
                 {markTerms(row.text, terms).map((part, i) => {
                   if (!part.termId) return <Text key={i}>{part.text}</Text>;
                   const tied = props.tied?.has(part.termId) ?? false;
@@ -170,7 +177,7 @@ export function BiblePane(props: {
           })}
         </View>
       ) : (
-        <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{!option ? (bible.passage.loading ? t('common.loading') : t('sources.reader.noBible')) : src?.loading || !src ? t('common.loading') : src.textProblem}</Text>
+        <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{gap}</Text>
       )}
       {selectedRow ? <VerseNotes ctx={ctx} notes={verseNotes.filter((n) => on(n, selectedRow))} /> : null}
       {option && src ? (
@@ -268,7 +275,7 @@ export function BibleBar(props: { bible: Bible; onOpen: () => void }) {
   const open = useHelpSpot(t('reference.bible.barHelpTitle'), t('reference.bible.barHelp'), props.onOpen);
   return (
     <View style={styles.bar}>
-      <PlayBtn playing={bible.player.playing} available={bible.hasAudio && !bible.player.loading} none={!bible.hasAudio} label={t('reference.bible.play')} onPress={bible.player.toggle} />
+      <PlayBtn playing={bible.player.playing} available={bible.hasAudio && !bible.player.loading} none={!bible.hasAudio && !bible.passage.notOnDevice && !bible.audioAbsent} label={t('reference.bible.play')} onPress={bible.player.toggle} />
       <Pressable onPress={open.onPress} accessibilityRole="button" accessibilityLabel={t('reference.bible.openReference')} style={({ pressed }) => [{ flex: 1, minWidth: 0 }, pressed && ps.pressed]}>
         <Text style={ps.miniTitle} numberOfLines={1}>{bible.option ? t('reference.bible.barTitleWith', { abbr: bible.option.abbreviation }) : t('reference.bible.barTitle')}</Text>
         <Text style={txt.smMuted} numberOfLines={2}>{t('reference.bible.barSub')}</Text>
@@ -315,7 +322,7 @@ export function KeyWordsPane(props: {
             return (
               <TermRow key={term.termId} ctx={ctx} term={term} refs={keys.length ? `${book} ${verseRefs(keys)}` : term.gloss || t('reference.keyWords.elsewhere')} last={i === props.terms.length - 1}
                 onHear={() => props.onHear(keys[0] ?? null)} canEdit={canEdit && !props.disabled} onSay={() => setSaying(term)}
-                onOpen={() => ctx.go('key_term_detail', { unitId: v.unitId, languageId: v.languageId, termId: term.termId })} />
+                onOpen={() => ctx.go('key_term_detail', { unitId: v.unitId, languageId: v.languageId, termId: term.termId, ...(props.draftTakeId ? { draftId: props.draftTakeId } : {}) })} />
             );
           })}
         </View>
@@ -540,7 +547,8 @@ function VoiceClip(props: { ctx: Ctx; hash: string; sub: string }) {
 }
 
 /** The Notes chip (a-studyDoc): the passage's notes, newest first, and Add a note. */
-export function NotesPane(props: { ctx: Ctx; v: PassageView; notes: PassageNote[]; disabled?: boolean; top?: ReactNode }) {
+/** `canAdd` false: the notes to read, without "Add a note" (a viewer, whose note the server would refuse; STUDY-006). */
+export function NotesPane(props: { ctx: Ctx; v: PassageView; notes: PassageNote[]; disabled?: boolean; top?: ReactNode; canAdd?: boolean }) {
   const { ctx, v } = props;
   const [adding, setAdding] = useState(false);
   const versionN = useMemo(() => new Map(v.p.versions.map((x) => [x.takeId, x.n])), [v.p.versions]);
@@ -556,8 +564,8 @@ export function NotesPane(props: { ctx: Ctx; v: PassageView; notes: PassageNote[
         const older = n.onTakeId && n.onTakeId !== latestId ? versionN.get(n.onTakeId) : undefined;
         return <NoteItem key={n.id} ctx={ctx} note={n} label={noteLabel(ctx, n, (id) => versionN.get(id))} {...(older ? { older: t('reference.notes.madeWith', { version: versionTitle(older) }) } : {})} />;
       })}
-      <DashedBtn label={t('common.addNote')} onPress={() => setAdding(true)} disabled={props.disabled} hint={t('reference.notes.addHint')} />
-      {adding ? <NoteSheet ctx={ctx} v={v} title={t('common.addNote')} where={t('reference.notes.whereWhole', { passage: v.title })} anchor={{ kind: 'passage' }} onClose={() => setAdding(false)} /> : null}
+      {props.canAdd !== false ? <DashedBtn label={t('common.addNote')} onPress={() => setAdding(true)} disabled={props.disabled} hint={t('reference.notes.addHint')} /> : null}
+      {adding && props.canAdd !== false ? <NoteSheet ctx={ctx} v={v} title={t('common.addNote')} where={t('reference.notes.whereWhole', { passage: v.title })} anchor={{ kind: 'passage' }} onClose={() => setAdding(false)} /> : null}
     </View>
   );
 }
@@ -671,7 +679,7 @@ function EarlierRow(props: { ctx: Ctx; item: EarlierItem; last: boolean }) {
 
 const styles = StyleSheet.create({
   card: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
-  verse: { borderRadius: radius.md, paddingHorizontal: space.xs, paddingVertical: 2, borderWidth: 1.5, borderColor: 'transparent' },
+  verse: { borderRadius: radius.md, paddingHorizontal: space.xs, paddingVertical: 2, borderWidth: 1.5, borderColor: 'transparent', minHeight: target.min, justifyContent: 'center' },
   versePlaying: { backgroundColor: C.light, paddingHorizontal: space.sm },
   verseSelected: { borderColor: C.soft },
   verseText: { fontSize: T.base, lineHeight: 25, color: C.dark },

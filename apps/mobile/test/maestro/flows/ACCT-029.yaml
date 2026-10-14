@@ -1,0 +1,56 @@
+# docs/ui-test-suite/11-account-and-settings.md, ACCT-029: Arabic on a
+# phone. Picking it restarts the app, which restarts once more by itself to
+# lay the layout out right to left, then stays open (it must not keep
+# restarting); English brings it back. The flow checks the restarts and the
+# words; whether the layout really runs right to left is judged by eye on
+# the screenshots it takes.
+appId: com.frontierrnd.langquestnext
+name: "ACCT-029 Arabic lays the app out right to left"
+tags:
+  - acct
+---
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${TRANS_EMAIL}
+      PASSWORD: ${TRANS_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- extendedWaitUntil:
+    visible:
+      id: "tab-me"
+    timeout: 60000
+- tapOn:
+    id: "tab-me"
+- tapOn: "Language.*"
+- tapOn: "العربية.*"
+# Two restarts (the language, then the direction); then Me's tab says "أنا".
+- extendedWaitUntil:
+    visible:
+      id: "tab-me"
+    timeout: 120000
+- extendedWaitUntil:
+    visible: "إعدادات أخرى.*|أنا"
+    timeout: 60000
+# Still open a while later: it does not keep restarting.
+- waitForAnimationToEnd:
+    timeout: 10000
+- assertVisible:
+    id: "tab-me"
+- tapOn:
+    id: "tab-me"
+- assertVisible: "إعدادات أخرى.*"
+- takeScreenshot: ACCT-029-me-arabic
+# Back to English from the same row.
+- tapOn: "اللغة.*"
+- tapOn: "English.*"
+- extendedWaitUntil:
+    visible:
+      id: "tab-me"
+    timeout: 120000
+- tapOn:
+    id: "tab-me"
+- extendedWaitUntil:
+    visible: "More settings.*"
+    timeout: 60000
+- takeScreenshot: ACCT-029-me-english

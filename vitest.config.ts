@@ -9,6 +9,32 @@ export default defineConfig({
   },
   test: {
     globals: true,
-    include: ['packages/*/test/**/*.test.ts', 'apps/*/test/**/*.test.ts', 'scripts/**/*.test.ts', 'smart-tests/**/*.test.ts']
+    include: ['packages/*/test/**/*.test.ts', 'apps/*/test/**/*.test.ts', 'scripts/**/*.test.ts', 'e2e/**/*.test.ts'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text-summary', 'json-summary', 'lcov'],
+      reportsDirectory: 'coverage',
+      include: [
+        'packages/core/src/**',
+        'packages/sync/src/**',
+        'apps/mobile/src/**',
+        'apps/web/worker/**',
+        'scripts/**'
+      ],
+      exclude: [
+        '**/*.test.{ts,tsx}',
+        '**/*.d.ts',
+        '**/generated/**',
+        '**/*.generated.*',
+        'apps/mobile/src/flow.ts',
+        'scripts/**/*.{sh,mjs}',
+        'scripts/fleet/**',
+        'scripts/bench/**'
+      ],
+      thresholds: {
+        'packages/core/src/**': { lines: 93, branches: 79, functions: 90, statements: 88 },
+        'packages/sync/src/**': { lines: 88, branches: 77, functions: 85, statements: 86 }
+      }
+    }
   }
 });

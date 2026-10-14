@@ -1,10 +1,11 @@
+import fc from 'fast-check';
 import type { AnyEvent, EventType } from '../src/events';
 import { foldLanguage } from '../src/reducer';
 import { referencedBlobs } from '../src/blobs';
 import { EVENT_PRIVILEGE, foldOrg, emptyOrgState, ORG_EVENT_TYPES } from '../src/org';
 import { derivePassage, languageProgress } from '../src/passage';
 import { emptyLanguageState } from '../src/state';
-import { buildFixture, buildOrgFixture, buildRecordFixture, buildStep11Fixture, shuffle } from './fixtures';
+import { buildFixture, buildOrgFixture, buildRecordFixture, buildStep11Fixture } from './fixtures';
 
 /** Every event type in the catalog: `EVENT_PRIVILEGE` must name each one, so this list cannot drift. */
 const CATALOG = Object.keys(EVENT_PRIVILEGE) as EventType[];
@@ -23,20 +24,66 @@ describe('reducer invariants (PLAN.md section 4)', () => {
     for (const e of org) expect(ORG_TYPES.has(e.type as never) || e.type === 'v1.Redacted', e.type).toBe(true);
   });
 
+  /** An order of `n` events: a random permutation of the indexes 0..n-1. */
+  const permutation = (n: number) => fc.shuffledSubarray(Array.from({ length: n }, (_, i) => i), { minLength: n, maxLength: n });
+
   it('invariant 2: any permutation folds to the same state', () => {
     // Why: two devices offline for a month apply each other's events in
     // whatever order the sync delivers them. If order changed the answer,
     // teams would see different approval states on different phones.
-    for (let seed = 1; seed <= 200; seed++) {
-      expect(foldLanguage(shuffle(language, seed), emptyLanguageState())).toEqual(canonical);
-      expect(foldOrg(shuffle(org, seed), emptyOrgState())).toEqual(canonicalOrg);
-    }
+    fc.assert(
+      fc.property(permutation(language.length), permutation(org.length), (li, oi) => {
+        expect(foldLanguage(li.map((i) => language[i]!), emptyLanguageState())).toEqual(canonical);
+        expect(foldOrg(oi.map((i) => org[i]!), emptyOrgState())).toEqual(canonicalOrg);
+      }),
+      { numRuns: 100 },
+    );
   });
 
-  it('invariant 3: applying every event twice equals applying once', () => {
+  it('invariant 3: applying events any number of times, in any order, equals applying once', () => {
     // Why: the sync layer is at-least-once. Redelivery must be harmless.
-    expect(foldLanguage([...language, ...shuffle(language, 7)], emptyLanguageState())).toEqual(canonical);
-    expect(foldOrg([...org, ...shuffle(org, 7)], emptyOrgState())).toEqual(canonicalOrg);
+    // Every event appears once (a random permutation) plus up to 2n random
+    // extra copies, so each is applied one or more times, in random order.
+    const dup = (n: number) =>
+      fc
+        .tuple(permutation(n), fc.array(fc.integer({ min: 0, max: n - 1 }), { maxLength: 2 * n }))
+        .chain(([base, extra]) => fc.shuffledSubarray([...base, ...extra], { minLength: n + extra.length, maxLength: n + extra.length }).map((order) => ({ base, order })));
+    fc.assert(
+      fc.property(dup(language.length), dup(org.length), (l, o) => {
+        expect(foldLanguage(l.order.map((i) => language[i]!), emptyLanguageState())).toEqual(canonical);
+        expect(foldOrg(o.order.map((i) => org[i]!), emptyOrgState())).toEqual(canonicalOrg);
+      }),
+      { numRuns: 100 },
+    );
+  });
+
+  it('two devices with overlapping clocks, interleaved in any way, fold to the same state', () => {
+    // Why: each phone's own events arrive in its order, but the sync layer
+    // interleaves the phones however the network falls. Split the history by
+    // device, then merge the streams by a random choice at every step.
+    const devices = [...new Set(language.map((e) => e.deviceId))];
+    expect(devices.length).toBeGreaterThanOrEqual(2);
+    const byDevice = devices.map((d) => language.filter((e) => e.deviceId === d));
+    const total = language.length;
+    fc.assert(
+      fc.property(fc.array(fc.nat(devices.length - 1), { minLength: total, maxLength: total }), (picks) => {
+        const queues = byDevice.map((q) => [...q]);
+        const merged: AnyEvent[] = [];
+        for (const p of picks) {
+          // Take from the picked device, or the next one that still has events.
+          for (let k = 0; k < queues.length; k++) {
+            const q = queues[(p + k) % queues.length]!;
+            if (q.length) {
+              merged.push(q.shift()!);
+              break;
+            }
+          }
+        }
+        expect(merged.length).toBe(total);
+        expect(foldLanguage(merged, emptyLanguageState())).toEqual(canonical);
+      }),
+      { numRuns: 100 },
+    );
   });
 
   it('register semantics: later HLC wins for the same key, earliest for grow-only', () => {

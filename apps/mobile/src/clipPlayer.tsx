@@ -6,9 +6,10 @@
 import { isStored, type LanguageState } from '@langquest-next/core';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { PanResponder, Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { PanResponder, Platform, Pressable, StyleSheet, View, type AccessibilityActionEvent, type LayoutChangeEvent } from 'react-native';
 import { Text } from './text';
 import { audioFormat } from './audioClip';
+import { restartIndex } from './clipPosition';
 import { LISTEN_PLAYER, registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
 import type { ListenHooks } from './recording/useListenLoop';
 import { useHelpSpot } from './helpContext';
@@ -17,7 +18,7 @@ import { t } from './i18n';
 import { formatClock, formatNumber } from './i18n/format';
 import { Ico, txt } from './kit';
 import { noteExpected, reportError } from './report';
-import { C, radius, space, TINT } from './theme';
+import { C, radius, space, TINT, type as T } from './theme';
 import type { LanguageHandle } from './useLanguage';
 
 /** "1:05" from seconds. */
@@ -83,6 +84,8 @@ export function ClipPlayer(props: {
   const player = useRef<AudioPlayer | null>(null);
   const generation = useRef(0);
   const wants = useRef(false);
+  /** A seek is loading a clip it will leave paused: `wants` is true, but nothing is meant to be playing. */
+  const loadingPaused = useRef(false);
   const indexRef = useRef(0);
   const signature = props.uri ?? props.hashes.join(':');
   const languageRef = useRef(props.language);
@@ -182,7 +185,7 @@ export function ClipPlayer(props: {
 
   async function toggle() {
     if (props.disabled || !available) return;
-    if (wants.current) { halt(); return; }
+    if (wants.current && !loadingPaused.current) { halt(); return; }
     stopAudioPlayback();
     const run = ++generation.current;
     wants.current = true;
@@ -197,7 +200,9 @@ export function ClipPlayer(props: {
       if (generation.current !== run) return;
       const p = player.current;
       if (p && p.duration > 0 && p.currentTime < p.duration - 0.1) { p.play(); return; }
-      await playFrom(p ? indexRef.current : 0, 0, run);
+      // At the very end (a seek there, or a listener who let it finish and pressed Play) it starts again from the top.
+      const atEnd = !!p && p.duration > 0 && p.currentTime >= p.duration - 0.1;
+      await playFrom(restartIndex(p ? { index: indexRef.current, atEnd } : null, count), 0, run);
     } catch (err) {
       if (generation.current === run) { halt(); setError(t('common.audioCouldNotPlay', { code: reportError('clip player play', err) })); }
     }
@@ -221,8 +226,11 @@ export function ClipPlayer(props: {
     const run = ++generation.current;
     wants.current = true;
     if (!was) {
-      // Load paused: play then pause once it is ready.
-      await playFrom(i, within, run);
+      // Load paused: play then pause once it is ready. Play pressed meanwhile starts a run of its own
+      // (toggle) and this one must not stop it (A11Y-015: a key press right after a seek).
+      loadingPaused.current = true;
+      try { await playFrom(i, within, run); } finally { loadingPaused.current = false; }
+      if (generation.current !== run) return;
       halt();
       setIndex(i); indexRef.current = i; setAt(within);
       return;
@@ -232,7 +240,22 @@ export function ClipPlayer(props: {
 
   const back10 = useHelpSpot(t('common.backTenSeconds'), t('recording.player.back10Help'), () => void seekTo(elapsed - 10));
   const note = useHelpSpot(t('recording.player.note'), t('recording.player.noteHelp'), props.onNote ? () => { halt(); props.onNote?.(elapsed); } : undefined);
-  const play = useHelpSpot(playing ? t('common.pause') : t('recording.player.playTitle', { title: props.title }), t('recording.player.playHelp'), () => void toggle());
+  // Enter and Space both activate (A11Y-015). The web press system also calls
+  // onPress on keyup for a role=button view; ignore that second call.
+  const keyedAt = useRef(0);
+  const onPlay = () => {
+    if (Date.now() - keyedAt.current < 400) return;
+    void toggle();
+  };
+  const onPlayKey = (e: { key?: string; nativeEvent?: { key?: string }; preventDefault(): void }) => {
+    const key = e.key || e.nativeEvent?.key;
+    if (key !== 'Enter' && key !== ' ' && key !== 'Spacebar') return;
+    if (!available || props.disabled) return;
+    e.preventDefault();
+    keyedAt.current = Date.now();
+    void toggle();
+  };
+  const play = useHelpSpot(playing ? t('common.pause') : t('recording.player.playTitle', { title: props.title }), t('recording.player.playHelp'), onPlay);
 
   // The timeline: tap anywhere, or drag the thumb.
   const width = useRef(1);
@@ -247,6 +270,17 @@ export function ClipPlayer(props: {
     onPanResponderRelease: (e) => { void seekRef.current((e.nativeEvent.locationX / width.current) * totalRef.current); },
     onPanResponderTerminationRequest: () => false
   })).current;
+  // A screen reader's swipe up or down, or the arrow keys on the web, move by ten seconds; Home and End go to the ends.
+  const stepBy = (seconds: number) => void seekRef.current(Math.max(0, Math.min(totalRef.current, elapsed + seconds)));
+  const onAction = (e: AccessibilityActionEvent) => stepBy(e.nativeEvent.actionName === 'increment' ? 10 : -10);
+  const keys = Platform.OS === 'web' ? {
+    onKeyDown: (e: { key: string; preventDefault(): void }) => {
+      const to = { ArrowRight: 10, ArrowUp: 10, ArrowLeft: -10, ArrowDown: -10 }[e.key];
+      if (to !== undefined) { e.preventDefault(); stepBy(to); }
+      else if (e.key === 'Home') { e.preventDefault(); void seekRef.current(0); }
+      else if (e.key === 'End') { e.preventDefault(); void seekRef.current(totalRef.current); }
+    }
+  } : {};
   const share = total > 0 ? Math.min(1, elapsed / total) : 0;
   const tone = props.tone === 'amber' ? TINT.amberText : C.primary;
   const size = props.big ? 72 : 56;
@@ -262,6 +296,10 @@ export function ClipPlayer(props: {
       </View>
       <View style={styles.track} onLayout={(e: LayoutChangeEvent) => { width.current = Math.max(1, e.nativeEvent.layout.width); }}
         accessibilityRole="adjustable" accessibilityLabel={t('recording.player.whereYouAre', { title: props.title })} accessibilityValue={{ text: t('recording.player.position', { at: clock(elapsed), total: clock(total) }) }}
+        accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]} onAccessibilityAction={onAction}
+        aria-valuemin={0} aria-valuemax={Math.round(total)} aria-valuenow={Math.round(elapsed)}
+        aria-valuetext={t('recording.player.position', { at: clock(elapsed), total: clock(total) })}
+        focusable {...keys}
         {...pan.panHandlers}>
         <View style={styles.rail} />
         <View style={[styles.fill, { width: `${share * 100}%`, backgroundColor: tone }]} />
@@ -275,7 +313,7 @@ export function ClipPlayer(props: {
           <Text style={styles.sideLabel}>{formatNumber(10)}</Text>
           <HelpBadge spot={back10} />
         </Pressable>
-        <Pressable onPress={play.onPress} disabled={!available || props.disabled} accessibilityRole="button"
+        <Pressable onPress={play.onPress} {...(Platform.OS === 'web' ? { onKeyDown: onPlayKey } : {})} disabled={!available || props.disabled} accessibilityRole="button"
           accessibilityLabel={available ? playing ? t('common.pause') : t('recording.player.playTitle', { title: props.title }) : t('recording.player.notOnDevice')}
           style={({ pressed }) => [{ width: size, height: size, borderRadius: size / 2, backgroundColor: available ? tone : C.faint, alignItems: 'center', justifyContent: 'center' }, pressed && styles.pressed]}>
           <Ico name={available ? playing ? 'pause' : 'play' : 'download'} size={Math.round(size * 0.4)} color={C.white} />
@@ -299,14 +337,15 @@ export function ClipPlayer(props: {
 const styles = StyleSheet.create({
   card: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, padding: space.md, gap: space.sm },
   head: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  track: { height: 32, justifyContent: 'center' },
+  // 48 high to touch (the field's minimum target); the rail drawn within stays thin.
+  track: { height: 48, justifyContent: 'center' },
   rail: { position: 'absolute', left: 0, right: 0, height: 6, borderRadius: 3, backgroundColor: C.light },
   fill: { position: 'absolute', left: 0, height: 6, borderRadius: 3 },
   thumb: { position: 'absolute', width: 22, height: 22, marginLeft: -11, borderRadius: 11, backgroundColor: C.white, borderWidth: 3 },
   controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.lg },
   time: { width: 40 },
   side: { width: 52, height: 52, borderRadius: 26, borderWidth: 1, borderColor: C.border, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
-  sideLabel: { fontSize: 11, fontWeight: '800', color: C.dark },
+  sideLabel: { fontSize: T.xs, fontWeight: '800', color: C.dark },
   pressed: { opacity: 0.7 },
   off: { opacity: 0.4 }
 });

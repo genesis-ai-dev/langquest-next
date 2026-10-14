@@ -174,7 +174,7 @@
 <div class="layout">
   <main id="main"><div class="empty">Reading v2…</div></main>
   <aside>
-    <div class="tabs"><button class="on" data-tab="activity">Activity</button><button data-tab="people">Signed in</button></div>
+    <div class="tabs"><button class="on" data-tab="activity">Activity</button><button data-tab="people">Signed in</button><button data-tab="same">Same email</button></div>
     <div class="feed-tools" id="feedTools"></div>
     <div class="feed" id="feed"></div>
   </aside>
@@ -254,6 +254,14 @@ const fresh = (p) => Date.now() - Date.parse(p.progress_at) < 120000;
 const orgName = (id) => id === SKIP ? "Not coming over" : S.orgs.find((o) => o.org_id === id)?.name ?? id;
 const personName = (id) => S.nameOf[id] ?? (S.everyLanguage?.includes(id) ? 'Every Language' : `Person ${id.slice(0, 8)}`);
 const personEmail = (id) => S.emailOf[id] ?? '';
+/** Whether this v2 person is linked to a Next account, or one with their email is waiting to be checked (Same email tab). */
+function sameNote(id) {
+  const r = (S.same ?? []).find((x) => x.v2Id === id);
+  if (!r) return null;
+  return r.link
+    ? el('div', { class: 'sub', style: 'color:var(--green)' }, 'Linked to their Next account')
+    : el('a', { class: 'sub', href: '#', style: 'color:var(--amber)', onclick: (e) => { e.preventDefault(); setTab('same'); } }, 'A Next account has this email: check it under Same email');
+}
 /**
  * The language a card comes over linked to: chosen here, or decided in the
  * CSV. Anything else comes over unlinked, by its name, and its admins link
@@ -505,7 +513,44 @@ function transferOrg(orgId) {
 
 // ---- side panel ---------------------------------------------------------------------------
 function setFilter(f) { S.filter = f; render(); }
-function setTab(t) { S.tab = t; document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === t)); if (t === 'people') loadPeople(); renderFeed(); }
+function setTab(t) { S.tab = t; document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === t)); if (t === 'people') loadPeople(); if (t === 'same') loadSame(); renderFeed(); }
+/**
+ * v2 people whose email already has an account in Next under another id
+ * (Caleb, 2026-10-14). Next does not confirm emails, so nobody is linked by
+ * the email alone: someone on the team confirms each, and the import then
+ * names that Next account wherever it named the v2 one.
+ */
+async function loadSame() {
+  try { S.same = (await api('/api/same-email')).rows; } catch (e) { S.same = []; toast(e.message); }
+  if (S.tab === 'same') renderFeed();
+  if (S.open) renderDrawer();
+}
+async function linkPerson(row, account) {
+  const moved = row.projects.filter((id) => S.cards.find((c) => c.id === id)?.confirmed);
+  ask({
+    title: `Is ${row.v2Name || row.email} in v2 the same person as the Next account ${account.display_name || account.email}?`,
+    body: [
+      `Both use ${row.email}. Next does not check emails, so only say yes if you know it is them.`,
+      `From now on their roles and organizations from v2 go to that Next account.${moved.length ? ` ${plural(moved.length, 'project')} already in Next ${moved.length === 1 ? 'syncs' : 'sync'} now.` : ''}`
+    ],
+    confirm: 'Same person'
+  }, async () => {
+    try {
+      const { queued } = await api('/api/link', { v2Id: row.v2Id, nextId: account.id, email: row.email });
+      queued.forEach((id) => S.queue.add(id));
+      toast(`Linked ${row.v2Name || row.email}${queued.length ? ` · syncing ${plural(queued.length, 'project')}` : ''}`);
+    } catch (e) { toast(e.message); }
+    await loadSame();
+  });
+}
+async function unlinkPerson(row) {
+  try {
+    const { queued } = await api('/api/unlink', { v2Id: row.v2Id });
+    queued.forEach((id) => S.queue.add(id));
+    toast(`No longer linked: ${row.v2Name || row.email}${queued.length ? ` · syncing ${plural(queued.length, 'project')}` : ''}`);
+  } catch (e) { toast(e.message); }
+  await loadSame();
+}
 async function loadPeople() { try { S.people = await api('/api/people'); } catch { S.people = []; } renderFeed(); }
 function renderFeed() {
   const tools = $('#feedTools');
@@ -518,6 +563,22 @@ function renderFeed() {
       el('time', { title: new Date(l.at).toLocaleString() }, clock(l.at)),
       el('span', { class: 'who' }, l.project_id ? `${nameById.get(l.project_id) ?? l.project_id.slice(0, 8)} → ${orgName(l.org_id)}` : ''),
       el('span', { class: 'msg' }, l.message))) : [el('div', { class: 'empty', style: 'padding:14px' }, 'Nothing has been transferred yet.')]));
+  } else if (S.tab === 'same') {
+    const rows = S.same;
+    const linked = (rows ?? []).filter((r) => r.link).length;
+    tools.replaceChildren(el('span', {}, rows ? `${plural(rows.length, 'v2 person', 'v2 people')} whose email has a Next account · ${linked} linked` : 'Reading…'));
+    feed.replaceChildren(...(rows == null ? [el('div', { class: 'empty', style: 'padding:14px' }, 'Reading…')]
+      : rows.length === 0 ? [el('div', { class: 'empty', style: 'padding:14px' }, 'No v2 email has an account in Next yet.')]
+      : rows.map((r) => el('div', { class: 'person' + (r.link ? '' : ' unlinked') },
+        el('span', { class: 'avatar' }, (r.v2Name || r.email || '?').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()),
+        el('div', { style: 'flex:1;min-width:0' },
+          el('div', {}, r.v2Name || 'No name in v2', el('span', { class: 'chip', style: 'margin-left:6px' }, 'v2')),
+          el('div', { class: 'email' }, r.email || ''),
+          el('div', { class: 'sub' }, r.projects.length ? `In v2: ${r.projects.map((id) => nameById.get(id) ?? id.slice(0, 8)).slice(0, 4).join(', ')}${r.projects.length > 4 ? ` and ${r.projects.length - 4} more` : ''}` : 'In no v2 project now'),
+          ...r.next.map((a) => el('div', { class: 'sub' }, `In Next: ${a.display_name || 'no name'} · made ${day(a.created_at)}${a.last_sign_in_at ? ` · last signed in ${ago(a.last_sign_in_at)}` : ''}`)),
+          r.link ? el('div', { class: 'sub' }, `Linked by ${r.link.confirmed_by} on ${day(r.link.confirmed_at)}`) : null),
+        r.link ? el('button', { class: 'small', onclick: () => unlinkPerson(r) }, 'Undo')
+          : el('div', { class: 'row', style: 'flex-direction:column;gap:4px' }, ...r.next.map((a) => el('button', { class: 'small primary', title: `Link to the Next account made ${day(a.created_at)}`, onclick: () => linkPerson(r, a) }, r.next.length > 1 ? `Same as ${a.display_name || day(a.created_at)}` : 'Same person')))))));
   } else {
     const people = S.people ?? [];
     const projectsOf = (id) => Object.entries(S.members).filter(([, ms]) => ms.some((m) => m.id === id)).map(([pid]) => nameById.get(pid)).filter(Boolean);
@@ -658,6 +719,7 @@ function renderDrawer() {
           el('div', { style: 'flex:1;min-width:0' },
             el('div', {}, personName(m.id), m.owner ? el('span', { class: 'chip', style: 'margin-left:6px' }, 'owner in v2') : null),
             personEmail(m.id) ? el('div', { class: 'email' }, personEmail(m.id)) : null,
+            sameNote(m.id),
             el('div', { class: 'sub' }, `${ROLE_HINT[role](m)} · ${S.signedIn[m.id] ? `signed in ${day(S.signedIn[m.id])}` : 'not signed in yet'}`)),
           el('select', { class: 'role', 'aria-label': `Role for ${personName(m.id)}`, onchange: (e) => setRole(c, m.id, e.target.value) },
             ...ROLES.map(([v, label]) => el('option', { value: v, selected: v === role || null }, label))));
@@ -704,7 +766,7 @@ $('#refresh').addEventListener('click', () => { toast('Reading v2 again…'); lo
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => setTab(b.dataset.tab)));
 document.addEventListener('keydown', (e) => e.key === 'Escape' && closeDrawer());
 setInterval(() => { if (S.tab === 'people') loadPeople(); }, 30000);
-loadBoard().then(poll);
+loadBoard().then(poll).then(() => loadSame());
 </script>
 </body>
 </html>

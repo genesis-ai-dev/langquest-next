@@ -1,0 +1,78 @@
+# P0 smoke on phones (decision 95): a translator records a passage and
+# publishes Version 1, then asks the check's team (JRN-002 / JRN-011 on the
+# web cover the rest). P-Q1 was asked of TRANS and nobody else touches it.
+# Audio: the parts come from the host's microphone (G8: a loopback playing
+# e2e/fixtures/voice.wav). With a silent microphone no part is made, so the
+# flow is tagged voice and the runner skips it unless the run has one
+# (--voice or --mic).
+appId: com.frontierrnd.langquestnext
+name: "P0 A translator records and publishes a version"
+tags:
+  - p0
+  - smoke
+  - voice
+---
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${TRANS_EMAIL}
+      PASSWORD: ${TRANS_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- extendedWaitUntil:
+    visible:
+      id: "tab-map"
+    timeout: 60000
+- tapOn:
+    id: "tab-map"
+- tapOn: "Find.*"
+- inputText: ${P_Q1.split(':')[0]}
+- runFlow:
+    file: ../common/dismiss-keyboard.yaml
+    env:
+      LABEL: ${LANG_A}
+- tapOn:
+    text: "${P_Q1}.*"
+    index: 0
+- extendedWaitUntil:
+    visible: "(?i)Then the team"
+    timeout: 30000
+# The Record step row (the main button may read "Study" where FIA has a guide).
+- tapOn: "1\\. Record\\..*"
+- extendedWaitUntil:
+    visible: "Recording Version 1"
+    timeout: 30000
+- tapOn:
+    id: "record-button"
+# The microphone permission prompt, the first time only.
+- runFlow:
+    when:
+      visible: "(?i)Allow|While using the app|OK"
+    commands:
+      - tapOn: "(?i)Allow|While using the app|OK"
+- assertVisible: "Stop recording"
+# Two parts: speak, pause, speak (G8's file loops 1.5 s of voice and 2.5 s of quiet).
+# Each part shows on the parts card as soon as its pause is heard.
+- extendedWaitUntil:
+    visible: "Parts 1–2.*"
+    timeout: 30000
+- tapOn:
+    id: "record-button"
+- assertVisible:
+    id: "record-button"
+    text: "Record"
+- tapOn:
+    id: "publish-button"
+- assertVisible: "Publish Version 1"
+- tapOn:
+    text: "Publish Version 1"
+    waitToSettleTimeoutMs: 0
+- extendedWaitUntil:
+    visible:
+      id: "toast"
+    timeout: 20000
+- assertVisible: "Version 1 published\\..*"
+- assertVisible: "(?i)Next, ask for a check"
+- tapOn: "Ask the Peer check team"
+- assertVisible: "Sent to the Peer check team.*"
+- assertVisible: ".*asked the Peer check team.*"

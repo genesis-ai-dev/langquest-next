@@ -56,14 +56,14 @@ function Pill(props: { label: string; on: boolean; onPress: () => void }) {
  */
 export function BookBar(props: {
   name: string; total: number; recorded: number; done: number; count?: string;
-  last: boolean; current?: boolean; accessibilityLabel: string; onPress: () => void;
+  last: boolean; current?: boolean; accessibilityLabel: string; onPress: () => void; testID?: string;
   /** Not broken up yet (decision 74): said in place of the bar. */
   waiting?: boolean;
 }) {
   const spot = useHelpSpot(props.name, props.waiting ? t('map.parts.waitingHelp') : t('map.parts.bookHelp'), props.onPress);
   if (props.waiting) {
     return (
-      <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
+      <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
         style={({ pressed }) => [styles.book, !props.last && styles.bookBorder, pressed && styles.pressed]}>
         <Text style={styles.bookName} numberOfLines={2}>{props.name}</Text>
         <Text style={[styles.waiting]} numberOfLines={1}>{t('map.waiting')}</Text>
@@ -74,7 +74,7 @@ export function BookBar(props: {
   const pct = (n: number) => `${props.total ? Math.min(100, (n / props.total) * 100) : 0}%` as const;
   const count = props.count ?? (props.recorded > 0 ? t('map.parts.bookCount', { recorded: formatNumber(props.recorded), total: formatNumber(props.total) }) : '');
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
+    <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
       accessibilityState={props.current ? { selected: true } : undefined}
       style={({ pressed }) => [styles.book, !props.last && styles.bookBorder, props.current && { backgroundColor: C.light }, pressed && styles.pressed]}>
       <Text style={styles.bookName} numberOfLines={2}>{props.name}</Text>
@@ -98,12 +98,12 @@ const STAGE: Record<ChapterStage, { bg: string; fg: string; border: string }> = 
 
 /** A chapter: done (green, ✓), started (brand, •), not started (white). Marked as well as coloured. */
 export function ChapterTileView(props: {
-  n: number; stage: ChapterStage; dim: boolean; current: boolean; disabled: boolean; label: string; corner?: ReactNode; onPress: () => void;
+  n: number; stage: ChapterStage; dim: boolean; current: boolean; disabled: boolean; label: string; corner?: ReactNode; onPress: () => void; testID?: string;
 }) {
   const look = STAGE[props.stage];
   const spot = useHelpSpot(t('map.parts.chapter', { n: formatNumber(props.n) }), t('map.parts.chapterHelp'), props.onPress);
   return (
-    <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
+    <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
       accessibilityState={{ disabled: props.disabled, selected: props.current }}
       style={({ pressed }) => [styles.tile, { backgroundColor: look.bg, borderColor: look.border, opacity: props.dim ? 0.28 : 1 },
         props.current && { borderColor: C.primary, borderWidth: 3 }, pressed && { transform: [{ scale: 0.95 }] }]}>

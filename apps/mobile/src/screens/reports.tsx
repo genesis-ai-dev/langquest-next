@@ -4,9 +4,9 @@
 // server (decision 44), which a phone could not total itself (decision 37).
 // Ports the web dashboard's shell and language page (apps/web/src/screens:
 // shell, Language); the sections and their parts are in src/reports/.
-import { appendConfirmed, ensureDeviceId, NotSavedError, SupabaseTransport } from '@langquest-next/client';
+import { appendConfirmed, ensureDeviceId, NotSavedError } from '@langquest-next/sync';
 import {
-  dayPercents, ORG_STREAM, paceOf, percent, privilegesFor, recencyOf, TARGET_SCOPES,
+  dayPercents, mayViewLanguage, ORG_STREAM, paceOf, percent, privilegesFor, recencyOf, TARGET_SCOPES,
   type LanguageReport, type LanguageRow, type TargetScope
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -18,7 +18,7 @@ import { t, Trans } from '../i18n';
 import { contractsFor } from '../screenContracts';
 import { Chip, ChipRow, EmptyState, Field, Header, IconBtn, Screen, SearchField, Sheet, SmallBtn, txt } from '../kit';
 import { getStore } from '../store';
-import { supabase } from '../supabase';
+import { serverTransport } from '../server/sync';
 import { C, measure, space } from '../theme';
 import { ActivityChart, DayBars, ProgressLine, WorkBar } from '../reports/charts';
 import { countryCodes, countryName } from '../reports/countries';
@@ -96,7 +96,11 @@ export function ReportsLanguage(ctx: Ctx) {
   const orgName = ctx.org.state?.org?.value.name ?? '';
   const reports = useReports(orgId);
   const languageId = ctx.params['languageId'] ?? '';
-  const row = reports.status === 'ready' ? reports.rows.find((r) => r.languageId === languageId) : undefined;
+  // The list was read when Reports opened; the organization's own record on
+  // this device is newer when a role changed since, so a language the role no
+  // longer covers is not shown from the old list (RPT-016).
+  const mayView = !ctx.org.state || mayViewLanguage(ctx.org.state, ctx.session.actorId, languageId);
+  const row = reports.status === 'ready' && mayView ? reports.rows.find((r) => r.languageId === languageId) : undefined;
   const title = row?.report.name ?? t('reports.language.fallbackTitle');
   const header = (
     <Header title={title} sub={orgName} columnWidth={COLUMN} onBack={ctx.back} crumbs={[{ label: t('reports.title'), onPress: ctx.back }]}
@@ -110,7 +114,11 @@ export function ReportsLanguage(ctx: Ctx) {
   return (
     <Screen header={header} columnWidth={COLUMN}>
       {reports.status === 'loading' ? <EmptyState icon="progress" title={t('reports.language.loading')} /> : null}
-      {reports.status === 'error' ? <Notice tone={reports.offline ? 'amber' : 'red'} title={reports.offline ? t('reports.offlineTitle') : t('reports.language.couldNotRead')} body={reports.message} /> : null}
+      {reports.status === 'error' ? (
+        <Notice tone={reports.offline ? 'amber' : 'red'} title={reports.offline ? t('reports.offlineTitle') : t('reports.language.couldNotRead')} body={reports.message}>
+          <View style={{ alignSelf: 'flex-start', marginTop: space.sm }}><SmallBtn label={t('common.tryAgain')} icon="restart" onPress={reports.reload} /></View>
+        </Notice>
+      ) : null}
       {reports.status === 'ready' && !row ? (
         reports.rows.length === 0 ? <NoReports what="languageReport" /> : (
           <Notice tone="gray" title={t('reports.language.notVisible')} body={t('reports.language.notVisibleBody')} />
@@ -276,7 +284,7 @@ function SettingsPanel(props: { ctx: Ctx; row: LanguageRow; refresh: () => void 
     setStatus(null);
     try {
       const deviceId = await ensureDeviceId(await getStore(), () => Crypto.randomUUID());
-      const who = { orgId: row.orgId, streamId: ORG_STREAM, actorId: ctx.session.actorId, deviceId, transport: new SupabaseTransport(supabase) };
+      const who = { orgId: row.orgId, streamId: ORG_STREAM, actorId: ctx.session.actorId, deviceId, transport: serverTransport() };
       if (what === 'country') await appendConfirmed(who, 'v1.LanguageCountrySet', { languageId: r.languageId, country });
       else await appendConfirmed(who, 'v1.LanguageTargetSet', { languageId: r.languageId, scope, startDate: start, targetDate: end });
       setStatus({ tone: 'green', text: t('reports.settings.saved') });

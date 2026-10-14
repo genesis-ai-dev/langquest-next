@@ -16,10 +16,10 @@ import type { Ctx } from '../ctx';
 import { teamLanguage } from '../reference/languages';
 import { t } from '../i18n';
 import { useLibraryDocs, useSharedItems } from '../library/useLibrary';
-import { readingsForRange } from '../scripture';
+import { carriedBible, readingsForRange } from '../scripture';
 import { bibleErrorText, type BibleDetail } from './bibleBrain';
 import {
-  bookOffers, catalogVerses, chaptersOf, chipMarks, filesetsFor, inSourceNumbering, offersFor, offlineAllowed, orderOptions, passageRows, playPlan,
+  bibleNotOnDevice, bookOffers, catalogVerses, chaptersOf, chipMarks, filesetsFor, inSourceNumbering, isOfferedSourceId, offersFor, offlineAllowed, orderOptions, passageRows, playPlan,
   refText, resolveTiming, unitCoordinates, type PlayPlan, type SourceFrom, type SourceOption, type Timing, type TimingSource, type VerseRow
 } from './model';
 import { audioFormatOf, bbKey, ensureIndex, keptAudio, libAudioKey, onSourceFiles, playableUri } from './offline';
@@ -38,6 +38,11 @@ export interface PassageSources {
   options: SourceOption[];
   /** Still gathering documents or the person's own picks. */
   loading: boolean;
+  /**
+   * A Bible was offered, but its document is not on this device, and nothing
+   * else can be shown. Offline, that is not "no Bible" (STUDY-036).
+   */
+  notOnDevice: boolean;
   get: Get;
 }
 
@@ -128,17 +133,36 @@ export function useSources(ctx: Ctx, unitId: string | null | undefined, language
       }
     }
     // The last resort: when nothing offered has this passage's text, the text the app carries.
+    // A passage the bundle does not include is still that Bible (STUDY-036): Luke 13 is
+    // not in the bundled chapters, and calling it "no Bible" pretends none was offered.
     if (range && !out.some((o) => offersFor(o, range.book).text)) {
-      for (const r of builtinReadings(range)) {
+      const readings = builtinReadings(range);
+      const carried = readings.length ? readings : [carriedBible()];
+      for (const r of carried) {
         out.push({ itemId: `builtin.${r.code}`, kind: 'builtin', from: 'builtin', name: r.translation, abbreviation: r.code, language: 'eng' });
       }
     }
     return orderOptions(out);
   }, [recs, mine.list, shared.rows, get, details, library, range, ctx.org.state, languageId]);
 
-  // Offline, a document not on the phone stops waiting: what is here is shown.
-  const loading = !mine.loaded || (!error && itemHashes.some((h) => h && !get(h)));
-  return { range, ref: range ? refText(range) : '', versification, options, loading, get };
+  // A recommended source whose body is not in this snapshot is not "no Bible"
+  // (STUDY-036). The library view can omit the option entirely (no pin, no
+  // document), and the item id still says a source was offered.
+  const sourceMissing = [...recs.keys()].some((id) => {
+    const item = library?.[id];
+    const view = libraryItemView(library ?? {}, id);
+    const name = view?.name ?? item?.subscription.value?.name ?? item?.name.value ?? '';
+    if (!isOfferedSourceId(id) && !/\bbible\b/i.test(name)) return false;
+    const hash = view?.current ?? item?.pinned.value ?? null;
+    return !(hash && get(hash));
+  });
+  const unresolved = itemHashes.some((h) => !!h && !get(h));
+  // Offline, stop waiting for a document that is not on the phone. A hung
+  // fetch must not leave the pane on "no Bible" or on a spinner.
+  const offline = ctx.language.online === false;
+  const loading = !mine.loaded || (unresolved && !error && !offline);
+  const notOnDevice = bibleNotOnDevice({ loading, documentMissing: unresolved || sourceMissing, options: options.length });
+  return { range, ref: range ? refText(range) : '', versification, options, loading, notOnDevice, get };
 }
 
 /** The bundled readings for a range (scripture.ts), keyed by the app's older book ids. */
@@ -167,6 +191,11 @@ interface PassageSource {
   textProblem: string | null;
   /** Null when this source has no audio for the passage. */
   plan: PlayPlan | null;
+  /**
+   * The passage's book never reached this device, so there is nothing to
+   * play. That is the audio not being here, not a Bible with no audio.
+   */
+  audioNotHere: boolean;
   chapters: AudioChapter[];
   /** Bible Brain filesets read, for the record. */
   filesets: string[];
@@ -261,14 +290,21 @@ export function usePassageSource(ctx: Ctx, option: SourceOption | undefined, pas
       const audio: AudioChapter[] = option.itemId === 'builtin.BSB'
         ? chapters.map((c) => ({ chapter: c, timing: null, timingSource: 'none' as const, local: false, resolve: async () => sourceAudioUrl(SOURCE_BIBLES[0], { book: bookIdOf(range.book), chapter: c, label: '' }) }))
         : [];
+      // Bundled verses are on the device. A chapter the bundle never carried still
+      // belongs to this Bible; offline, its audio was never cached (STUDY-036).
+      const linkDown = ctx.language.online === false || (typeof navigator !== 'undefined' && navigator.onLine === false);
+      const audioNotHere = !reading && linkDown && audio.length > 0;
       return {
-        loading: false, range, rows, textProblem: rows ? null : t('sources.text.noPassageText'), plan: audio.length ? playPlan(range, audio) : null, chapters: audio,
+        loading: false, range, rows, textProblem: rows || audioNotHere ? null : t('sources.text.noPassageText'), audioNotHere,
+        plan: audio.length ? playPlan(range, audio) : null, chapters: audio,
         filesets: [], copyright: option.itemId === 'builtin.BSB' ? { text: t('sources.text.publicDomain'), audio: t('sources.text.publicDomainRead') } : { text: t('sources.text.publicDomain') }, bibleBrain: false
       };
     }
     // Library text and audio from the source's book document.
     if (option.doc?.provider.kind === 'library') {
-      const loading = !!bookHash && !book;
+      // Offline, a book that was never opened stops waiting. Its audio is not here; the Bible is.
+      const bookMissing = !!bookHash && !book && !!books.error;
+      const loading = !!bookHash && !book && !bookMissing;
       const rows = book ? passageRows(range, new Map(chapters.map((c) => [c, book.chapters.find((x) => x.chapter === c)?.verses ?? []]))) : null;
       const audio: AudioChapter[] = [];
       for (const c of chapters) {
@@ -289,7 +325,8 @@ export function usePassageSource(ctx: Ctx, option: SourceOption | undefined, pas
         });
       }
       return {
-        loading, range, rows, textProblem: loading ? null : rows ? null : bookHash ? t('sources.text.noTextInSource') : t('sources.text.noBookInSource'),
+        loading, range, rows, audioNotHere: bookMissing,
+        textProblem: loading || bookMissing ? null : rows ? null : bookHash ? t('sources.text.noTextInSource') : t('sources.text.noBookInSource'),
         plan: audio.length ? playPlan(range, audio) : null, chapters: audio, filesets: [], copyright, bibleBrain: false
       };
     }
@@ -306,13 +343,13 @@ export function usePassageSource(ctx: Ctx, option: SourceOption | undefined, pas
     }) : [];
     const loading = !!bbKeyNow && !ready?.done && !rows;
     return {
-      loading, range, rows,
+      loading, range, rows, audioNotHere: false,
       textProblem: loading ? null : !filesets.text ? t('sources.text.noBookInBible') : rows ? null : ready?.problem ?? t('sources.text.noPassageText'),
       plan: audio.length ? playPlan(range, audio) : null, chapters: audio,
       filesets: [filesets.text, filesets.audio].filter((x): x is string => !!x), copyright, bibleBrain: true
     };
     // `setFiles` revisions re-run this through the store and index reads.
-  }, [option, range, book, bookHash, bb, bbKeyNow, filesets, get, timings.get, store, keptTick, files]);
+  }, [option, range, book, bookHash, books.error, bb, bbKeyNow, filesets, get, timings.get, store, keptTick, files]);
 }
 
 /** The marks on each version chip for this passage. */

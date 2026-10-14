@@ -2,7 +2,7 @@
 // source pauses the voice detector, and when the source pauses or ends the
 // recording picks up again by itself. The source never plays into a take:
 // the detector is off (its open part delivered) before the player starts.
-// The microphone itself stays open through playback (decisions.md 95), so
+// The microphone itself stays open through playback (decisions.md 106), so
 // picking up again is instant and the first words after the source are kept;
 // what it hears while the source plays is never kept.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';

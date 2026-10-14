@@ -13,7 +13,7 @@
 // Progress is several counts, never one number (ADR-004).
 import {
   deriveFlow, libraryItemView, derivePassage, highlightsFor, languageInfo, languageName, languageProgress,
-  percent, privilegesFor, unitPlace, unitTitle, upNext,
+  percent, unitPlace, unitTitle, upNext,
   type KindDef, type LanguageProgress, type OrgState, type PassageState, type LanguageState, type UnitPlace
 } from '@langquest-next/core';
 import { useMemo, useState, type ReactNode } from 'react';
@@ -36,7 +36,9 @@ import {
   Card, Chip, ChipRow, EmptyState, Group, Header, Ico, IconBtn, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore,
   StepMarks, txt, useLayout, useOpenDetail, type IconName
 } from '../kit';
+import { mayWriteLibrary } from '../library/model';
 import { workIcon } from '../simple/homeModel';
+import { needsConnection, openableLanguages as openableIn } from '../simple/mapModel';
 import { NumberingNote } from '../breakup/parts';
 import { useVerseNumbering } from '../breakup/useBreakup';
 import { ChangedMark, useEarlierSections } from '../breakup/earlier';
@@ -198,7 +200,7 @@ function PassageRow(props: { ctx: Ctx; state: LanguageState; kinds: KindDef[]; e
   const beside = useOpenDetail();
   const offline = keptOfflineMap(ctx).get(e.unitId);
   return (
-    <Row label={title} sub={summary} last={props.last} onPress={props.onPress}
+    <Row testID={`row-${e.unitId}`} label={title} sub={summary} last={props.last} onPress={props.onPress}
       current={beside?.screen === 'passage_record' && beside.params['unitId'] === e.unitId}
       accessibilityLabel={sentences([title, summary, ...(props.mine ? [t('map.forYou')] : []), ...(props.changed ? [t('map.changedSinceRecorded')] : []), offlineWords(offline)])}
       {...(props.mine ? { badge: t('map.forYou'), badgeTone: 'amber' as const } : {})}
@@ -318,14 +320,18 @@ export function StatusHome(ctx: Ctx) {
   // 63). This phone folds the one it has open; the dashboard's server
   // answers for the rest (decision 44), as of when it last caught up.
   const summary = useOrgSummary(ctx.session.actorId, ctx.language.orgId);
+  // Only languages this person may open (a role at the organization or that
+  // language's scope): opening one they hold nothing in would leave them with
+  // no privileges at all, so no tabs and no home (NAV-042).
+  const listed = useMemo(() => openableLanguages(ctx), [ctx.languages, ctx.org.state, ctx.session.actorId]);
   const languages = useMemo(() => {
     const openId = state ? ctx.language.languageId : null;
-    const ids = ctx.languages.map((l) => l.languageId);
+    const ids = listed.map((l) => l.languageId);
     const local = new Map(state && openId ? [[openId, languageProgress(state, indexesFor(state))]] : []);
     const figures = languageFigures(ids, local, summary);
     // The open language's steps named in the language showing (core names them in English).
     const stepNames = state ? deriveFlow(state).steps.map((st) => stepName(deriveKinds(state), st)) : undefined;
-    return ctx.languages.map(({ languageId, name }) => {
+    return listed.map(({ languageId, name }) => {
       const here = languageId === openId;
       const f = figures.get(languageId);
       return {
@@ -334,7 +340,7 @@ export function StatusHome(ctx: Ctx) {
         stepNames: here ? stepNames : undefined
       };
     }).sort((a, b) => a.name.localeCompare(b.name));
-  }, [state, ctx.languages, ctx.language.languageId, ctx.org.state, summary]);
+  }, [state, listed, ctx.language.languageId, ctx.org.state, summary]);
   const orgName = ctx.org.state?.org?.value.name ?? '';
   const header = <Header title={t('map.status.title')} sub={[orgName, t('map.status.allLanguages')].filter(Boolean).join(' · ')} />;
   if (!state) return <Screen header={header}><EmptyState icon="progress" title={t('common.loading')} /></Screen>;
@@ -378,7 +384,7 @@ export function StatusHome(ctx: Ctx) {
           <StackBar done={done} recorded={recorded} total={total} height={10} recordedColor={C.soft} />
         </Card>
       )}
-      {languages.length > 5 ? <SearchField value={query} onChangeText={(t) => { setQuery(t); setLimit(PAGE); }} placeholder={t('map.status.find')} /> : null}
+      {languages.length > 5 ? <SearchField value={query} onChangeText={(t) => { setQuery(t); setLimit(PAGE); }} placeholder={t('map.status.find')} testID="map-search" /> : null}
       {shown.length > 0 ? <SectionLabel label={t('map.status.languages')} /> : null}
       {shown.slice(0, limit).map((l) => l.progress && l.here ? (
         <Card key={l.languageId} current={isOpen(l.languageId)} onPress={() => open(l.languageId)} accessibilityLabel={t('map.status.languageLabel', { name: l.name, recorded: fmt(l.progress.recorded), total: fmt(l.progress.total) })}>
@@ -472,11 +478,12 @@ function BookRow(props: { b: BookSummary; filter: MapFilter; last: boolean; onPr
     : t('map.book.notStarted');
   const beside = useOpenDetail();
   return (
-    <BookBar name={b.name} total={b.total} recorded={b.recorded} done={b.done} last={props.last} onPress={props.onPress} waiting={!!b.waiting}
+    <BookBar testID={`row-${b.key}`} name={b.name} total={b.total} recorded={b.recorded} done={b.done} last={props.last} onPress={props.onPress} waiting={!!b.waiting}
       {...(filter !== 'all' ? { count: fmt(b.matching) } : {})}
       current={beside?.screen === 'book_map' && beside.params['bookId'] === b.key}
       accessibilityLabel={sentences([b.name, sub, ...(filter !== 'all' ? [matchingWords(filter, b.matching)] : []),
-        ...(b.mine ? [t('map.book.forYou', { count: b.mine })] : []), ...(b.feedback ? [t('map.matching.feedback', { count: b.feedback })] : [])])} />
+        // With the feedback filter set, "N with feedback" is said once, as the match count.
+        ...(b.mine ? [t('map.book.forYou', { count: b.mine })] : []), ...(b.feedback && filter !== 'feedback' ? [t('map.matching.feedback', { count: b.feedback })] : [])])} />
   );
 }
 
@@ -514,11 +521,9 @@ function OutlineMap(props: { ctx: Ctx; state: LanguageState; kinds: KindDef[]; l
   );
 }
 
-/** Languages this person may open: those a role of theirs covers, at org scope or the language's own. */
+/** Languages this person may open: those a role of theirs covers, at org scope or the language's own (simple/mapModel.ts). */
 function openableLanguages(ctx: Ctx): { languageId: string; name: string }[] {
-  const org = ctx.org.state;
-  if (!org) return [];
-  return ctx.languages.filter((l) => privilegesFor(org, ctx.session.actorId, l.languageId).size > 0);
+  return openableIn(ctx.org.state, ctx.session.actorId, ctx.languages);
 }
 
 /**
@@ -585,7 +590,14 @@ export function MapHome(ctx: Ctx) {
   if (!languageId) {
     return <Screen header={header}><EmptyState icon="globe" title={t('map.noLanguages')} sub={t('map.home.noLanguagesSub')} /></Screen>;
   }
-  if (!state || !progress) return <Screen header={header}><EmptyState icon="map" title={t('common.loading')} /></Screen>;
+  // Not read from the server this session, and the server cannot be reached: a
+  // language never opened here has nothing on this device yet, so say it needs
+  // a connection rather than loading for ever or looking empty (MAP-033,
+  // decision 61). It comes down by itself once the phone is back online.
+  const notHere = needsConnection({ showing: languageId, open: ctx.language.languageId, pulled: ctx.language.pulled, online: ctx.language.online, empty: !state || entries.length === 0 })
+    ? <EmptyState icon="cloud" title={t('map.home.needsConnection', { language })} sub={t('map.home.needsConnectionSub')} />
+    : null;
+  if (!state || !progress) return <Screen header={header}>{notHere ?? <EmptyState icon="map" title={t('common.loading')} />}</Screen>;
 
   // Reached from the Map tab, a worker switches language here; from the
   // overview or a language home, the screen is about that one language.
@@ -606,7 +618,7 @@ export function MapHome(ctx: Ctx) {
     return (
       <Screen header={header}>
         {languageChips}
-        <EmptyState icon="book" title={t('map.home.noPassages')} sub={t('map.home.noPassagesSub', { language })} />
+        {notHere ?? <EmptyState icon="book" title={t('map.home.noPassages')} sub={t('map.home.noPassagesSub', { language })} />}
       </Screen>
     );
   }
@@ -642,7 +654,7 @@ export function MapHome(ctx: Ctx) {
   return (
     <Screen header={header}>
       {languageChips}
-      <SearchField value={query} onChangeText={(v) => { setQuery(v); setLimit(PAGE); }} placeholder={t('map.home.find')} />
+      <SearchField value={query} onChangeText={(v) => { setQuery(v); setLimit(PAGE); }} placeholder={t('map.home.find')} testID="map-search" />
 
       {searching ? (
         search.chapter === undefined ? (
@@ -735,7 +747,7 @@ interface ChapterTile {
  * device) stays in its spoken label and under Filter's key; a kept chapter
  * keeps its mark at the corner.
  */
-function Tile(props: { c: ChapterTile; onPress: () => void; current?: boolean; offline: Map<string, KeptOffline>; changed?: boolean }) {
+function Tile(props: { c: ChapterTile; testID?: string; onPress: () => void; current?: boolean; offline: Map<string, KeptOffline>; changed?: boolean }) {
   const { c } = props;
   const parts = c.list.length;
   // Kept passages of this chapter (decisions.md 61): the mark is green only when every kept one is ready.
@@ -753,7 +765,7 @@ function Tile(props: { c: ChapterTile; onPress: () => void; current?: boolean; o
     ...(c.matches ? [] : [t('map.tile.outsideFilter')])
   ]);
   return (
-    <ChapterTileView n={c.n} stage={chapterStage(c.tone)} dim={!c.matches} current={!!props.current} disabled={parts === 0} label={label} onPress={props.onPress}
+    <ChapterTileView {...(props.testID ? { testID: props.testID } : {})} n={c.n} stage={chapterStage(c.tone)} dim={!c.matches} current={!!props.current} disabled={parts === 0} label={label} onPress={props.onPress}
       corner={kept.length ? <OfflineMark u={kept.every((u) => u.ready) ? kept[0] : kept.find((u) => !u.ready)} /> : props.changed ? <ChangedMark /> : undefined} />
   );
 }
@@ -812,7 +824,9 @@ export function BookMap(ctx: Ctx) {
   if (!state) return <Screen header={header}><EmptyState icon="book" title={t('common.loading')} /></Screen>;
 
   if (book && entries.length === 0 && waitingBooks(state).includes(book.id)) {
-    const may = canGo(ctx, 'book_map', 'book_structure');
+    // Breaking a book up publishes the language's template in the organization's library, so it takes the
+    // privilege at organization scope (decision 74, content.tsx `canBreak`): a language lead is told who does it.
+    const may = canGo(ctx, 'book_map', 'book_structure') && mayWriteLibrary(ctx.org.state, ctx.session.actorId, 'template');
     return (
       <Screen header={<Header title={title} crumbs={crumbs} onBack={ctx.back} sub={t('map.waiting')} />}
         footer={may ? <PrimaryBtn label={t('map.book.breakUp', { book: book.name })} icon="cut" onPress={() => ctx.go('book_structure', { languageId, bookId })} /> : undefined}>
@@ -880,7 +894,7 @@ export function BookMap(ctx: Ctx) {
         {rows.map((row, r) => (
           <View key={r} style={{ flexDirection: 'row', gap: space.sm }}>
             {row.map((c) => (
-              <Tile key={c.n} c={c} offline={offline} changed={c.list.some((e) => earlier.over.has(e.unitId))} current={beside?.screen === 'passage_record' && c.list.some((e) => e.unitId === beside.params['unitId'])} onPress={() => {
+              <Tile key={c.n} testID={`row-${bookId}-${c.n}`} c={c} offline={offline} changed={c.list.some((e) => earlier.over.has(e.unitId))} current={beside?.screen === 'passage_record' && c.list.some((e) => e.unitId === beside.params['unitId'])} onPress={() => {
                 if (c.list.length === 1) open(c.list[0]!);
                 else if (c.list.length > 1) setOpenChapter(c.n);
               }} />

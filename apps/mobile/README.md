@@ -3,7 +3,7 @@
 Expo 57 app, run as a development build (the native recorder module does not load in Expo Go). Owns exactly three things:
 
 1. `src/store.ts`: the expo-sqlite driver behind `SqliteStore` from
-   `@langquest-next/client`. The store logic itself lives in the client
+   `@langquest-next/sync`. The store logic itself lives in the sync
    package and is contract-tested there against node:sqlite.
 2. `src/usePartition.ts`: one `SyncClient` on the open language's partition
    with `SupabaseTransport`, sync on open and every 15 s, a pending count.
@@ -66,7 +66,7 @@ scripts, not `npx expo` directly: they load `.env.development` and turn off
 Expo's own `.env` loading. Your
 own dev login goes in `.env.development.local` (git ignores it).
 Recording lives in `src/useRecorder.ts` (native VAD plus expo-audio),
-`src/blobs.ts` (content-addressed store), `src/blobTransport.ts` (Supabase
+`src/blobs.ts` (content-addressed store), `src/server/blobTransport.ts` (Supabase
 Storage), and `src/screens/translate.tsx` with `src/recording/`. `EXPO_PUBLIC_DEV_EMAIL`
 and `EXPO_PUBLIC_DEV_PASSWORD` prefill the auth screen in dev builds only.
 Event ids come from expo-crypto because Hermes has no `crypto.randomUUID`.
@@ -163,8 +163,9 @@ project, so which changes need a new binary is decided for you rather than
 guessed:
 
 - **JavaScript only** (screens, hooks, `src/invites.ts`, the packages):
-  `npm run ship -- -m "what changed"`. Typechecks, then publishes to the
-  `preview` channel; the fingerprint is unchanged, so installed builds take it
+  `npm run ship -- -m "what changed"`. Typechecks, runs the P0 web UI
+  tests on the local stack (`docs/testing.md`; `SHIP_UNTESTED=1` skips
+  them, loudly), then publishes to the `preview` channel; the fingerprint is unchanged, so installed builds take it
   on next launch.
 - **Anything native** (a new Expo module, `app.json` plugins or permissions,
   an SDK bump, `modules/microphone-energy`): the fingerprint changes, the

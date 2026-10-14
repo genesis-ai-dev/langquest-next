@@ -6,7 +6,7 @@ let microphoneHeld = false;
 
 /**
  * A voice-detecting session keeps the microphone open while the source plays,
- * with only the detector paused (useRecorder pauseVad, decisions.md 95), so it
+ * with only the detector paused (useRecorder pauseVad, decisions.md 106), so it
  * picks up the moment the source stops. Meanwhile playback must not switch
  * the session to playback only, which would stop the microphone.
  */

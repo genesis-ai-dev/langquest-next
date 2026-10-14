@@ -1,4 +1,4 @@
-import { always, Fleet, FLEET_EPOCH, NETWORKS, offlineBetween, TIME } from '@langquest-next/client/src/testing';
+import { always, Fleet, FLEET_EPOCH, NETWORKS, offlineBetween, TIME } from '@langquest-next/sync/src/testing';
 import { cpuSince, mark, type Scenario } from './types';
 
 /**

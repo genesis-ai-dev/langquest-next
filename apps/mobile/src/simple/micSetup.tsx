@@ -290,7 +290,7 @@ function TryRow(props: { id: string; parts: Segment[]; on: boolean; playing: boo
   const play = useHelpSpot(playLabel, t('recording.micSetup.playTryHelp'), props.onPlay);
   const pick = useHelpSpot(name, t('recording.micSetup.chooseThis'), props.onPick);
   return (
-    <Pressable onPress={pick.onPress} accessibilityRole="radio" accessibilityState={{ selected: props.on }} accessibilityLabel={t('recording.micSetup.tryLabel', { id: props.id, length: mmss(ms) })}
+    <Pressable onPress={pick.onPress} accessibilityRole="radio" accessibilityState={{ selected: props.on, checked: props.on }} aria-checked={props.on} accessibilityLabel={t('recording.micSetup.tryLabel', { id: props.id, length: mmss(ms) })}
       style={({ pressed }) => [styles.tryRow, props.on && { borderColor: C.primary }, pressed && ps.pressed]}>
       <Pressable onPress={play.onPress} accessibilityRole="button" accessibilityLabel={playLabel}
         style={({ pressed }) => [styles.tryPlay, pressed && ps.pressed]}>
@@ -338,17 +338,26 @@ function ByHand(props: { ctx: Ctx; onDone: () => void }) {
     onPanResponderGrant: () => { start.current = latest.current.cutoff; },
     onPanResponderMove: (_, g) => setCutoff(cutoffAfterDrag(start.current, g.dy, latest.current.height, false))
   })).current;
+  const [saving, setSaving] = useState(false);
+  // As "Use Try N" does: a device that cannot keep the settings says so, and the screen stays.
   async function save() {
-    await saveMicSettings({ threshold: Math.round(cutoff * 1000) / 1000, pauseMs: pause });
-    props.ctx.toast(t('recording.micSetup.settingsSaved'));
-    props.ctx.back();
+    setSaving(true);
+    try {
+      await saveMicSettings({ threshold: Math.round(cutoff * 1000) / 1000, pauseMs: pause });
+      props.ctx.toast(t('recording.micSetup.settingsSaved'));
+      props.ctx.back();
+    } catch (e) {
+      noteExpected('mic setup: save by hand', e);
+      props.ctx.toast(t('recording.micSetup.notSaved'));
+    } finally { setSaving(false); }
   }
   return (
     <Screen header={<Header title={t('recording.micSetup.byHand')} sub={t('recording.micSetup.title')} onBack={props.onDone} />}
-      footer={<PrimaryBtn label={t('recording.micSetup.saveSettings')} icon="check" onPress={() => void save()} />}>
+      footer={<PrimaryBtn label={t('recording.micSetup.saveSettings')} icon="check" busy={saving} onPress={() => void save()} />}>
       <Text style={styles.lead}>{t('recording.micSetup.byHandLead')}</Text>
       <View style={styles.meter} {...pan.panHandlers}
         accessible accessibilityRole="adjustable" accessibilityLabel={t('recording.micSetup.sensitivityLine')} accessibilityValue={{ min: 4, max: 92, now: Math.round(cutoff * 100) }}
+        aria-valuemin={4} aria-valuemax={92} aria-valuenow={Math.round(cutoff * 100)}
         accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
         onAccessibilityAction={(e) => setCutoff((c) => clampCutoff(c + (e.nativeEvent.actionName === 'increment' ? 0.02 : -0.02)))}>
         {/* Bars and line in one box, on one scale: a bar reaches the line exactly when the detector hears it. */}
@@ -374,7 +383,7 @@ function Bars() {
 function PauseChip(props: { label: string; dots: number; on: boolean; onPress: () => void }) {
   const spot = useHelpSpot(props.label, t('recording.micSetup.pauseHelp'), props.onPress);
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole="radio" accessibilityState={{ selected: props.on }} accessibilityLabel={props.label}
+    <Pressable onPress={spot.onPress} accessibilityRole="radio" accessibilityState={{ selected: props.on, checked: props.on }} aria-checked={props.on} accessibilityLabel={props.label}
       style={({ pressed }) => [styles.pause, props.on && { backgroundColor: C.primary, borderColor: C.primary }, pressed && ps.pressed]}>
       <View style={{ flexDirection: 'row', gap: 5 }}>
         {Array.from({ length: props.dots }, (_, i) => <View key={i} style={[styles.pauseDot, { backgroundColor: props.on ? C.white : C.primary }]} />)}
