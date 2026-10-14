@@ -3251,8 +3251,8 @@
       "studySteps_other": "{{name}} · {{count, number}} में से {{done}} चरण",
       "dueOn": "आख़िरी तारीख़ {{date}}",
       "record": "रिकॉर्ड करें",
-      "yourTakes": "आपके टेक रिकॉर्ड हो गए हैं, अभी प्रकाशित नहीं हुए।",
-      "someTakes": "कुछ टेक रिकॉर्ड हो गए हैं, अभी प्रकाशित नहीं हुए।",
+      "yourParts": "आपके हिस्से रिकॉर्ड हो गए हैं, अभी प्रकाशित नहीं हुए।",
+      "someParts": "कुछ हिस्से रिकॉर्ड हो गए हैं, अभी प्रकाशित नहीं हुए।",
       "recordHint": "इसे अपनी भाषा में बताएँ। रिकॉर्ड करते समय बाइबल, मुख्य शब्द और नोट आपके पास रहते हैं।",
       "recordHintAsked": "{{asked}}। इसे अपनी भाषा में बताएँ। रिकॉर्ड करते समय बाइबल, मुख्य शब्द और नोट आपके पास रहते हैं।",
       "asked": {
@@ -3311,7 +3311,7 @@
       },
       "kindOnVersion": "{{version}} पर {{kind}}",
       "recording": "रिकॉर्डिंग",
-      "takesNotPublished": "टेक रिकॉर्ड हुए, अभी प्रकाशित नहीं",
+      "partsNotPublished": "हिस्से रिकॉर्ड हुए, अभी प्रकाशित नहीं",
       "notRecorded": "अभी रिकॉर्ड नहीं हुआ",
       "backToLatest": "सबसे नए वर्शन पर वापस जाएँ",
       "pill": {
@@ -3331,8 +3331,8 @@
       "newer": "नया वर्शन",
       "versions": "वर्शन",
       "playVersion": "{{version}} चलाएँ",
-      "takes_one": "{{count, number}} टेक",
-      "takes_other": "{{count, number}} टेक",
+      "parts_one": "{{count, number}} हिस्सा",
+      "parts_other": "{{count, number}} हिस्से",
       "openRecording": "रिकॉर्डिंग खोलें",
       "madeAfter": "इसके बाद बना",
       "madeAfterShow": "{{label}} के बाद बना। वह वर्शन दिखाएँ",
@@ -3469,7 +3469,6 @@
       "changeAloud": "क्या बदला, बोलकर बताया",
       "inResponseTo": "{{kind}} ({{who}}) के जवाब में",
       "recording": "रिकॉर्डिंग",
-      "take": "टेक {{n, number}}",
       "details": "जानकारी",
       "keyTerms": "मुख्य शब्द",
       "termsTied_one": "{{count, number}} शब्द जुड़ा · {{terms}}",
@@ -4183,8 +4182,6 @@
     "resumeRecordingNow": "रिकॉर्डिंग अभी जारी रखें",
     "loop": {
       "capturing": "आप जो कहते हैं वह रिकॉर्ड हो रहा है",
-      "takesSoFar_one": "अब तक {{count, number}} टेक",
-      "takesSoFar_other": "अब तक {{count, number}} टेक",
       "partsSoFar_one": "अब तक {{count, number}} हिस्सा",
       "partsSoFar_other": "अब तक {{count, number}} हिस्से",
       "piecesSoFar_one": "अब तक {{count, number}} टुकड़ा",
@@ -4232,7 +4229,7 @@
       "tiedBadge": "जुड़ा",
       "tying": "जोड़ रहे हैं…",
       "tie": "अपने ड्राफ़्ट से जोड़ें",
-      "recordFirst": "पहले एक टेक रिकॉर्ड करें; फिर आप शब्दों को अपने ड्राफ़्ट से जोड़ सकते हैं।",
+      "recordFirst": "पहले एक हिस्सा रिकॉर्ड करें; फिर आप शब्दों को अपने ड्राफ़्ट से जोड़ सकते हैं।",
       "allTerms": "सभी मुख्य शब्द →",
       "studyTitle": "{{pattern}} अध्ययन · {{passage}}",
       "openStudy": "अध्ययन खोलें →",
@@ -4267,17 +4264,13 @@
       "dividerHint": "किसी एक को ज़्यादा जगह देने के लिए ऊपर या नीचे खींचें"
     },
     "take": {
-      "record": "टेक रिकॉर्ड करें",
+      "record": "एक हिस्सा रिकॉर्ड करें",
       "recordHint": "बोलें, हिस्सों के बीच रुकें। खत्म होने पर रोकें दबाएँ।"
     },
     "backTranslation": {
       "draftUnreadable": "आपके पहले के हिस्से इस डिवाइस पर पढ़े नहीं जा सके (कोड {{code}})। कुछ भी मिटाया नहीं गया।",
       "partsSaid_one": "{{count, number}} में से {{said}} हिस्सा बोला गया",
       "partsSaid_other": "{{count, number}} में से {{said}} हिस्से बोले गए"
-    },
-    "workspace": {
-      "take": "टेक {{n}}",
-      "newTake": "नया टेक {{n}}"
     },
     "verses": {
       "verse": "पद {{verse}}",
@@ -5495,7 +5488,7 @@
     "missingSub": "हो सकता है यह अभी लोड हो रहा हो।",
     "orgLoading": "आपका संगठन अभी लोड हो रहा है।",
     "languageLoading": "यह भाषा अभी लोड हो रही है। थोड़ी देर में फिर से कोशिश करें।",
-    "takesNotInDraft": "आपके टेक इस डिवाइस पर सहेजे गए हैं, पर अभी आपके ड्राफ़्ट में नहीं हैं। {{reason}}",
+    "partsNotInDraft": "आपके हिस्से इस डिवाइस पर सहेजे गए हैं, पर अभी आपके ड्राफ़्ट में नहीं हैं। {{reason}}",
     "partDeleted": "{{part}} मिटा दिया।",
     "chips": {
       "bible": "बाइबल",

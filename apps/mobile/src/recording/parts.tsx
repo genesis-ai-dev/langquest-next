@@ -1,5 +1,5 @@
 // Pieces the workspace and back translation share (demo translate.tsx):
-// the big red record button (REC-W2, ADR-028), the list of takes with play
+// the big red record button (REC-W2, ADR-028), the list of parts with play
 // and delete, and the line that says a save failed with a way to retry.
 import { CommandError } from '@langquest-next/core';
 import { useEffect } from 'react';
@@ -44,7 +44,7 @@ export interface ListedCard {
   durationMs?: number;
 }
 
-/** "Your recording": each take plays and deletes (REC-W2). */
+/** "Your recording": each part plays and deletes (REC-W2). */
 export function CardList(props: {
   ctx: Ctx;
   cards: ListedCard[];

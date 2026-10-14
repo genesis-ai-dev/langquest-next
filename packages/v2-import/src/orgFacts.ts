@@ -18,6 +18,8 @@ export interface OrgPlan {
   existing: boolean;
   /** v2 profile ids who run it. */
   admins: string[];
+  /** Who signs these changes, when not its first admin: one who is an admin there already. */
+  actor?: string;
   /** LangQuest library items its languages use, with the version each uses. */
   ways: { sourceItemId: string; name: string; docHash: string }[];
   /** When the board made it. */
@@ -25,7 +27,7 @@ export interface OrgPlan {
 }
 
 export function orgFacts(o: OrgPlan): Fact[] {
-  const actorId = o.admins[0] ?? 'v2import';
+  const actorId = o.actor ?? o.admins[0] ?? 'v2import';
   const nothing = () => [] as Said[];
   const facts: Fact[] = [];
   if (!o.existing) {

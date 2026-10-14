@@ -47,6 +47,8 @@ export interface PathInput {
   when: (hlc: string) => string;
   /** Seconds in the latest version, when known. */
   latestSeconds?: number;
+  /** The verses the latest version holds ("Verses 1–4"), when its parts have any. */
+  latestVerses?: string | null;
   /** Who a request went to, as people say it ("the Community team", "Mary"). */
   askedName?: (kindId: string) => string | undefined;
   /** A due date as people say it ("due Oct 11"). */
@@ -98,9 +100,9 @@ export function pathSteps(input: PathInput): PathStep[] {
   out.push({
     kind: 'record', title: t('passage.path.record'),
     sub: p.recorded && latest
-      ? [versionTitle(latest.n), input.latestSeconds ? formatClock(input.latestSeconds * 1000) : ''].filter(Boolean).join(' · ')
+      ? [versionTitle(latest.n), input.latestVerses ?? '', input.latestSeconds ? formatClock(input.latestSeconds * 1000) : ''].filter(Boolean).join(' · ')
       : p.drafting
-        ? (p.draftBy === me ? t('passage.path.yourTakes') : t('passage.path.someTakes'))
+        ? (p.draftBy === me ? t('passage.path.yourParts') : t('passage.path.someParts'))
         : askedLine ? t('passage.path.recordHintAsked', { asked: askedLine }) : t('passage.path.recordHint'),
     state: p.recorded ? 'done' : 'todo'
   });

@@ -1,6 +1,6 @@
 // The passage's verses and how a verse label reads, for the recorder's
 // verse gutter (decisions.md 82; core verses.ts does the numbering). Pure.
-import type { VerseRange } from '@langquest-next/core';
+import { derivePartVerses, type PartLabel, type PartMark, type VerseRange } from '@langquest-next/core';
 import { t } from '../i18n';
 
 /** Every verse of the passage in order, as "chapter:verse"; empty for a unit with no verses. */
@@ -41,4 +41,29 @@ export function spanName(keys: readonly string[], s: number, e: number): string 
 export function partIs(part: string, keys: readonly string[], s: number, e: number, more = false): string {
   if (s === e) return t(more ? 'recording.verses.moreOfOne' : 'recording.verses.isOne', { part, verse: verseName(keys, s) });
   return t(more ? 'recording.verses.moreOfRange' : 'recording.verses.isRange', { part, first: verseName(keys, s), last: verseName(keys, e) });
+}
+
+/**
+ * A version's parts as a page shows them: each part's verses, and whether
+ * they are the verses of the part above (one verse said in pieces, drawn
+ * hollow). Read from the stored marks, so a part with the same verses
+ * chosen twice reads as more of the verse above too.
+ */
+export function readPartVerses(marks: readonly PartMark[], count: number): { label: PartLabel | null; same: boolean }[] {
+  const { labels } = derivePartVerses(marks, count);
+  return labels.map((l, i) => {
+    const above = i > 0 ? labels[i - 1] : null;
+    return { label: l, same: !!l && !!above && (l.kind === 'join' || (l.s === above.s && l.e === above.e)) };
+  });
+}
+
+/**
+ * The verses a list of parts holds, first to last ("Verse 1", "Verses 1–4"),
+ * or null when none of them has one. Verses are never required: a version
+ * with none simply says nothing about them.
+ */
+export function versesHeld(marks: readonly PartMark[], keys: readonly string[]): string | null {
+  const labels = derivePartVerses(marks, keys.length).labels.filter((l): l is PartLabel => !!l && l.s >= 0 && l.e < keys.length);
+  if (labels.length === 0) return null;
+  return spanName(keys, Math.min(...labels.map((l) => l.s)), Math.max(...labels.map((l) => l.e)));
 }

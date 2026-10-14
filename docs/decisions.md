@@ -2760,6 +2760,31 @@ and grey instead of joining a card; a part's own verse is a soft grey tile
 with a dark number, so the labels stay quiet beside the parts. The marks, the event and the tap rules are
 unchanged.
 
+Amended (2026-10-14, Caleb Koster): a published version shows its verses
+too. Caleb found a version's page listing "Play Version 1 (2 takes)", "Take
+1", "Take 2" as three rows that looked the same, with no verses. A take
+suggests another try at the same audio; these are pieces that together make
+the recording. So a version's page (`passage/versionParts.tsx`) plays the
+whole version in the clip player, then lists its parts read only, "Part 1",
+"Part 2", each with its verse tile as the recorder draws it (`VerseTile`,
+hollow for more of the verse above, read by `readPartVerses`). Nowhere on
+screen are parts called takes any more; the words "take" and "takes" for a
+part are gone from all 15 catalogs (the demo's REC-W2 says takes; this
+departs from it on Caleb's word). A part whose stored verses equal the part
+above's reads as more of that verse even when both were chosen, and the
+v2 import (decision 94) now records such a part as a join, as the recorder
+would.
+
+Verses are shown where they exist and never asked for (Caleb, 2026-10-14:
+many teams are not required to number verses, and published work needs no
+labelling). A part with no verse shows nothing where its tile would be, a
+version with none shows no tile column, and no screen counts or flags
+verses still missing. Where a version is shown, its verses show too when it
+has them: the reviewer's Listen lists the parts under the player (only when
+a part has a verse), each part of a back translation names its verse, and
+the passage page and Versions page add "Verses 1–4" (first to last) to the
+version's line.
+
 ## 83. A person may keep several drafts of a passage, each one the line of takes its changes made
 
 Date: 2026-10-10 · By: Caleb Koster · Status: accepted
@@ -3319,6 +3344,28 @@ language makes one, and no `LanguageCodeSet`), and its admins link it in
 Next, as they can any language added unlinked (78). The dashboard's
 suggestions are never linked unless someone uses one: v2's own links, which
 many suggestions repeat, are often wrong.
+
+Amended (2026-10-14, Caleb Koster): a v2 person whose email already has an
+account in Next is linked to it only when someone on the team confirms it
+on the dashboard (Same email, Same person). Next does not confirm emails at
+sign-up, so an email match alone is no proof, and linking by it would let
+anyone claim a translator's work, or an organization, by signing up with
+their address first. A confirmed link makes the import name the Next
+account wherever it named the v2 one, so memberships and organization
+admins move to it at the next sync; work already brought over keeps its v2
+author. Changes to who is in an organization are now signed by an admin the
+import made there already, and so are take-backs of facts v2 no longer
+states, which the import's device id could not sign.
+
+Amended (2026-10-14, Caleb Koster): nothing v2 deletes or turns off is
+taken back here ("the point of an event log is that nothing disappears").
+Recordings, reviews, notes, units and members that v2 removes stay; a v2
+publish without a recording becomes a new version without it, and the
+earlier version stays. This replaces taking back by hiding, removing or
+`v1.Redacted` above. The import takes back only its own decisions: Leave
+out, a link's move, an organization admin dropped on the dashboard, and FIA
+guides no longer offered. A member who leaves a v2 project keeps their
+place here until an admin removes them.
 
 ## 95. The app's UI tests run on Maestro on phones and Playwright on the web; Jev stays for journeys judged by outcome
 

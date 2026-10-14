@@ -3367,8 +3367,8 @@
       "studySteps_other": "{{name}} · {{done}} de {{count, number}} etapas",
       "dueOn": "prazo: {{date}}",
       "record": "Gravar",
-      "yourTakes": "As suas tentativas estão gravadas, mas ainda não publicadas.",
-      "someTakes": "Algumas tentativas estão gravadas, mas ainda não publicadas.",
+      "yourParts": "As suas partes estão gravadas, mas ainda não publicadas.",
+      "someParts": "Algumas partes estão gravadas, mas ainda não publicadas.",
       "recordHint": "Conte no seu idioma. A Bíblia, as palavras-chave e as notas ficam ao seu lado enquanto você grava.",
       "recordHintAsked": "{{asked}}. Conte no seu idioma. A Bíblia, as palavras-chave e as notas ficam ao seu lado enquanto você grava.",
       "asked": {
@@ -3427,7 +3427,7 @@
       },
       "kindOnVersion": "{{kind}} na {{version}}",
       "recording": "Gravação",
-      "takesNotPublished": "Tentativas gravadas, ainda não publicadas",
+      "partsNotPublished": "Partes gravadas, ainda não publicadas",
       "notRecorded": "Ainda não gravado",
       "backToLatest": "Voltar para a versão mais recente",
       "pill": {
@@ -3447,9 +3447,9 @@
       "newer": "Versão mais nova",
       "versions": "Versões",
       "playVersion": "Tocar {{version}}",
-      "takes_one": "{{count, number}} tentativa",
-      "takes_many": "{{count, number}} de tentativas",
-      "takes_other": "{{count, number}} tentativas",
+      "parts_one": "{{count, number}} parte",
+      "parts_many": "{{count, number}} de partes",
+      "parts_other": "{{count, number}} partes",
       "openRecording": "Abrir a gravação",
       "madeAfter": "Feita depois de",
       "madeAfterShow": "Feita depois de {{label}}. Mostrar essa versão",
@@ -3587,7 +3587,6 @@
       "changeAloud": "O que mudou, dito em voz alta",
       "inResponseTo": "Em resposta à {{kind}} de {{who}}",
       "recording": "Gravação",
-      "take": "Tentativa {{n, number}}",
       "details": "Detalhes",
       "keyTerms": "Termos-chave",
       "termsTied_one": "{{count, number}} termo ligado · {{terms}}",
@@ -4335,9 +4334,6 @@
     "resumeRecordingNow": "Continuar a gravação agora",
     "loop": {
       "capturing": "Gravando o que você diz",
-      "takesSoFar_one": "{{count, number}} tentativa até agora",
-      "takesSoFar_many": "{{count, number}} de tentativas até agora",
-      "takesSoFar_other": "{{count, number}} tentativas até agora",
       "partsSoFar_one": "{{count, number}} parte até agora",
       "partsSoFar_many": "{{count, number}} de partes até agora",
       "partsSoFar_other": "{{count, number}} partes até agora",
@@ -4389,7 +4385,7 @@
       "tiedBadge": "Ligado",
       "tying": "Ligando…",
       "tie": "Ligar ao seu rascunho",
-      "recordFirst": "Primeiro grave uma tentativa; depois você pode ligar termos ao seu rascunho.",
+      "recordFirst": "Primeiro grave uma parte; depois você pode ligar termos ao seu rascunho.",
       "allTerms": "Todos os termos-chave →",
       "studyTitle": "Estudo {{pattern}} · {{passage}}",
       "openStudy": "Abrir o estudo →",
@@ -4424,7 +4420,7 @@
       "dividerHint": "Arraste para cima ou para baixo para dar mais espaço a um dos dois"
     },
     "take": {
-      "record": "Gravar uma tentativa",
+      "record": "Gravar uma parte",
       "recordHint": "Fale, fazendo pausas entre as partes. Toque em parar quando terminar."
     },
     "backTranslation": {
@@ -4432,10 +4428,6 @@
       "partsSaid_one": "{{said}} de {{count, number}} parte dita",
       "partsSaid_many": "{{said}} de {{count, number}} de partes ditas",
       "partsSaid_other": "{{said}} de {{count, number}} partes ditas"
-    },
-    "workspace": {
-      "take": "Tentativa {{n}}",
-      "newTake": "Nova tentativa {{n}}"
     },
     "verses": {
       "verse": "Versículo {{verse}}",
@@ -5753,7 +5745,7 @@
     "missingSub": "Talvez ainda esteja carregando.",
     "orgLoading": "A sua organização ainda está carregando.",
     "languageLoading": "Este idioma ainda está carregando. Tente de novo daqui a pouco.",
-    "takesNotInDraft": "As suas tentativas estão salvas neste aparelho, mas ainda não estão no seu rascunho. {{reason}}",
+    "partsNotInDraft": "As suas partes estão salvas neste aparelho, mas ainda não estão no seu rascunho. {{reason}}",
     "partDeleted": "{{part}} apagada.",
     "chips": {
       "bible": "Bíblia",

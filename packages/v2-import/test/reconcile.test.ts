@@ -60,8 +60,14 @@ describe('reconcile', () => {
     expect(decodeHlc(all[0]!.hlc).wallMs).toBe(NOW);
   });
 
-  it('redacts everything a fact said when v2 no longer has it', () => {
+  it('keeps what a fact said when v2 no longer has it: nothing said here disappears', () => {
     const { each, ledger } = passes([[note('one')], [note('two')], []]);
+    expect(each[2]).toEqual([]);
+    expect(ledger.get('note:a1')).toMatchObject({ withdrawn: false });
+  });
+
+  it("redacts everything a fact said when it is the dashboard's to drop and is dropped", () => {
+    const { each, ledger } = passes([[note('one')], [note('two')], []], { ...ctx, takeBackAbsent: true });
     const said = [...each[0]!, ...each[1]!].map((e) => e.id);
     expect(each[2]!.map((e) => e.type)).toEqual(['v1.Redacted', 'v1.Redacted']);
     expect(each[2]!.map((e) => (e.payload as { eventId: string }).eventId)).toEqual(said);
@@ -70,15 +76,15 @@ describe('reconcile', () => {
     expect(Object.keys(state.notes)).toEqual([]);
   });
 
-  it('takes a fact back the way it says when v2 marks it inactive, and says it again when it returns', () => {
-    const member = (gone: boolean): Fact => ({
-      key: 'member:trans', streamId: ORG_STREAM, actorId: 'owner', at: '2026-04-01T00:00:00Z', gone,
+  it('leaves a fact v2 turns off as it is, takes it back only when withdrawn here, and says it again when it returns', () => {
+    const member = (gone: boolean, withdraw = false): Fact => ({
+      key: 'member:trans', streamId: ORG_STREAM, actorId: 'owner', at: '2026-04-01T00:00:00Z', gone, withdraw,
       say: () => [{ type: 'v1.MemberAdded', payload: { profileId: 'trans', roleId: 'translator', scope: { level: 'language', languageId: 'p1' } } }],
       unsay: () => [{ type: 'v1.MemberRemoved', payload: { profileId: 'trans', scope: { level: 'language', languageId: 'p1' } } }]
     });
-    const { each } = passes([[member(false)], [member(true)], [member(true)], [member(false)]]);
-    expect(each.map((p) => p.map((e) => e.type))).toEqual([['v1.MemberAdded'], ['v1.MemberRemoved'], [], ['v1.MemberAdded']]);
-    expect(each[3]![0]!.id).toBe('v2:p1:member:trans#3:MemberAdded');
+    const { each } = passes([[member(false)], [member(true)], [member(false, true)], [member(false, true)], [member(false)]]);
+    expect(each.map((p) => p.map((e) => e.type))).toEqual([['v1.MemberAdded'], [], ['v1.MemberRemoved'], [], ['v1.MemberAdded']]);
+    expect(each[4]![0]!.id).toBe('v2:p1:member:trans#3:MemberAdded');
   });
 
   it('ignores a change to a fact that is not worth saying again', () => {
@@ -88,7 +94,7 @@ describe('reconcile', () => {
       unsay: () => [{ type: 'v1.UnitHidden', payload: { unitId: 'q1', hidden: true } }],
       resay: () => [{ type: 'v1.UnitHidden', payload: { unitId: 'q1', hidden: false } }]
     });
-    const { each } = passes([[unit('Creation')], [unit('Genesis')], [], [unit('Genesis')]]);
+    const { each } = passes([[unit('Creation')], [unit('Genesis')], [], [unit('Genesis')]], { ...ctx, takeBackAbsent: true });
     expect(each.map((p) => p.map((e) => e.type))).toEqual([['v1.UnitAdded'], [], ['v1.UnitHidden'], ['v1.UnitHidden']]);
     expect((each[3]![0]!.payload as { hidden: boolean }).hidden).toBe(false);
   });

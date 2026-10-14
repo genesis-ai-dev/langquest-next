@@ -72,6 +72,17 @@ function memoryFiles(): BlobFilesLike & { keys: Set<string> } {
 }
 
 describe.skipIf(!SERVICE)('a pass against the local database', () => {
+  it('reads back more than the 1,000 rows the API returns from one call', async () => {
+    const target = supabaseTarget(createClient(URL, SERVICE, { auth: { persistSession: false } }), memoryFiles());
+    const tag = `rows-${Date.now().toString(36)}`;
+    const keys = Array.from({ length: 2500 }, (_, i) => `k${String(i).padStart(5, '0')}`);
+    await target.putLedger(tag, keys.map((key) => ({ key, streamId: '_org', n: 1, lastSaid: 1, digest: 'd', hlc: '', live: [], withdrawn: false })));
+    expect((await target.ledger(tag)).size).toBe(2500);
+    const names = keys.map((k) => `${tag}/${k}.wav`);
+    await target.putFiles(names.map((name) => ({ name, file: { hash: 'a'.repeat(64), size: 1, durationMs: 1, format: 'wav' as const } })));
+    expect((await target.files(names)).size).toBe(2500);
+  });
+
   it('brings a confirmed project over once, then only what changes', async () => {
     const db = createClient(URL, SERVICE, { auth: { persistSession: false } });
     const run = `t${Date.now().toString(36)}`;
@@ -115,6 +126,23 @@ describe.skipIf(!SERVICE)('a pass against the local database', () => {
     expect(passage.reviews.map((r) => r.outcome)).toEqual(['looks_good']);
     const { data: names } = await db.from('profiles').select('id, display_name').in('id', [`${id}-owner`, `${id}-rev`]);
     expect((names ?? []).length).toBe(2);
+
+    // The reviewer turns out to have an account in Next already: confirmed on the dashboard, their membership moves to it.
+    await target.link(`${id}-rev`, `${id}-next`, null, 'test');
+    const linked = await sync(deps, { projects: [id] });
+    expect(linked[0]?.rejected ?? []).toEqual([]);
+    const after = foldOrg(await events('_org'));
+    const live = (who: string) => Object.values(after.members[who] ?? {}).filter((m) => !m.removed.value).map((m) => m.roleId.value);
+    expect(live(`${id}-next`)).toEqual(['coordinator']);
+    expect(live(`${id}-rev`)).toEqual([]);
+    // Undo: the membership goes back to the v2 id.
+    await target.unlink(`${id}-rev`, 'test');
+    const undone = await sync(deps, { projects: [id] });
+    expect(undone[0]?.rejected ?? []).toEqual([]);
+    const back = foldOrg(await events('_org'));
+    const liveBack = (who: string) => Object.values(back.members[who] ?? {}).filter((m) => !m.removed.value).map((m) => m.roleId.value);
+    expect(liveBack(`${id}-rev`)).toEqual(['coordinator']);
+    expect(liveBack(`${id}-next`)).toEqual([]);
   }, 60_000);
 
   it("follows FIA's guides for an FIA project and offers them to its team", async () => {

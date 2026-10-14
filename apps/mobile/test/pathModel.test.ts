@@ -94,6 +94,9 @@ describe('the passage path (decision 71)', () => {
     const steps = pathSteps(l.input('akol', { latestSeconds: 84 }));
     expect(shape(steps)).toEqual(['record:done', 'publish:done']);
     expect(steps[0]!.sub).toBe('Version 1 · 1:24');
+    // The verses it holds join the line only when its parts have some; none is never a gap to fill.
+    expect(pathSteps(l.input('akol', { latestSeconds: 84, latestVerses: 'Verses 1–4' }))[0]!.sub).toBe('Version 1 · Verses 1–4 · 1:24');
+    expect(pathSteps(l.input('akol', { latestSeconds: 84, latestVerses: null }))[0]!.sub).toBe('Version 1 · 1:24');
     expect(steps[1]!.sub).toBe('Published Tuesday · asked Ayen');
     expect(teamSteps(l.input('akol'))[0]).toMatchObject({ state: 'waiting', status: 'asked Ayen' });
   });

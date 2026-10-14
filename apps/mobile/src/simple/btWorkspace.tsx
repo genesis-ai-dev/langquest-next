@@ -19,6 +19,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../text';
 import { AudioClip } from '../audioClip';
 import { ClipPlayer } from '../clipPlayer';
+import { usePartVerses } from '../passage/versionParts';
 import { localKind } from '../coreText';
 import type { Ctx } from '../ctx';
 import { screenTitle } from '../flow';
@@ -43,6 +44,7 @@ import { RequestBanner } from '../reviewing/parts';
 import { lift } from '../shadow';
 import { C, radius, space, target, TINT, type as T, withAlpha } from '../theme';
 import { useRecorder, type RecordedCard } from '../useRecorder';
+import { spanName } from './verseModel';
 import { VoiceNote } from '../voiceNote';
 
 export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: PassageView; kind: KindDef; of: Version }) {
@@ -58,6 +60,9 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
   const unsaved = useMemo(() => unsavedParts(state, drafts.draft), [state, drafts.draft]);
   const durations = useMemo(() => cardDurations(state, unitId), [state, unitId]);
   const source = useMemo(() => sourceParts(of.cardHashes, (h) => durations.get(h)), [of.cardHashes, durations]);
+  // Each part's verses, when the version has them (decisions.md 82); a part without one just has its number.
+  const partVerses = usePartVerses(ctx, state, unitId, of.cardHashes);
+  const verseOf = (i: number) => { const l = partVerses.rows[i]?.label; return l ? spanName(partVerses.verses, l.s, l.e) : null; };
   const parts = useMemo(() => backParts(source, unsaved), [source, unsaved]);
   const madeFrom = drafts.draft && unsaved.length > 0 && drafts.draft.fromTakeId !== of.takeId
     ? p.versions.find((x) => x.takeId === drafts.draft!.fromTakeId) : undefined;
@@ -156,8 +161,9 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
   const mine = of.by === me;
   const who = ctx.name(of.by).split(' ')[0] ?? ctx.name(of.by);
   const partN = part ? part.index + 1 : null;
-  const partLabel = partN ? t('backTranslation.part', { n: partN }) : '';
-  const playerTitle = partN ? t('backTranslation.barTitle', { language: v.language, n: of.n, part: partN }) : t('backTranslation.barTitleNoPart', { language: v.language, n: of.n });
+  const partVerse = part ? verseOf(part.index) : null;
+  const partLabel = partN ? [t('backTranslation.part', { n: partN }), partVerse].filter(Boolean).join(' · ') : '';
+  const playerTitle = partN ? [t('backTranslation.barTitle', { language: v.language, n: of.n, part: partN }), partVerse].filter(Boolean).join(' · ') : t('backTranslation.barTitleNoPart', { language: v.language, n: of.n });
 
   return (
     <Screen fixed
@@ -216,7 +222,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
             <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.paneBody} accessibilityLabel={t('backTranslation.yourWhat', { what: produces.what, said: saidLine(parts) })}>
               {problem}
               {!drafts.loaded ? <Text style={[txt.smMuted, { textAlign: 'center' }]}>{t('backTranslation.loadingParts')}</Text> : parts.map((x) => (
-                <PartCard key={x.index} ctx={ctx} part={x} into={produces.into} focused={x.index === focus} disabled={blocked}
+                <PartCard key={x.index} ctx={ctx} part={x} verse={verseOf(x.index)} into={produces.into} focused={x.index === focus} disabled={blocked}
                   onPick={() => setPicked(x.index)} onDelete={() => void clearPart(x)} />
               ))}
               {notes.length ? (
@@ -248,7 +254,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
 }
 
 /** A part's card: said (green check, how long in English), the one being said (lit), or still to come. */
-function PartCard(props: { ctx: Ctx; part: BackPart; into: string; focused: boolean; disabled: boolean; onPick: () => void; onDelete: () => void }) {
+function PartCard(props: { ctx: Ctx; part: BackPart; verse: string | null; into: string; focused: boolean; disabled: boolean; onPick: () => void; onDelete: () => void }) {
   const { part, focused } = props;
   const said = part.cards.length > 0;
   const n = part.index + 1;
@@ -260,12 +266,17 @@ function PartCard(props: { ctx: Ctx; part: BackPart; into: string; focused: bool
   return (
     <View style={[styles.part, focused && styles.partNow]}>
       <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityState={{ selected: focused }}
-        accessibilityLabel={sub ? t('backTranslation.partA11y', { part: label, sub }) : label} style={({ pressed }) => [styles.partHead, pressed && { opacity: 0.7 }]}>
+        accessibilityLabel={sub ? t('backTranslation.partA11y', { part: props.verse ? `${label}, ${props.verse}` : label, sub }) : props.verse ? `${label}, ${props.verse}` : label}
+        style={({ pressed }) => [styles.partHead, pressed && { opacity: 0.7 }]}>
         <View style={[styles.partMark, said ? { backgroundColor: C.green } : focused ? { backgroundColor: C.primary } : { backgroundColor: C.light }]}>
           <Ico name={said ? 'check' : 'mic'} size={said ? 20 : 18} color={said || focused ? C.white : withAlpha(C.primary, 0.35)} strokeWidth={said ? 3 : 2.2} />
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={styles.partTitle}>{label}</Text>
+          <View style={styles.partTitleRow}>
+            <Text style={styles.partTitle}>{label}</Text>
+            {/* Its verses as the recorder shows them: quiet grey, and only when it has some. */}
+            {props.verse ? <View style={styles.verseChip}><Text style={styles.verseChipText}>{props.verse}</Text></View> : null}
+          </View>
           {sub ? <Text style={[txt.sm, { color: C.muted }]}>{sub}</Text> : null}
         </View>
         <HelpBadge spot={spot} />
@@ -383,6 +394,9 @@ const styles = StyleSheet.create({
   partHead: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: target.primary, paddingHorizontal: space.md, paddingVertical: space.sm },
   partMark: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   partTitle: { fontSize: T.base + 1, fontWeight: '800', color: C.dark },
+  partTitleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: space.sm },
+  verseChip: { backgroundColor: TINT.gray, borderRadius: radius.sm, paddingHorizontal: space.sm, paddingVertical: 2 },
+  verseChipText: { fontSize: T.sm, fontWeight: '700', color: C.dark },
   partActions: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.md, paddingBottom: space.sm, borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border, paddingTop: space.sm },
   footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.lg },
   footLabel: { flex: 1, textAlign: 'right', color: C.muted },

@@ -3251,8 +3251,8 @@
       "studySteps_other": "{{name}} · hatua {{done}} kati ya {{count, number}}",
       "dueOn": "mwisho {{date}}",
       "record": "Rekodi",
-      "yourTakes": "Rekodi zako zimerekodiwa, bado hazijachapishwa.",
-      "someTakes": "Baadhi ya rekodi zimerekodiwa, bado hazijachapishwa.",
+      "yourParts": "Sehemu zako zimerekodiwa, bado hazijachapishwa.",
+      "someParts": "Baadhi ya sehemu zimerekodiwa, bado hazijachapishwa.",
       "recordHint": "Kisimulie katika lugha yako. Biblia, maneno muhimu na madokezo viko kando yako unaporekodi.",
       "recordHintAsked": "{{asked}}. Kisimulie katika lugha yako. Biblia, maneno muhimu na madokezo viko kando yako unaporekodi.",
       "asked": {
@@ -3311,7 +3311,7 @@
       },
       "kindOnVersion": "{{kind}} kwenye {{version}}",
       "recording": "Kurekodi",
-      "takesNotPublished": "Rekodi zimerekodiwa, bado hazijachapishwa",
+      "partsNotPublished": "Sehemu zimerekodiwa, bado hazijachapishwa",
       "notRecorded": "Bado hakijarekodiwa",
       "backToLatest": "Rudi kwenye toleo la karibuni",
       "pill": {
@@ -3331,8 +3331,8 @@
       "newer": "Toleo jipya zaidi",
       "versions": "Matoleo",
       "playVersion": "Cheza {{version}}",
-      "takes_one": "Rekodi {{count, number}}",
-      "takes_other": "Rekodi {{count, number}}",
+      "parts_one": "Sehemu {{count, number}}",
+      "parts_other": "Sehemu {{count, number}}",
       "openRecording": "Fungua rekodi",
       "madeAfter": "Imetengenezwa baada ya",
       "madeAfterShow": "Imetengenezwa baada ya {{label}}. Onyesha toleo hilo",
@@ -3469,7 +3469,6 @@
       "changeAloud": "Kilichobadilika, kwa sauti",
       "inResponseTo": "Kujibu {{kind}} kutoka kwa {{who}}",
       "recording": "Rekodi",
-      "take": "Rekodi ya {{n, number}}",
       "details": "Maelezo",
       "keyTerms": "Maneno muhimu",
       "termsTied_one": "Neno {{count, number}} limeunganishwa · {{terms}}",
@@ -4183,8 +4182,6 @@
     "resumeRecordingNow": "Endelea kurekodi sasa",
     "loop": {
       "capturing": "Inarekodi unachosema",
-      "takesSoFar_one": "Rekodi {{count, number}} hadi sasa",
-      "takesSoFar_other": "Rekodi {{count, number}} hadi sasa",
       "partsSoFar_one": "Sehemu {{count, number}} hadi sasa",
       "partsSoFar_other": "Sehemu {{count, number}} hadi sasa",
       "piecesSoFar_one": "Kipande {{count, number}} hadi sasa",
@@ -4232,7 +4229,7 @@
       "tiedBadge": "Limeunganishwa",
       "tying": "Inaunganisha…",
       "tie": "Unganisha na rasimu yako",
-      "recordFirst": "Rekodi kwanza; kisha unaweza kuunganisha maneno na rasimu yako.",
+      "recordFirst": "Rekodi sehemu kwanza; kisha unaweza kuunganisha maneno na rasimu yako.",
       "allTerms": "Maneno muhimu yote →",
       "studyTitle": "Somo la {{pattern}} · {{passage}}",
       "openStudy": "Fungua somo →",
@@ -4267,17 +4264,13 @@
       "dividerHint": "Buruta juu au chini ili kukipa kimoja nafasi zaidi"
     },
     "take": {
-      "record": "Rekodi",
+      "record": "Rekodi sehemu",
       "recordHint": "Zungumza, ukipumzika kati ya sehemu. Gusa acha ukimaliza."
     },
     "backTranslation": {
       "draftUnreadable": "Sehemu zako za awali hazikuweza kusomwa kwenye kifaa hiki (msimbo {{code}}). Hakuna kilichofutwa.",
       "partsSaid_one": "Sehemu {{said}} kati ya {{count, number}} imesemwa",
       "partsSaid_other": "Sehemu {{said}} kati ya {{count, number}} zimesemwa"
-    },
-    "workspace": {
-      "take": "Rekodi ya {{n}}",
-      "newTake": "Rekodi mpya ya {{n}}"
     },
     "verses": {
       "verse": "Mstari wa {{verse}}",
@@ -5495,7 +5488,7 @@
     "missingSub": "Huenda bado kinapakia.",
     "orgLoading": "Shirika lako bado linapakia.",
     "languageLoading": "Lugha hii bado inapakiwa. Jaribu tena baada ya muda mfupi.",
-    "takesNotInDraft": "Rekodi zako zimehifadhiwa kwenye kifaa hiki lakini bado haziko kwenye rasimu yako. {{reason}}",
+    "partsNotInDraft": "Sehemu zako zimehifadhiwa kwenye kifaa hiki lakini bado haziko kwenye rasimu yako. {{reason}}",
     "partDeleted": "{{part}} imefutwa.",
     "chips": {
       "bible": "Biblia",
