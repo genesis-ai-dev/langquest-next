@@ -32,9 +32,7 @@ const pluralBases = new Set([...en.keys()].filter((k) => PLURAL.test(k)).map((k)
 const placeholders = (s: string) => new Set([...s.matchAll(/\{\{\s*([\w.]+)[^}]*\}\}/g)].map((m) => m[1]!));
 const tags = (s: string) => [...s.matchAll(/<\/?(\w+)\s*\/?>/g)].map((m) => m[0]).sort();
 
-// These read and parse every file of the app: seconds under coverage on a
-// busy CI runner, more than vitest's default 5 s allows.
-describe('the app writes no words into its code (LAN-42)', { timeout: 30_000 }, () => {
+describe('the app writes no words into its code (LAN-42)', () => {
   const files = appFiles(ROOT);
 
   it('every word on screen comes from a catalog', () => {
