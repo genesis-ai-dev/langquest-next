@@ -197,6 +197,15 @@ async function board(port: number) {
     }
     return v2Data;
   };
+  // Who is in which v2 project, without counting every project's recordings: what the Same email list needs.
+  let v2Members: Promise<V2Data[1]> | null = null;
+  const readMembers = (fresh = false) => {
+    if (fresh || !v2Members) {
+      v2Members = v2Data ? v2Data.then(([, m]) => m, () => v2.memberships()) : v2.memberships();
+      v2Members.catch(() => { v2Members = null; });
+    }
+    return v2Members;
+  };
 
   // Transfers started here run one at a time, in the order they were asked for.
   const queue: string[] = [];
@@ -296,6 +305,42 @@ async function board(port: number) {
         }
         await target.savePlan(input.orgs, input.placements, by);
         return json(res, 200, { ok: true });
+      }
+      if (req.method === 'GET' && u.pathname === '/api/same-email') {
+        // v2 people whose email already has an account in Next under another id, and the links confirmed so far.
+        // Next does not confirm emails, so a match is only a question for the team (Caleb, 2026-10-14).
+        const memberships = await readMembers(u.searchParams.has('fresh'));
+        const ids = [...new Set(memberships.map((m) => m.profile_id))];
+        const [people, plan] = await Promise.all([v2.people(ids), target.plan()]);
+        const emails = [...new Set(people.flatMap((p) => (p.email ? [p.email.trim().toLowerCase()] : [])))];
+        const accounts = await target.nextAccounts(emails);
+        const byEmail = new Map<string, typeof accounts>();
+        for (const a of accounts) byEmail.set(a.email, [...(byEmail.get(a.email) ?? []), a]);
+        const links = new Map((plan.links ?? []).filter((l) => l.active !== false).map((l) => [l.v2_id, l]));
+        const projectsOf = (id: string) => [...new Set(memberships.filter((m) => m.profile_id === id && m.active).map((m) => m.project_id))];
+        const rows = people.flatMap((p) => {
+          const email = p.email?.trim().toLowerCase();
+          const others = (email ? byEmail.get(email) ?? [] : []).filter((a) => a.id !== p.id);
+          const link = links.get(p.id);
+          if (!others.length && !link) return [];
+          return [{ v2Id: p.id, v2Name: p.name, email: email ?? link?.email ?? null, next: others, link: link ?? null, projects: projectsOf(p.id) }];
+        });
+        return json(res, 200, { rows });
+      }
+      if (req.method === 'POST' && (u.pathname === '/api/link' || u.pathname === '/api/unlink')) {
+        const { v2Id, nextId, email } = (await body(req)) as { v2Id: string; nextId?: string; email?: string };
+        if (!v2Id || (u.pathname === '/api/link' && !nextId)) return json(res, 400, { error: 'Say which person and which account.' });
+        if (u.pathname === '/api/link') await target.link(v2Id, nextId!, email ?? null, by);
+        else await target.unlink(v2Id, by);
+        // Their projects that have come over pick it up now: a sync each.
+        const memberships = await readMembers();
+        const plan = await target.plan();
+        const confirmed = new Set(plan.placements.filter((p) => p.confirmed_at && p.org_id).map((p) => p.project_id));
+        const theirs = [...new Set(memberships.filter((m) => m.profile_id === v2Id).map((m) => m.project_id))].filter((id) => confirmed.has(id));
+        const added = theirs.filter((id) => id !== running && !queue.includes(id));
+        queue.push(...added);
+        void drain();
+        return json(res, 200, { queued: added });
       }
       if (req.method === 'POST' && u.pathname === '/api/transfer') {
         const { projectIds } = (await body(req)) as { projectIds: string[] };

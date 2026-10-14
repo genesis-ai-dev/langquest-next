@@ -47,6 +47,11 @@ export interface Target {
   people(ids: string[]): Promise<PersonHere[]>;
   /** People from v2 who have signed in here, newest first. */
   signedIn(): Promise<PersonHere[]>;
+  /** Next's accounts with these emails. */
+  nextAccounts(emails: string[]): Promise<NextAccount[]>;
+  /** Confirm that a v2 person is this Next account, or take that back. */
+  link(v2Id: string, nextId: string, email: string | null, by: string): Promise<void>;
+  unlink(v2Id: string, by?: string): Promise<void>;
   /** One project's log, newest first. */
   projectLog(projectId: string): Promise<(LogLine & { id: number; at: string })[]>;
   cursor(name: string, value?: Date): Promise<Date | null>;
@@ -85,7 +90,30 @@ export interface Plan {
   orgs: PlanOrg[];
   placements: PlanPlacement[];
   roles: { project_id: string; profile_id: string; role: ChosenRole }[];
+  /** v2 people confirmed on the dashboard as an account that already exists in Next. */
+  links?: PersonLink[];
   passes: { project_id: string; finished_at: string; report: unknown }[];
+}
+
+/** A v2 person and the Next account someone on the team confirmed is the same person. */
+export interface PersonLink {
+  v2_id: string;
+  next_id: string;
+  email: string | null;
+  confirmed_by: string;
+  confirmed_at: string;
+  /** False once Undo took it back: kept, so the Next account's membership is taken back too. */
+  active?: boolean;
+}
+
+/** An account in Next, as the dashboard's Same email list shows it. */
+export interface NextAccount {
+  id: string;
+  email: string;
+  created_at: string;
+  last_sign_in_at: string | null;
+  display_name: string | null;
+  from_v2: boolean;
 }
 
 /** Where a running transfer has got to. */
@@ -252,6 +280,13 @@ export function supabaseTarget(db: SupabaseClient, files: BlobFilesLike): Target
       for (let i = 0; i < ids.length; i += 1000) out.push(...(await rpc<PersonHere[]>('v2_import_people', { p_ids: ids.slice(i, i + 1000) })));
       return out;
     },
+    async nextAccounts(emails) {
+      const out: NextAccount[] = [];
+      for (let i = 0; i < emails.length; i += 500) out.push(...(await rpc<NextAccount[]>('v2_import_next_accounts', { p_emails: emails.slice(i, i + 500) })));
+      return out;
+    },
+    link: (v2Id, nextId, email, by) => rpc('v2_import_link', { p_v2: v2Id, p_next: nextId, p_email: email, p_by: by }),
+    unlink: (v2Id, by) => rpc('v2_import_unlink', { p_v2: v2Id, p_by: by ?? null }),
     async cursor(name, value) {
       const v = await rpc<string | null>('v2_import_cursor', { p_name: name, p_value: value?.toISOString() ?? null });
       return v ? new Date(v) : null;
