@@ -377,6 +377,8 @@ export function Row(props: {
   if (!props.onPress) return <View {...id} style={style}>{body}</View>;
   return (
     <Pressable {...id} onPress={onPress} disabled={props.disabled} accessibilityRole={props.role ?? 'button'} accessibilityState={state} accessibilityLabel={props.accessibilityLabel}
+      // react-native-web drops accessibilityState.selected, and aria-selected is not allowed on a button: a current row says aria-current.
+      aria-current={props.current ? true : undefined}
       // The web reads only aria-*: a radio, checkbox or switch says whether it is on.
       aria-checked={props.role === 'radio' ? !!(props.selected ?? props.current) : props.role === 'switch' || props.role === 'checkbox' ? props.checked === true : undefined}
       style={({ pressed }) => [...style, pressed && styles.pressed]}>

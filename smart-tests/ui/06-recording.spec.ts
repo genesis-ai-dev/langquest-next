@@ -17,7 +17,7 @@ import { randomUUID } from 'node:crypto';
 import { derivePassage, draftsBy, type LanguageState } from '@langquest-next/core';
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import {
-  chip, deletePart, deviceLog, expectIdle, expectUploaded, expectParts, holdPart, installMicControl, lastComposed, mic, openWorkspace, partCount, partsTitle,
+  chip, deletePart, deviceLog, expectIdle, expectUploaded, expectParts, holdPart, installMicControl, lastComposed, mic, openWorkspace, draftParts, partCount, partsTitle,
   publishButton, recordButton, recordSaid, recordStep, saveButton, say, secondDevice, startFromRecord, verseSpace, workspaceSub,
   useFileWorld
 } from './06-recording-helpers';
@@ -106,7 +106,7 @@ test('REC-003 Continue recording opens the draft already on the device', async (
   await openAs(page, w, 'TRANS');
   await openPassage(page, w, 'P-DRAFT');
   await expect(primary(page)).toHaveText('Continue recording');
-  await expect(text(page, 'Your takes are recorded, not published yet.')).toBeVisible();
+  await expect(text(page, 'Your parts are recorded, not published yet.')).toBeVisible();
   await primary(page).click();
   await expect(text(page, 'Recording Version 1')).toBeVisible();
   await expect(page.getByRole('button', { name: /^Parts 1–2, 2 parts · \d+:\d\d$/ })).toBeVisible();
@@ -158,12 +158,12 @@ test('REC-004 Record parts with voice detection @p0', async ({ page, browser }) 
   // The record: Continue recording, the takes not published yet.
   await back(page).click();
   await expect(primary(page)).toHaveText('Continue recording');
-  await expect(text(page, 'Your takes are recorded, not published yet.')).toBeVisible();
+  await expect(text(page, 'Your parts are recorded, not published yet.')).toBeVisible();
   // COORD's device sees the draft on the record.
   const coord = await secondDevice(browser, w, 'COORD');
   try {
     await openPassage(coord.page, w, 'P-NEW');
-    await expect(text(coord.page, 'Some takes are recorded, not published yet.')).toBeVisible({ timeout: 30_000 });
+    await expect(text(coord.page, 'Some parts are recorded, not published yet.')).toBeVisible({ timeout: 30_000 });
   } finally { await coord.context.close(); }
   await expectNothingRefused(page, w);
 });
@@ -601,8 +601,11 @@ test('REC-019 Several drafts of one passage', async ({ page }) => {
 test('REC-025 Web: closing the tab while recording asks first', async ({ page, context }) => {
   const w = world();
   await openAs(page, w, 'TRANS');
-  await openWorkspace(page, w, 'P-Q3');
-  const before = await partCount(page);
+  // A draft from an earlier test shows its parts a moment after the workspace opens: count them only once they have.
+  await openPassage(page, w, 'P-Q3');
+  const hasDraft = (await primary(page).innerText()).trim() === 'Continue recording';
+  await startFromRecord(page);
+  const before = hasDraft ? await draftParts(page) : await partCount(page);
   const dialogs: string[] = [];
   // The first question is cancelled (step 3); any later one is let through, and counted.
   page.on('dialog', (d) => { dialogs.push(d.type()); void (dialogs.length === 1 ? d.dismiss() : d.accept()); });
@@ -713,7 +716,7 @@ test('REC-036 Playing the Bible while recording pauses the microphone', async ({
   await openAs(page, w, 'TRANS');
   await openWorkspace(page, w, 'P-Q3', 'Continue recording');
   await needsBible(page);
-  const before = await partCount(page);
+  const before = await draftParts(page);
   await mic(page).mode('tone');
   await recordButton(page).click();
   await say(page, 3000);
@@ -907,7 +910,7 @@ test('REC-042 Hold a part to choose its verses, Auto, None or Delete', async ({ 
   const w = world();
   await openAs(page, w, 'TRANS');
   await openWorkspace(page, w, 'P-Q3', 'Continue recording');
-  const parts = await partCount(page);
+  const parts = await draftParts(page);
   await holdPart(page, 3);
   await expect(text(page, 'Part 3')).toBeVisible();
   for (const name of ['Auto', 'None', 'Delete Part 3']) await expect(button(page, name)).toBeVisible();
@@ -931,7 +934,7 @@ test('REC-044 A verse left for later, then Record here', async ({ page }) => {
   const w = world();
   await openAs(page, w, 'TRANS');
   await openWorkspace(page, w, 'P-Q3', 'Continue recording');
-  const parts = await partCount(page);
+  const parts = await draftParts(page);
   await holdPart(page, 1);
   await page.getByRole('button', { name: /^Verse 22$/ }).click();
   await page.keyboard.press('Escape');
@@ -1011,7 +1014,7 @@ test('REC-045 Set up the microphone by ear', async ({ page }) => {
   await expect(workspaceSub(page)).toBeVisible();
   expect(JSON.parse((await micStored(page))!)).toMatchObject({ pauseMs: 700 });
   // A pause of about 0.9 s now ends a part (Try A's 0.7 s; the default 1 s would not).
-  const before = await partCount(page);
+  const before = await draftParts(page);
   await recordButton(page).click();
   await say(page, 1500, 900);
   await say(page, 1500, 2000);
@@ -1077,7 +1080,7 @@ test('REC-047 Adjust the microphone by hand', async ({ page }) => {
   expect(JSON.parse((await micStored(page))!)).toMatchObject({ pauseMs: 2000 });
   // A 1.5-second pause no longer ends a part.
   await openWorkspace(page, w, 'P-Q3', 'Continue recording');
-  const before = await partCount(page);
+  const before = await draftParts(page);
   await recordButton(page).click();
   await say(page, 1500, 1500);
   await say(page, 1500, 2600);
@@ -1091,7 +1094,7 @@ test('REC-049 Very short parts suggest setting up the microphone', async ({ page
   const w = world();
   await openAs(page, w, 'TRANS');
   await openWorkspace(page, w, 'P-Q3', 'Continue recording');
-  const before = await partCount(page);
+  const before = await draftParts(page);
   await mic(page).mode('tone');
   await recordButton(page).click();
   for (const _ of [1, 2, 3]) await say(page, 350, 2000);

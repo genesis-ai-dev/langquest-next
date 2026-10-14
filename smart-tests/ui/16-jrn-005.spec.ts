@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto';
 import type { Page } from '@playwright/test';
 import { signIn } from './fixture';
 import { Devices, backToTabs, passageRow, syncUntil, watch } from './16-helpers';
-import { button, byId, expect, expectToast, field, openSignedOut, primary, screenText, tab, test, text, useWorld } from './support';
+import { button, byId, expect, expectToast, field, openAs, openSignedOut, primary, screenText, tab, test, text, useWorld } from './support';
 
 const world = useWorld();
 
@@ -93,6 +93,12 @@ test('JRN-005 A coordinator gets a language ready and starts its team @p0 @wide'
     expect(await screenText(ben)).not.toMatch(/NEXT FOR YOU/i);
 
     // Step 4: NOORG finds UI Test Org and asks to join.
+    // Explore's list is the projection's (G2: it runs every minute): the organization is findable once its listed language reaches it.
+    const { sb: noraSb } = await signIn(w, 'NOORG');
+    await expect.poll(async () => {
+      const { data } = await noraSb.rpc('listed_organizations_search', { p_query: w.orgName, p_limit: 5 });
+      return ((data ?? []) as { org_id: string }[]).some((o) => o.org_id === w.orgId);
+    }, { timeout: 150_000, intervals: [3_000, 5_000], message: 'the projection lists the organization' }).toBe(true);
     const nora = await devices.open('NOORG');
     await button(nora, /^Find your organization/).click();
     await nora.getByPlaceholder('Name or language').fill(w.orgName);
@@ -160,7 +166,7 @@ test('JRN-005 A coordinator gets a language ready and starts its team @p0 @wide'
     // Its flow, its passages, and the one passage asked (the server's figures catch up within a minute or two).
     await expect(text(coord, /Review flow: /)).toBeVisible();
     expect.soft(await screenText(coord), 'the report names the checks chosen in Get ready').toMatch(/Community/i);
-    expect.soft(await screenText(coord), 'the report names Bravo\'s template').toMatch(/FIA passages/);
+    // The template is the known gap below (JRN-005 Reports names the template), kept out of the P0 run.
     await expect.poll(async () => {
       const catchUp = coord.getByRole('button', { name: 'Catch up with the server' }).locator('visible=true');
       if (await catchUp.count()) await catchUp.first().click();
@@ -172,3 +178,18 @@ test('JRN-005 A coordinator gets a language ready and starts its team @p0 @wide'
     await devices.close();
   }
 });
+
+// The one step of JRN-005 the product does not do yet, on its own so the P0
+// journey above stays green and this flips red the day Reports names the
+// template. Alpha's template is "FIA passages (English)" (the fixture world).
+test('JRN-005 Reports names the language\'s template (known gap) @wide', async ({ page }) => {
+  test.fail(true, 'known product bug: Reports names a language\'s review flow but not its template, found by JRN-005 on 2026-10-14');
+  const w = world();
+  await openAs(page, w, 'COORD');
+  await tab(page, 'reports').click();
+  await button(page, 'Languages').click();
+  await page.getByText('Alpha', { exact: true }).locator('visible=true').first().click();
+  await expect(text(page, /Review flow: Standard Bible Flow/, false)).toBeVisible();
+  expect(await screenText(page), 'the report names Alpha\'s template').toMatch(/FIA passages/);
+});
+

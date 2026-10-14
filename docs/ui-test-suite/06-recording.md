@@ -78,7 +78,7 @@ Steps:
 2. Tap "Continue recording".
 
 Expected:
-- The record's main button reads "Continue recording", and its Record step says "Your takes are recorded, not published yet."
+- The record's main button reads "Continue recording", and its Record step says "Your parts are recorded, not published yet."
 - The workspace opens with sub "Recording Version 1".
 - The recorder shows one card "Parts 1–2" with "2 parts · {total length}" and a play button "Play Parts 1–2". The parts show under it by themselves when the pane has room, so its toggle reads "Hide the parts" ("Show the parts" when folded).
 - The footer reads "Part 3", and "Publish" is enabled.
@@ -109,8 +109,8 @@ Expected:
 - "Publish" is enabled.
 - "Save" is disabled while recording and enabled after step 5.
 - No part is shorter than 1 second, and no part is empty.
-- Afterwards, on the record, the main button reads "Continue recording" and the Record step says "Your takes are recorded, not published yet."
-- On a second device signed in as COORD, after Sync now, P-NEW's record says "Some takes are recorded, not published yet." (the draft is on the record; G10.4).
+- Afterwards, on the record, the main button reads "Continue recording" and the Record step says "Your parts are recorded, not published yet."
+- On a second device signed in as COORD, after Sync now, P-NEW's record says "Some parts are recorded, not published yet." (the draft is on the record; G10.4).
 
 Decided (2026-10-13), the docs were stale: decision 71's amendment of 2026-10-08 ("the recording workspace, Publish, the study and microphone setup now follow the agreed images") makes the lit part card and its meter the agreed recording view; the full-screen voice-detection panel (`VadPanel`) is back translation's. This test checks the lit card and the meter.
 

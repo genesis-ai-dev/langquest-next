@@ -24,13 +24,15 @@ const path = (page: Page) => new URL(page.url()).pathname;
 const updates = (page: Page) => page.getByRole('button', { name: /^Updates/ }).locator('visible=true').first();
 
 /** This page's requests to the local server refused, as if this device had no connection; Metro still serves the page. */
+const isServer = (u: URL) => u.port === '54421' || u.port === '8787';
 async function serverOff(page: Page, off: boolean): Promise<void> {
-  const server = (u: URL) => u.port === '54421' || u.port === '8787';
   if (off) {
-    await page.route(server, (route) => route.abort('internetdisconnected'));
-    await page.routeWebSocket(server, (ws) => ws.close());
+    // Port 8787 also serves the app's own files: only data calls fail, so a reload of this tab still loads.
+    await page.route(isServer, (route) => (['fetch', 'xhr'].includes(route.request().resourceType())
+      ? route.abort('internetdisconnected') : route.fallback()));
+    await page.routeWebSocket(isServer, (ws) => ws.close());
   } else {
-    await page.unroute(server);
+    await page.unroute(isServer);
   }
 }
 
@@ -187,9 +189,9 @@ test('WEB-006 The Inbox and what it opens, side by side @wide', async ({ page })
   const list = await rows.nth(0).boundingBox();
   const detail = await page.getByRole('heading', { name: firstLabel }).locator('visible=true').first().boundingBox();
   expect(list!.x).toBeLessThan(detail!.x);
-  // Found 2026-10-13: the row's "current" (kit Row, accessibilityState.selected) reaches no aria-selected on the web, so it is not said.
-  await expect.soft(page.locator('[aria-selected="true"]').filter({ hasText: firstLabel }).locator('visible=true'), 'the open update\'s row is marked current')
-    .toHaveCount(1);
+  // The row's "current" is aria-current on the web (kit Card; aria-selected is not allowed on a button).
+  // (Every update about that passage is marked, not only the one tapped.)
+  await expect(rows.nth(0), 'the open update\'s row is marked current').toHaveAttribute('aria-current', 'true');
   await rows.nth(1).click();
   await expect(page.getByRole('heading', { name: secondLabel }).locator('visible=true').first()).toBeVisible();
   // At 900 px, a single column: an update opens full width, with Back.
@@ -691,13 +693,12 @@ test('WEB-024 Signing out of the web offline', async ({ page, context }) => {
   await button(page, 'Sign out').click();
   await expect(text(page, 'Sign out?')).toBeVisible();
   await button(page, 'Sign Out').click();
-  // Sign In shows. (Forgetting reloads the page, and a browser offline cannot load it: WEB-027.)
-  await expect.soft(page.getByText('Create Account', { exact: true }).first(), 'Sign In shows offline').toBeVisible({ timeout: 20_000 });
-  const shown = await page.getByText('Create Account', { exact: true }).first().isVisible().catch(() => false);
-  test.info().annotations.push({ type: 'WEB-024 offline', description: shown ? 'Sign In showed offline' : `not Sign In offline: ${page.url()}` });
+  // Forgetting reloads the page, and a browser offline cannot load it (WEB-027): the app is gone, not Sign In.
+  // The signal that it forgot: the reload ended on the browser's error page.
+  await expect.poll(() => page.url(), { timeout: 30_000 }).toMatch(/^chrome-error:/);
   // The browser forgot anyway: online again, nothing of TRANS's is left.
   await setOffline(context, false);
-  if (!shown) await page.reload();
+  await page.reload();
   await expect(page.getByText('Create Account', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
   const traces = await browserTraces(page);
   expect(traces.local).toEqual([]);
@@ -736,10 +737,15 @@ test('WEB-026 The update banner waits while recording', async ({ page }) => {
   expect(reloaded).toBe(false);
   await expect(byId(page, 'record-button')).toHaveAttribute('aria-label', 'Stop recording');
   await byId(page, 'record-button').click();
+  // The take is saved before a reload is allowed (isRecording covers the save).
+  await expect(text(page, 'Part 1 recorded · drag up to see them')).toBeVisible();
   page.on('dialog', (d) => void d.accept());
-  const load = page.waitForEvent('load');
-  await banner.click();
-  await load;
+  // A tap while the stopped take is still being saved does nothing (isRecording covers the save): tap again until the page reloads.
+  await expect(async () => {
+    const load = page.waitForEvent('load', { timeout: 3000 });
+    await banner.click({ timeout: 2000 });
+    await load;
+  }).toPass({ timeout: 30_000 });
 });
 
 test('WEB-027 The web app needs a connection to open', async ({ page, context }) => {

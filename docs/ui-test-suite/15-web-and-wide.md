@@ -480,14 +480,15 @@ Steps:
 2. Check the browser's storage as in WEB-023.
 
 Expected:
-- "Sign In" shows, and the browser's storage is empty, as in WEB-023.
+- The browser's storage is empty, as in WEB-023. Offline, the page that
+  forgetting reloads cannot load (WEB-027), so the browser's own offline
+  page shows, not "Sign In"; online again, "Sign In" shows.
 
 Fixed (2026-10-13): offline, the sign-out call to the server fails.
 The session is still removed in the browser, so "Sign In" shows, but the
 app stops before forgetting the browser: the database, files and keys stay
 for the next person. Signing out online does forget.
-Fixed (decision 87, verified 2026-10-13): offline, "Sign In" shows and the
-browser keeps nothing (no keys, no IndexedDB, no files, an empty log).
+Fixed (decision 87, verified 2026-10-13): offline, the browser keeps nothing (no keys, no IndexedDB, no files, an empty log).
 
 ### WEB-025 The browser asks for the microphone
 Roles: TRANS · Priority: P1 · Platforms: Web · Run: Manual

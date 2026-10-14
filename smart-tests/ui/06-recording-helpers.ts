@@ -136,6 +136,12 @@ export async function partCount(page: Page): Promise<number> {
   return m ? Number(m[1] ?? 1) : 0;
 }
 
+/** The parts a draft already has, once its card has drawn (the workspace opens before the card shows; 0 read too soon is not the count). */
+export async function draftParts(page: Page): Promise<number> {
+  await expect.poll(() => partCount(page), { message: 'the draft\'s parts card shows' }).toBeGreaterThan(0);
+  return partCount(page);
+}
+
 export async function expectParts(page: Page, count: number, timeout = 20_000): Promise<void> {
   await expect.poll(() => partCount(page), { timeout, message: `the parts card counts ${count}` }).toBe(count);
 }
