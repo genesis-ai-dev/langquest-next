@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs';
-import { DIAG_CONTEXT, DIAG_SCHEMA, DIAG_TOKEN } from '../packages/client/src/diagnostics';
+import { DIAG_CONTEXT, DIAG_SCHEMA, DIAG_TOKEN } from '../packages/sync/src/diagnostics';
 
 // The phone and the server apply the same diagnostics allowlist
 // (docs/diagnostics.md). The server's copy is a JSON literal between
@@ -12,7 +12,7 @@ const sql = readdirSync(dir).filter((f) => f.endsWith('.sql')).sort()
   .map((f) => readFileSync(new URL(f, dir), 'utf8')).filter((text) => text.includes('-- diag-schema:begin')).at(-1)!;
 
 describe('diagnostics allowlist parity', () => {
-  it('the migration allows exactly what packages/client allows', () => {
+  it('the migration allows exactly what packages/sync allows', () => {
     const literal = /-- diag-schema:begin\n'([^']*)'\n-- diag-schema:end/.exec(sql)?.[1];
     expect(literal).toBeDefined();
     expect(JSON.parse(literal!)).toEqual(JSON.parse(JSON.stringify({ kinds: DIAG_SCHEMA, context: DIAG_CONTEXT })));

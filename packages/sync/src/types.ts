@@ -1,0 +1,184 @@
+import type { AnyEvent, LocalEventStatus } from '@langquest-next/core';
+
+/**
+ * One atomic local write: events, outbox state, cursor, clock and other
+ * metadata, and pruning. A store applies all of it or none of it.
+ */
+export interface WriteBatch {
+  events?: LocalEvent[];
+  cursor?: { orgId: string; streamId: string; seq: number };
+  meta?: Record<string, string>;
+  /** Drop confirmed events at or below `uptoSeq`; a checkpoint holds them now. */
+  prune?: { orgId: string; streamId: string; uptoSeq: number };
+  /**
+   * Records a language keeps on the phone instead of in memory (decisions.md
+   * 106): upsert these. `clear` first drops every kept record of the
+   * stream; `replaceFrom` then moves in the records written under another
+   * stream id while a fresh snapshot was read, so the language switches to
+   * them in the same commit as its new checkpoint.
+   */
+  kept?: { orgId: string; streamId: string; clear?: boolean; replaceFrom?: string; upsert?: KeptRecord[] };
+}
+
+/**
+ * One record a big language keeps on the phone rather than in memory: a
+ * recording, one of its cards (so a file can be traced to its passage), or
+ * the server's verdict on an audio file. `json` is the record as the state
+ * holds it.
+ */
+export interface KeptRecord {
+  kind: KeptKind;
+  id: string;
+  /** The passage it belongs to; '' for a file verdict. */
+  unitId: string;
+  /** Who made it: a recording's author; '' otherwise. */
+  actorId: string;
+  json: string;
+}
+
+export type KeptKind = 'recording' | 'card' | 'file';
+
+/** An event as held on the device: the envelope plus sync bookkeeping. */
+export interface LocalEvent {
+  event: AnyEvent;
+  status: LocalEventStatus;
+  rejectReason?: string;
+}
+
+/**
+ * Device-side persistence. Implemented in memory for tests and on SQLite for
+ * the app. The client never touches storage except through this.
+ */
+export interface EventStore {
+  /** Apply one write batch atomically. All other writers are conveniences over this. */
+  commit(batch: WriteBatch): Promise<void>;
+  put(local: LocalEvent): Promise<void>;
+  /** Upsert many in one transaction: one pull page, one bulk append. */
+  putMany(locals: LocalEvent[]): Promise<void>;
+  get(id: string): Promise<LocalEvent | undefined>;
+  /** Rejected events for a stream, oldest first, so the UI can show them and the client can retry them. */
+  rejected(orgId: string, streamId: string): Promise<LocalEvent[]>;
+  /** Pending events for a stream, oldest first. The sync status screen reads this; push reads pages. */
+  pending(orgId: string, streamId: string): Promise<LocalEvent[]>;
+  /**
+   * One page of pending events, oldest first, strictly after `afterHlc`
+   * (null for the first page). Push walks the outbox this way so a large
+   * offline backlog is never materialized at once.
+   */
+  pendingPage(orgId: string, streamId: string, afterHlc: string | null, limit: number): Promise<LocalEvent[]>;
+  /** How many are pending, as a count: the UI asks after every change and must not deserialize the outbox to answer. */
+  pendingCount(orgId: string, streamId: string): Promise<number>;
+  /**
+   * How many of one person's events are pending. On a shared phone the log
+   * holds everyone's queued events, and only their author's session can send
+   * them (decisions.md 11), so "still to send" is counted per person.
+   */
+  pendingCountBy(orgId: string, streamId: string, actorId: string): Promise<number>;
+  /** Every stream holding pending events by one person: where a hand-over courier has work (decisions.md 60). */
+  pendingStreamsBy(actorId: string): Promise<{ orgId: string; streamId: string }[]>;
+  /** How many events all() returns, without loading them. */
+  count(orgId: string, streamId: string): Promise<number>;
+  /** Every non-rejected event for a stream (confirmed then pending is fine). */
+  all(orgId: string, streamId: string): Promise<LocalEvent[]>;
+  /** Highest confirmed server_seq seen for a stream, 0 if none. */
+  cursor(orgId: string, streamId: string): Promise<number>;
+  setCursor(orgId: string, streamId: string, seq: number): Promise<void>;
+  /** Drop confirmed events at or below `uptoSeq`; they live in a checkpoint now. */
+  prune(orgId: string, streamId: string, uptoSeq: number): Promise<void>;
+  /** Kept records of one kind whose passage is one of these. */
+  keptByUnit(orgId: string, streamId: string, kind: KeptKind, unitIds: readonly string[]): Promise<KeptRecord[]>;
+  /** Kept records of one kind with these ids. */
+  keptById(orgId: string, streamId: string, kind: KeptKind, ids: readonly string[]): Promise<KeptRecord[]>;
+  /** Passages holding a kept recording by this person. */
+  keptUnitsBy(orgId: string, streamId: string, actorId: string): Promise<string[]>;
+  /** How many records of one kind a stream keeps. */
+  keptCount(orgId: string, streamId: string, kind: KeptKind): Promise<number>;
+  /** Small device-level key/value state: device id, persisted clocks. */
+  meta(key: string): Promise<string | undefined>;
+  setMeta(key: string, value: string): Promise<void>;
+}
+
+export interface AppendResult {
+  id: string;
+  accepted: boolean;
+  serverSeq: number | null;
+  reason: string | null;
+}
+
+/** The server calls from PLAN.md section 9. */
+export interface Transport {
+  append(events: AnyEvent[]): Promise<AppendResult[]>;
+  pull(orgId: string, streamId: string, after: number, limit: number): Promise<AnyEvent[]>;
+  /** Newest snapshot for exactly this reducer version: where it is and how big, or null. */
+  snapshotMeta(orgId: string, streamId: string, reducerVersion: number): Promise<SnapshotMeta | null>;
+  /** One piece of that snapshot's JSON state; null if the seq no longer exists. */
+  snapshotChunk(orgId: string, streamId: string, reducerVersion: number, serverSeq: number, index: number): Promise<string | null>;
+  /**
+   * Be told when something was appended to a stream, and whether the
+   * channel is up. Optional: a transport without it is polled. The poke
+   * carries no data; the client pulls through the authorized RPC.
+   */
+  watch?(orgId: string, streamId: string, handlers: WatchHandlers): () => void;
+}
+
+export interface WatchHandlers {
+  onPoke: () => void;
+  onStatus: (connected: boolean) => void;
+}
+
+/** What the local log holds for a stream, for the sync status screen. */
+export interface SyncInspection {
+  pending: LocalEvent[];
+  rejected: LocalEvent[];
+  total: number;
+  cursor: number;
+  checkpointSeq: number | null;
+}
+
+export interface SnapshotMeta {
+  serverSeq: number;
+  chunks: number;
+  bytes: number;
+}
+
+/**
+ * Why the server refused an event, classified from its reason text so the
+ * client can decide what to do: membership refusals are retried when the
+ * actor's membership changes; a language not listed yet is retried on every
+ * push; a clock-ahead refusal re-stamps the clock; invalid payloads never
+ * retry.
+ */
+type RejectCode = 'NOT_MEMBER' | 'NOT_ALLOWED' | 'NOT_LISTED' | 'INVALID' | 'CLOCK_AHEAD' | 'UNKNOWN';
+
+export function rejectCodeOf(reason: string | undefined): RejectCode {
+  const r = reason ?? '';
+  if (/clock ahead/i.test(r)) return 'CLOCK_AHEAD';
+  // A language's events reached the server before the organization stream
+  // listed it (two streams, two outboxes): retried on every push.
+  if (/language not listed/i.test(r)) return 'NOT_LISTED';
+  if (/not a member/i.test(r)) return 'NOT_MEMBER';
+  if (/may not emit/i.test(r)) return 'NOT_ALLOWED';
+  if (/invalid payload|malformed|does not match/i.test(r)) return 'INVALID';
+  return 'UNKNOWN';
+}
+
+/** The request never reached the server: no connection, DNS, or a dead link. */
+export class OfflineError extends Error {
+  override name = 'OfflineError';
+}
+
+/**
+ * The server was reached and refused the request: this actor is not a member
+ * of the stream, or lacks the privilege. Distinct from `OfflineError` on
+ * purpose (PLAN.md invariant 1 keeps queued work, but a device whose session
+ * is refused is not offline and must not be treated as such: it cannot queue
+ * its way out, and telling the user "offline" strands them).
+ */
+export class NotAuthorizedError extends Error {
+  override name = 'NotAuthorizedError';
+}
+
+/** The server refuses this client's protocol version; the app must upgrade. */
+export class ClientTooOldError extends Error {
+  override name = 'ClientTooOldError';
+}

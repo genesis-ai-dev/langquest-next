@@ -1,47 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
-import type { BlobRef } from '@langquest-next/core';
-import { afterAttempt, parseHandOvers, withHandOver, type Attempt, type HandOver } from '../src/handOverCore';
 import { sessionStorageKey } from '../src/sessionKey';
 
-
-const ref = (hash: string): BlobRef => ({ hash, format: 'm4a', unitId: 'u1' });
-const upload = (hash: string) => ({ orgId: 'org', languageId: 'luke', ref: ref(hash) });
-const akol: HandOver = { actorId: 'akol', uploads: [upload('a'), upload('b')], savedAt: '2026-10-05T12:00:00Z' };
-const attempt = (over: Partial<Attempt> = {}): Attempt => ({
-  sessionGone: false, eventsLeft: 0, accountLeft: 0, finished: [], unregistered: false, ...over
-});
-
-describe('hand-over on a shared phone (decisions.md 60)', () => {
-  it('ends only when every event, account change, recording and notification is dealt with', () => {
-    expect(afterAttempt(akol, attempt({ finished: ['a', 'b'] }))).toEqual({ kind: 'done' });
-    expect(afterAttempt(akol, attempt({ finished: ['a'] }))).toEqual({ kind: 'keep', handOver: { ...akol, uploads: [upload('b')] } });
-    expect(afterAttempt(akol, attempt({ finished: ['a', 'b'], eventsLeft: 1 })).kind).toBe('keep');
-    expect(afterAttempt(akol, attempt({ finished: ['a', 'b'], accountLeft: 1 })).kind).toBe('keep');
-    const withPush = { ...akol, uploads: [], pushToken: 'tok' };
-    expect(afterAttempt(withPush, attempt())).toEqual({ kind: 'keep', handOver: withPush });
-    expect(afterAttempt(withPush, attempt({ unregistered: true }))).toEqual({ kind: 'done' });
-  });
-
-  it('a session the server will not renew is dropped; the work waits for their next sign-in', () => {
-    expect(afterAttempt(akol, attempt({ sessionGone: true, eventsLeft: 3 }))).toEqual({ kind: 'drop' });
-  });
-
-  it('signing out twice before the phone is online keeps one record naming every recording', () => {
-    const again: HandOver = { actorId: 'akol', uploads: [upload('b'), upload('c')], savedAt: '2026-10-06T08:00:00Z' };
-    const list = withHandOver(withHandOver([], { ...akol, pushToken: 'tok' }), again);
-    expect(list).toHaveLength(1);
-    expect(list[0]!.uploads.map((u) => u.ref.hash)).toEqual(['b', 'c', 'a']);
-    expect(list[0]!.pushToken).toBe('tok');
-    expect(withHandOver(list, { ...akol, actorId: 'mary' }).map((h) => h.actorId)).toEqual(['akol', 'mary']);
-  });
-
-  it('a torn write reads as no hand-overs, never a crash on launch', () => {
-    expect(parseHandOvers(null)).toEqual([]);
-    expect(parseHandOvers('{not json')).toEqual([]);
-    expect(parseHandOvers('[{"nope":1}]')).toEqual([]);
-    expect(parseHandOvers(JSON.stringify([akol]))).toEqual([akol]);
-  });
-});
+// The hand-over's own rules and its delivery attempt are tested with the
+// rest of the sync package (packages/sync/test/handOver.test.ts).
 
 describe('what the hand-over relies on in supabase-js', () => {
   it('the session key named in sessionKey.ts is the one supabase-js uses by default', () => {

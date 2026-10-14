@@ -2,7 +2,7 @@
 // block list while changes wait to send, what a report sends, and how open
 // reports read to whoever acts on them.
 import { describe, expect, it } from 'vitest';
-import type { AccountAction } from '../src/durableOutbox';
+import type { AccountAction } from '@langquest-next/sync';
 import {
   blockedIds, groupReports, personTarget, reportedMessage, reportPayload, reportSummary, reportTitle, type OpenReport, type ReportTarget
 } from '../src/moderation';

@@ -1,4 +1,4 @@
-import { SqliteDiagStore, SqliteFileLedger, SqliteStore, type SqlDriver } from '@langquest-next/client';
+import { SqliteDiagStore, SqliteFileLedger, SqliteStore, type SqlDriver } from '@langquest-next/sync';
 import * as SQLite from 'expo-sqlite';
 import { Platform } from 'react-native';
 import { isTestBuild } from './testBuild';
@@ -109,7 +109,7 @@ export async function openWriter(name: string): Promise<SQLite.SQLiteDatabase> {
   return writer;
 }
 
-/** expo-sqlite driver; the test twin lives in packages/client/test. */
+/** expo-sqlite driver; the test twin lives in packages/sync/test. */
 async function expoDriver(db: SQLite.SQLiteDatabase, name: string): Promise<SqlDriver> {
   if (Platform.OS === 'web') return webDriver(db);
   const writer = await openWriter(name);

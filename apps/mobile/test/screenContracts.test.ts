@@ -13,7 +13,9 @@ const app = fs.readFileSync(path.join(root,'App.tsx'),'utf8');
 const componentScreen = new Map([...app.matchAll(/(\w+): (?:Entry|Onboarding|Org|Config|Checks|Content|Account|Work|MapScreens|Passage|Review|Translate|Study|Reports|Reference|Sources|Simple)\.(\w+)/g)]
   .map((m) => [m[2]!,m[1]! as ScreenId]));
 
-describe('screen action contracts', () => {
+// These parse the screens and what they import, so they grow with the app: on a shared CI
+// runner under coverage the slowest took over the 5 s default.
+describe('screen action contracts', { timeout: 30_000 }, () => {
   it('every rendered screen declares the events in its implementation', () => {
     const seen = new Set<string>();
     for (const filename of fs.readdirSync(path.join(root,'src/screens'))) {
@@ -50,13 +52,27 @@ describe('screen action contracts', () => {
     const viaCtx: Record<string, string> = { 'v1.VisionSeen': '.markWelcomed(', 'v1.TermsAccepted': '.acceptTerms(' };
     const src = path.join(root, 'src');
     const skip = new Set(['screenContracts.ts', 'flow.ts']);
-    const imported = (file: ts.SourceFile, dir: string) => file.statements.flatMap((stmt) => {
+    // Two levels: a screen's rules live in feature modules, which build on models (decisions.md 105).
+    // Each module is read and parsed once, however many screens import it.
+    const read = new Map<string, { text: string; file: ts.SourceFile }>();
+    const load = (hit: string) => {
+      let got = read.get(hit);
+      if (!got) {
+        const text = fs.readFileSync(hit, 'utf8');
+        got = { text, file: ts.createSourceFile(hit, text, ts.ScriptTarget.Latest, true, hit.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS) };
+        read.set(hit, got);
+      }
+      return got;
+    };
+    const imported = (file: ts.SourceFile, dir: string, depth = 2): string[] => file.statements.flatMap((stmt) => {
       if (!ts.isImportDeclaration(stmt) || !ts.isStringLiteral(stmt.moduleSpecifier)) return [];
       const spec = stmt.moduleSpecifier.text;
       if (!spec.startsWith('.')) return [];
       const base = path.resolve(dir, spec);
       const hit = ['.ts', '.tsx'].map((ext) => base + ext).find((f) => fs.existsSync(f));
-      return hit && hit.startsWith(src) && !skip.has(path.basename(hit)) ? [fs.readFileSync(hit, 'utf8')] : [];
+      if (!hit || !hit.startsWith(src) || skip.has(path.basename(hit))) return [];
+      const { text, file: inner } = load(hit);
+      return depth <= 1 ? [text] : [text, ...imported(inner, path.dirname(hit), depth - 1)];
     });
     let checked = 0;
     for (const filename of fs.readdirSync(path.join(root, 'src/screens'))) {

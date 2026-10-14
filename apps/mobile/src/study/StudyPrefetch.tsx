@@ -13,7 +13,7 @@ export function StudyPrefetch(props: { ctx: Ctx }) {
   const kept = ctx.language.blobs.keptUnits;
   let key = '';
   if (state && STUDY_FILES_OFFLINE) {
-    // The default scope comes worked out from the phone's table too (decisions.md 103).
+    // The default scope comes worked out from the phone's table too (decisions.md 106).
     const scope = new Set(ctx.language.blobs.scope);
     for (const u of kept) scope.add(u);
     key = [...scope].sort().join(',');

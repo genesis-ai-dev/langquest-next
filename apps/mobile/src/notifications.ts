@@ -1,10 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { requestPushToken } from './push';
-import { supabase } from './supabase';
+import * as server from './server/notifications';
 
 export async function enableNotifications(): Promise<void> {
   const token = await requestPushToken();
-  const { error } = await supabase.rpc('register_push_token', { p_token: token });
+  const { error } = await server.registerPushToken(token);
   if (error) throw new Error(error.message);
   await AsyncStorage.setItem('push-token', token);
 }
@@ -19,7 +19,7 @@ export async function unregisterNotifications(): Promise<void> {
 export async function tryUnregisterNotifications(): Promise<boolean> {
   const token = await AsyncStorage.getItem('push-token');
   if (!token) return true;
-  const { error } = await supabase.rpc('unregister_push_token', { p_token: token });
+  const { error } = await server.unregisterPushToken(token);
   if (error) return false;
   await AsyncStorage.removeItem('push-token');
   return true;
@@ -33,7 +33,7 @@ export async function tryUnregisterNotifications(): Promise<boolean> {
 export async function handOverPushToken(): Promise<string | undefined> {
   const token = await AsyncStorage.getItem('push-token');
   if (!token) return undefined;
-  const { error } = await supabase.rpc('unregister_push_token', { p_token: token });
+  const { error } = await server.unregisterPushToken(token);
   await AsyncStorage.removeItem('push-token');
   return error ? token : undefined;
 }
@@ -52,8 +52,7 @@ export async function refreshInbox(actorId: string): Promise<RemoteNotification[
   };
   const rows = new Map(cached.rows.map((row) => [row.id, row]));
   for (let page = 0; page < 10; page++) {
-    const { data, error } = await supabase.from('notifications').select('*')
-      .eq('profile_id', actorId).gt('seq', cached.cursor).order('seq').limit(100);
+    const { data, error } = await server.notificationsAfter(actorId, cached.cursor, 100);
     if (error) throw new Error(error.message);
     for (const row of (data ?? []) as RemoteNotification[]) {
       if (row.active) rows.set(row.id, row); else rows.delete(row.id);

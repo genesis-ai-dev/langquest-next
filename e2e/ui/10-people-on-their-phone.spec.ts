@@ -5,7 +5,7 @@
 import type { Page } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { commands, type LanguageState } from '@langquest-next/core';
-import type { SyncClient } from '@langquest-next/client';
+import type { SyncClient } from '@langquest-next/sync';
 import { installMicControl, openWorkspace, recordParts } from './06-recording-helpers';
 import { alphaMembers, deviceAs, deviceForNew, issueInviteAs, newPerson, quietReloads, toTabs } from './people-helpers';
 import { clientAs, send, signIn } from './fixture';

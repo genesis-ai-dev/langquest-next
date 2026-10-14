@@ -4,7 +4,7 @@
 // is needed. The file store notices (blobs.ts); this says so where nobody
 // can miss it: over every screen, until someone taps "I understand". It
 // says what can come back and which passages need recording again.
-import type { LostFile } from '@langquest-next/client';
+import type { LostFile } from '@langquest-next/sync';
 import { lostFilesView, unitTitle, type LanguageState, type LostFilesView } from '@langquest-next/core';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Modal, ScrollView, StyleSheet, View } from 'react-native';
@@ -65,7 +65,7 @@ function useLostFiles(): { lost: LostFile[]; store: BlobStore | null } {
 export function LostFilesAlert(props: { state: LanguageState | null; whatWere: (hashes: readonly string[]) => Promise<LostFilesView> }) {
   const { lost, store } = useLostFiles();
   const { state, whatWere } = props;
-  // What the files were comes from the phone's table for a language kept on disk (decisions.md 103).
+  // What the files were comes from the phone's table for a language kept on disk (decisions.md 106).
   const [view, setView] = useState<LostFilesView | null>(null);
   useEffect(() => {
     let active = true;

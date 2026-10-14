@@ -2,7 +2,7 @@
 // Pages per role are kept for a whole spec file (one browser context each), so
 // a test that reads a passage as six roles does not sign six people in again.
 import { commands, derivePassage, type Commands, type EventSpec, type LanguageState } from '@langquest-next/core';
-import { blobKey, workerBlobs, type SyncClient } from '@langquest-next/client';
+import { blobKey, workerBlobs, type SyncClient } from '@langquest-next/sync';
 import type { Browser, BrowserContext, Locator, Page } from '@playwright/test';
 import { createHash, randomUUID } from 'node:crypto';
 import { clientAs, localServer, send, signIn } from './fixture';
