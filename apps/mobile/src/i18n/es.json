@@ -3367,8 +3367,8 @@
       "studySteps_other": "{{name}} · {{done}} de {{count, number}} pasos",
       "dueOn": "vence {{date}}",
       "record": "Grabar",
-      "yourTakes": "Tus tomas están grabadas, pero todavía no se publicaron.",
-      "someTakes": "Algunas tomas están grabadas, pero todavía no se publicaron.",
+      "yourParts": "Tus partes están grabadas, pero todavía no se publicaron.",
+      "someParts": "Algunas partes están grabadas, pero todavía no se publicaron.",
       "recordHint": "Cuéntalo en tu idioma. La Biblia, las palabras clave y las notas están a tu lado mientras grabas.",
       "recordHintAsked": "{{asked}}. Cuéntalo en tu idioma. La Biblia, las palabras clave y las notas están a tu lado mientras grabas.",
       "asked": {
@@ -3425,7 +3425,7 @@
       },
       "kindOnVersion": "{{kind}} en {{version}}",
       "recording": "Grabación",
-      "takesNotPublished": "Tomas grabadas, todavía sin publicar",
+      "partsNotPublished": "Partes grabadas, todavía sin publicar",
       "notRecorded": "Todavía no se grabó",
       "backToLatest": "Volver a la última versión",
       "pill": {
@@ -3445,9 +3445,9 @@
       "newer": "Versión más nueva",
       "versions": "Versiones",
       "playVersion": "Reproducir {{version}}",
-      "takes_one": "{{count, number}} toma",
-      "takes_many": "{{count, number}} tomas",
-      "takes_other": "{{count, number}} tomas",
+      "parts_one": "{{count, number}} parte",
+      "parts_many": "{{count, number}} partes",
+      "parts_other": "{{count, number}} partes",
       "openRecording": "Abrir la grabación",
       "madeAfter": "Hecha después de",
       "madeAfterShow": "Hecha después de {{label}}. Mostrar esa versión",
@@ -3582,7 +3582,6 @@
       "changeAloud": "Qué cambió, dicho en voz alta",
       "inResponseTo": "En respuesta a la {{kind}} de {{who}}",
       "recording": "Grabación",
-      "take": "Toma {{n, number}}",
       "details": "Detalles",
       "keyTerms": "Términos clave",
       "termsTied_one": "{{count, number}} término ligado · {{terms}}",
@@ -4329,9 +4328,6 @@
     "resumeRecordingNow": "Seguir grabando ahora",
     "loop": {
       "capturing": "Grabando lo que dices",
-      "takesSoFar_one": "{{count, number}} toma hasta ahora",
-      "takesSoFar_many": "{{count, number}} tomas hasta ahora",
-      "takesSoFar_other": "{{count, number}} tomas hasta ahora",
       "partsSoFar_one": "{{count, number}} parte hasta ahora",
       "partsSoFar_many": "{{count, number}} partes hasta ahora",
       "partsSoFar_other": "{{count, number}} partes hasta ahora",
@@ -4383,7 +4379,7 @@
       "tiedBadge": "Ligado",
       "tying": "Ligando…",
       "tie": "Ligar a tu borrador",
-      "recordFirst": "Primero graba una toma; luego podrás ligar términos a tu borrador.",
+      "recordFirst": "Primero graba una parte; luego podrás ligar términos a tu borrador.",
       "allTerms": "Todos los términos clave →",
       "studyTitle": "Estudio de {{pattern}} · {{passage}}",
       "openStudy": "Abrir el estudio →",
@@ -4418,7 +4414,7 @@
       "dividerHint": "Desliza hacia arriba o hacia abajo para dar más espacio a una de las dos"
     },
     "take": {
-      "record": "Grabar una toma",
+      "record": "Grabar una parte",
       "recordHint": "Habla y haz pausas entre partes. Toca detener cuando termines."
     },
     "backTranslation": {
@@ -4426,10 +4422,6 @@
       "partsSaid_one": "{{said}} de {{count, number}} parte dicha",
       "partsSaid_many": "{{said}} de {{count, number}} partes dichas",
       "partsSaid_other": "{{said}} de {{count, number}} partes dichas"
-    },
-    "workspace": {
-      "take": "Toma {{n}}",
-      "newTake": "Toma nueva {{n}}"
     },
     "verses": {
       "verse": "Versículo {{verse}}",
@@ -5739,7 +5731,7 @@
     "missing": "Este pasaje todavía no está en este dispositivo.",
     "missingSub": "Puede que todavía se esté cargando.",
     "orgLoading": "Tu organización todavía se está cargando.",
-    "takesNotInDraft": "Tus tomas están guardadas en este dispositivo, pero todavía no en tu borrador. {{reason}}",
+    "partsNotInDraft": "Tus partes están guardadas en este dispositivo, pero todavía no en tu borrador. {{reason}}",
     "partDeleted": "{{part}} eliminada.",
     "chips": {
       "bible": "Biblia",

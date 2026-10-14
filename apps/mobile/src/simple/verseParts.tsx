@@ -250,6 +250,20 @@ function PartRow(props: {
   );
 }
 
+/**
+ * A part's verses as the recorder draws them, without its taps: a soft grey
+ * tile, hollow when it is more of the verse above. Pages that only show parts
+ * use it, and show nothing for a part with no verse: verses are never asked for there.
+ */
+export function VerseTile(props: { verses: string[]; label: PartLabel; same: boolean }) {
+  const l = props.label;
+  return (
+    <View style={[styles.badge, props.same && styles.badgeSame]}>
+      <Text style={l.s === l.e ? styles.badgeText : styles.badgeRange} numberOfLines={1}>{spanShort(props.verses, l.s, l.e)}</Text>
+    </View>
+  );
+}
+
 function GapRow(props: { text: string; disabled: boolean; onRecord: () => void }) {
   const record = useHelpSpot(t('recording.verses.recordHere'), t('recording.verses.recordHereHelp'), props.onRecord);
   return (

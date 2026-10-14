@@ -118,7 +118,7 @@ export function Journey(props: {
         ) : (
           <View style={{ paddingTop: space.xs, gap: 2 }}>
             <Text style={[txt.body, { fontWeight: '700' }]}>{t('passage.journey.recording')}</Text>
-            <Text style={txt.xs}>{p.drafting ? t('passage.journey.takesNotPublished') : t('passage.journey.notRecorded')}</Text>
+            <Text style={txt.xs}>{p.drafting ? t('passage.journey.partsNotPublished') : t('passage.journey.notRecorded')}</Text>
           </View>
         )}
         {!p.recorded ? <View style={{ marginTop: space.md }}>{props.nextSlot}</View> : null}
@@ -287,7 +287,7 @@ function VersionCard(props: {
         <AudioClip language={ctx.language} hashes={version.cardHashes} label={t('passage.journey.playVersion', { version: versionTitle(version.n) })} />
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={[txt.sm, { fontWeight: '600' }]} numberOfLines={1}>{ctx.name(version.by)} · {when(version.hlc)}</Text>
-          <Text style={txt.xs}>{t('passage.journey.takes', { count: version.cardHashes.length })}</Text>
+          <Text style={txt.xs}>{t('passage.journey.parts', { count: version.cardHashes.length })}</Text>
         </View>
       </View>
       {version.changeNote ? <Text style={txt.sm} numberOfLines={2}>{version.changeNote}</Text> : null}
