@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { derivePassage, foldLanguage, foldOrg, ORG_STREAM, validateEvent, withDeps, type AnyEvent, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
-import { mapProject, type CopiedFile, type MapContext } from '../src/map';
+import { chosenHere, mapProject, type CopiedFile, type MapContext } from '../src/map';
 import { reconcile, type LedgerEntry } from '../src/reconcile';
 import type { V2Asset, V2Content, V2Placement, V2ProjectRows, V2Quest, V2Vote } from '../src/rows';
 
@@ -96,7 +96,7 @@ function run(passes: { rows: V2ProjectRows; ctx?: MapContext }[]) {
   const each: AnyEvent[][] = [];
   for (const p of passes) {
     const mapped = mapProject(p.rows, p.ctx ?? ctx());
-    const r = reconcile(mapped.facts, ledger, { orgId: 'org1', scope: p.rows.project.id, now: NOW });
+    const r = reconcile(mapped.facts, ledger, { orgId: 'org1', scope: p.rows.project.id, now: NOW, takeBackAbsent: chosenHere });
     for (const [k, e] of r.entries) ledger.set(k, e);
     each.push(r.events);
   }
@@ -175,9 +175,9 @@ describe('mapProject: a Bible project', () => {
     const state = foldLanguage(all.filter((e) => e.streamId === 'p1'));
     const passage = derivePassage(state, unit);
     expect(passage.versions.map((v) => v.cardHashes)).toEqual([[H('1'), H('2'), H('3')], [H('1'), H('2'), H('3'), H('4')], [H('2'), H('3'), H('4')]]);
-    // a1's recording (and its verse mark) is taken back, and so is the back translation hanging off it.
-    const redacted = each[3]!.filter((e) => e.type === 'v1.Redacted').map((e) => (e.payload as { eventId: string }).eventId);
-    expect(redacted.sort()).toEqual(['v2:p1:bt:bt1#1:ReviewRecorded', 'v2:p1:rec:ch1:a1#1:CardVerseSet', 'v2:p1:rec:ch1:a1#1:RecordingAdded']);
+    // a1's recording stays, and so does the back translation hanging off it: nothing said here disappears.
+    expect(each[3]!.filter((e) => e.type === 'v1.Redacted')).toEqual([]);
+    expect(Object.keys(state.recordings ?? {}).length).toBeGreaterThan(0);
   });
 
   it('holds a version until its files reach v2, then brings it over', () => {
@@ -198,15 +198,12 @@ describe('mapProject: a Bible project', () => {
     expect((take?.payload as { cardHashes: string[] }).cardHashes).toEqual([H('1'), H('2')]);
   });
 
-  it('takes a review back when the vote is removed, and a member when they leave or their only work goes', () => {
+  it('keeps a review when the vote is removed in v2, and a member when they leave it', () => {
     const later = bible();
     later.votes = later.votes.map((v) => ({ ...v, active: false }));
     later.members.find((m) => m.profile_id === 'trans')!.active = false;
     const { each } = run([{ rows: bible() }, { rows: later }]);
-    // The reviewer was never a v2 member: with their votes gone, nothing keeps them on the language.
-    expect(each[1]!.map((e) => [e.type, (e.payload as { profileId?: string }).profileId ?? '']).sort()).toEqual([
-      ['v1.MemberRemoved', 'rev'], ['v1.MemberRemoved', 'trans'], ['v1.Redacted', '']
-    ]);
+    expect(each[1]).toEqual([]);
   });
 });
 
@@ -253,6 +250,13 @@ describe('mapProject: a v2 person confirmed as an account already in Next', () =
     expect(members(each[1]!)).toEqual(['+next-trans', '-trans']);
     const state = foldOrg(all.filter((e) => e.streamId === ORG_STREAM));
     expect(Object.values(state.members['next-trans'] ?? {}).map((m) => m.roleId.value)).toEqual(['translator']);
+  });
+
+  it("gives the membership back to the v2 id when the link is undone", () => {
+    const linked = ctx({ people: new Map([['trans', 'next-trans']]) });
+    const undone = ctx({ released: new Map([['trans', 'next-trans']]) });
+    const { each } = run([{ rows: bible(), ctx: linked }, { rows: bible(), ctx: undone }]);
+    expect(members(each[1]!)).toEqual(['+trans', '-next-trans']);
   });
 
   it('gives one account the larger role when two v2 people are the same person', () => {

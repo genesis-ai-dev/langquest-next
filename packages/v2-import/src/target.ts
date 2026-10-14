@@ -51,7 +51,7 @@ export interface Target {
   nextAccounts(emails: string[]): Promise<NextAccount[]>;
   /** Confirm that a v2 person is this Next account, or take that back. */
   link(v2Id: string, nextId: string, email: string | null, by: string): Promise<void>;
-  unlink(v2Id: string): Promise<void>;
+  unlink(v2Id: string, by?: string): Promise<void>;
   /** One project's log, newest first. */
   projectLog(projectId: string): Promise<(LogLine & { id: number; at: string })[]>;
   cursor(name: string, value?: Date): Promise<Date | null>;
@@ -102,6 +102,8 @@ export interface PersonLink {
   email: string | null;
   confirmed_by: string;
   confirmed_at: string;
+  /** False once Undo took it back: kept, so the Next account's membership is taken back too. */
+  active?: boolean;
 }
 
 /** An account in Next, as the dashboard's Same email list shows it. */
@@ -284,7 +286,7 @@ export function supabaseTarget(db: SupabaseClient, files: BlobFilesLike): Target
       return out;
     },
     link: (v2Id, nextId, email, by) => rpc('v2_import_link', { p_v2: v2Id, p_next: nextId, p_email: email, p_by: by }),
-    unlink: (v2Id) => rpc('v2_import_unlink', { p_v2: v2Id }),
+    unlink: (v2Id, by) => rpc('v2_import_unlink', { p_v2: v2Id, p_by: by ?? null }),
     async cursor(name, value) {
       const v = await rpc<string | null>('v2_import_cursor', { p_name: name, p_value: value?.toISOString() ?? null });
       return v ? new Date(v) : null;

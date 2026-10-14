@@ -8,8 +8,13 @@ import { encodeHlc, decodeHlc, type AnyEvent, type EventPayloads, type EventType
  * the mapper turns it into facts (one per thing v2 says: a member, a unit, a
  * take, a review), and this compares them with the ledger, the import's own
  * record of what it last said about each fact. Only the differences become
- * events: a new fact is said, a changed one is said again, a fact v2 no
- * longer says is taken back, and one that comes back is said once more.
+ * events: a new fact is said and a changed one is said again. What v2
+ * removes is never taken back here: the log keeps everything, and nothing
+ * said here disappears because v2 deleted or turned off a row (Caleb,
+ * 2026-10-14). A fact is taken back only when someone here decides so (the
+ * dashboard's Leave out, a link that moves a person to their Next account),
+ * and the organization's own facts, which are the dashboard's decisions, are
+ * taken back when the dashboard drops them.
  * Nothing here reads v2's timestamps to decide what changed, because v2's
  * `last_updated` comes from phones and some rows are deleted outright.
  *
@@ -67,8 +72,10 @@ export interface Fact {
   resay?: (s: Statement) => Said[];
   /** False when a change is not worth saying again (a unit's label: `UnitAdded` keeps the first). */
   restate?: boolean;
-  /** v2 still has the row but marks it gone (`active = false`), and when. */
+  /** v2 still has the row but marks it gone (`active = false`): left here as it is, and not brought over if it never was. */
   gone?: boolean;
+  /** Taken back because someone here decided so, never because of v2: the dashboard's Leave out, or a link that moved a person. */
+  withdraw?: boolean;
 }
 
 /** What the import last said about one fact. */
@@ -112,12 +119,20 @@ export interface ReconcileContext {
   /** Now, in ms; no event is stamped later (the server refuses clocks ahead of its own). */
   now: number;
   /**
-   * Who signs the taking back of a fact v2 no longer states at all (there is
+   * Who signs the taking back of a fact that is no longer stated (there is
    * no fact to say who): a member who may, such as an admin. Without one the
    * import's own device id signs, which the server only accepts where no
    * membership is needed.
    */
   actor?: string;
+  /**
+   * Take back what the import said that this pass no longer states at all:
+   * only for the organization's own facts, which are the dashboard's
+   * decisions, or for the keys it names (a project's guide, chosen here by
+   * the language its team reads). A project's facts come from v2, and v2's
+   * removals are kept.
+   */
+  takeBackAbsent?: boolean | ((key: string) => boolean);
 }
 
 const REASON = 'removed in LangQuest v2';
@@ -155,10 +170,10 @@ export function reconcile(facts: readonly Fact[], ledger: ReadonlyMap<string, Le
     const prior = ledger.get(fact.key);
     const base: LedgerEntry = prior ?? { key: fact.key, streamId: fact.streamId, n: 0, lastSaid: null, digest: '', hlc: '', live: [], withdrawn: false };
 
-    if (fact.hold) continue;
-    if (fact.gone) {
-      if (!prior || prior.withdrawn) continue;
-      entries.set(fact.key, takeBack(fact, base, at));
+    // Not ready yet, or turned off in v2: what was said stays as it is.
+    if (fact.hold || fact.gone) continue;
+    if (fact.withdraw) {
+      if (prior && !prior.withdrawn) entries.set(fact.key, takeBack(fact, base, at));
       continue;
     }
     const digest = fact.value !== undefined ? hash53(canonical(fact.value)) : digestOf(fact.say({ n: 0, lastSaid: null }, look));
@@ -172,9 +187,11 @@ export function reconcile(facts: readonly Fact[], ledger: ReadonlyMap<string, Le
     entries.set(fact.key, { ...rest, digest, ...(undo ? { undo } : {}) });
   }
 
-  // Facts the import said that v2 no longer has at all: taken back now.
+  // Facts the import said that are no longer stated at all: kept, unless they are the dashboard's to drop.
+  if (!ctx.takeBackAbsent) return { events, entries, owner };
+  const drops = typeof ctx.takeBackAbsent === 'function' ? ctx.takeBackAbsent : () => true;
   for (const entry of ledger.values()) {
-    if (seen.has(entry.key) || entry.withdrawn) continue;
+    if (seen.has(entry.key) || entry.withdrawn || !drops(entry.key)) continue;
     entries.set(entry.key, takeBack(null, entry, ctx.now));
   }
   return { events, entries, owner };

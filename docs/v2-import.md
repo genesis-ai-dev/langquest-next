@@ -36,8 +36,10 @@ writes to v2 (one way, Caleb, 2026-10-12).
   outright (section 5). So each pass reads every row of each project that
   may have changed, maps it to the events that would say the same thing
   here, and compares that with what the import has already appended (the
-  ledger). Only the differences are appended. Running a pass twice appends
-  nothing; a pass that dies half way is finished by the next.
+  ledger). Only the differences are appended, and only ever added: what
+  v2 deletes or turns off is never taken back here (below, Deletes).
+  Running a pass twice appends nothing; a pass that dies half way is
+  finished by the next.
 - **Event ids are the import's own** (`v2:` is a server prefix people
   cannot use, decision 75): `v2:<v2 project>:<fact>#<n>`, where the fact is
   what the event says ("member:<person>", "take:<quest>") and `n` counts the
@@ -162,7 +164,7 @@ signs in here everything they did is already theirs.
 | --- | --- |
 | project | a language: `LanguageAdded` (name, readable code, source code) and `LanguageCodeSet` with the decided languoid (decision 78), in the organization's stream; `LanguageRenamed` when the v2 name changes |
 | project_language_link | the decided language, never v2's (AGENTS.md, `docs/v2-project-languages.md`); a source language becomes `sourceCode` |
-| profile_project_link | `MemberAdded` at the language's scope, `MemberRemoved` when it goes inactive |
+| profile_project_link | `MemberAdded` at the language's scope. Leaving the v2 project does not remove them here; **Leave out** on the dashboard does (`MemberRemoved`) |
 | Bible or FIA project (`template`) | `TemplateSelected` of LangQuest's Bible by chapters or FIA's passages, for the books it has |
 | FIA project | FIA's study guides in the language its team reads (its v2 source language), else English: the organization follows `langquest.fia.<code>` and the language is offered it (`ReferenceSet` recommended), as New language does. v2 kept no FIA content of its own; its app read FIA's |
 | chapter or FIA passage quest | that passage of the template (`bible.book/chapter`, `fia.bookId/pericopeId/verseRange`) |
@@ -189,10 +191,17 @@ the rest.
   read whole and reconciled. Once a night every confirmed project is read
   whole anyway: that catches server-side changes that leave no timestamp
   and rows that were deleted outright.
-- **Deletes.** A row that is gone or inactive in v2 is taken back here the
-  way this app takes things back: a unit is hidden (`UnitHidden`), a
-  membership removed, and a recording, take, review or note redacted
-  (`v1.Redacted`, reason "removed in LangQuest v2").
+- **Deletes.** Nothing v2 deletes or turns off is taken back here (Caleb,
+  2026-10-14: "the point of an event log is that nothing disappears"). A
+  unit stays, a member stays on the language, and a recording, review or
+  note stays. What a removal changes is what comes next: a publish in v2
+  without a recording becomes a new version without it, and the earlier
+  version stays in its history. Only the dashboard's own decisions are
+  taken back: Leave out removes a member, a link moves a membership to the
+  person's Next account (section 3), dropping an organization admin removes
+  them, and a team whose reading language changes is offered the other
+  FIA guides instead. Something deleted in v2 before it ever came over is
+  not brought over.
 - **Audio.** Each file is downloaded once, hashed, and put in R2 through the
   Worker (`PUT /api/blobs/…`, which appends `BlobStored`), as the first
   import did. `v2_import.files` remembers each v2 file name's hash, size,

@@ -45,6 +45,8 @@ export interface MapContext {
    * wherever it would have named the v2 one.
    */
   people?: ReadonlyMap<string, string>;
+  /** Links undone on the dashboard (v2 id → the Next account they had pointed to): that account's membership is taken back. */
+  released?: ReadonlyMap<string, string>;
   /**
    * Who signs membership changes: an admin of the organization already, so
    * a link or unlink that swaps who someone is is signed by a member. The
@@ -102,6 +104,12 @@ export interface Mapped {
 }
 
 export const SYSTEM_ACTOR = 'v2import';
+/**
+ * A project's facts that are chosen here, not stated by v2: the guides its
+ * team is offered. One no longer chosen is taken back; nothing v2 removes is
+ * (decision 94, amended 2026-10-14).
+ */
+export const chosenHere = (key: string) => key.startsWith('guide:');
 const WAIT_MS = 7 * 24 * 3600_000;
 const COMMUNITY = 'community';
 const BACK_TRANSLATION = 'bt';
@@ -468,17 +476,34 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
     return times.length ? times.reduce((a, b) => (Date.parse(a) < Date.parse(b) ? a : b)) : t0;
   };
   // One membership per account: two v2 people linked to the same Next account get the larger of their roles.
+  // Leaving v2 never takes anyone off a language here (nothing said here disappears); Leave out on the dashboard does.
+  const leftOut = new Set([...(ctx.roles ?? [])].filter(([, r]) => r === 'none').map(([id]) => id));
   const accounts = new Map<string, string[]>();
-  for (const id of new Set([...roles.keys(), ...rows.members.map((m) => m.profile_id)])) accounts.set(who(id), [...(accounts.get(who(id)) ?? []), id]);
+  for (const id of new Set([...roles.keys(), ...rows.members.map((m) => m.profile_id), ...leftOut])) accounts.set(who(id), [...(accounts.get(who(id)) ?? []), id]);
   for (const [account, ids] of [...accounts].sort(([a], [b]) => a.localeCompare(b))) {
     const role = ids.map((id) => roles.get(id)).filter((r): r is Role => !!r).sort((a, b) => RANK.indexOf(b) - RANK.indexOf(a))[0];
     const m = ids.map((id) => membership.get(id)).find((x) => !!x);
+    const withdraw = role === undefined && ids.some((id) => leftOut.has(id));
     facts.push({
       key: `member:${account}`, streamId: ORG_STREAM, actorId: ctx.manager ?? owner,
       at: m ? at(role === undefined ? m.last_updated : m.created_at) : firstWork(ids),
-      gone: role === undefined,
+      gone: role === undefined && !withdraw,
+      ...(withdraw ? { withdraw: true } : {}),
       say: () => [{ type: 'v1.MemberAdded', payload: { profileId: account, roleId: ROLE_ID[role ?? 'translator'], scope } }],
       unsay: () => [{ type: 'v1.MemberRemoved', payload: { profileId: account, scope } }]
+    });
+  }
+  // A person a link moved to their Next account no longer holds a membership under their v2 id; one whose link
+  // was undone no longer holds it under that Next account. These are the dashboard's decisions, so they are taken back.
+  const moved = new Set<string>();
+  for (const ids of accounts.values()) for (const id of ids) if (who(id) !== id) moved.add(id);
+  for (const [v2Id, next] of ctx.released ?? []) if (accounts.has(v2Id) && !accounts.has(next)) moved.add(next);
+  for (const id of [...moved].sort()) {
+    if (accounts.has(id)) continue;
+    facts.push({
+      key: `member:${id}`, streamId: ORG_STREAM, actorId: ctx.manager ?? owner, at: new Date(ctx.now).toISOString(), withdraw: true,
+      say: () => [],
+      unsay: () => [{ type: 'v1.MemberRemoved', payload: { profileId: id, scope } }]
     });
   }
   return { facts, roles, owner, report };

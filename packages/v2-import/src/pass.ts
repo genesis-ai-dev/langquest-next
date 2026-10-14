@@ -1,6 +1,6 @@
 import { ORG_STREAM, subscriptionItemId, type AnyEvent, type Role } from '@langquest-next/core';
 import { durationMs, formatOf, sha256Hex } from './audio';
-import { mapProject, type CopiedFile, type MapReport, type TemplateRef } from './map';
+import { chosenHere, mapProject, type CopiedFile, type MapReport, type TemplateRef } from './map';
 import { shownName } from './board';
 import { LIBRARY_ORG, libraryFact, orgFacts } from './orgFacts';
 import type { V2Reader, V2ProjectSummary } from './reader';
@@ -110,7 +110,11 @@ class Run {
   private managers = new Map<string, string>();
   /** v2 people confirmed on the dashboard as an account already in Next, by v2 id. */
   private get people(): ReadonlyMap<string, string> {
-    return new Map((this.plan.links ?? []).map((l) => [l.v2_id, l.next_id]));
+    return new Map((this.plan.links ?? []).filter((l) => l.active !== false).map((l) => [l.v2_id, l.next_id]));
+  }
+  /** Links undone on the dashboard, by v2 id: the Next account they had pointed to. */
+  private get released(): ReadonlyMap<string, string> {
+    return new Map((this.plan.links ?? []).filter((l) => l.active === false).map((l) => [l.v2_id, l.next_id]));
   }
 
   constructor(private deps: PassDeps, private plan: Plan, private summaries: Map<string, V2ProjectSummary>) {}
@@ -176,6 +180,7 @@ class Run {
         language: { code, languoidId: placement.languoid_id, sourceCode, decidedAt: placement.confirmed_at, ...(placement.name ? { name: placement.name } : {}) },
         roles,
         people: this.people,
+        released: this.released,
         ...(this.managers.get(org.org_id) ? { manager: this.managers.get(org.org_id)! } : {}),
         files: files.map,
         templates: template && kind ? { [kind]: template } : {},
@@ -187,7 +192,8 @@ class Run {
       report.files.uploaded = await this.upload(org.org_id, projectId, files.map, rows, progress, new Set(mapped.report.heldFiles));
       if (report.files.uploaded) await say('info', `Stored ${n(report.files.uploaded)} audio files in Next`);
 
-      const outcome = await this.say(projectId, org.org_id, mapped.facts, progress, this.managers.get(org.org_id) ?? mapped.owner);
+      // The guides a team is offered are chosen here, so one no longer chosen is taken back; nothing from v2 is.
+      const outcome = await this.say(projectId, org.org_id, mapped.facts, progress, this.managers.get(org.org_id) ?? mapped.owner, chosenHere);
       if (outcome.languageAdded && !code) await say('info', `No language linked yet: it comes over as “${placement.name ?? name}”, and its admins can link it in Next`);
       Object.assign(report, outcome);
       const added = outcome.added ?? {};
@@ -236,7 +242,7 @@ class Run {
     const current = [...ledger.values()].filter((e) => e.key.startsWith('admin:') && !e.withdrawn && e.live.length > 0).map((e) => e.key.slice('admin:'.length));
     const actor = current.find((id) => admins.includes(id)) ?? current[0] ?? admins[0];
     if (actor) this.managers.set(org.org_id, actor);
-    const r = await this.say(`org:${org.org_id}`, org.org_id, orgFacts({ orgId: org.org_id, name: org.name, existing: org.existing, admins, ...(actor ? { actor } : {}), ways, at }), undefined, actor);
+    const r = await this.say(`org:${org.org_id}`, org.org_id, orgFacts({ orgId: org.org_id, name: org.name, existing: org.existing, admins, ...(actor ? { actor } : {}), ways, at }), undefined, actor, true);
     if (r.created) await say('done', `Created the organization ${org.name} in Next`);
     else if (r.append?.accepted) await say('info', `Updated the organization ${org.name}`);
     if (r.rejected?.length) await say('error', `${org.name}: ${r.rejected[0]!.reason}`);
@@ -273,9 +279,9 @@ class Run {
   }
 
   /** Reconcile, append the organization stream first (a language stream needs its listing), then save what was accepted. */
-  private async say(scope: string, orgId: string, facts: Fact[], progress?: (p: Progress) => Promise<void>, actor?: string): Promise<Pick<ProjectReport, 'append' | 'rejected' | 'retry' | 'added'> & { created?: boolean; languageAdded?: boolean }> {
+  private async say(scope: string, orgId: string, facts: Fact[], progress?: (p: Progress) => Promise<void>, actor?: string, takeBackAbsent: boolean | ((key: string) => boolean) = false): Promise<Pick<ProjectReport, 'append' | 'rejected' | 'retry' | 'added'> & { created?: boolean; languageAdded?: boolean }> {
     const ledger = await this.deps.target.ledger(scope);
-    const r = reconcile(facts, ledger, { orgId, scope, now: this.now(), ...(actor ? { actor } : {}) });
+    const r = reconcile(facts, ledger, { orgId, scope, now: this.now(), ...(actor ? { actor } : {}), takeBackAbsent });
     const orgEvents = r.events.filter((e) => e.streamId === ORG_STREAM);
     const rest = r.events.filter((e) => e.streamId !== ORG_STREAM);
     const total = r.events.length;

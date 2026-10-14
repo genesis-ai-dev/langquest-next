@@ -316,7 +316,7 @@ async function board(port: number) {
         const accounts = await target.nextAccounts(emails);
         const byEmail = new Map<string, typeof accounts>();
         for (const a of accounts) byEmail.set(a.email, [...(byEmail.get(a.email) ?? []), a]);
-        const links = new Map((plan.links ?? []).map((l) => [l.v2_id, l]));
+        const links = new Map((plan.links ?? []).filter((l) => l.active !== false).map((l) => [l.v2_id, l]));
         const projectsOf = (id: string) => [...new Set(memberships.filter((m) => m.profile_id === id && m.active).map((m) => m.project_id))];
         const rows = people.flatMap((p) => {
           const email = p.email?.trim().toLowerCase();
@@ -331,7 +331,7 @@ async function board(port: number) {
         const { v2Id, nextId, email } = (await body(req)) as { v2Id: string; nextId?: string; email?: string };
         if (!v2Id || (u.pathname === '/api/link' && !nextId)) return json(res, 400, { error: 'Say which person and which account.' });
         if (u.pathname === '/api/link') await target.link(v2Id, nextId!, email ?? null, by);
-        else await target.unlink(v2Id);
+        else await target.unlink(v2Id, by);
         // Their projects that have come over pick it up now: a sync each.
         const memberships = await readMembers();
         const plan = await target.plan();

@@ -124,7 +124,14 @@ describe.skipIf(!SERVICE)('a pass against the local database', () => {
     const live = (who: string) => Object.values(after.members[who] ?? {}).filter((m) => !m.removed.value).map((m) => m.roleId.value);
     expect(live(`${id}-next`)).toEqual(['coordinator']);
     expect(live(`${id}-rev`)).toEqual([]);
-    await target.unlink(`${id}-rev`);
+    // Undo: the membership goes back to the v2 id.
+    await target.unlink(`${id}-rev`, 'test');
+    const undone = await sync(deps, { projects: [id] });
+    expect(undone[0]?.rejected ?? []).toEqual([]);
+    const back = foldOrg(await events('_org'));
+    const liveBack = (who: string) => Object.values(back.members[who] ?? {}).filter((m) => !m.removed.value).map((m) => m.roleId.value);
+    expect(liveBack(`${id}-rev`)).toEqual(['coordinator']);
+    expect(liveBack(`${id}-next`)).toEqual([]);
   }, 60_000);
 
   it("follows FIA's guides for an FIA project and offers them to its team", async () => {
