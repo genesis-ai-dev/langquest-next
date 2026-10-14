@@ -448,7 +448,7 @@ test('MAP-035 The viewer\'s map is read-only', async ({ page }) => {
   await expect(text(page, 'Versions and history')).toBeVisible();
   // Team rows are not tappable for a viewer: tapping one opens nothing.
   await page.getByRole('button', { name: /^Peer check, / }).locator('visible=true').first().click({ force: true });
-  await page.waitForTimeout(800);
+  await page.waitForTimeout(800); // sleep: nothing observable says a sheet did not open
   await expect(page.getByRole('button', { name: 'Close' }).locator('visible=true')).toHaveCount(0);
   for (const not of ['Review it now', 'Already happened', 'Ask someone']) await expect(text(page, not)).toHaveCount(0);
   await text(page, 'Something else?').click();

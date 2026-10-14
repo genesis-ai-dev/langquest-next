@@ -6,7 +6,7 @@ import { blobKey, workerBlobs, type SyncClient } from '@langquest-next/client';
 import type { Browser, BrowserContext, Locator, Page } from '@playwright/test';
 import { createHash, randomUUID } from 'node:crypto';
 import { clientAs, localServer, send, signIn } from './fixture';
-import { button, byId, enterPassage, expect, openAs, screenText, tab, text, waitForApp, type AccountKey, type PassageKey, type UiWorld } from './support';
+import { button, byId, enterPassage, expect, expectStill, expectSyncIdle, openAs, screenText, tab, text, waitForApp, type AccountKey, type PassageKey, type UiWorld } from './support';
 
 const visible = (l: Locator) => l.locator('visible=true');
 
@@ -29,7 +29,7 @@ export async function reloadApp(page: Page): Promise<void> {
       return;
     } catch (e) {
       if (i >= 2) throw e;
-      await page.waitForTimeout(1_000);
+      await page.waitForLoadState('domcontentloaded').catch(() => { /* the document is going away: try again */ });
     }
   }
 }
@@ -46,7 +46,7 @@ export async function gotoApp(page: Page, path = '/'): Promise<void> {
       return;
     } catch (e) {
       if (i >= 2) throw e;
-      await page.waitForTimeout(1_000);
+      await page.waitForLoadState('domcontentloaded').catch(() => { /* the document is going away: try again */ });
     }
   }
 }
@@ -77,8 +77,9 @@ async function settleRecord(page: Page, world: UiWorld): Promise<void> {
   await expect(visible(page.getByText('Then the team', { exact: true })).first()).toBeVisible({ timeout: 30_000 });
   // Names come with the organization: wait for the checks' people, by name.
   await expect(visible(page.getByText(new RegExp(`${world.accounts.TREV.name}|${world.accounts.REV.name}`))).first()).toBeVisible({ timeout: 30_000 });
-  // The session's privileges come from the organization's fold: let the footer settle.
-  await page.waitForTimeout(600);
+  // The session's privileges come from the organization's fold: let the sync finish, then the footer holds still.
+  await expectSyncIdle(page);
+  await expectStill(byId(page, 'primary-action').or(header(page)).first());
 }
 
 /** Open a passage's record through the Map's search, from whichever Map the role lands on. */
@@ -330,10 +331,11 @@ export async function expand(page: Page, title: string, shown?: string | RegExp)
   if (inside && await inside.isVisible().catch(() => false)) return;
   await d.click();
   if (inside && !(await inside.isVisible({ timeout: 2_000 }).catch(() => false))) {
-    await page.waitForTimeout(1_000);
+    await inside.waitFor({ state: 'visible', timeout: 1_000 }).catch(() => { /* still closed: tap again */ });
     if (!(await inside.isVisible().catch(() => false))) await d.click();
   }
-  await page.waitForTimeout(500);
+  if (inside) await inside.waitFor({ state: 'visible', timeout: 5_000 }).catch(() => { /* the caller's expectation says what is missing */ });
+  else await expectStill(d);
 }
 
 /**

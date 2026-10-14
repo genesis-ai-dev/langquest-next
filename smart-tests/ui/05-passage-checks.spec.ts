@@ -7,7 +7,7 @@
 // then makes the review through the server as that person
 // (05-passage-helpers actAs), and reads the record afterwards. Recording a
 // part uses Chrome's fake microphone (06-recording-helpers).
-import type { Page } from '@playwright/test';
+import type { Browser, Page } from '@playwright/test';
 import { back, button, byId, expect, field, screenText, tab, test, text, type AccountKey } from './support';
 import { useRunWorld } from './reviewing-helpers';
 
@@ -39,7 +39,7 @@ async function backTranslateOnePart(page: Page): Promise<void> {
   await button(page, 'Record part 1').click();
   await expect(button(page, 'Stop recording')).toBeVisible();
   // The microphone's voice file speaks 1.5 s in every 4 s; the takeover covers the parts while it records.
-  await page.waitForTimeout(10_000);
+  await page.waitForTimeout(10_000); // sleep: the recorder shows no part until it stops, so only the voice file's loop length says when one was said
   await button(page, 'Stop recording').click();
   await expect(button(page, 'Publish'), 'a part was said').toBeEnabled({ timeout: 45_000 });
   await button(page, 'Publish').click();
@@ -83,7 +83,6 @@ async function checkpointMovedPast(on: boolean): Promise<void> {
 // ---- doing the check, and the record afterwards ---------------------------------------------
 
 test('PASS-016 Do the check, and the record afterwards', async ({ browser }) => {
-  test.setTimeout(300_000);
   const L = label('P-SUBMITTED');
   const page = await recordAs(browser, world(), 'REV', 'P-SUBMITTED');
   expect(await mainButton(page)).toBe('Do the peer check');
@@ -104,8 +103,7 @@ test('PASS-016 Do the check, and the record afterwards', async ({ browser }) => 
   expect(await myWork(page)).not.toContain(L);
 });
 
-test('PASS-017 Back-translate it, and the record afterwards', async ({ browser }) => {
-  test.setTimeout(400_000);
+test('PASS-017 REV Back-translate it, and the record afterwards', async ({ browser }) => {
   const L = label('P-BT');
   const page = await recordAs(browser, world(), 'REV', 'P-BT');
   expect(await mainButton(page)).toBe('Back-translate it');
@@ -120,6 +118,9 @@ test('PASS-017 Back-translate it, and the record afterwards', async ({ browser }
   await byId(page, 'primary-action').click();
   await expect(header(page)).toHaveText(L);
   expect((await teamRows(page)).slice(0, 2)).toEqual(['Peer check, looks good', 'Back translation, looks good']);
+});
+
+test('PASS-017 TREV Back-translate it, and is offered the next check', async ({ browser }) => {
   // TREV, who may ask, is offered the next check after back-translating (a spare passage, its Peer check done).
   const s = await spare(0);
   await recordOn(world(), 'TRANS', s, { parts: 2, publish: true });
@@ -134,7 +135,6 @@ test('PASS-017 Back-translate it, and the record afterwards', async ({ browser }
 });
 
 test('PASS-018 Hear the feedback @p0', async ({ browser }) => {
-  test.setTimeout(300_000);
   const L = label('P-NEEDS');
   const rev = nameOf('REV');
   const page = await recordAs(browser, world(), 'TRANS', 'P-NEEDS');
@@ -154,7 +154,6 @@ test('PASS-018 Hear the feedback @p0', async ({ browser }) => {
 });
 
 test('PASS-019 Record a fix', async ({ browser }) => {
-  test.setTimeout(400_000);
   const L = label('P-NEEDS');
   const page = await recordAs(browser, world(), 'TRANS', 'P-NEEDS');
   await byId(page, 'primary-action').click();
@@ -180,7 +179,6 @@ test('PASS-019 Record a fix', async ({ browser }) => {
 });
 
 test('PASS-020 Keep it, say why, and Undo', async ({ browser }) => {
-  test.setTimeout(400_000);
   const s = await spare(1);
   await recordOn(world(), 'TRANS', s, { parts: 2, publish: true });
   const v1 = (await passageAs(world(), 'REV', s)).latest!.takeId;
@@ -205,50 +203,59 @@ test('PASS-020 Keep it, say why, and Undo', async ({ browser }) => {
 
 // ---- the step sheet ----------------------------------------------------------------------------
 
-test('PASS-023 Set a check aside, with a reason, and Undo @p0', async ({ browser }) => {
-  test.setTimeout(500_000);
-  for (const who of ['TRANS', 'REV', 'COORD'] as AccountKey[]) {
-    const page = await recordAs(browser, world(), who, 'P-SUBMITTED');
-    await openTeamRow(page, 'Back translation');
-    // The Back translation's own Set aside is the last button of the sheet.
-    await sheet(page).getByRole('button', { name: 'Set aside' }).last().click();
-    await expect(text(page, 'Set aside Back translation?'), who).toBeVisible();
-    const all = await sheetText(page);
-    expect(all, who).toContain('The flow suggests this step. Setting it aside is fine — say why so the next person understands.');
-    for (const r of ['No one available for this right now', 'Another review already covered this', 'Not needed for this passage']) expect(all, `${who}: ${r}`).toContain(r);
-    const confirm = sheet(page).getByRole('button', { name: 'Set aside', exact: true }).last();
-    await expect(confirm, who).toBeDisabled();
-    await sheet(page).getByRole('button', { name: 'Not needed for this passage' }).click();
-    await confirm.click();
-    await toast(page, 'Back translation set aside · reason saved');
-    await expect(teamRow(page, 'Back translation')).toHaveAttribute('aria-label', /^Back translation, /);
-    await byId(page, 'toast-undo').click();
-    await toast(page, 'Undone');
-    await openTeamRow(page, 'Back translation');
-    expect(await sheetText(page), who).not.toContain('Set aside: Not needed for this passage');
-    await closeSheet(page);
-  }
-  const page = await recordAs(browser, world(), 'TRANS', 'P-SUBMITTED');
+/** PASS-023 for one role: sets Back translation aside on P-SUBMITTED with a reason, then undoes it. */
+async function setAsideThenUndo(browser: Browser, who: AccountKey): Promise<Page> {
+  const page = await recordAs(browser, world(), who, 'P-SUBMITTED');
+  await openTeamRow(page, 'Back translation');
+  // The Back translation's own Set aside is the last button of the sheet.
+  await sheet(page).getByRole('button', { name: 'Set aside' }).last().click();
+  await expect(text(page, 'Set aside Back translation?')).toBeVisible();
+  const all = await sheetText(page);
+  expect(all).toContain('The flow suggests this step. Setting it aside is fine — say why so the next person understands.');
+  for (const r of ['No one available for this right now', 'Another review already covered this', 'Not needed for this passage']) expect(all, r).toContain(r);
+  const confirm = sheet(page).getByRole('button', { name: 'Set aside', exact: true }).last();
+  await expect(confirm).toBeDisabled();
+  await sheet(page).getByRole('button', { name: 'Not needed for this passage' }).click();
+  await confirm.click();
+  await toast(page, 'Back translation set aside · reason saved');
+  await expect(teamRow(page, 'Back translation')).toHaveAttribute('aria-label', /^Back translation, /);
+  await byId(page, 'toast-undo').click();
+  await toast(page, 'Undone');
+  await openTeamRow(page, 'Back translation');
+  expect(await sheetText(page)).not.toContain('Set aside: Not needed for this passage');
+  await closeSheet(page);
+  return page;
+}
+
+test('PASS-023 TRANS Set a check aside, with a reason, and Undo @p0', async ({ browser }) => {
+  const page = await setAsideThenUndo(browser, 'TRANS');
   expect(await history(page)).toMatch(/Back translation set aside .*brought back/);
 });
+test('PASS-023 REV Set a check aside, with a reason, and Undo @p0', async ({ browser }) => { await setAsideThenUndo(browser, 'REV'); });
+test('PASS-023 COORD Set a check aside, with a reason, and Undo @p0', async ({ browser }) => { await setAsideThenUndo(browser, 'COORD'); });
 
-test('PASS-025 Bring back a set-aside step from History', async ({ browser }) => {
-  test.setTimeout(600_000);
+/** PASS-025 for one role: History shows P-ASIDE's set-aside Community check, with Undo for all but VIEW. */
+async function seesSetAside(browser: Browser, who: AccountKey): Promise<Page> {
   const coord = nameOf('COORD');
-  for (const who of ['REV', 'TREV', 'COORD', 'LADMIN', 'VIEW', 'TRANS'] as AccountKey[]) {
-    const page = await recordAs(browser, world(), who, 'P-ASIDE');
-    const all = await history(page);
-    expect(all, who).toMatch(new RegExp(`Community check set aside ${coord === nameOf(who) ? 'You' : coord} · .+ — No community meeting this month`));
-    const undo = page.getByRole('button', { name: 'Undo', exact: true }).locator('visible=true');
-    expect(await undo.count(), who).toBe(who === 'VIEW' ? 0 : 1);
-    if (who === 'TRANS') {
-      await undo.first().click();
-      await toast(page, "Brought back — it's a suggested step again");
-      await expect(byId(page, 'toast-undo')).toHaveCount(0);
-      await byId(page, 'header-close').click();
-      await expect(teamRow(page, 'Community check')).not.toHaveAttribute('aria-label', 'Community check, set aside');
-    }
-  }
+  const page = await recordAs(browser, world(), who, 'P-ASIDE');
+  const all = await history(page);
+  expect(all).toMatch(new RegExp(`Community check set aside ${coord === nameOf(who) ? 'You' : coord} · .+ — No community meeting this month`));
+  const undo = page.getByRole('button', { name: 'Undo', exact: true }).locator('visible=true');
+  expect(await undo.count()).toBe(who === 'VIEW' ? 0 : 1);
+  return page;
+}
+
+for (const who of ['REV', 'TREV', 'COORD', 'LADMIN', 'VIEW'] as AccountKey[]) {
+  test(`PASS-025 ${who} sees the set-aside step in History${who === 'VIEW' ? ', without Undo' : ''}`, async ({ browser }) => { await seesSetAside(browser, who); });
+}
+
+test('PASS-025 TRANS Bring back a set-aside step from History', async ({ browser }) => {
+  const page = await seesSetAside(browser, 'TRANS');
+  await page.getByRole('button', { name: 'Undo', exact: true }).locator('visible=true').first().click();
+  await toast(page, "Brought back — it's a suggested step again");
+  await expect(byId(page, 'toast-undo')).toHaveCount(0);
+  await byId(page, 'header-close').click();
+  await expect(teamRow(page, 'Community check')).not.toHaveAttribute('aria-label', 'Community check, set aside');
   // Resets: set it aside again.
   await actAs(world(), 'COORD', (c) => c.depart({ commandId: id(), unitId: unitOf(world(), 'P-ASIDE'), type: 'skip', kindId: 'community', reason: 'No community meeting this month' }));
 });
@@ -256,7 +263,6 @@ test('PASS-025 Bring back a set-aside step from History', async ({ browser }) =>
 // ---- Something else? ---------------------------------------------------------------------------
 
 test('PASS-030 Not now, from Something else?', async ({ browser }) => {
-  test.setTimeout(300_000);
   const s = await spare(2);
   await recordOn(world(), 'TRANS', s, { parts: 2, publish: true });
   const page = await recordAs(browser, world(), 'TREV', s);
@@ -273,7 +279,6 @@ test('PASS-030 Not now, from Something else?', async ({ browser }) => {
 });
 
 test('PASS-031 Record a new version, or continue', async ({ browser }) => {
-  test.setTimeout(400_000);
   const page = await recordAs(browser, world(), 'TRANS', 'P-DONE');
   await somethingElse(page);
   await button(page, /^Record a new version/).click();
@@ -294,8 +299,7 @@ test('PASS-031 Record a new version, or continue', async ({ browser }) => {
   expect(all).not.toContain('Continue recording');
 });
 
-test('PASS-032 Add a note', async ({ browser }) => {
-  test.setTimeout(400_000);
+test('PASS-032 TRANS Add a note', async ({ browser }) => {
   const page = await recordAs(browser, world(), 'TRANS', 'P-SUBMITTED');
   await somethingElse(page);
   await button(page, 'Add a note').click();
@@ -308,10 +312,16 @@ test('PASS-032 Add a note', async ({ browser }) => {
   await save.click();
   await toast(page, 'Note added — it follows this passage');
   await expect(byId(page, 'toast-undo')).toHaveCount(0);
+});
+
+test('PASS-032 TREV The note is in History', async ({ browser }) => {
   const t = await recordAs(browser, world(), 'TREV', 'P-SUBMITTED');
   const h = await history(t);
   expect(h).toMatch(new RegExp(`Note · Whole passage ${nameOf('TRANS')} · .+ — Watch the names in verse 12`));
   await expect(t.getByRole('button', { name: /^Report/ }).locator('visible=true').first()).toBeVisible();
+});
+
+test('PASS-032 REV May add a note', async ({ browser }) => {
   const r = await recordAs(browser, world(), 'REV', 'P-SUBMITTED');
   await somethingElse(r);
   await expect(button(r, 'Add a note')).toBeVisible();
@@ -320,7 +330,6 @@ test('PASS-032 Add a note', async ({ browser }) => {
 // ---- already happened ----------------------------------------------------------------------------
 
 test('PASS-047 A check that happened outside the app: Looks good', async ({ browser }) => {
-  test.setTimeout(400_000);
   const s = await spare(4);
   await recordOn(world(), 'TRANS', s, { parts: 2, publish: true });
   await actAs(world(), 'TRANS', (c) => c.ask({ commandId: id(), unitId: s.unitId, what: 'review', kindId: 'peer', profileId: world().accounts.TREV.id }));
@@ -340,7 +349,6 @@ test('PASS-047 A check that happened outside the app: Looks good', async ({ brow
 });
 
 test('PASS-048 A check that happened outside the app: Needs changes', async ({ browser }) => {
-  test.setTimeout(400_000);
   const s = await spare(5);
   await recordOn(world(), 'TRANS', s, { parts: 2, publish: true });
   const page = await recordAs(browser, world(), 'REV', s);
@@ -357,7 +365,6 @@ test('PASS-048 A check that happened outside the app: Needs changes', async ({ b
 });
 
 test('PASS-049 Add details: where, and other passages', async ({ browser }) => {
-  test.setTimeout(400_000);
   const [a, b] = [await spare(6), await spare(7)];
   for (const p of [a, b]) await recordOn(world(), 'TRANS', p, { parts: 1, publish: true });
   const ta = (await passageAs(world(), 'TRANS', a)).latest!.takeId;
@@ -371,7 +378,6 @@ test('PASS-049 Add details: where, and other passages', async ({ browser }) => {
 });
 
 test('PASS-050 A back translation that happened outside the app', async ({ browser }) => {
-  test.setTimeout(300_000);
   const page = await recordAs(browser, world(), 'REV', 'P-SUBMITTED');
   await openTeamRow(page, 'Back translation');
   await sheet(page).getByRole('button', { name: 'Already happened' }).last().click();
@@ -386,7 +392,6 @@ test('PASS-050 A back translation that happened outside the app', async ({ brows
 // ---- checkpoints -------------------------------------------------------------------------------
 
 test('PASS-053 A check logged afterwards never clears a checkpoint', async ({ browser }) => {
-  test.setTimeout(300_000);
   const page = await recordAs(browser, world(), 'TRANS', 'P-CHECK');
   await openTeamRow(page, 'Consultant check');
   await sheet(page).getByRole('button', { name: 'Already happened' }).click();
@@ -401,7 +406,6 @@ test('PASS-053 A check logged afterwards never clears a checkpoint', async ({ br
 });
 
 test('PASS-054 Move past a checkpoint, with a reason @p0', async ({ browser }) => {
-  test.setTimeout(400_000);
   const page = await recordAs(browser, world(), 'COORD', 'P-CHECK');
   await somethingElse(page);
   expect(await screenText(page)).toContain('Move past a checkpoint Consultant check is a must-pass step. Say why, and it\'s on the record');
@@ -433,7 +437,6 @@ test('PASS-054 Move past a checkpoint, with a reason @p0', async ({ browser }) =
 });
 
 test('PASS-056 Undo moving past a checkpoint', async ({ browser }) => {
-  test.setTimeout(400_000);
   await checkpointMovedPast(true);
   const page = await recordAs(browser, world(), 'COORD', 'P-CHECK');
   await history(page);
@@ -458,7 +461,6 @@ test('PASS-056 Undo moving past a checkpoint', async ({ browser }) => {
 });
 
 test('PASS-057 Not now at a checkpoint', async ({ browser }) => {
-  test.setTimeout(300_000);
   await checkpointMovedPast(false);
   const page = await recordAs(browser, world(), 'TRANS', 'P-CHECK');
   await somethingElse(page);
@@ -469,7 +471,6 @@ test('PASS-057 Not now at a checkpoint', async ({ browser }) => {
 // ---- versions and history ------------------------------------------------------------------------
 
 test('PASS-059 Several drafts of one passage', async ({ browser }) => {
-  test.setTimeout(600_000);
   // P-DONE has TRANS's draft from PASS-031; a second, from Versions → New version.
   const page = await recordAs(browser, world(), 'TRANS', 'P-DONE');
   await versionsPage(page);
@@ -505,7 +506,6 @@ test('PASS-059 Several drafts of one passage', async ({ browser }) => {
 });
 
 test('PASS-060 Delete a draft, and Undo', async ({ browser }) => {
-  test.setTimeout(300_000);
   await twoDraftsOnDone();
   const page = await recordAs(browser, world(), 'TRANS', 'P-DONE');
   await versionsPage(page);
@@ -521,7 +521,6 @@ test('PASS-060 Delete a draft, and Undo', async ({ browser }) => {
 });
 
 test('PASS-061 Reviews by version', async ({ browser }) => {
-  test.setTimeout(300_000);
   await needsAtV2();
   const page = await recordAs(browser, world(), 'TRANS', 'P-NEEDS');
   await versionsPage(page);
@@ -539,7 +538,6 @@ test('PASS-061 Reviews by version', async ({ browser }) => {
 });
 
 test('PASS-064 A version (Version 2, after a fix)', async ({ browser }) => {
-  test.setTimeout(300_000);
   await needsAtV2();
   const page = await recordAs(browser, world(), 'TRANS', 'P-NEEDS');
   await pathStep(page, 'Record').click();

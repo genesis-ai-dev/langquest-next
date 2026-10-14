@@ -4,7 +4,7 @@
 // Recording itself belongs to 06 REC: here one part is recorded with
 // Chrome's fake microphone (06-recording-helpers) only to reach the page
 // publishing opens.
-import type { Page } from '@playwright/test';
+import type { Browser, Page } from '@playwright/test';
 import { button, byId, expect, field, screenText, tab, test, text, type AccountKey } from './support';
 import { useRunWorld } from './reviewing-helpers';
 
@@ -65,7 +65,6 @@ async function draftPublished(peerTo?: AccountKey): Promise<void> {
 // ---- doing what the main button says --------------------------------------------------------
 
 test('PASS-011 Record opens the workspace, and the record updates after publishing @p0', async ({ browser }) => {
-  test.setTimeout(300_000);
   const L = label('P-Q1');
   const page = await recordAs(browser, world(), 'TRANS', 'P-Q1');
   expect(await mainButton(page)).toBe('Record');
@@ -83,7 +82,6 @@ test('PASS-011 Record opens the workspace, and the record updates after publishi
 });
 
 test('PASS-012 Publishing, then asking: the check\'s people are picked @p0', async ({ browser }) => {
-  test.setTimeout(300_000);
   const L = label('P-DRAFT');
   const page = await recordAs(browser, world(), 'TRANS', 'P-DRAFT');
   expect(await mainButton(page)).toBe('Continue recording');
@@ -111,7 +109,6 @@ test('PASS-012 Publishing, then asking: the check\'s people are picked @p0', asy
 });
 
 test('PASS-013 Publishing, then asking someone else', async ({ browser }) => {
-  test.setTimeout(300_000);
   const L = label('P-Q2');
   const page = await recordAs(browser, world(), 'TRANS', 'P-Q2');
   await recordAndPublish(page);
@@ -124,7 +121,6 @@ test('PASS-013 Publishing, then asking someone else', async ({ browser }) => {
 });
 
 test('PASS-014 Publishing, then not now', async ({ browser }) => {
-  test.setTimeout(300_000);
   const L = label('P-Q3');
   const page = await recordAs(browser, world(), 'TRANS', 'P-Q3');
   await recordAndPublish(page);
@@ -138,7 +134,6 @@ test('PASS-014 Publishing, then not now', async ({ browser }) => {
 });
 
 test('PASS-015 Ask for the check from the main button', async ({ browser }) => {
-  test.setTimeout(300_000);
   const L = label('P-SUBMITTED');
   const page = await recordAs(browser, world(), 'TRANS', 'P-SUBMITTED');
   expect(await mainButton(page)).toBe('Ask for the back translation');
@@ -156,7 +151,6 @@ test('PASS-015 Ask for the check from the main button', async ({ browser }) => {
 // ---- the step sheet ----------------------------------------------------------------------------
 
 test('PASS-022 Send to the check\'s people in one tap', async ({ browser }) => {
-  test.setTimeout(300_000);
   const L = label('P-DRAFT');
   await draftPublished();
   const page = await recordAs(browser, world(), 'TRANS', 'P-DRAFT');
@@ -184,7 +178,6 @@ test('PASS-022 Send to the check\'s people in one tap', async ({ browser }) => {
 // ---- Ask someone -------------------------------------------------------------------------------
 
 test('PASS-037 Ask someone for a check: who is listed first @p0', async ({ browser }) => {
-  test.setTimeout(300_000);
   const L = label('P-DRAFT');
   await draftPublished();
   const page = await recordAs(browser, world(), 'TRANS', 'P-DRAFT');
@@ -214,7 +207,6 @@ test('PASS-037 Ask someone for a check: who is listed first @p0', async ({ brows
 });
 
 test('PASS-038 Ask a person, with directions, a question and a due date @p0', async ({ browser }) => {
-  test.setTimeout(300_000);
   const L = label('P-DRAFT');
   const trev = nameOf('TREV');
   await draftPublished();
@@ -246,28 +238,34 @@ test('PASS-038 Ask a person, with directions, a question and a due date @p0', as
   expect(all).toMatch(new RegExp(`asked by ${nameOf('TRANS')} · due [A-Z][a-z]{2} \\d{1,2}`));
 });
 
-test('PASS-039 Ask someone to record, then Undo', async ({ browser }) => {
-  test.setTimeout(400_000);
-  const spare = await sparePassages(world(), 2);
+/** PASS-039 for one role: asks Kept to record a spare passage (`at` picks the passage), then undoes it. */
+async function askToRecordThenUndo(browser: Browser, who: AccountKey, at: number): Promise<void> {
+  const p = (await sparePassages(world(), 2))[at]!;
   const kept = nameOf('KEPT');
-  for (const [who, p] of [['COORD', spare[0]!], ['LADMIN', spare[1]!]] as const) {
-    const page = await recordAs(browser, world(), who, p);
-    await somethingElse(page);
-    await button(page, /^Someone else should do this/).click();
-    await page.getByRole('radio', { name: new RegExp(`^${kept}`) }).locator('visible=true').first().click();
-    await button(page, 'In 2 weeks').click();
-    await expect(byId(page, 'primary-action')).toHaveText('Ask Kept');
-    await byId(page, 'primary-action').click();
-    await toast(page, `${kept} will see it on their My Work`);
-    await expect(header(page), who).toHaveText(p.label);
-    expect(await pathStep(page, 'Record').getAttribute('aria-label'), who).toMatch(new RegExp(`Record\\. You asked ${kept} · due [A-Z][a-z]{2} \\d{1,2}\\. Tell it`));
-    await byId(page, 'toast-undo').click();
-    await toast(page, 'Undone.');
-    await expect.poll(async () => pathStep(page, 'Record').getAttribute('aria-label'), { message: who }).not.toContain('asked');
-    await versionsPage(page);
-    await expand(page, 'History', /^Version \d+ published$|^Asked /);
-    expect(await screenText(page), who).toMatch(new RegExp(`Asked ${kept} to record .*withdrawn`));
-  }
+  const page = await recordAs(browser, world(), who, p);
+  await somethingElse(page);
+  await button(page, /^Someone else should do this/).click();
+  await page.getByRole('radio', { name: new RegExp(`^${kept}`) }).locator('visible=true').first().click();
+  await button(page, 'In 2 weeks').click();
+  await expect(byId(page, 'primary-action')).toHaveText('Ask Kept');
+  await byId(page, 'primary-action').click();
+  await toast(page, `${kept} will see it on their My Work`);
+  await expect(header(page), who).toHaveText(p.label);
+  expect(await pathStep(page, 'Record').getAttribute('aria-label'), who).toMatch(new RegExp(`Record\\. You asked ${kept} · due [A-Z][a-z]{2} \\d{1,2}\\. Tell it`));
+  await byId(page, 'toast-undo').click();
+  await toast(page, 'Undone.');
+  await expect.poll(async () => pathStep(page, 'Record').getAttribute('aria-label'), { message: who }).not.toContain('asked');
+  await versionsPage(page);
+  await expand(page, 'History', /^Version \d+ published$|^Asked /);
+  expect(await screenText(page), who).toMatch(new RegExp(`Asked ${kept} to record .*withdrawn`));
+}
+
+test('PASS-039 COORD Ask someone to record, then Undo', async ({ browser }) => {
+  await askToRecordThenUndo(browser, 'COORD', 0);
+});
+
+test('PASS-039 LADMIN Ask someone to record, then Undo', async ({ browser }) => {
+  await askToRecordThenUndo(browser, 'LADMIN', 1);
 });
 
 /** Ask someone for the Back translation of P-DRAFT, from its step sheet. */
@@ -279,7 +277,6 @@ async function askForBt(page: Page): Promise<void> {
 }
 
 test('PASS-040 Typing a due date', async ({ browser }) => {
-  test.setTimeout(300_000);
   await draftPublished();
   const page = await recordAs(browser, world(), 'TRANS', 'P-DRAFT');
   await askForBt(page);
@@ -303,7 +300,6 @@ test('PASS-040 Typing a due date', async ({ browser }) => {
 });
 
 test('PASS-041 Your own questions', async ({ browser }) => {
-  test.setTimeout(300_000);
   await draftPublished();
   const page = await recordAs(browser, world(), 'TRANS', 'P-DRAFT');
   await askForBt(page);
@@ -323,7 +319,6 @@ test('PASS-041 Your own questions', async ({ browser }) => {
 });
 
 test('PASS-042 Ask someone without the app', async ({ browser }) => {
-  test.setTimeout(300_000);
   const L = label('P-DRAFT');
   await draftPublished();
   const page = await recordAs(browser, world(), 'TRANS', 'P-DRAFT');
@@ -345,8 +340,19 @@ test('PASS-042 Ask someone without the app', async ({ browser }) => {
   await closeSheet(page);
 });
 
-test('PASS-044 Withdraw a request from History', async ({ browser }) => {
-  test.setTimeout(400_000);
+/** COORD's request to record P-Q4 (the fixture's): the roles that may withdraw it, and those that may not. */
+async function withdrawRequestOnQ4(browser: Browser, who: AccountKey, mayWithdraw: boolean): Promise<void> {
+  const p = await recordAs(browser, world(), who, 'P-Q4');
+  await versionsPage(p);
+  await expand(p, 'History', /^Version \d+ published$|^Asked /);
+  expect(await button(p, 'Withdraw').isVisible().catch(() => false), who).toBe(mayWithdraw);
+  if (who === 'LADMIN') {
+    await button(p, 'Withdraw').click();
+    await toast(p, 'Request withdrawn');
+  }
+}
+
+test('PASS-044 TRANS Withdraw a request from History', async ({ browser }) => {
   // TRANS withdraws its own request (PASS-042's, to Pastor Garang).
   // PASS-042's request, made again through the server when this runs on a fresh world.
   await draftPublished();
@@ -364,18 +370,14 @@ test('PASS-044 Withdraw a request from History', async ({ browser }) => {
   await toast(page, 'Request withdrawn');
   await expect(byId(page, 'toast-undo')).toHaveCount(0);
   await expect.poll(() => screenText(page)).toMatch(/Asked Pastor Garang for .*withdrawn/);
-  // COORD's request to record P-Q4: not TRANS's or TREV's to withdraw; COORD and LADMIN (Assign work) may.
-  for (const who of ['TRANS', 'TREV', 'COORD', 'LADMIN'] as AccountKey[]) {
-    const p = await recordAs(browser, world(), who, 'P-Q4');
-    await versionsPage(p);
-    await expand(p, 'History', /^Version \d+ published$|^Asked /);
-    const can = await button(p, 'Withdraw').isVisible().catch(() => false);
-    expect(can, who).toBe(['COORD', 'LADMIN'].includes(who));
-    if (who === 'LADMIN') {
-      await button(p, 'Withdraw').click();
-      await toast(p, 'Request withdrawn');
-    }
-  }
+});
+
+// COORD's request to record P-Q4: not TRANS's or TREV's to withdraw; COORD and LADMIN (Assign work) may. LADMIN goes last: it withdraws it.
+test('PASS-044 TRANS cannot withdraw COORD\'s request', async ({ browser }) => { await withdrawRequestOnQ4(browser, 'TRANS', false); });
+test('PASS-044 TREV cannot withdraw COORD\'s request', async ({ browser }) => { await withdrawRequestOnQ4(browser, 'TREV', false); });
+test('PASS-044 COORD may withdraw its request', async ({ browser }) => { await withdrawRequestOnQ4(browser, 'COORD', true); });
+test('PASS-044 LADMIN may withdraw COORD\'s request', async ({ browser }) => {
+  await withdrawRequestOnQ4(browser, 'LADMIN', true);
   expect(await myWork(await pageFor(browser, world(), 'TRANS'))).not.toContain(label('P-Q4'));
   void sheetButtons;
 });

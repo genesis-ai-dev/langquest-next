@@ -10,7 +10,7 @@ import {
   askTeam, askToJoin, createEmptyOrg, headerTitle, labels, leaveBookWaiting, litTab, settled
 } from './nav-helpers';
 import {
-  back, button, byId, expect, openAs, primary, screenText, syncNow, tab, tabsShown, test, text, useWorld,
+  back, button, byId, expect, openAs, primary, screenChanged, screenText, syncNow, tab, tabsShown, test, text, useWorld,
   type AccountKey, type PassageKey, type UiWorld
 } from './support';
 
@@ -212,13 +212,14 @@ test('NAV-006 The tab bar is hidden on a passage and its pages on a phone', asyn
   await text(page, 'Something else?').click();
   await text(page, 'What helps here').click();
   await expect(byId(page, 'header-back').or(byId(page, 'header-close')).first()).toBeVisible();
-  await page.waitForTimeout(500);
   await expect.poll(() => tabsShown(page), { message: 'what helps here' }).toEqual([]);
   // Back up to the map: the tabs come back on the map, the chapters, My Work and the Inbox.
   for (let i = 0; i < 4; i++) {
-    await page.waitForTimeout(600);
+    await expect(back(page).or(tab(page, 'me')).first()).toBeVisible();
     if ((await tabsShown(page)).length) break;
+    const before = await screenText(page);
     await back(page).click();
+    await screenChanged(page, before);
   }
   await expect.poll(() => tabsShown(page), { message: 'the map' }).toEqual(['work', 'map', 'me']);
   await page.getByTestId('map-search').locator('visible=true').fill('');
@@ -244,7 +245,8 @@ test('NAV-007 Task screens hide the tabs and close with ✕', async ({ page }) =
   await expect.poll(() => tabsShown(page)).toEqual([]);
   // Wide too: a task screen has no rail or sidebar at any width.
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.waitForTimeout(500);
+  // Two frames: the resize reaches the layout before the tabs are looked at.
+  await page.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
   await expect.poll(() => tabsShown(page), { message: 'Ask someone, wide' }).toEqual([]);
   await page.setViewportSize({ width: 430, height: 932 });
   // ✕ returns to where Ask someone was opened: the record's Something else? page, then its path.
@@ -629,8 +631,9 @@ test('NAV-042 A language lead opening a language outside its scope', async ({ pa
   // Intended: Bravo is not offered (LADMIN holds no role there), or it opens read-only and the tabs stay.
   const bravo = page.getByRole('button', { name: /^Bravo/ }).locator('visible=true');
   if (await bravo.count()) {
+    const before = await screenText(page);
     await bravo.first().click();
-    await page.waitForTimeout(3000);
+    await screenChanged(page, before, 10_000);
     await expect.poll(() => tabsShown(page), { message: 'tabs stay in Bravo' }).toEqual(['work', 'map', 'manage', 'me']);
     await back(page).click();
     await expect.poll(() => headerTitle(page)).toBe('Progress');
@@ -645,10 +648,17 @@ test('NAV-042 A language lead opening a language outside its scope', async ({ pa
 /** Back until the tabs show again (a passage and its pages hide them on a phone). */
 async function toTabs(page: Page): Promise<void> {
   for (let i = 0; i < 5; i++) {
-    await page.waitForTimeout(600);
+    await expect(back(page).or(tab(page, 'me')).first()).toBeVisible();
     if ((await tabsShown(page)).length) return;
+    const before = await screenText(page);
     await back(page).click();
+    await screenChanged(page, before);
   }
+}
+
+/** A team row opens a sheet for those who may act on it; for the others nothing opens, and this gives up quickly. */
+async function sheetShown(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Close' }).locator('visible=true').first().waitFor({ state: 'visible', timeout: 1_500 }).catch(() => { /* nothing opened */ });
 }
 
 /** What a role is offered on P-SUBMITTED (Something else?, its first check) and on P-CHECK's Consultant Check. */
@@ -661,14 +671,14 @@ async function offered(page: Page): Promise<string> {
   await byId(page, 'header-close').click();
   // A team row is a button only for those who may act on it (VIEW's are not).
   await page.getByRole('button', { name: /^Peer check, / }).locator('visible=true').first().click({ timeout: 5000 }).catch(() => undefined);
-  await page.waitForTimeout(800);
+  await sheetShown(page);
   parts.push(`PEER: ${await screen(page)}`);
   await page.getByRole('button', { name: 'Close' }).locator('visible=true').first().click({ position: { x: 10, y: 10 }, timeout: 3000 }).catch(() => undefined);
   await toTabs(page);
   await page.getByTestId('map-search').locator('visible=true').fill('').catch(() => undefined);
   await openByMap(page, 'P-CHECK');
   await page.getByRole('button', { name: /^Consultant check, / }).locator('visible=true').first().click({ timeout: 5000 }).catch(() => undefined);
-  await page.waitForTimeout(800);
+  await sheetShown(page);
   parts.push(`CONS: ${await screen(page)}`);
   return parts.join('\n');
 }
