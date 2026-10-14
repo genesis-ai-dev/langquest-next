@@ -50,10 +50,11 @@ async function openWorkspace(page: Page): Promise<void> {
   await expect(text(page, /^Recording Version \d+$/)).toBeVisible();
 }
 
-async function speakInto(page: Page, mic: string, ms = 3500): Promise<void> {
+async function speakInto(page: Page, mic: string, _ms = 3500): Promise<void> {
   await button(page, mic).click();
   await expect(button(page, 'Stop recording')).toBeVisible();
-  await page.waitForTimeout(ms);
+  // The voice file speaks 1.5 s in every 4 s: stop once a piece has been heard.
+  await expect(visible(page.getByLabel(/[1-9]\d* pieces? so far/)).first()).toBeVisible({ timeout: 15_000 });
   await button(page, 'Stop recording').click();
 }
 
@@ -172,8 +173,9 @@ test('STUDY-004 The last step, then "Record the first draft"', async ({ page }) 
   await openLabel(page, JOHN);
   await primary(page).click();
   for (let i = 0; i < 12 && await button(page, 'Done with this step').isVisible().catch(() => false); i++) {
+    const before = await screenText(page);
     await button(page, 'Done with this step').click();
-    await page.waitForTimeout(300);
+    await expect.poll(() => screenText(page)).not.toBe(before);
   }
   await expect(button(page, 'Record the first draft')).toBeVisible();
   await button(page, 'Record the first draft').click();
@@ -318,8 +320,8 @@ test('STUDY-013 The guide from the workspace, and back', async ({ page }) => {
   await expect(button(page, /^Parts 1–3, 3 parts/)).toBeVisible();
 });
 
-test('STUDY-014 Editing or adapting the guide', async ({ page, browser }) => {
-  for (const who of ['COORD', 'LADMIN'] as const) {
+for (const who of ['COORD', 'LADMIN'] as const) {
+  test(`STUDY-014 ${who} Editing or adapting the guide`, async ({ browser }) => {
     const d = await device(browser, world(), who);
     await openStudy(d.page);
     await stepBar(d.page, 1).click();
@@ -327,7 +329,10 @@ test('STUDY-014 Editing or adapting the guide', async ({ page, browser }) => {
     await button(d.page, 'Copy this guide to adapt it').click();
     await expect(byId(d.page, 'header-back').or(byId(d.page, 'header-close')).first()).toBeVisible();
     await d.context.close();
-  }
+  });
+}
+
+test('STUDY-014 TRANS Editing or adapting the guide', async ({ page }) => {
   await open(page, world(), 'TRANS');
   await openStudy(page);
   await stepBar(page, 1).click();
@@ -402,9 +407,9 @@ test('STUDY-018 Say your word for a key word', async ({ page }) => {
   await expectSent(page, world());
 });
 
-test('STUDY-019 Reviewers and viewers cannot change key words', async ({ page, browser }) => {
-  const forbidden = /^(Say yours|Say your word for .+|Add a key word|New term|Tie to your draft|Adjust or add a rendering|Add a rendering)$/;
-  for (const who of ['REV', 'VIEW'] as const) {
+for (const who of ['REV', 'VIEW'] as const) {
+  test(`STUDY-019 ${who} Reviewers and viewers cannot change key words`, async ({ page, browser }) => {
+    const forbidden = /^(Say yours|Say your word for .+|Add a key word|New term|Tie to your draft|Adjust or add a rendering|Add a rendering)$/;
     const d = await device(browser, world(), who);
     await openStudy(d.page);
     await tabChip(d.page, 'Key words').click();
@@ -414,9 +419,9 @@ test('STUDY-019 Reviewers and viewers cannot change key words', async ({ page, b
     await expect(text(d.page, 'Alpha key term')).toBeVisible();
     await expect(visible(d.page.getByRole('button', { name: forbidden }))).toHaveCount(0);
     await d.context.close();
-  }
-  void page;
-});
+    void page;
+  });
+}
 
 test('STUDY-020 The Key Terms list', async ({ page }) => {
   await open(page, world(), 'TRANS');
@@ -561,7 +566,6 @@ test('STUDY-028 The Bible chip in the workspace', async ({ page }) => {
   await tabChip(page, 'Bible').click();
   await button(page, `Play ${world().passages['P-SUBMITTED'].label}`).click();
   await expect(button(page, 'Pause')).toBeVisible();
-  await page.waitForTimeout(3000);
   await button(page, 'Pause').click();
   await expect(button(page, 'Back 10 seconds')).toBeEnabled();
   await button(page, /^Verse 15:20\. /).click();

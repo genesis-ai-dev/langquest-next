@@ -101,9 +101,9 @@ test('SETUP-003 Rename the organization', async ({ page }) => {
   await expectOrgSent(page, w);
 });
 
-test('SETUP-004 A language that is not ready shows the Get ready checklist', async ({ page }) => {
-  const w = world();
-  for (const who of ['ADMIN', 'COORD'] as const) {
+for (const who of ['ADMIN', 'COORD'] as const) {
+  test(`SETUP-004 ${who} A language that is not ready shows the Get ready checklist`, async ({ page }) => {
+    const w = world();
     const d = who === 'ADMIN' ? { page } : await deviceFor(page.context().browser()!, w, who);
     const p = d.page;
     if (who === 'ADMIN') await openAs(p, w, who);
@@ -122,12 +122,12 @@ test('SETUP-004 A language that is not ready shows the Get ready checklist', asy
     await text(p, 'What will help them?').click();
     await expectOnScreen(p, 'Get Bravo ready', '2 of 4');
     if (who !== 'ADMIN') await (d as { context: { close(): Promise<void> } }).context.close();
-  }
-});
+  });
+}
 
-test('SETUP-005 A ready language shows its summary and "See their work"', async ({ page }) => {
-  const w = world();
-  for (const who of ['ADMIN', 'COORD', 'LADMIN'] as const) {
+for (const who of ['ADMIN', 'COORD', 'LADMIN'] as const) {
+  test(`SETUP-005 ${who} A ready language shows its summary and "See their work"`, async ({ page }) => {
+    const w = world();
     const d = who === 'ADMIN' ? null : await deviceFor(page.context().browser()!, w, who);
     const p = d?.page ?? page;
     if (!d) await openAs(p, w, who);
@@ -152,12 +152,12 @@ test('SETUP-005 A ready language shows its summary and "See their work"', async 
     await primary(p).click();
     await expect.poll(() => screenText(p)).toMatch(/Luke/);
     if (d) await d.context.close();
-  }
-});
+  });
+}
 
-test('SETUP-006 More holds the rest of a language\'s settings', async ({ page }) => {
-  const w = world();
-  for (const who of ['ADMIN', 'LADMIN'] as const) {
+for (const who of ['ADMIN', 'LADMIN'] as const) {
+  test(`SETUP-006 ${who} More holds the rest of a language\'s settings`, async ({ page }) => {
+    const w = world();
     const d = who === 'ADMIN' ? null : await deviceFor(page.context().browser()!, w, who);
     const p = d?.page ?? page;
     if (!d) { await openAs(p, w, who); await languagePage(p, w, 'Alpha'); } else await tab(p, 'manage').click();
@@ -181,12 +181,12 @@ test('SETUP-006 More holds the rest of a language\'s settings', async ({ page })
     await expectOnScreen(p, 'Review Flows', 'Alpha uses');
     await goBack(p, 'Every way to check');
     if (d) await d.context.close();
-  }
-});
+  });
+}
 
-test('SETUP-007 Rename a language, warned about a repeated name', async ({ page }) => {
-  const w = world();
-  for (const who of ['ADMIN', 'LADMIN'] as const) {
+for (const who of ['ADMIN', 'LADMIN'] as const) {
+  test(`SETUP-007 ${who} Rename a language, warned about a repeated name`, async ({ page }) => {
+    const w = world();
     const d = who === 'ADMIN' ? null : await deviceFor(page.context().browser()!, w, who);
     const p = d?.page ?? page;
     if (!d) { await openAs(p, w, who); await languagePage(p, w, 'Alpha'); } else await tab(p, 'manage').click();
@@ -209,8 +209,8 @@ test('SETUP-007 Rename a language, warned about a repeated name', async ({ page 
     await expectOrgSent(p, w);
     expect(await orgRefused(p, w)).toEqual([]);
     if (d) await d.context.close();
-  }
-});
+  });
+}
 
 test('SETUP-008 Link a language to the language list', async ({ page }) => {
   const w = world();
@@ -305,7 +305,7 @@ test('SETUP-022 Get a language ready, question by question @p0', async ({ page, 
   await trans.context.close();
 });
 
-test('SETUP-023 My Work leads with "Get ‹language› ready · n of 4"', async ({ page, browser }) => {
+test('SETUP-023 ADMIN My Work leads with "Get ‹language› ready · n of 4"', async ({ page }) => {
   const w = world();
   // Bravo is ready now (SETUP-022): a second language with nothing chosen.
   const mike = await addBareLanguage(w, 'Mike', 'mik');
@@ -328,19 +328,21 @@ test('SETUP-023 My Work leads with "Get ‹language› ready · n of 4"', async 
   await expect(page.getByLabel('2 of 4 questions answered')).toHaveCount(1);
   await languagePage(page, w, 'Mike');
   await expectOnScreen(page, 'Get Mike ready');
+});
 
-  // With Alpha open (ready) there is no card; TRANS, REV and VIEW never see one.
-  for (const who of ['ADMIN', 'TRANS', 'REV', 'VIEW'] as const) {
-    const d = await deviceFor(browser, w, who);
+// With Alpha open (ready) there is no card; TRANS, REV and VIEW never see one.
+for (const who of ['ADMIN', 'TRANS', 'REV', 'VIEW'] as const) {
+  test(`SETUP-023 ${who} No Get ready card on a ready language`, async ({ browser }) => {
+    const d = await deviceFor(browser, world(), who);
     if (who !== 'VIEW') await tab(d.page, 'work').click();
     await expect.poll(() => screenText(d.page)).not.toMatch(/Get .* ready · \d of 4/);
     await d.context.close();
-  }
-});
+  });
+}
 
-test('SETUP-024 Change what a ready language translates, and undo it', async ({ page }) => {
-  const w = world();
-  for (const who of ['ADMIN', 'LADMIN'] as const) {
+for (const who of ['ADMIN', 'LADMIN'] as const) {
+  test(`SETUP-024 ${who} Change what a ready language translates, and undo it`, async ({ page }) => {
+    const w = world();
     const d = who === 'ADMIN' ? null : await deviceFor(page.context().browser()!, w, who);
     const p = d?.page ?? page;
     if (!d) { await openAs(p, w, who); await languagePage(p, w, 'Alpha'); } else await tab(p, 'manage').click();
@@ -359,8 +361,8 @@ test('SETUP-024 Change what a ready language translates, and undo it', async ({ 
     await expectSent(p, w);
     await expectNothingRefused(p, w);
     if (d) await d.context.close();
-  }
-});
+  });
+}
 
 test('SETUP-026 What will help them: FIA\'s language', async ({ page }) => {
   const w = world();
@@ -485,9 +487,9 @@ const cardWith = (page: import('@playwright/test').Page, title: string, name: st
   .filter({ has: page.getByText(title, { exact: true }) })
   .filter({ has: page.getByRole('button', { name, exact: true }) }).last();
 
-test('SETUP-031 Content Templates for the organization', async ({ page, browser }) => {
-  const w = world();
-  for (const who of ['ADMIN', 'COORD'] as const) {
+for (const who of ['ADMIN', 'COORD'] as const) {
+  test(`SETUP-031 ${who} Content Templates for the organization`, async ({ page, browser }) => {
+    const w = world();
     const d = who === 'ADMIN' ? null : await deviceFor(browser, w, who);
     const p = d?.page ?? page;
     if (!d) await openAs(p, w, who);
@@ -502,8 +504,8 @@ test('SETUP-031 Content Templates for the organization', async ({ page, browser 
     await expectOnScreen(p, 'It follows LangQuest', 'Its versions come from there. Copy it to change it.');
     await back(p).click();
     if (d) await d.context.close();
-  }
-});
+  });
+}
 
 test('SETUP-032 "By language" rows on Content Templates', async ({ page }) => {
   const w = world();
@@ -578,9 +580,9 @@ test('SETUP-034 Share, let follow and archive a template', async ({ page }) => {
   expect(await orgRefused(page, w)).toEqual([]);
 });
 
-test('SETUP-035 A language\'s own template view', async ({ page }) => {
-  const w = world();
-  for (const who of ['ADMIN', 'LADMIN'] as const) {
+for (const who of ['ADMIN', 'LADMIN'] as const) {
+  test(`SETUP-035 ${who} A language\'s own template view`, async ({ page }) => {
+    const w = world();
     const d = who === 'ADMIN' ? null : await deviceFor(page.context().browser()!, w, who);
     const p = d?.page ?? page;
     if (!d) { await openAs(p, w, who); await languagePage(p, w, 'Alpha'); } else await tab(p, 'manage').click();
@@ -597,8 +599,8 @@ test('SETUP-035 A language\'s own template view', async ({ page }) => {
     await text(p, 'Luke').click();
     await expectOnScreen(p, 'Luke', /Alpha · \d+ passages/);
     if (d) await d.context.close();
-  }
-});
+  });
+}
 
 test('SETUP-036 Choose a different template for a language', async ({ page }) => {
   const w = world();

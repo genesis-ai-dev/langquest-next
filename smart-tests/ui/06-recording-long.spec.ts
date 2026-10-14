@@ -24,7 +24,7 @@ async function tapLatency(page: Page): Promise<number> {
 }
 
 test('REC-030 A five-minute part, and a five-minute session of many parts', async ({ page }) => {
-  test.setTimeout(25 * 60_000);
+  test.setTimeout(25 * 60_000); // ceiling: 5:20 of live speech, then 5 minutes of 30 parts, in real time
   const w = world();
   await openAs(page, w, 'TRANS');
   await openWorkspace(page, w, 'P-Q4', 'Record');
@@ -35,12 +35,12 @@ test('REC-030 A five-minute part, and a five-minute session of many parts', asyn
   await m.speak(true);
   const slow: number[] = [];
   for (let s = 0; s < 320; s += 40) {
-    await page.waitForTimeout(40_000);
+    await page.waitForTimeout(40_000); // sleep: 40 s of speech, the test's own length of a five-minute part
     await expect(text(page, 'Recording…')).toBeVisible();
     slow.push(await tapLatency(page));
   }
   await m.speak(false);
-  await page.waitForTimeout(2000);
+  await expectParts(page, 1, 10_000);
   await recordButton(page).click();
   await expectIdle(page);
   await expectParts(page, 1, 60_000);
@@ -50,12 +50,11 @@ test('REC-030 A five-minute part, and a five-minute session of many parts', asyn
   await recordButton(page).click();
   for (let i = 0; i < 30; i++) {
     await m.speak(true);
-    await page.waitForTimeout(8500);
+    await page.waitForTimeout(8500); // sleep: 8.5 s of speech per part, the test's own length
     await m.speak(false);
-    await page.waitForTimeout(1500);
+    await expectParts(page, 2 + i, 10_000);
     if (i % 5 === 4) slow.push(await tapLatency(page));
   }
-  await page.waitForTimeout(1000);
   await recordButton(page).click();
   await expectIdle(page);
   await expectParts(page, 31, 60_000);
@@ -69,7 +68,6 @@ test('REC-030 A five-minute part, and a five-minute session of many parts', asyn
   // Part 1 plays.
   await button(page, 'Play Part 1').click();
   await expect(button(page, 'Pause Part 1')).toBeVisible();
-  await page.waitForTimeout(3000);
   await button(page, 'Pause Part 1').click();
   // Published, and REV can play the whole version from the server.
   await publishButton(page).click();

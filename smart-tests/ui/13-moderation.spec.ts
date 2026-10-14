@@ -151,7 +151,7 @@ test('MOD-002 No flag on your own work, and none for guests', async ({ page, bro
   await button(g, 'Browse public work').click();
   await expect(heading(g, 'Explore')).toBeVisible();
   await button(g, /^Alpha/).click();
-  await g.waitForTimeout(2000);
+  await g.waitForTimeout(2000); // sleep: proves a negative (no flag appears once the language has loaded)
   await expect(g.getByRole('button', { name: /^Report or block/ })).toHaveCount(0);
   await guest.close();
 });
@@ -493,10 +493,10 @@ test('MOD-013 Report and block offline', async ({ page, browser }) => {
 
 let moderationNote = '';
 
-test('MOD-014 Only moderators see "Remove from the record"', async ({ browser }) => {
-  const w = world();
-  moderationNote = await noteAs(w, 'TREV', 'P-BT', 'Moderation check');
-  for (const key of ['ADMIN', 'COORD', 'LADMIN', 'TRANS', 'REV', 'VIEW'] as const) {
+for (const key of ['ADMIN', 'COORD', 'LADMIN', 'TRANS', 'REV', 'VIEW'] as const) {
+  test(`MOD-014 ${key} Only moderators see "Remove from the record"`, async ({ browser }) => {
+    const w = world();
+    moderationNote ||= await noteAs(w, 'TREV', 'P-BT', 'Moderation check');
     const d = await quietDevice(browser, w, key);
     await goPassage(d.page, 'P-BT');
     await openHistory(d.page);
@@ -506,8 +506,8 @@ test('MOD-014 Only moderators see "Remove from the record"', async ({ browser })
     if (key === 'ADMIN' || key === 'COORD' || key === 'LADMIN') await expect(remove.locator('visible=true')).toContainText('For everyone. Needs a connection.');
     else await expect(remove).toHaveCount(0);
     await d.context.close();
-  }
-});
+  });
+}
 
 test('MOD-015 A moderator removes a note, and every device stops showing it', async ({ page, browser }) => {
   const w = world();
@@ -621,11 +621,11 @@ test('MOD-018 Removed content stays gone for everyone', async ({ browser }) => {
 
 // ---- Reports in the Inbox ------------------------------------------------------------------------
 
-test('MOD-019 A moderator\'s Inbox lists content reports', async ({ browser }) => {
-  const w = world();
-  const label = w.passages['P-SUBMITTED'].label;
-  await ensureReports();
-  for (const key of ['ADMIN', 'COORD', 'LADMIN'] as const) {
+for (const key of ['ADMIN', 'COORD', 'LADMIN'] as const) {
+  test(`MOD-019 ${key} A moderator\'s Inbox lists content reports`, async ({ browser }) => {
+    const w = world();
+    const label = w.passages['P-SUBMITTED'].label;
+    await ensureReports();
     const d = await quietDevice(browser, w, key);
     await tab(d.page, 'work').click();
     await expect(button(d.page, /^Updates, \d+ new$/)).toBeVisible({ timeout: 30_000 });
@@ -644,8 +644,8 @@ test('MOD-019 A moderator\'s Inbox lists content reports', async ({ browser }) =
     await expect(button(d.page, 'Keep it')).toBeVisible();
     expect(await screenText(d.page)).not.toContain(nameOf('REV'));
     await d.context.close();
-  }
-});
+  });
+}
 
 test('MOD-020 A moderator acts on a content report', async ({ page, browser }) => {
   const w = world();

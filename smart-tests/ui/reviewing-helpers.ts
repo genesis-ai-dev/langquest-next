@@ -26,7 +26,7 @@ export const visible = (l: Locator): Locator => l.locator('visible=true');
 export function useRunWorld(name: string, setup?: (w: UiWorld) => Promise<void>): () => UiWorld {
   let world: UiWorld | null = null;
   test.beforeAll(async () => {
-    test.setTimeout(300_000);
+    test.setTimeout(300_000); // ceiling: builds the whole fixture world on the shared local server, up to three tries
     const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'results', 'worlds');
     const file = path.join(dir, `${name}-${process.ppid}.json`);
     if (existsSync(file)) { world = JSON.parse(readFileSync(file, 'utf8')) as UiWorld; return; }
@@ -220,10 +220,10 @@ export async function device(browser: Browser, world: UiWorld, who: AccountKey):
 /** Back out of whatever screen is open until the tab bar shows. */
 export async function toTabs(page: Page): Promise<void> {
   for (let i = 0; i < 6; i++) {
-    if (await tab(page, 'map').isVisible().catch(() => false)) return;
     const out = byId(page, 'header-back').or(byId(page, 'header-close')).first();
-    if (await out.isVisible().catch(() => false)) await out.click();
-    await page.waitForTimeout(400);
+    await expect(tab(page, 'map').or(out)).toBeVisible();
+    if (await tab(page, 'map').isVisible().catch(() => false)) return;
+    await out.click();
   }
   await expect(tab(page, 'map')).toBeVisible();
 }

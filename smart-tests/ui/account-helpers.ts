@@ -202,7 +202,7 @@ export async function toTabs(page: Page): Promise<void> {
     const out = page.getByTestId('header-back').or(page.getByTestId('header-close')).locator('visible=true').last();
     if (!(await out.count())) break;
     await out.click();
-    await page.waitForTimeout(300);
+    await expect(page.getByTestId('tab-me').or(out).locator('visible=true').last()).toBeVisible();
   }
   await expect(page.getByTestId('tab-me').locator('visible=true').last()).toBeVisible();
 }

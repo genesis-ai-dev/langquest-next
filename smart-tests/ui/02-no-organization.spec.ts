@@ -12,7 +12,7 @@ import {
   issueInvite, newAccount, openFresh, openNew, paste, projectListing, quiet, settled, signInWithForm, type Fresh
 } from './auth-helpers';
 import { signIn } from './fixture';
-import { back, button, byId, expect, expectToast, field, primary, screenText, tab, tabsShown, test, text, useWorld } from './support';
+import { back, button, byId, expect, expectSyncIdle, expectToast, field, primary, screenText, tab, tabsShown, test, text, useWorld } from './support';
 
 const world = useWorld();
 test.beforeEach(async ({ context }) => { await quiet(context); });
@@ -140,7 +140,8 @@ test('NOORG-003 There is no way back past "Join your team"', async ({ page }) =>
   await back(page).click();
   await expect(text(page, 'Join your team')).toBeVisible();
   await page.goBack();
-  await page.waitForTimeout(1500);
+  // Either the browser left the app, or the app shows where it stayed.
+  await expect.poll(async () => !page.url().startsWith(base()) || /Join your team|Find your organization/.test(await screenText(page).catch(() => ''))).toBe(true);
   const left = !page.url().startsWith(base());
   if (!left) {
     await expect(text(page, /^(Join your team|Find your organization)$/)).toBeVisible();
@@ -617,19 +618,19 @@ test('NOORG-024 Saying no from the request screen', async ({ page, browser }) =>
   await expect(text(page, `${org()} didn't add you`)).toBeVisible({ timeout: 75_000 });
 });
 
-test('NOORG-025 Someone who cannot let people in sees no request', async ({ browser }) => {
-  // A request waiting, sent the way the app's account outbox sends it.
-  const fresh = await newAccount(world(), 'Penny Pending');
-  const sent = await fresh.sb.rpc('create_join_request', { p_org: world().orgId, p_request_id: crypto.randomUUID(), p_message: '' });
-  expect(sent.error).toBeNull();
-  for (const key of ['TRANS', 'VIEW'] as const) {
+for (const key of ['TRANS', 'VIEW'] as const) {
+  test(`NOORG-025 ${key} Someone who cannot let people in sees no request`, async ({ browser }) => {
+    // A request waiting, sent the way the app's account outbox sends it.
+    const fresh = await newAccount(world(), 'Penny Pending');
+    const sent = await fresh.sb.rpc('create_join_request', { p_org: world().orgId, p_request_id: crypto.randomUUID(), p_message: '' });
+    expect(sent.error).toBeNull();
     const context = await newDevice(browser);
     try {
       const page = await context.newPage();
       await openFresh(page, world(), key);
       if (key === 'TRANS') await expect(text(page, 'My Work')).toBeVisible({ timeout: 60_000 });
       else { await tab(page, 'inbox').click({ timeout: 60_000 }); await expect(text(page, 'Inbox').first()).toBeVisible(); }
-      await page.waitForTimeout(3000);
+      await expectSyncIdle(page);
       const body = await screenText(page);
       expect(body).not.toContain('Penny Pending wants to join');
       expect(body).not.toContain('Join request');
@@ -640,8 +641,8 @@ test('NOORG-025 Someone who cannot let people in sees no request', async ({ brow
     } finally {
       await context.close();
     }
-  }
-});
+  });
+}
 
 test('NOORG-026 An invite while asking', async ({ page }) => {
   const fresh = await asked(page, 'Iris Both');

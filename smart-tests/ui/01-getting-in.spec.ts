@@ -117,8 +117,8 @@ test('AUTH-001 The Sign In screen offers two ways in', async ({ page }) => {
   expect(await tabsShown(page)).toEqual([]);
 });
 
-test('AUTH-002 Sign in with email and password @p0', async ({ browser }) => {
-  for (const key of ['ADMIN', 'COORD', 'LADMIN', 'TRANS', 'REV', 'TREV', 'VIEW'] as const) {
+for (const key of ['ADMIN', 'COORD', 'LADMIN', 'TRANS', 'REV', 'TREV', 'VIEW'] as const) {
+  test(`AUTH-002 ${key} Sign in with email and password @p0`, async ({ browser }) => {
     const context = await newDevice(browser);
     const page = await context.newPage();
     try {
@@ -138,8 +138,8 @@ test('AUTH-002 Sign in with email and password @p0', async ({ browser }) => {
     } finally {
       await context.close();
     }
-  }
-});
+  });
+}
 
 test('AUTH-003 Sign In stays disabled until both fields can be used', async ({ page }) => {
   await openSignedOut(page);
@@ -601,7 +601,7 @@ test('AUTH-032 An invite nobody claimed is offered after signing in', async ({ p
   await expect(button(page, `Join as ${trev.name}`)).toBeVisible();
   await expect(button(page, `Not ${trev.name}? Sign out first`)).toBeVisible();
   await expect(button(page, 'Not now')).toBeVisible();
-  await page.waitForTimeout(2000);
+  await page.waitForTimeout(2000); // sleep: proves a negative (not joined yet); nothing on the device changes when it does not happen
   expect(await memberOf((await signIn(world(), 'TREV')).sb)).not.toContain(world().org2Id);
   await button(page, 'Not now').click();
   await expectTabs(page, ['work', 'map', 'me']);
@@ -669,7 +669,7 @@ test('AUTH-036 An invite link opens the app, signed in', async ({ page }) => {
   await openFresh(page, world(), 'NOORG', { path: `/invite#org=${invite.orgId}&token=${invite.token}` });
   await expect(text(page, 'Invite for Test Person')).toBeVisible({ timeout: 60_000 });
   await expect(button(page, `Join as ${world().accounts.NOORG.name}`)).toBeVisible();
-  await page.waitForTimeout(2000);
+  await page.waitForTimeout(2000); // sleep: proves a negative (not joined yet); nothing on the device changes when it does not happen
   expect(await memberOf((await signIn(world(), 'NOORG')).sb)).toEqual([]);
 });
 

@@ -90,7 +90,7 @@ test('SETUP-011 Pick the language from the language list', async ({ page }) => {
   await orgHome(page, w);
   await text(page, 'New language').click();
   await field(page, 'Its name').fill('H');
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(1000); // sleep: the language search's typing debounce; absence of a search has no signal
   await expectNotOnScreen(page, 'Searching the language list…', 'Is it one of these?');
   await field(page, 'Its name').fill('Hadiyya');
   // The local language list is not seeded, so nothing is found: picking an entry needs the preview environment.

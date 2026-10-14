@@ -21,9 +21,9 @@ async function alphaReference(page: Page, who: 'ADMIN' | 'COORD' = 'ADMIN'): Pro
   await expectOnScreen(page, 'Reference Material', 'What translators are offered');
 }
 
-test('SETUP-049 Reference Material for a language', async ({ page, browser }) => {
-  const w = world();
-  for (const who of ['ADMIN', 'COORD'] as const) {
+for (const who of ['ADMIN', 'COORD'] as const) {
+  test(`SETUP-049 ${who} Reference Material for a language`, async ({ page, browser }) => {
+    const w = world();
     const d = who === 'ADMIN' ? null : await deviceFor(browser, w, who);
     const p = d?.page ?? page;
     await alphaReference(p, who);
@@ -34,8 +34,8 @@ test('SETUP-049 Reference Material for a language', async ({ page, browser }) =>
       'Question sets for the same kind add up', /General · Alpha · \d+/i);
     await expectOnScreen(p, /Study guides · English/);
     if (d) await d.context.close();
-  }
-});
+  });
+}
 
 test('SETUP-050 Bibles: the organization\'s and a language\'s', async ({ page }) => {
   const w = world();
@@ -185,7 +185,7 @@ test('SETUP-057 Edit a guide; a draft is kept', async ({ page }) => {
   await alphaReference(page);
   await text(page, 'Write a guide').click();
   await field(page, 'Title').fill('Draft kept');
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(1500); // sleep: the draft's autosave debounce; the app shows no saved marker
   await back(page).click();
   await text(page, 'Write a guide').click();
   await expectOnScreen(page, /Your draft from .* is open\./, 'Publish it, or keep writing. Nothing is published until you do.');

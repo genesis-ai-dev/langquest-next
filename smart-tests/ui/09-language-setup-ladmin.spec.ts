@@ -171,9 +171,9 @@ test('SETUP-065 LADMIN\'s guides and material are Alpha\'s own', async ({ page }
   expect(await orgRefused(page, w)).toEqual([]);
 });
 
-test('SETUP-066 Members without setup privileges never reach setup screens', async ({ browser }) => {
-  const w = world();
-  for (const who of ['TRANS', 'REV', 'TREV', 'VIEW', 'KEPT'] as const) {
+for (const who of ['TRANS', 'REV', 'TREV', 'VIEW', 'KEPT'] as const) {
+  test(`SETUP-066 ${who} Members without setup privileges never reach setup screens`, async ({ browser }) => {
+    const w = world();
     const d = await deviceFor(browser, w, who);
     const p = d.page;
     expect(await tabsShown(p)).not.toContain('manage');
@@ -186,5 +186,5 @@ test('SETUP-066 Members without setup privileges never reach setup screens', asy
     await expect.poll(() => screenText(p), { timeout: 30_000 }).not.toMatch(/They record|Every way to divide the work|Content Templates/);
     await expectNotOnScreen(p, 'This screen could not open');
     await d.context.close();
-  }
-});
+  });
+}

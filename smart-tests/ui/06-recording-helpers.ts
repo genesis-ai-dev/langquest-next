@@ -15,7 +15,7 @@ import path from 'node:path';
 import type { Browser, BrowserContext, Locator, Page } from '@playwright/test';
 import { buildWorld } from './fixture';
 import { installMic } from './mic';
-import { button, byId, expect, openAs, openPassage, primary, syncNow, test, text, type UiWorld } from './support';
+import { button, byId, expect, expectSyncIdle, openAs, openPassage, primary, syncNow, test, text, type UiWorld } from './support';
 
 type PassageKey = keyof UiWorld['passages'];
 
@@ -32,7 +32,7 @@ export function useFileWorld(name: string): () => UiWorld {
   let world: UiWorld | null = null;
   const file = path.join(tmpdir(), `langquest-ui-${name}-${process.ppid}.json`);
   test.beforeAll(async () => {
-    test.setTimeout(300_000);
+    test.setTimeout(300_000); // ceiling: builds the whole fixture world on the shared local server, up to three tries
     if (existsSync(file)) { world = JSON.parse(readFileSync(file, 'utf8')) as UiWorld; return; }
     // The shared local server sometimes refuses a step under load ("Unable to join right now. Please retry."): build again.
     for (let attempt = 1; !world; attempt++) {
@@ -81,9 +81,9 @@ export function mic(page: Page) {
 export async function say(page: Page, ms: number, quietMs = 2000): Promise<void> {
   const m = mic(page);
   await m.speak(true);
-  await page.waitForTimeout(ms);
+  await page.waitForTimeout(ms); // sleep: N s of speech, the product's own threshold
   await m.speak(false);
-  if (quietMs) await page.waitForTimeout(quietMs);
+  if (quietMs) await page.waitForTimeout(quietMs); // sleep: the quiet that ends a part, the product's own silence threshold
 }
 
 // ---- the workspace -----------------------------------------------------------------------
@@ -189,7 +189,7 @@ export async function holdPart(page: Page, n: number): Promise<void> {
   const box = (await space.boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
-  await page.waitForTimeout(700);
+  await page.waitForTimeout(700); // sleep: the long-press threshold, the product's own
   await page.mouse.up();
   await expect(page.getByRole('button', { name: `Delete Part ${n}`, exact: true }).locator('visible=true').first()).toBeVisible();
 }
@@ -257,11 +257,6 @@ export async function lastComposed(page: Page, world: UiWorld, key: PassageKey):
 /** How many events this device holds for the language once it has stopped catching up (for "nothing was written"). */
 export async function settledEventCount(page: Page, world: UiWorld): Promise<number> {
   const count = async () => (await deviceLog(page, world.languages.A.orgId, world.languages.A.languageId)).length;
-  let last = -1;
-  for (;;) {
-    const now = await count();
-    if (now === last) return now;
-    last = now;
-    await page.waitForTimeout(1500);
-  }
+  await expectSyncIdle(page);
+  return count();
 }

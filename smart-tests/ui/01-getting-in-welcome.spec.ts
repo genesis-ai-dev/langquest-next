@@ -31,46 +31,44 @@ const REVIEWER = ['Listen to recordings when someone asks you.', 'Say what works
 const ADMIN = ['Add the languages your teams record.', 'Choose how passages get checked.', 'Invite your team.'];
 const VIEWER = ['See how far each language has come.', 'Open any passage to hear what happened.'];
 
-test('AUTH-056 The welcome says each role\'s job', async ({ browser }) => {
-  const org = world().orgName;
-  const roles: [AccountKey, string, string[]][] = [
-    ['ADMIN', `You're an Organization Admin on ${org}.`, ADMIN],
-    ['COORD', `You're a Coordinator on ${org}.`, ADMIN],
-    ['LADMIN', `You're a Language Lead on the Alpha team at ${org}.`, ADMIN],
-    ['TRANS', `You're a Translator on the Alpha team at ${org}.`, TRANSLATOR],
-    ['REV', `You're a Reviewer on the Alpha team at ${org}.`, REVIEWER],
-    ['TREV', `You're a Translator-Reviewer on the Alpha team at ${org}.`, TRANSLATOR],
-    ['VIEW', `You're a Viewer on ${org}.`, VIEWER]
-  ];
-  for (const [key, sentence, lines] of roles) {
-    await test.step(key, async () => {
-      const { page, close } = await signInFresh(browser, key);
-      try {
-        const first = world().accounts[key].name.split(' ')[0];
-        await expect(text(page, `Welcome, ${first}`)).toBeVisible({ timeout: 60_000 });
-        expect(await tabsShown(page)).toEqual([]);
-        await expect.poll(() => screenText(page)).toContain(sentence);
-        // The role's name is bold.
-        const role = /You're an? (.+?) on /.exec(sentence)![1]!;
-        const weight = await page.getByText(role, { exact: true }).locator('visible=true').first().evaluate((e) => getComputedStyle(e).fontWeight);
-        expect(Number(weight)).toBeGreaterThanOrEqual(700);
-        const body = await screenText(page);
-        for (const line of lines) expect(body).toContain(line);
-        // Everyone but the organization's creator joined by ADMIN's invite.
-        if (key === 'ADMIN') await expect(text(page, /invited you$/)).toBeHidden();
-        else await expect(text(page, `${world().accounts.ADMIN.name} invited you`)).toBeVisible();
-        await expect(text(page, 'Nothing to remember')).toBeHidden();
-        await expect(button(page, 'What is LangQuest?')).toBeVisible();
-        // One way on for every role (decision 71: the Getting started card that "Show me how" opened is gone).
-        await expect(button(page, 'Get started')).toBeVisible();
-        await expect(button(page, 'Show me how')).toHaveCount(0);
-        await expect(button(page, 'Skip for now')).toHaveCount(0);
-      } finally {
-        await close();
-      }
-    });
-  }
-});
+const welcomeRoles: [AccountKey, (org: string) => string, string[]][] = [
+  ['ADMIN', (org) => `You're an Organization Admin on ${org}.`, ADMIN],
+  ['COORD', (org) => `You're a Coordinator on ${org}.`, ADMIN],
+  ['LADMIN', (org) => `You're a Language Lead on the Alpha team at ${org}.`, ADMIN],
+  ['TRANS', (org) => `You're a Translator on the Alpha team at ${org}.`, TRANSLATOR],
+  ['REV', (org) => `You're a Reviewer on the Alpha team at ${org}.`, REVIEWER],
+  ['TREV', (org) => `You're a Translator-Reviewer on the Alpha team at ${org}.`, TRANSLATOR],
+  ['VIEW', (org) => `You're a Viewer on ${org}.`, VIEWER]
+];
+for (const [key, sentenceFor, lines] of welcomeRoles) {
+  test(`AUTH-056 ${key} The welcome says the role's job`, async ({ browser }) => {
+    const sentence = sentenceFor(world().orgName);
+    const { page, close } = await signInFresh(browser, key);
+    try {
+      const first = world().accounts[key].name.split(' ')[0];
+      await expect(text(page, `Welcome, ${first}`)).toBeVisible({ timeout: 60_000 });
+      expect(await tabsShown(page)).toEqual([]);
+      await expect.poll(() => screenText(page)).toContain(sentence);
+      // The role's name is bold.
+      const role = /You're an? (.+?) on /.exec(sentence)![1]!;
+      const weight = await page.getByText(role, { exact: true }).locator('visible=true').first().evaluate((e) => getComputedStyle(e).fontWeight);
+      expect(Number(weight)).toBeGreaterThanOrEqual(700);
+      const body = await screenText(page);
+      for (const line of lines) expect(body).toContain(line);
+      // Everyone but the organization's creator joined by ADMIN's invite.
+      if (key === 'ADMIN') await expect(text(page, /invited you$/)).toBeHidden();
+      else await expect(text(page, `${world().accounts.ADMIN.name} invited you`)).toBeVisible();
+      await expect(text(page, 'Nothing to remember')).toBeHidden();
+      await expect(button(page, 'What is LangQuest?')).toBeVisible();
+      // One way on for every role (decision 71: the Getting started card that "Show me how" opened is gone).
+      await expect(button(page, 'Get started')).toBeVisible();
+      await expect(button(page, 'Show me how')).toHaveCount(0);
+      await expect(button(page, 'Skip for now')).toHaveCount(0);
+    } finally {
+      await close();
+    }
+  });
+}
 
 async function signOutFromMe(page: Page) {
   await tab(page, 'me').click();
@@ -79,26 +77,24 @@ async function signOutFromMe(page: Page) {
   await expect(page.getByLabel('Email or sign-in name', { exact: true }).locator('visible=true').first()).toBeVisible({ timeout: 60_000 });
 }
 
-test('AUTH-057 Leaving the welcome', async ({ browser }) => {
-  for (const [key, tabs] of [['TRANS', ['work', 'map', 'me']], ['VIEW', ['map', 'inbox', 'me']]] as const) {
-    await test.step(key, async () => {
-      const { page, close } = await signInFresh(browser, key);
-      try {
-        await button(page, 'Get started').click({ timeout: 60_000 });
-        await expect(tab(page, tabs[0])).toBeVisible({ timeout: 60_000 });
-        await expect.poll(() => tabsShown(page)).toEqual([...tabs]);
-        if (key === 'TRANS') await expect(text(page, 'My Work')).toBeVisible();
-        await signOutFromMe(page);
-        const who = world().accounts[key];
-        await signInWithForm(page, who.email, who.password!);
-        await expect(tab(page, tabs[0])).toBeVisible({ timeout: 60_000 });
-        await expect(text(page, `Welcome, ${who.name.split(' ')[0]}`)).toBeHidden();
-      } finally {
-        await close();
-      }
-    });
-  }
-});
+for (const [key, tabs] of [['TRANS', ['work', 'map', 'me']], ['VIEW', ['map', 'inbox', 'me']]] as const) {
+  test(`AUTH-057 ${key} Leaving the welcome`, async ({ browser }) => {
+    const { page, close } = await signInFresh(browser, key);
+    try {
+      await button(page, 'Get started').click({ timeout: 60_000 });
+      await expect(tab(page, tabs[0])).toBeVisible({ timeout: 60_000 });
+      await expect.poll(() => tabsShown(page)).toEqual([...tabs]);
+      if (key === 'TRANS') await expect(text(page, 'My Work')).toBeVisible();
+      await signOutFromMe(page);
+      const who = world().accounts[key];
+      await signInWithForm(page, who.email, who.password!);
+      await expect(tab(page, tabs[0])).toBeVisible({ timeout: 60_000 });
+      await expect(text(page, `Welcome, ${who.name.split(' ')[0]}`)).toBeHidden();
+    } finally {
+      await close();
+    }
+  });
+}
 
 test('AUTH-058 The welcome is shown once per account', async ({ browser }) => {
   // TRANS was welcomed in AUTH-057, on another browser. A new device signs in.

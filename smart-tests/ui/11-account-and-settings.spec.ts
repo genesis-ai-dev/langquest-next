@@ -88,8 +88,8 @@ async function ownBrowser(browser: Browser, w: UiWorld, key: AccountKey, member 
 
 // ---- Me ------------------------------------------------------------------------------------------
 
-test('ACCT-001 Me shows its rows and Sign out', async ({ browser }) => {
-  for (const who of ['TRANS', 'VIEW', 'ADMIN'] as const) {
+for (const who of ['TRANS', 'VIEW', 'ADMIN'] as const) {
+  test(`ACCT-001 ${who} Me shows its rows and Sign out`, async ({ browser }) => {
     const { context, page } = await quietDevice(browser, world(), who);
     await openMe(page);
     await expect(row(page, world().accounts[who].name)).toBeVisible();
@@ -105,8 +105,8 @@ test('ACCT-001 Me shows its rows and Sign out', async ({ browser }) => {
     expect(await colour('me')).not.toBe(await colour('map'));
     expect(all).not.toMatch(/Members|Roles/);
     await context.close();
-  }
-});
+  });
+}
 
 test('ACCT-003 Each row on Me opens its screen, and Back returns', async ({ page }) => {
   await openAs(page, world(), 'TRANS');
@@ -159,9 +159,9 @@ test('ACCT-004 Waiting work shows on Me\'s "More settings" row', async ({ page }
 
 // ---- More settings -------------------------------------------------------------------------------
 
-test('ACCT-005 The profile card names the account, its role and the organization', async ({ browser }) => {
-  const roles = { TRANS: 'Translator', VIEW: 'Viewer', LADMIN: 'Language Lead' } as const;
-  for (const who of ['TRANS', 'VIEW', 'LADMIN'] as const) {
+for (const who of ['TRANS', 'VIEW', 'LADMIN'] as const) {
+  test(`ACCT-005 ${who} The profile card names the account, its role and the organization`, async ({ browser }) => {
+    const roles = { TRANS: 'Translator', VIEW: 'Viewer', LADMIN: 'Language Lead' } as const;
     const { context, page } = await quietDevice(browser, world(), who);
     await openMore(page);
     await expect(byId(page, 'header-back')).toBeVisible();
@@ -178,8 +178,8 @@ test('ACCT-005 The profile card names the account, its role and the organization
     expect(all).not.toContain('Blocked people');
     await expect(tab(page, 'me')).toBeHidden();
     await context.close();
-  }
-});
+  });
+}
 
 test('ACCT-006 A looked-after account sees how to get back in', async ({ page }) => {
   const kept = world().accounts.KEPT;
@@ -450,7 +450,7 @@ test('ACCT-023 The organization list works offline', async ({ page }) => {
   await expect(button(page, w.org2Name)).toBeVisible();
   await button(page, w.org2Name).click();
   // ORG2 was never opened here: whatever shows, it is not a crash screen.
-  await page.waitForTimeout(5000);
+  await page.waitForTimeout(5000); // sleep: proves a negative (no crash screen appears); nothing observable otherwise
   await expectNoCrash(page);
   test.info().annotations.push({ type: 'ORG2 offline, never opened here', description: (await screenText(page)).slice(0, 300) });
 });
@@ -614,10 +614,9 @@ test('ACCT-033 Picking the language already showing', async ({ page }) => {
   await openAs(page, world(), 'TRANS');
   await openLanguageSheet(page);
   await page.getByRole('radio', { name: /^English/ }).click();
-  await page.waitForTimeout(5000);
   // Either the app restarted in English, or the sheet closed; never stuck on "Changing the language…".
-  await expect(text(page, 'Changing the language…')).toHaveCount(0);
-  await expect(tab(page, 'me')).toHaveAttribute('aria-label', 'Me');
+  await expect(tab(page, 'me')).toHaveAttribute('aria-label', 'Me', { timeout: 30_000 });
+  await expect(text(page, 'Changing the language…')).toBeHidden({ timeout: 30_000 });
   await openLanguageSheet(page);
   expect(await checkedRows(page)).toEqual([1]);
 });

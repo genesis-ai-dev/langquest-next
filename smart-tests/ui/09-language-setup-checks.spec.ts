@@ -49,9 +49,9 @@ async function onCheck(page: Page): Promise<string> {
 /** A switch in a Row (the kit's Toggle): its checkbox carries the state; clicked through, since its track lies over it. */
 const toggle = (page: Page, name: string) => page.locator('input[role="switch"]').and(page.getByRole('switch', { name, exact: true })).last();
 
-test('SETUP-043 Review Flows home', async ({ page, browser }) => {
-  const w = world();
-  for (const who of ['ADMIN', 'COORD'] as const) {
+for (const who of ['ADMIN', 'COORD'] as const) {
+  test(`SETUP-043 ${who} Review Flows home`, async ({ page, browser }) => {
+    const w = world();
     const d = who === 'ADMIN' ? null : await deviceFor(browser, w, who);
     const p = d?.page ?? page;
     if (!d) await openAs(p, w, who);
@@ -67,8 +67,8 @@ test('SETUP-043 Review Flows home', async ({ page, browser }) => {
     await expect(button(p, 'Follow')).toBeVisible();
     await expect(button(p, 'Copy')).toBeVisible();
     if (d) await d.context.close();
-  }
-});
+  });
+}
 
 test('SETUP-044 Use a ready-made flow for a language @p0', async ({ page, browser }) => {
   const w = world();
@@ -138,9 +138,9 @@ test('SETUP-045 Make a review flow in the library', async ({ page }) => {
   expect(await orgRefused(page, w)).toEqual([]);
 });
 
-test('SETUP-046 Remove one of a language\'s checks; Undo puts it back', async ({ browser }) => {
-  const w = world();
-  for (const who of ['ADMIN', 'COORD'] as const) {
+for (const who of ['ADMIN', 'COORD'] as const) {
+  test(`SETUP-046 ${who} Remove one of a language\'s checks; Undo puts it back`, async ({ browser }) => {
+    const w = world();
     const context = await browser.newContext({ viewport: { width: 430, height: 932 } });
     const page = await context.newPage();
     await checks(page, w, who);
@@ -155,9 +155,9 @@ test('SETUP-046 Remove one of a language\'s checks; Undo puts it back', async ({
     await expectSent(page, w);
     await expectNothingRefused(page, w);
     await context.close();
-  }
-  // P-ASIDE's set-aside Community check is still on its record: the step was never removed (decision 32).
-});
+    // P-ASIDE's set-aside Community check is still on its record: the step was never removed (decision 32).
+  });
+}
 
 test('SETUP-048 Follow, update, stop following and copy a shared flow', async ({ page }) => {
   const w = world();
@@ -180,9 +180,9 @@ test('SETUP-048 Follow, update, stop following and copy a shared flow', async ({
   expect(await orgRefused(page, w)).toEqual([]);
 });
 
-test('SETUP-067 A check\'s people', async ({ browser }) => {
-  const w = world();
-  for (const who of ['ADMIN', 'LADMIN'] as const) {
+for (const who of ['ADMIN', 'LADMIN'] as const) {
+  test(`SETUP-067 ${who} A check\'s people`, async ({ browser }) => {
+    const w = world();
     const context = await browser.newContext({ viewport: { width: 430, height: 932 } });
     const page = await context.newPage();
     await checks(page, w, who);
@@ -206,8 +206,8 @@ test('SETUP-067 A check\'s people', async ({ browser }) => {
     await expectSent(page, w);
     await expectNothingRefused(page, w);
     await context.close();
-  }
-});
+  });
+}
 
 test('SETUP-068 A check\'s questions', async ({ page }) => {
   const w = world();

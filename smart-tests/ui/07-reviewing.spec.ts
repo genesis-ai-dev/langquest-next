@@ -59,10 +59,11 @@ async function startCheck(page: Page, key: Parameters<typeof openRecord>[2], che
 }
 
 /** Tap a big microphone, let the file voice speak, then stop. */
-async function speakInto(page: Page, mic: string, ms = 3500): Promise<void> {
+async function speakInto(page: Page, mic: string, _ms = 3500): Promise<void> {
   await button(page, mic).click();
   await expect(button(page, 'Stop recording')).toBeVisible();
-  await page.waitForTimeout(ms);
+  // The voice file speaks 1.5 s in every 4 s: stop once a piece has been heard.
+  await expect(visible(page.getByLabel(/[1-9]\d* pieces? so far/)).first()).toBeVisible({ timeout: 15_000 });
   await button(page, 'Stop recording').click();
 }
 
@@ -677,7 +678,6 @@ async function sayPart(page: Page, n: number): Promise<void> {
   await expect(button(page, new RegExp(`^Part ${n}, 0:\\d\\d in English`))).toBeVisible({ timeout: 20_000 });
   // The last piece lands a moment after Stop, and then the next part lights up.
   await expect(button(page, /^Record part \d$/)).toBeEnabled();
-  await page.waitForTimeout(1500);
 }
 
 test('REV-032 Say each part, then publish the back translation @p0', async ({ page }) => {

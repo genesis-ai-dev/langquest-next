@@ -23,7 +23,7 @@ import {
 } from './06-recording-helpers';
 import { clientAs, send } from './fixture';
 import {
-  back, button, byId, expect, expectNothingRefused, expectToast, openAs, openPassage, primary, screenText, syncNow, tab, test, text, undoToast, waitForApp,
+  back, button, byId, expect, expectNothingRefused, expectSyncIdle, expectToast, openAs, openPassage, primary, screenText, syncNow, tab, test, text, undoToast, waitForApp,
   type UiWorld
 } from './support';
 
@@ -43,13 +43,8 @@ async function onServer(w: UiWorld, key: Key, who: 'TRANS' | 'REV' | 'COORD' = '
 /** How many events this device holds for the language, once it has stopped catching up ("nothing was written"). */
 async function eventCount(page: Page, w: UiWorld): Promise<number> {
   const count = async () => (await deviceLog(page, w.languages.A.orgId, w.languages.A.languageId)).length;
-  let last = -1;
-  for (;;) {
-    const now = await count();
-    if (now === last) return now;
-    last = now;
-    await page.waitForTimeout(1500);
-  }
+  await expectSyncIdle(page);
+  return count();
 }
 
 const groupPlay = (page: Page, count: number) => button(page, `Play ${partsTitle(count)}`);
@@ -141,7 +136,7 @@ test('REC-004 Record parts with voice detection @p0', async ({ page, browser }) 
   for (const [i, ms] of [4000, 4000, 3000].entries()) {
     await m.speak(true);
     await expect(text(page, 'Recording…')).toBeVisible();
-    await page.waitForTimeout(ms);
+    await page.waitForTimeout(ms); // sleep: N s of speech, the product's own threshold
     await m.speak(false);
     // Within 2 seconds of the pause the card counts it, and the next part is lit.
     await expectParts(page, i + 1, 3_000);
@@ -217,7 +212,7 @@ test('REC-007 Delete a part, then Undo @p0', async ({ page }) => {
   await expect(page.getByRole('button', { name: /^Parts 1–2, 2 parts · / })).toBeVisible();
   await expect.poll(() => lastComposed(page, w, 'P-NEW')).toEqual([original[0], original[2]]);
   // The toast stays for 7 seconds; Undo inside them.
-  await page.waitForTimeout(4000);
+  await page.waitForTimeout(4000); // sleep: the toast's own 7 s life; Undo must still work 4 s in
   await expect(toast).toBeVisible();
   await undoToast(page);
   await expectToast(page, 'Undone.');
@@ -248,7 +243,7 @@ test('REC-008 Parts cannot be deleted while recording', async ({ page }) => {
   // A hold on the space does nothing: no sheet, no toast.
   const box = (await verseSpace(page, 1).boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.down(); await page.waitForTimeout(700); await page.mouse.up();
+  await page.mouse.down(); await page.waitForTimeout(700); /* sleep: the long-press threshold, the product's own */ await page.mouse.up();
   await button(page, 'Play Part 1').click({ force: true });
   await expect(page.getByRole('button', { name: 'Delete Part 1', exact: true })).toHaveCount(0);
   await expect(byId(page, 'toast')).toHaveCount(0);
@@ -454,7 +449,7 @@ test('REC-015 A note at a moment of the version, while publishing', async ({ pag
   await publishButton(page).click();
   await button(page, 'Play Version 1').click();
   await expect(button(page, 'Pause')).toBeVisible();
-  await page.waitForTimeout(5000);
+  await page.waitForTimeout(5000); // sleep: 5 s of playback so the note is stamped at 0:05, the player's own clock
   await button(page, 'Add a note at this moment').click();
   const field = page.getByPlaceholder('Or type it');
   await expect(field).toHaveValue(/^At 0:0[4-6]: $/);
@@ -637,7 +632,7 @@ test('REC-025 Web: closing the tab while recording asks first', async ({ page, c
   // there when LangQuest opens again in the same browser (recordingJournal.ts).
   await recordButton(page).click();
   await expectParts(page, before + 2, 8_000);
-  await page.waitForTimeout(800);
+  await page.waitForTimeout(800); // sleep: the journal's write to browser storage, which shows nowhere on screen
   await page.close();
   const again = await context.newPage();
   await openAs(again, w, 'TRANS');
@@ -657,7 +652,7 @@ test('REC-031 Tapping record and stop very fast', async ({ page }) => {
   await m.speak(false);
   const box = (await recordButton(page).boundingBox())!;
   for (let i = 0; i < 10; i++) await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-  await page.waitForTimeout(3000);
+  await page.waitForTimeout(3000); // sleep: lets ten rapid taps settle; the end state is what is asserted next
   // One clear state, and it agrees with the microphone.
   const label = await recordButton(page).getAttribute('aria-label');
   const open = (await m.counts()).open;
@@ -726,7 +721,7 @@ test('REC-036 Playing the Bible while recording pauses the microphone', async ({
   await button(page, 'Play the Bible').click();
   await expect(text(page, 'Paused while the Bible plays')).toBeVisible();
   await expect(button(page, 'Resume recording now')).toBeVisible();
-  await page.waitForTimeout(5000);
+  await page.waitForTimeout(5000); // sleep: 5 s of Bible playing while recording is held
   await button(page, 'Pause').first().click();
   await expect(text(page, 'Listening for you · pause between parts')).toBeVisible();
   await expectParts(page, before + 1);
@@ -747,7 +742,7 @@ test('REC-037 The Bible in the reference pane', async ({ page }) => {
   await openWorkspace(page, w, 'P-Q3', 'Continue recording');
   await needsBible(page);
   await button(page, 'Play the Bible').click();
-  await page.waitForTimeout(15_000);
+  await page.waitForTimeout(15_000); // sleep: 15 s of Bible playing, so Back 10 seconds has somewhere to go
   await button(page, 'Back 10 seconds').click();
   await button(page, /^Bible: .*\. Choose another$/).click();
   await expect(text(page, 'Choose a Bible')).toBeVisible();
@@ -858,9 +853,9 @@ test('REC-040 The divider, its five stops and its one-line ends', async ({ page 
   await recordButton(page).click();
   await mic(page).speak(true);
   await expect(text(page, 'Recording…')).toBeVisible();
-  await page.waitForTimeout(2500);
+  await page.waitForTimeout(2500); // sleep: N s of speech, the product's own threshold
   await mic(page).speak(false);
-  await page.waitForTimeout(2000);
+  await page.waitForTimeout(2000); // sleep: the quiet that ends a part, the product's own silence threshold
   await recordButton(page).click();
   await expect(recordButton(page)).toHaveAttribute('aria-label', 'Record');
   await expect(text(page, `${parts + 1} parts recorded`)).toBeVisible({ timeout: 10_000 });
@@ -1041,7 +1036,7 @@ test('REC-046 Microphone setup when nothing is heard, or every try sounds bad', 
   await expect(text(page, 'Try 1 of 3')).toBeVisible({ timeout: 10_000 });
   // A silent try does not count.
   await recordButton(page).click();
-  await page.waitForTimeout(2000);
+  await page.waitForTimeout(2000); // sleep: seconds of silence, the product's own threshold for a try
   await recordButton(page).click();
   await expect(text(page, 'Nothing was heard. Say it a little louder, or hold the device closer.')).toBeVisible();
   await expect(text(page, 'Try 1 of 3')).toBeVisible();
@@ -1119,7 +1114,7 @@ test('REC-049 Very short parts suggest setting up the microphone', async ({ page
 /** Back to a screen with the tab bar (each tap goes back one screen). */
 async function toTabs(page: Page): Promise<void> {
   for (let i = 0; i < 5; i++) {
-    await page.waitForTimeout(600);
+    await expect(tab(page, 'map').or(back(page))).toBeVisible();
     if (await tab(page, 'map').isVisible()) break;
     await back(page).click();
   }

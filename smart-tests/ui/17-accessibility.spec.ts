@@ -53,11 +53,20 @@ function keyScreens(browser: Browser): Promise<ScreenAudit[]> {
   return walked;
 }
 
+/** Wait until the page stops moving: every test-id'd element's box is the same on two reads, a frame apart. */
+async function settled(page: Page): Promise<void> {
+  const boxes = () => page.evaluate(() => new Promise<string>((resolve) => requestAnimationFrame(() => resolve(
+    [...document.querySelectorAll('[data-testid]')].map((e) => { const r = e.getBoundingClientRect(); return `${Math.round(r.x)},${Math.round(r.y)},${Math.round(r.width)},${Math.round(r.height)}`; }).join('|')
+  ))));
+  let last = '';
+  await expect.poll(async () => { const now = await boxes(); const same = now === last; last = now; return same; }, { timeout: 10_000, intervals: [100] }).toBe(true);
+}
+
 async function walk(browser: Browser, w: UiWorld): Promise<ScreenAudit[]> {
   const out: ScreenAudit[] = [];
   const audit = async (page: Page, screen: string, who: string) => {
-    // Let sheets and screens finish sliding in.
-    await page.waitForTimeout(700);
+    // Let sheets and screens finish sliding in: the page's layout is the same on two reads, a frame apart.
+    await settled(page);
     out.push({ screen, who, targets: await pressables(page), small: await smallText(page), axe: await axeSerious(page) });
   };
 
@@ -181,7 +190,7 @@ function overlaps(ts: Target[]): string[] {
 // ---- tests ----------------------------------------------------------------------------------
 
 test('A11Y-009 touch targets meet 48 pt, and primary actions 56 pt @p0', async ({ browser }, info) => {
-  test.setTimeout(600_000);
+  test.setTimeout(600_000); // ceiling: audits every key screen in one test
   const screens = await keyScreens(browser);
   const small: string[] = [];
   const slopped: string[] = [];
@@ -211,7 +220,7 @@ test('A11Y-009 touch targets meet 48 pt, and primary actions 56 pt @p0', async (
 });
 
 test('A11Y-010 text never falls below 13 pt', async ({ browser }) => {
-  test.setTimeout(600_000);
+  test.setTimeout(600_000); // ceiling: audits every key screen in one test
   const screens = await keyScreens(browser);
   const small = screens.flatMap((s) => s.small.map((x) => `${s.screen} (${s.who}): "${x.text}" at ${x.size}px`));
   expect(small, 'text under 13 px (screen, text, size)').toEqual([]);
@@ -254,7 +263,7 @@ async function keyboardSignIn(page: Page, trail: Trail, who: AccountKey): Promis
 }
 
 test('A11Y-015 the web app works by keyboard alone', async ({ browser }) => {
-  test.setTimeout(600_000);
+  test.setTimeout(600_000); // ceiling: audits every key screen in one test
   const w = world();
   const trail: Trail = { steps: [], noRing: [] };
   const adjustable: string[] = [];
@@ -409,7 +418,7 @@ async function gaps(page: Page, code: Code, screen: string): Promise<string[]> {
 }
 
 test('A11Y-019 every interface language fills the key screens without gaps', async ({ page, browser }) => {
-  test.setTimeout(1_200_000);
+  test.setTimeout(1_200_000); // ceiling: loads every interface language in one test
   const w = world();
   const problems: string[] = [];
   const consoleGaps: string[] = [];
@@ -499,7 +508,7 @@ test('A11Y-020 the browser language picks the app language', async ({ browser })
 });
 
 test('A11Y-axe the key screens have no serious or critical axe violations', async ({ browser }) => {
-  test.setTimeout(600_000);
+  test.setTimeout(600_000); // ceiling: audits every key screen in one test
   const screens = await keyScreens(browser);
   const found = screens.flatMap((s) => s.axe.map((a) => `${s.screen} (${s.who}): ${a.rule} [${a.impact}] ×${a.count} — ${a.sample}`));
   expect(found, 'axe serious/critical (WCAG 2 A, AA)').toEqual([]);
