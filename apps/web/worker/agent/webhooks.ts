@@ -2,7 +2,7 @@ import { buildIndexes, derivePassage, passageWork, approvedVersion, type Languag
 import type { ApiStatus } from './view';
 
 /**
- * Webhooks and the change feed (docs/agent-api.md, decisions.md 95). A
+ * Webhooks and the change feed (docs/agent-api.md, decisions.md 101). A
  * delivery is a nudge: it says what kind of thing changed in a language and
  * where the feed has it, never the data. An app reads the change feed, or
  * the passages by unitIds, with its token, so permissions and audio links

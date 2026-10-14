@@ -4,9 +4,23 @@
 // so the rules are tested in test/workspace.test.ts.
 import {
   commands,
-  type Card, type EventSpec, type Indexes, type KeyTermView, type LanguageState
+  type Card, type DraftView, type EventSpec, type Indexes, type KeyTermView, type LanguageState
 } from '@langquest-next/core';
 import { formatClock } from '../i18n/format';
+
+/**
+ * Which of a person's drafts the workspace opens (decisions.md 83), named by
+ * the take it started with: the one asked for by `draftId` (its first or
+ * any later take), else, unless the workspace starts a new one (from a
+ * version or empty), the one they changed last. Null: a new draft.
+ */
+export function draftToOpen(mine: readonly Pick<DraftView, 'takeId' | 'rootTakeId' | 'hlc'>[], draftId: string | undefined, startsNew: boolean): string | null {
+  if (draftId) return mine.find((d) => d.takeId === draftId || d.rootTakeId === draftId)?.rootTakeId ?? null;
+  if (startsNew) return null;
+  let latest: Pick<DraftView, 'takeId' | 'rootTakeId' | 'hlc'> | undefined;
+  for (const d of mine) if (!latest || d.hlc > latest.hlc || (d.hlc === latest.hlc && d.takeId > latest.takeId)) latest = d;
+  return latest?.rootTakeId ?? null;
+}
 
 export function sameCards(a: readonly string[], b: readonly string[]): boolean {
   return a.length === b.length && a.every((x, i) => x === b[i]);

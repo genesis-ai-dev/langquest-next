@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { joinErrorText } from './accountText';
 import { t } from './i18n';
-import { claim, deadMessage, holdScanned, nextStep, outcomeOfError, withExpiry, type HeldInvite, type InvitePreview } from './heldInvite';
+import { claim, deadMessage, holdScanned, learnFromPreview, nextStep, outcomeOfError, type HeldInvite, type InvitePreview } from './heldInvite';
 import { writeHeld, useHeld } from './heldInviteStore';
 import { FunctionError, joinByInvite, redeemInvite } from './invites';
 import { noteExpected } from './report';
@@ -139,8 +139,8 @@ export function useHeldInvite(actorId: string | null, joined: (orgId: string) =>
     }
   }, [held]);
   const learn = useCallback(async (preview: InvitePreview | null) => {
-    if (!held || !preview?.expiresAt) return;
-    const next = withExpiry(held, preview.expiresAt);
+    if (!held) return;
+    const next = learnFromPreview(held, preview);
     if (next.expiresAt !== held.expiresAt) await writeHeld(next);
   }, [held]);
   const drop = useCallback(async () => { setStatus({ kind: 'idle' }); await writeHeld(null); }, []);

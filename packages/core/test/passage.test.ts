@@ -152,6 +152,12 @@ describe('passage record', () => {
     const answered = s.reviews.find((r) => r.kindId === 'peer')!;
     expect(answered.response).toMatchObject({ decision: 'revised', note: 'Slowed down verse 5.' });
     expect(s.steps[0]!.kinds[0]!.state).toBe('addressed');
+    // Answering is not a verdict: the check stays open until its reviewer says it looks good.
+    expect(s.steps[0]!.complete).toBe(false);
+    expect(s.done).toBe(false);
+    const v2 = s.latest!.takeId;
+    p.run('ayen', (c) => c.recordReview({ commandId: 'peer2', takeIds: [v2], kindId: 'peer', outcome: 'looks_good', via: 'app' }));
+    expect(derivePassage(p.state(), 'john3').steps[0]!.kinds[0]!.state).toBe('approved');
   });
 
   it('keeping a version despite feedback needs a reason and answers it', () => {
@@ -194,6 +200,13 @@ describe('passage record', () => {
     expect(s.steps[3]!.lockedBy).toBeUndefined();
     expect(s.next?.step.kindIds).toEqual(['final']);
     expect(s.done).toBe(false);
+
+    // The override cleared the checkpoint: once the last step passes, the passage is done (JRN-006).
+    p.run('lead', (c) => c.recordReview({ commandId: 'fin', takeIds: [v1], kindId: 'final', outcome: 'looks_good', via: 'app' }));
+    s = derivePassage(p.state(), 'john3');
+    expect(s.steps[2]!.complete).toBe(false);
+    expect(s.next).toBeUndefined();
+    expect(s.done).toBe(true);
   });
 
   it('asking is a record: it shows as asked, on the other person’s list, and closes when done', () => {

@@ -38,7 +38,7 @@ export interface OrgStub {
   checkLink(profileId: string, spec: LinkSpec): Promise<Answer<{ takeId: string }>>;
   linkInfo(link: ReviewLink): Promise<Answer<LinkView>>;
   linkReview(link: ReviewLink, input: LinkReviewInput): Promise<Answer<{ duplicate: boolean }>>;
-  /** The change feed and webhooks (webhookRoutes.ts, decisions.md 95). */
+  /** The change feed and webhooks (webhookRoutes.ts, decisions.md 101). */
   changes(grant: Grant, languageId: string, after: number | null, limit: number): Promise<Answer<ChangePage>>;
   scanWebhooks(): Promise<void>;
   webhooksEnded(webhooks: WebhookRecord[]): Promise<void>;

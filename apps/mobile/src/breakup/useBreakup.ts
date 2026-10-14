@@ -75,6 +75,11 @@ export function useWays(ctx: Ctx, forLanguage: string | null, numbering?: string
   const choices = useMemo(() => libraryChoices(library ?? {}, lib.items('template'), shared.rows, STARTER_TEMPLATE.name), [library, lib.items, shared.rows]);
   const docs = useLibraryDocs(lib.orgId, choices.map((c) => c.hash));
   const { users } = useTemplateUsers(ctx);
+  // Offline the server's list of who uses what is not known, but the open language's template is (this device
+  // folds it): the way it uses is still offered, first, rather than only LangQuest's ways that need the server.
+  const openTemplate = ctx.language.state?.template?.value;
+  const known = useMemo(() => users ?? (openTemplate && ctx.language.languageId
+    ? [{ language_id: ctx.language.languageId, item_id: openTemplate.itemId }] : []), [users, openTemplate, ctx.language.languageId]);
   const current = forLanguage ? (forLanguage === ctx.language.languageId ? ctx.language.state?.template?.value.itemId ?? null : null) : null;
   // Only the ways in this numbering (decision 80): a template's numbering is its versification document's code.
   const inNumbering = useCallback((h: string) => {
@@ -87,17 +92,17 @@ export function useWays(ctx: Ctx, forLanguage: string | null, numbering?: string
   const rows = useMemo(() => wayRows({
     choices,
     docOf: inNumbering,
-    others: (users ?? []).filter((u) => u.language_id !== forLanguage).map((u) => ({ languageId: u.language_id, name: languageName(ctx.org.state, u.language_id), itemId: u.item_id })),
+    others: known.filter((u) => u.language_id !== forLanguage).map((u) => ({ languageId: u.language_id, name: languageName(ctx.org.state, u.language_id), itemId: u.item_id })),
     current,
     follow: (s) => subscriptionItemId(s.org_id, s.item_id)
     // docs.get changes when documents arrive.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [choices, inNumbering, users, forLanguage, current, ctx.org.state]);
+  }), [choices, inNumbering, known, forLanguage, current, ctx.org.state]);
   const docOf = useCallback((c: LibraryChoice | null | undefined) => (c ? docs.get<TemplateDoc>(c.hash) : null), [docs.get]);
   // What numbering the organization's other languages use, by code: their template's versification.
   const usedInByNumbering = useMemo(() => {
     const out: Record<string, string[]> = {};
-    for (const u of users ?? []) {
+    for (const u of known) {
       if (u.language_id === forLanguage) continue;
       const ch = choices.find((c) => itemIdOf(c, (sh) => subscriptionItemId(sh.org_id, sh.item_id)) === u.item_id);
       const d = ch ? docs.get<TemplateDoc>(ch.hash) : null;
@@ -106,7 +111,7 @@ export function useWays(ctx: Ctx, forLanguage: string | null, numbering?: string
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [users, choices, docs.get, forLanguage, ctx.org.state]);
+  }, [known, choices, docs.get, forLanguage, ctx.org.state]);
   const v11nOf = useCallback((d: TemplateDoc | null | undefined) => (d?.bible ? docs.get<VersificationDoc>(d.bible.versification) : null), [docs.get]);
   /** A LangQuest way by its item id, when it is offered. */
   const way = useCallback((sourceItemId: string): WayRow | null => rows.find((r) => wayOf(r.choice) === sourceItemId) ?? null, [rows]);

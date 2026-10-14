@@ -1,0 +1,63 @@
+# REC-026 (docs/ui-test-suite/06-recording.md): putting the app in the
+# background stops recording and keeps the part being spoken.
+#
+# Passage: P-DRAFT (Luke 14:1-14), TRANS's fixture draft of two parts, which
+# no other phone flow touches. The part spoken before Home becomes Part 3.
+# Audio: G8, the host's microphone playing e2e/fixtures/voice.wav
+# (1.5 s of voice, 2.5 s of quiet, looping); Home is pressed while
+# "Recording…" shows, that is while the voice plays. With a silent
+# microphone "Recording…" never shows and the flow stops there, having
+# checked the workspace and the record button. The OS's microphone dot
+# (REC-026's last point) is for a person to watch on a device.
+appId: com.frontierrnd.langquestnext
+name: "REC-026 Putting the app in the background stops recording and keeps the last part"
+tags:
+  - rec
+---
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${TRANS_EMAIL}
+      PASSWORD: ${TRANS_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- runFlow:
+    file: ../rec/open-workspace.yaml
+    env:
+      PASSAGE: ${P_DRAFT}
+- runFlow: ../rec/expand-parts.yaml
+- assertVisible: "Parts 1–2, 2 parts · .*"
+- tapOn:
+    id: "record-button"
+- runFlow:
+    when:
+      visible: "(?i)Allow|While using the app|OK"
+    commands:
+      - tapOn: "(?i)Allow|While using the app|OK"
+- extendedWaitUntil:
+    visible: "Recording…"
+    timeout: 10000
+- pressKey: Home
+# Ten seconds in the background: nothing is recorded meanwhile.
+- extendedWaitUntil:
+    visible: "REC-026 never shown"
+    timeout: 10000
+    optional: true
+- launchApp:
+    stopApp: false
+- extendedWaitUntil:
+    visible:
+      id: "record-button"
+    timeout: 20000
+# Idle on return, and the part spoken before Home is the last part.
+- assertVisible:
+    id: "record-button"
+    text: "Record"
+- runFlow: ../rec/expand-parts.yaml
+- extendedWaitUntil:
+    visible: "Parts 1–3, 3 parts · .*"
+    timeout: 15000
+- assertNotVisible: "Parts 1–4.*"
+- tapOn: "Play Part 3"
+- assertVisible: "Pause Part 3"
+- tapOn: "Pause Part 3"

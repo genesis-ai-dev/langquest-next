@@ -3,6 +3,7 @@ import { applyOrgEvent, emptyOrgState, foldOrg, ORG_STREAM, REDUCER_VERSION, typ
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getStore } from './store';
+import { trackSync } from './syncActivity';
 import { onWake } from './wake';
 import { supabase } from './supabase';
 import { diagnostics } from './diagnostics';
@@ -71,7 +72,7 @@ export function useOrg(orgId: string | null, actorId: string): OrgHandle {
     if (!c) return;
     let changed = true;
     try {
-      const r = await c.sync();
+      const r = await trackSync(() => c.sync());
       onlineRef.current = !r.offline;
       if (!r.offline && !r.refused && !r.more) setPulled(true);
       changed = r.pushed > 0 || r.pulled > 0 || r.rejected > 0;

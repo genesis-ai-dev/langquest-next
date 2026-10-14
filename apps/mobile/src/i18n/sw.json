@@ -804,6 +804,9 @@
       "introPending": "Mtu huyu amefungua akaunti na kuomba kujiunga. Mpe jukumu na eneo ili apate ruhusa.",
       "intro": "Chagua jukumu, kisha chagua eneo ambalo upangaji huu unahusu. Eneo linaweza kuwa ngazi hii au chini yake.",
       "outranked": "{{name}} ana mamlaka zaidi hapa kuliko wewe, kwa hiyo ni mtu mwenye mamlaka sawa tu anayeweza kubadilisha hili.",
+      "onlyManager": "{{name}} ndiye pekee anayeweza kusimamia majukumu",
+      "onlyManagerYou": "Wewe ndiye pekee unayeweza kusimamia majukumu",
+      "onlyManagerSub": "Kwanza mpe mtu mwingine jukumu lenye Kusimamia majukumu. Kisha jukumu hili linaweza kubadilishwa au kuondolewa.",
       "viewOnly": "Watu wanaoweza kualika wanachama tu ndio wanabadilisha majukumu.",
       "removeFromOrg": "Ondoa kwenye shirika",
       "removeFromLanguage": "Ondoa kwenye lugha"
@@ -860,6 +863,7 @@
       "needsPermission": "Kuongeza lugha kunahitaji ruhusa ya kusimamia violezo na mitiririko ya ukaguzi kwa shirika zima.",
       "templateMissing": "Kiolezo chake bado hakipo kwenye kifaa hiki. Jaribu tena ukiunganishwa.",
       "added": "{{language}} imeongezwa kwenye {{org}}.",
+      "addedNotOffered": "{{language}} imeongezwa kwenye {{org}}. Toa {{offers}} chini ya Kinachowasaidia ukiwa mtandaoni.",
       "step": "Hatua ya {{step}} kati ya {{total}}",
       "called": "Lugha inaitwaje?",
       "namePlaceholder": "k.m. Hadiyya",
@@ -2459,6 +2463,7 @@
       "confirmLabel": "Thibitisha nenosiri",
       "confirmPlaceholder": "Andika nenosiri tena",
       "mismatch": "Manenosiri hayalingani.",
+      "tooShort": "Nenosiri linahitaji herufi 6 au zaidi.",
       "scanInvite": "Soma mwaliko",
       "scanHint": "Hakuna barua pepe wala nenosiri linalohitajika. Mwaliko unakufungulia akaunti na kukuweka kwenye timu.",
       "failed": "Imeshindwa kufungua akaunti. Jaribu tena."
@@ -2516,9 +2521,6 @@
       "startSub": "Kwa kiongozi wa timu",
       "lookTitle": "Angalia kwanza",
       "lookSub": "Kazi ya tafsiri iliyoorodheshwa hadharani",
-      "stillToSend_one": "Bado halijatumwa: badiliko moja la akaunti. Toka utakaporudi mtandaoni na likishatumwa.",
-      "stillToSend_other": "Bado hayajatumwa: mabadiliko {{count, number}} ya akaunti. Toka utakaporudi mtandaoni na yakishatumwa.",
-      "signOutFailed": "Imeshindwa kutoka. Jaribu tena.",
       "title": "Jiunge na timu yako",
       "joiningInvite": "Inajiunga kwa mwaliko wako…",
       "inviteSavedTitle": "Mwaliko wako umehifadhiwa",
@@ -2574,8 +2576,6 @@
       "member": "mwanachama",
       "yourOrganization": "shirika lako",
       "languageTeam": "timu ya {{language}} katika {{org}}",
-      "showMe": "Nionyeshe jinsi",
-      "skip": "Ruka kwa sasa",
       "getStarted": "Anza",
       "invitedYou": "{{name}} amekualika",
       "greeting": "Karibu, {{name}}",
@@ -2784,6 +2784,7 @@
       "tourSub": "Sikiliza maelezo mafupi",
       "more": "Mipangilio zaidi",
       "moreRefused": "Akaunti hii haiwezi kusawazisha · nenosiri, arifa, akaunti",
+      "moreRefusedEvents": "Zimekataliwa · {{n, number}} · nenosiri, arifa, usawazishaji, akaunti",
       "morePending_one": "{{count, number}} inasubiri kutumwa · nenosiri, arifa, usawazishaji, akaunti",
       "morePending_other": "{{count, number}} zinasubiri kutumwa · nenosiri, arifa, usawazishaji, akaunti",
       "signOut": "Toka",
@@ -3264,6 +3265,7 @@
       },
       "publish": "Chapisha",
       "publishedWhen": "Imechapishwa {{when}}",
+      "publishedJustNow": "Imechapishwa sasa hivi",
       "someoneInSentence": "mtu fulani",
       "thenAskFor": "Kisha omba {{check}}",
       "saveForTeam": "Ihifadhi ili timu iisikie",
@@ -3275,6 +3277,7 @@
         "movedPast": "imerukwa",
         "setAside": "imewekwa kando",
         "answered": "imejibiwa",
+        "answeredBack": "imejibiwa · inarudi kwa ukaguzi",
         "looksGood": "iko sawa",
         "needsChanges": "inahitaji marekebisho",
         "after": "baada ya {{check}}",
@@ -3399,6 +3402,7 @@
       "playNote": "Cheza dokezo la {{name}}",
       "whoseNote": "Dokezo la {{name}}",
       "playFeedback": "Cheza maoni ya {{name}}",
+      "playYourFeedback": "Cheza maoni yako",
       "more": "Zaidi",
       "options": "Chaguo",
       "openVersion": "Fungua {{version}}"
@@ -3428,6 +3432,8 @@
       "version": "Toleo la {{n, number}} limechapishwa",
       "versionNoNumber": "Toleo limechapishwa",
       "savedHere": "{{title}} · imehifadhiwa kwenye kifaa hiki · itatumwa ukiwa mtandaoni",
+      "sent": "{{title}} · imetumwa kwa timu",
+      "sending": "{{title}} · inatumwa sasa",
       "nextAsk": "Kisha, omba ukaguzi",
       "allDone": "Kila ukaguzi umekamilika.",
       "alreadyAsked": "Ukaguzi unaofuata tayari umeombwa."
@@ -3685,6 +3691,7 @@
       "tellCode": "Ikiendelea kutokea, iambie timu yako msimbo huu: {{code}}",
       "goBack": "Rudi",
       "goToMyWork": "Nenda Kazi Yangu",
+      "goHome": "Nenda mwanzo",
       "codeForTeam": "Msimbo kwa timu yako: {{code}}",
       "notConfigured": "Toleo hili la programu halijasanidiwa"
     },
@@ -3971,6 +3978,7 @@
     "toast": {
       "reportedAndBlocked": "Umemripoti na kumzuia {{name}}. Asante.",
       "reported": "Imeripotiwa. Asante. Itatumwa ukiunganishwa.",
+      "reportedSent": "Imeripotiwa. Asante.",
       "unblocked": "Umeacha kumzuia {{name}}.",
       "blocked": "Umemzuia {{name}}. Anachoongeza kimefichwa kwako.",
       "removed": "Imeondolewa kwenye kumbukumbu. Vifaa vitaacha kuionyesha vitakaposawazisha tena.",
@@ -4052,7 +4060,6 @@
       "couldNotSeek": "Sauti haikuweza kusogezwa (msimbo {{code}}).",
       "rewindSource": "Rudisha chanzo sekunde 10",
       "forwardSource": "Peleka chanzo mbele sekunde 10",
-      "pausePlayback": "Sitisha uchezaji",
       "playAudio": "Cheza sauti",
       "back10Help": "Sikia sekunde chache zilizopita tena.",
       "note": "Dokezo",
@@ -4436,6 +4443,8 @@
       "noLanguagesSub": "Lugha ikishaongezwa, vifungu vyake vitaonekana hapa.",
       "noPassages": "Bado hakuna vifungu",
       "noPassagesSub": "{{language}} ikishakuwa na vifungu vya kurekodi, vitaonekana hapa kwa kitabu na sura.",
+      "needsConnection": "{{language}} bado haipo kwenye kifaa hiki",
+      "needsConnectionSub": "Unganisha intaneti ili kuileta hapa. Itafunguka yenyewe ukishaunganishwa.",
       "summary": "{{recorded}} kati ya {{total}} vimerekodiwa · {{done}} vimekamilika · {{waiting}} kwa wakaguzi",
       "find": "Tafuta “Yohana 3”",
       "bookHits_one": "Kitabu {{count, number}} · ongeza namba ya sura ili kwenda moja kwa moja",
@@ -5275,7 +5284,11 @@
       "skipTitle": "Acha swali hili bila kujibu?",
       "skipSub": "Maswali ya lazima yanaweza kurukwa — sababu inahifadhiwa pamoja na ukaguzi wako.",
       "skipConfirm": "Ruka swali",
-      "skipFootnote": "Sababu inahifadhiwa pamoja na ukaguzi wako."
+      "skipFootnote": "Sababu inahifadhiwa pamoja na ukaguzi wako.",
+      "leaveTitle": "Ondoka bila kuhifadhi?",
+      "leaveSub": "Ulichosema na kujibu hapa hakihifadhiwi hadi utume ukaguzi.",
+      "keepReviewing": "Endelea kukagua",
+      "leave": "Ondoka"
     },
     "guest": {
       "previewSub": "Hakiki · kile anachoona mtu asiye na programu",
@@ -5457,6 +5470,7 @@
     "noteSubNext": "Ni nini kilikuwa kigumu kusema hapa? Itasikika katika ukaguzi unaofuata pamoja na tafsiri rejeshi yako.",
     "addNote": "Ongeza dokezo",
     "typeNoMatch": "Au liandike — k.m. neno lisilo na neno linalolingana katika Kiingereza",
+    "oneSpokenNote": "Kwa sasa, dokezo moja la sauti kwa kila tafsiri ya kurudisha: liandike hili.",
     "publishThe": "Chapisha {{what}}?",
     "publishSubCheck": "Ya Toleo la {{n}}. Kisha itasikilizwa katika {{check}}.",
     "publishSub": "Ya Toleo la {{n}}. Inaingia kwenye kumbukumbu za kifungu.",
@@ -5473,6 +5487,7 @@
     "missing": "Kifungu hiki bado hakipo kwenye kifaa hiki.",
     "missingSub": "Huenda bado kinapakia.",
     "orgLoading": "Shirika lako bado linapakia.",
+    "languageLoading": "Lugha hii bado inapakiwa. Jaribu tena baada ya muda mfupi.",
     "partsNotInDraft": "Sehemu zako zimehifadhiwa kwenye kifaa hiki lakini bado haziko kwenye rasimu yako. {{reason}}",
     "partDeleted": "{{part}} imefutwa.",
     "chips": {
@@ -6027,7 +6042,9 @@
       "remove": "Ondoa kwenye Biblia Zangu",
       "chapter": "Sura ya {{n, number}}",
       "previousChapter": "Sura iliyotangulia",
-      "nextChapter": "Sura inayofuata"
+      "nextChapter": "Sura inayofuata",
+      "removed": "{{abbr}} imeondolewa kwenye Biblia Zangu",
+      "notRemoved": "Haijaondolewa. Jaribu tena."
     }
   },
   "referenceLanguage": {

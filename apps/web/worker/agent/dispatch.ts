@@ -10,7 +10,7 @@ import {
 
 /**
  * Webhooks and the change feed, in an organization's Durable Object
- * (decisions.md 95). Its SQLite holds:
+ * (decisions.md 101). Its SQLite holds:
  * - the feed: one row per passage change, numbered in the order this object
  *   saw them (the cursor), not by event clocks, so an event a phone pushes
  *   days late is still after every cursor handed out before it;

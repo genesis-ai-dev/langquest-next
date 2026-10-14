@@ -1,0 +1,41 @@
+# SYNC-015 Me says how ready the device is (docs/ui-test-suite/12-sync-and-offline.md,
+# decision 61). A fresh install signed in as TRANS: Me's "Ready for offline"
+# first counts what is here, then says every kept passage is on the phone.
+# TRANS keeps 12 passages in the fixture: P-NEW and P-Q1 to P-Q4 (asked of
+# TRANS) and the seven passages TRANS recorded. Online throughout.
+appId: com.frontierrnd.langquestnext
+name: "SYNC-015 Me says how ready the device is"
+tags:
+  - sync
+---
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${TRANS_EMAIL}
+      PASSWORD: ${TRANS_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- extendedWaitUntil:
+    visible:
+      id: "tab-me"
+    timeout: 60000
+- tapOn:
+    id: "tab-me"
+# At once: checking, or the passages counted so far while audio comes down.
+- assertVisible: ".*Ready for offline.*.*"
+- assertVisible: ".*(Checking this device…|\\d+ of 12 passages ready on this device|\\d+ passages on this device).*"
+- extendedWaitUntil:
+    visible: ".*12 passages on this device.*"
+    timeout: 300000
+# The row opens Sync, which starts with the Ready for offline card.
+- tapOn: "Ready for offline.*"
+- extendedWaitUntil:
+    visible: ".*Sync.*"
+    timeout: 10000
+- assertVisible: ".*All 12 kept passages are on this device\\..*"
+- assertVisible: ".*Always on this device.*"
+- assertVisible: ".*Needs a connection.*"
+- scrollUntilVisible:
+    element: ".*Audio downloading.*"
+    direction: DOWN
+- assertVisible: ".*Audio downloading.*"

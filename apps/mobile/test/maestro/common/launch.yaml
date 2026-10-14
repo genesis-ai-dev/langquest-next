@@ -1,0 +1,66 @@
+# Start the app with nothing kept from earlier runs.
+# The test build (npm run test:ui:build) has its JavaScript inside: a clean
+# start is all it needs. The dev client (DEV_CLIENT=true, the runner's
+# --app dev) loads this run's Metro first: iOS opens the dev client's link;
+# on Android the link does not reach the launcher after a clear start, so the
+# server is typed into its own screen; then the developer menu is dismissed.
+appId: com.frontierrnd.langquestnext
+---
+# A flow that failed while offline would leave airplane mode on for the next.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - setAirplaneMode: disabled
+- launchApp:
+    clearState: true
+    clearKeychain: true
+- runFlow:
+    when:
+      true: ${DEV_CLIENT == 'true'}
+    commands:
+      - runFlow:
+          when:
+            platform: iOS
+          commands:
+            - openLink: ${DEV_CLIENT_URL}
+            - runFlow:
+                when:
+                  visible: "Open"
+                commands:
+                  - tapOn: "Open"
+      - runFlow:
+          when:
+            platform: Android
+          commands:
+            - extendedWaitUntil:
+                visible: "New development server"
+                timeout: 60000
+            - tapOn: "New development server"
+            - tapOn: "http://"
+            - eraseText: 20
+            - inputText: ${METRO_URL}
+            - hideKeyboard
+            - tapOn: "Connect"
+      - extendedWaitUntil:
+          visible: "Create Account|Continue|Close|Join your team|My Work|Next for you|Me"
+          timeout: 180000
+      - runFlow:
+          when:
+            visible: "Continue"
+          commands:
+            - tapOn: "Continue"
+      - runFlow:
+          when:
+            visible: "Close"
+          commands:
+            - tapOn: "Close"
+      # Android's developer menu has no Close: Back dismisses it (only while it shows).
+      - runFlow:
+          when:
+            visible: "Toggle element inspector"
+          commands:
+            - back
+- extendedWaitUntil:
+    visible: "Create Account|Join your team|My Work|Next for you|Progress|Me"
+    timeout: 60000

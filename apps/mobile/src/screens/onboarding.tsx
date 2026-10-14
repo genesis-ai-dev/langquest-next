@@ -4,8 +4,10 @@
 // invite, lands here: who invited you, your role on which team, and two or
 // three plain lines for that role.
 //
-// Not ported: the practice tours (ADR-022, ONB-3/4) and Listen. "Show me
-// how" opens My Work with its Getting started card instead of a tour.
+// Not ported: the practice tours (ADR-022, ONB-3/4) and Listen. With the
+// Getting started card gone (decision 71, amended 2026-10-08), "Show me how"
+// had nothing to show, so it did what "Skip for now" did: one "Get started"
+// opens home for every role, and help is the ? on each screen.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from '../text';
@@ -51,10 +53,8 @@ export function Welcome(ctx: Ctx) {
   const role = welcomeRoleFor(ctx.session);
   const points = WELCOME_POINTS[role];
   const home = homeScreenFor(ctx.session);
-  // Viewers have nothing to practise, so they get one button (the demo's "Get started").
-  const hasGettingStarted = home === 'my_work';
 
-  async function leave(showGettingStarted: boolean) {
+  async function leave() {
     if (busy) return;
     setBusy(true);
     try { await ctx.markWelcomed(); }
@@ -62,7 +62,7 @@ export function Welcome(ctx: Ctx) {
     catch (e) { ctx.toast(t('common.somethingWentWrong', { code: reportError('welcome seen', e) })); }
     setBusy(false);
     // Along the home_hub edge: My Work for everyone who does or asks for work, the overview for viewers.
-    ctx.go(home, showGettingStarted && hasGettingStarted ? { showGettingStarted: '1' } : undefined);
+    ctx.go(home);
   }
 
   const first = firstName(who.displayName);
@@ -70,12 +70,7 @@ export function Welcome(ctx: Ctx) {
   return (
     <Screen
       bodyStyle={styles.body}
-      footer={hasGettingStarted ? (
-        <>
-          <PrimaryBtn label={t('entry.welcome.showMe')} icon="play" onPress={() => void leave(true)} disabled={busy} />
-          <GhostBtn label={t('entry.welcome.skip')} onPress={() => void leave(false)} disabled={busy} />
-        </>
-      ) : <PrimaryBtn label={t('entry.welcome.getStarted')} onPress={() => void leave(false)} disabled={busy} />}
+      footer={<PrimaryBtn label={t('entry.welcome.getStarted')} onPress={() => void leave()} disabled={busy} />}
     >
       <View style={styles.hero}>
         {who.inviterId ? (

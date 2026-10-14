@@ -17,15 +17,26 @@ export function wakeOnReconnect(
   listen: (onSignal: (s: NetworkSignal) => void) => () => void,
   fn: () => void,
   now: () => number = () => Date.now(),
-  quietMs = 10_000
+  quietMs = 10_000,
+  /**
+   * Called when a phone that had a network loses it, at most once per
+   * `quietMs` too: one sync attempt then fails at once, so the app says
+   * "Offline" now rather than at the live channel's next timeout (SYNC-002).
+   */
+  onLoss?: () => void
 ): () => void {
   let up: boolean | null = null;
   let last = -Infinity;
+  let lastLoss = -Infinity;
   return listen((s) => {
     const connected = s.isConnected === true && s.isInternetReachable !== false;
     if (connected && up === false && now() - last >= quietMs) {
       last = now();
       fn();
+    }
+    if (!connected && up === true && onLoss && now() - lastLoss >= quietMs) {
+      lastLoss = now();
+      onLoss();
     }
     up = connected;
   });

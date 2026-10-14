@@ -51,7 +51,7 @@ until a person sets it (`npm run env:update -- <env> BIBLE_BRAIN_ACCESS_KEY`,
 then `npm run secrets -- <env>`) the Bible routes answer 503.
 `WEBHOOK_POKE_SECRET` is optional the same way: with it, the database pokes
 the Worker within seconds of a push to an organization that has webhooks
-(decisions.md 95); without it, webhooks wait for the Worker's ten-minute
+(decisions.md 101); without it, webhooks wait for the Worker's ten-minute
 cron. `scripts/webhook-poke-secret.sh` makes a random one for each
 environment that has none (preview, then production; `--rotate` replaces
 it), commits it through `env:update` and applies it with `npm run secrets`.

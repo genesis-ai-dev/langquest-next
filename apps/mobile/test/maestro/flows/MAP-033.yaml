@@ -1,0 +1,46 @@
+# MAP-033, opening a language that is not on this device, offline
+# (docs/ui-test-suite/04-map.md, decisions 61 and 90): COORD has never opened
+# Bravo here. Offline, its map says it needs a connection (never Alpha's
+# content under Bravo's name); back online it loads without leaving the
+# screen. Maestro turns the network off only on Android (airplane mode); on
+# iOS the flow stops after checking Bravo is not on the device yet.
+appId: com.frontierrnd.langquestnext
+name: "MAP-033 Opening a language that is not on this device, offline"
+tags:
+  - map
+---
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${COORD_EMAIL}
+      PASSWORD: ${COORD_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- extendedWaitUntil:
+    visible:
+      id: "tab-map"
+    timeout: 60000
+- tapOn:
+    id: "tab-map"
+- extendedWaitUntil:
+    visible: "Progress"
+    timeout: 30000
+- assertVisible: "Bravo.*Not on this device yet.*|Bravo"
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - setAirplaneMode: enabled
+      - tapOn: "Bravo.*"
+      - extendedWaitUntil:
+          visible: "Bravo isn't on this device yet"
+          timeout: 60000
+      - assertVisible: "Connect to the internet to bring it here. It opens on its own once you're connected."
+      - assertNotVisible: "Luke"
+      - assertNotVisible: "This screen could not open"
+      - setAirplaneMode: disabled
+      # Back online, Bravo comes down without leaving the screen.
+      - extendedWaitUntil:
+          visible: "No passages yet"
+          timeout: 180000
+      - assertVisible: "Once Bravo has passages to record, they show here by book and chapter."

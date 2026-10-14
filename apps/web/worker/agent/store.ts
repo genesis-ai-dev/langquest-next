@@ -163,7 +163,7 @@ export function supabaseAgentStore(service: SupabaseClient): AgentStore {
       const data = must('api_tokens revoke', await service.from('api_tokens').update({ revoked_at: at })
         .eq('id', id).eq('profile_id', profileId).is('revoked_at', null).select('id'));
       if ((data as Row[]).length === 0) return false;
-      // The review links it shared close with it (decisions.md 75), and its webhooks stop (95).
+      // The review links it shared close with it (decisions.md 75), and its webhooks stop (101).
       must('review_links revoke with token', await service.from('review_links').update({ revoked_at: at }).eq('token_id', id).is('revoked_at', null));
       must('api_webhooks stop with token', await service.from('api_webhooks').update({ disabled_at: at, disabled_reason: 'token_revoked' }).eq('token_id', id).is('disabled_at', null));
       return true;

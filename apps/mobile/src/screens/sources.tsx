@@ -7,7 +7,7 @@
 // Sources in the organization's library that nobody recommended can be
 // added the same way. Every Bible says whether it has audio and whether it
 // can be kept offline.
-import { libraryItems, testamentOf, type SourceDoc, type VerseRange } from '@langquest-next/core';
+import { chaptersInBook, libraryItems, testamentOf, type SourceDoc, type VersificationDoc, type VerseRange } from '@langquest-next/core';
 import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../text';
@@ -24,7 +24,7 @@ import { contractsFor } from '../screenContracts';
 import { bibleErrorText, type BibleDetail, type BibleLanguage, type BibleSummary } from '../sources/bibleBrain';
 import { offersFor, offlineAllowed, refText, type SourceOption } from '../sources/model';
 import { SourceView } from '../sources/SourceReader';
-import { bibleBrain, useMyBibles } from '../sources/store';
+import { bibleBrain, useMyBibles, type MyBible } from '../sources/store';
 import { C, space } from '../theme';
 
 /** "Audio: New Testament only", "Text and audio", "Text only". */
@@ -176,24 +176,39 @@ function BibleDetailView(props: {
   const current = book ?? (books.find((b) => b.book === passageBook)?.book ?? books[0]?.book ?? null);
   const chapters = books.find((b) => b.book === current)?.chapters ?? 0;
   const range: VerseRange | null = current ? { book: current, start: { chapter, verse: 1 }, end: { chapter, verse: 999 } } : null;
-  const { get } = useLibraryDocs(ctx.language.orgId, []);
-  const passage = { range, ref: range ? refText(range) : '', versification: null, options: option ? [option] : [], loading: !option, get };
+  const { get } = useLibraryDocs(ctx.language.orgId, picked.kind === 'library' ? [lib?.doc.versification] : []);
+  // A library Bible's last chapter of the book, from its numbering; unknown until that document is here.
+  const v11n = picked.kind === 'library' && lib ? get<VersificationDoc>(lib.doc.versification) : null;
+  const lastChapter = v11n && current ? chaptersInBook(v11n, current) || null : null;
+  const passage = { range, ref: range ? refText(range) : '', versification: null, options: option ? [option] : [], loading: !option, notOnDevice: false, get };
 
   const has = option ? mine.has(option.itemId) : false;
   const offers = option && current ? offersFor(option, current) : null;
+  const entry = (o: SourceOption): MyBible => ({
+    itemId: o.itemId, kind: o.kind === 'library' ? 'library' : 'biblebrain', name: o.name, abbreviation: o.abbreviation,
+    language: o.language, ...(o.kind === 'biblebrain' && bible ? { bibleId: bible.bibleId } : {})
+  });
   async function add() {
     if (!option || !props.languageId) return;
     setBusy(true);
     try {
-      await mine.add({
-        itemId: option.itemId, kind: option.kind === 'library' ? 'library' : 'biblebrain', name: option.name, abbreviation: option.abbreviation,
-        language: option.language, ...(option.kind === 'biblebrain' && bible ? { bibleId: bible.bibleId } : {})
-      });
+      await mine.add(entry(option));
       ctx.toast(t('sources.explore.added', { abbr: option.abbreviation }), () => mine.remove(option.itemId));
       ctx.back();
     } catch {
       ctx.toast(t('sources.explore.notAdded'));
     } finally { setBusy(false); }
+  }
+  // Removing says so and can be undone, as adding does (STUDY-032).
+  async function remove() {
+    if (!option) return;
+    const was = entry(option);
+    try {
+      await mine.remove(option.itemId);
+      ctx.toast(t('sources.explore.removed', { abbr: option.abbreviation }), () => mine.add(was));
+    } catch {
+      ctx.toast(t('sources.explore.notRemoved'));
+    }
   }
 
   const footer = option && props.languageId ? (
@@ -216,7 +231,7 @@ function BibleDetailView(props: {
                 {bible ? <Badge label={mediaLine(bible)} /> : null}
                 {offers && !offers.audio && current ? <Badge label={testamentOf(current) === 'OT' ? t('sources.explore.noAudioOT') : t('sources.explore.noAudioNT')} tone="amber" /> : null}
               </View>
-              {has ? <LinkBtn label={t('sources.explore.remove')} color={C.muted} style={{ alignSelf: 'flex-start' }} onPress={() => void mine.remove(option.itemId)} /> : null}
+              {has ? <LinkBtn label={t('sources.explore.remove')} color={C.muted} style={{ alignSelf: 'flex-start' }} onPress={() => void remove()} /> : null}
             </Card>
             {books.length > 1 ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
@@ -233,7 +248,10 @@ function BibleDetailView(props: {
               <View style={styles.chapterStep}>
                 <LinkBtn label={t('sources.explore.previousChapter')} onPress={() => setChapter((c) => Math.max(1, c - 1))} />
                 <Text style={txt.sm}>{t('sources.explore.chapter', { n: chapter })}</Text>
-                <LinkBtn label={t('sources.explore.nextChapter')} onPress={() => setChapter((c) => c + 1)} />
+                {/* Stops at the book's last chapter (STUDY-034). */}
+                {lastChapter === null || chapter < lastChapter
+                  ? <LinkBtn label={t('sources.explore.nextChapter')} onPress={() => setChapter((c) => (lastChapter === null ? c + 1 : Math.min(lastChapter, c + 1)))} />
+                  : <View />}
               </View>
             ) : null}
             <SourceView ctx={ctx} unitId={props.unitId ?? ''} languageId={props.languageId ?? ''} passage={passage} option={option} chips={false} />

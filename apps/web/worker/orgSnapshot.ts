@@ -68,7 +68,7 @@ export class OrgSnapshot extends DurableObject<Env> {
     return this.agentFor(orgId, '').access(profileId);
   }
 
-  // Webhooks and the change feed (agent/dispatch.ts, decisions.md 95). The
+  // Webhooks and the change feed (agent/dispatch.ts, decisions.md 101). The
   // database pokes when the log moves; a burst waits COALESCE_MS, so one
   // alarm looks once and a recording session becomes one delivery.
 

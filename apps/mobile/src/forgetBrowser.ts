@@ -6,10 +6,12 @@ import { clearAllWebFiles } from './webFiles';
 /**
  * A browser may be a shared or library computer, so on the web signing out
  * (or deleting the account) leaves nothing behind: the databases, recordings
- * and library documents, and every saved key, then a fresh page (decisions.md
- * 11, amended 2026-10-03). It runs only once nothing is waiting to send
- * (decision 12), so no work is lost. A phone keeps its log: it may be shared
- * by a team, and others use what it holds.
+ * and library documents, and every saved key, a held invite too, then a fresh
+ * page (decisions.md 11, amended 2026-10-03; kept so on 2026-10-13, AUTH-034:
+ * an invite's token on a shared computer would let the next person join as
+ * someone else). It runs only once nothing is waiting to send (decision 12),
+ * so no work is lost. A phone keeps its log: it may be shared by a team, and
+ * others use what it holds.
  */
 export const FORGETS_ON_SIGN_OUT = Platform.OS === 'web';
 

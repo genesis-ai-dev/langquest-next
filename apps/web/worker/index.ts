@@ -30,7 +30,7 @@ export default {
     const review = /^\/r\/([A-Za-z0-9_-]{22})\/?$/.exec(url.pathname);
     if (review && request.method === 'GET') return reviewPage(review[1]!, pageLanguage(request));
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
-    // The database says an organization's log moved (decisions.md 95); its object looks a few seconds later.
+    // The database says an organization's log moved (decisions.md 101); its object looks a few seconds later.
     if (url.pathname === '/api/internal/poke' && request.method === 'POST') {
       if (!env.WEBHOOK_POKE_SECRET || !(await sameSecret(request.headers.get('x-poke-secret') ?? '', env.WEBHOOK_POKE_SECRET))) return new Response(null, { status: 401 });
       const orgId = ((await request.json().catch(() => null)) as { orgId?: unknown } | null)?.orgId;
@@ -120,7 +120,7 @@ export default {
     // App requests for a token, a day after they lapsed: anyone may make one, so they must not pile up.
     ctx.waitUntil(supabaseAgentStore(serviceClient(env)).deleteGrantsExpiredBefore(new Date(Date.now() - 86_400_000).toISOString())
       .catch((e: unknown) => console.error('device grant cleanup', e)));
-    // A poke the database lost, or never sent (no secret yet), waits at most this long (decisions.md 95).
+    // A poke the database lost, or never sent (no secret yet), waits at most this long (decisions.md 101).
     ctx.waitUntil(supabaseAgentStore(serviceClient(env)).webhookOrgs()
       .then((orgs) => Promise.all(orgs.map((orgId) => env.ORG_SNAPSHOTS.get(env.ORG_SNAPSHOTS.idFromName(orgId)).webhookPoke(orgId))))
       .catch((e: unknown) => console.error('webhook catch-up', e)));

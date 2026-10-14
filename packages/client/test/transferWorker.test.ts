@@ -151,6 +151,28 @@ describe('TransferWorker (PLAN.md section 14)', () => {
     w.stop();
   });
 
+  it('a pass held back by a pull or a recording looks again soon, not at the next tick (REC-025)', async () => {
+    const h = harness();
+    let recording = true;
+    const sent: string[] = [];
+    const w = new TransferWorker({
+      ...UPLOAD_DEFAULTS,
+      work: () => (sent.includes('a') ? [] : [ref('a')]),
+      transfer: async (r) => void sent.push(r.hash),
+      isOnline: () => true,
+      isPulling: () => false,
+      isDeferred: () => recording,
+      ...h
+    });
+    w.start();
+    await h.advance(UPLOAD_DEFAULTS.debounceMs);
+    expect(sent).toEqual([]);
+    recording = false;
+    await h.advance(2000);
+    expect(sent).toEqual(['a']);
+    w.stop();
+  });
+
   it('a pull starting mid-batch stops the batch before the next file', async () => {
     const h = harness();
     let pulling = false;
@@ -194,6 +216,54 @@ describe('TransferWorker (PLAN.md section 14)', () => {
     await h.advance(UPLOAD_DEFAULTS.debounceMs);
     // work() is called at pass start and pass end: one pass = 2 calls.
     expect(passes).toBe(2);
+    w.stop();
+  });
+
+  it('a nudge does not delay a pass already scheduled sooner', async () => {
+    // Why: recording calls trigger (now); the sync that follows calls nudge.
+    // That nudge used to replace the immediate pass with a fresh debounce.
+    const h = harness();
+    const sent: string[] = [];
+    const w = new TransferWorker({
+      ...UPLOAD_DEFAULTS,
+      debounceMs: 5_000,
+      work: () => (sent.includes('a') ? [] : [ref('a')]),
+      transfer: async (r) => void sent.push(r.hash),
+      isOnline: () => true,
+      isPulling: () => false,
+      ...h
+    });
+    w.start();
+    w.trigger();
+    w.nudge();
+    await h.advance(1);
+    expect(sent).toEqual(['a']);
+    w.stop();
+  });
+
+  it('a held pass is not postponed by a later longer debounce', async () => {
+    // Why: a pull holds the pass and looks again on its own timer. Sync
+    // ending calls nudge; that must not move the deadline later.
+    const h = harness();
+    let pulling = true;
+    const sent: string[] = [];
+    const w = new TransferWorker({
+      ...UPLOAD_DEFAULTS,
+      debounceMs: 5_000,
+      work: () => (sent.includes('a') ? [] : [ref('a')]),
+      transfer: async (r) => void sent.push(r.hash),
+      isOnline: () => true,
+      isPulling: () => pulling,
+      ...h
+    });
+    w.start();
+    await h.advance(5_000);
+    expect(sent).toEqual([]);
+    await h.advance(1_000);
+    pulling = false;
+    w.nudge();
+    await h.advance(4_000);
+    expect(sent).toEqual(['a']);
     w.stop();
   });
 });

@@ -11,7 +11,7 @@
 // languages directly (docs/decisions.md 63).
 import {
   CommandError, commands, decodeHlc, deriveFlow, goesWith, isTemplateDoc, emptyLanguageState, isMoreOpen, keyTermsFor, languageInfo, languageName, languageProgress,
-  libraryItemView, materialsFor, mayChangeLicense, mayChangeMembership, mayGrantRole, mayRenameLanguage, mayRenameOrg, orgLicense, orgName, privilegesFor, SEED_ROLES,
+  leavesNoRoleManager, libraryItemView, materialsFor, mayChangeLicense, mayChangeMembership, mayGrantRole, mayRenameLanguage, mayRenameOrg, orgLicense, orgName, privilegesFor, SEED_ROLES,
   subscriptionItemId, templateBooks, type EventSpec, type LanguageProgress, type LibraryDoc, type License, type Scope, type ScopeLevel, type SourceDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -37,7 +37,7 @@ import { loadDocs } from '../library/docStore';
 import { type SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
 import {
-  addLanguage, assignableLevels, booksInScope, changeMembership, grantableLanguages, grantFloor, groupBelow, LANGUAGE_SCOPES, languageScopeLabel, levelLabel,
+  addLanguage, assignableLevels, booksInScope, changeMembership, grantableLanguages, groupBelow, inviteScope, LANGUAGE_SCOPES, languageScopeLabel, levelLabel,
   mayGrantAt, membersAbove, membersAt, memberEntries, newLanguageId, parseLevel, progressLine, removeMembership, reviewEligible,
   saveTeam, similarLanguages, sumProgress, teamMembers,
   type HomeProgress, type LanguageScope, type MemberEntry, type OrgOp
@@ -273,6 +273,8 @@ export function OrgHome(ctx: Ctx) {
           </View>
           <View style={{ flex: 1, gap: 4 }}>
             <Text style={txt.h3}>{v.orgName}</Text>
+            {/* Also a row inside Setup. Named here so the home shows the license without opening Setup. */}
+            <Text style={txt.xs}>{licenseText(orgLicense(v.org)).name}</Text>
             <Text style={txt.xs}>{t('org.home.languages', { count: v.languages.length })} · {t('org.home.members', { count: memberCount })}</Text>
             {mine ? <View style={{ flexDirection: 'row' }}><Badge label={roleName(ctx, mine.roleId.value)} tone="brand" /></View> : null}
           </View>
@@ -606,7 +608,7 @@ function MemberRow(props: { ctx: Ctx; e: MemberEntry; target: string; editable: 
   const { ctx, e } = props;
   const beside = useOpenDetail();
   return (
-    <Row leading={<Avatar id={e.profileId} />} label={ctx.name(e.profileId)} muted={!props.editable} last={props.last}
+    <Row testID={`person-${e.profileId}`} leading={<Avatar id={e.profileId} />} label={ctx.name(e.profileId)} muted={!props.editable} last={props.last}
       current={beside?.screen === 'edit_member' && beside.params['memberId'] === e.profileId}
       sub={e.since ? t('org.members.joined', { target: props.target, when: formatAgo(decodeHlc(e.since).wallMs) }) : props.target}
       onPress={props.editable ? () => ctx.go('edit_member', { memberId: e.profileId, entry: e.key, level: props.level }) : undefined}
@@ -873,7 +875,6 @@ function JoinRequest(ctx: Ctx) {
   const requestId = ctx.params['requestId']!;
   const memberId = ctx.params['memberId'] ?? '';
   const who = ctx.params['name'] ?? ctx.name(memberId);
-  const roles = usePlainRoles(ctx);
   const me = ctx.session.actorId;
   const granted = grantableLanguages(v.org, me);
   const mayOrg = mayGrantAt(v.org, me, { level: 'org' });
@@ -896,8 +897,10 @@ function JoinRequest(ctx: Ctx) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const allowed = ctx.session.can('invite_members');
-  const roleId = roles.choices.find((c) => c.id === choice)?.roleId ?? roles.others.find((r) => r.id === choice)?.id ?? null;
   const scope: Scope | null = where === 'org' ? (mayOrg ? { level: 'org' } : null) : { level: 'language', languageId: where };
+  // Only roles they may grant where the person is let in (decisions.md 75); with no scope yet, none.
+  const roles = usePlainRoles(ctx, scope ?? { level: 'org' });
+  const roleId = roles.choices.find((c) => c.id === choice)?.roleId ?? roles.others.find((r) => r.id === choice)?.id ?? null;
   const first = firstName(who);
   async function decide(accept: boolean) {
     if (busy || (accept && (!roleId || !scope))) return;
@@ -973,6 +976,9 @@ function MemberEditor(ctx: Ctx) {
   const outranked = !!entry && !mayChangeMembership(v.org, ctx.session.actorId, memberId, entry.scope);
   const allowed = ctx.session.can('invite_members') && !outranked;
   const scope = scopeOf(form);
+  // An organization always keeps someone who can manage roles (decided 2026-10-13, PEOPLE-026; the server holds it).
+  const onlyManager = !pending && entry?.scope.level === 'org' && leavesNoRoleManager(v.org, memberId, undefined);
+  const keepsManager = !onlyManager || !leavesNoRoleManager(v.org, memberId, scope?.level === 'org' ? form.roleId : undefined);
   // Only roles they could grant at the chosen scope, and the one held now.
   const roles = liveRoles(ctx).filter((r) => r.id === entry?.roleId || (!!scope && mayGrantRole(v.org, ctx.session.actorId, r.id, scope)));
   // A requester's name comes with the request (decisions.md 65), not from the members' names.
@@ -1035,7 +1041,9 @@ function MemberEditor(ctx: Ctx) {
     );
   }
   const sub = pending ? (ctx.params['message'] || t('org.member.awaiting')) : `${roleName(ctx, entry!.roleId)} · ${v.target(entry!.scope)}`;
-  const ready = allowed && !!form.roleId && !!scope;
+  // Save Assignment waits for a change (a request is decided by choosing, so it is ready at once).
+  const changed = pending || (!!entry && !!scope && changeMembership(entry, { roleId: form.roleId, scope }).apply.length > 0);
+  const ready = allowed && !!form.roleId && !!scope && changed && keepsManager;
   return (
     <Screen header={<Header title={pending ? t('org.member.assignRole') : who} sub={sub} onBack={ctx.back} />}
       footer={allowed ? (
@@ -1049,8 +1057,9 @@ function MemberEditor(ctx: Ctx) {
       <Text style={txt.xs}>{pending ? t('org.member.introPending') : t('org.member.intro')}</Text>
       {allowed ? <AssignmentForm ctx={ctx} roles={roles} levels={levels} value={form} onChange={setForm} />
         : <Banner icon="lock" title={t('common.viewOnly')} body={outranked ? t('org.member.outranked', { name: who }) : t('org.member.viewOnly')} />}
+      {allowed && onlyManager ? <Banner icon="lock" title={memberId === ctx.session.actorId ? t('org.member.onlyManagerYou') : t('org.member.onlyManager', { name: who })} body={t('org.member.onlyManagerSub')} /> : null}
       {error ? <Banner icon="flag" tone="amber" title={t('org.notSaved')} body={error} /> : null}
-      {allowed && !pending ? (
+      {allowed && !pending && !onlyManager ? (
         // The demo has no Remove here; kept as a quiet link below the form,
         // away from Save, and it offers Undo.
         <LinkBtn label={entry!.scope.level === 'org' ? t('org.member.removeFromOrg') : t('org.member.removeFromLanguage')} color={TINT.redText}
@@ -1137,10 +1146,10 @@ const GROUP_USES = 30;
 export function InviteQr(ctx: Ctx) {
   const level = parseLevel(ctx.params['level'] ?? ctx.session.adminScope?.level);
   const me = ctx.session.actorId;
-  const floor = grantFloor(ctx.org.state, me, level) ?? level;
-  const scope: Scope = floor === 'language'
-    ? { level: 'language', languageId: defaultLanguage(grantableLanguages(ctx.org.state, me), ctx.language.languageId) || ctx.language.languageId }
-    : { level: 'org' };
+  // The language chosen on Invite someone, not just the open one.
+  const scope = inviteScope(ctx.org.state, me, level, ctx.params['languageId'], ctx.language.languageId);
+  /** Where the code applies, by name, so a wrong language shows. */
+  const where = scope.level === 'org' ? ctx.org.state?.org?.value.name || levelLabel('org') : languageName(ctx.org.state, scope.languageId);
   // Only roles this person may grant there: nobody invites to more than they hold (decisions.md 75).
   const roles = liveRoles(ctx).filter((r) => mayGrantRole(ctx.org.state, me, r.id, scope));
   // Started from a role ("Invite someone as …"), the role is already chosen: start at the name.
@@ -1160,6 +1169,8 @@ export function InviteQr(ctx: Ctx) {
     setBusy(true);
     setError('');
     try {
+      // A role made a moment ago must be on the server before an invite names it.
+      await ctx.org.sync();
       // The name goes to the server with the invite, so the person scanning
       // sees whom it is for (docs/invites-and-accounts.md section 4).
       setInvite(await issueInvite(ctx.language.orgId, roleId, scope, { label: name, maxUses: audience === 'group' ? GROUP_USES : 1 }));
@@ -1217,7 +1228,7 @@ export function InviteQr(ctx: Ctx) {
             <QRCode value={uri} size={220} backgroundColor={C.white} color={C.dark} />
             <View style={{ alignItems: 'center', gap: 2 }}>
               <Text style={txt.h3}>{name.trim()}</Text>
-              <Text style={txt.smMuted}>{role.name} · {levelLabel(floor)}</Text>
+              <Text style={txt.smMuted}>{role.name} · {where}</Text>
             </View>
             <Text style={[txt.xs, { textAlign: 'center' }]}>{t('org.qr.holdUp')}</Text>
           </Card>
@@ -1362,8 +1373,21 @@ export function NewLanguage(ctx: Ctx) {
       const setSays: ReferenceSay[] = [];
       if (offers.items.length) await part('helps');
       // Its Bibles and guides are offered in the language chosen for them, which it is added with (`sourceCode`).
+      // Following one another organization shares needs the server; offline, or if it is refused, the language is
+      // still added (decisions 71 and 76: what helps is never required, and a language can be added offline), and
+      // the toast names what to offer later under What helps.
+      const notOffered: string[] = [];
       for (const o of offers.items) {
-        const itemId = o.itemId ?? (o.shared!.subscribable ? await lib.subscribe(o.shared!, true) : await lib.copy(o.shared!));
+        let itemId = o.itemId;
+        if (!itemId) {
+          try {
+            itemId = o.shared!.subscribable ? await lib.subscribe(o.shared!, true) : await lib.copy(o.shared!);
+          } catch (e) {
+            noteExpected('new language offer', e);
+            notOffered.push(o.label);
+            continue;
+          }
+        }
         if (o.set && o.member) {
           const held = { ...o.set, members: o.set.members.map((m) => (m === o.member ? { ...m, itemId, shared: null } : m)) };
           setSays.push(...chooseSetLanguage(held, itemId, null).says);
@@ -1388,7 +1412,9 @@ export function NewLanguage(ctx: Ctx) {
       await ctx.org.sync().catch((e: unknown) => noteExpected('new language listing', e));
       await part('saving');
       await appendToLanguage({ orgId: ctx.language.orgId, languageId, actorId: ctx.session.actorId, specs: [...plan.specs, ...recommend] });
-      ctx.toast(t('org.newLanguage.added', { language: languageName, org: orgName }));
+      ctx.toast(notOffered.length
+        ? t('org.newLanguage.addedNotOffered', { language: languageName, org: orgName, offers: joinAnd(notOffered) })
+        : t('org.newLanguage.added', { language: languageName, org: orgName }));
       // The language this person works in is the one the app opens.
       ctx.setLanguage(languageId);
       setCreated({ languageId, name: languageName });

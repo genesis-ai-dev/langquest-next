@@ -133,7 +133,7 @@ export class AgentOrg {
     return value && !isRefusal(value) ? yes(value) : no({ status: 502, code: 'unavailable', error: 'Stored, but it could not be read back just now. Read the key again.' });
   }
 
-  // ---- the change feed and webhooks (decisions.md 95) --------------------------------
+  // ---- the change feed and webhooks (decisions.md 101) --------------------------------
 
   /** The language's changes after a cursor (dispatch.ts). Needs read: the feed names versions not yet approved. */
   async changes(grant: Grant, languageId: string, after: number | null, limit: number): Promise<Answer<ChangePage>> {

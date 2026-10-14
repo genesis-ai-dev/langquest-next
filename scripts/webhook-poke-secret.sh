@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Give the database's webhook poke its secret in each hosted environment
-# (decisions.md 95, docs/environments.md), the infrastructure-as-code way:
+# (decisions.md 101, docs/environments.md), the infrastructure-as-code way:
 # a new random value is encrypted into .env.<env> and committed by
 # env-update.sh, then npm run secrets puts it on the dashboard Worker and in
 # Vault, with the Worker's address.

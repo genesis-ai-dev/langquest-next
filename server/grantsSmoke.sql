@@ -213,4 +213,33 @@ do $$ begin
   end;
 end $$;
 reset role;
+
+-- 10. Taking back a checkpoint override needs Override checkpoints, as making
+-- one does (PASS-056, decided 2026-10-13): may_emit looks the departure up.
+-- Undoing a set-aside keeps the wider list.
+select pg_temp.accepted(pg_temp.ev('gr-f1', 'gr-L', 'gr-owner', 'v1.DepartureRecorded',
+  '{"departureId":"dep:gr-o","unitId":"u1","type":"override","stepId":"s1","reason":"Consultant away"}'), 'an owner overriding a checkpoint');
+select pg_temp.refused(pg_temp.ev('gr-f2', 'gr-L', 'gr-tr', 'v1.DepartureUndone', '{"departureId":"dep:gr-o"}'),
+  'may not emit v1.DepartureUndone', 'a translator undoing an override');
+select pg_temp.accepted(pg_temp.ev('gr-f3', 'gr-L', 'gr-tr', 'v1.DepartureRecorded',
+  '{"departureId":"dep:gr-s","unitId":"u1","type":"skip","kindId":"peer","reason":"Done on paper"}'), 'a translator setting a check aside');
+select pg_temp.accepted(pg_temp.ev('gr-f4', 'gr-L', 'gr-tr', 'v1.DepartureUndone', '{"departureId":"dep:gr-s"}'), 'a translator undoing a set-aside');
+select pg_temp.accepted(pg_temp.ev('gr-f5', 'gr-L', 'gr-owner', 'v1.DepartureUndone', '{"departureId":"dep:gr-o"}'), 'an owner undoing an override');
+
+-- 11. An organization always keeps someone who can manage roles (PEOPLE-026,
+-- decided 2026-10-13). gr-view's half admin role (section 2) manages roles too; once
+-- gr-view is a viewer again, gr-owner is the only one.
+select pg_temp.accepted(pg_temp.ev('gr-g0', '_org', 'gr-owner', 'v1.MemberAdded', '{"profileId":"gr-view","roleId":"viewer","scope":{"level":"org"}}'),
+  'an owner demoting one of two who manage roles');
+select pg_temp.refused(pg_temp.ev('gr-g1', '_org', 'gr-owner', 'v1.MemberRemoved', '{"profileId":"gr-owner","scope":{"level":"org"}}'),
+  'may not emit v1.MemberRemoved: nobody else could manage roles; give someone Manage roles first', 'the last admin leaving');
+select pg_temp.refused(pg_temp.ev('gr-g2', '_org', 'gr-owner', 'v1.MemberAdded', '{"profileId":"gr-owner","roleId":"coordinator","scope":{"level":"org"}}'),
+  'may not emit v1.MemberAdded: nobody else could manage roles; give someone Manage roles first', 'the last admin demoting themselves');
+select pg_temp.refused(pg_temp.ev('gr-g3', '_org', 'gr-owner', 'v1.RoleDefined', '{"roleId":"org_admin","name":"Organization Admin","privileges":["invite_members","view_status"]}'),
+  'may not emit v1.RoleDefined: nobody else could manage roles; give someone Manage roles first', 'taking Manage roles off the only role with it');
+select pg_temp.refused(pg_temp.ev('gr-g4', '_org', 'gr-owner', 'v1.RoleRetired', '{"roleId":"org_admin"}'),
+  'may not emit v1.RoleRetired: nobody else could manage roles; give someone Manage roles first', 'retiring the only role with Manage roles');
+-- With a second admin, either may go.
+select pg_temp.accepted(pg_temp.ev('gr-g5', '_org', 'gr-owner', 'v1.MemberAdded', '{"profileId":"gr-coord","roleId":"org_admin","scope":{"level":"org"}}'), 'a second admin');
+select pg_temp.accepted(pg_temp.ev('gr-g6', '_org', 'gr-owner', 'v1.MemberRemoved', '{"profileId":"gr-owner","scope":{"level":"org"}}'), 'an admin leaving another behind');
 rollback;

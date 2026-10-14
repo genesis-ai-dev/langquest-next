@@ -92,6 +92,15 @@ export async function listedOrganizations(): Promise<ListedOrganization[]> {
   await AsyncStorage.setItem('listed-organizations', JSON.stringify(data));
   return data as ListedOrganization[];
 }
+/**
+ * Every listed organization whose name, or a language it lists, holds `query`,
+ * searched on the server: the list above is only the first 500 by name.
+ */
+export async function searchListedOrganizations(query: string): Promise<ListedOrganization[]> {
+  const { data, error } = await supabase.rpc('listed_organizations_search', { p_query: query, p_limit: 50 });
+  if (error) throw new Error(error.message);
+  return data as ListedOrganization[];
+}
 export async function cachedListedOrganizations(): Promise<ListedOrganization[]> {
   return JSON.parse(await AsyncStorage.getItem('listed-organizations') ?? '[]');
 }

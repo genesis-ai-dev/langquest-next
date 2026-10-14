@@ -10,10 +10,10 @@
 import { CommandError, DEFAULT_LICENSE, isLicense, LICENSE_INFO, type License } from '@langquest-next/core';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { BackHandler, Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../text';
 import {
-  cachedListedOrganizations, cachedPublicLanguages, listedOrganizations, publicLanguages, queueAccountAction, TERMS_VERSION,
+  cachedListedOrganizations, cachedPublicLanguages, listedOrganizations, publicLanguages, queueAccountAction, searchListedOrganizations, TERMS_VERSION,
   type ListedOrganization
 } from '../accountData';
 import { authErrorText, firstName, outboxErrorText, signInCodeErrorText, VISION_STEPS } from '../accountText';
@@ -27,6 +27,7 @@ import { parseKey } from '../inviteCode';
 import type { Ctx } from '../ctx';
 import { DEV_PASSWORD, ensurePersonaAccount, personasAvailable } from '../dev';
 import { previewInvite, redeemSignInCode, useRequestOutcome } from '../invites';
+import { latestRequest } from '../requestOutcome';
 import {
   Badge, Banner, Card, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, OrDivider, PrimaryBtn, ProgressBar, QuietLinks, Row, Screen, SearchField, SectionLabel,
   Segments, ShowMore, SmallBtn, txt, type IconName
@@ -35,6 +36,7 @@ import { PRIVACY_URL } from '../legal';
 import { LicenseRow, LicenseSheet } from '../licenseSheet';
 import { noteExpected, reportError, failureMessage } from '../report';
 import { createOrganization } from '../createOrg';
+import { navRef } from '../nav';
 import { contractsFor } from '../screenContracts';
 import { FORGETS_ON_SIGN_OUT, forgetThisBrowser } from '../forgetBrowser';
 import { signOutHere, supabase } from '../supabase';
@@ -129,7 +131,8 @@ export function SignIn(ctx: Ctx) {
       {/* Two ways in that never combine (the demo's ADR-031): the fields, or a code. */}
       <Card>
         <Field value={email} onChangeText={setEmail} placeholder={t('entry.signIn.namePlaceholder')} keyboardType="email-address" autoCapitalize="none" />
-        <Field value={password} onChangeText={setPassword} placeholder={t('entry.fields.password')} secure autoCapitalize="none" />
+        <Field value={password} onChangeText={setPassword} placeholder={t('entry.fields.password')} secure autoCapitalize="none"
+          onSubmit={() => { if (ready && !busy) void signIn(); }} />
         {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
         <PrimaryBtn label={busy ? t('entry.shared.signingIn') : t('entry.signIn.button')} onPress={() => void signIn()} disabled={!ready || busy} />
         <TermsLink ctx={ctx} i18nKey="entry.termsLine.signingIn" />
@@ -300,7 +303,7 @@ export function ExploreHome(ctx: Ctx) {
         const license = isLicense(p.license) ? { ...licenseText(p.license), terms: LICENSE_INFO[p.license].terms } : null;
         return (
           <Card key={`${p.org_id}:${p.language_id}`} accessibilityLabel={t('entry.explore.cardLabel', { name: p.name, percent: formatPercent(pct) })}
-            onPress={guest ? () => ctx.go('sign_in') : () => ctx.go('request_access', { orgId: p.org_id, orgName: p.name })}>
+            onPress={guest ? () => ctx.go('sign_in') : () => ctx.go('request_access', { orgId: p.org_id })}>
             <View style={{ gap: 2 }}>
               <Text style={txt.h3}>{p.name}</Text>
               {p.code ? <Text style={txt.smMuted}>{p.code}</Text> : null}
@@ -414,6 +417,8 @@ function EmailAccount(ctx: Ctx) {
       <Field label={t('entry.fields.email')} value={email} onChangeText={setEmail} placeholder={t('entry.createAccount.emailPlaceholder')} keyboardType="email-address" autoCapitalize="none" />
       <Field label={t('entry.fields.password')} value={password} onChangeText={setPassword} placeholder={t('entry.createAccount.passwordPlaceholder')} secure autoCapitalize="none" />
       <Field label={t('entry.createAccount.confirmLabel')} value={confirm} onChangeText={setConfirm} placeholder={t('entry.createAccount.confirmPlaceholder')} secure autoCapitalize="none" />
+      {/* The placeholder that says so is gone once typing starts: say why the button stays off. */}
+      {password.length > 0 && password.length < 6 ? <Text style={txt.error}>{t('entry.createAccount.tooShort')}</Text> : null}
       {confirm.length > 0 && password !== confirm ? <Text style={txt.error}>{t('entry.createAccount.mismatch')}</Text> : null}
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
       <PrimaryBtn label={busy ? t('entry.shared.creating') : t('entry.createAccount.button')} onPress={() => void create()} disabled={!emailOk || !matches || busy} />
@@ -426,6 +431,9 @@ function EmailAccount(ctx: Ctx) {
 }
 
 // ---- Scan QR (AUTH-3, ADR-028) -------------------------------------------------------------------------
+
+/** How often the scan screen asks again about an invite the server could not be asked about. */
+const PREVIEW_RETRY_MS = 10_000;
 
 /**
  * The one scanner (docs/invites-and-accounts.md). It reads both kinds of
@@ -450,14 +458,42 @@ export function ScanQr(ctx: Ctx) {
   const guest = ctx.session.isGuest;
   const held = invite.held ?? null;
 
+  // A link opens this screen on its own (flow D), with nothing under it to go
+  // back to: Back then leads where the person would otherwise be, Sign In or
+  // their home, and the held invite stays held.
+  const alone = () => !(navRef.isReady() && navRef.canGoBack());
+  const leave = () => { if (!alone()) ctx.back(); else if (guest) ctx.go('sign_in'); else ctx.home(); };
+  const leaveRef = useRef(leave);
+  leaveRef.current = leave;
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (!alone()) return false;
+      leaveRef.current();
+      return true;
+    });
+    return () => sub.remove();
+  }, []);
+
   // What the server says about the held key; null when it cannot be asked.
   const [preview, setPreview] = useState<InvitePreview | null>(null);
+  // The server has been asked (and may not have answered: offline).
+  const [asked, setAsked] = useState(false);
   useEffect(() => {
     let active = true;
+    let retry: ReturnType<typeof setTimeout> | null = null;
     setPreview(null);
+    setAsked(false);
     if (!held) return;
-    void previewInvite(held.token).then((p) => { if (active) setPreview(p); });
-    return () => { active = false; };
+    // Not answered (offline): ask again now and then, so the card fills in once there is a connection.
+    const ask = () => void previewInvite(held.token).then((p) => {
+      if (!active) return;
+      setPreview(p);
+      setAsked(true);
+      if (!p) retry = setTimeout(ask, PREVIEW_RETRY_MS);
+    });
+    ask();
+    return () => { active = false; if (retry) clearTimeout(retry); };
   }, [held?.token, invite.status.kind]);
   // Hold the invite as long as it lasts, now the server has said.
   const { learn } = invite;
@@ -539,7 +575,7 @@ export function ScanQr(ctx: Ctx) {
 
   return (
     <Screen
-      header={<Header title={t('entry.scan.title')} sub={signinCode ? t('entry.scan.subSignIn') : guest ? t('entry.scan.subGuest') : t('entry.scan.subMember')} onBack={ctx.back} />}
+      header={<Header title={t('entry.scan.title')} sub={signinCode ? t('entry.scan.subSignIn') : guest ? t('entry.scan.subGuest') : t('entry.scan.subMember')} onBack={leave} />}
       footer={footer}
     >
       {signinCode ? <SignInKey ctx={ctx} code={signinCode} onCancel={() => setSigninCode(null)} /> : (
@@ -582,6 +618,8 @@ export function ScanQr(ctx: Ctx) {
               </View>
             </Card>
           ) : null}
+          {/* A new person joins through the server, so say so before they type a name (docs/invites-and-accounts.md flow E). */}
+          {guest && held && asked && !preview ? <Banner icon="cloud" title={t('entry.invite.needsConnection')} /> : null}
           {dead ? <Banner icon="flag" tone="amber" title={t('entry.scan.deadTitle')} body={dead} /> : null}
           {alreadyIn ? <Banner icon="check" tone="green" title={t('entry.scan.alreadyTitle')} body={t('entry.scan.alreadyBody')} /> : null}
           {invite.status.kind === 'waiting' ? (
@@ -593,7 +631,14 @@ export function ScanQr(ctx: Ctx) {
           {guest && held && !dead && !alreadyIn ? <TermsLink ctx={ctx} i18nKey="entry.termsLine.joining" /> : null}
           <GhostBtn label={scanning ? t('entry.scan.stopCamera') : held ? t('entry.scan.scanDifferent') : t('entry.scan.scanQr')} icon="camera" onPress={toggleCamera} />
           <Field label={t('entry.scan.pasteLabel')} value={text} autoCapitalize="none" placeholder={t('entry.scan.pastePlaceholder')}
-            onChangeText={(v) => { setText(v); setError(''); if (parseKey(v)) void read(v).then((ok) => { if (ok) setText(''); }); }} />
+            onChangeText={(v) => {
+              // More than one character at once is a paste (or a scanner typing): say when it is not a code.
+              const pasted = v.trim().length - text.trim().length > 1;
+              setText(v);
+              setError('');
+              if (parseKey(v)) void read(v).then((ok) => { if (ok) setText(''); });
+              else if (pasted) setError(t('entry.scan.notCode'));
+            }} />
           {held && (dead || alreadyIn) ? <LinkBtn label={t('entry.scan.clearInvite')} color={C.muted} onPress={() => void invite.drop()} style={{ alignSelf: 'center' }} /> : null}
           {held && !dead && !alreadyIn && !guest ? <LinkBtn label={t('common.notNow')} color={C.muted} onPress={() => void invite.drop().then(ctx.home)} style={{ alignSelf: 'center' }} /> : null}
           {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
@@ -672,7 +717,7 @@ function intents(): { to: 'create_org' | 'request_access' | 'scan_qr' | 'explore
  */
 export function IntentChooser(ctx: Ctx) {
   const actions = useAccountActions(ctx.session.actorId);
-  const waiting = actions.filter((a) => a.kind === 'join_request' && a.status !== 'failed').at(-1);
+  const waiting = latestRequest(actions);
   // The name Explore knew, else a neutral phrase: never the org's id.
   const waitingFor = waiting && typeof waiting.payload.orgName === 'string' ? waiting.payload.orgName : null;
   const askedLine = waitingFor ? t('entry.shared.askedOrg', { org: waitingFor }) : t('entry.shared.askedUnknown');
@@ -688,24 +733,8 @@ export function IntentChooser(ctx: Ctx) {
     if (!joinedOrg) return;
     ctx.openOrganization(joinedOrg).catch((e: unknown) => setError(failureMessage('open joined organization', e)));
   }, [joinedOrg]);
-  // A browser forgets everything at sign-out (forgetBrowser.ts), so there it
-  // waits, as Sign Out does, for an account change still to send.
-  const queued = actions.filter((a) => a.status === 'queued').length;
-  async function signOut() {
-    if (FORGETS_ON_SIGN_OUT && queued > 0) {
-      setError(t('entry.intent.stillToSend', { count: queued }));
-      return;
-    }
-    // This device only, and offline too (decision 87).
-    try {
-      await signOutHere();
-    } catch (e) {
-      reportError('sign out', e);
-      setError(t('entry.intent.signOutFailed'));
-      return;
-    }
-    await forgetThisBrowser();
-  }
+  // Sign out goes through the same confirmation as Me: it says what waits, and a
+  // phone hands it over (NOORG-004, decision 60).
   const me = useDisplayNames(ctx.session.actorId)[ctx.session.actorId];
   const first = me?.split(/\s+/)[0];
   const main = intents().filter((o) => o.to !== 'explore_home');
@@ -752,7 +781,7 @@ export function IntentChooser(ctx: Ctx) {
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
       {!ctx.session.isGuest ? (
         <QuietLinks items={[
-          { label: t('entry.intent.signOut'), icon: 'user', onPress: () => void signOut() },
+          { label: t('entry.intent.signOut'), icon: 'user', onPress: () => ctx.go('sign_out_confirm') },
           { label: t('entry.intent.deleteAccount'), icon: 'trash', onPress: () => ctx.go('delete_account') }
         ]} />
       ) : null}
@@ -840,10 +869,11 @@ const FIND_FROM = 8;
  */
 export function RequestAccess(ctx: Ctx) {
   const given = ctx.params['orgId'] ?? '';
-  // The language this person found on Explore, which names who they are asking.
-  const givenName = ctx.params['orgName'] || undefined;
   // i18n-ignore: 'request access' is the log label for this list's failures
-  const [listed, refresh] = useRefreshed('request access', cachedListedOrganizations, listedOrganizations, !given);
+  const [listed, refresh] = useRefreshed('request access', cachedListedOrganizations, listedOrganizations);
+  // Found on Explore, which shows languages: the organization's own name is
+  // the listed one (never the language's); unknown, a neutral phrase.
+  const givenName = given ? listed.find((o) => o.org_id === given)?.name : undefined;
   const loadMessage = refreshMessage(refresh);
   const [picked, setPicked] = useState<ListedOrganization | null>(null);
   const [find, setFind] = useState('');
@@ -857,15 +887,31 @@ export function RequestAccess(ctx: Ctx) {
   const orgId = given || picked?.org_id || '';
   const orgName = given ? givenName : picked?.name;
   const query = find.trim().toLowerCase();
-  const matches = query
-    ? listed.filter((o) => o.name.toLowerCase().includes(query) || o.languages.some((l) => l.toLowerCase().includes(query)))
-    : listed;
+  // The list on the phone is the first 500 by name: online, the server searches
+  // them all, and what it finds joins what the phone has (offline, the phone's alone).
+  const [found, setFound] = useState<{ query: string; list: ListedOrganization[] }>({ query: '', list: [] });
+  useEffect(() => {
+    if (!query) return;
+    let active = true;
+    const wait = setTimeout(() => {
+      searchListedOrganizations(query)
+        .then((list) => { if (active) setFound({ query, list }); })
+        .catch((e: unknown) => noteExpected('request access search', e));
+    }, 300);
+    return () => { active = false; clearTimeout(wait); };
+  }, [query]);
+  const matches = useMemo(() => {
+    if (!query) return listed;
+    const here = listed.filter((o) => o.name.toLowerCase().includes(query) || o.languages.some((l) => l.toLowerCase().includes(query)));
+    const there = found.query === query ? found.list.filter((o) => !here.some((h) => h.org_id === o.org_id)) : [];
+    return there.length ? [...here, ...there].sort((a, b) => a.name.localeCompare(b.name)) : here;
+  }, [listed, query, found]);
 
   async function sendTo(o: ListedOrganization) {
     setBusy(true);
     setError('');
     try {
-      setRequestId(await queueAccountAction(ctx.session.actorId, 'join_request', { orgId: o.org_id, message: '', orgName: o.name }));
+      setRequestId(await queueAccountAction(ctx.session.actorId, 'join_request', { orgId: o.org_id, message: '', orgName: o.name, askedAt: Date.now() }));
     } catch (e) {
       setError(failure('request access', e));
     } finally {
@@ -877,7 +923,7 @@ export function RequestAccess(ctx: Ctx) {
     setError('');
     try {
       setRequestId(await queueAccountAction(ctx.session.actorId, 'join_request', {
-        orgId, message: message.trim(), ...(orgName ? { orgName } : {})
+        orgId, message: message.trim(), ...(orgName ? { orgName } : {}), askedAt: Date.now()
       }));
     } catch (e) {
       setError(failure('request access', e));
@@ -890,7 +936,7 @@ export function RequestAccess(ctx: Ctx) {
     const failed = request?.status === 'failed';
     return (
       <Screen
-        header={<Header title={failed ? t('entry.request.notSent') : t('entry.request.asked')} />}
+        header={<Header title={failed ? t('entry.request.notSent') : t('entry.request.asked')} onBack={() => ctx.go('intent_chooser')} />}
         footer={failed ? <GhostBtn label={t('common.back')} onPress={() => ctx.go('intent_chooser')} /> : <PrimaryBtn label={t('common.done')} onPress={() => ctx.go('intent_chooser')} />}
       >
         <EmptyState icon={failed ? 'close' : 'clock'}

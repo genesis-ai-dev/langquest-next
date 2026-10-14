@@ -9,7 +9,7 @@
 // module with nothing to read, and process.env is used as it is in a
 // release build.
 //
-// Web is a test target (smart-tests): the browser runs the same SqliteStore on
+// Web is a test target (e2e): the browser runs the same SqliteStore on
 // expo-sqlite's wasm build, so journeys exercise the real event log. That
 // build needs the .wasm asset and cross-origin isolation (SharedArrayBuffer).
 const { getDefaultConfig } = require('expo/metro-config');
@@ -39,5 +39,15 @@ config.server.enhanceMiddleware = (middleware) => (req, res, next) => {
   }
   middleware(req, res, next);
 };
+
+// A build of its own cache: Expo writes EXPO_PUBLIC_* values into each file
+// as Metro transforms it, and Metro's cache does not know a value changed,
+// so a release build could reuse a file transformed with other settings.
+// The UI test build (scripts/maestro-build.mjs) bundles from an empty cache
+// of its own, and leaves the one every Metro on this machine shares alone.
+if (process.env.METRO_CACHE_DIR) {
+  const { FileStore } = require('metro-cache');
+  config.cacheStores = [new FileStore({ root: process.env.METRO_CACHE_DIR })];
+}
 
 module.exports = config;

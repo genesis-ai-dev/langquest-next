@@ -5,7 +5,7 @@ import { CHANGES_PAGE, CHANGES_PAGE_MAX, newWebhookSecret, parseWebhookInput, WE
 
 /**
  * `/api/v1/webhooks/*` and `/api/v1/languages/{id}/changes` (decisions.md
- * 95). A webhook belongs to the token that made it: only that token lists,
+ * 101). A webhook belongs to the token that made it: only that token lists,
  * pings or deletes it, and it stops when the token is revoked.
  */
 

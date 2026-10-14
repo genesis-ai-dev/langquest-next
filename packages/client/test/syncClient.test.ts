@@ -99,6 +99,8 @@ describe('SyncClient', () => {
     expect(kept.map((k) => k.event.id)).toEqual([bad.id]);
     expect(kept[0]!.rejectReason).toMatch(/may not emit/);
     expect(await client.pendingCount()).toBe(0);
+    // What the screens count to say some work was refused (My Work, Me).
+    expect(await client.refusedCount()).toBe(1);
   });
 
   it('re-pushing after a lost ack is harmless (idempotent server, invariant 3)', async () => {

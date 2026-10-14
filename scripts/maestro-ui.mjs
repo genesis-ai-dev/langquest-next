@@ -1,0 +1,209 @@
+#!/usr/bin/env node
+/**
+ * The UI test suite's phone flows (docs/ui-test-suite, decisions.md 95):
+ *
+ *   npm run test:ui:phone -- --platform ios|android [--device <udid|serial>]
+ *     [--app build|dev] [--port 8095] [--tags p0,auth] [--exclude-tags wrapped]
+ *     [--label run] [--reuse-world] [--flow <file>]... [--shards N] [--voice]
+ *
+ * --shards N runs the flows across N devices (name each with a repeated
+ * --device; an iOS run with none uses N booted simulators), through Maestro's
+ * --shard-split. Maestro keeps flowsOrder only inside one shard, so the flows
+ * config.yaml orders run first, in order, on the first device; the rest are
+ * split across all N. --voice (macOS) loops e2e/fixtures/voice.wav
+ * into a virtual audio device for the run, for the flows that need a
+ * microphone signal (the Maestro section of docs/ui-test-suite/README.md).
+ *
+ * Builds a fresh fixture world on the local stack (e2e/ui/fixture.ts),
+ * hands its accounts and passages to Maestro as variables, and runs
+ * apps/mobile/test/maestro on the test build installed on the device
+ * (`npm run test:ui:build`, its JavaScript inside). With `--app dev` it runs
+ * on a dev client instead, loading this checkout's code from Metro on --port
+ * (start it with `npm start -w mobile -- --dev-client --port 8095`). Results
+ * go to e2e/results/maestro/<platform>/<label>/.
+ */
+import { spawn, spawnSync } from 'node:child_process';
+import { mkdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const root = join(fileURLToPath(new URL('.', import.meta.url)), '..');
+const args = process.argv.slice(2);
+const value = (name, fallback) => {
+  const i = args.indexOf(`--${name}`);
+  return i >= 0 && args[i + 1] ? args[i + 1] : fallback;
+};
+const all = (name) => args.flatMap((a, i) => (a === `--${name}` && args[i + 1] ? [args[i + 1]] : []));
+
+const platform = value('platform', 'ios');
+if (!['ios', 'android'].includes(platform)) throw new Error('--platform is ios or android');
+const port = value('port', '8095');
+/**
+ * The booted simulator, for an iOS run given no device. Without one Maestro
+ * picks the first device it finds, which is the Android emulator when both
+ * are running: an "iOS" run then tests whatever Android build is installed.
+ */
+function bootedSimulators() {
+  const r = spawnSync('xcrun', ['simctl', 'list', 'devices', 'booted', '-j'], { encoding: 'utf8' });
+  return Object.values(JSON.parse(r.stdout || '{}').devices ?? {}).flat().filter((d) => d.state === 'Booted').map((d) => d.udid);
+}
+const shards = Number(value('shards', '1'));
+if (!Number.isInteger(shards) || shards < 1) throw new Error('--shards is a whole number of devices');
+function pickDevices() {
+  const named = all('device');
+  if (named.length) return named;
+  if (platform === 'android') return shards > 1 ? [] : ['emulator-5554'];
+  if (process.env.UI_IOS_DEVICE && shards === 1) return [process.env.UI_IOS_DEVICE];
+  const booted = bootedSimulators();
+  if (booted.length !== shards) throw new Error(`${booted.length} simulators are booted but ${shards} wanted: name them with --device <udid> (or UI_IOS_DEVICE)`);
+  return booted;
+}
+const devices = pickDevices();
+if (devices.length !== shards) throw new Error(`--shards ${shards} needs ${shards} devices named with --device (got ${devices.length})`);
+const device = devices[0];
+const results = join(root, 'e2e/results/maestro', platform, value('label', 'run'));
+mkdirSync(results, { recursive: true });
+
+function run(cmd, cmdArgs, opts = {}) {
+  const r = spawnSync(cmd, cmdArgs, { cwd: root, stdio: 'inherit', ...opts });
+  return r.status ?? 1;
+}
+
+// The emulator reaches this machine's Metro, Supabase and Worker through adb reverse.
+// adbd runs as root so the offline watcher below can use iptables.
+if (platform === 'android') {
+  for (const dev of devices) {
+    run('adb', ['-s', dev, 'root'], { stdio: 'ignore' });
+    run('adb', ['-s', dev, 'wait-for-device']);
+    for (const p of [port, '54421', '8787']) run('adb', ['-s', dev, 'reverse', `tcp:${p}`, `tcp:${p}`]);
+  }
+}
+
+// Airplane mode does not cut adb reverse ports, and a connection already open
+// through one stays open, so a flow that "goes offline" with setAirplaneMode
+// would still reach the local server. While the run lasts, a watcher rejects
+// the phone's traffic to the Supabase and Worker ports (iptables, in the
+// emulator) when it is in airplane mode and lets it through when it is not.
+// Metro's port stays open.
+const OFFLINE_PORTS = ['54421', '8787'];
+if (platform === 'android') for (const device of devices) {
+  const script = `
+    const { spawnSync } = require('node:child_process');
+    const dev = ${JSON.stringify(device)}, ports = ${JSON.stringify(OFFLINE_PORTS)};
+    let cut = false;
+    const adb = (...a) => spawnSync('adb', ['-s', dev, ...a], { encoding: 'utf8' });
+    const rule = (p) => ['OUTPUT', '-p', 'tcp', '-d', '127.0.0.1', '--dport', p, '-j', 'REJECT', '--reject-with', 'tcp-reset'];
+    const cutOff = () => { for (const p of ports) adb('shell', 'iptables', '-I', ...rule(p)); };
+    const restore = () => { for (const p of ports) adb('shell', 'iptables', '-D', ...rule(p)); };
+    setInterval(() => {
+      const on = adb('shell', 'settings', 'get', 'global', 'airplane_mode_on').stdout.trim() === '1';
+      if (on && !cut) { cutOff(); cut = true; }
+      if (!on && cut) { restore(); cut = false; }
+    }, 400);
+  `;
+  const watcher = spawn(process.execPath, ['-e', script], { stdio: 'ignore' });
+  process.on('exit', () => {
+    watcher.kill();
+    // Leave nothing rejected behind (a rule may be there once or not at all).
+    for (const p of OFFLINE_PORTS) {
+      for (let i = 0; i < 3; i++) spawnSync('adb', ['-s', device, 'shell', 'iptables', '-D', 'OUTPUT', '-p', 'tcp', '-d', '127.0.0.1', '--dport', p, '-j', 'REJECT', '--reject-with', 'tcp-reset'], { stdio: 'ignore' });
+    }
+  });
+}
+
+// A fresh world for this run (a world per run keeps runs apart on the shared local database).
+const worldFile = join(results, 'world.json');
+if (!args.includes('--reuse-world')) {
+  const status = run('npx', ['tsx', 'scripts/ui-fixture.ts', '--out', worldFile]);
+  if (status !== 0) process.exit(status);
+}
+const world = JSON.parse(readFileSync(worldFile, 'utf8'));
+
+// The test build (npm run test:ui:build) by default; --app dev for a dev client on Metro.
+const appKind = value('app', 'build');
+if (!['build', 'dev'].includes(appKind)) throw new Error('--app is build or dev');
+const env = {
+  DEV_CLIENT: appKind === 'dev' ? 'true' : 'false',
+  DEV_CLIENT_URL: `${platform === 'ios' ? 'langquestnext' : 'exp+langquest-next'}://expo-development-client/?url=${encodeURIComponent(`http://127.0.0.1:${port}`)}`,
+  METRO_URL: `http://127.0.0.1:${port}`,
+  ORG_NAME: world.orgName,
+  ORG2_NAME: world.org2Name
+};
+for (const [key, a] of Object.entries(world.accounts)) {
+  const k = key.toUpperCase();
+  env[`${k}_EMAIL`] = a.email ?? '';
+  env[`${k}_PASSWORD`] = a.password ?? '';
+  env[`${k}_NAME`] = a.name ?? '';
+  env[`${k}_FIRST`] = (a.name ?? '').split(' ')[0];
+  if (a.signInName) env[`${k}_SIGNIN`] = a.signInName;
+}
+for (const [key, p] of Object.entries(world.passages)) {
+  const k = key.toUpperCase().replace(/-/g, '_');
+  env[k] = p.label;
+  env[`${k}_REF`] = p.ref;
+  // What to type in the Map's search to list it: its book and chapter ("Luke 13").
+  env[`${k}_SEARCH`] = p.ref.replace(/:.*$/, '');
+}
+for (const [key, l] of Object.entries(world.languages)) env[`LANG_${key}`] = l.name;
+
+const flows = all('flow');
+const tags = value('tags', '');
+const excludeTags = value('exclude-tags', '');
+const flowsDir = join(root, 'apps/mobile/test/maestro');
+
+// --voice: the simulator and emulator hear the host's input, so loop the voice
+// clip into a virtual audio device (BlackHole or similar) for the run.
+if (args.includes('--voice')) startVoice();
+function startVoice() {
+  const wav = join(root, 'e2e/fixtures/voice.wav');
+  if (process.platform !== 'darwin') throw new Error('--voice is for macOS hosts: on Linux, loop voice.wav into a PulseAudio null sink and make its monitor the default source');
+  const out = spawnSync('system_profiler', ['SPAudioDataType'], { encoding: 'utf8' }).stdout ?? '';
+  const virtual = [...out.matchAll(/^\s{8}(.+):$/gm)].map((m) => m[1]).find((n) => /blackhole|loopback|soundflower|vb-cable|virtual/i.test(n));
+  if (!virtual) {
+    throw new Error([
+      '--voice needs a virtual audio device and none is installed.',
+      '  1. brew install --cask blackhole-2ch   (then restart CoreAudio or log out and in)',
+      '  2. System Settings > Sound > Input: choose "BlackHole 2ch" (the iOS Simulator and the',
+      '     Android emulator use the Mac\'s input; for the emulator also turn on',
+      '     Extended controls > Microphone > "Virtual microphone uses host audio input").',
+      '  3. Send voice.wav to the device: Audio MIDI Setup > create a Multi-Output Device with',
+      '     BlackHole 2ch and set it as the output (afplay plays to the system output).',
+      '  Then run again with --voice.'
+    ].join('\n'));
+  }
+  console.log(`--voice: looping voice.wav to the default output (found ${virtual}; set it as the Mac's input, and the output to it or a Multi-Output Device)`);
+  // afplay has no device switch: it plays to the system output, so the output must be the virtual device
+  // (or a Multi-Output Device that includes it). Loop until the run ends.
+  const player = spawn('bash', ['-c', `while true; do afplay ${JSON.stringify(wav)}; done`], { stdio: 'ignore', detached: true });
+  process.on('exit', () => { try { process.kill(-player.pid); } catch { /* already gone */ } });
+}
+
+const baseArgs = (deviceIds) => [
+  ...(deviceIds.length ? ['--device', deviceIds.join(',')] : []), 'test',
+  ...Object.entries(env).flatMap(([k, v]) => ['-e', `${k}=${v}`]),
+  ...(tags ? ['--include-tags', tags] : []),
+  ...(excludeTags ? ['--exclude-tags', excludeTags] : [])
+];
+const report = (name) => ['--format', 'junit', '--output', join(results, name), '--test-output-dir', results];
+
+if (shards === 1) {
+  process.exit(run('maestro', [...baseArgs(devices), ...report('report.xml'), ...(flows.length ? flows : [flowsDir])]));
+}
+
+// Sharded. Maestro orders flows only within a shard, so run the ordered ones
+// first, one after another on the first device, then split the rest.
+const { readdirSync } = await import('node:fs');
+const config = readFileSync(join(flowsDir, 'config.yaml'), 'utf8');
+const ordered = [...(config.split('flowsOrder:')[1] ?? '').matchAll(/^\s+-\s+"([^"]+)"/gm)].map((m) => m[1]);
+const files = flows.length ? flows : readdirSync(join(flowsDir, 'flows')).filter((f) => f.endsWith('.yaml')).sort().map((f) => join(flowsDir, 'flows', f));
+const nameOf = (f) => /^name:\s*"?(.+?)"?\s*$/m.exec(readFileSync(f, 'utf8'))?.[1];
+const byName = new Map(files.map((f) => [nameOf(f), f]));
+const first = ordered.map((n) => byName.get(n)).filter(Boolean);
+const rest = files.filter((f) => !first.includes(f));
+let status = 0;
+if (first.length) status = run('maestro', [...baseArgs([device]), ...report('report-ordered.xml'), ...first]);
+if (rest.length) {
+  // Maestro writes one junit report for the run, covering every shard.
+  status = run('maestro', [...baseArgs(devices), '--shard-split', String(shards), ...report('report.xml'), ...rest]) || status;
+}
+process.exit(status);

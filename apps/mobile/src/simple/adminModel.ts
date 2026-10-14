@@ -298,12 +298,18 @@ function checks(steps: readonly PlainStep[]): PlainStep[] {
   return steps.filter((s) => s.kindIds.some((k) => k !== 'final'));
 }
 
-/** The kinds of check a flow makes, in order, a kind repeated in a row said once. */
+/**
+ * The kinds of check a flow makes, in order, a kind repeated in a row said
+ * once. Checks made at the same time are each named (decision 91): a step of
+ * community and retelling is two checks, not "Just the community".
+ */
 function checkKinds(steps: readonly PlainStep[], kinds: readonly KindDef[], by: (k: PlainKind) => string): PlainKind[] {
   const out: PlainKind[] = [];
   for (const s of checks(steps)) {
-    const k = plainKind(s.kindIds.find((id) => id !== 'final')!, kinds);
-    if (!out.length || by(out.at(-1)!) !== by(k)) out.push(k);
+    for (const id of s.kindIds.filter((k) => k !== 'final')) {
+      const k = plainKind(id, kinds);
+      if (!out.length || by(out.at(-1)!) !== by(k)) out.push(k);
+    }
   }
   return out;
 }
@@ -326,7 +332,8 @@ export function flowShort(steps: readonly PlainStep[], kinds: readonly KindDef[]
 
 /** "One check", "3 checks", "Done once recorded". */
 export function flowSub(steps: readonly PlainStep[]): string {
-  const n = checks(steps).length;
+  // Each check counts, two at the same time as two (decision 91).
+  const n = checks(steps).reduce((sum, s) => sum + s.kindIds.filter((k) => k !== 'final').length, 0);
   if (steps.length === 0) return t('admin.flow.doneOnceRecorded');
   if (n === 0) return t('admin.flow.youApprove');
   return t('admin.flow.checks', { count: n });
@@ -397,8 +404,9 @@ export function plainRoleChoices(roles: readonly RoleInfo[]): { choices: { id: P
   const byId = (id: string) => roles.find((r) => r.id === id);
   const translate = byId('translator') ?? fewest(roles.filter((r) => has(r, 'translate') && !has(r, 'review') && !runs(r)));
   const check = byId('reviewer') ?? fewest(roles.filter((r) => has(r, 'review') && !has(r, 'translate') && !runs(r)));
+  // Since decision 91 the Translator role reviews too: the role Translate gives is never also Back-translate's.
   const back = roles.find((r) => /back.?transl/i.test(r.name) && has(r, 'review'))
-    ?? fewest(roles.filter((r) => has(r, 'review') && has(r, 'translate') && !runs(r))) ?? check;
+    ?? fewest(roles.filter((r) => r.id !== translate?.id && has(r, 'review') && has(r, 'translate') && !runs(r))) ?? check;
   const lead = byId('coordinator') ?? fewest(roles.filter((r) => has(r, 'assign_work') && !has(r, 'manage_roles')));
   const given: Record<PlainRoleId, RoleInfo | undefined> = { translate, check, backtranslate: back, lead };
   const choices = PLAIN_ROLES.flatMap((c) => (given[c.id] ? [{ ...c, ...plainRoleWords(c.id), roleId: given[c.id]!.id }] : []));

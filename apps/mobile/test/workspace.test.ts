@@ -3,7 +3,7 @@ import {
   type AnyEvent, type EventPayloads, type EventSpec, type EventType
 } from '@langquest-next/core';
 import {
-  backTranslationDraftKey, canPublish, cardDurations, markTerms, mmss, parseBackTranslationDraft, removeCardSpecs,
+  backTranslationDraftKey, canPublish, cardDurations, draftToOpen, markTerms, mmss, parseBackTranslationDraft, removeCardSpecs,
   termsInText, tiedTermIds, tieTermsSpecs, unsavedParts, withoutPart, withPart, workingCards
 } from '../src/recording/workspaceModel';
 import { pendingPassageCards } from '../src/recordingFlow';
@@ -130,6 +130,30 @@ describe('deleting a take with several drafts (decisions.md 83)', () => {
     const drafts = passage(h.state()).drafts;
     expect(drafts.map((d) => d.cardHashes)).toEqual([['b'], ['c']]);
     expect(drafts[0]!.rootTakeId).toBe(first.rootTakeId);
+  });
+});
+
+describe('which draft the workspace opens (decisions.md 83)', () => {
+  const a = { takeId: 'take:a2', rootTakeId: 'take:a1', hlc: '000000000000002:000000:d' };
+  const b = { takeId: 'take:b1', rootTakeId: 'take:b1', hlc: '000000000000005:000000:d' };
+
+  it('opens the draft asked for, by its first or a later take', () => {
+    expect(draftToOpen([a, b], 'take:a1', false)).toBe('take:a1');
+    expect(draftToOpen([a, b], 'take:a2', false)).toBe('take:a1');
+  });
+
+  it('opens the latest draft unless it starts a new one', () => {
+    expect(draftToOpen([a, b], undefined, false)).toBe('take:b1');
+    expect(draftToOpen([a, b], undefined, true)).toBeNull();
+  });
+
+  // A fresh device opens the workspace before the record has the draft:
+  // nothing to open yet, and the same answer once the draft arrives, which
+  // the workspace then follows (REC-007 on the web found it starting a second draft).
+  it('says nothing until the draft asked for has arrived', () => {
+    expect(draftToOpen([], 'take:a1', false)).toBeNull();
+    expect(draftToOpen([], undefined, false)).toBeNull();
+    expect(draftToOpen([a], 'take:a1', false)).toBe('take:a1');
   });
 });
 

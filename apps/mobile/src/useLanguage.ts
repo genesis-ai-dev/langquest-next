@@ -1,5 +1,5 @@
 import { DEFAULT_TRANSFER_BUDGET_BYTES, DOWNLOAD_DEFAULTS, SupabaseTransport, SyncClient, TransferBudget, TransferWorker, UPLOAD_DEFAULTS, ensureDeviceId, SyncScheduler, type SyncInspection } from '@langquest-next/client';
-import { audioFormatsFor, defaultOfflineScope, emptyLanguageState, deriveDownloadWork, deriveUploadWork, evictableBlobs, type BlobRef, type EventPayloads, type EventSpec, type EventType, type LanguageState } from '@langquest-next/core';
+import { audioFormatsFor, CommandError, defaultOfflineScope, emptyLanguageState, deriveDownloadWork, deriveUploadWork, evictableBlobs, type BlobRef, type EventPayloads, type EventSpec, type EventType, type LanguageState } from '@langquest-next/core';
 import { getBlobStore, type BlobFile, type BlobStore } from './blobs';
 import { downloadBlob, streamUrl, uploadBlob } from './blobTransport';
 import { diagnostics, flushDiagnostics, timedTransfer, type TransferTimings } from './diagnostics';
@@ -9,9 +9,11 @@ import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { RateMeter } from './rate';
 import { getStore } from './store';
+import { trackSync } from './syncActivity';
 import { onWake } from './wake';
 import { supabase } from './supabase';
 import { stateCopier } from './publishedState';
+import { t } from './i18n';
 
 export interface LanguageHandle {
   orgId: string;
@@ -32,6 +34,12 @@ export interface LanguageHandle {
    * membership change or a different account will.
    */
   refused: string | null;
+  /**
+   * Events of this language the server refused one by one (a role changed,
+   * say), kept on this device and listed on Sync. Never silently dropped
+   * (PLAN.md invariant 1): My Work and Me say there are some.
+   */
+  refusedEvents: number;
   /**
    * This session has read the language up to date from the server at least
    * once. Writes that must not race what others already wrote (starting a
@@ -109,6 +117,7 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
   const [, setUrlsReady] = useState(0);
   const [tooOld, setTooOld] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
+  const [refusedEvents, setRefusedEvents] = useState(0);
   const [pulled, setPulled] = useState(false);
   const [keptUnits, setKeptUnits] = useState<ReadonlySet<string>>(new Set());
   const keptRef = useRef<ReadonlySet<string>>(new Set());
@@ -143,6 +152,7 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
     if (next) setState(next);
     // The count is a query; it must not hold the state update.
     void c.pendingCount().then(setPending).catch(() => {});
+    void c.refusedCount().then(setRefusedEvents).catch(() => {});
   }, []);
 
   const sync = useCallback(async (): Promise<{ more: boolean }> => {
@@ -152,7 +162,7 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
     let more = false;
     try {
       pullingRef.current = true;
-      const r = await c.sync();
+      const r = await trackSync(() => c.sync());
       pullingRef.current = false;
       more = r.more;
       changed = r.pushed > 0 || r.pulled > 0 || r.rejected > 0;
@@ -171,8 +181,13 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
       const wasOnline = onlineRef.current;
       onlineRef.current = !r.offline;
       setOnline(!r.offline);
-      // New confirmations may have arrived: re-derive. Reconnect: retry now.
+      // New confirmations may have arrived: re-derive. Reconnect retries now,
+      // which clears waits. A finished sync while not recording runs the
+      // waiting upload pass now: nudge()'s debounce, restarted by every
+      // following sync, held a just-recorded file until the minute tick.
+      // Failure backoff stays put; only trigger() clears it.
       if (!r.offline && wasOnline === false) upRef.current?.trigger();
+      else if (!r.offline && !isRecording()) upRef.current?.nudge(0);
       else upRef.current?.nudge();
       downRef.current?.nudge();
       setLastSync(
@@ -411,7 +426,10 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
   const run = useCallback(
     async (specs: EventSpec[]) => {
       const c = clientRef.current;
-      if (!c || specs.length === 0) return;
+      if (specs.length === 0) return;
+      // Nothing to write into yet: say so, rather than skip it and let the screen
+      // say it was saved (REC-035). ctx.act shows it as "Not saved: …".
+      if (!c) throw new CommandError(t('translate.languageLoading'));
       await c.appendMany<EventType>([...formatsFor(specs), ...specs]);
       await refresh();
       schedulerRef.current?.nudge();
@@ -454,7 +472,7 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
   const triggerUpload = useCallback(() => upRef.current?.trigger(), []);
   const inspect = useCallback(() => clientRef.current?.inspect() ?? Promise.resolve(null), []);
 
-  return { orgId, languageId, state, pending, lastSync, online, tooOld, refused, pulled, live, saving, revision, inspect, blobs, triggerUpload, append, appendMany, run, sync };
+  return { orgId, languageId, state, pending, lastSync, online, tooOld, refused, refusedEvents, pulled, live, saving, revision, inspect, blobs, triggerUpload, append, appendMany, run, sync };
 }
 
 /** Time one transfer, credit its bytes to the meter once it succeeds, and tally it for diagnostics either way. */

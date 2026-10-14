@@ -71,6 +71,8 @@ import { useOrg, type OrgHandle } from './src/useOrg';
 import { useLibraryFollow, useTranslatorReview } from './src/library/follow';
 import { useSourceOffline } from './src/sources/offline';
 import { useLanguage } from './src/useLanguage';
+import { isTestBuild } from './src/testBuild';
+import { syncActivity } from './src/syncActivity';
 import { useHandOvers } from './src/handOver';
 import { LostFilesAlert } from './src/lostFiles';
 import { openLanguage } from './src/languages';
@@ -167,7 +169,8 @@ function hostFor(id: ScreenId) {
     // never takes the recorder, or the rest of the app, down with it.
     return (
       <FooterHeightContext.Provider value={onFooter}>
-        <ScreenBoundary screen={id} onBack={ctx.back} onHome={ctx.home}>
+        <ScreenBoundary screen={id} onBack={ctx.back} onHome={ctx.home}
+          homeLabel={homeScreenFor(ctx.session) === 'my_work' ? t('shell.errors.goToMyWork') : t('shell.errors.goHome')}>
           {/* Help mode numbers only the showing screen's parts. */}
           <HelpScopeContext.Provider value={focused}>
             <Screen {...ctx} params={props.route.params ?? {}} />
@@ -244,7 +247,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
  * A screen that failed to draw. Says what was kept before what went wrong,
  * gives an id to read to support, and offers a way out (error-tracking §3).
  */
-class ScreenBoundary extends Component<{ screen: ScreenId; onBack: () => void; onHome: () => void; children: ReactNode }, { error: Error | null; id: string }> {
+class ScreenBoundary extends Component<{ screen: ScreenId; onBack: () => void; onHome: () => void; homeLabel: string; children: ReactNode }, { error: Error | null; id: string }> {
   override state: { error: Error | null; id: string } = { error: null, id: '' };
 
   static getDerivedStateFromError(error: Error) {
@@ -264,7 +267,8 @@ class ScreenBoundary extends Component<{ screen: ScreenId; onBack: () => void; o
         <Text style={txt.body}>{t('shell.errors.safe')}</Text>
         <Text style={txt.smMuted} selectable>{t('shell.errors.tellCode', { code: this.state.id })}</Text>
         <GhostBtn label={t('shell.errors.goBack')} icon="left" onPress={reset(this.props.onBack)} />
-        <GhostBtn label={t('shell.errors.goToMyWork')} icon="home" onPress={reset(this.props.onHome)} />
+        {/* A viewer's home is Progress, not My Work (NAV-070). */}
+        <GhostBtn label={this.props.homeLabel} icon="home" onPress={reset(this.props.onHome)} />
       </ScrollView>
     );
   }
@@ -423,6 +427,22 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   useEffect(() => { if (languageId && languageId === paramLanguage && languageId !== savedLanguage) setLanguage(languageId); }, [languageId, paramLanguage, savedLanguage, setLanguage]);
   const languages = useMemo(() => orgLanguages(org.state), [org.state]);
   const language = useLanguage(props.orgId, languageId, props.actorId, org.membershipEpoch);
+  // Test builds only (testBuild.ts): the UI tests' "Sync now" and sync state (e2e/ui/support.ts), beside the read-only log probe (store.ts).
+  useEffect(() => {
+    if (!(isTestBuild() && Platform.OS === 'web')) return;
+    const g = globalThis as { __langquestSyncNow?: () => Promise<void>; __langquestTestState?: () => Promise<unknown> };
+    g.__langquestSyncNow = async () => { await org.sync(); if (languageId) { for (let i = 0; i < 10 && (await language.sync()).more; i++) { /* page on */ } } };
+    g.__langquestTestState = async () => {
+      const [o, l] = await Promise.all([org.inspect(), language.inspect()]);
+      return {
+        ...syncActivity(),
+        pending: (o?.pending.length ?? 0) + (l?.pending.length ?? 0),
+        rejected: (o?.rejected.length ?? 0) + (l?.rejected.length ?? 0),
+        orgId: props.orgId, languageId
+      };
+    };
+    return () => { delete g.__langquestSyncNow; delete g.__langquestTestState; };
+  }, [org, language, languageId, props.orgId]);
   // Web: warn before the tab closes with work still to send (storageGate.tsx).
   useLeaveGuard(!language.refused && (language.pending > 0 || language.blobs.pendingUp > 0) || org.pending > 0);
   useAccountSync(props.actorId);
@@ -446,13 +466,26 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
       const [local, joined] = await Promise.all([AsyncStorage.getItem(`vision:${props.actorId}`), AsyncStorage.getItem(`joined:${props.actorId}`)]);
       // Joining by invite always gets the welcome (ADR-022): who invited
       // you and your role on which team are new even to a returning account.
-      if (active) { setWelcomed(local === '1' && joined !== '1'); setOnboardingLoaded(true); }
-      if (!props.signedIn || joined === '1') return;
-      const { data, error } = await supabase.rpc('get_user_state');
-      if (!error && data?.visionSeen) {
-        await AsyncStorage.setItem(`vision:${props.actorId}`, '1');
-        if (active) setWelcomed(true);
+      let seen = local === '1' && joined !== '1';
+      // A device new to this account asks the server before routing, or a person
+      // welcomed on another device was welcomed again (AUTH-058). Offline, or slow,
+      // it goes on after a few seconds as before.
+      if (!seen && props.signedIn && joined !== '1') {
+        const asked = supabase.rpc('get_user_state').then(({ data, error }) => !error && !!data?.visionSeen, () => false);
+        const timeout = new Promise<boolean>((done) => setTimeout(() => done(false), 4000));
+        if (await Promise.race([asked, timeout])) {
+          await AsyncStorage.setItem(`vision:${props.actorId}`, '1');
+          seen = true;
+        } else {
+          // A late answer still counts, from the next screen on.
+          void asked.then(async (yes) => {
+            if (!yes) return;
+            await AsyncStorage.setItem(`vision:${props.actorId}`, '1');
+            if (active) setWelcomed(true);
+          });
+        }
       }
+      if (active) { setWelcomed(seen); setOnboardingLoaded(true); }
     })().catch(() => { if (active) setOnboardingLoaded(true); });
     return () => { active = false; };
   }, [props.actorId]);
@@ -498,7 +531,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   }, []);
   const languageRef = useRef(language);
   languageRef.current = language;
-  const act = useCallback(async (specs: EventSpec[], message: string, undo?: () => EventSpec[]) => {
+  const act = useCallback(async (specs: EventSpec[], message: string, undo?: () => EventSpec[], undone?: string) => {
     try {
       await languageRef.current.run(specs);
     } catch (e) {
@@ -507,7 +540,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
       throw e;
     }
     toast(message, undo ? async () => {
-      try { await languageRef.current.run(undo()); toast(t('common.undone')); } catch (e) {
+      try { await languageRef.current.run(undo()); toast(undone ?? t('common.undone')); } catch (e) {
         toast(e instanceof CommandError ? t('shell.toast.notUndone', { reason: commandErrorText(e) }) : t('shell.toast.notUndoneCode', { code: reportError('undo change', e) }));
       }
     } : undefined);
@@ -559,7 +592,8 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   const takeUrlSection = (): ScreenId | null => {
     const s = urlSection.current;
     urlSection.current = null;
-    if (!s) return null;
+    // No organization: "Join your team" is the only place to be (WEB-019).
+    if (!s || session.hasNoOrg) return null;
     const tabScreens = tabsFor(session, undefined, { wide: layoutKind(Dimensions.get('window').width) !== 'phone' }).map((t) => t.screen);
     const allowed = tabScreens.includes(s)
       || (s === 'map_home' && tabScreens.some((t) => t === 'status_home' || t === 'map_home'))
@@ -589,18 +623,39 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
       if (cachedHome && nav.current.screen === cachedHome) nav.reset({ screen: home });
     }
   }, [loaded, props.signedIn, session, cachedHome, homeKey, nav]);
+  // `nav.current` follows a reset one render late. This effect runs every render, so
+  // a second render before that left a person on Sign In who had just been sent to
+  // the section in the address, and sent them to the home instead (WEB-018).
+  const sentOnFromAuth = useRef(false);
   useEffect(() => {
     if (!props.signedIn) {
+      sentOnFromAuth.current = false;
       // Not "anything but sign_in": a guest legitimately walks to Create
       // account, Browse public languages, the terms and the invite scanner.
       if (!GUEST_SCREENS.includes(nav.current.screen)) nav.reset({ screen: 'sign_in' });
       return;
     }
     if (!onboardingLoaded || !welcomeBack.loaded) return;
-    if (!AUTH_SCREENS.includes(nav.current.screen)) return;
-    if (loaded) nav.reset({ screen: (!session.isFirstTime && takeUrlSection()) || postSignInScreen(session) });
-    else if (cachedHome && !session.isFirstTime) nav.reset({ screen: cachedHome });
+    if (!AUTH_SCREENS.includes(nav.current.screen)) { sentOnFromAuth.current = false; return; }
+    if (loaded) {
+      if (sentOnFromAuth.current) return;
+      sentOnFromAuth.current = navRef.isReady();
+      nav.reset({ screen: (!session.isFirstTime && takeUrlSection()) || postSignInScreen(session) });
+    } else if (cachedHome && !session.isFirstTime) nav.reset({ screen: cachedHome });
   });
+  // A refresh while the folds load went to the remembered home first; once they
+  // are in, the section the address named still wins, if the person has not moved
+  // on and may open it (WEB-018). Unknown home (still reading it) is not a move.
+  useEffect(() => {
+    if (!loaded || !props.signedIn || !urlSection.current || session.isFirstTime) return;
+    if (cachedHome === undefined) return;
+    // Still on Sign In: the address section is waiting for the session, not
+    // abandoned. Clearing it here sent a sign-in from /settings to My Work (WEB-018).
+    if (AUTH_SCREENS.includes(nav.current.screen)) return;
+    if (nav.stack.length !== 1 || nav.current.screen !== cachedHome) { urlSection.current = null; return; }
+    const s = takeUrlSection();
+    if (s && s !== nav.current.screen) nav.reset({ screen: s });
+  }, [loaded, props.signedIn, cachedHome]);
   // Opened from another organization's Inbox row or push: its passage, or its language, once this organization is in.
   const arrived = useRef(false);
   useEffect(() => {
@@ -645,6 +700,14 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   );
   const go = useCallback((to: ScreenId, params?: Record<string, string>) => goFrom(nav.current.screen, undefined, to, params),
     [goFrom, nav.current.screen]);
+  // Test builds only (testBuild.ts): lets the UI tests ask for a move the screens never offer, to check the
+  // flow's gates refuse it (NAV-051). It goes through `go`, so the gates still decide.
+  useEffect(() => {
+    if (!(isTestBuild() && Platform.OS === 'web')) return;
+    const g = globalThis as { __langquestGo?: typeof go };
+    g.__langquestGo = go;
+    return () => { delete g.__langquestGo; };
+  }, [go]);
 
   const openPassage = useCallback((unitId: string, inLanguage: string, extra?: Record<string, string>) => {
     remember(unitId, inLanguage);
@@ -679,6 +742,17 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     if (nav.current.screen !== 'scan_qr') nav.reset({ screen: 'scan_qr' });
   }, [props.signedIn, onboardingLoaded, invite.held, props.actorId, nav]);
 
+  // An invite that will never work says so wherever this person is. "Join your
+  // team" and the scan screen show it themselves; anyone with a home of their
+  // own never saw why nothing happened (AUTH-043).
+  const toldDead = useRef<string | null>(null);
+  useEffect(() => {
+    if (invite.status.kind !== 'dead' || !props.signedIn) return;
+    if (['intent_chooser', 'scan_qr'].includes(nav.current.screen) || toldDead.current === invite.status.message) return;
+    toldDead.current = invite.status.message;
+    toast(invite.status.message);
+  }, [invite.status, props.signedIn, nav, toast]);
+
   const canSwitchPersona = maySwitchPersona(props.email, IS_DEV);
 
   const homeIsWork = homeScreenFor(session) === 'my_work';
@@ -689,6 +763,14 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     if (navRef.isReady()) navRef.dispatch(CommonActions.reset({ index: 1, routes: [{ name: homeScreenFor(session) }, { name: 'passage_record', params }] }));
     else nav.reset({ screen: 'passage_record', params });
   }, [remember, session, nav.reset]);
+  // Test builds only (testBuild.ts): open a passage's record the way a pushed notification does (home under it), so a
+  // test that only reads the record does not walk through the Map's search (e2e/ui/support.ts, enterPassage).
+  useEffect(() => {
+    if (!(isTestBuild() && Platform.OS === 'web')) return;
+    const g = globalThis as { __langquestOpenPassage?: typeof openTask };
+    g.__langquestOpenPassage = openTask;
+    return () => { delete g.__langquestOpenPassage; };
+  }, [openTask]);
   const { openOrganization, orgId: thisOrg, actorId } = props;
   useEffect(() => {
     if (!props.signedIn) return;
@@ -755,6 +837,11 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   const kind = layoutKind(width);
   const wide = kind !== 'phone';
   const showTabs = props.signedIn && homeScreenFor(session) !== 'intent_chooser' && chromeVisible(kind, screen);
+  // Reports is a wide window's section (decisions.md 57): a window made narrow while
+  // on it has no tab to leave by, so it goes home (RPT-002).
+  useEffect(() => {
+    if (kind === 'phone' && (screen === 'reports_home' || screen === 'reports_language')) nav.reset({ screen: homeScreenFor(session) });
+  }, [kind, screen, nav, session]);
   const tabs = tabsFor(session, { forYou, unread: inboxCount }, { wide });
   // The lit tab is the one you came from (the bottom of the stack), so a
   // passage opened from My Work stays under My Work.
@@ -854,8 +941,24 @@ const styles = StyleSheet.create({
  * Shows one toast at a time for about 7 s with Undo, 3.5 s without, and
  * twice as long while a screen reader is on, so Undo can be reached.
  */
+/**
+ * The toast showing now, kept outside any component: signing in or opening an
+ * organization remounts the shell, and with it the host, right after the
+ * screen that said what happened ("Signed in", "… is ready to grow"). The new
+ * host shows it for the rest of its time (AUTH-049, NOORG-009). Its Undo is
+ * not carried: the shell remounts when the account or the organization
+ * changes, and an Undo from before would then act for the account or in the
+ * organization that was left.
+ */
+let showing: { message: string; until: number } | null = null;
+
 function ToastHost(props: { register: (show: (spec: ToastSpec) => void) => void; bottom: number }) {
-  const [spec, setSpec] = useState<ToastSpec | null>(null);
+  const [spec, setSpec] = useState<ToastSpec | null>(() => {
+    const left = showing ? showing.until - Date.now() : 0;
+    return showing && left > 1000
+      ? { id: Date.now(), message: showing.message, ms: left }
+      : null;
+  });
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reader = useRef(false);
   useEffect(() => {
@@ -869,10 +972,18 @@ function ToastHost(props: { register: (show: (spec: ToastSpec) => void) => void;
     props.register((next) => {
       if (timer.current) clearTimeout(timer.current);
       const ms = (next.undo ? 7000 : 3500) * (reader.current ? 2 : 1);
+      showing = { message: next.message, until: Date.now() + ms };
       setSpec({ ...next, ms });
       timer.current = setTimeout(() => setSpec((t) => (t?.id === next.id ? null : t)), ms);
     });
   }, [props.register]);
-  return <ToastView toast={spec} onDismiss={() => setSpec(null)} bottom={props.bottom} />;
+  // A toast carried over from the host before goes when its time is up.
+  useEffect(() => {
+    if (!spec?.ms || timer.current) return;
+    const id = spec.id;
+    const t = setTimeout(() => setSpec((cur) => (cur?.id === id ? null : cur)), spec.ms);
+    return () => clearTimeout(t);
+  }, [spec]);
+  return <ToastView toast={spec} onDismiss={() => { showing = null; setSpec(null); }} bottom={props.bottom} />;
 }
 

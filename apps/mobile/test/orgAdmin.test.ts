@@ -11,7 +11,7 @@ import {
 } from '@langquest-next/core';
 import type { LibraryChoice } from '../src/contentTemplates';
 import {
-  addLanguage, assignableLevels, booksInScope, changeMembership, grantableLanguages, grantFloor, groupBelow, mayGrantAt, memberEntries,
+  addLanguage, assignableLevels, booksInScope, changeMembership, grantableLanguages, grantFloor, groupBelow, inviteScope, mayGrantAt, memberEntries,
   membersAbove, membersAt, newLanguageId, progressLine, removeMembership, reviewEligible, saveTeam, similarLanguages, STARTER_FLOW, suggestedChoice,
   sumProgress, teamMembers
 } from '../src/orgAdmin';
@@ -63,6 +63,17 @@ describe('what an admin may grant (ORG-6)', () => {
     expect(mayGrantAt(org, 'ada', { level: 'org' })).toBe(false);
     expect(assignableLevels(org, 'tom', 'org')).toEqual([]);
     expect(grantFloor(org, 'tom', 'org')).toBeNull();
+  });
+
+  it('makes an invite by QR for the language chosen, not only the open one (PEOPLE-008)', () => {
+    // From the organization's home, an admin invites at the organization.
+    expect(inviteScope(org, 'admin', 'org', undefined, 'L1')).toEqual({ level: 'org' });
+    // "In which language?" chose Nuer while Dinka is open: the code is for Nuer.
+    expect(inviteScope(org, 'admin', 'language', 'L2', 'L1')).toEqual({ level: 'language', languageId: 'L2' });
+    // Nothing chosen: the open language.
+    expect(inviteScope(org, 'admin', 'language', undefined, 'L1')).toEqual({ level: 'language', languageId: 'L1' });
+    // A language admin is never given a language they may not grant in: their only one.
+    expect(inviteScope(org, 'ada', 'org', 'L1', 'L1')).toEqual({ level: 'language', languageId: 'L2' });
   });
 });
 

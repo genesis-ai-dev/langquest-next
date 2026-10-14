@@ -1,0 +1,136 @@
+# JRN-006 A coordinator moves a passage past a checkpoint and signs it off
+# (docs/ui-test-suite/16-role-journeys.md). One phone, the people in turn:
+# TRANS, COORD, VIEW. It changes P-CHECK for good (done), so in one run it
+# goes after P0-coordinator-ask-override, which undoes its own override.
+appId: com.frontierrnd.langquestnext
+name: "JRN-006 A coordinator moves a passage past a checkpoint and signs it off"
+tags:
+  - jrn
+  - p0
+---
+# Step 1: TRANS sees P-CHECK wait at the checkpoint, with no way past.
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${TRANS_EMAIL}
+      PASSWORD: ${TRANS_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- extendedWaitUntil:
+    visible:
+      id: "tab-map"
+    timeout: 60000
+- tapOn:
+    id: "tab-map"
+- tapOn: "Find.*"
+- inputText: ${P_CHECK.split(':')[0]}
+- runFlow:
+    file: ../common/dismiss-keyboard.yaml
+    env:
+      LABEL: ${LANG_A}
+- tapOn:
+    text: "${P_CHECK}.*"
+    index: 0
+- extendedWaitUntil:
+    visible: "(?i)Then the team"
+    timeout: 30000
+- assertVisible: "Consultant check, .*"
+- tapOn: "Consultant check, .*"
+- assertVisible: "Checkpoint — later steps wait for this one\\."
+- assertNotVisible: "Move past this checkpoint…"
+- scrollUntilVisible:
+    element: "Something else\\?"
+    direction: DOWN
+- tapOn: "Something else\\?"
+- assertNotVisible: "Move past a checkpoint"
+# Steps 2-3: COORD moves past it with a reason.
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${COORD_EMAIL}
+      PASSWORD: ${COORD_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- extendedWaitUntil:
+    visible:
+      id: "tab-map"
+    timeout: 60000
+- tapOn:
+    id: "tab-map"
+- tapOn: "${LANG_A}: .*Open its map.*"
+- tapOn: "Find.*"
+- inputText: ${P_CHECK.split(':')[0]}
+- runFlow:
+    file: ../common/dismiss-keyboard.yaml
+    env:
+      LABEL: ${LANG_A}
+- tapOn:
+    text: "${P_CHECK}.*"
+    index: 0
+- extendedWaitUntil:
+    visible: "(?i)Then the team"
+    timeout: 30000
+- tapOn: "Consultant check, .*"
+- tapOn: "Move past this checkpoint…"
+- tapOn: ".*Or type the reason.*"
+- inputText: "Consultant visit postponed to March"
+- runFlow:
+    file: ../common/dismiss-keyboard.yaml
+    env:
+      LABEL: "Move past the checkpoint\\?"
+- tapOn:
+    text: "Move past checkpoint"
+    waitToSettleTimeoutMs: 0
+- extendedWaitUntil:
+    visible: "Moved past the checkpoint · reason saved.*"
+    timeout: 20000
+- assertVisible:
+    id: "toast-undo"
+- assertVisible: "Consultant check, moved past"
+- tapOn: "Versions and history"
+- tapOn: "History.*"
+- assertVisible: ".*Consultant visit postponed to March.*"
+- assertVisible: ".*${COORD_FIRST}.*|.*You.*"
+- tapOn:
+    id: "header-close"
+# Step 4: the final approval: looks good; the passage is done.
+- tapOn: "Do the final approval"
+- tapOn:
+    id: "primary-action"
+- tapOn:
+    text: "Looks good"
+    waitToSettleTimeoutMs: 0
+- extendedWaitUntil:
+    visible: ".*Final approval.*looks good.*"
+    timeout: 20000
+# Step 5: VIEW: chapter 15 lists P-CHECK done, the chapter only started.
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${VIEW_EMAIL}
+      PASSWORD: ${VIEW_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- extendedWaitUntil:
+    visible: "Progress"
+    timeout: 60000
+- tapOn: "${LANG_A}: .*Open its map.*"
+- tapOn: "Luke\\..*"
+- extendedWaitUntil:
+    visible: "Chapter 15: .*"
+    timeout: 30000
+- assertNotVisible: "Chapter 15: Done.*"
+- tapOn: "Chapter 15: .*"
+- extendedWaitUntil:
+    visible: "${P_CHECK}\\. Done.*"
+    timeout: 60000
+- tapOn: "${P_CHECK}\\. Done.*"
+- extendedWaitUntil:
+    visible: "(?i)Then the team"
+    timeout: 30000
+- assertVisible: "Consultant check, moved past"
+- assertNotVisible:
+    id: "primary-action"
+- tapOn: "Versions and history"
+- tapOn: "History.*"
+- assertVisible: ".*Consultant visit postponed to March.*"

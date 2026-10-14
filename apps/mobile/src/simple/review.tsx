@@ -79,8 +79,10 @@ function StripStep(props: { stage: Stage; index: number; count: number; done: bo
 /** Which question of how many: the current one a long pill, the rest dots. */
 export function QuestionDots(props: { count: number; at: number }) {
   if (props.count < 2) return null;
+  // role "text" is no role on web, so the label would sit on a generic div, which forbids aria-label.
+  // "image" becomes role=img, which may carry the spoken "Question N of M".
   return (
-    <View style={styles.dots} accessibilityLabel={t('review.simple.questionOf', { index: props.at + 1, total: props.count })}>
+    <View style={styles.dots} accessible accessibilityRole="image" accessibilityLabel={t('review.simple.questionOf', { index: props.at + 1, total: props.count })}>
       {Array.from({ length: props.count }, (_, i) => (
         <View key={i} style={[styles.dot, i === props.at ? styles.dotNow : i < props.at ? { backgroundColor: withAlpha(C.primary, 0.45) } : null]} />
       ))}
@@ -503,7 +505,8 @@ export function BigChoices(props: { type: 'rating' | 'yesno'; value: string | un
 function BigChoice(props: { label: string; icon?: IconName; on: boolean; tall?: boolean; onPress: () => void }) {
   const spot = useHelpSpot(props.label, t('review.simple.yourAnswerHelp'), props.onPress);
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole="radio" accessibilityState={{ checked: props.on }} accessibilityLabel={props.label}
+    // aria-checked as well: the web reads the chosen answer from it, not from accessibilityState.
+    <Pressable onPress={spot.onPress} accessibilityRole="radio" accessibilityState={{ checked: props.on }} aria-checked={props.on} accessibilityLabel={props.label}
       style={({ pressed }) => [styles.choice, props.tall && { minHeight: 112 }, props.on && { backgroundColor: C.primary, borderColor: C.primary }, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={30} color={props.on ? C.white : C.primary} strokeWidth={2.6} /> : null}
       <Text style={[styles.choiceLabel, { color: props.on ? C.white : C.dark }]}>{props.label}</Text>
@@ -582,7 +585,7 @@ const styles = StyleSheet.create({
   controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.lg },
   time: { width: 40 },
   side: { width: 52, height: 52, borderRadius: 26, borderWidth: 1, borderColor: C.border, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
-  sideLabel: { fontSize: 11, fontWeight: '800', color: C.dark },
+  sideLabel: { fontSize: T.xs, fontWeight: '800', color: C.dark },
   play: { width: 56, height: 56, borderRadius: 28, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', ...lift({ color: C.primary, opacity: 0.3, radius: 12, y: 6 }) },
   verse: { borderRadius: radius.md, paddingHorizontal: space.xs, paddingVertical: 4, gap: space.xs },
   verseNoted: { backgroundColor: TINT.amber, paddingHorizontal: space.md, paddingVertical: space.sm, marginVertical: space.xs },

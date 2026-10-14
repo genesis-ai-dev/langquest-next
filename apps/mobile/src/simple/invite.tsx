@@ -47,10 +47,18 @@ export function InviteSomeone(props: {
   const [others, setOthers] = useState(false);
   const [scopeKey, setScopeKey] = useState(props.initialScope);
   const [shown, setShown] = useState(false);
+  // The organization's own writes go first: a role made a moment ago must be on the server before a code names it.
+  const [sent, setSent] = useState(false);
   const scope = props.scopes.find((s) => s.key === scopeKey) ?? props.scopes[0] ?? null;
   const roles = usePlainRoles(ctx, scope?.scope ?? null);
   const roleId = roles.choices.find((c) => c.id === choice)?.roleId ?? roles.others.find((r) => r.id === choice)?.id ?? null;
-  const invite = useGroupInvite(ctx.language.orgId, shown ? roleId : null, shown && scope ? scope.scope : null, scope ? props.label(scope) : '');
+  const making = shown && sent;
+  const invite = useGroupInvite(ctx.language.orgId, making ? roleId : null, making && scope ? scope.scope : null, scope ? props.label(scope) : '');
+  function show() {
+    setShown(true);
+    setSent(false);
+    void ctx.org.sync().then(() => setSent(true));
+  }
   const uri = invite && 'uri' in invite ? invite.uri : null;
   const what = roles.choices.find((c) => c.id === choice)?.label ?? roles.others.find((r) => r.id === choice)?.name ?? '';
   // A role made from here ("Something else: make a new role") comes back chosen (design principle 12).
@@ -83,7 +91,7 @@ export function InviteSomeone(props: {
   return (
     <Screen header={props.header(false, ctx.back, scope)} bodyStyle={{ paddingHorizontal: 20, gap: 14 }}
       footer={<>
-        <PrimaryBtn label={t('admin.invite.showCode')} icon="qr" disabled={!roleId || !scope || !!props.disabled} onPress={() => setShown(true)} />
+        <PrimaryBtn label={t('admin.invite.showCode')} icon="qr" disabled={!roleId || !scope || !!props.disabled} onPress={show} />
         {props.links ? <QuietLinks items={props.links(roleId, scope)} /> : null}
       </>}>
       <Question>{t('admin.invite.whatWillTheyDo')}</Question>

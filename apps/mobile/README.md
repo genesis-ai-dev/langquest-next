@@ -163,8 +163,9 @@ project, so which changes need a new binary is decided for you rather than
 guessed:
 
 - **JavaScript only** (screens, hooks, `src/invites.ts`, the packages):
-  `npm run ship -- -m "what changed"`. Typechecks, then publishes to the
-  `preview` channel; the fingerprint is unchanged, so installed builds take it
+  `npm run ship -- -m "what changed"`. Typechecks, runs the P0 web UI
+  tests on the local stack (`docs/testing.md`; `SHIP_UNTESTED=1` skips
+  them, loudly), then publishes to the `preview` channel; the fingerprint is unchanged, so installed builds take it
   on next launch.
 - **Anything native** (a new Expo module, `app.json` plugins or permissions,
   an SDK bump, `modules/microphone-energy`): the fingerprint changes, the

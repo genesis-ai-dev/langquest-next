@@ -788,6 +788,9 @@
       "introPending": "这个人创建了账号并申请加入。为他分配角色和范围，就能让他访问。",
       "intro": "选择一个角色，然后选择这项分配适用的范围。范围可以是这一级或更低的级别。",
       "outranked": "{{name}}在这里的权限比你多，所以只有权限同样多的人才能更改。",
+      "onlyManager": "只有 {{name}} 能管理角色",
+      "onlyManagerYou": "只有你能管理角色",
+      "onlyManagerSub": "请先给其他人一个可以管理角色的角色。之后才能更改或移除这个角色。",
       "viewOnly": "只有可以邀请成员的人才能更改角色。",
       "removeFromOrg": "从机构中移除",
       "removeFromLanguage": "从语言中移除"
@@ -841,6 +844,7 @@
       "needsPermission": "添加语言需要有管理整个机构的模板和审核流程的权限。",
       "templateMissing": "它的模板还不在本设备上。请在联网后重试。",
       "added": "已将{{language}}添加到{{org}}。",
+      "addedNotOffered": "已将{{language}}添加到{{org}}。联网后，请在帮助他们的资料中提供{{offers}}。",
       "step": "第 {{step}} 步，共 {{total}} 步",
       "called": "这个语言叫什么？",
       "namePlaceholder": "例如：Hadiyya",
@@ -2371,6 +2375,7 @@
       "confirmLabel": "确认密码",
       "confirmPlaceholder": "再次输入密码",
       "mismatch": "两次输入的密码不一致。",
+      "tooShort": "密码至少需要 6 个字符。",
       "scanInvite": "扫描邀请码",
       "scanHint": "不需要邮箱或密码。邀请会为你创建账号，并把你加入团队。",
       "failed": "无法创建账号。请重试。"
@@ -2428,8 +2433,6 @@
       "startSub": "适合团队负责人",
       "lookTitle": "先看看",
       "lookSub": "公开列出的翻译工作",
-      "stillToSend_other": "还有 {{count, number}} 项账号更改待发送。请在重新联网、这些更改发送完成后再退出登录。",
-      "signOutFailed": "无法退出登录。请重试。",
       "title": "加入你的团队",
       "joiningInvite": "正在用你的邀请加入……",
       "inviteSavedTitle": "你的邀请已保存",
@@ -2485,8 +2488,6 @@
       "member": "成员",
       "yourOrganization": "你的机构",
       "languageTeam": "{{org}}的{{language}}团队",
-      "showMe": "教我怎么用",
-      "skip": "暂时跳过",
       "getStarted": "开始使用",
       "invitedYou": "{{name}}邀请了你",
       "greeting": "欢迎你，{{name}}",
@@ -2693,6 +2694,7 @@
       "tourSub": "听一段简短的介绍",
       "more": "更多设置",
       "moreRefused": "这个账号无法同步 · 密码、通知、账号",
+      "moreRefusedEvents": "被拒绝 · {{n, number}} · 密码、通知、同步、账号",
       "morePending_other": "{{count, number}} 项等待发送 · 密码、通知、同步、账号",
       "signOut": "退出登录",
       "signOutHelp": "在本设备上退出这个账号。还没发送的工作会保留到发送完成为止。"
@@ -3147,6 +3149,7 @@
       },
       "publish": "发布",
       "publishedWhen": "{{when}}发布",
+      "publishedJustNow": "刚刚发布",
       "someoneInSentence": "某人",
       "thenAskFor": "然后请求{{check}}",
       "saveForTeam": "保存下来让团队听",
@@ -3158,6 +3161,7 @@
         "movedPast": "已越过",
         "setAside": "已搁置",
         "answered": "已回应",
+        "answeredBack": "已回复 · 退回检查",
         "looksGood": "没问题",
         "needsChanges": "需要修改",
         "after": "在{{check}}之后",
@@ -3281,6 +3285,7 @@
       "playNote": "播放{{name}}的备注",
       "whoseNote": "{{name}}的备注",
       "playFeedback": "播放{{name}}的反馈",
+      "playYourFeedback": "播放你的反馈",
       "more": "更多",
       "options": "选项",
       "openVersion": "打开{{version}}"
@@ -3310,6 +3315,8 @@
       "version": "第 {{n, number}} 版已发布",
       "versionNoNumber": "版本已发布",
       "savedHere": "{{title}} · 已保存在本设备上 · 联网后发送",
+      "sent": "{{title}} · 已发送给团队",
+      "sending": "{{title}} · 正在发送",
       "nextAsk": "接下来，请求检查",
       "allDone": "所有检查都已完成。",
       "alreadyAsked": "下一项检查已经请求过了。"
@@ -3550,6 +3557,7 @@
       "tellCode": "如果一直这样，请把这个代码告诉你的团队：{{code}}",
       "goBack": "返回",
       "goToMyWork": "前往“我的工作”",
+      "goHome": "返回首页",
       "codeForTeam": "给团队的代码：{{code}}",
       "notConfigured": "这个版本没有完成配置"
     },
@@ -3821,6 +3829,7 @@
     "toast": {
       "reportedAndBlocked": "已举报并屏蔽{{name}}。谢谢你。",
       "reported": "已举报。谢谢你。联网后会发送。",
+      "reportedSent": "已举报。谢谢你。",
       "unblocked": "已取消屏蔽{{name}}。",
       "blocked": "已屏蔽{{name}}。你将看不到对方添加的内容。",
       "removed": "已从记录中移除。各设备下次同步后将不再显示。",
@@ -3899,7 +3908,6 @@
       "couldNotSeek": "音频无法跳转（代码 {{code}}）。",
       "rewindSource": "源音频后退 10 秒",
       "forwardSource": "源音频前进 10 秒",
-      "pausePlayback": "暂停播放",
       "playAudio": "播放音频",
       "back10Help": "再听一遍最后几秒。",
       "note": "备注",
@@ -4258,6 +4266,8 @@
       "noLanguagesSub": "添加语言后，它的经段会显示在这里。",
       "noPassages": "还没有经段",
       "noPassagesSub": "{{language}}有要录的经段后，会按书卷和章显示在这里。",
+      "needsConnection": "{{language}} 尚未在此设备上",
+      "needsConnectionSub": "连接互联网即可将其下载到这里。连接后会自动打开。",
       "summary": "已录音 {{recorded}}/{{total}} · 已完成 {{done}} · 在审核人那里 {{waiting}}",
       "find": "查找“约翰福音 3”",
       "bookHits_other": "{{count, number}} 卷书 · 加上章号可以直接跳过去",
@@ -5024,7 +5034,11 @@
       "skipTitle": "不回答这个问题吗？",
       "skipSub": "必答问题也可以跳过——原因会和你的审核一起保存。",
       "skipConfirm": "跳过问题",
-      "skipFootnote": "原因会和你的审核一起保存。"
+      "skipFootnote": "原因会和你的审核一起保存。",
+      "leaveTitle": "不保存就离开吗？",
+      "leaveSub": "你在这里说的和回答的内容，在发送审阅之前不会保存。",
+      "keepReviewing": "继续审阅",
+      "leave": "离开"
     },
     "guest": {
       "previewSub": "预览 · 没有应用的人看到的样子",
@@ -5201,6 +5215,7 @@
     "noteSubNext": "这里有什么难说的地方？下一项检查会和你的回译一起听到它。",
     "addNote": "添加备注",
     "typeNoMatch": "或者打字输入——比如英语里没有对应说法的词",
+    "oneSpokenNote": "目前每个回译只能有一条语音备注：这条请打字。",
     "publishThe": "要发布{{what}}吗？",
     "publishSubCheck": "针对第 {{n}} 版。接下来由{{check}}来听。",
     "publishSub": "针对第 {{n}} 版。它会放进经段记录。",
@@ -5215,6 +5230,7 @@
     "missing": "这个经段还不在本设备上。",
     "missingSub": "可能还在加载中。",
     "orgLoading": "你的机构还在加载中。",
+    "languageLoading": "这个语言还在加载中，请稍后再试。",
     "partsNotInDraft": "你的录音片段已保存在本设备上，但还没有放进草稿。{{reason}}",
     "partDeleted": "已删除{{part}}。",
     "chips": {
@@ -5741,7 +5757,9 @@
       "remove": "从“我的圣经”中移除",
       "chapter": "第 {{n, number}} 章",
       "previousChapter": "上一章",
-      "nextChapter": "下一章"
+      "nextChapter": "下一章",
+      "removed": "已将{{abbr}}从“我的圣经”中移除",
+      "notRemoved": "未移除。请重试。"
     }
   },
   "referenceLanguage": {

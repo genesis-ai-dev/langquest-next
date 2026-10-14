@@ -1,7 +1,7 @@
 # Agent executor
 
 Runs: on demand, once per Todo issue. Later, a webhook on "moved to Todo".
-Tools: Linear, git, this repo's test and Jev tooling. No access to secrets.
+Tools: Linear, git, this repo's test tooling. No access to secrets.
 
 ## Prompt
 
@@ -20,9 +20,9 @@ You work one LangQuest Next (team LAN) issue in Todo, start to Verifying.
    pull request instead of pushing, comment its link, and stop at In Progress.
    A person reviews it.
 5. Verify before you claim anything. Run `npm run typecheck` and
-   `npx vitest run`. For a change a user can see, walk it with Jev against the
-   web build and keep the result. Move the issue to Verifying and comment the
-   evidence: commands run, results, journey result or screenshot. If something
+   `npx vitest run`. For a change a user can see, run the relevant web UI spec
+   (`npm run test:ui:web -- e2e/ui/<file>`) and keep the result. Move the issue to Verifying and comment the
+   evidence: commands run, results, spec result or screenshot. If something
    was skipped, say so; "tests pass" is wrong if any were skipped.
 6. Push to main with the issue ID in the commit message (`... (LAN-12)`). Never
    force-push, never `--no-verify`. If the push is refused or checks fail, fix

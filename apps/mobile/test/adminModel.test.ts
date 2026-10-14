@@ -112,14 +112,15 @@ describe('what they record, in plain words', () => {
 describe('who checks, in plain words', () => {
   const steps = (id: string) => FLOWS.find((f) => f.id === id)!.steps;
   it('says the shipped flows as an admin would', () => {
-    expect(flowTitle(steps('standard_bible'), DEFAULT_KINDS)).toBe('Team, community, then a consultant');
-    expect(flowShort(steps('standard_bible'), DEFAULT_KINDS)).toBe('Team, community, consultant');
-    expect(flowTitle(steps('oral_review'), DEFAULT_KINDS)).toBe('Just the community');
-    expect(flowSub(steps('oral_review'))).toBe('One check');
+    expect(flowTitle(steps('standard_bible'), DEFAULT_KINDS)).toBe('Team, back translation, community, then a consultant');
+    expect(flowShort(steps('standard_bible'), DEFAULT_KINDS)).toBe('Team, back translation, community, consultant');
+    // Checks made at the same time are each named and counted (decision 91).
+    expect(flowTitle(steps('oral_review'), DEFAULT_KINDS)).toBe('Community, then retelling');
+    expect(flowSub(steps('oral_review'))).toBe('2 checks');
     expect(flowTitle(steps('consultant_only'), DEFAULT_KINDS)).toBe('Just a consultant');
     expect(flowTitle(steps('collect_only'), DEFAULT_KINDS)).toBe('No checks');
     expect(flowSub(steps('collect_only'))).toBe('Done once recorded');
-    expect(flowSub(steps('standard_bible'))).toBe('3 checks');
+    expect(flowSub(steps('standard_bible'))).toBe('4 checks');
   });
 
   it('lists who does each step, with a lock on the one that must pass', () => {
@@ -161,6 +162,16 @@ describe('what will they do, in plain words', () => {
     const { choices } = plainRoleChoices(made);
     expect(choices.find((c) => c.id === 'backtranslate')!.roleId).toBe('bt');
     expect(choices.find((c) => c.id === 'translate')!.roleId).toBe('drafter');
+  });
+
+  it('never gives Back-translate the role Translate gives, now the Translator reviews too (decision 91)', () => {
+    const seeds = roles.map((r) => (r.id === 'translator' ? { ...r, privileges: ['translate', 'review', 'fill_reference', 'send_to_reviewers', 'view_status'] as Privilege[] } : r));
+    const plain = plainRoleChoices(seeds);
+    expect(plain.choices.find((c) => c.id === 'backtranslate')!.roleId).toBe('reviewer');
+    // A role of the organization's own that translates and reviews, and runs nothing, is the closest back-translator.
+    const own = plainRoleChoices([...seeds, { id: 'trev', name: 'Translator-Reviewer', privileges: ['translate', 'review', 'fill_reference', 'send_to_reviewers', 'view_status'] }]);
+    expect(own.choices.map((c) => [c.id, c.roleId])).toEqual([['translate', 'translator'], ['check', 'reviewer'], ['backtranslate', 'trev'], ['lead', 'coordinator']]);
+    expect(own.others.map((r) => r.id)).toEqual(['org_admin', 'viewer']);
   });
 
   it('leaves out a choice with no role to give', () => {

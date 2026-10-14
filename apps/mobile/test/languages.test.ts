@@ -11,14 +11,21 @@ describe('the language a phone opens (decision 63)', () => {
     ['v1.LanguageAdded', { languageId: 'L-nus', name: 'Nuer', code: 'nus', sourceCode: 'eng' }],
     ['v1.LanguageAdded', { languageId: 'L-din', name: 'Dinka', code: 'din', sourceCode: 'eng' }],
     ['v1.RoleDefined', { roleId: 'translator', name: 'Translator', privileges: ['translate'] }],
-    ['v1.MemberAdded', { profileId: 'akol', roleId: 'translator', scope: { level: 'language', languageId: 'L-nus' } }]
+    ['v1.MemberAdded', { profileId: 'akol', roleId: 'translator', scope: { level: 'language', languageId: 'L-nus' } }],
+    ['v1.MemberAdded', { profileId: 'deng', roleId: 'translator', scope: { level: 'org' } }]
   ]);
 
   it('opens the language a screen is about, then the last one opened, then your own, then the first by name', () => {
-    expect(openLanguage(o, 'akol', { param: 'L-din', saved: 'L-nus' })).toBe('L-din');
-    expect(openLanguage(o, 'akol', { saved: 'L-din' })).toBe('L-din');
+    expect(openLanguage(o, 'deng', { param: 'L-din', saved: 'L-nus' })).toBe('L-din');
+    expect(openLanguage(o, 'deng', { saved: 'L-din' })).toBe('L-din');
     expect(openLanguage(o, 'akol', {})).toBe('L-nus');
     expect(openLanguage(o, 'lead', {})).toBe('L-din');
+  });
+
+  it('never opens a language the person may not read (NAV-042)', () => {
+    // Akol holds a role only in Nuer: Dinka's stream is refused to him, so asking for it keeps Nuer.
+    expect(openLanguage(o, 'akol', { param: 'L-din', saved: 'L-nus' })).toBe('L-nus');
+    expect(openLanguage(o, 'akol', { saved: 'L-din' })).toBe('L-nus');
   });
 
   it('ignores a language the organization does not have, and opens none before it has any', () => {

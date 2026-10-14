@@ -75,7 +75,7 @@ describe('the passage record hero', () => {
     const p = language();
     expect(heroHeadline(p.passage(), p.kinds(), 'akol', name)).toBe('Not started');
     record(p, 'v1', ['c1']);
-    expect(heroHeadline(p.passage(), p.kinds(), 'akol', name)).toBe('Next: Peer Review + Back Translation');
+    expect(heroHeadline(p.passage(), p.kinds(), 'akol', name)).toBe('Next: Peer check + Back translation');
   });
 
   it('feedback belongs to the latest version’s author: theirs to answer, everyone else waits on them', () => {
@@ -87,7 +87,7 @@ describe('the passage record hero', () => {
     expect(heroHeadline(s, p.kinds(), 'akol', name)).toBe('Feedback for you to answer');
     expect(heroHeadline(s, p.kinds(), 'ayen', nameFor('ayen'))).toBe('Waiting on Akol');
     expect(heroHeadline(s, p.kinds(), 'deng', nameFor('deng'))).toBe('Waiting on Akol');
-    expect(feedbackNames(s, p.kinds())).toBe('Peer Review');
+    expect(feedbackNames(s, p.kinds())).toBe('Peer check');
   });
 
   it('an asked kind reads as your turn for the person asked, waiting for anyone else', () => {
@@ -96,14 +96,14 @@ describe('the passage record hero', () => {
     p.run('akol', (c) => c.ask({ commandId: 'a1', unitId: 'john3', what: 'review', kindId: 'peer', profileId: 'ayen' }));
     p.run('akol', (c) => c.ask({ commandId: 'a2', unitId: 'john3', what: 'review', kindId: 'bt', profileId: 'ayen' }));
     const s = p.passage();
-    expect(heroHeadline(s, p.kinds(), 'ayen', nameFor('ayen'))).toBe('Your turn: Peer Review + Back Translation');
+    expect(heroHeadline(s, p.kinds(), 'ayen', nameFor('ayen'))).toBe('Your turn: Peer check + Back translation');
     expect(heroHeadline(s, p.kinds(), 'deng', nameFor('deng'))).toBe('Waiting on Ayen');
     expect(pathState(s.steps[0]!, true)).toBe('waiting');
   });
 });
 
 describe('the step path', () => {
-  it('marks the next step current, a checkpoint’s later steps locked, and answered feedback as answered', () => {
+  it('marks the next step current, a checkpoint’s later steps locked, and answered feedback as still open', () => {
     const p = language();
     record(p, 'v1', ['c1']);
     let s = p.passage();
@@ -121,9 +121,11 @@ describe('the step path', () => {
     record(p, 'v2', ['c2'], 'Clearer verse 3');
     p.run('deng', (c) => c.produceContent({ commandId: 'bt1', fromTakeId: p.passage().latest!.takeId, kindId: 'bt', cards: [{ hash: 'b1', durationMs: 1000 }] }));
     s = p.passage();
-    expect(kindPathState(s.steps[0]!.kinds[0]!, s.steps[0]!, false)).toBe('answered');
-    expect(kindPathState(s.steps[0]!.kinds[1]!, s.steps[0]!, false)).toBe('complete');
-    expect(pathState(s.steps[0]!, false)).toBe('answered');
+    // Answering is not a verdict: the check is open again, for its reviewer (decided 2026-10-13).
+    expect(s.steps[0]!.complete).toBe(false);
+    expect(kindPathState(s.steps[0]!.kinds[0]!, s.steps[0]!, true)).toBe('current');
+    expect(kindPathState(s.steps[0]!.kinds[1]!, s.steps[0]!, true)).toBe('complete');
+    expect(pathState(s.steps[0]!, true)).toBe('current');
   });
 });
 
@@ -137,7 +139,7 @@ describe('a kind’s actions', () => {
     const author = kindRowActions({ status: peer, kind, step: s.steps[0]!, can: all, isAuthor: true, me: 'akol' });
     expect(author.primary?.label).toBe('Ask someone');
     expect(author.second?.label).toBe('Already happened');
-    expect(author.rest.map((a) => a.label)).toEqual(['Review it now', 'Set aside']);
+    expect(author.rest.map((a) => a.label)).toEqual(['Set aside']);
     const reviewer = kindRowActions({ status: peer, kind, step: s.steps[0]!, can: all, isAuthor: false, me: 'ayen' });
     expect(reviewer.primary?.label).toBe('Review it now');
 
@@ -196,7 +198,7 @@ describe('the record’s details', () => {
     const s = p.passage();
     const t = recordTimeline(p.state(), s);
     const o = { p: s, kinds: p.kinds(), name, anchor: () => 'Whole passage' };
-    expect(t.map((e) => describeEntry(e, o).title)).toEqual(['Peer Review · looks good', 'Back Translation set aside', 'Version 1 published']);
+    expect(t.map((e) => describeEntry(e, o).title)).toEqual(['Peer check · looks good', 'Back translation set aside', 'Version 1 published']);
     expect(describeEntry(t[0]!, o).sub).toBe('From Pastor Garang');
     expect(describeEntry(t[0]!, o).who).toBe('Logged by Ayen');
     expect(describeEntry(t[1]!, o).sub).toBe('Not needed for this passage');
@@ -212,7 +214,7 @@ describe('the record’s details', () => {
     const s = p.passage();
     const t = recordTimeline(p.state(), s);
     const o = { p: s, kinds: p.kinds(), name, anchor: () => 'Whole passage', hidden: (id: string) => id === 'ayen' };
-    expect(describeEntry(t[0]!, o).title).toBe('Back Translation set aside');
+    expect(describeEntry(t[0]!, o).title).toBe('Back translation set aside');
     expect(describeEntry(t[0]!, o).sub).toBe(hiddenText());
     expect(describeEntry(t[0]!, o).who).toBe('Ayen');
     expect(describeEntry(t[1]!, o).sub).toBe('First recording.');
@@ -306,7 +308,8 @@ describe('sending to the usual reviewer (ADR-029)', () => {
     const acts = kindRowActions({ status: peer, kind, step: s.steps[0]!, can: all, isAuthor: true, me: 'akol', sendTo: 'the Peer team' });
     expect(acts.primary).toEqual({ id: 'send', label: 'Send to the Peer team' });
     expect(acts.second).toEqual({ id: 'ask', label: 'Send to someone else' });
-    expect(acts.rest.map((a) => a.label)).toEqual(['Review it now', 'Already happened', 'Set aside']);
+    // The author never reviews their own version unless asked.
+    expect(acts.rest.map((a) => a.label)).toEqual(['Already happened', 'Set aside']);
     // Nobody usually does it: Ask someone, as before. A reviewer still reviews it now.
     expect(kindRowActions({ status: peer, kind, step: s.steps[0]!, can: all, isAuthor: true, me: 'akol' }).primary?.label).toBe('Ask someone');
     expect(kindRowActions({ status: peer, kind, step: s.steps[0]!, can: all, isAuthor: false, me: 'ayen', sendTo: 'Deng' }).primary?.label).toBe('Review it now');
@@ -342,7 +345,7 @@ describe('the journey (REC-2, REC-2a, ADR-030)', () => {
     p.run('ayen', (c) => c.recordReview({ commandId: 'r1', takeIds: [p.passage().latest!.takeId], kindId: 'peer', outcome: 'needs_changes', via: 'app', comment: 'Verse 3' }));
     const s = p.passage();
     expect(currentStepId(s)).toBe(s.steps[0]!.step.id);
-    expect(stepSummary(s.steps[0]!, p.kinds(), name)).toBe('Peer: Needs changes · Back Translation: Looks good');
+    expect(stepSummary(s.steps[0]!, p.kinds(), name)).toBe('Peer check: Needs changes · Back translation: Looks good');
     expect(stepSummary(s.steps[3]!, p.kinds(), name)).toBe('Starts after the Consultant Check checkpoint');
   });
 
@@ -361,7 +364,7 @@ describe('the journey (REC-2, REC-2a, ADR-030)', () => {
     expect(lastReviewOn(s, 'peer', 2)).toBeUndefined();
     expect(oldKindLineText(heard, p.kinds().find((k) => k.id === 'peer'), name)).toBe('Needs changes · Ayen');
     expect(oldKindLineText(undefined, undefined, name)).toBe('Not reviewed on this version');
-    expect(oldStepSummary(['peer', 'bt'], [heard, undefined], p.kinds())).toBe('Peer: Needs changes · Back Translation: Not reviewed');
+    expect(oldStepSummary(['peer', 'bt'], [heard, undefined], p.kinds())).toBe('Peer check: Needs changes · Back translation: Not reviewed');
     expect(oldStepState([heard])).toBe('answered');
     expect(ledTo(s, heard!)?.n).toBe(2);
     expect(madeAfter(s, s.latest!).map((r) => r.id)).toEqual([heard!.id]);

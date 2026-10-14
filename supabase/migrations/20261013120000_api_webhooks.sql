@@ -1,4 +1,4 @@
--- Webhooks for apps with an access token (docs/agent-api.md, decisions.md 95).
+-- Webhooks for apps with an access token (docs/agent-api.md, decisions.md 101).
 --
 -- A webhook belongs to one token: it is made, listed and deleted with that
 -- token, and stops when the token is revoked. Only the app's Worker reads

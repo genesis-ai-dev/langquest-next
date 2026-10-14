@@ -106,5 +106,35 @@ export function nextSub(kind: WorkKind, what: string, opts: { by?: string; due?:
   return [verb, opts.by ? t('work.askedBy', { name: opts.by }) : '', opts.due ?? ''].filter(Boolean).join(' · ');
 }
 
+/** What you asked of someone else, as "Waiting on others" says it. */
+export interface WaitingRequest {
+  what: 'record' | 'review';
+  kindId?: string;
+  profileId?: string;
+  teamId?: string;
+  team?: { name: string };
+  guest?: { name: string };
+}
+
+/**
+ * Who a request you made is waiting on: the person, the check's team (a
+ * check carries its own people, decisions.md 91: "the Peer check team"), an
+ * older team by its name, or the guest. "someone" only when none of these.
+ */
+export function waitingWho(r: WaitingRequest, opts: { name: (profileId: string) => string; checkName: (kindId: string) => string }): string {
+  if (r.profileId) return opts.name(r.profileId);
+  if (r.teamId) {
+    const team = r.kindId && r.teamId === `check:${r.kindId}` ? opts.checkName(r.kindId) : r.team?.name;
+    if (team) return t('passage.record.theTeam', { team });
+  }
+  return r.guest?.name ?? t('work.waiting.someone');
+}
+
+/** What is waiting: "Recording", or the check by its one name ("Peer check", decisions.md 91). */
+export function waitingWhat(r: WaitingRequest, checkName: (kindId: string) => string): string {
+  if (r.what === 'record') return t('work.waiting.recording');
+  return r.kindId ? checkName(r.kindId) : t('work.waiting.review');
+}
+
 /** How many of "Then" show before "N more" (Hick's law: a short list, the rest one tap away). */
 export const THEN_CAP = 3;
