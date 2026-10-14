@@ -410,7 +410,7 @@ bump the revision once per batch instead of once per event
   database and six browsers at once, the app's retries ran out and members
   showed as placeholder names ("Blue Hexagon"). The table grows with every
   person who signs up. The app now calls `my_directory()` (migration
-  `20261013120000_my_directory.sql`), which starts from the caller's own
+  `20261013121000_my_directory.sql`), which starts from the caller's own
   memberships and returns the same set.
 
 - **Privacy:** `pull_events` returns the payloads of redacted events; only
