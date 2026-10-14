@@ -9,7 +9,9 @@ const build = buildLibrary();
 const doc = (hash: string) => build.documents.find((d) => d.hash === hash)!.body;
 const item = (itemId: string) => build.items.find((i) => i.itemId === itemId)!;
 
-describe('LangQuest library seed', () => {
+// Building the whole library twice is CPU-bound: a few seconds alone, past the default 5 s on a busy
+// machine (the pre-push run timed out so, 2026-10-14).
+describe('LangQuest library seed', { timeout: 60_000 }, () => {
   it('names every document by the SHA-256 of its canonical text, and every one validates', () => {
     for (const d of build.documents) {
       expect(createHash('sha256').update(canonicalJson(d.body)).digest('hex')).toBe(d.hash);
