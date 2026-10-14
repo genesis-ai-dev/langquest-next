@@ -376,7 +376,20 @@ is also running (the runner otherwise takes the one booted simulator). SYNC-027 
 cut the network on iOS, and SYNC-026's "N of M" line passes too fast on a
 local stack to catch; both stay manual there.
 
-**When to run what:**
+**Quarantine and flake rates.** Retries are off, so a test that fails without
+a product cause is tagged `@quarantine` (with an issue and an owner in a
+comment), runs on its own in the nightly workflow, and is left out of the
+P0 and nightly runs with `--grep-invert @quarantine`. Pass rates per test
+come from the kept reports: `node scripts/ui-flakes.mjs keep` after a run
+copies its `report.json` into `smart-tests/results/history/`, and
+`node scripts/ui-flakes.mjs` lists every test that did not pass every time
+(`docs/testing.md`).
+
+**When to run what** (`docs/testing.md` has the whole table):
+- **Every PR.** CI runs the web suite's `@p0` tests on the export
+  (`.github/workflows/guardrails.yml`, job `ui-web`), and `npm run ship`
+  runs them on the local stack before an update goes out.
+- **Nightly.** CI runs the whole web suite, quarantine apart.
 - **Smoke run.** The web suite's `@p0` tests (`--grep @p0`) and
   `--tags smoke` on one phone. Run it on every release candidate.
 - **Full run.** The whole web suite, and every flow on iOS and Android. Run

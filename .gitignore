@@ -31,3 +31,4 @@ apps/web/.wrangler.dev.jsonc
 # Stryker
 .stryker-tmp/
 reports/
+stryker.log

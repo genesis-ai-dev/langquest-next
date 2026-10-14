@@ -28,7 +28,10 @@ Beside them:
   must stay near fully covered. CI fails under the threshold. On 2026-10-14 core was at 95% lines and client at 90%; thresholds are 93 and 88.
 - **Mutation testing** (`npm run mutate:core`): Stryker over `packages/core`,
   nightly. Coverage says a line ran; mutation says a test would notice it
-  changing. Core holds the invariants, so it gets both.
+  changing. Core holds the invariants, so it gets both. Baseline on 2026-10-14: 52.5%
+  over all of `packages/core/src` (5,598 killed, 2,124 survived, 2,937 with no test reaching them), 7 minutes on
+  7 workers; `reducer.ts` 77.2%, `passage.ts` 60.8%. The Stryker vitest runner needs the two workarounds in
+  `vitest.stryker.config.ts` until it supports vitest 5.
 - **Manual and device tests**: the specs in `docs/ui-test-suite` marked
   `Manual` or `Device`. A release candidate gets a run sheet
   (`docs/ui-test-suite/run-sheets/`), committed with its results.

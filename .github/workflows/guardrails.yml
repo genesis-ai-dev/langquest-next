@@ -4,21 +4,29 @@
 # server:   the SQL smokes, SQL parity and client integration test against a
 #           local Supabase started here from the migrations.
 # web-smoke: the release web build in three browser engines (smart-tests/web-smoke).
-# journeys: Jev walks the avatar journeys (smart-tests/journeys) against the
-#           web build and a local Supabase started here from the migrations.
-#           smart-tests/env.sh reads its URL and keys from `supabase status`,
-#           so no dotenvx key is needed.
-#           Outcome oracles judge the device event log, blob store and server.
+# ui-web:   the P0 web UI tests (smart-tests/ui, `@p0`) on the release export
+#           served by the Worker, against a local Supabase with the library
+#           seeded and the projection worker scheduled (docs/testing.md).
+# nightly:  the whole web UI suite, a fleet scenario and Stryker on core,
+#           on a schedule; reported, not blocking (docs/testing.md).
 #
-# Repo secret: OPENROUTER_API_KEY. Jev reads it as TYPESAFE_API_KEY and as its
-# text-model key. Missing, the job fails; a journey that could not run is never a pass.
+# smart-tests/env.sh reads the local stack's URL and keys from `supabase
+# status`, so no dotenvx key is needed in any job.
 name: guardrails
 
 on:
   pull_request:
   push:
     branches: [main, develop]
+  schedule:
+    # Nightly, 02:30 UTC: the jobs below with `if: nightly`.
+    - cron: '30 2 * * *'
   workflow_dispatch:
+    inputs:
+      nightly:
+        description: Run the nightly jobs too (whole UI suite, fleet, Stryker)
+        type: boolean
+        default: false
 
 concurrency:
   group: guardrails-${{ github.ref }}
@@ -34,7 +42,15 @@ jobs:
         with: { node-version: 24, cache: npm }
       - run: npm ci
       - run: npm run typecheck
-      - run: npx vitest run
+      # The unit suite with coverage; core and client have thresholds (vitest.config.ts).
+      - run: npm run test:coverage
+      - name: Keep the coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/lcov.info
+          if-no-files-found: ignore
       - name: Tell Linear (checks failed on main)
         if: failure() && github.event_name == 'push'
         continue-on-error: true
@@ -100,39 +116,138 @@ jobs:
           path: smart-tests/results
           if-no-files-found: ignore
 
-  journeys:
-    # Manual until smart-tests/world.ts seeds main's org > language model
-    # (see smart-tests/README.md); then drop this `if` so every PR runs it.
-    if: github.event_name == 'workflow_dispatch'
+  ui-web:
+    # The P0 web UI tests on the release export (docs/testing.md, layer 4):
+    # the build people get, served by the Worker, against a local Supabase
+    # with the library and the projection worker as `npm run db:start` leaves
+    # them. Zero retries; a red run is a finding, not a flake to hide.
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
     needs: checks
     env:
       CI: 'true'
-      SMART_PORT: '8091'
-      TYPESAFE_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-      UV: uv
+      UI_PORT: '8787'
+      UI_WORKERS: '4'
     steps:
       - uses: actions/checkout@v4
-      - name: Require journey secrets
-        run: |
-          [ -n "$OPENROUTER_API_KEY" ] \
-            || { echo "::error::Set the OPENROUTER_API_KEY repo secret; journeys cannot judge without it."; exit 1; }
       - uses: actions/setup-node@v4
         with: { node-version: 24, cache: npm }
-      - uses: astral-sh/setup-uv@v6
-        with: { python-version: '3.12' }
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - name: Start Supabase (applies every migration)
-        run: npx supabase start -x studio,imgproxy,vector,logflare,supavisor && npx supabase status
-      - name: Walk the journeys
-        run: smart-tests/run.sh
-      - name: Keep the journey log
-        if: failure()
+      - name: Start the local stack (migrations, library, projection worker)
+        run: npm run db:start
+      - name: P0 web UI tests on the export
+        shell: bash
+        run: npm run test:ui:web -- --grep @p0 --grep-invert @quarantine
+      - name: Keep the results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: journey-results
-          path: smart-tests/results
+          name: ui-web-p0-results
+          path: |
+            smart-tests/results/ui/report.json
+            smart-tests/results/ui/**/*.png
+            smart-tests/results/ui/**/error-context.md
+          if-no-files-found: ignore
+
+  nightly-ui-web:
+    # The whole web UI suite, quarantine apart. Reported, not blocking.
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.nightly)
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      CI: 'true'
+      UI_PORT: '8787'
+      UI_WORKERS: '4'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Start the local stack (migrations, library, projection worker)
+        run: npm run db:start
+      - name: The whole web UI suite
+        shell: bash
+        run: npm run test:ui:web -- --grep-invert @quarantine
+      - name: Keep the results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-web-nightly-results
+          path: |
+            smart-tests/results/ui/report.json
+            smart-tests/results/ui/**/*.png
+            smart-tests/results/ui/**/error-context.md
+          if-no-files-found: ignore
+
+  nightly-quarantine:
+    # The quarantined tests, on their own, so their pass rate is visible
+    # (scripts/ui-flakes.mjs over the kept reports) without blocking anything.
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.nightly)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    continue-on-error: true
+    env:
+      CI: 'true'
+      UI_PORT: '8787'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Start the local stack (migrations, library, projection worker)
+        run: npm run db:start
+      - name: Quarantined web UI tests
+        shell: bash
+        run: npm run test:ui:web -- --grep @quarantine
+      - name: Keep the results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-web-quarantine-results
+          path: smart-tests/results/ui/report.json
+          if-no-files-found: ignore
+
+  nightly-fleet:
+    # A fleet of phones on simulated time (docs/fleet-simulation.md): the
+    # sync code's cost, kept as a number to compare with docs/fleet-baselines.md.
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.nightly)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - run: npm run fleet -- normalDay --json=fleet-normalDay.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fleet-normalDay
+          path: fleet-normalDay.json
+
+  nightly-mutation:
+    # Stryker over packages/core (docs/testing.md): a test would notice a
+    # line changing, not just that it ran. The score is in the report.
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.nightly)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      # Stryker's incremental file, so a night only re-tests what changed (about 7 min from cold on 7 workers).
+      - uses: actions/cache@v4
+        with:
+          path: .stryker-tmp/incremental.json
+          key: stryker-core-${{ github.sha }}
+          restore-keys: stryker-core-
+      - run: npm run mutate:core
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutation-core
+          path: reports/mutation
           if-no-files-found: ignore

@@ -10,6 +10,7 @@
   "scripts": {
     "prepare": "git config core.hooksPath .githooks || true",
     "test": "vitest run",
+    "mutate:core": "stryker run",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc -p packages/core --noEmit && tsc -p packages/client --noEmit && tsc -p packages/v2-import --noEmit && tsc -p smart-tests && tsc -p scripts/fleet && tsc -p apps/web/worker && npm run email:typecheck && tsc -p apps/mobile --noEmit",
     "ship": "npm run ship -w mobile --",
