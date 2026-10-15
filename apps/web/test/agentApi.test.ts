@@ -327,6 +327,27 @@ describe('reading', () => {
     expect((await call('GET', '/api/v1/languages/din/passages/d2', t)).status).toBe(404);
   });
 
+  it('hands a read token the approved version\'s audio beside the latest, so a published chapter keeps playing', async () => {
+    // Why: EveryBible publishes the approved version. When the team records again, its
+    // listeners must keep hearing what was published, not lose the chapter until the
+    // new take is approved (decisions.md 109).
+    const { call, token, log } = setup();
+    const t = await token('admin', { scopes: ['read'] });
+    const fresh = [card('e1'), card('e2')];
+    log.add('din', 'v1.RecordingAdded', { recordingId: 'rec-d1-v2', unitId: 'd1', kind: 'target', cards: fresh }, 'tr');
+    log.add('din', 'v1.TakeComposed', { takeId: 'take-d1-v2', unitId: 'd1', cardHashes: fresh.map((c) => c.hash), parentTakeId: null }, 'tr');
+    log.add('din', 'v1.TakeSubmitted', { takeId: 'take-d1-v2' }, 'tr');
+    const one = await call('GET', '/api/v1/languages/din/passages/d1', t);
+    expect(one.body.version.takeId).toBe('take-d1-v2');
+    expect(one.body.approvedVersion.takeId).toBe('take-d1');
+    expect(one.body.audio.map((a: any) => a.hash)).toEqual(fresh.map((c) => c.hash));
+    expect(one.body.approvedAudio.map((a: any) => a.hash)).toEqual([card('d1a').hash, card('d1b').hash]);
+    const listed = await call('GET', '/api/v1/languages/din/passages?unitIds=d1&include=approvedAudio', t);
+    expect(listed.body.passages[0].approvedAudio).toEqual(one.body.approvedAudio);
+    // Nothing approved yet: nothing to keep playing.
+    expect((await call('GET', '/api/v1/languages/din/passages/d2', t)).body.approvedAudio).toEqual([]);
+  });
+
   it('gives a read token every passage, with reviews and steps', async () => {
     const { call, token } = setup();
     const t = await token('admin', { scopes: ['read'] });
@@ -350,10 +371,10 @@ describe('reading', () => {
     expect(plain.body.passages.every((p: any) => Object.keys(p).every((k) => !['steps', 'requests', 'reviews', 'versions', 'audio'].includes(k)))).toBe(true);
     const one = await call('GET', '/api/v1/languages/din/passages/d2', t);
     const progress = await call('GET', '/api/v1/languages/din/passages?status=in_review&include=steps,requests', t);
-    expect(progress.body.passages).toEqual([{ ...withoutKeys(one.body, ['audio', 'reviews', 'versions']) }]);
+    expect(progress.body.passages).toEqual([{ ...withoutKeys(one.body, ['audio', 'reviews', 'versions', 'approvedAudio']) }]);
     expect(progress.body.passages[0].requests).toMatchObject([{ requestId: 'q-rev', forYou: true }]);
     // Everything one passage gives, for several picked passages, in display order.
-    const picked = await call('GET', '/api/v1/languages/din/passages?unitIds=d2&unitIds=d1&unitIds=nope&include=audio,reviews,steps,requests,versions', t);
+    const picked = await call('GET', '/api/v1/languages/din/passages?unitIds=d2&unitIds=d1&unitIds=nope&include=audio,reviews,steps,requests,versions,approvedAudio', t);
     expect(picked.body.passages.map((p: any) => p.unitId)).toEqual(['d1', 'd2']);
     expect(picked.body.passages[1]).toEqual(one.body);
     expect((await call('GET', '/api/v1/languages/din/passages?include=steps,colour', t)).body).toMatchObject({ code: 'bad_request' });
@@ -365,7 +386,7 @@ describe('reading', () => {
     const one = await call('GET', '/api/v1/languages/din/passages/d1', listener);
     const list = await call('GET', '/api/v1/languages/din/passages?include=audio,reviews', listener);
     expect(list.body.passages).toEqual([one.body]);
-    for (const include of ['steps', 'requests', 'versions']) {
+    for (const include of ['steps', 'requests', 'versions', 'approvedAudio']) {
       expect((await call('GET', `/api/v1/languages/din/passages?include=${include}`, listener)).body).toMatchObject({ code: 'scope' });
     }
   });

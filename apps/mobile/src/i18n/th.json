@@ -3321,7 +3321,10 @@
       "playYourFeedback": "เล่นความคิดเห็นของคุณ",
       "more": "เพิ่มเติม",
       "options": "ตัวเลือก",
-      "openVersion": "เปิด{{version}}"
+      "openVersion": "เปิด{{version}}",
+      "listeners": "ผู้ฟัง",
+      "liveIn": "เผยแพร่ใน {{channel}} · {{version}}",
+      "listenerCount": "ความคิดเห็นจากผู้ฟัง: {{count, number}}"
     },
     "else": {
       "title": "อย่างอื่นใช่ไหม?",

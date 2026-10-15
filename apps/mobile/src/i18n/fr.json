@@ -3559,7 +3559,10 @@
       "playYourFeedback": "Écouter vos remarques",
       "more": "Plus",
       "options": "Options",
-      "openVersion": "Ouvrir {{version}}"
+      "openVersion": "Ouvrir {{version}}",
+      "listeners": "Auditeurs",
+      "liveIn": "En ligne dans {{channel}} · {{version}}",
+      "listenerCount": "Retours d'auditeurs : {{count, number}}"
     },
     "else": {
       "title": "Autre chose ?",

@@ -32,3 +32,6 @@ apps/web/.wrangler.dev.jsonc
 .stryker-tmp/
 reports/
 stryker.log
+
+# Isolated listening demo: its event log, audio and token
+.listening-demo/
