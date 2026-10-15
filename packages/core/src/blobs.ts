@@ -1,6 +1,6 @@
 import type { EventPayloads, EventType } from './events';
 import { unitAncestry } from './materials';
-import { unitsAskedOf } from './passage';
+import { unitsAskedOf } from './passageLines';
 import { stateRevision } from './reducer';
 import type { LanguageState } from './state';
 

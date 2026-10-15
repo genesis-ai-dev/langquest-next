@@ -3,7 +3,8 @@ import { HlcClock } from '../src/hlc';
 import { CommandError, commands } from '../src/commands';
 import { foldLanguage as fold } from '../src/reducer';
 import { emptyLanguageState as emptyState } from '../src/state';
-import { derivePassage, draftsBy, highlightsFor, latestDraftBy } from '../src/passage';
+import { derivePassage, draftsBy, latestDraftBy } from '../src/passage';
+import { highlightsFor } from '../src/passageLines';
 
 /**
  * Several drafts of one passage per person (decisions.md 83): each is the

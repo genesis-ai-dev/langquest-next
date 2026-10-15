@@ -4,10 +4,8 @@ import { CommandError, commands } from '../src/commands';
 import { foldLanguage as fold } from '../src/reducer';
 import { emptyLanguageState as emptyState } from '../src/state';
 import { flowTemplate, instantiateFlow } from '../src/record';
-import {
-  derivePassage, highlightsFor, kindOf, passageSummary, requestAddressee, requestAddresseeName, requestIsFor,
-  updatesFor, usualTarget, waitingOn
-} from '../src/passage';
+import { derivePassage, kindOf, passageSummary, requestAddressee, requestAddresseeName, requestIsFor, updatesFor, usualTarget } from '../src/passage';
+import { highlightsFor, waitingOn } from '../src/passageLines';
 import { validateEvent } from '../src/validate';
 import { privilegeFor } from '../src/org';
 

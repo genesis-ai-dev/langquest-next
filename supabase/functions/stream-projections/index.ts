@@ -21739,6 +21739,10 @@ function earliestUndo(table, key, event) {
   if (prior && (prior.hlc < event.hlc || prior.hlc === event.hlc && prior.by <= event.actorId)) return;
   table[key] = { by: event.actorId, hlc: event.hlc };
 }
+function keptRecording(a, b) {
+  const content = ({ actorId: _a, hlc: _h, ...rest }) => rest;
+  return earlier({ hlc: a.hlc, actorId: a.actorId }, content(a), b, content(b)) ? a : b;
+}
 function blobVerdict(state, event, v) {
   const hash = event.payload.hash;
   const cur = state.blobs[hash];
@@ -21944,7 +21948,7 @@ function derivePassage(state, unitId, idx) {
     if (r.outcome !== "needs_changes") return r;
     const kept = departures.find((d) => d.type === "keep" && d.reviewId === r.id && !d.undone);
     const revised = versions.find((v) => v.n > r.versionN);
-    const keptResponse = kept && {
+    const keptResponse2 = kept && {
       decision: "kept",
       by: kept.by,
       hlc: kept.hlc,
@@ -21960,7 +21964,7 @@ function derivePassage(state, unitId, idx) {
       ...revised.changeNote ? { note: revised.changeNote } : {},
       ...revised.changeBlobHash ? { blobHash: revised.changeBlobHash } : {}
     };
-    const response = keptResponse && revisedResponse ? keptResponse.hlc < revisedResponse.hlc ? keptResponse : revisedResponse : keptResponse ?? revisedResponse;
+    const response = keptResponse2 && revisedResponse ? keptResponse2.hlc < revisedResponse.hlc ? keptResponse2 : revisedResponse : keptResponse2 ?? revisedResponse;
     return response ? { ...r, response } : r;
   });
   const requests = (ri.requests.get(key) ?? []).map(({ eventId: _e, ...r }) => {
@@ -22060,23 +22064,6 @@ function teamMemberIds(state, teamId) {
   if (!team) return [];
   return Object.entries(team.members).filter(([, r]) => r.value).map(([id]) => id).sort();
 }
-function languageProgress(state, idx) {
-  const ri = recordIndexes(state, idx);
-  const flow = ri.flow;
-  const states = ri.idx.passages.map((u) => derivePassage(state, u, ri.idx));
-  return {
-    total: states.length,
-    recorded: states.filter((s) => s.recorded).length,
-    done: states.filter((s) => s.done).length,
-    steps: flow.steps.map((step, i) => ({
-      name: stepName(ri.kinds, step),
-      cleared: states.filter((s) => s.recorded && s.steps[i]?.complete).length,
-      checkpoint: step.checkpoint
-    })),
-    waiting: states.filter((s) => s.openRequests.some((r) => r.what === "review")).length,
-    feedback: states.filter((s) => s.awaitingResponse.length > 0).length
-  };
-}
 function unitTitle(state, unitId) {
   const label = state.units[unitId]?.label ?? unitId;
   return withBookName(state, unitId, label);
@@ -22119,10 +22106,213 @@ function updatesFor(state, actorId, idx) {
       }
     }
   }
-  return out.sort((a, b) => a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : 0);
+  return out.sort((a, b) => a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 }
 function stepAllowsLinks(state, step) {
   return state.stepLinks?.[step.id]?.value ?? !step.checkpoint;
+}
+
+// packages/core/src/passageParts.ts
+var laterRegister = (a, b) => a.hlc > b.hlc || a.hlc === b.hlc && a.eventId > b.eventId ? a : b;
+var firstOf = (a, b) => a.hlc < b.hlc || a.hlc === b.hlc && a.eventId <= b.eventId ? a : b;
+var firstUndo = (a, b) => a.hlc < b.hlc || a.hlc === b.hlc && a.by <= b.by ? a : b;
+function byKey(merge) {
+  return (a, b) => {
+    const out = { ...a };
+    for (const [k, v] of Object.entries(b)) out[k] = out[k] ? merge(out[k], v) : v;
+    return out;
+  };
+}
+function keptTake(a, b) {
+  const archived = a.archived || b.archived;
+  if (a.unitId === "") return { ...b, archived };
+  if (b.unitId === "") return { ...a, archived };
+  const content = (t) => ({ unitId: t.unitId, cardHashes: t.cardHashes, parentTakeId: t.parentTakeId });
+  const first = earlier({ hlc: a.hlc, actorId: a.actorId }, content(a), b, content(b)) ? a : b;
+  return { ...first, archived };
+}
+var keptSubmission = (a, b) => earlier({ hlc: a.hlc, actorId: a.actorId }, { questionSetIds: a.questionSetIds }, b, { questionSetIds: b.questionSetIds }) ? a : b;
+var keptResponse = (a, b) => {
+  const content = (r) => ({ respondsToTakeId: r.respondsToTakeId, note: r.note, blobHash: r.blobHash });
+  return earlier({ hlc: a.hlc, actorId: a.actorId }, content(a), b, content(b)) ? a : b;
+};
+var keptTermLink = (a, b) => earlier({ hlc: a.hlc, actorId: a.actorId }, { note: a.note, adjustmentId: a.adjustmentId }, b, { note: b.note, adjustmentId: b.adjustmentId }) ? a : b;
+var keptUse = (a, b) => {
+  const first = a.hlc < b.hlc || a.hlc === b.hlc && a.eventId < b.eventId ? a : b;
+  return { ...first, opened: a.opened || b.opened };
+};
+var usedSubject = (key) => key.startsWith("take:") ? { take: key.slice(5) } : key.startsWith("review:") ? { review: key.slice(7) } : null;
+var PASSAGE_PARTS = [
+  {
+    map: "recordings",
+    kind: "recording",
+    depth: 1,
+    passage: (_k, r) => ({ unitId: r.unitId }),
+    merge: (a, b) => keptRecording(a, b),
+    ref: (_k, r) => r.actorId
+  },
+  // A placeholder from an archive that came first has no passage yet; its compose may be on disk.
+  {
+    map: "takes",
+    kind: "take",
+    depth: 1,
+    passage: (k, t) => t.unitId ? { unitId: t.unitId } : { take: k },
+    merge: (a, b) => keptTake(a, b),
+    ref: (_k, t) => t.actorId
+  },
+  { map: "submissions", kind: "submission", depth: 1, passage: (k) => ({ take: k }), merge: (a, b) => keptSubmission(a, b) },
+  { map: "responses", kind: "response", depth: 1, passage: (k) => ({ take: k }), merge: (a, b) => keptResponse(a, b) },
+  { map: "kindReviews", kind: "review", depth: 1, passage: (_k, r) => ({ take: r.takeId }), merge: (a, b) => firstOf(a, b) },
+  { map: "departures", kind: "departure", depth: 1, passage: (_k, d) => ({ unitId: d.unitId }), merge: (a, b) => firstOf(a, b) },
+  {
+    map: "undoneDepartures",
+    kind: "undoneDeparture",
+    depth: 1,
+    passage: (k) => ({ departure: k }),
+    merge: (a, b) => firstUndo(a, b)
+  },
+  { map: "requests", kind: "request", depth: 1, passage: (_k, r) => ({ unitId: r.unitId }), merge: (a, b) => firstOf(a, b) },
+  {
+    map: "withdrawnRequests",
+    kind: "withdrawnRequest",
+    depth: 1,
+    passage: (k) => ({ request: k }),
+    merge: (a, b) => firstUndo(a, b)
+  },
+  { map: "notes", kind: "note", depth: 1, passage: (_k, n) => ({ unitId: n.unitId }), merge: (a, b) => firstOf(a, b) },
+  { map: "studyMarks", kind: "studyMark", depth: 1, passage: (k) => ({ studyKey: k }), merge: (a, b) => laterRegister(a, b) },
+  { map: "cardVerses", kind: "cardVerses", depth: 1, passage: (k) => ({ unitId: k }), merge: (a, b) => byKey(laterRegister)(a, b) },
+  { map: "passageLinks", kind: "passageLinks", depth: 1, passage: (k) => ({ unitId: k }), merge: (a, b) => byKey(laterRegister)(a, b) },
+  { map: "referencesUsed", kind: "used", depth: 1, passage: (k) => usedSubject(k), merge: (a, b) => byKey(keptUse)(a, b) },
+  { map: "keyTermLinks", kind: "termLink", depth: 2, passage: (k) => ({ take: k }), merge: (a, b) => keptTermLink(a, b), ref: (_k, _v, term) => term ?? "" },
+  { map: "releases", kind: "release", depth: 1, passage: (k) => ({ take: k }), merge: (a, b) => byKey(laterRegister)(a, b) }
+];
+var PASSAGE_PART = Object.fromEntries(PASSAGE_PARTS.map((p) => [p.map, p]));
+var PART_OF_KIND = new Map(PASSAGE_PARTS.map((p) => [p.kind, p]));
+function studyMarkUnit(units, key) {
+  for (let cut = key.lastIndexOf(":"); cut > 0; cut = key.lastIndexOf(":", cut - 1)) {
+    const unitId = key.slice(0, cut);
+    if (units[unitId]) return unitId;
+  }
+  return null;
+}
+function passageInMemory(state, of) {
+  if (!of) return null;
+  if ("unitId" in of) return of.unitId || null;
+  if ("take" in of) return state.takes[of.take]?.unitId || null;
+  if ("review" in of) {
+    const r = state.kindReviews[of.review];
+    return r ? state.takes[r.takeId]?.unitId || null : null;
+  }
+  if ("departure" in of) return state.departures[of.departure]?.unitId || null;
+  if ("request" in of) return state.requests[of.request]?.unitId || null;
+  return studyMarkUnit(state.units, of.studyKey);
+}
+function* partEntries(state) {
+  for (const part of PASSAGE_PARTS) {
+    const map = state[part.map] ?? {};
+    for (const [key, value] of Object.entries(map)) {
+      if (part.depth === 1) yield { part, key, value };
+      else for (const [inner, v] of Object.entries(value)) yield { part, key, inner, value: v };
+    }
+  }
+}
+
+// packages/core/src/passageLines.ts
+var emptyRaw = () => ({ takes: 0, worked: false, reviewers: {} });
+function passageLine(s, raw = emptyRaw()) {
+  const draftsBy = {};
+  for (const d of s.drafts) if (!draftsBy[d.by] || d.hlc > draftsBy[d.by]) draftsBy[d.by] = d.hlc;
+  const people = /* @__PURE__ */ new Set();
+  for (const r of s.requests) {
+    people.add(r.by);
+    if (r.profileId) people.add(r.profileId);
+    for (const id of r.team?.memberIds ?? []) people.add(id);
+  }
+  for (const v of s.versions) people.add(v.by);
+  for (const r of s.reviews) people.add(r.by);
+  return {
+    unitId: s.unitId,
+    recorded: s.recorded,
+    drafting: s.drafting,
+    done: s.done,
+    ...s.latest ? { latest: { takeId: s.latest.takeId, n: s.latest.n, by: s.latest.by, hlc: s.latest.hlc } } : {},
+    steps: s.steps.map((st) => ({
+      step: st.step,
+      complete: st.complete,
+      kinds: st.kinds.map((k) => ({ kindId: k.kindId, state: k.state, ...k.request ? { request: k.request } : {} }))
+    })),
+    ...s.next ? { next: { step: s.next.step, index: s.next.index } } : {},
+    openRequests: s.openRequests,
+    awaitingResponse: s.awaitingResponse,
+    reviewed: s.reviews.length > 0,
+    draftsBy,
+    people: [...people].sort(),
+    reviewers: raw.reviewers,
+    takes: raw.takes,
+    worked: raw.worked
+  };
+}
+function rawByUnit(state) {
+  const out = /* @__PURE__ */ new Map();
+  const at = (unitId) => {
+    let r = out.get(unitId);
+    if (!r) out.set(unitId, r = emptyRaw());
+    return r;
+  };
+  for (const e of partEntries(state)) {
+    const unitId = passageInMemory(state, e.part.passage(e.key, e.value, e.inner));
+    if (!unitId) continue;
+    const raw = at(unitId);
+    if (e.part.map === "recordings") raw.worked = true;
+    else if (e.part.map === "takes") {
+      raw.worked = true;
+      if (!e.value.archived) raw.takes += 1;
+    } else if (e.part.map === "kindReviews") {
+      const r = e.value;
+      const byKind = raw.reviewers[r.kindId] ??= {};
+      byKind[r.by] = byKind[r.by] === true || r.via === "app";
+    }
+  }
+  return out;
+}
+function languageLines(state, idx) {
+  const revision = stateRevision(state);
+  const hit = linesCache.get(state);
+  if (hit && hit.revision === revision) return hit.lines;
+  const raw = rawByUnit(state);
+  const made = /* @__PURE__ */ new Map();
+  const lines = {
+    get(unitId) {
+      let line = made.get(unitId);
+      if (!line) made.set(unitId, line = passageLine(derivePassage(state, unitId, idx), raw.get(unitId)));
+      return line;
+    },
+    worked: () => raw.keys()
+  };
+  linesCache.set(state, { revision, lines });
+  return lines;
+}
+var linesCache = /* @__PURE__ */ new WeakMap();
+function progressOf(lines, passages, state) {
+  const flow = deriveFlow(state);
+  const kinds = deriveKinds(state);
+  const all = passages.map((u) => lines.get(u));
+  return {
+    total: all.length,
+    recorded: all.filter((s) => s.recorded).length,
+    done: all.filter((s) => s.done).length,
+    steps: flow.steps.map((step, i) => ({
+      name: stepName(kinds, step),
+      cleared: all.filter((s) => s.recorded && s.steps[i]?.complete).length,
+      checkpoint: step.checkpoint
+    })),
+    waiting: all.filter((s) => s.openRequests.some((r) => r.what === "review")).length,
+    feedback: all.filter((s) => s.awaitingResponse.length > 0).length
+  };
+}
+function languageProgress(state, idx) {
+  return progressOf(languageLines(state, idx), (idx ?? buildIndexes(state)).passages, state);
 }
 
 // packages/core/src/library.ts

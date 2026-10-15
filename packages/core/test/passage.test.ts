@@ -4,10 +4,8 @@ import { commands } from '../src/commands';
 import { applyLanguageEvent, foldLanguage as fold } from '../src/reducer';
 import { referencedBlobs } from '../src/blobs';
 import { emptyLanguageState as emptyState, type LanguageState } from '../src/state';
-import {
-  deriveFlow, deriveKinds, derivePassage, highlightsFor, languageProgress, passageSummary,
-  questionsForKind, recordTimeline, reviewGrid, studyMarksFor, unitPlace, unitsAskedOf, upNext, updatesFor, waitingOn
-} from '../src/passage';
+import { deriveFlow, deriveKinds, derivePassage, passageSummary, questionsForKind, recordTimeline, reviewGrid, studyMarksFor, unitPlace, updatesFor } from '../src/passage';
+import { highlightsFor, languageProgress, unitsAskedOf, upNext, waitingOn } from '../src/passageLines';
 import { flowTemplate, instantiateFlow } from '../src/record';
 import { validateEvent } from '../src/validate';
 import { buildFixture, buildRecordFixture, buildStep11Fixture } from './fixtures';
