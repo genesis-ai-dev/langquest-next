@@ -7,7 +7,7 @@
 // stops is reported so recording can resume.
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState } from 'react';
-import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../audioSession';
+import { LISTEN_PLAYER, registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../audioSession';
 import { t } from '../i18n';
 import type { ListenHooks } from '../recording/useListenLoop';
 import { noteExpected } from '../report';
@@ -127,7 +127,7 @@ export function usePassagePlayer(c: {
       setLoading(true);
       const uri = await live.current.c.resolve(at);
       if (generation.current !== run) return;
-      const p = createAudioPlayer({ uri }, { updateInterval: 250 });
+      const p = createAudioPlayer({ uri }, { updateInterval: 250, ...LISTEN_PLAYER });
       player.current = p;
       playerPart.current = at;
       p.addListener('playbackStatusUpdate', (st) => {

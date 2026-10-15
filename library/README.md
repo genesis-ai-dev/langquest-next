@@ -94,6 +94,14 @@ npm run library:seed
 
 Running it again changes nothing: document names and event ids come from
 their content. A changed source publishes a new version of its item.
+`--only <itemId>` (repeatable) publishes just those items and the documents
+they need, so a hosted project can take one change (a new version of the
+Spoken Oral Method, say) without everything else that changed since it was
+last seeded:
+
+```sh
+npm run library:seed -- --only langquest.flow.spoken_oral --dry-run
+```
 
 The sources need the network (even with `--dry-run`) and Faith Comes By
 Hearing's key in the environment; without the key only `bsb-fs` is built.

@@ -1,9 +1,10 @@
 // Listen, speak, listen (LAN-23): while a take is recording, playing the
-// source pauses the microphone, and when the source pauses or ends the
-// recording picks up again by itself. The source never plays into a take,
-// and the audio session is only ever in one mode at a time: the recorder is
-// fully stopped (its last part delivered) before the player switches the
-// session to playback, and restarted only once playback has stopped.
+// source pauses the voice detector, and when the source pauses or ends the
+// recording picks up again by itself. The source never plays into a take:
+// the detector is off (its open part delivered) before the player starts.
+// The microphone itself stays open through playback (decisions.md 106), so
+// picking up again is instant and the first words after the source are kept;
+// what it hears while the source plays is never kept.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { stopAudioPlayback } from '../audioSession';
@@ -33,9 +34,9 @@ export function useListenLoop(rec: Recorder) {
     const r = recRef.current;
     if (!r.vadOn) return;
     setListening(true);
-    const stop = r.stopVad();
-    pausing.current = stop;
-    try { await stop; } finally { if (pausing.current === stop) pausing.current = null; }
+    const pause = r.pauseVad();
+    pausing.current = pause;
+    try { await pause; } finally { if (pausing.current === pause) pausing.current = null; }
   }, []);
 
   const resume = useCallback(async () => {
@@ -45,7 +46,7 @@ export function useListenLoop(rec: Recorder) {
       await pausing.current;
       if (!listeningRef.current) return;
       setListening(false);
-      if (!recRef.current.vadOn) await recRef.current.toggleVad();
+      await recRef.current.resumeVad();
     } finally { resuming.current = false; }
   }, []);
 
@@ -61,15 +62,17 @@ export function useListenLoop(rec: Recorder) {
 
   /** The record button: start a session, or end it whichever phase it is in. */
   const toggle = useCallback(async () => {
-    if (listeningRef.current) { setListening(false); return; }
+    if (listeningRef.current) { setListening(false); await recRef.current.stopVad(); return; }
     await recRef.current.toggleVad();
   }, []);
 
-  // Leaving the screen stops the source (App.tsx); don't pick the microphone up again behind another screen.
+  // Leaving the screen stops the source (App.tsx); don't keep the microphone open behind another screen.
   const showing = useScreenShowing();
-  useEffect(() => { if (!showing && listeningRef.current) setListening(false); }, [showing]);
+  useEffect(() => {
+    if (!showing && listeningRef.current) { setListening(false); void recRef.current.stopVad(); }
+  }, [showing]);
 
-  // Never pick the microphone up again in the background.
+  // Never pick the microphone up again in the background (the recorder stops itself there).
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s) => { if (s !== 'active' && listeningRef.current) setListening(false); });
     return () => sub.remove();
