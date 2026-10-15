@@ -3440,7 +3440,10 @@
       "playYourFeedback": "तपाईंको प्रतिक्रिया बजाउनुहोस्",
       "more": "थप",
       "options": "विकल्पहरू",
-      "openVersion": "{{version}} खोल्नुहोस्"
+      "openVersion": "{{version}} खोल्नुहोस्",
+      "listeners": "श्रोताहरू",
+      "liveIn": "{{channel}} मा प्रकाशित · {{version}}",
+      "listenerCount": "श्रोताहरूको प्रतिक्रिया: {{count, number}}"
     },
     "else": {
       "title": "अरू केही?",

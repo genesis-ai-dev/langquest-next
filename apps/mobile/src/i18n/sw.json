@@ -3440,7 +3440,10 @@
       "playYourFeedback": "Cheza maoni yako",
       "more": "Zaidi",
       "options": "Chaguo",
-      "openVersion": "Fungua {{version}}"
+      "openVersion": "Fungua {{version}}",
+      "listeners": "Wasikilizaji",
+      "liveIn": "Imechapishwa kwenye {{channel}} · {{version}}",
+      "listenerCount": "Maoni ya wasikilizaji: {{count, number}}"
     },
     "else": {
       "title": "Kitu kingine?",
