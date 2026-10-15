@@ -1,6 +1,6 @@
 # The LangQuest API, review links, and MCP
 
-Other apps, AI agents and people without an account can take part in a translation's review. Why it is built this way: `docs/decisions.md` 70 (tokens), 72 (reviews, releases, review links), 79 (external values), 85 (the passage list), 86 (the OpenAPI document) and 101 (webhooks and the change feed).
+Other apps, AI agents and people without an account can take part in a translation's review. Why it is built this way: `docs/decisions.md` 70 (tokens), 72 (reviews, releases, review links), 79 (external values), 85 (the passage list), 86 (the OpenAPI document), 101 (webhooks and the change feed) and 108 (a listening app's approved audio).
 
 - **Partner apps and agents** use an access token. They read passages, record reviews, report where a version is published, and store values of their own with a language.
 - **Anyone with a review link** (`/r/<code>`, shared on WhatsApp, say) can hear one version and answer, with any name.
@@ -70,11 +70,12 @@ curl -H "$T" https://next.langquest.org/api/v1/languages/LANG/passages/UNIT     
   - `version` is the latest version with `read`, and the approved one with `read:published` alone.
   - **Pages:** 100 passages at a time, or `limit` (1 to 500). Pass `nextAfter` as `after` for the next page. `nextAfter` is null when nothing more matches.
   - **Filters:** `status`, `changedSince`, and `unitIds` for particular passages. Repeat `unitIds` once per id, since an id may hold a comma. Ids that do not exist, or that the token cannot see, are left out.
-  - **`include`** adds fields of one passage (below) to every passage on the page, comma-separated: `audio`, `reviews`, `steps`, `requests`, `versions`. Links are signed only for the page. `steps`, `requests` and `versions` need `read`; with `read:published` alone they are refused (`403`, `scope`).
+  - **`include`** adds fields of one passage (below) to every passage on the page, comma-separated: `audio`, `reviews`, `steps`, `requests`, `versions`, `approvedAudio`. Links are signed only for the page. `steps`, `requests`, `versions` and `approvedAudio` need `read`; with `read:published` alone they are refused (`403`, `scope`).
 - **`reference`** is the verses the passage holds, read from its unit id so you need not parse `GEN.1.1-2.3~org`: `{ book, chapter, verse, endChapter, endVerse }`, in the template's own numbering. A whole chapter has null verses, a whole book null chapters too. It is null for a unit someone made by hand.
 - **Following changes:** pass the newest `updatedAt` you have seen as `changedSince`. Versions, reviews and releases all count as changes. The server catches up with the log at least once a minute. `changedSince` never sees a passage leave the list or change its label; follow the change feed (below) for those.
 - **One passage** has everything the token may see of it: the list's fields, `audio` and `reviews`, plus `steps`, `requests` and `versions` with `read`. It is the list with every include, for one unit.
   - `audio` is `version`'s cards in playing order. Each has a `url` that plays without a token for ten minutes, with Range support.
+  - `approvedAudio` (with `read`) is `approvedVersion`'s cards, so an app keeps playing the version it published while a newer one is in review. It is empty when nothing is approved.
   - Each step lists its `kinds`: `kindId` (what a review of it sends), `name`, `state`, and `apiReviewCounts`, whether a review through this API completes it. It does on an ordinary step that takes links, never on a checkpoint.
   - `requests` are the ones not done yet: `requestId`, `what` (`review` or `record`), `kindId` and `kind`, `forYou` (to the token's person, or a team they are in), `team`, `dueDate`, `note` and `askedAt`.
 
