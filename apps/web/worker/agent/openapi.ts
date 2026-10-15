@@ -76,7 +76,8 @@ function schemas(): Record<string, Schema> {
     reviews: list(ref('Review'), 'With read: every review of every version. With read:published alone: listener reviews of version.'),
     steps: list(ref('Step'), 'The language\'s review flow and where the passage is in it. Needs read.'),
     requests: list(ref('Request'), 'Work asked for and not done yet, oldest first. Needs read.'),
-    versions: list(obj({ n: int(), takeId: text(), submittedAt: time() }), 'Every version, oldest first. Needs read.')
+    versions: list(obj({ n: int(), takeId: text(), submittedAt: time() }), 'Every version, oldest first. Needs read.'),
+    approvedAudio: list(ref('AudioCard'), 'approvedVersion\'s cards in playing order, so a listening app keeps playing what it published while a newer version is in review; empty when nothing is approved. Needs read.')
   };
   const passage = (optional: string[], description: string) => obj({ ...summary, ...includes }, optional, description);
 
@@ -175,7 +176,7 @@ function schemas(): Record<string, Schema> {
       forYou: bool('Asked of the token\'s person, or a team they are in.'), team: text(), dueDate: text(), note: text(), askedAt: time()
     }, ['kindId', 'kind', 'team', 'dueDate', 'note']),
     PassageListItem: passage([...PASSAGE_INCLUDES], 'A passage\'s summary, with the fields include named.'),
-    PassageDetail: passage(['steps', 'requests', 'versions'], 'Everything the token may see of one passage; steps, requests and versions need read.'),
+    PassageDetail: passage(['steps', 'requests', 'versions', 'approvedAudio'], 'Everything the token may see of one passage; steps, requests, versions and approvedAudio need read.'),
     PassagePage: obj({
       passages: list(ref('PassageListItem')),
       nextAfter: nullable(text('Pass it as after for the next page; null when nothing more matches.'))
@@ -269,7 +270,7 @@ function paths(): Record<string, Schema> {
       get: {
         ...auth, operationId: 'listPassages',
         summary: 'Passages in display order, a page at a time.',
-        description: 'A token with read:published alone sees approved passages only. include adds fields of one passage to every passage on the page, and links are signed only for the page; steps, requests and versions need read (403 scope otherwise).',
+        description: 'A token with read:published alone sees approved passages only. include adds fields of one passage to every passage on the page, and links are signed only for the page; steps, requests, versions and approvedAudio need read (403 scope otherwise).',
         parameters: [
           LANGUAGE_ID,
           { name: 'status', in: 'query', schema: ref('Status'), description: 'Only passages with this status.' },

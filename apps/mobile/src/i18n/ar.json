@@ -3893,7 +3893,10 @@
       "playYourFeedback": "شغّل ملاحظاتك",
       "more": "المزيد",
       "options": "الخيارات",
-      "openVersion": "افتح {{version}}"
+      "openVersion": "افتح {{version}}",
+      "listeners": "المستمعون",
+      "liveIn": "منشور في {{channel}} · {{version}}",
+      "listenerCount": "ملاحظات المستمعين: {{count, number}}"
     },
     "else": {
       "title": "شيء آخر؟",

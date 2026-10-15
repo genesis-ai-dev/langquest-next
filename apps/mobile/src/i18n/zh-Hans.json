@@ -3298,7 +3298,10 @@
       "playYourFeedback": "播放你的反馈",
       "more": "更多",
       "options": "选项",
-      "openVersion": "打开{{version}}"
+      "openVersion": "打开{{version}}",
+      "listeners": "听众",
+      "liveIn": "已在 {{channel}} 发布 · {{version}}",
+      "listenerCount": "听众反馈：{{count, number}}"
     },
     "else": {
       "title": "其他情况？",

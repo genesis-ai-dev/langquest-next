@@ -90,10 +90,15 @@ export interface PassageDetail extends PassageSummary {
    */
   requests?: { requestId: string; what: 'record' | 'review'; kindId?: string; kind?: string; forYou: boolean; team?: string; dueDate?: string; note?: string; askedAt: string }[];
   versions?: { n: number; takeId: string; submittedAt: string }[];
+  /**
+   * With `read`: `approvedVersion`'s cards, so a listening app keeps playing what it
+   * published while a newer recording is in review. Empty when nothing is approved.
+   */
+  approvedAudio?: AudioCard[];
 }
 
 /** What a list may add to each passage, named as one passage's own fields. */
-export const PASSAGE_INCLUDES = ['audio', 'reviews', 'steps', 'requests', 'versions'] as const;
+export const PASSAGE_INCLUDES = ['audio', 'reviews', 'steps', 'requests', 'versions', 'approvedAudio'] as const;
 export type PassageInclude = (typeof PASSAGE_INCLUDES)[number];
 
 /** A passage on the list: its summary, and what the caller included. */
@@ -235,7 +240,7 @@ const visible = (grant: Grant, s: PassageState) => canRead(grant, true) || (canR
 
 export const API_STATUSES: readonly ApiStatus[] = ['not_started', 'drafting', 'in_review', 'feedback', 'approved'];
 /** The flow, the work asked for and older versions are the team's; read:published never gets them. */
-const TEAM_ONLY: readonly PassageInclude[] = ['steps', 'requests', 'versions'];
+const TEAM_ONLY: readonly PassageInclude[] = ['steps', 'requests', 'versions', 'approvedAudio'];
 /** Passages on a page when the caller does not say, and the most one page holds. */
 export const PASSAGES_PAGE = 100;
 export const PASSAGES_PAGE_MAX = 500;
@@ -342,15 +347,18 @@ async function passageOut(
     return { url: l.url, expiresAt: new Date(l.expiresAt).toISOString() };
   };
   const v = heard(grant, s);
-  if (include.has('audio')) {
+  const audioOf = async (ver: Version | null) => {
     const cards = cardsOf(state);
-    out.audio = [];
-    for (const hash of v?.cardHashes ?? []) {
+    const audio: AudioCard[] = [];
+    for (const hash of ver?.cardHashes ?? []) {
       const card = cards.get(hash);
       const format = card?.format ?? 'wav';
-      out.audio.push({ hash, format, durationMs: card?.durationMs ?? 0, ...(await link(hash, format)) });
+      audio.push({ hash, format, durationMs: card?.durationMs ?? 0, ...(await link(hash, format)) });
     }
-  }
+    return audio;
+  };
+  if (include.has('audio')) out.audio = await audioOf(v);
+  if (include.has('approvedAudio')) out.approvedAudio = await audioOf(approvedVersion(s));
   if (include.has('reviews')) {
     const all = canRead(grant, true);
     out.reviews = [];
