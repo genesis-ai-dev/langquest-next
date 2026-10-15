@@ -95,7 +95,7 @@ it with any change to what is recorded or how long it is kept.
 - `diag.installs` (latest context per install) and `diag.records`;
 - `public.diag_ingest(context, records)`: the one way in. Signed-in callers
   only, at most 200 records a call, 8 KB a record, 5000 records per install
-  per day;
+  per day and 20000 per person per day, across installs;
 - report functions for `diag_reader`: `diag.find`, `diag.language_health`,
   `diag.members`, `diag.summary`, `diag.timeline`, `diag.error`,
   `diag.rpc_stats` (server-side timings of the sync RPCs, all orgs, from
