@@ -33,6 +33,8 @@ import { bookOf, dayYear, num, pctText, shortDate, signed, type Tone } from '../
 import { canPrint, exportCsv, fileName, languageCsv, printPage } from '../reports/exportFiles';
 
 const COLUMN = measure.report;
+/** No rows yet: one list, so what is worked out from it is not worked out again on every draw. */
+const NO_ROWS: LanguageRow[] = [];
 
 export function ReportsHome(ctx: Ctx) {
   const orgId = ctx.language.orgId;
@@ -45,7 +47,7 @@ export function ReportsHome(ctx: Ctx) {
   const [cluster, setCluster] = useState<ClusterFilter>(ctx.params['cluster'] ? { kind: 'cluster', clusterId: ctx.params['cluster'] } : { kind: 'all' });
   const now = Date.now();
   const spec = SECTIONS.find((s) => s.id === section)!;
-  const every = reports.status === 'ready' ? reports.rows : [];
+  const every = reports.status === 'ready' ? reports.rows : NO_ROWS;
   const org = ctx.org.state;
   // The clusters among the languages this person sees, each with only those.
   const clusters = useMemo(() => {
