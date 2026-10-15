@@ -1,13 +1,14 @@
 // The header's sync state as one icon, always shown (replaces the text chip on My Work).
 // The dot always says where the phone stands (green live, grey checking now
 // and then, amber offline, red refused); the ring and counter show work in
-// flight. Motion is in syncRing.ts. Tapping opens the Sync screen.
+// flight. Motion, and when it is drawn, is in syncRing.ts. Tapping opens the
+// Sync screen.
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Pressable, StyleSheet, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import type { Ctx } from '../shell/ctx';
 import { Ico } from '../ui/kit';
-import { IDLE, ringOpacity, stepRing, type RingState } from './syncRing';
+import { IDLE, paceRing, ringOpacity, startPace, type RingPace, type RingState } from './syncRing';
 import { C } from '../ui/theme';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
@@ -68,30 +69,37 @@ function usePreview(): number | null {
   return n;
 }
 
-/** Steps the ring once a frame while there is anything to draw; rests otherwise. */
+/**
+ * The ring as drawn. Its clock (syncRing.ts `paceRing`) steps the motion and
+ * draws only what looks different, so a long or stalled upload does not
+ * redraw the header every frame; it rests when there is nothing to show.
+ */
 function useRing(pending: number): RingState {
   const [ring, setRing] = useState<RingState>(IDLE);
   const peak = useRef(0);
   peak.current = pending === 0 ? 0 : Math.max(peak.current, pending);
   const input = useRef({ pending, peak: peak.current });
   input.current = { pending, peak: peak.current };
+  const pace = useRef<RingPace>(startPace(IDLE));
   const [reduce, setReduce] = useState(false);
   useEffect(() => { void AccessibilityInfo.isReduceMotionEnabled().then(setReduce).catch(() => {}); }, []);
   const active = !reduce && (pending > 0 || ring.phase !== 'idle' || ring.count > 0);
   useEffect(() => {
     if (!active) return;
     let frame = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     let last = Date.now();
-    const tick = () => {
-      // Take the step now: the updater runs later, after `last` has moved on.
+    const look = () => {
       const now = Date.now();
-      const dt = (now - last) / 1000;
+      const { pace: next, draw } = paceRing(pace.current, (now - last) / 1000, input.current);
       last = now;
-      setRing((r) => stepRing(r, dt, input.current));
-      frame = requestAnimationFrame(tick);
+      pace.current = next;
+      if (draw) setRing(next.drawn);
+      if (next.nextMs === 0) frame = requestAnimationFrame(look);
+      else if (next.nextMs > 0) timer = setTimeout(look, next.nextMs);
     };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
+    frame = requestAnimationFrame(look);
+    return () => { cancelAnimationFrame(frame); if (timer !== undefined) clearTimeout(timer); };
   }, [active, reduce]);
   // Reduce motion: no ring, just the number.
   return reduce ? { ...IDLE, count: pending } : ring;
