@@ -280,9 +280,9 @@ Automation: Maestro `JRN-008.yaml`.
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Steps:
-1. Me → More settings → Switch Organization. Tap "UI Second Org".
+1. Me → Switch Organization (on Me itself: ADMIN is in two organizations). Tap "UI Second Org".
 2. Look at the tabs and My Work.
-3. Switch back to "UI Test Org".
+3. Me → Switch Organization. Switch back to "UI Test Org".
 
 Expected:
 - Step 1: the blank "Opening your organization" view, then My Work.

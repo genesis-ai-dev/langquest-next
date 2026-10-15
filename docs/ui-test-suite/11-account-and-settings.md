@@ -132,7 +132,8 @@ Expected:
   - TRANS: "Translator · UI Test Org".
   - VIEW: "Viewer · UI Test Org".
   - LADMIN: "Language Lead · UI Test Org".
-- Rows follow: "Switch Organization", then the section "This device" with
+- Rows follow: "Switch Organization" (these accounts are in one
+  organization; ACCT-010), then the section "This device" with
   "Sync" and "Send diagnostics", then a red "Delete account" with "Your
   account and your name, for good".
 - On iOS and Android there is also "Notifications" with "Hear about
@@ -224,20 +225,21 @@ Expected:
   connected."
 - Tapping again once online says "Notifications are on."
 
-### ACCT-010 Switch Organization says which organization is active
+### ACCT-010 Switch Organization says which organization is active, on Me for someone in several
 Roles: ADMIN, TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions: None.
 
 Steps:
-1. Tap "Me", then "More settings". Wait for the organization list to load
-   (open "Switch Organization" once and come back if needed).
+1. Tap "Me". Wait for the organization list to load.
+2. Tap "More settings".
 
 Expected:
-- ADMIN (in ORG and ORG2): "Switch Organization" with "UI Test Org
-  (active)".
-- TRANS (in ORG only): "Switch Organization" with "UI Test Org · or start a
-  new one".
+- ADMIN (in ORG and ORG2): Me's second row, under the name, is "Switch
+  Organization" with "UI Test Org (active)". More settings has no "Switch
+  Organization" row (decision 71, amended 2026-10-14).
+- TRANS (in ORG only): Me has no "Switch Organization" row. More settings
+  has "Switch Organization" with "UI Test Org · or start a new one".
 
 ### ACCT-011 The Sync row says how sync stands
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -485,9 +487,9 @@ Preconditions:
 - ADMIN is Organization Admin in ORG and a Translator in ORG2.
 
 Steps:
-1. Tap "Me", "More settings", "Switch Organization".
+1. Tap "Me", "Switch Organization".
 2. Tap "UI Second Org".
-3. Tap "Me", then "More settings".
+3. Tap "Me", then "More settings", then Back.
 4. Open "Switch Organization" again and tap "UI Test Org".
 
 Expected:
@@ -498,8 +500,8 @@ Expected:
 - Step 2: a blank screen (screen reader: "Opening your organization") for a
   moment, then ORG2's My Work. The tabs are "Work", "Map", "Me". There is
   no "Manage".
-- Step 3: the card says "Translator · UI Second Org", and "Switch
-  Organization" says "UI Second Org (active)".
+- Step 3: More settings' card says "Translator · UI Second Org", and Me's
+  "Switch Organization" says "UI Second Org (active)".
 - Nothing from ORG shows in ORG2 (no LANG-A, no ORG passages in My Work).
 - Step 4: back in ORG, the tabs are "Work", "Map", "Manage", "Me", and
   "Manage" opens ORG's home.
@@ -513,7 +515,7 @@ Preconditions:
 - The device is offline.
 
 Steps:
-1. Open "Switch Organization".
+1. Open "Switch Organization" from Me.
 2. Tap "UI Second Org".
 
 Expected:

@@ -2213,6 +2213,18 @@ Amended (2026-10-13, Carl Sauder): the welcome offered "Show me how" and
 gone. It now offers one "Get started" for every role (AUTH-057). The tour
 "Show me how" stood for was never built.
 
+Amended (2026-10-14, Caleb Koster): Switch Organization is no longer only
+under More settings, because Caleb and a partner both found it hard to find
+there. For someone known to be in more than one organization, Me shows it
+as its second row, under their name (`inSeveral` in `account/model.ts`).
+My Work does not offer it: Caleb chose Me as the one place. Someone in one
+organization, or on a device that has never listed theirs, still finds it
+under More settings, where it starts a new one, so Me stays uncluttered for
+most translators (the demo's ADR-029 shows it only to people in more than
+one). The list is read once per run and shared
+(`account/useOrganizations.ts`), so the row does not jump between Me and
+More settings.
+
 ## 72. Apps, agents and review links take part through reviews and releases; outside reviews never clear a checkpoint
 
 Date: 2026-10-08 · By: Ryder Wishart · Status: partly superseded by 79

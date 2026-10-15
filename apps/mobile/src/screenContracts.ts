@@ -124,7 +124,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
     rpcs:['decide_join_request_v2','org_content_reports','remove_content','dismiss_reports'] },
   profile_edit: { rpcs:['save_profile'],reads:['profiles'] },
   org_switcher: { rpcs:['my_organizations'] },
-  settings_home: { reads:['offlineSummary'] },
+  settings_home: { reads:['offlineSummary'],rpcs:['my_organizations'] },
   // What Settings had beyond Me's five rows (decision 71).
   settings_more: { rpcs:['register_push_token','set_blocked','my_organizations'],reads:['user_blocks'] },
   sign_out_confirm: { rpcs:['unregister_push_token'] },
