@@ -9,7 +9,7 @@ type Verdict = LanguageState['blobs'][string];
 
 /**
  * What a big language keeps on the phone instead of in memory (decisions.md
- * 108): every entry of the maps core cuts by passage (`PASSAGE_PARTS`:
+ * 109): every entry of the maps core cuts by passage (`PASSAGE_PARTS`:
  * recordings, versions and drafts, reviews, notes, requests and the rest),
  * the server's verdict on each audio file, which record names each audio
  * file, and each passage's line for lists (`KeptLines`). What the whole
@@ -58,7 +58,7 @@ export function fileRow(hash: string, v: Verdict, json = JSON.stringify(v)): Kep
   return { kind: FILE, id: hash, unitId: '', ref: '', json };
 }
 
-/** Does this state hold entries of the parts or verdicts that belong on disk (a checkpoint from before decision 108)? */
+/** Does this state hold entries of the parts or verdicts that belong on disk (a checkpoint from before decision 109)? */
 export function holdsKept(state: LanguageState): boolean {
   for (const _ in state.blobs) return true;
   for (const part of PASSAGE_PARTS) for (const _ in state[part.map] ?? {}) return true;

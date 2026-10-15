@@ -68,7 +68,7 @@ export class SqliteStore implements EventStore {
       primary key (org_id, stream_id)
     )`);
     await db.run(`create table if not exists meta (key text primary key, value text not null)`);
-    // Records a big language keeps here rather than in memory (decisions.md 108).
+    // Records a big language keeps here rather than in memory (decisions.md 109).
     // A build of pull request 120 before passages kept their versions and
     // reviews here too wrote some to `kept`; that shape is gone, and only a
     // test phone ever had it.

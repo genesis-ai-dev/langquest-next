@@ -78,7 +78,7 @@ export interface LanguageHandle {
     /**
      * The passages kept offline and how much of each one's audio is here,
      * and the whole scope at a glance; null until first counted. Counted
-     * from the phone's table after changes (decisions.md 108), so a screen
+     * from the phone's table after changes (decisions.md 109), so a screen
      * reads them without waiting.
      */
     keptOffline: ReadonlyMap<string, UnitOffline> | null;
@@ -91,12 +91,12 @@ export interface LanguageHandle {
   /**
    * Each passage's line: what lists of passages read (Map, Progress, My
    * Work, the Inbox badge), so none needs every passage's record in memory
-   * (decisions.md 108). A new object whenever a line changed.
+   * (decisions.md 109). A new object whenever a line changed.
    */
   lines: PassageLines;
   /**
    * Hold these passages' records in memory: the one a screen shows and
-   * those next to it (decisions.md 108). Others stay on the phone's disk.
+   * those next to it (decisions.md 109). Others stay on the phone's disk.
    */
   loadUnits: (unitIds: readonly string[]) => void;
   /** Is this passage's whole record in memory, so a screen may read it from `state`? */
@@ -208,7 +208,7 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
           diag: diagnostics
         },
         aroundSync: trackSync,
-        // Recordings and file verdicts stay on the phone; memory holds the passages on screen (decisions.md 108).
+        // Recordings and file verdicts stay on the phone; memory holds the passages on screen (decisions.md 109).
         keepOnDisk: true,
         build: appBuild(),
         onSettled: ({ blobsWanted }) => { void flushDiagnostics({ blobCacheBytes: files.totalBytes(), blobsWanted }).catch(() => {}); }

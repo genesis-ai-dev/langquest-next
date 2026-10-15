@@ -1,6 +1,6 @@
 /**
  * The passage on screen and the ones on each side of it, in the language's
- * order: what memory holds of a language kept on disk (decisions.md 108),
+ * order: what memory holds of a language kept on disk (decisions.md 109),
  * so the next or previous passage opens without waiting. A passage the
  * order does not list (a section of a book being broken up) is held alone.
  */

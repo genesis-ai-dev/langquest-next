@@ -127,14 +127,14 @@ export interface SyncClientOptions<S = LanguageState> {
   /**
    * A language stream only: keep its recordings and file verdicts on the
    * phone rather than in memory, and hold in memory only the passages
-   * `loadUnits` asks for (decisions.md 108).
+   * `loadUnits` asks for (decisions.md 109).
    */
   keepOnDisk?: boolean;
   /**
    * The build of the app this runs in. A language kept on disk keeps a line
    * per passage that this code works out, so a line kept by another build is
    * worked out again: a change to what a passage's status means reaches
-   * every passage after an update, with no migration (decisions.md 108).
+   * every passage after an update, with no migration (decisions.md 109).
    */
   build?: string;
 }
@@ -531,7 +531,7 @@ export class SyncClient<S = LanguageState> {
   /**
    * Read a downloaded snapshot back one piece at a time, writing each
    * passage's records and the file verdicts to disk as they pass
-   * (decisions.md 108). Returns what the whole language shares, which is
+   * (decisions.md 109). Returns what the whole language shares, which is
    * what memory keeps. The records go under a stream id of their own, and
    * the checkpoint that follows moves them in, so a phone that dies part-way
    * still has the language it had.
@@ -581,7 +581,7 @@ export class SyncClient<S = LanguageState> {
       let placed: Awaited<ReturnType<KeptLanguage['split']>>['placed'] = [];
       let owed: Record<string, string> = {};
       if (this.kept && this.lines) {
-        // Each passage's records and the verdicts go to disk with this checkpoint (decisions.md 108), taken as they are now.
+        // Each passage's records and the verdicts go to disk with this checkpoint (decisions.md 109), taken as they are now.
         const split = await this.kept.split(state);
         // Something was folded while the stored copies were read: the state is no longer the confirmed one; next time.
         if (revision !== this.revision || this.writer.size !== 0) return;
@@ -628,7 +628,7 @@ export class SyncClient<S = LanguageState> {
 
   /**
    * Hold these passages' recordings in memory, for a screen that shows them
-   * and the passages next to it (decisions.md 108). A language that keeps
+   * and the passages next to it (decisions.md 109). A language that keeps
    * everything in memory has nothing to do.
    */
   async loadUnits(unitIds: readonly string[]): Promise<void> {

@@ -45,7 +45,9 @@ export const SCREEN_IDS = [
   // App only: the simple redesign's Me keeps five rows; everything else Settings had is one tap deeper (decision 71)
   'settings_more',
   // App only: one of a language's checks, with its people, questions and helps (decision 91)
-  'check_editor'
+  'check_editor',
+  // App only: a cluster of languages, a name the organization puts on them (decision 108, demo ADR-045)
+  'cluster_home'
 ] as const;
 
 export type ScreenId = (typeof SCREEN_IDS)[number];
@@ -407,7 +409,15 @@ export const EDGES: Edge[] = [
   e('templates_home', 'templates_home', undefined, 'manageTemplates'),
   // App only: signing out of "Join your team" goes through the same confirmation as Me (NOORG-004, decision 60)
   e('intent_chooser', 'sign_out_confirm'),
-  e('sign_out_confirm', 'intent_chooser', 'back')
+  e('sign_out_confirm', 'intent_chooser', 'back'),
+  // App only: a cluster's page (decision 108, demo ADR-045): its languages, a new one already in it,
+  // and New language opening the cluster it made of languages already here
+  e('org_home', 'cluster_home'),
+  e('cluster_home', 'language_home'),
+  e('cluster_home', 'new_language'),
+  e('cluster_home', 'org_home', 'back'),
+  e('new_language', 'cluster_home', 'replace'),
+  e('new_language', 'cluster_home', 'back')
 ];
 
 /**
@@ -419,7 +429,7 @@ export const EDGES: Edge[] = [
 export const MAP_SCREENS: ScreenId[] = ['map_home', 'status_home', 'book_map', 'passage_record'];
 // The study left this list with the simple redesign (decision 71, demo ADR-035): it is a task, closed with ✕.
 export const PASSAGE_READING: ScreenId[] = ['version_detail', 'review_detail', 'passage_reference'];
-const MANAGE_HOMES: ScreenId[] = ['org_home', 'language_home'];
+const MANAGE_HOMES: ScreenId[] = ['org_home', 'cluster_home', 'language_home'];
 export const TAB_SCREENS: ScreenId[] = [
   'my_work', ...MAP_SCREENS, ...PASSAGE_READING, 'inbox_home', 'settings_home', ...MANAGE_HOMES, 'intent_chooser'
 ];

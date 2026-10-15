@@ -14,7 +14,7 @@ import { FakeServer } from '../src/testing/fakeServer';
  * A big language keeps each passage's records (recordings, versions,
  * reviews, notes, requests and the rest) and the file verdicts on the
  * phone, not in memory, and holds in memory only the passages a screen has
- * open, with a line per passage for lists (decisions.md 108). Why these tests: memory must shrink without the
+ * open, with a line per passage for lists (decisions.md 109). Why these tests: memory must shrink without the
  * phone's language ever differing from what folding everything in memory
  * gives, whatever order things arrive in, and without losing anything to a
  * dropped link, an old checkpoint or a redaction.

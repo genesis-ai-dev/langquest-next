@@ -65,7 +65,7 @@ function useLostFiles(): { lost: LostFile[]; store: BlobStore | null } {
 export function LostFilesAlert(props: { state: LanguageState | null; whatWere: (hashes: readonly string[]) => Promise<LostFilesView> }) {
   const { lost, store } = useLostFiles();
   const { state, whatWere } = props;
-  // What the files were comes from the phone's table for a language kept on disk (decisions.md 108).
+  // What the files were comes from the phone's table for a language kept on disk (decisions.md 109).
   const [view, setView] = useState<LostFilesView | null>(null);
   useEffect(() => {
     let active = true;

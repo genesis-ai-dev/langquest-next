@@ -338,7 +338,8 @@
     "mic_setup": "ตั้งค่าไมโครโฟน",
     "get_ready": "เตรียมพร้อม",
     "settings_more": "การตั้งค่าเพิ่มเติม",
-    "check_editor": "การตรวจ"
+    "check_editor": "การตรวจ",
+    "cluster_home": "กลุ่มภาษา"
   },
   "native": {
     "microphone": "LangQuest อัดเสียงของคุณเพื่อแปลตอนพระคัมภีร์",
@@ -646,7 +647,8 @@
       "languagesTitle": "ภาษา",
       "newLanguage": "ภาษาใหม่",
       "noLanguages": "ยังไม่มีภาษา เพิ่มภาษาแรกที่ทีมของคุณจะอัดเสียง",
-      "openToBring": "เปิดเพื่อนำมาไว้ในเครื่องนี้"
+      "openToBring": "เปิดเพื่อนำมาไว้ในเครื่องนี้",
+      "newLanguageOrCluster": "ภาษาหรือกลุ่มใหม่"
     },
     "rename": {
       "done": "เปลี่ยนชื่อเป็น {{name}} แล้ว",
@@ -711,7 +713,8 @@
         "roles": "บทบาท",
         "publicListing": "การแสดงต่อสาธารณะ",
         "name": "ชื่อ",
-        "languageList": "รายชื่อภาษา"
+        "languageList": "รายชื่อภาษา",
+        "cluster": "กลุ่มภาษา"
       },
       "orgAndCode": "{{org}} · รหัส {{code}}",
       "seeWork": "ดูงานของพวกเขา",
@@ -4501,7 +4504,8 @@
       "newChapters": "บทใหม่",
       "books": "เล่ม",
       "chaptersByBook": "บทตามเล่ม",
-      "total": "รวม"
+      "total": "รวม",
+      "clusters": "กลุ่มภาษา"
     },
     "errors": {
       "noServer": "บิลด์นี้ไม่รู้ว่าเซิร์ฟเวอร์รายงานอยู่ที่ไหน",
@@ -4579,7 +4583,8 @@
       "alertsChip_other": "การแจ้งเตือน {{count, number}} รายการต้องมีคนดูแล",
       "allCountries": "ทุกประเทศ",
       "loading": "กำลังโหลดรายงาน…",
-      "couldNotRead": "อ่านรายงานไม่ได้"
+      "couldNotRead": "อ่านรายงานไม่ได้",
+      "allLanguages": "ทุกภาษา"
     },
     "overview": {
       "across_other": "ใน {{count, number}} ภาษา · {{recent}} ในสี่สัปดาห์ที่ผ่านมา",
@@ -4851,6 +4856,11 @@
       "saveTarget": "บันทึกเป้าหมาย",
       "findCountry": "หาประเทศ",
       "typeToFind_other": "พิมพ์เพื่อหาอีก {{count, number}} ประเทศ"
+    },
+    "clusters": {
+      "title": "กลุ่มภาษา",
+      "sub": "ภาษาในแต่ละกลุ่มรวมกัน เลือกหนึ่งกลุ่มเพื่อดูเฉพาะภาษาในกลุ่มนั้น",
+      "languages_other": "{{count, number}} ภาษา"
     }
   },
   "review": {
@@ -5909,6 +5919,94 @@
       "playHelp": "เล่นวิธีที่พวกเขาพูด",
       "suggest": "ภาษาอื่นที่นี่ใช้",
       "suggestHelp": "ใช้ที่นี่ในภาษา {{languages}} แตะเพื่อเพิ่ม"
+    }
+  },
+  "clusters": {
+    "row": {
+      "sub_other": "{{count, number}} ภาษา · {{names}}",
+      "namesMore": "{{names}}…"
+    },
+    "home": {
+      "sub_other": "กลุ่มภาษา · {{count, number}} ภาษา",
+      "together": "รวมกัน",
+      "itsLanguages": "ภาษาในกลุ่ม",
+      "add": "เพิ่มภาษาเข้ากลุ่ม",
+      "rename": "เปลี่ยนชื่อ",
+      "ungroup": "ยกเลิกกลุ่ม",
+      "gone": "ตอนนี้กลุ่มนี้ไม่มีภาษาแล้ว",
+      "goneSub": "ภาษาในกลุ่มถูกนำออกแล้ว ทุกภาษายังอยู่ใน {{org}}",
+      "notSaved": "ยังไม่ได้บันทึก"
+    },
+    "add": {
+      "title": "เพิ่มเข้า {{cluster}}",
+      "newLanguage": "ภาษาใหม่",
+      "newLanguageSub": "ตั้งค่าภาษา โดยอยู่ใน {{cluster}} แล้ว",
+      "alreadyIn": "อยู่ใน {{org}} แล้ว",
+      "none": "ทุกภาษาใน {{org}} อยู่ในกลุ่มนี้แล้ว",
+      "button": "เพิ่ม",
+      "done_other": "เพิ่ม {{count, number}} ภาษาเข้า {{cluster}} แล้ว"
+    },
+    "rename": {
+      "title": "เปลี่ยนชื่อ {{cluster}}",
+      "label": "ชื่อ",
+      "save": "บันทึก",
+      "done": "เปลี่ยนชื่อเป็น {{name}} แล้ว"
+    },
+    "ungroup": {
+      "title": "ยกเลิกกลุ่ม {{cluster}} หรือไม่",
+      "body_other": "ทั้ง {{count, number}} ภาษายังอยู่ พร้อมผู้คน การบันทึกเสียง และการตรวจทาน มีเพียงชื่อที่รวมกลุ่มเท่านั้นที่หายไป",
+      "confirm": "ยกเลิกกลุ่ม",
+      "keep": "เก็บไว้",
+      "done": "ยกเลิกกลุ่ม {{cluster}} แล้ว ภาษาต่างๆ ยังอยู่ที่นี่"
+    },
+    "language": {
+      "label": "กลุ่มภาษา",
+      "none": "ไม่อยู่ในกลุ่มใด",
+      "sheetTitle": "ภาษานี้อยู่ในกลุ่มใด",
+      "count_other": "{{count, number}} ภาษา",
+      "newLabel": "หรือกลุ่มใหม่",
+      "firstLabel": "ใส่ไว้ในกลุ่มใหม่",
+      "note": "ภาษาหนึ่งอยู่ได้มากกว่าหนึ่งกลุ่ม หรือไม่อยู่ในกลุ่มใดเลยก็ได้ ตัวภาษาไม่มีอะไรเปลี่ยน",
+      "done": "เสร็จ",
+      "saved": "บันทึกกลุ่มของ {{language}} แล้ว"
+    },
+    "newLanguage": {
+      "what": "คุณจะเพิ่มอะไร",
+      "one": "ภาษาเดียว",
+      "oneSub": "มีการบันทึกเสียง การตรวจทาน และผู้คนของตัวเอง",
+      "cluster": "กลุ่มภาษา",
+      "clusterSub": "หลายภาษาที่เกี่ยวข้องกัน ตั้งค่าไปพร้อมกัน",
+      "clusterName": "ชื่อกลุ่ม",
+      "clusterPlaceholder": "เช่น Dar Khamsa",
+      "theCluster": "กลุ่มนี้",
+      "inCluster": "อยู่ในกลุ่มไหม เลือกภายหลังได้",
+      "no": "ไม่",
+      "newCluster": "กลุ่มใหม่",
+      "joinsNamed": "{{org}} มี {{cluster}} อยู่แล้ว ภาษาเหล่านี้จะเข้าร่วมกลุ่มนั้น",
+      "itsLanguages": "ภาษาในกลุ่ม · {{number}}",
+      "addOne": "เพิ่มภาษา",
+      "unlisted": "ไม่พบใช่ไหม เพิ่มตามที่คุณพิมพ์ พร้อมรหัสถ้ามี",
+      "addTyped": "เพิ่ม “{{name}}”",
+      "new": "ใหม่",
+      "newWithCode": "{{code}} · ใหม่",
+      "already": "อยู่ใน {{org}} แล้ว",
+      "takeOut": "นำออก",
+      "note_other": "ภาษาที่มีอยู่แล้วยังคงมีทุกอย่างเหมือนเดิม ภาษาใหม่ {{count, number}} ภาษาจะตั้งค่าพร้อมกันในขั้นตอนถัดไป",
+      "onlyExisting": "ไม่มีอะไรใหม่ให้ตั้งค่า ภาษาที่มีอยู่แล้วยังคงมีทุกอย่างเหมือนเดิม",
+      "make": "สร้างกลุ่ม",
+      "made_other": "สร้าง {{cluster}} แล้ว มี {{count, number}} ภาษา",
+      "forNew_other": "สำหรับภาษาใหม่ {{count, number}} ภาษาใน {{cluster}} แต่ละภาษาเปลี่ยนของตัวเองได้ภายหลัง",
+      "added_other": "เพิ่ม {{count, number}} ภาษาใน {{org}} แล้ว อยู่ใน {{cluster}}",
+      "addedNotOffered_other": "เพิ่ม {{count, number}} ภาษาใน {{org}} แล้ว อยู่ใน {{cluster}} เสนอ {{offers}} ใน สิ่งที่ช่วยพวกเขา เมื่อออนไลน์",
+      "notMade": "ยังไม่ได้เพิ่ม",
+      "making": {
+        "adding": "กำลังเพิ่ม {{language}}",
+        "grouping": "กำลังเพิ่มเข้า {{cluster}}"
+      }
+    },
+    "status": {
+      "all": "ทั้งหมด",
+      "none": "ไม่อยู่ในกลุ่ม"
     }
   }
 }

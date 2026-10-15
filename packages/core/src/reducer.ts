@@ -11,7 +11,7 @@ import { earlier } from './ties';
  * events. Snapshots are tagged with this; a client only loads snapshots at
  * its own version.
  */
-export const REDUCER_VERSION = 15;
+export const REDUCER_VERSION = 16;
 
 /**
  * How many events have been applied to a state object. Kept outside the
@@ -26,7 +26,7 @@ export function stateRevision(state: object): number {
 
 /**
  * Say a state changed outside the fold: records a phone keeps on disk
- * (decisions.md 108) were brought into it, or taken out. Caches keyed on
+ * (decisions.md 109) were brought into it, or taken out. Caches keyed on
  * the revision rebuild.
  */
 export function markChanged(state: object): void {
@@ -369,6 +369,8 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
     case 'v1.LanguageCodeSet':
     case 'v1.LanguageCountrySet':
     case 'v1.LanguageTargetSet':
+    case 'v1.ClusterNamed':
+    case 'v1.LanguageClusterSet':
     case 'v1.ReferenceRecommended':
     case 'v1.LibraryItemDefined':
     case 'v1.LibraryVersionPublished':
@@ -430,7 +432,7 @@ type Verdict = LanguageState['blobs'][string];
 /**
  * Of two copies of one recording, the one `v1.RecordingAdded` keeps: the
  * earliest, ties as `earlier` breaks them. A phone that keeps recordings on
- * disk (decisions.md 108) combines a stored copy with one just folded by
+ * disk (decisions.md 109) combines a stored copy with one just folded by
  * this, so the result is the fold's whichever arrived first.
  */
 export function keptRecording(a: Recording, b: Recording): Recording {
