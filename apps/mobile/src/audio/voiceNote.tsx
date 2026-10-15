@@ -64,13 +64,6 @@ export function VoiceNote(props: {
   );
 }
 
-/** The `voice` slot of ReasonSheet. */
-export function voiceFor(ctx: Ctx, label?: string) {
-  return ({ hash, onChange }: { hash: string | null; onChange: (h: string | null) => void }) => (
-    <VoiceNote ctx={ctx} label={label ?? t('recording.voiceNote.sayWhyInstead')} hash={hash} onChange={onChange} />
-  );
-}
-
 const styles = StyleSheet.create({
   box: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 56, paddingHorizontal: space.md, paddingVertical: space.sm,
     borderRadius: radius.lg, borderWidth: 1, borderColor: C.border, backgroundColor: C.card },

@@ -7,7 +7,6 @@
 // view, a tap on a verse to play on from there, ±10 seconds, and each
 // source's copyright. States are honest: no audio says so, nothing is
 // simulated, and the built-in text says it is a last resort.
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
@@ -20,10 +19,14 @@ import { markTerms } from '../recording/workspaceModel';
 import { openContentLink } from '../ui/share';
 import { lift } from '../ui/shadow';
 import { C, radius, space, target, TINT, type as T, withAlpha } from '../ui/theme';
-import { emptyBibleText, filesetsFor, sourceUsed, type SourceOption, type VerseRow } from './model';
+import { emptyBibleText, type SourceOption, type VerseRow } from './model';
 import { PlayError, usePassagePlayer } from './player';
 import type { Usage } from './used';
 import { useChipMarks, usePassageSource, useSources, type PassageSources } from './useSources';
+import { choiceKey, chipLabel, copyrightLine, anchorClock } from './sourceText';
+import { useChoice, useOffer } from './useSourceChoice';
+export { useChoice, useOffer, useOfferedSources } from './useSourceChoice';
+export { choiceKey, chipLabel, copyrightLine, anchorClock } from './sourceText';
 
 /** Faith Comes By Hearing's terms for Bible Brain (DBP) content. */
 const DBP_TERMS = 'https://www.faithcomesbyhearing.com/bible-brain/license';
@@ -58,44 +61,6 @@ interface SourceReaderProps {
   verse?: VerseExtras;
   /** The pane's scroll view, so the verse playing stays in view; the reader must sit directly in its content. */
   scrollRef?: RefObject<ScrollView | null>;
-}
-
-export const choiceKey = (actorId: string, orgId: string, languageId: string) => `source-choice:${actorId}:${orgId}:${languageId}`;
-const choices = new Map<string, string>();
-
-/** The version chosen last for this language on this phone, shared by the recorder, the study and the review. */
-export function useChoice(key: string): [string | null, (itemId: string) => void] {
-  const [chosen, setChosen] = useState<string | null>(choices.get(key) ?? null);
-  useEffect(() => {
-    if (choices.has(key)) return;
-    void AsyncStorage.getItem(key).then((v) => { if (v) { choices.set(key, v); setChosen(v); } }).catch(() => undefined);
-  }, [key]);
-  return [chosen, (itemId: string) => {
-    choices.set(key, itemId);
-    setChosen(itemId);
-    void AsyncStorage.setItem(key, itemId).catch(() => undefined);
-  }];
-}
-
-/** Put every source offered for this passage in the screen's record of what was used. */
-export function useOffer(usage: Usage | undefined, passage: PassageSources): void {
-  useEffect(() => {
-    if (!usage || !passage.range) return;
-    usage.offer(passage.options.map((o) => {
-      const f = filesetsFor(o, passage.range!.book);
-      return sourceUsed(o, { ref: passage.ref, opened: false, filesets: [f.text, f.audio].filter((x): x is string => !!x) });
-    }));
-  }, [usage, passage.options, passage.range, passage.ref]);
-}
-
-/**
- * Offer the passage's sources to the record without showing them: for a
- * screen where the reader sits behind a disclosure (the reviewer's
- * Background), so what was offered is recorded whether or not it was opened.
- */
-export function useOfferedSources(ctx: Ctx, unitId: string | undefined, languageId: string | undefined, usage: Usage | undefined): void {
-  const passage = useSources(ctx, unitId, languageId);
-  useOffer(usage, passage);
 }
 
 export function SourceReader(props: SourceReaderProps) {
@@ -296,27 +261,6 @@ export function SourceView(props: SourceReaderProps & {
       {copyright}
     </View>
   );
-}
-
-/** The abbreviation, and when two versions share it, what tells them apart ("BSB · read by Frederick Surrey"). */
-export function chipLabel(o: SourceOption, all: SourceOption[]): string {
-  const twin = all.find((x) => x !== o && x.abbreviation === o.abbreviation);
-  if (!twin) return o.abbreviation;
-  let i = 0;
-  while (i < o.name.length && o.name[i] === twin.name[i]) i++;
-  const rest = o.name.slice(i).replace(/^[\s,;:–-]+/, '').trim();
-  return `${o.abbreviation} · ${rest || (o.doc?.provider.kind === 'library' || o.kind === 'library' && !o.doc ? t('sources.reader.chipLibrary') : t('sources.reader.chipBibleBrain'))}`;
-}
-
-export function copyrightLine(c: { text?: string; audio?: string }): string {
-  if (c.text && c.audio && c.text !== c.audio) return t('sources.reader.copyrightBoth', { text: c.text, audio: c.audio });
-  return c.text ?? c.audio ?? '';
-}
-
-/** Where playback paused, as a note's anchor stores it ("0:42"): plain digits in every language, since it is kept in the event log. */
-export function anchorClock(ms: number): string {
-  const s = Math.max(0, Math.round(ms / 1000));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
 /** A version: its abbreviation, and under it what it has here ("no audio", "offline ✓"). */

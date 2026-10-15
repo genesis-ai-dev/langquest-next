@@ -3,7 +3,7 @@
 // button, and Note when the screen can take a note at a moment. It plays a
 // passage's cards one after another as one recording, like AudioClip, and
 // shows where in the whole recording it is.
-import { isStored, recordedDurationMs, type LanguageState } from '@langquest-next/core';
+import { isStored, recordedDurationMs } from '@langquest-next/core';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { PanResponder, Platform, Pressable, StyleSheet, View, type AccessibilityActionEvent, type LayoutChangeEvent } from 'react-native';
@@ -15,24 +15,13 @@ import type { ListenHooks } from '../recording/useListenLoop';
 import { useHelpSpot } from '../helpMode/helpContext';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import { formatClock, formatNumber } from '../i18n/format';
+import { formatNumber } from '../i18n/format';
 import { Ico, txt } from '../ui/kit';
 import { noteExpected, reportError } from '../diagnostics/report';
 import { C, radius, space, TINT, type as T } from '../ui/theme';
 import type { LanguageHandle } from '../sync/useLanguage';
-
-/** "1:05" from seconds. */
-export function clock(seconds: number): string {
-  return formatClock(seconds * 1000);
-}
-
-/** The length of these cards together, in seconds (0 when unknown). */
-export function clipSeconds(state: LanguageState | null | undefined, hashes: string[]): number {
-  if (!state) return 0;
-  let total = 0;
-  for (const hash of hashes) total += recordedDurationMs(state, hash) / 1000;
-  return total;
-}
+import { clock } from './clipTime';
+export { clock, clipSeconds } from './clipTime';
 
 /** Each card's length in seconds, from the recording that holds it (0 when unknown). */
 function cardSeconds(language: LanguageHandle, hashes: string[]): number[] {

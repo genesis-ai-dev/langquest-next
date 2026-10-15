@@ -3833,6 +3833,26 @@ reaching storage themselves, which tests had not caught. React's
 rules-of-hooks is on too; exhaustive-deps is not yet, since turning it on
 means reviewing 55 effects whose re-runs would change.
 
+Amended (2026-10-15, Carl Sauder): part two is done, earlier than planned.
+Carl chose to make the moves while six pull requests were open rather than
+wait for the three that overlap (96, 120, 126), so the moves are a codemod:
+`scripts/restructure/moves.json` says where each file went and
+`node scripts/restructure.mjs` makes the moves and rewrites everything
+that names them, and can be run again. A branch made before the moves runs
+it, commits, then merges `main`, so the moves meet themselves and only its
+own edits are left to merge (`docs/merging-onto-the-restructure.md`). The
+src root's files and `simple/` went to `shell`, `ui`, `sync`, `web`,
+`audio`, `recording`, `helps`, `helpMode`, `mic`, `admin`, `invites`,
+`work`, `map`, `account`, `auth`, `moderation`, `notifications`,
+`diagnostics` and the existing feature folders; `recordingJournalCore.ts`
+is `recordingJournalModel.ts`; `dev.ts` went to `auth/`, since `src/server`
+may not import the shell. The passage record, the Map and reference
+material had their rules moved out of their screens as config and content
+had. ESLint now also holds `src/ui` as the design system, importing only
+itself, `i18n`, `helpMode` and `shell/flow`, and keeps `src/server` from
+the UI; `apps/mobile/test/folders.test.ts` keeps code out of the src root
+and `simple/` gone.
+
 ## 106. A phone records every take with the microphone module, keeps a part going down to half the cutoff, and keeps AAC
 
 Date: 2026-10-14 · By: Caleb Koster · Status: accepted

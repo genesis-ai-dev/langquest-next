@@ -5,10 +5,11 @@ import { AppState } from 'react-native';
 import { joinErrorText } from '../account/accountText';
 import { t } from '../i18n';
 import { claim, deadMessage, holdScanned, learnFromPreview, nextStep, outcomeOfError, type HeldInvite, type InvitePreview } from './heldInvite';
-import { writeHeld, useHeld } from './heldInviteStore';
+import { writeHeld, } from './heldInviteStore';
 import { FunctionError, joinByInvite, redeemInvite } from './invites';
 import { noteExpected } from '../diagnostics/report';
 import { setSession } from '../server/auth';
+import { listeners, readHeld } from './heldInviteStore';
 
 /** What happened to the held invite last, for the screens to say. */
 type InviteStatus =
@@ -145,4 +146,17 @@ export function useHeldInvite(actorId: string | null, joined: (orgId: string) =>
   }, [held]);
   const drop = useCallback(async () => { setStatus({ kind: 'idle' }); await writeHeld(null); }, []);
   return { held, status, scan, choose, joinAsNew, learn, drop };
+}
+
+/** The held invite, kept current for a screen. `undefined` until read. */
+export function useHeld(): HeldInvite | null | undefined {
+  const [held, setHeld] = useState<HeldInvite | null | undefined>(undefined);
+  useEffect(() => {
+    let active = true;
+    void readHeld().then((h) => { if (active) setHeld(h); });
+    const l = (h: HeldInvite | null) => setHeld(h);
+    listeners.add(l);
+    return () => { active = false; listeners.delete(l); };
+  }, []);
+  return held;
 }
