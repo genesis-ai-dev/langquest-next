@@ -486,8 +486,7 @@ export function ReferenceGuides(ctx: Ctx) {
     if (!covers || !passages || !state) return null;
     const all = new Map<string, RecommendationSource>(items.map((r) => [r.it.itemId, 'organization']));
     return coverageFor(state, passages, all, items, docs.get);
-    // items changes with rows
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- items changes with rows
   }, [covers, passages, state, rows, docs.get]);
   // Material written in the app belongs to a language: shown at that language's level.
   const inApp = useMemo(() => (state && languageId ? writtenHelps(materialsFor(state)) : []), [state, languageId]);

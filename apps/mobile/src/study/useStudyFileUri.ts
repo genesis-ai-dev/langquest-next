@@ -57,7 +57,7 @@ export function useStudyFileUri(orgId: string | null | undefined, file: StudyFil
       off = [s.onChange(redraw), s.onUrlReady(redraw)];
     }).catch((e: unknown) => noteExpected('guide file: store', e));
     return () => { live = false; off.forEach((f) => f()); };
-  }, [ref?.hash]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [ref?.hash]); // eslint-disable-line react-hooks/exhaustive-deps -- keyed by the file's hash: a new ref for the same file does not listen again
 
   useEffect(() => {
     setFailed(false);
@@ -69,7 +69,7 @@ export function useStudyFileUri(orgId: string | null | undefined, file: StudyFil
       if (live) setFailed(true);
     });
     return () => { live = false; };
-  }, [store, ref?.hash, orgId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [store, ref?.hash, orgId]); // eslint-disable-line react-hooks/exhaustive-deps -- keyed by the file's hash: a new ref for the same file does not fetch again
 
   if (!ref) return { uri: url, waiting: false };
   const local = store?.has(ref.hash) ? store.uriFor(ref) : null;

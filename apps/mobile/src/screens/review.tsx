@@ -159,8 +159,8 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     [vp, kindId, actorId, requestParam, logged]);
   const questions = useMemo(() => vState ? questionsForKind(vState, kindId, request) : [], [vState, kindId, request]);
   const guide = useStudyGuide(ctx, v?.unitId);
-  const context = useMemo(() => v && version && kind && !kind.withholdsContext ? backgroundFor(ctx, v, kindId, version.takeId, guide) : null,
-    [v?.state, v?.p, kindId, version?.takeId, kind, guide]);
+  const context = useMemo(() => v && version && kind && !kind.withholdsContext ? backgroundFor(v, kindId, version.takeId, guide) : null,
+    [v?.state, v?.p, kindId, version?.takeId, kind, guide]); // eslint-disable-line react-hooks/exhaustive-deps -- v is new on every draw; what backgroundFor reads of it (state, p, kinds) follows v.state and v.p
   const all = useMemo(() => vState && logged ? recordedPassages(vState) : [], [vState, logged]);
   // What the Background offered and what was opened go on the record with the review (docs/reference-material.md).
   const usage = useUsage();
@@ -612,7 +612,7 @@ function helpRowHelp(h: HelpRow): string {
 }
 
 /** The background a reviewer may open, or null when the kind withholds it (REV-1, REV-4). */
-function backgroundFor(ctx: Ctx, v: PassageView, kindId: string, takeId: string, guide: StudyGuide | null) {
+function backgroundFor(v: PassageView, kindId: string, takeId: string, guide: StudyGuide | null) {
   const { state, p } = v;
   const terms = keyTermLinksFor(state, takeId).map((l) => l.term);
   const notes = p.notes.filter((n) => n.anchor.kind !== 'study');

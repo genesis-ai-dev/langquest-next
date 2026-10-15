@@ -53,7 +53,8 @@ function useStudy(ctx: Ctx): { v: PassageView; guide: Guide; sp: StudyProgress }
   const v = usePassage(ctx);
   const state = ctx.language.state;
   const guide = useStudyGuide(ctx, v?.unitId);
-  const sp = useMemo(() => (state && v && guide ? studyProgress(state, v.p, guide) : null), [state, v?.p, guide]); // eslint-disable-line react-hooks/exhaustive-deps
+  const vp = v?.p;
+  const sp = useMemo(() => (state && vp && guide ? studyProgress(state, vp, guide) : null), [state, vp, guide]);
   if (!v || !guide || !sp) return { v, guide: null, sp: null };
   return { v, guide, sp };
 }
@@ -87,12 +88,15 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
   const [verse, setVerse] = useState<string | null>(null);
   const state = ctx.language.state;
   const sourceWords = useMemo(() => (bible.rows ? bible.rows.map((r) => r.text).join(' ') : null), [bible.rows]);
+  const vp = v?.p;
+  const vUnit = v?.unitId;
   const terms = useMemo(() => {
-    if (!state || !v) return [];
-    const all = keyTermsForUnit(state, v.unitId);
+    if (!state || vUnit === undefined) return [];
+    const all = keyTermsForUnit(state, vUnit);
     return sourceWords ? termsInText(sourceWords, all) : all;
-  }, [state, v?.unitId, sourceWords]); // eslint-disable-line react-hooks/exhaustive-deps
-  const notes = useMemo<PassageNote[]>(() => (v ? v.p.notes.filter((n) => n.anchor.kind !== 'study') : []), [v?.p.notes]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [state, vUnit, sourceWords]);
+  const vNotes = vp?.notes;
+  const notes = useMemo<PassageNote[]>(() => (vNotes ? vNotes.filter((n) => n.anchor.kind !== 'study') : []), [vNotes]);
   if (!v || !guide || !sp) return <Missing ctx={ctx} title={props.title} v={v} />;
 
   const scope = { unitId: v.unitId, languageId: v.languageId };

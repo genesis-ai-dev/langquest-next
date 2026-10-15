@@ -34,8 +34,7 @@ export function TranslateQuestion(props: { ctx: Ctx; t: Translate; lang: string;
     const before = outlinesBefore.current;
     const made = before ? props.t.outlines.find((c) => !before.has(c.key)) : undefined;
     if (made) { outlinesBefore.current = null; props.t.setOutlineKey(made.key); }
-    // `outlineKeys` names what changes in `outlines`.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `outlineKeys` names what changes in `outlines`
   }, [outlineKeys]);
   const makeOwn = () => { outlinesBefore.current = new Set(props.t.outlines.map((c) => c.key)); props.onMake(); };
   const q = props.t;

@@ -81,7 +81,6 @@ export function useWays(ctx: Ctx, forLanguage: string | null, numbering?: string
     if (!d || !numbering) return d;
     const v = d.bible ? getDoc<VersificationDoc>(d.bible.versification) : null;
     return v && v.code === numbering ? d : null;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getDoc, numbering]);
   const rows = useMemo(() => wayRows({
     choices,
@@ -89,8 +88,6 @@ export function useWays(ctx: Ctx, forLanguage: string | null, numbering?: string
     others: known.filter((u) => u.language_id !== forLanguage).map((u) => ({ languageId: u.language_id, name: languageName(ctx.org.state, u.language_id), itemId: u.item_id })),
     current,
     follow: (s) => subscriptionItemId(s.org_id, s.item_id)
-    // getDoc changes when documents arrive.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [choices, inNumbering, known, forLanguage, current, ctx.org.state]);
   const docOf = useCallback((c: LibraryChoice | null | undefined) => (c ? getDoc<TemplateDoc>(c.hash) : null), [getDoc]);
   // What numbering the organization's other languages use, by code: their template's versification.
@@ -104,7 +101,6 @@ export function useWays(ctx: Ctx, forLanguage: string | null, numbering?: string
       if (code) (out[code] ??= []).push(languageName(ctx.org.state, u.language_id));
     }
     return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [known, choices, getDoc, forLanguage, ctx.org.state]);
   const v11nOf = useCallback((d: TemplateDoc | null | undefined) => (d?.bible ? getDoc<VersificationDoc>(d.bible.versification) : null), [getDoc]);
   /** A LangQuest way by its item id, when it is offered. */
@@ -151,8 +147,7 @@ export function useVerseNumbering(ctx: Ctx) {
     if (!english) return { code: bibles[0]?.versification.code ?? 'eng', clash: null, key: '' };
     const n = verseNumbering(bibles, english);
     return { ...n, key: bibles.map((b) => b.versification.code).sort().join(',') };
-    // docs.get changes when documents arrive.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- docs.get changes when documents arrive
   }, [hashes, docs.get, state]);
   const store = `numbering-ignored:${languageId}`;
   const [ignored, setIgnored] = useState<string | null>(null);
@@ -188,8 +183,7 @@ export function useBookNameChoices(ctx: Ctx, book: string, open: boolean) {
     const b = d?.format === 'source@1' ? d.books.find((x) => x.book === book) : undefined;
     return d && b ? [{ name: b.name, from: d.name }] : [];
   })),
-  // docs.get changes when documents arrive.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- docs.get changes when documents arrive
   [hashes, docs.get, book]);
   const [answer, setAnswer] = useState<{ book: string; rows: { language_id: string; name: string }[] } | null>(null);
   useEffect(() => {

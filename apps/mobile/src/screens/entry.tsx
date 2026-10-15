@@ -270,8 +270,7 @@ function useRefreshed<T>(where: string, cached: () => Promise<T[]>, fresh: () =>
       }
     })();
     return () => { active = false; };
-    // The loaders are module functions; only whether to load can change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- The loaders are module functions; only whether to load can change
   }, [enabled]);
   return [rows, message];
 }

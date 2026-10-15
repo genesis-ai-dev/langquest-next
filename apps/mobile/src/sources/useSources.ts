@@ -284,7 +284,7 @@ export function usePassageSource(ctx: Ctx, option: SourceOption | undefined, pas
     })();
     return () => { live = false; };
     // `book` only decides whether FCBH is asked; its arrival re-runs through bbKeyNow's inputs.
-  }, [bbKeyNow, book]);
+  }, [bbKeyNow, book]); // eslint-disable-line react-hooks/exhaustive-deps -- bbKeyNow is the key: it is made of the option, the range and its filesets
 
   return useMemo(() => {
     if (!option || !range) return null;
@@ -401,5 +401,5 @@ export function useChipMarks(ctx: Ctx, passage: PassageSources): Record<string, 
     }
     return out;
     // tick and files: kept text and files changed.
-  }, [passage.options, passage.range, getBook, store, tick, files]);
+  }, [passage.options, passage.range, getBook, store, tick, files]); // eslint-disable-line react-hooks/exhaustive-deps -- tick and files change when a book is kept or dropped on this device, which changes what is ready
 }
