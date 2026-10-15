@@ -5,15 +5,17 @@
 // player stops every other, and playback sets the session to play mode.
 import type { PassageNote } from '@langquest-next/core';
 import { createElement, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Image, Platform, Pressable, View, type LayoutChangeEvent } from 'react-native';
+import { Image, Platform, Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import { Text } from '../ui/text';
 import { openContentLink } from '../ui/share';
 import { AudioClip } from '../audio/audioClip';
 import { studyUri } from './studyFiles';
 import type { Ctx } from '../shell/ctx';
+import { HelpBadge } from '../helpMode/helpBadge';
+import { useHelpOn, useHelpSpot } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { Field, Ico, NoteCard, PrimaryBtn, Sheet, type IconName } from '../ui/kit';
+import { Field, HelpInfo, Ico, NoteCard, PrimaryBtn, Sheet, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { when, type PassageView } from '../passage/passageView';
 import { Authored, ReportFlag } from '../moderation/reportSheet';
@@ -32,14 +34,18 @@ import { useStudyAudio, type StudyAudio } from './useStudyAudio';
 
 // ---- audio -------------------------------------------------------------------------
 
+/** A drag's press while help is on: the bar explains itself; moving waits until help is off. */
+const DRAG_HERE = () => undefined;
+
 /** Drag or tap along the bar to move; screen readers step 10 seconds. */
 function Scrubber(props: { value: number; max: number; label: string; onSeek: (s: number) => void }) {
   const [width, setWidth] = useState(0);
+  const spot = useHelpSpot(t('study.audio.position', { label: props.label }), t('study.audio.positionHelp'), DRAG_HERE);
   const pct = props.max > 0 ? Math.max(0, Math.min(1, props.value / props.max)) : 0;
   const at = (x: number) => { if (width > 0) props.onSeek((Math.max(0, Math.min(width, x)) / width) * props.max); };
   return (
     <View onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)} style={styles.scrubber}
-      onStartShouldSetResponder={() => true} onMoveShouldSetResponder={() => true} onResponderTerminationRequest={() => false}
+      onStartShouldSetResponder={() => !spot.id} onMoveShouldSetResponder={() => !spot.id} onResponderTerminationRequest={() => false}
       onResponderGrant={(e) => at(e.nativeEvent.locationX)} onResponderMove={(e) => at(e.nativeEvent.locationX)}
       accessible accessibilityRole="adjustable" accessibilityLabel={t('study.audio.position', { label: props.label })}
       accessibilityValue={{ min: 0, max: Math.round(props.max), now: Math.round(props.value), text: shownClock(props.value) }}
@@ -49,6 +55,11 @@ function Scrubber(props: { value: number; max: number; label: string; onSeek: (s
         <View style={[styles.trackFill, { width: `${pct * 100}%` }]} />
       </View>
       <View style={[{ pointerEvents: 'none' }, styles.thumb, { left: pct * width - 9 }]} />
+      {spot.id ? (
+        <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('study.audio.position', { label: props.label })} style={StyleSheet.absoluteFill}>
+          <HelpBadge spot={spot} />
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -56,11 +67,14 @@ function Scrubber(props: { value: number; max: number; label: string; onSeek: (s
 /** Play/pause, a scrubber, and back 10 seconds. */
 export function AudioBar(props: { audio: StudyAudio; label: string; sub?: string }) {
   const a = props.audio;
+  const play = useHelpSpot(a.playing ? t('study.audio.pause', { label: props.label }) : t('study.audio.play', { label: props.label }), t('recording.player.playHelp'), a.toggle);
+  const back = useHelpSpot(t('common.backTenSeconds'), t('recording.player.back10Help'), () => a.seek(a.time - 10));
   return (
     <View style={styles.audioBar}>
-      <Pressable onPress={a.toggle} accessibilityRole="button" accessibilityLabel={a.playing ? t('study.audio.pause', { label: props.label }) : t('study.audio.play', { label: props.label })}
+      <Pressable onPress={play.onPress} accessibilityRole="button" accessibilityLabel={a.playing ? t('study.audio.pause', { label: props.label }) : t('study.audio.play', { label: props.label })}
         style={({ pressed }) => [styles.playBtn, pressed && styles.pressed]}>
         <Ico name={a.playing ? 'pause' : 'play'} size={26} color={C.white} />
+        <HelpBadge spot={play} />
       </Pressable>
       <View style={{ flex: 1, minWidth: 0 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
@@ -70,10 +84,11 @@ export function AudioBar(props: { audio: StudyAudio; label: string; sub?: string
         <Scrubber value={a.time} max={a.duration} label={props.label} onSeek={a.seek} />
         {props.sub ? <Text style={[txt.xs, { marginTop: -2 }]} numberOfLines={2}>{props.sub}</Text> : null}
       </View>
-      <Pressable onPress={() => a.seek(a.time - 10)} accessibilityRole="button" accessibilityLabel={t('common.backTenSeconds')}
+      <Pressable onPress={back.onPress} accessibilityRole="button" accessibilityLabel={t('common.backTenSeconds')}
         style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}>
         <Ico name="undo" size={16} color={C.primary} />
         <Text style={[txt.xsStrong, { color: C.primary }]}>{formatNumber(10)}</Text>
+        <HelpBadge spot={back} />
       </Pressable>
     </View>
   );
@@ -89,6 +104,7 @@ export function ViewSwitch<T extends string>(props: { views: { id: T; label: str
         {props.views.map((v) => {
           const on = props.active === v.id;
           return (
+            // help-ignore: no screen shows this switch today; give it a line (useHelpSpot) when one does
             <Pressable key={v.id} onPress={() => props.onChange(v.id)} accessibilityRole="tab" accessibilityState={{ selected: on }}
               style={({ pressed }) => [styles.switchTab, on && styles.switchOn, pressed && styles.pressed]}>
               <Ico name={v.icon} size={16} color={on ? C.primary : C.muted} />
@@ -151,7 +167,7 @@ export function ContributeSheet(props: {
         onPress={() => { setBusy(true); void props.onSave({ text, blobHash: hash }).then((ok) => { setBusy(false); if (ok) props.onClose(); }); }} />}>
       <View style={styles.where}><Text style={txt.smMuted}>{props.where}</Text></View>
       <VoiceNote ctx={props.ctx} label={t('study.contribute.record')} hash={hash} onChange={setHash} />
-      <Field value={text} onChangeText={setText} placeholder={t('common.orTypeIt')} multiline />
+      <Field value={text} onChangeText={setText} placeholder={t('common.orTypeIt')} help={t('study.contribute.typeHelp')} multiline />
     </Sheet>
   );
 }
@@ -196,10 +212,7 @@ export function MediaSheet(props: { resource: StudyResource; source: string; org
       {items.map((item) => (
         <View key={item.id} style={{ gap: space.xs }}>
           {item.kind === 'map' && item.url ? (
-            <Pressable onPress={() => openContentLink(item.url!)} accessibilityRole="link" accessibilityLabel={t('study.media.openFullSize', { title: item.title })}
-              style={({ pressed }) => [styles.imageWrap, pressed && styles.pressed]}>
-              <MediaImage item={item} orgId={props.orgId} />
-            </Pressable>
+            <MapFullSize item={item} url={item.url} orgId={props.orgId} />
           ) : (
             <View style={styles.imageWrap}><MediaImage item={item} orgId={props.orgId} /></View>
           )}
@@ -214,6 +227,19 @@ export function MediaSheet(props: { resource: StudyResource; source: string; org
         {tapMap && noCopy ? t('study.media.lowResMapFilm') : tapMap ? t('study.media.lowResMap') : noCopy ? t('study.media.lowResFilm') : t('study.media.lowRes')}
       </Text>
     </Sheet>
+  );
+}
+
+/** A map that opens full size, outside the app. */
+function MapFullSize(props: { item: StudyMedia; url: string; orgId?: string | null }) {
+  const label = t('study.media.openFullSize', { title: props.item.title });
+  const spot = useHelpSpot(label, t('study.media.openFullSizeHelp'), () => openContentLink(props.url));
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="link" accessibilityLabel={label}
+      style={({ pressed }) => [styles.imageWrap, pressed && styles.pressed]}>
+      <MediaImage item={props.item} orgId={props.orgId} />
+      <HelpBadge spot={spot} />
+    </Pressable>
   );
 }
 
@@ -239,11 +265,13 @@ export function GlossarySheet(props: { entry: GlossaryEntry; source: string; org
 
 /** Inline text: bold words and links to pictures, maps and glossary terms. */
 function Inline(props: { text: string; onOpenRef?: (ref: string) => void }): ReactNode {
+  // While help is on a link does not open: the text around it explains it (StepPreview).
+  const helpOn = useHelpOn();
   return inlineParts(props.text).map((p, i) => {
     if (p.type === 'text') return p.text;
     if (p.type === 'bold') return <Text key={i} style={{ fontWeight: '700' }}>{p.text}</Text>;
     return (
-      <Text key={i} onPress={props.onOpenRef ? () => props.onOpenRef!(p.ref) : undefined} accessibilityRole="link" suppressHighlighting={false}
+      <Text key={i} onPress={props.onOpenRef && !helpOn ? () => props.onOpenRef!(p.ref) : undefined} accessibilityRole="link" suppressHighlighting={false}
         style={{ fontWeight: '700', color: C.primary, textDecorationLine: 'underline' }}>{p.text}</Text>
     );
   });
@@ -282,15 +310,15 @@ export function SectionBody(props: { section: StudySection; onOpenRef?: (ref: st
 export function StepPreview(props: { text: string; onOpenRef?: (ref: string) => void }) {
   const sections = useMemo(() => studySections(props.text), [props.text]);
   if (!sections.length) return <View style={styles.textCard}><Text style={[txt.smMuted, { padding: space.md }]}>{t('study.nothingWritten')}</Text></View>;
-  return (
-    <View style={styles.textCard}>
-      {sections.map((sec) => (
-        <View key={sec.id} style={{ paddingHorizontal: space.sm }}>
-          <View style={styles.previewSection}><SectionBody section={sec} {...(props.onOpenRef ? { onOpenRef: props.onOpenRef } : {})} /></View>
-        </View>
-      ))}
+  const body = sections.map((sec) => (
+    <View key={sec.id} style={{ paddingHorizontal: space.sm }}>
+      <View style={styles.previewSection}><SectionBody section={sec} {...(props.onOpenRef ? { onOpenRef: props.onOpenRef } : {})} /></View>
     </View>
-  );
+  ));
+  // Links that open: while help is on the text says what they do, since a link inside it cannot light on its own.
+  const linked = !!props.onOpenRef && sections.some((sec) => inlineParts(sec.text).some((p) => p.type === 'link'));
+  if (!linked) return <View style={styles.textCard}>{body}</View>;
+  return <HelpInfo label={t('common.preview')} detail={t('study.preview.linksHelp')} style={styles.textCard}>{body}</HelpInfo>;
 }
 
 // ---- the passage: read and listen in a few translations, note any verse (STUDY-5) -------
@@ -321,11 +349,8 @@ export function PassageReader(props: { ctx: Ctx; v: PassageView; canContribute: 
             return (
               <View style={{ paddingLeft: 44, paddingRight: space.xs, paddingBottom: space.sm, gap: space.sm }}>
                 {c.selected && props.canContribute ? (
-                  <Pressable onPress={() => setAdding({ verse: row.key, code: c.code, ...(c.at ? { at: c.at } : {}) })} accessibilityRole="button"
-                    style={({ pressed }) => [styles.addBtn, pressed && styles.pressed]}>
-                    <Ico name="note" size={16} color={C.white} />
-                    <Text style={[txt.sm, { fontWeight: '700', color: C.white }]}>{c.at ? t('study.reader.addNoteOnAt', { verse: row.key, time: c.at }) : t('study.reader.addNoteOn', { verse: row.key })}</Text>
-                  </Pressable>
+                  <AddNoteHere label={c.at ? t('study.reader.addNoteOnAt', { verse: row.key, time: c.at }) : t('study.reader.addNoteOn', { verse: row.key })}
+                    onPress={() => setAdding({ verse: row.key, code: c.code, ...(c.at ? { at: c.at } : {}) })} />
                 ) : null}
                 {here.map((n) => {
                   const a = n.anchor.kind === 'verse' ? [n.anchor.translation, n.anchor.at].filter(Boolean).join(' · ') : '';
@@ -348,3 +373,14 @@ export function PassageReader(props: { ctx: Ctx; v: PassageView; canContribute: 
   );
 }
 
+/** "Add a note on 15:20" under the verse chosen in the passage reader. */
+function AddNoteHere(props: { label: string; onPress: () => void }) {
+  const spot = useHelpSpot(props.label, t('study.reader.addNoteHelp'), props.onPress);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="button" style={({ pressed }) => [styles.addBtn, pressed && styles.pressed]}>
+      <Ico name="note" size={16} color={C.white} />
+      <Text style={[txt.sm, { fontWeight: '700', color: C.white }]}>{props.label}</Text>
+      <HelpBadge spot={spot} />
+    </Pressable>
+  );
+}

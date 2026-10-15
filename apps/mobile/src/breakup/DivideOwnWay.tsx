@@ -12,6 +12,8 @@ import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { FlatList, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
+import { useHelpSpot } from '../helpMode/useHelpMode';
+import { HelpBadge } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { Field, Group, Header, Ico, PrimaryBtn, QuietLinks, Row, Screen, Sheet, type IconName } from '../ui/kit';
@@ -141,7 +143,7 @@ export function DivideOwnWay(props: {
           <Text style={[txt.body, { fontWeight: '800' }]}>{`${bookName} ${sel}`}</Text>
           {text.byAt.get(sel) ? <Text style={txt.smMuted} numberOfLines={2}>{text.byAt.get(sel)}</Text> : null}
         </View>
-        <Round icon="close" label={t('common.close')} onPress={() => setSel(null)} />
+        <Round icon="close" label={t('common.close')} help={t('breakup.own.unselectHelp')} onPress={() => setSel(null)} />
       </View>
       {sel === order[0]
         ? <Text style={[txt.smMuted, { textAlign: 'center', paddingVertical: space.sm }]}>{t('breakup.own.bookStarts')}</Text>
@@ -151,10 +153,10 @@ export function DivideOwnWay(props: {
     </View>
   ) : (
     <>
-      <PrimaryBtn label={t('breakup.own.save', { count: sections.length })} icon="check" busy={change.busy} disabled={!props.item && !props.apply} onPress={save} />
+      <PrimaryBtn label={t('breakup.own.save', { count: sections.length })} icon="check" busy={change.busy} disabled={!props.item && !props.apply} help={t('breakup.own.saveHelp')} onPress={save} />
       <QuietLinks items={[
-        ...(undo ? [{ label: t('breakup.own.undo'), icon: 'undo' as const, onPress: () => { setStarts(undo); setUndo(null); } }] : []),
-        { label: t('breakup.own.startFrom'), icon: 'book', onPress: () => setPanel('from') }
+        ...(undo ? [{ label: t('breakup.own.undo'), icon: 'undo' as const, help: t('breakup.own.undoHelp'), onPress: () => { setStarts(undo); setUndo(null); } }] : []),
+        { label: t('breakup.own.startFrom'), icon: 'book', help: t('breakup.own.startFromHelp'), onPress: () => setPanel('from') }
       ]} />
     </>
   );
@@ -162,9 +164,10 @@ export function DivideOwnWay(props: {
   return (
     <Screen fixed footer={footer} header={<Header title={bookName} sub={t('breakup.own.headerSub', { count: sections.length })} onBack={back} />}>
       <View style={styles.tools}>
-        <Pill icon="book" help down label={text.option ? chipLabel(text.option, text.options) : t('breakup.own.noBibleChip')} onPress={() => setPanel('bible')} />
-        <Pill icon="layers" help label={t('breakup.own.helps')} on={panel === 'helps'} onPress={() => setPanel(panel === 'helps' ? null : 'helps')} />
-        <Pill down label={t('breakup.own.chapterChip', { n: formatNumber(inView) })} onPress={() => setPanel('jump')} />
+        <Pill icon="book" help down label={text.option ? chipLabel(text.option, text.options) : t('breakup.own.noBibleChip')} detail={t('breakup.own.biblePillHelp')} onPress={() => setPanel('bible')} />
+        <Pill icon="layers" help label={t('breakup.own.helps')} on={panel === 'helps'} detail={panel === 'helps' ? t('breakup.own.closeHelpsHelp') : t('breakup.own.helpsPillHelp')}
+          onPress={() => setPanel(panel === 'helps' ? null : 'helps')} />
+        <Pill down label={t('breakup.own.chapterChip', { n: formatNumber(inView) })} detail={t('breakup.own.chapterPillHelp')} onPress={() => setPanel('jump')} />
       </View>
       <FlatList
         ref={list}
@@ -201,6 +204,7 @@ export function DivideOwnWay(props: {
               <Row key={o.itemId} icon="book" label={o.name} last={i === text.options.length - 1} role="radio" selected={o.itemId === text.option?.itemId}
                 sub={o.from === 'language' || o.from === 'organization' ? t('breakup.own.teamBible', { language: languageLabel(o.language) }) : languageLabel(o.language)}
                 right={o.itemId === text.option?.itemId ? <Ico name="check" size={22} color={C.green} strokeWidth={3} /> : undefined}
+                help={o.itemId === text.option?.itemId ? t('breakup.own.bibleRowOnHelp') : t('breakup.own.bibleRowHelp')}
                 onPress={() => { text.choose(o.itemId); setPanel(null); }} />
             ))}
           </Group>
@@ -209,17 +213,9 @@ export function DivideOwnWay(props: {
 
       <Sheet visible={panel === 'jump'} title={t('breakup.own.jumpTitle')} sub={t('breakup.own.jumpSub')} onClose={() => setPanel(null)}>
         <View style={styles.grid}>
-          {chapters.map((c) => {
-            const n = sections.filter((s) => parseAt(s.start).chapter === c).length;
-            return (
-              <Pressable key={c} onPress={() => { setPanel(null); jump(c); }} accessibilityRole="button"
-                accessibilityLabel={t('breakup.own.jumpLabel', { chapter: formatNumber(c), count: n })}
-                style={({ pressed }) => [styles.tile, c === inView && { borderColor: C.primary }, pressed && { opacity: 0.7 }]}>
-                <Text style={[txt.h3, { fontSize: 18, fontWeight: '800' }]}>{formatNumber(c)}</Text>
-                <Text style={txt.xsStrong}>{formatNumber(n)}</Text>
-              </Pressable>
-            );
-          })}
+          {chapters.map((c) => (
+            <JumpTile key={c} c={c} n={sections.filter((s) => parseAt(s.start).chapter === c).length} here={c === inView} onPress={() => { setPanel(null); jump(c); }} />
+          ))}
         </View>
       </Sheet>
 
@@ -229,7 +225,7 @@ export function DivideOwnWay(props: {
             const fromStarts = startsOfWay(ways.docOf(r.choice), book, props.v11n);
             return (
               <Row key={r.choice.key} icon="book" label={r.choice.name} sub={t('breakup.own.sections', { count: fromStarts.size })} last={i === offered.length - 1}
-                onPress={() => { setPanel(null); replace(fromStarts, t('breakup.own.startedFrom', { book: bookName, way: r.choice.name })); }} />
+                help={t('breakup.own.fromRowHelp')} onPress={() => { setPanel(null); replace(fromStarts, t('breakup.own.startedFrom', { book: bookName, way: r.choice.name })); }} />
             );
           })}
         </Group>
@@ -245,8 +241,8 @@ export function DivideOwnWay(props: {
 
       <Sheet visible={panel === 'leave'} title={t('breakup.own.leaveTitle')} sub={t('breakup.own.leaveSub', { book: bookName })} onClose={() => setPanel(null)}
         footer={<>
-          <PrimaryBtn label={t('breakup.own.save', { count: sections.length })} icon="check" busy={change.busy} disabled={!props.item} onPress={() => { setPanel(null); save(); }} />
-          <QuietLinks items={[{ label: t('breakup.own.leaveAnyway'), icon: 'close', onPress: props.onClose }]} />
+          <PrimaryBtn label={t('breakup.own.save', { count: sections.length })} icon="check" busy={change.busy} disabled={!props.item} help={t('breakup.own.saveHelp')} onPress={() => { setPanel(null); save(); }} />
+          <QuietLinks items={[{ label: t('breakup.own.leaveAnyway'), icon: 'close', help: t('breakup.own.leaveAnywayHelp'), onPress: props.onClose }]} />
         </>}>
         {null}
       </Sheet>
@@ -262,10 +258,17 @@ function ChapterBlock(props: {
   onVerse: (at: At) => void; onStart: (at: At) => void; onSection: (at: At) => void;
 }) {
   const { c } = props;
+  // A verse selects itself when tapped; while help is on any verse explains them all, lit on the chapter's first paragraph.
+  const verse = useHelpSpot(t('breakup.own.versesName'), t('breakup.own.verseHelp'), VERSE);
   const blocks: ReactNode[] = [];
   let run: ReactNode[] = [];
+  let lit = false;
   const flush = (key: string) => {
-    if (run.length) blocks.push(<Text key={`p${key}`} style={styles.para}>{run}</Text>);
+    if (run.length) {
+      const para = <Text key={`p${key}`} style={styles.para}>{run}</Text>;
+      blocks.push(verse.id && !lit ? <View key={`p${key}`}>{para}<HelpBadge spot={verse} /></View> : para);
+      lit = true;
+    }
     run = [];
   };
   for (let v = 1; v <= props.count; v++) {
@@ -283,7 +286,7 @@ function ChapterBlock(props: {
     const words = props.text.get(at);
     run.push(
       // No button role: on the web that makes each verse a block of its own instead of running text.
-      <Text key={at} onPress={() => props.onVerse(at)} style={props.sel === at ? styles.selected : undefined} accessibilityLabel={t('breakup.own.verseLabel', { at })}>
+      <Text key={at} onPress={verse.id ? verse.onPress : () => props.onVerse(at)} style={props.sel === at ? styles.selected : undefined} accessibilityLabel={t('breakup.own.verseLabel', { at })}>
         <Text style={styles.verseNo}>{`${formatNumber(v)} `}</Text>
         {words === undefined ? <Text style={{ color: C.faint }}>{'· · ·'}</Text> : words}{' '}
       </Text>
@@ -306,22 +309,26 @@ function SectionCard(props: { n: number; section: Section; name?: string; bookNa
   const where = `${props.bookName} ${sectionLabel(props.section)}`;
   const sub = [props.name ? where : '', t('breakup.own.verses', { count: props.section.verses }),
     props.bibles ? t('breakup.own.alsoBibles', { n: formatNumber(props.bibles), total: formatNumber(BIBLES_COUNTED) }) : ''].filter(Boolean).join(' · ');
+  // Named by its number, which the circle shows (rule 3).
+  const spot = useHelpSpot(t('breakup.own.sectionTitle', { n: formatNumber(props.n) }), props.n === 1 ? t('breakup.own.firstSectionHelp') : t('breakup.own.sectionHelp'), props.onPress);
   return (
-    <Pressable onPress={props.onPress} accessibilityRole="button" style={({ pressed }) => [styles.card, pressed && { opacity: 0.8 }]}>
+    <Pressable onPress={spot.onPress} accessibilityRole="button" style={({ pressed }) => [styles.card, pressed && { opacity: 0.8 }]}>
       <View style={styles.num}><Text style={styles.numText}>{formatNumber(props.n)}</Text></View>
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={[txt.body, { fontWeight: '800' }]} numberOfLines={1}>{props.name || where}</Text>
         <Text style={txt.xs}>{sub}</Text>
       </View>
       <Ico name="edit" size={18} color={C.muted} />
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
 
 function Suggestion(props: { at: At; bibles: number; onStart: () => void }) {
   const bibles = t('breakup.own.bibles', { n: formatNumber(props.bibles), total: formatNumber(BIBLES_COUNTED) });
+  const spot = useHelpSpot(t('breakup.own.startHere'), t('breakup.own.suggestionHelp', { at: props.at, bibles }), props.onStart);
   return (
-    <Pressable onPress={props.onStart} accessibilityRole="button" accessibilityLabel={t('breakup.own.suggestionLabel', { at: props.at, bibles })}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('breakup.own.suggestionLabel', { at: props.at, bibles })}
       style={({ pressed }) => [styles.suggest, pressed && { opacity: 0.7 }]}>
       <Ico name="cut" size={16} color={C.muted} />
       <View style={{ flex: 1, minWidth: 0, paddingVertical: space.xs }}>
@@ -329,6 +336,7 @@ function Suggestion(props: { at: At; bibles: number; onStart: () => void }) {
         <Text style={txt.xs}>{t('breakup.own.startAt')}</Text>
       </View>
       <View style={styles.startPill}><Text style={[txt.sm, { color: C.primary, fontWeight: '800' }]}>{t('breakup.own.startPill')}</Text></View>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -337,8 +345,9 @@ function SectionSheet(props: { n: number; section: Section; bookName: string; na
   return (
     <Sheet visible title={t('breakup.own.sectionTitle', { n: formatNumber(props.n) })}
       sub={`${props.bookName} ${sectionLabel(props.section)} · ${t('breakup.own.verses', { count: props.section.verses })}`}
-      onClose={props.onClose} footer={<PrimaryBtn label={t('common.done')} icon="check" onPress={props.onClose} />}>
-      <Field label={t('breakup.own.nameLabel')} value={props.name} onChangeText={props.onName} placeholder={t('breakup.own.namePlaceholder')} autoCapitalize="sentences" />
+      onClose={props.onClose} footer={<PrimaryBtn label={t('common.done')} icon="check" help={t('breakup.own.sectionDoneHelp')} onPress={props.onClose} />}>
+      <Field label={t('breakup.own.nameLabel')} value={props.name} onChangeText={props.onName} placeholder={t('breakup.own.namePlaceholder')} autoCapitalize="sentences"
+        help={t('breakup.own.nameHelp')} />
       <Group>
         {props.onJoin
           ? <Row icon="join" label={t('breakup.own.joinWith', { n: formatNumber(props.n - 1) })} sub={t('breakup.own.joinSub')} last onPress={props.onJoin} />
@@ -355,24 +364,20 @@ function HelpsPane(props: { book: string; helps: Help[]; outline: Part[]; onClos
   const notes = props.helps.filter((h) => h.kind !== 'guide').flatMap((h) => h.parts.map((p) => ({ help: h, part: p })));
   const [tab, setTab] = useState<HelpsTab>(props.outline.length ? 'outline' : notes.length ? 'notes' : 'guides');
   const from = [...new Set(props.helps.filter((h) => h.kind === 'guide' && h.parts.length).map((h) => h.name))].join(', ');
-  const tabs: [HelpsTab, string][] = [
-    ['outline', t('breakup.own.tabOutline')],
-    ['notes', t('breakup.own.tabNotes', { n: formatNumber(notes.length) })],
-    ['guides', t('breakup.own.tabGuides')]
+  const tabs: [HelpsTab, string, string][] = [
+    ['outline', t('breakup.own.tabOutline'), t('breakup.own.tabOutlineHelp')],
+    ['notes', t('breakup.own.tabNotes', { n: formatNumber(notes.length) }), t('breakup.own.tabNotesHelp')],
+    ['guides', t('breakup.own.tabGuides'), t('breakup.own.tabGuidesHelp')]
   ];
+  const use = useHelpSpot(t('breakup.own.useOutline'), t('breakup.own.useOutlineHelp'), tab === 'outline' && props.outline.length ? props.onUse : undefined);
   return (
     <View style={styles.pane}>
       <View style={styles.selRow}>
         <Text style={[txt.h3, { flex: 1 }]}>{t('breakup.own.helpsTitle', { book: props.book })}</Text>
-        <Round icon="close" label={t('breakup.own.closeHelps')} onPress={props.onClose} />
+        <Round icon="close" label={t('breakup.own.closeHelps')} help={t('breakup.own.closeHelpsHelp')} onPress={props.onClose} />
       </View>
       <View style={styles.tabs}>
-        {tabs.map(([id, label]) => (
-          <Pressable key={id} onPress={() => setTab(id)} accessibilityRole="tab" accessibilityState={{ selected: tab === id }}
-            style={[styles.tab, tab === id && styles.tabOn]}>
-            <Text style={[txt.sm, { fontWeight: '800', color: tab === id ? C.card : C.dark }]}>{label}</Text>
-          </Pressable>
-        ))}
+        {tabs.map(([id, label, detail]) => <PaneTab key={id} label={label} detail={detail} on={tab === id} onPress={() => setTab(id)} />)}
       </View>
       <ScrollView contentContainerStyle={{ gap: space.sm, paddingBottom: space.sm }}>
         {tab === 'outline' ? (props.outline.length ? (
@@ -380,12 +385,14 @@ function HelpsPane(props: { book: string; helps: Help[]; outline: Part[]; onClos
             <Text style={txt.xs}>{t('breakup.own.outlineFrom', { from })}</Text>
             <Group>
               {props.outline.map((p, i) => (
-                <Row key={`${p.start}-${i}`} label={p.title} sub={`${props.book} ${sectionLabel(p)}`} last={i === props.outline.length - 1} onPress={() => props.onGo(p.start)} />
+                <Row key={`${p.start}-${i}`} label={p.title} sub={`${props.book} ${sectionLabel(p)}`} last={i === props.outline.length - 1}
+                  help={t('breakup.own.outlineRowHelp')} onPress={() => props.onGo(p.start)} />
               ))}
             </Group>
-            <Pressable onPress={props.onUse} accessibilityRole="button" style={({ pressed }) => [styles.useStarts, pressed && { opacity: 0.7 }]}>
+            <Pressable onPress={use.onPress} accessibilityRole="button" style={({ pressed }) => [styles.useStarts, pressed && { opacity: 0.7 }]}>
               <Ico name="cut" size={16} color={C.primary} />
               <Text style={[txt.sm, { color: C.primary, fontWeight: '800' }]}>{t('breakup.own.useOutline')}</Text>
+              <HelpBadge spot={use} />
             </Pressable>
           </>
         ) : <Text style={txt.smMuted}>{t('breakup.own.noOutline', { book: props.book })}</Text>) : null}
@@ -398,15 +405,13 @@ function HelpsPane(props: { book: string; helps: Help[]; outline: Part[]; onClos
               </Text>
             </View>
             {help.body ? <Text style={txt.sm} numberOfLines={4}>{help.body}</Text> : null}
-            <Pressable onPress={() => props.onGo(part.start)} accessibilityRole="button" style={{ minHeight: 36, justifyContent: 'center', alignSelf: 'flex-start' }}>
-              <Text style={[txt.sm, { fontWeight: '800', color: TINT.amberText }]}>{t('breakup.own.showInText')}</Text>
-            </Pressable>
+            <ShowInText onPress={() => props.onGo(part.start)} />
           </View>
         )) : <Text style={txt.smMuted}>{t('breakup.own.noNotes', { book: props.book })}</Text>) : null}
         {tab === 'guides' ? (props.helps.length ? (
           <Group>
             {props.helps.map((h, i) => (
-              <Row key={h.itemId} icon={h.kind === 'guide' ? 'sparkle' : 'file'} label={h.name} last={i === props.helps.length - 1}
+              <Row key={h.itemId} icon={h.kind === 'guide' ? 'sparkle' : 'file'} label={h.name} last={i === props.helps.length - 1} help={t('breakup.own.guideRowHelp')}
                 sub={[h.language ? languageLabel(h.language) : '', h.parts.length ? t('breakup.own.partsIn', { count: h.parts.length, book: props.book })
                   : h.wholeBook ? t('breakup.own.allOf', { book: props.book }) : t('breakup.own.nothingFor', { book: props.book })].filter(Boolean).join(' · ')}
                 onPress={h.parts[0] ? () => props.onGo(h.parts[0]!.start) : undefined} />
@@ -418,23 +423,67 @@ function HelpsPane(props: { book: string; helps: Help[]; outline: Part[]; onClos
   );
 }
 
-function Round(props: { icon: IconName; label: string; onPress: () => void }) {
+/** While help is on, a verse explains instead of selecting itself. */
+const VERSE = () => undefined;
+
+/** A chapter in "Go to a chapter": its number, and how many sections start in it. */
+function JumpTile(props: { c: number; n: number; here: boolean; onPress: () => void }) {
+  const label = t('breakup.own.jumpLabel', { chapter: formatNumber(props.c), count: props.n });
+  const spot = useHelpSpot(label, t('breakup.own.jumpHelp'), props.onPress);
   return (
-    <Pressable onPress={props.onPress} accessibilityRole="button" accessibilityLabel={props.label} hitSlop={4} style={styles.round}>
-      <Ico name={props.icon} size={18} color={C.dark} />
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={label}
+      style={({ pressed }) => [styles.tile, props.here && { borderColor: C.primary }, pressed && { opacity: 0.7 }]}>
+      <Text style={[txt.h3, { fontSize: 18, fontWeight: '800' }]}>{formatNumber(props.c)}</Text>
+      <Text style={txt.xsStrong}>{formatNumber(props.n)}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
 
-/** A pill above the text: the Bible and the helps in the helps' amber, the chapter plain. */
-function Pill(props: { icon?: IconName; label: string; help?: boolean; down?: boolean; on?: boolean; onPress: () => void }) {
-  const color = props.help ? TINT.amberText : C.dark;
+/** One of the helps pane's tabs: Outline, Notes, Guides. */
+function PaneTab(props: { label: string; detail: string; on: boolean; onPress: () => void }) {
+  const spot = useHelpSpot(props.label, props.detail, props.onPress);
   return (
-    <Pressable onPress={props.onPress} accessibilityRole="button" accessibilityLabel={props.label} accessibilityState={props.on === undefined ? undefined : { expanded: props.on }}
+    <Pressable onPress={spot.onPress} accessibilityRole="tab" accessibilityState={{ selected: props.on }}
+      style={[styles.tab, props.on && styles.tabOn]}>
+      <Text style={[txt.sm, { fontWeight: '800', color: props.on ? C.card : C.dark }]}>{props.label}</Text>
+      <HelpBadge spot={spot} />
+    </Pressable>
+  );
+}
+
+/** Under a note: go to the verses it is on. */
+function ShowInText(props: { onPress: () => void }) {
+  const spot = useHelpSpot(t('breakup.own.showInText'), t('breakup.own.showInTextHelp'), props.onPress);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="button" style={{ minHeight: 36, justifyContent: 'center', alignSelf: 'flex-start' }}>
+      <Text style={[txt.sm, { fontWeight: '800', color: TINT.amberText }]}>{t('breakup.own.showInText')}</Text>
+      <HelpBadge spot={spot} />
+    </Pressable>
+  );
+}
+
+function Round(props: { icon: IconName; label: string; help: string; onPress: () => void }) {
+  const spot = useHelpSpot(props.label, props.help, props.onPress);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.label} hitSlop={4} style={styles.round}>
+      <Ico name={props.icon} size={18} color={C.dark} />
+      <HelpBadge spot={spot} />
+    </Pressable>
+  );
+}
+
+/** A pill above the text: the Bible and the helps in the helps' amber, the chapter plain. `detail`: what help mode says it does. */
+function Pill(props: { icon?: IconName; label: string; help?: boolean; down?: boolean; on?: boolean; detail: string; onPress: () => void }) {
+  const color = props.help ? TINT.amberText : C.dark;
+  const spot = useHelpSpot(props.label, props.detail, props.onPress);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.label} accessibilityState={props.on === undefined ? undefined : { expanded: props.on }}
       style={({ pressed }) => [styles.pill, props.help && styles.pillHelp, pressed && { opacity: 0.7 }]}>
       {props.icon ? <Ico name={props.icon} size={16} color={color} /> : null}
       <Text style={[txt.sm, { fontWeight: '700', color, flexShrink: 1 }]} numberOfLines={1}>{props.label}</Text>
       {props.down ? <Ico name="down" size={16} color={color} /> : null}
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }

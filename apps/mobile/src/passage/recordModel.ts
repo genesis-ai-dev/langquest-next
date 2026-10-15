@@ -417,6 +417,14 @@ export function historyMove(e: RecordEntry): RecordMove | undefined {
   return undefined;
 }
 
+/** What help mode says a history entry's tap opens. */
+export function historyHelp(e: RecordEntry): string | undefined {
+  if (e.type === 'version') return t('passage.page.openVersionHelp');
+  if (e.type === 'review' || e.type === 'response') return t('passage.page.openReviewHelp');
+  if (e.type === 'study') return t('passage.page.openStudyStepHelp');
+  return undefined;
+}
+
 /** The one small button on a history entry: take it back, withdraw it, or report it. */
 export type HistoryAction =
   | { id: 'undo'; departureId: string; type: string }

@@ -16,6 +16,7 @@ import { DashedRow, InviteCode, Pills, Question, QuietLink, RadioRow } from '../
 import { useGroupInvite } from '../admin/useGroupInvite';
 import { usePlainRoles } from '../admin/useReadySummary';
 import { shareInvite } from './shareInvite';
+import { plainRoleHelp } from '../admin/readyText';
 
 export interface InviteScope {
   key: string;
@@ -33,7 +34,7 @@ export function InviteSomeone(props: {
   onDone: () => void;
   onNewRole?: () => void;
   /** Quieter ways to invite, under the main button (by email, one person by name). */
-  links?: (roleId: string | null, scope: InviteScope | null) => { label: string; icon: IconName; onPress: () => void }[];
+  links?: (roleId: string | null, scope: InviteScope | null) => { label: string; icon: IconName; onPress: () => void; help?: string }[];
   disabled?: string;
 }) {
   const { ctx } = props;
@@ -71,10 +72,10 @@ export function InviteSomeone(props: {
     return (
       <Screen header={props.header(true, () => setShown(false), scope)} bodyStyle={{ paddingHorizontal: 20, gap: 14 }}
         footer={<>
-          <PrimaryBtn label={t('common.done')} icon="check" onPress={props.onDone} />
+          <PrimaryBtn label={t('common.done')} icon="check" help={t('help.details.done')} onPress={props.onDone} />
           <QuietLinks items={[
-            ...(uri ? [{ label: t('admin.invite.shareLink'), icon: 'send' as const, onPress: () => shareInvite(ctx, uri) }] : []),
-            { label: t('admin.invite.someoneElse'), icon: 'arrowL' as const, onPress: () => setShown(false) }
+            ...(uri ? [{ label: t('admin.invite.shareLink'), icon: 'send' as const, help: t('admin.invite.shareLinkHelp'), onPress: () => shareInvite(ctx, uri) }] : []),
+            { label: t('admin.invite.someoneElse'), icon: 'arrowL' as const, help: t('admin.invite.someoneElseHelp'), onPress: () => setShown(false) }
           ]} />
         </>}>
         <Question>{what}{scope && props.scopes.length > 1 ? ` · ${scope.label}` : ''}</Question>
@@ -90,17 +91,19 @@ export function InviteSomeone(props: {
       </>}>
       <Question>{t('admin.invite.whatWillTheyDo')}</Question>
       {/* Making a new role comes first, set apart from the roles there are (design principle 12). */}
-      {newRole ? <DashedRow icon="plus" label={t('admin.invite.newRole')} onPress={newRole} /> : null}
+      {newRole ? <DashedRow icon="plus" label={t('admin.invite.newRole')} detail={t('admin.invite.newRoleHelp')} onPress={newRole} /> : null}
       {roles.choices.map((c) => (
-        <RadioRow key={c.id} tile icon={c.icon as IconName} label={c.label} on={choice === c.id} onPress={() => setChoice(c.id)} />
+        <RadioRow key={c.id} tile icon={c.icon as IconName} label={c.label} help={plainRoleHelp(c.id)} on={choice === c.id} onPress={() => setChoice(c.id)} />
       ))}
       {roles.others.length ? (others ? roles.others.map((r) => (
-        <RadioRow key={r.id} tile icon="star" label={r.name} on={choice === r.id} onPress={() => setChoice(r.id)} />
-      )) : <QuietLink icon="down" label={t('admin.invite.otherRoles', { total: formatNumber(roles.others.length) })} onPress={() => setOthers(true)} />) : null}
+        <RadioRow key={r.id} tile icon="star" label={r.name} help={t('admin.invite.pickRoleHelp')} on={choice === r.id} onPress={() => setChoice(r.id)} />
+      )) : <QuietLink icon="down" label={t('admin.invite.otherRoles', { total: formatNumber(roles.others.length) })} detail={t('admin.invite.otherRolesHelp')}
+        onPress={() => setOthers(true)} />) : null}
       {props.scopes.length > 1 ? (
         <>
           <SectionLabel label={t('admin.invite.whichLanguage')} />
-          <Pills>{props.scopes.map((s) => <Chip key={s.key} label={s.label} on={scopeKey === s.key} onPress={() => setScopeKey(s.key)} />)}</Pills>
+          <Pills>{props.scopes.map((s) => <Chip key={s.key} label={s.label} on={scopeKey === s.key} onPress={() => setScopeKey(s.key)}
+            help={s.scope.level === 'org' ? t('admin.invite.scopeOrgHelp') : t('admin.invite.scopeLanguageHelp')} />)}</Pills>
         </>
       ) : null}
       {props.disabled ? <Text style={[txt.sm, { color: C.muted, paddingHorizontal: space.xs }]}>{props.disabled}</Text> : null}

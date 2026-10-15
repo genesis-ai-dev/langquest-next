@@ -189,12 +189,12 @@ export function SourcePlayer(props: {
   return (
     <View style={{ gap: space.sm }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-        <IconBtn name="restart" label={t('sources.recordings.rewind')} size={target.min}
+        <IconBtn name="restart" label={t('sources.recordings.rewind')} help={t('recording.player.back10Help')} size={target.min}
           bg={C.light} color={C.primary} disabled={props.disabled || !available} onPress={() => void seek(-10)} />
         <IconBtn name={available ? playing ? 'pause' : 'play' : 'download'} size={target.primary} bg={C.light} color={C.primary}
           label={available ? playing ? t('sources.recordings.pause') : props.label : t('sources.recordings.notHereLabel')}
-          disabled={!available || props.disabled} onPress={() => void toggle()} />
-        <IconBtn name="skip" label={t('sources.recordings.forward')} size={target.min}
+          help={props.listen ? t('sources.recordings.playListenHelp') : t('recording.player.playHelp')} disabled={!available || props.disabled} onPress={() => void toggle()} />
+        <IconBtn name="skip" label={t('sources.recordings.forward')} help={t('recording.player.forwardHelp')} size={target.min}
           bg={C.light} color={C.primary} disabled={props.disabled || !available} onPress={() => void seek(10)} />
       </View>
       {error ? <Text accessibilityRole="alert" style={txt.error}>{error}</Text> : null}

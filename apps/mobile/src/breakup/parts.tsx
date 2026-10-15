@@ -12,7 +12,7 @@ import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { Chip, GhostBtn, Ico, LinkBtn, PrimaryBtn, Sheet } from '../ui/kit';
+import { Chip, GhostBtn, HelpInfo, Ico, LinkBtn, PrimaryBtn, Sheet } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { CheckRow, ChoiceCard, Pills } from '../admin/admin';
 import { alsoUsedLine } from './templateNames';
@@ -22,8 +22,11 @@ import {
   booksLine, CHAPTERS_ITEM, countLine, lessonSlides, piecesOf, PREVIEW_BOOKS, SAMPLE_BOOK, usedLine, verseSays, wayOf, type TemplateUser, type WayRow
 } from './model';
 
-/** A book cut into its pieces, each as wide as its verses. Nothing drawn when the way leaves the book for later. */
-export function PieceBar(props: { doc: TemplateDoc | null; book?: string; v11n: VersificationDoc | null; caption?: boolean }) {
+/**
+ * A book cut into its pieces, each as wide as its verses. Nothing drawn when the way leaves the book for later.
+ * `explain`: it stands on its own (not inside a card that is a part), so help mode explains the bar itself (rule 3).
+ */
+export function PieceBar(props: { doc: TemplateDoc | null; book?: string; v11n: VersificationDoc | null; caption?: boolean; explain?: boolean }) {
   // Ruth, unless the way leaves Ruth out (FIA's older list): then the first book it does break up.
   const book = props.book ?? (props.doc ? PREVIEW_BOOKS.find((b) => piecesOf(props.doc!, b, props.v11n).length > 0) : undefined) ?? SAMPLE_BOOK;
   const pieces = props.doc ? piecesOf(props.doc, book, props.v11n) : [];
@@ -36,8 +39,9 @@ export function PieceBar(props: { doc: TemplateDoc | null; book?: string; v11n: 
       </View>
     );
   }
-  return (
-    <View accessibilityLabel={t('breakup.pieceBar.label', { book: name, count: pieces.length })}>
+  const label = t('breakup.pieceBar.label', { book: name, count: pieces.length });
+  const bar = (
+    <View accessibilityLabel={label}>
       <View style={[styles.bar, { gap: pieces.length > 100 ? 0 : pieces.length > 30 ? 1 : 3 }]}>
         {pieces.map((p, i) => (
           <View key={i} style={[styles.piece, { flexGrow: p.verses }, pieces.length > 100 && i % 2 === 1 && { backgroundColor: C.soft }]} />
@@ -46,6 +50,7 @@ export function PieceBar(props: { doc: TemplateDoc | null; book?: string; v11n: 
       {props.caption === false ? null : <Text style={[txt.xs, { color: C.muted, marginTop: 4 }]}>{t('breakup.pieceBar.caption', { book: name, count: pieces.length })}</Text>}
     </View>
   );
+  return props.explain ? <HelpInfo label={label} detail={t('breakup.pieceBar.help')}>{bar}</HelpInfo> : bar;
 }
 
 /**
@@ -65,8 +70,12 @@ export function WayCard(props: {
   ].filter(Boolean);
   const preview = useHelpSpot(t('common.preview'), t('breakup.way.previewHelp', { way: row.choice.name }), props.onPreview);
   const goes = doc?.format === 'template@2' ? doc.goesWith?.pattern : undefined;
+  // Picking it, and what its bar of pieces means (rule 3), where the bar shows a book cut up.
+  const barBook = row.later && !props.oneBook ? null : props.oneBook ?? SAMPLE_BOOK;
+  const help = [t('breakup.way.pickHelp'),
+    barBook && doc && piecesOf(doc, barBook, props.v11n).length > 0 ? t('breakup.way.barHelp', { book: bookNameOf(barBook) }) : null].filter(Boolean).join(' ');
   return (
-    <ChoiceCard on={props.on} icon={row.later ? 'clock' : 'book'} title={row.choice.name} sub={lines.join(' · ')} onPress={props.onPress}>
+    <ChoiceCard on={props.on} icon={row.later ? 'clock' : 'book'} title={row.choice.name} sub={lines.join(' · ')} onPress={props.onPress} help={help}>
       <View style={styles.indent}>
         {goes ? (
           <View style={styles.goes}>
@@ -98,13 +107,13 @@ export function PreviewSheet(props: {
   const pieces = props.doc ? piecesOf(props.doc, shown, props.v11n) : [];
   return (
     <Sheet visible={props.visible} title={props.name} sub={t('common.preview')} onClose={props.onClose}
-      footer={props.onUse ? <PrimaryBtn label={t('breakup.preview.useThis')} icon="check" onPress={props.onUse} /> : undefined}>
+      footer={props.onUse ? <PrimaryBtn label={t('breakup.preview.useThis')} icon="check" help={t('breakup.preview.useThisHelp')} onPress={props.onUse} /> : undefined}>
       {props.book ? null : (
         <Pills>
-          {PREVIEW_BOOKS.map((b) => <Chip key={b} label={bookNameOf(b)} on={shown === b} onPress={() => setBook(b)} />)}
+          {PREVIEW_BOOKS.map((b) => <Chip key={b} label={bookNameOf(b)} on={shown === b} help={t('breakup.preview.bookHelp')} onPress={() => setBook(b)} />)}
         </Pills>
       )}
-      <PieceBar doc={props.doc} v11n={props.v11n} book={shown} />
+      <PieceBar doc={props.doc} v11n={props.v11n} book={shown} explain />
       {pieces.length ? (
         <View style={styles.list}>
           {pieces.map((p, i) => (
@@ -129,19 +138,22 @@ export function LessonSheet(props: { visible: boolean; onClose: () => void; wayD
   return (
     <Sheet visible={props.visible} title={t('breakup.lesson.sheetTitle')} sub={t('breakup.lesson.progress', { step: n + 1, total: lesson.length })} onClose={close}
       footer={<>
-        <PrimaryBtn label={last ? t('common.done') : t('common.next')} icon={last ? 'check' : 'right'} onPress={() => (last ? close() : setN(n + 1))} />
+        <PrimaryBtn label={last ? t('common.done') : t('common.next')} icon={last ? 'check' : 'right'} onPress={() => (last ? close() : setN(n + 1))}
+          help={last ? t('breakup.lesson.doneHelp') : t('breakup.lesson.nextHelp')} />
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.lg }}>
-          {n > 0 ? <GhostBtn label={t('common.back')} icon="left" onPress={() => setN(n - 1)} /> : null}
-          {last ? null : <GhostBtn label={t('breakup.lesson.skip')} icon="close" onPress={close} />}
+          {n > 0 ? <GhostBtn label={t('common.back')} icon="left" help={t('breakup.lesson.backHelp')} onPress={() => setN(n - 1)} /> : null}
+          {last ? null : <GhostBtn label={t('breakup.lesson.skip')} icon="close" help={t('breakup.lesson.skipHelp')} onPress={close} />}
         </View>
       </>}>
-      <View style={styles.progress} accessibilityLabel={t('breakup.lesson.stepLabel', { step: n + 1, total: lesson.length })}>
-        {lesson.map((_, i) => (
-          <View key={i} style={[styles.step, i < n && { backgroundColor: C.green }, i === n && { backgroundColor: C.primary }]}>
-            {i < n ? <Ico name="check" size={12} color={C.white} strokeWidth={3} /> : null}
-          </View>
-        ))}
-      </View>
+      <HelpInfo label={t('breakup.lesson.stepLabel', { step: n + 1, total: lesson.length })} detail={t('breakup.lesson.stepsHelp')}>
+        <View style={styles.progress} accessibilityLabel={t('breakup.lesson.stepLabel', { step: n + 1, total: lesson.length })}>
+          {lesson.map((_, i) => (
+            <View key={i} style={[styles.step, i < n && { backgroundColor: C.green }, i === n && { backgroundColor: C.primary }]}>
+              {i < n ? <Ico name="check" size={12} color={C.white} strokeWidth={3} /> : null}
+            </View>
+          ))}
+        </View>
+      </HelpInfo>
       <Text style={txt.h2} accessibilityRole="header">{slide.title}</Text>
       <Text style={txt.bodyMuted}>{slide.text}</Text>
       {slide.tree ? (
@@ -165,7 +177,7 @@ export function LessonSheet(props: { visible: boolean; onClose: () => void; wayD
       {slide.ways ? slide.ways.map((w) => (
         <View key={w.item} style={{ gap: space.xs }}>
           <Text style={txt.h3}>{w.label}</Text>
-          <PieceBar doc={props.wayDoc(w.item)} v11n={props.v11n} />
+          <PieceBar doc={props.wayDoc(w.item)} v11n={props.v11n} explain />
         </View>
       )) : null}
       {slide.rows ? (
@@ -240,7 +252,7 @@ export function RedoSheet(props: { visible: boolean; book: string; busy: boolean
     <Sheet visible={props.visible} title={props.numbering ? t('breakup.redo.titleNumbering') : t('breakup.redo.titleBook', { book: props.book })} onClose={props.onClose}
       footer={<>
         <PrimaryBtn label={t('breakup.redo.changeAnyway')} tone="red" busy={props.busy} onPress={props.onConfirm} />
-        <GhostBtn label={t('breakup.redo.keep')} icon="close" onPress={props.onClose} />
+        <GhostBtn label={t('breakup.redo.keep')} icon="close" help={t('help.details.cancel')} onPress={props.onClose} />
       </>}>
       <View style={styles.danger}>
         <Ico name="flag" size={28} color={TINT.redText} />

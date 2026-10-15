@@ -56,6 +56,7 @@ export function ReferenceLanguagePage(props: {
       <Text style={[txt.sm, { paddingHorizontal: space.xs }]}>{t('referenceLanguage.sub', { language: props.team })}</Text>
       {ordered.map((c) => (
         <RadioRow key={c.language} icon="globe" label={label(c.language)} on={sameLanguage(c.language, props.value)} onPress={() => props.onChange(c.language)} subLines={4}
+          help={t('referenceLanguage.rowHelp')}
           sub={[whatIsThere(c), sameLanguage(c.language, reader) ? t('reference.setLanguage.yours') : ''].filter(Boolean).join(' · ')} />
       ))}
       {props.loading ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('common.loading')}</Text> : null}
@@ -72,7 +73,7 @@ export function ReferenceLanguagePage(props: {
             }} />
         </>
       ) : (
-        <QuietLink icon="search" label={t('reference.language.another')} onPress={() => setSearching(true)} />
+        <QuietLink icon="search" label={t('reference.language.another')} detail={t('reference.language.anotherHelp')} onPress={() => setSearching(true)} />
       )}
       {props.children}
     </View>

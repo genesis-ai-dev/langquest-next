@@ -4,7 +4,7 @@
 import { checkHelps, checkPeople, commands, deriveFlow, languageName, questionsForKind, type EventSpec, type KindDef } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useRef, useState } from 'react';
-import { PanResponder, Pressable, View } from 'react-native';
+import { PanResponder, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { deriveKinds } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
@@ -29,19 +29,27 @@ import { newKindId } from '../config/model';
 import { saveRows } from './checkActions';
 import { styles } from './checkStyles';
 
+/** The grip's press while help is on: it explains itself; dragging waits until help is off. */
+const DRAG_HERE = () => undefined;
+
 function CheckCard(props: {
   ctx: Ctx; row: CheckRow; i: number; n: number; count: number; kinds: KindDef[]; people: string[] | null;
   questions: number; helps: number; readOnly: boolean; height: number;
   onLayout: (h: number) => void; onMove: (to: number) => void; onLock: () => void; onOpen?: () => void;
+  /** What help mode says opening the card shows. */ openHelp?: string;
 }) {
   const { row, i } = props;
   const title = checkName(row.kindId, props.kinds);
   const [dy, setDy] = useState(0);
   const latest = useRef(props);
   latest.current = props;
+  // While help is on the grip explains itself instead of dragging.
+  const grip = useHelpSpot(t('review.checkSteps.move', { title }), t('checks.dragHelp'), props.readOnly ? undefined : DRAG_HERE);
+  const explaining = useRef(false);
+  explaining.current = !!grip.id;
   const pan = useRef(PanResponder.create({
-    onStartShouldSetPanResponder: () => !latest.current.readOnly,
-    onMoveShouldSetPanResponder: () => !latest.current.readOnly,
+    onStartShouldSetPanResponder: () => !latest.current.readOnly && !explaining.current,
+    onMoveShouldSetPanResponder: () => !latest.current.readOnly && !explaining.current,
     onPanResponderMove: (_e, g) => setDy(g.dy),
     onPanResponderRelease: (_e, g) => {
       const p = latest.current;
@@ -51,7 +59,7 @@ function CheckCard(props: {
     },
     onPanResponderTerminate: () => setDy(0)
   })).current;
-  const open = useHelpSpot(title, t('checks.openHelp'), props.onOpen ?? (() => {}));
+  const open = useHelpSpot(title, props.openHelp ?? t('checks.openHelp'), props.onOpen ?? (() => {}));
   return (
     <View onLayout={(e) => props.onLayout(e.nativeEvent.layout.height)}
       style={[styles.card, dy !== 0 && { transform: [{ translateY: dy }], zIndex: 2, borderColor: C.primary }]}>
@@ -62,6 +70,11 @@ function CheckCard(props: {
           if (e.nativeEvent.actionName === 'increment' && i < props.count - 1) props.onMove(i + 1);
         }}>
         <Ico name="grip" size={22} color={C.faint} />
+        {grip.id ? (
+          <Pressable onPress={grip.onPress} accessibilityRole="button" accessibilityLabel={t('review.checkSteps.move', { title })} style={StyleSheet.absoluteFill}>
+            <HelpBadge spot={grip} />
+          </Pressable>
+        ) : null}
       </View>
       <Pressable onPress={open.onPress} disabled={!props.onOpen} accessibilityRole="button"
         accessibilityLabel={t('checks.cardA11y', { n: props.n, title })}
@@ -90,6 +103,7 @@ function CheckList(props: {
   ctx: Ctx; rows: CheckRow[]; kinds: KindDef[]; readOnly: boolean;
   peopleOf?: (kindId: string) => string[]; questionsOf?: (kindId: string) => number; helpsOf?: (kindId: string) => number;
   onChange: (rows: CheckRow[]) => void; onOpen?: (i: number) => void;
+  /** What help mode says opening a check shows, where it is not its people, questions and helps. */ openHelp?: string;
 }) {
   const [height, setHeight] = useState(0);
   const { rows } = props;
@@ -105,7 +119,7 @@ function CheckList(props: {
         readOnly={props.readOnly} height={height + space.sm + 2} onLayout={(h) => { if (Math.abs(h - height) > 1) setHeight(h); }}
         onMove={(to) => props.onChange(moveRow(rows, i, to))}
         onLock={() => props.onChange(setCheckpoint(rows, i, !r.checkpoint))}
-        {...(props.onOpen ? { onOpen: () => props.onOpen!(i) } : {})} />
+        {...(props.onOpen ? { onOpen: () => props.onOpen!(i) } : {})} {...(props.openHelp ? { openHelp: props.openHelp } : {})} />
     );
   };
   return (
@@ -144,11 +158,12 @@ function AddCheckSheet(props: { visible: boolean; kinds: KindDef[]; taken: strin
       {left.length ? (
         <Group>
           {left.map((k, i) => (
-            <Row key={k.id} leading={<KindIcon kindId={k.id} size={40} />} label={checkName(k.id, props.kinds)} onPress={() => props.onPick(k, false)} last={i === left.length - 1} />
+            <Row key={k.id} leading={<KindIcon kindId={k.id} size={40} />} label={checkName(k.id, props.kinds)} help={t('checks.addThisHelp')} onPress={() => props.onPick(k, false)} last={i === left.length - 1} />
           ))}
         </Group>
       ) : null}
-      <Field label={t('config.flowEditor.somethingElse')} value={name} onChangeText={setName} placeholder={t('config.flowEditor.newCheckPlaceholder')} autoCapitalize="words" />
+      <Field label={t('config.flowEditor.somethingElse')} value={name} onChangeText={setName} placeholder={t('config.flowEditor.newCheckPlaceholder')} autoCapitalize="words"
+        help={t('checks.newCheckHelp')} />
       <PrimaryBtn label={t('config.flowEditor.addThisCheck')} icon="plus" disabled={!name.trim()} onPress={() => {
         const k: KindDef = { id: newKindId(name, props.kinds.map((x) => x.id)), name: name.trim(), description: '', usualReviewer: '' };
         setName('');
@@ -165,10 +180,10 @@ function FlowsSheet(props: { ctx: Ctx; visible: boolean; kinds: KindDef[]; langu
   const on = chk.entries.find((e) => e.c.key === picked) ?? null;
   return (
     <Sheet visible={props.visible} title={t('checks.flows.title')} sub={t('checks.flows.sub', { language: props.language })} onClose={props.onClose}
-      footer={on ? <PrimaryBtn label={t('checks.flows.use', { name: on.c.name })} onPress={() => props.onUse(on, chk.kindsOf(on.doc))} /> : undefined}>
+      footer={on ? <PrimaryBtn label={t('checks.flows.use', { name: on.c.name })} help={t('checks.flows.useHelp', { language: props.language })} onPress={() => props.onUse(on, chk.kindsOf(on.doc))} /> : undefined}>
       {chk.entries.length === 0 ? <Text style={txt.smMuted}>{chk.loaded ? t('getReady.checks.noWays') : t('common.loading')}</Text> : null}
       {chk.entries.map((e) => (
-        <ChoiceCard key={e.c.key} on={picked === e.c.key} icon="route" title={e.c.name} sub={checksLine(e.doc.steps, chk.kindsOf(e.doc))} onPress={() => setPicked(e.c.key)} />
+        <ChoiceCard key={e.c.key} on={picked === e.c.key} icon="route" title={e.c.name} sub={checksLine(e.doc.steps, chk.kindsOf(e.doc))} help={t('checks.flows.pickHelp')} onPress={() => setPicked(e.c.key)} />
       ))}
     </Sheet>
   );
@@ -188,6 +203,7 @@ function OwnChecks({ ctx }: { ctx: Ctx }) {
   const [adding, setAdding] = useState(false);
   const [flows, setFlows] = useState(false);
   const canManage = ctx.session.can('manage_flows');
+  const startFlow = useHelpSpot(t('checks.flows.start'), t('checks.flows.startHelp'), canManage ? () => setFlows(true) : undefined);
   if (!state) {
     return <Screen header={<Header title={t('checks.title')} onBack={ctx.back} />}><EmptyState icon="flow" title={t('common.loading')} /></Screen>;
   }
@@ -200,11 +216,12 @@ function OwnChecks({ ctx }: { ctx: Ctx }) {
         questionsOf={(k) => questionsForKind(state, k).length}
         helpsOf={(k) => checkHelps(state, k).length}
         onChange={save} onOpen={(i) => ctx.go('check_editor', { languageId, kindId: rows[i]!.kindId })} />
-      {canManage ? <DashedRow icon="plus" label={t('checks.addCheck')} centred onPress={() => setAdding(true)} /> : null}
+      {canManage ? <DashedRow icon="plus" label={t('checks.addCheck')} detail={t('checks.addCheckHelp')} centred onPress={() => setAdding(true)} /> : null}
       {canManage ? (
-        <Pressable onPress={() => setFlows(true)} accessibilityRole="button" style={({ pressed }) => [styles.quiet, pressed && { opacity: 0.7 }]}>
+        <Pressable onPress={startFlow.onPress} accessibilityRole="button" style={({ pressed }) => [styles.quiet, pressed && { opacity: 0.7 }]}>
           <Ico name="flow" size={20} color={C.muted} />
           <Text style={styles.quietText}>{t('checks.flows.start')}</Text>
+          <HelpBadge spot={startFlow} />
         </Pressable>
       ) : null}
       <AddCheckSheet visible={adding} kinds={known} taken={rows.map((r) => r.kindId)} onClose={() => setAdding(false)} onPick={(k, isNew) => {
@@ -248,9 +265,9 @@ function DraftChecks({ ctx }: { ctx: Ctx }) {
   const previous = open !== null && open > 0 ? checkName(draft.rows[open - 1]!.kindId, draft.kinds) : '';
   return (
     <Screen header={<Header title={t('checks.title')} sub={title} onBack={ctx.back} />}
-      footer={<PrimaryBtn label={t('common.done')} icon="check" onPress={ctx.back} />}>
-      <CheckList ctx={ctx} rows={draft.rows} kinds={draft.kinds} readOnly={false} onChange={set} onOpen={setOpen} />
-      <DashedRow icon="plus" label={t('checks.addCheck')} centred onPress={() => setAdding(true)} />
+      footer={<PrimaryBtn label={t('common.done')} icon="check" help={t('checks.draftDoneHelp')} onPress={ctx.back} />}>
+      <CheckList ctx={ctx} rows={draft.rows} kinds={draft.kinds} readOnly={false} onChange={set} onOpen={setOpen} openHelp={t('checks.openDraftHelp')} />
+      <DashedRow icon="plus" label={t('checks.addCheck')} detail={t('checks.addCheckHelp')} centred onPress={() => setAdding(true)} />
       <AddCheckSheet visible={adding} kinds={draft.kinds} taken={draft.rows.map((r) => r.kindId)} onClose={() => setAdding(false)} onPick={(k) => {
         setAdding(false);
         setChecksDraft({ kinds: draft.kinds.some((x) => x.id === k.id) ? draft.kinds : [...draft.kinds, k], rows: addRow(draft.rows, k.id) });
@@ -260,12 +277,15 @@ function DraftChecks({ ctx }: { ctx: Ctx }) {
         {row && open !== null ? (
           <Group>
             <Row icon="lock" label={t('checks.mustPass')} role="switch" checked={row.checkpoint}
-              right={<Toggle testID="toggle-must-pass" on={row.checkpoint} label={t('checks.mustPass')} onToggle={() => set(setCheckpoint(draft.rows, open, !row.checkpoint))} />} />
+              right={<Toggle testID="toggle-must-pass" on={row.checkpoint} label={t('checks.mustPass')} help={row.checkpoint ? t('admin.lock.on') : t('admin.lock.off')}
+                onToggle={() => set(setCheckpoint(draft.rows, open, !row.checkpoint))} />} />
             {open > 0 ? (
               <Row icon="swap" label={t('checks.sameTimeAs', { check: previous })} role="switch" checked={row.together}
-                right={<Toggle testID="toggle-same-time" on={row.together} label={t('checks.sameTimeAs', { check: previous })} onToggle={() => set(setTogether(draft.rows, open, !row.together))} />} />
+                right={<Toggle testID="toggle-same-time" on={row.together} label={t('checks.sameTimeAs', { check: previous })}
+                  help={row.together ? t('checks.sameTimeOnHelp', { check: previous }) : t('checks.sameTimeOffHelp', { check: previous })}
+                  onToggle={() => set(setTogether(draft.rows, open, !row.together))} />} />
             ) : null}
-            <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label={t('checks.remove')} last
+            <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label={t('checks.remove')} help={t('checks.removeCheckHelp')} last
               onPress={() => { set(removeRow(draft.rows, open)); setOpen(null); }} />
           </Group>
         ) : null}
@@ -273,4 +293,3 @@ function DraftChecks({ ctx }: { ctx: Ctx }) {
     </Screen>
   );
 }
-

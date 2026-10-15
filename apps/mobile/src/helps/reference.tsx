@@ -10,7 +10,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
-import { useHelpSpot } from '../helpMode/useHelpMode';
+import { useHelpOn, useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
@@ -76,6 +76,9 @@ export function BiblePane(props: {
     if (bible.hasAudio && bible.timed) player.playFrom(row);
   };
   const terms = props.terms ?? [];
+  // While help is on a key word does not open: the verse around it explains it instead.
+  const helpOn = useHelpOn();
+  const onTerm = helpOn ? undefined : props.onTerm;
   const gap = !option
     ? emptyBibleText({ loading: bible.passage.loading, notOnDevice: bible.passage.notOnDevice }, t('sources.reader.noBible'))
     : bible.audioAbsent ? t('recording.player.notOnDeviceYet')
@@ -100,12 +103,14 @@ export function BiblePane(props: {
             const here = player.started && player.current?.key === row.key;
             const sel = props.selected === row.key;
             const n = count(row);
+            const parts = markTerms(row.text, terms);
+            const termIds = parts.flatMap((p) => (p.termId ? [p.termId] : []));
             return (
-              <Verse key={row.key} row={row} here={here} selected={sel} notes={n} onPress={() => tap(row)} timed={bible.hasAudio && bible.timed}>
-                {markTerms(row.text, terms).map((part, i) => {
+              <Verse key={row.key} row={row} here={here} selected={sel} notes={n} onPress={() => tap(row)} timed={bible.hasAudio && bible.timed}
+                terms={termIds.length === 0 ? null : props.onTerm ? 'open' : 'marked'} tied={termIds.some((id) => props.tied?.has(id))}>
+                {parts.map((part, i) => {
                   if (!part.termId) return <Text key={i}>{part.text}</Text>;
                   const tied = props.tied?.has(part.termId) ?? false;
-                  const onTerm = props.onTerm;
                   return (
                     <Text key={i} {...(onTerm ? { onPress: () => onTerm(part.termId!), accessibilityRole: 'link' as const } : {})}
                       accessibilityLabel={tied ? t('reference.bible.keyWordTied', { word: part.text }) : t('reference.bible.keyWord', { word: part.text })}
@@ -125,8 +130,8 @@ export function BiblePane(props: {
           {option.kind === 'builtin' ? <Text style={txt.xs}>{t('sources.reader.builtIn')}</Text>
             : option.sharedBy ? <Text style={txt.xs}>{t('sources.reader.sharedBy', { org: option.sharedBy })}</Text> : null}
           {copyrightLine(src.copyright) ? <Text style={txt.xs}>{t('sources.reader.copyright', { abbr, line: copyrightLine(src.copyright) })}</Text> : null}
-          {src.bibleBrain ? <LinkBtn label={t('sources.reader.terms')} style={{ alignSelf: 'flex-start' }} accessibilityLabel={t('sources.reader.termsLabel')} onPress={() => openContentLink(DBP_TERMS)} /> : null}
-          {props.onMoreBibles && !many ? <LinkBtn label={t('reference.bible.otherBibles')} style={{ alignSelf: 'flex-start' }} onPress={props.onMoreBibles} /> : null}
+          {src.bibleBrain ? <LinkBtn label={t('sources.reader.terms')} style={{ alignSelf: 'flex-start' }} accessibilityLabel={t('sources.reader.termsLabel')} help={t('sources.reader.termsHelp')} onPress={() => openContentLink(DBP_TERMS)} /> : null}
+          {props.onMoreBibles && !many ? <LinkBtn label={t('reference.bible.otherBibles')} style={{ alignSelf: 'flex-start' }} help={t('reference.bible.moreBiblesSub')} onPress={props.onMoreBibles} /> : null}
         </View>
       ) : null}
       {props.footer}
@@ -141,10 +146,21 @@ export function BiblePane(props: {
   );
 }
 
-function Verse(props: { row: VerseRow; here: boolean; selected: boolean; notes: number; timed: boolean; onPress: () => void; children: ReactNode }) {
+function Verse(props: {
+  row: VerseRow; here: boolean; selected: boolean; notes: number; timed: boolean; onPress: () => void; children: ReactNode;
+  /** Key words in it: `open` when a tap opens one, `marked` when they are only underlined. */
+  terms?: 'open' | 'marked' | null; tied?: boolean;
+}) {
   const r = props.row;
   const verse = r.key.includes(':') ? r.key.slice(r.key.indexOf(':') + 1) : r.key;
-  const spot = useHelpSpot(t('reference.bible.verse', { verse }), props.timed ? t('reference.bible.verseHelpTimed') : t('reference.bible.verseHelp'), props.onPress);
+  // What it does, then what its marks mean: underlined key words, a tick on one tied to the draft, the count of notes.
+  const detail = [
+    props.timed ? t('reference.bible.verseHelpTimed') : t('reference.bible.verseHelp'),
+    props.terms === 'open' ? t('reference.bible.verseTermsHelp') : props.terms === 'marked' ? t('reference.bible.verseTermsMarkedHelp') : null,
+    props.tied ? t('reference.bible.verseTiedHelp') : null,
+    props.notes ? t('reference.bible.verseNotesHelp') : null
+  ].filter(Boolean).join(' ');
+  const spot = useHelpSpot(t('reference.bible.verse', { verse }), detail, props.onPress);
   return (
     <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ selected: props.here || props.selected }}
       accessibilityLabel={props.notes ? t('reference.bible.verseLabelNotes', { verse: r.key, text: r.text, count: props.notes }) : t('sources.reader.verseLabel', { verse: r.key, text: r.text })}
@@ -185,6 +201,7 @@ export function BibleSheet(props: { ctx: Ctx; bible: Bible; onClose: () => void;
       <View style={styles.card}>
         {bible.passage.options.map((o, i, all) => (
           <BibleRow key={o.itemId} label={chipLabel(o, all)} sub={[o.name, languageLabel(o.language), ...(marks[o.itemId] ?? [])].filter(Boolean).join(' · ')} on={o.itemId === bible.option?.itemId}
+            help={o.itemId === bible.option?.itemId ? t('reference.bible.rowOnHelp') : t('reference.bible.rowHelp')}
             last={i === all.length - 1 && !props.onMoreBibles} onPress={() => { bible.choose(o); props.onClose(); }} />
         ))}
         {props.onMoreBibles ? <BibleRow label={t('sources.reader.moreBibles')} sub={t('reference.bible.moreBiblesSub')} more last onPress={props.onMoreBibles} /> : null}
@@ -193,8 +210,9 @@ export function BibleSheet(props: { ctx: Ctx; bible: Bible; onClose: () => void;
   );
 }
 
-function BibleRow(props: { label: string; sub: string; on?: boolean; more?: boolean; last?: boolean; onPress: () => void }) {
-  const spot = useHelpSpot(props.label, props.sub, props.onPress);
+function BibleRow(props: { label: string; sub: string; on?: boolean; more?: boolean; last?: boolean; onPress: () => void;
+  /** What help mode says picking it does, where `sub` is what it has. */ help?: string }) {
+  const spot = useHelpSpot(props.label, props.help ?? props.sub, props.onPress);
   return (
     <Pressable onPress={spot.onPress} accessibilityRole={props.more ? 'button' : 'radio'} accessibilityState={props.more ? undefined : { selected: !!props.on }}
       style={({ pressed }) => [styles.bibleRow, !props.last && ps.rowBorder, pressed && ps.pressed]}>
@@ -268,7 +286,7 @@ export function KeyWordsPane(props: {
         </View>
       )}
       {canEdit ? <DashedBtn label={t('reference.keyWords.add')} onPress={() => setAdding(true)} disabled={props.disabled} hint={t('reference.keyWords.addHint')} /> : null}
-      {props.allTerms ? <LinkBtn label={t('reference.keyWords.all')} style={{ alignSelf: 'center' }} onPress={props.allTerms} /> : null}
+      {props.allTerms ? <LinkBtn label={t('reference.keyWords.all')} style={{ alignSelf: 'center' }} help={t('reference.keyWords.allHelp')} onPress={props.allTerms} /> : null}
       {saying ? <SayYoursSheet ctx={ctx} v={v} term={saying} draftTakeId={props.draftTakeId} canTie={props.canTie} onClose={() => setSaying(null)} /> : null}
       {adding ? <AddWordSheet ctx={ctx} v={v} draftTakeId={props.draftTakeId} rows={props.rows} bibleName={props.bibleName ?? ''} onClose={() => setAdding(false)} /> : null}
     </View>
@@ -354,7 +372,7 @@ function SayYoursSheet(props: { ctx: Ctx; v: PassageView; term: KeyTermView; dra
       sub={term.gloss ? t('reference.keyWords.saySubGloss', { gloss: term.gloss, language: v.language }) : t('reference.keyWords.saySub', { language: v.language })}
       onClose={props.onClose} footer={<PrimaryBtn label={t('reference.keyWords.saveWord')} icon="check" busy={busy} disabled={!hash && !text.trim()} onPress={() => void save()} />}>
       <VoiceNote ctx={ctx} label={t('common.sayIt')} hash={hash} onChange={setHash} />
-      <Field value={text} onChangeText={setText} placeholder={t('common.orTypeIt')} />
+      <Field value={text} onChangeText={setText} placeholder={t('common.orTypeIt')} help={t('reference.keyWords.typeHelp', { language: v.language })} />
     </Sheet>
   );
 }
@@ -424,7 +442,7 @@ function AddWordSheet(props: { ctx: Ctx; v: PassageView; draftTakeId: string | u
         </>
       ) : null}
       <VoiceNote ctx={ctx} label={t('reference.keyWords.sayItIn', { language: v.language })} hash={hash} onChange={setHash} />
-      <Field value={rendering} onChangeText={setRendering} placeholder={t('common.orTypeIt')} />
+      <Field value={rendering} onChangeText={setRendering} placeholder={t('common.orTypeIt')} help={t('reference.keyWords.typeHelp', { language: v.language })} />
     </Sheet>
   );
 }
@@ -497,7 +515,7 @@ export function NoteSheet(props: { ctx: Ctx; v: Pick<PassageView, 'unitId'>; tit
         onPress={() => { setBusy(true); void saveNote(props.ctx, props.v, props.anchor, { text, blobHash: hash }, props.message ?? t('reference.notes.added')).then((ok) => { setBusy(false); if (ok) props.onClose(); }); }} />}>
       <View style={styles.where}><Text style={txt.smMuted}>{props.where}</Text></View>
       <VoiceNote ctx={props.ctx} label={t('common.sayIt')} hash={hash} onChange={setHash} />
-      <Field value={text} onChangeText={setText} placeholder={t('common.orTypeIt')} multiline />
+      <Field value={text} onChangeText={setText} placeholder={t('common.orTypeIt')} help={t('reference.notes.typeHelp')} multiline />
     </Sheet>
   );
 }

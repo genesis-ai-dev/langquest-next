@@ -14,11 +14,10 @@ import { useHelpMode, useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpLit } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { Ico, type IconName } from '../ui/kit';
+import { HelpInfo, Ico, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { shadow } from '../ui/shadow';
 import { C, radius, space, target, TINT, type as T } from '../ui/theme';
-import { inviteFailureText, GROUP_USES } from './inviteText';
 import type { InviteState } from './useGroupInvite';
 
 // ---- icons ----------------------------------------------------------------------------
@@ -70,12 +69,14 @@ export function HelpButton() {
  */
 export function BigTop(props: { onBack?: () => void; over?: string; title: string; status?: string; statusTone?: 'green' | 'amber' | 'muted' }) {
   const tone = props.statusTone === 'green' ? TINT.greenText : props.statusTone === 'amber' ? TINT.amberText : C.muted;
+  const back = useHelpSpot(t('common.back'), t('help.details.back'), props.onBack);
   return (
     <View style={styles.bigTop}>
       <View style={styles.bigTopBar}>
         {props.onBack ? (
-          <Pressable testID="header-back" onPress={props.onBack} accessibilityRole="button" accessibilityLabel={t('common.back')} style={({ pressed }) => [styles.round, pressed && styles.pressed]}>
+          <Pressable testID="header-back" onPress={back.onPress} accessibilityRole="button" accessibilityLabel={t('common.back')} style={({ pressed }) => [styles.round, pressed && styles.pressed]}>
             <Ico name="arrowL" size={24} color={C.dark} />
+            <HelpBadge spot={back} />
           </Pressable>
         ) : <View />}
         <HelpButton />
@@ -97,7 +98,10 @@ export function Question(props: { children: ReactNode }) {
 /** One of the four questions: done (green tick), now (lit, brand border), or later (muted). */
 export function ChecklistRow(props: { state: 'done' | 'now' | 'later'; icon: AdminIcon; label: string; sub?: string; onPress?: () => void }) {
   const { state } = props;
-  const spot = useHelpSpot(props.label, props.sub ?? (state === 'done' ? t('admin.checklist.answered') : t('admin.checklist.answerIt')), props.onPress);
+  // The tick, the lit border and the muted look each say where the question stands: help says it in words.
+  const detail = state === 'done' ? (props.sub ? t('admin.checklist.doneHelp', { answer: props.sub }) : t('admin.checklist.answered'))
+    : state === 'now' ? t('admin.checklist.nowHelp') : t('admin.checklist.laterHelp');
+  const spot = useHelpSpot(props.label, detail, props.onPress);
   return (
     <Pressable onPress={spot.onPress} disabled={!props.onPress} accessibilityRole="button"
       accessibilityLabel={state === 'done' ? t('admin.checklist.doneLabel', { label: props.label }) : props.label}
@@ -140,7 +144,7 @@ export function WorkSteps(props: { items: { key: string; label: string; state: '
     if (now) AccessibilityInfo.announceForAccessibility(now);
   }, [now]);
   return (
-    <View style={styles.work}>
+    <HelpInfo label={t('admin.work.label')} detail={t('admin.work.help')} style={styles.work}>
       {props.items.map((s) => (
         <View key={s.key} style={styles.workRow}>
           <View style={styles.workMark}>
@@ -151,7 +155,7 @@ export function WorkSteps(props: { items: { key: string; label: string; state: '
           <Text style={[styles.workLabel, s.state === 'now' && styles.workNow]}>{s.label}</Text>
         </View>
       ))}
-    </View>
+    </HelpInfo>
   );
 }
 
@@ -168,8 +172,9 @@ function Radio(props: { on: boolean; size?: number }) {
 
 /** A big radio card: icon, title, a line under it, and, when given, examples or steps below. */
 /** One choice of several. `own` marks making your own: it comes first and looks set apart from the ready-made ones (design principle 12). */
-export function ChoiceCard(props: { on: boolean; icon: AdminIcon; title: string; sub?: string; onPress: () => void; children?: ReactNode; chevron?: boolean; own?: boolean }) {
-  const spot = useHelpSpot(props.title, props.sub, props.onPress);
+export function ChoiceCard(props: { on: boolean; icon: AdminIcon; title: string; sub?: string; onPress: () => void; children?: ReactNode; chevron?: boolean; own?: boolean;
+  /** What help mode says picking it means, where `sub` (its line otherwise) does not say it. */ help?: string }) {
+  const spot = useHelpSpot(props.title, props.help ?? props.sub, props.onPress);
   return (
     <Pressable onPress={spot.onPress} accessibilityRole={props.chevron ? 'button' : 'radio'} accessibilityState={props.chevron ? undefined : { selected: props.on }}
       accessibilityLabel={`${props.title}${props.sub ? `. ${props.sub}` : ''}`}
@@ -214,8 +219,9 @@ export function NumberedSteps(props: { items: { label: string; lock?: boolean }[
 }
 
 /** A radio row ("Translate"), with the icon on a tile (inviting) or bare (letting someone in). */
-export function RadioRow(props: { icon: AdminIcon; label: string; sub?: string; on: boolean; onPress: () => void; tile?: boolean; subLines?: number }) {
-  const spot = useHelpSpot(props.label, props.sub, props.onPress);
+export function RadioRow(props: { icon: AdminIcon; label: string; sub?: string; on: boolean; onPress: () => void; tile?: boolean; subLines?: number;
+  /** What help mode says picking it means, where `sub` (its line otherwise) does not say it. */ help?: string }) {
+  const spot = useHelpSpot(props.label, props.help ?? props.sub, props.onPress);
   return (
     <Pressable onPress={spot.onPress} accessibilityRole="radio" accessibilityState={{ selected: props.on }} aria-checked={props.on} accessibilityLabel={props.label}
       style={({ pressed }) => [styles.radioRow, props.tile && styles.radioRowTall, props.on && styles.choiceOn, pressed && styles.pressed]}>
@@ -248,10 +254,11 @@ export function Pills(props: { children: ReactNode }) {
 }
 
 /** A pick-many row with a checkbox, and a play button that opens what it is. */
-export function CheckRow(props: { label: string; sub?: string; checked: boolean; onToggle: () => void; onPlay?: () => void; playLabel?: string; last?: boolean; disabled?: boolean; detail?: string }) {
+export function CheckRow(props: { label: string; sub?: string; checked: boolean; onToggle: () => void; onPlay?: () => void; playLabel?: string; last?: boolean; disabled?: boolean; detail?: string;
+  /** What help mode says the play button does. */ playHelp?: string }) {
   const onToggle = useHelpSpot(props.label, props.detail ?? (props.checked ? t('admin.checkRow.offered') : t('admin.checkRow.notOffered')), props.onToggle);
   const playLabel = props.playLabel ?? t('admin.checkRow.hear', { name: props.label });
-  const onPlay = useHelpSpot(playLabel, undefined, props.onPlay);
+  const onPlay = useHelpSpot(playLabel, props.playHelp, props.onPlay);
   return (
     <View style={[styles.checkLine, !props.last && styles.rowBorder]}>
       <Pressable onPress={onToggle.onPress} disabled={props.disabled} accessibilityRole="checkbox" accessibilityState={{ checked: props.checked, disabled: !!props.disabled }}
@@ -286,8 +293,9 @@ export function Pill(props: { on: boolean; disabled?: boolean }) {
 }
 
 /** A row that is one switch: the whole row takes the tap (a 64pt target) and speaks as the switch. */
-export function SwitchRow(props: { label: string; sub?: string; on: boolean; onToggle: () => void; disabled?: boolean; last?: boolean; icon?: AdminIcon }) {
-  const spot = useHelpSpot(props.label, props.on ? t('admin.switchRow.on') : t('admin.switchRow.off'), props.onToggle);
+export function SwitchRow(props: { label: string; sub?: string; on: boolean; onToggle: () => void; disabled?: boolean; last?: boolean; icon?: AdminIcon;
+  /** What help mode says it turns on, where on or off alone does not say it. */ help?: string }) {
+  const spot = useHelpSpot(props.label, props.help ?? (props.on ? t('admin.switchRow.on') : t('admin.switchRow.off')), props.onToggle);
   return (
     <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="switch" accessibilityState={{ checked: props.on, disabled: !!props.disabled }}
       // The web reads its state from aria-* (react-native-web ignores accessibilityState there).

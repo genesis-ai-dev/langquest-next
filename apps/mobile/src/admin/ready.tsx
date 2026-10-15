@@ -23,4 +23,3 @@ export function ReadyChecklist(props: { ctx: Ctx; s: ReadySummary }) {
     </View>
   );
 }
-

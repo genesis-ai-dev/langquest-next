@@ -81,15 +81,21 @@ export function webFiles(path: string, root: () => Promise<DirHandle> = browserR
   };
 }
 
-/** A file in the directory has a write open: the browser refuses to remove any of it until that write closes. */
-const writeOpen = (e: unknown) => e instanceof Error && e.name === 'NoModificationAllowedError';
+/**
+ * A write in the directory is open, or is opening or closing as the removal
+ * runs: the browser refuses the whole removal, as NoModificationAllowedError
+ * while the write is open and as InvalidModificationError when the two cross
+ * (Chrome, measured 2026-10-15: about 1 removal in 25 under steady downloads).
+ */
+const writeInTheWay = (e: unknown) => e instanceof Error && (e.name === 'NoModificationAllowedError' || e.name === 'InvalidModificationError');
 
 /**
  * Every web store's files, for signing out on a shared computer. A download
  * may be writing its file as this runs, and while it is, the browser refuses
  * the whole removal and every file stays; so it tries again until the write
- * closes, for up to `patienceMs`. A write that starts after the removal
- * holds a handle to the removed directory and fails, so it leaves nothing.
+ * is out of the way, for up to `patienceMs`. A write that starts after the
+ * removal holds a handle to the removed directory and fails, so it leaves
+ * nothing.
  */
 export async function clearAllWebFiles(
   root: () => Promise<DirHandle> = browserRoot,
@@ -103,7 +109,7 @@ export async function clearAllWebFiles(
       return;
     } catch (e) {
       if (notFound(e)) return;
-      if (!writeOpen(e) || Date.now() >= until) throw e;
+      if (!writeInTheWay(e) || Date.now() >= until) throw e;
       await pause(50);
     }
   }

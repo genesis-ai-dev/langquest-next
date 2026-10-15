@@ -10,10 +10,12 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { AudioClip } from '../audio/audioClip';
 import type { Ctx } from '../shell/ctx';
+import { HelpBadge } from '../helpMode/helpBadge';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
-import { Badge, Chip, ChipRow, Field, Ico, LinkBtn, NoteCard, PrimaryBtn, ProgressBar, Row, Sheet, ShowMore, SmallBtn } from '../ui/kit';
+import { Badge, Chip, ChipRow, Field, HelpInfo, Ico, LinkBtn, NoteCard, PrimaryBtn, ProgressBar, Row, Sheet, ShowMore, SmallBtn } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { versionTitle, when, type PassageView } from '../passage/passageView';
 import { Authored, ReportFlag } from '../moderation/reportSheet';
@@ -29,12 +31,14 @@ export type TrayTab = 'terms' | 'study' | 'notes' | 'history';
 
 /** "Help" in the recording screen's header (ADR-029): icon and word, 48pt. */
 export function HelpButton(props: { onPress: () => void; disabled?: boolean }) {
+  const spot = useHelpSpot(t('recording.tray.help'), t('recording.tray.helpButtonHelp'), props.onPress);
   return (
-    <Pressable onPress={props.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={t('recording.tray.help')}
+    <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={t('recording.tray.help')}
       accessibilityHint={t('recording.tray.helpHint')} accessibilityState={{ disabled: !!props.disabled }}
       style={({ pressed }) => [styles.help, props.disabled && { opacity: 0.45 }, pressed && { opacity: 0.7 }]}>
       <Ico name="help" size={20} color={C.primary} />
       <Text style={[txt.sm, { fontWeight: '700', color: C.primary }]}>{t('recording.tray.help')}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -64,8 +68,11 @@ export function HelpSheet(props: {
   const { onClose } = props;
   const ctx = useMemo<Ctx>(() => ({ ...props.ctx, go: (to, params) => { onClose(); props.ctx.go(to, params); } }), [props.ctx, onClose]);
   const tab = props.tab === 'study' && !props.study ? 'terms' : props.tab;
+  const pillHelp: Record<TrayTab, string> = {
+    terms: t('recording.tray.termsTabHelp'), study: t('recording.tray.studyTabHelp'), notes: t('recording.tray.notesTabHelp'), history: t('recording.tray.historyTabHelp')
+  };
   const pill = (id: TrayTab, label: string, count?: number) => (
-    <Chip key={id} label={label} on={tab === id} onPress={() => props.onTab(id)} {...(count !== undefined ? { count } : {})} />
+    <Chip key={id} label={label} help={pillHelp[id]} on={tab === id} onPress={() => props.onTab(id)} {...(count !== undefined ? { count } : {})} />
   );
   return (
     <Sheet visible title={t('recording.tray.help')} sub={t('recording.tray.helpSub')} onClose={onClose}>
@@ -132,20 +139,10 @@ function TermsTab(props: { ctx: Ctx; v: PassageView; terms: KeyTermView[]; tied:
         const rendered = renderings.length ? renderings.join(', ') : t('recording.tray.noRendering');
         return (
           <View key={term.termId} style={styles.item}>
-            <Pressable onPress={() => ctx.go('key_term_detail', { ...scope, termId: term.termId })} accessibilityRole="button"
-              accessibilityLabel={tied ? t('recording.tray.termLabelTied', { term: term.term, rendered }) : t('recording.tray.termLabel', { term: term.term, rendered })}
-              style={({ pressed }) => [styles.itemHead, pressed && { opacity: 0.7 }]}>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={[txt.body, { fontWeight: '600' }]} numberOfLines={1}>{term.term}</Text>
-                <Text style={[txt.xsStrong, { color: renderings.length ? C.primary : TINT.amberText, marginTop: 2 }]} numberOfLines={1}>
-                  {renderings.length ? renderings.join(' · ') : t('recording.tray.noLanguageRendering', { language: v.language })}
-                </Text>
-              </View>
-              {tied ? <View style={styles.tied}><Ico name="link" size={14} color={TINT.greenText} /><Badge label={t('recording.tray.tiedBadge')} tone="green" /></View> : null}
-              <Ico name="right" size={20} color={C.muted} />
-            </Pressable>
+            <TermHead term={term.term} tied={tied} label={tied ? t('recording.tray.termLabelTied', { term: term.term, rendered }) : t('recording.tray.termLabel', { term: term.term, rendered })}
+              renderings={renderings} language={v.language} onPress={() => ctx.go('key_term_detail', { ...scope, termId: term.termId })} />
             {!tied && props.canTie ? (
-              <SmallBtn label={tying === term.termId ? t('recording.tray.tying') : t('recording.tray.tie')} icon="link"
+              <SmallBtn label={tying === term.termId ? t('recording.tray.tying') : t('recording.tray.tie')} icon="link" help={t('recording.tray.tieHelp')}
                 disabled={!props.draftTakeId || props.disabled || !!tying} onPress={() => void tie(term.termId)} />
             ) : null}
           </View>
@@ -154,8 +151,27 @@ function TermsTab(props: { ctx: Ctx; v: PassageView; terms: KeyTermView[]; tied:
       <ShowMore remaining={props.terms.length - shown} step={TERM_STEP} onMore={() => setShown((n) => n + TERM_STEP)} />
       {props.canTie && !props.draftTakeId && props.terms.some((term) => !props.tied.has(term.termId))
         ? <Text style={[txt.xs, styles.pad]}>{t('recording.tray.recordFirst')}</Text> : null}
-      <LinkBtn label={t('recording.tray.allTerms')} onPress={() => ctx.go('key_terms', scope)} style={styles.pad} />
+      <LinkBtn label={t('recording.tray.allTerms')} help={t('recording.tray.allTermsHelp')} onPress={() => ctx.go('key_terms', scope)} style={styles.pad} />
     </>
+  );
+}
+
+/** A key term's head: the term and how this language says it (amber when not yet), Tied when tied; it opens the term. */
+function TermHead(props: { term: string; tied: boolean; label: string; renderings: string[]; language: string; onPress: () => void }) {
+  const spot = useHelpSpot(props.term, props.tied ? t('recording.tray.termTiedHelp') : t('recording.tray.termHelp'), props.onPress);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.label}
+      style={({ pressed }) => [styles.itemHead, pressed && { opacity: 0.7 }]}>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={[txt.body, { fontWeight: '600' }]} numberOfLines={1}>{props.term}</Text>
+        <Text style={[txt.xsStrong, { color: props.renderings.length ? C.primary : TINT.amberText, marginTop: 2 }]} numberOfLines={1}>
+          {props.renderings.length ? props.renderings.join(' · ') : t('recording.tray.noLanguageRendering', { language: props.language })}
+        </Text>
+      </View>
+      {props.tied ? <View style={styles.tied}><Ico name="link" size={14} color={TINT.greenText} /><Badge label={t('recording.tray.tiedBadge')} tone="green" /></View> : null}
+      <Ico name="right" size={20} color={C.muted} />
+      <HelpBadge spot={spot} />
+    </Pressable>
   );
 }
 
@@ -169,7 +185,9 @@ function StudyTab(props: { ctx: Ctx; v: PassageView; study: StudyProgress }) {
           <Text style={[txt.sm, { fontWeight: '700', flex: 1 }]} numberOfLines={2}>{t('recording.tray.studyTitle', { pattern: study.guide.pattern, passage: study.guide.passage })}</Text>
           <Text style={txt.xs}>{studySummary(study)}</Text>
         </View>
-        <ProgressBar value={study.steps.length ? Math.round((study.doneCount / study.steps.length) * 100) : 0} color={study.next ? C.primary : C.green} />
+        <HelpInfo label={studySummary(study)} detail={t('recording.tray.studyBarHelp')}>
+          <ProgressBar value={study.steps.length ? Math.round((study.doneCount / study.steps.length) * 100) : 0} color={study.next ? C.primary : C.green} />
+        </HelpInfo>
       </View>
       <View style={styles.list}>
         {study.steps.map((s, i) => (
@@ -177,7 +195,7 @@ function StudyTab(props: { ctx: Ctx; v: PassageView; study: StudyProgress }) {
             last={i === study.steps.length - 1} onPress={() => ctx.go('study_step', { ...scope, stepId: s.step.id })} />
         ))}
       </View>
-      <LinkBtn label={t('recording.tray.openStudy')} onPress={() => ctx.go('study_guide', scope)} style={styles.pad} />
+      <LinkBtn label={t('recording.tray.openStudy')} help={t('recording.tray.openStudyHelp')} onPress={() => ctx.go('study_guide', scope)} style={styles.pad} />
     </>
   );
 }
@@ -200,12 +218,14 @@ function NotesTab(props: { ctx: Ctx; v: PassageView; notes: PassageNote[]; disab
     }
   };
   const newest = [...props.notes].reverse();
+  const add = useHelpSpot(t('common.addNote'), t('recording.tray.addNoteHelp'), () => setAdding(true));
   return (
     <>
-      <Pressable onPress={() => setAdding(true)} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={t('common.addNote')}
+      <Pressable onPress={add.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={t('common.addNote')}
         style={({ pressed }) => [styles.addNote, props.disabled && { opacity: 0.5 }, pressed && { opacity: 0.7 }]}>
         <Ico name="plus" size={18} color={TINT.amberText} />
         <Text style={[txt.sm, { fontWeight: '700', color: TINT.amberText }]}>{t('common.addNote')}</Text>
+        <HelpBadge spot={add} />
       </Pressable>
       {props.notes.length === 0
         ? <Text style={[txt.smMuted, styles.pad]}>{t('recording.tray.notesEmpty')}</Text> : null}

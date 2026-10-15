@@ -182,7 +182,7 @@
   "movedExports": [
     {"from":"admin/admin.tsx","to":"admin/inviteText.ts","names":["inviteFailureText","GROUP_USES"]},
     {"from":"admin/admin.tsx","to":"admin/useGroupInvite.ts","names":["useGroupInvite","InviteState"]},
-    {"from":"admin/ready.tsx","to":"admin/readyText.ts","names":["howItWorks"]},
+    {"from":"admin/ready.tsx","to":"admin/readyText.ts","names":["howItWorks","plainRoleHelp"]},
     {"from":"admin/ready.tsx","to":"admin/useReadySummary.ts","names":["useReadySummary","usePendingRequests","usePlainRoles","ReadySummary"]},
     {"from":"audio/audioClip.tsx","to":"audio/audioFormat.ts","names":["audioFormat"]},
     {"from":"audio/clipPlayer.tsx","to":"audio/clipTime.ts","names":["clock","clipSeconds"]},
@@ -197,7 +197,7 @@
     {"from":"checks/draft.ts","to":"checks/useChecksDraft.ts","names":["useChecksDraft"]},
     {"from":"checks/parts.tsx","to":"checks/useCheckHelpRows.ts","names":["useCheckHelpRows","HelpRow"]},
     {"from":"clusters/parts.tsx","to":"clusters/clusterActions.ts","names":["clusterSub","appendClusterEvents"]},
-    {"from":"helpMode/helpContext.ts","to":"helpMode/useHelpMode.ts","names":["useScreenShowing","useHelpMode","useHelpSpot","HelpClipContext","HelpContext","HelpScopeContext"]},
+    {"from":"helpMode/helpContext.ts","to":"helpMode/useHelpMode.ts","names":["useScreenShowing","useHelpMode","useHelpSpot","useHelpOn","useHelpInfo","HelpClipContext","HelpContext","HelpScopeContext","HelpHostContext","HelpLayerContext"]},
     {"from":"helps/helps.tsx","to":"helps/helpsModel.ts","names":["bibleMissing"]},
     {"from":"helps/reference.tsx","to":"helps/referenceText.ts","names":["noteLabel"]},
     {"from":"helps/reference.tsx","to":"helps/useBible.ts","names":["useBible"]},
@@ -250,6 +250,8 @@
     {"from":"recording/useRecorder.ts","to":"recording/vadModel.ts","names":["VAD_BASE"]},
     {"from":"screens/checks.tsx","to":"checks/LanguageChecks.tsx","names":["LanguageChecks"]},
     {"from":"checks/LanguageChecks.tsx","to":"checks/checkActions.ts","names":["saveRows"]},
-    {"from":"checks/LanguageChecks.tsx","to":"checks/checkStyles.ts","names":["styles"]}
+    {"from":"checks/LanguageChecks.tsx","to":"checks/checkStyles.ts","names":["styles"]},
+    {"from":"reports/sections.tsx","to":"reports/sectionsModel.ts","names":["sectionHelp"]},
+    {"from":"ui/kit.tsx","to":"helpMode/useHelpMode.ts","names":["useHelpHost"]}
   ]
 }

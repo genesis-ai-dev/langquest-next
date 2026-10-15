@@ -58,16 +58,16 @@ export function BookHead(props: {
       <View style={{ gap: space.sm }}>
         <Text style={txt.label}>{t('breakup.book.brokenUp')}</Text>
         <Text style={txt.h3}>{now ? now.choice.name : t('breakup.book.ownWay')}</Text>
-        <PieceBar doc={props.doc} v11n={props.v11n} book={book} />
+        <PieceBar doc={props.doc} v11n={props.v11n} book={book} explain />
         {props.canShape ? <GhostBtn label={t('breakup.book.breakDifferently')} help={t('breakup.book.breakDifferentlyHelp')} icon="cut" onPress={props.onChange} /> : null}
       </View>
       <Group style={{ marginTop: space.md }}>
         <Row icon="edit" label={t('breakup.book.calledIn', { name: own ?? props.templateName, language: props.language })}
-          sub={own ? t('breakup.book.templateCalls', { name: props.templateName }) : t('breakup.book.tapToName')} last
+          sub={own ? t('breakup.book.templateCalls', { name: props.templateName }) : t('breakup.book.tapToName')} help={t('breakup.book.nameHelp')} last
           onPress={props.canShape ? () => { setName(own ?? ''); setNaming(true); } : undefined} />
       </Group>
       <Sheet visible={naming} title={title} sub={t('breakup.bookName.sub')} onClose={() => setNaming(false)}
-        footer={<PrimaryBtn label={t('common.save')} icon="check" disabled={!name.trim()} onPress={() => void saveName()} />}>
+        footer={<PrimaryBtn label={t('common.save')} icon="check" disabled={!name.trim()} help={t('breakup.bookName.saveHelp')} onPress={() => void saveName()} />}>
         <Field value={name} onChangeText={setName} accessibilityLabel={title} autoCapitalize="words"
           placeholder={choices.bibles.length || choices.languages.length ? t('breakup.bookName.typeOrTap') : props.templateName} />
         {choices.bibles.length ? (
@@ -93,6 +93,7 @@ function NameChoices(props: { rows: { name: string; from: string[] }[]; current:
     <Group>
       {props.rows.map((r, i) => (
         <Row key={r.name} label={r.name} sub={r.from.join(' · ')} last={i === props.rows.length - 1} onPress={() => props.onPick(r.name)}
+          help={props.current === r.name ? t('breakup.bookName.inBoxHelp') : t('breakup.bookName.useHelp')}
           accessibilityLabel={t('breakup.bookName.useLabel', { name: r.name, from: r.from.join(t('admin.list.separator')) })}
           right={props.current === r.name
             ? <Ico name="check" size={22} color={C.green} strokeWidth={3} />
@@ -144,8 +145,8 @@ export function BreakUpBook(props: {
     <Screen header={<Header title={props.bookName} sub={props.language} onBack={props.onClose} />} bodyStyle={{ paddingHorizontal: 20, gap: 14 }}
       footer={<>
         <PrimaryBtn label={props.redo ? t('breakup.book.change', { book: props.bookName }) : t('breakup.book.breakUp', { book: props.bookName })} icon="check" busy={change.busy}
-          disabled={!picked || (!!now && picked === now) || (!props.item && !props.apply)} onPress={go} />
-        <GhostBtn label={t('common.notNow')} icon="clock" onPress={props.onClose} />
+          disabled={!picked || (!!now && picked === now) || (!props.item && !props.apply)} onPress={go} help={t('breakup.book.breakUpHelp')} />
+        <GhostBtn label={t('common.notNow')} icon="clock" help={t('help.details.cancel')} onPress={props.onClose} />
       </>}>
       <Question>{props.redo ? t('breakup.book.changeQuestion', { book: props.bookName }) : t('breakup.book.question', { book: props.bookName })}</Question>
       <Text style={[txt.sm, { color: C.muted }]}>{now ? t('breakup.book.nowEachPiece', { way: now.choice.name }) : t('breakup.book.eachPiece')}</Text>

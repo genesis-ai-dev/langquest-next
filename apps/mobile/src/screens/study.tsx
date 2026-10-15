@@ -137,7 +137,7 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
   const footer = chip !== 'guide' ? (
     <PrimaryBtn label={t('study.screen.backToGuide')} icon="arrowL" onPress={() => setChip('guide')} />
   ) : canStudy && !status.done ? (
-    <PrimaryBtn label={t('study.screen.doneWithStep')} icon="check" onPress={() => void done()} />
+    <PrimaryBtn label={t('study.screen.doneWithStep')} icon="check" help={t('study.screen.doneWithStepHelp')} onPress={() => void done()} />
   ) : (
     <>
       {status.done ? (
@@ -149,7 +149,7 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
       {allDone && canStudy ? (
         <PrimaryBtn label={recorded ? t('study.screen.openWorkspace') : t('study.screen.recordFirstDraft')} icon="mic" onPress={() => ctx.go('workspace', scope)} />
       ) : sp.steps[index + 1] ? (
-        <GhostBtn label={t('study.screen.nextStep', { step: sp.steps[index + 1]!.step.title })} onPress={() => setIndex(index + 1)} />
+        <GhostBtn label={t('study.screen.nextStep', { step: sp.steps[index + 1]!.step.title })} help={t('study.screen.nextStepHelp')} onPress={() => setIndex(index + 1)} />
       ) : null}
     </>
   );
@@ -164,8 +164,8 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
       {credit ? <Text style={txt.xs}>{credit}</Text> : null}
       {ctx.session.can('manage_reference') && origin ? (
         origin.itemId
-          ? <SmallBtn label={t('study.screen.editGuide')} icon="edit" onPress={() => ctx.go('guide_editor', { itemId: origin.itemId!, languageId: v.languageId })} />
-          : <SmallBtn label={t('study.screen.adaptGuide')} icon="edit" onPress={() => ctx.go('guide_editor', { from: origin.docHash, languageId: v.languageId })} />
+          ? <SmallBtn label={t('study.screen.editGuide')} icon="edit" help={t('study.screen.editGuideHelp')} onPress={() => ctx.go('guide_editor', { itemId: origin.itemId!, languageId: v.languageId })} />
+          : <SmallBtn label={t('study.screen.adaptGuide')} icon="edit" help={t('study.screen.adaptGuideHelp')} onPress={() => ctx.go('guide_editor', { from: origin.docHash, languageId: v.languageId })} />
       ) : null}
       <Text style={txt.xs}>{sp.noteCount ? t('study.screen.addedStaysNotes', { count: sp.noteCount }) : t('study.screen.addedStays')}</Text>
     </View>

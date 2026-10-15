@@ -27,6 +27,8 @@ import { removeRow, rowNumbers, rowsOf, setCheckpoint, setTogether } from '../ch
 import { nextFieldId, referenceKindName } from '../config/model';
 import { saveRows } from '../checks/checkActions';
 import { styles } from '../checks/checkStyles';
+import { useHelpSpot } from '../helpMode/useHelpMode';
+import { HelpBadge } from '../helpMode/helpBadge';
 
 // ---- shared parts ------------------------------------------------------------------------
 
@@ -53,12 +55,24 @@ function helpLabel(state: LanguageState, lib: ReturnType<typeof useLibrary>, h: 
 
 interface QuestionDraft { materialId: string | null; fieldId: string | null; text: string; type: QuestionSpec['type']; required: boolean }
 
-function questionTypes(): { id: QuestionSpec['type']; label: string }[] {
+function questionTypes(): { id: QuestionSpec['type']; label: string; help: string }[] {
   return [
-    { id: 'text', label: t('checks.questionType.text') },
-    { id: 'yesno', label: t('checks.questionType.yesno') },
-    { id: 'rating', label: t('checks.questionType.rating') }
+    { id: 'text', label: t('checks.questionType.text'), help: t('checks.questionType.textHelp') },
+    { id: 'yesno', label: t('checks.questionType.yesno'), help: t('checks.questionType.yesnoHelp') },
+    { id: 'rating', label: t('checks.questionType.rating'), help: t('checks.questionType.ratingHelp') }
   ];
+}
+
+/** Under a question being changed: take it off the check. */
+function RemoveQuestion(props: { onPress: () => void }) {
+  const spot = useHelpSpot(t('checks.removeQuestion'), t('checks.removeQuestionHelp'), props.onPress);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="button" style={styles.quiet}>
+      <Ico name="trash" size={18} color={TINT.redText} />
+      <Text style={[styles.quietText, { color: TINT.redText }]}>{t('checks.removeQuestion')}</Text>
+      <HelpBadge spot={spot} />
+    </Pressable>
+  );
 }
 
 export function CheckEditor(ctx: Ctx) {
@@ -164,6 +178,7 @@ export function CheckEditor(ctx: Ctx) {
   const ownNotes = materialsFor(state).filter((m) => !['questions', 'key_terms', 'fia_study'].includes(m.kind));
   const library = items.map((it) => ({ it, kind: refKindOf(docs.get(it.current)) })).filter((x) => x.kind === 'note' || x.kind === 'other' || x.kind === 'guide' || x.kind === 'source');
   const linked = new Set(helps.map((h) => ('itemId' in h ? `item:${h.itemId}` : `material:${h.materialId}`)));
+  const linkedHelp = (on: boolean) => (on ? t('checks.helpOnHelp') : t('checks.helpOffHelp'));
   const tick = (on: boolean) => (
     <View style={[styles.tick, on && styles.tickOn]}>{on ? <Ico name="check" size={18} color={C.white} strokeWidth={3} /> : null}</View>
   );
@@ -177,11 +192,11 @@ export function CheckEditor(ctx: Ctx) {
       <Group>
         {people.map((id, j) => (
           <Row key={id} leading={<PersonAvatar look={look(id)} size={36} />} label={ctx.name(id)} sub={roleIn(org, id, languageId) || undefined}
-            right={mayTeams ? <IconBtn name="close" label={t('checks.removePerson', { name: ctx.name(id) })} onPress={() => void setPeople(people.filter((p) => p !== id))} bg="transparent" color={C.muted} /> : undefined}
+            right={mayTeams ? <IconBtn name="close" label={t('checks.removePerson', { name: ctx.name(id) })} help={t('checks.removePersonHelp')} onPress={() => void setPeople(people.filter((p) => p !== id))} bg="transparent" color={C.muted} /> : undefined}
             last={!mayTeams && j === people.length - 1} />
         ))}
         {people.length === 0 && !mayTeams ? <Row label={t('checks.anyone')} last /> : null}
-        {mayTeams ? <Row icon="plus" label={t('checks.addPeople')} onPress={() => setPicking(people)} last /> : null}
+        {mayTeams ? <Row icon="plus" label={t('checks.addPeople')} help={t('checks.addPeopleHelp')} onPress={() => setPicking(people)} last /> : null}
       </Group>
 
       <SectionLabel label={t('checks.questions')} />
@@ -192,12 +207,12 @@ export function CheckEditor(ctx: Ctx) {
           const type = questionTypes().find((x) => x.id === sq.q.type)?.label ?? '';
           return (
             <Row key={sq.q.id} icon="chat" label={sq.q.text}
-              sub={[type, sq.required ? t('common.required') : '', sq.source === 'org' ? t('checks.fromLangQuest') : ''].filter(Boolean).join(' · ')}
+              sub={[type, sq.required ? t('common.required') : '', sq.source === 'org' ? t('checks.fromLangQuest') : ''].filter(Boolean).join(' · ')} help={t('checks.editQuestionHelp')}
               {...(editable ? { onPress: () => setQuestion({ materialId: materialId!, fieldId: fieldId!, text: sq.q.text, type: sq.q.type, required: sq.required }) } : {})} />
           );
         })}
         {questions.length === 0 && !mayQuestions ? <Row label={t('checks.noQuestions')} last /> : null}
-        {mayQuestions ? <Row icon="plus" label={t('checks.addQuestion')} onPress={() => setQuestion({ materialId: null, fieldId: null, text: '', type: 'yesno', required: false })} last /> : null}
+        {mayQuestions ? <Row icon="plus" label={t('checks.addQuestion')} help={t('checks.addQuestionHelp')} onPress={() => setQuestion({ materialId: null, fieldId: null, text: '', type: 'yesno', required: false })} last /> : null}
       </Group>
 
       <SectionLabel label={t('checks.helps')} />
@@ -206,28 +221,31 @@ export function CheckEditor(ctx: Ctx) {
           const l = helpLabel(state, lib, h);
           return (
             <Row key={'itemId' in h ? h.itemId : h.materialId} icon={l.icon} label={l.name} sub={l.kind || undefined}
-              right={mayFlows ? <IconBtn name="close" label={t('checks.removeHelp', { name: l.name })} onPress={() => void setHelp(h, false)} bg="transparent" color={C.muted} /> : undefined} />
+              right={mayFlows ? <IconBtn name="close" label={t('checks.removeHelp', { name: l.name })} help={t('checks.unlinkHelp')} onPress={() => void setHelp(h, false)} bg="transparent" color={C.muted} /> : undefined} />
           );
         })}
         {helps.length === 0 && !mayFlows ? <Row label={t('checks.noHelps')} last /> : null}
-        {mayFlows ? <Row icon="plus" label={t('checks.addHelp')} onPress={() => setHelping(true)} last /> : null}
+        {mayFlows ? <Row icon="plus" label={t('checks.addHelp')} help={t('checks.addHelpHelp')} onPress={() => setHelping(true)} last /> : null}
       </Group>
 
       {mayFlows ? (
         <Group>
           <Row icon="lock" label={t('checks.mustPass')} role="switch" checked={row.checkpoint}
-            right={<Toggle testID="toggle-must-pass" on={row.checkpoint} label={t('checks.mustPass')} onToggle={() => void saveRows(ctx, setCheckpoint(rows, i, !row.checkpoint), t('checks.saved', { language }))} />} />
+            right={<Toggle testID="toggle-must-pass" on={row.checkpoint} label={t('checks.mustPass')} help={row.checkpoint ? t('admin.lock.on') : t('admin.lock.off')}
+              onToggle={() => void saveRows(ctx, setCheckpoint(rows, i, !row.checkpoint), t('checks.saved', { language }))} />} />
           {i > 0 ? (
             <Row icon="swap" label={t('checks.sameTimeAs', { check: previous })} role="switch" checked={row.together}
-              right={<Toggle testID="toggle-same-time" on={row.together} label={t('checks.sameTimeAs', { check: previous })} onToggle={() => void saveRows(ctx, setTogether(rows, i, !row.together), t('checks.saved', { language }))} />} />
+              right={<Toggle testID="toggle-same-time" on={row.together} label={t('checks.sameTimeAs', { check: previous })}
+                help={row.together ? t('checks.sameTimeOnHelp', { check: previous }) : t('checks.sameTimeOffHelp', { check: previous })}
+                onToggle={() => void saveRows(ctx, setTogether(rows, i, !row.together), t('checks.saved', { language }))} />} />
           ) : null}
-          <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label={t('checks.remove')} last
+          <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label={t('checks.remove')} help={t('checks.removeCheckHelp')} last
             onPress={() => { void saveRows(ctx, removeRow(rows, i), t('checks.removed', { check: name })).then((ok) => { if (ok) ctx.back(); }); }} />
         </Group>
       ) : null}
 
       <Sheet visible={picking !== null} title={t('checks.addPeople')} sub={name} onClose={() => setPicking(null)}
-        footer={<PrimaryBtn label={t('common.done')} onPress={() => { const next = picking ?? people; setPicking(null); void setPeople(next); }} />}>
+        footer={<PrimaryBtn label={t('common.done')} help={t('checks.peopleDoneHelp')} onPress={() => { const next = picking ?? people; setPicking(null); void setPeople(next); }} />}>
         {eligible.length === 0 ? <Banner icon="people" title={t('checks.nobodyYet')} body={t('checks.nobodyYetBody')} /> : (
           <Group>
             {eligible.map((id, j) => {
@@ -235,6 +253,7 @@ export function CheckEditor(ctx: Ctx) {
               return (
                 <Row key={id} leading={<PersonAvatar look={look(id)} size={36} />} label={id === ctx.session.actorId ? t('checks.you') : ctx.name(id)}
                   sub={roleIn(org, id, languageId) || undefined} role="checkbox" checked={on} right={tick(on)} last={j === eligible.length - 1}
+                  help={on ? t('checks.personOnHelp') : t('checks.personOffHelp')}
                   onPress={() => setPicking((cur) => (cur ?? []).includes(id) ? (cur ?? []).filter((x) => x !== id) : [...(cur ?? []), id])} />
               );
             })}
@@ -247,40 +266,39 @@ export function CheckEditor(ctx: Ctx) {
           <>
             <PrimaryBtn label={t('common.save')} icon="check" disabled={!question.text.trim()} onPress={() => { const q = question; setQuestion(null); void saveQuestion(q); }} />
             {question.fieldId ? (
-              <Pressable onPress={() => { const q = question; setQuestion(null); void saveQuestion(q, true); }} accessibilityRole="button" style={styles.quiet}>
-                <Ico name="trash" size={18} color={TINT.redText} />
-                <Text style={[styles.quietText, { color: TINT.redText }]}>{t('checks.removeQuestion')}</Text>
-              </Pressable>
+              <RemoveQuestion onPress={() => { const q = question; setQuestion(null); void saveQuestion(q, true); }} />
             ) : null}
           </>
         ) : undefined}>
         {question ? (
           <>
-            <Field value={question.text} onChangeText={(text) => setQuestion({ ...question, text })} placeholder={t('checks.questionPlaceholder')} multiline />
+            <Field value={question.text} onChangeText={(text) => setQuestion({ ...question, text })} placeholder={t('checks.questionPlaceholder')} multiline
+              help={t('checks.questionFieldHelp')} />
             <ChipRow>
-              {questionTypes().map((x) => <Chip key={x.id} label={x.label} on={question.type === x.id} onPress={() => setQuestion({ ...question, type: x.id })} />)}
+              {questionTypes().map((x) => <Chip key={x.id} label={x.label} on={question.type === x.id} help={x.help} onPress={() => setQuestion({ ...question, type: x.id })} />)}
             </ChipRow>
             <Group>
               <Row icon="lock" label={t('common.required')} role="switch" checked={question.required} last
-                right={<Toggle testID="toggle-required" on={question.required} label={t('common.required')} onToggle={() => setQuestion({ ...question, required: !question.required })} />} />
+                right={<Toggle testID="toggle-required" on={question.required} label={t('common.required')}
+                  help={question.required ? t('config.material.requiredHelp') : t('config.material.suggestedHelp')} onToggle={() => setQuestion({ ...question, required: !question.required })} />} />
             </Group>
           </>
         ) : null}
       </Sheet>
 
       <Sheet visible={helping} title={t('checks.addHelp')} sub={name} onClose={() => setHelping(false)}
-        footer={<PrimaryBtn label={t('common.done')} onPress={() => setHelping(false)} />}>
+        footer={<PrimaryBtn label={t('common.done')} help={t('checks.helpsDoneHelp')} onPress={() => setHelping(false)} />}>
         <SectionLabel label={t('checks.notes')} />
         <Group>
           {ownNotes.map((m) => {
             const on = linked.has(`material:${m.materialId}`);
-            return <Row key={m.materialId} icon="note" label={m.title} sub={referenceKindName(m.kind)} role="checkbox" checked={on} right={tick(on)} onPress={() => void setHelp({ materialId: m.materialId }, !on)} />;
+            return <Row key={m.materialId} icon="note" label={m.title} sub={referenceKindName(m.kind)} role="checkbox" checked={on} right={tick(on)} help={linkedHelp(on)} onPress={() => void setHelp({ materialId: m.materialId }, !on)} />;
           })}
           {library.filter((x) => x.kind === 'note' || x.kind === 'other').map(({ it }) => {
             const on = linked.has(`item:${it.itemId}`);
-            return <Row key={it.itemId} icon="note" label={it.name} sub={it.description || undefined} role="checkbox" checked={on} right={tick(on)} onPress={() => void setHelp({ itemId: it.itemId }, !on)} />;
+            return <Row key={it.itemId} icon="note" label={it.name} sub={it.description || undefined} role="checkbox" checked={on} right={tick(on)} help={linkedHelp(on)} onPress={() => void setHelp({ itemId: it.itemId }, !on)} />;
           })}
-          {mayWrite ? <Row icon="plus" label={t('checks.writeNote')} onPress={() => { setHelping(false); setWriting({ title: '', text: '' }); }} last /> : null}
+          {mayWrite ? <Row icon="plus" label={t('checks.writeNote')} help={t('checks.writeNoteHelp')} onPress={() => { setHelping(false); setWriting({ title: '', text: '' }); }} last /> : null}
         </Group>
         {library.some((x) => x.kind === 'guide' || x.kind === 'source') ? (
           <>
@@ -288,7 +306,7 @@ export function CheckEditor(ctx: Ctx) {
             <Group>
               {library.filter((x) => x.kind === 'guide' || x.kind === 'source').map(({ it, kind }, j, a) => {
                 const on = linked.has(`item:${it.itemId}`);
-                return <Row key={it.itemId} icon={kind === 'source' ? 'book' : 'sparkle'} label={it.name} role="checkbox" checked={on} right={tick(on)} last={j === a.length - 1}
+                return <Row key={it.itemId} icon={kind === 'source' ? 'book' : 'sparkle'} label={it.name} role="checkbox" checked={on} right={tick(on)} last={j === a.length - 1} help={linkedHelp(on)}
                   onPress={() => void setHelp({ itemId: it.itemId }, !on)} />;
               })}
             </Group>

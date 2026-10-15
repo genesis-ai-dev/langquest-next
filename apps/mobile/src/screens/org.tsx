@@ -30,7 +30,7 @@ import { indexesFor } from '../sync/indexes';
 import { canHelpSignIn, decideRequest, inviteUri, issueInvite, issueSignInCode, pendingRequests, type NewInvite, type PendingRequest } from '../invites/invites';
 import { APP_URL } from '../web/appUrl';
 import { signInUri } from '../invites/inviteCode';
-import { Badge, Banner, Card, Chip, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, KindIcon, LinkBtn, MovingBar, PrimaryBtn, ProgressBar, QuietLinks, Row, Screen, SearchField, SectionLabel, Segments, Sheet, ShowMore, SmallBtn, Toggle, type IconName } from '../ui/kit';
+import { Badge, Banner, Card, Chip, Disclosure, EmptyState, Field, GhostBtn, Group, HelpInfo, Header, Ico, KindIcon, LinkBtn, MovingBar, PrimaryBtn, ProgressBar, QuietLinks, Row, Screen, SearchField, SectionLabel, Segments, Sheet, ShowMore, SmallBtn, Toggle, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { useOpenDetail } from '../ui/useLayout';
 import { edgeFor } from '../shell/flow';
@@ -76,7 +76,7 @@ import { docLanguage, readerLanguage, sameLanguage } from '../reference/language
 import { ReferenceLanguagePage } from '../reference/ReferenceLanguagePage';
 import { useReferenceLanguages } from '../reference/useReferenceLanguages';
 import { ReadyChecklist } from '../admin/ready';
-import { howItWorks } from '../admin/readyText';
+import { howItWorks, plainRoleHelp } from '../admin/readyText';
 import { usePendingRequests, usePlainRoles, useReadySummary } from '../admin/useReadySummary';
 import { personLook } from '../ui/people';
 import { PersonAvatar } from '../ui/UserChip';
@@ -142,28 +142,29 @@ function liveRoles(ctx: Ctx): { id: string; name: string; privileges: number }[]
 // one collapsed "Setup" card, never nested deeper than that.
 
 /** A home section: label, a card of rows, and an add row. Always open (ADR-029). */
-function HomeSection(props: { label: string; add?: { label: string; onPress: () => void } | undefined; children?: ReactNode }) {
+function HomeSection(props: { label: string; add?: { label: string; onPress: () => void; help?: string } | undefined; children?: ReactNode }) {
   return (
     <View>
       <SectionLabel label={props.label} />
       <Group>
         {props.children}
-        {props.add ? <Row icon="plus" label={props.add.label} onPress={props.add.onPress} last /> : null}
+        {props.add ? <Row icon="plus" label={props.add.label} help={props.add.help} onPress={props.add.onPress} last /> : null}
       </Group>
     </View>
   );
 }
 
 /** The one main button at the top of a home. */
-function HomePrimary(props: { label: string; icon: IconName; onPress: () => void }) {
-  return <PrimaryBtn label={props.label} icon={props.icon} onPress={props.onPress} />;
+function HomePrimary(props: { label: string; icon: IconName; onPress: () => void; help?: string }) {
+  return <PrimaryBtn label={props.label} icon={props.icon} help={props.help} onPress={props.onPress} />;
 }
 
 /** Demo HomeProgressBars: recorded and done, each with its count. */
 function HomeProgressBars(props: { p: HomeProgress }) {
   const pct = (n: number) => (props.p.total === 0 ? 0 : Math.round((n / props.p.total) * 100));
+  // Bars and bare counts: help says what they count.
   return (
-    <View style={{ gap: space.sm }}>
+    <HelpInfo label={t('org.progress.label')} detail={t('org.progress.help')} style={{ gap: space.sm }}>
       {([[t('org.progress.recorded'), props.p.recorded, C.primary], [t('org.progress.done'), props.p.done, C.green]] as const).map(([label, n, color]) => (
         <View key={label} style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
           <Text style={[txt.xsStrong, { width: 72 }]}>{label}</Text>
@@ -173,7 +174,7 @@ function HomeProgressBars(props: { p: HomeProgress }) {
           </Text>
         </View>
       ))}
-    </View>
+    </HelpInfo>
   );
 }
 
@@ -223,12 +224,13 @@ function HomeSetup(props: { ctx: Ctx; from: HomeId; level: ScopeLevel; languageI
   // A language's page has its own setup now (LanguageHome: the four questions, then More).
   return (
     <View style={{ paddingTop: space.md }}>
-      <Disclosure icon="settings" title={t('org.setup.title')} summary={summary} open={open.open} onToggle={open.onToggle}>
-        {templates ? <Row icon="template" label={t('org.setup.templates')} sub={applied(counts.template)} onPress={() => ctx.go('templates_home', params)} /> : null}
-        {reference ? <Row icon="book" label={t('org.setup.reference')} onPress={() => ctx.go('reference_home', params)}
+      <Disclosure icon="settings" title={t('org.setup.title')} summary={summary} open={open.open} onToggle={open.onToggle}
+        {...(open.open ? {} : { help: t('org.setup.titleHelp') })}>
+        {templates ? <Row icon="template" label={t('org.setup.templates')} sub={applied(counts.template)} help={t('org.setup.templatesHelp')} onPress={() => ctx.go('templates_home', params)} /> : null}
+        {reference ? <Row icon="book" label={t('org.setup.reference')} help={t('org.setup.referenceHelp')} onPress={() => ctx.go('reference_home', params)}
           sub={t('org.setup.referenceSub', { study: formatNumber(counts.study), questions: formatNumber(counts.questions), terms: formatNumber(counts.terms) })} /> : null}
-        {flows ? <Row icon="flow" label={t('org.setup.flows')} sub={applied(counts.flow)} onPress={() => ctx.go('flows_home', params)} /> : null}
-        <Row icon="star" label={t('org.setup.roles')} sub={t('org.setup.rolesSub', { count: liveRoles(ctx).length })} onPress={() => ctx.go('roles_home', params)}
+        {flows ? <Row icon="flow" label={t('org.setup.flows')} sub={applied(counts.flow)} help={t('org.setup.flowsHelp')} onPress={() => ctx.go('flows_home', params)} /> : null}
+        <Row icon="star" label={t('org.setup.roles')} sub={t('org.setup.rolesSub', { count: liveRoles(ctx).length })} help={t('org.setup.rolesHelp')} onPress={() => ctx.go('roles_home', params)}
           last={!props.extra} />
         {props.extra?.rows}
       </Disclosure>
@@ -246,7 +248,7 @@ function PeopleRows(props: { ctx: Ctx; level: ScopeLevel; languageId?: string })
   const params = { level: props.level, ...(props.languageId ? { languageId: props.languageId } : {}) };
   return (
     <HomeSection label={t('org.people.title')}>
-      <Row icon="people" label={t('org.people.members')} sub={sub} onPress={() => ctx.go('members_list', params)} last />
+      <Row icon="people" label={t('org.people.members')} sub={sub} help={t('org.people.membersHelp')} onPress={() => ctx.go('members_list', params)} last />
     </HomeSection>
   );
 }
@@ -291,16 +293,22 @@ export function OrgHome(ctx: Ctx) {
           <View style={{ flex: 1, gap: 4 }}>
             <Text style={txt.h3}>{v.orgName}</Text>
             {/* Also a row inside Setup. Named here so the home shows the license without opening Setup. */}
-            <Text style={txt.xs}>{licenseText(orgLicense(v.org)).name}</Text>
+            <HelpInfo label={licenseText(orgLicense(v.org)).name} detail={t('org.home.licenseHelp')} style={{ alignSelf: 'flex-start' }}>
+              <Text style={txt.xs}>{licenseText(orgLicense(v.org)).name}</Text>
+            </HelpInfo>
             <Text style={txt.xs}>{t('org.home.languages', { count: v.languages.length })} · {t('org.home.members', { count: memberCount })}</Text>
-            {mine ? <View style={{ flexDirection: 'row' }}><Badge label={roleName(ctx, mine.roleId.value)} tone="brand" /></View> : null}
+            {mine ? (
+              <View style={{ flexDirection: 'row' }}>
+                <HelpInfo label={roleName(ctx, mine.roleId.value)} detail={t('org.home.roleHelp')}><Badge label={roleName(ctx, mine.roleId.value)} tone="brand" /></HelpInfo>
+              </View>
+            ) : null}
           </View>
         </View>
         {v.languages.length && v.orgProgress ? <HomeProgressBars p={v.orgProgress} /> : null}
       </Card>
-      {canInvite ? <HomePrimary label={t('org.home.invite')} icon="plus" onPress={() => ctx.go('invite_member', { level: 'org' })} /> : null}
+      {canInvite ? <HomePrimary label={t('org.home.invite')} icon="plus" help={t('org.home.inviteHelp')} onPress={() => ctx.go('invite_member', { level: 'org' })} /> : null}
       <HomeSection label={t('org.home.languagesTitle')}
-        add={mayAdd ? { label: t('org.home.newLanguageOrCluster'), onPress: () => ctx.go('new_language') } : undefined}>
+        add={mayAdd ? { label: t('org.home.newLanguageOrCluster'), help: t('org.home.newLanguageHelp'), onPress: () => ctx.go('new_language') } : undefined}>
         {v.languages.length === 0 ? (
           <View style={{ padding: space.lg }}><Text style={txt.smMuted}>{t('org.home.noLanguages')}</Text></View>
         ) : null}
@@ -326,6 +334,7 @@ function LanguageListRow(props: { ctx: Ctx; v: ReturnType<typeof useOrgView>; la
   const flow = languageId === v.openId && v.state?.flow ? `${deriveFlow(v.state).name} · ` : '';
   return (
     <Row icon="globe" label={v.label(languageId)} onPress={() => ctx.go('language_home', { languageId })} last={!!props.last}
+      help={props.bar && p && p.total > 0 ? t('clusters.home.languageHelp') : t('org.home.languageHelp')}
       current={beside?.screen === 'language_home' && beside.params['languageId'] === languageId}
       sub={p ? `${flow}${progressLine(p)}` : t('org.home.openToBring')}
       below={props.bar && p && p.total > 0 ? <ProgressBar value={Math.round((p.recorded / p.total) * 100)} color={C.primary} /> : undefined} />
@@ -384,8 +393,8 @@ export function ClusterHome(ctx: Ctx) {
         <>
           <PrimaryBtn label={t('clusters.home.add')} icon="plus" onPress={() => { setAdding(new Set()); setSheet('add'); }} />
           <QuietLinks items={[
-            { label: t('clusters.home.rename'), icon: 'edit', onPress: () => { setRename(c.name); setSheet('rename'); } },
-            { label: t('clusters.home.ungroup'), icon: 'layers', onPress: () => setSheet('ungroup') }
+            { label: t('clusters.home.rename'), icon: 'edit', help: t('clusters.home.renameHelp'), onPress: () => { setRename(c.name); setSheet('rename'); } },
+            { label: t('clusters.home.ungroup'), icon: 'layers', help: t('clusters.home.ungroupHelp'), onPress: () => setSheet('ungroup') }
           ]} />
         </>
       ) : undefined}>
@@ -399,7 +408,7 @@ export function ClusterHome(ctx: Ctx) {
         {c.languageIds.map((languageId, i) => <LanguageListRow key={languageId} ctx={ctx} v={v} languageId={languageId} bar last={i === c.languageIds.length - 1} />)}
       </HomeSection>
       <Sheet visible={sheet === 'add'} title={t('clusters.add.title', { cluster: c.name })} onClose={close}
-        footer={others.length ? <PrimaryBtn label={t('clusters.add.button')} icon="check" busy={busy} disabled={adding.size === 0}
+        footer={others.length ? <PrimaryBtn label={t('clusters.add.button')} icon="check" busy={busy} disabled={adding.size === 0} help={t('clusters.add.buttonHelp')}
           // i18n-ignore: the first argument is a log label
           onPress={() => void run('add to cluster', clusterEvents(v.org, { clusterId, add: [...adding] }), t('clusters.add.done', { count: adding.size, cluster: c.name }))} /> : undefined}>
         {v.org && privilegesFor(v.org, ctx.session.actorId).has('manage_structure') ? (
@@ -413,6 +422,7 @@ export function ClusterHome(ctx: Ctx) {
             <SectionLabel label={t('clusters.add.alreadyIn', { org: v.orgName })} />
             {others.map((id, i) => (
               <CheckRow key={id} label={v.label(id)} checked={adding.has(id)} last={i === others.length - 1}
+                detail={adding.has(id) ? t('clusters.add.pickedHelp') : t('clusters.add.pickHelp')}
                 onToggle={() => setAdding((cur) => { const next = new Set(cur); if (next.has(id)) next.delete(id); else next.add(id); return next; })} />
             ))}
           </View>
@@ -420,7 +430,7 @@ export function ClusterHome(ctx: Ctx) {
         {error ? <Banner icon="flag" tone="amber" title={t('clusters.home.notSaved')} body={error} /> : null}
       </Sheet>
       <Sheet visible={sheet === 'rename'} title={t('clusters.rename.title', { cluster: c.name })} onClose={close}
-        footer={<PrimaryBtn label={t('clusters.rename.save')} icon="check" busy={busy} disabled={!rename.trim() || rename.trim() === c.name}
+        footer={<PrimaryBtn label={t('clusters.rename.save')} icon="check" busy={busy} disabled={!rename.trim() || rename.trim() === c.name} help={t('help.details.save')}
           // i18n-ignore: the first argument is a log label
           onPress={() => void run('rename cluster', clusterEvents(v.org, { clusterId, name: rename }), t('clusters.rename.done', { name: rename.trim() }))} />}>
         <Field label={t('clusters.rename.label')} value={rename} onChangeText={setRename} autoCapitalize="words" />
@@ -428,10 +438,10 @@ export function ClusterHome(ctx: Ctx) {
       </Sheet>
       <Sheet visible={sheet === 'ungroup'} title={t('clusters.ungroup.title', { cluster: c.name })} onClose={close}
         footer={<>
-          <PrimaryBtn label={t('clusters.ungroup.confirm')} icon="layers" busy={busy}
+          <PrimaryBtn label={t('clusters.ungroup.confirm')} icon="layers" busy={busy} help={t('clusters.ungroup.confirmHelp')}
             // i18n-ignore: the first argument is a log label
             onPress={() => void run('ungroup cluster', ungroupEvents(v.org, clusterId), t('clusters.ungroup.done', { cluster: c.name }), ctx.back)} />
-          <QuietLinks items={[{ label: t('clusters.ungroup.keep'), icon: 'close', onPress: close }]} />
+          <QuietLinks items={[{ label: t('clusters.ungroup.keep'), icon: 'close', help: t('clusters.ungroup.keepHelp'), onPress: close }]} />
         </>}>
         <Text style={txt.body}>{t('clusters.ungroup.body', { count: c.languageIds.length })}</Text>
         {error ? <Banner icon="flag" tone="amber" title={t('clusters.home.notSaved')} body={error} /> : null}
@@ -472,7 +482,7 @@ function RenameRow(props: {
   }
   return (
     <>
-      <Row icon="edit" label={t('org.rename.row')} sub={current} last={props.last}
+      <Row icon="edit" label={t('org.rename.row')} sub={current} last={props.last} help={t('org.rename.rowHelp')}
         {...(props.may ? { onPress: () => { setName(current); setError(''); setOpen(true); } } : {})} />
       <Sheet visible={open} title={props.title} sub={props.sub} onClose={() => setOpen(false)}
         footer={<PrimaryBtn label={t('org.rename.save')} icon="check" busy={busy} disabled={!next || next === current} onPress={() => void save()} />}>
@@ -519,6 +529,7 @@ function LanguoidLinkRow(props: { ctx: Ctx; languageId: string; name: string; co
       <Row icon="globe" label={t('org.link.row')}
         sub={linked ? (linkedName ? t('org.link.linkedTo', { name: linkedName, code: props.code.toUpperCase() }) : t('org.link.linked', { code: props.code.toUpperCase() })) : t('org.link.notLinked')}
         last={props.last} {...(!linked && props.may ? { badge: t('org.link.linkIt'), badgeTone: 'amber' as const } : {})}
+        help={linked ? t('org.link.rowHelp') : t('org.link.rowLinkHelp')}
         {...(props.may ? { onPress: () => { setQuery(props.name); setPicked(null); setError(''); setOpen(true); } } : {})} />
       <Sheet visible={open} title={linked ? t('org.link.titleAgain', { name: props.name }) : t('org.link.title', { name: props.name })} onClose={() => setOpen(false)}
         sub={t('org.link.sub', { name: props.name })}
@@ -618,12 +629,12 @@ export function LanguageHome(ctx: Ctx) {
   const n = s.team.length;
   const joinRows = requests.length === 0 ? null : requests.length === 1 ? (
     <Row leading={<IconTile icon="people" />} label={t('org.join.wantsToJoin', { name: requests[0]!.name ?? ctx.name(requests[0]!.profileId) })} sub={t('org.join.tapToLetIn')} last
-      right={<CountBadge n={1} />}
+      right={<CountBadge n={1} />} help={t('org.join.oneHelp')}
       onPress={() => ctx.go('edit_member', { memberId: requests[0]!.profileId, requestId: requests[0]!.id, level: 'language', asked: requests[0]!.createdAt,
         ...(requests[0]!.message ? { message: requests[0]!.message } : {}), ...(requests[0]!.name ? { name: requests[0]!.name } : {}) })} />
   ) : (
     <Row leading={<IconTile icon="people" />} label={t('org.join.peopleWant', { count: requests.length })} sub={t('org.join.tapToLetIn')} last
-      right={<CountBadge n={requests.length} />} onPress={() => ctx.go('members_list', params)} />
+      right={<CountBadge n={requests.length} />} help={t('org.join.manyHelp')} onPress={() => ctx.go('members_list', params)} />
   );
   const clusters = clustersOf(v.org, languageId);
   const showClusters = clusters.length > 0 || mayManageClusters(v.org, ctx.session.actorId);
@@ -632,23 +643,23 @@ export function LanguageHome(ctx: Ctx) {
       summary={[t('org.more.summary.progress'), t('org.more.summary.members'), t('org.more.summary.roles'),
         listing.may ? t('org.more.summary.publicListing') : '', t('org.more.summary.name'), t('org.more.summary.languageList'),
         showClusters ? t('org.more.summary.cluster') : ''].filter(Boolean).join(t('admin.list.separator'))}
-      open={more.open} onToggle={more.onToggle}>
+      open={more.open} onToggle={more.onToggle} {...(more.open ? {} : { help: t('org.more.titleHelp') })}>
       <View style={{ padding: space.lg, gap: space.sm }}>
         <Text style={txt.xs}>{t('org.more.orgAndCode', { org: v.orgName, code: info.code.toUpperCase() })}</Text>
         <HomeProgressBars p={v.progressOf(languageId) ?? { total: 0, recorded: 0, done: 0 }} />
       </View>
       {s.readiness.ready ? null : <Row icon="book" label={t('org.more.seeWork')} sub={t('org.more.seeWorkSub')} onPress={openMap} />}
       <Row icon="people" label={t('org.people.members')} sub={t('org.more.membersSub', { count: membersAt(memberEntries(v.org), 'language', languageId).length, language: name })}
-        onPress={() => ctx.go('members_list', params)} />
+        help={t('org.people.membersHelp')} onPress={() => ctx.go('members_list', params)} />
       {/* Roles are the organization's: whoever may change them opens them there (decision 63). */}
-      <Row icon="star" label={t('org.setup.roles')} sub={t('org.more.rolesSub', { count: liveRoles(ctx).length })}
+      <Row icon="star" label={t('org.setup.roles')} sub={t('org.more.rolesSub', { count: liveRoles(ctx).length })} help={t('org.setup.rolesHelp')}
         onPress={() => ctx.go('roles_home', v.org && privilegesFor(v.org, ctx.session.actorId).has('manage_roles') ? { level: 'org' } : params)} />
       {can('manage_templates') ? <Row icon="template" label={t('org.more.templates')} sub={t('org.more.templatesSub')} onPress={() => ctx.go('templates_home', { level: 'language', languageId })} /> : null}
       {can('manage_reference') ? <Row icon="layers" label={t('org.more.reference')} sub={t('org.more.referenceSub')} onPress={() => ctx.go('reference_home', params)} /> : null}
       {can('manage_flows') ? <Row icon="flow" label={t('org.more.flows')} sub={t('org.more.flowsSub')} onPress={() => ctx.go('flows_home', params)} /> : null}
       {listing.may ? (
         <Row icon="globe" label={t('org.more.publicList')} sub={t('org.more.publicListSub')} role="switch" checked={listing.listed} disabled={listing.busy}
-          onPress={() => void listing.set(!listing.listed)} />
+          help={listing.listed ? t('org.more.publicListOnHelp') : t('org.more.publicListOffHelp')} onPress={() => void listing.set(!listing.listed)} />
       ) : null}
       <Row icon="building" label={v.orgName} sub={t('org.more.orgPage')} onPress={() => ctx.go('org_home')} />
       {/* Its name and its link to the language list: whoever manages its structure, here or for the organization, changes them (decision 76). */}
@@ -672,7 +683,8 @@ export function LanguageHome(ctx: Ctx) {
     const next = s.readiness.current;
     return (
       <Screen header={<BigTop onBack={back} over={name} title={t('getReady.title', { language: name })} />} bodyStyle={{ gap: space.md }}
-        footer={next >= 0 ? <PrimaryBtn label={questionLabel(QUESTIONS[next]!.id)} icon="right" onPress={() => ctx.go('get_ready', { languageId, step: String(next + 1) })} /> : undefined}>
+        footer={next >= 0 ? <PrimaryBtn label={questionLabel(QUESTIONS[next]!.id)} icon="right" help={t('getReady.nextQuestionHelp')}
+          onPress={() => ctx.go('get_ready', { languageId, step: String(next + 1) })} /> : undefined}>
         <ReadyChecklist ctx={ctx} s={s} />
         {help ? <QuietLink icon="playSolid" label={t('admin.howItWorks.link', { length: formatClock(40_000) })} detail={t('admin.howItWorks.detail')}
           onPress={() => { help.setOn(true); help.tell(t('admin.howItWorks.title'), howItWorks(name)); }} /> : null}
@@ -685,13 +697,16 @@ export function LanguageHome(ctx: Ctx) {
   return (
     <Screen header={<BigTop onBack={back} {...(clusters.length ? { over: clusters.map((c) => c.name).join(t('admin.list.separator')) } : {})} title={name}
       status={t('org.language.readyStatus', { count: n })} statusTone="green" />} bodyStyle={{ gap: space.md }}
-      footer={<PrimaryBtn label={t('org.more.seeWork')} icon="book" onPress={openMap} />}>
+      footer={<PrimaryBtn label={t('org.more.seeWork')} icon="book" help={t('org.more.seeWorkHelp')} onPress={openMap} />}>
       <Group>
-        <Row leading={<IconTile icon="file" />} label={t('org.language.theyRecord')} sub={s.lines[0]} onPress={() => ctx.go('get_ready', { languageId, step: '1', only: '1' })} />
-        <Row leading={<IconTile icon="listen" />} label={t('org.language.whatHelps')} sub={s.lines[1] ?? t('org.language.nothingOffered')} onPress={() => ctx.go('get_ready', { languageId, step: 'helps' })} />
-        <Row leading={<IconTile icon="route" />} label={t('checks.title')} sub={s.lines[2]}
+        <Row leading={<IconTile icon="file" />} label={t('org.language.theyRecord')} sub={s.lines[0]} help={t('org.language.theyRecordHelp')}
+          onPress={() => ctx.go('get_ready', { languageId, step: '1', only: '1' })} />
+        <Row leading={<IconTile icon="listen" />} label={t('org.language.whatHelps')} sub={s.lines[1] ?? t('org.language.nothingOffered')} help={t('org.language.whatHelpsHelp')}
+          onPress={() => ctx.go('get_ready', { languageId, step: 'helps' })} />
+        <Row leading={<IconTile icon="route" />} label={t('checks.title')} sub={s.lines[2]} help={t('org.language.checksHelp')}
           onPress={can('manage_flows') ? () => ctx.go('flow_editor', { languageId, steps: 'language' }) : () => ctx.go('get_ready', { languageId, step: '3' })} />
-        <Row leading={<IconTile icon="qr" />} label={t('org.people.title')} sub={t('org.language.peopleSub', { count: n })} onPress={() => ctx.go('members_list', params)} last={!joinRows} />
+        <Row leading={<IconTile icon="qr" />} label={t('org.people.title')} sub={t('org.language.peopleSub', { count: n })} help={t('org.people.membersHelp')}
+          onPress={() => ctx.go('members_list', params)} last={!joinRows} />
         {joinRows}
       </Group>
       {moreCard}
@@ -715,11 +730,12 @@ function MemberRow(props: { ctx: Ctx; e: MemberEntry; target: string; editable: 
     <Row testID={`person-${e.profileId}`} leading={<Avatar id={e.profileId} />} label={ctx.name(e.profileId)} muted={!props.editable} last={props.last}
       current={beside?.screen === 'edit_member' && beside.params['memberId'] === e.profileId}
       sub={e.since ? t('org.members.joined', { target: props.target, when: formatAgo(decodeHlc(e.since).wallMs) }) : props.target}
-      onPress={props.editable ? () => ctx.go('edit_member', { memberId: e.profileId, entry: e.key, level: props.level }) : undefined}
+      onPress={props.editable ? () => ctx.go('edit_member', { memberId: e.profileId, entry: e.key, level: props.level }) : undefined} help={t('org.members.memberHelp')}
       right={
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
           <Badge label={roleName(ctx, e.roleId)} tone={props.editable ? 'brand' : 'default'} />
-          {props.editable ? <Ico name="right" size={22} color={C.muted} /> : <Ico name="lock" size={18} color={C.faint} />}
+          {props.editable ? <Ico name="right" size={22} color={C.muted} />
+            : <HelpInfo label={t('common.viewOnly')} detail={t('org.members.lockedHelp')}><Ico name="lock" size={18} color={C.faint} /></HelpInfo>}
         </View>
       } />
   );
@@ -758,7 +774,7 @@ export function MembersList(ctx: Ctx) {
     return (
       <View style={{ gap: space.sm }}>
         <Row icon="globe" label={label} sub={t('org.members.count', { count })} last
-          onPress={d.onToggle} expanded={d.open} right={<Ico name={d.open ? 'up' : 'down'} size={22} color={C.primary} />} />
+          help={d.open ? t('help.details.disclosureOpen') : t('org.members.byLanguageHelp')} onPress={d.onToggle} expanded={d.open} right={<Ico name={d.open ? 'up' : 'down'} size={22} color={C.primary} />} />
         {d.open ? [...groups].map(([key, list]) => (
           <View key={key} style={{ gap: space.xs }}>
             <Text style={[txt.label, { paddingHorizontal: space.xs }]}>
@@ -774,13 +790,13 @@ export function MembersList(ctx: Ctx) {
   const total = formatNumber(current.length + requests.length);
   return (
     <Screen header={<Header title={t('org.people.members')} onBack={ctx.back}
-      action={mayInvite ? <SmallBtn label={t('org.members.invite')} icon="plus" tone="primary" onPress={() => ctx.go('invite_member', params)} /> : undefined} />}>
+      action={mayInvite ? <SmallBtn label={t('org.members.invite')} icon="plus" tone="primary" help={t('org.home.inviteHelp')} onPress={() => ctx.go('invite_member', params)} /> : undefined} />}>
       <Text style={txt.xs}>{level === 'org' ? t('org.members.introOrg') : t('org.members.introLanguage')}</Text>
       <SectionLabel label={level === 'org' ? t('org.members.sectionOrg', { total }) : t('org.members.sectionLanguage', { total })} />
       <Group>
         {requests.map((r) => (
           <Row key={r.id} leading={<Avatar id={r.profileId} name={r.name} />} label={r.name ?? ctx.name(r.profileId)} sub={r.message || t('admin.asked.toJoin')}
-            onPress={() => ctx.go('edit_member', { memberId: r.profileId, requestId: r.id, level, ...(r.name ? { name: r.name } : {}) })}
+            help={t('org.members.requestHelp')} onPress={() => ctx.go('edit_member', { memberId: r.profileId, requestId: r.id, level, ...(r.name ? { name: r.name } : {}) })}
             right={<View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}><Badge label={t('org.members.pending')} tone="amber" /><Ico name="right" size={22} color={C.muted} /></View>} />
         ))}
         {rows(current.slice(0, shown))}
@@ -808,12 +824,12 @@ export function MembersList(ctx: Ctx) {
 // ---- Invite, and editing a member (one form, as in the demo) ------------------------------------
 
 /** A list of choices on one card, the chosen one ticked; a screen reader hears radio buttons and which is selected. */
-function Choices(props: { items: { id: string; label: string; sub?: string; badge?: string }[]; value: string; onChoose: (id: string) => void; empty?: string }) {
+function Choices(props: { items: { id: string; label: string; sub?: string; badge?: string; help?: string }[]; value: string; onChoose: (id: string) => void; empty?: string }) {
   if (props.items.length === 0) return <Text style={txt.smMuted}>{props.empty ?? t('org.choices.empty')}</Text>;
   return (
     <Group>
       {props.items.map((it, i) => (
-        <Row key={it.id} label={it.label} sub={it.sub} badge={it.badge} onPress={() => props.onChoose(it.id)} last={i === props.items.length - 1}
+        <Row key={it.id} label={it.label} sub={it.sub} badge={it.badge} help={it.help} onPress={() => props.onChoose(it.id)} last={i === props.items.length - 1}
           role="radio" selected={props.value === it.id}
           right={props.value === it.id ? <Ico name="check" size={22} color={C.primary} /> : <View style={{ width: 22 }} />} />
       ))}
@@ -848,14 +864,14 @@ function AssignmentForm(props: {
       <SectionLabel label={t('admin.invite.whatWillTheyDo')} />
       {/* Something other than the usual roles: make one here (demo ADR-039, amended 2026-10-08), first and set apart (design principle 12). */}
       {ctx.session.can('manage_roles') && TO_ROLE_EDITOR.some((from) => edgeFor(from, 'role_editor')) ? (
-        <DashedRow icon="plus" label={t('admin.invite.newRole')} onPress={() => ctx.go('role_editor', { roleId: 'new' })} />
+        <DashedRow icon="plus" label={t('admin.invite.newRole')} detail={t('admin.invite.newRoleHelp')} onPress={() => ctx.go('role_editor', { roleId: 'new' })} />
       ) : null}
-      <Choices items={props.roles.map((r) => ({ id: r.id, label: r.name, sub: r.sub }))} value={value.roleId}
+      <Choices items={props.roles.map((r) => ({ id: r.id, label: r.name, sub: r.sub, help: t('admin.invite.pickRoleHelp') }))} value={value.roleId}
         onChoose={(roleId) => props.onChange({ ...value, roleId })} empty={t('org.assign.noRoles')} />
       <SectionLabel label={t('org.assign.where')} />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
         {props.levels.map((l) => (
-          <Chip key={l} label={levelLabel(l)} on={value.level === l} onPress={() => {
+          <Chip key={l} label={levelLabel(l)} on={value.level === l} help={l === 'org' ? t('org.assign.orgHelp') : t('org.assign.languageLevelHelp')} onPress={() => {
             const languageId = l === 'language' ? value.languageId || defaultLanguage(languages, v.openId) : '';
             props.onChange({ ...value, level: l, languageId });
           }} />
@@ -866,7 +882,7 @@ function AssignmentForm(props: {
         <>
           <SectionLabel label={t('org.assign.language')} />
           <Text style={txt.xs}>{t('org.assign.languageHelp')}</Text>
-          <Choices items={languages.map((id) => ({ id, label: v.label(id) }))} value={value.languageId}
+          <Choices items={languages.map((id) => ({ id, label: v.label(id), help: t('org.assign.pickLanguageHelp') }))} value={value.languageId}
             onChoose={(languageId) => props.onChange({ ...value, languageId })} empty={t('org.assign.noLanguages')} />
         </>
       ) : null}
@@ -937,8 +953,8 @@ export function InviteMember(ctx: Ctx) {
         {...(ctx.session.can('manage_roles') ? { onNewRole: () => ctx.go('role_editor', { roleId: 'new' }) } : {})}
         disabled={scopes.length === 0 ? t('org.invite.cannot') : undefined}
         links={(roleId, s) => [
-          ...(roleId && s ? [{ label: t('org.invite.byEmail'), icon: 'send' as const, onPress: () => setEmail({ roleId, scope: s.scope }) }] : []),
-          { label: t('org.invite.byName'), icon: 'user' as const, onPress: () => ctx.go('invite_qr', params(roleId, s)) }
+          ...(roleId && s ? [{ label: t('org.invite.byEmail'), icon: 'send' as const, help: t('org.invite.byEmailHelp'), onPress: () => setEmail({ roleId, scope: s.scope }) }] : []),
+          { label: t('org.invite.byName'), icon: 'user' as const, help: t('org.invite.byNameHelp'), onPress: () => ctx.go('invite_qr', params(roleId, s)) }
         ]} />
       <Sheet visible={!!email} title={t('org.invite.emailTitle')} sub={email ? `${roleName(ctx, email.roleId)} · ${email.scope.level === 'org' ? v.orgName : v.label(email.scope.languageId)}` : undefined}
         onClose={() => setEmail(null)}
@@ -1012,22 +1028,23 @@ function JoinRequest(ctx: Ctx) {
       footer={allowed ? (
         <>
           <PrimaryBtn label={t('org.join.letIn', { name: first })} icon="check" busy={busy} disabled={!roleId || !scope} onPress={() => void decide(true)} />
-          <QuietLinks items={[{ label: t('org.join.sayNo'), icon: 'close', onPress: () => void decide(false) }]} />
+          <QuietLinks items={[{ label: t('org.join.sayNo'), icon: 'close', help: t('org.join.sayNoHelp'), onPress: () => void decide(false) }]} />
         </>
       ) : undefined}>
       {message ? <Text style={[txt.sm, { color: C.muted, paddingHorizontal: space.xs }]}>{t('org.join.message', { message })}</Text> : null}
       <SectionLabel label={t('admin.invite.whatWillTheyDo')} />
-      {ctx.session.can('manage_roles') ? <DashedRow icon="plus" label={t('admin.invite.newRole')} onPress={() => ctx.go('role_editor', { roleId: 'new' })} /> : null}
+      {ctx.session.can('manage_roles') ? <DashedRow icon="plus" label={t('admin.invite.newRole')} detail={t('admin.invite.newRoleHelp')} onPress={() => ctx.go('role_editor', { roleId: 'new' })} /> : null}
       {roles.choices.map((c) => (
-        <RadioRow key={c.id} icon={c.icon as IconName} label={c.label} on={choice === c.id} onPress={() => setChoice(c.id)} />
+        <RadioRow key={c.id} icon={c.icon as IconName} label={c.label} help={plainRoleHelp(c.id)} on={choice === c.id} onPress={() => setChoice(c.id)} />
       ))}
       {roles.others.length ? (others ? roles.others.map((r) => (
-        <RadioRow key={r.id} icon="star" label={r.name} on={choice === r.id} onPress={() => setChoice(r.id)} />
-      )) : <QuietLink icon="down" label={t('admin.invite.otherRoles', { total: formatNumber(roles.others.length) })} onPress={() => setOthers(true)} />) : null}
+        <RadioRow key={r.id} icon="star" label={r.name} help={t('admin.invite.pickRoleHelp')} on={choice === r.id} onPress={() => setChoice(r.id)} />
+      )) : <QuietLink icon="down" label={t('admin.invite.otherRoles', { total: formatNumber(roles.others.length) })} detail={t('admin.invite.otherRolesHelp')}
+        onPress={() => setOthers(true)} />) : null}
       <SectionLabel label={t('admin.invite.whichLanguage')} />
       <Pills>
-        {granted.map((id) => <Chip key={id} label={v.label(id)} on={where === id} onPress={() => setWhere(id)} />)}
-        {mayOrg ? <Chip label={granted.length ? t('org.invite.allOfThem') : v.orgName} on={where === 'org'} onPress={() => setWhere('org')} /> : null}
+        {granted.map((id) => <Chip key={id} label={v.label(id)} on={where === id} help={t('admin.invite.scopeLanguageHelp')} onPress={() => setWhere(id)} />)}
+        {mayOrg ? <Chip label={granted.length ? t('org.invite.allOfThem') : v.orgName} on={where === 'org'} help={t('admin.invite.scopeOrgHelp')} onPress={() => setWhere('org')} /> : null}
       </Pills>
       {!allowed ? <Banner icon="lock" title={t('common.viewOnly')} body={t('org.join.viewOnly')} /> : null}
       {error ? <Banner icon="flag" tone="amber" title={t('org.notSaved')} body={error} /> : null}
@@ -1135,7 +1152,7 @@ function MemberEditor(ctx: Ctx) {
       footer={allowed ? (
         <>
           <PrimaryBtn label={pending ? t('org.member.assignRole') : t('org.member.saveAssignment')} disabled={!ready} busy={busy} onPress={() => void save()} />
-          {pending ? <GhostBtn label={t('org.member.decline')} tone="red" onPress={() => void decline()} disabled={busy} /> : null}
+          {pending ? <GhostBtn label={t('org.member.decline')} tone="red" help={t('org.member.declineHelp')} onPress={() => void decline()} disabled={busy} /> : null}
         </>
       ) : undefined}>
       <Row leading={<Avatar id={memberId} name={requesterName} size={48} />} label={who} sub={pending ? t('admin.asked.toJoin') : v.target(entry!.scope)} />
@@ -1149,7 +1166,7 @@ function MemberEditor(ctx: Ctx) {
         // The demo has no Remove here; kept as a quiet link below the form,
         // away from Save, and it offers Undo.
         <LinkBtn label={entry!.scope.level === 'org' ? t('org.member.removeFromOrg') : t('org.member.removeFromLanguage')} color={TINT.redText}
-          onPress={() => { if (!busy) void remove(); }} style={{ alignSelf: 'center' }} />
+          help={t('org.member.removeHelp')} onPress={() => { if (!busy) void remove(); }} style={{ alignSelf: 'center' }} />
       ) : null}
     </Screen>
   );
@@ -1204,9 +1221,9 @@ function HelpSignIn(props: { memberId: string; who: string }) {
           </View>
           <View style={HELP_ROW}>
             <Text style={[txt.sm, { flex: 1 }]}>{t('org.signIn.lostSignOut')}</Text>
-            <Toggle on={lost} onToggle={() => setLost(!lost)} label={t('org.signIn.lost')} />
+            <Toggle on={lost} onToggle={() => setLost(!lost)} label={t('org.signIn.lost')} help={lost ? t('org.signIn.lostOnHelp') : t('org.signIn.lostOffHelp')} />
           </View>
-          <PrimaryBtn label={t('org.signIn.help')} icon="qr" busy={busy} disabled={busy} onPress={() => void make()} />
+          <PrimaryBtn label={t('org.signIn.help')} icon="qr" busy={busy} disabled={busy} help={t('org.signIn.showCodeHelp')} onPress={() => void make()} />
         </Card>
       )}
       {error ? <Banner icon="flag" tone="amber" title={t('org.noCode')} body={error} /> : null}
@@ -1272,8 +1289,8 @@ export function InviteQr(ctx: Ctx) {
     <Screen header={<Header title={t('org.qr.title')} sub={role ? role.name : t('org.qr.sub')}
       onBack={step === 1 && !invite ? () => setStep(0) : ctx.back} />}
       footer={step < 2
-        ? <PrimaryBtn label={t('org.continue')} disabled={!canAdvance} busy={busy} onPress={() => void next()} />
-        : <PrimaryBtn label={t('common.done')} icon="check" onPress={() => ctx.go('members_list', params)} />}>
+        ? <PrimaryBtn label={t('org.continue')} disabled={!canAdvance} busy={busy} help={step === 0 ? t('org.qr.toNameHelp') : t('org.qr.makeCodeHelp')} onPress={() => void next()} />
+        : <PrimaryBtn label={t('common.done')} icon="check" help={t('org.qr.doneHelp')} onPress={() => ctx.go('members_list', params)} />}>
       <View style={{ gap: space.xs }}>
         <Segments total={QR_STEP_COUNT} current={step} done={(i) => i < step} />
         <Text style={[txt.xs, { textAlign: 'center' }]}>
@@ -1286,9 +1303,9 @@ export function InviteQr(ctx: Ctx) {
           {/* A new invite for someone already on the team makes a second account (decisions.md 59). */}
           <Banner icon="lock" title={t('org.qr.alreadyTitle')} body={t('org.qr.alreadyBody')} />
           {ctx.session.can('manage_roles') ? (
-            <DashedRow icon="plus" label={t('org.qr.createRole')} onPress={() => ctx.go('role_editor', { roleId: 'new' })} />
+            <DashedRow icon="plus" label={t('org.qr.createRole')} detail={t('admin.invite.newRoleHelp')} onPress={() => ctx.go('role_editor', { roleId: 'new' })} />
           ) : null}
-          <Choices items={roles.map((r) => ({ id: r.id, label: r.name, sub: t('org.qr.privileges', { count: r.privileges }) }))} value={roleId} onChoose={setRoleId}
+          <Choices items={roles.map((r) => ({ id: r.id, label: r.name, sub: t('org.qr.privileges', { count: r.privileges }), help: t('admin.invite.pickRoleHelp') }))} value={roleId} onChoose={setRoleId}
             empty={t('org.qr.noRoles')} />
         </>
       ) : null}
@@ -1300,7 +1317,8 @@ export function InviteQr(ctx: Ctx) {
           ]} value={audience} onChoose={(id) => setAudience(id as 'one' | 'group')} />
           <Text style={txt.xs}>{audience === 'one' ? t('org.qr.nameHelpOne') : t('org.qr.nameHelpGroup')}</Text>
           <Field label={audience === 'one' ? t('org.qr.nameLabel') : t('org.qr.groupNameLabel')} value={name} onChangeText={setName}
-            placeholder={audience === 'one' ? t('org.qr.namePlaceholder') : t('org.qr.groupNamePlaceholder')} autoCapitalize="words" />
+            placeholder={audience === 'one' ? t('org.qr.namePlaceholder') : t('org.qr.groupNamePlaceholder')} autoCapitalize="words"
+            help={audience === 'one' ? t('org.qr.nameFieldHelp') : t('org.qr.groupNameFieldHelp')} />
         </>
       ) : null}
       {step === 2 && invite && role ? (
@@ -1320,7 +1338,7 @@ export function InviteQr(ctx: Ctx) {
             <Text style={txt.xs}>{audience === 'group'
               ? t('org.qr.shownOnceGroup', { count: GROUP_USES, date: formatDayYear(invite.expiresAt) })
               : t('org.qr.shownOnceOne', { date: formatDayYear(invite.expiresAt) })}</Text>
-            <SmallBtn label={t('org.qr.share')} icon="share" onPress={() => void shareText(uri).then((r) => {
+            <SmallBtn label={t('org.qr.share')} icon="share" help={t('org.qr.shareHelp')} onPress={() => void shareText(uri).then((r) => {
               if (r === 'copied') ctx.toast(t('admin.invite.linkCopied'));
               else if (r === 'failed') ctx.toast(t('org.qr.couldNotShare'));
             })} />
@@ -1525,7 +1543,7 @@ export function NewLanguage(ctx: Ctx) {
       </View>
     </View>
   );
-  const back = step > 1 && step < 5 ? <QuietLinks items={[{ label: t('common.back'), icon: 'arrowL', onPress: () => setStep(step - 1) }]} /> : null;
+  const back = step > 1 && step < 5 ? <QuietLinks items={[{ label: t('common.back'), icon: 'arrowL', help: t('org.newLanguage.backHelp'), onPress: () => setStep(step - 1) }]} /> : null;
   const bodyStyle = { paddingHorizontal: 20, gap: 14 } as const;
 
   if (step === 5 && created) return <NewLanguageInvite ctx={ctx} languages={created.languages} cluster={created.cluster} />;
@@ -1534,7 +1552,8 @@ export function NewLanguage(ctx: Ctx) {
   if (step === 4 && !making) {
     return (
       <Screen header={header} bodyStyle={bodyStyle}
-        footer={<><PrimaryBtn label={t('org.continue')} icon="right" busy={busy} disabled={!checks || !tq.ready || !ready1} onPress={() => void create()} />{back}</>}>
+        footer={<><PrimaryBtn label={t('org.continue')} icon="right" busy={busy} disabled={!checks || !tq.ready || !ready1}
+          help={many ? t('clusters.newLanguage.addHelp', { cluster: title }) : t('org.newLanguage.addHelp', { language: title })} onPress={() => void create()} />{back}</>}>
         <ReferenceLanguagePage team={title} choices={refs.choices} value={reads} first={startingLanguage(refs.choices, reader)} onChange={setReadsPicked} loading={refs.loading}>
           {offers.names.length ? (
             <AmberNote icon="layers">
@@ -1567,7 +1586,7 @@ export function NewLanguage(ctx: Ctx) {
       <Screen header={header} bodyStyle={bodyStyle}
         footer={onlyExisting
           ? <PrimaryBtn label={t('clusters.newLanguage.make')} icon="layers" busy={busy} disabled={!clusterTitle.trim()} onPress={() => void groupOnly()} />
-          : <PrimaryBtn label={t('org.continue')} icon="right" disabled={!ready1} onPress={() => setStep(2)} />}>
+          : <PrimaryBtn label={t('org.continue')} icon="right" disabled={!ready1} help={t('org.newLanguage.continueHelp')} onPress={() => setStep(2)} />}>
         {mayGroup ? (
           <>
             {/* One language, or a cluster of several (decision 108): asked first, with one language picked. */}
@@ -1589,22 +1608,25 @@ export function NewLanguage(ctx: Ctx) {
               <Group>
                 {batch.map((l) => (
                   <Row key={l.key} icon="globe" label={l.name} sub={l.code ? t('clusters.newLanguage.newWithCode', { code: l.code }) : t('clusters.newLanguage.new')}
-                    right={<SmallBtn label={t('clusters.newLanguage.takeOut')} icon="close" tone="plain" onPress={() => setBatch((cur) => cur.filter((x) => x.key !== l.key))} />} />
+                    right={<SmallBtn label={t('clusters.newLanguage.takeOut')} icon="close" tone="plain" help={t('clusters.newLanguage.takeOutHelp')}
+                      onPress={() => setBatch((cur) => cur.filter((x) => x.key !== l.key))} />} />
                 ))}
                 {[...existing].map((id) => (
                   <Row key={id} icon="globe" label={languageName(ctx.org.state, id)} sub={t('clusters.newLanguage.already', { org: orgName })}
-                    right={<SmallBtn label={t('clusters.newLanguage.takeOut')} icon="close" tone="plain" onPress={() => setExisting((cur) => { const next = new Set(cur); next.delete(id); return next; })} />} />
+                    right={<SmallBtn label={t('clusters.newLanguage.takeOut')} icon="close" tone="plain" help={t('clusters.newLanguage.takeOutHelp')}
+                      onPress={() => setExisting((cur) => { const next = new Set(cur); next.delete(id); return next; })} />} />
                 ))}
               </Group>
             ) : null}
-            <Field label={t('clusters.newLanguage.addOne')} value={name} onChangeText={setName} placeholder={t('org.newLanguage.namePlaceholder')} autoCapitalize="words" />
+            <Field label={t('clusters.newLanguage.addOne')} value={name} onChangeText={setName} placeholder={t('org.newLanguage.namePlaceholder')} autoCapitalize="words"
+              help={t('org.newLanguage.nameHelp')} />
             <LanguoidPicker search={search} picked={null}
               onPick={(h) => { if (h) { setBatch((cur) => [...cur, { key: h.id, name: h.name, code: h.code, languoidId: h.id }]); setName(''); } }}
               unlisted={t('clusters.newLanguage.unlisted')} unreachable={t('org.newLanguage.unreachable')} />
             {name.trim() && (search.status === 'none' || search.status === 'unreachable') ? (
               <>
                 <Field label={t('org.newLanguage.codeLabel')} value={code} onChangeText={setCode} placeholder={t('org.newLanguage.codePlaceholder')} autoCapitalize="none" />
-                <QuietLink icon="plus" label={t('clusters.newLanguage.addTyped', { name: name.trim() })} onPress={addTyped} />
+                <QuietLink icon="plus" label={t('clusters.newLanguage.addTyped', { name: name.trim() })} detail={t('clusters.newLanguage.addTypedHelp')} onPress={addTyped} />
               </>
             ) : null}
             {orgLangs.some((id) => !existing.has(id)) ? (
@@ -1612,7 +1634,8 @@ export function NewLanguage(ctx: Ctx) {
                 <SectionLabel label={t('clusters.add.alreadyIn', { org: orgName })} />
                 <Pills>
                   {orgLangs.filter((id) => !existing.has(id)).map((id) => (
-                    <Chip key={id} label={languageName(ctx.org.state, id)} on={false} icon="plus" onPress={() => setExisting((cur) => new Set(cur).add(id))} />
+                    <Chip key={id} label={languageName(ctx.org.state, id)} on={false} icon="plus" help={t('clusters.newLanguage.addExistingHelp')}
+                      onPress={() => setExisting((cur) => new Set(cur).add(id))} />
                   ))}
                 </Pills>
               </>
@@ -1624,7 +1647,8 @@ export function NewLanguage(ctx: Ctx) {
         ) : (
           <>
             {mayGroup ? <Question>{t('org.newLanguage.called')}</Question> : null}
-            <Field label={t('org.itsName')} value={name} onChangeText={setName} placeholder={t('org.newLanguage.namePlaceholder')} autoCapitalize="words" />
+            <Field label={t('org.itsName')} value={name} onChangeText={setName} placeholder={t('org.newLanguage.namePlaceholder')} autoCapitalize="words"
+              help={t('org.newLanguage.nameHelp')} />
             <LanguoidPicker search={search} picked={picked} onPick={(h) => { setPicked(h); if (h) setName(h.name); }}
               unlisted={t('org.newLanguage.unlisted')} unreachable={t('org.newLanguage.unreachable')} />
             {picked ? null : <Field label={t('org.newLanguage.codeLabel')} value={code} onChangeText={setCode} placeholder={t('org.newLanguage.codePlaceholder')} autoCapitalize="none" />}
@@ -1633,12 +1657,13 @@ export function NewLanguage(ctx: Ctx) {
                 {/* Which cluster it joins, if any: made right here when it is new (decision 108). */}
                 <SectionLabel label={t('clusters.newLanguage.inCluster')} />
                 <Pills>
-                  <Chip label={t('clusters.newLanguage.no')} on={joins === null} onPress={() => setJoins(null)} />
-                  {clusters.map((c) => <Chip key={c.clusterId} label={c.name} icon="layers" on={joins === c.clusterId} onPress={() => setJoins(c.clusterId)} />)}
+                  <Chip label={t('clusters.newLanguage.no')} on={joins === null} help={t('clusters.newLanguage.noHelp')} onPress={() => setJoins(null)} />
+                  {clusters.map((c) => <Chip key={c.clusterId} label={c.name} icon="layers" on={joins === c.clusterId} help={t('clusters.newLanguage.joinHelp')}
+                    onPress={() => setJoins(c.clusterId)} />)}
                   {fromCluster && !clusters.some((c) => c.clusterId === fromCluster) && clusterName(ctx.org.state, fromCluster) ? (
-                    <Chip label={clusterName(ctx.org.state, fromCluster)!} icon="layers" on={joins === fromCluster} onPress={() => setJoins(fromCluster)} />
+                    <Chip label={clusterName(ctx.org.state, fromCluster)!} icon="layers" on={joins === fromCluster} help={t('clusters.newLanguage.joinHelp')} onPress={() => setJoins(fromCluster)} />
                   ) : null}
-                  <Chip label={t('clusters.newLanguage.newCluster')} icon="plus" on={joins === NEW_CLUSTER} onPress={() => setJoins(NEW_CLUSTER)} />
+                  <Chip label={t('clusters.newLanguage.newCluster')} icon="plus" on={joins === NEW_CLUSTER} help={t('clusters.newLanguage.newClusterHelp')} onPress={() => setJoins(NEW_CLUSTER)} />
                 </Pills>
                 {joins === NEW_CLUSTER ? <Field label={t('clusters.newLanguage.clusterName')} value={newCluster} onChangeText={setNewCluster}
                   placeholder={t('clusters.newLanguage.clusterPlaceholder')} autoCapitalize="words" /> : null}
@@ -1660,8 +1685,9 @@ export function NewLanguage(ctx: Ctx) {
     return (
       <Screen header={header} bodyStyle={bodyStyle}
         footer={<>
-          {tq.showContinue ? <PrimaryBtn label={t('org.continue')} icon="right" disabled={tq.last ? !tq.ready : !tq.canContinue} onPress={() => { if (!tq.advance()) setStep(3); }} /> : null}
-          <QuietLinks items={[{ label: t('common.back'), icon: 'arrowL', onPress: () => { if (!tq.retreat()) setStep(1); } }]} />
+          {tq.showContinue ? <PrimaryBtn label={t('org.continue')} icon="right" disabled={tq.last ? !tq.ready : !tq.canContinue} help={t('org.newLanguage.continueHelp')}
+            onPress={() => { if (!tq.advance()) setStep(3); }} /> : null}
+          <QuietLinks items={[{ label: t('common.back'), icon: 'arrowL', help: t('org.newLanguage.backHelp'), onPress: () => { if (!tq.retreat()) setStep(1); } }]} />
         </>}>
         <TranslateQuestion ctx={ctx} t={tq} lang={title} canMake={ctx.session.can('manage_templates')} onMake={() => ctx.go('template_editor', { new: '1', kind: 'outline' })} />
         {doc?.bible && tq.page === 'ways' ? (
@@ -1669,7 +1695,8 @@ export function NewLanguage(ctx: Ctx) {
             <SectionLabel label={t('getReady.record.whichPart')} />
             <Pills>
               {/* Choose books starts from the part picked before (the New Testament, say), to change (design principle 12). */}
-              {LANGUAGE_SCOPES.map((sc) => <Chip key={sc} label={languageScopeLabel(sc)} on={scope === sc} onPress={() => {
+              {LANGUAGE_SCOPES.map((sc) => <Chip key={sc} label={languageScopeLabel(sc)} on={scope === sc}
+                help={sc === 'custom' ? t('getReady.record.chooseBooksHelp') : t('getReady.record.partHelp')} onPress={() => {
                 if (sc === 'custom' && scope !== 'custom' && chosenBooks.size === 0) setChosenBooks(new Set(booksInScope(doc, scope) ?? templateBooks(doc).map((b) => b.book)));
                 setScope(sc);
               }} />)}
@@ -1677,7 +1704,7 @@ export function NewLanguage(ctx: Ctx) {
             {scope === 'custom' ? (
               <Pills>
                 {templateBooks(doc).map((b) => (
-                  <Chip key={b.book} label={b.name || b.book} on={chosenBooks.has(b.book)}
+                  <Chip key={b.book} label={b.name || b.book} on={chosenBooks.has(b.book)} help={chosenBooks.has(b.book) ? t('getReady.record.bookOnHelp') : t('getReady.record.bookOffHelp')}
                     onPress={() => setChosenBooks((cur) => { const next = new Set(cur); if (next.has(b.book)) next.delete(b.book); else next.add(b.book); return next; })} />
                 ))}
               </Pills>
@@ -1717,7 +1744,7 @@ export function NewLanguage(ctx: Ctx) {
     // A long description would push the rest off the screen: then its number of checks says enough.
     const sub = e === chk.first ? t('org.newLanguage.suggested', { from }) : e.doc.description && e.doc.description.length <= 60 ? e.doc.description : `${flowSub(e.doc.steps)} · ${from}`;
     return (
-      <ChoiceCard key={e.c.key} on={on} icon="route" title={e.c.name} sub={sub} onPress={() => setFlowKey(e.c.key)}>
+      <ChoiceCard key={e.c.key} on={on} icon="route" title={e.c.name} sub={sub} help={t('getReady.checks.wayHelp')} onPress={() => setFlowKey(e.c.key)}>
         {on && e.doc.steps.length ? <NumberedSteps items={e.doc.steps.map((st) => ({ label: stepTitle(st.kindIds, chk.kindsOf(e.doc)), lock: !!st.checkpoint }))} /> : null}
       </ChoiceCard>
     );
@@ -1726,25 +1753,26 @@ export function NewLanguage(ctx: Ctx) {
     <Screen header={header} bodyStyle={bodyStyle}
       footer={<>
         {choosing && !draft ? <PrimaryBtn label={t('getReady.checks.chooseSteps')} icon="right" onPress={chooseSteps} />
-          : <PrimaryBtn label={t('org.continue')} icon="right" disabled={!checks || !tq.ready || !ready1} onPress={() => setStep(4)} />}
+          : <PrimaryBtn label={t('org.continue')} icon="right" disabled={!checks || !tq.ready || !ready1} help={t('org.newLanguage.continueHelp')} onPress={() => setStep(4)} />}
         {back}
       </>}>
       <Question>{t('org.newLanguage.howChecked')}</Question>
       {many ? <Text style={[txt.sm, { color: C.muted }]}>{t('clusters.newLanguage.forNew', { count: batch.length, cluster: title })}</Text> : null}
       {/* Making your own comes first, set apart, so the ready-made list below can grow (design principle 12). */}
       {ctx.session.can('manage_flows') && chk.loaded ? (
-        <ChoiceCard own on={choosing} icon="edit" title={t('getReady.checks.illChoose')} onPress={() => setFlowKey(CHOOSE_STEPS)}>
+        <ChoiceCard own on={choosing} icon="edit" title={t('getReady.checks.illChoose')} help={t('getReady.checks.illChooseHelp')} onPress={() => setFlowKey(CHOOSE_STEPS)}>
           {choosing && draft ? (
             <>
               <NumberedSteps items={stepsOf(draft.rows).map((st) => ({ label: stepTitle(st.kindIds, draft.kinds), lock: st.checkpoint }))} />
-              <QuietLink icon="edit" label={t('checks.change')} onPress={chooseSteps} />
+              <QuietLink icon="edit" label={t('checks.change')} detail={t('org.newLanguage.changeChecksHelp')} onPress={chooseSteps} />
             </>
           ) : null}
         </ChoiceCard>
       ) : null}
       {[...chk.main, ...spoken].map(flowCard)}
       {rest.length ? (moreFlows ? rest.map(flowCard)
-        : <QuietLink icon="down" label={t('getReady.checks.otherWaysCount', { total: formatNumber(rest.length) })} onPress={() => setMoreFlows(true)} />) : null}
+        : <QuietLink icon="down" label={t('getReady.checks.otherWaysCount', { total: formatNumber(rest.length) })} detail={t('getReady.checks.otherWaysHelp')}
+          onPress={() => setMoreFlows(true)} />) : null}
       {chk.entries.length === 0 ? <Text style={txt.smMuted}>{chk.loaded ? t('org.newLanguage.noWays') : t('common.loading')}</Text> : null}
     </Screen>
   );
@@ -1837,7 +1865,7 @@ function NewLanguageInvite(props: { ctx: Ctx; languages: { languageId: string; n
       header={(shown, back) => <Header title={t('org.invite.title')} sub={names} onBack={shown ? back : ctx.back} />}
       label={(scope) => t('admin.invite.teamLabel', { name: scope.label })} onDone={ctx.back}
       disabled={may ? undefined : t('org.newLanguage.inviteLater', { language: names })}
-      links={() => [{ label: t('org.newLanguage.later'), icon: 'clock', onPress: ctx.back }]}
+      links={() => [{ label: t('org.newLanguage.later'), icon: 'clock', help: t('org.newLanguage.laterHelp'), onPress: ctx.back }]}
       {...(ctx.session.can('manage_roles') ? { onNewRole: () => ctx.go('role_editor', { roleId: 'new' }) } : {})} />
   );
 }

@@ -231,7 +231,7 @@ export function StepNav(props: { index: number; count: number; title: string; on
   const last = props.index >= props.count - 1;
   return (
     <View style={styles.stepNav}>
-      <RoundBtn icon="arrowL" label={t('recording.steps.previous')} onPress={props.onPrev} disabled={first} />
+      <RoundBtn icon="arrowL" label={t('recording.steps.previous')} hint={t('recording.steps.previousHelp')} onPress={props.onPrev} disabled={first} />
       <Pressable onPress={list.onPress} accessibilityRole="button" accessibilityLabel={t('recording.steps.navLabel', { n: formatNumber(props.index + 1), total: formatNumber(props.count), title: props.title })}
         style={({ pressed }) => [styles.stepBox, pressed && styles.pressed]}>
         <Text style={styles.stepCount}>{t('recording.steps.count', { n: formatNumber(props.index + 1), total: formatNumber(props.count) })}</Text>
@@ -239,7 +239,7 @@ export function StepNav(props: { index: number; count: number; title: string; on
         <Ico name="down" size={20} color={C.muted} />
         <HelpBadge spot={list} />
       </Pressable>
-      <RoundBtn icon="right" label={t('recording.steps.next')} onPress={props.onNext} disabled={last} tone="brand" />
+      <RoundBtn icon="right" label={t('recording.steps.next')} hint={t('recording.steps.nextHelp')} onPress={props.onNext} disabled={last} tone="brand" />
     </View>
   );
 }
@@ -269,7 +269,8 @@ export function StepsSheet(props: { title: string; sub?: string; steps: StepList
 }
 
 function StepRow(props: { n: number; title: string; state: 'done' | 'now' | 'later'; onPress: () => void }) {
-  const spot = useHelpSpot(props.title, t('recording.steps.openHelp'), props.onPress);
+  // The mark beside the title (a green tick when done, the number filled when open now) is said in its line.
+  const spot = useHelpSpot(props.title, t(props.state === 'done' ? 'recording.steps.openDoneHelp' : props.state === 'now' ? 'recording.steps.openNowHelp' : 'recording.steps.openHelp'), props.onPress);
   const now = props.state === 'now';
   return (
     <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ selected: now }}
@@ -288,11 +289,12 @@ function StepRow(props: { n: number; title: string; state: 'done' | 'now' | 'lat
 // ---- the recorder ---------------------------------------------------------------------------
 
 /** The big red record button with its pale halo (ADR-028): a stop square while recording. */
-export function RecordBtn(props: { size?: number; recording: boolean; onPress: () => void; disabled?: boolean }) {
+export function RecordBtn(props: { size?: number; recording: boolean; onPress: () => void; disabled?: boolean;
+  /** What help mode says it does, where it is not a recording's parts (microphone setup). */ help?: string }) {
   const size = props.size ?? 72;
   const halo = Math.round(size * 0.14);
   const spot = useHelpSpot(props.recording ? t('common.stopRecording') : t('common.record'),
-    props.recording ? t('recording.recordButton.stopHelp') : t('recording.recordButton.recordHelp'), props.onPress);
+    props.help ?? (props.recording ? t('recording.recordButton.stopHelp') : t('recording.recordButton.recordHelp')), props.onPress);
   const off = props.disabled && !props.recording;
   return (
     <View style={{ padding: halo, borderRadius: (size + halo * 2) / 2, backgroundColor: withAlpha(C.red, off ? 0.06 : 0.14) }}>

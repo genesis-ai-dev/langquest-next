@@ -148,7 +148,7 @@ export function PlayChip(props: { ctx: Ctx; clip: VoiceAnswer; label: string; to
 
 /** A small outlined button under a clip: "Record again". */
 export function AgainBtn(props: { label: string; icon?: IconName; onPress: () => void }) {
-  const spot = useHelpSpot(props.label, undefined, props.onPress);
+  const spot = useHelpSpot(props.label, t('review.voice.againHelp'), props.onPress);
   return (
     <Pressable onPress={spot.onPress} accessibilityRole="button" style={({ pressed }) => [styles.again, pressed && styles.pressed]}>
       <Ico name={props.icon ?? 'restart'} size={20} color={C.dark} />
@@ -166,8 +166,9 @@ export function AgainBtn(props: { label: string; icon?: IconName; onPress: () =>
  * and the label is dark (Ryder's "Record a listener retelling"). `right` is
  * the word at its end, usually "optional" (review.shared.optional) or "Change".
  */
-export function DashedRow(props: { icon: IconName; label: string; sub?: string; right?: string; onPress: () => void; tile?: boolean; done?: boolean; trailing?: ReactNode }) {
-  const spot = useHelpSpot(props.label, props.sub ?? (props.right === t('review.shared.optional') ? t('review.voice.optionalHelp') : undefined), props.onPress);
+export function DashedRow(props: { icon: IconName; label: string; sub?: string; right?: string; onPress: () => void; tile?: boolean; done?: boolean; trailing?: ReactNode;
+  /** What help mode says tapping it does, where `sub` (its line otherwise) is what was given rather than that. */ help?: string }) {
+  const spot = useHelpSpot(props.label, props.help ?? props.sub ?? (props.right === t('review.shared.optional') ? t('review.voice.optionalHelp') : undefined), props.onPress);
   return (
     <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={[props.label, props.sub, props.right].filter(Boolean).join(', ')}
       style={({ pressed }) => [styles.dashed, props.done && styles.dashedDone, pressed && styles.pressed]}>

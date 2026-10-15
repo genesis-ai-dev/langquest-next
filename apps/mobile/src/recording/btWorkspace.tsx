@@ -14,7 +14,7 @@
 // `published=bt:<time>`, where the next check is asked (demo ADR-034).
 import { commands, DEFAULT_KINDS, type EventSpec, type KindDef, type Version } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { AudioClip } from '../audio/audioClip';
@@ -28,7 +28,7 @@ import { HelpBadge, HelpClip } from '../helpMode/helpBadge';
 import { currentLocale, t } from '../i18n';
 import { formatClock, formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
-import { Banner, Field, Header, Ico, IconBtn, PrimaryBtn, Screen, Sheet } from '../ui/kit';
+import { Banner, Field, Header, Ico, IconBtn, PrimaryBtn, Screen, Sheet, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { useLayout } from '../ui/useLayout';
 import { passageCrumbs, type PassageView } from '../passage/passageView';
@@ -188,12 +188,8 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
       <SplitPane memoryKey="back_translation" minBottom={session ? MIN_BOTTOM_RECORDING : MIN_BOTTOM}
         topStyle={styles.topPane} bottomStyle={styles.bottomPane}
         top={({ compact, open }) => compact ? (
-          <Pressable onPress={open} accessibilityRole="button" style={({ pressed }) => [styles.bar, pressed && { opacity: 0.7 }]}
-            accessibilityLabel={partN ? t('backTranslation.openPart', { language: v.language, n: of.n, part: partN }) : t('backTranslation.openVersion', { language: v.language, n: of.n })}>
-            <Ico name="listen" size={18} color={C.primary} />
-            <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]} numberOfLines={1}>{playerTitle}</Text>
-            <Text style={[txt.xsStrong, { color: C.primary }]}>{t('backTranslation.open')}</Text>
-          </Pressable>
+          <PaneBar icon="listen" oneLine onPress={open} text={playerTitle} help={t('backTranslation.openVersionHelp')}
+            label={partN ? t('backTranslation.openPart', { language: v.language, n: of.n, part: partN }) : t('backTranslation.openVersion', { language: v.language, n: of.n })} />
         ) : (
           <HelpClip style={{ flex: 1 }}>
             <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.paneBody}
@@ -216,11 +212,8 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
           </HelpClip>
         )}
         bottom={({ compact, open }) => session ? <VadPanel rec={rec} phase={loop.phase} count={part?.cards.length ?? 0} noun="piece" onResume={loop.resumeNow} /> : compact ? (
-          <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={t('backTranslation.openYour', { what: produces.what })} style={({ pressed }) => [styles.bar, pressed && { opacity: 0.7 }]}>
-            <Ico name="mic" size={18} color={C.primary} />
-            <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]}>{partLabel} · {saidLine(parts)}</Text>
-            <Text style={[txt.xsStrong, { color: C.primary }]}>{t('backTranslation.open')}</Text>
-          </Pressable>
+          <PaneBar icon="mic" onPress={open} text={<>{partLabel} · {saidLine(parts)}</>} label={t('backTranslation.openYour', { what: produces.what })}
+            help={t('backTranslation.openPartsHelp')} />
         ) : (
           <HelpClip style={{ flex: 1 }}>
             <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.paneBody} accessibilityLabel={t('backTranslation.yourWhat', { what: produces.what, said: saidLine(parts) })}>
@@ -289,10 +282,23 @@ function PartCard(props: { ctx: Ctx; part: BackPart; verse: string | null; into:
         <View style={styles.partActions}>
           <AudioClip language={props.ctx.language} hashes={part.cards.map((c) => c.hash)} label={t('backTranslation.playYourPart', { n })} disabled={props.disabled} />
           <Text style={[txt.sm, { flex: 1 }]}>{t('backTranslation.hearWhatYouSaid')}</Text>
-          <IconBtn name="trash" label={t('backTranslation.deletePart', { n })} bg="transparent" color={C.muted} disabled={props.disabled} onPress={props.onDelete} />
+          <IconBtn name="trash" label={t('backTranslation.deletePart', { n })} help={t('backTranslation.deletePartHelp')} bg="transparent" color={C.muted} disabled={props.disabled} onPress={props.onDelete} />
         </View>
       ) : null}
     </View>
+  );
+}
+
+/** A pane at one line (an end of the divider): what it holds, and Open, which brings the split back to half. */
+function PaneBar(props: { icon: IconName; text: ReactNode; label: string; help: string; onPress: () => void; oneLine?: boolean }) {
+  const spot = useHelpSpot(props.label, props.help, props.onPress);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.label} style={({ pressed }) => [styles.bar, pressed && { opacity: 0.7 }]}>
+      <Ico name={props.icon} size={18} color={C.primary} />
+      <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]} {...(props.oneLine ? { numberOfLines: 1 } : {})}>{props.text}</Text>
+      <Text style={[txt.xsStrong, { color: C.primary }]}>{t('backTranslation.open')}</Text>
+      <HelpBadge spot={spot} />
+    </Pressable>
   );
 }
 

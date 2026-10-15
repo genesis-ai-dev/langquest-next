@@ -16,12 +16,12 @@ import { Text } from '../ui/text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AudioClip } from '../audio/audioClip';
 import type { Ctx } from '../shell/ctx';
-import { useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge, HelpClip } from '../helpMode/helpBadge';
+import { useHelpSpot, useHelpHost } from '../helpMode/useHelpMode';
+import { HelpBadge, HelpClip, HelpHost } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatClock, formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
-import { Badge, Chip, ChipRow, Field, GhostBtn, Group, Ico, IconBtn, LinkBtn, NoteCard, PrimaryBtn, Row, type IconName } from '../ui/kit';
+import { Badge, Chip, ChipRow, Field, GhostBtn, Group, HelpInfo, HelpToggle, Ico, IconBtn, LinkBtn, NoteCard, PrimaryBtn, Row, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { useLayout } from '../ui/useLayout';
 import type { PassageView } from '../passage/passageView';
@@ -81,12 +81,16 @@ export function QuestionDots(props: { count: number; at: number }) {
   if (props.count < 2) return null;
   // role "text" is no role on web, so the label would sit on a generic div, which forbids aria-label.
   // "image" becomes role=img, which may carry the spoken "Question N of M".
+  // Dots without words: while help is on they say what they count (help mode's rule 3).
+  const label = t('review.simple.questionOf', { index: props.at + 1, total: props.count });
   return (
-    <View style={styles.dots} accessible accessibilityRole="image" accessibilityLabel={t('review.simple.questionOf', { index: props.at + 1, total: props.count })}>
-      {Array.from({ length: props.count }, (_, i) => (
-        <View key={i} style={[styles.dot, i === props.at ? styles.dotNow : i < props.at ? { backgroundColor: withAlpha(C.primary, 0.45) } : null]} />
-      ))}
-    </View>
+    <HelpInfo label={label} detail={t('review.simple.dotsHelp')}>
+      <View style={styles.dots} accessible accessibilityRole="image" accessibilityLabel={label}>
+        {Array.from({ length: props.count }, (_, i) => (
+          <View key={i} style={[styles.dot, i === props.at ? styles.dotNow : i < props.at ? { backgroundColor: withAlpha(C.primary, 0.45) } : null]} />
+        ))}
+      </View>
+    </HelpInfo>
   );
 }
 
@@ -166,17 +170,17 @@ export function BackgroundSheet(props: {
 }) {
   const { ctx, v, data } = props;
   const [tab, setTab] = useState<Tab>('passage');
-  const chips: { id: Tab; label: string; count?: number }[] = [
-    { id: 'passage', label: t('review.simple.chips.passage') },
-    ...(data.study ? [{ id: 'guide' as const, label: t('review.simple.chips.guide') }] : []),
-    { id: 'notes', label: t('review.simple.chips.notes'), count: data.notes.length },
-    { id: 'terms', label: t('review.simple.chips.terms'), count: data.terms.length },
-    { id: 'earlier', label: t('review.simple.chips.earlier'), count: v.p.versions.length + data.earlier.length }
+  const chips: { id: Tab; label: string; help: string; count?: number }[] = [
+    { id: 'passage', label: t('review.simple.chips.passage'), help: t('review.simple.chips.passageHelp') },
+    ...(data.study ? [{ id: 'guide' as const, label: t('review.simple.chips.guide'), help: t('review.simple.chips.guideHelp') }] : []),
+    { id: 'notes', label: t('review.simple.chips.notes'), help: t('review.simple.chips.notesHelp'), count: data.notes.length },
+    { id: 'terms', label: t('review.simple.chips.terms'), help: t('review.simple.chips.termsHelp'), count: data.terms.length },
+    { id: 'earlier', label: t('review.simple.chips.earlier'), help: t('review.simple.chips.earlierHelp'), count: v.p.versions.length + data.earlier.length }
   ];
   return (
     <TallSheet title={t('review.parts.background')} onClose={props.onClose}>
       <ChipRow>
-        {chips.map((c) => <Chip key={c.id} label={c.label} {...(c.count !== undefined ? { count: c.count } : {})} on={tab === c.id} onPress={() => setTab(c.id)} />)}
+        {chips.map((c) => <Chip key={c.id} label={c.label} help={c.help} {...(c.count !== undefined ? { count: c.count } : {})} on={tab === c.id} onPress={() => setTab(c.id)} />)}
       </ChipRow>
       {tab === 'passage' ? (
         <BiblePassage ctx={ctx} v={v} takeId={props.takeId} translator={props.translator} translatorIsYou={props.translatorIsYou} usage={props.usage} onMoreBibles={props.onMoreBibles}
@@ -209,7 +213,7 @@ export function BackgroundSheet(props: {
               const rendering = term.renderings.at(-1)?.rendering;
               return (
                 <Row key={term.termId} icon="key" label={term.term} sub={rendering ? t('review.simple.theirWord', { word: rendering }) : t('review.simple.noWordYet')}
-                  last={i === data.terms.length - 1} onPress={() => props.onOpenTerm(term.termId)} />
+                  help={t('passage.version.termHelp')} last={i === data.terms.length - 1} onPress={() => props.onOpenTerm(term.termId)} />
               );
             })}
           </Group>
@@ -301,7 +305,7 @@ function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; transla
             {passage.options.map((o, i) => (
               <Row key={o.itemId} label={o.abbreviation} role="radio" selected={o.itemId === option?.itemId}
                 sub={o.itemId !== theirs ? o.name : props.translatorIsYou ? t('review.simple.youUsedIt', { bible: o.name }) : t('review.simple.nameUsedIt', { bible: o.name, name: props.translator })}
-                right={o.itemId === option?.itemId ? <Ico name="check" size={20} color={C.primary} /> : <View />}
+                right={o.itemId === option?.itemId ? <Ico name="check" size={20} color={C.primary} /> : <View />} help={t('review.simple.bibleRowHelp')}
                 onPress={() => { setChosen(o.itemId); usage.open(o.itemId); setPicking(false); }} />
             ))}
             <Row icon="plus" label={t('review.simple.moreBibles')} sub={t('review.simple.moreBiblesSub')} onPress={props.onMoreBibles} last />
@@ -309,12 +313,15 @@ function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; transla
         ) : null}
         {option ? (
           <>
-            <View style={styles.track} accessibilityRole="progressbar"
-              accessibilityValue={{ text: total ? t('review.simple.elapsedOf', { elapsed: formatClock(elapsed), total: formatClock(total) }) : formatClock(elapsed) }}>
-              <View style={styles.rail} />
-              <View style={[styles.fill, { width: `${share * 100}%` }]} />
-              <View style={[styles.thumb, { left: `${share * 100}%` }]} />
-            </View>
+            {/* A bar without words: while help is on it says what it shows (help mode's rule 3). */}
+            <HelpInfo label={t('review.simple.trackLabel')} detail={t('review.simple.trackHelp')}>
+              <View style={styles.track} accessibilityRole="progressbar"
+                accessibilityValue={{ text: total ? t('review.simple.elapsedOf', { elapsed: formatClock(elapsed), total: formatClock(total) }) : formatClock(elapsed) }}>
+                <View style={styles.rail} />
+                <View style={[styles.fill, { width: `${share * 100}%` }]} />
+                <View style={[styles.thumb, { left: `${share * 100}%` }]} />
+              </View>
+            </HelpInfo>
             <View style={styles.controls}>
               <Text style={[txt.xs, styles.time]}>{formatClock(elapsed)}</Text>
               <Pressable onPress={back.onPress} disabled={!player.started} accessibilityRole="button" accessibilityLabel={t('common.backTenSeconds')}
@@ -356,26 +363,20 @@ function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; transla
             const isPicked = picked === row.key && !player.playing;
             return (
               <View key={row.key} style={[styles.verse, notes.length ? styles.verseNoted : here ? styles.versePlaying : null, isPicked && styles.versePicked]}>
-                <Pressable onPress={() => {
-                  if (player.playFrom(row)) return;
-                  setPicked(isPicked ? null : row.key);
-                  if (notes.length) setOpenVerse(open ? null : row.key);
-                }} accessibilityState={{ selected: isPicked }}
-                  accessibilityHint={plan ? t('review.simple.playsFromVerse') : t('review.simple.picksVerse')}
-                  accessibilityRole="button"
+                <VerseTap verse={row.key} selected={isPicked} plays={!!plan}
                   accessibilityLabel={notes.length ? t('review.simple.verseWithNotes', { verse: row.key, text: row.text, count: notes.length }) : t('review.simple.verseA11y', { verse: row.key, text: row.text })}
-                  style={({ pressed }) => [pressed && styles.pressed]}>
+                  onPress={() => {
+                    if (player.playFrom(row)) return;
+                    setPicked(isPicked ? null : row.key);
+                    if (notes.length) setOpenVerse(open ? null : row.key);
+                  }}>
                   <Text style={styles.verseText}>
                     <Text style={styles.verseNum}>{row.key.split(':')[1] ?? row.key} </Text>{row.text}
                   </Text>
-                </Pressable>
+                </VerseTap>
                 {notes.length ? (
-                  <Pressable onPress={() => setOpenVerse(open ? null : row.key)} accessibilityRole="button" accessibilityState={{ expanded: open }}
-                    accessibilityLabel={open ? t('review.simple.hideNotes', { count: notes.length, verse: row.key }) : t('review.simple.showNotes', { count: notes.length, verse: row.key })}
-                    style={({ pressed }) => [styles.noteBy, pressed && styles.pressed]}>
-                    <Ico name="chat" size={16} color={TINT.amberText} />
-                    <Text style={[txt.sm, { fontWeight: '800', color: TINT.amberText }]}>{[...new Set(notes.map((n) => ctx.name(n.by).split(' ')[0]))].join(', ')}</Text>
-                  </Pressable>
+                  <NotesBy open={open} label={open ? t('review.simple.hideNotes', { count: notes.length, verse: row.key }) : t('review.simple.showNotes', { count: notes.length, verse: row.key })}
+                    names={[...new Set(notes.map((n) => ctx.name(n.by).split(' ')[0]))].join(', ')} onPress={() => setOpenVerse(open ? null : row.key)} />
                 ) : null}
                 {open ? notes.map((n) => (
                   <Authored key={n.id} ctx={ctx} by={n.by}>
@@ -395,6 +396,33 @@ function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; transla
         </View>
       ) : !passage.loading ? <Text style={[txt.smMuted, styles.empty]}>{t('review.simple.findUnderMore')}</Text> : null}
     </View>
+  );
+}
+
+/** A verse of the Bible: plays from it, or picks it for Note where audio can't jump there. */
+function VerseTap(props: { verse: string; selected: boolean; plays: boolean; accessibilityLabel: string; onPress: () => void; children: ReactNode }) {
+  const spot = useHelpSpot(t('review.capture.anchor.verse', { verse: props.verse }), props.plays ? t('review.simple.verseHelpPlay') : t('review.simple.verseHelpPick'), props.onPress);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityState={{ selected: props.selected }}
+      accessibilityHint={props.plays ? t('review.simple.playsFromVerse') : t('review.simple.picksVerse')}
+      accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
+      style={({ pressed }) => [pressed && styles.pressed]}>
+      {props.children}
+      <HelpBadge spot={spot} inset />
+    </Pressable>
+  );
+}
+
+/** Who left notes on a verse, in amber: shows or hides their notes. */
+function NotesBy(props: { open: boolean; label: string; names: string; onPress: () => void }) {
+  const spot = useHelpSpot(props.label, t('review.simple.notesByHelp', { names: props.names }), props.onPress);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ expanded: props.open }} accessibilityLabel={props.label}
+      style={({ pressed }) => [styles.noteBy, pressed && styles.pressed]}>
+      <Ico name="chat" size={16} color={TINT.amberText} />
+      <Text style={[txt.sm, { fontWeight: '800', color: TINT.amberText }]}>{props.names}</Text>
+      <HelpBadge spot={spot} />
+    </Pressable>
   );
 }
 
@@ -425,7 +453,7 @@ function VerseNote(props: { ctx: Ctx; v: PassageView; verse: string; at: string;
       <VoiceNote ctx={ctx} label={t('common.sayIt')} hash={hash} onChange={setHash} />
       <Field value={text} onChangeText={setText} placeholder={t('common.orTypeIt')} multiline />
       <View style={{ flexDirection: 'row', gap: space.sm }}>
-        <View style={{ flex: 1 }}><GhostBtn label={t('common.cancel')} onPress={props.onDone} /></View>
+        <View style={{ flex: 1 }}><GhostBtn label={t('common.cancel')} help={t('help.details.cancel')} onPress={props.onDone} /></View>
         <View style={{ flex: 1 }}><PrimaryBtn label={t('review.simple.saveNote')} busy={busy} disabled={!text.trim() && !hash} onPress={() => void save()} /></View>
       </View>
     </View>
@@ -446,7 +474,7 @@ export function MomentList(props: { ctx: Ctx; moments: { hash: string; durationM
             <Text style={[txt.body, { fontWeight: '700' }]}>{t('review.simple.yourNoteAt', { time: formatClock(m.atMs) })}</Text>
             <Text style={txt.xs}>{t('review.simple.goesWithReview', { length: formatClock(m.durationMs) })}</Text>
           </View>
-          <LinkBtn label={t('common.remove')} color={C.muted} accessibilityLabel={t('review.simple.removeNoteAt', { time: formatClock(m.atMs) })} onPress={() => props.onRemove(m.hash)} />
+          <LinkBtn label={t('common.remove')} color={C.muted} help={t('review.simple.removeNoteHelp')} accessibilityLabel={t('review.simple.removeNoteAt', { time: formatClock(m.atMs) })} onPress={() => props.onRemove(m.hash)} />
         </View>
       ))}
     </Group>
@@ -503,21 +531,26 @@ export function SkipBtn(props: { onPress: () => void }) {
 export function TallSheet(props: { title: string; onClose: () => void; children: ReactNode }) {
   const insets = useSafeAreaInsets();
   const wide = useLayout().kind !== 'phone';
+  const host = useHelpHost(true);
   return (
     <Modal visible transparent animationType={wide ? 'fade' : 'slide'} onRequestClose={props.onClose}>
+      <HelpHost id={host}>
       <View style={[{ flex: 1 }, wide && styles.dialogFrame]}>
+        {/* help-ignore: the darkened backdrop; tapping outside the sheet closes it, as everywhere */}
         <Pressable style={styles.backdrop} onPress={props.onClose} accessibilityLabel={t('common.close')} />
         <View style={wide ? styles.dialog : [styles.tall, { paddingBottom: Math.max(insets.bottom, space.md) }]}>
           {wide ? null : <View style={styles.grip} />}
           <View style={styles.tallHead}>
             <Text style={styles.tallTitle} accessibilityRole="header">{props.title}</Text>
-            <IconBtn name="close" label={t('common.close')} onPress={props.onClose} bg={C.bg} color={C.muted} />
+            <HelpToggle testID="sheet-help" />
+            <IconBtn name="close" label={t('common.close')} help={t('help.details.closeSheet')} onPress={props.onClose} bg={C.bg} color={C.muted} />
           </View>
           <HelpClip style={{ flex: 1 }}>
             <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.tallBody} keyboardShouldPersistTaps="handled">{props.children}</ScrollView>
           </HelpClip>
         </View>
       </View>
+      </HelpHost>
     </Modal>
   );
 }

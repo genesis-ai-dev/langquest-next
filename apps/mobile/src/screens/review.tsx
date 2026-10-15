@@ -360,7 +360,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           <SectionLabel label={t('checks.forCheck', { check })} />
           <Group>
             {helps.map((h, i) => (
-              <Row key={h.key} icon={h.icon} label={h.name} {...(h.sub ? { sub: h.sub } : {})} onPress={() => openHelp(h)} last={i === helps.length - 1} />
+              <Row key={h.key} icon={h.icon} label={h.name} {...(h.sub ? { sub: h.sub } : {})} help={helpRowHelp(h)} onPress={() => openHelp(h)} last={i === helps.length - 1} />
             ))}
           </Group>
         </>
@@ -368,10 +368,10 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       {context === null ? <WithheldNotice kind={kind} /> : (
         <Group>
           <Row leading={<Ico name="layers" size={28} color={C.primary} />} label={t('review.parts.background')} sub={backgroundLine(context, { id: version.by, name: translator, you: mine })}
-            onPress={() => setSheet('background')} last />
+            help={t('review.screen.backgroundHelp')} onPress={() => setSheet('background')} last />
         </Group>
       )}
-      <DashedRow icon="people" label={whoTitle}
+      <DashedRow icon="people" label={whoTitle} help={!logged ? t('review.screen.whoHelp') : group ? t('review.screen.howManyHelp') : t('review.screen.whoReviewedHelp')}
         {...(whoLine ? { sub: whoLine, done: true } : {})} right={whoLine ? t('review.shared.change') : t('review.shared.optional')} onPress={() => setSheet('who')} />
       {logged ? (
         <DashedRow icon="edit" label={t('review.screen.addDetails')}
@@ -380,7 +380,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
             latest && version.takeId === latest.takeId ? t('review.screen.versionLatest', { n: version.n }) : versionTitle(version.n),
             otherPassages && (also.length ? t('review.screen.morePassages', { count: also.length }) : t('review.screen.otherPassages')),
             !makes && (evidence ? t('review.screen.retellingRecorded') : t('review.screen.retelling'))
-          ])} onPress={() => setSheet('details')} />
+          ])} help={t('review.screen.addDetailsHelp')} onPress={() => setSheet('details')} />
       ) : null}
     </>
   );
@@ -394,7 +394,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
         {skipped[q.q.id] !== undefined ? (
           <View style={{ alignItems: 'center', gap: space.sm }}>
             <Text style={[txt.body, styles.center]}><Text style={{ fontWeight: '700' }}>{t('review.parts.leftUnanswered')}</Text> {skipped[q.q.id]}</Text>
-            <LinkBtn label={t('review.screen.answerIt')} onPress={() => setSkipped((s) => { const { [q.q.id]: _gone, ...rest } = s; return rest; })} />
+            <LinkBtn label={t('review.screen.answerIt')} help={t('review.screen.answerItHelp')} onPress={() => setSkipped((s) => { const { [q.q.id]: _gone, ...rest } = s; return rest; })} />
           </View>
         ) : q.q.type !== 'text' ? (
           <BigChoices type={q.q.type} value={answers[q.q.id]} onChange={(val) => setAnswers((a) => ({ ...a, [q.q.id]: val }))} />
@@ -413,7 +413,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
                 <Field value={answers[q.q.id] ?? ''} onChangeText={(val) => setAnswers((a) => ({ ...a, [q.q.id]: val }))} placeholder={t('review.screen.typeAnswer')} multiline />
               </View>
             ) : (
-              <LinkBtn label={t('common.orTypeIt')} style={{ alignSelf: 'center' }} onPress={() => setTyping((x) => ({ ...x, [q.q.id]: true }))} />
+              <LinkBtn label={t('common.orTypeIt')} help={t('review.screen.orTypeHelp')} style={{ alignSelf: 'center' }} onPress={() => setTyping((x) => ({ ...x, [q.q.id]: true }))} />
             )}
           </>
         )}
@@ -434,11 +434,11 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       {made.map((c, i) => (
         <View key={c.hash} style={styles.partRow}>
           <PlayChip ctx={ctx} clip={{ hash: c.hash, durationMs: c.durationMs, format: c.format ?? 'm4a' }} label={t('review.screen.part', { n: i + 1 })} tone="brand" />
-          <LinkBtn label={t('common.remove')} color={C.muted} accessibilityLabel={t('review.screen.removePart', { n: i + 1 })} onPress={() => setMade((m) => m.filter((x) => x.hash !== c.hash))} />
+          <LinkBtn label={t('common.remove')} color={C.muted} help={t('review.screen.removePartHelp')} accessibilityLabel={t('review.screen.removePart', { n: i + 1 })} onPress={() => setMade((m) => m.filter((x) => x.hash !== c.hash))} />
         </View>
       ))}
       <DashedRow icon="chatDots" label={t('review.screen.whatHappened')} sub={comment.trim() || (feedback ? t('review.screen.saidInVoiceNoteCap') : t('review.screen.whatWasHard'))}
-        right={comment.trim() || feedback ? t('review.shared.change') : t('review.shared.optional')}
+        right={comment.trim() || feedback ? t('review.shared.change') : t('review.shared.optional')} help={t('review.screen.whatHappenedHelp')}
         done={!!comment.trim() || !!feedback} onPress={() => setSheet('say')} />
     </>
   ) : (
@@ -448,14 +448,15 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
         <SpeakBtn text={verdictQuestion(kind.id)} size={52} />
       </View>
       {openAt >= 0 ? (
-        <LinkBtn label={t('review.capture.requiredLeft', { count: r.open })} style={{ alignSelf: 'center' }} onPress={() => goStage('questions')} />
+        <LinkBtn label={t('review.capture.requiredLeft', { count: r.open })} help={t('review.screen.requiredLeftHelp')} style={{ alignSelf: 'center' }} onPress={() => goStage('questions')} />
       ) : null}
       <DecideCard tone="green" label={t('review.screen.looksGood')} icon="check" busy={busy} disabled={openAt >= 0} onPress={() => void save('looks_good')} />
       <DecideCard tone="amber" label={t('review.screen.needsChanges')} icon="chat" disabled={openAt >= 0 || busy} onPress={() => setWhy(true)} />
       <DashedRow icon="chatDots" label={logged ? t('review.screen.whatHappened') : t('review.screen.saySomething')}
         sub={comment.trim() || (feedback ? t('review.screen.saidInVoiceNoteCap') : logged ? t('review.screen.whatPeopleUnderstood')
           : mine ? t('review.screen.onRecordWithAnswer') : t('review.screen.nameHearsWithAnswer', { name: translator }))}
-        right={comment.trim() || feedback ? t('review.shared.change') : t('review.shared.optional')} done={!!comment.trim() || !!feedback} onPress={() => setSheet('say')} />
+        right={comment.trim() || feedback ? t('review.shared.change') : t('review.shared.optional')} done={!!comment.trim() || !!feedback}
+        help={logged ? t('review.screen.whatHappenedHelp') : t('review.screen.saySomethingHelp')} onPress={() => setSheet('say')} />
       {logged && also.length > 0 ? <Text style={[txt.xsStrong, styles.center, { color: C.primary }]}>{t('review.screen.savesTo', { count: also.length + 1 })}</Text> : null}
     </Centre>
   );
@@ -481,15 +482,15 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
         ) : <BigMic label={t('review.screen.tapAndSpeak')} onClip={setFeedback} />}
         {typeFeedback || comment ? (
           <Field value={comment} onChangeText={setComment} placeholder={logged ? t('review.screen.typeWhatPeopleUnderstood') : t('review.screen.typeWhatWorked')} multiline testID="feedback-text" />
-        ) : <LinkBtn label={t('common.orTypeIt')} style={{ alignSelf: 'center' }} onPress={() => setTypeFeedback(true)} />}
+        ) : <LinkBtn label={t('common.orTypeIt')} help={t('review.screen.orTypeHelp')} style={{ alignSelf: 'center' }} onPress={() => setTypeFeedback(true)} />}
       </Centre>
       {evidence ? (
         <View style={styles.partRow}>
           <PlayChip ctx={ctx} clip={evidence} label={t('review.screen.listenerRetelling')} />
-          <LinkBtn label={t('common.remove')} color={C.muted} accessibilityLabel={t('review.screen.removeRetelling')} onPress={() => setEvidence(null)} />
+          <LinkBtn label={t('common.remove')} color={C.muted} help={t('review.screen.removeRetellingHelp')} accessibilityLabel={t('review.screen.removeRetelling')} onPress={() => setEvidence(null)} />
         </View>
       ) : (
-        <DashedRow tile icon="user" label={t('review.screen.recordListenerRetelling')} right={t('review.shared.optional')} onPress={() => setSheet('retell')} />
+        <DashedRow tile icon="user" label={t('review.screen.recordListenerRetelling')} right={t('review.shared.optional')} help={t('review.screen.retellingHelp')} onPress={() => setSheet('retell')} />
       )}
     </>
   );
@@ -521,24 +522,24 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       {sheet === 'who' ? (
         <Sheet visible title={whoTitle}
           sub={t('review.screen.whoSheetSub')} onClose={() => setSheet(null)}
-          footer={<PrimaryBtn label={t('common.done')} onPress={() => setSheet(null)} />}>
+          footer={<PrimaryBtn label={t('common.done')} help={t('review.screen.sheetDoneHelp')} onPress={() => setSheet(null)} />}>
           {logged && !group ? (
             <Field value={givenBy} onChangeText={setGivenBy} autoCapitalize="words" placeholder={makes ? t('review.screen.whoMadeIt') : t('review.screen.whoReviewedIt')} />
           ) : <PeopleCounter value={people} onChange={setPeople} />}
           {/* Already happened keeps where under Add details, with which version and other passages. */}
-          {logged ? null : <Field value={place} onChangeText={setPlace} placeholder={t('review.screen.wherePlaceholder')} />}
+          {logged ? null : <Field value={place} onChangeText={setPlace} placeholder={t('review.screen.wherePlaceholder')} help={t('review.screen.whereHelp')} />}
         </Sheet>
       ) : null}
 
       {sheet === 'details' ? (
         <Sheet visible title={t('review.screen.addDetails')} sub={t('review.screen.detailsSub')} onClose={() => setSheet(null)}
-          footer={<PrimaryBtn label={t('common.done')} onPress={() => setSheet(null)} />}>
-          <Field value={place} onChangeText={setPlace} placeholder={t('review.screen.wherePlaceholder')} />
+          footer={<PrimaryBtn label={t('common.done')} help={t('review.screen.sheetDoneHelp')} onPress={() => setSheet(null)} />}>
+          <Field value={place} onChangeText={setPlace} placeholder={t('review.screen.wherePlaceholder')} help={t('review.screen.whereHelp')} />
           {v.p.versions.length > 1 ? (
             <Block label={t('review.screen.whichVersion')}>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
                 {[...v.p.versions].reverse().map((x) => (
-                  <Chip key={x.takeId} label={versionTitle(x.n)} on={x.takeId === version.takeId} onPress={() => setTakeId(x.takeId)} />
+                  <Chip key={x.takeId} label={versionTitle(x.n)} on={x.takeId === version.takeId} help={t('review.screen.whichVersionHelp')} onPress={() => setTakeId(x.takeId)} />
                 ))}
               </View>
             </Block>
@@ -556,7 +557,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       {sheet === 'say' ? (
         <Sheet visible title={logged ? t('review.screen.whatHappened') : t('review.screen.saySomething')}
           sub={makes ? t('review.screen.saySubMakes') : logged ? t('review.screen.saySubLogged') : mine ? t('review.screen.saySubMine') : t('review.screen.saySub', { name: translator })}
-          onClose={() => setSheet(null)} footer={<PrimaryBtn label={t('common.done')} onPress={() => setSheet(null)} />}>
+          onClose={() => setSheet(null)} footer={<PrimaryBtn label={t('common.done')} help={t('review.screen.sheetDoneHelp')} onPress={() => setSheet(null)} />}>
           <VoiceNote ctx={ctx} label={logged ? t('review.screen.recordSummary') : t('common.sayIt')} hash={feedback?.hash ?? null}
             onChange={(h, card) => setFeedback(h ? { hash: h, durationMs: card?.durationMs ?? 0, format: card?.format ?? 'm4a' } : null)} />
           <Field value={comment} onChangeText={setComment} placeholder={t('common.orTypeIt')} multiline />
@@ -584,8 +585,8 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       {leaving ? (
         <Sheet visible title={t('review.screen.leaveTitle')} sub={t('review.screen.leaveSub')} onClose={() => setLeaving(false)}
           footer={<>
-            <PrimaryBtn label={t('review.screen.keepReviewing')} onPress={() => setLeaving(false)} />
-            <GhostBtn label={t('review.screen.leave')} tone="red" onPress={() => { setLeaving(false); ctx.back(); }} />
+            <PrimaryBtn label={t('review.screen.keepReviewing')} help={t('review.screen.keepReviewingHelp')} onPress={() => setLeaving(false)} />
+            <GhostBtn label={t('review.screen.leave')} tone="red" help={t('review.screen.leaveHelp')} onPress={() => { setLeaving(false); ctx.back(); }} />
           </>}>
           {null}
         </Sheet>
@@ -599,6 +600,12 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
         onConfirm={({ reason }) => { if (skipFor) setSkipped((s) => ({ ...s, [skipFor]: reason })); setSkipFor(null); }} />
     </Screen>
   );
+}
+
+/** What opening one of the check's helps does (decision 91), as help mode says it. */
+function helpRowHelp(h: HelpRow): string {
+  if ('bible' in h.open) return t('review.screen.helpBibleHelp');
+  return h.open.screen === 'study_guide' ? t('review.screen.helpGuideHelp') : t('review.screen.helpNoteHelp');
 }
 
 /** The background a reviewer may open, or null when the kind withholds it (REV-1, REV-4). */
@@ -663,8 +670,8 @@ export function GuestReview(ctx: Ctx) {
     <>
       <Text style={[txt.xs, styles.center]}>{t('review.guest.previewOnly')}</Text>
       <View style={{ flexDirection: 'row', gap: space.sm }}>
-        <View style={{ flex: 1 }}><GhostBtn label={t('review.guest.someUnclear')} disabled onPress={() => undefined} /></View>
-        <View style={{ flex: 1 }}><PrimaryBtn label={t('review.guest.understoodWell')} tone="green" disabled onPress={() => undefined} /></View>
+        <View style={{ flex: 1 }}><GhostBtn label={t('review.guest.someUnclear')} help={t('review.guest.someUnclearHelp')} disabled onPress={() => undefined} /></View>
+        <View style={{ flex: 1 }}><PrimaryBtn label={t('review.guest.understoodWell')} tone="green" help={t('review.guest.understoodWellHelp')} disabled onPress={() => undefined} /></View>
       </View>
     </>
   );

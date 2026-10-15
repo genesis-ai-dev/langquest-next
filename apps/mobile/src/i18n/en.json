@@ -432,7 +432,11 @@
         "details": "Details",
         "steps": "Steps",
         "media": "Media",
-        "glossary": "Glossary"
+        "glossary": "Glossary",
+        "detailsHelp": "Its title, method, where it applies and its license.",
+        "stepsHelp": "The steps readers go through, each with text and audio.",
+        "mediaHelp": "Pictures, maps and films the steps link to.",
+        "glossaryHelp": "Terms the steps link to, with their meaning and audio."
       },
       "oneToFix": "One thing to fix before publishing.",
       "toFix_one": "{{count, number}} thing to fix before publishing.",
@@ -453,7 +457,10 @@
       "ready": "Ready to publish.",
       "beforePublishing": "Before publishing",
       "remove": "Remove {{name}}",
-      "removed": "{{name}} was removed."
+      "removed": "{{name}} was removed.",
+      "publishHelp": "Checks what is missing, then puts it in your organization's library.",
+      "problemHelp": "Goes to it, to fix it.",
+      "refHelp": "How the steps' links find it. Link in the text toolbar writes it for you."
     },
     "details": {
       "replacedFia": "Steps replaced with FIA's six steps.",
@@ -480,7 +487,12 @@
       "credit": "Credit",
       "creditPlaceholder": "© {{year}} Your organization",
       "source": "Where it comes from (shown with the guide)",
-      "sourcePlaceholder": "Your organization"
+      "sourcePlaceholder": "Your organization",
+      "titleHelp": "The guide's name, as readers see it.",
+      "methodHelp": "Says the guide follows this method.",
+      "ownMethodHelp": "The method's name, when it is none of the ones above.",
+      "startWithHelp": "Replaces the steps with these. Undo puts yours back.",
+      "creditHelp": "Who made it, shown with the guide."
     },
     "placement": {
       "itsNumbering": "Its numbering",
@@ -492,7 +504,12 @@
       "sheetTitle": "Link a part",
       "sheetSub": "Parts of the content templates your languages use.",
       "search": "Search parts",
-      "noTemplate": "No language uses a library template yet."
+      "noTemplate": "No language uses a library template yet.",
+      "versesHelp": "The passage it applies to, written like LUK 15:11-32. Or link a part below.",
+      "numberingHelp": "Reads the verses as numbered in this one.",
+      "removeHelp": "Unlinks this part from the guide.",
+      "linkPartHelp": "Links a lesson or story from a template, so the guide shows there.",
+      "unitHelp": "Links the guide to this part."
     },
     "steps": {
       "stepRemoved": "The step was removed.",
@@ -524,7 +541,17 @@
       "record": "Record this step",
       "write": "Write",
       "mediaOf": "{{pattern}} media",
-      "guideMedia": "Guide media"
+      "guideMedia": "Guide media",
+      "addHelp": "Adds an empty step and opens it.",
+      "allHelp": "Back to the list of steps.",
+      "openHelp": "Opens it to write.",
+      "moveUpHelp": "Moves this step one place earlier.",
+      "moveDownHelp": "Moves this step one place later.",
+      "removeHelp": "Takes the step out. Undo puts it back.",
+      "titleHelp": "The step's name, as readers see it.",
+      "phaseHelp": "Puts this step in this phase.",
+      "showWriteHelp": "Shows the text, to write it.",
+      "showPreviewHelp": "Shows the step as readers see it."
     },
     "text": {
       "untitledTerm": "Term",
@@ -537,10 +564,19 @@
       "label": "Step text",
       "placeholder": "Write the step. A blank line starts a new paragraph.\n\n> [!action] Stop here and discuss…",
       "help": "Select words before Bold, Callout or Link to use them. Each paragraph, list item and callout is a part the team can note.",
-      "insertCallout": "Insert a {{kind}} callout"
+      "insertCallout": "Insert a {{kind}} callout",
+      "boldHelp": "Makes the selected words bold.",
+      "listHelp": "Turns the selected lines into a list.",
+      "calloutHelp": "Shows the kinds of box to put in the text, like a question or a warning.",
+      "linkHelp": "Links the selected words to a picture, map or glossary term.",
+      "linkToHelp": "Links the selected words to it.",
+      "insertCalloutHelp": "Puts this kind of box in the text, around the selected words.",
+      "areaHelp": "The step's words. Select some, then use Bold, Callout or Link on them."
     },
     "audio": {
-      "upload": "Or upload an audio file"
+      "upload": "Or upload an audio file",
+      "removeHelp": "Takes this audio off, to record or upload it again.",
+      "uploadHelp": "Picks an audio file from this device."
     },
     "media": {
       "removed": "It was removed.",
@@ -569,7 +605,16 @@
       "pictureTitle": "Picture title",
       "pictureTitlePlaceholder": "Title",
       "caption": "Caption",
-      "captionPlaceholder": "One sentence under it"
+      "captionPlaceholder": "One sentence under it",
+      "addPictureHelp": "Picks a picture from this device. It starts a new set.",
+      "addFilmHelp": "Picks a film from this device.",
+      "addMapHelp": "Picks a map picture from this device.",
+      "removeHelp": "Takes it out of the guide. Undo puts it back.",
+      "titleHelp": "The name readers see above it.",
+      "addAnotherHelp": "Picks a picture from this device.",
+      "removeFromSetHelp": "Takes it out of this set.",
+      "photoHelp": "Marks it as a photo.",
+      "illustrationHelp": "Marks it as a drawing or painting."
     },
     "glossary": {
       "removed": "The term was removed.",
@@ -585,7 +630,11 @@
       "audio": "Term audio",
       "removeAudio": "Remove term audio",
       "record": "Record the term",
-      "add": "Add a term"
+      "add": "Add a term",
+      "removeHelp": "Takes the term out. Undo puts it back.",
+      "termHelp": "The word as the steps use it.",
+      "hintHelp": "A few words shown with the term.",
+      "addHelp": "Adds an empty term to fill in."
     }
   },
   "org": {
@@ -597,7 +646,9 @@
       "none": "No passages yet",
       "line": "{{recorded}} of {{total}} recorded · {{done}} done",
       "recorded": "Recorded",
-      "done": "Done"
+      "done": "Done",
+      "label": "Progress",
+      "help": "How many of all the passages are recorded, and how many are done."
     },
     "scopes": {
       "nt": "New Testament",
@@ -638,14 +689,20 @@
         "rolesFirst": "Roles",
         "roles": "roles",
         "nameAndLicense": "name and license"
-      }
+      },
+      "titleHelp": "Shows what is set up once and seldom changed: roles, the name, the license.",
+      "templatesHelp": "Opens the ways to divide the work into passages, and which one each language uses.",
+      "referenceHelp": "Opens the Bibles, study guides, questions and key terms offered to translators.",
+      "flowsHelp": "Opens the ways recordings get checked, and which one each language uses.",
+      "rolesHelp": "Opens the roles, and what each one lets a person do."
     },
     "people": {
       "title": "People",
       "members": "Members",
       "assignedHere_one": "{{count, number}} assigned at this language",
       "assignedHere_other": "{{count, number}} assigned at this language",
-      "orgSub": "{{here}} at org level · {{total}} total"
+      "orgSub": "{{here}} at org level · {{total}} total",
+      "membersHelp": "Opens the people and their roles, to invite someone or change a role."
     },
     "home": {
       "title": "Organization",
@@ -658,7 +715,12 @@
       "newLanguage": "New language",
       "noLanguages": "No languages yet. Add the first one your team will record.",
       "openToBring": "Open it to bring it onto this device",
-      "newLanguageOrCluster": "New language or cluster"
+      "newLanguageOrCluster": "New language or cluster",
+      "inviteHelp": "Choose what they will do, then show them a code to scan.",
+      "languageHelp": "Opens its page: get it ready, see its work and its people.",
+      "licenseHelp": "The license your team's work is under. Setup says what it allows.",
+      "newLanguageHelp": "Adds a language to the organization, or a cluster of related languages.",
+      "roleHelp": "Your role in this organization. It decides what you may do here."
     },
     "rename": {
       "done": "Renamed to {{name}}.",
@@ -670,7 +732,8 @@
       "orgSub": "Its members see the new name, and so does anyone asking to join it.",
       "languageTitle": "Rename {{name}}",
       "languageSub": "Everyone in {{org}} sees the new name. Its code, {{code}}, stays.",
-      "takenBody": "{{languages}} already has this name. Two languages with one name are hard to tell apart."
+      "takenBody": "{{languages}} already has this name. Two languages with one name are hard to tell apart.",
+      "rowHelp": "Change the name everyone here sees."
     },
     "link": {
       "done": "{{name}} is linked to {{linked}}.",
@@ -685,7 +748,9 @@
       "searchPlaceholder": "Its name or code",
       "unlisted": "Not there? Try another of its names, or its code.",
       "unreachable": "Connect to the internet to search it.",
-      "failed": "Not linked"
+      "failed": "Not linked",
+      "rowHelp": "Change which language in the language list it is.",
+      "rowLinkHelp": "Opens a search: find it in the language list to link it."
     },
     "license": {
       "now": "Your work is now under {{license}}."
@@ -703,7 +768,10 @@
       "whatHelps": "What helps them",
       "nothingOffered": "Nothing offered yet · add some",
       "peopleSub_one": "{{count, number}} translator · invite more",
-      "peopleSub_other": "{{count, number}} translators · invite more"
+      "peopleSub_other": "{{count, number}} translators · invite more",
+      "theyRecordHelp": "Opens what they translate, to change it.",
+      "whatHelpsHelp": "Opens the Bibles, guides and notes offered to them, to change them.",
+      "checksHelp": "Opens the checks each recording goes through, to change them."
     },
     "join": {
       "wantsToJoin": "{{name}} wants to join",
@@ -716,7 +784,10 @@
       "letIn": "Let {{name}} in",
       "sayNo": "Say no",
       "message": "“{{message}}”",
-      "viewOnly": "Only people who can invite members let people in."
+      "viewOnly": "Only people who can invite members let people in.",
+      "oneHelp": "Opens their request: let them in, or say no. The number is how many wait.",
+      "manyHelp": "Opens Members, with their requests at the top. The number is how many wait.",
+      "sayNoHelp": "Turns down their request at once. They are not let in."
     },
     "more": {
       "title": "More",
@@ -744,7 +815,11 @@
       "flowsSub": "The organization's review flows",
       "publicList": "Show on the public list",
       "publicListSub": "Only the language's name and progress",
-      "orgPage": "The organization's page"
+      "orgPage": "The organization's page",
+      "titleHelp": "Shows the rest: progress, people, roles, its name and more.",
+      "seeWorkHelp": "Opens the map: every passage, and how far it has come.",
+      "publicListOnHelp": "On: its name and progress are on the public list. Tap to take them off.",
+      "publicListOffHelp": "Off. Tap to put its name and progress on the public list."
     },
     "members": {
       "joined": "{{target}} · joined {{when}}",
@@ -759,7 +834,11 @@
       "none": "No members assigned at this level yet.",
       "expandBy": "Expand by",
       "byLanguage": "By language",
-      "higher": "Higher levels · view only"
+      "higher": "Higher levels · view only",
+      "memberHelp": "Opens their role and where it applies, to change them.",
+      "lockedHelp": "You may not change this person's role from here.",
+      "requestHelp": "Wants to join. Opens their request: let them in, or say no.",
+      "byLanguageHelp": "Shows the members of each language, a group for each."
     },
     "choices": {
       "empty": "Nothing to choose from."
@@ -770,7 +849,10 @@
       "whereHelp": "Where this person can use the selected role's privileges.",
       "language": "Language",
       "languageHelp": "Which language this assignment applies to.",
-      "noLanguages": "No languages yet."
+      "noLanguages": "No languages yet.",
+      "orgHelp": "The role applies across the whole organization.",
+      "languageLevelHelp": "The role applies in one language, chosen below.",
+      "pickLanguageHelp": "The role applies in this language."
     },
     "invite": {
       "title": "Invite someone",
@@ -788,7 +870,9 @@
       "emailPending": "This invite already has an email on its way. Check their inbox, or share the invite link.",
       "emailFailed": "The email could not be delivered. The code and link still work. Try again.",
       "emailUnavailable": "This invite can no longer be sent. Make a new one.",
-      "emailRetry": "The invite could not be sent. Try again."
+      "emailRetry": "The invite could not be sent. Try again.",
+      "byEmailHelp": "Sends the invite to their email address instead of showing a code.",
+      "byNameHelp": "Makes a code with a name on it, for one person or a group."
     },
     "member": {
       "putBack": "Put back.",
@@ -812,7 +896,9 @@
       "onlyManagerSub": "Give someone else a role with Manage roles first. Then this role can change, or be removed.",
       "viewOnly": "Only people who can invite members change roles.",
       "removeFromOrg": "Remove from organization",
-      "removeFromLanguage": "Remove from language"
+      "removeFromLanguage": "Remove from language",
+      "declineHelp": "Says no to their request to join.",
+      "removeHelp": "Takes away their role here. Undo shows for a moment after."
     },
     "signIn": {
       "notAllowed": "You may not help this person sign in.",
@@ -823,7 +909,10 @@
       "noEmail": "{{name}} has no email. On a new device, show them a sign-in code.",
       "lostSignOut": "Their old device is lost or stolen: sign it out",
       "lost": "Their old device is lost or stolen",
-      "help": "Help them sign in"
+      "help": "Help them sign in",
+      "lostOnHelp": "On: the code also signs their old device out. Tap to turn it off.",
+      "lostOffHelp": "Off. Turn it on if their old device is lost: the code signs it out.",
+      "showCodeHelp": "Shows a code they scan on their new device. No password needed."
     },
     "qr": {
       "steps": {
@@ -858,7 +947,13 @@
       "shownOnceGroup_other": "Shown once: leaving this screen loses the code. Up to {{count, number}} people can use it, until {{date}}.",
       "shownOnceOne": "Shown once: leaving this screen loses the code. It can be used once, until {{date}}.",
       "share": "Share invite",
-      "couldNotShare": "Could not share it. Type the code above instead."
+      "couldNotShare": "Could not share it. Type the code above instead.",
+      "toNameHelp": "On to who it is for.",
+      "makeCodeHelp": "Makes the code for them to scan.",
+      "doneHelp": "Finished: opens the members list.",
+      "nameFieldHelp": "Who the code is for. They see it when they scan.",
+      "groupNameFieldHelp": "A name for the group. Everyone who scans sees it.",
+      "shareHelp": "Sends the invite link in a message, or copies it."
     },
     "newLanguage": {
       "theOrganization": "the organization",
@@ -901,7 +996,13 @@
         "keepOpen": "Keep the app open until this is done.",
         "wait": "Still adding {{language}}. Please wait."
       },
-      "offerNothing": "LangQuest has no Bibles or study guides in {{reads}} yet. Find a Bible or write notes for {{language}}'s translators under <b>What helps</b>."
+      "offerNothing": "LangQuest has no Bibles or study guides in {{reads}} yet. Find a Bible or write notes for {{language}}'s translators under <b>What helps</b>.",
+      "nameHelp": "Type its name: matches from the language list show below.",
+      "continueHelp": "On to the next question.",
+      "addHelp": "Adds {{language}} with these answers. Then you can invite its translators.",
+      "changeChecksHelp": "Opens these checks, to change them.",
+      "backHelp": "Back one page. What you chose stays chosen.",
+      "laterHelp": "Skips this for now. Invite its translators from its page later."
     },
     "offers": {
       "guides": "{{name}}'s study guides",
@@ -1018,7 +1119,11 @@
       "backtranslate": "Back-translate",
       "backtranslateChip": "Back-translate",
       "lead": "Help run the team",
-      "leadChip": "Help run the team"
+      "leadChip": "Help run the team",
+      "translateHelp": "They record passages in their language.",
+      "checkHelp": "They listen to recordings and check them.",
+      "backtranslateHelp": "They say each recording again in a language the checkers understand.",
+      "leadHelp": "They help run the team: they hand out work and keep it moving."
     },
     "switches": {
       "doTheWork": "Do the work",
@@ -1104,8 +1209,10 @@
     },
     "checklist": {
       "answered": "Answered. Tap to change it.",
-      "answerIt": "Tap to answer it.",
-      "doneLabel": "{{label}}, done"
+      "doneLabel": "{{label}}, done",
+      "doneHelp": "The tick means answered: {{answer}}. Opens it, to change the answer.",
+      "nowHelp": "The next one to answer. Opens it.",
+      "laterHelp": "Not answered yet. Opens it."
     },
     "checkRow": {
       "offered": "Offered to the team. Tap to stop offering it.",
@@ -1139,7 +1246,18 @@
       "otherRoles": "Other roles · {{total}}",
       "newRole": "Something else: make a new role",
       "whichLanguage": "In which language?",
-      "teamLabel": "{{name}} team"
+      "teamLabel": "{{name}} team",
+      "newRoleHelp": "Opens the role editor, to make a role that fits.",
+      "otherRolesHelp": "Shows the organization's other roles to choose from.",
+      "pickRoleHelp": "Gives them this role: it decides what they may do.",
+      "scopeLanguageHelp": "They join this language's team.",
+      "scopeOrgHelp": "They join the whole organization: every language in it.",
+      "shareLinkHelp": "Sends the code as a link in a message, or copies it.",
+      "someoneElseHelp": "Back to choose what someone else will do, for another code."
+    },
+    "work": {
+      "label": "What it is doing",
+      "help": "A tick is done, the turning circle is now, a dot is still to come."
     }
   },
   "getReady": {
@@ -1159,7 +1277,14 @@
       "keepIt": "Keep it",
       "whichPart": "Which part of the Bible?",
       "viewOnly": "Only people who set up languages can change what they translate.",
-      "keepEarlier": "Pieces that stay the same keep their recordings. What was recorded on a piece that changes is kept under \"Earlier sections\" on the new pieces."
+      "keepEarlier": "Pieces that stay the same keep their recordings. What was recorded on a piece that changes is kept under \"Earlier sections\" on the new pieces.",
+      "partHelp": "They translate this part of the Bible.",
+      "chooseBooksHelp": "Pick the books one by one, below.",
+      "bookOnHelp": "Chosen. Tap to leave it out.",
+      "bookOffHelp": "Tap to choose this book.",
+      "nextHelp": "Keeps this answer, then on to the next question.",
+      "useThisHelp": "They translate this from now on. Then back to the language's page.",
+      "keepItHelp": "Keeps what they translate now, and goes back."
     },
     "media": {
       "both": "Audio and text",
@@ -1190,7 +1315,11 @@
       "inLanguages_one": "In {{count, number}} language",
       "inLanguages_other": "In {{count, number}} languages",
       "setChosen": "{{name}} study guides are now in {{language}}",
-      "setOff": "{{name}} study guides are off for this team"
+      "setOff": "{{name}} study guides are off for this team",
+      "findBibleHelp": "Search the Bibles others share, to offer one to the team.",
+      "openBibleHelp": "Opens it, to listen and read.",
+      "setHelp": "Opens its languages: choose which one the team gets, or turn it off.",
+      "patternOnHelp": "Offered to the team, in the language chosen for it."
     },
     "page": {
       "title": "What helps them",
@@ -1206,7 +1335,10 @@
       "keyTerms": "Key terms",
       "keyTermsSub_one": "{{count, number}} word · {{rendered}} with a {{language}} word",
       "keyTermsSub_other": "{{count, number}} words · {{rendered}} with a {{language}} word",
-      "writtenHere": "Written here, for this language"
+      "writtenHere": "Written here, for this language",
+      "addMoreHelp": "Find a Bible, study guide, note or key words to offer them.",
+      "keyTermsHelp": "Opens the key words, and how this language says each one.",
+      "noteHelp": "Opens the note, to read or change it."
     },
     "add": {
       "sub": "Something to help {{language}}'s translators",
@@ -1230,7 +1362,12 @@
       "illChoose": "I'll choose the checks",
       "otherWays": "Other ways to check",
       "otherWaysCount": "Other ways to check · {{total}}",
-      "noWays": "No ways to check yet. Choose the steps yourself."
+      "noWays": "No ways to check yet. Choose the steps yourself.",
+      "illChooseHelp": "Make the checks yourself, one step after another.",
+      "keepOwnHelp": "Keeps the steps you chose. A lock means that step must pass first.",
+      "wayHelp": "Each recording goes through these checks. A lock means that one must pass first.",
+      "otherWaysHelp": "Shows more ready-made ways to check.",
+      "nextHelp": "Keeps this way of checking, then on to the next question."
     },
     "invite": {
       "somethingElse": "Something else",
@@ -1238,8 +1375,13 @@
       "cannotBody": "Ask someone who runs {{language}}'s team to invite your translators."
     },
     "language": {
-      "saved": "{{team}}'s Bibles and guides are now in {{language}}"
-    }
+      "saved": "{{team}}'s Bibles and guides are now in {{language}}",
+      "nextHelp": "Keeps this language, then shows what to offer in it."
+    },
+    "nextHelp": "On to the next question.",
+    "nextPageHelp": "On to the next part of this question.",
+    "nextQuestionHelp": "Opens the next question still to answer.",
+    "backHelp": "Back one page. What you chose stays chosen."
   },
   "content": {
     "chapterChip": "Ch {{chapter}}",
@@ -1301,7 +1443,17 @@
       "sharedLabel": "{{name}}, from {{org}}",
       "byLanguage": "By language",
       "noLanguages": "No languages here yet.",
-      "openToSee": "Open to see its template"
+      "openToSee": "Open to see its template",
+      "addTemplateHelp": "Starts a new template: Scripture, or an outline you build.",
+      "optionsHelp": "Share it with other organizations, or archive it.",
+      "optionsFollowedHelp": "How it takes updates. Stop following it, or copy it to change it.",
+      "editHelp": "Opens it to change its name, levels and parts.",
+      "viewHelp": "Opens it to look through, without changing it.",
+      "archivedHelp": "Shows templates put away. Languages using them keep them.",
+      "archivedRowHelp": "Opens its options, to bring it back into the list.",
+      "sharedHelp": "Opens it, to follow its updates or copy it as your own.",
+      "sharedViewHelp": "Opens what it is and who shares it.",
+      "languageHelp": "Opens the template this language uses, and its books."
     },
     "options": {
       "autoUpdate": "Update automatically",
@@ -1324,7 +1476,12 @@
       "unarchive": "Unarchive",
       "archive": "Archive",
       "archivedToast": "{{name}} archived. Languages using it keep it.",
-      "unarchivedToast": "{{name}} is back in the list."
+      "unarchivedToast": "{{name}} is back in the list.",
+      "takeUpdateHelp": "Gets the newest version. Languages using it move to it by themselves.",
+      "stopFollowingHelp": "No more new versions from them. Languages keep the version they use.",
+      "copyToChangeHelp": "Makes a copy that is yours to change. This one stays as it is.",
+      "archiveHelp": "Takes it out of the list. Languages using it keep it.",
+      "unarchiveHelp": "Puts it back in the list."
     },
     "shared": {
       "followingToast": "Following {{name}} from {{org}}.",
@@ -1368,7 +1525,11 @@
       "divideInto": "Divide into {{parts}}",
       "openABook": "Open a book to read through it and see where each {{part}} starts, with FIA's breaks marked as suggestions.",
       "findBook": "Find a book",
-      "noBookMatches": "No book matches “{{query}}”."
+      "noBookMatches": "No book matches “{{query}}”.",
+      "editTemplateHelp": "Opens the template to change it. Languages using it get the new version.",
+      "changeTemplateHelp": "Choose another template for {{language}}. Nothing recorded is deleted.",
+      "bookHelp": "Opens it to read through and see where each {{part}} starts.",
+      "bookWaitingHelp": "Not divided yet. Opens it to see how it can be divided."
     },
     "picker": {
       "title": "Choose a Template",
@@ -1385,7 +1546,11 @@
       "willRecord": "{{language}} will record against {{name}}. You can change it later; nothing recorded is ever deleted.",
       "followsIt": "Your organization follows it, so {{org}}'s new versions reach {{language}} by themselves.",
       "use": "Use {{name}}",
-      "noneOurs": "Your organization has no templates yet. Choose one another organization shares."
+      "noneOurs": "Your organization has no templates yet. Choose one another organization shares.",
+      "makeOwnHelp": "Starts a new template you build yourself.",
+      "cardHelp": "Picks it and shows its levels. The button below then puts it in use.",
+      "pickedHelp": "Picked, as the tick shows. Tap again to undo the pick.",
+      "inUseHelp": "The template {{language}} uses now."
     },
     "editor": {
       "levelShownByReference": "Recorded · shown by reference",
@@ -1437,7 +1602,18 @@
       "leaveSub": "Your changes to this template are not saved.",
       "keepEditing": "Keep editing",
       "leave": "Leave",
-      "leaveNote": "Save publishes them as the next version."
+      "leaveNote": "Save publishes them as the next version.",
+      "createHelp": "Adds it to your organization's library, ready for languages to use.",
+      "saveChangesHelp": "Saves it as the next version. Languages using it move to it.",
+      "nameHelp": "What the template is called in the library.",
+      "levelHelp": "Renames it. Everyone sees this word in the app.",
+      "lastLevelHelp": "Renames it, and chooses how each one is shown.",
+      "versificationHelp": "Choose how its chapters and verses are numbered.",
+      "passagesHelp": "Divides books into passages, as the version it started from does.",
+      "bookHelp": "Choose how it is divided. Rename it or remove it from there.",
+      "addBookHelp": "Adds books the template doesn't have yet.",
+      "versificationChoiceHelp": "Numbers the template's chapters and verses this way.",
+      "leaveHelp": "Goes back without saving your changes."
     },
     "newTemplate": {
       "title": "New Template",
@@ -1445,7 +1621,10 @@
       "scripture": "Scripture",
       "scriptureSub": "Books and chapters of the Bible, divided into passages as teams go.",
       "else": "Something else",
-      "elseSub": "Lessons, stories, a commentary — any outline you build yourself."
+      "elseSub": "Lessons, stories, a commentary — any outline you build yourself.",
+      "continueHelp": "Goes to the next question. After the last, the new template opens.",
+      "scriptureHelp": "Starts from a Bible: its books, then how they are divided.",
+      "elseHelp": "Starts an empty outline: folders, and the things people record in them."
     },
     "levelSheet": {
       "title": "Level",
@@ -1455,7 +1634,12 @@
       "reference": "Reference",
       "both": "Both",
       "exampleName": "The lost son (the reference when there's no name)",
-      "exampleBoth": "The lost son · {{reference}}"
+      "exampleBoth": "The lost son · {{reference}}",
+      "doneHelp": "Keeps the name and how each is shown, and closes this.",
+      "nameHelp": "What your team calls this level.",
+      "referenceHelp": "Shows each by its verses, like {{example}}.",
+      "byNameHelp": "Shows each by its name, or its verses when it has none.",
+      "bothHelp": "Shows each by its name and its verses."
     },
     "bookSheet": {
       "sub": "What the language calls it. Everyone sees this name on the map and the record.",
@@ -1465,7 +1649,9 @@
     },
     "addBook": {
       "sub": "Books this versification has that the template does not.",
-      "allIn": "Every book is in the template."
+      "allIn": "Every book is in the template.",
+      "bookHelp": "Adds it to the template.",
+      "doneHelp": "Closes this. The books you tapped are added."
     },
     "outline": {
       "newNode": "New {{level}}",
@@ -1476,7 +1662,11 @@
       "items_other": "{{count, number}} items",
       "addFolder": "Add {{level}} folder",
       "addItem": "Add {{level}}",
-      "empty": "The outline is empty."
+      "empty": "The outline is empty.",
+      "folderHelp": "A folder. Rename it, move it or remove it.",
+      "itemHelp": "Something people record. Rename it, move it or remove it.",
+      "addFolderHelp": "Adds a folder here and opens it to be named.",
+      "addItemHelp": "Adds something to record here and opens it to be named."
     },
     "node": {
       "folder": "Folder",
@@ -1487,7 +1677,10 @@
       "moveDown": "Move down",
       "removeFolder": "Remove this folder",
       "removeItem": "Remove this item",
-      "removeNote": "Languages using the template keep anything recorded on it; it is set aside, not deleted."
+      "removeNote": "Languages using the template keep anything recorded on it; it is set aside, not deleted.",
+      "nameHelp": "What everyone sees it called in the app.",
+      "moveUpHelp": "Moves it above the one before it.",
+      "moveDownHelp": "Moves it below the one after it."
     },
     "book": {
       "title": "Divide a Book",
@@ -1500,7 +1693,11 @@
       "chapter": "Chapter {{chapter}}",
       "chapterParts_one": "Chapter {{chapter}}, {{count, number}} {{part}}",
       "chapterParts_other": "Chapter {{chapter}}, {{count, number}} {{parts}}",
-      "continues": "{{part}} {{verses}} continues"
+      "continues": "{{part}} {{verses}} continues",
+      "chapterChipHelp": "Opens the chapters, to jump to one.",
+      "segmentHelp": "Scrolls to where this {{part}} starts.",
+      "tileHelp": "Jumps to this chapter.",
+      "tileCountHelp": "Jumps to this chapter. The small number: how many {{parts}} start in it."
     },
     "block": {
       "cardLabel": "{{part}} {{n}}, {{verses}}",
@@ -1515,8 +1712,11 @@
     "divide": {
       "done": "{{book}} is divided. Save the template to keep it.",
       "tapBook": "Tap a book to choose how it's divided.",
-      "nameOrRemove": "Rename or remove {{book}}"
-    }
+      "nameOrRemove": "Rename or remove {{book}}",
+      "nameOrRemoveHelp": "Opens the book's name in the language, to change it or take the book out."
+    },
+    "levelsHelp": "Each level holds the next. People record the last one; the others are folders.",
+    "keepNameHelp": "Keeps the name and closes this."
   },
   "breakup": {
     "usedIn": {
@@ -1580,7 +1780,12 @@
       "choose": {
         "title": "So you choose two things",
         "text": "First, what your team will translate. Then, for the Bible, how it is broken up: every book now, or one book at a time later. Some study guides, like FIA, come with their own way of breaking it up. Verse numbers sort themselves out from the Bibles you pick."
-      }
+      },
+      "nextHelp": "Goes on to the next step.",
+      "doneHelp": "Closes the walk-through.",
+      "backHelp": "Goes back one step.",
+      "skipHelp": "Closes the walk-through now. It can be opened again any time.",
+      "stepsHelp": "A tick for each step you have seen; the coloured one is this step."
     },
     "verses": {
       "shepherd": "The Lord is my shepherd",
@@ -1598,16 +1803,21 @@
       "label_one": "{{book}} in {{count, number}} piece",
       "label_other": "{{book}} in {{count, number}} pieces",
       "caption_one": "{{book}}: {{count, number}} piece",
-      "caption_other": "{{book}}: {{count, number}} pieces"
+      "caption_other": "{{book}}: {{count, number}} pieces",
+      "help": "Each block is one piece to record, as wide as its verses."
     },
     "way": {
       "inUse": "In use here",
       "previewHelp": "Every piece {{way}} cuts a book into.",
       "comesWith": "Comes with {{pattern}} study guides",
-      "previewLabel": "Preview {{way}}"
+      "previewLabel": "Preview {{way}}",
+      "pickHelp": "Picks this way of cutting it into pieces.",
+      "barHelp": "The bar shows {{book}} cut its way: each block is one piece, as wide as its verses."
     },
     "preview": {
-      "useThis": "Use this"
+      "useThis": "Use this",
+      "bookHelp": "Shows how this way cuts this book.",
+      "useThisHelp": "Picks this way and closes the preview."
     },
     "apply": {
       "title": "Which languages should change?",
@@ -1665,7 +1875,9 @@
       "alsoUsedOne": "Used in {{name}} too. Change {{book}} for which of them?",
       "alsoUsedTwo": "Used in {{first}} and {{second}} too. Change {{book}} for which of them?",
       "alsoUsedMore_one": "Used in {{name}} and {{count, number}} more too. Change {{book}} for which of them?",
-      "alsoUsedMore_other": "Used in {{name}} and {{count, number}} more too. Change {{book}} for which of them?"
+      "alsoUsedMore_other": "Used in {{name}} and {{count, number}} more too. Change {{book}} for which of them?",
+      "breakUpHelp": "Divides the book the way you picked above.",
+      "nameHelp": "Changes the name translators see for this book."
     },
     "bookName": {
       "title": "What {{language}} calls {{book}}",
@@ -1674,7 +1886,10 @@
       "fromBibles": "What the team's Bibles call it",
       "fromLanguages": "What other languages here call it",
       "use": "Use",
-      "useLabel": "Use {{name}} ({{from}})"
+      "useLabel": "Use {{name}} ({{from}})",
+      "saveHelp": "Keeps this name: translators see it from now on.",
+      "useHelp": "Puts this name in the box above. Save keeps it.",
+      "inBoxHelp": "The tick means this name is in the box above."
     },
     "translate": {
       "question": "What will {{language}} translate?",
@@ -1690,7 +1905,10 @@
       "makeOwnDetail": "Folders, and what to record in them.",
       "elseKinds": "Stories, songs, lessons",
       "ownSub": "Book by book: read each one and choose where its sections start",
-      "ownNote": "Every book waits until it's divided. Open it from the map or My Work, read it in a Bible and choose where its sections start, or start from a ready-made way."
+      "ownNote": "Every book waits until it's divided. Open it from the map or My Work, read it in a Bible and choose where its sections start, or start from a ready-made way.",
+      "outlineHelp": "Picks this outline: its folders and what to record in them.",
+      "bibleHelp": "Your team translates the Bible. Next comes how its verses are numbered.",
+      "elseHelp": "Your team records something else, sorted into folders."
     },
     "errors": {
       "noTemplate": "This language has no template yet.",
@@ -1715,7 +1933,9 @@
       "row": "{{how}} · {{versions}}",
       "versions_one": "{{count, number}} version",
       "versions_other": "{{count, number}} versions",
-      "openOne": "Open one to listen to what was recorded and reviewed on it."
+      "openOne": "Open one to listen to what was recorded and reviewed on it.",
+      "disclosureHelp": "Shows the earlier sections these verses were in, with their recordings.",
+      "openHelp": "Opens it, to hear what was recorded and reviewed on it."
     },
     "numberingStep": {
       "facts": {
@@ -1744,7 +1964,12 @@
         "showAll_one": "Show all {{count, number}}",
         "showAll_other": "Show all {{count, number}}",
         "notFound": "Not found.",
-        "quiz": "Not listed? Answer a few questions"
+        "quiz": "Not listed? Answer a few questions",
+        "quizHelp": "A few questions about your Bible work out how it numbers verses.",
+        "searchHelp": "Type your Bible's name, short name or language to find it.",
+        "showAllHelp": "Lists every Bible LangQuest knows, not just the common ones.",
+        "usedHelp": "Picks the numbering these languages here already use.",
+        "bibleHelp": "Your team translates from this Bible: picks the numbering it uses."
       },
       "chooseFromList": "Choose from the list",
       "quiz": {
@@ -1781,7 +2006,9 @@
           "slavicOrthodox": "Russian or Slavic Orthodox",
           "ethiopian": "Ethiopian or Eritrean Orthodox",
           "jewish": "Jewish (Tanakh)"
-        }
+        },
+        "answerHelp": "Picks this as your answer. The next question follows if one is needed.",
+        "notSureHelp": "Leaves this one out. The quiz goes on with the likeliest answer."
       },
       "extraBooks": {
         "tobit": "Tobit",
@@ -1793,12 +2020,14 @@
         "malachi": "{{book}} {{n}}",
         "headingsNumbered": "Headings verse 1",
         "headingsUnnumbered": "Headings no number",
-        "connect": "Connect to load the numberings."
+        "connect": "Connect to load the numberings.",
+        "pickHelp": "Picks this numbering. Its three facts tell it apart from the others."
       },
       "chosen": {
         "like": "Like {{bible}}",
         "match": "Verse numbers in LangQuest will match your Bible.",
-        "another": "Choose another"
+        "another": "Choose another",
+        "anotherHelp": "Goes back to find a different Bible or numbering."
       },
       "context": {
         "label": "Numbering",
@@ -1820,7 +2049,8 @@
         "latin": "Latin",
         "hebrew": "Hebrew",
         "korean": "Korean"
-      }
+      },
+      "chooseFromListHelp": "Every numbering, each with three facts that tell them apart."
     },
     "own": {
       "title": "Divide it your own way",
@@ -1890,7 +2120,34 @@
       "sections_one": "{{count, number}} section",
       "sections_other": "{{count, number}} sections",
       "partsIn_one": "{{count, number}} part in {{book}}",
-      "partsIn_other": "{{count, number}} parts in {{book}}"
+      "partsIn_other": "{{count, number}} parts in {{book}}",
+      "biblePillHelp": "Shows the book in another Bible. Your sections stay where they are.",
+      "helpsPillHelp": "Shows an outline, notes and guides under the text.",
+      "closeHelpsHelp": "Hides the helps, back to the text.",
+      "chapterPillHelp": "Goes to another chapter, and shows how many sections start in each.",
+      "bibleRowHelp": "Shows the book's words in this Bible.",
+      "bibleRowOnHelp": "The tick means the words show in this Bible now.",
+      "jumpHelp": "Goes to this chapter.",
+      "fromRowHelp": "Replaces your sections with this way's. Undo brings yours back.",
+      "saveHelp": "Divides the book into these sections, so the team can record them.",
+      "unselectHelp": "Unselects the verse. Nothing changes.",
+      "versesName": "Verses",
+      "verseHelp": "Selects it. Then you can start a section there, or join it to the one before.",
+      "sectionHelp": "Opens it: give it a name, or join it with the section before.",
+      "firstSectionHelp": "Opens it, to give it a name.",
+      "suggestionHelp": "Starts a section at {{at}}, as {{bibles}} do.",
+      "nameHelp": "What the team calls this section. It can stay empty.",
+      "sectionDoneHelp": "Keeps the name and goes back to the text.",
+      "tabOutlineHelp": "Shows the book's parts, as a guide outlines them.",
+      "tabNotesHelp": "Shows notes on this book's verses. The number is how many.",
+      "tabGuidesHelp": "Shows every guide and note offered for this book.",
+      "outlineRowHelp": "Goes to where this part starts in the text.",
+      "useOutlineHelp": "Adds a section start at each part. Undo takes them away.",
+      "showInTextHelp": "Goes to the verses this note is on.",
+      "guideRowHelp": "Goes to the first place it covers in the text.",
+      "undoHelp": "Puts the sections back as they were before your last change.",
+      "startFromHelp": "Replaces your sections with a ready-made way's, to start from there.",
+      "leaveAnywayHelp": "Goes back. Your sections for this book are not kept."
     },
     "division": {
       "way_one": "{{way}} · {{count, number}} piece",
@@ -2061,7 +2318,11 @@
       "members_one": "{{count, number}} member",
       "members_other": "{{count, number}} members",
       "privileges_one": "{{count, number}} privilege",
-      "privileges_other": "{{count, number}} privileges"
+      "privileges_other": "{{count, number}} privileges",
+      "addRoleHelp": "Makes a new role: a set of things its people may do.",
+      "ownRoleHelp": "Opens what its people may do, and who has it. A star: your organization made it.",
+      "builtInRoleHelp": "Opens what its people may do, and who has it. It comes with the app.",
+      "inheritedRoleHelp": "Shows what its people may do. Change it from Organization Home."
     },
     "roleEditor": {
       "title": "Role",
@@ -2084,7 +2345,23 @@
       "nobody": "Nobody has this role yet.",
       "itsName": "Its name",
       "itsNamePlaceholder": "Role name",
-      "scopeNote": "Where a role applies is chosen for each person: the whole organization or one language, when they are invited or let in."
+      "scopeNote": "Where a role applies is chosen for each person: the whole organization or one language, when they are invited or let in.",
+      "saveHelp": "Keeps the name and switches. Everyone with this role gets the change.",
+      "inviteHelp": "Shows a code to scan. Whoever joins with it gets this role.",
+      "personHelp": "Opens their roles and where each applies, to change them.",
+      "renameHelp": "Renames this role for everyone.",
+      "recordHelp": "On: people with this role may record and revise translations.",
+      "addNotesHelp": "On: people with this role may add notes, key words and helps.",
+      "askForChecksHelp": "On: people with this role may ask teammates, or someone by link, to check.",
+      "checkRecordingsHelp": "On: people with this role may check recordings, and log checks done elsewhere.",
+      "seeEveryonesWorkHelp": "On: people with this role may see every passage and how far it has come.",
+      "invitePeopleHelp": "On: people with this role may invite others to join.",
+      "setUpLanguagesHelp": "On: people with this role may add languages and divide books into passages.",
+      "chooseBiblesHelp": "On: people with this role may choose Bibles and make reference material.",
+      "chooseWhoChecksHelp": "On: people with this role may choose which checks a passage gets, and who.",
+      "assignWorkHelp": "On: people with this role may ask anyone to record or check a passage.",
+      "overrideChecksHelp": "On: people with this role may move a passage past a locked check, with a reason.",
+      "manageRolesHelp": "On: people with this role may make roles and change what each allows."
     },
     "library": {
       "followingAuto": "Following {{name}}. It updates automatically.",
@@ -2128,7 +2405,18 @@
       "archivedBadge": "Archived",
       "updateBadge": "Update",
       "follows": "Follows {{org}}",
-      "followsBody": "It changes only when they publish a new version. Copy it to make your own changes."
+      "followsBody": "It changes only when they publish a new version. Copy it to make your own changes.",
+      "followHelp": "Use their versions as they publish them. Next you choose how updates come.",
+      "copyHelp": "Makes your own copy, yours to change.",
+      "updateAutomaticallyHelp": "Follows it. Languages using it move to each new version.",
+      "takeUpdatesMyselfHelp": "Follows it. You see when an update is ready, and take it yourself.",
+      "takeUpdateHelp": "Moves to their newest version. Languages using it move too.",
+      "copyToChangeHelp": "Makes your own copy to change. This one still follows them.",
+      "stopFollowingHelp": "No more updates from them. The version in use stays.",
+      "followAgainHelp": "Takes their updates again.",
+      "archiveHelp": "Hides it from the lists. Languages using it keep it.",
+      "unarchiveHelp": "Puts it back in the lists.",
+      "openUpdateHelp": "A new version is ready. Opens it, where you can take it."
     },
     "flows": {
       "customFlow": "Custom flow",
@@ -2150,7 +2438,15 @@
       "openNamed": "Open {{name}}",
       "inUse": "In use",
       "use": "Use",
-      "nowUses": "{{language}} now uses {{flow}}."
+      "nowUses": "{{language}} now uses {{flow}}.",
+      "addFlowHelp": "Makes a new flow: which checks a passage gets, in order.",
+      "openFlowHelp": "Opens it, to see or change its steps.",
+      "saveAsFlowHelp": "Keeps this language's checks as a flow in your library, for other languages.",
+      "flowCardHelp": "Opens it, to see or change its steps. A lock: that step must pass first.",
+      "inUseHelp": "This language checks its passages this way now.",
+      "useHelp": "Its checks become {{language}}'s own. You can change them after.",
+      "stepsLabel": "Steps",
+      "stepsHelp": "The checks, left to right. Stacked ones happen together. A lock: that step must pass first."
     },
     "flowEditor": {
       "anyoneTeamAsks": "Anyone the team asks",
@@ -2189,7 +2485,18 @@
       "newKindLabel": "A new kind",
       "newKindPlaceholder": "New kind, e.g. Elder Review",
       "addThisKind": "Add this kind",
-      "leaveSubFlow": "Your changes to this flow haven't been saved."
+      "leaveSubFlow": "Your changes to this flow haven't been saved.",
+      "removeCheckHelp": "Takes it out of this step. The other checks stay.",
+      "moveUpHelp": "This step happens one step earlier.",
+      "moveDownHelp": "This step happens one step later.",
+      "removeStepHelp": "Takes this step and its checks out. Nothing changes until you save.",
+      "saveHelp": "Publishes this version to your library. Languages using the flow move to it.",
+      "noChecksHelp": "Takes out every step: a passage is done as soon as it is recorded.",
+      "pickNewHelp": "Adds a step with this check, after the others.",
+      "pickAlongsideHelp": "Adds this check to the step, alongside the ones there.",
+      "newKindHelp": "Name a kind of check this list is missing.",
+      "addThisKindHelp": "Adds the kind you named, and puts it in the step.",
+      "discardHelp": "Leaves without saving. Your changes are lost."
     },
     "reference": {
       "languageTeam": "{{language}} team",
@@ -2227,7 +2534,15 @@
       "notes_one": "{{count, number}} note",
       "notes_other": "{{count, number}} notes",
       "coverage": "Coverage",
-      "coverageSub": "What reaches each passage in {{language}}"
+      "coverageSub": "What reaches each passage in {{language}}",
+      "addMaterialHelp": "Starts new material: guidelines, a brief, review questions and more.",
+      "biblesHelp": "Opens the Bibles translators hear and read, and which are recommended.",
+      "guidesNotesHelp": "Opens the study guides and notes translators get, and which are recommended.",
+      "keyTermsHelp": "Opens each concept and how this language says it.",
+      "newHelp": "Starts new material in your library.",
+      "libraryItemHelp": "Opens it: what it holds, and how it is shared.",
+      "openMaterialHelp": "Opens it, to read or change it.",
+      "openLockedHelp": "Opens it. Locked: only people who manage reference material can change it."
     },
     "material": {
       "editTitle": "Edit Material",
@@ -2276,7 +2591,26 @@
       "notInLibrary": "Publish it to your library to share it with other organizations or keep versions of it.",
       "publishNewVersion": "Publish a new version",
       "publishToLibrary": "Publish to library",
-      "saveFirst": "Save your changes first."
+      "saveFirst": "Save your changes first.",
+      "lockedHelp": "Only people who manage reference material can change it. Tap to unlock.",
+      "unlockedHelp": "Anyone who fills reference content can change it. Tap to lock.",
+      "saveNewHelp": "Adds it. Translators and reviewers get it where it applies.",
+      "kindHelp": "Makes the new material this kind. A tick shows the one picked.",
+      "forLanguageHelp": "Only this language gets it.",
+      "allLanguagesHelp": "Goes to your library, recommended to every language.",
+      "reviewKindHelp": "Its questions go to reviewers doing this kind of review. A tick shows which.",
+      "questionHelp": "Type a question for reviewers to answer.",
+      "typeTextHelp": "Reviewers answer in their own words.",
+      "typeYesNoHelp": "Reviewers answer yes or no.",
+      "typeRatingHelp": "Reviewers answer with a number on this scale.",
+      "requiredSwitchHelp": "On: reviewers must answer it, or say why not. Off: they may skip it.",
+      "removeQuestionHelp": "Takes this question out. Nothing changes until you save.",
+      "addQuestionHelp": "Adds an empty question at the end.",
+      "sectionHelp": "Type what translators should know for this section.",
+      "sectionNameHelp": "Type the name of a new section, then add it.",
+      "addSectionHelp": "Adds the section you named, empty, to fill in.",
+      "publishHelp": "Puts what is saved here in your library, to share or keep versions.",
+      "publishVersionHelp": "Adds what is saved here to your library as a new version."
     },
     "libraryMaterial": {
       "eachLanguagesOwn": "Each language's own",
@@ -2302,7 +2636,17 @@
       "linkPartTitle": "Link a part",
       "linkPartSub": "Parts of the content templates your languages use.",
       "searchParts": "Search parts",
-      "noTemplates": "No language uses a library template yet."
+      "noTemplates": "No language uses a library template yet.",
+      "publishHelp": "Puts it in your library, to recommend to languages or share.",
+      "publishVersionHelp": "Saves your changes as a new version in your library.",
+      "kindHelp": "Makes it this kind of material.",
+      "textHelp": "What translators read: the material itself.",
+      "versesHelp": "Translators get it on these verses. Write each like {{example}}.",
+      "numberingHelp": "Bibles number some verses differently. Reads the verses above this way.",
+      "removePartHelp": "Unlinks it. Nothing changes until you publish.",
+      "linkPartHelp": "Pick a part of a template: translators get it there, in every language using it.",
+      "useInReviewsHelp": "Reviewers doing {{kind}} in this language get these questions.",
+      "pickPartHelp": "Links this part: translators get it there."
     },
     "keyTerms": {
       "noLanguageRendering": "No {{language}} rendering yet",
@@ -2325,7 +2669,11 @@
       "termPlaceholder": "Source term, e.g. grace (charis)",
       "meaningPlaceholder": "Meaning, briefly",
       "renderingPlaceholder": "{{language}} rendering",
-      "contextPlaceholder": "When to use it, and why"
+      "contextPlaceholder": "When to use it, and why",
+      "newTermHelp": "Adds a concept, with how {{language}} says it.",
+      "openTermHelp": "Opens it: what it means, how your team says it, and why.",
+      "openFiaTermHelp": "An FIA key term. Opens what it means, how your team says it, and why.",
+      "renderingHelp": "How {{language}} says it."
     },
     "keyTerm": {
       "title": "Key Term",
@@ -2367,7 +2715,14 @@
       "whenToUse": "When to use it",
       "sayWhy": "Say why",
       "orTypeWhy": "Or type what changed, and why",
-      "typeWhy": "What changed, and why"
+      "typeWhy": "What changed, and why",
+      "tieHelp": "Ties this term to your draft, so reviewers see it and your reasoning.",
+      "addRenderingHelp": "Add how {{language}} says it, and why. Every change is kept.",
+      "adjustHelp": "Change or add how {{language}} says it, with your reason. Every change is kept.",
+      "openVersionHelp": "Opens the version this change was made during.",
+      "usedHelp": "Opens this version, which uses the term.",
+      "usedChangedHelp": "Opens this version. Changed here: the rendering was adjusted during it.",
+      "saveHelp": "Records the change and your reason, for the team to see."
     }
   },
   "entry": {
@@ -2390,7 +2745,8 @@
     "termsLine": {
       "signingIn": "By signing in you accept the <b>Terms of Use and Privacy Policy</b>",
       "joining": "Joining accepts the <b>Terms of Use and Privacy Policy</b>",
-      "creating": "Creating an account accepts the <b>Terms of Use and Privacy Policy</b>"
+      "creating": "Creating an account accepts the <b>Terms of Use and Privacy Policy</b>",
+      "readHelp": "Opens what you agree to, and how your data is kept, to read."
     },
     "errors": {
       "wrongPassword": "Wrong email, sign-in name or password.",
@@ -2417,7 +2773,10 @@
       "noAccount": "Don't have an account?",
       "browse": "Browse public work",
       "switchPersona": "Switch persona",
-      "failed": "Could not sign in. Try again."
+      "failed": "Could not sign in. Try again.",
+      "scanCodeHelp": "Opens the camera, to join with an invite or sign in with a helper's code.",
+      "createAccountHelp": "Opens a form for your email and a new password.",
+      "browseHelp": "See translation work that organizations share publicly. No account needed."
     },
     "terms": {
       "title": "Terms & Privacy",
@@ -2443,7 +2802,8 @@
       "enforcement": "Content that breaks these terms is removed. People who break them may be removed from their organization, and their account suspended or deleted. Questions or reports by email: admin@frontierrnd.com.",
       "privacyTitle": "Privacy Policy",
       "privacy": "LangQuest keeps your email, your name and the work you do, so your team can work together, even offline. Your organization's members see your work; the public sees only what your organization chooses to share. No ads and no tracking. Speed and error reports can be turned off in Settings, and you can delete your account there. Recordings you made stay with your organization.",
-      "readFull": "Read the full privacy policy"
+      "readFull": "Read the full privacy policy",
+      "readFullHelp": "Opens the whole policy on the web, in your browser."
     },
     "vision": {
       "title": "What is LangQuest?",
@@ -2453,7 +2813,10 @@
       "recordTitle": "Every passage keeps a record",
       "recordBody": "Recordings, notes and feedback stay with the passage, so the next person knows what happened.",
       "askTitle": "Do it, or ask someone",
-      "askBody": "Your organization suggests what comes next. Do it yourself, ask someone, or say why not."
+      "askBody": "Your organization suggests what comes next. Do it yourself, ask someone, or say why not.",
+      "nextHelp": "Shows the next card.",
+      "segmentsHelp": "One bar for each card: green ones you have seen, purple this one.",
+      "backHelp": "Goes back to the card before."
     },
     "explore": {
       "title": "Explore",
@@ -2462,11 +2825,16 @@
       "cardLabel": "{{name}}, {{percent}}",
       "recorded": "Recorded",
       "emptyTitle": "Nothing listed yet",
-      "emptySub": "Organizations appear here when they list their work publicly."
+      "emptySub": "Organizations appear here when they list their work publicly.",
+      "signInHelp": "Sign in, then you can ask to join an organization.",
+      "cardHelp": "Ask the organization doing this language to let you in.",
+      "cardGuestHelp": "Sign in first, then ask its organization to let you in."
     },
     "newPerson": {
       "title": "Join with your invite",
-      "intro": "No email or password needed. Your team sees you by this name."
+      "intro": "No email or password needed. Your team sees you by this name.",
+      "joinHelp": "Makes your account with this name and puts you on the team.",
+      "nameHelp": "The name your team sees you by."
     },
     "createAccount": {
       "title": "Create Account",
@@ -2481,7 +2849,9 @@
       "tooShort": "The password needs 6 or more characters.",
       "scanInvite": "Scan an invite",
       "scanHint": "No email or password needed. The invite makes your account and puts you on the team.",
-      "failed": "Could not create the account. Try again."
+      "failed": "Could not create the account. Try again.",
+      "confirmHelp": "Type the same password again, to be sure it is right.",
+      "scanInviteHelp": "Opens the camera. The invite makes your account: no email needed."
     },
     "scan": {
       "title": "Scan a code",
@@ -2510,7 +2880,18 @@
       "scanQr": "Scan QR code",
       "pasteLabel": "Or paste the code or link",
       "pastePlaceholder": "Invite or sign-in code",
-      "clearInvite": "Clear this invite"
+      "clearInvite": "Clear this invite",
+      "joinAsHelp": "Joins the team on this device as the person the invite names.",
+      "joinHelp": "Next, type your name. Then you are on the team.",
+      "haveAccountHelp": "Sign in first. You join the team as soon as you do.",
+      "joinAsMeHelp": "Adds this account to the organization in the invite.",
+      "notMeHelp": "Opens sign out, so the right person can join on this device.",
+      "stopCameraHelp": "Turns the camera off.",
+      "scanDifferentHelp": "Opens the camera to read another code in place of this one.",
+      "scanQrHelp": "Opens the camera. Point it at the code.",
+      "pasteHelp": "Paste a code or link here. It is read as soon as it is whole.",
+      "clearInviteHelp": "Forgets this invite on this device.",
+      "notNowHelp": "Forgets this invite and goes back to your work."
     },
     "signInKey": {
       "notGuestTitle": "This is a sign-in code",
@@ -2525,7 +2906,10 @@
       "failed": "Could not sign in with this code. Try again.",
       "notValid": "This code is not valid.",
       "expiredOrUsed": "This code has expired or was already used. Ask for a new one.",
-      "codeBusy": "Unable to use this code. Please retry."
+      "codeBusy": "Unable to use this code. Please retry.",
+      "scanElseHelp": "Leaves this code and opens the scanner again.",
+      "buttonHelp": "Signs you in on this device with this code. Nothing to type.",
+      "cancelHelp": "Does not sign in. Back to the scanner."
     },
     "intent": {
       "scanTitle": "Scan their code",
@@ -2547,7 +2931,13 @@
       "savedBody": "Your request is saved on this device and sends when you have a connection.",
       "meanwhile": "Meanwhile",
       "signOut": "Sign out",
-      "deleteAccount": "Delete account"
+      "deleteAccount": "Delete account",
+      "scanHelp": "The usual way in: opens the camera for the code a teammate shows.",
+      "findHelp": "Find your organization in a list and ask to join it.",
+      "startHelp": "Starts an organization of your own, with you as its admin.",
+      "lookHelp": "Shows translation work organizations share publicly, before you join one.",
+      "signOutHelp": "Opens sign out. It says first if anything is still to send.",
+      "deleteAccountHelp": "Opens the page to delete your account. Nothing is deleted yet."
     },
     "createOrg": {
       "title": "Create Organization",
@@ -2559,7 +2949,8 @@
       "namePlaceholder": "Enter organization name",
       "licenseLabel": "Who may use your work",
       "readyTitle": "Ready to use",
-      "readyBody": "You'll get the usual roles and a standard way to check passages. Next, we'll add your first language and team together."
+      "readyBody": "You'll get the usual roles and a standard way to check passages. Next, we'll add your first language and team together.",
+      "nameHelp": "Your organization's name, as your teams will see it."
     },
     "request": {
       "notSent": "Not sent",
@@ -2578,7 +2969,12 @@
       "asking": "Asking…",
       "noMatch": "No organization or language matches “{{query}}”.",
       "notHere": "Not here? Ask someone on your team to show you their code.",
-      "noneListed": "No organizations are listed yet. Ask someone on your team to show you their code."
+      "noneListed": "No organizations are listed yet. Ask someone on your team to show you their code.",
+      "backHelp": "Back to the ways to join your team.",
+      "doneHelp": "Back to the start. Their answer shows there when it comes.",
+      "askHelp": "Sends your request. An admin there lets you in.",
+      "messageHelp": "An admin there reads this with your request.",
+      "rowHelp": "Sends this organization your request to join."
     },
     "welcome": {
       "roles": {
@@ -2612,7 +3008,9 @@
         "adminInvite": "Invite your team.",
         "viewerProgress": "See how far each language has come.",
         "viewerOpen": "Open any passage to hear what happened."
-      }
+      },
+      "getStartedHelp": "Opens your home screen. The ? on any screen explains it.",
+      "visionHelp": "Opens three short cards on what LangQuest is for."
     },
     "welcomeBack": {
       "greeting": "Welcome back, {{name}}",
@@ -2637,7 +3035,10 @@
       "recordings_one": "{{count, number}} recording",
       "recordings_other": "{{count, number}} recordings",
       "passages_one": "{{count, number}} passage",
-      "passages_other": "{{count, number}} passages"
+      "passages_other": "{{count, number}} passages",
+      "checkAgainHelp": "Looks again for your work from the old app.",
+      "goToMyWorkHelp": "Opens your list of what to do next.",
+      "differentHelp": "How the old app's projects, quests and votes look in this one."
     },
     "invite": {
       "expired": "This invite has expired. Ask for a new one.",
@@ -2670,7 +3071,8 @@
       "elsewhere": "LangQuest is open in another tab",
       "movingSub": "The other tab saves what it has and steps aside.",
       "elsewhereSub": "It works in one tab at a time, so your recordings and changes stay in one place. Use it here, or go back to the other tab.",
-      "useHere": "Use it here"
+      "useHere": "Use it here",
+      "useHereHelp": "Moves LangQuest to this tab. The other tab saves its work and steps aside."
     }
   },
   "account": {
@@ -2787,7 +3189,14 @@
       "reportsAnonymous": "Reports never say who sent them. The LangQuest team sees every report too.",
       "assignAccept": "Assign role & accept",
       "decline": "Decline",
-      "inLanguage": "In {{language}}"
+      "inLanguage": "In {{language}}",
+      "joinHelp": "Opens the request, to let them in or decline.",
+      "reportHelp": "Opens the report: what was reported, and what you can do.",
+      "updateHelp": "Opens the passage it is about.",
+      "remoteHelp": "Opens what it is about, switching to its organization if needed.",
+      "unreadHelp": "{{line}} The dot means you have not opened it yet.",
+      "assignAcceptHelp": "Next, choose their role. Then they are in.",
+      "declineHelp": "Turns the request down. They are not given access."
     },
     "me": {
       "title": "Me",
@@ -2803,7 +3212,11 @@
       "morePending_one": "{{count, number}} waiting to send · password, notifications, sync, account",
       "morePending_other": "{{count, number}} waiting to send · password, notifications, sync, account",
       "signOut": "Sign out",
-      "signOutHelp": "Leaves this account on this device. Work not yet sent is kept until it is."
+      "signOutHelp": "Leaves this account on this device. Work not yet sent is kept until it is.",
+      "nameHelp": "Opens your profile, to change the name your team sees.",
+      "offlineHelp": "Shows what this device keeps for working without a connection.",
+      "tourHelp": "Opens three short cards on what LangQuest is for.",
+      "moreHelp": "Opens your password, notifications, sync and account settings. A number means changes waiting to send."
     },
     "more": {
       "noEmail": "No email yet",
@@ -2839,7 +3252,11 @@
       "deleteAccount": "Delete account",
       "deleteSub": "Your account and your name, for good",
       "testing": "Testing",
-      "personaSub": "Sign in as a demo translator, reviewer or admin"
+      "personaSub": "Sign in as a demo translator, reviewer or admin",
+      "notificationsHelp": "Turns notifications on, so this device tells you about requests and feedback.",
+      "syncHelp": "Shows what waits to send or download. A number means changes waiting to send.",
+      "blockedHelp": "Shows who you blocked, to unblock them.",
+      "switchOrgHelp": "Opens your organizations, to switch to another or start a new one."
     },
     "blocked": {
       "sub": "What they add is hidden for you. They aren't told.",
@@ -2847,7 +3264,9 @@
       "unblock": "Unblock",
       "blockAgain": "Block again",
       "emptyTitle": "Nobody blocked",
-      "emptySub": "To block someone, tap the flag on a note, version or review they made."
+      "emptySub": "To block someone, tap the flag on a note, version or review they made.",
+      "unblockHelp": "Shows what they add again. They are not told.",
+      "blockAgainHelp": "Hides what they add again, for you only."
     },
     "profile": {
       "title": "Edit Profile",
@@ -2865,14 +3284,19 @@
       "signInWithYourName": "You sign in with your sign-in name and this password. Write the name down.",
       "setOne": "Set one if other people use this device, so you can sign back in after they do.",
       "lastChangeRefused": "Your last change was not accepted",
-      "savedBody": "It sends when you are connected."
+      "savedBody": "It sends when you are connected.",
+      "nameHelp": "The name your team sees you by. It sends when you are connected.",
+      "passwordHelp": "Lets you sign back in after someone else uses this device."
     },
     "orgs": {
       "stale": "Unable to refresh. Saved organizations remain available.",
       "activeLabel": "{{name}}, active",
       "loading": "Loading your organizations…",
       "newOrg": "New organization",
-      "newOrgSub": "You'll be its admin. Your place in the others stays as it is."
+      "newOrgSub": "You'll be its admin. Your place in the others stays as it is.",
+      "openHelp": "Switches to this organization and opens its work.",
+      "activeHelp": "Open now, marked with the tick. Tapping opens its home screen.",
+      "newOrgHelp": "Starts a new organization, with you as its admin."
     },
     "unsent": {
       "changes_one": "{{count, number}} change",
@@ -2958,7 +3382,10 @@
       "refusedLine": "Refused",
       "none": "None",
       "moreInfo": "More about this",
-      "details": "Details"
+      "details": "Details",
+      "syncNowHelp": "Sends what is waiting and gets what is new, right away.",
+      "detailsHelp": "Each change waiting or refused, and audio transfers: for someone fixing a problem.",
+      "eventHelp": "Opens the passage this change is about."
     }
   },
   "study": {
@@ -2967,7 +3394,8 @@
     "audio": {
       "position": "Position in {{label}}",
       "pause": "Pause {{label}}",
-      "play": "Play {{label}}"
+      "play": "Play {{label}}",
+      "positionHelp": "Drag along it to move to another moment."
     },
     "step": {
       "done": "Done",
@@ -2992,7 +3420,8 @@
     },
     "contribute": {
       "sub": "It stays with the passage, and reviewers see it with the study.",
-      "record": "Record what the group said"
+      "record": "Record what the group said",
+      "typeHelp": "Type it here, instead of recording it or as well."
     },
     "media": {
       "map": "Map",
@@ -3006,7 +3435,8 @@
       "lowRes": "Low-resolution copies, to save data.",
       "lowResMap": "Low-resolution copies, to save data. Tap the map to open it full size.",
       "lowResFilm": "Low-resolution copies, to save data. This film has no small copy yet.",
-      "lowResMapFilm": "Low-resolution copies, to save data. Tap the map to open it full size. This film has no small copy yet."
+      "lowResMapFilm": "Low-resolution copies, to save data. Tap the map to open it full size. This film has no small copy yet.",
+      "openFullSizeHelp": "Opens the map full size, outside the app."
     },
     "glossary": {
       "sub": "Glossary · {{source}}",
@@ -3028,7 +3458,8 @@
       "verse": "Verse {{verse}}",
       "where": "{{title}} · verse {{verse}} · {{bible}}",
       "whereAt": "{{title}} · verse {{verse}} · {{bible}} · {{time}}",
-      "noteAdded": "Note added on {{verse}} — it follows this passage"
+      "noteAdded": "Note added on {{verse}} — it follows this passage",
+      "addNoteHelp": "Say or type a note on this verse. It stays with the passage."
     },
     "screen": {
       "study": "Study",
@@ -3059,7 +3490,11 @@
       "addedStays": "What you add while studying stays with this passage. Reviewers see it next to the draft.",
       "addedStaysNotes_one": "What you add while studying stays with this passage. Reviewers see it next to the draft ({{count, number}} note so far).",
       "addedStaysNotes_other": "What you add while studying stays with this passage. Reviewers see it next to the draft ({{count, number}} notes so far).",
-      "passageDock": "The passage · {{title}}"
+      "passageDock": "The passage · {{title}}",
+      "adaptGuideHelp": "Makes your own copy of this guide to change.",
+      "doneWithStepHelp": "Marks this step done for the team, then opens the next one.",
+      "editGuideHelp": "Opens it in the guide editor.",
+      "nextStepHelp": "Goes on to that step."
     },
     "guide": {
       "stepsTitle_one": "Guide · {{count, number}} step",
@@ -3090,8 +3525,15 @@
         "part": "This part",
         "tapToAnswer": "Tap it to answer.",
         "tapToNote": "Tap it to add a note.",
-        "picture": "Shows the picture full size."
-      }
+        "picture": "Shows the picture full size.",
+        "links": "Underlined words open a picture, a map or their meaning.",
+        "noteCount": "The number on its corner counts its notes."
+      },
+      "addNoteHelp": "Say or type a note on this part. It stays with the study.",
+      "answerHelp": "Say or type your answer. It stays with the study."
+    },
+    "preview": {
+      "linksHelp": "Underlined words open their picture, map or meaning."
     }
   },
   "passage": {
@@ -3327,7 +3769,16 @@
         "publish": "Publishing saves your version for the team to hear, then you ask for a check.",
         "feedback": "Someone listened and asked for changes. Hear what they said.",
         "fix": "Record a new version with the change, or keep this one and say why.",
-        "team": "A check by the team: {{status}}. Tap for who and the options."
+        "team": "A check by the team: {{status}}. Tap for who and the options.",
+        "withMark": "{{help}} {{mark}}",
+        "state": {
+          "done": "Green tick: done.",
+          "current": "Blue number: the step to do now.",
+          "todo": "Grey number: comes later.",
+          "passed": "Dash: left behind. Nothing waits on it."
+        },
+        "teamView": "A check by the team: {{status}}.",
+        "checkpoint": "The lock: it must pass before the steps after it."
       },
       "thenTheTeam": "Then the team"
     },
@@ -3380,7 +3831,8 @@
       "ledToShow": "Led to {{version}}. Show it",
       "ledTo": "led to {{version}}",
       "labelled": "<b>{{label}}: </b>{{text}}",
-      "keptWithReason": "Kept, with a reason"
+      "keptWithReason": "Kept, with a reason",
+      "showVersionHelp": "Shows that version and what happened to it."
     },
     "page": {
       "skipReasons": {
@@ -3441,6 +3893,39 @@
       "more": "More",
       "options": "Options",
       "openVersion": "Open {{version}}",
+      "mainHelp": {
+        "hearFeedback": "Opens what the reviewer said. Then fix it, or keep it and say why.",
+        "check": "Opens the check: listen, answer its questions, then say if it is ready.",
+        "backTranslate": "Opens the back translation: say each part again in your own words.",
+        "study": "Opens the study guide, to go through the passage together first.",
+        "record": "Opens the recorder. With more than one draft, you choose one first.",
+        "ask": "Choose who to ask, then send it."
+      },
+      "marks": {
+        "approved": "A green tick: it looks good.",
+        "addressed": "A ringed tick: their feedback has been answered.",
+        "suggestions": "An amber bubble: they asked for changes.",
+        "asked": "A clock: someone was asked and has not answered yet.",
+        "skipped": "Grey: this check was set aside.",
+        "locked": "A lock: it waits until a must-pass check is done.",
+        "todo": "An empty circle: not done yet."
+      },
+      "actionHelp": {
+        "do": "Opens it, to do it yourself now.",
+        "send": "Sends it to whoever usually does it. Undo takes it back.",
+        "ask": "Choose a person, a team, or someone without the app.",
+        "log": "It happened outside the app: put it on the record.",
+        "skip": "Leave this check out. You say why."
+      },
+      "moreHelp": "Shows every option for this step.",
+      "movePastHelp": "Go on without this check. You say why, and it goes on the record.",
+      "openReviewHelp": "Opens this review: what they said and answered.",
+      "openVersionHelp": "Opens this version: hear it, what changed, and its reviews.",
+      "openStudyStepHelp": "Opens this study step, with its answers and notes.",
+      "withdrawHelp": "Takes the request back. They are no longer asked.",
+      "elseHelp": "Other ways forward: ask someone, say it already happened, add a note.",
+      "historyHelp": "Your drafts, every published version, and everything that happened here.",
+      "openStudyHelp": "Opens the whole study guide for this passage.",
       "listeners": "Listeners",
       "liveIn": "Live in {{channel}} · {{version}}",
       "listenerCount": "Listener feedback: {{count, number}}"
@@ -3460,7 +3945,10 @@
       "movePast": "Move past a checkpoint",
       "movePastSub": "{{step}} is a must-pass step. Say why, and it's on the record",
       "whatHelps": "What helps here",
-      "teamOptions": "Each check under \"{{section}}\" has its own options too: tap it on the path."
+      "teamOptions": "Each check under \"{{section}}\" has its own options too: tap it on the path.",
+      "sayInsteadHelp": "Opens a voice note for this passage. Your team hears it here.",
+      "addNoteHelp": "Leave a note on this passage, said or typed. Your team sees it here.",
+      "whatHelpsHelp": "Opens the Bibles, guides and other helps for this passage."
     },
     "published": {
       "askTitle": "Ask for a check",
@@ -3474,7 +3962,11 @@
       "sending": "{{title}} · sending now",
       "nextAsk": "Next, ask for a check",
       "allDone": "Every check is done.",
-      "alreadyAsked": "The next check is already asked for."
+      "alreadyAsked": "The next check is already asked for.",
+      "doneHelp": "Goes back to the passage.",
+      "pickCheckHelp": "Picks this check to ask for. Under it: the people who do it.",
+      "someoneElseHelp": "Ask a different person, a team, or someone without the app.",
+      "notNowHelp": "Ask later. The version stays published."
     },
     "keep": {
       "title": "Keep it as it is?",
@@ -3484,7 +3976,9 @@
       "sayWhyTitle": "Keep it, say why",
       "keepIt": "Keep it",
       "sayWhy": "Say why. {{who}} and the team will hear it.",
-      "tapAndSay": "Tap and say why"
+      "tapAndSay": "Tap and say why",
+      "keepItHelp": "Keeps this version as it is, and sends your reason.",
+      "sayWhyHelp": "Keep this version as it is. You say why; they hear it."
     },
     "addNote": {
       "done": "Note added — it follows this passage",
@@ -3497,7 +3991,10 @@
       "cell": "{{kind}} from {{who}}",
       "cellLatestOf_one": "{{kind}} from {{who}} (latest of {{count, number}})",
       "cellLatestOf_other": "{{kind}} from {{who}} (latest of {{count, number}})",
-      "kindRecorded": "{{kind}} recorded"
+      "kindRecorded": "{{kind}} recorded",
+      "gridHelp": "Each row is a version, each column a check. A grey dot: none yet.",
+      "cellHelp": "Opens this review. {{mark}}",
+      "madeHelp": "Opens the {{kind}} made from this version. It is not a verdict."
     },
     "version": {
       "nothingRecorded": "Nothing recorded for this passage yet.",
@@ -3515,7 +4012,9 @@
       "noReviews": "No reviews of this version yet.",
       "notes": "Notes",
       "noteCount_one": "{{count, number}} note",
-      "noteCount_other": "{{count, number}} notes"
+      "noteCount_other": "{{count, number}} notes",
+      "inResponseHelp": "Opens the feedback this version answers.",
+      "termHelp": "Opens this key term: what it means and how your team says it."
     },
     "review": {
       "noReviews": "No reviews on this passage yet.",
@@ -3546,7 +4045,8 @@
       "unansweredBecause": "<b>Left unanswered: </b>{{reason}}",
       "revisedIt": "{{name}} revised it",
       "keptIt": "{{name}} kept it",
-      "answerAloud": "Their answer, said aloud"
+      "answerAloud": "Their answer, said aloud",
+      "recordFixHelp": "Opens the recorder to make a new version with the change."
     },
     "ask": {
       "fromItsStep": "Ask for a review from its step on the passage record.",
@@ -3579,7 +4079,23 @@
       "answerType": "Answer: {{type}}",
       "addQuestion": "Add question",
       "byWhen": "By when · optional",
-      "orDate": "Or a date, like {{date}}"
+      "orDate": "Or a date, like {{date}}",
+      "sendHelp": "Sends the request. They find it on My Work.",
+      "sendOutsideHelp": "Saves the request on the record, with their name and number.",
+      "onTeamHelp": "Choose someone who uses the app.",
+      "withoutAppHelp": "Ask someone by WhatsApp or text message instead.",
+      "teamHelp": "Asks everyone on this check. Any of them can do it.",
+      "personHelp": "Picks this person to ask.",
+      "phoneHelp": "Where to reach them by WhatsApp or text message.",
+      "whatsappHelp": "Reach them by WhatsApp.",
+      "smsHelp": "Reach them by text message.",
+      "noDateHelp": "No day to finish by.",
+      "dueHelp": "Asks for it to be done by then.",
+      "dateHelp": "A day to finish by, written YYYY-MM-DD.",
+      "askSpecificHelp": "Type a question for them to answer, then add it.",
+      "answerTypeHelp": "Changes how they answer: yes or no, in words, or 1 to 5.",
+      "addQuestionHelp": "Adds your question to the ones they answer.",
+      "removeQuestionHelp": "Takes this question off."
     },
     "resources": {
       "sourceAudio": "Source audio"
@@ -3603,7 +4119,13 @@
       "nameFrom": "{{name}} · from {{version}}",
       "newDraft": "New draft",
       "draft": "Draft",
-      "draftN": "Draft {{n, number}}"
+      "draftN": "Draft {{n, number}}",
+      "newVersionHelp": "Starts a new version from the beginning. Your drafts stay.",
+      "deleteHelp": "Deletes this draft. Undo brings it back.",
+      "editDraftHelp": "Opens this draft in the recorder, to keep working on it.",
+      "publishHelp": "Opens this draft to publish it for the team to hear.",
+      "editVersionHelp": "Starts a new draft from this version. The version itself stays as it is.",
+      "partHelp": "Plays this part alone."
     }
   },
   "work": {
@@ -3616,13 +4138,16 @@
       "labelNew_one": "Updates, {{count, number}} new",
       "labelNew_other": "Updates, {{count, number}} new",
       "help": "What happened that concerns you: requests, feedback, people asking to join.",
-      "overMax": "{{max}}+"
+      "overMax": "{{max}}+",
+      "countHelp": "The number on it is how many are new."
     },
     "readyCard": {
       "label": "Get {{language}} ready · {{done}} of {{total}}",
       "choose": "Choose",
       "progress_one": "{{done}} of {{count, number}} question answered",
-      "progress_other": "{{done}} of {{count, number}} questions answered"
+      "progress_other": "{{done}} of {{count, number}} questions answered",
+      "chooseHelp": "Opens this question, to answer it.",
+      "progressHelp": "Each green segment is a question answered."
     },
     "ready": {
       "template": "What will they record?",
@@ -3647,7 +4172,8 @@
       "someone": "someone",
       "toggle_one": "Waiting on others · {{count, number}}",
       "toggle_other": "Waiting on others · {{count, number}}",
-      "help": "What you asked of someone else that is not done yet."
+      "help": "What you asked of someone else that is not done yet.",
+      "rowHelp": "Opens the passage, to see where it stands."
     },
     "sync": {
       "toSend_one": "{{count, number}} to send",
@@ -3656,7 +4182,8 @@
     "join": {
       "wantsToJoin": "{{name}} wants to join",
       "asked": "Asked {{when}}",
-      "askedJustNow": "Asked just now"
+      "askedJustNow": "Asked just now",
+      "openHelp": "Opens their request: choose a role and let them in."
     },
     "lead": {
       "getOrgReady": "Get {{org}} ready",
@@ -3670,14 +4197,20 @@
       "notChecked": "{{name}} recorded it · nobody has checked it yet",
       "getLanguageStarted": "Get {{language}} started",
       "goodPlace": "A good place to start",
-      "openIt": "Open it"
+      "openIt": "Open it",
+      "startHelp": "Opens it, to do what the line above says.",
+      "openHelp": "Opens this passage.",
+      "addLanguageHelp": "Opens the steps to add the language your team speaks."
     },
     "list": {
       "then": "Then",
       "alsoForYou": "Also for you",
       "fewer": "Fewer",
       "more_one": "{{count, number}} more for you",
-      "more_other": "{{count, number}} more for you"
+      "more_other": "{{count, number}} more for you",
+      "openHelp": "Opens it, to do what the line under it says.",
+      "moreHelp": "Shows the rest of what is for you.",
+      "fewerHelp": "Shows only the first few again."
     },
     "caughtUp": {
       "title": "Nothing is waiting on you",
@@ -3687,7 +4220,8 @@
     "recent": {
       "toggle_one": "Opened lately · {{count, number}}",
       "toggle_other": "Opened lately · {{count, number}}",
-      "help": "Passages you opened lately, to pick up where you were."
+      "help": "Passages you opened lately, to pick up where you were.",
+      "rowHelp": "Opens it again, to pick up where you were."
     },
     "map": {
       "everyLanguage": "See how every language is doing",
@@ -3700,7 +4234,9 @@
       "waiting_other": "{{count, number}} books are waiting to be divided before anyone records them",
       "leftOut": "{{way}} has no sections for {{book}}.",
       "more_one": "{{count, number}} more book waits too.",
-      "more_other": "{{count, number}} more books wait too."
+      "more_other": "{{count, number}} more books wait too.",
+      "help": "Opens the book, to choose where its sections start.",
+      "mapHelp": "Opens the map, where the book waits to be divided."
     },
     "elsewhere": {
       "title": "New in {{language}}",
@@ -3710,7 +4246,8 @@
     "again": {
       "title": "Record {{passage}} again",
       "sub_one": "Its sections changed after it was recorded. The earlier recording is on its page.",
-      "sub_other": "Sections changed after they were recorded: {{count, number}} to record again. Earlier recordings are on their pages."
+      "sub_other": "Sections changed after they were recorded: {{count, number}} to record again. Earlier recordings are on their pages.",
+      "help": "Opens the passage, to record it again."
     }
   },
   "shell": {
@@ -3856,7 +4393,12 @@
       "outsidersBody": "Anyone will be able to listen to your recordings. If a voice could put someone at risk, keep your work closed.",
       "onlyAdmin": "Only an organization admin can change this.",
       "read": "Read the license",
-      "rowLabel": "License: {{name}}. {{short}}"
+      "rowLabel": "License: {{name}}. {{short}}",
+      "backHelp": "Back to the licenses, without changing anything.",
+      "openToHelp": "Asks you to confirm first: this can’t be undone.",
+      "readHelp": "Opens its full text in the browser.",
+      "rowHelp": "Opens the licenses and what each one allows.",
+      "yesOpenToHelp": "Your work is shared under this license from now on. It can’t be undone."
     }
   },
   "help": {
@@ -3868,7 +4410,42 @@
     "lineAfterSentence": "{{label}} {{detail}}",
     "details": {
       "primary": "The main thing to do on this screen.",
-      "quiet": "Another way forward, less often needed."
+      "quiet": "Another way forward, less often needed.",
+      "back": "Goes back to the screen before.",
+      "close": "Leaves this screen.",
+      "closeSheet": "Closes this, back to the screen under it.",
+      "crumb": "Opens it. This screen is part of it.",
+      "disclosure": "Shows what is inside, here. Tap again to hide it.",
+      "disclosureOpen": "Hides what it shows.",
+      "field": "Tap here, then type.",
+      "search": "Type a few letters: the list below shows only what matches.",
+      "clearSearch": "Empties the search, so the whole list shows again.",
+      "showMore": "Shows the next part of this list.",
+      "switchOn": "On. Tap to turn it off.",
+      "switchOff": "Off. Tap to turn it on.",
+      "person": "Shows who this is: their name and their ID.",
+      "cancel": "Closes this without changing anything.",
+      "save": "Keeps what you changed.",
+      "done": "Finished here: goes back.",
+      "undo": "Puts back what was there before.",
+      "tryAgain": "Tries once more.",
+      "quickReason": "Uses this as your reason. You can still change the words."
+    },
+    "tabs": {
+      "work": "What to do next: your next passage, and what waits on you.",
+      "map": "Every book and chapter, and how far each has come.",
+      "reports": "How the work is going, in numbers, for each language and over time.",
+      "manage": "Your organization's languages, people and settings.",
+      "inbox": "What happened that concerns you: requests, feedback, people asking to join.",
+      "me": "Your name, this device and your settings.",
+      "explorer": "Opens the language explorer in a new tab: every language and where it is spoken."
+    },
+    "sync": {
+      "live": "Green dot: connected. Your work is sent as you go. Tap to see what was sent.",
+      "checking": "Grey dot: looking for a connection. Your work stays on this device until it is sent.",
+      "offline": "Amber dot: offline. Your work stays on this device and is sent once you are connected.",
+      "refused": "Red: the server refused something. Tap to see what, and what to do.",
+      "withWaiting": "{{standing}} The number is how many things wait to send."
     }
   },
   "offline": {
@@ -3908,7 +4485,8 @@
       "readRecordAudioNeeds": "You can read it and record, but its audio needs a connection.",
       "readRecordStudyNeeds": "You can read it and record, but its audio and study pictures need a connection.",
       "textHereAudioNeeds": "Its text is here, but its audio needs a connection. Keep it offline to take it with you.",
-      "textHereStudyNeeds": "Its text is here, but its audio and study pictures need a connection. Keep it offline to take it with you."
+      "textHereStudyNeeds": "Its text is here, but its audio and study pictures need a connection. Keep it offline to take it with you.",
+      "barHelp": "Fills as its files reach this device."
     },
     "toast": {
       "kept": "Kept on this device. It downloads while you are connected.",
@@ -3946,8 +4524,11 @@
       "needsOtherLanguages": "Other languages. Open one while connected to bring it up to date.",
       "bullet": "• {{line}}",
       "notSent_one": "{{count, number}} recording in your kept passages hasn't been sent from the device that made it yet, so no device can download it.",
-      "notSent_other": "{{count, number}} recordings in your kept passages haven't been sent from the device that made them yet, so no device can download them."
-    }
+      "notSent_other": "{{count, number}} recordings in your kept passages haven't been sent from the device that made them yet, so no device can download them.",
+      "barHelp": "How many of your kept passages are fully on this device."
+    },
+    "keepHelp": "Keeps its audio on this device, so it works without a connection.",
+    "stopKeepingHelp": "Lets this device remove its audio again when it needs room."
   },
   "moderation": {
     "flagLabel": "Report or block {{name}}",
@@ -4051,14 +4632,19 @@
       "openMembers": "Open Members",
       "openPassage": "Open the passage",
       "closeReport": "Close the report",
-      "keep": "Keep it"
+      "keep": "Keep it",
+      "openPassageHelp": "Opens the passage this report is about.",
+      "keepHelp": "Keeps it on the record and closes the report.",
+      "closeReportHelp": "Closes the report. Nobody is removed."
     },
     "hidden": {
       "text": "Hidden because you blocked them",
       "byName": "Hidden because you blocked {{name}}",
       "show": "Show",
-      "showLabel": "Show what {{name}} added"
-    }
+      "showLabel": "Show what {{name}} added",
+      "showHelp": "Shows what they added, this once."
+    },
+    "flagHelp": "Report this, or block the person who made it."
   },
   "languoid": {
     "dialectOf": "Dialect of {{parent}}",
@@ -4073,7 +4659,9 @@
       "oneOfThese": "Is it one of these?",
       "searching": "Searching the language list…",
       "closest_one": "These are the closest {{count, number}}. Type more of its name to narrow them.",
-      "closest_other": "These are the closest {{count, number}}. Type more of its name to narrow them."
+      "closest_other": "These are the closest {{count, number}}. Type more of its name to narrow them.",
+      "pickHelp": "Picks this one from the language list.",
+      "changeHelp": "Unpicks it, to choose another from the list."
     }
   },
   "recording": {
@@ -4109,7 +4697,9 @@
       "addNoteHere": "Add a note here",
       "playRow": "Play {{title}}. {{sub}}",
       "pauseRow": "Pause {{title}}. {{sub}}",
-      "rowNotOnDevice": "{{title}}. Not on this device yet"
+      "rowNotOnDevice": "{{title}}. Not on this device yet",
+      "forwardHelp": "Skips ahead 10 seconds.",
+      "timelineHelp": "Tap or drag to go to a moment. The times: where you are, and how long it is."
     },
     "recorder": {
       "permissionNeeded": "Microphone permission is required.",
@@ -4134,7 +4724,11 @@
       "openHelp": "Drag the divider up, or tap here, to see your parts.",
       "barLabel": "Your recording. {{next}}. {{progress}}. Open",
       "publishHelp": "When every part is recorded: save this version for the team.",
-      "nextRecording": "{{part}}…"
+      "nextRecording": "{{part}}…",
+      "deletePartHelp": "Deletes this part. You can undo it right after.",
+      "nextCardHelp": "The part you record next. Tap the red button to start.",
+      "nextRecordingHelp": "Recording now. Solid bars are your voice being kept; faint bars are quiet.",
+      "nextPausedHelp": "Paused while the Bible plays. Recording goes on when it stops."
     },
     "quoted": "“{{text}}”",
     "listening": "Listening… {{time}}",
@@ -4180,7 +4774,14 @@
       "byHandLead": "Speak, and watch the bars. Drag the line so your voice goes above it and the room's noise stays below.",
       "sensitivityLine": "Sensitivity line",
       "pauseEndsPart": "Pause that ends a part",
-      "pauseHelp": "How long a pause ends a part."
+      "pauseHelp": "How long a pause ends a part.",
+      "allBadHelp": "Starts again: the room's quiet, then three new tries.",
+      "useTryHelp": "Saves this setting on this device. Every recording starts from it.",
+      "progressHelp": "One bar for each try: green ones are done, blue is the one now.",
+      "listenRoomHelp": "Listens to the room for a few seconds. Stay quiet while it does.",
+      "tryHelp": "Starts this try: say the sentence, pause, say it again, then tap stop.",
+      "tryStopHelp": "Ends this try and keeps it, to compare with the others.",
+      "sensitivityHelp": "The bars are what the microphone hears. Drag the line: sound above it is recorded."
     },
     "bigVoice": {
       "toggleHelp": "Tap to start speaking, tap again to stop.",
@@ -4195,7 +4796,10 @@
       "play": "Play voice note",
       "delete": "Delete voice note",
       "recording": "Recording · {{time}} · tap to stop",
-      "sayWhyInstead": "Say why instead"
+      "sayWhyInstead": "Say why instead",
+      "deleteHelp": "Deletes it, so you can say it again.",
+      "recordHelp": "Starts recording; tap again to stop. Then you can hear it back.",
+      "stopHelp": "Stops recording and keeps what you said."
     },
     "steps": {
       "all": "All steps",
@@ -4207,7 +4811,11 @@
       "openHelp": "Open this step.",
       "row": "Step {{n}}: {{title}}",
       "rowDone": "Step {{n}}: {{title}}, done",
-      "rowNow": "Step {{n}}: {{title}}, open now"
+      "rowNow": "Step {{n}}: {{title}}, open now",
+      "previousHelp": "Goes back to the step before.",
+      "nextHelp": "Goes on to the next step.",
+      "openDoneHelp": "The green tick means it is done. Opens this step.",
+      "openNowHelp": "The filled number is the step you are on. Opens it."
     },
     "recordButton": {
       "stopHelp": "Stop. What you said is kept, part by part.",
@@ -4246,7 +4854,8 @@
       "needed": "Needed · since {{version}}, so the team knows what to listen for",
       "optional": "Optional · the team hears it with this version",
       "sayHelp": "By voice or typed. The team hears it with this version.",
-      "rowLabel": "{{label}}. {{sub}}"
+      "rowLabel": "{{label}}. {{sub}}",
+      "doneHelp": "Keeps what you said and closes this."
     },
     "tray": {
       "help": "Help",
@@ -4283,7 +4892,19 @@
       "firstVersion": "This will be the first version.",
       "firstRecording": "First recording.",
       "saidInVoiceNote": "Said in a voice note.",
-      "playWhatChanged": "Play what changed in {{version}}"
+      "playWhatChanged": "Play what changed in {{version}}",
+      "helpButtonHelp": "Opens key terms, the study, notes and history for this passage.",
+      "termsTabHelp": "Shows the key terms in this passage and how your language says them.",
+      "studyTabHelp": "Shows the study's steps. The numbers are steps done out of all.",
+      "notesTabHelp": "Shows the team's notes on this passage.",
+      "historyTabHelp": "Shows each version recorded so far, and what changed.",
+      "termHelp": "Opens this key term: what it means and how it is said.",
+      "termTiedHelp": "Tied to your draft. Opens this key term: what it means and how it is said.",
+      "tieHelp": "Marks this key term as said in your draft. A tie cannot be undone.",
+      "allTermsHelp": "Opens every key term, not only this passage's.",
+      "studyBarHelp": "How much of the study is done. It turns green when every step is.",
+      "openStudyHelp": "Opens the whole study for this passage.",
+      "addNoteHelp": "Leave a note on this passage, said or typed. It follows the passage."
     },
     "vad": {
       "recordedFor": "Recorded for {{time}}",
@@ -4291,14 +4912,20 @@
       "startsAgain": "Recording starts again when the source stops.",
       "cutoff": "Sound cutoff",
       "pauseBetween": "Pause between parts",
-      "tooShort": "Too short to keep. If you were speaking, say it again."
+      "tooShort": "Too short to keep. If you were speaking, say it again.",
+      "statusHelp": "Pulsing dot: your voice is being kept. The number: how many so far. The clock: time recorded.",
+      "statusPausedHelp": "Paused while the source plays. The number: how many so far. The clock: time recorded.",
+      "resumeHelp": "Stops what is playing and goes on recording.",
+      "cutoffHelp": "The bars are what the microphone hears. Drag the line: sound above it is recorded.",
+      "pauseHelp": "How long a pause ends a part. It changes at once."
     },
     "split": {
       "referenceOneLine": "Reference as one line",
       "recorderOneLine": "Recorder as one line",
       "source": "Source {{percent}}",
       "divider": "Divider between reference and your recording",
-      "dividerHint": "Drag up or down to give either one more room"
+      "dividerHint": "Drag up or down to give either one more room",
+      "dividerHelp": "Drag it up or down to give either side more room."
     },
     "take": {
       "record": "Record a part",
@@ -4324,7 +4951,6 @@
       "giveNext": "Give {{part}} the next verse",
       "giveAbove": "Give {{part}} the verse above",
       "giveVerse": "Give {{part}} a verse",
-      "tapHelp": "Tap: the app works out the verse from the parts around it. Hold: choose it yourself.",
       "label": "{{part}}, {{verses}}",
       "labelSame": "{{part}}, {{verses}}, same as the part above",
       "labelEmpty": "{{part}}, no verse yet",
@@ -4337,7 +4963,17 @@
       "verseSame": "{{verse}}, same as the part above",
       "auto": "Auto",
       "noVerse": "None",
-      "deletePart": "Delete {{part}}"
+      "deletePart": "Delete {{part}}",
+      "spaceEmptyHelp": "The faint number is what a tap gives. Hold to choose; slide down to do several.",
+      "spaceHelp": "The verse this part says. Hold to choose another, or none.",
+      "spaceSameHelp": "Hollow: more of the verse above. Hold to choose another, or none.",
+      "spaceSetHelp": "The ring means you chose this verse. Hold to choose another, or none.",
+      "pickHelp": "Gives {{part}} this verse. Then tap a later one to cover several verses.",
+      "pickedHelp": "Filled: {{part}} has this verse. Tap a later one to cover several verses.",
+      "autoHelp": "The app works out this part's verse from the parts around it.",
+      "noneHelp": "Leaves this part without a verse.",
+      "tileHelp": "The verse this part says.",
+      "tileSameHelp": "Hollow: this part goes on with the verse above."
     }
   },
   "map": {
@@ -4361,7 +4997,15 @@
       "chapter": "Chapter {{n}}",
       "chapterHelp": "Opens its passage. A tick means done, a dot means started.",
       "keyLabel": "A tick means done, a dot means started",
-      "keyLabelOffline": "A tick means done, a dot means started, a cloud means kept on this device"
+      "keyLabelOffline": "A tick means done, a dot means started, a cloud means kept on this device",
+      "barHelp": "The bar fills as its passages are recorded; the green part is done.",
+      "countHelp": "{{shown}} means {{recorded}} of its {{total}} passages are recorded.",
+      "matchHelp": "The number is how many of its passages match the filter.",
+      "notStartedHelp": "Nobody has recorded any of it yet.",
+      "nextMicHelp": "The microphone means it needs recording.",
+      "nextCheckHelp": "The tick means it needs checking.",
+      "nextChatHelp": "The speech bubble means feedback is waiting for you.",
+      "nextGlobeHelp": "The globe means it needs a back-translation."
     },
     "key": {
       "done": "Done",
@@ -4414,7 +5058,16 @@
       "title": "Filter",
       "sub": "Show only the passages that match",
       "active": "Filter: {{filter}}. Change it",
-      "clear": "Clear filter"
+      "clear": "Clear filter",
+      "activeHelp": "Opens the filters, to change it. The number is how many passages match.",
+      "clearHelp": "Shows every passage again.",
+      "allHelp": "Shows every passage.",
+      "feedbackHelp": "Shows only passages with feedback waiting for an answer.",
+      "waitingHelp": "Shows only passages waiting on a reviewer.",
+      "reviewHelp": "Shows only passages recorded but not done yet.",
+      "doneHelp": "Shows only passages with every check complete.",
+      "todoHelp": "Shows only passages nobody has recorded yet.",
+      "countHelp": "The number is how many match."
     },
     "funnel": {
       "recorded": "Recorded",
@@ -4445,7 +5098,16 @@
       "passagesAsOf_other": "{{count, number}} passages · as of {{ago}}",
       "openToBring": "Open it to bring it onto this device",
       "noMatch": "No language matches “{{query}}”.",
-      "explain": "Each bar layers the steps of the language's review flow: the further a passage has come, the darker its band. A passage is done when every step is complete — or, with no flow, once it's recorded. Locked steps are checkpoints."
+      "explain": "Each bar layers the steps of the language's review flow: the further a passage has come, the darker its band. A passage is done when every step is complete — or, with no flow, once it's recorded. Locked steps are checkpoints.",
+      "allChipHelp": "Shows every language. The number is how many.",
+      "clusterChipHelp": "Shows only the languages in this cluster. The number is how many.",
+      "noClusterChipHelp": "Shows only the languages in no cluster. The number is how many.",
+      "barLabel": "{{recorded}} recorded, {{done}} done",
+      "barHelp": "Green is done; the lighter part is recorded but not done yet.",
+      "languageAwayHelp": "The arrow means it isn't on this device yet. Opening it brings it here.",
+      "funnelHelp": "The darker a band of its bar, the further along those passages are.",
+      "clockHelp_one": "The clock shows {{count, number}} passage with reviewers.",
+      "clockHelp_other": "The clock shows {{count, number}} passages with reviewers."
     },
     "book": {
       "recorded": "{{recorded}} of {{total}} recorded",
@@ -4490,7 +5152,9 @@
       "noPassageMatch": "No passage matches — try a book name, then a chapter",
       "oldTestament": "Old Testament",
       "newTestament": "New Testament",
-      "noBooks": "No books in this language yet."
+      "noBooks": "No books in this language yet.",
+      "findHelp": "Type a book name, then a chapter number to jump straight to it.",
+      "languageChipHelp": "Shows this language's map."
     },
     "tones": {
       "done": "Done",
@@ -4512,9 +5176,30 @@
       "keptSome_other": "{{kept}} of {{count, number}} parts on this device",
       "downloading": "{{kept}} (downloading)",
       "outsideFilter": "outside the filter",
-      "changedSinceRecorded": "divisions changed since recorded"
+      "changedSinceRecorded": "divisions changed since recorded",
+      "openHelp": "Opens its passage.",
+      "pickHelp_one": "Shows its {{count, number}} part, to pick one.",
+      "pickHelp_other": "Shows its {{count, number}} parts, to pick one.",
+      "noneHelp": "This chapter has no passage in this language.",
+      "marksHelp": "A tick means done, a dot means started, no mark means not started.",
+      "outsideHelp": "Faded: nothing in it matches the filter."
     },
-    "changedSinceRecorded": "Divisions changed since it was recorded"
+    "changedSinceRecorded": "Divisions changed since it was recorded",
+    "row": {
+      "openHelp": "Opens this passage.",
+      "doneHelp": "The green tick means every check is complete.",
+      "notRecordedHelp": "The dashed circle means nobody has recorded it yet.",
+      "draftingHelp": "The coloured dashed circle means recording has started but isn't finished.",
+      "feedbackHelp": "The speech bubble means feedback is waiting for an answer.",
+      "stepsHelp": "The circle shows {{cleared}} of {{steps}} review steps complete.",
+      "forYouHelp": "The dot means something in it is waiting on you."
+    },
+    "marks": {
+      "keptHelp": "The small device mark means it is kept on this device.",
+      "downloadingHelp": "The small arrow mark means it is still downloading to this device.",
+      "changedHelp": "The flag means its sections changed after it was recorded.",
+      "stepsHelp": "The small marks are its checks: a tick is done, a clock is waiting, a bubble has feedback."
+    }
   },
   "reports": {
     "title": "Reports",
@@ -4661,7 +5346,8 @@
       "openInAll_other": "{{count, number}} requests open in all",
       "checkpoint": "At a checkpoint",
       "checkpointSub": "Waiting for a checkpoint review",
-      "show": "Show them on the map"
+      "show": "Show them on the map",
+      "showHelp": "Opens the map showing only these passages."
     },
     "noReports": {
       "languages": "No languages to show yet",
@@ -4761,7 +5447,9 @@
       "noTargetYet": "No language has a target yet.",
       "namePoints_one": "{{name}} {{gap}} point",
       "namePoints_other": "{{name}} {{gap}} points",
-      "onPlan": "on plan"
+      "onPlan": "on plan",
+      "showNumbersHelp": "Lists the chart's figures in a table under it.",
+      "hideNumbersHelp": "Hides the table of figures."
     },
     "counts": {
       "passages_one": "{{count, number}} passage",
@@ -4789,7 +5477,15 @@
       "field": "Field report",
       "ledger": "Monthly ledger",
       "pace": "Pace",
-      "alerts": "Alerts"
+      "alerts": "Alerts",
+      "overviewHelp": "Shows the main figures for all your languages, on one page.",
+      "activityHelp": "Shows what reached the server in the last 7 or 14 days.",
+      "languagesHelp": "Shows every language: its last upload, how far it is, who to contact.",
+      "geographyHelp": "Shows where the languages are, on a map and by country.",
+      "fieldHelp": "Shows a report to share: the week, month or year in the field.",
+      "ledgerHelp": "Shows new chapters with audio, month by month.",
+      "paceHelp": "Shows which languages are ahead of or behind their target.",
+      "alertsHelp": "Shows problems that need someone. A number means how many."
     },
     "home": {
       "catchUp": "Catch up with the server",
@@ -4798,7 +5494,13 @@
       "allCountries": "All countries",
       "loading": "Loading reports…",
       "couldNotRead": "The reports could not be read",
-      "allLanguages": "All languages"
+      "allLanguages": "All languages",
+      "catchUpHelp": "Reads the latest figures from the server.",
+      "allLanguagesHelp": "Shows every language. The number is how many.",
+      "clusterHelp": "Shows only this cluster's languages. The number is how many.",
+      "noClusterHelp": "Shows only languages in no cluster. The number is how many.",
+      "allCountriesHelp": "Shows languages in every country.",
+      "countryHelp": "Shows only languages in this country."
     },
     "overview": {
       "across_one": "Across {{count, number}} language · {{recent}} in the last four weeks",
@@ -4819,7 +5521,10 @@
       "noMilestones": "No coverage milestones in the last 30 days.",
       "byCountry": "Languages by country",
       "toMap": "Map ›",
-      "noCountries": "No language has a country yet. Set one on each language's page."
+      "noCountries": "No language has a country yet. Set one on each language's page.",
+      "toLanguagesHelp": "Switches to the page with every language in detail.",
+      "toActivityHelp": "Switches to the page of what reached the server, day by day.",
+      "toMapHelp": "Switches to the map of where the languages are."
     },
     "portfolio": {
       "activeDays": "Active (last 14 days)",
@@ -4847,7 +5552,8 @@
       "mostActive": "Most active",
       "byRecordings": "By recordings uploaded.",
       "nobodyUploaded": "Nobody uploaded in this window.",
-      "placeLast": "{{place}} · last {{date}}"
+      "placeLast": "{{place}} · last {{date}}",
+      "daysHelp": "Counts over this many days, beside the same days just before."
     },
     "languages": {
       "filterAll": "All {{value}}",
@@ -4886,7 +5592,12 @@
       "shown": "{{part}} of {{total}} shown",
       "never": "Never",
       "perWeekSpoken": "{{name}} recordings per week",
-      "perWeek": "<b>{{value}}</b>/wk"
+      "perWeek": "<b>{{value}}</b>/wk",
+      "downloadHelp": "Saves a spreadsheet file of these languages' figures.",
+      "filterAllHelp": "Shows every language. The number is how many.",
+      "filterHelp": "Shows only languages with this upload status. The number is how many.",
+      "sortHelp": "Sorts the table by this column.",
+      "sortedHelp": "The table is sorted by this, ▲ rising or ▼ falling. Tap to reverse."
     },
     "geography": {
       "measureLanguages": "Languages",
@@ -4899,7 +5610,9 @@
       "active": "<b>{{value}}</b> active",
       "figures": "{{recent}} rec. in 7 days · {{all}} all time · NT {{nt}}",
       "languageList_one": "{{count, number}} language: {{names}}",
-      "languageList_other": "{{count, number}} languages: {{names}}"
+      "languageList_other": "{{count, number}} languages: {{names}}",
+      "measureHelp": "Shades the map, and the counts below it, by this.",
+      "countryHelp": "Shows this country's languages on the Languages page."
     },
     "field": {
       "titleWeek": "This week in the field",
@@ -4947,7 +5660,11 @@
       "noneQuietOrBack": "No language went quiet or came back in this period.",
       "wentQuiet": "<b>{{name}}</b> went quiet: no new recordings in 14+ days.",
       "resumed": "<b>{{name}}</b> is recording again after two quiet weeks or more.",
-      "resumedBadge": "Resumed"
+      "resumedBadge": "Resumed",
+      "periodHelp": "Makes the report cover this period.",
+      "copyTextHelp": "Copies the report as text, to paste into an email or message.",
+      "shareTextHelp": "Sends the report as text, by email or a message app.",
+      "advancedBarHelp": "Purple: recorded before this period. Green: what it gained in it."
     },
     "fieldText": {
       "heading": "{{org}}: {{title}}",
@@ -4991,7 +5708,11 @@
       "idleTitle": "No new chapters this month",
       "idleSub": "Languages with nothing counted in this month, and when they last sent audio.",
       "lastUpload_one": "Last upload {{date}}, {{count, number}}d ago",
-      "lastUpload_other": "Last upload {{date}}, {{count, number}}d ago"
+      "lastUpload_other": "Last upload {{date}}, {{count, number}}d ago",
+      "previousMonthHelp": "Shows the month before.",
+      "nextMonthHelp": "Shows the month after.",
+      "exportHelp": "Saves this month's ledger as a spreadsheet file.",
+      "toPaceHelp": "Switches to the page of each language against its target."
     },
     "alerts": {
       "levels": {
@@ -5068,7 +5789,8 @@
       "byWeek": "By week.",
       "progressOverTime": "Progress over time",
       "progressOverTimeSub": "Share of passages recorded and done, one point per day for the last 90 days.",
-      "books": "Books"
+      "books": "Books",
+      "downloadBooksHelp": "Saves a spreadsheet file of each book's progress."
     },
     "flow": {
       "title": "Review flow",
@@ -5100,14 +5822,25 @@
       "saveTarget": "Save target",
       "findCountry": "Find a country",
       "typeToFind_one": "Type to find the other {{count, number}}.",
-      "typeToFind_other": "Type to find the other {{count, number}}."
+      "typeToFind_other": "Type to find the other {{count, number}}.",
+      "countryHelp": "Opens the list of countries, to choose where this language's work happens.",
+      "saveCountryHelp": "Saves the country to the server now. Needs a connection.",
+      "scopeHelp": "What the target covers. Then set the dates and save.",
+      "startHelp": "The day work toward the target began.",
+      "finishByHelp": "The day the target should be reached.",
+      "saveTargetHelp": "Saves the target and its dates to the server now. Needs a connection.",
+      "pickCountryHelp": "Chooses this country. Save country then keeps it.",
+      "chosenCountryHelp": "The country chosen now, in bold. Tap another to change it."
     },
     "clusters": {
       "title": "Clusters",
       "sub": "Each cluster's languages together. Pick one to see only its languages.",
       "languages_one": "{{count, number}} language",
-      "languages_other": "{{count, number}} languages"
-    }
+      "languages_other": "{{count, number}} languages",
+      "pickHelp": "Shows only this cluster's languages in the reports."
+    },
+    "openLanguageHelp": "Opens this language's own report.",
+    "printOrSaveHelp": "Opens the browser's print window, to print or save a PDF."
   },
   "review": {
     "shared": {
@@ -5237,7 +5970,12 @@
       "removePassage": "Remove {{title}}",
       "findAnother": "Find another — “Mark 2”",
       "nearbyIn": "Nearby in {{book}}",
-      "noMatch": "No recorded passage matches “{{query}}”."
+      "noMatch": "No recorded passage matches “{{query}}”.",
+      "counterHelp": "Changes how many listened. It goes on the record with the review.",
+      "removePassageHelp": "Takes this passage off the list.",
+      "alsoHelp": "Adds this passage: the same review goes on it too.",
+      "alsoOnHelp": "Picked: the same review goes on it too. Tap to take it off.",
+      "cantAnswerHelp": "Leave this question unanswered. You say why."
     },
     "screen": {
       "notInLanguage": "This passage isn't in this language",
@@ -5333,7 +6071,28 @@
       "leaveTitle": "Leave without saving?",
       "leaveSub": "What you said and answered here is not saved until you send the review.",
       "keepReviewing": "Keep reviewing",
-      "leave": "Leave"
+      "leave": "Leave",
+      "backgroundHelp": "Opens what helps you judge it: the Bible, notes, key words and more.",
+      "whoHelp": "Say how many listened, and where. Optional.",
+      "whoReviewedHelp": "Say who gave this review. Optional.",
+      "addDetailsHelp": "Where it happened, which version was played, other passages, a retelling.",
+      "answerItHelp": "Brings the question back, to answer it.",
+      "orTypeHelp": "Shows a box to type it instead of saying it.",
+      "removePartHelp": "Deletes this part.",
+      "whatHappenedHelp": "Say or type what happened. Optional.",
+      "requiredLeftHelp": "Goes back to the questions that still need an answer.",
+      "saySomethingHelp": "Say or type a note that goes with your answer. Optional.",
+      "removeRetellingHelp": "Deletes the retelling.",
+      "retellingHelp": "Someone who listened tells it back, and you record it. Optional.",
+      "sheetDoneHelp": "Keeps what you gave here and closes this.",
+      "whereHelp": "Where they listened. It goes on the record with the review.",
+      "whichVersionHelp": "Picks the version that was played to them.",
+      "keepReviewingHelp": "Stays here. Nothing is lost.",
+      "leaveHelp": "Leaves without sending. What you said here is not kept.",
+      "helpBibleHelp": "Opens this Bible in Background, beside the passage.",
+      "helpGuideHelp": "Opens the study guide for this passage.",
+      "helpNoteHelp": "Opens it to read.",
+      "howManyHelp": "Say how many listened. Optional."
     },
     "guest": {
       "previewSub": "Preview · what someone without the app sees",
@@ -5354,7 +6113,9 @@
       "playTitle": "Play {{title}}",
       "noRecording": "There's no recording to listen to yet.",
       "tellUs": "Tell us what you understood",
-      "replyByVoice": "Tap to reply by voice"
+      "replyByVoice": "Tap to reply by voice",
+      "someUnclearHelp": "The listener taps this if parts were hard to follow. A preview sends nothing.",
+      "understoodWellHelp": "The listener taps this if they understood it. A preview sends nothing."
     },
     "simple": {
       "stepsLabel": "Review steps",
@@ -5379,7 +6140,12 @@
         "guide": "Guide",
         "notes": "Notes",
         "terms": "Key words",
-        "earlier": "Earlier"
+        "earlier": "Earlier",
+        "passageHelp": "Shows the passage in the Bible the translator used.",
+        "guideHelp": "Shows the team's study of this passage.",
+        "notesHelp": "Shows the notes left on this passage.",
+        "termsHelp": "Shows the key words tied to this version.",
+        "earlierHelp": "Shows every version and what was said about each."
       },
       "noNotes": "No notes on this passage yet.",
       "noTerms": "No key words were tied to this version.",
@@ -5432,7 +6198,15 @@
       "yourAnswerHelp": "Your answer.",
       "skip": "Skip",
       "skipHelp": "Leave this question. A required one asks why.",
-      "skipA11y": "Skip this question"
+      "skipA11y": "Skip this question",
+      "bibleRowHelp": "Shows and plays the passage in this Bible.",
+      "dotsHelp": "One dot for each question. The long one is this question.",
+      "trackLabel": "How far it has played",
+      "trackHelp": "Fills as it plays. The times show where it is and its length.",
+      "verseHelpPlay": "Plays the passage from this verse.",
+      "verseHelpPick": "Picks this verse. Then Note leaves a note on it.",
+      "notesByHelp": "Notes on this verse by {{names}}.",
+      "removeNoteHelp": "Deletes this note."
     },
     "voice": {
       "hearIt": "Hear it",
@@ -5445,7 +6219,8 @@
       "playsRecorded": "Plays what was recorded.",
       "playClip": "Play {{label}}, {{length}}",
       "pauseClip": "Pause {{label}}, {{length}}",
-      "optionalHelp": "Optional."
+      "optionalHelp": "Optional.",
+      "againHelp": "Records it again, in place of this one."
     },
     "checkSteps": {
       "aStep": "A step",
@@ -5461,7 +6236,8 @@
       "noChecks": "No checks: a passage is done once it is recorded.",
       "addStep": "Add a step",
       "addStepDetail": "Add another check, after the others.",
-      "legend": "= must pass before the next steps"
+      "legend": "= must pass before the next steps",
+      "gripHelp": "Drag up or down to move this step."
     }
   },
   "backTranslation": {
@@ -5526,7 +6302,10 @@
     "notesAtMoments_other": "{{count, number}} notes at moments",
     "hardToSayBack": "Anything that was hard to say back?",
     "optional": "Optional",
-    "noRecording": "There's no recording to back-translate yet."
+    "noRecording": "There's no recording to back-translate yet.",
+    "openVersionHelp": "Brings the version's player back to half the screen.",
+    "openPartsHelp": "Brings your parts back to half the screen.",
+    "deletePartHelp": "Deletes what you said for this part. You can undo it right after."
   },
   "translate": {
     "missing": "This passage isn't on this device yet.",
@@ -5560,7 +6339,10 @@
     "latestParts": "These are Version {{n}}'s parts. Record a new part or delete one to publish a new version.",
     "clipped": "Parts are coming out very short. Words may be cut off.",
     "micSetup": "Set up the microphone",
-    "micSetupHint": "Tune how the device hears you: sensitivity and pauses."
+    "micSetupHint": "Tune how the device hears you: sensitivity and pauses.",
+    "saveHelp": "Your parts are already kept as you record. This goes back.",
+    "openReferenceHelp": "Brings the reference back to half the screen.",
+    "openStudyHelp": "Opens this step in the full study."
   },
   "reference": {
     "organization": "Organization",
@@ -5589,7 +6371,13 @@
         "stopped": "{{name}} is no longer recommended.",
         "hidden": "{{name}} is hidden for this language.",
         "follows": "{{name}} follows the organization here."
-      }
+      },
+      "followHelp": "This language goes back to what the organization recommends.",
+      "hideHelp": "This language’s team stops getting it, though the organization recommends it.",
+      "recommendLanguageHelp": "This language’s team gets it as a recommendation.",
+      "recommendOrgHelp": "Every language’s team gets it as a recommendation.",
+      "stopLanguageHelp": "This language’s team stops getting it as a recommendation.",
+      "stopOrgHelp": "Languages stop getting it, unless one recommends it itself."
     },
     "kind": {
       "source": "Bible",
@@ -5647,7 +6435,8 @@
       "recommended": "Recommended · {{n, number}}",
       "noneRecommended": "No Bible is recommended here yet. Add one, or recommend one below.",
       "hidden": "Hidden for this language · {{n, number}}",
-      "notRecommended": "In your library, not recommended · {{n, number}}"
+      "notRecommended": "In your library, not recommended · {{n, number}}",
+      "cardHelp": "Opens it: its text, audio, verse timings and who it is recommended to."
     },
     "addBible": {
       "title": "Add a Bible",
@@ -5661,7 +6450,14 @@
       "searchPlaceholder": "Language name or code",
       "noneInLanguage": "Bible Brain has no Bible in this language.",
       "noSearch": "This server does not offer Bible Brain search yet.",
-      "notAdded": "Not added. {{reason}}"
+      "notAdded": "Not added. {{reason}}",
+      "backToListHelp": "Back to the Bibles found, without adding this one.",
+      "bibleBrainHelp": "Search Bible Brain for Bibles by language.",
+      "bibleHelp": "Shows what it has before you add it.",
+      "fromLangQuestHelp": "Shows the Bibles LangQuest has ready to follow.",
+      "languageHelp": "Shows its Bibles from Bible Brain. The number counts them.",
+      "readyHelp": "Adds it to your library and recommends it here.",
+      "searchHelp": "Type a language’s name or code to find its Bibles."
     },
     "source": {
       "title": "Bible",
@@ -5700,7 +6496,8 @@
       "published": "Timings published.",
       "notPublished": "Not published. {{reason}}",
       "timingsPublishedFor_one": "Verse timings published for {{count, number}} chapter.",
-      "timingsPublishedFor_other": "Verse timings published for {{count, number}} chapters."
+      "timingsPublishedFor_other": "Verse timings published for {{count, number}} chapters.",
+      "generateHelp": "Times each verse of the audio, so translators can hear one verse at a time."
     },
     "job": {
       "what_one": "{{count, number}} book · {{fileset}}",
@@ -5740,7 +6537,9 @@
         "verse": "Verse {{verse}}: {{reason}}",
         "verseMore_one": "Verse {{verse}}: {{reason}} (and {{count, number}} more)",
         "verseMore_other": "Verse {{verse}}: {{reason}} (and {{count, number}} more)"
-      }
+      },
+      "didNotPassHelp": "Shows each chapter that did not pass, and why.",
+      "tryAgainHelp": "Tries publishing these timings again."
     },
     "guides": {
       "title": "Guides and Notes",
@@ -5771,7 +6570,17 @@
       "booksMore": "{{books}} +{{more}}",
       "templateParts": "template parts",
       "reaches_one": "reaches {{count, number}} passage",
-      "reaches_other": "reaches {{count, number}} passages"
+      "reaches_other": "reaches {{count, number}} passages",
+      "anyBookHelp": "Shows items for every book.",
+      "anyLanguageHelp": "Shows items in every language.",
+      "bookHelp": "Shows only items for this book.",
+      "clearHelp": "Takes the filter off, so everything shows.",
+      "editHelp": "Opens it in the guide editor.",
+      "filterHelp": "Choose which guides and notes show here.",
+      "kindAllHelp": "Shows every kind.",
+      "kindHelp": "Shows only this kind.",
+      "languageHelp": "Shows only items in this language.",
+      "openHelp": "Opens it: what it says and where it is placed."
     },
     "coverage": {
       "title": "Coverage",
@@ -5788,7 +6597,11 @@
       "withNotes": "With notes",
       "noPassages": "No passages here.",
       "nothingReaches": "Nothing recommended reaches it",
-      "noGuideBadge": "No guide"
+      "noGuideBadge": "No guide",
+      "allHelp": "Shows every passage.",
+      "noGuideHelp": "Shows only passages with no guide or note. The number counts them.",
+      "passageHelp": "Opens what helps on this passage and what each one says there.",
+      "withNotesHelp": "Shows only passages with notes for translators. The number counts them."
     },
     "passage": {
       "gone": "This passage is not here",
@@ -5802,7 +6615,8 @@
       "placedInApp": "Placed here in the app",
       "searchPlaceholder": "Search your library",
       "allHere": "Everything in your library is here already.",
-      "placed": "{{name}} is placed on this passage."
+      "placed": "{{name}} is placed on this passage.",
+      "placeHelp": "Places it on this passage, so translators get it here."
     },
     "bible": {
       "noAudio": "No audio for this passage",
@@ -5828,7 +6642,14 @@
       "openReference": "Open the reference",
       "barTitle": "Bible",
       "barTitleWith": "Bible · {{abbr}}",
-      "barSub": "Drag down for the guide, key words, notes and earlier recordings"
+      "barSub": "Drag down for the guide, key words, notes and earlier recordings",
+      "onlyBibleHelp": "The Bible these verses are in. It is the only one offered here.",
+      "rowHelp": "Plays and shows the passage in this Bible instead.",
+      "rowOnHelp": "Ticked: the Bible playing and showing here now.",
+      "verseNotesHelp": "The number counts the notes on this verse.",
+      "verseTermsHelp": "Underlined words are key words: tap one to open it.",
+      "verseTermsMarkedHelp": "Underlined words are key words.",
+      "verseTiedHelp": "A tick after a key word means it is tied to your draft."
     },
     "keyWords": {
       "none": "No key words in this passage yet.",
@@ -5860,7 +6681,9 @@
       "addWord": "Add the word",
       "wordPlaceholder": "The word in the Bible, e.g. shepherd",
       "meaningPlaceholder": "What it means (optional)",
-      "sayItIn": "Say it in {{language}}"
+      "sayItIn": "Say it in {{language}}",
+      "allHelp": "Opens the list of every key word in this language.",
+      "typeHelp": "Type how {{language}} says it."
     },
     "notes": {
       "noteOnRef": "Note on {{verse}}",
@@ -5884,7 +6707,8 @@
       "addHint": "Leave a note on this passage, by voice or text.",
       "sheetSub": "It stays with the passage. Reviewers and the next translator see it.",
       "save": "Save note",
-      "added": "Note added."
+      "added": "Note added.",
+      "typeHelp": "Type your note. You can say it too."
     },
     "earlier": {
       "yours": "Yours",
@@ -5912,7 +6736,9 @@
       "searchPlaceholder": "Search for a language",
       "unlisted": "Not in the list? Pick the language closest to it.",
       "unreachable": "Searching needs a connection. Pick one of the languages above for now.",
-      "writtenIn": "Written in"
+      "writtenIn": "Written in",
+      "anotherHelp": "Search the list for any other language.",
+      "chipHelp": "Marks it as written in this language."
     },
     "setLanguage": {
       "title": "Which language should {{name}} be in?",
@@ -5925,7 +6751,11 @@
       "passages_other": "Guides for {{count, number}} passages",
       "yours": "Your app's language",
       "gaps_one": "In {{language}}, {{name}} has a guide for {{count, number}} passage. Passages without one show no study guide.",
-      "gaps_other": "In {{language}}, {{name}} has guides for {{count, number}} passages. Passages without one show no study guide."
+      "gaps_other": "In {{language}}, {{name}} has guides for {{count, number}} passages. Passages without one show no study guide.",
+      "keepHelp": "Keeps this language and closes this.",
+      "offHelp": "The team stops getting these guides.",
+      "useHelp": "The team gets these guides in this language.",
+      "rowHelp": "Picks this language for the team’s guides. The line says how many passages have one."
     },
     "passageText": {
       "bar": "{{passage}} · {{bible}}",
@@ -6015,7 +6845,13 @@
       "copyrightBoth": "Text {{text}} · Audio {{audio}}",
       "fromRecommended": "recommended",
       "fromMine": "my Bible",
-      "fromPassage": "for this passage"
+      "fromPassage": "for this passage",
+      "forwardHelp": "Skips past the next few seconds.",
+      "termsHelp": "Opens Faith Comes By Hearing’s terms for using Bible Brain.",
+      "verseHelpNote": "Chooses this verse, to add a note on it.",
+      "verseHelpPlays": "Plays from this verse.",
+      "verseHelpPlaysNote": "Plays from this verse and chooses it, to add a note on it.",
+      "versionHelp": "Reads and plays the passage in this Bible."
     },
     "text": {
       "noBibleBrain": "Bible Brain isn't set up on this device.",
@@ -6040,7 +6876,8 @@
       "openedName": "{{name}} (opened)",
       "madeWith": "Made with {{names}}",
       "madeWithMore_one": "Made with {{names}} and {{count, number}} more",
-      "madeWithMore_other": "Made with {{names}} and {{count, number}} more"
+      "madeWithMore_other": "Made with {{names}} and {{count, number}} more",
+      "showHelp": "Shows each Bible and help offered while making it, and which were opened."
     },
     "recordings": {
       "play": "Play {{name}}",
@@ -6048,7 +6885,8 @@
       "notHereLabel": "Audio is not on this device yet",
       "rewind": "Rewind source 10 seconds",
       "forward": "Forward source 10 seconds",
-      "pause": "Pause playback"
+      "pause": "Pause playback",
+      "playListenHelp": "Play or pause. Your recording waits while it plays."
     },
     "media": {
       "wholeBible": "whole Bible",
@@ -6089,7 +6927,16 @@
       "previousChapter": "Previous chapter",
       "nextChapter": "Next chapter",
       "removed": "{{abbr}} removed from My Bibles",
-      "notRemoved": "Not removed. Try again."
+      "notRemoved": "Not removed. Try again.",
+      "addHelp": "Adds it to your own Bibles for this language, on this device.",
+      "bibleHelp": "Opens it to read and hear a chapter, before you add it.",
+      "bookHelp": "Shows a chapter of this book.",
+      "chapterHelp": "Shows chapter {{n, number}} to read and hear.",
+      "languageHelp": "Shows its Bibles below.",
+      "nextChapterHelp": "Reads and plays the chapter after this one.",
+      "previousChapterHelp": "Reads and plays the chapter before this one.",
+      "removeHelp": "Takes it out of your Bibles on this device. You can undo it.",
+      "searchHelp": "Type a language’s name or code to find its Bibles."
     }
   },
   "referenceLanguage": {
@@ -6104,7 +6951,8 @@
     "nothing": "Nothing in this language yet",
     "chip": "Bibles and guides in {{language}}",
     "chipHelp": "The language of their Bibles and study guides. Tap to change it.",
-    "change": "Change"
+    "change": "Change",
+    "rowHelp": "Picks this language for the team’s Bibles and guides. The line says what it has."
   },
   "checks": {
     "title": "Checks",
@@ -6125,7 +6973,10 @@
       "title": "Ready-made flows",
       "sub": "Replaces {{language}}'s checks",
       "use": "Use {{name}}",
-      "used": "{{language}} now starts from {{name}}"
+      "used": "{{language}} now starts from {{name}}",
+      "startHelp": "Replaces the checks with a ready-made set, to change as you like.",
+      "useHelp": "Replaces {{language}}'s checks with these. Undo puts them back.",
+      "pickHelp": "Picks it. Use, at the bottom, then replaces the checks with its own."
     },
     "gone": "This is no longer one of the language's checks",
     "checkOf": "Check {{n}} · {{language}}",
@@ -6146,7 +6997,10 @@
     "questionType": {
       "text": "Text",
       "yesno": "Yes / No",
-      "rating": "1–5"
+      "rating": "1–5",
+      "textHelp": "They answer in their own words.",
+      "yesnoHelp": "They answer yes or no.",
+      "ratingHelp": "They answer with a number from 1 to 5."
     },
     "questionSaved": "Question saved",
     "questionRemoved": "Question removed",
@@ -6173,7 +7027,31 @@
     "everyoneElse": "Everyone else",
     "theyAnswer": "They’ll answer",
     "forTeam": "For the {{check}} team",
-    "forCheck": "For {{check}}"
+    "forCheck": "For {{check}}",
+    "dragHelp": "Drag up or down to change when this check comes.",
+    "openDraftHelp": "Opens it: must pass, same time as the one before, or remove it.",
+    "addThisHelp": "Adds this check after the others.",
+    "newCheckHelp": "A new check's name, when it is none of these.",
+    "addCheckHelp": "Choose a check your organization knows, or name a new one.",
+    "draftDoneHelp": "Keeps these checks for the new language and goes back.",
+    "sameTimeOnHelp": "On: it happens alongside {{check}}. Tap so it comes after.",
+    "sameTimeOffHelp": "Off: it comes after {{check}}. Tap so both happen at once.",
+    "removePersonHelp": "Takes them off this check. Undo puts them back.",
+    "addPeopleHelp": "Choose who does this check. With nobody chosen, anyone can.",
+    "editQuestionHelp": "Change the question or its kind, or remove it.",
+    "addQuestionHelp": "Write a question reviewers answer at this check.",
+    "unlinkHelp": "Takes it off this check. Undo puts it back.",
+    "addHelpHelp": "Link notes, guides or Bibles reviewers can open at this check.",
+    "peopleDoneHelp": "Saves who is on this check.",
+    "personOnHelp": "On this check. Tap to take them off.",
+    "personOffHelp": "Not on this check. Tap to put them on.",
+    "questionFieldHelp": "What reviewers are asked at this check.",
+    "removeQuestionHelp": "Takes the question off this check.",
+    "helpsDoneHelp": "Closes this. What you ticked is already saved.",
+    "helpOnHelp": "Linked: reviewers can open it at this check. Tap to unlink.",
+    "helpOffHelp": "Tap so reviewers can open it at this check.",
+    "writeNoteHelp": "Write a new note, linked to this check.",
+    "removeCheckHelp": "Takes this check out of the steps passages go through."
   },
   "lostFiles": {
     "title": "Audio is missing",
@@ -6189,7 +7067,8 @@
     "safe_other": "{{count, number}} files are safe on the server.",
     "goOnline": "Connect to the internet often, so your work is sent.",
     "lessSpace": "This device may have less space than it says.",
-    "understand": "I understand"
+    "understand": "I understand",
+    "understandHelp": "Closes this. It shows again only if more files go missing."
   },
   "notes": {
     "onVerses": {
@@ -6202,7 +7081,8 @@
       "whole": "Whole passage",
       "say": "Tap and say your note",
       "saved": "Note saved on {{where}}.",
-      "savedWhole": "Note saved on {{passage}}."
+      "savedWhole": "Note saved on {{passage}}.",
+      "wholeHelp": "Puts the note on the whole passage instead of the verses chosen."
     }
   },
   "keyTerms": {
@@ -6227,7 +7107,8 @@
     "row": {
       "sub_one": "{{count, number}} language · {{names}}",
       "sub_other": "{{count, number}} languages · {{names}}",
-      "namesMore": "{{names}}…"
+      "namesMore": "{{names}}…",
+      "openHelp": "Opens the cluster: its languages and their progress together."
     },
     "home": {
       "sub_one": "Cluster · {{count, number}} language",
@@ -6239,7 +7120,10 @@
       "ungroup": "Ungroup",
       "gone": "This cluster has no languages now",
       "goneSub": "Its languages were taken out of it. They are all still in {{org}}.",
-      "notSaved": "Not saved"
+      "notSaved": "Not saved",
+      "languageHelp": "Opens its page. The bar shows how much of it is recorded.",
+      "renameHelp": "Change the cluster's name. Its languages stay as they are.",
+      "ungroupHelp": "Takes the cluster away, after asking. Its languages stay, with everything they have."
     },
     "add": {
       "title": "Add to {{cluster}}",
@@ -6249,7 +7133,10 @@
       "none": "Every language in {{org}} is in it already.",
       "button": "Add",
       "done_one": "{{count, number}} language added to {{cluster}}.",
-      "done_other": "{{count, number}} languages added to {{cluster}}."
+      "done_other": "{{count, number}} languages added to {{cluster}}.",
+      "buttonHelp": "Puts the ticked languages in this cluster.",
+      "pickHelp": "Tap to tick it. Add then puts it in this cluster.",
+      "pickedHelp": "Ticked: Add puts it in this cluster. Tap to untick it."
     },
     "rename": {
       "title": "Rename {{cluster}}",
@@ -6263,7 +7150,9 @@
       "body_other": "Its {{count, number}} languages stay, with their people, recordings and checks. Only the name that groups them goes.",
       "confirm": "Ungroup",
       "keep": "Keep it",
-      "done": "{{cluster}} ungrouped. Its languages are still here."
+      "done": "{{cluster}} ungrouped. Its languages are still here.",
+      "confirmHelp": "Takes the cluster's name off its languages. Nothing else changes.",
+      "keepHelp": "Closes this. The cluster stays as it is."
     },
     "language": {
       "label": "Cluster",
@@ -6275,7 +7164,12 @@
       "firstLabel": "Put it in a new cluster",
       "note": "A language can be in more than one cluster, or none. Nothing about the language changes.",
       "done": "Done",
-      "saved": "{{language}}'s clusters saved."
+      "saved": "{{language}}'s clusters saved.",
+      "rowHelp": "Choose which clusters it is in, or put it in a new one.",
+      "inHelp": "In this cluster. Tap to take it out.",
+      "outHelp": "Not in this cluster. Tap to put it in.",
+      "newHelp": "Type a name: it goes in a new cluster by that name.",
+      "doneHelp": "Saves which clusters it is in."
     },
     "newLanguage": {
       "what": "What are you adding?",
@@ -6314,7 +7208,14 @@
       "making": {
         "adding": "Adding {{language}}",
         "grouping": "Adding to {{cluster}}"
-      }
+      },
+      "addExistingHelp": "Puts this language, already here, in the cluster. It keeps everything it has.",
+      "addHelp": "Adds the new languages in {{cluster}} with these answers. Then invite their translators.",
+      "addTypedHelp": "Adds it as typed, unlinked. Link it to the language list later, from its page.",
+      "joinHelp": "It joins this cluster.",
+      "newClusterHelp": "Makes a new cluster for it. Name it below.",
+      "noHelp": "It joins no cluster for now.",
+      "takeOutHelp": "Takes it off this cluster's list."
     },
     "status": {
       "all": "All",

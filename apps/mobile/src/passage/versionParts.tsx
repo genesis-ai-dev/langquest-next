@@ -70,7 +70,7 @@ function PartRow(props: {
   const l = props.row.label;
   const said = l ? t(props.row.same ? 'recording.verses.labelSame' : 'recording.verses.label', { part: name, verses: spanName(props.verses, l.s, l.e) }) : name;
   const playLabel = clip.playing ? t('recording.recorder.pausePart', { part: name }) : t('recording.player.playTitle', { title: said });
-  const play = useHelpSpot(playLabel, undefined, clip.toggle);
+  const play = useHelpSpot(playLabel, t('passage.versions.partHelp'), clip.toggle);
   return (
     <View style={[styles.row, props.index > 0 && styles.rowBorder]}>
       {props.numbered ? (

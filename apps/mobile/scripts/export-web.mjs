@@ -69,7 +69,10 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // when the app's logic moved out of its screens into small modules
 // (decision 105): Metro wraps each module, about half a kilobyte apiece,
 // and 57 new ones cost 30 KB beyond the code they moved (6.01 MB then).
-const BUDGET_BYTES = 6.1 * 1024 * 1024;
+// Raised to 6.25 MB when every part of every screen got its help line
+// (decision 71, amended 2026-10-14): 883 English lines add 59 KB to the
+// catalog a first visit downloads (6.17 MB then).
+const BUDGET_BYTES = 6.25 * 1024 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;
@@ -105,7 +108,7 @@ if (!links.appleTeamId || !links.androidSha256.length) console.warn('appLinks.js
 
 const scriptBytes = walk(path.join(dist, '_expo')).filter((f) => f.endsWith('.js') && !f.includes('/worker-')).reduce((n, f) => n + fs.statSync(f).size, 0);
 if (scriptBytes > BUDGET_BYTES) {
-  console.error(`x the web app's JavaScript is ${(scriptBytes / 1048576).toFixed(2)} MB, over its ${(BUDGET_BYTES / 1048576).toFixed(1)} MB budget (scripts/export-web.mjs). Trim it, or raise the budget in the same change and say why.`);
+  console.error(`x the web app's JavaScript is ${(scriptBytes / 1048576).toFixed(2)} MB, over its ${(BUDGET_BYTES / 1048576).toFixed(2)} MB budget by ${((scriptBytes - BUDGET_BYTES) / 1024).toFixed(0)} KB (scripts/export-web.mjs). Trim it, or raise the budget in the same change and say why.`);
   process.exit(1);
 }
 
