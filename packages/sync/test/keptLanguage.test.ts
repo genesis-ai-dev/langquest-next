@@ -306,6 +306,23 @@ describe('a language that keeps its recordings on disk', () => {
     expect(Object.keys(client.getState().units)).toHaveLength(40);
   });
 
+  it('tells a screen when the passage it waits for is ready, even one with nothing on disk', async () => {
+    // Why: a passage's screen waits until its passage is in memory; on the
+    // web a new language's passages had nothing on disk, nothing changed in
+    // memory, nobody was told, and the screen waited for ever.
+    const server = new FakeServer();
+    await language(server, 3);
+    const { client } = phone(server, 'dB', 'r1', { keepOnDisk: true });
+    await client.load();
+    await client.sync();
+    let told = 0;
+    client.subscribe(() => { told += 1; });
+    expect(client.isLoaded('u1')).toBe(false);
+    await client.loadUnits(['u1']);
+    expect(client.isLoaded('u1')).toBe(true);
+    expect(told).toBeGreaterThan(0);
+  });
+
   it('a first download cut short while its rows are written leaves nothing the next open trusts', async () => {
     // Why: a first download writes its rows in place (moving them took a test
     // phone 200 s for Koro Miyan); a phone that dies part-way must not read them.

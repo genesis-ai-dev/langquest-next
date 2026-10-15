@@ -194,14 +194,16 @@ export class KeptLanguage {
   /**
    * Hold these passages in memory (and the verdicts on their files),
    * dropping the passages asked for longest ago beyond `limit` at the next
-   * checkpoint. True when memory changed.
+   * checkpoint. True when a passage became ready.
    */
   async load(state: LanguageState, unitIds: readonly string[]): Promise<boolean> {
     const fresh = unitIds.filter((u) => !this.open.includes(u));
     this.open = [...this.open.filter((u) => !unitIds.includes(u)), ...unitIds].slice(-this.limit);
     for (const u of [...this.ready]) if (!this.open.includes(u)) this.ready.delete(u);
     if (fresh.length === 0) return false;
-    return this.bring(state, fresh);
+    await this.bring(state, fresh);
+    // Ready now, whether or not anything came in: a screen waiting on it must be told.
+    return true;
   }
 
   /** Bring the open passages and the verdicts memory needs back after the state was rebuilt from its checkpoint. */
