@@ -18,7 +18,7 @@ import { Ico } from '../kit';
 import { C, onColor, radius, space, target, TINT, type as T, withAlpha } from '../theme';
 import { useEnergyHistory, type useRecorder } from '../useRecorder';
 import { RecordButton } from './parts';
-import { loopStatus, type LoopNoun, type LoopPhase } from './splitModel';
+import { clampCutoff, cutoffAfterDrag, loopStatus, meterHeight, type LoopNoun, type LoopPhase } from './splitModel';
 import { mmss } from './workspaceModel';
 
 type Recorder = ReturnType<typeof useRecorder>;
@@ -26,12 +26,11 @@ type Recorder = ReturnType<typeof useRecorder>;
 const IDLE = TINT.redText;
 const LIVE = C.red;
 
-/** The only thing that re-renders with the microphone. */
+/** The only thing that re-renders with the microphone. Bars and the cutoff line share one scale (meterHeight). */
 function EnergyBars(props: { captured: boolean }) {
   const history = useEnergyHistory(props.captured);
   return <>{history.map((bar, index) => <View key={index}
-    style={[styles.bar, { opacity: bar.captured ? 1 : 0.35,
-      height: `${Math.max(1, Math.pow(Math.min(1, Math.max(0, bar.energy)), bar.captured ? 0.6 : 2.5) * 100)}%` }]} />)}</>;
+    style={[styles.bar, { opacity: bar.captured ? 1 : 0.35, height: `${Math.max(1, meterHeight(bar.energy) * 100)}%` }]} />)}</>;
 }
 
 /** The reduce-motion setting, kept current (A11Y-8). */
@@ -110,7 +109,7 @@ export function VadPanel(props: { rec: Recorder; phase: LoopPhase; count: number
     onMoveShouldSetPanResponder: () => true,
     onPanResponderGrant: () => { dragStart.current = latest.current.cutoff; },
     onPanResponderMove: (_, gesture) => {
-      setCutoff(Math.max(0.04, Math.min(0.92, dragStart.current - gesture.dy / latest.current.height)));
+      setCutoff(cutoffAfterDrag(dragStart.current, gesture.dy, latest.current.height, true));
     },
     // One native configuration per drag avoids flooding the audio thread.
     onPanResponderRelease: () => commit(latest.current.cutoff),
@@ -143,11 +142,12 @@ export function VadPanel(props: { rec: Recorder; phase: LoopPhase; count: number
           accessibilityLabel={t('recording.vad.cutoff')} accessibilityValue={{ min: 4, max: 92, now: Math.round(cutoff * 100) }}
           accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
           onAccessibilityAction={(event) => {
-            const next = Math.max(0.04, Math.min(0.92, cutoff + (event.nativeEvent.actionName === 'increment' ? 0.02 : -0.02)));
+            const next = clampCutoff(cutoff + (event.nativeEvent.actionName === 'increment' ? 0.02 : -0.02));
             setCutoff(next); commit(next);
           }}>
           <EnergyBars captured={rec.vadCapturing} />
-          <View style={[{ pointerEvents: 'none' }, styles.cutoff, { top: `${(1 - cutoff) * 100}%` }]} />
+          {/* The bars are centred, so the line sits where a bar at the cutoff ends at the top. */}
+          <View style={[{ pointerEvents: 'none' }, styles.cutoff, { top: `${(0.5 - meterHeight(cutoff) / 2) * 100}%` }]} />
         </View>
       )}
       {rec.error ? <Text style={styles.error} accessibilityRole="alert">{rec.error}</Text> : null}
