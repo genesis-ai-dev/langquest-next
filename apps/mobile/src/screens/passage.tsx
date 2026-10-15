@@ -1232,7 +1232,7 @@ export function AskSomeone(ctx: Ctx) {
   const personRow = (c: { profileId: string; sub: string }, last: boolean) => {
     const on = who === c.profileId;
     return (
-      <Row key={c.profileId} leading={<PersonAvatar look={look(c.profileId)} size={36} />} label={ctx.name(c.profileId)} sub={c.sub}
+      <Row key={c.profileId} testID={`ask-person-${c.profileId}`} leading={<PersonAvatar look={look(c.profileId)} size={36} />} label={ctx.name(c.profileId)} sub={c.sub}
         help={t('passage.ask.personHelp')} onPress={() => setWho(c.profileId)} last={last} role="radio" selected={on}
         right={<View style={[styles.radio, on && { backgroundColor: C.primary, borderColor: C.primary }]}>{on ? <Ico name="check" size={14} color={C.white} strokeWidth={3} /> : null}</View>} />
     );
@@ -1260,7 +1260,7 @@ export function AskSomeone(ctx: Ctx) {
       {!outside ? (
         <Group>
           {team ? (
-            <Row leading={<Faces people={teamPeople} size={30} />} sub={teamPeople.map((id) => ctx.name(id)).join(t('admin.list.separator'))}
+            <Row testID="ask-team" leading={<Faces people={teamPeople} size={30} />} sub={teamPeople.map((id) => ctx.name(id)).join(t('admin.list.separator'))}
               label={t('checks.theTeam', { check })} help={t('passage.ask.teamHelp')} onPress={() => setWho(TEAM)} role="radio" selected={chosen === TEAM}
               right={<View style={[styles.radio, chosen === TEAM && { backgroundColor: C.primary, borderColor: C.primary }]}>{chosen === TEAM ? <Ico name="check" size={14} color={C.white} strokeWidth={3} /> : null}</View>} />
           ) : null}

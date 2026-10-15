@@ -35,6 +35,7 @@ tags:
 - assertVisible: ".*All 12 kept passages are on this device\\..*"
 - assertVisible: ".*Always on this device.*"
 - assertVisible: ".*Needs a connection.*"
+- runFlow: ../common/open-sync-details.yaml
 - scrollUntilVisible:
     element: ".*Audio downloading.*"
     direction: DOWN

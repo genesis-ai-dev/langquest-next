@@ -410,12 +410,12 @@ function marked(text: string, query: string | undefined): ReactNode {
  * that opens in place. Pass `open`/`onToggle` from `ctx.details(key)` so a
  * card someone opened stays open when they come Back.
  */
-export function Disclosure(props: { icon: IconName; title: string; summary: string; open: boolean; onToggle: () => void; children: ReactNode;
+export function Disclosure(props: { icon: IconName; title: string; summary: string; open: boolean; onToggle: () => void; children: ReactNode; testID?: string;
   /** What help mode says is inside, where the title alone does not. */ help?: string }) {
   const spot = useHelpSpot(props.title, props.help ?? (props.open ? t('help.details.disclosureOpen') : t('help.details.disclosure')), props.onToggle);
   return (
     <View style={styles.disclosure}>
-      <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ expanded: props.open }}
+      <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ expanded: props.open }}
         accessibilityLabel={t('shell.a11y.labelDetail', { label: props.title, detail: props.summary })} accessibilityHint={props.open ? t('shell.kit.hidesDetails') : t('shell.kit.showsDetails')}
         style={({ pressed }) => [styles.disclosureHead, pressed && styles.pressed]}>
         <View style={styles.iconTile}><Ico name={props.icon} size={20} color={C.primary} /></View>
