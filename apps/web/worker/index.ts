@@ -8,6 +8,7 @@ import { sha256Hex } from './agent/tokens';
 import { r2Bucket } from './r2';
 import { serviceClient, type Env } from './env';
 import { publishLangQuestTimings } from './timings';
+import { ownsResponse, withSecurityHeaders } from './securityHeaders';
 
 export { OrgSnapshot } from './orgSnapshot';
 
@@ -20,7 +21,7 @@ async function sameSecret(given: string, expected: string): Promise<boolean> {
 }
 
 /** The dashboard's server: `/api/*` here, everything else is the built page. */
-export default {
+const handler = {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (url.pathname === '/connect' && request.method === 'GET') {
@@ -126,5 +127,15 @@ export default {
     ctx.waitUntil(supabaseAgentStore(serviceClient(env)).webhookOrgs()
       .then((orgs) => Promise.all(orgs.map((orgId) => env.ORG_SNAPSHOTS.get(env.ORG_SNAPSHOTS.idFromName(orgId)).webhookPoke(orgId))))
       .catch((e: unknown) => console.error('webhook catch-up', e)));
+  }
+} satisfies ExportedHandler<Env>;
+
+export default {
+  ...handler,
+  // The built page gets its headers from the `_headers` file; what the Worker answers itself (the routes in
+  // wrangler's run_worker_first) never passes through it, so it is given the same three here.
+  async fetch(request, env, ctx) {
+    const response = await handler.fetch(request, env, ctx);
+    return ownsResponse(new URL(request.url), request) ? withSecurityHeaders(response) : response;
   }
 } satisfies ExportedHandler<Env>;
