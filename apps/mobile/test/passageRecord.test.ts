@@ -5,11 +5,12 @@ import {
 } from '@langquest-next/core';
 import {
   addDays, answeredQuestions, askCandidates, currentStepId, describeEntry, dueError, feedbackNames, gridKindIds, heroHeadline, historySummary,
-  kindLineText, kindRowActions, kindRowSub, kindPathState, lastReviewOn, ledTo, madeAfter, nextQuestionType, oldKindLineText, oldStepState,
+  kindLineText, kindRowActions, kindRowSub, kindPathState, lastReviewOn, ledTo, listenersOf, madeAfter, nextQuestionType, oldKindLineText, oldStepState,
   oldStepSummary, pathState, sendTargetLabel, stepSheetSub, stepSummary, versionCaption
 } from '../src/passage/record';
 import { requestIsMine, sendToInput, usualTargetFor } from '../src/passage/sendTarget';
 import { hiddenText } from '../src/moderation';
+import { feedbackSource } from '../src/passageView';
 
 /**
  * The passage record's words and button rules (demo screens/passage.tsx),
@@ -383,5 +384,28 @@ describe('the journey (REC-2, REC-2a, ADR-030)', () => {
     expect(kindLineText(s.steps[0]!.kinds[0]!, s.steps[0]!, s, name)).toBe('Looks good · Ayen on Version 1');
     expect(kindLineText(s.steps[0]!.kinds[1]!, s.steps[0]!, s, name)).toBe('Waiting on Deng · due Jan 2');
     expect(kindLineText(s.steps[1]!.kinds[0]!, s.steps[1]!, s, name)).toBe('Not yet');
+  });
+});
+
+describe('what listeners heard and said (decisions.md 109)', () => {
+  // Why: after a chapter is published in EveryBible, its listeners keep answering.
+  // The translator must see that feedback on the passage, under the listener's own
+  // name, and know which version listeners have.
+  it('lists where a version is live and listener feedback, newest first, by the listener\'s name', () => {
+    const lang = language();
+    lang.emit('tr', 'v1.RecordingAdded', { recordingId: 'r1', unitId: 'john3', kind: 'target', cards: [{ hash: 'a'.repeat(64), durationMs: 1000 }] });
+    lang.emit('tr', 'v1.TakeComposed', { takeId: 't1', unitId: 'john3', cardHashes: ['a'.repeat(64)], parentTakeId: null });
+    lang.emit('tr', 'v1.TakeSubmitted', { takeId: 't1' });
+    lang.emit('admin', 'v1.VersionReleased', { takeId: 't1', channel: 'EveryBible', live: true });
+    lang.emit('admin', 'v1.ReviewRecorded', { reviewId: 'listener-1', takeId: 't1', kindId: 'listener', outcome: 'needs_changes', via: 'link', people: 1, givenBy: 'Mary K.', comment: 'Verse 3 is hard to follow' });
+    lang.emit('admin', 'v1.ReviewRecorded', { reviewId: 'listener-2', takeId: 't1', kindId: 'listener', outcome: 'looks_good', via: 'link', people: 1, givenBy: 'John D.' });
+    const { live, feedback } = listenersOf(lang.state(), lang.passage());
+    expect(live.map((r) => [r.channel, r.versionN])).toEqual([['EveryBible', 1]]);
+    expect(feedback.map((r) => [r.id, r.comment ?? null])).toEqual([['listener-2', null], ['listener-1', 'Verse 3 is hard to follow']]);
+    // The sharer (the partner app's token) is not who said it.
+    expect(feedback.map((r) => feedbackSource(r, (id) => `profile:${id}`))).toEqual(['John D.', 'Mary K.']);
+    // Taken down: no longer live.
+    lang.emit('admin', 'v1.VersionReleased', { takeId: 't1', channel: 'EveryBible', live: false });
+    expect(listenersOf(lang.state(), lang.passage()).live).toEqual([]);
   });
 });

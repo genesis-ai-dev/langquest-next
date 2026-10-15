@@ -3,7 +3,7 @@ import type { Ctx } from '../ctx';
 
 /**
  * Does a screen about one passage have that passage's whole record in
- * memory yet? A language kept on disk (decisions.md 109) brings a passage
+ * memory yet? A language kept on disk (decisions.md 110) brings a passage
  * in when it opens (`usePassagesInMemory`), and until then the state holds
  * only part of it: drawn early, a recorded passage would read as not
  * started. Asked until the passage first arrives; a screen once shown

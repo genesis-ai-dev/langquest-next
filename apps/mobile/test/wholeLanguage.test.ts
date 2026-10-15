@@ -3,7 +3,7 @@ import { join, relative } from 'node:path';
 import { PASSAGE_PARTS, READS_EVERY_PASSAGE } from '@langquest-next/core';
 
 /**
- * A language kept on disk (decisions.md 109) holds in memory only the
+ * A language kept on disk (decisions.md 110) holds in memory only the
  * passages a screen has open. Code that looks across every passage in the
  * state sees those few and answers wrongly, without any error: a list that
  * shows most passages as not started, a count that is too low. Lists read
@@ -69,7 +69,7 @@ describe('the app never reads every passage from memory', () => {
       const allowed = new Set(ALLOWED[name]?.reads ?? []);
       for (const r of reads) if (!allowed.has(r)) found.push(`${name} reads ${r}`);
     }
-    expect(found, 'Read the language\'s lines, or read the passages in with `withPassages` (decisions.md 109); or list the file in ALLOWED with why its passages are in memory.').toEqual([]);
+    expect(found, 'Read the language\'s lines, or read the passages in with `withPassages` (decisions.md 110); or list the file in ALLOWED with why its passages are in memory.').toEqual([]);
     // A listed read that is gone is dropped from the list, so the list stays true.
     const stale = Object.entries(ALLOWED).flatMap(([file, a]) => a.reads.filter((r) => !used.get(file)?.has(r)).map((r) => `${file} no longer reads ${r}`));
     expect(stale).toEqual([]);

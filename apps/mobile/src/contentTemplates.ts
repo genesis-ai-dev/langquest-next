@@ -174,7 +174,7 @@ export function setAsideCount(state: LanguageState, lines: PassageLines): number
   if (!sel) return 0;
   const books = sel.books ? new Set(sel.books) : null;
   let n = 0;
-  // Read off each passage's line (decisions.md 109): its takes not archived.
+  // Read off each passage's line (decisions.md 110): its takes not archived.
   for (const unitId of lines.worked()) {
     if (lines.get(unitId).takes === 0) continue;
     const prefix = unitPrefixOf(unitId);

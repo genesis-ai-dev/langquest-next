@@ -26,7 +26,7 @@ export function stateRevision(state: object): number {
 
 /**
  * Say a state changed outside the fold: records a phone keeps on disk
- * (decisions.md 109) were brought into it, or taken out. Caches keyed on
+ * (decisions.md 110) were brought into it, or taken out. Caches keyed on
  * the revision rebuild.
  */
 export function markChanged(state: object): void {
@@ -432,7 +432,7 @@ type Verdict = LanguageState['blobs'][string];
 /**
  * Of two copies of one recording, the one `v1.RecordingAdded` keeps: the
  * earliest, ties as `earlier` breaks them. A phone that keeps recordings on
- * disk (decisions.md 109) combines a stored copy with one just folded by
+ * disk (decisions.md 110) combines a stored copy with one just folded by
  * this, so the result is the fold's whichever arrived first.
  */
 export function keptRecording(a: Recording, b: Recording): Recording {

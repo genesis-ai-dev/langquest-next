@@ -32,7 +32,7 @@ import {
 } from '../kit';
 import {
   addDays, anchorLabel, answeredQuestions, askCandidates, channelLabel, currentStepId, describeEntry, dueChoices, dueError,
-  gridKindIds, guestMessage, heroHeadline, historySummary, isoDay, nextQuestionType, questionTypeLabel,
+  gridKindIds, guestMessage, heroHeadline, historySummary, isoDay, listenersOf, nextQuestionType, questionTypeLabel,
   reviewMark, reviewsSummary, SAID_BY_VOICE, sendTargetLabel, versionReviewsSummary, type EntryText,
   type RowAction
 } from '../passage/record';
@@ -452,6 +452,7 @@ export function PassageRecord(ctx: Ctx) {
   }
 
   // ---- every version (decisions.md 83): drafts, published versions, then the history ----
+  const { live, feedback: listened } = listenersOf(v.state, p);
   const history = (
     <>
       {study ? (
@@ -466,6 +467,22 @@ export function PassageRecord(ctx: Ctx) {
         <Disclosure icon="chat" title={t('passage.page.reviewsByVersion')} summary={reviewsSummary(p)} {...ctx.details(`passage:${unitId}:${languageId}:reviews`)}>
           <ReviewGrid ctx={ctx} v={v} kindIds={gridIds}
             onVersion={(takeId) => go('version_detail', { takeId })} onReview={(reviewId) => go('review_detail', { reviewId })} />
+        </Disclosure>
+      ) : null}
+      {listened.length > 0 || live.length > 0 ? (
+        <Disclosure icon="listen" title={t('passage.page.listeners')}
+          summary={live.length ? t('passage.page.liveIn', { channel: live[0]!.channel, version: versionTitle(live[0]!.versionN) }) : t('passage.page.listenerCount', { count: listened.length })}
+          {...ctx.details(`passage:${unitId}:${languageId}:listeners`)}>
+          {live.map((r) => (
+            <Row key={r.channel} icon="check" iconColor={TINT.greenText} label={t('passage.page.liveIn', { channel: r.channel, version: versionTitle(r.versionN) })}
+              sub={when(r.hlc)} onPress={() => go('version_detail', { takeId: r.takeId })} last={listened.length === 0 && r === live[live.length - 1]} />
+          ))}
+          {listened.map((r, i) => (
+            <Row key={r.id} icon={r.outcome === 'needs_changes' ? 'chat' : 'check'}
+              label={r.comment ? t('passage.quote', { text: r.comment }) : r.outcome === 'needs_changes' ? t('passage.view.outcomeStart.needsChanges') : t('passage.view.outcomeStart.looksGood')}
+              sub={[feedbackSource(r, ctx.name), versionTitle(r.versionN), when(r.hlc)].join(' · ')}
+              onPress={() => go('review_detail', { reviewId: r.id })} last={i === listened.length - 1} />
+          ))}
         </Disclosure>
       ) : null}
       {timeline.length > 0 ? (
@@ -982,8 +999,11 @@ export function ReviewDetail(ctx: Ctx) {
             {review.commentBlobHash ? (
               <ClipPlayer language={ctx.language} hashes={[review.commentBlobHash]} title={t('passage.review.whoseFeedback', { name: source })} tone="amber" bare />
             ) : null}
+            {!makes && review.artifacts?.length ? (
+              <ClipPlayer language={ctx.language} hashes={review.artifacts.map((c) => c.hash)} title={t('passage.review.whoseFeedback', { name: source })} tone="amber" bare />
+            ) : null}
             {review.comment ? <Text style={[txt.body, { fontSize: 18, lineHeight: 26 }]}>{t('passage.quote', { text: review.comment })}</Text> : null}
-            {!review.comment && !review.commentBlobHash ? <Text style={txt.smMuted}>{t('passage.review.noWords')}</Text> : null}
+            {!review.comment && !review.commentBlobHash && !review.artifacts?.length ? <Text style={txt.smMuted}>{t('passage.review.noWords')}</Text> : null}
           </View>
         </Authored>
         {answers.length > 0 ? (

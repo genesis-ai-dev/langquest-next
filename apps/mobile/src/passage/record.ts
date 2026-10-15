@@ -6,7 +6,7 @@
 // Requirements REC-1..8 (REC-2/2a: the path top to bottom, per version),
 // ASK-2, ASK-4; ADR-012, 013, 014, 015, 016, 020, 029, 030.
 import {
-  checkPeople, feedbackIsMine, isCompleteState, keyTermView, languagePeople, membershipsOf, privilegesFor, reviewersOf, scopeCovers,
+  checkPeople, feedbackIsMine, isCompleteState, keyTermView, languagePeople, LISTENER_KIND, membershipsOf, privilegesFor, releasesOf, reviewersOf, scopeCovers,
   type FlowStepStatus, type KindDef, type KindStatus, type OrgState, type PassageLines, type PassageNote, type PassageState,
   type Privilege, type LanguageState, type QuestionSpec, type RecordEntry, type RequestView, type ReviewView, type SourcedQuestion,
   type Version
@@ -554,7 +554,7 @@ export function askCandidates(
   o: { languageId: string; what: 'record' | 'review'; kindId?: string; me: string; lines: PassageLines }
 ): AskCandidate[] {
   const need: Privilege = o.what === 'record' ? 'translate' : 'review';
-  // Who did this kind here before, read off the passages' lines (decisions.md 109).
+  // Who did this kind here before, read off the passages' lines (decisions.md 110).
   const reviewedHere = new Set<string>(o.what === 'review' && o.kindId ? reviewersOf(o.lines, o.kindId).keys() : []);
   // The check's people come first (decision 91): admins put them on the check, and they are the top choices when someone asks for it.
   const onCheck = new Set(o.what === 'review' && o.kindId ? checkPeople(state, o.kindId) : []);
@@ -623,4 +623,12 @@ export function guestMessage(o: { name: string; passage: string; language: strin
   const name = o.name.trim();
   return name ? t('passage.record.guestMessage', { name, passage: o.passage, language: o.language })
     : t('passage.record.guestMessageNoName', { passage: o.passage, language: o.language });
+}
+
+/**
+ * What reached listeners outside the team (decisions.md 109): where a version
+ * is live, and each listener's feedback, newest first.
+ */
+export function listenersOf(state: LanguageState, p: PassageState) {
+  return { live: releasesOf(state, p), feedback: p.reviews.filter((r) => r.kindId === LISTENER_KIND).sort((a, b) => (a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : 0)) };
 }

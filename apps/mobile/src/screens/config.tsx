@@ -1467,7 +1467,7 @@ export function KeyTermDetail(ctx: Ctx) {
   const term = useMemo(() => (state ? keyTermView(state, termId) : null), [state, termId]);
   const languageId = ctx.language.languageId;
   const passage = useMemo(() => (state && unitId && state.units[unitId] ? derivePassage(state, unitId, indexesFor(state)) : null), [state, unitId]);
-  // The versions that tied the term in, and those its changes were made during, may be in passages not in memory (decisions.md 109).
+  // The versions that tied the term in, and those its changes were made during, may be in passages not in memory (decisions.md 110).
   const uses = useTermPassages(ctx, termId, term);
   const usedIn = useMemo(() => (uses ? termUsedIn(uses, termId) : []), [uses, termId]);
   const [adjusting, setAdjusting] = useState(false);

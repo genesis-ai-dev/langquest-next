@@ -7,7 +7,7 @@ import { nearUnits } from './passagesInMemoryModel';
 /**
  * Memory holds the record of the passage on screen, those next to it, and
  * the book and chapter it sits in (their source audio), so moving on is
- * instant; the rest of the language stays on the phone (decisions.md 109).
+ * instant; the rest of the language stays on the phone (decisions.md 110).
  * Asked again whenever the passage on screen changes, and once the
  * language has loaded.
  */

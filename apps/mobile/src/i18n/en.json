@@ -3440,7 +3440,10 @@
       "playYourFeedback": "Play your feedback",
       "more": "More",
       "options": "Options",
-      "openVersion": "Open {{version}}"
+      "openVersion": "Open {{version}}",
+      "listeners": "Listeners",
+      "liveIn": "Live in {{channel}} · {{version}}",
+      "listenerCount": "Listener feedback: {{count, number}}"
     },
     "else": {
       "title": "Something else?",

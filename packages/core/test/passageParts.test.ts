@@ -9,7 +9,7 @@ import { emptyLanguageState, type LanguageState } from '../src/state';
 import { buildFixture, buildRecordFixture, buildStep11Fixture } from './fixtures';
 
 /**
- * Why: a phone that keeps a big language on disk (decisions.md 109) holds a
+ * Why: a phone that keeps a big language on disk (decisions.md 110) holds a
  * passage's part in memory only while a screen needs it. Events for a
  * passage that is not in memory are folded on their own and combined with
  * the stored copy later. If the combination differed from folding every

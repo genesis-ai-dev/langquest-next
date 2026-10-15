@@ -4,7 +4,7 @@ import type { LanguageState } from './state';
 import { earlier } from './ties';
 
 /**
- * A language cut by passage (decisions.md 109). Most of what a language
+ * A language cut by passage (decisions.md 110). Most of what a language
  * holds belongs to one passage: its recordings, versions, reviews, notes,
  * requests and the rest. A phone that keeps a big language on disk holds a
  * passage's part in memory only while a screen needs it, so each entry of
@@ -143,7 +143,7 @@ export const PART_OF_KIND: ReadonlyMap<string, PassagePart> = new Map(PASSAGE_PA
 
 /**
  * Core's answers about every passage of a language at once. Given the state
- * of a language kept on disk (decisions.md 109), which holds only the
+ * of a language kept on disk (decisions.md 110), which holds only the
  * passages a screen has open, each answers about those alone. An app calls
  * them on a language held whole, on a few passages read in (`withPassages`),
  * or not at all, and reads lines instead (`apps/mobile/test/wholeLanguage.test.ts`).
