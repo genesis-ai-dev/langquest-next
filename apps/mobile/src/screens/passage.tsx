@@ -12,7 +12,7 @@ import { isEarlierSection } from '../breakup/earlierSections';
 import { Faces, PeopleLine } from '../checks/parts';
 import { checkName } from '../admin/adminModel';
 import {
-  CommandError, checkPeople, commands, draftsBy, questionsForKind, recordTimeline,
+  CommandError, canDeleteVersion, checkPeople, commands, draftsBy, questionsForKind, recordTimeline,
   type Commands, type EventSpec, type FlowStepStatus, type KindState, type KindStatus, type PassageNote, type QuestionSpec, type ReviewView
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -40,7 +40,7 @@ import {
 import {
   hasWords, keepInput, keepPageInput, noteInput, overrideInput, payloadField, skipInput, undoneText
 } from '../passage/recordInputsModel';
-import { VersionsPage } from '../passage/versions';
+import { deleteVersion, VersionsPage } from '../passage/versions';
 import { VersionRecording } from '../passage/versionParts';
 import { useVersesHeld } from '../passage/useVerses';
 import { pathSteps, teamSteps, type PathStep, type TeamStep } from '../passage/pathModel';
@@ -849,7 +849,11 @@ function HistoryRow(props: { text: EntryText; when: string; last: boolean; trail
 
 // ---- version_detail (REC-9) --------------------------------------------------------------
 
-/** One version: what changed and why, its takes, the key terms tied to it, its reviews and notes. */
+/**
+ * One version: what changed and why, its takes, the key terms tied to it,
+ * its reviews and notes. Its footer edits it into a new draft, and deletes
+ * it while it is the person's latest and nobody has checked it (LAN-83).
+ */
 export function VersionDetail(ctx: Ctx) {
   const v = usePassage(ctx);
   const guide = useStudyGuide(ctx, v?.unitId);
@@ -860,8 +864,21 @@ export function VersionDetail(ctx: Ctx) {
   const { title, reviews, prompted, terms, notes } = versionDetailModel(v, version);
   const key = (part: string) => `version:${unitId}:${languageId}:${version.takeId}:${part}`;
   const params = { unitId, languageId };
+  const canEdit = recordCan(ctx.session).record;
+  const deletable = canEdit && canDeleteVersion(p, version.takeId, ctx.session.actorId);
+  const footer = canEdit ? (
+    <View style={styles.versionFooter}>
+      <View style={{ flex: 1 }}>
+        <PrimaryBtn label={t('common.edit')} icon="edit" help={t('passage.versions.editVersionHelp')} onPress={() => ctx.go('workspace', { ...params, from: version.takeId })} />
+      </View>
+      {deletable ? (
+        <IconBtn name="trash" label={t('passage.versions.delete', { name: title })} help={t('passage.versions.deleteVersionHelp')} bg={TINT.red} color={TINT.redText}
+          onPress={() => deleteVersion(ctx, v, version, ctx.back)} />
+      ) : null}
+    </View>
+  ) : undefined;
   return (
-    <Screen header={<Header title={title} crumbs={passageCrumbs(ctx, v, title)} sub={`${ctx.name(version.by)} · ${when(version.hlc)}`} onBack={ctx.back}
+    <Screen footer={footer} header={<Header title={title} crumbs={passageCrumbs(ctx, v, title)} sub={`${ctx.name(version.by)} · ${when(version.hlc)}`} onBack={ctx.back}
       action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'version', version.takeId, version.by, unitId)} />} />}>
       <Card>
         <Label text={version.n === 1 ? t('passage.version.note') : t('passage.version.whatChanged')} />
@@ -1323,6 +1340,7 @@ const OUTCOME_TINT: Record<OutcomeTone, { bg: string; fg: string }> = {
 };
 
 const styles = StyleSheet.create({
+  versionFooter: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   amberPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: space.md, paddingVertical: 6, borderRadius: radius.full, backgroundColor: TINT.amber },
   feedbackCard: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: 1, borderColor: TINT.noteBorder, padding: space.lg, gap: space.md },
   tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },

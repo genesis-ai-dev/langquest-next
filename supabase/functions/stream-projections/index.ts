@@ -21873,7 +21873,7 @@ function recordIndexes(state, idx) {
   const drafts = /* @__PURE__ */ new Map();
   const takes = Object.entries(state.takes).filter(([, t]) => t.unitId);
   const submittedAt = (id) => state.submissions[id]?.hlc ?? "";
-  for (const [id, t] of takes.filter(([id2]) => state.submissions[id2]).sort(([a], [b]) => submittedAt(a) < submittedAt(b) ? -1 : submittedAt(a) > submittedAt(b) ? 1 : a < b ? -1 : 1)) {
+  for (const [id, t] of takes.filter(([id2, t2]) => state.submissions[id2] && !t2.archived).sort(([a], [b]) => submittedAt(a) < submittedAt(b) ? -1 : submittedAt(a) > submittedAt(b) ? 1 : a < b ? -1 : 1)) {
     push(versions, t.unitId, id);
   }
   for (const [id, t] of takes.filter(([id2, t2]) => !state.submissions[id2] && !t2.archived && t2.cardHashes.length > 0).sort(([ia, a], [ib, b]) => a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : ia < ib ? 1 : -1)) {

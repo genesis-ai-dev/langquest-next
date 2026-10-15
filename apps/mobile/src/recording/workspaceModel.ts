@@ -167,6 +167,24 @@ export function removeCardSpecs(state: LanguageState, idx: Indexes, c: {
 }
 
 /**
+ * Taking every card off the list at once, to start over (LAN-83): the
+ * draft is set aside, as when its last card goes, and cards never composed
+ * are discarded so recovery does not bring them back.
+ */
+export function clearListSpecs(state: LanguageState, idx: Indexes, c: {
+  commandId: string; unitId: string; list: readonly string[]; draftTakeId?: string; parentTakeId?: string | null; pending: ReadonlySet<string>;
+}): EventSpec[] {
+  const specs: EventSpec[] = [];
+  if (c.draftTakeId) specs.push({ id: `${c.commandId}:archive`, type: 'v1.TakeArchived', payload: { takeId: c.draftTakeId } });
+  const unsaved = c.list.filter((h) => c.pending.has(h));
+  if (unsaved.length > 0) {
+    const parent = c.parentTakeId !== undefined ? { parentTakeId: c.parentTakeId } : {};
+    specs.push(...commands(state, idx).discardCards({ commandId: `${c.commandId}:discard`, unitId: c.unitId, cardHashes: unsaved, ...parent }));
+  }
+  return specs;
+}
+
+/**
  * Carry the tied key terms onto the version being published, so the
  * version's detail and its reviewers see them (REC-9, TERM-4). Uses core
  * `linkKeyTerms` under its own command id, so its event ids never collide

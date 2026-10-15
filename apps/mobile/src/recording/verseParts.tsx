@@ -3,11 +3,13 @@
 // part takes the next verse after the label above, or the verse above when
 // no next verse fits. Tap a number: the part takes the same verse as the
 // part above (a verse said in pieces), and again to make it the next verse.
-// Hold it to choose a verse or a range, or to delete the part. Slide a
-// finger down the spaces to number several parts at once. Parts are not
+// Hold it to choose a verse or a range. Slide a finger down the spaces to
+// number several parts at once. Each part has its own delete at the end of
+// its row (LAN-83), and a deleted part's place can hold the lit next part,
+// with the verses it will take where the part's were. Parts are not
 // grouped by verse (Caleb, 2026-10-10): one list, as before. The numbering
 // is core's (verses.ts); this file only draws it and passes on what was tapped.
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import {
@@ -42,6 +44,8 @@ export function VerseParts(props: {
   onDelete: (hash: string, label: string) => void;
   /** Record into a gap: new parts go before this part. */
   onRecordHere: (beforeIndex: number) => void;
+  /** The lit next part, before the part at `index`, taking `mark` (a deleted part's): drawn by `render` around its verse tile. */
+  slot?: { index: number; mark?: PartMark; render: (tile: ReactNode) => ReactNode };
 }) {
   const { parts, verses, disabled } = props;
   const count = verses.length;
@@ -50,6 +54,14 @@ export function VerseParts(props: {
   const marks = painted ?? props.marks;
   const { labels } = useMemo(() => derivePartVerses(marks, count), [marks, count]);
   const gaps = useMemo(() => skippedVerses(labels), [labels]);
+  const slot = props.slot;
+  // The verses the next part will take in the slot: read with it in the list.
+  const slotLabel = useMemo(() => {
+    if (!slot || !slot.mark) return null;
+    const withSlot = [...marks.slice(0, slot.index), slot.mark, ...marks.slice(slot.index)];
+    return derivePartVerses(withSlot, count).labels[slot.index] ?? null;
+  }, [slot, marks, count]);
+  const shift = (i: number) => (slot && i >= slot.index ? i + 1 : i);
   const [sheet, setSheet] = useState<{ i: number; anchor: number | null } | null>(null);
   const [flash, setFlash] = useState<Set<string>>(new Set());
   const [shake, setShake] = useState(-1);
@@ -182,8 +194,13 @@ export function VerseParts(props: {
         const gap = gaps.find((g) => g.before === i);
         return (
           <View key={`${part.hash}-${i}`}>
-            {gap ? <GapRow text={t('recording.verses.leftForLater', { verses: spanName(verses, gap.s, gap.e) })} disabled={disabled} onRecord={() => props.onRecordHere(i)} /> : null}
-            <PartRow ctx={props.ctx} part={part} index={i} label={labels[i] ?? null} verses={verses} ghost={labels[i] ? null : ghost(i)}
+            {slot?.index === i ? (
+              <View style={[styles.slot, i > 0 && styles.rowBorder]}>
+                {slot.render(slotLabel ? <VerseTile verses={verses} label={slotLabel} same={slotLabel.kind === 'join'} /> : <View style={styles.ghost} />)}
+              </View>
+            ) : gap ? <GapRow text={t('recording.verses.leftForLater', { verses: spanName(verses, gap.s, gap.e) })} disabled={disabled} onRecord={() => props.onRecordHere(i)} /> : null}
+            <PartRow ctx={props.ctx} part={part} index={i} name={partLabel(shift(i))} label={labels[i] ?? null} verses={verses} ghost={labels[i] ? null : ghost(i)}
+              onDelete={() => props.onDelete(part.hash, partLabel(shift(i)))}
               flash={flash.has(part.hash)} shake={shake === i} editing={sheet?.i === i} disabled={disabled}
               gutterRef={(v) => { if (v) refs.current.set(i, v); else refs.current.delete(i); }}
               onTap={() => tap(i)} onHold={() => { if (!disabled) setSheet({ i, anchor: null }); }} />
@@ -208,11 +225,11 @@ export function VerseParts(props: {
 }
 
 function PartRow(props: {
-  ctx: Ctx; part: Part; index: number; label: PartLabel | null; verses: string[];
+  ctx: Ctx; part: Part; index: number; name: string; label: PartLabel | null; verses: string[];
   ghost: { text: string; join: boolean } | null; flash: boolean; shake: boolean; editing: boolean; disabled: boolean;
-  gutterRef: (v: View | null) => void; onTap: () => void; onHold: () => void;
+  gutterRef: (v: View | null) => void; onTap: () => void; onHold: () => void; onDelete: () => void;
 }) {
-  const name = partLabel(props.index);
+  const name = props.name;
   const clip = useClip(props.ctx.language, [props.part.hash], { disabled: props.disabled });
   const playLabel = clip.playing ? t('recording.recorder.pausePart', { part: name }) : t('recording.player.playTitle', { title: name });
   const play = useHelpSpot(playLabel, undefined, clip.toggle);
@@ -250,6 +267,10 @@ function PartRow(props: {
         <Text style={txt.smMuted}>{mmss(props.part.durationMs)}</Text>
         <HelpBadge spot={play} />
       </Pressable>
+      <View style={styles.trash}>
+        <IconBtn name="trash" label={t('recording.deleteItem', { item: name })} help={t('recording.recorder.deletePartHelp')} bg="transparent" color={C.muted} size={target.min}
+          disabled={props.disabled} onPress={props.onDelete} />
+      </View>
     </View>
   );
 }
@@ -356,6 +377,8 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'stretch', minHeight: target.row },
   rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border },
   editing: { backgroundColor: C.light },
+  slot: { backgroundColor: C.card },
+  trash: { alignSelf: 'center', marginRight: space.xs },
   gutter: { width: GUTTER, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderColor: C.border },
   // A part's own verse: a soft grey tile with a dark number, so the labels stay quiet beside the parts.
   badge: { minWidth: 44, height: 44, paddingHorizontal: space.sm, borderRadius: radius.md + 2, backgroundColor: TINT.gray, alignItems: 'center', justifyContent: 'center' },

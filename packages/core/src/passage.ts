@@ -263,7 +263,8 @@ function recordIndexes(state: LanguageState, idx?: Indexes): RecordIndexes {
   const drafts = new Map<string, string[]>();
   const takes = Object.entries(state.takes).filter(([, t]) => t.unitId);
   const submittedAt = (id: string) => state.submissions[id]?.hlc ?? '';
-  for (const [id, t] of takes.filter(([id]) => state.submissions[id]).sort(([a], [b]) => (submittedAt(a) < submittedAt(b) ? -1 : submittedAt(a) > submittedAt(b) ? 1 : a < b ? -1 : 1))) {
+  // A version its publisher deleted before anyone heard it is no longer one (LAN-83, deleteVersion).
+  for (const [id, t] of takes.filter(([id, t]) => state.submissions[id] && !t.archived).sort(([a], [b]) => (submittedAt(a) < submittedAt(b) ? -1 : submittedAt(a) > submittedAt(b) ? 1 : a < b ? -1 : 1))) {
     push(versions, t.unitId, id);
   }
   for (const [id, t] of takes.filter(([id, t]) => !state.submissions[id] && !t.archived && t.cardHashes.length > 0).sort(([ia, a], [ib, b]) => (a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : ia < ib ? 1 : -1))) {
@@ -299,6 +300,18 @@ function recordIndexes(state: LanguageState, idx?: Indexes): RecordIndexes {
 }
 
 // ---- the passage -----------------------------------------------------------------
+
+/**
+ * Whether a person may delete a version (LAN-83): only the latest, only
+ * their own, and only while nothing points at it: no check of it, nothing
+ * made from it, and no review asked for since it was published.
+ */
+export function canDeleteVersion(p: Pick<PassageState, 'latest' | 'reviews' | 'requests'>, takeId: string, actorId: string): boolean {
+  const v = p.latest;
+  if (!v || v.takeId !== takeId || v.by !== actorId) return false;
+  if (p.reviews.some((r) => r.takeId === takeId)) return false;
+  return !p.requests.some((r) => r.what === 'review' && r.status !== 'withdrawn' && r.hlc > v.hlc);
+}
 
 export function derivePassage(state: LanguageState, unitId: string, idx?: Indexes): PassageState {
   const ri = recordIndexes(state, idx);

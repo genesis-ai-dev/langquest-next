@@ -3,8 +3,10 @@
 // hear, edit, publish or delete (with Undo); then the published versions,
 // newest first, each to hear, open, or edit into a new draft (a published
 // version never changes), and the latest one asked for its next check. The
-// footer starts a new version from nothing. The record's history follows.
-import { commands, draftsBy, type DraftView, type Version } from '@langquest-next/core';
+// latest is also deleted by whoever published it, while nobody has checked
+// it or been asked to (LAN-83, `canDeleteVersion`). The footer starts a new
+// version from nothing. The record's history follows.
+import { canDeleteVersion, commands, draftsBy, type DraftView, type Version } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -84,13 +86,11 @@ export function VersionsPage(props: {
           </ItemCard>
         );
       })}
-      {mine.length === 0 && props.canRecord ? (
-        <Text style={[txt.smMuted, { textAlign: 'center' }]}>{t('passage.versions.noDrafts')}</Text>
-      ) : null}
       {p.versions.length > 0 ? <SectionLabel label={t('passage.versions.published')} /> : null}
       {[...p.versions].reverse().map((ver) => (
         <VersionCard key={ver.takeId} ctx={ctx} v={v} ver={ver} latest={ver.takeId === p.latest?.takeId} length={length(ver.cardHashes)}
           canRecord={props.canRecord} {...(ver.takeId === p.latest?.takeId && props.ask ? { ask: props.ask } : {})}
+          {...(props.canRecord && canDeleteVersion(p, ver.takeId, me) ? { onDelete: () => deleteVersion(ctx, v, ver) } : {})}
           onOpen={() => props.go('version_detail', { takeId: ver.takeId })} onEdit={() => props.go('workspace', { from: ver.takeId })} />
       ))}
       {props.history}
@@ -98,9 +98,32 @@ export function VersionsPage(props: {
   );
 }
 
+/**
+ * Delete the person's latest version while nobody has checked it (LAN-83).
+ * Undo publishes the same parts again, with what it said changed, so it is
+ * that version again.
+ */
+export function deleteVersion(ctx: Ctx, v: PassageView, ver: Version, after?: () => void) {
+  const { state, unitId } = v;
+  const me = ctx.session.actorId;
+  const name = versionTitle(ver.n);
+  let specs;
+  try {
+    specs = commands(state, indexesFor(state)).deleteVersion({ commandId: Crypto.randomUUID(), unitId, takeId: ver.takeId, actorId: me });
+  } catch (e) {
+    ctx.toast(t('passage.versions.notDeleted', { reason: failureMessage('versions: delete version', e) }));
+    return;
+  }
+  void ctx.act(specs, t('passage.versions.deleted', { name }), () => {
+    const s = ctx.language.state ?? state;
+    return commands(s, indexesFor(s)).publishVersion({ commandId: Crypto.randomUUID(), unitId, cardHashes: ver.cardHashes, actorId: me, parentTakeId: ver.parentTakeId,
+      ...(ver.changeNote ? { note: ver.changeNote } : ver.n > 1 ? { note: '—' } : {}), ...(ver.changeBlobHash ? { noteBlobHash: ver.changeBlobHash } : {}) });
+  }).then(() => after?.()).catch(() => { /* ctx.act said what went wrong */ });
+}
+
 function VersionCard(props: {
   ctx: Ctx; v: PassageView; ver: Version; latest: boolean; length: string; canRecord: boolean;
-  ask?: { label: string; onPress: () => void }; onOpen: () => void; onEdit: () => void;
+  ask?: { label: string; onPress: () => void }; onOpen: () => void; onEdit: () => void; onDelete?: () => void;
 }) {
   const { ctx, v, ver } = props;
   const reviews = v.p.reviews.filter((r) => r.versionN === ver.n);
@@ -111,6 +134,11 @@ function VersionCard(props: {
       trailing={<Ico name="right" size={22} color={C.muted} />}>
       {props.canRecord ? <SmallBtn label={t('common.edit')} icon="edit" help={t('passage.versions.editVersionHelp')} onPress={props.onEdit} /> : null}
       {props.ask ? <SmallBtn label={props.ask.label} icon="send" tone="primary" help={t('passage.page.mainHelp.ask')} onPress={props.ask.onPress} /> : null}
+      {props.onDelete ? (
+        <View style={{ marginLeft: 'auto' }}>
+          <IconBtn name="trash" label={t('passage.versions.delete', { name: title })} help={t('passage.versions.deleteVersionHelp')} bg="transparent" color={C.muted} size={44} onPress={props.onDelete} />
+        </View>
+      ) : null}
     </ItemCard>
   );
 }

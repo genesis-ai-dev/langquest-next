@@ -4105,7 +4105,6 @@
       "newVersion": "New version",
       "yourDraft": "Your draft",
       "yourDrafts": "Your drafts",
-      "noDrafts": "No drafts. Edit a version below, or start a new one.",
       "published": "Published",
       "latest": "Latest",
       "saved": "Saved {{when}}",
@@ -4125,7 +4124,8 @@
       "editDraftHelp": "Opens this draft in the recorder, to keep working on it.",
       "publishHelp": "Opens this draft to publish it for the team to hear.",
       "editVersionHelp": "Starts a new draft from this version. The version itself stays as it is.",
-      "partHelp": "Plays this part alone."
+      "partHelp": "Plays this part alone.",
+      "deleteVersionHelp": "Deletes this version. Only while nobody has checked it or been asked to. You can undo it right after."
     }
   },
   "work": {
@@ -4703,7 +4703,6 @@
     },
     "recorder": {
       "permissionNeeded": "Microphone permission is required.",
-      "dragUp": "{{recorded}} · drag up to see them",
       "hidePartsHelp": "Hide the parts.",
       "showPartsHelp": "Show each part, to hear or delete it.",
       "playAllHelp": "Hear everything recorded so far, one part after another.",
@@ -4728,7 +4727,10 @@
       "deletePartHelp": "Deletes this part. You can undo it right after.",
       "nextCardHelp": "The part you record next. Tap the red button to start.",
       "nextRecordingHelp": "Recording now. Solid bars are your voice being kept; faint bars are quiet.",
-      "nextPausedHelp": "Paused while the Bible plays. Recording goes on when it stops."
+      "nextPausedHelp": "Paused while the Bible plays. Recording goes on when it stops.",
+      "deleteAll": "Delete every part",
+      "deleteAllHelp": "Deletes every part, to start over. You can undo it right after.",
+      "slotHelp": "The part you record next goes here, where the deleted part was. Tap the red button to start."
     },
     "quoted": "“{{text}}”",
     "listening": "Listening… {{time}}",
@@ -6335,8 +6337,6 @@
     "dragDown": "Drag down for the guide, key words, notes and earlier recordings",
     "openStudy": "Open the study",
     "yourRecording": "Your recording",
-    "tapRed": "Tap the red button and speak. Pause between parts: each part is kept by itself.",
-    "latestParts": "These are Version {{n}}'s parts. Record a new part or delete one to publish a new version.",
     "clipped": "Parts are coming out very short. Words may be cut off.",
     "micSetup": "Set up the microphone",
     "micSetupHint": "Tune how the device hears you: sensitivity and pauses.",

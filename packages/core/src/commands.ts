@@ -2,7 +2,7 @@ import type { Card, EventPayloads, EventType } from './events';
 import { buildIndexes, type Indexes } from './indexes';
 import { TG_MATERIAL_ID } from './materials';
 import type { FlowSelection, LanguageState } from './state';
-import { derivePassage, latestDraftBy, type PassageState } from './passage';
+import { canDeleteVersion, derivePassage, latestDraftBy, type PassageState } from './passage';
 import type { UsedReference } from './references';
 import { cardVerseEvents, type PartMark } from './verses';
 import { CUSTOM_FLOW, flowStepId, flowStepPrefix, type DepartureType, type KindDef, type NoteAnchor, type QuestionSpec, type RecordEvents, type ReviewOutcome, type ReviewVia } from './record';
@@ -43,6 +43,8 @@ export interface Commands {
   keepTake(c: { commandId: string; unitId: string; cardHashes: string[]; actorId: string; parentTakeId?: string | null }): EventSpec[];
   /** Set one of the person's drafts aside (decisions.md 83). Undo is `keepTake` with its cards and the draft as parent. */
   deleteDraft(c: { commandId: string; unitId: string; takeId: string; actorId: string }): EventSpec[];
+  /** Delete the person's latest version while nothing points at it (LAN-83, `canDeleteVersion`). Undo publishes its parts again. */
+  deleteVersion(c: { commandId: string; unitId: string; takeId: string; actorId: string }): EventSpec[];
   /**
    * Which verses each part holds (decisions.md 82): one 'v1.CardVerseSet'
    * per card whose mark changed, from the marks of a whole list of cards.
@@ -184,6 +186,12 @@ export function commands(state: LanguageState, idx: Indexes = buildIndexes(state
       const draft = derivePassage(state, c.unitId, idx).drafts.find((d) => d.takeId === c.takeId);
       if (!draft) throw new CommandError('That draft is already gone.');
       if (draft.by !== c.actorId) throw new CommandError("Only whoever recorded a draft can delete it.");
+      return [{ id: ids(c.commandId)(), type: 'v1.TakeArchived', payload: { takeId: c.takeId } }];
+    },
+
+    deleteVersion(c) {
+      const passage = derivePassage(state, c.unitId, idx);
+      if (!canDeleteVersion(passage, c.takeId, c.actorId)) throw new CommandError('Only your latest version, before anyone checks it, can be deleted.');
       return [{ id: ids(c.commandId)(), type: 'v1.TakeArchived', payload: { takeId: c.takeId } }];
     },
 

@@ -15,7 +15,10 @@
 // LAN-23). The recorder shows the parts recorded under one card and the
 // next part lit; when the passage has verses they are grouped into cards by
 // verse, with a space beside each part to tap a verse in (decisions.md 82); the big red button and Publish are in the footer, or in
-// the recorder's one line. Publish is its own screen inside this one, so
+// the recorder's one line. Each part has its own delete, and the card one
+// for all; a deleted part's place takes the next part, and with it the
+// deleted part's verses, so a part said wrong is said again where it was
+// (LAN-83). While the parts are still a version's, the card is named for it. Publish is its own screen inside this one, so
 // nothing recorded or offered is lost on the way. The sensitivity and the
 // pause between parts are set in microphone setup (`mic_setup`).
 //
@@ -51,7 +54,7 @@ import { MIN_BOTTOM, MIN_BOTTOM_RECORDING, rememberedSplit } from '../recording/
 import { useListenLoop } from '../recording/useListenLoop';
 import { VadControls, VadPanel } from '../recording/VadTakeover';
 import {
-  backTranslationDraftKey, canPublish, cardDurations, draftToOpen, removeCardSpecs, sameCards,
+  backTranslationDraftKey, canPublish, cardDurations, clearListSpecs, draftToOpen, removeCardSpecs, sameCards,
   termsInText, tiedTermIds, tieTermsSpecs, unsavedParts, workingCards
 } from '../recording/workspaceModel';
 import { getReferenceSlides } from '../passage/passageResources';
@@ -62,7 +65,7 @@ import { contractsFor } from '../shell/screenContracts';
 import { BackTranslationBody } from '../recording/btWorkspace';
 import { SourceReader } from '../sources/SourceReader';
 import { GuideNav, GuideStep } from '../study/guide';
-import { partLabel, partsLookClipped, refChips, totalMs, type RefChip } from '../recording/model';
+import { partLabel, partsLookClipped, recorderLines, refChips, totalMs, type RefChip } from '../recording/model';
 import { passageVerseKeys } from '../recording/verseModel';
 import { draftName, draftOf, startedFrom } from '../passage/versionsModel';
 import { catalogVerses } from '../sources/model';
@@ -152,8 +155,11 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const durations = useMemo(() => cardDurations(state, unitId), [state, unitId]);
   const draftCards = draft?.cardHashes;
   const [cleared, setCleared] = useState(false);
-  // Recording into a gap left for later (decisions.md 82): new parts go before this part.
+  // Recording into a gap left for later (decisions.md 82), or into a deleted
+  // part's place (LAN-83): new parts go before this part.
   const [insertBefore, setInsertBefore] = useState<string | null>(null);
+  // The deleted part's verses, which the first part said in its place takes.
+  const [slotMark, setSlotMark] = useState<PartMark | undefined>(undefined);
   const list = useMemo(() => {
     const base = workingCards({
       ...(draftCards ? { draftCards } : {}), ...(startCards ? { latestCards: startCards } : {}), pending, cleared
@@ -165,6 +171,9 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     return [...rest.slice(0, at), ...base.filter((h) => fresh.has(h)), ...rest.slice(at)];
   }, [draftCards, startCards, pending, cleared, insertBefore]);
   const changed = canPublish(list, latest?.cardHashes);
+  // While the parts are still the version's they started from, the card is named for it (LAN-83).
+  const fromVersion = startedFrom(p.versions, startFrom);
+  const recorderGroupTitle = fromVersion && startCards && sameCards(list, startCards) ? versionTitle(fromVersion) : undefined;
   const [split, setSplit] = useState(() => rememberedSplit('workspace'));
   // Publish from the Versions page opens the publish screen at once.
   const publishParam = ctx.params['publish'] === '1';
@@ -224,10 +233,17 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     const commandId = Crypto.randomUUID();
     try {
       specs = commands(state, idx).keepTake({ commandId, unitId, cardHashes: list, actorId: me, parentTakeId: parentNow() });
-      // A part recorded into a gap takes the next verse, so it fills the gap.
+      // A part recorded into a gap takes the next verse, so it fills the gap;
+      // in a deleted part's place, the first takes that part's verses and the rest are more of them.
       if (insertBefore && verseKeysRef.current.length > 0) {
         const fresh = new Set(pending);
-        const marks = partMarksFor(state, unitId, list, verseKeysRef.current).map((m, i) => (fresh.has(list[i]!) && !m ? { t: 'next' as const } : m));
+        let first = true;
+        const marks = partMarksFor(state, unitId, list, verseKeysRef.current).map((m, i) => {
+          if (!fresh.has(list[i]!) || m) return m;
+          const mark: PartMark = slotMark ? (first ? slotMark : { t: 'join' }) : { t: 'next' };
+          first = false;
+          return mark;
+        });
         specs = [...specs, ...commands(state, idx).setCardVerses({ commandId: Crypto.randomUUID(), unitId, cards: list, marks, verses: verseKeysRef.current })];
       }
     } catch (e) {
@@ -237,15 +253,21 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       return;
     }
     adopt(specs);
+    // Parts said after the first in a deleted part's place are more of its verses.
+    if (insertBefore && slotMark && pending.length > 0) setSlotMark({ t: 'join' });
     ctx.language.run(specs)
       .catch((e: unknown) => setComposeError(t('translate.partsNotInDraft', { reason: failureMessage('workspace: save draft', e) })))
       .finally(() => { composeLock.current = false; setComposing(false); });
     // `composing` is a dependency so a card that landed mid-compose is composed next.
-  }, [state, pending, list, composing, composeError, ctx.language, idx, unitId, me, insertBefore]);
+  }, [state, pending, list, composing, composeError, ctx.language, idx, unitId, me, insertBefore, slotMark]);
   // The verses of the passage, set once the Bible's range is known (below); read by the compose effect.
   const verseKeysRef = useRef<string[]>([]);
-  // A gap is filled for one recording session.
-  useEffect(() => { if (!recording && !rec.busy) setInsertBefore(null); }, [recording, rec.busy]);
+  // A gap or a deleted part's place is filled for one recording session; then the next part is at the end again.
+  const filling = useRef(false);
+  useEffect(() => {
+    if (recording) { filling.current = insertBefore !== null; return; }
+    if (!rec.busy && filling.current) { filling.current = false; setInsertBefore(null); setSlotMark(undefined); }
+  }, [recording, rec.busy, insertBefore]);
 
   // ---- deleting a take ----
   const [working, setWorking] = useState(false);
@@ -256,6 +278,11 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   async function remove(hash: string, label = partLabel(Math.max(0, list.indexOf(hash)))) {
     if (blocked) return;
     const before = list;
+    // What is said next goes where this part was, taking its verses (LAN-83).
+    const at = list.indexOf(hash);
+    const slotBefore = { hash: insertBefore, mark: slotMark };
+    setInsertBefore(at >= 0 && at < list.length - 1 ? list[at + 1]! : null);
+    setSlotMark(at >= 0 ? marks[at] ?? undefined : undefined);
     const { specs, cleared: nowCleared } = removeCardSpecs(state, idx, {
       commandId: Crypto.randomUUID(), unitId, actorId: me, list, hash, pending: new Set(pending), parentTakeId: parentNow(),
       ...(draft ? { draftTakeId: draft.takeId } : {}), ...(startCards ? { latestCards: startCards } : {})
@@ -268,6 +295,8 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     try {
       await ctx.act(specs, t('translate.partDeleted', { part: label }), () => {
         setCleared(false);
+        setInsertBefore(slotBefore.hash);
+        setSlotMark(slotBefore.mark);
         if (startCards && sameCards(before, startCards)) return [];
         const s = stateRef.current;
         return commands(s, indexesFor(s)).keepTake({ commandId: Crypto.randomUUID(), unitId, cardHashes: before, actorId: me,
@@ -275,6 +304,33 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       });
     } catch {
       setCleared(wasCleared); // ctx.act said what went wrong
+      setInsertBefore(slotBefore.hash);
+      setSlotMark(slotBefore.mark);
+    } finally { setWorking(false); }
+  }
+
+  /** Every part off the list, to start over (LAN-83); Undo puts them back. */
+  async function removeAll() {
+    if (blocked || list.length === 0) return;
+    const before = list;
+    const label = recorderLines(list.length).group;
+    const specs = clearListSpecs(state, idx, {
+      commandId: Crypto.randomUUID(), unitId, list, pending: new Set(pending), parentTakeId: parentNow(), ...(draft ? { draftTakeId: draft.takeId } : {})
+    });
+    setWorking(true);
+    setCleared(true);
+    setInsertBefore(null);
+    setSlotMark(undefined);
+    try {
+      await ctx.act(specs, t('translate.partDeleted', { part: label }), () => {
+        setCleared(false);
+        if (startCards && sameCards(before, startCards)) return [];
+        const s = stateRef.current;
+        return commands(s, indexesFor(s)).keepTake({ commandId: Crypto.randomUUID(), unitId, cardHashes: before, actorId: me,
+          parentTakeId: draftIn(s)?.takeId ?? parentNow() });
+      });
+    } catch {
+      setCleared(false);
     } finally { setWorking(false); }
   }
 
@@ -401,6 +457,9 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   }
 
   const parts: Part[] = list.map((hash) => ({ hash, ...(durations.has(hash) ? { durationMs: durations.get(hash)! } : {}) }));
+  // Where the next part goes: a deleted part's place, else the end.
+  const slotIndex = insertBefore ? list.indexOf(insertBefore) : -1;
+  const nextIndex = slotIndex >= 0 ? slotIndex : undefined;
   const problem = rec.failureCount > 0
     ? <SaveProblem message={rec.error || t('translate.partNotSaved')} retryLabel={t('translate.retrySaving')} busy={rec.busy} onRetry={() => void rec.retryFailed()} />
     : composeError ? <SaveProblem message={composeError} onRetry={() => setComposeError('')} />
@@ -433,7 +492,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       header={<Header title={v.title} sub={recordingSub} crumbs={passageCrumbs(ctx, v, screenTitle('workspace'))} onBack={ctx.back} close
         action={<SmallBtn label={t('common.save')} icon="check" help={t('translate.saveHelp')} disabled={blocked} onPress={save} />} />}
       footer={recorderLine ? undefined : (
-        <RecorderFooter count={list.length} phase={loop.phase} recordDisabled={saving || rec.failureCount > 0}
+        <RecorderFooter count={list.length} {...(nextIndex !== undefined ? { nextIndex } : {})} phase={loop.phase} recordDisabled={saving || rec.failureCount > 0}
           publishDisabled={!changed || blocked || rec.failureCount > 0} onRecord={record} onPublish={() => setConfirming(true)} />
       )}>
       <SplitPane memoryKey="workspace" minBottom={MIN_BOTTOM} onFraction={setSplit}
@@ -472,21 +531,17 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
             </HelpClip>
           </View>
         )}
-        bottom={({ compact, open, height }) => compact ? (
-          <RecorderBar count={list.length} phase={loop.phase} disabled={saving || rec.failureCount > 0} onRecord={record} onOpen={open} />
+        bottom={({ compact, open, height, room }) => compact ? (
+          <RecorderBar count={list.length} {...(nextIndex !== undefined ? { nextIndex } : {})} phase={loop.phase} disabled={saving || rec.failureCount > 0} onRecord={record} onOpen={open} />
         ) : (
           <HelpClip style={{ flex: 1 }}>
             <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.recordBody} accessibilityLabel={t('translate.yourRecording')}>
               {problem}
               <RecorderPane ctx={ctx} parts={parts} phase={loop.phase} capturing={rec.vadCapturing} small={height < 360} disabled={blocked}
-                onDelete={(h, label) => void remove(h, label)} onResume={loop.resumeNow}
+                onDelete={(h, label) => void remove(h, label)} onDeleteAll={() => void removeAll()} onRoom={room} onResume={loop.resumeNow}
+                {...(recorderGroupTitle ? { title: recorderGroupTitle } : {})}
+                slot={slotIndex >= 0 ? { index: slotIndex, ...(slotMark !== undefined ? { mark: slotMark } : {}) } : null}
                 verses={{ keys: verseKeys, marks, onMarks: setMarks, onRecordHere: recordHere }} />
-              {list.length === 0 && !session ? (
-                <Text style={[txt.smMuted, { textAlign: 'center' }]}>{t('translate.tapRed')}</Text>
-              ) : null}
-              {!isFirst && !changed && list.length > 0 ? (
-                <Text style={[txt.xs, { textAlign: 'center' }]}>{t('translate.latestParts', { n: latest.n })}</Text>
-              ) : null}
               {clipped ? (
                 <View style={styles.clipped}>
                   <Text style={[txt.sm, { color: TINT.amberText, fontWeight: '700' }]}>{t('translate.clipped')}</Text>
