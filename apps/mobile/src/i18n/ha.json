@@ -3440,7 +3440,10 @@
       "playYourFeedback": "Kunna sharhinka",
       "more": "Ƙari",
       "options": "Zaɓuɓɓuka",
-      "openVersion": "Buɗe {{version}}"
+      "openVersion": "Buɗe {{version}}",
+      "listeners": "Masu saurare",
+      "liveIn": "Ana samu a {{channel}} · {{version}}",
+      "listenerCount": "Ra'ayoyin masu saurare: {{count, number}}"
     },
     "else": {
       "title": "Wani abu daban?",
