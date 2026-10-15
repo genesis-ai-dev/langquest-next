@@ -249,7 +249,7 @@ export function GlossarySheet(props: { entry: GlossaryEntry; source: string; org
   const words = (e.body ?? e.hint ?? '').split(/\s+/).filter(Boolean).length;
   const { uri: audioUri } = useStudyFileUri(props.orgId, e.audioFile, e.audioUrl);
   const audio = useStudyAudio(audioUri, Math.max(5, Math.round(words / 2.5)));
-  useEffect(() => () => audio.pause(), []);
+  useEffect(() => () => audio.pause(), []); // eslint-disable-line react-hooks/exhaustive-deps -- it reads only refs, so the first draw's copy is enough on unmount
   return (
     <Sheet visible title={e.term} sub={t('study.glossary.sub', { source: props.source })} onClose={props.onClose}
       footer={props.hasKeyTerm ? <PrimaryBtn label={t('study.glossary.openKeyTerm')} icon="book" onPress={props.onOpenTerm} /> : undefined}>

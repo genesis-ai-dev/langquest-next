@@ -131,7 +131,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     : fromParam && state.submissions[fromParam] ? fromParam : fresh ? undefined : latest?.takeId;
   const startCards = startFrom ? state.takes[startFrom]?.cardHashes : undefined;
   /** What the next change continues: this draft's newest take, else what it starts from. */
-  const parentNow = () => (tipRef.current && stateRef.current.takes[tipRef.current] ? tipRef.current : startFrom ?? null);
+  const parentNow = useCallback(() => (tipRef.current && stateRef.current.takes[tipRef.current] ? tipRef.current : startFrom ?? null), [startFrom]);
   /** This draft in a later state (an Undo runs after the record moved on). */
   const draftIn = (s: LanguageState) => draftOf(draftsBy(derivePassage(s, unitId), me), rootRef.current);
   const name = draftName(mine, rootRef.current);
@@ -241,7 +241,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       .catch((e: unknown) => setComposeError(t('translate.partsNotInDraft', { reason: failureMessage('workspace: save draft', e) })))
       .finally(() => { composeLock.current = false; setComposing(false); });
     // `composing` is a dependency so a card that landed mid-compose is composed next.
-  }, [state, pending, list, composing, composeError, ctx.language, idx, unitId, me, insertBefore]);
+  }, [state, pending, list, composing, composeError, ctx.language, idx, unitId, me, insertBefore, parentNow]);
   // The verses of the passage, set once the Bible's range is known (below); read by the compose effect.
   const verseKeysRef = useRef<string[]>([]);
   // A gap is filled for one recording session.
