@@ -14,7 +14,9 @@ import { Platform, Pressable, ScrollView, Share, View } from 'react-native';
 import { Text } from '../text';
 import { t, Trans } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { Chip, ChipRow, IconBtn, LinkBtn, SearchField, SmallBtn, txt } from '../kit';
+import { HelpBadge } from '../helpBadge';
+import { useHelpSpot } from '../helpContext';
+import { Chip, ChipRow, HelpInfo, IconBtn, LinkBtn, SearchField, SmallBtn, txt } from '../kit';
 import { C, space } from '../theme';
 import { CompareBars, DayBars, GroupedBars, PaceStrip, RecencyStrip, Sparkline, StackBar, WorkBar } from './charts';
 import { countryName } from './countries';
@@ -57,6 +59,20 @@ export function sectionLabel(id: SectionId): string {
   }
 }
 
+/** What a section's chip shows, as help mode says it. */
+export function sectionHelp(id: SectionId): string {
+  switch (id) {
+    case 'overview': return t('reports.sections.overviewHelp');
+    case 'activity': return t('reports.sections.activityHelp');
+    case 'languages': return t('reports.sections.languagesHelp');
+    case 'geography': return t('reports.sections.geographyHelp');
+    case 'field': return t('reports.sections.fieldHelp');
+    case 'ledger': return t('reports.sections.ledgerHelp');
+    case 'pace': return t('reports.sections.paceHelp');
+    case 'alerts': return t('reports.sections.alertsHelp');
+  }
+}
+
 /** What every section gets. */
 export interface SectionProps {
   rows: LanguageRow[];
@@ -80,9 +96,23 @@ const bold = <Text style={{ fontWeight: '700' }} />;
 
 /** A language's name, as a link to its page. */
 function LanguageLink(props: { row: LanguageRow; open: (row: LanguageRow) => void; strong?: boolean }) {
+  const spot = useHelpSpot(props.row.report.name, t('reports.openLanguageHelp'), () => props.open(props.row));
   return (
-    <Pressable onPress={() => props.open(props.row)} accessibilityRole="link" hitSlop={8} style={({ pressed }) => [{ minHeight: 32, justifyContent: 'center' }, pressed && { opacity: 0.6 }]}>
+    <Pressable onPress={spot.onPress} accessibilityRole="link" hitSlop={8} style={({ pressed }) => [{ minHeight: 32, justifyContent: 'center' }, pressed && { opacity: 0.6 }]}>
       <Text style={[txt.sm, { color: C.primary, fontWeight: props.strong === false ? '400' : '700' }]}>{props.row.report.name}</Text>
+      <HelpBadge spot={spot} />
+    </Pressable>
+  );
+}
+
+/** A cluster's name, as a link that shows only its languages. */
+function ClusterLink(props: { name: string; onPick: () => void }) {
+  const spot = useHelpSpot(props.name, t('reports.clusters.pickHelp'), props.onPick);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="link" hitSlop={8}
+      style={({ pressed }) => [{ minHeight: 32, justifyContent: 'center' }, pressed && { opacity: 0.6 }]}>
+      <Text style={[txt.sm, { color: C.primary, fontWeight: '700' }]}>{props.name}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -109,10 +139,7 @@ function ClusterPanel(p: SectionProps) {
         return (
           <ListLine key={c.clusterId}
             right={<Text style={txt.xs}>{t('reports.clusters.languages', { count: c.languageIds.length })}</Text>}>
-            <Pressable onPress={() => p.pickCluster(c.clusterId)} accessibilityRole="link" hitSlop={8}
-              style={({ pressed }) => [{ minHeight: 32, justifyContent: 'center' }, pressed && { opacity: 0.6 }]}>
-              <Text style={[txt.sm, { color: C.primary, fontWeight: '700' }]}>{c.name}</Text>
-            </Pressable>
+            <ClusterLink name={c.name} onPick={() => p.pickCluster(c.clusterId)} />
             <ProgressPair total={totals.total} recorded={totals.recorded} done={totals.done} />
           </ListLine>
         );
@@ -155,7 +182,7 @@ export function Overview(p: SectionProps) {
         <Panel title={t('reports.coverage.title')} eyebrow={t('reports.overview.averageAcross')}>
           <CoverageRows recorded={coverageAverage(rows, 'recorded')} done={coverageAverage(rows, 'done')} />
         </Panel>
-        <Panel title={t('reports.overview.whoIsUploading')} eyebrow={t('reports.overview.portfolio')} right={<LinkBtn label={t('reports.overview.toLanguages')} onPress={() => p.show('languages')} />}>
+        <Panel title={t('reports.overview.whoIsUploading')} eyebrow={t('reports.overview.portfolio')} right={<LinkBtn label={t('reports.overview.toLanguages')} help={t('reports.overview.toLanguagesHelp')} onPress={() => p.show('languages')} />}>
           <StackBar parts={[
             { key: 'active', label: t('reports.portfolio.activeDays'), value: portfolio.active, tone: 'green' },
             { key: 'quiet', label: t('reports.portfolio.quietDays'), value: portfolio.quiet, tone: 'amber' },
@@ -166,7 +193,7 @@ export function Overview(p: SectionProps) {
       </Columns>
       <AttentionPanel attention={totals} />
       <Columns>
-        <Panel title={t('reports.overview.last48Hours')} eyebrow={sectionLabel('activity')} right={<LinkBtn label={t('reports.overview.toActivity')} onPress={() => p.show('activity')} />}>
+        <Panel title={t('reports.overview.last48Hours')} eyebrow={sectionLabel('activity')} right={<LinkBtn label={t('reports.overview.toActivity')} help={t('reports.overview.toActivityHelp')} onPress={() => p.show('activity')} />}>
           {lastDays.length === 0 ? <Text style={txt.smMuted}>{t('reports.overview.noNewAudio')}</Text> : (
             lastDays.flatMap((d) => d.entries).slice(0, 6).map((e) => (
               <ListLine key={`${e.row.languageId}-${e.day}-${e.unitId}`}
@@ -192,7 +219,7 @@ export function Overview(p: SectionProps) {
         <Panel title={t('reports.whereStand.title')} sub={t('reports.whereStand.everyLanguage')}>
           <WorkBar work={totals.work} />
         </Panel>
-        <Panel title={t('reports.overview.byCountry')} eyebrow={sectionLabel('geography')} right={<LinkBtn label={t('reports.overview.toMap')} onPress={() => p.show('geography')} />}>
+        <Panel title={t('reports.overview.byCountry')} eyebrow={sectionLabel('geography')} right={<LinkBtn label={t('reports.overview.toMap')} help={t('reports.overview.toMapHelp')} onPress={() => p.show('geography')} />}>
           {countries.length === 0 ? <Text style={txt.smMuted}>{t('reports.overview.noCountries')}</Text> : (
             <WorldMap values={countries.map((c) => ({ country: c.country!, value: c.languages }))} unit="languages" compact />
           )}
@@ -215,7 +242,7 @@ export function Activity(p: SectionProps & { days: 7 | 14; setDays: (d: 7 | 14) 
   return (
     <>
       <ChipRow>
-        {([7, 14] as const).map((d) => <Chip key={d} label={t('reports.lastDays', { count: d })} on={days === d} onPress={() => p.setDays(d)} />)}
+        {([7, 14] as const).map((d) => <Chip key={d} label={t('reports.lastDays', { count: d })} help={t('reports.activity.daysHelp')} on={days === d} onPress={() => p.setDays(d)} />)}
       </ChipRow>
       <Panel>
         <Text style={txt.label}>{t('reports.activity.uploadedLastDays', { count: days })}</Text>
@@ -290,7 +317,7 @@ export function Languages(p: SectionProps) {
   return (
     <>
       <View style={{ alignSelf: 'flex-start' }}>
-        <SmallBtn label={t('reports.downloadCsv')} icon="download" onPress={() => exportCsv(fileName(t('reports.files.languages', { org: p.orgName })), languagesCsv(rows, now, p.clustersOf))} />
+        <SmallBtn label={t('reports.downloadCsv')} icon="download" help={t('reports.languages.downloadHelp')} onPress={() => exportCsv(fileName(t('reports.files.languages', { org: p.orgName })), languagesCsv(rows, now, p.clustersOf))} />
       </View>
       <Panel eyebrow={t('reports.languages.uploadActivity')} title={t('reports.languages.uploadedTitle', { active: num(counts.active), count: rows.length })}
         sub={t('reports.languages.uploadedSub')}>
@@ -308,7 +335,7 @@ export function Languages(p: SectionProps) {
       </Panel>
       <Panel title={t('reports.languages.all')}>
         <ChipRow>
-          {filters.map(([v, label]) => <Chip key={v} label={label} on={status === v} onPress={() => setStatus(v)} />)}
+          {filters.map(([v, label]) => <Chip key={v} label={label} help={v === 'all' ? t('reports.languages.filterAllHelp') : t('reports.languages.filterHelp')} on={status === v} onPress={() => setStatus(v)} />)}
         </ChipRow>
         <LanguageTable rows={shown} now={now} open={p.open} clustersOf={p.clustersOf} />
       </Panel>
@@ -363,14 +390,9 @@ function LanguageTable(props: { rows: LanguageRow[]; now: number; open: (row: La
               const active = c.key !== null && sort.key === c.key;
               const label = columnLabel(c.id);
               if (!c.key) return <View key={c.id} style={{ flex: c.flex, padding: space.xs }}><Text style={txt.xsStrong}>{label}</Text></View>;
-              const spoken = !active ? t('reports.languages.sortBy', { column: label })
-                : sort.dir === 'asc' ? t('reports.languages.sortedAscending', { column: label }) : t('reports.languages.sortedDescending', { column: label });
               return (
-                <Pressable key={c.id} onPress={() => setSort(active ? { key: c.key!, dir: sort.dir === 'asc' ? 'desc' : 'asc' } : { key: c.key!, dir: c.firstDir })}
-                  accessibilityRole="button" accessibilityLabel={spoken}
-                  style={({ pressed }) => [{ flex: c.flex, minHeight: 48, justifyContent: 'center', padding: space.xs }, pressed && { opacity: 0.6 }]}>
-                  <Text style={[txt.xsStrong, active ? { color: C.primary } : null]}>{label}{active ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}</Text>
-                </Pressable>
+                <SortHeader key={c.id} label={label} flex={c.flex} dir={active ? sort.dir : null}
+                  onPress={() => setSort(active ? { key: c.key!, dir: sort.dir === 'asc' ? 'desc' : 'asc' } : { key: c.key!, dir: c.firstDir })} />
               );
             })}
           </View>
@@ -400,6 +422,21 @@ function LanguageTable(props: { rows: LanguageRow[]; now: number; open: (row: La
         </View>
       </ScrollView>
     </View>
+  );
+}
+
+/** A column's heading that sorts the table by it; `dir` while it is the one sorting. */
+function SortHeader(props: { label: string; flex: number; dir: SortDir | null; onPress: () => void }) {
+  const { label, dir } = props;
+  const spoken = !dir ? t('reports.languages.sortBy', { column: label })
+    : dir === 'asc' ? t('reports.languages.sortedAscending', { column: label }) : t('reports.languages.sortedDescending', { column: label });
+  const spot = useHelpSpot(label, dir ? t('reports.languages.sortedHelp') : t('reports.languages.sortHelp'), props.onPress);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={spoken}
+      style={({ pressed }) => [{ flex: props.flex, minHeight: 48, justifyContent: 'center', padding: space.xs }, pressed && { opacity: 0.6 }]}>
+      <Text style={[txt.xsStrong, dir ? { color: C.primary } : null]}>{label}{dir ? (dir === 'asc' ? ' ▲' : ' ▼') : ''}</Text>
+      <HelpBadge spot={spot} inset />
+    </Pressable>
   );
 }
 
@@ -434,7 +471,7 @@ export function Geography(p: SectionProps) {
   return (
     <>
       <ChipRow>
-        {measures.map(([v, label]) => <Chip key={v} label={label} on={measure === v} onPress={() => setMeasure(v)} />)}
+        {measures.map(([v, label]) => <Chip key={v} label={label} help={t('reports.geography.measureHelp')} on={measure === v} onPress={() => setMeasure(v)} />)}
       </ChipRow>
       <Panel title={t('reports.counts.countries', { count: countryCounts(rows).filter((c) => c.country).length })}
         {...(unset ? { sub: t('reports.geography.unset', { count: unset }) } : {})}>
@@ -449,7 +486,7 @@ export function Geography(p: SectionProps) {
               <Text style={txt.sm}><Trans i18nKey="reports.geography.active" values={{ value: num(x.active) }} components={{ b: bold }} /></Text>
               <Text style={txt.xs}>{t('reports.geography.figures', { recent: num(x.recent), all: num(x.all), nt: pctText(x.nt) })}</Text>
             </>}>
-            {x.country ? <LinkBtn label={countryName(x.country)} onPress={() => p.show('languages', x.country!)} style={{ alignSelf: 'flex-start', minHeight: 32 }} />
+            {x.country ? <LinkBtn label={countryName(x.country)} help={t('reports.geography.countryHelp')} onPress={() => p.show('languages', x.country!)} style={{ alignSelf: 'flex-start', minHeight: 32 }} />
               : <Text style={txt.smMuted}>{countryName(null)}</Text>}
             <RankBar value={x.list.length} max={max} />
             <Text style={txt.xs}>{t('reports.geography.languageList', { count: x.list.length, names: x.list.map((r) => r.report.name).join(', ') })}</Text>
@@ -535,11 +572,12 @@ export function FieldReport(p: SectionProps) {
   return (
     <>
       <ChipRow>
-        {periods.map(([v, label]) => <Chip key={v} label={label} on={period === v} onPress={() => setPeriod(v)} />)}
+        {periods.map(([v, label]) => <Chip key={v} label={label} help={t('reports.field.periodHelp')} on={period === v} onPress={() => setPeriod(v)} />)}
       </ChipRow>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, alignItems: 'center' }}>
-        <SmallBtn label={Platform.OS === 'web' ? t('reports.field.copyText') : t('reports.field.shareText')} icon="share" onPress={copy} />
-        {canPrint ? <SmallBtn label={t('reports.printOrSave')} icon="download" onPress={printPage} /> : null}
+        <SmallBtn label={Platform.OS === 'web' ? t('reports.field.copyText') : t('reports.field.shareText')} icon="share"
+          help={Platform.OS === 'web' ? t('reports.field.copyTextHelp') : t('reports.field.shareTextHelp')} onPress={copy} />
+        {canPrint ? <SmallBtn label={t('reports.printOrSave')} icon="download" help={t('reports.printOrSaveHelp')} onPress={printPage} /> : null}
         {copied ? <Text style={txt.smMuted} accessibilityLiveRegion="polite">{copied}</Text> : null}
       </View>
       <Panel>
@@ -576,10 +614,13 @@ export function FieldReport(p: SectionProps) {
                 {t('reports.field.pointsGained', { gain: formatNumber(Math.round(10 * (a.after - a.before)) / 10, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) })}
               </Text>
             </View>
-            <View style={{ flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden', backgroundColor: C.border }}>
-              <View style={{ width: `${a.before}%`, backgroundColor: C.primary }} />
-              <View style={{ width: `${a.after - a.before}%`, backgroundColor: C.green }} />
-            </View>
+            <HelpInfo label={t('reports.field.advancedFromTo', { before: pctText(a.before), after: pctText(a.after), scope: scopeLabel(a.scope) })}
+              detail={t('reports.field.advancedBarHelp')}>
+              <View style={{ flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden', backgroundColor: C.border }}>
+                <View style={{ width: `${a.before}%`, backgroundColor: C.primary }} />
+                <View style={{ width: `${a.after - a.before}%`, backgroundColor: C.green }} />
+              </View>
+            </HelpInfo>
             <Text style={txt.xs}>{t('reports.field.advancedFromTo', { before: pctText(a.before), after: pctText(a.after), scope: scopeLabel(a.scope) })}</Text>
           </View>
         ))}
@@ -673,10 +714,10 @@ export function Ledger(p: SectionProps) {
   return (
     <>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.sm }}>
-        <IconBtn name="left" label={t('reports.ledger.previousMonth')} disabled={i <= 0} onPress={() => setChosen(months[i - 1]!)} />
+        <IconBtn name="left" label={t('reports.ledger.previousMonth')} help={t('reports.ledger.previousMonthHelp')} disabled={i <= 0} onPress={() => setChosen(months[i - 1]!)} />
         <Text style={[txt.h3, { minWidth: 160, textAlign: 'center' }]} accessibilityLiveRegion="polite">{settled ? name : t('reports.ledger.monthMoving', { month: name })}</Text>
-        <IconBtn name="right" label={t('reports.ledger.nextMonth')} disabled={i >= months.length - 1} onPress={() => setChosen(months[i + 1]!)} />
-        <SmallBtn label={t('reports.ledger.export', { month: monthShort(month) })} icon="download"
+        <IconBtn name="right" label={t('reports.ledger.nextMonth')} help={t('reports.ledger.nextMonthHelp')} disabled={i >= months.length - 1} onPress={() => setChosen(months[i + 1]!)} />
+        <SmallBtn label={t('reports.ledger.export', { month: monthShort(month) })} icon="download" help={t('reports.ledger.exportHelp')}
           onPress={() => exportCsv(`${safeName(t('reports.files.ledger', { org: p.orgName, month }))}.csv`, ledgerCsv(rows, month))} />
       </View>
       {!settled ? (
@@ -698,7 +739,7 @@ export function Ledger(p: SectionProps) {
         {prev ? <Delta now={l.chapters} before={prev.chapters} unit="chapters" /> : null}
         <Text style={txt.xs}>{t('reports.ledger.countsOnce')}</Text>
       </Panel>
-      <Panel title={t('reports.ledger.paceToday')} right={<LinkBtn label={t('reports.ledger.toPace')} onPress={() => p.show('pace')} />}
+      <Panel title={t('reports.ledger.paceToday')} right={<LinkBtn label={t('reports.ledger.toPace')} help={t('reports.ledger.toPaceHelp')} onPress={() => p.show('pace')} />}
         {...(noTarget ? { sub: t('reports.ledger.noTargetLeftOut', { count: noTarget }) } : {})}>
         <StackBar empty={t('reports.charts.noTargetYet')} parts={pace.map((g) => ({ key: g.band, label: paceLabel(g.band), value: g.items.length, tone: PACE_TONE[g.band] }))} />
       </Panel>

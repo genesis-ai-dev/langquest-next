@@ -85,19 +85,27 @@ async function saveRows(ctx: Ctx, rows: CheckRow[], message: string, before: Eve
 
 // ---- the list ----------------------------------------------------------------------------
 
+/** The grip's press while help is on: it explains itself; dragging waits until help is off. */
+const DRAG_HERE = () => undefined;
+
 function CheckCard(props: {
   ctx: Ctx; row: CheckRow; i: number; n: number; count: number; kinds: KindDef[]; people: string[] | null;
   questions: number; helps: number; readOnly: boolean; height: number;
   onLayout: (h: number) => void; onMove: (to: number) => void; onLock: () => void; onOpen?: () => void;
+  /** What help mode says opening the card shows. */ openHelp?: string;
 }) {
   const { row, i } = props;
   const title = checkName(row.kindId, props.kinds);
   const [dy, setDy] = useState(0);
   const latest = useRef(props);
   latest.current = props;
+  // While help is on the grip explains itself instead of dragging.
+  const grip = useHelpSpot(t('review.checkSteps.move', { title }), t('checks.dragHelp'), props.readOnly ? undefined : DRAG_HERE);
+  const explaining = useRef(false);
+  explaining.current = !!grip.id;
   const pan = useRef(PanResponder.create({
-    onStartShouldSetPanResponder: () => !latest.current.readOnly,
-    onMoveShouldSetPanResponder: () => !latest.current.readOnly,
+    onStartShouldSetPanResponder: () => !latest.current.readOnly && !explaining.current,
+    onMoveShouldSetPanResponder: () => !latest.current.readOnly && !explaining.current,
     onPanResponderMove: (_e, g) => setDy(g.dy),
     onPanResponderRelease: (_e, g) => {
       const p = latest.current;
@@ -107,7 +115,7 @@ function CheckCard(props: {
     },
     onPanResponderTerminate: () => setDy(0)
   })).current;
-  const open = useHelpSpot(title, t('checks.openHelp'), props.onOpen ?? (() => {}));
+  const open = useHelpSpot(title, props.openHelp ?? t('checks.openHelp'), props.onOpen ?? (() => {}));
   return (
     <View onLayout={(e) => props.onLayout(e.nativeEvent.layout.height)}
       style={[styles.card, dy !== 0 && { transform: [{ translateY: dy }], zIndex: 2, borderColor: C.primary }]}>
@@ -118,6 +126,11 @@ function CheckCard(props: {
           if (e.nativeEvent.actionName === 'increment' && i < props.count - 1) props.onMove(i + 1);
         }}>
         <Ico name="grip" size={22} color={C.faint} />
+        {grip.id ? (
+          <Pressable onPress={grip.onPress} accessibilityRole="button" accessibilityLabel={t('review.checkSteps.move', { title })} style={StyleSheet.absoluteFill}>
+            <HelpBadge spot={grip} />
+          </Pressable>
+        ) : null}
       </View>
       <Pressable onPress={open.onPress} disabled={!props.onOpen} accessibilityRole="button"
         accessibilityLabel={t('checks.cardA11y', { n: props.n, title })}
@@ -146,6 +159,7 @@ function CheckList(props: {
   ctx: Ctx; rows: CheckRow[]; kinds: KindDef[]; readOnly: boolean;
   peopleOf?: (kindId: string) => string[]; questionsOf?: (kindId: string) => number; helpsOf?: (kindId: string) => number;
   onChange: (rows: CheckRow[]) => void; onOpen?: (i: number) => void;
+  /** What help mode says opening a check shows, where it is not its people, questions and helps. */ openHelp?: string;
 }) {
   const [height, setHeight] = useState(0);
   const { rows } = props;
@@ -161,7 +175,7 @@ function CheckList(props: {
         readOnly={props.readOnly} height={height + space.sm + 2} onLayout={(h) => { if (Math.abs(h - height) > 1) setHeight(h); }}
         onMove={(to) => props.onChange(moveRow(rows, i, to))}
         onLock={() => props.onChange(setCheckpoint(rows, i, !r.checkpoint))}
-        {...(props.onOpen ? { onOpen: () => props.onOpen!(i) } : {})} />
+        {...(props.onOpen ? { onOpen: () => props.onOpen!(i) } : {})} {...(props.openHelp ? { openHelp: props.openHelp } : {})} />
     );
   };
   return (
@@ -200,11 +214,12 @@ function AddCheckSheet(props: { visible: boolean; kinds: KindDef[]; taken: strin
       {left.length ? (
         <Group>
           {left.map((k, i) => (
-            <Row key={k.id} leading={<KindIcon kindId={k.id} size={40} />} label={checkName(k.id, props.kinds)} onPress={() => props.onPick(k, false)} last={i === left.length - 1} />
+            <Row key={k.id} leading={<KindIcon kindId={k.id} size={40} />} label={checkName(k.id, props.kinds)} help={t('checks.addThisHelp')} onPress={() => props.onPick(k, false)} last={i === left.length - 1} />
           ))}
         </Group>
       ) : null}
-      <Field label={t('config.flowEditor.somethingElse')} value={name} onChangeText={setName} placeholder={t('config.flowEditor.newCheckPlaceholder')} autoCapitalize="words" />
+      <Field label={t('config.flowEditor.somethingElse')} value={name} onChangeText={setName} placeholder={t('config.flowEditor.newCheckPlaceholder')} autoCapitalize="words"
+        help={t('checks.newCheckHelp')} />
       <PrimaryBtn label={t('config.flowEditor.addThisCheck')} icon="plus" disabled={!name.trim()} onPress={() => {
         const k: KindDef = { id: newKindId(name, props.kinds.map((x) => x.id)), name: name.trim(), description: '', usualReviewer: '' };
         setName('');
@@ -221,10 +236,10 @@ function FlowsSheet(props: { ctx: Ctx; visible: boolean; kinds: KindDef[]; langu
   const on = chk.entries.find((e) => e.c.key === picked) ?? null;
   return (
     <Sheet visible={props.visible} title={t('checks.flows.title')} sub={t('checks.flows.sub', { language: props.language })} onClose={props.onClose}
-      footer={on ? <PrimaryBtn label={t('checks.flows.use', { name: on.c.name })} onPress={() => props.onUse(on, chk.kindsOf(on.doc))} /> : undefined}>
+      footer={on ? <PrimaryBtn label={t('checks.flows.use', { name: on.c.name })} help={t('checks.flows.useHelp', { language: props.language })} onPress={() => props.onUse(on, chk.kindsOf(on.doc))} /> : undefined}>
       {chk.entries.length === 0 ? <Text style={txt.smMuted}>{chk.loaded ? t('getReady.checks.noWays') : t('common.loading')}</Text> : null}
       {chk.entries.map((e) => (
-        <ChoiceCard key={e.c.key} on={picked === e.c.key} icon="route" title={e.c.name} sub={checksLine(e.doc.steps, chk.kindsOf(e.doc))} onPress={() => setPicked(e.c.key)} />
+        <ChoiceCard key={e.c.key} on={picked === e.c.key} icon="route" title={e.c.name} sub={checksLine(e.doc.steps, chk.kindsOf(e.doc))} help={t('checks.flows.pickHelp')} onPress={() => setPicked(e.c.key)} />
       ))}
     </Sheet>
   );
@@ -244,6 +259,7 @@ function OwnChecks({ ctx }: { ctx: Ctx }) {
   const [adding, setAdding] = useState(false);
   const [flows, setFlows] = useState(false);
   const canManage = ctx.session.can('manage_flows');
+  const startFlow = useHelpSpot(t('checks.flows.start'), t('checks.flows.startHelp'), canManage ? () => setFlows(true) : undefined);
   if (!state) {
     return <Screen header={<Header title={t('checks.title')} onBack={ctx.back} />}><EmptyState icon="flow" title={t('common.loading')} /></Screen>;
   }
@@ -256,11 +272,12 @@ function OwnChecks({ ctx }: { ctx: Ctx }) {
         questionsOf={(k) => questionsForKind(state, k).length}
         helpsOf={(k) => checkHelps(state, k).length}
         onChange={save} onOpen={(i) => ctx.go('check_editor', { languageId, kindId: rows[i]!.kindId })} />
-      {canManage ? <DashedRow icon="plus" label={t('checks.addCheck')} centred onPress={() => setAdding(true)} /> : null}
+      {canManage ? <DashedRow icon="plus" label={t('checks.addCheck')} detail={t('checks.addCheckHelp')} centred onPress={() => setAdding(true)} /> : null}
       {canManage ? (
-        <Pressable onPress={() => setFlows(true)} accessibilityRole="button" style={({ pressed }) => [styles.quiet, pressed && { opacity: 0.7 }]}>
+        <Pressable onPress={startFlow.onPress} accessibilityRole="button" style={({ pressed }) => [styles.quiet, pressed && { opacity: 0.7 }]}>
           <Ico name="flow" size={20} color={C.muted} />
           <Text style={styles.quietText}>{t('checks.flows.start')}</Text>
+          <HelpBadge spot={startFlow} />
         </Pressable>
       ) : null}
       <AddCheckSheet visible={adding} kinds={known} taken={rows.map((r) => r.kindId)} onClose={() => setAdding(false)} onPick={(k, isNew) => {
@@ -304,9 +321,9 @@ function DraftChecks({ ctx }: { ctx: Ctx }) {
   const previous = open !== null && open > 0 ? checkName(draft.rows[open - 1]!.kindId, draft.kinds) : '';
   return (
     <Screen header={<Header title={t('checks.title')} sub={title} onBack={ctx.back} />}
-      footer={<PrimaryBtn label={t('common.done')} icon="check" onPress={ctx.back} />}>
-      <CheckList ctx={ctx} rows={draft.rows} kinds={draft.kinds} readOnly={false} onChange={set} onOpen={setOpen} />
-      <DashedRow icon="plus" label={t('checks.addCheck')} centred onPress={() => setAdding(true)} />
+      footer={<PrimaryBtn label={t('common.done')} icon="check" help={t('checks.draftDoneHelp')} onPress={ctx.back} />}>
+      <CheckList ctx={ctx} rows={draft.rows} kinds={draft.kinds} readOnly={false} onChange={set} onOpen={setOpen} openHelp={t('checks.openDraftHelp')} />
+      <DashedRow icon="plus" label={t('checks.addCheck')} detail={t('checks.addCheckHelp')} centred onPress={() => setAdding(true)} />
       <AddCheckSheet visible={adding} kinds={draft.kinds} taken={draft.rows.map((r) => r.kindId)} onClose={() => setAdding(false)} onPick={(k) => {
         setAdding(false);
         setChecksDraft({ kinds: draft.kinds.some((x) => x.id === k.id) ? draft.kinds : [...draft.kinds, k], rows: addRow(draft.rows, k.id) });
@@ -316,10 +333,13 @@ function DraftChecks({ ctx }: { ctx: Ctx }) {
         {row && open !== null ? (
           <Group>
             <Row icon="lock" label={t('checks.mustPass')} role="switch" checked={row.checkpoint}
-              right={<Toggle testID="toggle-must-pass" on={row.checkpoint} label={t('checks.mustPass')} onToggle={() => set(setCheckpoint(draft.rows, open, !row.checkpoint))} />} />
+              right={<Toggle testID="toggle-must-pass" on={row.checkpoint} label={t('checks.mustPass')} help={row.checkpoint ? t('admin.lock.on') : t('admin.lock.off')}
+                onToggle={() => set(setCheckpoint(draft.rows, open, !row.checkpoint))} />} />
             {open > 0 ? (
               <Row icon="swap" label={t('checks.sameTimeAs', { check: previous })} role="switch" checked={row.together}
-                right={<Toggle testID="toggle-same-time" on={row.together} label={t('checks.sameTimeAs', { check: previous })} onToggle={() => set(setTogether(draft.rows, open, !row.together))} />} />
+                right={<Toggle testID="toggle-same-time" on={row.together} label={t('checks.sameTimeAs', { check: previous })}
+                  help={row.together ? t('checks.sameTimeOnHelp', { check: previous }) : t('checks.sameTimeOffHelp', { check: previous })}
+                  onToggle={() => set(setTogether(draft.rows, open, !row.together))} />} />
             ) : null}
             <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label={t('checks.remove')} last
               onPress={() => { set(removeRow(draft.rows, open)); setOpen(null); }} />
@@ -334,12 +354,24 @@ function DraftChecks({ ctx }: { ctx: Ctx }) {
 
 interface QuestionDraft { materialId: string | null; fieldId: string | null; text: string; type: QuestionSpec['type']; required: boolean }
 
-function questionTypes(): { id: QuestionSpec['type']; label: string }[] {
+function questionTypes(): { id: QuestionSpec['type']; label: string; help: string }[] {
   return [
-    { id: 'text', label: t('checks.questionType.text') },
-    { id: 'yesno', label: t('checks.questionType.yesno') },
-    { id: 'rating', label: t('checks.questionType.rating') }
+    { id: 'text', label: t('checks.questionType.text'), help: t('checks.questionType.textHelp') },
+    { id: 'yesno', label: t('checks.questionType.yesno'), help: t('checks.questionType.yesnoHelp') },
+    { id: 'rating', label: t('checks.questionType.rating'), help: t('checks.questionType.ratingHelp') }
   ];
+}
+
+/** Under a question being changed: take it off the check. */
+function RemoveQuestion(props: { onPress: () => void }) {
+  const spot = useHelpSpot(t('checks.removeQuestion'), t('checks.removeQuestionHelp'), props.onPress);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="button" style={styles.quiet}>
+      <Ico name="trash" size={18} color={TINT.redText} />
+      <Text style={[styles.quietText, { color: TINT.redText }]}>{t('checks.removeQuestion')}</Text>
+      <HelpBadge spot={spot} />
+    </Pressable>
+  );
 }
 
 export function CheckEditor(ctx: Ctx) {
@@ -445,6 +477,7 @@ export function CheckEditor(ctx: Ctx) {
   const ownNotes = materialsFor(state).filter((m) => !['questions', 'key_terms', 'fia_study'].includes(m.kind));
   const library = items.map((it) => ({ it, kind: refKindOf(docs.get(it.current)) })).filter((x) => x.kind === 'note' || x.kind === 'other' || x.kind === 'guide' || x.kind === 'source');
   const linked = new Set(helps.map((h) => ('itemId' in h ? `item:${h.itemId}` : `material:${h.materialId}`)));
+  const linkedHelp = (on: boolean) => (on ? t('checks.helpOnHelp') : t('checks.helpOffHelp'));
   const tick = (on: boolean) => (
     <View style={[styles.tick, on && styles.tickOn]}>{on ? <Ico name="check" size={18} color={C.white} strokeWidth={3} /> : null}</View>
   );
@@ -458,11 +491,11 @@ export function CheckEditor(ctx: Ctx) {
       <Group>
         {people.map((id, j) => (
           <Row key={id} leading={<PersonAvatar look={look(id)} size={36} />} label={ctx.name(id)} sub={roleIn(org, id, languageId) || undefined}
-            right={mayTeams ? <IconBtn name="close" label={t('checks.removePerson', { name: ctx.name(id) })} onPress={() => void setPeople(people.filter((p) => p !== id))} bg="transparent" color={C.muted} /> : undefined}
+            right={mayTeams ? <IconBtn name="close" label={t('checks.removePerson', { name: ctx.name(id) })} help={t('checks.removePersonHelp')} onPress={() => void setPeople(people.filter((p) => p !== id))} bg="transparent" color={C.muted} /> : undefined}
             last={!mayTeams && j === people.length - 1} />
         ))}
         {people.length === 0 && !mayTeams ? <Row label={t('checks.anyone')} last /> : null}
-        {mayTeams ? <Row icon="plus" label={t('checks.addPeople')} onPress={() => setPicking(people)} last /> : null}
+        {mayTeams ? <Row icon="plus" label={t('checks.addPeople')} help={t('checks.addPeopleHelp')} onPress={() => setPicking(people)} last /> : null}
       </Group>
 
       <SectionLabel label={t('checks.questions')} />
@@ -473,12 +506,12 @@ export function CheckEditor(ctx: Ctx) {
           const type = questionTypes().find((x) => x.id === sq.q.type)?.label ?? '';
           return (
             <Row key={sq.q.id} icon="chat" label={sq.q.text}
-              sub={[type, sq.required ? t('common.required') : '', sq.source === 'org' ? t('checks.fromLangQuest') : ''].filter(Boolean).join(' · ')}
+              sub={[type, sq.required ? t('common.required') : '', sq.source === 'org' ? t('checks.fromLangQuest') : ''].filter(Boolean).join(' · ')} help={t('checks.editQuestionHelp')}
               {...(editable ? { onPress: () => setQuestion({ materialId: materialId!, fieldId: fieldId!, text: sq.q.text, type: sq.q.type, required: sq.required }) } : {})} />
           );
         })}
         {questions.length === 0 && !mayQuestions ? <Row label={t('checks.noQuestions')} last /> : null}
-        {mayQuestions ? <Row icon="plus" label={t('checks.addQuestion')} onPress={() => setQuestion({ materialId: null, fieldId: null, text: '', type: 'yesno', required: false })} last /> : null}
+        {mayQuestions ? <Row icon="plus" label={t('checks.addQuestion')} help={t('checks.addQuestionHelp')} onPress={() => setQuestion({ materialId: null, fieldId: null, text: '', type: 'yesno', required: false })} last /> : null}
       </Group>
 
       <SectionLabel label={t('checks.helps')} />
@@ -487,20 +520,23 @@ export function CheckEditor(ctx: Ctx) {
           const l = helpLabel(state, lib, h);
           return (
             <Row key={'itemId' in h ? h.itemId : h.materialId} icon={l.icon} label={l.name} sub={l.kind || undefined}
-              right={mayFlows ? <IconBtn name="close" label={t('checks.removeHelp', { name: l.name })} onPress={() => void setHelp(h, false)} bg="transparent" color={C.muted} /> : undefined} />
+              right={mayFlows ? <IconBtn name="close" label={t('checks.removeHelp', { name: l.name })} help={t('checks.unlinkHelp')} onPress={() => void setHelp(h, false)} bg="transparent" color={C.muted} /> : undefined} />
           );
         })}
         {helps.length === 0 && !mayFlows ? <Row label={t('checks.noHelps')} last /> : null}
-        {mayFlows ? <Row icon="plus" label={t('checks.addHelp')} onPress={() => setHelping(true)} last /> : null}
+        {mayFlows ? <Row icon="plus" label={t('checks.addHelp')} help={t('checks.addHelpHelp')} onPress={() => setHelping(true)} last /> : null}
       </Group>
 
       {mayFlows ? (
         <Group>
           <Row icon="lock" label={t('checks.mustPass')} role="switch" checked={row.checkpoint}
-            right={<Toggle testID="toggle-must-pass" on={row.checkpoint} label={t('checks.mustPass')} onToggle={() => void saveRows(ctx, setCheckpoint(rows, i, !row.checkpoint), t('checks.saved', { language }))} />} />
+            right={<Toggle testID="toggle-must-pass" on={row.checkpoint} label={t('checks.mustPass')} help={row.checkpoint ? t('admin.lock.on') : t('admin.lock.off')}
+              onToggle={() => void saveRows(ctx, setCheckpoint(rows, i, !row.checkpoint), t('checks.saved', { language }))} />} />
           {i > 0 ? (
             <Row icon="swap" label={t('checks.sameTimeAs', { check: previous })} role="switch" checked={row.together}
-              right={<Toggle testID="toggle-same-time" on={row.together} label={t('checks.sameTimeAs', { check: previous })} onToggle={() => void saveRows(ctx, setTogether(rows, i, !row.together), t('checks.saved', { language }))} />} />
+              right={<Toggle testID="toggle-same-time" on={row.together} label={t('checks.sameTimeAs', { check: previous })}
+                help={row.together ? t('checks.sameTimeOnHelp', { check: previous }) : t('checks.sameTimeOffHelp', { check: previous })}
+                onToggle={() => void saveRows(ctx, setTogether(rows, i, !row.together), t('checks.saved', { language }))} />} />
           ) : null}
           <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label={t('checks.remove')} last
             onPress={() => { void saveRows(ctx, removeRow(rows, i), t('checks.removed', { check: name })).then((ok) => { if (ok) ctx.back(); }); }} />
@@ -508,7 +544,7 @@ export function CheckEditor(ctx: Ctx) {
       ) : null}
 
       <Sheet visible={picking !== null} title={t('checks.addPeople')} sub={name} onClose={() => setPicking(null)}
-        footer={<PrimaryBtn label={t('common.done')} onPress={() => { const next = picking ?? people; setPicking(null); void setPeople(next); }} />}>
+        footer={<PrimaryBtn label={t('common.done')} help={t('checks.peopleDoneHelp')} onPress={() => { const next = picking ?? people; setPicking(null); void setPeople(next); }} />}>
         {eligible.length === 0 ? <Banner icon="people" title={t('checks.nobodyYet')} body={t('checks.nobodyYetBody')} /> : (
           <Group>
             {eligible.map((id, j) => {
@@ -516,6 +552,7 @@ export function CheckEditor(ctx: Ctx) {
               return (
                 <Row key={id} leading={<PersonAvatar look={look(id)} size={36} />} label={id === ctx.session.actorId ? t('checks.you') : ctx.name(id)}
                   sub={roleIn(org, id, languageId) || undefined} role="checkbox" checked={on} right={tick(on)} last={j === eligible.length - 1}
+                  help={on ? t('checks.personOnHelp') : t('checks.personOffHelp')}
                   onPress={() => setPicking((cur) => (cur ?? []).includes(id) ? (cur ?? []).filter((x) => x !== id) : [...(cur ?? []), id])} />
               );
             })}
@@ -528,40 +565,39 @@ export function CheckEditor(ctx: Ctx) {
           <>
             <PrimaryBtn label={t('common.save')} icon="check" disabled={!question.text.trim()} onPress={() => { const q = question; setQuestion(null); void saveQuestion(q); }} />
             {question.fieldId ? (
-              <Pressable onPress={() => { const q = question; setQuestion(null); void saveQuestion(q, true); }} accessibilityRole="button" style={styles.quiet}>
-                <Ico name="trash" size={18} color={TINT.redText} />
-                <Text style={[styles.quietText, { color: TINT.redText }]}>{t('checks.removeQuestion')}</Text>
-              </Pressable>
+              <RemoveQuestion onPress={() => { const q = question; setQuestion(null); void saveQuestion(q, true); }} />
             ) : null}
           </>
         ) : undefined}>
         {question ? (
           <>
-            <Field value={question.text} onChangeText={(text) => setQuestion({ ...question, text })} placeholder={t('checks.questionPlaceholder')} multiline />
+            <Field value={question.text} onChangeText={(text) => setQuestion({ ...question, text })} placeholder={t('checks.questionPlaceholder')} multiline
+              help={t('checks.questionFieldHelp')} />
             <ChipRow>
-              {questionTypes().map((x) => <Chip key={x.id} label={x.label} on={question.type === x.id} onPress={() => setQuestion({ ...question, type: x.id })} />)}
+              {questionTypes().map((x) => <Chip key={x.id} label={x.label} on={question.type === x.id} help={x.help} onPress={() => setQuestion({ ...question, type: x.id })} />)}
             </ChipRow>
             <Group>
               <Row icon="lock" label={t('common.required')} role="switch" checked={question.required} last
-                right={<Toggle testID="toggle-required" on={question.required} label={t('common.required')} onToggle={() => setQuestion({ ...question, required: !question.required })} />} />
+                right={<Toggle testID="toggle-required" on={question.required} label={t('common.required')}
+                  help={question.required ? t('config.material.requiredHelp') : t('config.material.suggestedHelp')} onToggle={() => setQuestion({ ...question, required: !question.required })} />} />
             </Group>
           </>
         ) : null}
       </Sheet>
 
       <Sheet visible={helping} title={t('checks.addHelp')} sub={name} onClose={() => setHelping(false)}
-        footer={<PrimaryBtn label={t('common.done')} onPress={() => setHelping(false)} />}>
+        footer={<PrimaryBtn label={t('common.done')} help={t('checks.helpsDoneHelp')} onPress={() => setHelping(false)} />}>
         <SectionLabel label={t('checks.notes')} />
         <Group>
           {ownNotes.map((m) => {
             const on = linked.has(`material:${m.materialId}`);
-            return <Row key={m.materialId} icon="note" label={m.title} sub={referenceKindName(m.kind)} role="checkbox" checked={on} right={tick(on)} onPress={() => void setHelp({ materialId: m.materialId }, !on)} />;
+            return <Row key={m.materialId} icon="note" label={m.title} sub={referenceKindName(m.kind)} role="checkbox" checked={on} right={tick(on)} help={linkedHelp(on)} onPress={() => void setHelp({ materialId: m.materialId }, !on)} />;
           })}
           {library.filter((x) => x.kind === 'note' || x.kind === 'other').map(({ it }) => {
             const on = linked.has(`item:${it.itemId}`);
-            return <Row key={it.itemId} icon="note" label={it.name} sub={it.description || undefined} role="checkbox" checked={on} right={tick(on)} onPress={() => void setHelp({ itemId: it.itemId }, !on)} />;
+            return <Row key={it.itemId} icon="note" label={it.name} sub={it.description || undefined} role="checkbox" checked={on} right={tick(on)} help={linkedHelp(on)} onPress={() => void setHelp({ itemId: it.itemId }, !on)} />;
           })}
-          {mayWrite ? <Row icon="plus" label={t('checks.writeNote')} onPress={() => { setHelping(false); setWriting({ title: '', text: '' }); }} last /> : null}
+          {mayWrite ? <Row icon="plus" label={t('checks.writeNote')} help={t('checks.writeNoteHelp')} onPress={() => { setHelping(false); setWriting({ title: '', text: '' }); }} last /> : null}
         </Group>
         {library.some((x) => x.kind === 'guide' || x.kind === 'source') ? (
           <>
@@ -569,7 +605,7 @@ export function CheckEditor(ctx: Ctx) {
             <Group>
               {library.filter((x) => x.kind === 'guide' || x.kind === 'source').map(({ it, kind }, j, a) => {
                 const on = linked.has(`item:${it.itemId}`);
-                return <Row key={it.itemId} icon={kind === 'source' ? 'book' : 'sparkle'} label={it.name} role="checkbox" checked={on} right={tick(on)} last={j === a.length - 1}
+                return <Row key={it.itemId} icon={kind === 'source' ? 'book' : 'sparkle'} label={it.name} role="checkbox" checked={on} right={tick(on)} last={j === a.length - 1} help={linkedHelp(on)}
                   onPress={() => void setHelp({ itemId: it.itemId }, !on)} />;
               })}
             </Group>

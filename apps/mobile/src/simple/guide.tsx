@@ -10,7 +10,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../text';
 import type { Ctx } from '../ctx';
-import { useHelpSpot } from '../helpContext';
+import { useHelpOn, useHelpSpot } from '../helpContext';
 import { HelpBadge } from '../helpBadge';
 import { t } from '../i18n';
 import { Ico, SmallBtn, txt, type IconName } from '../kit';
@@ -148,6 +148,8 @@ const CALLOUTS: Record<CalloutKind, { icon: IconName; tone: 'amber' | 'brand' | 
 
 /** Inline text: bold, glossary words dotted-underlined, pictures and maps as links. */
 function Inline(props: { text: string; resources: StudyResource[]; onOpenRef: (ref: string) => void }) {
+  // While help is on a link does not open: the part around it explains it instead.
+  const helpOn = useHelpOn();
   return (
     <>
       {inlineParts(props.text).map((p, i) => {
@@ -155,7 +157,7 @@ function Inline(props: { text: string; resources: StudyResource[]; onOpenRef: (r
         if (p.type === 'bold') return <Text key={i} style={{ fontWeight: '800' }}>{p.text}</Text>;
         const r = props.resources.find((x) => x.ref === p.ref);
         return (
-          <Text key={i} onPress={() => props.onOpenRef(p.ref)} accessibilityRole="link" suppressHighlighting={false}
+          <Text key={i} onPress={helpOn ? undefined : () => props.onOpenRef(p.ref)} accessibilityRole="link" suppressHighlighting={false}
             accessibilityHint={r?.kind === 'term' ? t('study.guide.tapForMeaning') : t('study.guide.opensPicture')}
             style={r?.kind === 'term' ? styles.word : styles.link}>{p.text}</Text>
         );
@@ -163,6 +165,9 @@ function Inline(props: { text: string; resources: StudyResource[]; onOpenRef: (r
     </>
   );
 }
+
+/** A part that only explains itself, while help is on: its marks, for whoever cannot note it. */
+const NOTHING = () => undefined;
 
 /** One section: tap to select it, then note it (or answer a question). Pictures it links to follow as cards. */
 function SectionView(props: {
@@ -174,8 +179,15 @@ function SectionView(props: {
   const links = inlineParts(sec.text).flatMap((p) => (p.type === 'link' ? [p] : []));
   const media = links.map((l) => props.resources.find((r) => r.ref === l.ref)).filter((r): r is StudyResource => !!r && r.kind !== 'term');
   const inline = <Inline text={sec.text} resources={props.resources} onOpenRef={props.onOpenRef} />;
-  const select = useHelpSpot(question ? t('study.guide.help.question') : t('study.guide.help.part'),
-    props.canContribute ? (question ? t('study.guide.help.tapToAnswer') : t('study.guide.help.tapToNote')) : undefined, props.onSelect);
+  // What a tap does, then what its marks mean: underlined words that open, and the count of its notes.
+  const marked = links.length > 0 || props.notes.length > 0;
+  const detail = [
+    props.canContribute ? (question ? t('study.guide.help.tapToAnswer') : t('study.guide.help.tapToNote')) : null,
+    links.length ? t('study.guide.help.links') : null,
+    props.notes.length && !props.selected ? t('study.guide.help.noteCount') : null
+  ].filter(Boolean).join(' ');
+  const select = useHelpSpot(question ? t('study.guide.help.question') : t('study.guide.help.part'), detail || undefined,
+    props.canContribute ? props.onSelect : marked ? NOTHING : undefined);
   const body = isCallout(sec.kind) ? (
     <Callout {...CALLOUTS[sec.kind]} label={calloutLabel(sec.kind)}>{inline}</Callout>
   ) : sec.kind === 'item' ? (
@@ -186,7 +198,7 @@ function SectionView(props: {
   ) : sec.kind === 'heading' ? <Text style={txt.h3}>{inline}</Text> : <Text style={styles.reading}>{inline}</Text>;
   return (
     <View style={{ gap: space.sm }}>
-      <Pressable disabled={!props.canContribute} onPress={select.onPress} accessibilityRole={props.canContribute ? 'button' : undefined}
+      <Pressable disabled={!props.canContribute && !select.id} onPress={props.canContribute || select.id ? select.onPress : undefined} accessibilityRole={props.canContribute ? 'button' : undefined}
         accessibilityState={{ selected: props.selected }} style={[styles.section, props.selected && styles.sectionOn]}>
         {body}
         {props.notes.length > 0 && !props.selected ? <View style={styles.count}><Text style={styles.countText}>{props.notes.length}</Text></View> : null}
@@ -194,7 +206,8 @@ function SectionView(props: {
       </Pressable>
       {props.selected && props.canContribute ? (
         <View style={{ flexDirection: 'row' }}>
-          <SmallBtn label={question ? t('study.guide.answer') : t('common.addNote')} icon={question ? 'mic' : 'note'} tone="primary" onPress={props.onAdd} />
+          <SmallBtn label={question ? t('study.guide.answer') : t('common.addNote')} icon={question ? 'mic' : 'note'} tone="primary" onPress={props.onAdd}
+            help={question ? t('study.guide.answerHelp') : t('study.guide.addNoteHelp')} />
         </View>
       ) : null}
       {media.map((r) => <MediaCard key={r.ref} resource={r} orgId={props.orgId} onPress={() => props.onOpenRef(r.ref)} />)}

@@ -68,6 +68,7 @@ export function UserChip(props: { id: string }) {
         <HelpBadge spot={spot} />
       </Pressable>
       <Modal visible={!!at} transparent animationType="fade" onRequestClose={() => setAt(null)}>
+        {/* help-ignore: around the open card; tapping anywhere closes it */}
         <Pressable style={StyleSheet.absoluteFill} onPress={() => setAt(null)} accessibilityLabel={t('common.close')}>
           {at ? (
             <View style={[styles.tip, { top: at.y, left: Math.max(space.lg, Math.min(at.x, width - TIP_WIDTH - space.lg)) }]}>

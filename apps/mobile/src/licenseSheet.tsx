@@ -52,12 +52,12 @@ export function LicenseSheet(props: {
     footer = confirming ? (
       <>
         <PrimaryBtn label={props.busy ? t('shell.license.opening') : t('shell.license.yesOpenTo', { name: words.name })} disabled={props.busy}
-          onPress={() => props.onConfirm?.(picked)} />
-        <GhostBtn label={t('common.back')} onPress={() => setConfirming(false)} />
+          help={t('shell.license.yesOpenToHelp')} onPress={() => props.onConfirm?.(picked)} />
+        <GhostBtn label={t('common.back')} help={t('shell.license.backHelp')} onPress={() => setConfirming(false)} />
       </>
     ) : (
       <PrimaryBtn label={changed ? t('shell.license.openTo', { name: words.name }) : t('shell.license.pickMoreOpen')} disabled={!changed}
-        onPress={() => setConfirming(true)} />
+        {...(changed ? { help: t('shell.license.openToHelp') } : {})} onPress={() => setConfirming(true)} />
     );
   }
 
@@ -99,7 +99,7 @@ function LicenseMeans(props: { license: License }) {
   return (
     <View style={{ gap: space.xs, alignItems: 'flex-start' }}>
       <Text style={txt.sm}>{licenseText(props.license).means}</Text>
-      {info.url ? <LinkBtn label={t('shell.license.read')} onPress={() => void Linking.openURL(info.url!)} /> : null}
+      {info.url ? <LinkBtn label={t('shell.license.read')} help={t('shell.license.readHelp')} onPress={() => void Linking.openURL(info.url!)} /> : null}
     </View>
   );
 }
@@ -110,6 +110,6 @@ export function LicenseRow(props: { license: License; onPress: () => void; last?
   const words = licenseText(props.license);
   return (
     <Row icon={info.terms.outsidersMayView ? 'globe' : 'lock'} label={words.name} sub={words.short}
-      onPress={props.onPress} last={props.last} accessibilityLabel={t('shell.license.rowLabel', { name: words.name, short: words.short })} />
+      onPress={props.onPress} last={props.last} accessibilityLabel={t('shell.license.rowLabel', { name: words.name, short: words.short })} help={t('shell.license.rowHelp')} />
   );
 }

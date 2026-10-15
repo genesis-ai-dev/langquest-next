@@ -47,9 +47,11 @@ import type { Ctx } from '../ctx';
 import { t } from '../i18n';
 import { indexesFor } from '../indexes';
 import {
-  Banner, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, PrimaryBtn, QuietLinks, Row, Screen, SearchField,
+  Banner, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, PrimaryBtn, QuietLinks, Row, Screen, SearchField,
   SectionLabel, SmallBtn, Sheet, ShowMore, Toggle, txt, useOpenDetail
 } from '../kit';
+import { useHelpSpot } from '../helpContext';
+import { HelpBadge } from '../helpBadge';
 import { mayWriteLibrary, sourceLine, type SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs, useLibraryUpdates, useSharedItems } from '../library/useLibrary';
 import { failureMessage } from '../report';
@@ -83,10 +85,14 @@ const NO_VERSES: readonly number[] = [];
 
 const orgName = (ctx: Ctx) => orgNameOf(ctx.org.state);
 
-/** Book › Chapter › Passage: folders, then what's recorded (TPL-2). */
-function LevelsLine(props: { levels: string[] }) {
-  return (
-    <View style={styles.levels} accessibilityLabel={t('content.levelsLabel', { levels: props.levels.join(t('content.list.separator')) })}>
+/**
+ * Book › Chapter › Passage: folders, then what's recorded (TPL-2). `explain`:
+ * it says what its marks mean in help mode (not inside a card that explains itself).
+ */
+function LevelsLine(props: { levels: string[]; explain?: boolean }) {
+  const label = t('content.levelsLabel', { levels: props.levels.join(t('content.list.separator')) });
+  const line = (
+    <View style={styles.levels} accessibilityLabel={label}>
       {props.levels.map((l, i) => (
         <View key={`${l}-${i}`} style={styles.level}>
           {i > 0 ? <Ico name="right" size={14} color={C.muted} /> : null}
@@ -96,6 +102,7 @@ function LevelsLine(props: { levels: string[] }) {
       ))}
     </View>
   );
+  return props.explain ? <HelpInfo label={label} detail={t('content.levelsHelp')}>{line}</HelpInfo> : line;
 }
 
 /** A document still on its way: a light line, never a spinner over the screen. */
@@ -167,15 +174,17 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
             {it.description ? <Text style={[txt.smMuted, { marginTop: 2 }]}>{it.description}</Text> : null}
           </View>
         </View>
-        {doc ? <LevelsLine levels={docLevels(doc)} /> : <LoadingLine />}
+        {doc ? <LevelsLine levels={docLevels(doc)} explain /> : <LoadingLine />}
         <Text style={[txt.sm, { fontWeight: '600', color: users.length ? C.primary : C.muted }]}>
           {users.length ? t('content.library.usedBy', { names: joinNames(users) }) : t('content.library.notUsedHere')}
         </Text>
         {update ? <Text style={[txt.sm, { color: TINT.amberText }]}>{t('content.newerVersion', { org: it.subscription!.sourceOrgName })}</Text> : null}
         <View style={styles.cardActions}>
-          {canManage ? <SmallBtn label={t('content.library.options')} icon="settings" onPress={() => setOptions(it.itemId)} /> : null}
+          {canManage ? <SmallBtn label={t('content.library.options')} icon="settings" onPress={() => setOptions(it.itemId)}
+            help={it.subscription ? t('content.library.optionsFollowedHelp') : t('content.library.optionsHelp')} /> : null}
           <View style={{ flex: 1 }} />
-          <SmallBtn label={canManage && it.source !== 'subscription' ? t('common.edit') : t('content.library.view')} icon="right" onPress={() => ctx.go('template_editor', { itemId: it.itemId })} />
+          <SmallBtn label={canManage && it.source !== 'subscription' ? t('common.edit') : t('content.library.view')} icon="right" onPress={() => ctx.go('template_editor', { itemId: it.itemId })}
+            help={canManage && it.source !== 'subscription' ? t('content.library.editHelp') : t('content.library.viewHelp')} />
         </View>
       </Card>
     );
@@ -183,7 +192,8 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
 
   return (
     <Screen header={<Header title={t('content.library.title')} sub={scopeName} onBack={ctx.back}
-      action={canManage ? <SmallBtn label={t('content.library.addTemplate')} icon="plus" tone="primary" onPress={() => ctx.go('template_editor', { new: '1' })} /> : undefined} />}>
+      action={canManage ? <SmallBtn label={t('content.library.addTemplate')} icon="plus" tone="primary" onPress={() => ctx.go('template_editor', { new: '1' })}
+        help={t('content.library.addTemplateHelp')} /> : undefined} />}>
       <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('content.library.intro')}</Text>
 
       <SectionLabel label={t('content.sections.yourOrganization')} />
@@ -195,9 +205,10 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
       <ShowMore remaining={active.length - limit} step={8} onMore={() => setLimit((l) => l + 8)} />
       {archived.length > 0 ? (
         <Disclosure icon="history" title={t('content.library.archived')} summary={t('content.library.archivedSummary', { count: archived.length })}
-          open={archivedOpen.open} onToggle={archivedOpen.onToggle}>
+          open={archivedOpen.open} onToggle={archivedOpen.onToggle} {...(archivedOpen.open ? {} : { help: t('content.library.archivedHelp') })}>
           {archived.map((it, i) => (
             <Row key={it.itemId} icon="template" iconColor={C.muted} iconBg={C.bg} label={it.name} sub={sourceLine(it)} muted
+              help={canManage ? t('content.library.archivedRowHelp') : t('content.library.viewHelp')}
               onPress={canManage ? () => setOptions(it.itemId) : () => ctx.go('template_editor', { itemId: it.itemId })} last={i === archived.length - 1} />
           ))}
         </Disclosure>
@@ -212,7 +223,8 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
         if (c.source !== 'shared') return null;
         const doc = docs.get<TemplateDoc>(c.hash);
         return (
-          <Card key={c.key} onPress={() => setBrowsing(c.shared)} accessibilityLabel={t('content.library.sharedLabel', { name: c.name, org: c.shared.org_name })}>
+          <Card key={c.key} onPress={() => setBrowsing(c.shared)} accessibilityLabel={t('content.library.sharedLabel', { name: c.name, org: c.shared.org_name })}
+            help={canManage ? t('content.library.sharedHelp') : t('content.library.sharedViewHelp')}>
             <View style={styles.head}>
               <View style={styles.tile}><Ico name={doc?.structure === 'outline' ? 'folder' : 'book'} size={22} color={C.primary} /></View>
               <View style={{ flex: 1, minWidth: 0 }}>
@@ -236,7 +248,7 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
           <Group>
             {languages.slice(0, languageLimit).map((l, i, shown) => (
               <Row key={l.languageId} icon="globe" iconColor={C.muted} iconBg={C.bg} label={l.name}
-                sub={state && isOpen(ctx, l.languageId) ? templateLine(state, lib.item) : t('content.library.openToSee')}
+                sub={state && isOpen(ctx, l.languageId) ? templateLine(state, lib.item) : t('content.library.openToSee')} help={t('content.library.languageHelp')}
                 onPress={() => ctx.go('templates_home', { level: 'language', languageId: l.languageId })} last={i === shown.length - 1} />
             ))}
           </Group>
@@ -277,7 +289,7 @@ function ItemOptions(props: { ctx: Ctx; lib: Lib; item: LibraryItemView; update?
         {sub.active ? (
           <Group>
             <Row label={t('content.options.autoUpdate')} sub={t('content.options.autoUpdateSub', { org: sub.sourceOrgName })} last
-              right={<Toggle on={sub.autoUpdate} disabled={busy} label={t('content.options.autoUpdate')}
+              right={<Toggle on={sub.autoUpdate} disabled={busy} label={t('content.options.autoUpdate')} help={t('content.options.autoUpdateSub', { org: sub.sourceOrgName })}
                 onToggle={() => void run('template updates', async () => { // i18n-ignore: log label
                   const auto = !sub.autoUpdate;
                   await lib.follow(it.itemId, { autoUpdate: auto });
@@ -289,14 +301,14 @@ function ItemOptions(props: { ctx: Ctx; lib: Lib; item: LibraryItemView; update?
           </Group>
         ) : null}
         {props.update ? (
-          <GhostBtn label={t('content.options.takeUpdate')} icon="download" disabled={busy} onPress={() => void run('take template update', async () => { // i18n-ignore: log label
+          <GhostBtn label={t('content.options.takeUpdate')} icon="download" disabled={busy} help={t('content.options.takeUpdateHelp')} onPress={() => void run('take template update', async () => { // i18n-ignore: log label
             await lib.takeUpdate(it, props.update!);
             onClose();
             ctx.toast(t('content.options.updated', { name: it.name }));
           })} />
         ) : null}
         {sub.active ? (
-          <GhostBtn label={t('content.options.stopFollowing')} icon="close" disabled={busy} onPress={() => void run('stop following template', async () => { // i18n-ignore: log label
+          <GhostBtn label={t('content.options.stopFollowing')} icon="close" disabled={busy} help={t('content.options.stopFollowingHelp')} onPress={() => void run('stop following template', async () => { // i18n-ignore: log label
             await lib.follow(it.itemId, { active: false });
             onClose();
             ctx.toast(t('content.options.stoppedFollowing', { name: it.name }), () => run('undo stop following', async () => { // i18n-ignore: log label
@@ -305,7 +317,7 @@ function ItemOptions(props: { ctx: Ctx; lib: Lib; item: LibraryItemView; update?
             }));
           })} />
         ) : null}
-        <GhostBtn label={t('content.options.copyToChange')} icon="edit" disabled={busy} onPress={() => void run('copy template', async () => { // i18n-ignore: log label
+        <GhostBtn label={t('content.options.copyToChange')} icon="edit" disabled={busy} help={t('content.options.copyToChangeHelp')} onPress={() => void run('copy template', async () => { // i18n-ignore: log label
           await lib.copyFollowed(it);
           onClose();
           ctx.toast(t('content.copied', { name: it.name }));
@@ -318,15 +330,16 @@ function ItemOptions(props: { ctx: Ctx; lib: Lib; item: LibraryItemView; update?
     <Sheet visible title={it.name} sub={sourceLine(it)} onClose={onClose}>
       <Group>
         <Row label={t('content.options.share')} sub={t('content.options.shareSub')} last={!it.shared}
-          right={<Toggle on={it.shared} disabled={busy} label={t('content.options.share')}
+          right={<Toggle on={it.shared} disabled={busy} label={t('content.options.share')} help={t('content.options.shareSub')}
             onToggle={() => void setSharing(!it.shared, it.subscribable, it.shared ? t('content.options.unshared', { name: it.name }) : t('content.options.shared', { name: it.name }))} />} />
         {it.shared ? (
           <Row label={t('content.options.letFollow')} sub={t('content.options.letFollowSub')} last
-            right={<Toggle on={it.subscribable} disabled={busy} label={t('content.options.letFollow')}
+            right={<Toggle on={it.subscribable} disabled={busy} label={t('content.options.letFollow')} help={t('content.options.letFollowSub')}
               onToggle={() => void setSharing(true, !it.subscribable, it.subscribable ? t('content.options.followOff') : t('content.options.followOn'))} />} />
         ) : null}
       </Group>
-      <GhostBtn label={it.archived ? t('content.options.unarchive') : t('content.options.archive')} icon="history" disabled={busy} onPress={() => void run('archive template', async () => { // i18n-ignore: log label
+      <GhostBtn label={it.archived ? t('content.options.unarchive') : t('content.options.archive')} icon="history" disabled={busy}
+        help={it.archived ? t('content.options.unarchiveHelp') : t('content.options.archiveHelp')} onPress={() => void run('archive template', async () => { // i18n-ignore: log label
         const archived = !it.archived;
         await lib.archive(it, archived);
         onClose();
@@ -433,7 +446,7 @@ function LanguageTemplateView({ ctx, languageId }: { ctx: Ctx; languageId: strin
             <Text style={[txt.h2, { marginTop: space.xs }]}>{item?.name ?? doc?.name ?? t('content.language.itsTemplate')}</Text>
             <Text style={[txt.smMuted, { marginTop: 2 }]}>{versionLine}</Text>
           </View>
-          {!doc ? <LoadingLine /> : <LevelsLine levels={levels} />}
+          {!doc ? <LoadingLine /> : <LevelsLine levels={levels} explain />}
           {bibleLine !== null ? <Text style={txt.sm}>{bibleLine}</Text> : null}
           <Text style={txt.sm}>{countsLine}</Text>
           {newer ? (
@@ -442,7 +455,7 @@ function LanguageTemplateView({ ctx, languageId }: { ctx: Ctx; languageId: strin
             <>
               <Text style={[txt.sm, { color: TINT.amberText }]}>{t('content.newerVersion', { org: item!.subscription!.sourceOrgName })}</Text>
               {canWrite ? (
-                <SmallBtn label={t('content.options.takeUpdate')} icon="download" disabled={busy} onPress={() => void run('take template update', async () => { // i18n-ignore: log label
+                <SmallBtn label={t('content.options.takeUpdate')} icon="download" disabled={busy} help={t('content.options.takeUpdateHelp')} onPress={() => void run('take template update', async () => { // i18n-ignore: log label
                   await lib.takeUpdate(item!, update);
                   ctx.toast(t('content.language.movesToNew', { language: data.language, name: item!.name }));
                 })} />
@@ -452,8 +465,10 @@ function LanguageTemplateView({ ctx, languageId }: { ctx: Ctx; languageId: strin
           {canManage ? (
             <View style={{ gap: space.sm }}>
               <GhostBtn label={item && item.source !== 'subscription' && canWrite ? t('content.language.editTemplate') : t('content.language.viewTemplate')} icon="edit"
+                help={item && item.source !== 'subscription' && canWrite ? t('content.language.editTemplateHelp') : t('content.library.viewHelp')}
                 onPress={() => ctx.go('template_editor', { itemId: sel.itemId })} />
-              <GhostBtn label={t('content.language.changeTemplate')} icon="swap" onPress={() => ctx.go('template_picker', { languageId })} />
+              <GhostBtn label={t('content.language.changeTemplate')} icon="swap" help={t('content.language.changeTemplateHelp', { language: data.language })}
+                onPress={() => ctx.go('template_picker', { languageId })} />
             </View>
           ) : null}
         </Card>
@@ -487,6 +502,7 @@ function LanguageTemplateView({ ctx, languageId }: { ctx: Ctx; languageId: strin
             <Group>
               {books.slice(0, limit).map((b, i, shown) => (
                 <Row key={b.book.itemId} icon="book" label={b.label} sub={b.waiting ? t('map.waiting') : partsCount(b.parts, words)}
+                  help={b.waiting ? t('content.language.bookWaitingHelp') : t('content.language.bookHelp', { part: lower(words.one) })}
                   onPress={() => ctx.go('book_structure', { languageId, bookId: b.book.itemId })} last={i === shown.length - 1} />
               ))}
             </Group>
@@ -542,6 +558,7 @@ export function TemplatePicker(ctx: Ctx) {
     const description = c.source === 'ours' ? c.item.description : c.shared.description;
     return (
       <Card key={c.key} onPress={() => setPicked(on ? null : c.key)} accessibilityLabel={used ? t('content.picker.inUseLabel', { name: c.name }) : c.name}
+        help={on ? t('content.picker.pickedHelp') : used ? t('content.picker.inUseHelp', { language }) : t('content.picker.cardHelp')}
         style={on ? { borderWidth: 2, borderColor: C.primary } : null}>
         <View style={styles.head}>
           <View style={[styles.tile, on ? { backgroundColor: C.primary } : null]}>
@@ -571,7 +588,7 @@ export function TemplatePicker(ctx: Ctx) {
         </>
       ) : undefined}>
       {/* Making your own comes first and stands apart, so the ready-made list below can grow without burying it (design principle 12). */}
-      {ctx.session.can('manage_templates') ? <DashedRow icon="plus" label={t('breakup.translate.makeOwn')} onPress={() => ctx.go('template_editor', { new: '1' })} /> : null}
+      {ctx.session.can('manage_templates') ? <DashedRow icon="plus" label={t('breakup.translate.makeOwn')} detail={t('content.picker.makeOwnHelp')} onPress={() => ctx.go('template_editor', { new: '1' })} /> : null}
       <SectionLabel label={t('content.sections.yourOrganization')} />
       {ours.length === 0 ? (
         <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('content.picker.noneOurs')}</Text>
@@ -655,7 +672,7 @@ function NewTemplate({ ctx }: { ctx: Ctx }) {
     return (
       <Screen header={<Header title={t('content.newTemplate.title')} sub={orgName(ctx)} onBack={backOut} />}
         footer={tq.showContinue && tq.page !== 'what' ? (
-          <PrimaryBtn label={t('org.continue')} icon="right" disabled={tq.page === 'ways' ? !tq.ready : !tq.canContinue} onPress={() => { if (!tq.advance()) begin(); }} />
+          <PrimaryBtn label={t('org.continue')} icon="right" disabled={tq.page === 'ways' ? !tq.ready : !tq.canContinue} help={t('content.newTemplate.continueHelp')} onPress={() => { if (!tq.advance()) begin(); }} />
         ) : undefined}>
         <TranslateQuestion ctx={ctx} t={tq} lang={orgName(ctx)} canMake={false} onMake={() => undefined} />
       </Screen>
@@ -665,7 +682,7 @@ function NewTemplate({ ctx }: { ctx: Ctx }) {
   return (
     <Screen header={<Header title={t('content.newTemplate.title')} sub={orgName(ctx)} onBack={ctx.back} />}>
       <Text style={txt.body}>{t('content.newTemplate.what')}</Text>
-      <Card onPress={scripture} accessibilityLabel={t('content.newTemplate.scripture')}>
+      <Card onPress={scripture} accessibilityLabel={t('content.newTemplate.scripture')} help={t('content.newTemplate.scriptureHelp')}>
         <View style={styles.head}>
           <View style={styles.tile}><Ico name="book" size={22} color={C.primary} /></View>
           <View style={{ flex: 1 }}>
@@ -674,7 +691,7 @@ function NewTemplate({ ctx }: { ctx: Ctx }) {
           </View>
         </View>
       </Card>
-      <Card onPress={() => setForm(newTemplateForm('outline'))} accessibilityLabel={t('content.newTemplate.else')}>
+      <Card onPress={() => setForm(newTemplateForm('outline'))} accessibilityLabel={t('content.newTemplate.else')} help={t('content.newTemplate.elseHelp')}>
         <View style={styles.head}>
           <View style={styles.tile}><Ico name="folder" size={22} color={C.primary} /></View>
           <View style={{ flex: 1 }}>
@@ -739,7 +756,7 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
       <BreakUpBook ctx={ctx} book={divided.book} bookName={divided.name} language={templateName} doc={doc} item={item}
         redo={!!bookParts(doc, divided.book)} apply={apply} self={item?.itemId ?? null}
         onClose={() => setDividing(null)} onOwn={() => setOwnWay(true)}
-        extra={<QuietLinks items={[{ label: t('content.divide.nameOrRemove', { book: divided.name }), icon: 'edit', onPress: () => setEditingBook(divided.book) }]} />} />
+        extra={<QuietLinks items={[{ label: t('content.divide.nameOrRemove', { book: divided.name }), icon: 'edit', onPress: () => setEditingBook(divided.book), help: t('content.divide.nameOrRemoveHelp') }]} />} />
     );
     return <>{page}{bookSheetView}</>;
   }
@@ -748,13 +765,14 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
     <Screen
       header={<Header title={f.name.trim() || t('content.editor.untitled')} sub={sub} onBack={() => (changed && !readOnly && !isNew ? setLeaving(true) : ctx.back())} />}
       footer={readOnly ? undefined : (
-        <PrimaryBtn label={isNew ? t('content.editor.create') : t('content.editor.saveChanges')} icon="check" busy={busy} disabled={!changed || !ready} onPress={save} />
+        <PrimaryBtn label={isNew ? t('content.editor.create') : t('content.editor.saveChanges')} icon="check" busy={busy} disabled={!changed || !ready} onPress={save}
+          help={isNew ? t('content.editor.createHelp') : t('content.editor.saveChangesHelp')} />
       )}>
       {followed ? (
         <>
           <Banner icon="lock" title={t('content.editor.follows', { org: item!.subscription!.sourceOrgName })} body={t('content.editor.followsBody')} />
           {lib.canWrite('template') ? (
-            <GhostBtn label={t('content.options.copyToChange')} icon="edit" disabled={busy} onPress={() => void run('copy template', async () => { // i18n-ignore: log label
+            <GhostBtn label={t('content.options.copyToChange')} icon="edit" disabled={busy} help={t('content.options.copyToChangeHelp')} onPress={() => void run('copy template', async () => { // i18n-ignore: log label
               await lib.copyFollowed(item!);
               ctx.toast(t('content.editor.copiedFind', { name: item!.name }));
               ctx.back();
@@ -767,7 +785,8 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
         f.description ? <Card><Text style={txt.body}>{f.description}</Text></Card> : null
       ) : (
         <>
-          <Field label={t('content.name')} value={f.name} onChangeText={(name) => set({ name })} placeholder={t('content.editor.namePlaceholder')} autoCapitalize="words" />
+          <Field label={t('content.name')} value={f.name} onChangeText={(name) => set({ name })} placeholder={t('content.editor.namePlaceholder')} autoCapitalize="words"
+            help={t('content.editor.nameHelp')} />
           <Field label={t('content.editor.whatFor')} value={f.description} onChangeText={(description) => set({ description })} placeholder={t('content.editor.whatForPlaceholder')} multiline />
         </>
       )}
@@ -782,6 +801,7 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
         {f.levels.map((l, i) => (
           <Row key={`${l.name}-${i}`} icon={i === f.levels.length - 1 ? 'media' : 'folder'} label={l.name}
             sub={levelSub(i, f.levels.length, defaultDisplay(l, bible))}
+            help={bible && i === f.levels.length - 1 ? t('content.editor.lastLevelHelp') : t('content.editor.levelHelp')}
             onPress={readOnly ? undefined : () => setEditingLevel(i)} right={readOnly ? undefined : <Ico name="edit" size={20} color={C.muted} />}
             last={i === f.levels.length - 1} />
         ))}
@@ -791,7 +811,7 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
         <>
           <SectionLabel label={t('content.editor.versification')} />
           <Group>
-            <Row icon="book" label={v11nName} sub={t('content.editor.versificationSub')} last
+            <Row icon="book" label={v11nName} sub={t('content.editor.versificationSub')} help={t('content.editor.versificationHelp')} last
               onPress={readOnly || perBook ? undefined : () => setChoosingV11n(true)} right={readOnly || perBook ? undefined : <Ico name="edit" size={20} color={C.muted} />} />
           </Group>
 
@@ -799,10 +819,10 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
             <>
               <SectionLabel label={t('content.editor.divideInto')} />
               <ChipRow>
-                <Chip label={t('content.editor.wholeBooks')} on={f.divide === 'books'} onPress={() => !readOnly && set({ divide: 'books', levels: levelsForDivide(f.levels, 'books') })} />
-                <Chip label={t('content.editor.chapters')} on={f.divide === 'chapters'} onPress={() => !readOnly && set({ divide: 'chapters', levels: levelsForDivide(f.levels, 'chapters') })} />
+                <Chip label={t('content.editor.wholeBooks')} on={f.divide === 'books'} help={t('content.editor.eachBook')} onPress={() => !readOnly && set({ divide: 'books', levels: levelsForDivide(f.levels, 'books') })} />
+                <Chip label={t('content.editor.chapters')} on={f.divide === 'chapters'} help={t('content.editor.eachChapter')} onPress={() => !readOnly && set({ divide: 'chapters', levels: levelsForDivide(f.levels, 'chapters') })} />
                 {f.passages.length > 0 ? (
-                  <Chip label={t('content.editor.passages')} on={f.divide === 'passages'} onPress={() => !readOnly && set({ divide: 'passages', levels: levelsForDivide(f.levels, 'passages') })} />
+                  <Chip label={t('content.editor.passages')} on={f.divide === 'passages'} help={t('content.editor.passagesHelp')} onPress={() => !readOnly && set({ divide: 'passages', levels: levelsForDivide(f.levels, 'passages') })} />
                 ) : null}
               </ChipRow>
               <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>
@@ -827,6 +847,7 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
                 return (
                   <Row key={b.book} icon="book" label={b.name}
                     sub={perBook ? [...(known !== b.name ? [known] : []), divisionLine(doc, b.book, way?.choice.name ?? null, v11n)].join(' · ') : bookRowSub(b.book, b.name, known, chapters)}
+                    help={t('content.editor.bookHelp')}
                     onPress={readOnly ? undefined : () => setDividing(b.book)} right={readOnly ? undefined : <Ico name="right" size={20} color={C.muted} />}
                     last={i === shownBooks.length - 1} />
                 );
@@ -834,7 +855,7 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
             </Group>
           )}
           <ShowMore remaining={f.books.length - bookLimit} step={12} onMore={() => setBookLimit((l) => l + 12)} />
-          {!readOnly ? <GhostBtn label={t('content.editor.addBook')} icon="plus" disabled={!v11n || missing.length === 0} onPress={() => setAddingBook(true)} /> : null}
+          {!readOnly ? <GhostBtn label={t('content.editor.addBook')} icon="plus" disabled={!v11n || missing.length === 0} help={t('content.editor.addBookHelp')} onPress={() => setAddingBook(true)} /> : null}
         </>
       ) : (
         <>
@@ -859,7 +880,7 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
           <SharedOffline error={v.error} empty={v.choices.length === 0} />
           <Group>
             {v.choices.map((c, i) => (
-              <Row key={c.key} label={c.name} sub={choiceLine(c, sourceLine)} role="radio" selected={c.hash === f.versification}
+              <Row key={c.key} label={c.name} sub={choiceLine(c, sourceLine)} role="radio" selected={c.hash === f.versification} help={t('content.editor.versificationChoiceHelp')}
                 onPress={() => { set({ versification: c.hash }); setChoosingV11n(false); }} last={i === v.choices.length - 1}
                 right={c.hash === f.versification ? <Ico name="check" size={22} color={C.primary} /> : <View style={{ width: 22 }} />} />
             ))}
@@ -877,7 +898,7 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
         <Sheet visible title={t('content.editor.leaveTitle')} sub={t('content.editor.leaveSub')} onClose={() => setLeaving(false)}
           footer={<>
             <PrimaryBtn label={t('content.editor.keepEditing')} onPress={() => setLeaving(false)} />
-            <GhostBtn label={t('content.editor.leave')} tone="red" onPress={() => { setLeaving(false); ctx.back(); }} />
+            <GhostBtn label={t('content.editor.leave')} tone="red" help={t('content.editor.leaveHelp')} onPress={() => { setLeaving(false); ctx.back(); }} />
           </>}>
           <Text style={txt.smMuted}>{t('content.editor.leaveNote')}</Text>
         </Sheet>
@@ -893,15 +914,15 @@ function LevelSheet(props: { level: TemplateForm['levels'][number]; last: boolea
   const example = `${bookName('luk')} 15:11–32`;
   return (
     <Sheet visible title={t('content.levelSheet.title')} sub={t('content.levelSheet.sub')} onClose={props.onClose}
-      footer={<PrimaryBtn label={t('common.done')} disabled={!name.trim()} onPress={() => props.onSave({ name: name.trim(), ...(props.last ? { display } : {}) })} />}>
-      <Field label={t('content.name')} value={name} onChangeText={setName} placeholder={t('content.levelSheet.placeholder')} autoCapitalize="words" />
+      footer={<PrimaryBtn label={t('common.done')} disabled={!name.trim()} help={t('content.levelSheet.doneHelp')} onPress={() => props.onSave({ name: name.trim(), ...(props.last ? { display } : {}) })} />}>
+      <Field label={t('content.name')} value={name} onChangeText={setName} placeholder={t('content.levelSheet.placeholder')} autoCapitalize="words" help={t('content.levelSheet.nameHelp')} />
       {props.last && props.bible ? (
         <>
           <Text style={txt.xsStrong}>{t('content.levelSheet.showBy')}</Text>
           <ChipRow>
-            <Chip label={t('content.levelSheet.reference')} on={display === 'reference'} onPress={() => setDisplay('reference')} />
-            <Chip label={t('content.name')} on={display === 'name'} onPress={() => setDisplay('name')} />
-            <Chip label={t('content.levelSheet.both')} on={display === 'both'} onPress={() => setDisplay('both')} />
+            <Chip label={t('content.levelSheet.reference')} on={display === 'reference'} help={t('content.levelSheet.referenceHelp', { example })} onPress={() => setDisplay('reference')} />
+            <Chip label={t('content.name')} on={display === 'name'} help={t('content.levelSheet.byNameHelp')} onPress={() => setDisplay('name')} />
+            <Chip label={t('content.levelSheet.both')} on={display === 'both'} help={t('content.levelSheet.bothHelp')} onPress={() => setDisplay('both')} />
           </ChipRow>
           <Text style={txt.smMuted}>{displayExample(display, example)}</Text>
         </>
@@ -915,9 +936,9 @@ function BookSheet(props: { book: { book: string; name: string }; onClose: () =>
   const [name, setName] = useState(props.book.name);
   return (
     <Sheet visible title={bookNameOf(props.book.book)} sub={t('content.bookSheet.sub')} onClose={props.onClose}
-      footer={<PrimaryBtn label={t('common.done')} disabled={!name.trim()} onPress={() => props.onSave(name.trim())} />}>
+      footer={<PrimaryBtn label={t('common.done')} disabled={!name.trim()} help={t('content.keepNameHelp')} onPress={() => props.onSave(name.trim())} />}>
       <Field label={t('content.bookSheet.nameLabel')} value={name} onChangeText={setName} placeholder={bookNameOf(props.book.book)} autoCapitalize="words" />
-      <GhostBtn label={t('content.bookSheet.remove')} icon="trash" tone="red" onPress={props.onRemove} />
+      <GhostBtn label={t('content.bookSheet.remove')} icon="trash" tone="red" help={t('content.bookSheet.removeNote')} onPress={props.onRemove} />
       <Text style={txt.smMuted}>{t('content.bookSheet.removeNote')}</Text>
     </Sheet>
   );
@@ -930,11 +951,11 @@ function AddBookSheet(props: { books: string[]; onClose: () => void; onAdd: (boo
   const left = props.books.filter((b) => !added.includes(b));
   return (
     <Sheet visible title={t('content.editor.addBook')} sub={t('content.addBook.sub')} onClose={props.onClose}
-      footer={<PrimaryBtn label={t('common.done')} onPress={props.onClose} />}>
+      footer={<PrimaryBtn label={t('common.done')} help={t('content.addBook.doneHelp')} onPress={props.onClose} />}>
       {left.length === 0 ? <Text style={txt.smMuted}>{t('content.addBook.allIn')}</Text> : (
         <Group>
           {left.slice(0, limit).map((b, i, shown) => (
-            <Row key={b} icon="plus" label={bookNameOf(b)} sub={b} onPress={() => { props.onAdd(b); setAdded((a) => [...a, b]); }} last={i === shown.length - 1} />
+            <Row key={b} icon="plus" label={bookNameOf(b)} sub={b} help={t('content.addBook.bookHelp')} onPress={() => { props.onAdd(b); setAdded((a) => [...a, b]); }} last={i === shown.length - 1} />
           ))}
         </Group>
       )}
@@ -966,32 +987,16 @@ function OutlineScroll(props: {
       <View style={depth ? styles.outlineIndent : null}>
         {list.map((n) => n.children ? (
           <View key={n.id}>
-            <Pressable disabled={props.readOnly} onPress={() => props.onEdit(n.id)} accessibilityRole="button" accessibilityLabel={t('content.outline.editLabel', { name: n.title })}
-              style={({ pressed }) => [styles.outlineHead, pressed && { opacity: 0.7 }]}>
-              <Ico name="folder" size={depth ? 18 : 22} color={C.primary} />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={[depth ? txt.body : txt.h3, { fontWeight: '700' }]} numberOfLines={1}>{n.title}</Text>
-                <Text style={txt.smMuted}>{outlineSummary(n.children)}</Text>
-              </View>
-              {!props.readOnly ? <Ico name="edit" size={20} color={C.muted} /> : null}
-            </Pressable>
+            <OutlineFolder title={n.title} summary={outlineSummary(n.children)} depth={depth} readOnly={props.readOnly} onEdit={() => props.onEdit(n.id)} />
             {render(n.children, depth + 1, n.id)}
           </View>
         ) : (
-          <Pressable key={n.id} disabled={props.readOnly} onPress={() => props.onEdit(n.id)} accessibilityRole="button" accessibilityLabel={t('content.outline.editLabel', { name: n.title })}
-            style={({ pressed }) => [styles.outlineItem, pressed && { opacity: 0.7 }]}>
-            <View style={[styles.tile, { backgroundColor: TINT.green }]}><Ico name="media" size={20} color={TINT.greenText} /></View>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={[txt.body, { fontWeight: '600' }]} numberOfLines={1}>{n.title}</Text>
-              <Text style={txt.smMuted}>{levelName(depth)}</Text>
-            </View>
-            {!props.readOnly ? <Ico name="edit" size={20} color={C.muted} /> : null}
-          </Pressable>
+          <OutlineItem key={n.id} title={n.title} level={levelName(depth)} readOnly={props.readOnly} onEdit={() => props.onEdit(n.id)} />
         ))}
         {!props.readOnly ? (
           <View style={styles.addRow}>
-            {holds !== 'items' ? <SmallBtn label={t('content.outline.addFolder', { level: lower(levelName(depth)) })} icon="folder" onPress={() => add(parentId, true, depth)} /> : null}
-            {holds !== 'folders' ? <SmallBtn label={t('content.outline.addItem', { level: lower(levelName(depth)) })} icon="media" onPress={() => add(parentId, false, depth)} /> : null}
+            {holds !== 'items' ? <SmallBtn label={t('content.outline.addFolder', { level: lower(levelName(depth)) })} icon="folder" help={t('content.outline.addFolderHelp')} onPress={() => add(parentId, true, depth)} /> : null}
+            {holds !== 'folders' ? <SmallBtn label={t('content.outline.addItem', { level: lower(levelName(depth)) })} icon="media" help={t('content.outline.addItemHelp')} onPress={() => add(parentId, false, depth)} /> : null}
           </View>
         ) : null}
       </View>
@@ -1000,6 +1005,40 @@ function OutlineScroll(props: {
 
   if (props.readOnly && props.outline.length === 0) return <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('content.outline.empty')}</Text>;
   return render(props.outline, 0, null);
+}
+
+/** A folder of the outline, as a header over what it holds: tap to rename, move or remove it. */
+function OutlineFolder(props: { title: string; summary: string; depth: number; readOnly: boolean; onEdit: () => void }) {
+  const spot = useHelpSpot(props.title, t('content.outline.folderHelp'), props.readOnly ? undefined : props.onEdit);
+  return (
+    <Pressable disabled={props.readOnly} onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('content.outline.editLabel', { name: props.title })}
+      style={({ pressed }) => [styles.outlineHead, pressed && { opacity: 0.7 }]}>
+      <Ico name="folder" size={props.depth ? 18 : 22} color={C.primary} />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={[props.depth ? txt.body : txt.h3, { fontWeight: '700' }]} numberOfLines={1}>{props.title}</Text>
+        <Text style={txt.smMuted}>{props.summary}</Text>
+      </View>
+      {!props.readOnly ? <Ico name="edit" size={20} color={C.muted} /> : null}
+      <HelpBadge spot={spot} />
+    </Pressable>
+  );
+}
+
+/** Something people record, in the outline: tap to rename, move or remove it. */
+function OutlineItem(props: { title: string; level: string; readOnly: boolean; onEdit: () => void }) {
+  const spot = useHelpSpot(props.title, t('content.outline.itemHelp'), props.readOnly ? undefined : props.onEdit);
+  return (
+    <Pressable disabled={props.readOnly} onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('content.outline.editLabel', { name: props.title })}
+      style={({ pressed }) => [styles.outlineItem, pressed && { opacity: 0.7 }]}>
+      <View style={[styles.tile, { backgroundColor: TINT.green }]}><Ico name="media" size={20} color={TINT.greenText} /></View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={[txt.body, { fontWeight: '600' }]} numberOfLines={1}>{props.title}</Text>
+        <Text style={txt.smMuted}>{props.level}</Text>
+      </View>
+      {!props.readOnly ? <Ico name="edit" size={20} color={C.muted} /> : null}
+      <HelpBadge spot={spot} />
+    </Pressable>
+  );
 }
 
 /** One part of the outline: rename, move, or remove it (the demo's NodeSheet). */
@@ -1016,13 +1055,13 @@ function NodeSheet(props: {
   };
   return (
     <Sheet visible title={folder ? t('content.node.folder') : t('content.node.item')} sub={folder ? t('content.node.folderSub') : t('content.node.itemSub')} onClose={done}
-      footer={<PrimaryBtn label={t('common.done')} disabled={!title.trim()} onPress={done} />}>
-      <Field label={t('content.name')} value={title} onChangeText={setTitle} placeholder={t('content.name')} autoCapitalize="sentences" />
+      footer={<PrimaryBtn label={t('common.done')} disabled={!title.trim()} help={t('content.keepNameHelp')} onPress={done} />}>
+      <Field label={t('content.name')} value={title} onChangeText={setTitle} placeholder={t('content.name')} autoCapitalize="sentences" help={t('content.node.nameHelp')} />
       <View style={styles.pair}>
-        <View style={{ flex: 1 }}><GhostBtn label={t('content.node.moveUp')} icon="up" disabled={props.index <= 0} onPress={() => props.onMove(-1)} /></View>
-        <View style={{ flex: 1 }}><GhostBtn label={t('content.node.moveDown')} icon="down" disabled={props.index >= props.count - 1} onPress={() => props.onMove(1)} /></View>
+        <View style={{ flex: 1 }}><GhostBtn label={t('content.node.moveUp')} icon="up" disabled={props.index <= 0} help={t('content.node.moveUpHelp')} onPress={() => props.onMove(-1)} /></View>
+        <View style={{ flex: 1 }}><GhostBtn label={t('content.node.moveDown')} icon="down" disabled={props.index >= props.count - 1} help={t('content.node.moveDownHelp')} onPress={() => props.onMove(1)} /></View>
       </View>
-      <GhostBtn label={folder ? t('content.node.removeFolder') : t('content.node.removeItem')} icon="trash" tone="red" onPress={props.onRemove} />
+      <GhostBtn label={folder ? t('content.node.removeFolder') : t('content.node.removeItem')} icon="trash" tone="red" help={t('content.node.removeNote')} onPress={props.onRemove} />
       <Text style={txt.smMuted}>{t('content.node.removeNote')}</Text>
     </Sheet>
   );
@@ -1095,9 +1134,9 @@ export function BookStructure(ctx: Ctx) {
     <Screen fixed header={<Header title={data.label} sub={`${data.language} · ${partsCount(data.segments.length, words)}`} onBack={ctx.back} />}>
       <View style={styles.jumpBar}>
         <ChipRow>
-          <Chip label={t('content.book.chapterChip')} icon="down" on onPress={() => setPicking(true)} />
+          <Chip label={t('content.book.chapterChip')} icon="down" on help={t('content.book.chapterChipHelp')} onPress={() => setPicking(true)} />
           {data.segments.map((s) => (
-            <Chip key={s.unitId} label={chipLabel(book, s)} on={false} onPress={() => jump(s.from.c)} />
+            <Chip key={s.unitId} label={chipLabel(book, s)} on={false} help={t('content.book.segmentHelp', { part: lower(part) })} onPress={() => jump(s.from.c)} />
           ))}
         </ChipRow>
       </View>
@@ -1130,20 +1169,26 @@ export function BookStructure(ctx: Ctx) {
       />
       <Sheet visible={picking} title={data.label} sub={t('content.book.jump')} onClose={() => setPicking(false)}>
         <View style={styles.grid}>
-          {chapters.map((c) => {
-            const n = partsStartingIn(data.segments, c);
-            return (
-              <Pressable key={c} onPress={() => { setPicking(false); jump(c); }} accessibilityRole="button"
-                accessibilityLabel={chapterTileLabel(c, n, part, parts)}
-                style={({ pressed }) => [styles.chapterTile, pressed && { opacity: 0.7 }]}>
-                <Text style={[txt.h3, { fontVariant: ['tabular-nums'] }]}>{c}</Text>
-                {n > 1 ? <Text style={txt.xsStrong}>{n}</Text> : null}
-              </Pressable>
-            );
-          })}
+          {chapters.map((c) => (
+            <ChapterTile key={c} c={c} n={partsStartingIn(data.segments, c)} part={part} parts={parts} onPress={() => { setPicking(false); jump(c); }} />
+          ))}
         </View>
       </Sheet>
     </Screen>
+  );
+}
+
+/** A chapter in the jump sheet: its number, and how many parts start in it when more than one. */
+function ChapterTile(props: { c: number; n: number; part: string; parts: string; onPress: () => void }) {
+  const label = chapterTileLabel(props.c, props.n, props.part, props.parts);
+  const spot = useHelpSpot(label, props.n > 1 ? t('content.book.tileCountHelp', { parts: props.parts }) : t('content.book.tileHelp'), props.onPress);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={label}
+      style={({ pressed }) => [styles.chapterTile, pressed && { opacity: 0.7 }]}>
+      <Text style={[txt.h3, { fontVariant: ['tabular-nums'] }]}>{props.c}</Text>
+      {props.n > 1 ? <Text style={txt.xsStrong}>{props.n}</Text> : null}
+      <HelpBadge spot={spot} />
+    </Pressable>
   );
 }
 

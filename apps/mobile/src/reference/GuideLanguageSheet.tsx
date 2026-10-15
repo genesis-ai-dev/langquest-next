@@ -36,11 +36,12 @@ export function GuideLanguageSheet(props: {
     <Sheet visible title={t('reference.setLanguage.title', { name: short })} sub={t('reference.setLanguage.sub', { count: set.members.length, team: props.team })} onClose={props.onClose}
       footer={<>
         <PrimaryBtn label={now ? t('reference.setLanguage.keep', { language: languageLabel(picked.language) }) : t('reference.setLanguage.use', { language: languageLabel(picked.language) })}
-          busy={props.busy} onPress={() => (now ? props.onClose() : props.onUse(picked))} />
-        {props.onOff ? <GhostBtn label={t('reference.setLanguage.off', { name: short })} disabled={props.busy} onPress={props.onOff} /> : null}
+          busy={props.busy} help={now ? t('reference.setLanguage.keepHelp') : t('reference.setLanguage.useHelp')} onPress={() => (now ? props.onClose() : props.onUse(picked))} />
+        {props.onOff ? <GhostBtn label={t('reference.setLanguage.off', { name: short })} disabled={props.busy} help={t('reference.setLanguage.offHelp')} onPress={props.onOff} /> : null}
       </>}>
       {set.members.map((m) => (
         <RadioRow key={m.language} icon="globe" label={languageLabel(m.language)} on={m.language === picked.language} onPress={() => setLanguage(m.language)}
+          help={t('reference.setLanguage.rowHelp')}
           sub={[t('reference.setLanguage.passages', { count: m.passages }), sameLanguage(m.language, reader) ? t('reference.setLanguage.yours') : ''].filter(Boolean).join(' · ')} />
       ))}
       <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>

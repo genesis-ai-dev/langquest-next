@@ -14,7 +14,7 @@ import type { Ctx } from '../ctx';
 import { useHelpSpot } from '../helpContext';
 import { HelpBadge } from '../helpBadge';
 import { t } from '../i18n';
-import { Ico, IconBtn, txt } from '../kit';
+import { HelpInfo, Ico, IconBtn, txt } from '../kit';
 import type { LoopPhase } from '../recording/splitModel';
 import { C, radius, space, target, TINT, type as T } from '../theme';
 import { useEnergyHistory } from '../useRecorder';
@@ -106,7 +106,7 @@ function PartRow(props: { ctx: Ctx; part: Part; index: number; disabled: boolean
         <Text style={[txt.body, { color: C.muted }]}>{t('recording.recorder.partLength', { part: label, length: mmss(props.part.durationMs) })}</Text>
         <HelpBadge spot={play} />
       </Pressable>
-      <IconBtn name="trash" label={t('recording.deleteItem', { item: label })} bg="transparent" color={C.muted} size={40} disabled={props.disabled} onPress={() => props.onDelete(props.part.hash, label)} />
+      <IconBtn name="trash" label={t('recording.deleteItem', { item: label })} help={t('recording.recorder.deletePartHelp')} bg="transparent" color={C.muted} size={40} disabled={props.disabled} onPress={() => props.onDelete(props.part.hash, label)} />
     </View>
   );
 }
@@ -116,7 +116,9 @@ function NextCard(props: { label: string; phase: LoopPhase; capturing: boolean; 
   const recording = props.phase === 'recording';
   const listening = props.phase === 'listening';
   const resume = useHelpSpot(t('recording.resumeNow'), t('recording.recorder.resumeHelp'), props.onResume);
+  // While help is on, the card says what its mark, border and level bars mean.
   return (
+    <HelpInfo label={props.label} detail={recording ? t('recording.recorder.nextRecordingHelp') : listening ? t('recording.recorder.nextPausedHelp') : t('recording.recorder.nextCardHelp')}>
     <View style={[styles.next, recording && { borderColor: C.red }, listening && { borderColor: TINT.amberText }]}
       accessibilityLiveRegion="polite" accessible={!listening}
       accessibilityLabel={t('recording.recorder.nextLabel', { part: props.label, status: recording ? (props.capturing ? t('recording.loop.capturing') : t('recording.recorder.listeningForYou')) : listening ? t('recording.recorder.pausedForBible') : t('recording.recorder.recordingNext') })}>
@@ -136,6 +138,7 @@ function NextCard(props: { label: string; phase: LoopPhase; capturing: boolean; 
         </Pressable>
       ) : null}
     </View>
+    </HelpInfo>
   );
 }
 

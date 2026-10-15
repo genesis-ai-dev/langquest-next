@@ -10,7 +10,7 @@ import { useMemo, useSyncExternalStore } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from './text';
 import type { Ctx } from './ctx';
-import { Card, Ico, ProgressBar, SmallBtn, txt, type IconName } from './kit';
+import { Card, HelpInfo, Ico, ProgressBar, SmallBtn, txt, type IconName } from './kit';
 import { endsSentence } from './helpContext';
 import { t } from './i18n';
 import { formatBytes } from './i18n/format';
@@ -165,9 +165,13 @@ export function PassageOffline(props: { ctx: Ctx; unitId: string; hasStudy: bool
   return (
     <Card accessibilityLabel={t('shell.a11y.labelDetail', { label: v.label, detail: v.sub })}>
       <Block icon={v.icon} tint={v.tint} bg={v.bg} title={v.label} body={v.sub} />
-      {u.reason && !u.ready ? <ProgressBar value={u.audio + u.studyTotal ? ((u.here + u.studyHere) / (u.audio + u.studyTotal)) * 100 : 0} /> : null}
-      {!u.reason ? <View style={styles.action}><SmallBtn label={t('offline.keep')} icon="download" onPress={() => keep(true)} /></View> : null}
-      {u.reason === 'chosen' ? <View style={styles.action}><SmallBtn label={t('offline.stopKeeping')} onPress={() => keep(false)} /></View> : null}
+      {u.reason && !u.ready ? (
+        <HelpInfo label={v.label} detail={t('offline.passage.barHelp')}>
+          <ProgressBar value={u.audio + u.studyTotal ? ((u.here + u.studyHere) / (u.audio + u.studyTotal)) * 100 : 0} />
+        </HelpInfo>
+      ) : null}
+      {!u.reason ? <View style={styles.action}><SmallBtn label={t('offline.keep')} icon="download" help={t('offline.keepHelp')} onPress={() => keep(true)} /></View> : null}
+      {u.reason === 'chosen' ? <View style={styles.action}><SmallBtn label={t('offline.stopKeeping')} help={t('offline.stopKeepingHelp')} onPress={() => keep(false)} /></View> : null}
     </Card>
   );
 }
@@ -220,7 +224,11 @@ export function OfflineCard(props: { ctx: Ctx; s: OfflineOverview | null }) {
     <Card>
       <Block icon={head.icon} tint={head.tint} bg={head.bg} title={t('offline.card.readyTitle')}
         body={sentences(endsSentence(line) ? line : t('offline.card.lineAsSentence', { line }), finish)} />
-      {s && s.kept ? <ProgressBar value={(s.ready / s.kept) * 100} {...(ready ? { color: onColor.green } : {})} /> : null}
+      {s && s.kept ? (
+        <HelpInfo label={t('offline.card.readyTitle')} detail={t('offline.card.barHelp')}>
+          <ProgressBar value={(s.ready / s.kept) * 100} {...(ready ? { color: onColor.green } : {})} />
+        </HelpInfo>
+      ) : null}
       <Block icon="check" tint={onColor.green} bg={TINT.green} title={t('offline.card.alwaysTitle')}
         body={STUDY_FILES_OFFLINE ? t('offline.card.alwaysBodyStudy', { language }) : t('offline.card.alwaysBody', { language })} />
       <Block icon="cloud" tint={TINT.amberText} bg={TINT.amber} title={t('offline.card.needsTitle')}

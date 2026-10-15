@@ -37,6 +37,7 @@ export function UpdateBanner() {
   if (!newer) return null;
   const text = t('account.update.webReady');
   return (
+    // help-ignore: above the screens and the help layer (App.tsx); its words say what tapping does
     <Pressable onPress={() => { if (!isRecording()) window.location.reload(); }} accessibilityRole="button" accessibilityLabel={text}
       style={({ pressed }) => [styles.banner, pressed && { opacity: 0.8 }]}>
       <Text style={styles.text}>{text}</Text>

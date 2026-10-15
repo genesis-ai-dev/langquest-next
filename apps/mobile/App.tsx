@@ -262,8 +262,9 @@ class ScreenBoundary extends Component<{ screen: ScreenId; onBack: () => void; o
         <Text style={txt.h2} accessibilityRole="header">{t('shell.errors.screenTitle')}</Text>
         <Text style={txt.body}>{t('shell.errors.safe')}</Text>
         <Text style={txt.smMuted} selectable>{t('shell.errors.tellCode', { code: this.state.id })}</Text>
+        {/* help-ignore: the crash screen has no ? to turn help on */}
         <GhostBtn label={t('shell.errors.goBack')} icon="left" onPress={reset(this.props.onBack)} />
-        {/* A viewer's home is Progress, not My Work (NAV-070). */}
+        {/* A viewer's home is Progress, not My Work (NAV-070). help-ignore: the crash screen has no ? to turn help on */}
         <GhostBtn label={this.props.homeLabel} icon="home" onPress={reset(this.props.onHome)} />
       </ScrollView>
     );

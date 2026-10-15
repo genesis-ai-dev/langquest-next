@@ -132,11 +132,13 @@ export function EarlierSections(props: { ctx: Ctx; unitId: string; languageId: s
           {t('breakup.earlier.changedHere')}
         </Text>
       </View>
-      <Disclosure icon="history" title={t('breakup.earlier.title')} summary={earlier.map((u) => unitTitle(state, u)).join(t('admin.list.separator'))} open={open} onToggle={() => setOpen((o) => !o)}>
+      <Disclosure icon="history" title={t('breakup.earlier.title')} summary={earlier.map((u) => unitTitle(state, u)).join(t('admin.list.separator'))} open={open} onToggle={() => setOpen((o) => !o)}
+        help={open ? t('help.details.disclosureOpen') : t('breakup.earlier.disclosureHelp')}>
         {earlier.map((u, i) => {
           const n = versions(u);
           return (
             <Row key={u} icon="history" label={unitTitle(state, u)} sub={t('breakup.earlier.row', { how: found.numbered.get(u) ?? t('breakup.earlier.anEarlier'), versions: t('breakup.earlier.versions', { count: n }) })} last={i === earlier.length - 1}
+              help={t('breakup.earlier.openHelp')}
               onPress={() => ctx.openPassage(u, props.languageId)} />
           );
         })}

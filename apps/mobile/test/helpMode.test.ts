@@ -1,8 +1,10 @@
 // Help mode (demo ADR-038; decision 71 as amended 2026-10-10): what a part
 // says when tapped while help is on, how parts are numbered, and where the
 // lit places and the tooltip go.
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { clipRect, helpLine, litShape, markAt, numberParts, tooltipPlace, type FirstSeen, type HelpRect } from '../src/helpContext';
+import { findUnexplained, scanHelp } from './helpParts';
 
 const box = (x: number, y: number, width = 100, height = 48): HelpRect => ({ x, y, width, height });
 
@@ -67,5 +69,40 @@ describe('where help draws', () => {
     expect(over.arrowX).toBe(150 + 44 - 16);
     const told = tooltipPlace(null, window, { height: 200 }, opts);
     expect(told).toMatchObject({ below: null, y: 844 - 34 - 200 });
+  });
+});
+
+// Reads every app file, so it grows with the app (see i18n.test.ts).
+describe('every part explains itself', { timeout: 30_000 }, () => {
+  it('leaves nothing that acts, or only says its name, while help is on', () => {
+    // `npx tsx apps/mobile/test/helpParts.ts` lists them. Give each a line (useHelpSpot, or the kit
+    // control's `help`), or a `help-ignore:` comment saying why it needs none.
+    expect(scanHelp(join(import.meta.dirname, '..')).map((f) => `${f.file}:${f.line} ${f.text}`)).toEqual([]);
+  });
+
+  it('finds what does not explain itself, and passes what does', () => {
+    const src = `
+      export function A(p: { go: () => void }) {
+        const spot = useHelpSpot('Open', 'Opens it.', p.go);
+        return (<View>
+          <Pressable onPress={p.go}><Text>Raw</Text></Pressable>
+          <Pressable onPress={spot.onPress}><HelpBadge spot={spot} /></Pressable>
+          <Pressable style={s} />
+          {/* help-ignore: a backdrop */}
+          <Pressable onPress={p.go} />
+          <IconBtn name="close" label="Close" onPress={p.go} />
+          <IconBtn name="close" label="Close" help="Closes it." onPress={p.go} />
+          <Card onPress={p.go} accessibilityLabel="Romans"><Text>R</Text></Card>
+          <Row label="Me" onPress={p.go} />
+          <Row label="Me" sub="Your name" onPress={p.go} />
+          <View><TextInput value="" /><HelpCover spot={spot} label="Name" /></View>
+        </View>);
+      }`;
+    expect(findUnexplained('src/a.tsx', src).map((f) => `${f.line} ${f.text}`)).toEqual([
+      '5 Pressable acts without explaining itself',
+      '10 IconBtn without help',
+      '12 tappable Card without help and accessibilityLabel',
+      '13 tappable Row without sub or help'
+    ]);
   });
 });

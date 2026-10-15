@@ -2225,6 +2225,32 @@ one). The list is read once per run and shared
 (`account/useOrganizations.ts`), so the row does not jump between Me and
 More settings.
 
+Amended (2026-10-14, Caleb Koster): every part explains itself. Caleb asked
+for help on every element that should have it, with the principle behind it
+applied across the app. What deserves help:
+1. Everything a person can tap, type in, switch or drag is a part: while help
+   is on it lights, takes a number, and explains itself instead of acting.
+   Before, about 90 controls outside the kit still acted, as did the kit's
+   tappable cards, sections that open in place, Show more, fields, switches,
+   Back and the tabs, so a tap in help mode could leave the screen or open the
+   keyboard. Back now explains itself too: the ? is the one way out of help.
+2. A part says what tapping it does, not only its name. Buttons, chips,
+   tappable cards and rows whose label is one word or a name carry a line
+   (`help` on the kit's controls; a Row's `sub` unless `help` is given).
+3. A mark that means something without words (the sync dot and ring, a
+   step's state marks, a bar or a bare count) explains itself (kit's
+   `HelpInfo`), or the part it sits in says what it means.
+Plain words that say what they are need nothing. Sheets have their own ?: on
+a phone a sheet is a window of its own, so help draws inside it and lights
+only its parts (`useHelpHost`), and help turns off when a sheet opens or
+closes. `apps/mobile/test/helpParts.ts`, run by `helpMode.test.ts`, fails on a
+control without its line; a `help-ignore:` comment marks the few that need
+none (a sheet's backdrop, toasts, the crash screen, the update banner above
+the help layer).
+Reverse if: people stop using help because the extra numbers crowd a screen
+(then number only the parts in reach of the ? first), or a line per part
+costs more to translate and record than field tests show it saves.
+
 ## 72. Apps, agents and review links take part through reviews and releases; outside reviews never clear a checkpoint
 
 Date: 2026-10-08 · By: Ryder Wishart · Status: partly superseded by 79

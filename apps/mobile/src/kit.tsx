@@ -269,6 +269,11 @@ export function HelpToggle(props: { testID: string }) {
   );
 }
 
+/** A screen with no header (Sign in, Welcome, Sign out?) still has its ?, alone at the top on the reading end. */
+export function HelpTop() {
+  return useHelpMode() ? <View style={styles.helpTop}><HelpToggle testID="header-help" /></View> : null;
+}
+
 /** A parent above a wide window's title, one tap away. */
 function Crumb(props: { label: string; onPress: () => void }) {
   const spot = useHelpSpot(props.label, t('help.details.crumb'), props.onPress);
@@ -403,7 +408,7 @@ export function Row(props: {
   const id = props.testID ? { testID: props.testID } : {};
   if (!props.onPress) return <View {...id} style={style}>{body}</View>;
   return (
-    <Pressable {...id} onPress={onPress} disabled={props.disabled} accessibilityRole={props.role ?? 'button'} accessibilityState={state} accessibilityLabel={props.accessibilityLabel}
+    <Pressable {...id} onPress={onPress} disabled={props.disabled && !spot.id} accessibilityRole={props.role ?? 'button'} accessibilityState={state} accessibilityLabel={props.accessibilityLabel}
       // react-native-web drops accessibilityState.selected, and aria-selected is not allowed on a button: a current row says aria-current.
       aria-current={props.current ? true : undefined}
       // The web reads only aria-*: a radio, checkbox or switch says whether it is on.
@@ -461,7 +466,7 @@ export function PrimaryBtn(props: { label: string; onPress: () => void; disabled
   const spot = useHelpSpot(props.label, props.help ?? t('help.details.primary'), props.onPress);
   const onPress = spot.onPress;
   return (
-    <Pressable testID="primary-action" onPress={onPress} disabled={off} accessibilityRole="button" accessibilityLabel={props.label} accessibilityState={{ disabled: !!off, busy: !!props.busy }}
+    <Pressable testID="primary-action" onPress={onPress} disabled={off && !spot.id} accessibilityRole="button" accessibilityLabel={props.label} accessibilityState={{ disabled: !!off, busy: !!props.busy }}
       style={({ pressed }) => [styles.primary, { backgroundColor: off ? C.faint : bg }, props.full === false && { alignSelf: 'flex-start', paddingHorizontal: space.xl },
         !off && lift({ color: bg, opacity: 0.25, y: 5, elevation: 3 }), pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={22} color={C.white} /> : null}
@@ -479,7 +484,7 @@ export function GhostBtn(props: { label: string; onPress: () => void; disabled?:
   const spot = useHelpSpot(props.label, props.help, props.onPress);
   const onPress = spot.onPress;
   return (
-    <Pressable onPress={onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
+    <Pressable onPress={onPress} disabled={props.disabled && !spot.id} accessibilityRole="button" accessibilityLabel={props.label}
       accessibilityState={{ disabled: !!props.disabled }}
       style={({ pressed }) => [styles.ghost, { backgroundColor: bg }, props.full === false && { alignSelf: 'flex-start', paddingHorizontal: space.xl },
         props.disabled && { opacity: 0.5 }, pressed && styles.pressed]}>
@@ -498,7 +503,7 @@ export function SmallBtn(props: { label: string; onPress: () => void; icon?: Ico
   const spot = useHelpSpot(props.label, props.help, props.onPress);
   const onPress = spot.onPress;
   return (
-    <Pressable onPress={onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
+    <Pressable onPress={onPress} disabled={props.disabled && !spot.id} accessibilityRole="button" accessibilityLabel={props.label}
       accessibilityState={{ disabled: !!props.disabled }}
       style={({ pressed }) => [styles.small, filled ? { backgroundColor: bg, borderColor: bg } : null, props.disabled && { opacity: 0.45 }, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={18} color={filled ? C.white : C.primary} /> : null}
@@ -522,12 +527,17 @@ export function LinkBtn(props: { label: string; onPress: () => void; color?: str
   );
 }
 
+// While help is on, a greyed-out control still explains itself: why it is
+// there is most worth asking when it cannot be used yet. So `disabled` only
+// holds while help is off.
+
 /**
  * The quiet links under a screen's one main button (demo ADR-032, ADR-033):
  * the less likely ways forward, one labelled tap away, never competing with
  * the main action.
  */
-export function QuietLinks(props: { items: { label: string; icon: IconName; onPress: () => void }[] }) {
+export function QuietLinks(props: { items: { label: string; icon: IconName; onPress: () => void;
+  /** What help mode says it does; else "Another way forward, less often needed." */ help?: string }[] }) {
   return (
     <View style={styles.quietRow}>
       {props.items.map((it) => <QuietLink key={it.label} {...it} />)}
@@ -535,8 +545,8 @@ export function QuietLinks(props: { items: { label: string; icon: IconName; onPr
   );
 }
 
-function QuietLink(props: { label: string; icon: IconName; onPress: () => void }) {
-  const spot = useHelpSpot(props.label, t('help.details.quiet'), props.onPress);
+function QuietLink(props: { label: string; icon: IconName; onPress: () => void; help?: string }) {
+  const spot = useHelpSpot(props.label, props.help ?? t('help.details.quiet'), props.onPress);
   const onPress = spot.onPress;
   return (
     <Pressable onPress={onPress} accessibilityRole="button" hitSlop={4} style={({ pressed }) => [styles.quiet, pressed && styles.pressed]}>
@@ -552,7 +562,7 @@ export function IconBtn(props: { name: IconName; onPress: () => void; label: str
   const size = props.size ?? 48;
   const spot = useHelpSpot(props.label, props.help, props.onPress);
   return (
-    <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
+    <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} disabled={props.disabled && !spot.id} accessibilityRole="button" accessibilityLabel={props.label}
       accessibilityState={{ disabled: !!props.disabled }} hitSlop={Math.max(0, (target.min - size) / 2)}
       style={({ pressed }) => [{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: props.bg ?? C.bg },
         props.disabled && { opacity: 0.4 }, pressed && styles.pressed]}>
@@ -864,6 +874,7 @@ export function Sheet(props: { visible: boolean; title: string; sub?: string; on
     <Modal visible={props.visible} transparent animationType={wide ? 'fade' : 'slide'} onRequestClose={props.onClose}>
       <HelpHostContext.Provider value={host}>
       <KeyboardSafe style={[{ flex: 1 }, wide && styles.dialogFrame]}>
+        {/* help-ignore: the darkened backdrop; tapping outside the sheet closes it, as everywhere */}
         <Pressable style={wide ? styles.dialogBackdrop : styles.sheetBackdrop} onPress={props.onClose} accessibilityLabel={t('common.close')} />
         <View testID="sheet" style={wide ? styles.dialog : [styles.sheet, { paddingBottom: Math.max(insets.bottom, space.lg) }]}>
           {wide ? null : <View style={styles.sheetGrip} />}
@@ -927,17 +938,24 @@ export function ReasonSheet(props: {
         // i18n-ignore: stored in the event log as the reason when only a voice note was given; stays English like the rest of the log
         onPress={() => { props.onConfirm({ reason: reason.trim() || 'Explained in a voice note.', ...(hash ? { blobHash: hash } : {}) }); setReason(''); setHash(null); }} />}>
       {props.quickReasons.length > 0 ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
-        {props.quickReasons.map((q) => (
-          <Pressable key={q} onPress={() => setReason(q)} accessibilityRole="button" accessibilityState={{ selected: reason === q }}
-            style={({ pressed }) => [styles.quickReason, reason === q ? { backgroundColor: C.dark, borderColor: C.dark } : null, pressed && styles.pressed]}>
-            <Text style={[txt.sm, { fontWeight: '600', color: reason === q ? C.white : C.dark }]}>{q}</Text>
-          </Pressable>
-        ))}
+        {props.quickReasons.map((q) => <QuickReason key={q} reason={q} on={reason === q} onPick={() => setReason(q)} />)}
       </View> : null}
       {props.voice ? props.voice({ hash, onChange: setHash }) : null}
       <Field value={reason} onChangeText={setReason} placeholder={props.quickReasons.length ? t('shell.kit.orTypeReason') : t('common.orTypeIt')} multiline />
       <Text style={txt.xs}>{props.footnote ?? t('shell.kit.reasonFootnote')}</Text>
     </Sheet>
+  );
+}
+
+/** A common reason, one tap to use (ReasonSheet). */
+function QuickReason(props: { reason: string; on: boolean; onPick: () => void }) {
+  const spot = useHelpSpot(props.reason, t('help.details.quickReason'), props.onPick);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ selected: props.on }}
+      style={({ pressed }) => [styles.quickReason, props.on ? { backgroundColor: C.dark, borderColor: C.dark } : null, pressed && styles.pressed]}>
+      <Text style={[txt.sm, { fontWeight: '600', color: props.on ? C.white : C.dark }]}>{props.reason}</Text>
+      <HelpBadge spot={spot} />
+    </Pressable>
   );
 }
 
@@ -977,17 +995,20 @@ export function ToastView(props: { toast: ToastSpec | null; onDismiss: () => voi
   return (
     <View style={[{ pointerEvents: 'box-none' }, styles.toastWrap, { bottom: props.bottom }]}>
       <View style={[styles.toast, wide && { maxWidth: measure.toast }]}>
+        {/* help-ignore: a toast goes by itself in a few seconds; help explains what stays on the screen */}
         <Pressable testID="toast" onPress={props.onDismiss} accessibilityRole="button" accessibilityLabel={t('shell.toast.dismissLabel', { message: toast.message })}
           accessibilityLiveRegion="polite" style={styles.toastMessage}>
           <Ico name="check" size={20} color={C.green} />
           <Text style={[txt.sm, { color: C.white, flex: 1, fontWeight: '600' }]}>{toast.message}</Text>
         </Pressable>
         {toast.undo ? (
+          // help-ignore: the toast's Undo, gone in a few seconds with the toast
           <Pressable testID="toast-undo" onPress={() => { void Promise.resolve(toast.undo?.()).catch(() => undefined); props.onDismiss(); }} hitSlop={10}
             accessibilityRole="button" accessibilityLabel={t('shell.toast.undo')} style={styles.toastUndo}>
             <Text style={[txt.sm, { color: C.light, fontWeight: '800' }]}>{t('shell.toast.undo')}</Text>
           </Pressable>
         ) : null}
+        {/* help-ignore: the toast's close, gone in a few seconds with the toast */}
         <IconBtn name="close" label={t('common.close')} onPress={props.onDismiss} bg="transparent" color={C.white} size={target.min} />
         {toast.ms ? (
           <View style={[styles.toastTrack, { pointerEvents: 'none' }]}>
@@ -1039,6 +1060,7 @@ const styles = StyleSheet.create({
   small: { minHeight: target.min, borderRadius: radius.md, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: space.md },
   smallLabel: { fontSize: T.sm, fontWeight: '700' },
   linkBtn: { minHeight: target.min, justifyContent: 'center' },
+  helpTop: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: space.lg, paddingTop: space.sm },
   helpBtn: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.border, backgroundColor: C.card },
   quietRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.xs },
   quiet: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: target.min, paddingHorizontal: space.sm },

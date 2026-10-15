@@ -35,7 +35,8 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../text';
 import type { Ctx } from '../ctx';
 import { screenTitle } from '../flow';
-import { HelpClip } from '../helpBadge';
+import { HelpBadge, HelpClip } from '../helpBadge';
+import { useHelpSpot } from '../helpContext';
 import { t } from '../i18n';
 import { indexesFor } from '../indexes';
 import {
@@ -429,7 +430,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   return (
     <Screen fixed
       header={<Header title={v.title} sub={recordingSub} crumbs={passageCrumbs(ctx, v, screenTitle('workspace'))} onBack={ctx.back} close
-        action={<SmallBtn label={t('common.save')} icon="check" disabled={blocked} onPress={save} />} />}
+        action={<SmallBtn label={t('common.save')} icon="check" help={t('translate.saveHelp')} disabled={blocked} onPress={save} />} />}
       footer={recorderLine ? undefined : (
         <RecorderFooter count={list.length} phase={loop.phase} recordDisabled={saving || rec.failureCount > 0}
           publishDisabled={!changed || blocked || rec.failureCount > 0} onRecord={record} onPublish={() => setConfirming(true)} />
@@ -437,12 +438,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       <SplitPane memoryKey="workspace" minBottom={MIN_BOTTOM} onFraction={setSplit}
         topStyle={styles.refPane} bottomStyle={styles.wsRecordPane}
         top={({ compact, open }) => compact ? (
-          bible.hasVerses ? <BibleBar bible={bible} onOpen={open} /> : (
-            <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={t('translate.openReference')} style={({ pressed }) => [styles.bar, pressed && { opacity: 0.7 }]}>
-              <Ico name="book" size={18} color={C.primary} />
-              <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]} numberOfLines={1}>{t('translate.dragDown')}</Text>
-            </Pressable>
-          )
+          bible.hasVerses ? <BibleBar bible={bible} onOpen={open} /> : <ReferenceBar onOpen={open} />
         ) : (
           <View style={{ flex: 1 }}>
             <RefChips items={chips} value={chip} onChange={openChip} />
@@ -460,7 +456,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
                   <>
                     <GuideStep key={study.steps[step]!.step.id} ctx={ctx} v={v} guide={guide} status={study.steps[step]!} spoken={false}
                       canContribute={!recording} onTerm={(termId) => ctx.go('key_term_detail', { ...scope, termId, ...(draft ? { draftId: draft.takeId } : {}) })} />
-                    <LinkBtn label={t('translate.openStudy')} style={{ alignSelf: 'center' }} onPress={() => ctx.go('study_step', { ...scope, stepId: study.steps[step]!.step.id })} />
+                    <LinkBtn label={t('translate.openStudy')} help={t('translate.openStudyHelp')} style={{ alignSelf: 'center' }} onPress={() => ctx.go('study_step', { ...scope, stepId: study.steps[step]!.step.id })} />
                   </>
                 ) : chip === 'terms' ? (
                   <KeyWordsPane ctx={ctx} v={v} terms={trayTerms} rows={bible.rows} bibleName={bible.option?.abbreviation ?? ''} draftTakeId={draft?.takeId} canTie={canTie} disabled={blocked}
@@ -493,7 +489,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
               {clipped ? (
                 <View style={styles.clipped}>
                   <Text style={[txt.sm, { color: TINT.amberText, fontWeight: '700' }]}>{t('translate.clipped')}</Text>
-                  <SmallBtn label={t('translate.micSetup')} icon="sliders" onPress={() => ctx.go('mic_setup')} />
+                  <SmallBtn label={t('translate.micSetup')} icon="sliders" help={t('translate.micSetupHint')} onPress={() => ctx.go('mic_setup')} />
                 </View>
               ) : !session ? (
                 <QuietLink label={t('translate.micSetup')} icon="sliders" hint={t('translate.micSetupHint')} onPress={() => ctx.go('mic_setup')} />
@@ -502,6 +498,18 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
           </HelpClip>
         )} />
     </Screen>
+  );
+}
+
+/** The reference at one line, when there is no Bible to show there: a tap brings it back to half. */
+function ReferenceBar(props: { onOpen: () => void }) {
+  const spot = useHelpSpot(t('translate.openReference'), t('translate.openReferenceHelp'), props.onOpen);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('translate.openReference')} style={({ pressed }) => [styles.bar, pressed && { opacity: 0.7 }]}>
+      <Ico name="book" size={18} color={C.primary} />
+      <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]} numberOfLines={1}>{t('translate.dragDown')}</Text>
+      <HelpBadge spot={spot} />
+    </Pressable>
   );
 }
 

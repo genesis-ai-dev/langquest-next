@@ -65,6 +65,7 @@ export function UpdateBanner() {
   );
   if (!status.action) return body;
   return (
+    // help-ignore: above the screens and the help layer (App.tsx); its words say what tapping does
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={status.text}>
       {body}
     </Pressable>
