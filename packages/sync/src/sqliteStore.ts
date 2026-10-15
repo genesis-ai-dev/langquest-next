@@ -232,6 +232,22 @@ export class SqliteStore implements EventStore {
     );
   }
 
+  /**
+   * What this phone holds, for the `device` diagnostics record: streams
+   * (with events or a cursor), events of every stream, and the database's
+   * size in bytes (pages in use, not the WAL beside it). Counts over the
+   * index and two pragmas: cheap enough for once per delivery.
+   */
+  async footprint(): Promise<{ streams: number; events: number; bytes: number }> {
+    const [row] = await this.db.all<{ streams: number; events: number; bytes: number }>(
+      `select
+         (select count(*) from (select org_id, stream_id from cursors union select distinct org_id, stream_id from events)) as streams,
+         (select count(*) from events) as events,
+         (select page_count from pragma_page_count()) * (select page_size from pragma_page_size()) as bytes`
+    );
+    return { streams: Number(row?.streams ?? 0), events: Number(row?.events ?? 0), bytes: Number(row?.bytes ?? 0) };
+  }
+
   /** Rejected events for a stream, for the UI to show what was refused. */
   async rejected(orgId: string, streamId: string): Promise<LocalEvent[]> {
     const rows = await this.db.all<Row>(

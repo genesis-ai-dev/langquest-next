@@ -7,8 +7,9 @@ import { navRef, type Nav } from './nav';
 import { AUTH_SCREENS, GUEST_SCREENS, homeScreenFor, postSignInScreen, type Session } from './session';
 import { sectionAtLoad } from '../web/webHistory';
 import { useWebHistory } from '../web/useWebHistory';
-import { addressSection } from './routingModel';
+import { addressSection, routeOutcome } from './routingModel';
 import type { Arrival } from './useOpenOrganization';
+import { routeReached } from '../auth/authDiag';
 
 /**
  * Where a person is sent, as a rule rather than a move. Auth routing is an
@@ -26,6 +27,8 @@ import type { Arrival } from './useOpenOrganization';
  */
 export function useRouting(o: {
   nav: Nav; session: Session; loaded: boolean; signedIn: boolean; ready: boolean; actorId: string; orgId: string;
+  /** The server lists no organization for this person (useOpenOrganization). */
+  noOrganizations: boolean;
   arrival: Arrival | null; openTask: (languageId: string, unitId: string) => void; setLanguage: (languageId: string) => void;
 }) {
   const { nav, session, loaded, signedIn, ready } = o;
@@ -72,7 +75,12 @@ export function useRouting(o: {
       return;
     }
     if (!ready) return;
-    if (!AUTH_SCREENS.includes(nav.current.screen)) { sentOnFromAuth.current = false; return; }
+    if (!AUTH_SCREENS.includes(nav.current.screen)) {
+      sentOnFromAuth.current = false;
+      // Diagnostics: how long from signing in (or starting) to a first screen, once per sign-in.
+      routeReached(routeOutcome(o.orgId, o.noOrganizations));
+      return;
+    }
     if (loaded) {
       if (sentOnFromAuth.current) return;
       sentOnFromAuth.current = navRef.isReady();

@@ -16,6 +16,7 @@
 // first, and nothing new is fetched past the cap. Like every transfer, this
 // waits while the microphone is open and while offline.
 import { defaultOfflineScope, isHash, recommendedFor, libraryItemView, type LanguageState, type SourceBookDoc, type SourceDoc } from '@langquest-next/core';
+import { classifyTransferFailure } from '@langquest-next/sync';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import { File, Paths } from 'expo-file-system';
@@ -23,6 +24,7 @@ import { Platform } from 'react-native';
 import { BlobStore, getBlobStore, type BlobFile } from '../sync/blobs';
 import { loadDocs } from '../library/docStore';
 import { noteExpected } from '../diagnostics/report';
+import { timedTransfer } from '../diagnostics/diagnostics';
 import type { Session } from '../shell/session';
 import type { OrgHandle } from '../sync/useOrg';
 import type { LanguageHandle } from '../sync/useLanguage';
@@ -107,8 +109,8 @@ export async function playableUri(store: BlobStore, ref: BlobFile): Promise<stri
   });
 }
 
-/** Fetch one chapter's audio, hash it, and keep it under its hash. A known hash must match. */
-async function download(store: BlobStore, key: string, url: string, opts: { expectHash?: string; fileset?: string; format?: AudioFormat }): Promise<void> {
+/** Fetch one chapter's audio, hash it, and keep it under its hash. A known hash must match. Answers its size. */
+async function download(store: BlobStore, key: string, url: string, opts: { expectHash?: string; fileset?: string; format?: AudioFormat }): Promise<number> {
   const format = opts.format ?? 'mp3';
   let bytes: Uint8Array<ArrayBuffer>;
   let staged: File | null = null;
@@ -138,6 +140,7 @@ async function download(store: BlobStore, key: string, url: string, opts: { expe
   const idx = await loadIndex();
   idx[key] = { hash, bytes: bytes.byteLength, format, ...(opts.fileset ? { fileset: opts.fileset } : {}), at: Date.now() };
   await saveIndex();
+  return bytes.byteLength;
 }
 
 /** Delete every file of a fileset phones may no longer keep. */
@@ -267,6 +270,9 @@ export async function pass(language: LanguageHandle, org: OrgHandle, session: Se
   let total = Object.values(idx).reduce((n, e) => n + e.bytes, 0);
   let fetched = 0;
   const refused = new Set<string>();
+  // Tallied for field diagnostics as `source` downloads of the language they are kept for.
+  const fetchChapter = (key: string, url: string, opts: Parameters<typeof download>[3]) =>
+    timedTransfer('down', { orgId: language.orgId, streamId: languageId, src: 'source' }, () => download(store, key, url, opts));
   for (const w of wants) {
     if (fetched >= PER_PASS || total >= SOURCE_CACHE_BYTES) break;
     if (isRecording()) break;
@@ -280,20 +286,20 @@ export async function pass(language: LanguageHandle, org: OrgHandle, session: Se
     try {
       if (w.url) {
         if (failedLinks.has(w.url)) continue;
-        try { await download(store, w.key, w.url, { ...(w.hash ? { expectHash: w.hash } : {}), format: w.format ?? 'mp3' }); }
+        try { await fetchChapter(w.key, w.url, { ...(w.hash ? { expectHash: w.hash } : {}), format: w.format ?? 'mp3' }); }
         catch (e) { failedLinks.add(w.url); throw e; }
       }
       else if (w.fileset && bibleBrain && !refused.has(w.fileset)) {
         const link = await bibleBrain.audio(w.fileset, w.book, w.chapter, { offline: true });
         // Stream only from now on: nothing of it stays on the phone.
         if (!link.offline) { refused.add(w.fileset); await purgeFileset(store, w.fileset); continue; }
-        await download(store, w.key, link.url, { fileset: w.fileset });
+        await fetchChapter(w.key, link.url, { fileset: w.fileset });
       } else continue;
       fetched++;
       total += idx[w.key]?.bytes ?? 0;
     } catch (e) {
       if (e instanceof BibleError && (e.kind === 'offline' || e.kind === 'unavailable' || e.kind === 'signed_out')) break;
-      noteExpected('sources offline: download', e);
+      noteExpected('sources offline: download', e, e instanceof BibleError ? e.kind : classifyTransferFailure(e));
     }
   }
 }

@@ -25,6 +25,8 @@ import { C, radius, space, target, TINT, type as T, withAlpha } from '../ui/them
 import { useEnergyHistory } from '../recording/useRecorder';
 import { VAD_BASE } from '../recording/vadModel';
 import { claimVad, MicrophoneRefused } from '../recording/recorderState';
+import { recorderFaultCode } from '../recording/recorderFaultModel';
+import { countAudio, type AudioLanguage } from '../audio/audioTally';
 import { clampCutoff, cutoffAfterDrag, meterHeight } from '../recording/splitModel';
 import { cachedMicSettings, loadMicSettings, saveMicSettings } from './micSettings';
 import { DEFAULT_MIC, MIC_TRIES, mmss, QUIET_MS, thresholdFromNoise, type MicSettings } from '../recording/model';
@@ -34,9 +36,17 @@ import { styles as ps } from '../recording/blockStyles';
 /** The sentence said in each try, in the language showing. */
 const sentence = () => t('recording.micSetup.sentence');
 
-/** Why the microphone did not start: a refusal says so; anything else, that it could not start. */
-function micProblem(e: unknown): string {
-  return e instanceof MicrophoneRefused ? t('recording.recorder.permissionNeeded') : t('recording.micSetup.couldNotStart');
+/**
+ * Why the microphone did not start: a refusal says so; anything else, that
+ * it could not start. Either is expected here (the screen says it), and is
+ * counted with its fixed code (recorderFaultModel.ts) on the open
+ * language's tally, as a recorder's would be.
+ */
+function micProblem(language: AudioLanguage, e: unknown): string {
+  const code = recorderFaultCode(e);
+  noteExpected('mic setup: open', e, code);
+  countAudio(language, code === 'perm' ? 'micRefused' : 'startFail');
+  return code === 'perm' ? t('recording.recorder.permissionNeeded') : t('recording.micSetup.couldNotStart');
 }
 
 interface Segment { uri: string; durationMs: number }
@@ -167,7 +177,7 @@ export function MicSetupScreen(props: { ctx: Ctx }) {
       setListening(false);
       await probe.stop();
       setPhase('start');
-      setProblem(micProblem(e));
+      setProblem(micProblem(ctx.language, e));
     }
   }
 
@@ -179,7 +189,7 @@ export function MicSetupScreen(props: { ctx: Ctx }) {
         setListening(true);
       } catch (e) {
         await probe.stop();
-        setProblem(micProblem(e));
+        setProblem(micProblem(ctx.language, e));
       }
       return;
     }
@@ -340,7 +350,7 @@ function ByHand(props: { ctx: Ctx; onDone: () => void }) {
   const start = useRef(0);
   useEffect(() => {
     void loadMicSettings().then((m) => { if (m) { setCutoff(m.threshold); setPause(m.pauseMs); } });
-    probe.open(null).catch((e: unknown) => setProblem(micProblem(e)));
+    probe.open(null).catch((e: unknown) => setProblem(micProblem(props.ctx.language, e)));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const pan = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => true,

@@ -20,6 +20,7 @@ import { getReferenceSlides } from './passageResources';
 import { Card, IconBtn, Ico } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import type { ListenHooks } from '../recording/useListenLoop';
+import { countAudio } from '../audio/audioTally';
 import { noteExpected, reportError } from '../diagnostics/report';
 import { C, space, target, TINT } from '../ui/theme';
 import type { LanguageHandle } from '../sync/useLanguage';
@@ -145,6 +146,7 @@ export function SourcePlayer(props: {
           try { uri = await language.blobs.streamUri(ref); }
           catch (err) {
             noteExpected('source player stream', err);
+            countAudio(language, 'streamFail');
             if (generation.current === run) { wants.current = false; setPlaying(false); setError(t('common.audioCouldNotLoad')); }
             return;
           }

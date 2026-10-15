@@ -1,5 +1,5 @@
 import {
-  audioFormatsFor, defaultOfflineScope, deriveDownloadWork, deriveUploadWork, evictableBlobs,
+  audioFormatsFor, decodeHlc, defaultOfflineScope, deriveDownloadWork, deriveUploadWork, evictableBlobs,
   type BlobRef, type EventPayloads, type EventSpec, type EventType, type LanguageState
 } from '@langquest-next/core';
 import { SyncClient, type SyncClientOptions, type SyncResult } from './syncClient';
@@ -72,7 +72,12 @@ export interface LanguageSessionOptions {
   client?: Pick<SyncClientOptions, 'newId' | 'yieldBetweenPages' | 'diag' | 'clock' | 'now'>;
   /** Wraps every `client.sync()`, for a test-state probe. */
   aroundSync?: (run: () => Promise<SyncResult>) => Promise<SyncResult>;
-  /** A sync left nothing of this device's own to send: a moment to send diagnostics. */
+  /**
+   * A moment to send diagnostics: a sync the server answered left nothing
+   * of this person's to send, and every upload waiting has been tried at
+   * least once; or the server refused this person or this build, which
+   * syncing again will not change. Never offline, never with more to pull.
+   */
   onSettled?: (o: { blobsWanted: number }) => void;
   /** Poll interval and backoff for the scheduler; its defaults otherwise. */
   scheduler?: { pollMs?: number };
@@ -111,7 +116,8 @@ export class LanguageSession {
       transport: o.transport,
       ...(o.isDeferred ? { deferCheckpoint: o.isDeferred } : {})
     });
-    await client.load();
+    await client.trackOpen();
+    await client.load('open');
     const kept = new Set<string>(JSON.parse((await o.store.meta(keepKey(o.orgId, o.languageId))) || '[]') as string[]);
     return new LanguageSession(o, client, kept);
   }
@@ -239,11 +245,19 @@ export class LanguageSession {
               ? 'up to date'
               : `pushed ${r.pushed}, pulled ${r.pulled}, rejected ${r.rejected}`
       });
-      // Diagnostics go only after this device's own work: outbox empty, uploads idle.
-      if (!r.offline && !r.more && this.current.pendingUp === 0 && o.onSettled) {
-        void client.pendingCount()
-          .then((n) => { if (n === 0) o.onSettled?.({ blobsWanted: this.current.pendingDown }); })
-          .catch(() => {});
+      // Diagnostics go after this device's own work has had its turn: the
+      // outbox empty and every waiting upload tried. An upload that fails
+      // every time (they retry forever) must not hold them back for good: it
+      // is what support most needs to hear about. A refusal or a build the
+      // server no longer takes is an answer that syncing will not change.
+      // Asked of the worker, not `pendingUp`: a sync right after recording
+      // runs before the worker's first pass has counted the new file.
+      if (!r.offline && !r.more && o.onSettled) {
+        const settled = () => o.onSettled?.({ blobsWanted: this.current.pendingDown });
+        if (r.refused !== null || r.tooOld) settled();
+        else if (this.up.untried() === 0) {
+          void client.pendingCount().then((n) => { if (n === 0) settled(); }).catch(() => {});
+        }
       }
       // New confirmations may have arrived: re-derive. Reconnect retries now,
       // which clears waits. A finished sync while not deferred runs the
@@ -271,7 +285,7 @@ export class LanguageSession {
 
   /** Someone's membership or a role changed: work refused for want of one may pass now. */
   async membershipChanged(): Promise<void> {
-    const n = await this.client.retryRejected(['NOT_MEMBER', 'NOT_ALLOWED']);
+    const n = await this.client.retryRejected(['NOT_MEMBER', 'NOT_ALLOWED'], 'membership');
     if (n > 0) this.scheduler.nudge();
   }
 
@@ -317,6 +331,33 @@ export class LanguageSession {
 
   inspect(): Promise<SyncInspection> {
     return this.client.inspect();
+  }
+
+  /**
+   * This language's part of the `device` diagnostics record: recordings
+   * waiting to go up, how long the oldest has waited, and how long the
+   * download waiting longest has, in minutes. A recording's age is from
+   * when it was recorded (its event's clock), so it survives a restart; a
+   * file no recording names counts from when this session first saw it.
+   */
+  probe(): { uploadsWaiting: number; oldestUnsentMin?: number; wantedStuckMin?: number } {
+    const unsent = this.unsent();
+    const now = this.o.client?.now?.() ?? Date.now();
+    const minutes = (ms: number) => Math.max(0, Math.round(ms / 60_000));
+    const out: { uploadsWaiting: number; oldestUnsentMin?: number; wantedStuckMin?: number } = { uploadsWaiting: unsent.length };
+    if (unsent.length > 0) {
+      const waiting = new Set(unsent.map((r) => r.hash));
+      const recordedAt = new Map<string, number>();
+      for (const rec of Object.values(this.client.getState().recordings)) {
+        for (const card of rec.cards) if (waiting.has(card.hash)) recordedAt.set(card.hash, decodeHlc(rec.hlc).wallMs);
+      }
+      let oldest = now;
+      for (const hash of waiting) oldest = Math.min(oldest, recordedAt.get(hash) ?? this.up.waitingSince(hash) ?? now);
+      out.oldestUnsentMin = minutes(now - oldest);
+    }
+    const stuck = this.down.oldestWaitingMs();
+    if (stuck !== null) out.wantedStuckMin = minutes(stuck);
+    return out;
   }
 
   private scope(): Set<string> {

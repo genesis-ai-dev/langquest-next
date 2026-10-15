@@ -1,0 +1,71 @@
+import { errorClassOf, jobRunSink, type JobRun } from '../../../server/jobRuns';
+import { RequestTally, routeClass } from '../worker/requestTally';
+
+const run: JobRun = { job: 'push_delivery', startedAt: Date.parse('2026-10-15T12:00:00Z'), ms: 1234.6, outcome: 'partial', n: { sent: 3, failed: 1 } };
+
+describe('job runs (diag.jobs)', () => {
+  it('posts a run to diag_job_ingest with the service key, numbers only', async () => {
+    const calls: { url: string; init: RequestInit }[] = [];
+    const sink = jobRunSink('https://x.supabase.co/', 'service-key', async (url, init) => {
+      calls.push({ url: String(url), init: init! });
+      return new Response('1');
+    });
+    await sink({ ...run, n: { sent: 3, failed: 1, bad: Number.NaN } });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.url).toBe('https://x.supabase.co/rest/v1/rpc/diag_job_ingest');
+    expect((calls[0]!.init.headers as Record<string, string>)['apikey']).toBe('service-key');
+    expect(JSON.parse(calls[0]!.init.body as string)).toEqual({
+      p_job: 'push_delivery', p_started_at: '2026-10-15T12:00:00.000Z', p_ms: 1235, p_outcome: 'partial',
+      p_n: { sent: 3, failed: 1 }, p_error_class: null, p_org: null, p_stream: null
+    });
+  });
+
+  it('never fails or writes without a key: a lost run is never the job failing', async () => {
+    await expect(jobRunSink('https://x', 'k', async () => { throw new TypeError('fetch failed'); })(run)).resolves.toBeUndefined();
+    let called = false;
+    await jobRunSink(undefined, 'k', async () => { called = true; return new Response(); })(run);
+    await jobRunSink('https://x', undefined, async () => { called = true; return new Response(); })(run);
+    expect(called).toBe(false);
+  });
+
+  it('names an error by class, operation and SQLSTATE, never by its message', () => {
+    const db = Object.assign(new Error('canceling statement due to statement timeout'), { name: 'DbError', op: 'reconcile_notifications', code: '57014' });
+    expect(errorClassOf(db)).toBe('reconcile_notifications:57014');
+    expect(errorClassOf(new Error('put_snapshot org/Dinka Test: value too long'))).toBe('put_snapshot');
+    expect(errorClassOf(new Error('Recording "In the beginning" failed'))).toBe('Error');
+    expect(errorClassOf(Object.assign(new Error('x'), { name: 'TimeoutError' }))).toBe('TimeoutError');
+    const wrapped = Object.assign(new Error('a name'), { streamId: 'lang', cause: db });
+    expect(errorClassOf(wrapped)).toBe('reconcile_notifications:57014');
+    expect(errorClassOf('a string')).toBe('unknown');
+  });
+});
+
+describe('the Worker request tally', () => {
+  it('sorts requests into the classes support reads', () => {
+    expect(routeClass('PUT', '/api/blobs/o/l/h.m4a')).toBe('blobs_put');
+    expect(routeClass('GET', '/api/blobs/o/l/h.m4a')).toBe('blobs_get');
+    expect(routeClass('GET', '/api/blob-urls/o/l/h.m4a')).toBe('blob_access');
+    expect(routeClass('GET', '/api/orgs/o/reports')).toBe('reports');
+    expect(routeClass('POST', '/api/v1/mcp')).toBe('mcp');
+    expect(routeClass('GET', '/api/v1/languages')).toBe('agent_api');
+    expect(routeClass('POST', '/api/internal/poke')).toBe('webhook');
+    expect(routeClass('GET', '/api/bible/x')).toBe('other');
+    expect(routeClass('GET', '/index.html')).toBeNull();
+  });
+
+  it('becomes a job run at most once a minute, counts only', () => {
+    let now = 0;
+    const tally = new RequestTally(() => now);
+    tally.add('blobs_put', 200);
+    tally.add('r2_put', 502);
+    now = 30_000;
+    expect(tally.take()).toBeNull();
+    now = 61_000;
+    expect(tally.take()).toEqual({ job: 'worker_requests', startedAt: 0, ms: 61_000, outcome: 'partial', n: { blobs_put_2xx: 1, r2_put_5xx: 1 } });
+    tally.add('reports', 304);
+    now = 90_000;
+    expect(tally.take()).toBeNull();
+    now = 125_000;
+    expect(tally.take()).toMatchObject({ startedAt: 61_000, outcome: 'ok', n: { reports_3xx: 1 } });
+  });
+});

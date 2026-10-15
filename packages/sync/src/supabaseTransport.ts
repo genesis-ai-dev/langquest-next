@@ -1,7 +1,7 @@
 import { CLIENT_PROTOCOL_VERSION, type AnyEvent } from '@langquest-next/core';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { AppendResult, SnapshotMeta, Transport, WatchHandlers } from './types';
-import { ClientTooOldError, NotAuthorizedError, OfflineError } from './types';
+import { ClientTooOldError, NotAuthorizedError, OfflineError, ServerError, UNRENEWED_TEXT, UnrenewedError } from './types';
 
 interface EventRow {
   id: string;
@@ -21,36 +21,36 @@ export class SupabaseTransport implements Transport {
   constructor(private readonly supabase: SupabaseClient) {}
 
   async append(events: AnyEvent[]): Promise<AppendResult[]> {
-    const { data, error } = await this.supabase.rpc('append_events', {
+    const { data, error, status } = await this.supabase.rpc('append_events', {
       p_events: events.map(({ serverSeq: _s, ...e }) => e),
       p_client_version: CLIENT_PROTOCOL_VERSION
     });
-    if (error) throw toError(error);
+    if (error) throw toError(error, status);
     return (data as { id: string; accepted: boolean; server_seq: number | null; reason: string | null }[]).map(
       (r) => ({ id: r.id, accepted: r.accepted, serverSeq: r.server_seq, reason: r.reason })
     );
   }
 
   async snapshotMeta(orgId: string, streamId: string, reducerVersion: number): Promise<SnapshotMeta | null> {
-    const { data, error } = await this.supabase.rpc('get_snapshot_meta', {
+    const { data, error, status } = await this.supabase.rpc('get_snapshot_meta', {
       p_org_id: orgId,
       p_stream_id: streamId,
       p_reducer_version: reducerVersion
     });
-    if (error) throw toError(error);
+    if (error) throw toError(error, status);
     const row = (data as { server_seq: number; chunks: number; bytes: number }[] | null)?.[0];
     return row ? { serverSeq: row.server_seq, chunks: row.chunks, bytes: row.bytes } : null;
   }
 
   async snapshotChunk(orgId: string, streamId: string, reducerVersion: number, serverSeq: number, index: number): Promise<string | null> {
-    const { data, error } = await this.supabase.rpc('get_snapshot_chunk', {
+    const { data, error, status } = await this.supabase.rpc('get_snapshot_chunk', {
       p_org_id: orgId,
       p_stream_id: streamId,
       p_reducer_version: reducerVersion,
       p_server_seq: serverSeq,
       p_index: index
     });
-    if (error) throw toError(error);
+    if (error) throw toError(error, status);
     return (data as string | null) ?? null;
   }
 
@@ -71,14 +71,14 @@ export class SupabaseTransport implements Transport {
   }
 
   async pull(orgId: string, streamId: string, after: number, limit: number): Promise<AnyEvent[]> {
-    const { data, error } = await this.supabase.rpc('pull_events', {
+    const { data, error, status } = await this.supabase.rpc('pull_events', {
       p_org_id: orgId,
       p_stream_id: streamId,
       p_after: after,
       p_limit: limit,
       p_client_version: CLIENT_PROTOCOL_VERSION
     });
-    if (error) throw toError(error);
+    if (error) throw toError(error, status);
     return (data as EventRow[]).map(
       (r) =>
         ({
@@ -103,8 +103,12 @@ export class SupabaseTransport implements Transport {
  * become an `OfflineError` (the offline path keeps work queued and, in the
  * UI, blocks escapes like sign-out).
  */
-function toError(error: { message: string; code?: string }): Error {
+function toError(error: { message: string; code?: string }, status?: number): Error {
   if (error.code === 'LQ001') return new ClientTooOldError(error.message);
+  // Stopped on the phone because the sign-in could not be renewed: offline
+  // for every purpose but diagnostics. Before the network test, which its
+  // text also passes.
+  if (UNRENEWED_TEXT.test(error.message)) return new UnrenewedError(error.message);
   // insufficient_privilege: every `raise ... using errcode = '42501'` in
   // supabase/migrations, which is how the RPCs refuse a non-member.
   if (error.code === '42501' || /not a member|permission denied|service role only|not authorized/i.test(error.message)) {
@@ -113,5 +117,5 @@ function toError(error: { message: string; code?: string }): Error {
   if (/fetch failed|failed to fetch|network|ECONNREFUSED|ECONNRESET|ENOTFOUND|ETIMEDOUT|timed out/i.test(error.message)) {
     return new OfflineError(error.message);
   }
-  return new Error(`${error.code ?? 'rpc'}: ${error.message}`);
+  return new ServerError(`${error.code ?? 'rpc'}: ${error.message}`, error.code || (status ? `http${status}` : undefined));
 }

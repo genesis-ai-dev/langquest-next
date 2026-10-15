@@ -38,6 +38,8 @@ import { txt } from '../ui/textStyles';
 import { PRIVACY_URL } from '../auth/legal';
 import { LicenseRow, LicenseSheet } from '../org/licenseSheet';
 import { noteExpected, reportError, failureMessage } from '../diagnostics/report';
+import { recordAuth, recordAuthFailure, since } from '../auth/authDiag';
+import { inviteOutcome } from '../auth/authOutcome';
 import { createOrganization } from '../org/createOrg';
 import { navRef } from '../shell/nav';
 import { contractsFor } from '../shell/screenContracts';
@@ -73,18 +75,26 @@ export function SignIn(ctx: Ctx) {
   async function submit() {
     setBusy(true);
     setError('');
+    const started = Date.now();
     try {
       const outcome = await signIn(email, password, {
         signInWithPassword, setSession, signInWithV2Account, ...(ctx.isDev ? { recreateDevAccount } : {})
       });
       // A wrong password or no connection: the server's answer, said in the language showing.
-      if (outcome.kind === 'refused') { noteExpected(outcome.where, outcome.raw); setError(authErrorText(outcome.reason, t('entry.signIn.failed'))); return; }
+      if (outcome.kind === 'refused') {
+        noteExpected(outcome.where, outcome.raw);
+        recordAuthFailure('sign_in', outcome.reason, { ms: since(started) });
+        setError(authErrorText(outcome.reason, t('entry.signIn.failed')));
+        return;
+      }
+      recordAuth('sign_in', 'ok', { n: { ms: since(started) } });
       // Signing in accepts the terms (AUTH-1). The session this screen was
       // given belongs to the guest, so record it for the account that just
       // signed in; the account outbox delivers (and retries) it once the new
       // session is up.
       if (outcome.userId) await recordTerms(outcome.userId);
     } catch (e) {
+      recordAuthFailure('sign_in', e, { ms: since(started) });
       setError(failure('sign in', e));
     } finally {
       setBusy(false);
@@ -373,9 +383,16 @@ function EmailAccount(ctx: Ctx) {
   async function create() {
     setBusy(true);
     setError('');
+    const started = Date.now();
     try {
       const { data, error } = await signUp(email.trim(), password);
-      if (error) { noteExpected('sign up', error); setError(authErrorText(error, t('entry.createAccount.failed'))); return; }
+      if (error) {
+        noteExpected('sign up', error);
+        recordAuthFailure('sign_up', error, { ms: since(started) });
+        setError(authErrorText(error, t('entry.createAccount.failed')));
+        return;
+      }
+      recordAuth('sign_up', 'ok', { n: { ms: since(started) } });
       // Creating the account accepts the terms (AUTH-1). With a session they
       // are recorded now (the account outbox retries until delivered) and the
       // app routes on by itself; without one the address has to be confirmed
@@ -390,6 +407,7 @@ function EmailAccount(ctx: Ctx) {
         setCheckEmail(true);
       }
     } catch (e) {
+      recordAuthFailure('sign_up', e, { ms: since(started) });
       setError(failure('sign up', e));
     } finally {
       setBusy(false);
@@ -633,10 +651,17 @@ function SignInKey(props: { ctx: Ctx; code: string; onCancel: () => void }) {
   async function go() {
     setBusy(true);
     setError('');
+    const started = Date.now();
     try {
       const help = await redeemSignInCode(props.code);
       const { data, error } = await setSession(help.session);
-      if (error) { noteExpected('sign in with code', error); setError(authErrorText(error, t('entry.signInKey.failed'))); return; }
+      if (error) {
+        noteExpected('sign in with code', error);
+        recordAuthFailure('code', error, { ms: since(started) });
+        setError(authErrorText(error, t('entry.signInKey.failed')));
+        return;
+      }
+      recordAuth('code', 'ok', { n: { ms: since(started) } });
       if (data.user) {
         await recordHelp(data.user.id, help.helper).catch((e: unknown) => { reportError('record sign-in help', e); });
         await ctx.acceptTerms(data.user.id).catch((e: unknown) => { reportError('accept terms', e); });
@@ -645,6 +670,8 @@ function SignInKey(props: { ctx: Ctx; code: string; onCancel: () => void }) {
         : help.helper ? t('entry.signInKey.signedInWith', { name: help.helper }) : t('entry.signInKey.signedIn'));
     } catch (e) {
       noteExpected('sign-in code', e);
+      // The function says "expired or already used" in its reply, as an invite does.
+      recordAuthFailure('code', e, { ms: since(started) }, inviteOutcome);
       // The function's reply is English: say it in the language showing.
       setError(e instanceof Error ? signInCodeErrorText(e.message) : t('common.tryWhenConnected'));
     } finally {

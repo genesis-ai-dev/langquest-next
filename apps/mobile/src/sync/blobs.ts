@@ -7,6 +7,7 @@ import { Platform } from 'react-native';
 import { getFileLedger } from './store';
 import { onWake } from './wake';
 import { webFiles, type WebFiles } from '../web/webFiles';
+import { noteExpected } from '../diagnostics/report';
 
 /**
  * Content-addressed local blob store (PLAN.md section 14, rules 9 and 11).
@@ -81,6 +82,11 @@ const KEEP_DELAY_MS = 1000;
 const SPOT_CHECKS = 100;
 
 /** A file name in the folder as hash and extension; staging names and strays are not files of the store. */
+/** Files found lost (decisions.md 92), as field diagnostics count it: no names, no hashes. */
+class FilesLost extends Error {
+  override name = 'FilesLost';
+}
+
 function parseName(name: string): StoredFile | null {
   if (name.endsWith(STAGING_SUFFIX)) return null;
   const [hash, ext, more] = name.split('.');
@@ -379,7 +385,8 @@ export class BlobStore {
       if (format && !kept.has(hash) && !this.toKeep.has(hash)) fresh.push({ hash, format });
     }
     if (fresh.length) await ledger.keep(fresh);
-    if (missing.length && this.believable(missing)) await this.lose(ledger, missing.map((r) => r.hash));
+    // i18n-ignore: a diagnostics label (noteExpected), never shown
+    if (missing.length && this.believable(missing)) await this.lose(ledger, missing.map((r) => r.hash), 'files: lost at start');
   }
 
   /**
@@ -412,7 +419,8 @@ export class BlobStore {
       for (const ref of missing) { this.unindex(ref.hash); this.toKeep.delete(ref.hash); }
       for (const l of this.listeners) l();
       const ledger = await this.ledger;
-      if (ledger) await this.lose(ledger, missing.map((r) => r.hash));
+      // i18n-ignore: a diagnostics label (noteExpected), never shown
+      if (ledger) await this.lose(ledger, missing.map((r) => r.hash), 'files: lost in use');
     });
   }
 
@@ -442,7 +450,13 @@ export class BlobStore {
     return true;
   }
 
-  private async lose(ledger: FileLedger, hashes: readonly string[]): Promise<void> {
+  /**
+   * Write down a loss and raise the alert. Field diagnostics count each
+   * check that found one (`expected`, code `lost`); how many files are
+   * waiting for someone to see the alert is the `device` record's (lostFiles.tsx).
+   */
+  private async lose(ledger: FileLedger, hashes: readonly string[], where: string): Promise<void> {
+    noteExpected(where, new FilesLost(), 'lost');
     await ledger.markLost(hashes, Date.now());
     for (const l of this.lostListeners) l();
   }
