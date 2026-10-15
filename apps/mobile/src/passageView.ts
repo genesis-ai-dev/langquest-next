@@ -125,6 +125,8 @@ export function outcomeTitle(kind: KindDef | undefined, outcome: ReviewView['out
  * `lower` says the viewer as "you", inside a sentence.
  */
 export function feedbackSource(r: Pick<ReviewView, 'via' | 'by' | 'givenBy' | 'people' | 'place'>, name: Ctx['name'], lower = false): string {
+  // A link or partner app answers as its sharer, with the listener's own name in givenBy (decisions.md 72).
+  if (r.via === 'link' && r.givenBy) return r.givenBy;
   if (r.via !== 'logged') return name(r.by, lower);
   if (r.givenBy) return r.givenBy;
   if (r.people && r.people > 1) {

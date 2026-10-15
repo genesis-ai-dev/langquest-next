@@ -6,7 +6,7 @@
 // Requirements REC-1..8 (REC-2/2a: the path top to bottom, per version),
 // ASK-2, ASK-4; ADR-012, 013, 014, 015, 016, 020, 029, 030.
 import {
-  checkPeople, feedbackIsMine, isCompleteState, keyTermView, languagePeople, madeVersionOf, membershipsOf, privilegesFor, scopeCovers,
+  checkPeople, feedbackIsMine, isCompleteState, keyTermView, languagePeople, LISTENER_KIND, madeVersionOf, membershipsOf, privilegesFor, releasesOf, scopeCovers,
   type FlowStepStatus, type KindDef, type KindStatus, type OrgState, type PassageNote, type PassageState,
   type Privilege, type LanguageState, type QuestionSpec, type RecordEntry, type RequestView, type ReviewView, type SourcedQuestion,
   type Version
@@ -267,14 +267,14 @@ export function kindRowActions(o: {
   const askedMe = s === 'asked' && !!o.status.request && mine(o.status.request);
   const cleared = kindCleared(o.status, o.step);
   // Nobody checks their own version unless they were asked to (the role matrix: Review, "not their own version unless asked").
-  // A step that makes something is not a check: the translator may write their own recording down (decisions.md 109).
+  // A step that makes something is not a check: the translator may write their own recording down (decisions.md 110).
   const doIt: RowAction | undefined = o.can.review && (!o.isAuthor || askedMe || !!o.kind.makes)
     ? { id: 'do', label: o.kind.makes ? o.kind.name : o.kind.produces ? o.kind.produces.action : t('passage.record.actions.reviewNow') } : undefined;
   const send: RowAction | undefined = o.can.ask && s !== 'asked' && s !== 'addressed' && o.isAuthor && o.sendTo
     ? { id: 'send', label: t('passage.record.actions.sendTo', { target: o.sendTo }) } : undefined;
   const ask: RowAction | undefined = o.can.ask && s !== 'asked'
     ? { id: 'ask', label: s === 'addressed' ? t('passage.record.actions.askAgain') : send ? t('passage.record.actions.sendElsewhere') : t('passage.record.actions.askSomeone') } : undefined;
-  // What a step makes is made here, not logged afterwards (decision 109).
+  // What a step makes is made here, not logged afterwards (decision 110).
   const log: RowAction | undefined = o.can.log && !o.kind.makes ? { id: 'log', label: t('passage.record.actions.alreadyHappened') } : undefined;
   const skip: RowAction | undefined = o.can.skip && !o.step.step.checkpoint ? { id: 'skip', label: t('passage.record.actions.setAside') } : undefined;
   const primary = askedMe ? doIt : s === 'asked' ? undefined : o.isAuthor || !doIt ? send ?? ask ?? doIt : doIt;
@@ -451,7 +451,7 @@ export function describeEntry(e: RecordEntry, o: {
       };
     }
     case 'made': {
-      // Made beside a version, or added to it; a change to what was added says which review it came after (decision 109).
+      // Made beside a version, or added to it; a change to what was added says which review it came after (decision 110).
       const m = e.made;
       const of = o.p.versions.find((x) => x.takeId === madeVersionOf(o.p, m));
       const version = of ? versionTitle(of.n) : t('passage.record.anchor.aVersion');
@@ -641,4 +641,12 @@ export function guestMessage(o: { name: string; passage: string; language: strin
   const name = o.name.trim();
   return name ? t('passage.record.guestMessage', { name, passage: o.passage, language: o.language })
     : t('passage.record.guestMessageNoName', { passage: o.passage, language: o.language });
+}
+
+/**
+ * What reached listeners outside the team (decisions.md 109): where a version
+ * is live, and each listener's feedback, newest first.
+ */
+export function listenersOf(state: LanguageState, p: PassageState) {
+  return { live: releasesOf(state, p), feedback: p.reviews.filter((r) => r.kindId === LISTENER_KIND).sort((a, b) => (a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : 0)) };
 }

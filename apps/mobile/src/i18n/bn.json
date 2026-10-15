@@ -3441,7 +3441,10 @@
       "playYourFeedback": "আপনার মতামত চালান",
       "more": "আরও",
       "options": "বিকল্প",
-      "openVersion": "{{version}} খুলুন"
+      "openVersion": "{{version}} খুলুন",
+      "listeners": "শ্রোতা",
+      "liveIn": "{{channel}}-এ প্রকাশিত · {{version}}",
+      "listenerCount": "শ্রোতাদের মতামত: {{count, number}}"
     },
     "else": {
       "title": "অন্য কিছু?",

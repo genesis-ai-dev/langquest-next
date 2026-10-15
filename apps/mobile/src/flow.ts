@@ -46,7 +46,7 @@ export const SCREEN_IDS = [
   'settings_more',
   // App only: one of a language's checks, with its people, questions and helps (decision 91)
   'check_editor',
-  // App only: something made from a version, by a step or brought over from v2 (decision 109)
+  // App only: something made from a version, by a step or brought over from v2 (decision 110)
   'made_detail',
   // App only: a cluster of languages, a name the organization puts on them (decision 108, demo ADR-045)
   'cluster_home'
@@ -420,14 +420,14 @@ export const EDGES: Edge[] = [
   e('cluster_home', 'org_home', 'back'),
   e('new_language', 'cluster_home', 'replace'),
   e('new_language', 'cluster_home', 'back'),
-  // Something made from a version (decision 109): from the passage's Reviews by version, and from the version.
+  // Something made from a version (decision 110): from the passage's Reviews by version, and from the version.
   e('passage_record', 'made_detail'),
   e('version_detail', 'made_detail'),
   e('made_detail', 'passage_record', 'back'),
   e('made_detail', 'version_detail', 'back'),
   e('made_detail', 'ask_someone'),
-  e('version_detail', 'back_translation', undefined, 'reviewer'), // tap Change the words (decision 109)
-  e('made_detail', 'back_translation', undefined, 'reviewer'), // tap Change the words (decision 109)
+  e('version_detail', 'back_translation', undefined, 'reviewer'), // tap Change the words (decision 110)
+  e('made_detail', 'back_translation', undefined, 'reviewer'), // tap Change the words (decision 110)
   e('back_translation', 'version_detail', 'back'),
   e('back_translation', 'made_detail', 'back')
 ];

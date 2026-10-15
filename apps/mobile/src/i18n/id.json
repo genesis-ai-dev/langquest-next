@@ -3322,7 +3322,10 @@
       "playYourFeedback": "Putar masukan Anda",
       "more": "Lainnya",
       "options": "Pilihan",
-      "openVersion": "Buka {{version}}"
+      "openVersion": "Buka {{version}}",
+      "listeners": "Pendengar",
+      "liveIn": "Terbit di {{channel}} · {{version}}",
+      "listenerCount": "Masukan pendengar: {{count, number}}"
     },
     "else": {
       "title": "Ada yang lain?",

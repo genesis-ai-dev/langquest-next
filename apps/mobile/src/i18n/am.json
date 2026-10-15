@@ -3441,7 +3441,10 @@
       "playYourFeedback": "አስተያየትዎን ያጫውቱ",
       "more": "ተጨማሪ",
       "options": "አማራጮች",
-      "openVersion": "{{version}}ን ይክፈቱ"
+      "openVersion": "{{version}}ን ይክፈቱ",
+      "listeners": "አድማጮች",
+      "liveIn": "በ{{channel}} ላይ ታትሟል · {{version}}",
+      "listenerCount": "የአድማጮች አስተያየት፦ {{count, number}}"
     },
     "else": {
       "title": "ሌላ ነገር?",

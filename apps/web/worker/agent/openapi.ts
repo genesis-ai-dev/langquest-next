@@ -83,6 +83,7 @@ function schemas(): Record<string, Schema> {
     steps: list(ref('Step'), 'The language\'s review flow and where the passage is in it. Needs read.'),
     requests: list(ref('Request'), 'Work asked for and not done yet, oldest first. Needs read.'),
     versions: list(obj({ n: int(), takeId: text(), submittedAt: time(), medium: ref('Medium'), madeBy: ref('MadeBy') }, ['madeBy']), 'Every version, oldest first. Needs read.'),
+    approvedAudio: list(ref('AudioCard'), 'What approvedVersion plays, in playing order (as audio is for version), so a listening app keeps playing what it published while a newer version is in review; empty when nothing is approved. Needs read.'),
     made: list(ref('Made'), 'What was made beside the passage\'s versions (back translations, written copies), and added to them, oldest first; never a version a step made. Needs read.')
   };
   const passage = (optional: string[], description: string) => obj({ ...summary, ...includes }, optional, description);

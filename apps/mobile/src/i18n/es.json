@@ -3560,7 +3560,10 @@
       "playYourFeedback": "Reproducir tus comentarios",
       "more": "Más",
       "options": "Opciones",
-      "openVersion": "Abrir {{version}}"
+      "openVersion": "Abrir {{version}}",
+      "listeners": "Oyentes",
+      "liveIn": "Publicado en {{channel}} · {{version}}",
+      "listenerCount": "Comentarios de oyentes: {{count, number}}"
     },
     "else": {
       "title": "¿Otra cosa?",

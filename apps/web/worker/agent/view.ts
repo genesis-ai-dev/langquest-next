@@ -23,7 +23,7 @@ export interface LanguageView {
   can: { read: 'all' | 'published' | null; review: boolean; release: boolean; externalValues: { read: boolean; write: boolean } };
 }
 
-/** A version is recorded or written (decisions.md 109), known from its parts. */
+/** A version is recorded or written (decisions.md 110), known from its parts. */
 export const MEDIA = ['recording', 'writing'] as const satisfies readonly Medium[];
 
 /**
@@ -181,15 +181,20 @@ export interface PassageDetail extends PassageSummary {
    */
   requests?: { requestId: string; what: 'record' | 'review'; kindId?: string; kind?: string; forYou: boolean; team?: string; dueDate?: string; note?: string; askedAt: string }[];
   versions?: { n: number; takeId: string; submittedAt: string; medium: Medium; madeBy?: MadeByOut }[];
+  /**
+   * With `read`: what `approvedVersion` plays (as `audio` does for `version`), so a listening app keeps playing what it
+   * published while a newer recording is in review. Empty when nothing is approved.
+   */
+  approvedAudio?: AudioCard[];
   /** With `read`: what was made beside the passage's versions, and added to them, oldest first; never a version a step made. */
   made?: MadeOut[];
 }
 
 /** What a list may add to each passage, named as one passage's own fields. */
-export const PASSAGE_INCLUDES = ['audio', 'text', 'reviews', 'steps', 'requests', 'versions', 'made'] as const;
+export const PASSAGE_INCLUDES = ['audio', 'text', 'reviews', 'steps', 'requests', 'versions', 'approvedAudio', 'made'] as const;
 export type PassageInclude = (typeof PASSAGE_INCLUDES)[number];
 /** The flow, the work asked for, older versions and what was made beside them are the team's; read:published never gets them. */
-export const TEAM_ONLY: readonly PassageInclude[] = ['steps', 'requests', 'versions', 'made'];
+export const TEAM_ONLY: readonly PassageInclude[] = ['steps', 'requests', 'versions', 'approvedAudio', 'made'];
 
 /** A passage on the list: its summary, and what the caller included. */
 export type PassageListItem = PassageSummary & Partial<Pick<PassageDetail, PassageInclude>>;
@@ -274,7 +279,7 @@ function cardsOf(state: LanguageState): Map<string, Card> {
 
 /**
  * Recorded parts as cards, never a written one (written parts are not
- * files, decisions.md 109). A part a recording holds takes that recording's
+ * files, decisions.md 110). A part a recording holds takes that recording's
  * length and format, as the stored file does (core referencedBlobs); else
  * the card a step made it with.
  */
@@ -372,7 +377,7 @@ function summarize(grant: Grant, state: LanguageState, s: PassageState): Passage
   const releases = releasesOf(state, s);
   let newest: string | null = s.latest?.hlc ?? null;
   for (const r of s.reviews) if (!newest || r.hlc > newest) newest = r.hlc;
-  // Words added to a version change what it holds; things made beside one are new too (decisions.md 109).
+  // Words added to a version change what it holds; things made beside one are new too (decisions.md 110).
   for (const m of s.made) if (!newest || m.hlc > newest) newest = m.hlc;
   // A take-down leaves no release behind, so every report on any version counts as a change.
   for (const v of s.versions) for (const reg of Object.values(state.releases?.[v.takeId] ?? {})) if (!newest || reg.hlc > newest) newest = reg.hlc;
@@ -515,6 +520,10 @@ async function passageOut(
   const v = heard(grant, s);
   if (include.has('audio')) out.audio = v ? await audioOf(playedCards(state, s, v)) : [];
   if (include.has('text')) out.text = v ? versionText(state, s, v) : [];
+  if (include.has('approvedAudio')) {
+    const approved = approvedVersion(s);
+    out.approvedAudio = approved ? await audioOf(playedCards(state, s, approved)) : [];
+  }
   if (include.has('reviews')) {
     const all = canRead(grant, true);
     out.reviews = [];
@@ -967,7 +976,7 @@ export async function linkView(link: ReviewLink, org: OrgState, state: LanguageS
   const open = linkIsOpen(link, org, now);
   const audio: AudioCard[] = [];
   // A closed link plays nothing: revoking it is how a sharer takes the audio back.
-  // A written version plays the recording added to it, if any; its words are never files (decisions.md 109).
+  // A written version plays the recording added to it, if any; its words are never files (decisions.md 110).
   for (const card of open ? playedCards(state, s, v) : []) {
     const format = card.format ?? 'wav';
     const l = await sign(`${link.orgId}/${link.languageId}/${card.hash}.${format}`);

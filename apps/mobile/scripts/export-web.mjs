@@ -69,7 +69,7 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // when the app's logic moved out of its screens into small modules
 // (decision 105): Metro wraps each module, about half a kilobyte apiece,
 // and 57 new ones cost 30 KB beyond the code they moved (6.01 MB then).
-// Raised to 6.2 MB with writing beside recording (decision 109): its
+// Raised to 6.2 MB with writing beside recording (decision 110): its
 // workspace, making steps and readers are about 35 KB of modules, with their
 // English words besides (6.12 MB then).
 const BUDGET_BYTES = 6.2 * 1024 * 1024;

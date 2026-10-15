@@ -3322,7 +3322,10 @@
       "playYourFeedback": "သင့်အကြံပြုချက်ကို ဖွင့်ပါ",
       "more": "နောက်ထပ်",
       "options": "ရွေးစရာများ",
-      "openVersion": "{{version}} ကို ဖွင့်ရန်"
+      "openVersion": "{{version}} ကို ဖွင့်ရန်",
+      "listeners": "နားထောင်သူများ",
+      "liveIn": "{{channel}} တွင် ထုတ်ဝေပြီး · {{version}}",
+      "listenerCount": "နားထောင်သူများ၏ အကြံပြုချက်: {{count, number}}"
     },
     "else": {
       "title": "အခြားအရာလား။",

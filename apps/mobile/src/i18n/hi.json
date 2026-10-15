@@ -3441,7 +3441,10 @@
       "playYourFeedback": "अपना फ़ीडबैक चलाएँ",
       "more": "और",
       "options": "विकल्प",
-      "openVersion": "{{version}} खोलें"
+      "openVersion": "{{version}} खोलें",
+      "listeners": "श्रोता",
+      "liveIn": "{{channel}} पर प्रकाशित · {{version}}",
+      "listenerCount": "श्रोताओं की प्रतिक्रिया: {{count, number}}"
     },
     "else": {
       "title": "कुछ और?",
