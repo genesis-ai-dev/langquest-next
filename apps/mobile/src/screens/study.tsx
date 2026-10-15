@@ -22,28 +22,28 @@ import { commands, isLicense, keyTermsForUnit, type EventSpec, type PassageNote 
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import { licenseText } from '../coreText';
-import type { Ctx } from '../ctx';
-import { screenTitle } from '../flow';
-import { HelpClip } from '../helpBadge';
+import { Text } from '../ui/text';
+import { licenseText } from '../i18n/coreText';
+import type { Ctx } from '../shell/ctx';
+import { screenTitle } from '../shell/flow';
+import { HelpClip } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import { indexesFor } from '../indexes';
-import { EmptyState, GhostBtn, Header, Ico, PrimaryBtn, Screen, SmallBtn, txt } from '../kit';
-import { usePassage, type PassageView } from '../passageView';
+import { indexesFor } from '../sync/indexes';
+import { EmptyState, GhostBtn, Header, Ico, PrimaryBtn, Screen, SmallBtn, txt } from '../ui/kit';
+import { usePassage, type PassageView } from '../passage/passageView';
 import { termsInText } from '../recording/workspaceModel';
-import { noteExpected } from '../report';
-import { contractsFor } from '../screenContracts';
-import { GuideNav, GuideStep } from '../simple/guide';
-import { refChips, stepAfterDone, type RefChip } from '../simple/model';
-import { Dock, RefChips, type ChipItem } from '../simple/parts';
-import { BiblePane, KeyWordsPane, NotesPane, useBible } from '../simple/reference';
+import { noteExpected } from '../diagnostics/report';
+import { contractsFor } from '../shell/screenContracts';
+import { GuideNav, GuideStep } from '../study/guide';
+import { refChips, stepAfterDone, type RefChip } from '../recording/model';
+import { Dock, RefChips, type ChipItem } from '../recording/blocks';
+import { BiblePane, KeyWordsPane, NotesPane, useBible } from '../helps/reference';
 import { type StudyGuide as Guide } from '../study/guides';
 import { useStudyGuide } from '../study/libraryGuides';
 import { studyProgress, type StudyProgress } from '../study/progress';
 import { stepLine } from '../study/ui';
 import { GuideEditorScreen } from '../guides/GuideEditor';
-import { space, TINT } from '../theme';
+import { space, TINT } from '../ui/theme';
 
 /** The passage, its guide and the team's progress, derived from the record. */
 function useStudy(ctx: Ctx): { v: PassageView; guide: Guide; sp: StudyProgress } | { v: PassageView | null; guide: null; sp: null } {

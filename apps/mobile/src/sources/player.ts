@@ -7,10 +7,10 @@
 // stops is reported so recording can resume.
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState } from 'react';
-import { LISTEN_PLAYER, registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../audioSession';
+import { LISTEN_PLAYER, registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../audio/audioSession';
 import { t } from '../i18n';
 import type { ListenHooks } from '../recording/useListenLoop';
-import { noteExpected } from '../report';
+import { noteExpected } from '../diagnostics/report';
 import { rowAt, seekTargetFor, type PlayPlan, type VerseRow } from './model';
 
 /**

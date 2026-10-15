@@ -19,22 +19,22 @@ import {
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
-import { Text } from '../text';
+import { Text } from '../ui/text';
 import QRCode from 'react-native-qrcode-svg';
-import { type LibraryChoice } from '../contentTemplates';
-import { deriveKinds, kindOf, licenseText } from '../coreText';
-import type { Ctx } from '../ctx';
+import { type LibraryChoice } from '../templates/contentTemplates';
+import { deriveKinds, kindOf, licenseText } from '../i18n/coreText';
+import type { Ctx } from '../shell/ctx';
 import { t, Trans } from '../i18n';
 import { formatAgo, formatClock, formatDayYear, formatNumber } from '../i18n/format';
-import { indexesFor } from '../indexes';
-import { canHelpSignIn, decideRequest, inviteUri, issueInvite, issueSignInCode, pendingRequests, type NewInvite, type PendingRequest } from '../invites';
-import { APP_URL } from '../appUrl';
-import { signInUri } from '../inviteCode';
+import { indexesFor } from '../sync/indexes';
+import { canHelpSignIn, decideRequest, inviteUri, issueInvite, issueSignInCode, pendingRequests, type NewInvite, type PendingRequest } from '../invites/invites';
+import { APP_URL } from '../web/appUrl';
+import { signInUri } from '../invites/inviteCode';
 import {
   Badge, Banner, Card, Chip, Disclosure, EmptyState, Field, GhostBtn, Group, HelpInfo, Header, Ico, KindIcon, LinkBtn, MovingBar, PrimaryBtn, ProgressBar, QuietLinks, Row,
   Screen, SearchField, SectionLabel, Segments, Sheet, ShowMore, SmallBtn, Toggle, txt, useOpenDetail, type IconName
-} from '../kit';
-import { edgeFor } from '../flow';
+} from '../ui/kit';
+import { edgeFor } from '../shell/flow';
 import { loadDocs } from '../library/docStore';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
 import {
@@ -42,38 +42,38 @@ import {
   mayGrantAt, membersAbove, membersAt, memberEntries, parseLevel, progressLine, removeMembership, reviewEligible,
   saveTeam, similarLanguages, sumProgress, teamMembers,
   type HomeProgress, type LanguageScope, type MemberEntry, type OrgOp
-} from '../orgAdmin';
-import { noteExpected, reportError, failureMessage } from '../report';
-import { LicenseRow, LicenseSheet } from '../licenseSheet';
-import { appendToLanguage } from '../languageWriter';
+} from '../org/orgAdmin';
+import { noteExpected, reportError, failureMessage } from '../diagnostics/report';
+import { LicenseRow, LicenseSheet } from '../org/licenseSheet';
+import { appendToLanguage } from '../sync/languageWriter';
 import { createLanguages, newLanguageParts, type Making, type NewOne, type Offer } from '../org/newLanguage';
 import { emailInvite } from '../org/emailInvite';
 import { looksLikeEmail, signInFailure } from '../org/model';
 import { usePublicListing } from '../org/usePublicListing';
-import { contractsFor } from '../screenContracts';
-import { languageFigures } from '../orgFigures';
-import { LanguoidPicker, useLanguoidName, useLanguoidSearch } from '../languoidPicker';
-import type { LanguoidHit } from '../languoidModel';
-import { edgeAllowed } from '../session';
-import { shareText } from '../share';
-import { C, radius, space, tile, TINT } from '../theme';
-import { useOrgSummary } from '../useOrgSummary';
-import { useHelpMode } from '../helpContext';
-import { AmberNote, BigTop, CheckRow, ChoiceCard, CountBadge, DashedRow, IconTile, inviteFailureText, NumberedSteps, Pills, Question, QuietLink, RadioRow, WorkSteps } from '../simple/admin';
-import { askedAgo, firstName, flowSub, guideShortName, joinAnd, languageLabel, QUESTIONS, questionLabel, stepTitle } from '../simple/adminModel';
-import { useCheckChoices, type FlowEntry } from '../simple/choices';
+import { contractsFor } from '../shell/screenContracts';
+import { languageFigures } from '../org/orgFigures';
+import { LanguoidPicker, useLanguoidName, useLanguoidSearch } from '../org/languoidPicker';
+import type { LanguoidHit } from '../org/languoidModel';
+import { edgeAllowed } from '../shell/session';
+import { shareText } from '../ui/share';
+import { C, radius, space, tile, TINT } from '../ui/theme';
+import { useOrgSummary } from '../reports/useOrgSummary';
+import { useHelpMode } from '../helpMode/helpContext';
+import { AmberNote, BigTop, CheckRow, ChoiceCard, CountBadge, DashedRow, IconTile, inviteFailureText, NumberedSteps, Pills, Question, QuietLink, RadioRow, WorkSteps } from '../admin/admin';
+import { askedAgo, firstName, flowSub, guideShortName, joinAnd, languageLabel, QUESTIONS, questionLabel, stepTitle } from '../admin/adminModel';
+import { useCheckChoices, type FlowEntry } from '../admin/choices';
 import { rowsOf, stepsOf } from '../checks/model';
 import { setChecksDraft, useChecksDraft } from '../checks/draft';
 import { TranslateQuestion, useTranslate } from '../breakup/TranslateStep';
-import { InviteSomeone } from '../simple/invite';
+import { InviteSomeone } from '../invites/invite';
 import { refKindOf } from '../reference/model';
 import { type GuideSet } from '../reference/guideSets';
 import { memberIn, startingLanguage } from '../reference/languageChoices';
 import { docLanguage, readerLanguage, sameLanguage } from '../reference/languages';
 import { ReferenceLanguagePage, useReferenceLanguages } from '../reference/ReferenceLanguagePage';
-import { howItWorks, plainRoleHelp, ReadyChecklist, usePendingRequests, usePlainRoles, useReadySummary } from '../simple/ready';
-import { personLook } from '../people';
-import { PersonAvatar, usePerson } from '../UserChip';
+import { howItWorks, plainRoleHelp, ReadyChecklist, usePendingRequests, usePlainRoles, useReadySummary } from '../admin/ready';
+import { personLook } from '../ui/people';
+import { PersonAvatar, usePerson } from '../ui/UserChip';
 import { clusterEvents, clusterNamed, languagesOutsideClusters, newClusterId, ungroupEvents } from '../clusters/model';
 import { appendClusterEvents, ClusterRow, ClusterTile, LanguageClustersRow } from '../clusters/parts';
 

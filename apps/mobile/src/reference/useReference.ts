@@ -6,15 +6,15 @@
 import { CommandError, libraryItems, type LibraryDoc, type LibraryItemView, type SourceDoc, type VersificationDoc } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { commandErrorText } from '../coreText';
-import type { Ctx } from '../ctx';
+import { commandErrorText } from '../i18n/coreText';
+import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { cachedDoc, hashOf, keepNewDoc, loadDocs } from '../library/docStore';
 import type { SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs } from '../library/useLibrary';
-import { failureMessage, noteExpected } from '../report';
+import { failureMessage, noteExpected } from '../diagnostics/report';
 import * as server from '../server/reference';
-import { BibleError } from '../bibleBrain';
+import { BibleError } from '../sources/bibleBrainAdmin';
 import { recMessage, recState, recUndo, recWrite, refKindOf, type Level, type RecAction, type RecWrite, type RefKind } from './model';
 import { timingPublication, type TimingPublication, type TimingResultRow } from '@langquest-next/core';
 

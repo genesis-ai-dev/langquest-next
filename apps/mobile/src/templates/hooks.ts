@@ -1,10 +1,10 @@
 // Small hooks the template screens share (decision 105).
 import { useMemo, useState } from 'react';
-import { libraryChoices } from '../contentTemplates';
-import type { Ctx } from '../ctx';
+import { libraryChoices } from './contentTemplates';
+import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { useSharedItems, type useLibrary } from '../library/useLibrary';
-import { failureMessage } from '../report';
+import { failureMessage } from '../diagnostics/report';
 
 export type Lib = ReturnType<typeof useLibrary>;
 

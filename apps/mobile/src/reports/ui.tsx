@@ -1,14 +1,14 @@
 import { ledgerFor, percent, recencyOf, toCsv, type Coverage, type LanguageReport, type LanguageRow } from '@langquest-next/core';
 import type { ReactNode } from 'react';
 import { Platform, Pressable, Share, StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import { bookName } from '../coreText';
-import { HelpBadge } from '../helpBadge';
-import { useHelpSpot } from '../helpContext';
+import { Text } from '../ui/text';
+import { bookName } from '../i18n/coreText';
+import { HelpBadge } from '../helpMode/helpBadge';
+import { useHelpSpot } from '../helpMode/helpContext';
 import { currentLocale, t, Trans } from '../i18n';
 import { formatDay, formatDayYear, formatMonthShort, formatMonthYear, formatNumber, formatPercent } from '../i18n/format';
-import { Badge, Card, Ico, txt, type IconName } from '../kit';
-import { C, radius, space, TINT } from '../theme';
+import { Badge, Card, Ico, txt, type IconName } from '../ui/kit';
+import { C, radius, space, TINT } from '../ui/theme';
 import { countryName } from './countries';
 import { bottleneckText, RECENCY_TONE, recencyLabel, scopeLabel, scopeShort } from './labels';
 

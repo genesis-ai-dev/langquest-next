@@ -5,7 +5,7 @@
 // the reader's first guess at what they read. Pure, so it is tested.
 import { languageInfo, type LanguageState, type LibraryDoc, type OrgState } from '@langquest-next/core';
 import { currentLanguage, t, type UiLanguage } from '../i18n';
-import { joinAnd, languageLabel } from '../simple/adminModel';
+import { joinAnd, languageLabel } from '../admin/adminModel';
 
 /** The app's languages as material writes them: the code it is usually written with first. */
 const CONTENT_CODES: Record<UiLanguage, readonly string[]> = {

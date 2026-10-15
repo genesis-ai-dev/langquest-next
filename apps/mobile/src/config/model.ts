@@ -11,7 +11,7 @@ import {
   type EventSpec, type FlowDoc, type FlowSelection, type FlowStep, type KeyTermView, type KindDef, type LibraryDoc, type MaterialDoc,
   type MaterialView, type OrgState, type Privilege, type LanguageState, type QuestionSpec, type Scope
 } from '@langquest-next/core';
-import { deriveKinds } from '../coreText';
+import { deriveKinds } from '../i18n/coreText';
 import { t } from '../i18n';
 import { docLanguage, languagesLine } from '../reference/languages';
 

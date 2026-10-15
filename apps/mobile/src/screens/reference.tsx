@@ -20,19 +20,19 @@ import {
 import * as Crypto from 'expo-crypto';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import type { Ctx } from '../ctx';
+import { Text } from '../ui/text';
+import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { indexesFor } from '../indexes';
+import { indexesFor } from '../sync/indexes';
 import {
   Badge, Banner, Card, Chip, ChipRow, Disclosure, EmptyState, GhostBtn, Group, Header, PrimaryBtn, ProgressBar, Row, Screen, SearchField,
   SectionLabel, Sheet, ShowMore, SmallBtn, txt, useOpenDetail, type IconName
-} from '../kit';
+} from '../ui/kit';
 import { sourceLine, type SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
-import { noteExpected } from '../report';
-import { BibleError, bibleDetail, biblesIn, bibleSearchAvailable, heldDetail, searchLanguages, type BibleDetail, type BibleLanguage, type BibleSummary } from '../bibleBrain';
+import { noteExpected } from '../diagnostics/report';
+import { BibleError, bibleDetail, biblesIn, bibleSearchAvailable, heldDetail, searchLanguages, type BibleDetail, type BibleLanguage, type BibleSummary } from '../sources/bibleBrainAdmin';
 import { coverage, coverageSummary, itemReaches, type Reach, type ReachWhy } from '../reference/coverage';
 import {
   biblebrainItemId, booksOf, offlineLine, orgLevelCan, recActions, recLabel, recOn, recState, recTone, refKindLabel,
@@ -46,15 +46,15 @@ import { chosenOnly } from '../reference/guideSets';
 import { docLanguage, languagesLine, teamLanguage } from '../reference/languages';
 import { offeredGuideSources } from '../reference/offered';
 import { termsInText } from '../recording/workspaceModel';
-import { languageLabel } from '../simple/adminModel';
-import { HelpCard, PassageTextBar, WordChip, type HelpPreview } from '../simple/helps';
-import { keyLabel, plain, refInPassage } from '../simple/helpsModel';
-import { DashedBtn } from '../simple/parts';
-import { useBible } from '../simple/reference';
+import { languageLabel } from '../admin/adminModel';
+import { HelpCard, PassageTextBar, WordChip, type HelpPreview } from '../helps/helps';
+import { keyLabel, plain, refInPassage } from '../helps/helpsModel';
+import { DashedBtn } from '../recording/blocks';
+import { useBible } from '../helps/reference';
 import { bestGuide } from '../study/guideMatch';
-import { contractsFor } from '../screenContracts';
+import { contractsFor } from '../shell/screenContracts';
 import { bibleErrorText } from '../sources/bibleBrain';
-import { space, TINT } from '../theme';
+import { space, TINT } from '../ui/theme';
 
 const STEP = 25;
 

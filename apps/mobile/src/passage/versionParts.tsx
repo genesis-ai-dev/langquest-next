@@ -12,22 +12,22 @@ import {
 } from '@langquest-next/core';
 import { useCallback, useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import { ClipPlayer } from '../clipPlayer';
-import type { Ctx } from '../ctx';
-import { useHelpSpot } from '../helpContext';
-import { HelpBadge } from '../helpBadge';
+import { Text } from '../ui/text';
+import { ClipPlayer } from '../audio/clipPlayer';
+import type { Ctx } from '../shell/ctx';
+import { useHelpSpot } from '../helpMode/helpContext';
+import { HelpBadge } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import { Ico, txt } from '../kit';
+import { Ico, txt } from '../ui/kit';
 import { useLibraryDocs } from '../library/useLibrary';
 import { cardDurations } from '../recording/workspaceModel';
 import { catalogVerses, unitCoordinates } from '../sources/model';
-import { mmss, partLabel } from '../simple/model';
-import { styles as ps } from '../simple/parts';
-import { useClip } from '../simple/useClip';
-import { VerseTile } from '../simple/verseParts';
-import { passageVerseKeys, readPartVerses, spanName, versesHeld } from '../simple/verseModel';
-import { C, radius, space, target } from '../theme';
+import { mmss, partLabel } from '../recording/model';
+import { styles as ps } from '../recording/blocks';
+import { useClip } from '../audio/useClip';
+import { VerseTile } from '../recording/verseParts';
+import { passageVerseKeys, readPartVerses, spanName, versesHeld } from '../recording/verseModel';
+import { C, radius, space, target } from '../ui/theme';
 
 /** The passage's verses in order ("chapter:verse"), counted as the recorder counts them; empty for a unit with no verses. */
 export function useVerseKeys(ctx: Ctx, unitId: string | undefined): string[] {

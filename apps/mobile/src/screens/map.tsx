@@ -18,36 +18,36 @@ import {
 } from '@langquest-next/core';
 import { useMemo, useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Text } from '../text';
+import { Text } from '../ui/text';
 import {
   bookMatches, canonBook, canonBooks, chapterStage, chapterTone, countFilters, isMapFilter, MAP_FILTERS, matchesFilter, parseQuery,
   placeMatches, type CanonBook, type ChapterTone, type MapFilter, type Testament
-} from '../canon';
-import { deriveKinds, passageSummary, stepName } from '../coreText';
-import type { Ctx } from '../ctx';
-import { edgeFor, type ScreenId } from '../flow';
+} from '../reference/canon';
+import { deriveKinds, passageSummary, stepName } from '../i18n/coreText';
+import type { Ctx } from '../shell/ctx';
+import { edgeFor, type ScreenId } from '../shell/flow';
 import { t } from '../i18n';
 import { formatNumber, formatPercent } from '../i18n/format';
-import { indexesFor } from '../indexes';
-import { keptOfflineMap, OfflineMark, offlineWords, type KeptOffline } from '../offline';
-import { languageFigures, oldestAsOf } from '../orgFigures';
-import { useOrgSummary } from '../useOrgSummary';
+import { indexesFor } from '../sync/indexes';
+import { keptOfflineMap, OfflineMark, offlineWords, type KeptOffline } from '../sync/offline';
+import { languageFigures, oldestAsOf } from '../org/orgFigures';
+import { useOrgSummary } from '../reports/useOrgSummary';
 import {
   Card, Chip, ChipRow, EmptyState, Group, Header, HelpInfo, Ico, IconBtn, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore,
   StepMarks, txt, useLayout, useOpenDetail, type IconName
-} from '../kit';
+} from '../ui/kit';
 import { mayWriteLibrary } from '../library/model';
-import { workIcon } from '../simple/homeModel';
-import { needsConnection, openableLanguages as openableIn } from '../simple/mapModel';
+import { workIcon } from '../work/homeModel';
+import { needsConnection, openableLanguages as openableIn } from '../map/mapModel';
 import { NumberingNote } from '../breakup/parts';
 import { useVerseNumbering } from '../breakup/useBreakup';
 import { ChangedMark, useEarlierSections } from '../breakup/earlier';
-import { BookBar, ChapterTileView, FullKey, NextLink, Pills, QuietIconLink, ShortKey } from '../simple/mapParts';
-import { chapterColumns } from '../layout';
+import { BookBar, ChapterTileView, FullKey, NextLink, Pills, QuietIconLink, ShortKey } from '../map/mapParts';
+import { chapterColumns } from '../ui/layout';
 import { filterByCluster, type ClusterFilter } from '../clusters/model';
-import { contractsFor } from '../screenContracts';
-import { edgeAllowed, mapScreenFor } from '../session';
-import { C, onColor, radius, space, TINT, type as T } from '../theme';
+import { contractsFor } from '../shell/screenContracts';
+import { edgeAllowed, mapScreenFor } from '../shell/session';
+import { C, onColor, radius, space, TINT, type as T } from '../ui/theme';
 
 const PAGE = 25;
 const OTHER = 'other';

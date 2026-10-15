@@ -2,7 +2,7 @@
 // (/i18n/<code>.json: copied there by scripts/export-web.mjs, served by
 // Metro in development), fetched when someone picks one, so the JavaScript
 // every visit downloads carries English only (the web budget, decisions.md 58).
-import { BUILD_ID } from '../webBuild';
+import { BUILD_ID } from '../web/webBuild';
 import type { UiLanguage } from './languages';
 
 export function loadCatalog(_code: Exclude<UiLanguage, 'en'>): object | null {

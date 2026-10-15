@@ -22,27 +22,27 @@ import {
 import { Bold, List, TextQuote, type LucideIcon } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Pressable, StyleSheet, TextInput, View, type NativeSyntheticEvent, type TextInputSelectionChangeEventData } from 'react-native';
-import { Text } from '../text';
-import { licenseText } from '../coreText';
-import type { Ctx } from '../ctx';
+import { Text } from '../ui/text';
+import { licenseText } from '../i18n/coreText';
+import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatNumber, formatTime } from '../i18n/format';
-import { useHelpSpot } from '../helpContext';
-import { HelpBadge } from '../helpBadge';
+import { useHelpSpot } from '../helpMode/helpContext';
+import { HelpBadge } from '../helpMode/helpBadge';
 import {
   Badge, Banner, Card, Chip, ChipRow, EmptyState, Field, Group, Header, HelpInfo, Ico, IconBtn, LinkBtn, PrimaryBtn, Row, Screen, SearchField,
   SectionLabel, Sheet, SmallBtn, txt, useLayout
-} from '../kit';
+} from '../ui/kit';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
 import { LanguageField } from '../reference/LanguageField';
 import { readerLanguage } from '../reference/languages';
-import { failureMessage } from '../report';
+import { failureMessage } from '../diagnostics/report';
 import type { StudyGuide, StudyResource } from '../study/guides';
 import { guideFromDoc, glossaryEntryOf } from '../study/guideMatch';
 import { useStudyFileUri } from '../study/media';
 import { AudioBar, CALLOUT_LOOK, calloutLabel, GlossarySheet, mediaKindLabel, MediaSheet, shownClock, StepPreview, useStudyAudio } from '../study/ui';
-import { C, measure, radius, space, target, TINT, type as T } from '../theme';
-import { VoiceNote } from '../voiceNote';
+import { C, measure, radius, space, target, TINT, type as T } from '../ui/theme';
+import { VoiceNote } from '../audio/voiceNote';
 import {
   boldText, buildDoc, calloutText, draftFromDoc, draftProblems, draftReducer, linkText, listText, newDraft, nextId, untitledResource,
   type DraftAction, type DraftMedia, type DraftPanel, type DraftProblem, type DraftResource, type DraftStep, type DraftTerm, type GuideDraft, type Selection

@@ -1,5 +1,5 @@
 import { signIn, signInReady, type SignInDeps } from '../src/auth/signIn';
-import { signInAddress } from '../src/accounts';
+import { signInAddress } from '../src/auth/accounts';
 
 const user = (id: string) => ({ data: { user: { id } }, error: null });
 const refused = (code: string, message = code) => ({ data: { user: null }, error: { code, message } });

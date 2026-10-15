@@ -1,4 +1,4 @@
-import { handoffState } from '../src/passageFlow';
+import { handoffState } from '../src/passage/passageFlow';
 
 describe('honest hand-off feedback', () => {
   const sent = { pending: 0, online: true, refused: null, tooOld: false, audioStored: true };

@@ -1,7 +1,7 @@
 import type { Scope } from '@langquest-next/core';
 import { currentLanguage } from '../i18n';
-import { issueInvite } from '../invites';
-import { noteExpected } from '../report';
+import { issueInvite } from '../invites/invites';
+import { noteExpected } from '../diagnostics/report';
 import { sendInviteEmail } from '../server/invites';
 import { sendFailure } from './model';
 

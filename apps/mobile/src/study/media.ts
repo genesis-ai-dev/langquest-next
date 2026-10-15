@@ -6,9 +6,9 @@
 // in when there is one.
 import { ORG_STREAM } from '@langquest-next/core';
 import { useEffect, useState } from 'react';
-import { getBlobStore, isStoredFormat, type BlobStore, type StoredFile } from '../blobs';
+import { getBlobStore, isStoredFormat, type BlobStore, type StoredFile } from '../sync/blobs';
 import { downloadBlob } from '../server/blobTransport';
-import { noteExpected } from '../report';
+import { noteExpected } from '../diagnostics/report';
 import type { StudyFile } from './guides';
 
 /** Downloads under way, by hash, so two screens asking for one file fetch it once. */

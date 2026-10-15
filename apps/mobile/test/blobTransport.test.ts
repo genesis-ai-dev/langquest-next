@@ -11,7 +11,7 @@ vi.mock('../src/server/supabase', () => ({
   supabase: { auth: { getSession: async () => ({ data: { session: { access_token: 'tok' } }, error: null }) } }
 }));
 vi.mock('expo-file-system', () => ({ File: class {}, UploadType: { BINARY_CONTENT: 0 } }));
-vi.mock('../src/blobs', () => ({
+vi.mock('../src/sync/blobs', () => ({
   mimeOf: () => 'audio/wav',
   BlobStore: { hashOf: async () => 'h'.repeat(64) }
 }));

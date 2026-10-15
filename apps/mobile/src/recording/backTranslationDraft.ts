@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Card } from '@langquest-next/core';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { t } from '../i18n';
-import { reportError } from '../report';
+import { reportError } from '../diagnostics/report';
 import { parseBackTranslationDraft, withoutPart, withPart, type BackTranslationDraft } from './workspaceModel';
 
 /** A draft that could not be read is never overwritten: writes refuse until it can be. */

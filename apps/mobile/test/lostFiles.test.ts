@@ -5,7 +5,7 @@
  * web store, whose files are an in-memory folder here.
  */
 import { MemoryFileLedger, type KeptFile } from '@langquest-next/sync';
-import type { WebFiles } from '../src/webFiles';
+import type { WebFiles } from '../src/web/webFiles';
 
 vi.mock('react-native', () => ({ Platform: { OS: 'web' } }));
 vi.mock('expo-crypto', async () => {
@@ -17,10 +17,10 @@ vi.mock('expo-crypto', async () => {
 });
 vi.mock('expo-file-system', () => ({ Directory: class {}, File: class {}, Paths: { document: null, availableDiskSpace: 0 } }));
 vi.mock('expo-file-system/legacy', () => ({ readDirectoryAsync: async () => [] }));
-vi.mock('../src/store', () => ({ getFileLedger: async () => null }));
-vi.mock('../src/wake', () => ({ onWake: () => () => undefined }));
+vi.mock('../src/sync/store', () => ({ getFileLedger: async () => null }));
+vi.mock('../src/sync/wake', () => ({ onWake: () => () => undefined }));
 
-const { BlobStore } = await import('../src/blobs');
+const { BlobStore } = await import('../src/sync/blobs');
 
 /** A browser folder in memory; `hold` makes the next listing wait until released. */
 function folder() {

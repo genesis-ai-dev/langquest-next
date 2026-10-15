@@ -1,4 +1,4 @@
-import { hasWelcome, isFromV2, lastWork, parseWelcome } from '../src/welcomeBack';
+import { hasWelcome, isFromV2, lastWork, parseWelcome } from '../src/account/welcomeBack';
 
 const lang = (languageId: string, orgId: string, lastAt: string | null) => ({
   languageId, orgId, orgName: `Org ${orgId}`, name: `Lang ${languageId}`, was: `Project ${languageId}`,

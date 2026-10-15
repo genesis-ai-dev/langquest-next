@@ -19,7 +19,7 @@ of these kinds, each with a fixed list of fields (`DIAG_SCHEMA`):
 | `snapshot` | A cold start looks for a server snapshot | fetch ms, pieces, pieces resumed after a dropped link, bytes, seq; `none` when there was none to use |
 | `transfer` | Blob uploads or downloads, tallied per minute or 50 files | files, bytes, ms, slowest; download split into signing, network and verifying on the phone; failures by cause (link, 4xx, 5xx, hash, disk, other) |
 | `device` | Each delivery | free and total disk (not on the web), audio cache size, files still wanted |
-| `error` | A fault reaches `reportError` (`apps/mobile/src/report.ts`) | error class, where, the id shown to the person, fatal or not, stack frames |
+| `error` | A fault reaches `reportError` (`apps/mobile/src/diagnostics/report.ts`) | error class, where, the id shown to the person, fatal or not, stack frames |
 
 Every delivery also sends the phone's context: install id, OS and version,
 model (Android), runtime version, EAS update id and channel, whether the
@@ -64,7 +64,7 @@ under GDPR-style rules it is still personal data. What keeps it proportionate:
 - readable only by the `diag_reader` role and the database owner, never by
   the app's API roles;
 - the person can turn it off in Settings › App › Send diagnostics
-  (`setDiagnosticsEnabled(false)` in `apps/mobile/src/diagnostics.ts`),
+  (`setDiagnosticsEnabled(false)` in `apps/mobile/src/diagnostics/diagnostics.ts`),
   which stops recording and sending and deletes what is waiting. The choice
   is kept on the phone (`diag:off`) and survives a restart.
 

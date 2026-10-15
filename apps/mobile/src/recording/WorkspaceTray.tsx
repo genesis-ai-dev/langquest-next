@@ -7,24 +7,24 @@ import { commands, keyTermView, type KeyTermView, type PassageNote } from '@lang
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import { AudioClip } from '../audioClip';
-import type { Ctx } from '../ctx';
-import { HelpBadge } from '../helpBadge';
-import { useHelpSpot } from '../helpContext';
+import { Text } from '../ui/text';
+import { AudioClip } from '../audio/audioClip';
+import type { Ctx } from '../shell/ctx';
+import { HelpBadge } from '../helpMode/helpBadge';
+import { useHelpSpot } from '../helpMode/helpContext';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { indexesFor } from '../indexes';
+import { indexesFor } from '../sync/indexes';
 import {
   Badge, Chip, ChipRow, Field, HelpInfo, Ico, LinkBtn, NoteCard, PrimaryBtn, ProgressBar, Row, Sheet, ShowMore, SmallBtn, txt
-} from '../kit';
-import { versionTitle, when, type PassageView } from '../passageView';
-import { Authored, recordTarget, ReportFlag } from '../reportSheet';
+} from '../ui/kit';
+import { versionTitle, when, type PassageView } from '../passage/passageView';
+import { Authored, recordTarget, ReportFlag } from '../moderation/reportSheet';
 import type { StudyProgress } from '../study/progress';
 import { studySummary } from '../study/progress';
 import { StepMark, stepLine } from '../study/ui';
-import { C, radius, space, target, TINT, withAlpha } from '../theme';
-import { VoiceNote } from '../voiceNote';
+import { C, radius, space, target, TINT, withAlpha } from '../ui/theme';
+import { VoiceNote } from '../audio/voiceNote';
 
 export type TrayTab = 'terms' | 'study' | 'notes' | 'history';
 

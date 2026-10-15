@@ -17,7 +17,7 @@ Page references below distinguish source requirements from our proposed UX mappi
 Use [PLAN.md sections 12–13](../../PLAN.md#12-design-language-and-the-two-avatars)
 for avatars and domain terms, and [implementation notes](implementation.md) for
 the documented mobile baseline. Route names follow
-[`flow.ts`](../../apps/mobile/src/flow.ts). A route's existence does not establish
+[`flow.ts`](../../apps/mobile/src/shell/flow.ts). A route's existence does not establish
 support for this workflow.
 
 ## Personas and responsibilities

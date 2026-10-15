@@ -2,9 +2,9 @@
 import { writeFileSync } from 'node:fs';
 import { foldOrg, privilegeFor, SEED_ROLES, type AnyEvent } from '@langquest-next/core';
 import { buildFixture, buildOrgFixture } from '../packages/core/test/fixtures';
-import { SCREEN_CONTRACTS, screenMayEmit } from '../apps/mobile/src/screenContracts';
-import { SCREEN_IDS } from '../apps/mobile/src/flow';
-import { deriveSession } from '../apps/mobile/src/session';
+import { SCREEN_CONTRACTS, screenMayEmit } from '../apps/mobile/src/shell/screenContracts';
+import { SCREEN_IDS } from '../apps/mobile/src/shell/flow';
+import { deriveSession } from '../apps/mobile/src/shell/session';
 const sql = (value: unknown) => `'${JSON.stringify(value).replaceAll("'","''")}'::jsonb`;
 const fixture=[...buildFixture(),...buildOrgFixture()];
 const rows: unknown[]=[];

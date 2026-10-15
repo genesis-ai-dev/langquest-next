@@ -19,19 +19,19 @@ import {
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
-import { Text } from '../text';
-import { type LibraryChoice } from '../contentTemplates';
-import { deriveKinds } from '../coreText';
-import type { Ctx } from '../ctx';
-import { useHelpMode } from '../helpContext';
+import { Text } from '../ui/text';
+import { type LibraryChoice } from '../templates/contentTemplates';
+import { deriveKinds } from '../i18n/coreText';
+import type { Ctx } from '../shell/ctx';
+import { useHelpMode } from '../helpMode/helpContext';
 import { t } from '../i18n';
 import { formatClock, formatNumber } from '../i18n/format';
-import { indexesFor } from '../indexes';
-import { Banner, Chip, EmptyState, Group, Header, PrimaryBtn, QuietLinks, Row, Screen, SectionLabel, Sheet, txt } from '../kit';
+import { indexesFor } from '../sync/indexes';
+import { Banner, Chip, EmptyState, Group, Header, PrimaryBtn, QuietLinks, Row, Screen, SectionLabel, Sheet, txt } from '../ui/kit';
 import { sourceLine, type SharedItem } from '../library/model';
 import { restoreChecks } from '../checks/undo';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
-import { booksInScope, LANGUAGE_SCOPES, languageScopeLabel, mayGrantAt, type LanguageScope } from '../orgAdmin';
+import { booksInScope, LANGUAGE_SCOPES, languageScopeLabel, mayGrantAt, type LanguageScope } from '../org/orgAdmin';
 import { recState, refKindOf, sourceFacts, type RefKind } from '../reference/model';
 import { referenceFailure, useRecommend } from '../reference/useReference';
 import { GuideLanguageSheet } from '../reference/GuideLanguageSheet';
@@ -39,18 +39,18 @@ import { chooseSetLanguage, guideSets, hideSet, originOf, patternOf, setKeyOf, s
 import { docLanguage, languagesLine, readerLanguage, sameLanguage, teamLanguage } from '../reference/languages';
 import { memberIn } from '../reference/languageChoices';
 import { ReferenceLanguageChip, ReferenceLanguagePage, useReferenceLanguages } from '../reference/ReferenceLanguagePage';
-import { failureMessage } from '../report';
-import { contractsFor } from '../screenContracts';
-import { C, space } from '../theme';
+import { failureMessage } from '../diagnostics/report';
+import { contractsFor } from '../shell/screenContracts';
+import { C, space } from '../ui/theme';
 import {
   BigTop, CheckRow, SwitchRow, ChoiceCard, DashedRow, InviteCode, NumberedSteps, Pills, Question, QuietLink, useGroupInvite
-} from '../simple/admin';
+} from '../admin/admin';
 import {
   flowSub, flowTitle, flowWho, guideShortName, languageLabel, QUESTIONS, questionLabel, recordSummary, scopeOfBooks,
-  type PlainRoleId } from '../simple/adminModel';
-import { shareInvite } from '../simple/invite';
-import { howItWorks, plainRoleHelp, ReadyChecklist, usePlainRoles, useReadySummary } from '../simple/ready';
-import { useCheckChoices, type FlowEntry } from '../simple/choices';
+  type PlainRoleId } from '../admin/adminModel';
+import { shareInvite } from '../invites/invite';
+import { howItWorks, plainRoleHelp, ReadyChecklist, usePlainRoles, useReadySummary } from '../admin/ready';
+import { useCheckChoices, type FlowEntry } from '../admin/choices';
 import { TranslateQuestion, useTranslate } from '../breakup/TranslateStep';
 import { NumberingNote, RedoSheet } from '../breakup/parts';
 import { useVerseNumbering } from '../breakup/useBreakup';

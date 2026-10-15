@@ -4,14 +4,14 @@
 // come from pathModel.ts; this only draws them.
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import { useHelpSpot } from '../helpContext';
-import { HelpBadge } from '../helpBadge';
+import { Text } from '../ui/text';
+import { useHelpSpot } from '../helpMode/helpContext';
+import { HelpBadge } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import { HelpInfo, Ico, txt, type IconName } from '../kit';
-import { C, radius, space, target, TINT } from '../theme';
+import { HelpInfo, Ico, txt, type IconName } from '../ui/kit';
+import { C, radius, space, target, TINT } from '../ui/theme';
 import type { PathStep, PathStepKind, TeamStep } from './pathModel';
-import type { Ctx } from '../ctx';
+import type { Ctx } from '../shell/ctx';
 import { PeopleLine } from '../checks/parts';
 
 const STEP_ICON: Record<PathStepKind, IconName> = { study: 'star', record: 'mic', publish: 'send', feedback: 'chat', fix: 'mic' };

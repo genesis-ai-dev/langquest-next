@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import type { Ctx } from '../ctx';
+import type { Ctx } from './ctx';
 
 /** Details on request (ADR-013): open state per thing shown, kept for the session and across Back. */
 export function useDetails(): Ctx['details'] {

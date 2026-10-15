@@ -3,7 +3,7 @@
 Many phones and one server in one process, on simulated time. Every phone
 runs the app's real sync code: `SyncClient`, `SyncScheduler` and
 `Diagnostics` from `packages/sync`, wired the way
-`apps/mobile/src/useLanguage.ts` wires them. The people on the phones are
+`apps/mobile/src/sync/useLanguage.ts` wires them. The people on the phones are
 personas, the server is the in-memory `FakeServer`, and each phone talks to
 it over a shaped link (latency, bandwidth, lost calls, no signal). A month
 offline takes seconds.
@@ -87,7 +87,7 @@ Baseline numbers for every scenario at several sizes are in
   keeps every app open all day, so its count (about 280 a day) is an upper
   bound; a real phone pays it only for the hours the app is open. On a
   phone, sync woke when the app came to the front but not when the
-  network returned (`apps/mobile/src/wake.ts` listened for that only on
+  network returned (`apps/mobile/src/sync/wake.ts` listened for that only on
   the web). Fixed the same day (LAN-47): a phone now wakes sync when its
   network comes back (expo-network, `networkWake.ts`), and the offline poll
   backs off to 30 minutes. `village-small`: 2,962 wakes with no signal
