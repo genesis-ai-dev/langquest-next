@@ -825,7 +825,7 @@ export function SyncStatus(ctx: Ctx) {
         <SyncLine icon="download" label={t('account.sync.toReceive')} value={language.blobs.pendingDown} rate={language.blobs.pendingDown ? rates.down : 0} help={t('account.sync.help.toReceive')} />
         {rejected.length ? <SyncLine icon="flag" label={t('account.sync.refusedLine')} value={rejected.length} tone={TINT.redText} help={t('account.sync.help.refusedLine')} /> : null}
       </Card>
-      <Disclosure icon="layers" title={t('account.sync.details')} summary={ins ? t('account.sync.events', { count: ins.total + ins.rejected.length }) : ''}
+      <Disclosure testID="sync-details" icon="layers" title={t('account.sync.details')} summary={ins ? t('account.sync.events', { count: ins.total + ins.rejected.length }) : ''}
         open={details} onToggle={() => setDetails((d) => !d)}>
       <View style={styles.tiles}>
         <Stat id="waiting" icon="up" color={pendingEvents ? C.primary : C.green} value={pendingEvents} label={t('account.sync.waitingUpload')} />

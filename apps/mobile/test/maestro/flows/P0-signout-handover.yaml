@@ -139,5 +139,12 @@ tags:
     id: "tab-me"
 - tapOn: "More settings.*"
 - tapOn: "Sync.*"
-- assertVisible: ".*0 refused by the server.*"
+- runFlow: ../common/open-sync-details.yaml
+- scrollUntilVisible:
+    element:
+      id: "sync-tile-refused"
+    direction: DOWN
+- assertVisible:
+    id: "sync-tile-refused"
+    text: "0 refused by the server"
 - assertNotVisible: "Refused · .*"
