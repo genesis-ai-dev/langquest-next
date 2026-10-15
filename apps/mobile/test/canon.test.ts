@@ -1,4 +1,4 @@
-import { booksMatching, canonBook, canonBooks, canonKey, chapterTone, countFilters, isMapFilter, matchesFilter, parseQuery, placeMatches, CANON_GROUPS, type PassageFacts } from '../src/canon';
+import { booksMatching, canonBook, canonBooks, canonKey, chapterTone, countFilters, isMapFilter, matchesFilter, parseQuery, placeMatches, CANON_GROUPS, type PassageFacts } from '../src/reference/canon';
 
 describe('canon', () => {
   it('has the 66 books in canon order with chapters, testaments and sections', () => {

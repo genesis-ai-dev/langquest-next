@@ -66,7 +66,7 @@ any of them should update the mock too:
   brighter ground, pulsing dot, solid rather than translucent bars.
 - The VAD cutoff is a line dragged across the waveform, never a number.
 
-**Sources.** Tokens are `apps/mobile/src/theme.ts` verbatim; icons are the set
+**Sources.** Tokens are `apps/mobile/src/ui/theme.ts` verbatim; icons are the set
 in `apps/mobile/src/ui.tsx`. The VAD takeover is modelled on the parent
 repository's `FullScreenVADOverlay.tsx`, `WaveformVisualization.tsx` and
 `useVADRecording.ts` (60-bar ring buffer, captured bars scale at exponent 0.6

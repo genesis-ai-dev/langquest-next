@@ -8,7 +8,7 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { PanResponder, Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { t } from '../i18n';
-import { C, radius, target } from '../theme';
+import { C, radius, target } from '../ui/theme';
 import {
   DEFAULT_SPLIT, DIVIDER, fractionAfterDrag, MIN_BOTTOM, nearestSnap, paneHeights, rememberedSplit, rememberSplit, splitValueText, stepSnap
 } from './splitModel';

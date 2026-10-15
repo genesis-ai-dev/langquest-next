@@ -7,7 +7,7 @@ import {
   type KeyTermView, type LanguageState, type PassageState
 } from '@langquest-next/core';
 import { t } from '../i18n';
-import { indexesFor } from '../indexes';
+import { indexesFor } from '../sync/indexes';
 import { matchesTerm } from '../config/model';
 
 /**

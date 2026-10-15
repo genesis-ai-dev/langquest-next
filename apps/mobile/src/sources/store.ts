@@ -5,7 +5,7 @@
 // public text, shared by every account on the phone.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { reportsServer } from '../useOrgSummary';
+import { reportsServer } from '../reports/useOrgSummary';
 import { BibleBrainClient, CACHE_PREFIX, textKey, type JsonCache } from './bibleBrain';
 
 const kept = new Set<string>();

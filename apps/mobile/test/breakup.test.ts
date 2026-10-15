@@ -6,7 +6,7 @@ import {
   booksLine, copyName, copyOffOps, countLine, divisionLine, emptyLine, groupNames, isItself, piecesOf, planChange, sharedTemplateShown, usedLine, wayNow, wayOf, wayRows,
   type TemplateUser
 } from '../src/breakup/model';
-import type { LibraryChoice } from '../src/contentTemplates';
+import type { LibraryChoice } from '../src/templates/contentTemplates';
 import { publishOps, subscribeOps, type LibraryOp, type SharedItem } from '../src/library/model';
 
 const H = (c: string) => c.repeat(64);

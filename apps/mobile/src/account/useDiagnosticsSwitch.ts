@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import type { Ctx } from '../ctx';
-import { diagnosticsEnabled, setDiagnosticsEnabled } from '../diagnostics';
-import { failureMessage as failure } from '../report';
+import type { Ctx } from '../shell/ctx';
+import { diagnosticsEnabled, setDiagnosticsEnabled } from '../diagnostics/diagnostics';
+import { failureMessage as failure } from '../diagnostics/report';
 
 /** The diagnostics switch: the saved choice once read (null until then), flipped at once and put back if saving fails. */
 export function useDiagnosticsSwitch(ctx: Ctx): { on: boolean | null; toggle: () => void } {

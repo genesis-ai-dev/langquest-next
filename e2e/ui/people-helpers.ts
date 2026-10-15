@@ -9,7 +9,7 @@ import { localServer } from './fixture';
 import { back, button, expect, field, openAs, openSignedOut, leaveScreen, primary, screenText, tab, text, waitForApp, type AccountKey, type UiWorld } from './support';
 
 const TERMS_VERSION = /TERMS_VERSION = '([^']+)'/.exec(
-  readFileSync(new URL('../../apps/mobile/src/accountData.ts', import.meta.url), 'utf8'))![1]!;
+  readFileSync(new URL('../../apps/mobile/src/account/accountData.ts', import.meta.url), 'utf8'))![1]!;
 
 const visible = (l: Locator) => l.locator('visible=true');
 

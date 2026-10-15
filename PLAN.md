@@ -327,7 +327,7 @@ langquest-next/
    `microphone-energy` native module (raw PCM tap, energy for the waveform,
    VAD state machine, one WAV per card) plus expo-audio for hold-to-record
    takes, both microphone sessions open at once as in v2. Cards are ingested
-   into a content-addressed store (`apps/mobile/src/blobs.ts`), appended as
+   into a content-addressed store (`apps/mobile/src/sync/blobs.ts`), appended as
    `RecordingAdded`, and the draft take is recomposed. Uploads and downloads
    run on `TransferWorker` (packages/sync) per section 14, through the
    app's Worker into R2 (decisions.md 69), which appends `BlobStored` as the
@@ -357,7 +357,7 @@ langquest-next/
    (migration 000008, `syncClient.ts`, smoke section 7).
 10. **Done:** org partition (`_org`) with roles as privilege sets,
     scoped memberships, catalog toggles and partition registry (core `org.ts`,
-    migration 000009, smoke section 8, `apps/mobile/src/useOrg.ts`);
+    migration 000009, smoke section 8, `apps/mobile/src/sync/useOrg.ts`);
     `SyncClient` is generic over a materializer; session facets are
     privileges and Home follows the admin scope, so `language_home` is
     reachable and the parity test has no known dead gate.
@@ -443,8 +443,8 @@ short:
   most Bibles start a section, what the organization's other languages use),
   the choice shows it.
 
-Tokens are `apps/mobile/src/theme.ts` (the demo's `C` and `TINT`);
-primitives are `apps/mobile/src/kit.tsx`. `docs/ux/one-next-action.html`
+Tokens are `apps/mobile/src/ui/theme.ts` (the demo's `C` and `TINT`);
+primitives are `apps/mobile/src/ui/kit.tsx`. `docs/ux/one-next-action.html`
 records the earlier task-first design. Recording now splits the screen with
 the source instead of taking it over (decisions.md 56). Each screen's main
 action, secondary actions and way back are in `docs/ux/screen-path.md`.
@@ -476,7 +476,7 @@ gone (decision 63).
 | Bottleneck ("3 in Community Check") | passages by the first step not yet complete (`languageProgress.steps`) | reports |
 | Reference material (TMF, Brief, TG, FIA study), key terms | library material (study guides and collections, simple documents, question sets) matched to passages by verses through their versifications; the organization's own working material as `MaterialDefined` + `MaterialFieldSet`; `KeyTerm*` events | a v2 project's source content is imported as material |
 | Inbox | `updatesFor` (core `passage.ts`): what concerns the actor on the record, plus server notifications | read state is per device |
-| Role gates on edges (`when`) | `Gate` on `Edge` in `apps/mobile/src/flow.ts`, `edgeAllowed` in `session.ts` | one privilege per gate (`session.can`) |
+| Role gates on edges (`when`) | `Gate` on `Edge` in `apps/mobile/src/shell/flow.ts`, `edgeAllowed` in `session.ts` | one privilege per gate (`session.can`) |
 | Roles with privilege switches, member scope (org / language) | organization stream: `RoleDefined`, `MemberAdded { scope }` (core `org.ts`); one role per scope | fixed roles are seed roles; `effectiveRole` maps back |
 | Sharing templates, flows and material between organizations | library items: shared / followable per item, copied or followed (`Library*` events, `library_adopt`) | decision 36; recommendations are `ReferenceRecommended` and `ReferenceSet` (decision 62) |
 | Who may use an organization's work, and what outsiders see | `v1.LicenseSet` in the organization stream (`orgLicense`, `LICENSE_INFO[..].terms`); outsiders read a projection, never the log | **added**, not in the demo (decision 38, docs/licensing.md); only ever opens |

@@ -79,7 +79,7 @@ export class DeviceMetrics {
 /**
  * A phone: the app's real SyncClient and SyncScheduler, on a MemoryStore,
  * over a shaped link to the fake server, on simulated time. Wired the way
- * `apps/mobile/src/useLanguage.ts` wires them: a nudge after each append
+ * `apps/mobile/src/sync/useLanguage.ts` wires them: a nudge after each append
  * and on each realtime poke, `connection()` when the channel comes and
  * goes, `wake()` when the signal returns.
  */

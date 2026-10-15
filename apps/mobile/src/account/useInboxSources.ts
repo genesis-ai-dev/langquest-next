@@ -1,10 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { pendingRequests, type PendingRequest } from '../invites';
-import { groupReports, type ReportGroup } from '../moderation';
-import { openReports } from '../moderationData';
-import { cachedInbox, refreshInbox, type RemoteNotification } from '../notifications';
-import { noteExpected, reportError } from '../report';
+import { pendingRequests, type PendingRequest } from '../invites/invites';
+import { groupReports, type ReportGroup } from '../moderation/model';
+import { openReports } from '../moderation/moderationData';
+import { cachedInbox, refreshInbox, type RemoteNotification } from '../notifications/notifications';
+import { noteExpected, reportError } from '../diagnostics/report';
 
 /** Join requests for this organization, for those who may admit people; null offline (the server's notifications stand in). */
 export function useJoinRequests(orgId: string, enabled: boolean): { requests: PendingRequest[] | null; reload: () => void } {

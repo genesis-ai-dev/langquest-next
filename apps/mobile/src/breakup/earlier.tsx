@@ -10,12 +10,12 @@ import {
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { currentLocale, t } from '../i18n';
-import { Text } from '../text';
-import type { Ctx } from '../ctx';
-import { indexesFor } from '../indexes';
-import { Disclosure, Group, Ico, Row, txt } from '../kit';
+import { Text } from '../ui/text';
+import type { Ctx } from '../shell/ctx';
+import { indexesFor } from '../sync/indexes';
+import { Disclosure, Group, Ico, Row, txt } from '../ui/kit';
 import { useLibraryDocs } from '../library/useLibrary';
-import { C, space, TINT } from '../theme';
+import { C, space, TINT } from '../ui/theme';
 
 /** How an earlier section's numbering is named beside it (the seed's `short` names), in the language showing. */
 function numberedLike(code: string): string | undefined {

@@ -1,5 +1,5 @@
-import type { Ctx } from '../ctx';
-import { useAccountActions } from '../useAccount';
+import type { Ctx } from '../shell/ctx';
+import { useAccountActions } from './useAccount';
 import { unsentWork } from './model';
 
 /** What this session could still deliver from this phone; sign-out and deletion wait for it. */

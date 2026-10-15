@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { accessTokenFresh, afterAuthEvent, savedSession } from '../src/authState';
-import { answerAtOnceWhileOffline, NOT_RENEWED, sessionSafeFetch, type RenewalWatch } from '../src/sessionSafeFetch';
+import { accessTokenFresh, afterAuthEvent, savedSession } from '../src/auth/authState';
+import { answerAtOnceWhileOffline, NOT_RENEWED, sessionSafeFetch, type RenewalWatch } from '../src/server/sessionSafeFetch';
 import { signOutThisDevice } from '../src/server/signOut';
 
 // Decision 87: someone offline for months, online for a second, then

@@ -1,10 +1,10 @@
 // Using a template for a language: the steps behind the picker's button.
 import { useState } from 'react';
 import { languageName, type LanguageState } from '@langquest-next/core';
-import type { LibraryChoice } from '../contentTemplates';
-import type { Ctx } from '../ctx';
+import type { LibraryChoice } from './contentTemplates';
+import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
-import { failureMessage } from '../report';
+import { failureMessage } from '../diagnostics/report';
 import type { Lib } from './hooks';
 
 /**

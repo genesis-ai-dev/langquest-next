@@ -8,7 +8,7 @@
 import { libraryItemView, type StudyDoc, type StudyDoc2 } from '@langquest-next/core';
 import { useMemo } from 'react';
 import { Platform } from 'react-native';
-import type { Ctx } from '../ctx';
+import type { Ctx } from '../shell/ctx';
 import { useLibraryDocs } from '../library/useLibrary';
 import { chosenOnly } from '../reference/guideSets';
 import { teamLanguage } from '../reference/languages';

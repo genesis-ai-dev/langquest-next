@@ -2,7 +2,7 @@ import { HlcClock } from '@langquest-next/core';
 import { MemoryStore } from '../../../packages/sync/src/memoryStore';
 import { SyncClient } from '../../../packages/sync/src/syncClient';
 import { FakeServer } from '../../../packages/sync/src/testing/fakeServer';
-import { stateCopier } from '../src/publishedState';
+import { stateCopier } from '../src/sync/publishedState';
 
 const unit = (i: number) => ({ unitId: `u${i}`, parentUnitId: null, kind: 'passage', label: `P${i}`, order: `a${i}` });
 

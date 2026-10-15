@@ -1,4 +1,4 @@
-import { parseJournal, removeEntry, resumeEntries, upsertEntry, type JournalEntry, type ResumeDeps } from '../src/recordingJournalCore';
+import { parseJournal, removeEntry, resumeEntries, upsertEntry, type JournalEntry, type ResumeDeps } from '../src/recording/recordingJournalModel';
 
 const target = { orgId: 'org', languageId: 'lang', unitId: 'passage' };
 const entry = (over: Partial<JournalEntry> = {}): JournalEntry => ({
@@ -124,7 +124,7 @@ const disk = vi.hoisted(() => ({
   fail: false,
   reads: 0
 }));
-vi.mock('../src/store', () => ({ getStore: async () => ({
+vi.mock('../src/sync/store', () => ({ getStore: async () => ({
   meta: async () => { disk.reads++; await Promise.resolve(); return disk.value; },
   setMeta: async (_key: string, value: string) => {
     if (disk.fail) throw new Error('disk full');
@@ -147,7 +147,7 @@ describe('durable journal storage', () => {
   });
 
   it('shares initial loading and preserves concurrent additions', async () => {
-    const { RecordingJournal } = await import('../src/recordingJournal');
+    const { RecordingJournal } = await import('../src/recording/recordingJournal');
     const journal = new RecordingJournal();
     await Promise.all([journal.all(), journal.put(entry()), journal.put(entry({ id: 'second' }))]);
     expect(disk.reads).toBe(1);
@@ -156,7 +156,7 @@ describe('durable journal storage', () => {
   });
 
   it('does not publish a failed write and permits a later retry', async () => {
-    const { RecordingJournal } = await import('../src/recordingJournal');
+    const { RecordingJournal } = await import('../src/recording/recordingJournal');
     const journal = new RecordingJournal();
     await journal.all();
     disk.fail = true;
@@ -168,7 +168,7 @@ describe('durable journal storage', () => {
   });
 
   it('imports the previous journal once without overwriting a SQLite journal', async () => {
-    const { RecordingJournal } = await import('../src/recordingJournal');
+    const { RecordingJournal } = await import('../src/recording/recordingJournal');
     disk.value = undefined;
     disk.legacy = JSON.stringify([entry()]);
     const journal = new RecordingJournal();
@@ -178,7 +178,7 @@ describe('durable journal storage', () => {
   });
 
   it('retains a damaged legacy journal instead of replacing it with an empty one', async () => {
-    const { RecordingJournal } = await import('../src/recordingJournal');
+    const { RecordingJournal } = await import('../src/recording/recordingJournal');
     disk.value = undefined;
     disk.legacy = '{torn';
     await expect(new RecordingJournal().all()).rejects.toThrow();

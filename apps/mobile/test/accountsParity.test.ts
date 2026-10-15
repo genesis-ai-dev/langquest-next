@@ -1,5 +1,5 @@
 import { MANAGED_DOMAIN as SERVER_DOMAIN, makeSignInName as serverName } from '../../../supabase/functions/_shared/accounts';
-import { MANAGED_DOMAIN, makeSignInName } from '../src/accounts';
+import { MANAGED_DOMAIN, makeSignInName } from '../src/auth/accounts';
 
 // The `join` Edge Function makes sign-in names on the server and the app
 // reads them back on Sign In: one rule, written twice because Edge Functions

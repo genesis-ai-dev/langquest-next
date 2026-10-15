@@ -11,11 +11,11 @@ import {
 } from '@langquest-next/core';
 import { useState, type ReactNode } from 'react';
 import { Platform, Pressable, ScrollView, Share, View } from 'react-native';
-import { Text } from '../text';
+import { Text } from '../ui/text';
 import { t, Trans } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { Chip, ChipRow, IconBtn, LinkBtn, SearchField, SmallBtn, txt } from '../kit';
-import { C, space } from '../theme';
+import { Chip, ChipRow, IconBtn, LinkBtn, SearchField, SmallBtn, txt } from '../ui/kit';
+import { C, space } from '../ui/theme';
 import { CompareBars, DayBars, GroupedBars, PaceStrip, RecencyStrip, Sparkline, StackBar, WorkBar } from './charts';
 import { countryName } from './countries';
 // Imported, not lazy: a phone's bundle is one file anyway, and Metro's split

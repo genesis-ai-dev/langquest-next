@@ -1,6 +1,6 @@
-import { deriveSession, tabsFor } from '../src/session';
+import { deriveSession, tabsFor } from '../src/shell/session';
 import { addressSection } from '../src/shell/routingModel';
-import { pathFor, sectionOfPath } from '../src/webPaths';
+import { pathFor, sectionOfPath } from '../src/web/webPaths';
 import { ORG, roleSession } from './sessions';
 
 describe('the section a web address names (WEB-018, WEB-019)', () => {

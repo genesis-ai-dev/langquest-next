@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import type { Ctx } from '../ctx';
-import { failureMessage as failure, noteExpected } from '../report';
+import type { Ctx } from '../shell/ctx';
+import { failureMessage as failure, noteExpected } from '../diagnostics/report';
 import { languageListing, setLanguageListing } from '../server/languages';
 import { listingFailure } from './model';
 

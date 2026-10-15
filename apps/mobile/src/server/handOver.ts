@@ -1,8 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SupabaseTransport, type PendingUpload } from '@langquest-next/sync';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { BlobStore } from '../blobs';
-import { noteExpected } from '../report';
+import type { BlobStore } from '../sync/blobs';
+import { noteExpected } from '../diagnostics/report';
 import { UploadError, uploadBlob } from './blobTransport';
 import { SESSION_KEY, clientKeptAt, supabase } from './supabase';
 

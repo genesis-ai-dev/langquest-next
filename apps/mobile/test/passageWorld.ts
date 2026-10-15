@@ -9,7 +9,7 @@ import {
   PRIVILEGES, SEED_ROLES,
   type AnyEvent, type EventSpec, type LanguageState, type OrgState, type Privilege, type Scope
 } from '@langquest-next/core';
-import { deriveSession, type Session } from '../src/session';
+import { deriveSession, type Session } from '../src/shell/session';
 
 export const WORLD_ROLES = ['ADMIN', 'COORD', 'LADMIN', 'TRANS', 'REV', 'TREV', 'VIEW', 'KEPT'] as const;
 export type WorldRole = (typeof WORLD_ROLES)[number];

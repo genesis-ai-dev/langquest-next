@@ -11,12 +11,12 @@
 // turns pale and says so, with Resume now.
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, PanResponder, Pressable, StyleSheet, View } from 'react-native';
-import { Text } from '../text';
+import { Text } from '../ui/text';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { Ico } from '../kit';
-import { C, onColor, radius, space, target, TINT, type as T, withAlpha } from '../theme';
-import { useEnergyHistory, type useRecorder } from '../useRecorder';
+import { Ico } from '../ui/kit';
+import { C, onColor, radius, space, target, TINT, type as T, withAlpha } from '../ui/theme';
+import { useEnergyHistory, type useRecorder } from './useRecorder';
 import { RecordButton } from './parts';
 import { clampCutoff, cutoffAfterDrag, loopStatus, meterHeight, type LoopNoun, type LoopPhase } from './splitModel';
 import { mmss } from './workspaceModel';

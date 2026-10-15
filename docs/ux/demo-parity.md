@@ -11,7 +11,7 @@ from them.
 
 | Demo | Here |
 | --- | --- |
-| `src/flow.ts` screens and edges | `apps/mobile/src/flow.ts`, generated from `test/spec-flow.json` (`npx tsx scripts/extractSpecFlow.ts ../ng-langquest-ux`); `specParity.test.ts` holds it edge by edge |
+| `src/flow.ts` screens and edges | `apps/mobile/src/shell/flow.ts`, generated from `test/spec-flow.json` (`npx tsx scripts/extractSpecFlow.ts ../ng-langquest-ux`); `specParity.test.ts` holds it edge by edge |
 | `domain/session.ts` homes and gates | `src/session.ts` (`homeScreenFor`, `manageHomeFor`, `mapScreenFor`, `edgeAllowed`, `tabsFor`) |
 | `data.ts` `C`, `TINT`, `ui.tsx`, `screens/shared.tsx` | `src/theme.ts`, `src/kit.tsx`, `src/voiceNote.tsx` |
 | `domain/record.ts` (passage state, highlights, progress, timeline, grid, study) | `packages/core/src/passage.ts`, over events in `record.ts` |

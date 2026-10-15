@@ -4,7 +4,7 @@
 // brand-new account on Sign In for ever. The server's own list of their
 // organizations (empty) is the answer, so route on the org alone.
 import { describe, expect, it } from 'vitest';
-import { foldsSettled } from '../src/session';
+import { foldsSettled } from '../src/shell/session';
 
 describe('foldsSettled', () => {
   it('waits while the org has not synced, even for someone with no organization', () => {

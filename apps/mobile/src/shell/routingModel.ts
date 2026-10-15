@@ -1,5 +1,5 @@
-import type { ScreenId } from '../flow';
-import { tabsFor, type Session } from '../session';
+import type { ScreenId } from './flow';
+import { tabsFor, type Session } from './session';
 
 /**
  * The section a web address named (a refresh), if this person may open it
