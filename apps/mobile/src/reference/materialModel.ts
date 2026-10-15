@@ -10,7 +10,7 @@ import {
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import type { SharedItem } from '../library/model';
-import type { QuestionDraft } from '../screens/configModel';
+import type { QuestionDraft } from '../config/model';
 
 // ---- the organization's own material -----------------------------------------------
 

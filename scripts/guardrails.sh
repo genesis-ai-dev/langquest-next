@@ -43,6 +43,9 @@ fi
 step "Typecheck"
 npm run --silent typecheck
 
+step "Lint: what may import what (eslint.config.mjs)"
+npm run --silent lint
+
 step "Unit, property and model tests, with coverage thresholds"
 npm run --silent test:coverage
 

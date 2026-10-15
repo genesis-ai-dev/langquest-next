@@ -293,7 +293,7 @@ function DetailsPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; 
   const methods = [FIA_METHOD, BLANK_METHOD, ...props.own];
   const written = draft.steps.some((st) => st.text.trim() || st.audio);
   const shareAlike = draft.basis?.shareAlike;
-  const useMethod = (m: Method) => {
+  const pickMethod = (m: Method) => {
     const before = draft;
     dispatch({ type: 'useMethod', method: m });
     if (written) ctx.toast(replacedWith(m), () => props.setDraft(before));
@@ -318,7 +318,7 @@ function DetailsPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; 
         <>
           <Text style={txt.xsStrong}>{t('guides.details.startWith')}</Text>
           <ChipRow>
-            {methods.map((m) => <Chip key={m.id} label={m.label} on={false} help={t('guides.details.startWithHelp')} onPress={() => useMethod(m)} />)}
+            {methods.map((m) => <Chip key={m.id} label={m.label} on={false} help={t('guides.details.startWithHelp')} onPress={() => pickMethod(m)} />)}
           </ChipRow>
           <Text style={txt.xs}>{written ? t('guides.details.choosingReplaces') : t('guides.details.nowSteps', { count: draft.steps.length })}</Text>
         </>

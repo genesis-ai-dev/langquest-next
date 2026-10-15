@@ -62,7 +62,7 @@ export function DevMenu(props: {
    * the flow comes from the library now, so the local server must have been
    * seeded (`npm run library:seed`).
    */
-  async function useStandardFlow() {
+  async function adoptStandardFlow() {
     const orgId = props.language.orgId;
     const { data, error: failed } = await library.sharedItems('flow', 'Standard Bible Flow', 5);
     if (failed) throw new Error(failed.message);
@@ -104,7 +104,7 @@ export function DevMenu(props: {
         for (const unitId of units) await props.language.run(c.ask({ commandId: `seed-ask:${Crypto.randomUUID()}`, unitId, what: 'record', profileId: id, dueDate: due }));
       }
     }
-    if (languageId && !state.flow) await useStandardFlow();
+    if (languageId && !state.flow) await adoptStandardFlow();
     if (languageId) await props.language.sync();
     await props.org.sync();
   }

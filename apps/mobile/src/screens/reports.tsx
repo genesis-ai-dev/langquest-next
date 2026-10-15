@@ -4,12 +4,11 @@
 // server (decision 44), which a phone could not total itself (decision 37).
 // Ports the web dashboard's shell and language page (apps/web/src/screens:
 // shell, Language); the sections and their parts are in src/reports/.
-import { appendConfirmed, ensureDeviceId, NotSavedError } from '@langquest-next/sync';
+import { NotSavedError } from '@langquest-next/sync';
 import {
-  clustersOf, dayPercents, mayViewLanguage, orgClusters, ORG_STREAM, paceOf, percent, privilegesFor, recencyOf, TARGET_SCOPES,
+  clustersOf, dayPercents, mayViewLanguage, orgClusters, paceOf, percent, privilegesFor, recencyOf, TARGET_SCOPES,
   type LanguageReport, type LanguageRow, type TargetScope
 } from '@langquest-next/core';
-import * as Crypto from 'expo-crypto';
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Text } from '../text';
@@ -19,9 +18,8 @@ import { useHelpSpot } from '../helpContext';
 import { t, Trans } from '../i18n';
 import { contractsFor } from '../screenContracts';
 import { Chip, ChipRow, EmptyState, Field, Header, IconBtn, Screen, SearchField, Sheet, SmallBtn, txt } from '../kit';
-import { getStore } from '../store';
 import { filterByCluster, type ClusterFilter } from '../clusters/model';
-import { serverTransport } from '../server/sync';
+import { saveLanguageSetting } from '../reports/languageSettings';
 import { C, measure, space } from '../theme';
 import { ActivityChart, DayBars, ProgressLine, WorkBar } from '../reports/charts';
 import { countryCodes, countryName } from '../reports/countries';
@@ -317,10 +315,9 @@ function SettingsPanel(props: { ctx: Ctx; row: LanguageRow; refresh: () => void 
     setBusy(what);
     setStatus(null);
     try {
-      const deviceId = await ensureDeviceId(await getStore(), () => Crypto.randomUUID());
-      const who = { orgId: row.orgId, streamId: ORG_STREAM, actorId: ctx.session.actorId, deviceId, transport: serverTransport() };
-      if (what === 'country') await appendConfirmed(who, 'v1.LanguageCountrySet', { languageId: r.languageId, country });
-      else await appendConfirmed(who, 'v1.LanguageTargetSet', { languageId: r.languageId, scope, startDate: start, targetDate: end });
+      await saveLanguageSetting(row.orgId, ctx.session.actorId, what === 'country'
+        ? { type: 'v1.LanguageCountrySet', payload: { languageId: r.languageId, country } }
+        : { type: 'v1.LanguageTargetSet', payload: { languageId: r.languageId, scope, startDate: start, targetDate: end } });
       setStatus({ tone: 'green', text: t('reports.settings.saved') });
       props.refresh();
     } catch (e) {
