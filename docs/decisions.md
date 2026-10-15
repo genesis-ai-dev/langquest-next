@@ -2528,6 +2528,34 @@ lead. The UI test suite holds this (SETUP-061 to 066, MAP-023).
 Amended (2026-10-13, Carl Sauder): nobody may leave the organization
 without someone who can manage roles (98).
 
+Amended (2026-10-15, Carl Sauder): a resend is a duplicate even while the
+first push is still being inserted. A push that timed out on a weak link
+is retried with the first still in flight (the client no longer overlaps
+its own pushes, `SyncClient.exclusive`, but a lost response still races on
+the server). `append_events` checked the id before it took the stream's
+lock, so the retry passed that check, waited on the lock, and found the
+entity id taken: it refused the event, and the phone folded out work the
+server holds; an event with no entity id failed the whole batch on the
+primary key. Every event now takes its stream's lock once it is authorized
+and valid (`_next_seq` took it anyway, so nothing waits longer) and checks
+the id again under it, answering a stored event of the same organization,
+stream, actor and type as `duplicate` with its seq. The lock comes after
+authorization so nobody makes or holds a stream they may not write. The
+same id pushed to two different streams at once still fails one batch on
+the primary key; the retry is then refused (`event id already used`), as
+it should be. Migration `20261015180000_append_duplicate_under_lock.sql`;
+SQL test `server/concurrentAppendSmoke.sql`, two sessions over dblink.
+
+Amended (2026-10-15, Carl Sauder): the server's own events race the same
+way. `_append_event_as` (blob verdicts, invites redeemed, join decisions,
+redactions, account deletions, library pins) checked the id before
+`_next_seq` locked the stream, so two Worker or projection passes
+appending the same id at once failed the second on the primary key and
+aborted its caller's transaction. It now takes the stream's lock and
+checks the id again under it, returning null as it says it does.
+Migration `20261015190000_append_event_as_under_lock.sql`; cases 4 and 5
+of `server/concurrentAppendSmoke.sql` (`record_blob` twice at once).
+
 ## 76. Names identify nothing: a repeated language is warned about, and an organization can be renamed
 
 Date: 2026-10-09 · By: Carl Sauder · Status: accepted
@@ -3709,6 +3737,21 @@ run's flags into exclusions and a printed list. The flows had been written
 to fail rather than pass silently; a skip that is printed keeps that
 honesty without the noise. Named flows (`--flow`) still run as asked.
 
+Amended (2026-10-15, Carl Sauder): the PR jobs no longer wait for
+`checks`, and `ui-web` runs in two shards. A PR waited about 12 minutes:
+`checks` (2.4 min), then `ui-web` (8 to 10 min), of which the `@p0` tests
+were 5 to 6.5 min on four workers that were busy only 70% of the time,
+because the one long `@wide` journey (JRN-005, about 2 min) was queued last
+and ran alone. Now the four jobs start together, a job that needs the local
+stack starts it in the background while it installs browsers, the `wide`
+project is listed first, and each project builds its own fixture world, so
+the two can run one file at once. Shards, not more workers: a runner has
+four cores and already runs the stack and the Worker beside the browsers.
+A failing `checks` no longer saves the other jobs' runner time, which on a
+public repository costs nothing. Reverse if: runner minutes start to cost
+(a private repository, or a paid plan's limit), or the shards' runs disagree
+with an unsharded one.
+
 ## 103. Large languages are projected by a scheduled GitHub job; the Edge pass leaves them out
 
 Date: 2026-10-14 · By: Caleb Koster · Status: accepted
@@ -3907,6 +3950,21 @@ and the two still open from before the restructure (96 and 120) will be
 redone on the new structure rather than merged across it, so no branch
 needs them. Git history keeps where each file went. The layout and the
 roles are held by `eslint.config.mjs` and `apps/mobile/test/folders.test.ts`.
+
+Amended (2026-10-15, Carl Sauder): react-hooks/exhaustive-deps is on, as
+an error, in the app. Carl chose to turn it on after seeing what it would
+take: a hook that reads a value it does not list keeps that value from the
+draw it first ran in, and agents write much of the code. Of the 55 hooks it
+named, most only spelled their dependencies in a way the rule cannot read
+(a method called on an object, a field of a value that is new each draw),
+and now read them once instead; two read a value they did not list and
+could show it stale (the source reader's language and whether it is
+online). The rest list less or more on purpose, because the org and
+language folds change their maps in place, because a counter is bumped on
+cleanup, or because a key made of the inputs stands for them; each says why
+after `--` on its disable comment, which lint now requires
+(`@eslint-community/eslint-comments/require-description`), and a disable
+that no longer excuses anything is an error.
 
 ## 106. A phone records every take with the microphone module, keeps a part going down to half the cutoff, and keeps AAC
 

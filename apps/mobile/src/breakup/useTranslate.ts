@@ -28,7 +28,8 @@ export function useTranslate(ctx: Ctx, forLanguage: string | null) {
   const [what, setWhat] = useState<'bible' | 'else' | null>(null);
   const [key, setKey] = useState<string | null>(null);
   const [outlineKey, setOutlineKey] = useState<string | null>(null);
-  const outlines = useMemo(() => rec.choices.filter((c) => rec.kindOf(c) === 'outline'), [rec.choices, rec.kindOf]);
+  const { choices: recChoices, kindOf } = rec;
+  const outlines = useMemo(() => recChoices.filter((c) => kindOf(c) === 'outline'), [recChoices, kindOf]);
   // Already in use here: start from what the language has.
   const inUse = ways.rows.find((r) => r.inUse) ?? null;
   const outlineInUse = outlines.find((c) => c === rec.current) ?? null;

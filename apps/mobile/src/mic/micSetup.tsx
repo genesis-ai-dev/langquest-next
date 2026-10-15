@@ -78,7 +78,7 @@ function useProbe() {
       live.current = false;
       void stop().finally(() => subs.forEach((s) => s.remove()));
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   async function open(vad: MicSettings | null) {
     stopAudioPlayback();
@@ -112,8 +112,8 @@ function useTryPlayer() {
   const player = useRef<AudioPlayer | null>(null);
   const run = useRef(0);
   const halt = () => { run.current++; player.current?.remove(); player.current = null; setPlaying(null); };
-  useEffect(() => registerPlayback(halt), []); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => () => halt(), []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => registerPlayback(halt), []);
+  useEffect(() => () => halt(), []);
   async function play(i: number, parts: Segment[]) {
     if (playing === i) { halt(); return; }
     stopAudioPlayback();
@@ -351,7 +351,7 @@ function ByHand(props: { ctx: Ctx; onDone: () => void }) {
   useEffect(() => {
     void loadMicSettings().then((m) => { if (m) { setCutoff(m.threshold); setPause(m.pauseMs); } });
     probe.open(null).catch((e: unknown) => setProblem(micProblem(props.ctx.language, e)));
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- loads the saved settings and opens the probe once, when the screen opens
   const pan = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,

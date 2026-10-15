@@ -4,7 +4,7 @@ import { MemoryStore } from '../src/memoryStore';
 import { LANGUAGE_MATERIALIZER, SyncClient, type Materializer } from '../src/syncClient';
 import { ORG_MATERIALIZER } from '../src/orgSession';
 import { FakeServer } from '../src/testing/fakeServer';
-import { rejectCodeOf } from '../src/types';
+import { rejectCodeOf, type Transport } from '../src/types';
 
 /** The organization stream's fold, as the app wires it (apps/mobile useOrg). */
 const unit = (i: number | string, label = `P${i}`) =>
@@ -733,6 +733,54 @@ describe('SyncClient snapshot download in chunks (weak links make progress)', ()
     expect(server.chunkCalls - fetchedBeforeDrop).toBe(total - 2);
   });
 
+  it('an app update part-way through a download does not join the old reducer\'s pieces to the new one\'s', async () => {
+    // Why: a quiet language has the same seq under both reducers. Pieces kept
+    // by seq alone were reused, and the snapshot came out half one reducer's
+    // state and half the other's: a parse error, or worse, a wrong state.
+    const server = new FakeServer();
+    await bigLanguage(server);
+    const old = server.snapshots.get('org1/p1')!;
+    // The old reducer's state had another shape, so its text lines up differently.
+    server.snapshots.set('org1/p1', { ...old, state: { formerShape: 'x'.repeat(1500), ...old.state } as typeof old.state });
+    server.chunkChars = 4000;
+    server.failChunkAfter = 2;
+    const store = new MemoryStore();
+    const client = (version: number) => new SyncClient({
+      orgId: 'org1', streamId: 'p1', actorId: 'r1', deviceId: 'dB', store, transport: server.transportFor(),
+      clock: new HlcClock('dB', () => 1), materializer: { ...LANGUAGE_MATERIALIZER, version }
+    });
+    const before = client(REDUCER_VERSION);
+    await before.load();
+    expect((await before.sync()).pulled).toBe(0);
+    server.failChunkAfter = Infinity;
+    server.reducerVersion = REDUCER_VERSION + 1;
+    const snap = server.makeSnapshot('org1', 'p1');
+    expect(snap.serverSeq).toBe(old.serverSeq);
+    const after = client(REDUCER_VERSION + 1);
+    await after.load();
+    await after.pull();
+    expect(after.getState().units).toEqual(snap.state.units);
+    expect(Object.keys(after.getState().units).length).toBe(300);
+  });
+
+  it('pieces saved by a build that kept no reducer version are refetched, not trusted', async () => {
+    // Why: that build's index says only the seq, so its pieces may be another reducer's.
+    const server = new FakeServer();
+    await bigLanguage(server);
+    server.chunkChars = 4000;
+    const snap = server.snapshots.get('org1/p1')!;
+    const store = new MemoryStore();
+    await store.commit({ meta: {
+      'snapchunks:org1/p1': JSON.stringify({ seq: snap.serverSeq, chunks: 2 }),
+      [`snapchunks:org1/p1:${snap.serverSeq}:0`]: `{"formerShape":"${'x'.repeat(3986)}`,
+      [`snapchunks:org1/p1:${snap.serverSeq}:1`]: 'x'.repeat(4000)
+    } });
+    const b = new SyncClient({ orgId: 'org1', streamId: 'p1', actorId: 'r1', deviceId: 'dB', store, transport: server.transportFor(), clock: new HlcClock('dB', () => 1) });
+    await b.load();
+    await b.pull();
+    expect(b.getState().units).toEqual(snap.state.units);
+  });
+
   it('saving the pieces does not redraw the screen once per piece', async () => {
     // Why: every piece saved through the writer told screens twice that a
     // save started and ended. On a 2 GB phone those redraws were three
@@ -1206,6 +1254,45 @@ describe('SyncClient single writer', () => {
       client.append('v1.UnitAdded', unit(2))
     ]);
     expect(order).toEqual(['start:dA-1', 'end:dA-1', 'start:dA-2', 'end:dA-2']);
+  });
+
+  it('two syncs asked for at once send a published take once, and it stays in the fold (REC-016)', async () => {
+    // Why: the scheduler's sync and a "sync now" overlapped. Both pushed the
+    // same pending take. append_events took the first copy; the second had
+    // passed the id check before the first committed, then found the take id
+    // already used under the stream lock and was refused. The client marked
+    // the take refused and folded it out, though the server had it: Version 2
+    // vanished from Versions seconds after "Version 2 published".
+    const server = new FakeServer();
+    const real = server.transportFor();
+    const inFlight = new Map<string, Promise<unknown>>();
+    const transport: Transport = {
+      ...real,
+      append: async (events) => {
+        const racing = events.find((e) => inFlight.has(e.id));
+        if (racing) {
+          await inFlight.get(racing.id);
+          await new Promise((r) => setTimeout(r, 1));
+          return events.map((e) => ({ id: e.id, accepted: false, serverSeq: null, reason: `invalid payload: take id ${e.id} is already used` }));
+        }
+        const sent = new Promise((r) => setTimeout(r, 5)).then(() => real.append(events));
+        for (const e of events) inFlight.set(e.id, sent);
+        try { return await sent; } finally { for (const e of events) inFlight.delete(e.id); }
+      }
+    };
+    let n = 0;
+    const store = new MemoryStore();
+    const client = new SyncClient({ orgId: 'org1', streamId: 'p1', actorId: 'lead', deviceId: 'dA', store, transport, newId: () => `dA-${++n}` });
+    await client.load();
+    await client.append('v1.UnitAdded', unit(1));
+    await client.sync();
+    await client.append('v1.TakeComposed', { takeId: 'v2', unitId: 'u1', cardHashes: ['c1'], parentTakeId: null });
+
+    await Promise.all([client.sync(), client.sync()]);
+
+    expect(server.log.filter((e) => e.type === 'v1.TakeComposed')).toHaveLength(1);
+    expect(await client.refusedCount()).toBe(0);
+    expect(client.getState().takes['v2']).toBeDefined();
   });
 
   it('a redaction whose refold never ran still holds after a restart, because the fold is rebuilt from the log', async () => {

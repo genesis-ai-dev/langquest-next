@@ -27,8 +27,7 @@ export function useGroupInvite(orgId: string, roleId: string | null, scope: Scop
         if (live) setMade((m) => ({ ...m, [key]: { error: inviteFailureText(e) } }));
       });
     return () => { live = false; };
-    // `made` is read to skip a code already made; it must not re-run the effect.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `made` is read to skip a code already made; it must not re-run the effect
   }, [key, orgId, label]);
   return key ? made[key] ?? null : null;
 }

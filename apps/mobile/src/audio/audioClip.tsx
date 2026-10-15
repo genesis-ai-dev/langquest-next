@@ -51,6 +51,7 @@ export function AudioClip(props: {
     setPlaying(false);
     setError('');
     return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- a counter, not a node: bumping it on cleanup is what stops the old play
       generation.current++;
       wantsPlayback.current = false;
       player.current?.remove();

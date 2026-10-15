@@ -8,6 +8,7 @@ import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import boundaries from 'eslint-plugin-boundaries';
+import eslintComments from '@eslint-community/eslint-plugin-eslint-comments';
 
 const D104 = 'decisions.md 104';
 const D105 = 'decisions.md 105';
@@ -117,13 +118,26 @@ export default [
   {
     files: [APP, 'apps/mobile/App.tsx', 'packages/*/src/**/*.ts'],
     languageOptions: { parser: tseslint.parser, parserOptions: { ecmaFeatures: { jsx: true } } },
-    plugins: { 'react-hooks': reactHooks, 'react-refresh': reactRefresh, boundaries, '@typescript-eslint': tseslint.plugin },
-    // Older comments silence react-hooks/exhaustive-deps, which is not on yet (55 effects to
-    // review): an unused one is not reported.
+    plugins: {
+      'react-hooks': reactHooks, 'react-refresh': reactRefresh, boundaries, '@typescript-eslint': tseslint.plugin,
+      '@eslint-community/eslint-comments': eslintComments
+    },
+    // core's generated data files carry a blanket disable from their generator.
     linterOptions: { reportUnusedDisableDirectives: 'off' }
   },
-  // React's rules for hooks: a hook called conditionally or from a plain function is a bug.
-  { files: [APP, 'apps/mobile/App.tsx'], rules: { 'react-hooks/rules-of-hooks': 'error' } },
+  // In the app a disable comment that no longer excuses anything is an error: it goes.
+  { files: [APP, 'apps/mobile/App.tsx'], linterOptions: { reportUnusedDisableDirectives: 'error' } },
+  // React's rules for hooks: a hook called conditionally or from a plain function is a bug, and so
+  // is one that reads a value it does not list (it keeps the value from the draw it first ran in).
+  // Where a hook means to list less or more, the disable comment says why after `--`.
+  {
+    files: [APP, 'apps/mobile/App.tsx'],
+    rules: {
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'error',
+      '@eslint-community/eslint-comments/require-description': 'error'
+    }
+  },
   // An import only for types says so (`import type`), so the role rules below see it as one.
   {
     files: [APP, 'apps/mobile/App.tsx'],

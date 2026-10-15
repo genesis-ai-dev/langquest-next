@@ -75,7 +75,7 @@ export function useOtherLanguageTerms(ctx: Ctx, enabled: boolean): { loading: bo
       if (live) setResult({ key, languages: out });
     })();
     return () => { live = false; };
-  }, [enabled, key]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [enabled, key]); // eslint-disable-line react-hooks/exhaustive-deps -- key names the languages and terms asked: a new list of the same ones does not ask again
   const ready = result?.key === key ? result : null;
   return { loading: enabled && !ready, languages: ready?.languages ?? [] };
 }

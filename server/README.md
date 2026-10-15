@@ -26,7 +26,10 @@ projection schedule beside it. Later changes are new migrations as before.
   seq), clock no further ahead than `server_config.clock_ahead_tolerance_ms`
   (`clock ahead: server time <ms>`), authorization (`may_emit`), the language
   gate (a language stream accepts events only once `LanguageAdded` lists it:
-  `language not listed yet`), `validate_payload`, then the next seq. The
+  `language not listed yet`), `validate_payload`, then, under the stream's
+  lock, the id again (a resend still in flight when the first check ran is
+  a duplicate too: `concurrentAppendSmoke.sql`), the entity id, and the
+  next seq. The
   organization's creator may bootstrap it while it has no members
   (`OrgCreated`, `RoleDefined`, their own org-scope `MemberAdded`).
 - Authorization: `event_privilege` (core `EVENT_PRIVILEGE`) against

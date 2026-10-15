@@ -697,7 +697,7 @@ function MediaPlayer(props: { orgId: string; audio: MediaRef; label: string }) {
   const file = props.audio.hash ? { hash: props.audio.hash, format: props.audio.format ?? 'm4a' } : undefined;
   const { uri } = useStudyFileUri(props.orgId, file, props.audio.url);
   const audio = useStudyAudio(uri, props.audio.seconds ?? 30);
-  useEffect(() => () => audio.pause(), []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => audio.pause(), []); // eslint-disable-line react-hooks/exhaustive-deps -- it reads only refs, so the first draw's copy is enough on unmount
   return <AudioBar audio={audio} label={props.label} sub={props.audio.seconds ? shownClock(props.audio.seconds) : undefined} />;
 }
 

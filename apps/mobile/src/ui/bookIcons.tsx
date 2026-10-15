@@ -10,7 +10,6 @@ import type { ImageSourcePropType } from 'react-native';
 import { Image } from 'react-native';
 import { C } from './theme';
 
-/* eslint-disable @typescript-eslint/no-require-imports */
 const BOOK_ICONS: Record<string, ImageSourcePropType> = {
   gen: require('../../assets/book-icons/gen.webp') as ImageSourcePropType,
   exo: require('../../assets/book-icons/exo.webp') as ImageSourcePropType,
@@ -79,7 +78,6 @@ const BOOK_ICONS: Record<string, ImageSourcePropType> = {
   jud: require('../../assets/book-icons/jud.webp') as ImageSourcePropType,
   rev: require('../../assets/book-icons/rev.webp') as ImageSourcePropType
 };
-/* eslint-enable @typescript-eslint/no-require-imports */
 
 function bookIcon(bookId: string): ImageSourcePropType | undefined {
   return BOOK_ICONS[bookId];

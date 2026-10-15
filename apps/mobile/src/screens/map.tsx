@@ -250,7 +250,10 @@ export function StatusHome(ctx: Ctx) {
   // Only languages this person may open (a role at the organization or that
   // language's scope): opening one they hold nothing in would leave them with
   // no privileges at all, so no tabs and no home (NAV-042).
-  const listed = useMemo(() => openableLanguages(ctx), [ctx.languages, ctx.org.state, ctx.session.actorId]);
+  const allLanguages = ctx.languages;
+  const orgNow = ctx.org.state;
+  const actorNow = ctx.session.actorId;
+  const listed = useMemo(() => openableIn(orgNow, actorNow, allLanguages), [orgNow, actorNow, allLanguages]);
   const languages = useMemo(
     () => statusLanguages({ listed, state, openId: ctx.language.languageId, org: ctx.org.state, summary }),
     [state, listed, ctx.language.languageId, ctx.org.state, summary]);
@@ -603,7 +606,7 @@ export function BookMap(ctx: Ctx) {
   const layout = useLayout();
   const beside = useOpenDetail();
   const book = canonBook(bookId);
-  const entries = useMemo(() => (state ? bookEntries(languageEntries(state), bookId) : []), [state, languageId, bookId]);
+  const entries = useMemo(() => (state ? bookEntries(languageEntries(state), bookId) : []), [state, bookId]);
   const counts = useMemo(() => countFilters(entries.map((e) => e.s)), [entries]);
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
   const chapters = useMemo(() => (book ? chapterTiles(book, entries, forYou, filter) : []), [book, entries, forYou, filter]);

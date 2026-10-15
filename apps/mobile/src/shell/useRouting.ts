@@ -99,7 +99,7 @@ export function useRouting(o: {
     if (nav.stack.length !== 1 || nav.current.screen !== cachedHome) { urlSection.current = null; return; }
     const s = takeUrlSection();
     if (s && s !== nav.current.screen) nav.reset({ screen: s });
-  }, [loaded, signedIn, cachedHome]);
+  }, [loaded, signedIn, cachedHome]); // eslint-disable-line react-hooks/exhaustive-deps -- runs once loading, sign-in and the home are settled, not on every navigation; nav and the address are read as they are then
   // Opened from another organization's Inbox row or push: its passage, or its language, once this organization is in.
   const arrived = useRef(false);
   useEffect(() => {

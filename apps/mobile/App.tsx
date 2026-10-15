@@ -484,11 +484,14 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   const listKey = found?.list.key;
   const split = found && listKey ? { ...found, list: { ...found.list, key: listKey } } : null;
   const box = frame(width, { chrome: wide && showTabs, split: !!split });
-  const stackLayout = useMemo((): Layout => ({ kind, contentWidth: box.detailWidth, role: split ? 'detail' : 'single' }),
-    [kind, box.detailWidth, !!split]);
+  const isSplit = !!split;
+  const stackLayout = useMemo((): Layout => ({ kind, contentWidth: box.detailWidth, role: isSplit ? 'detail' : 'single' }),
+    [kind, box.detailWidth, isSplit]);
   const paneLayout = useMemo((): Layout => ({ kind, contentWidth: box.paneWidth, role: 'list' }), [kind, box.paneWidth]);
-  const paneKey = useMemo(() => (split ? { key: split.list.key, ...(split.empty ? { empty: split.empty } : {}) } : null),
-    [split?.list.key, split?.empty]);
+  const splitKey = split?.list.key;
+  const splitEmpty = split?.empty;
+  const paneKey = useMemo(() => (splitKey !== undefined ? { key: splitKey, ...(splitEmpty ? { empty: splitEmpty } : {}) } : null),
+    [splitKey, splitEmpty]);
   const paneCtx: Ctx | null = split ? {
     ...ctx,
     params: split.list.params ?? {},
@@ -593,15 +596,16 @@ function ToastHost(props: { register: (show: (spec: ToastSpec) => void) => void;
     const sub = AccessibilityInfo.addEventListener('screenReaderChanged', (on) => { reader.current = on; });
     return () => sub.remove();
   }, []);
+  const { register } = props;
   useEffect(() => {
-    props.register((next) => {
+    register((next) => {
       if (timer.current) clearTimeout(timer.current);
       const ms = (next.undo ? 7000 : 3500) * (reader.current ? 2 : 1);
       showing = { message: next.message, until: Date.now() + ms };
       setSpec({ ...next, ms });
       timer.current = setTimeout(() => setSpec((t) => (t?.id === next.id ? null : t)), ms);
     });
-  }, [props.register]);
+  }, [register]);
   // A toast carried over from the host before goes when its time is up.
   useEffect(() => {
     if (!spec?.ms || timer.current) return;

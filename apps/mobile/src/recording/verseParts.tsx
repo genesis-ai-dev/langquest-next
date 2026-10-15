@@ -132,7 +132,7 @@ export function VerseParts(props: {
     onPanResponderMove: (_e, g) => hit(g.moveY),
     onPanResponderRelease: () => end(),
     onPanResponderTerminate: () => { slide.current = { ...slide.current, armed: false, marks: null }; setPainted(null); }
-  }), []);
+  }), []); // eslint-disable-line react-hooks/exhaustive-deps -- arm, begin and hit read only refs (latest, slide), so the first draw's copies stay right
   // The web: DOM listeners in the capture phase, so a Pressable cannot keep the press from them.
   useEffect(() => {
     if (Platform.OS !== 'web') return;
@@ -158,7 +158,7 @@ export function VerseParts(props: {
       window.removeEventListener('pointerup', up, { capture: true });
       window.removeEventListener('pointercancel', up, { capture: true });
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- arm, begin and hit read only refs (latest, slide), so the first draw's copies stay right
 
   const tap = (i: number) => {
     // The press that ended a slide is not a tap too.

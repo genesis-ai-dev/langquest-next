@@ -89,9 +89,9 @@ export function ClipPlayer(props: {
     setPlaying(false);
   };
   useEffect(() => props.language.blobs.store?.onChange(() => refresh((n) => n + 1)), [props.language.blobs.store]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- halt reads only refs, so the first draw's copy stops whatever plays
   useEffect(() => registerPlayback(halt), []);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- halt reads only refs; this runs when the player is turned off, not on every draw
   useEffect(() => { if (props.disabled) halt(); }, [props.disabled]);
   useEffect(() => {
     setPlayingState(false);
@@ -99,6 +99,7 @@ export function ClipPlayer(props: {
     setIndex(0); indexRef.current = 0;
     setAt(0);
     return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- a counter, not a node: bumping it on cleanup is what stops the old play
       generation.current++;
       wants.current = false;
       player.current?.remove();
