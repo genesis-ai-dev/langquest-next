@@ -1,4 +1,4 @@
-import { CLIENT_PROTOCOL_VERSION, takeSnapshot, type AnyEvent, type Snapshot } from '@langquest-next/core';
+import { CLIENT_PROTOCOL_VERSION, REDUCER_VERSION, takeSnapshot, type AnyEvent, type Snapshot } from '@langquest-next/core';
 import type { AppendResult, Transport } from '../types';
 import { ClientTooOldError, NotAuthorizedError, OfflineError } from '../types';
 
@@ -50,6 +50,8 @@ export class FakeServer {
   /** Chunk fetches after this many throw (link dropped mid-snapshot). */
   failChunkAfter = Infinity;
   chunkCalls = 0;
+  /** The reducer version makeSnapshot tags its snapshots with (the server's snapshot worker after an update). */
+  reducerVersion = REDUCER_VERSION;
   authorize: (e: AnyEvent) => string | null = () => null;
 
   transportFor(): Transport {
@@ -143,7 +145,7 @@ export class FakeServer {
 
   /** What the snapshot worker does: fold the whole stream and store it. */
   makeSnapshot(orgId: string, streamId: string): Snapshot {
-    const s = takeSnapshot(orgId, streamId, [...this.stream(orgId, streamId)]);
+    const s = { ...takeSnapshot(orgId, streamId, [...this.stream(orgId, streamId)]), reducerVersion: this.reducerVersion };
     const key = `${orgId}/${streamId}`;
     const previous = this.snapshots.get(key);
     const now = this.now();
