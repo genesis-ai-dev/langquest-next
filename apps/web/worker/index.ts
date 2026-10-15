@@ -8,6 +8,7 @@ import { sha256Hex } from './agent/tokens';
 import { r2Bucket } from './r2';
 import { serviceClient, type Env } from './env';
 import { publishLangQuestTimings } from './timings';
+import { cachedBlobAccess, cachedProfileOf } from './isolateCache';
 
 export { OrgSnapshot } from './orgSnapshot';
 
@@ -19,7 +20,28 @@ async function sameSecret(given: string, expected: string): Promise<boolean> {
   return diff === 0;
 }
 
-/** The dashboard's server: `/api/*` here, everything else is the built page. */
+let guards: ReturnType<typeof makeGuards> | undefined;
+/** The isolate's token and file-access caches (isolateCache.ts); an isolate's secrets do not change, so the first request's env serves them all. */
+const isolateGuards = (env: Env) => (guards ??= makeGuards(env));
+
+function makeGuards(env: Env) {
+  return {
+    // Verified here against the project's signing keys when it has
+    // asymmetric ones (the keys are fetched once and cached); otherwise
+    // supabase-js asks Auth, as getUser did.
+    profileOf: cachedProfileOf(async (token) => {
+      const { data, error } = await serviceClient(env).auth.getClaims(token);
+      return error || !data ? null : { sub: data.claims.sub, exp: data.claims.exp };
+    }),
+    blobAccess: cachedBlobAccess(async (key, profileId, write) => {
+      const { data, error } = await serviceClient(env).rpc('blob_access', { p_name: key, p_profile: profileId, p_write: write });
+      if (error) throw new Error(`blob_access: ${error.message}`);
+      return data === true;
+    })
+  };
+}
+
+/** The dashboard's server:`/api/*` here, everything else is the built page. */
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -38,13 +60,7 @@ export default {
       ctx.waitUntil(env.ORG_SNAPSHOTS.get(env.ORG_SNAPSHOTS.idFromName(orgId)).webhookPoke(orgId));
       return new Response(null, { status: 202 });
     }
-    // Verified here against the project's signing keys when it has
-    // asymmetric ones (the keys are fetched once and cached); otherwise
-    // supabase-js asks Auth, as getUser did.
-    const profileOf = async (token: string) => {
-      const { data, error } = await serviceClient(env).auth.getClaims(token);
-      return error ? null : data?.claims.sub ?? null;
-    };
+    const { profileOf, blobAccess } = isolateGuards(env);
     const recordBlob = async (orgId: string, streamId: string, hash: string, size: number) => {
       const { error } = await serviceClient(env).rpc('record_blob', { p_org: orgId, p_stream: streamId, p_hash: hash, p_size: size });
       if (error) throw new Error(`record_blob: ${error.message}`);
@@ -66,11 +82,7 @@ export default {
       blobs: {
         bucket: r2Bucket(env.BLOBS),
         serviceKey: env.SUPABASE_SERVICE_ROLE_KEY,
-        mayUse: async (key, profileId, write) => {
-          const { data, error } = await serviceClient(env).rpc('blob_access', { p_name: key, p_profile: profileId, p_write: write });
-          if (error) throw new Error(`blob_access: ${error.message}`);
-          return data === true;
-        },
+        mayUse: blobAccess,
         record: recordBlob
       },
       agent: {
