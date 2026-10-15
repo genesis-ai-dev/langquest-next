@@ -92,6 +92,11 @@ export interface FilePlan {
 
 const plans = new WeakMap<LanguageState, { revision: number; plan: FilePlan }>();
 
+/** The plan of a language held whole in memory. */
+export function filePlanOf(state: LanguageState): FilePlan {
+  return planOf(state);
+}
+
 function planOf(state: LanguageState): FilePlan {
   const revision = stateRevision(state);
   const hit = plans.get(state);

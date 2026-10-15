@@ -22280,15 +22280,15 @@ function languageLines(state, idx) {
   const revision = stateRevision(state);
   const hit = linesCache.get(state);
   if (hit && hit.revision === revision) return hit.lines;
-  const raw = rawByUnit(state);
+  let raw = null;
   const made = /* @__PURE__ */ new Map();
   const lines = {
     get(unitId) {
       let line = made.get(unitId);
-      if (!line) made.set(unitId, line = passageLine(derivePassage(state, unitId, idx), raw.get(unitId)));
+      if (!line) made.set(unitId, line = passageLine(derivePassage(state, unitId, idx), (raw ??= rawByUnit(state)).get(unitId)));
       return line;
     },
-    worked: () => raw.keys()
+    worked: () => (raw ??= rawByUnit(state)).keys()
   };
   linesCache.set(state, { revision, lines });
   return lines;

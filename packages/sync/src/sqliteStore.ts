@@ -68,19 +68,23 @@ export class SqliteStore implements EventStore {
       primary key (org_id, stream_id)
     )`);
     await db.run(`create table if not exists meta (key text primary key, value text not null)`);
-    // Records a big language keeps here rather than in memory (decisions.md 106).
-    await db.run(`create table if not exists kept (
+    // Records a big language keeps here rather than in memory (decisions.md 107).
+    // A build of pull request 120 before passages kept their versions and
+    // reviews here too wrote some to `kept`; that shape is gone, and only a
+    // test phone ever had it.
+    await db.run(`drop table if exists kept`);
+    await db.run(`create table if not exists kept_rows (
       org_id text not null,
       stream_id text not null,
       kind text not null,
       id text not null,
       unit_id text not null,
-      actor_id text not null,
+      ref text not null,
       json text not null,
       primary key (org_id, stream_id, kind, id)
     )`);
-    await db.run(`create index if not exists kept_unit on kept (org_id, stream_id, kind, unit_id)`);
-    await db.run(`create index if not exists kept_actor on kept (org_id, stream_id, kind, actor_id)`);
+    await db.run(`create index if not exists kept_rows_unit on kept_rows (org_id, stream_id, kind, unit_id)`);
+    await db.run(`create index if not exists kept_rows_ref on kept_rows (org_id, stream_id, kind, ref)`);
     return new SqliteStore(db);
   }
 
@@ -92,20 +96,20 @@ export class SqliteStore implements EventStore {
       if (batch.prune) await this.pruneOn(tx, batch.prune.orgId, batch.prune.streamId, batch.prune.uptoSeq);
       if (batch.kept) {
         const { orgId, streamId } = batch.kept;
-        if (batch.kept.clear || batch.kept.replaceFrom !== undefined) await tx.run(`delete from kept where org_id = ? and stream_id = ?`, [orgId, streamId]);
+        if (batch.kept.clear || batch.kept.replaceFrom !== undefined) await tx.run(`delete from kept_rows where org_id = ? and stream_id = ?`, [orgId, streamId]);
         if (batch.kept.replaceFrom !== undefined) {
-          await tx.run(`update kept set stream_id = ? where org_id = ? and stream_id = ?`, [streamId, orgId, batch.kept.replaceFrom]);
+          await tx.run(`update kept_rows set stream_id = ? where org_id = ? and stream_id = ?`, [streamId, orgId, batch.kept.replaceFrom]);
         }
         // A thousand rows a statement, handed over as one JSON array: a first
         // download writes 160,000 rows for a language like Koro Miyan, and a
         // statement per row took over a minute on a test phone.
         const upsert = batch.kept.upsert ?? [];
         for (let i = 0; i < upsert.length; i += KEPT_ROWS_PER_STATEMENT) {
-          const rows = upsert.slice(i, i + KEPT_ROWS_PER_STATEMENT).map((r) => [r.kind, r.id, r.unitId, r.actorId, r.json]);
+          const rows = upsert.slice(i, i + KEPT_ROWS_PER_STATEMENT).map((r) => [r.kind, r.id, r.unitId, r.ref, r.json]);
           await tx.run(
-            `insert into kept (org_id, stream_id, kind, id, unit_id, actor_id, json)
+            `insert into kept_rows (org_id, stream_id, kind, id, unit_id, ref, json)
              select ?, ?, value ->> 0, value ->> 1, value ->> 2, value ->> 3, value ->> 4 from json_each(?) where true
-             on conflict(org_id, stream_id, kind, id) do update set unit_id = excluded.unit_id, actor_id = excluded.actor_id, json = excluded.json`,
+             on conflict(org_id, stream_id, kind, id) do update set unit_id = excluded.unit_id, ref = excluded.ref, json = excluded.json`,
             [orgId, streamId, JSON.stringify(rows)]
           );
         }
@@ -249,39 +253,53 @@ export class SqliteStore implements EventStore {
     );
   }
 
-  async keptByUnit(orgId: string, streamId: string, kind: KeptKind, unitIds: readonly string[]): Promise<KeptRecord[]> {
-    return this.keptWhere('unit_id', orgId, streamId, kind, unitIds);
+  async keptByUnit(orgId: string, streamId: string, kinds: readonly KeptKind[], unitIds: readonly string[]): Promise<KeptRecord[]> {
+    return this.keptWhere('unit_id', orgId, streamId, kinds, unitIds);
   }
 
   async keptById(orgId: string, streamId: string, kind: KeptKind, ids: readonly string[]): Promise<KeptRecord[]> {
-    return this.keptWhere('id', orgId, streamId, kind, ids);
+    return this.keptWhere('id', orgId, streamId, [kind], [...new Set(ids)]);
+  }
+
+  async keptByRef(orgId: string, streamId: string, kind: KeptKind, refs: readonly string[]): Promise<KeptRecord[]> {
+    return this.keptWhere('ref', orgId, streamId, [kind], refs);
   }
 
   /** In slices, so no statement carries more parameters than SQLite allows. */
-  private async keptWhere(column: 'unit_id' | 'id', orgId: string, streamId: string, kind: KeptKind, values: readonly string[]): Promise<KeptRecord[]> {
+  private async keptWhere(column: 'unit_id' | 'id' | 'ref', orgId: string, streamId: string, kinds: readonly KeptKind[], values: readonly string[]): Promise<KeptRecord[]> {
     const out: KeptRecord[] = [];
+    if (kinds.length === 0) return out;
     for (let i = 0; i < values.length; i += KEPT_SLICE) {
       const slice = values.slice(i, i + KEPT_SLICE);
-      const rows = await this.db.all<{ kind: KeptKind; id: string; unit_id: string; actor_id: string; json: string }>(
-        `select kind, id, unit_id, actor_id, json from kept where org_id = ? and stream_id = ? and kind = ? and ${column} in (${slice.map(() => '?').join(',')})`,
-        [orgId, streamId, kind, ...slice]
+      const rows = await this.db.all<KeptRow>(
+        `select kind, id, unit_id, ref, json from kept_rows where org_id = ? and stream_id = ? and kind in (${kinds.map(() => '?').join(',')}) and ${column} in (${slice.map(() => '?').join(',')})`,
+        [orgId, streamId, ...kinds, ...slice]
       );
-      for (const r of rows) out.push({ kind: r.kind, id: r.id, unitId: r.unit_id, actorId: r.actor_id, json: r.json });
+      for (const r of rows) out.push(keptRecord(r));
     }
     return out;
   }
 
-  async keptUnitsBy(orgId: string, streamId: string, actorId: string): Promise<string[]> {
+  async keptAll(orgId: string, streamId: string, kind: KeptKind): Promise<KeptRecord[]> {
+    const rows = await this.db.all<KeptRow>(
+      `select kind, id, unit_id, ref, json from kept_rows where org_id = ? and stream_id = ? and kind = ?`,
+      [orgId, streamId, kind]
+    );
+    return rows.map(keptRecord);
+  }
+
+  async keptUnits(orgId: string, streamId: string, kinds: readonly KeptKind[], ref?: string): Promise<string[]> {
+    if (kinds.length === 0) return [];
     const rows = await this.db.all<{ unit_id: string }>(
-      `select distinct unit_id from kept where org_id = ? and stream_id = ? and kind = 'recording' and actor_id = ?`,
-      [orgId, streamId, actorId]
+      `select distinct unit_id from kept_rows where org_id = ? and stream_id = ? and kind in (${kinds.map(() => '?').join(',')})${ref === undefined ? '' : ' and ref = ?'}`,
+      [orgId, streamId, ...kinds, ...(ref === undefined ? [] : [ref])]
     );
     return rows.map((r) => r.unit_id);
   }
 
   async keptCount(orgId: string, streamId: string, kind: KeptKind): Promise<number> {
     const rows = await this.db.all<{ n: number }>(
-      `select count(*) as n from kept where org_id = ? and stream_id = ? and kind = ?`,
+      `select count(*) as n from kept_rows where org_id = ? and stream_id = ? and kind = ?`,
       [orgId, streamId, kind]
     );
     return Number(rows[0]?.n ?? 0);
@@ -325,4 +343,10 @@ function toLocal(row: Row): LocalEvent {
     status: row.status as LocalEvent['status'],
     ...(row.reject_reason ? { rejectReason: row.reject_reason } : {})
   };
+}
+
+interface KeptRow { kind: KeptKind; id: string; unit_id: string; ref: string; json: string }
+
+function keptRecord(r: KeptRow): KeptRecord {
+  return { kind: r.kind, id: r.id, unitId: r.unit_id, ref: r.ref, json: r.json };
 }

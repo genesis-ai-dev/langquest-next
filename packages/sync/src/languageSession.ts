@@ -1,7 +1,8 @@
 import {
-  audioFormatsFor, type BlobRef, type EventPayloads, type EventSpec, type EventType, type LanguageState,
-  type LostFilesView, type OfflineSummary, type UnitOffline
+  audioFormatsFor, concerning, languageLines, updatesFor, type BlobRef, type EventPayloads, type EventSpec, type EventType, type LanguageState,
+  type LostFilesView, type OfflineSummary, type PassageLine, type PassageLines, type UnitOffline, type Update
 } from '@langquest-next/core';
+import { RECORD_KINDS } from './keptLanguage';
 import { LanguageFiles } from './languageFiles';
 import { SyncClient, type SyncClientOptions, type SyncResult } from './syncClient';
 import { SyncScheduler } from './syncScheduler';
@@ -59,6 +60,12 @@ export interface LanguageStatus {
   keptOffline: ReadonlyMap<string, UnitOffline> | null;
   offlineSummary: OfflineSummary | null;
   scope: ReadonlySet<string>;
+  /**
+   * Each passage's line: what lists of passages read (Map, Progress, My
+   * Work), so none of them needs every passage's record in memory
+   * (decisions.md 107). A new object whenever any line changed.
+   */
+  lines: PassageLines;
 }
 
 export interface LanguageSessionOptions {
@@ -88,13 +95,15 @@ export interface LanguageSessionOptions {
   scheduler?: { pollMs?: number };
   /**
    * Keep the language's recordings and file verdicts on disk, holding in
-   * memory only the passages `loadUnits` asks for (decisions.md 106).
+   * memory only the passages `loadUnits` asks for (decisions.md 107).
    */
   keepOnDisk?: boolean;
 }
 
 /** How long after a change the offline counts are worked out again: one count for a burst of changes. */
 const OFFLINE_RECOUNT_MS = 750;
+/** Passages read from disk at once for the Inbox: a bounded slice of the language in memory. */
+const INBOX_PASSAGES_PER_READ = 25;
 
 const keepKey = (orgId: string, languageId: string) => `keep:${orgId}/${languageId}`;
 
@@ -143,7 +152,7 @@ export class LanguageSession {
       revision: client.publishedRevision, pending: 0, refusedEvents: 0, lastSync: 'never',
       online: null, tooOld: false, refused: null, pulled: false, live: false,
       pendingUp: 0, pendingDown: 0, peakUp: 0, peakDown: 0, present: o.files.snapshot(), keptUnits: kept,
-      keptOffline: null, offlineSummary: null, scope: new Set()
+      keptOffline: null, offlineSummary: null, scope: new Set(), lines: client.passageLines()
     };
     const files = o.files;
     const plan = new LanguageFiles(client, o.store, o.orgId, o.languageId);
@@ -189,7 +198,7 @@ export class LanguageSession {
     // screen follows the fold's revision, not the call sites. Nothing on
     // screen shows that a write is still on its way to disk, so that news
     // changes nothing here: it redrew the whole app twice per commit.
-    this.stops.push(client.subscribe((s) => { this.set({ revision: s.revision }); this.recount(); }));
+    this.stops.push(client.subscribe((s) => { this.set({ revision: s.revision, lines: s.lines ?? languageLines(s.state) }); this.recount(); }));
     this.up.start();
     this.down.start();
     this.stops.push(files.onChange(() => {
@@ -335,10 +344,74 @@ export class LanguageSession {
 
   /**
    * Hold these passages' recordings in memory: the one a screen shows and
-   * those next to it (decisions.md 106). Others stay on the phone's disk.
+   * those next to it (decisions.md 107). Others stay on the phone's disk.
    */
   async loadUnits(unitIds: readonly string[]): Promise<void> {
     await this.client.loadUnits(unitIds);
+  }
+
+  /** Is this passage's whole record in memory, so a screen may read it from `state`? */
+  isLoaded(unitId: string): boolean {
+    return this.client.isLoaded(unitId);
+  }
+
+  /**
+   * The language with these passages' records read in from disk, for a
+   * screen that lists a few passages beyond those in memory. The session's
+   * own state is not changed.
+   */
+  withPassages(unitIds: readonly string[]): Promise<LanguageState> {
+    return this.client.withPassages(unitIds);
+  }
+
+  /** The passage a take is in, from memory or disk; null when it is nowhere. */
+  passageOfTake(takeId: string): Promise<string | null> {
+    const kept = this.client.keptRecords();
+    if (!kept) return Promise.resolve(this.client.getState().takes[takeId]?.unitId || null);
+    return kept.passageOf(this.client.getState(), { take: takeId });
+  }
+
+  /** Passages whose versions tied in this key term (TERM-5): its uses are read from them. */
+  async passagesLinkingTerm(termId: string): Promise<string[]> {
+    const state = this.client.getState();
+    const units = new Set<string>();
+    for (const [takeId, byTerm] of Object.entries(state.keyTermLinks)) {
+      if (!byTerm[termId]) continue;
+      const u = await this.passageOfTake(takeId);
+      if (u) units.add(u);
+    }
+    if (this.client.keptRecords()) {
+      for (const r of await this.o.store.keptByRef(this.o.orgId, this.o.languageId, 'termLink', [termId])) units.add(r.unitId);
+    }
+    return [...units];
+  }
+
+  /** What each passage's Inbox entries were worked out from: its line then. */
+  private inbox = { actorId: '', byUnit: new Map<string, { line: PassageLine; updates: Update[] }>() };
+
+  /**
+   * What happened that concerns this person (core `updatesFor`), newest
+   * first. A language kept on disk reads only the passages whose line says
+   * they concern the person, a slice at a time, and reads a passage again
+   * only when its line changed.
+   */
+  async updatesFor(actorId: string): Promise<Update[]> {
+    if (!this.client.keptRecords()) return updatesFor(this.client.getState(), actorId);
+    if (this.inbox.actorId !== actorId) this.inbox = { actorId, byUnit: new Map() };
+    const lines = this.client.passageLines();
+    const units = concerning(lines, actorId);
+    const known = this.inbox.byUnit;
+    const need = units.filter((u) => known.get(u)?.line !== lines.get(u));
+    for (let i = 0; i < need.length; i += INBOX_PASSAGES_PER_READ) {
+      const slice = need.slice(i, i + INBOX_PASSAGES_PER_READ);
+      const view = await this.client.withPassages(slice, RECORD_KINDS);
+      const found = updatesFor(view, actorId);
+      for (const u of slice) known.set(u, { line: lines.get(u), updates: found.filter((x) => x.unitId === u) });
+    }
+    const wanted = new Set(units);
+    for (const u of [...known.keys()]) if (!wanted.has(u)) known.delete(u);
+    return units.flatMap((u) => known.get(u)?.updates ?? [])
+      .sort((a, b) => (a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   }
 
   /** Does the language hold this recording, in memory or on disk? (A recovered recording's check.) */

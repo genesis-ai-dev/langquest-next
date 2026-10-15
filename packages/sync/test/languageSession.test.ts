@@ -198,7 +198,7 @@ describe('LanguageSession: what tells a screen to redraw', () => {
   });
 });
 
-describe('LanguageSession: a language kept on disk (decisions.md 106)', () => {
+describe('LanguageSession: a language kept on disk (decisions.md 107)', () => {
   it('counts what is offline from the phone\'s table, and sends a recording made here', async () => {
     const { files, uploaded, open } = phone({ keepOnDisk: true });
     const session = await open();

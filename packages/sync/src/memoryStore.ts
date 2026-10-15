@@ -35,26 +35,36 @@ export class MemoryStore implements EventStore {
     }
   }
 
-  private keptRows(orgId: string, streamId: string, kind: KeptKind): KeptRecord[] {
-    return [...(this.kept.get(`${orgId}/${streamId}`)?.values() ?? [])].filter((r) => r.kind === kind);
+  private keptRows(orgId: string, streamId: string, kinds: readonly KeptKind[]): KeptRecord[] {
+    const wanted = new Set(kinds);
+    return [...(this.kept.get(`${orgId}/${streamId}`)?.values() ?? [])].filter((r) => wanted.has(r.kind));
   }
 
-  async keptByUnit(orgId: string, streamId: string, kind: KeptKind, unitIds: readonly string[]): Promise<KeptRecord[]> {
+  async keptByUnit(orgId: string, streamId: string, kinds: readonly KeptKind[], unitIds: readonly string[]): Promise<KeptRecord[]> {
     const units = new Set(unitIds);
-    return this.keptRows(orgId, streamId, kind).filter((r) => units.has(r.unitId));
+    return this.keptRows(orgId, streamId, kinds).filter((r) => units.has(r.unitId));
   }
 
   async keptById(orgId: string, streamId: string, kind: KeptKind, ids: readonly string[]): Promise<KeptRecord[]> {
     const rows = this.kept.get(`${orgId}/${streamId}`);
-    return ids.map((id) => rows?.get(`${kind}:${id}`)).filter((r): r is KeptRecord => !!r);
+    return [...new Set(ids)].map((id) => rows?.get(`${kind}:${id}`)).filter((r): r is KeptRecord => !!r);
   }
 
-  async keptUnitsBy(orgId: string, streamId: string, actorId: string): Promise<string[]> {
-    return [...new Set(this.keptRows(orgId, streamId, 'recording').filter((r) => r.actorId === actorId).map((r) => r.unitId))];
+  async keptByRef(orgId: string, streamId: string, kind: KeptKind, refs: readonly string[]): Promise<KeptRecord[]> {
+    const wanted = new Set(refs);
+    return this.keptRows(orgId, streamId, [kind]).filter((r) => wanted.has(r.ref));
+  }
+
+  async keptAll(orgId: string, streamId: string, kind: KeptKind): Promise<KeptRecord[]> {
+    return this.keptRows(orgId, streamId, [kind]);
+  }
+
+  async keptUnits(orgId: string, streamId: string, kinds: readonly KeptKind[], ref?: string): Promise<string[]> {
+    return [...new Set(this.keptRows(orgId, streamId, kinds).filter((r) => ref === undefined || r.ref === ref).map((r) => r.unitId))];
   }
 
   async keptCount(orgId: string, streamId: string, kind: KeptKind): Promise<number> {
-    return this.keptRows(orgId, streamId, kind).length;
+    return this.keptRows(orgId, streamId, [kind]).length;
   }
 
   async put(local: LocalEvent): Promise<void> {
