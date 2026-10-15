@@ -24,8 +24,6 @@ export interface LocalFiles {
 export interface LanguageStatus {
   /** Fold revision, bumped on every local or pulled change. */
   revision: number;
-  /** A local write is queued or in flight: what shows is in memory, not yet on disk. */
-  saving: boolean;
   /** Events not yet accepted by the server. */
   pending: number;
   /** Events the server refused. */
@@ -120,7 +118,7 @@ export class LanguageSession {
 
   private constructor(private readonly o: LanguageSessionOptions, readonly client: SyncClient, kept: ReadonlySet<string>) {
     this.current = {
-      revision: client.publishedRevision, saving: false, pending: 0, refusedEvents: 0, lastSync: 'never',
+      revision: client.publishedRevision, pending: 0, refusedEvents: 0, lastSync: 'never',
       online: null, tooOld: false, refused: null, pulled: false, live: false,
       pendingUp: 0, pendingDown: 0, peakUp: 0, peakDown: 0, present: o.files.snapshot(), keptUnits: kept
     };
@@ -163,8 +161,10 @@ export class LanguageSession {
     const { client, o } = this;
     const files = o.files;
     // The client publishes after every fold change and every commit; the
-    // screen follows that, not the call sites.
-    this.stops.push(client.subscribe((s) => this.set({ revision: s.revision, saving: s.saving > 0 })));
+    // screen follows the fold's revision, not the call sites. Nothing on
+    // screen shows that a write is still on its way to disk, so that news
+    // changes nothing here: it redrew the whole app twice per commit.
+    this.stops.push(client.subscribe((s) => this.set({ revision: s.revision })));
     this.up.start();
     this.down.start();
     this.stops.push(files.onChange(() => {

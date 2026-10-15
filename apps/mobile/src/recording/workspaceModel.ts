@@ -3,7 +3,7 @@
 // are tied, and the events a change to the list means. No React, no I/O,
 // so the rules are tested in test/workspace.test.ts.
 import {
-  commands,
+  commands, recordingsOf,
   type Card, type DraftView, type EventSpec, type Indexes, type KeyTermView, type LanguageState
 } from '@langquest-next/core';
 import { formatClock } from '../i18n/format';
@@ -52,10 +52,7 @@ export function canPublish(list: readonly string[], latestCards: readonly string
 /** Card lengths for one passage, by hash. */
 export function cardDurations(state: LanguageState, unitId: string): Map<string, number> {
   const out = new Map<string, number>();
-  for (const r of Object.values(state.recordings)) {
-    if (r.unitId !== unitId) continue;
-    for (const c of r.cards) out.set(c.hash, c.durationMs);
-  }
+  for (const r of recordingsOf(state, unitId)) for (const c of r.cards) out.set(c.hash, c.durationMs);
   return out;
 }
 

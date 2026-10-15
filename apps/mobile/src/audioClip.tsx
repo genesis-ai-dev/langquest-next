@@ -1,5 +1,5 @@
 // Avatar U. Local and remote playback, paused before recording starts.
-import { isStored, type BlobRef, type LanguageState } from '@langquest-next/core';
+import { isStored, recordedCard, type BlobRef, type LanguageState } from '@langquest-next/core';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
@@ -12,10 +12,8 @@ import { C, target } from './theme';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
 
 export function audioFormat(state: LanguageState, hash: string): BlobRef['format'] {
-  for (const recording of Object.values(state.recordings)) {
-    const card = recording.cards.find((c) => c.hash === hash);
-    if (card) return card.format ?? 'wav';
-  }
+  const card = recordedCard(state, hash);
+  if (card) return card.format ?? 'wav';
   // A voice note: m4a unless the log says otherwise (decisions.md 77).
   return state.audioFormats[hash]?.value ?? 'm4a';
 }

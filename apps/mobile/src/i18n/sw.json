@@ -4254,7 +4254,8 @@
       "pausedForSource": "Imesitishwa chanzo kinapocheza",
       "startsAgain": "Kurekodi kunaanza tena chanzo kikisimama.",
       "cutoff": "Kiwango cha sauti",
-      "pauseBetween": "Pumziko kati ya sehemu"
+      "pauseBetween": "Pumziko kati ya sehemu",
+      "tooShort": "Ni fupi mno kuhifadhiwa. Kama ulikuwa ukiongea, sema tena."
     },
     "split": {
       "referenceOneLine": "Marejeo katika mstari mmoja",
