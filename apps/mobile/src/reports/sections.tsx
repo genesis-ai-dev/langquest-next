@@ -68,7 +68,7 @@ export interface SectionProps {
   open: (row: LanguageRow) => void;
   /** Switch section, optionally with a country filter. */
   show: (section: SectionId, country?: string) => void;
-  /** The clusters among these languages, when none is picked yet (decision 107); empty otherwise. */
+  /** The clusters among these languages, when none is picked yet (decision 108); empty otherwise. */
   clusters: ClusterInfo[];
   /** The names of the clusters a language is in. */
   clustersOf: (languageId: string) => string[];
@@ -99,7 +99,7 @@ function Rec(props: { count: number }) {
 
 // ---- Overview ---------------------------------------------------------------------
 
-/** Each cluster's languages together (decision 107): passages recorded and done; its name shows only that cluster. */
+/** Each cluster's languages together (decision 108): passages recorded and done; its name shows only that cluster. */
 function ClusterPanel(p: SectionProps) {
   const byId = new Map(p.rows.map((r) => [r.languageId, r]));
   return (

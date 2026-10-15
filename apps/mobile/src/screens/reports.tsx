@@ -40,7 +40,7 @@ export function ReportsHome(ctx: Ctx) {
   const [section, setSection] = useState<SectionId>(SECTIONS.some((s) => s.id === ctx.params['section']) ? ctx.params['section'] as SectionId : 'overview');
   const [country, setCountry] = useState(ctx.params['country'] ?? '');
   const [days, setDays] = useState<7 | 14>(7);
-  // One cluster's languages, those in none, or all (decision 107): the organization's own record says which are in which.
+  // One cluster's languages, those in none, or all (decision 108): the organization's own record says which are in which.
   const [cluster, setCluster] = useState<ClusterFilter>(ctx.params['cluster'] ? { kind: 'cluster', clusterId: ctx.params['cluster'] } : { kind: 'all' });
   const now = Date.now();
   const spec = SECTIONS.find((s) => s.id === section)!;

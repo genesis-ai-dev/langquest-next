@@ -10,7 +10,7 @@ import { chooseSetLanguage, type GuideSet, type ReferenceSay, type SetMember } f
 
 /**
  * The parts of adding a language, in order, as step 3 names them while
- * Continue runs: with a cluster (decision 107), one part per new language,
+ * Continue runs: with a cluster (decision 108), one part per new language,
  * and the grouping last.
  */
 export type Making = 'passages' | 'checks' | 'helps' | 'listing' | 'saving' | 'cluster' | `language:${number}`;

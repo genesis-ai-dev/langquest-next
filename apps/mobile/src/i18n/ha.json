@@ -1423,8 +1423,8 @@
       "wholeBooks": "Dukan littattafai",
       "chapters": "Babobi",
       "passages": "Nassosi",
-      "passagesNote_one": "Nassi {{count, number}}, kamar yadda sigar da aka fara daga gare ta ta raba su. Canja inda nassosi suke farawa yana zuwa nan gaba.",
-      "passagesNote_other": "Nassosi {{count, number}}, kamar yadda sigar da aka fara daga gare ta ta raba su. Canja inda nassosi suke farawa yana zuwa nan gaba.",
+      "passagesNote_one": "Nassi {{count, number}}, kamar yadda sigar da aka fara daga gare ta ta raba su.",
+      "passagesNote_other": "Nassosi {{count, number}}, kamar yadda sigar da aka fara daga gare ta ta raba su.",
       "eachBook": "Kowane littafi sashe ɗaya ne da za a naɗa.",
       "eachChapter": "Kowane babi sashe ɗaya ne da za a naɗa.",
       "booksCount": "Littattafai · {{n, number}}",
@@ -1445,8 +1445,7 @@
       "scripture": "Maganar Allah",
       "scriptureSub": "Littattafai da babobin Littafi Mai Tsarki, ana raba su zuwa nassosi yayin da tawagogi suke ci gaba.",
       "else": "Wani abu daban",
-      "elseSub": "Darussa, labarai, sharhi — kowane fasali da kuka gina da kanku.",
-      "numbering": "Wane tsarin ƙidaya babobi da ayoyi yake bi?"
+      "elseSub": "Darussa, labarai, sharhi — kowane fasali da kuka gina da kanku."
     },
     "levelSheet": {
       "title": "Mataki",
@@ -1512,6 +1511,11 @@
       "gap": "Daga aya ta {{verse}}, waɗannan ayoyi ba sa cikin wani {{part}} tukuna.",
       "verseLabel": "Aya ta {{chapter}}:{{verse}}",
       "versePlaceholder": "aya ta {{verse}}"
+    },
+    "divide": {
+      "done": "An raba {{book}}. Ajiye samfurin don a riƙe shi.",
+      "tapBook": "Taɓa littafi don ka zaɓi yadda za a raba shi.",
+      "nameOrRemove": "Canja sunan {{book}} ko cire shi"
     }
   },
   "breakup": {
@@ -1684,7 +1688,9 @@
       "noneReady": "Babu wanda aka riga aka yi don wannan tukuna. Ku yi naku: foldoji don yadda aka tsara shi, da abubuwan da mutane suke naɗawa a ciki.",
       "makeOwn": "Ku yi naku",
       "makeOwnDetail": "Foldoji, da abin da za a naɗa a ciki.",
-      "elseKinds": "Labarai, waƙoƙi, darussa"
+      "elseKinds": "Labarai, waƙoƙi, darussa",
+      "ownSub": "Littafi bayan littafi: karanta kowanne ka zaɓi inda sassansa suke farawa",
+      "ownNote": "Kowane littafi yana jira har a raba shi. Buɗe shi daga taswira ko Aikina, karanta shi a cikin Littafi Mai Tsarki ka zaɓi inda sassansa suke farawa, ko ka fara daga hanyar da aka shirya."
     },
     "errors": {
       "noTemplate": "Wannan harshe ba shi da samfuri tukuna.",
@@ -1885,6 +1891,12 @@
       "sections_other": "sassa {{count, number}}",
       "partsIn_one": "sashe {{count, number}} a cikin {{book}}",
       "partsIn_other": "sassa {{count, number}} a cikin {{book}}"
+    },
+    "division": {
+      "way_one": "{{way}} · gutsure {{count, number}}",
+      "way_other": "{{way}} · gutsuttsura {{count, number}}",
+      "own_one": "Hanyarsa ta kansa · gutsure {{count, number}}",
+      "own_other": "Hanyarsa ta kansa · gutsuttsura {{count, number}}"
     }
   },
   "canon": {

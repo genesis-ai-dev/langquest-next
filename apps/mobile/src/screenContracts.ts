@@ -73,7 +73,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // stream a template and a flow, which it needs (decisions.md 63).
   // And what its team is offered from the start (decision 71), and its first group invite code.
   // Its name is looked up in the language list as it is typed (docs/languoids.md).
-  // One language or a cluster of several, and the cluster it joins (decision 107).
+  // One language or a cluster of several, and the cluster it joins (decision 108).
   new_language: { emits:['v1.LanguageAdded','v1.LanguageCodeSet','v1.TemplateSelected','v1.UnitAdded','v1.UnitHidden','v1.FlowSelected','v1.FlowStepSet','v1.ReviewKindDefined','v1.LibrarySubscribed','v1.LibraryPinned',
     'v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.ReferenceSet','v1.ClusterNamed','v1.LanguageClusterSet'],
     rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document','issue_invite_v3','library_template_users','search_languoids'] },
@@ -81,7 +81,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // Opening the organization's license (docs/licensing.md).
   org_home: { emits:['v1.LicenseSet','v1.OrgRenamed'],rpcs:['set_language_visibility'],reads:['language_visibility','orgLicense'] },
   // A language's page reads the four questions from the record, and who is waiting to be let in (decision 71).
-  // A cluster's page (decision 107): adding languages already here, renaming it, ungrouping it.
+  // A cluster's page (decision 108): adding languages already here, renaming it, ungrouping it.
   cluster_home: { emits:['v1.ClusterNamed','v1.LanguageClusterSet'],reads:['orgClusters','languageProgress'] },
   language_home: { emits:['v1.LanguageRenamed','v1.LanguageCodeSet','v1.ClusterNamed','v1.LanguageClusterSet'],rpcs:['set_language_visibility','search_languoids'],reads:['languoid','language_visibility','join_requests','recommendedFor','deriveFlow','org.members'] },
   // One check (decision 91): its people (one review team per check), its questions (a question set for the kind),

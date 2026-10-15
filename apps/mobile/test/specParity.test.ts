@@ -92,10 +92,10 @@ const APP_ONLY: Record<string, string> = {
   'settings_more->delete_account': 'More settings: Delete account, moved from Settings (decision 71; store rules, decisions.md 46)',
   'flow_editor->check_editor': "a language's Checks open one check, with its people, questions and helps (decision 91)",
   'review_capture->material_editor': "a check's help that is a note opens from the review (decision 91)",
-  'org_home->cluster_home': "a cluster is a row among the organization's languages and opens its page (decision 107, demo ADR-045)",
-  'cluster_home->language_home': "a cluster's page lists its languages (decision 107, demo ADR-045)",
-  'cluster_home->new_language': 'Add a language to it: a new one, already in the cluster (decision 107, demo ADR-045)',
-  'new_language->cluster_home': 'a cluster made of languages already here opens its page (decision 107, demo ADR-045)'
+  'org_home->cluster_home': "a cluster is a row among the organization's languages and opens its page (decision 108, demo ADR-045)",
+  'cluster_home->language_home': "a cluster's page lists its languages (decision 108, demo ADR-045)",
+  'cluster_home->new_language': 'Add a language to it: a new one, already in the cluster (decision 108, demo ADR-045)',
+  'new_language->cluster_home': 'a cluster made of languages already here opens its page (decision 108, demo ADR-045)'
 };
 
 /** App-only reference screens (docs/reference-material.md). */

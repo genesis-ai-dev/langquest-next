@@ -1,4 +1,4 @@
-// Clusters on screen (decision 107, demo ADR-045): a cluster's tile and row
+// Clusters on screen (decision 108, demo ADR-045): a cluster's tile and row
 // (amber, so it never reads as a language), and a language's Cluster row,
 // which opens the clusters it is in to change them. The model is
 // clusters/model.ts; the cluster's own page is ClusterHome (screens/org.tsx).

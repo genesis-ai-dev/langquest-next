@@ -1423,8 +1423,8 @@
       "wholeBooks": "Vitabu vizima",
       "chapters": "Sura",
       "passages": "Vifungu",
-      "passagesNote_one": "Kifungu {{count, number}}, kama toleo hili lilipoanzia linavyovigawa. Kubadilisha mahali vifungu vinapoanzia kunakuja.",
-      "passagesNote_other": "Vifungu {{count, number}}, kama toleo hili lilipoanzia linavyovigawa. Kubadilisha mahali vifungu vinapoanzia kunakuja.",
+      "passagesNote_one": "Kifungu {{count, number}}, kama toleo hili lilipoanzia linavyovigawa.",
+      "passagesNote_other": "Vifungu {{count, number}}, kama toleo hili lilipoanzia linavyovigawa.",
       "eachBook": "Kila kitabu ni sehemu moja ya kurekodi.",
       "eachChapter": "Kila sura ni sehemu moja ya kurekodi.",
       "booksCount": "Vitabu · {{n, number}}",
@@ -1445,8 +1445,7 @@
       "scripture": "Maandiko",
       "scriptureSub": "Vitabu na sura za Biblia, vilivyogawanywa katika vifungu kadiri timu zinavyoendelea.",
       "else": "Kitu kingine",
-      "elseSub": "Masomo, hadithi, ufafanuzi — muhtasari wowote unaoujenga mwenyewe.",
-      "numbering": "Kinafuata mpangilio upi wa namba za sura na mistari?"
+      "elseSub": "Masomo, hadithi, ufafanuzi — muhtasari wowote unaoujenga mwenyewe."
     },
     "levelSheet": {
       "title": "Ngazi",
@@ -1512,6 +1511,11 @@
       "gap": "Kuanzia mstari {{verse}}, mistari hii bado haimo katika {{part}} yoyote.",
       "verseLabel": "Mstari {{chapter}}:{{verse}}",
       "versePlaceholder": "mstari {{verse}}"
+    },
+    "divide": {
+      "done": "{{book}} kimegawanywa. Hifadhi kiolezo ili kukiweka.",
+      "tapBook": "Gusa kitabu ili uchague jinsi kinavyogawanywa.",
+      "nameOrRemove": "Badilisha jina la {{book}} au kiondoe"
     }
   },
   "breakup": {
@@ -1684,7 +1688,9 @@
       "noneReady": "Bado hakuna zilizotengenezwa tayari kwa hili. Tengeneza zako: folda za jinsi kinavyopangwa, na vitu ambavyo watu wanarekodi ndani yake.",
       "makeOwn": "Tengeneza yako mwenyewe",
       "makeOwnDetail": "Folda, na cha kurekodi ndani yake.",
-      "elseKinds": "Hadithi, nyimbo, masomo"
+      "elseKinds": "Hadithi, nyimbo, masomo",
+      "ownSub": "Kitabu kwa kitabu: soma kila kimoja na uchague mahali sehemu zake zinapoanza",
+      "ownNote": "Kila kitabu kinasubiri hadi kigawanywe. Kifungue kutoka kwenye ramani au Kazi Yangu, kisome katika Biblia na uchague mahali sehemu zake zinapoanza, au anza na njia iliyo tayari."
     },
     "errors": {
       "noTemplate": "Lugha hii bado haina kiolezo.",
@@ -1885,6 +1891,12 @@
       "sections_other": "sehemu {{count, number}}",
       "partsIn_one": "kipengele {{count, number}} katika {{book}}",
       "partsIn_other": "vipengele {{count, number}} katika {{book}}"
+    },
+    "division": {
+      "way_one": "{{way}} · kipande {{count, number}}",
+      "way_other": "{{way}} · vipande {{count, number}}",
+      "own_one": "Njia yake mwenyewe · kipande {{count, number}}",
+      "own_other": "Njia yake mwenyewe · vipande {{count, number}}"
     }
   },
   "canon": {

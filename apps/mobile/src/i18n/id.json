@@ -1380,7 +1380,7 @@
       "wholeBooks": "Seluruh kitab",
       "chapters": "Pasal",
       "passages": "Perikop",
-      "passagesNote_other": "{{count, number}} perikop, sesuai pembagian versi asalnya. Fitur untuk mengubah awal perikop akan segera hadir.",
+      "passagesNote_other": "{{count, number}} perikop, sesuai pembagian versi asalnya.",
       "eachBook": "Setiap kitab adalah satu bagian untuk direkam.",
       "eachChapter": "Setiap pasal adalah satu bagian untuk direkam.",
       "booksCount": "Kitab · {{n, number}}",
@@ -1400,8 +1400,7 @@
       "scripture": "Kitab Suci",
       "scriptureSub": "Kitab dan pasal Alkitab, dibagi menjadi perikop sambil tim bekerja.",
       "else": "Yang lain",
-      "elseSub": "Pelajaran, cerita, tafsiran — kerangka apa pun yang Anda susun sendiri.",
-      "numbering": "Penomoran pasal dan ayat mana yang diikutinya?"
+      "elseSub": "Pelajaran, cerita, tafsiran — kerangka apa pun yang Anda susun sendiri."
     },
     "levelSheet": {
       "title": "Tingkat",
@@ -1464,6 +1463,11 @@
       "gap": "Mulai ayat {{verse}}, ayat-ayat ini belum masuk {{part}} mana pun.",
       "verseLabel": "Ayat {{chapter}}:{{verse}}",
       "versePlaceholder": "ayat {{verse}}"
+    },
+    "divide": {
+      "done": "{{book}} sudah dibagi. Simpan templat untuk menyimpannya.",
+      "tapBook": "Ketuk sebuah kitab untuk memilih cara membaginya.",
+      "nameOrRemove": "Ganti nama atau hapus {{book}}"
     }
   },
   "breakup": {
@@ -1626,7 +1630,9 @@
       "noneReady": "Belum ada yang siap pakai untuk ini. Buat sendiri: folder untuk cara penyusunannya, dan hal-hal yang direkam orang di dalamnya.",
       "makeOwn": "Buat sendiri",
       "makeOwnDetail": "Folder, dan apa yang akan direkam di dalamnya.",
-      "elseKinds": "Cerita, lagu, pelajaran"
+      "elseKinds": "Cerita, lagu, pelajaran",
+      "ownSub": "Kitab demi kitab: baca masing-masing dan pilih di mana bagian-bagiannya dimulai",
+      "ownNote": "Setiap kitab menunggu sampai dibagi. Buka dari peta atau Pekerjaan Saya, baca dalam sebuah Alkitab dan pilih di mana bagian-bagiannya dimulai, atau mulai dari cara yang sudah jadi."
     },
     "errors": {
       "noTemplate": "Bahasa ini belum punya templat.",
@@ -1813,6 +1819,10 @@
       "jumpLabel_other": "Pasal {{chapter}}: {{count, number}} bagian dimulai di sini",
       "sections_other": "{{count, number}} bagian",
       "partsIn_other": "{{count, number}} bagian di {{book}}"
+    },
+    "division": {
+      "way_other": "{{way}} · {{count, number}} potongan",
+      "own_other": "Cara sendiri · {{count, number}} potongan"
     }
   },
   "canon": {
