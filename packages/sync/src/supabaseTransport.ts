@@ -55,14 +55,15 @@ export class SupabaseTransport implements Transport {
   }
 
   /**
-   * A database trigger (supabase/migrations/*_events_realtime.sql) broadcasts
-   * an empty poke on `events:<org>/<stream>` after every insert. The
-   * channel is public because the poke says only that the stream moved;
-   * the events themselves still come through the RPC and its checks.
+   * A database trigger (events_notify) broadcasts a poke on
+   * `events:<org>/<stream>` after every push. The channel is private: the
+   * server lets only someone who may read the stream hear it
+   * (20261015234000_private_pokes.sql), since even a bare poke says when a
+   * language is working. The events themselves come through the RPC.
    */
   watch(orgId: string, streamId: string, handlers: WatchHandlers): () => void {
     const channel = this.supabase
-      .channel(`events:${orgId}/${streamId}`, { config: { private: false } })
+      .channel(`events:${orgId}/${streamId}`, { config: { private: true } })
       .on('broadcast', { event: 'appended' }, () => handlers.onPoke())
       .subscribe((status) => handlers.onStatus(status === 'SUBSCRIBED'));
     return () => {
