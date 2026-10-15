@@ -11,7 +11,7 @@ import {
   libraryQuestions, matchesTerm, materialDocFrom, materialItemId, moveStep, newKindId, nextFieldId, parseRefLinks, PRIVILEGE_INFO,
   questionCount, questionDrafts, questionSetToReviews, referenceKindName, referenceView, roleRows, scopeName, termsInPassage, termWords,
   viewLevelFrom
-} from '../src/screens/configModel';
+} from '../src/config/model';
 
 /** One language's stream, with a book and a passage. */
 function language() {
@@ -261,7 +261,7 @@ describe('key terms', () => {
 
 describe('the role editor groups', () => {
   it('puts every permission in exactly one group (demo ADR-039)', async () => {
-    const { PRIVILEGE_GROUPS } = await import('../src/screens/configModel');
+    const { PRIVILEGE_GROUPS } = await import('../src/config/model');
     const { PRIVILEGES } = await import('@langquest-next/core');
     const all = PRIVILEGE_GROUPS.flatMap((g) => g.privileges);
     expect(new Set(all).size).toBe(all.length);

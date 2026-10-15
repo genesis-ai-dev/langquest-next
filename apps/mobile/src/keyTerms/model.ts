@@ -8,7 +8,7 @@ import {
 } from '@langquest-next/core';
 import { t } from '../i18n';
 import { indexesFor } from '../indexes';
-import { matchesTerm } from '../screens/configModel';
+import { matchesTerm } from '../config/model';
 
 /**
  * A new term's first adjustment, when nobody wrote why: written into the
