@@ -3015,7 +3015,6 @@
     "sync": {
       "syncing": "Sincronizando…",
       "syncNow": "Sincronizar agora",
-      "checking": "Verificando mudanças de tempos em tempos",
       "refused": "O servidor recusou esta conta para esta organização.",
       "tooOld": "Atualize o aplicativo para sincronizar.",
       "waitingUpload": "esperando envio",
@@ -3037,7 +3036,28 @@
       "refusedCount": "Recusados · {{n, number}}",
       "events_one": "{{count, number}} evento neste aparelho",
       "events_many": "{{count, number}} de eventos neste aparelho",
-      "events_other": "{{count, number}} eventos neste aparelho"
+      "events_other": "{{count, number}} eventos neste aparelho",
+      "standing": {
+        "live": "Ao vivo",
+        "checking": "Conectado",
+        "offline": "Offline",
+        "refused": "Sem sincronização"
+      },
+      "help": {
+        "live": "As alterações da sua equipe chegam na hora, e as suas saem imediatamente.",
+        "checking": "Conectado, mas o canal ao vivo está fora, então este dispositivo procura alterações a cada poucos minutos. Sincronizar agora procura na hora.",
+        "offline": "Sem conexão. Tudo o que você faz fica guardado neste dispositivo e é enviado sozinho quando você voltar a ficar online.",
+        "refused": "O servidor não está aceitando alterações deste dispositivo. Seu trabalho continua guardado aqui.",
+        "toSend": "Alterações e gravações feitas neste dispositivo que o servidor ainda não confirmou. Estão seguras aqui e são enviadas quando houver conexão.",
+        "toReceive": "Gravações de outras pessoas que este dispositivo ainda está baixando.",
+        "refusedLine": "Alterações que o servidor não aceitou, geralmente porque uma permissão mudou. Ficam neste dispositivo; abra Detalhes para ver cada uma."
+      },
+      "toSend": "A enviar",
+      "toReceive": "A receber",
+      "refusedLine": "Recusadas",
+      "none": "Nenhuma",
+      "moreInfo": "Saiba mais",
+      "details": "Detalhes"
     }
   },
   "study": {
@@ -3754,11 +3774,9 @@
       "help": "O que você pediu a outra pessoa e ainda não foi feito."
     },
     "sync": {
-      "refused": "Não está sincronizando",
       "toSend_one": "{{count, number}} para enviar",
       "toSend_many": "{{count, number}} para enviar",
-      "toSend_other": "{{count, number}} para enviar",
-      "offline": "Sem internet"
+      "toSend_other": "{{count, number}} para enviar"
     },
     "join": {
       "wantsToJoin": "{{name}} quer entrar",

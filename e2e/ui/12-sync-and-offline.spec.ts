@@ -13,7 +13,7 @@ import {
   button, expect, expectNothingRefused, expectSent, expectSyncIdle, openAs, screenText, syncNow, tab, test, text, useWorld
 } from './support';
 import {
-  addNote, caughtUp, deviceAs, keptHere, noteAs, openByLabel, openRecord, openSync, passageAs, quietReloads, recordAndPublish, serverHasAudio, setOffline, syncChip, tile, tileLocator, toTab
+  addNote, caughtUp, deviceAs, keptHere, noteAs, openByLabel, openRecord, openSync, passageAs, quietReloads, recordAndPublish, serverHasAudio, setOffline, SYNC_CLEAR, syncChip, tile, tileLocator, toTab
 } from './sync-helpers';
 
 const world = useWorld();
@@ -22,9 +22,9 @@ const world = useWorld();
 test.beforeEach(async ({ context }) => { await quietReloads(context); });
 
 
-const LIVE = 'Live: changes arrive as they happen';
-const POLLING = 'Checking for changes now and then';
-const OFFLINE = 'Offline: work is kept on this device';
+const LIVE = 'Live';
+const POLLING = 'Connected';
+const OFFLINE = 'Offline';
 const idle = (page: Page, which: 'uploading' | 'downloading') => page.locator(`[aria-label="Audio ${which}: nothing"]`).locator('visible=true');
 const updates = (page: Page) => page.getByRole('button', { name: /^Updates/ }).locator('visible=true').first();
 
@@ -129,19 +129,19 @@ test('SYNC-005 Sync now', async ({ page }) => {
   await expect(text(page, 'SYNC-005 from Cora', false)).toBeVisible();
 });
 
-test('SYNC-007 My Work\'s sync chip shows only when it matters', async ({ page, context }) => {
+test('SYNC-007 My Work\'s sync icon says the state and what waits', async ({ page, context }) => {
   const w = world();
   await openAs(page, w, 'TRANS');
   await caughtUp(page, w, 'TRANS');
   await expect(tab(page, 'work')).toBeVisible();
-  await expect(syncChip(page)).toBeHidden();
+  await expect(syncChip(page)).toHaveAccessibleName(SYNC_CLEAR);
   await setOffline(context, true);
   // Known issue (wake.ts, decision 90): nothing tries the server when the network goes, so the app does not know yet.
-  await expect.soft(syncChip(page), 'the chip says Offline within 10 seconds').toHaveAccessibleName('Offline', { timeout: 15_000 });
+  await expect.soft(syncChip(page), 'the chip says Offline within 10 seconds').toHaveAccessibleName(/^Offline/, { timeout: 15_000 });
   await addNote(page, w, 'P-SUBMITTED', 'SYNC-007 offline note');
   await toTab(page, 'work');
   const chip = syncChip(page);
-  await expect(chip).toHaveAccessibleName(/^\d+ to send$/);
+  await expect(chip).toHaveAccessibleName(/^Offline, \d+ to send$/);
   const box = await chip.boundingBox();
   expect(box!.height).toBeGreaterThanOrEqual(48);
   await chip.click();
@@ -149,7 +149,7 @@ test('SYNC-007 My Work\'s sync chip shows only when it matters', async ({ page, 
   await setOffline(context, false);
   await expectSent(page, w);
   await toTab(page, 'work');
-  await expect(syncChip(page)).toBeHidden({ timeout: 30_000 });
+  await expect(syncChip(page)).toHaveAccessibleName(SYNC_CLEAR, { timeout: 30_000 });
 });
 
 test('SYNC-008 Changes from another device arrive by themselves', async ({ page }) => {

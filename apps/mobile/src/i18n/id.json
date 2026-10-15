@@ -2817,7 +2817,6 @@
     "sync": {
       "syncing": "Menyinkronkan…",
       "syncNow": "Sinkronkan sekarang",
-      "checking": "Sesekali memeriksa perubahan",
       "refused": "Server menolak akun ini untuk organisasi ini.",
       "tooOld": "Perbarui aplikasi untuk sinkronisasi.",
       "waitingUpload": "menunggu diunggah",
@@ -2835,7 +2834,28 @@
       "speedMB": "{{value}} MB/s",
       "waitingCount": "Menunggu · {{n, number}}",
       "refusedCount": "Ditolak · {{n, number}}",
-      "events_other": "{{count, number}} peristiwa di perangkat ini"
+      "events_other": "{{count, number}} peristiwa di perangkat ini",
+      "standing": {
+        "live": "Langsung",
+        "checking": "Terhubung",
+        "offline": "Luring",
+        "refused": "Tidak menyinkronkan"
+      },
+      "help": {
+        "live": "Perubahan dari tim Anda langsung tiba, dan perubahan Anda langsung terkirim.",
+        "checking": "Terhubung, tetapi saluran langsung terputus, jadi perangkat ini memeriksa perubahan setiap beberapa menit. Sinkronkan sekarang memeriksa saat itu juga.",
+        "offline": "Tidak ada koneksi. Semua yang Anda lakukan disimpan di perangkat ini dan terkirim sendiri saat Anda kembali daring.",
+        "refused": "Server tidak menerima perubahan dari perangkat ini. Pekerjaan Anda tetap tersimpan di sini.",
+        "toSend": "Perubahan dan rekaman di perangkat ini yang belum dikonfirmasi server. Semuanya aman di sini dan terkirim saat ada koneksi.",
+        "toReceive": "Rekaman dari orang lain yang masih diunduh perangkat ini.",
+        "refusedLine": "Perubahan yang tidak diterima server, biasanya karena izin berubah. Tetap ada di perangkat ini; buka Detail untuk melihat masing-masing."
+      },
+      "toSend": "Akan dikirim",
+      "toReceive": "Akan diterima",
+      "refusedLine": "Ditolak",
+      "none": "Tidak ada",
+      "moreInfo": "Info lebih lanjut",
+      "details": "Detail"
     }
   },
   "study": {
@@ -3496,9 +3516,7 @@
       "help": "Hal yang Anda minta dari orang lain dan belum selesai."
     },
     "sync": {
-      "refused": "Tidak sinkron",
-      "toSend_other": "{{count, number}} akan dikirim",
-      "offline": "Offline"
+      "toSend_other": "{{count, number}} akan dikirim"
     },
     "join": {
       "wantsToJoin": "{{name}} ingin bergabung",

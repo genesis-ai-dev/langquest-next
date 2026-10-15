@@ -14,6 +14,7 @@ import { issueInvite } from './invites';
 import { indexesFor } from './indexes';
 import { SCREEN_IDS, screenTitle, type ScreenId } from './flow';
 import { Group, Row, SectionLabel, Sheet, txt } from './kit';
+import { previewSyncRing } from './SyncIndicator';
 import { loadDocs } from './library/docStore';
 import { subscribeOps, type SharedItem } from './library/model';
 import { reportError } from './report';
@@ -140,7 +141,8 @@ export function DevMenu(props: {
                   .then((rs) => setBench(rs.map((r) => `${r.driver}: append ${r.appendMsEach} ms, page ${r.pageMsEach} ms`).join('; ')))
                   .catch((e: unknown) => setBench(e instanceof Error ? e.message : 'failed'))
                   .finally(() => setBusy(''));
-              }} last />
+              }} />
+            <Row label="Preview the sync ring" sub="A scripted queue on My Work, about 35 seconds" onPress={() => { previewSyncRing(); props.onClose(); }} last />
           </Group>
           <SectionLabel label="Jump to screen (bypasses flow)" />
           <Group>
