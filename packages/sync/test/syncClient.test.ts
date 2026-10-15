@@ -1,6 +1,7 @@
-import { HlcClock, ORG_STREAM, derivePassage, type LanguageState, type OrgState } from '@langquest-next/core';
+import { HlcClock, ORG_STREAM, REDUCER_VERSION, derivePassage, type LanguageState, type OrgState } from '@langquest-next/core';
+import { Diagnostics, MemoryDiagStore } from '../src/diagnostics';
 import { MemoryStore } from '../src/memoryStore';
-import { SyncClient } from '../src/syncClient';
+import { LANGUAGE_MATERIALIZER, SyncClient, type Materializer } from '../src/syncClient';
 import { ORG_MATERIALIZER } from '../src/orgSession';
 import { FakeServer } from '../src/testing/fakeServer';
 import { rejectCodeOf } from '../src/types';
@@ -428,6 +429,102 @@ describe('SyncClient snapshots (PLAN.md invariant 10, cutover gate 4)', () => {
     await again.load();
     expect(Object.keys(again.getState().units).length).toBe(12);
     expect(await again.pendingCount()).toBe(0);
+  });
+
+  describe('after an update to the reducer, on a phone whose log is pruned behind its checkpoint', () => {
+    // Why: the old checkpoint cannot be read by the new reducer, and the
+    // events it covers are no longer in the log. Folding what is left showed
+    // a language with most of its work gone, and the next checkpoint saved
+    // that under the new version, so it stayed gone (2026-10-15). Only the
+    // server still has the whole language.
+    const V = REDUCER_VERSION;
+    const bumped: Materializer<LanguageState> = { ...LANGUAGE_MATERIALIZER, version: V + 1 };
+
+    function phone(server: FakeServer) {
+      const store = new MemoryStore();
+      const diag = new MemoryDiagStore();
+      const wall = { t: 0 };
+      let k = 0;
+      const mk = (materializer = LANGUAGE_MATERIALIZER) => new SyncClient({
+        orgId: 'org1', streamId: 'p1', actorId: 'lead', deviceId: 'dA', store, materializer,
+        transport: server.transportFor(), clock: new HlcClock('dA', () => (wall.t += 1)),
+        newId: () => `e${++k}`, checkpointEvery: 5,
+        diag: new Diagnostics({ store: diag, newId: () => `d${++k}`, maxRecords: Infinity })
+      });
+      return { store, diag, mk };
+    }
+
+    /** 12 units under a checkpoint at 12 (log pruned), 2 confirmed after it, 1 still pending. */
+    async function beforeTheUpdate(server: FakeServer, p: ReturnType<typeof phone>) {
+      const c = p.mk();
+      await c.load();
+      for (let i = 0; i < 12; i++) await c.append('v1.UnitAdded', unit(i));
+      await c.sync();
+      for (let i = 12; i < 14; i++) await c.append('v1.UnitAdded', unit(i));
+      await c.sync();
+      server.offline = true;
+      await c.append('v1.UnitAdded', unit(14));
+      expect(await c.inspect()).toMatchObject({ checkpointSeq: 12, total: 3 });
+    }
+
+    it('takes the server snapshot for the new reducer, keeps its own unsent work, and never saves the partial tail', async () => {
+      const server = new FakeServer();
+      const p = phone(server);
+      await beforeTheUpdate(server, p);
+      server.reducerVersion = V + 1; // the server's snapshot worker is on the new reducer too
+      server.makeSnapshot('org1', 'p1');
+
+      const recordsBefore = p.diag.records.length;
+      const updated = p.mk(bumped);
+      await updated.load();
+      expect(updated.getState().units['u14']).toBeDefined(); // what the person did offline is still on screen
+      server.offline = false;
+      await updated.sync();
+      expect(Object.keys(updated.getState().units)).toHaveLength(15);
+      expect(p.diag.records.slice(recordsBefore).filter((r) => r.kind === 'snapshot').map((r) => r.t.outcome)).toEqual(['ok']);
+
+      const relaunched = p.mk(bumped);
+      await relaunched.load();
+      expect(Object.keys(relaunched.getState().units)).toHaveLength(15);
+      expect(await relaunched.inspect()).toMatchObject({ pending: [], checkpointSeq: 14 });
+    });
+
+    it('with no server snapshot for the new reducer, pulls the stream again from the start, however often it is opened offline first', async () => {
+      // The organization stream never has a server snapshot (decisions.md
+      // 44), and a language has none until the snapshot worker runs on the
+      // new reducer.
+      const server = new FakeServer();
+      const p = phone(server);
+      await beforeTheUpdate(server, p);
+      server.snapshots.clear();
+
+      const offline = p.mk(bumped);
+      await offline.load();
+      await offline.sync();
+      const again = p.mk(bumped);
+      await again.load();
+      server.offline = false;
+      for (let i = 0; i < 3 && (await again.sync()).more; i++);
+      expect(Object.keys(again.getState().units)).toHaveLength(15);
+
+      const relaunched = p.mk(bumped);
+      await relaunched.load();
+      expect(Object.keys(relaunched.getState().units)).toHaveLength(15);
+      expect(await p.store.cursor('org1', 'p1')).toBe(15);
+    });
+
+    it('says so in the load record: the old checkpoint was dropped, and the seq it covered', async () => {
+      // Why: "the language went empty after the update" must be answerable
+      // from diagnostics (docs/diagnostics.md) without asking the person.
+      const server = new FakeServer();
+      const p = phone(server);
+      await beforeTheUpdate(server, p);
+      const loadsBefore = p.diag.records.filter((r) => r.kind === 'load').length;
+      await p.mk(bumped).load();
+      await p.mk(bumped).load();
+      const loads = p.diag.records.filter((r) => r.kind === 'load').slice(loadsBefore);
+      expect(loads.map((r) => r.n.staleCheckpointSeq)).toEqual([12, undefined]);
+    });
   });
 
   it('a sync reads the checkpoint seq beside the checkpoint, never the checkpoint itself', async () => {
@@ -975,6 +1072,35 @@ describe('SyncClient with the org materializer (core org.ts)', () => {
     expect(Object.keys(sb.languages)).toEqual(['p9']);
     expect(sb.languages['p9']?.added?.name).toBe('Ruth');
     expect({ ...sa, appliedEventIds: {} }).toEqual({ ...sb, appliedEventIds: {} });
+  });
+
+  it('after an update to the reducer, a pruned organization stream is pulled again from the start', async () => {
+    // Why: the organization stream has no server snapshot (decisions.md 44),
+    // so a phone whose checkpoint the new reducer cannot read has only the
+    // log to rebuild from. Folding the pruned tail lost the phone its
+    // languages and its own membership.
+    const server = new FakeServer();
+    const store = new MemoryStore();
+    const wall = { t: 0 };
+    let n = 0;
+    const mk = (materializer: Materializer<OrgState>) => new SyncClient<OrgState>({
+      materializer, orgId: 'org1', streamId: ORG_STREAM, actorId: 'lead', deviceId: 'dA', store, checkpointEvery: 5,
+      transport: server.transportFor(), clock: new HlcClock('dA', () => (wall.t += 1)), newId: () => `dA-${++n}`
+    });
+    const before = mk(ORG_MATERIALIZER);
+    await before.load();
+    await before.append('v1.OrgCreated', { name: 'Wycliffe' });
+    await before.append('v1.RoleDefined', { roleId: 'org_admin', name: 'Organization Admin', privileges: ['manage_roles'] });
+    await before.append('v1.MemberAdded', { profileId: 'lead', roleId: 'org_admin', scope: { level: 'org' } });
+    for (let i = 0; i < 4; i++) await before.append('v1.LanguageAdded', { languageId: `p${i}`, name: `L${i}`, code: 'rut', sourceCode: 'eng' });
+    await before.sync();
+    expect(await store.all('org1', ORG_STREAM)).toHaveLength(0);
+
+    const after = mk({ ...ORG_MATERIALIZER, version: ORG_MATERIALIZER.version + 1 });
+    await after.load();
+    await after.sync();
+    expect(after.getState()).toEqual({ ...before.getState(), appliedEventIds: after.getState().appliedEventIds });
+    expect(Object.keys(after.getState().languages)).toHaveLength(4);
   });
 });
 

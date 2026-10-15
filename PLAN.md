@@ -107,9 +107,12 @@ Agents: treat each of these as a test you must not break.
    the membership fold for authorization. Dashboards, snapshots, search, and
    integrity checks are async and may lag without affecting translators.
 10. **Snapshots are tagged with the reducer version.** A client only loads a
-    snapshot produced by its own reducer version; otherwise it folds the log.
-    Devices roll their own checkpoint every 2000 confirmed events and prune
-    what it covers, so replay is bounded by recent history.
+    snapshot produced by its own reducer version. Devices roll their own
+    checkpoint every 2000 confirmed events and prune what it covers, so
+    replay is bounded by recent history. A checkpoint from another reducer
+    version is dropped with the stream's cursor, so the device takes the
+    server's snapshot for its version or pulls the log again from the start;
+    it never folds the pruned tail as the whole stream (decisions.md 110).
 11. **Every event is validated at the door, and the fold never throws.**
     `validate_payload` (SQL) and `validateEvent` (core) are the same rules. A
     malformed event that slips through is counted in `state.invalidEvents`

@@ -206,7 +206,7 @@ this block.
     "kinds": {
       "device": ["blobCacheMb", "blobsWanted", "freeDiskMb", "totalDiskMb"],
       "error": ["errorId", "fatal", "name", "where"],
-      "load": ["events", "fromSnapshot", "ms"],
+      "load": ["events", "fromSnapshot", "ms", "staleCheckpointSeq"],
       "snapshot": ["bytes", "chunks", "ms", "outcome", "resumedChunks", "seq"],
       "sync": ["applyMs", "error", "ms", "offlineMs", "outcome", "pages", "pending", "pulled", "pullNetMs", "pushed", "pushNetMs", "rejected"],
       "transfer": ["bytes", "count", "dir", "failDisk", "failHash", "failHttp4xx", "failHttp5xx", "failOffline", "failOther", "fetchMs", "maxMs", "ms", "signMs", "verifyMs"]
