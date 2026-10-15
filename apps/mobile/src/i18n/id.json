@@ -3979,7 +3979,6 @@
       "newVersion": "Versi baru",
       "yourDraft": "Draf Anda",
       "yourDrafts": "Draf-draf Anda",
-      "noDrafts": "Tidak ada draf. Ubah versi di bawah, atau mulai yang baru.",
       "published": "Diterbitkan",
       "latest": "Terbaru",
       "saved": "Disimpan {{when}}",
@@ -3999,7 +3998,8 @@
       "editDraftHelp": "Membuka draf ini di perekam, untuk melanjutkan pengerjaannya.",
       "publishHelp": "Membuka draf ini untuk diterbitkan agar tim bisa mendengarnya.",
       "editVersionHelp": "Memulai draf baru dari versi ini. Versi itu sendiri tetap apa adanya.",
-      "partHelp": "Memutar bagian ini saja."
+      "partHelp": "Memutar bagian ini saja.",
+      "deleteVersionHelp": "Menghapus versi ini. Hanya selama belum ada yang memeriksanya atau diminta memeriksanya. Anda bisa mengurungkannya segera sesudahnya."
     }
   },
   "work": {
@@ -4549,7 +4549,6 @@
     },
     "recorder": {
       "permissionNeeded": "Izin mikrofon diperlukan.",
-      "dragUp": "{{recorded}} · tarik ke atas untuk melihatnya",
       "hidePartsHelp": "Sembunyikan bagian-bagiannya.",
       "showPartsHelp": "Tampilkan setiap bagian, untuk didengar atau dihapus.",
       "playAllHelp": "Dengarkan semua yang sudah direkam, satu bagian demi satu bagian.",
@@ -4574,7 +4573,10 @@
       "deletePartHelp": "Menghapus bagian ini. Anda bisa mengurungkannya segera sesudahnya.",
       "nextCardHelp": "Bagian yang Anda rekam berikutnya. Ketuk tombol merah untuk mulai.",
       "nextRecordingHelp": "Sedang merekam. Batang yang pekat adalah suara Anda yang disimpan; batang yang samar adalah hening.",
-      "nextPausedHelp": "Dijeda selama Alkitab diputar. Perekaman berlanjut saat Alkitab berhenti."
+      "nextPausedHelp": "Dijeda selama Alkitab diputar. Perekaman berlanjut saat Alkitab berhenti.",
+      "deleteAll": "Hapus semua bagian",
+      "deleteAllHelp": "Menghapus semua bagian, untuk mulai lagi. Anda bisa mengurungkannya segera sesudahnya.",
+      "slotHelp": "Bagian yang Anda rekam berikutnya masuk di sini, di tempat bagian yang dihapus. Ketuk tombol merah untuk mulai."
     },
     "quoted": "“{{text}}”",
     "listening": "Mendengarkan… {{time}}",
@@ -6073,8 +6075,6 @@
     "dragDown": "Tarik ke bawah untuk panduan, kata kunci, catatan, dan rekaman sebelumnya",
     "openStudy": "Buka studi",
     "yourRecording": "Rekaman Anda",
-    "tapRed": "Ketuk tombol merah lalu berbicara. Berhenti sejenak di antara bagian: setiap bagian disimpan tersendiri.",
-    "latestParts": "Ini bagian-bagian Versi {{n}}. Rekam bagian baru atau hapus satu bagian untuk menerbitkan versi baru.",
     "clipped": "Bagian-bagian terekam sangat pendek. Kata-kata mungkin terpotong.",
     "micSetup": "Atur mikrofon",
     "micSetupHint": "Sesuaikan cara perangkat mendengar Anda: kepekaan dan jeda.",

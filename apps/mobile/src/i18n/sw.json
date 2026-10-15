@@ -4105,7 +4105,6 @@
       "newVersion": "Toleo jipya",
       "yourDraft": "Rasimu yako",
       "yourDrafts": "Rasimu zako",
-      "noDrafts": "Hakuna rasimu. Hariri toleo hapa chini, au anza jipya.",
       "published": "Yaliyochapishwa",
       "latest": "La karibuni",
       "saved": "Imehifadhiwa {{when}}",
@@ -4125,7 +4124,8 @@
       "editDraftHelp": "Hufungua rasimu hii kwenye kinasa sauti, ili uendelee kuifanyia kazi.",
       "publishHelp": "Hufungua rasimu hii ili uichapishe timu iisikie.",
       "editVersionHelp": "Huanzisha rasimu mpya kutoka toleo hili. Toleo lenyewe linabaki kama lilivyo.",
-      "partHelp": "Hucheza sehemu hii peke yake."
+      "partHelp": "Hucheza sehemu hii peke yake.",
+      "deleteVersionHelp": "Hufuta toleo hili. Ni pale tu hakuna aliyelikagua wala kuombwa kulikagua. Unaweza kutendua mara baada ya hapo."
     }
   },
   "work": {
@@ -4703,7 +4703,6 @@
     },
     "recorder": {
       "permissionNeeded": "Ruhusa ya maikrofoni inahitajika.",
-      "dragUp": "{{recorded}} · buruta juu ili kuziona",
       "hidePartsHelp": "Ficha sehemu.",
       "showPartsHelp": "Onyesha kila sehemu, ili kuisikia au kuifuta.",
       "playAllHelp": "Sikia kila kilichorekodiwa hadi sasa, sehemu moja baada ya nyingine.",
@@ -4728,7 +4727,10 @@
       "deletePartHelp": "Hufuta sehemu hii. Unaweza kutendua mara baada ya hapo.",
       "nextCardHelp": "Sehemu utakayorekodi ijayo. Gusa kitufe chekundu ili kuanza.",
       "nextRecordingHelp": "Inarekodi sasa. Vipau vilivyokolea ni sauti yako inayohifadhiwa; vipau hafifu ni ukimya.",
-      "nextPausedHelp": "Imesitishwa wakati Biblia inacheza. Kurekodi kunaendelea ikisimama."
+      "nextPausedHelp": "Imesitishwa wakati Biblia inacheza. Kurekodi kunaendelea ikisimama.",
+      "deleteAll": "Futa sehemu zote",
+      "deleteAllHelp": "Hufuta sehemu zote, ili uanze upya. Unaweza kutendua mara baada ya hapo.",
+      "slotHelp": "Sehemu utakayorekodi ijayo inakaa hapa, mahali pa ile uliyofuta. Gusa kitufe chekundu ili kuanza."
     },
     "quoted": "“{{text}}”",
     "listening": "Inasikiliza… {{time}}",
@@ -6335,8 +6337,6 @@
     "dragDown": "Buruta chini kwa mwongozo, maneno muhimu, madokezo na rekodi za awali",
     "openStudy": "Fungua somo",
     "yourRecording": "Rekodi yako",
-    "tapRed": "Gusa kitufe chekundu na uzungumze. Pumzika kati ya sehemu: kila sehemu inahifadhiwa peke yake.",
-    "latestParts": "Hizi ni sehemu za Toleo la {{n}}. Rekodi sehemu mpya au futa moja ili kuchapisha toleo jipya.",
     "clipped": "Sehemu zinatoka fupi sana. Maneno yanaweza kukatika.",
     "micSetup": "Andaa maikrofoni",
     "micSetupHint": "Rekebisha jinsi kifaa kinavyokusikia: usikivu na vituo.",

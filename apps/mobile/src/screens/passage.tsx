@@ -40,7 +40,8 @@ import {
 import {
   hasWords, keepInput, keepPageInput, noteInput, overrideInput, payloadField, skipInput, undoneText
 } from '../passage/recordInputsModel';
-import { deleteVersion, VersionsPage } from '../passage/versions';
+import { VersionsPage } from '../passage/versions';
+import { deleteVersion } from '../passage/deleteVersion';
 import { VersionRecording } from '../passage/versionParts';
 import { useVersesHeld } from '../passage/useVerses';
 import { pathSteps, teamSteps, type PathStep, type TeamStep } from '../passage/pathModel';

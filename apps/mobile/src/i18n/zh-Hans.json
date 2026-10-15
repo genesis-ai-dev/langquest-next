@@ -3979,7 +3979,6 @@
       "newVersion": "新版本",
       "yourDraft": "你的草稿",
       "yourDrafts": "你的草稿",
-      "noDrafts": "没有草稿。编辑下面的某个版本，或开始一个新版本。",
       "published": "已发布",
       "latest": "最新",
       "saved": "{{when}}保存",
@@ -3999,7 +3998,8 @@
       "editDraftHelp": "在录音页面打开这份草稿，继续完成它。",
       "publishHelp": "打开这份草稿进行发布，让团队可以听。",
       "editVersionHelp": "根据这个版本开始一份新草稿。这个版本本身保持不变。",
-      "partHelp": "单独播放这一段。"
+      "partHelp": "单独播放这一段。",
+      "deleteVersionHelp": "删除这个版本。只能在还没有人检查、也没有人被请去检查的时候删除。删除后可以马上撤销。"
     }
   },
   "work": {
@@ -4549,7 +4549,6 @@
     },
     "recorder": {
       "permissionNeeded": "需要麦克风权限。",
-      "dragUp": "{{recorded}} · 向上拖动查看",
       "hidePartsHelp": "隐藏各段。",
       "showPartsHelp": "显示每一段，可以听或删除。",
       "playAllHelp": "按顺序一段一段地听目前录下的所有内容。",
@@ -4574,7 +4573,10 @@
       "deletePartHelp": "删除这一段。删除后可以马上撤销。",
       "nextCardHelp": "你接下来要录的一段。点按红色按钮开始。",
       "nextRecordingHelp": "正在录音。实心的条是正在保存的你的声音；浅色的条是安静的部分。",
-      "nextPausedHelp": "播放圣经时已暂停。圣经停止后会继续录音。"
+      "nextPausedHelp": "播放圣经时已暂停。圣经停止后会继续录音。",
+      "deleteAll": "删除所有段",
+      "deleteAllHelp": "删除所有段，从头再来。删除后可以马上撤销。",
+      "slotHelp": "你接下来录的一段放在这里，就是删掉的那一段原来的位置。点按红色按钮开始。"
     },
     "quoted": "“{{text}}”",
     "listening": "正在听……{{time}}",
@@ -6073,8 +6075,6 @@
     "dragDown": "向下拖动，查看指南、关键词、备注和之前的录音",
     "openStudy": "打开学习",
     "yourRecording": "你的录音",
-    "tapRed": "点按红色按钮开始说话。每段之间停顿一下：每一段都会单独保存。",
-    "latestParts": "这些是第 {{n}} 版的片段。录一个新片段或删除一个片段，就可以发布新版本。",
     "clipped": "录下的片段非常短，可能有字词被截掉了。",
     "micSetup": "设置麦克风",
     "micSetupHint": "调整设备听你说话的方式：灵敏度和停顿。",

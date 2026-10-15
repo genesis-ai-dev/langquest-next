@@ -4231,7 +4231,6 @@
       "newVersion": "Nouvelle version",
       "yourDraft": "Votre brouillon",
       "yourDrafts": "Vos brouillons",
-      "noDrafts": "Aucun brouillon. Modifiez une version ci-dessous ou commencez-en une nouvelle.",
       "published": "Publiées",
       "latest": "La plus récente",
       "saved": "Enregistré {{when}}",
@@ -4251,7 +4250,8 @@
       "editDraftHelp": "Ouvre ce brouillon dans l’espace d’enregistrement, pour continuer à y travailler.",
       "publishHelp": "Ouvre ce brouillon pour le publier, afin que l’équipe l’écoute.",
       "editVersionHelp": "Commence un nouveau brouillon à partir de cette version. La version elle-même reste telle quelle.",
-      "partHelp": "Fait entendre cette partie seule."
+      "partHelp": "Fait entendre cette partie seule.",
+      "deleteVersionHelp": "Supprime cette version. Seulement tant que personne ne l’a vérifiée ni n’a été invité à le faire. Vous pouvez annuler juste après."
     }
   },
   "work": {
@@ -4857,7 +4857,6 @@
     },
     "recorder": {
       "permissionNeeded": "L’autorisation du microphone est nécessaire.",
-      "dragUp": "{{recorded}} · tirez vers le haut pour les voir",
       "hidePartsHelp": "Masquer les parties.",
       "showPartsHelp": "Afficher chaque partie, pour l’écouter ou la supprimer.",
       "playAllHelp": "Écouter tout ce qui a été enregistré jusqu’ici, une partie après l’autre.",
@@ -4882,7 +4881,10 @@
       "deletePartHelp": "Supprime cette partie. Vous pouvez annuler juste après.",
       "nextCardHelp": "La partie que vous enregistrez ensuite. Touchez le bouton rouge pour commencer.",
       "nextRecordingHelp": "Enregistrement en cours. Les barres pleines sont votre voix gardée ; les barres pâles sont le silence.",
-      "nextPausedHelp": "En pause pendant que la Bible joue. L’enregistrement reprend quand elle s’arrête."
+      "nextPausedHelp": "En pause pendant que la Bible joue. L’enregistrement reprend quand elle s’arrête.",
+      "deleteAll": "Supprimer toutes les parties",
+      "deleteAllHelp": "Supprime toutes les parties, pour tout recommencer. Vous pouvez annuler juste après.",
+      "slotHelp": "La partie que vous enregistrez ensuite va ici, à la place de celle supprimée. Touchez le bouton rouge pour commencer."
     },
     "quoted": "« {{text}} »",
     "listening": "Écoute… {{time}}",
@@ -6597,8 +6599,6 @@
     "dragDown": "Tirez vers le bas pour le guide, les mots clés, les notes et les enregistrements précédents",
     "openStudy": "Ouvrir l’étude",
     "yourRecording": "Votre enregistrement",
-    "tapRed": "Touchez le bouton rouge et parlez. Faites une pause entre les parties : chaque partie est gardée séparément.",
-    "latestParts": "Voici les parties de la version {{n}}. Enregistrez une nouvelle partie ou supprimez-en une pour publier une nouvelle version.",
     "clipped": "Les parties sont très courtes. Des mots risquent d’être coupés.",
     "micSetup": "Régler le microphone",
     "micSetupHint": "Réglez la façon dont l’appareil vous entend : sensibilité et pauses.",

@@ -7,6 +7,7 @@
 // it or been asked to (LAN-83, `canDeleteVersion`). The footer starts a new
 // version from nothing. The record's history follows.
 import { canDeleteVersion, commands, draftsBy, type DraftView, type Version } from '@langquest-next/core';
+import { deleteVersion } from './deleteVersion';
 import * as Crypto from 'expo-crypto';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -96,29 +97,6 @@ export function VersionsPage(props: {
       {props.history}
     </Screen>
   );
-}
-
-/**
- * Delete the person's latest version while nobody has checked it (LAN-83).
- * Undo publishes the same parts again, with what it said changed, so it is
- * that version again.
- */
-export function deleteVersion(ctx: Ctx, v: PassageView, ver: Version, after?: () => void) {
-  const { state, unitId } = v;
-  const me = ctx.session.actorId;
-  const name = versionTitle(ver.n);
-  let specs;
-  try {
-    specs = commands(state, indexesFor(state)).deleteVersion({ commandId: Crypto.randomUUID(), unitId, takeId: ver.takeId, actorId: me });
-  } catch (e) {
-    ctx.toast(t('passage.versions.notDeleted', { reason: failureMessage('versions: delete version', e) }));
-    return;
-  }
-  void ctx.act(specs, t('passage.versions.deleted', { name }), () => {
-    const s = ctx.language.state ?? state;
-    return commands(s, indexesFor(s)).publishVersion({ commandId: Crypto.randomUUID(), unitId, cardHashes: ver.cardHashes, actorId: me, parentTakeId: ver.parentTakeId,
-      ...(ver.changeNote ? { note: ver.changeNote } : ver.n > 1 ? { note: '—' } : {}), ...(ver.changeBlobHash ? { noteBlobHash: ver.changeBlobHash } : {}) });
-  }).then(() => after?.()).catch(() => { /* ctx.act said what went wrong */ });
 }
 
 function VersionCard(props: {

@@ -4231,7 +4231,6 @@
       "newVersion": "Versión nueva",
       "yourDraft": "Tu borrador",
       "yourDrafts": "Tus borradores",
-      "noDrafts": "No hay borradores. Edita una versión de abajo o empieza una nueva.",
       "published": "Publicadas",
       "latest": "La más reciente",
       "saved": "Guardado {{when}}",
@@ -4251,7 +4250,8 @@
       "editDraftHelp": "Abre este borrador en la grabadora, para seguir trabajando en él.",
       "publishHelp": "Abre este borrador para publicarlo y que el equipo lo escuche.",
       "editVersionHelp": "Empieza un borrador nuevo a partir de esta versión. La versión se queda como está.",
-      "partHelp": "Reproduce solo esta parte."
+      "partHelp": "Reproduce solo esta parte.",
+      "deleteVersionHelp": "Borra esta versión. Solo mientras nadie la haya revisado ni se le haya pedido. Puedes deshacerlo justo después."
     }
   },
   "work": {
@@ -4857,7 +4857,6 @@
     },
     "recorder": {
       "permissionNeeded": "Se necesita permiso para usar el micrófono.",
-      "dragUp": "{{recorded}} · desliza hacia arriba para verlas",
       "hidePartsHelp": "Ocultar las partes.",
       "showPartsHelp": "Muestra cada parte, para escucharla o eliminarla.",
       "playAllHelp": "Escucha todo lo grabado hasta ahora, una parte tras otra.",
@@ -4882,7 +4881,10 @@
       "deletePartHelp": "Borra esta parte. Puedes deshacerlo justo después.",
       "nextCardHelp": "La parte que grabas a continuación. Toca el botón rojo para empezar.",
       "nextRecordingHelp": "Grabando. Las barras sólidas son tu voz que se guarda; las tenues son silencio.",
-      "nextPausedHelp": "En pausa mientras suena la Biblia. La grabación sigue cuando se detiene."
+      "nextPausedHelp": "En pausa mientras suena la Biblia. La grabación sigue cuando se detiene.",
+      "deleteAll": "Borrar todas las partes",
+      "deleteAllHelp": "Borra todas las partes, para empezar de nuevo. Puedes deshacerlo justo después.",
+      "slotHelp": "La parte que grabes a continuación va aquí, donde estaba la parte borrada. Toca el botón rojo para empezar."
     },
     "quoted": "“{{text}}”",
     "listening": "Escuchando… {{time}}",
@@ -6597,8 +6599,6 @@
     "dragDown": "Desliza hacia abajo para ver la guía, las palabras clave, las notas y las grabaciones anteriores",
     "openStudy": "Abrir el estudio",
     "yourRecording": "Tu grabación",
-    "tapRed": "Toca el botón rojo y habla. Haz una pausa entre partes: cada parte se guarda por separado.",
-    "latestParts": "Estas son las partes de la versión {{n}}. Graba una parte nueva o elimina una para publicar una versión nueva.",
     "clipped": "Las partes están saliendo muy cortas. Puede que se corten palabras.",
     "micSetup": "Configurar el micrófono",
     "micSetupHint": "Ajusta cómo te escucha el dispositivo: sensibilidad y pausas.",

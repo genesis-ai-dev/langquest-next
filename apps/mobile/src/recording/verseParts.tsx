@@ -196,7 +196,7 @@ export function VerseParts(props: {
           <View key={`${part.hash}-${i}`}>
             {slot?.index === i ? (
               <View style={[styles.slot, i > 0 && styles.rowBorder]}>
-                {slot.render(slotLabel ? <VerseTile verses={verses} label={slotLabel} same={slotLabel.kind === 'join'} /> : <View style={styles.ghost} />)}
+                {slot.render(slotLabel ? <VerseTile verses={verses} label={slotLabel} same={slotLabel.kind === 'join'} /> : <View style={styles.noTile} />)}
               </View>
             ) : gap ? <GapRow text={t('recording.verses.leftForLater', { verses: spanName(verses, gap.s, gap.e) })} disabled={disabled} onRecord={() => props.onRecordHere(i)} /> : null}
             <PartRow ctx={props.ctx} part={part} index={i} name={partLabel(shift(i))} label={labels[i] ?? null} verses={verses} ghost={labels[i] ? null : ghost(i)}
@@ -378,6 +378,8 @@ const styles = StyleSheet.create({
   rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border },
   editing: { backgroundColor: C.light },
   slot: { backgroundColor: C.card },
+  // A part without verses leaves nothing where its number would be (verses are never asked for).
+  noTile: { width: 44, height: 44 },
   trash: { alignSelf: 'center', marginRight: space.xs },
   gutter: { width: GUTTER, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderColor: C.border },
   // A part's own verse: a soft grey tile with a dark number, so the labels stay quiet beside the parts.
