@@ -406,3 +406,58 @@ function cardVerseError(p: Record<string, unknown>): string | null {
   if (a === null || b === null) return 'from and to must be chapter:verse';
   return a <= b ? null : 'from must not come after to';
 }
+
+/**
+ * The most one event may carry (decisions.md 113): its payload as Postgres
+ * prints it, and each envelope field. Checked where events are made
+ * (SyncClient.append) and where the server takes them (append_events, SQL
+ * `_event_size_refusal`), never in the fold, so nothing already in a log
+ * changes meaning. A recording's cards are the largest real payload, about
+ * 120 bytes each.
+ */
+export const EVENT_PAYLOAD_MAX_BYTES = 64 * 1024;
+export const EVENT_FIELD_MAX_CHARS = 256;
+
+/**
+ * Bytes of `v` as Postgres prints jsonb (`payload::text`): the compact JSON,
+ * plus the space it puts after each `:` and each `,`. Iterative, so no depth
+ * can overflow the stack.
+ */
+export function jsonbTextBytes(v: unknown): number {
+  let spaces = 0;
+  const stack: unknown[] = [v];
+  while (stack.length > 0) {
+    const x = stack.pop();
+    if (Array.isArray(x)) {
+      if (x.length > 1) spaces += x.length - 1;
+      for (const item of x) stack.push(item);
+    } else if (typeof x === 'object' && x !== null) {
+      const values = Object.values(x).filter((child) => child !== undefined);
+      if (values.length > 0) spaces += 2 * values.length - 1;
+      for (const child of values) stack.push(child);
+    }
+  }
+  return utf8Bytes(JSON.stringify(v) ?? '') + spaces;
+}
+
+function utf8Bytes(s: string): number {
+  let n = 0;
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (c < 0x80) n += 1;
+    else if (c < 0x800) n += 2;
+    else if (c >= 0xd800 && c <= 0xdbff && i + 1 < s.length) { n += 4; i++; }
+    else n += 3;
+  }
+  return n;
+}
+
+/** Why an event is too big to make or to take, or null. */
+export function eventSizeError(e: AnyEvent): string | null {
+  for (const k of ['id', 'type', 'orgId', 'streamId', 'actorId', 'deviceId', 'hlc', 'parentEventId'] as const) {
+    const v = (e as unknown as Record<string, unknown>)[k];
+    if (typeof v === 'string' && v.length > EVENT_FIELD_MAX_CHARS) return `${k} is longer than ${EVENT_FIELD_MAX_CHARS} characters`;
+  }
+  const bytes = jsonbTextBytes(e.payload);
+  return bytes > EVENT_PAYLOAD_MAX_BYTES ? `event too large: ${bytes} bytes (max ${EVENT_PAYLOAD_MAX_BYTES})` : null;
+}

@@ -21431,6 +21431,7 @@ function cardVerseError(p) {
   if (a === null || b === null) return "from and to must be chapter:verse";
   return a <= b ? null : "from must not come after to";
 }
+var EVENT_PAYLOAD_MAX_BYTES = 64 * 1024;
 
 // packages/core/src/ties.ts
 function earlier(event, content, prior, priorContent, actorId = event.actorId) {

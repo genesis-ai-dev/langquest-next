@@ -957,4 +957,34 @@ exception when insufficient_privilege then null;
 end $$;
 reset role;
 
+-- 22. An event is at most 64 KB, and an account creates at most 5
+-- organizations a day and 20 in all (decisions.md 113).
+select set_config('request.jwt.claim.sub', 't1', false);
+do $$ declare r record; begin
+  select * into r from public.append_events(jsonb_build_array(jsonb_build_object(
+    'id', 'huge-note', 'type', 'v1.NoteAdded', 'orgId', 'org1', 'streamId', 'L1', 'actorId', 't1', 'deviceId', 'dB',
+    'hlc', '000000000000099:000000:dB', 'payload', jsonb_build_object('noteId', 'huge', 'anchor', jsonb_build_object('kind', 'version', 'takeId', 't'), 'text', repeat('x', 70000)))));
+  if r.accepted or r.reason not like 'invalid payload: event too large%' then raise exception 'a 70 KB note should be refused, got %', r; end if;
+end $$;
+select set_config('request.jwt.claim.sub', 'founder', false);
+do $$ declare r record; i int; begin
+  for i in 1..5 loop
+    select * into r from public.append_events(jsonb_build_array(jsonb_build_object(
+      'id', 'quota-org-' || i, 'type', 'v1.OrgCreated', 'orgId', 'quota-org-' || i, 'streamId', '_org', 'actorId', 'founder', 'deviceId', 'dF',
+      'hlc', '000000000000001:000000:dF', 'payload', jsonb_build_object('name', 'Org ' || i))));
+    if not r.accepted then raise exception 'organization % should be created, got %', i, r; end if;
+  end loop;
+  -- More events in an organization already made are not counted.
+  select * into r from public.append_events(jsonb_build_array(jsonb_build_object(
+    'id', 'quota-role-1', 'type', 'v1.RoleDefined', 'orgId', 'quota-org-1', 'streamId', '_org', 'actorId', 'founder', 'deviceId', 'dF',
+    'hlc', '000000000000002:000000:dF', 'payload', jsonb_build_object('roleId', 'r', 'name', 'R', 'privileges', jsonb_build_array('translate')))));
+  if not r.accepted then raise exception 'a second event in an organization just made should be taken, got %', r; end if;
+  select * into r from public.append_events(jsonb_build_array(jsonb_build_object(
+    'id', 'quota-org-6', 'type', 'v1.RoleDefined', 'orgId', 'quota-org-6', 'streamId', '_org', 'actorId', 'founder', 'deviceId', 'dF',
+    'hlc', '000000000000003:000000:dF', 'payload', jsonb_build_object('roleId', 'r', 'name', 'R', 'privileges', jsonb_build_array('translate')))));
+  if r.accepted or r.reason not like 'may not emit v1.RoleDefined: an account creates at most 5 organizations a day%' then
+    raise exception 'a sixth organization in a day should be refused, got %', r;
+  end if;
+end $$;
+
 select 'smoke ok' as result;

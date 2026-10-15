@@ -7,7 +7,7 @@
  */
 import { writeFileSync } from 'node:fs';
 import {
-  EVENT_PRIVILEGE, LIBRARY_EVENT_TYPES, PRIVILEGES, entityKeyOf, languageOfOrgEvent, privilegeAllows, privilegeFor, privilegesOfFixedRole,
+  EVENT_PAYLOAD_MAX_BYTES, EVENT_PRIVILEGE, LIBRARY_EVENT_TYPES, PRIVILEGES, entityKeyOf, eventSizeError, jsonbTextBytes, languageOfOrgEvent, privilegeAllows, privilegeFor, privilegesOfFixedRole,
   validateEvent, type AnyEvent, type Role
 } from '@langquest-next/core';
 import { buildFixture, buildOrgFixture, buildRecordFixture, buildStep11Fixture } from '../packages/core/test/fixtures';
@@ -221,6 +221,23 @@ const scopedLanguage = [...events, ...broken.filter((e) => SCOPED.has(e.type) &&
 // The entity a creating event names (one event per entity in a stream, decisions.md 75).
 const entities = events.map((e) => ({ type: e.type, payload: e.payload, key: entityKeyOf(e) }));
 
+// How big an event may be (decisions.md 113): each fixture, and payloads on
+// either side of the limit, of text, of many small numbers (a space after
+// every comma) and of nested objects (one after every colon too).
+const room = (shape: (n: number) => unknown, base = shape(0)) => EVENT_PAYLOAD_MAX_BYTES - jsonbTextBytes(base);
+const near = [
+  (n: number) => ({ text: 'x'.repeat(n) }),
+  (n: number) => ({ text: 'é'.repeat(Math.floor(n / 2)) }),
+  (n: number) => ({ nums: Array.from({ length: Math.floor(n / 3) }, () => 1) }),
+  (n: number) => ({ objs: Array.from({ length: Math.floor(n / 9) }, () => ({ a: 1 })) })
+].flatMap((shape) => {
+  const r = room(shape);
+  return [-6, -3, 0, 3, 6, 30].map((d) => shape(r + d));
+});
+const sizes = [...events, ...near.map((payload) => ({ ...events[0]!, payload }) as AnyEvent),
+  { ...events[0]!, deviceId: 'd'.repeat(256) }, { ...events[0]!, deviceId: 'd'.repeat(257) }]
+  .map((e) => ({ ev: e, ok: eventSizeError(e) === null }));
+
 writeFileSync(process.argv[2] ?? '/tmp/record-parity.sql', `do $$ declare r jsonb; begin
   for r in select * from jsonb_array_elements(${sql(rows)}) loop
     if (public.validate_payload(r->>'type', r->'payload') is null) is distinct from (r->>'valid')::boolean then
@@ -242,6 +259,11 @@ writeFileSync(process.argv[2] ?? '/tmp/record-parity.sql', `do $$ declare r json
       raise exception 'language_of_org_event disagrees with core: %', r;
     end if;
   end loop;
+  for r in select * from jsonb_array_elements(${sql(sizes)}) loop
+    if (public._event_size_refusal(r->'ev') is null) is distinct from (r->>'ok')::boolean then
+      raise exception '_event_size_refusal disagrees with core on % bytes: %', octet_length((r->'ev'->'payload')::text), public._event_size_refusal(r->'ev');
+    end if;
+  end loop;
   for r in select * from jsonb_array_elements(${sql(entities)}) loop
     if public._entity_key(r->>'type', r->'payload') is distinct from r->>'key' then
       raise exception '_entity_key disagrees with core: % (sql says %)', r, public._entity_key(r->>'type', r->'payload');
@@ -249,5 +271,5 @@ writeFileSync(process.argv[2] ?? '/tmp/record-parity.sql', `do $$ declare r json
   end loop;
 end $$;
 select ${rows.length} as payload_checks, ${perms.length + single.length} as permission_checks, ${scopedLanguage.length} as scope_checks,
-  ${entities.length} as entity_checks;
+  ${entities.length} as entity_checks, ${sizes.length} as size_checks;
 `);
