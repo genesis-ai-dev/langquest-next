@@ -21418,22 +21418,156 @@ function stable(v) {
   return JSON.stringify(v);
 }
 
-// packages/core/src/reducer.ts
-var REDUCER_VERSION = 16;
+// packages/core/src/changes.ts
 var REVISIONS = /* @__PURE__ */ new WeakMap();
 function stateRevision(state) {
   return REVISIONS.get(state) ?? 0;
 }
+var ORIGIN = /* @__PURE__ */ new WeakMap();
+function liveStateOf(state) {
+  if (REVISIONS.has(state)) return state;
+  return ORIGIN.get(state) ?? state;
+}
+function sameFields(a, b) {
+  if (a === b) return true;
+  const ra = a;
+  const rb = b;
+  const keys = Object.keys(ra);
+  if (keys.length !== Object.keys(rb).length) return false;
+  for (const k of keys) if (ra[k] !== rb[k] || !(k in rb)) return false;
+  return true;
+}
+var NONE = Object.freeze([]);
+var NOTHING = Object.freeze({ units: NONE, takes: NONE, reviews: NONE, departures: NONE, requests: NONE, notes: NONE });
+var touched = (t) => ({ ...NOTHING, ...t });
+function touchedBy(state, event) {
+  switch (event.type) {
+    case "v1.TakeComposed": {
+      const prior = state.takes[event.payload.takeId];
+      return prior && prior.unitId !== "" ? "all" : touched({ takes: [event.payload.takeId] });
+    }
+    case "v1.TakeArchived":
+    case "v1.TakeSubmitted":
+    case "v1.ResponseRecorded":
+      return touched({ takes: [event.payload.takeId] });
+    case "v1.ReviewRecorded":
+      return state.kindReviews[event.payload.reviewId] ? "all" : touched({ reviews: [event.payload.reviewId] });
+    case "v1.DepartureRecorded":
+      return state.departures[event.payload.departureId] ? "all" : touched({ departures: [event.payload.departureId] });
+    case "v1.DepartureUndone": {
+      const d = state.departures[event.payload.departureId];
+      return d ? touched({ units: [d.unitId] }) : NOTHING;
+    }
+    case "v1.RequestMade":
+      return state.requests[event.payload.requestId] ? "all" : touched({ requests: [event.payload.requestId] });
+    case "v1.RequestWithdrawn": {
+      const r = state.requests[event.payload.requestId];
+      return r ? touched({ units: [r.unitId] }) : NOTHING;
+    }
+    case "v1.NoteAdded":
+      return state.notes[event.payload.noteId] ? "all" : touched({ notes: [event.payload.noteId] });
+    // Nothing the passage views or the unit list read.
+    case "v1.RecordingAdded":
+    case "v1.StudyStepMarked":
+    case "v1.BookNameSet":
+    case "v1.CheckHelpSet":
+    case "v1.VersionReleased":
+    case "v1.ExternalValueSet":
+    case "v1.CardVerseSet":
+    case "v1.MaterialDefined":
+    case "v1.MaterialFieldSet":
+    case "v1.MaterialLocked":
+    case "v1.KeyTermDefined":
+    case "v1.KeyTermRenderingAdded":
+    case "v1.KeyTermAdjusted":
+    case "v1.KeyTermLinked":
+    case "v1.ReferenceSet":
+    case "v1.ReferenceLanguageSet":
+    case "v1.PassageReferenceLinked":
+    case "v1.ReferencesUsed":
+    case "v1.BlobStored":
+    case "v1.BlobInvalidated":
+    case "v1.AudioFormatSet":
+    // Organization-stream events: the language fold ignores them.
+    case "v1.OrgCreated":
+    case "v1.OrgRenamed":
+    case "v1.RoleDefined":
+    case "v1.RoleRetired":
+    case "v1.MemberAdded":
+    case "v1.MemberRemoved":
+    case "v1.InviteIssued":
+    case "v1.InviteRedeemed":
+    case "v1.JoinDecided":
+    case "v1.LicenseSet":
+    case "v1.LanguageAdded":
+    case "v1.LanguageRenamed":
+    case "v1.LanguageCodeSet":
+    case "v1.LanguageCountrySet":
+    case "v1.LanguageTargetSet":
+    case "v1.ClusterNamed":
+    case "v1.LanguageClusterSet":
+    case "v1.ReferenceRecommended":
+    case "v1.LibraryItemDefined":
+    case "v1.LibraryVersionPublished":
+    case "v1.LibrarySharingSet":
+    case "v1.LibraryItemArchived":
+    case "v1.LibrarySubscribed":
+    case "v1.LibraryPinned":
+      return NOTHING;
+    // Templates, units, the flow, kinds, teams, links, redactions, and any type added later.
+    default:
+      return "all";
+  }
+}
+var LOGS = /* @__PURE__ */ new WeakMap();
+var MAX_ENTRIES = 1e3;
+function countEvent(state, event) {
+  const before = REVISIONS.get(state) ?? 0;
+  REVISIONS.set(state, before + 1);
+  const log = LOGS.get(state);
+  if (!log?.entries) return;
+  if (log.entries.length >= MAX_ENTRIES || log.from + log.entries.length !== before) {
+    log.entries = null;
+    return;
+  }
+  log.entries.push(event ? touchedBy(state, event) : NOTHING);
+}
+function watchChanges(live, consumer, revision) {
+  let log = LOGS.get(live);
+  if (!log) LOGS.set(live, log = { from: revision, entries: [], marks: /* @__PURE__ */ new Map() });
+  if (!log.entries || revision < log.from || revision > log.from + log.entries.length) {
+    log.from = revision;
+    log.entries = [];
+    for (const [k, v] of log.marks) if (v < revision) log.marks.delete(k);
+  }
+  log.marks.set(consumer, revision);
+  const oldest = Math.min(...log.marks.values());
+  if (oldest > log.from) {
+    log.entries.splice(0, oldest - log.from);
+    log.from = oldest;
+  }
+}
+function changesSince(live, revision) {
+  const now = stateRevision(live);
+  if (revision === now) return [];
+  const log = LOGS.get(live);
+  if (!log?.entries || revision < log.from || log.from + log.entries.length !== now) return null;
+  return log.entries.slice(revision - log.from);
+}
+
+// packages/core/src/reducer.ts
+var REDUCER_VERSION = 16;
 function applyLanguageEvent(state, event) {
   if (state.appliedEventIds[event.id]) return state;
   state.appliedEventIds[event.id] = true;
-  REVISIONS.set(state, (REVISIONS.get(state) ?? 0) + 1);
   const invalid = validateEvent(event);
+  const redacted = !invalid && !!state.redactions[event.id] && event.type !== "v1.Redacted";
+  countEvent(state, invalid || redacted ? null : event);
   if (invalid) {
     state.invalidEvents[event.id] = invalid;
     return state;
   }
-  if (state.redactions[event.id] && event.type !== "v1.Redacted") return state;
+  if (redacted) return state;
   switch (event.type) {
     case "v1.TemplateSelected": {
       const { itemId, docHash, unitPrefix, books } = event.payload;
@@ -21832,6 +21966,22 @@ function buildIndexes(state) {
   }
   return { passages, containers, waiting };
 }
+var built = /* @__PURE__ */ new WeakMap();
+var latest = /* @__PURE__ */ new WeakMap();
+function indexesOf(state) {
+  const revision = stateRevision(state);
+  const hit = built.get(state);
+  if (hit && hit.revision === revision) return hit.idx;
+  const live = liveStateOf(state);
+  const now = stateRevision(live);
+  const prev = latest.get(live);
+  const changes = prev && sameFields(prev.source, state) ? changesSince(live, prev.revision) : null;
+  const idx = prev && changes && !changes.includes("all") ? prev.idx : buildIndexes(state);
+  latest.set(live, { idx, revision: now, source: state });
+  watchChanges(live, "indexes", now);
+  built.set(state, { revision, idx });
+  return idx;
+}
 
 // packages/core/src/passage.ts
 function deriveKinds(state) {
@@ -21857,27 +22007,59 @@ function stepName(kinds, step) {
 var COMPLETE = ["approved", "skipped"];
 var isCompleteState = (s) => COMPLETE.includes(s);
 var cache = /* @__PURE__ */ new WeakMap();
+var latest2 = /* @__PURE__ */ new WeakMap();
 function push(m, k, v) {
   const list = m.get(k);
   if (list) list.push(v);
   else m.set(k, [v]);
 }
 var byHlc = (a, b) => a.hlc < b.hlc ? -1 : a.hlc > b.hlc ? 1 : (a.id ?? "") < (b.id ?? "") ? -1 : (a.id ?? "") > (b.id ?? "") ? 1 : 0;
+var versionOrder = (state) => {
+  const at = (id) => state.submissions[id]?.hlc ?? "";
+  return (a, b) => at(a) < at(b) ? -1 : at(a) > at(b) ? 1 : a < b ? -1 : 1;
+};
+var draftOrder = (state) => (a, b) => {
+  const ha = state.takes[a].hlc;
+  const hb = state.takes[b].hlc;
+  return ha < hb ? 1 : ha > hb ? -1 : a < b ? 1 : -1;
+};
+var isDraft = (state, id) => {
+  const t = state.takes[id];
+  return !state.submissions[id] && !t.archived && t.cardHashes.length > 0;
+};
+function requestRecipients(state, r) {
+  const out = r.profileId ? [r.profileId] : [];
+  if (r.teamId) {
+    for (const id of teamMemberIds(state, r.teamId)) if (id !== r.by) out.push(id);
+  }
+  return out;
+}
 function recordIndexes(state, idx) {
   const revision = stateRevision(state);
   const hit = cache.get(state);
   if (hit && hit.revision === revision) return hit.ri;
+  const live = liveStateOf(state);
+  const now = stateRevision(live);
+  const prev = latest2.get(live);
+  const changes = prev && sameFields(prev.source, state) ? changesSince(live, prev.revision) : null;
+  const ri = prev && changes && !changes.includes("all") ? patchIndexes(state, prev.ri, changes, idx) : buildRecordIndexes(state, idx ?? indexesOf(state));
+  latest2.set(live, { ri, revision: now, source: state });
+  watchChanges(live, "passages", now);
+  cache.set(state, { revision, ri });
+  return ri;
+}
+function buildRecordIndexes(state, idx) {
   const reviewsByTake = /* @__PURE__ */ new Map();
   for (const r of Object.values(state.kindReviews)) push(reviewsByTake, r.takeId, r);
   const versions = /* @__PURE__ */ new Map();
   const drafts = /* @__PURE__ */ new Map();
-  const takes = Object.entries(state.takes).filter(([, t]) => t.unitId);
-  const submittedAt = (id) => state.submissions[id]?.hlc ?? "";
-  for (const [id, t] of takes.filter(([id2]) => state.submissions[id2]).sort(([a], [b]) => submittedAt(a) < submittedAt(b) ? -1 : submittedAt(a) > submittedAt(b) ? 1 : a < b ? -1 : 1)) {
-    push(versions, t.unitId, id);
-  }
-  for (const [id, t] of takes.filter(([id2, t2]) => !state.submissions[id2] && !t2.archived && t2.cardHashes.length > 0).sort(([ia, a], [ib, b]) => a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : ia < ib ? 1 : -1)) {
-    push(drafts, t.unitId, id);
+  const children = /* @__PURE__ */ new Map();
+  const takes = Object.keys(state.takes).filter((id) => state.takes[id].unitId);
+  for (const id of takes.filter((id2) => state.submissions[id2]).sort(versionOrder(state))) push(versions, state.takes[id].unitId, id);
+  for (const id of takes.filter((id2) => isDraft(state, id2)).sort(draftOrder(state))) push(drafts, state.takes[id].unitId, id);
+  for (const id of takes) {
+    const parent = state.takes[id].parentTakeId;
+    if (parent) push(children, parent, id);
   }
   const departures = /* @__PURE__ */ new Map();
   for (const d of Object.values(state.departures).sort(byHlc)) push(departures, d.unitId, d);
@@ -21886,10 +22068,7 @@ function recordIndexes(state, idx) {
   const requestsBy = /* @__PURE__ */ new Map();
   for (const r of Object.values(state.requests).sort(byHlc)) {
     push(requests, r.unitId, r);
-    if (r.profileId) push(requestsTo, r.profileId, r);
-    if (r.teamId) {
-      for (const id of teamMemberIds(state, r.teamId)) if (id !== r.by) push(requestsTo, id, r);
-    }
+    for (const id of requestRecipients(state, r)) push(requestsTo, id, r);
     push(requestsBy, r.by, r);
   }
   const notes = /* @__PURE__ */ new Map();
@@ -21901,12 +22080,13 @@ function recordIndexes(state, idx) {
     }
     push(notes, n.unitId, n);
   }
-  const out = {
-    idx: idx ?? buildIndexes(state),
+  return {
+    idx,
     kinds: deriveKinds(state),
     flow: deriveFlow(state),
     versions,
     drafts,
+    children,
     reviewsByTake,
     departures,
     requests,
@@ -21916,8 +22096,97 @@ function recordIndexes(state, idx) {
     changeNotes,
     passages: /* @__PURE__ */ new Map()
   };
-  cache.set(state, { revision, ri: out });
-  return out;
+}
+function edit(m, key, f) {
+  const next = f(m.get(key) ?? []);
+  if (next.length) m.set(key, next);
+  else m.delete(key);
+}
+function insertSorted(list, item, order) {
+  let i = 0;
+  while (i < list.length && order(list[i], item) <= 0) i++;
+  return [...list.slice(0, i), item, ...list.slice(i)];
+}
+var withoutId = (list, id) => list.filter((x) => x.id !== id);
+function patchIndexes(state, prev, changes, idx) {
+  const units = /* @__PURE__ */ new Set();
+  const takes = /* @__PURE__ */ new Set();
+  const reviews = /* @__PURE__ */ new Set();
+  const departures = /* @__PURE__ */ new Set();
+  const requests = /* @__PURE__ */ new Set();
+  const notes = /* @__PURE__ */ new Set();
+  for (const c of changes) {
+    for (const id of c.units) units.add(id);
+    for (const id of c.takes) takes.add(id);
+    for (const id of c.reviews) reviews.add(id);
+    for (const id of c.departures) departures.add(id);
+    for (const id of c.requests) requests.add(id);
+    for (const id of c.notes) notes.add(id);
+  }
+  const nothing = !units.size && !takes.size && !reviews.size && !departures.size && !requests.size && !notes.size;
+  if (nothing && (idx ?? prev.idx) === prev.idx) return prev;
+  const ri = {
+    ...prev,
+    idx: idx ?? prev.idx,
+    versions: new Map(prev.versions),
+    drafts: new Map(prev.drafts),
+    children: new Map(prev.children),
+    reviewsByTake: new Map(prev.reviewsByTake),
+    departures: new Map(prev.departures),
+    requests: new Map(prev.requests),
+    requestsTo: new Map(prev.requestsTo),
+    requestsBy: new Map(prev.requestsBy),
+    notes: new Map(prev.notes),
+    changeNotes: new Map(prev.changeNotes),
+    passages: new Map(prev.passages)
+  };
+  for (const id of reviews) {
+    const r = state.kindReviews[id];
+    if (!r) continue;
+    edit(ri.reviewsByTake, r.takeId, (l) => [...withoutId(l, id), r]);
+    takes.add(r.takeId);
+  }
+  for (const id of departures) {
+    const d = state.departures[id];
+    if (!d) continue;
+    edit(ri.departures, d.unitId, (l) => insertSorted(withoutId(l, id), d, byHlc));
+    units.add(d.unitId);
+  }
+  for (const id of requests) {
+    const r = state.requests[id];
+    if (!r) continue;
+    edit(ri.requests, r.unitId, (l) => insertSorted(withoutId(l, id), r, byHlc));
+    edit(ri.requestsBy, r.by, (l) => insertSorted(withoutId(l, id), r, byHlc));
+    const to = requestRecipients(state, r);
+    for (const p of new Set(to)) edit(ri.requestsTo, p, (l) => withoutId(l, id));
+    for (const p of to) edit(ri.requestsTo, p, (l) => insertSorted(l, r, byHlc));
+    units.add(r.unitId);
+  }
+  for (const id of notes) {
+    const n = state.notes[id];
+    if (!n) continue;
+    if (n.anchor.kind === "version" && n.anchor.role === "change") {
+      const had = ri.changeNotes.get(n.anchor.takeId);
+      if (!had || had.id === id || byHlc(n, had) < 0) ri.changeNotes.set(n.anchor.takeId, n);
+      takes.add(n.anchor.takeId);
+    } else {
+      edit(ri.notes, n.unitId, (l) => insertSorted(withoutId(l, id), n, byHlc));
+    }
+    units.add(n.unitId);
+  }
+  for (const id of takes) {
+    for (const c of ri.children.get(id) ?? []) units.add(state.takes[c].unitId);
+    const t = state.takes[id];
+    if (!t?.unitId) continue;
+    units.add(t.unitId);
+    if (t.parentTakeId) edit(ri.children, t.parentTakeId, (l) => l.includes(id) ? [...l] : [...l, id]);
+    edit(ri.versions, t.unitId, (l) => l.filter((x) => x !== id));
+    edit(ri.drafts, t.unitId, (l) => l.filter((x) => x !== id));
+    if (state.submissions[id]) edit(ri.versions, t.unitId, (l) => insertSorted(l, id, versionOrder(state)));
+    else if (isDraft(state, id)) edit(ri.drafts, t.unitId, (l) => insertSorted(l, id, draftOrder(state)));
+  }
+  for (const u of units) ri.passages.delete(u);
+  return ri;
 }
 function derivePassage(state, unitId, idx) {
   const ri = recordIndexes(state, idx);
@@ -22009,7 +22278,7 @@ function derivePassage(state, unitId, idx) {
   });
   const recorded = versions.length > 0;
   const open = steps.filter((s) => !s.complete && !s.lockedBy);
-  const latest = versions.at(-1);
+  const latest3 = versions.at(-1);
   const draftTakeId = ri.drafts.get(key)?.[0];
   const drafts = (ri.drafts.get(key) ?? []).map((takeId) => draftView(state, takeId)).sort((a, b) => a.startedHlc < b.startedHlc ? -1 : a.startedHlc > b.startedHlc ? 1 : a.rootTakeId < b.rootTakeId ? -1 : 1);
   const next = recorded ? open.find((s) => !s.override) : void 0;
@@ -22026,9 +22295,9 @@ function derivePassage(state, unitId, idx) {
     drafts,
     drafting: draftTakeId !== void 0,
     done: recorded && steps.every((s) => s.complete || !!s.override),
-    awaitingResponse: reviews.filter((r) => r.outcome === "needs_changes" && !r.response && r.versionN === latest?.n),
+    awaitingResponse: reviews.filter((r) => r.outcome === "needs_changes" && !r.response && r.versionN === latest3?.n),
     notes: ri.notes.get(key) ?? [],
-    ...latest ? { latest } : {},
+    ...latest3 ? { latest: latest3 } : {},
     ...draftTakeId ? { draftTakeId, draftBy: state.takes[draftTakeId].actorId } : {},
     ...next ? { next } : {}
   };
@@ -22126,7 +22395,7 @@ function updatesFor(state, actorId, idx) {
       }
     }
   }
-  return out.sort((a, b) => a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : 0);
+  return out.sort((a, b) => a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 }
 function stepAllowsLinks(state, step) {
   return state.stepLinks?.[step.id]?.value ?? !step.checkpoint;

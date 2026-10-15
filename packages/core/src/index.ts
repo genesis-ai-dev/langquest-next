@@ -2,6 +2,7 @@ export * from './events';
 export * from './hlc';
 export * from './state';
 export * from './reducer';
+export { publishedCopy } from './changes';
 export * from './snapshot';
 export * from './blobs';
 export * from './cards';
