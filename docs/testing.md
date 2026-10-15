@@ -31,7 +31,7 @@ Beside them:
 - **Coverage** (`npm run test:coverage`): V8 coverage of layers 1 to 3 with
   thresholds for `packages/core` and `packages/sync`, which are pure and
   must stay near fully covered. The mobile screen models (`apps/mobile/src/**/model.ts`,
-  `*Model.ts`) have a threshold of 86% lines (90% measured on 2026-10-15). CI fails under the threshold. On 2026-10-14 core was at 95% lines and client at 90%; thresholds are 93 and 88.
+  `*Model.ts`) have a threshold of 88% lines (90% measured on 2026-10-15). CI fails under the threshold. On 2026-10-15 core was at 97% lines (85% branches) and sync at 97% (87%); thresholds are 95 and 95 lines, 83 and 85 branches, about two points under what is measured, so a gain is kept. Raise them when coverage rises.
 - **Mutation testing** (`npm run mutate:core`): Stryker over `packages/core`,
   nightly. Coverage says a line ran; mutation says a test would notice it
   changing. Core holds the invariants, so it gets both. Baseline on 2026-10-14: 52.5%

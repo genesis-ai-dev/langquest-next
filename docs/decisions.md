@@ -3752,6 +3752,15 @@ public repository costs nothing. Reverse if: runner minutes start to cost
 (a private repository, or a paid plan's limit), or the shards' runs disagree
 with an unsharded one.
 
+Amended (2026-10-15, Carl Sauder): coverage thresholds also hold the
+mobile screen models (`apps/mobile/src/**/{model,*Model}.ts`), and every
+threshold sits about two points under what is measured, raised as coverage
+rises. A coverage audit that day found decision logic had grown back into
+screens and hooks (Get ready's help items, My Work's to-dos, the break-up
+rules) and a model at 0% that nothing flagged; the logic moved into models,
+and a threshold keeps it there. Thresholds well under the measured value had
+let a gain slip back unnoticed.
+
 ## 103. Large languages are projected by a scheduled GitHub job; the Edge pass leaves them out
 
 Date: 2026-10-14 · By: Caleb Koster · Status: accepted
