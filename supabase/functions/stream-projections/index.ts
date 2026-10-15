@@ -21182,6 +21182,7 @@ function validateEvent(e) {
   const libraryItem = () => str("itemId") ?? (/^[a-z0-9][a-z0-9._-]{0,120}$/i.test(p["itemId"]) ? null : "itemId may use letters, digits, . _ and - only") ?? oneOf("kind", LIBRARY_KINDS);
   const date = (k) => typeof p[k] === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p[k]) ? null : `${k} must be a YYYY-MM-DD date`;
   const optStrRecord = (k) => p[k] === void 0 || isObject(p[k]) && Object.values(p[k]).every((v) => typeof v === "string") ? null : `${k} must map ids to strings`;
+  const clusterId = () => /^[A-Za-z0-9][A-Za-z0-9_-]{0,80}$/.test(p["clusterId"]) ? null : "clusterId may use letters, digits, _ and - only";
   const nullableStr = (k) => p[k] === null || typeof p[k] === "string" && p[k] !== "" ? null : `${k} must be a string or null`;
   switch (e.type) {
     // ---- organization stream (org.ts)
@@ -21214,6 +21215,10 @@ function validateEvent(e) {
       return str("languageId") ?? (typeof p["country"] === "string" && /^[A-Z]{2}$/.test(p["country"]) ? null : "country must be an ISO 3166 alpha-2 code");
     case "v1.LanguageTargetSet":
       return str("languageId") ?? oneOf("scope", TARGET_SCOPES) ?? date("startDate") ?? date("targetDate") ?? (p["targetDate"] > p["startDate"] ? null : "targetDate must be after startDate");
+    case "v1.ClusterNamed":
+      return str("clusterId", "name") ?? clusterId();
+    case "v1.LanguageClusterSet":
+      return str("languageId", "clusterId") ?? clusterId() ?? bool("inCluster");
     case "v1.ReferenceRecommended":
       return str("itemId") ?? bool("recommended");
     case "v1.LibraryItemDefined":
@@ -21414,7 +21419,7 @@ function stable(v) {
 }
 
 // packages/core/src/reducer.ts
-var REDUCER_VERSION = 15;
+var REDUCER_VERSION = 16;
 var REVISIONS = /* @__PURE__ */ new WeakMap();
 function stateRevision(state) {
   return REVISIONS.get(state) ?? 0;
@@ -21704,6 +21709,8 @@ function applyLanguageEvent(state, event) {
     case "v1.LanguageCodeSet":
     case "v1.LanguageCountrySet":
     case "v1.LanguageTargetSet":
+    case "v1.ClusterNamed":
+    case "v1.LanguageClusterSet":
     case "v1.ReferenceRecommended":
     case "v1.LibraryItemDefined":
     case "v1.LibraryVersionPublished":
@@ -22209,6 +22216,8 @@ var ORG_EVENT_TYPES = [
   "v1.LanguageCodeSet",
   "v1.LanguageCountrySet",
   "v1.LanguageTargetSet",
+  "v1.ClusterNamed",
+  "v1.LanguageClusterSet",
   "v1.ReferenceRecommended",
   ...LIBRARY_EVENT_TYPES
 ];
@@ -22234,7 +22243,7 @@ function effectiveRole(privs) {
   return null;
 }
 function emptyOrgState() {
-  return { org: null, roles: {}, members: {}, languages: {}, invites: {}, joinDecisions: {}, appliedEventIds: {}, invalidEvents: {}, redactions: {}, library: {}, license: null, recommendations: {} };
+  return { org: null, roles: {}, members: {}, languages: {}, invites: {}, joinDecisions: {}, appliedEventIds: {}, invalidEvents: {}, redactions: {}, library: {}, license: null, recommendations: {}, clusters: {} };
 }
 function scopeKey(s) {
   return s.level === "org" ? "org" : `language:${s.languageId}`;
@@ -22250,6 +22259,9 @@ function loses2(current, event) {
 function set2(current, event, value) {
   if (current && current.hlc !== "" && loses2(current, event)) return current;
   return { value, hlc: event.hlc, eventId: event.id };
+}
+function cluster(state, clusterId) {
+  return (state.clusters ??= {})[clusterId] ??= { name: null, languages: {} };
 }
 function language(state, languageId) {
   return state.languages[languageId] ??= { added: null, renamed: null, codeSet: null, country: null, target: null };
@@ -22352,6 +22364,17 @@ function applyOrgEvent(state, event) {
       const { languageId, scope: scope2, startDate, targetDate } = event.payload;
       const l = language(state, languageId);
       l.target = set2(l.target, event, { scope: scope2, startDate, targetDate });
+      break;
+    }
+    case "v1.ClusterNamed": {
+      const c = cluster(state, event.payload.clusterId);
+      c.name = set2(c.name, event, event.payload.name);
+      break;
+    }
+    case "v1.LanguageClusterSet": {
+      const { languageId, clusterId, inCluster } = event.payload;
+      const c = cluster(state, clusterId);
+      c.languages[languageId] = set2(c.languages[languageId], event, inCluster);
       break;
     }
     case "v1.ReferenceRecommended":

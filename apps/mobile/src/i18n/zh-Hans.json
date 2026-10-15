@@ -338,7 +338,8 @@
     "mic_setup": "设置麦克风",
     "get_ready": "准备工作",
     "settings_more": "更多设置",
-    "check_editor": "检查"
+    "check_editor": "检查",
+    "cluster_home": "语言群"
   },
   "native": {
     "microphone": "LangQuest 会录下你的声音，用来翻译经段。",
@@ -646,7 +647,8 @@
       "languagesTitle": "语言",
       "newLanguage": "新建语言",
       "noLanguages": "还没有语言。请添加你的团队要录音的第一个语言。",
-      "openToBring": "打开它，把它下载到本设备上"
+      "openToBring": "打开它，把它下载到本设备上",
+      "newLanguageOrCluster": "新语言或语言群"
     },
     "rename": {
       "done": "已重命名为{{name}}。",
@@ -711,7 +713,8 @@
         "roles": "角色",
         "publicListing": "公开列表",
         "name": "名称",
-        "languageList": "语言列表"
+        "languageList": "语言列表",
+        "cluster": "语言群"
       },
       "orgAndCode": "{{org}} · 代码 {{code}}",
       "seeWork": "查看他们的工作",
@@ -4501,7 +4504,8 @@
       "newChapters": "新增章数",
       "books": "书卷",
       "chaptersByBook": "各书卷章数",
-      "total": "合计"
+      "total": "合计",
+      "clusters": "语言群"
     },
     "errors": {
       "noServer": "这个版本不知道报告服务器在哪里。",
@@ -4579,7 +4583,8 @@
       "alertsChip_other": "提醒，{{count, number}} 项需要人处理",
       "allCountries": "所有国家",
       "loading": "正在加载报告……",
-      "couldNotRead": "无法读取报告"
+      "couldNotRead": "无法读取报告",
+      "allLanguages": "所有语言"
     },
     "overview": {
       "across_other": "共 {{count, number}} 个语言 · 最近四周 {{recent}}",
@@ -4851,6 +4856,11 @@
       "saveTarget": "保存目标",
       "findCountry": "查找国家",
       "typeToFind_other": "输入文字查找其他 {{count, number}} 个国家。"
+    },
+    "clusters": {
+      "title": "语言群",
+      "sub": "每个语言群中的语言合在一起。选择一个，只看其中的语言。",
+      "languages_other": "{{count, number}} 种语言"
     }
   },
   "review": {
@@ -5909,6 +5919,94 @@
       "playHelp": "播放他们怎么说。",
       "suggest": "这里的其他语言用了",
       "suggestHelp": "{{languages}}在这里用了这个词。点一下即可添加。"
+    }
+  },
+  "clusters": {
+    "row": {
+      "sub_other": "{{count, number}} 种语言 · {{names}}",
+      "namesMore": "{{names}}…"
+    },
+    "home": {
+      "sub_other": "语言群 · {{count, number}} 种语言",
+      "together": "合计",
+      "itsLanguages": "其中的语言",
+      "add": "加入一种语言",
+      "rename": "重命名",
+      "ungroup": "解散",
+      "gone": "这个语言群现在没有语言了",
+      "goneSub": "其中的语言已被移出。它们都还在 {{org}} 中。",
+      "notSaved": "未保存"
+    },
+    "add": {
+      "title": "加入 {{cluster}}",
+      "newLanguage": "一种新语言",
+      "newLanguageSub": "设置它，并已在 {{cluster}} 中",
+      "alreadyIn": "已在 {{org}} 中",
+      "none": "{{org}} 的所有语言都已在其中。",
+      "button": "加入",
+      "done_other": "已将 {{count, number}} 种语言加入 {{cluster}}。"
+    },
+    "rename": {
+      "title": "重命名 {{cluster}}",
+      "label": "名称",
+      "save": "保存",
+      "done": "已重命名为 {{name}}。"
+    },
+    "ungroup": {
+      "title": "解散 {{cluster}}？",
+      "body_other": "其中 {{count, number}} 种语言都会保留，连同它们的人员、录音和检查。只有把它们归在一起的名称会消失。",
+      "confirm": "解散",
+      "keep": "保留",
+      "done": "{{cluster}} 已解散。其中的语言仍在这里。"
+    },
+    "language": {
+      "label": "语言群",
+      "none": "不在任何语言群中",
+      "sheetTitle": "它在哪个语言群中？",
+      "count_other": "{{count, number}} 种语言",
+      "newLabel": "或一个新语言群",
+      "firstLabel": "放入一个新语言群",
+      "note": "一种语言可以在多个语言群中，也可以不在任何语言群中。语言本身不会有任何改变。",
+      "done": "完成",
+      "saved": "已保存 {{language}} 的语言群。"
+    },
+    "newLanguage": {
+      "what": "你要添加什么？",
+      "one": "一种语言",
+      "oneSub": "有自己的录音、检查和人员",
+      "cluster": "一个语言群",
+      "clusterSub": "几种相关的语言，一起设置",
+      "clusterName": "语言群名称",
+      "clusterPlaceholder": "例如 Dar Khamsa",
+      "theCluster": "该语言群",
+      "inCluster": "放入语言群？可以以后再选",
+      "no": "否",
+      "newCluster": "新语言群",
+      "joinsNamed": "{{org}} 已有 {{cluster}}。这些语言会加入其中。",
+      "itsLanguages": "其中的语言 · {{number}}",
+      "addOne": "添加一种语言",
+      "unlisted": "找不到？按你输入的添加，如有代码也一并填写。",
+      "addTyped": "添加“{{name}}”",
+      "new": "新",
+      "newWithCode": "{{code}} · 新",
+      "already": "已在 {{org}} 中",
+      "takeOut": "移出",
+      "note_other": "已在这里的语言保留它们已有的一切。{{count, number}} 种新语言会在接下来的步骤中一起设置。",
+      "onlyExisting": "没有需要新设置的：已在这里的语言保留它们已有的一切。",
+      "make": "创建语言群",
+      "made_other": "已创建 {{cluster}}，包含 {{count, number}} 种语言。",
+      "forNew_other": "用于 {{cluster}} 中的 {{count, number}} 种新语言。之后每种语言都可以修改自己的设置。",
+      "added_other": "已将 {{count, number}} 种语言添加到 {{org}}，在 {{cluster}} 中。",
+      "addedNotOffered_other": "已将 {{count, number}} 种语言添加到 {{org}}，在 {{cluster}} 中。联网后请在“对他们有帮助的”下提供 {{offers}}。",
+      "notMade": "未添加",
+      "making": {
+        "adding": "正在添加 {{language}}",
+        "grouping": "正在加入 {{cluster}}"
+      }
+    },
+    "status": {
+      "all": "全部",
+      "none": "不在语言群中"
     }
   }
 }

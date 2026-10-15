@@ -342,15 +342,15 @@ export function printPage(): void {
 /** A book of the report by name: a Bible book in the language showing, else the label the organization gave it. */
 export const bookOf = (b:{ bookId: string | null; label: string }) => (b.bookId ? bookName(b.bookId) : b.label);
 
-export function languagesCsv(rows: LanguageRow[], now = Date.now()): string {
+export function languagesCsv(rows: LanguageRow[], now = Date.now(), clustersOf: (languageId: string) => string[] = () => []): string {
   return toCsv([
-    [t('reports.csv.language'), t('reports.csv.code'), t('reports.csv.country'), t('reports.csv.reviewFlow'), t('reports.csv.passages'),
+    [t('reports.csv.language'), t('reports.csv.code'), t('reports.csv.country'), t('reports.csv.clusters'), t('reports.csv.reviewFlow'), t('reports.csv.passages'),
       t('reports.csv.recorded'), t('reports.csv.done'), t('reports.csv.recordedShare'), t('reports.csv.doneShare'),
       t('reports.csv.gospelsRecorded'), t('reports.csv.ntRecorded'), t('reports.csv.otRecorded'), t('reports.csv.recordingsOnServer'),
       t('reports.csv.lastUpload'), t('reports.csv.uploadStatus'), t('reports.csv.feedbackToAnswer'), t('reports.csv.openRequests'),
       t('reports.csv.overdueRequests'), t('reports.csv.atCheckpoint'), t('reports.csv.bottleneck'), t('reports.csv.lastActivity'), t('reports.csv.reportUpdated')],
-    ...rows.map(({ report: r, updatedAt }) => [
-      r.name, r.code, r.country, r.flowName, r.progress.total, r.progress.recorded, r.progress.done,
+    ...rows.map(({ languageId, report: r, updatedAt }) => [
+      r.name, r.code, r.country, clustersOf(languageId).join('; '), r.flowName, r.progress.total, r.progress.recorded, r.progress.done,
       percent(r.progress.recorded, r.progress.total), percent(r.progress.done, r.progress.total),
       r.coverage.recorded.gospels, r.coverage.recorded.nt, r.coverage.recorded.ot, r.uploads.cards, r.uploads.lastAt,
       recencyOf(r, now).band,

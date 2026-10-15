@@ -340,7 +340,8 @@
     "mic_setup": "अपना माइक्रोफ़ोन सेट करें",
     "get_ready": "तैयारी करें",
     "settings_more": "और सेटिंग",
-    "check_editor": "जाँच"
+    "check_editor": "जाँच",
+    "cluster_home": "समूह"
   },
   "native": {
     "microphone": "LangQuest अंशों का अनुवाद करने के लिए आपकी आवाज़ रिकॉर्ड करता है।",
@@ -656,7 +657,8 @@
       "languagesTitle": "भाषाएँ",
       "newLanguage": "नई भाषा",
       "noLanguages": "अभी कोई भाषा नहीं। वह पहली भाषा जोड़ें जिसे आपकी टीम रिकॉर्ड करेगी।",
-      "openToBring": "इसे इस डिवाइस पर लाने के लिए खोलें"
+      "openToBring": "इसे इस डिवाइस पर लाने के लिए खोलें",
+      "newLanguageOrCluster": "नई भाषा या समूह"
     },
     "rename": {
       "done": "नाम बदलकर {{name}} किया।",
@@ -724,7 +726,8 @@
         "roles": "भूमिकाएँ",
         "publicListing": "सार्वजनिक सूची",
         "name": "नाम",
-        "languageList": "भाषा सूची"
+        "languageList": "भाषा सूची",
+        "cluster": "समूह"
       },
       "orgAndCode": "{{org}} · कोड {{code}}",
       "seeWork": "उनका काम देखें",
@@ -4696,7 +4699,8 @@
       "newChapters": "नए अध्याय",
       "books": "पुस्तकें",
       "chaptersByBook": "पुस्तक के अनुसार अध्याय",
-      "total": "कुल"
+      "total": "कुल",
+      "clusters": "समूह"
     },
     "errors": {
       "noServer": "इस बिल्ड को नहीं पता कि रिपोर्ट सर्वर कहाँ है।",
@@ -4790,7 +4794,8 @@
       "alertsChip_other": "चेतावनियाँ, {{count, number}} पर किसी का ध्यान चाहिए",
       "allCountries": "सभी देश",
       "loading": "रिपोर्ट लोड हो रही हैं…",
-      "couldNotRead": "रिपोर्ट पढ़ी नहीं जा सकीं"
+      "couldNotRead": "रिपोर्ट पढ़ी नहीं जा सकीं",
+      "allLanguages": "सभी भाषाएँ"
     },
     "overview": {
       "across_one": "{{count, number}} भाषा में · पिछले चार हफ़्तों में {{recent}}",
@@ -5093,6 +5098,12 @@
       "findCountry": "देश ढूँढें",
       "typeToFind_one": "बाकी {{count, number}} को ढूँढने के लिए लिखें।",
       "typeToFind_other": "बाकी {{count, number}} को ढूँढने के लिए लिखें।"
+    },
+    "clusters": {
+      "title": "समूह",
+      "sub": "हर समूह की भाषाएँ एक साथ। सिर्फ़ उसकी भाषाएँ देखने के लिए एक चुनें।",
+      "languages_one": "{{count, number}} भाषा",
+      "languages_other": "{{count, number}} भाषाएँ"
     }
   },
   "review": {
@@ -6207,6 +6218,104 @@
       "playHelp": "वे इसे कैसे कहते हैं, यह चलाता है।",
       "suggest": "यहाँ की दूसरी भाषाएँ इस्तेमाल करती हैं",
       "suggestHelp": "यहाँ {{languages}} में इस्तेमाल होता है। जोड़ने के लिए छुएँ।"
+    }
+  },
+  "clusters": {
+    "row": {
+      "sub_one": "{{count, number}} भाषा · {{names}}",
+      "sub_other": "{{count, number}} भाषाएँ · {{names}}",
+      "namesMore": "{{names}}…"
+    },
+    "home": {
+      "sub_one": "समूह · {{count, number}} भाषा",
+      "sub_other": "समूह · {{count, number}} भाषाएँ",
+      "together": "कुल मिलाकर",
+      "itsLanguages": "इसकी भाषाएँ",
+      "add": "इसमें एक भाषा जोड़ें",
+      "rename": "नाम बदलें",
+      "ungroup": "समूह हटाएँ",
+      "gone": "इस समूह में अब कोई भाषा नहीं है",
+      "goneSub": "इसकी भाषाएँ इससे निकाल दी गईं। वे सब अब भी {{org}} में हैं।",
+      "notSaved": "सहेजा नहीं गया"
+    },
+    "add": {
+      "title": "{{cluster}} में जोड़ें",
+      "newLanguage": "एक नई भाषा",
+      "newLanguageSub": "इसे तैयार करें, पहले से {{cluster}} में",
+      "alreadyIn": "पहले से {{org}} में",
+      "none": "{{org}} की हर भाषा पहले से इसमें है।",
+      "button": "जोड़ें",
+      "done_one": "{{count, number}} भाषा {{cluster}} में जोड़ी गई।",
+      "done_other": "{{count, number}} भाषाएँ {{cluster}} में जोड़ी गईं।"
+    },
+    "rename": {
+      "title": "{{cluster}} का नाम बदलें",
+      "label": "इसका नाम",
+      "save": "सहेजें",
+      "done": "नाम बदलकर {{name}} किया गया।"
+    },
+    "ungroup": {
+      "title": "{{cluster}} समूह हटाएँ?",
+      "body_one": "इसकी भाषा अपने लोगों, रिकॉर्डिंग और जाँचों के साथ बनी रहती है। सिर्फ़ इसे जोड़ने वाला नाम हटता है।",
+      "body_other": "इसकी {{count, number}} भाषाएँ अपने लोगों, रिकॉर्डिंग और जाँचों के साथ बनी रहती हैं। सिर्फ़ उन्हें जोड़ने वाला नाम हटता है।",
+      "confirm": "समूह हटाएँ",
+      "keep": "रहने दें",
+      "done": "{{cluster}} समूह हटाया गया। इसकी भाषाएँ अब भी यहाँ हैं।"
+    },
+    "language": {
+      "label": "समूह",
+      "none": "किसी समूह में नहीं",
+      "sheetTitle": "यह किस समूह में है?",
+      "count_one": "{{count, number}} भाषा",
+      "count_other": "{{count, number}} भाषाएँ",
+      "newLabel": "या एक नया समूह",
+      "firstLabel": "इसे एक नए समूह में रखें",
+      "note": "एक भाषा एक से ज़्यादा समूहों में हो सकती है, या किसी में नहीं। भाषा में कुछ नहीं बदलता।",
+      "done": "हो गया",
+      "saved": "{{language}} के समूह सहेजे गए।"
+    },
+    "newLanguage": {
+      "what": "आप क्या जोड़ रहे हैं?",
+      "one": "एक भाषा",
+      "oneSub": "इसकी अपनी रिकॉर्डिंग, जाँचें और लोग",
+      "cluster": "भाषाओं का एक समूह",
+      "clusterSub": "कई संबंधित भाषाएँ, एक साथ तैयार की गईं",
+      "clusterName": "समूह का नाम",
+      "clusterPlaceholder": "जैसे Dar Khamsa",
+      "theCluster": "समूह",
+      "inCluster": "किसी समूह में? आप बाद में चुन सकते हैं",
+      "no": "नहीं",
+      "newCluster": "नया समूह",
+      "joinsNamed": "{{org}} में {{cluster}} पहले से है। ये भाषाएँ उसमें जुड़ेंगी।",
+      "itsLanguages": "इसकी भाषाएँ · {{number}}",
+      "addOne": "एक भाषा जोड़ें",
+      "unlisted": "नहीं मिली? जैसा आपने लिखा वैसे जोड़ें, कोड हो तो उसके साथ।",
+      "addTyped": "“{{name}}” जोड़ें",
+      "new": "नई",
+      "newWithCode": "{{code}} · नई",
+      "already": "पहले से {{org}} में",
+      "takeOut": "निकालें",
+      "note_one": "यहाँ पहले से मौजूद भाषाएँ अपना सब कुछ रखती हैं। नई भाषा अगले चरणों में तैयार की जाती है।",
+      "note_other": "यहाँ पहले से मौजूद भाषाएँ अपना सब कुछ रखती हैं। {{count, number}} नई भाषाएँ अगले चरणों में एक साथ तैयार की जाती हैं।",
+      "onlyExisting": "तैयार करने को कुछ नया नहीं: यहाँ पहले से मौजूद भाषाएँ अपना सब कुछ रखती हैं।",
+      "make": "समूह बनाएँ",
+      "made_one": "{{cluster}} बना, {{count, number}} भाषा के साथ।",
+      "made_other": "{{cluster}} बना, {{count, number}} भाषाओं के साथ।",
+      "forNew_one": "{{cluster}} की नई भाषा के लिए। यह बाद में अपना बदल सकती है।",
+      "forNew_other": "{{cluster}} की {{count, number}} नई भाषाओं के लिए। हर एक बाद में अपना बदल सकती है।",
+      "added_one": "{{count, number}} भाषा {{org}} में जोड़ी गई, {{cluster}} में।",
+      "added_other": "{{count, number}} भाषाएँ {{org}} में जोड़ी गईं, {{cluster}} में।",
+      "addedNotOffered_one": "{{count, number}} भाषा {{org}} में जोड़ी गई, {{cluster}} में। ऑनलाइन होने पर क्या मदद करता है में {{offers}} दें।",
+      "addedNotOffered_other": "{{count, number}} भाषाएँ {{org}} में जोड़ी गईं, {{cluster}} में। ऑनलाइन होने पर क्या मदद करता है में {{offers}} दें।",
+      "notMade": "नहीं जोड़ी गई",
+      "making": {
+        "adding": "{{language}} जोड़ी जा रही है",
+        "grouping": "{{cluster}} में जोड़ा जा रहा है"
+      }
+    },
+    "status": {
+      "all": "सभी",
+      "none": "किसी समूह में नहीं"
     }
   }
 }
