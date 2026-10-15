@@ -53,8 +53,7 @@ import { othersSay, bibleMissing } from '../helps/helpsModel';
 import { bookOf } from '../recording/model';
 import { useBible } from '../helps/useBible';
 import { useOtherLanguageTerms } from '../reference/useOtherLanguageTerms';
-// eslint-disable-next-line boundaries/dependencies -- FlowEditor shows a language's own checks; LanguageChecks and its parts move to src/checks once pull request 96 (which edits them) lands.
-import { LanguageChecks } from './checks';
+import { LanguageChecks } from '../checks/LanguageChecks';
 import { addPickedKind, copyFlowSpecs, currentFlowLine, flowEditorBase, flowEditorSeed, flowEditorStatus, knownKinds, newKindDef, usuallyFor, withAddedKinds } from '../flows/model';
 import {
   adjustDuringTake, adjustmentNote, adjustmentReady, defineTermInput, EMPTY_TERM_DRAFT, groupTerms, termDraftReady, termUsedIn, tieState,

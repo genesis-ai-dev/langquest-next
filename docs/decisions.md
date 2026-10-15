@@ -3866,9 +3866,8 @@ server calls; every other `.ts` is a module, which exports no hooks.
 (types may come from anywhere): a component reaches the server through a
 hook or module, a hook returns data rather than importing components, a
 model or module imports neither components nor hooks, and a screen imports
-no other screen. One import waits: the flow editor shows a language's own
-checks from `screens/checks.tsx`, whose parts move to `src/checks` once
-pull request 96, which edits them, lands. The split is a second codemod
+no other screen, so the checks list the flow editor shows is
+`checks/LanguageChecks.tsx`, no longer part of the checks screen. The split is a second codemod
 round: the moved hooks and helpers are a hand commit that leaves
 re-exports, and `movedExports` in `scripts/restructure/moves.json` repoints
 every import of a moved name, on this branch and on any made before it.

@@ -38,7 +38,8 @@ node scripts/restructure.mjs           # once more, for anything the merge broug
 npm install && npm run typecheck && npm test && npm run lint
 ```
 
-When a merge in the loop stops on conflicts, resolve them, commit, and run
+The codemod rewrites tracked files only: commit (or `git add`) new files
+before running it. When a merge in the loop stops on conflicts, resolve them, commit, and run
 the rest of the loop by hand from the codemod line. `-s ours` is right only
 for those commits: each is the codemod's output and nothing else, so your
 branch already holds everything it does. Never use it for any other merge.
@@ -283,9 +284,10 @@ make the edit there, and take this side in the old file.
   hook is `sync/useOfflineSummary.ts` and its words `sync/offlineText.ts`.
 - **96, written translations.** Round 1: `screens/checks.tsx`
   (`./configModel` is `../config/model`; keep its two new imports). Round
-  2: the passage screen and `passage/recordModel.ts`. Once it lands,
-  `LanguageChecks` and its parts move from `screens/checks.tsx` to
-  `src/checks` (the one lint exception, in `screens/config.tsx`).
+  2: the passage screen, `passage/recordModel.ts` and `screens/checks.tsx`,
+  whose checks list (`LanguageChecks` and its parts) is
+  `checks/LanguageChecks.tsx` now, `saveRows` in `checks/checkActions.ts`
+  and the shared styles in `checks/checkStyles.ts`.
 
 ## Part two is done
 
