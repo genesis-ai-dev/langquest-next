@@ -10,7 +10,7 @@ const LINES_PER_BATCH = 25;
 
 /** What is still to work out, kept beside the checkpoint so a pruned log never leaves a line behind. */
 interface Owed {
-  /** The settings the kept lines were worked out under; absent when no line was ever kept. */
+  /** The build and settings the kept lines were worked out under (`KeptLines.stamp`); absent when no line was ever kept. */
   settings?: string;
   /** Every line is owed (no lines yet, or the settings changed). */
   all: boolean;
@@ -27,7 +27,8 @@ interface Owed {
  * A line is core's own reading of its passage (`passageLine`), worked out
  * from that passage's rows and memory, so it cannot disagree with the
  * passage's screen. An event marks its passage's line owed; a change to
- * the flow, its kinds or the teams marks every line owed. What is owed is
+ * the flow, its kinds or the teams marks every line owed, and so does a new
+ * build of the app, whose code may read a passage differently. What is owed is
  * written beside each checkpoint, since the checkpoint prunes the events
  * that would otherwise say so after a restart.
  */
@@ -51,9 +52,16 @@ export class KeptLines {
     private readonly kept: KeptLanguage,
     /** Writes go through the sync client's single writer. */
     private readonly commit: (batch: WriteBatch) => Promise<void>,
-    private readonly live: () => LanguageState
+    private readonly live: () => LanguageState,
+    /** The app's build: lines kept by another build are all owed. */
+    private readonly appBuild = ''
   ) {
     this.current = this.makeView();
+  }
+
+  /** What every line was worked out under: this build, and the settings every line depends on. */
+  private stamp(state: LanguageState): string {
+    return `${this.appBuild}|${settingsStamp(state)}`;
   }
 
   /** The key the owed lines are kept under, beside the checkpoint. */
@@ -134,12 +142,12 @@ export class KeptLines {
   }
 
   private owes(): boolean {
-    return this.all || this.dirty.size > 0 || this.unplaced.length > 0 || this.settings !== settingsStamp(this.live());
+    return this.all || this.dirty.size > 0 || this.unplaced.length > 0 || this.settings !== this.stamp(this.live());
   }
 
   private async once(): Promise<boolean> {
     const live = this.live();
-    const stamp = settingsStamp(live);
+    const stamp = this.stamp(live);
     let units: string[];
     if (this.all || stamp !== this.settings) {
       this.all = false;
@@ -175,7 +183,7 @@ export class KeptLines {
       this.settings = stamp;
       for (const u of units) this.inFlight.delete(u);
       await this.commit({ meta: this.owed(), ...(rows.length ? { kept: { orgId: this.orgId, streamId: this.streamId, upsert: rows } } : {}) });
-      if (changed || stamp !== this.defaults.settings) this.current = this.makeView();
+      if (changed || settingsStamp(live) !== this.defaults.settings) this.current = this.makeView();
       return changed;
     } catch (err) {
       // Owed again; the next change tries once more.
@@ -217,7 +225,7 @@ export class KeptLines {
       await flush();
     }
     // What the switch writes beside the checkpoint: nothing owed.
-    const owed: Owed = { settings: settingsStamp(lite), all: false, dirty: [], unplaced: [] };
+    const owed: Owed = { settings: this.stamp(lite), all: false, dirty: [], unplaced: [] };
     this.lines.clear();
     this.dirty.clear();
     this.unplaced = [];

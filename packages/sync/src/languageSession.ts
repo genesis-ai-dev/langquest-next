@@ -98,6 +98,8 @@ export interface LanguageSessionOptions {
    * memory only the passages `loadUnits` asks for (decisions.md 107).
    */
   keepOnDisk?: boolean;
+  /** The app's build: lines kept by another build are worked out again (`SyncClientOptions.build`). */
+  build?: string;
 }
 
 /** How long after a change the offline counts are worked out again: one count for a burst of changes. */
@@ -140,7 +142,8 @@ export class LanguageSession {
       store: o.store,
       transport: o.transport,
       ...(o.isDeferred ? { deferCheckpoint: o.isDeferred } : {}),
-      ...(o.keepOnDisk ? { keepOnDisk: true } : {})
+      ...(o.keepOnDisk ? { keepOnDisk: true } : {}),
+      ...(o.build ? { build: o.build } : {})
     });
     await client.load();
     const kept = new Set<string>(JSON.parse((await o.store.meta(keepKey(o.orgId, o.languageId))) || '[]') as string[]);

@@ -130,6 +130,13 @@ export interface SyncClientOptions<S = LanguageState> {
    * `loadUnits` asks for (decisions.md 107).
    */
   keepOnDisk?: boolean;
+  /**
+   * The build of the app this runs in. A language kept on disk keeps a line
+   * per passage that this code works out, so a line kept by another build is
+   * worked out again: a change to what a passage's status means reaches
+   * every passage after an update, with no migration (decisions.md 107).
+   */
+  build?: string;
 }
 
 /** A sync that moved nothing is recorded only when it took at least this long. */
@@ -211,7 +218,7 @@ export class SyncClient<S = LanguageState> {
     this.checkpointEvery = opts.checkpointEvery ?? 2000;
     this.kept = opts.keepOnDisk ? new KeptLanguage(opts.store, opts.orgId, opts.streamId) : null;
     this.lines = this.kept
-      ? new KeptLines(opts.store, opts.orgId, opts.streamId, this.kept, (b) => this.commit(b), () => this.state as unknown as LanguageState)
+      ? new KeptLines(opts.store, opts.orgId, opts.streamId, this.kept, (b) => this.commit(b), () => this.state as unknown as LanguageState, opts.build ?? '')
       : null;
   }
 
@@ -234,10 +241,14 @@ export class SyncClient<S = LanguageState> {
     }
     if (this.kept && this.lines && snapshot && holdsKept(snapshot.state)) {
       // A checkpoint from before the language kept records on disk: move them there once, with a checkpoint without them.
+      // Every checkpoint keeps the entries whose passage cannot be found yet; with only those, there is nothing to move,
+      // and working out every line again on each open would cost a big language seconds.
       const split = await this.kept.split(snapshot.state);
-      snapshot.state = split.lite;
-      this.lines.invalidate();
-      await this.commit({ meta: { ...this.snapshotMeta(snapshot), ...this.lines.owed() }, kept: { ...this.stream(), upsert: split.rows } });
+      if (split.placed.length > 0) {
+        snapshot.state = split.lite;
+        this.lines.invalidate();
+        await this.commit({ meta: { ...this.snapshotMeta(snapshot), ...this.lines.owed() }, kept: { ...this.stream(), upsert: split.rows } });
+      }
     }
     this.state = snapshot ? this.resume(snapshot, events) : this.m.fold(events, this.m.empty());
     if (this.kept && this.lines) {

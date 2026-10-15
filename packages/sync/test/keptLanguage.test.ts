@@ -39,13 +39,14 @@ function sqlite(): EventStore {
 /** Each test runs on both stores: the memory twin, and SQLite as the phone runs it. */
 let makeStore: () => EventStore = () => new MemoryStore();
 
-function phone(server: FakeServer, deviceId: string, actorId: string, opts: { keepOnDisk?: boolean; checkpointEvery?: number; store?: EventStore } = {}) {
+function phone(server: FakeServer, deviceId: string, actorId: string, opts: { keepOnDisk?: boolean; checkpointEvery?: number; store?: EventStore; build?: string } = {}) {
   const store = opts.store ?? makeStore();
   const client = new SyncClient({
     orgId: 'org1', streamId: 'p1', actorId, deviceId, store, transport: server.transportFor(),
     clock: new HlcClock(deviceId, () => ++ids), newId: () => `${deviceId}-${++ids}`,
     ...(opts.keepOnDisk ? { keepOnDisk: true } : {}),
-    ...(opts.checkpointEvery ? { checkpointEvery: opts.checkpointEvery } : {})
+    ...(opts.checkpointEvery ? { checkpointEvery: opts.checkpointEvery } : {}),
+    ...(opts.build ? { build: opts.build } : {})
   });
   return { client, store };
 }
@@ -285,6 +286,32 @@ describe('a language that keeps its recordings on disk', () => {
     await b.client.settleLines();
     expect(b.client.passageLines().get('u1').done).toBe(true);
     expect(linesOf(b.client.passageLines(), ['u1', 'u2'])).toEqual(linesOf(languageLines(await whole(b.client, store)), ['u1', 'u2']));
+  });
+
+  it('works out every line again under a new build of the app, and only then', async () => {
+    const server = new FakeServer();
+    await language(server, 6);
+    const store = makeStore();
+    const units = ['u1', 'u2', 'u4'];
+    const a = phone(server, 'dB', 'r1', { keepOnDisk: true, checkpointEvery: 4, store, build: 'one' });
+    await a.client.load();
+    await a.client.sync();
+    await work(a.client, 'w', ['u1', 'u2']);
+    await a.client.sync();
+    await a.client.settleLines();
+    const truth = linesOf(a.client.passageLines(), units);
+    // u4's line as an earlier build's code might have read it. Nothing since touched u4.
+    const kept = (await store.keptAll('org1', 'p1', 'line')).find((r) => r.unitId === 'u4')!;
+    await store.commit({ kept: { orgId: 'org1', streamId: 'p1', upsert: [{ ...kept, kind: 'line', json: JSON.stringify({ ...JSON.parse(kept.json), takes: 99 }) }] } });
+    const same = phone(server, 'dB', 'r1', { keepOnDisk: true, store, build: 'one' });
+    await same.client.load();
+    await same.client.settleLines();
+    expect(same.client.passageLines().get('u4').takes, 'the same build trusts the lines it kept').toBe(99);
+    const next = phone(server, 'dB', 'r1', { keepOnDisk: true, store, build: 'two' });
+    await next.client.load();
+    await next.client.settleLines();
+    expect(linesOf(next.client.passageLines(), units)).toEqual(truth);
+    expect(linesOf(next.client.passageLines(), units)).toEqual(linesOf(languageLines(await whole(next.client, store)), units));
   });
 
   it('a dropped link resumes from the pieces already here, and nothing half-read is kept', async () => {
