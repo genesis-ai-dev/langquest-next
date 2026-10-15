@@ -117,7 +117,7 @@ test('REV-003 Looks good @p0', async ({ page, browser }) => {
   await expect(button(page, 'Listen, done. Go back')).toBeVisible();
   await button(page, 'Looks good').click();
   await sawToast(page, `Looks good · sent to ${TOM}`);
-  await expect(byId(page, 'toast-undo')).toHaveCount(0);
+  await expect(byId(page, 'toast-undo')).toBeVisible();
   await expect(button(page, 'Versions and history')).toBeVisible();
   expect(await screenText(page)).toMatch(/Peer check\s+looks good/);
   await expectSent(page, world());
@@ -174,7 +174,7 @@ test('REV-005 Needs changes, said and typed @p0', async ({ page, browser }) => {
   await expect(button(page, 'Record a listener retelling, optional')).toBeVisible();
   await primary(page).click();
   await sawToast(page, `Feedback sent to ${TOM}`);
-  await expect(byId(page, 'toast-undo')).toHaveCount(0);
+  await expect(byId(page, 'toast-undo')).toBeVisible();
   await expect(button(page, 'Versions and history')).toBeVisible();
   expect(await screenText(page)).toMatch(/Peer check\s+needs changes/);
   await expectSent(page, world());
@@ -710,7 +710,7 @@ test('REV-032 Say each part, then publish the back translation @p0', async ({ pa
   await field(page, 'Or type it — e.g. a word with no English match').fill('The word for \'salt\' has no match');
   await button(page, 'Publish back translation').click();
   await sawToast(page, 'Back translation published.');
-  await expect(byId(page, 'toast-undo')).toHaveCount(0);
+  await expect(byId(page, 'toast-undo')).toBeVisible();
   await expect(text(page, 'Back translation published')).toBeVisible();
   await expectSent(page, world());
   const p = await passageNow(world(), 'COORD', 'P-BT');

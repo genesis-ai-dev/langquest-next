@@ -112,14 +112,14 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
   })[c]);
   const openTerm = (termId: string) => ctx.go('key_term_detail', { ...scope, termId });
 
+  const mark = (isDone: boolean): EventSpec[] => {
+    const now = ctx.language.state ?? state!;
+    return commands(now, indexesFor(now)).markStudyStep({
+      commandId: Crypto.randomUUID(), unitId: v!.unitId, guideId: guide.id, stepId: status.step.id, done: isDone
+    });
+  };
   async function done() {
     if (!state || !guide || !sp || status.done) return;
-    const mark = (isDone: boolean): EventSpec[] => {
-      const now = ctx.language.state ?? state;
-      return commands(now, indexesFor(now)).markStudyStep({
-        commandId: Crypto.randomUUID(), unitId: v!.unitId, guideId: guide.id, stepId: status.step.id, done: isDone
-      });
-    };
     const next = stepAfterDone(sp.steps.map((st) => ({ done: !!st.done })), index);
     try {
       const said = next !== null ? t('study.screen.stepDone', { step: status.step.title, done: sp.doneCount + 1, total: sp.steps.length }) : t('study.screen.allDone');
@@ -130,6 +130,15 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
       return;
     }
     if (next !== null) setIndex(next);
+  }
+  /** A step marked done by mistake is not done again, whenever someone sees it (decisions.md 110). */
+  async function undoDone() {
+    if (!state || !status.done) return;
+    try {
+      await ctx.act(mark(false), t('common.undone'), () => mark(true));
+    } catch (e) {
+      noteExpected('study: unmark step', e);
+    }
   }
 
   const allDone = !sp.next;
@@ -143,7 +152,8 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
       {status.done ? (
         <View style={s.doneLine}>
           <Ico name="check" size={16} color={TINT.greenText} />
-          <Text style={[txt.xsStrong, { color: TINT.greenText }]}>{stepLine(ctx, status)}</Text>
+          <Text style={[txt.xsStrong, { color: TINT.greenText, flexShrink: 1 }]}>{stepLine(ctx, status)}</Text>
+          {canStudy ? <SmallBtn label={t('passage.page.undo')} icon="undo" help={t('study.screen.undoDoneHelp')} onPress={() => void undoDone()} /> : null}
         </View>
       ) : null}
       {allDone && canStudy ? (

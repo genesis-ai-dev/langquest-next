@@ -103,7 +103,7 @@ Steps:
 Expected:
 - Step 3 shows Decide: the heading "Is it accurate and natural?" with a speak button, a green "Looks good" card, an amber "Needs changes" card and a dashed row "Say something about it" with the sub "{TRANS first name} hears it with your answer" and "optional".
 - The strip shows "Listen" done (green check, accessibility label "Listen, done. Go back").
-- Step 4 saves at once, with no further screen. The toast reads "Looks good · sent to {TRANS-name}", with no Undo.
+- Step 4 saves at once, with no further screen. The toast reads "Looks good · sent to {TRANS-name}", with "Undo" (REV-049 takes it back).
 - The app returns to P-SUBMITTED's record, where the team's first step reads "Peer check looks good".
 - Within 30 seconds nothing waits to upload. TRANS, on a second device after Sync now, sees an update that the Peer check looks good in the Inbox (from the bell), and the record shows it.
 - The request to REV is done: P-SUBMITTED leaves REV's My Work.
@@ -147,7 +147,7 @@ Expected:
 - After step 3 the big mic is replaced by a chip "Your feedback · 0:05" and "Record again".
 - Step 4's field has the placeholder "Or type it — what worked, what didn't".
 - A dashed row "Record a listener retelling" with "optional" is under it.
-- Step 5 shows the toast "Feedback sent to {TRANS-name}", with no Undo, and returns to P-Q1's record.
+- Step 5 shows the toast "Feedback sent to {TRANS-name}", with "Undo", and returns to P-Q1's record.
 - The record's first step reads Peer check "needs changes", with REV's name.
 - TRANS, on a second device after Sync now, sees an Inbox update that Peer check suggests changes ("… suggests changes — revise, or keep it and say why."), and P-Q1's main button reads "Hear the feedback".
 - In TRANS's "Hear the feedback", the voice feedback plays, "“Verse 12 is too fast”" shows, and the note at 0:04 is listed with the review.
@@ -653,7 +653,7 @@ Expected:
 - Said parts that are not open read "0:07 in English".
 - "Publish" is enabled after the first part is said.
 - Step 5 opens the sheet "Publish the back translation?", sub "Of Version 1. The Consultant check listens to it next.", with "✓ N of N parts said".
-- Step 7 shows the toast "Back translation published.", with no Undo.
+- Step 7 shows the toast "Back translation published.", with "Undo".
 - The record opens on "Back translation published" with "Luke 14:25-35 · saved on this device · sends when you're online".
 - Afterwards, the record shows Back translation done ("Back translation recorded") on Version 1, and step 1 is complete.
 - COORD, on a second device after Sync now, can play the back translation from the review, in part order, and reads the note.

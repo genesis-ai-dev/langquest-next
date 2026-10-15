@@ -18,8 +18,10 @@
 // "Add details".
 //
 // Everything is read from the record (core derivePassage, questionsForKind,
-// keyTermLinksFor) and written with core recordReview / produceContent. A
-// review is grow-only, so sending it offers no Undo.
+// keyTermLinksFor) and written with core recordReview / produceContent.
+// Sending it offers Undo, which takes the review back (decisions.md 110):
+// the check is open again, and its author can still take it back later from
+// the check on the record or from the history.
 import {
   commands, derivePassage, keyTermLinksFor, languageName, questionsForKind,
   type Card as AudioCard, type EventSpec, type KindDef, type PassageNote
@@ -42,6 +44,7 @@ import { txt } from '../ui/textStyles';
 import { useLayout } from '../ui/useLayout';
 import { passageCrumbs, passageView as passageViewOf, versionTitle, type PassageView } from '../passage/passageView';
 import { usePassage } from '../passage/usePassage';
+import { undoReviews } from '../passage/recordInputsModel';
 import { failureMessage } from '../diagnostics/report';
 import {
   canLeave, cantAnswerReasons, cleanAnswers, cleanSkips, earlierReviews, firstOpenAt, isGroupKind, kindInSentence, kindLabel, listenLine, loggedTargets, nextLabel,
@@ -285,7 +288,8 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     }
     setBusy(true);
     try {
-      await ctx.act(specs, message);
+      const sent = specs;
+      await ctx.act(specs, message, () => undoReviews(sent)(commands(state)));
     } catch {
       setBusy(false);
       return;

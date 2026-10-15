@@ -168,6 +168,9 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.RequestMade': ['send_to_reviewers', 'assign_work'],
   'v1.RequestWithdrawn': ['send_to_reviewers', 'assign_work'],
   'v1.NoteAdded': ['translate', 'review', 'fill_reference'],
+  // Taking back your own review or note: whoever may record one, and only its author (may_emit, decisions.md 110).
+  'v1.ReviewWithdrawn': ['review', 'translate'],
+  'v1.NoteWithdrawn': ['translate', 'review', 'fill_reference'],
   'v1.StudyStepMarked': 'translate',
   'v1.MaterialDefined': 'by_kind',
   'v1.MaterialFieldSet': 'fill_reference',

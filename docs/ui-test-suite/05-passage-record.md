@@ -755,9 +755,11 @@ Expected:
 - The sheet's sub reads "On the whole passage. It follows the passage into
   reviews and later versions." It has "Say it" and "Or type it".
 - "Add note" is disabled until there is text or a voice note.
-- The toast reads "Note added — it follows this passage", with no Undo.
+- The toast reads "Note added — it follows this passage", with "Undo".
 - TREV's lit "Record" step (if not recorded), or History, shows "{TRANS}'s
   note". In History it is "Note · {anchor}", with a report flag (PASS-066).
+  TRANS sees "Undo" on it instead: their own note, which they may take back
+  (decisions.md 110).
 - REV can add a note. VIEW has no "Add a note" tile.
 
 ### PASS-033 Say it instead
@@ -1070,8 +1072,9 @@ Expected:
 - The verdict question is "Is it accurate and natural?". "Looks good" and
   "Needs changes" are disabled while a required question is open, with
   "{n} required question(s) left — answer, or say why not".
-- Saving shows "Peer Review added to the record", with no Undo (reviews only
-  grow). The app returns to the record.
+- Saving shows "Peer Review added to the record", with "Undo" (whoever
+  logged a check may take it back, decisions.md 110). The app returns to the
+  record.
 - Peer Review is marked "Looks good". TREV's request is done, and P-DRAFT
   leaves TREV's My Work after Sync.
 
