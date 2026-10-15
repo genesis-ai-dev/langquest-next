@@ -32,7 +32,7 @@ import {
 } from '../kit';
 import {
   addDays, anchorLabel, answeredQuestions, askCandidates, channelLabel, currentStepId, describeEntry, dueChoices, dueError,
-  gridKindIds, guestMessage, heroHeadline, historySummary, isoDay, nextQuestionType, questionTypeLabel,
+  gridKindIds, guestMessage, heroHeadline, historySummary, isoDay, listenersOf, nextQuestionType, questionTypeLabel,
   reviewMark, reviewsSummary, SAID_BY_VOICE, sendTargetLabel, versionReviewsSummary, type EntryText,
   type RowAction
 } from '../passage/record';
@@ -204,8 +204,8 @@ export function PassageRecord(ctx: Ctx) {
   const asker = isAuthor || !!publishedParam?.startsWith('bt');
   // Where each of the flow's kinds usually goes; only its author sends a version on (ADR-029).
   const targets = useMemo(
-    () => (v ? usualTargets(v.state, ctx.org.state, { p: v.p, languageId: v.languageId, me, asker }) : {}),
-    [v?.state, v?.languageId, v?.p.flow, ctx.org.state, me, asker]
+    () => (v ? usualTargets(v.state, ctx.org.state, { p: v.p, languageId: v.languageId, me, asker, lines: ctx.language.lines }) : {}),
+    [v?.state, ctx.language.lines, v?.languageId, v?.p.flow, ctx.org.state, me, asker]
   );
   if (!v) return <Missing ctx={ctx} id="passage_record" />;
 
@@ -452,6 +452,7 @@ export function PassageRecord(ctx: Ctx) {
   }
 
   // ---- every version (decisions.md 83): drafts, published versions, then the history ----
+  const { live, feedback: listened } = listenersOf(v.state, p);
   const history = (
     <>
       {study ? (
@@ -466,6 +467,22 @@ export function PassageRecord(ctx: Ctx) {
         <Disclosure icon="chat" title={t('passage.page.reviewsByVersion')} summary={reviewsSummary(p)} {...ctx.details(`passage:${unitId}:${languageId}:reviews`)}>
           <ReviewGrid ctx={ctx} v={v} kindIds={gridIds}
             onVersion={(takeId) => go('version_detail', { takeId })} onReview={(reviewId) => go('review_detail', { reviewId })} />
+        </Disclosure>
+      ) : null}
+      {listened.length > 0 || live.length > 0 ? (
+        <Disclosure icon="listen" title={t('passage.page.listeners')}
+          summary={live.length ? t('passage.page.liveIn', { channel: live[0]!.channel, version: versionTitle(live[0]!.versionN) }) : t('passage.page.listenerCount', { count: listened.length })}
+          {...ctx.details(`passage:${unitId}:${languageId}:listeners`)}>
+          {live.map((r) => (
+            <Row key={r.channel} icon="check" iconColor={TINT.greenText} label={t('passage.page.liveIn', { channel: r.channel, version: versionTitle(r.versionN) })}
+              sub={when(r.hlc)} onPress={() => go('version_detail', { takeId: r.takeId })} last={listened.length === 0 && r === live[live.length - 1]} />
+          ))}
+          {listened.map((r, i) => (
+            <Row key={r.id} icon={r.outcome === 'needs_changes' ? 'chat' : 'check'}
+              label={r.comment ? t('passage.quote', { text: r.comment }) : r.outcome === 'needs_changes' ? t('passage.view.outcomeStart.needsChanges') : t('passage.view.outcomeStart.looksGood')}
+              sub={[feedbackSource(r, ctx.name), versionTitle(r.versionN), when(r.hlc)].join(' · ')}
+              onPress={() => go('review_detail', { reviewId: r.id })} last={i === listened.length - 1} />
+          ))}
         </Disclosure>
       ) : null}
       {timeline.length > 0 ? (
@@ -982,8 +999,11 @@ export function ReviewDetail(ctx: Ctx) {
             {review.commentBlobHash ? (
               <ClipPlayer language={ctx.language} hashes={[review.commentBlobHash]} title={t('passage.review.whoseFeedback', { name: source })} tone="amber" bare />
             ) : null}
+            {!makes && review.artifacts?.length ? (
+              <ClipPlayer language={ctx.language} hashes={review.artifacts.map((c) => c.hash)} title={t('passage.review.whoseFeedback', { name: source })} tone="amber" bare />
+            ) : null}
             {review.comment ? <Text style={[txt.body, { fontSize: 18, lineHeight: 26 }]}>{t('passage.quote', { text: review.comment })}</Text> : null}
-            {!review.comment && !review.commentBlobHash ? <Text style={txt.smMuted}>{t('passage.review.noWords')}</Text> : null}
+            {!review.comment && !review.commentBlobHash && !review.artifacts?.length ? <Text style={txt.smMuted}>{t('passage.review.noWords')}</Text> : null}
           </View>
         </Authored>
         {answers.length > 0 ? (
@@ -1168,8 +1188,8 @@ export function AskSomeone(ctx: Ctx) {
   const [dueTyped, setDueTyped] = useState('');
   const [othersShown, setOthersShown] = useState(PEOPLE_STEP);
   const [busy, setBusy] = useState(false);
-  const candidates = useMemo(() => (v ? askCandidates(v.state, ctx.org.state, { languageId: v.languageId, what, ...(kindId ? { kindId } : {}), me }) : []),
-    [v?.state, v?.languageId, ctx.org.state, what, kindId, me]);
+  const candidates = useMemo(() => (v ? askCandidates(v.state, ctx.org.state, { languageId: v.languageId, what, ...(kindId ? { kindId } : {}), me, lines: ctx.language.lines }) : []),
+    [v?.state, ctx.language.lines, v?.languageId, ctx.org.state, what, kindId, me]);
   if (!v) return <Missing ctx={ctx} id="ask_someone" />;
   if (what === 'review' && !kindId) {
     return <Missing ctx={ctx} id="ask_someone" crumbsOf={v} text={t('passage.ask.fromItsStep')} />;
@@ -1184,7 +1204,7 @@ export function AskSomeone(ctx: Ctx) {
   const usual = candidates.filter((c) => c.usual).sort((a, b) => Number(b.onCheck) - Number(a.onCheck) || byName(a, b));
   const others = candidates.filter((c) => !c.usual).sort(byName);
   // The check's team (decision 91): everyone on it gets the request, and it is the first choice.
-  const usualTo = !isRecord && kindId ? usualTargetFor(v.state, ctx.org.state, { languageId: v.languageId, kindId, me }) : undefined;
+  const usualTo = !isRecord && kindId ? usualTargetFor(v.state, ctx.org.state, { languageId: v.languageId, kindId, me, lines: ctx.language.lines }) : undefined;
   const team = usualTo && 'teamId' in usualTo ? usualTo : undefined;
   const teamPeople = team ? checkPeople(v.state, kindId!).filter((id) => id !== me) : [];
   const chosen = who ?? (team ? TEAM : null);

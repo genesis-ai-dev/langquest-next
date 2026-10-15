@@ -10,7 +10,7 @@
 // 36): their names and words are the organization's, shown as written.
 import {
   CommandError, DEFAULT_KINDS, deriveKinds as coreKinds, feedbackIsMine, kindOf as coreKindOf,
-  type FlowStep, type KindDef, type KindState, type LanguageState, type License, type PassageState
+  type FlowStep, type KindDef, type KindState, type LanguageState, type License, type PassageGlance
 } from '@langquest-next/core';
 import type { Catalog } from './i18n';
 import { t } from './i18n';
@@ -68,7 +68,7 @@ export function stepName(kinds: KindDef[], step: FlowStep): string {
 }
 
 /** Core's `passageSummary`: the one-line state of a passage, worded for the person looking. */
-export function passageSummary(s: PassageState, kinds: KindDef[], actorId: string, name: (id: string) => string): string {
+export function passageSummary(s: PassageGlance, kinds: KindDef[], actorId: string, name: (id: string) => string): string {
   if (s.done) return s.steps.length === 0 ? t('core.summary.recordedDone') : t('core.summary.done');
   if (!s.recorded) return s.drafting ? t('core.summary.recording') : t('core.summary.notStarted');
   if (s.awaitingResponse.length) {

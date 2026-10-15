@@ -1,9 +1,10 @@
 import { bookId, bookLabel, bookOfChapter, bookOfVerse, inScope, SCOPE_VERSES, unitChapters, unitVerses } from './coverage';
 import { buildIndexes, type Indexes } from './indexes';
 import {
-  deriveFlow, deriveKinds, derivePassage, languageProgress, stepName, unitPlace,
+  deriveFlow, deriveKinds, derivePassage, stepName, unitPlace,
   type LanguageProgress, type PassageState
 } from './passage';
+import { languageProgress } from './passageLines';
 import { privilegesFor, TARGET_SCOPES, type LanguageInfo, type LanguageTarget, type OrgState, type TargetScope } from './org';
 import type { LanguageState } from './state';
 

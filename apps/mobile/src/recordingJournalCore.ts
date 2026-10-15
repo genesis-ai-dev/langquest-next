@@ -57,8 +57,8 @@ export interface ResumeDeps {
   /** Persist the destination through beforeMove before relocating the file. */
   ingest: (uri: string, format: JournalEntry['format'], beforeMove: (hash: string, size: number) => Promise<void>) => Promise<{ hash: string; size: number }>;
   blobExists: (hash: string, format: JournalEntry['format']) => boolean;
-  /** Has the fold already got this recording? */
-  hasRecording: (id: string) => boolean;
+  /** Has the fold already got this recording? A language kept on disk looks there too (decisions.md 110). */
+  hasRecording: (id: string) => boolean | Promise<boolean>;
   /** Append RecordingAdded for a fully ingested entry. */
   append: (entry: JournalEntry & { hash: string; target: JournalTarget }) => Promise<void>;
   /** Persist a partial step so a second interruption resumes from here. */
@@ -88,7 +88,7 @@ export async function resumeEntries(
     if (!t || t.orgId !== language.orgId || t.languageId !== language.languageId) continue;
     let entry = original;
     try {
-      if (deps.hasRecording(entry.id)) {
+      if (await deps.hasRecording(entry.id)) {
         result.resumed.push(entry.id);
         continue;
       }
@@ -108,7 +108,7 @@ export async function resumeEntries(
       if (!entry.hash || !deps.blobExists(entry.hash, entry.format)) {
         throw new Error('Recorded audio is unavailable; keep the journal for recovery.');
       }
-      if (!deps.hasRecording(entry.id)) await deps.append({ ...entry, hash: entry.hash, target: t });
+      if (!(await deps.hasRecording(entry.id))) await deps.append({ ...entry, hash: entry.hash, target: t });
       result.resumed.push(entry.id);
     } catch (err) {
       result.failed.push({ id: entry.id, error: err instanceof Error ? err.message : String(err) });

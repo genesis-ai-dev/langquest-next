@@ -1,3 +1,4 @@
+import { languageLines } from '@langquest-next/core';
 import {
   commands, derivePassage, deriveKinds, emptyLanguageState, flowTemplate, foldLanguage, HlcClock, instantiateFlow,
   type AnyEvent, type EventPayloads, type EventType, type SourcedQuestion
@@ -134,7 +135,7 @@ describe('a session that already happened (REV-6)', () => {
   it('suggests the nearest recorded passages in the same book, and searches for the rest', () => {
     const p = language();
     for (const u of ['john1', 'john2', 'john3', 'john4', 'john5', 'john9', 'mark2']) p.publish(u, [`c-${u}`]);
-    const all = recordedPassages(p.state());
+    const all = recordedPassages(p.state(), languageLines(p.state()));
     expect(all.map((x) => x.unitId)).toEqual(['mark2', 'john1', 'john2', 'john3', 'john4', 'john5', 'john9']); // canon order: Mark before John
     const here = all.find((x) => x.unitId === 'john3')!;
     expect(nearbyPassages(all, here).map((x) => x.unitId)).toEqual(['john1', 'john2', 'john4', 'john5']);
@@ -155,8 +156,8 @@ describe('a session that already happened (REV-6)', () => {
     const p = language();
     p.publish('john3', ['a']);
     const state = p.state();
-    expect(recordedPassages(state).map((x) => x.unitId)).toEqual(['john3']);
-    expect(recordedPassages(state)).toBe(recordedPassages(state));
+    expect(recordedPassages(state, languageLines(state)).map((x) => x.unitId)).toEqual(['john3']);
+    expect(recordedPassages(state, languageLines(state))).toBe(recordedPassages(state, languageLines(state)));
   });
 
   it('saves to the version played here and the latest version of each other passage picked', () => {

@@ -14,7 +14,7 @@
 // the Map. Getting started is gone: help mode (the ? in the header) explains
 // each part for field workers, and the Get ready card leads coordinators.
 import {
-  checkPeople, derivePassage, highlightsFor, languageName, libraryItemView, membershipsOf, recommendedFor, unitPlace, unitTitle, upNext, waitingOn,
+  checkPeople, highlightsOf, languageName, libraryItemView, membershipsOf, recommendedFor, unitPlace, unitTitle, upNextOf, waitingOf,
   type Highlight, type KindDef, type LanguageState, type OrgState, type Waiting
 } from '@langquest-next/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -31,7 +31,7 @@ import { baseWay, LATER_ITEM } from '../breakup/model';
 import { useEarlierSections } from '../breakup/earlier';
 import { pendingRequests, type PendingRequest } from '../invites';
 import { cachedInbox, refreshInbox, type RemoteNotification } from '../notifications';
-import { Card, Group, Header, Ico, Row, Screen, SectionLabel, SmallBtn, StepMarks, txt, type IconName } from '../kit';
+import { Card, Group, Header, Ico, Row, Screen, SectionLabel, StepMarks, txt, type IconName } from '../kit';
 import { dueText, isJustNow, when } from '../passageView';
 import { noteExpected } from '../report';
 import { contractsFor } from '../screenContracts';
@@ -41,6 +41,7 @@ import { checkName } from '../simple/adminModel';
 import { Faces } from '../checks/parts';
 import { useReadySummary, type ReadySummary } from '../simple/ready';
 import { nextSub, readiness, readySteps, THEN_CAP, waitingWhat, waitingWho, workIcon, workSub, workTarget, workWhat, type Readiness } from '../simple/homeModel';
+import { SyncIndicator } from '../SyncIndicator';
 import { C, space, TINT } from '../theme';
 
 const RECENT_CAP = 5;
@@ -145,15 +146,10 @@ function useElsewhere(ctx: Ctx): { languageId: string; count: number }[] {
   }, [rows, read, orgId, open]);
 }
 
-/** The sync state, small, beside the bell, only when it needs noticing: work still on this device, offline, or refused (all of it, or some events). */
+/** The sync state as one icon beside the bell, always: live or not, and what is still moving. */
 function SyncChip(ctx: Ctx) {
-  const p = ctx.language;
   if (!canGo(ctx, 'sync_status')) return null;
-  // Work the server refused one event at a time is kept and must be seen (PLAN.md invariant 1).
-  const label = p.refused ? t('work.sync.refused') : p.refusedEvents > 0 ? t('account.sync.refusedCount', { n: p.refusedEvents })
-    : p.pending > 0 ? t('work.sync.toSend', { count: p.pending }) : p.online === false ? t('work.sync.offline') : null;
-  if (!label) return null;
-  return <SmallBtn icon="cloud" label={label} onPress={() => ctx.go('sync_status')} />;
+  return <SyncIndicator language={ctx.language} org={ctx.org} onPress={() => ctx.go('sync_status')} />;
 }
 
 interface WorkItem {
@@ -194,18 +190,19 @@ export function MyWork(ctx: Ctx) {
 
   // Everything here is in the open language: its stream is the one on this phone.
   const languageId = ctx.languageId;
+  // Read off each passage's line (decisions.md 110), never every passage's record.
+  const lines = ctx.language.lines;
   const lists = useMemo(() => {
     if (!state) return null;
-    const idx = indexesFor(state);
-    const forYou = highlightsFor(state, actorId, { canRecord, canReview }, idx);
-    const waiting = waitingOn(state, actorId, idx);
+    const forYou = highlightsOf(lines, state, actorId, { canRecord, canReview });
+    const waiting = waitingOf(lines, state, actorId);
     const listed = new Set([...forYou, ...waiting].map((x) => x.unitId));
     const recent = ctx.recent
       .filter((r) => r.languageId === languageId && state.units[r.unitId] && !listed.has(r.unitId))
       .slice(0, RECENT_CAP)
-      .map((r) => ({ ...r, s: derivePassage(state, r.unitId, idx) }));
+      .map((r) => ({ ...r, s: lines.get(r.unitId) }));
     return { forYou, waiting, recent, kinds: deriveKinds(state) };
-  }, [state, actorId, canRecord, canReview, ctx.recent, languageId]);
+  }, [state, lines, actorId, canRecord, canReview, ctx.recent, languageId]);
 
   const orgName = ctx.org.state?.org?.value.name ?? '';
   const language = languageId ? languageName(ctx.org.state, languageId) : '';
@@ -288,11 +285,11 @@ export function MyWork(ctx: Ctx) {
       ) } : {})} />;
   } else if (languageId) {
     // ONB-7: something real to do when nothing is waiting, instead of an empty list.
-    const next = upNext(state, isAdminOnly ? { canRecord: true, canReview: false } : { canRecord, canReview }, idx);
+    const next = upNextOf(lines, idx.passages, isAdminOnly ? { canRecord: true, canReview: false } : { canRecord, canReview });
     if (next) {
       suggested = true;
       const title = unitTitle(state, next.unitId);
-      const by = next.kind === 'review' ? derivePassage(state, next.unitId, idx).latest?.by : undefined;
+      const by = next.kind === 'review' ? lines.get(next.unitId).latest?.by : undefined;
       const sub = isAdminOnly ? t('work.lead.notRecordedAdmin')
         : next.kind === 'record' ? t('work.lead.notRecorded')
         : t('work.lead.notChecked', { name: by ? ctx.name(by) : t('common.someone') });
@@ -310,7 +307,7 @@ export function MyWork(ctx: Ctx) {
   // Sections whose divisions changed after they were recorded (decision 80): their verses need recording again,
   // and the earlier recordings wait on their pages. For those who record, and those who divide.
   const again = (canRecord || ctx.session.can('manage_templates')) && languageId
-    ? [...earlier.over.keys()].filter((u) => state.units[u] && !derivePassage(state, u, idx).recorded) : [];
+    ? [...earlier.over.keys()].filter((u) => state.units[u] && !lines.get(u).recorded) : [];
   if (again.length && languageId) {
     tasks.push({ id: 'again', icon: 'mic', tone: 'amber', title: t('work.again.title', { passage: unitTitle(state, again[0]!) }),
       sub: t('work.again.sub', { count: again.length }), onPress: () => ctx.openPassage(again[0]!, languageId) });

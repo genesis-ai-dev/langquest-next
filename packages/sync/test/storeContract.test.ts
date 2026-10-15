@@ -229,6 +229,37 @@ describe.each(impls)('%s batch and rejected contract', (_name, make) => {
     expect((await s.all('o', 'p')).map((e) => e.event.id).sort()).toEqual(['a', 'b']);
     expect((await s.rejected('o', 'p')).map((e) => e.event.id)).toEqual(['x', 'y']);
   });
+
+  it('keeps a language\'s records out of memory, found by passage, id, second key or kind (decisions.md 110)', async () => {
+    const s = await make();
+    const rec = (id: string, unitId: string, ref = 'a', kind = 'recording') => ({ kind, id, unitId, ref, json: `{"id":"${id}"}` });
+    await s.commit({ kept: { orgId: 'o', streamId: 'p', upsert: [rec('r1', 'u1'), rec('r2', 'u2', 'b'), rec('t1', 'u4', 'b', 'take'), { kind: 'file', id: 'h1', unitId: '', ref: '', json: '{"size":1}' }] } });
+    await s.commit({ kept: { orgId: 'o', streamId: 'q', upsert: [rec('r9', 'u1')] } });
+    expect((await s.keptByUnit('o', 'p', ['recording'], ['u1'])).map((r) => r.id)).toEqual(['r1']);
+    expect((await s.keptByUnit('o', 'p', ['recording', 'take'], ['u1', 'u4'])).map((r) => r.id).sort()).toEqual(['r1', 't1']);
+    expect((await s.keptById('o', 'p', 'file', ['h1', 'nope', 'h1'])).map((r) => r.json)).toEqual(['{"size":1}']);
+    expect((await s.keptByRef('o', 'p', 'recording', ['b'])).map((r) => r.id)).toEqual(['r2']);
+    expect((await s.keptAll('o', 'p', 'take')).map((r) => r.id)).toEqual(['t1']);
+    expect((await s.keptUnits('o', 'p', ['recording', 'take'], 'b')).sort()).toEqual(['u2', 'u4']);
+    expect((await s.keptUnits('o', 'p', ['recording'])).sort()).toEqual(['u1', 'u2']);
+    expect(await s.keptCount('o', 'p', 'recording')).toBe(2);
+    // An upsert replaces; a clear empties one stream only.
+    await s.commit({ kept: { orgId: 'o', streamId: 'p', upsert: [{ ...rec('r1', 'u3'), json: '{"v":2}' }] } });
+    expect((await s.keptById('o', 'p', 'recording', ['r1']))[0]).toMatchObject({ unitId: 'u3', json: '{"v":2}' });
+    await s.commit({ kept: { orgId: 'o', streamId: 'p', clear: true } });
+    expect(await s.keptCount('o', 'p', 'recording')).toBe(0);
+    expect(await s.keptCount('o', 'q', 'recording')).toBe(1);
+    // A fresh snapshot's records, written aside, replace the stream's in one commit.
+    await s.commit({ kept: { orgId: 'o', streamId: 'q#incoming', upsert: [rec('n1', 'u5')] } });
+    await s.commit({ kept: { orgId: 'o', streamId: 'q', replaceFrom: 'q#incoming' } });
+    expect((await s.keptByUnit('o', 'q', ['recording'], ['u1', 'u5'])).map((r) => r.id)).toEqual(['n1']);
+    expect(await s.keptCount('o', 'q#incoming', 'recording')).toBe(0);
+    // Many ids at once: more than one statement's worth of parameters.
+    const many = Array.from({ length: 1000 }, (_, i) => rec(`m${i}`, `u${i % 7}`));
+    await s.commit({ kept: { orgId: 'o', streamId: 'p', upsert: many } });
+    expect((await s.keptById('o', 'p', 'recording', many.map((r) => r.id))).length).toBe(1000);
+    expect((await s.keptByUnit('o', 'p', ['recording', 'take', 'note'], Array.from({ length: 900 }, (_, i) => `u${i}`))).length).toBe(1000);
+  });
 });
 
 describe('SqliteStore transactions', () => {

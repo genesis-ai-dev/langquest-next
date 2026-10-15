@@ -164,6 +164,8 @@ when the databases were reset (decision 63); nothing older survives.
 | `v1.LanguageCodeSet` | languageId, code, languoidId (a languoid's UUID, or null) | register per language; takes over `LanguageAdded`'s code and links the language to the language list; none means unlinked (decision 78) |
 | `v1.LanguageCountrySet` | languageId, country (ISO 3166-1 alpha-2) | register per language; the dashboard's geography (decision 41) |
 | `v1.LanguageTargetSet` | languageId, scope (gospels, nt, ot, bible), startDate, targetDate | register per language; the dashboard's pace (decision 41) |
+| `v1.ClusterNamed` | clusterId, name | register per cluster: making one and renaming it; a cluster is a name on some languages, not a level (decision 108) |
+| `v1.LanguageClusterSet` | languageId, clusterId, inCluster | register per (language, cluster): a tag, so a language may be in several clusters or none; a cluster none is in is gone (decision 108) |
 | `v1.ReferenceRecommended` | itemId, recommended | register per item; recommended to every language (decision 62) |
 | `v1.LibraryItemDefined` | itemId, kind (template, flow, material, versification, source, sourceBook, timing…), name, description, copiedFrom? | kind and copiedFrom earliest wins, name and description registers (docs/library.md) |
 | `v1.LibraryVersionPublished` | itemId, kind, docHash, note? | grow-only per (item, hash), earliest wins; numbered by clock |

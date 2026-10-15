@@ -101,10 +101,21 @@ export async function openSync(page: Page): Promise<void> {
   await text(page, 'More settings').click();
   await button(page, /^Sync[ ,]/).click();
   await expect(page.getByRole('heading', { name: 'Sync', exact: true }).locator('visible=true').first()).toBeVisible();
+  await openSyncDetails(page);
+}
+
+/** The Sync screen keeps its counts, transfers and logs under Details: open it unless it already is. */
+export async function openSyncDetails(page: Page): Promise<void> {
+  // The web export does not expose the button's expanded state, so a tile showing is the sign it is open.
+  const shown = page.getByTestId('sync-tile-waiting').locator('visible=true').first();
+  if (await shown.isVisible()) return;
+  await button(page, /^Details/).click();
+  await expect(shown).toBeVisible();
 }
 
 /** A tile's number on the Sync screen ("12 waiting to upload"), read from its spoken label. */
 export async function tile(page: Page, label: string): Promise<number> {
+  await openSyncDetails(page);
   const el = page.locator(`[aria-label$=" ${label}"]`).locator('visible=true').first();
   const spoken = (await el.getAttribute('aria-label', { timeout: 10_000 })) ?? '';
   const m = /^([\d,.\s]+) /.exec(spoken);
@@ -301,6 +312,10 @@ export async function orgWrite(world: UiWorld, who: AccountKey, type: string, pa
 }
 
 /** The words of My Work's sync chip beside the bell, or null when there is none. */
+/** My Work's sync icon. Its spoken name is the state ("Live", "Offline", "Not syncing"), then ", 3 to send" while work waits. */
 export function syncChip(page: Page): Locator {
-  return page.getByRole('button', { name: /^(Offline|Not syncing|\d[\d,]* to send|\d[\d,]* refused|Refused · \d[\d,]*)$/ }).locator('visible=true').first();
+  return page.getByTestId('sync-indicator').locator('visible=true').first();
 }
+
+/** The sync icon's name when nothing is waiting and the server takes this device's work. */
+export const SYNC_CLEAR = /^(Live|Connected)$/;

@@ -5,7 +5,7 @@
 // (study/studyFiles.ts) are here only for passages kept offline. The worry this
 // answers: someone browses passages online, plays their audio, and finds out
 // in the field that none of it came along.
-import { defaultOfflineScope, languageName, offlineByUnit, offlineSummary, type OfflineSummary, type UnitOffline } from '@langquest-next/core';
+import { languageName, offlineByUnit, type OfflineSummary, type UnitOffline } from '@langquest-next/core';
 import { useMemo, useSyncExternalStore } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from './text';
@@ -30,22 +30,30 @@ function useStudyRevision(): number {
   return useSyncExternalStore(onStudyFiles, studyRevision, studyRevision);
 }
 
-/** Offline counts for these passages, recomputed when files arrive, leave, or a passage is kept. */
+/**
+ * Offline counts for these passages, recomputed when files arrive, leave,
+ * or a passage is kept. A kept passage's come from the counts worked out
+ * from the phone's table (useLanguage); another is on screen, so its
+ * recordings are in memory (decisions.md 110).
+ */
 function useOfflineUnits(ctx: Ctx, unitIds: readonly string[]): Map<string, KeptOffline> {
   const state = ctx.language.state;
-  const { present, keptUnits } = ctx.language.blobs;
+  const { present, keptUnits, keptOffline } = ctx.language.blobs;
   const me = ctx.session.actorId;
   const rev = useStudyRevision();
   const key = unitIds.join(',');
   return useMemo(() => {
     const out = new Map<string, KeptOffline>();
     if (!state) return out;
-    for (const [id, u] of offlineByUnit(state, unitIds, present, me, keptUnits)) out.set(id, withStudy(u, id));
+    const counted = unitIds.filter((id) => keptOffline?.has(id));
+    for (const id of counted) out.set(id, withStudy(keptOffline!.get(id)!, id));
+    const rest = unitIds.filter((id) => !out.has(id));
+    if (rest.length) for (const [id, u] of offlineByUnit(state, rest, present, me, keptUnits)) out.set(id, withStudy(u, id));
     return out;
   },
     // unitIds is read through its key, so a new array with the same passages does not recompute.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [state, present, keptUnits, me, key, rev]);
+    [state, present, keptUnits, keptOffline, me, key, rev]);
 }
 
 /**
@@ -53,38 +61,32 @@ function useOfflineUnits(ctx: Ctx, unitIds: readonly string[]): Map<string, Kept
  * from the map is not kept. Shared by every row drawn from the same inputs.
  */
 export function keptOfflineMap(ctx: Ctx): Map<string, KeptOffline> {
-  const state = ctx.language.state;
-  const { present, keptUnits } = ctx.language.blobs;
-  const me = ctx.session.actorId;
-  if (!state) return new Map();
+  // Worked out from the phone's table after changes (useLanguage), not on every draw (decisions.md 110).
+  const counted = ctx.language.blobs.keptOffline;
+  if (!counted) return new Map();
   const rev = studyRevision();
   const last = keptCache;
-  if (last && last.state === state && last.present === present && last.kept === keptUnits && last.me === me && last.rev === rev) return last.map;
-  const scope = defaultOfflineScope(state, me);
-  for (const u of keptUnits) scope.add(u);
+  if (last && last.counted === counted && last.rev === rev) return last.map;
   const map = new Map<string, KeptOffline>();
-  for (const [id, u] of offlineByUnit(state, scope, present, me, keptUnits)) map.set(id, withStudy(u, id));
-  keptCache = { state, present, kept: keptUnits, me, rev, map };
+  for (const [id, u] of counted) map.set(id, withStudy(u, id));
+  keptCache = { counted, rev, map };
   return map;
 }
-let keptCache: { state: object; present: ReadonlySet<string>; kept: ReadonlySet<string>; me: string; rev: number; map: Map<string, KeptOffline> } | null = null;
+let keptCache: { counted: ReadonlyMap<string, UnitOffline>; rev: number; map: Map<string, KeptOffline> } | null = null;
 
 /** The whole scope: audio from core, with passages counted ready only once their study files are here too. */
 type OfflineOverview = OfflineSummary & { studyToFetch: number };
 
 export function useOfflineSummary(ctx: Ctx): OfflineOverview | null {
-  const state = ctx.language.state;
-  const { present, keptUnits } = ctx.language.blobs;
-  const me = ctx.session.actorId;
+  const { offlineSummary: audio, keptOffline } = ctx.language.blobs;
   const rev = useStudyRevision();
   return useMemo(() => {
-    if (!state) return null;
-    const audio = offlineSummary(state, present, me, keptUnits);
+    if (!audio) return null;
     const kept = [...keptOfflineMap(ctx).values()];
     return { ...audio, ready: kept.filter((u) => u.ready).length, studyToFetch: kept.reduce((n, u) => n + u.studyTotal - u.studyHere, 0) };
     // ctx is read for the same inputs listed here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state, present, keptUnits, me, rev]);
+  }, [audio, keptOffline, rev]);
 }
 
 /** Why a passage is kept on this device. */

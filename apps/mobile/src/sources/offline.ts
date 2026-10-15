@@ -15,7 +15,7 @@
 // bounded (`SOURCE_CACHE_BYTES`): files outside the scope go first, oldest
 // first, and nothing new is fetched past the cap. Like every transfer, this
 // waits while the microphone is open and while offline.
-import { defaultOfflineScope, isHash, recommendedFor, libraryItemView, type LanguageState, type SourceBookDoc, type SourceDoc } from '@langquest-next/core';
+import { isHash, recommendedFor, libraryItemView, type LanguageState, type SourceBookDoc, type SourceDoc } from '@langquest-next/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import { File, Paths } from 'expo-file-system';
@@ -194,6 +194,7 @@ export function useSourceOffline(language: LanguageHandle, org: OrgHandle, sessi
   const revision = language.revision;
   const libraryKey = org.state ? Object.keys(org.state.recommendations ?? {}).length + ':' + Object.keys(org.state.library ?? {}).length : '';
   const kept = [...language.blobs.keptUnits].sort().join(',');
+  const scope = [...language.blobs.scope].sort().join(',');
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -208,7 +209,7 @@ export function useSourceOffline(language: LanguageHandle, org: OrgHandle, sessi
     }, 4000);
     return () => clearTimeout(timer);
     // Revision covers the record; the key covers recommendations and items.
-  }, [revision, libraryKey, kept, language.online]);
+  }, [revision, libraryKey, kept, scope, language.online]);
 }
 
 const checkedFilesets = new Set<string>();
@@ -220,7 +221,8 @@ async function pass(language: LanguageHandle, org: OrgHandle, session: Session):
   if (!state || !language.languageId || language.online === false || isRecording()) return;
   const store = language.blobs.store ?? (await getBlobStore());
   const idx = await loadIndex();
-  const scope = defaultOfflineScope(state, session.actorId);
+  // The default scope, worked out from the phone's table too (decisions.md 110).
+  const scope = new Set(language.blobs.scope);
   for (const u of language.blobs.keptUnits) scope.add(u);
 
   const wants: Want[] = [];

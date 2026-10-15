@@ -203,7 +203,7 @@ export function takesLinkingTerm(state: LanguageState, termId: string): { takeId
 }
 
 /** The unit and every ancestor up to the root. */
-export function unitAncestry(state: LanguageState, unitId: string): Set<string> {
+export function unitAncestry(state: Pick<LanguageState, 'units'>, unitId: string): Set<string> {
   const out = new Set<string>();
   let cur: string | null = unitId;
   while (cur && !out.has(cur)) {

@@ -28,15 +28,17 @@ import { usePassageSource, useSources } from '../sources/useSources';
 import { C, radius, space, target, TINT, type as T } from '../theme';
 import { useBookChange } from './BreakUpBook';
 import { atOf, namesOfWay, ownWayDoc, parseAt, sectionLabel, sectionsOf, startsOfWay, verseOrder, type At, type Section } from './ownWay';
+import { isItself } from './model';
 import { useWays } from './useBreakup';
 
 /** A dashed line where at least this many of the 20 Bibles start a section. */
 const SUGGEST = 10;
 
-/** The book in a Bible the team has: the language's Bibles, the one chosen last on this phone first. */
-function useBookText(ctx: Ctx, book: string, maxVerses: readonly number[]) {
+/** The book in a Bible the team has (the language's Bibles, the one chosen last on this phone first), else one LangQuest shares. */
+export function useBookText(ctx: Ctx, book: string, maxVerses: readonly number[]) {
   const languageId = ctx.language.languageId;
-  const sources = useSources(ctx, null, languageId);
+  // A book opened in the template editor may have no team behind it: LangQuest's Bibles stand in (decision 107).
+  const sources = useSources(ctx, null, languageId, { wholeBook: true });
   const [chosen, choose] = useChoice(choiceKey(ctx.session.actorId, ctx.language.orgId, languageId ?? ''));
   const option = sources.options.find((o) => o.itemId === chosen) ?? sources.options[0];
   const range = useMemo(() => (maxVerses.length
@@ -80,6 +82,8 @@ type Panel = null | 'bible' | 'jump' | 'from' | 'helps' | 'leave' | { section: A
 export function DivideOwnWay(props: {
   ctx: Ctx; book: string; bookName: string; doc: TemplateDoc; v11n: VersificationDoc | null; fallbackVerses: readonly number[];
   item: LibraryItemView | null; redo: boolean; onClose: () => void; onDone: () => void;
+  /** In the template editor (decision 107): take the book's new sections instead of changing the language's template. */
+  apply?: (way: TemplateDoc, note: string, said: string) => void;
 }) {
   const { ctx, book, bookName } = props;
   const maxVerses = useMemo(() => props.v11n?.maxVerses[book] ?? props.fallbackVerses, [props.v11n, book, props.fallbackVerses]);
@@ -135,12 +139,13 @@ export function DivideOwnWay(props: {
   const save = () => {
     // i18n-ignore: the part's name is stored in the template, as the ready-made ways store theirs ("Passage", "Chapter")
     const way = ownWayDoc({ base: props.doc, book, bookName, part: 'Section', sections, names, v11n: props.v11n, english });
-    // i18n-ignore: the new version's note, stored in the event log
-    change.start(way, `${bookName} is divided its own way`, t('breakup.own.saved', { book: bookName }));
+    const note = `${bookName} is divided its own way`; // i18n-ignore: the new version's note, stored in the event log
+    if (props.apply) props.apply(way, note, t('breakup.own.saved', { book: bookName }));
+    else change.start(way, note, t('breakup.own.saved', { book: bookName }));
   };
   const back = () => (dirty ? setPanel('leave') : props.onClose());
 
-  const offered = ways.rows.filter((r) => !r.later && (() => { const d = ways.docOf(r.choice); return !!d && wayCovers(d, book); })());
+  const offered = ways.rows.filter((r) => !r.later && !isItself(r, props.item?.itemId) && (() => { const d = ways.docOf(r.choice); return !!d && wayCovers(d, book); })());
   const section = panel && typeof panel === 'object' ? sections.find((s) => s.start === panel.section) ?? null : null;
   const outline = helps.filter((h) => h.kind === 'guide').flatMap((h) => h.parts).filter((p) => order.includes(p.start));
 
@@ -165,7 +170,7 @@ export function DivideOwnWay(props: {
     </View>
   ) : (
     <>
-      <PrimaryBtn label={t('breakup.own.save', { count: sections.length })} icon="check" busy={change.busy} disabled={!props.item} onPress={save} />
+      <PrimaryBtn label={t('breakup.own.save', { count: sections.length })} icon="check" busy={change.busy} disabled={!props.item && !props.apply} onPress={save} />
       <QuietLinks items={[
         ...(undo ? [{ label: t('breakup.own.undo'), icon: 'undo' as const, onPress: () => { setStarts(undo); setUndo(null); } }] : []),
         { label: t('breakup.own.startFrom'), icon: 'book', onPress: () => setPanel('from') }

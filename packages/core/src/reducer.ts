@@ -11,7 +11,7 @@ import { earlier } from './ties';
  * events. Snapshots are tagged with this; a client only loads snapshots at
  * its own version.
  */
-export const REDUCER_VERSION = 15;
+export const REDUCER_VERSION = 16;
 
 /**
  * How many events have been applied to a state object. Kept outside the
@@ -22,6 +22,15 @@ export const REDUCER_VERSION = 15;
 const REVISIONS = new WeakMap<object, number>();
 export function stateRevision(state: object): number {
   return REVISIONS.get(state) ?? 0;
+}
+
+/**
+ * Say a state changed outside the fold: records a phone keeps on disk
+ * (decisions.md 110) were brought into it, or taken out. Caches keyed on
+ * the revision rebuild.
+ */
+export function markChanged(state: object): void {
+  REVISIONS.set(state, (REVISIONS.get(state) ?? 0) + 1);
 }
 
 /**
@@ -360,6 +369,8 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
     case 'v1.LanguageCodeSet':
     case 'v1.LanguageCountrySet':
     case 'v1.LanguageTargetSet':
+    case 'v1.ClusterNamed':
+    case 'v1.LanguageClusterSet':
     case 'v1.ReferenceRecommended':
     case 'v1.LibraryItemDefined':
     case 'v1.LibraryVersionPublished':
@@ -413,6 +424,25 @@ function earliestUndo(table: Record<string, Undo>, key: string, event: EventEnve
   const prior = table[key];
   if (prior && (prior.hlc < event.hlc || (prior.hlc === event.hlc && prior.by <= event.actorId))) return;
   table[key] = { by: event.actorId, hlc: event.hlc };
+}
+
+type Recording = LanguageState['recordings'][string];
+type Verdict = LanguageState['blobs'][string];
+
+/**
+ * Of two copies of one recording, the one `v1.RecordingAdded` keeps: the
+ * earliest, ties as `earlier` breaks them. A phone that keeps recordings on
+ * disk (decisions.md 110) combines a stored copy with one just folded by
+ * this, so the result is the fold's whichever arrived first.
+ */
+export function keptRecording(a: Recording, b: Recording): Recording {
+  const content = ({ actorId: _a, hlc: _h, ...rest }: Recording) => rest;
+  return earlier({ hlc: a.hlc, actorId: a.actorId } as EventEnvelope, content(a), b, content(b)) ? a : b;
+}
+
+/** Of two server verdicts on one file, the one the fold keeps: the latest, ties by event id (`blobVerdict`). */
+export function keptVerdict(a: Verdict, b: Verdict): Verdict {
+  return a.hlc > b.hlc || (a.hlc === b.hlc && a.eventId > b.eventId) ? a : b;
 }
 
 /** Latest server verdict on a blob wins; ties by event id. */

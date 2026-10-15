@@ -338,7 +338,8 @@
     "mic_setup": "Atur mikrofon Anda",
     "get_ready": "Bersiap",
     "settings_more": "Pengaturan lain",
-    "check_editor": "Pemeriksaan"
+    "check_editor": "Pemeriksaan",
+    "cluster_home": "Rumpun"
   },
   "native": {
     "microphone": "LangQuest merekam suara Anda untuk menerjemahkan perikop.",
@@ -646,7 +647,8 @@
       "languagesTitle": "Bahasa",
       "newLanguage": "Bahasa baru",
       "noLanguages": "Belum ada bahasa. Tambahkan bahasa pertama yang akan direkam tim Anda.",
-      "openToBring": "Buka untuk membawanya ke perangkat ini"
+      "openToBring": "Buka untuk membawanya ke perangkat ini",
+      "newLanguageOrCluster": "Bahasa atau rumpun baru"
     },
     "rename": {
       "done": "Nama diganti menjadi {{name}}.",
@@ -711,7 +713,8 @@
         "roles": "peran",
         "publicListing": "daftar publik",
         "name": "nama",
-        "languageList": "daftar bahasa"
+        "languageList": "daftar bahasa",
+        "cluster": "rumpun"
       },
       "orgAndCode": "{{org}} · Kode {{code}}",
       "seeWork": "Lihat pekerjaan mereka",
@@ -1377,7 +1380,7 @@
       "wholeBooks": "Seluruh kitab",
       "chapters": "Pasal",
       "passages": "Perikop",
-      "passagesNote_other": "{{count, number}} perikop, sesuai pembagian versi asalnya. Fitur untuk mengubah awal perikop akan segera hadir.",
+      "passagesNote_other": "{{count, number}} perikop, sesuai pembagian versi asalnya.",
       "eachBook": "Setiap kitab adalah satu bagian untuk direkam.",
       "eachChapter": "Setiap pasal adalah satu bagian untuk direkam.",
       "booksCount": "Kitab · {{n, number}}",
@@ -1397,8 +1400,7 @@
       "scripture": "Kitab Suci",
       "scriptureSub": "Kitab dan pasal Alkitab, dibagi menjadi perikop sambil tim bekerja.",
       "else": "Yang lain",
-      "elseSub": "Pelajaran, cerita, tafsiran — kerangka apa pun yang Anda susun sendiri.",
-      "numbering": "Penomoran pasal dan ayat mana yang diikutinya?"
+      "elseSub": "Pelajaran, cerita, tafsiran — kerangka apa pun yang Anda susun sendiri."
     },
     "levelSheet": {
       "title": "Tingkat",
@@ -1461,6 +1463,11 @@
       "gap": "Mulai ayat {{verse}}, ayat-ayat ini belum masuk {{part}} mana pun.",
       "verseLabel": "Ayat {{chapter}}:{{verse}}",
       "versePlaceholder": "ayat {{verse}}"
+    },
+    "divide": {
+      "done": "{{book}} sudah dibagi. Simpan templat untuk menyimpannya.",
+      "tapBook": "Ketuk sebuah kitab untuk memilih cara membaginya.",
+      "nameOrRemove": "Ganti nama atau hapus {{book}}"
     }
   },
   "breakup": {
@@ -1623,7 +1630,9 @@
       "noneReady": "Belum ada yang siap pakai untuk ini. Buat sendiri: folder untuk cara penyusunannya, dan hal-hal yang direkam orang di dalamnya.",
       "makeOwn": "Buat sendiri",
       "makeOwnDetail": "Folder, dan apa yang akan direkam di dalamnya.",
-      "elseKinds": "Cerita, lagu, pelajaran"
+      "elseKinds": "Cerita, lagu, pelajaran",
+      "ownSub": "Kitab demi kitab: baca masing-masing dan pilih di mana bagian-bagiannya dimulai",
+      "ownNote": "Setiap kitab menunggu sampai dibagi. Buka dari peta atau Pekerjaan Saya, baca dalam sebuah Alkitab dan pilih di mana bagian-bagiannya dimulai, atau mulai dari cara yang sudah jadi."
     },
     "errors": {
       "noTemplate": "Bahasa ini belum punya templat.",
@@ -1810,6 +1819,10 @@
       "jumpLabel_other": "Pasal {{chapter}}: {{count, number}} bagian dimulai di sini",
       "sections_other": "{{count, number}} bagian",
       "partsIn_other": "{{count, number}} bagian di {{book}}"
+    },
+    "division": {
+      "way_other": "{{way}} · {{count, number}} potongan",
+      "own_other": "Cara sendiri · {{count, number}} potongan"
     }
   },
   "canon": {
@@ -2806,7 +2819,6 @@
     "sync": {
       "syncing": "Menyinkronkan…",
       "syncNow": "Sinkronkan sekarang",
-      "checking": "Sesekali memeriksa perubahan",
       "refused": "Server menolak akun ini untuk organisasi ini.",
       "tooOld": "Perbarui aplikasi untuk sinkronisasi.",
       "waitingUpload": "menunggu diunggah",
@@ -2824,7 +2836,28 @@
       "speedMB": "{{value}} MB/s",
       "waitingCount": "Menunggu · {{n, number}}",
       "refusedCount": "Ditolak · {{n, number}}",
-      "events_other": "{{count, number}} peristiwa di perangkat ini"
+      "events_other": "{{count, number}} peristiwa di perangkat ini",
+      "standing": {
+        "live": "Langsung",
+        "checking": "Terhubung",
+        "offline": "Luring",
+        "refused": "Tidak menyinkronkan"
+      },
+      "help": {
+        "live": "Perubahan dari tim Anda langsung tiba, dan perubahan Anda langsung terkirim.",
+        "checking": "Terhubung, tetapi saluran langsung terputus, jadi perangkat ini memeriksa perubahan setiap beberapa menit. Sinkronkan sekarang memeriksa saat itu juga.",
+        "offline": "Tidak ada koneksi. Semua yang Anda lakukan disimpan di perangkat ini dan terkirim sendiri saat Anda kembali daring.",
+        "refused": "Server tidak menerima perubahan dari perangkat ini. Pekerjaan Anda tetap tersimpan di sini.",
+        "toSend": "Perubahan dan rekaman di perangkat ini yang belum dikonfirmasi server. Semuanya aman di sini dan terkirim saat ada koneksi.",
+        "toReceive": "Rekaman dari orang lain yang masih diunduh perangkat ini.",
+        "refusedLine": "Perubahan yang tidak diterima server, biasanya karena izin berubah. Tetap ada di perangkat ini; buka Detail untuk melihat masing-masing."
+      },
+      "toSend": "Akan dikirim",
+      "toReceive": "Akan diterima",
+      "refusedLine": "Ditolak",
+      "none": "Tidak ada",
+      "moreInfo": "Info lebih lanjut",
+      "details": "Detail"
     }
   },
   "study": {
@@ -3288,7 +3321,10 @@
       "playYourFeedback": "Putar masukan Anda",
       "more": "Lainnya",
       "options": "Pilihan",
-      "openVersion": "Buka {{version}}"
+      "openVersion": "Buka {{version}}",
+      "listeners": "Pendengar",
+      "liveIn": "Terbit di {{channel}} · {{version}}",
+      "listenerCount": "Masukan pendengar: {{count, number}}"
     },
     "else": {
       "title": "Ada yang lain?",
@@ -3485,9 +3521,7 @@
       "help": "Hal yang Anda minta dari orang lain dan belum selesai."
     },
     "sync": {
-      "refused": "Tidak sinkron",
-      "toSend_other": "{{count, number}} akan dikirim",
-      "offline": "Offline"
+      "toSend_other": "{{count, number}} akan dikirim"
     },
     "join": {
       "wantsToJoin": "{{name}} ingin bergabung",
@@ -4098,7 +4132,8 @@
       "pausedForSource": "Dijeda selama sumber diputar",
       "startsAgain": "Perekaman dimulai lagi saat sumber berhenti.",
       "cutoff": "Batas suara",
-      "pauseBetween": "Jeda di antara bagian"
+      "pauseBetween": "Jeda di antara bagian",
+      "tooShort": "Terlalu pendek untuk disimpan. Jika Anda sedang berbicara, ucapkan lagi."
     },
     "split": {
       "referenceOneLine": "Referensi dalam satu baris",
@@ -4472,7 +4507,8 @@
       "newChapters": "Pasal baru",
       "books": "Kitab",
       "chaptersByBook": "Pasal per kitab",
-      "total": "Jumlah"
+      "total": "Jumlah",
+      "clusters": "Rumpun"
     },
     "errors": {
       "noServer": "Versi aplikasi ini tidak tahu di mana server laporan berada.",
@@ -4550,7 +4586,8 @@
       "alertsChip_other": "Peringatan, {{count, number}} perlu ditangani",
       "allCountries": "Semua negara",
       "loading": "Memuat laporan…",
-      "couldNotRead": "Laporan tidak dapat dibaca"
+      "couldNotRead": "Laporan tidak dapat dibaca",
+      "allLanguages": "Semua bahasa"
     },
     "overview": {
       "across_other": "Dari {{count, number}} bahasa · {{recent}} dalam empat minggu terakhir",
@@ -4822,6 +4859,11 @@
       "saveTarget": "Simpan target",
       "findCountry": "Cari negara",
       "typeToFind_other": "Ketik untuk mencari {{count, number}} lainnya."
+    },
+    "clusters": {
+      "title": "Rumpun",
+      "sub": "Bahasa setiap rumpun bersama-sama. Pilih satu untuk melihat bahasanya saja.",
+      "languages_other": "{{count, number}} bahasa"
     }
   },
   "review": {
@@ -5880,6 +5922,94 @@
       "playHelp": "Memutar cara mereka mengucapkannya.",
       "suggest": "Bahasa lain di sini memakai",
       "suggestHelp": "Dipakai di sini dalam {{languages}}. Ketuk untuk menambahkannya."
+    }
+  },
+  "clusters": {
+    "row": {
+      "sub_other": "{{count, number}} bahasa · {{names}}",
+      "namesMore": "{{names}}…"
+    },
+    "home": {
+      "sub_other": "Rumpun · {{count, number}} bahasa",
+      "together": "Bersama",
+      "itsLanguages": "Bahasanya",
+      "add": "Tambahkan bahasa ke dalamnya",
+      "rename": "Ganti nama",
+      "ungroup": "Pisahkan",
+      "gone": "Rumpun ini sekarang tidak punya bahasa",
+      "goneSub": "Bahasanya sudah dikeluarkan. Semuanya masih ada di {{org}}.",
+      "notSaved": "Tidak tersimpan"
+    },
+    "add": {
+      "title": "Tambahkan ke {{cluster}}",
+      "newLanguage": "Bahasa baru",
+      "newLanguageSub": "Siapkan, sudah di dalam {{cluster}}",
+      "alreadyIn": "Sudah ada di {{org}}",
+      "none": "Semua bahasa di {{org}} sudah ada di dalamnya.",
+      "button": "Tambahkan",
+      "done_other": "{{count, number}} bahasa ditambahkan ke {{cluster}}."
+    },
+    "rename": {
+      "title": "Ganti nama {{cluster}}",
+      "label": "Namanya",
+      "save": "Simpan",
+      "done": "Namanya sekarang {{name}}."
+    },
+    "ungroup": {
+      "title": "Pisahkan {{cluster}}?",
+      "body_other": "{{count, number}} bahasanya tetap ada, dengan orang, rekaman, dan pemeriksaannya. Hanya nama yang mengelompokkannya yang hilang.",
+      "confirm": "Pisahkan",
+      "keep": "Pertahankan",
+      "done": "{{cluster}} dipisahkan. Bahasanya masih ada di sini."
+    },
+    "language": {
+      "label": "Rumpun",
+      "none": "Tidak dalam rumpun",
+      "sheetTitle": "Di rumpun mana bahasa ini?",
+      "count_other": "{{count, number}} bahasa",
+      "newLabel": "Atau rumpun baru",
+      "firstLabel": "Masukkan ke rumpun baru",
+      "note": "Sebuah bahasa bisa berada di lebih dari satu rumpun, atau tidak di mana pun. Tidak ada yang berubah pada bahasanya.",
+      "done": "Selesai",
+      "saved": "Rumpun {{language}} disimpan."
+    },
+    "newLanguage": {
+      "what": "Apa yang Anda tambahkan?",
+      "one": "Satu bahasa",
+      "oneSub": "Dengan rekaman, pemeriksaan, dan orangnya sendiri",
+      "cluster": "Rumpun bahasa",
+      "clusterSub": "Beberapa bahasa yang berkerabat, disiapkan bersama",
+      "clusterName": "Nama rumpun",
+      "clusterPlaceholder": "mis. Dar Khamsa",
+      "theCluster": "rumpun ini",
+      "inCluster": "Masuk rumpun? Bisa dipilih nanti",
+      "no": "Tidak",
+      "newCluster": "Rumpun baru",
+      "joinsNamed": "{{org}} sudah punya {{cluster}}. Bahasa-bahasa ini bergabung ke sana.",
+      "itsLanguages": "Bahasanya · {{number}}",
+      "addOne": "Tambahkan bahasa",
+      "unlisted": "Tidak ada? Tambahkan seperti yang Anda ketik, dengan kodenya jika ada.",
+      "addTyped": "Tambahkan “{{name}}”",
+      "new": "Baru",
+      "newWithCode": "{{code}} · baru",
+      "already": "Sudah ada di {{org}}",
+      "takeOut": "Keluarkan",
+      "note_other": "Bahasa yang sudah ada tetap menyimpan semua yang dimilikinya. {{count, number}} bahasa baru disiapkan bersama di langkah berikutnya.",
+      "onlyExisting": "Tidak ada yang baru untuk disiapkan: bahasa yang sudah ada tetap menyimpan semua yang dimilikinya.",
+      "make": "Buat rumpun",
+      "made_other": "{{cluster}} dibuat, dengan {{count, number}} bahasa.",
+      "forNew_other": "Untuk {{count, number}} bahasa baru di {{cluster}}. Masing-masing bisa mengubah miliknya nanti.",
+      "added_other": "{{count, number}} bahasa ditambahkan ke {{org}}, di {{cluster}}.",
+      "addedNotOffered_other": "{{count, number}} bahasa ditambahkan ke {{org}}, di {{cluster}}. Tawarkan {{offers}} di Yang membantu mereka saat Anda daring.",
+      "notMade": "Tidak ditambahkan",
+      "making": {
+        "adding": "Menambahkan {{language}}",
+        "grouping": "Menambahkan ke {{cluster}}"
+      }
+    },
+    "status": {
+      "all": "Semua",
+      "none": "Tanpa rumpun"
     }
   }
 }

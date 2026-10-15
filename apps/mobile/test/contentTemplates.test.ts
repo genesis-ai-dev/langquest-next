@@ -1,3 +1,4 @@
+import { languageLines } from '@langquest-next/core';
 import {
   buildIndexes, emptyLanguageState, foldLanguage, HlcClock, selectTemplateSpecs, validateDoc, withDeps,
   type AnyEvent, type EventSpec, type LibraryItemState, type LibraryItemView, type LanguageState, type TemplateDoc, type VersificationDoc
@@ -152,17 +153,17 @@ describe('a language on a library template', () => {
     s.takes['t1'] = take('stories.abc/LUK.15.1-10');
     s.takes['t2'] = take('other.xyz/LUK.15');
     s.takes['t3'] = take('hand-added');
-    expect(setAsideCount(s)).toBe(1);
+    expect(setAsideCount(s, languageLines(s))).toBe(1);
     // The next version drops the lost sheep: hidden, never deleted (TPL-7).
     const next = withLibraryTemplate({ ...passagesDoc, bible: { ...passagesDoc.bible!, passages: passagesDoc.bible!.passages!.slice(1) } }, s);
     expect(next.hiddenUnits['stories.abc/LUK.15.1-10']?.value).toBe(true);
-    expect(setAsideCount(next)).toBe(2);
-    expect(recordedCount(next)).toBe(3);
+    expect(setAsideCount(next, languageLines(next))).toBe(2);
+    expect(recordedCount(languageLines(next))).toBe(3);
     // Narrowing the books sets aside what is outside them.
     next.takes['t4'] = take('stories.abc/LUK.15.11-32');
-    expect(setAsideCount(next)).toBe(2);
+    expect(setAsideCount(next, languageLines(next))).toBe(2);
     const narrowed = withLibraryTemplate(passagesDoc, next, ['MRK']);
-    expect(setAsideCount(narrowed)).toBe(3);
+    expect(setAsideCount(narrowed, languageLines(narrowed))).toBe(3);
   });
 });
 

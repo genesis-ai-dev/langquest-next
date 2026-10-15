@@ -2,7 +2,10 @@
 // which view of templates this is, the lines and counts a card shows, which
 // choices the picker offers, and when the editor may save. Pure: no React, no
 // I/O. Ports content.tsx's rules (TPL-1, TPL-2, TPL-7, TPL-9).
-import { languageName, type LanguageState, type LevelDisplay, type LibraryItemView, type OrgState, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
+import {
+  bookParts, languageName, sameParts, type LanguageState, type LevelDisplay, type LibraryItemView, type OrgState, type TemplateDoc, type VersificationDoc
+} from '@langquest-next/core';
+import { sharedTemplateShown } from '../breakup/model';
 import { countOutline, versionNumber, type LibraryChoice, type TemplateForm } from '../contentTemplates';
 import { t } from '../i18n';
 import { sourceLine, usesItem } from '../library/model';
@@ -127,12 +130,24 @@ export function choiceInUse(c: LibraryChoice, sel: { itemId: string } | null): b
 /**
  * The picker's two lists: this organization's, and, only for someone who may
  * write the library (using another's follows it first), what others share.
+ * LangQuest's ways are offered once, in the numbering the language uses
+ * (`numbering`, a versification code), without its older templates
+ * (`sharedTemplateShown`, decision 107).
  */
-export function pickerLists(choices: LibraryChoice[], canWriteLibrary: boolean): { ours: LibraryChoice[]; others: LibraryChoice[] } {
+export function pickerLists(choices: LibraryChoice[], canWriteLibrary: boolean, numbering = 'eng'): { ours: LibraryChoice[]; others: LibraryChoice[] } {
   return {
     ours: choices.filter((c) => c.source === 'ours'),
-    others: canWriteLibrary ? choices.filter((c) => c.source === 'shared') : []
+    others: canWriteLibrary ? choices.filter((c) => c.source === 'shared' && sharedTemplateShown(c.shared, numbering)) : []
   };
+}
+
+/**
+ * The books a save divides again: divided in the version the editor started
+ * from, and divided differently now (decision 107). What languages recorded
+ * on their old sections moves to "Earlier sections", so Save warns first.
+ */
+export function redividedBooks(start: TemplateDoc, now: TemplateDoc, books: { book: string; name: string }[]): string[] {
+  return books.filter((b) => bookParts(start, b.book) && !sameParts(start, now, b.book)).map((b) => b.name);
 }
 
 /** What changing to a template does, said under the picker's button: what is hidden, or what will be recorded, and that a shared one is followed. */

@@ -10,7 +10,7 @@ import { PanResponder, Platform, Pressable, StyleSheet, View, type Accessibility
 import { Text } from './text';
 import { audioFormat } from './audioClip';
 import { restartIndex } from './clipPosition';
-import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
+import { LISTEN_PLAYER, registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
 import type { ListenHooks } from './recording/useListenLoop';
 import { useHelpSpot } from './helpContext';
 import { HelpBadge } from './helpBadge';
@@ -150,7 +150,7 @@ export function ClipPlayer(props: {
     }
     if (!uri) { wants.current = false; setPlaying(false); setError(t('recording.player.notOnDeviceYet')); return; }
     try {
-      const p = createAudioPlayer({ uri });
+      const p = createAudioPlayer({ uri }, LISTEN_PLAYER);
       player.current = p;
       p.addListener('playbackStatusUpdate', (status) => {
         if (player.current !== p) return;

@@ -288,7 +288,8 @@ Preconditions (in addition to the global ones):
 - Resets: adds a language "Charlie {run}".
 
 Steps:
-1. Open Org home and tap "New language".
+1. Open Org home and tap "New language or cluster". Leave "One language"
+   chosen under "What are you adding?".
 2. Type "Charlie {run}" in "Its name". Do not pick a list entry. Type
    "chr" in "Its code, if it has one". Tap "Continue".
 3. Tap "The Bible". Choose the numbering: type "World English" under "Which
@@ -617,6 +618,47 @@ Expected:
 
 ---
 
+### SETUP-074 A cluster of a new language and one already here, then ungrouped
+Roles: ADMIN · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
+
+A cluster is a name an organization puts on some of its languages
+(decision 108, demo ADR-045). Nothing about a language changes with it.
+
+Preconditions (in addition to the global ones):
+- Online. The library is seeded (G2).
+- Resets: adds a language "Kilo {run}" and a cluster "Cluster {run}", then
+  ungroups the cluster, so Bravo ends as it began.
+
+Steps:
+1. Open Org home and tap "New language or cluster".
+2. Tap "A cluster of languages". Type "Cluster {run}" in "The cluster's
+   name".
+3. Type "Kilo {run}" in "Add a language" and tap "Add “Kilo {run}”" (the
+   local language list finds nothing). Tap "Bravo" under "Already in UI
+   Test Org". Tap "Continue".
+4. Choose the Bible and FIA passages as in SETUP-010. Tap "Continue" under
+   "How will recordings get checked?" and under the Bibles' language.
+5. Wait for the invite screen and tap "Later".
+6. Open Org home, then "Cluster {run}".
+7. Tap "Ungroup", then "Ungroup" in the sheet. Open Org home.
+
+Expected:
+- Step 1 asks "What are you adding?" with "One language" chosen and "A
+  cluster of languages".
+- After step 3: "Its languages · 2", and "Languages already here keep
+  everything they have. The new one is set up in the next steps."
+- Step 4 says "For the new language in Cluster {run}. It can change its own
+  later."
+- Toast "1 language added to UI Test Org, in Cluster {run}."
+- Org home lists "Cluster {run}" (amber) with "2 languages · Bravo, Kilo
+  {run}", and Bravo no longer on its own.
+- The cluster's page: "Cluster · 2 languages", Bravo and Kilo {run} under
+  "Its languages", and "Add a language to it".
+- The sheet says "Its 2 languages stay, with their people, recordings and
+  checks. Only the name that groups them goes." Toast "Cluster {run}
+  ungrouped. Its languages are still here." Org home lists Bravo and Kilo
+  {run} again, and no cluster.
+
 ## Get ready
 
 ### SETUP-022 Get a language ready, question by question
@@ -910,12 +952,11 @@ Preconditions (in addition to the global ones):
 - Resets: adds one followed and one copied template.
 
 Steps:
-1. Content Templates → "From other organizations". Tap "Bible chapters
-   (English)".
+1. Content Templates → "From other organizations". Tap "By chapter".
 2. Tap "Follow", then "Update automatically".
 3. Tap "Undo".
 4. Follow it again with "I'll take updates".
-5. Open "Bible books (English)". Tap "Copy".
+5. Open "OpenBible: long sections". Tap "Copy".
 6. Turn the network off and reopen Content Templates.
 
 Expected:
@@ -929,6 +970,9 @@ Expected:
 - A followed template opens read only: "It follows LangQuest" / "Its
   versions come from there. Copy it to change it." with "Copy to change
   it".
+- LangQuest's ways are listed once each, in English numbering; its older
+  templates ("Bible chapters (English)", "Bible books (English)") and its
+  ways in other numberings are not (decision 107).
 - Offline: "Could not refresh this list" with "Showing the list this device
   saved."
 
@@ -942,7 +986,7 @@ Preconditions (in addition to the global ones):
   new version as the owner, or use the preview environment).
 
 Steps:
-1. Content Templates → "Options" on "Bible books (English)" (copied in
+1. Content Templates → "Options" on "OpenBible: long sections" (copied in
    SETUP-033).
 2. Turn on "Share with other organizations"; then "Let them follow
    updates". Undo each, then turn them on again.
@@ -983,8 +1027,9 @@ Expected:
   for one of the organization's own), and "Change template".
 - "Divide into passages" lists books with "{n} passages".
 - "zzz" says "No book matches “zzz”."
-- "Luke" opens Luke ("Alpha · {n} passages"). Only books already broken up
-  are listed; one that waits is opened from the map (SETUP-040).
+- "Luke" opens Luke ("Alpha · {n} passages"). Books waiting to be divided
+  are listed too, as "Waiting to be broken up", and open the ways to divide
+  them (decision 107).
 
 ### SETUP-036 Choose a different template for a language
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -994,7 +1039,7 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. Alpha's template view (SETUP-035) → "Change template".
-2. Tap another template, for example "Bible books (English)" (SETUP-033).
+2. Tap another template, for example "OpenBible: long sections" (SETUP-033).
 3. Read the footer.
 4. Tap "Use Songs {run}". Tap "Undo".
 
@@ -1021,16 +1066,27 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. Content Templates → "Template".
-2. Tap "Scripture". Choose "Like most English Bibles · 66 books".
-3. Type "Gospels {run}" in "Name". Under "Divide into" pick "Chapters".
-4. Tap "Genesis" → "Remove this book".
-5. Tap "Create template".
+2. Tap "Scripture". Tap "King James Version", then Continue.
+3. Tap "By chapter", then Continue.
+4. Type "Gospels {run}" in "Name".
+5. Tap "Genesis" → "OpenBible: usual sections" → "Change Genesis".
+6. Tap "Exodus" → "Rename or remove Exodus" → "Remove this book".
+7. Tap "Create template".
 
 Expected:
 - "What will languages record with it?" offers "Scripture" ("Books and
   chapters of the Bible, divided into passages as teams go.") and
   "Something else".
-- "Divide into" offers "Whole books" and "Chapters".
+- Scripture asks what New language asks (decision 107): "Which Bible do you
+  translate from?" with "Not listed? Answer a few questions", then "How
+  should the Bible be broken up?" with "Divide it your own way" first.
+- The editor has no "Whole books" or "Chapters" choice; it says "Tap a book to choose how
+  it's divided."
+- A book opens "Change how Genesis is broken up" with "Divide it your own
+  way" first, then "Or pick a ready-made way", and "Rename or remove
+  Genesis". After the change, the toast says "Genesis is divided. Save the
+  template to keep it." and Genesis's row says "OpenBible: usual sections ·
+  {n} pieces".
 - The book sheet has "Name in the language" and "Remove this book" with
   "Languages using the template keep anything recorded in it; its parts are
   set aside, not deleted."; after removing it the list is "Books · 65".
@@ -1091,8 +1147,8 @@ Steps:
    language" when other languages use the template).
 
 Expected:
-- The template view lists only books already broken up: "No book matches
-  “Proverbs”.".
+- The template view lists Proverbs as "Waiting to be broken up" (books that
+  wait are listed there too, decision 107).
 - "How should Proverbs be broken up?" with way cards ("By chapter" and
   others, each with a preview).
 - When another language uses the template, "Which languages should

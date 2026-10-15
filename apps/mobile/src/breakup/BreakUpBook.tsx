@@ -6,11 +6,11 @@
 // book offers what the team's Bibles and the organization's other
 // languages call it (demo ADR-042, `?simple=helpsBookName`).
 import {
-  sameParts, templateBooks, wayCovers, withBookBrokenUp,
+  templateBooks, wayCovers, withBookBrokenUp,
   type EventSpec, type LibraryItemView, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { Text } from '../text';
 import type { Ctx } from '../ctx';
@@ -20,7 +20,7 @@ import { useLibrary, useLibraryDocs } from '../library/useLibrary';
 import { failureMessage } from '../report';
 import { ChoiceCard, Question } from '../simple/admin';
 import { C, space } from '../theme';
-import { type WayRow } from './model';
+import { isItself, wayNow, type WayRow } from './model';
 import { ApplySheet, PieceBar, PreviewSheet, RedoSheet, WayCard } from './parts';
 import { publishChange, templateUsersOf, useBookNameChoices, useTemplateUsers, useWays } from './useBreakup';
 
@@ -30,12 +30,6 @@ function useNumberingCode(ctx: Ctx, doc: TemplateDoc | null): string | null {
   return doc?.bible ? docs.get<VersificationDoc>(doc.bible.versification)?.code ?? null : null;
 }
 
-/** Which of the ways this book is broken up by now, if any matches it exactly. */
-export function wayNow(rows: WayRow[], docOf: (r: WayRow) => TemplateDoc | null, doc: TemplateDoc | null, book: string): WayRow | null {
-  if (!doc) return null;
-  return rows.find((r) => !r.later && (() => { const d = docOf(r); return !!d && wayCovers(d, book) && sameParts(doc, d, book); })()) ?? null;
-}
-
 /** Above the book's chapters: how it is broken up, what the language calls it, and Change. */
 export function BookHead(props: {
   ctx: Ctx; book: string; templateName: string; language: string; doc: TemplateDoc | null; v11n: VersificationDoc | null; canShape: boolean; onChange: () => void;
@@ -43,7 +37,7 @@ export function BookHead(props: {
   const { ctx, book } = props;
   const code = useNumberingCode(ctx, props.doc);
   const ways = useWays(ctx, ctx.language.languageId, code);
-  const now = wayNow(ways.rows, (r) => ways.docOf(r.choice), props.doc, book);
+  const now = wayNow(ways.rows, (r) => ways.docOf(r.choice), props.doc, book, ctx.language.state?.template?.value.itemId);
   const own = ctx.language.state?.bookNames?.[book]?.value;
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState('');
@@ -174,15 +168,21 @@ export function useBookChange(ctx: Ctx, c: { book: string; bookName: string; doc
  * set apart (design principle 12), then the same ready-made ways as for the
  * whole Bible, with this book drawn in each. Break up / Change applies to
  * this language and, when the template is shared, to the languages chosen.
+ * In the template editor (decision 107) `apply` takes the way instead: the
+ * book changes in the template being edited, which Save publishes, and
+ * `self` is that template, `sub` its name and `extra` what else the editor
+ * offers for the book (its name, removing it).
  */
 export function BreakUpBook(props: {
   ctx: Ctx; book: string; bookName: string; language: string; doc: TemplateDoc; item: LibraryItemView | null; redo: boolean; onClose: () => void; onOwn: () => void;
+  apply?: (way: TemplateDoc, note: string, said: string) => void; self?: string | null; extra?: ReactNode;
 }) {
   const { ctx, book } = props;
   const code = useNumberingCode(ctx, props.doc);
   const ways = useWays(ctx, ctx.language.languageId, code);
-  const now = wayNow(ways.rows, (r) => ways.docOf(r.choice), props.doc, book);
-  const offered = ways.rows.filter((r) => !r.later && (() => { const d = ways.docOf(r.choice); return !!d && wayCovers(d, book); })());
+  const self = props.apply ? props.self : ctx.language.state?.template?.value.itemId;
+  const now = wayNow(ways.rows, (r) => ways.docOf(r.choice), props.doc, book, self);
+  const offered = ways.rows.filter((r) => !r.later && !isItself(r, self) && (() => { const d = ways.docOf(r.choice); return !!d && wayCovers(d, book); })());
   const [key, setKey] = useState<string | null>(null);
   const picked = offered.find((r) => r.choice.key === key) ?? null;
   const [peek, setPeek] = useState<WayRow | null>(null);
@@ -197,14 +197,15 @@ export function BreakUpBook(props: {
     const said = byChapter
       ? t('breakup.book.brokenUpByChapter', { book: props.bookName })
       : t('breakup.book.brokenUpInto', { book: props.bookName, way: picked.choice.name });
-    change.start(wayDoc, note, said);
+    if (props.apply) props.apply(wayDoc, note, said);
+    else change.start(wayDoc, note, said);
   };
 
   return (
     <Screen header={<Header title={props.bookName} sub={props.language} onBack={props.onClose} />} bodyStyle={{ paddingHorizontal: 20, gap: 14 }}
       footer={<>
         <PrimaryBtn label={props.redo ? t('breakup.book.change', { book: props.bookName }) : t('breakup.book.breakUp', { book: props.bookName })} icon="check" busy={change.busy}
-          disabled={!picked || (!!now && picked === now) || !props.item} onPress={go} />
+          disabled={!picked || (!!now && picked === now) || (!props.item && !props.apply)} onPress={go} />
         <GhostBtn label={t('common.notNow')} icon="clock" onPress={props.onClose} />
       </>}>
       <Question>{props.redo ? t('breakup.book.changeQuestion', { book: props.bookName }) : t('breakup.book.question', { book: props.bookName })}</Question>
@@ -217,9 +218,10 @@ export function BreakUpBook(props: {
           on={picked === r} onPress={() => setKey(r.choice.key)} onPreview={() => setPeek(r)} oneBook={book} />
       ))}
       {offered.length === 0 ? <Text style={txt.smMuted}>{ways.loaded ? t('breakup.book.connectForWays') : t('common.loading')}</Text> : null}
+      {props.extra}
       <PreviewSheet key={peek?.choice.key ?? 'none'} visible={!!peek} name={peek?.choice.name ?? ''} doc={ways.docOf(peek?.choice)} v11n={ways.v11nOf(ways.docOf(peek?.choice))}
         book={book} onClose={() => setPeek(null)} onUse={peek ? () => { setKey(peek.choice.key); setPeek(null); } : undefined} />
-      {change.sheets}
+      {props.apply ? null : change.sheets}
     </Screen>
   );
 }

@@ -72,6 +72,8 @@ import { useNavActions } from './src/shell/useNavActions';
 import { useOnboarding } from './src/shell/useOnboarding';
 import { useOpenOrganization, type Arrival } from './src/shell/useOpenOrganization';
 import { useRecentPassages } from './src/shell/useRecentPassages';
+import { usePassagesInMemory } from './src/shell/usePassagesInMemory';
+import { usePassageReady } from './src/shell/usePassageReady';
 import { useRouting } from './src/shell/useRouting';
 import { useTestProbes } from './src/shell/useTestProbes';
 import { useWorkingLanguage } from './src/shell/useWorkingLanguage';
@@ -92,7 +94,7 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   key_terms: Config.KeyTerms, key_term_detail: Config.KeyTermDetail,
   inbox_home: Account.InboxHome, settings_home: Account.SettingsHome, profile_edit: Account.ProfileEdit,
   org_switcher: Account.OrgSwitcher, sign_out_confirm: Account.SignOutConfirm, delete_account: Account.DeleteAccount, sync_status: Account.SyncStatus,
-  org_home: Org.OrgHome, language_home: Org.LanguageHome,
+  org_home: Org.OrgHome, cluster_home: Org.ClusterHome, language_home: Org.LanguageHome,
   new_language: Org.NewLanguage, members_list: Org.MembersList, invite_member: Org.InviteMember, invite_qr: Org.InviteQr,
   edit_member: Org.EditMember, check_editor: Checks.CheckEditor,
   roles_home: Config.RolesHome, role_editor: Config.RoleEditor, reference_home: Config.ReferenceHome, material_editor: Config.MaterialEditor,
@@ -159,8 +161,11 @@ function hostFor(id: ScreenId) {
     const report = useContext(FooterReportContext);
     const key = props.route.key;
     const onFooter = useMemo(() => (report ? (height: number) => report(key, height) : null), [report, key]);
+    const ready = usePassageReady(ctx, props.route.params);
     if (!ctx) return null;
     if (pane && props.route.key === pane.key) return <PaneEmpty spec={pane.empty} />;
+    // A passage's screen waits the moment it takes to bring the passage in from the phone's disk.
+    if (!ready) return <View style={styles.root} accessibilityLabel={t('common.loading')} />;
     // One boundary per screen (error-tracking): a crash in a study guide
     // never takes the recorder, or the rest of the app, down with it.
     return (
@@ -365,6 +370,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   const nav = useNav({ screen: 'sign_in' });
   const { languageId, setLanguage, languages } = useWorkingLanguage(org.state, props.actorId, props.orgId, nav.current.params?.['languageId']);
   const language = useLanguage(props.orgId, languageId, props.actorId, org.membershipEpoch);
+  usePassagesInMemory(language, nav.current.params?.['unitId']);
   // Web: warn before the tab closes with work still to send (storageGate.tsx).
   useLeaveGuard(!language.refused && (language.pending > 0 || language.blobs.pendingUp > 0) || org.pending > 0);
   useAccountSync(props.actorId);
@@ -396,7 +402,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     if (id === props.actorId) return lower ? t('shell.youInSentence') : t('common.you');
     return people[id] ?? personLook(id).name;
   }, [people, props.actorId]);
-  const inbox = useInbox({ state: language.state, actorId: props.actorId, orgId: props.orgId, session, blocks, signedIn: props.signedIn });
+  const inbox = useInbox({ language, actorId: props.actorId, orgId: props.orgId, session, blocks, signedIn: props.signedIn });
 
   const { goFrom, go, openPassage, openTask } = useNavActions({ nav, session, toast, remember });
   useRouting({
@@ -535,7 +541,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
         {!wide && showTabs ? navChrome('bar') : null}
       </PeopleContext.Provider>
       {/* Files this device deleted behind the app's back (decisions.md 92): over every screen until seen. */}
-      <LostFilesAlert state={language.state} />
+      <LostFilesAlert state={language.state} whatWere={language.blobs.lost} />
       {canSwitchPersona ? (
         <DevMenu open={devOpen} onClose={() => setDevOpen(false)} language={language} org={org} currentEmail={props.email} isOwner={session.role === 'owner'} isDev={IS_DEV} jump={(s) => nav.reset({ screen: s })} />
       ) : null}

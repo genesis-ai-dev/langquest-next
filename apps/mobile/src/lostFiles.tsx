@@ -5,7 +5,7 @@
 // can miss it: over every screen, until someone taps "I understand". It
 // says what can come back and which passages need recording again.
 import type { LostFile } from '@langquest-next/sync';
-import { lostFilesView, unitTitle, type LanguageState } from '@langquest-next/core';
+import { lostFilesView, unitTitle, type LanguageState, type LostFilesView } from '@langquest-next/core';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Modal, ScrollView, StyleSheet, View } from 'react-native';
 import { getBlobStore, type BlobStore } from './blobs';
@@ -29,8 +29,7 @@ export interface LostFilesWords {
 }
 
 /** What the alert says, from the open language and the files lost. */
-export function lostFilesWords(state: LanguageState, lost: readonly LostFile[]): LostFilesWords {
-  const view = lostFilesView(state, lost.map((l) => l.hash));
+export function lostFilesWords(state: LanguageState, lost: readonly LostFile[], view: LostFilesView = lostFilesView(state, lost.map((l) => l.hash))): LostFilesWords {
   return {
     total: lost.length,
     unsent: view.unsent,
@@ -63,11 +62,18 @@ function useLostFiles(): { lost: LostFile[]; store: BlobStore | null } {
  * Drawn once, above the app. Waits for the open language, which says what
  * each lost file was; with no language open every file is simply counted.
  */
-export function LostFilesAlert(props: { state: LanguageState | null }) {
+export function LostFilesAlert(props: { state: LanguageState | null; whatWere: (hashes: readonly string[]) => Promise<LostFilesView> }) {
   const { lost, store } = useLostFiles();
-  const state = props.state;
-  // One walk of the language's files per change, not per render.
-  const words = useMemo(() => (state && lost.length ? lostFilesWords(state, lost) : null), [state, lost]);
+  const { state, whatWere } = props;
+  // What the files were comes from the phone's table for a language kept on disk (decisions.md 110).
+  const [view, setView] = useState<LostFilesView | null>(null);
+  useEffect(() => {
+    let active = true;
+    if (!state || lost.length === 0) { setView(null); return; }
+    void whatWere(lost.map((l) => l.hash)).then((v) => { if (active) setView(v); }).catch(() => undefined);
+    return () => { active = false; };
+  }, [state, lost, whatWere]);
+  const words = useMemo(() => (state && view && lost.length ? lostFilesWords(state, lost, view) : null), [state, lost, view]);
   if (!store || !words) return null;
   const seen = () => { void store.lostSeen(lost.map((l) => l.hash)); };
   return <LostFilesCard words={words} onSeen={seen} />;

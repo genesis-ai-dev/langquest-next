@@ -338,7 +338,8 @@
     "mic_setup": "设置麦克风",
     "get_ready": "准备工作",
     "settings_more": "更多设置",
-    "check_editor": "检查"
+    "check_editor": "检查",
+    "cluster_home": "语言群"
   },
   "native": {
     "microphone": "LangQuest 会录下你的声音，用来翻译经段。",
@@ -646,7 +647,8 @@
       "languagesTitle": "语言",
       "newLanguage": "新建语言",
       "noLanguages": "还没有语言。请添加你的团队要录音的第一个语言。",
-      "openToBring": "打开它，把它下载到本设备上"
+      "openToBring": "打开它，把它下载到本设备上",
+      "newLanguageOrCluster": "新语言或语言群"
     },
     "rename": {
       "done": "已重命名为{{name}}。",
@@ -711,7 +713,8 @@
         "roles": "角色",
         "publicListing": "公开列表",
         "name": "名称",
-        "languageList": "语言列表"
+        "languageList": "语言列表",
+        "cluster": "语言群"
       },
       "orgAndCode": "{{org}} · 代码 {{code}}",
       "seeWork": "查看他们的工作",
@@ -1377,7 +1380,7 @@
       "wholeBooks": "整卷书",
       "chapters": "章",
       "passages": "经段",
-      "passagesNote_other": "{{count, number}} 个经段，按最初所依据的版本划分。更改经段起点的功能即将推出。",
+      "passagesNote_other": "{{count, number}} 个经段，按最初所依据的版本划分。",
       "eachBook": "每卷书是一个要录音的部分。",
       "eachChapter": "每一章是一个要录音的部分。",
       "booksCount": "书卷 · {{n, number}}",
@@ -1397,8 +1400,7 @@
       "scripture": "圣经",
       "scriptureSub": "圣经的书卷和章节，由团队边做边划分成经段。",
       "else": "其他内容",
-      "elseSub": "课程、故事、注释书——任何你自己建立的大纲。",
-      "numbering": "它采用哪种章节和经节编号方式？"
+      "elseSub": "课程、故事、注释书——任何你自己建立的大纲。"
     },
     "levelSheet": {
       "title": "层级",
@@ -1461,6 +1463,11 @@
       "gap": "从第 {{verse}} 节起，这些经节还不属于任何{{part}}。",
       "verseLabel": "经节 {{chapter}}:{{verse}}",
       "versePlaceholder": "第 {{verse}} 节"
+    },
+    "divide": {
+      "done": "{{book}} 已划分。保存模板以保留。",
+      "tapBook": "点按一卷书，选择如何划分。",
+      "nameOrRemove": "重命名或移除{{book}}"
     }
   },
   "breakup": {
@@ -1623,7 +1630,9 @@
       "noneReady": "这一项还没有现成的划分方式。请自己制作：用文件夹表示组织方式，把大家要录的内容放在里面。",
       "makeOwn": "自己制作",
       "makeOwnDetail": "文件夹，以及里面要录的内容。",
-      "elseKinds": "故事、歌曲、课程"
+      "elseKinds": "故事、歌曲、课程",
+      "ownSub": "逐卷进行：阅读每一卷，选择各段从哪里开始",
+      "ownNote": "每卷书都要等划分后才能录制。从地图或“我的工作”打开它，在一本圣经中阅读，选择各段从哪里开始，或从现成的方式开始。"
     },
     "errors": {
       "noTemplate": "这个语言还没有模板。",
@@ -1810,6 +1819,10 @@
       "jumpLabel_other": "第{{chapter}}章：这里开始{{count, number}}段",
       "sections_other": "{{count, number}}段",
       "partsIn_other": "{{book}}中有{{count, number}}部分"
+    },
+    "division": {
+      "way_other": "{{way}} · {{count, number}} 个部分",
+      "own_other": "自己的方式 · {{count, number}} 个部分"
     }
   },
   "canon": {
@@ -2806,7 +2819,6 @@
     "sync": {
       "syncing": "正在同步……",
       "syncNow": "立即同步",
-      "checking": "会不时检查更改",
       "refused": "服务器拒绝了这个账号访问这个机构。",
       "tooOld": "请更新应用后再同步。",
       "waitingUpload": "等待上传",
@@ -2824,7 +2836,28 @@
       "speedMB": "{{value}} MB/s",
       "waitingCount": "等待中 · {{n, number}}",
       "refusedCount": "被拒绝 · {{n, number}}",
-      "events_other": "本设备上有 {{count, number}} 个事件"
+      "events_other": "本设备上有 {{count, number}} 个事件",
+      "standing": {
+        "live": "实时",
+        "checking": "已连接",
+        "offline": "离线",
+        "refused": "未同步"
+      },
+      "help": {
+        "live": "团队的更改会即时到达，你的更改也会立刻发出。",
+        "checking": "已连接，但实时通道中断，所以本设备每隔几分钟检查一次更改。“立即同步”会马上检查。",
+        "offline": "没有网络连接。你所做的一切都保存在本设备上，重新联网后会自动发送。",
+        "refused": "服务器不接受本设备的更改。你的工作仍保存在这里。",
+        "toSend": "本设备上服务器尚未确认的更改和录音。它们在这里很安全，有网络时就会发送。",
+        "toReceive": "本设备仍在下载的他人录音。",
+        "refusedLine": "服务器未接受的更改，通常是因为权限有变。它们留在本设备上；打开“详细信息”查看每一项。"
+      },
+      "toSend": "待发送",
+      "toReceive": "待接收",
+      "refusedLine": "被拒绝",
+      "none": "无",
+      "moreInfo": "了解更多",
+      "details": "详细信息"
     }
   },
   "study": {
@@ -3288,7 +3321,10 @@
       "playYourFeedback": "播放你的反馈",
       "more": "更多",
       "options": "选项",
-      "openVersion": "打开{{version}}"
+      "openVersion": "打开{{version}}",
+      "listeners": "听众",
+      "liveIn": "已在 {{channel}} 发布 · {{version}}",
+      "listenerCount": "听众反馈：{{count, number}}"
     },
     "else": {
       "title": "其他情况？",
@@ -3485,9 +3521,7 @@
       "help": "你请别人做、但还没完成的事。"
     },
     "sync": {
-      "refused": "未同步",
-      "toSend_other": "{{count, number}} 项待发送",
-      "offline": "离线"
+      "toSend_other": "{{count, number}} 项待发送"
     },
     "join": {
       "wantsToJoin": "{{name}}想加入",
@@ -4098,7 +4132,8 @@
       "pausedForSource": "播放源音频时已暂停",
       "startsAgain": "源音频停止后会重新开始录音。",
       "cutoff": "声音门限",
-      "pauseBetween": "段与段之间的停顿"
+      "pauseBetween": "段与段之间的停顿",
+      "tooShort": "太短了，没有保存。如果您刚才在说话，请再说一遍。"
     },
     "split": {
       "referenceOneLine": "参考资料缩成一行",
@@ -4472,7 +4507,8 @@
       "newChapters": "新增章数",
       "books": "书卷",
       "chaptersByBook": "各书卷章数",
-      "total": "合计"
+      "total": "合计",
+      "clusters": "语言群"
     },
     "errors": {
       "noServer": "这个版本不知道报告服务器在哪里。",
@@ -4550,7 +4586,8 @@
       "alertsChip_other": "提醒，{{count, number}} 项需要人处理",
       "allCountries": "所有国家",
       "loading": "正在加载报告……",
-      "couldNotRead": "无法读取报告"
+      "couldNotRead": "无法读取报告",
+      "allLanguages": "所有语言"
     },
     "overview": {
       "across_other": "共 {{count, number}} 个语言 · 最近四周 {{recent}}",
@@ -4822,6 +4859,11 @@
       "saveTarget": "保存目标",
       "findCountry": "查找国家",
       "typeToFind_other": "输入文字查找其他 {{count, number}} 个国家。"
+    },
+    "clusters": {
+      "title": "语言群",
+      "sub": "每个语言群中的语言合在一起。选择一个，只看其中的语言。",
+      "languages_other": "{{count, number}} 种语言"
     }
   },
   "review": {
@@ -5880,6 +5922,94 @@
       "playHelp": "播放他们怎么说。",
       "suggest": "这里的其他语言用了",
       "suggestHelp": "{{languages}}在这里用了这个词。点一下即可添加。"
+    }
+  },
+  "clusters": {
+    "row": {
+      "sub_other": "{{count, number}} 种语言 · {{names}}",
+      "namesMore": "{{names}}…"
+    },
+    "home": {
+      "sub_other": "语言群 · {{count, number}} 种语言",
+      "together": "合计",
+      "itsLanguages": "其中的语言",
+      "add": "加入一种语言",
+      "rename": "重命名",
+      "ungroup": "解散",
+      "gone": "这个语言群现在没有语言了",
+      "goneSub": "其中的语言已被移出。它们都还在 {{org}} 中。",
+      "notSaved": "未保存"
+    },
+    "add": {
+      "title": "加入 {{cluster}}",
+      "newLanguage": "一种新语言",
+      "newLanguageSub": "设置它，并已在 {{cluster}} 中",
+      "alreadyIn": "已在 {{org}} 中",
+      "none": "{{org}} 的所有语言都已在其中。",
+      "button": "加入",
+      "done_other": "已将 {{count, number}} 种语言加入 {{cluster}}。"
+    },
+    "rename": {
+      "title": "重命名 {{cluster}}",
+      "label": "名称",
+      "save": "保存",
+      "done": "已重命名为 {{name}}。"
+    },
+    "ungroup": {
+      "title": "解散 {{cluster}}？",
+      "body_other": "其中 {{count, number}} 种语言都会保留，连同它们的人员、录音和检查。只有把它们归在一起的名称会消失。",
+      "confirm": "解散",
+      "keep": "保留",
+      "done": "{{cluster}} 已解散。其中的语言仍在这里。"
+    },
+    "language": {
+      "label": "语言群",
+      "none": "不在任何语言群中",
+      "sheetTitle": "它在哪个语言群中？",
+      "count_other": "{{count, number}} 种语言",
+      "newLabel": "或一个新语言群",
+      "firstLabel": "放入一个新语言群",
+      "note": "一种语言可以在多个语言群中，也可以不在任何语言群中。语言本身不会有任何改变。",
+      "done": "完成",
+      "saved": "已保存 {{language}} 的语言群。"
+    },
+    "newLanguage": {
+      "what": "你要添加什么？",
+      "one": "一种语言",
+      "oneSub": "有自己的录音、检查和人员",
+      "cluster": "一个语言群",
+      "clusterSub": "几种相关的语言，一起设置",
+      "clusterName": "语言群名称",
+      "clusterPlaceholder": "例如 Dar Khamsa",
+      "theCluster": "该语言群",
+      "inCluster": "放入语言群？可以以后再选",
+      "no": "否",
+      "newCluster": "新语言群",
+      "joinsNamed": "{{org}} 已有 {{cluster}}。这些语言会加入其中。",
+      "itsLanguages": "其中的语言 · {{number}}",
+      "addOne": "添加一种语言",
+      "unlisted": "找不到？按你输入的添加，如有代码也一并填写。",
+      "addTyped": "添加“{{name}}”",
+      "new": "新",
+      "newWithCode": "{{code}} · 新",
+      "already": "已在 {{org}} 中",
+      "takeOut": "移出",
+      "note_other": "已在这里的语言保留它们已有的一切。{{count, number}} 种新语言会在接下来的步骤中一起设置。",
+      "onlyExisting": "没有需要新设置的：已在这里的语言保留它们已有的一切。",
+      "make": "创建语言群",
+      "made_other": "已创建 {{cluster}}，包含 {{count, number}} 种语言。",
+      "forNew_other": "用于 {{cluster}} 中的 {{count, number}} 种新语言。之后每种语言都可以修改自己的设置。",
+      "added_other": "已将 {{count, number}} 种语言添加到 {{org}}，在 {{cluster}} 中。",
+      "addedNotOffered_other": "已将 {{count, number}} 种语言添加到 {{org}}，在 {{cluster}} 中。联网后请在“对他们有帮助的”下提供 {{offers}}。",
+      "notMade": "未添加",
+      "making": {
+        "adding": "正在添加 {{language}}",
+        "grouping": "正在加入 {{cluster}}"
+      }
+    },
+    "status": {
+      "all": "全部",
+      "none": "不在语言群中"
     }
   }
 }

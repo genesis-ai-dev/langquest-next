@@ -9,7 +9,7 @@
 import {
   bookIdOf, bookOrder, canonicalJson, languagePassages, templateBooks, libraryUnitRange, subscriptionItemId, unitPlace, unitPrefixOf, USFM_BOOKS,
   type Indexes, type LevelDisplay, type LibraryItemState, type LibraryItemView, type OutlineNode, type LanguageState,
-  type TemplateBook, type TemplateDoc, type VersificationDoc
+  type PassageLines, type TemplateBook, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import { latinDigits } from './textMatch';
 import { BIBLE_BOOKS, FIA_PERICOPES, type BibleBook } from '@langquest-next/core';
@@ -169,28 +169,29 @@ export function templateLine(state: LanguageState, item: (itemId: string) => Lib
  * version dropped them, or it narrowed its books. Switching back brings them
  * back; nothing was deleted.
  */
-export function setAsideCount(state: LanguageState): number {
+export function setAsideCount(state: LanguageState, lines: PassageLines): number {
   const sel = state.template?.value;
   if (!sel) return 0;
   const books = sel.books ? new Set(sel.books) : null;
-  const units = new Set<string>();
-  for (const take of Object.values(state.takes)) {
-    if (take.archived) continue;
-    const prefix = unitPrefixOf(take.unitId);
+  let n = 0;
+  // Read off each passage's line (decisions.md 110): its takes not archived.
+  for (const unitId of lines.worked()) {
+    if (lines.get(unitId).takes === 0) continue;
+    const prefix = unitPrefixOf(unitId);
     if (prefix === null) continue;
-    const book = libraryUnitRange(take.unitId)?.book;
-    if (prefix !== sel.unitPrefix) units.add(take.unitId);
-    else if (state.hiddenUnits[take.unitId]?.value === true) units.add(take.unitId);
-    else if (books && book && !books.has(book)) units.add(take.unitId);
+    const book = libraryUnitRange(unitId)?.book;
+    if (prefix !== sel.unitPrefix) n++;
+    else if (state.hiddenUnits[unitId]?.value === true) n++;
+    else if (books && book && !books.has(book)) n++;
   }
-  return units.size;
+  return n;
 }
 
 /** Parts of the language that already have a recording: they never move on their own. */
-export function recordedCount(state: LanguageState): number {
-  const units = new Set<string>();
-  for (const take of Object.values(state.takes)) if (!take.archived) units.add(take.unitId);
-  return units.size;
+export function recordedCount(lines: PassageLines): number {
+  let n = 0;
+  for (const unitId of lines.worked()) if (lines.get(unitId).takes > 0) n++;
+  return n;
 }
 
 // ---- choosing a template (TPL-1) -------------------------------------------------------------
@@ -461,6 +462,8 @@ interface BookRow {
   /** What the language calls it (a library template names its books). */
   label: string;
   parts: number;
+  /** Listed by the template with nothing in it yet: waiting to be divided (decision 74). */
+  waiting?: boolean;
 }
 
 /** The books a language divides, in canon order, with how many parts each has. */
@@ -470,6 +473,19 @@ export function bookRows(state: LanguageState, idx: Indexes): BookRow[] {
     const units = byBook.get(book.itemId)!;
     return { book, label: unitPlace(state, units[0]!).bookLabel || bookName(book.itemId), parts: units.length };
   });
+}
+
+/** The book rows with the books waiting to be divided added, in canon order, so they can be opened and divided too. */
+export function withWaitingBooks(rows: BookRow[], state: LanguageState, idx: Indexes): BookRow[] {
+  const have = new Set(rows.map((r) => r.book.itemId));
+  const waiting = idx.waiting.flatMap((unitId): BookRow[] => {
+    const place = unitPlace(state, unitId);
+    const book = BIBLE_BOOKS.find((b) => b.itemId === place.bookId);
+    if (!book || have.has(book.itemId)) return [];
+    have.add(book.itemId);
+    return [{ book, label: place.bookLabel || bookName(book.itemId), parts: 0, waiting: true }];
+  });
+  return [...rows, ...waiting].sort((a, b) => BIBLE_BOOKS.indexOf(a.book) - BIBLE_BOOKS.indexOf(b.book));
 }
 
 /** Where a USFM book sits among the 66, for testament checks: the first 39 are the Old Testament. */

@@ -340,7 +340,8 @@
     "mic_setup": "Set up your microphone",
     "get_ready": "Get ready",
     "settings_more": "More settings",
-    "check_editor": "Check"
+    "check_editor": "Check",
+    "cluster_home": "Cluster"
   },
   "native": {
     "microphone": "LangQuest records your voice to translate passages.",
@@ -656,7 +657,8 @@
       "languagesTitle": "Languages",
       "newLanguage": "New language",
       "noLanguages": "No languages yet. Add the first one your team will record.",
-      "openToBring": "Open it to bring it onto this device"
+      "openToBring": "Open it to bring it onto this device",
+      "newLanguageOrCluster": "New language or cluster"
     },
     "rename": {
       "done": "Renamed to {{name}}.",
@@ -724,7 +726,8 @@
         "roles": "roles",
         "publicListing": "public listing",
         "name": "name",
-        "languageList": "language list"
+        "languageList": "language list",
+        "cluster": "cluster"
       },
       "orgAndCode": "{{org}} · Code {{code}}",
       "seeWork": "See their work",
@@ -1420,8 +1423,8 @@
       "wholeBooks": "Whole books",
       "chapters": "Chapters",
       "passages": "Passages",
-      "passagesNote_one": "{{count, number}} passage, as the version this started from divides them. Changing where passages start is coming.",
-      "passagesNote_other": "{{count, number}} passages, as the version this started from divides them. Changing where passages start is coming.",
+      "passagesNote_one": "{{count, number}} passage, as the version this started from divides them.",
+      "passagesNote_other": "{{count, number}} passages, as the version this started from divides them.",
       "eachBook": "Each book is one part to record.",
       "eachChapter": "Each chapter is one part to record.",
       "booksCount": "Books · {{n, number}}",
@@ -1442,8 +1445,7 @@
       "scripture": "Scripture",
       "scriptureSub": "Books and chapters of the Bible, divided into passages as teams go.",
       "else": "Something else",
-      "elseSub": "Lessons, stories, a commentary — any outline you build yourself.",
-      "numbering": "Which numbering of chapters and verses does it follow?"
+      "elseSub": "Lessons, stories, a commentary — any outline you build yourself."
     },
     "levelSheet": {
       "title": "Level",
@@ -1509,6 +1511,11 @@
       "gap": "From verse {{verse}}, these verses aren't in any {{part}} yet.",
       "verseLabel": "Verse {{chapter}}:{{verse}}",
       "versePlaceholder": "verse {{verse}}"
+    },
+    "divide": {
+      "done": "{{book}} is divided. Save the template to keep it.",
+      "tapBook": "Tap a book to choose how it's divided.",
+      "nameOrRemove": "Rename or remove {{book}}"
     }
   },
   "breakup": {
@@ -1681,7 +1688,9 @@
       "noneReady": "There are no ready-made ones for this yet. Make your own: folders for how it's organized, and the things people record inside them.",
       "makeOwn": "Make your own",
       "makeOwnDetail": "Folders, and what to record in them.",
-      "elseKinds": "Stories, songs, lessons"
+      "elseKinds": "Stories, songs, lessons",
+      "ownSub": "Book by book: read each one and choose where its sections start",
+      "ownNote": "Every book waits until it's divided. Open it from the map or My Work, read it in a Bible and choose where its sections start, or start from a ready-made way."
     },
     "errors": {
       "noTemplate": "This language has no template yet.",
@@ -1882,6 +1891,12 @@
       "sections_other": "{{count, number}} sections",
       "partsIn_one": "{{count, number}} part in {{book}}",
       "partsIn_other": "{{count, number}} parts in {{book}}"
+    },
+    "division": {
+      "way_one": "{{way}} · {{count, number}} piece",
+      "way_other": "{{way}} · {{count, number}} pieces",
+      "own_one": "Its own way · {{count, number}} piece",
+      "own_other": "Its own way · {{count, number}} pieces"
     }
   },
   "canon": {
@@ -2903,7 +2918,6 @@
     "sync": {
       "syncing": "Syncing…",
       "syncNow": "Sync now",
-      "checking": "Checking for changes now and then",
       "refused": "The server refused this account for this organization.",
       "tooOld": "Update the app to sync.",
       "waitingUpload": "waiting to upload",
@@ -2923,7 +2937,28 @@
       "waitingCount": "Waiting · {{n, number}}",
       "refusedCount": "Refused · {{n, number}}",
       "events_one": "{{count, number}} event on this device",
-      "events_other": "{{count, number}} events on this device"
+      "events_other": "{{count, number}} events on this device",
+      "standing": {
+        "live": "Live",
+        "checking": "Connected",
+        "offline": "Offline",
+        "refused": "Not syncing"
+      },
+      "help": {
+        "live": "Changes from your team arrive as they happen, and yours go out right away.",
+        "checking": "Connected, but the live channel is down, so this device checks for changes every few minutes. Sync now checks at once.",
+        "offline": "No connection. Everything you do is kept on this device and sends by itself when you are back online.",
+        "refused": "The server is not accepting changes from this device. Your work is still kept here.",
+        "toSend": "Changes and recordings made on this device that the server has not confirmed yet. They are safe here and go when there is a connection.",
+        "toReceive": "Recordings from others that this device is still downloading.",
+        "refusedLine": "Changes the server would not accept, usually because a permission changed. They stay on this device; open Details to see each one."
+      },
+      "toSend": "To send",
+      "toReceive": "To receive",
+      "refusedLine": "Refused",
+      "none": "None",
+      "moreInfo": "More about this",
+      "details": "Details"
     }
   },
   "study": {
@@ -3405,7 +3440,10 @@
       "playYourFeedback": "Play your feedback",
       "more": "More",
       "options": "Options",
-      "openVersion": "Open {{version}}"
+      "openVersion": "Open {{version}}",
+      "listeners": "Listeners",
+      "liveIn": "Live in {{channel}} · {{version}}",
+      "listenerCount": "Listener feedback: {{count, number}}"
     },
     "else": {
       "title": "Something else?",
@@ -3612,10 +3650,8 @@
       "help": "What you asked of someone else that is not done yet."
     },
     "sync": {
-      "refused": "Not syncing",
       "toSend_one": "{{count, number}} to send",
-      "toSend_other": "{{count, number}} to send",
-      "offline": "Offline"
+      "toSend_other": "{{count, number}} to send"
     },
     "join": {
       "wantsToJoin": "{{name}} wants to join",
@@ -4254,7 +4290,8 @@
       "pausedForSource": "Paused while the source plays",
       "startsAgain": "Recording starts again when the source stops.",
       "cutoff": "Sound cutoff",
-      "pauseBetween": "Pause between parts"
+      "pauseBetween": "Pause between parts",
+      "tooShort": "Too short to keep. If you were speaking, say it again."
     },
     "split": {
       "referenceOneLine": "Reference as one line",
@@ -4665,7 +4702,8 @@
       "newChapters": "New chapters",
       "books": "Books",
       "chaptersByBook": "Chapters by book",
-      "total": "Total"
+      "total": "Total",
+      "clusters": "Clusters"
     },
     "errors": {
       "noServer": "This build does not know where the reports server is.",
@@ -4759,7 +4797,8 @@
       "alertsChip_other": "Alerts, {{count, number}} need someone",
       "allCountries": "All countries",
       "loading": "Loading reports…",
-      "couldNotRead": "The reports could not be read"
+      "couldNotRead": "The reports could not be read",
+      "allLanguages": "All languages"
     },
     "overview": {
       "across_one": "Across {{count, number}} language · {{recent}} in the last four weeks",
@@ -5062,6 +5101,12 @@
       "findCountry": "Find a country",
       "typeToFind_one": "Type to find the other {{count, number}}.",
       "typeToFind_other": "Type to find the other {{count, number}}."
+    },
+    "clusters": {
+      "title": "Clusters",
+      "sub": "Each cluster's languages together. Pick one to see only its languages.",
+      "languages_one": "{{count, number}} language",
+      "languages_other": "{{count, number}} languages"
     }
   },
   "review": {
@@ -6176,6 +6221,104 @@
       "playHelp": "Plays how they say it.",
       "suggest": "Other languages here use",
       "suggestHelp": "Used here by {{languages}}. Tap to add it."
+    }
+  },
+  "clusters": {
+    "row": {
+      "sub_one": "{{count, number}} language · {{names}}",
+      "sub_other": "{{count, number}} languages · {{names}}",
+      "namesMore": "{{names}}…"
+    },
+    "home": {
+      "sub_one": "Cluster · {{count, number}} language",
+      "sub_other": "Cluster · {{count, number}} languages",
+      "together": "Together",
+      "itsLanguages": "Its languages",
+      "add": "Add a language to it",
+      "rename": "Rename",
+      "ungroup": "Ungroup",
+      "gone": "This cluster has no languages now",
+      "goneSub": "Its languages were taken out of it. They are all still in {{org}}.",
+      "notSaved": "Not saved"
+    },
+    "add": {
+      "title": "Add to {{cluster}}",
+      "newLanguage": "A new language",
+      "newLanguageSub": "Set it up, already in {{cluster}}",
+      "alreadyIn": "Already in {{org}}",
+      "none": "Every language in {{org}} is in it already.",
+      "button": "Add",
+      "done_one": "{{count, number}} language added to {{cluster}}.",
+      "done_other": "{{count, number}} languages added to {{cluster}}."
+    },
+    "rename": {
+      "title": "Rename {{cluster}}",
+      "label": "Its name",
+      "save": "Save",
+      "done": "Renamed to {{name}}."
+    },
+    "ungroup": {
+      "title": "Ungroup {{cluster}}?",
+      "body_one": "Its language stays, with its people, recordings and checks. Only the name that groups it goes.",
+      "body_other": "Its {{count, number}} languages stay, with their people, recordings and checks. Only the name that groups them goes.",
+      "confirm": "Ungroup",
+      "keep": "Keep it",
+      "done": "{{cluster}} ungrouped. Its languages are still here."
+    },
+    "language": {
+      "label": "Cluster",
+      "none": "Not in a cluster",
+      "sheetTitle": "Which cluster is it in?",
+      "count_one": "{{count, number}} language",
+      "count_other": "{{count, number}} languages",
+      "newLabel": "Or a new cluster",
+      "firstLabel": "Put it in a new cluster",
+      "note": "A language can be in more than one cluster, or none. Nothing about the language changes.",
+      "done": "Done",
+      "saved": "{{language}}'s clusters saved."
+    },
+    "newLanguage": {
+      "what": "What are you adding?",
+      "one": "One language",
+      "oneSub": "Its own recordings, checks and people",
+      "cluster": "A cluster of languages",
+      "clusterSub": "Several related languages, set up together",
+      "clusterName": "The cluster's name",
+      "clusterPlaceholder": "e.g. Dar Khamsa",
+      "theCluster": "the cluster",
+      "inCluster": "In a cluster? You can choose later",
+      "no": "No",
+      "newCluster": "New cluster",
+      "joinsNamed": "{{org}} already has {{cluster}}. These languages join it.",
+      "itsLanguages": "Its languages · {{number}}",
+      "addOne": "Add a language",
+      "unlisted": "Not there? Add it as you typed it, with its code if it has one.",
+      "addTyped": "Add “{{name}}”",
+      "new": "New",
+      "newWithCode": "{{code}} · new",
+      "already": "Already in {{org}}",
+      "takeOut": "Take out",
+      "note_one": "Languages already here keep everything they have. The new one is set up in the next steps.",
+      "note_other": "Languages already here keep everything they have. The {{count, number}} new ones are set up together in the next steps.",
+      "onlyExisting": "Nothing new to set up: languages already here keep everything they have.",
+      "make": "Make the cluster",
+      "made_one": "{{cluster}} made, with {{count, number}} language.",
+      "made_other": "{{cluster}} made, with {{count, number}} languages.",
+      "forNew_one": "For the new language in {{cluster}}. It can change its own later.",
+      "forNew_other": "For the {{count, number}} new languages in {{cluster}}. Each one can change its own later.",
+      "added_one": "{{count, number}} language added to {{org}}, in {{cluster}}.",
+      "added_other": "{{count, number}} languages added to {{org}}, in {{cluster}}.",
+      "addedNotOffered_one": "{{count, number}} language added to {{org}}, in {{cluster}}. Offer {{offers}} under What helps once you are online.",
+      "addedNotOffered_other": "{{count, number}} languages added to {{org}}, in {{cluster}}. Offer {{offers}} under What helps once you are online.",
+      "notMade": "Not added",
+      "making": {
+        "adding": "Adding {{language}}",
+        "grouping": "Adding to {{cluster}}"
+      }
+    },
+    "status": {
+      "all": "All",
+      "none": "Not in a cluster"
     }
   }
 }

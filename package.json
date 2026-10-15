@@ -55,6 +55,8 @@
     "bench:core": "tsx scripts/bench/core.ts",
     "bench:server": "tsx scripts/bench/server.ts",
     "moderation": "tsx scripts/moderation.ts",
+    "listening:demo": "tsx --tsconfig tsconfig.listening-demo.json server/listeningDemo.ts",
+    "listening:demo:typecheck": "tsc -p tsconfig.listening-demo.json",
     "help-audio": "tsx scripts/help-audio.ts"
   },
   "devDependencies": {

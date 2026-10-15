@@ -1,5 +1,8 @@
 import { DEFAULT_TRANSFER_BUDGET_BYTES, LanguageSession, TransferBudget, ensureDeviceId, type LanguageStatus, type SyncInspection } from '@langquest-next/sync';
-import { CommandError, emptyLanguageState, type BlobRef, type EventPayloads, type EventSpec, type EventType, type LanguageState } from '@langquest-next/core';
+import {
+  CommandError, emptyLanguageState, languageLines, updatesFor as coreUpdatesFor, type BlobRef, type EventPayloads, type EventSpec, type EventType,
+  type LanguageState, type LostFilesView, type OfflineSummary, type PassageLines, type UnitOffline, type Update
+} from '@langquest-next/core';
 import { getBlobStore, type BlobFile, type BlobStore } from './blobs';
 import { downloadBlob, streamUrl, uploadBlob } from './server/blobTransport';
 import { diagnostics, flushDiagnostics, timedTransfer, type TransferTimings } from './diagnostics';
@@ -14,6 +17,7 @@ import { onWake } from './wake';
 import { serverTransport } from './server/sync';
 import { stateCopier } from './publishedState';
 import { t } from './i18n';
+import { appBuild } from './appBuild';
 
 export interface LanguageHandle {
   orgId: string;
@@ -70,8 +74,41 @@ export interface LanguageHandle {
     /** Audio files on this phone now; a new set whenever one arrives or is reclaimed. */
     present: ReadonlySet<string>;
     /** Recordings here the server has not confirmed: what a hand-over must still send (handOver.ts). */
-    unsent: () => BlobRef[];
+    unsent: () => Promise<BlobRef[]>;
+    /**
+     * The passages kept offline and how much of each one's audio is here,
+     * and the whole scope at a glance; null until first counted. Counted
+     * from the phone's table after changes (decisions.md 110), so a screen
+     * reads them without waiting.
+     */
+    keptOffline: ReadonlyMap<string, UnitOffline> | null;
+    offlineSummary: OfflineSummary | null;
+    /** The passages this person keeps offline by default (asked of them or worked in). */
+    scope: ReadonlySet<string>;
+    /** What these files a phone lost were (decisions.md 92). */
+    lost: (hashes: readonly string[]) => Promise<LostFilesView>;
   };
+  /**
+   * Each passage's line: what lists of passages read (Map, Progress, My
+   * Work, the Inbox badge), so none needs every passage's record in memory
+   * (decisions.md 110). A new object whenever a line changed.
+   */
+  lines: PassageLines;
+  /**
+   * Hold these passages' records in memory: the one a screen shows and
+   * those next to it (decisions.md 110). Others stay on the phone's disk.
+   */
+  loadUnits: (unitIds: readonly string[]) => void;
+  /** Is this passage's whole record in memory, so a screen may read it from `state`? */
+  isLoaded: (unitId: string) => boolean;
+  /** The language with these passages' records read in from disk, for a screen that lists a few passages beyond those in memory. */
+  withPassages: (unitIds: readonly string[]) => Promise<LanguageState | null>;
+  /** The passages whose versions tied in this key term. */
+  passagesLinkingTerm: (termId: string) => Promise<string[]>;
+  /** The passage a take is in; null when it is nowhere. */
+  passageOfTake: (takeId: string) => Promise<string | null>;
+  /** What happened that concerns this person (core `updatesFor`), read from the passages that concern them. */
+  updatesFor: (actorId: string) => Promise<Update[]>;
   /** Call after recording: clears upload backoff and starts a pass now. */
   triggerUpload: () => void;
   append: <T extends EventType>(type: T, payload: EventPayloads[T], parentEventId?: string) => Promise<void>;
@@ -93,10 +130,12 @@ const LIMITS = { minFreeBytes: 500 * 1024 * 1024, maxTotalBytes: 2 * 1024 * 1024
 /** One budget per device, shared by every language's workers. */
 const transferBudget = new TransferBudget(DEFAULT_TRANSFER_BUDGET_BYTES);
 
+const NO_LINES: PassageLines = languageLines(emptyLanguageState());
+
 const NOTHING_YET: LanguageStatus = {
   revision: 0, pending: 0, refusedEvents: 0, lastSync: 'never', online: null, tooOld: false,
   refused: null, pulled: false, live: false, pendingUp: 0, pendingDown: 0, peakUp: 0, peakDown: 0,
-  present: new Set(), keptUnits: new Set()
+  present: new Set(), keptUnits: new Set(), keptOffline: null, offlineSummary: null, scope: new Set(), lines: NO_LINES
 };
 
 /**
@@ -140,8 +179,9 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
     setState(null);
     setStatus(NOTHING_YET);
     if (!openId) {
-      setState(emptyLanguageState());
-      setStatus({ ...NOTHING_YET, pulled: true });
+      const empty = emptyLanguageState();
+      setState(empty);
+      setStatus({ ...NOTHING_YET, pulled: true, lines: languageLines(empty) });
       return;
     }
     (async () => {
@@ -168,6 +208,9 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
           diag: diagnostics
         },
         aroundSync: trackSync,
+        // Recordings and file verdicts stay on the phone; memory holds the passages on screen (decisions.md 110).
+        keepOnDisk: true,
+        build: appBuild(),
         onSettled: ({ blobsWanted }) => { void flushDiagnostics({ blobCacheBytes: files.totalBytes(), blobsWanted }).catch(() => {}); }
       });
       if (cancelled) { session.close(); return; }
@@ -196,7 +239,7 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
           const { ref, size } = await files.ingest(uri, format, (ref, size) => beforeMove(ref.hash, size));
           return { hash: ref.hash, size };
         },
-        hasRecording: (id) => !!session.state.recordings[id],
+        hasRecording: (id) => session.hasRecording(id),
         append: async (e) => {
           await session.client.append('v1.RecordingAdded', {
             recordingId: e.id, unitId: e.target.unitId, kind: 'target',
@@ -246,6 +289,19 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
     await sessionRef.current?.keepOffline(unitId, keep);
   }, []);
 
+  // Stable, so the lost-files alert asks again only when what was lost changes.
+  const lost = useCallback(async (hashes: readonly string[]): Promise<LostFilesView> =>
+    sessionRef.current ? sessionRef.current.lost(hashes) : { safe: 0, unsent: 0, unitIds: [] }, []);
+  const loadUnits = useCallback((unitIds: readonly string[]) => { void sessionRef.current?.loadUnits(unitIds); }, []);
+  // A language with no stream yet (none opened) is empty and whole.
+  const isLoaded = useCallback((unitId: string) => sessionRef.current?.isLoaded(unitId) ?? !openId, [openId]);
+  const withPassages = useCallback(async (unitIds: readonly string[]) => (sessionRef.current ? sessionRef.current.withPassages(unitIds) : null), []);
+  const passagesLinkingTerm = useCallback(async (termId: string) => sessionRef.current?.passagesLinkingTerm(termId) ?? [], []);
+  const passageOfTake = useCallback(async (takeId: string) => sessionRef.current?.passageOfTake(takeId) ?? null, []);
+  const updatesFor = useCallback(async (who: string) => {
+    const session = sessionRef.current;
+    return session ? session.updatesFor(who) : coreUpdatesFor(emptyLanguageState(), who);
+  }, []);
   const blobs = {
     pendingUp: status.pendingUp,
     pendingDown: status.pendingDown,
@@ -258,13 +314,20 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
     peakUp: status.peakUp,
     peakDown: status.peakDown,
     rates: () => ({ up: upMeter.current.perSecond(), down: downMeter.current.perSecond() }),
-    unsent: () => sessionRef.current?.unsent() ?? []
+    unsent: () => sessionRef.current?.unsent() ?? Promise.resolve([]),
+    keptOffline: status.keptOffline,
+    offlineSummary: status.offlineSummary,
+    scope: status.scope,
+    lost
   };
   const triggerUpload = useCallback(() => sessionRef.current?.triggerUpload(), []);
   const inspect = useCallback(() => sessionRef.current?.inspect() ?? Promise.resolve(null), []);
   const { pending, lastSync, online, tooOld, refused, refusedEvents, pulled, live, revision } = status;
 
-  return { orgId, languageId, state, pending, lastSync, online, tooOld, refused, refusedEvents, pulled, live, revision, inspect, blobs, triggerUpload, append, appendMany, run, sync };
+  return {
+    orgId, languageId, state, pending, lastSync, online, tooOld, refused, refusedEvents, pulled, live, revision, inspect, blobs,
+    lines: status.lines, loadUnits, isLoaded, withPassages, passagesLinkingTerm, passageOfTake, updatesFor, triggerUpload, append, appendMany, run, sync
+  };
 }
 
 /** Time one transfer, credit its bytes to the meter once it succeeds, and tally it for diagnostics either way. */

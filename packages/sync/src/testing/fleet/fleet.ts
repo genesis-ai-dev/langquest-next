@@ -49,6 +49,13 @@ export interface FleetOptions {
    * before the organization stream lists it (they are re-queued on every push).
    */
   unlistedUntil?: number;
+  /**
+   * Phones that keep the language on disk (decisions.md 110): every one, or
+   * every other one, so the fleet's agreement covers both kinds of phone.
+   */
+  keepOnDisk?: boolean | 'half';
+  /** Confirmed events between a phone's checkpoints; the app's is 2000. Fewer puts more through them in a short run. */
+  checkpointEvery?: number;
 }
 
 /**
@@ -83,7 +90,9 @@ export class Fleet {
       realtime: options.realtime ?? { on: true, delayMs: 1_000 },
       working: () => this.working,
       audio: options.audio ?? null,
-      recordedAt: new Map()
+      recordedAt: new Map(),
+      keepsOnDisk: (index) => options.keepOnDisk === true || (options.keepOnDisk === 'half' && index % 2 === 1),
+      ...(options.checkpointEvery ? { checkpointEvery: options.checkpointEvery } : {})
     };
     const { crew } = options;
     const work = crew.work ?? OFFICE_HOURS;
@@ -100,7 +109,7 @@ export class Fleet {
   }
 
   private add(id: string, actorId: string, persona: Persona, work: WorkPattern, link: Link): void {
-    this.devices.push(new SimDevice(id, actorId, persona, work, link, this.context, this.random.fork(`device:${id}`)));
+    this.devices.push(new SimDevice(id, actorId, persona, work, link, this.context, this.random.fork(`device:${id}`), this.devices.length));
   }
 
   /** Install every app; the coordinator sets the language up at once. */
@@ -182,7 +191,8 @@ export class Fleet {
     const settleMs = this.time.now() - started;
     for (const d of this.devices) d.stop();
     const expected = digest(foldLanguage(this.server.stream(this.orgId, this.streamId), emptyLanguageState()));
-    const disagree = this.devices.filter((d) => digest(d.client.getState()) !== expected).map((d) => d.id);
+    const disagree: string[] = [];
+    for (const d of this.devices) if (digest(await d.wholeState()) !== expected) disagree.push(d.id);
     return { caughtUp, settleMs, agree: caughtUp && disagree.length === 0, disagree, digest: expected };
   }
 

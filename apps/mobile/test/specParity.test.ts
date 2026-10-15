@@ -87,11 +87,15 @@ const APP_ONLY: Record<string, string> = {
   'my_work->edit_member': "a coordinator's Home lists people asking to join under Get ready; a row opens Assign role & accept (decision 71, demo ADR-039)",
   'settings_home->settings_more': 'Me keeps five rows; everything else Settings had is under More settings (decision 71, demo ADR-032)',
   'settings_more->profile_edit': 'More settings: setting a password on a looked-after account (decisions.md 59)',
-  'settings_more->org_switcher': 'More settings: Switch Organization, moved from Settings (decision 71)',
+  'settings_more->org_switcher': 'More settings: Switch Organization for someone in one organization, where it starts a new one (decision 71)',
   'settings_more->sync_status': 'More settings: Sync, moved from Settings › Advanced (decision 71)',
   'settings_more->delete_account': 'More settings: Delete account, moved from Settings (decision 71; store rules, decisions.md 46)',
   'flow_editor->check_editor': "a language's Checks open one check, with its people, questions and helps (decision 91)",
-  'review_capture->material_editor': "a check's help that is a note opens from the review (decision 91)"
+  'review_capture->material_editor': "a check's help that is a note opens from the review (decision 91)",
+  'org_home->cluster_home': "a cluster is a row among the organization's languages and opens its page (decision 108, demo ADR-045)",
+  'cluster_home->language_home': "a cluster's page lists its languages (decision 108, demo ADR-045)",
+  'cluster_home->new_language': 'Add a language to it: a new one, already in the cluster (decision 108, demo ADR-045)',
+  'new_language->cluster_home': 'a cluster made of languages already here opens its page (decision 108, demo ADR-045)'
 };
 
 /** App-only reference screens (docs/reference-material.md). */
@@ -106,8 +110,8 @@ const specEdges = (spec.edges as SpecEdge[]).filter(machine).filter(kept);
 const appEdges = EDGES.filter(machine);
 
 describe('UX spec parity', () => {
-  it('the screen set is the demo screen set plus sync status, account deletion, the Reports section, the reference screens, the guide editor, More Bibles and a check, less the dropped screens', () => {
-    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account', 'reports_home', 'reports_language', ...REFERENCE_SCREENS, 'guide_editor', 'bible_explore', 'mic_setup', 'get_ready', 'settings_more', 'check_editor'].sort());
+  it('the screen set is the demo screen set plus sync status, account deletion, the Reports section, the reference screens, the guide editor, More Bibles, a check and a cluster, less the dropped screens', () => {
+    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account', 'reports_home', 'reports_language', ...REFERENCE_SCREENS, 'guide_editor', 'bible_explore', 'mic_setup', 'get_ready', 'settings_more', 'check_editor', 'cluster_home'].sort());
     // The drop list names only screens the spec has.
     expect(Object.keys(DROPPED).filter((s) => !spec.screens.includes(s))).toEqual([]);
   });

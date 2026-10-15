@@ -68,3 +68,13 @@ export function remoteRowView(
   if (inThisOrg && row.kind !== 'join_request' && row.kind !== 'content_report' && !otherLanguage) return null;
   return !inThisOrg ? 'otherOrg' : otherLanguage ? 'otherLanguage' : row.kind === 'content_report' ? 'connectToSee' : 'openMembers';
 }
+
+/**
+ * Someone known to be in more than one organization: Switch Organization is
+ * on Me itself (decision 71, amended 2026-10-14). Unknown (never listed on
+ * this device) or one: it stays under More settings, where it also starts a
+ * new one.
+ */
+export function inSeveral(orgs: readonly unknown[] | null): boolean {
+  return orgs !== null && orgs.length > 1;
+}

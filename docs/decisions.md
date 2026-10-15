@@ -172,7 +172,7 @@ same phone (`pendingCountBy`). The web keeps the refusal.
 
 ## 13. Two recorders, on purpose
 
-Date: 2026-09-14 · By: Ryder Wishart · Status: accepted
+Date: 2026-09-14 · By: Ryder Wishart · Status: partly superseded by 106
 
 Reason: expo-audio allows one recording at a time and exposes no PCM. v2
 solved this with a custom Expo module (`microphone-energy`) that taps raw
@@ -284,6 +284,13 @@ not synced, and every derive function still works without it, so the fold
 and the invariants are untouched. Reverse if: never; a cache inside the
 state would have to be kept coherent by the reducer, which is exactly the
 trigger-maintained rollup PLAN.md section 2 warns against.
+
+Amended (2026-10-14, Caleb Koster): a phone that keeps a big language on
+disk (decision 110) also keeps one line per passage there, so lists never
+need every passage's record in memory. The lines are still views: outside
+the state, never snapshotted or synced, and worked out by core's own
+`derivePassage` from the passage's records whenever an event touches that
+passage, so they cannot disagree with it. The reducer never maintains them.
 
 ## 20. The spec's flow machine is held to by a test, not a review
 
@@ -2213,6 +2220,18 @@ Amended (2026-10-13, Carl Sauder): the welcome offered "Show me how" and
 gone. It now offers one "Get started" for every role (AUTH-057). The tour
 "Show me how" stood for was never built.
 
+Amended (2026-10-14, Caleb Koster): Switch Organization is no longer only
+under More settings, because Caleb and a partner both found it hard to find
+there. For someone known to be in more than one organization, Me shows it
+as its second row, under their name (`inSeveral` in `account/model.ts`).
+My Work does not offer it: Caleb chose Me as the one place. Someone in one
+organization, or on a device that has never listed theirs, still finds it
+under More settings, where it starts a new one, so Me stays uncluttered for
+most translators (the demo's ADR-029 shows it only to people in more than
+one). The list is read once per run and shared
+(`account/useOrganizations.ts`), so the row does not jump between Me and
+More settings.
+
 ## 72. Apps, agents and review links take part through reviews and releases; outside reviews never clear a checkpoint
 
 Date: 2026-10-08 · By: Ryder Wishart · Status: partly superseded by 79
@@ -3804,3 +3823,284 @@ caching) that callers then duplicate, which would argue for a typed
 client per area with errors mapped once; or feature folders start
 importing each other in a cycle, which would mean a shared layer belongs
 below them.
+
+## 106. A phone records every take with the microphone module, keeps a part going down to half the cutoff, and keeps AAC
+
+Date: 2026-10-14 · By: Caleb Koster · Status: accepted
+
+Reason: supersedes 13 in part. Decided 2026-10-12, logged as 106 when it reached main after the restructure. Recording on v3 felt flaky to Caleb, and v2's users had complained
+of parts cut out. The detector was v2's unchanged (13), so the causes were
+around it, plus one rule v2 had added in January (its #683). A replay of real
+speech through `vadCore.ts` (the port of the native rules) showed the rule
+at work: a real v2 recording played 3 dB quieter lost both of its parts.
+Chosen, all on Caleb's word:
+- **A part keeps going down to half the cutoff** (`sustainMultiplier: 0.5`,
+  `src/recording/vadModel.ts`, both native modules and `vadCore.ts`).
+  Starting still needs the cutoff; once a part is open, a frame above half of
+  it counts as voice, for the pause and for the "too little to be speech"
+  rule. v2 kept parts going at half the cutoff until #683 replaced that with
+  one level for everything. In the replay nothing was lost; parts split a
+  little less often, because soft sound fills some pauses.
+- **A part too short to keep is said**: the module still deletes a part with
+  under 250 ms of voice, and both workspaces now say so, and count it toward
+  the "parts keep coming out clipped" hint (`useOnTooShort`).
+- **The screen stays on while the microphone is recording**
+  (`expo-keep-awake`), as v2 did (its #805). The recorder stops when the app
+  leaves the foreground (45), so without it the screen timeout ended
+  hands-free sessions. The microphone permission prompt no longer counts as
+  leaving.
+- **The microphone stays open while the source plays.** Playing the source
+  pauses the detector only (`pauseVad`; the open part is kept, untrimmed),
+  and when the source stops the detector starts again at once
+  (`resumeVad`), with what was heard meanwhile dropped from its head start.
+  Before, the recorder stopped and restarted from cold, which lost the first
+  words said after the source. While a session holds the microphone,
+  playback leaves the audio session in recording mode
+  (`holdMicrophone` in `audioSession.ts`) and the source players keep the
+  session active when they pause (`LISTEN_PLAYER`), which on iOS would
+  otherwise stop the microphone.
+- **A phone records hold-to-record takes with the microphone module too**
+  (supersedes 13's second recorder on phones): the take is the module's own
+  segment, opened as soon as the microphone is, so it no longer waits for
+  expo-audio to prepare, and a phone never has two recorders open (Android
+  before 10 lets only one capture at a time). Moss Doerksen made the same
+  change in v2 on a branch that was never merged. A browser still records
+  takes with expo-audio (MP4 where it can).
+- **A phone keeps AAC.** A finished WAV is re-encoded to AAC in MP4 (mono,
+  128 kb/s, hold-to-record's old bitrate) by the module (`encodeAac`:
+  MediaCodec on Android, AVAudioFile on iOS) before it is stored: about
+  0.96 MB a minute instead of 5.3 MB. The journal names the AAC copy before
+  the WAV is deleted; if encoding fails the WAV is kept. The web keeps WAV.
+  Every reader already takes both (58).
+- Android reads whole 2048-sample frames from a 0.37 s buffer, and meter
+  events no longer make the capture loop wait for the main thread, so a busy
+  phone does not drop audio. The cutoff line and the level bars are drawn on
+  one scale (`meterHeight`), so a bar reaches the line exactly when the
+  detector hears it.
+Reverse if: parts run together in noisy rooms (the room's noise reaching
+half the cutoff; raise `sustainMultiplier`), AAC encoding fails or is too
+slow on low-end phones (keep WAV there), or iOS stops the microphone during
+source playback anyway (go back to stopping it, and restart with a larger
+head start).
+
+## 107. A template's books are divided where the template is made, as they are from the map, and making your own comes first everywhere
+
+Date: 2026-10-14 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb opened Manage › Content Templates › New template ›
+Scripture and found an older editor: a plain list of numberings (old and
+new mixed), "Whole books" or "Chapters" for every book at once, and a book
+that could only be renamed or removed. A partner (Spoken) chose "Book by
+book" for a language and then saw only the ready-made ways when dividing
+later. Dividing a book its own way (93) was reachable only from a
+language's book. Divisions are the per-book `divide` of a Bible template
+(74), so the template editor is a place to make them too.
+- New template › Scripture asks what New language asks (80): the Bible the
+  team translates from, the quiz, or the list, then how the Bible is
+  divided (`useTranslate`, `TranslateQuestion`). The template starts as
+  that way divides it (a `template@2`), with the admin's own name.
+- The whole-Bible list puts "Divide it your own way" first, set apart
+  (design principle 12). It is LangQuest's "Book by book": every book
+  waits until someone reads it and chooses where its sections start.
+- In the template editor each book says how it is divided ("FIA passages ·
+  105 pieces", "Its own way · 17 pieces", "Waiting to be broken up").
+  Tapping it opens the same page as from the map (`BreakUpBook`): your own
+  way first (`DivideOwnWay`), then the ready-made ways, and "Rename or
+  remove". There they change the template being edited (`apply`) rather
+  than the language's, and Save publishes them; a template that languages
+  use warns before a book divided before is divided again (`RedoSheet`).
+  An older `template@1` keeps its "Divide into" choice until one book is
+  divided on its own, which makes it a `template@2` with the same unit ids.
+  Its numbering cannot be changed in the editor once books divide on their
+  own: the ways are made per numbering (80).
+- The own-way editor reads a Bible the team has; when the team has none
+  (or the template has no team), LangQuest's shared Bibles in the team's
+  language stand in (`useSources` `wholeBook`). A book's page shows the
+  same words.
+- A template is never named as the way its own books are divided, nor
+  offered as a way to change itself (`wayNow`, `isItself`): a book divided
+  its own way said "Book by book (Kara)".
+- A language's template view lists books waiting to be divided, so they
+  can be opened there.
+- Content Templates and Choose a Template list LangQuest's ways once, in
+  the language's numbering, and not its older `langquest.template.*`
+  items (kept for the languages that use them) or the same ways in other
+  numberings (`sharedTemplateShown`). Another organization's are listed as
+  before.
+Reverse if: admins need to make a template without any way to start from
+(then offer an empty Bible template), or the numbering of a template must
+change after books are divided (then convert each book's sections, as 80
+does for a language).
+
+## 108. A cluster is a name an organization puts on some of its languages, made while adding them, and never a level
+
+Date: 2026-10-14 · By: Caleb Koster · Status: accepted
+
+Reason: Spoken made a "Spoken Worldwide" organization, then had to make a
+second organization, "Dar Khamsa Cluster", for the five languages of one
+cluster, because nothing grouped languages. They want everything under the
+one organization, and to be asked while setting up whether it is one
+language or a cluster, so they can start work on one language or several.
+Caleb asked for clusters as tagging and organizing, made when needed, that
+do not reorganize the organization and language streams (2026-10-14). So a
+cluster is two organization-stream registers (`core/org.ts`):
+`v1.ClusterNamed { clusterId, name }`, its name, and
+`v1.LanguageClusterSet { languageId, clusterId, inCluster }`, one per
+(language, cluster). It is a tag: a language may be in several clusters or
+none, two admins tagging offline both land, and a cluster no language is in
+any more is gone (`orgClusters`). It is not the project level decision 34
+took out, and not a scope (decision 63): no stream, no membership, no
+settings and nothing on the server reads it; a phone pulls nothing more.
+Grouping is the organization's to do: both events need Manage structure at
+org scope, as adding a language does. Screens (demo ADR-045): New language
+asks "What are you adding?" with One language picked; one language can
+join a cluster, made right there; a cluster takes a name and its languages,
+new ones and ones already here, and asks the usual steps once for the new
+ones, each of which then owns its copy (decision 91). Manage lists clusters
+above the languages in none; a cluster's page shows its languages and their
+progress together, adds a new language or ones already here, renames and
+ungroups it; a language's page names its clusters and More › Cluster
+changes them; All languages on the Map tab filters by cluster. The Reports
+dashboard on the web (decision 57) picks all languages, one cluster or
+those in none, sums each cluster in Overview, and names a language's
+clusters in its row, its page and the CSV; the device filters the rows the
+server sent with its own fold of the organization, so the server still
+knows nothing of clusters. Inviting stays per language: after a cluster,
+the invite offers its new languages as chips. Not built: inviting to every
+language of a cluster at once, and settings shared across a cluster.
+
+Reverse if: organizations need a cluster to carry people or settings for
+all its languages (an invite or a template for the cluster); then a cluster
+gains its own recommendations as the organization has (decision 62), still
+not a stream. Or if people put each language in one cluster only and
+several clusters confuse them; then the picker becomes a single choice,
+with no change to the events.
+
+## 109. A listening app keeps playing the approved version, hears changes by webhook, and the team sees its listeners on the passage
+
+Date: 2026-10-14 · By: Ryder Wishart · Status: accepted
+
+Reason: Ryder asked for the whole EveryBible loop for a stakeholder demo:
+a recorded passage goes out for review, reviewers hear it in EveryBible,
+approved and published chapters reach every listener, listener feedback
+keeps flowing back to the team after publication, and listeners see when a
+chapter was updated and its history (meetings of 2026-10-12 and 13 with
+Skyler, Caleb and Carl). Changes in one app should show in the other as
+fast as possible. The pieces, none of them a new event:
+- **The approved version's audio.** The passage API's `approvedAudio`
+  include (`view.ts`, needs `read`) gives `approvedVersion`'s cards beside
+  `version`'s. A listening app that published version 2 keeps playing it
+  while version 3 is in review, instead of dropping the chapter. This is
+  the "explicit version read" the unmerged prototype entry of 2026-10-08
+  named as its reverse condition. With `read:published` alone, `audio` is
+  already the approved version, so the include is refused there.
+- **The listening side, in EveryBible's repository.** Its bridge Worker
+  registers a webhook (101) when its studio opens, reads the change feed
+  after its own cursor and re-reads only the passages named, keeping each
+  language in its Durable Object. Phones and the studio hold a WebSocket
+  and re-read the catalog when told something changed: about 300 ms from a
+  LangQuest change to a phone in the local round trip. Publishing stays
+  the team's explicit choice per chapter in the studio (James asked for
+  confirmation before publishing). Once a chapter is published, a newer
+  version LangQuest approves replaces it on every phone, and the bridge
+  reports both releases (`v1.VersionReleased` live and taken down, 72).
+- **The team's view.** A passage's Listeners section (`passage.tsx`) lists
+  where a version is live (`releasesOf`) and each listener review, newest
+  first. Feedback given by link or partner app shows the listener's typed
+  name (`feedbackSource`), and its voice clips play where the translator
+  answers it.
+- **Testing it.** `server/listeningDemo.ts` (`npm run listening:demo`)
+  serves the partner API, reducer, change digests (`digestOf`) and webhook
+  signatures over a local append-only log, with `/demo/record` and
+  `/demo/approve` for the translator's side. EveryBible's
+  `scripts/listening-roundtrip.mjs` drives the whole loop against it.
+Reviewers in EveryBible still unlock with one shared code; listener
+feedback is `listener` kind and never clears a step (72).
+Reverse if: teams want approval alone to publish a chapter (then the bridge
+publishes on approval, per language), reviewers need their own accounts
+(then tie EveryBible sign-in to a LangQuest review link or role), or the
+change feed and webhooks prove too slow for live listening (then push from
+the organization's Durable Object directly).
+
+## 110. A big language keeps each passage's record on the phone's disk; memory holds the passages on screen, and lists read one line per passage
+
+Date: 2026-10-14 · By: Caleb Koster · Status: accepted
+
+Reason: a phone held a whole language in memory. On a 2 GB test emulator
+Koro Miyan (37,000 recordings, 541 versions) added about 235 MB once open,
+and a language four times its size was killed by Android. Caleb asked for
+this to be solved before cheap phones open big projects in the field, all
+of it at once rather than in parts. With `keepOnDisk` (on for every
+language in the app: `useLanguage` opens `LanguageSession` with it), every
+entry of the maps core cuts by passage (`PASSAGE_PARTS` in
+`passageParts.ts`: recordings, versions and drafts, submissions,
+responses, reviews, departures, requests, notes, study marks, verse marks,
+reference links and uses, key-term ties, releases) and the server's
+verdict on each audio file go to the phone's `kept_rows` table with each
+checkpoint, in the same commit; the checkpoint holds what the whole
+language shares (its passages, flow, teams, materials, key terms). An entry
+whose passage cannot be found yet (an undo of a departure that has not
+arrived) stays with the checkpoint until it can. Rows combine with later
+events by each part's `merge`, which mirrors the reducer's own case and is
+tested on every split of the fixtures' events, so the phone's language is
+the in-memory fold's in any order. A first download is read back one piece
+at a time (`stateSplitter`, `SnapshotRows`), so neither the whole text nor
+the whole state is ever in memory. Its rows go straight into the table
+(moving Koro's 160,000 rows from a staging id took 200 s on the emulator),
+and rows with no checkpoint beside them are dropped when a language opens,
+so a download cut short is never read; a phone replacing a language it has
+(after a redaction) writes the new rows aside and switches with its
+checkpoint. A language's syncs, pushes, pulls and refolds take turns on a
+phone (`SyncClient.exclusive`), whichever session starts them: two first
+downloads at once (the scheduler's and "Sync now") each cleared the rows
+the other wrote, and a fresh phone showed recorded passages as not started.
+
+Memory holds the passage on screen, two on each side, and its book and
+chapter (`loadUnits`, `shell/usePassagesInMemory.ts`), what arrived since
+the last checkpoint, and the verdicts on files anything in memory names. A
+passage's screen waits the moment it takes to bring it in
+(`shell/usePassageReady.ts`).
+
+Lists read one line per passage (`PassageLine`, core `passageLines.ts`):
+Map, Progress, My Work, the Inbox badge, Up next, the overview, Get ready,
+set-aside counts, a book's divisions and who usually reviews a check. A
+line is core's own `derivePassage` of that one passage, worked out from its
+rows and memory (`KeptLines`) whenever an event touches it, and every line
+when the flow, its kinds or the teams change. Lines are kept beside the rows
+(a few hundred bytes a passage: Koro's 570 are 0.37 MB), and the lines still
+owed are written with each checkpoint, which prunes the events that owe
+them. The Inbox, a check logged across several passages and a key term's
+uses read the few passages they need from disk (`withPassages`); the Inbox
+reads a passage again only when its line changed. File planning (what to
+send, fetch or free, the offline counts) reads which record names each
+file, in which passage (`audio` rows), and the verdicts, never the records
+(`LanguageFiles`, core `FilePlan`), so a person who keeps a whole language
+offline holds its file list, not its records.
+
+Nothing here needs a migration. The rows are the checkpoint cut up: a new
+reducer version drops the checkpoint and its rows together, as before, and
+the phone downloads again. Lines are worked out by the app's code, so they
+are stamped with the build that worked them out (`appBuild()`: a web page's
+commit, a phone's runtime and update) and every line is worked out again
+under a new one. Two rules come with it, each held by a test: a new map in
+the state says whether it is cut by passage, and if so how to find its
+passage and combine two copies (`passageParts.test.ts`); and app code never
+loops over passage records or calls one of core's answers about every
+passage (`READS_EVERY_PASSAGE`) on the live state, outside a short list
+saying why its passages are in memory (`apps/mobile/test/wholeLanguage.test.ts`).
+
+The server, its snapshots, the events and the reducer are unchanged; the
+Worker and server jobs hold whole languages in memory as before. Tests: a
+phone kept on disk agrees with one held in memory on every record and every
+line, through checkpoints, restarts, a first download, an old checkpoint
+and a redaction (`keptLanguage.test.ts`), and half of a fleet kept on disk
+ends with the server's language and lines and moves all its audio
+(`fleet.test.ts`). Koro's part in memory is now 0.13 MB of shared language
+and 0.37 MB of lines (as JSON), against 40 MB. Measured on a 2 GB emulator
+with a release build, Koro adds 2 MB to the app once open instead of
+182 MB (43 MB at the peak instead of 227), and opens in 9 s; a language four
+times its size adds nothing once open instead of 852 MB (59 MB at the peak
+instead of 1.7 GB), and opens in 33 s.
+Reverse if: bringing a passage in from disk makes moving between passages
+noticeably slow on a cheap phone, or the lines themselves outgrow cheap
+phones (then lists page their lines from disk).

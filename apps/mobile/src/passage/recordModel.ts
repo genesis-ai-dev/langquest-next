@@ -6,7 +6,7 @@
 // the screen only draws them.
 import {
   draftsBy, feedbackIsMine, isCompleteState,
-  type FlowStepStatus, type KindDef, type KindStatus, type LanguageState, type OrgState, type PassageState, type ReviewView
+  type FlowStepStatus, type KindDef, type KindStatus, type LanguageState, type OrgState, type PassageLines, type PassageState, type ReviewView
 } from '@langquest-next/core';
 import { edgeFor, type ScreenId } from '../flow';
 import { t } from '../i18n';
@@ -59,12 +59,12 @@ export function teamStepsOpen(can: RecordCan): boolean {
 
 /** Where each of the flow's checks usually goes; only whoever asks (the version's author) sends a version on (ADR-029). */
 export function usualTargets(
-  state: LanguageState, org: OrgState | null, o: { p: PassageState; languageId: string; me: string; asker: boolean }
+  state: LanguageState, org: OrgState | null, o: { p: PassageState; languageId: string; me: string; asker: boolean; lines: PassageLines }
 ): Record<string, UsualTarget | undefined> {
   const out: Record<string, UsualTarget | undefined> = {};
   if (!o.asker) return out;
   for (const kindId of new Set(o.p.flow.steps.flatMap((st) => st.kindIds))) {
-    out[kindId] = usualTargetFor(state, org, { languageId: o.languageId, kindId, me: o.me });
+    out[kindId] = usualTargetFor(state, org, { languageId: o.languageId, kindId, me: o.me, lines: o.lines });
   }
   return out;
 }

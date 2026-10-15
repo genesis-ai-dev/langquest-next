@@ -342,7 +342,8 @@
     "mic_setup": "Configura tu micrófono",
     "get_ready": "Prepárate",
     "settings_more": "Más ajustes",
-    "check_editor": "Verificación"
+    "check_editor": "Verificación",
+    "cluster_home": "Grupo"
   },
   "native": {
     "microphone": "LangQuest graba tu voz para traducir pasajes.",
@@ -666,7 +667,8 @@
       "languagesTitle": "Idiomas",
       "newLanguage": "Nuevo idioma",
       "noLanguages": "Todavía no hay idiomas. Agrega el primero que grabará tu equipo.",
-      "openToBring": "Ábrelo para traerlo a este dispositivo"
+      "openToBring": "Ábrelo para traerlo a este dispositivo",
+      "newLanguageOrCluster": "Idioma o grupo nuevo"
     },
     "rename": {
       "done": "Se cambió el nombre a {{name}}.",
@@ -737,7 +739,8 @@
         "roles": "roles",
         "publicListing": "lista pública",
         "name": "nombre",
-        "languageList": "lista de idiomas"
+        "languageList": "lista de idiomas",
+        "cluster": "grupo"
       },
       "orgAndCode": "{{org}} · Código {{code}}",
       "seeWork": "Ver su trabajo",
@@ -1463,9 +1466,9 @@
       "wholeBooks": "Libros completos",
       "chapters": "Capítulos",
       "passages": "Pasajes",
-      "passagesNote_one": "{{count, number}} pasaje, como lo divide la versión de la que partió. Pronto se podrá cambiar dónde empiezan los pasajes.",
-      "passagesNote_many": "{{count, number}} pasajes, como los divide la versión de la que partió. Pronto se podrá cambiar dónde empiezan los pasajes.",
-      "passagesNote_other": "{{count, number}} pasajes, como los divide la versión de la que partió. Pronto se podrá cambiar dónde empiezan los pasajes.",
+      "passagesNote_one": "{{count, number}} pasaje, como lo divide la versión de la que partió.",
+      "passagesNote_many": "{{count, number}} pasajes, como los divide la versión de la que partió.",
+      "passagesNote_other": "{{count, number}} pasajes, como los divide la versión de la que partió.",
       "eachBook": "Cada libro es una parte para grabar.",
       "eachChapter": "Cada capítulo es una parte para grabar.",
       "booksCount": "Libros · {{n, number}}",
@@ -1487,8 +1490,7 @@
       "scripture": "Escritura",
       "scriptureSub": "Libros y capítulos de la Biblia, divididos en pasajes a medida que avanzan los equipos.",
       "else": "Otra cosa",
-      "elseSub": "Lecciones, historias, un comentario: cualquier esquema que armes tú.",
-      "numbering": "¿Qué numeración de capítulos y versículos sigue?"
+      "elseSub": "Lecciones, historias, un comentario: cualquier esquema que armes tú."
     },
     "levelSheet": {
       "title": "Nivel",
@@ -1557,6 +1559,11 @@
       "gap": "Desde el versículo {{verse}}, estos versículos todavía no tienen {{part}}.",
       "verseLabel": "Versículo {{chapter}}:{{verse}}",
       "versePlaceholder": "versículo {{verse}}"
+    },
+    "divide": {
+      "done": "{{book}} está dividido. Guarda la plantilla para conservarlo.",
+      "tapBook": "Toca un libro para elegir cómo se divide.",
+      "nameOrRemove": "Cambiar el nombre de {{book}} o quitarlo"
     }
   },
   "breakup": {
@@ -1739,7 +1746,9 @@
       "noneReady": "Todavía no hay ninguna lista para esto. Crea la tuya: carpetas para cómo se organiza, y dentro las cosas que las personas graban.",
       "makeOwn": "Crear la tuya",
       "makeOwnDetail": "Carpetas, y lo que se graba en ellas.",
-      "elseKinds": "Historias, cantos, lecciones"
+      "elseKinds": "Historias, cantos, lecciones",
+      "ownSub": "Libro por libro: lee cada uno y elige dónde empiezan sus secciones",
+      "ownNote": "Cada libro espera hasta que se divida. Ábrelo desde el mapa o Mi trabajo, léelo en una Biblia y elige dónde empiezan sus secciones, o empieza con una forma ya hecha."
     },
     "errors": {
       "noTemplate": "Este idioma todavía no tiene plantilla.",
@@ -1954,6 +1963,14 @@
       "partsIn_one": "{{count, number}} parte en {{book}}",
       "partsIn_other": "{{count, number}} partes en {{book}}",
       "partsIn_many": "{{count, number}} partes en {{book}}"
+    },
+    "division": {
+      "way_one": "{{way}} · {{count, number}} parte",
+      "way_many": "{{way}} · {{count, number}} partes",
+      "way_other": "{{way}} · {{count, number}} partes",
+      "own_one": "A su manera · {{count, number}} parte",
+      "own_many": "A su manera · {{count, number}} partes",
+      "own_other": "A su manera · {{count, number}} partes"
     }
   },
   "canon": {
@@ -3000,7 +3017,6 @@
     "sync": {
       "syncing": "Sincronizando…",
       "syncNow": "Sincronizar ahora",
-      "checking": "Buscando cambios de vez en cuando",
       "refused": "El servidor rechazó esta cuenta para esta organización.",
       "tooOld": "Actualiza la app para sincronizar.",
       "waitingUpload": "esperando para subir",
@@ -3022,7 +3038,28 @@
       "refusedCount": "Rechazados · {{n, number}}",
       "events_one": "{{count, number}} evento en este dispositivo",
       "events_many": "{{count, number}} eventos en este dispositivo",
-      "events_other": "{{count, number}} eventos en este dispositivo"
+      "events_other": "{{count, number}} eventos en este dispositivo",
+      "standing": {
+        "live": "En vivo",
+        "checking": "Conectado",
+        "offline": "Sin conexión",
+        "refused": "No se sincroniza"
+      },
+      "help": {
+        "live": "Los cambios de su equipo llegan al momento, y los suyos salen enseguida.",
+        "checking": "Conectado, pero el canal en vivo no funciona, así que este dispositivo busca cambios cada pocos minutos. Sincronizar ahora lo hace al instante.",
+        "offline": "Sin conexión. Todo lo que haga se guarda en este dispositivo y se envía solo cuando vuelva a tener conexión.",
+        "refused": "El servidor no acepta cambios de este dispositivo. Su trabajo sigue guardado aquí.",
+        "toSend": "Cambios y grabaciones hechos en este dispositivo que el servidor aún no ha confirmado. Están a salvo aquí y se envían cuando haya conexión.",
+        "toReceive": "Grabaciones de otras personas que este dispositivo todavía está descargando.",
+        "refusedLine": "Cambios que el servidor no aceptó, normalmente porque cambió un permiso. Se quedan en este dispositivo; abra Detalles para ver cada uno."
+      },
+      "toSend": "Por enviar",
+      "toReceive": "Por recibir",
+      "refusedLine": "Rechazados",
+      "none": "Ninguno",
+      "moreInfo": "Más información",
+      "details": "Detalles"
     }
   },
   "study": {
@@ -3522,7 +3559,10 @@
       "playYourFeedback": "Reproducir tus comentarios",
       "more": "Más",
       "options": "Opciones",
-      "openVersion": "Abrir {{version}}"
+      "openVersion": "Abrir {{version}}",
+      "listeners": "Oyentes",
+      "liveIn": "Publicado en {{channel}} · {{version}}",
+      "listenerCount": "Comentarios de oyentes: {{count, number}}"
     },
     "else": {
       "title": "¿Otra cosa?",
@@ -3739,11 +3779,9 @@
       "help": "Lo que le pediste a otra persona y todavía no está hecho."
     },
     "sync": {
-      "refused": "Sin sincronizar",
       "toSend_one": "{{count, number}} por enviar",
       "toSend_many": "{{count, number}} por enviar",
-      "toSend_other": "{{count, number}} por enviar",
-      "offline": "Sin conexión"
+      "toSend_other": "{{count, number}} por enviar"
     },
     "join": {
       "wantsToJoin": "{{name}} quiere unirse",
@@ -4410,7 +4448,8 @@
       "pausedForSource": "En pausa mientras suena la fuente",
       "startsAgain": "La grabación vuelve a empezar cuando la fuente se detiene.",
       "cutoff": "Corte de sonido",
-      "pauseBetween": "Pausa entre partes"
+      "pauseBetween": "Pausa entre partes",
+      "tooShort": "Fue demasiado corto para guardarlo. Si estabas hablando, dilo otra vez."
     },
     "split": {
       "referenceOneLine": "Referencia en una línea",
@@ -4858,7 +4897,8 @@
       "newChapters": "Capítulos nuevos",
       "books": "Libros",
       "chaptersByBook": "Capítulos por libro",
-      "total": "Total"
+      "total": "Total",
+      "clusters": "Grupos"
     },
     "errors": {
       "noServer": "Esta compilación no sabe dónde está el servidor de informes.",
@@ -4968,7 +5008,8 @@
       "alertsChip_other": "Alertas, {{count, number}} necesitan a alguien",
       "allCountries": "Todos los países",
       "loading": "Cargando informes…",
-      "couldNotRead": "No se pudieron leer los informes"
+      "couldNotRead": "No se pudieron leer los informes",
+      "allLanguages": "Todos los idiomas"
     },
     "overview": {
       "across_one": "En {{count, number}} idioma · {{recent}} en las últimas cuatro semanas",
@@ -5302,6 +5343,13 @@
       "typeToFind_one": "Escribe para buscar el otro.",
       "typeToFind_many": "Escribe para buscar los otros {{count, number}}.",
       "typeToFind_other": "Escribe para buscar los otros {{count, number}}."
+    },
+    "clusters": {
+      "title": "Grupos",
+      "sub": "Los idiomas de cada grupo juntos. Elige uno para ver solo sus idiomas.",
+      "languages_one": "{{count, number}} idioma",
+      "languages_many": "{{count, number}} idiomas",
+      "languages_other": "{{count, number}} idiomas"
     }
   },
   "review": {
@@ -6472,6 +6520,114 @@
       "playHelp": "Reproduce cómo lo dicen.",
       "suggest": "Otros idiomas aquí usan",
       "suggestHelp": "Se usa aquí en {{languages}}. Tócala para agregarla."
+    }
+  },
+  "clusters": {
+    "row": {
+      "sub_one": "{{count, number}} idioma · {{names}}",
+      "sub_many": "{{count, number}} idiomas · {{names}}",
+      "sub_other": "{{count, number}} idiomas · {{names}}",
+      "namesMore": "{{names}}…"
+    },
+    "home": {
+      "sub_one": "Grupo · {{count, number}} idioma",
+      "sub_many": "Grupo · {{count, number}} idiomas",
+      "sub_other": "Grupo · {{count, number}} idiomas",
+      "together": "En conjunto",
+      "itsLanguages": "Sus idiomas",
+      "add": "Añadirle un idioma",
+      "rename": "Cambiar nombre",
+      "ungroup": "Desagrupar",
+      "gone": "Este grupo ya no tiene idiomas",
+      "goneSub": "Se sacaron sus idiomas. Todos siguen en {{org}}.",
+      "notSaved": "No se guardó"
+    },
+    "add": {
+      "title": "Añadir a {{cluster}}",
+      "newLanguage": "Un idioma nuevo",
+      "newLanguageSub": "Configúralo, ya dentro de {{cluster}}",
+      "alreadyIn": "Ya en {{org}}",
+      "none": "Todos los idiomas de {{org}} ya están en él.",
+      "button": "Añadir",
+      "done_one": "{{count, number}} idioma añadido a {{cluster}}.",
+      "done_many": "{{count, number}} idiomas añadidos a {{cluster}}.",
+      "done_other": "{{count, number}} idiomas añadidos a {{cluster}}."
+    },
+    "rename": {
+      "title": "Cambiar el nombre de {{cluster}}",
+      "label": "Su nombre",
+      "save": "Guardar",
+      "done": "Ahora se llama {{name}}."
+    },
+    "ungroup": {
+      "title": "¿Desagrupar {{cluster}}?",
+      "body_one": "Su idioma se queda, con su gente, sus grabaciones y sus revisiones. Solo se va el nombre que lo agrupa.",
+      "body_many": "Sus {{count, number}} idiomas se quedan, con su gente, sus grabaciones y sus revisiones. Solo se va el nombre que los agrupa.",
+      "body_other": "Sus {{count, number}} idiomas se quedan, con su gente, sus grabaciones y sus revisiones. Solo se va el nombre que los agrupa.",
+      "confirm": "Desagrupar",
+      "keep": "Mantenerlo",
+      "done": "{{cluster}} desagrupado. Sus idiomas siguen aquí."
+    },
+    "language": {
+      "label": "Grupo",
+      "none": "No está en un grupo",
+      "sheetTitle": "¿En qué grupo está?",
+      "count_one": "{{count, number}} idioma",
+      "count_many": "{{count, number}} idiomas",
+      "count_other": "{{count, number}} idiomas",
+      "newLabel": "O un grupo nuevo",
+      "firstLabel": "Ponerlo en un grupo nuevo",
+      "note": "Un idioma puede estar en más de un grupo, o en ninguno. Nada del idioma cambia.",
+      "done": "Listo",
+      "saved": "Grupos de {{language}} guardados."
+    },
+    "newLanguage": {
+      "what": "¿Qué vas a añadir?",
+      "one": "Un idioma",
+      "oneSub": "Con sus propias grabaciones, revisiones y gente",
+      "cluster": "Un grupo de idiomas",
+      "clusterSub": "Varios idiomas emparentados, configurados juntos",
+      "clusterName": "El nombre del grupo",
+      "clusterPlaceholder": "p. ej., Dar Khamsa",
+      "theCluster": "el grupo",
+      "inCluster": "¿En un grupo? Puedes decidirlo después",
+      "no": "No",
+      "newCluster": "Grupo nuevo",
+      "joinsNamed": "{{org}} ya tiene {{cluster}}. Estos idiomas se unen a él.",
+      "itsLanguages": "Sus idiomas · {{number}}",
+      "addOne": "Añadir un idioma",
+      "unlisted": "¿No aparece? Añádelo tal como lo escribiste, con su código si tiene uno.",
+      "addTyped": "Añadir «{{name}}»",
+      "new": "Nuevo",
+      "newWithCode": "{{code}} · nuevo",
+      "already": "Ya en {{org}}",
+      "takeOut": "Quitar",
+      "note_one": "Los idiomas que ya están aquí conservan todo lo que tienen. El nuevo se configura en los pasos siguientes.",
+      "note_many": "Los idiomas que ya están aquí conservan todo lo que tienen. Los {{count, number}} nuevos se configuran juntos en los pasos siguientes.",
+      "note_other": "Los idiomas que ya están aquí conservan todo lo que tienen. Los {{count, number}} nuevos se configuran juntos en los pasos siguientes.",
+      "onlyExisting": "No hay nada nuevo que configurar: los idiomas que ya están aquí conservan todo lo que tienen.",
+      "make": "Crear el grupo",
+      "made_one": "{{cluster}} creado, con {{count, number}} idioma.",
+      "made_many": "{{cluster}} creado, con {{count, number}} idiomas.",
+      "made_other": "{{cluster}} creado, con {{count, number}} idiomas.",
+      "forNew_one": "Para el idioma nuevo de {{cluster}}. Podrá cambiar lo suyo después.",
+      "forNew_many": "Para los {{count, number}} idiomas nuevos de {{cluster}}. Cada uno podrá cambiar lo suyo después.",
+      "forNew_other": "Para los {{count, number}} idiomas nuevos de {{cluster}}. Cada uno podrá cambiar lo suyo después.",
+      "added_one": "{{count, number}} idioma añadido a {{org}}, en {{cluster}}.",
+      "added_many": "{{count, number}} idiomas añadidos a {{org}}, en {{cluster}}.",
+      "added_other": "{{count, number}} idiomas añadidos a {{org}}, en {{cluster}}.",
+      "addedNotOffered_one": "{{count, number}} idioma añadido a {{org}}, en {{cluster}}. Ofrece {{offers}} en Qué les ayuda cuando tengas conexión.",
+      "addedNotOffered_many": "{{count, number}} idiomas añadidos a {{org}}, en {{cluster}}. Ofrece {{offers}} en Qué les ayuda cuando tengas conexión.",
+      "addedNotOffered_other": "{{count, number}} idiomas añadidos a {{org}}, en {{cluster}}. Ofrece {{offers}} en Qué les ayuda cuando tengas conexión.",
+      "notMade": "No se añadió",
+      "making": {
+        "adding": "Añadiendo {{language}}",
+        "grouping": "Añadiendo a {{cluster}}"
+      }
+    },
+    "status": {
+      "all": "Todos",
+      "none": "Sin grupo"
     }
   }
 }
