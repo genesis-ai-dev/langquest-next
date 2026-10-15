@@ -42,7 +42,9 @@ export default defineConfig({
       thresholds: {
         'packages/core/src/**': { lines: 93, branches: 79, functions: 90, statements: 88 },
         'packages/sync/src/**': { lines: 88, branches: 77, functions: 85, statements: 86 },
-        'packages/v2-import/src/**': { lines: 48, branches: 42, functions: 45, statements: 46 }
+        'packages/v2-import/src/**': { lines: 48, branches: 42, functions: 45, statements: 46 },
+        // Screen models (docs/testing.md layer 3): pure, so they stay covered. model.ts and <thing>Model.ts under apps/mobile/src.
+        'apps/mobile/src/**/{model,*Model}.ts': { lines: 86 }
       }
     }
   }
