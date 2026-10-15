@@ -3,7 +3,7 @@ import {
   canonicalJson, FIA_PERICOPES, foldOrg, libraryItemView, referencedDocs, templateUnits, validateEvent,
   type CollectionDoc, type FlowDoc, type MaterialDoc, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
-import { buildLibrary, seedEvents, SEED_ORG } from './library-seed';
+import { buildLibrary, onlyItems, seedEvents, SEED_ORG } from './library-seed';
 
 const build = buildLibrary();
 const doc = (hash: string) => build.documents.find((d) => d.hash === hash)!.body;
@@ -92,6 +92,28 @@ describe('LangQuest library seed', { timeout: 60_000 }, () => {
     const q = doc(item('langquest.questions.consultant_check').docHash) as MaterialDoc;
     expect(q).toMatchObject({ kind: 'questions', reviewKindId: 'consultant', language: 'eng' });
     expect(q.questions!.every((x) => x.required === false)).toBe(true);
+  });
+
+  it('puts peer review before the community check in the Spoken Oral Method', () => {
+    const f = doc(item('langquest.flow.spoken_oral').docHash) as FlowDoc;
+    expect(f.steps.map((s) => s.kindIds)).toEqual([['peer'], ['community'], ['bt'], ['consultant'], ['local']]);
+    expect(f.steps.filter((s) => s.checkpoint).map((s) => s.kindIds)).toEqual([['consultant']]);
+  });
+
+  it('publishes only the items asked for, with the documents they need', () => {
+    const one = onlyItems(build, ['langquest.flow.spoken_oral']);
+    expect(one.items.map((i) => i.itemId)).toEqual(['langquest.flow.spoken_oral']);
+    expect(one.documents.map((d) => d.hash)).toEqual([item('langquest.flow.spoken_oral').docHash]);
+    // A collection needs its guides, and they need their numbering, each before the documents that need it.
+    const fia = onlyItems(build, ['langquest.fia.eng']);
+    const seen = new Set<string>();
+    for (const d of fia.documents) {
+      for (const dep of 'deps' in d.body ? d.body.deps : []) expect(seen.has(dep)).toBe(true);
+      seen.add(d.hash);
+    }
+    expect(seen.has(item('langquest.fia.eng').docHash)).toBe(true);
+    expect(fia.documents.length).toBeLessThan(build.documents.length);
+    expect(() => onlyItems(build, ['langquest.flow.nope'])).toThrow(/langquest\.flow\.nope/);
   });
 
   it('collects the FIA guides per language, and keeps the demo\'s own guides apart from FIA\'s', () => {
