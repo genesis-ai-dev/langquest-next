@@ -174,7 +174,7 @@ export function setAsideCount(state: LanguageState, lines: PassageLines): number
   if (!sel) return 0;
   const books = sel.books ? new Set(sel.books) : null;
   let n = 0;
-  // Read off each passage's line (decisions.md 107): its takes not archived.
+  // Read off each passage's line (decisions.md 108): its takes not archived.
   for (const unitId of lines.worked()) {
     if (lines.get(unitId).takes === 0) continue;
     const prefix = unitPrefixOf(unitId);
@@ -462,6 +462,8 @@ interface BookRow {
   /** What the language calls it (a library template names its books). */
   label: string;
   parts: number;
+  /** Listed by the template with nothing in it yet: waiting to be divided (decision 74). */
+  waiting?: boolean;
 }
 
 /** The books a language divides, in canon order, with how many parts each has. */
@@ -471,6 +473,19 @@ export function bookRows(state: LanguageState, idx: Indexes): BookRow[] {
     const units = byBook.get(book.itemId)!;
     return { book, label: unitPlace(state, units[0]!).bookLabel || bookName(book.itemId), parts: units.length };
   });
+}
+
+/** The book rows with the books waiting to be divided added, in canon order, so they can be opened and divided too. */
+export function withWaitingBooks(rows: BookRow[], state: LanguageState, idx: Indexes): BookRow[] {
+  const have = new Set(rows.map((r) => r.book.itemId));
+  const waiting = idx.waiting.flatMap((unitId): BookRow[] => {
+    const place = unitPlace(state, unitId);
+    const book = BIBLE_BOOKS.find((b) => b.itemId === place.bookId);
+    if (!book || have.has(book.itemId)) return [];
+    have.add(book.itemId);
+    return [{ book, label: place.bookLabel || bookName(book.itemId), parts: 0, waiting: true }];
+  });
+  return [...rows, ...waiting].sort((a, b) => BIBLE_BOOKS.indexOf(a.book) - BIBLE_BOOKS.indexOf(b.book));
 }
 
 /** Where a USFM book sits among the 66, for testament checks: the first 39 are the Old Testament. */

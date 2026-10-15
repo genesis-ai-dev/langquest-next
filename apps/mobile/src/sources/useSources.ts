@@ -69,7 +69,10 @@ function useBibleDetails(ids: string[]): Record<string, BibleDetail> {
 }
 
 /** The sources for one passage of one language, recommended first. */
-export function useSources(ctx: Ctx, unitId: string | null | undefined, languageId: string | null | undefined): PassageSources {
+export function useSources(ctx: Ctx, unitId: string | null | undefined, languageId: string | null | undefined, opts: {
+  /** Read a whole book rather than a passage, with LangQuest's Bibles standing in when the team has none (decision 107). */
+  wholeBook?: boolean;
+} = {}): PassageSources {
   const state = ctx.language.state;
   const orgId = ctx.language.orgId;
   const library = ctx.org.state?.library;
@@ -87,13 +90,15 @@ export function useSources(ctx: Ctx, unitId: string | null | undefined, language
   }, [state, languageId, unitId, ctx.org.state]);
 
   // Nothing recommended: other organizations' shared sources stand in (LangQuest's, once seeded).
-  const shared = useSharedItems('material', orgId, !!unitId && recs.size === 0);
+  // A whole book (the own-way editor) asks for them whenever the team has no Bible of its own, guides or not.
+  const wholeBook = !!opts.wholeBook;
+  const shared = useSharedItems('material', orgId, (!!unitId && recs.size === 0) || wholeBook);
   const template = state?.template?.value.docHash;
   const itemHashes = useMemo(() => {
     const ids = [...recs.keys(), ...mine.list.filter((m) => m.kind === 'library').map((m) => m.itemId)];
     return ids.map((id) => libraryItemView(library ?? {}, id)?.current);
   }, [recs, mine.list, library]);
-  const sharedHashes = recs.size === 0 ? shared.rows.map((r) => r.latest_hash) : [];
+  const sharedHashes = recs.size === 0 || wholeBook ? shared.rows.map((r) => r.latest_hash) : [];
   // Sources alone, not every book they list: only the book being read is fetched (usePassageSource).
   const { get, error } = useLibraryDocs(orgId, [...itemHashes, ...sharedHashes], { deps: false });
   useLibraryDocs(orgId, [template]);
@@ -125,7 +130,7 @@ export function useSources(ctx: Ctx, unitId: string | null | undefined, language
         out.push({ itemId: m.itemId, kind: 'biblebrain', from: 'mine', name: m.name, abbreviation: m.abbreviation, language: m.language, ...(bible ? { bible } : {}) });
       }
     }
-    if (recs.size === 0) {
+    if (recs.size === 0 || (wholeBook && out.length === 0)) {
       for (const r of shared.rows) {
         const doc = get<SourceDoc>(r.latest_hash);
         if (!doc || doc.format !== 'source@1' || doc.language !== sourceLanguage) continue;
@@ -143,7 +148,7 @@ export function useSources(ctx: Ctx, unitId: string | null | undefined, language
       }
     }
     return orderOptions(out);
-  }, [recs, mine.list, shared.rows, get, details, library, range, ctx.org.state, languageId]);
+  }, [recs, mine.list, shared.rows, get, details, library, range, ctx.org.state, languageId, wholeBook]);
 
   // A recommended source whose body is not in this snapshot is not "no Bible"
   // (STUDY-036). The library view can omit the option entirely (no pin, no

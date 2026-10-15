@@ -63,7 +63,7 @@ export interface LanguageStatus {
   /**
    * Each passage's line: what lists of passages read (Map, Progress, My
    * Work), so none of them needs every passage's record in memory
-   * (decisions.md 107). A new object whenever any line changed.
+   * (decisions.md 108). A new object whenever any line changed.
    */
   lines: PassageLines;
 }
@@ -95,7 +95,7 @@ export interface LanguageSessionOptions {
   scheduler?: { pollMs?: number };
   /**
    * Keep the language's recordings and file verdicts on disk, holding in
-   * memory only the passages `loadUnits` asks for (decisions.md 107).
+   * memory only the passages `loadUnits` asks for (decisions.md 108).
    */
   keepOnDisk?: boolean;
   /** The app's build: lines kept by another build are worked out again (`SyncClientOptions.build`). */
@@ -347,7 +347,7 @@ export class LanguageSession {
 
   /**
    * Hold these passages' recordings in memory: the one a screen shows and
-   * those next to it (decisions.md 107). Others stay on the phone's disk.
+   * those next to it (decisions.md 108). Others stay on the phone's disk.
    */
   async loadUnits(unitIds: readonly string[]): Promise<void> {
     await this.client.loadUnits(unitIds);

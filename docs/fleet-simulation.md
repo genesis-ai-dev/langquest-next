@@ -142,7 +142,7 @@ First runs (2026-10-12):
 ## Phones that keep the language on disk
 
 `keepOnDisk: 'half'` (or `true`) makes every other phone keep the language
-on its disk as the app does (decisions.md 107): each passage's record in
+on its disk as the app does (decisions.md 108): each passage's record in
 the phone's table, memory only what arrived since the last checkpoint, and
 the transfer workers planning from file lists (`LanguageFiles`). At the
 end each such phone's language is its memory combined with everything it

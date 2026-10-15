@@ -34,7 +34,7 @@ function useStudyRevision(): number {
  * Offline counts for these passages, recomputed when files arrive, leave,
  * or a passage is kept. A kept passage's come from the counts worked out
  * from the phone's table (useLanguage); another is on screen, so its
- * recordings are in memory (decisions.md 107).
+ * recordings are in memory (decisions.md 108).
  */
 function useOfflineUnits(ctx: Ctx, unitIds: readonly string[]): Map<string, KeptOffline> {
   const state = ctx.language.state;
@@ -61,7 +61,7 @@ function useOfflineUnits(ctx: Ctx, unitIds: readonly string[]): Map<string, Kept
  * from the map is not kept. Shared by every row drawn from the same inputs.
  */
 export function keptOfflineMap(ctx: Ctx): Map<string, KeptOffline> {
-  // Worked out from the phone's table after changes (useLanguage), not on every draw (decisions.md 107).
+  // Worked out from the phone's table after changes (useLanguage), not on every draw (decisions.md 108).
   const counted = ctx.language.blobs.keptOffline;
   if (!counted) return new Map();
   const rev = studyRevision();

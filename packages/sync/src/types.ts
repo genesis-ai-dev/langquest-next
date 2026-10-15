@@ -12,7 +12,7 @@ export interface WriteBatch {
   prune?: { orgId: string; streamId: string; uptoSeq: number };
   /**
    * Records a language keeps on the phone instead of in memory (decisions.md
-   * 107): upsert these. `clear` first drops every kept record of the
+   * 108): upsert these. `clear` first drops every kept record of the
    * stream; `replaceFrom` then moves in the records written under another
    * stream id while a fresh snapshot was read, so the language switches to
    * them in the same commit as its new checkpoint.
@@ -22,7 +22,7 @@ export interface WriteBatch {
 
 /**
  * One record a big language keeps on the phone rather than in memory
- * (decisions.md 107): an entry of a map the language is cut into by
+ * (decisions.md 108): an entry of a map the language is cut into by
  * passage (a recording, a take, a review, a note; core `PASSAGE_PARTS`),
  * the server's verdict on an audio file (`file`), which record names an
  * audio file (`audio`), or a passage's line for lists (`line`). `json` is

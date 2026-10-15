@@ -9,7 +9,7 @@ import { stateRevision } from './reducer';
 import type { LanguageState } from './state';
 
 /**
- * One line per passage (decisions.md 107): what every list of passages
+ * One line per passage (decisions.md 108): what every list of passages
  * reads of it, so Map, Progress, My Work and the Inbox badge never need
  * every passage's record in memory. A line is worked out from the
  * passage's record by `derivePassage` and nothing else, so it cannot

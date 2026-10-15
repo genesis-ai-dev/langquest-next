@@ -910,12 +910,11 @@ Preconditions (in addition to the global ones):
 - Resets: adds one followed and one copied template.
 
 Steps:
-1. Content Templates → "From other organizations". Tap "Bible chapters
-   (English)".
+1. Content Templates → "From other organizations". Tap "By chapter".
 2. Tap "Follow", then "Update automatically".
 3. Tap "Undo".
 4. Follow it again with "I'll take updates".
-5. Open "Bible books (English)". Tap "Copy".
+5. Open "OpenBible: long sections". Tap "Copy".
 6. Turn the network off and reopen Content Templates.
 
 Expected:
@@ -929,6 +928,9 @@ Expected:
 - A followed template opens read only: "It follows LangQuest" / "Its
   versions come from there. Copy it to change it." with "Copy to change
   it".
+- LangQuest's ways are listed once each, in English numbering; its older
+  templates ("Bible chapters (English)", "Bible books (English)") and its
+  ways in other numberings are not (decision 107).
 - Offline: "Could not refresh this list" with "Showing the list this device
   saved."
 
@@ -942,7 +944,7 @@ Preconditions (in addition to the global ones):
   new version as the owner, or use the preview environment).
 
 Steps:
-1. Content Templates → "Options" on "Bible books (English)" (copied in
+1. Content Templates → "Options" on "OpenBible: long sections" (copied in
    SETUP-033).
 2. Turn on "Share with other organizations"; then "Let them follow
    updates". Undo each, then turn them on again.
@@ -983,8 +985,9 @@ Expected:
   for one of the organization's own), and "Change template".
 - "Divide into passages" lists books with "{n} passages".
 - "zzz" says "No book matches “zzz”."
-- "Luke" opens Luke ("Alpha · {n} passages"). Only books already broken up
-  are listed; one that waits is opened from the map (SETUP-040).
+- "Luke" opens Luke ("Alpha · {n} passages"). Books waiting to be divided
+  are listed too, as "Waiting to be broken up", and open the ways to divide
+  them (decision 107).
 
 ### SETUP-036 Choose a different template for a language
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -994,7 +997,7 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. Alpha's template view (SETUP-035) → "Change template".
-2. Tap another template, for example "Bible books (English)" (SETUP-033).
+2. Tap another template, for example "OpenBible: long sections" (SETUP-033).
 3. Read the footer.
 4. Tap "Use Songs {run}". Tap "Undo".
 
@@ -1021,16 +1024,27 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. Content Templates → "Template".
-2. Tap "Scripture". Choose "Like most English Bibles · 66 books".
-3. Type "Gospels {run}" in "Name". Under "Divide into" pick "Chapters".
-4. Tap "Genesis" → "Remove this book".
-5. Tap "Create template".
+2. Tap "Scripture". Tap "King James Version", then Continue.
+3. Tap "By chapter", then Continue.
+4. Type "Gospels {run}" in "Name".
+5. Tap "Genesis" → "OpenBible: usual sections" → "Change Genesis".
+6. Tap "Exodus" → "Rename or remove Exodus" → "Remove this book".
+7. Tap "Create template".
 
 Expected:
 - "What will languages record with it?" offers "Scripture" ("Books and
   chapters of the Bible, divided into passages as teams go.") and
   "Something else".
-- "Divide into" offers "Whole books" and "Chapters".
+- Scripture asks what New language asks (decision 107): "Which Bible do you
+  translate from?" with "Not listed? Answer a few questions", then "How
+  should the Bible be broken up?" with "Divide it your own way" first.
+- The editor has no "Whole books" or "Chapters" choice; it says "Tap a book to choose how
+  it's divided."
+- A book opens "Change how Genesis is broken up" with "Divide it your own
+  way" first, then "Or pick a ready-made way", and "Rename or remove
+  Genesis". After the change, the toast says "Genesis is divided. Save the
+  template to keep it." and Genesis's row says "OpenBible: usual sections ·
+  {n} pieces".
 - The book sheet has "Name in the language" and "Remove this book" with
   "Languages using the template keep anything recorded in it; its parts are
   set aside, not deleted."; after removing it the list is "Books · 65".
@@ -1091,8 +1105,8 @@ Steps:
    language" when other languages use the template).
 
 Expected:
-- The template view lists only books already broken up: "No book matches
-  “Proverbs”.".
+- The template view lists Proverbs as "Waiting to be broken up" (books that
+  wait are listed there too, decision 107).
 - "How should Proverbs be broken up?" with way cards ("By chapter" and
   others, each with a preview).
 - When another language uses the template, "Which languages should

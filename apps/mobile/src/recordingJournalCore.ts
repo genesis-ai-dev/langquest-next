@@ -57,7 +57,7 @@ export interface ResumeDeps {
   /** Persist the destination through beforeMove before relocating the file. */
   ingest: (uri: string, format: JournalEntry['format'], beforeMove: (hash: string, size: number) => Promise<void>) => Promise<{ hash: string; size: number }>;
   blobExists: (hash: string, format: JournalEntry['format']) => boolean;
-  /** Has the fold already got this recording? A language kept on disk looks there too (decisions.md 107). */
+  /** Has the fold already got this recording? A language kept on disk looks there too (decisions.md 108). */
   hasRecording: (id: string) => boolean | Promise<boolean>;
   /** Append RecordingAdded for a fully ingested entry. */
   append: (entry: JournalEntry & { hash: string; target: JournalTarget }) => Promise<void>;

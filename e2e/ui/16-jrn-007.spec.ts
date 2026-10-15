@@ -2,6 +2,7 @@
 // (docs/ui-test-suite/16-role-journeys.md). A NEW account makes its own
 // organization; the world is only here for the run's name.
 import { backToTabs, watch } from './16-helpers';
+import { openSyncDetails } from './sync-helpers';
 import { back, button, byId, expect, expectToast, field, openSignedOut, primary, screenText, tab, tabsShown, test, text, useWorld } from './support';
 
 const world = useWorld();
@@ -120,6 +121,7 @@ test('JRN-007 An organization admin starts from nothing @p0', async ({ page }) =
   // Every write accepted.
   await back(page).click();
   await button(page, /^Sync/).click();
+  await openSyncDetails(page);
   await expect.poll(async () => (await screenText(page)).match(/(\d+)\s*refused by the server/)?.[1]).toBe('0');
   // And on this device's log, across every stream it holds (G10.2).
   const refused = await page.evaluate(async () => {

@@ -113,7 +113,7 @@ function waitingBooks(state: LanguageState): string[] {
   return indexesFor(state).waiting.map((unitId) => unitPlace(state, unitId).bookId).filter((b): b is string => !!b);
 }
 
-/** Each passage reads off its line (decisions.md 107): the map never needs every passage's record in memory. */
+/** Each passage reads off its line (decisions.md 108): the map never needs every passage's record in memory. */
 function languageEntries(state: LanguageState, lines: PassageLines): Entry[] {
   const hit = entryCache.get(lines);
   if (hit && hit.state === state) return hit.entries;

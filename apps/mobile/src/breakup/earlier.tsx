@@ -47,7 +47,7 @@ export function useEarlierSections(ctx: Ctx, state: LanguageState | null): Earli
     if (!state || !current) return out;
     const idx = indexesFor(state);
     const now = new Set(idx.passages);
-    // Sections with anything recorded or composed, read off their lines (decisions.md 107).
+    // Sections with anything recorded or composed, read off their lines (decisions.md 108).
     const worked = [...lines.worked()].filter((u) => lines.get(u).worked);
     const expired = [...worked].filter((u) => !now.has(u) && state.units[u] && unitPrefixOf(u) !== null && !idx.containers.includes(u));
     if (expired.length === 0) return out;

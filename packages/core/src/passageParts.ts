@@ -4,7 +4,7 @@ import type { LanguageState } from './state';
 import { earlier } from './ties';
 
 /**
- * A language cut by passage (decisions.md 107). Most of what a language
+ * A language cut by passage (decisions.md 108). Most of what a language
  * holds belongs to one passage: its recordings, versions, reviews, notes,
  * requests and the rest. A phone that keeps a big language on disk holds a
  * passage's part in memory only while a screen needs it, so each entry of

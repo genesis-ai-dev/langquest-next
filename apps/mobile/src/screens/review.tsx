@@ -218,7 +218,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   async function save(outcome: 'looks_good' | 'needs_changes' | 'recorded') {
     const live = ctx.language.state;
     if (!live || !v || !version || !kind || busy) return;
-    // A check logged for other passages too reads their records from the phone's disk (decisions.md 107).
+    // A check logged for other passages too reads their records from the phone's disk (decisions.md 108).
     const state = logged && also.length ? (await ctx.language.withPassages([v.unitId, ...also])) ?? live : live;
     const cmd = Crypto.randomUUID();
     const c = commands(state, indexesFor(state));

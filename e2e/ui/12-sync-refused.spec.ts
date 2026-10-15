@@ -9,7 +9,7 @@
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import { button, deviceEvents, expect, expectSyncIdle, syncNow, test, text, useWorld } from './support';
 import {
-  atA, caughtUp, deviceAs, eventsHere, openRecord, openSync, passageAs, quietReloads, recordAndPublish, serverHasAudio, setMembership, setOffline, syncChip, tile, toTab
+  atA, caughtUp, deviceAs, eventsHere, openRecord, openSync, passageAs, quietReloads, recordAndPublish, serverHasAudio, setMembership, setOffline, SYNC_CLEAR, syncChip, tile, toTab
 } from './sync-helpers';
 
 const world = useWorld();
@@ -102,7 +102,7 @@ test('SYNC-020 Refused work goes again when access returns', async ({ browser })
   await expect.poll(() => tile(page, 'waiting to upload'), { timeout: 30_000 }).toBe(0);
   await expect(text(page, /^Refused · \d/)).toBeHidden();
   await toTab(page, 'work');
-  await expect(syncChip(page)).toBeHidden({ timeout: 30_000 });
+  await expect(syncChip(page)).toHaveAccessibleName(SYNC_CLEAR, { timeout: 30_000 });
   // Device 2: Version 1 is there, by TRANS, and its audio is on the server.
   const { view } = await passageAs(w, 'COORD', w.passages[key].unitId);
   expect(view.latest?.by).toBe(w.accounts.TRANS.id);

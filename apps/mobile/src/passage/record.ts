@@ -554,7 +554,7 @@ export function askCandidates(
   o: { languageId: string; what: 'record' | 'review'; kindId?: string; me: string; lines: PassageLines }
 ): AskCandidate[] {
   const need: Privilege = o.what === 'record' ? 'translate' : 'review';
-  // Who did this kind here before, read off the passages' lines (decisions.md 107).
+  // Who did this kind here before, read off the passages' lines (decisions.md 108).
   const reviewedHere = new Set<string>(o.what === 'review' && o.kindId ? reviewersOf(o.lines, o.kindId).keys() : []);
   // The check's people come first (decision 91): admins put them on the check, and they are the top choices when someone asks for it.
   const onCheck = new Set(o.what === 'review' && o.kindId ? checkPeople(state, o.kindId) : []);

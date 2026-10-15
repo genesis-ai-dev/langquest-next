@@ -325,7 +325,7 @@ const recordedCache = new WeakMap<PassageLines, { state: LanguageState; out: Pas
 
 /**
  * Every passage in the language with at least one published version, in
- * canon order. Read off the passages' lines (decisions.md 107), cached per
+ * canon order. Read off the passages' lines (decisions.md 108), cached per
  * lines and state, so a whole Bible costs nothing to reopen.
  */
 export function recordedPassages(state: LanguageState, lines: PassageLines): PassageChoice[] {

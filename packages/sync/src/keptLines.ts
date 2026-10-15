@@ -19,7 +19,7 @@ interface Owed {
 }
 
 /**
- * One line per passage for a language kept on disk (decisions.md 107):
+ * One line per passage for a language kept on disk (decisions.md 108):
  * what Map, Progress, My Work and the Inbox read instead of every
  * passage's record. Lines are kept as rows beside the passages and held in
  * memory whole (a few hundred bytes a passage).

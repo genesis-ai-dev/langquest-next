@@ -1420,8 +1420,8 @@
       "wholeBooks": "Whole books",
       "chapters": "Chapters",
       "passages": "Passages",
-      "passagesNote_one": "{{count, number}} passage, as the version this started from divides them. Changing where passages start is coming.",
-      "passagesNote_other": "{{count, number}} passages, as the version this started from divides them. Changing where passages start is coming.",
+      "passagesNote_one": "{{count, number}} passage, as the version this started from divides them.",
+      "passagesNote_other": "{{count, number}} passages, as the version this started from divides them.",
       "eachBook": "Each book is one part to record.",
       "eachChapter": "Each chapter is one part to record.",
       "booksCount": "Books · {{n, number}}",
@@ -1442,8 +1442,7 @@
       "scripture": "Scripture",
       "scriptureSub": "Books and chapters of the Bible, divided into passages as teams go.",
       "else": "Something else",
-      "elseSub": "Lessons, stories, a commentary — any outline you build yourself.",
-      "numbering": "Which numbering of chapters and verses does it follow?"
+      "elseSub": "Lessons, stories, a commentary — any outline you build yourself."
     },
     "levelSheet": {
       "title": "Level",
@@ -1509,6 +1508,11 @@
       "gap": "From verse {{verse}}, these verses aren't in any {{part}} yet.",
       "verseLabel": "Verse {{chapter}}:{{verse}}",
       "versePlaceholder": "verse {{verse}}"
+    },
+    "divide": {
+      "done": "{{book}} is divided. Save the template to keep it.",
+      "tapBook": "Tap a book to choose how it's divided.",
+      "nameOrRemove": "Rename or remove {{book}}"
     }
   },
   "breakup": {
@@ -1681,7 +1685,9 @@
       "noneReady": "There are no ready-made ones for this yet. Make your own: folders for how it's organized, and the things people record inside them.",
       "makeOwn": "Make your own",
       "makeOwnDetail": "Folders, and what to record in them.",
-      "elseKinds": "Stories, songs, lessons"
+      "elseKinds": "Stories, songs, lessons",
+      "ownSub": "Book by book: read each one and choose where its sections start",
+      "ownNote": "Every book waits until it's divided. Open it from the map or My Work, read it in a Bible and choose where its sections start, or start from a ready-made way."
     },
     "errors": {
       "noTemplate": "This language has no template yet.",
@@ -1882,6 +1888,12 @@
       "sections_other": "{{count, number}} sections",
       "partsIn_one": "{{count, number}} part in {{book}}",
       "partsIn_other": "{{count, number}} parts in {{book}}"
+    },
+    "division": {
+      "way_one": "{{way}} · {{count, number}} piece",
+      "way_other": "{{way}} · {{count, number}} pieces",
+      "own_one": "Its own way · {{count, number}} piece",
+      "own_other": "Its own way · {{count, number}} pieces"
     }
   },
   "canon": {
@@ -2903,7 +2915,6 @@
     "sync": {
       "syncing": "Syncing…",
       "syncNow": "Sync now",
-      "checking": "Checking for changes now and then",
       "refused": "The server refused this account for this organization.",
       "tooOld": "Update the app to sync.",
       "waitingUpload": "waiting to upload",
@@ -2923,7 +2934,28 @@
       "waitingCount": "Waiting · {{n, number}}",
       "refusedCount": "Refused · {{n, number}}",
       "events_one": "{{count, number}} event on this device",
-      "events_other": "{{count, number}} events on this device"
+      "events_other": "{{count, number}} events on this device",
+      "standing": {
+        "live": "Live",
+        "checking": "Connected",
+        "offline": "Offline",
+        "refused": "Not syncing"
+      },
+      "help": {
+        "live": "Changes from your team arrive as they happen, and yours go out right away.",
+        "checking": "Connected, but the live channel is down, so this device checks for changes every few minutes. Sync now checks at once.",
+        "offline": "No connection. Everything you do is kept on this device and sends by itself when you are back online.",
+        "refused": "The server is not accepting changes from this device. Your work is still kept here.",
+        "toSend": "Changes and recordings made on this device that the server has not confirmed yet. They are safe here and go when there is a connection.",
+        "toReceive": "Recordings from others that this device is still downloading.",
+        "refusedLine": "Changes the server would not accept, usually because a permission changed. They stay on this device; open Details to see each one."
+      },
+      "toSend": "To send",
+      "toReceive": "To receive",
+      "refusedLine": "Refused",
+      "none": "None",
+      "moreInfo": "More about this",
+      "details": "Details"
     }
   },
   "study": {
@@ -3612,10 +3644,8 @@
       "help": "What you asked of someone else that is not done yet."
     },
     "sync": {
-      "refused": "Not syncing",
       "toSend_one": "{{count, number}} to send",
-      "toSend_other": "{{count, number}} to send",
-      "offline": "Offline"
+      "toSend_other": "{{count, number}} to send"
     },
     "join": {
       "wantsToJoin": "{{name}} wants to join",

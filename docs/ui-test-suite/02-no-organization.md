@@ -261,11 +261,11 @@ Preconditions (in addition to the global ones):
 Resets: ADMIN now has "UI Admin Org". AUTH-030 relies on it.
 
 Steps:
-1. Me → More settings → "Switch Organization".
+1. Me → "Switch Organization" (on Me itself: ADMIN is in two organizations).
 2. Tap "New organization", then the back arrow.
 3. Tap "New organization" again. Type "UI Admin Org" and tap "Create Organization".
-4. Me → More settings → "Switch Organization" → "UI Test Org".
-5. Switch to "UI Second Org".
+4. Me → "Switch Organization" → "UI Test Org".
+5. Me → "Switch Organization" → "UI Second Org".
 
 Expected:
 - Step 1: "Switch Organization" lists UI Test Org (ticked, read out as "UI Test Org, active") and UI Second Org. Then "New organization" / "You'll be its admin. Your place in the others stays as it is."

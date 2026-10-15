@@ -31,7 +31,7 @@ import { baseWay, LATER_ITEM } from '../breakup/model';
 import { useEarlierSections } from '../breakup/earlier';
 import { pendingRequests, type PendingRequest } from '../invites';
 import { cachedInbox, refreshInbox, type RemoteNotification } from '../notifications';
-import { Card, Group, Header, Ico, Row, Screen, SectionLabel, SmallBtn, StepMarks, txt, type IconName } from '../kit';
+import { Card, Group, Header, Ico, Row, Screen, SectionLabel, StepMarks, txt, type IconName } from '../kit';
 import { dueText, isJustNow, when } from '../passageView';
 import { noteExpected } from '../report';
 import { contractsFor } from '../screenContracts';
@@ -41,6 +41,7 @@ import { checkName } from '../simple/adminModel';
 import { Faces } from '../checks/parts';
 import { useReadySummary, type ReadySummary } from '../simple/ready';
 import { nextSub, readiness, readySteps, THEN_CAP, waitingWhat, waitingWho, workIcon, workSub, workTarget, workWhat, type Readiness } from '../simple/homeModel';
+import { SyncIndicator } from '../SyncIndicator';
 import { C, space, TINT } from '../theme';
 
 const RECENT_CAP = 5;
@@ -145,15 +146,10 @@ function useElsewhere(ctx: Ctx): { languageId: string; count: number }[] {
   }, [rows, read, orgId, open]);
 }
 
-/** The sync state, small, beside the bell, only when it needs noticing: work still on this device, offline, or refused (all of it, or some events). */
+/** The sync state as one icon beside the bell, always: live or not, and what is still moving. */
 function SyncChip(ctx: Ctx) {
-  const p = ctx.language;
   if (!canGo(ctx, 'sync_status')) return null;
-  // Work the server refused one event at a time is kept and must be seen (PLAN.md invariant 1).
-  const label = p.refused ? t('work.sync.refused') : p.refusedEvents > 0 ? t('account.sync.refusedCount', { n: p.refusedEvents })
-    : p.pending > 0 ? t('work.sync.toSend', { count: p.pending }) : p.online === false ? t('work.sync.offline') : null;
-  if (!label) return null;
-  return <SmallBtn icon="cloud" label={label} onPress={() => ctx.go('sync_status')} />;
+  return <SyncIndicator language={ctx.language} org={ctx.org} onPress={() => ctx.go('sync_status')} />;
 }
 
 interface WorkItem {
@@ -194,7 +190,7 @@ export function MyWork(ctx: Ctx) {
 
   // Everything here is in the open language: its stream is the one on this phone.
   const languageId = ctx.languageId;
-  // Read off each passage's line (decisions.md 107), never every passage's record.
+  // Read off each passage's line (decisions.md 108), never every passage's record.
   const lines = ctx.language.lines;
   const lists = useMemo(() => {
     if (!state) return null;

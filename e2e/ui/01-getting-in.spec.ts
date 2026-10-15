@@ -74,10 +74,9 @@ async function onlyThisWorld(page: Page) {
   });
 }
 
-/** Me → More settings → Switch Organization. */
+/** Me → Switch Organization: on Me itself for someone in several organizations (decision 71, amended 2026-10-14). */
 async function openSwitchOrganization(page: Page) {
   await tab(page, 'me').click();
-  await text(page, 'More settings').click();
   await text(page, 'Switch Organization').click();
 }
 

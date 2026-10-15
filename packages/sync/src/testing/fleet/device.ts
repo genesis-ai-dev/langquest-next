@@ -44,7 +44,7 @@ export interface FleetContext {
   audio: { bytesPerSecond: number } | null;
   /** When each audio file was recorded, for the time until it is on the server and on another phone. */
   recordedAt: Map<string, number>;
-  /** Does the phone at this place in the fleet keep the language on disk (decisions.md 107)? */
+  /** Does the phone at this place in the fleet keep the language on disk (decisions.md 108)? */
   keepsOnDisk: (index: number) => boolean;
   /** Confirmed events between checkpoints, when not the app's. */
   checkpointEvery?: number;
@@ -129,7 +129,7 @@ export class SimDevice {
   private store = new MemoryStore();
   private files: LanguageFiles | null = null;
 
-  /** Keeps the language on disk, as the app does (decisions.md 107)? */
+  /** Keeps the language on disk, as the app does (decisions.md 108)? */
   get keepsOnDisk(): boolean {
     return this.fleet.keepsOnDisk(this.index);
   }
