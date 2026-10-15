@@ -1,4 +1,4 @@
-// Writing beside recording (decisions.md 106): what the screens need from the
+// Writing beside recording (decisions.md 107): what the screens need from the
 // record, pure so it is tested. A written version, or something written that
 // a step made, is one written part per verse; its verse is a `set` label on
 // the part (decisions.md 82), so a verse left empty never shifts the ones
@@ -178,7 +178,7 @@ export function isMaking(kind: KindDef): boolean {
 }
 
 /**
- * What a check reads of a version (decisions.md 106): what its earlier
+ * What a check reads of a version (decisions.md 107): what its earlier
  * making step made from that version, when the check reads one, else the
  * version itself.
  */

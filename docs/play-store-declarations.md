@@ -110,7 +110,7 @@ every type.
 | Personal info | Phone number (a guest reviewer's contact, typed in by a user) | Yes | No | Optional | App functionality |
 | Messages | Other in-app messages (review comments, join request messages) | Yes | No | Optional | App functionality |
 | Audio | Voice or sound recordings | Yes | No | Required | App functionality |
-| App activity | Other user-generated content (written translations, transcriptions and back translations, decisions.md 106; reviews, notes, answers, reports of content or people, blocked people, which Bibles and guides were used for a version or review) | Yes | No | Required | App functionality |
+| App activity | Other user-generated content (written translations, transcriptions and back translations, decisions.md 107; reviews, notes, answers, reports of content or people, blocked people, which Bibles and guides were used for a version or review) | Yes | No | Required | App functionality |
 | Photos and videos | Photos (pictures and maps an admin adds to a study guide) | Yes | No | Optional | App functionality |
 | Photos and videos | Videos (films an admin adds to a study guide) | Yes | No | Optional | App functionality |
 | Audio | Other audio files (step and glossary audio an admin uploads to a study guide) | Yes | No | Optional | App functionality |
@@ -135,6 +135,15 @@ no data type changes. Its Android permission, `ACCESS_NETWORK_STATE`, was
 already in the app's merged manifest (from `expo-updates`) and is a normal
 permission the person is never asked for, so no Play Console answer
 changes.
+
+`expo-keep-awake` (decisions.md 106) keeps the screen on while the
+microphone is recording, so a hands-free session is not ended by the
+screen timeout. It sets a flag on the app's window; it needs no Android
+permission and collects or sends nothing, so no Play Console answer changes.
+
+Recordings (decisions.md 106) are kept and uploaded as AAC (`.m4a`) on a
+phone instead of WAV: the same voice recordings in a smaller file, so the
+"Voice or sound recordings" answer is unchanged.
 
 Bible text and audio (docs/reference-material.md, decisions.md 62) come
 from Faith Comes By Hearing's Bible Brain through our Worker, which holds the
@@ -186,7 +195,7 @@ this block.
     "@expo/metro-runtime", "@langquest-next/core", "@langquest-next/sync",
     "@react-native-async-storage/async-storage", "@react-navigation/native",
     "@react-navigation/native-stack", "@supabase/supabase-js", "d3-geo", "expo", "expo-audio",
-    "expo-camera", "expo-crypto", "expo-dev-client", "expo-file-system", "expo-localization", "expo-network",
+    "expo-camera", "expo-crypto", "expo-dev-client", "expo-file-system", "expo-keep-awake", "expo-localization", "expo-network",
     "expo-notifications", "expo-screen-orientation", "expo-sqlite", "expo-status-bar", "expo-updates",
     "i18n-iso-countries", "i18next", "lucide-react-native", "react", "react-dom", "react-i18next", "react-native", "react-native-qrcode-svg",
     "react-native-safe-area-context", "react-native-screens", "react-native-svg",

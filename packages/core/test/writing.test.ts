@@ -9,7 +9,7 @@ import { validateEvent } from '../src/validate';
 import { defaultResult, isWrittenPart, mediaAllowed, partsMedium, resultAllowed, sha256Hex, writtenPartId, writtenText } from '../src/writing';
 
 /**
- * Writing beside recording, and steps that make something (decisions.md 106).
+ * Writing beside recording, and steps that make something (decisions.md 107).
  */
 
 const env = (type: EventType, payload: unknown, n = 1): AnyEvent =>

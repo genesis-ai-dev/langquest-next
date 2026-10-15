@@ -24,7 +24,7 @@ import { styles as ps } from './parts';
 export function PublishScreen(props: {
   ctx: Ctx; v: PassageView; n: number; first: boolean; cards: string[]; totalMs: number | undefined; bible: string | undefined;
   busy: boolean; answers: ReviewView[]; tied: number; revisingKind?: string;
-  /** A step makes this version (a final recording, decisions.md 106): the step says what it is, so no change note. */
+  /** A step makes this version (a final recording, decisions.md 107): the step says what it is, so no change note. */
   making?: boolean;
   onClose: () => void; onPublish: (note: string, hash: string | null) => void;
 }) {

@@ -1,14 +1,11 @@
-import { materialsFor, recordAudioHashes, unitAncestry, type BlobRef, type LanguageState } from '@langquest-next/core';
+import { materialsFor, recordAudioHashes, recordedCard, unitAncestry, type BlobRef, type LanguageState } from '@langquest-next/core';
 import { t } from './i18n';
 
 type AudioItem = { id: string; label: string; hash: string; format: BlobRef['format'] };
 
 function formatFor(state: LanguageState, hash: string): BlobRef['format'] {
-  for (const recording of Object.values(state.recordings)) {
-    const card = recording.cards.find((c) => c.hash === hash);
-    if (card) return card.format ?? 'wav';
-  }
-  return 'm4a';
+  const card = recordedCard(state, hash);
+  return card ? card.format ?? 'wav' : 'm4a';
 }
 
 export function getReferenceSlides(state: LanguageState, unitId: string): AudioItem[] {

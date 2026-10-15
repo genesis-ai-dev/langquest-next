@@ -138,7 +138,7 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
   // Any work at all, published or not: a change of numbering moves it (decision 80).
   const worked = useMemo(() => Object.keys(state.recordings).length + Object.keys(state.takes).length > 0, [state]);
   const [warn, setWarn] = useState(false);
-  // What the team may make (decisions.md 106): recordings, writing or both, and which leads.
+  // What the team may make (decisions.md 107): recordings, writing or both, and which leads.
   const allowed = mediaAllowed(state);
   const [media, setMedia] = useState<MediaAllowed>(allowed);
   const mediaChanged = media.recording !== allowed.recording || media.writing !== allowed.writing || media.first !== allowed.first;

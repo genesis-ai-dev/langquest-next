@@ -24,7 +24,7 @@ describe('UX flow coverage', () => {
       'settings_more',
       // One of a language's checks, with its people, questions and helps (decision 91).
       'check_editor',
-      // Something made from a version (decision 106).
+      // Something made from a version (decision 107).
       'made_detail'] as const;
     expect(SCREEN_IDS.length).toBe(kept.length + appOnly.length);
     for (const id of appOnly) expect(screenTitle(id)).not.toBe(`screens.${id}`);

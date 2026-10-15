@@ -145,7 +145,7 @@ export type RecordEvents = {
   /** Someone finished (or un-finished) a study step for a passage (ADR-018). Register per (unit, guide, step). */
   'v1.StudyStepMarked': { unitId: string; guideId: string; stepId: string; done: boolean };
   /**
-   * A kind that makes something (decisions.md 106): it turns recording or
+   * A kind that makes something (decisions.md 107): it turns recording or
    * writing into recording or writing, in the same language or another, and
    * may make the passage's next version. `null` makes it an ordinary check
    * again. Register per kind.
@@ -159,7 +159,7 @@ export type RecordEvents = {
   'v1.CheckLooksAtSet': { kindId: string; makerKindId: string | null };
   /**
    * Something made from a version, or from something made from one
-   * (decisions.md 106): exactly one of `fromTakeId` and `fromMadeId`, and
+   * (decisions.md 107): exactly one of `fromTakeId` and `fromMadeId`, and
    * exactly one of `parts` (recorded cards or written parts, one kind) and
    * `takeId` (it became the passage's next version). `kindId` is the step
    * that made it, absent when none did (brought over from LangQuest v2);
@@ -193,7 +193,7 @@ export interface KindDef {
   usualReviewer: string;
   withholdsContext?: boolean;
   produces?: ProducesSpec;
-  /** What it makes, when it is a making step (v1.StepMakesSet, decisions.md 106); read from the fold, never a field of ReviewKindDefined. */
+  /** What it makes, when it is a making step (v1.StepMakesSet, decisions.md 107); read from the fold, never a field of ReviewKindDefined. */
   makes?: MakesSpec;
   /** The making kind whose output it reads, when it checks one (v1.CheckLooksAtSet). */
   looksAt?: string;
@@ -348,10 +348,10 @@ export const FLOWS: FlowTemplate[] = [
     description: 'No reviews: a passage is done once it is recorded.',
     steps: [] },
   { id: 'spoken_oral', name: 'Spoken Oral Method',
-    description: 'Community check on the first draft, peer review of the second, back translation, consultant sessions until approved, then a local check of the polished recording.',
+    description: 'Peer review of the first draft, community check of the second, back translation, consultant sessions until approved, then a local check of the polished recording.',
     steps: [
-      { stepId: 's1', kindIds: ['community'] },
-      { stepId: 's2', kindIds: ['peer'] },
+      { stepId: 's1', kindIds: ['peer'] },
+      { stepId: 's2', kindIds: ['community'] },
       { stepId: 's3', kindIds: ['bt'] },
       { stepId: 's4', kindIds: ['consultant'], checkpoint: true },
       { stepId: 's5', kindIds: ['local'] }

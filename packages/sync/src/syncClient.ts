@@ -122,6 +122,12 @@ export interface SyncClientOptions<S = LanguageState> {
 const SLOW_SYNC_MS = 2_000;
 /** After the server says it has no snapshot for a stream, how long before asking again. */
 const NO_SNAPSHOT_RECHECK_MS = 5 * 60 * 1000;
+/**
+ * Snapshot pieces requested at once on a cold start (decisions.md 18,
+ * amended). Enough that a phone on a slow, far link is never idle between
+ * pieces; few enough that a dropped link wastes little.
+ */
+const SNAPSHOT_PIECES_IN_FLIGHT = 3;
 /** A repeated non-ok outcome (offline, refused) is recorded at most this often. */
 const REPEAT_OUTCOME_MS = 60 * 60 * 1000;
 
@@ -328,6 +334,11 @@ export class SyncClient<S = LanguageState> {
    * drops mid-way resumes from the pieces already here (PLAN.md section 2:
    * small deltas succeed). Pieces are separate rows: persistence cost is
    * linear in snapshot size, not quadratic in piece count.
+   *
+   * The pieces are bookkeeping, not state: they are written straight to the
+   * store, past the writer that tells screens a save is under way. Through
+   * it, every piece redrew the app twice, and on a 2 GB phone the redraws
+   * were three quarters of a 46-second first open of a 40 MB language.
    */
   private async adoptServerSnapshot(): Promise<number> {
     const started = this.elapsed();
@@ -358,17 +369,17 @@ export class SyncClient<S = LanguageState> {
         const text = await this.opts.store.meta(this.chunkPieceKey(index.seq, i));
         if (text) savedMap.set(i, text);
       }
+    } else {
+      // Pieces of an older snapshot are no use: drop them and say whose pieces follow, before any arrives.
+      await this.clearChunks(index);
+      index = { seq: meta.serverSeq, chunks: meta.chunks };
+      await this.opts.store.commit({ meta: { [this.chunkKey()]: JSON.stringify(index) } });
     }
     const snap = await fetchSnapshot(this.opts.transport, this.opts.orgId, this.opts.streamId, this.m.version, {
+      meta,
       saved: savedMap,
-      onChunk: async (serverSeq, i, text) => {
-        if (index.seq !== serverSeq) {
-          await this.clearChunks(index);
-          index = { seq: serverSeq, chunks: meta.chunks };
-          await this.commit({ meta: { [this.chunkKey()]: JSON.stringify(index) } });
-        }
-        await this.commit({ meta: { [this.chunkPieceKey(serverSeq, i)]: text } });
-      }
+      inFlight: SNAPSHOT_PIECES_IN_FLIGHT,
+      onChunk: (serverSeq, i, text) => this.opts.store.commit({ meta: { [this.chunkPieceKey(serverSeq, i)]: text } })
     });
     // Fetching pieces is waiting on the network; saving and folding them after this is the phone's work (a `load` record).
     this.net.pull += this.elapsed() - started;
@@ -379,7 +390,7 @@ export class SyncClient<S = LanguageState> {
     }
     this.opts.diag?.record('snapshot', { ...fetched, t: { outcome: 'ok' } });
     await this.clearChunks(index);
-    await this.commit({ meta: { [this.chunkKey()]: '' } });
+    await this.opts.store.commit({ meta: { [this.chunkKey()]: '' } });
     await this.saveSnapshot(snap);
     await this.load();
     return snap.serverSeq;
@@ -388,7 +399,7 @@ export class SyncClient<S = LanguageState> {
   private async clearChunks(index: { seq: number; chunks: number }): Promise<void> {
     const meta: Record<string, string> = {};
     for (let i = 0; i < index.chunks; i++) meta[this.chunkPieceKey(index.seq, i)] = '';
-    if (index.chunks > 0) await this.commit({ meta });
+    if (index.chunks > 0) await this.opts.store.commit({ meta });
   }
 
   /** Roll the confirmed prefix into a local checkpoint and prune it. */

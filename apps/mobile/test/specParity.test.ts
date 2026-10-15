@@ -92,11 +92,11 @@ const APP_ONLY: Record<string, string> = {
   'settings_more->delete_account': 'More settings: Delete account, moved from Settings (decision 71; store rules, decisions.md 46)',
   'flow_editor->check_editor': "a language's Checks open one check, with its people, questions and helps (decision 91)",
   'review_capture->material_editor': "a check's help that is a note opens from the review (decision 91)",
-  'passage_record->made_detail': "Reviews by version opens something made from a version (decision 106)",
-  'version_detail->made_detail': 'a version lists what was made from it (decision 106)',
-  'made_detail->ask_someone': 'ask for the check that reads what a step made (decision 106)',
-  'version_detail->back_translation': 'change the words a step added to a version (decision 106)',
-  'made_detail->back_translation': 'change the words a step added to a version (decision 106)'
+  'passage_record->made_detail': "Reviews by version opens something made from a version (decision 107)",
+  'version_detail->made_detail': 'a version lists what was made from it (decision 107)',
+  'made_detail->ask_someone': 'ask for the check that reads what a step made (decision 107)',
+  'version_detail->back_translation': 'change the words a step added to a version (decision 107)',
+  'made_detail->back_translation': 'change the words a step added to a version (decision 107)'
 };
 
 /** App-only reference screens (docs/reference-material.md). */

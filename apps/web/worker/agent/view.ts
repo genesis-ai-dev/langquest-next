@@ -23,7 +23,7 @@ export interface LanguageView {
   can: { read: 'all' | 'published' | null; review: boolean; release: boolean; externalValues: { read: boolean; write: boolean } };
 }
 
-/** A version is recorded or written (decisions.md 106), known from its parts. */
+/** A version is recorded or written (decisions.md 107), known from its parts. */
 export const MEDIA = ['recording', 'writing'] as const satisfies readonly Medium[];
 
 /**
@@ -274,7 +274,7 @@ function cardsOf(state: LanguageState): Map<string, Card> {
 
 /**
  * Recorded parts as cards, never a written one (written parts are not
- * files, decisions.md 106). A part a recording holds takes that recording's
+ * files, decisions.md 107). A part a recording holds takes that recording's
  * length and format, as the stored file does (core referencedBlobs); else
  * the card a step made it with.
  */
@@ -372,7 +372,7 @@ function summarize(grant: Grant, state: LanguageState, s: PassageState): Passage
   const releases = releasesOf(state, s);
   let newest: string | null = s.latest?.hlc ?? null;
   for (const r of s.reviews) if (!newest || r.hlc > newest) newest = r.hlc;
-  // Words added to a version change what it holds; things made beside one are new too (decisions.md 106).
+  // Words added to a version change what it holds; things made beside one are new too (decisions.md 107).
   for (const m of s.made) if (!newest || m.hlc > newest) newest = m.hlc;
   // A take-down leaves no release behind, so every report on any version counts as a change.
   for (const v of s.versions) for (const reg of Object.values(state.releases?.[v.takeId] ?? {})) if (!newest || reg.hlc > newest) newest = reg.hlc;
@@ -967,7 +967,7 @@ export async function linkView(link: ReviewLink, org: OrgState, state: LanguageS
   const open = linkIsOpen(link, org, now);
   const audio: AudioCard[] = [];
   // A closed link plays nothing: revoking it is how a sharer takes the audio back.
-  // A written version plays the recording added to it, if any; its words are never files (decisions.md 106).
+  // A written version plays the recording added to it, if any; its words are never files (decisions.md 107).
   for (const card of open ? playedCards(state, s, v) : []) {
     const format = card.format ?? 'wav';
     const l = await sign(`${link.orgId}/${link.languageId}/${card.hash}.${format}`);
