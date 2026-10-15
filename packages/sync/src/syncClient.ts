@@ -139,6 +139,9 @@ export interface SyncClientOptions<S = LanguageState> {
   build?: string;
 }
 
+/** Per store and stream, the sync, push, pull or refold running now; the next waits for it (`SyncClient.exclusive`). */
+const TURNS = new WeakMap<object, Map<string, Promise<unknown>>>();
+
 /** A sync that moved nothing is recorded only when it took at least this long. */
 const SLOW_SYNC_MS = 2_000;
 /** After the server says it has no snapshot for a stream, how long before asking again. */
@@ -222,8 +225,18 @@ export class SyncClient<S = LanguageState> {
       : null;
   }
 
-  /** Rebuild the fold from the local log. Called once, and after a rejection. */
-  async load(): Promise<S> {
+  /**
+   * Rebuild the fold from the local log. Called once when the language
+   * opens; it waits for a sync of the same language still running on this
+   * phone (a session closed while its first download went on), which would
+   * otherwise find no checkpoint yet and drop the rows being written.
+   */
+  load(): Promise<S> {
+    return this.exclusive(() => this.refold());
+  }
+
+  /** Rebuild the fold from the local log: on opening, and after a rejection, a redaction or a fresh snapshot. */
+  private async refold(): Promise<S> {
     const started = this.elapsed();
     if (!this.opts.clock && !this.loaded) {
       const seed = await this.opts.store.meta(this.clockKey());
@@ -506,7 +519,7 @@ export class SyncClient<S = LanguageState> {
     await this.saveSnapshot(snap, kept, owed);
     // Rows written in place bypass the commits that say the table changed.
     this.kept?.changed();
-    await this.load();
+    await this.refold();
     return snap.serverSeq;
   }
 
@@ -692,11 +705,11 @@ export class SyncClient<S = LanguageState> {
         meta: this.clockMeta()
       });
     } catch (err) {
-      await this.load();
+      await this.refold();
       throw err;
     }
     // Redacting something already folded needs a refold to take effect.
-    if (events.some((e) => e.type === 'v1.Redacted')) await this.load();
+    if (events.some((e) => e.type === 'v1.Redacted')) await this.refold();
   }
 
   /**
@@ -751,7 +764,11 @@ export class SyncClient<S = LanguageState> {
    * read one page at a time, never whole. Returns how many were accepted
    * and rejected, and whether pending work remains.
    */
-  async push(): Promise<{ accepted: number; rejected: number; more: boolean }> {
+  push(): Promise<{ accepted: number; rejected: number; more: boolean }> {
+    return this.exclusive(() => this.pushOnce());
+  }
+
+  private async pushOnce(): Promise<{ accepted: number; rejected: number; more: boolean }> {
     let accepted = 0;
     let rejected = 0;
     let more = false;
@@ -812,7 +829,7 @@ export class SyncClient<S = LanguageState> {
       // A rejection means the fold contains something the server refused.
       // Refold from the log; the rejected event is excluded by `all()`.
       // Re-queued events left the fold when they were refused: refold to bring them back.
-      if (!this.opts.deliverOnly && (rejected > 0 || clockAhead.length > 0 || requeued > 0)) await this.load();
+      if (!this.opts.deliverOnly && (rejected > 0 || clockAhead.length > 0 || requeued > 0)) await this.refold();
     }
     return { accepted, rejected, more };
   }
@@ -847,9 +864,13 @@ export class SyncClient<S = LanguageState> {
    * a pull shows this actor's membership changed (audit L1), or by the UI
    * for a manual retry. Invalid payloads are never retried.
    */
-  async retryRejected(codes: readonly ReturnType<typeof rejectCodeOf>[] = ['NOT_MEMBER', 'NOT_ALLOWED', 'NOT_LISTED', 'UNKNOWN']): Promise<number> {
+  retryRejected(codes: readonly ReturnType<typeof rejectCodeOf>[] = ['NOT_MEMBER', 'NOT_ALLOWED', 'NOT_LISTED', 'UNKNOWN']): Promise<number> {
+    return this.exclusive(() => this.requeueAndRefold(codes));
+  }
+
+  private async requeueAndRefold(codes: readonly ReturnType<typeof rejectCodeOf>[]): Promise<number> {
     const n = await this.requeue(codes);
-    if (n > 0) await this.load();
+    if (n > 0) await this.refold();
     return n;
   }
 
@@ -864,13 +885,15 @@ export class SyncClient<S = LanguageState> {
   }
 
   /** Pull the whole stream's tail and fold it. Returns number of new events. */
-  async pull(): Promise<number> {
-    let total = 0;
-    for (;;) {
-      const r = await this.pullSlice(Infinity);
-      total += r.pulled;
-      if (!r.more) return total;
-    }
+  pull(): Promise<number> {
+    return this.exclusive(async () => {
+      let total = 0;
+      for (;;) {
+        const r = await this.pullSlice(Infinity);
+        total += r.pulled;
+        if (!r.more) return total;
+      }
+    });
   }
 
   /**
@@ -963,11 +986,11 @@ export class SyncClient<S = LanguageState> {
         const rest = await this.pullSlice(budgetMs);
         return { pulled: total + rest.pulled, more: rest.more };
       }
-      await this.load();
+      await this.refold();
       return { pulled: total, more };
     }
     // A redaction may target an event already folded; only a refold undoes it.
-    if (redacted) await this.load();
+    if (redacted) await this.refold();
     // Still catching up: skip the checkpoint (it serializes the whole state)
     // and take one when the tail is reached. Nothing is pruned before the
     // checkpoint, so a crash mid-catch-up only costs a longer fold on launch.
@@ -977,7 +1000,7 @@ export class SyncClient<S = LanguageState> {
     // reasons may be acceptable now. Queue it; the next push decides. The
     // app passes the news on to its language clients.
     if (membershipChanged) {
-      await this.retryRejected(['NOT_MEMBER', 'NOT_ALLOWED']);
+      await this.requeueAndRefold(['NOT_MEMBER', 'NOT_ALLOWED']);
       this.opts.onMembershipChanged?.();
     }
     return { pulled: total, more };
@@ -1017,7 +1040,7 @@ export class SyncClient<S = LanguageState> {
       ...(this.kept ? { kept: { ...this.stream(), clear: true } } : {}),
       ...(this.lines ? { meta: { [this.redactionKey()]: '', [this.snapshotKey()]: '', [this.snapshotSeqKey()]: '', [this.lines.owedKey()]: '' } } : {})
     });
-    await this.load();
+    await this.refold();
     return true;
   }
 
@@ -1032,13 +1055,33 @@ export class SyncClient<S = LanguageState> {
    *   membership or the session changes.
    * - `tooOld`: the server no longer accepts this client's protocol version.
    */
-  async sync(): Promise<SyncResult> {
+  sync(): Promise<SyncResult> {
+    return this.exclusive(() => this.syncOnce());
+  }
+
+  /**
+   * Syncs, pushes, pulls and refolds of one language on one phone run one
+   * at a time, whichever client starts them. Two at once (the scheduler's
+   * and "Sync now", or a session closed mid-download and the one reopened)
+   * would each download a first snapshot, and a language kept on disk
+   * would lose the rows each clears for the other.
+   */
+  private exclusive<T>(work: () => Promise<T>): Promise<T> {
+    let byStream = TURNS.get(this.opts.store);
+    if (!byStream) TURNS.set(this.opts.store, (byStream = new Map()));
+    const key = `${this.opts.orgId}/${this.opts.streamId}`;
+    const run = (byStream.get(key) ?? Promise.resolve()).then(work, work);
+    byStream.set(key, run.catch(() => undefined));
+    return run;
+  }
+
+  private async syncOnce(): Promise<SyncResult> {
     const idle = { pushed: 0, rejected: 0, pulled: 0, tooOld: false, offline: false, refused: null, more: false };
     const started = this.elapsed();
     this.net = { push: 0, pull: 0, pages: 0 };
     let result: SyncResult;
     try {
-      const { accepted, rejected, more: morePush } = await this.push();
+      const { accepted, rejected, more: morePush } = await this.pushOnce();
       const { pulled, more: morePull } = await this.pullSlice();
       result = { ...idle, pushed: accepted, rejected, pulled, more: morePush || morePull };
     } catch (err) {

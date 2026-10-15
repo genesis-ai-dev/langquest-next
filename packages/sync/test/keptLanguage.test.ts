@@ -350,6 +350,47 @@ describe('a language that keeps its recordings on disk', () => {
     expect(told).toBeGreaterThan(0);
   });
 
+  it('two syncs at once (the scheduler and "Sync now") download the language once, whole', async () => {
+    // Why: a UI test caught a phone showing recorded passages as not started after its first download:
+    // the scheduler's sync and a manual one each downloaded the snapshot, and each cleared the other's rows.
+    const server = new FakeServer();
+    await language(server, 30);
+    server.makeSnapshot('org1', 'p1');
+    server.chunkChars = 300;
+    for (let round = 0; round < 8; round++) {
+      // A network that answers after a moment, in any order.
+      const direct = server.transportFor();
+      let seed = round + 1;
+      const later = () => new Promise<void>((r) => setTimeout(r, (seed = (seed * 48271) % 2147483647) % 4));
+      const transport = Object.fromEntries(Object.entries(direct).map(([k, f]) => [k, async (...a: unknown[]) => { await later(); return (f as (...x: unknown[]) => unknown)(...a); }])) as unknown as typeof direct;
+      const store = makeStore();
+      const client = new SyncClient({
+        orgId: 'org1', streamId: 'p1', actorId: 'r1', deviceId: `dS${round}`, store, transport,
+        clock: new HlcClock(`dS${round}`, () => ++ids), newId: () => `dS${round}-${++ids}`, keepOnDisk: true
+      });
+      await client.load();
+      const results = await Promise.allSettled([client.sync(), client.sync(), client.sync()]);
+      expect(results.map((r) => r.status), `round ${round}`).toEqual(['fulfilled', 'fulfilled', 'fulfilled']);
+      await client.sync();
+      expect(await store.keptCount('org1', 'p1', 'recording'), `round ${round}`).toBe(30);
+      expect(await store.keptCount('org1', 'p1', 'audio'), `round ${round}`).toBe(30);
+      expect(await store.keptCount('org1', 'p1', 'line'), `round ${round}`).toBe(30);
+      await client.loadUnits(['u7']);
+      expect(Object.keys(client.getState().recordings), `round ${round}`).toEqual(['r7']);
+      // A session closed while its first download goes on, and the language opened again on the same phone.
+      const again = makeStore();
+      const first = new SyncClient({ orgId: 'org1', streamId: 'p1', actorId: 'r1', deviceId: `dT${round}`, store: again, transport, keepOnDisk: true });
+      await first.load();
+      const going = first.sync();
+      const reopened = new SyncClient({ orgId: 'org1', streamId: 'p1', actorId: 'r1', deviceId: `dT${round}`, store: again, transport, keepOnDisk: true });
+      await reopened.load();
+      await Promise.all([going, reopened.sync()]);
+      expect(await again.keptCount('org1', 'p1', 'recording'), `round ${round}, reopened`).toBe(30);
+      await reopened.loadUnits(['u7']);
+      expect(Object.keys(reopened.getState().recordings), `round ${round}, reopened`).toEqual(['r7']);
+    }
+  });
+
   it('a first download cut short while its rows are written leaves nothing the next open trusts', async () => {
     // Why: a first download writes its rows in place (moving them took a test
     // phone 200 s for Koro Miyan); a phone that dies part-way must not read them.
