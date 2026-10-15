@@ -33,8 +33,12 @@ export const DIAG_SCHEMA = {
     n: ['ms', 'pushNetMs', 'pullNetMs', 'applyMs', 'pushed', 'rejected', 'pulled', 'pages', 'pending', 'offlineMs'],
     t: { outcome: ['ok', 'offline', 'refused', 'too_old', 'error'], error: TOKEN }
   },
-  /** Folding the local log at open. */
-  load: { n: ['ms', 'events', 'fromSnapshot'], t: {} },
+  /**
+   * Folding the local log at open. `staleCheckpointSeq`: an update changed
+   * the reducer, so the checkpoint up to this seq was dropped and the stream
+   * is fetched again (syncClient.ts `dropStaleCheckpoint`).
+   */
+  load: { n: ['ms', 'events', 'fromSnapshot', 'staleCheckpointSeq'], t: {} },
   /** Adopting a server snapshot on a cold start. */
   snapshot: {
     n: ['ms', 'chunks', 'resumedChunks', 'bytes', 'seq'],

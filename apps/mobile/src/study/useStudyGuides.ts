@@ -37,8 +37,7 @@ export function useStudyGuides(ctx: Ctx, unitIds: readonly string[]): Map<string
       out.set(unitId, { recommended: o.recommended.map(named), own: o.own.map(named) });
     }
     return out;
-    // The org fold changes its maps in place; the state object is new on every change.
-  }, [ctx.org.state, state, unitIds]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [ctx.org.state, state, unitIds]);
   const sel = state?.template?.value;
   // Among guides that fit as well, the one in the team's reference language (decision 84).
   const reads = teamLanguage(ctx.org.state, state, ctx.language.languageId);

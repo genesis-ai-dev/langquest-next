@@ -949,7 +949,7 @@ export function ToastView(props: { toast: ToastSpec | null; onDismiss: () => voi
   const left = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     if (toast) AccessibilityInfo.announceForAccessibility(toast.undo ? t('shell.toast.announceUndo', { message: toast.message }) : toast.message);
-  }, [toast?.id]);
+  }, [toast?.id]); // eslint-disable-line react-hooks/exhaustive-deps -- announced once per toast: its words do not change for its id
   useEffect(() => {
     if (!toast?.ms) return;
     left.setValue(1);

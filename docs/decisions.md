@@ -3908,6 +3908,21 @@ redone on the new structure rather than merged across it, so no branch
 needs them. Git history keeps where each file went. The layout and the
 roles are held by `eslint.config.mjs` and `apps/mobile/test/folders.test.ts`.
 
+Amended (2026-10-15, Carl Sauder): react-hooks/exhaustive-deps is on, as
+an error, in the app. Carl chose to turn it on after seeing what it would
+take: a hook that reads a value it does not list keeps that value from the
+draw it first ran in, and agents write much of the code. Of the 55 hooks it
+named, most only spelled their dependencies in a way the rule cannot read
+(a method called on an object, a field of a value that is new each draw),
+and now read them once instead; two read a value they did not list and
+could show it stale (the source reader's language and whether it is
+online). The rest list less or more on purpose, because the org and
+language folds change their maps in place, because a counter is bumped on
+cleanup, or because a key made of the inputs stands for them; each says why
+after `--` on its disable comment, which lint now requires
+(`@eslint-community/eslint-comments/require-description`), and a disable
+that no longer excuses anything is an error.
+
 ## 106. A phone records every take with the microphone module, keeps a part going down to half the cutoff, and keeps AAC
 
 Date: 2026-10-14 · By: Caleb Koster · Status: accepted
@@ -4105,3 +4120,35 @@ publishes on approval, per language), reviewers need their own accounts
 (then tie EveryBible sign-in to a LangQuest review link or role), or the
 change feed and webhooks prove too slow for live listening (then push from
 the organization's Durable Object directly).
+
+## 110. A checkpoint from an older reducer is dropped with its stream's cursor, so the phone fetches the stream again
+
+Date: 2026-10-15 · By: Carl Sauder · Status: accepted
+
+Reason: a phone checkpoints every 2000 confirmed events and prunes what the
+checkpoint covers (invariant 10). An update that bumps `REDUCER_VERSION`,
+which happens often, made that checkpoint unreadable, and invariant 10 said
+the client then "folds the log", but the log held only the tail after the
+checkpoint. `load()` folded that tail from empty state, `pullSlice()` took a
+server snapshot only at cursor 0, which the cursor was not, and the next
+checkpoint saved the partial state under the new version, so every language
+and organization stream that had pruned lost most of its work on the phone
+for good (the server's log was intact). The fleet modelled a reducer bump
+as a reinstall with an empty store and never saw it. Now `load()` drops a
+checkpoint from another reducer version and puts the stream's cursor back
+to 0 in one write (`dropStaleCheckpoint` in `packages/sync/src/syncClient.ts`).
+The next pull takes the server's snapshot for this reducer, or, when there
+is none (the organization stream never has one, 44), pulls the log again from
+the start. With nothing below the cursor missing, no checkpoint can be
+partial. Until the phone reaches the server it shows the events still in its
+log, the person's unsent work among them, as a first download does. The
+`load` record carries `staleCheckpointSeq` so support can see it happened
+(`docs/diagnostics.md`). The fleet's `reducerBump` scenario and a
+`fleet.test.ts` case now update phones that keep their store
+(`SimDevice.update`, `Fleet.deployReducer`). Turned down: keeping the whole
+log on the phone (the reason for pruning is replay bounded by recent
+history), and migrating checkpoints between reducer versions (a migration
+per bump, with the risk of a wrong one that the server cannot correct).
+Reverse if: phones that update while offline need their language on screen
+before they reach the server; then keep the pruned events beside the
+checkpoint until a checkpoint from the new reducer replaces it.

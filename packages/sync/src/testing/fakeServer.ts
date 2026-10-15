@@ -37,6 +37,8 @@ export class FakeServer {
   /** Clients below this protocol version are refused, like the server RPCs. */
   minClientVersion = 0;
   readonly snapshots = new Map<string, Snapshot>();
+  /** The reducer the snapshot worker runs; a test raises it to model a deploy that bumps REDUCER_VERSION. */
+  reducerVersion = REDUCER_VERSION;
   /**
    * How long a replaced snapshot can still be downloaded (put_snapshot keeps
    * it 24 hours, decisions.md 88). 0 drops it at once, as put_snapshot did.
@@ -50,8 +52,6 @@ export class FakeServer {
   /** Chunk fetches after this many throw (link dropped mid-snapshot). */
   failChunkAfter = Infinity;
   chunkCalls = 0;
-  /** The reducer version makeSnapshot tags its snapshots with (the server's snapshot worker after an update). */
-  reducerVersion = REDUCER_VERSION;
   authorize: (e: AnyEvent) => string | null = () => null;
 
   transportFor(): Transport {

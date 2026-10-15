@@ -44,8 +44,8 @@ export function useLibrary(ctx: Ctx) {
   const library = orgState?.library;
   // The org fold changes its maps in place and makes a new state object on every change, so the
   // state keys these: an item published here (New language's "I'll choose the steps") shows at once.
-  const items = useCallback((kind?: LibraryKind) => libraryItems(library ?? {}, kind), [library, orgState]);
-  const item = useCallback((itemId: string) => libraryItemView(library ?? {}, itemId), [library, orgState]);
+  const items = useCallback((kind?: LibraryKind) => libraryItems(library ?? {}, kind), [library, orgState]); // eslint-disable-line react-hooks/exhaustive-deps -- the org fold changes library in place; orgState is new on every change
+  const item = useCallback((itemId: string) => libraryItemView(library ?? {}, itemId), [library, orgState]); // eslint-disable-line react-hooks/exhaustive-deps -- the org fold changes library in place; orgState is new on every change
 
   const run = useCallback(async (ops: LibraryOp[]) => {
     for (const op of ops) await ctx.org.append(op.type, op.payload as never);
@@ -162,8 +162,7 @@ export function useLibraryDocs(orgId: string, hashes: (string | null | undefined
     });
     return () => { active = false; };
   }, [orgId, key, opts.deps]);
-  // A new `get` whenever documents arrive, so memos that read through it recompute.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- A new `get` whenever documents arrive, so memos that read through it recompute
   const get = useCallback(<T extends LibraryDoc = LibraryDoc>(hash: string | null | undefined) => cachedDoc(hash) as T | null, [revision]);
   return { get, error, revision };
 }

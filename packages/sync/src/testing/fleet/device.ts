@@ -1,7 +1,7 @@
 import { defaultOfflineScope, deriveDownloadWork, deriveUploadWork, type AnyEvent, type BlobRef } from '@langquest-next/core';
 import { Diagnostics, MemoryDiagStore } from '../../diagnostics';
 import { MemoryStore } from '../../memoryStore';
-import { SyncClient } from '../../syncClient';
+import { LANGUAGE_MATERIALIZER, SyncClient } from '../../syncClient';
 import { SyncScheduler } from '../../syncScheduler';
 import { DEFAULT_TRANSFER_BUDGET_BYTES, DOWNLOAD_DEFAULTS, TransferBudget, TransferWorker, UPLOAD_DEFAULTS } from '../../transferWorker';
 import { OfflineError, type Transport } from '../../types';
@@ -31,6 +31,8 @@ export interface FleetContext {
   streamId: string;
   /** When each event was appended on its phone, for propagation times. */
   appendedAt: Map<string, number>;
+  /** Each phone's `checkpointEvery`; the app's 2000 when undefined. */
+  checkpointEvery?: number;
   /** Realtime pokes: on, and how long they take to arrive. */
   realtime: { on: boolean; delayMs: number };
   /** False once the fleet is settling: people stop working. */
@@ -96,7 +98,11 @@ export class SimDevice {
   private snapshotsSeen = 0;
   private maxSeen = 0;
   private installs = 0;
-  /** Audio files on this phone and their sizes; they survive a reinstall (a new reducer keeps the files). */
+  /** The app's database; a reinstall starts a new one, an update keeps it. */
+  private store = new MemoryStore();
+  /** The reducer version of the app on this phone. */
+  private reducerVersion = LANGUAGE_MATERIALIZER.version;
+  /** Audio files on this phone and their sizes; they survive a reinstall and an update. */
   private readonly present = new Set<string>();
   private readonly sizes = new Map<string, number>();
   /** The link's bandwidth each way, shared by sync and audio. */
@@ -119,6 +125,11 @@ export class SimDevice {
   /** Install the app and open the language. */
   async install(): Promise<void> {
     this.installs += 1;
+    await this.open();
+  }
+
+  /** Start the app on what this phone already holds. */
+  private async open(): Promise<void> {
     const { time } = this.fleet;
     const shaped = shapeTransport(this.fleet.server.transportFor(), {
       link: () => this.link,
@@ -132,7 +143,9 @@ export class SimDevice {
       streamId: this.fleet.streamId,
       actorId: this.actorId,
       deviceId: `${this.id}.${this.installs}`,
-      store: new MemoryStore(),
+      store: this.store,
+      materializer: { ...LANGUAGE_MATERIALIZER, version: this.reducerVersion },
+      ...(this.fleet.checkpointEvery !== undefined ? { checkpointEvery: this.fleet.checkpointEvery } : {}),
       transport: this.observed(shaped),
       now: time.now,
       newId: () => this.random.uuid(),
@@ -232,14 +245,27 @@ export class SimDevice {
   }
 
   /**
-   * A fresh install, or a new reducer version that throws the checkpoint
-   * away: an empty store that catches up through the server snapshot. The
-   * person (persona) is the same.
+   * A fresh install: an empty store that catches up through the server
+   * snapshot. The person (persona) is the same.
    */
   async reinstall(): Promise<void> {
     this.stop();
     this.metrics.coldStarts.push({ ms: null, startedAt: this.fleet.time.now(), targetSeq: this.fleet.server.head(this.fleet.orgId, this.fleet.streamId) });
+    this.store = new MemoryStore();
     await this.install();
+  }
+
+  /**
+   * An app update that changes the reducer: the same database, log,
+   * checkpoint, outbox and clock, opened by a reducer that cannot read the
+   * checkpoint (decisions.md 110). Counted as a cold start: the phone
+   * catches up again from the server.
+   */
+  async update(reducerVersion: number): Promise<void> {
+    this.stop();
+    this.metrics.coldStarts.push({ ms: null, startedAt: this.fleet.time.now(), targetSeq: this.fleet.server.head(this.fleet.orgId, this.fleet.streamId) });
+    this.reducerVersion = reducerVersion;
+    await this.open();
   }
 
   setLink(link: Link): void {
