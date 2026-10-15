@@ -5,7 +5,7 @@
 // Drawn only: taps go to the part.
 import { useContext, useEffect, useId, useMemo, useRef, type ReactNode } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import { HelpClipContext, HelpContext, HelpScopeContext, type HelpLit, type HelpSpot } from './helpContext';
+import { HelpClipContext, HelpContext, HelpLayerSlot, useHelpOn, type HelpLit, type HelpSpot } from './helpContext';
 
 /** Tell the help layer where the view holding this ref is, every frame while help is on. */
 function useLit(what: HelpLit | null, id: string) {
@@ -41,10 +41,9 @@ export function HelpBadge(props: { spot: HelpSpot<unknown>; inset?: boolean }) {
 /** Keeps a control lit while help is on without numbering it: the ? that turns help off. */
 export function HelpLit() {
   const id = useId();
-  const help = useContext(HelpContext);
-  const showing = useContext(HelpScopeContext);
+  const on = useHelpOn();
   const clip = useContext(HelpClipContext);
-  const what = useMemo<HelpLit | null>(() => (help?.on && showing ? { kind: 'lit', ...(clip ? { clip } : {}) } : null), [help?.on, showing, clip]);
+  const what = useMemo<HelpLit | null>(() => (on ? { kind: 'lit', ...(clip ? { clip } : {}) } : null), [on, clip]);
   const ref = useLit(what, id);
   return what ? <View ref={ref} collapsable={false} style={styles.box} pointerEvents="none" /> : null;
 }
@@ -56,9 +55,8 @@ export function HelpLit() {
  */
 export function HelpClip(props: { style?: StyleProp<ViewStyle>; children: ReactNode }) {
   const id = useId();
-  const help = useContext(HelpContext);
-  const showing = useContext(HelpScopeContext);
-  const what = useMemo<HelpLit | null>(() => (help?.on && showing ? { kind: 'clip' } : null), [help?.on, showing]);
+  const on = useHelpOn();
+  const what = useMemo<HelpLit | null>(() => (on ? { kind: 'clip' } : null), [on]);
   const ref = useLit(what, id);
   return (
     <View style={props.style}>
@@ -66,6 +64,12 @@ export function HelpClip(props: { style?: StyleProp<ViewStyle>; children: ReactN
       {what ? <View ref={ref} collapsable={false} style={styles.box} pointerEvents="none" /> : null}
     </View>
   );
+}
+
+/** Inside a sheet that opened a help host (kit's Sheet): while it is on top, help dims and numbers here. */
+export function HelpHostLayer(props: { id: string }) {
+  const slot = useContext(HelpLayerSlot);
+  return slot?.host === props.id ? <>{slot.layer}</> : null;
 }
 
 const styles = StyleSheet.create({

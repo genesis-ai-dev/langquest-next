@@ -14,7 +14,7 @@ import {
   ArrowLeft, Send, KeyRound, List, Smartphone, GripVertical, SlidersHorizontal, CircleCheck, TriangleAlert,
   ChevronsUpDown, FileText, Eye, EyeOff
 } from 'lucide-react-native';
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import {
   AccessibilityInfo, Animated, Easing, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View,
   type StyleProp, type TextStyle, type ViewStyle
@@ -22,10 +22,10 @@ import {
 import { Text } from './text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { KindState } from '@langquest-next/core';
-import { useHelpMode, useHelpSpot } from './helpContext';
+import { HelpHostContext, useHelpInfo, useHelpMode, useHelpSpot, type HelpSpot } from './helpContext';
 import { isRtl, t } from './i18n';
 import { formatNumber } from './i18n/format';
-import { HelpBadge, HelpClip, HelpLit } from './helpBadge';
+import { HelpBadge, HelpClip, HelpHostLayer, HelpLit } from './helpBadge';
 import { lift, shadow } from './shadow';
 import { markedParts } from './textMatch';
 import { C, measure, onColor, radius, space, target, TINT, type as T } from './theme';
@@ -198,40 +198,28 @@ export function Header(props: {
   columnWidth?: number;
 }) {
   const wide = useLayout().kind !== 'phone';
-  const help = useHelpMode();
   // Ryder's header on a phone (demo ADR-032): a task screen centres its title between two round
   // buttons, Back (or ✕) and ?, on the screen's own ground; a tab's home keeps its big title at the left.
   const centred = !wide && !!props.onBack;
-  // While help is on the ? is filled and stays lit over the dimmed screen: it is the way out.
-  const helpBtn = help ? (
-    <Pressable testID="header-help" onPress={() => help.setOn(!help.on)} accessibilityRole="button" accessibilityLabel={help.on ? t('help.turnOff') : t('help.explainScreen')}
-      accessibilityState={{ selected: help.on }}
-      style={({ pressed }) => [styles.helpBtn, help.on && { backgroundColor: C.primary, borderColor: C.primary }, pressed && styles.pressed]}>
-      <Ico name="help" size={24} color={help.on ? C.white : C.primary} />
-      <HelpLit />
-    </Pressable>
-  ) : null;
+  const helpBtn = useHelpMode() ? <HelpToggle testID="header-help" /> : null;
+  // While help is on, Back explains itself like every other part; the ? is the way out.
+  const back = useHelpSpot(props.close ? t('common.close') : t('common.back'), props.close ? t('help.details.close') : t('help.details.back'), props.onBack);
   const crumbs = props.crumbs && props.crumbs.length > 0 && wide ? (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.crumbs}>
       {props.crumbs.map((c, i) => (
         <View key={`${c.label}-${i}`} style={styles.crumb}>
           {i > 0 ? <Ico name="right" size={14} color={C.muted} /> : null}
-          {c.onPress ? (
-            <Pressable onPress={c.onPress} hitSlop={10} accessibilityRole="link" style={({ pressed }) => [styles.crumbTap, pressed && styles.pressed]}>
-              <Text style={styles.crumbLink} numberOfLines={1}>{c.label}</Text>
-            </Pressable>
-          ) : (
-            <Text style={txt.xs} numberOfLines={1}>{c.label}</Text>
-          )}
+          {c.onPress ? <Crumb label={c.label} onPress={c.onPress} /> : <Text style={txt.xs} numberOfLines={1}>{c.label}</Text>}
         </View>
       ))}
     </ScrollView>
   ) : null;
   const content = centred ? (
     <>
-      <Pressable testID={props.close ? 'header-close' : 'header-back'} onPress={props.onBack} accessibilityRole="button" accessibilityLabel={props.close ? t('common.close') : t('common.back')}
+      <Pressable testID={props.close ? 'header-close' : 'header-back'} onPress={back.onPress} accessibilityRole="button" accessibilityLabel={props.close ? t('common.close') : t('common.back')}
         style={({ pressed }) => [styles.roundBtn, pressed && styles.pressed]}>
         <Ico name={props.close ? 'close' : 'arrowL'} size={24} color={C.dark} />
+        <HelpBadge spot={back} />
       </Pressable>
       <View style={{ flex: 1, minWidth: 0, alignItems: 'center' }}>
         <Text style={styles.centredTitle} numberOfLines={2} accessibilityRole="header">{props.title}</Text>
@@ -243,9 +231,10 @@ export function Header(props: {
   ) : (
     <>
       {props.onBack ? (
-        <Pressable testID={props.close ? 'header-close' : 'header-back'} onPress={props.onBack} accessibilityRole="button" accessibilityLabel={props.close ? t('common.close') : t('common.back')}
+        <Pressable testID={props.close ? 'header-close' : 'header-back'} onPress={back.onPress} accessibilityRole="button" accessibilityLabel={props.close ? t('common.close') : t('common.back')}
           style={({ pressed }) => [styles.headerBack, pressed && styles.pressed]}>
           <Ico name={props.close ? 'close' : 'left'} size={props.close ? 24 : 28} color={C.dark} />
+          <HelpBadge spot={back} />
         </Pressable>
       ) : null}
       <View style={{ flex: 1, minWidth: 0, paddingLeft: props.onBack ? 0 : space.xs }}>
@@ -262,17 +251,53 @@ export function Header(props: {
   return <View style={centred ? styles.headerCentred : styles.headerHome}>{content}</View>;
 }
 
-/** `current`: what this card opened is showing beside the list (a split on a wide window, panes.ts). */
-export function Card(props: { children: ReactNode; onPress?: () => void; style?: StyleProp<ViewStyle>; accessibilityLabel?: string; current?: boolean }) {
+/**
+ * The round ? that turns help mode on and off (demo ADR-038), in every
+ * header and sheet. While help is on it is filled and stays lit over the
+ * dimmed screen: it is the way out.
+ */
+export function HelpToggle(props: { testID: string }) {
+  const help = useHelpMode();
+  if (!help) return null;
+  return (
+    <Pressable testID={props.testID} onPress={() => help.setOn(!help.on)} accessibilityRole="button" accessibilityLabel={help.on ? t('help.turnOff') : t('help.explainScreen')}
+      accessibilityState={{ selected: help.on }}
+      style={({ pressed }) => [styles.helpBtn, help.on && { backgroundColor: C.primary, borderColor: C.primary }, pressed && styles.pressed]}>
+      <Ico name="help" size={24} color={help.on ? C.white : C.primary} />
+      <HelpLit />
+    </Pressable>
+  );
+}
+
+/** A parent above a wide window's title, one tap away. */
+function Crumb(props: { label: string; onPress: () => void }) {
+  const spot = useHelpSpot(props.label, t('help.details.crumb'), props.onPress);
+  return (
+    <Pressable onPress={spot.onPress} hitSlop={10} accessibilityRole="link" style={({ pressed }) => [styles.crumbTap, pressed && styles.pressed]}>
+      <Text style={styles.crumbLink} numberOfLines={1}>{props.label}</Text>
+      <HelpBadge spot={spot} />
+    </Pressable>
+  );
+}
+
+/**
+ * `current`: what this card opened is showing beside the list (a split on a
+ * wide window, panes.ts). A card that opens something says so in help mode:
+ * its `accessibilityLabel` names it and `help` says what tapping does.
+ */
+export function Card(props: { children: ReactNode; onPress?: () => void; style?: StyleProp<ViewStyle>; accessibilityLabel?: string; current?: boolean;
+  /** What help mode says tapping it does. */ help?: string }) {
+  const spot = useHelpSpot(props.accessibilityLabel ?? '', props.help, props.onPress);
   if (props.onPress) {
     return (
-      <Pressable onPress={props.onPress} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
+      <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
         accessibilityState={props.current ? { selected: true } : undefined}
         // aria-selected is not allowed on a button. aria-current is, and a screen reader says "current".
         // accessibilityState.selected stays for native; react-native-web does not turn it into aria-selected.
         aria-current={props.current ? true : undefined}
         style={({ pressed }) => [styles.card, props.style, props.current && styles.cardCurrent, pressed && styles.pressed]}>
         {props.children}
+        <HelpBadge spot={spot} />
       </Pressable>
     );
   }
@@ -353,7 +378,7 @@ export function Row(props: {
   const right = props.right ?? (props.role === 'switch' ? (
     // Drawn only: the row takes the tap and speaks as the switch.
     <View style={{ pointerEvents: 'none' }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <Toggle on={props.checked === true} disabled={props.disabled} label={props.label} onToggle={() => {}} />
+      <Toggle on={props.checked === true} disabled={props.disabled} label={props.label} onToggle={() => {}} drawnOnly />
     </View>
   ) : props.onPress ? <Ico name="right" size={22} color={C.muted} /> : null);
   const body = (
@@ -399,10 +424,12 @@ function marked(text: string, query: string | undefined): ReactNode {
  * that opens in place. Pass `open`/`onToggle` from `ctx.details(key)` so a
  * card someone opened stays open when they come Back.
  */
-export function Disclosure(props: { icon: IconName; title: string; summary: string; open: boolean; onToggle: () => void; children: ReactNode }) {
+export function Disclosure(props: { icon: IconName; title: string; summary: string; open: boolean; onToggle: () => void; children: ReactNode;
+  /** What help mode says is inside, where the title alone does not. */ help?: string }) {
+  const spot = useHelpSpot(props.title, props.help ?? (props.open ? t('help.details.disclosureOpen') : t('help.details.disclosure')), props.onToggle);
   return (
     <View style={styles.disclosure}>
-      <Pressable onPress={props.onToggle} accessibilityRole="button" accessibilityState={{ expanded: props.open }}
+      <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ expanded: props.open }}
         accessibilityLabel={t('shell.a11y.labelDetail', { label: props.title, detail: props.summary })} accessibilityHint={props.open ? t('shell.kit.hidesDetails') : t('shell.kit.showsDetails')}
         style={({ pressed }) => [styles.disclosureHead, pressed && styles.pressed]}>
         <View style={styles.iconTile}><Ico name={props.icon} size={20} color={C.primary} /></View>
@@ -412,6 +439,7 @@ export function Disclosure(props: { icon: IconName; title: string; summary: stri
         </View>
         <Text style={txt.link}>{props.open ? t('shell.kit.hide') : t('shell.kit.show')}</Text>
         <Ico name={props.open ? 'up' : 'down'} size={20} color={C.primary} />
+        <HelpBadge spot={spot} inset />
       </Pressable>
       {props.open ? <View style={styles.disclosureBody}>{props.children}</View> : null}
     </View>
@@ -424,10 +452,11 @@ type Tone = 'primary' | 'dark' | 'amber' | 'red' | 'green';
 const TONES: Record<Tone, string> = { primary: C.primary, dark: C.dark, amber: onColor.amber, red: onColor.red, green: onColor.green };
 
 /** The one main button: 56pt, filled, full width by default. */
-export function PrimaryBtn(props: { label: string; onPress: () => void; disabled?: boolean; icon?: IconName; tone?: Tone; full?: boolean; busy?: boolean }) {
+export function PrimaryBtn(props: { label: string; onPress: () => void; disabled?: boolean; icon?: IconName; tone?: Tone; full?: boolean; busy?: boolean;
+  /** What help mode says happens, where the label does not say it ("Continue", "Done"); else it is the screen's main thing to do. */ help?: string }) {
   const bg = TONES[props.tone ?? 'primary'];
   const off = props.disabled || props.busy;
-  const spot = useHelpSpot(props.label, t('help.details.primary'), props.onPress);
+  const spot = useHelpSpot(props.label, props.help ?? t('help.details.primary'), props.onPress);
   const onPress = spot.onPress;
   return (
     <Pressable testID="primary-action" onPress={onPress} disabled={off} accessibilityRole="button" accessibilityLabel={props.label} accessibilityState={{ disabled: !!off, busy: !!props.busy }}
@@ -460,10 +489,11 @@ export function GhostBtn(props: { label: string; onPress: () => void; disabled?:
 }
 
 /** A 48pt outlined button for actions inside a card. */
-export function SmallBtn(props: { label: string; onPress: () => void; icon?: IconName; tone?: 'primary' | 'plain' | 'dark'; disabled?: boolean }) {
+export function SmallBtn(props: { label: string; onPress: () => void; icon?: IconName; tone?: 'primary' | 'plain' | 'dark'; disabled?: boolean;
+  /** What help mode says it does. */ help?: string }) {
   const filled = props.tone === 'primary' || props.tone === 'dark';
   const bg = props.tone === 'dark' ? C.dark : C.primary;
-  const spot = useHelpSpot(props.label, undefined, props.onPress);
+  const spot = useHelpSpot(props.label, props.help, props.onPress);
   const onPress = spot.onPress;
   return (
     <Pressable onPress={onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
@@ -477,8 +507,9 @@ export function SmallBtn(props: { label: string; onPress: () => void; icon?: Ico
 }
 
 /** A plain text action (Show all, Undo). Still 48pt tall. */
-export function LinkBtn(props: { label: string; onPress: () => void; color?: string; style?: StyleProp<ViewStyle>; accessibilityLabel?: string; expanded?: boolean }) {
-  const spot = useHelpSpot(props.label, undefined, props.onPress);
+export function LinkBtn(props: { label: string; onPress: () => void; color?: string; style?: StyleProp<ViewStyle>; accessibilityLabel?: string; expanded?: boolean;
+  /** What help mode says it does. */ help?: string }) {
+  const spot = useHelpSpot(props.label, props.help, props.onPress);
   return (
     <Pressable onPress={spot.onPress} hitSlop={8} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
       accessibilityState={props.expanded !== undefined ? { expanded: props.expanded } : undefined}
@@ -514,9 +545,10 @@ function QuietLink(props: { label: string; icon: IconName; onPress: () => void }
   );
 }
 
-export function IconBtn(props: { name: IconName; onPress: () => void; label: string; color?: string; bg?: string; size?: number; disabled?: boolean; testID?: string }) {
+export function IconBtn(props: { name: IconName; onPress: () => void; label: string; color?: string; bg?: string; size?: number; disabled?: boolean; testID?: string;
+  /** What help mode says it does. */ help?: string }) {
   const size = props.size ?? 48;
-  const spot = useHelpSpot(props.label, undefined, props.onPress);
+  const spot = useHelpSpot(props.label, props.help, props.onPress);
   return (
     <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
       accessibilityState={{ disabled: !!props.disabled }} hitSlop={Math.max(0, (target.min - size) / 2)}
@@ -529,8 +561,9 @@ export function IconBtn(props: { name: IconName; onPress: () => void; label: str
 }
 
 /** A selectable pill. */
-export function Chip(props: { label: string; on: boolean; onPress: () => void; icon?: IconName; count?: number; accessibilityLabel?: string }) {
-  const spot = useHelpSpot(props.label, undefined, props.onPress);
+export function Chip(props: { label: string; on: boolean; onPress: () => void; icon?: IconName; count?: number; accessibilityLabel?: string;
+  /** What help mode says picking it does. */ help?: string }) {
+  const spot = useHelpSpot(props.label, props.help, props.onPress);
   const onPress = spot.onPress;
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: props.on }} accessibilityLabel={props.accessibilityLabel}
@@ -549,10 +582,48 @@ export function ChipRow(props: { children: ReactNode }) {
   return <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm, paddingVertical: 2 }}>{props.children}</ScrollView>;
 }
 
-export function Toggle(props: { on: boolean; onToggle: () => void; label: string; disabled?: boolean; testID?: string }) {
+export function Toggle(props: { on: boolean; onToggle: () => void; label: string; disabled?: boolean; testID?: string;
+  /** What help mode says it turns on. */ help?: string;
+  /** Drawn inside a row that is the switch (Row's `role="switch"`): the row explains it. */ drawnOnly?: boolean }) {
+  const spot = useHelpSpot(props.label, props.help ?? (props.on ? t('help.details.switchOn') : t('help.details.switchOff')), props.drawnOnly ? undefined : props.onToggle);
   return (
-    <Switch {...(props.testID ? { testID: props.testID } : {})} value={props.on} onValueChange={props.onToggle} disabled={props.disabled} accessibilityLabel={props.label}
-      trackColor={{ true: C.primary, false: C.border }} thumbColor={C.white} ios_backgroundColor={C.border} />
+    <View>
+      <Switch {...(props.testID ? { testID: props.testID } : {})} value={props.on} onValueChange={props.onToggle} disabled={props.disabled || !!spot.id} accessibilityLabel={props.label}
+        trackColor={{ true: C.primary, false: C.border }} thumbColor={C.white} ios_backgroundColor={C.border} />
+      <HelpCover spot={spot} label={props.label} />
+    </View>
+  );
+}
+
+/**
+ * While help is on, over a control that is not a button (a field, a
+ * switch): takes its tap so it explains itself instead of opening the
+ * keyboard or switching, and lights and numbers it.
+ */
+function HelpCover(props: { spot: HelpSpot<(() => void) | undefined>; label: string; inset?: boolean }) {
+  if (!props.spot.id) return null;
+  return (
+    <Pressable onPress={props.spot.onPress} accessibilityRole="button" accessibilityLabel={props.label} style={StyleSheet.absoluteFill}>
+      <HelpBadge spot={props.spot} {...(props.inset ? { inset: true } : {})} />
+    </Pressable>
+  );
+}
+
+/**
+ * Something that needs explaining but does nothing when tapped: a mark in
+ * colour or shape, a bar, a number without its unit. While help is on it
+ * lights, numbers and explains like a button; otherwise taps pass through
+ * to whatever holds it. Where it sits inside a part that explains itself,
+ * say what it means in that part's help instead.
+ */
+export function HelpInfo(props: { label: string; detail: string; children: ReactNode; style?: StyleProp<ViewStyle>; inset?: boolean }) {
+  const spot = useHelpInfo(props.label, props.detail);
+  return (
+    <Pressable onPress={spot.id ? spot.onPress : undefined} disabled={!spot.id} accessible={!!spot.id} accessibilityLabel={spot.id ? props.label : undefined}
+      style={props.style}>
+      {props.children}
+      <HelpBadge spot={spot} {...(props.inset ? { inset: true } : {})} />
+    </Pressable>
   );
 }
 
@@ -574,37 +645,53 @@ export function Field(props: {
   testID?: string;
   /** What a screen reader calls a field with no label, when its placeholder does not say it. */
   accessibilityLabel?: string;
+  /** What help mode says to type here and what it is for, where the label does not say it. */
+  help?: string;
 }) {
+  const name = props.label ?? props.accessibilityLabel ?? props.placeholder ?? '';
+  const spot = useHelpSpot(name, props.help ?? t('help.details.field'), TYPE_HERE);
   return (
     <View style={{ gap: space.xs }}>
       {props.label ? <Text style={txt.xsStrong}>{props.label}</Text> : null}
-      <TextInput value={props.value} onChangeText={props.onChangeText} placeholder={props.placeholder} placeholderTextColor={C.faint}
+      <View>
+      <TextInput value={props.value} onChangeText={props.onChangeText} placeholder={props.placeholder} placeholderTextColor={C.faint} editable={!spot.id}
         accessibilityLabel={props.label ?? props.accessibilityLabel ?? props.placeholder}
         {...(props.onSubmit && !props.multiline ? { onSubmitEditing: props.onSubmit, returnKeyType: 'go' as const } : {})}
         {...(props.testID ? { testID: props.testID } : {})}
         multiline={props.multiline} secureTextEntry={props.secure} keyboardType={props.keyboardType} autoCapitalize={props.autoCapitalize}
         style={[styles.field, inputDirection(), props.multiline && { minHeight: 88, textAlignVertical: 'top', paddingTop: 14 }, props.style]} />
+      <HelpCover spot={spot} label={name} />
+      </View>
     </View>
   );
 }
 
-export function SearchField(props: { value: string; onChangeText: (v: string) => void; placeholder: string; testID?: string }) {
+/** A field's press while help is on: it explains itself; typing waits until help is off. */
+const TYPE_HERE = () => undefined;
+
+export function SearchField(props: { value: string; onChangeText: (v: string) => void; placeholder: string; testID?: string;
+  /** What help mode says it finds, where the placeholder does not say it. */ help?: string }) {
+  const spot = useHelpSpot(props.placeholder, props.help ?? t('help.details.search'), TYPE_HERE);
   return (
     <View style={styles.search}>
       <Ico name="search" size={24} color={C.muted} />
       <TextInput {...(props.testID ? { testID: props.testID } : {})} value={props.value} onChangeText={props.onChangeText} placeholder={props.placeholder} placeholderTextColor={C.faint}
-        autoCapitalize="none" autoCorrect={false} returnKeyType="search" accessibilityLabel={props.placeholder} style={[styles.searchInput, inputDirection()]} />
-      {props.value ? <IconBtn name="close" label={t('shell.kit.clearSearch')} onPress={() => props.onChangeText('')} bg="transparent" color={C.muted} /> : null}
+        editable={!spot.id} autoCapitalize="none" autoCorrect={false} returnKeyType="search" accessibilityLabel={props.placeholder} style={[styles.searchInput, inputDirection()]} />
+      {props.value ? <IconBtn name="close" label={t('shell.kit.clearSearch')} help={t('help.details.clearSearch')} onPress={() => props.onChangeText('')} bg="transparent" color={C.muted} /> : null}
+      <HelpCover spot={spot} label={props.placeholder} />
     </View>
   );
 }
 
 /** "Show 25 more · 1,164 left": long lists grow on request (ADR-009). */
 export function ShowMore(props: { remaining: number; step: number; onMore: () => void }) {
+  const label = t('shell.kit.showMore', { count: Math.min(props.step, Math.max(props.remaining, 0)), left: formatNumber(props.remaining) });
+  const spot = useHelpSpot(label, t('help.details.showMore'), props.remaining > 0 ? props.onMore : undefined);
   if (props.remaining <= 0) return null;
   return (
-    <Pressable onPress={props.onMore} accessibilityRole="button" style={({ pressed }) => [styles.showMore, pressed && styles.pressed]}>
-      <Text style={[txt.body, { color: C.primary, fontWeight: '600' }]}>{t('shell.kit.showMore', { count: Math.min(props.step, props.remaining), left: formatNumber(props.remaining) })}</Text>
+    <Pressable onPress={spot.onPress} accessibilityRole="button" style={({ pressed }) => [styles.showMore, pressed && styles.pressed]}>
+      <Text style={[txt.body, { color: C.primary, fontWeight: '600' }]}>{label}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -770,8 +857,10 @@ export function Banner(props: { icon: IconName; title: string; body?: string; to
 export function Sheet(props: { visible: boolean; title: string; sub?: string; onClose: () => void; children: ReactNode; footer?: ReactNode }) {
   const insets = useSafeAreaInsets();
   const wide = useLayout().kind !== 'phone';
+  const host = useHelpHost(props.visible);
   return (
     <Modal visible={props.visible} transparent animationType={wide ? 'fade' : 'slide'} onRequestClose={props.onClose}>
+      <HelpHostContext.Provider value={host}>
       <KeyboardSafe style={[{ flex: 1 }, wide && styles.dialogFrame]}>
         <Pressable style={wide ? styles.dialogBackdrop : styles.sheetBackdrop} onPress={props.onClose} accessibilityLabel={t('common.close')} />
         <View testID="sheet" style={wide ? styles.dialog : [styles.sheet, { paddingBottom: Math.max(insets.bottom, space.lg) }]}>
@@ -781,16 +870,33 @@ export function Sheet(props: { visible: boolean; title: string; sub?: string; on
               <Text style={txt.title}>{props.title}</Text>
               {props.sub ? <Text style={[txt.smMuted, { marginTop: 4 }]}>{props.sub}</Text> : null}
             </View>
-            <IconBtn testID="sheet-close" name="close" label={t('common.close')} onPress={props.onClose} bg={C.card} color={C.muted} />
+            <HelpToggle testID="sheet-help" />
+            <IconBtn testID="sheet-close" name="close" label={t('common.close')} help={t('help.details.closeSheet')} onPress={props.onClose} bg={C.card} color={C.muted} />
           </View>
-          <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={{ gap: space.md, paddingHorizontal: space.xl, paddingBottom: space.lg }} keyboardShouldPersistTaps="handled">
-            {props.children}
-          </ScrollView>
+          <HelpClip style={{ flexShrink: 1 }}>
+            <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={{ gap: space.md, paddingHorizontal: space.xl, paddingBottom: space.lg }} keyboardShouldPersistTaps="handled">
+              {props.children}
+            </ScrollView>
+          </HelpClip>
           {props.footer ? <View style={{ paddingHorizontal: space.xl, gap: space.sm }}>{props.footer}</View> : null}
         </View>
       </KeyboardSafe>
+      <HelpHostLayer id={host} />
+      </HelpHostContext.Provider>
     </Modal>
   );
+}
+
+/**
+ * A sheet's own help (decision 71): while it shows it is on top, so the ?
+ * in its head lights and numbers only its parts, drawn inside it. Returns
+ * the host id to provide to what is drawn in it.
+ */
+export function useHelpHost(visible: boolean): string {
+  const host = useId();
+  const open = useHelpMode()?.openHost;
+  useEffect(() => (visible && open ? open(host) : undefined), [visible, open, host]);
+  return host;
 }
 
 /**

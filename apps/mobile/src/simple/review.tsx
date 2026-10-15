@@ -19,12 +19,12 @@ import { Text } from '../text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AudioClip } from '../audioClip';
 import type { Ctx } from '../ctx';
-import { useHelpSpot } from '../helpContext';
-import { HelpBadge, HelpClip } from '../helpBadge';
+import { HelpHostContext, useHelpSpot } from '../helpContext';
+import { HelpBadge, HelpClip, HelpHostLayer } from '../helpBadge';
 import { t } from '../i18n';
 import { formatClock, formatNumber } from '../i18n/format';
 import { indexesFor } from '../indexes';
-import { Badge, Chip, ChipRow, Field, GhostBtn, Group, Ico, IconBtn, LinkBtn, NoteCard, PrimaryBtn, Row, txt, useLayout, type IconName } from '../kit';
+import { Badge, Chip, ChipRow, Field, GhostBtn, Group, HelpToggle, Ico, IconBtn, LinkBtn, NoteCard, PrimaryBtn, Row, txt, useHelpHost, useLayout, type IconName } from '../kit';
 import type { PassageView } from '../passageView';
 import { when } from '../passageView';
 import { Authored, recordTarget, ReportFlag } from '../reportSheet';
@@ -530,21 +530,26 @@ export function SkipBtn(props: { onPress: () => void }) {
 export function TallSheet(props: { title: string; onClose: () => void; children: ReactNode }) {
   const insets = useSafeAreaInsets();
   const wide = useLayout().kind !== 'phone';
+  const host = useHelpHost(true);
   return (
     <Modal visible transparent animationType={wide ? 'fade' : 'slide'} onRequestClose={props.onClose}>
+      <HelpHostContext.Provider value={host}>
       <View style={[{ flex: 1 }, wide && styles.dialogFrame]}>
         <Pressable style={styles.backdrop} onPress={props.onClose} accessibilityLabel={t('common.close')} />
         <View style={wide ? styles.dialog : [styles.tall, { paddingBottom: Math.max(insets.bottom, space.md) }]}>
           {wide ? null : <View style={styles.grip} />}
           <View style={styles.tallHead}>
             <Text style={styles.tallTitle} accessibilityRole="header">{props.title}</Text>
-            <IconBtn name="close" label={t('common.close')} onPress={props.onClose} bg={C.bg} color={C.muted} />
+            <HelpToggle testID="sheet-help" />
+            <IconBtn name="close" label={t('common.close')} help={t('help.details.closeSheet')} onPress={props.onClose} bg={C.bg} color={C.muted} />
           </View>
           <HelpClip style={{ flex: 1 }}>
             <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.tallBody} keyboardShouldPersistTaps="handled">{props.children}</ScrollView>
           </HelpClip>
         </View>
       </View>
+      <HelpHostLayer id={host} />
+      </HelpHostContext.Provider>
     </Modal>
   );
 }

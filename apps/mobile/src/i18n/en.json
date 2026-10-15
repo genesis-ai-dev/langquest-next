@@ -3865,7 +3865,43 @@
     "lineAfterSentence": "{{label}} {{detail}}",
     "details": {
       "primary": "The main thing to do on this screen.",
-      "quiet": "Another way forward, less often needed."
+      "quiet": "Another way forward, less often needed.",
+      "back": "Goes back to the screen before.",
+      "close": "Leaves this screen.",
+      "closeSheet": "Closes this, back to the screen under it.",
+      "crumb": "Opens it. This screen is part of it.",
+      "disclosure": "Shows what is inside, here. Tap again to hide it.",
+      "disclosureOpen": "Hides what it shows.",
+      "field": "Tap here, then type.",
+      "search": "Type a few letters: the list below shows only what matches.",
+      "clearSearch": "Empties the search, so the whole list shows again.",
+      "showMore": "Shows the next part of this list.",
+      "switchOn": "On. Tap to turn it off.",
+      "switchOff": "Off. Tap to turn it on.",
+      "person": "Shows who this is: their name and their ID.",
+      "cancel": "Closes this without changing anything.",
+      "save": "Keeps what you changed.",
+      "done": "Finished here: goes back.",
+      "edit": "Change it.",
+      "undo": "Puts back what was there before.",
+      "copy": "Copies it, to paste somewhere else.",
+      "tryAgain": "Tries once more."
+    },
+    "tabs": {
+      "work": "What to do next: your next passage, and what waits on you.",
+      "map": "Every book and chapter, and how far each has come.",
+      "reports": "How the work is going, in numbers, for each language and over time.",
+      "manage": "Your organization's languages, people and settings.",
+      "inbox": "What happened that concerns you: requests, feedback, people asking to join.",
+      "me": "Your name, this device and your settings.",
+      "explorer": "Opens the language explorer in a new tab: every language and where it is spoken."
+    },
+    "sync": {
+      "live": "Green dot: connected. Your work is sent as you go. Tap to see what was sent.",
+      "checking": "Grey dot: looking for a connection. Your work stays on this device until it is sent.",
+      "offline": "Amber dot: offline. Your work stays on this device and is sent once you are connected.",
+      "refused": "Red: the server refused something. Tap to see what, and what to do.",
+      "withWaiting": "{{standing}} The number is how many things wait to send."
     }
   },
   "offline": {

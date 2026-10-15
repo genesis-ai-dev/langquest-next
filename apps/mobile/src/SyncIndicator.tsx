@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Pressable, StyleSheet, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import type { Ctx } from './ctx';
+import { HelpBadge } from './helpBadge';
+import { useHelpSpot } from './helpContext';
 import { Ico } from './kit';
 import { IDLE, ringOpacity, stepRing, type RingState } from './syncRing';
 import { C } from './theme';
@@ -38,6 +40,12 @@ export function standingTitle(s: SyncStanding): string {
   return s === 'live' ? t('account.sync.standing.live') : s === 'offline' ? t('account.sync.standing.offline')
     : s === 'checking' ? t('account.sync.standing.checking') : t('account.sync.standing.refused');
 }
+/** What the dot's colour means, as help mode says it. */
+function standingHelp(s: SyncStanding): string {
+  return s === 'live' ? t('help.sync.live') : s === 'offline' ? t('help.sync.offline')
+    : s === 'checking' ? t('help.sync.checking') : t('help.sync.refused');
+}
+
 export function SyncIndicator(props: { language: Ctx['language']; org: Ctx['org']; onPress: () => void }) {
   const { language: project, org } = props;
   const preview = usePreview();
@@ -47,8 +55,9 @@ export function SyncIndicator(props: { language: Ctx['language']; org: Ctx['org'
   const color = STANDING_COLOR[standing];
   const lap = LAPS[ring.lap]!;
   const label = pending ? `${standingTitle(standing)}, ${t('work.sync.toSend', { count: pending })}` : standingTitle(standing);
+  const spot = useHelpSpot(label, pending ? t('help.sync.withWaiting', { standing: standingHelp(standing) }) : standingHelp(standing), props.onPress);
   return (
-    <Pressable onPress={props.onPress} accessibilityRole="button" accessibilityLabel={label} accessibilityHint={t('account.more.sync')} testID="sync-indicator" hitSlop={4}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={label} accessibilityHint={t('account.more.sync')} testID="sync-indicator" hitSlop={4}
       style={({ pressed }) => [styles.tap, pressed && { opacity: 0.6 }]}>
       <View style={styles.box}>
         <Svg width={SIZE} height={SIZE} style={StyleSheet.absoluteFill}>
@@ -68,6 +77,7 @@ export function SyncIndicator(props: { language: Ctx['language']; org: Ctx['org'
           <View style={styles.count}><Text style={styles.countText}>{ring.count > 99 ? '99+' : formatNumber(ring.count)}</Text></View>
         ) : null}
       </View>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }

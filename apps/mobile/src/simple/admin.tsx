@@ -71,12 +71,14 @@ export function HelpButton() {
  */
 export function BigTop(props: { onBack?: () => void; over?: string; title: string; status?: string; statusTone?: 'green' | 'amber' | 'muted' }) {
   const tone = props.statusTone === 'green' ? TINT.greenText : props.statusTone === 'amber' ? TINT.amberText : C.muted;
+  const back = useHelpSpot(t('common.back'), t('help.details.back'), props.onBack);
   return (
     <View style={styles.bigTop}>
       <View style={styles.bigTopBar}>
         {props.onBack ? (
-          <Pressable testID="header-back" onPress={props.onBack} accessibilityRole="button" accessibilityLabel={t('common.back')} style={({ pressed }) => [styles.round, pressed && styles.pressed]}>
+          <Pressable testID="header-back" onPress={back.onPress} accessibilityRole="button" accessibilityLabel={t('common.back')} style={({ pressed }) => [styles.round, pressed && styles.pressed]}>
             <Ico name="arrowL" size={24} color={C.dark} />
+            <HelpBadge spot={back} />
           </Pressable>
         ) : <View />}
         <HelpButton />
