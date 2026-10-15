@@ -3971,7 +3971,7 @@ with no change to the events.
 
 ## 109. A listening app keeps playing the approved version, hears changes by webhook, and the team sees its listeners on the passage
 
-Date: 2026-10-14 · By: Ryder Wishart · Status: accepted
+Date: 2026-10-14 · By: Ryder Wishart · Status: partly superseded by 110
 
 Reason: Ryder asked for the whole EveryBible loop for a stakeholder demo:
 a recorded passage goes out for review, reviewers hear it in EveryBible,
