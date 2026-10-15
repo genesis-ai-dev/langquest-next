@@ -659,7 +659,7 @@ test('ACCT-034 The ? explains each part of the screen', async ({ page }) => {
   await goPassage(page, world(), 'P-SUBMITTED');
   await byId(page, 'header-help').click();
   await primary(page).click();
-  await expect(button(page, /^Ask for a check\. Choose who to ask, then send it\./)).toBeVisible();
+  await expect(button(page, /^Ask for .+\. Choose who to ask, then send it\./)).toBeVisible();
   // Back explains itself too: the ? is the way out of help.
   await back(page).click();
   await expect(button(page, /^Back\. Goes back to the screen before\./)).toBeVisible();

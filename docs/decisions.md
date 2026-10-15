@@ -2246,7 +2246,9 @@ only its parts (`useHelpHost`), and help turns off when a sheet opens or
 closes. `apps/mobile/test/helpParts.ts`, run by `helpMode.test.ts`, fails on a
 control without its line; a `help-ignore:` comment marks the few that need
 none (a sheet's backdrop, toasts, the crash screen, the update banner above
-the help layer).
+the help layer). The 883 English lines add 59 KB to what a first visit
+downloads on the web, so its budget rose from 6.1 to 6.25 MB
+(`apps/mobile/scripts/export-web.mjs`, 6.17 MB then).
 Reverse if: people stop using help because the extra numbers crowd a screen
 (then number only the parts in reach of the ? first), or a line per part
 costs more to translate and record than field tests show it saves.
