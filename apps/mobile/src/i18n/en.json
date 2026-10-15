@@ -3572,8 +3572,11 @@
       "askSpecific": "Ask something specific",
       "answerType": "Answer: {{type}}",
       "addQuestion": "Add question",
-      "byWhen": "By when · optional",
-      "orDate": "Or a date, like {{date}}"
+      "changeQuestions": "Change questions",
+      "addQuestions": "Add questions",
+      "orDate": "Or a date, like {{date}}",
+      "deadline": "Deadline",
+      "addDeadline": "Add a deadline"
     },
     "resources": {
       "sourceAudio": "Source audio"

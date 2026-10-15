@@ -3572,8 +3572,11 @@
       "askSpecific": "নির্দিষ্ট কিছু জিজ্ঞেস করুন",
       "answerType": "উত্তর: {{type}}",
       "addQuestion": "প্রশ্ন যোগ করুন",
-      "byWhen": "কবের মধ্যে · ঐচ্ছিক",
-      "orDate": "অথবা একটি তারিখ, যেমন {{date}}"
+      "changeQuestions": "প্রশ্ন বদলান",
+      "addQuestions": "প্রশ্ন যোগ করুন",
+      "orDate": "অথবা একটি তারিখ, যেমন {{date}}",
+      "deadline": "শেষ তারিখ",
+      "addDeadline": "শেষ তারিখ দিন"
     },
     "resources": {
       "sourceAudio": "উৎসের অডিও"

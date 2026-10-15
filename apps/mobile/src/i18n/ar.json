@@ -4076,8 +4076,11 @@
       "askSpecific": "اسأل عن شيء محدد",
       "answerType": "الإجابة: {{type}}",
       "addQuestion": "أضف سؤالًا",
-      "byWhen": "متى · اختياري",
-      "orDate": "أو تاريخ، مثل {{date}}"
+      "changeQuestions": "غيّر الأسئلة",
+      "addQuestions": "أضف أسئلة",
+      "orDate": "أو تاريخ، مثل {{date}}",
+      "deadline": "الموعد النهائي",
+      "addDeadline": "حدّد موعدًا نهائيًا"
     },
     "resources": {
       "sourceAudio": "صوت المصدر"

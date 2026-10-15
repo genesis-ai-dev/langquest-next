@@ -1111,9 +1111,12 @@ const TEAM = '\u0000team';
 /**
  * What the people asked will answer: the check's own questions (decision 91),
  * then any added for this request, with a field to add one. On the ask page
- * after publishing and on Someone else alike.
+ * after publishing and on Someone else alike. It starts folded to one line
+ * with the check's questions (decision 108): most requests send them as they
+ * are, and changing them is one tap further in.
  */
 function TheyAnswer(props: { asked: ReturnType<typeof questionsForKind>; questions: QuestionSpec[]; setQuestions: (f: (qs: QuestionSpec[]) => QuestionSpec[]) => void }) {
+  const [open, setOpen] = useState(props.questions.length > 0);
   const [draft, setDraft] = useState('');
   const [type, setType] = useState<QuestionSpec['type']>('yesno');
   const add = () => {
@@ -1122,6 +1125,18 @@ function TheyAnswer(props: { asked: ReturnType<typeof questionsForKind>; questio
     props.setQuestions((qs) => [...qs, { id: `ask:${newId()}`, text, type }]);
     setDraft('');
   };
+  if (!open) {
+    return props.asked.length > 0 ? (
+      <>
+        <SectionLabel label={t('checks.theyAnswer')} action={<LinkBtn label={t('passage.ask.changeQuestions')} expanded={false} onPress={() => setOpen(true)} />} />
+        <Group>
+          <Row icon="chat" label={props.asked.map((sq) => sq.q.text).join(' · ')} last />
+        </Group>
+      </>
+    ) : (
+      <LinkBtn label={t('passage.ask.addQuestions')} expanded={false} onPress={() => setOpen(true)} />
+    );
+  }
   return (
     <>
       <SectionLabel label={t('checks.theyAnswer')} />
@@ -1149,6 +1164,28 @@ function TheyAnswer(props: { asked: ReturnType<typeof questionsForKind>; questio
   );
 }
 
+/**
+ * The deadline, behind one calendar button beside Ask (decision 108). No
+ * deadline is the default; a chip sets one and closes the sheet, and a typed
+ * date is kept with Done.
+ */
+function DeadlineSheet(props: { visible: boolean; today: string; days: number | null; typed: string; error: string | null; due: string | null;
+  onDays: (days: number | null) => void; onTyped: (v: string) => void; onClose: () => void }) {
+  return (
+    <Sheet visible={props.visible} title={t('passage.ask.deadline')} onClose={props.onClose}
+      footer={<SmallBtn label={t('common.done')} icon="check" tone="primary" disabled={!!props.error} onPress={props.onClose} />}>
+      <ChipRow>
+        {dueChoices().map((d) => (
+          <Chip key={String(d.days)} label={d.label} on={!props.typed.trim() && props.days === d.days} onPress={() => props.onDays(d.days)} />
+        ))}
+      </ChipRow>
+      <Field value={props.typed} onChangeText={props.onTyped} placeholder={t('passage.ask.orDate', { date: addDays(props.today, 10) })} autoCapitalize="none" />
+      {props.error ? <Text style={[txt.xs, { color: TINT.redText }]}>{props.error}</Text>
+        : props.due ? <Text style={txt.xs}>{dueTitle(props.due)}</Text> : null}
+    </Sheet>
+  );
+}
+
 export function AskSomeone(ctx: Ctx) {
   const v = usePassage(ctx);
   const what: 'record' | 'review' = ctx.params['what'] === 'record' ? 'record' : 'review';
@@ -1166,6 +1203,7 @@ export function AskSomeone(ctx: Ctx) {
   const [today] = useState(() => isoDay(new Date()));
   const [dueDays, setDueDays] = useState<number | null>(null);
   const [dueTyped, setDueTyped] = useState('');
+  const [dueOpen, setDueOpen] = useState(false);
   const [othersShown, setOthersShown] = useState(PEOPLE_STEP);
   const [busy, setBusy] = useState(false);
   const candidates = useMemo(() => (v ? askCandidates(v.state, ctx.org.state, { languageId: v.languageId, what, ...(kindId ? { kindId } : {}), me }) : []),
@@ -1222,8 +1260,19 @@ export function AskSomeone(ctx: Ctx) {
 
   return (
     <Screen header={<Header title={title} sub={`${v.title} · ${v.language}`} onBack={ctx.back} close />}
-      footer={<PrimaryBtn label={chosen === TEAM && team && !outside ? t('passage.published.askTarget', { target }) : target ? t('passage.ask.askName', { name: target.split(' ')[0] }) : t('passage.ask.chooseSomeone')}
-        disabled={!ready} busy={busy} onPress={() => void send()} />}>
+      footer={
+        <View style={{ gap: space.xs }}>
+          {due ? <Text style={[txt.xs, { textAlign: 'center' }]}>{dueTitle(due)}</Text> : null}
+          <View style={[styles.btnRow, { alignItems: 'center' }]}>
+            <IconBtn name="calendar" size={56} label={due ? dueTitle(due) : t('passage.ask.addDeadline')} onPress={() => setDueOpen(true)}
+              bg={due ? C.light : C.bg} color={due ? C.primary : C.dark} />
+            <View style={{ flex: 1 }}>
+              <PrimaryBtn label={chosen === TEAM && team && !outside ? t('passage.published.askTarget', { target }) : target ? t('passage.ask.askName', { name: target.split(' ')[0] }) : t('passage.ask.chooseSomeone')}
+                disabled={!ready} busy={busy} onPress={() => void send()} />
+            </View>
+          </View>
+        </View>
+      }>
       <Card style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
         {kindId ? <KindIcon kindId={kindId} size={44} /> : <View style={[styles.roundTile, { width: 44, height: 44, borderRadius: 14, backgroundColor: C.light }]}><Ico name="mic" size={22} color={C.primary} /></View>}
         <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
@@ -1283,15 +1332,9 @@ export function AskSomeone(ctx: Ctx) {
 
       {!isRecord ? <TheyAnswer asked={asked} questions={questions} setQuestions={setQuestions} /> : null}
 
-      <SectionLabel label={t('passage.ask.byWhen')} />
-      <ChipRow>
-        {dueChoices().map((d) => (
-          <Chip key={String(d.days)} label={d.label} on={!dueTyped.trim() && dueDays === d.days} onPress={() => { setDueTyped(''); setDueDays(d.days); }} />
-        ))}
-      </ChipRow>
-      <Field value={dueTyped} onChangeText={setDueTyped} placeholder={t('passage.ask.orDate', { date: addDays(today, 10) })} autoCapitalize="none" />
-      {dueErr ? <Text style={[txt.xs, { color: TINT.redText }]}>{dueErr}</Text>
-        : due ? <Text style={txt.xs}>{dueTitle(due)}</Text> : null}
+      <DeadlineSheet visible={dueOpen} today={today} days={dueDays} typed={dueTyped} error={dueErr} due={due}
+        onDays={(days) => { setDueTyped(''); setDueDays(days); setDueOpen(false); }} onTyped={setDueTyped}
+        onClose={() => { if (dueErr) setDueTyped(''); setDueOpen(false); }} />
     </Screen>
   );
 }

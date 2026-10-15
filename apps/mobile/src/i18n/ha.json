@@ -3572,8 +3572,11 @@
       "askSpecific": "Tambayi wani abu na musamman",
       "answerType": "Amsa: {{type}}",
       "addQuestion": "Ƙara tambaya",
-      "byWhen": "Zuwa yaushe · ba dole ba",
-      "orDate": "Ko kwanan wata, kamar {{date}}"
+      "changeQuestions": "Canza tambayoyi",
+      "addQuestions": "Ƙara tambayoyi",
+      "orDate": "Ko kwanan wata, kamar {{date}}",
+      "deadline": "Wa'adi",
+      "addDeadline": "Saka wa'adi"
     },
     "resources": {
       "sourceAudio": "Sautin asali"

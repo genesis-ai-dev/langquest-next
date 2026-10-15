@@ -3446,8 +3446,11 @@
       "askSpecific": "问一个具体的问题",
       "answerType": "回答方式：{{type}}",
       "addQuestion": "添加问题",
-      "byWhen": "截止日期 · 选填",
-      "orDate": "或者填一个日期，比如 {{date}}"
+      "changeQuestions": "更改问题",
+      "addQuestions": "添加问题",
+      "orDate": "或者填一个日期，比如 {{date}}",
+      "deadline": "截止日期",
+      "addDeadline": "设置截止日期"
     },
     "resources": {
       "sourceAudio": "源音频"

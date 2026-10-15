@@ -3698,8 +3698,11 @@
       "askSpecific": "Demander quelque chose de précis",
       "answerType": "Réponse : {{type}}",
       "addQuestion": "Ajouter une question",
-      "byWhen": "Pour quand · facultatif",
-      "orDate": "Ou une date, comme {{date}}"
+      "changeQuestions": "Modifier les questions",
+      "addQuestions": "Ajouter des questions",
+      "orDate": "Ou une date, comme {{date}}",
+      "deadline": "Échéance",
+      "addDeadline": "Ajouter une échéance"
     },
     "resources": {
       "sourceAudio": "Audio source"

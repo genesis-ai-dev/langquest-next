@@ -3572,8 +3572,11 @@
       "askSpecific": "कुछ खास पूछें",
       "answerType": "जवाब: {{type}}",
       "addQuestion": "सवाल जोड़ें",
-      "byWhen": "कब तक · ज़रूरी नहीं",
-      "orDate": "या कोई तारीख़, जैसे {{date}}"
+      "changeQuestions": "सवाल बदलें",
+      "addQuestions": "सवाल जोड़ें",
+      "orDate": "या कोई तारीख़, जैसे {{date}}",
+      "deadline": "आखिरी तारीख",
+      "addDeadline": "आखिरी तारीख रखें"
     },
     "resources": {
       "sourceAudio": "स्रोत ऑडियो"

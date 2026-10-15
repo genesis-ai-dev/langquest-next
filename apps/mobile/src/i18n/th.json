@@ -3446,8 +3446,11 @@
       "askSpecific": "ถามเรื่องเฉพาะ",
       "answerType": "คำตอบ: {{type}}",
       "addQuestion": "เพิ่มคำถาม",
-      "byWhen": "ภายในเมื่อไร · ไม่บังคับ",
-      "orDate": "หรือวันที่ เช่น {{date}}"
+      "changeQuestions": "เปลี่ยนคำถาม",
+      "addQuestions": "เพิ่มคำถาม",
+      "orDate": "หรือวันที่ เช่น {{date}}",
+      "deadline": "กำหนดส่ง",
+      "addDeadline": "ตั้งกำหนดส่ง"
     },
     "resources": {
       "sourceAudio": "เสียงต้นฉบับ"

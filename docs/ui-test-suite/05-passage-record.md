@@ -896,9 +896,11 @@ Steps:
 1. Tap TREV's row.
 2. Under "Directions · optional", type "Listen for the parable's ending" in
    "Or type them".
-3. Under "They'll answer", type "Is the host's anger clear?" in "Ask
-   something specific". Tap "Add question".
-4. Under "By when · optional", tap "In a week".
+3. Under "They'll answer", tap "Change questions" (the check's questions
+   show folded to one line until then). Type "Is the host's anger clear?" in
+   "Ask something specific". Tap "Add question".
+4. Tap the calendar button beside the footer ("Add a deadline"), then "In a
+   week". The choices close.
 5. Tap "Ask {TREV first name}".
 6. TREV: Sync now, then open My Work.
 
@@ -906,7 +908,8 @@ Expected:
 - The footer changes to "Ask {first name}" once TREV is picked.
 - The question shows under "They'll answer", after the check's own
   questions, with "Yes/No" and ✕ ("Remove question").
-- The date line reads "Due {day}".
+- The date line above the footer reads "Due {day}", and the calendar button
+  is lit.
 - After sending, the toast reads "{TREV} will see it on their My Work", with
   "Undo". The app returns to P-DRAFT's record.
 - The "Peer check" row reads "asked {TREV}".
@@ -921,7 +924,8 @@ Roles: COORD, LADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Aut
 Steps:
 1. Open an unstarted Luke passage nobody was asked to record. Tap "Something
    else?", then "Someone else should do this".
-2. Pick KEPT ("Kept Person"). Tap "In 2 weeks". Tap "Ask Kept".
+2. Pick KEPT ("Kept Person"). Tap "Add a deadline", then "In 2 weeks". Tap
+   "Ask Kept".
 3. Within 7 seconds, tap "Undo".
 
 Expected:
@@ -938,29 +942,32 @@ Expected:
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Steps:
-1. On Ask someone (any), type "12/10/2026" in "Or a date, like
-   {today+10}".
+1. On Ask someone (any), check that no date shows. Tap the calendar button
+   ("Add a deadline") and type "12/10/2026" in "Or a date, like {today+10}".
 2. Type "2026-02-30".
 3. Type yesterday's date as YYYY-MM-DD.
 4. Type a date 10 days ahead.
 5. Clear the field and tap "Today".
-6. Tap "No date".
+6. Tap the calendar button again ("Due {today}"), then "No date".
 
 Expected:
-- Step 1: "Write the date as YYYY-MM-DD, like 2026-10-07." in red. The
-  footer stays disabled.
+- Before step 1: no deadline; the screen shows no date and no date choices.
+- Step 1: "Write the date as YYYY-MM-DD, like 2026-10-07." in red. "Done"
+  stays disabled.
 - Step 2: "That date does not exist."
 - Step 3: "Pick today or a later day."
 - Step 4: no error. The line reads "Due {day}", and no chip is lit.
-- Step 5: "Today" is lit, and the line reads "Due {today}".
-- Step 6: "No date" removes the due date.
+- Step 5: the choices close, and the line above the footer reads "Due
+  {today}".
+- Step 6: "No date" removes the due date and closes the choices.
 
 ### PASS-041 Your own questions
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
 
 Steps:
-1. On Ask someone for any check, check that "Add question" is disabled with
-   an empty field.
+1. On Ask someone for any check, check that the question field is hidden.
+   Tap "Change questions" (or "Add questions" when the check has none), and
+   check that "Add question" is disabled with an empty field.
 2. Tap "Answer: Yes/No" three times.
 3. Add two questions, then tap ✕ on the first.
 

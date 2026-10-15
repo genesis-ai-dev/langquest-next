@@ -6,7 +6,7 @@
 // colours with an icon (ADR-010), and field-sized targets (ADR-008).
 import type { LucideIcon } from 'lucide-react-native';
 import {
-  ArrowLeftRight, ArrowRight, Ban, BookOpen, Briefcase, Building2, Camera, ChartColumn, Check, ChevronDown, ChevronLeft,
+  ArrowLeftRight, ArrowRight, Ban, BookOpen, Briefcase, Building2, Calendar, Camera, ChartColumn, Check, ChevronDown, ChevronLeft,
   ChevronRight, ChevronUp, CircleHelp, ClipboardList, Clock, Cloud, CloudCheck, CloudOff, Download, Filter, Flag, Folder, Globe, History,
   House, Image, Inbox, LayoutTemplate, Link, Lock, Map as MapIcon, MapPin, MessageCircle, MessageSquareText, Mic, Pause, Pencil,
   Play, Plus, QrCode, RotateCcw, Scissors, Search, Settings, Share2, SkipForward, Sparkles, Square, Star, StickyNote,
@@ -37,7 +37,7 @@ export { useLayout, useOpenDetail, type Layout, type OpenDetail } from './useLay
 
 /** The demo's icon names, drawn with lucide. */
 const ICONS = {
-  arrowR: ArrowRight, assign: ClipboardList, block: Ban, book: BookOpen, building: Building2, camera: Camera, chat: MessageCircle,
+  arrowR: ArrowRight, assign: ClipboardList, block: Ban, book: BookOpen, building: Building2, calendar: Calendar, camera: Camera, chat: MessageCircle,
   chatDots: MessageSquareText, check: Check, clock: Clock, close: X, cloud: Cloud, cut: Scissors, down: ChevronDown,
   download: Download, edit: Pencil, filter: Filter, flag: Flag, flow: Workflow, folder: Folder, globe: Globe,
   help: CircleHelp, history: History, home: House, left: ChevronLeft, link: Link, lock: Lock, map: MapIcon, media: Image,

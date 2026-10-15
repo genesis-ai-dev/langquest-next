@@ -3572,8 +3572,11 @@
       "askSpecific": "የተለየ ነገር ይጠይቁ",
       "answerType": "መልስ፦ {{type}}",
       "addQuestion": "ጥያቄ ያክሉ",
-      "byWhen": "እስከ መቼ · ካስፈለገ",
-      "orDate": "ወይም ቀን፣ ለምሳሌ {{date}}"
+      "changeQuestions": "ጥያቄዎችን ቀይር",
+      "addQuestions": "ጥያቄዎችን ጨምር",
+      "orDate": "ወይም ቀን፣ ለምሳሌ {{date}}",
+      "deadline": "የመጨረሻ ቀን",
+      "addDeadline": "የመጨረሻ ቀን አስቀምጥ"
     },
     "resources": {
       "sourceAudio": "የምንጩ ድምፅ"

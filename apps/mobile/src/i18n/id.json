@@ -3446,8 +3446,11 @@
       "askSpecific": "Tanyakan sesuatu yang khusus",
       "answerType": "Jawaban: {{type}}",
       "addQuestion": "Tambah pertanyaan",
-      "byWhen": "Kapan selesai · tidak wajib",
-      "orDate": "Atau tanggal, misalnya {{date}}"
+      "changeQuestions": "Ubah pertanyaan",
+      "addQuestions": "Tambah pertanyaan",
+      "orDate": "Atau tanggal, misalnya {{date}}",
+      "deadline": "Tenggat",
+      "addDeadline": "Atur tenggat"
     },
     "resources": {
       "sourceAudio": "Audio sumber"

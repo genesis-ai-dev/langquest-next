@@ -3446,8 +3446,11 @@
       "askSpecific": "တိကျသောအရာကို မေးရန်",
       "answerType": "အဖြေ: {{type}}",
       "addQuestion": "မေးခွန်း ထည့်ရန်",
-      "byWhen": "ဘယ်အချိန်အထိ · မထည့်လည်း ရ",
-      "orDate": "သို့မဟုတ် {{date}} ကဲ့သို့ ရက်စွဲ"
+      "changeQuestions": "မေးခွန်းများ ပြောင်းရန်",
+      "addQuestions": "မေးခွန်းများ ထည့်ရန်",
+      "orDate": "သို့မဟုတ် {{date}} ကဲ့သို့ ရက်စွဲ",
+      "deadline": "နောက်ဆုံးရက်",
+      "addDeadline": "နောက်ဆုံးရက် သတ်မှတ်ရန်"
     },
     "resources": {
       "sourceAudio": "မူရင်း အသံ"

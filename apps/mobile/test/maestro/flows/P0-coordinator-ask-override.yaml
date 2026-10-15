@@ -40,6 +40,7 @@ tags:
 - assertVisible: "Ask someone to record"
 - tapOn: ".*${TRANS_NAME}.*"
 - scroll
+- tapOn: "Add a deadline"
 - tapOn: "In a week"
 - tapOn:
     id: "primary-action"

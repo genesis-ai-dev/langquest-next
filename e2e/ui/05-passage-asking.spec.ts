@@ -217,12 +217,14 @@ test('PASS-038 Ask a person, with directions, a question and a due date @p0', as
   await page.getByRole('radio', { name: new RegExp(`^${trev}`) }).locator('visible=true').first().click();
   await expect(byId(page, 'primary-action')).toHaveText('Ask Trevor');
   await field(page, 'Or type them').fill("Listen for the parable's ending");
+  await button(page, /^(Change|Add) questions$/).click();
   await field(page, 'Ask something specific').fill("Is the host's anger clear?");
   await button(page, 'Add question').click();
   const listed = await screenText(page);
   expect(listed.toLowerCase()).toContain("they’ll answer");
   expect(listed).toContain("Is the host's anger clear? Yes/No");
   await expect(button(page, 'Remove question')).toBeVisible();
+  await button(page, 'Add a deadline').click();
   await button(page, 'In a week').click();
   expect(await screenText(page)).toMatch(/Due [A-Z][a-z]{2} \d{1,2}/);
   await byId(page, 'primary-action').click();
@@ -246,6 +248,7 @@ async function askToRecordThenUndo(browser: Browser, who: AccountKey, at: number
   await somethingElse(page);
   await button(page, /^Someone else should do this/).click();
   await page.getByRole('radio', { name: new RegExp(`^${kept}`) }).locator('visible=true').first().click();
+  await button(page, 'Add a deadline').click();
   await button(page, 'In 2 weeks').click();
   await expect(byId(page, 'primary-action')).toHaveText('Ask Kept');
   await byId(page, 'primary-action').click();
@@ -280,11 +283,14 @@ test('PASS-040 Typing a due date', async ({ browser }) => {
   await draftPublished();
   const page = await recordAs(browser, world(), 'TRANS', 'P-DRAFT');
   await askForBt(page);
+  // No deadline until one is asked for: the calendar button opens the choices.
+  await expect(text(page, /^Due /)).toHaveCount(0);
+  await button(page, 'Add a deadline').click();
   const due = field(page, /^Or a date, like /);
   const err = (m: string) => expect(text(page, m)).toBeVisible();
   await due.fill('12/10/2026');
   await err('Write the date as YYYY-MM-DD, like 2026-10-07.');
-  await expect(byId(page, 'primary-action')).toBeDisabled();
+  await expect(button(page, 'Done')).toBeDisabled();
   await due.fill('2026-02-30');
   await err('That date does not exist.');
   const day = (n: number) => { const d = new Date(); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -293,8 +299,10 @@ test('PASS-040 Typing a due date', async ({ browser }) => {
   await due.fill(day(10));
   await expect(text(page, /^Due [A-Z][a-z]{2} \d{1,2}$/)).toBeVisible();
   await due.fill('');
+  // A chip sets the date and closes the choices; the date shows beside Ask.
   await button(page, 'Today').click();
   await expect(text(page, /^Due [A-Z][a-z]{2} \d{1,2}$/)).toBeVisible();
+  await button(page, /^Due /).click();
   await button(page, 'No date').click();
   await expect(text(page, /^Due /)).toHaveCount(0);
 });
@@ -303,6 +311,9 @@ test('PASS-041 Your own questions', async ({ browser }) => {
   await draftPublished();
   const page = await recordAs(browser, world(), 'TRANS', 'P-DRAFT');
   await askForBt(page);
+  // The questions start folded to one line; changing them is one tap in.
+  await expect(field(page, 'Ask something specific')).toHaveCount(0);
+  await button(page, /^(Change|Add) questions$/).click();
   await expect(button(page, 'Add question')).toBeDisabled();
   const type = page.getByRole('button', { name: /^Answer: / }).locator('visible=true').first();
   await expect(type).toHaveText('Answer: Yes/No');

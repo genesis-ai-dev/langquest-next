@@ -3572,8 +3572,11 @@
       "askSpecific": "Uliza jambo maalum",
       "answerType": "Jibu: {{type}}",
       "addQuestion": "Ongeza swali",
-      "byWhen": "Hadi lini · si lazima",
-      "orDate": "Au tarehe, kama {{date}}"
+      "changeQuestions": "Badilisha maswali",
+      "addQuestions": "Ongeza maswali",
+      "orDate": "Au tarehe, kama {{date}}",
+      "deadline": "Tarehe ya mwisho",
+      "addDeadline": "Weka tarehe ya mwisho"
     },
     "resources": {
       "sourceAudio": "Sauti ya chanzo"

@@ -160,6 +160,7 @@ test('JRN-005 A coordinator gets a language ready and starts its team @p0 @wide'
     await button(coord, 'Something else?').click();
     await button(coord, /^Someone else should do this/).click();
     await coord.getByRole('radio', { name: new RegExp(benName) }).click();
+    await button(coord, 'Add a deadline').click();
     await button(coord, 'In a week').click();
     await primary(coord).click();
     await expectToast(coord, new RegExp(benName.split(' ')[0]!));

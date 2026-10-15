@@ -3924,3 +3924,25 @@ Reverse if: admins need to make a template without any way to start from
 (then offer an empty Bible template), or the numbering of a template must
 change after books are divided (then convert each book's sections, as 80
 does for a language).
+
+## 108. Asking for a review shows the check's questions folded and the deadline behind one calendar button
+
+Date: 2026-10-15 · By: Ryder Wishart · Status: accepted
+
+Reason: Ryder found the ask flow (Ask someone, and the ask after
+publishing) too long. Every request laid out every question, the field and
+buttons to add one, and five "By when" chips with a date field, though most
+people send the check's own questions as they are and many teams do not use
+deadlines yet. This departs from the partner demo's ASK-4, which shows the
+due chips on the page.
+- The questions they'll answer start as one line with the check's questions
+  (`TheyAnswer` in `screens/passage.tsx`). "Change questions" (or "Add
+  questions" when the check has none) opens the full list, the field and the
+  answer type. A request that already has added questions opens unfolded.
+  The request still carries the check's questions (decision 91).
+- The deadline is a calendar button beside Ask (`DeadlineSheet`). No
+  deadline is the default. Its sheet holds the same chips and typed date
+  (`dueChoices`, `dueError`); a chip sets the date and closes it. A chosen
+  date shows above the footer and lights the button.
+Reverse if: people miss that they can change the questions or set a
+deadline, so requests go out without the questions or dates they wanted.

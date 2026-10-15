@@ -3572,8 +3572,11 @@
       "askSpecific": "कुनै खास कुरा सोध्नुहोस्",
       "answerType": "जवाफ: {{type}}",
       "addQuestion": "प्रश्न थप्नुहोस्",
-      "byWhen": "कहिलेसम्म · ऐच्छिक",
-      "orDate": "वा मिति, जस्तै {{date}}"
+      "changeQuestions": "प्रश्नहरू बदल्नुहोस्",
+      "addQuestions": "प्रश्नहरू थप्नुहोस्",
+      "orDate": "वा मिति, जस्तै {{date}}",
+      "deadline": "अन्तिम मिति",
+      "addDeadline": "अन्तिम मिति राख्नुहोस्"
     },
     "resources": {
       "sourceAudio": "स्रोत अडियो"
