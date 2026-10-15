@@ -49,7 +49,8 @@ import * as Study from './src/screens/study';
 import * as Translate from './src/screens/translate';
 import * as Work from './src/screens/work';
 import { StorageGate } from './src/web/storageGate';
-import { useLeaveGuard } from './src/web/useLeaveGuard';
+import { SyncEffects } from './src/sync/SyncEffects';
+import { SyncStatusContext } from './src/sync/useSyncStatus';
 import { deriveSession, foldsSettled, homeScreenFor, tabsFor, type TabId } from './src/shell/session';
 import { SESSION_KEY, onAuthChange, serverConfigError } from './src/server/auth';
 import { afterAuthEvent, savedSession } from './src/auth/authState';
@@ -118,6 +119,8 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
  * below the top keeps its own params while another is pushed over it.
  */
 const CtxContext = createContext<Ctx | null>(null);
+const NO_PARAMS: Record<string, string> = {};
+const markJoined: Ctx['markJoined'] = (actorId) => AsyncStorage.setItem(`joined:${actorId}`, '1');
 const Stack = createNativeStackNavigator<StackParams>();
 
 /**
@@ -154,11 +157,9 @@ function hostFor(id: ScreenId) {
     const focused = useFocusedSafe();
     // Playback belongs to the screen it started on: leaving it (another screen pushed over it, or a tab
     // switched away) stops whatever was playing. Popping back unmounts the screen, and its players with it.
-    const wasFocused = useRef(focused);
-    useEffect(() => {
-      if (wasFocused.current && !focused) stopAudioPlayback();
-      wasFocused.current = focused;
-    }, [focused]);
+    // Heard from the navigation event, not from a render: a screen being frozen may never draw its blur.
+    const navigation = useContext(NavigationContext);
+    useEffect(() => navigation?.addListener('blur', stopAudioPlayback), [navigation]);
     const pane = useContext(PaneKeyContext);
     const report = useContext(FooterReportContext);
     const key = props.route.key;
@@ -370,8 +371,6 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   const nav = useNav({ screen: 'sign_in' });
   const { languageId, setLanguage, languages } = useWorkingLanguage(org.state, props.actorId, props.orgId, nav.current.params?.['languageId']);
   const language = useLanguage(props.orgId, languageId, props.actorId, org.membershipEpoch);
-  // Web: warn before the tab closes with work still to send (storageGate.tsx).
-  useLeaveGuard(!language.refused && (language.pending > 0 || language.blobs.pendingUp > 0) || org.pending > 0);
   useAccountSync(props.actorId);
   useProfileName(props.actorId, props.email);
   const blocks = useBlocks(props.actorId);
@@ -418,14 +417,28 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   useTestProbes({ org, language, languageId, orgId: props.orgId, go, openTask });
   const canSwitchPersona = maySwitchPersona(props.email, IS_DEV);
 
-  const ctx: Ctx = {
+  const home = useCallback(() => nav.reset({ screen: homeScreenFor(session) }), [nav, session]);
+  const acceptTerms = useCallback((actorId = props.actorId) => recordUserEvent(actorId, 'v1.TermsAccepted'), [props.actorId]);
+  const openDev = useCallback(() => setDevOpen(true), []);
+  const inboxView = useMemo(
+    () => ({ updates: inbox.updates, unread: inbox.unread, isRead: inbox.isRead, markRead: inbox.markRead }),
+    [inbox.updates, inbox.unread, inbox.isRead, inbox.markRead]
+  );
+  const { data: welcomeData, refresh: refreshWelcome } = welcomeBack;
+  const welcomeView = useMemo(() => (hasWelcome(welcomeData) ? { data: welcomeData, refresh: refreshWelcome } : null), [welcomeData, refreshWelcome]);
+  const { markWelcomed } = onboarding;
+  const { openOrganization } = props;
+  const params = nav.current.params ?? NO_PARAMS;
+  // One object until something a screen reads changes: the sync's ticking status is not in it (useSyncStatus.ts),
+  // and the native stack keeps every screen below the top mounted, so each new `ctx` redraws all of them.
+  const ctx: Ctx = useMemo(() => ({
     language,
     org,
     session,
-    params: nav.current.params ?? {},
+    params,
     go,
     back: nav.back,
-    home: () => nav.reset({ screen: homeScreenFor(session) }),
+    home,
     languageId,
     setLanguage,
     languages,
@@ -436,17 +449,19 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     openPassage,
     name,
     blocks,
-    inbox: { updates: inbox.updates, unread: inbox.unread, isRead: inbox.isRead, markRead: inbox.markRead },
-    ...(hasWelcome(welcomeBack.data) ? { welcomeBack: { data: welcomeBack.data, refresh: welcomeBack.refresh } } : {}),
-    markWelcomed: onboarding.markWelcomed,
-    acceptTerms: (actorId = props.actorId) => recordUserEvent(actorId, 'v1.TermsAccepted'),
-    markJoined: (actorId) => AsyncStorage.setItem(`joined:${actorId}`, '1'),
+    inbox: inboxView,
+    ...(welcomeView ? { welcomeBack: welcomeView } : {}),
+    markWelcomed,
+    acceptTerms,
+    markJoined,
     invite,
-    openOrganization: props.openOrganization,
-    openDev: () => setDevOpen(true),
+    openOrganization,
+    openDev,
     isDev: IS_DEV,
     canSwitchPersona
-  };
+  }), [language, org, session, params, go, nav.back, home, languageId, setLanguage, languages, act, toast, details, recent, openPassage,
+    name, blocks, inboxView, welcomeView, markWelcomed, acceptTerms, invite, openOrganization, openDev, canSwitchPersona]);
+  const syncSources = useMemo(() => ({ language: language.syncStatus, org: org.syncStatus }), [language.syncStatus, org.syncStatus]);
 
   const screen = nav.current.screen;
   // Phone, tablet or desktop by the window's width alone (decisions.md 55).
@@ -506,6 +521,8 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
 
   return (
     <View style={{ flex: 1 }}>
+      <SyncStatusContext.Provider value={syncSources}>
+      <SyncEffects orgId={props.orgId} orgPulled={org.pulled} refused={language.refused} />
       <PeopleContext.Provider value={people}>
         <View style={{ flex: 1, flexDirection: 'row' }}>
           {wide && showTabs ? navChrome(kind === 'tablet' ? 'rail' : 'sidebar') : null}
@@ -522,7 +539,8 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
               documentTitle={{ formatter: (_options, route) => (route ? titleFor(route.name as ScreenId) : 'LangQuest') }}>
               <Stack.Navigator
                 initialRouteName={nav.initial.screen}
-                screenOptions={{ headerShown: false, fullScreenGestureEnabled: true, contentStyle: { backgroundColor: C.bg } }}
+                // Screens under the top one are frozen: they keep their state but skip renders until shown again (react-native-screens).
+                screenOptions={{ headerShown: false, fullScreenGestureEnabled: true, freezeOnBlur: true, contentStyle: { backgroundColor: C.bg } }}
               >
                 {SCREEN_IDS.map((id) => (
                   // Tab-level screens are only ever reached by reset, so they
@@ -542,6 +560,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
         </View>
         {!wide && showTabs ? navChrome('bar') : null}
       </PeopleContext.Provider>
+      </SyncStatusContext.Provider>
       {/* Files this device deleted behind the app's back (decisions.md 92): over every screen until seen. */}
       <LostFilesAlert state={language.state} />
       {canSwitchPersona ? (

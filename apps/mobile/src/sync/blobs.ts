@@ -95,6 +95,8 @@ export class BlobStore {
   private readonly urls = new Map<string, string>();
   private readonly loading = new Set<string>();
   private readonly present = new Set<string>();
+  /** Bumped whenever a file joins or leaves `present`, so a reader can tell a copy is still current. */
+  private versionNow = 0;
   private readonly sizeByHash = new Map<string, number>();
   /** The format each present file was stored as: its name's extension. */
   private readonly formatByHash = new Map<string, StoredFormat>();
@@ -206,9 +208,23 @@ export class BlobStore {
     return this.present.has(hash);
   }
 
-  /** Snapshot of present hashes for work-list derivation. */
+  /** A copy of the present hashes, for what is kept or handed to React. */
   snapshot(): ReadonlySet<string> {
     return new Set(this.present);
+  }
+
+  /**
+   * The live set of present hashes, without a copy: for a reader that uses it
+   * at once and neither keeps nor changes it (work lists, reclaim). A copy
+   * per arriving file made a download of 61,000 files quadratic.
+   */
+  presentView(): ReadonlySet<string> {
+    return this.present;
+  }
+
+  /** Changes whenever a file joins or leaves. */
+  get version(): number {
+    return this.versionNow;
   }
 
   /** Whether this file is stored. On the web the index is the truth: it is marked only after a write commits. */
@@ -329,6 +345,7 @@ export class BlobStore {
   /** Off the index: not present, no size, no format, no playback URL. */
   private unindex(hash: string): void {
     this.present.delete(hash);
+    this.versionNow++;
     this.sizeByHash.delete(hash);
     this.formatByHash.delete(hash);
     const url = this.urls.get(hash);
@@ -570,6 +587,7 @@ export class BlobStore {
     if (this.present.has(hash)) return;
     if (format) this.formatByHash.set(hash, format);
     this.present.add(hash);
+    this.versionNow++;
     this.arrivedDuringListing?.add(hash);
     const stored = this.formatByHash.get(hash);
     if (stored) this.queueKeep(hash, stored);

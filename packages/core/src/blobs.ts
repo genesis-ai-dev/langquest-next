@@ -77,6 +77,8 @@ interface BlobPlan {
   idx: AudioIndex;
   /** Per offline scope asked about at this revision: the files its passages need, and those the server has, in order. */
   scoped: Map<string, { needed: ReadonlySet<string>; stored: readonly BlobRef[] }>;
+  /** The same answers by the scope's own identity: a caller that asks again with the same Set skips the sort and join. */
+  byScope: WeakMap<ReadonlySet<string>, { needed: ReadonlySet<string>; stored: readonly BlobRef[] }>;
 }
 
 const plans = new WeakMap<LanguageState, { revision: number; plan: BlobPlan }>();
@@ -89,7 +91,7 @@ function planOf(state: LanguageState): BlobPlan {
   const order = new Map<string, number>();
   let n = 0;
   for (const hash of refs.keys()) order.set(hash, n++);
-  const plan = { refs, order, idx: audioIndex(state, refs), scoped: new Map() };
+  const plan: BlobPlan = { refs, order, idx: audioIndex(state, refs), scoped: new Map(), byScope: new WeakMap() };
   plans.set(state, { revision, plan });
   return plan;
 }
@@ -101,6 +103,9 @@ export function referencedBlobs(state: LanguageState): ReadonlyMap<string, BlobR
 
 /** What a scope needs, worked out once per revision: the workers and the reclaimer ask with the same scope after every file. */
 function forScope(state: LanguageState, plan: BlobPlan, scope: ReadonlySet<string>): { needed: ReadonlySet<string>; stored: readonly BlobRef[] } {
+  // A scope Set is not changed once it has been passed in here (the session keeps one per revision).
+  const same = plan.byScope.get(scope);
+  if (same) return same;
   const key = [...scope].sort().join('\n');
   let hit = plan.scoped.get(key);
   if (!hit) {
@@ -110,6 +115,7 @@ function forScope(state: LanguageState, plan: BlobPlan, scope: ReadonlySet<strin
     if (plan.scoped.size >= 4) plan.scoped.delete(plan.scoped.keys().next().value!);
     plan.scoped.set(key, hit);
   }
+  plan.byScope.set(scope, hit);
   return hit;
 }
 

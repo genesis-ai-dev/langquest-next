@@ -1,12 +1,13 @@
 import { OrgSession, ensureDeviceId, type OrgStatus, type SyncInspection } from '@langquest-next/sync';
 import { emptyOrgState, type EventPayloads, type OrgEventType, type OrgState } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getStore } from './store';
 import { trackSync } from './syncActivity';
 import { onWake } from './wake';
 import { serverTransport } from '../server/sync';
 import { diagnostics } from '../diagnostics/diagnostics';
+import { StatusStore, type OrgStatusStore } from './syncStatusStore';
 
 export interface OrgHandle {
   /**
@@ -15,7 +16,11 @@ export interface OrgHandle {
    * field of it, or they miss the change.
    */
   state: OrgState | null;
-  pending: number;
+  /**
+   * Events not yet sent tick during a sync, so they are not here: components
+   * that show them call `useSyncStatus().orgPending`; the app gives it this store.
+   */
+  syncStatus: OrgStatusStore;
   append: <T extends OrgEventType>(type: T, payload: EventPayloads[T]) => Promise<void>;
   sync: () => Promise<void>;
   live: boolean;
@@ -45,6 +50,7 @@ export function useOrg(orgId: string | null, actorId: string): OrgHandle {
   const sessionRef = useRef<OrgSession | null>(null);
   const [state, setState] = useState<OrgState | null>(null);
   const [status, setStatus] = useState<OrgStatus>(NOTHING_YET);
+  const syncStatus = useMemo<OrgStatusStore>(() => new StatusStore({ pending: 0 }), []);
 
   // Back on screen or back online: sync now rather than at the end of a backoff.
   useEffect(() => onWake(() => sessionRef.current?.wake()), []);
@@ -53,6 +59,7 @@ export function useOrg(orgId: string | null, actorId: string): OrgHandle {
     if (!orgId) {
       setState(emptyOrgState());
       setStatus({ ...NOTHING_YET, settled: true });
+      syncStatus.set({ pending: 0 });
       return;
     }
     let cancelled = false;
@@ -73,7 +80,9 @@ export function useOrg(orgId: string | null, actorId: string): OrgHandle {
       // A new object on every change to the fold; its fields are the fold's own (OrgHandle.state).
       stop = session.subscribe((what) => {
         if (what === 'state') setState({ ...session.state });
-        setStatus(session.status);
+        const now = session.status;
+        setStatus((prev) => (prev.live === now.live && prev.pulled === now.pulled && prev.settled === now.settled && prev.membershipEpoch === now.membershipEpoch ? prev : now));
+        syncStatus.set({ pending: now.pending });
       });
       session.start();
     })();
@@ -83,13 +92,16 @@ export function useOrg(orgId: string | null, actorId: string): OrgHandle {
       opened?.close();
       sessionRef.current = null;
     };
-  }, [orgId, actorId]);
+  }, [orgId, actorId, syncStatus]);
 
   const sync = useCallback(async () => { await sessionRef.current?.sync(); }, []);
   const append = useCallback(async <T extends OrgEventType>(type: T, payload: EventPayloads[T]) => {
     await sessionRef.current?.append(type, payload);
   }, []);
   const inspect = useCallback(() => sessionRef.current?.inspect() ?? Promise.resolve(null), []);
-  const { pending, live, pulled, settled, membershipEpoch } = status;
-  return { state, pending, append, sync, live, inspect, pulled, settled, membershipEpoch };
+  const { live, pulled, settled, membershipEpoch } = status;
+  return useMemo(
+    () => ({ state, syncStatus, append, sync, live, inspect, pulled, settled, membershipEpoch }),
+    [state, syncStatus, append, sync, live, inspect, pulled, settled, membershipEpoch]
+  );
 }
