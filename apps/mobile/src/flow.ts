@@ -46,7 +46,7 @@ export const SCREEN_IDS = [
   'settings_more',
   // App only: one of a language's checks, with its people, questions and helps (decision 91)
   'check_editor',
-  // App only: something made from a version, by a step or brought over from v2 (decision 107)
+  // App only: something made from a version, by a step or brought over from v2 (decision 108)
   'made_detail'
 ] as const;
 
@@ -410,14 +410,14 @@ export const EDGES: Edge[] = [
   // App only: signing out of "Join your team" goes through the same confirmation as Me (NOORG-004, decision 60)
   e('intent_chooser', 'sign_out_confirm'),
   e('sign_out_confirm', 'intent_chooser', 'back'),
-  // Something made from a version (decision 107): from the passage's Reviews by version, and from the version.
+  // Something made from a version (decision 108): from the passage's Reviews by version, and from the version.
   e('passage_record', 'made_detail'),
   e('version_detail', 'made_detail'),
   e('made_detail', 'passage_record', 'back'),
   e('made_detail', 'version_detail', 'back'),
   e('made_detail', 'ask_someone'),
-  e('version_detail', 'back_translation', undefined, 'reviewer'), // tap Change the words (decision 107)
-  e('made_detail', 'back_translation', undefined, 'reviewer'), // tap Change the words (decision 107)
+  e('version_detail', 'back_translation', undefined, 'reviewer'), // tap Change the words (decision 108)
+  e('made_detail', 'back_translation', undefined, 'reviewer'), // tap Change the words (decision 108)
   e('back_translation', 'version_detail', 'back'),
   e('back_translation', 'made_detail', 'back')
 ];

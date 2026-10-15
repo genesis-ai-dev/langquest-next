@@ -87,16 +87,16 @@ const APP_ONLY: Record<string, string> = {
   'my_work->edit_member': "a coordinator's Home lists people asking to join under Get ready; a row opens Assign role & accept (decision 71, demo ADR-039)",
   'settings_home->settings_more': 'Me keeps five rows; everything else Settings had is under More settings (decision 71, demo ADR-032)',
   'settings_more->profile_edit': 'More settings: setting a password on a looked-after account (decisions.md 59)',
-  'settings_more->org_switcher': 'More settings: Switch Organization, moved from Settings (decision 71)',
+  'settings_more->org_switcher': 'More settings: Switch Organization for someone in one organization, where it starts a new one (decision 71)',
   'settings_more->sync_status': 'More settings: Sync, moved from Settings › Advanced (decision 71)',
   'settings_more->delete_account': 'More settings: Delete account, moved from Settings (decision 71; store rules, decisions.md 46)',
   'flow_editor->check_editor': "a language's Checks open one check, with its people, questions and helps (decision 91)",
   'review_capture->material_editor': "a check's help that is a note opens from the review (decision 91)",
-  'passage_record->made_detail': "Reviews by version opens something made from a version (decision 107)",
-  'version_detail->made_detail': 'a version lists what was made from it (decision 107)',
-  'made_detail->ask_someone': 'ask for the check that reads what a step made (decision 107)',
-  'version_detail->back_translation': 'change the words a step added to a version (decision 107)',
-  'made_detail->back_translation': 'change the words a step added to a version (decision 107)'
+  'passage_record->made_detail': "Reviews by version opens something made from a version (decision 108)",
+  'version_detail->made_detail': 'a version lists what was made from it (decision 108)',
+  'made_detail->ask_someone': 'ask for the check that reads what a step made (decision 108)',
+  'version_detail->back_translation': 'change the words a step added to a version (decision 108)',
+  'made_detail->back_translation': 'change the words a step added to a version (decision 108)'
 };
 
 /** App-only reference screens (docs/reference-material.md). */

@@ -1421,8 +1421,8 @@
       "wholeBooks": "Whole books",
       "chapters": "Chapters",
       "passages": "Passages",
-      "passagesNote_one": "{{count, number}} passage, as the version this started from divides them. Changing where passages start is coming.",
-      "passagesNote_other": "{{count, number}} passages, as the version this started from divides them. Changing where passages start is coming.",
+      "passagesNote_one": "{{count, number}} passage, as the version this started from divides them.",
+      "passagesNote_other": "{{count, number}} passages, as the version this started from divides them.",
       "eachBook": "Each book is one part to record.",
       "eachChapter": "Each chapter is one part to record.",
       "booksCount": "Books · {{n, number}}",
@@ -1443,8 +1443,7 @@
       "scripture": "Scripture",
       "scriptureSub": "Books and chapters of the Bible, divided into passages as teams go.",
       "else": "Something else",
-      "elseSub": "Lessons, stories, a commentary — any outline you build yourself.",
-      "numbering": "Which numbering of chapters and verses does it follow?"
+      "elseSub": "Lessons, stories, a commentary — any outline you build yourself."
     },
     "levelSheet": {
       "title": "Level",
@@ -1510,6 +1509,11 @@
       "gap": "From verse {{verse}}, these verses aren't in any {{part}} yet.",
       "verseLabel": "Verse {{chapter}}:{{verse}}",
       "versePlaceholder": "verse {{verse}}"
+    },
+    "divide": {
+      "done": "{{book}} is divided. Save the template to keep it.",
+      "tapBook": "Tap a book to choose how it's divided.",
+      "nameOrRemove": "Rename or remove {{book}}"
     }
   },
   "breakup": {
@@ -1682,7 +1686,9 @@
       "noneReady": "There are no ready-made ones for this yet. Make your own: folders for how it's organized, and the things people record inside them.",
       "makeOwn": "Make your own",
       "makeOwnDetail": "Folders, and what to record in them.",
-      "elseKinds": "Stories, songs, lessons"
+      "elseKinds": "Stories, songs, lessons",
+      "ownSub": "Book by book: read each one and choose where its sections start",
+      "ownNote": "Every book waits until it's divided. Open it from the map or My Work, read it in a Bible and choose where its sections start, or start from a ready-made way."
     },
     "errors": {
       "noTemplate": "This language has no template yet.",
@@ -1883,6 +1889,12 @@
       "sections_other": "{{count, number}} sections",
       "partsIn_one": "{{count, number}} part in {{book}}",
       "partsIn_other": "{{count, number}} parts in {{book}}"
+    },
+    "division": {
+      "way_one": "{{way}} · {{count, number}} piece",
+      "way_other": "{{way}} · {{count, number}} pieces",
+      "own_one": "Its own way · {{count, number}} piece",
+      "own_other": "Its own way · {{count, number}} pieces"
     }
   },
   "canon": {

@@ -1464,9 +1464,9 @@
       "wholeBooks": "Livres entiers",
       "chapters": "Chapitres",
       "passages": "Passages",
-      "passagesNote_one": "{{count, number}} passage, selon le découpage de la version de départ. Bientôt, vous pourrez changer où commencent les passages.",
-      "passagesNote_many": "{{count, number}} passages, selon le découpage de la version de départ. Bientôt, vous pourrez changer où commencent les passages.",
-      "passagesNote_other": "{{count, number}} passages, selon le découpage de la version de départ. Bientôt, vous pourrez changer où commencent les passages.",
+      "passagesNote_one": "{{count, number}} passage, selon le découpage de la version de départ.",
+      "passagesNote_many": "{{count, number}} passages, selon le découpage de la version de départ.",
+      "passagesNote_other": "{{count, number}} passages, selon le découpage de la version de départ.",
       "eachBook": "Chaque livre est une partie à enregistrer.",
       "eachChapter": "Chaque chapitre est une partie à enregistrer.",
       "booksCount": "Livres · {{n, number}}",
@@ -1488,8 +1488,7 @@
       "scripture": "Écritures",
       "scriptureSub": "Livres et chapitres de la Bible, découpés en passages au fur et à mesure.",
       "else": "Autre chose",
-      "elseSub": "Leçons, récits, commentaire : n’importe quel plan que vous construisez vous-même.",
-      "numbering": "Quelle numérotation des chapitres et des versets suit-il ?"
+      "elseSub": "Leçons, récits, commentaire : n’importe quel plan que vous construisez vous-même."
     },
     "levelSheet": {
       "title": "Niveau",
@@ -1558,6 +1557,11 @@
       "gap": "À partir du verset {{verse}}, ces versets n’ont pas encore de {{part}}.",
       "verseLabel": "Verset {{chapter}}:{{verse}}",
       "versePlaceholder": "verset {{verse}}"
+    },
+    "divide": {
+      "done": "{{book}} est découpé. Sauvegardez le modèle pour le garder.",
+      "tapBook": "Touchez un livre pour choisir son découpage.",
+      "nameOrRemove": "Renommer ou retirer {{book}}"
     }
   },
   "breakup": {
@@ -1740,7 +1744,9 @@
       "noneReady": "Il n’y en a pas encore de tout prêts pour cela. Créez le vôtre : des dossiers pour l’organisation, et ce que les gens enregistrent dedans.",
       "makeOwn": "Créer le vôtre",
       "makeOwnDetail": "Des dossiers, et ce qu’il faut y enregistrer.",
-      "elseKinds": "Récits, chants, leçons"
+      "elseKinds": "Récits, chants, leçons",
+      "ownSub": "Livre par livre : lisez chacun et choisissez où commencent ses sections",
+      "ownNote": "Chaque livre attend d'être découpé. Ouvrez-le depuis la carte ou Mon travail, lisez-le dans une Bible et choisissez où commencent ses sections, ou partez d'une façon toute prête."
     },
     "errors": {
       "noTemplate": "Cette langue n’a pas encore de modèle.",
@@ -1955,6 +1961,14 @@
       "partsIn_one": "{{count, number}} partie dans {{book}}",
       "partsIn_other": "{{count, number}} parties dans {{book}}",
       "partsIn_many": "{{count, number}} parties dans {{book}}"
+    },
+    "division": {
+      "way_one": "{{way}} · {{count, number}} morceau",
+      "way_many": "{{way}} · {{count, number}} morceaux",
+      "way_other": "{{way}} · {{count, number}} morceaux",
+      "own_one": "Son propre découpage · {{count, number}} morceau",
+      "own_many": "Son propre découpage · {{count, number}} morceaux",
+      "own_other": "Son propre découpage · {{count, number}} morceaux"
     }
   },
   "canon": {

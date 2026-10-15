@@ -199,13 +199,23 @@ test('ACCT-006 A looked-after account sees how to get back in', async ({ page })
   await expect(heading(page, 'Edit Profile')).toBeVisible();
 });
 
-test('ACCT-010 Switch Organization says which organization is active', async ({ browser }) => {
+test('ACCT-010 Switch Organization says which organization is active, on Me for someone in several', async ({ browser }) => {
+  // ADMIN is in two organizations: the row is on Me, under the name, and not again under More settings
+  // (decision 71, amended 2026-10-14).
   const a = await quietDevice(browser, world(), 'ADMIN');
-  await openMore(a.page);
+  await openMe(a.page);
   await expect(row(a.page, 'Switch Organization')).toContainText(`${world().orgName} (active)`);
+  expectInOrder(await screenText(a.page), [world().accounts.ADMIN.name, 'Switch Organization', 'Ready for offline']);
+  await row(a.page, 'More settings').click();
+  await expect(heading(a.page, 'More settings')).toBeVisible();
+  await expect(row(a.page, 'Switch Organization')).toHaveCount(0);
   await a.context.close();
+  // TRANS is in one: More settings keeps it, where it also starts a new one.
   const t = await quietDevice(browser, world(), 'TRANS');
-  await openMore(t.page);
+  await openMe(t.page);
+  await expect(row(t.page, 'Ready for offline')).toBeVisible();
+  await expect(row(t.page, 'Switch Organization')).toHaveCount(0);
+  await row(t.page, 'More settings').click();
   await expect(row(t.page, 'Switch Organization')).toContainText(`${world().orgName} · or start a new one`);
   await t.context.close();
 });
@@ -412,7 +422,7 @@ test('ACCT-020 Setting a password needs a connection', async ({ page }) => {
 test('ACCT-022 Switching organization changes the role and the tabs @p0', async ({ page }) => {
   const w = world();
   await openAs(page, w, 'ADMIN');
-  await openMore(page);
+  await openMe(page);
   await row(page, 'Switch Organization').click();
   await expect(heading(page, 'Switch Organization')).toBeVisible();
   await expect(byId(page, 'header-back')).toBeVisible();
@@ -426,6 +436,7 @@ test('ACCT-022 Switching organization changes the role and the tabs @p0', async 
   expect(home).not.toContain('Alpha');
   await openMore(page);
   await expect(text(page, `Translator · ${w.org2Name}`)).toBeVisible();
+  await back(page).click();
   await expect(row(page, 'Switch Organization')).toContainText(`${w.org2Name} (active)`);
   await row(page, 'Switch Organization').click();
   await button(page, w.orgName).click();
@@ -439,7 +450,7 @@ test('ACCT-022 Switching organization changes the role and the tabs @p0', async 
 test('ACCT-023 The organization list works offline', async ({ page }) => {
   const w = world();
   await openAs(page, w, 'ADMIN');
-  await openMore(page);
+  await openMe(page);
   await row(page, 'Switch Organization').click();
   await expect(button(page, w.org2Name)).toBeVisible();
   await back(page).click();

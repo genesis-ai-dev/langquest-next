@@ -559,7 +559,7 @@ Expected:
   - "Welcome, {TRANS's first name}".
   - "You're a Translator on UI Admin Org."
 - No "Nothing to remember" banner shows, because TRANS has an email.
-- Step 4 opens My Work in UI Admin Org. Me → More settings → "Switch Organization" lists UI Test Org and UI Admin Org.
+- Step 4 opens My Work in UI Admin Org. Me → "Switch Organization" (on Me now that TRANS is in two) lists UI Test Org and UI Admin Org.
 
 ### AUTH-031 A held invite survives a restart
 Roles: GUEST, TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto

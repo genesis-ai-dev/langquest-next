@@ -1,13 +1,13 @@
 // The template editor's form: what is being edited, what it may do, and Save
 // (the demo's TemplateEditorScreen, TPL-9). The screen keeps its sheets.
-import { useState } from 'react';
-import type { LibraryItemView, VersificationDoc } from '@langquest-next/core';
+import { useMemo, useState } from 'react';
+import { templateBooks, withBookBrokenUp, type LibraryItemView, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
 import { docFromForm, formChanged, type TemplateForm } from '../contentTemplates';
 import type { Ctx } from '../ctx';
 import { useLibraryDocs } from '../library/useLibrary';
 import { useRunner, useVersifications, type Lib } from './hooks';
 import {
-  editorSub, formReady, orgNameOf, publishedVersion, savedToast, usersOf, versificationLabel
+  editorSub, formReady, orgNameOf, publishedVersion, redividedBooks, savedToast, usersOf, versificationLabel
 } from './model';
 
 /**
@@ -32,8 +32,23 @@ export function useTemplateEditor(ctx: Ctx, lib: Lib, item: LibraryItemView | nu
   const v11nName = versificationLabel(v11n, v11nChoice?.name, f.versification);
   const ready = formReady(f);
   const sub = editorSub(isNew, item, orgNameOf(ctx.org.state));
+  // A Bible template's books divide one by one (decision 107): the document as it is now and as it started.
+  const doc = useMemo(() => docFromForm(f), [f]);
+  const startDoc = useMemo(() => docFromForm(initial), [initial]);
+  // Each book divides on its own once the template is a template@2 (decision 74), or once one book is divided here.
+  const perBook = !!f.bookParts;
+  // Books divided before that are divided differently now, in a template languages use: Save asks first.
+  const redone = bible && users.length > 0 ? redividedBooks(startDoc, doc, f.books) : [];
+  const [redoing, setRedoing] = useState(false);
+
+  /** Divide one book as `way` does; Save publishes it. */
+  function divide(book: string, way: TemplateDoc) {
+    set({ bookParts: templateBooks(withBookBrokenUp(doc, book, way)) });
+  }
 
   function save() {
+    if (redone.length && !redoing) { setRedoing(true); return; }
+    setRedoing(false);
     void run('save template', async () => { // i18n-ignore: log label
       const name = f.name.trim();
       // A versification another organization shares is followed (or copied) first, so this organization may name it.
@@ -49,5 +64,8 @@ export function useTemplateEditor(ctx: Ctx, lib: Lib, item: LibraryItemView | nu
     });
   }
 
-  return { f, set, busy, run, v, v11n, isNew, followed, readOnly, changed, users, bible, v11nName, ready, sub, save };
+  return {
+    f, set, busy, run, v, v11n, isNew, followed, readOnly, changed, users, bible, v11nName, ready, sub, save,
+    doc, perBook, divide, redone, redoing, cancelRedo: () => setRedoing(false)
+  };
 }
