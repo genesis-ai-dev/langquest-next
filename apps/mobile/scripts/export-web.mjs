@@ -105,7 +105,7 @@ if (!links.appleTeamId || !links.androidSha256.length) console.warn('appLinks.js
 
 const scriptBytes = walk(path.join(dist, '_expo')).filter((f) => f.endsWith('.js') && !f.includes('/worker-')).reduce((n, f) => n + fs.statSync(f).size, 0);
 if (scriptBytes > BUDGET_BYTES) {
-  console.error(`x the web app's JavaScript is ${(scriptBytes / 1048576).toFixed(2)} MB, over its ${(BUDGET_BYTES / 1048576).toFixed(1)} MB budget (scripts/export-web.mjs). Trim it, or raise the budget in the same change and say why.`);
+  console.error(`x the web app's JavaScript is ${(scriptBytes / 1048576).toFixed(2)} MB, over its ${(BUDGET_BYTES / 1048576).toFixed(2)} MB budget by ${((scriptBytes - BUDGET_BYTES) / 1024).toFixed(0)} KB (scripts/export-web.mjs). Trim it, or raise the budget in the same change and say why.`);
   process.exit(1);
 }
 
