@@ -628,7 +628,7 @@ export function guestMessage(o: { name: string; passage: string; language: strin
 }
 
 /**
- * What reached listeners outside the team (decisions.md 108): where a version
+ * What reached listeners outside the team (decisions.md 109): where a version
  * is live, and each listener's feedback, newest first.
  */
 export function listenersOf(state: LanguageState, p: PassageState) {

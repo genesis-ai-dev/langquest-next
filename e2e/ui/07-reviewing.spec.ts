@@ -27,6 +27,7 @@ import {
 import { clientAs, send } from './fixture';
 import { commands } from '@langquest-next/core';
 import { randomUUID } from 'node:crypto';
+import { openSyncDetails } from './sync-helpers';
 
 // One world for the run, kept when a failed test restarts the worker (reviewing-helpers.ts useRunWorld).
 const world = useRunWorld('07-reviewing', async (w) => {
@@ -558,6 +559,7 @@ test('REV-023 A review the server refuses is not lost silently', async ({ page, 
     await tab(page, 'me').click();
     await button(page, /^More settings/).click();
     await button(page, /^Sync/).first().click();
+    await openSyncDetails(page);
     // The screen polls the log once a second.
     await expect.poll(() => screenText(page), { timeout: 15_000 }).toMatch(/Refused · [1-9]|[1-9]\d* refused by the server/);
   } finally {

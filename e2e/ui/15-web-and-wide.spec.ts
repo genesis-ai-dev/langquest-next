@@ -12,7 +12,7 @@ import {
   type AccountKey, type UiWorld
 } from './support';
 import { browserStateFor } from './fixture';
-import { addNote, caughtUp, deviceAs, openRecord, openSync, quietReloads, setOffline, syncChip, toTab } from './sync-helpers';
+import { addNote, caughtUp, deviceAs, openRecord, openSync, quietReloads, setOffline, SYNC_CLEAR, syncChip, toTab } from './sync-helpers';
 
 const world = useWorld();
 
@@ -228,7 +228,7 @@ test('WEB-008 Crumbs show only on wide windows @wide', async ({ page }) => {
   // Alpha's report has the crumb "Reports" (RPT-013).
 });
 
-test('WEB-009 Sync\'s tiles in one row on a wide window @wide', async ({ page }) => {
+test('WEB-009 Sync\'s tiles, under Details, in one row on a wide window @wide', async ({ page }) => {
   const w = world();
   await openAs(page, w, 'TRANS');
   await openSync(page);
@@ -725,5 +725,5 @@ test('WEB-027 The web app needs a connection to open', async ({ page, context })
   await expect(tab(page, 'work').or(tab(page, 'map')).first()).toBeVisible({ timeout: 60_000 });
   await expect.poll(() => waiting(page, w.orgId), { timeout: 30_000 }).toBe(0);
   await toTab(page, 'work');
-  await expect(syncChip(page)).toBeHidden({ timeout: 30_000 });
+  await expect(syncChip(page)).toHaveAccessibleName(SYNC_CLEAR, { timeout: 30_000 });
 });

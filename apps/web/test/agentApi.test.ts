@@ -330,7 +330,7 @@ describe('reading', () => {
   it('hands a read token the approved version\'s audio beside the latest, so a published chapter keeps playing', async () => {
     // Why: EveryBible publishes the approved version. When the team records again, its
     // listeners must keep hearing what was published, not lose the chapter until the
-    // new take is approved (decisions.md 108).
+    // new take is approved (decisions.md 109).
     const { call, token, log } = setup();
     const t = await token('admin', { scopes: ['read'] });
     const fresh = [card('e1'), card('e2')];

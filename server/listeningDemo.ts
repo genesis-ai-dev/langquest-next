@@ -1,5 +1,5 @@
 /**
- * Isolated listening demo (decisions.md 108): LangQuest's own partner API views,
+ * Isolated listening demo (decisions.md 109): LangQuest's own partner API views,
  * reducer, change digests and webhook signatures over a local append-only log.
  * EveryBible's bridge and phones talk to it as to next.langquest.org; nothing
  * reaches a hosted database. `/demo/*` stands in for the translator's phone:

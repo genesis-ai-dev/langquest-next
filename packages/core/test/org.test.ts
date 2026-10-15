@@ -1,7 +1,7 @@
 import { encodeHlc } from '../src/hlc';
 import type { AnyEvent } from '../src/events';
 import {
-  adminScopeOf, effectiveRole, emptyOrgState, foldOrg, languageInfo, languageName, languageOfOrgEvent, languagePeople, mayRenameLanguage, mayRenameOrg, orgLanguages, orgName,
+  adminScopeOf, clusterName, clustersOf, effectiveRole, emptyOrgState, foldOrg, languageInfo, mayManageClusters, orgClusters, languageName, languageOfOrgEvent, languagePeople, mayRenameLanguage, mayRenameOrg, orgLanguages, orgName,
   privilegeFor, privilegesFor, privilegesOfFixedRole, scopeCovers, SEED_ROLES, EVENT_PRIVILEGE
 } from '../src/org';
 import { buildFixture, shuffle } from './fixtures';
@@ -86,6 +86,60 @@ describe('organization stream fold', () => {
     }
     expect(EVENT_PRIVILEGE['v1.LanguageCodeSet']).toBe('manage_structure');
     expect(languageOfOrgEvent(linked[linked.length - 1]!)).toBe('din');
+  });
+
+  it('clusters group languages as tags, and nothing about a language depends on them (decision 108)', () => {
+    // Why: Spoken made a second organization for one cluster's five
+    // languages because nothing grouped them. A cluster is a name on some
+    // languages: a language may be in several or none, two admins tagging
+    // offline both land, and a cluster nobody is in any more is gone.
+    const at = (ms: number, deviceId: string) => encodeHlc(1_700_000_000_000 + ms, 0, deviceId);
+    const ev = (id: string, type: string, payload: unknown, ms: number, deviceId = 'dA') =>
+      ({ id, type, orgId: 'org1', streamId: '_org', actorId: 'lead', deviceId, hlc: at(ms, deviceId), payload }) as AnyEvent;
+    const grouped = [
+      ...events,
+      ev('k1', 'v1.ClusterNamed', { clusterId: 'nilotic', name: 'Nilotic' }, 500),
+      ev('k2', 'v1.LanguageClusterSet', { languageId: 'din', clusterId: 'nilotic', inCluster: true }, 501),
+      ev('k3', 'v1.LanguageClusterSet', { languageId: 'nus', clusterId: 'nilotic', inCluster: true }, 502, 'dB'),
+      ev('k4', 'v1.ClusterNamed', { clusterId: 'dinka', name: 'Dinka cluster' }, 503, 'dC'),
+      ev('k5', 'v1.LanguageClusterSet', { languageId: 'din', clusterId: 'dinka', inCluster: true }, 504, 'dC'),
+      // Renamed later; taken out of a cluster, then put back by an admin with a later clock.
+      ev('k6', 'v1.ClusterNamed', { clusterId: 'nilotic', name: 'Nilotic, South Sudan' }, 600, 'dB'),
+      ev('k7', 'v1.LanguageClusterSet', { languageId: 'nus', clusterId: 'nilotic', inCluster: false }, 610),
+      ev('k8', 'v1.LanguageClusterSet', { languageId: 'nus', clusterId: 'nilotic', inCluster: true }, 620, 'dC'),
+      // Every language taken out of a cluster: it is gone, though its name stays known.
+      ev('k9', 'v1.ClusterNamed', { clusterId: 'empty', name: 'Emptied' }, 630),
+      ev('k10', 'v1.LanguageClusterSet', { languageId: 'din', clusterId: 'empty', inCluster: true }, 631),
+      ev('k11', 'v1.LanguageClusterSet', { languageId: 'din', clusterId: 'empty', inCluster: false }, 632),
+      // A tag for a language never added, and one for a cluster never named.
+      ev('k12', 'v1.LanguageClusterSet', { languageId: 'later', clusterId: 'dinka', inCluster: true }, 640),
+      ev('k13', 'v1.LanguageClusterSet', { languageId: 'nus', clusterId: 'unnamed', inCluster: true }, 641)
+    ];
+    const folded = foldOrg(grouped);
+    for (let seed = 1; seed <= 20; seed++) expect(foldOrg(shuffle(grouped, seed))).toEqual(folded);
+    expect(orgClusters(folded)).toEqual([
+      { clusterId: 'dinka', name: 'Dinka cluster', languageIds: ['din'] },
+      { clusterId: 'nilotic', name: 'Nilotic, South Sudan', languageIds: ['nus', 'din'] }
+    ]);
+    expect(clustersOf(folded, 'din').map((c) => c.clusterId)).toEqual(['dinka', 'nilotic']);
+    expect(clustersOf(folded, 'nus').map((c) => c.clusterId)).toEqual(['nilotic']);
+    expect(clusterName(folded, 'empty')).toBe('Emptied');
+    expect(clusterName(folded, 'unnamed')).toBeUndefined();
+    // Languages are untouched by it: the same list, names and codes as without clusters.
+    expect(orgLanguages(folded)).toEqual(orgLanguages(canonical));
+    expect(orgClusters(canonical)).toEqual([]);
+    expect(orgClusters(null)).toEqual([]);
+    // A state folded before clusters existed has none.
+    const { clusters: _, ...before } = canonical;
+    expect(orgClusters(before)).toEqual([]);
+    // Grouping is the organization's to do: org-scope Manage structure, never a language admin's.
+    expect(EVENT_PRIVILEGE['v1.ClusterNamed']).toBe('manage_structure');
+    expect(EVENT_PRIVILEGE['v1.LanguageClusterSet']).toBe('manage_structure');
+    expect(languageOfOrgEvent(grouped[grouped.length - 1]!)).toBeUndefined();
+    expect(mayManageClusters(folded, 'lead')).toBe(true);
+    expect(mayManageClusters(folded, 'coord')).toBe(true);
+    expect(mayManageClusters(folded, 'akol')).toBe(false);
+    expect(mayManageClusters(null, 'lead')).toBe(false);
   });
 
   it('the organization takes its latest name, by clock, whatever the arrival order (decision 76)', () => {

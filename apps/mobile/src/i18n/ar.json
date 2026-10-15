@@ -348,7 +348,8 @@
     "mic_setup": "إعداد الميكروفون",
     "get_ready": "استعد",
     "settings_more": "إعدادات أخرى",
-    "check_editor": "الفحص"
+    "check_editor": "الفحص",
+    "cluster_home": "مجموعة"
   },
   "native": {
     "microphone": "يسجّل LangQuest صوتك لترجمة المقاطع.",
@@ -696,7 +697,8 @@
       "languagesTitle": "اللغات",
       "newLanguage": "لغة جديدة",
       "noLanguages": "لا توجد لغات بعد. أضف أول لغة سيسجّلها فريقك.",
-      "openToBring": "افتحها لتنقلها إلى هذا الجهاز"
+      "openToBring": "افتحها لتنقلها إلى هذا الجهاز",
+      "newLanguageOrCluster": "لغة أو مجموعة جديدة"
     },
     "rename": {
       "done": "تم تغيير الاسم إلى {{name}}.",
@@ -776,7 +778,8 @@
         "roles": "الأدوار",
         "publicListing": "الإدراج العام",
         "name": "الاسم",
-        "languageList": "قائمة اللغات"
+        "languageList": "قائمة اللغات",
+        "cluster": "المجموعة"
       },
       "orgAndCode": "{{org}} · الرمز {{code}}",
       "seeWork": "شاهد عملهم",
@@ -3311,7 +3314,6 @@
     "sync": {
       "syncing": "جارٍ المزامنة…",
       "syncNow": "زامن الآن",
-      "checking": "يبحث عن التغييرات من حين لآخر",
       "refused": "رفض الخادم هذا الحساب لهذه المنظمة.",
       "tooOld": "حدّث التطبيق لتتم المزامنة.",
       "waitingUpload": "بانتظار الرفع",
@@ -3339,7 +3341,28 @@
       "events_two": "حدثان على هذا الجهاز",
       "events_few": "{{count, number}} أحداث على هذا الجهاز",
       "events_many": "{{count, number}} حدثًا على هذا الجهاز",
-      "events_other": "{{count, number}} حدث على هذا الجهاز"
+      "events_other": "{{count, number}} حدث على هذا الجهاز",
+      "standing": {
+        "live": "مباشر",
+        "checking": "متصل",
+        "offline": "غير متصل",
+        "refused": "لا تتم المزامنة"
+      },
+      "help": {
+        "live": "تصل تغييرات فريقك فور حدوثها، وتُرسل تغييراتك فورًا.",
+        "checking": "متصل، لكن القناة المباشرة متوقفة، لذا يتحقق هذا الجهاز من التغييرات كل بضع دقائق. «زامن الآن» يتحقق فورًا.",
+        "offline": "لا يوجد اتصال. كل ما تفعله محفوظ على هذا الجهاز ويُرسل تلقائيًا عند عودتك إلى الاتصال.",
+        "refused": "الخادم لا يقبل التغييرات من هذا الجهاز. عملك ما زال محفوظًا هنا.",
+        "toSend": "تغييرات وتسجيلات على هذا الجهاز لم يؤكدها الخادم بعد. إنها آمنة هنا وتُرسل عند توفر الاتصال.",
+        "toReceive": "تسجيلات من الآخرين ما زال هذا الجهاز ينزّلها.",
+        "refusedLine": "تغييرات لم يقبلها الخادم، غالبًا لأن صلاحية تغيّرت. تبقى على هذا الجهاز؛ افتح التفاصيل لرؤية كل واحد منها."
+      },
+      "toSend": "للإرسال",
+      "toReceive": "للاستلام",
+      "refusedLine": "مرفوضة",
+      "none": "لا شيء",
+      "moreInfo": "المزيد عن هذا",
+      "details": "التفاصيل"
     }
   },
   "study": {
@@ -4143,14 +4166,12 @@
       "help": "ما طلبته من شخص آخر ولم يُنجز بعد."
     },
     "sync": {
-      "refused": "المزامنة متوقفة",
       "toSend_zero": "{{count, number}} للإرسال",
       "toSend_one": "{{count, number}} للإرسال",
       "toSend_two": "{{count, number}} للإرسال",
       "toSend_few": "{{count, number}} للإرسال",
       "toSend_many": "{{count, number}} للإرسال",
-      "toSend_other": "{{count, number}} للإرسال",
-      "offline": "بدون اتصال"
+      "toSend_other": "{{count, number}} للإرسال"
     },
     "join": {
       "wantsToJoin": "{{name}} يريد الانضمام",
@@ -5461,7 +5482,8 @@
       "newChapters": "أصحاحات جديدة",
       "books": "الأسفار",
       "chaptersByBook": "الأصحاحات حسب السفر",
-      "total": "الإجمالي"
+      "total": "الإجمالي",
+      "clusters": "المجموعات"
     },
     "errors": {
       "noServer": "هذا الإصدار من التطبيق لا يعرف مكان خادم التقارير.",
@@ -5619,7 +5641,8 @@
       "alertsChip_other": "التنبيهات، {{count, number}} تحتاج إلى متابعة",
       "allCountries": "كل البلدان",
       "loading": "جارٍ تحميل التقارير…",
-      "couldNotRead": "تعذّرت قراءة التقارير"
+      "couldNotRead": "تعذّرت قراءة التقارير",
+      "allLanguages": "كل اللغات"
     },
     "overview": {
       "across_zero": "في {{count, number}} لغة · {{recent}} في آخر أربعة أسابيع",
@@ -6046,6 +6069,16 @@
       "typeToFind_few": "اكتب لتجد البلدان الأخرى ({{count, number}}).",
       "typeToFind_many": "اكتب لتجد البلدان الأخرى ({{count, number}}).",
       "typeToFind_other": "اكتب لتجد البلدان الأخرى ({{count, number}})."
+    },
+    "clusters": {
+      "title": "المجموعات",
+      "sub": "لغات كل مجموعة معًا. اختر واحدة لترى لغاتها فقط.",
+      "languages_zero": "{{count, number}} لغة",
+      "languages_one": "لغة واحدة",
+      "languages_two": "لغتان",
+      "languages_few": "{{count, number}} لغات",
+      "languages_many": "{{count, number}} لغة",
+      "languages_other": "{{count, number}} لغة"
     }
   },
   "review": {
@@ -7384,6 +7417,144 @@
       "playHelp": "يشغّل كيف يقولونها.",
       "suggest": "لغات أخرى هنا تستخدم",
       "suggestHelp": "تُستخدم هنا في {{languages}}. المسها لإضافتها."
+    }
+  },
+  "clusters": {
+    "row": {
+      "sub_zero": "{{count, number}} لغة · {{names}}",
+      "sub_one": "لغة واحدة · {{names}}",
+      "sub_two": "لغتان · {{names}}",
+      "sub_few": "{{count, number}} لغات · {{names}}",
+      "sub_many": "{{count, number}} لغة · {{names}}",
+      "sub_other": "{{count, number}} لغة · {{names}}",
+      "namesMore": "{{names}}…"
+    },
+    "home": {
+      "sub_zero": "مجموعة · {{count, number}} لغة",
+      "sub_one": "مجموعة · لغة واحدة",
+      "sub_two": "مجموعة · لغتان",
+      "sub_few": "مجموعة · {{count, number}} لغات",
+      "sub_many": "مجموعة · {{count, number}} لغة",
+      "sub_other": "مجموعة · {{count, number}} لغة",
+      "together": "معًا",
+      "itsLanguages": "لغاتها",
+      "add": "أضف لغة إليها",
+      "rename": "إعادة التسمية",
+      "ungroup": "فكّ المجموعة",
+      "gone": "لا توجد لغات في هذه المجموعة الآن",
+      "goneSub": "أُخرجت لغاتها منها. وكلها ما زالت في {{org}}.",
+      "notSaved": "لم يُحفظ"
+    },
+    "add": {
+      "title": "أضف إلى {{cluster}}",
+      "newLanguage": "لغة جديدة",
+      "newLanguageSub": "جهّزها، وهي في {{cluster}} من البداية",
+      "alreadyIn": "موجودة في {{org}}",
+      "none": "كل لغات {{org}} موجودة فيها بالفعل.",
+      "button": "أضف",
+      "done_zero": "أُضيفت {{count, number}} لغة إلى {{cluster}}.",
+      "done_one": "أُضيفت لغة واحدة إلى {{cluster}}.",
+      "done_two": "أُضيفت لغتان إلى {{cluster}}.",
+      "done_few": "أُضيفت {{count, number}} لغات إلى {{cluster}}.",
+      "done_many": "أُضيفت {{count, number}} لغة إلى {{cluster}}.",
+      "done_other": "أُضيفت {{count, number}} لغة إلى {{cluster}}."
+    },
+    "rename": {
+      "title": "إعادة تسمية {{cluster}}",
+      "label": "اسمها",
+      "save": "حفظ",
+      "done": "صار اسمها {{name}}."
+    },
+    "ungroup": {
+      "title": "فكّ مجموعة {{cluster}}؟",
+      "body_zero": "تبقى لغاتها ({{count, number}} لغة) بأشخاصها وتسجيلاتها ومراجعاتها. لا يذهب إلا الاسم الذي يجمعها.",
+      "body_one": "تبقى لغاتها (لغة واحدة) بأشخاصها وتسجيلاتها ومراجعاتها. لا يذهب إلا الاسم الذي يجمعها.",
+      "body_two": "تبقى لغاتها (لغتان) بأشخاصها وتسجيلاتها ومراجعاتها. لا يذهب إلا الاسم الذي يجمعها.",
+      "body_few": "تبقى لغاتها ({{count, number}} لغات) بأشخاصها وتسجيلاتها ومراجعاتها. لا يذهب إلا الاسم الذي يجمعها.",
+      "body_many": "تبقى لغاتها ({{count, number}} لغة) بأشخاصها وتسجيلاتها ومراجعاتها. لا يذهب إلا الاسم الذي يجمعها.",
+      "body_other": "تبقى لغاتها ({{count, number}} لغة) بأشخاصها وتسجيلاتها ومراجعاتها. لا يذهب إلا الاسم الذي يجمعها.",
+      "confirm": "فكّ المجموعة",
+      "keep": "أبقِها",
+      "done": "فُكّت مجموعة {{cluster}}. لغاتها ما زالت هنا."
+    },
+    "language": {
+      "label": "المجموعة",
+      "none": "ليست في مجموعة",
+      "sheetTitle": "في أي مجموعة هي؟",
+      "count_zero": "{{count, number}} لغة",
+      "count_one": "لغة واحدة",
+      "count_two": "لغتان",
+      "count_few": "{{count, number}} لغات",
+      "count_many": "{{count, number}} لغة",
+      "count_other": "{{count, number}} لغة",
+      "newLabel": "أو مجموعة جديدة",
+      "firstLabel": "ضعها في مجموعة جديدة",
+      "note": "يمكن أن تكون اللغة في أكثر من مجموعة، أو في لا شيء. لا يتغير شيء في اللغة نفسها.",
+      "done": "تم",
+      "saved": "حُفظت مجموعات {{language}}."
+    },
+    "newLanguage": {
+      "what": "ماذا تضيف؟",
+      "one": "لغة واحدة",
+      "oneSub": "بتسجيلاتها ومراجعاتها وأشخاصها",
+      "cluster": "مجموعة لغات",
+      "clusterSub": "عدة لغات متقاربة تُجهَّز معًا",
+      "clusterName": "اسم المجموعة",
+      "clusterPlaceholder": "مثل Dar Khamsa",
+      "theCluster": "المجموعة",
+      "inCluster": "في مجموعة؟ يمكنك الاختيار لاحقًا",
+      "no": "لا",
+      "newCluster": "مجموعة جديدة",
+      "joinsNamed": "لدى {{org}} مجموعة {{cluster}} بالفعل. ستنضم إليها هذه اللغات.",
+      "itsLanguages": "لغاتها · {{number}}",
+      "addOne": "أضف لغة",
+      "unlisted": "ليست في القائمة؟ أضفها كما كتبتها، مع رمزها إن كان لها رمز.",
+      "addTyped": "أضف «{{name}}»",
+      "new": "جديدة",
+      "newWithCode": "{{code}} · جديدة",
+      "already": "موجودة في {{org}}",
+      "takeOut": "أخرِج",
+      "note_zero": "تحتفظ اللغات الموجودة هنا بكل ما لديها. وتُجهَّز اللغات الجديدة ({{count, number}} لغة) معًا في الخطوات التالية.",
+      "note_one": "تحتفظ اللغات الموجودة هنا بكل ما لديها. وتُجهَّز اللغات الجديدة (لغة واحدة) معًا في الخطوات التالية.",
+      "note_two": "تحتفظ اللغات الموجودة هنا بكل ما لديها. وتُجهَّز اللغات الجديدة (لغتان) معًا في الخطوات التالية.",
+      "note_few": "تحتفظ اللغات الموجودة هنا بكل ما لديها. وتُجهَّز اللغات الجديدة ({{count, number}} لغات) معًا في الخطوات التالية.",
+      "note_many": "تحتفظ اللغات الموجودة هنا بكل ما لديها. وتُجهَّز اللغات الجديدة ({{count, number}} لغة) معًا في الخطوات التالية.",
+      "note_other": "تحتفظ اللغات الموجودة هنا بكل ما لديها. وتُجهَّز اللغات الجديدة ({{count, number}} لغة) معًا في الخطوات التالية.",
+      "onlyExisting": "لا شيء جديد لتجهيزه: تحتفظ اللغات الموجودة هنا بكل ما لديها.",
+      "make": "أنشئ المجموعة",
+      "made_zero": "أُنشئت {{cluster}}، وفيها {{count, number}} لغة.",
+      "made_one": "أُنشئت {{cluster}}، وفيها لغة واحدة.",
+      "made_two": "أُنشئت {{cluster}}، وفيها لغتان.",
+      "made_few": "أُنشئت {{cluster}}، وفيها {{count, number}} لغات.",
+      "made_many": "أُنشئت {{cluster}}، وفيها {{count, number}} لغة.",
+      "made_other": "أُنشئت {{cluster}}، وفيها {{count, number}} لغة.",
+      "forNew_zero": "للغات الجديدة في {{cluster}} ({{count, number}} لغة). يمكن لكل منها أن تغيّر ما يخصها لاحقًا.",
+      "forNew_one": "للغات الجديدة في {{cluster}} (لغة واحدة). يمكن لكل منها أن تغيّر ما يخصها لاحقًا.",
+      "forNew_two": "للغات الجديدة في {{cluster}} (لغتان). يمكن لكل منها أن تغيّر ما يخصها لاحقًا.",
+      "forNew_few": "للغات الجديدة في {{cluster}} ({{count, number}} لغات). يمكن لكل منها أن تغيّر ما يخصها لاحقًا.",
+      "forNew_many": "للغات الجديدة في {{cluster}} ({{count, number}} لغة). يمكن لكل منها أن تغيّر ما يخصها لاحقًا.",
+      "forNew_other": "للغات الجديدة في {{cluster}} ({{count, number}} لغة). يمكن لكل منها أن تغيّر ما يخصها لاحقًا.",
+      "added_zero": "أُضيفت {{count, number}} لغة إلى {{org}}، في {{cluster}}.",
+      "added_one": "أُضيفت لغة واحدة إلى {{org}}، في {{cluster}}.",
+      "added_two": "أُضيفت لغتان إلى {{org}}، في {{cluster}}.",
+      "added_few": "أُضيفت {{count, number}} لغات إلى {{org}}، في {{cluster}}.",
+      "added_many": "أُضيفت {{count, number}} لغة إلى {{org}}، في {{cluster}}.",
+      "added_other": "أُضيفت {{count, number}} لغة إلى {{org}}، في {{cluster}}.",
+      "addedNotOffered_zero": "أُضيفت {{count, number}} لغة إلى {{org}}، في {{cluster}}. قدّم {{offers}} ضمن ما يساعدهم عندما تتصل بالإنترنت.",
+      "addedNotOffered_one": "أُضيفت لغة واحدة إلى {{org}}، في {{cluster}}. قدّم {{offers}} ضمن ما يساعدهم عندما تتصل بالإنترنت.",
+      "addedNotOffered_two": "أُضيفت لغتان إلى {{org}}، في {{cluster}}. قدّم {{offers}} ضمن ما يساعدهم عندما تتصل بالإنترنت.",
+      "addedNotOffered_few": "أُضيفت {{count, number}} لغات إلى {{org}}، في {{cluster}}. قدّم {{offers}} ضمن ما يساعدهم عندما تتصل بالإنترنت.",
+      "addedNotOffered_many": "أُضيفت {{count, number}} لغة إلى {{org}}، في {{cluster}}. قدّم {{offers}} ضمن ما يساعدهم عندما تتصل بالإنترنت.",
+      "addedNotOffered_other": "أُضيفت {{count, number}} لغة إلى {{org}}، في {{cluster}}. قدّم {{offers}} ضمن ما يساعدهم عندما تتصل بالإنترنت.",
+      "notMade": "لم تُضف",
+      "making": {
+        "adding": "جارٍ إضافة {{language}}",
+        "grouping": "جارٍ الإضافة إلى {{cluster}}"
+      }
+    },
+    "status": {
+      "all": "الكل",
+      "none": "ليست في مجموعة"
     }
   }
 }

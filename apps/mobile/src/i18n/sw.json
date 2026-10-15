@@ -340,7 +340,8 @@
     "mic_setup": "Andaa maikrofoni yako",
     "get_ready": "Jiandae",
     "settings_more": "Mipangilio zaidi",
-    "check_editor": "Ukaguzi"
+    "check_editor": "Ukaguzi",
+    "cluster_home": "Kundi"
   },
   "native": {
     "microphone": "LangQuest hurekodi sauti yako ili kutafsiri vifungu.",
@@ -656,7 +657,8 @@
       "languagesTitle": "Lugha",
       "newLanguage": "Lugha mpya",
       "noLanguages": "Bado hakuna lugha. Ongeza ya kwanza ambayo timu yako itarekodi.",
-      "openToBring": "Ifungue ili kuileta kwenye kifaa hiki"
+      "openToBring": "Ifungue ili kuileta kwenye kifaa hiki",
+      "newLanguageOrCluster": "Lugha au kundi jipya"
     },
     "rename": {
       "done": "Jina limebadilishwa kuwa {{name}}.",
@@ -724,7 +726,8 @@
         "roles": "majukumu",
         "publicListing": "orodha ya umma",
         "name": "jina",
-        "languageList": "orodha ya lugha"
+        "languageList": "orodha ya lugha",
+        "cluster": "kundi"
       },
       "orgAndCode": "{{org}} · Msimbo {{code}}",
       "seeWork": "Ona kazi yao",
@@ -2915,7 +2918,6 @@
     "sync": {
       "syncing": "Inasawazisha…",
       "syncNow": "Sawazisha sasa",
-      "checking": "Inaangalia mabadiliko mara kwa mara",
       "refused": "Seva imekataa akaunti hii kwa shirika hili.",
       "tooOld": "Sasisha programu ili kusawazisha.",
       "waitingUpload": "zinasubiri kupakiwa",
@@ -2935,7 +2937,28 @@
       "waitingCount": "Zinasubiri · {{n, number}}",
       "refusedCount": "Zimekataliwa · {{n, number}}",
       "events_one": "Tukio {{count, number}} kwenye kifaa hiki",
-      "events_other": "Matukio {{count, number}} kwenye kifaa hiki"
+      "events_other": "Matukio {{count, number}} kwenye kifaa hiki",
+      "standing": {
+        "live": "Moja kwa moja",
+        "checking": "Imeunganishwa",
+        "offline": "Nje ya mtandao",
+        "refused": "Haisawazishi"
+      },
+      "help": {
+        "live": "Mabadiliko ya timu yako yanafika papo hapo, na yako yanatumwa mara moja.",
+        "checking": "Imeunganishwa, lakini njia ya moja kwa moja haifanyi kazi, kwa hiyo kifaa hiki kinaangalia mabadiliko kila baada ya dakika chache. Sawazisha sasa huangalia mara moja.",
+        "offline": "Hakuna mtandao. Kila unachofanya kinahifadhiwa kwenye kifaa hiki na kinatumwa chenyewe ukirudi mtandaoni.",
+        "refused": "Seva haikubali mabadiliko kutoka kifaa hiki. Kazi yako bado imehifadhiwa hapa.",
+        "toSend": "Mabadiliko na rekodi za kifaa hiki ambazo seva bado haijathibitisha. Ziko salama hapa na zitatumwa kukiwa na mtandao.",
+        "toReceive": "Rekodi za wengine ambazo kifaa hiki bado kinapakua.",
+        "refusedLine": "Mabadiliko ambayo seva haikukubali, kwa kawaida kwa sababu ruhusa imebadilika. Yanabaki kwenye kifaa hiki; fungua Maelezo kuona kila moja."
+      },
+      "toSend": "Za kutuma",
+      "toReceive": "Za kupokea",
+      "refusedLine": "Yamekataliwa",
+      "none": "Hakuna",
+      "moreInfo": "Zaidi kuhusu hili",
+      "details": "Maelezo"
     }
   },
   "study": {
@@ -3627,10 +3650,8 @@
       "help": "Ulichomwomba mtu mwingine ambacho bado hakijafanyika."
     },
     "sync": {
-      "refused": "Haisawazishi",
       "toSend_one": "{{count, number}} ya kutuma",
-      "toSend_other": "{{count, number}} za kutuma",
-      "offline": "Nje ya mtandao"
+      "toSend_other": "{{count, number}} za kutuma"
     },
     "join": {
       "wantsToJoin": "{{name}} anataka kujiunga",
@@ -4681,7 +4702,8 @@
       "newChapters": "Sura mpya",
       "books": "Vitabu",
       "chaptersByBook": "Sura kwa kitabu",
-      "total": "Jumla"
+      "total": "Jumla",
+      "clusters": "Makundi"
     },
     "errors": {
       "noServer": "Toleo hili la programu halijui seva ya ripoti iko wapi.",
@@ -4775,7 +4797,8 @@
       "alertsChip_other": "Tahadhari, {{count, number}} zinahitaji mtu",
       "allCountries": "Nchi zote",
       "loading": "Inapakia ripoti…",
-      "couldNotRead": "Ripoti hazikuweza kusomwa"
+      "couldNotRead": "Ripoti hazikuweza kusomwa",
+      "allLanguages": "Lugha zote"
     },
     "overview": {
       "across_one": "Katika lugha {{count, number}} · {{recent}} katika wiki nne zilizopita",
@@ -5078,6 +5101,12 @@
       "findCountry": "Tafuta nchi",
       "typeToFind_one": "Andika ili kupata {{count, number}} nyingine.",
       "typeToFind_other": "Andika ili kupata {{count, number}} nyingine."
+    },
+    "clusters": {
+      "title": "Makundi",
+      "sub": "Lugha za kila kundi kwa pamoja. Chagua moja uone lugha zake tu.",
+      "languages_one": "Lugha {{count, number}}",
+      "languages_other": "Lugha {{count, number}}"
     }
   },
   "review": {
@@ -6192,6 +6221,104 @@
       "playHelp": "Hucheza jinsi wanavyolisema.",
       "suggest": "Lugha nyingine hapa zinatumia",
       "suggestHelp": "Linatumika hapa katika {{languages}}. Gusa ili kuliongeza."
+    }
+  },
+  "clusters": {
+    "row": {
+      "sub_one": "Lugha {{count, number}} · {{names}}",
+      "sub_other": "Lugha {{count, number}} · {{names}}",
+      "namesMore": "{{names}}…"
+    },
+    "home": {
+      "sub_one": "Kundi · lugha {{count, number}}",
+      "sub_other": "Kundi · lugha {{count, number}}",
+      "together": "Kwa pamoja",
+      "itsLanguages": "Lugha zake",
+      "add": "Ongeza lugha ndani yake",
+      "rename": "Badilisha jina",
+      "ungroup": "Tenganisha",
+      "gone": "Kundi hili halina lugha sasa",
+      "goneSub": "Lugha zake zimetolewa ndani yake. Zote bado ziko katika {{org}}.",
+      "notSaved": "Haijahifadhiwa"
+    },
+    "add": {
+      "title": "Ongeza kwenye {{cluster}}",
+      "newLanguage": "Lugha mpya",
+      "newLanguageSub": "Iandae, ikiwa tayari ndani ya {{cluster}}",
+      "alreadyIn": "Tayari ziko katika {{org}}",
+      "none": "Kila lugha ya {{org}} tayari iko ndani yake.",
+      "button": "Ongeza",
+      "done_one": "Lugha {{count, number}} imeongezwa kwenye {{cluster}}.",
+      "done_other": "Lugha {{count, number}} zimeongezwa kwenye {{cluster}}."
+    },
+    "rename": {
+      "title": "Badilisha jina la {{cluster}}",
+      "label": "Jina lake",
+      "save": "Hifadhi",
+      "done": "Jina sasa ni {{name}}."
+    },
+    "ungroup": {
+      "title": "Tenganisha {{cluster}}?",
+      "body_one": "Lugha yake inabaki, pamoja na watu wake, rekodi na ukaguzi. Ni jina linaloiweka pamoja tu linaloondoka.",
+      "body_other": "Lugha zake {{count, number}} zinabaki, pamoja na watu wake, rekodi na ukaguzi. Ni jina linalozikusanya tu linaloondoka.",
+      "confirm": "Tenganisha",
+      "keep": "Liache",
+      "done": "{{cluster}} limetenganishwa. Lugha zake bado ziko hapa."
+    },
+    "language": {
+      "label": "Kundi",
+      "none": "Haiko katika kundi",
+      "sheetTitle": "Iko katika kundi gani?",
+      "count_one": "Lugha {{count, number}}",
+      "count_other": "Lugha {{count, number}}",
+      "newLabel": "Au kundi jipya",
+      "firstLabel": "Iweke katika kundi jipya",
+      "note": "Lugha inaweza kuwa katika kundi zaidi ya moja, au isiwe katika lolote. Hakuna kinachobadilika katika lugha.",
+      "done": "Imekamilika",
+      "saved": "Makundi ya {{language}} yamehifadhiwa."
+    },
+    "newLanguage": {
+      "what": "Unaongeza nini?",
+      "one": "Lugha moja",
+      "oneSub": "Ikiwa na rekodi, ukaguzi na watu wake",
+      "cluster": "Kundi la lugha",
+      "clusterSub": "Lugha kadhaa zinazohusiana, zikiandaliwa pamoja",
+      "clusterName": "Jina la kundi",
+      "clusterPlaceholder": "mf. Dar Khamsa",
+      "theCluster": "kundi",
+      "inCluster": "Katika kundi? Unaweza kuchagua baadaye",
+      "no": "Hapana",
+      "newCluster": "Kundi jipya",
+      "joinsNamed": "{{org}} tayari ina {{cluster}}. Lugha hizi zinajiunga nalo.",
+      "itsLanguages": "Lugha zake · {{number}}",
+      "addOne": "Ongeza lugha",
+      "unlisted": "Haipo? Iongeze kama ulivyoiandika, pamoja na msimbo wake kama inao.",
+      "addTyped": "Ongeza “{{name}}”",
+      "new": "Mpya",
+      "newWithCode": "{{code}} · mpya",
+      "already": "Tayari iko katika {{org}}",
+      "takeOut": "Toa",
+      "note_one": "Lugha zilizopo hapa zinabaki na kila kitu walicho nacho. Lugha mpya inaandaliwa katika hatua zinazofuata.",
+      "note_other": "Lugha zilizopo hapa zinabaki na kila kitu walicho nacho. Lugha mpya {{count, number}} zinaandaliwa pamoja katika hatua zinazofuata.",
+      "onlyExisting": "Hakuna jipya la kuandaa: lugha zilizopo hapa zinabaki na kila kitu walicho nacho.",
+      "make": "Unda kundi",
+      "made_one": "{{cluster}} limeundwa, likiwa na lugha {{count, number}}.",
+      "made_other": "{{cluster}} limeundwa, likiwa na lugha {{count, number}}.",
+      "forNew_one": "Kwa lugha mpya ya {{cluster}}. Inaweza kubadilisha yake baadaye.",
+      "forNew_other": "Kwa lugha mpya {{count, number}} za {{cluster}}. Kila moja inaweza kubadilisha yake baadaye.",
+      "added_one": "Lugha {{count, number}} imeongezwa kwenye {{org}}, ndani ya {{cluster}}.",
+      "added_other": "Lugha {{count, number}} zimeongezwa kwenye {{org}}, ndani ya {{cluster}}.",
+      "addedNotOffered_one": "Lugha {{count, number}} imeongezwa kwenye {{org}}, ndani ya {{cluster}}. Toa {{offers}} chini ya Kinachowasaidia ukiwa mtandaoni.",
+      "addedNotOffered_other": "Lugha {{count, number}} zimeongezwa kwenye {{org}}, ndani ya {{cluster}}. Toa {{offers}} chini ya Kinachowasaidia ukiwa mtandaoni.",
+      "notMade": "Haijaongezwa",
+      "making": {
+        "adding": "Inaongeza {{language}}",
+        "grouping": "Inaongeza kwenye {{cluster}}"
+      }
+    },
+    "status": {
+      "all": "Zote",
+      "none": "Haziko katika kundi"
     }
   }
 }

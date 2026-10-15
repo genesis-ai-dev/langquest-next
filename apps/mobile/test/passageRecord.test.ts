@@ -386,7 +386,7 @@ describe('the journey (REC-2, REC-2a, ADR-030)', () => {
   });
 });
 
-describe('what listeners heard and said (decisions.md 108)', () => {
+describe('what listeners heard and said (decisions.md 109)', () => {
   // Why: after a chapter is published in EveryBible, its listeners keep answering.
   // The translator must see that feedback on the passage, under the listener's own
   // name, and know which version listeners have.
