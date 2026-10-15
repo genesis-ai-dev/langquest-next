@@ -2528,6 +2528,24 @@ lead. The UI test suite holds this (SETUP-061 to 066, MAP-023).
 Amended (2026-10-13, Carl Sauder): nobody may leave the organization
 without someone who can manage roles (98).
 
+Amended (2026-10-15, Carl Sauder): a resend is a duplicate even while the
+first push is still being inserted. A push that timed out on a weak link
+is retried with the first still in flight (the client no longer overlaps
+its own pushes, `SyncClient.exclusive`, but a lost response still races on
+the server). `append_events` checked the id before it took the stream's
+lock, so the retry passed that check, waited on the lock, and found the
+entity id taken: it refused the event, and the phone folded out work the
+server holds; an event with no entity id failed the whole batch on the
+primary key. Every event now takes its stream's lock once it is authorized
+and valid (`_next_seq` took it anyway, so nothing waits longer) and checks
+the id again under it, answering a stored event of the same organization,
+stream, actor and type as `duplicate` with its seq. The lock comes after
+authorization so nobody makes or holds a stream they may not write. The
+same id pushed to two different streams at once still fails one batch on
+the primary key; the retry is then refused (`event id already used`), as
+it should be. Migration `20261015180000_append_duplicate_under_lock.sql`;
+SQL test `server/concurrentAppendSmoke.sql`, two sessions over dblink.
+
 ## 76. Names identify nothing: a repeated language is warned about, and an organization can be renamed
 
 Date: 2026-10-09 · By: Carl Sauder · Status: accepted
