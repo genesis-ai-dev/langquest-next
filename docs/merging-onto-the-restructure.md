@@ -55,7 +55,11 @@ git grep -nE "'(\./|(\.\./)+)(supabase|blobTransport|v2SignIn|signOutCore|handOv
 Both print nothing on a branch that merged cleanly. (Older decision entries
 and shipped migrations say `packages/client` on purpose: they are history.)
 
-## What the tests now hold
+## What the tests and lint now hold
+
+`npm run lint` (`eslint.config.mjs`, in CI and pre-push) holds the rules
+below as you type, with a message naming where the code belongs; the two
+boundary tests hold the first two as well.
 
 - **No platform in `packages/sync`.** It imports only core, supabase-js
   and its own files (`packages/sync/test/boundary.test.ts`). A platform
@@ -146,7 +150,7 @@ the feature. The screen keeps the layout and calls them.
   the Explore listing `org/usePublicListing.ts`; refusal texts and
   `looksLikeEmail` in `org/model.ts`.
 - `screens/config.tsx`: `roles/model.ts`, `flows/model.ts`,
-  `keyTerms/model.ts`, `reference/materialModel.ts` (`screens/configModel.ts`
+  `keyTerms/model.ts`, `reference/materialModel.ts` (`config/model.ts`, which was `screens/configModel.ts`
   is unchanged).
 - `screens/content.tsx`: `templates/model.ts` (the templates view, cards,
   `pickerLists`, `pickerNote`, version lines, `languageSummary`,

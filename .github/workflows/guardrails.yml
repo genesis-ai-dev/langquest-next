@@ -42,6 +42,8 @@ jobs:
         with: { node-version: 24, cache: npm }
       - run: npm ci
       - run: npm run typecheck
+      # What may import what (decisions.md 104, 105): eslint.config.mjs.
+      - run: npm run lint
       # The unit suite with coverage; core and client have thresholds (vitest.config.ts).
       - run: npm run test:coverage
       - name: Keep the coverage report
