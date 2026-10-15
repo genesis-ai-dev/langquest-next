@@ -693,10 +693,11 @@ export function IntentChooser(ctx: Ctx) {
   const outcome = useRequestOutcome(ctx.session.actorId, sentTo);
   const joinedOrg = outcome.kind === 'joined' ? outcome.orgId : null;
   const declined = outcome.kind === 'declined';
+  const { openOrganization } = ctx;
   useEffect(() => {
     if (!joinedOrg) return;
-    ctx.openOrganization(joinedOrg).catch((e: unknown) => setError(failureMessage('open joined organization', e)));
-  }, [joinedOrg]);
+    openOrganization(joinedOrg).catch((e: unknown) => setError(failureMessage('open joined organization', e)));
+  }, [joinedOrg, openOrganization]);
   // Sign out goes through the same confirmation as Me: it says what waits, and a
   // phone hands it over (NOORG-004, decision 60).
   const me = useDisplayNames(ctx.session.actorId)[ctx.session.actorId];

@@ -152,13 +152,16 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   });
 
   const version = v ? versionFor(v.p, takeId) : undefined;
-  const request = useMemo(() => v ? requestFor(v.p, kindId, actorId, { ...(ctx.params['requestId'] ? { requestId: ctx.params['requestId'] } : {}), mineOnly: logged }) : undefined,
-    [v?.p, kindId, actorId, ctx.params, logged]);
-  const questions = useMemo(() => v ? questionsForKind(v.state, kindId, request) : [], [v?.state, kindId, request]);
+  const vState = v?.state;
+  const vp = v?.p;
+  const requestParam = ctx.params['requestId'];
+  const request = useMemo(() => vp ? requestFor(vp, kindId, actorId, { ...(requestParam ? { requestId: requestParam } : {}), mineOnly: logged }) : undefined,
+    [vp, kindId, actorId, requestParam, logged]);
+  const questions = useMemo(() => vState ? questionsForKind(vState, kindId, request) : [], [vState, kindId, request]);
   const guide = useStudyGuide(ctx, v?.unitId);
   const context = useMemo(() => v && version && kind && !kind.withholdsContext ? backgroundFor(ctx, v, kindId, version.takeId, guide) : null,
     [v?.state, v?.p, kindId, version?.takeId, kind, guide]);
-  const all = useMemo(() => v && logged ? recordedPassages(v.state) : [], [v?.state, logged]);
+  const all = useMemo(() => vState && logged ? recordedPassages(vState) : [], [vState, logged]);
   // What the Background offered and what was opened go on the record with the review (docs/reference-material.md).
   const usage = useUsage();
   const shown = !!context;

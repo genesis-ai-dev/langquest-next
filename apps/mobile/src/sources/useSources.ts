@@ -369,6 +369,7 @@ export function useChipMarks(ctx: Ctx, passage: PassageSources): Record<string, 
     ? passage.options.map((o) => o.doc?.provider.kind === 'library' ? o.doc.books.find((b) => b.book === passage.range!.book)?.doc : undefined)
     : [], [passage.options, passage.range]);
   const books = useLibraryDocs(ctx.language.orgId, bookHashes);
+  const getBook = books.get;
   return useMemo(() => {
     const out: Record<string, string[]> = {};
     const range = passage.range;
@@ -382,7 +383,7 @@ export function useChipMarks(ctx: Ctx, passage: PassageSources): Record<string, 
       }
       if (o.doc?.provider.kind === 'library') {
         const hash = o.doc.books.find((b) => b.book === range.book)?.doc;
-        const book = books.get<SourceBookDoc>(hash);
+        const book = getBook<SourceBookDoc>(hash);
         const exact = book ? bookOffers(book, chapters) : offers;
         const audioOnPhone = !!book && chapters.every((c) => {
           const a = book.chapters.find((x) => x.chapter === c)?.audio;
@@ -400,5 +401,5 @@ export function useChipMarks(ctx: Ctx, passage: PassageSources): Record<string, 
     }
     return out;
     // tick and files: kept text and files changed.
-  }, [passage.options, passage.range, books.get, store, tick, files]);
+  }, [passage.options, passage.range, getBook, store, tick, files]);
 }

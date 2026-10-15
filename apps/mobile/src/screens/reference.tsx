@@ -668,7 +668,7 @@ export function PassageReference(ctx: Ctx) {
     if (!state || !passage) return null;
     const template = sel?.docHash ? (tdocs.get(sel.docHash) as TemplateDoc | null) : null;
     return passageHelps(state, passage, templateVersification(template, (h) => tdocs.get(h)), offered, rows, docs.get);
-  }, [state, passage, sel?.docHash, tdocs, unitId, offered, rows, docs.get]);
+  }, [state, passage, sel?.docHash, tdocs, offered, rows, docs.get]);
   const inApp = useMemo(() => (state && passage ? writtenHelps(materialsFor(state, { unitId })) : []), [state, passage, unitId]);
   // Notes translators see on this passage: on a verse, a run of verses, or the whole of it.
   const notes = useMemo(() => (state && passage ? visibleNotes(derivePassage(state, unitId, indexesFor(state)).notes) : []),
