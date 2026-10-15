@@ -3894,7 +3894,11 @@ events by each part's `merge`, which mirrors the reducer's own case and is
 tested on every split of the fixtures' events, so the phone's language is
 the in-memory fold's in any order. A first download is read back one piece
 at a time (`stateSplitter`, `SnapshotRows`), so neither the whole text nor
-the whole state is ever in memory, and its rows are switched in with its
+the whole state is ever in memory. Its rows go straight into the table
+(moving Koro's 160,000 rows from a staging id took 200 s on the emulator),
+and rows with no checkpoint beside them are dropped when a language opens,
+so a download cut short is never read; a phone replacing a language it has
+(after a redaction) writes the new rows aside and switches with its
 checkpoint.
 
 Memory holds the passage on screen, two on each side, and its book and
@@ -3926,7 +3930,11 @@ line, through checkpoints, restarts, a first download, an old checkpoint
 and a redaction (`keptLanguage.test.ts`), and half of a fleet kept on disk
 ends with the server's language and lines and moves all its audio
 (`fleet.test.ts`). Koro's part in memory is now 0.13 MB of shared language
-and 0.37 MB of lines (as JSON), against 40 MB.
+and 0.37 MB of lines (as JSON), against 40 MB. Measured on a 2 GB emulator
+with a release build, Koro adds 2 MB to the app once open instead of
+182 MB (43 MB at the peak instead of 227), and opens in 9 s; a language four
+times its size adds nothing once open instead of 852 MB (59 MB at the peak
+instead of 1.7 GB), and opens in 33 s.
 Reverse if: bringing a passage in from disk makes moving between passages
 noticeably slow on a cheap phone, or the lines themselves outgrow cheap
 phones (then lists page their lines from disk).
