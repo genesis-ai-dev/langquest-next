@@ -22454,6 +22454,35 @@ function orgLicense(state) {
 // packages/core/src/version.ts
 var CLIENT_PROTOCOL_VERSION = 1;
 
+// packages/core/src/quiet.ts
+var eventsThatCannotChangeInbox = /* @__PURE__ */ new Set([
+  "v1.RecordingAdded",
+  "v1.CardVerseSet",
+  "v1.BlobStored",
+  "v1.BlobInvalidated",
+  "v1.AudioFormatSet",
+  "v1.NoteAdded",
+  "v1.StudyStepMarked",
+  "v1.MaterialDefined",
+  "v1.MaterialFieldSet",
+  "v1.MaterialLocked",
+  "v1.KeyTermDefined",
+  "v1.KeyTermRenderingAdded",
+  "v1.KeyTermAdjusted",
+  "v1.KeyTermLinked",
+  "v1.ReferenceSet",
+  "v1.ReferenceLanguageSet",
+  "v1.PassageReferenceLinked",
+  "v1.ReferencesUsed",
+  "v1.CheckHelpSet",
+  "v1.VersionReleased",
+  "v1.ExternalValueSet"
+]);
+function onlyQuietEvents(events) {
+  for (const e of events) if (!eventsThatCannotChangeInbox.has(e.type)) return false;
+  return true;
+}
+
 // packages/sync/src/types.ts
 var OfflineError = class extends Error {
   name = "OfflineError";
@@ -22611,7 +22640,7 @@ function shouldWriteSnapshot(o, schedule = SNAPSHOT_SCHEDULE) {
   if (o.newEvents === 0) return false;
   return o.newEvents >= schedule.minNewEvents || o.ageMs === null || o.ageMs >= schedule.maxAgeMs;
 }
-async function runSnapshotWorker(service, pageSize = 1e3, observe, visit, onError) {
+async function runSnapshotWorker(service, pageSize = 1e3, observe, visit, onError, snapshotAgeMs) {
   const transport = new SupabaseTransport(service);
   const streams = (await listStreams(service)).sort((a, b) => Number(a.next_seq) - Number(b.next_seq));
   const out = [];
@@ -22619,20 +22648,21 @@ async function runSnapshotWorker(service, pageSize = 1e3, observe, visit, onErro
     const orgId = row.org_id;
     const streamId = row.stream_id;
     if (streamId === ORG_STREAM || orgId === PERSON_ORG) continue;
-    if (visit && !visit(orgId, streamId)) continue;
     if (!onError) {
-      out.push(await snapshotOne(service, transport, orgId, streamId, pageSize, observe));
+      if (visit && !await visit(orgId, streamId)) continue;
+      out.push(await snapshotOne(service, transport, orgId, streamId, pageSize, observe, snapshotAgeMs));
       continue;
     }
     try {
-      out.push(await snapshotOne(service, transport, orgId, streamId, pageSize, observe));
+      if (visit && !await visit(orgId, streamId)) continue;
+      out.push(await snapshotOne(service, transport, orgId, streamId, pageSize, observe, snapshotAgeMs));
     } catch (error) {
       onError(orgId, streamId, error);
     }
   }
   return out;
 }
-async function snapshotOne(service, transport, orgId, streamId, pageSize, observe) {
+async function snapshotOne(service, transport, orgId, streamId, pageSize, observe, snapshotAgeMs) {
   const existing = await fetchSnapshot(transport, orgId, streamId, REDUCER_VERSION);
   const tail = await pullAll(transport, orgId, streamId, existing?.serverSeq ?? 0, pageSize);
   if (tail.length === 0) {
@@ -22656,7 +22686,10 @@ async function snapshotOne(service, transport, orgId, streamId, pageSize, observ
   }
   const redaction = tail.some((e) => e.type === "v1.Redacted");
   let ageMs = null;
-  if (existing && !redaction && tail.length < SNAPSHOT_SCHEDULE.minNewEvents) {
+  const known = snapshotAgeMs?.(orgId, streamId);
+  if (existing && !redaction && tail.length < SNAPSHOT_SCHEDULE.minNewEvents && known !== void 0) {
+    ageMs = known;
+  } else if (existing && !redaction && tail.length < SNAPSHOT_SCHEDULE.minNewEvents) {
     const at = await service.from("snapshots").select("created_at").eq("org_id", orgId).eq("stream_id", streamId).eq("reducer_version", REDUCER_VERSION).order("server_seq", { ascending: false }).limit(1);
     if (at.error) throw new Error(`snapshot age ${orgId}/${streamId}: ${at.error.message}`);
     const written2 = at.data?.[0]?.created_at;
@@ -22778,6 +22811,27 @@ async function runProjections(service, scope2 = "all") {
       version: PROJECTION_VERSION
     }));
   };
+  let quiet = 0;
+  const skipQuiet = async (orgId, streamId) => {
+    const key = streamKey(orgId, streamId);
+    const m = marks.get(key);
+    const snap = snapshotOf.get(key);
+    const head2 = heads.get(key) ?? 0;
+    if (!m || !snap || m.version !== PROJECTION_VERSION) return false;
+    if (Number(m.org_seq) !== heads.get(streamKey(orgId, ORG_STREAM)) || m.listed !== listed.has(key)) return false;
+    if (Number(m.seq) >= head2 || head2 - Number(m.seq) > 1e3) return false;
+    const ageMs = Number.isNaN(snap.at) ? null : Date.now() - snap.at;
+    if (shouldWriteSnapshot({ existing: true, newEvents: head2 - snap.seq, redaction: false, ageMs })) return false;
+    try {
+      const tail = await transport.pull(orgId, streamId, Number(m.seq), 1e3);
+      if (tail.length === 0 || !onlyQuietEvents(tail)) return false;
+      await mark(orgId, streamId, tail[tail.length - 1].serverSeq, Number(m.org_seq), m.listed);
+    } catch {
+      return false;
+    }
+    quiet += 1;
+    return true;
+  };
   for (const [key, head2] of heads) {
     const [orgId, streamId] = JSON.parse(key);
     if (scope2 === "large" || streamId !== ORG_STREAM || orgId === PERSON_ORG || !changed(orgId, ORG_STREAM)) continue;
@@ -22785,6 +22839,12 @@ async function runProjections(service, scope2 = "all") {
     await mark(orgId, ORG_STREAM, head2, head2, false);
   }
   const failed = [];
+  let shownRows;
+  const publicRows = () => shownRows ??= selectAll(
+    service,
+    "public_languages",
+    "org_id,language_id,name,code,translated_pct,license"
+  ).then((rows) => new Map(rows.map((r) => [streamKey(r.org_id, r.language_id), r])));
   const results = await runSnapshotWorker(
     service,
     1e3,
@@ -22810,27 +22870,35 @@ async function runProjections(service, scope2 = "all") {
       const info = languageInfo(org, languageId);
       if (isListed && info) {
         const progress = languageProgress(state, idx);
-        check(await service.from("public_languages").upsert({
+        const row = {
           org_id: snapshot.orgId,
           language_id: languageId,
           name: info.name,
           code: info.code,
           translated_pct: progress.total ? 100 * progress.recorded / progress.total : 0,
           // What someone browsing may do with the work (docs/licensing.md).
-          license: orgLicense(org),
-          updated_at: (/* @__PURE__ */ new Date()).toISOString()
-        }));
+          license: orgLicense(org)
+        };
+        const shown = (await publicRows()).get(streamKey(snapshot.orgId, languageId));
+        if (!shown || shown.name !== row.name || shown.code !== row.code || shown.translated_pct !== row.translated_pct || shown.license !== row.license) {
+          check(await service.from("public_languages").upsert({ ...row, updated_at: (/* @__PURE__ */ new Date()).toISOString() }));
+        }
       }
       await mark(snapshot.orgId, languageId, snapshot.serverSeq, orgSeq, isListed);
     },
-    (orgId, streamId) => inScope(orgId, streamId) && (changed(orgId, streamId) || snapshotDue(orgId, streamId)),
+    async (orgId, streamId) => inScope(orgId, streamId) && (changed(orgId, streamId) || snapshotDue(orgId, streamId)) && !await skipQuiet(orgId, streamId),
     // The large pass goes on past a language that fails, so the next waits only
     // for its own turn; the Edge pass stops at the first error, as before.
     scope2 === "large" ? (_orgId, streamId, error) => {
       failed.push({ streamId, error: error instanceof Error ? error.message : String(error) });
-    } : void 0
+    } : void 0,
+    // The age of the snapshot the pass already read, so folding does not ask again.
+    (orgId, streamId) => {
+      const snap = snapshotOf.get(streamKey(orgId, streamId));
+      return snap ? Number.isNaN(snap.at) ? null : Date.now() - snap.at : void 0;
+    }
   );
-  return { languages: results.filter((r) => r.updated).length, snapshots: results.filter((r) => r.written).length, failed };
+  return { languages: results.filter((r) => r.updated).length, snapshots: results.filter((r) => r.written).length, quiet, failed };
 }
 async function deliverPushes(service, fetcher = fetch) {
   const claimed = await service.rpc("claim_notification_pushes");

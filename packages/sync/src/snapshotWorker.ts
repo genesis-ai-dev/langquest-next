@@ -47,12 +47,16 @@ export function shouldWriteSnapshot(
  * tail targets something inside the snapshot, in which case it refolds the
  * whole log so the target really disappears. `visit`, when given, says
  * which language streams to look at; the others are skipped without
- * reading their snapshot (the projection pass skips what has not changed).
+ * reading their snapshot (the projection pass skips what has not changed);
+ * it may answer after a look at the stream's newest events. `snapshotAgeMs`
+ * is how old each language's newest snapshot is when the caller already
+ * knows (null: unknown, so a new one is due), which saves a query per language.
  */
 export async function runSnapshotWorker(
   service: SupabaseClient, pageSize = 1000, observe?: (snapshot: Snapshot) => Promise<void>,
-  visit?: (orgId: string, streamId: string) => boolean,
-  onError?: (orgId: string, streamId: string, error: unknown) => void
+  visit?: (orgId: string, streamId: string) => boolean | Promise<boolean>,
+  onError?: (orgId: string, streamId: string, error: unknown) => void,
+  snapshotAgeMs?: (orgId: string, streamId: string) => number | null | undefined
 ): Promise<SnapshotResult[]> {
   const transport = new SupabaseTransport(service);
   // Smallest first: a language too big for this run (decisions.md 103) can
@@ -65,15 +69,17 @@ export async function runSnapshotWorker(
     const streamId = row.stream_id;
     // Only language streams have a server snapshot; the organization and person streams are small.
     if (streamId === ORG_STREAM || orgId === PERSON_ORG) continue;
-    if (visit && !visit(orgId, streamId)) continue;
+    // A visit that fails is handled like a snapshot that fails (below).
     if (!onError) {
-      out.push(await snapshotOne(service, transport, orgId, streamId, pageSize, observe));
+      if (visit && !(await visit(orgId, streamId))) continue;
+      out.push(await snapshotOne(service, transport, orgId, streamId, pageSize, observe, snapshotAgeMs));
       continue;
     }
     // With onError, one language that fails (a write that times out) is
     // reported and the pass goes on to the next.
     try {
-      out.push(await snapshotOne(service, transport, orgId, streamId, pageSize, observe));
+      if (visit && !(await visit(orgId, streamId))) continue;
+      out.push(await snapshotOne(service, transport, orgId, streamId, pageSize, observe, snapshotAgeMs));
     } catch (error) {
       onError(orgId, streamId, error);
     }
@@ -83,7 +89,8 @@ export async function runSnapshotWorker(
 
 async function snapshotOne(
   service: SupabaseClient, transport: SupabaseTransport, orgId: string, streamId: string, pageSize: number,
-  observe?: (snapshot: Snapshot) => Promise<void>
+  observe?: (snapshot: Snapshot) => Promise<void>,
+  snapshotAgeMs?: (orgId: string, streamId: string) => number | null | undefined
 ): Promise<SnapshotResult> {
   const existing = await fetchSnapshot(transport, orgId, streamId, REDUCER_VERSION);
   const tail = await pullAll(transport, orgId, streamId, existing?.serverSeq ?? 0, pageSize);
@@ -111,7 +118,10 @@ async function snapshotOne(
   // Its age is only needed when the event count alone does not decide.
   const redaction = tail.some((e) => e.type === 'v1.Redacted');
   let ageMs: number | null = null;
-  if (existing && !redaction && tail.length < SNAPSHOT_SCHEDULE.minNewEvents) {
+  const known = snapshotAgeMs?.(orgId, streamId);
+  if (existing && !redaction && tail.length < SNAPSHOT_SCHEDULE.minNewEvents && known !== undefined) {
+    ageMs = known;
+  } else if (existing && !redaction && tail.length < SNAPSHOT_SCHEDULE.minNewEvents) {
     const at = await service.from('snapshots').select('created_at')
       .eq('org_id', orgId).eq('stream_id', streamId).eq('reducer_version', REDUCER_VERSION)
       .order('server_seq', { ascending: false }).limit(1);

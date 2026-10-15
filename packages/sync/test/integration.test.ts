@@ -5,6 +5,7 @@ import {
 } from '@langquest-next/core';
 import { MemoryStore } from '../src/memoryStore';
 import { runSnapshotWorker } from '../src/snapshotWorker';
+import { runProjections } from '../../../server/projectionWorker';
 import { runBlobReconciler } from '../src/blobReconciler';
 import type { BlobFiles } from '../src/workerBlobs';
 import { BadDigest, handleBlobs, type BlobBucket, type BlobDeps } from '../../../apps/web/worker/blobs';
@@ -251,6 +252,43 @@ describe.skipIf(!up)('integration: two real users against local Supabase', () =>
     // A second worker pass with nothing new is a no-op for this language.
     const again = await runSnapshotWorker(service);
     expect(again.find((d) => d.streamId === languageId)?.serverSeq).toBe(6);
+  });
+
+  it('the projection pass moves past quiet events without a snapshot download, and folds on any other', async () => {
+    // Why: decisions.md 68. New audio or a blob confirmation cannot change an
+    // Inbox row, so the pass reads just those events; a unit can, so the
+    // pass folds the language again.
+    const stamp = Date.now();
+    const lead = await signUp(`proj-${stamp}@example.test`);
+    const orgId = `org-p-${stamp}`;
+    const languageId = `lp-${stamp}`;
+    await newOrg(lead, orgId, languageId);
+    const a = languageClient(orgId, languageId, lead, 'dA');
+    await a.load();
+    await a.append('v1.UnitAdded', { unitId: 'u1', parentUnitId: null, kind: 'passage', label: 'P1', order: 'a0' });
+    await a.sync();
+    const service = createClient(URL, SERVICE, { auth: { persistSession: false } });
+    const markOf = async () => Number(((await service.from('projection_marks').select('seq')
+      .eq('org_id', orgId).eq('stream_id', languageId).single()).data as { seq: number }).seq);
+
+    await runProjections(service);
+    expect(await markOf()).toBe(1);
+
+    await a.append('v1.RecordingAdded', { recordingId: 'r1', unitId: 'u1', kind: 'target', cards: [{ hash: 'h1', durationMs: 10 }] });
+    await a.sync();
+    const quiet = await runProjections(service);
+    expect(quiet.quiet).toBeGreaterThanOrEqual(1);
+    expect(await markOf()).toBe(2);
+    // The snapshot was not touched: it still ends at the first event.
+    const snap = await service.from('snapshots').select('server_seq').eq('org_id', orgId).eq('stream_id', languageId)
+      .order('server_seq', { ascending: false }).limit(1);
+    expect(Number(snap.data?.[0]?.server_seq)).toBe(1);
+
+    await a.append('v1.UnitAdded', { unitId: 'u2', parentUnitId: null, kind: 'passage', label: 'P2', order: 'a1' });
+    await a.sync();
+    const loud = await runProjections(service);
+    expect(loud.languages).toBeGreaterThanOrEqual(1);
+    expect(await markOf()).toBe(3);
   });
 
   it('a member upload through the Worker lands a BlobStored confirmation in the log', async () => {
