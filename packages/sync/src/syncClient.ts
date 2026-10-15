@@ -33,7 +33,8 @@ export interface Materializer<S> {
   version: number;
 }
 
-const LANGUAGE_MATERIALIZER: Materializer<LanguageState> = {
+/** The default: a language's work (core `reducer.ts`). */
+export const LANGUAGE_MATERIALIZER: Materializer<LanguageState> = {
   empty: emptyLanguageState,
   apply: applyLanguageEvent,
   fold: foldLanguage,
@@ -199,12 +200,18 @@ export class SyncClient<S = LanguageState> {
     // A fold applies redactions first, so the store's order does not matter.
     const locals = await this.opts.store.all(this.opts.orgId, this.opts.streamId);
     const events = locals.map((l) => l.event);
-    const snapshot = await this.localSnapshot();
+    const checkpoint = await this.storedCheckpoint();
+    const staleSeq = checkpoint && checkpoint.reducerVersion !== this.m.version ? checkpoint.serverSeq : null;
+    if (staleSeq !== null) await this.dropStaleCheckpoint();
+    const snapshot = staleSeq === null ? checkpoint : null;
     this.state = snapshot ? this.resume(snapshot, events) : this.m.fold(events, this.m.empty());
     this.loaded = true;
     this.opts.diag?.record('load', {
       ...this.stream(),
-      n: { ms: this.elapsed() - started, events: events.length, fromSnapshot: snapshot ? 1 : 0 }
+      n: {
+        ms: this.elapsed() - started, events: events.length, fromSnapshot: snapshot ? 1 : 0,
+        ...(staleSeq !== null ? { staleCheckpointSeq: staleSeq } : {})
+      }
     });
     this.publish();
     return this.state;
@@ -301,11 +308,36 @@ export class SyncClient<S = LanguageState> {
     return `snapshotMinSeq:${this.opts.orgId}/${this.opts.streamId}`;
   }
 
-  private async localSnapshot(): Promise<Snapshot | null> {
+  /** The local checkpoint, whichever reducer wrote it. */
+  private async storedCheckpoint(): Promise<Snapshot | null> {
     const raw = await this.opts.store.meta(this.snapshotKey());
-    if (!raw) return null;
-    const snap = JSON.parse(raw) as Snapshot;
-    return snap.reducerVersion === this.m.version ? snap : null;
+    return raw ? (JSON.parse(raw) as Snapshot) : null;
+  }
+
+  private async localSnapshot(): Promise<Snapshot | null> {
+    const snap = await this.storedCheckpoint();
+    return snap?.reducerVersion === this.m.version ? snap : null;
+  }
+
+  /**
+   * An update changed the reducer, and the checkpoint is from the old one.
+   * This reducer cannot read it (invariant 10), and the events it covers
+   * were pruned from the log, so folding what is left gives part of the
+   * language, and a checkpoint taken from that would keep it partial for
+   * good. Drop the checkpoint and put the cursor back to the start, in one
+   * write: the next pull takes the server's snapshot for this reducer, or
+   * pulls the whole stream again when there is none (the organization
+   * stream never has one). Until then the screen shows the events still
+   * here, the person's unsent work among them, as a first download does.
+   * Nothing below the cursor is missing again, so no checkpoint can be
+   * partial. A redaction waiting on the old checkpoint waits no more: it is
+   * gone, and `snapshotMinSeq` still turns away a snapshot from before it.
+   */
+  private async dropStaleCheckpoint(): Promise<void> {
+    await this.commit({
+      meta: { [this.snapshotKey()]: '', [this.snapshotSeqKey()]: '', [this.redactionKey()]: '' },
+      cursor: { orgId: this.opts.orgId, streamId: this.opts.streamId, seq: 0 }
+    });
   }
 
   private async saveSnapshot(snap: Snapshot): Promise<void> {
