@@ -5,7 +5,7 @@ import { applyLanguageEvent, foldLanguage as fold } from '../src/reducer';
 import { referencedBlobs } from '../src/blobs';
 import { emptyLanguageState as emptyState, type LanguageState } from '../src/state';
 import {
-  deriveFlow, deriveKinds, derivePassage, highlightsFor, languageProgress, passageSummary,
+  checkQuestionSpecs, deriveFlow, deriveKinds, derivePassage, formatQuestionField, highlightsFor, languageProgress, passageSummary,
   questionsForKind, recordTimeline, reviewGrid, studyMarksFor, unitPlace, unitsAskedOf, upNext, updatesFor, waitingOn
 } from '../src/passage';
 import { flowTemplate, instantiateFlow } from '../src/record';
@@ -313,6 +313,40 @@ describe('passage record', () => {
     const qs = questionsForKind(p.state(), 'community', req);
     expect(qs[0]!.source).toBe('org');
     expect(qs.at(-1)).toMatchObject({ source: 'request', required: true });
+  });
+
+  it('changing one of LangQuest’s questions on a check makes the language’s copy, in order and under the same ids', () => {
+    // Why (LAN-85): a team must be able to reword or drop the questions it was given, and
+    // answers already given must still find their question.
+    const p = language();
+    const before = questionsForKind(p.state(), 'community');
+    const apply = (specs: { type: EventType; payload: unknown }[]) => { for (const s of specs) p.emit('lead', s.type, s.payload as never); };
+    const natural = before.find((q) => q.q.id === 'community_check#natural')!;
+    const edit = checkQuestionSpecs(p.state(), { commandId: 'c1', question: natural, text: formatQuestionField({ text: 'Does it sound like us?', type: 'yesno' }), title: 'Community check questions' });
+    for (const s of edit.specs) expect(validateEvent({ id: s.id, type: s.type, orgId: 'o', streamId: 'din', actorId: 'lead', deviceId: 'lead', hlc: '0', payload: s.payload } as AnyEvent), s.type).toBeNull();
+    apply(edit.specs);
+    const after = questionsForKind(p.state(), 'community');
+    expect(after.map((q) => q.q.id)).toEqual(before.map((q) => q.q.id));
+    expect(after.every((q) => q.source === 'language')).toBe(true);
+    expect(after[1]!.q).toMatchObject({ text: 'Does it sound like us?', type: 'yesno' });
+    expect(after.map((q) => q.q.text).filter((_, i) => i !== 1)).toEqual(before.map((q) => q.q.text).filter((_, i) => i !== 1));
+    // Taking one off, then Undo.
+    const terms = after.find((q) => q.q.id === 'community_check#terms')!;
+    const off = checkQuestionSpecs(p.state(), { commandId: 'c2', question: terms, text: '', title: 'x' });
+    apply(off.specs);
+    expect(questionsForKind(p.state(), 'community').map((q) => q.q.id)).not.toContain('community_check#terms');
+    apply(off.undo);
+    expect(questionsForKind(p.state(), 'community').map((q) => q.q.id)).toEqual(before.map((q) => q.q.id));
+  });
+
+  it('a set used in reviews for a check takes the place of LangQuest’s questions', () => {
+    // Why (LAN-85): "Use in reviews" on a copy of LangQuest's set listed every question twice.
+    const p = language();
+    p.run('lead', (c) => c.defineMaterial({ commandId: 'm', materialId: 'qs.ours', kind: 'questions', title: 'Ours', scope: { stepId: 'community' },
+      fields: [{ fieldId: 'a', text: formatQuestionField({ text: 'Did it make sense?', type: 'yesno' }) }] }));
+    expect(questionsForKind(p.state(), 'community').map((q) => q.q.text)).toEqual(['Did it make sense?']);
+    p.run('lead', (c) => c.setMaterialFields({ commandId: 'u', materialId: 'qs.ours', fields: [{ fieldId: 'a', text: '' }] }));
+    expect(questionsForKind(p.state(), 'community')[0]!.source).toBe('org');
   });
 
   it('places units by book and chapter for the Map', () => {

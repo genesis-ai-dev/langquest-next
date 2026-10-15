@@ -35,11 +35,14 @@ describe('reference material: per-field registers, scopes, locks, question sets 
   it('a kind\'s question set is the shipped questions, then the language\'s filled ones, then the asker\'s', () => {
     // Why: the reviewer answers one combined list; each question says where
     // it came from so nobody mistakes the organization's for the asker's.
+    // The language's copy of a shipped set takes the shipped set's place,
+    // under the shipped questions' ids (LAN-85).
     const sets = materialsFor(state, { stepId: 'community' }).filter((m) => m.kind === 'questions');
     expect(questionsOf(sets).map((q) => q.id)).toEqual(['questions/community_check#meaning', 'questions/community_check#natural']);
     const qs = questionsForKind(state, 'community');
-    expect(qs.filter((q) => q.source === 'org')).toHaveLength(4);
-    expect(qs.filter((q) => q.source === 'language').map((q) => q.q.id)).toEqual(['questions/community_check#meaning', 'questions/community_check#natural']);
+    expect(qs.filter((q) => q.source === 'org')).toHaveLength(0);
+    expect(qs.filter((q) => q.source === 'language').map((q) => q.q.id)).toEqual(['community_check#meaning', 'community_check#natural']);
+    expect(questionsForKind(state, 'consultant').filter((q) => q.source === 'org')).toHaveLength(3);
     // A set scoped to a passage is not a kind's set.
     expect(qs.some((q) => q.q.id.startsWith('q-luke1'))).toBe(false);
     expect(questionsForKind(state, 'peer')).toEqual([]);

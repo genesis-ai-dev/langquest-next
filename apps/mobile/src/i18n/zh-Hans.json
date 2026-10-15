@@ -3969,7 +3969,8 @@
       "askSpecificHelp": "输入一个让对方回答的问题，然后添加。",
       "answerTypeHelp": "更改回答方式：是或否、用文字，或者 1 到 5。",
       "addQuestionHelp": "把你的问题加到对方要回答的问题中。",
-      "removeQuestionHelp": "移除这个问题。"
+      "removeQuestionHelp": "移除这个问题。",
+      "openCheckHelp": "打开{{check}}，在那里更改它的问题。"
     },
     "resources": {
       "sourceAudio": "源音频"
@@ -6709,7 +6710,6 @@
     "questionSaved": "问题已保存",
     "questionRemoved": "问题已移除",
     "questionsTitle": "{{check}}的问题",
-    "fromLangQuest": "来自 LangQuest",
     "noQuestions": "没有设置问题",
     "addHelp": "添加帮助资料",
     "removeHelp": "把{{name}}从这项检查中移除",

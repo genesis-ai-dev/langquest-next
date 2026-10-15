@@ -447,7 +447,8 @@ export function PassageRecord(ctx: Ctx) {
                 people={checkPeople(v.state, k.kindId).filter((id) => id !== me)} onPress={() => setAskKindId(k.kindId)} />
             ))}
             {/* With someone to send it to, the questions they'll answer, and more to add. With nobody yet, the button opens Someone else, which has them. */}
-            {can.ask && targets[nextKind.kindId] ? <TheyAnswer asked={questionsForKind(v.state, nextKind.kindId)} questions={askQuestions} setQuestions={setAskQuestions} /> : null}
+            {can.ask && targets[nextKind.kindId] ? <TheyAnswer asked={questionsForKind(v.state, nextKind.kindId)} questions={askQuestions} setQuestions={setAskQuestions}
+              {...(ctx.session.can('manage_flows') ? { check: { name: checkName(nextKind.kindId, kinds), open: () => ctx.go('check_editor', { languageId: v.languageId, kindId: nextKind.kindId }) } } : {})} /> : null}
           </View>
         ) : can.ask ? (
           <Text style={[txt.smMuted, { textAlign: 'center', marginTop: space.lg }]}>
@@ -1150,9 +1151,13 @@ export function ReviewDetail(ctx: Ctx) {
 /**
  * What the people asked will answer: the check's own questions (decision 91),
  * then any added for this request, with a field to add one. On the ask page
- * after publishing and on Someone else alike.
+ * after publishing and on Someone else alike. Someone who sets up the checks
+ * opens the check from its questions, to change them there (LAN-85).
  */
-function TheyAnswer(props: { asked: ReturnType<typeof questionsForKind>; questions: QuestionSpec[]; setQuestions: (f: (qs: QuestionSpec[]) => QuestionSpec[]) => void }) {
+function TheyAnswer(props: {
+  asked: ReturnType<typeof questionsForKind>; questions: QuestionSpec[]; setQuestions: (f: (qs: QuestionSpec[]) => QuestionSpec[]) => void;
+  check?: { name: string; open: () => void };
+}) {
   const [draft, setDraft] = useState('');
   const [type, setType] = useState<QuestionSpec['type']>('yesno');
   const add = () => {
@@ -1167,7 +1172,8 @@ function TheyAnswer(props: { asked: ReturnType<typeof questionsForKind>; questio
       {props.asked.length > 0 || props.questions.length > 0 ? (
         <Group>
           {props.asked.map((sq) => (
-            <Row key={sq.q.id} icon="chat" label={sq.q.text} sub={[questionTypeLabel(sq.q.type), sq.required ? t('common.required') : ''].filter(Boolean).join(' · ')} />
+            <Row key={sq.q.id} icon="chat" label={sq.q.text} sub={[questionTypeLabel(sq.q.type), sq.required ? t('common.required') : ''].filter(Boolean).join(' · ')}
+              {...(props.check ? { onPress: props.check.open, help: t('passage.ask.openCheckHelp', { check: props.check.name }) } : {})} />
           ))}
           {props.questions.map((q, i) => (
             <Row key={q.id} label={q.text} sub={questionTypeLabel(q.type)} last={i === props.questions.length - 1}
@@ -1299,7 +1305,8 @@ export function AskSomeone(ctx: Ctx) {
       <VoiceNote ctx={ctx} label={isRecord ? t('passage.ask.sayKeepInMind') : t('passage.ask.sayListenFor')} hash={noteHash} onChange={setNoteHash} />
       <Field value={note} onChangeText={setNote} placeholder={t('passage.ask.orTypeThem')} multiline />
 
-      {!isRecord ? <TheyAnswer asked={asked} questions={questions} setQuestions={setQuestions} /> : null}
+      {!isRecord ? <TheyAnswer asked={asked} questions={questions} setQuestions={setQuestions}
+        {...(kindId && ctx.session.can('manage_flows') ? { check: { name: model.check, open: () => ctx.go('check_editor', { languageId: v.languageId, kindId }) } } : {})} /> : null}
 
       <SectionLabel label={t('passage.ask.byWhen')} />
       <ChipRow>

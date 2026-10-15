@@ -4221,7 +4221,8 @@
       "askSpecificHelp": "Digite uma pergunta para a pessoa responder e depois adicione.",
       "answerTypeHelp": "Muda como a pessoa responde: sim ou não, com palavras, ou de 1 a 5.",
       "addQuestionHelp": "Adiciona a sua pergunta às que a pessoa responde.",
-      "removeQuestionHelp": "Tira esta pergunta."
+      "removeQuestionHelp": "Tira esta pergunta.",
+      "openCheckHelp": "Abre {{check}}, onde você muda as perguntas."
     },
     "resources": {
       "sourceAudio": "Áudio do texto-fonte"
@@ -7301,7 +7302,6 @@
     "questionSaved": "Pergunta salva",
     "questionRemoved": "Pergunta removida",
     "questionsTitle": "Perguntas de {{check}}",
-    "fromLangQuest": "Do LangQuest",
     "noQuestions": "Sem perguntas",
     "addHelp": "Adicionar uma ajuda",
     "removeHelp": "Tirar {{name}} desta verificação",

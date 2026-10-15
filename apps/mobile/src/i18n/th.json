@@ -3969,7 +3969,8 @@
       "askSpecificHelp": "พิมพ์คำถามให้เขาตอบ แล้วเพิ่ม",
       "answerTypeHelp": "เปลี่ยนวิธีตอบ: ใช่หรือไม่ใช่ เป็นคำพูด หรือ 1 ถึง 5",
       "addQuestionHelp": "เพิ่มคำถามของคุณเข้าไปในคำถามที่เขาต้องตอบ",
-      "removeQuestionHelp": "นำคำถามนี้ออก"
+      "removeQuestionHelp": "นำคำถามนี้ออก",
+      "openCheckHelp": "เปิด {{check}} ซึ่งคุณเปลี่ยนคำถามได้ที่นั่น"
     },
     "resources": {
       "sourceAudio": "เสียงต้นฉบับ"
@@ -6709,7 +6710,6 @@
     "questionSaved": "บันทึกคำถามแล้ว",
     "questionRemoved": "นำคำถามออกแล้ว",
     "questionsTitle": "คำถามของ {{check}}",
-    "fromLangQuest": "จาก LangQuest",
     "noQuestions": "ไม่มีคำถาม",
     "addHelp": "เพิ่มตัวช่วย",
     "removeHelp": "นำ {{name}} ออกจากการตรวจนี้",

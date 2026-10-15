@@ -4599,7 +4599,8 @@
       "askSpecificHelp": "اكتب سؤالًا ليجيبوا عنه، ثم أضفه.",
       "answerTypeHelp": "يغيّر طريقة إجابتهم: نعم أو لا، أو بالكلمات، أو من 1 إلى 5.",
       "addQuestionHelp": "يضيف سؤالك إلى الأسئلة التي يجيبون عنها.",
-      "removeQuestionHelp": "يزيل هذا السؤال."
+      "removeQuestionHelp": "يزيل هذا السؤال.",
+      "openCheckHelp": "يفتح {{check}}، حيث تغيّر أسئلته."
     },
     "resources": {
       "sourceAudio": "صوت المصدر"
@@ -8189,7 +8190,6 @@
     "questionSaved": "تم حفظ السؤال",
     "questionRemoved": "تمت إزالة السؤال",
     "questionsTitle": "أسئلة {{check}}",
-    "fromLangQuest": "من LangQuest",
     "noQuestions": "لا توجد أسئلة",
     "addHelp": "أضف وسيلة مساعدة",
     "removeHelp": "أزل {{name}} من هذا الفحص",

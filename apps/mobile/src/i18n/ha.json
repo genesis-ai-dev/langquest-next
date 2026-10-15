@@ -4095,7 +4095,8 @@
       "askSpecificHelp": "Ku rubuta tambaya da za su amsa, sannan ku ƙara ta.",
       "answerTypeHelp": "Yana canja yadda za su amsa: ee ko a'a, da kalmomi, ko 1 zuwa 5.",
       "addQuestionHelp": "Yana ƙara tambayarku cikin waɗanda za su amsa.",
-      "removeQuestionHelp": "Yana cire wannan tambaya."
+      "removeQuestionHelp": "Yana cire wannan tambaya.",
+      "openCheckHelp": "Yana buɗe {{check}}, inda kuke canja tambayoyinsa."
     },
     "resources": {
       "sourceAudio": "Sautin asali"
@@ -7005,7 +7006,6 @@
     "questionSaved": "An ajiye tambaya",
     "questionRemoved": "An cire tambaya",
     "questionsTitle": "Tambayoyin {{check}}",
-    "fromLangQuest": "Daga LangQuest",
     "noQuestions": "Babu tambayoyi",
     "addHelp": "Ƙara abin taimako",
     "removeHelp": "Cire {{name}} daga wannan dubawa",

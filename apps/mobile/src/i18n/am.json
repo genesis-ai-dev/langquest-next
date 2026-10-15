@@ -4095,7 +4095,8 @@
       "askSpecificHelp": "የሚመልሱትን ጥያቄ ይጻፉ፣ ከዚያ ያክሉት።",
       "answerTypeHelp": "እንዴት እንደሚመልሱ ይቀይራል፦ አዎ ወይም አይ፣ በቃላት፣ ወይም ከ1 እስከ 5።",
       "addQuestionHelp": "ጥያቄዎን ከሚመልሷቸው ጥያቄዎች ጋር ያክላል።",
-      "removeQuestionHelp": "ይህን ጥያቄ ያስወግዳል።"
+      "removeQuestionHelp": "ይህን ጥያቄ ያስወግዳል።",
+      "openCheckHelp": "{{check}}ን ይከፍታል፤ ጥያቄዎቹን እዚያ ይቀይራሉ።"
     },
     "resources": {
       "sourceAudio": "የምንጩ ድምፅ"
@@ -7005,7 +7006,6 @@
     "questionSaved": "ጥያቄው ተቀምጧል",
     "questionRemoved": "ጥያቄው ተወግዷል",
     "questionsTitle": "{{check}} ጥያቄዎች",
-    "fromLangQuest": "ከLangQuest",
     "noQuestions": "ጥያቄ የለም",
     "addHelp": "አጋዥ ያክሉ",
     "removeHelp": "{{name}}ን ከዚህ ፍተሻ ያስወግዱ",

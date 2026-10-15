@@ -4095,7 +4095,8 @@
       "askSpecificHelp": "उनके जवाब देने के लिए एक सवाल लिखें, फिर उसे जोड़ें।",
       "answerTypeHelp": "बदलता है कि वे कैसे जवाब दें: हाँ या ना, शब्दों में, या 1 से 5।",
       "addQuestionHelp": "आपका सवाल उन सवालों में जोड़ता है जिनका वे जवाब देते हैं।",
-      "removeQuestionHelp": "यह सवाल हटाता है।"
+      "removeQuestionHelp": "यह सवाल हटाता है।",
+      "openCheckHelp": "{{check}} खोलता है, जहाँ आप उसके सवाल बदलते हैं।"
     },
     "resources": {
       "sourceAudio": "स्रोत ऑडियो"
@@ -7005,7 +7006,6 @@
     "questionSaved": "सवाल सहेजा गया",
     "questionRemoved": "सवाल हटा दिया गया",
     "questionsTitle": "{{check}} के सवाल",
-    "fromLangQuest": "LangQuest से",
     "noQuestions": "कोई सवाल नहीं",
     "addHelp": "मदद की चीज़ जोड़ें",
     "removeHelp": "{{name}} को इस जाँच से हटाएँ",

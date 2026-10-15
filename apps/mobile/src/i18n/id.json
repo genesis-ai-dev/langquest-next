@@ -3969,7 +3969,8 @@
       "askSpecificHelp": "Ketik pertanyaan untuk mereka jawab, lalu tambahkan.",
       "answerTypeHelp": "Mengubah cara mereka menjawab: ya atau tidak, dengan kata-kata, atau 1 sampai 5.",
       "addQuestionHelp": "Menambahkan pertanyaan Anda ke pertanyaan yang mereka jawab.",
-      "removeQuestionHelp": "Mengeluarkan pertanyaan ini."
+      "removeQuestionHelp": "Mengeluarkan pertanyaan ini.",
+      "openCheckHelp": "Membuka {{check}}, tempat Anda mengubah pertanyaannya."
     },
     "resources": {
       "sourceAudio": "Audio sumber"
@@ -6709,7 +6710,6 @@
     "questionSaved": "Pertanyaan disimpan",
     "questionRemoved": "Pertanyaan dihapus",
     "questionsTitle": "Pertanyaan {{check}}",
-    "fromLangQuest": "Dari LangQuest",
     "noQuestions": "Tidak ada pertanyaan",
     "addHelp": "Tambah alat bantu",
     "removeHelp": "Keluarkan {{name}} dari pemeriksaan ini",

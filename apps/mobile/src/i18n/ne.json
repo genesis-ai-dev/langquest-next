@@ -4095,7 +4095,8 @@
       "askSpecificHelp": "उहाँहरूले जवाफ दिने प्रश्न टाइप गर्नुहोस्, त्यसपछि थप्नुहोस्।",
       "answerTypeHelp": "उहाँहरूले कसरी जवाफ दिनुहुन्छ बदल्छ: हो वा होइन, शब्दमा, वा १ देखि ५ सम्म।",
       "addQuestionHelp": "उहाँहरूले जवाफ दिने प्रश्नहरूमा तपाईंको प्रश्न थप्छ।",
-      "removeQuestionHelp": "यो प्रश्न हटाउँछ।"
+      "removeQuestionHelp": "यो प्रश्न हटाउँछ।",
+      "openCheckHelp": "{{check}} खोल्छ, जहाँ तपाईं यसका प्रश्नहरू बदल्नुहुन्छ।"
     },
     "resources": {
       "sourceAudio": "स्रोत अडियो"
@@ -7005,7 +7006,6 @@
     "questionSaved": "प्रश्न सेभ भयो",
     "questionRemoved": "प्रश्न हटाइयो",
     "questionsTitle": "{{check}}का प्रश्नहरू",
-    "fromLangQuest": "LangQuestबाट",
     "noQuestions": "कुनै प्रश्न छैन",
     "addHelp": "मद्दत सामग्री थप्नुहोस्",
     "removeHelp": "{{name}} यो जाँचबाट हटाउनुहोस्",
