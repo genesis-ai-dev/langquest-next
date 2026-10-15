@@ -1104,7 +1104,6 @@
     },
     "checklist": {
       "answered": "ተመልሷል። ለመቀየር ይንኩ።",
-      "answerIt": "ለመመለስ ይንኩ።",
       "doneLabel": "{{label}}፣ ተከናውኗል"
     },
     "checkRow": {
@@ -4321,7 +4320,6 @@
       "giveNext": "ለ{{part}} ቀጣዩን ቁጥር ይስጡ",
       "giveAbove": "ለ{{part}} ከላይ ያለውን ቁጥር ይስጡ",
       "giveVerse": "ለ{{part}} ቁጥር ይስጡ",
-      "tapHelp": "ይንኩ፦ መተግበሪያው ከዙሪያው ቁራጮች ቁጥሩን ያገኛል። ይያዙ፦ እርስዎ ይምረጡ።",
       "label": "{{part}}፣ {{verses}}",
       "labelSame": "{{part}}፣ {{verses}}፣ ከላይ ካለው ቁራጭ ጋር አንድ",
       "labelEmpty": "{{part}}፣ ገና ቁጥር የለውም",

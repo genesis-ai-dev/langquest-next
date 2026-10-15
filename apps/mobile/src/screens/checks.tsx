@@ -341,7 +341,7 @@ function DraftChecks({ ctx }: { ctx: Ctx }) {
                   help={row.together ? t('checks.sameTimeOnHelp', { check: previous }) : t('checks.sameTimeOffHelp', { check: previous })}
                   onToggle={() => set(setTogether(draft.rows, open, !row.together))} />} />
             ) : null}
-            <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label={t('checks.remove')} last
+            <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label={t('checks.remove')} help={t('checks.removeCheckHelp')} last
               onPress={() => { set(removeRow(draft.rows, open)); setOpen(null); }} />
           </Group>
         ) : null}
@@ -538,7 +538,7 @@ export function CheckEditor(ctx: Ctx) {
                 help={row.together ? t('checks.sameTimeOnHelp', { check: previous }) : t('checks.sameTimeOffHelp', { check: previous })}
                 onToggle={() => void saveRows(ctx, setTogether(rows, i, !row.together), t('checks.saved', { language }))} />} />
           ) : null}
-          <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label={t('checks.remove')} last
+          <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label={t('checks.remove')} help={t('checks.removeCheckHelp')} last
             onPress={() => { void saveRows(ctx, removeRow(rows, i), t('checks.removed', { check: name })).then((ok) => { if (ok) ctx.back(); }); }} />
         </Group>
       ) : null}

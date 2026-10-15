@@ -1076,7 +1076,6 @@
     },
     "checklist": {
       "answered": "Sudah dijawab. Ketuk untuk mengubahnya.",
-      "answerIt": "Ketuk untuk menjawabnya.",
       "doneLabel": "{{label}}, selesai"
     },
     "checkRow": {
@@ -4161,7 +4160,6 @@
       "giveNext": "Beri {{part}} ayat berikutnya",
       "giveAbove": "Beri {{part}} ayat di atasnya",
       "giveVerse": "Beri {{part}} ayat",
-      "tapHelp": "Ketuk: aplikasi menentukan ayat dari bagian di sekitarnya. Tahan: pilih sendiri.",
       "label": "{{part}}, {{verses}}",
       "labelSame": "{{part}}, {{verses}}, sama dengan bagian di atasnya",
       "labelEmpty": "{{part}}, belum ada ayat",

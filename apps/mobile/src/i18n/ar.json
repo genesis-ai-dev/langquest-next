@@ -1216,7 +1216,6 @@
     },
     "checklist": {
       "answered": "تمت الإجابة. اضغط لتغييرها.",
-      "answerIt": "اضغط لتجيب عنه.",
       "doneLabel": "{{label}}، تم"
     },
     "checkRow": {
@@ -4961,7 +4960,6 @@
       "giveNext": "أعطِ {{part}} الآية التالية",
       "giveAbove": "أعطِ {{part}} الآية التي فوقه",
       "giveVerse": "أعطِ {{part}} آية",
-      "tapHelp": "المس: يحدد التطبيق الآية من الأجزاء المحيطة. اضغط مطولًا: اخترها بنفسك.",
       "label": "{{part}}، {{verses}}",
       "labelSame": "{{part}}، {{verses}}، مثل الجزء الذي فوقه",
       "labelEmpty": "{{part}}، بلا آية بعد",

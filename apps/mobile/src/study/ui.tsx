@@ -228,6 +228,7 @@ export function ViewSwitch<T extends string>(props: { views: { id: T; label: str
         {props.views.map((v) => {
           const on = props.active === v.id;
           return (
+            // help-ignore: no screen shows this switch today; give it a line (useHelpSpot) when one does
             <Pressable key={v.id} onPress={() => props.onChange(v.id)} accessibilityRole="tab" accessibilityState={{ selected: on }}
               style={({ pressed }) => [styles.switchTab, on && styles.switchOn, pressed && styles.pressed]}>
               <Ico name={v.icon} size={16} color={on ? C.primary : C.muted} />

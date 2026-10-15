@@ -1209,7 +1209,6 @@
     },
     "checklist": {
       "answered": "Answered. Tap to change it.",
-      "answerIt": "Tap to answer it.",
       "doneLabel": "{{label}}, done",
       "doneHelp": "The tick means answered: {{answer}}. Opens it, to change the answer.",
       "nowHelp": "The next one to answer. Opens it.",
@@ -3769,7 +3768,16 @@
         "publish": "Publishing saves your version for the team to hear, then you ask for a check.",
         "feedback": "Someone listened and asked for changes. Hear what they said.",
         "fix": "Record a new version with the change, or keep this one and say why.",
-        "team": "A check by the team: {{status}}. Tap for who and the options."
+        "team": "A check by the team: {{status}}. Tap for who and the options.",
+        "withMark": "{{help}} {{mark}}",
+        "state": {
+          "done": "Green tick: done.",
+          "current": "Blue number: the step to do now.",
+          "todo": "Grey number: comes later.",
+          "passed": "Dash: left behind. Nothing waits on it."
+        },
+        "teamView": "A check by the team: {{status}}.",
+        "checkpoint": "The lock: it must pass before the steps after it."
       },
       "thenTheTeam": "Then the team"
     },
@@ -3822,7 +3830,8 @@
       "ledToShow": "Led to {{version}}. Show it",
       "ledTo": "led to {{version}}",
       "labelled": "<b>{{label}}: </b>{{text}}",
-      "keptWithReason": "Kept, with a reason"
+      "keptWithReason": "Kept, with a reason",
+      "showVersionHelp": "Shows that version and what happened to it."
     },
     "page": {
       "skipReasons": {
@@ -3882,7 +3891,40 @@
       "playYourFeedback": "Play your feedback",
       "more": "More",
       "options": "Options",
-      "openVersion": "Open {{version}}"
+      "openVersion": "Open {{version}}",
+      "mainHelp": {
+        "hearFeedback": "Opens what the reviewer said. Then fix it, or keep it and say why.",
+        "check": "Opens the check: listen, answer its questions, then say if it is ready.",
+        "backTranslate": "Opens the back translation: say each part again in your own words.",
+        "study": "Opens the study guide, to go through the passage together first.",
+        "record": "Opens the recorder. With more than one draft, you choose one first.",
+        "ask": "Choose who to ask, then send it."
+      },
+      "marks": {
+        "approved": "A green tick: it looks good.",
+        "addressed": "A ringed tick: their feedback has been answered.",
+        "suggestions": "An amber bubble: they asked for changes.",
+        "asked": "A clock: someone was asked and has not answered yet.",
+        "skipped": "Grey: this check was set aside.",
+        "locked": "A lock: it waits until a must-pass check is done.",
+        "todo": "An empty circle: not done yet."
+      },
+      "actionHelp": {
+        "do": "Opens it, to do it yourself now.",
+        "send": "Sends it to whoever usually does it. Undo takes it back.",
+        "ask": "Choose a person, a team, or someone without the app.",
+        "log": "It happened outside the app: put it on the record.",
+        "skip": "Leave this check out. You say why."
+      },
+      "moreHelp": "Shows every option for this step.",
+      "movePastHelp": "Go on without this check. You say why, and it goes on the record.",
+      "openReviewHelp": "Opens this review: what they said and answered.",
+      "openVersionHelp": "Opens this version: hear it, what changed, and its reviews.",
+      "openStudyStepHelp": "Opens this study step, with its answers and notes.",
+      "withdrawHelp": "Takes the request back. They are no longer asked.",
+      "elseHelp": "Other ways forward: ask someone, say it already happened, add a note.",
+      "historyHelp": "Your drafts, every published version, and everything that happened here.",
+      "openStudyHelp": "Opens the whole study guide for this passage."
     },
     "else": {
       "title": "Something else?",
@@ -3899,7 +3941,10 @@
       "movePast": "Move past a checkpoint",
       "movePastSub": "{{step}} is a must-pass step. Say why, and it's on the record",
       "whatHelps": "What helps here",
-      "teamOptions": "Each check under \"{{section}}\" has its own options too: tap it on the path."
+      "teamOptions": "Each check under \"{{section}}\" has its own options too: tap it on the path.",
+      "sayInsteadHelp": "Opens a voice note for this passage. Your team hears it here.",
+      "addNoteHelp": "Leave a note on this passage, said or typed. Your team sees it here.",
+      "whatHelpsHelp": "Opens the Bibles, guides and other helps for this passage."
     },
     "published": {
       "askTitle": "Ask for a check",
@@ -3913,7 +3958,11 @@
       "sending": "{{title}} · sending now",
       "nextAsk": "Next, ask for a check",
       "allDone": "Every check is done.",
-      "alreadyAsked": "The next check is already asked for."
+      "alreadyAsked": "The next check is already asked for.",
+      "doneHelp": "Goes back to the passage.",
+      "pickCheckHelp": "Picks this check to ask for. Under it: the people who do it.",
+      "someoneElseHelp": "Ask a different person, a team, or someone without the app.",
+      "notNowHelp": "Ask later. The version stays published."
     },
     "keep": {
       "title": "Keep it as it is?",
@@ -3923,7 +3972,9 @@
       "sayWhyTitle": "Keep it, say why",
       "keepIt": "Keep it",
       "sayWhy": "Say why. {{who}} and the team will hear it.",
-      "tapAndSay": "Tap and say why"
+      "tapAndSay": "Tap and say why",
+      "keepItHelp": "Keeps this version as it is, and sends your reason.",
+      "sayWhyHelp": "Keep this version as it is. You say why; they hear it."
     },
     "addNote": {
       "done": "Note added — it follows this passage",
@@ -3936,7 +3987,10 @@
       "cell": "{{kind}} from {{who}}",
       "cellLatestOf_one": "{{kind}} from {{who}} (latest of {{count, number}})",
       "cellLatestOf_other": "{{kind}} from {{who}} (latest of {{count, number}})",
-      "kindRecorded": "{{kind}} recorded"
+      "kindRecorded": "{{kind}} recorded",
+      "gridHelp": "Each row is a version, each column a check. A grey dot: none yet.",
+      "cellHelp": "Opens this review. {{mark}}",
+      "madeHelp": "Opens the {{kind}} made from this version. It is not a verdict."
     },
     "version": {
       "nothingRecorded": "Nothing recorded for this passage yet.",
@@ -3954,7 +4008,9 @@
       "noReviews": "No reviews of this version yet.",
       "notes": "Notes",
       "noteCount_one": "{{count, number}} note",
-      "noteCount_other": "{{count, number}} notes"
+      "noteCount_other": "{{count, number}} notes",
+      "inResponseHelp": "Opens the feedback this version answers.",
+      "termHelp": "Opens this key term: what it means and how your team says it."
     },
     "review": {
       "noReviews": "No reviews on this passage yet.",
@@ -3985,7 +4041,8 @@
       "unansweredBecause": "<b>Left unanswered: </b>{{reason}}",
       "revisedIt": "{{name}} revised it",
       "keptIt": "{{name}} kept it",
-      "answerAloud": "Their answer, said aloud"
+      "answerAloud": "Their answer, said aloud",
+      "recordFixHelp": "Opens the recorder to make a new version with the change."
     },
     "ask": {
       "fromItsStep": "Ask for a review from its step on the passage record.",
@@ -4018,7 +4075,23 @@
       "answerType": "Answer: {{type}}",
       "addQuestion": "Add question",
       "byWhen": "By when · optional",
-      "orDate": "Or a date, like {{date}}"
+      "orDate": "Or a date, like {{date}}",
+      "sendHelp": "Sends the request. They find it on My Work.",
+      "sendOutsideHelp": "Saves the request on the record, with their name and number.",
+      "onTeamHelp": "Choose someone who uses the app.",
+      "withoutAppHelp": "Ask someone by WhatsApp or text message instead.",
+      "teamHelp": "Asks everyone on this check. Any of them can do it.",
+      "personHelp": "Picks this person to ask.",
+      "phoneHelp": "Where to reach them by WhatsApp or text message.",
+      "whatsappHelp": "Reach them by WhatsApp.",
+      "smsHelp": "Reach them by text message.",
+      "noDateHelp": "No day to finish by.",
+      "dueHelp": "Asks for it to be done by then.",
+      "dateHelp": "A day to finish by, written YYYY-MM-DD.",
+      "askSpecificHelp": "Type a question for them to answer, then add it.",
+      "answerTypeHelp": "Changes how they answer: yes or no, in words, or 1 to 5.",
+      "addQuestionHelp": "Adds your question to the ones they answer.",
+      "removeQuestionHelp": "Takes this question off."
     },
     "resources": {
       "sourceAudio": "Source audio"
@@ -4042,7 +4115,13 @@
       "nameFrom": "{{name}} · from {{version}}",
       "newDraft": "New draft",
       "draft": "Draft",
-      "draftN": "Draft {{n, number}}"
+      "draftN": "Draft {{n, number}}",
+      "newVersionHelp": "Starts a new version from the beginning. Your drafts stay.",
+      "deleteHelp": "Deletes this draft. Undo brings it back.",
+      "editDraftHelp": "Opens this draft in the recorder, to keep working on it.",
+      "publishHelp": "Opens this draft to publish it for the team to hear.",
+      "editVersionHelp": "Starts a new draft from this version. The version itself stays as it is.",
+      "partHelp": "Plays this part alone."
     }
   },
   "work": {
@@ -4344,9 +4423,7 @@
       "cancel": "Closes this without changing anything.",
       "save": "Keeps what you changed.",
       "done": "Finished here: goes back.",
-      "edit": "Change it.",
       "undo": "Puts back what was there before.",
-      "copy": "Copies it, to paste somewhere else.",
       "tryAgain": "Tries once more.",
       "quickReason": "Uses this as your reason. You can still change the words."
     },
@@ -4551,14 +4628,19 @@
       "openMembers": "Open Members",
       "openPassage": "Open the passage",
       "closeReport": "Close the report",
-      "keep": "Keep it"
+      "keep": "Keep it",
+      "openPassageHelp": "Opens the passage this report is about.",
+      "keepHelp": "Keeps it on the record and closes the report.",
+      "closeReportHelp": "Closes the report. Nobody is removed."
     },
     "hidden": {
       "text": "Hidden because you blocked them",
       "byName": "Hidden because you blocked {{name}}",
       "show": "Show",
-      "showLabel": "Show what {{name}} added"
-    }
+      "showLabel": "Show what {{name}} added",
+      "showHelp": "Shows what they added, this once."
+    },
+    "flagHelp": "Report this, or block the person who made it."
   },
   "languoid": {
     "dialectOf": "Dialect of {{parent}}",
@@ -4865,7 +4947,6 @@
       "giveNext": "Give {{part}} the next verse",
       "giveAbove": "Give {{part}} the verse above",
       "giveVerse": "Give {{part}} a verse",
-      "tapHelp": "Tap: the app works out the verse from the parts around it. Hold: choose it yourself.",
       "label": "{{part}}, {{verses}}",
       "labelSame": "{{part}}, {{verses}}, same as the part above",
       "labelEmpty": "{{part}}, no verse yet",
@@ -5885,7 +5966,12 @@
       "removePassage": "Remove {{title}}",
       "findAnother": "Find another — “Mark 2”",
       "nearbyIn": "Nearby in {{book}}",
-      "noMatch": "No recorded passage matches “{{query}}”."
+      "noMatch": "No recorded passage matches “{{query}}”.",
+      "counterHelp": "Changes how many listened. It goes on the record with the review.",
+      "removePassageHelp": "Takes this passage off the list.",
+      "alsoHelp": "Adds this passage: the same review goes on it too.",
+      "alsoOnHelp": "Picked: the same review goes on it too. Tap to take it off.",
+      "cantAnswerHelp": "Leave this question unanswered. You say why."
     },
     "screen": {
       "notInLanguage": "This passage isn't in this language",
@@ -5981,7 +6067,28 @@
       "leaveTitle": "Leave without saving?",
       "leaveSub": "What you said and answered here is not saved until you send the review.",
       "keepReviewing": "Keep reviewing",
-      "leave": "Leave"
+      "leave": "Leave",
+      "backgroundHelp": "Opens what helps you judge it: the Bible, notes, key words and more.",
+      "whoHelp": "Say how many listened, and where. Optional.",
+      "whoReviewedHelp": "Say who gave this review. Optional.",
+      "addDetailsHelp": "Where it happened, which version was played, other passages, a retelling.",
+      "answerItHelp": "Brings the question back, to answer it.",
+      "orTypeHelp": "Shows a box to type it instead of saying it.",
+      "removePartHelp": "Deletes this part.",
+      "whatHappenedHelp": "Say or type what happened. Optional.",
+      "requiredLeftHelp": "Goes back to the questions that still need an answer.",
+      "saySomethingHelp": "Say or type a note that goes with your answer. Optional.",
+      "removeRetellingHelp": "Deletes the retelling.",
+      "retellingHelp": "Someone who listened tells it back, and you record it. Optional.",
+      "sheetDoneHelp": "Keeps what you gave here and closes this.",
+      "whereHelp": "Where they listened. It goes on the record with the review.",
+      "whichVersionHelp": "Picks the version that was played to them.",
+      "keepReviewingHelp": "Stays here. Nothing is lost.",
+      "leaveHelp": "Leaves without sending. What you said here is not kept.",
+      "helpBibleHelp": "Opens this Bible in Background, beside the passage.",
+      "helpGuideHelp": "Opens the study guide for this passage.",
+      "helpNoteHelp": "Opens it to read.",
+      "howManyHelp": "Say how many listened. Optional."
     },
     "guest": {
       "previewSub": "Preview · what someone without the app sees",
@@ -6002,7 +6109,9 @@
       "playTitle": "Play {{title}}",
       "noRecording": "There's no recording to listen to yet.",
       "tellUs": "Tell us what you understood",
-      "replyByVoice": "Tap to reply by voice"
+      "replyByVoice": "Tap to reply by voice",
+      "someUnclearHelp": "The listener taps this if parts were hard to follow. A preview sends nothing.",
+      "understoodWellHelp": "The listener taps this if they understood it. A preview sends nothing."
     },
     "simple": {
       "stepsLabel": "Review steps",
@@ -6027,7 +6136,12 @@
         "guide": "Guide",
         "notes": "Notes",
         "terms": "Key words",
-        "earlier": "Earlier"
+        "earlier": "Earlier",
+        "passageHelp": "Shows the passage in the Bible the translator used.",
+        "guideHelp": "Shows the team's study of this passage.",
+        "notesHelp": "Shows the notes left on this passage.",
+        "termsHelp": "Shows the key words tied to this version.",
+        "earlierHelp": "Shows every version and what was said about each."
       },
       "noNotes": "No notes on this passage yet.",
       "noTerms": "No key words were tied to this version.",
@@ -6080,7 +6194,15 @@
       "yourAnswerHelp": "Your answer.",
       "skip": "Skip",
       "skipHelp": "Leave this question. A required one asks why.",
-      "skipA11y": "Skip this question"
+      "skipA11y": "Skip this question",
+      "bibleRowHelp": "Shows and plays the passage in this Bible.",
+      "dotsHelp": "One dot for each question. The long one is this question.",
+      "trackLabel": "How far it has played",
+      "trackHelp": "Fills as it plays. The times show where it is and its length.",
+      "verseHelpPlay": "Plays the passage from this verse.",
+      "verseHelpPick": "Picks this verse. Then Note leaves a note on it.",
+      "notesByHelp": "Notes on this verse by {{names}}.",
+      "removeNoteHelp": "Deletes this note."
     },
     "voice": {
       "hearIt": "Hear it",
@@ -6093,7 +6215,8 @@
       "playsRecorded": "Plays what was recorded.",
       "playClip": "Play {{label}}, {{length}}",
       "pauseClip": "Pause {{label}}, {{length}}",
-      "optionalHelp": "Optional."
+      "optionalHelp": "Optional.",
+      "againHelp": "Records it again, in place of this one."
     },
     "checkSteps": {
       "aStep": "A step",
@@ -6109,7 +6232,8 @@
       "noChecks": "No checks: a passage is done once it is recorded.",
       "addStep": "Add a step",
       "addStepDetail": "Add another check, after the others.",
-      "legend": "= must pass before the next steps"
+      "legend": "= must pass before the next steps",
+      "gripHelp": "Drag up or down to move this step."
     }
   },
   "backTranslation": {
@@ -6922,7 +7046,8 @@
     "helpsDoneHelp": "Closes this. What you ticked is already saved.",
     "helpOnHelp": "Linked: reviewers can open it at this check. Tap to unlink.",
     "helpOffHelp": "Tap so reviewers can open it at this check.",
-    "writeNoteHelp": "Write a new note, linked to this check."
+    "writeNoteHelp": "Write a new note, linked to this check.",
+    "removeCheckHelp": "Takes this check out of the steps passages go through."
   },
   "lostFiles": {
     "title": "Audio is missing",

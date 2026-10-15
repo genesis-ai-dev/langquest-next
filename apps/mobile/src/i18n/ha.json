@@ -1104,7 +1104,6 @@
     },
     "checklist": {
       "answered": "An amsa. Taɓa don canja shi.",
-      "answerIt": "Taɓa don amsa shi.",
       "doneLabel": "{{label}}, an gama"
     },
     "checkRow": {
@@ -4321,7 +4320,6 @@
       "giveNext": "Ba {{part}} aya ta gaba",
       "giveAbove": "Ba {{part}} ayar da ke sama",
       "giveVerse": "Ba {{part}} aya",
-      "tapHelp": "Taɓa: manhajar za ta gano ayar daga sassan da ke kewaye. Riƙe: zaɓa da kanka.",
       "label": "{{part}}, {{verses}}",
       "labelSame": "{{part}}, {{verses}}, daidai da sashen da ke sama",
       "labelEmpty": "{{part}}, babu aya tukuna",

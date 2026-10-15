@@ -1104,7 +1104,6 @@
     },
     "checklist": {
       "answered": "जवाब दिया। बदलने के लिए दबाएँ।",
-      "answerIt": "जवाब देने के लिए दबाएँ।",
       "doneLabel": "{{label}}, पूरा"
     },
     "checkRow": {
@@ -4321,7 +4320,6 @@
       "giveNext": "{{part}} को अगला पद दें",
       "giveAbove": "{{part}} को ऊपर वाला पद दें",
       "giveVerse": "{{part}} को पद दें",
-      "tapHelp": "टैप करें: आसपास के हिस्सों से ऐप पद तय करता है। दबाकर रखें: खुद चुनें।",
       "label": "{{part}}, {{verses}}",
       "labelSame": "{{part}}, {{verses}}, ऊपर वाले हिस्से जैसा",
       "labelEmpty": "{{part}}, अभी कोई पद नहीं",

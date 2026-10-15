@@ -1104,7 +1104,6 @@
     },
     "checklist": {
       "answered": "উত্তর দেওয়া হয়েছে। বদলাতে চাপ দিন।",
-      "answerIt": "উত্তর দিতে চাপ দিন।",
       "doneLabel": "{{label}}, শেষ"
     },
     "checkRow": {
@@ -4321,7 +4320,6 @@
       "giveNext": "{{part}}-কে পরের পদ দিন",
       "giveAbove": "{{part}}-কে উপরের পদ দিন",
       "giveVerse": "{{part}}-কে একটি পদ দিন",
-      "tapHelp": "ট্যাপ করুন: আশেপাশের ভাগ দেখে অ্যাপ পদ ঠিক করে। ধরে রাখুন: নিজে বেছে নিন।",
       "label": "{{part}}, {{verses}}",
       "labelSame": "{{part}}, {{verses}}, উপরের ভাগের মতোই",
       "labelEmpty": "{{part}}, এখনও পদ নেই",

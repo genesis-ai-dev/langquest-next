@@ -1104,7 +1104,6 @@
     },
     "checklist": {
       "answered": "Limejibiwa. Gusa ili kulibadilisha.",
-      "answerIt": "Gusa ili kulijibu.",
       "doneLabel": "{{label}}, imekamilika"
     },
     "checkRow": {
@@ -4321,7 +4320,6 @@
       "giveNext": "Ipe {{part}} mstari unaofuata",
       "giveAbove": "Ipe {{part}} mstari wa juu yake",
       "giveVerse": "Ipe {{part}} mstari",
-      "tapHelp": "Gusa: programu inapata mstari kutoka sehemu zilizo karibu. Shikilia: chagua mwenyewe.",
       "label": "{{part}}, {{verses}}",
       "labelSame": "{{part}}, {{verses}}, sawa na sehemu ya juu",
       "labelEmpty": "{{part}}, bado haina mstari",

@@ -1076,7 +1076,6 @@
     },
     "checklist": {
       "answered": "ตอบแล้ว แตะเพื่อเปลี่ยน",
-      "answerIt": "แตะเพื่อตอบ",
       "doneLabel": "{{label}} เสร็จแล้ว"
     },
     "checkRow": {
@@ -4161,7 +4160,6 @@
       "giveNext": "ให้ข้อถัดไปแก่{{part}}",
       "giveAbove": "ให้ข้อเดียวกับด้านบนแก่{{part}}",
       "giveVerse": "ให้ข้อแก่{{part}}",
-      "tapHelp": "แตะ: แอปหาข้อจากช่วงรอบๆ กดค้าง: เลือกเอง",
       "label": "{{part}}, {{verses}}",
       "labelSame": "{{part}}, {{verses}}, เหมือนช่วงด้านบน",
       "labelEmpty": "{{part}}, ยังไม่มีข้อ",

@@ -1076,7 +1076,6 @@
     },
     "checklist": {
       "answered": "已回答。点按可以更改。",
-      "answerIt": "点按来回答。",
       "doneLabel": "{{label}}，已完成"
     },
     "checkRow": {
@@ -4161,7 +4160,6 @@
       "giveNext": "给{{part}}下一节",
       "giveAbove": "给{{part}}上面那一节",
       "giveVerse": "给{{part}}一个经节",
-      "tapHelp": "轻点：应用根据前后的段判断经节。长按：自己选择。",
       "label": "{{part}}，{{verses}}",
       "labelSame": "{{part}}，{{verses}}，与上面一段相同",
       "labelEmpty": "{{part}}，还没有经节",

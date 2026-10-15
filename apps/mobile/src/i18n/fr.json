@@ -1132,7 +1132,6 @@
     },
     "checklist": {
       "answered": "Répondu. Touchez pour changer.",
-      "answerIt": "Touchez pour répondre.",
       "doneLabel": "{{label}}, terminé"
     },
     "checkRow": {
@@ -4481,7 +4480,6 @@
       "giveNext": "Donner à {{part}} le verset suivant",
       "giveAbove": "Donner à {{part}} le verset du dessus",
       "giveVerse": "Donner un verset à {{part}}",
-      "tapHelp": "Touchez : l’app trouve le verset d’après les parties autour. Maintenez : choisissez-le vous-même.",
       "label": "{{part}}, {{verses}}",
       "labelSame": "{{part}}, {{verses}}, comme la partie du dessus",
       "labelEmpty": "{{part}}, pas encore de verset",
