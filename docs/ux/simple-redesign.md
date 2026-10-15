@@ -89,6 +89,8 @@ These change what the app does, not only how it looks.
    Changed in the app (decision 71, amended 2026-10-10): no screen explains
    itself on first open; while help is on the screen dims and each part is
    lit with its number, and a tap shows a tooltip with a play button.
+   Amended 2026-10-14: every tappable part, field, switch and sheet explains
+   itself, with a line saying what tapping does, not only its name.
 10. **Getting a language ready** (ADR-039): Language Home becomes a
     four-question checklist (what they record, what helps them, who checks,
     invite) with suggestions picked, then a summary, and a coordinator's My

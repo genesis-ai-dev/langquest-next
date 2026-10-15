@@ -26,8 +26,8 @@ export function LanguageField(props: { label: string; value: string | null; onCh
     <View style={{ gap: space.xs }}>
       <Text style={txt.xsStrong}>{props.label}</Text>
       <ChipRow>
-        {chips.map((c) => <Chip key={c} label={found[c] ?? languageLabel(c)} on={sameLanguage(c, props.value)} onPress={() => choose(c)} />)}
-        {props.disabled ? null : <Chip label={t('reference.language.another')} icon="search" on={searching} onPress={() => setSearching(!searching)} />}
+        {chips.map((c) => <Chip key={c} label={found[c] ?? languageLabel(c)} on={sameLanguage(c, props.value)} help={t('reference.language.chipHelp')} onPress={() => choose(c)} />)}
+        {props.disabled ? null : <Chip label={t('reference.language.another')} icon="search" on={searching} help={t('reference.language.anotherHelp')} onPress={() => setSearching(!searching)} />}
       </ChipRow>
       {searching ? (
         <>

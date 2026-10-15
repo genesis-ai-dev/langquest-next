@@ -6,6 +6,8 @@ import { Text } from './text';
 import Svg, { Circle, Polygon, Rect, Text as SvgText } from 'react-native-svg';
 import { t } from './i18n';
 import { personLook, type PersonLook } from './people';
+import { HelpBadge } from './helpBadge';
+import { useHelpSpot } from './helpContext';
 import { txt } from './kit';
 import { lift } from './shadow';
 import { C, radius, space, withAlpha } from './theme';
@@ -56,14 +58,17 @@ export function UserChip(props: { id: string }) {
   // Below the chip, or above it when too close to the bottom edge.
   const open = () => ref.current?.measureInWindow((x, y, _w, h) =>
     setAt({ x, y: y + h + TIP_HEIGHT > height ? y - TIP_HEIGHT - space.xs : y + h + space.xs }));
+  const spot = useHelpSpot(look.name, t('help.details.person'), open);
   return (
     <>
-      <Pressable ref={ref} onPress={open} hitSlop={6} accessibilityRole="button"
+      <Pressable ref={ref} onPress={spot.onPress} hitSlop={6} accessibilityRole="button"
         accessibilityLabel={t('shell.person.showId', { name: look.name })} style={[styles.chip, { backgroundColor: withAlpha(look.color, 0.12) }]}>
         <PersonAvatar look={look} size={16} />
         <Text style={[txt.xs, styles.chipName]} numberOfLines={1}>{look.name}</Text>
+        <HelpBadge spot={spot} />
       </Pressable>
       <Modal visible={!!at} transparent animationType="fade" onRequestClose={() => setAt(null)}>
+        {/* help-ignore: around the open card; tapping anywhere closes it */}
         <Pressable style={StyleSheet.absoluteFill} onPress={() => setAt(null)} accessibilityLabel={t('common.close')}>
           {at ? (
             <View style={[styles.tip, { top: at.y, left: Math.max(space.lg, Math.min(at.x, width - TIP_WIDTH - space.lg)) }]}>

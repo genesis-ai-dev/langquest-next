@@ -70,7 +70,7 @@ export function PublishScreen(props: {
         <Sheet visible title={needsNote ? t('recording.publish.whatChangedQuestion') : t('recording.publish.saySomething')}
           sub={needsNote ? t('recording.publish.sinceVersion', { version: versionTitle(props.n - 1) }) : t('recording.publish.anythingToKnow')}
           onClose={() => setSaying(false)}
-          footer={<PrimaryBtn label={t('common.done')} icon="check" onPress={() => setSaying(false)} />}>
+          footer={<PrimaryBtn label={t('common.done')} icon="check" help={t('recording.publish.doneHelp')} onPress={() => setSaying(false)} />}>
           <VoiceNote ctx={ctx} label={needsNote ? t('recording.publish.sayWhatChanged') : t('common.sayIt')} hash={hash} onChange={setHash} />
           <Field value={text} onChangeText={setText} placeholder={t('common.orTypeIt')} multiline />
         </Sheet>

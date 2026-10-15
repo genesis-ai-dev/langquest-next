@@ -10,6 +10,8 @@ import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from './text';
 import { languageInfo, t, UI_LANGUAGES, currentLanguage, type UiLanguage } from './i18n';
 import { chooseLanguage, chosenLanguage, phoneLanguage } from './i18n/start';
+import { HelpBadge } from './helpBadge';
+import { useHelpSpot } from './helpContext';
 import { Ico, Row, Sheet, txt } from './kit';
 import { C, radius, space, target } from './theme';
 import { choiceChangesLanguage } from './uiLanguageChoice';
@@ -94,13 +96,15 @@ export function LanguageRow(props: { last?: boolean }) {
 export function LanguageChip() {
   const [open, setOpen] = useState(false);
   const info = languageInfo(currentLanguage());
+  const spot = useHelpSpot(info.name, t('uiLanguage.help'), () => setOpen(true));
   return (
     <>
-      <Pressable onPress={() => setOpen(true)} accessibilityRole="button" accessibilityLabel={t('uiLanguage.chipLabel', { language: info.name })}
+      <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('uiLanguage.chipLabel', { language: info.name })}
         style={({ pressed }) => [styles.chip, pressed && { opacity: 0.7 }]}>
         <Ico name="globe" size={18} color={C.primary} />
         <Text style={styles.chipText}>{info.name}</Text>
         <Ico name="down" size={16} color={C.muted} />
+        <HelpBadge spot={spot} />
       </Pressable>
       <LanguageSheet visible={open} onClose={() => setOpen(false)} />
     </>

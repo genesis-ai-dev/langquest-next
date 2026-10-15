@@ -9,7 +9,7 @@ import { useHelpSpot } from '../helpContext';
 import { HelpBadge } from '../helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { Ico, PrimaryBtn, txt } from '../kit';
+import { HelpInfo, Ico, PrimaryBtn, txt } from '../kit';
 import { C, onColor, radius, space, target, type as T } from '../theme';
 
 /**
@@ -19,7 +19,8 @@ import { C, onColor, radius, space, target, type as T } from '../theme';
  */
 export function Bell(props: { count: number; onPress: () => void }) {
   const label = props.count ? t('work.bell.labelNew', { count: props.count }) : t('work.bell.label');
-  const spot = useHelpSpot(t('work.bell.label'), t('work.bell.help'), props.onPress);
+  // The number on it says how many are new (rule 3).
+  const spot = useHelpSpot(t('work.bell.label'), props.count > 0 ? `${t('work.bell.help')} ${t('work.bell.countHelp')}` : t('work.bell.help'), props.onPress);
   return (
     <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={label}
       style={({ pressed }) => [styles.bell, pressed && styles.pressed]}>
@@ -37,9 +38,10 @@ export function Bell(props: { count: number; onPress: () => void }) {
 /**
  * The one thing to do next (demo ADR-032): a small label, the passage big, a
  * line saying what to do, and one big button. Hick's law: the likely choice
- * is the obvious one; everything else waits below it.
+ * is the obvious one; everything else waits below it. `help`: what help mode
+ * says the button does, where its label ("Start") does not say it.
  */
-export function NextCard(props: { label: string; title: string; sub?: string; cta: string; onPress: () => void; children?: ReactNode; below?: ReactNode }) {
+export function NextCard(props: { label: string; title: string; sub?: string; cta: string; onPress: () => void; children?: ReactNode; below?: ReactNode; help?: string }) {
   return (
     <View style={styles.next}>
       <Text style={styles.nextLabel}>{props.label}</Text>
@@ -49,7 +51,7 @@ export function NextCard(props: { label: string; title: string; sub?: string; ct
         {props.sub ? <Text style={styles.nextSub}>{props.sub}</Text> : null}
       </View>
       {props.below}
-      <PrimaryBtn label={props.cta} icon="right" onPress={props.onPress} />
+      <PrimaryBtn label={props.cta} icon="right" onPress={props.onPress} {...(props.help ? { help: props.help } : {})} />
     </View>
   );
 }
@@ -62,13 +64,15 @@ export function NextCard(props: { label: string; title: string; sub?: string; ct
 export function ReadyCard(props: { language: string; done: number; total: number; question: string; onChoose: () => void }) {
   return (
     <NextCard label={t('work.readyCard.label', { language: props.language, done: formatNumber(props.done), total: formatNumber(props.total) })}
-      title={props.question} cta={t('work.readyCard.choose')} onPress={props.onChoose}>
-      <View style={styles.segments} accessible accessibilityRole="progressbar"
-        accessibilityLabel={t('work.readyCard.progress', { done: formatNumber(props.done), count: props.total })}>
-        {Array.from({ length: props.total }, (_, i) => (
-          <View key={i} style={[styles.segment, { backgroundColor: i < props.done ? C.green : C.border }]} />
-        ))}
-      </View>
+      title={props.question} cta={t('work.readyCard.choose')} onPress={props.onChoose} help={t('work.readyCard.chooseHelp')}>
+      <HelpInfo label={t('work.readyCard.progress', { done: formatNumber(props.done), count: props.total })} detail={t('work.readyCard.progressHelp')}>
+        <View style={styles.segments} accessible accessibilityRole="progressbar"
+          accessibilityLabel={t('work.readyCard.progress', { done: formatNumber(props.done), count: props.total })}>
+          {Array.from({ length: props.total }, (_, i) => (
+            <View key={i} style={[styles.segment, { backgroundColor: i < props.done ? C.green : C.border }]} />
+          ))}
+        </View>
+      </HelpInfo>
     </NextCard>
   );
 }

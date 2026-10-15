@@ -9,7 +9,8 @@ import { lostFilesView, unitTitle, type LanguageState } from '@langquest-next/co
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Modal, ScrollView, StyleSheet, View } from 'react-native';
 import { getBlobStore, type BlobStore } from './blobs';
-import { Ico, PrimaryBtn, txt, type IconName } from './kit';
+import { HelpHost } from './helpBadge';
+import { Ico, PrimaryBtn, txt, useHelpHost, type IconName } from './kit';
 import { t } from './i18n';
 import { Text } from './text';
 import { C, onColor, radius, space, TINT, type as T, withAlpha } from './theme';
@@ -73,11 +74,18 @@ export function LostFilesAlert(props: { state: LanguageState | null }) {
   return <LostFilesCard words={words} onSeen={seen} />;
 }
 
-/** The alert itself. Back does not close it: only the button does. */
+/**
+ * The alert itself. Back does not close it: only the button does. It is a
+ * help host of its own, as a sheet is (kit's Sheet): help on the screen under
+ * it turns off while it shows, so "I understand" is never taken for a tap
+ * that explains it behind the alert.
+ */
 export function LostFilesCard(props: { words: LostFilesWords; onSeen: () => void }) {
   const w = props.words;
+  const host = useHelpHost(true);
   return (
     <Modal visible transparent animationType="fade" onRequestClose={() => undefined} statusBarTranslucent>
+      <HelpHost id={host}>
       <View style={styles.backdrop}>
         <View style={styles.card} accessibilityViewIsModal>
           <ScrollView contentContainerStyle={styles.body}>
@@ -100,10 +108,11 @@ export function LostFilesCard(props: { words: LostFilesWords; onSeen: () => void
             </Part>
           </ScrollView>
           <View style={styles.foot}>
-            <PrimaryBtn label={t('lostFiles.understand')} onPress={props.onSeen} tone="red" />
+            <PrimaryBtn label={t('lostFiles.understand')} help={t('lostFiles.understandHelp')} onPress={props.onSeen} tone="red" />
           </View>
         </View>
       </View>
+      </HelpHost>
     </Modal>
   );
 }

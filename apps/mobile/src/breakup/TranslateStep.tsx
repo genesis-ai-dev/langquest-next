@@ -184,9 +184,9 @@ export function TranslateQuestion(props: { ctx: Ctx; t: Translate; lang: string;
     <>
       <Question>{t('breakup.translate.question', { language: props.lang })}</Question>
       <ChoiceCard on={q.what === 'bible'} icon="book" title={t('breakup.translate.bible')}
-        sub={bibleUsed ? t('breakup.usedIn.one', { name: bibleUsed.usedIn[0] }) : undefined} onPress={() => q.setWhat('bible')} />
+        sub={bibleUsed ? t('breakup.usedIn.one', { name: bibleUsed.usedIn[0] }) : undefined} help={t('breakup.translate.bibleHelp')} onPress={() => q.setWhat('bible')} />
       <ChoiceCard on={q.what === 'else'} icon="folder" title={t('breakup.translate.else')}
-        sub={t('breakup.translate.elseKinds')} onPress={() => q.setWhat('else')} />
+        sub={t('breakup.translate.elseKinds')} help={t('breakup.translate.elseHelp')} onPress={() => q.setWhat('else')} />
 
       {q.what === 'else' ? (
         <>
@@ -194,7 +194,7 @@ export function TranslateQuestion(props: { ctx: Ctx; t: Translate; lang: string;
             <>
               <SectionLabel label={t('breakup.translate.ourOwn')} />
               <View style={{ gap: space.xs }}>
-                {q.outlines.map((c) => <Chip key={c.key} label={c.name} on={q.outline === c} onPress={() => q.setOutlineKey(c.key)} />)}
+                {q.outlines.map((c) => <Chip key={c.key} label={c.name} on={q.outline === c} help={t('breakup.translate.outlineHelp')} onPress={() => q.setOutlineKey(c.key)} />)}
               </View>
             </>
           ) : <Text style={txt.smMuted}>{t('breakup.translate.noneReady')}</Text>}

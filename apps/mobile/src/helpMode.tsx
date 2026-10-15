@@ -11,7 +11,7 @@ import { Dimensions, I18nManager, Platform, Pressable, StyleSheet, View } from '
 import Svg, { Circle, Defs, Mask, Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from './text';
-import { clipRect, HelpContext, helpLine, litShape, MARK_SIZE, markAt, numberParts, tooltipPlace, type FirstSeen, type HelpLit, type HelpMark, type HelpMode, type HelpPart, type HelpRect } from './helpContext';
+import { clipRect, HelpContext, HelpLayerSlot, helpLine, litShape, MARK_SIZE, markAt, numberParts, tooltipPlace, type FirstSeen, type HelpLit, type HelpMark, type HelpMode, type HelpPart, type HelpRect } from './helpContext';
 import { currentLocale, isRtl, t } from './i18n';
 import { formatNumber } from './i18n/format';
 import { registerPlayback } from './audioSession';
@@ -97,6 +97,9 @@ export function HelpModeProvider(props: { children: ReactNode }) {
   /** Words that belong to no part, shown at the foot and played (How this works). */
   const [told, setTold] = useState<HelpPart | null>(null);
   const [numbers, setNumbers] = useState<ReadonlyMap<string, number>>(new Map());
+  /** Sheets showing over the screen, the last on top. */
+  const [hosts, setHosts] = useState<readonly string[]>([]);
+  const top = hosts[hosts.length - 1] ?? null;
   const store = useRef<LitStore>({ lit: new Map(), first: new Map(), frame: 0, burst: 0, lastSeen: -Infinity, version: 0, listeners: new Set() }).current;
   const measures = useRef(new Set<() => void>()).current;
   const pending = useRef(false);
@@ -189,16 +192,26 @@ export function HelpModeProvider(props: { children: ReactNode }) {
     return () => setParts((ps) => { const next = new Map(ps); next.delete(part.key); return next; });
   }, []);
   useEffect(() => { if (current && !parts.has(current)) setCurrent(null); }, [current, parts]);
+  const openHost = useCallback((id: string) => {
+    setHosts((hs) => [...hs, id]);
+    return () => setHosts((hs) => hs.filter((h) => h !== id));
+  }, []);
+  // Help explains what shows: a sheet opening over the screen, or closing, turns it off.
+  useEffect(() => { setOn(false); }, [top, setOn]);
 
-  const value = useMemo<HelpMode>(() => ({ on, setOn, explain, tell, register, place, track }), [on, setOn, explain, tell, register, place, track]);
+  const value = useMemo<HelpMode>(() => ({ on, setOn, explain, tell, register, place, track, top, openHost }),
+    [on, setOn, explain, tell, register, place, track, top, openHost]);
   const shown = told ?? (current ? parts.get(current) ?? null : null);
+  const layer = on ? <HelpLayer store={store} numbers={numbers} current={told ? null : current} part={shown} play={!!told}
+    onClose={() => { setCurrent(null); setTold(null); }} /> : null;
   return (
     <HelpContext.Provider value={value}>
-      <View style={{ flex: 1 }}>
-        {props.children}
-        {on ? <HelpLayer store={store} numbers={numbers} current={told ? null : current} part={shown} play={!!told}
-          onClose={() => { setCurrent(null); setTold(null); }} /> : null}
-      </View>
+      <HelpLayerSlot.Provider value={top === null ? null : { host: top, layer }}>
+        <View style={{ flex: 1 }}>
+          {props.children}
+          {top === null ? layer : null}
+        </View>
+      </HelpLayerSlot.Provider>
     </HelpContext.Provider>
   );
 }
@@ -289,7 +302,9 @@ function HelpLayer(props: {
         {lit.map((l, i) => {
           const num = l.part ? props.numbers.get(l.part) : undefined;
           if (num === undefined || !l.mark) return null;
-          const p = markAt(l.rect, l.mark, rtl);
+          // A part as wide as the window (a divider, a bar) keeps its number on screen.
+          const at = markAt(l.rect, l.mark, rtl);
+          const p = { x: Math.max(2, Math.min(frame ? frame.width - MARK_SIZE - 2 : at.x, at.x)), y: Math.max(2, at.y) };
           return (
             <View key={i} style={[styles.mark, fromLeft(p.x), { top: p.y }, l.part === props.current && styles.markCurrent]}>
               <Text style={styles.markText}>{formatNumber(num)}</Text>

@@ -17,6 +17,9 @@ import { C, space } from '../theme';
 import { DashedRow, LockToggle } from './admin';
 import { dropIndex, moveTo, stepTitle } from './adminModel';
 
+/** The grip has nothing to tap: while help is on, a tap on it explains the drag instead. */
+const DRAG = () => undefined;
+
 export interface CheckStep {
   key: string;
   kindIds: string[];
@@ -32,9 +35,13 @@ function StepCard(props: {
   const [dy, setDy] = useState(0);
   const latest = useRef(props);
   latest.current = props;
+  // The grip is dragged, so it is a part too; while help is on it explains itself and does not move.
+  const grip = useHelpSpot(t('review.checkSteps.move', { title }), t('review.checkSteps.gripHelp'), props.readOnly ? undefined : DRAG);
+  const helping = useRef(false);
+  helping.current = !!grip.id;
   const pan = useRef(PanResponder.create({
-    onStartShouldSetPanResponder: () => !latest.current.readOnly,
-    onMoveShouldSetPanResponder: () => !latest.current.readOnly,
+    onStartShouldSetPanResponder: () => !latest.current.readOnly && !helping.current,
+    onMoveShouldSetPanResponder: () => !latest.current.readOnly && !helping.current,
     onPanResponderMove: (_e, g) => setDy(g.dy),
     onPanResponderRelease: (_e, g) => {
       const p = latest.current;
@@ -55,6 +62,11 @@ function StepCard(props: {
           if (e.nativeEvent.actionName === 'increment' && i < props.count - 1) props.onMove(i + 1);
         }}>
         <Ico name="grip" size={22} color={C.faint} />
+        {grip.id ? (
+          <Pressable onPress={grip.onPress} accessibilityRole="button" accessibilityLabel={t('review.checkSteps.move', { title })} style={StyleSheet.absoluteFill}>
+            <HelpBadge spot={grip} />
+          </Pressable>
+        ) : null}
       </View>
       <Pressable onPress={open.onPress} disabled={props.readOnly && !props.onOpen} accessibilityRole="button" accessibilityLabel={t('review.checkSteps.cardA11y', { n: i + 1, title, who: props.usually })}
         style={({ pressed }) => [styles.body, pressed && { opacity: 0.7 }]}>

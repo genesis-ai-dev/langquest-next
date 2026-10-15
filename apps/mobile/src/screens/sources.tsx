@@ -103,13 +103,13 @@ export function BibleExplore(ctx: Ctx) {
         <EmptyState icon="globe" title={t('sources.explore.notSetUp')} sub={t('sources.explore.notSetUpSub')} />
       ) : (
         <>
-          <SearchField value={query} onChangeText={setQuery} placeholder={t('sources.explore.searchPlaceholder')} />
+          <SearchField value={query} onChangeText={setQuery} placeholder={t('sources.explore.searchPlaceholder')} help={t('sources.explore.searchHelp')} />
           {languages ? (
             <Group>
               {languages.length === 0 ? <Row label={t('sources.explore.noLanguages')} sub={problem || t('sources.explore.noLanguagesSub')} last /> : null}
               {languages.slice(0, 30).map((l, i, all) => (
                 <Row key={l.code} label={l.autonym && l.autonym !== l.name ? `${l.name} · ${l.autonym}` : l.name} sub={t('sources.explore.languageBibles', { code: l.code, count: l.bibles })}
-                  onPress={() => { setLang({ code: l.code, name: l.name }); setQuery(''); }} last={i === all.length - 1} />
+                  help={t('sources.explore.languageHelp')} onPress={() => { setLang({ code: l.code, name: l.name }); setQuery(''); }} last={i === all.length - 1} />
               ))}
             </Group>
           ) : null}
@@ -119,7 +119,7 @@ export function BibleExplore(ctx: Ctx) {
           ) : (
             <Group>
               {bibles.map((b, i) => (
-                <Row key={b.bibleId} label={`${b.abbreviation} · ${b.name}`} sub={mediaLine(b)}
+                <Row key={b.bibleId} label={`${b.abbreviation} · ${b.name}`} sub={mediaLine(b)} help={t('sources.explore.bibleHelp')}
                   {...(mine.has(`biblebrain.${b.bibleId}`) ? { badge: t('sources.explore.myBible'), badgeTone: 'brand' as const } : {})}
                   onPress={() => setPicked({ kind: 'biblebrain', bibleId: b.bibleId })} last={i === bibles.length - 1} />
               ))}
@@ -133,6 +133,7 @@ export function BibleExplore(ctx: Ctx) {
           <Group>
             {librarySources.map((s, i) => (
               <Row key={s.itemId} label={`${s.doc.abbreviation} · ${s.doc.name}`} sub={s.doc.offline === 'allowed' ? t('sources.explore.keptOffline') : t('sources.explore.streamsOnlyLine')}
+                help={t('sources.explore.bibleHelp')}
                 {...(mine.has(s.itemId) ? { badge: t('sources.explore.myBible'), badgeTone: 'brand' as const } : {})}
                 onPress={() => setPicked({ kind: 'library', itemId: s.itemId })} last={i === librarySources.length - 1} />
             ))}
@@ -213,7 +214,7 @@ function BibleDetailView(props: {
 
   const footer = option && props.languageId ? (
     has ? <PrimaryBtn label={t('sources.explore.inMyBibles')} icon="check" disabled onPress={() => undefined} />
-      : <PrimaryBtn label={t('sources.explore.addToMyBibles')} icon="plus" busy={busy} onPress={() => void add()} />
+      : <PrimaryBtn label={t('sources.explore.addToMyBibles')} icon="plus" busy={busy} help={t('sources.explore.addHelp')} onPress={() => void add()} />
   ) : undefined;
 
   return (
@@ -231,26 +232,26 @@ function BibleDetailView(props: {
                 {bible ? <Badge label={mediaLine(bible)} /> : null}
                 {offers && !offers.audio && current ? <Badge label={testamentOf(current) === 'OT' ? t('sources.explore.noAudioOT') : t('sources.explore.noAudioNT')} tone="amber" /> : null}
               </View>
-              {has ? <LinkBtn label={t('sources.explore.remove')} color={C.muted} style={{ alignSelf: 'flex-start' }} onPress={() => void remove()} /> : null}
+              {has ? <LinkBtn label={t('sources.explore.remove')} color={C.muted} style={{ alignSelf: 'flex-start' }} help={t('sources.explore.removeHelp')} onPress={() => void remove()} /> : null}
             </Card>
             {books.length > 1 ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-                {books.map((b) => <Chip key={b.book} label={b.name} on={b.book === current} onPress={() => { setBook(b.book); setChapter(1); }} />)}
+                {books.map((b) => <Chip key={b.book} label={b.name} on={b.book === current} help={t('sources.explore.bookHelp')} onPress={() => { setBook(b.book); setChapter(1); }} />)}
               </ScrollView>
             ) : null}
             {chapters > 1 ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
                 {Array.from({ length: chapters }, (_, i) => i + 1).map((c) => (
-                  <Chip key={c} label={formatNumber(c)} on={c === chapter} accessibilityLabel={t('sources.explore.chapter', { n: c })} onPress={() => setChapter(c)} />
+                  <Chip key={c} label={formatNumber(c)} on={c === chapter} accessibilityLabel={t('sources.explore.chapter', { n: c })} help={t('sources.explore.chapterHelp', { n: c })} onPress={() => setChapter(c)} />
                 ))}
               </ScrollView>
             ) : picked.kind === 'library' ? (
               <View style={styles.chapterStep}>
-                <LinkBtn label={t('sources.explore.previousChapter')} onPress={() => setChapter((c) => Math.max(1, c - 1))} />
+                <LinkBtn label={t('sources.explore.previousChapter')} help={t('sources.explore.previousChapterHelp')} onPress={() => setChapter((c) => Math.max(1, c - 1))} />
                 <Text style={txt.sm}>{t('sources.explore.chapter', { n: chapter })}</Text>
                 {/* Stops at the book's last chapter (STUDY-034). */}
                 {lastChapter === null || chapter < lastChapter
-                  ? <LinkBtn label={t('sources.explore.nextChapter')} onPress={() => setChapter((c) => (lastChapter === null ? c + 1 : Math.min(lastChapter, c + 1)))} />
+                  ? <LinkBtn label={t('sources.explore.nextChapter')} help={t('sources.explore.nextChapterHelp')} onPress={() => setChapter((c) => (lastChapter === null ? c + 1 : Math.min(lastChapter, c + 1)))} />
                   : <View />}
               </View>
             ) : null}

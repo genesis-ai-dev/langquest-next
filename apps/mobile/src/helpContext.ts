@@ -4,7 +4,7 @@
 // does instead of doing it; the tooltip's play button says it aloud where it
 // can. Kept apart from the provider so kit.tsx, which reads it, stays free of
 // I/O; the pure parts (numbering, where things go) are tested.
-import { createContext, useContext, useEffect, useId } from 'react';
+import { createContext, useContext, useEffect, useId, type ReactNode } from 'react';
 import { t } from './i18n';
 
 export interface HelpPart {
@@ -33,6 +33,13 @@ export interface HelpMode {
   place: (id: string, rect: HelpRect | null, what: HelpLit) => void;
   /** Measure this every frame while help is on, so the lit places follow scrolling. Returns the stop. */
   track: (measure: () => void) => () => void;
+  /**
+   * The sheet showing over the screen (its host id), or null for the screen
+   * itself. Only the parts of the top one light up, and help draws inside it.
+   */
+  top: string | null;
+  /** A sheet opening over the screen; returns its closing. Help turns off as it opens and closes. */
+  openHost: (id: string) => () => void;
 }
 
 /** Where a part's number sits: over its top corner, or just inside it (a row in a card). */
@@ -47,6 +54,16 @@ export type HelpLit =
   | { kind: 'part'; part: string; mark: HelpMark; clip?: string }
   | { kind: 'lit'; clip?: string }
   | { kind: 'clip' };
+
+/**
+ * Which layer a part is drawn in: null for the screen, a sheet's host id
+ * inside a sheet (kit's Sheet). A sheet is its own window on a phone, so help
+ * draws inside it and lights only its parts while it shows.
+ */
+export const HelpHostContext = createContext<string | null>(null);
+
+/** The help layer while a sheet is on top: drawn inside that sheet (HelpHostLayer), since a sheet is a window of its own. */
+export const HelpLayerSlot = createContext<{ host: string; layer: ReactNode } | null>(null);
 
 /** The area that parts inside it scroll in, by its lit id (see HelpClip). */
 export const HelpClipContext = createContext<string | undefined>(undefined);
@@ -68,6 +85,14 @@ export function useHelpMode(): HelpMode | null {
   return useContext(HelpContext);
 }
 
+/** Whether help is on for what is drawn here: on, on the screen showing, and in the sheet on top (or the screen, with none). */
+export function useHelpOn(): boolean {
+  const help = useContext(HelpContext);
+  const showing = useContext(HelpScopeContext);
+  const host = useContext(HelpHostContext);
+  return !!help?.on && showing && host === help.top;
+}
+
 /** A part while help is on: its press, and the id HelpBadge lights and numbers it by. Render `<HelpBadge spot={…} />` inside it. */
 export interface HelpSpot<T> {
   onPress: T;
@@ -82,9 +107,9 @@ export interface HelpSpot<T> {
  */
 export function useHelpSpot<T extends (() => void) | undefined>(label: string, detail: string | undefined, onPress: T): HelpSpot<T> {
   const help = useContext(HelpContext);
-  const showing = useContext(HelpScopeContext);
+  const lit = useHelpOn();
   const key = useId();
-  const on = !!help?.on && !!onPress && showing;
+  const on = lit && !!onPress;
   const register = help?.register;
   useEffect(() => {
     if (!on || !register) return;
@@ -92,6 +117,19 @@ export function useHelpSpot<T extends (() => void) | undefined>(label: string, d
   }, [on, register, key, label, detail]);
   if (!on || !help) return { onPress };
   return { onPress: (() => help.explain(key)) as T, id: key };
+}
+
+const NOTHING = () => undefined;
+
+/**
+ * Something that does nothing when tapped but needs explaining: a mark in
+ * colour or shape (a tick, a dot, a bar), a number without its unit. While
+ * help is on it lights and numbers like a button, and a tap explains it.
+ * Render `<HelpBadge spot />` inside it, as for useHelpSpot, and give its
+ * view `onPress={spot.onPress}` only while `spot.id` is set (kit's HelpInfo).
+ */
+export function useHelpInfo(label: string, detail: string): HelpSpot<() => void> {
+  return useHelpSpot(label, detail, NOTHING);
 }
 
 /** Parts whose tops are this close (in points) read as one line, numbered along it. */

@@ -143,7 +143,7 @@ export function StorageGate(props: { children: ReactNode }) {
         <Text style={txt.h2} accessibilityRole="header">{t('entry.storage.title')}</Text>
         <Text style={txt.body}>{WEB ? t('entry.storage.webBody') : t('entry.storage.phoneBody')}</Text>
         <Text style={txt.smMuted} selectable>{t('entry.storage.code', { code: failure })}</Text>
-        <PrimaryBtn label={t('common.tryAgain')} icon="restart" onPress={() => {
+        <PrimaryBtn label={t('common.tryAgain')} icon="restart" help={t('help.details.tryAgain')} onPress={() => {
           if (WEB) window.location.reload();
           else { setFailure(null); setAttempt((n) => n + 1); }
         }} />
@@ -158,7 +158,7 @@ export function StorageGate(props: { children: ReactNode }) {
     <View style={{ flex: 1, justifyContent: 'center', backgroundColor: C.bg, padding: space.xl }}>
       <EmptyState icon="layers" title={title} sub={sub}>
         {tab !== 'waiting' && actions ? (
-          <View style={{ alignSelf: 'center' }}><GhostBtn label={t('entry.storage.useHere')} icon="swap" full={false} onPress={actions.useHere} /></View>
+          <View style={{ alignSelf: 'center' }}><GhostBtn label={t('entry.storage.useHere')} icon="swap" full={false} help={t('entry.storage.useHereHelp')} onPress={actions.useHere} /></View>
         ) : null}
       </EmptyState>
     </View>

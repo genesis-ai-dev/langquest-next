@@ -12,6 +12,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../text';
 import { AudioClip } from '../audioClip';
 import type { Ctx } from '../ctx';
+import { useHelpSpot } from '../helpContext';
+import { HelpBadge } from '../helpBadge';
 import {
   Badge, Banner, Card, Chip, Disclosure, Field, Ico, LinkBtn, NoteCard, Row, SearchField, SectionLabel, ShowMore, txt, useLayout
 } from '../kit';
@@ -34,10 +36,12 @@ import {
  * so this stays; a screen reader hears it as one radio of the set.
  */
 function Choice(props: { label: string; on: boolean; onPress: () => void; big?: boolean }) {
+  const spot = useHelpSpot(props.label, t('review.simple.yourAnswerHelp'), props.onPress);
   return (
-    <Pressable onPress={props.onPress} accessibilityRole="radio" accessibilityState={{ checked: props.on }} aria-checked={props.on} accessibilityLabel={props.label}
+    <Pressable onPress={spot.onPress} accessibilityRole="radio" accessibilityState={{ checked: props.on }} aria-checked={props.on} accessibilityLabel={props.label}
       style={({ pressed }) => [styles.choice, props.on ? { backgroundColor: C.primary } : null, pressed && { opacity: 0.7 }]}>
       <Text style={[props.big ? styles.choiceBig : styles.choiceLabel, { color: props.on ? C.white : C.dark }]}>{props.label}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -90,12 +94,12 @@ export function QuestionList(props: {
             {skip !== undefined ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
                 <Text style={[txt.smMuted, { flex: 1 }]}><Text style={{ fontWeight: '700' }}>{t('review.parts.leftUnanswered')}</Text> {skip}</Text>
-                <LinkBtn label={t('review.parts.answer')} onPress={() => props.onUnskip(id)} />
+                <LinkBtn label={t('review.parts.answer')} help={t('review.screen.answerItHelp')} onPress={() => props.onUnskip(id)} />
               </View>
             ) : (
               <>
                 <AnswerInput type={sq.q.type} value={answers[id]} onChange={(v) => props.onAnswer(id, v)} />
-                {sq.required && unanswered ? <LinkBtn label={t('review.parts.cantAnswer')} color={C.muted} onPress={() => props.onSkip(id)} /> : null}
+                {sq.required && unanswered ? <LinkBtn label={t('review.parts.cantAnswer')} color={C.muted} help={t('review.parts.cantAnswerHelp')} onPress={() => props.onSkip(id)} /> : null}
               </>
             )}
           </Card>
@@ -275,7 +279,7 @@ function FromTranslatorPart(props: {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
           {props.terms.map((term) => {
             const rendering = term.renderings.at(-1)?.rendering;
-            return <Chip key={term.termId} icon="book" label={`${term.term}${rendering ? ` · ${rendering}` : ''}`} on={false} onPress={() => props.onOpenTerm(term.termId)} />;
+            return <Chip key={term.termId} icon="book" label={`${term.term}${rendering ? ` · ${rendering}` : ''}`} on={false} help={t('passage.version.termHelp')} onPress={() => props.onOpenTerm(term.termId)} />;
           })}
         </View>
       ) : null}
@@ -306,9 +310,9 @@ export function TeamStudyPart(props: { ctx: Ctx; study: StudyProgress; onOpenSte
         {t('review.parts.studyIntro', { summary: started ? studySummary(s) : t('review.parts.notStarted') })}
       </Text>
       {s.steps.map((st) => (
-        <Row key={st.step.id} leading={<StepMark status={st} />} label={st.step.title} sub={stepLine(props.ctx, st)} onPress={() => props.onOpenStep(st.step.id)} />
+        <Row key={st.step.id} leading={<StepMark status={st} />} label={st.step.title} sub={stepLine(props.ctx, st)} help={t('passage.page.openStudyStepHelp')} onPress={() => props.onOpenStep(st.step.id)} />
       ))}
-      <Row icon="sparkle" label={t('review.parts.openStudy')} onPress={props.onOpenStudy} last />
+      <Row icon="sparkle" label={t('review.parts.openStudy')} help={t('passage.page.openStudyHelp')} onPress={props.onOpenStudy} last />
     </View>
   );
 }
@@ -377,25 +381,31 @@ export function StageStrip(props: { stages: Stage[]; at: number; onGo: (id: Stag
   return (
     <View style={styles.strip}>
       <View style={[styles.stripRow, wide && { maxWidth: measure.column, alignSelf: 'center', width: '100%' }]} accessibilityLabel={t('review.parts.stagesLabel')}>
-        {props.stages.map((st, i) => {
-          const current = i === props.at;
-          const done = i < props.at;
-          return (
-            <Pressable key={st.id} onPress={() => props.onGo(st.id)} disabled={!done} accessibilityRole="button"
-              accessibilityLabel={done ? t('review.parts.backToStage', { stage: st.label }) : t('review.parts.stageOf', { stage: st.label, index: i + 1, total: props.stages.length })}
-              accessibilityState={{ selected: current, disabled: !done }}
-              style={({ pressed }) => [styles.stage, current && { backgroundColor: C.light }, pressed && { opacity: 0.7 }]}>
-              <View style={[styles.stageNum, current ? { backgroundColor: C.primary } : done ? { backgroundColor: C.dark } : styles.stageNumLater]}>
-                {done ? <Ico name="check" size={14} color={C.white} strokeWidth={3} /> : (
-                  <Text style={[styles.stageNumText, { color: current ? C.white : C.muted }]}>{i + 1}</Text>
-                )}
-              </View>
-              <Text style={[txt.sm, { fontWeight: '600', flexShrink: 1, color: current ? C.primary : done ? C.dark : C.muted }]} numberOfLines={1}>{st.label}</Text>
-            </Pressable>
-          );
-        })}
+        {props.stages.map((st, i) => <StageTab key={st.id} stage={st} index={i} count={props.stages.length} at={props.at} onGo={props.onGo} />)}
       </View>
     </View>
+  );
+}
+
+/** One stage in the strip: a done one goes back with a tap; in help mode each says where it is. */
+function StageTab(props: { stage: Stage; index: number; count: number; at: number; onGo: (id: StageId) => void }) {
+  const { stage: st, index: i } = props;
+  const current = i === props.at;
+  const done = i < props.at;
+  const spot = useHelpSpot(st.label, done ? t('review.simple.goBack') : t('review.simple.stepOf', { index: i + 1, total: props.count }), () => props.onGo(st.id));
+  return (
+    <Pressable onPress={spot.onPress} disabled={!done && !spot.id} accessibilityRole="button"
+      accessibilityLabel={done ? t('review.parts.backToStage', { stage: st.label }) : t('review.parts.stageOf', { stage: st.label, index: i + 1, total: props.count })}
+      accessibilityState={{ selected: current, disabled: !done }}
+      style={({ pressed }) => [styles.stage, current && { backgroundColor: C.light }, pressed && { opacity: 0.7 }]}>
+      <View style={[styles.stageNum, current ? { backgroundColor: C.primary } : done ? { backgroundColor: C.dark } : styles.stageNumLater]}>
+        {done ? <Ico name="check" size={14} color={C.white} strokeWidth={3} /> : (
+          <Text style={[styles.stageNumText, { color: current ? C.white : C.muted }]}>{i + 1}</Text>
+        )}
+      </View>
+      <Text style={[txt.sm, { fontWeight: '600', flexShrink: 1, color: current ? C.primary : done ? C.dark : C.muted }]} numberOfLines={1}>{st.label}</Text>
+      <HelpBadge spot={spot} />
+    </Pressable>
   );
 }
 
@@ -408,19 +418,23 @@ export function StageStrip(props: { stages: Stage[]; at: number; onGo: (id: Stag
  */
 export function PeopleCounter(props: { value: number; onChange: (n: number) => void }) {
   const n = props.value;
+  const fewer = useHelpSpot(t('review.parts.oneFewer'), t('review.parts.counterHelp'), () => props.onChange(Math.max(0, n - 1)));
+  const more = useHelpSpot(t('review.parts.oneMore'), t('review.parts.counterHelp'), () => props.onChange(n + 1));
   return (
     <View style={styles.counter}>
-      <Pressable onPress={() => props.onChange(Math.max(0, n - 1))} disabled={n === 0} accessibilityRole="button" accessibilityLabel={t('review.parts.oneFewer')}
+      <Pressable onPress={fewer.onPress} disabled={n === 0 && !fewer.id} accessibilityRole="button" accessibilityLabel={t('review.parts.oneFewer')}
         style={({ pressed }) => [styles.counterBtn, n === 0 && { opacity: 0.4 }, pressed && { opacity: 0.6 }]}>
         <Text style={styles.counterSign}>−</Text>
+        <HelpBadge spot={fewer} />
       </Pressable>
       <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm }}>
         <Ico name="people" size={22} color={C.muted} />
         <Text style={[txt.body, { fontWeight: '600', color: n ? C.dark : C.muted }]}>{n ? t('review.parts.people', { count: n }) : t('review.parts.howManyListened')}</Text>
       </View>
-      <Pressable onPress={() => props.onChange(n + 1)} accessibilityRole="button" accessibilityLabel={t('review.parts.oneMore')}
+      <Pressable onPress={more.onPress} accessibilityRole="button" accessibilityLabel={t('review.parts.oneMore')}
         style={({ pressed }) => [styles.counterBtn, pressed && { opacity: 0.6 }]}>
         <Text style={styles.counterSign}>+</Text>
+        <HelpBadge spot={more} />
       </Pressable>
     </View>
   );
@@ -447,7 +461,7 @@ export function AlsoCoveredPicker(props: { here: PassageChoice; all: PassageChoi
       <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('review.parts.alsoCoveredHint')}</Text>
       {pickedChoices.length ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
-          {pickedChoices.map((p) => <Chip key={p.unitId} label={p.title} icon="close" on accessibilityLabel={t('review.parts.removePassage', { title: p.title })} onPress={() => toggle(p.unitId)} />)}
+          {pickedChoices.map((p) => <Chip key={p.unitId} label={p.title} icon="close" on help={t('review.parts.removePassageHelp')} accessibilityLabel={t('review.parts.removePassage', { title: p.title })} onPress={() => toggle(p.unitId)} />)}
         </View>
       ) : null}
       <SearchField value={query} onChangeText={setQuery} placeholder={t('review.parts.findAnother')} />
@@ -457,7 +471,7 @@ export function AlsoCoveredPicker(props: { here: PassageChoice; all: PassageChoi
           {list.map((p, i) => {
             const on = picked.includes(p.unitId);
             return (
-              <Row key={p.unitId} last={i === list.length - 1} label={p.title} onPress={() => toggle(p.unitId)} role="checkbox" checked={on}
+              <Row key={p.unitId} last={i === list.length - 1} label={p.title} help={on ? t('review.parts.alsoOnHelp') : t('review.parts.alsoHelp')} onPress={() => toggle(p.unitId)} role="checkbox" checked={on}
                 leading={<View style={[styles.box, on ? { backgroundColor: C.primary, borderColor: C.primary } : null]}>{on ? <Ico name="check" size={18} color={C.white} strokeWidth={3} /> : null}</View>}
                 right={<View />} />
             );

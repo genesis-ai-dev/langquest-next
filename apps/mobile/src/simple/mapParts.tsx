@@ -15,10 +15,21 @@ import { formatNumber } from '../i18n/format';
 import { Ico, type IconName } from '../kit';
 import { C, onColor, radius, space, target, TINT, type as T } from '../theme';
 
+/** What the "Next" disc's icon says is to be done there, for help mode (rule 3). */
+function nextIconLine(icon: IconName): string | null {
+  switch (icon) {
+    case 'mic': return t('map.parts.nextMicHelp');
+    case 'check': return t('map.parts.nextCheckHelp');
+    case 'chat': return t('map.parts.nextChatHelp');
+    case 'globe': return t('map.parts.nextGlobeHelp');
+    default: return null;
+  }
+}
+
 /** "Next: Luke 15:1–7": this person's next passage, one tap from the map (demo Map). */
 export function NextLink(props: { title: string; icon: IconName; onPress: () => void }) {
   const label = t('map.parts.next', { title: props.title });
-  const spot = useHelpSpot(label, t('map.parts.nextHelp'), props.onPress);
+  const spot = useHelpSpot(label, [t('map.parts.nextHelp'), nextIconLine(props.icon)].filter(Boolean).join(' '), props.onPress);
   return (
     <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={label}
       style={({ pressed }) => [styles.next, pressed && styles.pressed]}>
@@ -50,6 +61,14 @@ function Pill(props: { label: string; on: boolean; onPress: () => void }) {
   );
 }
 
+/** What a book's row says in help mode: it opens its chapters, and what its bar and count mean (rule 3). */
+function bookLine(p: { total: number; recorded: number; count?: string }, shown: string): string {
+  if (p.count !== undefined) return [t('map.parts.bookHelp'), t('map.parts.barHelp'), t('map.parts.matchHelp')].join(' ');
+  if (p.recorded === 0) return [t('map.parts.bookHelp'), t('map.parts.notStartedHelp')].join(' ');
+  return [t('map.parts.bookHelp'), t('map.parts.barHelp'),
+    t('map.parts.countHelp', { shown, recorded: formatNumber(p.recorded), total: formatNumber(p.total) })].join(' ');
+}
+
 /**
  * One book: its name, a bar, and "25/97" (demo Map). A book nobody started
  * shows an empty bar and no count. Done passages lead the bar in green.
@@ -60,7 +79,9 @@ export function BookBar(props: {
   /** Not broken up yet (decision 74): said in place of the bar. */
   waiting?: boolean;
 }) {
-  const spot = useHelpSpot(props.name, props.waiting ? t('map.parts.waitingHelp') : t('map.parts.bookHelp'), props.onPress);
+  const pct = (n: number) => `${props.total ? Math.min(100, (n / props.total) * 100) : 0}%` as const;
+  const count = props.count ?? (props.recorded > 0 ? t('map.parts.bookCount', { recorded: formatNumber(props.recorded), total: formatNumber(props.total) }) : '');
+  const spot = useHelpSpot(props.name, props.waiting ? t('map.parts.waitingHelp') : bookLine(props, count), props.onPress);
   if (props.waiting) {
     return (
       <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
@@ -71,8 +92,6 @@ export function BookBar(props: {
       </Pressable>
     );
   }
-  const pct = (n: number) => `${props.total ? Math.min(100, (n / props.total) * 100) : 0}%` as const;
-  const count = props.count ?? (props.recorded > 0 ? t('map.parts.bookCount', { recorded: formatNumber(props.recorded), total: formatNumber(props.total) }) : '');
   return (
     <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
       accessibilityState={props.current ? { selected: true } : undefined}
@@ -96,14 +115,17 @@ const STAGE: Record<ChapterStage, { bg: string; fg: string; border: string }> = 
   none: { bg: TINT.gray, fg: C.faint, border: TINT.gray }
 };
 
-/** A chapter: done (green, ✓), started (brand, •), not started (white). Marked as well as coloured. */
+/**
+ * A chapter: done (green, ✓), started (brand, •), not started (white). Marked as well as coloured.
+ * `help`: what help mode says it does and what its marks mean; a chapter with no passage explains itself too.
+ */
 export function ChapterTileView(props: {
-  n: number; stage: ChapterStage; dim: boolean; current: boolean; disabled: boolean; label: string; corner?: ReactNode; onPress: () => void; testID?: string;
+  n: number; stage: ChapterStage; dim: boolean; current: boolean; disabled: boolean; label: string; corner?: ReactNode; onPress: () => void; testID?: string; help?: string;
 }) {
   const look = STAGE[props.stage];
-  const spot = useHelpSpot(t('map.parts.chapter', { n: formatNumber(props.n) }), t('map.parts.chapterHelp'), props.onPress);
+  const spot = useHelpSpot(t('map.parts.chapter', { n: formatNumber(props.n) }), props.help ?? t('map.parts.chapterHelp'), props.onPress);
   return (
-    <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
+    <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} disabled={props.disabled && !spot.id} accessibilityRole="button" accessibilityLabel={props.label}
       accessibilityState={{ disabled: props.disabled, selected: props.current }}
       style={({ pressed }) => [styles.tile, { backgroundColor: look.bg, borderColor: look.border, opacity: props.dim ? 0.28 : 1 },
         props.current && { borderColor: C.primary, borderWidth: 3 }, pressed && { transform: [{ scale: 0.95 }] }]}>
