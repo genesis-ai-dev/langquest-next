@@ -3881,6 +3881,25 @@ itself, `i18n`, `helpMode` and `shell/flow`, and keeps `src/server` from
 the UI; `apps/mobile/test/folders.test.ts` keeps code out of the src root
 and `simple/` gone.
 
+Amended (2026-10-15, Carl Sauder): each file has one role, and its name
+says which. Carl found the roles too loose once code was by feature: a
+folder no longer said whether a file held components, hooks or helpers,
+and about sixty files mixed them. Rather than go back to folders by kind,
+the name carries the role: `screens/*.tsx` are screens; any other `.tsx`
+exports components only (`eslint-plugin-react-refresh`); a `use<Thing>.ts`
+file exports hooks only, with the contexts they read; `model.ts` and
+`<thing>Model.ts` are pure, and never `.tsx`; `src/server/` holds the
+server calls; every other `.ts` is a module, which exports no hooks.
+`eslint-plugin-boundaries` holds which role may import which, for values
+(types may come from anywhere): a component reaches the server through a
+hook or module, a hook returns data rather than importing components, a
+model or module imports neither components nor hooks, and a screen imports
+no other screen, so the checks list the flow editor shows is
+`checks/LanguageChecks.tsx`, no longer part of the checks screen. The split is a second codemod
+round: the moved hooks and helpers are a hand commit that leaves
+re-exports, and `movedExports` in `scripts/restructure/moves.json` repoints
+every import of a moved name, on this branch and on any made before it.
+
 ## 106. A phone records every take with the microphone module, keeps a part going down to half the cutoff, and keeps AAC
 
 Date: 2026-10-14 · By: Caleb Koster · Status: accepted

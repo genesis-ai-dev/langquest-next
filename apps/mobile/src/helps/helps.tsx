@@ -11,7 +11,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { BlobFile } from '../sync/blobs';
-import { streamUrl } from '../server/blobTransport';
+import { useStreamedUri } from './useStreamedUri';
 import type { Ctx } from '../shell/ctx';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
@@ -32,7 +32,7 @@ import { useClip } from '../audio/useClip';
 import { textMissing } from './helpsModel';
 
 /** A chosen verse or a found word: soft grey, never loud purple (Caleb, 2026-10-10). */
-export const SOFT_MARK = withAlpha(C.dark, 0.1);
+const SOFT_MARK = withAlpha(C.dark, 0.1);
 
 /** "12", "38-39": a verse row's own number, without its chapter. */
 const verseOf = (row: VerseRow) => keyLabel(row.key.includes(':') ? row.key.slice(row.key.indexOf(':') + 1) : row.key);
@@ -387,7 +387,7 @@ function OtherCard(props: { ctx: Ctx; o: OtherSays }) {
 function OtherVoice(props: { ctx: Ctx; o: OtherSays; onFailed: () => void }) {
   const { ctx, o } = props;
   const ref = { hash: o.voice!, format: (o.voiceFormat ?? 'm4a') as BlobFile['format'] };
-  const [uri, setUri] = useState<string | null>(() => ctx.language.blobs.uriFor(ref));
+  const { uri, stream } = useStreamedUri(ctx, o.languageId, ref);
   const [wanted, setWanted] = useState(false);
   const clip = useClip(ctx.language, [], uri ? { uri } : undefined);
   useEffect(() => {
@@ -398,7 +398,7 @@ function OtherVoice(props: { ctx: Ctx; o: OtherSays; onFailed: () => void }) {
   const press = () => {
     if (uri) { clip.toggle(); return; }
     setWanted(true);
-    streamUrl(ctx.language.orgId, o.languageId, ref).then(setUri).catch((e: unknown) => {
+    stream().catch((e: unknown) => {
       noteExpected('other language word audio', e);
       setWanted(false);
       props.onFailed();

@@ -11,7 +11,7 @@
 // list: the map is books (grouped, with progress), then a chapter grid per
 // book, plus search and filters that narrow to counts first (ADR-009).
 // Progress is several counts, never one number (ADR-004).
-import { languageName, languageProgress, libraryItemView, percent, unitTitle, type KindDef, type LanguageProgress, type OrgState, type PassageState, type LanguageState } from '@langquest-next/core';
+import { languageName, languageProgress, libraryItemView, percent, unitTitle, type KindDef, type LanguageProgress, type PassageState, type LanguageState } from '@langquest-next/core';
 import { useMemo, useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
@@ -25,7 +25,7 @@ import { OfflineMark } from '../sync/offline';
 import { keptOfflineMap, offlineWords, type KeptOffline } from '../sync/offlineText';
 import { indexesFor } from '../sync/indexes';
 import { useOrgSummary } from '../reports/useOrgSummary';
-import { Card, Chip, ChipRow, EmptyState, Group, Header, HelpInfo, Ico, IconBtn, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, StepMarks, type IconName } from '../ui/kit';
+import { Card, Chip, ChipRow, EmptyState, Group, Header, HelpInfo, Ico, IconBtn, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, StepMarks } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { useLayout, useOpenDetail } from '../ui/useLayout';
 import { mayWriteLibrary } from '../library/model';

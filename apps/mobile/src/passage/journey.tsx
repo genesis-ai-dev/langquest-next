@@ -7,7 +7,7 @@
 // shows inside the step that gave it. The recording flips between versions
 // (‹ ›, the dots, or a swipe), and every step then shows what that version
 // heard, read only.
-import { type FlowStepStatus, type KindStatus, type ReviewView, type Version } from '@langquest-next/core';
+import type { FlowStepStatus, KindStatus, ReviewView, Version } from '@langquest-next/core';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { PanResponder, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';

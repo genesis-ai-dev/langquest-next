@@ -53,7 +53,7 @@ import { othersSay, bibleMissing } from '../helps/helpsModel';
 import { bookOf } from '../recording/model';
 import { useBible } from '../helps/useBible';
 import { useOtherLanguageTerms } from '../reference/useOtherLanguageTerms';
-import { LanguageChecks } from './checks';
+import { LanguageChecks } from '../checks/LanguageChecks';
 import { addPickedKind, copyFlowSpecs, currentFlowLine, flowEditorBase, flowEditorSeed, flowEditorStatus, knownKinds, newKindDef, usuallyFor, withAddedKinds } from '../flows/model';
 import {
   adjustDuringTake, adjustmentNote, adjustmentReady, defineTermInput, EMPTY_TERM_DRAFT, groupTerms, termDraftReady, termUsedIn, tieState,

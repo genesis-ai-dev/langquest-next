@@ -19,7 +19,7 @@ import { failureMessage } from '../diagnostics/report';
 import { ChoiceCard, Question } from '../admin/admin';
 import { C, space } from '../ui/theme';
 import { isItself, wayNow, type WayRow } from './model';
-import { PieceBar, PreviewSheet, WayCard } from './parts';
+import { BookChangeSheets, PieceBar, PreviewSheet, WayCard } from './parts';
 import { useBookNameChoices, useWays } from './useBreakup';
 import { alsoUsedLine } from './templateNames';
 import { useBookChange } from './useBookChange';
@@ -161,7 +161,7 @@ export function BreakUpBook(props: {
       {props.extra}
       <PreviewSheet key={peek?.choice.key ?? 'none'} visible={!!peek} name={peek?.choice.name ?? ''} doc={ways.docOf(peek?.choice)} v11n={ways.v11nOf(ways.docOf(peek?.choice))}
         book={book} onClose={() => setPeek(null)} onUse={peek ? () => { setKey(peek.choice.key); setPeek(null); } : undefined} />
-      {props.apply ? null : change.sheets}
+      {props.apply ? null : <BookChangeSheets s={change.sheets} />}
     </Screen>
   );
 }

@@ -16,7 +16,7 @@ import { useLanguoidSearch } from '../org/useLanguoids';
 import { Question, QuietLink, RadioRow } from '../admin/admin';
 import { guideShortName, languageLabel } from '../admin/adminModel';
 import { C, radius, space, type as T } from '../ui/theme';
-import { type LanguageChoice } from './languageChoices';
+import type { LanguageChoice } from './languageChoices';
 import { readerLanguage, sameLanguage } from './languages';
 
 /** "FIA guides for 294 passages · 2 Bibles", or that nothing is in it yet. */

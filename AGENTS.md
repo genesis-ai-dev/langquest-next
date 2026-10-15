@@ -61,7 +61,10 @@ Rules specific to this folder:
 - No local versus synced tables. Sync status is a column on the events table.
 - Run `npm run guardrails` in this folder before pushing (see Guardrails
   below). Lint holds what may import what (`eslint.config.mjs`, decisions.md
-  104 and 105): a rule's message says where the code belongs.
+  104 and 105): a rule's message says where the code belongs. In
+  `apps/mobile/src` a file's name says its role: components in `.tsx`,
+  hooks in `use<Thing>.ts`, pure logic in `model.ts` or `<thing>Model.ts`,
+  everything else a module in `.ts`.
   `docs/testing.md` says which layer a new test belongs in and the rules the
   end-to-end suites keep (no sleeps, one role per test, IDs for structure).
 - Put the Linear issue ID (`LAN-12`) in the commit message of work that comes

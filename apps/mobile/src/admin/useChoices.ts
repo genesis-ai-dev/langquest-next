@@ -4,7 +4,7 @@
 // organizations share (libraryChoices' order: its own first, then
 // LangQuest's), with their documents, sorted into the few plain answers an
 // admin is offered and the rest one tap deeper.
-import { type FlowDoc, type KindDef, type TemplateDoc } from '@langquest-next/core';
+import type { FlowDoc, KindDef, TemplateDoc } from '@langquest-next/core';
 import { useMemo } from 'react';
 import { libraryChoices, STARTER_TEMPLATE, type LibraryChoice } from '../templates/contentTemplates';
 import type { Ctx } from '../shell/ctx';

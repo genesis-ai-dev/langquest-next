@@ -2,16 +2,15 @@ import { percent, recencyOf, type Coverage, type LanguageReport } from '@langque
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
-import { bookName } from '../i18n/coreText';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
-import { currentLocale, t, Trans } from '../i18n';
-import { formatDay, formatDayYear, formatMonthShort, formatMonthYear, formatNumber, formatPercent } from '../i18n/format';
+import { t, Trans } from '../i18n';
+import { formatPercent } from '../i18n/format';
 import { Badge, Card, Ico, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { C, radius, space, TINT } from '../ui/theme';
 import { RECENCY_TONE, recencyLabel, scopeLabel, scopeShort } from './labels';
-import { type Tone, TONE_FILL, num, pctText, signed, dateTime, ago, partOf, bookOf } from './format';
+import { type Tone, TONE_FILL, num, pctText, signed, dateTime, ago, partOf } from './format';
 
 /**
  * The Reports section's primitives (ported from the web dashboard, decision

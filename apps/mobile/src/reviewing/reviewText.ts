@@ -1,5 +1,5 @@
 // Words for the review screen (reviewing/review.tsx).
-import { type KeyTermView, type PassageNote, type ReviewView } from '@langquest-next/core';
+import type { KeyTermView, PassageNote, ReviewView } from '@langquest-next/core';
 import { t } from '../i18n';
 import type { StudyProgress } from '../study/progress';
 

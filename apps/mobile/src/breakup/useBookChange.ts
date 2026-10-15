@@ -1,21 +1,34 @@
 // Breaking up a book: the change being made and saving it (breakup/BreakUpBook.tsx).
 import { withBookBrokenUp, type LibraryItemView, type TemplateDoc } from '@langquest-next/core';
 import { useState } from 'react';
-import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
-import { txt } from '../ui/textStyles';
 import { useLibrary } from '../library/useLibrary';
 import { failureMessage } from '../diagnostics/report';
-import { ApplySheet, RedoSheet } from './parts';
 import { useTemplateUsers } from './useBreakup';
 import { publishChange, templateUsersOf } from './breakupActions';
-import { alsoUsedLine } from './templateNames';
+import type { TemplateUser } from './model';
 
+
+/** The questions a book change asks, for BookChangeSheets (parts.tsx) to draw. */
+export interface BookChangeSheet {
+  warn: boolean;
+  asking: boolean;
+  busy: boolean;
+  users: TemplateUser[] | null;
+  bookName: string;
+  here: string;
+  /** The other languages the change reaches, by name. */
+  others: string[];
+  closeWarn(): void;
+  confirmRedo(): void;
+  closeAsk(): void;
+  apply(chosen: Set<string>): void;
+}
 /**
  * Changing how one book is divided, whatever the new division is (a ready-made
  * way, or the language's own): the warning when the book was divided before,
  * which languages it changes when the template is shared (decision 74), then
- * the change with Undo. `sheets` renders the warning and the question.
+ * the change with Undo. `sheets` is what BookChangeSheets (parts.tsx) asks.
  */
 export function useBookChange(ctx: Ctx, c: { book: string; bookName: string; doc: TemplateDoc; item: LibraryItemView | null; redo: boolean; onDone: () => void }) {
   const lib = useLibrary(ctx);
@@ -58,16 +71,13 @@ export function useBookChange(ctx: Ctx, c: { book: string; bookName: string; doc
       else if (shared) setAsking(true);
       else void apply(here(), change);
     },
-    sheets: (
-      <>
-        <RedoSheet visible={warn} book={c.bookName} busy={busy} onClose={() => setWarn(false)}
-          onConfirm={() => { setWarn(false); if (shared) setAsking(true); else void apply(here()); }} />
-        {users && asking ? (
-          <ApplySheet visible={asking} users={users} here={ctx.language.languageId ?? ''} busy={busy} onClose={() => setAsking(false)} onApply={(chosen) => void apply(chosen)}>
-            <Text style={txt.body}>{alsoUsedLine(users.filter((u) => u.languageId !== ctx.language.languageId).map((u) => u.name), c.bookName)}</Text>
-          </ApplySheet>
-        ) : null}
-      </>
-    )
+    sheets: {
+      warn, asking, busy, users, bookName: c.bookName, here: ctx.language.languageId ?? '',
+      others: users ? users.filter((u) => u.languageId !== ctx.language.languageId).map((u) => u.name) : [],
+      closeWarn: () => setWarn(false),
+      confirmRedo: () => { setWarn(false); if (shared) setAsking(true); else void apply(here()); },
+      closeAsk: () => setAsking(false),
+      apply: (chosen: Set<string>) => void apply(chosen)
+    } satisfies BookChangeSheet
   };
 }

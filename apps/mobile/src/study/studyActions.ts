@@ -5,7 +5,7 @@ import { commandErrorText } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { indexesFor } from '../sync/indexes';
-import { type PassageView } from '../passage/passageView';
+import type { PassageView } from '../passage/passageView';
 import { noteExpected, reportError } from '../diagnostics/report';
 
 /**

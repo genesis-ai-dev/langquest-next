@@ -16,12 +16,12 @@ import {
   type Commands, type EventSpec, type FlowStepStatus, type KindState, type KindStatus, type PassageNote, type QuestionSpec, type ReviewView
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useHardwareBack } from '../ui/useHardwareBack';
 import { Text } from '../ui/text';
 import { AudioClip } from '../audio/audioClip';
-import { commandErrorText, stateLabel, stepName } from '../i18n/coreText';
+import { commandErrorText, stateLabel } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
 import { edgeFor, screenTitle, type ScreenId } from '../shell/flow';
 import { t, Trans } from '../i18n';
@@ -29,12 +29,7 @@ import { indexesFor } from '../sync/indexes';
 import { Badge, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, IconBtn, KindIcon, LinkBtn, NoteCard, PrimaryBtn, QuietLinks, ReasonSheet, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, StateMark, type IconName, HelpTop } from '../ui/kit';
 import { kindIcon } from '../ui/kindIcon';
 import { txt } from '../ui/textStyles';
-import {
-  addDays, anchorLabel, askCandidates, channelLabel, currentStepId, describeEntry, dueChoices,
-  gridKindIds, guestMessage, heroHeadline, historySummary, isoDay, listenersOf, nextQuestionType, questionTypeLabel,
-  reviewMark, reviewsSummary, sendTargetLabel, versionReviewsSummary, type EntryText,
-  type RowAction
-} from '../passage/record';
+import { addDays, anchorLabel, askCandidates, channelLabel, currentStepId, describeEntry, dueChoices, gridKindIds, guestMessage, historySummary, isoDay, listenersOf, nextQuestionType, questionTypeLabel, reviewMark, reviewsSummary, sendTargetLabel, versionReviewsSummary, type EntryText, type RowAction } from '../passage/record';
 import { PassagePath } from '../passage/path';
 import { askInput, askDoneText, askModel, TEAM, type AskPicks } from '../passage/askModel';
 import {

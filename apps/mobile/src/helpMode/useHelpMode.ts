@@ -1,6 +1,6 @@
 // Help mode's contexts and the hooks that read them (helpMode/helpMode.tsx provides them).
 import { createContext, useContext, useEffect, useId, type ReactNode } from 'react';
-import { type HelpMode, type HelpSpot } from './helpContext';
+import type { HelpMode, HelpSpot } from './helpContext';
 
 /**
  * Which layer a part is drawn in: null for the screen, a sheet's host id

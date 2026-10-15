@@ -33,3 +33,9 @@ export const PaneSelectionContext = createContext<OpenDetail | null>(null);
 export function useOpenDetail(): OpenDetail | null {
   return useContext(PaneSelectionContext);
 }
+
+/**
+ * How tall this screen's footer is, so the toast sits just above its
+ * buttons rather than over them (App.tsx), on a phone as on a wide window.
+ */
+export const FooterHeightContext = createContext<((height: number) => void) | null>(null);

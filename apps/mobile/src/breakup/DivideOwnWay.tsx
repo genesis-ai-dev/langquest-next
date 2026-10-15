@@ -26,6 +26,7 @@ import { languageLabel } from '../admin/adminModel';
 import { chipLabel } from '../sources/sourceText';
 import { C, radius, space, target, TINT, type as T } from '../ui/theme';
 import { useBookChange } from './useBookChange';
+import { BookChangeSheets } from './parts';
 import { atOf, namesOfWay, ownWayDoc, parseAt, sectionLabel, sectionsOf, startsOfWay, verseOrder, type At, type Section } from './ownWay';
 import { isItself } from './model';
 import { useWays } from './useBreakup';
@@ -245,7 +246,7 @@ export function DivideOwnWay(props: {
         </>}>
         {null}
       </Sheet>
-      {change.sheets}
+      <BookChangeSheets s={change.sheets} />
     </Screen>
   );
 }

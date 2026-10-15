@@ -5,7 +5,7 @@
 // can miss it: over every screen, until someone taps "I understand". It
 // says what can come back and which passages need recording again.
 import type { LostFile } from '@langquest-next/sync';
-import { type LanguageState } from '@langquest-next/core';
+import type { LanguageState } from '@langquest-next/core';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Modal, ScrollView, StyleSheet, View } from 'react-native';
 import { getBlobStore, type BlobStore } from './blobs';

@@ -14,14 +14,11 @@ import { useHelpMode, useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpLit } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { inviteUri, issueInvite } from '../invites/invites';
 import { HelpInfo, Ico, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
-import { noteExpected } from '../diagnostics/report';
 import { shadow } from '../ui/shadow';
 import { C, radius, space, target, TINT, type as T } from '../ui/theme';
-import { inviteFailureText, GROUP_USES } from './inviteText';
-import { type InviteState } from './useGroupInvite';
+import type { InviteState } from './useGroupInvite';
 
 // ---- icons ----------------------------------------------------------------------------
 
