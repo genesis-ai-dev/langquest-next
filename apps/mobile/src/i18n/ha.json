@@ -3925,7 +3925,10 @@
       "withdrawHelp": "Yana janye buƙatar. Ba a ƙara roƙon su ba.",
       "elseHelp": "Wasu hanyoyin ci gaba: ku roƙi wani, ku faɗi cewa ya riga ya faru, ku ƙara bayani.",
       "historyHelp": "Daftarorinku, kowace siga da aka wallafa, da duk abin da ya faru a nan.",
-      "openStudyHelp": "Yana buɗe dukan jagorar nazari ta wannan nassi."
+      "openStudyHelp": "Yana buɗe dukan jagorar nazari ta wannan nassi.",
+      "listeners": "Masu saurare",
+      "liveIn": "Ana samu a {{channel}} · {{version}}",
+      "listenerCount": "Ra'ayoyin masu saurare: {{count, number}}"
     },
     "else": {
       "title": "Wani abu daban?",

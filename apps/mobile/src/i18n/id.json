@@ -3806,7 +3806,10 @@
       "withdrawHelp": "Menarik kembali permintaan. Mereka tidak lagi diminta.",
       "elseHelp": "Cara lain untuk lanjut: minta seseorang, katakan sudah dilakukan, tambah catatan.",
       "historyHelp": "Draf-draf Anda, setiap versi yang diterbitkan, dan semua yang terjadi di sini.",
-      "openStudyHelp": "Membuka seluruh panduan studi untuk perikop ini."
+      "openStudyHelp": "Membuka seluruh panduan studi untuk perikop ini.",
+      "listeners": "Pendengar",
+      "liveIn": "Terbit di {{channel}} · {{version}}",
+      "listenerCount": "Masukan pendengar: {{count, number}}"
     },
     "else": {
       "title": "Ada yang lain?",

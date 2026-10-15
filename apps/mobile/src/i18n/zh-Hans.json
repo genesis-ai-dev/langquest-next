@@ -3806,7 +3806,10 @@
       "withdrawHelp": "撤回请求。不再请对方做了。",
       "elseHelp": "其他继续的方式：请别人做、说明已经做过、添加备注。",
       "historyHelp": "你的草稿、每个已发布的版本，以及这里发生过的所有事情。",
-      "openStudyHelp": "打开这个经段的完整学习指南。"
+      "openStudyHelp": "打开这个经段的完整学习指南。",
+      "listeners": "听众",
+      "liveIn": "已在 {{channel}} 发布 · {{version}}",
+      "listenerCount": "听众反馈：{{count, number}}"
     },
     "else": {
       "title": "其他情况？",

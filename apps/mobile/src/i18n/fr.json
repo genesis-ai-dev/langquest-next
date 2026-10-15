@@ -4044,7 +4044,10 @@
       "withdrawHelp": "Retire la demande. Elle ne leur est plus adressée.",
       "elseHelp": "Autres façons d’avancer : demander à quelqu’un, dire que c’est déjà fait, ajouter une note.",
       "historyHelp": "Vos brouillons, chaque version publiée, et tout ce qui s’est passé ici.",
-      "openStudyHelp": "Ouvre tout le guide d’étude de ce passage."
+      "openStudyHelp": "Ouvre tout le guide d’étude de ce passage.",
+      "listeners": "Auditeurs",
+      "liveIn": "En ligne dans {{channel}} · {{version}}",
+      "listenerCount": "Retours d'auditeurs : {{count, number}}"
     },
     "else": {
       "title": "Autre chose ?",

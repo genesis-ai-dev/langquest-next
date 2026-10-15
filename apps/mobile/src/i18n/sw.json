@@ -3925,7 +3925,10 @@
       "withdrawHelp": "Huondoa ombi. Hawaombwi tena.",
       "elseHelp": "Njia nyingine za kuendelea: mwombe mtu, sema tayari ilifanyika, ongeza dokezo.",
       "historyHelp": "Rasimu zako, kila toleo lililochapishwa, na kila kitu kilichotokea hapa.",
-      "openStudyHelp": "Hufungua mwongozo mzima wa kujifunza wa kifungu hiki."
+      "openStudyHelp": "Hufungua mwongozo mzima wa kujifunza wa kifungu hiki.",
+      "listeners": "Wasikilizaji",
+      "liveIn": "Imechapishwa kwenye {{channel}} · {{version}}",
+      "listenerCount": "Maoni ya wasikilizaji: {{count, number}}"
     },
     "else": {
       "title": "Kitu kingine?",

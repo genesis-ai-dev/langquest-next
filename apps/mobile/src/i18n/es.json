@@ -4044,7 +4044,10 @@
       "withdrawHelp": "Retira la solicitud. Ya no se le pide.",
       "elseHelp": "Otras formas de seguir: pedírselo a alguien, decir que ya ocurrió, agregar una nota.",
       "historyHelp": "Tus borradores, cada versión publicada y todo lo que pasó aquí.",
-      "openStudyHelp": "Abre toda la guía de estudio de este pasaje."
+      "openStudyHelp": "Abre toda la guía de estudio de este pasaje.",
+      "listeners": "Oyentes",
+      "liveIn": "Publicado en {{channel}} · {{version}}",
+      "listenerCount": "Comentarios de oyentes: {{count, number}}"
     },
     "else": {
       "title": "¿Otra cosa?",

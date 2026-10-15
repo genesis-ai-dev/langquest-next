@@ -3925,7 +3925,10 @@
       "withdrawHelp": "Takes the request back. They are no longer asked.",
       "elseHelp": "Other ways forward: ask someone, say it already happened, add a note.",
       "historyHelp": "Your drafts, every published version, and everything that happened here.",
-      "openStudyHelp": "Opens the whole study guide for this passage."
+      "openStudyHelp": "Opens the whole study guide for this passage.",
+      "listeners": "Listeners",
+      "liveIn": "Live in {{channel}} · {{version}}",
+      "listenerCount": "Listener feedback: {{count, number}}"
     },
     "else": {
       "title": "Something else?",
