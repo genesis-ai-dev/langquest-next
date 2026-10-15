@@ -302,7 +302,9 @@ function HelpLayer(props: {
         {lit.map((l, i) => {
           const num = l.part ? props.numbers.get(l.part) : undefined;
           if (num === undefined || !l.mark) return null;
-          const p = markAt(l.rect, l.mark, rtl);
+          // A part as wide as the window (a divider, a bar) keeps its number on screen.
+          const at = markAt(l.rect, l.mark, rtl);
+          const p = { x: Math.max(2, Math.min(frame ? frame.width - MARK_SIZE - 2 : at.x, at.x)), y: Math.max(2, at.y) };
           return (
             <View key={i} style={[styles.mark, fromLeft(p.x), { top: p.y }, l.part === props.current && styles.markCurrent]}>
               <Text style={styles.markText}>{formatNumber(num)}</Text>

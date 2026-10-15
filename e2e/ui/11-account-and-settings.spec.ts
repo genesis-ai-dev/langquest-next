@@ -642,7 +642,7 @@ test('ACCT-034 The ? explains each part of the screen', async ({ page }) => {
   await byId(page, 'header-help').click();
   await expect(byId(page, 'header-help')).toHaveAccessibleName('Turn help off');
   await row(page, 'More settings').click();
-  const tip = button(page, /^More settings\. Password, notifications, sync, account/);
+  const tip = button(page, /^More settings\. Opens your password, notifications, sync and account settings\./);
   await expect(tip).toBeVisible();
   await expect(heading(page, 'Me')).toBeVisible();
   await tip.click();
@@ -655,11 +655,14 @@ test('ACCT-034 The ? explains each part of the screen', async ({ page }) => {
   await expect(byId(page, 'header-help')).toHaveAccessibleName('Help: explain this screen');
   await row(page, 'More settings').click();
   await expect(heading(page, 'More settings')).toBeVisible();
-  // The main button anywhere says what it is for.
+  // The main button says what happens when it is tapped, not only its name (decision 71, amended 2026-10-14).
   await goPassage(page, world(), 'P-SUBMITTED');
   await byId(page, 'header-help').click();
   await primary(page).click();
-  await expect(button(page, /The main thing to do on this screen\./)).toBeVisible();
+  await expect(button(page, /^Ask for a check\. Choose who to ask, then send it\./)).toBeVisible();
+  // Back explains itself too: the ? is the way out of help.
+  await back(page).click();
+  await expect(button(page, /^Back\. Goes back to the screen before\./)).toBeVisible();
 });
 
 // ---- Signing out ---------------------------------------------------------------------------------

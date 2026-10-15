@@ -5,7 +5,7 @@
 // Drawn only: taps go to the part.
 import { useContext, useEffect, useId, useMemo, useRef, type ReactNode } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import { HelpClipContext, HelpContext, HelpLayerSlot, useHelpOn, type HelpLit, type HelpSpot } from './helpContext';
+import { HelpClipContext, HelpContext, HelpHostContext, HelpLayerSlot, useHelpOn, type HelpLit, type HelpSpot } from './helpContext';
 
 /** Tell the help layer where the view holding this ref is, every frame while help is on. */
 function useLit(what: HelpLit | null, id: string) {
@@ -63,6 +63,22 @@ export function HelpClip(props: { style?: StyleProp<ViewStyle>; children: ReactN
       <HelpClipContext.Provider value={id}>{props.children}</HelpClipContext.Provider>
       {what ? <View ref={ref} collapsable={false} style={styles.box} pointerEvents="none" /> : null}
     </View>
+  );
+}
+
+/**
+ * What a sheet draws (kit's Sheet, from useHelpHost): its parts belong to it,
+ * not to the screen under it (nor to the area that screen scrolls in), and
+ * help draws inside it while it is on top.
+ */
+export function HelpHost(props: { id: string; children: ReactNode }) {
+  return (
+    <HelpHostContext.Provider value={props.id}>
+      <HelpClipContext.Provider value={undefined}>
+        {props.children}
+        <HelpHostLayer id={props.id} />
+      </HelpClipContext.Provider>
+    </HelpHostContext.Provider>
   );
 }
 

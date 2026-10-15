@@ -3215,7 +3215,7 @@
       "nameHelp": "Opens your profile, to change the name your team sees.",
       "offlineHelp": "Shows what this device keeps for working without a connection.",
       "tourHelp": "Opens three short cards on what LangQuest is for.",
-      "moreHelp": "Opens the rest of your settings. A number means changes waiting to send."
+      "moreHelp": "Opens your password, notifications, sync and account settings. A number means changes waiting to send."
     },
     "more": {
       "noEmail": "No email yet",

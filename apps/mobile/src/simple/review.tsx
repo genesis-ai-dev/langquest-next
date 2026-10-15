@@ -19,8 +19,8 @@ import { Text } from '../text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AudioClip } from '../audioClip';
 import type { Ctx } from '../ctx';
-import { HelpHostContext, useHelpSpot } from '../helpContext';
-import { HelpBadge, HelpClip, HelpHostLayer } from '../helpBadge';
+import { useHelpSpot } from '../helpContext';
+import { HelpBadge, HelpClip, HelpHost } from '../helpBadge';
 import { t } from '../i18n';
 import { formatClock, formatNumber } from '../i18n/format';
 import { indexesFor } from '../indexes';
@@ -561,7 +561,7 @@ export function TallSheet(props: { title: string; onClose: () => void; children:
   const host = useHelpHost(true);
   return (
     <Modal visible transparent animationType={wide ? 'fade' : 'slide'} onRequestClose={props.onClose}>
-      <HelpHostContext.Provider value={host}>
+      <HelpHost id={host}>
       <View style={[{ flex: 1 }, wide && styles.dialogFrame]}>
         {/* help-ignore: the darkened backdrop; tapping outside the sheet closes it, as everywhere */}
         <Pressable style={styles.backdrop} onPress={props.onClose} accessibilityLabel={t('common.close')} />
@@ -577,8 +577,7 @@ export function TallSheet(props: { title: string; onClose: () => void; children:
           </HelpClip>
         </View>
       </View>
-      <HelpHostLayer id={host} />
-      </HelpHostContext.Provider>
+      </HelpHost>
     </Modal>
   );
 }

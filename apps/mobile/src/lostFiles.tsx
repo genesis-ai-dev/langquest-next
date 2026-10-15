@@ -9,8 +9,7 @@ import { lostFilesView, unitTitle, type LanguageState } from '@langquest-next/co
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Modal, ScrollView, StyleSheet, View } from 'react-native';
 import { getBlobStore, type BlobStore } from './blobs';
-import { HelpHostContext } from './helpContext';
-import { HelpHostLayer } from './helpBadge';
+import { HelpHost } from './helpBadge';
 import { Ico, PrimaryBtn, txt, useHelpHost, type IconName } from './kit';
 import { t } from './i18n';
 import { Text } from './text';
@@ -86,7 +85,7 @@ export function LostFilesCard(props: { words: LostFilesWords; onSeen: () => void
   const host = useHelpHost(true);
   return (
     <Modal visible transparent animationType="fade" onRequestClose={() => undefined} statusBarTranslucent>
-      <HelpHostContext.Provider value={host}>
+      <HelpHost id={host}>
       <View style={styles.backdrop}>
         <View style={styles.card} accessibilityViewIsModal>
           <ScrollView contentContainerStyle={styles.body}>
@@ -113,8 +112,7 @@ export function LostFilesCard(props: { words: LostFilesWords; onSeen: () => void
           </View>
         </View>
       </View>
-      <HelpHostLayer id={host} />
-      </HelpHostContext.Provider>
+      </HelpHost>
     </Modal>
   );
 }

@@ -22,10 +22,10 @@ import {
 import { Text } from './text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { KindState } from '@langquest-next/core';
-import { HelpHostContext, useHelpInfo, useHelpMode, useHelpSpot, type HelpSpot } from './helpContext';
+import { useHelpInfo, useHelpMode, useHelpSpot, type HelpSpot } from './helpContext';
 import { isRtl, t } from './i18n';
 import { formatNumber } from './i18n/format';
-import { HelpBadge, HelpClip, HelpHostLayer, HelpLit } from './helpBadge';
+import { HelpBadge, HelpClip, HelpHost, HelpLit } from './helpBadge';
 import { lift, shadow } from './shadow';
 import { markedParts } from './textMatch';
 import { C, measure, onColor, radius, space, target, TINT, type as T } from './theme';
@@ -872,7 +872,7 @@ export function Sheet(props: { visible: boolean; title: string; sub?: string; on
   const host = useHelpHost(props.visible);
   return (
     <Modal visible={props.visible} transparent animationType={wide ? 'fade' : 'slide'} onRequestClose={props.onClose}>
-      <HelpHostContext.Provider value={host}>
+      <HelpHost id={host}>
       <KeyboardSafe style={[{ flex: 1 }, wide && styles.dialogFrame]}>
         {/* help-ignore: the darkened backdrop; tapping outside the sheet closes it, as everywhere */}
         <Pressable style={wide ? styles.dialogBackdrop : styles.sheetBackdrop} onPress={props.onClose} accessibilityLabel={t('common.close')} />
@@ -894,8 +894,7 @@ export function Sheet(props: { visible: boolean; title: string; sub?: string; on
           {props.footer ? <View style={{ paddingHorizontal: space.xl, gap: space.sm }}>{props.footer}</View> : null}
         </View>
       </KeyboardSafe>
-      <HelpHostLayer id={host} />
-      </HelpHostContext.Provider>
+      </HelpHost>
     </Modal>
   );
 }
