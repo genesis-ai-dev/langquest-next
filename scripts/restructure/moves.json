@@ -250,6 +250,8 @@
     {"from":"recording/useRecorder.ts","to":"recording/vadModel.ts","names":["VAD_BASE"]},
     {"from":"screens/checks.tsx","to":"checks/LanguageChecks.tsx","names":["LanguageChecks"]},
     {"from":"checks/LanguageChecks.tsx","to":"checks/checkActions.ts","names":["saveRows"]},
-    {"from":"checks/LanguageChecks.tsx","to":"checks/checkStyles.ts","names":["styles"]}
+    {"from":"checks/LanguageChecks.tsx","to":"checks/checkStyles.ts","names":["styles"]},
+    {"from":"reports/sections.tsx","to":"reports/sectionsModel.ts","names":["sectionHelp"]},
+    {"from":"ui/kit.tsx","to":"helpMode/useHelpMode.ts","names":["useHelpHost"]}
   ]
 }

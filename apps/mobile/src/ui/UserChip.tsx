@@ -5,7 +5,7 @@ import { Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions } fro
 import { Text } from './text';
 import Svg, { Circle, Polygon, Rect, Text as SvgText } from 'react-native-svg';
 import { t } from '../i18n';
-import { type PersonLook } from './people';
+import type { PersonLook } from './people';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { txt } from './textStyles';

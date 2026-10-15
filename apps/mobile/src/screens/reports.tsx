@@ -26,8 +26,8 @@ import { ActivityChart, DayBars, ProgressLine, WorkBar } from '../reports/charts
 import { countryCodes, countryName } from '../reports/countries';
 import { useReports } from '../reports/useReports';
 import { bottleneckText, milestoneText, paceAdvice, paceLabel, PACE_TONE, recencyAdvice, recencyLabel, RECENCY_TONE, scopeLabel, stageName } from '../reports/labels';
-import { Activity, Alerts, FieldReport, Geography, Languages, Ledger, Overview, Pace, sectionHelp, type SectionProps } from '../reports/sections';
-import { openAlerts, sectionLabel, SECTIONS, type SectionId } from '../reports/sectionsModel';
+import { Activity, Alerts, FieldReport, Geography, Languages, Ledger, Overview, Pace, type SectionProps } from '../reports/sections';
+import { openAlerts, sectionLabel, SECTIONS, type SectionId, sectionHelp } from '../reports/sectionsModel';
 import { AttentionPanel, Bar, Columns, CoverageRows, Freshness, HeadlineStats, ListLine, NoReports, Notice, Panel, ProgressPair, Stat, Stats, ToneBadge } from '../reports/ui';
 import { bookOf, dayYear, num, pctText, shortDate, signed, type Tone } from '../reports/format';
 import { canPrint, exportCsv, fileName, languageCsv, printPage } from '../reports/exportFiles';

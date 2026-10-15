@@ -14,7 +14,7 @@ import {
   ArrowLeft, Send, KeyRound, List, Smartphone, GripVertical, SlidersHorizontal, CircleCheck, TriangleAlert,
   ChevronsUpDown, FileText, Eye, EyeOff
 } from 'lucide-react-native';
-import { useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   AccessibilityInfo, Animated, Easing, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View,
   type StyleProp, type TextStyle, type ViewStyle
@@ -22,7 +22,7 @@ import {
 import { Text } from './text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { KindState } from '@langquest-next/core';
-import { type HelpSpot } from '../helpMode/helpContext';
+import type { HelpSpot } from '../helpMode/helpContext';
 import { useHelpInfo, useHelpMode, useHelpSpot } from '../helpMode/useHelpMode';
 import { isRtl, t } from '../i18n';
 import { formatNumber } from '../i18n/format';
@@ -34,6 +34,7 @@ import { useLayout } from './useLayout';
 import { kindIcon } from './kindIcon';
 import { txt } from './textStyles';
 import { FooterHeightContext } from './useLayout';
+import { useHelpHost } from '../helpMode/useHelpMode';
 
 // ---- icons -------------------------------------------------------------------------
 
@@ -875,18 +876,6 @@ export function Sheet(props: { visible: boolean; title: string; sub?: string; on
       </HelpHost>
     </Modal>
   );
-}
-
-/**
- * A sheet's own help (decision 71): while it shows it is on top, so the ?
- * in its head lights and numbers only its parts, drawn inside it. Returns
- * the host id to provide to what is drawn in it.
- */
-export function useHelpHost(visible: boolean): string {
-  const host = useId();
-  const open = useHelpMode()?.openHost;
-  useEffect(() => (visible && open ? open(host) : undefined), [visible, open, host]);
-  return host;
 }
 
 /**

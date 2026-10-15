@@ -23,7 +23,7 @@ const NEEDS_HELP = new Set(['IconBtn', 'SmallBtn', 'LinkBtn', 'GhostBtn', 'Chip'
 /** Marks that light a part: what a raw control holds, or has beside it. */
 const LIGHTS = /<(HelpBadge|HelpLit|HelpCover)\b/;
 /** The help layer itself, and the developer menu, which only developers see. */
-const SKIP = /src\/(helpMode|DevMenu)\.tsx$/;
+const SKIP = /src\/(helpMode\/helpMode|shell\/DevMenu)\.tsx$/;
 
 function attr(el: ts.JsxOpeningLikeElement, name: string): ts.JsxAttribute | undefined {
   return el.attributes.properties.find((p): p is ts.JsxAttribute => ts.isJsxAttribute(p) && p.name.getText() === name);

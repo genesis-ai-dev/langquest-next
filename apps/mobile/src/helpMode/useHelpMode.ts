@@ -71,3 +71,15 @@ const NOTHING = () => undefined;
 export function useHelpInfo(label: string, detail: string): HelpSpot<() => void> {
   return useHelpSpot(label, detail, NOTHING);
 }
+
+/**
+ * A sheet's own help (decision 71): while it shows it is on top, so the ?
+ * in its head lights and numbers only its parts, drawn inside it. Returns
+ * the host id to provide to what is drawn in it.
+ */
+export function useHelpHost(visible: boolean): string {
+  const host = useId();
+  const open = useHelpMode()?.openHost;
+  useEffect(() => (visible && open ? open(host) : undefined), [visible, open, host]);
+  return host;
+}
