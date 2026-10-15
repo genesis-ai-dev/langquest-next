@@ -782,12 +782,15 @@ Roles: TRANS · Priority: P2 · Platforms: iOS, Android · Run: Manual
 Preconditions: None.
 
 Steps:
-1. Tap "Me", then "Sign out". Look for a "?".
-2. Tap "Cancel". Switch the app to "العربية" (ACCT-029).
+1. Tap "Me", then "Sign out". Tap the "?", then "Sign Out".
+2. Tap the "?", then "Cancel". Switch the app to "العربية" (ACCT-029).
 3. On Me, tap the "?".
 
 Expected:
-- Step 1: the sign-out screen has no header and no "?".
+- Step 1: the sign-out screen has no header, but its "?" sits alone at the
+  top on the reading end. With help on, "Sign Out" and "Cancel" are
+  numbered, and "Sign Out" explains itself instead of signing out.
+- Step 2: the "?" turns help off; "Cancel" goes back to Me.
 - Step 3: numbers run in reading order for Arabic: the header first, then
   the rows; in the tab bar, the rightmost tab has the lowest number.
 
@@ -808,9 +811,9 @@ Steps:
 3. Tap "Sign out" again, then "Sign Out".
 
 Expected:
-- Step 1: no header, no tabs, no "?". A red person icon, the title "Sign
-  out?", and "You can sign back in anytime." A red "Sign Out" button and
-  "Cancel".
+- Step 1: no header and no tabs, but a "?" at the top. A red person icon,
+  the title "Sign out?", and "You can sign back in anytime." A red "Sign
+  Out" button and "Cancel".
 - Step 2: back on Me.
 - Step 3: the button says "Signing out…", then "Sign In" shows.
 - The device's language data stays (a phone keeps the log for others).
