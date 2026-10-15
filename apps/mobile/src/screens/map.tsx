@@ -317,7 +317,7 @@ export function StatusHome(ctx: Ctx) {
   const beside = useOpenDetail();
   const [query, setQuery] = useState('');
   const [limit, setLimit] = useState(PAGE);
-  // One cluster at a time (decision 106, demo ADR-045); opened from a cluster's page, that one.
+  // One cluster at a time (decision 107, demo ADR-045); opened from a cluster's page, that one.
   const [cluster, setCluster] = useState<ClusterFilter>(ctx.params['clusterId'] ? { kind: 'cluster', clusterId: ctx.params['clusterId'] } : { kind: 'all' });
   // Every language the organization has; each is its own stream (decision
   // 63). This phone folds the one it has open; the dashboard's server

@@ -8,7 +8,7 @@
 // (admins reach these homes through Manage), ADR-025 (a language owns its
 // template, starting from the one its organization suggests). The demo's
 // Project Home and New Project are not ported: an organization holds its
-// languages directly (docs/decisions.md 63). A cluster (decision 106, demo
+// languages directly (docs/decisions.md 63). A cluster (decision 107, demo
 // ADR-045) is a name on some of them, with a page of its own (ClusterHome).
 import {
   clusterName, clustersOf, mayManageClusters, orgClusters,
@@ -270,7 +270,7 @@ export function OrgHome(ctx: Ctx) {
   const mayAdd = privilegesFor(v.org, ctx.session.actorId).has('manage_structure');
   // The demo's "Invite people" (gate assigner), and Invite itself, which a role may hold without assigning: it asks both.
   const canInvite = edgeAllowed(edgeFor('org_home', 'invite_member')!, ctx.session) && ctx.session.can('invite_members');
-  // Clusters first, then the languages in none (decision 106): a language in a cluster shows under it.
+  // Clusters first, then the languages in none (decision 107): a language in a cluster shows under it.
   const clusters = orgClusters(v.org);
   const loose = languagesOutsideClusters(v.org, v.languages);
   return (
@@ -327,7 +327,7 @@ function LanguageListRow(props: { ctx: Ctx; v: ReturnType<typeof useOrgView>; la
 // ---- A cluster -----------------------------------------------------------------------------------
 
 /**
- * A cluster's page (decision 106, demo ADR-045): its languages and their
+ * A cluster's page (decision 107, demo ADR-045): its languages and their
  * progress together, and what changes it: adding a language, new or
  * already here, renaming it, and ungrouping it. A cluster is only a name:
  * none of this changes a language, its people or its stream.
@@ -654,7 +654,7 @@ export function LanguageHome(ctx: Ctx) {
         save={(next) => ctx.org.append('v1.LanguageRenamed', { languageId, name: next }).then(() => undefined)} />
       <LanguoidLinkRow ctx={ctx} languageId={languageId} name={name} code={info.code} languoidId={info.languoidId}
         may={mayRenameLanguage(v.org, ctx.session.actorId, languageId)} last={!showClusters} />
-      {/* The clusters it is in (decision 106): a name the organization puts on it, nothing more. */}
+      {/* The clusters it is in (decision 107): a name the organization puts on it, nothing more. */}
       <LanguageClustersRow ctx={ctx} languageId={languageId} language={name} last />
     </Disclosure>
   );
@@ -1364,7 +1364,7 @@ export function NewLanguage(ctx: Ctx) {
   // Picked from the language list (docs/languoids.md); none leaves it unlinked, to link from its page later.
   const [picked, setPicked] = useState<LanguoidHit | null>(null);
   const search = useLanguoidSearch(name, !picked);
-  // One language, or a cluster of several (decision 106, demo ADR-045). Opened from a cluster's page, one language already in it.
+  // One language, or a cluster of several (decision 107, demo ADR-045). Opened from a cluster's page, one language already in it.
   const fromCluster = ctx.params['clusterId'] ?? null;
   const mayGroup = mayManageClusters(ctx.org.state, ctx.session.actorId);
   const [many, setMany] = useState(false);
@@ -1562,7 +1562,7 @@ export function NewLanguage(ctx: Ctx) {
           : <PrimaryBtn label={t('org.continue')} icon="right" disabled={!ready1} onPress={() => setStep(2)} />}>
         {mayGroup ? (
           <>
-            {/* One language, or a cluster of several (decision 106): asked first, with one language picked. */}
+            {/* One language, or a cluster of several (decision 107): asked first, with one language picked. */}
             <Question>{t('clusters.newLanguage.what')}</Question>
             <ChoiceCard on={!many} icon="globe" title={t('clusters.newLanguage.one')} sub={t('clusters.newLanguage.oneSub')} onPress={() => setMany(false)} />
             <ChoiceCard on={many} icon="layers" title={t('clusters.newLanguage.cluster')} sub={t('clusters.newLanguage.clusterSub')} onPress={() => { setMany(true); setPicked(null); }}>
@@ -1622,7 +1622,7 @@ export function NewLanguage(ctx: Ctx) {
             {picked ? null : <Field label={t('org.newLanguage.codeLabel')} value={code} onChangeText={setCode} placeholder={t('org.newLanguage.codePlaceholder')} autoCapitalize="none" />}
             {mayGroup ? (
               <>
-                {/* Which cluster it joins, if any: made right here when it is new (decision 106). */}
+                {/* Which cluster it joins, if any: made right here when it is new (decision 107). */}
                 <SectionLabel label={t('clusters.newLanguage.inCluster')} />
                 <Pills>
                   <Chip label={t('clusters.newLanguage.no')} on={joins === null} onPress={() => setJoins(null)} />
@@ -1816,7 +1816,7 @@ function bibleOffer(name: string): string {
 /**
  * Last: invite the new language's translators (the prototype's Invite, after
  * NewLangFlow). After a cluster, its new languages are chips: a code is for
- * one language, as a membership is (decision 106: a cluster is no scope).
+ * one language, as a membership is (decision 107: a cluster is no scope).
  */
 function NewLanguageInvite(props: { ctx: Ctx; languages: { languageId: string; name: string }[]; cluster: string | null }) {
   const { ctx } = props;

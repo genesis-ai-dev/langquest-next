@@ -4257,7 +4257,8 @@
       "pausedForSource": "Paused while the source plays",
       "startsAgain": "Recording starts again when the source stops.",
       "cutoff": "Sound cutoff",
-      "pauseBetween": "Pause between parts"
+      "pauseBetween": "Pause between parts",
+      "tooShort": "Too short to keep. If you were speaking, say it again."
     },
     "split": {
       "referenceOneLine": "Reference as one line",

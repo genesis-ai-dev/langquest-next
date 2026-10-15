@@ -88,7 +88,7 @@ describe('organization stream fold', () => {
     expect(languageOfOrgEvent(linked[linked.length - 1]!)).toBe('din');
   });
 
-  it('clusters group languages as tags, and nothing about a language depends on them (decision 106)', () => {
+  it('clusters group languages as tags, and nothing about a language depends on them (decision 107)', () => {
     // Why: Spoken made a second organization for one cluster's five
     // languages because nothing grouped them. A cluster is a name on some
     // languages: a language may be in several or none, two admins tagging

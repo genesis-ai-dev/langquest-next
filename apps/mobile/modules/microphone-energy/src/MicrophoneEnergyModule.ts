@@ -16,6 +16,8 @@ export type VADConfig = {
   maxOnsetDuration?: number;
   rewindHalfPause?: boolean;
   minActiveAudioDuration?: number;
+  /** While a part is open, the share of `threshold` that still counts as voice. */
+  sustainMultiplier?: number;
 };
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
@@ -39,6 +41,8 @@ declare class MicrophoneEnergyModule extends NativeModule<MicrophoneEnergyModule
   disableVAD(): Promise<void>;
   startSegment(options?: { prerollMs?: number }): Promise<void>;
   stopSegment(): Promise<string | null>;
+  /** A finished WAV part re-encoded as AAC (`.m4a`) beside it; the WAV is left for the caller. Phones only. */
+  encodeAac(uri: string): Promise<string>;
 }
 
 // This call loads the native module object from the JSI.

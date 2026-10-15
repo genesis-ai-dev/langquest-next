@@ -134,8 +134,8 @@ sequence, cursor, snapshots and blob folder.
 | `v1.LanguageCodeSet` | languageId, code, languoidId \| null | register; takes over `LanguageAdded`'s code and links the language to the language list (decision 78) |
 | `v1.LanguageCountrySet` | languageId, country | register |
 | `v1.LanguageTargetSet` | languageId, scope, startDate, targetDate | register |
-| `v1.ClusterNamed` | clusterId, name | register per cluster (decision 106) |
-| `v1.LanguageClusterSet` | languageId, clusterId, inCluster | register per (language, cluster): a tag, never a scope or a stream (decision 106) |
+| `v1.ClusterNamed` | clusterId, name | register per cluster (decision 107) |
+| `v1.LanguageClusterSet` | languageId, clusterId, inCluster | register per (language, cluster): a tag, never a scope or a stream (decision 107) |
 | `v1.ReferenceRecommended` | itemId, recommended | register per item (decision 62) |
 | `v1.LibraryItemDefined`, `…VersionPublished`, `…SharingSet`, `…ItemArchived`, `…Subscribed`, `…Pinned` | as today | as today |
 | `v1.Redacted` | eventId, reason? | grow-only |

@@ -24,7 +24,7 @@ describe('UX flow coverage', () => {
       'settings_more',
       // One of a language's checks, with its people, questions and helps (decision 91).
       'check_editor',
-      // A cluster of languages: a name on some of them (decision 106).
+      // A cluster of languages: a name on some of them (decision 107).
       'cluster_home'] as const;
     expect(SCREEN_IDS.length).toBe(kept.length + appOnly.length);
     for (const id of appOnly) expect(screenTitle(id)).not.toBe(`screens.${id}`);

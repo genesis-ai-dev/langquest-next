@@ -49,12 +49,6 @@ export interface LanguageHandle {
   /** Blob transfer state (PLAN.md section 14). Downloads follow `keptUnits` plus the actor's own work. */
   /** The realtime channel is up: appends elsewhere reach this phone in seconds. */
   live: boolean;
-  /**
-   * A local write is queued or in flight: what the screen shows is in
-   * memory but not yet on disk. False means everything shown is saved
-   * locally (it may still be pending upload: see `pending`).
-   */
-  saving: boolean;
   /** Fold revision, bumped on every local or pulled change. */
   revision: number;
   /** The local log as the sync screen shows it; null before load. */
@@ -100,7 +94,7 @@ const LIMITS = { minFreeBytes: 500 * 1024 * 1024, maxTotalBytes: 2 * 1024 * 1024
 const transferBudget = new TransferBudget(DEFAULT_TRANSFER_BUDGET_BYTES);
 
 const NOTHING_YET: LanguageStatus = {
-  revision: 0, saving: false, pending: 0, refusedEvents: 0, lastSync: 'never', online: null, tooOld: false,
+  revision: 0, pending: 0, refusedEvents: 0, lastSync: 'never', online: null, tooOld: false,
   refused: null, pulled: false, live: false, pendingUp: 0, pendingDown: 0, peakUp: 0, peakDown: 0,
   present: new Set(), keptUnits: new Set()
 };
@@ -268,9 +262,9 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
   };
   const triggerUpload = useCallback(() => sessionRef.current?.triggerUpload(), []);
   const inspect = useCallback(() => sessionRef.current?.inspect() ?? Promise.resolve(null), []);
-  const { pending, lastSync, online, tooOld, refused, refusedEvents, pulled, live, saving, revision } = status;
+  const { pending, lastSync, online, tooOld, refused, refusedEvents, pulled, live, revision } = status;
 
-  return { orgId, languageId, state, pending, lastSync, online, tooOld, refused, refusedEvents, pulled, live, saving, revision, inspect, blobs, triggerUpload, append, appendMany, run, sync };
+  return { orgId, languageId, state, pending, lastSync, online, tooOld, refused, refusedEvents, pulled, live, revision, inspect, blobs, triggerUpload, append, appendMany, run, sync };
 }
 
 /** Time one transfer, credit its bytes to the meter once it succeeds, and tally it for diagnostics either way. */

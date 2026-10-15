@@ -4,6 +4,7 @@
  *   npm run library:seed -- --dry-run
  *   npm run library:seed -- [--fia-dir <dir>]... [--hosted]
  *   npm run library:seed -- --sources [--timings <dir>] [--bsb-text <file>]
+ *   npm run library:seed -- --only <itemId>... [--dry-run | --hosted]
  *
  * The official LangQuest organization (`langquest`) hosts the starters:
  * the six standard versifications, Bible and FIA templates, the standard
@@ -120,6 +121,29 @@ interface SeedBuild {
 }
 
 const hashOf = (doc: LibraryDoc) => createHash('sha256').update(canonicalJson(doc)).digest('hex');
+
+/**
+ * Only the items named, with the documents they need (`--only`): a hosted
+ * project takes one changed item without everything else that changed
+ * since it was last seeded.
+ */
+export function onlyItems(build: SeedBuild, itemIds: string[]): SeedBuild {
+  const items = itemIds.map((id) => {
+    const it = build.items.find((i) => i.itemId === id);
+    if (!it) throw new Error(`the library has no item ${id}`);
+    return it;
+  });
+  const byHash = new Map(build.documents.map((d) => [d.hash, d.body]));
+  const needed = new Set<string>();
+  const need = (hash: string) => {
+    if (needed.has(hash)) return;
+    needed.add(hash);
+    const body = byHash.get(hash);
+    for (const dep of body && 'deps' in body ? body.deps : []) need(dep);
+  };
+  for (const it of items) need(it.docHash);
+  return { documents: build.documents.filter((d) => needed.has(d.hash)), items };
+}
 
 const readJson = (path: string): unknown => JSON.parse(readFileSync(path, 'utf8'));
 
@@ -477,17 +501,19 @@ function summary(build: SeedBuild, events: AnyEvent[]): string {
 async function main(argv: string[]) {
   const values = (name: string) => argv.flatMap((a, i) => (a === `--${name}` && argv[i + 1] !== undefined ? [argv[i + 1]!] : []));
   // The demo's example guides go to a hosted project only with --with-examples.
-  const build = buildLibrary({ fiaDirs: values('fia-dir'), examples: !argv.includes('--hosted') || argv.includes('--with-examples') });
+  const all = buildLibrary({ fiaDirs: values('fia-dir'), examples: !argv.includes('--hosted') || argv.includes('--with-examples') });
   if (argv.includes('--sources')) {
-    const versifications = build.items.filter((it) => it.kind === 'versification').map((it) => {
-      const body = build.documents.find((d) => d.hash === it.docHash)!.body as VersificationDoc;
+    const versifications = all.items.filter((it) => it.kind === 'versification').map((it) => {
+      const body = all.documents.find((d) => d.hash === it.docHash)!.body as VersificationDoc;
       return { code: body.code, hash: it.docHash, books: Object.keys(body.maxVerses) };
     });
     const sources = await sourcesFor(versifications, { timingsDir: values('timings')[0], bsbTextPath: values('bsb-text')[0], key: process.env['BIBLE_BRAIN_ACCESS_KEY'] });
-    const have = new Set(build.documents.map((d) => d.hash));
-    build.documents.push(...sources.documents.filter((d) => !have.has(d.hash)));
-    build.items.push(...sources.items);
+    const have = new Set(all.documents.map((d) => d.hash));
+    all.documents.push(...sources.documents.filter((d) => !have.has(d.hash)));
+    all.items.push(...sources.items);
   }
+  const only = values('only');
+  const build = only.length ? onlyItems(all, only) : all;
   const events = seedEvents(build, Date.now());
   console.log(summary(build, events));
   if (argv.includes('--dry-run')) return;

@@ -96,7 +96,7 @@ describe('adding a language (ORG-2, decisions 63, 76, 84, 91)', () => {
   });
 });
 
-describe('a cluster of new languages (createLanguages, decision 106)', () => {
+describe('a cluster of new languages (createLanguages, decision 107)', () => {
   const nus = Object.keys(ORG.languages).find((id) => ORG.languages[id]?.added) ?? 'L1';
   const cluster = (over: Partial<Parameters<typeof createLanguages>[0]> = {}): Parameters<typeof createLanguages>[0] => ({
     org: ORG, actorId: admin, reads: 'eng', scope: 'nt', chosenBooks: new Set(), checks, offers: [{ itemId: 'web', shared: null, name: 'WEB', label: 'the World English Bible' }],
@@ -105,7 +105,7 @@ describe('a cluster of new languages (createLanguages, decision 106)', () => {
   });
 
   it('adds each language alike, its own copy of each, then names the cluster on them and those already here', async () => {
-    // Why: Spoken set up five languages of one cluster as a separate organization (decision 106).
+    // Why: Spoken set up five languages of one cluster as a separate organization (decision 107).
     let n = 0;
     const { deps, parts, org, language } = app({ newId: () => `id${++n}` });
     const made = await createLanguages(cluster(), deps);

@@ -622,7 +622,7 @@ Expected:
 Roles: ADMIN · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
 
 A cluster is a name an organization puts on some of its languages
-(decision 106, demo ADR-045). Nothing about a language changes with it.
+(decision 107, demo ADR-045). Nothing about a language changes with it.
 
 Preconditions (in addition to the global ones):
 - Online. The library is seeded (G2).

@@ -1,4 +1,4 @@
--- Clusters: a name an organization puts on some of its languages (decisions.md 106).
+-- Clusters: a name an organization puts on some of its languages (decisions.md 107).
 --
 --   v1.ClusterNamed        { clusterId, name }
 --   v1.LanguageClusterSet  { languageId, clusterId, inCluster }
