@@ -6,7 +6,7 @@
 // Requirements REC-1..8 (REC-2/2a: the path top to bottom, per version),
 // ASK-2, ASK-4; ADR-012, 013, 014, 015, 016, 020, 029, 030.
 import {
-  checkPeople, feedbackIsMine, isCompleteState, keyTermView, languagePeople, membershipsOf, privilegesFor, scopeCovers,
+  checkPeople, feedbackIsMine, isCompleteState, keyTermView, languagePeople, LISTENER_KIND, membershipsOf, privilegesFor, releasesOf, scopeCovers,
   type FlowStepStatus, type KindDef, type KindStatus, type OrgState, type PassageNote, type PassageState,
   type Privilege, type LanguageState, type QuestionSpec, type RecordEntry, type RequestView, type ReviewView, type SourcedQuestion,
   type Version
@@ -625,4 +625,12 @@ export function guestMessage(o: { name: string; passage: string; language: strin
   const name = o.name.trim();
   return name ? t('passage.record.guestMessage', { name, passage: o.passage, language: o.language })
     : t('passage.record.guestMessageNoName', { passage: o.passage, language: o.language });
+}
+
+/**
+ * What reached listeners outside the team (decisions.md 108): where a version
+ * is live, and each listener's feedback, newest first.
+ */
+export function listenersOf(state: LanguageState, p: PassageState) {
+  return { live: releasesOf(state, p), feedback: p.reviews.filter((r) => r.kindId === LISTENER_KIND).sort((a, b) => (a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : 0)) };
 }

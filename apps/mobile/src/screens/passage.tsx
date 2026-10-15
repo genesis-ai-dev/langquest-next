@@ -11,7 +11,7 @@ import { EarlierNote, EarlierSections, isEarlierSection } from '../breakup/earli
 import { Faces, PeopleLine } from '../checks/parts';
 import { checkName } from '../simple/adminModel';
 import {
-  CommandError, checkPeople, commands, draftsBy, keyTermLinksFor, LISTENER_KIND, questionsForKind, recordTimeline, releasesOf, reviewGrid,
+  CommandError, checkPeople, commands, draftsBy, keyTermLinksFor, questionsForKind, recordTimeline, reviewGrid,
   type Commands, type EventSpec, type FlowStepStatus, type KindState, type KindStatus, type PassageNote, type QuestionSpec, type ReviewView
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -32,7 +32,7 @@ import {
 } from '../kit';
 import {
   addDays, anchorLabel, answeredQuestions, askCandidates, channelLabel, currentStepId, describeEntry, dueChoices, dueError,
-  gridKindIds, guestMessage, heroHeadline, historySummary, isoDay, nextQuestionType, questionTypeLabel,
+  gridKindIds, guestMessage, heroHeadline, historySummary, isoDay, listenersOf, nextQuestionType, questionTypeLabel,
   reviewMark, reviewsSummary, SAID_BY_VOICE, sendTargetLabel, versionReviewsSummary, type EntryText,
   type RowAction
 } from '../passage/record';
@@ -452,9 +452,7 @@ export function PassageRecord(ctx: Ctx) {
   }
 
   // ---- every version (decisions.md 83): drafts, published versions, then the history ----
-  // What reached listeners outside the team: where a version is live, and their feedback, newest first (decisions.md 108).
-  const live = releasesOf(v.state, p);
-  const listened = p.reviews.filter((r) => r.kindId === LISTENER_KIND).slice().reverse();
+  const { live, feedback: listened } = listenersOf(v.state, p);
   const history = (
     <>
       {study ? (
