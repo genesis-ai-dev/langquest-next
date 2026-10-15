@@ -1,4 +1,6 @@
 import type { EventSpec } from './commands';
+import { SHOWN, type ShownWhat } from './events';
+import { DEFAULT_KINDS } from './record';
 import type { LanguageState } from './state';
 
 /**
@@ -66,6 +68,30 @@ export function checkHelpSpecs(state: LanguageState, c: { commandId: string; kin
   const now = state.checkHelps?.[c.kindId]?.[helpKey(c.help)]?.value ?? false;
   if (now === c.linked) return [];
   return [{ id: `${c.commandId}:help`, type: 'v1.CheckHelpSet', payload: { kindId: c.kindId, ...c.help, linked: c.linked } }];
+}
+
+/** Recording a version, as a step whose screen an admin sets like a check's (v1.CheckShowsSet). */
+export const RECORD_STEP = 'record';
+
+/** Shown or not, for each thing a step can show. */
+export type Shows = Record<ShownWhat, boolean>;
+
+/**
+ * What a step shows whoever does it (decisions.md 110). Each thing is its
+ * register when set; otherwise everything shows, except at a kind that
+ * withholds context (Back Translation), where nothing does, as before.
+ */
+export function checkShows(state: LanguageState, kindId: string): Shows {
+  const kind = state.reviewKinds[kindId]?.value ?? DEFAULT_KINDS.find((k) => k.id === kindId);
+  const fallback = kindId === RECORD_STEP || !kind?.withholdsContext;
+  const set = state.checkShows?.[kindId] ?? {};
+  return Object.fromEntries(SHOWN.map((w) => [w, set[w]?.value ?? fallback])) as Shows;
+}
+
+/** Show or hide one thing at a step; nothing when it already is. */
+export function checkShowsSpecs(state: LanguageState, c: { commandId: string; kindId: string; what: ShownWhat; shown: boolean }): EventSpec[] {
+  if (checkShows(state, c.kindId)[c.what] === c.shown) return [];
+  return [{ id: `${c.commandId}:shows:${c.what}`, type: 'v1.CheckShowsSet', payload: { kindId: c.kindId, what: c.what, shown: c.shown } }];
 }
 
 /**

@@ -130,6 +130,12 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
       break;
     }
 
+    case 'v1.CheckShowsSet': {
+      const { kindId, what, shown } = event.payload;
+      lww((state.checkShows ??= {})[kindId] ??= {}, what, event, shown);
+      break;
+    }
+
     case 'v1.VersionReleased': {
       const { takeId, channel, live, url } = event.payload;
       lww((state.releases ??= {})[takeId] ??= {}, channel, event, { live, by: event.actorId, ...(url !== undefined ? { url } : {}) });

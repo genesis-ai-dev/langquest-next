@@ -1,4 +1,4 @@
-import type { AnyEvent } from './events';
+import { SHOWN, type AnyEvent } from './events';
 import { LIBRARY_KINDS } from './libraryDocs';
 import { ORG_STREAM, PRIVILEGES, TARGET_SCOPES } from './orgTerms';
 import { isLicense, LICENSES } from './license';
@@ -155,6 +155,8 @@ export function validateEvent(e: AnyEvent): string | null {
         ((p['itemId'] === undefined) === (p['materialId'] === undefined) ? 'exactly one of itemId, materialId' : null) ??
         (p['itemId'] === undefined || nonEmpty(p['itemId']) ? null : 'itemId must be a non-empty string') ??
         (p['materialId'] === undefined || nonEmpty(p['materialId']) ? null : 'materialId must be a non-empty string');
+    case 'v1.CheckShowsSet':
+      return str('kindId') ?? oneOf('what', SHOWN) ?? bool('shown');
     case 'v1.VersionReleased':
       return str('takeId', 'channel') ?? bool('live') ??
         (p['url'] === undefined || nonEmpty(p['url']) ? null : 'url must be a non-empty string') ??

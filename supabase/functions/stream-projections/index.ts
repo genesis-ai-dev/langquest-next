@@ -20775,6 +20775,9 @@ function shouldShowDeprecationWarning() {
 }
 if (shouldShowDeprecationWarning()) console.warn("\u26A0\uFE0F  Node.js 20 and below are deprecated and will no longer be supported in future versions of @supabase/supabase-js. Please upgrade to Node.js 22 or later. For more information, visit: https://github.com/orgs/supabase/discussions/45715");
 
+// packages/core/src/events.ts
+var SHOWN = ["bibleAudio", "bibleText", "guideAudio", "guideText", "terms", "notes", "earlier"];
+
 // packages/core/src/references.ts
 function emptyReferenceState() {
   return { languageReferences: {}, passageLinks: {}, referencesUsed: {} };
@@ -21263,6 +21266,8 @@ function validateEvent(e) {
       return str("stepId") ?? bool("allowed");
     case "v1.CheckHelpSet":
       return str("kindId") ?? bool("linked") ?? (p["itemId"] === void 0 === (p["materialId"] === void 0) ? "exactly one of itemId, materialId" : null) ?? (p["itemId"] === void 0 || nonEmpty(p["itemId"]) ? null : "itemId must be a non-empty string") ?? (p["materialId"] === void 0 || nonEmpty(p["materialId"]) ? null : "materialId must be a non-empty string");
+    case "v1.CheckShowsSet":
+      return str("kindId") ?? oneOf("what", SHOWN) ?? bool("shown");
     case "v1.VersionReleased":
       return str("takeId", "channel") ?? bool("live") ?? (p["url"] === void 0 || nonEmpty(p["url"]) ? null : "url must be a non-empty string") ?? // Characters, as SQL length() counts them.
       ([...p["channel"]].length <= 60 ? null : "channel must be at most 60 characters");
@@ -21503,6 +21508,11 @@ function applyLanguageEvent(state, event) {
       const { kindId, itemId, materialId, linked } = event.payload;
       const key = itemId !== void 0 ? `item:${itemId}` : `material:${materialId}`;
       lww((state.checkHelps ??= {})[kindId] ??= {}, key, event, linked);
+      break;
+    }
+    case "v1.CheckShowsSet": {
+      const { kindId, what, shown } = event.payload;
+      lww((state.checkShows ??= {})[kindId] ??= {}, what, event, shown);
       break;
     }
     case "v1.VersionReleased": {

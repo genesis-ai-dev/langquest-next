@@ -5,7 +5,7 @@ import { foldLanguage as fold } from '../src/reducer';
 import { emptyLanguageState as emptyState } from '../src/state';
 import { DEFAULT_KINDS, flowTemplate, instantiateFlow } from '../src/record';
 import { deriveFlow, usualTarget } from '../src/passage';
-import { checkHelps, checkHelpSpecs, checkPeople, checkPeopleSpecs, checkTeamFor, checkTeamId } from '../src/checks';
+import { checkHelps, checkHelpSpecs, checkPeople, checkPeopleSpecs, checkShows, checkShowsSpecs, checkTeamFor, checkTeamId, RECORD_STEP } from '../src/checks';
 import { validateEvent } from '../src/validate';
 import { applyOrgEvent, emptyOrgState, SEED_ROLES, translatorReviewUpgrade, type OrgState } from '../src/org';
 
@@ -118,6 +118,36 @@ describe("a check's helps", () => {
     expect(validateEvent(ev({ kindId: 'peer', linked: true }))).not.toBeNull();
     expect(validateEvent(ev({ kindId: 'peer', materialId: '', linked: true }))).not.toBeNull();
     expect(validateEvent(ev({ kindId: 'peer', itemId: 'x', linked: 'yes' }))).not.toBeNull();
+  });
+});
+
+describe('what a step shows', () => {
+  it('is everything by default, and nothing at a kind that withholds context', () => {
+    const p = language();
+    const all = { bibleAudio: true, bibleText: true, guideAudio: true, guideText: true, terms: true, notes: true, earlier: true };
+    expect(checkShows(p.state(), RECORD_STEP)).toEqual(all);
+    expect(checkShows(p.state(), 'peer')).toEqual(all);
+    expect(Object.values(checkShows(p.state(), 'bt')).every((v) => !v)).toBe(true);
+  });
+
+  it('turns each thing on or off as a register, the recording like any check', () => {
+    const p = language();
+    p.apply('lead', checkShowsSpecs(p.state(), { commandId: 'a', kindId: RECORD_STEP, what: 'bibleText', shown: false }));
+    p.apply('lead', checkShowsSpecs(p.state(), { commandId: 'b', kindId: 'bt', what: 'bibleAudio', shown: true }));
+    expect(checkShows(p.state(), RECORD_STEP)).toMatchObject({ bibleText: false, bibleAudio: true, guideText: true });
+    expect(checkShows(p.state(), 'bt')).toMatchObject({ bibleAudio: true, bibleText: false });
+    expect(checkShowsSpecs(p.state(), { commandId: 'c', kindId: RECORD_STEP, what: 'bibleText', shown: false })).toEqual([]);
+    expect(checkShowsSpecs(p.state(), { commandId: 'd', kindId: 'peer', what: 'notes', shown: true })).toEqual([]);
+    p.apply('lead', checkShowsSpecs(p.state(), { commandId: 'e', kindId: RECORD_STEP, what: 'bibleText', shown: true }));
+    expect(checkShows(p.state(), RECORD_STEP).bibleText).toBe(true);
+  });
+
+  it('names one of the things a step can show', () => {
+    const ev = (payload: object) => ({ id: 'e', type: 'v1.CheckShowsSet', orgId: 'o', streamId: 'din', actorId: 'a', deviceId: 'd', hlc: 'h', payload } as AnyEvent);
+    expect(validateEvent(ev({ kindId: 'record', what: 'guideText', shown: false }))).toBeNull();
+    expect(validateEvent(ev({ kindId: 'record', what: 'bible', shown: false }))).not.toBeNull();
+    expect(validateEvent(ev({ kindId: '', what: 'notes', shown: false }))).not.toBeNull();
+    expect(validateEvent(ev({ kindId: 'peer', what: 'notes', shown: 'no' }))).not.toBeNull();
   });
 });
 

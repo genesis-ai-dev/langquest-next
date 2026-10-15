@@ -3612,8 +3612,8 @@
       "record": "Rekam",
       "yourParts": "Bagian-bagian Anda sudah direkam, belum diterbitkan.",
       "someParts": "Beberapa bagian sudah direkam, belum diterbitkan.",
-      "recordHint": "Ceritakan dalam bahasa Anda. Alkitab, kata kunci, dan catatan ada di dekat Anda selama merekam.",
-      "recordHintAsked": "{{asked}}. Ceritakan dalam bahasa Anda. Alkitab, kata kunci, dan catatan ada di dekat Anda selama merekam.",
+      "recordHint": "Ceritakan dalam bahasa Anda.",
+      "recordHintAsked": "{{asked}}. Ceritakan dalam bahasa Anda.",
       "asked": {
         "youAskedYou": "Anda meminta diri sendiri",
         "youAskedName": "Anda meminta {{name}}",
@@ -5682,7 +5682,6 @@
       "btNote": "Catatan penerjemah balik",
       "theirNote": "Catatan mereka",
       "playTheirNote": "Putar catatan mereka",
-      "withheld": "Catatan dan pemeriksaan sebelumnya disembunyikan untuk {{kind}}, agar apa yang Anda dengar tidak dipengaruhi pendapat orang lain. Semuanya tetap ada di riwayat.",
       "recordings_other": "{{count, number}} rekaman",
       "review": "Pemeriksaan",
       "playRecorded": "Putar apa yang mereka rekam",
@@ -6007,7 +6006,6 @@
     "listenTo": "Dengarkan Versi {{n}}",
     "madeFrom": "Bagian-bagian Anda dibuat dari Versi {{n}}",
     "madeFromBody": "Versi {{n}} sudah keluar, dan menerbitkan akan menyertakan {{what}} Anda dengan versi itu. Dengarkan lagi dan ulangi bagian yang berubah.",
-    "sayEachPart": "Ucapkan setiap bagian dalam {{into}}, dengan kata-kata Anda sendiri. Catatan dan pemeriksaan sebelumnya sengaja disembunyikan, agar hanya rekaman yang memengaruhi apa yang Anda ucapkan.",
     "openYour": "Buka {{what}} Anda",
     "yourWhat": "{{what}} Anda, {{said}}",
     "loadingParts": "Memuat bagian-bagian Anda…",
@@ -6043,7 +6041,10 @@
     "noRecording": "Belum ada rekaman untuk diterjemahkan balik.",
     "openVersionHelp": "Mengembalikan pemutar versi ke setengah layar.",
     "openPartsHelp": "Mengembalikan bagian-bagian Anda ke setengah layar.",
-    "deletePartHelp": "Menghapus apa yang Anda ucapkan untuk bagian ini. Anda bisa mengurungkannya segera sesudahnya."
+    "deletePartHelp": "Menghapus apa yang Anda ucapkan untuk bagian ini. Anda bisa mengurungkannya segera sesudahnya.",
+    "chips": {
+      "version": "Versi {{n}}"
+    }
   },
   "translate": {
     "missing": "Perikop ini belum ada di perangkat ini.",
@@ -6368,7 +6369,8 @@
       "verseNotesHelp": "Angkanya menunjukkan jumlah catatan pada ayat ini.",
       "verseTermsHelp": "Kata yang bergaris bawah adalah kata kunci: ketuk salah satunya untuk membukanya.",
       "verseTermsMarkedHelp": "Kata yang bergaris bawah adalah kata kunci.",
-      "verseTiedHelp": "Centang setelah kata kunci berarti kata itu dikaitkan dengan draf Anda."
+      "verseTiedHelp": "Centang setelah kata kunci berarti kata itu dikaitkan dengan draf Anda.",
+      "verseDotHelp": "Memutar Alkitab dari ayat ini."
     },
     "keyWords": {
       "none": "Belum ada kata kunci dalam perikop ini.",
@@ -6755,7 +6757,33 @@
     "helpOnHelp": "Ditautkan: pemeriksa dapat membukanya pada pemeriksaan ini. Ketuk untuk melepas tautan.",
     "helpOffHelp": "Ketuk agar pemeriksa dapat membukanya pada pemeriksaan ini.",
     "writeNoteHelp": "Tulis catatan baru, yang ditautkan ke pemeriksaan ini.",
-    "removeCheckHelp": "Mengeluarkan pemeriksaan ini dari tahap-tahap yang dilalui perikop."
+    "removeCheckHelp": "Mengeluarkan pemeriksaan ini dari tahap-tahap yang dilalui perikop.",
+    "recording": "Merekam",
+    "openRecordHelp": "Membuka apa yang ditampilkan perekam.",
+    "shows": {
+      "title": "Di layar mereka",
+      "bibleAudio": "Dengar Alkitab",
+      "bibleText": "Baca Alkitab",
+      "guideAudio": "Dengar panduan",
+      "guideText": "Baca panduan",
+      "terms": "Kata kunci",
+      "notes": "Catatan",
+      "earlier": "Versi sebelumnya",
+      "short": {
+        "bibleAudio": "Audio Alkitab",
+        "bibleText": "Teks Alkitab",
+        "guideAudio": "Audio panduan",
+        "guideText": "Teks panduan",
+        "terms": "Kata kunci",
+        "notes": "Catatan",
+        "earlier": "Versi sebelumnya"
+      },
+      "allHidden": "Semua disembunyikan",
+      "onHelp": "Ada di layar mereka. Ketuk untuk menyembunyikan.",
+      "offHelp": "Disembunyikan dari mereka. Ketuk untuk menampilkan.",
+      "shownToast": "{{what}} ditampilkan di {{check}}",
+      "hiddenToast": "{{what}} disembunyikan di {{check}}"
+    }
   },
   "lostFiles": {
     "title": "Audio hilang",

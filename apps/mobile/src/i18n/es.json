@@ -3848,8 +3848,8 @@
       "record": "Grabar",
       "yourParts": "Tus partes están grabadas, pero todavía no se publicaron.",
       "someParts": "Algunas partes están grabadas, pero todavía no se publicaron.",
-      "recordHint": "Cuéntalo en tu idioma. La Biblia, las palabras clave y las notas están a tu lado mientras grabas.",
-      "recordHintAsked": "{{asked}}. Cuéntalo en tu idioma. La Biblia, las palabras clave y las notas están a tu lado mientras grabas.",
+      "recordHint": "Cuéntalo en tu idioma.",
+      "recordHintAsked": "{{asked}}. Cuéntalo en tu idioma.",
       "asked": {
         "youAskedYou": "Te lo pediste a ti",
         "youAskedName": "Se lo pediste a {{name}}",
@@ -6176,7 +6176,6 @@
       "btNote": "Nota del retrotraductor",
       "theirNote": "Su nota",
       "playTheirNote": "Reproducir su nota",
-      "withheld": "Las notas y las revisiones anteriores están ocultas para la {{kind}}, para que lo que escuchas no dependa de lo que dijeron otros. Siguen en el registro.",
       "recordings_one": "{{count, number}} grabación",
       "recordings_many": "{{count, number}} grabaciones",
       "recordings_other": "{{count, number}} grabaciones",
@@ -6523,7 +6522,6 @@
     "listenTo": "Escuchar la versión {{n}}",
     "madeFrom": "Tus partes se hicieron a partir de la versión {{n}}",
     "madeFromBody": "Ya salió la versión {{n}}, y al publicar, tu {{what}} queda con ella. Vuelve a escuchar y rehaz cualquier parte que haya cambiado.",
-    "sayEachPart": "Di cada parte en {{into}}, con tus propias palabras. Las notas y las verificaciones anteriores están ocultas a propósito, para que solo la grabación influya en lo que dices.",
     "openYour": "Abrir tu {{what}}",
     "yourWhat": "Tu {{what}}, {{said}}",
     "loadingParts": "Cargando tus partes…",
@@ -6567,7 +6565,10 @@
     "noRecording": "Todavía no hay ninguna grabación para retrotraducir.",
     "openVersionHelp": "Vuelve a poner el reproductor de la versión en media pantalla.",
     "openPartsHelp": "Vuelve a poner tus partes en media pantalla.",
-    "deletePartHelp": "Elimina lo que dijiste para esta parte. Puedes deshacerlo justo después."
+    "deletePartHelp": "Elimina lo que dijiste para esta parte. Puedes deshacerlo justo después.",
+    "chips": {
+      "version": "Versión {{n}}"
+    }
   },
   "translate": {
     "missing": "Este pasaje todavía no está en este dispositivo.",
@@ -6930,7 +6931,8 @@
       "verseNotesHelp": "El número cuenta las notas de este versículo.",
       "verseTermsHelp": "Las palabras subrayadas son palabras clave: toca una para abrirla.",
       "verseTermsMarkedHelp": "Las palabras subrayadas son palabras clave.",
-      "verseTiedHelp": "Una marca después de una palabra clave significa que está ligada a tu borrador."
+      "verseTiedHelp": "Una marca después de una palabra clave significa que está ligada a tu borrador.",
+      "verseDotHelp": "Reproduce la Biblia desde este versículo."
     },
     "keyWords": {
       "none": "Todavía no hay palabras clave en este pasaje.",
@@ -7347,7 +7349,33 @@
     "helpOnHelp": "Vinculado: los revisores pueden abrirlo en esta verificación. Toca para desvincularlo.",
     "helpOffHelp": "Toca para que los revisores puedan abrirlo en esta verificación.",
     "writeNoteHelp": "Escribe una nota nueva, vinculada a esta verificación.",
-    "removeCheckHelp": "Quita esta verificación de los pasos por los que pasan los pasajes."
+    "removeCheckHelp": "Quita esta verificación de los pasos por los que pasan los pasajes.",
+    "recording": "Grabación",
+    "openRecordHelp": "Abre lo que muestra la grabadora.",
+    "shows": {
+      "title": "En su pantalla",
+      "bibleAudio": "Escuchar la Biblia",
+      "bibleText": "Leer la Biblia",
+      "guideAudio": "Escuchar la guía",
+      "guideText": "Leer la guía",
+      "terms": "Palabras clave",
+      "notes": "Notas",
+      "earlier": "Versiones anteriores",
+      "short": {
+        "bibleAudio": "Audio de la Biblia",
+        "bibleText": "Texto de la Biblia",
+        "guideAudio": "Audio de la guía",
+        "guideText": "Texto de la guía",
+        "terms": "Palabras clave",
+        "notes": "Notas",
+        "earlier": "Versiones anteriores"
+      },
+      "allHidden": "Todo oculto",
+      "onHelp": "Está en su pantalla. Toca para ocultarlo.",
+      "offHelp": "Está oculto para ellos. Toca para mostrarlo.",
+      "shownToast": "{{what}}: se muestra en {{check}}",
+      "hiddenToast": "{{what}}: se oculta en {{check}}"
+    }
   },
   "lostFiles": {
     "title": "Falta audio",

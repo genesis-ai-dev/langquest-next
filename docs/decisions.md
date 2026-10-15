@@ -4105,3 +4105,46 @@ publishes on approval, per language), reviewers need their own accounts
 (then tie EveryBible sign-in to a LangQuest review link or role), or the
 change feed and webhooks prove too slow for live listening (then push from
 the organization's Durable Object directly).
+
+## 110. Each step says what is on the screen of whoever does it, the recording too, with hearing and reading apart
+
+Date: 2026-10-15 · By: Caleb Koster · Status: accepted
+
+Reason: Spoken (2026-10-15) does not want translators reading while they
+record: they liked that the Bible's text can be folded away, but worry that
+if it is there at all it shapes the draft, in FIA recordings too. Caleb
+asked that admins control what is available at each step of the review,
+including the first recording and recording a back translation (LAN-81).
+Before this, a language chose its Bibles and guides for every step at once
+(decision 62), a check could only add helps (decision 91), the recorder
+always showed a Bible's words (falling back to the English the app
+carries), and only Back Translation hid anything, through the kind's
+`withholdsContext`, which no screen could set. So a step now says what it
+shows: `v1.CheckShowsSet { kindId, what, shown }` in the language stream, a
+register per (kind, what), where `what` is one of hearing the Bible,
+reading the Bible, hearing the guide, reading the guide, key words, notes
+and earlier versions, and `kindId` is a check or `record` for recording a
+version (`core/checks.ts` `checkShows`, `RECORD_STEP`). Without a register
+everything shows, as before, except at a kind that withholds context,
+where nothing does, so Back Translation looks as it did. Setting up a step
+is managing the flow (Manage flows). Screens: the language's Checks list
+starts with the recording as a card that opens like a check, and every
+card says what its step hides (or, when it hides most, what it shows) by
+an eye; the recording and each check have "On their screen", one switch
+per thing, hearing and reading as separate switches. The recorder, the
+study (the drafting team's preparation) and back translation follow their
+step: the Bible heard and not read is its player and the verse numbers,
+only Bibles with audio are offered and Other Bibles goes; the guide heard
+and not read is its spoken step; a check's Background has only what the
+check shows and is not there when it shows nothing. Answering feedback
+keeps Earlier, where the feedback is. A check's own helps always show,
+being chosen for it. The sentences that explained what was hidden are gone
+(the review's notice, back translation's line, the passage's "beside you").
+Not built: a ready-made flow saying what its steps show (Spoken's own flow
+could start with reading off), and translators' own Bible exploring
+outside a passage.
+
+Reverse if: teams want the same settings on every language of an
+organization or cluster; then they move to the organization's
+recommendations level (decision 62) with the language's register on top,
+with no change to what a step reads.

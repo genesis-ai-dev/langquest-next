@@ -150,6 +150,7 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.ReviewTeamKindSet': 'manage_teams',
   'v1.FlowStepLinksSet': 'manage_flows',
   'v1.CheckHelpSet': 'manage_flows',
+  'v1.CheckShowsSet': 'manage_flows',
   // Whoever runs the work says where it went out.
   'v1.VersionReleased': 'assign_work',
   'v1.RecordingAdded': 'translate',

@@ -193,6 +193,7 @@ when the databases were reset (decision 63); nothing older survives.
 | `v1.ReviewRecorded` | reviewId, takeId, kindId, outcome (looks_good, needs_changes, recorded), via (app, link, logged), comment?, commentBlobHash?, answers?, skipped?, people?, place?, givenBy?, requestId?, artifactHashes? | grow-only (earliest wins) |
 | `v1.FlowStepLinksSet` | stepId, allowed | register per step; may the step be reviewed by a shared link that counts (default: any step but a checkpoint; decision 70) |
 | `v1.CheckHelpSet` | kindId, itemId or materialId, linked | register per (kind, help); a note, guide or Bible linked to a check, which its reviewers see first (decision 91) |
+| `v1.CheckShowsSet` | kindId (a check, or `record`), what (bibleAudio, bibleText, guideAudio, guideText, terms, notes, earlier), shown | register per (kind, what); what a step puts on the screen of whoever does it, everything by default, nothing at a kind that withholds context (decision 110) |
 | `v1.VersionReleased` | takeId, channel, live, url? | register per (version, channel); where a version is published, a fact not a verdict (decision 72) |
 | `v1.DepartureRecorded` / `v1.DepartureUndone` | departureId, unitId, type (skip, override, keep), kindId? / stepId? / reviewId?, reason, reasonBlobHash? / departureId | grow-only / add-wins undo |
 | `v1.RequestMade` / `v1.RequestWithdrawn` | requestId, unitId, what (record, review), kindId?, exactly one of profileId, guest, teamId, dueDate?, note?, noteBlobHash?, questions? / requestId | grow-only / add-wins; done is derived from the record |

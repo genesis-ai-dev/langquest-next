@@ -3730,8 +3730,8 @@
       "record": "Rekodi",
       "yourParts": "Sehemu zako zimerekodiwa, bado hazijachapishwa.",
       "someParts": "Baadhi ya sehemu zimerekodiwa, bado hazijachapishwa.",
-      "recordHint": "Kisimulie katika lugha yako. Biblia, maneno muhimu na madokezo viko kando yako unaporekodi.",
-      "recordHintAsked": "{{asked}}. Kisimulie katika lugha yako. Biblia, maneno muhimu na madokezo viko kando yako unaporekodi.",
+      "recordHint": "Kisimulie katika lugha yako.",
+      "recordHintAsked": "{{asked}}. Kisimulie katika lugha yako.",
       "asked": {
         "youAskedYou": "Ulijiomba mwenyewe",
         "youAskedName": "Ulimwomba {{name}}",
@@ -5929,7 +5929,6 @@
       "btNote": "Dokezo la mtafsiri wa tafsiri rejeshi",
       "theirNote": "Dokezo lao",
       "playTheirNote": "Cheza dokezo lao",
-      "withheld": "Madokezo na ukaguzi wa awali umefichwa kwa {{kind}}, ili unachosikia kisiathiriwe na yale wengine walisema. Bado viko kwenye kumbukumbu.",
       "recordings_one": "Rekodi {{count, number}}",
       "recordings_other": "Rekodi {{count, number}}",
       "review": "Ukaguzi",
@@ -6265,7 +6264,6 @@
     "listenTo": "Sikiliza Toleo la {{n}}",
     "madeFrom": "Sehemu zako zilitengenezwa kutoka Toleo la {{n}}",
     "madeFromBody": "Toleo la {{n}} limetoka sasa, na kuchapisha kunaweka {{what}} yako pamoja nalo. Sikiliza tena na urudie sehemu yoyote iliyobadilika.",
-    "sayEachPart": "Sema kila sehemu kwa {{into}}, kwa maneno yako mwenyewe. Madokezo na ukaguzi wa awali umefichwa makusudi, ili rekodi pekee iongoze unachosema.",
     "openYour": "Fungua {{what}} yako",
     "yourWhat": "{{what}} yako, {{said}}",
     "loadingParts": "Inapakia sehemu zako…",
@@ -6305,7 +6303,10 @@
     "noRecording": "Bado hakuna rekodi ya kufanyia tafsiri rejeshi.",
     "openVersionHelp": "Hurudisha kicheza sauti cha toleo kwenye nusu ya skrini.",
     "openPartsHelp": "Hurudisha sehemu zako kwenye nusu ya skrini.",
-    "deletePartHelp": "Hufuta ulichosema kwa sehemu hii. Unaweza kutendua mara baada ya hapo."
+    "deletePartHelp": "Hufuta ulichosema kwa sehemu hii. Unaweza kutendua mara baada ya hapo.",
+    "chips": {
+      "version": "Toleo la {{n}}"
+    }
   },
   "translate": {
     "missing": "Kifungu hiki bado hakipo kwenye kifaa hiki.",
@@ -6649,7 +6650,8 @@
       "verseNotesHelp": "Namba inahesabu madokezo kwenye mstari huu.",
       "verseTermsHelp": "Maneno yaliyopigiwa mstari ni maneno muhimu: gusa moja ili kulifungua.",
       "verseTermsMarkedHelp": "Maneno yaliyopigiwa mstari ni maneno muhimu.",
-      "verseTiedHelp": "Alama ya vema baada ya neno muhimu inamaanisha limeunganishwa na rasimu yako."
+      "verseTiedHelp": "Alama ya vema baada ya neno muhimu inamaanisha limeunganishwa na rasimu yako.",
+      "verseDotHelp": "Inacheza Biblia kuanzia mstari huu."
     },
     "keyWords": {
       "none": "Bado hakuna maneno muhimu katika kifungu hiki.",
@@ -7051,7 +7053,33 @@
     "helpOnHelp": "Kimeunganishwa: wakaguzi wanaweza kukifungua katika ukaguzi huu. Gusa ili kuondoa kiungo.",
     "helpOffHelp": "Gusa ili wakaguzi waweze kukifungua katika ukaguzi huu.",
     "writeNoteHelp": "Andika dokezo jipya, lililounganishwa na ukaguzi huu.",
-    "removeCheckHelp": "Huondoa ukaguzi huu kwenye hatua ambazo vifungu hupitia."
+    "removeCheckHelp": "Huondoa ukaguzi huu kwenye hatua ambazo vifungu hupitia.",
+    "recording": "Kurekodi",
+    "openRecordHelp": "Inafungua kile ambacho kinasa sauti kinaonyesha.",
+    "shows": {
+      "title": "Kwenye skrini yao",
+      "bibleAudio": "Kusikia Biblia",
+      "bibleText": "Kusoma Biblia",
+      "guideAudio": "Kusikia mwongozo",
+      "guideText": "Kusoma mwongozo",
+      "terms": "Maneno muhimu",
+      "notes": "Madokezo",
+      "earlier": "Matoleo ya awali",
+      "short": {
+        "bibleAudio": "Sauti ya Biblia",
+        "bibleText": "Maandishi ya Biblia",
+        "guideAudio": "Sauti ya mwongozo",
+        "guideText": "Maandishi ya mwongozo",
+        "terms": "Maneno muhimu",
+        "notes": "Madokezo",
+        "earlier": "Matoleo ya awali"
+      },
+      "allHidden": "Vyote vimefichwa",
+      "onHelp": "Kiko kwenye skrini yao. Gusa ili kukificha.",
+      "offHelp": "Kimefichwa kwao. Gusa ili kukionyesha.",
+      "shownToast": "{{what}}: kinaonyeshwa kwenye {{check}}",
+      "hiddenToast": "{{what}}: kimefichwa kwenye {{check}}"
+    }
   },
   "lostFiles": {
     "title": "Sauti imepotea",

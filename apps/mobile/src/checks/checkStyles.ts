@@ -5,6 +5,7 @@ import { C, radius, space } from '../ui/theme';
 export const styles = StyleSheet.create({
   start: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.sm, paddingHorizontal: space.xs },
   mic: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' },
+  recordCard: { gap: space.md, paddingLeft: space.md, borderColor: C.soft },
   card: { flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: 68, paddingVertical: space.md, paddingRight: space.md, borderRadius: 18, backgroundColor: C.card, borderWidth: 1.5, borderColor: C.border },
   grip: { width: 40, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center', minHeight: 48 },
   body: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 48 },

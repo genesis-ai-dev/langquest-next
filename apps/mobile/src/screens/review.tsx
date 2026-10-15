@@ -21,7 +21,7 @@
 // keyTermLinksFor) and written with core recordReview / produceContent. A
 // review is grow-only, so sending it offers no Undo.
 import {
-  commands, derivePassage, keyTermLinksFor, languageName, questionsForKind,
+  checkShows, commands, derivePassage, keyTermLinksFor, languageName, questionsForKind, SHOWN,
   type Card as AudioCard, type EventSpec, type KindDef, type PassageNote
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -49,7 +49,7 @@ import {
   type Answers, type Skips, type StageId, type VoiceAnswer
 } from '../reviewing/capture';
 import {
-  AlsoCoveredPicker, AnswerInput, Block, CompareCard, PeopleCounter, RequestBanner, WithheldNotice
+  AlsoCoveredPicker, AnswerInput, Block, CompareCard, PeopleCounter, RequestBanner
 } from '../reviewing/parts';
 import { contractsFor } from '../shell/screenContracts';
 import { AgainBtn, BigMic, DashedRow, PlayChip, SpeakBtn } from '../reviewing/reviewVoice';
@@ -156,12 +156,15 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     [v?.p, kindId, actorId, ctx.params, logged]);
   const questions = useMemo(() => v ? questionsForKind(v.state, kindId, request) : [], [v?.state, kindId, request]);
   const guide = useStudyGuide(ctx, v?.unitId);
-  const context = useMemo(() => v && version && kind && !kind.withholdsContext ? backgroundFor(ctx, v, kindId, version.takeId, guide) : null,
+  // What the check shows (decisions.md 110): Background has only that, and is not there when it shows nothing.
+  const shows = useMemo(() => (v ? checkShows(v.state, kindId) : null), [v?.state, kindId]);
+  const anyShown = !!shows && SHOWN.some((w) => shows[w]);
+  const context = useMemo(() => v && version && kind ? backgroundFor(ctx, v, kindId, version.takeId, guide) : null,
     [v?.state, v?.p, kindId, version?.takeId, kind, guide]);
   const all = useMemo(() => v && logged ? recordedPassages(v.state) : [], [v?.state, logged]);
   // What the Background offered and what was opened go on the record with the review (docs/reference-material.md).
   const usage = useUsage();
-  const shown = !!context;
+  const shown = !!context && anyShown;
   useOfferedSources(ctx, shown ? v?.unitId : undefined, shown ? v?.languageId : undefined, shown ? usage : undefined);
   const guideItem = guide ? guide.id.split('~')[0] ?? guide.id : null;
   useEffect(() => {
@@ -355,7 +358,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
         </Card>
       ) : null}
       {context?.compare ? <CompareCard ctx={ctx} review={context.compare} kind={v.kind(context.compare.kindId)} version={version} /> : null}
-      {context !== null && helps.length ? (
+      {helps.length ? (
         <>
           <SectionLabel label={t('checks.forCheck', { check })} />
           <Group>
@@ -365,12 +368,12 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           </Group>
         </>
       ) : null}
-      {context === null ? <WithheldNotice kind={kind} /> : (
+      {context && anyShown ? (
         <Group>
           <Row leading={<Ico name="layers" size={28} color={C.primary} />} label={t('review.parts.background')} sub={backgroundLine(context, { id: version.by, name: translator, you: mine })}
             help={t('review.screen.backgroundHelp')} onPress={() => setSheet('background')} last />
         </Group>
-      )}
+      ) : null}
       <DashedRow icon="people" label={whoTitle} help={!logged ? t('review.screen.whoHelp') : group ? t('review.screen.howManyHelp') : t('review.screen.whoReviewedHelp')}
         {...(whoLine ? { sub: whoLine, done: true } : {})} right={whoLine ? t('review.shared.change') : t('review.shared.optional')} onPress={() => setSheet('who')} />
       {logged ? (
@@ -509,8 +512,8 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     <Screen key={`${stage}:${qi}:${why}`} footer={footer} header={header} bodyStyle={{ flexGrow: 1 }}>
       {why ? whyBody : stage === 'listen' ? listen : stage === 'questions' ? question : decide}
 
-      {sheet === 'background' && context ? (
-        <BackgroundSheet ctx={ctx} v={v} takeId={version.takeId} translator={translator} translatorIsYou={mine} data={context} usage={usage} kind={v.kind}
+      {sheet === 'background' && context && shows ? (
+        <BackgroundSheet ctx={ctx} v={v} takeId={version.takeId} translator={translator} translatorIsYou={mine} data={context} usage={usage} kind={v.kind} shows={shows}
           {...(bible ? { bible } : {})}
           onClose={() => { setSheet(null); setBible(null); }}
           onOpenTerm={(termId) => afterSheet(() => ctx.go('key_term_detail', { termId, unitId: v.unitId, languageId: v.languageId }))}

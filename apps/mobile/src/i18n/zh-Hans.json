@@ -3612,8 +3612,8 @@
       "record": "录音",
       "yourParts": "你的录音片段已录好，还没有发布。",
       "someParts": "有些录音片段已录好，还没有发布。",
-      "recordHint": "用你的语言讲出来。录音时，圣经、关键词和备注就在你旁边。",
-      "recordHintAsked": "{{asked}}。用你的语言讲出来。录音时，圣经、关键词和备注就在你旁边。",
+      "recordHint": "用你的语言讲出来。",
+      "recordHintAsked": "{{asked}}。用你的语言讲出来。",
       "asked": {
         "youAskedYou": "你请了你自己",
         "youAskedName": "你请了{{name}}",
@@ -5682,7 +5682,6 @@
       "btNote": "回译人的备注",
       "theirNote": "他们的备注",
       "playTheirNote": "播放他们的备注",
-      "withheld": "进行{{kind}}时，备注和之前的审核会被隐藏，这样你听到的内容就不会受到别人说法的影响。它们仍然保留在记录中。",
       "recordings_other": "{{count, number}} 段录音",
       "review": "审核",
       "playRecorded": "播放他们录的内容",
@@ -6007,7 +6006,6 @@
     "listenTo": "听第 {{n}} 版",
     "madeFrom": "你的各段是根据第 {{n}} 版做的",
     "madeFromBody": "现在已经有第 {{n}} 版了，发布后你的{{what}}会和它放在一起。请再听一遍，把有变化的段重新做一遍。",
-    "sayEachPart": "用{{into}}和你自己的话把每一段说出来。备注和之前的检查是特意隐藏的，这样只有录音会影响你说的内容。",
     "openYour": "打开你的{{what}}",
     "yourWhat": "你的{{what}}，{{said}}",
     "loadingParts": "正在加载你的各段……",
@@ -6043,7 +6041,10 @@
     "noRecording": "还没有可以回译的录音。",
     "openVersionHelp": "把版本的播放器恢复到半个屏幕。",
     "openPartsHelp": "把你的各段恢复到半个屏幕。",
-    "deletePartHelp": "删除你为这一段说的内容。删除后可以马上撤销。"
+    "deletePartHelp": "删除你为这一段说的内容。删除后可以马上撤销。",
+    "chips": {
+      "version": "第 {{n}} 版"
+    }
   },
   "translate": {
     "missing": "这个经段还不在本设备上。",
@@ -6368,7 +6369,8 @@
       "verseNotesHelp": "数字表示这一节有多少条备注。",
       "verseTermsHelp": "带下划线的是关键词：点按可以打开。",
       "verseTermsMarkedHelp": "带下划线的是关键词。",
-      "verseTiedHelp": "关键词后面有勾，表示它已关联到你的草稿。"
+      "verseTiedHelp": "关键词后面有勾，表示它已关联到你的草稿。",
+      "verseDotHelp": "从这一节开始播放圣经。"
     },
     "keyWords": {
       "none": "这个经段还没有关键词。",
@@ -6755,7 +6757,33 @@
     "helpOnHelp": "已链接：审核人可以在这项检查中打开它。点按可以取消链接。",
     "helpOffHelp": "点按后，审核人可以在这项检查中打开它。",
     "writeNoteHelp": "写一条新注释，链接到这项检查。",
-    "removeCheckHelp": "把这项检查从经段要经过的步骤中移除。"
+    "removeCheckHelp": "把这项检查从经段要经过的步骤中移除。",
+    "recording": "录音",
+    "openRecordHelp": "打开录音器显示的内容。",
+    "shows": {
+      "title": "在他们的屏幕上",
+      "bibleAudio": "听圣经",
+      "bibleText": "读圣经",
+      "guideAudio": "听指南",
+      "guideText": "读指南",
+      "terms": "关键词",
+      "notes": "备注",
+      "earlier": "之前的版本",
+      "short": {
+        "bibleAudio": "圣经音频",
+        "bibleText": "圣经文字",
+        "guideAudio": "指南音频",
+        "guideText": "指南文字",
+        "terms": "关键词",
+        "notes": "备注",
+        "earlier": "之前的版本"
+      },
+      "allHidden": "全部隐藏",
+      "onHelp": "在他们的屏幕上。点按可隐藏。",
+      "offHelp": "对他们隐藏。点按可显示。",
+      "shownToast": "{{check}}显示{{what}}",
+      "hiddenToast": "{{check}}隐藏{{what}}"
+    }
   },
   "lostFiles": {
     "title": "音频丢失了",

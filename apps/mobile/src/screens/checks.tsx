@@ -4,7 +4,7 @@
 // 'language'`, or New language's draft with `draft: '1'`); `CheckEditor` is
 // one check. Every change saves as it is made, with Undo, like the rest of
 // the app's lists.
-import { checkHelps, checkHelpSpecs, checkPeople, checkPeopleSpecs, commands, deriveFlow, formatQuestionField, languageName, languagePeople, materialsFor, membershipsOf, questionsForKind, scopeCovers, type CheckHelp, type EventSpec, type LanguageState, type OrgState, type QuestionSpec } from '@langquest-next/core';
+import { checkHelps, checkHelpSpecs, checkPeople, checkPeopleSpecs, commands, deriveFlow, formatQuestionField, languageName, languagePeople, materialsFor, membershipsOf, questionsForKind, RECORD_STEP, scopeCovers, type CheckHelp, type EventSpec, type LanguageState, type OrgState, type QuestionSpec } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
@@ -29,6 +29,7 @@ import { saveRows } from '../checks/checkActions';
 import { styles } from '../checks/checkStyles';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
+import { ShowsSection } from '../checks/ShowsSection';
 
 // ---- shared parts ------------------------------------------------------------------------
 
@@ -75,7 +76,23 @@ function RemoveQuestion(props: { onPress: () => void }) {
   );
 }
 
+/** Recording a version, as a step: what the recorder shows (decisions.md 110). */
+function RecordEditor({ ctx }: { ctx: Ctx }) {
+  const language = languageName(ctx.org.state, ctx.language.languageId);
+  const name = t('checks.recording');
+  return (
+    <Screen header={<Header title={name} sub={language} onBack={ctx.back} />}>
+      <ShowsSection ctx={ctx} kindId={RECORD_STEP} name={name} canEdit={ctx.session.can('manage_flows')} />
+    </Screen>
+  );
+}
+
 export function CheckEditor(ctx: Ctx) {
+  if (ctx.params['kindId'] === RECORD_STEP) return <RecordEditor ctx={ctx} />;
+  return <OneCheck ctx={ctx} />;
+}
+
+function OneCheck({ ctx }: { ctx: Ctx }) {
   const state = ctx.language.state;
   const org = ctx.org.state;
   const languageId = ctx.language.languageId;
@@ -214,6 +231,8 @@ export function CheckEditor(ctx: Ctx) {
         {questions.length === 0 && !mayQuestions ? <Row label={t('checks.noQuestions')} last /> : null}
         {mayQuestions ? <Row icon="plus" label={t('checks.addQuestion')} help={t('checks.addQuestionHelp')} onPress={() => setQuestion({ materialId: null, fieldId: null, text: '', type: 'yesno', required: false })} last /> : null}
       </Group>
+
+      <ShowsSection ctx={ctx} kindId={kindId} name={name} canEdit={mayFlows} />
 
       <SectionLabel label={t('checks.helps')} />
       <Group>

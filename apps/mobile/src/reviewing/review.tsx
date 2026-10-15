@@ -8,7 +8,7 @@
 // the passage's verses with the team's notes marked in amber with their
 // author. Built from kit.tsx and theme tokens; every press goes through the
 // kit or useHelpSpot (with its HelpBadge) so help mode explains it.
-import { commands, usedOn, type KindDef, type PassageNote, type SourcedQuestion } from '@langquest-next/core';
+import { commands, usedOn, type KindDef, type PassageNote, type Shows, type SourcedQuestion } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -30,7 +30,8 @@ import { Authored, ReportFlag } from '../moderation/reportSheet';
 import { recordTarget } from '../moderation/reportTargets';
 import { clockMs, questionSource, YES_NO, yesNoLabel, type Stage, type StageId } from './capture';
 import { TeamStudyPart } from './parts';
-import { EarlierPane } from '../helps/reference';
+import { EarlierPane, VerseDot, VerseDots } from '../helps/reference';
+import { offersFor } from '../sources/model';
 import { lift } from '../ui/shadow';
 import { usePassagePlayer } from '../sources/usePassagePlayer';
 import type { Usage } from '../sources/useUsage';
@@ -167,16 +168,20 @@ export function BackgroundSheet(props: {
   onMoreBibles: () => void;
   /** A Bible to open on, from the check's helps (decision 91). */
   bible?: string;
+  /** What the check shows (decisions.md 110); a Bible from its helps opens whatever it says. */
+  shows: Shows;
 }) {
-  const { ctx, v, data } = props;
-  const [tab, setTab] = useState<Tab>('passage');
+  const { ctx, v, data, shows } = props;
+  const bibleShown = shows.bibleAudio || shows.bibleText || !!props.bible;
   const chips: { id: Tab; label: string; help: string; count?: number }[] = [
-    { id: 'passage', label: t('review.simple.chips.passage'), help: t('review.simple.chips.passageHelp') },
-    ...(data.study ? [{ id: 'guide' as const, label: t('review.simple.chips.guide'), help: t('review.simple.chips.guideHelp') }] : []),
-    { id: 'notes', label: t('review.simple.chips.notes'), help: t('review.simple.chips.notesHelp'), count: data.notes.length },
-    { id: 'terms', label: t('review.simple.chips.terms'), help: t('review.simple.chips.termsHelp'), count: data.terms.length },
-    { id: 'earlier', label: t('review.simple.chips.earlier'), help: t('review.simple.chips.earlierHelp'), count: v.p.versions.length + data.earlier.length }
+    ...(bibleShown ? [{ id: 'passage' as const, label: t('review.simple.chips.passage'), help: t('review.simple.chips.passageHelp') }] : []),
+    ...(data.study && (shows.guideAudio || shows.guideText) ? [{ id: 'guide' as const, label: t('review.simple.chips.guide'), help: t('review.simple.chips.guideHelp') }] : []),
+    ...(shows.notes ? [{ id: 'notes' as const, label: t('review.simple.chips.notes'), help: t('review.simple.chips.notesHelp'), count: data.notes.length }] : []),
+    ...(shows.terms ? [{ id: 'terms' as const, label: t('review.simple.chips.terms'), help: t('review.simple.chips.termsHelp'), count: data.terms.length }] : []),
+    ...(shows.earlier ? [{ id: 'earlier' as const, label: t('review.simple.chips.earlier'), help: t('review.simple.chips.earlierHelp'), count: v.p.versions.length + data.earlier.length }] : [])
   ];
+  const [tabState, setTab] = useState<Tab>('passage');
+  const tab = chips.some((c) => c.id === tabState) ? tabState : chips[0]?.id ?? 'passage';
   return (
     <TallSheet title={t('review.parts.background')} onClose={props.onClose}>
       <ChipRow>
@@ -184,6 +189,7 @@ export function BackgroundSheet(props: {
       </ChipRow>
       {tab === 'passage' ? (
         <BiblePassage ctx={ctx} v={v} takeId={props.takeId} translator={props.translator} translatorIsYou={props.translatorIsYou} usage={props.usage} onMoreBibles={props.onMoreBibles}
+          hear={shows.bibleAudio || !!props.bible} read={shows.bibleText || !!props.bible}
           {...(props.bible ? { bible: props.bible } : {})} />
       ) : null}
       {tab === 'guide' && data.study ? (
@@ -227,9 +233,15 @@ export function BackgroundSheet(props: {
 
 // ---- the passage in the Bible the translator used --------------------------------------------
 
-function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; translator: string; translatorIsYou: boolean; usage: Usage; onMoreBibles: () => void; bible?: string }) {
-  const { ctx, v, usage } = props;
-  const passage = useSources(ctx, v.unitId, v.languageId);
+function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; translator: string; translatorIsYou: boolean; usage: Usage; onMoreBibles: () => void; bible?: string;
+  /** What the check shows (decisions.md 110): the player when heard, the words when read. */ hear: boolean; read: boolean }) {
+  const { ctx, v, usage, hear, read } = props;
+  const all = useSources(ctx, v.unitId, v.languageId);
+  // Heard and not read: only Bibles with audio; read and not heard: only Bibles with text.
+  const only = hear && read ? null : read ? 'text' : 'audio';
+  const book = all.range?.book;
+  const options = useMemo(() => (only && book ? all.options.filter((o) => offersFor(o, book, o.kind === 'builtin')[only]) : all.options), [all.options, only, book]);
+  const passage = useMemo(() => (options === all.options ? all : { ...all, options }), [all, options]);
   // The Bible the translator played or chose while recording this version (v1.ReferencesUsed).
   const used = useMemo(() => usedOn(v.state, { takeId: props.takeId }).filter((u) => u.kind === 'source'), [v.state, props.takeId]);
   const theirs = used.find((u) => u.opened && passage.options.some((o) => o.itemId === u.itemId))?.itemId;
@@ -308,10 +320,10 @@ function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; transla
                 right={o.itemId === option?.itemId ? <Ico name="check" size={20} color={C.primary} /> : <View />} help={t('review.simple.bibleRowHelp')}
                 onPress={() => { setChosen(o.itemId); usage.open(o.itemId); setPicking(false); }} />
             ))}
-            <Row icon="plus" label={t('review.simple.moreBibles')} sub={t('review.simple.moreBiblesSub')} onPress={props.onMoreBibles} last />
+            {read ? <Row icon="plus" label={t('review.simple.moreBibles')} sub={t('review.simple.moreBiblesSub')} onPress={props.onMoreBibles} last /> : null}
           </View>
         ) : null}
-        {option ? (
+        {option && hear ? (
           <>
             {/* A bar without words: while help is on it says what it shows (help mode's rule 3). */}
             <HelpInfo label={t('review.simple.trackLabel')} detail={t('review.simple.trackHelp')}>
@@ -354,7 +366,16 @@ function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; transla
         <VerseNote ctx={ctx} v={v} verse={noting.verse} at={noting.at} translation={option?.abbreviation ?? ''} onDone={() => setNoting(null)} />
       ) : null}
 
-      {option ? (
+      {option && !read ? (
+        src?.rows ? (
+          <VerseDots>
+            {src.rows.map((row) => (
+              <VerseDot key={row.key} row={row} here={player.started && player.current?.key === row.key} notes={(verseNotes.get(row.key) ?? []).length}
+                {...(plan ? { onPress: () => { player.playFrom(row); } } : {})} />
+            ))}
+          </VerseDots>
+        ) : <Text style={[txt.smMuted, styles.empty]}>{src?.loading || !src ? t('common.loading') : src.textProblem}</Text>
+      ) : option ? (
         <View style={{ gap: 2 }}>
           {src?.rows ? src.rows.map((row) => {
             const notes = verseNotes.get(row.key) ?? [];

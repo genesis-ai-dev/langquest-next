@@ -5,6 +5,10 @@ import type { OrgEventPayloads } from './org';
 import type { RecordEvents } from './record';
 import type { ReferenceWorkEvents } from './references';
 
+/** What a step can show (v1.CheckShowsSet): the Bible and the guide heard or read, key words, notes, earlier work. */
+export const SHOWN = ['bibleAudio', 'bibleText', 'guideAudio', 'guideText', 'terms', 'notes', 'earlier'] as const;
+export type ShownWhat = (typeof SHOWN)[number];
+
 /**
  * Event catalog v1. See PLAN.md section 6 and docs/streams-and-languages.md.
  *
@@ -113,6 +117,14 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordE
    * Register per (kind, help).
    */
   'v1.CheckHelpSet': { kindId: string; itemId?: string; materialId?: string; linked: boolean };
+  /**
+   * What a step puts in front of whoever does it (decisions.md 110): the
+   * Bible and the guide, each heard and read separately, key words, notes
+   * and earlier work. `kindId` is a check, or `record` (RECORD_STEP) for
+   * recording a version. Register per (kind, what); without one a step shows
+   * everything, except a kind that withholds context, which shows nothing.
+   */
+  'v1.CheckShowsSet': { kindId: string; what: ShownWhat; shown: boolean };
   /**
    * A distribution channel reports a version live, or taken down
    * (decisions.md 72): "v3 is live in the EL app". A fact, not a verdict.

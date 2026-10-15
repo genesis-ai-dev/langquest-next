@@ -182,6 +182,9 @@ export function buildRecordFixture(): AnyEvent[] {
   emit('dA', 'lead', 'v1.CheckHelpSet', { kindId: 'peer', materialId: 'note-names', linked: true });
   emit('dE', 'lead2', 'v1.CheckHelpSet', { kindId: 'peer', materialId: 'note-names', linked: false });
   emit('dA', 'lead', 'v1.CheckHelpSet', { kindId: 'community', itemId: 'fia-guides', linked: true });
+  emit('dA', 'lead', 'v1.CheckShowsSet', { kindId: 'record', what: 'bibleText', shown: false });
+  emit('dE', 'lead2', 'v1.CheckShowsSet', { kindId: 'record', what: 'bibleText', shown: true });
+  emit('dA', 'lead', 'v1.CheckShowsSet', { kindId: 'bt', what: 'bibleAudio', shown: true });
   emit('dB', 't1', 'v1.ReviewRecorded', { reviewId: 'rv-link', takeId: 'take2', kindId: 'community', outcome: 'looks_good', via: 'link', givenBy: 'Deng', comment: 'Clear.' });
   emit('dA', 'lead', 'v1.VersionReleased', { takeId: 'take2', channel: 'EL app', live: true, url: 'https://el.example/luke1' });
   emit('dE', 'lead2', 'v1.VersionReleased', { takeId: 'take2', channel: 'EL app', live: false });

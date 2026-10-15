@@ -53,8 +53,13 @@ export function BiblePane(props: {
   header?: ReactNode;
   /** Under the text: the passage's own reference recordings. */
   footer?: ReactNode;
+  /** What the step shows (decisions.md 110): the player when heard, the verses' words when read; numbers alone otherwise. */
+  hear?: boolean;
+  read?: boolean;
 }) {
   const { ctx, v, bible } = props;
+  const hear = props.hear ?? true;
+  const read = props.read ?? true;
   const { player, option, src } = bible;
   const [picking, setPicking] = useState(false);
   const [noting, setNoting] = useState<{ verse?: string; at?: string } | null>(null);
@@ -87,17 +92,28 @@ export function BiblePane(props: {
   return (
     <View style={{ gap: space.md }}>
       {props.header}
-      <MiniPlayer title={v.title} sub={bible.line()} playing={player.playing} available={bible.hasAudio && !player.loading} none={!bible.hasAudio && !bible.passage.notOnDevice && !bible.audioAbsent}
-        onToggle={player.toggle} onBack10={() => player.skip(-10)} backDisabled={!player.started}
-        under={many ? (
-          <View style={styles.under}>
-            <BiblePick label={abbr} onPress={() => setPicking(true)} />
-            <Text style={[txt.smMuted, { flex: 1 }]} numberOfLines={1}>{bible.audioAbsent ? t('recording.player.notOnDeviceYet') : bible.time()}</Text>
-          </View>
-        ) : undefined}
-        {...(props.canNote ? { onNote: note } : {})}
-        {...(player.error ? { error: player.error } : {})} />
-      {src?.rows ? (
+      {hear ? (
+        <MiniPlayer title={v.title} sub={bible.line()} playing={player.playing} available={bible.hasAudio && !player.loading} none={!bible.hasAudio && !bible.passage.notOnDevice && !bible.audioAbsent}
+          onToggle={player.toggle} onBack10={() => player.skip(-10)} backDisabled={!player.started}
+          under={many ? (
+            <View style={styles.under}>
+              <BiblePick label={abbr} onPress={() => setPicking(true)} />
+              <Text style={[txt.smMuted, { flex: 1 }]} numberOfLines={1}>{bible.audioAbsent ? t('recording.player.notOnDeviceYet') : bible.time()}</Text>
+            </View>
+          ) : undefined}
+          {...(props.canNote ? { onNote: note } : {})}
+          {...(player.error ? { error: player.error } : {})} />
+      ) : many ? (
+        <View style={styles.under}><BiblePick label={abbr} onPress={() => setPicking(true)} /></View>
+      ) : null}
+      {src?.rows && !read ? (
+        <VerseDots>
+          {src.rows.map((row) => (
+            <VerseDot key={row.key} row={row} here={player.started && player.current?.key === row.key} notes={count(row)}
+              {...(hear && bible.hasAudio && bible.timed ? { onPress: () => tap(row) } : {})} />
+          ))}
+        </VerseDots>
+      ) : src?.rows ? (
         <View style={{ gap: space.xs }}>
           {src.rows.map((row) => {
             const here = player.started && player.current?.key === row.key;
@@ -131,7 +147,7 @@ export function BiblePane(props: {
             : option.sharedBy ? <Text style={txt.xs}>{t('sources.reader.sharedBy', { org: option.sharedBy })}</Text> : null}
           {copyrightLine(src.copyright) ? <Text style={txt.xs}>{t('sources.reader.copyright', { abbr, line: copyrightLine(src.copyright) })}</Text> : null}
           {src.bibleBrain ? <LinkBtn label={t('sources.reader.terms')} style={{ alignSelf: 'flex-start' }} accessibilityLabel={t('sources.reader.termsLabel')} help={t('sources.reader.termsHelp')} onPress={() => openContentLink(DBP_TERMS)} /> : null}
-          {props.onMoreBibles && !many ? <LinkBtn label={t('reference.bible.otherBibles')} style={{ alignSelf: 'flex-start' }} help={t('reference.bible.moreBiblesSub')} onPress={props.onMoreBibles} /> : null}
+          {props.onMoreBibles && !many && read ? <LinkBtn label={t('reference.bible.otherBibles')} style={{ alignSelf: 'flex-start' }} help={t('reference.bible.moreBiblesSub')} onPress={props.onMoreBibles} /> : null}
         </View>
       ) : null}
       {props.footer}
@@ -170,6 +186,32 @@ function Verse(props: {
         {props.children}
         {props.notes ? <Text style={styles.verseNotes}>  ● {formatNumber(props.notes)}</Text> : null}
       </Text>
+      <HelpBadge spot={spot} />
+    </Pressable>
+  );
+}
+
+/** Verses as their numbers, side by side. */
+export function VerseDots(props: { children: ReactNode }) {
+  return <View style={styles.dots}>{props.children}</View>;
+}
+
+/** A verse as its number alone, when the step hears the Bible but does not read it: lit while it plays, a tap plays from it when the audio is timed. */
+export function VerseDot(props: { row: VerseRow; here: boolean; notes: number; onPress?: () => void }) {
+  const r = props.row;
+  const verse = r.key.includes(':') ? r.key.slice(r.key.indexOf(':') + 1) : r.key;
+  const spot = useHelpSpot(t('reference.bible.verse', { verse }), t('reference.bible.verseDotHelp'), props.onPress);
+  const body = (
+    <>
+      <Text style={[styles.dotText, props.here && { color: C.white }]}>{verse}</Text>
+      {props.notes ? <View style={styles.dotNotes} /> : null}
+    </>
+  );
+  if (!props.onPress) return <View style={[styles.dot, props.here && styles.dotHere]}>{body}</View>;
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('reference.bible.verse', { verse })}
+      style={({ pressed }) => [styles.dot, props.here && styles.dotHere, pressed && ps.pressed]}>
+      {body}
       <HelpBadge spot={spot} />
     </Pressable>
   );
@@ -614,6 +656,12 @@ const styles = StyleSheet.create({
   verseText: { fontSize: T.base, lineHeight: 25, color: C.dark },
   verseNum: { fontSize: T.xs, fontWeight: '700', color: C.muted },
   verseNotes: { fontSize: T.xs, fontWeight: '800', color: TINT.amberText },
+  dots: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, paddingVertical: space.xs },
+  dot: { minWidth: target.min, height: target.min, borderRadius: target.min / 2, paddingHorizontal: space.sm, backgroundColor: C.card,
+    borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
+  dotHere: { backgroundColor: C.primary, borderColor: C.primary },
+  dotText: { fontSize: T.sm, fontWeight: '800', color: C.muted },
+  dotNotes: { position: 'absolute', top: 4, right: 4, width: 8, height: 8, borderRadius: 4, backgroundColor: TINT.amberText },
   term: { fontWeight: '700', color: C.primary, textDecorationLine: 'underline', textDecorationStyle: 'dotted' },
   under: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginTop: 2 },
   pick: { minHeight: 40, paddingHorizontal: space.md, borderRadius: radius.full, borderWidth: 1.5, borderColor: TINT.noteBorder, backgroundColor: TINT.note,

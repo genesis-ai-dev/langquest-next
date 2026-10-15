@@ -118,6 +118,9 @@ const broken: AnyEvent[] = events.flatMap((e) => {
     case 'v1.CheckHelpSet':
       variants.push({ ...p, itemId: 'x', materialId: 'y' }, { kindId: p['kindId'], linked: true }, { ...p, materialId: '' }, { ...p, itemId: '' }, { ...p, kindId: '' });
       break;
+    case 'v1.CheckShowsSet':
+      variants.push({ ...p, what: 'bible' }, { ...p, what: 'BibleText' }, { ...p, shown: 'no' }, { ...p, kindId: '' });
+      break;
     case 'v1.BookNameSet':
       variants.push({ ...p, book: 'luk' }, { ...p, book: 'LUKE' }, { ...p, book: '1 SA' });
       break;

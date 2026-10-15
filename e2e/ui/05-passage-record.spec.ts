@@ -40,7 +40,7 @@ test('PASS-001 TRANS P-NEW: not started, asked of TRANS @p0', async ({ browser }
   const rec = (await pathStep(page, 'Record').getAttribute('aria-label')) ?? '';
   expect(rec).toContain(`${nameOf('COORD')} asked you · `);
   expect(rec).toMatch(DUE);
-  expect(rec).toContain('Tell it in your language. The Bible, key words and notes are beside you while you record.');
+  expect(rec).toContain('Tell it in your language.');
   expect(await screenText(page)).toContain('Publish Then ask for the peer check');
   expect(await teamRows(page)).toEqual([
     'Peer check, after you publish', 'Back translation, same time', 'Community check, after the peer check',

@@ -62,6 +62,8 @@ export function GuideStep(props: {
   ctx: Ctx; v: PassageView; guide: StudyGuide; status: StudyStepStatus; canContribute: boolean;
   /** The step spoken, at the top: the study shows it; the workspace keeps to the text. */
   spoken: boolean;
+  /** The step's words: false when the step hears the guide but does not read it (decisions.md 110). */
+  read?: boolean;
   hidden?: boolean;
   /** Open a key term (an edge from this screen). */
   onTerm?: (termId: string) => void;
@@ -109,7 +111,7 @@ export function GuideStep(props: {
         </View>
       ) : null}
 
-      {sections.map((sec) => (
+      {props.read === false ? null : sections.map((sec) => (
         <SectionView key={sec.id} ctx={ctx} section={sec} resources={guide.resources} notes={onSection(sec.id)} orgId={ctx.language.orgId}
           selected={selected === sec.id} canContribute={props.canContribute}
           onSelect={() => setSelected((cur) => (cur === sec.id ? null : sec.id))}
