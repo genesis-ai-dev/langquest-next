@@ -1,6 +1,6 @@
 import { audioFormatsFor, defaultOfflineScope, deriveDownloadWork, deriveMissingBlobs, deriveUploadWork, evictableBlobs, isStored, lostFilesView, offlineByUnit, offlineSummary, referencedBlobs, unitOffline } from '../src/blobs';
 import type { AnyEvent, EventPayloads, EventType } from '../src/events';
-import { foldLanguage } from '../src/reducer';
+import { applyLanguageEvent, foldLanguage } from '../src/reducer';
 import { emptyLanguageState } from '../src/state';
 import { buildFixture } from './fixtures';
 
@@ -94,6 +94,42 @@ describe('blob integrity (server-confirmed size, server-side invalidation)', () 
     // A later re-upload confirmation wins again.
     const again = { ...stored, id: 'st2', hlc: stored.hlc + '2', payload: { hash: 'c1', size: 12345 } } as never;
     expect(isStored(fold([invalid, again, ...all]), 'c1')).toBe(true);
+  });
+});
+
+describe('file planning is worked out once per change (performance)', () => {
+  // Why: the upload and download workers, the space reclaimer and the
+  // offline screens ask after every change and every file that arrives; on
+  // a 61,000-file language each walk of the whole language cost 0.1 to
+  // 0.25 s on a Mac. The answers are kept per state and revision, so they
+  // must follow every event the fold applies to that same object.
+  const ev = (id: string, type: EventType, payload: unknown, actorId = 'lead'): AnyEvent =>
+    ({ id, type, orgId: 'org1', streamId: 'L1', actorId, deviceId: 'dS', hlc: `001800000000000:00000${id.length}:dS`, payload }) as AnyEvent;
+
+  it('a confirmation folded into the live state shows in the next list', () => {
+    const state = fold(events());
+    expect(deriveDownloadWork(state, new Set(), new Set(['luke1'])).map((r) => r.hash)).toEqual(['c1']);
+    expect(deriveUploadWork(state, new Set(['c2'])).map((r) => r.hash)).toEqual(['c2']);
+    applyLanguageEvent(state, ev('st-c2', 'v1.BlobStored', { hash: 'c2', size: 10 }));
+    expect(deriveDownloadWork(state, new Set(), new Set(['luke1'])).map((r) => r.hash).sort()).toEqual(['c1', 'c2']);
+    expect(deriveUploadWork(state, new Set(['c2']))).toEqual([]);
+    expect(evictableBlobs(state, new Set(['c2']), new Set(['elsewhere'])).map((r) => r.hash)).toEqual(['c2']);
+  });
+
+  it('a recording folded into the live state is new work and widens its author\'s scope', () => {
+    const state = fold(events());
+    expect(defaultOfflineScope(state, 'newcomer').size).toBe(0);
+    expect(referencedBlobs(state).has('cn')).toBe(false);
+    applyLanguageEvent(state, ev('rec-n', 'v1.RecordingAdded', { recordingId: 'rn', unitId: 'luke1', kind: 'target', cards: [{ hash: 'cn', durationMs: 1000 }] }, 'newcomer'));
+    expect([...defaultOfflineScope(state, 'newcomer')]).toEqual(['luke1']);
+    expect(referencedBlobs(state).has('cn')).toBe(true);
+    expect(deriveUploadWork(state, new Set(['cn'])).map((r) => r.hash)).toEqual(['cn']);
+  });
+
+  it('lists keep the order the language names its files in, whatever order the phone has them in', () => {
+    const state = fold(events());
+    const named = [...referencedBlobs(state).keys()];
+    expect(deriveUploadWork(state, new Set([...named].reverse())).map((r) => r.hash)).toEqual(named.filter((h) => !isStored(state, h)));
   });
 });
 

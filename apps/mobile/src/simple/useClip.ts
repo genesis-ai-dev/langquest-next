@@ -4,7 +4,7 @@
 // cards one after another as one recording, or one file by `uri`, follows
 // audioSession.ts (starting one player stops every other), and streams a
 // card that is on the server but not on this device while online.
-import { isStored } from '@langquest-next/core';
+import { isStored, recordedDurationMs } from '@langquest-next/core';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState } from 'react';
 import { audioFormat } from '../audioClip';
@@ -16,14 +16,7 @@ import type { LanguageHandle } from '../useLanguage';
 /** Each card's length in seconds, from the recording that holds it (0 when unknown). */
 export function cardSeconds(language: LanguageHandle, hashes: string[]): number[] {
   const state = language.state;
-  return hashes.map((hash) => {
-    if (!state) return 0;
-    for (const r of Object.values(state.recordings)) {
-      const card = r.cards.find((c) => c.hash === hash);
-      if (card?.durationMs) return card.durationMs / 1000;
-    }
-    return 0;
-  });
+  return hashes.map((hash) => (state ? recordedDurationMs(state, hash) / 1000 : 0));
 }
 
 export interface Clip {

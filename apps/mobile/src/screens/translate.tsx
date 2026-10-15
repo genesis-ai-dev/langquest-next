@@ -74,7 +74,7 @@ import { useUsage } from '../sources/used';
 import { useStudyGuide } from '../study/libraryGuides';
 import { studyProgress } from '../study/progress';
 import { C, radius, space, TINT, withAlpha } from '../theme';
-import { useRecorder, type RecordedCard } from '../useRecorder';
+import { useOnTooShort, useRecorder, type RecordedCard } from '../useRecorder';
 
 // ---- Workspace ---------------------------------------------------------------------
 
@@ -189,6 +189,12 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     if (partsLookClipped(sessionLengths.current)) setClipped(true);
   }, [unitId]);
   const rec = useRecorder(persist, { orgId: ctx.language.orgId, languageId, unitId });
+  // A part too short to keep is said, and counts as a clipped one (decisions.md 106).
+  useOnTooShort(rec.tooShort, () => {
+    ctx.toast(t('recording.vad.tooShort'));
+    sessionLengths.current.push(0);
+    if (partsLookClipped(sessionLengths.current)) setClipped(true);
+  });
   const loop = useListenLoop(rec);
   const session = loop.phase !== 'off';
   const recording = session || rec.manualOn;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BAR, DEFAULT_SPLIT, DIVIDER, fractionAfterDrag, loopPhase, loopStatus, MIN_BOTTOM, MIN_BOTTOM_RECORDING, MIN_TOP,
-  nearestSnap, paneHeights, rememberedSplit, rememberSplit, SNAPS, splitValueText, stepSnap
+  BAR, clampCutoff, cutoffAfterDrag, DEFAULT_SPLIT, DIVIDER, fractionAfterDrag, levelAtHeight, loopPhase, loopStatus, meterHeight,
+  MIN_BOTTOM, MIN_BOTTOM_RECORDING, MIN_TOP, nearestSnap, paneHeights, rememberedSplit, rememberSplit, SNAPS, splitValueText, stepSnap
 } from '../src/recording/splitModel';
 
 // A low-end Android phone about 640pt tall: status bar 24, the header with
@@ -86,9 +86,10 @@ describe('the split between source and recorder', () => {
 describe('listen, speak, listen', () => {
   it('is recording while the microphone is on, listening while paused for the source, else off', () => {
     expect(loopPhase(true, false)).toBe('recording');
-    expect(loopPhase(true, true)).toBe('recording');
-    expect(loopPhase(false, true)).toBe('listening');
-    // A recorder that stopped by itself (background, error) ends the session.
+    // The microphone stays open while the source plays (decisions.md 106).
+    expect(loopPhase(true, true)).toBe('listening');
+    // A recorder that stopped by itself (background, error) ends the session, paused or not.
+    expect(loopPhase(false, true)).toBe('off');
     expect(loopPhase(false, false)).toBe('off');
   });
 
@@ -96,5 +97,30 @@ describe('listen, speak, listen', () => {
     expect(loopStatus('listening', false, 2, 'part')).toBe('Paused while the source plays. 2 parts so far');
     expect(loopStatus('recording', true, 2, 'part')).toBe('Recording what you say');
     expect(loopStatus('recording', false, 1, 'part')).toBe('Listening for you. 1 part so far');
+  });
+});
+
+describe('the level meter and its cutoff line', () => {
+  it('draws bars and the line on one scale, so a bar reaches the line exactly at the cutoff', () => {
+    for (const cutoff of [0.04, 0.1, 0.3, 0.92]) {
+      expect(meterHeight(cutoff * 1.01)).toBeGreaterThan(meterHeight(cutoff));
+      expect(meterHeight(cutoff * 0.99)).toBeLessThan(meterHeight(cutoff));
+      expect(levelAtHeight(meterHeight(cutoff))).toBeCloseTo(cutoff, 6);
+    }
+    expect(meterHeight(-1)).toBe(0);
+    expect(meterHeight(2)).toBe(1);
+    // Soft speech stays visible: the default cutoff is a quarter of the way up.
+    expect(meterHeight(0.1)).toBeCloseTo(0.251, 3);
+  });
+
+  it('moves the cutoff with the finger, twice as fast on centred bars, within what the recorder keeps', () => {
+    const up = cutoffAfterDrag(0.1, -20, 200, false);
+    expect(meterHeight(up) - meterHeight(0.1)).toBeCloseTo(0.1, 6);
+    const upCentred = cutoffAfterDrag(0.1, -20, 200, true);
+    expect(meterHeight(upCentred) - meterHeight(0.1)).toBeCloseTo(0.2, 6);
+    expect(cutoffAfterDrag(0.1, 1000, 200, false)).toBe(0.04);
+    expect(cutoffAfterDrag(0.1, -1000, 200, false)).toBe(0.92);
+    expect(cutoffAfterDrag(0.3, 50, 0, true)).toBe(0.3);
+    expect(clampCutoff(0.5)).toBe(0.5);
   });
 });

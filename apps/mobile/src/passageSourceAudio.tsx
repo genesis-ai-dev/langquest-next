@@ -13,7 +13,7 @@ import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { Text } from './text';
 import { audioFormat } from './audioClip';
-import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
+import { LISTEN_PLAYER, registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
 import type { Ctx } from './ctx';
 import { t } from './i18n';
 import { getReferenceSlides } from './passageResources';
@@ -151,7 +151,7 @@ export function SourcePlayer(props: {
         }
         if (!uri) { wants.current = false; setPlaying(false); setError(t('sources.recordings.notHere')); return; }
         try {
-          const p = createAudioPlayer({ uri });
+          const p = createAudioPlayer({ uri }, LISTEN_PLAYER);
           player.current = p;
           p.addListener('playbackStatusUpdate', (status) => {
             if (player.current !== p) return;
