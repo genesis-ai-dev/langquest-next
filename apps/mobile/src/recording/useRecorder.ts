@@ -13,10 +13,12 @@ import { preferredRecordingType } from '../audio/audioFormat';
 import { getBlobStore } from '../sync/blobs';
 import { t } from '../i18n';
 import { getRecordingJournal } from './recordingJournal';
-import { failureMessage, noteExpected } from '../diagnostics/report';
+import { noteExpected } from '../diagnostics/report';
 import { cachedMicSettings, loadMicSettings, onMicSettings } from '../mic/micSettings';
 import type { JournalTarget } from './recordingJournalModel';
 import { storableRecording } from '../web/webAudio';
+import { claimVad, MicrophoneRefused, recorderProblem, vadOwner, activity } from './recorderState';
+export { claimVad, MicrophoneRefused, recorderProblem, isRecording } from './recorderState';
 
 const WEB = Platform.OS === 'web';
 /** A browser records MP4 when it can (audioFormat.ts); otherwise the take is converted to WAV when it stops. */
@@ -57,39 +59,6 @@ interface PendingFile {
   card?: RecordedCard;
 }
 export { VAD_BASE };
-
-/**
- * Whose voice detector is on: its parts belong to it alone. The microphone
- * module is one for the app and tells every listener, so a recorder left
- * mounted under another screen (the workspace under microphone setup) must
- * not keep what someone else's session heard.
- */
-let vadOwner: symbol | null = null;
-export function claimVad(owner: symbol | null): void {
-  vadOwner = owner;
-}
-
-/** The microphone was refused: said in words, not reported as a fault. */
-export class MicrophoneRefused extends Error {
-  override name = 'MicrophoneRefused';
-}
-
-/**
- * What a person reads when recording failed: a refused microphone in words;
- * anything else is a fault, reported, and shown with a code (never the raw
- * message, which is a native module's English).
- */
-export function recorderProblem(where: string, e: unknown): string {
-  if (e instanceof MicrophoneRefused) { noteExpected(where, e); return t('recording.recorder.permissionNeeded'); }
-  return failureMessage(where, e);
-}
-
-/** Recorders with the microphone open or a save in progress, app-wide. */
-const activity = new Set<symbol>();
-/** Transfers and checkpoints defer while this is true. */
-export function isRecording(): boolean {
-  return activity.size > 0;
-}
 
 /**
  * The microphone permission prompt takes the app out of `active` (iOS goes

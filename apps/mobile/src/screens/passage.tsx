@@ -76,7 +76,7 @@ import { C, radius, space, TINT, withAlpha } from '../ui/theme';
 import { PersonAvatar, usePerson } from '../ui/UserChip';
 import { BigVoice } from '../recording/bigVoice';
 import { ClipPlayer } from '../audio/clipPlayer';
-import { VoiceNote, voiceFor } from '../audio/voiceNote';
+import { VoiceNote } from '../audio/voiceNote';
 
 // ---- shared plumbing -----------------------------------------------------------------
 
@@ -1283,3 +1283,10 @@ const styles = StyleSheet.create({
 });
 
 export const contracts = contractsFor('passage_record', 'version_detail', 'review_detail', 'ask_someone');
+
+/** The `voice` slot of ReasonSheet. */
+function voiceFor(ctx: Ctx, label?: string) {
+  return ({ hash, onChange }: { hash: string | null; onChange: (h: string | null) => void }) => (
+    <VoiceNote ctx={ctx} label={label ?? t('recording.voiceNote.sayWhyInstead')} hash={hash} onChange={onChange} />
+  );
+}

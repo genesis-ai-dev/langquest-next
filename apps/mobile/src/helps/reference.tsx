@@ -4,7 +4,7 @@
 // Bible (play, Back 10 s, a Bible picker, the verses with the one playing
 // lit, a note on a verse or a moment), key words (hear each, your word or
 // say yours, add a word), notes, and everything recorded so far.
-import { commands, keyTermsFor, keyTermView, type KeyTermView, type PassageNote } from '@langquest-next/core';
+import { commands, keyTermsFor, type KeyTermView, type PassageNote } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -17,16 +17,13 @@ import { formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
 import { Field, Ico, LinkBtn, PrimaryBtn, Sheet, txt } from '../ui/kit';
 import { versionTitle, when, type PassageView } from '../passage/passageView';
-import type { ListenHooks } from '../recording/useListenLoop';
 import { markTerms } from '../recording/workspaceModel';
 import { Authored, recordTarget, ReportFlag } from '../moderation/reportSheet';
 import { RequestBanner } from '../reviewing/parts';
 import { openContentLink } from '../ui/share';
-import { anchorClock, chipLabel, choiceKey, copyrightLine, useChoice, useOffer } from '../sources/SourceReader';
-import { emptyBibleText, type SourceOption, type VerseRow } from '../sources/model';
-import { PlayError, usePassagePlayer } from '../sources/player';
-import type { Usage } from '../sources/used';
-import { useChipMarks, usePassageSource, useSources } from '../sources/useSources';
+import { anchorClock, chipLabel, copyrightLine } from '../sources/SourceReader';
+import { emptyBibleText, type VerseRow } from '../sources/model';
+import { useChipMarks } from '../sources/useSources';
 import { saveNote } from '../study/ui';
 import { C, radius, space, target, TINT, type as T } from '../ui/theme';
 import { VoiceNote } from '../audio/voiceNote';
@@ -34,77 +31,19 @@ import { joinAnd, languageLabel } from '../admin/adminModel';
 import { OthersSay, WhereItIs, WordChip } from './helps';
 import { keyLabel, keyTouches, othersSay, suggestedWords, type WordSuggestion } from './helpsModel';
 import { useOtherLanguageTerms } from '../reference/otherLanguages';
-import { bookOf, mmss, passageClock, verseRefs } from '../recording/model';
+import { bookOf, mmss, verseRefs } from '../recording/model';
 import { Back10, DashedBtn, MiniPlayer, PlayBtn, PlayRow, styles as ps } from '../recording/blocks';
 import { useClip } from '../audio/useClip';
+import { noteLabel } from './referenceText';
+import { useBible } from './useBible';
+export { useBible } from './useBible';
+export { noteLabel } from './referenceText';
 
 const DBP_TERMS = 'https://www.faithcomesbyhearing.com/bible-brain/license';
 
 // ---- the Bible --------------------------------------------------------------------------
 
 export type Bible = ReturnType<typeof useBible>;
-
-/**
- * The passage's Bibles and one player for them, held by the screen so the
- * Bible card, the one-line bar and the dock all play the same thing, and a
- * key word can play its verse. The version chosen last for the language is
- * shared with every other reader on this device (SourceReader.tsx).
- */
-export function useBible(ctx: Ctx, unitId: string | null, languageId: string | null, opts: { listen?: ListenHooks; usage?: Usage; hidden?: boolean }) {
-  const passage = useSources(ctx, unitId, languageId);
-  const [chosen, setChosen] = useChoice(choiceKey(ctx.session.actorId, ctx.language.orgId, languageId ?? ''));
-  const option = passage.options.find((o) => o.itemId === chosen) ?? passage.options[0];
-  const usage = opts.usage;
-  useOffer(usage, passage);
-  const src = usePassageSource(ctx, option, passage);
-  const plan = src?.plan ?? null;
-  const rows = src?.rows ?? null;
-  const player = usePassagePlayer({
-    plan, rows, signature: `${option?.itemId ?? ''}:${passage.ref}:${plan?.parts.length ?? 0}`, disabled: opts.hidden,
-    resolve: (i) => {
-      const part = plan?.parts[i];
-      const ch = src?.chapters.find((c) => c.chapter === part?.chapter);
-      if (!ch) return Promise.reject(new PlayError(t('sources.reader.noAudioForChapter')));
-      return ch.resolve();
-    },
-    ...(opts.listen ? { listen: opts.listen } : {}),
-    onPlayed: () => { if (option) usage?.open(option.itemId); }
-  });
-  const clock = plan ? passageClock(plan.parts, player.part, player.ms) : null;
-  const timed = !!plan && plan.parts.some((p) => p.timing);
-  // Offline, audio that was never downloaded is not a Bible with nothing to play.
-  const audioAbsent = !!src?.audioNotHere || (ctx.language.online === false && !!src && src.chapters.length > 0 && src.chapters.every((c) => !c.local));
-  return {
-    passage, option, src, plan, rows, player, clock, timed, audioAbsent,
-    /** Has verses at all: an outline item has none, so no Bible chip and no dock. */
-    hasVerses: !!passage.range,
-    hasAudio: !!plan && !audioAbsent,
-    choose: (o: SourceOption) => { setChosen(o.itemId); usage?.open(o.itemId); },
-    /** "0:42 / 1:18", or why there is nothing to play. */
-    time: (): string => {
-      if (!option) return '';
-      if (!plan) return src?.loading ? t('common.loading') : t('reference.bible.noAudio');
-      const total = clock?.total;
-      if (player.started) return `${mmss((clock?.elapsed ?? 0) * 1000)}${total ? ` / ${mmss(total * 1000)}` : ''}`;
-      return total ? mmss(total * 1000) : '';
-    },
-    /** "World English Bible · 0:42 / 1:18" */
-    line: (): string => {
-      if (!option) return emptyBibleText({ loading: passage.loading, notOnDevice: passage.notOnDevice }, t('reference.bible.noBible'));
-      if (audioAbsent) return t('recording.player.notOnDeviceYet');
-      if (src?.loading && !plan) return t('reference.bible.nameLoading', { name: option.name });
-      if (!plan) return t('reference.bible.nameNoAudio', { name: option.name });
-      const total = clock?.total;
-      if (player.started) return `${option.name} · ${mmss((clock?.elapsed ?? 0) * 1000)}${total ? ` / ${mmss(total * 1000)}` : ''}`;
-      return total ? `${option.name} · ${mmss(total * 1000)}` : option.name;
-    },
-    /** Play from the first verse that holds a word; false when it cannot (no timed audio). */
-    playVerse: (key: string) => {
-      const row = rows?.find((r) => r.key === key);
-      return !!row && !!plan && !audioAbsent && timed && player.playFrom(row);
-    }
-  };
-}
 
 /** The Bible chip: the player card, then the verses with the one playing lit (a-wsHalf). */
 export function BiblePane(props: {
@@ -490,35 +429,6 @@ function AddWordSheet(props: { ctx: Ctx; v: PassageView; draftTakeId: string | u
 }
 
 // ---- notes --------------------------------------------------------------------------------
-
-/** "NOTE ON VERSE 12 · MARY", "VOICE NOTE · ABEBE · ON VERSE 12". */
-export function noteLabel(ctx: Ctx, n: PassageNote, versionN?: (takeId: string) => number | undefined): string {
-  const who = ctx.name(n.by);
-  // What the note is on, as its own phrase (after "Voice note") and as a whole label ("Note on verse 12").
-  const on = ((): { on: string; note: string } | null => {
-    switch (n.anchor.kind) {
-      case 'passage': return null;
-      case 'verse': {
-        const verse = keyLabel(n.anchor.verse.includes(':') ? n.anchor.verse.slice(n.anchor.verse.indexOf(':') + 1) : n.anchor.verse);
-        return { on: t('reference.notes.onVerse', { verse }), note: t('reference.notes.noteOnVerse', { verse }) };
-      }
-      case 'version': {
-        const at = versionN?.(n.anchor.takeId);
-        if (!at) return { on: t('reference.notes.onDraft'), note: t('reference.notes.noteOnDraft') };
-        const version = versionTitle(at);
-        return { on: t('reference.notes.onVersion', { version }), note: t('reference.notes.noteOnVersion', { version }) };
-      }
-      case 'term': {
-        const term = ctx.language.state ? keyTermView(ctx.language.state, n.anchor.termId) : null;
-        return term ? { on: t('reference.notes.onTerm', { term: term.term }), note: t('reference.notes.noteOnTerm', { term: term.term }) }
-          : { on: t('reference.notes.onKeyWord'), note: t('reference.notes.noteOnKeyWord') };
-      }
-      case 'study': return { on: t('reference.notes.onStudy'), note: t('reference.notes.noteOnStudy') };
-    }
-  })();
-  if (n.blobHash && !n.text) return [t('common.voiceNote'), who, on?.on].filter(Boolean).join(' · ');
-  return [on ? on.note : t('reference.notes.noteOnPassage'), who].join(' · ');
-}
 
 function NoteItem(props: { ctx: Ctx; note: PassageNote; label: string; older?: string }) {
   const { ctx, note: n } = props;

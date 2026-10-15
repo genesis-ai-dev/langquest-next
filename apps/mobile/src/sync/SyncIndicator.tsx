@@ -12,6 +12,8 @@ import { C } from '../ui/theme';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { Text } from '../ui/text';
+import { syncStanding, standingTitle, type SyncStanding, previewCount, previewListeners } from './syncStanding';
+export { syncStanding, standingTitle, previewSyncRing, type SyncStanding } from './syncStanding';
 
 const SIZE = 40;
 const R = 17;
@@ -23,21 +25,8 @@ const LAPS = [
   { color: C.dark, width: 3.5, opacity: 1 }
 ];
 
-export type SyncStanding = 'live' | 'checking' | 'offline' | 'refused';
-
-export function syncStanding(p: Ctx['language']): SyncStanding {
-  if (p.refused || p.tooOld || p.refusedEvents > 0) return 'refused';
-  if (p.online === false) return 'offline';
-  return p.live ? 'live' : 'checking';
-}
-
 const STANDING_COLOR: Record<SyncStanding, string> = { live: C.green, checking: C.faint, offline: C.amber, refused: C.red };
 
-/** The state in a word or two ("Live", "Offline"), the button's spoken name. */
-export function standingTitle(s: SyncStanding): string {
-  return s === 'live' ? t('account.sync.standing.live') : s === 'offline' ? t('account.sync.standing.offline')
-    : s === 'checking' ? t('account.sync.standing.checking') : t('account.sync.standing.refused');
-}
 export function SyncIndicator(props: { language: Ctx['language']; org: Ctx['org']; onPress: () => void }) {
   const { language: project, org } = props;
   const preview = usePreview();
@@ -74,28 +63,10 @@ export function SyncIndicator(props: { language: Ctx['language']; org: Ctx['org'
 
 // ---- developer preview: a scripted queue, so the motion can be judged without a slow network ----
 
-let previewCount: number | null = null;
-const previewListeners = new Set<(n: number | null) => void>();
-
-function setPreview(n: number | null) {
-  previewCount = n;
-  previewListeners.forEach((l) => l(n));
-}
-
 function usePreview(): number | null {
   const [n, setN] = useState(previewCount);
   useEffect(() => { previewListeners.add(setN); return () => { previewListeners.delete(setN); }; }, []);
   return n;
-}
-
-/** Developer menu: a slow drain, a burst that lands at once, then a long stall that shows the heavier laps. */
-export function previewSyncRing() {
-  const steps: [number, number | null][] = [
-    [0, 12], [900, 11], [1600, 9], [2400, 8], [3000, 5], [3800, 3], [4500, 1], [5200, 0],
-    [7500, 200], [9000, 0],
-    [11500, 6], [32000, 2], [34000, 0], [36000, null]
-  ];
-  for (const [at, n] of steps) setTimeout(() => setPreview(n), at);
 }
 
 /** Steps the ring once a frame while there is anything to draw; rests otherwise. */

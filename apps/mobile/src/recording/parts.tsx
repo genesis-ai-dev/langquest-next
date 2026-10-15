@@ -20,7 +20,6 @@ import { mmss } from './workspaceModel';
  * someone can read to support. Never the raw message, which can carry
  * content.
  */
-export { failureMessage as problemText } from '../diagnostics/report';
 
 /** 80pt, always red whatever the theme, a stop square while recording (ADR-028). */
 export function RecordButton(props: { recording: boolean; disabled?: boolean; onPress: () => void }) {

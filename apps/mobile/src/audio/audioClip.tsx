@@ -1,5 +1,5 @@
 // Avatar U. Local and remote playback, paused before recording starts.
-import { isStored, recordedCard, type BlobRef, type LanguageState } from '@langquest-next/core';
+import { isStored } from '@langquest-next/core';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
@@ -10,13 +10,8 @@ import { IconBtn, txt } from '../ui/kit';
 import { noteExpected, reportError } from '../diagnostics/report';
 import { C, target } from '../ui/theme';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
-
-export function audioFormat(state: LanguageState, hash: string): BlobRef['format'] {
-  const card = recordedCard(state, hash);
-  if (card) return card.format ?? 'wav';
-  // A voice note: m4a unless the log says otherwise (decisions.md 77).
-  return state.audioFormats[hash]?.value ?? 'm4a';
-}
+import { audioFormat } from './audioFormat';
+export { audioFormat } from './audioFormat';
 
 // A player failure is a fault (native audio): it is reported and said without its message.
 export function AudioClip(props: {

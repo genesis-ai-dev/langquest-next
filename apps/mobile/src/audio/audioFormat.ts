@@ -1,4 +1,5 @@
 import type { BlobRef } from '@langquest-next/core';
+import { recordedCard, type LanguageState } from '@langquest-next/core';
 
 /**
  * What a recording is stored as (decisions.md 58). Every device must play
@@ -36,4 +37,11 @@ export function toMono16(channels: Float32Array[]): Int16Array {
     out[i] = v < 0 ? Math.round(v * 0x8000) : Math.round(v * 0x7fff);
   }
   return out;
+}
+
+export function audioFormat(state: LanguageState, hash: string): BlobRef['format'] {
+  const card = recordedCard(state, hash);
+  if (card) return card.format ?? 'wav';
+  // A voice note: m4a unless the log says otherwise (decisions.md 77).
+  return state.audioFormats[hash]?.value ?? 'm4a';
 }
