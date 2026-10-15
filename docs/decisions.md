@@ -4004,7 +4004,10 @@ the whole state is ever in memory. Its rows go straight into the table
 and rows with no checkpoint beside them are dropped when a language opens,
 so a download cut short is never read; a phone replacing a language it has
 (after a redaction) writes the new rows aside and switches with its
-checkpoint.
+checkpoint. A language's syncs, pushes, pulls and refolds take turns on a
+phone (`SyncClient.exclusive`), whichever session starts them: two first
+downloads at once (the scheduler's and "Sync now") each cleared the rows
+the other wrote, and a fresh phone showed recorded passages as not started.
 
 Memory holds the passage on screen, two on each side, and its book and
 chapter (`loadUnits`, `shell/usePassagesInMemory.ts`), what arrived since
