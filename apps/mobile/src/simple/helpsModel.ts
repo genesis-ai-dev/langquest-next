@@ -5,7 +5,7 @@
 // no I/O, so the rules are tested in apps/mobile/test/helpsModel.test.ts.
 import { parseRef, type KeyTermView, type VerseRange } from '@langquest-next/core';
 import { markTerms } from '../recording/workspaceModel';
-import { termWords } from '../screens/configModel';
+import { termWords } from '../config/model';
 import type { VerseRow } from '../sources/model';
 
 // ---- verses chosen on the text ----------------------------------------------------------

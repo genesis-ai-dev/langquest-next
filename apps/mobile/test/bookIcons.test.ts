@@ -10,7 +10,7 @@ const source = readFileSync(join(root, 'src/bookIcons.tsx'), 'utf8');
 
 describe('book icons', () => {
   const map = new Map(
-    [...source.matchAll(/^ {2}'?([a-z0-9]+)'?: require\('\.\.\/assets\/book-icons\/([a-z0-9]+)\.webp'\)/gm)]
+    [...source.matchAll(/^ {2}'?([a-z0-9]+)'?: require\('(?:\.\.\/)+assets\/book-icons\/([a-z0-9]+)\.webp'\)/gm)]
       .map((m) => [m[1]!, m[2]!])
   );
 

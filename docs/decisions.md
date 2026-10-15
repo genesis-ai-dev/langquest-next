@@ -3817,6 +3817,22 @@ client per area with errors mapped once; or feature folders start
 importing each other in a cycle, which would mean a shared layer belongs
 below them.
 
+Amended (2026-10-15, Carl Sauder): ESLint holds what may import what
+(`eslint.config.mjs`, `npm run lint`, in CI's `checks` job and the
+pre-push hook). Core imports nothing; sync only core and supabase-js (its
+`src/testing`, Node built-ins too); nothing outside `src/server` imports
+the Supabase client or supabase-js (types aside); nothing but `App.tsx`
+and other screens imports a screen file; screens import no AsyncStorage,
+SQLite, file system or event store; `model.ts` and `*Model.ts` import no
+React, React Native, Expo, storage, `server/`, hooks or UI (types aside);
+`src/server` imports no React, screens or shell; packages are imported by
+their entry. Carl asked for it as strict as is reasonable: an audit after
+the restructure found three feature models importing
+`screens/configModel.ts` (now `src/config/model.ts`) and three screens
+reaching storage themselves, which tests had not caught. React's
+rules-of-hooks is on too; exhaustive-deps is not yet, since turning it on
+means reviewing 55 effects whose re-runs would change.
+
 ## 106. A phone records every take with the microphone module, keeps a part going down to half the cutoff, and keeps AAC
 
 Date: 2026-10-14 · By: Caleb Koster · Status: accepted

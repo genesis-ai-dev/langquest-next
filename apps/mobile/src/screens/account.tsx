@@ -12,13 +12,11 @@
 import { signInName } from '../accounts';
 import { readHelp, type SignInHelp } from '../signInHelp';
 import { CommandError, decodeHlc, languageName, unitTitle, type Update } from '@langquest-next/core';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Updates from 'expo-updates';
 import { useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../text';
 import { accountOutbox, queueAccountAction } from '../accountData';
-import { deleteAccount } from '../accountDeletion';
 import { authErrorText, groupByRead, outboxErrorText, ownName, remoteTitle, roleWords, updateText } from '../accountText';
 import { deriveKinds, kindOf } from '../coreText';
 import type { Ctx } from '../ctx';
@@ -43,8 +41,7 @@ import { ReportActions } from '../reportSheet';
 import { contractsFor } from '../screenContracts';
 import { FORGETS_ON_SIGN_OUT, forgetThisBrowser } from '../forgetBrowser';
 import { HANDS_OVER, signOutHandingOver } from '../handOver';
-import { choosePassword, signOutHere, signOutLocally } from '../server/auth';
-import { deleteMyAccount } from '../server/account';
+import { choosePassword, signOutHere } from '../server/auth';
 import { C, radius, space, target, tile, TINT, type as T } from '../theme';
 import { useAccountActions, useDisplayNames } from '../useAccount';
 import { runningBuildLabel } from '../updateStatus';
@@ -59,6 +56,7 @@ import { useJoinRequests, useOpenReports, useServerInbox } from '../account/useI
 import { useInviterName } from '../account/useInviterName';
 import { useOrganizations } from '../account/useOrganizations';
 import { useUnsent } from '../account/useUnsent';
+import { deleteThisAccount } from '../account/deleteThisAccount';
 
 // ---- Inbox (INBOX-1, INBOX-2) ---------------------------------------------------------------
 
@@ -749,11 +747,7 @@ export function DeleteAccount(ctx: Ctx) {
   async function remove() {
     setBusy(true);
     try {
-      await deleteAccount(ctx.session.actorId, {
-        deleteOnServer: deleteMyAccount,
-        storage: AsyncStorage,
-        signOutHere: async () => { await signOutLocally(); await forgetThisBrowser(); }
-      });
+      await deleteThisAccount(ctx.session.actorId);
     } catch (e) { setError(failure('delete account', e)); setBusy(false); }
   }
   const blocked = waiting.length > 0 || offline;

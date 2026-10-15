@@ -59,7 +59,9 @@ Rules specific to this folder:
   `npm run test:web` (e2e/web-smoke) must pass.
 - No `status` columns. Status comes from `passage.ts`.
 - No local versus synced tables. Sync status is a column on the events table.
-- Run `npm test` and `npm run typecheck` in this folder before finishing.
+- Run `npm test`, `npm run typecheck` and `npm run lint` in this folder
+  before finishing. Lint holds what may import what (`eslint.config.mjs`,
+  decisions.md 104 and 105): a rule's message says where the code belongs.
   `docs/testing.md` says which layer a new test belongs in and the rules the
   end-to-end suites keep (no sleeps, one role per test, IDs for structure).
 - Put the Linear issue ID (`LAN-12`) in the commit message of work that comes

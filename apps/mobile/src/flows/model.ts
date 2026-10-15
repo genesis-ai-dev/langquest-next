@@ -13,7 +13,7 @@ import { teamMembers } from '../orgAdmin';
 import { stepWho } from '../simple/adminModel';
 import {
   draftChanged, draftFromDoc, draftFromLanguage, flowName, newKindId, type DraftStep
-} from '../screens/configModel';
+} from '../config/model';
 
 /** What the editor starts from, before anything is changed. */
 export interface FlowBase { name: string; description: string; steps: DraftStep[] }
