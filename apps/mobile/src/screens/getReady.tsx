@@ -20,7 +20,7 @@ import * as Crypto from 'expo-crypto';
 import { useMemo, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { Text } from '../ui/text';
-import { type LibraryChoice } from '../templates/contentTemplates';
+import type { LibraryChoice } from '../templates/contentTemplates';
 import { deriveKinds } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
 import { useHelpMode } from '../helpMode/useHelpMode';
@@ -52,7 +52,7 @@ import {
   type PlainRoleId } from '../admin/adminModel';
 import { shareInvite } from '../invites/shareInvite';
 import { ReadyChecklist } from '../admin/ready';
-import { howItWorks } from '../admin/readyText';
+import { howItWorks, plainRoleHelp } from '../admin/readyText';
 import { usePlainRoles, useReadySummary } from '../admin/useReadySummary';
 import { useCheckChoices, type FlowEntry } from '../admin/useChoices';
 import { TranslateQuestion } from '../breakup/TranslateStep';
@@ -82,9 +82,9 @@ function Overview({ ctx }: { ctx: Ctx }) {
   return (
     <Screen header={<BigTop onBack={ctx.back} over={s.name} title={t('getReady.title', { language: s.name })} />} bodyStyle={{ gap: space.md }}
       footer={next >= 0
-        ? <PrimaryBtn label={questionLabel(QUESTIONS[next]!.id)} icon="right"
+        ? <PrimaryBtn label={questionLabel(QUESTIONS[next]!.id)} icon="right" help={t('getReady.nextQuestionHelp')}
             onPress={() => ctx.go('get_ready', { languageId: s.languageId, step: String(next + 1) })} />
-        : <PrimaryBtn label={t('common.done')} icon="check" onPress={ctx.back} />}>
+        : <PrimaryBtn label={t('common.done')} icon="check" help={t('help.details.done')} onPress={ctx.back} />}>
       <ReadyChecklist ctx={ctx} s={s} />
       {help ? <QuietLink icon="playSolid" label={t('admin.howItWorks.link', { length: formatClock(40_000) })} detail={t('admin.howItWorks.detail')}
         onPress={() => { help.setOn(true); help.tell(t('admin.howItWorks.title'), howItWorks(s.name)); }} /> : null}
@@ -177,12 +177,13 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
       footer={<>
         {/* One question a screen: the pages before the last move on inside the question (decision 80). */}
         {!tq.last ? (
-          tq.showContinue ? <PrimaryBtn label={t('common.next')} icon="right" disabled={!tq.canContinue} onPress={() => { tq.advance(); }} /> : null
+          tq.showContinue ? <PrimaryBtn label={t('common.next')} icon="right" disabled={!tq.canContinue} help={t('getReady.nextPageHelp')} onPress={() => { tq.advance(); }} /> : null
         ) : (
           <PrimaryBtn label={only ? (changed ? t('getReady.record.useThis') : t('getReady.record.keepIt')) : t('common.next')} icon={only ? 'check' : 'right'} busy={busy} disabled={!tq.ready && !only}
+            help={only ? (changed ? t('getReady.record.useThisHelp') : t('getReady.record.keepItHelp')) : t('getReady.record.nextHelp')}
             onPress={() => void answer()} />
         )}
-        {tq.page !== 'what' ? <QuietLinks items={[{ label: t('common.back'), icon: 'arrowL', onPress: () => { tq.retreat(); } }]} /> : null}
+        {tq.page !== 'what' ? <QuietLinks items={[{ label: t('common.back'), icon: 'arrowL', help: t('getReady.backHelp'), onPress: () => { tq.retreat(); } }]} /> : null}
       </>}>
       <TranslateQuestion ctx={ctx} t={tq} lang={lang} canMake={lib.canWrite('template')} onMake={() => ctx.go('template_editor', { new: '1', kind: 'outline' })} />
       {doc?.bible && tq.last ? (
@@ -190,14 +191,14 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
           <SectionLabel label={t('getReady.record.whichPart')} />
           <Pills>
             {LANGUAGE_SCOPES.map((sc) => (
-              <Chip key={sc} label={languageScopeLabel(sc)} on={pills === sc}
+              <Chip key={sc} label={languageScopeLabel(sc)} on={pills === sc} help={sc === 'custom' ? t('getReady.record.chooseBooksHelp') : t('getReady.record.partHelp')}
                 onPress={() => { setScope(sc); if (sc === 'custom' && !chosen) setChosen(new Set(wanted ?? templateBooks(doc).map((b) => b.book))); }} />
             ))}
           </Pills>
           {pills === 'custom' ? (
             <Pills>
               {templateBooks(doc).map((b) => (
-                <Chip key={b.book} label={b.name || b.book} on={books.has(b.book)}
+                <Chip key={b.book} label={b.name || b.book} on={books.has(b.book)} help={books.has(b.book) ? t('getReady.record.bookOnHelp') : t('getReady.record.bookOffHelp')}
                   onPress={() => setChosen(() => { const nextSet = new Set(books); if (nextSet.has(b.book)) nextSet.delete(b.book); else nextSet.add(b.book); return nextSet; })} />
               ))}
             </Pills>
@@ -367,6 +368,13 @@ function onHelpPress(x: HelpItem, items: readonly HelpItem[], open: (x: HelpItem
   toggle(x);
 }
 
+/** What help mode says a help's switch does, as onHelpPress decides it: a guide set asks which language; anything else is offered or not. */
+function helpItemLine(x: HelpItem, items: readonly HelpItem[]): string {
+  if (x.set || (x.itemId && items.some((i) => i.set?.set.members.some((m) => m.itemId === x.itemId)))) return t('getReady.helps.setHelp');
+  if (x.on && x.kind === 'guide' && x.doc.format === 'collection@1' && patternOf(x.doc)) return t('getReady.helps.patternOnHelp');
+  return x.on ? t('admin.checkRow.offered') : t('admin.checkRow.notOffered');
+}
+
 /** What a guide row says of its language: the set's languages chosen, or how many it comes in; a single guide's own. */
 function guideLanguageLine(h: HelpItem): string {
   if (h.set) return h.set.reach.length ? languagesLine(h.set.reach.map((m) => m.language)) : t('getReady.helps.inLanguages', { count: h.set.set.members.length });
@@ -485,7 +493,7 @@ function ReferenceLanguageStep({ ctx, lang, header, onDone }: StepProps & { onDo
   }
 
   return (
-    <Screen header={header} bodyStyle={PAD} footer={<PrimaryBtn label={t('common.next')} icon="right" busy={busy} onPress={() => void save()} />}>
+    <Screen header={header} bodyStyle={PAD} footer={<PrimaryBtn label={t('common.next')} icon="right" busy={busy} help={t('getReady.language.nextHelp')} onPress={() => void save()} />}>
       <ReferenceLanguagePage team={lang} choices={refs.choices} value={value} first={current} onChange={setPicked} loading={refs.loading} />
       {!may ? <Banner icon="lock" title={t('common.viewOnly')} body={t('getReady.helps.viewOnly')} /> : null}
     </Screen>
@@ -504,7 +512,7 @@ function HelpsList({ ctx, lang, header, next, onLanguage }: StepProps & { onLang
   const guides = h.items.filter((x) => x.kind === 'guide');
   const notes = h.items.filter((x) => x.kind === 'note' || x.kind === 'other');
   return (
-    <Screen header={header} bodyStyle={PAD} footer={<PrimaryBtn label={t('common.next')} icon="right" onPress={next} />}>
+    <Screen header={header} bodyStyle={PAD} footer={<PrimaryBtn label={t('common.next')} icon="right" help={t('getReady.nextHelp')} onPress={next} />}>
       <ReferenceLanguageChip language={h.reads} onPress={onLanguage} />
       <Question>{questionLabel('helps')}</Question>
       <SectionLabel label={t('getReady.helps.biblesTheyUnderstand')} />
@@ -513,19 +521,19 @@ function HelpsList({ ctx, lang, header, next, onLanguage }: StepProps & { onLang
           const doc = b.doc as SourceDoc;
           return (
             <CheckRow key={b.key} label={`${languageLabel(doc.language)} · ${doc.abbreviation}`} sub={mediaText(mediaOf(doc, h.get))} checked={b.on}
-              disabled={!h.may || h.busy} onToggle={() => void h.toggle(b)} playLabel={t('admin.checkRow.hear', { name: b.name })}
+              disabled={!h.may || h.busy} onToggle={() => void h.toggle(b)} playLabel={t('admin.checkRow.hear', { name: b.name })} playHelp={t('getReady.helps.openBibleHelp')}
               {...(b.itemId ? { onPlay: () => ctx.go('reference_source', { itemId: b.itemId!, languageId }) } : {})} />
           );
         })}
         <Row icon="search" label={t('getReady.helps.findBible')} sub={bibles.length ? undefined : t('getReady.helps.noneChosen')} last
-          onPress={() => ctx.go('reference_bibles', { languageId })} />
+          help={t('getReady.helps.findBibleHelp')} onPress={() => ctx.go('reference_bibles', { languageId })} />
       </Group>
       {guides.length ? (
         <Group>
           {guides.map((g, i) => (
             <SwitchRow key={g.key} icon="star" label={guides.length === 1 ? t('getReady.helps.studyGuides') : t('getReady.helps.namedGuides', { name: guideShortName(g.name) })}
               sub={[guides.length === 1 ? guideShortName(g.name) : fromLine(g), guideLanguageLine(g), g.on ? t('getReady.helps.onInline') : t('getReady.helps.offInline'), comes(g)].filter(Boolean).join(' · ')}
-              on={g.on} disabled={!h.may || h.busy} onToggle={() => onHelpPress(g, h.items, sheet.open, (x) => void h.toggle(x))} last={i === guides.length - 1} />
+              on={g.on} disabled={!h.may || h.busy} help={helpItemLine(g, h.items)} onToggle={() => onHelpPress(g, h.items, sheet.open, (x) => void h.toggle(x))} last={i === guides.length - 1} />
           ))}
         </Group>
       ) : h.loading ? <Text style={txt.smMuted}>{t('getReady.helps.lookingForGuides')}</Text> : null}
@@ -536,7 +544,7 @@ function HelpsList({ ctx, lang, header, next, onLanguage }: StepProps & { onLang
           <Group>
             {notes.map((x, i) => (
               <SwitchRow key={x.key} icon="note" label={x.name} sub={[x.on ? t('getReady.helps.on') : t('getReady.helps.off'), languagesLine([docLanguage(x.doc)])].join(' · ')} on={x.on} disabled={!h.may || h.busy}
-                onToggle={() => void h.toggle(x)} last={i === notes.length - 1} />
+                help={helpItemLine(x, h.items)} onToggle={() => void h.toggle(x)} last={i === notes.length - 1} />
             ))}
           </Group>
         </>
@@ -559,7 +567,8 @@ function HelpsPage({ ctx }: { ctx: Ctx }) {
   const terms = useMemo(() => keyTermsFor(state), [state]);
   const written = useMemo(() => materialsFor(state).filter((m) => m.kind !== 'questions' && m.kind !== 'key_terms' && m.kind !== 'fia_study'), [state]);
   const switchRow = (x: HelpItem, last: boolean, sub: string) => (
-    <SwitchRow key={x.key} label={plainName(x.name, reads)} sub={sub} on={x.on} disabled={!h.may || h.busy} onToggle={() => onHelpPress(x, h.items, sheet.open, (item) => void h.toggle(item))} last={last} />
+    <SwitchRow key={x.key} label={plainName(x.name, reads)} sub={sub} on={x.on} disabled={!h.may || h.busy} help={helpItemLine(x, h.items)}
+      onToggle={() => onHelpPress(x, h.items, sheet.open, (item) => void h.toggle(item))} last={last} />
   );
   const none = (label: string) => <Row label={label} sub={t('getReady.page.addToOffer')} muted last />;
   const bibles = h.items.filter((x) => x.kind === 'source');
@@ -569,7 +578,7 @@ function HelpsPage({ ctx }: { ctx: Ctx }) {
   const go = (to: Parameters<Ctx['go']>[0], params: Record<string, string>) => { setAdding(false); ctx.go(to, params); };
   return (
     <Screen header={<Header title={t('getReady.page.title')} sub={lang} onBack={ctx.back} />} bodyStyle={{ gap: space.sm }}
-      footer={h.may ? <PrimaryBtn label={t('getReady.page.addMore')} icon="plus" onPress={() => setAdding(true)} /> : undefined}>
+      footer={h.may ? <PrimaryBtn label={t('getReady.page.addMore')} icon="plus" help={t('getReady.page.addMoreHelp')} onPress={() => setAdding(true)} /> : undefined}>
       <SectionLabel label={t('getReady.page.bibles')} />
       <Group>
         {bibles.length ? bibles.map((b, i) => {
@@ -588,13 +597,13 @@ function HelpsPage({ ctx }: { ctx: Ctx }) {
       <SectionLabel label={t('getReady.page.keyWords')} />
       <Group>
         <Row label={t('getReady.page.keyTerms')} sub={t('getReady.page.keyTermsSub', { count: terms.length, rendered: formatNumber(rendered), language: lang })} last
-          onPress={() => ctx.go('key_terms', { languageId })} />
+          help={t('getReady.page.keyTermsHelp')} onPress={() => ctx.go('key_terms', { languageId })} />
       </Group>
       <SectionLabel label={t('getReady.helps.notesForTranslators')} />
       <Group>
         {notes.map((x, i) => switchRow(x, i === notes.length - 1 && written.length === 0, [x.owner, languagesLine([docLanguage(x.doc)])].filter(Boolean).join(' · ')))}
         {written.map((m, i) => (
-          <Row key={m.materialId} label={m.title} sub={t('getReady.page.writtenHere')} last={i === written.length - 1}
+          <Row key={m.materialId} label={m.title} sub={t('getReady.page.writtenHere')} last={i === written.length - 1} help={t('getReady.page.noteHelp')}
             onPress={h.may ? () => ctx.go('material_editor', { materialId: m.materialId, languageId }) : undefined} />
         ))}
         {notes.length + written.length === 0 ? none(t('getReady.page.noNotes')) : null}
@@ -671,7 +680,7 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
     const on = key === e.c.key;
     const sub = e.c === current ? t('getReady.checks.inUse') : e === starter && i === 0 ? t('getReady.checks.suggested') : flowSub(e.doc.steps);
     return (
-      <ChoiceCard key={e.c.key} on={on} icon="people" title={titleOf(e.doc)} sub={sub} onPress={() => setPicked(e.c.key)}>
+      <ChoiceCard key={e.c.key} on={on} icon="people" title={titleOf(e.doc)} sub={sub} help={t('getReady.checks.wayHelp')} onPress={() => setPicked(e.c.key)}>
         {on && e.doc.steps.length ? <NumberedSteps items={flowWho(e.doc.steps, kindsOf(e.doc))} /> : null}
       </ChoiceCard>
     );
@@ -680,14 +689,15 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
     <Screen header={header} bodyStyle={PAD}
       // Next waits for the ready-made list: pressed while it loads, it moved on without the suggested checks.
       footer={<PrimaryBtn label={key === 'choose' ? t('getReady.checks.chooseSteps') : t('common.next')} icon="right" busy={busy}
-        disabled={!loaded && key === null} onPress={() => void answer()} />}>
+        {...(key === 'choose' ? {} : { help: t('getReady.checks.nextHelp') })} disabled={!loaded && key === null} onPress={() => void answer()} />}>
       <Question>{questionLabel('checks')}</Question>
       {/* Making your own comes first, set apart, so the ready-made list below can grow (design principle 12). */}
       {canUse ? (
-        <ChoiceCard own on={key === 'choose'} icon="edit" title={t('getReady.checks.illChoose')} onPress={() => setPicked('choose')} />
+        <ChoiceCard own on={key === 'choose'} icon="edit" title={t('getReady.checks.illChoose')} help={t('getReady.checks.illChooseHelp')} onPress={() => setPicked('choose')} />
       ) : null}
       {custom ? (
-        <ChoiceCard on={key === 'custom'} icon="people" title={flowTitle(flow.steps, kinds)} sub={t('getReady.checks.ownSteps')} onPress={() => setPicked('custom')}>
+        <ChoiceCard on={key === 'custom'} icon="people" title={flowTitle(flow.steps, kinds)} sub={t('getReady.checks.ownSteps')} help={t('getReady.checks.keepOwnHelp')}
+          onPress={() => setPicked('custom')}>
           {key === 'custom' ? <NumberedSteps items={flowWho(flow.steps, kinds)} /> : null}
         </ChoiceCard>
       ) : null}
@@ -698,7 +708,7 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
             <SectionLabel label={t('getReady.checks.otherWays')} />
             {rest.map((e, i) => card(e, i + 1))}
           </>
-        ) : <QuietLink icon="down" label={t('getReady.checks.otherWaysCount', { total: formatNumber(rest.length) })} onPress={() => setMore(true)} />
+        ) : <QuietLink icon="down" label={t('getReady.checks.otherWaysCount', { total: formatNumber(rest.length) })} detail={t('getReady.checks.otherWaysHelp')} onPress={() => setMore(true)} />
       ) : null}
       {entries.length === 0 ? <Text style={txt.smMuted}>{loaded ? t('getReady.checks.noWays') : t('common.loading')}</Text> : null}
     </Screen>
@@ -720,18 +730,18 @@ function InviteStep({ ctx, lang, header, next }: StepProps) {
   return (
     <Screen header={header} bodyStyle={PAD}
       footer={<>
-        <PrimaryBtn label={t('common.done')} icon="check" onPress={next} />
-        {uri ? <QuietLinks items={[{ label: t('admin.invite.shareLink'), icon: 'send', onPress: () => shareInvite(ctx, uri) }]} /> : null}
+        <PrimaryBtn label={t('common.done')} icon="check" help={t('help.details.done')} onPress={next} />
+        {uri ? <QuietLinks items={[{ label: t('admin.invite.shareLink'), icon: 'send', help: t('admin.invite.shareLinkHelp'), onPress: () => shareInvite(ctx, uri) }]} /> : null}
       </>}>
       <Question>{questionLabel('invite')}</Question>
       {/* Making a new role comes first, set apart from the roles there are (design principle 12). */}
       {ctx.session.can('manage_roles') ? (
-        <DashedRow icon="plus" label={t('admin.invite.newRole')} onPress={() => ctx.go('role_editor', { roleId: 'new' })} />
+        <DashedRow icon="plus" label={t('admin.invite.newRole')} detail={t('admin.invite.newRoleHelp')} onPress={() => ctx.go('role_editor', { roleId: 'new' })} />
       ) : null}
       <Pills>
-        {roles.choices.map((c) => <Chip key={c.id} label={c.chip} on={choice === c.id} onPress={() => setChoice(c.id)} />)}
-        {more ? roles.others.map((r) => <Chip key={r.id} label={r.name} on={choice === r.id} onPress={() => setChoice(r.id)} />) : null}
-        {!more && roles.others.length ? <Chip label={t('getReady.invite.somethingElse')} icon="plus" on={false} onPress={() => setMore(true)} /> : null}
+        {roles.choices.map((c) => <Chip key={c.id} label={c.chip} on={choice === c.id} help={plainRoleHelp(c.id)} onPress={() => setChoice(c.id)} />)}
+        {more ? roles.others.map((r) => <Chip key={r.id} label={r.name} on={choice === r.id} help={t('admin.invite.pickRoleHelp')} onPress={() => setChoice(r.id)} />) : null}
+        {!more && roles.others.length ? <Chip label={t('getReady.invite.somethingElse')} icon="plus" on={false} help={t('admin.invite.otherRolesHelp')} onPress={() => setMore(true)} /> : null}
       </Pills>
       {may ? <InviteCode state={invite} /> : (
         <Banner icon="lock" title={t('getReady.invite.cannotTitle')} body={t('getReady.invite.cannotBody', { language: lang })} />

@@ -442,6 +442,12 @@ short:
 - **Show what others usually do** (14): where there is a common answer (where
   most Bibles start a section, what the organization's other languages use),
   the choice shows it.
+- **Every part explains itself** (help mode, decision 71): while the ? is on,
+  everything a person can tap, type in or switch lights up and says what
+  tapping it does instead of doing it, sheets included, and a mark that means
+  something without words (a coloured dot, a tick, a bar) says what it means.
+  A new control gets its line (`help`, or a Row's `sub`) when it is built;
+  `apps/mobile/test/helpParts.ts` holds it.
 
 Tokens are `apps/mobile/src/ui/theme.ts` (the demo's `C` and `TINT`);
 primitives are `apps/mobile/src/ui/kit.tsx`. `docs/ux/one-next-action.html`

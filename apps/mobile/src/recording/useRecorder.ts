@@ -57,7 +57,6 @@ interface PendingFile {
   durationMs: number;
   card?: RecordedCard;
 }
-export { VAD_BASE };
 
 /**
  * The microphone permission prompt takes the app out of `active` (iOS goes

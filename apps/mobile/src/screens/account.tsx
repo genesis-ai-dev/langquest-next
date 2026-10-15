@@ -29,7 +29,7 @@ import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { reasonLabel, reportSummary, reportTitle, type ReportGroup } from '../moderation/model';
 import { decideRequest, type PendingRequest } from '../invites/invites';
-import { Badge, Banner, Card, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, PrimaryBtn, ProgressBar, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, type IconName } from '../ui/kit';
+import { Badge, Banner, Card, Disclosure, EmptyState, Field, GhostBtn, Group, HelpTop, Header, Ico, PrimaryBtn, ProgressBar, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { useLayout, useOpenDetail } from '../ui/useLayout';
 import { enableNotifications, tryUnregisterNotifications, unregisterNotifications, type RemoteNotification } from '../notifications/notifications';
@@ -68,6 +68,8 @@ interface InboxItem {
   time?: string;
   read: boolean;
   onPress: () => void;
+  /** What help mode says tapping it does. */
+  help: string;
   /** The passage it opens, so the row is marked while that passage shows beside the Inbox. */
   unitId?: string;
 }
@@ -153,7 +155,7 @@ export function InboxHome(ctx: Ctx) {
     items.push({
       id: `join:${r.id}`, icon: 'people', title: t('account.inbox.joinRequest'), read: false,
       body: t('account.inbox.askedToJoin', { name: r.name ?? names[r.profileId] ?? personLook(r.profileId).name, org: orgName }),
-      time: formatShortDate(r.createdAt), onPress: () => setOpenRequest(r)
+      time: formatShortDate(r.createdAt), onPress: () => setOpenRequest(r), help: t('account.inbox.joinHelp')
     });
   }
   // Someone in more than one language is told which one each row is about.
@@ -164,7 +166,7 @@ export function InboxHome(ctx: Ctx) {
       : target.languageId && target.languageId !== languageId ? ` · ${languageName(ctx.org.state, target.languageId)}` : '';
     items.push({
       id: `report:${g.key}`, icon: 'flag', title: reportTitle(target, ctx.name), read: false,
-      body: `${reportSummary(g)}${where}`, time: formatShortDate(g.latest), onPress: () => setOpenReport(g)
+      body: `${reportSummary(g)}${where}`, time: formatShortDate(g.latest), onPress: () => setOpenReport(g), help: t('account.inbox.reportHelp')
     });
   }
   if (words) {
@@ -174,7 +176,7 @@ export function InboxHome(ctx: Ctx) {
       const named = u.kind === 'request' || (u.kind === 'request_done' && u.request?.what !== 'record');
       items.push({
         id: u.id, icon: w.icon, title: w.title, body: w.body, time: manyLanguages && !named ? `${language} · ${ago(u.hlc)}` : ago(u.hlc), read: ctx.inbox.isRead(u.id), unitId: u.unitId,
-        onPress: () => { ctx.inbox.markRead([u.id]); ctx.openPassage(u.unitId, languageId); }
+        onPress: () => { ctx.inbox.markRead([u.id]); ctx.openPassage(u.unitId, languageId); }, help: t('account.inbox.updateHelp')
       });
     }
   }
@@ -189,7 +191,7 @@ export function InboxHome(ctx: Ctx) {
       body: view === 'otherOrg' ? t('account.inbox.otherOrg')
         : view === 'otherLanguage' ? t('account.inbox.inLanguage', { language: languageName(ctx.org.state, row.language_id!) })
         : view === 'connectToSee' ? t('account.inbox.connectToSee') : t('account.inbox.openMembers'),
-      read: seen.has(row.id), onPress: () => void openRemote(row)
+      read: seen.has(row.id), onPress: () => void openRemote(row), help: t('account.inbox.remoteHelp')
     });
   }
 
@@ -219,6 +221,7 @@ export function InboxHome(ctx: Ctx) {
       {rows.slice(0, shown).map((n, i, a) => (
         <Row key={n.id} icon={n.icon} iconBg={n.read ? C.bg : C.light} label={n.title}
           sub={n.time ? `${n.body} · ${n.time}` : n.body} last={i === a.length - 1} onPress={n.onPress}
+          help={n.read ? n.help : t('account.inbox.unreadHelp', { line: n.help })}
           current={!!n.unitId && beside?.screen === 'passage_record' && beside.params['unitId'] === n.unitId}
           right={
             <View style={styles.rowEnd}>
@@ -294,13 +297,13 @@ export function InboxHome(ctx: Ctx) {
         footer={openRequest ? (
           <>
             {canAssign ? (
-              <PrimaryBtn label={t('account.inbox.assignAccept')} icon="check" onPress={() => {
+              <PrimaryBtn label={t('account.inbox.assignAccept')} icon="check" help={t('account.inbox.assignAcceptHelp')} onPress={() => {
                 const r = openRequest;
                 setOpenRequest(null);
                 ctx.go('edit_member', { memberId: r.profileId, requestId: r.id, ...(r.name ? { name: r.name } : {}) });
               }} />
             ) : null}
-            <GhostBtn label={t('account.inbox.decline')} tone="red" disabled={declining} onPress={() => void decline(openRequest)} />
+            <GhostBtn label={t('account.inbox.decline')} tone="red" disabled={declining} help={t('account.inbox.declineHelp')} onPress={() => void decline(openRequest)} />
           </>
         ) : undefined}>
         {openRequest ? (
@@ -347,14 +350,14 @@ export function SettingsHome(ctx: Ctx) {
   return (
     <Screen header={<Header title={t('account.me.title')} />}>
       <Group>
-        <Row icon="user" label={name} sub={t('account.me.nameSub')} onPress={() => ctx.go('profile_edit')} />
+        <Row icon="user" label={name} sub={t('account.me.nameSub')} help={t('account.me.nameHelp')} onPress={() => ctx.go('profile_edit')} />
         {inSeveral(orgs) ? <SwitchOrgRow ctx={ctx} orgName={orgName} several /> : null}
         {/* What comes along to the field, seen before a trip (decisions.md 61). */}
-        <Row icon="download" label={t('account.me.offline')} sub={offlineCount(offline)} onPress={() => ctx.go('sync_status')} />
+        <Row icon="download" label={t('account.me.offline')} sub={offlineCount(offline)} help={t('account.me.offlineHelp')} onPress={() => ctx.go('sync_status')} />
         <Row icon="mic" label={t('account.me.mic')} sub={t('account.me.micSub')} onPress={() => ctx.go('mic_setup')} />
-        <Row icon="help" label={t('account.me.tour')} sub={t('account.me.tourSub')} onPress={() => ctx.go('vision')} />
+        <Row icon="help" label={t('account.me.tour')} sub={t('account.me.tourSub')} help={t('account.me.tourHelp')} onPress={() => ctx.go('vision')} />
         <LanguageRow />
-        <Row icon="settings" label={t('account.me.more')} sub={moreSub} onPress={() => ctx.go('settings_more')}
+        <Row icon="settings" label={t('account.me.more')} sub={moreSub} help={t('account.me.moreHelp')} onPress={() => ctx.go('settings_more')}
           {...(waiting > 0 ? { badge: formatNumber(waiting) } : {})} last />
       </Group>
       <DangerLink label={t('account.me.signOut')} onPress={() => ctx.go('sign_out_confirm')} />
@@ -448,7 +451,7 @@ export function SettingsMore(ctx: Ctx) {
               last={!notifications && !switchHere} />
           ) : null}
           {notifications ? (
-            <Row icon="notif" label={t('account.more.notifications')} sub={notificationMessage || t('account.more.notificationsSub')} onPress={() => {
+            <Row icon="notif" label={t('account.more.notifications')} sub={notificationMessage || t('account.more.notificationsSub')} help={t('account.more.notificationsHelp')} onPress={() => {
               void enableNotifications().then(() => setNotificationMessage(t('account.more.notificationsOn'))).catch((e: unknown) => {
                 // Turned off on the phone says so in its own words (push.ts); anything else is the server or the device.
                 if (!(e instanceof CommandError)) noteExpected('enable notifications', e);
@@ -462,13 +465,13 @@ export function SettingsMore(ctx: Ctx) {
       ) : null}
       <SectionLabel label={t('account.more.thisDevice')} />
       <Group>
-        <Row icon="cloud" label={t('account.more.sync')} sub={syncSub} badge={p.pending > 0 ? formatNumber(p.pending) : undefined} onPress={() => ctx.go('sync_status')} />
+        <Row icon="cloud" label={t('account.more.sync')} sub={syncSub} help={t('account.more.syncHelp')} badge={p.pending > 0 ? formatNumber(p.pending) : undefined} onPress={() => ctx.go('sync_status')} />
         {/* docs/diagnostics.md, decisions.md 39: on by default, off here. */}
         <Row icon="progress" label={t('account.more.diagnostics')} sub={t('account.more.diagnosticsSub')}
           role="switch" checked={diag.on === true} disabled={diag.on === null} onPress={diag.toggle} last={blocked === 0} />
         {/* Store rules, decisions.md 48: shown once someone is blocked (blocking starts from the flag on what they made). */}
         {blocked > 0 ? (
-          <Row icon="block" label={t('account.more.blocked')} sub={t('account.more.blockedCount', { count: blocked })} onPress={() => setBlockedOpen(true)} last />
+          <Row icon="block" label={t('account.more.blocked')} sub={t('account.more.blockedCount', { count: blocked })} help={t('account.more.blockedHelp')} onPress={() => setBlockedOpen(true)} last />
         ) : null}
       </Group>
       {/* Store rules, decisions.md 46: the store answers and the App Review notes say Settings → Delete account; it is here, under Me › More settings. */}
@@ -496,7 +499,7 @@ export function SettingsMore(ctx: Ctx) {
  */
 function SwitchOrgRow(props: { ctx: Ctx; orgName: string; several: boolean; last?: boolean }) {
   const sub = props.several ? t('account.more.switchActive', { org: props.orgName }) : t('account.more.switchOrStart', { org: props.orgName });
-  return <Row icon="building" label={t('account.more.switchOrg')} sub={sub} onPress={() => props.ctx.go('org_switcher')} last={props.last} />;
+  return <Row icon="building" label={t('account.more.switchOrg')} sub={sub} help={t('account.more.switchOrgHelp')} onPress={() => props.ctx.go('org_switcher')} last={props.last} />;
 }
 
 /**
@@ -527,8 +530,8 @@ function BlockedPeople(props: { ctx: Ctx; onClose: () => void }) {
               <Row key={id} leading={<PersonAvatar look={personLook(id, ctx.name(id))} size={36} />} label={ctx.name(id)}
                 {...(blocked ? {} : { sub: t('account.blocked.unblocked') })} last={i === all.length - 1}
                 right={blocked
-                  ? <SmallBtn label={t('account.blocked.unblock')} onPress={() => void set(id, false)} />
-                  : <SmallBtn label={t('account.blocked.blockAgain')} tone="plain" onPress={() => void set(id, true)} />} />
+                  ? <SmallBtn label={t('account.blocked.unblock')} help={t('account.blocked.unblockHelp')} onPress={() => void set(id, false)} />
+                  : <SmallBtn label={t('account.blocked.blockAgain')} tone="plain" help={t('account.blocked.blockAgainHelp')} onPress={() => void set(id, true)} />} />
             );
           })}
         </Group>
@@ -587,7 +590,8 @@ export function ProfileEdit(ctx: Ctx) {
       <View style={styles.avatarBlock}>
         <PersonAvatar look={personLook(ctx.session.actorId, value)} size={72} />
       </View>
-      <Field label={t('account.profile.nameLabel')} value={value} onChangeText={setName} placeholder={t('entry.fields.yourName')} autoCapitalize="words" />
+      <Field label={t('account.profile.nameLabel')} value={value} onChangeText={setName} placeholder={t('entry.fields.yourName')} autoCapitalize="words"
+        help={t('account.profile.nameHelp')} />
       <View style={{ gap: space.xs }}>
         <Text style={txt.xsStrong}>{t('entry.fields.email')}</Text>
         {/* A looked-after account's address is not an email anyone can use (accounts.ts). */}
@@ -596,7 +600,7 @@ export function ProfileEdit(ctx: Ctx) {
       {managed ? (
         <View style={{ gap: space.xs }}>
           <Field label={hasPassword ? t('account.profile.newPassword') : t('account.profile.password')} value={password} onChangeText={setPassword}
-            placeholder={t('account.profile.passwordPlaceholder')} secure autoCapitalize="none" />
+            placeholder={t('account.profile.passwordPlaceholder')} secure autoCapitalize="none" help={t('account.profile.passwordHelp')} />
           <Text style={txt.xs}>
             {password || hasPassword
               ? (handle ? t('account.profile.signInWith', { name: handle }) : t('account.profile.signInWithYourName'))
@@ -625,6 +629,7 @@ export function OrgSwitcher(ctx: Ctx) {
         const active = r.org_id === ctx.language.orgId;
         return (
           <Card key={r.org_id} accessibilityLabel={active ? t('account.orgs.activeLabel', { name: r.name }) : r.name}
+            help={active ? t('account.orgs.activeHelp') : t('account.orgs.openHelp')}
             onPress={() => void ctx.openOrganization(r.org_id).catch((e: unknown) => setError(failure('switch organization', e)))}>
             <View style={styles.profile}>
               <View style={styles.tile}><Ico name="building" size={24} color={active ? C.primary : C.muted} /></View>
@@ -638,7 +643,7 @@ export function OrgSwitcher(ctx: Ctx) {
       })}
       {!rows.length && !error ? <EmptyState icon="building" title={t('account.orgs.loading')} /> : null}
       {/* App only: someone already in an organization starts another, and is its Organization Admin. */}
-      <Card onPress={() => ctx.go('create_org')} accessibilityLabel={t('account.orgs.newOrg')}>
+      <Card onPress={() => ctx.go('create_org')} accessibilityLabel={t('account.orgs.newOrg')} help={t('account.orgs.newOrgHelp')}>
         <View style={styles.profile}>
           <View style={styles.tile}><Ico name="plus" size={24} color={C.primary} /></View>
           <View style={{ flex: 1, minWidth: 0 }}>
@@ -712,11 +717,11 @@ export function SignOutConfirm(ctx: Ctx) {
   // Every way back in needs the server, so offline the screen says so.
   const why = !blocked && online === false ? [reason, t('account.signOut.offlineBackIn')].filter(Boolean).join(' ') : reason;
   return (
-    <Screen bodyStyle={styles.centered}
+    <Screen header={<HelpTop />} bodyStyle={styles.centered}
       footer={
         <>
           <PrimaryBtn label={busy ? t('account.signOut.signingOut') : t('account.signOut.button')} tone="red" onPress={() => void signOut()} disabled={blocked || busy} />
-          <GhostBtn label={t('common.cancel')} onPress={ctx.back} />
+          <GhostBtn label={t('common.cancel')} help={t('help.details.cancel')} onPress={ctx.back} />
         </>
       }>
       <View style={[styles.bigTile, { backgroundColor: waiting.length > 0 ? TINT.amber : TINT.red }]}>
@@ -756,7 +761,7 @@ export function DeleteAccount(ctx: Ctx) {
       footer={
         <>
           <PrimaryBtn label={busy ? t('account.delete.deleting') : t('account.delete.button')} tone="red" onPress={() => void remove()} disabled={blocked || busy} />
-          <GhostBtn label={t('common.cancel')} onPress={ctx.back} />
+          <GhostBtn label={t('common.cancel')} help={t('help.details.cancel')} onPress={ctx.back} />
         </>
       }>
       {waiting.length > 0 ? (
@@ -801,13 +806,14 @@ export function SyncStatus(ctx: Ctx) {
   };
   return (
     <Screen header={<Header title={t('account.more.sync')} onBack={ctx.back} />}
-      footer={<PrimaryBtn label={busy ? t('account.sync.syncing') : t('account.sync.syncNow')} icon="restart" onPress={() => void syncNow()} disabled={language.tooOld || busy} />}>
+      footer={<PrimaryBtn label={busy ? t('account.sync.syncing') : t('account.sync.syncNow')} icon="restart" help={t('account.sync.syncNowHelp')}
+        onPress={() => void syncNow()} disabled={language.tooOld || busy} />}>
       {/* The last try failing to reach the server outranks the live channel, which can take a minute to notice a lost network. */}
       <Card>
         <View style={[styles.profile, { flexWrap: 'wrap' }]} accessible accessibilityLabel={standingTitle(standing)}>
           <View style={[styles.liveDot, { backgroundColor: STANDING_COLOR[standing] }]} />
           <Text style={[txt.body, { flex: 1, fontWeight: '700' }]}>{standingTitle(standing)}</Text>
-          <Info text={standingHelp(standing)} />
+          <Info label={standingTitle(standing)} text={standingHelp(standing)} />
         </View>
         {/* The server's refusal is English (its reason goes to the log): say what it means. */}
         {language.refused || language.tooOld ? <Text style={txt.smMuted}>{language.refused ? t('account.sync.refused') : t('account.sync.tooOld')}</Text> : null}
@@ -820,7 +826,7 @@ export function SyncStatus(ctx: Ctx) {
         {rejected.length ? <SyncLine icon="flag" label={t('account.sync.refusedLine')} value={rejected.length} tone={TINT.redText} help={t('account.sync.help.refusedLine')} /> : null}
       </Card>
       <Disclosure testID="sync-details" icon="layers" title={t('account.sync.details')} summary={ins ? t('account.sync.events', { count: ins.total + ins.rejected.length }) : ''}
-        open={details} onToggle={() => setDetails((d) => !d)}>
+        open={details} onToggle={() => setDetails((d) => !d)} help={t('account.sync.detailsHelp')}>
       <View style={styles.tiles}>
         <Stat id="waiting" icon="up" color={pendingEvents ? C.primary : C.green} value={pendingEvents} label={t('account.sync.waitingUpload')} />
         <Stat id="refused" icon="flag" color={rejected.length ? TINT.redText : C.muted} value={rejected.length} label={t('account.sync.refusedByServer')} />
@@ -834,7 +840,7 @@ export function SyncStatus(ctx: Ctx) {
           <SectionLabel label={t('account.sync.waitingCount', { n: ins.pending.length })} />
           <Group>
             {ins.pending.slice(0, 20).map((l, i, a) => (
-              <Row key={l.event.id} icon="cloud" label={eventLabel(ctx, l.event)} sub={clock(l.event.hlc)} last={i === a.length - 1} onPress={openUnit(ctx, l.event)} />
+              <Row key={l.event.id} icon="cloud" label={eventLabel(ctx, l.event)} sub={clock(l.event.hlc)} help={t('account.sync.eventHelp')} last={i === a.length - 1} onPress={openUnit(ctx, l.event)} />
             ))}
           </Group>
         </>
@@ -844,7 +850,7 @@ export function SyncStatus(ctx: Ctx) {
           <SectionLabel label={t('account.sync.refusedCount', { n: rejected.length })} />
           <Group>
             {rejected.slice(0, 20).map((l, i, a) => (
-              <Row key={l.event.id} icon="flag" iconColor={TINT.redText} label={eventLabel(ctx, l.event)} sub={l.rejectReason ?? clock(l.event.hlc)} last={i === a.length - 1} onPress={openUnit(ctx, l.event)} />
+              <Row key={l.event.id} icon="flag" iconColor={TINT.redText} label={eventLabel(ctx, l.event)} sub={l.rejectReason ?? clock(l.event.hlc)} help={t('account.sync.eventHelp')} last={i === a.length - 1} onPress={openUnit(ctx, l.event)} />
             ))}
           </Group>
         </>
@@ -889,14 +895,16 @@ function standingHelp(s: SyncStanding): string {
     : s === 'checking' ? t('account.sync.help.checking') : t('account.sync.help.refused');
 }
 
-/** A small ⓘ that shows one plain sentence under its row. */
-function Info(props: { text: string }) {
+/** A small ⓘ that shows one plain sentence under its row. While help is on, it says that sentence about its row (`label`). */
+function Info(props: { label: string; text: string }) {
   const [open, setOpen] = useState(false);
+  const spot = useHelpSpot(props.label, props.text, () => setOpen((o) => !o));
   return (
     <>
-      <Pressable onPress={() => setOpen((o) => !o)} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('account.sync.moreInfo')}
+      <Pressable onPress={spot.onPress} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('account.sync.moreInfo')}
         accessibilityState={{ expanded: open }} style={({ pressed }) => pressed && { opacity: 0.6 }}>
         <Ico name="info" size={18} color={open ? C.primary : C.muted} />
+        <HelpBadge spot={spot} />
       </Pressable>
       {open ? <Text style={[txt.smMuted, styles.infoText]}>{props.text}</Text> : null}
     </>
@@ -915,7 +923,7 @@ function SyncLine(props: { icon: IconName; label: string; value: number; rate?: 
         {props.rate ? <Text style={txt.xs}>{speed(props.rate)}</Text> : null}
         <Text style={[txt.body, { fontWeight: '700', color, fontVariant: ['tabular-nums'] }]}>{value}</Text>
       </View>
-      <Info text={props.help} />
+      <Info label={props.label} text={props.help} />
     </View>
   );
 }

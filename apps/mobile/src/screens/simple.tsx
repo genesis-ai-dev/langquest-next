@@ -11,6 +11,5 @@ export function MicSetup(ctx: Ctx) {
 }
 
 // Get ‹language› ready lives in its own module (getReady.tsx).
-export { GetReady } from './getReady';
 
-export const contracts = contractsFor('mic_setup', 'get_ready');
+export const contracts = contractsFor('mic_setup');

@@ -148,13 +148,15 @@ interface WorkItem {
   title: string;
   sub: string;
   onPress: () => void;
+  /** What help mode says tapping it does, where `sub` says what it is rather than that. */
+  help?: string;
 }
 
 function WorkRows(props: { items: WorkItem[] }) {
   return (
     <Group>
       {props.items.map((it, i) => (
-        <Row key={it.id} icon={it.icon} label={it.title} sub={it.sub} last={i === props.items.length - 1} onPress={it.onPress}
+        <Row key={it.id} icon={it.icon} label={it.title} sub={it.sub} last={i === props.items.length - 1} onPress={it.onPress} {...(it.help ? { help: it.help } : {})}
           iconBg={it.tone === 'amber' ? TINT.amber : C.light} iconColor={it.tone === 'amber' ? TINT.amberText : C.primary} />
       ))}
     </Group>
@@ -234,12 +236,13 @@ export function MyWork(ctx: Ctx) {
     // Feedback says who it came from in the passage itself; the row stays short (demo Then list).
     const sub = h.kind === 'respond' ? w.what : workSub(w.what, { ...(w.by ? { by: w.by } : {}), ...(w.due ? { due: w.due } : {}) });
     // A check asked of you reads as one (demo HomeCoord: "Check Luke 1:1–4"); the rest by the passage alone.
-    return { id: h.id, icon: look.icon, tone: look.tone, title: h.kind === 'review' ? t('work.checkPassage', { passage: w.title }) : w.title, sub, onPress: () => open(h, languageId) };
+    return { id: h.id, icon: look.icon, tone: look.tone, title: h.kind === 'review' ? t('work.checkPassage', { passage: w.title }) : w.title, sub, onPress: () => open(h, languageId),
+      help: t('work.list.openHelp') };
   };
   const joinItems: WorkItem[] = joins.map((r) => ({
     id: `join:${r.id}`, icon: 'people', tone: 'brand',
     title: t('work.join.wantsToJoin', { name: r.name ?? ctx.name(r.profileId) }),
-    sub: r.message.trim() || joinAsked(r.createdAt),
+    sub: r.message.trim() || joinAsked(r.createdAt), help: t('work.join.openHelp'),
     onPress: () => ctx.go('edit_member', { memberId: r.profileId, requestId: r.id, ...(r.name ? { name: r.name } : {}), ...(r.message ? { message: r.message } : {}) })
   }));
 
@@ -253,7 +256,7 @@ export function MyWork(ctx: Ctx) {
   let suggested = false;
   if (addLanguage) {
     lead = <NextCard label={orgName ? t('work.lead.getOrgReady', { org: orgName }) : t('work.lead.getYourOrgReady')} title={t('work.lead.addLanguage')}
-      sub={t('work.lead.addLanguageSub')} cta={t('work.lead.addLanguage')} onPress={() => ctx.go('new_language')} />;
+      sub={t('work.lead.addLanguageSub')} cta={t('work.lead.addLanguage')} onPress={() => ctx.go('new_language')} help={t('work.lead.addLanguageHelp')} />;
   } else if (getReady && languageId) {
     lead = <ReadyCard language={language} done={getReady.done} total={getReady.total} question={getReady.next!.question}
       onChoose={() => ctx.go('get_ready', { languageId, step: String(getReady.step) })} />;
@@ -263,7 +266,7 @@ export function MyWork(ctx: Ctx) {
     rest = forYou.slice(1);
     // A check asked of a whole team (decision 91) says so, with the team's faces.
     const team = first.request?.teamId && first.request.kindId ? { kindId: first.request.kindId, people: checkPeople(state, first.request.kindId) } : null;
-    lead = <NextCard label={t('work.lead.nextForYou')} title={w.title} cta={t('work.lead.start')} onPress={() => open(first, languageId)}
+    lead = <NextCard label={t('work.lead.nextForYou')} title={w.title} cta={t('work.lead.start')} onPress={() => open(first, languageId)} help={t('work.lead.startHelp')}
       sub={nextSub(first.kind, w.what, { ...(w.by ? { by: w.by } : {}), ...(w.due ? { due: w.due } : {}) })}
       {...(team ? { below: (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
@@ -282,7 +285,7 @@ export function MyWork(ctx: Ctx) {
         : next.kind === 'record' ? t('work.lead.notRecorded')
         : t('work.lead.notChecked', { name: by ? ctx.name(by) : t('common.someone') });
       lead = <NextCard label={isAdminOnly ? t('work.lead.getLanguageStarted', { language }) : t('work.lead.goodPlace')} title={title} sub={sub}
-        cta={isAdminOnly ? t('work.lead.openIt') : t('work.lead.start')} onPress={() => ctx.openPassage(next.unitId, languageId)} />;
+        cta={isAdminOnly ? t('work.lead.openIt') : t('work.lead.start')} onPress={() => ctx.openPassage(next.unitId, languageId)} help={t('work.lead.openHelp')} />;
     }
   }
 
@@ -298,7 +301,7 @@ export function MyWork(ctx: Ctx) {
     ? [...earlier.over.keys()].filter((u) => state.units[u] && !derivePassage(state, u, idx).recorded) : [];
   if (again.length && languageId) {
     tasks.push({ id: 'again', icon: 'mic', tone: 'amber', title: t('work.again.title', { passage: unitTitle(state, again[0]!) }),
-      sub: t('work.again.sub', { count: again.length }), onPress: () => ctx.openPassage(again[0]!, languageId) });
+      sub: t('work.again.sub', { count: again.length }), help: t('work.again.help'), onPress: () => ctx.openPassage(again[0]!, languageId) });
   }
   // Books waiting to be divided before anyone can record them (decision 80), for those who divide: the first opens
   // in this language, and the line says why it waits (FIA has no passages for Romans). Book by book leaves every
@@ -312,6 +315,7 @@ export function MyWork(ctx: Ctx) {
     const why = way && (!way.subscription || baseWay(way.subscription.sourceItemId) !== LATER_ITEM) ? t('work.divide.leftOut', { way: way.name, book }) : null;
     tasks.push({ id: 'divide', icon: 'cut', tone: 'brand', title: t('work.divide.title', { book }),
       sub: !why ? t('work.divide.waiting', { count: toDivide.length }) : toDivide.length > 1 ? `${why} ${t('work.divide.more', { count: toDivide.length - 1 })}` : why,
+      help: bookId && canGo(ctx, 'book_structure') ? t('work.divide.help') : t('work.divide.mapHelp'),
       onPress: () => (bookId && canGo(ctx, 'book_structure') ? ctx.go('book_structure', { languageId, bookId }) : map()) });
   }
   // What is new for this person in the organization's other languages: the line switches to that language.
@@ -345,7 +349,8 @@ export function MyWork(ctx: Ctx) {
           <SectionLabel label={listLabel} />
           <WorkRows items={shown} />
           {items.length > THEN_CAP ? (
-            <QuietToggle label={moreShown ? t('work.list.fewer') : t('work.list.more', { count: items.length - THEN_CAP })} open={moreShown} onPress={() => setMoreShown((v) => !v)} />
+            <QuietToggle label={moreShown ? t('work.list.fewer') : t('work.list.more', { count: items.length - THEN_CAP })} open={moreShown} onPress={() => setMoreShown((v) => !v)}
+              detail={moreShown ? t('work.list.fewerHelp') : t('work.list.moreHelp')} />
           ) : null}
         </>
       ) : null}
@@ -362,7 +367,7 @@ export function MyWork(ctx: Ctx) {
               const line = waitingText(state, kinds, w, ctx.name);
               return (
                 <Row key={w.id} icon="clock" iconColor={C.muted} iconBg={C.bg} last={i === waiting.length - 1}
-                  label={line.title} sub={line.sub} onPress={() => ctx.openPassage(w.unitId, languageId)} />
+                  label={line.title} sub={line.sub} help={t('work.waiting.rowHelp')} onPress={() => ctx.openPassage(w.unitId, languageId)} />
               );
             })}
           </Group>
@@ -377,6 +382,7 @@ export function MyWork(ctx: Ctx) {
               <Row key={`${r.unitId}:${r.languageId}`} icon="history" iconColor={C.muted} iconBg={C.bg} last={i === recent.length - 1}
                 label={unitTitle(state, r.unitId)}
                 sub={passageSummary(r.s, kinds, actorId, (id) => ctx.name(id, true))}
+                help={r.s.recorded && r.s.steps.length > 0 ? `${t('work.recent.rowHelp')} ${t('map.marks.stepsHelp')}` : t('work.recent.rowHelp')}
                 right={r.s.recorded && r.s.steps.length > 0
                   ? <StepMarks steps={r.s.steps.map((st) => ({ kinds: st.kinds, checkpoint: st.step.checkpoint }))} size={14} />
                   : undefined}

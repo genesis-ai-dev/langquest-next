@@ -18,11 +18,12 @@ import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { Header, Ico, PrimaryBtn, Screen } from '../ui/kit';
+import { Header, HelpInfo, Ico, PrimaryBtn, Screen } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { noteExpected } from '../diagnostics/report';
 import { C, radius, space, target, TINT, type as T, withAlpha } from '../ui/theme';
-import { useEnergyHistory, VAD_BASE } from '../recording/useRecorder';
+import { useEnergyHistory } from '../recording/useRecorder';
+import { VAD_BASE } from '../recording/vadModel';
 import { claimVad, MicrophoneRefused } from '../recording/recorderState';
 import { clampCutoff, cutoffAfterDrag, meterHeight } from '../recording/splitModel';
 import { cachedMicSettings, loadMicSettings, saveMicSettings } from './micSettings';
@@ -218,13 +219,13 @@ export function MicSetupScreen(props: { ctx: Ctx }) {
   if (phase === 'pick') {
     return (
       <Screen header={<Header title={t('recording.micSetup.whichBest')} sub={t('recording.micSetup.title')} onBack={ctx.back} close />}
-        footer={<PrimaryBtn label={t('recording.micSetup.useTry', { id: MIC_TRIES[picked]!.id })} icon="check" busy={saving} onPress={() => void use()} />}>
+        footer={<PrimaryBtn label={t('recording.micSetup.useTry', { id: MIC_TRIES[picked]!.id })} icon="check" busy={saving} help={t('recording.micSetup.useTryHelp')} onPress={() => void use()} />}>
         <Text style={[styles.lead, { textAlign: 'center' }]}>{t('recording.micSetup.listenToEach')}</Text>
         {MIC_TRIES.map((tr, i) => (
           <TryRow key={tr.id} id={tr.id} parts={tries[i] ?? []} on={picked === i} playing={tryPlayer.playing === i}
             onPlay={() => tryPlayer.play(i, tries[i] ?? [])} onPick={() => setPicked(i)} />
         ))}
-        <QuietLink label={t('recording.micSetup.allBad')} onPress={again} />
+        <QuietLink label={t('recording.micSetup.allBad')} hint={t('recording.micSetup.allBadHelp')} onPress={again} />
         <QuietLink label={t('recording.micSetup.byHand')} icon="sliders" hint={t('recording.micSetup.byHandHelp')} onPress={() => { tryPlayer.halt(); setPhase('hand'); }} />
       </Screen>
     );
@@ -235,9 +236,11 @@ export function MicSetupScreen(props: { ctx: Ctx }) {
   return (
     <Screen fixed header={<Header title={t('recording.micSetup.title')} sub={t('recording.micSetup.aboutAMinute')} onBack={ctx.back} close />}>
       <View style={styles.page}>
-        <View style={styles.segments} accessibilityLabel={quiet ? t('recording.micSetup.beforeTries') : tryOf}>
-          {MIC_TRIES.map((tr, i) => <View key={tr.id} style={[styles.segment, { backgroundColor: !quiet && i < at ? C.green : !quiet && i === at ? C.primary : C.border }]} />)}
-        </View>
+        <HelpInfo label={quiet ? t('recording.micSetup.beforeTries') : tryOf} detail={t('recording.micSetup.progressHelp')} style={{ alignSelf: 'center' }}>
+          <View style={styles.segments} accessibilityLabel={quiet ? t('recording.micSetup.beforeTries') : tryOf}>
+            {MIC_TRIES.map((tr, i) => <View key={tr.id} style={[styles.segment, { backgroundColor: !quiet && i < at ? C.green : !quiet && i === at ? C.primary : C.border }]} />)}
+          </View>
+        </HelpInfo>
         <Text style={[txt.smMuted, { textAlign: 'center' }]}>{quiet ? t('recording.micSetup.firstTheRoom') : tryOf}</Text>
         <View style={styles.card}>
           {quiet ? (
@@ -258,7 +261,8 @@ export function MicSetupScreen(props: { ctx: Ctx }) {
           {phase === 'quiet' ? (
             <View style={styles.quietMark}><Ico name="listen" size={44} color={C.primary} /></View>
           ) : (
-            <RecordBtn size={120} recording={listening} onPress={() => void (quiet ? listenToRoom() : toggleTry())} />
+            <RecordBtn size={120} recording={listening} onPress={() => void (quiet ? listenToRoom() : toggleTry())}
+              help={quiet ? t('recording.micSetup.listenRoomHelp') : listening ? t('recording.micSetup.tryStopHelp') : t('recording.micSetup.tryHelp')} />
           )}
         </View>
         <Text style={styles.status} accessibilityLiveRegion="polite">
@@ -316,6 +320,9 @@ function pauseChoices(): { ms: number; label: string }[] {
   ];
 }
 
+/** The sensitivity line's press while help is on: it explains itself; it is moved by dragging. */
+const DRAG_ONLY = () => undefined;
+
 /**
  * The old controls, for anyone who would rather set them (moved here from
  * the recording screen): the live level with the cutoff line to drag, and
@@ -341,6 +348,8 @@ function ByHand(props: { ctx: Ctx; onDone: () => void }) {
     onPanResponderGrant: () => { start.current = latest.current.cutoff; },
     onPanResponderMove: (_, g) => setCutoff(cutoffAfterDrag(start.current, g.dy, latest.current.height, false))
   })).current;
+  // The line is dragged, not tapped: while help is on, a tap on it explains it and a drag moves nothing.
+  const line = useHelpSpot(t('recording.micSetup.sensitivityLine'), t('recording.micSetup.sensitivityHelp'), DRAG_ONLY);
   const [saving, setSaving] = useState(false);
   // As "Use Try N" does: a device that cannot keep the settings says so, and the screen stays.
   async function save() {
@@ -358,7 +367,7 @@ function ByHand(props: { ctx: Ctx; onDone: () => void }) {
     <Screen header={<Header title={t('recording.micSetup.byHand')} sub={t('recording.micSetup.title')} onBack={props.onDone} />}
       footer={<PrimaryBtn label={t('recording.micSetup.saveSettings')} icon="check" busy={saving} onPress={() => void save()} />}>
       <Text style={styles.lead}>{t('recording.micSetup.byHandLead')}</Text>
-      <View style={styles.meter} {...pan.panHandlers}
+      <View style={styles.meter} {...(line.id ? {} : pan.panHandlers)}
         accessible accessibilityRole="adjustable" accessibilityLabel={t('recording.micSetup.sensitivityLine')} accessibilityValue={{ min: 4, max: 92, now: Math.round(cutoff * 100) }}
         aria-valuemin={4} aria-valuemax={92} aria-valuenow={Math.round(cutoff * 100)}
         accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
@@ -368,6 +377,11 @@ function ByHand(props: { ctx: Ctx; onDone: () => void }) {
           <Bars />
           <View style={[{ pointerEvents: 'none' }, styles.cutoff, { top: `${(1 - meterHeight(cutoff)) * 100}%` }]} />
         </View>
+        {line.id ? (
+          <Pressable onPress={line.onPress} accessibilityRole="button" accessibilityLabel={t('recording.micSetup.sensitivityLine')} style={StyleSheet.absoluteFill}>
+            <HelpBadge spot={line} />
+          </Pressable>
+        ) : null}
       </View>
       {problem ? <Text style={txt.error} accessibilityRole="alert">{problem}</Text> : null}
       <Text style={[txt.label, { paddingHorizontal: space.xs }]}>{t('recording.micSetup.pauseEndsPart')}</Text>

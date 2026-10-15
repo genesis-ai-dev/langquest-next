@@ -1,5 +1,5 @@
 // The reports API on the web Worker (decision 44), when this build has one.
-import { type ReportsServer } from '@langquest-next/sync';
+import type { ReportsServer } from '@langquest-next/sync';
 import { Platform } from 'react-native';
 import { accessToken } from '../server/auth';
 

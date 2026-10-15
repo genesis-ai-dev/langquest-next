@@ -194,7 +194,8 @@ export async function sheetText(page: Page): Promise<string> {
 /** The buttons in the open sheet, by their spoken names, without Close. */
 export async function sheetButtons(page: Page): Promise<string[]> {
   const names = await sheet(page).getByRole('button').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label') ?? (e as HTMLElement).innerText.trim()));
-  return names.filter((n) => n && n !== 'Close');
+  // A sheet's ✕ and its ? (help mode, decision 71) are on every sheet; the rest are its choices.
+  return names.filter((n) => n && n !== 'Close' && n !== 'Help: explain this screen');
 }
 
 export async function closeSheet(page: Page): Promise<void> {

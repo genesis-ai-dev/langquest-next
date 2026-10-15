@@ -16,25 +16,20 @@ import {
   type Commands, type EventSpec, type FlowStepStatus, type KindState, type KindStatus, type PassageNote, type QuestionSpec, type ReviewView
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useHardwareBack } from '../ui/useHardwareBack';
 import { Text } from '../ui/text';
 import { AudioClip } from '../audio/audioClip';
-import { commandErrorText, stateLabel, stepName } from '../i18n/coreText';
+import { commandErrorText, stateLabel } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
 import { edgeFor, screenTitle, type ScreenId } from '../shell/flow';
 import { t, Trans } from '../i18n';
 import { indexesFor } from '../sync/indexes';
-import { Badge, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, IconBtn, KindIcon, LinkBtn, NoteCard, PrimaryBtn, QuietLinks, ReasonSheet, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, StateMark, type IconName } from '../ui/kit';
+import { Badge, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, IconBtn, KindIcon, LinkBtn, NoteCard, PrimaryBtn, QuietLinks, ReasonSheet, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, StateMark, type IconName, HelpTop } from '../ui/kit';
 import { kindIcon } from '../ui/kindIcon';
 import { txt } from '../ui/textStyles';
-import {
-  addDays, anchorLabel, askCandidates, channelLabel, currentStepId, describeEntry, dueChoices,
-  gridKindIds, guestMessage, heroHeadline, historySummary, isoDay, listenersOf, nextQuestionType, questionTypeLabel,
-  reviewMark, reviewsSummary, sendTargetLabel, versionReviewsSummary, type EntryText,
-  type RowAction
-} from '../passage/record';
+import { addDays, anchorLabel, askCandidates, channelLabel, currentStepId, describeEntry, dueChoices, gridKindIds, guestMessage, historySummary, isoDay, listenersOf, nextQuestionType, questionTypeLabel, reviewMark, reviewsSummary, sendTargetLabel, versionReviewsSummary, type EntryText, type RowAction } from '../passage/record';
 import { PassagePath } from '../passage/path';
 import { askInput, askDoneText, askModel, TEAM, type AskPicks } from '../passage/askModel';
 import {
@@ -50,16 +45,16 @@ import { VersionRecording } from '../passage/versionParts';
 import { useVersesHeld } from '../passage/useVerses';
 import { pathSteps, teamSteps, type PathStep, type TeamStep } from '../passage/pathModel';
 import {
-  askButtonLabel, askForLabel, currentCheck, elseMove, elseOptions, historyAction, historyMove, listenerLabel, listenersLine, mainMove,
+  askButtonLabel, askForLabel, currentCheck, elseMove, elseOptions, historyAction, historyHelp, historyMove, listenerLabel, listenersLine, mainMove,
   nothingToAsk, passageNoteFor, publishedHeadline, publishedLine, recordCan, recordModel, recordPathInput, rowBar, rowButtons, rowMove, sentText,
   stepMove, stepSheet, studyLine, studyPathInfo, teamStepsOpen, usualTargets, waitingOnAnswer,
-  type ElseOption, type RecordMove, type SheetRow
+  type ElseOption, type RecordMain, type RecordMove, type SheetRow
 } from '../passage/recordModel';
 import { clipSeconds, clock as clockOf } from '../audio/clipTime';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { requestIsMine, sendToInput, teamNameIn } from '../passage/sendTarget';
-import { dueTitle, feedbackSource, outcomeText, passageCrumbs, versionTitle, viaText, when, type PassageView } from '../passage/passageView';
+import { dueTitle, feedbackSource, kindInSentence, outcomeText, passageCrumbs, versionTitle, viaText, when, type PassageView } from '../passage/passageView';
 import { usePassage } from '../passage/usePassage';
 import { PassageOffline, PassageOfflineLine } from '../sync/offline';
 import { noteExpected, reportError } from '../diagnostics/report';
@@ -168,6 +163,41 @@ function PlayRow(props: { ctx: Ctx; hashes: string[]; label: string; sub?: strin
 
 function Label(props: { text: string; color?: string }) {
   return <Text style={[txt.label, props.color ? { color: props.color } : null]}>{props.text}</Text>;
+}
+
+/** What the record's main button does, as help mode says it. */
+function mainHelp(m: RecordMain): string {
+  switch (m.id) {
+    case 'hearFeedback': return t('passage.page.mainHelp.hearFeedback');
+    case 'check': return m.produces ? t('passage.page.mainHelp.backTranslate') : t('passage.page.mainHelp.check');
+    case 'study': return t('passage.page.mainHelp.study');
+    case 'record': return t('passage.page.mainHelp.record');
+    case 'ask': return t('passage.page.mainHelp.ask');
+  }
+}
+
+/** What a check's round mark means (its colour and icon), as help mode says it. */
+function markHelp(state: KindState): string {
+  switch (state) {
+    case 'approved': return t('passage.page.marks.approved');
+    case 'addressed': return t('passage.page.marks.addressed');
+    case 'suggestions': return t('passage.page.marks.suggestions');
+    case 'asked': return t('passage.page.marks.asked');
+    case 'skipped': return t('passage.page.marks.skipped');
+    case 'locked': return t('passage.page.marks.locked');
+    case 'todo': return t('passage.page.marks.todo');
+  }
+}
+
+/** What a step's action button does in the step sheet (recordModel's row actions), as help mode says it. */
+function actionHelp(id: RowAction['id']): string {
+  switch (id) {
+    case 'do': return t('passage.page.actionHelp.do');
+    case 'send': return t('passage.page.actionHelp.send');
+    case 'ask': return t('passage.page.actionHelp.ask');
+    case 'log': return t('passage.page.actionHelp.log');
+    case 'skip': return t('passage.page.actionHelp.skip');
+  }
 }
 
 // ---- passage_record ------------------------------------------------------------------
@@ -290,7 +320,9 @@ export function PassageRecord(ctx: Ctx) {
   const { answersMine, feedbackReview, myDraft, nextKinds, nextKind } = model;
   const nextTarget = nextKind ? targets[nextKind.kindId] : undefined;
   const m = model.main;
-  const main: { label: string; icon: IconName; onPress: () => void } | null = !m ? null : { label: m.label, icon: m.icon, onPress: () => doMove(mainMove(m)) };
+  const main: { label: string; icon: IconName; help: string; onPress: () => void } | null = !m ? null : {
+    label: m.label, icon: m.icon, help: mainHelp(m), onPress: () => doMove(mainMove(m))
+  };
 
   const onStep = (st: PathStep): (() => void) | undefined => {
     const mv = stepMove(st, { p, can, earlier: earlierHere, feedbackReview });
@@ -317,7 +349,7 @@ export function PassageRecord(ctx: Ctx) {
               onAction={onRowAction} onMore={() => setOpenStepId(openStep.step.id)} />
           ))}</Group>
           {openSheet.movePast ? (
-            <GhostBtn label={t('passage.page.movePastThis')} tone="red" onPress={() => afterSheet(() => setOverriding(openStep.step.id))} />
+            <GhostBtn label={t('passage.page.movePastThis')} tone="red" help={t('passage.page.movePastHelp')} onPress={() => afterSheet(() => setOverriding(openStep.step.id))} />
           ) : null}
         </Sheet>
       ) : null}
@@ -360,15 +392,15 @@ export function PassageRecord(ctx: Ctx) {
       <Screen header={<Header title={t('passage.else.title')} sub={[v.title, lit?.title ?? ''].filter(Boolean).join(' · ')} onBack={() => setPage('path')} close />}
         footer={can.note ? (
           <View style={{ gap: 2 }}>
-            <PrimaryBtn label={t('passage.else.sayInstead')} icon="mic" onPress={() => setNoting('say')} />
+            <PrimaryBtn label={t('passage.else.sayInstead')} icon="mic" help={t('passage.else.sayInsteadHelp')} onPress={() => setNoting('say')} />
             <Text style={[txt.xs, { textAlign: 'center' }]}>{t('passage.else.sayInsteadSub')}</Text>
           </View>
         ) : undefined}>
         <View style={{ gap: space.md }}>
           {options.map((o) => <BigOption key={o.id} testID={`else-${o.id}${o.kindId ? `-${o.kindId}` : ''}`} icon={o.icon} label={o.label} sub={o.sub} onPress={() => onOption(o)} />)}
           <View style={styles.tiles}>
-            {can.note ? <SmallOption testID="else-note" icon="chat" label={t('common.addNote')} onPress={() => setNoting('note')} /> : null}
-            <SmallOption testID="else-reference" icon="book" label={t('passage.else.whatHelps')} onPress={() => go('passage_reference')} />
+            {can.note ? <SmallOption testID="else-note" icon="chat" label={t('common.addNote')} help={t('passage.else.addNoteHelp')} onPress={() => setNoting('note')} /> : null}
+            <SmallOption testID="else-reference" icon="book" label={t('passage.else.whatHelps')} help={t('passage.else.whatHelpsHelp')} onPress={() => go('passage_reference')} />
           </View>
           {/* What comes along without a connection (decisions.md 61). */}
           <PassageOffline ctx={ctx} unitId={unitId} hasStudy={!!guide} />
@@ -386,17 +418,18 @@ export function PassageRecord(ctx: Ctx) {
     const close = () => { setPage('path'); setAskAfterPublish(false); };
     const sendLine = publishedLine({ pending: ctx.language.pending, pendingUp: ctx.language.blobs.pendingUp, online: ctx.language.online, title: v.title });
     return (
-      <Screen header={askAfterPublish ? undefined : <Header title={t('passage.published.askTitle')} sub={v.title} onBack={close} close />}
+      <Screen header={askAfterPublish ? <HelpTop /> : <Header title={t('passage.published.askTitle')} sub={v.title} onBack={close} close />}
         footer={nextKind && can.ask ? (
           <View style={{ gap: space.xs }}>
             <PrimaryBtn label={askButtonLabel({ target: nextTarget, kindId: nextKind.kindId, kinds, name: ctx.name })} icon="send"
+              help={nextTarget ? t('passage.ask.sendHelp') : t('passage.page.mainHelp.ask')}
               onPress={() => { close(); sendTo(nextKind.kindId, askQuestions); setAskQuestions([]); }} />
             <QuietLinks items={[
-              { label: t('passage.published.someoneElse'), icon: 'people', onPress: () => { close(); go('ask_someone', { what: 'review', kindId: nextKind.kindId }); } },
-              { label: t('common.notNow'), icon: 'clock', onPress: close }
+              { label: t('passage.published.someoneElse'), icon: 'people', help: t('passage.published.someoneElseHelp'), onPress: () => { close(); go('ask_someone', { what: 'review', kindId: nextKind.kindId }); } },
+              { label: t('common.notNow'), icon: 'clock', help: t('passage.published.notNowHelp'), onPress: close }
             ]} />
           </View>
-        ) : <PrimaryBtn label={t('common.done')} icon="check" onPress={close} />}>
+        ) : <PrimaryBtn label={t('common.done')} icon="check" help={t('passage.published.doneHelp')} onPress={close} />}>
         {askAfterPublish ? (
           <View style={{ alignItems: 'center', gap: space.sm, paddingTop: space.xl }}>
             <View style={styles.bigCheck}><Ico name="check" size={44} color={TINT.greenText} strokeWidth={3} /></View>
@@ -409,21 +442,10 @@ export function PassageRecord(ctx: Ctx) {
         {nextKind && can.ask ? (
           <View style={{ gap: space.sm, marginTop: askAfterPublish ? space.lg : 0 }}>
             <Text style={txt.label}>{t('passage.published.nextAsk')}</Text>
-            {nextKinds.map((k) => {
-              const on = k.kindId === nextKind.kindId;
-              const people = checkPeople(v.state, k.kindId).filter((id) => id !== me);
-              return (
-                <Pressable key={k.kindId} onPress={() => setAskKindId(k.kindId)} accessibilityRole="radio" accessibilityState={{ selected: on, checked: on }} aria-checked={on}
-                  style={[styles.askCard, !on && { borderWidth: 1, borderColor: C.border }]}>
-                  <View style={styles.askIcon}><Ico name={kindIcon(k.kindId)} size={24} color={C.primary} /></View>
-                  <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-                    <Text style={[txt.body, { fontWeight: '800', fontSize: 19 }]}>{checkName(k.kindId, kinds)}</Text>
-                    <PeopleLine ctx={ctx} people={people} />
-                  </View>
-                  {nextKinds.length > 1 ? <View style={[styles.radio, on && { borderColor: C.primary }]}>{on ? <View style={styles.radioDot} /> : null}</View> : null}
-                </Pressable>
-              );
-            })}
+            {nextKinds.map((k) => (
+              <AskCheckCard key={k.kindId} ctx={ctx} kindId={k.kindId} name={checkName(k.kindId, kinds)} on={k.kindId === nextKind.kindId} radio={nextKinds.length > 1}
+                people={checkPeople(v.state, k.kindId).filter((id) => id !== me)} onPress={() => setAskKindId(k.kindId)} />
+            ))}
             {/* With someone to send it to, the questions they'll answer, and more to add. With nobody yet, the button opens Someone else, which has them. */}
             {can.ask && targets[nextKind.kindId] ? <TheyAnswer asked={questionsForKind(v.state, nextKind.kindId)} questions={askQuestions} setQuestions={setAskQuestions} /> : null}
           </View>
@@ -446,7 +468,7 @@ export function PassageRecord(ctx: Ctx) {
           summary={studyLine(study)}
           {...ctx.details(`passage:${unitId}:${languageId}:study`)}>
           <StudyRows ctx={ctx} study={study} onOpen={(stepId) => go('study_step', { stepId })} />
-          <Row icon="sparkle" label={t('passage.page.openStudy')} onPress={() => go('study_guide')} last />
+          <Row icon="sparkle" label={t('passage.page.openStudy')} help={t('passage.page.openStudyHelp')} onPress={() => go('study_guide')} last />
         </Disclosure>
       ) : null}
       {p.versions.length > 0 && gridIds.length > 0 ? (
@@ -477,15 +499,16 @@ export function PassageRecord(ctx: Ctx) {
             const entry = describe(e);
             const mv = historyMove(e);
             const onPress = mv ? () => doMove(mv) : undefined;
+            const help = historyHelp(e);
             // A note on the whole passage shows only here, so it is reported from here (decisions.md 48);
             // so is someone else's request with words of its own (recordModel.ts `historyAction`).
             const act = historyAction(e, { can, me, assigns: s.can('assign_work') });
             let trailing: ReactNode = null;
-            if (act?.id === 'undo') trailing = <SmallBtn label={t('passage.page.undo')} icon="undo" onPress={() => undoFromHistory(act.departureId, act.type)} />;
-            if (act?.id === 'withdraw') trailing = <SmallBtn label={t('passage.page.withdraw')} onPress={() => withdraw(act.requestId)} />;
+            if (act?.id === 'undo') trailing = <SmallBtn label={t('passage.page.undo')} icon="undo" help={t('help.details.undo')} onPress={() => undoFromHistory(act.departureId, act.type)} />;
+            if (act?.id === 'withdraw') trailing = <SmallBtn label={t('passage.page.withdraw')} help={t('passage.page.withdrawHelp')} onPress={() => withdraw(act.requestId)} />;
             if (act?.id === 'reportNote') trailing = <ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', act.noteId, act.by, unitId)} size={36} />;
             if (act?.id === 'reportRequest') trailing = <ReportFlag ctx={ctx} target={recordTarget(ctx, 'request', act.requestId, act.by, unitId)} size={36} />;
-            return <HistoryRow key={`${e.type}-${e.hlc}-${i}`} text={entry} when={when(e.hlc)} last={i === Math.min(historyShown, timeline.length) - 1} trailing={trailing} {...(onPress ? { onPress } : {})} />;
+            return <HistoryRow key={`${e.type}-${e.hlc}-${i}`} text={entry} when={when(e.hlc)} last={i === Math.min(historyShown, timeline.length) - 1} trailing={trailing} {...(onPress ? { onPress } : {})} {...(help ? { help } : {})} />;
           })}
           <View style={{ paddingHorizontal: space.md, paddingBottom: historyShown < timeline.length ? space.md : 0 }}>
             <ShowMore remaining={timeline.length - historyShown} step={HISTORY_STEP} onMore={() => setHistoryShown((n) => n + HISTORY_STEP)} />
@@ -508,10 +531,10 @@ export function PassageRecord(ctx: Ctx) {
   const waiting = waitingOnAnswer({ p, kinds, answersMine, name: ctx.name });
   const footer = (
     <View style={{ gap: space.xs }}>
-      {main ? <PrimaryBtn label={main.label} icon={main.icon} onPress={main.onPress} /> : null}
+      {main ? <PrimaryBtn label={main.label} icon={main.icon} help={main.help} onPress={main.onPress} /> : null}
       <QuietLinks items={[
-        { label: t('passage.else.title'), icon: 'help', onPress: () => setPage('else') },
-        { label: t('passage.page.history'), icon: 'list', onPress: () => setPage('versions') }
+        { label: t('passage.else.title'), icon: 'help', help: t('passage.page.elseHelp'), onPress: () => setPage('else') },
+        { label: t('passage.page.history'), icon: 'list', help: t('passage.page.historyHelp'), onPress: () => setPage('versions') }
       ]} />
     </View>
   );
@@ -537,12 +560,30 @@ function BigOption(props: { icon: IconName; label: string; sub: string; onPress:
   );
 }
 
-function SmallOption(props: { icon: IconName; label: string; onPress: () => void; testID?: string }) {
-  const spot = useHelpSpot(props.label, undefined, props.onPress);
+function SmallOption(props: { icon: IconName; label: string; onPress: () => void; testID?: string; help?: string }) {
+  const spot = useHelpSpot(props.label, props.help, props.onPress);
   return (
     <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} accessibilityRole="button" style={({ pressed }) => [styles.tile, pressed && { opacity: 0.7 }]}>
       <Ico name={props.icon} size={20} color={props.icon === 'chat' ? TINT.amberText : C.primary} />
       <Text style={[txt.sm, { fontWeight: '700', flex: 1 }]}>{props.label}</Text>
+      <HelpBadge spot={spot} />
+    </Pressable>
+  );
+}
+
+/** One of the checks that happen next, on the ask page: pick it to ask for it (decision 91). */
+function AskCheckCard(props: { ctx: Ctx; kindId: string; name: string; on: boolean; radio: boolean; people: string[]; onPress: () => void }) {
+  const { on } = props;
+  const spot = useHelpSpot(props.name, t('passage.published.pickCheckHelp'), props.onPress);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="radio" accessibilityState={{ selected: on, checked: on }} aria-checked={on}
+      style={[styles.askCard, !on && { borderWidth: 1, borderColor: C.border }]}>
+      <View style={styles.askIcon}><Ico name={kindIcon(props.kindId)} size={24} color={C.primary} /></View>
+      <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+        <Text style={[txt.body, { fontWeight: '800', fontSize: 19 }]}>{props.name}</Text>
+        <PeopleLine ctx={props.ctx} people={props.people} />
+      </View>
+      {props.radio ? <View style={[styles.radio, on && { borderColor: C.primary }]}>{on ? <View style={styles.radioDot} /> : null}</View> : null}
       <HelpBadge spot={spot} />
     </Pressable>
   );
@@ -637,7 +678,7 @@ function KindActionRow(props: {
   const { row, step } = props;
   const { status, acts } = row;
   const btn = (a: RowAction, tone: 'primary' | 'plain') => (
-    <SmallBtn label={a.label} tone={tone} onPress={() => props.onAction(a, status, step, acts.askedMe)} />
+    <SmallBtn label={a.label} tone={tone} help={actionHelp(a.id)} onPress={() => props.onAction(a, status, step, acts.askedMe)} />
   );
   const { others, compactButtons } = rowBar(acts, props.compact);
   return (
@@ -648,14 +689,16 @@ function KindActionRow(props: {
           <Text style={[txt.sm, { fontWeight: '700' }]}>{row.name}</Text>
           {row.sub ? <Text style={[txt.xs, { marginTop: 2 }]}>{row.sub}</Text> : null}
         </View>
-        <View accessibilityLabel={stateLabel(status.state)}><StateMark state={status.state} size={22} /></View>
+        <HelpInfo label={stateLabel(status.state)} detail={markHelp(status.state)}>
+          <View accessibilityLabel={stateLabel(status.state)}><StateMark state={status.state} size={22} /></View>
+        </HelpInfo>
       </View>
       {compactButtons ? (
         <View style={styles.btnRow}>
           {acts.primary ? <View style={{ flex: 1 }}>{btn(acts.primary, row.waits ? 'plain' : 'primary')}</View> : null}
           {others > 0 ? (
             <View style={acts.primary ? undefined : { flex: 1 }}>
-              <SmallBtn label={acts.primary ? t('passage.page.more') : t('passage.page.options')} onPress={props.onMore} />
+              <SmallBtn label={acts.primary ? t('passage.page.more') : t('passage.page.options')} help={t('passage.page.moreHelp')} onPress={props.onMore} />
             </View>
           ) : null}
         </View>
@@ -685,7 +728,7 @@ function StudyRows(props: { ctx: Ctx; study: StudyProgress; onOpen: (stepId: str
   return (
     <>
       {props.study.steps.map((st) => (
-        <Row key={st.step.id} leading={<StepMark status={st} />} label={st.step.title} sub={stepLine(props.ctx, st)} onPress={() => props.onOpen(st.step.id)} />
+        <Row key={st.step.id} leading={<StepMark status={st} />} label={st.step.title} sub={stepLine(props.ctx, st)} help={t('passage.page.openStudyStepHelp')} onPress={() => props.onOpen(st.step.id)} />
       ))}
     </>
   );
@@ -701,39 +744,38 @@ function ReviewGrid(props: { ctx: Ctx; v: PassageView; kindIds: string[]; onVers
     <View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }}>
         <View style={{ flexGrow: 1 }}>
-          <View style={[styles.gridRow, { paddingTop: space.md, paddingBottom: space.sm }]}>
-            <View style={{ width: 76 }} />
-            {kindIds.map((id) => (
-              <View key={id} style={styles.gridCol}>
-                <Ico name={kindIcon(id)} size={16} color={C.muted} />
-                <Text style={[txt.xs, { fontWeight: '600', textAlign: 'center' }]} numberOfLines={1}>{gridColumnName(v.kind(id))}</Text>
-              </View>
-            ))}
-          </View>
+          {/* The column heads: which check each column is. In help mode they say how the grid reads. */}
+          <HelpInfo label={t('passage.page.reviewsByVersion')} detail={t('passage.grid.gridHelp')}>
+            <View style={[styles.gridRow, { paddingTop: space.md, paddingBottom: space.sm }]}>
+              <View style={{ width: 76 }} />
+              {kindIds.map((id) => (
+                <View key={id} style={styles.gridCol}>
+                  <Ico name={kindIcon(id)} size={16} color={C.muted} />
+                  <Text style={[txt.xs, { fontWeight: '600', textAlign: 'center' }]} numberOfLines={1}>{gridColumnName(v.kind(id))}</Text>
+                </View>
+              ))}
+            </View>
+          </HelpInfo>
           {rows.slice(0, shown).map((row, ri) => (
             <View key={row.version.takeId} style={[styles.gridRow, styles.topBorder]}>
-              <Pressable onPress={() => props.onVersion(row.version.takeId)} accessibilityRole="button" accessibilityLabel={t('passage.page.openVersion', { version: versionTitle(row.version.n) })}
-                style={({ pressed }) => [styles.gridVersion, pressed && { opacity: 0.6 }]}>
-                <Text style={[txt.sm, { fontWeight: '700', color: C.primary }]}>{t('passage.grid.versionShort', { n: row.version.n })}</Text>
-                <Text style={txt.xs} numberOfLines={1}>{when(row.version.hlc)}</Text>
-              </Pressable>
+              <GridVersion n={row.version.n} hlc={row.version.hlc} onPress={() => props.onVersion(row.version.takeId)} />
               {row.cells.map((cell) => {
                 const kind = { ...v.kind(cell.kindId), name: checkName(cell.kindId, v.kinds) };
                 const shown = gridCell(cell, { newest: ri === 0, grid, produces: !!kind.produces });
                 return (
                   <View key={cell.kindId} style={styles.gridCol}>
                     {shown.id === 'review' ? (
-                      <Pressable onPress={() => props.onReview(shown.review.id)} accessibilityRole="button"
-                        accessibilityLabel={gridCellLabel(kind.name, shown.review, shown.count, props.ctx.name)}
-                        style={({ pressed }) => [styles.gridCell, pressed && { opacity: 0.6 }]}>
+                      <GridCell label={gridCellLabel(kind.name, shown.review, shown.count, props.ctx.name)}
+                        help={shown.produced ? t('passage.grid.madeHelp', { kind: kindInSentence(kind.name) }) : t('passage.grid.cellHelp', { mark: markHelp(reviewMark(shown.review)) })}
+                        onPress={() => props.onReview(shown.review.id)}>
                         {shown.produced
                           // Made content, not a verdict: its own mark, never a "looks good" tick.
                           ? <View style={[styles.producedMark]}><Ico name={kindIcon(cell.kindId)} size={14} color={C.primary} /></View>
                           : <StateMark state={reviewMark(shown.review)} size={24} />}
                         {shown.count > 1 ? <View style={styles.countBadge}><Text style={[txt.xsStrong, { color: C.white }]}>{shown.count}</Text></View> : null}
-                      </Pressable>
-                    ) : shown.id === 'skipped' ? <StateMark state="skipped" size={24} />
-                      : shown.id === 'asked' ? <StateMark state="asked" size={24} />
+                      </GridCell>
+                    ) : shown.id === 'skipped' ? <HelpInfo label={stateLabel('skipped')} detail={markHelp('skipped')}><StateMark state="skipped" size={24} /></HelpInfo>
+                      : shown.id === 'asked' ? <HelpInfo label={stateLabel('asked')} detail={markHelp('asked')}><StateMark state="asked" size={24} /></HelpInfo>
                       : <View style={styles.gridEmpty} />}
                   </View>
                 );
@@ -765,8 +807,34 @@ function ReviewGrid(props: { ctx: Ctx; v: PassageView; kindIds: string[]; onVers
   );
 }
 
+/** A version's row head in the grid: opens the version. */
+function GridVersion(props: { n: number; hlc: string; onPress: () => void }) {
+  const label = t('passage.page.openVersion', { version: versionTitle(props.n) });
+  const spot = useHelpSpot(label, t('passage.page.openVersionHelp'), props.onPress);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={label}
+      style={({ pressed }) => [styles.gridVersion, pressed && { opacity: 0.6 }]}>
+      <Text style={[txt.sm, { fontWeight: '700', color: C.primary }]}>{t('passage.grid.versionShort', { n: props.n })}</Text>
+      <Text style={txt.xs} numberOfLines={1}>{when(props.hlc)}</Text>
+      <HelpBadge spot={spot} />
+    </Pressable>
+  );
+}
+
+/** A review's mark in the grid: opens the review; in help mode, says what its mark means. */
+function GridCell(props: { label: string; help: string; onPress: () => void; children: ReactNode }) {
+  const spot = useHelpSpot(props.label, props.help, props.onPress);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.label}
+      style={({ pressed }) => [styles.gridCell, pressed && { opacity: 0.6 }]}>
+      {props.children}
+      <HelpBadge spot={spot} />
+    </Pressable>
+  );
+}
+
 /** One entry of the passage's history: who and when first, so a long reason never hides them. */
-function HistoryRow(props: { text: EntryText; when: string; last: boolean; trailing: ReactNode; onPress?: () => void }) {
+function HistoryRow(props: { text: EntryText; when: string; last: boolean; trailing: ReactNode; onPress?: () => void; help?: string }) {
   const { text } = props;
   return (
     <Row label={text.title} sub={`${text.who} · ${props.when}${text.sub ? ` — ${text.sub}` : ''}`} last={props.last}
@@ -775,7 +843,7 @@ function HistoryRow(props: { text: EntryText; when: string; last: boolean; trail
           <Ico name={text.icon} size={16} color={text.color} />
         </View>
       )}
-      {...(props.trailing ? { right: props.trailing } : {})} {...(props.onPress ? { onPress: props.onPress } : {})} />
+      {...(props.trailing ? { right: props.trailing } : {})} {...(props.onPress ? { onPress: props.onPress } : {})} {...(props.help ? { help: props.help } : {})} />
   );
 }
 
@@ -802,11 +870,8 @@ export function VersionDetail(ctx: Ctx) {
           {version.changeBlobHash ? <PlayRow ctx={ctx} hashes={[version.changeBlobHash]} label={t('passage.version.changeAloud')} /> : null}
         </Authored>
         {prompted.map((r) => (
-          <Pressable key={r.id} onPress={() => ctx.go('review_detail', { ...params, reviewId: r.id })} accessibilityRole="link"
-            style={({ pressed }) => [styles.inlineLink, pressed && { opacity: 0.6 }]}>
-            <Ico name="chat" size={16} color={C.primary} />
-            <Text style={[txt.link, { flex: 1 }]}>{t('passage.version.inResponseTo', { kind: checkName(r.kindId, v.kinds), who: feedbackSource(r, ctx.name) })}</Text>
-          </Pressable>
+          <InResponseLink key={r.id} label={t('passage.version.inResponseTo', { kind: checkName(r.kindId, v.kinds), who: feedbackSource(r, ctx.name) })}
+            onPress={() => ctx.go('review_detail', { ...params, reviewId: r.id })} />
         ))}
       </Card>
 
@@ -823,6 +888,7 @@ export function VersionDetail(ctx: Ctx) {
           {...ctx.details(key('terms'))}>
           {terms.map(({ term, note }, i) => (
             <Row key={term.termId} icon="book" label={termLabel(term)} {...(note ? { sub: note } : {})}
+              help={t('passage.version.termHelp')}
               onPress={() => ctx.go('key_term_detail', { ...params, termId: term.termId })} last={i === terms.length - 1} />
           ))}
         </Disclosure>
@@ -834,6 +900,7 @@ export function VersionDetail(ctx: Ctx) {
             return (
               <Row key={r.id} leading={kind.produces ? <KindIcon kindId={r.kindId} size={36} /> : <StateMark state={reviewMark(r)} size={24} />}
                 label={`${kind.name} · ${outcomeText(kind, r.outcome)}`} sub={`${feedbackSource(r, ctx.name)} · ${when(r.hlc)} · ${viaText(r, ctx.name)}`}
+                help={t('passage.page.openReviewHelp')}
                 onPress={() => ctx.go('review_detail', { ...params, reviewId: r.id })} last={i === reviews.length - 1} />
             );
           })}
@@ -860,6 +927,18 @@ export function VersionDetail(ctx: Ctx) {
   );
 }
 
+/** "In response to the peer check from Ana": opens the feedback this version answered. */
+function InResponseLink(props: { label: string; onPress: () => void }) {
+  const spot = useHelpSpot(props.label, t('passage.version.inResponseHelp'), props.onPress);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="link" style={({ pressed }) => [styles.inlineLink, pressed && { opacity: 0.6 }]}>
+      <Ico name="chat" size={16} color={C.primary} />
+      <Text style={[txt.link, { flex: 1 }]}>{props.label}</Text>
+      <HelpBadge spot={spot} />
+    </Pressable>
+  );
+}
+
 // ---- review_detail (REC-10) --------------------------------------------------------------
 
 /** One review: outcome and source, feedback, answers, what it captured, and the response. The author can answer it here. */
@@ -878,7 +957,7 @@ function KeepPage(props: { ctx: Ctx; v: PassageView; review: ReviewView; source:
   };
   return (
     <Screen header={<Header title={v.title} sub={t('passage.keep.sayWhyTitle')} onBack={props.onBack} />}
-      footer={<PrimaryBtn label={t('passage.keep.keepIt')} icon="check" busy={busy} disabled={!hasWords(text, hash)} onPress={() => void keep()} />}>
+      footer={<PrimaryBtn label={t('passage.keep.keepIt')} icon="check" help={t('passage.keep.keepItHelp')} busy={busy} disabled={!hasWords(text, hash)} onPress={() => void keep()} />}>
       <View style={{ alignItems: 'center', gap: space.xs, paddingTop: space.lg }}>
         <Text style={[txt.h2, { fontWeight: '800', fontSize: 26 }]} accessibilityRole="header">{t('passage.keep.title')}</Text>
         <Text style={[txt.smMuted, { textAlign: 'center' }]}>{t('passage.keep.sayWhy', { who: props.source })}</Text>
@@ -925,8 +1004,8 @@ export function ReviewDetail(ctx: Ctx) {
         action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'review', review.id, review.by, unitId)} />} />}
         footer={(
           <View style={{ gap: space.sm }}>
-            <PrimaryBtn label={t('passage.review.recordFix')} icon="mic" onPress={() => ctx.go('workspace', { ...params, reviewId: review.id })} />
-            <GhostBtn label={t('passage.keep.sayWhyTitle')} onPress={() => setKeepPage(true)} />
+            <PrimaryBtn label={t('passage.review.recordFix')} icon="mic" help={t('passage.review.recordFixHelp')} onPress={() => ctx.go('workspace', { ...params, reviewId: review.id })} />
+            <GhostBtn label={t('passage.keep.sayWhyTitle')} help={t('passage.keep.sayWhyHelp')} onPress={() => setKeepPage(true)} />
           </View>
         )}>
         <View style={{ alignItems: 'center', gap: space.sm, paddingTop: space.xl }}>
@@ -962,7 +1041,7 @@ export function ReviewDetail(ctx: Ctx) {
           </Disclosure>
         ) : null}
         {version ? (
-          <LinkBtn label={t('passage.review.hearVersion', { version: versionTitle(version.n) })} onPress={() => ctx.go('version_detail', { ...params, takeId: version.takeId })}
+          <LinkBtn label={t('passage.review.hearVersion', { version: versionTitle(version.n) })} help={t('passage.page.openVersionHelp')} onPress={() => ctx.go('version_detail', { ...params, takeId: version.takeId })}
             style={{ alignSelf: 'center' }} />
         ) : null}
       </Screen>
@@ -974,8 +1053,8 @@ export function ReviewDetail(ctx: Ctx) {
       action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'review', review.id, review.by, unitId)} />} />}
       footer={answerable ? (
         <View style={styles.btnRow}>
-          <View style={{ width: '44%' }}><GhostBtn label={t('passage.keep.keepIt')} onPress={() => setKeeping(true)} /></View>
-          <View style={{ flex: 1 }}><PrimaryBtn label={t('passage.review.recordFix')} icon="mic" onPress={() => ctx.go('workspace', { ...params, reviewId: review.id })} /></View>
+          <View style={{ width: '44%' }}><GhostBtn label={t('passage.keep.keepIt')} help={t('passage.keep.sayWhyHelp')} onPress={() => setKeeping(true)} /></View>
+          <View style={{ flex: 1 }}><PrimaryBtn label={t('passage.review.recordFix')} icon="mic" help={t('passage.review.recordFixHelp')} onPress={() => ctx.go('workspace', { ...params, reviewId: review.id })} /></View>
         </View>
       ) : undefined}>
       <View style={[styles.outcome, { backgroundColor: tint.bg }]}>
@@ -1003,7 +1082,7 @@ export function ReviewDetail(ctx: Ctx) {
       {version ? (
         <Group>
           <Row icon="mic" label={makes ? t('passage.review.madeFrom', { version: versionTitle(version.n) }) : t('passage.review.reviewed', { version: versionTitle(version.n) })}
-            sub={`${ctx.name(version.by)} · ${when(version.hlc)}`}
+            sub={`${ctx.name(version.by)} · ${when(version.hlc)}`} help={t('passage.page.openVersionHelp')}
             onPress={() => ctx.go('version_detail', { ...params, takeId: version.takeId })} last />
         </Group>
       ) : null}
@@ -1051,7 +1130,7 @@ export function ReviewDetail(ctx: Ctx) {
           {review.response.revisedTakeId ? (() => {
             const revised = revisedVersion(p, review.response);
             return revised ? (
-              <LinkBtn label={t('passage.page.openVersion', { version: versionTitle(revised.n) })} onPress={() => ctx.go('version_detail', { ...params, takeId: revised.takeId })} />
+              <LinkBtn label={t('passage.page.openVersion', { version: versionTitle(revised.n) })} help={t('passage.page.openVersionHelp')} onPress={() => ctx.go('version_detail', { ...params, takeId: revised.takeId })} />
             ) : null;
           })() : null}
         </Card>
@@ -1092,17 +1171,17 @@ function TheyAnswer(props: { asked: ReturnType<typeof questionsForKind>; questio
           ))}
           {props.questions.map((q, i) => (
             <Row key={q.id} label={q.text} sub={questionTypeLabel(q.type)} last={i === props.questions.length - 1}
-              right={<IconBtn name="close" label={t('passage.ask.removeQuestion')} onPress={() => props.setQuestions((qs) => qs.filter((x) => x.id !== q.id))} bg="transparent" color={C.muted} />} />
+              right={<IconBtn name="close" label={t('passage.ask.removeQuestion')} help={t('passage.ask.removeQuestionHelp')} onPress={() => props.setQuestions((qs) => qs.filter((x) => x.id !== q.id))} bg="transparent" color={C.muted} />} />
           ))}
         </Group>
       ) : null}
-      <Field value={draft} onChangeText={setDraft} placeholder={t('passage.ask.askSpecific')} />
+      <Field value={draft} onChangeText={setDraft} placeholder={t('passage.ask.askSpecific')} help={t('passage.ask.askSpecificHelp')} />
       <View style={styles.btnRow}>
         <View style={{ flex: 1 }}>
-          <SmallBtn label={t('passage.ask.answerType', { type: questionTypeLabel(type) })} onPress={() => setType(nextQuestionType)} />
+          <SmallBtn label={t('passage.ask.answerType', { type: questionTypeLabel(type) })} help={t('passage.ask.answerTypeHelp')} onPress={() => setType(nextQuestionType)} />
         </View>
         <View style={{ flex: 1 }}>
-          <SmallBtn label={t('passage.ask.addQuestion')} icon="plus" tone="primary" disabled={!draft.trim()} onPress={add} />
+          <SmallBtn label={t('passage.ask.addQuestion')} icon="plus" tone="primary" help={t('passage.ask.addQuestionHelp')} disabled={!draft.trim()} onPress={add} />
         </View>
       </View>
     </>
@@ -1154,7 +1233,7 @@ export function AskSomeone(ctx: Ctx) {
     const on = who === c.profileId;
     return (
       <Row key={c.profileId} testID={`ask-person-${c.profileId}`} leading={<PersonAvatar look={look(c.profileId)} size={36} />} label={ctx.name(c.profileId)} sub={c.sub}
-        onPress={() => setWho(c.profileId)} last={last} role="radio" selected={on}
+        help={t('passage.ask.personHelp')} onPress={() => setWho(c.profileId)} last={last} role="radio" selected={on}
         right={<View style={[styles.radio, on && { backgroundColor: C.primary, borderColor: C.primary }]}>{on ? <Ico name="check" size={14} color={C.white} strokeWidth={3} /> : null}</View>} />
     );
   };
@@ -1162,7 +1241,7 @@ export function AskSomeone(ctx: Ctx) {
   return (
     <Screen header={<Header title={title} sub={`${v.title} · ${v.language}`} onBack={ctx.back} close />}
       footer={<PrimaryBtn label={model.buttonLabel}
-        disabled={!ready} busy={busy} onPress={() => void send()} />}>
+        help={outside ? t('passage.ask.sendOutsideHelp') : t('passage.ask.sendHelp')} disabled={!ready} busy={busy} onPress={() => void send()} />}>
       <Card style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
         {kindId ? <KindIcon kindId={kindId} size={44} /> : <View style={[styles.roundTile, { width: 44, height: 44, borderRadius: 14, backgroundColor: C.light }]}><Ico name="mic" size={22} color={C.primary} /></View>}
         <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
@@ -1174,15 +1253,15 @@ export function AskSomeone(ctx: Ctx) {
       <SectionLabel label={t('passage.ask.who')} />
       {!isRecord ? (
         <ChipRow>
-          <Chip label={t('passage.ask.onTeam')} on={mode === 'team'} onPress={() => setMode('team')} />
-          <Chip label={t('passage.ask.withoutApp')} on={mode === 'outside'} onPress={() => setMode('outside')} />
+          <Chip label={t('passage.ask.onTeam')} on={mode === 'team'} help={t('passage.ask.onTeamHelp')} onPress={() => setMode('team')} />
+          <Chip label={t('passage.ask.withoutApp')} on={mode === 'outside'} help={t('passage.ask.withoutAppHelp')} onPress={() => setMode('outside')} />
         </ChipRow>
       ) : null}
       {!outside ? (
         <Group>
           {team ? (
             <Row testID="ask-team" leading={<Faces people={teamPeople} size={30} />} sub={teamPeople.map((id) => ctx.name(id)).join(t('admin.list.separator'))}
-              label={t('checks.theTeam', { check })} onPress={() => setWho(TEAM)} role="radio" selected={chosen === TEAM}
+              label={t('checks.theTeam', { check })} help={t('passage.ask.teamHelp')} onPress={() => setWho(TEAM)} role="radio" selected={chosen === TEAM}
               right={<View style={[styles.radio, chosen === TEAM && { backgroundColor: C.primary, borderColor: C.primary }]}>{chosen === TEAM ? <Ico name="check" size={14} color={C.white} strokeWidth={3} /> : null}</View>} />
           ) : null}
           {usual.length > 0 && !team ? <View style={styles.groupHead}><Label text={check || t('passage.ask.usuallyDoesThis')} color={C.primary} /></View> : null}
@@ -1204,10 +1283,10 @@ export function AskSomeone(ctx: Ctx) {
         <View style={{ gap: space.sm }}>
           <Field value={guestName} onChangeText={setGuestName} placeholder={t('passage.ask.guestName')} autoCapitalize="words" />
           <View style={styles.btnRow}>
-            <Chip label={channelLabel('whatsapp')} on={channel === 'whatsapp'} onPress={() => setChannel('whatsapp')} />
-            <Chip label={channelLabel('sms')} on={channel === 'sms'} onPress={() => setChannel('sms')} />
+            <Chip label={channelLabel('whatsapp')} on={channel === 'whatsapp'} help={t('passage.ask.whatsappHelp')} onPress={() => setChannel('whatsapp')} />
+            <Chip label={channelLabel('sms')} on={channel === 'sms'} help={t('passage.ask.smsHelp')} onPress={() => setChannel('sms')} />
           </View>
-          <Field value={contact} onChangeText={setContact} placeholder={t('passage.ask.phone')} keyboardType="phone-pad" />
+          <Field value={contact} onChangeText={setContact} placeholder={t('passage.ask.phone')} keyboardType="phone-pad" help={t('passage.ask.phoneHelp')} />
           <View style={styles.preview}>
             <Label text={t('passage.ask.preview', { channel: channelLabel(channel) })} color={TINT.greenText} />
             <Text style={txt.sm}>{guestMessage({ name: guestName, passage: v.title, language: v.language })}</Text>
@@ -1225,10 +1304,11 @@ export function AskSomeone(ctx: Ctx) {
       <SectionLabel label={t('passage.ask.byWhen')} />
       <ChipRow>
         {dueChoices().map((d) => (
-          <Chip key={String(d.days)} label={d.label} on={!dueTyped.trim() && dueDays === d.days} onPress={() => { setDueTyped(''); setDueDays(d.days); }} />
+          <Chip key={String(d.days)} label={d.label} on={!dueTyped.trim() && dueDays === d.days} help={d.days === null ? t('passage.ask.noDateHelp') : t('passage.ask.dueHelp')}
+            onPress={() => { setDueTyped(''); setDueDays(d.days); }} />
         ))}
       </ChipRow>
-      <Field value={dueTyped} onChangeText={setDueTyped} placeholder={t('passage.ask.orDate', { date: addDays(today, 10) })} autoCapitalize="none" />
+      <Field value={dueTyped} onChangeText={setDueTyped} placeholder={t('passage.ask.orDate', { date: addDays(today, 10) })} autoCapitalize="none" help={t('passage.ask.dateHelp')} />
       {dueErr ? <Text style={[txt.xs, { color: TINT.redText }]}>{dueErr}</Text>
         : due ? <Text style={txt.xs}>{dueTitle(due)}</Text> : null}
     </Screen>

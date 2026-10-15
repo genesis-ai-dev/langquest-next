@@ -18,7 +18,7 @@ import { edgeAllowed, type Session } from '../shell/session';
 import { checkName, stepTitle } from '../admin/adminModel';
 import type { PathInput, PathStep } from './pathModel';
 import {
-  elseChoices, kindCleared, kindRowActions, kindRowSub, listenersOf, openCheckFor, sendTargetLabel, stepSheetSub,
+  elseChoices, kindCleared, kindRowActions, kindRowSub, type listenersOf, openCheckFor, sendTargetLabel, stepSheetSub,
   type KindRowCan, type MineFn, type NameFn, type RowAction
 } from './record';
 import { usualTargetFor, type UsualTarget } from './sendTarget';
@@ -414,6 +414,14 @@ export function historyMove(e: RecordEntry): RecordMove | undefined {
   if (e.type === 'version') return goTo('version_detail', { takeId: e.version.takeId });
   if (e.type === 'review' || e.type === 'response') return goTo('review_detail', { reviewId: e.review.id });
   if (e.type === 'study') return goTo('study_step', { stepId: e.stepId });
+  return undefined;
+}
+
+/** What help mode says a history entry's tap opens. */
+export function historyHelp(e: RecordEntry): string | undefined {
+  if (e.type === 'version') return t('passage.page.openVersionHelp');
+  if (e.type === 'review' || e.type === 'response') return t('passage.page.openReviewHelp');
+  if (e.type === 'study') return t('passage.page.openStudyStepHelp');
   return undefined;
 }
 

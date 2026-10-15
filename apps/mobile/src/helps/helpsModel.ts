@@ -8,7 +8,7 @@ import { markTerms } from '../recording/workspaceModel';
 import { termWords } from '../config/model';
 import type { VerseRow } from '../sources/model';
 import { t } from '../i18n';
-import { type Bible } from './reference';
+import type { Bible } from './reference';
 
 // ---- verses chosen on the text ----------------------------------------------------------
 

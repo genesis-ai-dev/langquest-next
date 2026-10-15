@@ -7,7 +7,7 @@
 // 2026-10-14). Many teams never number verses, so a part without one shows
 // nothing where its verse would be, and nothing here asks for one. Read only:
 // verses are changed where the parts are recorded.
-import { type LanguageState } from '@langquest-next/core';
+import type { LanguageState } from '@langquest-next/core';
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
@@ -23,7 +23,7 @@ import { mmss, partLabel } from '../recording/model';
 import { styles as ps } from '../recording/blockStyles';
 import { useClip } from '../audio/useClip';
 import { VerseTile } from '../recording/verseParts';
-import { readPartVerses, spanName } from '../recording/verseModel';
+import { type readPartVerses, spanName } from '../recording/verseModel';
 import { C, radius, space, target } from '../ui/theme';
 import { usePartVerses } from './useVerses';
 
@@ -70,7 +70,7 @@ function PartRow(props: {
   const l = props.row.label;
   const said = l ? t(props.row.same ? 'recording.verses.labelSame' : 'recording.verses.label', { part: name, verses: spanName(props.verses, l.s, l.e) }) : name;
   const playLabel = clip.playing ? t('recording.recorder.pausePart', { part: name }) : t('recording.player.playTitle', { title: said });
-  const play = useHelpSpot(playLabel, undefined, clip.toggle);
+  const play = useHelpSpot(playLabel, t('passage.versions.partHelp'), clip.toggle);
   return (
     <View style={[styles.row, props.index > 0 && styles.rowBorder]}>
       {props.numbered ? (

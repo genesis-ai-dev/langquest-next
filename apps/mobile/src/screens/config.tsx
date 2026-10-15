@@ -31,7 +31,7 @@ import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
-import { Badge, Banner, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, IconBtn, KindIcon, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, SmallBtn, Toggle } from '../ui/kit';
+import { Badge, Banner, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, IconBtn, KindIcon, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, SmallBtn, Toggle } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { useOpenDetail } from '../ui/useLayout';
 import { cachedDoc } from '../library/docStore';
@@ -53,7 +53,7 @@ import { othersSay, bibleMissing } from '../helps/helpsModel';
 import { bookOf } from '../recording/model';
 import { useBible } from '../helps/useBible';
 import { useOtherLanguageTerms } from '../reference/useOtherLanguageTerms';
-import { LanguageChecks } from './checks';
+import { LanguageChecks } from '../checks/LanguageChecks';
 import { addPickedKind, copyFlowSpecs, currentFlowLine, flowEditorBase, flowEditorSeed, flowEditorStatus, knownKinds, newKindDef, usuallyFor, withAddedKinds } from '../flows/model';
 import {
   adjustDuringTake, adjustmentNote, adjustmentReady, defineTermInput, EMPTY_TERM_DRAFT, groupTerms, termDraftReady, termUsedIn, tieState,
@@ -127,6 +127,30 @@ function listOf(items: string[]): string {
   return items.join(t('config.listJoin'));
 }
 
+/** How reviewers answer a question of this type, as help mode says it. */
+function questionTypeHelp(type: string): string {
+  return type === 'yesno' ? t('config.material.typeYesNoHelp') : type === 'rating' ? t('config.material.typeRatingHelp') : t('config.material.typeTextHelp');
+}
+
+/** What a role's switch lets its people do, as help mode says it, by the first privilege it covers (adminModel ROLE_SWITCHES). */
+function roleSwitchHelp(privileges: readonly Privilege[]): string | undefined {
+  switch (privileges[0]) {
+    case 'translate': return t('config.roleEditor.recordHelp');
+    case 'fill_reference': return t('config.roleEditor.addNotesHelp');
+    case 'send_to_reviewers': return t('config.roleEditor.askForChecksHelp');
+    case 'review': return t('config.roleEditor.checkRecordingsHelp');
+    case 'view_status': return t('config.roleEditor.seeEveryonesWorkHelp');
+    case 'invite_members': return t('config.roleEditor.invitePeopleHelp');
+    case 'manage_structure': return t('config.roleEditor.setUpLanguagesHelp');
+    case 'manage_reference': return t('config.roleEditor.chooseBiblesHelp');
+    case 'manage_flows': return t('config.roleEditor.chooseWhoChecksHelp');
+    case 'assign_work': return t('config.roleEditor.assignWorkHelp');
+    case 'override_checkpoints': return t('config.roleEditor.overrideChecksHelp');
+    case 'manage_roles': return t('config.roleEditor.manageRolesHelp');
+    default: return undefined;
+  }
+}
+
 /** A list capped at 25 with "Show more" (ADR-009). */
 function Capped<T>(props: { items: T[]; render: (item: T, last: boolean) => ReactNode; empty?: string }) {
   const [n, setN] = useState(STEP);
@@ -151,7 +175,7 @@ function ToggleRow(props: { label: string; desc: string; on: boolean; disabled?:
         <Text style={[txt.body, { fontWeight: '600' }]}>{props.label}</Text>
         <Text style={[txt.smMuted, { marginTop: 2 }]}>{props.desc}</Text>
       </View>
-      <Toggle on={props.on} disabled={props.disabled} label={props.label} onToggle={props.onToggle} />
+      <Toggle on={props.on} disabled={props.disabled} label={props.label} onToggle={props.onToggle} help={props.desc} />
     </View>
   );
 }
@@ -177,7 +201,7 @@ export function RolesHome(ctx: Ctx) {
   const canManage = ctx.session.can('manage_roles') && level === 'org';
   return (
     <Screen header={<Header title={t('config.roles.title')} sub={levelLabel(level)} onBack={ctx.back}
-      action={canManage ? <SmallBtn label={t('config.roles.addRole')} icon="plus" tone="primary" onPress={() => ctx.go('role_editor', { roleId: 'new', level })} /> : undefined} />}>
+      action={canManage ? <SmallBtn label={t('config.roles.addRole')} icon="plus" tone="primary" help={t('config.roles.addRoleHelp')} onPress={() => ctx.go('role_editor', { roleId: 'new', level })} /> : undefined} />}>
       <Intro>{level === 'org' ? t('config.roles.introOrg') : t('config.roles.introLanguage')}</Intro>
       {!org ? <EmptyState icon="people" title={t('config.roles.loading')} /> : rows.length === 0 ? (
         <EmptyState icon="people" title={t('config.roles.empty')} sub={canManage ? t('config.roles.emptySub') : undefined} />
@@ -192,6 +216,7 @@ export function RolesHome(ctx: Ctx) {
                 sub={r.inherited ? t('config.roles.inheritedSub')
                   : `${t('config.roles.members', { count: r.members })} · ${t('config.roles.privileges', { count: r.privileges.length })}`}
                 badge={r.inherited ? t('common.viewOnly') : undefined}
+                help={r.inherited ? t('config.roles.inheritedRoleHelp') : r.builtIn ? t('config.roles.builtInRoleHelp') : t('config.roles.ownRoleHelp')}
                 onPress={() => ctx.go('role_editor', { roleId: r.roleId, level })} last={i === rows.length - 1}
                 current={beside?.screen === 'role_editor' && beside.params['roleId'] === r.roleId} />
             ))}
@@ -252,7 +277,7 @@ export function RoleEditor(ctx: Ctx) {
     <Screen
       header={<Header title={label || (isNew ? t('config.roleEditor.newRole') : t('config.roleEditor.title'))} sub={isNew ? t('config.roleEditor.aNewRole') : t('config.roleEditor.people', { count: people })} onBack={ctx.back} />}
       bodyStyle={{ gap: space.sm }}
-      footer={readOnly ? undefined : <PrimaryBtn label={t('common.save')} icon="check" onPress={() => void save()} disabled={!label.trim() || !dirty} busy={busy} />}>
+      footer={readOnly ? undefined : <PrimaryBtn label={t('common.save')} icon="check" help={t('config.roleEditor.saveHelp')} onPress={() => void save()} disabled={!label.trim() || !dirty} busy={busy} />}>
       {inherited ? <Banner icon="lock" title={t('common.viewOnly')} body={t('config.roleEditor.inheritedBody')} /> : null}
       {readOnly && !inherited ? <Banner icon="lock" title={t('common.viewOnly')} body={t('config.roleEditor.noPermission')} /> : null}
       {isNew && !readOnly ? <Field label={t('config.roleEditor.nameLabel')} value={label} onChangeText={setName} placeholder={t('config.roleEditor.namePlaceholder')} autoCapitalize="words" /> : null}
@@ -263,7 +288,7 @@ export function RoleEditor(ctx: Ctx) {
             {g.rows.map((row, i) => {
               const state = switchState(privileges, row);
               return (
-                <SwitchRow key={row.label} label={row.label} on={state !== 'off'} disabled={readOnly || busy} last={i === g.rows.length - 1}
+                <SwitchRow key={row.label} label={row.label} on={state !== 'off'} disabled={readOnly || busy} last={i === g.rows.length - 1} help={roleSwitchHelp(row.privileges)}
                   {...(state === 'some' ? { sub: t('config.roleEditor.onlySome', { privileges: listOf(privilegesOn(row.privileges, privileges).map((p) => PRIVILEGE_INFO[p].label)) }) } : {})}
                   onToggle={() => setPicked(flipSwitch(privileges, row))} />
               );
@@ -274,14 +299,15 @@ export function RoleEditor(ctx: Ctx) {
       {!isNew ? (
         <>
           <SectionLabel label={t('config.roleEditor.peopleSection')} />
-          {canAssign ? <GhostBtn label={label ? t('config.roleEditor.inviteAs', { role: label }) : t('config.roleEditor.inviteAsThisRole')} icon="qr" onPress={() => ctx.go('invite_qr', { roleId })} /> : null}
+          {canAssign ? <GhostBtn label={label ? t('config.roleEditor.inviteAs', { role: label }) : t('config.roleEditor.inviteAsThisRole')} icon="qr" help={t('config.roleEditor.inviteHelp')} onPress={() => ctx.go('invite_qr', { roleId })} /> : null}
           <Capped items={holders} empty={t('config.roleEditor.nobody')} render={(h, last) => (
             <Row key={`${h.profileId}-${JSON.stringify(h.scope)}`} icon="user"
               label={h.profileId === ctx.session.actorId ? t('common.you') : ctx.name(h.profileId)}
-              sub={scopeName(h.scope, org)}
+              sub={scopeName(h.scope, org)} help={t('config.roleEditor.personHelp')}
               onPress={canAssign ? () => ctx.go('edit_member', { memberId: h.profileId }) : undefined} last={last} />
           )} />
-          {!readOnly ? <Field label={t('config.roleEditor.itsName')} value={label} onChangeText={setName} placeholder={t('config.roleEditor.itsNamePlaceholder')} autoCapitalize="words" /> : null}
+          {!readOnly ? <Field label={t('config.roleEditor.itsName')} value={label} onChangeText={setName} placeholder={t('config.roleEditor.itsNamePlaceholder')} autoCapitalize="words"
+            help={t('config.roleEditor.renameHelp')} /> : null}
         </>
       ) : null}
       <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>{t('config.roleEditor.scopeNote')}</Text>
@@ -323,7 +349,7 @@ async function libraryAct(ctx: Ctx, where: string, action: () => Promise<unknown
  */
 function SharedItems(props: {
   ctx: Ctx; lib: Library; shared: ReturnType<typeof useSharedItems>; canManage: boolean;
-  detail?: (s: SharedItem) => ReactNode; use?: { label: string; onUse: (s: SharedItem) => void; disabled?: boolean };
+  detail?: (s: SharedItem) => ReactNode; use?: { label: string; onUse: (s: SharedItem) => void; disabled?: boolean; help?: string };
 }) {
   const { ctx, lib, shared } = props;
   const [following, setFollowing] = useState<SharedItem | null>(null);
@@ -364,9 +390,9 @@ function SharedItems(props: {
           {props.detail?.(s)}
           {props.canManage || props.use ? (
             <View style={styles.actions}>
-              {props.use ? <SmallBtn label={props.use.label} tone="primary" disabled={busy || props.use.disabled} onPress={() => props.use!.onUse(s)} /> : null}
-              {props.canManage && s.subscribable ? <SmallBtn label={t('config.library.follow')} icon="link" disabled={busy} onPress={() => setFollowing(s)} /> : null}
-              {props.canManage ? <SmallBtn label={t('common.copy')} icon="plus" disabled={busy} onPress={() => void copy(s)} /> : null}
+              {props.use ? <SmallBtn label={props.use.label} tone="primary" disabled={busy || props.use.disabled} help={props.use.help} onPress={() => props.use!.onUse(s)} /> : null}
+              {props.canManage && s.subscribable ? <SmallBtn label={t('config.library.follow')} icon="link" disabled={busy} help={t('config.library.followHelp')} onPress={() => setFollowing(s)} /> : null}
+              {props.canManage ? <SmallBtn label={t('common.copy')} icon="plus" disabled={busy} help={t('config.library.copyHelp')} onPress={() => void copy(s)} /> : null}
             </View>
           ) : null}
         </Card>
@@ -376,8 +402,8 @@ function SharedItems(props: {
       <Sheet visible={following !== null} title={following ? t('config.library.followNamed', { name: following.name }) : t('config.library.follow')} onClose={() => setFollowing(null)}
         sub={following ? t('config.library.followSheetSub', { org: following.org_name }) : undefined}
         footer={<>
-          <PrimaryBtn label={t('config.library.updateAutomatically')} onPress={() => following && void follow(following, true)} busy={busy} />
-          <GhostBtn label={t('config.library.takeUpdatesMyself')} onPress={() => following && void follow(following, false)} />
+          <PrimaryBtn label={t('config.library.updateAutomatically')} help={t('config.library.updateAutomaticallyHelp')} onPress={() => following && void follow(following, true)} busy={busy} />
+          <GhostBtn label={t('config.library.takeUpdatesMyself')} help={t('config.library.takeUpdatesMyselfHelp')} onPress={() => following && void follow(following, false)} />
         </>}>
         <Text style={txt.sm}>{t('config.library.followSheetBody')}</Text>
       </Sheet>
@@ -416,20 +442,20 @@ function LibraryItemSettings(props: { ctx: Ctx; lib: Library; it: LibraryItemVie
                 () => live.current.follow(it.itemId, { autoUpdate: sub.autoUpdate }))} />
           </Group>
           {props.update && canManage ? (
-            <GhostBtn label={t('config.library.takeUpdate')} icon="download" disabled={busy}
+            <GhostBtn label={t('config.library.takeUpdate')} icon="download" disabled={busy} help={t('config.library.takeUpdateHelp')}
               onPress={() => void run('take update', // i18n-ignore: log label
                 () => lib.takeUpdate(it, props.update!), t('config.library.upToDate', { name: it.name }))} />
           ) : null}
           {canManage ? (
             <>
-              <GhostBtn label={t('config.library.copyToChange')} icon="plus" disabled={busy}
+              <GhostBtn label={t('config.library.copyToChange')} icon="plus" disabled={busy} help={t('config.library.copyToChangeHelp')}
                 onPress={() => void run('copy', () => lib.copyFollowed(it), t('config.library.copied', { name: it.name })).then((ok) => ok && props.onCopied())} />
               {sub.active ? (
-                <GhostBtn label={t('config.library.stopFollowing')} tone="red" disabled={busy}
+                <GhostBtn label={t('config.library.stopFollowing')} tone="red" disabled={busy} help={t('config.library.stopFollowingHelp')}
                   onPress={() => void run('stop following', () => lib.follow(it.itemId, { active: false }), t('config.library.stoppedFollowing'), // i18n-ignore: log label
                     () => live.current.follow(it.itemId, { active: true }))} />
               ) : (
-                <GhostBtn label={t('config.library.followAgain')} disabled={busy} onPress={() => void run('follow', () => lib.follow(it.itemId, { active: true }), t('config.library.followingAgain', { org: sub.sourceOrgName }))} />
+                <GhostBtn label={t('config.library.followAgain')} disabled={busy} help={t('config.library.followAgainHelp')} onPress={() => void run('follow', () => lib.follow(it.itemId, { active: true }), t('config.library.followingAgain', { org: sub.sourceOrgName }))} />
               )}
             </>
           ) : null}
@@ -451,6 +477,7 @@ function LibraryItemSettings(props: { ctx: Ctx; lib: Library; it: LibraryItemVie
           </Group>
           {canManage ? (
             <GhostBtn label={it.archived ? t('config.library.unarchive') : t('config.library.archive')} icon="folder" disabled={busy}
+              help={it.archived ? t('config.library.unarchiveHelp') : t('config.library.archiveHelp')}
               onPress={() => void run('archive', () => lib.archive(it, !it.archived),
                 it.archived ? t('config.library.unarchived', { name: it.name }) : t('config.library.archived', { name: it.name }),
                 () => lib.archive(it, it.archived))} />
@@ -463,8 +490,12 @@ function LibraryItemSettings(props: { ctx: Ctx; lib: Library; it: LibraryItemVie
 
 // ─── Review flows (FLOW-1..4) ───────────────────────────────────────────────────────
 
-/** A flow at a glance: steps left to right, parallel kinds stacked, checkpoints locked. */
-function FlowStepsInline(props: { steps: Pick<FlowStep, 'kindIds' | 'checkpoint'>[]; kinds: KindDef[] }) {
+/**
+ * A flow at a glance: steps left to right, parallel kinds stacked, checkpoints locked.
+ * `explain`: in help mode it says what the arrows, stacks and locks mean; off where it
+ * sits inside a part that says so itself (a flow card that opens).
+ */
+function FlowStepsInline(props: { steps: Pick<FlowStep, 'kindIds' | 'checkpoint'>[]; kinds: KindDef[]; explain?: boolean }) {
   if (props.steps.length === 0) {
     return (
       <View style={[styles.stepTile, { backgroundColor: TINT.gray, alignSelf: 'flex-start' }]}>
@@ -473,7 +504,7 @@ function FlowStepsInline(props: { steps: Pick<FlowStep, 'kindIds' | 'checkpoint'
     );
   }
   const name = (id: string) => props.kinds.find((k) => k.id === id)?.name ?? id;
-  return (
+  const steps = (
     <View style={styles.inline}>
       {props.steps.map((st, i) => (
         <View key={i} style={styles.inlineStep}>
@@ -490,13 +521,15 @@ function FlowStepsInline(props: { steps: Pick<FlowStep, 'kindIds' | 'checkpoint'
       ))}
     </View>
   );
+  return props.explain ? <HelpInfo label={t('config.flows.stepsLabel')} detail={t('config.flows.stepsHelp')}>{steps}</HelpInfo> : steps;
 }
 
 /** A flow document's steps inline, or a light line while it loads. */
-function DocSteps(props: { doc: FlowDoc | null; kinds: KindDef[] }) {
+function DocSteps(props: { doc: FlowDoc | null; kinds: KindDef[]; explain?: boolean }) {
   if (!props.doc) return <Text style={txt.smMuted}>{t('common.loading')}</Text>;
   // A shipped kind the document carries reads in the language showing.
-  return <FlowStepsInline steps={props.doc.steps.map((s) => ({ kindIds: s.kindIds, checkpoint: !!s.checkpoint }))} kinds={[...props.doc.kinds.map(localKind), ...props.kinds]} />;
+  return <FlowStepsInline steps={props.doc.steps.map((s) => ({ kindIds: s.kindIds, checkpoint: !!s.checkpoint }))} kinds={[...props.doc.kinds.map(localKind), ...props.kinds]}
+    explain={props.explain} />;
 }
 
 export function FlowsHome(ctx: Ctx) {
@@ -559,7 +592,7 @@ export function FlowsHome(ctx: Ctx) {
 
   return (
     <Screen header={<Header title={t('config.flows.title')} sub={language ?? orgName(ctx)} onBack={ctx.back}
-      action={canWrite ? <SmallBtn label={t('config.flows.addFlow')} icon="plus" tone="primary" onPress={() => ctx.go('flow_editor', { itemId: 'new' })} /> : undefined} />}>
+      action={canWrite ? <SmallBtn label={t('config.flows.addFlow')} icon="plus" tone="primary" help={t('config.flows.addFlowHelp')} onPress={() => ctx.go('flow_editor', { itemId: 'new' })} /> : undefined} />}>
       {!state ? <EmptyState icon="flow" title={t('common.loading')} /> : (
         <>
           {!language ? <EmptyState icon="globe" title={t('config.flows.noLanguages')} sub={t('config.flows.noLanguagesSub')} /> : null}
@@ -572,10 +605,10 @@ export function FlowsHome(ctx: Ctx) {
                   {currentFlowLine(currentItem, current)}
                 </Text>
               ) : null}
-              <FlowStepsInline steps={current.steps} kinds={kinds} />
-              {canManage && currentItem ? <SmallBtn label={t('config.flows.openFlow')} icon="edit" onPress={() => ctx.go('flow_editor', { itemId: currentItem.itemId })} /> : null}
+              <FlowStepsInline steps={current.steps} kinds={kinds} explain />
+              {canManage && currentItem ? <SmallBtn label={t('config.flows.openFlow')} icon="edit" help={t('config.flows.openFlowHelp')} onPress={() => ctx.go('flow_editor', { itemId: currentItem.itemId })} /> : null}
               {canWrite && !current.itemId && current.chosen && current.steps.length ? (
-                <SmallBtn label={t('config.flows.saveAsFlow')} icon="plus" onPress={() => ctx.go('flow_editor', { itemId: 'new', languageId: ctx.language.languageId })} />
+                <SmallBtn label={t('config.flows.saveAsFlow')} icon="plus" help={t('config.flows.saveAsFlowHelp')} onPress={() => ctx.go('flow_editor', { itemId: 'new', languageId: ctx.language.languageId })} />
               ) : null}
             </Card>
           ) : null}
@@ -588,6 +621,7 @@ export function FlowsHome(ctx: Ctx) {
             const on = !!current && current.itemId === f.itemId;
             return (
               <Card key={f.itemId} onPress={open(f.itemId)} accessibilityLabel={t('config.flows.openNamed', { name: f.name })}
+                help={updates[f.itemId] && !f.archived ? t('config.library.openUpdateHelp') : t('config.flows.flowCardHelp')}
                 style={on ? { borderColor: C.primary, borderWidth: 1.5 } : undefined}>
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.md }}>
                   <View style={{ flex: 1 }}>
@@ -598,18 +632,20 @@ export function FlowsHome(ctx: Ctx) {
                   {f.archived ? <Badge label={t('config.library.archivedBadge')} />
                     : updates[f.itemId] ? <Badge label={t('config.library.updateBadge')} tone="amber" /> : null}
                   {on
-                    ? <SmallBtn label={t('config.flows.inUse')} icon="check" tone="primary" onPress={() => {}} />
-                    : language && !f.archived ? <SmallBtn label={t('config.flows.use')} onPress={() => void adopt({ itemId: f.itemId })} disabled={!canManage || busy || !f.current} /> : null}
+                    ? <SmallBtn label={t('config.flows.inUse')} icon="check" tone="primary" help={t('config.flows.inUseHelp')} onPress={() => {}} />
+                    : language && !f.archived ? <SmallBtn label={t('config.flows.use')} help={t('config.flows.useHelp', { language })} onPress={() => void adopt({ itemId: f.itemId })} disabled={!canManage || busy || !f.current} /> : null}
                 </View>
-                <DocSteps doc={docs.get<FlowDoc>(f.current)} kinds={kinds} />
+                {/* Inside a card that opens, the card says what the steps mean. */}
+                <DocSteps doc={docs.get<FlowDoc>(f.current)} kinds={kinds} explain={!canManage} />
               </Card>
             );
           })}
           <ShowMore remaining={flows.length - shown} step={STEP} onMore={() => setShown(shown + STEP)} />
 
           <SharedItems ctx={ctx} lib={lib} shared={shared} canManage={canWrite}
-            detail={(s) => <DocSteps doc={docs.get<FlowDoc>(s.latest_hash)} kinds={kinds} />}
-            {...(language && canManage ? { use: { label: t('config.flows.use'), onUse: (s: SharedItem) => void adopt({ shared: s }), disabled: busy } } : {})} />
+            detail={(s) => <DocSteps doc={docs.get<FlowDoc>(s.latest_hash)} kinds={kinds} explain />}
+            {...(language && canManage ? { use: { label: t('config.flows.use'), onUse: (s: SharedItem) => void adopt({ shared: s }), disabled: busy,
+              help: t('config.flows.useHelp', { language }) } } : {})} />
         </>
       )}
     </Screen>
@@ -633,14 +669,14 @@ function StepSheet(props: {
           <Group>
             {st.kindIds.map((id, j) => (
               <Row key={id} leading={<KindIcon kindId={id} size={40} />} label={name(id)} last={j === st.kindIds.length - 1}
-                right={st.kindIds.length > 1 ? <IconBtn name="close" label={t('config.flowEditor.removeCheck', { name: name(id) })} onPress={() => props.onChange({ ...st, kindIds: st.kindIds.filter((k) => k !== id) })} bg={C.light} color={C.primary} /> : undefined} />
+                right={st.kindIds.length > 1 ? <IconBtn name="close" label={t('config.flowEditor.removeCheck', { name: name(id) })} help={t('config.flowEditor.removeCheckHelp')} onPress={() => props.onChange({ ...st, kindIds: st.kindIds.filter((k) => k !== id) })} bg={C.light} color={C.primary} /> : undefined} />
             ))}
           </Group>
           <Group>
             <Row icon="plus" label={t('config.flowEditor.addAlongside')} sub={t('config.flowEditor.addAlongsideSub')} onPress={props.onAdd} />
-            {props.i > 0 ? <Row icon="up" label={t('config.flowEditor.moveUp')} onPress={() => props.onMove(-1)} /> : null}
-            {props.i < props.count - 1 ? <Row icon="down" label={t('config.flowEditor.moveDown')} onPress={() => props.onMove(1)} /> : null}
-            <Row icon="trash" label={t('config.flowEditor.removeStep')} iconColor={TINT.redText} iconBg={TINT.red} onPress={props.onRemove} last />
+            {props.i > 0 ? <Row icon="up" label={t('config.flowEditor.moveUp')} help={t('config.flowEditor.moveUpHelp')} onPress={() => props.onMove(-1)} /> : null}
+            {props.i < props.count - 1 ? <Row icon="down" label={t('config.flowEditor.moveDown')} help={t('config.flowEditor.moveDownHelp')} onPress={() => props.onMove(1)} /> : null}
+            <Row icon="trash" label={t('config.flowEditor.removeStep')} iconColor={TINT.redText} iconBg={TINT.red} help={t('config.flowEditor.removeStepHelp')} onPress={props.onRemove} last />
           </Group>
         </>
       ) : null}
@@ -729,7 +765,7 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
     <Screen
       header={<Header title={label || (isNew ? t('config.flowEditor.newWayToCheck') : t('config.flowEditor.whoChecks'))} sub={it ? sourceLine(it) : t('config.flowEditor.newSub')}
         onBack={() => (dirty ? setLeaving(true) : ctx.back())} />}
-      footer={readOnly ? undefined : <PrimaryBtn label={t('common.save')} icon="check" onPress={() => void save()} disabled={!canSave} busy={busy} />}>
+      footer={readOnly ? undefined : <PrimaryBtn label={t('common.save')} icon="check" help={t('config.flowEditor.saveHelp')} onPress={() => void save()} disabled={!canSave} busy={busy} />}>
       {followed ? (
         <Banner icon="link" title={t('config.library.follows', { org: it!.subscription!.sourceOrgName })} body={t('config.library.followsBody')} />
       ) : !canManage ? <Banner icon="lock" title={t('common.viewOnly')} body={t('config.flowEditor.noPermission')} /> : null}
@@ -744,7 +780,7 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
           <CheckSteps steps={steps} kinds={kinds} readOnly={readOnly} usually={usuallyFor(state, kinds, ctx.name)} onChange={change}
             onAdd={() => setPickFor('new')} onOpen={(i) => { if (!readOnly) setOpen(i); }} />
           {!readOnly && steps.length > 0 ? (
-            <SmallBtn label={t('config.flowEditor.noChecks')} onPress={() => change([])} />
+            <SmallBtn label={t('config.flowEditor.noChecks')} help={t('config.flowEditor.noChecksHelp')} onPress={() => change([])} />
           ) : null}
           <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>
             {usedHere ? t('config.flowEditor.usedHere', { language }) : t('config.flowEditor.usedNote')}
@@ -765,11 +801,13 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
         <Group>
           {kinds.filter((k) => !(picking?.kindIds ?? []).includes(k.id)).map((k, i, a) => (
             <Row key={k.id} leading={<KindIcon kindId={k.id} size={40} />} label={k.name} sub={k.description || k.usualReviewer || undefined}
+              help={pickFor === 'new' ? t('config.flowEditor.pickNewHelp') : t('config.flowEditor.pickAlongsideHelp')}
               onPress={() => pick(k.id)} last={i === a.length - 1} />
           ))}
         </Group>
-        <Field label={t('config.flowEditor.newKindLabel')} value={newKind} onChangeText={setNewKind} placeholder={t('config.flowEditor.newKindPlaceholder')} autoCapitalize="words" />
-        <SmallBtn label={t('config.flowEditor.addThisKind')} icon="plus" tone="primary" disabled={!newKind.trim()} onPress={() => {
+        <Field label={t('config.flowEditor.newKindLabel')} value={newKind} onChangeText={setNewKind} placeholder={t('config.flowEditor.newKindPlaceholder')} autoCapitalize="words"
+          help={t('config.flowEditor.newKindHelp')} />
+        <SmallBtn label={t('config.flowEditor.addThisKind')} icon="plus" tone="primary" disabled={!newKind.trim()} help={t('config.flowEditor.addThisKindHelp')} onPress={() => {
           if (!newKind.trim()) return;
           const k = newKindDef(newKind, kinds);
           setAdded([...added, k]);
@@ -780,8 +818,8 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
 
       <Sheet visible={leaving} title={t('config.flowEditor.leaveTitle')} sub={t('config.flowEditor.leaveSubFlow')} onClose={() => setLeaving(false)}
         footer={<>
-          <PrimaryBtn label={t('common.save')} icon="check" onPress={() => { setLeaving(false); void save(); }} busy={busy} disabled={!label.trim()} />
-          <GhostBtn label={t('config.flowEditor.discard')} tone="red" onPress={() => { setLeaving(false); ctx.back(); }} />
+          <PrimaryBtn label={t('common.save')} icon="check" help={t('config.flowEditor.saveHelp')} onPress={() => { setLeaving(false); void save(); }} busy={busy} disabled={!label.trim()} />
+          <GhostBtn label={t('config.flowEditor.discard')} tone="red" help={t('config.flowEditor.discardHelp')} onPress={() => { setLeaving(false); ctx.back(); }} />
         </>}>
         {null}
       </Sheet>
@@ -820,10 +858,13 @@ export function ReferenceHome(ctx: Ctx) {
   const own = languageView && language ? language : null;
   const params: Record<string, string> = own && languageId ? { languageId } : {};
   const open = (m: MaterialView) => (canManage ? () => ctx.go('material_editor', { materialId: m.materialId, ...params }) : undefined);
+  // In help mode: it opens; a Locked badge says who may change it.
+  const openHelp = (m: MaterialView) => (m.locked ? t('config.reference.openLockedHelp') : t('config.reference.openMaterialHelp'));
   const generalRow = (m: MaterialView, last: boolean) => (
     <Row key={m.materialId} icon="book" label={m.title} last={last} badge={m.locked ? t('config.reference.locked') : undefined}
       current={beside?.screen === 'material_editor' && beside.params['materialId'] === m.materialId}
-      sub={`${referenceKindName(m.kind)} · ${materialScopeName(state, m, own ?? '')}${m.blanks > 0 ? ` · ${t('config.reference.blanks', { count: m.blanks })}` : ''}`} onPress={open(m)} />
+      sub={`${referenceKindName(m.kind)} · ${materialScopeName(state, m, own ?? '')}${m.blanks > 0 ? ` · ${t('config.reference.blanks', { count: m.blanks })}` : ''}`} onPress={open(m)}
+      help={openHelp(m)} />
   );
   const sets = sortQuestionSets(view.questionSets, kinds);
   const libraryRow = (m: LibraryItemView, last: boolean) => {
@@ -834,13 +875,14 @@ export function ReferenceHome(ctx: Ctx) {
         sub={`${what?.line ?? t('common.loading')} · ${sourceLine(m)}`} muted={m.archived}
         current={beside?.screen === 'material_editor' && beside.params['itemId'] === m.itemId}
         badge={m.archived ? t('config.library.archivedBadge') : updates[m.itemId] ? t('config.library.updateBadge') : undefined} badgeTone={updates[m.itemId] && !m.archived ? 'amber' : undefined}
+        help={updates[m.itemId] && !m.archived ? t('config.library.openUpdateHelp') : t('config.reference.libraryItemHelp')}
         onPress={canManage ? () => ctx.go('material_editor', { itemId: m.itemId, ...params }) : undefined} />
     );
   };
 
   return (
     <Screen header={<Header title={t('config.reference.title')} sub={own ?? orgName(ctx)} onBack={ctx.back} />}
-      footer={canManage ? <PrimaryBtn label={t('config.reference.addMaterial')} icon="plus" onPress={() => ctx.go('material_editor', params)} /> : undefined}>
+      footer={canManage ? <PrimaryBtn label={t('config.reference.addMaterial')} icon="plus" help={t('config.reference.addMaterialHelp')} onPress={() => ctx.go('material_editor', params)} /> : undefined}>
       <Intro>{own ? t('config.reference.introLanguage', { language: own }) : t('config.reference.introOrg')}</Intro>
 
       <SectionLabel label={t('config.reference.offered')} />
@@ -850,11 +892,12 @@ export function ReferenceHome(ctx: Ctx) {
       <Group>
         <Row icon="book" label={t('config.reference.keyTermsRow')} last
           sub={languageId && language ? `${t('config.reference.concepts', { count: termCount })} · ${t('config.languageRenderings', { language })}` : t('config.reference.addLanguageFirst')}
+          help={t('config.reference.keyTermsHelp')}
           onPress={languageId ? () => ctx.go('key_terms', { languageId }) : undefined} />
       </Group>
 
       <SectionLabel label={withCount(t('config.reference.libraryOrg'), materials.length)}
-        action={canManage && lib.canWrite('material') ? <SmallBtn label={t('config.reference.new')} icon="plus" onPress={() => ctx.go('material_editor', { itemId: 'new', ...params })} /> : undefined} />
+        action={canManage && lib.canWrite('material') ? <SmallBtn label={t('config.reference.new')} icon="plus" help={t('config.reference.newHelp')} onPress={() => ctx.go('material_editor', { itemId: 'new', ...params })} /> : undefined} />
       <Capped items={materials} render={libraryRow}
         empty={t('config.reference.libraryEmpty')} />
       {canManage && lib.canWrite('material') ? <Group><Row icon="sparkle" label={t('config.reference.writeGuide')} sub={t('config.reference.writeGuideSub')} last
@@ -871,14 +914,15 @@ export function ReferenceHome(ctx: Ctx) {
           <SectionLabel label={withCount(t('config.reference.studyMaterial'), view.study.length)} />
           <Capped items={view.study} empty={t('config.reference.noStudy')} render={(m, last) => (
             <Row key={m.materialId} icon="sparkle" label={m.title} last={last} badge={m.locked ? t('config.reference.locked') : undefined}
-              sub={`${t('config.libraryLine.studyGuide')} · ${materialScopeName(state, m, own)}${m.blanks > 0 ? ` · ${t('config.reference.blanks', { count: m.blanks })}` : ''}`} onPress={open(m)} />
+              sub={`${t('config.libraryLine.studyGuide')} · ${materialScopeName(state, m, own)}${m.blanks > 0 ? ` · ${t('config.reference.blanks', { count: m.blanks })}` : ''}`} onPress={open(m)}
+              help={openHelp(m)} />
           )} />
 
           <SectionLabel label={withCount(t('config.reference.reviewQuestions'), sets.length)} />
           <Capped items={sets} empty={t('config.reference.noSets')} render={(m, last) => (
             <Row key={m.materialId} icon="chat" label={m.title} last={last} badge={m.locked ? t('config.reference.locked') : undefined}
               sub={`${setKindName(kinds, m) ?? t('config.libraryLine.notTiedToKind')} · ${questionCountLabel(questionCount(m))} · ${materialScopeName(state, m, own)}`}
-              onPress={open(m)} />
+              onPress={open(m)} help={openHelp(m)} />
           )} />
           <Intro>{t('config.reference.setsAddUp')}</Intro>
 
@@ -907,8 +951,9 @@ function OfferedRows(props: { ctx: Ctx; languageId: string | null; offered: Map<
   const open = ctx.language.languageId || null;
   return (
     <Group>
-      <Row icon="sound" label={t('config.reference.bibles')} sub={t('config.reference.biblesSub', { count: bibles })} onPress={() => ctx.go('reference_bibles', params)} />
-      <Row icon="sparkle" label={t('config.reference.guidesNotes')} sub={`${t('config.reference.guidesRecommended', { count: guides })} · ${t('config.reference.notes', { count: notes })}`} onPress={() => ctx.go('reference_guides', params)} last={!open} />
+      <Row icon="sound" label={t('config.reference.bibles')} sub={t('config.reference.biblesSub', { count: bibles })} help={t('config.reference.biblesHelp')} onPress={() => ctx.go('reference_bibles', params)} />
+      <Row icon="sparkle" label={t('config.reference.guidesNotes')} sub={`${t('config.reference.guidesRecommended', { count: guides })} · ${t('config.reference.notes', { count: notes })}`}
+        help={t('config.reference.guidesNotesHelp')} onPress={() => ctx.go('reference_guides', params)} last={!open} />
       {open ? <Row icon="map" label={t('config.reference.coverage')} sub={t('config.reference.coverageSub', { language: languageName(ctx.org.state, open) })}
         onPress={() => ctx.go('reference_coverage', { languageId: open })} last /> : null}
     </Group>
@@ -1033,9 +1078,11 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
   return (
     <Screen
       header={<Header title={existing?.title ?? t('config.material.newMaterial')} sub={existing ? materialScopeName(state, existing, language ?? '') : toLibrary ? orgName(ctx) : language ?? orgName(ctx)} onBack={ctx.back}
-        action={existing && canManage ? <SmallBtn label={locked ? t('config.material.locked') : t('config.material.unlocked')} icon="lock" tone={locked ? 'dark' : undefined} onPress={toggleLock} />
+        action={existing && canManage ? <SmallBtn label={locked ? t('config.material.locked') : t('config.material.unlocked')} icon="lock" tone={locked ? 'dark' : undefined}
+          help={locked ? t('config.material.lockedHelp') : t('config.material.unlockedHelp')} onPress={toggleLock} />
           : existing && locked ? <Badge label={t('config.material.locked')} tone="red" /> : undefined} />}
-      footer={canFill ? <PrimaryBtn label={isNew ? t('config.reference.addMaterial') : t('config.material.saveChanges')} onPress={() => void save()} disabled={!ready} busy={busy} /> : undefined}>
+      footer={canFill ? <PrimaryBtn label={isNew ? t('config.reference.addMaterial') : t('config.material.saveChanges')}
+        help={isNew ? t('config.material.saveNewHelp') : t('help.details.save')} onPress={() => void save()} disabled={!ready} busy={busy} /> : undefined}>
       {existing ? (
         <Text style={txt.xs}>
           {[referenceKindName(existing.kind), t('config.material.byWhom', { name: ctx.name(existing.createdBy) }), ...(kindOfSet ? [t('config.material.questionsFor', { kind: kindOfSet })] : [])].join(' · ')}
@@ -1049,7 +1096,7 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
           <SectionLabel label={t('config.material.whatKind')} />
           <Group>
             {referenceKinds().filter((k) => k.id !== 'key_terms' && (canManage || k.id === 'questions')).map((k, i, a) => (
-              <Row key={k.id} label={k.name} sub={k.code} onPress={() => setKind(k.id)} last={i === a.length - 1}
+              <Row key={k.id} label={k.name} sub={k.code} help={t('config.material.kindHelp')} onPress={() => setKind(k.id)} last={i === a.length - 1}
                 role="radio" selected={kind === k.id}
                 right={kind === k.id ? <Ico name="check" size={22} color={C.primary} /> : <View style={{ width: 22 }} />} />
             ))}
@@ -1059,8 +1106,8 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
             <>
               <SectionLabel label={t('config.material.whereItApplies')} />
               <ChipRow>
-                <Chip label={language} icon="globe" on={forLanguage} onPress={() => setForLanguage(true)} />
-                <Chip label={t('config.material.allLanguages')} icon="folder" on={!forLanguage} onPress={() => setForLanguage(false)} />
+                <Chip label={language} icon="globe" on={forLanguage} help={t('config.material.forLanguageHelp')} onPress={() => setForLanguage(true)} />
+                <Chip label={t('config.material.allLanguages')} icon="folder" on={!forLanguage} help={t('config.material.allLanguagesHelp')} onPress={() => setForLanguage(false)} />
               </ChipRow>
             </>
           ) : null}
@@ -1076,7 +1123,7 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
               <SectionLabel label={t('config.material.forWhichKind')} />
               <Group>
                 {kinds.map((k, i) => (
-                  <Row key={k.id} leading={<KindIcon kindId={k.id} size={40} />} label={k.name} onPress={() => setReviewKind(k.id)} last={i === kinds.length - 1}
+                  <Row key={k.id} leading={<KindIcon kindId={k.id} size={40} />} label={k.name} help={t('config.material.reviewKindHelp')} onPress={() => setReviewKind(k.id)} last={i === kinds.length - 1}
                     role="radio" selected={reviewKind === k.id}
                     right={reviewKind === k.id ? <Ico name="check" size={22} color={C.primary} /> : <View style={{ width: 22 }} />} />
                 ))}
@@ -1093,18 +1140,19 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
             <Card key={q.fieldId}>
               {canFill ? (
                 <>
-                  <Field value={q.text} onChangeText={(v) => setQuestion(i, { text: v })} placeholder={t('config.material.questionPlaceholder')} multiline />
+                  <Field value={q.text} onChangeText={(v) => setQuestion(i, { text: v })} placeholder={t('config.material.questionPlaceholder')} multiline
+                    help={t('config.material.questionHelp')} />
                   <ChipRow>
-                    {questionTypes().map((type) => <Chip key={type.id} label={type.label} on={q.type === type.id} onPress={() => setQuestion(i, { type: type.id })} />)}
+                    {questionTypes().map((type) => <Chip key={type.id} label={type.label} on={q.type === type.id} help={questionTypeHelp(type.id)} onPress={() => setQuestion(i, { type: type.id })} />)}
                   </ChipRow>
                   <View style={styles.checkpoint}>
                     <View style={{ flex: 1 }}>
                       <Text style={[txt.sm, { fontWeight: '700' }]}>{q.required ? t('common.required') : t('config.material.suggested')}</Text>
                       <Text style={txt.xs}>{q.required ? t('config.material.requiredHelp') : t('config.material.suggestedHelp')}</Text>
                     </View>
-                    <Toggle testID="toggle-required" on={q.required} label={t('common.required')} onToggle={() => setQuestion(i, { required: !q.required })} />
+                    <Toggle testID="toggle-required" on={q.required} label={t('common.required')} help={t('config.material.requiredSwitchHelp')} onToggle={() => setQuestion(i, { required: !q.required })} />
                   </View>
-                  <SmallBtn label={t('config.material.removeQuestion')} icon="trash" onPress={() => setQuestions(qs.filter((_, j) => j !== i))} />
+                  <SmallBtn label={t('config.material.removeQuestion')} icon="trash" help={t('config.material.removeQuestionHelp')} onPress={() => setQuestions(qs.filter((_, j) => j !== i))} />
                 </>
               ) : (
                 <>
@@ -1118,7 +1166,7 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
             </Card>
           ))}
           {qs.length === 0 && !canFill ? <Card><Text style={txt.smMuted}>{t('config.material.noQuestions')}</Text></Card> : null}
-          {canFill ? <GhostBtn label={t('config.material.addQuestion')} icon="plus" onPress={() => setQuestions([...qs, { fieldId: nextFieldId([...qs.map((x) => x.fieldId), ...(existing?.fields.map((f) => f.fieldId) ?? [])]), text: '', type: 'text', required: false }])} /> : null}
+          {canFill ? <GhostBtn label={t('config.material.addQuestion')} icon="plus" help={t('config.material.addQuestionHelp')} onPress={() => setQuestions([...qs, { fieldId: nextFieldId([...qs.map((x) => x.fieldId), ...(existing?.fields.map((f) => f.fieldId) ?? [])]), text: '', type: 'text', required: false }])} /> : null}
         </>
       ) : (
         <>
@@ -1127,7 +1175,8 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
             <Card key={fieldId}>
               <Text style={txt.h3}>{fieldTitle(fieldId)}</Text>
               {canFill
-                ? <Field value={valueOf(fieldId)} onChangeText={(v) => setTexts({ ...texts, [fieldId]: v })} placeholder={t('config.material.guidanceFor', { section: fieldTitle(fieldId) })} multiline />
+                ? <Field value={valueOf(fieldId)} onChangeText={(v) => setTexts({ ...texts, [fieldId]: v })} placeholder={t('config.material.guidanceFor', { section: fieldTitle(fieldId) })} multiline
+                  help={t('config.material.sectionHelp')} />
                 : <Text style={valueOf(fieldId) ? txt.body : txt.bodyMuted}>{valueOf(fieldId) || t('config.material.notFilled')}</Text>}
             </Card>
           ))}
@@ -1135,9 +1184,10 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
           {canFill ? (
             <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'flex-end' }}>
               <View style={{ flex: 1 }}>
-                <Field label={t('config.material.addSection')} value={newField} onChangeText={setNewField} placeholder={t('config.material.addSectionPlaceholder')} autoCapitalize="sentences" />
+                <Field label={t('config.material.addSection')} value={newField} onChangeText={setNewField} placeholder={t('config.material.addSectionPlaceholder')} autoCapitalize="sentences"
+                  help={t('config.material.sectionNameHelp')} />
               </View>
-              <SmallBtn label={t('config.material.add')} icon="plus" disabled={!newField.trim()} onPress={() => {
+              <SmallBtn label={t('config.material.add')} icon="plus" disabled={!newField.trim()} help={t('config.material.addSectionHelp')} onPress={() => {
                 const id = newKindId(newField, fieldIds);
                 setExtraFields([...extraFields, id]);
                 setNewField('');
@@ -1154,7 +1204,8 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
             {published ? t('config.material.inLibrary', { source: sourceLine(published) }) : t('config.material.notInLibrary')}
           </Text>
           <LanguageField label={t('reference.language.writtenIn')} value={libraryLanguage} onChange={setLibraryLanguage} disabled={busy} />
-          <GhostBtn label={published ? t('config.material.publishNewVersion') : t('config.material.publishToLibrary')} icon="share" disabled={busy || changes.length > 0} onPress={() => void publishToLibrary()} />
+          <GhostBtn label={published ? t('config.material.publishNewVersion') : t('config.material.publishToLibrary')} icon="share" disabled={busy || changes.length > 0}
+            help={published ? t('config.material.publishVersionHelp') : t('config.material.publishHelp')} onPress={() => void publishToLibrary()} />
           {changes.length > 0 ? <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>{t('config.material.saveFirst')}</Text> : null}
         </>
       ) : null}
@@ -1255,7 +1306,8 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
   return (
     <Screen
       header={<Header title={titleText || (isNew ? t('config.libraryMaterial.newTitle') : it?.name ?? t('config.libraryMaterial.title'))} sub={it ? sourceLine(it) : t('config.libraryMaterial.newSub')} onBack={ctx.back} />}
-      footer={editable ? <PrimaryBtn label={isNew ? t('common.publish') : t('config.libraryMaterial.publishNewVersion')} onPress={() => void save()} disabled={!ready} busy={busy} /> : undefined}>
+      footer={editable ? <PrimaryBtn label={isNew ? t('common.publish') : t('config.libraryMaterial.publishNewVersion')}
+        help={isNew ? t('config.libraryMaterial.publishHelp') : t('config.libraryMaterial.publishVersionHelp')} onPress={() => void save()} disabled={!ready} busy={busy} /> : undefined}>
       {!isNew && !doc ? <Card><Text style={txt.smMuted}>{t('common.loading')}</Text></Card> : null}
       {it?.source === 'subscription' ? (
         <Banner icon="link" title={t('config.library.follows', { org: it.subscription!.sourceOrgName })} body={t('config.library.followsBody')} />
@@ -1282,20 +1334,22 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
           <>
             <SectionLabel label={t('config.material.whatKind')} />
             <ChipRow>
-              {[...new Set([...LIBRARY_MATERIAL_KINDS, k])].map((id) => <Chip key={id} label={referenceKindName(id)} on={k === id} onPress={() => setKind(id)} />)}
+              {[...new Set([...LIBRARY_MATERIAL_KINDS, k])].map((id) => <Chip key={id} label={referenceKindName(id)} on={k === id} help={t('config.libraryMaterial.kindHelp')} onPress={() => setKind(id)} />)}
             </ChipRow>
             <Field label={t('config.material.titleLabel')} value={titleText} onChangeText={setTitle} placeholder={t('config.libraryMaterial.titlePlaceholder')} autoCapitalize="sentences" />
             <LanguageField label={t('reference.language.writtenIn')} value={lang} onChange={setLanguage} />
-            <Field label={t('config.libraryMaterial.textLabel')} value={b} onChangeText={setBody} placeholder={t('config.libraryMaterial.textPlaceholder')} autoCapitalize="sentences" multiline />
+            <Field label={t('config.libraryMaterial.textLabel')} value={b} onChangeText={setBody} placeholder={t('config.libraryMaterial.textPlaceholder')} autoCapitalize="sentences" multiline
+              help={t('config.libraryMaterial.textHelp')} />
             <SectionLabel label={t('config.material.whereItApplies')} />
-            <Field label={t('config.libraryMaterial.versesLabel')} value={refsText ?? baseRefs} onChangeText={setRefsText} placeholder={REF_EXAMPLE} autoCapitalize="none" multiline />
+            <Field label={t('config.libraryMaterial.versesLabel')} value={refsText ?? baseRefs} onChangeText={setRefsText} placeholder={REF_EXAMPLE} autoCapitalize="none" multiline
+              help={t('config.libraryMaterial.versesHelp', { example: REF_EXAMPLE })} />
             {refs.bad.length ? <Text style={[txt.sm, { color: TINT.redText }]}>{t('config.libraryMaterial.couldNotRead', { refs: listOf(refs.bad.map((x) => t('config.quoted', { text: x }))), example: REF_EXAMPLE })}</Text> : null}
             {refs.refs.length ? (
               <>
                 <Text style={txt.xsStrong}>{t('config.libraryMaterial.numberedAs')}</Text>
                 <ChipRow>
                   {[...choices, ...(choices.some((c) => c.key === chosen.key) ? [] : [chosen])].map((c) => (
-                    <Chip key={c.key} label={c.label} on={c.key === chosen.key} onPress={() => setV11n(c)} />
+                    <Chip key={c.key} label={c.label} on={c.key === chosen.key} help={t('config.libraryMaterial.numberingHelp')} onPress={() => setV11n(c)} />
                   ))}
                 </ChipRow>
               </>
@@ -1304,11 +1358,12 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
               <Group>
                 {linked.map((l, i) => (
                   <Row key={`${l.template}/${l.node}`} icon="template" label={partLabel(l)} sub={t('config.libraryMaterial.templatePart')} last={i === linked.length - 1}
-                    right={<IconBtn name="close" label={t('config.libraryMaterial.removePart', { name: partLabel(l) })} onPress={() => setParts(linked.filter((_, j) => j !== i))} bg={C.light} color={C.primary} />} />
+                    right={<IconBtn name="close" label={t('config.libraryMaterial.removePart', { name: partLabel(l) })} help={t('config.libraryMaterial.removePartHelp')}
+                      onPress={() => setParts(linked.filter((_, j) => j !== i))} bg={C.light} color={C.primary} />} />
                 ))}
               </Group>
             ) : null}
-            <SmallBtn label={t('config.libraryMaterial.linkPart')} icon="link" onPress={() => setPicking(true)} />
+            <SmallBtn label={t('config.libraryMaterial.linkPart')} icon="link" help={t('config.libraryMaterial.linkPartHelp')} onPress={() => setPicking(true)} />
           </>
         ) : material ? (
           <>
@@ -1338,7 +1393,8 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
             </Card>
           ))}
           {canManage && material.reviewKindId && questions.length ? (
-            <GhostBtn label={t('config.libraryMaterial.useInReviews')} icon="chat" onPress={useInReviews} />
+            <GhostBtn label={t('config.libraryMaterial.useInReviews')} icon="chat" onPress={useInReviews}
+              help={t('config.libraryMaterial.useInReviewsHelp', { kind: kinds.find((x) => x.id === material.reviewKindId)?.name ?? material.reviewKindId })} />
           ) : null}
         </>
       ) : null}
@@ -1348,7 +1404,7 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
       <Sheet visible={picking} title={t('config.libraryMaterial.linkPartTitle')} sub={t('config.libraryMaterial.linkPartSub')} onClose={() => setPicking(false)}>
         <SearchField value={q} onChangeText={setQ} placeholder={t('config.libraryMaterial.searchParts')} />
         <Capped items={units} empty={q ? t('common.nothingMatches', { query: q }) : t('config.libraryMaterial.noTemplates')} render={(u, last) => (
-          <Row key={u.unitId} icon="template" label={u.label} last={last} onPress={() => {
+          <Row key={u.unitId} icon="template" label={u.label} last={last} help={t('config.libraryMaterial.pickPartHelp')} onPress={() => {
             const next = addPart(linked, partOfUnit(u.unitId));
             if (next !== linked) setParts(next);
             setPicking(false);
@@ -1369,6 +1425,7 @@ function TermRow(props: { term: KeyTermView; language: string; onPress: () => vo
     <Row icon="book" iconColor={has ? C.primary : TINT.amberText} iconBg={has ? undefined : TINT.amber}
       label={term.term} badge={isFiaTerm(term) ? 'FIA' : undefined}
       sub={has ? term.renderings.map((r) => r.rendering).join(' · ') : t('config.keyTerms.noLanguageRendering', { language: props.language })}
+      help={isFiaTerm(term) ? t('config.keyTerms.openFiaTermHelp') : t('config.keyTerms.openTermHelp')}
       onPress={props.onPress} last={props.last} current={beside?.screen === 'key_term_detail' && beside.params['termId'] === term.termId} />
   );
 }
@@ -1409,7 +1466,7 @@ export function KeyTerms(ctx: Ctx) {
 
   return (
     <Screen header={<Header title={t('config.keyTerms.title')} sub={unitId && state.units[unitId] ? `${unitTitle(state, unitId)} · ${language}` : t('config.languageRenderings', { language })} onBack={ctx.back}
-      action={canAdd ? <SmallBtn label={t('config.keyTerms.newTerm')} icon="plus" onPress={() => setAdding(true)} /> : undefined} />}>
+      action={canAdd ? <SmallBtn label={t('config.keyTerms.newTerm')} icon="plus" help={t('config.keyTerms.newTermHelp', { language })} onPress={() => setAdding(true)} /> : undefined} />}>
       <SearchField value={q} onChangeText={setQ} placeholder={t('config.keyTerms.search')} />
       {terms.length === 0 ? (
         <EmptyState icon="book" title={t('config.keyTerms.empty')} sub={canAdd ? t('config.keyTerms.emptySubCanAdd') : t('config.keyTerms.emptySub')} />
@@ -1431,7 +1488,8 @@ export function KeyTerms(ctx: Ctx) {
         footer={<PrimaryBtn label={t('config.keyTerms.addTerm')} onPress={() => void add()} disabled={!termDraftReady(draft)} busy={busy} />}>
         <Field value={draft.term} onChangeText={(v) => setDraft({ ...draft, term: v })} placeholder={t('config.keyTerms.termPlaceholder')} />
         <Field value={draft.gloss} onChangeText={(v) => setDraft({ ...draft, gloss: v })} placeholder={t('config.keyTerms.meaningPlaceholder')} autoCapitalize="sentences" />
-        <Field value={draft.rendering} onChangeText={(v) => setDraft({ ...draft, rendering: v })} placeholder={t('config.keyTerms.renderingPlaceholder', { language })} />
+        <Field value={draft.rendering} onChangeText={(v) => setDraft({ ...draft, rendering: v })} placeholder={t('config.keyTerms.renderingPlaceholder', { language })}
+          help={t('config.keyTerms.renderingHelp', { language })} />
         <Field value={draft.context} onChangeText={(v) => setDraft({ ...draft, context: v })} placeholder={t('config.keyTerms.contextPlaceholder')} multiline autoCapitalize="sentences" />
       </Sheet>
     </Screen>
@@ -1513,6 +1571,7 @@ export function KeyTermDetail(ctx: Ctx) {
 
       {canTie ? (
         <Card onPress={isLinked ? undefined : () => void tie()} accessibilityLabel={isLinked ? t('config.keyTerm.tiedToDraft') : t('config.keyTerm.tieToDraft')}
+          help={t('config.keyTerm.tieHelp')}
           style={isLinked ? { backgroundColor: TINT.green } : { borderStyle: 'dashed', borderWidth: 1.5, borderColor: `${C.primary}99` }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
             <View style={[styles.tieIcon, { backgroundColor: isLinked ? C.green : C.primary }]}>
@@ -1530,7 +1589,8 @@ export function KeyTermDetail(ctx: Ctx) {
 
       <SectionLabel label={t('config.keyTerm.inLanguage', { language })} />
       {term.renderings.length === 0 && !voice ? (
-        <Card onPress={canEdit ? () => setAdjusting(true) : undefined} style={{ backgroundColor: TINT.amber, borderStyle: 'dashed', borderWidth: 1.5, borderColor: `${C.amber}99` }}>
+        <Card onPress={canEdit ? () => setAdjusting(true) : undefined} accessibilityLabel={t('config.keyTerm.noRendering')}
+          help={t('config.keyTerm.addRenderingHelp', { language })} style={{ backgroundColor: TINT.amber, borderStyle: 'dashed', borderWidth: 1.5, borderColor: `${C.amber}99` }}>
           <Text style={[txt.body, { fontWeight: '700', color: TINT.amberText }]}>{t('config.keyTerm.noRendering')}</Text>
           <Text style={[txt.sm, { color: TINT.amberText }]}>{t('config.keyTerm.addHow', { language })}</Text>
         </Card>
@@ -1546,7 +1606,8 @@ export function KeyTermDetail(ctx: Ctx) {
           ))}
         </Group>
       )}
-      {canEdit ? <GhostBtn label={term.renderings.length ? t('config.keyTerm.adjustOrAdd') : t('config.keyTerm.addRendering')} icon="edit" onPress={() => setAdjusting(true)} /> : null}
+      {canEdit ? <GhostBtn label={term.renderings.length ? t('config.keyTerm.adjustOrAdd') : t('config.keyTerm.addRendering')} icon="edit"
+        help={t('config.keyTerm.adjustHelp', { language })} onPress={() => setAdjusting(true)} /> : null}
 
       {adjustments.length || usedIn.length ? <SectionLabel label={t('config.keyTerm.details')} /> : null}
       {adjustments.length ? (
@@ -1559,7 +1620,7 @@ export function KeyTermDetail(ctx: Ctx) {
                 <Text style={txt.xs}>{ctx.name(a.actorId)} · {when(a.hlc)}{v ? ` · ${v.title}` : ''}</Text>
                 <Text style={txt.sm}>{adjustmentNote(a.note)}</Text>
                 {a.blobHash ? <AudioClip language={ctx.language} hashes={[a.blobHash]} label={t('config.keyTerm.playExplanation')} /> : null}
-                {v && v.n !== null ? <SmallBtn label={t('config.keyTerm.openVersion', { n: v.n })} icon="mic" onPress={() => openVersion(v)} /> : null}
+                {v && v.n !== null ? <SmallBtn label={t('config.keyTerm.openVersion', { n: v.n })} icon="mic" help={t('config.keyTerm.openVersionHelp')} onPress={() => openVersion(v)} /> : null}
               </View>
             );
           })}
@@ -1570,14 +1631,15 @@ export function KeyTermDetail(ctx: Ctx) {
           summary={`${t('config.keyTerm.versions', { count: usedIn.length })} · ${listOf([...new Set(usedIn.map((u) => u.title))].slice(0, 2))}${usedIn.length > 2 ? '…' : ''}`}>
           {usedIn.slice(0, usedShown).map((u, i, a) => (
             <Row key={u.takeId} icon="mic" label={t('config.keyTerm.usedTitle', { title: u.title, n: u.n })} sub={u.note ?? `${ctx.name(u.by)} · ${when(u.hlc)}`}
-              badge={u.adjustmentId ? t('config.keyTerm.changedHere') : undefined} onPress={() => openVersion(u)} last={i === a.length - 1} />
+              badge={u.adjustmentId ? t('config.keyTerm.changedHere') : undefined} onPress={() => openVersion(u)} last={i === a.length - 1}
+              help={u.adjustmentId ? t('config.keyTerm.usedChangedHelp') : t('config.keyTerm.usedHelp')} />
           ))}
           <ShowMore remaining={usedIn.length - usedShown} step={STEP} onMore={() => setUsedShown(usedShown + STEP)} />
         </Disclosure>
       ) : null}
       <Sheet visible={adjusting} title={t('config.keyTerm.adjustTitle', { language, term: term.term })} onClose={() => setAdjusting(false)}
         sub={canTie ? t('config.keyTerm.adjustSubTie', { passage: passageLabel ?? '' }) : t('config.keyTerm.adjustSub')}
-        footer={<PrimaryBtn label={t('common.save')} onPress={() => void saveAdjustment()} disabled={!adjustmentReady(note, hash)} busy={busy} />}>
+        footer={<PrimaryBtn label={t('common.save')} help={t('config.keyTerm.saveHelp')} onPress={() => void saveAdjustment()} disabled={!adjustmentReady(note, hash)} busy={busy} />}>
         <Field value={rendering} onChangeText={setRendering} placeholder={t('config.keyTerm.newRendering')} />
         {rendering.trim() ? <Field value={context} onChangeText={setContext} placeholder={t('config.keyTerm.whenToUse')} multiline autoCapitalize="sentences" /> : null}
         {passage ? <VoiceNote ctx={ctx} label={t('config.keyTerm.sayWhy')} hash={hash} onChange={setHash} /> : null}

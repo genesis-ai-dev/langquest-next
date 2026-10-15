@@ -8,7 +8,7 @@ import { Text } from '../ui/text';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import { Ico, type IconName } from '../ui/kit';
+import { HelpInfo, Ico, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { C, radius, space, target, TINT } from '../ui/theme';
 import type { PathStep, PathStepKind, TeamStep } from './pathModel';
@@ -27,6 +27,19 @@ function stepHelp(kind: PathStepKind): string {
     case 'fix': return t('passage.path.help.fix');
   }
 }
+
+/** What a step's round mark says (its tick, number or dash), as help mode says it. */
+function stateHelp(state: PathStep['state']): string {
+  switch (state) {
+    case 'done': return t('passage.path.help.state.done');
+    case 'current': return t('passage.path.help.state.current');
+    case 'todo': return t('passage.path.help.state.todo');
+    case 'passed': return t('passage.path.help.state.passed');
+  }
+}
+
+/** A team row with nothing to tap still explains itself while help is on (its icon and status). */
+const INFO = () => undefined;
 
 function Dot(props: { n: number; state: PathStep['state'] }) {
   const { state } = props;
@@ -53,7 +66,8 @@ function StepRow(props: {
 }) {
   const { step } = props;
   const lit = step.state === 'current';
-  const spot = useHelpSpot(step.title, stepHelp(step.kind), props.onPress);
+  const detail = t('passage.path.help.withMark', { help: stepHelp(step.kind), mark: stateHelp(step.state) });
+  const spot = useHelpSpot(step.title, detail, props.onPress);
   const press = spot.onPress;
   // The card's own words are the step's button; what sits inside the lit card (a note or the feedback to
   // play) has buttons of its own, so it stays outside that button (a button in a button breaks the web).
@@ -80,7 +94,7 @@ function StepRow(props: {
               {head}
               <HelpBadge spot={spot} />
             </Pressable>
-          ) : head}
+          ) : <HelpInfo label={step.title} detail={detail}>{head}</HelpInfo>}
           {props.extra ? <View style={{ marginTop: space.sm }}>{props.extra}</View> : null}
         </View>
       </View>
@@ -90,8 +104,12 @@ function StepRow(props: {
 
 function TeamRow(props: { ctx: Ctx; step: TeamStep; people: string[] | null; onPress?: () => void }) {
   const { step } = props;
-  const spot = useHelpSpot(step.name, t('passage.path.help.team', { status: step.status }), props.onPress);
-  const press = spot.onPress;
+  const status = props.onPress ? t('passage.path.help.team', { status: step.status }) : t('passage.path.help.teamView', { status: step.status });
+  // The lock on a check that must pass says so; the other icons say what the status beside them says.
+  const locked = step.checkpoint && step.state !== 'done';
+  const spot = useHelpSpot(step.name, locked ? t('passage.path.help.withMark', { help: status, mark: t('passage.path.help.checkpoint') }) : status,
+    props.onPress ?? INFO);
+  const press = props.onPress || spot.id ? spot.onPress : undefined;
   const icon: IconName = step.state === 'done' ? 'check' : step.state === 'locked' || step.checkpoint ? 'lock' : step.state === 'attention' ? 'chat' : step.state === 'waiting' ? 'clock' : 'people';
   const color = step.state === 'done' ? TINT.greenText : step.state === 'attention' ? TINT.amberText : step.state === 'waiting' ? C.primary : C.faint;
   return (

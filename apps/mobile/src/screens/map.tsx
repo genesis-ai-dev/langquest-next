@@ -11,10 +11,7 @@
 // list: the map is books (grouped, with progress), then a chapter grid per
 // book, plus search and filters that narrow to counts first (ADR-009).
 // Progress is several counts, never one number (ADR-004).
-import {
-  languageName, languageProgress, libraryItemView, percent, unitTitle,
-  type KindDef, type LanguageProgress, type OrgState, type PassageState, type LanguageState
-} from '@langquest-next/core';
+import { languageName, languageProgress, libraryItemView, percent, unitTitle, type KindDef, type LanguageProgress, type PassageState, type LanguageState } from '@langquest-next/core';
 import { useMemo, useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
@@ -28,16 +25,11 @@ import { OfflineMark } from '../sync/offline';
 import { keptOfflineMap, offlineWords, type KeptOffline } from '../sync/offlineText';
 import { indexesFor } from '../sync/indexes';
 import { useOrgSummary } from '../reports/useOrgSummary';
-import { Card, Chip, ChipRow, EmptyState, Group, Header, Ico, IconBtn, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, StepMarks } from '../ui/kit';
+import { Card, Chip, ChipRow, EmptyState, Group, Header, HelpInfo, Ico, IconBtn, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, StepMarks } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { useLayout, useOpenDetail } from '../ui/useLayout';
 import { mayWriteLibrary } from '../library/model';
-import {
-  agoWords, bookEntries, bookRowWords, chapterRows, chapterTiles, clauses, clusterView, filterEntries, filterLabel, flowLabel, funnelLayers, funnelRows,
-  isOutline, languageEntries, mapSearch, mapShelf, needsConnection, openableLanguages as openableIn, openState, OTHER, outlineSections, PAGE,
-  searchLanguages, sentences, statusLanguages, statusTotals, summarizeBooks, tileLabel, waitingBooks,
-  type BookSummary, type ChapterTile, type Entry
-} from '../map/mapModel';
+import { agoWords, bookEntries, bookRowWords, chapterRows, chapterTiles, clauses, clusterView, filterEntries, filterLabel, flowLabel, funnelLayers, funnelRows, isOutline, languageEntries, mapSearch, mapShelf, needsConnection, openableLanguages as openableIn, openState, OTHER, outlineSections, PAGE, searchLanguages, sentences, statusLanguages, statusTotals, summarizeBooks, tileLabel, tileHelp, waitingBooks, type BookSummary, type ChapterTile, type Entry } from '../map/mapModel';
 import { useForYou, useNextPassage } from '../map/useMapLanguage';
 import { NumberingNote } from '../breakup/parts';
 import { useVerseNumbering } from '../breakup/useBreakup';
@@ -101,6 +93,21 @@ function PassageDisc(props: { s: PassageState }) {
   );
 }
 
+/** What a passage's row says in help mode: it opens, and what each mark on it means (rule 3). */
+function rowHelp(s: PassageState, o: { mine: boolean; offline: KeptOffline | undefined; changed: boolean }): string {
+  const disc = s.done ? t('map.row.doneHelp')
+    : !s.recorded ? (s.drafting ? t('map.row.draftingHelp') : t('map.row.notRecordedHelp'))
+    : s.awaitingResponse.length > 0 ? t('map.row.feedbackHelp')
+    : t('map.row.stepsHelp', { cleared: fmt(s.steps.filter((st) => st.complete).length), steps: fmt(s.steps.length) });
+  return [
+    t('map.row.openHelp'), disc,
+    o.mine ? t('map.row.forYouHelp') : null,
+    o.offline?.reason ? (o.offline.ready ? t('map.marks.keptHelp') : t('map.marks.downloadingHelp')) : null,
+    o.changed ? t('map.marks.changedHelp') : null,
+    s.recorded && s.steps.length > 0 ? t('map.marks.stepsHelp') : null
+  ].filter(Boolean).join(' ');
+}
+
 function PassageRow(props: { ctx: Ctx; state: LanguageState; kinds: KindDef[]; e: Entry; mine: boolean; last: boolean; onPress: () => void; changed?: boolean }) {
   const { e, ctx } = props;
   const me = ctx.session.actorId;
@@ -110,6 +117,7 @@ function PassageRow(props: { ctx: Ctx; state: LanguageState; kinds: KindDef[]; e
   const offline = keptOfflineMap(ctx).get(e.unitId);
   return (
     <Row testID={`row-${e.unitId}`} label={title} sub={summary} last={props.last} onPress={props.onPress}
+      help={rowHelp(e.s, { mine: props.mine, offline, changed: !!props.changed })}
       current={beside?.screen === 'passage_record' && beside.params['unitId'] === e.unitId}
       accessibilityLabel={sentences([title, summary, ...(props.mine ? [t('map.forYou')] : []), ...(props.changed ? [t('map.changedSinceRecorded')] : []), offlineWords(offline)])}
       {...(props.mine ? { badge: t('map.forYou'), badgeTone: 'amber' as const } : {})}
@@ -125,6 +133,18 @@ function PassageRow(props: { ctx: Ctx; state: LanguageState; kinds: KindDef[]; e
         ? { right: <StepMarks steps={e.s.steps.map((st) => ({ kinds: st.kinds, checkpoint: st.step.checkpoint }))} size={14} /> }
         : {})} />
   );
+}
+
+/** What picking a filter shows, as help mode says it. */
+function filterHelp(f: MapFilter): string {
+  switch (f) {
+    case 'all': return t('map.filter.allHelp');
+    case 'feedback': return t('map.filter.feedbackHelp');
+    case 'waiting': return t('map.filter.waitingHelp');
+    case 'review': return t('map.filter.reviewHelp');
+    case 'done': return t('map.filter.doneHelp');
+    case 'todo': return t('map.filter.todoHelp');
+  }
 }
 
 /**
@@ -143,6 +163,7 @@ function FilterSheet(props: {
       <View style={styles.filterChoices}>
         {MAP_FILTERS.filter((f) => f.id === 'all' || f.id === props.filter || props.counts[f.id] > 0).map((f) => (
           <Chip key={f.id} label={filterLabel(f.id)} on={props.filter === f.id} onPress={() => { props.onFilter(f.id); props.onClose(); }}
+            help={f.id === 'all' ? filterHelp(f.id) : `${filterHelp(f.id)} ${t('map.filter.countHelp')}`}
             {...(f.id === 'all' ? {} : { count: props.counts[f.id] })} {...(f.id === 'feedback' ? { icon: 'chat' as const } : {})} />
         ))}
       </View>
@@ -158,8 +179,8 @@ function ActiveFilter(props: { filter: MapFilter; counts: Record<MapFilter, numb
   return (
     <View style={styles.filterBar}>
       <Chip icon="filter" label={filterLabel(active.id)} on count={props.counts[active.id]} onPress={props.onOpen}
-        accessibilityLabel={t('map.filter.active', { filter: filterLabel(active.id) })} />
-      <IconBtn name="close" label={t('map.filter.clear')} bg={C.card} onPress={props.onClear} />
+        accessibilityLabel={t('map.filter.active', { filter: filterLabel(active.id) })} help={t('map.filter.activeHelp')} />
+      <IconBtn name="close" label={t('map.filter.clear')} help={t('map.filter.clearHelp')} bg={C.card} onPress={props.onClear} />
     </View>
   );
 }
@@ -206,6 +227,15 @@ function FunnelRows(props: { progress: LanguageProgress; stepNames?: string[] })
   );
 }
 
+/** What a language's card says in help mode beyond its name (which says it opens): what its marks, bar and clock mean (rule 3). */
+function languageHelp(here: boolean, progress: LanguageProgress | null): string {
+  return [
+    here ? null : t('map.status.languageAwayHelp'),
+    progress ? t('map.status.funnelHelp') : null,
+    progress && progress.waiting > 0 ? t('map.status.clockHelp', { count: progress.waiting }) : null
+  ].filter(Boolean).join(' ');
+}
+
 export function StatusHome(ctx: Ctx) {
   const state = ctx.language.state;
   const beside = useOpenDetail();
@@ -242,12 +272,12 @@ export function StatusHome(ctx: Ctx) {
     <Screen header={header}>
       {clusters.length ? (
         <ChipRow>
-          <Chip label={t('clusters.status.all')} count={languages.length} on={filter.kind === 'all'} onPress={() => { setCluster({ kind: 'all' }); setLimit(PAGE); }} />
+          <Chip label={t('clusters.status.all')} count={languages.length} on={filter.kind === 'all'} help={t('map.status.allChipHelp')} onPress={() => { setCluster({ kind: 'all' }); setLimit(PAGE); }} />
           {clusters.map((c) => (
             <Chip key={c.clusterId} label={c.name} icon="layers" count={c.languageIds.length} on={filter.kind === 'cluster' && filter.clusterId === c.clusterId}
-              onPress={() => { setCluster({ kind: 'cluster', clusterId: c.clusterId }); setLimit(PAGE); }} />
+              help={t('map.status.clusterChipHelp')} onPress={() => { setCluster({ kind: 'cluster', clusterId: c.clusterId }); setLimit(PAGE); }} />
           ))}
-          {outside ? <Chip label={t('clusters.status.none')} count={outside} on={filter.kind === 'none'} onPress={() => { setCluster({ kind: 'none' }); setLimit(PAGE); }} /> : null}
+          {outside ? <Chip label={t('clusters.status.none')} count={outside} on={filter.kind === 'none'} help={t('map.status.noClusterChipHelp')} onPress={() => { setCluster({ kind: 'none' }); setLimit(PAGE); }} /> : null}
         </ChipRow>
       ) : null}
       {languages.length === 0 ? (
@@ -272,13 +302,16 @@ export function StatusHome(ctx: Ctx) {
               <Text style={txt.smMuted}>{t('map.status.withReviewers')}</Text>
             </View>
           </View>
-          <StackBar done={done} recorded={recorded} total={total} height={10} recordedColor={C.soft} />
+          <HelpInfo label={t('map.status.barLabel', { recorded: formatPercent(percent(recorded, total)), done: formatPercent(percent(done, total)) })} detail={t('map.status.barHelp')}>
+            <StackBar done={done} recorded={recorded} total={total} height={10} recordedColor={C.soft} />
+          </HelpInfo>
         </Card>
       )}
       {languages.length > 5 ? <SearchField value={query} onChangeText={(t) => { setQuery(t); setLimit(PAGE); }} placeholder={t('map.status.find')} testID="map-search" /> : null}
       {shown.length > 0 ? <SectionLabel label={t('map.status.languages')} /> : null}
       {shown.slice(0, limit).map((l) => l.progress && l.here ? (
-        <Card key={l.languageId} current={isOpen(l.languageId)} onPress={() => open(l.languageId)} accessibilityLabel={t('map.status.languageLabel', { name: l.name, recorded: fmt(l.progress.recorded), total: fmt(l.progress.total) })}>
+        <Card key={l.languageId} current={isOpen(l.languageId)} onPress={() => open(l.languageId)} accessibilityLabel={t('map.status.languageLabel', { name: l.name, recorded: fmt(l.progress.recorded), total: fmt(l.progress.total) })}
+          help={languageHelp(true, l.progress)}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
             <View style={styles.code}><Text style={[txt.sm, { fontWeight: '700', color: C.primary }]}>{l.code}</Text></View>
             <View style={{ flex: 1, minWidth: 0 }}>
@@ -296,7 +329,8 @@ export function StatusHome(ctx: Ctx) {
         <Card key={l.languageId} current={isOpen(l.languageId)} onPress={() => open(l.languageId)}
           accessibilityLabel={l.progress
             ? t('map.status.languageLabelAsOf', { name: l.name, recorded: fmt(l.progress.recorded), total: fmt(l.progress.total), ago: agoWords(l.asOf!) })
-            : t('map.status.languageLabelAway', { name: l.name })}>
+            : t('map.status.languageLabelAway', { name: l.name })}
+          help={languageHelp(false, l.progress)}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
             <View style={styles.code}><Ico name="download" size={20} color={C.primary} /></View>
             <View style={{ flex: 1, minWidth: 0 }}>
@@ -433,7 +467,7 @@ export function MapHome(ctx: Ctx) {
   const openBook = (key: string) => ctx.go('book_map', { languageId, bookId: key, ...(filter !== 'all' ? { filter } : {}) });
   const languageChips = choices.length > 1 ? (
     <ChipRow>
-      {choices.map((l) => <Chip key={l.languageId} label={l.name} on={l.languageId === languageId} onPress={() => switchLanguage(l.languageId)} />)}
+      {choices.map((l) => <Chip key={l.languageId} label={l.name} on={l.languageId === languageId} help={t('map.home.languageChipHelp')} onPress={() => switchLanguage(l.languageId)} />)}
     </ChipRow>
   ) : null;
 
@@ -469,7 +503,7 @@ export function MapHome(ctx: Ctx) {
   return (
     <Screen header={header}>
       {languageChips}
-      <SearchField value={query} onChangeText={(v) => { setQuery(v); setLimit(PAGE); }} placeholder={t('map.home.find')} testID="map-search" />
+      <SearchField value={query} onChangeText={(v) => { setQuery(v); setLimit(PAGE); }} placeholder={t('map.home.find')} help={t('map.home.findHelp')} testID="map-search" />
 
       {searching ? (
         !byChapter ? (
@@ -546,8 +580,10 @@ function Tile(props: { c: ChapterTile; testID?: string; onPress: () => void; cur
   // Kept passages of this chapter (decisions.md 61): the mark is green only when every kept one is ready.
   const kept = c.list.map((e) => props.offline.get(e.unitId)).filter((u): u is KeptOffline => !!u);
   const label = tileLabel(c, kept, !!props.changed);
+  const help = tileHelp(c, kept, !!props.changed);
   return (
     <ChapterTileView {...(props.testID ? { testID: props.testID } : {})} n={c.n} stage={chapterStage(c.tone)} dim={!c.matches} current={!!props.current} disabled={parts === 0} label={label} onPress={props.onPress}
+      help={help}
       corner={kept.length ? <OfflineMark u={kept.every((u) => u.ready) ? kept[0] : kept.find((u) => !u.ready)} /> : props.changed ? <ChangedMark /> : undefined} />
   );
 }

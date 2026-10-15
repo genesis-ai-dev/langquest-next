@@ -8,7 +8,7 @@ import type { Ctx } from '../shell/ctx';
 import { space } from '../ui/theme';
 import { ChecklistRow } from './admin';
 import { QUESTIONS, questionLabel } from './adminModel';
-import { type ReadySummary } from './useReadySummary';
+import type { ReadySummary } from './useReadySummary';
 
 /** The four questions as a checklist; each opens its own step screen. */
 export function ReadyChecklist(props: { ctx: Ctx; s: ReadySummary }) {
@@ -23,4 +23,3 @@ export function ReadyChecklist(props: { ctx: Ctx; s: ReadySummary }) {
     </View>
   );
 }
-

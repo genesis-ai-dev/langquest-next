@@ -5,7 +5,7 @@
 // other player. With the listen loop's hooks (recording/useListenLoop.ts)
 // playing first waits for the microphone to pause, and every way playback
 // stops is reported so recording can resume.
-import { type VerseRow } from './model';
+import type { VerseRow } from './model';
 
 /**
  * Why a part could not be played, worded for the person in the language

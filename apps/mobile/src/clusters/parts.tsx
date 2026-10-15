@@ -27,7 +27,7 @@ export function ClusterRow(props: { ctx: Ctx; c: ClusterInfo; current?: boolean;
   const { ctx, c } = props;
   return (
     <Row leading={<ClusterTile />} label={c.name} sub={clusterSub(ctx.org.state, c)} current={!!props.current} last={!!props.last}
-      testID={`cluster-${c.clusterId}`} onPress={() => ctx.go('cluster_home', { clusterId: c.clusterId })} />
+      testID={`cluster-${c.clusterId}`} help={t('clusters.row.openHelp')} onPress={() => ctx.go('cluster_home', { clusterId: c.clusterId })} />
   );
 }
 
@@ -80,20 +80,20 @@ export function LanguageClustersRow(props: { ctx: Ctx; languageId: string; langu
   return (
     <>
       <Row leading={<ClusterTile size={40} />} label={t('clusters.language.label')} sub={sub} last={!!props.last} testID="language-clusters"
-        {...(may ? { onPress: start } : {})} />
+        help={t('clusters.language.rowHelp')} {...(may ? { onPress: start } : {})} />
       <Sheet visible={open} title={t('clusters.language.sheetTitle')} sub={props.language} onClose={() => setOpen(false)}
-        footer={<PrimaryBtn label={t('clusters.language.done')} icon="check" busy={busy} onPress={() => void save()} />}>
+        footer={<PrimaryBtn label={t('clusters.language.done')} icon="check" busy={busy} help={t('clusters.language.doneHelp')} onPress={() => void save()} />}>
         {all.length ? (
           <View>
             {all.map((c, i) => (
               <CheckRow key={c.clusterId} label={c.name} sub={t('clusters.language.count', { count: c.languageIds.length })} checked={picked.has(c.clusterId)}
-                last={i === all.length - 1}
+                last={i === all.length - 1} detail={picked.has(c.clusterId) ? t('clusters.language.inHelp') : t('clusters.language.outHelp')}
                 onToggle={() => setPicked((cur) => { const next = new Set(cur); if (next.has(c.clusterId)) next.delete(c.clusterId); else next.add(c.clusterId); return next; })} />
             ))}
           </View>
         ) : null}
         <Field label={all.length ? t('clusters.language.newLabel') : t('clusters.language.firstLabel')} value={fresh} onChangeText={setFresh}
-          placeholder={t('clusters.newLanguage.clusterPlaceholder')} autoCapitalize="words" />
+          placeholder={t('clusters.newLanguage.clusterPlaceholder')} autoCapitalize="words" help={t('clusters.language.newHelp')} />
         <Text style={txt.smMuted}>{t('clusters.language.note')}</Text>
         {error ? <Text style={[txt.sm, { color: TINT.amberText }]}>{error}</Text> : null}
       </Sheet>

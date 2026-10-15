@@ -6,7 +6,7 @@
 // naming the books it leaves waiting (they are divided
 // later, from the map; decision 93); for something else, the organization's
 // own outlines or a new one. The walk-through is one tap away.
-import { type VersificationDoc } from '@langquest-next/core';
+import type { VersificationDoc } from '@langquest-next/core';
 import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { Text } from '../ui/text';
@@ -21,7 +21,7 @@ import { ChoiceCard, Question, QuietLink } from '../admin/admin';
 import { space } from '../ui/theme';
 import { emptyLine, WAY_ITEMS, type WayRow } from './model';
 import { LessonSheet, PreviewSheet, WayCard } from './parts';
-import { useTranslate } from './useTranslate';
+import type { useTranslate } from './useTranslate';
 
 export type Translate = ReturnType<typeof useTranslate>;
 
@@ -92,9 +92,9 @@ export function TranslateQuestion(props: { ctx: Ctx; t: Translate; lang: string;
     <>
       <Question>{t('breakup.translate.question', { language: props.lang })}</Question>
       <ChoiceCard on={q.what === 'bible'} icon="book" title={t('breakup.translate.bible')}
-        sub={bibleUsed ? t('breakup.usedIn.one', { name: bibleUsed.usedIn[0] }) : undefined} onPress={() => q.setWhat('bible')} />
+        sub={bibleUsed ? t('breakup.usedIn.one', { name: bibleUsed.usedIn[0] }) : undefined} help={t('breakup.translate.bibleHelp')} onPress={() => q.setWhat('bible')} />
       <ChoiceCard on={q.what === 'else'} icon="folder" title={t('breakup.translate.else')}
-        sub={t('breakup.translate.elseKinds')} onPress={() => q.setWhat('else')} />
+        sub={t('breakup.translate.elseKinds')} help={t('breakup.translate.elseHelp')} onPress={() => q.setWhat('else')} />
 
       {q.what === 'else' ? (
         <>
@@ -102,7 +102,7 @@ export function TranslateQuestion(props: { ctx: Ctx; t: Translate; lang: string;
             <>
               <SectionLabel label={t('breakup.translate.ourOwn')} />
               <View style={{ gap: space.xs }}>
-                {q.outlines.map((c) => <Chip key={c.key} label={c.name} on={q.outline === c} onPress={() => q.setOutlineKey(c.key)} />)}
+                {q.outlines.map((c) => <Chip key={c.key} label={c.name} on={q.outline === c} help={t('breakup.translate.outlineHelp')} onPress={() => q.setOutlineKey(c.key)} />)}
               </View>
             </>
           ) : <Text style={txt.smMuted}>{t('breakup.translate.noneReady')}</Text>}

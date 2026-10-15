@@ -15,10 +15,10 @@ import {
   type PartLabel, type PartMark
 } from '@langquest-next/core';
 import type { Ctx } from '../shell/ctx';
-import { useHelpSpot } from '../helpMode/useHelpMode';
+import { useHelpOn, useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import { Ico, IconBtn, Sheet } from '../ui/kit';
+import { HelpInfo, Ico, IconBtn, Sheet } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { C, radius, space, target, TINT, type as T } from '../ui/theme';
 import { mmss, partLabel } from './model';
@@ -78,8 +78,10 @@ export function VerseParts(props: {
   const refs = useRef<Map<number, View>>(new Map());
   const slide = useRef<{ armed: boolean; startY: number; last: number; marks: PartMark[] | null; base: PartMark[]; endedAt: number }>(
     { armed: false, startY: 0, last: -1, marks: null, base: [], endedAt: 0 });
-  const latest = useRef({ marks, count, disabled, save: (_m: PartMark[], _t: string) => {} });
-  latest.current = { marks, count, disabled, save };
+  // While help is on, a slide numbers nothing: the spaces explain themselves instead.
+  const helpOn = useHelpOn();
+  const latest = useRef({ marks, count, disabled, helpOn, save: (_m: PartMark[], _t: string) => {} });
+  latest.current = { marks, count, disabled, helpOn, save };
   const measure = () => {
     box.current?.measureInWindow((x) => { boxLeft.current = x; });
     for (const [i, view] of refs.current) view.measureInWindow((_x, y, _w, h) => rects.current.set(i, { y, h }));
@@ -100,7 +102,7 @@ export function VerseParts(props: {
   };
   const arm = (x: number, y: number) => {
     measure();
-    slide.current = { ...slide.current, armed: !latest.current.disabled && x - boxLeft.current < GUTTER, startY: y, last: -1, marks: null };
+    slide.current = { ...slide.current, armed: !latest.current.disabled && !latest.current.helpOn && x - boxLeft.current < GUTTER, startY: y, last: -1, marks: null };
   };
   const begin = () => {
     const sl = slide.current;
@@ -216,11 +218,12 @@ function PartRow(props: {
   const play = useHelpSpot(playLabel, undefined, clip.toggle);
   const l = props.label;
   const verses = l ? spanName(props.verses, l.s, l.e) : null;
+  // Its line says what the tile shows (hollow: more of the verse above; the ring: chosen by hand), and the hold and the slide.
   const tap = useHelpSpot(l ? (l.kind === 'join' ? t('recording.verses.giveNext', { part: name }) : t('recording.verses.giveAbove', { part: name })) : t('recording.verses.giveVerse', { part: name }),
-    t('recording.verses.tapHelp'), props.onTap);
+    t(!l ? 'recording.verses.spaceEmptyHelp' : l.kind === 'join' ? 'recording.verses.spaceSameHelp' : l.kind === 'set' ? 'recording.verses.spaceSetHelp' : 'recording.verses.spaceHelp'), props.onTap);
   return (
     <View style={[styles.row, props.index > 0 && styles.rowBorder, props.flash && { backgroundColor: C.light }, props.editing && styles.editing]}>
-      <Pressable ref={props.gutterRef} onPress={tap.onPress} onLongPress={props.onHold} delayLongPress={HOLD_MS}
+      <Pressable ref={props.gutterRef} onPress={tap.onPress} onLongPress={tap.id ? undefined : props.onHold} delayLongPress={HOLD_MS}
         disabled={props.disabled} accessibilityRole="button"
         accessibilityLabel={l ? t(l.kind === 'join' ? 'recording.verses.labelSame' : 'recording.verses.label', { part: name, verses }) : t('recording.verses.labelEmpty', { part: name })}
         accessibilityHint={l ? (l.kind === 'join' ? t('recording.verses.hintSame') : t('recording.verses.hintLabelled')) : t('recording.verses.hintEmpty')}
@@ -258,10 +261,13 @@ function PartRow(props: {
  */
 export function VerseTile(props: { verses: string[]; label: PartLabel; same: boolean }) {
   const l = props.label;
+  // A number without its word: while help is on it says it is the verse (help mode's rule 3).
   return (
-    <View style={[styles.badge, props.same && styles.badgeSame]}>
-      <Text style={l.s === l.e ? styles.badgeText : styles.badgeRange} numberOfLines={1}>{spanShort(props.verses, l.s, l.e)}</Text>
-    </View>
+    <HelpInfo label={spanName(props.verses, l.s, l.e)} detail={props.same ? t('recording.verses.tileSameHelp') : t('recording.verses.tileHelp')}>
+      <View style={[styles.badge, props.same && styles.badgeSame]}>
+        <Text style={l.s === l.e ? styles.badgeText : styles.badgeRange} numberOfLines={1}>{spanShort(props.verses, l.s, l.e)}</Text>
+      </View>
+    </HelpInfo>
   );
 }
 
@@ -302,34 +308,46 @@ function VerseSheet(props: {
           const link = !!above && above.s === v && above.e === v;
           const ends = isSel && (v === cur!.s || v === cur!.e);
           return (
-            <Pressable key={v} disabled={!ok || props.disabled} accessibilityRole="button" accessibilityState={{ selected: isSel, disabled: !ok }}
-              accessibilityLabel={link ? t('recording.verses.verseSame', { verse: spanName(verses, v, v) }) : spanName(verses, v, v)}
+            <VerseCell key={v} part={partLabel(i)} name={link ? t('recording.verses.verseSame', { verse: spanName(verses, v, v) }) : spanName(verses, v, v)}
+              text={spanShort(verses, v, v)} selected={isSel} ends={ends} ok={ok} link={link} disabled={!ok || props.disabled}
               onPress={() => {
                 if (anchor !== null && v > anchor && legal(anchor, v)) props.onPick(anchor, v, anchor);
                 else if (!(cur && cur.s === v && cur.e === v)) props.onPick(v, v, v);
-              }}
-              style={({ pressed }) => [styles.verse, isSel && (ends ? styles.verseOn : styles.verseIn), !ok && ps.off, pressed && ps.pressed]}>
-              <Text style={[styles.verseText, isSel && ends && { color: C.white }]}>{spanShort(verses, v, v)}</Text>
-              {link ? <Ico name="up" size={14} color={isSel && ends ? C.white : C.muted} /> : null}
-            </Pressable>
+              }} />
           );
         })}
       </View>
       <View style={styles.tools}>
-        <Tool label={t('recording.verses.auto')} on={mark?.t === 'next'} disabled={!autoOk || props.disabled} onPress={props.onAuto} />
-        <Tool label={t('recording.verses.noVerse')} on={!mark} disabled={props.disabled} onPress={props.onNone} />
+        <Tool label={t('recording.verses.auto')} help={t('recording.verses.autoHelp')} on={mark?.t === 'next'} disabled={!autoOk || props.disabled} onPress={props.onAuto} />
+        <Tool label={t('recording.verses.noVerse')} help={t('recording.verses.noneHelp')} on={!mark} disabled={props.disabled} onPress={props.onNone} />
         <View style={{ flex: 1 }} />
-        <IconBtn name="trash" label={t('recording.verses.deletePart', { part: partLabel(i) })} bg={TINT.red} color={TINT.redText} disabled={props.disabled} onPress={props.onDelete} />
+        <IconBtn name="trash" label={t('recording.verses.deletePart', { part: partLabel(i) })} help={t('recording.recorder.deletePartHelp')} bg={TINT.red} color={TINT.redText} disabled={props.disabled} onPress={props.onDelete} />
       </View>
     </Sheet>
   );
 }
 
-function Tool(props: { label: string; on: boolean; disabled: boolean; onPress: () => void }) {
+/** One verse in the hold sheet's grid: filled when the part has it, an arrow when it is the verse of the part above. */
+function VerseCell(props: { part: string; name: string; text: string; selected: boolean; ends: boolean; ok: boolean; link: boolean; disabled: boolean; onPress: () => void }) {
+  const spot = useHelpSpot(props.name, props.selected ? t('recording.verses.pickedHelp', { part: props.part }) : t('recording.verses.pickHelp', { part: props.part }), props.onPress);
   return (
-    <Pressable onPress={props.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityState={{ selected: props.on, disabled: props.disabled }}
+    <Pressable disabled={props.disabled} accessibilityRole="button" accessibilityState={{ selected: props.selected, disabled: !props.ok }}
+      accessibilityLabel={props.name} onPress={spot.onPress}
+      style={({ pressed }) => [styles.verse, props.selected && (props.ends ? styles.verseOn : styles.verseIn), !props.ok && ps.off, pressed && ps.pressed]}>
+      <Text style={[styles.verseText, props.selected && props.ends && { color: C.white }]}>{props.text}</Text>
+      {props.link ? <Ico name="up" size={14} color={props.selected && props.ends ? C.white : C.muted} /> : null}
+      <HelpBadge spot={spot} />
+    </Pressable>
+  );
+}
+
+function Tool(props: { label: string; help: string; on: boolean; disabled: boolean; onPress: () => void }) {
+  const spot = useHelpSpot(props.label, props.help, props.onPress);
+  return (
+    <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityState={{ selected: props.on, disabled: props.disabled }}
       style={({ pressed }) => [styles.tool, props.on && styles.toolOn, props.disabled && ps.off, pressed && ps.pressed]}>
       <Text style={[txt.body, { fontWeight: '700', color: props.on ? C.primary : C.dark }]}>{props.label}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }

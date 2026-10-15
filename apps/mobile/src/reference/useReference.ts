@@ -12,7 +12,7 @@ import { useLibrary, useLibraryDocs } from '../library/useLibrary';
 import { noteExpected } from '../diagnostics/report';
 import * as server from '../server/reference';
 import { recMessage, recState, recUndo, recWrite, refKindOf, type Level, type RecAction, type RecWrite, type RefKind } from './model';
-import { type TimingPublication } from '@langquest-next/core';
+import type { TimingPublication } from '@langquest-next/core';
 import { referenceFailure, publishTimingJob } from './referenceActions';
 
 async function write(ctx: Ctx, w: RecWrite, message: string, undo?: RecWrite): Promise<boolean> {

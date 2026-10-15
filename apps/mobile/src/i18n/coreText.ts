@@ -9,7 +9,7 @@
 // Templates, flows and reference material are library documents (decision
 // 36): their names and words are the organization's, shown as written.
 import {
-  CommandError, DEFAULT_KINDS, deriveKinds as coreKinds, feedbackIsMine, kindOf as coreKindOf,
+  type CommandError, DEFAULT_KINDS, deriveKinds as coreKinds, feedbackIsMine, kindOf as coreKindOf,
   type FlowStep, type KindDef, type KindState, type LanguageState, type License, type PassageState
 } from '@langquest-next/core';
 import type { Catalog } from './';
