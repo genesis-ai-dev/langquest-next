@@ -4,7 +4,7 @@ import { MemoryStore } from '../src/memoryStore';
 import { LANGUAGE_MATERIALIZER, SyncClient, type Materializer } from '../src/syncClient';
 import { ORG_MATERIALIZER } from '../src/orgSession';
 import { FakeServer } from '../src/testing/fakeServer';
-import { rejectCodeOf } from '../src/types';
+import { rejectCodeOf, type Transport } from '../src/types';
 
 /** The organization stream's fold, as the app wires it (apps/mobile useOrg). */
 const unit = (i: number | string, label = `P${i}`) =>
@@ -1206,6 +1206,45 @@ describe('SyncClient single writer', () => {
       client.append('v1.UnitAdded', unit(2))
     ]);
     expect(order).toEqual(['start:dA-1', 'end:dA-1', 'start:dA-2', 'end:dA-2']);
+  });
+
+  it('two syncs asked for at once send a published take once, and it stays in the fold (REC-016)', async () => {
+    // Why: the scheduler's sync and a "sync now" overlapped. Both pushed the
+    // same pending take. append_events took the first copy; the second had
+    // passed the id check before the first committed, then found the take id
+    // already used under the stream lock and was refused. The client marked
+    // the take refused and folded it out, though the server had it: Version 2
+    // vanished from Versions seconds after "Version 2 published".
+    const server = new FakeServer();
+    const real = server.transportFor();
+    const inFlight = new Map<string, Promise<unknown>>();
+    const transport: Transport = {
+      ...real,
+      append: async (events) => {
+        const racing = events.find((e) => inFlight.has(e.id));
+        if (racing) {
+          await inFlight.get(racing.id);
+          await new Promise((r) => setTimeout(r, 1));
+          return events.map((e) => ({ id: e.id, accepted: false, serverSeq: null, reason: `invalid payload: take id ${e.id} is already used` }));
+        }
+        const sent = new Promise((r) => setTimeout(r, 5)).then(() => real.append(events));
+        for (const e of events) inFlight.set(e.id, sent);
+        try { return await sent; } finally { for (const e of events) inFlight.delete(e.id); }
+      }
+    };
+    let n = 0;
+    const store = new MemoryStore();
+    const client = new SyncClient({ orgId: 'org1', streamId: 'p1', actorId: 'lead', deviceId: 'dA', store, transport, newId: () => `dA-${++n}` });
+    await client.load();
+    await client.append('v1.UnitAdded', unit(1));
+    await client.sync();
+    await client.append('v1.TakeComposed', { takeId: 'v2', unitId: 'u1', cardHashes: ['c1'], parentTakeId: null });
+
+    await Promise.all([client.sync(), client.sync()]);
+
+    expect(server.log.filter((e) => e.type === 'v1.TakeComposed')).toHaveLength(1);
+    expect(await client.refusedCount()).toBe(0);
+    expect(client.getState().takes['v2']).toBeDefined();
   });
 
   it('a redaction whose refold never ran still holds after a restart, because the fold is rebuilt from the log', async () => {
