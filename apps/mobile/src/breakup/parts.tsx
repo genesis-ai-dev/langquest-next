@@ -15,6 +15,8 @@ import { formatNumber } from '../i18n/format';
 import { Chip, GhostBtn, Ico, LinkBtn, PrimaryBtn, Sheet } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { CheckRow, ChoiceCard, Pills } from '../admin/admin';
+import { alsoUsedLine } from './templateNames';
+import type { BookChangeSheet } from './useBookChange';
 import { C, radius, space, TINT } from '../ui/theme';
 import {
   booksLine, CHAPTERS_ITEM, countLine, lessonSlides, piecesOf, PREVIEW_BOOKS, SAMPLE_BOOK, usedLine, verseSays, wayOf, type TemplateUser, type WayRow
@@ -177,6 +179,20 @@ export function LessonSheet(props: { visible: boolean; onClose: () => void; wayD
         </View>
       ) : null}
     </Sheet>
+  );
+}
+
+/** What a book change asks (useBookChange): the warning when the book was divided before, then which languages it changes. */
+export function BookChangeSheets({ s }: { s: BookChangeSheet }) {
+  return (
+    <>
+      <RedoSheet visible={s.warn} book={s.bookName} busy={s.busy} onClose={s.closeWarn} onConfirm={s.confirmRedo} />
+      {s.users && s.asking ? (
+        <ApplySheet visible={s.asking} users={s.users} here={s.here} busy={s.busy} onClose={s.closeAsk} onApply={s.apply}>
+          <Text style={txt.body}>{alsoUsedLine(s.others, s.bookName)}</Text>
+        </ApplySheet>
+      ) : null}
+    </>
   );
 }
 

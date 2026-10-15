@@ -38,7 +38,7 @@ import { usePassageSource, useSources } from '../sources/useSources';
 import { C, onColor, radius, space, target, TINT, type as T, withAlpha } from '../ui/theme';
 import { VoiceNote } from '../audio/voiceNote';
 import { SpeakBtn } from './reviewVoice';
-import { type BackgroundData } from './reviewText';
+import type { BackgroundData } from './reviewText';
 
 // ---- the strip of steps ----------------------------------------------------------------------
 

@@ -11,35 +11,44 @@ it does not, and what the tests now hold you to.
 Read `AGENTS.md` and decisions 104 and 105 first. Where this page and a
 decision disagree, the decision wins.
 
-## Part two: the moves, by codemod
+## Part two: the moves and the roles, by codemod
 
 Part two moved every file in the `src` root and `simple/` into feature
-folders, as one mechanical commit: the output of `node
-scripts/restructure.mjs`, and nothing else. `scripts/restructure/moves.json`
-lists where each file went. A branch made before it should not merge it
-like other commits: an edit next to an import both sides rewrote conflicts
-even when the rewrites match. Apply the same codemod on the branch instead,
-then tell git the moves commit is already in:
+folders, then gave each file one role, named by its file name (below). Each
+step that touched imports across the app is one mechanical commit: the
+output of `node scripts/restructure.mjs`, and nothing else.
+`scripts/restructure/moves.json` lists where each file went (`moves`) and
+which names moved to another file (`movedExports`). There are two such
+commits, each with a subject ending `: node scripts/restructure.mjs`. A
+branch made before them should not merge them like other commits: an edit
+next to an import both sides rewrote conflicts even when the rewrites
+match. Apply the codemod on the branch instead, and tell git each of those
+commits is already in:
 
 ```bash
 git fetch origin
-MOVES=$(git log origin/main --format=%H -1 --grep='^Move apps/mobile/src by feature')
-git merge "$MOVES^"                    # everything before the moves; resolve as usual
-node scripts/restructure.mjs           # the same moves, on your branch and your own new code
-git add -A && git commit -m "Apply the restructure codemod"
-git merge -s ours "$MOVES"             # the moves commit: your branch already has it
+for C in $(git log origin/main --reverse --format=%H --grep=': node scripts/restructure\.mjs$'); do
+  git merge "$C^"                      # everything before it; resolve as usual
+  node scripts/restructure.mjs         # the same changes, on your branch and your own new code
+  git add -A && git commit --allow-empty -m "Apply the restructure codemod"
+  git merge -s ours "$C"               # that commit: your branch already has it
+done
 git merge origin/main                  # whatever came after
+node scripts/restructure.mjs           # once more, for anything the merge brought in
 npm install && npm run typecheck && npm test && npm run lint
 ```
 
-`-s ours` is right only for that one commit: it is the codemod's output and
-nothing else, so your branch already holds everything it does. Never use it
-for any other merge.
+When a merge in the loop stops on conflicts, resolve them, commit, and run
+the rest of the loop by hand from the codemod line. `-s ours` is right only
+for those commits: each is the codemod's output and nothing else, so your
+branch already holds everything it does. Never use it for any other merge.
 
 What the codemod cannot see: a path inside a regular expression or built
 up from pieces, such as a test that skips files by
-`/src\/(helpMode|DevMenu)\.tsx$/`. Tests that fail after it are usually
-these: find where the file went in `moves.json` and update the path. A new
+`/src\/(helpMode|DevMenu)\.tsx$/`; a `vi.mock` of a file whose hook
+moved (mock the hook's new file); and a moved name read off a namespace
+(`Simple.GetReady`). Tests that fail after it are usually these: find where
+the file or name went in `moves.json` and update it. A new
 file of your own that is loose in `src` or in `simple/` fails
 `apps/mobile/test/folders.test.ts`; put it in its feature's folder (add a
 line to `moves.json` if others may have the same file).
@@ -116,6 +125,18 @@ boundary tests hold the first two as well.
   the UI. `src/ui/` is the design system: it imports only itself, i18n,
   help mode and `shell/flow`. Nothing sits loose in `src` or in `simple/`
   (`apps/mobile/test/folders.test.ts`).
+- **Each file one role, named by its file** (lint). `screens/*.tsx` are
+  screens; any other `.tsx` exports components only; `use<Thing>.ts`
+  exports hooks only (and the contexts they read); `model.ts` and
+  `<thing>Model.ts` are pure `.ts`; `src/server/` holds server calls; any
+  other `.ts` is a module and exports no hooks. For values (types may come
+  from anywhere): a component reaches the server through a hook or module,
+  a hook does not import components (return data; let a component draw
+  it), a model or module imports no components or hooks, and a screen
+  imports no other screen. A hook found in a component file goes to a
+  `use<Thing>.ts` beside it; a helper found in a component or hook file
+  goes to a module or model beside it. Write an import used only for types
+  as `import type`, or lint takes it for a value.
 - **Labels are not words.** A diagnostics label passed to anything but
   `noteExpected` or `reportError` (a `where` field, `deps.note(...)`) needs
   an `// i18n-ignore:` comment saying so, or the catalog test

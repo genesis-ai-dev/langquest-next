@@ -20,7 +20,7 @@ import * as Crypto from 'expo-crypto';
 import { useMemo, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { Text } from '../ui/text';
-import { type LibraryChoice } from '../templates/contentTemplates';
+import type { LibraryChoice } from '../templates/contentTemplates';
 import { deriveKinds } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
 import { useHelpMode } from '../helpMode/useHelpMode';

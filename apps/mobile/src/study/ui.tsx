@@ -3,7 +3,7 @@
 // study.tsx's `ViewSwitch`, `PassageReader`, `ContributeSheet`). STUDY-3,
 // STUDY-5, STUDY-7, ADR-019. Audio follows audioSession.ts: starting one
 // player stops every other, and playback sets the session to play mode.
-import { type PassageNote } from '@langquest-next/core';
+import type { PassageNote } from '@langquest-next/core';
 import { createElement, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Image, Platform, Pressable, View, type LayoutChangeEvent } from 'react-native';
 import { Text } from '../ui/text';

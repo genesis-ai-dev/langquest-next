@@ -38,7 +38,7 @@ import { Back10, DashedBtn, MiniPlayer, PlayBtn, PlayRow } from '../recording/bl
 import { styles as ps } from '../recording/blockStyles';
 import { useClip } from '../audio/useClip';
 import { noteLabel } from './referenceText';
-import { useBible } from './useBible';
+import type { useBible } from './useBible';
 
 const DBP_TERMS = 'https://www.faithcomesbyhearing.com/bible-brain/license';
 

@@ -9,7 +9,7 @@ import { txt } from '../ui/textStyles';
 import { hitLine, type LanguoidHit } from './languoidModel';
 import { C, space } from '../ui/theme';
 import { LANGUOID_RESULTS } from './languoidModel';
-import { type LanguoidSearch } from './useLanguoids';
+import type { LanguoidSearch } from './useLanguoids';
 
 /**
  * The matches to pick from, or the one picked with a way to change it.

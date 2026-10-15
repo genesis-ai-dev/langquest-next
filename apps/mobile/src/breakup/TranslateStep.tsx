@@ -6,7 +6,7 @@
 // naming the books it leaves waiting (they are divided
 // later, from the map; decision 93); for something else, the organization's
 // own outlines or a new one. The walk-through is one tap away.
-import { type VersificationDoc } from '@langquest-next/core';
+import type { VersificationDoc } from '@langquest-next/core';
 import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { Text } from '../ui/text';
@@ -21,7 +21,7 @@ import { ChoiceCard, Question, QuietLink } from '../admin/admin';
 import { space } from '../ui/theme';
 import { emptyLine, WAY_ITEMS, type WayRow } from './model';
 import { LessonSheet, PreviewSheet, WayCard } from './parts';
-import { useTranslate } from './useTranslate';
+import type { useTranslate } from './useTranslate';
 
 export type Translate = ReturnType<typeof useTranslate>;
 

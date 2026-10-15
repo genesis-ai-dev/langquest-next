@@ -19,7 +19,7 @@ import { txt } from '../ui/textStyles';
 import { shadow } from '../ui/shadow';
 import { C, radius, space, target, TINT, type as T } from '../ui/theme';
 import { inviteFailureText, GROUP_USES } from './inviteText';
-import { type InviteState } from './useGroupInvite';
+import type { InviteState } from './useGroupInvite';
 
 // ---- icons ----------------------------------------------------------------------------
 

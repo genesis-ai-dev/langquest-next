@@ -2,16 +2,16 @@
 // publish a change, and who uses each (breakup/useBreakup.ts holds the hooks).
 import { CommandError, languageName, orgLanguages, privilegesFor, selectTemplateSpecs, templateBooks, type EventSpec, type LibraryItemView, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { type LibraryChoice } from '../templates/contentTemplates';
+import type { LibraryChoice } from '../templates/contentTemplates';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { appendToLanguage } from '../sync/languageWriter';
 import { flushOutbox, keepNewDoc, loadDocs, prepareDoc } from '../library/docStore';
 import { newItemId } from '../library/model';
-import { useLibrary } from '../library/useLibrary';
+import type { useLibrary } from '../library/useLibrary';
 import { noteExpected } from '../diagnostics/report';
 import { copyName, copyOffOps, planChange, type TemplateUser } from './model';
-import { type useTemplateUsers } from './useBreakup';
+import type { useTemplateUsers } from './useBreakup';
 
 /**
  * Use a choice in this organization: ours as it is; another organization's

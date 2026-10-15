@@ -1,5 +1,5 @@
 // Where a source is used (sources/used.tsx).
-import { type UsedReference } from '@langquest-next/core';
+import type { UsedReference } from '@langquest-next/core';
 import { useMemo, useRef } from 'react';
 import { usedItems } from './model';
 

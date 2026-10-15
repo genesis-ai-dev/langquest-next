@@ -14,7 +14,7 @@ import {
   ArrowLeft, Send, KeyRound, List, Smartphone, GripVertical, SlidersHorizontal, CircleCheck, TriangleAlert,
   ChevronsUpDown, FileText, Eye, EyeOff
 } from 'lucide-react-native';
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   AccessibilityInfo, Animated, Easing, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View,
   type StyleProp, type TextStyle, type ViewStyle
@@ -32,6 +32,7 @@ import { C, measure, onColor, radius, space, target, TINT, type as T } from './t
 import { useLayout } from './useLayout';
 import { kindIcon } from './kindIcon';
 import { txt } from './textStyles';
+import { FooterHeightContext } from './useLayout';
 
 // ---- icons -------------------------------------------------------------------------
 
@@ -74,12 +75,6 @@ export function Ico(props: { name: IconName; size?: number; color?: string; stro
 // ---- text ----------------------------------------------------------------------------
 
 // ---- layout ----------------------------------------------------------------------------
-
-/**
- * How tall this screen's footer is, so the toast sits just above its
- * buttons rather than over them (App.tsx), on a phone as on a wide window.
- */
-export const FooterHeightContext = createContext<((height: number) => void) | null>(null);
 
 /**
  * A phone screen: header, a scrolling body on the lavender ground, and an

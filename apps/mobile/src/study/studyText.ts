@@ -1,10 +1,10 @@
 // Words, icons and looks for the study screens (study/ui.tsx).
-import { type CalloutKind } from '@langquest-next/core';
+import type { CalloutKind } from '@langquest-next/core';
 import { CircleHelp, Globe, Pause, StickyNote, TriangleAlert, type LucideIcon } from 'lucide-react-native';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatClock } from '../i18n/format';
-import { type IconName } from '../ui/kit';
+import type { IconName } from '../ui/kit';
 import { when } from '../passage/passageView';
 import { C, TINT } from '../ui/theme';
 import type { StudyMediaKind, StudyResource } from './guides';

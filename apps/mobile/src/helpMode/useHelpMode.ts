@@ -1,6 +1,6 @@
 // Help mode's contexts and the hooks that read them (helpMode/helpMode.tsx provides them).
 import { createContext, useContext, useEffect, useId } from 'react';
-import { type HelpMode, type HelpSpot } from './helpContext';
+import type { HelpMode, HelpSpot } from './helpContext';
 
 /** The area that parts inside it scroll in, by its lit id (see HelpClip). */
 export const HelpClipContext = createContext<string | undefined>(undefined);

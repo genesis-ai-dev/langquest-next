@@ -14,7 +14,7 @@
 // One main action per screen, the rest one labelled tap away (decision 56).
 // Pure reading lives in src/reference/ (model.ts, coverage.ts, timings.ts, offered.ts).
 import {
-  derivePassage, keyTermsForUnit, languageName, libraryUnitRange, materialsFor, unitTitle,
+  derivePassage, keyTermsForUnit, languageName, type libraryUnitRange, materialsFor, unitTitle,
   type RecommendationSource, type SourceDoc, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';

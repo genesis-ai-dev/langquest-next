@@ -18,7 +18,7 @@ import { edgeAllowed, type Session } from '../shell/session';
 import { checkName, stepTitle } from '../admin/adminModel';
 import type { PathInput, PathStep } from './pathModel';
 import {
-  elseChoices, kindCleared, kindRowActions, kindRowSub, listenersOf, openCheckFor, sendTargetLabel, stepSheetSub,
+  elseChoices, kindCleared, kindRowActions, kindRowSub, type listenersOf, openCheckFor, sendTargetLabel, stepSheetSub,
   type KindRowCan, type MineFn, type NameFn, type RowAction
 } from './record';
 import { usualTargetFor, type UsualTarget } from './sendTarget';

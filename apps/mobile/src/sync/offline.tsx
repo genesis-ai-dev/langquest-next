@@ -6,7 +6,7 @@
 // answers: someone browses passages online, plays their audio, and finds out
 // in the field that none of it came along.
 import { languageName, offlineByUnit, type UnitOffline } from '@langquest-next/core';
-import { useMemo, useSyncExternalStore } from 'react';
+import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
@@ -15,14 +15,10 @@ import { txt } from '../ui/textStyles';
 import { endsSentence } from '../helpMode/helpContext';
 import { t } from '../i18n';
 import { formatBytes } from '../i18n/format';
-import { onStudyFiles, STUDY_FILES_OFFLINE, studyRevision } from '../study/studyFiles';
+import { STUDY_FILES_OFFLINE } from '../study/studyFiles';
 import { C, onColor, space, TINT } from '../ui/theme';
-import { keptOfflineMap, offlineLine, type KeptOffline, type OfflineOverview, withStudy } from './offlineText';
-
-/** Re-render when a study file arrives or the prefetcher learns a guide. */
-export function useStudyRevision(): number {
-  return useSyncExternalStore(onStudyFiles, studyRevision, studyRevision);
-}
+import { offlineLine, type KeptOffline, type OfflineOverview, withStudy } from './offlineText';
+import { useStudyRevision } from './useOfflineSummary';
 
 /** Offline counts for these passages, recomputed when files arrive, leave, or a passage is kept. */
 function useOfflineUnits(ctx: Ctx, unitIds: readonly string[]): Map<string, KeptOffline> {

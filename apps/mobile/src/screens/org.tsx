@@ -21,7 +21,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { View } from 'react-native';
 import { Text } from '../ui/text';
 import QRCode from 'react-native-qrcode-svg';
-import { type LibraryChoice } from '../templates/contentTemplates';
+import type { LibraryChoice } from '../templates/contentTemplates';
 import { deriveKinds, kindOf, licenseText } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
 import { t, Trans } from '../i18n';
@@ -70,7 +70,7 @@ import { TranslateQuestion } from '../breakup/TranslateStep';
 import { useTranslate } from '../breakup/useTranslate';
 import { InviteSomeone } from '../invites/invite';
 import { refKindOf } from '../reference/model';
-import { type GuideSet } from '../reference/guideSets';
+import type { GuideSet } from '../reference/guideSets';
 import { memberIn, startingLanguage } from '../reference/languageChoices';
 import { docLanguage, readerLanguage, sameLanguage } from '../reference/languages';
 import { ReferenceLanguagePage } from '../reference/ReferenceLanguagePage';

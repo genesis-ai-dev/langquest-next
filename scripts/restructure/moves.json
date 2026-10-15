@@ -244,6 +244,9 @@
     {"from":"web/storageGate.tsx","to":"web/useLeaveGuard.ts","names":["useLeaveGuard"]},
     {"from":"web/webHistory.ts","to":"web/useWebHistory.ts","names":["useWebHistory"]},
     {"from":"ui/kit.tsx","to":"ui/useLayout.ts","names":["useLayout","useOpenDetail","Layout","OpenDetail"]},
-    {"from":"recording/blocks.tsx","to":"recording/model.ts","names":["mmss"]}
+    {"from":"recording/blocks.tsx","to":"recording/model.ts","names":["mmss"]},
+    {"from":"ui/kit.tsx","to":"ui/useLayout.ts","names":["FooterHeightContext"]},
+    {"from":"sync/offline.tsx","to":"sync/useOfflineSummary.ts","names":["useStudyRevision"]},
+    {"from":"recording/useRecorder.ts","to":"recording/vadModel.ts","names":["VAD_BASE"]}
   ]
 }

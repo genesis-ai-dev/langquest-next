@@ -22,8 +22,8 @@ import { chromeVisible, frame, layoutKind } from './src/ui/layout';
 import { NavChrome } from './src/shell/NavChrome';
 import { lockPhonesToPortrait } from './src/shell/orientation';
 import { paneFor, type SplitSpec } from './src/shell/panes';
-import { LayoutContext, PaneSelectionContext, type Layout, type OpenDetail } from './src/ui/useLayout';
-import { EmptyState, FooterHeightContext, GhostBtn, ToastView, type ToastSpec } from './src/ui/kit';
+import { LayoutContext, PaneSelectionContext, type Layout, type OpenDetail, FooterHeightContext } from './src/ui/useLayout';
+import { EmptyState, GhostBtn, ToastView, type ToastSpec } from './src/ui/kit';
 import { txt } from './src/ui/textStyles';
 import { installGlobalHandlers, reportError } from './src/diagnostics/report';
 import { t } from './src/i18n';
@@ -44,6 +44,7 @@ import * as Reports from './src/screens/reports';
 import * as Review from './src/screens/review';
 import * as Sources from './src/screens/sources';
 import * as Simple from './src/screens/simple';
+import * as Ready from './src/screens/getReady';
 import * as Study from './src/screens/study';
 import * as Translate from './src/screens/translate';
 import * as Work from './src/screens/work';
@@ -106,7 +107,7 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   reference_bibles: Reference.ReferenceBibles, reference_source: Reference.ReferenceSource, reference_guides: Reference.ReferenceGuides,
   reference_coverage: Reference.ReferenceCoverage, passage_reference: Reference.PassageReference,
   bible_explore: Sources.BibleExplore,
-  mic_setup: Simple.MicSetup, get_ready: Simple.GetReady,
+  mic_setup: Simple.MicSetup, get_ready: Ready.GetReady,
   settings_more: Account.SettingsMore
 };
 

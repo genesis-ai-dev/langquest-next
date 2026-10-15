@@ -1,5 +1,5 @@
 // A cluster's subtitle, and writing cluster events to the organization (clusters/parts.tsx).
-import { type ClusterInfo, type OrgState } from '@langquest-next/core';
+import type { ClusterInfo, OrgState } from '@langquest-next/core';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { clusterNames, type ClusterEvent } from './model';
