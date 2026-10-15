@@ -1,6 +1,6 @@
 import { StudyPrefetch } from './src/study/StudyPrefetch';
 import { HelpModeProvider } from './src/helpMode/helpMode';
-import { keepHelpAudio } from './src/helpMode/helpAudio';
+import { useKeepHelpAudio } from './src/helpMode/useKeepHelpAudio';
 import { languageReady, onLanguageReady } from './src/i18n/start';
 import { HelpScopeContext } from './src/helpMode/useHelpMode';
 import { stopAudioPlayback } from './src/audio/audioSession';
@@ -31,23 +31,17 @@ import { personLook } from './src/ui/people';
 import { navRef, type StackParams } from './src/shell/nav';
 import { useNav } from './src/shell/useNav';
 import * as Account from './src/screens/account';
-import * as Checks from './src/screens/checks';
-import * as Config from './src/screens/config';
-import * as Content from './src/screens/content';
 import * as Entry from './src/screens/entry';
 import * as MapScreens from './src/screens/map';
 import * as Onboarding from './src/screens/onboarding';
-import * as Org from './src/screens/org';
 import * as Passage from './src/screens/passage';
-import * as Reference from './src/screens/reference';
-import * as Reports from './src/screens/reports';
 import * as Review from './src/screens/review';
-import * as Sources from './src/screens/sources';
 import * as Simple from './src/screens/simple';
 import * as Ready from './src/screens/getReady';
 import * as Study from './src/screens/study';
 import * as Translate from './src/screens/translate';
 import * as Work from './src/screens/work';
+import { lazyScreen } from './src/shell/lazyScreens';
 import { StorageGate } from './src/web/storageGate';
 import { SyncEffects } from './src/sync/SyncEffects';
 import { SyncStatusContext } from './src/sync/useSyncStatus';
@@ -83,6 +77,15 @@ import { useWorkingLanguage } from './src/shell/useWorkingLanguage';
 
 const IS_DEV = __DEV__;
 
+// Screens that load the first time they are opened (src/shell/lazyScreens.tsx): one loader per module.
+const loadChecks = () => import('./src/screens/checks');
+const loadConfig = () => import('./src/screens/config');
+const loadContent = () => import('./src/screens/content');
+const loadOrg = () => import('./src/screens/org');
+const loadReference = () => import('./src/screens/reference');
+const loadReports = () => import('./src/screens/reports');
+const loadSources = () => import('./src/screens/sources');
+
 const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   sign_in: Entry.SignIn, terms_privacy: Entry.TermsPrivacy, explore_home: Entry.ExploreHome, create_account: Entry.CreateAccount,
   scan_qr: Entry.ScanQr, vision: Entry.Vision, intent_chooser: Entry.IntentChooser, create_org: Entry.CreateOrg,
@@ -94,20 +97,20 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   guest_review: Review.GuestReview, add_record: Review.AddRecord, review_capture: Review.ReviewCapture,
   study_guide: Study.StudyGuide, study_step: Study.StudyStep, guide_editor: Study.GuideEditor,
   workspace: Translate.Workspace, back_translation: Translate.BackTranslation,
-  key_terms: Config.KeyTerms, key_term_detail: Config.KeyTermDetail,
+  key_terms: lazyScreen(loadConfig, 'KeyTerms'), key_term_detail: lazyScreen(loadConfig, 'KeyTermDetail'),
   inbox_home: Account.InboxHome, settings_home: Account.SettingsHome, profile_edit: Account.ProfileEdit,
   org_switcher: Account.OrgSwitcher, sign_out_confirm: Account.SignOutConfirm, delete_account: Account.DeleteAccount, sync_status: Account.SyncStatus,
-  org_home: Org.OrgHome, cluster_home: Org.ClusterHome, language_home: Org.LanguageHome,
-  new_language: Org.NewLanguage, members_list: Org.MembersList, invite_member: Org.InviteMember, invite_qr: Org.InviteQr,
-  edit_member: Org.EditMember, check_editor: Checks.CheckEditor,
-  roles_home: Config.RolesHome, role_editor: Config.RoleEditor, reference_home: Config.ReferenceHome, material_editor: Config.MaterialEditor,
-  flows_home: Config.FlowsHome, flow_editor: Config.FlowEditor,
-  templates_home: Content.TemplatesHome, template_picker: Content.TemplatePicker, template_editor: Content.TemplateEditor,
-  book_structure: Content.BookStructure,
-  reports_home: Reports.ReportsHome, reports_language: Reports.ReportsLanguage,
-  reference_bibles: Reference.ReferenceBibles, reference_source: Reference.ReferenceSource, reference_guides: Reference.ReferenceGuides,
-  reference_coverage: Reference.ReferenceCoverage, passage_reference: Reference.PassageReference,
-  bible_explore: Sources.BibleExplore,
+  org_home: lazyScreen(loadOrg, 'OrgHome'), cluster_home: lazyScreen(loadOrg, 'ClusterHome'), language_home: lazyScreen(loadOrg, 'LanguageHome'),
+  new_language: lazyScreen(loadOrg, 'NewLanguage'), members_list: lazyScreen(loadOrg, 'MembersList'), invite_member: lazyScreen(loadOrg, 'InviteMember'), invite_qr: lazyScreen(loadOrg, 'InviteQr'),
+  edit_member: lazyScreen(loadOrg, 'EditMember'), check_editor: lazyScreen(loadChecks, 'CheckEditor'),
+  roles_home: lazyScreen(loadConfig, 'RolesHome'), role_editor: lazyScreen(loadConfig, 'RoleEditor'), reference_home: lazyScreen(loadConfig, 'ReferenceHome'), material_editor: lazyScreen(loadConfig, 'MaterialEditor'),
+  flows_home: lazyScreen(loadConfig, 'FlowsHome'), flow_editor: lazyScreen(loadConfig, 'FlowEditor'),
+  templates_home: lazyScreen(loadContent, 'TemplatesHome'), template_picker: lazyScreen(loadContent, 'TemplatePicker'), template_editor: lazyScreen(loadContent, 'TemplateEditor'),
+  book_structure: lazyScreen(loadContent, 'BookStructure'),
+  reports_home: lazyScreen(loadReports, 'ReportsHome'), reports_language: lazyScreen(loadReports, 'ReportsLanguage'),
+  reference_bibles: lazyScreen(loadReference, 'ReferenceBibles'), reference_source: lazyScreen(loadReference, 'ReferenceSource'), reference_guides: lazyScreen(loadReference, 'ReferenceGuides'),
+  reference_coverage: lazyScreen(loadReference, 'ReferenceCoverage'), passage_reference: lazyScreen(loadReference, 'PassageReference'),
+  bible_explore: lazyScreen(loadSources, 'BibleExplore'),
   mic_setup: Simple.MicSetup, get_ready: Ready.GetReady,
   settings_more: Account.SettingsMore
 };
@@ -294,8 +297,6 @@ export default function App() {
   const [wordsReady, setWordsReady] = useState(languageReady);
   useEffect(() => onLanguageReady(() => setWordsReady(true)), []);
   useEffect(() => { installGlobalHandlers(); lockPhonesToPortrait(); }, []);
-  // Help speaks offline too: keep the recorded help lines of the app's language (decision 81).
-  useEffect(() => { void keepHelpAudio(); }, []);
   // Work people left unsent when they signed out of this phone goes as them (decisions.md 60).
   useHandOvers(auth === undefined ? undefined : auth?.user.id ?? null);
   useEffect(() => {
@@ -353,6 +354,8 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
  */
 function Workspace(props: { actorId: string; email: string | null; signedIn: boolean; fromV2: boolean; orgId: string | null; noOrganizations: boolean; openOrganization: Ctx['openOrganization']; invite: InviteHandle; arrival: Arrival | null }) {
   const org = useOrg(props.orgId, props.actorId);
+  // Help audio waits for this organization's first sync (src/helpMode/useKeepHelpAudio.ts).
+  useKeepHelpAudio(org.settled);
   const known = org.state !== null && (org.state.org !== null || org.settled);
   if (!known) return <View style={styles.root} accessibilityLabel={t('shell.openingOrganization')} />;
   // No organization: the screens still need an id for their keys; '' names none.
