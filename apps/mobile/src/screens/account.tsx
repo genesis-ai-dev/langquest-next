@@ -31,7 +31,7 @@ import { HelpBadge } from '../helpBadge';
 import { reasonLabel, reportSummary, reportTitle, type ReportGroup } from '../moderation';
 import { decideRequest, type PendingRequest } from '../invites';
 import {
-  Badge, Banner, Card, EmptyState, Field, GhostBtn, Group, Header, Ico, PrimaryBtn, ProgressBar, Row, Screen,
+  Badge, Banner, Card, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, PrimaryBtn, ProgressBar, Row, Screen,
   SectionLabel, Sheet, ShowMore, SmallBtn, txt, useLayout, useOpenDetail, type IconName
 } from '../kit';
 import { enableNotifications, tryUnregisterNotifications, unregisterNotifications, type RemoteNotification } from '../notifications';
@@ -49,6 +49,7 @@ import { C, radius, space, target, tile, TINT, type as T } from '../theme';
 import { useAccountActions, useDisplayNames } from '../useAccount';
 import { runningBuildLabel } from '../updateStatus';
 import { PersonAvatar } from '../UserChip';
+import { standingTitle, syncStanding, type SyncStanding } from '../SyncIndicator';
 import { LanguageRow } from '../uiLanguage';
 import { refusedHere, remoteRowView, speed, syncSummary } from '../account/model';
 import { useSyncInspection } from '../account/useSyncInspection';
@@ -776,6 +777,8 @@ export function SyncStatus(ctx: Ctx) {
   const offlineSummaryNow = useOfflineSummary(ctx);
   const pendingEvents = (ins?.pending.length ?? 0) + (orgIns?.pending.length ?? 0);
   const rejected = refusedHere(ins, orgIns, logged);
+  const standing = syncStanding(language);
+  const [details, setDetails] = useState(false);
   const syncNow = async () => {
     setBusy(true);
     try { await Promise.all([language.sync(), org.sync()]); language.triggerUpload(); }
@@ -785,13 +788,25 @@ export function SyncStatus(ctx: Ctx) {
   return (
     <Screen header={<Header title={t('account.more.sync')} onBack={ctx.back} />}
       footer={<PrimaryBtn label={busy ? t('account.sync.syncing') : t('account.sync.syncNow')} icon="restart" onPress={() => void syncNow()} disabled={language.tooOld || busy} />}>
-      {/* The server's refusal is English (its reason goes to the log): say what it means. */}
       {/* The last try failing to reach the server outranks the live channel, which can take a minute to notice a lost network. */}
-      <Banner icon="cloud" tone={offline ? 'amber' : language.live ? 'green' : 'brand'}
-        title={offline ? t('account.more.syncOffline') : language.live ? t('account.more.syncLive') : t('account.sync.checking')}
-        body={language.refused ? t('account.sync.refused') : language.tooOld ? t('account.sync.tooOld') : undefined} />
+      <Card>
+        <View style={[styles.profile, { flexWrap: 'wrap' }]} accessible accessibilityLabel={standingTitle(standing)}>
+          <View style={[styles.liveDot, { backgroundColor: STANDING_COLOR[standing] }]} />
+          <Text style={[txt.body, { flex: 1, fontWeight: '700' }]}>{standingTitle(standing)}</Text>
+          <Info text={standingHelp(standing)} />
+        </View>
+        {/* The server's refusal is English (its reason goes to the log): say what it means. */}
+        {language.refused || language.tooOld ? <Text style={txt.smMuted}>{language.refused ? t('account.sync.refused') : t('account.sync.tooOld')}</Text> : null}
+      </Card>
       {/* Settings' "Ready for offline" opens here (decisions.md 61): what comes along comes first. */}
       <OfflineCard ctx={ctx} s={offlineSummaryNow} />
+      <Card>
+        <SyncLine icon="up" label={t('account.sync.toSend')} value={pendingEvents + language.blobs.pendingUp} rate={language.blobs.pendingUp ? rates.up : 0} help={t('account.sync.help.toSend')} />
+        <SyncLine icon="download" label={t('account.sync.toReceive')} value={language.blobs.pendingDown} rate={language.blobs.pendingDown ? rates.down : 0} help={t('account.sync.help.toReceive')} />
+        {rejected.length ? <SyncLine icon="flag" label={t('account.sync.refusedLine')} value={rejected.length} tone={TINT.redText} help={t('account.sync.help.refusedLine')} /> : null}
+      </Card>
+      <Disclosure icon="layers" title={t('account.sync.details')} summary={ins ? t('account.sync.events', { count: ins.total + ins.rejected.length }) : ''}
+        open={details} onToggle={() => setDetails((d) => !d)}>
       <View style={styles.tiles}>
         <Stat id="waiting" icon="up" color={pendingEvents ? C.primary : C.green} value={pendingEvents} label={t('account.sync.waitingUpload')} />
         <Stat id="refused" icon="flag" color={rejected.length ? TINT.redText : C.muted} value={rejected.length} label={t('account.sync.refusedByServer')} />
@@ -820,11 +835,11 @@ export function SyncStatus(ctx: Ctx) {
           </Group>
         </>
       ) : null}
-      {/* Refused events are on this device too (PLAN.md invariant 1); the log's count leaves them out. */}
-      <Text style={[txt.xs, { textAlign: 'center' }]}>{ins ? t('account.sync.events', { count: ins.total + ins.rejected.length }) : ''}</Text>
+      {/* Refused events are on this device too (PLAN.md invariant 1); the summary's count includes them. */}
       <Text style={[txt.xs, { textAlign: 'center' }]} selectable>
         {runningBuildLabel({ updateId: Updates.updateId ?? undefined, createdAt: Updates.createdAt ?? undefined, isEmbeddedLaunch: Updates.isEmbeddedLaunch })}
       </Text>
+      </Disclosure>
     </Screen>
   );
 }
@@ -851,6 +866,44 @@ function openUnit(ctx: Ctx, event: { payload: unknown }): (() => void) | undefin
 
 function clock(hlc: string): string {
   try { return formatTime(decodeHlc(hlc).wallMs, { seconds: true }); } catch { return ''; }
+}
+
+const STANDING_COLOR: Record<SyncStanding, string> = { live: C.green, checking: C.faint, offline: C.amber, refused: C.red };
+
+function standingHelp(s: SyncStanding): string {
+  return s === 'live' ? t('account.sync.help.live') : s === 'offline' ? t('account.sync.help.offline')
+    : s === 'checking' ? t('account.sync.help.checking') : t('account.sync.help.refused');
+}
+
+/** A small ⓘ that shows one plain sentence under its row. */
+function Info(props: { text: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Pressable onPress={() => setOpen((o) => !o)} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('account.sync.moreInfo')}
+        accessibilityState={{ expanded: open }} style={({ pressed }) => pressed && { opacity: 0.6 }}>
+        <Ico name="info" size={18} color={open ? C.primary : C.muted} />
+      </Pressable>
+      {open ? <Text style={[txt.smMuted, styles.infoText]}>{props.text}</Text> : null}
+    </>
+  );
+}
+
+/** One plain line: what is waiting, how many, and a sentence behind ⓘ. */
+function SyncLine(props: { icon: IconName; label: string; value: number; rate?: number; tone?: string; help: string }) {
+  const color = props.tone ?? (props.value ? C.primary : C.green);
+  const value = props.value ? formatNumber(props.value) : t('account.sync.none');
+  return (
+    <View style={[styles.profile, { flexWrap: 'wrap', paddingVertical: space.xs }]}>
+      <View style={[styles.profile, { flex: 1 }]} accessible accessibilityLabel={`${props.label}: ${value}`}>
+        <Ico name={props.value ? props.icon : 'check'} size={20} color={color} />
+        <Text style={[txt.body, { flex: 1 }]}>{props.label}</Text>
+        {props.rate ? <Text style={txt.xs}>{speed(props.rate)}</Text> : null}
+        <Text style={[txt.body, { fontWeight: '700', color, fontVariant: ['tabular-nums'] }]}>{value}</Text>
+      </View>
+      <Info text={props.help} />
+    </View>
+  );
 }
 
 function Stat(props: { id: string; icon: IconName; color: string; value: number; label: string }) {
@@ -897,6 +950,8 @@ const styles = StyleSheet.create({
   centered: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.xl, gap: space.lg },
   bigTile: { width: 64, height: 64, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md },
+  liveDot: { width: 14, height: 14, borderRadius: 7 },
+  infoText: { width: '100%', marginTop: space.xs },
   tile2: { width: '47%', flexGrow: 1, alignItems: 'center', gap: space.xs, paddingVertical: space.lg, paddingHorizontal: space.sm, borderRadius: radius.xl,
     borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, backgroundColor: C.card },
   statValue: { fontSize: T.xl, fontWeight: '700' },

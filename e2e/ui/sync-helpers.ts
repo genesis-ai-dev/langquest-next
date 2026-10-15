@@ -101,6 +101,8 @@ export async function openSync(page: Page): Promise<void> {
   await text(page, 'More settings').click();
   await button(page, /^Sync[ ,]/).click();
   await expect(page.getByRole('heading', { name: 'Sync', exact: true }).locator('visible=true').first()).toBeVisible();
+  // The counts, transfers and logs sit under Details; open it so specs read them as before.
+  await button(page, /^Details/).click();
 }
 
 /** A tile's number on the Sync screen ("12 waiting to upload"), read from its spoken label. */
@@ -301,6 +303,10 @@ export async function orgWrite(world: UiWorld, who: AccountKey, type: string, pa
 }
 
 /** The words of My Work's sync chip beside the bell, or null when there is none. */
+/** My Work's sync icon. Its spoken name is the state ("Live", "Offline", "Not syncing"), then ", 3 to send" while work waits. */
 export function syncChip(page: Page): Locator {
-  return page.getByRole('button', { name: /^(Offline|Not syncing|\d[\d,]* to send|\d[\d,]* refused|Refused · \d[\d,]*)$/ }).locator('visible=true').first();
+  return page.getByTestId('sync-indicator').locator('visible=true').first();
 }
+
+/** The sync icon's name when nothing is waiting and the server takes this device's work. */
+export const SYNC_CLEAR = /^(Live|Connected)$/;

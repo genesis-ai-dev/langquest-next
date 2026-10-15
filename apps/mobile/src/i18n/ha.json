@@ -2903,7 +2903,6 @@
     "sync": {
       "syncing": "Ana daidaitawa…",
       "syncNow": "Daidaita yanzu",
-      "checking": "Ana duba canje-canje lokaci-lokaci",
       "refused": "Sabar ta ƙi wannan asusu don wannan ƙungiya.",
       "tooOld": "Ku sabunta manhajar don daidaitawa.",
       "waitingUpload": "yana jiran ɗorawa",
@@ -2923,7 +2922,28 @@
       "waitingCount": "Ana jira · {{n, number}}",
       "refusedCount": "An ƙi · {{n, number}}",
       "events_one": "Abu {{count, number}} a wannan na'ura",
-      "events_other": "Abubuwa {{count, number}} a wannan na'ura"
+      "events_other": "Abubuwa {{count, number}} a wannan na'ura",
+      "standing": {
+        "live": "Kai tsaye",
+        "checking": "An haɗa",
+        "offline": "Babu intanet",
+        "refused": "Ba ya daidaitawa"
+      },
+      "help": {
+        "live": "Canje-canjen ƙungiyarka suna isowa nan take, kuma naka suna tafiya nan da nan.",
+        "checking": "An haɗa, amma hanyar kai tsaye ba ta aiki, don haka wannan na'ura tana duba canje-canje bayan 'yan mintuna. Daidaita yanzu yana dubawa nan take.",
+        "offline": "Babu haɗi. Duk abin da kake yi ana ajiye shi a wannan na'ura kuma zai tafi da kansa idan ka dawo kan intanet.",
+        "refused": "Sabar ba ta karɓar canje-canje daga wannan na'ura. Aikinka yana nan a ajiye.",
+        "toSend": "Canje-canje da rikodin da aka yi a wannan na'ura waɗanda sabar ba ta tabbatar ba tukuna. Suna nan lafiya kuma za su tafi idan an samu haɗi.",
+        "toReceive": "Rikodin wasu da wannan na'ura har yanzu take saukewa.",
+        "refusedLine": "Canje-canjen da sabar ta ƙi karɓa, yawanci saboda izini ya canza. Suna nan a wannan na'ura; buɗe Cikakkun bayanai don ganin kowanne."
+      },
+      "toSend": "Don aikawa",
+      "toReceive": "Don karɓa",
+      "refusedLine": "An ƙi",
+      "none": "Babu",
+      "moreInfo": "Ƙarin bayani",
+      "details": "Cikakkun bayanai"
     }
   },
   "study": {
@@ -3612,10 +3632,8 @@
       "help": "Abin da kuka roƙi wani ya yi wanda bai kammala ba tukuna."
     },
     "sync": {
-      "refused": "Ba a daidaitawa",
       "toSend_one": "{{count, number}} da za a aika",
-      "toSend_other": "{{count, number}} da za a aika",
-      "offline": "Babu intanet"
+      "toSend_other": "{{count, number}} da za a aika"
     },
     "join": {
       "wantsToJoin": "{{name}} na son shiga",
