@@ -172,6 +172,10 @@ export class SyncClient<S = LanguageState> {
   /** The server had no snapshot for this stream; do not ask again before this (elapsed ms). */
   private noSnapshotUntil = 0;
   private readonly listeners = new Set<(s: PublishedState<S>) => void>();
+  /** The end of the push and pull queue (`exclusive`). */
+  private queue: Promise<unknown> = Promise.resolve();
+  /** A sync asked for and not started yet: everyone who asks meanwhile shares it. */
+  private nextSync: Promise<SyncResult> | null = null;
 
   constructor(private readonly opts: SyncClientOptions<S>) {
     this.m = opts.materializer ?? (LANGUAGE_MATERIALIZER as unknown as Materializer<S>);
@@ -350,7 +354,7 @@ export class SyncClient<S = LanguageState> {
     });
   }
 
-  /** Index of saved pieces: which snapshot seq they belong to and how many there are. */
+  /** Index of saved pieces: which snapshot (seq and reducer version) they belong to and how many there are. */
   private chunkKey(): string {
     return `snapchunks:${this.opts.orgId}/${this.opts.streamId}`;
   }
@@ -390,21 +394,26 @@ export class SyncClient<S = LanguageState> {
       return 0;
     }
     const savedMap = new Map<number, string>();
-    let index: { seq: number; chunks: number } = { seq: 0, chunks: 0 };
+    let index: { seq: number; chunks: number; version: number } = { seq: 0, chunks: 0, version: 0 };
     try {
       const parsed = JSON.parse((await this.opts.store.meta(this.chunkKey())) || '{}') as Partial<typeof index>;
       // An older build stored every piece inside this one row; ignore it and refetch.
-      if (typeof parsed.seq === 'number' && typeof parsed.chunks === 'number') index = { seq: parsed.seq, chunks: parsed.chunks };
+      if (typeof parsed.seq === 'number' && typeof parsed.chunks === 'number') {
+        // A build that kept no reducer version gets 0, which is no reducer's: its pieces are cleared and refetched.
+        index = { seq: parsed.seq, chunks: parsed.chunks, version: typeof parsed.version === 'number' ? parsed.version : 0 };
+      }
     } catch { /* refetch */ }
-    if (index.seq === meta.serverSeq) {
+    // Pieces are reused only for the same snapshot: a quiet language keeps its seq across an app update, and
+    // another reducer's pieces joined to these would parse as garbage or as the wrong state (invariant 10).
+    if (index.seq === meta.serverSeq && index.version === this.m.version) {
       for (let i = 0; i < index.chunks; i++) {
         const text = await this.opts.store.meta(this.chunkPieceKey(index.seq, i));
         if (text) savedMap.set(i, text);
       }
     } else {
-      // Pieces of an older snapshot are no use: drop them and say whose pieces follow, before any arrives.
+      // Pieces of another snapshot are no use: drop them and say whose pieces follow, before any arrives.
       await this.clearChunks(index);
-      index = { seq: meta.serverSeq, chunks: meta.chunks };
+      index = { seq: meta.serverSeq, chunks: meta.chunks, version: this.m.version };
       await this.opts.store.commit({ meta: { [this.chunkKey()]: JSON.stringify(index) } });
     }
     const snap = await fetchSnapshot(this.opts.transport, this.opts.orgId, this.opts.streamId, this.m.version, {
@@ -572,11 +581,29 @@ export class SyncClient<S = LanguageState> {
   }
 
   /**
+   * Pushes and pulls on one client run one at a time. Two syncs at once (the
+   * scheduler's and a "sync now") each sent the same pending events: the
+   * server took the first copy and refused the second, whose take id it
+   * found already used, and the client marked the take refused and folded
+   * it out, though the server had it (REC-016). A refold in one while the
+   * other pulled could likewise drop the page being pulled.
+   */
+  private exclusive<T>(run: () => Promise<T>): Promise<T> {
+    const next = this.queue.then(run);
+    this.queue = next.catch(() => undefined);
+    return next;
+  }
+
+  /**
    * Push pending events, at most `pushBatchesPerRun` batches. The outbox is
    * read one page at a time, never whole. Returns how many were accepted
    * and rejected, and whether pending work remains.
    */
-  async push(): Promise<{ accepted: number; rejected: number; more: boolean }> {
+  push(): Promise<{ accepted: number; rejected: number; more: boolean }> {
+    return this.exclusive(() => this.pushNow());
+  }
+
+  private async pushNow(): Promise<{ accepted: number; rejected: number; more: boolean }> {
     let accepted = 0;
     let rejected = 0;
     let more = false;
@@ -672,7 +699,11 @@ export class SyncClient<S = LanguageState> {
    * a pull shows this actor's membership changed (audit L1), or by the UI
    * for a manual retry. Invalid payloads are never retried.
    */
-  async retryRejected(codes: readonly ReturnType<typeof rejectCodeOf>[] = ['NOT_MEMBER', 'NOT_ALLOWED', 'NOT_LISTED', 'UNKNOWN']): Promise<number> {
+  retryRejected(codes: readonly ReturnType<typeof rejectCodeOf>[] = ['NOT_MEMBER', 'NOT_ALLOWED', 'NOT_LISTED', 'UNKNOWN']): Promise<number> {
+    return this.exclusive(() => this.retryNow(codes));
+  }
+
+  private async retryNow(codes: readonly ReturnType<typeof rejectCodeOf>[]): Promise<number> {
     const n = await this.requeue(codes);
     if (n > 0) await this.load();
     return n;
@@ -703,8 +734,12 @@ export class SyncClient<S = LanguageState> {
    * `more` says the budget ended it; `sync()` reports that so the scheduler
    * runs again at once instead of waiting for the next poll.
    */
-  async pullSlice(budgetMs: number = this.pullBudgetMs): Promise<{ pulled: number; more: boolean }> {
-    if (await this.resolvePendingRedaction()) return await this.pullSlice(budgetMs);
+  pullSlice(budgetMs: number = this.pullBudgetMs): Promise<{ pulled: number; more: boolean }> {
+    return this.exclusive(() => this.pullNow(budgetMs));
+  }
+
+  private async pullNow(budgetMs: number): Promise<{ pulled: number; more: boolean }> {
+    if (await this.resolvePendingRedaction()) return await this.pullNow(budgetMs);
     const started = this.wall();
     let after = await this.opts.store.cursor(this.opts.orgId, this.opts.streamId);
     // A stream with nothing yet would ask for a snapshot on every sync; ask again after a while.
@@ -780,7 +815,7 @@ export class SyncClient<S = LanguageState> {
       // it are already here (performance-audit.md item 7).
       await this.commit({ meta: { [this.minSnapshotKey()]: String(redactionSeq), [this.redactionKey()]: JSON.stringify({ seq: redactionSeq, since: this.wall() }) } });
       if (await this.resolvePendingRedaction()) {
-        const rest = await this.pullSlice(budgetMs);
+        const rest = await this.pullNow(budgetMs);
         return { pulled: total + rest.pulled, more: rest.more };
       }
       await this.load();
@@ -797,7 +832,7 @@ export class SyncClient<S = LanguageState> {
     // reasons may be acceptable now. Queue it; the next push decides. The
     // app passes the news on to its language clients.
     if (membershipChanged) {
-      await this.retryRejected(['NOT_MEMBER', 'NOT_ALLOWED']);
+      await this.retryNow(['NOT_MEMBER', 'NOT_ALLOWED']);
       this.opts.onMembershipChanged?.();
     }
     return { pulled: total, more };
@@ -848,15 +883,26 @@ export class SyncClient<S = LanguageState> {
    *   who may read the stream). The device is online; more syncing will not help until
    *   membership or the session changes.
    * - `tooOld`: the server no longer accepts this client's protocol version.
+   *
+   * One runs at a time (`exclusive`). Asked for while one runs, a sync
+   * starts after it, so it sends what was written before it was asked for.
    */
-  async sync(): Promise<SyncResult> {
+  sync(): Promise<SyncResult> {
+    this.nextSync ??= this.exclusive(() => {
+      this.nextSync = null;
+      return this.syncNow();
+    });
+    return this.nextSync;
+  }
+
+  private async syncNow(): Promise<SyncResult> {
     const idle = { pushed: 0, rejected: 0, pulled: 0, tooOld: false, offline: false, refused: null, more: false };
     const started = this.elapsed();
     this.net = { push: 0, pull: 0, pages: 0 };
     let result: SyncResult;
     try {
-      const { accepted, rejected, more: morePush } = await this.push();
-      const { pulled, more: morePull } = await this.pullSlice();
+      const { accepted, rejected, more: morePush } = await this.pushNow();
+      const { pulled, more: morePull } = await this.pullNow(this.pullBudgetMs);
       result = { ...idle, pushed: accepted, rejected, pulled, more: morePush || morePull };
     } catch (err) {
       if (err instanceof OfflineError) result = { ...idle, offline: true };
