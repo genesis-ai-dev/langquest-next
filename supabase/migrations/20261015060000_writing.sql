@@ -17,7 +17,7 @@
 -- making steps and what a check reads are its flow's (manage_flows).
 --
 -- validate_payload and event_privilege are restated whole, as `create or
--- replace`, from 20261012200000_check_helps.sql's, plus these events.
+-- replace`, from 20261014200000_clusters.sql's, plus these events.
 -- _entity_key is restated from 20261009170000_audio_format_set.sql's plus
 -- WritingAdded and Made; no row already in the log changes key (none of
 -- these types could be appended before), so events_entity_idx needs no
@@ -138,6 +138,13 @@ begin
       if not public._is_date(p->'startDate') then return 'startDate must be a YYYY-MM-DD date'; end if;
       if not public._is_date(p->'targetDate') then return 'targetDate must be a YYYY-MM-DD date'; end if;
       if not ((p->>'targetDate') collate "C" > (p->>'startDate') collate "C") then return 'targetDate must be after startDate'; end if;
+    when 'v1.ClusterNamed' then
+      if not (public._is_str(p->'clusterId') and public._is_str(p->'name')) then return 'clusterId, name must be non-empty strings'; end if;
+      if (p->>'clusterId') !~ '^[A-Za-z0-9][A-Za-z0-9_-]{0,80}$' then return 'clusterId may use letters, digits, _ and - only'; end if;
+    when 'v1.LanguageClusterSet' then
+      if not (public._is_str(p->'languageId') and public._is_str(p->'clusterId')) then return 'languageId, clusterId must be non-empty strings'; end if;
+      if (p->>'clusterId') !~ '^[A-Za-z0-9][A-Za-z0-9_-]{0,80}$' then return 'clusterId may use letters, digits, _ and - only'; end if;
+      if not public._is_bool(p->'inCluster') then return 'inCluster must be a boolean'; end if;
     when 'v1.ReferenceRecommended' then
       if not public._is_str(p->'itemId') then return 'itemId must be a non-empty string'; end if;
       if not public._is_bool(p->'recommended') then return 'recommended must be a boolean'; end if;
@@ -453,6 +460,8 @@ returns text language sql immutable as $$
     when 'v1.LanguageCodeSet' then 'manage_structure'
     when 'v1.LanguageCountrySet' then 'manage_structure'
     when 'v1.LanguageTargetSet' then 'manage_structure'
+    when 'v1.ClusterNamed' then 'manage_structure'
+    when 'v1.LanguageClusterSet' then 'manage_structure'
     when 'v1.ReferenceRecommended' then 'manage_reference'
     when 'v1.LibraryItemDefined' then public._library_privilege(p->>'kind')
     when 'v1.LibraryVersionPublished' then public._library_privilege(p->>'kind')

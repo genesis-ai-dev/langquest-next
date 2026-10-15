@@ -4043,6 +4043,9 @@ Chosen:
   version's words, or the words added to a recording, with their verses;
   `audio` never names a written part; a new `made` include (team only)
   lists what was made beside versions. `approvedVersion` keeps its meaning.
+- The web app's JavaScript budget (58) rises from 6.1 to 6.2 MB: the
+  writing screens and making steps are about 35 KB of modules, with their
+  English words besides (6.12 MB at the merge).
 - People ask each other for what they need in other languages; there is no
   language feature for it (Caleb). No AI help for now.
 Not yet: the shipped back translation still records through
