@@ -10,22 +10,23 @@
 // opens home for every role, and help is the ? on each screen.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import { firstName, roleWords, teamLabel, welcomeRoleFor, WELCOME_POINTS } from '../accountText';
-import type { Ctx } from '../ctx';
+import { Text } from '../ui/text';
+import { firstName, roleWords, teamLabel, welcomeRoleFor, WELCOME_POINTS } from '../account/accountText';
+import type { Ctx } from '../shell/ctx';
 import { t, Trans } from '../i18n';
-import { Banner, Disclosure, GhostBtn, Group, HelpTop, Ico, LinkBtn, PrimaryBtn, Row, Screen, txt } from '../kit';
-import { signInName } from '../accounts';
+import { Banner, Disclosure, GhostBtn, Group, HelpTop, Ico, LinkBtn, PrimaryBtn, Row, Screen } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { signInName } from '../auth/accounts';
 import { highlightsFor, languageInfo, unitTitle } from '@langquest-next/core';
-import { indexesFor } from '../indexes';
-import { PersonAvatar } from '../UserChip';
-import { personLook } from '../people';
-import { reportError } from '../report';
-import { contractsFor } from '../screenContracts';
-import { homeScreenFor } from '../session';
-import { C, radius, space, type as T } from '../theme';
-import { useDisplayNames } from '../useAccount';
-import { lastWork } from '../welcomeBack';
+import { indexesFor } from '../sync/indexes';
+import { PersonAvatar } from '../ui/UserChip';
+import { personLook } from '../ui/people';
+import { reportError } from '../diagnostics/report';
+import { contractsFor } from '../shell/screenContracts';
+import { homeScreenFor } from '../shell/session';
+import { C, radius, space, type as T } from '../ui/theme';
+import { useDisplayNames } from '../account/useAccount';
+import { lastWork } from '../account/welcomeBack';
 
 export function Welcome(ctx: Ctx) {
   const me = ctx.session.actorId;

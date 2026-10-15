@@ -12,7 +12,7 @@ import { clientAs, localServer, send, signIn, type UiWorld } from './fixture';
 import { button, expect, field, openAs, openPassage, primary, text, waitForApp, type AccountKey, type PassageKey } from './support';
 
 const TERMS_VERSION = /TERMS_VERSION = '([^']+)'/.exec(
-  readFileSync(new URL('../../apps/mobile/src/accountData.ts', import.meta.url), 'utf8'))![1]!;
+  readFileSync(new URL('../../apps/mobile/src/account/accountData.ts', import.meta.url), 'utf8'))![1]!;
 
 /** The English catalog, for words the app says. */
 export const en = JSON.parse(readFileSync(new URL('../../apps/mobile/src/i18n/en.json', import.meta.url), 'utf8')) as Record<string, unknown>;

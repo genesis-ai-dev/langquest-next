@@ -11,13 +11,14 @@ import {
 } from '@langquest-next/core';
 import { useState, type ReactNode } from 'react';
 import { Platform, Pressable, ScrollView, Share, View } from 'react-native';
-import { Text } from '../text';
+import { Text } from '../ui/text';
 import { t, Trans } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { HelpBadge } from '../helpBadge';
-import { useHelpSpot } from '../helpContext';
-import { Chip, ChipRow, HelpInfo, IconBtn, LinkBtn, SearchField, SmallBtn, txt } from '../kit';
-import { C, space } from '../theme';
+import { HelpBadge } from '../helpMode/helpBadge';
+import { useHelpSpot } from '../helpMode/useHelpMode';
+import { Chip, ChipRow, HelpInfo, IconBtn, LinkBtn, SearchField, SmallBtn } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { C, space } from '../ui/theme';
 import { CompareBars, DayBars, GroupedBars, PaceStrip, RecencyStrip, Sparkline, StackBar, WorkBar } from './charts';
 import { countryName } from './countries';
 // Imported, not lazy: a phone's bundle is one file anyway, and Metro's split
@@ -26,52 +27,10 @@ import WorldMap from './WorldMap';
 import {
   LEVEL_TONE, levelCount, levelLabel, milestoneText, paceAdvice, paceLabel, PACE_TONE, recencyAdvice, recencyLabel, RECENCY_TONE, scopeLabel
 } from './labels';
-import {
-  ago, AttentionPanel, Bar, bookOf, canPrint, Columns, CoverageMini, CoverageRows, dateTime, dayYear, Delta, exportCsv, fileName, Freshness,
-  HeadlineStats, languagesCsv, ledgerCsv, ListLine, longDay, monthName, monthShort, Notice, num, Panel, partOf, pctText, printPage, ProgressPair,
-  RecencyBadge, safeName, shortDate, signed, Stat, Stats, ToneBadge, utcTime, type Tone
-} from './ui';
-
-export type SectionId = 'overview' | 'activity' | 'languages' | 'geography' | 'field' | 'ledger' | 'pace' | 'alerts';
-
-export const SECTIONS: { id: SectionId; filterCountry: boolean }[] = [
-  { id: 'overview', filterCountry: true },
-  { id: 'activity', filterCountry: true },
-  { id: 'languages', filterCountry: true },
-  { id: 'geography', filterCountry: false },
-  { id: 'field', filterCountry: true },
-  { id: 'ledger', filterCountry: true },
-  { id: 'pace', filterCountry: true },
-  { id: 'alerts', filterCountry: false }
-];
-
-/** A section's name, for its chip and the page title. */
-export function sectionLabel(id: SectionId): string {
-  switch (id) {
-    case 'overview': return t('reports.sections.overview');
-    case 'activity': return t('reports.sections.activity');
-    case 'languages': return t('reports.sections.languages');
-    case 'geography': return t('reports.sections.geography');
-    case 'field': return t('reports.sections.field');
-    case 'ledger': return t('reports.sections.ledger');
-    case 'pace': return t('reports.sections.pace');
-    case 'alerts': return t('reports.sections.alerts');
-  }
-}
-
-/** What a section's chip shows, as help mode says it. */
-export function sectionHelp(id: SectionId): string {
-  switch (id) {
-    case 'overview': return t('reports.sections.overviewHelp');
-    case 'activity': return t('reports.sections.activityHelp');
-    case 'languages': return t('reports.sections.languagesHelp');
-    case 'geography': return t('reports.sections.geographyHelp');
-    case 'field': return t('reports.sections.fieldHelp');
-    case 'ledger': return t('reports.sections.ledgerHelp');
-    case 'pace': return t('reports.sections.paceHelp');
-    case 'alerts': return t('reports.sections.alertsHelp');
-  }
-}
+import { AttentionPanel, Bar, Columns, CoverageMini, CoverageRows, Delta, Freshness, HeadlineStats, ListLine, Notice, Panel, ProgressPair, RecencyBadge, Stat, Stats, ToneBadge } from './ui';
+import { ago, bookOf, dateTime, dayYear, longDay, monthName, monthShort, num, pctText, shortDate, signed, utcTime, type Tone } from './format';
+import { canPrint, exportCsv, fileName, languagesCsv, ledgerCsv, printPage, safeName } from './exportFiles';
+import { sectionLabel, type SectionId } from './sectionsModel';
 
 /** What every section gets. */
 export interface SectionProps {
@@ -877,11 +836,6 @@ function alertText(a: Alert, asOf: string, now: number): { title: string; body: 
     };
     default: return { title: a.title, body: a.body, action: a.action };
   }
-}
-
-/** Alerts that need someone, for the section switcher's count. */
-export function openAlerts(rows: LanguageRow[], asOf: string, now: number): number {
-  return alertsFor(rows, asOf, now).filter((a) => a.level !== 'fyi').length;
 }
 
 export function Alerts(p: SectionProps) {

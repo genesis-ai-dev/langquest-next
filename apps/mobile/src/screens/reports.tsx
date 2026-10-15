@@ -4,34 +4,33 @@
 // server (decision 44), which a phone could not total itself (decision 37).
 // Ports the web dashboard's shell and language page (apps/web/src/screens:
 // shell, Language); the sections and their parts are in src/reports/.
-import { appendConfirmed, ensureDeviceId, NotSavedError } from '@langquest-next/sync';
+import { NotSavedError } from '@langquest-next/sync';
 import {
-  clustersOf, dayPercents, mayViewLanguage, orgClusters, ORG_STREAM, paceOf, percent, privilegesFor, recencyOf, TARGET_SCOPES,
+  clustersOf, dayPercents, mayViewLanguage, orgClusters, paceOf, percent, privilegesFor, recencyOf, TARGET_SCOPES,
   type LanguageReport, type LanguageRow, type TargetScope
 } from '@langquest-next/core';
-import * as Crypto from 'expo-crypto';
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { Text } from '../text';
-import type { Ctx } from '../ctx';
-import { HelpBadge } from '../helpBadge';
-import { useHelpSpot } from '../helpContext';
+import { Text } from '../ui/text';
+import type { Ctx } from '../shell/ctx';
+import { HelpBadge } from '../helpMode/helpBadge';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { t, Trans } from '../i18n';
-import { contractsFor } from '../screenContracts';
-import { Chip, ChipRow, EmptyState, Field, Header, IconBtn, Screen, SearchField, Sheet, SmallBtn, txt } from '../kit';
-import { getStore } from '../store';
+import { contractsFor } from '../shell/screenContracts';
+import { Chip, ChipRow, EmptyState, Field, Header, IconBtn, Screen, SearchField, Sheet, SmallBtn } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { filterByCluster, type ClusterFilter } from '../clusters/model';
-import { serverTransport } from '../server/sync';
-import { C, measure, space } from '../theme';
+import { saveLanguageSetting } from '../reports/languageSettings';
+import { C, measure, space } from '../ui/theme';
 import { ActivityChart, DayBars, ProgressLine, WorkBar } from '../reports/charts';
 import { countryCodes, countryName } from '../reports/countries';
-import { useReports } from '../reports/data';
+import { useReports } from '../reports/useReports';
 import { bottleneckText, milestoneText, paceAdvice, paceLabel, PACE_TONE, recencyAdvice, recencyLabel, RECENCY_TONE, scopeLabel, stageName } from '../reports/labels';
-import { Activity, Alerts, FieldReport, Geography, Languages, Ledger, openAlerts, Overview, Pace, sectionHelp, sectionLabel, SECTIONS, type SectionId, type SectionProps } from '../reports/sections';
-import {
-  AttentionPanel, Bar, bookOf, canPrint, Columns, CoverageRows, dayYear, exportCsv, fileName, Freshness, HeadlineStats, languageCsv, ListLine, NoReports, Notice, num, Panel,
-  pctText, printPage, ProgressPair, shortDate, signed, Stat, Stats, ToneBadge, type Tone
-} from '../reports/ui';
+import { Activity, Alerts, FieldReport, Geography, Languages, Ledger, Overview, Pace, type SectionProps } from '../reports/sections';
+import { openAlerts, sectionLabel, SECTIONS, type SectionId, sectionHelp } from '../reports/sectionsModel';
+import { AttentionPanel, Bar, Columns, CoverageRows, Freshness, HeadlineStats, ListLine, NoReports, Notice, Panel, ProgressPair, Stat, Stats, ToneBadge } from '../reports/ui';
+import { bookOf, dayYear, num, pctText, shortDate, signed, type Tone } from '../reports/format';
+import { canPrint, exportCsv, fileName, languageCsv, printPage } from '../reports/exportFiles';
 
 const COLUMN = measure.report;
 
@@ -317,10 +316,9 @@ function SettingsPanel(props: { ctx: Ctx; row: LanguageRow; refresh: () => void 
     setBusy(what);
     setStatus(null);
     try {
-      const deviceId = await ensureDeviceId(await getStore(), () => Crypto.randomUUID());
-      const who = { orgId: row.orgId, streamId: ORG_STREAM, actorId: ctx.session.actorId, deviceId, transport: serverTransport() };
-      if (what === 'country') await appendConfirmed(who, 'v1.LanguageCountrySet', { languageId: r.languageId, country });
-      else await appendConfirmed(who, 'v1.LanguageTargetSet', { languageId: r.languageId, scope, startDate: start, targetDate: end });
+      await saveLanguageSetting(row.orgId, ctx.session.actorId, what === 'country'
+        ? { type: 'v1.LanguageCountrySet', payload: { languageId: r.languageId, country } }
+        : { type: 'v1.LanguageTargetSet', payload: { languageId: r.languageId, scope, startDate: start, targetDate: end } });
       setStatus({ tone: 'green', text: t('reports.settings.saved') });
       props.refresh();
     } catch (e) {

@@ -9,21 +9,23 @@
 import type { KindDef, KeyTermView, PassageNote, RequestView, ReviewView, SourcedQuestion, Version } from '@langquest-next/core';
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import { AudioClip } from '../audioClip';
-import type { Ctx } from '../ctx';
-import { useHelpSpot } from '../helpContext';
-import { HelpBadge } from '../helpBadge';
-import {
-  Badge, Banner, Card, Chip, Disclosure, Field, Ico, LinkBtn, NoteCard, Row, SearchField, SectionLabel, ShowMore, txt, useLayout
-} from '../kit';
+import { Text } from '../ui/text';
+import { AudioClip } from '../audio/audioClip';
+import type { Ctx } from '../shell/ctx';
+import { useHelpSpot } from '../helpMode/useHelpMode';
+import { HelpBadge } from '../helpMode/helpBadge';
+import { Badge, Banner, Card, Chip, Disclosure, Field, Ico, LinkBtn, NoteCard, Row, SearchField, SectionLabel, ShowMore } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { useLayout } from '../ui/useLayout';
 import { t } from '../i18n';
-import { dueText, feedbackSource, outcomeText, versionTitle, when } from '../passageView';
-import { Authored, authoredText, recordTarget, ReportFlag } from '../reportSheet';
+import { dueText, feedbackSource, outcomeText, versionTitle, when } from '../passage/passageView';
+import { Authored, ReportFlag } from '../moderation/reportSheet';
+import { authoredText, recordTarget } from '../moderation/reportTargets';
 import type { StudyProgress } from '../study/progress';
 import { studySummary } from '../study/progress';
-import { StepMark, stepLine } from '../study/ui';
-import { C, measure, radius, space, target, TINT, type as T, withAlpha } from '../theme';
+import { StepMark } from '../study/ui';
+import { stepLine } from '../study/studyText';
+import { C, measure, radius, space, target, TINT, type as T, withAlpha } from '../ui/theme';
 import {
   questionSource, searchPassages, nearbyPassages, summaryLine, YES_NO, yesNoLabel, type Answers, type PassageChoice, type Skips, type Stage, type StageId
 } from './capture';

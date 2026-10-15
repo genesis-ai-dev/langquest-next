@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   bookOf, DEFAULT_MIC, MIC_TRIES, mmss, parseMicSettings, partLabel, partsLookClipped, partsRange, passageClock, recorderLines, refChips,
   SHORT_PART_MS, stepAfterDone, stepGroups, thresholdFromNoise, totalMs, verseRefs
-} from '../src/simple/model';
+} from '../src/recording/model';
 
 describe('the recorder cards (decision 71, demo ADR-036)', () => {
   it('counts parts, since parts carry no verse labels yet', () => {

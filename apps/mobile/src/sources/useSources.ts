@@ -12,11 +12,11 @@ import {
   type LibraryDoc, type SourceBookDoc, type SourceDoc, type TemplateDoc, type TimingDoc, type VerseRange, type VersificationDoc
 } from '@langquest-next/core';
 import { useEffect, useMemo, useState } from 'react';
-import type { Ctx } from '../ctx';
+import type { Ctx } from '../shell/ctx';
 import { teamLanguage } from '../reference/languages';
 import { t } from '../i18n';
 import { useLibraryDocs, useSharedItems } from '../library/useLibrary';
-import { carriedBible, readingsForRange } from '../scripture';
+import { carriedBible, readingsForRange } from '../passage/scripture';
 import { bibleErrorText, type BibleDetail } from './bibleBrain';
 import {
   bibleNotOnDevice, bookOffers, catalogVerses, chaptersOf, chipMarks, filesetsFor, inSourceNumbering, isOfferedSourceId, offersFor, offlineAllowed, orderOptions, passageRows, playPlan,
@@ -24,7 +24,8 @@ import {
 } from './model';
 import { audioFormatOf, bbKey, ensureIndex, keptAudio, libAudioKey, onSourceFiles, playableUri } from './offline';
 import { PlayError } from './player';
-import { bibleBrain, textKept, useKeptRevision, useMyBibles } from './store';
+import { bibleBrain, textKept } from './store';
+import { useKeptRevision, useMyBibles } from './useMyBibles';
 
 type Get = <T extends LibraryDoc = LibraryDoc>(hash: string | null | undefined) => T | null;
 

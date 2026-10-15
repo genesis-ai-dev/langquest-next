@@ -1,9 +1,9 @@
 import { ORG_STREAM, orgLanguages } from '@langquest-next/core';
 import type { LocalEvent, SyncInspection } from '@langquest-next/sync';
 import { useEffect, useRef, useState } from 'react';
-import { getStore } from '../store';
-import type { LanguageHandle } from '../useLanguage';
-import type { OrgHandle } from '../useOrg';
+import { getStore } from '../sync/store';
+import type { LanguageHandle } from '../sync/useLanguage';
+import type { OrgHandle } from '../sync/useOrg';
 
 /** The device's log for this organization: refused events in every stream it holds, and the open language's cursor. */
 async function readLog(orgId: string, languageId: string, org: Parameters<typeof orgLanguages>[0]): Promise<{ rejected: LocalEvent[]; cursor: number }> {

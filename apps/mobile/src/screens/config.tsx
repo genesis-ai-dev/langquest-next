@@ -13,7 +13,7 @@
 // Requirements ORG-3, ORG-4, ORG-8, TERM-1..6, FLOW-1..4.
 // ADR-002 (one model for reference), ADR-004 (done is read from the record),
 // ADR-005 (kinds arranged by the flow designer), ADR-016 (parallel kinds).
-// Pure reading lives in configModel.ts and the feature models (roles/, flows/,
+// Pure reading lives in config/model.ts and the feature models (roles/, flows/,
 // keyTerms/, reference/materialModel.ts); the screens here lay it out.
 import {
   CommandError, commands, derivePassage, keyTermsFor, keyTermView, languageName,
@@ -24,37 +24,36 @@ import {
 import * as Crypto from 'expo-crypto';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import { AudioClip } from '../audioClip';
-import { deriveKinds, localKind } from '../coreText';
-import type { Ctx } from '../ctx';
+import { Text } from '../ui/text';
+import { AudioClip } from '../audio/audioClip';
+import { deriveKinds, localKind } from '../i18n/coreText';
+import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { indexesFor } from '../indexes';
-import {
-  Badge, Banner, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, IconBtn, KindIcon,
-  PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, SmallBtn, Toggle, txt, useOpenDetail
-} from '../kit';
+import { indexesFor } from '../sync/indexes';
+import { Badge, Banner, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, IconBtn, KindIcon, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, SmallBtn, Toggle } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { useOpenDetail } from '../ui/useLayout';
 import { cachedDoc } from '../library/docStore';
 import { sourceLine, usesItem, type SharedItem } from '../library/model';
 import { restoreChecks } from '../checks/undo';
 import { useLibrary, useLibraryDocs, useLibraryUpdates, useSharedItems } from '../library/useLibrary';
-import { when } from '../passageView';
-import { failureMessage } from '../report';
+import { when } from '../passage/passageView';
+import { failureMessage } from '../diagnostics/report';
 import { LanguageField } from '../reference/LanguageField';
 import { readerLanguage } from '../reference/languages';
-import { contractsFor } from '../screenContracts';
+import { contractsFor } from '../shell/screenContracts';
 import { draftToTie } from '../study/keyTermDraft';
-import { sourceText } from '../scripture';
-import { C, radius, space, TINT } from '../theme';
-import { VoiceNote } from '../voiceNote';
-import { CheckSteps } from '../simple/checks';
-import { BibleChip, bibleMissing, OthersSay, OwnWord, PassageNoteEditor, WhereItIs } from '../simple/helps';
-import { othersSay } from '../simple/helpsModel';
-import { bookOf } from '../simple/model';
-import { useBible } from '../simple/reference';
-import { useOtherLanguageTerms } from '../reference/otherLanguages';
-import { LanguageChecks } from './checks';
+import { sourceText } from '../passage/scripture';
+import { C, radius, space, TINT } from '../ui/theme';
+import { VoiceNote } from '../audio/voiceNote';
+import { CheckSteps } from '../checks/checkSteps';
+import { BibleChip, OthersSay, OwnWord, PassageNoteEditor, WhereItIs } from '../helps/helps';
+import { othersSay, bibleMissing } from '../helps/helpsModel';
+import { bookOf } from '../recording/model';
+import { useBible } from '../helps/useBible';
+import { useOtherLanguageTerms } from '../reference/useOtherLanguageTerms';
+import { LanguageChecks } from '../checks/LanguageChecks';
 import { addPickedKind, copyFlowSpecs, currentFlowLine, flowEditorBase, flowEditorSeed, flowEditorStatus, knownKinds, newKindDef, usuallyFor, withAddedKinds } from '../flows/model';
 import {
   adjustDuringTake, adjustmentNote, adjustmentReady, defineTermInput, EMPTY_TERM_DRAFT, groupTerms, termDraftReady, termUsedIn, tieState,
@@ -66,15 +65,15 @@ import {
   versificationChoices, type VersificationChoice
 } from '../reference/materialModel';
 import { privilegesOn, roleDefinition, roleDirty, roleSnapshot } from '../roles/model';
-import { SwitchRow } from '../simple/admin';
-import { flipSwitch, ROLE_SWITCHES, stepTitle, switchState } from '../simple/adminModel';
+import { SwitchRow } from '../admin/admin';
+import { flipSwitch, ROLE_SWITCHES, stepTitle, switchState } from '../admin/adminModel';
 import {
   fieldLabel, flowDocFrom, flowLabel, flowUndoFor, flowUse, holdersOf, isFiaTerm,
   levelLabel, libraryMaterialLine, libraryQuestions, materialDocFrom, materialItemId, moveStep, newKindId,
   nextFieldId, parseRefLinks, PRIVILEGE_INFO, questionCount, questionCountLabel, questionDrafts, questionSetToReviews,
   referenceKinds, referenceKindName, referenceView, roleRows, scopeName, setKindName, termsInPassage, viewLevelFrom,
   type DraftStep, type QuestionDraft
-} from './configModel';
+} from '../config/model';
 
 /** Long lists grow 25 at a time (ADR-009). */
 const STEP = 25;
@@ -556,7 +555,7 @@ export function FlowsHome(ctx: Ctx) {
    * and are the language's own from then on (decision 91). Undo goes back to
    * the checks it had (core `restoreFlow`).
    */
-  async function use(target: { itemId: string } | { shared: SharedItem }) {
+  async function adopt(target: { itemId: string } | { shared: SharedItem }) {
     if (!state || !language || busy) return;
     setBusy(true);
     let specs: EventSpec[];
@@ -634,7 +633,7 @@ export function FlowsHome(ctx: Ctx) {
                     : updates[f.itemId] ? <Badge label={t('config.library.updateBadge')} tone="amber" /> : null}
                   {on
                     ? <SmallBtn label={t('config.flows.inUse')} icon="check" tone="primary" help={t('config.flows.inUseHelp')} onPress={() => {}} />
-                    : language && !f.archived ? <SmallBtn label={t('config.flows.use')} help={t('config.flows.useHelp', { language })} onPress={() => void use({ itemId: f.itemId })} disabled={!canManage || busy || !f.current} /> : null}
+                    : language && !f.archived ? <SmallBtn label={t('config.flows.use')} help={t('config.flows.useHelp', { language })} onPress={() => void adopt({ itemId: f.itemId })} disabled={!canManage || busy || !f.current} /> : null}
                 </View>
                 {/* Inside a card that opens, the card says what the steps mean. */}
                 <DocSteps doc={docs.get<FlowDoc>(f.current)} kinds={kinds} explain={!canManage} />
@@ -645,7 +644,7 @@ export function FlowsHome(ctx: Ctx) {
 
           <SharedItems ctx={ctx} lib={lib} shared={shared} canManage={canWrite}
             detail={(s) => <DocSteps doc={docs.get<FlowDoc>(s.latest_hash)} kinds={kinds} explain />}
-            {...(language && canManage ? { use: { label: t('config.flows.use'), onUse: (s: SharedItem) => void use({ shared: s }), disabled: busy,
+            {...(language && canManage ? { use: { label: t('config.flows.use'), onUse: (s: SharedItem) => void adopt({ shared: s }), disabled: busy,
               help: t('config.flows.useHelp', { language }) } } : {})} />
         </>
       )}

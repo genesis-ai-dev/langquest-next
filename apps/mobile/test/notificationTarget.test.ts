@@ -1,7 +1,7 @@
 // An Inbox row or a tapped push opens the task itself (demo design principle 11):
 // an update opens its passage in its language and organization.
 import { describe, expect, it } from 'vitest';
-import { notificationTarget, openAfterSwitch } from '../src/notificationTarget';
+import { notificationTarget, openAfterSwitch } from '../src/notifications/notificationTarget';
 
 const row = { id: '', org_id: 'org-a', language_id: null as string | null, kind: 'request', unit_id: null as string | null };
 

@@ -5,7 +5,7 @@ import type { Update } from '@langquest-next/core';
 import {
   firstName, groupByRead, joinRequestIdOf, ownName, teamLabel, updateText, VISION_STEPS, welcomeRoleFor,
   WELCOME_POINTS, withArticle
-} from '../src/accountText';
+} from '../src/account/accountText';
 
 const people: Record<string, string> = { sarah: 'Sarah Kim', ayen: 'Ayen Deng', me: 'You' };
 const words = {

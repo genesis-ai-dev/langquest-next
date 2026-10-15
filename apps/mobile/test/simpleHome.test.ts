@@ -1,10 +1,10 @@
 import { foldOrg, SEED_ROLES, type AnyEvent } from '@langquest-next/core';
-import { chapterStage, chapterTone, type PassageFacts } from '../src/canon';
-import { needsConnection, openableLanguages } from '../src/simple/mapModel';
-import { EDGES } from '../src/flow';
-import { edgeAllowed, tabsFor } from '../src/session';
-import { nextSub, readiness, readySteps, waitingWhat, waitingWho, workIcon, workSub, workTarget, workWhat } from '../src/simple/homeModel';
-import { offlineCount } from '../src/simple/meModel';
+import { chapterStage, chapterTone, type PassageFacts } from '../src/reference/canon';
+import { needsConnection, openableLanguages } from '../src/map/mapModel';
+import { EDGES } from '../src/shell/flow';
+import { edgeAllowed, tabsFor } from '../src/shell/session';
+import { nextSub, readiness, readySteps, waitingWhat, waitingWho, workIcon, workSub, workTarget, workWhat } from '../src/work/homeModel';
+import { offlineCount } from '../src/account/meModel';
 import { inSeveral } from '../src/account/model';
 import { roleSession } from './sessions';
 

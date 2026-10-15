@@ -8,7 +8,7 @@ import {
   CALLOUT_KINDS, isHash, isLicense, LICENSE_INFO, parseRef, validateDoc, withDeps,
   type CalloutKind, type MaterialLink, type MediaRef, type StudyDoc, type StudyDoc2
 } from '@langquest-next/core';
-import { licenseText } from '../coreText';
+import { licenseText } from '../i18n/coreText';
 import { t } from '../i18n';
 import type { StudyMediaKind } from '../study/guides';
 import { inlineParts } from '../study/text';

@@ -5,7 +5,7 @@ const disk = new Map<string, string>();
 const net = { down: new Set<string>(), fetched: [] as string[], hold: null as null | Promise<void> };
 
 vi.mock('react-native', () => ({ Platform: { OS: 'ios' } }));
-vi.mock('../src/report', () => ({ noteExpected: () => {} }));
+vi.mock('../src/diagnostics/report', () => ({ noteExpected: () => {} }));
 vi.mock('expo-file-system', () => {
   class File {
     name: string;

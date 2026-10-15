@@ -1,4 +1,4 @@
-import type { ListedOrganization } from '../accountData';
+import type { ListedOrganization } from '../account/accountData';
 
 /**
  * The organizations Request Access lists for what was typed: those on the

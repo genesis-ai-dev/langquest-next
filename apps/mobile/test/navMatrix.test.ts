@@ -1,7 +1,7 @@
 import { foldOrg, PRIVILEGES, SEED_ROLES, type AnyEvent, type Privilege } from '@langquest-next/core';
 import { describe, expect, it } from 'vitest';
-import { EDGES, type Edge } from '../src/flow';
-import { deriveSession, edgeAllowed, homeScreenFor, manageHomeFor, mapScreenFor, tabsFor, type Session } from '../src/session';
+import { EDGES, type Edge } from '../src/shell/flow';
+import { deriveSession, edgeAllowed, homeScreenFor, manageHomeFor, mapScreenFor, tabsFor, type Session } from '../src/shell/session';
 
 /**
  * The role matrices of 03 Home and navigation and 04 The Map

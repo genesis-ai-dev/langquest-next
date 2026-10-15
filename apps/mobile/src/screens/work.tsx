@@ -17,32 +17,32 @@ import {
   checkPeople, derivePassage, highlightsFor, languageName, libraryItemView, membershipsOf, recommendedFor, unitPlace, unitTitle, upNext, waitingOn,
   type Highlight, type KindDef, type LanguageState, type OrgState, type Waiting
 } from '@langquest-next/core';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import { deriveKinds, passageSummary } from '../coreText';
-import type { Ctx } from '../ctx';
-import { edgeFor, type ScreenId } from '../flow';
+import { Text } from '../ui/text';
+import { deriveKinds, passageSummary } from '../i18n/coreText';
+import type { Ctx } from '../shell/ctx';
+import { edgeFor, type ScreenId } from '../shell/flow';
 import { t } from '../i18n';
 import { formatAgo } from '../i18n/format';
-import { indexesFor } from '../indexes';
+import { indexesFor } from '../sync/indexes';
 import { baseWay, LATER_ITEM } from '../breakup/model';
-import { useEarlierSections } from '../breakup/earlier';
-import { pendingRequests, type PendingRequest } from '../invites';
-import { cachedInbox, refreshInbox, type RemoteNotification } from '../notifications';
-import { Card, Group, Header, Ico, Row, Screen, SectionLabel, StepMarks, txt, type IconName } from '../kit';
-import { dueText, isJustNow, when } from '../passageView';
-import { noteExpected } from '../report';
-import { contractsFor } from '../screenContracts';
-import { edgeAllowed, mapScreenFor } from '../session';
-import { Bell, NextCard, QuietToggle, ReadyCard } from '../simple/home';
-import { checkName } from '../simple/adminModel';
+import { useEarlierSections } from '../breakup/useEarlierSections';
+import { pendingRequests, type PendingRequest } from '../invites/invites';
+import { useServerInbox } from '../account/useInboxSources';
+import { Card, Group, Header, Ico, Row, Screen, SectionLabel, StepMarks, type IconName } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { dueText, isJustNow, when } from '../passage/passageView';
+import { noteExpected } from '../diagnostics/report';
+import { contractsFor } from '../shell/screenContracts';
+import { edgeAllowed, mapScreenFor } from '../shell/session';
+import { Bell, NextCard, QuietToggle, ReadyCard } from '../work/home';
+import { checkName } from '../admin/adminModel';
 import { Faces } from '../checks/parts';
-import { useReadySummary, type ReadySummary } from '../simple/ready';
-import { nextSub, readiness, readySteps, THEN_CAP, waitingWhat, waitingWho, workIcon, workSub, workTarget, workWhat, type Readiness } from '../simple/homeModel';
-import { SyncIndicator } from '../SyncIndicator';
-import { C, space, TINT } from '../theme';
+import { useReadySummary, type ReadySummary } from '../admin/useReadySummary';
+import { nextSub, readiness, readySteps, THEN_CAP, waitingWhat, waitingWho, workIcon, workSub, workTarget, workWhat, type Readiness } from '../work/homeModel';
+import { SyncIndicator } from '../sync/SyncIndicator';
+import { C, space, TINT } from '../ui/theme';
 
 const RECENT_CAP = 5;
 
@@ -123,19 +123,8 @@ function useElsewhere(ctx: Ctx): { languageId: string; count: number }[] {
   const me = ctx.session.actorId;
   const orgId = ctx.language.orgId;
   const open = ctx.languageId;
-  const tick = ctx.inbox.unread;
-  const [rows, setRows] = useState<RemoteNotification[]>([]);
-  const [read, setRead] = useState<ReadonlySet<string>>(new Set());
-  useEffect(() => {
-    let live = true;
-    void Promise.all([cachedInbox(me), AsyncStorage.getItem(`inbox-read:${me}`)]).then(([cached, seen]) => {
-      if (!live) return;
-      setRows(cached);
-      setRead(new Set(JSON.parse(seen ?? '[]') as string[]));
-    }).catch((e: unknown) => noteExpected('my work other languages', e));
-    refreshInbox(me).then((fresh) => { if (live) setRows(fresh); }).catch((e: unknown) => noteExpected('my work other languages', e));
-    return () => { live = false; };
-  }, [me, tick]);
+  // Read again whenever the Inbox count moves.
+  const { remote: rows, seen: read } = useServerInbox(me, ctx.inbox.unread);
   return useMemo(() => {
     const counts = new Map<string, number>();
     for (const r of rows) {

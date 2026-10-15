@@ -1,5 +1,5 @@
 import { foldOrg, type AnyEvent } from '@langquest-next/core';
-import { openLanguage } from '../src/languages';
+import { openLanguage } from '../src/shell/languages';
 
 let seq = 0;
 const org = (events: [string, unknown][]) => foldOrg(events.map(([type, payload]) => ({

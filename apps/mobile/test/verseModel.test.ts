@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { passageVerseKeys, readPartVerses, spanName, spanShort, verseName, versesHeld } from '../src/simple/verseModel';
+import { passageVerseKeys, readPartVerses, spanName, spanShort, verseName, versesHeld } from '../src/recording/verseModel';
 
 const versesIn = (_book: string, chapter: number) => (chapter === 1 ? 31 : 25);
 

@@ -13,7 +13,7 @@ import { browserStateFor, localServer, signIn, type AccountKey, type UiWorld } f
 import { waitForApp } from './support';
 
 const TERMS_VERSION = /TERMS_VERSION = '([^']+)'/.exec(
-  readFileSync(new URL('../../apps/mobile/src/accountData.ts', import.meta.url), 'utf8'))![1]!;
+  readFileSync(new URL('../../apps/mobile/src/account/accountData.ts', import.meta.url), 'utf8'))![1]!;
 
 export function anon(): SupabaseClient {
   const s = localServer();

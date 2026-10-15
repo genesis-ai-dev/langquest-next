@@ -251,7 +251,7 @@ export async function expectStill(target: Locator): Promise<void> {
 // ---- entering by address -------------------------------------------------------------------
 
 /**
- * The web app's addresses name sections only (apps/mobile/src/webPaths.ts, decision 58): a deeper
+ * The web app's addresses name sections only (apps/mobile/src/web/webPaths.ts, decision 58): a deeper
  * screen has no address, because its place depends on what was opened before it. `pathTo` is the
  * address of a section; `openAs(page, world, who, { path: pathTo('map') })` lands there.
  * A role that may not open a section lands on its own home, as a person typing the address would.

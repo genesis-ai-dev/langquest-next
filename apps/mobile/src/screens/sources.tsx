@@ -10,22 +10,22 @@
 import { chaptersInBook, libraryItems, testamentOf, type SourceDoc, type VersificationDoc, type VerseRange } from '@langquest-next/core';
 import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import type { Ctx } from '../ctx';
+import { Text } from '../ui/text';
+import type { Ctx } from '../shell/ctx';
 import { teamLanguage } from '../reference/languages';
-import { screenTitle } from '../flow';
+import { screenTitle } from '../shell/flow';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import {
-  Badge, Card, Chip, EmptyState, Group, Header, LinkBtn, PrimaryBtn, Row, Screen, SearchField, SectionLabel, txt
-} from '../kit';
+import { Badge, Card, Chip, EmptyState, Group, Header, LinkBtn, PrimaryBtn, Row, Screen, SearchField, SectionLabel } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { useLibraryDocs } from '../library/useLibrary';
-import { contractsFor } from '../screenContracts';
+import { contractsFor } from '../shell/screenContracts';
 import { bibleErrorText, type BibleDetail, type BibleLanguage, type BibleSummary } from '../sources/bibleBrain';
 import { offersFor, offlineAllowed, refText, type SourceOption } from '../sources/model';
 import { SourceView } from '../sources/SourceReader';
-import { bibleBrain, useMyBibles, type MyBible } from '../sources/store';
-import { C, space } from '../theme';
+import { bibleBrain, type MyBible } from '../sources/store';
+import { useMyBibles } from '../sources/useMyBibles';
+import { C, space } from '../ui/theme';
 
 /** "Audio: New Testament only", "Text and audio", "Text only". */
 function mediaLine(b: Pick<BibleSummary, 'text' | 'audio'>): string {

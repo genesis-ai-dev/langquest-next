@@ -361,6 +361,12 @@ npm run test:ui:phone -- --platform ios --voice --tags smoke
   Reports: `report-ordered.xml` and `report.xml`. Flows tagged `wrapped` need a step
   from outside mid-run (their headers say which) and run only with
   `--wrapped`; `android-only` flows turn airplane mode on.
+- On Android, the runner turns animations off for the run (window,
+  transition and animator scales to 0) and puts them back afterwards.
+  Maestro reads a screen once it is idle, and one that animates every frame
+  (the header's sync ring during a transfer) is never idle, so a check came
+  after the toast had gone or a short clip had finished. React Native reads
+  the zero transition scale as Reduce Motion, which the app honours.
 - On Android, airplane mode does not cut `adb reverse`, so the runner runs
   `adb root` and, while airplane mode is on, rejects the phone's loopback
   traffic to the local stack (ports 54421 and 8787) with `iptables`. It

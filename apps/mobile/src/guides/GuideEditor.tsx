@@ -22,27 +22,28 @@ import {
 import { Bold, List, TextQuote, type LucideIcon } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Pressable, StyleSheet, TextInput, View, type NativeSyntheticEvent, type TextInputSelectionChangeEventData } from 'react-native';
-import { Text } from '../text';
-import { licenseText } from '../coreText';
-import type { Ctx } from '../ctx';
+import { Text } from '../ui/text';
+import { licenseText } from '../i18n/coreText';
+import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatNumber, formatTime } from '../i18n/format';
-import { useHelpSpot } from '../helpContext';
-import { HelpBadge } from '../helpBadge';
-import {
-  Badge, Banner, Card, Chip, ChipRow, EmptyState, Field, Group, Header, HelpInfo, Ico, IconBtn, LinkBtn, PrimaryBtn, Row, Screen, SearchField,
-  SectionLabel, Sheet, SmallBtn, txt, useLayout
-} from '../kit';
+import { useHelpSpot } from '../helpMode/useHelpMode';
+import { HelpBadge } from '../helpMode/helpBadge';
+import { Badge, Banner, Card, Chip, ChipRow, EmptyState, Field, Group, Header, HelpInfo, Ico, IconBtn, LinkBtn, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, SmallBtn } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { useLayout } from '../ui/useLayout';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
 import { LanguageField } from '../reference/LanguageField';
 import { readerLanguage } from '../reference/languages';
-import { failureMessage } from '../report';
+import { failureMessage } from '../diagnostics/report';
 import type { StudyGuide, StudyResource } from '../study/guides';
 import { guideFromDoc, glossaryEntryOf } from '../study/guideMatch';
-import { useStudyFileUri } from '../study/media';
-import { AudioBar, CALLOUT_LOOK, calloutLabel, GlossarySheet, mediaKindLabel, MediaSheet, shownClock, StepPreview, useStudyAudio } from '../study/ui';
-import { C, measure, radius, space, target, TINT, type as T } from '../theme';
-import { VoiceNote } from '../voiceNote';
+import { useStudyFileUri } from '../study/useStudyFileUri';
+import { AudioBar, GlossarySheet, MediaSheet, StepPreview } from '../study/ui';
+import { CALLOUT_LOOK, calloutLabel, mediaKindLabel, shownClock } from '../study/studyText';
+import { useStudyAudio } from '../study/useStudyAudio';
+import { C, measure, radius, space, target, TINT, type as T } from '../ui/theme';
+import { VoiceNote } from '../audio/voiceNote';
 import {
   boldText, buildDoc, calloutText, draftFromDoc, draftProblems, draftReducer, linkText, listText, newDraft, nextId, untitledResource,
   type DraftAction, type DraftMedia, type DraftPanel, type DraftProblem, type DraftResource, type DraftStep, type DraftTerm, type GuideDraft, type Selection
@@ -293,7 +294,7 @@ function DetailsPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; 
   const methods = [FIA_METHOD, BLANK_METHOD, ...props.own];
   const written = draft.steps.some((st) => st.text.trim() || st.audio);
   const shareAlike = draft.basis?.shareAlike;
-  const useMethod = (m: Method) => {
+  const pickMethod = (m: Method) => {
     const before = draft;
     dispatch({ type: 'useMethod', method: m });
     if (written) ctx.toast(replacedWith(m), () => props.setDraft(before));
@@ -318,7 +319,7 @@ function DetailsPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; 
         <>
           <Text style={txt.xsStrong}>{t('guides.details.startWith')}</Text>
           <ChipRow>
-            {methods.map((m) => <Chip key={m.id} label={m.label} on={false} help={t('guides.details.startWithHelp')} onPress={() => useMethod(m)} />)}
+            {methods.map((m) => <Chip key={m.id} label={m.label} on={false} help={t('guides.details.startWithHelp')} onPress={() => pickMethod(m)} />)}
           </ChipRow>
           <Text style={txt.xs}>{written ? t('guides.details.choosingReplaces') : t('guides.details.nowSteps', { count: draft.steps.length })}</Text>
         </>

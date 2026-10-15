@@ -8,8 +8,8 @@ import {
   oldStepSummary, pathState, sendTargetLabel, stepSheetSub, stepSummary, versionCaption
 } from '../src/passage/record';
 import { requestIsMine, sendToInput, usualTargetFor } from '../src/passage/sendTarget';
-import { hiddenText } from '../src/moderation';
-import { feedbackSource } from '../src/passageView';
+import { hiddenText } from '../src/moderation/model';
+import { feedbackSource } from '../src/passage/passageView';
 
 /**
  * The passage record's words and button rules (demo screens/passage.tsx),

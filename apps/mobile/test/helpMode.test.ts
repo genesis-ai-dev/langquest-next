@@ -3,7 +3,7 @@
 // lit places and the tooltip go.
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { clipRect, helpLine, litShape, markAt, numberParts, tooltipPlace, type FirstSeen, type HelpRect } from '../src/helpContext';
+import { clipRect, helpLine, litShape, markAt, numberParts, tooltipPlace, type FirstSeen, type HelpRect } from '../src/helpMode/helpContext';
 import { findUnexplained, scanHelp } from './helpParts';
 
 const box = (x: number, y: number, width = 100, height = 48): HelpRect => ({ x, y, width, height });

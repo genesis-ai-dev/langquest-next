@@ -3,12 +3,14 @@
 // one tap each, and any other language from the language list (online).
 import { useState } from 'react';
 import { View } from 'react-native';
-import { Text } from '../text';
+import { Text } from '../ui/text';
 import { t } from '../i18n';
-import { Chip, ChipRow, SearchField, txt } from '../kit';
-import { LanguoidPicker, useLanguoidSearch } from '../languoidPicker';
-import { languageLabel } from '../simple/adminModel';
-import { space } from '../theme';
+import { Chip, ChipRow, SearchField } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { LanguoidPicker } from '../org/languoidPicker';
+import { useLanguoidSearch } from '../org/useLanguoids';
+import { languageLabel } from '../admin/adminModel';
+import { space } from '../ui/theme';
 import { readerLanguage, sameLanguage } from './languages';
 
 export function LanguageField(props: { label: string; value: string | null; onChange: (code: string) => void; suggestions?: readonly string[]; disabled?: boolean }) {

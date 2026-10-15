@@ -1,10 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useCallback, useEffect, useState } from 'react';
-import { pendingRequests, type PendingRequest } from '../invites';
-import { groupReports, type ReportGroup } from '../moderation';
-import { openReports } from '../moderationData';
-import { cachedInbox, refreshInbox, type RemoteNotification } from '../notifications';
-import { noteExpected, reportError } from '../report';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { pendingRequests, type PendingRequest } from '../invites/invites';
+import { groupReports, type ReportGroup } from '../moderation/model';
+import { openReports } from '../moderation/moderationData';
+import { cachedInbox, refreshInbox, type RemoteNotification } from '../notifications/notifications';
+import { noteExpected, reportError } from '../diagnostics/report';
 
 /** Join requests for this organization, for those who may admit people; null offline (the server's notifications stand in). */
 export function useJoinRequests(orgId: string, enabled: boolean): { requests: PendingRequest[] | null; reload: () => void } {
@@ -46,9 +46,10 @@ export function useOpenReports(orgId: string, enabled: boolean): { reports: Repo
 /**
  * The server's notifications for this person (other organizations, and
  * join requests when the list is unavailable): the saved ones at once, then
- * the server's, with which of them this phone has opened.
+ * the server's, with which of them this phone has opened. A change to
+ * `readAgain` reads them again.
  */
-export function useServerInbox(actorId: string): { remote: RemoteNotification[]; seen: ReadonlySet<string>; markSeen: (id: string) => Promise<void> } {
+export function useServerInbox(actorId: string, readAgain: unknown = 0): { remote: RemoteNotification[]; seen: ReadonlySet<string>; markSeen: (id: string) => Promise<void> } {
   const [remote, setRemote] = useState<RemoteNotification[]>([]);
   const [read, setRead] = useState<string[]>([]);
   useEffect(() => {
@@ -63,12 +64,13 @@ export function useServerInbox(actorId: string): { remote: RemoteNotification[];
       noteExpected('inbox refresh', e);
     });
     return () => { active = false; };
-  }, [actorId]);
+  }, [actorId, readAgain]);
   const markSeen = useCallback(async (id: string) => {
     const next = [...new Set([...read, id])];
     setRead(next);
     // Losing the read mark costs only a dot shown again: report it, carry on.
     await AsyncStorage.setItem(`inbox-read:${actorId}`, JSON.stringify(next)).catch((e: unknown) => { reportError('inbox mark read', e); });
   }, [read, actorId]);
-  return { remote, seen: new Set(read), markSeen };
+  const seen = useMemo(() => new Set(read), [read]);
+  return { remote, seen, markSeen };
 }

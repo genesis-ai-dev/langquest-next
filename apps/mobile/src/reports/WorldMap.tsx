@@ -2,16 +2,16 @@ import { geoEqualEarth, geoPath } from 'd3-geo';
 import type { FeatureCollection, Geometry } from 'geojson';
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
-import { Text } from '../text';
+import { Text } from '../ui/text';
 import Svg, { Path } from 'react-native-svg';
 import { feature } from 'topojson-client';
 import type { GeometryCollection, Topology } from 'topojson-specification';
 import world from 'world-atlas/countries-110m.json';
 import { t } from '../i18n';
-import { txt } from '../kit';
-import { C, space } from '../theme';
+import { txt } from '../ui/textStyles';
+import { C, space } from '../ui/theme';
 import { countryName, numericOf } from './countries';
-import { num } from './ui';
+import { num } from './format';
 
 let shapesCache: FeatureCollection<Geometry, { name: string }> | null = null;
 function shapes() {

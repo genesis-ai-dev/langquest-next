@@ -4,16 +4,17 @@
 import { CommandError } from '@langquest-next/core';
 import { useEffect } from 'react';
 import { AccessibilityInfo, Pressable, StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import { AudioClip } from '../audioClip';
-import type { Ctx } from '../ctx';
-import { HelpBadge } from '../helpBadge';
-import { useHelpSpot } from '../helpContext';
+import { Text } from '../ui/text';
+import { AudioClip } from '../audio/audioClip';
+import type { Ctx } from '../shell/ctx';
+import { HelpBadge } from '../helpMode/helpBadge';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
-import { GhostBtn, Ico, IconBtn, txt } from '../kit';
-import { reportError } from '../report';
-import { lift } from '../shadow';
-import { C, radius, space, target, TINT, withAlpha } from '../theme';
+import { GhostBtn, Ico, IconBtn } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { reportError } from '../diagnostics/report';
+import { lift } from '../ui/shadow';
+import { C, radius, space, target, TINT, withAlpha } from '../ui/theme';
 import { mmss } from './workspaceModel';
 
 /**
@@ -22,7 +23,6 @@ import { mmss } from './workspaceModel';
  * someone can read to support. Never the raw message, which can carry
  * content.
  */
-export { failureMessage as problemText } from '../report';
 
 /** 80pt, always red whatever the theme, a stop square while recording (ADR-028). */
 export function RecordButton(props: { recording: boolean; disabled?: boolean; onPress: () => void }) {

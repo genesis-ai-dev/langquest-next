@@ -13,7 +13,7 @@ content or identity.
 
 There is no third-party tracker. Faults and field behaviour are recorded as
 content-free diagnostics in our own database (`docs/diagnostics.md`,
-decisions.md 39; `reportError` in `apps/mobile/src/report.ts` feeds it), and
+decisions.md 39; `reportError` in `apps/mobile/src/diagnostics/report.ts` feeds it), and
 the `field-diagnosis` skill reads them. Adding a tracker, for native crashes
 for example, is a new `docs/decisions.md` entry (see "Adopting a tracker"
 below). Everything else in this skill applies now.

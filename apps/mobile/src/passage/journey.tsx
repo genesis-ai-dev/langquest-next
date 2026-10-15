@@ -7,20 +7,21 @@
 // shows inside the step that gave it. The recording flips between versions
 // (‹ ›, the dots, or a swipe), and every step then shows what that version
 // heard, read only.
-import { type FlowStepStatus, type KindStatus, type ReviewView, type Version } from '@langquest-next/core';
+import type { FlowStepStatus, KindStatus, ReviewView, Version } from '@langquest-next/core';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { PanResponder, Pressable, StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import { AudioClip } from '../audioClip';
-import { stepName } from '../coreText';
-import type { Ctx } from '../ctx';
-import { useHelpSpot } from '../helpContext';
-import { HelpBadge } from '../helpBadge';
+import { Text } from '../ui/text';
+import { AudioClip } from '../audio/audioClip';
+import { stepName } from '../i18n/coreText';
+import type { Ctx } from '../shell/ctx';
+import { useHelpSpot } from '../helpMode/useHelpMode';
+import { HelpBadge } from '../helpMode/helpBadge';
 import { t, Trans } from '../i18n';
-import { Ico, StateMark, txt, type IconName } from '../kit';
-import { commaList, versionTitle, when, type PassageView } from '../passageView';
-import { shadow } from '../shadow';
-import { C, radius, space, target, TINT, withAlpha } from '../theme';
+import { Ico, StateMark, type IconName } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { commaList, versionTitle, when, type PassageView } from './passageView';
+import { shadow } from '../ui/shadow';
+import { C, radius, space, target, TINT, withAlpha } from '../ui/theme';
 import {
   currentStepId, kindLineText, lastReviewOn, ledTo, madeAfter, oldKindLineText, oldStepState, oldStepSummary, pathState, reviewMark,
   stepSummary, versionCaption, type NameFn, type PathState

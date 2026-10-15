@@ -1,4 +1,4 @@
-import { profileNameToSave } from '../src/accounts';
+import { profileNameToSave } from '../src/auth/accounts';
 
 describe('a profile name for an account that has none', () => {
   it('takes the email local part when the profile has no name', () => {

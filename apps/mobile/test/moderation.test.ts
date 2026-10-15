@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import type { AccountAction } from '@langquest-next/sync';
 import {
   blockedIds, groupReports, personTarget, reportedMessage, reportPayload, reportSummary, reportTitle, type OpenReport, type ReportTarget
-} from '../src/moderation';
+} from '../src/moderation/model';
 
 const block = (id: string, profileId: string, blocked: boolean, status: AccountAction['status'] = 'queued'): AccountAction =>
   ({ id, kind: 'block', status, payload: { profileId, blocked } });

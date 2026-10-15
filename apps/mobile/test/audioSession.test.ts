@@ -4,7 +4,7 @@ const setMode = vi.hoisted(() => vi.fn());
 vi.mock('expo-audio', () => ({ setAudioModeAsync: setMode }));
 import {
   holdMicrophone, registerPlayback, setSessionAudioMode, stopAudioPlayback
-} from '../src/audioSession';
+} from '../src/audio/audioSession';
 
 describe('source playback and microphone coordination', () => {
   beforeEach(() => setMode.mockReset());

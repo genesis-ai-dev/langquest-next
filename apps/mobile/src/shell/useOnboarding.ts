@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
-import { recordUserEvent } from '../accountData';
+import { recordUserEvent } from '../account/accountData';
 import { userState } from '../server/account';
 
 /**

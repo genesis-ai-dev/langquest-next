@@ -3845,6 +3845,61 @@ client per area with errors mapped once; or feature folders start
 importing each other in a cycle, which would mean a shared layer belongs
 below them.
 
+Amended (2026-10-15, Carl Sauder): ESLint holds what may import what
+(`eslint.config.mjs`, `npm run lint`, in CI's `checks` job and the
+pre-push hook). Core imports nothing; sync only core and supabase-js (its
+`src/testing`, Node built-ins too); nothing outside `src/server` imports
+the Supabase client or supabase-js (types aside); nothing but `App.tsx`
+and other screens imports a screen file; screens import no AsyncStorage,
+SQLite, file system or event store; `model.ts` and `*Model.ts` import no
+React, React Native, Expo, storage, `server/`, hooks or UI (types aside);
+`src/server` imports no React, screens or shell; packages are imported by
+their entry. Carl asked for it as strict as is reasonable: an audit after
+the restructure found three feature models importing
+`screens/configModel.ts` (now `src/config/model.ts`) and three screens
+reaching storage themselves, which tests had not caught. React's
+rules-of-hooks is on too; exhaustive-deps is not yet, since turning it on
+means reviewing 55 effects whose re-runs would change.
+
+Amended (2026-10-15, Carl Sauder): part two is done, earlier than planned.
+Carl chose to make the moves while six pull requests were open rather than
+wait for the three that overlap (96, 120, 126), so the moves are a codemod:
+`scripts/restructure/moves.json` says where each file went and
+`node scripts/restructure.mjs` makes the moves and rewrites everything
+that names them, and can be run again. A branch made before the moves runs
+it, commits, then merges `main`, so the moves meet themselves and only its
+own edits are left to merge (`docs/merging-onto-the-restructure.md`). The
+src root's files and `simple/` went to `shell`, `ui`, `sync`, `web`,
+`audio`, `recording`, `helps`, `helpMode`, `mic`, `admin`, `invites`,
+`work`, `map`, `account`, `auth`, `moderation`, `notifications`,
+`diagnostics` and the existing feature folders; `recordingJournalCore.ts`
+is `recordingJournalModel.ts`; `dev.ts` went to `auth/`, since `src/server`
+may not import the shell. The passage record, the Map and reference
+material had their rules moved out of their screens as config and content
+had. ESLint now also holds `src/ui` as the design system, importing only
+itself, `i18n`, `helpMode` and `shell/flow`, and keeps `src/server` from
+the UI; `apps/mobile/test/folders.test.ts` keeps code out of the src root
+and `simple/` gone.
+
+Amended (2026-10-15, Carl Sauder): each file has one role, and its name
+says which. Carl found the roles too loose once code was by feature: a
+folder no longer said whether a file held components, hooks or helpers,
+and about sixty files mixed them. Rather than go back to folders by kind,
+the name carries the role: `screens/*.tsx` are screens; any other `.tsx`
+exports components only (`eslint-plugin-react-refresh`); a `use<Thing>.ts`
+file exports hooks only, with the contexts they read; `model.ts` and
+`<thing>Model.ts` are pure, and never `.tsx`; `src/server/` holds the
+server calls; every other `.ts` is a module, which exports no hooks.
+`eslint-plugin-boundaries` holds which role may import which, for values
+(types may come from anywhere): a component reaches the server through a
+hook or module, a hook returns data rather than importing components, a
+model or module imports neither components nor hooks, and a screen imports
+no other screen, so the checks list the flow editor shows is
+`checks/LanguageChecks.tsx`, no longer part of the checks screen. The split is a second codemod
+round: the moved hooks and helpers are a hand commit that leaves
+re-exports, and `movedExports` in `scripts/restructure/moves.json` repoints
+every import of a moved name, on this branch and on any made before it.
+
 ## 106. A phone records every take with the microphone module, keeps a part going down to half the cutoff, and keeps AAC
 
 Date: 2026-10-14 · By: Caleb Koster · Status: accepted

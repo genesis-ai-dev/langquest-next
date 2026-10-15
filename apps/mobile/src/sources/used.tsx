@@ -4,36 +4,17 @@
 // version or review it describes. The passage record shows it again under
 // each version and each review.
 import { usedOn, type LanguageState, type UsedReference } from '@langquest-next/core';
-import { useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import type { Ctx } from '../ctx';
-import { HelpBadge } from '../helpBadge';
-import { useHelpSpot } from '../helpContext';
+import { Text } from '../ui/text';
+import type { Ctx } from '../shell/ctx';
+import { HelpBadge } from '../helpMode/helpBadge';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
-import { Ico, txt } from '../kit';
-import { C, radius, space } from '../theme';
-import { madeWithLine, usedItems } from './model';
-
-export interface Usage {
-  /** Offered on this screen: kept once, updated as documents arrive. */
-  offer: (items: UsedReference[]) => void;
-  /** Played, chosen or opened. */
-  open: (itemId: string) => void;
-  /** What to record now. */
-  items: () => UsedReference[];
-}
-
-/** One screen's record of what it offered and what was used, for the length of the visit. */
-export function useUsage(): Usage {
-  const offered = useRef(new Map<string, UsedReference>());
-  const opened = useRef(new Set<string>());
-  return useMemo<Usage>(() => ({
-    offer: (items) => { for (const i of items) offered.current.set(i.itemId, { ...i, opened: offered.current.get(i.itemId)?.opened ?? i.opened }); },
-    open: (itemId) => { opened.current.add(itemId); },
-    items: () => usedItems(offered.current, opened.current)
-  }), []);
-}
+import { Ico } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { C, radius, space } from '../ui/theme';
+import { madeWithLine } from './model';
 
 function kindName(kind: UsedReference['kind']): string {
   switch (kind) {

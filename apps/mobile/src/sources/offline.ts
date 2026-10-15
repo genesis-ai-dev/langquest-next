@@ -19,15 +19,14 @@ import { defaultOfflineScope, isHash, recommendedFor, libraryItemView, type Lang
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import { File, Paths } from 'expo-file-system';
-import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
-import { BlobStore, getBlobStore, type BlobFile } from '../blobs';
+import { BlobStore, getBlobStore, type BlobFile } from '../sync/blobs';
 import { loadDocs } from '../library/docStore';
-import { noteExpected } from '../report';
-import type { Session } from '../session';
-import type { OrgHandle } from '../useOrg';
-import type { LanguageHandle } from '../useLanguage';
-import { isRecording } from '../useRecorder';
+import { noteExpected } from '../diagnostics/report';
+import type { Session } from '../shell/session';
+import type { OrgHandle } from '../sync/useOrg';
+import type { LanguageHandle } from '../sync/useLanguage';
+import { isRecording } from '../recording/recorderState';
 import { BibleError } from './bibleBrain';
 import { chaptersOf, filesetsFor, offlineAllowed, sourceEvictions, unitCoordinates, type SourceOption } from './model';
 import { bibleBrain, type MyBible } from './store';
@@ -180,42 +179,11 @@ function offlineOptions(org: OrgHandle, state: LanguageState, mine: MyBible[], g
   return out.filter((o) => o.doc?.offline === 'allowed');
 }
 
-/**
- * Keep the offline scope's chapters of downloadable sources on the phone.
- * Mounted once beside the library follower (App.tsx). Runs a pass after
- * the record or the library changes, a few seconds later, one file at a
- * time.
- */
-export function useSourceOffline(language: LanguageHandle, org: OrgHandle, session: Session): void {
-  const running = useRef(false);
-  const again = useRef(false);
-  const latest = useRef({ language, org, session });
-  latest.current = { language, org, session };
-  const revision = language.revision;
-  const libraryKey = org.state ? Object.keys(org.state.recommendations ?? {}).length + ':' + Object.keys(org.state.library ?? {}).length : '';
-  const kept = [...language.blobs.keptUnits].sort().join(',');
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (running.current) { again.current = true; return; }
-      running.current = true;
-      void (async () => {
-        do {
-          again.current = false;
-          await pass(latest.current.language, latest.current.org, latest.current.session).catch((e: unknown) => noteExpected('sources offline', e));
-        } while (again.current);
-      })().finally(() => { running.current = false; });
-    }, 4000);
-    return () => clearTimeout(timer);
-    // Revision covers the record; the key covers recommendations and items.
-  }, [revision, libraryKey, kept, language.online]);
-}
-
 const checkedFilesets = new Set<string>();
 /** Links that failed this session (on the web, a host that does not allow cross-origin reads); not tried again until the app restarts. */
 const failedLinks = new Set<string>();
 
-async function pass(language: LanguageHandle, org: OrgHandle, session: Session): Promise<void> {
+export async function pass(language: LanguageHandle, org: OrgHandle, session: Session): Promise<void> {
   const state = language.state;
   if (!state || !language.languageId || language.online === false || isRecording()) return;
   const store = language.blobs.store ?? (await getBlobStore());

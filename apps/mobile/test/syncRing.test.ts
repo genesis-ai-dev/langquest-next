@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CAP, IDLE, MAX_LAP, ringOpacity, stepRing, type RingInput, type RingState } from '../src/syncRing';
+import { CAP, IDLE, MAX_LAP, ringOpacity, stepRing, type RingInput, type RingState } from '../src/sync/syncRing';
 
 function run(s: RingState, seconds: number, input: RingInput, trace?: RingState[]): RingState {
   for (let t = 0; t < seconds; t += 1 / 60) { s = stepRing(s, 1 / 60, input); trace?.push(s); }

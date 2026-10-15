@@ -1,11 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useRef, useState } from 'react';
 import { Dimensions } from 'react-native';
-import type { ScreenId } from '../flow';
-import { layoutKind } from '../layout';
-import { navRef, type Nav } from '../nav';
-import { AUTH_SCREENS, GUEST_SCREENS, homeScreenFor, postSignInScreen, type Session } from '../session';
-import { sectionAtLoad, useWebHistory } from '../webHistory';
+import type { ScreenId } from './flow';
+import { layoutKind } from '../ui/layout';
+import { navRef, type Nav } from './nav';
+import { AUTH_SCREENS, GUEST_SCREENS, homeScreenFor, postSignInScreen, type Session } from './session';
+import { sectionAtLoad } from '../web/webHistory';
+import { useWebHistory } from '../web/useWebHistory';
 import { addressSection } from './routingModel';
 import type { Arrival } from './useOpenOrganization';
 

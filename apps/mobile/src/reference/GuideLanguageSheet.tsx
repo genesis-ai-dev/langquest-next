@@ -3,12 +3,13 @@
 // own language picked when the set has it, else English. Each language says
 // how many passages it covers, so the gaps show before anyone chooses.
 import { useState } from 'react';
-import { Text } from '../text';
+import { Text } from '../ui/text';
 import { t } from '../i18n';
-import { GhostBtn, PrimaryBtn, Sheet, txt } from '../kit';
-import { RadioRow } from '../simple/admin';
-import { guideShortName, languageLabel } from '../simple/adminModel';
-import { space } from '../theme';
+import { GhostBtn, PrimaryBtn, Sheet } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { RadioRow } from '../admin/admin';
+import { guideShortName, languageLabel } from '../admin/adminModel';
+import { space } from '../ui/theme';
 import { suggestedMember, type GuideSet, type SetMember } from './guideSets';
 import { readerLanguage, sameLanguage } from './languages';
 

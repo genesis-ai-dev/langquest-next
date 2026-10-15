@@ -5,15 +5,15 @@
 import {
   commands, type EventSpec, type FlowDoc, type KindDef, type LanguageState, type LibraryDoc, type LibraryItemView
 } from '@langquest-next/core';
-import { localKind } from '../coreText';
+import { localKind } from '../i18n/coreText';
 import { t } from '../i18n';
-import { indexesFor } from '../indexes';
+import { indexesFor } from '../sync/indexes';
 import { sourceLine } from '../library/model';
-import { teamMembers } from '../orgAdmin';
-import { stepWho } from '../simple/adminModel';
+import { teamMembers } from '../org/orgAdmin';
+import { stepWho } from '../admin/adminModel';
 import {
   draftChanged, draftFromDoc, draftFromLanguage, flowName, newKindId, type DraftStep
-} from '../screens/configModel';
+} from '../config/model';
 
 /** What the editor starts from, before anything is changed. */
 export interface FlowBase { name: string; description: string; steps: DraftStep[] }

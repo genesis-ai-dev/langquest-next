@@ -32,19 +32,19 @@ import {
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import type { Ctx } from '../ctx';
-import { screenTitle } from '../flow';
-import { HelpBadge, HelpClip } from '../helpBadge';
-import { useHelpSpot } from '../helpContext';
+import { Text } from '../ui/text';
+import type { Ctx } from '../shell/ctx';
+import { screenTitle } from '../shell/flow';
+import { HelpBadge, HelpClip } from '../helpMode/helpBadge';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
-import { indexesFor } from '../indexes';
-import {
-  Banner, Card, Chip, ChipRow, EmptyState, Field, Header, Ico, LinkBtn, PrimaryBtn, Screen, SectionLabel, Sheet, SmallBtn, txt
-} from '../kit';
-import { ReferenceRecordings, SourcePlayer } from '../passageSourceAudio';
-import { feedbackSource, passageCrumbs, usePassage, versionTitle, type PassageView } from '../passageView';
-import { useBackTranslationDraft } from '../recording/backTranslationDraft';
+import { indexesFor } from '../sync/indexes';
+import { Banner, Card, Chip, ChipRow, EmptyState, Field, Header, Ico, LinkBtn, PrimaryBtn, Screen, SectionLabel, Sheet, SmallBtn } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { ReferenceRecordings, SourcePlayer } from '../passage/passageSourceAudio';
+import { feedbackSource, passageCrumbs, versionTitle, type PassageView } from '../passage/passageView';
+import { usePassage } from '../passage/usePassage';
+import { useBackTranslationDraft } from '../recording/useBackTranslationDraft';
 import { CardList, RecordButton, SaveProblem, type ListedCard } from '../recording/parts';
 import { SplitPane } from '../recording/SplitPane';
 import { MIN_BOTTOM, MIN_BOTTOM_RECORDING, rememberedSplit } from '../recording/splitModel';
@@ -54,28 +54,29 @@ import {
   backTranslationDraftKey, canPublish, cardDurations, draftToOpen, removeCardSpecs, sameCards,
   termsInText, tiedTermIds, tieTermsSpecs, unsavedParts, workingCards
 } from '../recording/workspaceModel';
-import { getReferenceSlides } from '../passageResources';
-import { pendingPassageCards } from '../recordingFlow';
-import { failureMessage } from '../report';
+import { getReferenceSlides } from '../passage/passageResources';
+import { pendingPassageCards } from '../recording/recordingFlow';
+import { failureMessage } from '../diagnostics/report';
 import { RequestBanner } from '../reviewing/parts';
-import { contractsFor } from '../screenContracts';
-import { BackTranslationBody } from '../simple/btWorkspace';
+import { contractsFor } from '../shell/screenContracts';
+import { BackTranslationBody } from '../recording/btWorkspace';
 import { SourceReader } from '../sources/SourceReader';
-import { GuideNav, GuideStep } from '../simple/guide';
-import { partLabel, partsLookClipped, refChips, totalMs, type RefChip } from '../simple/model';
-import { passageVerseKeys } from '../simple/verseModel';
+import { GuideNav, GuideStep } from '../study/guide';
+import { partLabel, partsLookClipped, refChips, totalMs, type RefChip } from '../recording/model';
+import { passageVerseKeys } from '../recording/verseModel';
 import { draftName, draftOf, startedFrom } from '../passage/versionsModel';
 import { catalogVerses } from '../sources/model';
-import { QuietLink, RefChips, type ChipItem } from '../simple/parts';
-import { checkName } from '../simple/adminModel';
-import { PublishScreen } from '../simple/publish';
-import { RecorderBar, RecorderFooter, RecorderPane, type Part } from '../simple/recorder';
-import { BibleBar, BiblePane, EarlierPane, KeyWordsPane, NotesPane, RequestNote, useBible } from '../simple/reference';
-import { useUsage } from '../sources/used';
-import { useStudyGuide } from '../study/libraryGuides';
+import { QuietLink, RefChips, type ChipItem } from '../recording/blocks';
+import { checkName } from '../admin/adminModel';
+import { PublishScreen } from '../recording/publish';
+import { RecorderBar, RecorderFooter, RecorderPane, type Part } from '../recording/recorder';
+import { BibleBar, BiblePane, EarlierPane, KeyWordsPane, NotesPane, RequestNote } from '../helps/reference';
+import { useBible } from '../helps/useBible';
+import { useUsage } from '../sources/useUsage';
+import { useStudyGuide } from '../study/useStudyGuides';
 import { studyProgress } from '../study/progress';
-import { C, radius, space, TINT, withAlpha } from '../theme';
-import { useOnTooShort, useRecorder, type RecordedCard } from '../useRecorder';
+import { C, radius, space, TINT, withAlpha } from '../ui/theme';
+import { useOnTooShort, useRecorder, type RecordedCard } from '../recording/useRecorder';
 
 // ---- Workspace ---------------------------------------------------------------------
 

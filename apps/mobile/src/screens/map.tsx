@@ -11,142 +11,42 @@
 // list: the map is books (grouped, with progress), then a chapter grid per
 // book, plus search and filters that narrow to counts first (ADR-009).
 // Progress is several counts, never one number (ADR-004).
-import {
-  deriveFlow, libraryItemView, derivePassage, highlightsFor, languageInfo, languageName, languageProgress, orgClusters,
-  percent, unitPlace, unitTitle, upNext,
-  type KindDef, type LanguageProgress, type OrgState, type PassageState, type LanguageState, type UnitPlace
-} from '@langquest-next/core';
+import { languageName, languageProgress, libraryItemView, percent, unitTitle, type KindDef, type LanguageProgress, type PassageState, type LanguageState } from '@langquest-next/core';
 import { useMemo, useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import {
-  bookMatches, canonBook, canonBooks, chapterStage, chapterTone, countFilters, isMapFilter, MAP_FILTERS, matchesFilter, parseQuery,
-  placeMatches, type CanonBook, type ChapterTone, type MapFilter, type Testament
-} from '../canon';
-import { deriveKinds, passageSummary, stepName } from '../coreText';
-import type { Ctx } from '../ctx';
-import { edgeFor, type ScreenId } from '../flow';
+import { Text } from '../ui/text';
+import { canonBook, chapterStage, countFilters, isMapFilter, MAP_FILTERS, type MapFilter, type Testament } from '../reference/canon';
+import { deriveKinds, passageSummary } from '../i18n/coreText';
+import type { Ctx } from '../shell/ctx';
+import { edgeFor, type ScreenId } from '../shell/flow';
 import { t } from '../i18n';
 import { formatNumber, formatPercent } from '../i18n/format';
-import { indexesFor } from '../indexes';
-import { keptOfflineMap, OfflineMark, offlineWords, type KeptOffline } from '../offline';
-import { languageFigures, oldestAsOf } from '../orgFigures';
-import { useOrgSummary } from '../useOrgSummary';
-import {
-  Card, Chip, ChipRow, EmptyState, Group, Header, HelpInfo, Ico, IconBtn, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore,
-  StepMarks, txt, useLayout, useOpenDetail, type IconName
-} from '../kit';
+import { OfflineMark } from '../sync/offline';
+import { keptOfflineMap, offlineWords, type KeptOffline } from '../sync/offlineText';
+import { indexesFor } from '../sync/indexes';
+import { useOrgSummary } from '../reports/useOrgSummary';
+import { Card, Chip, ChipRow, EmptyState, Group, Header, HelpInfo, Ico, IconBtn, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, StepMarks } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { useLayout, useOpenDetail } from '../ui/useLayout';
 import { mayWriteLibrary } from '../library/model';
-import { workIcon } from '../simple/homeModel';
-import { needsConnection, openableLanguages as openableIn } from '../simple/mapModel';
+import { agoWords, bookEntries, bookRowWords, chapterRows, chapterTiles, clauses, clusterView, filterEntries, filterLabel, flowLabel, funnelLayers, funnelRows, isOutline, languageEntries, mapSearch, mapShelf, needsConnection, openableLanguages as openableIn, openState, OTHER, outlineSections, PAGE, searchLanguages, sentences, statusLanguages, statusTotals, summarizeBooks, tileLabel, tileHelp, waitingBooks, type BookSummary, type ChapterTile, type Entry } from '../map/mapModel';
+import { useForYou, useNextPassage } from '../map/useMapLanguage';
 import { NumberingNote } from '../breakup/parts';
 import { useVerseNumbering } from '../breakup/useBreakup';
-import { ChangedMark, useEarlierSections } from '../breakup/earlier';
-import { BookBar, ChapterTileView, FullKey, NextLink, Pills, QuietIconLink, ShortKey } from '../simple/mapParts';
-import { chapterColumns } from '../layout';
-import { filterByCluster, type ClusterFilter } from '../clusters/model';
-import { contractsFor } from '../screenContracts';
-import { edgeAllowed, mapScreenFor } from '../session';
-import { C, onColor, radius, space, TINT, type as T } from '../theme';
-
-const PAGE = 25;
-const OTHER = 'other';
+import { ChangedMark } from '../breakup/earlier';
+import { useEarlierSections } from '../breakup/useEarlierSections';
+import { BookBar, ChapterTileView, FullKey, NextLink, Pills, QuietIconLink, ShortKey } from '../map/mapParts';
+import { chapterColumns } from '../ui/layout';
+import type { ClusterFilter } from '../clusters/model';
+import { contractsFor } from '../shell/screenContracts';
+import { edgeAllowed, mapScreenFor } from '../shell/session';
+import { C, onColor, radius, space, TINT, type as T } from '../ui/theme';
 
 const fmt = (n: number) => formatNumber(n);
-
-/** Sentences of a spoken label, one after another: "Luke. 3 of 9 recorded". */
-const sentences = (parts: string[]) => parts.reduce((first, next) => t('map.joinSentences', { first, next }));
-/** Clauses of a spoken label, one after another: "Chapter 3: Done, 2 parts". */
-const clauses = (parts: string[]) => parts.reduce((first, next) => t('map.joinClauses', { first, next }));
-
-/** How long ago the server's figures are from, as people say it: "5 minutes ago". */
-function agoWords(iso: string): string {
-  const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000));
-  if (s < 60) return t('map.ago.justNow');
-  if (s < 3600) return t('map.ago.minutes', { count: Math.floor(s / 60) });
-  if (s < 86_400) return t('map.ago.hours', { count: Math.floor(s / 3600) });
-  return t('map.ago.days', { count: Math.floor(s / 86_400) });
-}
-
-/** A filter's name, as its chip says it. */
-function filterLabel(f: MapFilter): string {
-  switch (f) {
-    case 'all': return t('map.filters.all');
-    case 'feedback': return t('map.filters.feedback');
-    case 'waiting': return t('map.filters.waiting');
-    case 'review': return t('map.filters.review');
-    case 'done': return t('map.filters.done');
-    case 'todo': return t('map.filters.todo');
-  }
-}
-
-/** How many passages match a filter, as a book's spoken label says it: "3 with feedback". */
-function matchingWords(f: MapFilter, count: number): string {
-  switch (f) {
-    case 'all': return t('map.passages', { count });
-    case 'feedback': return t('map.matching.feedback', { count });
-    case 'waiting': return t('map.matching.waiting', { count });
-    case 'review': return t('map.matching.review', { count });
-    case 'done': return t('map.matching.done', { count });
-    case 'todo': return t('map.matching.todo', { count });
-  }
-}
 
 function canGo(ctx: Ctx, from: ScreenId, to: ScreenId): boolean {
   const edge = edgeFor(from, to);
   return !!edge && edgeAllowed(edge, ctx.session);
-}
-
-// ---- one language's passages, read once per revision ---------------------------------
-
-interface Entry {
-  unitId: string;
-  place: UnitPlace;
-  s: PassageState;
-}
-
-const entryCache = new WeakMap<LanguageState, Entry[]>();
-
-/** Every passage the open language works on, with where it sits and where it stands; shared by the map and its books. */
-/** Books of the language waiting to be broken up (decision 74), as the app's book ids ("rut"). */
-function waitingBooks(state: LanguageState): string[] {
-  return indexesFor(state).waiting.map((unitId) => unitPlace(state, unitId).bookId).filter((b): b is string => !!b);
-}
-
-function languageEntries(state: LanguageState): Entry[] {
-  const hit = entryCache.get(state);
-  if (hit) return hit;
-  const idx = indexesFor(state);
-  const out = idx.passages.map((unitId) => ({ unitId, place: unitPlace(state, unitId), s: derivePassage(state, unitId, idx) }));
-  entryCache.set(state, out);
-  return out;
-}
-
-/** Passages with something for this person on My Work: marked on the map, not listed (ADR-017). */
-function useForYou(ctx: Ctx, state: LanguageState | null): Set<string> {
-  const canRecord = ctx.session.can('translate');
-  const canReview = ctx.session.can('review');
-  return useMemo(() => new Set(state
-    ? highlightsFor(state, ctx.session.actorId, { canRecord, canReview }, indexesFor(state)).map((h) => h.unitId)
-    : []), [state, ctx.session.actorId, canRecord, canReview]);
-}
-
-function flowLabel(state: LanguageState): string {
-  const flow = deriveFlow(state);
-  return flow.steps.length ? flow.name : t('map.noFlow');
-}
-
-function languageCode(org: OrgState | null, languageId: string): string {
-  return (languageInfo(org, languageId)?.code || languageId).slice(0, 3).toUpperCase();
-}
-
-/**
- * The open language's state, or null while it is loading or another one is
- * opening: a `languageId` param opens that language's stream, and until it
- * has, the state on hand is the previous language's.
- */
-function openState(ctx: Ctx, languageId: string | null): LanguageState | null {
-  return languageId && languageId === ctx.language.languageId ? ctx.language.state : null;
 }
 
 // ---- small shared pieces ---------------------------------------------------------------
@@ -287,15 +187,6 @@ function ActiveFilter(props: { filter: MapFilter; counts: Record<MapFilter, numb
 
 // ---- progress overview (MAP-8) ------------------------------------------------------------
 
-/** `n` steps of the brand hue, pale to full: later stages read darker (sequential ramp). */
-function stageRamp(n: number): string[] {
-  const from = [0xc2, 0xb2, 0xf3], to = [0x4b, 0x2c, 0x9e];
-  return Array.from({ length: n }, (_, i) => {
-    const t = n === 1 ? 1 : i / (n - 1);
-    return '#' + from.map((a, k) => Math.round(a + (to[k]! - a) * t).toString(16).padStart(2, '0')).join('');
-  });
-}
-
 /**
  * Every stage of the language's flow on one track (MAP-8): each stage's bar
  * starts at zero and they overlap, the longest behind, so a passage further
@@ -305,14 +196,9 @@ function stageRamp(n: number): string[] {
  */
 function FunnelRows(props: { progress: LanguageProgress; stepNames?: string[] }) {
   const p = props.progress;
-  const ramp = stageRamp(1 + p.steps.length);
-  const rows = [
-    { label: t('map.funnel.recorded'), n: p.recorded, color: ramp[0]!, checkpoint: false },
-    ...p.steps.map((st, i) => ({ label: props.stepNames?.[i] ?? st.name, n: st.cleared, color: ramp[i + 1]!, checkpoint: st.checkpoint })),
-    ...(p.steps.length ? [{ label: t('map.funnel.done'), n: p.done, color: C.green, checkpoint: false }] : [])
-  ];
+  const rows = funnelRows(p, props.stepNames, C.green);
   // Longest first, so a shorter bar is never hidden behind a longer one.
-  const layers = rows.map((r, i) => ({ ...r, i })).filter((r) => r.n > 0).sort((a, b) => b.n - a.n || a.i - b.i);
+  const layers = funnelLayers(rows);
   const h = 14;
   return (
     <View style={{ gap: space.sm }}>
@@ -365,42 +251,19 @@ export function StatusHome(ctx: Ctx) {
   // language's scope): opening one they hold nothing in would leave them with
   // no privileges at all, so no tabs and no home (NAV-042).
   const listed = useMemo(() => openableLanguages(ctx), [ctx.languages, ctx.org.state, ctx.session.actorId]);
-  const languages = useMemo(() => {
-    const openId = state ? ctx.language.languageId : null;
-    const ids = listed.map((l) => l.languageId);
-    const local = new Map(state && openId ? [[openId, languageProgress(state, indexesFor(state))]] : []);
-    const figures = languageFigures(ids, local, summary);
-    // The open language's steps named in the language showing (core names them in English).
-    const stepNames = state ? deriveFlow(state).steps.map((st) => stepName(deriveKinds(state), st)) : undefined;
-    return listed.map(({ languageId, name }) => {
-      const here = languageId === openId;
-      const f = figures.get(languageId);
-      return {
-        languageId, here, name, code: languageCode(ctx.org.state, languageId),
-        flow: here ? flowLabel(state!) : '', progress: f?.progress ?? null, asOf: f?.asOf ?? null,
-        stepNames: here ? stepNames : undefined
-      };
-    }).sort((a, b) => a.name.localeCompare(b.name));
-  }, [state, listed, ctx.language.languageId, ctx.org.state, summary]);
+  const languages = useMemo(
+    () => statusLanguages({ listed, state, openId: ctx.language.languageId, org: ctx.org.state, summary }),
+    [state, listed, ctx.language.languageId, ctx.org.state, summary]);
   const orgName = ctx.org.state?.org?.value.name ?? '';
   const header = <Header title={t('map.status.title')} sub={[orgName, t('map.status.allLanguages')].filter(Boolean).join(' · ')} />;
   if (!state) return <Screen header={header}><EmptyState icon="progress" title={t('common.loading')} /></Screen>;
 
   // The clusters among the languages listed here, and the languages the chosen one holds.
-  const listedIds = languages.map((l) => l.languageId);
-  const clusters = orgClusters(ctx.org.state).map((c) => ({ ...c, languageIds: c.languageIds.filter((id) => listedIds.includes(id)) })).filter((c) => c.languageIds.length > 0);
-  const filter = cluster.kind === 'cluster' && !clusters.some((c) => c.clusterId === cluster.clusterId) ? { kind: 'all' as const } : cluster;
-  const kept = new Set(filterByCluster(ctx.org.state, listedIds, filter));
-  const outside = filterByCluster(ctx.org.state, listedIds, { kind: 'none' }).length;
+  const { clusters, filter, kept, outside } = clusterView(ctx.org.state, languages.map((l) => l.languageId), cluster);
   const inView = languages.filter((l) => kept.has(l.languageId));
-  const known = inView.flatMap((l) => (l.progress ? [l.progress] : []));
-  const asOf = oldestAsOf(inView.flatMap((l) => (l.progress ? [{ progress: l.progress, asOf: l.asOf }] : [])));
-  const total = known.reduce((n, p) => n + p.total, 0);
-  const recorded = known.reduce((n, p) => n + p.recorded, 0);
-  const done = known.reduce((n, p) => n + p.done, 0);
-  const waiting = known.reduce((n, p) => n + p.waiting, 0);
+  const { known, asOf, total, recorded, done, waiting } = statusTotals(inView);
   const q = query.trim().toLowerCase();
-  const shown = q ? inView.filter((l) => `${l.name} ${l.code}`.toLowerCase().includes(q)) : inView;
+  const shown = searchLanguages(inView, query);
   // The param opens that language's stream.
   const open = (languageId: string) => ctx.go('map_home', { languageId });
   const isOpen = (languageId: string) => beside?.screen === 'map_home' && beside.params['languageId'] === languageId;
@@ -493,74 +356,23 @@ export function StatusHome(ctx: Ctx) {
 
 // ---- a language's map (MAP-1..4, MAP-6, MAP-7) ------------------------------------------
 
-interface BookSummary {
-  key: string;
-  /** Listed but not broken up yet (decision 74): nothing to record in it until a coordinator breaks it up. */
-  waiting?: boolean;
-  book: CanonBook | null;
-  name: string;
-  group: string;
-  total: number;
-  recorded: number;
-  done: number;
-  feedback: number;
-  matching: number;
-  mine: number;
-}
-
-function summarizeBooks(entries: Entry[], filter: MapFilter, forYou: Set<string>, waiting: string[] = []): BookSummary[] {
-  const by = new Map<string, BookSummary>();
-  for (const id of waiting) {
-    const book = canonBook(id);
-    if (book) by.set(book.id, { key: book.id, waiting: true, book, name: book.name, group: book.group, total: 0, recorded: 0, done: 0, feedback: 0, matching: 0, mine: 0 });
-  }
-  for (const e of entries) {
-    const book = canonBook(e.place.bookId) ?? null;
-    const key = book?.id ?? OTHER;
-    let row = by.get(key);
-    if (!row) {
-      row = { key, book, name: book?.name ?? t('map.other'), group: book?.group ?? t('map.other'), total: 0, recorded: 0, done: 0, feedback: 0, matching: 0, mine: 0 };
-      by.set(key, row);
-    }
-    row.total++;
-    if (e.s.recorded) row.recorded++;
-    if (e.s.done) row.done++;
-    if (e.s.awaitingResponse.length) row.feedback++;
-    if (matchesFilter(e.s, filter)) row.matching++;
-    if (forYou.has(e.unitId)) row.mine++;
-  }
-  return [...canonBooks().flatMap((b) => by.get(b.id) ?? []), ...(by.get(OTHER) ? [by.get(OTHER)!] : [])];
-}
-
 /** One book as the simple Map shows it: name, bar, "25/97"; with a filter set, how many match. */
 function BookRow(props: { b: BookSummary; filter: MapFilter; last: boolean; onPress: () => void }) {
   const { b, filter } = props;
-  const sub = b.waiting ? t('map.waiting') : b.recorded > 0
-    ? b.done ? t('map.book.recordedDone', { recorded: fmt(b.recorded), total: fmt(b.total), done: fmt(b.done) }) : t('map.book.recorded', { recorded: fmt(b.recorded), total: fmt(b.total) })
-    : t('map.book.notStarted');
+  const words = bookRowWords(b, filter);
   const beside = useOpenDetail();
   return (
     <BookBar testID={`row-${b.key}`} name={b.name} total={b.total} recorded={b.recorded} done={b.done} last={props.last} onPress={props.onPress} waiting={!!b.waiting}
       {...(filter !== 'all' ? { count: fmt(b.matching) } : {})}
       current={beside?.screen === 'book_map' && beside.params['bookId'] === b.key}
-      accessibilityLabel={sentences([b.name, sub, ...(filter !== 'all' ? [matchingWords(filter, b.matching)] : []),
-        // With the feedback filter set, "N with feedback" is said once, as the match count.
-        ...(b.mine ? [t('map.book.forYou', { count: b.mine })] : []), ...(b.feedback && filter !== 'feedback' ? [t('map.matching.feedback', { count: b.feedback })] : [])])} />
+      accessibilityLabel={words.label} />
   );
 }
 
 /** An outline language (lessons, stories): its folders and their items instead of books and chapters (MAP-6). */
 function OutlineMap(props: { ctx: Ctx; state: LanguageState; kinds: KindDef[]; languageId: string; entries: Entry[]; forYou: Set<string> }) {
   const [limits, setLimits] = useState<Record<string, number>>({});
-  const sections = useMemo(() => {
-    const by = new Map<string, Entry[]>();
-    for (const e of props.entries) {
-      const list = by.get(e.place.bookLabel);
-      if (list) list.push(e);
-      else by.set(e.place.bookLabel, [e]);
-    }
-    return [...by.entries()];
-  }, [props.entries]);
+  const sections = useMemo(() => outlineSections(props.entries), [props.entries]);
   return (
     <>
       {sections.map(([name, list]) => {
@@ -589,23 +401,6 @@ function openableLanguages(ctx: Ctx): { languageId: string; name: string }[] {
 }
 
 /**
- * This person's next passage on the map (demo Map's "Next"): the first thing
- * waiting on them, as on My Work, or else a good place to start.
- */
-function useNextPassage(ctx: Ctx, state: LanguageState | null): { unitId: string; icon: IconName } | null {
-  const canRecord = ctx.session.can('translate');
-  const canReview = ctx.session.can('review');
-  return useMemo(() => {
-    if (!state || (!canRecord && !canReview)) return null;
-    const idx = indexesFor(state);
-    const first = highlightsFor(state, ctx.session.actorId, { canRecord, canReview }, idx)[0];
-    if (first) return { unitId: first.unitId, icon: workIcon(first.kind).icon };
-    const next = upNext(state, { canRecord, canReview }, idx);
-    return next ? { unitId: next.unitId, icon: next.kind === 'record' ? 'mic' : 'check' } : null;
-  }, [state, ctx.session.actorId, canRecord, canReview]);
-}
-
-/**
  * A language's map, as the simple redesign has it (decision 71; demo Map):
  * the language as the title, search first, then "Next", then the books of
  * one testament with a bar and a count. The stat tiles, the filter and the
@@ -614,7 +409,7 @@ function useNextPassage(ctx: Ctx, state: LanguageState | null): { unitId: string
 export function MapHome(ctx: Ctx) {
   // The map is of the open language: a `languageId` param has opened it.
   const languageId = ctx.params['languageId'] ?? ctx.languageId;
-  const state = openState(ctx, languageId);
+  const state = openState(ctx.language, languageId);
   const [query, setQuery] = useState('');
   const [limit, setLimit] = useState(PAGE);
   // A filter can come with the way here ("Feedback to answer" on a report opens the map showing those).
@@ -637,7 +432,7 @@ export function MapHome(ctx: Ctx) {
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
 
   const language = languageId ? languageName(ctx.org.state, languageId) : t('map.home.title');
-  const outline = entries.length > 0 && waiting.length === 0 && entries.every((e) => !e.place.bookId);
+  const outline = isOutline(entries, waiting);
   const sel = state?.template?.value;
   const templateName = sel ? libraryItemView(ctx.org.state?.library ?? {}, sel.itemId)?.name : undefined;
   // What the header used to say under the title: in the Filter sheet now.
@@ -697,17 +492,9 @@ export function MapHome(ctx: Ctx) {
     );
   }
 
-  const search = parseQuery(query);
-  const searching = query.trim().length > 0;
-  const bookHits = searching && search.chapter === undefined ? books.filter((b) => b.book && bookMatches(b.book, search.book)) : [];
-  const passageHits = searching && search.chapter !== undefined ? entries.filter((e) => placeMatches(e.place, query)) : [];
-
+  const { searching, byChapter, bookHits, passageHits } = mapSearch(query, books, entries);
   // New Testament first (demo Map), then Old.
-  const testaments = (['nt', 'ot'] as const).filter((t) => books.some((b) => b.book?.testament === t));
-  const shownTestament = testament && testaments.includes(testament) ? testament : testaments[0];
-  const inFilter = (b: BookSummary) => filter === 'all' || b.matching > 0 || !!b.waiting;
-  const visible = books.filter((b) => b.book && b.book.testament === shownTestament && inFilter(b));
-  const other = books.find((b) => !b.book && inFilter(b));
+  const { testaments, shownTestament, visible, other } = mapShelf(books, filter, testament);
   const summary = [
     t('map.home.summary', { recorded: fmt(progress.recorded), total: fmt(progress.total), done: fmt(progress.done), waiting: fmt(progress.waiting) }),
     ...(about ? [about] : [])
@@ -719,7 +506,7 @@ export function MapHome(ctx: Ctx) {
       <SearchField value={query} onChangeText={(v) => { setQuery(v); setLimit(PAGE); }} placeholder={t('map.home.find')} help={t('map.home.findHelp')} testID="map-search" />
 
       {searching ? (
-        search.chapter === undefined ? (
+        !byChapter ? (
           <>
             <Text style={[txt.sm, { color: C.muted, fontWeight: '600', paddingHorizontal: space.xs }]}>
               {bookHits.length ? t('map.home.bookHits', { count: bookHits.length }) : t('map.home.noBook')}
@@ -780,28 +567,6 @@ export function MapHome(ctx: Ctx) {
 
 // ---- one book: a grid of chapters (MAP-5) ---------------------------------------------------
 
-/** What each tone is called, for a tile's spoken label. */
-function toneLabel(tone: ChapterTone): string {
-  switch (tone) {
-    case 'done': return t('map.tones.done');
-    case 'feedback': return t('map.tones.feedback');
-    case 'review': return t('map.tones.review');
-    case 'drafting': return t('map.tones.drafting');
-    case 'todo': return t('map.tones.todo');
-    case 'none': return t('map.tones.none');
-  }
-}
-
-interface ChapterTile {
-  n: number;
-  list: Entry[];
-  tone: ChapterTone;
-  steps: number;
-  cleared: number;
-  mine: boolean;
-  matches: boolean;
-}
-
 /**
  * A chapter in three states (the simple Map, decision 71): done, started, not
  * started, marked as well as coloured. What the old seven tones said (feedback
@@ -814,25 +579,8 @@ function Tile(props: { c: ChapterTile; testID?: string; onPress: () => void; cur
   const parts = c.list.length;
   // Kept passages of this chapter (decisions.md 61): the mark is green only when every kept one is ready.
   const kept = c.list.map((e) => props.offline.get(e.unitId)).filter((u): u is KeptOffline => !!u);
-  const keptWhere = kept.length === parts ? (parts > 1 ? t('map.tile.keptAll') : t('map.tile.kept')) : t('map.tile.keptSome', { count: parts, kept: fmt(kept.length) });
-  const keptLabel = kept.length === 0 ? null : kept.every((u) => u.ready) ? keptWhere : t('map.tile.downloading', { kept: keptWhere });
-  const state = c.tone === 'review' && c.steps
-    ? t('map.tile.stateSteps', { state: toneLabel(c.tone), cleared: fmt(c.cleared), steps: fmt(c.steps) }) : toneLabel(c.tone);
-  const label = clauses([
-    t('map.tile.chapter', { n: fmt(c.n), state }),
-    ...(parts > 1 ? [t('map.tile.parts', { count: parts })] : []),
-    ...(c.mine ? [t('map.tile.forYou')] : []),
-    ...(keptLabel ? [keptLabel] : []),
-    ...(props.changed ? [t('map.tile.changedSinceRecorded')] : []),
-    ...(c.matches ? [] : [t('map.tile.outsideFilter')])
-  ]);
-  // What help mode says it does, and what the marks on it mean (rule 3): the corner shows the kept mark, else the changed flag.
-  const help = [
-    parts > 1 ? t('map.tile.pickHelp', { count: parts }) : parts === 1 ? t('map.tile.openHelp') : t('map.tile.noneHelp'),
-    parts ? t('map.tile.marksHelp') : null,
-    kept.length ? (kept.every((u) => u.ready) ? t('map.marks.keptHelp') : t('map.marks.downloadingHelp')) : props.changed ? t('map.marks.changedHelp') : null,
-    c.matches ? null : t('map.tile.outsideHelp')
-  ].filter(Boolean).join(' ');
+  const label = tileLabel(c, kept, !!props.changed);
+  const help = tileHelp(c, kept, !!props.changed);
   return (
     <ChapterTileView {...(props.testID ? { testID: props.testID } : {})} n={c.n} stage={chapterStage(c.tone)} dim={!c.matches} current={!!props.current} disabled={parts === 0} label={label} onPress={props.onPress}
       help={help}
@@ -842,7 +590,7 @@ function Tile(props: { c: ChapterTile; testID?: string; onPress: () => void; cur
 
 export function BookMap(ctx: Ctx) {
   const languageId = ctx.params['languageId'] ?? ctx.languageId;
-  const state = openState(ctx, languageId);
+  const state = openState(ctx.language, languageId);
   const offline = keptOfflineMap(ctx);
   const bookId = ctx.params['bookId'] ?? '';
   const initial = ctx.params['filter'];
@@ -855,31 +603,10 @@ export function BookMap(ctx: Ctx) {
   const layout = useLayout();
   const beside = useOpenDetail();
   const book = canonBook(bookId);
-  const entries = useMemo(() => {
-    if (!state) return [];
-    return languageEntries(state).filter((e) => (bookId === OTHER ? !canonBook(e.place.bookId) : e.place.bookId === bookId));
-  }, [state, languageId, bookId]);
+  const entries = useMemo(() => (state ? bookEntries(languageEntries(state), bookId) : []), [state, languageId, bookId]);
   const counts = useMemo(() => countFilters(entries.map((e) => e.s)), [entries]);
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
-  const chapters = useMemo((): ChapterTile[] => {
-    if (!book) return [];
-    const byChapter = new Map<number, Entry[]>();
-    for (const e of entries) for (const n of e.place.chapters) {
-      const list = byChapter.get(n);
-      if (list) list.push(e);
-      else byChapter.set(n, [e]);
-    }
-    return Array.from({ length: book.chapters }, (_, i) => {
-      const n = i + 1;
-      const list = byChapter.get(n) ?? [];
-      const ss = list.map((e) => e.s);
-      const recorded = ss.filter((s) => s.recorded);
-      const steps = recorded[0]?.steps.length ?? 0;
-      const cleared = recorded.length === ss.length && ss.length ? Math.min(...recorded.map((s) => s.steps.filter((st) => st.complete).length)) : 0;
-      return { n, list, tone: chapterTone(ss), steps, cleared, mine: list.some((e) => forYou.has(e.unitId)),
-        matches: filter === 'all' || ss.some((s) => matchesFilter(s, filter)) };
-    });
-  }, [book, entries, forYou, filter]);
+  const chapters = useMemo(() => (book ? chapterTiles(book, entries, forYou, filter) : []), [book, entries, forYou, filter]);
 
   const language = languageId ? languageName(ctx.org.state, languageId) : '';
   const title = book?.name ?? t('map.other');
@@ -934,7 +661,7 @@ export function BookMap(ctx: Ctx) {
 
   // Passages that sit in no book have no chapters to lay out: a list, 25 at a time.
   if (!book) {
-    const shown = entries.filter((e) => filter === 'all' || matchesFilter(e.s, filter));
+    const shown = filterEntries(entries, filter);
     return (
       <Screen header={header}>
         <ActiveFilter filter={filter} counts={counts} onOpen={() => setFilterOpen(true)} onClear={() => setFilter('all')} />
@@ -954,8 +681,7 @@ export function BookMap(ctx: Ctx) {
 
   // Five across on a phone; on a wider column, as many as stay tile-sized.
   const cols = chapterColumns(layout.contentWidth, layout.kind);
-  const rows: ChapterTile[][] = [];
-  for (let i = 0; i < chapters.length; i += cols) rows.push(chapters.slice(i, i + cols));
+  const rows = chapterRows(chapters, cols);
 
   return (
     <Screen header={header}>

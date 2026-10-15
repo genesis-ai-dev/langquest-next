@@ -1,4 +1,4 @@
-import { inviteUri, parseInvite } from '../src/inviteCode';
+import { inviteUri, parseInvite } from '../src/invites/inviteCode';
 
 describe('invite codes', () => {
   const token = 'a'.repeat(64); // as invites.ts newToken makes them

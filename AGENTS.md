@@ -46,7 +46,7 @@ Rules specific to this folder:
   `scripts/record-parity-sql.ts` checks SQL against core.
 - User-facing screens follow the partner demo in `ng-langquest-ux` (its
   flow, look and capabilities). Read PLAN.md section 12 and
-  `docs/ux/demo-parity.md` before changing a screen. `apps/mobile/src/flow.ts`
+  `docs/ux/demo-parity.md` before changing a screen. `apps/mobile/src/shell/flow.ts`
   is generated from the demo's flow (`test/spec-flow.json`); the parity test
   holds it edge by edge.
 
@@ -60,7 +60,12 @@ Rules specific to this folder:
 - No `status` columns. Status comes from `passage.ts`.
 - No local versus synced tables. Sync status is a column on the events table.
 - Run `npm run guardrails` in this folder before pushing (see Guardrails
-  below). `docs/testing.md` says which layer a new test belongs in and the rules the
+  below). Lint holds what may import what (`eslint.config.mjs`, decisions.md
+  104 and 105): a rule's message says where the code belongs. In
+  `apps/mobile/src` a file's name says its role: components in `.tsx`,
+  hooks in `use<Thing>.ts`, pure logic in `model.ts` or `<thing>Model.ts`,
+  everything else a module in `.ts`.
+  `docs/testing.md` says which layer a new test belongs in and the rules the
   end-to-end suites keep (no sleeps, one role per test, IDs for structure).
 - Put the Linear issue ID (`LAN-12`) in the commit message of work that comes
   from an issue. The pipeline moves that issue to Deploying, then Live or
@@ -80,7 +85,7 @@ pull request, on the pull request merged with `main`, not on the branch alone:
 
 | Job | What fails it | Run it here |
 | --- | --- | --- |
-| `checks` | typecheck; a unit, property or model test (over its timeout in `vitest.config.ts`); coverage under its threshold; the projection worker bundle behind its source | `npm run guardrails` |
+| `checks` | typecheck; lint (what may import what); a unit, property or model test (over its timeout in `vitest.config.ts`); coverage under its threshold; the projection worker bundle behind its source | `npm run guardrails` |
 | `server` | SQL smokes, SQL-to-core parity, the client integration test | `npm run guardrails -- --all` (Docker) |
 | `web-smoke` | the release web export (and its JavaScript size budget in `apps/mobile/scripts/export-web.mjs`) in Chromium, Firefox, WebKit | `npm run guardrails -- --web` for the build and budget, `npm run test:web` for the browsers |
 | `ui-web` | a `@p0` web UI test on the export (zero retries) | `npm run guardrails -- --all`, or one file: `npm run test:ui:web -- e2e/ui/<file>` |

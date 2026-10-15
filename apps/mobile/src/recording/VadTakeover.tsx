@@ -11,14 +11,14 @@
 // turns pale and says so, with Resume now.
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, PanResponder, Pressable, StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import { HelpBadge } from '../helpBadge';
-import { useHelpSpot } from '../helpContext';
+import { Text } from '../ui/text';
+import { HelpBadge } from '../helpMode/helpBadge';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { HelpInfo, Ico } from '../kit';
-import { C, onColor, radius, space, target, TINT, type as T, withAlpha } from '../theme';
-import { useEnergyHistory, type useRecorder } from '../useRecorder';
+import { HelpInfo, Ico } from '../ui/kit';
+import { C, onColor, radius, space, target, TINT, type as T, withAlpha } from '../ui/theme';
+import { useEnergyHistory, type useRecorder } from './useRecorder';
 import { RecordButton } from './parts';
 import { clampCutoff, cutoffAfterDrag, loopStatus, meterHeight, type LoopNoun, type LoopPhase } from './splitModel';
 import { mmss } from './workspaceModel';
