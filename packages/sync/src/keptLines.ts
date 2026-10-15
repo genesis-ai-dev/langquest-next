@@ -1,5 +1,5 @@
 import {
-  derivePassage, eventPassage, languageLines, passageInMemory, passageLine, withoutParts,
+  derivePassage, eventPassage, languageLines, passageInMemory, passageLine, stateRevision, withoutParts,
   type AnyEvent, type LanguageState, type PassageLine, type PassageLines, type PassageOf
 } from '@langquest-next/core';
 import { KeptLanguage, LINE, PART_KINDS, RECORD_KINDS } from './keptLanguage';
@@ -254,6 +254,17 @@ function lineRow(line: PassageLine): KeptRecord {
  * here owes every line.
  */
 export function settingsStamp(state: LanguageState): string {
+  const revision = stateRevision(state);
+  const hit = stamps.get(state);
+  if (hit && hit.revision === revision) return hit.stamp;
+  const stamp = stampOf(state);
+  stamps.set(state, { revision, stamp });
+  return stamp;
+}
+
+const stamps = new WeakMap<LanguageState, { revision: number; stamp: string }>();
+
+function stampOf(state: LanguageState): string {
   const text = JSON.stringify([state.flow, state.flowSteps, state.removedSteps, state.reviewKinds, state.stepLinks ?? null, state.teams]);
   // Two 32-bit FNV-1a hashes, so a stamp is short and a collision is out of the question in practice.
   let a = 0x811c9dc5;
