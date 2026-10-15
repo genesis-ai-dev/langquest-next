@@ -350,7 +350,7 @@ export class SyncClient<S = LanguageState> {
     });
   }
 
-  /** Index of saved pieces: which snapshot seq they belong to and how many there are. */
+  /** Index of saved pieces: which snapshot (seq and reducer version) they belong to and how many there are. */
   private chunkKey(): string {
     return `snapchunks:${this.opts.orgId}/${this.opts.streamId}`;
   }
@@ -390,21 +390,26 @@ export class SyncClient<S = LanguageState> {
       return 0;
     }
     const savedMap = new Map<number, string>();
-    let index: { seq: number; chunks: number } = { seq: 0, chunks: 0 };
+    let index: { seq: number; chunks: number; version: number } = { seq: 0, chunks: 0, version: 0 };
     try {
       const parsed = JSON.parse((await this.opts.store.meta(this.chunkKey())) || '{}') as Partial<typeof index>;
       // An older build stored every piece inside this one row; ignore it and refetch.
-      if (typeof parsed.seq === 'number' && typeof parsed.chunks === 'number') index = { seq: parsed.seq, chunks: parsed.chunks };
+      if (typeof parsed.seq === 'number' && typeof parsed.chunks === 'number') {
+        // A build that kept no reducer version gets 0, which is no reducer's: its pieces are cleared and refetched.
+        index = { seq: parsed.seq, chunks: parsed.chunks, version: typeof parsed.version === 'number' ? parsed.version : 0 };
+      }
     } catch { /* refetch */ }
-    if (index.seq === meta.serverSeq) {
+    // Pieces are reused only for the same snapshot: a quiet language keeps its seq across an app update, and
+    // another reducer's pieces joined to these would parse as garbage or as the wrong state (invariant 10).
+    if (index.seq === meta.serverSeq && index.version === this.m.version) {
       for (let i = 0; i < index.chunks; i++) {
         const text = await this.opts.store.meta(this.chunkPieceKey(index.seq, i));
         if (text) savedMap.set(i, text);
       }
     } else {
-      // Pieces of an older snapshot are no use: drop them and say whose pieces follow, before any arrives.
+      // Pieces of another snapshot are no use: drop them and say whose pieces follow, before any arrives.
       await this.clearChunks(index);
-      index = { seq: meta.serverSeq, chunks: meta.chunks };
+      index = { seq: meta.serverSeq, chunks: meta.chunks, version: this.m.version };
       await this.opts.store.commit({ meta: { [this.chunkKey()]: JSON.stringify(index) } });
     }
     const snap = await fetchSnapshot(this.opts.transport, this.opts.orgId, this.opts.streamId, this.m.version, {
