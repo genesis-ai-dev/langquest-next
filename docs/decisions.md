@@ -2546,6 +2546,16 @@ the primary key; the retry is then refused (`event id already used`), as
 it should be. Migration `20261015180000_append_duplicate_under_lock.sql`;
 SQL test `server/concurrentAppendSmoke.sql`, two sessions over dblink.
 
+Amended (2026-10-15, Carl Sauder): the server's own events race the same
+way. `_append_event_as` (blob verdicts, invites redeemed, join decisions,
+redactions, account deletions, library pins) checked the id before
+`_next_seq` locked the stream, so two Worker or projection passes
+appending the same id at once failed the second on the primary key and
+aborted its caller's transaction. It now takes the stream's lock and
+checks the id again under it, returning null as it says it does.
+Migration `20261015190000_append_event_as_under_lock.sql`; cases 4 and 5
+of `server/concurrentAppendSmoke.sql` (`record_blob` twice at once).
+
 ## 76. Names identify nothing: a repeated language is warned about, and an organization can be renamed
 
 Date: 2026-10-09 · By: Carl Sauder · Status: accepted

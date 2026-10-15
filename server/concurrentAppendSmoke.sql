@@ -3,7 +3,9 @@
 -- being inserted. The second passes the first id check before the first
 -- commits, then waits on the stream's lock; once it has the lock it must
 -- answer the event as a duplicate with the first one's seq, not refuse it
--- for its entity id nor fail the batch on the events primary key.
+-- for its entity id nor fail the batch on the events primary key. The
+-- server's own events (_append_event_as: blob verdicts, invites, join
+-- decisions) are held to the same from case 4 on.
 --
 -- The two pushes are separate sessions (dblink), so what they write
 -- commits. Ids carry a tag unique to the run, which keeps it repeatable.
@@ -90,5 +92,59 @@ select pg_temp.race(pg_temp.ev('unit', 'v1.UnitAdded', 'L', 11,
 
 -- 3. The same on the organization stream, which also folds into its tables once.
 select pg_temp.race(pg_temp.ev('rename', 'v1.OrgRenamed', '_org', 12, '{"name":"Concurrent, renamed"}'), 'a rename pushed twice at once');
+
+-- The server's own events (_append_event_as) race the same way: two Worker
+-- passes record one blob's verdict, whose id is fixed by the blob. Call
+-- p_call as the service role from session A and hold its transaction open;
+-- call it again from session B, which waits on A's lock; commit A. A
+-- appends (true), B finds the id used (false) instead of failing on the
+-- events primary key and aborting its caller's transaction.
+create function pg_temp.race_server(p_call text, p_id text, p_what text) returns void language plpgsql as $$
+declare
+  v_call text := format('select %s', p_call);
+  v_as text := 'select set_config(''request.jwt.claim.sub'', '''', false)';
+  v_pid int;
+  v_waits boolean := false;
+  a boolean; b boolean;
+begin
+  perform extensions.dblink_connect('ca_a', 'dbname=postgres user=postgres');
+  perform extensions.dblink_connect('ca_b', 'dbname=postgres user=postgres');
+  perform * from extensions.dblink('ca_a', v_as) as t(v text);
+  perform * from extensions.dblink('ca_b', v_as) as t(v text);
+  select pid into v_pid from extensions.dblink('ca_b', 'select pg_backend_pid()') as t(pid int);
+
+  perform extensions.dblink_exec('ca_a', 'begin');
+  select r into a from extensions.dblink('ca_a', v_call) as t(r boolean);
+  if a is distinct from true then raise exception '%: the first call: %', p_what, a; end if;
+
+  perform extensions.dblink_send_query('ca_b', v_call);
+  for i in 1..1000 loop
+    v_waits := cardinality(pg_blocking_pids(v_pid)) > 0;
+    exit when v_waits;
+    perform pg_sleep(0.01);
+  end loop;
+  if not v_waits then raise exception '%: the second call never waited on the first', p_what; end if;
+
+  perform extensions.dblink_exec('ca_a', 'commit');
+  select r into b from extensions.dblink_get_result('ca_b') as t(r boolean);
+  perform * from extensions.dblink_get_result('ca_b') as t(r boolean);
+  perform extensions.dblink_disconnect('ca_a');
+  perform extensions.dblink_disconnect('ca_b');
+
+  if b is distinct from false then raise exception '%: the second call, expected false, got %', p_what, b; end if;
+  if (select count(*) from public.events e where e.id = p_id) <> 1 then
+    raise exception '%: stored other than once', p_what;
+  end if;
+end $$;
+
+-- 4. A language's file confirmed twice at once (record_blob, decisions.md 69).
+select pg_temp.race_server(
+  format('public.record_blob(%L, %L, %L, 7)', 'ca-org-' || current_setting('smoke.tag'), 'L', 'h1'),
+  format('blob:%s:L:h1:7', 'ca-org-' || current_setting('smoke.tag')), 'a blob confirmed twice at once');
+
+-- 5. The same on the organization stream (a guide's file), which folds as it appends.
+select pg_temp.race_server(
+  format('public.record_blob(%L, %L, %L, 7)', 'ca-org-' || current_setting('smoke.tag'), '_org', 'h2'),
+  format('blob:%s:_org:h2:7', 'ca-org-' || current_setting('smoke.tag')), 'a guide file confirmed twice at once');
 
 drop extension dblink;
