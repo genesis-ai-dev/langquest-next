@@ -22540,13 +22540,14 @@ var SupabaseTransport = class {
     return data ?? null;
   }
   /**
-   * A database trigger (supabase/migrations/*_events_realtime.sql) broadcasts
-   * an empty poke on `events:<org>/<stream>` after every insert. The
-   * channel is public because the poke says only that the stream moved;
-   * the events themselves still come through the RPC and its checks.
+   * A database trigger (events_notify) broadcasts a poke on
+   * `events:<org>/<stream>` after every push. The channel is private: the
+   * server lets only someone who may read the stream hear it
+   * (20261015234000_private_pokes.sql), since even a bare poke says when a
+   * language is working. The events themselves come through the RPC.
    */
   watch(orgId, streamId, handlers) {
-    const channel = this.supabase.channel(`events:${orgId}/${streamId}`, { config: { private: false } }).on("broadcast", { event: "appended" }, () => handlers.onPoke()).subscribe((status) => handlers.onStatus(status === "SUBSCRIBED"));
+    const channel = this.supabase.channel(`events:${orgId}/${streamId}`, { config: { private: true } }).on("broadcast", { event: "appended" }, () => handlers.onPoke()).subscribe((status) => handlers.onStatus(status === "SUBSCRIBED"));
     return () => {
       void this.supabase.removeChannel(channel);
     };
@@ -22930,9 +22931,16 @@ async function deliverPushes(service, fetcher = fetch) {
 }
 
 // server/projectionEdge.ts
+async function sameSecret(given, expected) {
+  const digest = async (text) => new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)));
+  const [a, b] = await Promise.all([digest(given), digest(expected)]);
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
+  return diff === 0;
+}
 Deno.serve(async (request) => {
   const secret = Deno.env.get("PROJECTION_WORKER_SECRET");
-  if (!secret || request.headers.get("x-worker-secret") !== secret) {
+  if (!secret || !await sameSecret(request.headers.get("x-worker-secret") ?? "", secret)) {
     return new Response("Unauthorized", { status: 401 });
   }
   if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });

@@ -30,7 +30,8 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
 import { workerBlobs } from '@langquest-next/sync';
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
+import { refuseBoardRequest, TOKEN_HEADER } from './v2Guard';
 import { foldLanguage, foldOrg, ORG_STREAM, subscriptionItemId, validateEvent } from '@langquest-next/core';
 import { bucketName, boardData, mapProject, parseRecommendations, reconcile, restReader, supabaseTarget, sync, WAYS, LIBRARY_ORG, type ChosenRole, type CopiedFile, type SavedPlacement, type PlanOrg, type TemplateRef } from '@langquest-next/v2-import';
 
@@ -236,14 +237,19 @@ async function board(port: number) {
     req.on('end', () => { try { resolve(JSON.parse(text || '{}')); } catch (e) { reject(e); } });
   });
 
+  // New each run; only the page served below carries it.
+  const token = randomBytes(32).toString('hex');
   createServer(async (req, res) => {
     try {
       const u = new URL(req.url ?? '/', `http://127.0.0.1:${port}`);
-      // Only this machine: the page shows private projects' names and who is in them.
-      if (req.headers.host !== `127.0.0.1:${port}` && req.headers.host !== `localhost:${port}`) return json(res, 403, { error: 'local only' });
+      // Only this machine, and only the page this run served: the page shows private projects' names and who
+      // is in them, and the server can write with the service key (server/v2Guard.ts).
+      const header = (name: string) => { const v = req.headers[name]; return Array.isArray(v) ? v[0] : v; };
+      const refused = refuseBoardRequest({ method: req.method ?? 'GET', pathname: u.pathname, host: header('host'), origin: header('origin'), contentType: header('content-type'), token: header(TOKEN_HEADER) }, port, token);
+      if (refused) return json(res, refused.status, { error: refused.error });
       if (req.method === 'GET' && u.pathname === '/') {
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
-        return res.end(await readFile(join(root, 'server/v2-board.html'), 'utf8'));
+        return res.end((await readFile(join(root, 'server/v2-board.html'), 'utf8')).replace('__BOARD_TOKEN__', token));
       }
       if (req.method === 'GET' && u.pathname === '/api/board') {
         const [projects, memberships] = await readV2(u.searchParams.has('fresh'));
