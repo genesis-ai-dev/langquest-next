@@ -218,7 +218,8 @@ export function Vision(ctx: Ctx) {
   const last = step === VISION_STEPS.length - 1;
   return (
     <Screen
-      header={<Header title={t('entry.vision.title')} sub={t('entry.vision.step', { current: step + 1, total: VISION_STEPS.length })} onBack={step === 0 ? ctx.back : () => setStep(step - 1)} />}
+      header={<Header title={t('entry.vision.title')} sub={t('entry.vision.step', { current: step + 1, total: VISION_STEPS.length })} onBack={step === 0 ? ctx.back : () => setStep(step - 1)}
+        {...(step > 0 ? { backHelp: t('entry.vision.backHelp') } : {})} />}
       footer={<PrimaryBtn label={last ? t('common.done') : t('common.next')} help={last ? t('help.details.done') : t('entry.vision.nextHelp')}
         onPress={last ? ctx.back : () => setStep(step + 1)} />}
       bodyStyle={styles.visionBody}

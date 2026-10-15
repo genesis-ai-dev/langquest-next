@@ -196,6 +196,8 @@ export function Header(props: {
   action?: ReactNode;
   /** Match a Screen given the same `columnWidth`. */
   columnWidth?: number;
+  /** What help mode says Back does, where it is not the screen before (a card before, in a walk-through). */
+  backHelp?: string;
 }) {
   const wide = useLayout().kind !== 'phone';
   // Ryder's header on a phone (demo ADR-032): a task screen centres its title between two round
@@ -203,7 +205,7 @@ export function Header(props: {
   const centred = !wide && !!props.onBack;
   const helpBtn = useHelpMode() ? <HelpToggle testID="header-help" /> : null;
   // While help is on, Back explains itself like every other part; the ? is the way out.
-  const back = useHelpSpot(props.close ? t('common.close') : t('common.back'), props.close ? t('help.details.close') : t('help.details.back'), props.onBack);
+  const back = useHelpSpot(props.close ? t('common.close') : t('common.back'), props.backHelp ?? (props.close ? t('help.details.close') : t('help.details.back')), props.onBack);
   const crumbs = props.crumbs && props.crumbs.length > 0 && wide ? (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.crumbs}>
       {props.crumbs.map((c, i) => (

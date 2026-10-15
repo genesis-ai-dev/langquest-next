@@ -2815,7 +2815,8 @@
       "askTitle": "Do it, or ask someone",
       "askBody": "Your organization suggests what comes next. Do it yourself, ask someone, or say why not.",
       "nextHelp": "Shows the next card.",
-      "segmentsHelp": "One bar for each card: green ones you have seen, purple this one."
+      "segmentsHelp": "One bar for each card: green ones you have seen, purple this one.",
+      "backHelp": "Goes back to the card before."
     },
     "explore": {
       "title": "Explore",
