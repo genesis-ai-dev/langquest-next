@@ -106,10 +106,11 @@ export async function openSync(page: Page): Promise<void> {
 
 /** The Sync screen keeps its counts, transfers and logs under Details: open it unless it already is. */
 export async function openSyncDetails(page: Page): Promise<void> {
-  const details = button(page, /^Details/);
-  await expect(details).toBeVisible();
-  if ((await details.getAttribute('aria-expanded')) !== 'true') await details.click();
-  await expect(details).toHaveAttribute('aria-expanded', 'true');
+  // The web export does not expose the button's expanded state, so a tile showing is the sign it is open.
+  const shown = page.getByTestId('sync-tile-waiting').locator('visible=true').first();
+  if (await shown.isVisible()) return;
+  await button(page, /^Details/).click();
+  await expect(shown).toBeVisible();
 }
 
 /** A tile's number on the Sync screen ("12 waiting to upload"), read from its spoken label. */
