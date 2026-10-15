@@ -5,16 +5,16 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { Text } from '../ui/text';
-import { useHelpSpot } from '../helpMode/helpContext';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { Ico, Sheet, txt, type IconName } from '../ui/kit';
+import { Ico, Sheet, type IconName } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { lift } from '../ui/shadow';
 import { C, space, target, TINT, type as T, withAlpha } from '../ui/theme';
 import { mmss } from './model';
 import { styles } from './blockStyles';
-export { styles } from './blockStyles';
 
 // ---- the chips of what is attached ---------------------------------------------------
 
@@ -318,6 +318,4 @@ export function PartMark(props: { state: 'done' | 'next' | 'recording' }) {
     </View>
   );
 }
-
-export { mmss };
 

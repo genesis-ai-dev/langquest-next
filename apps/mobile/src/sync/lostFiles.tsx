@@ -9,12 +9,12 @@ import { type LanguageState } from '@langquest-next/core';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Modal, ScrollView, StyleSheet, View } from 'react-native';
 import { getBlobStore, type BlobStore } from './blobs';
-import { Ico, PrimaryBtn, txt, type IconName } from '../ui/kit';
+import { Ico, PrimaryBtn, type IconName } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { t } from '../i18n';
 import { Text } from '../ui/text';
 import { C, onColor, radius, space, TINT, type as T, withAlpha } from '../ui/theme';
 import { lostFilesWords, type LostFilesWords } from './lostFilesWords';
-export { lostFilesWords, type LostFilesWords } from './lostFilesWords';
 
 /** Files lost that nobody has seen the alert for, kept current as the store finds more. */
 function useLostFiles(): { lost: LostFile[]; store: BlobStore | null } {

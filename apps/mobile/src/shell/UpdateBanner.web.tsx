@@ -3,7 +3,7 @@ import { Pressable, StyleSheet } from 'react-native';
 import { Text } from '../ui/text';
 import { t } from '../i18n';
 import { C, radius, space, type as T } from '../ui/theme';
-import { isRecording } from '../recording/useRecorder';
+import { isRecording } from '../recording/recorderState';
 import { BUILD_ID } from '../web/webBuild';
 
 /**

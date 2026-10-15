@@ -6,12 +6,13 @@ import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { AudioClip } from '../audio/audioClip';
-import { clipSeconds, clock } from '../audio/clipPlayer';
+import { clipSeconds, clock } from '../audio/clipTime';
 import type { Ctx } from '../shell/ctx';
-import { useHelpSpot } from '../helpMode/helpContext';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import { Ico, txt } from '../ui/kit';
+import { Ico } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { C, radius, space, TINT, withAlpha } from '../ui/theme';
 import { useRecorder, type RecordedCard } from './useRecorder';
 

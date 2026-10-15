@@ -2,8 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { highlightsFor, updatesFor, type LanguageState } from '@langquest-next/core';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { indexesFor } from '../sync/indexes';
-import { usePendingRequestCount } from '../invites/invites';
-import { useOpenReportCount, type Blocks } from '../moderation/moderationData';
+import { usePendingRequestCount } from '../invites/useInviteRequests';
+import { type Blocks } from '../moderation/moderationData';
+import { useOpenReportCount } from '../moderation/useModeration';
 import type { Session } from './session';
 
 /**

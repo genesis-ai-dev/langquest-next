@@ -1,7 +1,6 @@
 import { accountOutbox, queueAccountAction } from '../account/accountData';
 import { reportPayload, type OpenReport, type ReportReason, type ReportTarget } from './model';
 import * as server from '../server/moderation';
-export { useBlocks, useOpenReportCount } from './useModeration';
 
 // Reports and blocks reach the server through the account outbox, so they
 // are saved offline and sent when connected, like a profile name. Acting on

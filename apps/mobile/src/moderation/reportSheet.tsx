@@ -7,13 +7,13 @@ import { useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
-import { Field, GhostBtn, Group, Ico, IconBtn, LinkBtn, PrimaryBtn, Row, Sheet, txt } from '../ui/kit';
+import { Field, GhostBtn, Group, Ico, IconBtn, LinkBtn, PrimaryBtn, Row, Sheet } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { t } from '../i18n';
 import { personTarget, reasonLabel, reasonSub, removeThingTitle, reportedMessage, REPORT_REASON_IDS, reportThingLabel, thingByLine, type ReportReason, type ReportTarget } from './model';
 import { dismissReports, removeContent, reportsChanged, sendReport } from './moderationData';
 import { failureMessage, noteExpected } from '../diagnostics/report';
 import { C, radius, space, TINT } from '../ui/theme';
-export { recordTarget, authoredText } from './reportTargets';
 
 /** May this person take it out of the record, or act on a report about someone? The server checks again. */
 function canModerate(ctx: Ctx, target: ReportTarget): boolean {

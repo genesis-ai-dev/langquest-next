@@ -4,7 +4,6 @@ import { functionRefusal, type InvitePreview } from './heldInvite';
 import { parseInvite } from './inviteCode';
 import { profileNames } from '../server/account';
 import * as server from '../server/invites';
-export { usePendingRequestCount, useRequestOutcome } from './useInviteRequests';
 
 /**
  * Invites and join requests (docs/flow-coverage-audit.md 5.B). A person who is

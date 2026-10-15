@@ -13,20 +13,20 @@ import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { IconBtn, Ico, LinkBtn, txt } from '../ui/kit';
+import { IconBtn, Ico, LinkBtn } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import type { ListenHooks } from '../recording/useListenLoop';
 import { markTerms } from '../recording/workspaceModel';
 import { openContentLink } from '../ui/share';
 import { lift } from '../ui/shadow';
 import { C, radius, space, target, TINT, type as T, withAlpha } from '../ui/theme';
 import { emptyBibleText, type SourceOption, type VerseRow } from './model';
-import { PlayError, usePassagePlayer } from './player';
-import type { Usage } from './used';
+import { PlayError } from './player';
+import { usePassagePlayer } from './usePassagePlayer';
+import type { Usage } from './useUsage';
 import { useChipMarks, usePassageSource, useSources, type PassageSources } from './useSources';
 import { choiceKey, chipLabel, copyrightLine, anchorClock } from './sourceText';
 import { useChoice, useOffer } from './useSourceChoice';
-export { useChoice, useOffer, useOfferedSources } from './useSourceChoice';
-export { choiceKey, chipLabel, copyrightLine, anchorClock } from './sourceText';
 
 /** Faith Comes By Hearing's terms for Bible Brain (DBP) content. */
 const DBP_TERMS = 'https://www.faithcomesbyhearing.com/bible-brain/license';

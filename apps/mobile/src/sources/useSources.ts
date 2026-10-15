@@ -24,7 +24,8 @@ import {
 } from './model';
 import { audioFormatOf, bbKey, ensureIndex, keptAudio, libAudioKey, onSourceFiles, playableUri } from './offline';
 import { PlayError } from './player';
-import { bibleBrain, textKept, useKeptRevision, useMyBibles } from './store';
+import { bibleBrain, textKept } from './store';
+import { useKeptRevision, useMyBibles } from './useMyBibles';
 
 type Get = <T extends LibraryDoc = LibraryDoc>(hash: string | null | undefined) => T | null;
 

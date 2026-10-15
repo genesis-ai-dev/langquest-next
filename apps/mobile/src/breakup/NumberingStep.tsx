@@ -10,7 +10,7 @@ import { bookName } from '../i18n/coreText';
 import { formatNumber } from '../i18n/format';
 import { t } from '../i18n';
 import { Text } from '../ui/text';
-import { useHelpSpot } from '../helpMode/helpContext';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { GhostBtn, Ico, SearchField, type IconName } from '../ui/kit';
 import { ChoiceCard, Question, RadioRow } from '../admin/admin';

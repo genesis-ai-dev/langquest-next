@@ -9,12 +9,13 @@ import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { Chip, PrimaryBtn, QuietLinks, Screen, SectionLabel, txt, type IconName } from '../ui/kit';
+import { Chip, PrimaryBtn, QuietLinks, Screen, SectionLabel, type IconName } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { C, space } from '../ui/theme';
-import { DashedRow, InviteCode, Pills, Question, QuietLink, RadioRow, useGroupInvite } from '../admin/admin';
-import { usePlainRoles } from '../admin/ready';
+import { DashedRow, InviteCode, Pills, Question, QuietLink, RadioRow } from '../admin/admin';
+import { useGroupInvite } from '../admin/useGroupInvite';
+import { usePlainRoles } from '../admin/useReadySummary';
 import { shareInvite } from './shareInvite';
-export { shareInvite } from './shareInvite';
 
 export interface InviteScope {
   key: string;

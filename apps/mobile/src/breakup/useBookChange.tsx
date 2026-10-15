@@ -3,11 +3,12 @@ import { withBookBrokenUp, type LibraryItemView, type TemplateDoc } from '@langq
 import { useState } from 'react';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
-import { txt } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { useLibrary } from '../library/useLibrary';
 import { failureMessage } from '../diagnostics/report';
 import { ApplySheet, RedoSheet } from './parts';
-import { publishChange, templateUsersOf, useTemplateUsers } from './useBreakup';
+import { useTemplateUsers } from './useBreakup';
+import { publishChange, templateUsersOf } from './breakupActions';
 import { alsoUsedLine } from './templateNames';
 
 /**

@@ -2,7 +2,8 @@
 import { formatRef } from '@langquest-next/core';
 import { useMemo } from 'react';
 import type { Ctx } from '../shell/ctx';
-import { choiceKey, useChoice } from '../sources/SourceReader';
+import { choiceKey } from '../sources/sourceText';
+import { useChoice } from '../sources/useSourceChoice';
 import { usePassageSource, useSources } from '../sources/useSources';
 import { atOf, type At } from './ownWay';
 

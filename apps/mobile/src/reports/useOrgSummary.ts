@@ -3,7 +3,6 @@ import { fetchOrgSummary } from '@langquest-next/sync';
 import type { OrgSummaryResponse } from '@langquest-next/core';
 import { useEffect, useState } from 'react';
 import { reportsServer } from './reportsServer';
-export { reportsServer } from './reportsServer';
 
 /** How often an open overview asks again; the server answers 304 when nothing changed. */
 const EVERY_MS = 5 * 60_000;

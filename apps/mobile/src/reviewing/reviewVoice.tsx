@@ -12,18 +12,18 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../audio/audioSession';
 import type { Ctx } from '../shell/ctx';
-import { useHelpSpot } from '../helpMode/helpContext';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatClock } from '../i18n/format';
-import { Ico, txt, type IconName } from '../ui/kit';
+import { Ico, type IconName } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { reportError } from '../diagnostics/report';
 import type { VoiceAnswer } from './capture';
 import { lift } from '../ui/shadow';
 import { C, onColor, radius, space, target, TINT, type as T, withAlpha } from '../ui/theme';
 import { useRecorder, type RecordedCard } from '../recording/useRecorder';
 import { canSpeak, synth, Utterance } from './speech';
-export { canSpeak, type Synth } from './speech';
 
 // ---- speaking a line aloud ----------------------------------------------------------------
 

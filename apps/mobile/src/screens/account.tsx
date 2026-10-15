@@ -22,16 +22,16 @@ import { deriveKinds, kindOf } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatAgo, formatDayTime, formatNumber, formatShortDate, formatTime } from '../i18n/format';
-import { OfflineCard, useOfflineSummary } from '../sync/offline';
+import { OfflineCard } from '../sync/offline';
+import { useOfflineSummary } from '../sync/useOfflineSummary';
 import { offlineCount, moreSettingsSub } from '../account/meModel';
-import { useHelpSpot } from '../helpMode/helpContext';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { reasonLabel, reportSummary, reportTitle, type ReportGroup } from '../moderation/model';
 import { decideRequest, type PendingRequest } from '../invites/invites';
-import {
-  Badge, Banner, Card, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, PrimaryBtn, ProgressBar, Row, Screen,
-  SectionLabel, Sheet, ShowMore, SmallBtn, txt, useLayout, useOpenDetail, type IconName
-} from '../ui/kit';
+import { Badge, Banner, Card, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, PrimaryBtn, ProgressBar, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, type IconName } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { useLayout, useOpenDetail } from '../ui/useLayout';
 import { enableNotifications, tryUnregisterNotifications, unregisterNotifications, type RemoteNotification } from '../notifications/notifications';
 import { notificationTarget, openAfterSwitch } from '../notifications/notificationTarget';
 import { dueText } from '../passage/passageView';
@@ -46,7 +46,7 @@ import { C, radius, space, target, tile, TINT, type as T } from '../ui/theme';
 import { useAccountActions, useDisplayNames } from '../account/useAccount';
 import { runningBuildLabel } from '../shell/updateStatus';
 import { PersonAvatar } from '../ui/UserChip';
-import { standingTitle, syncStanding, type SyncStanding } from '../sync/SyncIndicator';
+import { standingTitle, syncStanding, type SyncStanding } from '../sync/syncStanding';
 import { LanguageRow } from '../i18n/uiLanguage';
 import { inSeveral, refusedHere, remoteRowView, speed, syncSummary } from '../account/model';
 import { useSyncInspection } from '../account/useSyncInspection';

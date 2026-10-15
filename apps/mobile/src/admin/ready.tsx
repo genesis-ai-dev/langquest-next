@@ -9,8 +9,6 @@ import { space } from '../ui/theme';
 import { ChecklistRow } from './admin';
 import { QUESTIONS, questionLabel } from './adminModel';
 import { type ReadySummary } from './useReadySummary';
-export { useReadySummary, usePendingRequests, usePlainRoles, type ReadySummary } from './useReadySummary';
-export { howItWorks } from './readyText';
 
 /** The four questions as a checklist; each opens its own step screen. */
 export function ReadyChecklist(props: { ctx: Ctx; s: ReadySummary }) {

@@ -1,6 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { HeldInvite } from './heldInvite';
-export { useHeld } from './useHeldInvite';
 
 /**
  * Where the held invite lives (heldInvite.ts has the rule). One key for the

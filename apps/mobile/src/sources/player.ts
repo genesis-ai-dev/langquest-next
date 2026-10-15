@@ -6,7 +6,6 @@
 // playing first waits for the microphone to pause, and every way playback
 // stops is reported so recording can resume.
 import { type VerseRow } from './model';
-export { usePassagePlayer } from './usePassagePlayer';
 
 /**
  * Why a part could not be played, worded for the person in the language
