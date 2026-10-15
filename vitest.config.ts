@@ -21,6 +21,7 @@ export default defineConfig({
       include: [
         'packages/core/src/**',
         'packages/sync/src/**',
+        'packages/v2-import/src/**',
         'apps/mobile/src/**',
         'apps/web/worker/**',
         'scripts/**'
@@ -30,6 +31,7 @@ export default defineConfig({
         '**/*.md',
         '**/*.test.{ts,tsx}',
         '**/*.d.ts',
+        '**/tsconfig.json',
         '**/generated/**',
         '**/*.generated.*',
         'apps/mobile/src/shell/flow.ts',
@@ -39,7 +41,8 @@ export default defineConfig({
       ],
       thresholds: {
         'packages/core/src/**': { lines: 93, branches: 79, functions: 90, statements: 88 },
-        'packages/sync/src/**': { lines: 88, branches: 77, functions: 85, statements: 86 }
+        'packages/sync/src/**': { lines: 88, branches: 77, functions: 85, statements: 86 },
+        'packages/v2-import/src/**': { lines: 48, branches: 42, functions: 45, statements: 46 }
       }
     }
   }
