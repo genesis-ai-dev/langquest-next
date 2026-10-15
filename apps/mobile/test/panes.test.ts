@@ -1,5 +1,5 @@
-import { edgeFor, SCREEN_IDS, type ScreenId } from '../src/flow';
-import { paneFor, routesAfter, SPLITS, type PaneRoute } from '../src/panes';
+import { edgeFor, SCREEN_IDS, type ScreenId } from '../src/shell/flow';
+import { paneFor, routesAfter, SPLITS, type PaneRoute } from '../src/shell/panes';
 
 const r = (screen: ScreenId, key = screen): PaneRoute => ({ screen, key });
 const shape = (stack: PaneRoute[]) => {

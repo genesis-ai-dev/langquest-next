@@ -1,4 +1,4 @@
-import { depthsToPush, entryAfterLoad, historyStep, pathFor, SECTION_PATHS, sectionOfPath, shouldFollowPop, titleFor } from '../src/webPaths';
+import { depthsToPush, entryAfterLoad, historyStep, pathFor, SECTION_PATHS, sectionOfPath, shouldFollowPop, titleFor } from '../src/web/webPaths';
 
 // The web app's address and title (decisions.md 58): a section, never a screen's private params.
 

@@ -4,7 +4,7 @@ import * as Crypto from 'expo-crypto';
 import { Directory, File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
 import * as server from '../server/library';
-import { webFiles } from '../webFiles';
+import { webFiles } from '../web/webFiles';
 
 /**
  * Library documents on this phone (docs/library.md). A document is named by

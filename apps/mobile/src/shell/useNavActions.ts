@@ -1,10 +1,10 @@
 import { CommonActions } from '@react-navigation/native';
 import { useCallback } from 'react';
-import { edgeFor, TAB_SCREENS, type ScreenId } from '../flow';
+import { edgeFor, TAB_SCREENS, type ScreenId } from './flow';
 import { t } from '../i18n';
-import { navRef, type Nav, type Route } from '../nav';
-import { reportError } from '../report';
-import { edgeAllowed, homeScreenFor, type Session } from '../session';
+import { navRef, type Nav, type Route } from './nav';
+import { reportError } from '../diagnostics/report';
+import { edgeAllowed, homeScreenFor, type Session } from './session';
 
 /**
  * Moves between screens. Every move follows a declared edge (flow.ts) from

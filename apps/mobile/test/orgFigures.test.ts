@@ -1,5 +1,5 @@
 import type { LanguageProgress } from '@langquest-next/core';
-import { languageFigures, oldestAsOf } from '../src/orgFigures';
+import { languageFigures, oldestAsOf } from '../src/org/orgFigures';
 
 // An overview's figures: this phone's fold for what it has, the dashboard's server for the rest (decisions.md 44, 63).
 

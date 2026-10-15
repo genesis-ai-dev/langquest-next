@@ -1,4 +1,4 @@
-import { inviteUri, parseInvite, parseKey, parseSignInKey, signInUri } from '../src/inviteCode';
+import { inviteUri, parseInvite, parseKey, parseSignInKey, signInUri } from '../src/invites/inviteCode';
 
 // One https link for invites and sign-in, opened by the app or the web app (decisions.md 54, amended).
 

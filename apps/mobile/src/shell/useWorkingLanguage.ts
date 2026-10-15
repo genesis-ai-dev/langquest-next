@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { orgLanguages, type OrgState } from '@langquest-next/core';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { openLanguage } from '../languages';
+import { openLanguage } from './languages';
 
 /**
  * The language this person works in (MAP-7), and so the stream open:

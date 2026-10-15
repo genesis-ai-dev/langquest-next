@@ -1,5 +1,5 @@
-import { DROPPED_EDGES, DROPPED_SCREENS as DROPPED, EDGES, SCREEN_IDS, type Edge } from '../src/flow';
-import { AUTH_SCREENS, GUEST_SCREENS, deriveSession, edgeAllowed, homeScreenFor, manageHomeFor, postSignInScreen } from '../src/session';
+import { DROPPED_EDGES, DROPPED_SCREENS as DROPPED, EDGES, SCREEN_IDS, type Edge } from '../src/shell/flow';
+import { AUTH_SCREENS, GUEST_SCREENS, deriveSession, edgeAllowed, homeScreenFor, manageHomeFor, postSignInScreen } from '../src/shell/session';
 import spec from './spec-flow.json';
 import { ORG, roleSession } from './sessions';
 

@@ -9,7 +9,7 @@
 // ctx.act, with Undo where the demo offers it.
 import { EarlierNote, EarlierSections, isEarlierSection } from '../breakup/earlier';
 import { Faces, PeopleLine } from '../checks/parts';
-import { checkName } from '../simple/adminModel';
+import { checkName } from '../admin/adminModel';
 import {
   CommandError, checkPeople, commands, draftsBy, keyTermLinksFor, questionsForKind, recordTimeline, reviewGrid,
   type Commands, type EventSpec, type FlowStepStatus, type KindState, type KindStatus, type PassageNote, type QuestionSpec, type ReviewView
@@ -17,19 +17,19 @@ import {
 import * as Crypto from 'expo-crypto';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { useHardwareBack } from '../hardwareBack';
-import { Text } from '../text';
-import { AudioClip } from '../audioClip';
-import { commandErrorText, stateLabel, stepName } from '../coreText';
-import type { Ctx } from '../ctx';
-import { edgeFor, screenTitle, type ScreenId } from '../flow';
+import { useHardwareBack } from '../ui/hardwareBack';
+import { Text } from '../ui/text';
+import { AudioClip } from '../audio/audioClip';
+import { commandErrorText, stateLabel, stepName } from '../i18n/coreText';
+import type { Ctx } from '../shell/ctx';
+import { edgeFor, screenTitle, type ScreenId } from '../shell/flow';
 import { currentLocale, t, Trans } from '../i18n';
-import { indexesFor } from '../indexes';
+import { indexesFor } from '../sync/indexes';
 import {
   Badge, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, IconBtn, KindIcon, kindIcon, LinkBtn,
   NoteCard, PrimaryBtn, QuietLinks, ReasonSheet, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, StateMark, txt,
   type IconName
-} from '../kit';
+} from '../ui/kit';
 import {
   addDays, anchorLabel, answeredQuestions, askCandidates, channelLabel, currentStepId, describeEntry, dueChoices, dueError,
   gridKindIds, guestMessage, heroHeadline, historySummary, isoDay, listenersOf, nextQuestionType, questionTypeLabel,
@@ -44,28 +44,28 @@ import {
   currentCheck, elseOptions, recordCan, recordModel, recordPathInput, rowButtons, stepSheet, teamStepsOpen, usualTargets, waitingOnAnswer,
   type ElseOption, type SheetRow
 } from '../passage/recordModel';
-import { clipSeconds, clock as clockOf } from '../clipPlayer';
-import { useHelpSpot } from '../helpContext';
-import { HelpBadge } from '../helpBadge';
+import { clipSeconds, clock as clockOf } from '../audio/clipPlayer';
+import { useHelpSpot } from '../helpMode/helpContext';
+import { HelpBadge } from '../helpMode/helpBadge';
 import { requestIsMine, sendToInput, teamNameIn, usualTargetFor } from '../passage/sendTarget';
 import {
   commaList, dueTitle, feedbackSource, kindInSentence, outcomeText, passageCrumbs, usePassage, versionTitle, viaText, when, type PassageView
-} from '../passageView';
-import { PassageOffline, PassageOfflineLine } from '../offline';
-import { noteExpected, reportError } from '../report';
-import { Authored, authoredText, recordTarget, ReportFlag } from '../reportSheet';
+} from '../passage/passageView';
+import { PassageOffline, PassageOfflineLine } from '../sync/offline';
+import { noteExpected, reportError } from '../diagnostics/report';
+import { Authored, authoredText, recordTarget, ReportFlag } from '../moderation/reportSheet';
 import { UsedLine } from '../sources/used';
-import { contractsFor } from '../screenContracts';
-import { edgeAllowed } from '../session';
+import { contractsFor } from '../shell/screenContracts';
+import { edgeAllowed } from '../shell/session';
 import { useStudyGuide } from '../study/libraryGuides';
 import { studyProgress, studySummary, type StudyProgress } from '../study/progress';
 import { StepMark, stepLine } from '../study/ui';
-import { flat } from '../shadow';
-import { C, radius, space, TINT, withAlpha } from '../theme';
-import { PersonAvatar, usePerson } from '../UserChip';
-import { BigVoice } from '../bigVoice';
-import { ClipPlayer } from '../clipPlayer';
-import { VoiceNote, voiceFor } from '../voiceNote';
+import { flat } from '../ui/shadow';
+import { C, radius, space, TINT, withAlpha } from '../ui/theme';
+import { PersonAvatar, usePerson } from '../ui/UserChip';
+import { BigVoice } from '../recording/bigVoice';
+import { ClipPlayer } from '../audio/clipPlayer';
+import { VoiceNote, voiceFor } from '../audio/voiceNote';
 
 // ---- shared plumbing -----------------------------------------------------------------
 

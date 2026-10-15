@@ -7,8 +7,8 @@ import {
   bookParts, partCount, sameParts, templateBooks, wayCovers, wayPartCount, parseRef,
   type LibraryItemView, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
-import { bookNameOf, STARTER_TEMPLATE, type LibraryChoice } from '../contentTemplates';
-import { bookName } from '../coreText';
+import { bookNameOf, STARTER_TEMPLATE, type LibraryChoice } from '../templates/contentTemplates';
+import { bookName } from '../i18n/coreText';
 import { t } from '../i18n';
 import type { LibraryOp } from '../library/model';
 

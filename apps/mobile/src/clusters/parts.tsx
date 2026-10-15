@@ -6,13 +6,13 @@ import { clustersOf, mayManageClusters, orgClusters, type ClusterInfo, type OrgS
 import * as Crypto from 'expo-crypto';
 import { useState } from 'react';
 import { View } from 'react-native';
-import type { Ctx } from '../ctx';
+import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
-import { Field, PrimaryBtn, Row, Sheet, txt } from '../kit';
-import { failureMessage } from '../report';
-import { CheckRow, IconTile } from '../simple/admin';
-import { Text } from '../text';
-import { TINT } from '../theme';
+import { Field, PrimaryBtn, Row, Sheet, txt } from '../ui/kit';
+import { failureMessage } from '../diagnostics/report';
+import { CheckRow, IconTile } from '../admin/admin';
+import { Text } from '../ui/text';
+import { TINT } from '../ui/theme';
 import { clusterEvents, clusterNamed, clusterNames, newClusterId, type ClusterEvent } from './model';
 
 /** A cluster's tile: layers, in amber. */

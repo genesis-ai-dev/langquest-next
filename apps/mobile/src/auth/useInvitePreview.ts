@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import type { InvitePreview } from '../heldInvite';
-import { previewInvite } from '../invites';
-import type { InviteHandle } from '../useHeldInvite';
+import type { InvitePreview } from '../invites/heldInvite';
+import { previewInvite } from '../invites/invites';
+import type { InviteHandle } from '../invites/useHeldInvite';
 
 /** How often to ask again about an invite the server could not be asked about. */
 const PREVIEW_RETRY_MS = 10_000;

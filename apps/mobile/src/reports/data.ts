@@ -2,7 +2,7 @@ import { fetchOrgReports, ReportsError } from '@langquest-next/sync';
 import type { LanguageRow } from '@langquest-next/core';
 import { useEffect, useSyncExternalStore } from 'react';
 import { t } from '../i18n';
-import { reportsServer } from '../useOrgSummary';
+import { reportsServer } from './useOrgSummary';
 
 /**
  * An organization's reports for the Reports section (decision 44): every

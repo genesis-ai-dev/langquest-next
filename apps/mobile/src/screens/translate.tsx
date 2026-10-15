@@ -32,17 +32,17 @@ import {
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import type { Ctx } from '../ctx';
-import { screenTitle } from '../flow';
-import { HelpClip } from '../helpBadge';
+import { Text } from '../ui/text';
+import type { Ctx } from '../shell/ctx';
+import { screenTitle } from '../shell/flow';
+import { HelpClip } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import { indexesFor } from '../indexes';
+import { indexesFor } from '../sync/indexes';
 import {
   Banner, Card, Chip, ChipRow, EmptyState, Field, Header, Ico, LinkBtn, PrimaryBtn, Screen, SectionLabel, Sheet, SmallBtn, txt
-} from '../kit';
-import { ReferenceRecordings, SourcePlayer } from '../passageSourceAudio';
-import { feedbackSource, passageCrumbs, usePassage, versionTitle, type PassageView } from '../passageView';
+} from '../ui/kit';
+import { ReferenceRecordings, SourcePlayer } from '../passage/passageSourceAudio';
+import { feedbackSource, passageCrumbs, usePassage, versionTitle, type PassageView } from '../passage/passageView';
 import { useBackTranslationDraft } from '../recording/backTranslationDraft';
 import { CardList, RecordButton, SaveProblem, type ListedCard } from '../recording/parts';
 import { SplitPane } from '../recording/SplitPane';
@@ -53,28 +53,28 @@ import {
   backTranslationDraftKey, canPublish, cardDurations, draftToOpen, removeCardSpecs, sameCards,
   termsInText, tiedTermIds, tieTermsSpecs, unsavedParts, workingCards
 } from '../recording/workspaceModel';
-import { getReferenceSlides } from '../passageResources';
-import { pendingPassageCards } from '../recordingFlow';
-import { failureMessage } from '../report';
+import { getReferenceSlides } from '../passage/passageResources';
+import { pendingPassageCards } from '../recording/recordingFlow';
+import { failureMessage } from '../diagnostics/report';
 import { RequestBanner } from '../reviewing/parts';
-import { contractsFor } from '../screenContracts';
-import { BackTranslationBody } from '../simple/btWorkspace';
+import { contractsFor } from '../shell/screenContracts';
+import { BackTranslationBody } from '../recording/btWorkspace';
 import { SourceReader } from '../sources/SourceReader';
-import { GuideNav, GuideStep } from '../simple/guide';
-import { partLabel, partsLookClipped, refChips, totalMs, type RefChip } from '../simple/model';
-import { passageVerseKeys } from '../simple/verseModel';
+import { GuideNav, GuideStep } from '../study/guide';
+import { partLabel, partsLookClipped, refChips, totalMs, type RefChip } from '../recording/model';
+import { passageVerseKeys } from '../recording/verseModel';
 import { draftName, draftOf, startedFrom } from '../passage/versionsModel';
 import { catalogVerses } from '../sources/model';
-import { QuietLink, RefChips, type ChipItem } from '../simple/parts';
-import { checkName } from '../simple/adminModel';
-import { PublishScreen } from '../simple/publish';
-import { RecorderBar, RecorderFooter, RecorderPane, type Part } from '../simple/recorder';
-import { BibleBar, BiblePane, EarlierPane, KeyWordsPane, NotesPane, RequestNote, useBible } from '../simple/reference';
+import { QuietLink, RefChips, type ChipItem } from '../recording/blocks';
+import { checkName } from '../admin/adminModel';
+import { PublishScreen } from '../recording/publish';
+import { RecorderBar, RecorderFooter, RecorderPane, type Part } from '../recording/recorder';
+import { BibleBar, BiblePane, EarlierPane, KeyWordsPane, NotesPane, RequestNote, useBible } from '../helps/reference';
 import { useUsage } from '../sources/used';
 import { useStudyGuide } from '../study/libraryGuides';
 import { studyProgress } from '../study/progress';
-import { C, radius, space, TINT, withAlpha } from '../theme';
-import { useOnTooShort, useRecorder, type RecordedCard } from '../useRecorder';
+import { C, radius, space, TINT, withAlpha } from '../ui/theme';
+import { useOnTooShort, useRecorder, type RecordedCard } from '../recording/useRecorder';
 
 // ---- Workspace ---------------------------------------------------------------------
 

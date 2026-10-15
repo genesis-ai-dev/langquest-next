@@ -2,7 +2,7 @@ import { ORG_STREAM, type EventPayloads } from '@langquest-next/core';
 import { appendConfirmed, ensureDeviceId } from '@langquest-next/sync';
 import * as Crypto from 'expo-crypto';
 import { serverTransport } from '../server/sync';
-import { getStore } from '../store';
+import { getStore } from '../sync/store';
 
 /** A language's country, or what it aims to record and by when, as Reports' settings set them (decision 41). */
 export type LanguageSetting =

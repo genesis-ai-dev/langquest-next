@@ -11,11 +11,11 @@ import { SyncClient, ensureDeviceId } from '@langquest-next/sync';
 import { keyTermsFor, type KeyTermView } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useEffect, useState } from 'react';
-import { audioFormat } from '../audioClip';
-import type { Ctx } from '../ctx';
-import { noteExpected } from '../report';
-import type { LanguageTerms } from '../simple/helpsModel';
-import { getStore } from '../store';
+import { audioFormat } from '../audio/audioClip';
+import type { Ctx } from '../shell/ctx';
+import { noteExpected } from '../diagnostics/report';
+import type { LanguageTerms } from '../helps/helpsModel';
+import { getStore } from '../sync/store';
 import { serverTransport } from '../server/sync';
 
 interface Held { terms: KeyTermView[]; formats: Record<string, string> }

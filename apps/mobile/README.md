@@ -2,20 +2,20 @@
 
 Expo 57 app, run as a development build (the native recorder module does not load in Expo Go). Owns exactly three things:
 
-1. `src/store.ts`: the expo-sqlite driver behind `SqliteStore` from
+1. `src/sync/store.ts`: the expo-sqlite driver behind `SqliteStore` from
    `@langquest-next/sync`. The store logic itself lives in the sync
    package and is contract-tested there against node:sqlite.
 2. `src/usePartition.ts`: one `SyncClient` on the open language's partition
    with `SupabaseTransport`, sync on open and every 15 s, a pending count.
-   `src/useOrg.ts`: the same client on the org partition (`_org`) with the
+   `src/sync/useOrg.ts`: the same client on the org partition (`_org`) with the
    org materializer. An organization holds its languages directly and is
    what you switch between (docs/decisions.md 34); each language is its own
    partition, listed in `_org`, and a phone pulls the ones it opens
-   (decision 37, `src/languages.ts`; `src/partitionWriter.ts` starts a new
-   one). `src/createOrg.ts` starts an organization; `src/session.ts` derives privileges from both folds
+   (decision 37, `src/shell/languages.ts`; `src/partitionWriter.ts` starts a new
+   one). `src/org/createOrg.ts` starts an organization; `src/shell/session.ts` derives privileges from both folds
    (`can(privilege)`, `adminScope`), and Home follows the admin scope.
 3. Screens, one file per UX demo domain under `src/screens/`, every demo
-   screen id present (`src/flow.ts` is the registry, generated from the
+   screen id present (`src/shell/flow.ts` is the registry, generated from the
    demo's flow; `test/flow.test.ts` proves every screen exists and is
    reachable from `sign_in`):
    - `entry.tsx`: sign in, create account, terms, vision, intent chooser,
@@ -24,28 +24,28 @@ Expo 57 app, run as a development build (the native recorder module does not loa
    - `passage.tsx`: passage record, version, review, ask someone.
    - `translate.tsx`: the recording workspace and back translation
      (`src/recording/`). `review.tsx`: review it, already happened, review by link.
-   - `study.tsx`: study guide and step (`src/study/`, `src/scripture.ts`).
+   - `study.tsx`: study guide and step (`src/study/`, `src/passage/scripture.ts`).
    - `org.tsx`: org and language homes; members; invites; teams.
    - `config.tsx`: roles, reference, key terms, review flows.
      `content.tsx`: content templates and dividing a book.
    - `account.tsx`: inbox, settings, profile, org switcher, sign out, sync.
-   Shared: `src/kit.tsx` (the demo's UI primitives), `src/theme.ts`,
-   `src/passageView.ts`, `src/voiceNote.tsx`; `docs/ux/demo-parity.md`.
-   Navigation is `src/nav.ts` (stack) driven by `ctx.go`, which only follows
-   edges declared in `src/flow.ts`; undeclared transitions log `[flow] BLOCKED`,
+   Shared: `src/ui/kit.tsx` (the demo's UI primitives), `src/ui/theme.ts`,
+   `src/passage/passageView.ts`, `src/audio/voiceNote.tsx`; `docs/ux/demo-parity.md`.
+   Navigation is `src/shell/nav.ts` (stack) driven by `ctx.go`, which only follows
+   edges declared in `src/shell/flow.ts`; undeclared transitions log `[flow] BLOCKED`,
    and so do gated edges the session's role cannot take (`edgeAllowed`).
-   `test/specParity.test.ts` holds `src/flow.ts` to the UX spec's machine
+   `test/specParity.test.ts` holds `src/shell/flow.ts` to the UX spec's machine
    (`test/spec-flow.json`, regenerated with
    `npx tsx scripts/extractSpecFlow.ts <path to ng-langquest-ux>`).
-   Session facets and the home screen per role come from `src/session.ts`.
-   `src/DevMenu.tsx` (from Settings or the sign-in screen) switches persona by
+   Session facets and the home screen per role come from `src/shell/session.ts`.
+   `src/shell/DevMenu.tsx` (from Settings or the sign-in screen) switches persona by
    really signing in as a seeded account, seeds the demo team as owner, and in
    a dev build can jump to any screen. Personas work only against a local
    Supabase and only when `EXPO_PUBLIC_DEV_PASSWORD` is set (there is no
    built-in password: `EXPO_PUBLIC_*` values are public); seeding also needs a
-   dev build. The testers named in `src/dev.ts` (`EXPO_PUBLIC_PERSONA_EMAILS`)
+   dev build. The testers named in `src/auth/dev.ts` (`EXPO_PUBLIC_PERSONA_EMAILS`)
    may use it in a release build pointed at a local server.
-   `src/invites.ts` holds the writes a non-member may make: `issue_invite`,
+   `src/invites/invites.ts` holds the writes a non-member may make: `issue_invite`,
    `redeem_invite_v2` and the `join_requests` table (migration
    20260915120000). They end in the ordinary `v1.OrgMemberAdded`, recorded
    alongside `v1.InviteIssued`, `v1.InviteRedeemed` and `v1.JoinDecided`.
@@ -54,7 +54,7 @@ No sync logic lives here. Screens read `state` through core derivations
 (`derivePassage`, `highlightsFor`, `languageProgress` and the rest in
 `packages/core/src/passage.ts`) and write through core `commands()`. A few
 screen models build org-partition events core has no commands for
-(`src/orgAdmin.ts`, `src/config/model.ts`, `src/contentTemplates.ts`);
+(`src/org/orgAdmin.ts`, `src/config/model.ts`, `src/templates/contentTemplates.ts`);
 they are listed in `docs/ux/demo-parity.md`.
 
 Run: the app's env files are committed and plain (they hold only public
@@ -65,8 +65,8 @@ cannot run in Expo Go) and afterwards `npm start -- --dev-client`. Use the npm
 scripts, not `npx expo` directly: they load `.env.development` and turn off
 Expo's own `.env` loading. Your
 own dev login goes in `.env.development.local` (git ignores it).
-Recording lives in `src/useRecorder.ts` (native VAD plus expo-audio),
-`src/blobs.ts` (content-addressed store), `src/server/blobTransport.ts` (Supabase
+Recording lives in `src/recording/useRecorder.ts` (native VAD plus expo-audio),
+`src/sync/blobs.ts` (content-addressed store), `src/server/blobTransport.ts` (Supabase
 Storage), and `src/screens/translate.tsx` with `src/recording/`. `EXPO_PUBLIC_DEV_EMAIL`
 and `EXPO_PUBLIC_DEV_PASSWORD` prefill the auth screen in dev builds only.
 Event ids come from expo-crypto because Hermes has no `crypto.randomUUID`.
@@ -118,7 +118,7 @@ Console.
 1. The privacy policy and the account deletion page are static pages served
    with the web app (`public/privacy.html`, `public/delete-account.html`):
    `https://next.langquest.org/privacy` and
-   `https://next.langquest.org/delete-account` (`src/legal.ts`; decisions.md
+   `https://next.langquest.org/delete-account` (`src/auth/legal.ts`; decisions.md
    46, amended). They must be live before Play review.
 2. In Play Console, create the app with package
    `com.frontierrnd.langquestnext` and fill in the App content
@@ -162,7 +162,7 @@ db:apply` remains for applying by hand.
 project, so which changes need a new binary is decided for you rather than
 guessed:
 
-- **JavaScript only** (screens, hooks, `src/invites.ts`, the packages):
+- **JavaScript only** (screens, hooks, `src/invites/invites.ts`, the packages):
   `npm run ship -- -m "what changed"`. Typechecks, runs the P0 web UI
   tests on the local stack (`docs/testing.md`; `SHIP_UNTESTED=1` skips
   them, loudly), then publishes to the `preview` channel; the fingerprint is unchanged, so installed builds take it

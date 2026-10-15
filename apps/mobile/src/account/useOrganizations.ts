@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 import { t } from '../i18n';
-import { failureMessage as failure } from '../report';
+import { failureMessage as failure } from '../diagnostics/report';
 import { myOrganizations } from '../server/account';
 
 export type OrgRow = { org_id: string; name: string };

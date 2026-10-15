@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { deleteAccount } from '../accountDeletion';
-import { forgetThisBrowser } from '../forgetBrowser';
+import { deleteAccount } from './accountDeletion';
+import { forgetThisBrowser } from '../web/forgetBrowser';
 import { deleteMyAccount } from '../server/account';
 import { signOutLocally } from '../server/auth';
 

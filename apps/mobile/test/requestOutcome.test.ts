@@ -1,4 +1,4 @@
-import { latestRequest, requestOutcome } from '../src/requestOutcome';
+import { latestRequest, requestOutcome } from '../src/invites/requestOutcome';
 
 describe('what became of a join request', () => {
   it('waits while the request is open and they belong nowhere', () => {

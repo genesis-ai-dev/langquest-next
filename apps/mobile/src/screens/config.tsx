@@ -24,35 +24,35 @@ import {
 import * as Crypto from 'expo-crypto';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import { AudioClip } from '../audioClip';
-import { deriveKinds, localKind } from '../coreText';
-import type { Ctx } from '../ctx';
+import { Text } from '../ui/text';
+import { AudioClip } from '../audio/audioClip';
+import { deriveKinds, localKind } from '../i18n/coreText';
+import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { indexesFor } from '../indexes';
+import { indexesFor } from '../sync/indexes';
 import {
   Badge, Banner, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, IconBtn, KindIcon,
   PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, SmallBtn, Toggle, txt, useOpenDetail
-} from '../kit';
+} from '../ui/kit';
 import { cachedDoc } from '../library/docStore';
 import { sourceLine, usesItem, type SharedItem } from '../library/model';
 import { restoreChecks } from '../checks/undo';
 import { useLibrary, useLibraryDocs, useLibraryUpdates, useSharedItems } from '../library/useLibrary';
-import { when } from '../passageView';
-import { failureMessage } from '../report';
+import { when } from '../passage/passageView';
+import { failureMessage } from '../diagnostics/report';
 import { LanguageField } from '../reference/LanguageField';
 import { readerLanguage } from '../reference/languages';
-import { contractsFor } from '../screenContracts';
+import { contractsFor } from '../shell/screenContracts';
 import { draftToTie } from '../study/keyTermDraft';
-import { sourceText } from '../scripture';
-import { C, radius, space, TINT } from '../theme';
-import { VoiceNote } from '../voiceNote';
-import { CheckSteps } from '../simple/checks';
-import { BibleChip, bibleMissing, OthersSay, OwnWord, PassageNoteEditor, WhereItIs } from '../simple/helps';
-import { othersSay } from '../simple/helpsModel';
-import { bookOf } from '../simple/model';
-import { useBible } from '../simple/reference';
+import { sourceText } from '../passage/scripture';
+import { C, radius, space, TINT } from '../ui/theme';
+import { VoiceNote } from '../audio/voiceNote';
+import { CheckSteps } from '../checks/checkSteps';
+import { BibleChip, bibleMissing, OthersSay, OwnWord, PassageNoteEditor, WhereItIs } from '../helps/helps';
+import { othersSay } from '../helps/helpsModel';
+import { bookOf } from '../recording/model';
+import { useBible } from '../helps/reference';
 import { useOtherLanguageTerms } from '../reference/otherLanguages';
 import { LanguageChecks } from './checks';
 import { addPickedKind, copyFlowSpecs, currentFlowLine, flowEditorBase, flowEditorSeed, flowEditorStatus, knownKinds, newKindDef, usuallyFor, withAddedKinds } from '../flows/model';
@@ -66,8 +66,8 @@ import {
   versificationChoices, type VersificationChoice
 } from '../reference/materialModel';
 import { privilegesOn, roleDefinition, roleDirty, roleSnapshot } from '../roles/model';
-import { SwitchRow } from '../simple/admin';
-import { flipSwitch, ROLE_SWITCHES, stepTitle, switchState } from '../simple/adminModel';
+import { SwitchRow } from '../admin/admin';
+import { flipSwitch, ROLE_SWITCHES, stepTitle, switchState } from '../admin/adminModel';
 import {
   fieldLabel, flowDocFrom, flowLabel, flowUndoFor, flowUse, holdersOf, isFiaTerm,
   levelLabel, libraryMaterialLine, libraryQuestions, materialDocFrom, materialItemId, moveStep, newKindId,

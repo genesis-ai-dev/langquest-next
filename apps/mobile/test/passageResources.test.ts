@@ -1,4 +1,4 @@
-import { getReferenceSlides, referenceRunSignature } from '../src/passageResources';
+import { getReferenceSlides, referenceRunSignature } from '../src/passage/passageResources';
 
 function state() {
   return {

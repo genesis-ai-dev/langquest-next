@@ -11,16 +11,16 @@ import {
   type Privilege, type LanguageState, type QuestionSpec, type RecordEntry, type RequestView, type ReviewView, type SourcedQuestion,
   type Version
 } from '@langquest-next/core';
-import { latinDigits } from '../textMatch';
-import { stateLabel, stepName } from '../coreText';
+import { latinDigits } from '../ui/textMatch';
+import { stateLabel, stepName } from '../i18n/coreText';
 import { t } from '../i18n';
-import { checkName } from '../simple/adminModel';
-import type { IconName } from '../kit';
-import { hiddenText } from '../moderation';
+import { checkName } from '../admin/adminModel';
+import type { IconName } from '../ui/kit';
+import { hiddenText } from '../moderation/model';
 import { storedAnswerText } from '../reviewing/capture';
-import { andList, commaList, dueText, feedbackSource, isJustNow, outcomeText, outcomeTitle, versionTitle, viaText, when } from '../passageView';
+import { andList, commaList, dueText, feedbackSource, isJustNow, outcomeText, outcomeTitle, versionTitle, viaText, when } from './passageView';
 import type { StudyGuide } from '../study/guides';
-import { C, TINT } from '../theme';
+import { C, TINT } from '../ui/theme';
 
 /** `ctx.name`: a display name, "You"/"you" for the viewer. */
 export type NameFn = (profileId: string, lower?: boolean) => string;

@@ -1,6 +1,6 @@
 import { helpLines, lineHash } from './help-audio';
 
-/** Help mode's recordings are named by their words (scripts/help-audio.ts, apps/mobile/src/helpAudio.ts). */
+/** Help mode's recordings are named by their words (scripts/help-audio.ts, apps/mobile/src/helpMode/helpAudio.ts). */
 describe('help audio lines', () => {
   it('names a recording by its language and exact words, as the phone does', () => {
     // SHA-256 of "en\nGot it", first 16 hex digits: the same on the phone (expo-crypto) and here.

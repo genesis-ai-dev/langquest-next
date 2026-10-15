@@ -3,12 +3,12 @@
 import { checkHelps, type LanguageState } from '@langquest-next/core';
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import type { Ctx } from '../ctx';
+import { Text } from '../ui/text';
+import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
-import { C, space } from '../theme';
-import { usePerson, PersonAvatar } from '../UserChip';
-import type { IconName } from '../kit';
+import { C, space } from '../ui/theme';
+import { usePerson, PersonAvatar } from '../ui/UserChip';
+import type { IconName } from '../ui/kit';
 import { useLibrary, useLibraryDocs } from '../library/useLibrary';
 import { refKindOf } from '../reference/model';
 import { referenceKindName } from '../config/model';

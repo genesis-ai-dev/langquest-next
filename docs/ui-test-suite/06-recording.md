@@ -506,7 +506,7 @@ Steps:
 3. Launch the app and open LANG-A's map, then P-Q3, then "Continue recording".
 
 Expected:
-- The 60-second part is in the draft, once, and plays to the end (the journal finished its save: `recordingJournalCore.ts` resumes by recording id).
+- The 60-second part is in the draft, once, and plays to the end (the journal finished its save: `recordingJournalModel.ts` resumes by recording id).
 - No duplicate part, and nothing waits to upload after 30 seconds online.
 - If the audio file itself was lost (the device never wrote it), the part is absent and the app does not crash; the journal keeps the entry and does not show an error on every launch.
 

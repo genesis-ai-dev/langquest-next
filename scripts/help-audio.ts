@@ -12,7 +12,7 @@
 //     A recording whose words have since changed is left out (re-record it).
 //
 // The hash is the first 16 hex digits of SHA-256 over "<lang>\n<words>",
-// as apps/mobile/src/helpAudio.ts computes it on the phone.
+// as apps/mobile/src/helpMode/helpAudio.ts computes it on the phone.
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';

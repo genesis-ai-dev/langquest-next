@@ -34,29 +34,29 @@ import { useWays } from '../breakup/useBreakup';
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import * as Crypto from 'expo-crypto';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
-import { Text } from '../text';
+import { Text } from '../ui/text';
 import {
   bibleBook, bookNameOf, bookRows, withWaitingBooks, chapterBlocks, chipLabel, choiceLine, continuesInto, addNode,
   docLevels, formFromDoc, levelsForDivide,
   levelsForOutline, libraryChoices, moveNode, newTemplateForm, partWords, recordedCount, removeNode, renameNode,
   setAsideCount, siblingsOf, findNode, STARTER_TEMPLATE, templateLine, templateOf, versesText, versificationBooks,
   type BibleBook, type Block, type LibraryChoice, type Segment, type TemplateForm
-} from '../contentTemplates';
-import { bookName } from '../coreText';
-import type { Ctx } from '../ctx';
+} from '../templates/contentTemplates';
+import { bookName } from '../i18n/coreText';
+import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
-import { indexesFor } from '../indexes';
+import { indexesFor } from '../sync/indexes';
 import {
   Banner, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, PrimaryBtn, QuietLinks, Row, Screen, SearchField,
   SectionLabel, SmallBtn, Sheet, ShowMore, Toggle, txt, useOpenDetail
-} from '../kit';
+} from '../ui/kit';
 import { mayWriteLibrary, sourceLine, type SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs, useLibraryUpdates, useSharedItems } from '../library/useLibrary';
-import { failureMessage } from '../report';
-import { DashedRow } from '../simple/admin';
-import { contractsFor } from '../screenContracts';
+import { failureMessage } from '../diagnostics/report';
+import { DashedRow } from '../admin/admin';
+import { contractsFor } from '../shell/screenContracts';
 import { chipLabel as sourceChip } from '../sources/SourceReader';
-import { C, radius, space, target, tile, TINT, type as T } from '../theme';
+import { C, radius, space, target, tile, TINT, type as T } from '../ui/theme';
 import { bookStructureData, chapterNumbers, chapterTileLabel, partsStartingIn } from '../templates/bookStructureModel';
 import { useRunner, type Lib } from '../templates/hooks';
 import {

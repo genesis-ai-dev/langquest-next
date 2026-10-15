@@ -2,10 +2,10 @@
 // parts, which are recorded, the words under each verse, and the chapter
 // jump grid. Pure: no React, no I/O (decision 105; TPL-5, ADR-027).
 import { derivePassage, languageName, type Indexes, type LanguageState, type OrgState } from '@langquest-next/core';
-import { bookRows, bookSegments, fiaStarts, type BibleBook, type Segment } from '../contentTemplates';
-import { bookName } from '../coreText';
+import { bookRows, bookSegments, fiaStarts, type BibleBook, type Segment } from './contentTemplates';
+import { bookName } from '../i18n/coreText';
 import { t } from '../i18n';
-import { readingsFor } from '../scripture';
+import { readingsFor } from '../passage/scripture';
 import { lower } from './model';
 
 export interface BookStructureData {

@@ -6,11 +6,11 @@
 import { usedOn, type LanguageState, type UsedReference } from '@langquest-next/core';
 import { useMemo, useRef } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import type { Ctx } from '../ctx';
+import { Text } from '../ui/text';
+import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
-import { Ico, txt } from '../kit';
-import { C, radius, space } from '../theme';
+import { Ico, txt } from '../ui/kit';
+import { C, radius, space } from '../ui/theme';
 import { madeWithLine, usedItems } from './model';
 
 export interface Usage {

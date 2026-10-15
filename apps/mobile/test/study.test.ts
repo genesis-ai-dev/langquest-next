@@ -3,7 +3,7 @@ import { buildLibrary } from '../../../scripts/library-seed';
 import { bestGuide, glossaryEntryOf, guideFromDoc, passageVerses } from '../src/study/guideMatch';
 import { overlap, parseRange, versesOf } from '../src/study/range';
 import { clock, inlineParts, isQuestion, secondsOf, sectionLabel, studySections } from '../src/study/text';
-import { readingsFor, sourceText } from '../src/scripture';
+import { readingsFor, sourceText } from '../src/passage/scripture';
 
 function withUnits(units: Record<string, string>): LanguageState {
   const s = emptyLanguageState();

@@ -1,10 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { highlightsFor, updatesFor, type LanguageState } from '@langquest-next/core';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { indexesFor } from '../indexes';
-import { usePendingRequestCount } from '../invites';
-import { useOpenReportCount, type Blocks } from '../moderationData';
-import type { Session } from '../session';
+import { indexesFor } from '../sync/indexes';
+import { usePendingRequestCount } from '../invites/invites';
+import { useOpenReportCount, type Blocks } from '../moderation/moderationData';
+import type { Session } from './session';
 
 /**
  * What is waiting and what happened (WORK-1, INBOX-1): the work for this

@@ -12,14 +12,14 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { libraryChoices, STARTER_TEMPLATE, type LibraryChoice } from '../contentTemplates';
-import type { Ctx } from '../ctx';
+import { libraryChoices, STARTER_TEMPLATE, type LibraryChoice } from '../templates/contentTemplates';
+import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
-import { appendToLanguage } from '../languageWriter';
+import { appendToLanguage } from '../sync/languageWriter';
 import { flushOutbox, keepNewDoc, loadDocs, prepareDoc } from '../library/docStore';
 import { newItemId } from '../library/model';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
-import { noteExpected } from '../report';
+import { noteExpected } from '../diagnostics/report';
 import { templateUsers } from '../server/library';
 import { bookNames } from '../server/languages';
 import { copyName, copyOffOps, groupNames, itemIdOf, NUMBERING_ITEMS, planChange, wayOf, wayRows, type TemplateUser, type WayRow } from './model';

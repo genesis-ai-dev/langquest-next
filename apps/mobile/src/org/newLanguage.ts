@@ -5,7 +5,7 @@ import {
 import { clusterEvents, type ClusterEvent } from '../clusters/model';
 import { t } from '../i18n';
 import type { SharedItem } from '../library/model';
-import { addLanguage, booksInScope, newLanguageId, type LanguageScope } from '../orgAdmin';
+import { addLanguage, booksInScope, newLanguageId, type LanguageScope } from './orgAdmin';
 import { chooseSetLanguage, type GuideSet, type ReferenceSay, type SetMember } from '../reference/guideSets';
 
 /**

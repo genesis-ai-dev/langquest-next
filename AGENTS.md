@@ -46,7 +46,7 @@ Rules specific to this folder:
   `scripts/record-parity-sql.ts` checks SQL against core.
 - User-facing screens follow the partner demo in `ng-langquest-ux` (its
   flow, look and capabilities). Read PLAN.md section 12 and
-  `docs/ux/demo-parity.md` before changing a screen. `apps/mobile/src/flow.ts`
+  `docs/ux/demo-parity.md` before changing a screen. `apps/mobile/src/shell/flow.ts`
   is generated from the demo's flow (`test/spec-flow.json`); the parity test
   holds it edge by edge.
 

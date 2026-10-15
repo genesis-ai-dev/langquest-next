@@ -9,7 +9,7 @@
 // there study media stay on the web and the offline card says so.
 import { Directory, File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
-import { noteExpected } from '../report';
+import { noteExpected } from '../diagnostics/report';
 import type { StudyGuide } from './guides';
 
 export const STUDY_FILES_OFFLINE = Platform.OS !== 'web';

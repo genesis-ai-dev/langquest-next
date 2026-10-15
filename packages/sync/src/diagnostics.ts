@@ -47,7 +47,7 @@ export const DIAG_SCHEMA = {
   },
   /** The phone's own state, sampled when records are delivered. */
   device: { n: ['freeDiskMb', 'totalDiskMb', 'blobCacheMb', 'blobsWanted'], t: {} },
-  /** A fault that reached a boundary (apps/mobile/src/report.ts). */
+  /** A fault that reached a boundary (apps/mobile/src/diagnostics/report.ts). */
   error: { n: [], t: { name: TOKEN, where: TOKEN, errorId: TOKEN, fatal: ['yes', 'no'] } }
 } as const;
 

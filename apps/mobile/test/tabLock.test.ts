@@ -1,4 +1,4 @@
-import { LOCK_NAME, startTab, type TabDeps, type TabState } from '../src/tabLock';
+import { LOCK_NAME, startTab, type TabDeps, type TabState } from '../src/web/tabLock';
 
 // One tab at a time on the web (decisions.md 58): two tabs of one browser, faked.
 

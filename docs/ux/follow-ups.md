@@ -18,7 +18,7 @@ This document tracks remaining UX-vision alignment work after the P0 Inbox fix (
 - ✅ Added `deriveInboxCount()` to count decisions on user's takes
 - ✅ Updated comments to clarify Avatar P notification-centre purpose
 
-**Files:** `apps/mobile/src/screens/account.tsx`, `apps/mobile/src/session.ts`, `apps/mobile/App.tsx`
+**Files:** `apps/mobile/src/screens/account.tsx`, `apps/mobile/src/shell/session.ts`, `apps/mobile/App.tsx`
 
 ---
 
