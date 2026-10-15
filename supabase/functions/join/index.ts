@@ -70,9 +70,10 @@ Deno.serve(async (request) => {
     for (let attempt = 0; attempt < 10 && !profileId; attempt++) {
       const width = attempt < 5 ? 3 : 5;
       const candidate = `${makeSignInName(name, crypto.getRandomValues(new Uint32Array(1))[0]!, width)}@${MANAGED_DOMAIN}`;
-      // `has_password: false` tells the app there is no password to sign back in with until they set one.
+      // `has_password: false` tells the app there is no password to sign back in with until they set one;
+      // `managed` is what makes it a looked-after account to the server (is_managed_account), which no one can set for themselves.
       const made = await service.auth.admin.createUser({
-        email: candidate, password: randomPassword(), email_confirm: true, user_metadata: { has_password: false }
+        email: candidate, password: randomPassword(), email_confirm: true, user_metadata: { has_password: false }, app_metadata: { managed: true }
       });
       if (made.error && /already|exists|registered/i.test(made.error.message)) continue;
       if (made.error || !made.data.user) return reply({ error: 'Unable to join right now. Please retry.' }, 503);

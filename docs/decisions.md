@@ -1297,6 +1297,16 @@ Amended (2026-10-07, Carl Sauder): "Looked-after accounts cannot invite" is
 superseded by 67; their role decides, as for anyone. Helping someone sign
 in still needs an account with its own email.
 
+Amended (2026-10-15, Carl Sauder): a looked-after account is one `join`
+made, not any address at people.langquest.org. Sign-up is open, so anyone
+could make a password account in that domain and be taken as looked-after
+by the server, which lets helpers issue it sign-in codes. `join` now sets
+`app_metadata.managed`, which only the service role can write, and
+`is_managed_account` asks for it as well as the domain (migration
+20261015233000; the accounts already in the domain were all made by `join`
+and are marked there). The phone still tells a looked-after account by its
+domain, which only changes what it shows.
+
 ## 55. Wide windows get a centred column, a side rail or sidebar, and list–detail panes; phones are unchanged
 
 Date: 2026-10-01 · By: Carl Sauder · Status: partly superseded by 58

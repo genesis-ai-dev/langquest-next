@@ -1013,4 +1013,15 @@ do $$ declare i int; begin
   delete from v2_import.sign_in_failures;
 end $$;
 
+-- 24. A looked-after account is one `join` made (decisions.md 54, amended
+-- 2026-10-15): an address in the domain that someone signed up with is not.
+insert into auth.users (id, email, aud, role, raw_app_meta_data) values
+  ('24000000-0000-0000-0000-00000000000a', 'squat-123@people.langquest.org', 'authenticated', 'authenticated', '{}'),
+  ('24000000-0000-0000-0000-00000000000b', 'made-456@people.langquest.org', 'authenticated', 'authenticated', '{"managed": true}');
+do $$ begin
+  if public.is_managed_account('24000000-0000-0000-0000-00000000000a') then raise exception 'a signed-up address in the domain is not looked-after'; end if;
+  if not public.is_managed_account('24000000-0000-0000-0000-00000000000b') then raise exception 'an account join made is looked-after'; end if;
+end $$;
+delete from auth.users where id in ('24000000-0000-0000-0000-00000000000a', '24000000-0000-0000-0000-00000000000b');
+
 select 'smoke ok' as result;
