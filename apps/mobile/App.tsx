@@ -1,6 +1,7 @@
 import { StudyPrefetch } from './src/study/StudyPrefetch';
 import { HelpModeProvider } from './src/helpMode/helpMode';
 import { useKeepHelpAudio } from './src/helpMode/useKeepHelpAudio';
+import { usePrefetchLazyScreens } from './src/shell/usePrefetchLazyScreens';
 import { languageReady, onLanguageReady } from './src/i18n/start';
 import { HelpScopeContext } from './src/helpMode/useHelpMode';
 import { stopAudioPlayback } from './src/audio/audioSession';
@@ -356,6 +357,8 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
   const org = useOrg(props.orgId, props.actorId);
   // Help audio waits for this organization's first sync (src/helpMode/useKeepHelpAudio.ts).
   useKeepHelpAudio(org.settled);
+  // So is fetching the screens that load when opened, on the web (src/shell/lazyScreens.tsx).
+  usePrefetchLazyScreens(org.settled);
   const known = org.state !== null && (org.state.org !== null || org.settled);
   if (!known) return <View style={styles.root} accessibilityLabel={t('shell.openingOrganization')} />;
   // No organization: the screens still need an id for their keys; '' names none.

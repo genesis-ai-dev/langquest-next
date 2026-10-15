@@ -1523,6 +1523,10 @@ each one, about half a kilobyte apiece, so the move cost 30 KB beyond the
 code it moved (5.98 MB on main, 6.01 MB after). The budget still says when
 the download grows; one module per concern is worth that half kilobyte.
 
+Amended (2026-10-15, Carl Sauder): the export is now a main file and one
+file per screen module that loads when opened, and the budget is two: 5.7
+MiB for what a first visit loads, 6.25 MiB for all of it (115).
+
 ## 59. Joining by invite needs no password, and whoever can invite you can get you back in
 
 Date: 2026-10-05 · By: Caleb Koster · Status: accepted
@@ -4315,3 +4319,33 @@ the reconcile's language and organization cases. Migration
 `server/notificationsSmoke.sql`. Reverse if: someone needs Inbox history
 older than a month (an audit of who was asked what); then archive rows
 before deleting them.
+
+## 115. Screens most people never open load when opened, and the web budget measures a first visit
+
+Date: 2026-10-15 · By: Carl Sauder · Status: accepted
+
+Reason: `App.tsx` imported every screen module, and Expo's Metro config
+turns inline requires off, so a phone ran all of them before the first
+frame: Reports' d3-geo, world map and 13 country-name tables among them,
+though phones never show Reports. On the web the export was one file, its
+budget raised four times (4.8, 6, 6.1, 6.25 MB) and nearly spent
+(performance-audit-app.md S1, S2). Now Reports, Config, Org, Content,
+Checks, Sources and Reference are `import()`ed the first time one of their
+screens opens (`lazyScreen`, `apps/mobile/src/shell/lazyScreens.tsx`); the
+screens on the way to recording stay in the main bundle. The web export
+gives each its own file; a phone keeps them in its one bundle. Inline
+requires are on for native only (`metro.config.js`): on the web they added
+110 KB to the entry file, which a browser parses whole either way. Once the
+organization's first sync has settled, the web fetches the lazy files in
+the background (`usePrefetchLazyScreens`), so work still continues offline
+once the app is open (58); a file that fails to load reaches the error
+boundary, and the next open tries again. `apps/mobile/scripts/export-web.mjs`
+holds two budgets: 5.7 MiB for the files `index.html` loads (5.41
+measured, 6.21 before), and 6.25 MiB for every file together (6.21). Help
+audio now waits for that first sync, an idle screen, and Wi-Fi or a cable
+(`useKeepHelpAudio`), and `/i18n/*` is cached for a year, since the app
+asks for it with `?v=<build>`. Turned down: splitting the country names by
+language (`countryName()` is synchronous; they now ride in the Reports
+file). Reverse if: a lazy screen's first open is slow enough for people to
+notice on the slowest partner phone, or the web's background fetch competes
+with a first sync on slow links; then move that screen back, or fetch later.

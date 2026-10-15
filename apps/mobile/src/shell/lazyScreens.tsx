@@ -1,24 +1,8 @@
 import { Suspense, type ComponentType } from 'react';
 import { View } from 'react-native';
+import { readModule, registerLoader, type Loader } from './lazyModules';
 import type { Ctx } from './ctx';
 import { C } from '../ui/theme';
-
-type Loader<M> = () => Promise<M>;
-
-/** Modules already loaded, by their loader: a screen of one that has arrived draws at once. */
-const loaded = new Map<Loader<unknown>, unknown>();
-const loading = new Map<Loader<unknown>, Promise<unknown>>();
-
-function read<M>(load: Loader<M>): M {
-  if (loaded.has(load)) return loaded.get(load) as M;
-  let pending = loading.get(load);
-  if (!pending) {
-    pending = load().then((m) => { loaded.set(load, m); });
-    loading.set(load, pending);
-  }
-  // Suspends: the nearest Suspense shows its fallback until the module is in.
-  throw pending;
-}
 
 /**
  * A screen whose module loads the first time someone opens it, not at launch
@@ -30,8 +14,9 @@ function read<M>(load: Loader<M>): M {
  * module draws in the same pass as an eager one (no second suspension).
  */
 export function lazyScreen<M extends Record<string, unknown>>(load: Loader<M>, name: keyof M & string): (ctx: Ctx) => React.JSX.Element {
+  registerLoader(load);
   function Loaded(ctx: Ctx) {
-    const Screen = read(load)[name] as ComponentType<Ctx>;
+    const Screen = readModule(load)[name] as ComponentType<Ctx>;
     return <Screen {...ctx} />;
   }
   function LazyScreen(ctx: Ctx) {
