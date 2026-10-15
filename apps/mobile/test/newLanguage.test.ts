@@ -3,7 +3,7 @@ import {
   type EventSpec, type LanguageState, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import type { SharedItem } from '../src/library/model';
-import { createLanguage, newLanguageParts, offerSpecs, type Making, type NewLanguageDeps, type Offer } from '../src/org/newLanguage';
+import { createLanguage, createLanguages, newLanguageParts, offerSpecs, type Making, type NewLanguageDeps, type Offer } from '../src/org/newLanguage';
 import { ORG } from './sessions';
 
 const HASH = 'a'.repeat(64);
@@ -96,6 +96,54 @@ describe('adding a language (ORG-2, decisions 63, 76, 84, 91)', () => {
   });
 });
 
+describe('a cluster of new languages (createLanguages, decision 108)', () => {
+  const nus = Object.keys(ORG.languages).find((id) => ORG.languages[id]?.added) ?? 'L1';
+  const cluster = (over: Partial<Parameters<typeof createLanguages>[0]> = {}): Parameters<typeof createLanguages>[0] => ({
+    org: ORG, actorId: admin, reads: 'eng', scope: 'nt', chosenBooks: new Set(), checks, offers: [{ itemId: 'web', shared: null, name: 'WEB', label: 'the World English Bible' }],
+    languages: [{ key: 'a', name: 'Northeastern Dinka', code: 'dip', languoidId: null }, { key: 'b', name: 'Southwestern Dinka', code: 'dik', languoidId: null }],
+    each: true, cluster: { clusterId: 'cl-dinka', name: 'Dinka cluster', existing: [nus] }, ...over
+  });
+
+  it('adds each language alike, its own copy of each, then names the cluster on them and those already here', async () => {
+    // Why: Spoken set up five languages of one cluster as a separate organization (decision 108).
+    let n = 0;
+    const { deps, parts, org, language } = app({ newId: () => `id${++n}` });
+    const made = await createLanguages(cluster(), deps);
+    expect(made.languages.map((l) => l.name)).toEqual(['Northeastern Dinka', 'Southwestern Dinka']);
+    expect(parts).toEqual(newLanguageParts(true, { each: 2, cluster: true }));
+    expect(language.map((l) => l.languageId)).toEqual(made.languages.map((l) => l.languageId));
+    for (const l of language) expect(l.specs.filter((s) => s.type === 'v1.FlowSelected')).toHaveLength(1);
+    const grouping = org.filter((e) => e.type === 'v1.ClusterNamed' || e.type === 'v1.LanguageClusterSet');
+    expect(grouping).toEqual([
+      { type: 'v1.ClusterNamed', payload: { clusterId: 'cl-dinka', name: 'Dinka cluster' } },
+      ...[...made.languages.map((l) => l.languageId), nus].map((languageId) => ({ type: 'v1.LanguageClusterSet', payload: { languageId, clusterId: 'cl-dinka', inCluster: true } }))
+    ]);
+    // The cluster comes after every language is listed.
+    expect(org.findIndex((e) => e.type === 'v1.ClusterNamed')).toBeGreaterThan(org.map((e) => e.type).lastIndexOf('v1.LanguageAdded'));
+  });
+
+  it('tried again after a failure partway, adds only the languages not yet added', async () => {
+    let n = 0;
+    let fail = true;
+    const first = app({ newId: () => `id${++n}`, appendToLanguage: async (languageId) => { if (languageId.includes('dik') && fail) throw new Error('offline'); } });
+    const done = new Map<string, { languageId: string; name: string }>();
+    await expect(createLanguages(cluster({ done }), first.deps)).rejects.toThrow('offline');
+    expect([...done.keys()]).toEqual(['a']);
+    fail = false;
+    const again = app({ newId: () => `id${++n}` });
+    const made = await createLanguages(cluster({ done }), again.deps);
+    expect(again.org.filter((e) => e.type === 'v1.LanguageAdded').map((e) => (e.payload as { name: string }).name)).toEqual(['Southwestern Dinka']);
+    expect(made.languages.map((l) => l.name)).toEqual(['Northeastern Dinka', 'Southwestern Dinka']);
+  });
+
+  it('one language joining a cluster keeps the one-language parts, and joining one already named writes only the tag', async () => {
+    const { deps, parts, org } = app();
+    await createLanguages(cluster({ languages: [{ key: 'one', name: 'Murle', code: 'mur', languoidId: null }], each: false, offers: [], cluster: { clusterId: 'cl-dinka' } }), deps);
+    expect(parts).toEqual(newLanguageParts(false, { cluster: true }));
+    expect(org.map((e) => e.type)).toEqual(['v1.LanguageAdded', 'v1.LanguageClusterSet']);
+  });
+});
+
 describe('what a new language is offered (offerSpecs)', () => {
   it('skips what the organization already recommends everywhere, with ids a retry repeats', () => {
     const specs = offerSpecs('lang1', ['web', 'fia'], [], { web: { value: true } } as never);
@@ -107,6 +155,11 @@ describe('the parts Continue names (newLanguageParts)', () => {
   it('names helps only when something is offered', () => {
     expect(newLanguageParts(false)).toEqual(['passages', 'checks', 'listing', 'saving']);
     expect(newLanguageParts(true)).toEqual(['passages', 'checks', 'helps', 'listing', 'saving']);
+  });
+
+  it('a cluster names each new language, then the grouping', () => {
+    expect(newLanguageParts(false, { each: 2, cluster: true })).toEqual(['passages', 'checks', 'language:0', 'language:1', 'cluster']);
+    expect(newLanguageParts(true, { cluster: true })).toEqual(['passages', 'checks', 'helps', 'listing', 'saving', 'cluster']);
   });
 });
 

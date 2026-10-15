@@ -91,6 +91,10 @@ const broken: AnyEvent[] = events.flatMap((e) => {
     case 'v1.LanguageCountrySet':
       variants.push({ ...p, country: 'ss' }, { ...p, country: 'SSD' });
       break;
+    case 'v1.ClusterNamed':
+    case 'v1.LanguageClusterSet':
+      for (const clusterId of ['a b', '-x', 'a/b', 'x'.repeat(81), 'x'.repeat(82), 'Dinka_cluster-2']) variants.push({ ...p, clusterId });
+      break;
     case 'v1.LanguageCodeSet':
       variants.push({ ...p, languoidId: 'nyan1308' }, { ...p, languoidId: '' }, { ...p, languoidId: 5 }, { ...p, code: '' },
         { ...p, code: 'x'.repeat(41) }, { ...p, code: 'x'.repeat(40) }, { ...p, languoidId: '5870452D-7878-4328-916D-F4FECC0B79F2' });

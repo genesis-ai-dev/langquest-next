@@ -342,7 +342,8 @@
     "mic_setup": "Régler votre microphone",
     "get_ready": "Se préparer",
     "settings_more": "Autres réglages",
-    "check_editor": "Vérification"
+    "check_editor": "Vérification",
+    "cluster_home": "Groupe"
   },
   "native": {
     "microphone": "LangQuest enregistre votre voix pour traduire des passages.",
@@ -666,7 +667,8 @@
       "languagesTitle": "Langues",
       "newLanguage": "Nouvelle langue",
       "noLanguages": "Pas encore de langues. Ajoutez la première que votre équipe va enregistrer.",
-      "openToBring": "Ouvrez-la pour l’avoir sur cet appareil"
+      "openToBring": "Ouvrez-la pour l’avoir sur cet appareil",
+      "newLanguageOrCluster": "Nouvelle langue ou nouveau groupe"
     },
     "rename": {
       "done": "Renommé en {{name}}.",
@@ -737,7 +739,8 @@
         "roles": "rôles",
         "publicListing": "liste publique",
         "name": "nom",
-        "languageList": "liste des langues"
+        "languageList": "liste des langues",
+        "cluster": "groupe"
       },
       "orgAndCode": "{{org}} · Code {{code}}",
       "seeWork": "Voir leur travail",
@@ -4891,7 +4894,8 @@
       "newChapters": "Nouveaux chapitres",
       "books": "Livres",
       "chaptersByBook": "Chapitres par livre",
-      "total": "Total"
+      "total": "Total",
+      "clusters": "Groupes"
     },
     "errors": {
       "noServer": "Cette version ne sait pas où se trouve le serveur des rapports.",
@@ -5001,7 +5005,8 @@
       "alertsChip_other": "Alertes, {{count, number}} demandent quelqu’un",
       "allCountries": "Tous les pays",
       "loading": "Chargement des rapports…",
-      "couldNotRead": "Impossible de lire les rapports"
+      "couldNotRead": "Impossible de lire les rapports",
+      "allLanguages": "Toutes les langues"
     },
     "overview": {
       "across_one": "Sur {{count, number}} langue · {{recent}} ces quatre dernières semaines",
@@ -5335,6 +5340,13 @@
       "typeToFind_one": "Tapez pour trouver l’autre ({{count, number}}).",
       "typeToFind_many": "Tapez pour trouver les {{count, number}} autres.",
       "typeToFind_other": "Tapez pour trouver les {{count, number}} autres."
+    },
+    "clusters": {
+      "title": "Groupes",
+      "sub": "Les langues de chaque groupe ensemble. Choisissez-en un pour ne voir que ses langues.",
+      "languages_one": "{{count, number}} langue",
+      "languages_many": "{{count, number}} langues",
+      "languages_other": "{{count, number}} langues"
     }
   },
   "review": {
@@ -6505,6 +6517,114 @@
       "playHelp": "Fait entendre comment ils le disent.",
       "suggest": "D’autres langues ici utilisent",
       "suggestHelp": "Utilisé ici en {{languages}}. Touchez pour l’ajouter."
+    }
+  },
+  "clusters": {
+    "row": {
+      "sub_one": "{{count, number}} langue · {{names}}",
+      "sub_many": "{{count, number}} langues · {{names}}",
+      "sub_other": "{{count, number}} langues · {{names}}",
+      "namesMore": "{{names}}…"
+    },
+    "home": {
+      "sub_one": "Groupe · {{count, number}} langue",
+      "sub_many": "Groupe · {{count, number}} langues",
+      "sub_other": "Groupe · {{count, number}} langues",
+      "together": "Ensemble",
+      "itsLanguages": "Ses langues",
+      "add": "Y ajouter une langue",
+      "rename": "Renommer",
+      "ungroup": "Dégrouper",
+      "gone": "Ce groupe n'a plus de langues",
+      "goneSub": "Ses langues en ont été retirées. Elles sont toutes encore dans {{org}}.",
+      "notSaved": "Non enregistré"
+    },
+    "add": {
+      "title": "Ajouter à {{cluster}}",
+      "newLanguage": "Une nouvelle langue",
+      "newLanguageSub": "La configurer, déjà dans {{cluster}}",
+      "alreadyIn": "Déjà dans {{org}}",
+      "none": "Toutes les langues de {{org}} y sont déjà.",
+      "button": "Ajouter",
+      "done_one": "{{count, number}} langue ajoutée à {{cluster}}.",
+      "done_many": "{{count, number}} langues ajoutées à {{cluster}}.",
+      "done_other": "{{count, number}} langues ajoutées à {{cluster}}."
+    },
+    "rename": {
+      "title": "Renommer {{cluster}}",
+      "label": "Son nom",
+      "save": "Enregistrer",
+      "done": "Renommé en {{name}}."
+    },
+    "ungroup": {
+      "title": "Dégrouper {{cluster}} ?",
+      "body_one": "Sa langue reste, avec ses membres, ses enregistrements et ses vérifications. Seul le nom qui la regroupe s'en va.",
+      "body_many": "Ses {{count, number}} langues restent, avec leurs membres, leurs enregistrements et leurs vérifications. Seul le nom qui les regroupe s'en va.",
+      "body_other": "Ses {{count, number}} langues restent, avec leurs membres, leurs enregistrements et leurs vérifications. Seul le nom qui les regroupe s'en va.",
+      "confirm": "Dégrouper",
+      "keep": "Le garder",
+      "done": "{{cluster}} dégroupé. Ses langues sont toujours là."
+    },
+    "language": {
+      "label": "Groupe",
+      "none": "Dans aucun groupe",
+      "sheetTitle": "Dans quel groupe est-elle ?",
+      "count_one": "{{count, number}} langue",
+      "count_many": "{{count, number}} langues",
+      "count_other": "{{count, number}} langues",
+      "newLabel": "Ou un nouveau groupe",
+      "firstLabel": "La mettre dans un nouveau groupe",
+      "note": "Une langue peut être dans plusieurs groupes, ou dans aucun. Rien ne change pour la langue.",
+      "done": "Terminé",
+      "saved": "Groupes de {{language}} enregistrés."
+    },
+    "newLanguage": {
+      "what": "Que voulez-vous ajouter ?",
+      "one": "Une langue",
+      "oneSub": "Avec ses propres enregistrements, vérifications et membres",
+      "cluster": "Un groupe de langues",
+      "clusterSub": "Plusieurs langues apparentées, configurées ensemble",
+      "clusterName": "Le nom du groupe",
+      "clusterPlaceholder": "p. ex. Dar Khamsa",
+      "theCluster": "le groupe",
+      "inCluster": "Dans un groupe ? Vous pourrez choisir plus tard",
+      "no": "Non",
+      "newCluster": "Nouveau groupe",
+      "joinsNamed": "{{org}} a déjà {{cluster}}. Ces langues le rejoignent.",
+      "itsLanguages": "Ses langues · {{number}}",
+      "addOne": "Ajouter une langue",
+      "unlisted": "Elle n'y est pas ? Ajoutez-la telle que vous l'avez tapée, avec son code si elle en a un.",
+      "addTyped": "Ajouter « {{name}} »",
+      "new": "Nouvelle",
+      "newWithCode": "{{code}} · nouvelle",
+      "already": "Déjà dans {{org}}",
+      "takeOut": "Retirer",
+      "note_one": "Les langues déjà ici gardent tout ce qu'elles ont. La nouvelle est configurée aux étapes suivantes.",
+      "note_many": "Les langues déjà ici gardent tout ce qu'elles ont. Les {{count, number}} nouvelles sont configurées ensemble aux étapes suivantes.",
+      "note_other": "Les langues déjà ici gardent tout ce qu'elles ont. Les {{count, number}} nouvelles sont configurées ensemble aux étapes suivantes.",
+      "onlyExisting": "Rien de nouveau à configurer : les langues déjà ici gardent tout ce qu'elles ont.",
+      "make": "Créer le groupe",
+      "made_one": "{{cluster}} créé, avec {{count, number}} langue.",
+      "made_many": "{{cluster}} créé, avec {{count, number}} langues.",
+      "made_other": "{{cluster}} créé, avec {{count, number}} langues.",
+      "forNew_one": "Pour la nouvelle langue de {{cluster}}. Elle pourra changer les siens plus tard.",
+      "forNew_many": "Pour les {{count, number}} nouvelles langues de {{cluster}}. Chacune pourra changer les siens plus tard.",
+      "forNew_other": "Pour les {{count, number}} nouvelles langues de {{cluster}}. Chacune pourra changer les siens plus tard.",
+      "added_one": "{{count, number}} langue ajoutée à {{org}}, dans {{cluster}}.",
+      "added_many": "{{count, number}} langues ajoutées à {{org}}, dans {{cluster}}.",
+      "added_other": "{{count, number}} langues ajoutées à {{org}}, dans {{cluster}}.",
+      "addedNotOffered_one": "{{count, number}} langue ajoutée à {{org}}, dans {{cluster}}. Proposez {{offers}} dans Ce qui les aide une fois en ligne.",
+      "addedNotOffered_many": "{{count, number}} langues ajoutées à {{org}}, dans {{cluster}}. Proposez {{offers}} dans Ce qui les aide une fois en ligne.",
+      "addedNotOffered_other": "{{count, number}} langues ajoutées à {{org}}, dans {{cluster}}. Proposez {{offers}} dans Ce qui les aide une fois en ligne.",
+      "notMade": "Non ajoutée",
+      "making": {
+        "adding": "Ajout de {{language}}",
+        "grouping": "Ajout à {{cluster}}"
+      }
+    },
+    "status": {
+      "all": "Toutes",
+      "none": "Sans groupe"
     }
   }
 }
