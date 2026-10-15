@@ -35,9 +35,6 @@ Rules specific to this folder:
   every Supabase call lives in `src/server/` (decisions.md 105,
   `apps/mobile/test/serverBoundary.test.ts`); screens and hooks call its
   functions.
-- A branch started before pull request 116 (the restructure above): read
-  `docs/merging-onto-the-restructure.md` before merging `main`. It says
-  where moved code went and how to resolve the conflicts.
 - Every new event type needs: a type in `events.ts` (or `record.ts`), a case
   in `reducer.ts`, a case in `validate.ts` and in the SQL `validate_payload`
   and `event_privilege` (a new migration), and coverage in the

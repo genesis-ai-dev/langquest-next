@@ -71,7 +71,7 @@ const HOOKS = 'apps/mobile/src/**/use[A-Z]*.{ts,tsx}';
 //   server     server/*              Supabase calls
 //   module     other *.ts            anything else: no hooks, no JSX
 // Types may be imported from anywhere; the rules below are about values.
-const ROLE = 'decisions.md 105, docs/merging-onto-the-restructure.md';
+const ROLE = 'decisions.md 105';
 const roleFiles = [
   { category: 'screen', pattern: 'apps/mobile/src/screens/*.tsx', stopMatching: true },
   { category: 'server', pattern: 'apps/mobile/src/server/**', stopMatching: true },

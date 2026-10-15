@@ -6,8 +6,7 @@ import { join } from 'node:path';
  * named for what it is about, never loose in src, and the simple/ folder of
  * the redesign is gone, its parts in their features. ESLint holds what may
  * import what; this holds where a file may be. A new file goes in the folder
- * of its feature, or a new folder (scripts/restructure/moves.json lists where
- * everything went).
+ * of its feature, or a new folder named for what it is about.
  */
 const SRC = join(__dirname, '../src');
 

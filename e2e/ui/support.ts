@@ -210,10 +210,12 @@ export async function expectSent(page: Page, world: UiWorld, language: 'A' | 'B'
 export async function openPassage(page: Page, world: UiWorld, key: keyof UiWorld['passages']): Promise<void> {
   const label = world.passages[key].label;
   await tab(page, 'map').click();
-  // Admins land on All languages; workers on their language's map.
+  // Admins land on All languages; workers on their language's map. Wait for one of the two
+  // before choosing: a device that has just signed in may show neither yet.
   const lang = text(page, 'Alpha');
-  if (await page.getByRole('searchbox').or(page.getByPlaceholder(/Search|Find/)).count() === 0 && await lang.isVisible().catch(() => false)) await lang.click();
   const search = visible(page.getByRole('searchbox')).or(visible(page.getByPlaceholder(/Search|Find/))).first();
+  await expect(search.or(lang).first()).toBeVisible({ timeout: 60_000 });
+  if (!(await search.isVisible())) await lang.click();
   await search.fill(label.replace(/^Luke /, 'Luke '));
   await visible(page.getByText(label, { exact: false })).first().click();
   await expect(text(page, label, false)).toBeVisible();

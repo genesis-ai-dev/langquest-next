@@ -3900,6 +3900,14 @@ round: the moved hooks and helpers are a hand commit that leaves
 re-exports, and `movedExports` in `scripts/restructure/moves.json` repoints
 every import of a moved name, on this branch and on any made before it.
 
+Amended (2026-10-15, Carl Sauder): the codemod (`scripts/restructure.mjs`,
+`scripts/restructure/moves.json`) and `docs/merging-onto-the-restructure.md`
+are removed. Pull requests 126, 125, 123, 121 and 129 merged through it,
+and the two still open from before the restructure (96 and 120) will be
+redone on the new structure rather than merged across it, so no branch
+needs them. Git history keeps where each file went. The layout and the
+roles are held by `eslint.config.mjs` and `apps/mobile/test/folders.test.ts`.
+
 ## 106. A phone records every take with the microphone module, keeps a part going down to half the cutoff, and keeps AAC
 
 Date: 2026-10-14 · By: Caleb Koster · Status: accepted
