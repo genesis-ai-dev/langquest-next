@@ -55,3 +55,6 @@ export function hitLine(h: LanguoidHit): string {
   const where = parent ? (h.dialect ? t('languoid.dialectOf', { parent }) : t('languoid.family', { parent })) : h.dialect ? t('languoid.dialect') : null;
   return [h.code.toUpperCase(), where, h.alsoCalled ? t('languoid.alsoCalled', { name: h.alsoCalled }) : null].filter(Boolean).join(' · ');
 }
+
+/** How many matches one search shows, closest first; they scroll in a box of their own. */
+export const LANGUOID_RESULTS = 50;

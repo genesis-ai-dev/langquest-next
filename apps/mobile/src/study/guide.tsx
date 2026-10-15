@@ -23,12 +23,8 @@ import { clock, inlineParts, isCallout, isQuestion, secondsOf, sectionLabel, stu
 import { calloutLabel, ContributeSheet, GlossarySheet, MediaSheet, saveNote, shownClock, StudyNote, useStudyAudio } from './ui';
 import { C, radius, space, target, TINT, type as T } from '../ui/theme';
 import { Callout, MiniPlayer, StepNav, StepsSheet, styles as ps } from '../recording/blocks';
-
-/** The guide's language, from its source line ("… · English"), without naming where it came from. */
-export function guideLanguage(g: Pick<StudyGuide, 'source'>): string {
-  const parts = g.source.split('·').map((s) => s.trim()).filter(Boolean);
-  return parts.length > 1 ? parts[parts.length - 1]! : '';
-}
+import { guideLanguage } from './guideText';
+export { guideLanguage } from './guideText';
 
 /** ‹ 2/6 Setting the stage ▾ ›, and the sheet of every step it opens. */
 export function GuideNav(props: { ctx: Ctx; sp: StudyProgress; index: number; onIndex: (i: number) => void; sheetFooter?: React.ReactNode }) {

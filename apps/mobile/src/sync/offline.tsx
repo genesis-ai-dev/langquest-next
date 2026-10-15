@@ -5,7 +5,7 @@
 // (study/studyFiles.ts) are here only for passages kept offline. The worry this
 // answers: someone browses passages online, plays their audio, and finds out
 // in the field that none of it came along.
-import { defaultOfflineScope, languageName, offlineByUnit, offlineSummary, type OfflineSummary, type UnitOffline } from '@langquest-next/core';
+import { languageName, offlineByUnit, type UnitOffline } from '@langquest-next/core';
 import { useMemo, useSyncExternalStore } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
@@ -14,19 +14,14 @@ import { Card, HelpInfo, Ico, ProgressBar, SmallBtn, txt, type IconName } from '
 import { endsSentence } from '../helpMode/helpContext';
 import { t } from '../i18n';
 import { formatBytes } from '../i18n/format';
-import { onStudyFiles, STUDY_FILES_OFFLINE, studyCounts, studyRevision } from '../study/studyFiles';
+import { onStudyFiles, STUDY_FILES_OFFLINE, studyRevision } from '../study/studyFiles';
 import { C, onColor, space, TINT } from '../ui/theme';
-
-/** A passage's audio counts with its study files folded in: ready means both are here. */
-export type KeptOffline = UnitOffline & { studyHere: number; studyTotal: number };
-
-function withStudy(u: UnitOffline, unitId: string): KeptOffline {
-  const { here, total } = u.reason ? studyCounts(unitId) : { here: 0, total: 0 };
-  return { ...u, studyHere: here, studyTotal: total, ready: u.ready && here === total };
-}
+import { keptOfflineMap, offlineLine, type KeptOffline, type OfflineOverview, withStudy } from './offlineText';
+export { useOfflineSummary } from './useOfflineSummary';
+export { keptOfflineMap, offlineWords, offlineLine, type KeptOffline, type OfflineOverview } from './offlineText';
 
 /** Re-render when a study file arrives or the prefetcher learns a guide. */
-function useStudyRevision(): number {
+export function useStudyRevision(): number {
   return useSyncExternalStore(onStudyFiles, studyRevision, studyRevision);
 }
 
@@ -46,45 +41,6 @@ function useOfflineUnits(ctx: Ctx, unitIds: readonly string[]): Map<string, Kept
     // unitIds is read through its key, so a new array with the same passages does not recompute.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [state, present, keptUnits, me, key, rev]);
-}
-
-/**
- * Counts for every kept passage, for marks on long lists. A passage missing
- * from the map is not kept. Shared by every row drawn from the same inputs.
- */
-export function keptOfflineMap(ctx: Ctx): Map<string, KeptOffline> {
-  const state = ctx.language.state;
-  const { present, keptUnits } = ctx.language.blobs;
-  const me = ctx.session.actorId;
-  if (!state) return new Map();
-  const rev = studyRevision();
-  const last = keptCache;
-  if (last && last.state === state && last.present === present && last.kept === keptUnits && last.me === me && last.rev === rev) return last.map;
-  const scope = defaultOfflineScope(state, me);
-  for (const u of keptUnits) scope.add(u);
-  const map = new Map<string, KeptOffline>();
-  for (const [id, u] of offlineByUnit(state, scope, present, me, keptUnits)) map.set(id, withStudy(u, id));
-  keptCache = { state, present, kept: keptUnits, me, rev, map };
-  return map;
-}
-let keptCache: { state: object; present: ReadonlySet<string>; kept: ReadonlySet<string>; me: string; rev: number; map: Map<string, KeptOffline> } | null = null;
-
-/** The whole scope: audio from core, with passages counted ready only once their study files are here too. */
-type OfflineOverview = OfflineSummary & { studyToFetch: number };
-
-export function useOfflineSummary(ctx: Ctx): OfflineOverview | null {
-  const state = ctx.language.state;
-  const { present, keptUnits } = ctx.language.blobs;
-  const me = ctx.session.actorId;
-  const rev = useStudyRevision();
-  return useMemo(() => {
-    if (!state) return null;
-    const audio = offlineSummary(state, present, me, keptUnits);
-    const kept = [...keptOfflineMap(ctx).values()];
-    return { ...audio, ready: kept.filter((u) => u.ready).length, studyToFetch: kept.reduce((n, u) => n + u.studyTotal - u.studyHere, 0) };
-    // ctx is read for the same inputs listed here.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state, present, keptUnits, me, rev]);
 }
 
 /** Why a passage is kept on this device. */
@@ -185,26 +141,6 @@ export function OfflineMark(props: { u: KeptOffline | undefined; corner?: boolea
       <Ico name={u.ready ? 'onPhone' : 'download'} size={11} color={C.white} />
     </View>
   );
-}
-
-/** Words for a Map row's screen reader label. */
-export function offlineWords(u: KeptOffline | undefined): string {
-  if (!u?.reason) return t('offline.audioNotKept');
-  return u.ready ? t('offline.onDevice') : t('offline.downloading');
-}
-
-/** Settings' one line. */
-export function offlineLine(s: OfflineOverview | null): string {
-  if (!s) return t('offline.summary.checking');
-  if (s.kept === 0) return t('offline.summary.noneKept');
-  if (s.ready === s.kept) return t('offline.summary.allReady', { count: s.kept });
-  const size = s.bytesToFetch ? formatBytes(s.bytesToFetch) : null;
-  const studyFiles = s.studyToFetch ? t('offline.summary.studyFiles', { count: s.studyToFetch }) : null;
-  const counts = { ready: s.ready, count: s.kept };
-  if (size && studyFiles) return t('offline.summary.someReadyAudioStudy', { ...counts, size, studyFiles });
-  if (size) return t('offline.summary.someReadyAudio', { ...counts, size });
-  if (studyFiles) return t('offline.summary.someReadyStudy', { ...counts, studyFiles });
-  return t('offline.summary.someReady', counts);
 }
 
 /** The Sync screen's card: how ready this phone is, and what never comes along. */

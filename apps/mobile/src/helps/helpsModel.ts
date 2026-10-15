@@ -7,6 +7,8 @@ import { parseRef, type KeyTermView, type VerseRange } from '@langquest-next/cor
 import { markTerms } from '../recording/workspaceModel';
 import { termWords } from '../config/model';
 import type { VerseRow } from '../sources/model';
+import { t } from '../i18n';
+import { type Bible } from './reference';
 
 // ---- verses chosen on the text ----------------------------------------------------------
 
@@ -194,4 +196,16 @@ export function suggestedWords(languages: readonly LanguageTerms[], rows: readon
     }
   }
   return [...by.values()].sort((a, b) => b.languages.length - a.languages.length || a.term.localeCompare(b.term));
+}
+
+/** Why there are no verses to show: still loading, no Bible, or what the Bible lacks. */
+export function textMissing(bible: Bible): string {
+  if (!bible.option) return bible.passage.loading ? t('common.loading') : t('sources.reader.noBible');
+  if (!bible.src || bible.src.loading) return t('common.loading');
+  return bible.src.textProblem ?? t('common.loading');
+}
+
+/** "Where it is here" from a passage's Bible: what to say while there are no verses. */
+export function bibleMissing(bible: Bible): string {
+  return textMissing(bible);
 }

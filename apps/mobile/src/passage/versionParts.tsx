@@ -7,10 +7,8 @@
 // 2026-10-14). Many teams never number verses, so a part without one shows
 // nothing where its verse would be, and nothing here asks for one. Read only:
 // verses are changed where the parts are recorded.
-import {
-  partMarksFor, versesInChapter, type LanguageState, type TemplateDoc, type VersificationDoc
-} from '@langquest-next/core';
-import { useCallback, useMemo } from 'react';
+import { type LanguageState } from '@langquest-next/core';
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { ClipPlayer } from '../audio/clipPlayer';
@@ -19,42 +17,15 @@ import { useHelpSpot } from '../helpMode/helpContext';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { Ico, txt } from '../ui/kit';
-import { useLibraryDocs } from '../library/useLibrary';
 import { cardDurations } from '../recording/workspaceModel';
-import { catalogVerses, unitCoordinates } from '../sources/model';
 import { mmss, partLabel } from '../recording/model';
 import { styles as ps } from '../recording/blocks';
 import { useClip } from '../audio/useClip';
 import { VerseTile } from '../recording/verseParts';
-import { passageVerseKeys, readPartVerses, spanName, versesHeld } from '../recording/verseModel';
+import { readPartVerses, spanName } from '../recording/verseModel';
 import { C, radius, space, target } from '../ui/theme';
-
-/** The passage's verses in order ("chapter:verse"), counted as the recorder counts them; empty for a unit with no verses. */
-export function useVerseKeys(ctx: Ctx, unitId: string | undefined): string[] {
-  const template = ctx.language.state?.template?.value.docHash;
-  const { get } = useLibraryDocs(ctx.language.orgId, [template]);
-  const doc = get<TemplateDoc>(template);
-  const v11n = doc?.bible ? get<VersificationDoc>(doc.bible.versification) : null;
-  return useMemo(() => {
-    if (!unitId) return [];
-    const versesIn = (b: string, c: number) => (v11n ? versesInChapter(v11n, b, c) : undefined) ?? catalogVerses(b, c);
-    return passageVerseKeys(unitCoordinates(unitId, versesIn), versesIn);
-  }, [unitId, v11n]);
-}
-
-/** Each part's verses, for parts of one passage. */
-export function usePartVerses(ctx: Ctx, state: LanguageState | null | undefined, unitId: string | undefined, hashes: readonly string[]) {
-  const verses = useVerseKeys(ctx, unitId);
-  const rows = useMemo(() => (state && unitId ? readPartVerses(partMarksFor(state, unitId, hashes, verses), verses.length) : hashes.map(() => ({ label: null, same: false }))),
-    [state, unitId, hashes, verses]);
-  return { verses, rows, numbered: rows.some((r) => r.label) };
-}
-
-/** "Verses 1–4" for a list of parts, or null when none has a verse. */
-export function useVersesHeld(ctx: Ctx, state: LanguageState | null | undefined, unitId: string | undefined): (hashes: readonly string[]) => string | null {
-  const verses = useVerseKeys(ctx, unitId);
-  return useCallback((hashes) => (state && unitId ? versesHeld(partMarksFor(state, unitId, hashes, verses), verses) : null), [state, unitId, verses]);
-}
+import { usePartVerses } from './useVerses';
+export { useVerseKeys, usePartVerses, useVersesHeld } from './useVerses';
 
 /** The whole version, then its parts. */
 export function VersionRecording(props: { ctx: Ctx; state: LanguageState; unitId: string; title: string; hashes: string[] }) {

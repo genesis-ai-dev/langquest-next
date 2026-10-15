@@ -3,18 +3,13 @@
 // study.tsx's `ViewSwitch`, `PassageReader`, `ContributeSheet`). STUDY-3,
 // STUDY-5, STUDY-7, ADR-019. Audio follows audioSession.ts: starting one
 // player stops every other, and playback sets the session to play mode.
-import { commands, CommandError, type CalloutKind, type EventSpec, type NoteAnchor, type PassageNote } from '@langquest-next/core';
-import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
-import * as Crypto from 'expo-crypto';
-import { CircleHelp, Globe, Pause, StickyNote, TriangleAlert, type LucideIcon } from 'lucide-react-native';
-import { createElement, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Image, Platform, Pressable, ScrollView, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { type PassageNote } from '@langquest-next/core';
+import { createElement, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Image, Platform, Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import { Text } from '../ui/text';
 import { openContentLink } from '../ui/share';
 import { AudioClip } from '../audio/audioClip';
-import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../audio/audioSession';
 import { studyUri } from './studyFiles';
-import { commandErrorText } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { useHelpOn, useHelpSpot } from '../helpMode/helpContext';
@@ -23,140 +18,24 @@ import { formatClock, formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
 import { Field, HelpInfo, Ico, NoteCard, PrimaryBtn, Sheet, txt, type IconName } from '../ui/kit';
 import { when, type PassageView } from '../passage/passageView';
-import { noteExpected, reportError } from '../diagnostics/report';
 import { Authored, recordTarget, ReportFlag } from '../moderation/reportSheet';
 import { SourceReader } from '../sources/SourceReader';
-import { shadow } from '../ui/shadow';
-import { C, onColor, radius, space, target, TINT, type as T, withAlpha } from '../ui/theme';
+import { C, space, type as T } from '../ui/theme';
 import { VoiceNote } from '../audio/voiceNote';
 import type { GlossaryEntry, StudyMedia, StudyMediaKind, StudyResource } from './guides';
 import { useStudyFileUri } from './media';
 import type { StudyStepStatus } from './progress';
 import { inlineParts, isCallout, isQuestion, studySections, type StudySection } from './text';
+import { shownClock, mediaKindLabel, CALLOUT_LOOK, calloutLabel } from './studyText';
+import { saveNote } from './studyActions';
+import { styles } from './studyStyles';
+import { useStudyAudio, type StudyAudio } from './useStudyAudio';
+export { useStudyAudio, type StudyAudio } from './useStudyAudio';
+export { styles } from './studyStyles';
+export { saveNote } from './studyActions';
+export { shownClock, stepLine, mediaKindLabel, resourceIcon, CALLOUT_LOOK, calloutLabel } from './studyText';
 
 // ---- audio -------------------------------------------------------------------------
-
-/** A time in the audio as people read it ("1:14"), in the language's digits. `clock` (study/text.ts) is the stored form. */
-export function shownClock(seconds: number): string {
-  return formatClock(Math.floor(Math.max(0, seconds)) * 1000);
-}
-
-interface StudyAudio {
-  playing: boolean;
-  time: number;
-  duration: number;
-  /** No file, or it could not load: a clock at reading pace stands in. */
-  simulated: boolean;
-  /** There was a file and it could not load. */
-  failed: boolean;
-  play: () => void;
-  pause: () => void;
-  toggle: () => void;
-  seek: (seconds: number) => void;
-}
-
-/**
- * Plays a real file when there is one (FIA's step and glossary audio) and
- * falls back to a simulated clock when there is none or it cannot load
- * (offline), so the screen behaves the same either way. The file is only
- * fetched on the first Play, to spare field data.
- */
-export function useStudyAudio(address: string | undefined, estimate: number): StudyAudio {
-  // The phone's copy when the passage is kept offline (studyFiles.ts), else the web.
-  const url = studyUri(address);
-  const player = useRef<AudioPlayer | null>(null);
-  const [playing, setPlaying] = useState(false);
-  const [time, setTime] = useState(0);
-  const [duration, setDuration] = useState(estimate);
-  const [failed, setFailed] = useState(false);
-  const simulated = !url || failed;
-  const now = useRef({ time: 0, duration: estimate });
-  now.current = { time, duration };
-  // Where the simulated clock started from, so a seek while playing moves it.
-  const base = useRef({ at: 0, from: 0 });
-
-  useEffect(() => registerPlayback(() => { player.current?.pause(); setPlaying(false); }), []);
-  useEffect(() => {
-    setFailed(false);
-    setPlaying(false);
-    setTime(0);
-    setDuration(estimate);
-    return () => { player.current?.remove(); player.current = null; };
-    // A new source starts over; the estimate only matters until the file says its length.
-  }, [url]);
-
-  useEffect(() => {
-    if (!playing || !simulated) return;
-    const tick = setInterval(() => {
-      const end = now.current.duration;
-      const at = Math.min(base.current.from + (Date.now() - base.current.at) / 1000, end);
-      setTime(at);
-      if (at >= end) setPlaying(false);
-    }, 250);
-    return () => clearInterval(tick);
-  }, [playing, simulated]);
-
-  /** The file could not load or play: the simulated clock carries on from `from`. */
-  const fallBack = (from = now.current.time) => {
-    player.current?.remove();
-    player.current = null;
-    base.current = { at: Date.now(), from };
-    setFailed(true);
-  };
-
-  async function play() {
-    stopAudioPlayback();
-    if (simulated) {
-      const from = now.current.time >= now.current.duration ? 0 : now.current.time;
-      base.current = { at: Date.now(), from };
-      setTime(from);
-      setPlaying(true);
-      return;
-    }
-    setPlaying(true);
-    try {
-      await setSessionAudioMode({ allowsRecording: false, playsInSilentMode: true });
-      let p = player.current;
-      if (!p) {
-        const created = createAudioPlayer({ uri: url! }, { updateInterval: 250 });
-        p = created;
-        player.current = created;
-        created.addListener('playbackStatusUpdate', (st) => {
-          if (player.current !== created) return;
-          if (st.error) { fallBack(); return; }
-          if (st.duration > 0) setDuration(st.duration);
-          if (st.isLoaded) setTime(st.currentTime);
-          if (st.didJustFinish) setPlaying(false);
-        });
-        if (now.current.time > 0) await created.seekTo(now.current.time);
-      } else if (p.duration > 0 && p.currentTime >= p.duration - 0.1) {
-        await p.seekTo(0);
-      }
-      p.play();
-    } catch (e) {
-      // Offline or a bad file: expected in the field, and the bar says so.
-      noteExpected('study audio: play', e);
-      fallBack();
-    }
-  }
-  function pause() {
-    player.current?.pause();
-    setPlaying(false);
-  }
-  function seek(seconds: number) {
-    const v = Math.max(0, Math.min(seconds, now.current.duration));
-    setTime(v);
-    base.current = { at: Date.now(), from: v };
-    if (player.current && !simulated) {
-      player.current.seekTo(v).catch((e: unknown) => {
-        // The player lost its place: keep the bar where it was moved to, on the stand-in clock.
-        noteExpected('study audio: seek', e);
-        fallBack(v);
-      });
-    }
-  }
-  return { playing, time, duration, simulated, failed, play: () => void play(), pause, toggle: () => (playing ? pause() : void play()), seek };
-}
 
 /** A drag's press while help is on: the bar explains itself; moving waits until help is off. */
 const DRAG_HERE = () => undefined;
@@ -256,16 +135,6 @@ export function StepMark(props: { status: StudyStepStatus; size?: number }) {
   );
 }
 
-/** "Done by you · Sep 2 · 2 notes", "2 notes", "Not started". */
-export function stepLine(ctx: Ctx, s: StudyStepStatus): string {
-  if (s.done) {
-    const done = { name: ctx.name(s.done.by, true), when: when(s.done.hlc) };
-    return s.notes.length ? t('study.step.doneByWithNotes', { ...done, count: s.notes.length }) : t('study.step.doneBy', done);
-  }
-  if (s.notes.length) return t('study.step.notes', { count: s.notes.length });
-  return t('study.step.notStarted');
-}
-
 /** One note from the study or the passage reader, with its voice note when there is one. */
 export function StudyNote(props: { ctx: Ctx; note: PassageNote; label?: string }) {
   const n = props.note;
@@ -281,34 +150,6 @@ export function StudyNote(props: { ctx: Ctx; note: PassageNote; label?: string }
 }
 
 // ---- writing notes -------------------------------------------------------------------
-
-/**
- * Add a note to the passage's record (STUDY-7); returns whether it was saved.
- * A note the record refuses says why; anything else is reported with an id.
- * A failed write was already shown by ctx.act.
- */
-export async function saveNote(ctx: Ctx, v: Pick<PassageView, 'unitId'>, anchor: NoteAnchor, c: { text: string; blobHash: string | null }, message: string): Promise<boolean> {
-  const state = ctx.language.state;
-  if (!state) return false;
-  let specs: EventSpec[];
-  try {
-    specs = commands(state, indexesFor(state)).addNote({
-      commandId: Crypto.randomUUID(), unitId: v.unitId, anchor,
-      ...(c.text.trim() ? { text: c.text.trim() } : {}), ...(c.blobHash ? { blobHash: c.blobHash } : {})
-    });
-  } catch (e) {
-    if (e instanceof CommandError) ctx.toast(commandErrorText(e));
-    else ctx.toast(t('common.somethingWentWrong', { code: reportError('study: build note', e) }));
-    return false;
-  }
-  try {
-    await ctx.act(specs, message);
-    return true;
-  } catch (e) {
-    noteExpected('study: save note', e);
-    return false;
-  }
-}
 
 /** Answer, note, or report what the group said: by voice or text (STUDY-3). */
 export function ContributeSheet(props: {
@@ -336,20 +177,7 @@ export function ContributeSheet(props: {
 
 // ---- pictures, maps and glossary terms ----------------------------------------------------
 
-/** A kind of picture, as the study and the guide editor name it. */
-export function mediaKindLabel(kind: StudyMediaKind): string {
-  switch (kind) {
-    case 'map': return t('study.media.map');
-    case 'photo': return t('study.media.photo');
-    case 'illustration': return t('study.media.illustration');
-    case 'video': return t('study.media.video');
-  }
-}
 const MEDIA_ICON: Record<StudyMediaKind, IconName> = { map: 'map', photo: 'camera', illustration: 'media', video: 'video' };
-
-export function resourceIcon(r: StudyResource | undefined): IconName {
-  return r?.kind === 'map' ? 'map' : r?.kind === 'term' ? 'book' : 'camera';
-}
 
 /** The picture when there is a file for it (FIA sends low-resolution copies), a neutral stand-in otherwise or offline. */
 function MediaImage(props: { item: StudyMedia; orgId?: string | null }) {
@@ -437,30 +265,6 @@ export function GlossarySheet(props: { entry: GlossaryEntry; source: string; org
 }
 
 // ---- a step's text: callouts, list items, headings and links -------------------------------
-
-/**
- * How each callout kind reads (core CALLOUT_KINDS): an icon and a word
- * (`calloutLabel`), so the kind never rests on colour alone, on a quiet tint
- * with an edge.
- */
-export const CALLOUT_LOOK: Record<CalloutKind, { icon: LucideIcon; bg: string; edge: string; ink: string }> = {
-  action: { icon: Pause, bg: C.light, edge: C.primary, ink: C.primary },
-  note: { icon: StickyNote, bg: TINT.gray, edge: TINT.grayText, ink: TINT.grayText },
-  question: { icon: CircleHelp, bg: C.card, edge: C.soft, ink: C.primary },
-  culture: { icon: Globe, bg: TINT.green, edge: TINT.greenText, ink: TINT.greenText },
-  warning: { icon: TriangleAlert, bg: TINT.amber, edge: TINT.amberText, ink: TINT.amberText }
-};
-
-/** A callout kind's word: "Stop here", "Note", "Question", "Culture", "Careful". */
-export function calloutLabel(kind: CalloutKind): string {
-  switch (kind) {
-    case 'action': return t('study.callout.action');
-    case 'note': return t('study.callout.note');
-    case 'question': return t('study.callout.question');
-    case 'culture': return t('study.callout.culture');
-    case 'warning': return t('study.callout.warning');
-  }
-}
 
 /** Inline text: bold words and links to pictures, maps and glossary terms. */
 function Inline(props: { text: string; onOpenRef?: (ref: string) => void }): ReactNode {
@@ -583,43 +387,3 @@ function AddNoteHere(props: { label: string; onPress: () => void }) {
     </Pressable>
   );
 }
-
-export const styles = StyleSheet.create({
-  pressed: { opacity: 0.7 },
-  body: { padding: space.lg, gap: space.md, paddingBottom: space.xxl },
-  sticky: { backgroundColor: C.bg, paddingBottom: space.xs, gap: space.sm },
-  audioBar: { flexDirection: 'row', alignItems: 'center', gap: space.md, backgroundColor: C.card, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth,
-    borderColor: C.border, paddingHorizontal: space.md, paddingVertical: space.md, ...shadow },
-  playBtn: { width: 56, height: 56, borderRadius: 28, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' },
-  backBtn: { width: 48, height: 48, borderRadius: 24, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 1 },
-  scrubber: { height: target.min, justifyContent: 'center' },
-  track: { height: 6, borderRadius: 3, backgroundColor: C.border, overflow: 'hidden' },
-  trackFill: { height: 6, borderRadius: 3, backgroundColor: C.primary },
-  thumb: { position: 'absolute', top: (target.min - 18) / 2, width: 18, height: 18, borderRadius: 9, backgroundColor: C.primary, borderWidth: 2, borderColor: C.white },
-  momentBtn: { minHeight: 48, borderRadius: radius.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm,
-    backgroundColor: C.card, borderWidth: 1, borderColor: C.border, paddingHorizontal: space.md },
-  switchWrap: { paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: space.sm, backgroundColor: C.card, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: C.border },
-  switch: { flexDirection: 'row', gap: 4, padding: 4, borderRadius: radius.lg, backgroundColor: C.bg },
-  switchTab: { flex: 1, minHeight: 48, borderRadius: radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm, paddingHorizontal: space.sm },
-  switchOn: { backgroundColor: C.card, ...shadow },
-  textCard: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, paddingVertical: space.sm },
-  verse: { flexDirection: 'row', gap: space.sm, borderRadius: radius.md, paddingHorizontal: space.sm, paddingVertical: 6, minHeight: 48 },
-  verseRef: { width: 36, textAlign: 'right', paddingTop: 3, fontSize: T.xs, fontWeight: '700', color: C.muted, fontVariant: ['tabular-nums'] },
-  readingText: { fontSize: T.base, lineHeight: 28, color: C.dark },
-  selected: { backgroundColor: withAlpha(C.primary, 0.07), borderWidth: 1.5, borderColor: withAlpha(C.primary, 0.38) },
-  count: { minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 5, backgroundColor: onColor.amber, alignItems: 'center', justifyContent: 'center', marginTop: 3 },
-  countText: { fontSize: T.xs, fontWeight: '800', color: C.white },
-  addBtn: { alignSelf: 'flex-start', minHeight: target.min, borderRadius: radius.md, flexDirection: 'row', alignItems: 'center', gap: space.sm,
-    paddingHorizontal: space.lg, marginTop: space.xs, marginBottom: space.xs, backgroundColor: onColor.amber },
-  where: { backgroundColor: C.card, borderLeftWidth: 3, borderColor: C.primary, borderRadius: radius.md, paddingHorizontal: space.md, paddingVertical: space.sm },
-  imageWrap: { borderRadius: radius.lg, overflow: 'hidden', backgroundColor: TINT.gray },
-  image: { width: '100%', aspectRatio: 4 / 3, backgroundColor: TINT.gray },
-  standIn: { width: '100%', aspectRatio: 4 / 3, alignItems: 'center', justifyContent: 'center', gap: space.sm, backgroundColor: TINT.gray, padding: space.lg },
-  stepText: { fontSize: T.sm, lineHeight: 26, color: C.dark },
-  itemMark: { width: 24, textAlign: 'right', fontWeight: '700', color: C.primary },
-  callout: { gap: 2, borderLeftWidth: 4, borderRadius: radius.md, paddingHorizontal: space.md, paddingVertical: space.sm },
-  calloutOutlined: { borderWidth: 1, borderLeftWidth: 4 },
-  calloutHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  calloutLabel: { fontSize: T.xs, fontWeight: '800', letterSpacing: 0.4 },
-  previewSection: { borderRadius: radius.md, paddingHorizontal: space.sm, paddingVertical: 6, minHeight: 40, justifyContent: 'center' }
-});

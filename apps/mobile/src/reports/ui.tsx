@@ -1,6 +1,6 @@
-import { ledgerFor, percent, recencyOf, toCsv, type Coverage, type LanguageReport, type LanguageRow } from '@langquest-next/core';
+import { percent, recencyOf, type Coverage, type LanguageReport } from '@langquest-next/core';
 import type { ReactNode } from 'react';
-import { Platform, Pressable, Share, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { bookName } from '../i18n/coreText';
 import { HelpBadge } from '../helpMode/helpBadge';
@@ -9,8 +9,10 @@ import { currentLocale, t, Trans } from '../i18n';
 import { formatDay, formatDayYear, formatMonthShort, formatMonthYear, formatNumber, formatPercent } from '../i18n/format';
 import { Badge, Card, Ico, txt, type IconName } from '../ui/kit';
 import { C, radius, space, TINT } from '../ui/theme';
-import { countryName } from './countries';
-import { bottleneckText, RECENCY_TONE, recencyLabel, scopeLabel, scopeShort } from './labels';
+import { RECENCY_TONE, recencyLabel, scopeLabel, scopeShort } from './labels';
+import { type Tone, TONE_FILL, num, pctText, signed, dateTime, ago, partOf, bookOf } from './format';
+export { fileName, safeName, exportCsv, canPrint, printPage, languagesCsv, languageCsv, ledgerCsv } from './exportFiles';
+export { type Tone, TONE_FILL, num, pctText, signed, shortDate, dayYear, weekday, longDay, monthName, monthShort, utcTime, dateTime, ago, partOf, bookOf } from './format';
 
 /**
  * The Reports section's primitives (ported from the web dashboard, decision
@@ -18,56 +20,8 @@ import { bottleneckText, RECENCY_TONE, recencyLabel, scopeLabel, scopeShort } fr
  * beside its words and number.
  */
 
-export type Tone = 'brand' | 'green' | 'amber' | 'red' | 'gray';
-
-export const TONE_FILL: Record<Tone, string> = { brand: C.primary, green: C.green, amber: C.amber, red: C.red, gray: C.faint };
 const TONE_TEXT: Record<Tone, string> = { brand: C.primary, green: TINT.greenText, amber: TINT.amberText, red: TINT.redText, gray: TINT.grayText };
 const BADGE_TONE: Record<Tone, 'brand' | 'green' | 'amber' | 'red' | 'default'> = { brand: 'brand', green: 'green', amber: 'amber', red: 'red', gray: 'default' };
-
-/** 1234 → "1,234", in the language showing. */
-export const num = (n: number) => formatNumber(n);
-/** 42.5 (a percentage already) → "42.5%". */
-export const pctText = (n: number) => formatPercent(n);
-/** +12, -3: a change, with its sign. */
-export const signed = (n: number) => `${n >= 0 ? '+' : ''}${formatNumber(n)}`;
-
-// Dates are UTC days (`YYYY-MM-DD`) or ISO times from the server, said in the language showing.
-const utc = (day: string) => new Date(`${day.slice(0, 10)}T00:00:00Z`);
-const intlFormats = new Map<string, Intl.DateTimeFormat>();
-function intl(options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
-  const key = `${currentLocale()}|${JSON.stringify(options)}`;
-  let f = intlFormats.get(key);
-  if (!f) { f = new Intl.DateTimeFormat(currentLocale(), { ...options, timeZone: 'UTC' }); intlFormats.set(key, f); }
-  return f;
-}
-/** "Oct 3" */
-export const shortDate = (day: string) => formatDay(utc(day), { utc: true });
-/** "Oct 3, 2026" */
-export const dayYear = (day: string) => formatDayYear(utc(day), { utc: true });
-/** "Sat" */
-export const weekday = (day: string) => intl({ weekday: 'short' }).format(utc(day));
-/** "Saturday, Oct 3" */
-export const longDay = (day: string) => intl({ weekday: 'long', month: 'short', day: 'numeric' }).format(utc(day));
-/** A month ("2026-10") as "October 2026". */
-export const monthName = (m: string) => formatMonthYear(m);
-/** A month ("2026-10") as "Oct". */
-export const monthShort = (m: string) => formatMonthShort(m);
-/** `14:05 UTC` */
-export const utcTime = (iso: string) => t('reports.timeUtc', { time: intl({ hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(iso)) });
-/** `Oct 3, 2026, 14:05 UTC` */
-export const dateTime = (iso: string) => t('reports.dateTimeUtc', {
-  date: dayYear(iso), time: intl({ hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(iso))
-});
-/** Core's `timeAgo`: "just now", "5 minutes ago", "3 days ago". */
-export function ago(iso: string, now: number): string {
-  const s = Math.max(0, Math.round((now - Date.parse(iso)) / 1000));
-  if (s < 60) return t('reports.ago.justNow');
-  if (s < 3600) return t('reports.ago.minutes', { count: Math.floor(s / 60) });
-  if (s < 86_400) return t('reports.ago.hours', { count: Math.floor(s / 3600) });
-  return t('reports.ago.days', { count: Math.floor(s / 86_400) });
-}
-/** "12 of 40" */
-export const partOf = (part: number, total: number) => t('reports.partOf', { part: num(part), total: num(total) });
 
 export function ToneBadge(props: { tone: Tone; label: string }) {
   return <Badge tone={BADGE_TONE[props.tone]} label={props.label} />;
@@ -310,77 +264,9 @@ export function Freshness(props: { updatedAt: string | null; now: number }) {
 
 // ---- exports -----------------------------------------------------------------------
 
-/** `Dinka books 2026-09-29.csv`, safe on every filesystem. */
-export function fileName(title: string, now = new Date()): string {
-  return `${safeName(title)} ${now.toISOString().slice(0, 10)}.csv`;
-}
-
-/** A file name without the characters some filesystems refuse. */
-export function safeName(name: string): string {
-  return name.replace(/[\\/:*?"<>|]+/g, ' ').trim();
-}
-
-/** A CSV to keep: downloaded in a browser, handed to the share sheet on a phone or tablet. */
-export function exportCsv(name: string, text: string): void {
-  if (Platform.OS === 'web') {
-    const url = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = name;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 0);
-    return;
-  }
-  void Share.share({ title: name, message: text }).catch(() => undefined);
-}
-
-/** Printing (and saving as PDF) is the browser's; elsewhere there is nothing to print with. */
-export const canPrint = Platform.OS === 'web';
-export function printPage(): void {
-  if (canPrint) window.print();
-}
-
 // Core's CSVs (`languagesCsv`, `ledgerCsv`, `languageCsv`) with their headers in the
 // language showing: a spreadsheet's column names are words people read. Cells keep
 // core's values (codes, ISO times, band ids) so a sheet sorts and filters the same.
-
-/** A book of the report by name: a Bible book in the language showing, else the label the organization gave it. */
-export const bookOf = (b:{ bookId: string | null; label: string }) => (b.bookId ? bookName(b.bookId) : b.label);
-
-export function languagesCsv(rows: LanguageRow[], now = Date.now(), clustersOf: (languageId: string) => string[] = () => []): string {
-  return toCsv([
-    [t('reports.csv.language'), t('reports.csv.code'), t('reports.csv.country'), t('reports.csv.clusters'), t('reports.csv.reviewFlow'), t('reports.csv.passages'),
-      t('reports.csv.recorded'), t('reports.csv.done'), t('reports.csv.recordedShare'), t('reports.csv.doneShare'),
-      t('reports.csv.gospelsRecorded'), t('reports.csv.ntRecorded'), t('reports.csv.otRecorded'), t('reports.csv.recordingsOnServer'),
-      t('reports.csv.lastUpload'), t('reports.csv.uploadStatus'), t('reports.csv.feedbackToAnswer'), t('reports.csv.openRequests'),
-      t('reports.csv.overdueRequests'), t('reports.csv.atCheckpoint'), t('reports.csv.bottleneck'), t('reports.csv.lastActivity'), t('reports.csv.reportUpdated')],
-    ...rows.map(({ languageId, report: r, updatedAt }) => [
-      r.name, r.code, r.country, clustersOf(languageId).join('; '), r.flowName, r.progress.total, r.progress.recorded, r.progress.done,
-      percent(r.progress.recorded, r.progress.total), percent(r.progress.done, r.progress.total),
-      r.coverage.recorded.gospels, r.coverage.recorded.nt, r.coverage.recorded.ot, r.uploads.cards, r.uploads.lastAt,
-      recencyOf(r, now).band,
-      r.attention.feedback, r.attention.openRequests, r.attention.overdueRequests, r.attention.atCheckpoint,
-      bottleneckText(r), r.lastActivity, updatedAt
-    ])
-  ]);
-}
-
-export function languageCsv(r: LanguageReport): string {
-  return toCsv([
-    [t('reports.csv.book'), t('reports.csv.passages'), t('reports.csv.recorded'), t('reports.csv.done'), t('reports.csv.recordedShare'), t('reports.csv.doneShare')],
-    ...r.books.map((b) => [bookOf(b), b.total, b.recorded, b.done, percent(b.recorded, b.total), percent(b.done, b.total)])
-  ]);
-}
-
-export function ledgerCsv(rows: LanguageRow[], month: string): string {
-  const l = ledgerFor(rows, month);
-  return toCsv([
-    [t('reports.csv.month'), t('reports.csv.language'), t('reports.csv.code'), t('reports.csv.country'), t('reports.csv.newChapters'), t('reports.csv.books'), t('reports.csv.chaptersByBook')],
-    ...l.lines.map((x) => [month, x.row.report.name, x.row.report.code, countryName(x.row.report.country), x.chapters, x.books.length,
-      x.books.map((b) => `${bookOf(b)} ${b.chapters}`).join('; ')]),
-    [month, t('reports.csv.total'), null, null, l.chapters, l.books, null]
-  ]);
-}
 
 const styles = StyleSheet.create({
   panelHead: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },

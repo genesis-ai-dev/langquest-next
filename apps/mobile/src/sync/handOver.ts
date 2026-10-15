@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SyncScheduler, afterAttempt, deliverHandOver, ensureDeviceId, parseHandOvers, withHandOver, withoutFinished, type EventStore, type HandOver, type PendingUpload } from '@langquest-next/sync';
+import { afterAttempt, deliverHandOver, ensureDeviceId, parseHandOvers, withHandOver, withoutFinished, type EventStore, type HandOver, type PendingUpload } from '@langquest-next/sync';
 import * as Crypto from 'expo-crypto';
-import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import { accountOutbox } from '../account/accountData';
 import { getBlobStore, type BlobStore } from './blobs';
@@ -9,7 +8,7 @@ import { handOverPushToken } from '../notifications/notifications';
 import { noteExpected } from '../diagnostics/report';
 import { getStore } from './store';
 import { actAs, forgetKeptSession, keepSessionAndSignOut, keptSession } from '../server/handOver';
-import { onWake } from './wake';
+export { useHandOvers } from './useHandOvers';
 
 /**
  * Shared phones (decisions.md 60): signing out with work still to send
@@ -23,7 +22,7 @@ export const HANDS_OVER = Platform.OS !== 'web';
 const LIST_KEY = 'hand-overs';
 
 let writes: Promise<unknown> = Promise.resolve();
-const added = new Set<() => void>();
+export const added = new Set<() => void>();
 function change(fn: (list: HandOver[]) => HandOver[]): Promise<void> {
   const next = writes.then(async () => {
     const list = fn(parseHandOvers(await AsyncStorage.getItem(LIST_KEY)));
@@ -80,7 +79,7 @@ async function sendFor(h: HandOver, store: EventStore, deviceId: string, blobs: 
   return offline;
 }
 
-async function sendAll(signedInAs: string | null): Promise<{ offline: boolean }> {
+export async function sendAll(signedInAs: string | null): Promise<{ offline: boolean }> {
   const list = await handOvers();
   if (list.length === 0) return { offline: false };
   const store = await getStore();
@@ -100,20 +99,3 @@ async function sendAll(signedInAs: string | null): Promise<{ offline: boolean }>
   return { offline };
 }
 
-/**
- * Runs for the whole app, signed in or not: sends what people signed out
- * of this phone left unsent, as them. Tries when someone hands over, when
- * the app comes back to the screen, and on a slow poll that backs off while
- * the phone is offline.
- */
-export function useHandOvers(signedInAs: string | null | undefined): void {
-  useEffect(() => {
-    if (!HANDS_OVER || signedInAs === undefined) return;
-    const scheduler = new SyncScheduler({ run: () => sendAll(signedInAs), pollMs: 10 * 60_000 });
-    const nudge = () => scheduler.nudge();
-    added.add(nudge);
-    const unwake = onWake(() => scheduler.wake());
-    scheduler.start();
-    return () => { added.delete(nudge); unwake(); scheduler.stop(); };
-  }, [signedInAs]);
-}

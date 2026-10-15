@@ -1,7 +1,8 @@
-# Merging a branch onto the restructure (pull request 116)
+# Merging a branch onto the restructure (pull requests 116 and after)
 
-For anyone, person or agent, whose branch started before pull request 116
-("Separation of concerns") reached `main`. It renamed a package, moved every
+For anyone, person or agent, whose branch started before the restructure
+reached `main`: pull request 116 ("Separation of concerns"), and part two,
+which moved `apps/mobile/src` by feature (the next section). It renamed a package, moved every
 Supabase call into one folder, took the sync engine out of React and moved
 the large screens' rules into tested models (decisions.md 104, 105). Most
 branches merge with git's help alone; this page says where code went when
@@ -10,7 +11,40 @@ it does not, and what the tests now hold you to.
 Read `AGENTS.md` and decisions 104 and 105 first. Where this page and a
 decision disagree, the decision wins.
 
-## The procedure
+## Part two: the moves, by codemod
+
+Part two moved every file in the `src` root and `simple/` into feature
+folders, as one mechanical commit: the output of `node
+scripts/restructure.mjs`, and nothing else. `scripts/restructure/moves.json`
+lists where each file went. A branch made before it should not merge it
+like other commits: an edit next to an import both sides rewrote conflicts
+even when the rewrites match. Apply the same codemod on the branch instead,
+then tell git the moves commit is already in:
+
+```bash
+git fetch origin
+MOVES=$(git log origin/main --format=%H -1 --grep='^Move apps/mobile/src by feature')
+git merge "$MOVES^"                    # everything before the moves; resolve as usual
+node scripts/restructure.mjs           # the same moves, on your branch and your own new code
+git add -A && git commit -m "Apply the restructure codemod"
+git merge -s ours "$MOVES"             # the moves commit: your branch already has it
+git merge origin/main                  # whatever came after
+npm install && npm run typecheck && npm test && npm run lint
+```
+
+`-s ours` is right only for that one commit: it is the codemod's output and
+nothing else, so your branch already holds everything it does. Never use it
+for any other merge.
+
+What the codemod cannot see: a path inside a regular expression or built
+up from pieces, such as a test that skips files by
+`/src\/(helpMode|DevMenu)\.tsx$/`. Tests that fail after it are usually
+these: find where the file went in `moves.json` and update the path. A new
+file of your own that is loose in `src` or in `simple/` fails
+`apps/mobile/test/folders.test.ts`; put it in its feature's folder (add a
+line to `moves.json` if others may have the same file).
+
+## The procedure (pull request 116)
 
 1. Merge, don't rebase: `git fetch origin && git merge origin/main`. Git
    follows the renames (`packages/client` to `packages/sync`, the files in
@@ -33,6 +67,7 @@ decision disagree, the decision wins.
 | Before | Now |
 |---|---|
 | `packages/client/*`, `@langquest-next/client` | `packages/sync/*`, `@langquest-next/sync` |
+| Every file in `apps/mobile/src` itself, and `simple/` | a feature folder: `scripts/restructure/moves.json` (part two, above) |
 | `apps/mobile/src/supabase.ts` | `apps/mobile/src/server/supabase.ts` (only `server/` may import it) |
 | `apps/mobile/src/blobTransport.ts` | `apps/mobile/src/server/blobTransport.ts` |
 | `apps/mobile/src/v2SignIn.ts` | `apps/mobile/src/server/v2.ts` |
@@ -74,6 +109,13 @@ boundary tests hold the first two as well.
   `handOver`, `sync`), returning supabase-js's own `{ data, error }`; the
   caller says what a refusal means. The stream transport is
   `serverTransport()` from `server/sync.ts`.
+- **Each folder its place** (lint only). A model (`model.ts`,
+  `<thing>Model.ts`) imports no React, platform, storage, server or hook,
+  types aside. A screen file is imported only by `App.tsx`, and itself
+  reaches no storage. `src/server/` knows nothing of screens, the shell or
+  the UI. `src/ui/` is the design system: it imports only itself, i18n,
+  help mode and `shell/flow`. Nothing sits loose in `src` or in `simple/`
+  (`apps/mobile/test/folders.test.ts`).
 - **Labels are not words.** A diagnostics label passed to anything but
   `noteExpected` or `reportError` (a `where` field, `deps.note(...)`) needs
   an `// i18n-ignore:` comment saying so, or the catalog test
@@ -183,39 +225,42 @@ later renumbers its entry, and every reference to it (code comments, tests,
 docs), from the first number free when it merges. Never renumber an entry
 already on `main`.
 
-## Open pull requests, as of 2026-10-14
+## Open pull requests, as of 2026-10-15
 
-Each was merged on top of 116 in a dry run (`git merge-tree`).
+Each was taken through the part-two procedure in a dry run. Conflicts in its
+first step come from the audit fixes that went in just before the moves;
+the rest come from the Map, reference and passage screens, whose rules
+moved into models (`map/mapModel.ts`, `reference/*Model.ts`,
+`passage/askModel.ts`, `reviewModel.ts`, `recordInputsModel.ts`).
 
-- **115, big languages open faster.** One conflict, `useLanguage.ts`: it
-  drops `saving` so a write still on its way to disk redraws nothing. Port it
-  into the session: remove `saving` from `LanguageStatus` and from the
-  status `LanguageSession.start()` sets on each publish
-  (`client.subscribe((s) => this.set({ revision: s.revision }))`), from
-  `NOTHING_YET` and the destructured status in `useLanguage`, and from
-  `LanguageHandle`. Its `packages/client/src` changes land in
-  `packages/sync/src` by themselves.
-- **114, custom divisions.** One conflict from 116, `screens/content.tsx`;
-  `docs/decisions.md` conflicts with `main`. The picker's shared templates
-  are `pickerLists` in `templates/model.ts` now: give it the language's
-  numbering and apply `sharedTemplateShown` there (or filter `choices`
-  first). Editor changes belong in `templates/useTemplateEditor.ts`. Its
-  decision is 103 in the branch: it becomes 106 (or the first free number),
-  with its references.
-- **112, spoken review order.** Merges cleanly.
-- **97, voice recording.** Nothing from 116; its conflicts
-  (`clipPlayer.tsx`, `simple/btWorkspace.tsx`, the decision log) are with
-  `main`.
-- **96, written translations.** Nothing from 116 (its `App.tsx` change is
-  one row in `SCREENS`); its conflicts are with `main`. New code there that
-  reads or writes the server goes in `server/`.
+- **126, help coverage.** Two conflicts in the first merge:
+  `guides/GuideEditor.tsx` (`useMethod` is `pickMethod` now: it is not a
+  hook) and `screens/config.tsx` (`use` is `adopt`, and `configModel` is
+  `config/model.ts`). After the codemod its `helpParts.ts` test skips files
+  by `/src\/(helpMode|DevMenu)\.tsx$/`: those are
+  `helpMode/helpMode.tsx` and `shell/DevMenu.tsx` now.
+- **125, Reports catch-up, and 123, sign-out on the web.** Clean.
+- **121, guardrails before pushing.** Two conflicts in the first merge:
+  `.githooks/pre-push` and `AGENTS.md`, both of which now run
+  `npm run lint` too. Keep both sides' steps.
+- **120, big languages.** Clean through the codemod, then 7 hunks against
+  the moved rules. It reads each passage off its line (`PassageLines`)
+  where the screens read the whole record, so carry that into the models:
+  `languageEntries(state, lines)` with its cache keyed by `lines`,
+  `forYouIds` and `nextPassage` calling `highlightsOf` and `upNextOf` with
+  `lines` (and `useMapLanguage.ts` passing `ctx.language.lines` and listing
+  it in the memo's dependencies), `statusLanguages` using `progressOf`, and
+  `askModel` passing `lines` to `usualTargetFor`. In the screens take this
+  branch's side, which calls the models.
+- **96, written translations.** One conflict in the first merge,
+  `screens/checks.tsx`: `./configModel` is `../config/model` now; keep its
+  two new imports.
 
-## Coming next
+## Part two is done
 
-Part two of 105 moves folders, after 96 and 97 land: `screens/` keeps only
-the entry files `App.tsx` registers; each concern gets a folder (auth,
-account, org, sync, audio, web, notifications, ui, shell, and what `simple/`
-holds: recording, review, helps, admin, mic); `*Core.ts` files become
-`model.ts` or `<thing>Model.ts`. To merge easily then, put new files in a
-feature folder now, not in `src/` itself or `simple/`, and name pure files
-`model.ts` or `<thing>Model.ts`.
+`screens/` holds the entry files `App.tsx` registers; each concern has a
+folder; pure files are `model.ts` or `<thing>Model.ts`; the passage record,
+the Map and reference material moved their rules out of their screens as
+the others had. Put a new file in its feature's folder, or a new folder
+named for what it is about: ESLint (`eslint.config.mjs`) and
+`folders.test.ts` say when something is in the wrong place.

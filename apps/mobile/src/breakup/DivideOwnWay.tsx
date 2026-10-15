@@ -7,10 +7,7 @@
 // opens as the language divides it, else by chapter; a ready-made way can be
 // the starting point instead. Saving divides the book like any other way
 // (useBookChange: the warning, the languages it changes, Undo).
-import {
-  bibleBreaksIn, BIBLES_COUNTED, formatRef, recommendedFor, wayCovers,
-  type LibraryItemView, type MaterialDoc, type TemplateDoc, type VersificationDoc
-} from '@langquest-next/core';
+import { bibleBreaksIn, BIBLES_COUNTED, recommendedFor, wayCovers, type LibraryItemView, type MaterialDoc, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { FlatList, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
@@ -25,34 +22,17 @@ import { itemRangesIn } from '../reference/coverage';
 import type { RefKind } from '../reference/model';
 import { useRefItems } from '../reference/useReference';
 import { languageLabel } from '../admin/adminModel';
-import { choiceKey, chipLabel, useChoice } from '../sources/SourceReader';
-import { usePassageSource, useSources } from '../sources/useSources';
+import { chipLabel } from '../sources/SourceReader';
 import { C, radius, space, target, TINT, type as T } from '../ui/theme';
 import { useBookChange } from './BreakUpBook';
 import { atOf, namesOfWay, ownWayDoc, parseAt, sectionLabel, sectionsOf, startsOfWay, verseOrder, type At, type Section } from './ownWay';
 import { isItself } from './model';
 import { useWays } from './useBreakup';
+import { useBookText } from './useBookText';
+export { useBookText } from './useBookText';
 
 /** A dashed line where at least this many of the 20 Bibles start a section. */
 const SUGGEST = 10;
-
-/** The book in a Bible the team has (the language's Bibles, the one chosen last on this phone first), else one LangQuest shares. */
-export function useBookText(ctx: Ctx, book: string, maxVerses: readonly number[]) {
-  const languageId = ctx.language.languageId;
-  // A book opened in the template editor may have no team behind it: LangQuest's Bibles stand in (decision 107).
-  const sources = useSources(ctx, null, languageId, { wholeBook: true });
-  const [chosen, choose] = useChoice(choiceKey(ctx.session.actorId, ctx.language.orgId, languageId ?? ''));
-  const option = sources.options.find((o) => o.itemId === chosen) ?? sources.options[0];
-  const range = useMemo(() => (maxVerses.length
-    ? { book, start: { chapter: 1, verse: 1 }, end: { chapter: maxVerses.length, verse: maxVerses[maxVerses.length - 1]! } } : null), [book, maxVerses]);
-  const src = usePassageSource(ctx, option, { ...sources, range, ref: range ? formatRef(range) : '' });
-  const byAt = useMemo(() => {
-    const out = new Map<At, string>();
-    for (const r of src?.rows ?? []) for (let v = r.verseStart; v <= r.verseEnd; v++) out.set(atOf(r.chapter, v), v === r.verseStart ? r.text : '');
-    return out;
-  }, [src?.rows]);
-  return { options: sources.options, option, byAt, choose, loading: sources.loading || !!src?.loading, problem: src && !src.loading ? src.textProblem : null };
-}
 
 interface Part { start: At; end: At; title: string }
 interface Help { itemId: string; name: string; kind: RefKind; language?: string; parts: Part[]; wholeBook: boolean; body?: string }

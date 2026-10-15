@@ -3,15 +3,13 @@
 // study). Screens take `unitId` and `languageId` from their params; this is the
 // one place that turns them into the derived record and the words the demo
 // uses for it, in the language showing (LAN-42).
-import {
-  decodeHlc, derivePassage, languageName, unitTitle,
-  type KindDef, type PassageState, type LanguageState, type ReviewView
-} from '@langquest-next/core';
+import { decodeHlc, derivePassage, unitTitle, type KindDef, type PassageState, type LanguageState, type ReviewView } from '@langquest-next/core';
 import { deriveKinds, kindOf, stepName } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
 import { currentLocale, t } from '../i18n';
 import { formatAgo, formatDay } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
+export { usePassage } from './usePassage';
 
 export interface PassageView {
   state: LanguageState;
@@ -24,19 +22,6 @@ export interface PassageView {
   p: PassageState;
   kinds: KindDef[];
   kind: (id: string) => KindDef;
-}
-
-/**
- * The passage a screen is about, from its `unitId`/`languageId` params; null
- * while loading or when unknown. A `languageId` param opens that language's
- * stream, so the open language is the one the passage is in.
- */
-export function usePassage(ctx: Ctx): PassageView | null {
-  const state = ctx.language.state;
-  const unitId = ctx.params['unitId'];
-  const languageId = ctx.params['languageId'] ?? ctx.languageId ?? undefined;
-  if (!state || !unitId || !languageId || languageId !== ctx.language.languageId || !state.units[unitId]) return null;
-  return passageView(state, unitId, languageId, languageName(ctx.org.state, languageId));
 }
 
 /**

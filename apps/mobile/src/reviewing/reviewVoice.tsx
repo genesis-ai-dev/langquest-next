@@ -8,7 +8,7 @@
 // starting one stops every other player.
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../audio/audioSession';
 import type { Ctx } from '../shell/ctx';
@@ -22,17 +22,10 @@ import type { VoiceAnswer } from './capture';
 import { lift } from '../ui/shadow';
 import { C, onColor, radius, space, target, TINT, type as T, withAlpha } from '../ui/theme';
 import { useRecorder, type RecordedCard } from '../recording/useRecorder';
+import { canSpeak, synth, Utterance } from './speech';
+export { canSpeak, type Synth } from './speech';
 
 // ---- speaking a line aloud ----------------------------------------------------------------
-
-type Synth = { cancel: () => void; speak: (u: unknown) => void };
-const synth = (): Synth | undefined => (Platform.OS === 'web' ? (globalThis as { speechSynthesis?: Synth }).speechSynthesis : undefined);
-const Utterance = (): (new (t: string) => unknown) | undefined => (globalThis as { SpeechSynthesisUtterance?: new (t: string) => unknown }).SpeechSynthesisUtterance;
-
-/** Whether this device can read a line aloud (the browser's own voice; devices wait for recorded lines). */
-export function canSpeak(): boolean {
-  return !!synth() && !!Utterance();
-}
 
 function speak(text: string) {
   const s = synth();
