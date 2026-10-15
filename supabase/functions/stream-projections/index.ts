@@ -22903,12 +22903,22 @@ async function runProjections(service, scope2 = "all") {
 async function deliverPushes(service, fetcher = fetch) {
   const claimed = await service.rpc("claim_notification_pushes");
   check(claimed);
-  for (const row of claimed.data ?? []) {
-    const tokens = await service.from("push_tokens").select("token").eq("profile_id", row.profile_id);
-    check(tokens);
-    if (!tokens.data?.length) continue;
+  const rows = claimed.data ?? [];
+  const tokensOf = /* @__PURE__ */ new Map();
+  if (rows.length) {
+    const found = await service.from("push_tokens").select("token,profile_id").in("profile_id", [...new Set(rows.map((r) => r.profile_id))]);
+    check(found);
+    for (const t of found.data ?? []) {
+      const list = tokensOf.get(t.profile_id);
+      if (list) list.push(t.token);
+      else tokensOf.set(t.profile_id, [t.token]);
+    }
+  }
+  for (const row of rows) {
+    const tokens = tokensOf.get(row.profile_id) ?? [];
+    if (!tokens.length) continue;
     let accepted = true;
-    for (const { token } of tokens.data) {
+    for (const token of tokens) {
       const response2 = await fetcher("https://exp.host/--/api/v2/push/send", {
         signal: AbortSignal.timeout(15e3),
         method: "POST",

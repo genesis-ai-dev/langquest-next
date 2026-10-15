@@ -31,6 +31,7 @@ const SMOKES = [
   'server/joinSmoke.sql',
   'server/grantsSmoke.sql',
   'server/externalValuesSmoke.sql',
+  'server/notificationsSmoke.sql',
   'server/concurrentAppendSmoke.sql'
 ];
 /** Smokes that open sessions of their own (dblink), which needs a superuser. */

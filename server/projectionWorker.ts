@@ -239,13 +239,24 @@ export async function runProjections(
 export async function deliverPushes(service: SupabaseClient, fetcher = fetch) {
   const claimed = await service.rpc('claim_notification_pushes');
   check(claimed);
-  for (const row of claimed.data ?? []) {
-    const tokens = await service.from('push_tokens').select('token').eq('profile_id', row.profile_id);
-    check(tokens);
+  // Every claimed person's phones in one query, not one per row.
+  const rows: { id: string; profile_id: string }[] = claimed.data ?? [];
+  const tokensOf = new Map<string, string[]>();
+  if (rows.length) {
+    const found = await service.from('push_tokens').select('token,profile_id')
+      .in('profile_id', [...new Set(rows.map((r) => r.profile_id))]);
+    check(found);
+    for (const t of (found.data ?? []) as { token: string; profile_id: string }[]) {
+      const list = tokensOf.get(t.profile_id);
+      if (list) list.push(t.token); else tokensOf.set(t.profile_id, [t.token]);
+    }
+  }
+  for (const row of rows) {
+    const tokens = tokensOf.get(row.profile_id) ?? [];
     // No registered phone yet: leave it pending with a five-minute lease.
-    if (!tokens.data?.length) continue;
+    if (!tokens.length) continue;
     let accepted = true;
-    for (const { token } of tokens.data) {
+    for (const token of tokens) {
       const response = await fetcher('https://exp.host/--/api/v2/push/send', {
         signal: AbortSignal.timeout(15_000),
         method: 'POST', headers: { 'Content-Type': 'application/json' },
