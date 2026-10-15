@@ -1609,6 +1609,22 @@ before. Tests `packages/client/test/courier.test.ts`,
 Reverse if: kept sessions outlive their work in the field (then they
 expire after a set time), or a phone signs work in as the wrong person.
 
+Amended (2026-10-15, Carl Sauder): the signed-in session and the sessions
+kept here now live in the iOS Keychain and the Android Keystore through
+`expo-secure-store`, not in AsyncStorage; the web build is unchanged and keeps
+the browser's storage, which signing out wipes. A security audit found
+refresh tokens, ours and other people's, in plaintext AsyncStorage, where a
+backup, a rooted phone or a stolen one could read them. A session is longer
+than SecureStore's 2 KB guidance, so `apps/mobile/src/server/secureStorageModel.ts`
+cuts a value into parts and encodes the key; the list of hand-overs holds
+no secret and stays in AsyncStorage. A value found only in the old place
+moves over on its first read, so people already signed in, and hand-overs
+already waiting, survive the upgrade. The Android backup rules keep the
+Keystore-encrypted values out of backups. supabase-js reads its session at
+every request, so values are kept in memory once read; an entry the Keystore
+can no longer read counts as signed out. Test
+`apps/mobile/test/secureStorage.test.ts`.
+
 ## 61. Every passage says whether it is on this phone, and Settings says how ready the phone is for offline
 
 Date: 2026-10-05 · By: Caleb Koster · Status: accepted
