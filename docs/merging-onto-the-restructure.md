@@ -248,34 +248,44 @@ already on `main`.
 
 ## Open pull requests, as of 2026-10-15
 
-Each was taken through the part-two procedure in a dry run. Conflicts in its
-first step come from the audit fixes that went in just before the moves;
-the rest come from the Map, reference and passage screens, whose rules
-moved into models (`map/mapModel.ts`, `reference/*Model.ts`,
-`passage/askModel.ts`, `reviewModel.ts`, `recordInputsModel.ts`).
+Each was taken through the part-two loop in a dry run. Round 1 is the
+moves, round 2 the roles. Conflicts in a round's first merge come from the
+commits just before its codemod: the audit fixes before round 1; before
+round 2, the Map, reference and passage screens' rules moving into models
+(`map/mapModel.ts`, `reference/*Model.ts`, `passage/askModel.ts`,
+`reviewModel.ts`, `recordInputsModel.ts`) and each hook or helper leaving a
+component file for its own. A conflict there usually means your edit is to
+code that moved: `movedExports` in `moves.json` says where each name went;
+make the edit there, and take this side in the old file.
 
-- **126, help coverage.** Two conflicts in the first merge:
-  `guides/GuideEditor.tsx` (`useMethod` is `pickMethod` now: it is not a
-  hook) and `screens/config.tsx` (`use` is `adopt`, and `configModel` is
-  `config/model.ts`). After the codemod its `helpParts.ts` test skips files
-  by `/src\/(helpMode|DevMenu)\.tsx$/`: those are
-  `helpMode/helpMode.tsx` and `shell/DevMenu.tsx` now.
 - **125, Reports catch-up, and 123, sign-out on the web.** Clean.
-- **121, guardrails before pushing.** Two conflicts in the first merge:
-  `.githooks/pre-push` and `AGENTS.md`, both of which now run
-  `npm run lint` too. Keep both sides' steps.
-- **120, big languages.** Clean through the codemod, then 7 hunks against
-  the moved rules. It reads each passage off its line (`PassageLines`)
-  where the screens read the whole record, so carry that into the models:
-  `languageEntries(state, lines)` with its cache keyed by `lines`,
-  `forYouIds` and `nextPassage` calling `highlightsOf` and `upNextOf` with
-  `lines` (and `useMapLanguage.ts` passing `ctx.language.lines` and listing
-  it in the memo's dependencies), `statusLanguages` using `progressOf`, and
-  `askModel` passing `lines` to `usualTargetFor`. In the screens take this
-  branch's side, which calls the models.
-- **96, written translations.** One conflict in the first merge,
-  `screens/checks.tsx`: `./configModel` is `../config/model` now; keep its
-  two new imports.
+- **126, help coverage.** Round 1: `guides/GuideEditor.tsx` (`useMethod`
+  is `pickMethod`: it is not a hook) and `screens/config.tsx` (`use` is
+  `adopt`, `configModel` is `config/model.ts`). Round 2: about a dozen
+  files, since it touches nearly every part a hook or helper left
+  (`admin/admin.tsx`, `admin/ready.tsx`, `helpMode/helpContext.ts`, whose
+  hooks are in `helpMode/useHelpMode.ts`, `ui/UserChip.tsx`, `ui/kit.tsx`,
+  `reports/ui.tsx`, `study/ui.tsx`, `sync/SyncIndicator.tsx`, and the Map,
+  passage and reference screens). Its `helpParts.ts` test skips files by
+  `/src\/(helpMode|DevMenu)\.tsx$/`: those are `helpMode/helpMode.tsx`
+  and `shell/DevMenu.tsx` now.
+- **121, guardrails before pushing.** Round 1: `.githooks/pre-push` and
+  `AGENTS.md`, both of which now run `npm run lint` too. Keep both sides.
+- **120, big languages.** Round 2: the Map and passage screens and
+  `passage/recordModel.ts`, plus `sync/offline.tsx`, `sync/lostFiles.tsx`,
+  `sources/offline.ts` and `breakup/earlier.tsx`. It reads each passage off
+  its line (`PassageLines`) where the screens read the whole record, so
+  carry that into the models: `languageEntries(state, lines)` with its
+  cache keyed by `lines`, `forYouIds` and `nextPassage` calling
+  `highlightsOf` and `upNextOf` with `lines` (and `useMapLanguage.ts`
+  passing `ctx.language.lines`), `statusLanguages` using `progressOf`, and
+  `askModel` passing `lines` to `usualTargetFor`. The offline summary's
+  hook is `sync/useOfflineSummary.ts` and its words `sync/offlineText.ts`.
+- **96, written translations.** Round 1: `screens/checks.tsx`
+  (`./configModel` is `../config/model`; keep its two new imports). Round
+  2: the passage screen and `passage/recordModel.ts`. Once it lands,
+  `LanguageChecks` and its parts move from `screens/checks.tsx` to
+  `src/checks` (the one lint exception, in `screens/config.tsx`).
 
 ## Part two is done
 
