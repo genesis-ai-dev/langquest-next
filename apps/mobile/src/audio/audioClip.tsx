@@ -6,12 +6,12 @@ import { View } from 'react-native';
 import { Text } from '../ui/text';
 import type { LanguageHandle } from '../sync/useLanguage';
 import { t } from '../i18n';
-import { IconBtn, txt } from '../ui/kit';
+import { IconBtn } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { noteExpected, reportError } from '../diagnostics/report';
 import { C, target } from '../ui/theme';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
 import { audioFormat } from './audioFormat';
-export { audioFormat } from './audioFormat';
 
 // A player failure is a fault (native audio): it is reported and said without its message.
 export function AudioClip(props: {

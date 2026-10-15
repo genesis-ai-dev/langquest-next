@@ -7,7 +7,7 @@ import { AccessibilityInfo, Pressable, StyleSheet, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import type { Ctx } from '../shell/ctx';
 import { HelpBadge } from '../helpMode/helpBadge';
-import { useHelpSpot } from '../helpMode/helpContext';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { Ico } from '../ui/kit';
 import { IDLE, ringOpacity, stepRing, type RingState } from './syncRing';
 import { C } from '../ui/theme';
@@ -15,7 +15,6 @@ import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { Text } from '../ui/text';
 import { syncStanding, standingTitle, type SyncStanding, previewCount, previewListeners } from './syncStanding';
-export { syncStanding, standingTitle, previewSyncRing, type SyncStanding } from './syncStanding';
 
 const SIZE = 40;
 const R = 17;

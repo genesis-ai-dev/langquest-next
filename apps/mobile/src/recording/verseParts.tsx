@@ -15,13 +15,14 @@ import {
   type PartLabel, type PartMark
 } from '@langquest-next/core';
 import type { Ctx } from '../shell/ctx';
-import { useHelpOn, useHelpSpot } from '../helpMode/helpContext';
+import { useHelpOn, useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import { HelpInfo, Ico, IconBtn, Sheet, txt } from '../ui/kit';
+import { HelpInfo, Ico, IconBtn, Sheet } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { C, radius, space, target, TINT, type as T } from '../ui/theme';
 import { mmss, partLabel } from './model';
-import { styles as ps } from './blocks';
+import { styles as ps } from './blockStyles';
 import type { Part } from './recorder';
 import { useClip } from '../audio/useClip';
 import { partIs, spanName, spanShort } from './verseModel';

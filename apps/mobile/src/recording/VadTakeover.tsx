@@ -13,7 +13,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, PanResponder, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { HelpBadge } from '../helpMode/helpBadge';
-import { useHelpSpot } from '../helpMode/helpContext';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { HelpInfo, Ico } from '../ui/kit';

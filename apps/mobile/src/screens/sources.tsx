@@ -16,15 +16,15 @@ import { teamLanguage } from '../reference/languages';
 import { screenTitle } from '../shell/flow';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import {
-  Badge, Card, Chip, EmptyState, Group, Header, LinkBtn, PrimaryBtn, Row, Screen, SearchField, SectionLabel, txt
-} from '../ui/kit';
+import { Badge, Card, Chip, EmptyState, Group, Header, LinkBtn, PrimaryBtn, Row, Screen, SearchField, SectionLabel } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { useLibraryDocs } from '../library/useLibrary';
 import { contractsFor } from '../shell/screenContracts';
 import { bibleErrorText, type BibleDetail, type BibleLanguage, type BibleSummary } from '../sources/bibleBrain';
 import { offersFor, offlineAllowed, refText, type SourceOption } from '../sources/model';
 import { SourceView } from '../sources/SourceReader';
-import { bibleBrain, useMyBibles, type MyBible } from '../sources/store';
+import { bibleBrain, type MyBible } from '../sources/store';
+import { useMyBibles } from '../sources/useMyBibles';
 import { C, space } from '../ui/theme';
 
 /** "Audio: New Testament only", "Text and audio", "Text only". */

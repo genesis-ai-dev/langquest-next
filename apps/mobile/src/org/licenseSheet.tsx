@@ -8,7 +8,8 @@ import { Linking, View } from 'react-native';
 import { Text } from '../ui/text';
 import { licenseText } from '../i18n/coreText';
 import { t } from '../i18n';
-import { Banner, GhostBtn, Ico, LinkBtn, PrimaryBtn, Row, Sheet, txt } from '../ui/kit';
+import { Banner, GhostBtn, Ico, LinkBtn, PrimaryBtn, Row, Sheet } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { C, space } from '../ui/theme';
 
 type LicenseSheetMode = 'choose' | 'open' | 'view';

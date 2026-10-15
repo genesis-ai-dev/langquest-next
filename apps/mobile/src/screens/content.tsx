@@ -24,12 +24,15 @@ import {
   bookParts, chaptersInBook, languageName, languageProgress, libraryItemView, usfmOf,
   type LibraryItemView, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
-import { BookHead, BreakUpBook, templateBookName } from '../breakup/BreakUpBook';
-import { DivideOwnWay, useBookText } from '../breakup/DivideOwnWay';
+import { BookHead, BreakUpBook } from '../breakup/BreakUpBook';
+import { templateBookName } from '../breakup/templateNames';
+import { DivideOwnWay } from '../breakup/DivideOwnWay';
+import { useBookText } from '../breakup/useBookText';
 import { booksLine, divisionLine, sharedTemplateShown, wayNow } from '../breakup/model';
 import { atOf } from '../breakup/ownWay';
 import { RedoSheet } from '../breakup/parts';
-import { TranslateQuestion, useTranslate } from '../breakup/TranslateStep';
+import { TranslateQuestion } from '../breakup/TranslateStep';
+import { useTranslate } from '../breakup/useTranslate';
 import { useWays } from '../breakup/useBreakup';
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import * as Crypto from 'expo-crypto';
@@ -46,21 +49,20 @@ import { bookName } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { indexesFor } from '../sync/indexes';
-import {
-  Banner, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, PrimaryBtn, QuietLinks, Row, Screen, SearchField,
-  SectionLabel, SmallBtn, Sheet, ShowMore, Toggle, txt, useOpenDetail
-} from '../ui/kit';
-import { useHelpSpot } from '../helpMode/helpContext';
+import { Banner, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, PrimaryBtn, QuietLinks, Row, Screen, SearchField, SectionLabel, SmallBtn, Sheet, ShowMore, Toggle } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { useOpenDetail } from '../ui/useLayout';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { mayWriteLibrary, sourceLine, type SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs, useLibraryUpdates, useSharedItems } from '../library/useLibrary';
 import { failureMessage } from '../diagnostics/report';
 import { DashedRow } from '../admin/admin';
 import { contractsFor } from '../shell/screenContracts';
-import { chipLabel as sourceChip } from '../sources/SourceReader';
+import { chipLabel as sourceChip } from '../sources/sourceText';
 import { C, radius, space, target, tile, TINT, type as T } from '../ui/theme';
 import { bookStructureData, chapterNumbers, chapterTileLabel, partsStartingIn } from '../templates/bookStructureModel';
-import { useRunner, type Lib } from '../templates/hooks';
+import { useRunner, type Lib } from '../templates/useRunner';
 import {
   bookRowSub, choiceInUse, defaultDisplay, displayExample, filterBooks, isOpenLanguage, joinNames, languageSummary, languageVersionView,
   levelNameAt, levelSub, lower, missingBooks, orgNameOf, outlineHolds, outlineSummary, partsCount, pendingUpdate, pickerLists, pickerNote,

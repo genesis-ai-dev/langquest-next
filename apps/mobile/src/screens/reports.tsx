@@ -14,22 +14,23 @@ import { Pressable, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { HelpBadge } from '../helpMode/helpBadge';
-import { useHelpSpot } from '../helpMode/helpContext';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { t, Trans } from '../i18n';
 import { contractsFor } from '../shell/screenContracts';
-import { Chip, ChipRow, EmptyState, Field, Header, IconBtn, Screen, SearchField, Sheet, SmallBtn, txt } from '../ui/kit';
+import { Chip, ChipRow, EmptyState, Field, Header, IconBtn, Screen, SearchField, Sheet, SmallBtn } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { filterByCluster, type ClusterFilter } from '../clusters/model';
 import { saveLanguageSetting } from '../reports/languageSettings';
 import { C, measure, space } from '../ui/theme';
 import { ActivityChart, DayBars, ProgressLine, WorkBar } from '../reports/charts';
 import { countryCodes, countryName } from '../reports/countries';
-import { useReports } from '../reports/data';
+import { useReports } from '../reports/useReports';
 import { bottleneckText, milestoneText, paceAdvice, paceLabel, PACE_TONE, recencyAdvice, recencyLabel, RECENCY_TONE, scopeLabel, stageName } from '../reports/labels';
-import { Activity, Alerts, FieldReport, Geography, Languages, Ledger, openAlerts, Overview, Pace, sectionHelp, sectionLabel, SECTIONS, type SectionId, type SectionProps } from '../reports/sections';
-import {
-  AttentionPanel, Bar, bookOf, canPrint, Columns, CoverageRows, dayYear, exportCsv, fileName, Freshness, HeadlineStats, languageCsv, ListLine, NoReports, Notice, num, Panel,
-  pctText, printPage, ProgressPair, shortDate, signed, Stat, Stats, ToneBadge, type Tone
-} from '../reports/ui';
+import { Activity, Alerts, FieldReport, Geography, Languages, Ledger, Overview, Pace, sectionHelp, type SectionProps } from '../reports/sections';
+import { openAlerts, sectionLabel, SECTIONS, type SectionId } from '../reports/sectionsModel';
+import { AttentionPanel, Bar, Columns, CoverageRows, Freshness, HeadlineStats, ListLine, NoReports, Notice, Panel, ProgressPair, Stat, Stats, ToneBadge } from '../reports/ui';
+import { bookOf, dayYear, num, pctText, shortDate, signed, type Tone } from '../reports/format';
+import { canPrint, exportCsv, fileName, languageCsv, printPage } from '../reports/exportFiles';
 
 const COLUMN = measure.report;
 

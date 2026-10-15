@@ -4,15 +4,14 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { bookName } from '../i18n/coreText';
 import { HelpBadge } from '../helpMode/helpBadge';
-import { useHelpSpot } from '../helpMode/helpContext';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { currentLocale, t, Trans } from '../i18n';
 import { formatDay, formatDayYear, formatMonthShort, formatMonthYear, formatNumber, formatPercent } from '../i18n/format';
-import { Badge, Card, Ico, txt, type IconName } from '../ui/kit';
+import { Badge, Card, Ico, type IconName } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { C, radius, space, TINT } from '../ui/theme';
 import { RECENCY_TONE, recencyLabel, scopeLabel, scopeShort } from './labels';
 import { type Tone, TONE_FILL, num, pctText, signed, dateTime, ago, partOf, bookOf } from './format';
-export { fileName, safeName, exportCsv, canPrint, printPage, languagesCsv, languageCsv, ledgerCsv } from './exportFiles';
-export { type Tone, TONE_FILL, num, pctText, signed, shortDate, dayYear, weekday, longDay, monthName, monthShort, utcTime, dateTime, ago, partOf, bookOf } from './format';
 
 /**
  * The Reports section's primitives (ported from the web dashboard, decision

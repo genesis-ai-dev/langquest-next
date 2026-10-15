@@ -12,7 +12,8 @@ import { View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
-import { Chip, SectionLabel, txt } from '../ui/kit';
+import { Chip, SectionLabel } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { useLibraryDocs } from '../library/useLibrary';
 import { FindBiblePage, NumberingChosenPage, NumberingContext, NumberingListPage, QuizPage, type NumberingChoice } from './NumberingStep';
 import { factsOf } from './numberingGuide';
@@ -21,7 +22,6 @@ import { space } from '../ui/theme';
 import { emptyLine, WAY_ITEMS, type WayRow } from './model';
 import { LessonSheet, PreviewSheet, WayCard } from './parts';
 import { useTranslate } from './useTranslate';
-export { useTranslate, type TranslatePage } from './useTranslate';
 
 export type Translate = ReturnType<typeof useTranslate>;
 

@@ -8,10 +8,10 @@ import { feature } from 'topojson-client';
 import type { GeometryCollection, Topology } from 'topojson-specification';
 import world from 'world-atlas/countries-110m.json';
 import { t } from '../i18n';
-import { txt } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { C, space } from '../ui/theme';
 import { countryName, numericOf } from './countries';
-import { num } from './ui';
+import { num } from './format';
 
 let shapesCache: FeatureCollection<Geometry, { name: string }> | null = null;
 function shapes() {

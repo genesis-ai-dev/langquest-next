@@ -5,7 +5,8 @@
 // Drawn only: taps go to the part.
 import { useContext, useEffect, useId, useMemo, useRef, type ReactNode } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import { HelpClipContext, HelpContext, HelpHostContext, HelpLayerContext, useHelpOn, type HelpLit, type HelpSpot } from './helpContext';
+import { type HelpLit, type HelpSpot } from './helpContext';
+import { HelpClipContext, HelpContext, HelpHostContext, HelpLayerContext, useHelpOn } from './useHelpMode';
 
 /** Tell the help layer where the view holding this ref is, every frame while help is on. */
 function useLit(what: HelpLit | null, id: string) {

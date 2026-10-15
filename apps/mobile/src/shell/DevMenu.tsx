@@ -13,8 +13,9 @@ import { ensurePersonaAccount, joinAsPersona, switchToPersona } from '../server/
 import { issueInvite } from '../invites/invites';
 import { indexesFor } from '../sync/indexes';
 import { SCREEN_IDS, screenTitle, type ScreenId } from './flow';
-import { Group, Row, SectionLabel, Sheet, txt } from '../ui/kit';
-import { previewSyncRing } from '../sync/SyncIndicator';
+import { Group, Row, SectionLabel, Sheet } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { previewSyncRing } from '../sync/syncStanding';
 import { loadDocs } from '../library/docStore';
 import { subscribeOps, type SharedItem } from '../library/model';
 import { reportError } from '../diagnostics/report';

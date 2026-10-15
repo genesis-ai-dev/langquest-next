@@ -5,7 +5,8 @@
 import { useState } from 'react';
 import { Text } from '../ui/text';
 import { t } from '../i18n';
-import { GhostBtn, PrimaryBtn, Sheet, txt } from '../ui/kit';
+import { GhostBtn, PrimaryBtn, Sheet } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { RadioRow } from '../admin/admin';
 import { guideShortName, languageLabel } from '../admin/adminModel';
 import { space } from '../ui/theme';

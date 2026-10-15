@@ -11,8 +11,9 @@ import { Text } from '../ui/text';
 import { languageInfo, t, UI_LANGUAGES, currentLanguage, type UiLanguage } from './';
 import { chooseLanguage, chosenLanguage, phoneLanguage } from './start';
 import { HelpBadge } from '../helpMode/helpBadge';
-import { useHelpSpot } from '../helpMode/helpContext';
-import { Ico, Row, Sheet, txt } from '../ui/kit';
+import { useHelpSpot } from '../helpMode/useHelpMode';
+import { Ico, Row, Sheet } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { C, radius, space, target } from '../ui/theme';
 import { choiceChangesLanguage } from './uiLanguageChoice';
 

@@ -18,7 +18,6 @@ import { cachedMicSettings, loadMicSettings, onMicSettings } from '../mic/micSet
 import type { JournalTarget } from './recordingJournalModel';
 import { storableRecording } from '../web/webAudio';
 import { claimVad, MicrophoneRefused, recorderProblem, vadOwner, activity } from './recorderState';
-export { claimVad, MicrophoneRefused, recorderProblem, isRecording } from './recorderState';
 
 const WEB = Platform.OS === 'web';
 /** A browser records MP4 when it can (audioFormat.ts); otherwise the take is converted to WAV when it stops. */

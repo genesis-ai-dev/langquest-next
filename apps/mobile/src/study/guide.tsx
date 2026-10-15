@@ -10,21 +10,25 @@ import { useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
-import { useHelpOn, useHelpSpot } from '../helpMode/helpContext';
+import { useHelpOn, useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import { Ico, SmallBtn, txt, type IconName } from '../ui/kit';
+import { Ico, SmallBtn, type IconName } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import type { PassageView } from '../passage/passageView';
 import type { StudyGuide, StudyResource } from './guides';
 import { glossaryEntryOf } from './libraryGuides';
-import { useStudyFileUri } from './media';
+import { useStudyFileUri } from './useStudyFileUri';
 import type { StudyProgress, StudyStepStatus } from './progress';
 import { clock, inlineParts, isCallout, isQuestion, secondsOf, sectionLabel, studySections, type StudySection } from './text';
-import { calloutLabel, ContributeSheet, GlossarySheet, MediaSheet, saveNote, shownClock, StudyNote, useStudyAudio } from './ui';
+import { ContributeSheet, GlossarySheet, MediaSheet, StudyNote } from './ui';
+import { calloutLabel, shownClock } from './studyText';
+import { saveNote } from './studyActions';
+import { useStudyAudio } from './useStudyAudio';
 import { C, radius, space, target, TINT, type as T } from '../ui/theme';
-import { Callout, MiniPlayer, StepNav, StepsSheet, styles as ps } from '../recording/blocks';
+import { Callout, MiniPlayer, StepNav, StepsSheet } from '../recording/blocks';
+import { styles as ps } from '../recording/blockStyles';
 import { guideLanguage } from './guideText';
-export { guideLanguage } from './guideText';
 
 /** ‹ 2/6 Setting the stage ▾ ›, and the sheet of every step it opens. */
 export function GuideNav(props: { ctx: Ctx; sp: StudyProgress; index: number; onIndex: (i: number) => void; sheetFooter?: React.ReactNode }) {

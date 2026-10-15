@@ -30,12 +30,11 @@ import { createAccountReady, MIN_PASSWORD } from '../auth/model';
 import { signIn, signInReady } from '../auth/signIn';
 import { useInvitePreview } from '../auth/useInvitePreview';
 import { useOrganizationSearch } from '../auth/useOrganizationSearch';
-import { redeemSignInCode, useRequestOutcome } from '../invites/invites';
+import { redeemSignInCode } from '../invites/invites';
+import { useRequestOutcome } from '../invites/useInviteRequests';
 import { latestRequest } from '../invites/requestOutcome';
-import {
-  Badge, Banner, Card, EmptyState, Field, GhostBtn, Group, HelpTop, Header, HelpInfo, Ico, LinkBtn, OrDivider, PrimaryBtn, ProgressBar, QuietLinks, Row, Screen, SearchField, SectionLabel,
-  Segments, ShowMore, SmallBtn, txt, type IconName
-} from '../ui/kit';
+import { Badge, Banner, Card, EmptyState, Field, GhostBtn, Group, HelpTop, Header, HelpInfo, Ico, LinkBtn, OrDivider, PrimaryBtn, ProgressBar, QuietLinks, Row, Screen, SearchField, SectionLabel, Segments, ShowMore, SmallBtn, type IconName } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { PRIVACY_URL } from '../auth/legal';
 import { LicenseRow, LicenseSheet } from '../org/licenseSheet';
 import { noteExpected, reportError, failureMessage } from '../diagnostics/report';
@@ -50,7 +49,7 @@ import { C, TINT, radius, space, tile, type as T, withAlpha } from '../ui/theme'
 import { useAccountActions, useDisplayNames } from '../account/useAccount';
 import { LanguageChip } from '../i18n/uiLanguage';
 import { HelpBadge } from '../helpMode/helpBadge';
-import { useHelpSpot } from '../helpMode/helpContext';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 
 /**
  * What to say when something fails (error-tracking): a command's own reason,

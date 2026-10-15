@@ -9,12 +9,12 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { HelpBadge } from '../helpMode/helpBadge';
-import { useHelpSpot } from '../helpMode/helpContext';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
-import { Ico, txt } from '../ui/kit';
+import { Ico } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { C, radius, space } from '../ui/theme';
 import { madeWithLine } from './model';
-export { useUsage, type Usage } from './useUsage';
 
 function kindName(kind: UsedReference['kind']): string {
   switch (kind) {

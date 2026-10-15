@@ -5,7 +5,7 @@
 import { defaultOfflineScope } from '@langquest-next/core';
 import { useEffect, useMemo } from 'react';
 import type { Ctx } from '../shell/ctx';
-import { useStudyGuides } from './libraryGuides';
+import { useStudyGuides } from './useStudyGuides';
 import { setStudyWanted, STUDY_FILES_OFFLINE, studyUrls } from './studyFiles';
 
 export function StudyPrefetch(props: { ctx: Ctx }) {

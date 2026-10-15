@@ -9,7 +9,6 @@ import type { Ctx } from '../shell/ctx';
 import { currentLocale, t } from '../i18n';
 import { formatAgo, formatDay } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
-export { usePassage } from './usePassage';
 
 export interface PassageView {
   state: LanguageState;

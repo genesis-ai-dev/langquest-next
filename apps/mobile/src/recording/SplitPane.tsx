@@ -8,7 +8,7 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { PanResponder, Platform, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { HelpBadge } from '../helpMode/helpBadge';
-import { useHelpSpot } from '../helpMode/helpContext';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
 import { C, radius, target } from '../ui/theme';
 import {

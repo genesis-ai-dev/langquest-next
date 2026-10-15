@@ -12,7 +12,8 @@ import { View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
-import { Card, Field, GhostBtn, Header, Ico, PrimaryBtn, Row, Group, Screen, SectionLabel, Sheet, txt } from '../ui/kit';
+import { Card, Field, GhostBtn, Header, Ico, PrimaryBtn, Row, Group, Screen, SectionLabel, Sheet } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { useLibraryDocs } from '../library/useLibrary';
 import { failureMessage } from '../diagnostics/report';
 import { ChoiceCard, Question } from '../admin/admin';
@@ -22,8 +23,6 @@ import { PieceBar, PreviewSheet, WayCard } from './parts';
 import { useBookNameChoices, useWays } from './useBreakup';
 import { alsoUsedLine } from './templateNames';
 import { useBookChange } from './useBookChange';
-export { useBookChange } from './useBookChange';
-export { templateBookName, alsoUsedLine } from './templateNames';
 
 /** The numbering a template is in (decision 80): its versification document's code. */
 function useNumberingCode(ctx: Ctx, doc: TemplateDoc | null): string | null {

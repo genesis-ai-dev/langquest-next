@@ -27,20 +27,21 @@ import { licenseText } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatNumber, formatTime } from '../i18n/format';
-import { useHelpSpot } from '../helpMode/helpContext';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
-import {
-  Badge, Banner, Card, Chip, ChipRow, EmptyState, Field, Group, Header, HelpInfo, Ico, IconBtn, LinkBtn, PrimaryBtn, Row, Screen, SearchField,
-  SectionLabel, Sheet, SmallBtn, txt, useLayout
-} from '../ui/kit';
+import { Badge, Banner, Card, Chip, ChipRow, EmptyState, Field, Group, Header, HelpInfo, Ico, IconBtn, LinkBtn, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, SmallBtn } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { useLayout } from '../ui/useLayout';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
 import { LanguageField } from '../reference/LanguageField';
 import { readerLanguage } from '../reference/languages';
 import { failureMessage } from '../diagnostics/report';
 import type { StudyGuide, StudyResource } from '../study/guides';
 import { guideFromDoc, glossaryEntryOf } from '../study/guideMatch';
-import { useStudyFileUri } from '../study/media';
-import { AudioBar, CALLOUT_LOOK, calloutLabel, GlossarySheet, mediaKindLabel, MediaSheet, shownClock, StepPreview, useStudyAudio } from '../study/ui';
+import { useStudyFileUri } from '../study/useStudyFileUri';
+import { AudioBar, GlossarySheet, MediaSheet, StepPreview } from '../study/ui';
+import { CALLOUT_LOOK, calloutLabel, mediaKindLabel, shownClock } from '../study/studyText';
+import { useStudyAudio } from '../study/useStudyAudio';
 import { C, measure, radius, space, target, TINT, type as T } from '../ui/theme';
 import { VoiceNote } from '../audio/voiceNote';
 import {

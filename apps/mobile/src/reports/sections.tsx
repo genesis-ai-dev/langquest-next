@@ -15,8 +15,9 @@ import { Text } from '../ui/text';
 import { t, Trans } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { HelpBadge } from '../helpMode/helpBadge';
-import { useHelpSpot } from '../helpMode/helpContext';
-import { Chip, ChipRow, HelpInfo, IconBtn, LinkBtn, SearchField, SmallBtn, txt } from '../ui/kit';
+import { useHelpSpot } from '../helpMode/useHelpMode';
+import { Chip, ChipRow, HelpInfo, IconBtn, LinkBtn, SearchField, SmallBtn } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { C, space } from '../ui/theme';
 import { CompareBars, DayBars, GroupedBars, PaceStrip, RecencyStrip, Sparkline, StackBar, WorkBar } from './charts';
 import { countryName } from './countries';
@@ -26,9 +27,10 @@ import WorldMap from './WorldMap';
 import {
   LEVEL_TONE, levelCount, levelLabel, milestoneText, paceAdvice, paceLabel, PACE_TONE, recencyAdvice, recencyLabel, RECENCY_TONE, scopeLabel
 } from './labels';
-import { ago, AttentionPanel, Bar, bookOf, canPrint, Columns, CoverageMini, CoverageRows, dateTime, dayYear, Delta, exportCsv, fileName, Freshness, HeadlineStats, languagesCsv, ledgerCsv, ListLine, longDay, monthName, monthShort, Notice, num, Panel, pctText, printPage, ProgressPair, RecencyBadge, safeName, shortDate, signed, Stat, Stats, ToneBadge, utcTime, type Tone } from './ui';
+import { AttentionPanel, Bar, Columns, CoverageMini, CoverageRows, Delta, Freshness, HeadlineStats, ListLine, Notice, Panel, ProgressPair, RecencyBadge, Stat, Stats, ToneBadge } from './ui';
+import { ago, bookOf, dateTime, dayYear, longDay, monthName, monthShort, num, pctText, shortDate, signed, utcTime, type Tone } from './format';
+import { canPrint, exportCsv, fileName, languagesCsv, ledgerCsv, printPage, safeName } from './exportFiles';
 import { sectionLabel, type SectionId } from './sectionsModel';
-export { SECTIONS, sectionLabel, openAlerts, type SectionId } from './sectionsModel';
 
 /** What a section's chip shows, as help mode says it. */
 export function sectionHelp(id: SectionId): string {

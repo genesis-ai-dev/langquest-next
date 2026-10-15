@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 import type { Ctx } from '../shell/ctx';
 import { filesetsFor, sourceUsed } from './model';
-import type { Usage } from './used';
+import type { Usage } from './useUsage';
 import { useSources, type PassageSources } from './useSources';
 
 export const choices = new Map<string, string>();

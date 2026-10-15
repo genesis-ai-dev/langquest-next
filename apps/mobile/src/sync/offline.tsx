@@ -10,15 +10,14 @@ import { useMemo, useSyncExternalStore } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
-import { Card, HelpInfo, Ico, ProgressBar, SmallBtn, txt, type IconName } from '../ui/kit';
+import { Card, HelpInfo, Ico, ProgressBar, SmallBtn, type IconName } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { endsSentence } from '../helpMode/helpContext';
 import { t } from '../i18n';
 import { formatBytes } from '../i18n/format';
 import { onStudyFiles, STUDY_FILES_OFFLINE, studyRevision } from '../study/studyFiles';
 import { C, onColor, space, TINT } from '../ui/theme';
 import { keptOfflineMap, offlineLine, type KeptOffline, type OfflineOverview, withStudy } from './offlineText';
-export { useOfflineSummary } from './useOfflineSummary';
-export { keptOfflineMap, offlineWords, offlineLine, type KeptOffline, type OfflineOverview } from './offlineText';
 
 /** Re-render when a study file arrives or the prefetcher learns a guide. */
 export function useStudyRevision(): number {

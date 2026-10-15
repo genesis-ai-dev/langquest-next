@@ -5,8 +5,8 @@ import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { C, space } from '../ui/theme';
-import { usePerson, PersonAvatar } from '../ui/UserChip';
-export { useCheckHelpRows, type HelpRow } from './useCheckHelpRows';
+import { PersonAvatar } from '../ui/UserChip';
+import { usePerson } from '../ui/usePerson';
 
 /** Up to four faces, overlapping. */
 export function Faces(props: { people: string[]; size?: number }) {

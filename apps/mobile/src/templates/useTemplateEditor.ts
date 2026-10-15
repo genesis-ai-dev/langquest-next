@@ -5,7 +5,7 @@ import { templateBooks, withBookBrokenUp, type LibraryItemView, type TemplateDoc
 import { docFromForm, formChanged, type TemplateForm } from './contentTemplates';
 import type { Ctx } from '../shell/ctx';
 import { useLibraryDocs } from '../library/useLibrary';
-import { useRunner, useVersifications, type Lib } from './hooks';
+import { useRunner, useVersifications, type Lib } from './useRunner';
 import {
   editorSub, formReady, orgNameOf, publishedVersion, redividedBooks, savedToast, usersOf, versificationLabel
 } from './model';

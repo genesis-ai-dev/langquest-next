@@ -26,11 +26,10 @@ import { noteExpected } from '../diagnostics/report';
 import type { Session } from '../shell/session';
 import type { OrgHandle } from '../sync/useOrg';
 import type { LanguageHandle } from '../sync/useLanguage';
-import { isRecording } from '../recording/useRecorder';
+import { isRecording } from '../recording/recorderState';
 import { BibleError } from './bibleBrain';
 import { chaptersOf, filesetsFor, offlineAllowed, sourceEvictions, unitCoordinates, type SourceOption } from './model';
 import { bibleBrain, type MyBible } from './store';
-export { useSourceOffline } from './useSourceOffline';
 
 /** The sources' share of the 2 GB blob cache. */
 const SOURCE_CACHE_BYTES = 1024 * 1024 * 1024;

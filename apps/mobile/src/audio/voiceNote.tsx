@@ -9,10 +9,11 @@ import { Text } from '../ui/text';
 import { AudioClip } from './audioClip';
 import type { Ctx } from '../shell/ctx';
 import { HelpBadge } from '../helpMode/helpBadge';
-import { useHelpSpot } from '../helpMode/helpContext';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
 import { formatClock } from '../i18n/format';
-import { Ico, IconBtn, txt } from '../ui/kit';
+import { Ico, IconBtn } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { C, radius, space, TINT } from '../ui/theme';
 import { useRecorder, type RecordedCard } from '../recording/useRecorder';
 

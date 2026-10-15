@@ -25,10 +25,9 @@ import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
-import {
-  Badge, Banner, Card, Chip, ChipRow, Disclosure, EmptyState, GhostBtn, Group, Header, PrimaryBtn, ProgressBar, Row, Screen, SearchField,
-  SectionLabel, Sheet, ShowMore, SmallBtn, txt, useOpenDetail
-} from '../ui/kit';
+import { Badge, Banner, Card, Chip, ChipRow, Disclosure, EmptyState, GhostBtn, Group, Header, PrimaryBtn, ProgressBar, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, SmallBtn } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { useOpenDetail } from '../ui/useLayout';
 import { sourceLine, type SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
 import { noteExpected } from '../diagnostics/report';
@@ -46,16 +45,14 @@ import {
   passageLinkSpec, refIcon, templateVersification, visibleNotes, writtenHelps, type CoverFilter
 } from '../reference/passagesModel';
 import { usePassages } from '../reference/usePassages';
-import {
-  levelOf, publishTimingJob, referenceFailure, requestTimings, useRecommend, useRefItems, useTimingJobs, useTimingPublisher,
-  versificationHash, type TimingJob
-} from '../reference/useReference';
+import { useRecommend, useRefItems, useTimingJobs, useTimingPublisher, type TimingJob } from '../reference/useReference';
+import { levelOf, publishTimingJob, referenceFailure, requestTimings, versificationHash } from '../reference/referenceActions';
 import { teamLanguage } from '../reference/languages';
 import { termsInText } from '../recording/workspaceModel';
 import { languageLabel } from '../admin/adminModel';
 import { HelpCard, PassageTextBar, WordChip } from '../helps/helps';
 import { DashedBtn } from '../recording/blocks';
-import { useBible } from '../helps/reference';
+import { useBible } from '../helps/useBible';
 import { contractsFor } from '../shell/screenContracts';
 import { bibleErrorText } from '../sources/bibleBrain';
 import { space, TINT } from '../ui/theme';

@@ -8,15 +8,16 @@ import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { PanResponder, Platform, Pressable, StyleSheet, View, type AccessibilityActionEvent, type LayoutChangeEvent } from 'react-native';
 import { Text } from '../ui/text';
-import { audioFormat } from './audioClip';
+import { audioFormat } from './audioFormat';
 import { restartIndex } from './clipPosition';
 import { LISTEN_PLAYER, registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
 import type { ListenHooks } from '../recording/useListenLoop';
-import { useHelpSpot } from '../helpMode/helpContext';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { Ico, txt } from '../ui/kit';
+import { Ico } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { noteExpected, reportError } from '../diagnostics/report';
 import { C, radius, space, TINT, type as T } from '../ui/theme';
 import type { LanguageHandle } from '../sync/useLanguage';
@@ -24,7 +25,6 @@ import type { LanguageHandle } from '../sync/useLanguage';
 /** The timeline's press while help is on: it explains itself; it is moved by tapping and dragging when help is off. */
 const SEEK_ONLY = () => undefined;
 import { clock } from './clipTime';
-export { clock, clipSeconds } from './clipTime';
 
 /** Each card's length in seconds, from the recording that holds it (0 when unknown). */
 function cardSeconds(language: LanguageHandle, hashes: string[]): number[] {

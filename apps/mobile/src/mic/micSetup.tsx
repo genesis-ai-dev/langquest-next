@@ -14,18 +14,21 @@ import { Text } from '../ui/text';
 import MicrophoneEnergy from '../../modules/microphone-energy';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../audio/audioSession';
 import type { Ctx } from '../shell/ctx';
-import { useHelpSpot } from '../helpMode/helpContext';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { Header, HelpInfo, Ico, PrimaryBtn, Screen, txt } from '../ui/kit';
+import { Header, HelpInfo, Ico, PrimaryBtn, Screen } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { noteExpected } from '../diagnostics/report';
 import { C, radius, space, target, TINT, type as T, withAlpha } from '../ui/theme';
-import { claimVad, MicrophoneRefused, useEnergyHistory, VAD_BASE } from '../recording/useRecorder';
+import { useEnergyHistory, VAD_BASE } from '../recording/useRecorder';
+import { claimVad, MicrophoneRefused } from '../recording/recorderState';
 import { clampCutoff, cutoffAfterDrag, meterHeight } from '../recording/splitModel';
 import { cachedMicSettings, loadMicSettings, saveMicSettings } from './micSettings';
 import { DEFAULT_MIC, MIC_TRIES, mmss, QUIET_MS, thresholdFromNoise, type MicSettings } from '../recording/model';
-import { QuietLink, RecordBtn, styles as ps } from '../recording/blocks';
+import { QuietLink, RecordBtn } from '../recording/blocks';
+import { styles as ps } from '../recording/blockStyles';
 
 /** The sentence said in each try, in the language showing. */
 const sentence = () => t('recording.micSetup.sentence');

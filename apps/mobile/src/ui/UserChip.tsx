@@ -7,12 +7,11 @@ import Svg, { Circle, Polygon, Rect, Text as SvgText } from 'react-native-svg';
 import { t } from '../i18n';
 import { personLook, type PersonLook } from './people';
 import { HelpBadge } from '../helpMode/helpBadge';
-import { useHelpSpot } from '../helpMode/helpContext';
-import { txt } from './kit';
+import { useHelpSpot } from '../helpMode/useHelpMode';
+import { txt } from './textStyles';
 import { lift } from './shadow';
 import { C, radius, space, withAlpha } from './theme';
 import { usePerson } from './usePerson';
-export { usePerson, PeopleContext } from './usePerson';
 
 const SHAPE_POINTS = {
   diamond: '12,1 23,12 12,23 1,12',

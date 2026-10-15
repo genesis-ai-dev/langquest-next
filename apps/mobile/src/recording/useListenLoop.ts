@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { stopAudioPlayback } from '../audio/audioSession';
-import { useScreenShowing } from '../helpMode/helpContext';
+import { useScreenShowing } from '../helpMode/useHelpMode';
 import type { useRecorder } from './useRecorder';
 import { loopPhase, type LoopPhase } from './splitModel';
 

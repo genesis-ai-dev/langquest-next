@@ -22,7 +22,8 @@ import {
 import { Text } from './text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { KindState } from '@langquest-next/core';
-import { useHelpInfo, useHelpMode, useHelpSpot, type HelpSpot } from '../helpMode/helpContext';
+import { type HelpSpot } from '../helpMode/helpContext';
+import { useHelpInfo, useHelpMode, useHelpSpot } from '../helpMode/useHelpMode';
 import { isRtl, t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { HelpBadge, HelpClip, HelpHost, HelpLit } from '../helpMode/helpBadge';
@@ -32,10 +33,6 @@ import { C, measure, onColor, radius, space, target, TINT, type as T } from './t
 import { useLayout } from './useLayout';
 import { kindIcon } from './kindIcon';
 import { txt } from './textStyles';
-export { txt } from './textStyles';
-export { kindIcon } from './kindIcon';
-
-export { useLayout, useOpenDetail, type Layout, type OpenDetail } from './useLayout';
 
 // ---- icons -------------------------------------------------------------------------
 
