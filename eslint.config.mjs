@@ -24,7 +24,7 @@ const noStorage = {
   paths: ['@react-native-async-storage/async-storage', 'expo-sqlite', 'expo-file-system'].map((name) => ({
     name, message: `A screen lays out: keep storage in a hook or module beside the feature (${D105}).`
   })),
-  patterns: [{ regex: '^(\\.\\./)+store$', message: `A screen lays out: keep the event store in a hook or module (${D105}).` }]
+  patterns: [{ regex: '^(\\.\\./)+(sync/)?store$', message: `A screen lays out: keep the event store in a hook or module (${D105}).` }]
 };
 /** A model is pure: no React, no platform, no I/O, so it is tested without rendering. */
 const pure = {
@@ -42,7 +42,12 @@ const pure = {
 /** The server folder is the bottom of the app: it knows nothing of screens or React. */
 const serverLayer = {
   paths: [{ name: 'react', message: `src/server holds plain calls, no React (${D105}).` }],
-  patterns: [{ regex: '(^|/)(screens|shell)/|(^|/)kit$', message: `src/server sits below screens and the shell (${D105}).` }]
+  patterns: [{ regex: '(^|/)(screens|shell|ui)/|(^|/)kit$', message: `src/server sits below screens, the shell and the UI (${D105}).` }]
+};
+
+/** The design system: it knows i18n, help mode (badges in the kit) and the flow's screen ids, and no feature. */
+const uiLayer = {
+  patterns: [{ regex: '^\\.\\./(?!ui/|i18n(/|$)|helpMode/|shell/flow$)', message: `src/ui is the design system: features use it, not the other way round (${D105}).` }]
 };
 
 const restrict = (...parts) => ['error', {
@@ -81,6 +86,7 @@ export default [
   { files: [APP], rules: { 'no-restricted-imports': restrict(noSupabase, noDeepPackage, noScreens) } },
   { files: ['apps/mobile/src/screens/**/*.{ts,tsx}'], rules: { 'no-restricted-imports': restrict(noSupabase, noDeepPackage, noStorage) } },
   { files: ['apps/mobile/src/server/**/*.{ts,tsx}'], rules: { 'no-restricted-imports': restrict(noDeepPackage, serverLayer) } },
+  { files: ['apps/mobile/src/ui/**/*.{ts,tsx}'], rules: { 'no-restricted-imports': restrict(noSupabase, noDeepPackage, noScreens, uiLayer) } },
   { files: ['apps/mobile/App.tsx'], rules: { 'no-restricted-imports': restrict(noSupabase, noDeepPackage) } },
   { files: MODELS, rules: { 'no-restricted-imports': restrict(noSupabase, noDeepPackage, noScreens, pure) } }
 ];
