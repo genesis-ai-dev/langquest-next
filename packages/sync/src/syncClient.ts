@@ -239,10 +239,11 @@ export class SyncClient<S = LanguageState> {
       const lang = this.state as unknown as LanguageState;
       await this.kept.hydrate(lang);
       await this.lines.open();
-      // The lines of what was folded again (and of what was refused, now out of the fold) are owed.
+      // The lines of what was folded again (and of what was refused, now out of the fold) are owed,
+      // and worked out before anything is shown, so no list reads the language ahead of its lines.
       this.lines.touched(lang, events);
       this.lines.touched(lang, (await this.opts.store.rejected(this.opts.orgId, this.opts.streamId)).map((l) => l.event));
-      this.scheduleLines(0);
+      await this.lines.refresh().catch(() => { /* owed still; the next change tries again */ });
     }
     this.loaded = true;
     this.opts.diag?.record('load', {
@@ -565,6 +566,7 @@ export class SyncClient<S = LanguageState> {
       });
       // Memory lets go of what is on disk now and not open, unless something was folded meanwhile.
       if (this.kept && revision === this.revision && this.state === live) this.kept.shed(live as unknown as LanguageState, placed);
+      else this.kept?.stored(placed);
       return;
     }
     const base = (await this.localSnapshot()) ?? {
@@ -582,6 +584,7 @@ export class SyncClient<S = LanguageState> {
     if (this.kept && this.lines) {
       const split = await this.kept.split(state as unknown as LanguageState);
       await this.saveSnapshot({ ...base, serverSeq: cursor, state: split.lite }, { ...this.stream(), upsert: split.rows }, this.lines.owed());
+      this.kept.stored(split.placed);
       return;
     }
     await this.saveSnapshot({ ...base, serverSeq: cursor, state: state as unknown as LanguageState });
@@ -907,8 +910,10 @@ export class SyncClient<S = LanguageState> {
       // One page, one transaction: events, cursor and clock. A crash between
       // them cannot leave the cursor ahead of the log.
       if (folded > 0) {
+        // Lines catch up before the page is shown: a list never reads a passage ahead of its line.
+        this.lines?.touched(this.state as unknown as LanguageState, page);
+        await this.lines?.refresh().catch(() => { /* owed still; the next change tries again */ });
         this.revision += 1;
-        this.folded(page);
       }
       await this.commit({
         events: writes,

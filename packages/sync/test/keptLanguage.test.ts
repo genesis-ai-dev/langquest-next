@@ -233,6 +233,32 @@ describe('a language that keeps its recordings on disk', () => {
     expect(derivePassage(onDisk.client.getState(), 'u5')).toEqual(derivePassage(full, 'u5', idx));
   });
 
+  it('a list reads each passage as the state shows it, without waiting for its line to be worked out', async () => {
+    // Why: the web UI suite read the Map as soon as the language showed, and
+    // lines worked out a moment later said "Not started" for recorded passages.
+    const server = new FakeServer();
+    await language(server, 8);
+    const other = phone(server, 'dX', 't9');
+    await other.client.load();
+    await other.client.sync();
+    await work(other.client, 'a', ['u1', 'u2']);
+    await other.client.sync();
+    // A new phone folds the log: everything is in memory, so lines read off it at once.
+    const fresh = phone(server, 'dB', 'r1', { keepOnDisk: true, checkpointEvery: 5 });
+    await fresh.client.load();
+    await fresh.client.sync();
+    const units = Object.keys(fresh.client.getState().units);
+    const truth = async () => linesOf(languageLines(await whole(fresh.client, fresh.store)), units);
+    expect(linesOf(fresh.client.passageLines(), units)).toEqual(await truth());
+    // With the passages on disk, a change from elsewhere to one not open shows in its line when the pull is shown.
+    expect(await fresh.store.keptCount('org1', 'p1', 'take')).toBeGreaterThan(0);
+    await other.client.append('v1.ReviewRecorded', { reviewId: 'late', takeId: 't2-a', kindId: 'peer', outcome: 'looks_good', via: 'app' });
+    await other.client.sync();
+    await fresh.client.sync();
+    expect(fresh.client.isLoaded('u1')).toBe(false);
+    expect(linesOf(fresh.client.passageLines(), units)).toEqual(await truth());
+  });
+
   it('works out every line again when the flow changes, and after a restart owes none it forgot', async () => {
     const server = new FakeServer();
     await language(server, 6);

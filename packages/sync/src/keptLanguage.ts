@@ -81,6 +81,8 @@ export class KeptLanguage {
   private open: string[] = [];
   /** Of those, the ones whose rows are all in memory now. */
   private readonly ready = new Set<string>();
+  /** Passages with any row on disk; read when the language opens, added to by each checkpoint. */
+  private readonly onDisk = new Set<string>();
   private revision = 0;
 
   constructor(
@@ -99,6 +101,11 @@ export class KeptLanguage {
   /** Is this passage's whole record in memory, so a screen may read it from the state? */
   isLoaded(unitId: string): boolean {
     return this.ready.has(unitId);
+  }
+
+  /** Is everything this passage's record holds in memory: brought in, or never written to disk? Its line can then be read off memory. */
+  isWhole(unitId: string): boolean {
+    return this.ready.has(unitId) || !this.onDisk.has(unitId);
   }
 
   /** Bumped whenever the rows on disk change (a checkpoint, a fresh snapshot), so lookups cached from them start again. */
@@ -168,6 +175,7 @@ export class KeptLanguage {
   shed(state: LanguageState, placed: readonly Placed[]): void {
     const open = new Set(this.open);
     let changed = false;
+    this.stored(placed);
     for (const p of placed) {
       if (open.has(p.unitId)) continue;
       dropEntry(state, p.part, p.id);
@@ -199,7 +207,14 @@ export class KeptLanguage {
   /** Bring the open passages and the verdicts memory needs back after the state was rebuilt from its checkpoint. */
   async hydrate(state: LanguageState): Promise<boolean> {
     this.ready.clear();
+    this.onDisk.clear();
+    for (const u of await this.store.keptUnits(this.orgId, this.streamId, PART_KINDS)) this.onDisk.add(u);
     return this.bring(state, this.open);
+  }
+
+  /** These entries are on disk now (a checkpoint wrote them). */
+  stored(placed: readonly Placed[]): void {
+    for (const p of placed) this.onDisk.add(p.unitId);
   }
 
   private async bring(state: LanguageState, unitIds: readonly string[]): Promise<boolean> {

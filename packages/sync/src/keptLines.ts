@@ -159,7 +159,10 @@ export class KeptLines {
     }
     for (const u of units) this.inFlight.add(u);
     try {
-      const fresh = await this.work(live, units, this.streamId);
+      // A passage whose whole record is in memory reads off memory; the rest read their rows.
+      const whole = languageLines(live);
+      const fresh = await this.work(live, units.filter((u) => !this.kept.isWhole(u)), this.streamId);
+      for (const u of units) if (this.kept.isWhole(u)) fresh.set(u, whole.get(u));
       const rows: KeptRecord[] = [];
       let changed = false;
       for (const [u, line] of fresh) {
@@ -222,12 +225,20 @@ export class KeptLines {
     return { [this.owedKey()]: JSON.stringify(owed) };
   }
 
+  /**
+   * A passage whose line is owed but whose whole record is in memory (the
+   * one on screen, or one never written to disk) reads off memory at once,
+   * so a list never shows it behind what the screen shows.
+   */
   private makeView(): PassageLines {
     const lines = this.lines;
-    const fallback = (unitId: string) => this.fallback(unitId);
+    const owedNow = (unitId: string) => (this.dirty.has(unitId) || this.inFlight.has(unitId)) && this.kept.isWhole(unitId);
     return {
-      get: (unitId) => lines.get(unitId) ?? fallback(unitId),
-      worked: () => lines.keys()
+      get: (unitId) => (owedNow(unitId) ? languageLines(this.live()).get(unitId) : lines.get(unitId) ?? this.fallback(unitId)),
+      worked: () => {
+        const owed = [...this.dirty, ...this.inFlight].filter((u) => !lines.has(u) && this.kept.isWhole(u));
+        return owed.length ? new Set([...lines.keys(), ...owed]).values() : lines.keys();
+      }
     };
   }
 
