@@ -366,6 +366,8 @@ export function Row(props: {
   highlight?: string;
   /** For the UI tests: a stable handle for the row (`person-<id>`). */
   testID?: string;
+  /** What help mode says tapping it does, where `sub` (its line otherwise) is data rather than that. */
+  help?: string;
 }) {
   const state = {
     ...(props.selected !== undefined ? { selected: props.selected } : props.current ? { selected: true } : {}),
@@ -373,7 +375,7 @@ export function Row(props: {
     ...(props.expanded !== undefined ? { expanded: props.expanded } : {}),
     ...(props.disabled ? { disabled: true } : {})
   };
-  const spot = useHelpSpot(props.label, props.sub, props.onPress);
+  const spot = useHelpSpot(props.label, props.help ?? props.sub, props.onPress);
   const onPress = spot.onPress;
   const right = props.right ?? (props.role === 'switch' ? (
     // Drawn only: the row takes the tap and speaks as the switch.
