@@ -391,6 +391,15 @@ bump the revision once per batch instead of once per event
   minute: 581,439 work lists and 45.6 s of CPU across 14 phones in a week,
   against about 2 s of sync CPU. A work list cached per fold revision and
   per change to the files on the phone would make most passes free.
+  **Done (2026-10-14):** core works out a language's audio once per state
+  and revision (`planOf` in `packages/core/src/blobs.ts`): every file it
+  names, their order, where each passage's audio lives, and per offline
+  scope the files needed. Upload, download and eviction lists then look
+  only at the files on the phone or in the scope, and the default scope is
+  kept per revision too. On Koro Miyan's real state (61,253 files) on a
+  Mac, the work the app does after one change went from 117 to 39 ms for
+  a new member and 239 to 96 ms for the person who recorded everything;
+  after each audio file that arrives, from 107 to 0.2 ms and 232 to 7 ms.
 
 - **Waking a phone with no signal (fixed 2026-10-12).** The fleet showed a
   phone out of signal woke sync every 5 minutes, the scheduler's ceiling,

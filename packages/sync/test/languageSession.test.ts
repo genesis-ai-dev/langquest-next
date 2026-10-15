@@ -76,6 +76,7 @@ describe('LanguageSession: one language kept and moved (decisions.md 104)', () =
   it('tells subscribers only when something they can see changed', async () => {
     const { open } = phone();
     const session = await open();
+    session.start();
     let told = 0;
     session.subscribe(() => { told += 1; });
     await session.sync();
@@ -173,6 +174,25 @@ describe('LanguageSession: commands, waking and what settles', () => {
     await session.keepOffline('Luke 2', true);
     await session.keepOffline('Luke 2', false);
     expect([...session.status.keptUnits]).toEqual([]);
+    session.close();
+  });
+});
+
+describe('LanguageSession: what tells a screen to redraw', () => {
+  it('a write still on its way to disk tells nobody; only the fold changing does', async () => {
+    // Why: the app redraws on every status change. Saying "saving" and then
+    // "saved" around each commit redrew it twice per commit, and on a 2 GB
+    // phone that was most of a 46-second first open of a big language.
+    const { open } = phone();
+    const session = await open();
+    session.start();
+    const seen: string[] = [];
+    session.subscribe(() => { seen.push(Object.keys(session.status).sort().join(',')); });
+    const before = session.status.revision;
+    for (let i = 0; i < 5; i++) await session.append('v1.UnitAdded', unit(`Luke ${i + 2}`));
+    await until(() => session.status.revision >= before + 5);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(seen.every((keys) => !keys.split(',').includes('saving'))).toBe(true);
     session.close();
   });
 });
