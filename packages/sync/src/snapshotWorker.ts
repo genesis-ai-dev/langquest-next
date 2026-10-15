@@ -98,7 +98,7 @@ async function snapshotOne(
 
   let snapshot: Snapshot;
   if (existing && !redactsSnapshot) {
-    const state = resume(existing, tail);
+    const state = resume(existing, tail, { clone: false });
     state.appliedEventIds = {};
     snapshot = { ...existing, serverSeq: tail[tail.length - 1]!.serverSeq!, state };
   } else {

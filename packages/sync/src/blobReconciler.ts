@@ -94,7 +94,7 @@ async function foldStream(transport: Transport, orgId: string, streamId: string,
     if (page.length < pageSize) break;
     after = page[page.length - 1]!.serverSeq!;
   }
-  return snapshot ? resume(snapshot, tail) : foldLanguage(tail, emptyLanguageState());
+  return snapshot ? resume(snapshot, tail, { clone: false }) : foldLanguage(tail, emptyLanguageState());
 }
 
 /** Wire the reconciler to a service-role Supabase client and the files it checks. */

@@ -21779,13 +21779,13 @@ function set(current, event, value) {
 }
 
 // packages/core/src/snapshot.ts
-function resume(snapshot, tail) {
+function resume(snapshot, tail, opts = {}) {
   if (snapshot.reducerVersion !== REDUCER_VERSION) {
     throw new Error(
       `Snapshot reducer version ${snapshot.reducerVersion} does not match ${REDUCER_VERSION}`
     );
   }
-  const state = structuredClone(snapshot.state);
+  const state = opts.clone === false ? snapshot.state : structuredClone(snapshot.state);
   const newer = [...tail].filter((e) => e.serverSeq === void 0 || e.serverSeq > snapshot.serverSeq);
   return foldLanguage(newer, state);
 }
@@ -22567,13 +22567,13 @@ async function fetchSnapshot(transport, orgId, streamId, reducerVersion, opts = 
         continue;
       }
       try {
-        const text = await transport.snapshotChunk(orgId, streamId, reducerVersion, meta.serverSeq, i);
-        if (text === null) {
+        const text2 = await transport.snapshotChunk(orgId, streamId, reducerVersion, meta.serverSeq, i);
+        if (text2 === null) {
           stale = true;
           return;
         }
-        await opts.onChunk?.(meta.serverSeq, i, text);
-        pieces[i] = text;
+        await opts.onChunk?.(meta.serverSeq, i, text2);
+        pieces[i] = text2;
       } catch (error) {
         failed = true;
         throw error;
@@ -22584,7 +22584,9 @@ async function fetchSnapshot(transport, orgId, streamId, reducerVersion, opts = 
   const failure = runs.find((r) => r.status === "rejected");
   if (failure) throw failure.reason;
   if (stale) return null;
-  return { orgId, streamId, reducerVersion, serverSeq: meta.serverSeq, state: JSON.parse(pieces.join("")) };
+  const text = pieces.join("");
+  opts.onJoined?.(text);
+  return { orgId, streamId, reducerVersion, serverSeq: meta.serverSeq, state: JSON.parse(text) };
 }
 
 // packages/sync/src/listStreams.ts
@@ -22643,7 +22645,7 @@ async function snapshotOne(service, transport, orgId, streamId, pageSize, observ
   );
   let snapshot;
   if (existing && !redactsSnapshot) {
-    const state = resume(existing, tail);
+    const state = resume(existing, tail, { clone: false });
     state.appliedEventIds = {};
     snapshot = { ...existing, serverSeq: tail[tail.length - 1].serverSeq, state };
   } else {

@@ -670,6 +670,59 @@ describe('SyncClient snapshots (PLAN.md invariant 10, cutover gate 4)', () => {
   });
 });
 
+describe('SyncClient adopting a server snapshot (performance-audit-app.md C2)', () => {
+  it('gives the state a relaunch would, parsing the language once and never stringifying it', async () => {
+    // Why: at 14 MB the old path parsed the snapshot, stringified it for the
+    // checkpoint, then read it back and parsed it again.
+    const server = new FakeServer();
+    const wall = { t: 0 };
+    const a = device(server, 'dA', 'lead', wall);
+    await a.client.load();
+    for (let i = 0; i < 30; i++) await a.client.append('v1.UnitAdded', unit(i));
+    await a.client.sync();
+    server.makeSnapshot('org1', 'p1');
+    await a.client.append('v1.UnitHidden', { unitId: 'u0', hidden: true });
+    await a.client.sync();
+
+    const b = device(server, 'dB', 'r1', wall);
+    await b.client.load();
+    // Unsent work on the new phone, among it a redaction of an event the snapshot covers.
+    await b.client.append('v1.UnitAdded', unit('local'));
+    const covered = server.log.find((e) => e.type === 'v1.UnitAdded' && e.payload.unitId === 'u3')!;
+    await b.client.append('v1.Redacted', { eventId: covered.id });
+
+    const parse = vi.spyOn(JSON, 'parse');
+    const stringify = vi.spyOn(JSON, 'stringify');
+    let states = 0;
+    let parsedStates = 0;
+    try {
+      await b.client.pull();
+      parsedStates = parse.mock.calls.filter(([t]) => typeof t === 'string' && t.includes('"units"')).length;
+      // The fake server stringifies its own copy to serve pieces; that is the server's work, not the phone's.
+      const served = server.snapshots.get('org1/p1')!.state;
+      states = stringify.mock.calls.filter(([v]) => v !== served && v !== null && typeof v === 'object' && 'units' in (v as object)).length;
+      states += stringify.mock.calls.filter(([v]) => v !== null && typeof v === 'object' && 'state' in (v as object) && 'serverSeq' in (v as object)).length;
+    } finally {
+      parse.mockRestore();
+      stringify.mockRestore();
+    }
+    expect(parsedStates).toBe(1);
+    expect(states).toBe(0);
+
+    const adopted = structuredClone(b.client.getState());
+    expect(adopted.units['ulocal']).toBeDefined();
+    // The stored checkpoint is the one `JSON.stringify` of a snapshot would write.
+    const raw = JSON.parse((await b.store.meta('snapshot:org1/p1'))!);
+    expect(Object.keys(raw)).toEqual(['orgId', 'streamId', 'reducerVersion', 'serverSeq', 'state']);
+    // A relaunch on the same store (load() from the checkpoint) agrees.
+    const again = new SyncClient({
+      orgId: 'org1', streamId: 'p1', actorId: 'r1', deviceId: 'dB', store: b.store,
+      transport: server.transportFor(), clock: new HlcClock('dB', () => (wall.t += 1))
+    });
+    expect(await again.load()).toEqual(adopted);
+  });
+});
+
 describe('SyncClient minimum client version (cutover gate 5)', () => {
   it('a client the server no longer accepts is told so, and nothing is marked or lost', async () => {
     // Why: v2 hard-blocked sync on a version handshake; ignoring unknown
