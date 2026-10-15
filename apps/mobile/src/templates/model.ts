@@ -132,7 +132,7 @@ export function choiceInUse(c: LibraryChoice, sel: { itemId: string } | null): b
  * write the library (using another's follows it first), what others share.
  * LangQuest's ways are offered once, in the numbering the language uses
  * (`numbering`, a versification code), without its older templates
- * (`sharedTemplateShown`, decision 106).
+ * (`sharedTemplateShown`, decision 107).
  */
 export function pickerLists(choices: LibraryChoice[], canWriteLibrary: boolean, numbering = 'eng'): { ours: LibraryChoice[]; others: LibraryChoice[] } {
   return {
@@ -143,7 +143,7 @@ export function pickerLists(choices: LibraryChoice[], canWriteLibrary: boolean, 
 
 /**
  * The books a save divides again: divided in the version the editor started
- * from, and divided differently now (decision 106). What languages recorded
+ * from, and divided differently now (decision 107). What languages recorded
  * on their old sections moves to "Earlier sections", so Save warns first.
  */
 export function redividedBooks(start: TemplateDoc, now: TemplateDoc, books: { book: string; name: string }[]): string[] {

@@ -70,7 +70,7 @@ function useBibleDetails(ids: string[]): Record<string, BibleDetail> {
 
 /** The sources for one passage of one language, recommended first. */
 export function useSources(ctx: Ctx, unitId: string | null | undefined, languageId: string | null | undefined, opts: {
-  /** Read a whole book rather than a passage, with LangQuest's Bibles standing in when the team has none (decision 106). */
+  /** Read a whole book rather than a passage, with LangQuest's Bibles standing in when the team has none (decision 107). */
   wholeBook?: boolean;
 } = {}): PassageSources {
   const state = ctx.language.state;

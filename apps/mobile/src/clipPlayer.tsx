@@ -3,14 +3,14 @@
 // button, and Note when the screen can take a note at a moment. It plays a
 // passage's cards one after another as one recording, like AudioClip, and
 // shows where in the whole recording it is.
-import { isStored, type LanguageState } from '@langquest-next/core';
+import { isStored, recordedDurationMs, type LanguageState } from '@langquest-next/core';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { PanResponder, Platform, Pressable, StyleSheet, View, type AccessibilityActionEvent, type LayoutChangeEvent } from 'react-native';
 import { Text } from './text';
 import { audioFormat } from './audioClip';
 import { restartIndex } from './clipPosition';
-import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
+import { LISTEN_PLAYER, registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
 import type { ListenHooks } from './recording/useListenLoop';
 import { useHelpSpot } from './helpContext';
 import { HelpBadge } from './helpBadge';
@@ -30,26 +30,14 @@ export function clock(seconds: number): string {
 export function clipSeconds(state: LanguageState | null | undefined, hashes: string[]): number {
   if (!state) return 0;
   let total = 0;
-  for (const hash of hashes) {
-    for (const r of Object.values(state.recordings)) {
-      const card = r.cards.find((c) => c.hash === hash);
-      if (card?.durationMs) { total += card.durationMs / 1000; break; }
-    }
-  }
+  for (const hash of hashes) total += recordedDurationMs(state, hash) / 1000;
   return total;
 }
 
 /** Each card's length in seconds, from the recording that holds it (0 when unknown). */
 function cardSeconds(language: LanguageHandle, hashes: string[]): number[] {
   const state = language.state;
-  return hashes.map((hash) => {
-    if (!state) return 0;
-    for (const r of Object.values(state.recordings)) {
-      const card = r.cards.find((c) => c.hash === hash);
-      if (card?.durationMs) return card.durationMs / 1000;
-    }
-    return 0;
-  });
+  return hashes.map((hash) => (state ? recordedDurationMs(state, hash) / 1000 : 0));
 }
 
 export function ClipPlayer(props: {
@@ -162,7 +150,7 @@ export function ClipPlayer(props: {
     }
     if (!uri) { wants.current = false; setPlaying(false); setError(t('recording.player.notOnDeviceYet')); return; }
     try {
-      const p = createAudioPlayer({ uri });
+      const p = createAudioPlayer({ uri }, LISTEN_PLAYER);
       player.current = p;
       p.addListener('playbackStatusUpdate', (status) => {
         if (player.current !== p) return;

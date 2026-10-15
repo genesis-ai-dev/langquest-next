@@ -71,7 +71,7 @@ describe('the ways to break up the Bible, in the order an admin sees them', () =
   });
 });
 
-describe('how a book is divided now, and what lists offer (decision 106)', () => {
+describe('how a book is divided now, and what lists offer (decision 107)', () => {
   const follow = (s: { org_id: string; item_id: string }) => subscriptionItemId(s.org_id, s.item_id);
   // The language's own copy ("Book by book (Kara)"), with Ruth divided its own way and Romans as By chapter has it.
   const ownLib = fold(publishOps({}, { itemId: 'kara', kind: 'template', name: 'Book by book (Kara)', description: '', docHash: H('k') }));

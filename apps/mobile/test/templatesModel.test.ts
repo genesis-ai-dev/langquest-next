@@ -156,14 +156,14 @@ describe('choosing a template', () => {
     expect(pickerLists(all, false)).toEqual({ ours: [all[0]], others: [] });
   });
 
-  it("offers LangQuest's ways once, in the language's numbering, and not its older templates (decision 106)", () => {
+  it("offers LangQuest's ways once, in the language's numbering, and not its older templates (decision 107)", () => {
     const lq = (item_id: string): LibraryChoice => ({ key: `shared:langquest/${item_id}`, source: 'shared', shared: { ...shared, org_id: 'langquest', item_id }, name: item_id, hash: 'h' });
     const all = [lq('langquest.bible.fia'), lq('langquest.bible.fia.org-66'), lq('langquest.template.bible-chapters-rso'), theirs];
     expect(pickerLists(all, true).others.map((c) => c.name)).toEqual(['langquest.bible.fia', 'FIA']);
     expect(pickerLists(all, true, 'org').others.map((c) => c.name)).toEqual(['langquest.bible.fia.org-66', 'FIA']);
   });
 
-  it('names the books a save divides again, so Save warns first (decision 106)', () => {
+  it('names the books a save divides again, so Save warns first (decision 107)', () => {
     const tpl = (books: TemplateDocV2['bible'] extends infer B ? B extends { books: infer X } ? X : never : never): TemplateDocV2 => ({
       format: 'template@2', name: 't', description: '', structure: 'bible', levels: [{ name: 'Book' }, { name: 'Passage' }], bible: { versification: 'v', books }, deps: ['v']
     });

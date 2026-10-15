@@ -4108,7 +4108,8 @@
       "pausedForSource": "Dijeda selama sumber diputar",
       "startsAgain": "Perekaman dimulai lagi saat sumber berhenti.",
       "cutoff": "Batas suara",
-      "pauseBetween": "Jeda di antara bagian"
+      "pauseBetween": "Jeda di antara bagian",
+      "tooShort": "Terlalu pendek untuk disimpan. Jika Anda sedang berbicara, ucapkan lagi."
     },
     "split": {
       "referenceOneLine": "Referensi dalam satu baris",

@@ -32,7 +32,7 @@ export function useTemplateEditor(ctx: Ctx, lib: Lib, item: LibraryItemView | nu
   const v11nName = versificationLabel(v11n, v11nChoice?.name, f.versification);
   const ready = formReady(f);
   const sub = editorSub(isNew, item, orgNameOf(ctx.org.state));
-  // A Bible template's books divide one by one (decision 106): the document as it is now and as it started.
+  // A Bible template's books divide one by one (decision 107): the document as it is now and as it started.
   const doc = useMemo(() => docFromForm(f), [f]);
   const startDoc = useMemo(() => docFromForm(initial), [initial]);
   // Each book divides on its own once the template is a template@2 (decision 74), or once one book is divided here.

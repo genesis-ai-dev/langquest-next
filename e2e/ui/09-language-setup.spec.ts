@@ -610,7 +610,7 @@ test('SETUP-036 Choose a different template for a language', async ({ page }) =>
   await text(page, 'Every way to divide the work').click();
   await text(page, 'Change template').click();
   await expectOnScreen(page, 'Choose a Template', 'For Alpha · now FIA passages (English)', 'FIA passages (English) · in use');
-  // LangQuest's older templates are not offered, nor its ways in other numberings (decision 106).
+  // LangQuest's older templates are not offered, nor its ways in other numberings (decision 107).
   await expectNotOnScreen(page, 'Bible books (English)', 'Bible chapters (Russian Orthodox)');
   await text(page, 'OpenBible: long sections').click();
   await expectOnScreen(page, /Alpha's current passages are hidden, not deleted\. \d+ parts have recordings — change back to this template to bring them back\./);
@@ -633,7 +633,7 @@ test('SETUP-037 Make a Scripture template', async ({ page }) => {
   await button(page, 'Template').click();
   await expectOnScreen(page, 'What will languages record with it?', 'Scripture', 'Books and chapters of the Bible, divided into passages as teams go.', 'Something else');
   await text(page, 'Scripture').click();
-  // The questions New language asks (decision 106): the Bible translated from, then how it is divided, your own way first.
+  // The questions New language asks (decision 107): the Bible translated from, then how it is divided, your own way first.
   await expectOnScreen(page, 'Which Bible do you translate from?', 'Not listed? Answer a few questions');
   await text(page, 'King James Version').click();
   await expectOnScreen(page, 'Like most English Bibles');
@@ -724,7 +724,7 @@ test('SETUP-040 Divide a book that waits, for this language', async ({ page }) =
   await byId(page, 'header-close').click();
   await more(page);
   await text(page, 'Every way to divide the work').click();
-  // Books that wait are listed here too, and open the ways to divide them (decision 106); here it is divided from the map.
+  // Books that wait are listed here too, and open the ways to divide them (decision 107); here it is divided from the map.
   await page.getByPlaceholder('Find a book').fill('Proverbs');
   await expectOnScreen(page, 'Proverbs', 'Waiting to be broken up');
   await page.goto('/');

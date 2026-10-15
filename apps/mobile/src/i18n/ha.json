@@ -4266,7 +4266,8 @@
       "pausedForSource": "An dakata yayin da asalin yake kunnawa",
       "startsAgain": "Naɗawa za ta sake farawa idan asalin ya tsaya.",
       "cutoff": "Iyakar sauti",
-      "pauseBetween": "Tsayawa tsakanin sassa"
+      "pauseBetween": "Tsayawa tsakanin sassa",
+      "tooShort": "Ya yi gajere sosai, ba a ajiye shi ba. Idan kuna magana, ku sake faɗa."
     },
     "split": {
       "referenceOneLine": "Kayan bincike a layi ɗaya",

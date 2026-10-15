@@ -4424,7 +4424,8 @@
       "pausedForSource": "Pausado enquanto o texto-fonte toca",
       "startsAgain": "A gravação recomeça quando o texto-fonte parar.",
       "cutoff": "Limite de som",
-      "pauseBetween": "Pausa entre as partes"
+      "pauseBetween": "Pausa entre as partes",
+      "tooShort": "Curto demais para guardar. Se você estava falando, diga de novo."
     },
     "split": {
       "referenceOneLine": "Referência em uma linha",

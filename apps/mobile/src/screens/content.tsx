@@ -12,7 +12,7 @@
 // plus what other organizations share. A language uses one version of one;
 // when the item moves to a new version the language follows it
 // (library/follow.ts). A Bible template's books are divided one by one,
-// here in the editor as from the map (decisions.md 74, 93, 106).
+// here in the editor as from the map (decisions.md 74, 93, 107).
 //
 // Below the organization there are only languages (docs/decisions.md 63).
 // templates_home params: `level` ('org' | 'language') and/or `languageId`.
@@ -138,7 +138,7 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
   const all = lib.items('template');
   const { active, archived } = splitArchived(all);
   const shared = useSharedItems('template', lib.orgId);
-  // LangQuest's ways once each (English numbering here), not its older templates or the same ways in every numbering (decision 106).
+  // LangQuest's ways once each (English numbering here), not its older templates or the same ways in every numbering (decision 107).
   const others = useMemo(() => libraryChoices(library ?? {}, [], shared.rows.filter((r) => sharedTemplateShown(r, 'eng')), STARTER_TEMPLATE.name), [library, shared.rows]);
   const { updates } = useLibraryUpdates(lib.orgId);
   const [limit, setLimit] = useState(8);
@@ -394,7 +394,7 @@ function LanguageTemplateView({ ctx, languageId }: { ctx: Ctx; languageId: strin
     const idx = indexesFor(state);
     return {
       language: languageName(ctx.org.state, languageId),
-      // Books waiting to be divided are listed too, so they can be opened and divided here (decision 106).
+      // Books waiting to be divided are listed too, so they can be opened and divided here (decision 107).
       books: withWaitingBooks(bookRows(state, idx), state, idx),
       progress: languageProgress(state, idx),
       setAside: setAsideCount(state)
@@ -515,7 +515,7 @@ export function TemplatePicker(ctx: Ctx) {
   const docs = useLibraryDocs(lib.orgId, [pick?.hash, sel?.docHash]);
   const selDoc = sel ? docs.get<TemplateDoc>(sel.docHash) : null;
   // Using another organization's template follows it first, an organization write (`mayWriteLibrary`); LangQuest's
-  // ways are offered in the numbering the language uses now (decision 106).
+  // ways are offered in the numbering the language uses now (decision 107).
   const numbering = (selDoc?.bible ? docs.get<VersificationDoc>(selDoc.bible.versification)?.code : null) ?? 'eng';
   const { ours, others } = pickerLists(choices, lib.canWrite('template'), numbering);
   const recorded = useMemo(() => (state && open ? recordedCount(state) : 0), [state, open]);
@@ -629,7 +629,7 @@ function LibraryTemplate({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
 
 /**
  * "New template": Scripture, or an outline built by hand. Scripture asks
- * what New language asks (decision 106): the Bible the team translates
+ * what New language asks (decision 107): the Bible the team translates
  * from (or the quiz, or the list), then how the Bible is divided, your own
  * way first. The template starts as that way divides it, and each book can
  * then be divided on its own in the editor.
@@ -701,7 +701,7 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
   const [editingNode, setEditingNode] = useState<string | null>(null);
   const [leaving, setLeaving] = useState(false);
   const [bookLimit, setBookLimit] = useState(12);
-  // The book being divided (decision 106), and whether it is being divided its own way.
+  // The book being divided (decision 107), and whether it is being divided its own way.
   const [dividing, setDividing] = useState<string | null>(null);
   const [ownWay, setOwnWay] = useState(false);
   const {
@@ -720,7 +720,7 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
       onRemove={() => { set({ books: f.books.filter((b) => b.book !== bookSheet.book) }); setEditingBook(null); setDividing(null); }} />
   ) : null;
 
-  // A book of the template, divided here as it is from the map: your own way first, then the ready-made ways (decision 106).
+  // A book of the template, divided here as it is from the map: your own way first, then the ready-made ways (decision 107).
   const divided = dividing ? f.books.find((b) => b.book === dividing) : undefined;
   if (bible && divided) {
     const apply = (way: TemplateDoc) => {
@@ -822,7 +822,7 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
               {shownBooks.map((b, i) => {
                 const known = bookNameOf(b.book);
                 const chapters = v11n ? chaptersInBook(v11n, b.book) : 0;
-                // How it is divided: the ready-made way it matches, its own way, or waiting (decision 106).
+                // How it is divided: the ready-made way it matches, its own way, or waiting (decision 107).
                 const way = perBook ? wayNow(ways.rows, (r) => ways.docOf(r.choice), doc, b.book, item?.itemId ?? null) : null;
                 return (
                   <Row key={b.book} icon="book" label={b.name}
@@ -1049,7 +1049,7 @@ export function BookStructure(ctx: Ctx) {
   const doc = sel ? docs.get<TemplateDoc>(sel.docHash) : null;
   const v11n = doc?.bible ? docs.get<VersificationDoc>(doc.bible.versification) : null;
   const usfmCode = book ? usfmOf(book.itemId) : '';
-  // The words in a Bible the team has, as the own-way editor reads them, where the app has none of its own (decision 106).
+  // The words in a Bible the team has, as the own-way editor reads them, where the app has none of its own (decision 107).
   const bookText = useBookText(ctx, usfmCode, v11n?.maxVerses[usfmCode] ?? book?.verses ?? NO_VERSES);
 
   const data = useMemo(() => {

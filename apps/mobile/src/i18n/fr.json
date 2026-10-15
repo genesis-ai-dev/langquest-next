@@ -4424,7 +4424,8 @@
       "pausedForSource": "En pause pendant que la source joue",
       "startsAgain": "L’enregistrement reprend quand la source s’arrête.",
       "cutoff": "Seuil du son",
-      "pauseBetween": "Pause entre les parties"
+      "pauseBetween": "Pause entre les parties",
+      "tooShort": "Trop court pour être gardé. Si vous parliez, redites-le."
     },
     "split": {
       "referenceOneLine": "Référence sur une ligne",
