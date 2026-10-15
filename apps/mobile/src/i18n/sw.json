@@ -2918,7 +2918,6 @@
     "sync": {
       "syncing": "Inasawazisha…",
       "syncNow": "Sawazisha sasa",
-      "checking": "Inaangalia mabadiliko mara kwa mara",
       "refused": "Seva imekataa akaunti hii kwa shirika hili.",
       "tooOld": "Sasisha programu ili kusawazisha.",
       "waitingUpload": "zinasubiri kupakiwa",
@@ -2938,7 +2937,28 @@
       "waitingCount": "Zinasubiri · {{n, number}}",
       "refusedCount": "Zimekataliwa · {{n, number}}",
       "events_one": "Tukio {{count, number}} kwenye kifaa hiki",
-      "events_other": "Matukio {{count, number}} kwenye kifaa hiki"
+      "events_other": "Matukio {{count, number}} kwenye kifaa hiki",
+      "standing": {
+        "live": "Moja kwa moja",
+        "checking": "Imeunganishwa",
+        "offline": "Nje ya mtandao",
+        "refused": "Haisawazishi"
+      },
+      "help": {
+        "live": "Mabadiliko ya timu yako yanafika papo hapo, na yako yanatumwa mara moja.",
+        "checking": "Imeunganishwa, lakini njia ya moja kwa moja haifanyi kazi, kwa hiyo kifaa hiki kinaangalia mabadiliko kila baada ya dakika chache. Sawazisha sasa huangalia mara moja.",
+        "offline": "Hakuna mtandao. Kila unachofanya kinahifadhiwa kwenye kifaa hiki na kinatumwa chenyewe ukirudi mtandaoni.",
+        "refused": "Seva haikubali mabadiliko kutoka kifaa hiki. Kazi yako bado imehifadhiwa hapa.",
+        "toSend": "Mabadiliko na rekodi za kifaa hiki ambazo seva bado haijathibitisha. Ziko salama hapa na zitatumwa kukiwa na mtandao.",
+        "toReceive": "Rekodi za wengine ambazo kifaa hiki bado kinapakua.",
+        "refusedLine": "Mabadiliko ambayo seva haikukubali, kwa kawaida kwa sababu ruhusa imebadilika. Yanabaki kwenye kifaa hiki; fungua Maelezo kuona kila moja."
+      },
+      "toSend": "Za kutuma",
+      "toReceive": "Za kupokea",
+      "refusedLine": "Yamekataliwa",
+      "none": "Hakuna",
+      "moreInfo": "Zaidi kuhusu hili",
+      "details": "Maelezo"
     }
   },
   "study": {
@@ -3627,10 +3647,8 @@
       "help": "Ulichomwomba mtu mwingine ambacho bado hakijafanyika."
     },
     "sync": {
-      "refused": "Haisawazishi",
       "toSend_one": "{{count, number}} ya kutuma",
-      "toSend_other": "{{count, number}} za kutuma",
-      "offline": "Nje ya mtandao"
+      "toSend_other": "{{count, number}} za kutuma"
     },
     "join": {
       "wantsToJoin": "{{name}} anataka kujiunga",

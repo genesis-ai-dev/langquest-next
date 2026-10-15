@@ -2819,7 +2819,6 @@
     "sync": {
       "syncing": "正在同步……",
       "syncNow": "立即同步",
-      "checking": "会不时检查更改",
       "refused": "服务器拒绝了这个账号访问这个机构。",
       "tooOld": "请更新应用后再同步。",
       "waitingUpload": "等待上传",
@@ -2837,7 +2836,28 @@
       "speedMB": "{{value}} MB/s",
       "waitingCount": "等待中 · {{n, number}}",
       "refusedCount": "被拒绝 · {{n, number}}",
-      "events_other": "本设备上有 {{count, number}} 个事件"
+      "events_other": "本设备上有 {{count, number}} 个事件",
+      "standing": {
+        "live": "实时",
+        "checking": "已连接",
+        "offline": "离线",
+        "refused": "未同步"
+      },
+      "help": {
+        "live": "团队的更改会即时到达，你的更改也会立刻发出。",
+        "checking": "已连接，但实时通道中断，所以本设备每隔几分钟检查一次更改。“立即同步”会马上检查。",
+        "offline": "没有网络连接。你所做的一切都保存在本设备上，重新联网后会自动发送。",
+        "refused": "服务器不接受本设备的更改。你的工作仍保存在这里。",
+        "toSend": "本设备上服务器尚未确认的更改和录音。它们在这里很安全，有网络时就会发送。",
+        "toReceive": "本设备仍在下载的他人录音。",
+        "refusedLine": "服务器未接受的更改，通常是因为权限有变。它们留在本设备上；打开“详细信息”查看每一项。"
+      },
+      "toSend": "待发送",
+      "toReceive": "待接收",
+      "refusedLine": "被拒绝",
+      "none": "无",
+      "moreInfo": "了解更多",
+      "details": "详细信息"
     }
   },
   "study": {
@@ -3498,9 +3518,7 @@
       "help": "你请别人做、但还没完成的事。"
     },
     "sync": {
-      "refused": "未同步",
-      "toSend_other": "{{count, number}} 项待发送",
-      "offline": "离线"
+      "toSend_other": "{{count, number}} 项待发送"
     },
     "join": {
       "wantsToJoin": "{{name}}想加入",

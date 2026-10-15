@@ -2918,7 +2918,6 @@
     "sync": {
       "syncing": "Syncing…",
       "syncNow": "Sync now",
-      "checking": "Checking for changes now and then",
       "refused": "The server refused this account for this organization.",
       "tooOld": "Update the app to sync.",
       "waitingUpload": "waiting to upload",
@@ -2938,7 +2937,28 @@
       "waitingCount": "Waiting · {{n, number}}",
       "refusedCount": "Refused · {{n, number}}",
       "events_one": "{{count, number}} event on this device",
-      "events_other": "{{count, number}} events on this device"
+      "events_other": "{{count, number}} events on this device",
+      "standing": {
+        "live": "Live",
+        "checking": "Connected",
+        "offline": "Offline",
+        "refused": "Not syncing"
+      },
+      "help": {
+        "live": "Changes from your team arrive as they happen, and yours go out right away.",
+        "checking": "Connected, but the live channel is down, so this device checks for changes every few minutes. Sync now checks at once.",
+        "offline": "No connection. Everything you do is kept on this device and sends by itself when you are back online.",
+        "refused": "The server is not accepting changes from this device. Your work is still kept here.",
+        "toSend": "Changes and recordings made on this device that the server has not confirmed yet. They are safe here and go when there is a connection.",
+        "toReceive": "Recordings from others that this device is still downloading.",
+        "refusedLine": "Changes the server would not accept, usually because a permission changed. They stay on this device; open Details to see each one."
+      },
+      "toSend": "To send",
+      "toReceive": "To receive",
+      "refusedLine": "Refused",
+      "none": "None",
+      "moreInfo": "More about this",
+      "details": "Details"
     }
   },
   "study": {
@@ -3627,10 +3647,8 @@
       "help": "What you asked of someone else that is not done yet."
     },
     "sync": {
-      "refused": "Not syncing",
       "toSend_one": "{{count, number}} to send",
-      "toSend_other": "{{count, number}} to send",
-      "offline": "Offline"
+      "toSend_other": "{{count, number}} to send"
     },
     "join": {
       "wantsToJoin": "{{name}} wants to join",
