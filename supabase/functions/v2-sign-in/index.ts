@@ -37,9 +37,11 @@ Deno.serve(async (request) => {
   }
   const address = email.trim().toLowerCase();
   const service = serviceClient();
-  const allowed = await service.rpc('v2_import_sign_in_try', { p_email: address });
-  if (allowed.error) return reply(BUSY, 503);
-  if (allowed.data === false) return reply({ error: 'Too many tries with this email. Wait an hour.', code: 'over_request_rate_limit' }, 429);
+  // Counted before v2 is asked: per email, per caller's address, and overall (20261015232000_v2_sign_in_limits.sql).
+  const stopped = await service.rpc('v2_import_sign_in_begin', { p_email: address, p_ip: callerAddress(request) });
+  if (stopped.error) return reply(BUSY, 503);
+  if (stopped.data === 'email') return reply({ error: 'Too many tries with this email. Wait an hour.', code: 'over_request_rate_limit' }, 429);
+  if (stopped.data) return reply({ error: 'Too many tries just now. Wait a while and retry.', code: 'over_request_rate_limit' }, 429);
 
   // v2's own answer to these credentials.
   let v2: { access_token?: string; user?: { id?: string; email?: string; email_confirmed_at?: string | null; user_metadata?: Record<string, unknown> } };
@@ -47,12 +49,10 @@ Deno.serve(async (request) => {
     const res = await fetch(`${v2Url}/auth/v1/token?grant_type=password`, {
       method: 'POST', headers: { apikey: v2Key, 'content-type': 'application/json' }, body: JSON.stringify({ email: address, password })
     });
-    if (res.status === 400 || res.status === 401) {
-      await service.rpc('v2_import_sign_in_try', { p_email: address, p_failed: true });
-      return reply(WRONG, 400);
-    }
+    if (res.status === 400 || res.status === 401) return reply(WRONG, 400);
     if (!res.ok) return reply(UNREACHABLE, 503);
     v2 = await res.json();
+    await service.rpc('v2_import_sign_in_passed', { p_email: address });
   } catch {
     return reply(UNREACHABLE, 503);
   }
@@ -94,6 +94,12 @@ Deno.serve(async (request) => {
     return reply(BUSY, 503);
   }
 });
+
+/** Who is asking, as the platform's proxy saw them: Cloudflare's header, else the first forwarded address. */
+function callerAddress(request: Request): string | null {
+  const ip = request.headers.get('cf-connecting-ip') ?? request.headers.get('x-forwarded-for')?.split(',')[0];
+  return ip?.trim().slice(0, 64) || null;
+}
 
 /**
  * The projects someone belongs to in v2, [{ id, name }], as v2 lists them to

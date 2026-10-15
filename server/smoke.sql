@@ -999,4 +999,18 @@ do $$ declare r record; i int; begin
   end if;
 end $$;
 
+-- 23. Signing in with a v2 account is counted before v2 is asked: per email,
+-- per address, and cleared once v2 accepts the password.
+do $$ declare i int; begin
+  for i in 1..10 loop
+    if public.v2_import_sign_in_begin('Spray@Example.org', '198.51.100.7') is not null then raise exception 'try % should go to v2', i; end if;
+  end loop;
+  if public.v2_import_sign_in_begin('spray@example.org', '198.51.100.8') is distinct from 'email' then raise exception 'an 11th try for one email should stop'; end if;
+  perform public.v2_import_sign_in_passed('spray@example.org');
+  if public.v2_import_sign_in_begin('spray@example.org', '198.51.100.8') is not null then raise exception 'a right password should clear the count'; end if;
+  for i in 1..30 loop perform public.v2_import_sign_in_begin('person' || i || '@example.org', '198.51.100.9'); end loop;
+  if public.v2_import_sign_in_begin('another@example.org', '198.51.100.9') is distinct from 'address' then raise exception 'a 31st try from one address should stop'; end if;
+  delete from v2_import.sign_in_failures;
+end $$;
+
 select 'smoke ok' as result;
