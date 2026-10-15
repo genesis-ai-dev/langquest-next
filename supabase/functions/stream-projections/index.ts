@@ -21149,11 +21149,47 @@ function licenseRank(license) {
 
 // packages/core/src/validate.ts
 var UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+var OBJECT_MEMBER_NAMES = [
+  "__proto__",
+  "constructor",
+  "prototype",
+  "hasOwnProperty",
+  "isPrototypeOf",
+  "propertyIsEnumerable",
+  "toLocaleString",
+  "toString",
+  "valueOf",
+  "__defineGetter__",
+  "__defineSetter__",
+  "__lookupGetter__",
+  "__lookupSetter__"
+];
+var MEMBER_NAMES = new Set(OBJECT_MEMBER_NAMES);
+function objectMemberNameIn(v) {
+  const stack = [v];
+  while (stack.length > 0) {
+    const x = stack.pop();
+    if (typeof x === "string") {
+      if (MEMBER_NAMES.has(x)) return x;
+    } else if (Array.isArray(x)) {
+      for (const item of x) stack.push(item);
+    } else if (typeof x === "object" && x !== null) {
+      for (const [k, child] of Object.entries(x)) {
+        if (MEMBER_NAMES.has(k)) return k;
+        stack.push(child);
+      }
+    }
+  }
+  return null;
+}
 function validateEvent(e) {
   for (const k of ["id", "type", "orgId", "streamId", "actorId", "deviceId", "hlc"]) {
     if (typeof e[k] !== "string" || e[k] === "") return `${k} must be a non-empty string`;
+    if (MEMBER_NAMES.has(e[k])) return `${k} may not be ${e[k]}`;
   }
   if (!isObject(e.payload)) return "payload must be an object";
+  const member = objectMemberNameIn(e.payload);
+  if (member !== null) return `payload may not use the name ${member}`;
   const p = e.payload;
   const str = (...keys) => {
     for (const k of keys) if (typeof p[k] !== "string" || p[k] === "") return `${k} must be a non-empty string`;

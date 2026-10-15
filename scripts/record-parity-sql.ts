@@ -61,6 +61,9 @@ const broken: AnyEvent[] = events.flatMap((e) => {
   for (const k of new Set([...Object.keys(p), ...(OPTIONAL[e.type] ?? [])])) {
     variants.push({ ...p, [k]: 5 }, { ...p, [k]: null }, { ...p, [k]: '' });
   }
+  // A name every object has, as each string field and as a key (decisions.md 111).
+  for (const k of Object.keys(p)) if (typeof p[k] === 'string') variants.push({ ...p, [k]: '__proto__' }, { ...p, [k]: 'constructor' });
+  variants.push({ ...p, extra: JSON.parse('{"__proto__": {"toString": 1}}') as unknown }, { ...p, extra: [['valueOf']] });
   if ('outcome' in p) variants.push({ ...p, outcome: 'approve' });
   if ('type' in p) variants.push({ ...p, type: 'ignore' });
   if ('anchor' in p) {

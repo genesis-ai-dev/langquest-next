@@ -14,11 +14,46 @@ import { isLicense, LICENSES } from './license';
 /** A languoid's id (docs/languoids.md): a UUID. */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
+/**
+ * The names every plain object already answers to. The fold keys its maps by
+ * the ids in events (`state.takes[takeId]`), so an id of `__proto__` would
+ * reach Object.prototype instead of a take, and one change there changes
+ * every object in the app. No string or key in an event may be one of these
+ * (SQL `_names_object_member`).
+ */
+export const OBJECT_MEMBER_NAMES: readonly string[] = [
+  '__proto__', 'constructor', 'prototype', 'hasOwnProperty', 'isPrototypeOf', 'propertyIsEnumerable',
+  'toLocaleString', 'toString', 'valueOf', '__defineGetter__', '__defineSetter__', '__lookupGetter__', '__lookupSetter__'
+];
+const MEMBER_NAMES = new Set(OBJECT_MEMBER_NAMES);
+
+/** The first string or key anywhere in `v` that names an object member, or null. Iterative, so no depth can overflow the stack. */
+export function objectMemberNameIn(v: unknown): string | null {
+  const stack: unknown[] = [v];
+  while (stack.length > 0) {
+    const x = stack.pop();
+    if (typeof x === 'string') {
+      if (MEMBER_NAMES.has(x)) return x;
+    } else if (Array.isArray(x)) {
+      for (const item of x) stack.push(item);
+    } else if (typeof x === 'object' && x !== null) {
+      for (const [k, child] of Object.entries(x)) {
+        if (MEMBER_NAMES.has(k)) return k;
+        stack.push(child);
+      }
+    }
+  }
+  return null;
+}
+
 export function validateEvent(e: AnyEvent): string | null {
   for (const k of ['id', 'type', 'orgId', 'streamId', 'actorId', 'deviceId', 'hlc'] as const) {
     if (typeof e[k] !== 'string' || e[k] === '') return `${k} must be a non-empty string`;
+    if (MEMBER_NAMES.has(e[k])) return `${k} may not be ${e[k]}`;
   }
   if (!isObject(e.payload)) return 'payload must be an object';
+  const member = objectMemberNameIn(e.payload);
+  if (member !== null) return `payload may not use the name ${member}`;
   const p = e.payload as Record<string, unknown>;
   const str = (...keys: string[]) => {
     for (const k of keys) if (typeof p[k] !== 'string' || p[k] === '') return `${k} must be a non-empty string`;

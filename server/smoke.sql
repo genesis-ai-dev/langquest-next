@@ -203,6 +203,23 @@ do $$ declare r record; begin
   if r.accepted or r.reason <> 'malformed envelope' then raise exception 'an envelope without streamId should be refused, got %', r; end if;
 end $$;
 
+-- 5e. No event may use a name every object has (decisions.md 111): the fold
+-- keys its maps by these ids, and `__proto__` would reach Object.prototype.
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"proto1","type":"v1.TakeArchived","orgId":"org1","streamId":"L1","actorId":"t1","deviceId":"dB","hlc":"000000000000019:000000:dB","payload":{"takeId":"__proto__"}}
+  ]'::jsonb);
+  if r.accepted or r.reason not like 'invalid payload%' then raise exception 'a __proto__ take id should be refused, got %', r; end if;
+  select * into r from public.append_events('[
+    {"id":"proto2","type":"v1.NoteAdded","orgId":"org1","streamId":"L1","actorId":"t1","deviceId":"dB","hlc":"000000000000020:000000:dB","payload":{"noteId":"n9","anchor":{"kind":"version","takeId":"t"},"extra":{"constructor":1}}}
+  ]'::jsonb);
+  if r.accepted or r.reason not like 'invalid payload%' then raise exception 'a constructor key should be refused, got %', r; end if;
+  select * into r from public.append_events('[
+    {"id":"toString","type":"v1.TakeArchived","orgId":"org1","streamId":"L1","actorId":"t1","deviceId":"dB","hlc":"000000000000021:000000:dB","payload":{"takeId":"tk9"}}
+  ]'::jsonb);
+  if r.accepted or r.reason not like 'malformed envelope%' then raise exception 'a toString event id should be refused, got %', r; end if;
+end $$;
+
 -- 5e. Oversized batches are refused outright; clients must page.
 do $$ begin
   begin
