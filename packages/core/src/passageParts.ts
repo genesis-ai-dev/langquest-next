@@ -141,6 +141,20 @@ export const PASSAGE_PART: Readonly<Record<PassageMap, PassagePart>> =
 /** The row kind's part. */
 export const PART_OF_KIND: ReadonlyMap<string, PassagePart> = new Map(PASSAGE_PARTS.map((p) => [p.kind, p]));
 
+/**
+ * Core's answers about every passage of a language at once. Given the state
+ * of a language kept on disk (decisions.md 108), which holds only the
+ * passages a screen has open, each answers about those alone. An app calls
+ * them on a language held whole, on a few passages read in (`withPassages`),
+ * or not at all, and reads lines instead (`apps/mobile/test/wholeLanguage.test.ts`).
+ */
+export const READS_EVERY_PASSAGE = [
+  'filePlanOf', 'referencedBlobs', 'deriveUploadWork', 'deriveDownloadWork', 'defaultOfflineScope', 'workedBy',
+  'deriveMissingBlobs', 'lostFilesView', 'evictableBlobs', 'offlineByUnit', 'offlineSummary',
+  'takesLinkingTerm', 'usualTarget', 'updatesFor', 'languageLines', 'languageProgress', 'highlightsFor',
+  'unitsAskedOf', 'waitingOn', 'upNext', 'languageReport'
+] as const;
+
 /** The passage a study mark's key names: the longest prefix that is a unit, up to a colon. */
 export function studyMarkUnit(units: LanguageState['units'], key: string): string | null {
   for (let cut = key.lastIndexOf(':'); cut > 0; cut = key.lastIndexOf(':', cut - 1)) {

@@ -3984,6 +3984,18 @@ file, in which passage (`audio` rows), and the verdicts, never the records
 (`LanguageFiles`, core `FilePlan`), so a person who keeps a whole language
 offline holds its file list, not its records.
 
+Nothing here needs a migration. The rows are the checkpoint cut up: a new
+reducer version drops the checkpoint and its rows together, as before, and
+the phone downloads again. Lines are worked out by the app's code, so they
+are stamped with the build that worked them out (`appBuild()`: a web page's
+commit, a phone's runtime and update) and every line is worked out again
+under a new one. Two rules come with it, each held by a test: a new map in
+the state says whether it is cut by passage, and if so how to find its
+passage and combine two copies (`passageParts.test.ts`); and app code never
+loops over passage records or calls one of core's answers about every
+passage (`READS_EVERY_PASSAGE`) on the live state, outside a short list
+saying why its passages are in memory (`apps/mobile/test/wholeLanguage.test.ts`).
+
 The server, its snapshots, the events and the reducer are unchanged; the
 Worker and server jobs hold whole languages in memory as before. Tests: a
 phone kept on disk agrees with one held in memory on every record and every

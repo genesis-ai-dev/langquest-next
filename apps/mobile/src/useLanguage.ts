@@ -17,6 +17,7 @@ import { onWake } from './wake';
 import { serverTransport } from './server/sync';
 import { stateCopier } from './publishedState';
 import { t } from './i18n';
+import { appBuild } from './appBuild';
 
 export interface LanguageHandle {
   orgId: string;
@@ -209,6 +210,7 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
         aroundSync: trackSync,
         // Recordings and file verdicts stay on the phone; memory holds the passages on screen (decisions.md 108).
         keepOnDisk: true,
+        build: appBuild(),
         onSettled: ({ blobsWanted }) => { void flushDiagnostics({ blobCacheBytes: files.totalBytes(), blobsWanted }).catch(() => {}); }
       });
       if (cancelled) { session.close(); return; }

@@ -1,7 +1,8 @@
 import fc from 'fast-check';
 import type { AnyEvent } from '../src/events';
+import * as core from '../src/index';
 import {
-  eventPassage, hangsOn, partEntries, passageInMemory, PASSAGE_PARTS, putEntry, rowId, studyMarkUnit, withOwnParts, withoutParts
+  eventPassage, hangsOn, partEntries, passageInMemory, PASSAGE_PARTS, putEntry, READS_EVERY_PASSAGE, rowId, studyMarkUnit, withOwnParts, withoutParts
 } from '../src/passageParts';
 import { foldLanguage } from '../src/reducer';
 import { emptyLanguageState, type LanguageState } from '../src/state';
@@ -136,5 +137,12 @@ describe('a language cut by passage', () => {
     const rest = withoutParts(whole);
     for (const p of PASSAGE_PARTS) expect(rest[p.map]).toEqual({});
     expect(rest.units).toBe(whole.units);
+  });
+});
+
+describe('what reads every passage', () => {
+  // The app's guard (apps/mobile/test/wholeLanguage.test.ts) looks for these names: a rename must carry the list with it.
+  it('names functions core exports', () => {
+    for (const name of READS_EVERY_PASSAGE) expect(typeof (core as Record<string, unknown>)[name], name).toBe('function');
   });
 });
