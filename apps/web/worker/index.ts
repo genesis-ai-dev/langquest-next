@@ -9,6 +9,7 @@ import { r2Bucket } from './r2';
 import { serviceClient, type Env } from './env';
 import { publishLangQuestTimings } from './timings';
 import { ownsResponse, withSecurityHeaders } from './securityHeaders';
+import { liveSessions } from './liveSessions';
 
 export { OrgSnapshot } from './orgSnapshot';
 
@@ -19,6 +20,9 @@ async function sameSecret(given: string, expected: string): Promise<boolean> {
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diff === 0;
 }
+
+/** One per isolate, so its answers outlive a request. */
+let sessionLive: ((sessionId: string) => Promise<boolean>) | null = null;
 
 /** The dashboard's server: `/api/*` here, everything else is the built page. */
 const handler = {
@@ -42,9 +46,18 @@ const handler = {
     // Verified here against the project's signing keys when it has
     // asymmetric ones (the keys are fetched once and cached); otherwise
     // supabase-js asks Auth, as getUser did.
+    // A session signed out since (a lost phone, a deleted account) no longer counts (liveSessions.ts).
+    sessionLive ??= liveSessions(async (sessionId) => {
+      const { data, error } = await serviceClient(env).rpc('session_is_live', { p_session: sessionId });
+      if (error) throw new Error(`session_is_live: ${error.message}`);
+      return data === true;
+    });
     const profileOf = async (token: string) => {
       const { data, error } = await serviceClient(env).auth.getClaims(token);
-      return error ? null : data?.claims.sub ?? null;
+      const sub = error ? null : data?.claims.sub ?? null;
+      const sessionId = data?.claims['session_id'];
+      if (sub && typeof sessionId === 'string' && !(await sessionLive!(sessionId))) return null;
+      return sub;
     };
     const recordBlob = async (orgId: string, streamId: string, hash: string, size: number) => {
       const { error } = await serviceClient(env).rpc('record_blob', { p_org: orgId, p_stream: streamId, p_hash: hash, p_size: size });
