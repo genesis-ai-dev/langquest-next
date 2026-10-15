@@ -1420,8 +1420,8 @@
       "wholeBooks": "ሙሉ መጻሕፍት",
       "chapters": "ምዕራፎች",
       "passages": "ክፍሎች",
-      "passagesNote_one": "{{count, number}} ክፍል፣ ይህ በተጀመረበት ስሪት እንደተከፋፈለው። ክፍሎች የሚጀምሩበትን ቦታ መለወጥ በቅርቡ ይመጣል።",
-      "passagesNote_other": "{{count, number}} ክፍሎች፣ ይህ በተጀመረበት ስሪት እንደተከፋፈሉት። ክፍሎች የሚጀምሩበትን ቦታ መለወጥ በቅርቡ ይመጣል።",
+      "passagesNote_one": "{{count, number}} ክፍል፣ ይህ በተጀመረበት ስሪት እንደተከፋፈለው።",
+      "passagesNote_other": "{{count, number}} ክፍሎች፣ ይህ በተጀመረበት ስሪት እንደተከፋፈሉት።",
       "eachBook": "እያንዳንዱ መጽሐፍ የሚቀረጽ አንድ ንዑስ ክፍል ነው።",
       "eachChapter": "እያንዳንዱ ምዕራፍ የሚቀረጽ አንድ ንዑስ ክፍል ነው።",
       "booksCount": "መጻሕፍት · {{n, number}}",
@@ -1442,8 +1442,7 @@
       "scripture": "ቅዱሳት መጻሕፍት",
       "scriptureSub": "የመጽሐፍ ቅዱስ መጻሕፍትና ምዕራፎች፣ ቡድኖች ሲሠሩ ወደ ክፍሎች የሚከፋፈሉ።",
       "else": "ሌላ ነገር",
-      "elseSub": "ትምህርቶች፣ ታሪኮች፣ ማብራሪያ — ራስዎ የሚገነቡት ማንኛውም አወቃቀር።",
-      "numbering": "የትኛውን የምዕራፎችና የቁጥሮች አቆጣጠር ይከተላል?"
+      "elseSub": "ትምህርቶች፣ ታሪኮች፣ ማብራሪያ — ራስዎ የሚገነቡት ማንኛውም አወቃቀር።"
     },
     "levelSheet": {
       "title": "ደረጃ",
@@ -1509,6 +1508,11 @@
       "gap": "ከቁጥር {{verse}} ጀምሮ፣ እነዚህ ቁጥሮች ገና በየትኛውም {{part}} ውስጥ የሉም።",
       "verseLabel": "ቁጥር {{chapter}}:{{verse}}",
       "versePlaceholder": "ቁጥር {{verse}}"
+    },
+    "divide": {
+      "done": "{{book}} ተከፋፍሏል። እንዲቆይ አብነቱን ያስቀምጡ።",
+      "tapBook": "እንዴት እንደሚከፋፈል ለመምረጥ መጽሐፍ ይንኩ።",
+      "nameOrRemove": "{{book}}ን እንደገና ይሰይሙ ወይም ያስወግዱ"
     }
   },
   "breakup": {
@@ -1681,7 +1685,9 @@
       "noneReady": "ለዚህ እስካሁን የተዘጋጁ የሉም። የራስዎን ይሥሩ፦ እንዴት እንደተደራጀ የሚያሳዩ አቃፊዎች፣ በውስጣቸውም ሰዎች የሚቀርጿቸው ነገሮች።",
       "makeOwn": "የራስዎን ይሥሩ",
       "makeOwnDetail": "አቃፊዎችና በውስጣቸው የሚቀረጸው።",
-      "elseKinds": "ታሪኮች፣ መዝሙሮች፣ ትምህርቶች"
+      "elseKinds": "ታሪኮች፣ መዝሙሮች፣ ትምህርቶች",
+      "ownSub": "መጽሐፍ በመጽሐፍ፦ እያንዳንዱን አንብበው ክፍሎቹ የት እንደሚጀምሩ ይምረጡ",
+      "ownNote": "እያንዳንዱ መጽሐፍ እስኪከፋፈል ይጠብቃል። ከካርታው ወይም ከሥራዬ ይክፈቱት፣ በመጽሐፍ ቅዱስ ያንብቡት እና ክፍሎቹ የት እንደሚጀምሩ ይምረጡ፣ ወይም ከተዘጋጀ መንገድ ይጀምሩ።"
     },
     "errors": {
       "noTemplate": "ይህ ቋንቋ እስካሁን አብነት የለውም።",
@@ -1882,6 +1888,12 @@
       "sections_other": "{{count, number}} ክፍሎች",
       "partsIn_one": "በ{{book}} ውስጥ {{count, number}} ክፍል",
       "partsIn_other": "በ{{book}} ውስጥ {{count, number}} ክፍሎች"
+    },
+    "division": {
+      "way_one": "{{way}} · {{count, number}} ቁራጭ",
+      "way_other": "{{way}} · {{count, number}} ቁራጮች",
+      "own_one": "የራሱ መንገድ · {{count, number}} ቁራጭ",
+      "own_other": "የራሱ መንገድ · {{count, number}} ቁራጮች"
     }
   },
   "canon": {

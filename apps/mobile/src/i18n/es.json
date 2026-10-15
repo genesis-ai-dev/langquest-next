@@ -1463,9 +1463,9 @@
       "wholeBooks": "Libros completos",
       "chapters": "Capítulos",
       "passages": "Pasajes",
-      "passagesNote_one": "{{count, number}} pasaje, como lo divide la versión de la que partió. Pronto se podrá cambiar dónde empiezan los pasajes.",
-      "passagesNote_many": "{{count, number}} pasajes, como los divide la versión de la que partió. Pronto se podrá cambiar dónde empiezan los pasajes.",
-      "passagesNote_other": "{{count, number}} pasajes, como los divide la versión de la que partió. Pronto se podrá cambiar dónde empiezan los pasajes.",
+      "passagesNote_one": "{{count, number}} pasaje, como lo divide la versión de la que partió.",
+      "passagesNote_many": "{{count, number}} pasajes, como los divide la versión de la que partió.",
+      "passagesNote_other": "{{count, number}} pasajes, como los divide la versión de la que partió.",
       "eachBook": "Cada libro es una parte para grabar.",
       "eachChapter": "Cada capítulo es una parte para grabar.",
       "booksCount": "Libros · {{n, number}}",
@@ -1487,8 +1487,7 @@
       "scripture": "Escritura",
       "scriptureSub": "Libros y capítulos de la Biblia, divididos en pasajes a medida que avanzan los equipos.",
       "else": "Otra cosa",
-      "elseSub": "Lecciones, historias, un comentario: cualquier esquema que armes tú.",
-      "numbering": "¿Qué numeración de capítulos y versículos sigue?"
+      "elseSub": "Lecciones, historias, un comentario: cualquier esquema que armes tú."
     },
     "levelSheet": {
       "title": "Nivel",
@@ -1557,6 +1556,11 @@
       "gap": "Desde el versículo {{verse}}, estos versículos todavía no tienen {{part}}.",
       "verseLabel": "Versículo {{chapter}}:{{verse}}",
       "versePlaceholder": "versículo {{verse}}"
+    },
+    "divide": {
+      "done": "{{book}} está dividido. Guarda la plantilla para conservarlo.",
+      "tapBook": "Toca un libro para elegir cómo se divide.",
+      "nameOrRemove": "Cambiar el nombre de {{book}} o quitarlo"
     }
   },
   "breakup": {
@@ -1739,7 +1743,9 @@
       "noneReady": "Todavía no hay ninguna lista para esto. Crea la tuya: carpetas para cómo se organiza, y dentro las cosas que las personas graban.",
       "makeOwn": "Crear la tuya",
       "makeOwnDetail": "Carpetas, y lo que se graba en ellas.",
-      "elseKinds": "Historias, cantos, lecciones"
+      "elseKinds": "Historias, cantos, lecciones",
+      "ownSub": "Libro por libro: lee cada uno y elige dónde empiezan sus secciones",
+      "ownNote": "Cada libro espera hasta que se divida. Ábrelo desde el mapa o Mi trabajo, léelo en una Biblia y elige dónde empiezan sus secciones, o empieza con una forma ya hecha."
     },
     "errors": {
       "noTemplate": "Este idioma todavía no tiene plantilla.",
@@ -1954,6 +1960,14 @@
       "partsIn_one": "{{count, number}} parte en {{book}}",
       "partsIn_other": "{{count, number}} partes en {{book}}",
       "partsIn_many": "{{count, number}} partes en {{book}}"
+    },
+    "division": {
+      "way_one": "{{way}} · {{count, number}} parte",
+      "way_many": "{{way}} · {{count, number}} partes",
+      "way_other": "{{way}} · {{count, number}} partes",
+      "own_one": "A su manera · {{count, number}} parte",
+      "own_many": "A su manera · {{count, number}} partes",
+      "own_other": "A su manera · {{count, number}} partes"
     }
   },
   "canon": {

@@ -1377,7 +1377,7 @@
       "wholeBooks": "整卷书",
       "chapters": "章",
       "passages": "经段",
-      "passagesNote_other": "{{count, number}} 个经段，按最初所依据的版本划分。更改经段起点的功能即将推出。",
+      "passagesNote_other": "{{count, number}} 个经段，按最初所依据的版本划分。",
       "eachBook": "每卷书是一个要录音的部分。",
       "eachChapter": "每一章是一个要录音的部分。",
       "booksCount": "书卷 · {{n, number}}",
@@ -1397,8 +1397,7 @@
       "scripture": "圣经",
       "scriptureSub": "圣经的书卷和章节，由团队边做边划分成经段。",
       "else": "其他内容",
-      "elseSub": "课程、故事、注释书——任何你自己建立的大纲。",
-      "numbering": "它采用哪种章节和经节编号方式？"
+      "elseSub": "课程、故事、注释书——任何你自己建立的大纲。"
     },
     "levelSheet": {
       "title": "层级",
@@ -1461,6 +1460,11 @@
       "gap": "从第 {{verse}} 节起，这些经节还不属于任何{{part}}。",
       "verseLabel": "经节 {{chapter}}:{{verse}}",
       "versePlaceholder": "第 {{verse}} 节"
+    },
+    "divide": {
+      "done": "{{book}} 已划分。保存模板以保留。",
+      "tapBook": "点按一卷书，选择如何划分。",
+      "nameOrRemove": "重命名或移除{{book}}"
     }
   },
   "breakup": {
@@ -1623,7 +1627,9 @@
       "noneReady": "这一项还没有现成的划分方式。请自己制作：用文件夹表示组织方式，把大家要录的内容放在里面。",
       "makeOwn": "自己制作",
       "makeOwnDetail": "文件夹，以及里面要录的内容。",
-      "elseKinds": "故事、歌曲、课程"
+      "elseKinds": "故事、歌曲、课程",
+      "ownSub": "逐卷进行：阅读每一卷，选择各段从哪里开始",
+      "ownNote": "每卷书都要等划分后才能录制。从地图或“我的工作”打开它，在一本圣经中阅读，选择各段从哪里开始，或从现成的方式开始。"
     },
     "errors": {
       "noTemplate": "这个语言还没有模板。",
@@ -1810,6 +1816,10 @@
       "jumpLabel_other": "第{{chapter}}章：这里开始{{count, number}}段",
       "sections_other": "{{count, number}}段",
       "partsIn_other": "{{book}}中有{{count, number}}部分"
+    },
+    "division": {
+      "way_other": "{{way}} · {{count, number}} 个部分",
+      "own_other": "自己的方式 · {{count, number}} 个部分"
     }
   },
   "canon": {

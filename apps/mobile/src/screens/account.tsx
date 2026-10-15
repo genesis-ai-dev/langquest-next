@@ -50,7 +50,7 @@ import { useAccountActions, useDisplayNames } from '../useAccount';
 import { runningBuildLabel } from '../updateStatus';
 import { PersonAvatar } from '../UserChip';
 import { LanguageRow } from '../uiLanguage';
-import { refusedHere, remoteRowView, speed, syncSummary } from '../account/model';
+import { inSeveral, refusedHere, remoteRowView, speed, syncSummary } from '../account/model';
 import { useSyncInspection } from '../account/useSyncInspection';
 import { useDiagnosticsSwitch } from '../account/useDiagnosticsSwitch';
 import { useHasPassword } from '../account/useHasPassword';
@@ -330,11 +330,14 @@ function ago(hlc: string): string {
  * Me (the simple redesign, demo ADR-032): the five things people change, on
  * one card, then Sign out. Everything else Settings had is under More
  * settings, one labelled tap away; nothing about running the org is here
- * (that lives under Manage).
+ * (that lives under Manage). Someone in more than one organization switches
+ * here, under their name (decision 71, amended 2026-10-14).
  */
 export function SettingsHome(ctx: Ctx) {
   const name = useOwnName(ctx);
   const offline = useOfflineSummary(ctx);
+  const orgs = useOrganizations(ctx.session.actorId).rows;
+  const { orgName } = useAccountLine(ctx);
   // Sync needs noticing when work is waiting to send: say so on More settings' row. The organization's
   // changes count too (a language or organization made offline), as they do before sign-out.
   const p = ctx.language;
@@ -346,6 +349,7 @@ export function SettingsHome(ctx: Ctx) {
     <Screen header={<Header title={t('account.me.title')} />}>
       <Group>
         <Row icon="user" label={name} sub={t('account.me.nameSub')} onPress={() => ctx.go('profile_edit')} />
+        {inSeveral(orgs) ? <SwitchOrgRow ctx={ctx} orgName={orgName} several /> : null}
         {/* What comes along to the field, seen before a trip (decisions.md 61). */}
         <Row icon="download" label={t('account.me.offline')} sub={offlineCount(offline)} onPress={() => ctx.go('sync_status')} />
         <Row icon="mic" label={t('account.me.mic')} sub={t('account.me.micSub')} onPress={() => ctx.go('mic_setup')} />
@@ -389,7 +393,8 @@ function DangerLink(props: { label: string; onPress: () => void }) {
 /**
  * Everything Settings had that Me does not lead with: the account, a
  * password for a looked-after account, notifications, switching
- * organization, sync, diagnostics, blocked people and deleting the account.
+ * organization (Me has it for someone in several), sync, diagnostics,
+ * blocked people and deleting the account.
  */
 export function SettingsMore(ctx: Ctx) {
   const [notificationMessage, setNotificationMessage] = useState('');
@@ -404,9 +409,12 @@ export function SettingsMore(ctx: Ctx) {
   const name = useOwnName(ctx);
   const p = ctx.language;
   const syncSub = syncSummary(p);
-  // Switch Organization is always offered (it also starts a new one); with only one organization it says so.
+  // Someone in several organizations switches on Me itself; anyone else finds it here, where it also starts a new one.
   const orgs = useOrganizations(s.actorId).rows;
-  const canSwitch = orgs === null || orgs.length > 1;
+  const switchHere = !inSeveral(orgs);
+  const passwordRow = s.isManaged && hasPassword === false;
+  // No push on the web yet: requests and feedback still reach the Inbox there.
+  const notifications = Platform.OS !== 'web';
   const blocked = ctx.blocks.ids.length;
   return (
     <Screen header={<Header title={t('account.me.more')} onBack={ctx.back} />}>
@@ -433,24 +441,26 @@ export function SettingsMore(ctx: Ctx) {
           </View>
         ) : null}
       </Card>
-      <Group>
-        {/* For a shared phone: then they can sign back in after someone else has used it (decisions.md 59). */}
-        {s.isManaged && hasPassword === false ? (
-          <Row icon="lock" label={t('account.more.setPassword')} sub={t('account.more.setPasswordSub')} onPress={() => ctx.go('profile_edit')} />
-        ) : null}
-        {/* No push on the web yet: requests and feedback still reach the Inbox there. */}
-        {Platform.OS !== 'web' ? (
-          <Row icon="notif" label={t('account.more.notifications')} sub={notificationMessage || t('account.more.notificationsSub')} onPress={() => {
-            void enableNotifications().then(() => setNotificationMessage(t('account.more.notificationsOn'))).catch((e: unknown) => {
-              // Turned off on the phone says so in its own words (push.ts); anything else is the server or the device.
-              if (!(e instanceof CommandError)) noteExpected('enable notifications', e);
-              setNotificationMessage(e instanceof CommandError ? e.message : t('account.more.notificationsFailed'));
-            });
-          }} />
-        ) : null}
-        {/* Always here: someone in one organization may start another (Switch Organization, then New organization). */}
-        <Row icon="building" label={t('account.more.switchOrg')} sub={canSwitch ? t('account.more.switchActive', { org: orgName }) : t('account.more.switchOrStart', { org: orgName })} onPress={() => ctx.go('org_switcher')} last />
-      </Group>
+      {passwordRow || notifications || switchHere ? (
+        <Group>
+          {/* For a shared phone: then they can sign back in after someone else has used it (decisions.md 59). */}
+          {passwordRow ? (
+            <Row icon="lock" label={t('account.more.setPassword')} sub={t('account.more.setPasswordSub')} onPress={() => ctx.go('profile_edit')}
+              last={!notifications && !switchHere} />
+          ) : null}
+          {notifications ? (
+            <Row icon="notif" label={t('account.more.notifications')} sub={notificationMessage || t('account.more.notificationsSub')} onPress={() => {
+              void enableNotifications().then(() => setNotificationMessage(t('account.more.notificationsOn'))).catch((e: unknown) => {
+                // Turned off on the phone says so in its own words (push.ts); anything else is the server or the device.
+                if (!(e instanceof CommandError)) noteExpected('enable notifications', e);
+                setNotificationMessage(e instanceof CommandError ? e.message : t('account.more.notificationsFailed'));
+              });
+            }} last={!switchHere} />
+          ) : null}
+          {/* Someone in one organization may start another here (Switch Organization, then New organization). */}
+          {switchHere ? <SwitchOrgRow ctx={ctx} orgName={orgName} several={orgs === null} last /> : null}
+        </Group>
+      ) : null}
       <SectionLabel label={t('account.more.thisDevice')} />
       <Group>
         <Row icon="cloud" label={t('account.more.sync')} sub={syncSub} badge={p.pending > 0 ? formatNumber(p.pending) : undefined} onPress={() => ctx.go('sync_status')} />
@@ -478,6 +488,16 @@ export function SettingsMore(ctx: Ctx) {
       {blockedOpen ? <BlockedPeople ctx={ctx} onClose={() => setBlockedOpen(false)} /> : null}
     </Screen>
   );
+}
+
+/**
+ * Switch Organization as a row: on Me for someone in several organizations,
+ * under More settings for everyone else, where it also starts a new one.
+ * `several` false: the only organization they are in, so it says so.
+ */
+function SwitchOrgRow(props: { ctx: Ctx; orgName: string; several: boolean; last?: boolean }) {
+  const sub = props.several ? t('account.more.switchActive', { org: props.orgName }) : t('account.more.switchOrStart', { org: props.orgName });
+  return <Row icon="building" label={t('account.more.switchOrg')} sub={sub} onPress={() => props.ctx.go('org_switcher')} last={props.last} />;
 }
 
 /**

@@ -341,8 +341,8 @@ test('NOORG-013 A member starts a second organization', async ({ page }) => {
   const name = `UI Admin Org ${world().run}`;
   await openFresh(page, world(), 'ADMIN');
   await expect(tab(page, 'me')).toBeVisible({ timeout: 60_000 });
+  // ADMIN is in two organizations: Switch Organization is on Me itself (decision 71, amended 2026-10-14).
   await tab(page, 'me').click();
-  await text(page, 'More settings').click();
   await text(page, 'Switch Organization').click();
   await expect(page.getByRole('button', { name: `${org()}, active` }).or(text(page, `${org()} (active)`))).toBeVisible();
   await expect(text(page, world().org2Name, false)).toBeVisible();
@@ -359,14 +359,12 @@ test('NOORG-013 A member starts a second organization', async ({ page }) => {
   await tab(page, 'manage').click();
   await expect(text(page, name)).toBeVisible();
   await tab(page, 'me').click();
-  await text(page, 'More settings').click();
   await text(page, 'Switch Organization').click();
   await text(page, org(), false).click();
   await expect(tab(page, 'manage')).toBeVisible({ timeout: 60_000 });
   await expect.poll(() => tabsShown(page)).toEqual(['work', 'map', 'manage', 'me']);
   await expect(text(page, `Alpha · ${org()}`, false)).toBeVisible();
   await tab(page, 'me').click();
-  await text(page, 'More settings').click();
   await text(page, 'Switch Organization').click();
   await text(page, world().org2Name, false).click();
   await expect(tab(page, 'work')).toBeVisible({ timeout: 60_000 });
