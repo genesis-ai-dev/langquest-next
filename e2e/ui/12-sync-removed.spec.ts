@@ -50,7 +50,7 @@ test('SYNC-018 Work refused after removal is kept and shown @p0', async ({ page,
   if (joinTeam) return;
 
   await toTab(page, 'work');
-  await expect(syncChip(page)).toHaveAccessibleName('Not syncing', { timeout: 30_000 });
+  await expect(syncChip(page)).toHaveAccessibleName(/^Not syncing/, { timeout: 30_000 });
   await syncChip(page).click();
   await expect.poll(() => tile(page, 'refused by the server')).toBeGreaterThan(0);
   const refused = await tile(page, 'refused by the server');

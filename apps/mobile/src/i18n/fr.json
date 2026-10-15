@@ -3014,7 +3014,6 @@
     "sync": {
       "syncing": "Synchronisation…",
       "syncNow": "Synchroniser maintenant",
-      "checking": "Vérification des modifications de temps en temps",
       "refused": "Le serveur a refusé ce compte pour cette organisation.",
       "tooOld": "Mettez à jour l’application pour synchroniser.",
       "waitingUpload": "en attente d’envoi",
@@ -3036,7 +3035,28 @@
       "refusedCount": "Refusés · {{n, number}}",
       "events_one": "{{count, number}} événement sur cet appareil",
       "events_many": "{{count, number}} événements sur cet appareil",
-      "events_other": "{{count, number}} événements sur cet appareil"
+      "events_other": "{{count, number}} événements sur cet appareil",
+      "standing": {
+        "live": "En direct",
+        "checking": "Connecté",
+        "offline": "Hors ligne",
+        "refused": "Pas de synchronisation"
+      },
+      "help": {
+        "live": "Les modifications de votre équipe arrivent en temps réel, et les vôtres partent aussitôt.",
+        "checking": "Connecté, mais le canal en direct est coupé : cet appareil vérifie les modifications toutes les quelques minutes. Synchroniser maintenant vérifie tout de suite.",
+        "offline": "Pas de connexion. Tout ce que vous faites est gardé sur cet appareil et part tout seul quand vous êtes de nouveau en ligne.",
+        "refused": "Le serveur n’accepte pas les modifications de cet appareil. Votre travail reste gardé ici.",
+        "toSend": "Modifications et enregistrements faits sur cet appareil que le serveur n’a pas encore confirmés. Ils sont en sécurité ici et partent dès qu’il y a une connexion.",
+        "toReceive": "Enregistrements d’autres personnes que cet appareil télécharge encore.",
+        "refusedLine": "Modifications que le serveur n’a pas acceptées, souvent parce qu’une permission a changé. Elles restent sur cet appareil ; ouvrez Détails pour les voir."
+      },
+      "toSend": "À envoyer",
+      "toReceive": "À recevoir",
+      "refusedLine": "Refusés",
+      "none": "Aucun",
+      "moreInfo": "En savoir plus",
+      "details": "Détails"
     }
   },
   "study": {
@@ -3753,11 +3773,9 @@
       "help": "Ce que vous avez demandé à quelqu’un d’autre et qui n’est pas encore fait."
     },
     "sync": {
-      "refused": "Pas de synchronisation",
       "toSend_one": "{{count, number}} à envoyer",
       "toSend_many": "{{count, number}} à envoyer",
-      "toSend_other": "{{count, number}} à envoyer",
-      "offline": "Hors ligne"
+      "toSend_other": "{{count, number}} à envoyer"
     },
     "join": {
       "wantsToJoin": "{{name}} veut rejoindre",
