@@ -41,6 +41,13 @@ describe('clearAllWebFiles', () => {
     expect(removeEntry).toHaveBeenCalledTimes(3);
   });
 
+  it('tries again when a download opens or closes its file as the removal runs', async () => {
+    // Chrome refuses that removal as InvalidModificationError; taken as final, it left a recording behind (WEB-023, 2026-10-15).
+    const { root, removeEntry } = rootFailing(refusal('InvalidModificationError'));
+    await clearAllWebFiles(root, 1000, noPause);
+    expect(removeEntry).toHaveBeenCalledTimes(2);
+  });
+
   it('gives up once its patience runs out, so sign-out still finishes', async () => {
     const { root } = rootFailing(...Array.from({ length: 1000 }, () => refusal('NoModificationAllowedError')));
     await expect(clearAllWebFiles(root, 0, noPause)).rejects.toThrow('NoModificationAllowedError');
