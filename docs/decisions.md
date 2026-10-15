@@ -285,6 +285,13 @@ and the invariants are untouched. Reverse if: never; a cache inside the
 state would have to be kept coherent by the reducer, which is exactly the
 trigger-maintained rollup PLAN.md section 2 warns against.
 
+Amended (2026-10-14, Caleb Koster): a phone that keeps a big language on
+disk (decision 107) also keeps one line per passage there, so lists never
+need every passage's record in memory. The lines are still views: outside
+the state, never snapshotted or synced, and worked out by core's own
+`derivePassage` from the passage's records whenever an event touches that
+passage, so they cannot disagree with it. The reducer never maintains them.
+
 ## 20. The spec's flow machine is held to by a test, not a review
 
 Date: 2026-09-15 · By: Ryder Wishart · Status: accepted
@@ -3864,36 +3871,62 @@ slow on low-end phones (keep WAV there), or iOS stops the microphone during
 source playback anyway (go back to stopping it, and restart with a larger
 head start).
 
-## 107. A big language keeps its recordings and file verdicts on the phone's disk, and memory holds only the passages on screen
+## 107. A big language keeps each passage's record on the phone's disk; memory holds the passages on screen, and lists read one line per passage
 
 Date: 2026-10-14 · By: Caleb Koster · Status: accepted
 
-Reason: a phone held a whole language in memory, and recordings and the
-server's verdicts on audio files are most of it (Koro Miyan: 33 of 40 MB),
-growing with every recording. On a 2 GB test emulator Koro added about
-235 MB once open, and a language four times its size was killed by
-Android. Caleb asked for this to be solved before cheap phones open big
-projects in the field. With `keepOnDisk` (on for every language in the
-app: `useLanguage` opens `LanguageSession` with it), the sync client
-writes those two maps to a `kept` table, one row per recording, per card
-and per file verdict, in the same commit as each checkpoint; the
-checkpoint holds the rest. A first download is read back one piece at a
-time (`stateSplitter`), so neither the whole text nor the whole state is
-ever in memory, and its rows are switched in with its checkpoint. Memory
-holds the recordings of the passage on screen and two on each side
-(`loadUnits`, `shell/usePassagesInMemory.ts`), what arrived since the last
-checkpoint, and the verdicts on files anything in memory names
-(`keptLanguage.ts`). Rows combine with later events by the fold's own
-rules (`keptRecording`, `keptVerdict`), so the result is the in-memory
-fold's in any order. Which files to send, fetch or free, the offline
-counts and the default offline scope come from core's own functions, run
-on a view that adds exactly the rows a question needs (`LanguageFiles`).
-The rest of the language (passages, versions, reviews, notes, requests)
-stays in memory; it is small for now (Koro: 4.7 MB). The server, its
-snapshots and the reducer are unchanged. Measured on the emulator (a
-debug build, whose network inspector copies every answer), Koro now adds
-2 to 39 MB once open instead of about 235, and peaks at 170 to 190 MB
-while it opens.
-Reverse if: the part left in memory outgrows cheap phones (then versions,
-reviews and notes move per passage the same way), or reading rows makes
-moving between passages noticeably slow on a cheap phone.
+Reason: a phone held a whole language in memory. On a 2 GB test emulator
+Koro Miyan (37,000 recordings, 541 versions) added about 235 MB once open,
+and a language four times its size was killed by Android. Caleb asked for
+this to be solved before cheap phones open big projects in the field, all
+of it at once rather than in parts. With `keepOnDisk` (on for every
+language in the app: `useLanguage` opens `LanguageSession` with it), every
+entry of the maps core cuts by passage (`PASSAGE_PARTS` in
+`passageParts.ts`: recordings, versions and drafts, submissions,
+responses, reviews, departures, requests, notes, study marks, verse marks,
+reference links and uses, key-term ties, releases) and the server's
+verdict on each audio file go to the phone's `kept_rows` table with each
+checkpoint, in the same commit; the checkpoint holds what the whole
+language shares (its passages, flow, teams, materials, key terms). An entry
+whose passage cannot be found yet (an undo of a departure that has not
+arrived) stays with the checkpoint until it can. Rows combine with later
+events by each part's `merge`, which mirrors the reducer's own case and is
+tested on every split of the fixtures' events, so the phone's language is
+the in-memory fold's in any order. A first download is read back one piece
+at a time (`stateSplitter`, `SnapshotRows`), so neither the whole text nor
+the whole state is ever in memory, and its rows are switched in with its
+checkpoint.
+
+Memory holds the passage on screen, two on each side, and its book and
+chapter (`loadUnits`, `shell/usePassagesInMemory.ts`), what arrived since
+the last checkpoint, and the verdicts on files anything in memory names. A
+passage's screen waits the moment it takes to bring it in
+(`shell/usePassageReady.ts`).
+
+Lists read one line per passage (`PassageLine`, core `passageLines.ts`):
+Map, Progress, My Work, the Inbox badge, Up next, the overview, Get ready,
+set-aside counts, a book's divisions and who usually reviews a check. A
+line is core's own `derivePassage` of that one passage, worked out from its
+rows and memory (`KeptLines`) whenever an event touches it, and every line
+when the flow, its kinds or the teams change. Lines are kept beside the rows
+(a few hundred bytes a passage: Koro's 570 are 0.37 MB), and the lines still
+owed are written with each checkpoint, which prunes the events that owe
+them. The Inbox, a check logged across several passages and a key term's
+uses read the few passages they need from disk (`withPassages`); the Inbox
+reads a passage again only when its line changed. File planning (what to
+send, fetch or free, the offline counts) reads which record names each
+file, in which passage (`audio` rows), and the verdicts, never the records
+(`LanguageFiles`, core `FilePlan`), so a person who keeps a whole language
+offline holds its file list, not its records.
+
+The server, its snapshots, the events and the reducer are unchanged; the
+Worker and server jobs hold whole languages in memory as before. Tests: a
+phone kept on disk agrees with one held in memory on every record and every
+line, through checkpoints, restarts, a first download, an old checkpoint
+and a redaction (`keptLanguage.test.ts`), and half of a fleet kept on disk
+ends with the server's language and lines and moves all its audio
+(`fleet.test.ts`). Koro's part in memory is now 0.13 MB of shared language
+and 0.37 MB of lines (as JSON), against 40 MB.
+Reverse if: bringing a passage in from disk makes moving between passages
+noticeably slow on a cheap phone, or the lines themselves outgrow cheap
+phones (then lists page their lines from disk).

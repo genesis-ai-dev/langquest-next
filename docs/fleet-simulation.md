@@ -139,6 +139,18 @@ First runs (2026-10-12):
 - **Reviewers download a lot.** Every version under review comes down to
   each reviewer of it: 2.6 GB across 6 reviewers in `villageReconnect`.
 
+## Phones that keep the language on disk
+
+`keepOnDisk: 'half'` (or `true`) makes every other phone keep the language
+on its disk as the app does (decisions.md 107): each passage's record in
+the phone's table, memory only what arrived since the last checkpoint, and
+the transfer workers planning from file lists (`LanguageFiles`). At the
+end each such phone's language is its memory combined with everything it
+kept, and must equal the server's log folded from scratch, like any other
+phone's. `checkpointEvery` makes checkpoints come sooner than the app's
+2,000 events, so a short run puts its work through them. `npm test` runs
+one such fleet (`fleet.test.ts`), which also checks every passage's line.
+
 ## Where the code is
 
 - `packages/sync/src/testing/`: the engine, Node only; the app never
