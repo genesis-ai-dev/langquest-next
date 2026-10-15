@@ -7,9 +7,9 @@
 // what it hears while the source plays is never kept.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
-import { stopAudioPlayback } from '../audioSession';
-import { useScreenShowing } from '../helpContext';
-import type { useRecorder } from '../useRecorder';
+import { stopAudioPlayback } from '../audio/audioSession';
+import { useScreenShowing } from '../helpMode/useHelpMode';
+import type { useRecorder } from './useRecorder';
 import { loopPhase, type LoopPhase } from './splitModel';
 
 type Recorder = ReturnType<typeof useRecorder>;

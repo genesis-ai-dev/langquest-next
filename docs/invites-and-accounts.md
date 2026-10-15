@@ -155,7 +155,7 @@ Phone state: one value, the **held key**, in `AsyncStorage` under
 { token, orgId?, heldAt, claim: 'unclaimed' | 'next-account' | <profileId> }
 ```
 
-`apps/mobile/src/heldInvite.ts` is the whole rule, pure and tested:
+`apps/mobile/src/invites/heldInvite.ts` is the whole rule, pure and tested:
 
 - `unclaimed`: scanned, nobody has said who is joining. A signed-in person
   is asked "Join as you?"; nothing joins on its own.

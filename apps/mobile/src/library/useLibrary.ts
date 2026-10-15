@@ -5,9 +5,9 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { Ctx } from '../ctx';
+import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
-import { noteExpected } from '../report';
+import { noteExpected } from '../diagnostics/report';
 import * as server from '../server/library';
 import { cachedDoc, flushOutbox, keepNewDoc, loadDocs, onDocs, prepareDoc } from './docStore';
 import { copyOps, followOps, mayWriteLibrary, newItemId, publishOps, subscribeOps, type LibraryOp, type SharedItem } from './model';

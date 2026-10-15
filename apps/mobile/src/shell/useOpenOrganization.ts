@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Ctx } from '../ctx';
-import { noteExpected, reportError } from '../report';
+import type { Ctx } from './ctx';
+import { noteExpected, reportError } from '../diagnostics/report';
 import { myOrganizations } from '../server/account';
 
 /** A language, and maybe a passage, to open once an organization opened from elsewhere is in. */

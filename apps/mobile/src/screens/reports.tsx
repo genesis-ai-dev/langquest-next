@@ -4,32 +4,33 @@
 // server (decision 44), which a phone could not total itself (decision 37).
 // Ports the web dashboard's shell and language page (apps/web/src/screens:
 // shell, Language); the sections and their parts are in src/reports/.
-import { appendConfirmed, ensureDeviceId, NotSavedError } from '@langquest-next/sync';
+import { NotSavedError } from '@langquest-next/sync';
 import {
-  clustersOf, dayPercents, mayViewLanguage, orgClusters, ORG_STREAM, paceOf, percent, privilegesFor, recencyOf, TARGET_SCOPES,
+  clustersOf, dayPercents, mayViewLanguage, orgClusters, paceOf, percent, privilegesFor, recencyOf, TARGET_SCOPES,
   type LanguageReport, type LanguageRow, type TargetScope
 } from '@langquest-next/core';
-import * as Crypto from 'expo-crypto';
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { Text } from '../text';
-import type { Ctx } from '../ctx';
+import { Text } from '../ui/text';
+import type { Ctx } from '../shell/ctx';
+import { HelpBadge } from '../helpMode/helpBadge';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { t, Trans } from '../i18n';
-import { contractsFor } from '../screenContracts';
-import { Chip, ChipRow, EmptyState, Field, Header, IconBtn, Screen, SearchField, Sheet, SmallBtn, txt } from '../kit';
-import { getStore } from '../store';
+import { contractsFor } from '../shell/screenContracts';
+import { Chip, ChipRow, EmptyState, Field, Header, IconBtn, Screen, SearchField, Sheet, SmallBtn } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { filterByCluster, type ClusterFilter } from '../clusters/model';
-import { serverTransport } from '../server/sync';
-import { C, measure, space } from '../theme';
+import { saveLanguageSetting } from '../reports/languageSettings';
+import { C, measure, space } from '../ui/theme';
 import { ActivityChart, DayBars, ProgressLine, WorkBar } from '../reports/charts';
 import { countryCodes, countryName } from '../reports/countries';
-import { useReports } from '../reports/data';
+import { useReports } from '../reports/useReports';
 import { bottleneckText, milestoneText, paceAdvice, paceLabel, PACE_TONE, recencyAdvice, recencyLabel, RECENCY_TONE, scopeLabel, stageName } from '../reports/labels';
-import { Activity, Alerts, FieldReport, Geography, Languages, Ledger, openAlerts, Overview, Pace, sectionLabel, SECTIONS, type SectionId, type SectionProps } from '../reports/sections';
-import {
-  AttentionPanel, Bar, bookOf, canPrint, Columns, CoverageRows, dayYear, exportCsv, fileName, Freshness, HeadlineStats, languageCsv, ListLine, NoReports, Notice, num, Panel,
-  pctText, printPage, ProgressPair, shortDate, signed, Stat, Stats, ToneBadge, type Tone
-} from '../reports/ui';
+import { Activity, Alerts, FieldReport, Geography, Languages, Ledger, Overview, Pace, type SectionProps } from '../reports/sections';
+import { openAlerts, sectionLabel, SECTIONS, type SectionId, sectionHelp } from '../reports/sectionsModel';
+import { AttentionPanel, Bar, Columns, CoverageRows, Freshness, HeadlineStats, ListLine, NoReports, Notice, Panel, ProgressPair, Stat, Stats, ToneBadge } from '../reports/ui';
+import { bookOf, dayYear, num, pctText, shortDate, signed, type Tone } from '../reports/format';
+import { canPrint, exportCsv, fileName, languageCsv, printPage } from '../reports/exportFiles';
 
 const COLUMN = measure.report;
 
@@ -73,36 +74,36 @@ export function ReportsHome(ctx: Ctx) {
   };
   const header = (
     <Header title={sectionLabel(section)} sub={[orgName, clusterName, t('reports.title')].filter(Boolean).join(' · ')} columnWidth={COLUMN}
-      action={<IconBtn name="restart" label={t('reports.home.catchUp')} onPress={reports.refresh} disabled={reports.status === 'ready' && reports.refreshing} />} />
+      action={<IconBtn name="restart" label={t('reports.home.catchUp')} help={t('reports.home.catchUpHelp')} onPress={reports.refresh} disabled={reports.status === 'ready' && reports.refreshing} />} />
   );
   return (
     <Screen header={header} columnWidth={COLUMN}>
       <ChipRow>
         {SECTIONS.map((s) => (
-          <Chip key={s.id} label={sectionLabel(s.id)} on={s.id === section} onPress={() => setSection(s.id)}
+          <Chip key={s.id} label={sectionLabel(s.id)} help={sectionHelp(s.id)} on={s.id === section} onPress={() => setSection(s.id)}
             {...(s.id === 'alerts' && alerts > 0 ? { count: alerts, accessibilityLabel: t('reports.home.alertsChip', { count: alerts }) } : {})} />
         ))}
       </ChipRow>
       {clusters.length ? (
         <ChipRow>
-          <Chip label={t('reports.home.allLanguages')} icon="globe" count={every.length} on={filter.kind === 'all'} onPress={() => { setCluster({ kind: 'all' }); setCountry(''); }} />
+          <Chip label={t('reports.home.allLanguages')} icon="globe" count={every.length} help={t('reports.home.allLanguagesHelp')} on={filter.kind === 'all'} onPress={() => { setCluster({ kind: 'all' }); setCountry(''); }} />
           {clusters.map((c) => (
-            <Chip key={c.clusterId} label={c.name} icon="layers" count={c.languageIds.length} on={filter.kind === 'cluster' && filter.clusterId === c.clusterId}
+            <Chip key={c.clusterId} label={c.name} icon="layers" count={c.languageIds.length} help={t('reports.home.clusterHelp')} on={filter.kind === 'cluster' && filter.clusterId === c.clusterId}
               onPress={() => { setCluster({ kind: 'cluster', clusterId: c.clusterId }); setCountry(''); }} />
           ))}
-          {outside ? <Chip label={t('clusters.status.none')} count={outside} on={filter.kind === 'none'} onPress={() => { setCluster({ kind: 'none' }); setCountry(''); }} /> : null}
+          {outside ? <Chip label={t('clusters.status.none')} count={outside} help={t('reports.home.noClusterHelp')} on={filter.kind === 'none'} onPress={() => { setCluster({ kind: 'none' }); setCountry(''); }} /> : null}
         </ChipRow>
       ) : null}
       {spec.filterCountry && countries.length > 1 ? (
         <ChipRow>
-          <Chip label={t('reports.home.allCountries')} icon="globe" on={!country} onPress={() => setCountry('')} />
-          {countries.map((c) => <Chip key={c || 'none'} label={countryName(c || null)} on={country === c} onPress={() => setCountry(c)} />)}
+          <Chip label={t('reports.home.allCountries')} icon="globe" help={t('reports.home.allCountriesHelp')} on={!country} onPress={() => setCountry('')} />
+          {countries.map((c) => <Chip key={c || 'none'} label={countryName(c || null)} help={t('reports.home.countryHelp')} on={country === c} onPress={() => setCountry(c)} />)}
         </ChipRow>
       ) : null}
       {reports.status === 'loading' ? <EmptyState icon="progress" title={t('reports.home.loading')} /> : null}
       {reports.status === 'error' ? (
         <Notice tone={reports.offline ? 'amber' : 'red'} title={reports.offline ? t('reports.offlineTitle') : t('reports.home.couldNotRead')} body={reports.message}>
-          <View style={{ alignSelf: 'flex-start', marginTop: space.sm }}><SmallBtn label={t('common.tryAgain')} icon="restart" onPress={reports.reload} /></View>
+          <View style={{ alignSelf: 'flex-start', marginTop: space.sm }}><SmallBtn label={t('common.tryAgain')} icon="restart" help={t('help.details.tryAgain')} onPress={reports.reload} /></View>
         </Notice>
       ) : null}
       {reports.status === 'ready' && all.length === 0 ? <NoReports what="languages" /> : null}
@@ -137,8 +138,8 @@ export function ReportsLanguage(ctx: Ctx) {
       onBack={ctx.back} crumbs={[{ label: t('reports.title'), onPress: ctx.back }]}
       action={row ? (
         <View style={{ flexDirection: 'row', gap: space.sm }}>
-          <IconBtn name="download" label={t('reports.language.downloadBooks')} onPress={() => exportCsv(fileName(t('reports.files.books', { name: row.report.name })), languageCsv(row.report))} />
-          {canPrint ? <IconBtn name="share" label={t('reports.printOrSave')} onPress={printPage} /> : null}
+          <IconBtn name="download" label={t('reports.language.downloadBooks')} help={t('reports.language.downloadBooksHelp')} onPress={() => exportCsv(fileName(t('reports.files.books', { name: row.report.name })), languageCsv(row.report))} />
+          {canPrint ? <IconBtn name="share" label={t('reports.printOrSave')} help={t('reports.printOrSaveHelp')} onPress={printPage} /> : null}
         </View>
       ) : undefined} />
   );
@@ -147,7 +148,7 @@ export function ReportsLanguage(ctx: Ctx) {
       {reports.status === 'loading' ? <EmptyState icon="progress" title={t('reports.language.loading')} /> : null}
       {reports.status === 'error' ? (
         <Notice tone={reports.offline ? 'amber' : 'red'} title={reports.offline ? t('reports.offlineTitle') : t('reports.language.couldNotRead')} body={reports.message}>
-          <View style={{ alignSelf: 'flex-start', marginTop: space.sm }}><SmallBtn label={t('common.tryAgain')} icon="restart" onPress={reports.reload} /></View>
+          <View style={{ alignSelf: 'flex-start', marginTop: space.sm }}><SmallBtn label={t('common.tryAgain')} icon="restart" help={t('help.details.tryAgain')} onPress={reports.reload} /></View>
         </Notice>
       ) : null}
       {reports.status === 'ready' && !row ? (
@@ -309,15 +310,15 @@ function SettingsPanel(props: { ctx: Ctx; row: LanguageRow; refresh: () => void 
   const codes = useMemo(() => countryCodes(), []);
   const q = search.trim().toLowerCase();
   const choices = q ? codes.filter((c) => countryName(c).toLowerCase().includes(q) || c.toLowerCase() === q) : codes;
+  const countrySpot = useHelpSpot(country ? countryName(country) : t('reports.settings.chooseCountry'), t('reports.settings.countryHelp'), () => setPicking(true));
 
   async function save(what: 'country' | 'target') {
     setBusy(what);
     setStatus(null);
     try {
-      const deviceId = await ensureDeviceId(await getStore(), () => Crypto.randomUUID());
-      const who = { orgId: row.orgId, streamId: ORG_STREAM, actorId: ctx.session.actorId, deviceId, transport: serverTransport() };
-      if (what === 'country') await appendConfirmed(who, 'v1.LanguageCountrySet', { languageId: r.languageId, country });
-      else await appendConfirmed(who, 'v1.LanguageTargetSet', { languageId: r.languageId, scope, startDate: start, targetDate: end });
+      await saveLanguageSetting(row.orgId, ctx.session.actorId, what === 'country'
+        ? { type: 'v1.LanguageCountrySet', payload: { languageId: r.languageId, country } }
+        : { type: 'v1.LanguageTargetSet', payload: { languageId: r.languageId, scope, startDate: start, targetDate: end } });
       setStatus({ tone: 'green', text: t('reports.settings.saved') });
       props.refresh();
     } catch (e) {
@@ -331,36 +332,48 @@ function SettingsPanel(props: { ctx: Ctx; row: LanguageRow; refresh: () => void 
     <Panel title={t('reports.settings.title')} sub={t('reports.settings.sub')}>
       <Text style={txt.xsStrong}>{t('reports.settings.country')}</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, alignItems: 'center' }}>
-        <Pressable onPress={() => setPicking(true)} accessibilityRole="button"
+        <Pressable onPress={countrySpot.onPress} accessibilityRole="button"
           accessibilityLabel={country ? t('reports.settings.countryButton', { country: countryName(country) }) : t('reports.settings.countryButtonNone')}
           style={({ pressed }) => [{ minHeight: 48, paddingHorizontal: space.md, borderRadius: 12, borderWidth: 1, borderColor: C.border, justifyContent: 'center', backgroundColor: C.card }, pressed && { opacity: 0.6 }]}>
           <Text style={txt.body}>{country ? countryName(country) : t('reports.settings.chooseCountry')}</Text>
+          <HelpBadge spot={countrySpot} />
         </Pressable>
-        <SmallBtn label={busy === 'country' ? t('common.saving') : t('reports.settings.saveCountry')} tone="primary" onPress={() => void save('country')}
+        <SmallBtn label={busy === 'country' ? t('common.saving') : t('reports.settings.saveCountry')} tone="primary" help={t('reports.settings.saveCountryHelp')} onPress={() => void save('country')}
           disabled={busy !== '' || !country || country === r.country} />
       </View>
       <Text style={[txt.xsStrong, { marginTop: space.sm }]}>{t('reports.settings.target')}</Text>
-      <ChipRow>{TARGET_SCOPES.map((s) => <Chip key={s} label={scopeLabel(s)} on={scope === s} onPress={() => setScope(s)} />)}</ChipRow>
+      <ChipRow>{TARGET_SCOPES.map((s) => <Chip key={s} label={scopeLabel(s)} help={t('reports.settings.scopeHelp')} on={scope === s} onPress={() => setScope(s)} />)}</ChipRow>
       <Columns min={200}>
-        <Field label={t('reports.settings.start')} value={start} onChangeText={setStart} autoCapitalize="none" />
-        <Field label={t('reports.settings.finishBy')} value={end} onChangeText={setEnd} autoCapitalize="none" />
+        <Field label={t('reports.settings.start')} value={start} onChangeText={setStart} autoCapitalize="none" help={t('reports.settings.startHelp')} />
+        <Field label={t('reports.settings.finishBy')} value={end} onChangeText={setEnd} autoCapitalize="none" help={t('reports.settings.finishByHelp')} />
       </Columns>
       {!datesOk ? <Text style={txt.error} accessibilityRole="alert">{t('reports.settings.datesInvalid')}</Text> : null}
       <View style={{ alignSelf: 'flex-start' }}>
-        <SmallBtn label={busy === 'target' ? t('common.saving') : t('reports.settings.saveTarget')} tone="primary" onPress={() => void save('target')} disabled={busy !== '' || !datesOk} />
+        <SmallBtn label={busy === 'target' ? t('common.saving') : t('reports.settings.saveTarget')} tone="primary" help={t('reports.settings.saveTargetHelp')}
+          onPress={() => void save('target')} disabled={busy !== '' || !datesOk} />
       </View>
       {status ? <Notice tone={status.tone} title={status.text} /> : null}
       <Sheet visible={picking} title={t('reports.settings.country')} sub={r.name} onClose={() => setPicking(false)}>
         <SearchField value={search} onChangeText={setSearch} placeholder={t('reports.settings.findCountry')} />
         {choices.slice(0, 60).map((c) => (
-          <Pressable key={c} onPress={() => { setCountry(c); setPicking(false); setSearch(''); }} accessibilityRole="button" accessibilityState={{ selected: c === country }}
-            style={({ pressed }) => [{ minHeight: 48, justifyContent: 'center', paddingHorizontal: space.sm, borderBottomWidth: 1, borderColor: C.border }, pressed && { opacity: 0.6 }]}>
-            <Text style={[txt.body, c === country ? { color: C.primary, fontWeight: '700' } : null]}>{countryName(c)}</Text>
-          </Pressable>
+          <CountryChoice key={c} code={c} chosen={c === country} onPick={() => { setCountry(c); setPicking(false); setSearch(''); }} />
         ))}
         {choices.length > 60 ? <Text style={txt.xs}>{t('reports.settings.typeToFind', { count: choices.length - 60 })}</Text> : null}
       </Sheet>
     </Panel>
+  );
+}
+
+/** One country in the country sheet; the chosen one is in bold purple, as help mode says. */
+function CountryChoice(props: { code: string; chosen: boolean; onPick: () => void }) {
+  const name = countryName(props.code);
+  const spot = useHelpSpot(name, props.chosen ? t('reports.settings.chosenCountryHelp') : t('reports.settings.pickCountryHelp'), props.onPick);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ selected: props.chosen }}
+      style={({ pressed }) => [{ minHeight: 48, justifyContent: 'center', paddingHorizontal: space.sm, borderBottomWidth: 1, borderColor: C.border }, pressed && { opacity: 0.6 }]}>
+      <Text style={[txt.body, props.chosen ? { color: C.primary, fontWeight: '700' } : null]}>{name}</Text>
+      <HelpBadge spot={spot} inset />
+    </Pressable>
   );
 }
 

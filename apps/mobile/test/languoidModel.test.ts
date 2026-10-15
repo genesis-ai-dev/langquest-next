@@ -1,7 +1,7 @@
 // The language list's search results as the add-language picker shows them
-// (src/languoidModel.ts, docs/languoids.md).
+// (src/org/languoidModel.ts, docs/languoids.md).
 import { describe, expect, it } from 'vitest';
-import { hitLine, languoidHits, type LanguoidRow } from '../src/languoidModel';
+import { hitLine, languoidHits, type LanguoidRow } from '../src/org/languoidModel';
 
 const row = (r: Partial<LanguoidRow>): LanguoidRow => ({
   id: 'id', name: 'Name', level: 'language', parent_name: null, matched_alias_name: null, matched_alias_type: null, iso_code: null, glottocode: null, ...r

@@ -1,10 +1,10 @@
 import { CommandError, type EventSpec } from '@langquest-next/core';
 import { useCallback, useRef } from 'react';
-import { commandErrorText } from '../coreText';
+import { commandErrorText } from '../i18n/coreText';
 import { t } from '../i18n';
-import type { ToastSpec } from '../kit';
-import { reportError } from '../report';
-import type { LanguageHandle } from '../useLanguage';
+import type { ToastSpec } from '../ui/kit';
+import { reportError } from '../diagnostics/report';
+import type { LanguageHandle } from '../sync/useLanguage';
 
 /**
  * Saying what happened (CORE-5), and applying a command's events then

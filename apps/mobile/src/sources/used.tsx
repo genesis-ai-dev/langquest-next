@@ -4,34 +4,17 @@
 // version or review it describes. The passage record shows it again under
 // each version and each review.
 import { usedOn, type LanguageState, type UsedReference } from '@langquest-next/core';
-import { useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import type { Ctx } from '../ctx';
+import { Text } from '../ui/text';
+import type { Ctx } from '../shell/ctx';
+import { HelpBadge } from '../helpMode/helpBadge';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
-import { Ico, txt } from '../kit';
-import { C, radius, space } from '../theme';
-import { madeWithLine, usedItems } from './model';
-
-export interface Usage {
-  /** Offered on this screen: kept once, updated as documents arrive. */
-  offer: (items: UsedReference[]) => void;
-  /** Played, chosen or opened. */
-  open: (itemId: string) => void;
-  /** What to record now. */
-  items: () => UsedReference[];
-}
-
-/** One screen's record of what it offered and what was used, for the length of the visit. */
-export function useUsage(): Usage {
-  const offered = useRef(new Map<string, UsedReference>());
-  const opened = useRef(new Set<string>());
-  return useMemo<Usage>(() => ({
-    offer: (items) => { for (const i of items) offered.current.set(i.itemId, { ...i, opened: offered.current.get(i.itemId)?.opened ?? i.opened }); },
-    open: (itemId) => { opened.current.add(itemId); },
-    items: () => usedItems(offered.current, opened.current)
-  }), []);
-}
+import { Ico } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { C, radius, space } from '../ui/theme';
+import { madeWithLine } from './model';
 
 function kindName(kind: UsedReference['kind']): string {
   switch (kind) {
@@ -46,15 +29,17 @@ function kindName(kind: UsedReference['kind']): string {
 export function UsedLine(props: { ctx: Ctx; state: LanguageState; subject: { takeId?: string; reviewId?: string }; detailsKey: string }) {
   const items = useMemo(() => usedOn(props.state, props.subject), [props.state, props.subject.takeId, props.subject.reviewId]); // eslint-disable-line react-hooks/exhaustive-deps
   const d = props.ctx.details(props.detailsKey);
+  const spot = useHelpSpot(items.length ? madeWithLine(items) : '', d.open ? t('help.details.disclosureOpen') : t('sources.used.showHelp'), items.length ? d.onToggle : undefined);
   if (items.length === 0) return null;
   return (
     <View style={styles.box}>
-      <Pressable onPress={d.onToggle} accessibilityRole="button" accessibilityState={{ expanded: d.open }}
+      <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ expanded: d.open }}
         accessibilityLabel={d.open ? t('sources.used.hideList', { line: madeWithLine(items) }) : t('sources.used.showList', { line: madeWithLine(items) })}
         style={({ pressed }) => [styles.line, pressed && { opacity: 0.7 }]}>
         <Ico name="book" size={16} color={C.muted} />
         <Text style={[txt.xs, { flex: 1 }]} numberOfLines={d.open ? undefined : 2}>{madeWithLine(items)}</Text>
         <Ico name={d.open ? 'up' : 'down'} size={16} color={C.muted} />
+        <HelpBadge spot={spot} inset />
       </Pressable>
       {d.open ? items.map((u) => (
         <View key={u.itemId} style={styles.item}>

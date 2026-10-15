@@ -11,12 +11,14 @@
 // turns pale and says so, with Resume now.
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, PanResponder, Pressable, StyleSheet, View } from 'react-native';
-import { Text } from '../text';
+import { Text } from '../ui/text';
+import { HelpBadge } from '../helpMode/helpBadge';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { Ico } from '../kit';
-import { C, onColor, radius, space, target, TINT, type as T, withAlpha } from '../theme';
-import { useEnergyHistory, type useRecorder } from '../useRecorder';
+import { HelpInfo, Ico } from '../ui/kit';
+import { C, onColor, radius, space, target, TINT, type as T, withAlpha } from '../ui/theme';
+import { useEnergyHistory, type useRecorder } from './useRecorder';
 import { RecordButton } from './parts';
 import { clampCutoff, cutoffAfterDrag, loopStatus, meterHeight, type LoopNoun, type LoopPhase } from './splitModel';
 import { mmss } from './workspaceModel';
@@ -90,6 +92,9 @@ function pauseChoices(): { ms: number; label: string }[] {
   ];
 }
 
+/** The cutoff line's press while help is on: it explains itself; it is moved by dragging. */
+const DRAG_ONLY = () => undefined;
+
 /**
  * The recorder pane's body while a session is on (`phase` not off). `count`
  * is how many takes are on the list so far, so each finished part visibly
@@ -117,8 +122,13 @@ export function VadPanel(props: { rec: Recorder; phase: LoopPhase; count: number
   })).current;
   const status = loopStatus(props.phase, rec.vadCapturing, props.count, props.noun);
   const fg = listening ? IDLE : C.white;
+  const resume = useHelpSpot(t('recording.resumeNow'), t('recording.vad.resumeHelp'), listening ? props.onResume : undefined);
+  // While help is on, a tap on the bars explains the line and a drag moves nothing.
+  const line = useHelpSpot(t('recording.vad.cutoff'), t('recording.vad.cutoffHelp'), listening ? undefined : DRAG_ONLY);
   return (
     <View style={[styles.panel, { backgroundColor: listening ? TINT.red : rec.vadCapturing ? LIVE : IDLE }]}>
+      {/* The dot, the count and the time carry no words: while help is on, the row says what they are. */}
+      <HelpInfo label={status} detail={listening ? t('recording.vad.statusPausedHelp') : t('recording.vad.statusHelp')}>
       <View style={styles.status} accessible accessibilityLiveRegion="polite" accessibilityLabel={status}>
         {listening ? <Ico name="pause" size={22} color={fg} /> : <PulsingDot on={rec.vadCapturing} />}
         <Ico name="mic" size={22} color={fg} />
@@ -126,19 +136,21 @@ export function VadPanel(props: { rec: Recorder; phase: LoopPhase; count: number
         <View style={{ flex: 1 }} />
         <Elapsed running={props.phase === 'recording'} color={fg} />
       </View>
+      </HelpInfo>
       {listening ? (
         <View style={styles.paused}>
           <Text style={[styles.pausedTitle, { color: IDLE }]}>{t('recording.vad.pausedForSource')}</Text>
           <Text style={[styles.pausedSub, { color: IDLE }]}>{t('recording.vad.startsAgain')}</Text>
-          <Pressable onPress={props.onResume} accessibilityRole="button" accessibilityLabel={t('recording.resumeRecordingNow')}
+          <Pressable onPress={resume.onPress} accessibilityRole="button" accessibilityLabel={t('recording.resumeRecordingNow')}
             style={({ pressed }) => [styles.resume, pressed && { opacity: 0.8 }]}>
             <Ico name="mic" size={18} color={C.white} />
             <Text style={styles.resumeLabel}>{t('recording.resumeNow')}</Text>
+            <HelpBadge spot={resume} />
           </Pressable>
         </View>
       ) : (
         <View style={styles.wave} onLayout={(e) => setHeight(e.nativeEvent.layout.height)}
-          {...pan.panHandlers} accessible accessibilityRole="adjustable"
+          {...(line.id ? {} : pan.panHandlers)} accessible accessibilityRole="adjustable"
           accessibilityLabel={t('recording.vad.cutoff')} accessibilityValue={{ min: 4, max: 92, now: Math.round(cutoff * 100) }}
           accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
           onAccessibilityAction={(event) => {
@@ -148,6 +160,11 @@ export function VadPanel(props: { rec: Recorder; phase: LoopPhase; count: number
           <EnergyBars captured={rec.vadCapturing} />
           {/* The bars are centred, so the line sits where a bar at the cutoff ends at the top. */}
           <View style={[{ pointerEvents: 'none' }, styles.cutoff, { top: `${(0.5 - meterHeight(cutoff) / 2) * 100}%` }]} />
+          {line.id ? (
+            <Pressable onPress={line.onPress} accessibilityRole="button" accessibilityLabel={t('recording.vad.cutoff')} style={StyleSheet.absoluteFill}>
+              <HelpBadge spot={line} />
+            </Pressable>
+          ) : null}
         </View>
       )}
       {rec.error ? <Text style={styles.error} accessibilityRole="alert">{rec.error}</Text> : null}
@@ -165,18 +182,24 @@ export function VadControls(props: { rec: Recorder; onStop: () => void }) {
     <View style={styles.controls}>
       <RecordButton recording onPress={props.onStop} />
       <View style={styles.pauses} accessibilityLabel={t('recording.vad.pauseBetween')}>
-        {pauseChoices().map((p, index) => {
-          const on = p.ms === rec.pauseDuration;
-          return (
-            <Pressable key={p.ms} onPress={() => void rec.setPause(p.ms)} accessibilityRole="button"
-              accessibilityLabel={p.label} accessibilityState={{ selected: on }}
-              style={({ pressed }) => [styles.pause, on && { backgroundColor: IDLE, borderColor: IDLE }, pressed && { opacity: 0.8 }]}>
-              {Array.from({ length: index + 1 }, (_, i) => <View key={i} style={[styles.pauseDot, { backgroundColor: on ? C.white : IDLE }]} />)}
-            </Pressable>
-          );
-        })}
+        {pauseChoices().map((p, index) => (
+          <PauseChip key={p.ms} label={p.label} dots={index + 1} on={p.ms === rec.pauseDuration} onPress={() => void rec.setPause(p.ms)} />
+        ))}
       </View>
     </View>
+  );
+}
+
+/** One pause length: one, two or three dots for short, normal and long. */
+function PauseChip(props: { label: string; dots: number; on: boolean; onPress: () => void }) {
+  const spot = useHelpSpot(props.label, t('recording.vad.pauseHelp'), props.onPress);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="button"
+      accessibilityLabel={props.label} accessibilityState={{ selected: props.on }}
+      style={({ pressed }) => [styles.pause, props.on && { backgroundColor: IDLE, borderColor: IDLE }, pressed && { opacity: 0.8 }]}>
+      {Array.from({ length: props.dots }, (_, i) => <View key={i} style={[styles.pauseDot, { backgroundColor: props.on ? C.white : IDLE }]} />)}
+      <HelpBadge spot={spot} />
+    </Pressable>
   );
 }
 

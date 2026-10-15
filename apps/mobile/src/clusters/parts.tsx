@@ -2,28 +2,24 @@
 // (amber, so it never reads as a language), and a language's Cluster row,
 // which opens the clusters it is in to change them. The model is
 // clusters/model.ts; the cluster's own page is ClusterHome (screens/org.tsx).
-import { clustersOf, mayManageClusters, orgClusters, type ClusterInfo, type OrgState } from '@langquest-next/core';
+import { clustersOf, mayManageClusters, orgClusters, type ClusterInfo } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useState } from 'react';
 import { View } from 'react-native';
-import type { Ctx } from '../ctx';
+import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
-import { Field, PrimaryBtn, Row, Sheet, txt } from '../kit';
-import { failureMessage } from '../report';
-import { CheckRow, IconTile } from '../simple/admin';
-import { Text } from '../text';
-import { TINT } from '../theme';
-import { clusterEvents, clusterNamed, clusterNames, newClusterId, type ClusterEvent } from './model';
+import { Field, PrimaryBtn, Row, Sheet } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { failureMessage } from '../diagnostics/report';
+import { CheckRow, IconTile } from '../admin/admin';
+import { Text } from '../ui/text';
+import { TINT } from '../ui/theme';
+import { clusterEvents, clusterNamed, newClusterId, type ClusterEvent } from './model';
+import { clusterSub, appendClusterEvents } from './clusterActions';
 
 /** A cluster's tile: layers, in amber. */
 export function ClusterTile(props: { size?: number }) {
   return <IconTile icon="layers" size={props.size ?? 44} bg={TINT.amber} color={TINT.amberText} />;
-}
-
-/** "5 languages · Northeastern Dinka, Northwestern Dinka, South Central Dinka…" */
-export function clusterSub(org: OrgState | null, c: ClusterInfo): string {
-  const names = clusterNames(org, c).join(t('admin.list.separator'));
-  return t('clusters.row.sub', { count: c.languageIds.length, names: c.languageIds.length > 3 ? t('clusters.row.namesMore', { names }) : names });
 }
 
 /** A cluster as a row of the organization's languages: tapping it opens its page. */
@@ -31,16 +27,8 @@ export function ClusterRow(props: { ctx: Ctx; c: ClusterInfo; current?: boolean;
   const { ctx, c } = props;
   return (
     <Row leading={<ClusterTile />} label={c.name} sub={clusterSub(ctx.org.state, c)} current={!!props.current} last={!!props.last}
-      testID={`cluster-${c.clusterId}`} onPress={() => ctx.go('cluster_home', { clusterId: c.clusterId })} />
+      testID={`cluster-${c.clusterId}`} help={t('clusters.row.openHelp')} onPress={() => ctx.go('cluster_home', { clusterId: c.clusterId })} />
   );
-}
-
-/** Append a cluster's events in order, to the organization's stream. */
-export async function appendClusterEvents(ctx: Ctx, events: readonly ClusterEvent[]): Promise<void> {
-  for (const e of events) {
-    if (e.type === 'v1.ClusterNamed') await ctx.org.append('v1.ClusterNamed', e.payload);
-    else await ctx.org.append('v1.LanguageClusterSet', e.payload);
-  }
 }
 
 /**
@@ -92,20 +80,20 @@ export function LanguageClustersRow(props: { ctx: Ctx; languageId: string; langu
   return (
     <>
       <Row leading={<ClusterTile size={40} />} label={t('clusters.language.label')} sub={sub} last={!!props.last} testID="language-clusters"
-        {...(may ? { onPress: start } : {})} />
+        help={t('clusters.language.rowHelp')} {...(may ? { onPress: start } : {})} />
       <Sheet visible={open} title={t('clusters.language.sheetTitle')} sub={props.language} onClose={() => setOpen(false)}
-        footer={<PrimaryBtn label={t('clusters.language.done')} icon="check" busy={busy} onPress={() => void save()} />}>
+        footer={<PrimaryBtn label={t('clusters.language.done')} icon="check" busy={busy} help={t('clusters.language.doneHelp')} onPress={() => void save()} />}>
         {all.length ? (
           <View>
             {all.map((c, i) => (
               <CheckRow key={c.clusterId} label={c.name} sub={t('clusters.language.count', { count: c.languageIds.length })} checked={picked.has(c.clusterId)}
-                last={i === all.length - 1}
+                last={i === all.length - 1} detail={picked.has(c.clusterId) ? t('clusters.language.inHelp') : t('clusters.language.outHelp')}
                 onToggle={() => setPicked((cur) => { const next = new Set(cur); if (next.has(c.clusterId)) next.delete(c.clusterId); else next.add(c.clusterId); return next; })} />
             ))}
           </View>
         ) : null}
         <Field label={all.length ? t('clusters.language.newLabel') : t('clusters.language.firstLabel')} value={fresh} onChangeText={setFresh}
-          placeholder={t('clusters.newLanguage.clusterPlaceholder')} autoCapitalize="words" />
+          placeholder={t('clusters.newLanguage.clusterPlaceholder')} autoCapitalize="words" help={t('clusters.language.newHelp')} />
         <Text style={txt.smMuted}>{t('clusters.language.note')}</Text>
         {error ? <Text style={[txt.sm, { color: TINT.amberText }]}>{error}</Text> : null}
       </Sheet>

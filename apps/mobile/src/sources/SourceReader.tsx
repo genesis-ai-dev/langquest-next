@@ -7,23 +7,28 @@
 // view, a tap on a verse to play on from there, ±10 seconds, and each
 // source's copyright. States are honest: no audio says so, nothing is
 // simulated, and the built-in text says it is a last resort.
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import type { Ctx } from '../ctx';
+import { Text } from '../ui/text';
+import type { Ctx } from '../shell/ctx';
+import { HelpBadge } from '../helpMode/helpBadge';
+import { useHelpOn, useHelpSpot } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { IconBtn, Ico, LinkBtn, txt } from '../kit';
+import { IconBtn, Ico, LinkBtn } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import type { ListenHooks } from '../recording/useListenLoop';
 import { markTerms } from '../recording/workspaceModel';
-import { openContentLink } from '../share';
-import { lift } from '../shadow';
-import { C, radius, space, target, TINT, type as T, withAlpha } from '../theme';
-import { emptyBibleText, filesetsFor, sourceUsed, type SourceOption, type VerseRow } from './model';
-import { PlayError, usePassagePlayer } from './player';
-import type { Usage } from './used';
+import { openContentLink } from '../ui/share';
+import { lift } from '../ui/shadow';
+import { C, radius, space, target, TINT, type as T, withAlpha } from '../ui/theme';
+import { emptyBibleText, type SourceOption, type VerseRow } from './model';
+import { PlayError } from './player';
+import { usePassagePlayer } from './usePassagePlayer';
+import type { Usage } from './useUsage';
 import { useChipMarks, usePassageSource, useSources, type PassageSources } from './useSources';
+import { choiceKey, chipLabel, copyrightLine, anchorClock } from './sourceText';
+import { useChoice, useOffer } from './useSourceChoice';
 
 /** Faith Comes By Hearing's terms for Bible Brain (DBP) content. */
 const DBP_TERMS = 'https://www.faithcomesbyhearing.com/bible-brain/license';
@@ -58,44 +63,6 @@ interface SourceReaderProps {
   verse?: VerseExtras;
   /** The pane's scroll view, so the verse playing stays in view; the reader must sit directly in its content. */
   scrollRef?: RefObject<ScrollView | null>;
-}
-
-export const choiceKey = (actorId: string, orgId: string, languageId: string) => `source-choice:${actorId}:${orgId}:${languageId}`;
-const choices = new Map<string, string>();
-
-/** The version chosen last for this language on this phone, shared by the recorder, the study and the review. */
-export function useChoice(key: string): [string | null, (itemId: string) => void] {
-  const [chosen, setChosen] = useState<string | null>(choices.get(key) ?? null);
-  useEffect(() => {
-    if (choices.has(key)) return;
-    void AsyncStorage.getItem(key).then((v) => { if (v) { choices.set(key, v); setChosen(v); } }).catch(() => undefined);
-  }, [key]);
-  return [chosen, (itemId: string) => {
-    choices.set(key, itemId);
-    setChosen(itemId);
-    void AsyncStorage.setItem(key, itemId).catch(() => undefined);
-  }];
-}
-
-/** Put every source offered for this passage in the screen's record of what was used. */
-export function useOffer(usage: Usage | undefined, passage: PassageSources): void {
-  useEffect(() => {
-    if (!usage || !passage.range) return;
-    usage.offer(passage.options.map((o) => {
-      const f = filesetsFor(o, passage.range!.book);
-      return sourceUsed(o, { ref: passage.ref, opened: false, filesets: [f.text, f.audio].filter((x): x is string => !!x) });
-    }));
-  }, [usage, passage.options, passage.range, passage.ref]);
-}
-
-/**
- * Offer the passage's sources to the record without showing them: for a
- * screen where the reader sits behind a disclosure (the reviewer's
- * Background), so what was offered is recorded whether or not it was opened.
- */
-export function useOfferedSources(ctx: Ctx, unitId: string | undefined, languageId: string | undefined, usage: Usage | undefined): void {
-  const passage = useSources(ctx, unitId, languageId);
-  useOffer(usage, passage);
 }
 
 export function SourceReader(props: SourceReaderProps) {
@@ -181,13 +148,7 @@ export function SourceView(props: SourceReaderProps & {
       {passage.options.map((o) => (
         <VersionChip key={o.itemId} option={o} label={chipLabel(o, passage.options)} on={o.itemId === option?.itemId} marks={marks[o.itemId] ?? []} onPress={() => props.onChoose?.(o)} />
       ))}
-      {props.onMoreBibles ? (
-        <Pressable onPress={props.onMoreBibles} accessibilityRole="button" accessibilityLabel={t('sources.reader.moreBiblesLabel')}
-          style={({ pressed }) => [styles.chip, styles.moreChip, pressed && styles.pressed]}>
-          <Ico name="plus" size={18} color={C.primary} />
-          <Text style={[styles.chipLabel, { color: C.primary }]}>{t('sources.reader.moreBibles')}</Text>
-        </Pressable>
-      ) : null}
+      {props.onMoreBibles ? <MoreBiblesChip onPress={props.onMoreBibles} /> : null}
     </ScrollView>
   );
 
@@ -195,10 +156,10 @@ export function SourceView(props: SourceReaderProps & {
     <View style={styles.card}>
       {plan ? (
         <View style={styles.playerRow}>
-          <IconBtn name="restart" label={t('common.backTenSeconds')} size={target.min} bg={C.light} color={C.primary} disabled={!player.started} onPress={() => player.skip(-10)} />
+          <IconBtn name="restart" label={t('common.backTenSeconds')} help={t('recording.player.back10Help')} size={target.min} bg={C.light} color={C.primary} disabled={!player.started} onPress={() => player.skip(-10)} />
           <IconBtn name={player.playing ? 'pause' : 'play'} size={target.primary} bg={C.light} color={C.primary}
-            label={player.playing ? t('common.pause') : t('sources.reader.playIn', { abbr })} onPress={player.toggle} />
-          <IconBtn name="skip" label={t('sources.reader.forwardTen')} size={target.min} bg={C.light} color={C.primary} disabled={!player.started} onPress={() => player.skip(10)} />
+            label={player.playing ? t('common.pause') : t('sources.reader.playIn', { abbr })} help={t('recording.player.playHelp')} onPress={player.toggle} />
+          <IconBtn name="skip" label={t('sources.reader.forwardTen')} help={t('sources.reader.forwardHelp')} size={target.min} bg={C.light} color={C.primary} disabled={!player.started} onPress={() => player.skip(10)} />
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={[txt.sm, { fontWeight: '700' }]} numberOfLines={1}>
               {player.loading ? t('common.loading') : player.playing ? (player.current ? t('sources.reader.playingVerse', { verse: player.current.key }) : t('sources.reader.playing'))
@@ -240,24 +201,8 @@ export function SourceView(props: SourceReaderProps & {
         });
         return (
           <View key={row.key} onLayout={(e) => { rowsY.current[row.key] = e.nativeEvent.layout.y; }}>
-            <Pressable onPress={() => tapRow(row)} accessibilityRole="button" accessibilityState={{ selected: here || isSel }}
-              accessibilityLabel={t('sources.reader.verseLabel', { verse: row.key, text: row.text })} accessibilityHint={plan && timed ? t('sources.reader.playsFromVerse') : undefined}
-              style={({ pressed }) => [styles.verse, here && styles.playing, isSel && styles.selected, pressed && styles.pressed]}>
-              <Text style={[styles.verseNum, here && { color: C.primary }]}>{row.key}</Text>
-              <Text style={[styles.verseText, { flex: 1 }]}>
-                {markTerms(row.text, terms).map((part, i) => {
-                  if (!part.termId) return <Text key={i}>{part.text}</Text>;
-                  const tied = props.tied?.has(part.termId) ?? false;
-                  const onTerm = props.onTerm;
-                  return (
-                    <Text key={i} {...(onTerm ? { onPress: () => onTerm(part.termId!), accessibilityRole: 'link' as const } : {})}
-                      accessibilityLabel={tied ? t('sources.reader.keyTermTied', { term: part.text }) : t('sources.reader.keyTerm', { term: part.text })}
-                      style={[styles.term, tied ? styles.termTied : null]}>{part.text}{tied ? ' ✓' : ''}</Text>
-                  );
-                })}
-              </Text>
-              {badge > 0 && !isSel ? <View style={styles.count}><Text style={styles.countText}>{formatNumber(badge)}</Text></View> : null}
-            </Pressable>
+            <VerseRowView row={row} here={here} selected={isSel} badge={badge} timed={!!plan && timed} choosable={!!props.verse} terms={terms}
+              tied={props.tied} onTerm={props.onTerm} onPress={() => tapRow(row)} />
             {below}
           </View>
         );
@@ -273,7 +218,7 @@ export function SourceView(props: SourceReaderProps & {
         <Text style={txt.xs}>{t('sources.reader.builtIn')}</Text>
       ) : option.sharedBy ? <Text style={txt.xs}>{t('sources.reader.sharedBy', { org: option.sharedBy })}</Text> : null}
       {copyrightLine(src.copyright) ? <Text style={txt.xs}>{t('sources.reader.copyright', { abbr: option.abbreviation, line: copyrightLine(src.copyright) })}</Text> : null}
-      {src.bibleBrain ? <LinkBtn label={t('sources.reader.terms')} style={{ alignSelf: 'flex-start' }} accessibilityLabel={t('sources.reader.termsLabel')} onPress={() => openContentLink(DBP_TERMS)} /> : null}
+      {src.bibleBrain ? <LinkBtn label={t('sources.reader.terms')} style={{ alignSelf: 'flex-start' }} accessibilityLabel={t('sources.reader.termsLabel')} help={t('sources.reader.termsHelp')} onPress={() => openContentLink(DBP_TERMS)} /> : null}
     </View>
   ) : null;
 
@@ -298,34 +243,14 @@ export function SourceView(props: SourceReaderProps & {
   );
 }
 
-/** The abbreviation, and when two versions share it, what tells them apart ("BSB · read by Frederick Surrey"). */
-export function chipLabel(o: SourceOption, all: SourceOption[]): string {
-  const twin = all.find((x) => x !== o && x.abbreviation === o.abbreviation);
-  if (!twin) return o.abbreviation;
-  let i = 0;
-  while (i < o.name.length && o.name[i] === twin.name[i]) i++;
-  const rest = o.name.slice(i).replace(/^[\s,;:–-]+/, '').trim();
-  return `${o.abbreviation} · ${rest || (o.doc?.provider.kind === 'library' || o.kind === 'library' && !o.doc ? t('sources.reader.chipLibrary') : t('sources.reader.chipBibleBrain'))}`;
-}
-
-export function copyrightLine(c: { text?: string; audio?: string }): string {
-  if (c.text && c.audio && c.text !== c.audio) return t('sources.reader.copyrightBoth', { text: c.text, audio: c.audio });
-  return c.text ?? c.audio ?? '';
-}
-
-/** Where playback paused, as a note's anchor stores it ("0:42"): plain digits in every language, since it is kept in the event log. */
-export function anchorClock(ms: number): string {
-  const s = Math.max(0, Math.round(ms / 1000));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-}
-
 /** A version: its abbreviation, and under it what it has here ("no audio", "offline ✓"). */
 function VersionChip(props: { option: SourceOption; label: string; on: boolean; marks: string[]; onPress: () => void }) {
   const o = props.option;
   const from = o.from === 'language' || o.from === 'organization' ? t('sources.reader.fromRecommended') : o.from === 'mine' ? t('sources.reader.fromMine')
     : o.from === 'passage' ? t('sources.reader.fromPassage') : null;
+  const spot = useHelpSpot(props.label, t('sources.reader.versionHelp'), props.onPress);
   return (
-    <Pressable onPress={props.onPress} accessibilityRole="button" accessibilityState={{ selected: props.on }}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ selected: props.on }}
       accessibilityLabel={[o.name, from, ...props.marks].filter(Boolean).join(t('sources.listSeparator'))}
       style={({ pressed }) => [styles.chip, props.on && styles.chipOn, pressed && styles.pressed]}>
       <View>
@@ -334,6 +259,65 @@ function VersionChip(props: { option: SourceOption; label: string; on: boolean; 
           <Text style={[styles.chipMarks, { color: props.on ? withAlpha(C.white, 0.85) : C.muted }]} numberOfLines={1}>{props.marks.join(' · ')}</Text>
         ) : null}
       </View>
+      <HelpBadge spot={spot} />
+    </Pressable>
+  );
+}
+
+/** + More Bibles, at the end of the versions: find and add another. */
+function MoreBiblesChip(props: { onPress: () => void }) {
+  const spot = useHelpSpot(t('sources.reader.moreBibles'), t('reference.bible.moreBiblesSub'), props.onPress);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('sources.reader.moreBiblesLabel')}
+      style={({ pressed }) => [styles.chip, styles.moreChip, pressed && styles.pressed]}>
+      <Ico name="plus" size={18} color={C.primary} />
+      <Text style={[styles.chipLabel, { color: C.primary }]}>{t('sources.reader.moreBibles')}</Text>
+      <HelpBadge spot={spot} />
+    </Pressable>
+  );
+}
+
+/**
+ * One verse: a tap plays on from it (when the audio is timed) and chooses
+ * it (where a note can be added). Its key words open where `onTerm` is
+ * given; while help is on they do not, and the verse says what its marks mean.
+ */
+function VerseRowView(props: {
+  row: VerseRow; here: boolean; selected: boolean; badge: number; timed: boolean; choosable: boolean;
+  terms: { termId: string; term: string }[]; tied?: ReadonlySet<string>; onTerm?: (termId: string) => void; onPress: () => void;
+}) {
+  const { row } = props;
+  const helpOn = useHelpOn();
+  const parts = markTerms(row.text, props.terms);
+  const termIds = parts.flatMap((p) => (p.termId ? [p.termId] : []));
+  const detail = [
+    props.timed && props.choosable ? t('sources.reader.verseHelpPlaysNote') : props.timed ? t('sources.reader.verseHelpPlays') : props.choosable ? t('sources.reader.verseHelpNote') : null,
+    termIds.length ? (props.onTerm ? t('reference.bible.verseTermsHelp') : t('reference.bible.verseTermsMarkedHelp')) : null,
+    termIds.some((id) => props.tied?.has(id)) ? t('reference.bible.verseTiedHelp') : null,
+    props.badge > 0 && !props.selected ? t('reference.bible.verseNotesHelp') : null
+  ].filter(Boolean).join(' ');
+  // Only a verse that does something, or has marks to explain, is a part.
+  const acts = props.timed || props.choosable || termIds.length > 0 || props.badge > 0;
+  const spot = useHelpSpot(t('reference.bible.verse', { verse: row.key }), detail || undefined, acts ? props.onPress : undefined);
+  const onTerm = helpOn ? undefined : props.onTerm;
+  return (
+    <Pressable onPress={spot.id ? spot.onPress : props.onPress} accessibilityRole="button" accessibilityState={{ selected: props.here || props.selected }}
+      accessibilityLabel={t('sources.reader.verseLabel', { verse: row.key, text: row.text })} accessibilityHint={props.timed ? t('sources.reader.playsFromVerse') : undefined}
+      style={({ pressed }) => [styles.verse, props.here && styles.playing, props.selected && styles.selected, pressed && styles.pressed]}>
+      <Text style={[styles.verseNum, props.here && { color: C.primary }]}>{row.key}</Text>
+      <Text style={[styles.verseText, { flex: 1 }]}>
+        {parts.map((part, i) => {
+          if (!part.termId) return <Text key={i}>{part.text}</Text>;
+          const tied = props.tied?.has(part.termId) ?? false;
+          return (
+            <Text key={i} {...(onTerm ? { onPress: () => onTerm(part.termId!), accessibilityRole: 'link' as const } : {})}
+              accessibilityLabel={tied ? t('sources.reader.keyTermTied', { term: part.text }) : t('sources.reader.keyTerm', { term: part.text })}
+              style={[styles.term, tied ? styles.termTied : null]}>{part.text}{tied ? ' ✓' : ''}</Text>
+          );
+        })}
+      </Text>
+      {props.badge > 0 && !props.selected ? <View style={styles.count}><Text style={styles.countText}>{formatNumber(props.badge)}</Text></View> : null}
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }

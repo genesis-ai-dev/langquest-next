@@ -2,10 +2,10 @@
 // (the demo's TemplateEditorScreen, TPL-9). The screen keeps its sheets.
 import { useMemo, useState } from 'react';
 import { templateBooks, withBookBrokenUp, type LibraryItemView, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
-import { docFromForm, formChanged, type TemplateForm } from '../contentTemplates';
-import type { Ctx } from '../ctx';
+import { docFromForm, formChanged, type TemplateForm } from './contentTemplates';
+import type { Ctx } from '../shell/ctx';
 import { useLibraryDocs } from '../library/useLibrary';
-import { useRunner, useVersifications, type Lib } from './hooks';
+import { useRunner, useVersifications, type Lib } from './useRunner';
 import {
   editorSub, formReady, orgNameOf, publishedVersion, redividedBooks, savedToast, usersOf, versificationLabel
 } from './model';

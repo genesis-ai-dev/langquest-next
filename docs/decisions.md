@@ -2225,6 +2225,34 @@ one). The list is read once per run and shared
 (`account/useOrganizations.ts`), so the row does not jump between Me and
 More settings.
 
+Amended (2026-10-14, Caleb Koster): every part explains itself. Caleb asked
+for help on every element that should have it, with the principle behind it
+applied across the app. What deserves help:
+1. Everything a person can tap, type in, switch or drag is a part: while help
+   is on it lights, takes a number, and explains itself instead of acting.
+   Before, about 90 controls outside the kit still acted, as did the kit's
+   tappable cards, sections that open in place, Show more, fields, switches,
+   Back and the tabs, so a tap in help mode could leave the screen or open the
+   keyboard. Back now explains itself too: the ? is the one way out of help.
+2. A part says what tapping it does, not only its name. Buttons, chips,
+   tappable cards and rows whose label is one word or a name carry a line
+   (`help` on the kit's controls; a Row's `sub` unless `help` is given).
+3. A mark that means something without words (the sync dot and ring, a
+   step's state marks, a bar or a bare count) explains itself (kit's
+   `HelpInfo`), or the part it sits in says what it means.
+Plain words that say what they are need nothing. Sheets have their own ?: on
+a phone a sheet is a window of its own, so help draws inside it and lights
+only its parts (`useHelpHost`), and help turns off when a sheet opens or
+closes. `apps/mobile/test/helpParts.ts`, run by `helpMode.test.ts`, fails on a
+control without its line; a `help-ignore:` comment marks the few that need
+none (a sheet's backdrop, toasts, the crash screen, the update banner above
+the help layer). The 883 English lines add 59 KB to what a first visit
+downloads on the web, so its budget rose from 6.1 to 6.25 MB
+(`apps/mobile/scripts/export-web.mjs`, 6.17 MB then).
+Reverse if: people stop using help because the extra numbers crowd a screen
+(then number only the parts in reach of the ? first), or a line per part
+costs more to translate and record than field tests show it saves.
+
 ## 72. Apps, agents and review links take part through reviews and releases; outside reviews never clear a checkpoint
 
 Date: 2026-10-08 · By: Ryder Wishart · Status: partly superseded by 79
@@ -3817,6 +3845,69 @@ client per area with errors mapped once; or feature folders start
 importing each other in a cycle, which would mean a shared layer belongs
 below them.
 
+Amended (2026-10-15, Carl Sauder): ESLint holds what may import what
+(`eslint.config.mjs`, `npm run lint`, in CI's `checks` job and the
+pre-push hook). Core imports nothing; sync only core and supabase-js (its
+`src/testing`, Node built-ins too); nothing outside `src/server` imports
+the Supabase client or supabase-js (types aside); nothing but `App.tsx`
+and other screens imports a screen file; screens import no AsyncStorage,
+SQLite, file system or event store; `model.ts` and `*Model.ts` import no
+React, React Native, Expo, storage, `server/`, hooks or UI (types aside);
+`src/server` imports no React, screens or shell; packages are imported by
+their entry. Carl asked for it as strict as is reasonable: an audit after
+the restructure found three feature models importing
+`screens/configModel.ts` (now `src/config/model.ts`) and three screens
+reaching storage themselves, which tests had not caught. React's
+rules-of-hooks is on too; exhaustive-deps is not yet, since turning it on
+means reviewing 55 effects whose re-runs would change.
+
+Amended (2026-10-15, Carl Sauder): part two is done, earlier than planned.
+Carl chose to make the moves while six pull requests were open rather than
+wait for the three that overlap (96, 120, 126), so the moves are a codemod:
+`scripts/restructure/moves.json` says where each file went and
+`node scripts/restructure.mjs` makes the moves and rewrites everything
+that names them, and can be run again. A branch made before the moves runs
+it, commits, then merges `main`, so the moves meet themselves and only its
+own edits are left to merge (`docs/merging-onto-the-restructure.md`). The
+src root's files and `simple/` went to `shell`, `ui`, `sync`, `web`,
+`audio`, `recording`, `helps`, `helpMode`, `mic`, `admin`, `invites`,
+`work`, `map`, `account`, `auth`, `moderation`, `notifications`,
+`diagnostics` and the existing feature folders; `recordingJournalCore.ts`
+is `recordingJournalModel.ts`; `dev.ts` went to `auth/`, since `src/server`
+may not import the shell. The passage record, the Map and reference
+material had their rules moved out of their screens as config and content
+had. ESLint now also holds `src/ui` as the design system, importing only
+itself, `i18n`, `helpMode` and `shell/flow`, and keeps `src/server` from
+the UI; `apps/mobile/test/folders.test.ts` keeps code out of the src root
+and `simple/` gone.
+
+Amended (2026-10-15, Carl Sauder): each file has one role, and its name
+says which. Carl found the roles too loose once code was by feature: a
+folder no longer said whether a file held components, hooks or helpers,
+and about sixty files mixed them. Rather than go back to folders by kind,
+the name carries the role: `screens/*.tsx` are screens; any other `.tsx`
+exports components only (`eslint-plugin-react-refresh`); a `use<Thing>.ts`
+file exports hooks only, with the contexts they read; `model.ts` and
+`<thing>Model.ts` are pure, and never `.tsx`; `src/server/` holds the
+server calls; every other `.ts` is a module, which exports no hooks.
+`eslint-plugin-boundaries` holds which role may import which, for values
+(types may come from anywhere): a component reaches the server through a
+hook or module, a hook returns data rather than importing components, a
+model or module imports neither components nor hooks, and a screen imports
+no other screen, so the checks list the flow editor shows is
+`checks/LanguageChecks.tsx`, no longer part of the checks screen. The split is a second codemod
+round: the moved hooks and helpers are a hand commit that leaves
+re-exports, and `movedExports` in `scripts/restructure/moves.json` repoints
+every import of a moved name, on this branch and on any made before it.
+
+Amended (2026-10-15, Carl Sauder): the codemod (`scripts/restructure.mjs`,
+`scripts/restructure/moves.json`) and `docs/merging-onto-the-restructure.md`
+are removed. Pull requests 126, 125, 123, 121 and 129 merged through it,
+and the two still open from before the restructure (96 and 120) will be
+redone on the new structure rather than merged across it, so no branch
+needs them. Git history keeps where each file went. The layout and the
+roles are held by `eslint.config.mjs` and `apps/mobile/test/folders.test.ts`.
+
 ## 106. A phone records every take with the microphone module, keeps a part going down to half the cutoff, and keeps AAC
 
 Date: 2026-10-14 · By: Caleb Koster · Status: accepted
@@ -3971,7 +4062,7 @@ with no change to the events.
 
 ## 109. A listening app keeps playing the approved version, hears changes by webhook, and the team sees its listeners on the passage
 
-Date: 2026-10-14 · By: Ryder Wishart · Status: partly superseded by 110
+Date: 2026-10-14 · By: Ryder Wishart · Status: partly superseded by 111
 
 Reason: Ryder asked for the whole EveryBible loop for a stakeholder demo:
 a recorded passage goes out for review, reviewers hear it in EveryBible,
@@ -4015,7 +4106,39 @@ publishes on approval, per language), reviewers need their own accounts
 change feed and webhooks prove too slow for live listening (then push from
 the organization's Durable Object directly).
 
-## 110. For its prototype, EveryBible holds LangQuest tokens on the phone: a reviewer's code is a review token, and listeners hear approved versions
+## 110. A checkpoint from an older reducer is dropped with its stream's cursor, so the phone fetches the stream again
+
+Date: 2026-10-15 · By: Carl Sauder · Status: accepted
+
+Reason: a phone checkpoints every 2000 confirmed events and prunes what the
+checkpoint covers (invariant 10). An update that bumps `REDUCER_VERSION`,
+which happens often, made that checkpoint unreadable, and invariant 10 said
+the client then "folds the log", but the log held only the tail after the
+checkpoint. `load()` folded that tail from empty state, `pullSlice()` took a
+server snapshot only at cursor 0, which the cursor was not, and the next
+checkpoint saved the partial state under the new version, so every language
+and organization stream that had pruned lost most of its work on the phone
+for good (the server's log was intact). The fleet modelled a reducer bump
+as a reinstall with an empty store and never saw it. Now `load()` drops a
+checkpoint from another reducer version and puts the stream's cursor back
+to 0 in one write (`dropStaleCheckpoint` in `packages/sync/src/syncClient.ts`).
+The next pull takes the server's snapshot for this reducer, or, when there
+is none (the organization stream never has one, 44), pulls the log again from
+the start. With nothing below the cursor missing, no checkpoint can be
+partial. Until the phone reaches the server it shows the events still in its
+log, the person's unsent work among them, as a first download does. The
+`load` record carries `staleCheckpointSeq` so support can see it happened
+(`docs/diagnostics.md`). The fleet's `reducerBump` scenario and a
+`fleet.test.ts` case now update phones that keep their store
+(`SimDevice.update`, `Fleet.deployReducer`). Turned down: keeping the whole
+log on the phone (the reason for pruning is replay bounded by recent
+history), and migrating checkpoints between reducer versions (a migration
+per bump, with the risk of a wrong one that the server cannot correct).
+Reverse if: phones that update while offline need their language on screen
+before they reach the server; then keep the pruned events beside the
+checkpoint until a checkpoint from the new reducer replaces it.
+
+## 111. For its prototype, EveryBible holds LangQuest tokens on the phone: a reviewer's code is a review token, and listeners hear approved versions
 
 Date: 2026-10-15 · By: Ryder Wishart · Status: accepted
 

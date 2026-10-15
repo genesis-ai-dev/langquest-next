@@ -7,7 +7,7 @@ import {
   nearbyPassages, noteAnchorText, nextLabel, openRequired, questionSource, readiness, recordedPassages, requestFor, reviewCapture, reviewStages,
   searchPassages, stageAt, summaryLine, toCompareFor, verdictQuestion, versionFor
 } from '../src/reviewing/capture';
-import { parseQuery } from '../src/canon';
+import { parseQuery } from '../src/reference/canon';
 
 /** A small language on the Standard Bible Flow, with a few passages of John and one of Mark. */
 function language() {

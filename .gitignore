@@ -30,7 +30,7 @@ apps/web/.wrangler.dev.jsonc
 
 # Stryker
 .stryker-tmp/
-reports/
+/reports/
 stryker.log
 
 # Isolated listening demo: its event log, audio and token

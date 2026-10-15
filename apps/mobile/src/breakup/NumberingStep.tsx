@@ -4,17 +4,17 @@
 // find the Bible the team translates from, or answer a few questions with
 // it open, or (one tap deeper) choose from the list. The result is shown
 // as three facts that tell the numberings apart at a glance.
-import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
-import { bookName } from '../coreText';
+import { useMemo, useState, type ReactNode } from 'react';
+import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { bookName } from '../i18n/coreText';
 import { formatNumber } from '../i18n/format';
 import { t } from '../i18n';
-import { Text } from '../text';
-import { useHelpSpot } from '../helpContext';
-import { HelpBadge } from '../helpBadge';
-import { GhostBtn, Ico, SearchField, type IconName } from '../kit';
-import { ChoiceCard, Question, RadioRow } from '../simple/admin';
-import { C, radius, space, TINT, type as T } from '../theme';
+import { Text } from '../ui/text';
+import { useHelpSpot } from '../helpMode/useHelpMode';
+import { HelpBadge } from '../helpMode/helpBadge';
+import { GhostBtn, Ico, SearchField, type IconName } from '../ui/kit';
+import { ChoiceCard, Question, RadioRow } from '../admin/admin';
+import { C, radius, space, TINT, type as T } from '../ui/theme';
 import {
   bibleLanguage, COMMON_BIBLES, KNOWN_BIBLES, QUIZ, resolveNumbering, shortName, type KnownBible, type NumberingCode, type NumberingFacts, type QuizOption
 } from './numberingGuide';
@@ -69,9 +69,9 @@ function PsalmLines(props: { numbered: boolean; small?: boolean }) {
   );
 }
 
-/** A full-width outlined button for the other ways to answer. */
-function OtherWay(props: { icon: IconName; label: string; onPress: () => void }) {
-  const spot = useHelpSpot(props.label, undefined, props.onPress);
+/** A full-width outlined button for the other ways to answer. `detail`: what help mode says it does. */
+function OtherWay(props: { icon: IconName; label: string; onPress: () => void; detail?: string }) {
+  const spot = useHelpSpot(props.label, props.detail, props.onPress);
   return (
     <Pressable onPress={spot.onPress} accessibilityRole="button" style={({ pressed }) => [styles.other, pressed && { opacity: 0.7 }]}>
       <Ico name={props.icon} size={20} color={C.primary} />
@@ -107,18 +107,19 @@ export function FindBiblePage(props: {
     <>
       <Question>{t('breakup.numberingStep.find.question')}</Question>
       {used.map(({ n, langs }) => (
-        <ChoiceCard key={n!.code} on={false} icon="people" title={shortName(n!.name)} sub={t('breakup.usedIn.one', { name: langs.join(t('admin.list.separator')) })} onPress={() => props.onPick(n!.code)} />
+        <ChoiceCard key={n!.code} on={false} icon="people" title={shortName(n!.name)} sub={t('breakup.usedIn.one', { name: langs.join(t('admin.list.separator')) })}
+          help={t('breakup.numberingStep.find.usedHelp')} onPress={() => props.onPick(n!.code)} />
       ))}
-      <SearchField value={q} onChangeText={setQ} placeholder={t('breakup.numberingStep.find.placeholder')} />
+      <SearchField value={q} onChangeText={setQ} placeholder={t('breakup.numberingStep.find.placeholder')} help={t('breakup.numberingStep.find.searchHelp')} />
       {note ? <Text style={[txt2.note]}>{note}</Text> : null}
       <View style={{ gap: space.sm }}>
-        {shown.map((b) => <RadioRow key={b.abbr} icon="book" label={b.name} sub={bibleLanguage(b.language)} on={false} onPress={() => choose(b)} />)}
-        {!q.trim() && !all ? <GhostBtn label={t('breakup.numberingStep.find.showAll', { count: KNOWN_BIBLES.length })} icon="down" onPress={() => setAll(true)} /> : null}
+        {shown.map((b) => <RadioRow key={b.abbr} icon="book" label={b.name} sub={bibleLanguage(b.language)} on={false} help={t('breakup.numberingStep.find.bibleHelp')} onPress={() => choose(b)} />)}
+        {!q.trim() && !all ? <GhostBtn label={t('breakup.numberingStep.find.showAll', { count: KNOWN_BIBLES.length })} icon="down" help={t('breakup.numberingStep.find.showAllHelp')} onPress={() => setAll(true)} /> : null}
         {q.trim() && shown.length === 0 ? <Text style={txt2.muted}>{t('breakup.numberingStep.find.notFound')}</Text> : null}
       </View>
       <View style={{ gap: space.sm, marginTop: space.sm }}>
-        <OtherWay icon="help" label={t('breakup.numberingStep.find.quiz')} onPress={props.onQuiz} />
-        <OtherWay icon="list" label={t('breakup.numberingStep.chooseFromList')} onPress={props.onList} />
+        <OtherWay icon="help" label={t('breakup.numberingStep.find.quiz')} detail={t('breakup.numberingStep.find.quizHelp')} onPress={props.onQuiz} />
+        <OtherWay icon="list" label={t('breakup.numberingStep.chooseFromList')} detail={t('breakup.numberingStep.chooseFromListHelp')} onPress={props.onList} />
       </View>
     </>
   );
@@ -157,31 +158,41 @@ export function QuizPage(props: {
       {q.picture === 'psalm3' ? (
         <View style={{ gap: space.md }}>
           {q.options.map((o, i) => (
-            <Pressable key={o.label} onPress={() => answer(o)} accessibilityRole="button" accessibilityLabel={o.label}
-              style={({ pressed }) => [styles.page, pressed && styles.pressed]}>
+            <Answer key={o.label} label={o.label} onPress={() => answer(o)} style={styles.page}>
               <Text style={styles.pageTitle}>{t('breakup.numberingStep.psalm3.title')}</Text>
               <PsalmLines numbered={i === 1} />
-            </Pressable>
+            </Answer>
           ))}
         </View>
       ) : tiles ? (
         <View style={styles.tileRow}>
           {q.options.map((o) => (
-            <Pressable key={o.label} onPress={() => answer(o)} accessibilityRole="button" accessibilityLabel={o.label}
-              style={({ pressed }) => [styles.answer, pressed && styles.pressed]}>
+            <Answer key={o.label} label={o.label} onPress={() => answer(o)} style={styles.answer}>
               <Text style={styles.answerText}>{o.tile}</Text>
-            </Pressable>
+            </Answer>
           ))}
         </View>
       ) : (
         <View style={{ gap: space.sm }}>
-          {q.options.map((o) => <RadioRow key={o.label} icon="building" label={o.label} on={false} onPress={() => answer(o)} />)}
+          {q.options.map((o) => <RadioRow key={o.label} icon="building" label={o.label} on={false} help={t('breakup.numberingStep.quiz.answerHelp')} onPress={() => answer(o)} />)}
         </View>
       )}
       {note ? <Text style={txt2.note}>{note}</Text> : null}
-      {q.notSure ? <GhostBtn label={q.notSure.label} icon="help" onPress={() => answer(q.notSure!)} /> : null}
-      {note ? <OtherWay icon="list" label={t('breakup.numberingStep.chooseFromList')} onPress={props.onList} /> : null}
+      {q.notSure ? <GhostBtn label={q.notSure.label} icon="help" help={t('breakup.numberingStep.quiz.notSureHelp')} onPress={() => answer(q.notSure!)} /> : null}
+      {note ? <OtherWay icon="list" label={t('breakup.numberingStep.chooseFromList')} detail={t('breakup.numberingStep.chooseFromListHelp')} onPress={props.onList} /> : null}
     </>
+  );
+}
+
+/** One answer to a quiz question as a big button (a picture or a number): help mode says it is an answer. */
+function Answer(props: { label: string; onPress: () => void; style: StyleProp<ViewStyle>; children: ReactNode }) {
+  const spot = useHelpSpot(props.label, t('breakup.numberingStep.quiz.answerHelp'), props.onPress);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.label}
+      style={({ pressed }) => [props.style, pressed && styles.pressed]}>
+      {props.children}
+      <HelpBadge spot={spot} />
+    </Pressable>
   );
 }
 
@@ -193,7 +204,7 @@ export function NumberingListPage(props: { numberings: NumberingChoice[]; factsF
       {props.numberings.map((n) => {
         const f = props.factsFor(n);
         return (
-          <ChoiceCard key={n.code} on={false} icon="book" title={shortName(n.name)} onPress={() => props.onPick(n.code)}>
+          <ChoiceCard key={n.code} on={false} icon="book" title={shortName(n.name)} help={t('breakup.numberingStep.list.pickHelp')} onPress={() => props.onPick(n.code)}>
             {f ? (
               <View style={styles.chips}>
                 <Text style={styles.chip}>{t('breakup.numberingStep.facts.booksCount', { count: f.books })}</Text>
@@ -219,7 +230,7 @@ export function NumberingChosenPage(props: { choice: NumberingChoice; facts: Num
       <FactTiles facts={props.facts} />
       {props.note ? <Text style={txt2.note}>{props.note}</Text> : null}
       <Text style={txt2.muted}>{t('breakup.numberingStep.chosen.match')}</Text>
-      <GhostBtn label={t('breakup.numberingStep.chosen.another')} icon="swap" onPress={props.onChange} />
+      <GhostBtn label={t('breakup.numberingStep.chosen.another')} icon="swap" help={t('breakup.numberingStep.chosen.anotherHelp')} onPress={props.onChange} />
     </>
   );
 }

@@ -33,8 +33,12 @@ export const DIAG_SCHEMA = {
     n: ['ms', 'pushNetMs', 'pullNetMs', 'applyMs', 'pushed', 'rejected', 'pulled', 'pages', 'pending', 'offlineMs'],
     t: { outcome: ['ok', 'offline', 'refused', 'too_old', 'error'], error: TOKEN }
   },
-  /** Folding the local log at open. */
-  load: { n: ['ms', 'events', 'fromSnapshot'], t: {} },
+  /**
+   * Folding the local log at open. `staleCheckpointSeq`: an update changed
+   * the reducer, so the checkpoint up to this seq was dropped and the stream
+   * is fetched again (syncClient.ts `dropStaleCheckpoint`).
+   */
+  load: { n: ['ms', 'events', 'fromSnapshot', 'staleCheckpointSeq'], t: {} },
   /** Adopting a server snapshot on a cold start. */
   snapshot: {
     n: ['ms', 'chunks', 'resumedChunks', 'bytes', 'seq'],
@@ -47,7 +51,7 @@ export const DIAG_SCHEMA = {
   },
   /** The phone's own state, sampled when records are delivered. */
   device: { n: ['freeDiskMb', 'totalDiskMb', 'blobCacheMb', 'blobsWanted'], t: {} },
-  /** A fault that reached a boundary (apps/mobile/src/report.ts). */
+  /** A fault that reached a boundary (apps/mobile/src/diagnostics/report.ts). */
   error: { n: [], t: { name: TOKEN, where: TOKEN, errorId: TOKEN, fatal: ['yes', 'no'] } }
 } as const;
 

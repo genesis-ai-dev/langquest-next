@@ -1,4 +1,4 @@
-import { accountKeys, deleteAccount, type DeletionDeps } from '../src/accountDeletion';
+import { accountKeys, deleteAccount, type DeletionDeps } from '../src/account/accountDeletion';
 
 // Account deletion on the phone (decisions.md 46).
 

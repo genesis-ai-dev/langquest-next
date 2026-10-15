@@ -1,4 +1,4 @@
-// The organization screens' derivations and event plans (src/orgAdmin.ts):
+// The organization screens' derivations and event plans (src/org/orgAdmin.ts):
 // who is listed where (ORG-5), what an admin may grant (ORG-6), what a role
 // or scope change writes and how Undo puts it back (ORG-7, CORE-5), what a
 // new language adds (ORG-2), and review teams (FLOW-5).
@@ -9,13 +9,13 @@ import {
   type AnyEvent, type EventPayloads, type EventSpec, type EventType, type FlowDoc, type LibraryItemView, type OrgState, type TemplateDoc,
   type VersificationDoc
 } from '@langquest-next/core';
-import type { LibraryChoice } from '../src/contentTemplates';
+import type { LibraryChoice } from '../src/templates/contentTemplates';
 import {
   addLanguage, assignableLevels, booksInScope, changeMembership, grantableLanguages, grantFloor, groupBelow, inviteScope, mayGrantAt, memberEntries,
   membersAbove, membersAt, newLanguageId, progressLine, removeMembership, reviewEligible, saveTeam, similarLanguages, STARTER_FLOW, suggestedChoice,
   sumProgress, teamMembers
-} from '../src/orgAdmin';
-import { STARTER_TEMPLATE } from '../src/contentTemplates';
+} from '../src/org/orgAdmin';
+import { STARTER_TEMPLATE } from '../src/templates/contentTemplates';
 
 let seq = 0;
 const clock = new HlcClock('dev1', () => 1_700_000_000_000 + seq * 1000);

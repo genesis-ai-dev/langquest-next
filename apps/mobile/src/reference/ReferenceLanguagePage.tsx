@@ -3,48 +3,21 @@
 // asks it first. Each language says what is there to read in it (a guide
 // set's passages, Bibles, other guides), so the admin sees the gaps before
 // choosing; any other language can be found in the language list (online).
-import {
-  subscriptionItemId, type LibraryDoc
-} from '@langquest-next/core';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import type { Ctx } from '../ctx';
+import { Text } from '../ui/text';
 import { t } from '../i18n';
-import { HelpBadge } from '../helpBadge';
-import { useHelpSpot } from '../helpContext';
-import { Ico, SearchField, txt } from '../kit';
-import { LanguoidPicker, useLanguoidSearch } from '../languoidPicker';
-import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
-import { Question, QuietLink, RadioRow } from '../simple/admin';
-import { guideShortName, languageLabel } from '../simple/adminModel';
-import { C, radius, space, type as T } from '../theme';
-import { guideSets, originOf, setKeyOf } from './guideSets';
-import { languageChoices, type LanguageChoice } from './languageChoices';
+import { HelpBadge } from '../helpMode/helpBadge';
+import { useHelpSpot } from '../helpMode/useHelpMode';
+import { Ico, SearchField } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { LanguoidPicker } from '../org/languoidPicker';
+import { useLanguoidSearch } from '../org/useLanguoids';
+import { Question, QuietLink, RadioRow } from '../admin/admin';
+import { guideShortName, languageLabel } from '../admin/adminModel';
+import { C, radius, space, type as T } from '../ui/theme';
+import type { LanguageChoice } from './languageChoices';
 import { readerLanguage, sameLanguage } from './languages';
-
-/**
- * What the organization has and others share, as guide sets and the
- * languages to choose from; `keep` are listed even when nothing is in them.
- */
-export function useReferenceLanguages(ctx: Ctx, keep: readonly string[]) {
-  const lib = useLibrary(ctx);
-  const shared = useSharedItems('material', lib.orgId);
-  const own = lib.items('material').filter((it) => it.current && !it.archived);
-  const others = shared.rows.filter((s) => s.latest_hash && !ctx.org.state?.library[subscriptionItemId(s.org_id, s.item_id)]);
-  const docs = useLibraryDocs(lib.orgId, [...own.map((it) => it.current), ...others.map((s) => s.latest_hash)], { deps: false });
-  const keepKey = keep.join(',');
-  const sets = guideSets(own.map((it) => ({ it, doc: docs.get(it.current) })), others.map((s) => ({ s, doc: docs.get(s.latest_hash) })));
-  const setKeys = new Set(sets.map((s) => s.key));
-  const rest: (LibraryDoc | null)[] = [
-    ...own.map((it) => docs.get(it.current)).filter((d, i) => !setKeys.has(setKeyOf(originOf(own[i]!), d) ?? '')),
-    ...others.map((s) => docs.get(s.latest_hash)).filter((d, i) => !setKeys.has(setKeyOf(others[i]!.org_id, d) ?? ''))
-  ];
-  const signature = [sets.map((s) => `${s.key}:${s.members.length}`).join(), rest.length, keepKey].join('|');
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- the signature says when they change
-  const choices = useMemo(() => languageChoices(sets, rest, keep), [signature]);
-  return { sets, choices, loading: !shared.loaded };
-}
 
 /** "FIA guides for 294 passages · 2 Bibles", or that nothing is in it yet. */
 function whatIsThere(c: LanguageChoice): string {
@@ -83,6 +56,7 @@ export function ReferenceLanguagePage(props: {
       <Text style={[txt.sm, { paddingHorizontal: space.xs }]}>{t('referenceLanguage.sub', { language: props.team })}</Text>
       {ordered.map((c) => (
         <RadioRow key={c.language} icon="globe" label={label(c.language)} on={sameLanguage(c.language, props.value)} onPress={() => props.onChange(c.language)} subLines={4}
+          help={t('referenceLanguage.rowHelp')}
           sub={[whatIsThere(c), sameLanguage(c.language, reader) ? t('reference.setLanguage.yours') : ''].filter(Boolean).join(' · ')} />
       ))}
       {props.loading ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('common.loading')}</Text> : null}
@@ -99,7 +73,7 @@ export function ReferenceLanguagePage(props: {
             }} />
         </>
       ) : (
-        <QuietLink icon="search" label={t('reference.language.another')} onPress={() => setSearching(true)} />
+        <QuietLink icon="search" label={t('reference.language.another')} detail={t('reference.language.anotherHelp')} onPress={() => setSearching(true)} />
       )}
       {props.children}
     </View>

@@ -170,18 +170,28 @@ test('JRN-005 A coordinator gets a language ready and starts its team @p0 @wide'
 
     // Step 7: on a wide window, Reports → Bravo: its template, its flow and one passage asked.
     await coord.setViewportSize({ width: 1280, height: 900 });
+    const reportsRead = (fresh: boolean) => coord.waitForResponse((r) =>
+      r.url().includes(`/api/orgs/${w.orgId}/reports`) && r.url().includes('fresh=1') === fresh, { timeout: 30_000 });
+    const opened = reportsRead(false);
     await tab(coord, 'reports').click();
+    await opened;
+    // Reports is read from the Worker, which folds the log itself (decision 44). A plain read
+    // answers from its last pass when that is under a minute old, and that pass can predate the
+    // request to Ben, and a language's page never asks for a newer one. So, once the first read is
+    // in (a later answer to it would put the old figures back), catch up on Reports, as a
+    // coordinator who just asked someone would: the Worker folds the log's tail now, and Ben
+    // already holds the request, so it is on the server.
+    const catchUp = coord.getByRole('button', { name: 'Catch up with the server' }).locator('visible=true').first();
+    const caughtUp = reportsRead(true);
+    await catchUp.click();
+    await caughtUp;
     await button(coord, 'Languages').click();
     await coord.getByRole('button', { name: /^Bravo\b/ }).or(coord.getByRole('link', { name: /^Bravo\b/ })).locator('visible=true').first().click();
-    // Its flow, its passages, and the one passage asked (the server's figures catch up within a minute or two).
+    // Its flow, its passages, and the one passage asked.
     await expect(text(coord, /Review flow: /)).toBeVisible();
     expect.soft(await screenText(coord), 'the report names the checks chosen in Get ready').toMatch(/Community/i);
     // The template is the known gap below (JRN-005 Reports names the template), kept out of the P0 run.
-    await expect.poll(async () => {
-      const catchUp = coord.getByRole('button', { name: 'Catch up with the server' }).locator('visible=true');
-      if (await catchUp.count()) await catchUp.first().click();
-      return (await screenText(coord)).match(/(\d+) requests? open in all/)?.[1];
-    }, { timeout: 150_000, intervals: [5_000, 10_000], message: 'Reports counts the one request to Ben (G2: the projection runs every minute)' }).toBe('1');
+    await expect(text(coord, '1 request open in all'), 'Reports counts the one request to Ben').toBeVisible();
     await expect(byId(coord, 'tab-reports')).toBeVisible();
     await ctx.close();
   } finally {

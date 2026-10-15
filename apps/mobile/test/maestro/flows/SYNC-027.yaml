@@ -90,7 +90,9 @@ tags:
       - tapOn:
           id: "tab-work"
       - extendedWaitUntil:
-          visible: "1 to send"
+          visible:
+            id: "sync-indicator"
+            text: ".*, 1 to send"
           timeout: 30000
       - stopApp
       - launchApp:
@@ -127,7 +129,9 @@ tags:
           timeout: 20000
       - assertNotVisible: "Create Account"
       - assertVisible: "My Work"
-      - assertVisible: "1 to send"
+      - assertVisible:
+          id: "sync-indicator"
+          text: ".*, 1 to send"
       # The Map and Me work from what is on the phone.
       - tapOn:
           id: "tab-map"
@@ -178,5 +182,7 @@ tags:
       - tapOn:
           id: "tab-work"
       - extendedWaitUntil:
-          notVisible: "\\d+ to send"
+          visible:
+            id: "sync-indicator"
+            text: "Live|Connected"
           timeout: 120000

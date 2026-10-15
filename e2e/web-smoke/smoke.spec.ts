@@ -59,7 +59,7 @@ async function createAccountAndOrg(page: Page, email: string): Promise<void> {
   await expect(page.getByText(/^Get Dinka ready/).first()).toBeVisible({ timeout: 60_000 });
 }
 
-/** Every file the app's own stores hold in this site's private files (apps/mobile/src/webFiles.ts). */
+/** Every file the app's own stores hold in this site's private files (apps/mobile/src/web/webFiles.ts). */
 async function appFiles(page: Page): Promise<string[]> {
   return page.evaluate(async () => {
     type Dir = { entries(): AsyncIterable<[string, { kind: string }]>; getDirectoryHandle(n: string): Promise<Dir> };

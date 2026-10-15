@@ -1,8 +1,8 @@
 import { foldOrg, ORG_STREAM, type AnyEvent } from '@langquest-next/core';
-import { deriveSession } from '../src/session';
-import { claim, deadMessage, functionRefusal, HOLD_MS, holdScanned, inviteCard, learnFromPreview, nextStep, outcomeOfError, scanVerdict, withExpiry, type HeldInvite } from '../src/heldInvite';
-import { inviteUri, parseKey, signInUri } from '../src/inviteCode';
-import { isManagedEmail, makeSignInName, MANAGED_DOMAIN, signInAddress, signInName } from '../src/accounts';
+import { deriveSession } from '../src/shell/session';
+import { claim, deadMessage, functionRefusal, HOLD_MS, holdScanned, inviteCard, learnFromPreview, nextStep, outcomeOfError, scanVerdict, withExpiry, type HeldInvite } from '../src/invites/heldInvite';
+import { inviteUri, parseKey, signInUri } from '../src/invites/inviteCode';
+import { isManagedEmail, makeSignInName, MANAGED_DOMAIN, signInAddress, signInName } from '../src/auth/accounts';
 
 /**
  * The situations of docs/invites-and-accounts.md section 6, as the held

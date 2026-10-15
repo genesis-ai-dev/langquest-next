@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { accessTokenFresh, savedSession } from '../authState';
+import { accessTokenFresh, savedSession } from '../auth/authState';
 
 interface KeyValue {
   getItem(key: string): Promise<string | null>;

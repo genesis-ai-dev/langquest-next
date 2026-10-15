@@ -1,7 +1,7 @@
-// Bolding what someone typed in search results (src/textMatch.ts).
+// Bolding what someone typed in search results (src/ui/textMatch.ts).
 import { describe, expect, it } from 'vitest';
-import { parseQuery } from '../src/canon';
-import { latinDigits, markedParts, matchRanges } from '../src/textMatch';
+import { parseQuery } from '../src/reference/canon';
+import { latinDigits, markedParts, matchRanges } from '../src/ui/textMatch';
 
 describe('typed text in a result', () => {
   it('finds every place it appears, ignoring case', () => {

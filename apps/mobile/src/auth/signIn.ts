@@ -1,4 +1,4 @@
-import { isSignInName, signInAddress } from '../accounts';
+import { isSignInName, signInAddress } from './accounts';
 
 /** Supabase Auth's refusal, as `authErrorText` reads it. */
 export interface AuthRefusal { code?: string; name?: string; message?: string }

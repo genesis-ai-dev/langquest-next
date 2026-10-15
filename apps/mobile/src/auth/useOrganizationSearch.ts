@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { searchListedOrganizations, type ListedOrganization } from '../accountData';
-import { noteExpected } from '../report';
+import { searchListedOrganizations, type ListedOrganization } from '../account/accountData';
+import { noteExpected } from '../diagnostics/report';
 import { matchOrganizations } from './model';
 
 /** Request Access's matches for `query` (lower case, trimmed): the phone's list at once, the server's search a moment after typing stops. */

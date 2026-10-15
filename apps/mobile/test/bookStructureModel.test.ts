@@ -4,7 +4,7 @@ import {
   buildIndexes, emptyLanguageState, foldLanguage, HlcClock, selectTemplateSpecs,
   type AnyEvent, type EventSpec, type LanguageState, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
-import { bibleBook } from '../src/contentTemplates';
+import { bibleBook } from '../src/templates/contentTemplates';
 import { bookStructureData, chapterNumbers, chapterTileLabel, partsStartingIn } from '../src/templates/bookStructureModel';
 
 const luke = bibleBook('luk')!;
