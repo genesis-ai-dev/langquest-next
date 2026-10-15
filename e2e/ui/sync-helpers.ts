@@ -101,12 +101,20 @@ export async function openSync(page: Page): Promise<void> {
   await text(page, 'More settings').click();
   await button(page, /^Sync[ ,]/).click();
   await expect(page.getByRole('heading', { name: 'Sync', exact: true }).locator('visible=true').first()).toBeVisible();
-  // The counts, transfers and logs sit under Details; open it so specs read them as before.
-  await button(page, /^Details/).click();
+  await openSyncDetails(page);
+}
+
+/** The Sync screen keeps its counts, transfers and logs under Details: open it unless it already is. */
+export async function openSyncDetails(page: Page): Promise<void> {
+  const details = button(page, /^Details/);
+  await expect(details).toBeVisible();
+  if ((await details.getAttribute('aria-expanded')) !== 'true') await details.click();
+  await expect(details).toHaveAttribute('aria-expanded', 'true');
 }
 
 /** A tile's number on the Sync screen ("12 waiting to upload"), read from its spoken label. */
 export async function tile(page: Page, label: string): Promise<number> {
+  await openSyncDetails(page);
   const el = page.locator(`[aria-label$=" ${label}"]`).locator('visible=true').first();
   const spoken = (await el.getAttribute('aria-label', { timeout: 10_000 })) ?? '';
   const m = /^([\d,.\s]+) /.exec(spoken);
