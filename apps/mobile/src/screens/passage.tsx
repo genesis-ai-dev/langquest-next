@@ -204,8 +204,8 @@ export function PassageRecord(ctx: Ctx) {
   const asker = isAuthor || !!publishedParam?.startsWith('bt');
   // Where each of the flow's kinds usually goes; only its author sends a version on (ADR-029).
   const targets = useMemo(
-    () => (v ? usualTargets(v.state, ctx.org.state, { p: v.p, languageId: v.languageId, me, asker }) : {}),
-    [v?.state, v?.languageId, v?.p.flow, ctx.org.state, me, asker]
+    () => (v ? usualTargets(v.state, ctx.org.state, { p: v.p, languageId: v.languageId, me, asker, lines: ctx.language.lines }) : {}),
+    [v?.state, ctx.language.lines, v?.languageId, v?.p.flow, ctx.org.state, me, asker]
   );
   if (!v) return <Missing ctx={ctx} id="passage_record" />;
 
@@ -1168,8 +1168,8 @@ export function AskSomeone(ctx: Ctx) {
   const [dueTyped, setDueTyped] = useState('');
   const [othersShown, setOthersShown] = useState(PEOPLE_STEP);
   const [busy, setBusy] = useState(false);
-  const candidates = useMemo(() => (v ? askCandidates(v.state, ctx.org.state, { languageId: v.languageId, what, ...(kindId ? { kindId } : {}), me }) : []),
-    [v?.state, v?.languageId, ctx.org.state, what, kindId, me]);
+  const candidates = useMemo(() => (v ? askCandidates(v.state, ctx.org.state, { languageId: v.languageId, what, ...(kindId ? { kindId } : {}), me, lines: ctx.language.lines }) : []),
+    [v?.state, ctx.language.lines, v?.languageId, ctx.org.state, what, kindId, me]);
   if (!v) return <Missing ctx={ctx} id="ask_someone" />;
   if (what === 'review' && !kindId) {
     return <Missing ctx={ctx} id="ask_someone" crumbsOf={v} text={t('passage.ask.fromItsStep')} />;
@@ -1184,7 +1184,7 @@ export function AskSomeone(ctx: Ctx) {
   const usual = candidates.filter((c) => c.usual).sort((a, b) => Number(b.onCheck) - Number(a.onCheck) || byName(a, b));
   const others = candidates.filter((c) => !c.usual).sort(byName);
   // The check's team (decision 91): everyone on it gets the request, and it is the first choice.
-  const usualTo = !isRecord && kindId ? usualTargetFor(v.state, ctx.org.state, { languageId: v.languageId, kindId, me }) : undefined;
+  const usualTo = !isRecord && kindId ? usualTargetFor(v.state, ctx.org.state, { languageId: v.languageId, kindId, me, lines: ctx.language.lines }) : undefined;
   const team = usualTo && 'teamId' in usualTo ? usualTo : undefined;
   const teamPeople = team ? checkPeople(v.state, kindId!).filter((id) => id !== me) : [];
   const chosen = who ?? (team ? TEAM : null);

@@ -136,7 +136,8 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
   const changed = tq.ready && (!inUse || !same(wanted, sel?.books));
   const canUse = ctx.session.can('manage_templates');
   // Any work at all, published or not: a change of numbering moves it (decision 80).
-  const worked = useMemo(() => Object.keys(state.recordings).length + Object.keys(state.takes).length > 0, [state]);
+  const lines = ctx.language.lines;
+  const worked = useMemo(() => { for (const u of lines.worked()) if (lines.get(u).worked) return true; return false; }, [lines]);
   const [warn, setWarn] = useState(false);
 
   async function answer(confirmed = false) {

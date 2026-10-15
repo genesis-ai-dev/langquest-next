@@ -12,9 +12,9 @@
 // book, plus search and filters that narrow to counts first (ADR-009).
 // Progress is several counts, never one number (ADR-004).
 import {
-  deriveFlow, libraryItemView, derivePassage, highlightsFor, languageInfo, languageName, languageProgress,
-  percent, unitPlace, unitTitle, upNext,
-  type KindDef, type LanguageProgress, type OrgState, type PassageState, type LanguageState, type UnitPlace
+  deriveFlow, libraryItemView, highlightsOf, languageInfo, languageName, progressOf,
+  percent, unitPlace, unitTitle, upNextOf,
+  type KindDef, type LanguageProgress, type OrgState, type PassageGlance, type PassageLines, type LanguageState, type UnitPlace
 } from '@langquest-next/core';
 import { useMemo, useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -101,10 +101,11 @@ function canGo(ctx: Ctx, from: ScreenId, to: ScreenId): boolean {
 interface Entry {
   unitId: string;
   place: UnitPlace;
-  s: PassageState;
+  s: PassageGlance;
 }
 
-const entryCache = new WeakMap<LanguageState, Entry[]>();
+/** Entries per set of lines, for the state they were read with: the lines change without the state, and the state without the lines. */
+const entryCache = new WeakMap<PassageLines, { state: LanguageState; entries: Entry[] }>();
 
 /** Every passage the open language works on, with where it sits and where it stands; shared by the map and its books. */
 /** Books of the language waiting to be broken up (decision 74), as the app's book ids ("rut"). */
@@ -112,22 +113,24 @@ function waitingBooks(state: LanguageState): string[] {
   return indexesFor(state).waiting.map((unitId) => unitPlace(state, unitId).bookId).filter((b): b is string => !!b);
 }
 
-function languageEntries(state: LanguageState): Entry[] {
-  const hit = entryCache.get(state);
-  if (hit) return hit;
+/** Each passage reads off its line (decisions.md 107): the map never needs every passage's record in memory. */
+function languageEntries(state: LanguageState, lines: PassageLines): Entry[] {
+  const hit = entryCache.get(lines);
+  if (hit && hit.state === state) return hit.entries;
   const idx = indexesFor(state);
-  const out = idx.passages.map((unitId) => ({ unitId, place: unitPlace(state, unitId), s: derivePassage(state, unitId, idx) }));
-  entryCache.set(state, out);
-  return out;
+  const entries = idx.passages.map((unitId) => ({ unitId, place: unitPlace(state, unitId), s: lines.get(unitId) }));
+  entryCache.set(lines, { state, entries });
+  return entries;
 }
 
 /** Passages with something for this person on My Work: marked on the map, not listed (ADR-017). */
 function useForYou(ctx: Ctx, state: LanguageState | null): Set<string> {
   const canRecord = ctx.session.can('translate');
   const canReview = ctx.session.can('review');
+  const lines = ctx.language.lines;
   return useMemo(() => new Set(state
-    ? highlightsFor(state, ctx.session.actorId, { canRecord, canReview }, indexesFor(state)).map((h) => h.unitId)
-    : []), [state, ctx.session.actorId, canRecord, canReview]);
+    ? highlightsOf(lines, state, ctx.session.actorId, { canRecord, canReview }).map((h) => h.unitId)
+    : []), [state, lines, ctx.session.actorId, canRecord, canReview]);
 }
 
 function flowLabel(state: LanguageState): string {
@@ -173,7 +176,7 @@ function IconCount(props: { icon: 'chat' | 'clock'; n: number; tone: 'amber' | '
 }
 
 /** Where a passage stands as one glyph: not started, recording, in review (steps cleared), done. Never colour alone. */
-function PassageDisc(props: { s: PassageState }) {
+function PassageDisc(props: { s: PassageGlance }) {
   const s = props.s;
   if (s.done) return <View style={[styles.disc, { backgroundColor: onColor.green }]}><Ico name="check" size={22} color={C.white} /></View>;
   if (!s.recorded) {
@@ -327,7 +330,7 @@ export function StatusHome(ctx: Ctx) {
   const languages = useMemo(() => {
     const openId = state ? ctx.language.languageId : null;
     const ids = listed.map((l) => l.languageId);
-    const local = new Map(state && openId ? [[openId, languageProgress(state, indexesFor(state))]] : []);
+    const local = new Map(state && openId ? [[openId, progressOf(ctx.language.lines, indexesFor(state).passages, state)]] : []);
     const figures = languageFigures(ids, local, summary);
     // The open language's steps named in the language showing (core names them in English).
     const stepNames = state ? deriveFlow(state).steps.map((st) => stepName(deriveKinds(state), st)) : undefined;
@@ -340,7 +343,7 @@ export function StatusHome(ctx: Ctx) {
         stepNames: here ? stepNames : undefined
       };
     }).sort((a, b) => a.name.localeCompare(b.name));
-  }, [state, listed, ctx.language.languageId, ctx.org.state, summary]);
+  }, [state, ctx.language.lines, listed, ctx.language.languageId, ctx.org.state, summary]);
   const orgName = ctx.org.state?.org?.value.name ?? '';
   const header = <Header title={t('map.status.title')} sub={[orgName, t('map.status.allLanguages')].filter(Boolean).join(' · ')} />;
   if (!state) return <Screen header={header}><EmptyState icon="progress" title={t('common.loading')} /></Screen>;
@@ -533,14 +536,14 @@ function openableLanguages(ctx: Ctx): { languageId: string; name: string }[] {
 function useNextPassage(ctx: Ctx, state: LanguageState | null): { unitId: string; icon: IconName } | null {
   const canRecord = ctx.session.can('translate');
   const canReview = ctx.session.can('review');
+  const lines = ctx.language.lines;
   return useMemo(() => {
     if (!state || (!canRecord && !canReview)) return null;
-    const idx = indexesFor(state);
-    const first = highlightsFor(state, ctx.session.actorId, { canRecord, canReview }, idx)[0];
+    const first = highlightsOf(lines, state, ctx.session.actorId, { canRecord, canReview })[0];
     if (first) return { unitId: first.unitId, icon: workIcon(first.kind).icon };
-    const next = upNext(state, { canRecord, canReview }, idx);
+    const next = upNextOf(lines, indexesFor(state).passages, { canRecord, canReview });
     return next ? { unitId: next.unitId, icon: next.kind === 'record' ? 'mic' : 'check' } : null;
-  }, [state, ctx.session.actorId, canRecord, canReview]);
+  }, [state, lines, ctx.session.actorId, canRecord, canReview]);
 }
 
 /**
@@ -562,7 +565,7 @@ export function MapHome(ctx: Ctx) {
   const [testament, setTestament] = useState<Testament | null>(null);
   const forYou = useForYou(ctx, state);
   const next = useNextPassage(ctx, state);
-  const entries = useMemo(() => (state ? languageEntries(state) : []), [state]);
+  const entries = useMemo(() => (state ? languageEntries(state, ctx.language.lines) : []), [state, ctx.language.lines]);
   // Books not broken up yet (decision 74), by the app's book id.
   const waiting = useMemo(() => (state ? waitingBooks(state) : []), [state]);
   const books = useMemo(() => summarizeBooks(entries, filter, forYou, waiting), [entries, filter, forYou, waiting]);
@@ -571,7 +574,7 @@ export function MapHome(ctx: Ctx) {
   // Sections whose divisions changed since work was recorded on them (decision 80).
   const earlier = useEarlierSections(ctx, state);
   const counts = useMemo(() => countFilters(entries.map((e) => e.s)), [entries]);
-  const progress = useMemo(() => (state ? languageProgress(state, indexesFor(state)) : null), [state]);
+  const progress = useMemo(() => (state ? progressOf(ctx.language.lines, indexesFor(state).passages, state) : null), [state, ctx.language.lines]);
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
 
   const language = languageId ? languageName(ctx.org.state, languageId) : t('map.home.title');
@@ -787,8 +790,8 @@ export function BookMap(ctx: Ctx) {
   const book = canonBook(bookId);
   const entries = useMemo(() => {
     if (!state) return [];
-    return languageEntries(state).filter((e) => (bookId === OTHER ? !canonBook(e.place.bookId) : e.place.bookId === bookId));
-  }, [state, languageId, bookId]);
+    return languageEntries(state, ctx.language.lines).filter((e) => (bookId === OTHER ? !canonBook(e.place.bookId) : e.place.bookId === bookId));
+  }, [state, ctx.language.lines, languageId, bookId]);
   const counts = useMemo(() => countFilters(entries.map((e) => e.s)), [entries]);
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
   const chapters = useMemo((): ChapterTile[] => {

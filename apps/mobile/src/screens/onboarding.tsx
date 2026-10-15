@@ -16,7 +16,7 @@ import type { Ctx } from '../ctx';
 import { t, Trans } from '../i18n';
 import { Banner, Disclosure, GhostBtn, Group, Ico, LinkBtn, PrimaryBtn, Row, Screen, txt } from '../kit';
 import { signInName } from '../accounts';
-import { highlightsFor, languageInfo, unitTitle } from '@langquest-next/core';
+import { highlightsOf, languageInfo, unitTitle } from '@langquest-next/core';
 import { indexesFor } from '../indexes';
 import { PersonAvatar } from '../UserChip';
 import { personLook } from '../people';
@@ -139,10 +139,10 @@ export function WelcomeBack(ctx: Ctx) {
   const state = ctx.language.state;
   const target = useMemo(() => {
     if (!last || !state || ctx.language.languageId !== last.languageId) return null;
-    const waitingFor = highlightsFor(state, me, { canRecord: ctx.session.can('translate'), canReview: ctx.session.can('review') }, indexesFor(state))[0]?.unitId;
+    const waitingFor = highlightsOf(ctx.language.lines, state, me, { canRecord: ctx.session.can('translate'), canReview: ctx.session.can('review') })[0]?.unitId;
     const unitId = [waitingFor, last.lastUnitId].find((u): u is string => !!u && !!state.units[u]);
     return unitId ? { unitId, languageId: last.languageId, title: unitTitle(state, unitId) } : null;
-  }, [last, state, ctx.language.languageId, me, ctx.session]);
+  }, [last, state, ctx.language.lines, ctx.language.languageId, me, ctx.session]);
 
   async function leave(then: () => void) {
     if (busy) return;

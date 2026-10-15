@@ -4,16 +4,17 @@
 // `commands.ask` with a `teamId`, emitting v1.RequestMade); the app adds who
 // may review here, from the org's roles, which core does not hold.
 import {
-  requestIsFor, usualTarget,
-  type Commands, type OrgState, type LanguageState, type UsualTarget
+  requestIsFor, reviewersOf, usualTarget,
+  type Commands, type OrgState, type LanguageState, type PassageLines, type UsualTarget
 } from '@langquest-next/core';
 import { holdsIn, type MineFn } from './record';
 
 export type { UsualTarget };
 
 /** Where `kindId` usually goes in this language, as `me` would send it; undefined when nobody usually does it. */
-export function usualTargetFor(state: LanguageState, org: OrgState | null, o: { languageId: string; kindId: string; me: string }): UsualTarget | undefined {
-  return usualTarget(state, o.kindId, o.me, { eligible: (id) => holdsIn(org, id, o.languageId, 'review') });
+export function usualTargetFor(state: LanguageState, org: OrgState | null, o: { languageId: string; kindId: string; me: string; lines: PassageLines }): UsualTarget | undefined {
+  // Who did this kind before is read off the passages' lines (decisions.md 107), not every review.
+  return usualTarget(state, o.kindId, o.me, { eligible: (id) => holdsIn(org, id, o.languageId, 'review'), reviewers: reviewersOf(o.lines, o.kindId) });
 }
 
 /** Is a request for `me`: to them, or to a review team they are on. */

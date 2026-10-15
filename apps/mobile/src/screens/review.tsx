@@ -154,7 +154,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const guide = useStudyGuide(ctx, v?.unitId);
   const context = useMemo(() => v && version && kind && !kind.withholdsContext ? backgroundFor(ctx, v, kindId, version.takeId, guide) : null,
     [v?.state, v?.p, kindId, version?.takeId, kind, guide]);
-  const all = useMemo(() => v && logged ? recordedPassages(v.state) : [], [v?.state, logged]);
+  const all = useMemo(() => v && logged ? recordedPassages(v.state, ctx.language.lines) : [], [v?.state, ctx.language.lines, logged]);
   // What the Background offered and what was opened go on the record with the review (docs/reference-material.md).
   const usage = useUsage();
   const shown = !!context;
@@ -216,8 +216,10 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const whoTitle = logged && !group ? t('review.screen.whoReviewed') : logged ? t('review.parts.howManyListened') : t('review.screen.whoIsListening');
 
   async function save(outcome: 'looks_good' | 'needs_changes' | 'recorded') {
-    const state = ctx.language.state;
-    if (!state || !v || !version || !kind || busy) return;
+    const live = ctx.language.state;
+    if (!live || !v || !version || !kind || busy) return;
+    // A check logged for other passages too reads their records from the phone's disk (decisions.md 107).
+    const state = logged && also.length ? (await ctx.language.withPassages([v.unitId, ...also])) ?? live : live;
     const cmd = Crypto.randomUUID();
     const c = commands(state, indexesFor(state));
     const text = comment.trim();

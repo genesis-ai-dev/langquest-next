@@ -21,7 +21,7 @@
 // book_structure: `languageId`, `bookId`. A `languageId` param opens that
 // language, so its state is the open language's.
 import {
-  chaptersInBook, languageName, languageProgress, libraryItemView, usfmOf,
+  chaptersInBook, languageName, libraryItemView, progressOf, usfmOf,
   type LibraryItemView, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import { BookHead, BreakUpBook, templateBookName } from '../breakup/BreakUpBook';
@@ -387,10 +387,10 @@ function LanguageTemplateView({ ctx, languageId }: { ctx: Ctx; languageId: strin
     return {
       language: languageName(ctx.org.state, languageId),
       books: bookRows(state, idx),
-      progress: languageProgress(state, idx),
-      setAside: setAsideCount(state)
+      progress: progressOf(ctx.language.lines, idx.passages, state),
+      setAside: setAsideCount(state, ctx.language.lines)
     };
-  }, [state, open, languageId, ctx.org.state]);
+  }, [state, ctx.language.lines, open, languageId, ctx.org.state]);
   if (!state) return <Loading title={t('content.language.title')} onBack={ctx.back} />;
   if (!data || !languageId) {
     return (
@@ -506,7 +506,7 @@ export function TemplatePicker(ctx: Ctx) {
   const sel = state && open ? templateOf(state) : null;
   const pick = choices.find((c) => c.key === picked);
   const docs = useLibraryDocs(lib.orgId, [pick?.hash, sel?.docHash]);
-  const recorded = useMemo(() => (state && open ? recordedCount(state) : 0), [state, open]);
+  const recorded = useMemo(() => (state && open ? recordedCount(ctx.language.lines) : 0), [state, ctx.language.lines, open]);
   const { busy, use } = usePickTemplate(ctx, lib, state, languageId);
   if (!state) return <Loading title={t('content.picker.title')} onBack={ctx.back} />;
   if (!isOpen(ctx, languageId)) {
@@ -1002,8 +1002,8 @@ export function BookStructure(ctx: Ctx) {
 
   const data = useMemo(() => {
     if (!state || !open || !book) return null;
-    return bookStructureData(state, indexesFor(state), book, ctx.org.state, languageId!);
-  }, [state, open, languageId, book, ctx.org.state]);
+    return bookStructureData(state, indexesFor(state), book, ctx.org.state, languageId!, ctx.language.lines);
+  }, [state, ctx.language.lines, open, languageId, book, ctx.org.state]);
 
   if (!state) return <Loading title={t('content.book.title')} onBack={ctx.back} />;
   if (!book || !data || !languageId) {

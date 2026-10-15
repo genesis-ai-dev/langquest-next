@@ -1,25 +1,35 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { highlightsFor, updatesFor, type LanguageState } from '@langquest-next/core';
+import { highlightsOf, type Update } from '@langquest-next/core';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { indexesFor } from '../indexes';
 import { usePendingRequestCount } from '../invites';
 import { useOpenReportCount, type Blocks } from '../moderationData';
 import type { Session } from '../session';
+import type { LanguageHandle } from '../useLanguage';
 
 /**
  * What is waiting and what happened (WORK-1, INBOX-1): the work for this
  * person, the record's updates and which of them this device has shown,
  * and, for whoever may act on them, open reports and people asking to join.
+ * Both read off the passages' lines (decisions.md 107): the updates from
+ * the passages whose line says they concern this person, read again only
+ * when that line changes.
  */
-export function useInbox(o: { state: LanguageState | null; actorId: string; orgId: string; session: Session; blocks: Blocks; signedIn: boolean }) {
-  const { state, actorId, orgId, session, blocks, signedIn } = o;
+export function useInbox(o: { language: Pick<LanguageHandle, 'state' | 'lines' | 'updatesFor'>; actorId: string; orgId: string; session: Session; blocks: Blocks; signedIn: boolean }) {
+  const { language, actorId, orgId, session, blocks, signedIn } = o;
+  const { state, lines, updatesFor } = language;
   const forYou = useMemo(() => state
-    ? highlightsFor(state, actorId, { canRecord: session.can('translate'), canReview: session.can('review') }, indexesFor(state)).length
-    : 0, [state, actorId, session]);
+    ? highlightsOf(lines, state, actorId, { canRecord: session.can('translate'), canReview: session.can('review') }).length
+    : 0, [state, lines, actorId, session]);
+  const [all, setAll] = useState<Update[]>([]);
+  const open = state !== null;
+  useEffect(() => {
+    if (!open) { setAll([]); return; }
+    let current = true;
+    updatesFor(actorId).then((found) => { if (current) setAll(found); }).catch(() => { /* asked again when a line changes */ });
+    return () => { current = false; };
+  }, [open, lines, actorId, updatesFor]);
   // Nothing from someone this person blocked reaches their Inbox (decisions.md 48).
-  const updates = useMemo(() => state
-    ? updatesFor(state, actorId, indexesFor(state)).filter((u) => !blocks.has(u.by))
-    : [], [state, actorId, blocks]);
+  const updates = useMemo(() => all.filter((u) => !blocks.has(u.by)), [all, blocks]);
   const readKey = `inbox-read:${actorId}:${orgId}`;
   const [readIds, setReadIds] = useState<ReadonlySet<string>>(new Set());
   useEffect(() => { AsyncStorage.getItem(readKey).then((v) => setReadIds(new Set(v ? JSON.parse(v) as string[] : []))).catch(() => {}); }, [readKey]);

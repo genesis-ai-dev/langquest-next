@@ -7,7 +7,7 @@
 // no I/O here, so it is tested directly (test/reviewCapture.test.ts).
 import {
   derivePassage, unitPlace, unitTitle,
-  type Card, type KindDef, type NoteAnchor, type PassageState, type LanguageState,
+  type Card, type KindDef, type NoteAnchor, type PassageLines, type PassageState, type LanguageState,
   type RequestView, type ReviewView, type SourcedQuestion, type Version
 } from '@langquest-next/core';
 import { bookMatches, canonBook, parseQuery } from '../canon';
@@ -321,23 +321,20 @@ function choiceOf(state: LanguageState, unitId: string): PassageChoice {
   };
 }
 
-const recordedCache = new WeakMap<LanguageState, PassageChoice[]>();
+const recordedCache = new WeakMap<PassageLines, { state: LanguageState; out: PassageChoice[] }>();
 
 /**
  * Every passage in the language with at least one published version, in
- * canon order. One pass over the submissions, cached per state, so a whole
- * Bible costs nothing to reopen.
+ * canon order. Read off the passages' lines (decisions.md 107), cached per
+ * lines and state, so a whole Bible costs nothing to reopen.
  */
-export function recordedPassages(state: LanguageState): PassageChoice[] {
-  const hit = recordedCache.get(state);
-  if (hit) return hit;
-  const units = new Set<string>();
-  for (const takeId of Object.keys(state.submissions)) {
-    const t = state.takes[takeId];
-    if (t && t.unitId && state.units[t.unitId]) units.add(t.unitId);
-  }
-  const out = [...units].map((u) => choiceOf(state, u)).sort((a, b) => a.order - b.order || (a.title < b.title ? -1 : 1));
-  recordedCache.set(state, out);
+export function recordedPassages(state: LanguageState, lines: PassageLines): PassageChoice[] {
+  const hit = recordedCache.get(lines);
+  if (hit && hit.state === state) return hit.out;
+  const units: string[] = [];
+  for (const u of lines.worked()) if (state.units[u] && lines.get(u).recorded) units.push(u);
+  const out = units.map((u) => choiceOf(state, u)).sort((a, b) => a.order - b.order || (a.title < b.title ? -1 : 1));
+  recordedCache.set(lines, { state, out });
   return out;
 }
 

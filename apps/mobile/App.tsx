@@ -73,6 +73,7 @@ import { useOnboarding } from './src/shell/useOnboarding';
 import { useOpenOrganization, type Arrival } from './src/shell/useOpenOrganization';
 import { useRecentPassages } from './src/shell/useRecentPassages';
 import { usePassagesInMemory } from './src/shell/usePassagesInMemory';
+import { usePassageReady } from './src/shell/usePassageReady';
 import { useRouting } from './src/shell/useRouting';
 import { useTestProbes } from './src/shell/useTestProbes';
 import { useWorkingLanguage } from './src/shell/useWorkingLanguage';
@@ -160,8 +161,11 @@ function hostFor(id: ScreenId) {
     const report = useContext(FooterReportContext);
     const key = props.route.key;
     const onFooter = useMemo(() => (report ? (height: number) => report(key, height) : null), [report, key]);
+    const ready = usePassageReady(ctx, props.route.params);
     if (!ctx) return null;
     if (pane && props.route.key === pane.key) return <PaneEmpty spec={pane.empty} />;
+    // A passage's screen waits the moment it takes to bring the passage in from the phone's disk.
+    if (!ready) return <View style={styles.root} accessibilityLabel={t('common.loading')} />;
     // One boundary per screen (error-tracking): a crash in a study guide
     // never takes the recorder, or the rest of the app, down with it.
     return (
@@ -398,7 +402,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     if (id === props.actorId) return lower ? t('shell.youInSentence') : t('common.you');
     return people[id] ?? personLook(id).name;
   }, [people, props.actorId]);
-  const inbox = useInbox({ state: language.state, actorId: props.actorId, orgId: props.orgId, session, blocks, signedIn: props.signedIn });
+  const inbox = useInbox({ language, actorId: props.actorId, orgId: props.orgId, session, blocks, signedIn: props.signedIn });
 
   const { goFrom, go, openPassage, openTask } = useNavActions({ nav, session, toast, remember });
   useRouting({

@@ -449,7 +449,7 @@ export function latestDraftBy(s: Pick<PassageState, 'drafts'>, actorId: string):
 }
 
 /** Feedback waits on whoever recorded the latest version: only they can answer it (REC-5). */
-export function feedbackIsMine(s: PassageState, actorId: string): boolean {
+export function feedbackIsMine(s: Pick<PassageState, 'awaitingResponse'> & { latest?: Pick<Version, 'by'> }, actorId: string): boolean {
   return s.awaitingResponse.length > 0 && s.latest?.by === actorId;
 }
 
@@ -535,7 +535,7 @@ export function usualTarget(
  * The one-line state of a passage, worded for the person looking. `name`
  * turns a profile id into a display name ("you" for the viewer).
  */
-export function passageSummary(s: PassageState, kinds: KindDef[], actorId: string, name: (id: string) => string): string {
+export function passageSummary(s: Pick<PassageState, 'done' | 'recorded' | 'drafting' | 'awaitingResponse'> & { latest?: Pick<Version, 'n' | 'by'>; steps: { kinds: Pick<KindStatus, 'kindId' | 'state' | 'request'>[] }[]; next?: Pick<FlowStepStatus, 'step'> }, kinds: KindDef[], actorId: string, name: (id: string) => string): string {
   if (s.done) return s.steps.length === 0 ? 'Recorded · done' : 'Done';
   if (!s.recorded) return s.drafting ? 'Recording in progress' : 'Not started';
   if (s.awaitingResponse.length) {
