@@ -1,13 +1,13 @@
 // The template screens' rules (src/templates/model.ts): which view this is,
 // the lines a card says, what the picker offers, and when the editor may save.
 import { describe, expect, it } from 'vitest';
-import type { LibraryItemView, TemplateDoc, VersificationDoc } from '@langquest-next/core';
+import type { LibraryItemView, TemplateDoc, TemplateDocV2, VersificationDoc } from '@langquest-next/core';
 import { newTemplateForm, type LibraryChoice, type TemplateForm } from '../src/contentTemplates';
 import type { SharedItem } from '../src/library/model';
 import {
   bookRowSub, choiceInUse, defaultDisplay, displayExample, editorSub, filterBooks, formReady, isOpenLanguage, joinNames, languageSummary,
   languageVersionView, levelNameAt, levelSub, missingBooks, movesLine, outlineHolds, outlineSummary, partsCount, pendingUpdate,
-  pickerLists, pickerNote, publishedVersion, renamedTitle, savedToast, splitArchived, templatesLevel, versionLineOf, versificationLabel
+  pickerLists, pickerNote, publishedVersion, redividedBooks, renamedTitle, savedToast, splitArchived, templatesLevel, versionLineOf, versificationLabel
 } from '../src/templates/model';
 
 const item = (over: Partial<LibraryItemView> = {}): LibraryItemView => ({
@@ -154,6 +154,24 @@ describe('choosing a template', () => {
     const all = [ours(item()), theirs];
     expect(pickerLists(all, true)).toEqual({ ours: [all[0]], others: [theirs] });
     expect(pickerLists(all, false)).toEqual({ ours: [all[0]], others: [] });
+  });
+
+  it("offers LangQuest's ways once, in the language's numbering, and not its older templates (decision 107)", () => {
+    const lq = (item_id: string): LibraryChoice => ({ key: `shared:langquest/${item_id}`, source: 'shared', shared: { ...shared, org_id: 'langquest', item_id }, name: item_id, hash: 'h' });
+    const all = [lq('langquest.bible.fia'), lq('langquest.bible.fia.org-66'), lq('langquest.template.bible-chapters-rso'), theirs];
+    expect(pickerLists(all, true).others.map((c) => c.name)).toEqual(['langquest.bible.fia', 'FIA']);
+    expect(pickerLists(all, true, 'org').others.map((c) => c.name)).toEqual(['langquest.bible.fia.org-66', 'FIA']);
+  });
+
+  it('names the books a save divides again, so Save warns first (decision 107)', () => {
+    const tpl = (books: TemplateDocV2['bible'] extends infer B ? B extends { books: infer X } ? X : never : never): TemplateDocV2 => ({
+      format: 'template@2', name: 't', description: '', structure: 'bible', levels: [{ name: 'Book' }, { name: 'Passage' }], bible: { versification: 'v', books }, deps: ['v']
+    });
+    const start = tpl([{ book: 'RUT', name: 'Ruth', divide: 'chapters' }, { book: 'ROM', name: 'Romans' }]);
+    const now = tpl([{ book: 'RUT', name: 'Ruth', divide: 'passages', passages: [{ ref: 'RUT 1:1-4:22' }] }, { book: 'ROM', name: 'Romans', divide: 'chapters' }]);
+    // Ruth was divided and is divided differently; Romans was waiting, so dividing it moves nothing.
+    expect(redividedBooks(start, now, [{ book: 'RUT', name: 'Ruth' }, { book: 'ROM', name: 'Romans' }])).toEqual(['Ruth']);
+    expect(redividedBooks(start, start, [{ book: 'RUT', name: 'Ruth' }])).toEqual([]);
   });
 
   it('says what changing does: hides parts, hides recorded ones, or starts afresh', () => {

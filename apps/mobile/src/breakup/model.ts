@@ -4,7 +4,7 @@
 // to a template becomes its next version or a copy for some languages.
 // Screens and hooks are in parts.tsx and useBreakup.ts.
 import {
-  bookParts, templateBooks, wayCovers, wayPartCount, parseRef,
+  bookParts, partCount, sameParts, templateBooks, wayCovers, wayPartCount, parseRef,
   type LibraryItemView, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import { bookNameOf, STARTER_TEMPLATE, type LibraryChoice } from '../contentTemplates';
@@ -104,6 +104,53 @@ export function wayRows(c: {
   const own = rows.filter((r) => !used.includes(r) && !ways.includes(r) && !r.later && r.choice.source === 'ours' && !r.choice.item.subscription);
   const later = rows.filter((r) => !used.includes(r) && r.later);
   return [...used, ...ways, ...own, ...later];
+}
+
+/**
+ * Which ready-made way a book is divided by now, if one matches it exactly.
+ * The template being shown is never its own match: the language's own
+ * template (or a copy of one) holds every book as it is, so a book divided
+ * its own way would otherwise be named after the template ("Book by book
+ * (Kara)"). A LangQuest way the language follows is still named. `self` is
+ * the item being edited, when it is not the language's.
+ */
+export function wayNow(rows: WayRow[], docOf: (r: WayRow) => TemplateDoc | null, doc: TemplateDoc | null, book: string, self?: string | null): WayRow | null {
+  if (!doc) return null;
+  return rows.find((r) => !r.later && !isItself(r, self) && (() => { const d = docOf(r); return !!d && wayCovers(d, book) && sameParts(doc, d, book); })()) ?? null;
+}
+
+/**
+ * Whether a row is the template being shown rather than a way to divide it:
+ * the language's own template, or the one being edited (`self`). It is not
+ * offered as a way to change itself, nor named as how a book is divided.
+ */
+export function isItself(r: WayRow, self?: string | null): boolean {
+  return !wayOf(r.choice) && (r.inUse || (r.choice.source === 'ours' && r.choice.item.itemId === self));
+}
+
+/**
+ * How a template divides one book, in a line under the book's name: "FIA
+ * passages · 105 pieces", "Its own way · 17 pieces", "Waiting to be
+ * divided". `way` is the ready-made way it matches (wayNow), if any.
+ */
+export function divisionLine(doc: TemplateDoc, book: string, way: string | null, v11n: VersificationDoc | null): string {
+  if (!bookParts(doc, book)) return t('map.waiting');
+  const count = partCount(doc, book, v11n);
+  return way ? t('breakup.division.way', { way, count }) : t('breakup.division.own', { count });
+}
+
+/**
+ * Whether one of another organization's shared templates belongs in a list
+ * to choose from (Content Templates, Choose a Template). LangQuest's ways of
+ * breaking up the Bible are listed once, in the numbering given; its older
+ * templates (`langquest.template.*`, kept for the languages that already use
+ * them) and its ways in other numberings are left out, so the list is not
+ * forty look-alikes. Every other organization's are kept.
+ */
+export function sharedTemplateShown(s: { org_id: string; item_id: string }, numbering: string): boolean {
+  if (s.org_id !== STARTER_TEMPLATE.orgId) return true;
+  const m = /^langquest\.bible\.[a-z0-9-]+?(?:\.([a-z]{3})-\d+)?$/.exec(s.item_id);
+  return !!m && (m[1] ?? 'eng') === numbering;
 }
 
 /** "Used in Dinka", "Used in Dinka and 2 more". */
