@@ -250,6 +250,74 @@ describe('OrgFolder across evictions (decision 44, amended 2026-10-03)', () => {
   });
 });
 
+describe('OrgFolder memory limits (V4)', () => {
+  const at = Date.UTC(2026, 9, 3, 12);
+
+  /** The log's source, counting how many languages are being pulled at once. */
+  function counting(log: FakeLog) {
+    const seen = { active: new Set<string>(), max: 0 };
+    const source: Source = {
+      ...withoutHeads(log),
+      pull: async (orgId, streamId, after, limit) => {
+        if (streamId !== '_org') seen.active.add(streamId);
+        seen.max = Math.max(seen.max, seen.active.size);
+        await new Promise((r) => setTimeout(r, 1));
+        const out = await log.pull(orgId, streamId, after, limit);
+        seen.active.delete(streamId);
+        return out;
+      }
+    };
+    return { seen, source };
+  }
+
+  it('holds folds only up to a byte budget, least recently used out, and always one', async () => {
+    const log = orgLog();
+    const tight = new OrgFolder(log, ORG, new MemoryCache(), () => at, undefined, { stateBudgetBytes: 1 });
+    await tight.reportsFor('admin');
+    expect(tight.heldLanguages()).toHaveLength(1);
+    const roomy = new OrgFolder(log, ORG, new MemoryCache(), () => at, undefined, { stateBudgetBytes: 10_000_000 });
+    await roomy.reportsFor('admin');
+    expect(roomy.heldLanguages().sort()).toEqual(['din', 'nus']);
+  });
+
+  it('still answers for a language whose fold was dropped, reading it back from the cache', async () => {
+    const log = orgLog();
+    const folder = new OrgFolder(log, ORG, new MemoryCache(), () => at, undefined, { stateBudgetBytes: 1 });
+    await folder.reportsFor('admin');
+    const dropped = ['din', 'nus'].find((id) => !folder.heldLanguages().includes(id))!;
+    log.pulls.length = 0;
+    expect(await folder.languageState(dropped)).not.toBeNull();
+    expect(log.pulls).toEqual([{ streamId: dropped, after: 1 }]);
+    expect(folder.heldLanguages()).toEqual([dropped]);
+  });
+
+  it('refreshes small languages together and a large one alone', async () => {
+    const log = orgLog();
+    const cache = new MemoryCache();
+    const first = counting(log);
+    await new OrgFolder(first.source, ORG, cache, () => at).reportsFor('admin');
+    expect(first.seen.max).toBe(2); // no size known yet: both are small
+    // The next day every language is refolded; with a tiny threshold both are large.
+    const large = counting(log);
+    await new OrgFolder(large.source, ORG, cache, () => at + 86_400_000, undefined, { largeStateBytes: 1 }).reportsFor('admin');
+    expect(large.seen.max).toBe(1);
+    // With the default threshold the same two small languages go together again.
+    const small = counting(log);
+    await new OrgFolder(small.source, ORG, cache, () => at + 2 * 86_400_000).reportsFor('admin');
+    expect(small.seen.max).toBe(2);
+  });
+
+  it('lets go of a large fold once it is in the cache, and records its size', async () => {
+    const log = orgLog();
+    const cache = new MemoryCache();
+    const folder = new OrgFolder(log, ORG, cache, () => at, undefined, { largeStateBytes: 1 });
+    await folder.reportsFor('admin');
+    expect(folder.heldLanguages()).toEqual([]);
+    expect(cache.data.has('state:din')).toBe(true);
+    expect(JSON.parse(cache.data.get('summary:din')!).bytes).toBeGreaterThan(0);
+  });
+});
+
 describe('the object\'s SQLite cache', () => {
   const sqlite = () => {
     const db = new DatabaseSync(':memory:');
