@@ -220,6 +220,18 @@ do $$ declare r record; begin
   if r.accepted or r.reason not like 'malformed envelope%' then raise exception 'a toString event id should be refused, got %', r; end if;
 end $$;
 
+-- 5f. An event goes on the kind of stream it belongs to (decisions.md 114).
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"wrong-stream-1","type":"v1.RoleDefined","orgId":"org1","streamId":"L1","actorId":"t1","deviceId":"dB","hlc":"000000000000022:000000:dB","payload":{"roleId":"boss","name":"Boss","privileges":["manage_roles"]}}
+  ]'::jsonb);
+  if r.accepted or r.reason not like 'invalid payload: v1.RoleDefined belongs on the organization stream%' then raise exception 'a role in a language stream should be refused, got %', r; end if;
+  select * into r from public.append_events('[
+    {"id":"wrong-stream-2","type":"v1.TakeArchived","orgId":"org1","streamId":"_org","actorId":"t1","deviceId":"dB","hlc":"000000000000023:000000:dB","payload":{"takeId":"tk1"}}
+  ]'::jsonb);
+  if r.accepted or r.reason not like 'invalid payload: v1.TakeArchived belongs on a language stream%' then raise exception 'a take in the organization stream should be refused, got %', r; end if;
+end $$;
+
 -- 5e. Oversized batches are refused outright; clients must page.
 do $$ begin
   begin

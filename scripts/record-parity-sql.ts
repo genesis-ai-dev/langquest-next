@@ -7,7 +7,7 @@
  */
 import { writeFileSync } from 'node:fs';
 import {
-  EVENT_PAYLOAD_MAX_BYTES, EVENT_PRIVILEGE, LIBRARY_EVENT_TYPES, PRIVILEGES, entityKeyOf, eventSizeError, jsonbTextBytes, languageOfOrgEvent, privilegeAllows, privilegeFor, privilegesOfFixedRole,
+  EVENT_PAYLOAD_MAX_BYTES, EVENT_PRIVILEGE, LIBRARY_EVENT_TYPES, ORG_EVENT_TYPES, PRIVILEGES, entityKeyOf, eventSizeError, jsonbTextBytes, languageOfOrgEvent, privilegeAllows, privilegeFor, privilegesOfFixedRole,
   validateEvent, type AnyEvent, type Role
 } from '@langquest-next/core';
 import { buildFixture, buildOrgFixture, buildRecordFixture, buildStep11Fixture } from '../packages/core/test/fixtures';
@@ -257,6 +257,11 @@ writeFileSync(process.argv[2] ?? '/tmp/record-parity.sql', `do $$ declare r json
   for r in select * from jsonb_array_elements(${sql(scopedLanguage)}) loop
     if public.language_of_org_event(r->>'type', r->'payload') is distinct from r->>'language' then
       raise exception 'language_of_org_event disagrees with core: %', r;
+    end if;
+  end loop;
+  for r in select * from jsonb_array_elements(${sql(Object.keys(EVENT_PRIVILEGE).map((type) => ({ type, org: (ORG_EVENT_TYPES as readonly string[]).includes(type) })))}) loop
+    if (r->>'type' = any (public._org_event_types())) is distinct from (r->>'org')::boolean then
+      raise exception '_org_event_types disagrees with core on %', r->>'type';
     end if;
   end loop;
   for r in select * from jsonb_array_elements(${sql(sizes)}) loop
