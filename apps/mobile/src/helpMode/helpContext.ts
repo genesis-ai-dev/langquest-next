@@ -5,7 +5,6 @@
 // can. Kept apart from the provider so kit.tsx, which reads it, stays free of
 // I/O; the pure parts (numbering, where things go) are tested.
 import { t } from '../i18n';
-export { useScreenShowing, useHelpMode, useHelpSpot, HelpClipContext, HelpContext, HelpScopeContext } from './useHelpMode';
 
 export interface HelpPart {
   key: string;

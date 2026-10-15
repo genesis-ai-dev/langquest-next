@@ -13,7 +13,6 @@ import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { Text } from '../ui/text';
 import { syncStanding, standingTitle, type SyncStanding, previewCount, previewListeners } from './syncStanding';
-export { syncStanding, standingTitle, previewSyncRing, type SyncStanding } from './syncStanding';
 
 const SIZE = 40;
 const R = 17;

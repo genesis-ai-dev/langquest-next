@@ -13,24 +13,22 @@ import { studyUri } from './studyFiles';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { Field, Ico, NoteCard, PrimaryBtn, Sheet, txt, type IconName } from '../ui/kit';
+import { Field, Ico, NoteCard, PrimaryBtn, Sheet, type IconName } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { when, type PassageView } from '../passage/passageView';
-import { Authored, recordTarget, ReportFlag } from '../moderation/reportSheet';
+import { Authored, ReportFlag } from '../moderation/reportSheet';
+import { recordTarget } from '../moderation/reportTargets';
 import { SourceReader } from '../sources/SourceReader';
 import { C, space, type as T } from '../ui/theme';
 import { VoiceNote } from '../audio/voiceNote';
 import type { GlossaryEntry, StudyMedia, StudyMediaKind, StudyResource } from './guides';
-import { useStudyFileUri } from './media';
+import { useStudyFileUri } from './useStudyFileUri';
 import type { StudyStepStatus } from './progress';
 import { inlineParts, isCallout, isQuestion, studySections, type StudySection } from './text';
 import { shownClock, mediaKindLabel, CALLOUT_LOOK, calloutLabel } from './studyText';
 import { saveNote } from './studyActions';
 import { styles } from './studyStyles';
 import { useStudyAudio, type StudyAudio } from './useStudyAudio';
-export { useStudyAudio, type StudyAudio } from './useStudyAudio';
-export { styles } from './studyStyles';
-export { saveNote } from './studyActions';
-export { shownClock, stepLine, mediaKindLabel, resourceIcon, CALLOUT_LOOK, calloutLabel } from './studyText';
 
 // ---- audio -------------------------------------------------------------------------
 

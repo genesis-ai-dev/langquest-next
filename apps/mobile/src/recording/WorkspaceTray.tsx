@@ -13,14 +13,15 @@ import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
-import {
-  Badge, Chip, ChipRow, Field, Ico, LinkBtn, NoteCard, PrimaryBtn, ProgressBar, Row, Sheet, ShowMore, SmallBtn, txt
-} from '../ui/kit';
+import { Badge, Chip, ChipRow, Field, Ico, LinkBtn, NoteCard, PrimaryBtn, ProgressBar, Row, Sheet, ShowMore, SmallBtn } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { versionTitle, when, type PassageView } from '../passage/passageView';
-import { Authored, recordTarget, ReportFlag } from '../moderation/reportSheet';
+import { Authored, ReportFlag } from '../moderation/reportSheet';
+import { recordTarget } from '../moderation/reportTargets';
 import type { StudyProgress } from '../study/progress';
 import { studySummary } from '../study/progress';
-import { StepMark, stepLine } from '../study/ui';
+import { StepMark } from '../study/ui';
+import { stepLine } from '../study/studyText';
 import { C, radius, space, target, TINT, withAlpha } from '../ui/theme';
 import { VoiceNote } from '../audio/voiceNote';
 

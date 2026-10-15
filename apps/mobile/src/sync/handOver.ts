@@ -8,7 +8,6 @@ import { handOverPushToken } from '../notifications/notifications';
 import { noteExpected } from '../diagnostics/report';
 import { getStore } from './store';
 import { actAs, forgetKeptSession, keepSessionAndSignOut, keptSession } from '../server/handOver';
-export { useHandOvers } from './useHandOvers';
 
 /**
  * Shared phones (decisions.md 60): signing out with work still to send

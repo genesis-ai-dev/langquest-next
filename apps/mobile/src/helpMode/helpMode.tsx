@@ -11,7 +11,8 @@ import { Dimensions, I18nManager, Platform, Pressable, StyleSheet, View } from '
 import Svg, { Circle, Defs, Mask, Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '../ui/text';
-import { clipRect, HelpContext, helpLine, litShape, MARK_SIZE, markAt, numberParts, tooltipPlace, type FirstSeen, type HelpLit, type HelpMark, type HelpMode, type HelpPart, type HelpRect } from './helpContext';
+import { clipRect, helpLine, litShape, MARK_SIZE, markAt, numberParts, tooltipPlace, type FirstSeen, type HelpLit, type HelpMark, type HelpMode, type HelpPart, type HelpRect } from './helpContext';
+import { HelpContext } from './useHelpMode';
 import { currentLocale, isRtl, t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { registerPlayback } from '../audio/audioSession';

@@ -5,9 +5,10 @@ import { STARTER_TEMPLATE, type LibraryChoice } from '../templates/contentTempla
 import type { Ctx } from '../shell/ctx';
 import { useLibraryDocs } from '../library/useLibrary';
 import { QUIZ } from './numberingGuide';
-import { useRecordChoices } from '../admin/choices';
+import { useRecordChoices } from '../admin/useChoices';
 import { baseWay, WAY_ITEMS, wayOf, type WayRow } from './model';
-import { adoptWay, useWays } from './useBreakup';
+import { useWays } from './useBreakup';
+import { adoptWay } from './breakupActions';
 
 /** The state of the question, and `resolve()`: the item and version the language will use. */
 export function useTranslate(ctx: Ctx, forLanguage: string | null) {

@@ -9,12 +9,11 @@ import { View } from 'react-native';
 import { currentLocale, t } from '../i18n';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
-import { Disclosure, Group, Ico, Row, txt } from '../ui/kit';
+import { Disclosure, Group, Ico, Row } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { C, space, TINT } from '../ui/theme';
 import { isEarlierSection, numberedLike } from './earlierSections';
 import { useEarlierSections } from './useEarlierSections';
-export { useEarlierSections, type Earlier } from './useEarlierSections';
-export { isEarlierSection, numberedLike } from './earlierSections';
 
 /** At the top of an earlier section's page: what it is, and the sections its verses are in now. */
 export function EarlierNote(props: { ctx: Ctx; unitId: string; languageId: string }) {

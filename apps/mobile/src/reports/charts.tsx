@@ -4,10 +4,11 @@ import { Pressable, View, type LayoutChangeEvent } from 'react-native';
 import { Text } from '../ui/text';
 import Svg, { Circle, G, Line, Path, Polyline, Rect, Text as SvgText } from 'react-native-svg';
 import { t } from '../i18n';
-import { txt } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { C, space } from '../ui/theme';
 import { PACE_TONE, recencyDaysLabel, recencyLabel, RECENCY_TONE, workLabel, WORK_TONE } from './labels';
-import { Legend, num, pctText, shortDate, signed, TONE_FILL, weekday, type Tone } from './ui';
+import { Legend } from './ui';
+import { num, pctText, shortDate, signed, TONE_FILL, weekday, type Tone } from './format';
 
 /**
  * Small SVG charts, ported from the web dashboard. Each one says its numbers

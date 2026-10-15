@@ -31,10 +31,9 @@ import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
-import {
-  Badge, Banner, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, IconBtn, KindIcon,
-  PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, SmallBtn, Toggle, txt, useOpenDetail
-} from '../ui/kit';
+import { Badge, Banner, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, IconBtn, KindIcon, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, SmallBtn, Toggle } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { useOpenDetail } from '../ui/useLayout';
 import { cachedDoc } from '../library/docStore';
 import { sourceLine, usesItem, type SharedItem } from '../library/model';
 import { restoreChecks } from '../checks/undo';
@@ -49,11 +48,11 @@ import { sourceText } from '../passage/scripture';
 import { C, radius, space, TINT } from '../ui/theme';
 import { VoiceNote } from '../audio/voiceNote';
 import { CheckSteps } from '../checks/checkSteps';
-import { BibleChip, bibleMissing, OthersSay, OwnWord, PassageNoteEditor, WhereItIs } from '../helps/helps';
-import { othersSay } from '../helps/helpsModel';
+import { BibleChip, OthersSay, OwnWord, PassageNoteEditor, WhereItIs } from '../helps/helps';
+import { othersSay, bibleMissing } from '../helps/helpsModel';
 import { bookOf } from '../recording/model';
-import { useBible } from '../helps/reference';
-import { useOtherLanguageTerms } from '../reference/otherLanguages';
+import { useBible } from '../helps/useBible';
+import { useOtherLanguageTerms } from '../reference/useOtherLanguageTerms';
 import { LanguageChecks } from './checks';
 import { addPickedKind, copyFlowSpecs, currentFlowLine, flowEditorBase, flowEditorSeed, flowEditorStatus, knownKinds, newKindDef, usuallyFor, withAddedKinds } from '../flows/model';
 import {

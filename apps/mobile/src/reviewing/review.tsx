@@ -16,27 +16,29 @@ import { Text } from '../ui/text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AudioClip } from '../audio/audioClip';
 import type { Ctx } from '../shell/ctx';
-import { useHelpSpot } from '../helpMode/helpContext';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpClip } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatClock, formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
-import { Badge, Chip, ChipRow, Field, GhostBtn, Group, Ico, IconBtn, LinkBtn, NoteCard, PrimaryBtn, Row, txt, useLayout, type IconName } from '../ui/kit';
+import { Badge, Chip, ChipRow, Field, GhostBtn, Group, Ico, IconBtn, LinkBtn, NoteCard, PrimaryBtn, Row, type IconName } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { useLayout } from '../ui/useLayout';
 import type { PassageView } from '../passage/passageView';
 import { when } from '../passage/passageView';
-import { Authored, recordTarget, ReportFlag } from '../moderation/reportSheet';
+import { Authored, ReportFlag } from '../moderation/reportSheet';
+import { recordTarget } from '../moderation/reportTargets';
 import { clockMs, questionSource, YES_NO, yesNoLabel, type Stage, type StageId } from './capture';
 import { TeamStudyPart } from './parts';
 import { EarlierPane } from '../helps/reference';
 import { lift } from '../ui/shadow';
-import { usePassagePlayer } from '../sources/player';
-import type { Usage } from '../sources/used';
+import { usePassagePlayer } from '../sources/usePassagePlayer';
+import type { Usage } from '../sources/useUsage';
 import { usePassageSource, useSources } from '../sources/useSources';
 import { C, onColor, radius, space, target, TINT, type as T, withAlpha } from '../ui/theme';
 import { VoiceNote } from '../audio/voiceNote';
 import { SpeakBtn } from './reviewVoice';
 import { type BackgroundData } from './reviewText';
-export { backgroundLine, type BackgroundData } from './reviewText';
 
 // ---- the strip of steps ----------------------------------------------------------------------
 

@@ -8,14 +8,14 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
-import { Field, PrimaryBtn, Row, Sheet, txt } from '../ui/kit';
+import { Field, PrimaryBtn, Row, Sheet } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { failureMessage } from '../diagnostics/report';
 import { CheckRow, IconTile } from '../admin/admin';
 import { Text } from '../ui/text';
 import { TINT } from '../ui/theme';
 import { clusterEvents, clusterNamed, newClusterId, type ClusterEvent } from './model';
 import { clusterSub, appendClusterEvents } from './clusterActions';
-export { clusterSub, appendClusterEvents } from './clusterActions';
 
 /** A cluster's tile: layers, in amber. */
 export function ClusterTile(props: { size?: number }) {

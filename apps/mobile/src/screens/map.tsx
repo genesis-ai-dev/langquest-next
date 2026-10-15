@@ -24,13 +24,13 @@ import type { Ctx } from '../shell/ctx';
 import { edgeFor, type ScreenId } from '../shell/flow';
 import { t } from '../i18n';
 import { formatNumber, formatPercent } from '../i18n/format';
-import { keptOfflineMap, OfflineMark, offlineWords, type KeptOffline } from '../sync/offline';
+import { OfflineMark } from '../sync/offline';
+import { keptOfflineMap, offlineWords, type KeptOffline } from '../sync/offlineText';
 import { indexesFor } from '../sync/indexes';
 import { useOrgSummary } from '../reports/useOrgSummary';
-import {
-  Card, Chip, ChipRow, EmptyState, Group, Header, Ico, IconBtn, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore,
-  StepMarks, txt, useLayout, useOpenDetail
-} from '../ui/kit';
+import { Card, Chip, ChipRow, EmptyState, Group, Header, Ico, IconBtn, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, StepMarks } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { useLayout, useOpenDetail } from '../ui/useLayout';
 import { mayWriteLibrary } from '../library/model';
 import {
   agoWords, bookEntries, bookRowWords, chapterRows, chapterTiles, clauses, clusterView, filterEntries, filterLabel, flowLabel, funnelLayers, funnelRows,
@@ -41,7 +41,8 @@ import {
 import { useForYou, useNextPassage } from '../map/useMapLanguage';
 import { NumberingNote } from '../breakup/parts';
 import { useVerseNumbering } from '../breakup/useBreakup';
-import { ChangedMark, useEarlierSections } from '../breakup/earlier';
+import { ChangedMark } from '../breakup/earlier';
+import { useEarlierSections } from '../breakup/useEarlierSections';
 import { BookBar, ChapterTileView, FullKey, NextLink, Pills, QuietIconLink, ShortKey } from '../map/mapParts';
 import { chapterColumns } from '../ui/layout';
 import type { ClusterFilter } from '../clusters/model';

@@ -4,7 +4,7 @@ import {
 import { localKind } from '../i18n/coreText';
 import { t } from '../i18n';
 import { formatPercent } from '../i18n/format';
-import type { Tone } from './ui';
+import type { Tone } from './format';
 
 /**
  * Words and tones for the report's bands, as the web dashboard had them

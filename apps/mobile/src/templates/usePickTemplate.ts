@@ -5,7 +5,7 @@ import type { LibraryChoice } from './contentTemplates';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { failureMessage } from '../diagnostics/report';
-import type { Lib } from './hooks';
+import type { Lib } from './useRunner';
 
 /**
  * Switch the language to a template, keeping the books it had chosen. Undo
