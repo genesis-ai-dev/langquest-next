@@ -41,9 +41,11 @@ export async function sayEachPart(page: Page, parts: number): Promise<void> {
     if (await said(n).count()) continue;
     await page.getByRole('button', { name: new RegExp(`^Record part ${n}`) }).locator('visible=true').first().click();
     await expect(page.getByRole('button', { name: 'Stop recording' }).locator('visible=true').first()).toBeVisible();
-    await page.waitForTimeout(6_500); // sleep: the fake microphone must play one full voice loop (about 4 s) and a pause; the screen shows no running time
+    // The voice file speaks 1.5 s in every 4 s: stop once a piece has been heard, as a person stops after
+    // speaking (07-reviewing's sayPart). A fixed wait let a slow runner stop before anything was heard.
+    await expect(page.getByLabel(/[1-9]\d* pieces? so far/).locator('visible=true').first()).toBeVisible({ timeout: 15_000 });
     await page.getByRole('button', { name: 'Stop recording' }).locator('visible=true').first().click();
-    await expect(said(n).first()).toBeVisible({ timeout: 10_000 });
+    await expect(said(n).first()).toBeVisible({ timeout: 20_000 });
   }
 }
 
