@@ -227,6 +227,11 @@ export class SyncClient<S = LanguageState> {
     const locals = await this.opts.store.all(this.opts.orgId, this.opts.streamId);
     const events = locals.map((l) => l.event);
     const snapshot = await this.localSnapshot();
+    if (this.kept && this.lines && !snapshot) {
+      // Rows kept on disk belong to a checkpoint; with none here (a first download cut short, a
+      // checkpoint dropped or from another reducer) they are not to be trusted.
+      await this.commit({ kept: { ...this.stream(), clear: true }, meta: { [this.lines.owedKey()]: '' } });
+    }
     if (this.kept && this.lines && snapshot && holdsKept(snapshot.state)) {
       // A checkpoint from before the language kept records on disk: move them there once, with a checkpoint without them.
       const split = await this.kept.split(snapshot.state);
@@ -475,14 +480,21 @@ export class SyncClient<S = LanguageState> {
     let kept: WriteBatch['kept'];
     let owed: Record<string, string> = {};
     if (this.kept && this.lines) {
-      snap.state = await this.readKept(meta.serverSeq, meta.chunks);
+      // A phone with a language here reads the new copy aside and switches to it with its checkpoint,
+      // so dying part-way keeps what it had. A first download has nothing to keep: its rows go in place,
+      // since moving 160,000 rows took Koro Miyan 200 s on a test phone (`load` drops rows with no checkpoint).
+      const first = (await this.checkpointSeq()) === null;
+      const into = first ? this.opts.streamId : this.incomingStream();
+      snap.state = await this.readKept(meta.serverSeq, meta.chunks, into);
       // Every passage's line, worked out before the language opens, so no list shows it half known.
-      owed = await this.lines.build(snap.state, this.incomingStream());
-      kept = { ...this.stream(), replaceFrom: this.incomingStream() };
+      owed = await this.lines.build(snap.state, into);
+      if (!first) kept = { ...this.stream(), replaceFrom: this.incomingStream() };
     }
     await this.clearChunks(index);
     await this.opts.store.commit({ meta: { [this.chunkKey()]: '' } });
     await this.saveSnapshot(snap, kept, owed);
+    // Rows written in place bypass the commits that say the table changed.
+    this.kept?.changed();
     await this.load();
     return snap.serverSeq;
   }
@@ -500,8 +512,8 @@ export class SyncClient<S = LanguageState> {
    * the checkpoint that follows moves them in, so a phone that dies part-way
    * still has the language it had.
    */
-  private async readKept(serverSeq: number, chunks: number): Promise<LanguageState> {
-    const incoming = { orgId: this.opts.orgId, streamId: this.incomingStream() };
+  private async readKept(serverSeq: number, chunks: number, streamId: string): Promise<LanguageState> {
+    const incoming = { orgId: this.opts.orgId, streamId };
     await this.opts.store.commit({ kept: { ...incoming, clear: true } });
     let rows: KeptRecord[] = [];
     const placing = new SnapshotRows();

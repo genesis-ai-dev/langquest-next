@@ -306,6 +306,35 @@ describe('a language that keeps its recordings on disk', () => {
     expect(Object.keys(client.getState().units)).toHaveLength(40);
   });
 
+  it('a first download cut short while its rows are written leaves nothing the next open trusts', async () => {
+    // Why: a first download writes its rows in place (moving them took a test
+    // phone 200 s for Koro Miyan); a phone that dies part-way must not read them.
+    const server = new FakeServer();
+    await language(server, 30);
+    server.makeSnapshot('org1', 'p1');
+    server.chunkChars = 300;
+    const store = makeStore();
+    let kept = 0;
+    const dying = new Proxy(store, { get: (t, k) => {
+      const v = (t as unknown as Record<string, unknown>)[k as string];
+      if (k !== 'commit') return typeof v === 'function' ? (v as (...a: unknown[]) => unknown).bind(t) : v;
+      return async (batch: { kept?: { upsert?: unknown[] } }) => {
+        if (batch.kept?.upsert?.length && ++kept === 2) throw new Error('the phone died');
+        return (v as (b: unknown) => Promise<void>).call(t, batch);
+      };
+    } });
+    const a = phone(server, 'dB', 'r1', { keepOnDisk: true, store: dying });
+    await a.client.load();
+    await expect(a.client.pull()).rejects.toThrow('the phone died');
+    expect(await store.keptCount('org1', 'p1', 'recording')).toBeGreaterThan(0);
+    const b = phone(server, 'dB', 'r1', { keepOnDisk: true, store });
+    await b.client.load();
+    expect(await store.keptCount('org1', 'p1', 'recording')).toBe(0);
+    await b.client.pull();
+    expect(await store.keptCount('org1', 'p1', 'recording')).toBe(30);
+    expect(await store.keptCount('org1', 'p1', 'line')).toBe(30);
+  });
+
   it('moves a checkpoint from before onto disk the first time it opens', async () => {
     const server = new FakeServer();
     await language(server, 20);
