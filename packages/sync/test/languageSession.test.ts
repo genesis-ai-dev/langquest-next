@@ -1,7 +1,21 @@
 import { HlcClock, type BlobRef } from '@langquest-next/core';
 import { LanguageSession, type LanguageSessionOptions, type LocalFiles } from '../src/languageSession';
 import { MemoryStore } from '../src/memoryStore';
+import { SyncClient } from '../src/syncClient';
 import { FakeServer } from '../src/testing/fakeServer';
+import type { EventPayloads, EventType } from '@langquest-next/core';
+
+let remoteIds = 1000;
+/** Someone else's phone: one event, sent at once. */
+async function from<T extends EventType>(server: FakeServer, actorId: string, type: T, payload: EventPayloads[T]) {
+  const c = new SyncClient({
+    orgId: 'org1', streamId: 'luke', actorId, deviceId: `d-${actorId}`, store: new MemoryStore(), transport: server.transportFor(),
+    clock: new HlcClock(`d-${actorId}`, () => (remoteIds += 1)), newId: () => `x${(remoteIds += 1)}`
+  });
+  await c.load();
+  await c.append(type, payload);
+  await c.push();
+}
 
 /** A phone's files in memory: what is here, how big, and who asked to be told of changes. */
 function memoryFiles(): LocalFiles & { put(hash: string, size: number): void; reclaimed: string[][] } {
@@ -212,6 +226,65 @@ describe('LanguageSession: a language kept on disk (decisions.md 107)', () => {
     await until(() => uploaded.includes('h1'));
     await session.loadUnits(['Luke 1']);
     expect(session.state.recordings['r1']).toBeDefined();
+    session.close();
+  });
+});
+
+describe('LanguageSession: lists of passages read lines (decisions.md 107)', () => {
+  /** A passage recorded by akol, reviewed by lead with feedback, and asked of akol again; another merely drafted. */
+  async function team(session: LanguageSession, server: FakeServer) {
+    await session.append('v1.UnitAdded', unit('Luke 1'));
+    await session.append('v1.UnitAdded', unit('Luke 2'));
+    await session.append('v1.TakeComposed', { takeId: 't1', unitId: 'Luke 1', cardHashes: ['c1'], parentTakeId: null });
+    await session.append('v1.TakeSubmitted', { takeId: 't1' });
+    await session.append('v1.TakeComposed', { takeId: 'd2', unitId: 'Luke 2', cardHashes: ['c2'], parentTakeId: null });
+    await session.append('v1.KeyTermLinked', { takeId: 't1', termId: 'logos' });
+    await session.sync();
+    await from(server, 'lead', 'v1.ReviewRecorded', { reviewId: 'r1', takeId: 't1', kindId: 'peer', outcome: 'needs_changes', via: 'app', comment: 'slower' });
+    await from(server, 'lead', 'v1.RequestMade', { requestId: 'q1', unitId: 'Luke 1', what: 'record', profileId: 'akol' });
+    await session.sync();
+  }
+
+  for (const keepOnDisk of [false, true]) {
+    it(`Map, My Work and the Inbox read the same from lines (${keepOnDisk ? 'kept on disk' : 'kept in memory'})`, async () => {
+      const { server, open } = phone(keepOnDisk ? { keepOnDisk: true } : {});
+      const session = await open();
+      session.start();
+      await team(session, server);
+      await session.client.settleLines();
+      await until(() => session.status.lines.get('Luke 1').awaitingResponse.length === 1);
+      const line = session.status.lines.get('Luke 1');
+      expect(line).toMatchObject({ recorded: true, latest: { n: 1, by: 'akol' } });
+      expect(line.people).toEqual(['akol', 'lead']);
+      expect(session.status.lines.get('Luke 2')).toMatchObject({ recorded: false, drafting: true, draftsBy: { akol: expect.any(String) } });
+      expect([...session.status.lines.worked()].sort()).toEqual(['Luke 1', 'Luke 2']);
+      // The Inbox: lead's review of akol's version, and lead's request.
+      expect((await session.updatesFor('akol')).map((u) => u.id).sort()).toEqual(['request:q1', 'review:r1']);
+      expect(await session.updatesFor('nobody')).toEqual([]);
+      expect(await session.passagesLinkingTerm('logos')).toEqual(['Luke 1']);
+      expect(await session.passageOfTake('d2')).toBe('Luke 2');
+      session.close();
+    });
+  }
+
+  it('reads an Inbox passage from disk again only when its line changed', async () => {
+    const { server, store, open } = phone({ keepOnDisk: true });
+    const session = await open();
+    session.start();
+    await team(session, server);
+    await session.client.settleLines();
+    await session.updatesFor('akol');
+    let reads = 0;
+    const keptByUnit = store.keptByUnit.bind(store);
+    store.keptByUnit = (...a) => { reads += 1; return keptByUnit(...a); };
+    await session.updatesFor('akol');
+    expect(reads).toBe(0);
+    await from(server, 'lead', 'v1.RequestWithdrawn', { requestId: 'q1' });
+    await session.sync();
+    await session.client.settleLines();
+    reads = 0;
+    expect((await session.updatesFor('akol')).map((u) => u.id).sort()).toEqual(['request:q1', 'review:r1']);
+    expect(reads).toBe(1);
     session.close();
   });
 });

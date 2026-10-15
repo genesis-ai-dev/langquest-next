@@ -74,7 +74,7 @@ export interface LanguageHandle {
     /**
      * The passages kept offline and how much of each one's audio is here,
      * and the whole scope at a glance; null until first counted. Counted
-     * from the phone's table after changes (decisions.md 106), so a screen
+     * from the phone's table after changes (decisions.md 107), so a screen
      * reads them without waiting.
      */
     keptOffline: ReadonlyMap<string, UnitOffline> | null;
@@ -86,7 +86,7 @@ export interface LanguageHandle {
   };
   /**
    * Hold these passages' recordings in memory: the one a screen shows and
-   * those next to it (decisions.md 106). Others stay on the phone's disk.
+   * those next to it (decisions.md 107). Others stay on the phone's disk.
    */
   loadUnits: (unitIds: readonly string[]) => void;
   /** Call after recording: clears upload backoff and starts a pass now. */
@@ -185,7 +185,7 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
           diag: diagnostics
         },
         aroundSync: trackSync,
-        // Recordings and file verdicts stay on the phone; memory holds the passages on screen (decisions.md 106).
+        // Recordings and file verdicts stay on the phone; memory holds the passages on screen (decisions.md 107).
         keepOnDisk: true,
         onSettled: ({ blobsWanted }) => { void flushDiagnostics({ blobCacheBytes: files.totalBytes(), blobsWanted }).catch(() => {}); }
       });

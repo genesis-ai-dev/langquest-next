@@ -6,7 +6,7 @@ import { nearUnits } from './passagesInMemoryModel';
 /**
  * Memory holds the recordings of the passage on screen and those next to
  * it, so moving on is instant; the rest of the language's stay on the
- * phone (decisions.md 106). Asked again whenever the passage on screen
+ * phone (decisions.md 107). Asked again whenever the passage on screen
  * changes, and once the language has loaded.
  */
 export function usePassagesInMemory(language: LanguageHandle, unitId: string | undefined): void {
