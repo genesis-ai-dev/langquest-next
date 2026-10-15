@@ -3727,6 +3727,21 @@ run's flags into exclusions and a printed list. The flows had been written
 to fail rather than pass silently; a skip that is printed keeps that
 honesty without the noise. Named flows (`--flow`) still run as asked.
 
+Amended (2026-10-15, Carl Sauder): the PR jobs no longer wait for
+`checks`, and `ui-web` runs in two shards. A PR waited about 12 minutes:
+`checks` (2.4 min), then `ui-web` (8 to 10 min), of which the `@p0` tests
+were 5 to 6.5 min on four workers that were busy only 70% of the time,
+because the one long `@wide` journey (JRN-005, about 2 min) was queued last
+and ran alone. Now the four jobs start together, a job that needs the local
+stack starts it in the background while it installs browsers, the `wide`
+project is listed first, and each project builds its own fixture world, so
+the two can run one file at once. Shards, not more workers: a runner has
+four cores and already runs the stack and the Worker beside the browsers.
+A failing `checks` no longer saves the other jobs' runner time, which on a
+public repository costs nothing. Reverse if: runner minutes start to cost
+(a private repository, or a paid plan's limit), or the shards' runs disagree
+with an unsharded one.
+
 ## 103. Large languages are projected by a scheduled GitHub job; the Edge pass leaves them out
 
 Date: 2026-10-14 · By: Caleb Koster · Status: accepted
