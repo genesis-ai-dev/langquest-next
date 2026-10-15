@@ -794,6 +794,19 @@ begin
   if n <> 0 then raise exception 'decided request left open'; end if;
 end $$;
 
+-- How someone joined is the server's to say (decisions.md 112): the lead holds
+-- invite_members, yet may not append a JoinDecided or an InviteIssued itself.
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"forged-join","type":"v1.JoinDecided","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dL","hlc":"000000000000090:000000:dL","payload":{"requestId":"x","profileId":"asker","accepted":true}}
+  ]'::jsonb);
+  if r.accepted or r.reason not like 'may not emit%' then raise exception 'a client JoinDecided should be refused, got %', r; end if;
+  select * into r from public.append_events('[
+    {"id":"forged-invite","type":"v1.InviteIssued","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dL","hlc":"000000000000091:000000:dL","payload":{"inviteId":"invX","roleId":"translator","scope":{"level":"org"},"expiresAt":"2030-01-01T00:00:00Z"}}
+  ]'::jsonb);
+  if r.accepted or r.reason not like 'may not emit%' then raise exception 'a client InviteIssued should be refused, got %', r; end if;
+end $$;
+
 -- Accepting names the scope, as an invite does: here one language.
 select set_config('request.jwt.claim.sub', 'asker-scope', false);
 select public.create_join_request('org1', 'req-scope', '');
