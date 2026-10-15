@@ -341,6 +341,7 @@
     "get_ready": "Ku shirya",
     "settings_more": "Ƙarin saituna",
     "check_editor": "Dubawa",
+    "cluster_home": "Rukuni",
     "made_detail": "Abin da aka yi daga siga"
   },
   "native": {
@@ -657,7 +658,8 @@
       "languagesTitle": "Harsuna",
       "newLanguage": "Sabon harshe",
       "noLanguages": "Babu harsuna tukuna. Ku ƙara na farko da tawagarku za ta naɗa.",
-      "openToBring": "Buɗe shi don kawo shi kan wannan na'ura"
+      "openToBring": "Buɗe shi don kawo shi kan wannan na'ura",
+      "newLanguageOrCluster": "Sabon harshe ko rukuni"
     },
     "rename": {
       "done": "An sake suna zuwa {{name}}.",
@@ -725,7 +727,8 @@
         "roles": "matsayai",
         "publicListing": "jerin jama'a",
         "name": "suna",
-        "languageList": "jerin harsuna"
+        "languageList": "jerin harsuna",
+        "cluster": "rukuni"
       },
       "orgAndCode": "{{org}} · Lamba {{code}}",
       "seeWork": "Duba aikinsu",
@@ -4697,7 +4700,8 @@
       "newChapters": "Sababbin babobi",
       "books": "Littattafai",
       "chaptersByBook": "Babobi bisa littafi",
-      "total": "Jimla"
+      "total": "Jimla",
+      "clusters": "Rukunoni"
     },
     "errors": {
       "noServer": "Wannan ginin manhaja bai san inda sabar rahotanni take ba.",
@@ -4791,7 +4795,8 @@
       "alertsChip_other": "Faɗakarwa, {{count, number}} na buƙatar wani",
       "allCountries": "Dukan ƙasashe",
       "loading": "Ana loda rahotanni…",
-      "couldNotRead": "An kasa karanta rahotannin"
+      "couldNotRead": "An kasa karanta rahotannin",
+      "allLanguages": "Duk harsuna"
     },
     "overview": {
       "across_one": "A cikin harshe {{count, number}} · {{recent}} a makonni huɗu na ƙarshe",
@@ -5094,6 +5099,12 @@
       "findCountry": "Nemo ƙasa",
       "typeToFind_one": "Ku rubuta don nemo sauran {{count, number}}.",
       "typeToFind_other": "Ku rubuta don nemo sauran {{count, number}}."
+    },
+    "clusters": {
+      "title": "Rukunoni",
+      "sub": "Harsunan kowane rukuni a tare. Zaɓi ɗaya don ganin harsunansa kawai.",
+      "languages_one": "Harshe {{count, number}}",
+      "languages_other": "Harsuna {{count, number}}"
     }
   },
   "review": {
@@ -6208,6 +6219,104 @@
       "playHelp": "Yana kunna yadda suke faɗinta.",
       "suggest": "Wasu harsuna a nan suna amfani da",
       "suggestHelp": "Ana amfani da ita a nan a {{languages}}. Taɓa don ƙara ta."
+    }
+  },
+  "clusters": {
+    "row": {
+      "sub_one": "Harshe {{count, number}} · {{names}}",
+      "sub_other": "Harsuna {{count, number}} · {{names}}",
+      "namesMore": "{{names}}…"
+    },
+    "home": {
+      "sub_one": "Rukuni · harshe {{count, number}}",
+      "sub_other": "Rukuni · harsuna {{count, number}}",
+      "together": "Gaba ɗaya",
+      "itsLanguages": "Harsunansa",
+      "add": "Ƙara harshe a cikinsa",
+      "rename": "Canza suna",
+      "ungroup": "Raba rukunin",
+      "gone": "Wannan rukuni ba shi da harsuna yanzu",
+      "goneSub": "An fitar da harsunansa daga cikinsa. Duk suna nan a {{org}}.",
+      "notSaved": "Ba a ajiye ba"
+    },
+    "add": {
+      "title": "Ƙara zuwa {{cluster}}",
+      "newLanguage": "Sabon harshe",
+      "newLanguageSub": "Shirya shi, tuni a cikin {{cluster}}",
+      "alreadyIn": "Tuni a {{org}}",
+      "none": "Kowane harshe na {{org}} tuni yana cikinsa.",
+      "button": "Ƙara",
+      "done_one": "An ƙara harshe {{count, number}} zuwa {{cluster}}.",
+      "done_other": "An ƙara harsuna {{count, number}} zuwa {{cluster}}."
+    },
+    "rename": {
+      "title": "Canza sunan {{cluster}}",
+      "label": "Sunansa",
+      "save": "Ajiye",
+      "done": "An canza suna zuwa {{name}}."
+    },
+    "ungroup": {
+      "title": "Raba {{cluster}}?",
+      "body_one": "Harshensa yana nan, tare da mutanensa, rikodinsa da duba-dubansa. Sunan da ya haɗa shi kaɗai ke tafiya.",
+      "body_other": "Harsunansa {{count, number}} suna nan, tare da mutanensu, rikodinsu da duba-dubansu. Sunan da ya haɗa su kaɗai ke tafiya.",
+      "confirm": "Raba",
+      "keep": "Bar shi",
+      "done": "An raba {{cluster}}. Harsunansa suna nan har yanzu."
+    },
+    "language": {
+      "label": "Rukuni",
+      "none": "Ba ya cikin rukuni",
+      "sheetTitle": "A wane rukuni yake?",
+      "count_one": "Harshe {{count, number}}",
+      "count_other": "Harsuna {{count, number}}",
+      "newLabel": "Ko sabon rukuni",
+      "firstLabel": "Saka shi a sabon rukuni",
+      "note": "Harshe zai iya kasancewa a rukuni fiye da ɗaya, ko babu ko ɗaya. Babu abin da ke canzawa a harshen.",
+      "done": "An gama",
+      "saved": "An ajiye rukunonin {{language}}."
+    },
+    "newLanguage": {
+      "what": "Me kake ƙarawa?",
+      "one": "Harshe ɗaya",
+      "oneSub": "Da rikodinsa, duba-dubansa da mutanensa",
+      "cluster": "Rukunin harsuna",
+      "clusterSub": "Harsuna da dama masu alaƙa, ana shirya su tare",
+      "clusterName": "Sunan rukunin",
+      "clusterPlaceholder": "misali Dar Khamsa",
+      "theCluster": "rukunin",
+      "inCluster": "A cikin rukuni? Za ka iya zaɓa daga baya",
+      "no": "A'a",
+      "newCluster": "Sabon rukuni",
+      "joinsNamed": "{{org}} tuni tana da {{cluster}}. Waɗannan harsuna za su shiga cikinsa.",
+      "itsLanguages": "Harsunansa · {{number}}",
+      "addOne": "Ƙara harshe",
+      "unlisted": "Ba a samu ba? Ƙara shi yadda ka rubuta, tare da lambarsa idan yana da ita.",
+      "addTyped": "Ƙara “{{name}}”",
+      "new": "Sabo",
+      "newWithCode": "{{code}} · sabo",
+      "already": "Tuni a {{org}}",
+      "takeOut": "Fitar",
+      "note_one": "Harsunan da ke nan tuni suna riƙe da duk abin da suke da shi. Ana shirya sabon harshen a matakai na gaba.",
+      "note_other": "Harsunan da ke nan tuni suna riƙe da duk abin da suke da shi. Ana shirya sababbin harsuna {{count, number}} tare a matakai na gaba.",
+      "onlyExisting": "Babu sabon abin da za a shirya: harsunan da ke nan tuni suna riƙe da duk abin da suke da shi.",
+      "make": "Ƙirƙiri rukunin",
+      "made_one": "An ƙirƙiri {{cluster}}, da harshe {{count, number}}.",
+      "made_other": "An ƙirƙiri {{cluster}}, da harsuna {{count, number}}.",
+      "forNew_one": "Don sabon harshe a {{cluster}}. Zai iya canza nasa daga baya.",
+      "forNew_other": "Don sababbin harsuna {{count, number}} a {{cluster}}. Kowanne zai iya canza nasa daga baya.",
+      "added_one": "An ƙara harshe {{count, number}} zuwa {{org}}, a cikin {{cluster}}.",
+      "added_other": "An ƙara harsuna {{count, number}} zuwa {{org}}, a cikin {{cluster}}.",
+      "addedNotOffered_one": "An ƙara harshe {{count, number}} zuwa {{org}}, a cikin {{cluster}}. Bayar da {{offers}} a ƙarƙashin Abin da ke taimaka musu idan kana kan layi.",
+      "addedNotOffered_other": "An ƙara harsuna {{count, number}} zuwa {{org}}, a cikin {{cluster}}. Bayar da {{offers}} a ƙarƙashin Abin da ke taimaka musu idan kana kan layi.",
+      "notMade": "Ba a ƙara ba",
+      "making": {
+        "adding": "Ana ƙara {{language}}",
+        "grouping": "Ana ƙarawa zuwa {{cluster}}"
+      }
+    },
+    "status": {
+      "all": "Duka",
+      "none": "Ba a cikin rukuni ba"
     }
   },
   "writing": {

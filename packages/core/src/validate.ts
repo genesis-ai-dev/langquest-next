@@ -53,6 +53,7 @@ export function validateEvent(e: AnyEvent): string | null {
   const date = (k: string) => (typeof p[k] === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(p[k]) ? null : `${k} must be a YYYY-MM-DD date`);
   const optStrRecord = (k: string) =>
     p[k] === undefined || (isObject(p[k]) && Object.values(p[k] as object).every((v) => typeof v === 'string')) ? null : `${k} must map ids to strings`;
+  const clusterId = () => (/^[A-Za-z0-9][A-Za-z0-9_-]{0,80}$/.test(p['clusterId'] as string) ? null : 'clusterId may use letters, digits, _ and - only');
   const nullableStr = (k: string) => (p[k] === null || (typeof p[k] === 'string' && p[k] !== '') ? null : `${k} must be a string or null`);
 
   switch (e.type) {
@@ -94,6 +95,10 @@ export function validateEvent(e: AnyEvent): string | null {
         str('languageId') ?? oneOf('scope', TARGET_SCOPES) ?? date('startDate') ?? date('targetDate') ??
         ((p['targetDate'] as string) > (p['startDate'] as string) ? null : 'targetDate must be after startDate')
       );
+    case 'v1.ClusterNamed':
+      return str('clusterId', 'name') ?? clusterId();
+    case 'v1.LanguageClusterSet':
+      return str('languageId', 'clusterId') ?? clusterId() ?? bool('inCluster');
     case 'v1.ReferenceRecommended':
       return str('itemId') ?? bool('recommended');
     case 'v1.LibraryItemDefined':
@@ -160,7 +165,7 @@ export function validateEvent(e: AnyEvent): string | null {
       return str('recordingId', 'unitId') ?? oneOf('kind', ['source', 'target']) ?? cards('cards');
     case 'v1.TakeComposed':
       return str('takeId', 'unitId') ?? strArray('cardHashes') ?? (p['parentTakeId'] === null ? null : str('parentTakeId')) ??
-        // A take holds recorded parts or written ones, never both (decisions.md 108).
+        // A take holds recorded parts or written ones, never both (decisions.md 109).
         (oneMedium(p['cardHashes'] as string[]) ? null : 'cardHashes must be all recorded or all written parts');
     case 'v1.WritingAdded':
       return str('writingId', 'unitId') ?? writtenPartsError(p['parts']);
@@ -395,7 +400,7 @@ function cardVerseError(p: Record<string, unknown>): string | null {
   return a <= b ? null : 'from must not come after to';
 }
 
-// ---- writing (decisions.md 108) ----
+// ---- writing (decisions.md 109) ----
 
 function oneMedium(ids: readonly string[]): boolean {
   if (ids.length === 0) return true;

@@ -49,16 +49,16 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   add_record: { emits:['v1.ReviewRecorded','v1.ReferencesUsed','v1.NoteAdded'],reads:['derivePassage','questionsForKind','recommendedFor'] },
   // What was offered and used goes on the record with the version (docs/reference-material.md).
   // Key words grow during the work (decision 71): say yours, add a word.
-  // Writing the passage instead (decision 108): its words, and its verses.
+  // Writing the passage instead (decision 109): its words, and its verses.
   workspace: { emits:['v1.RecordingAdded','v1.TakeComposed','v1.TakeArchived','v1.TakeSubmitted','v1.WritingAdded',
     'v1.ResponseRecorded','v1.CardVerseSet','v1.NoteAdded','v1.KeyTermLinked','v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted','v1.ReferencesUsed'],
     reads:['derivePassage','keyTermsForUnit','recommendedFor','studyMarksFor'],rpcs:[...REPORTS,'library_get_documents','library_shared_items'] },
   // Its parts are the review's artifacts, not recordings (docs/decisions.md 30).
-  // A step that makes something (decision 108): what it made stays with its version (v1.Made); written, its words and verses;
+  // A step that makes something (decision 109): what it made stays with its version (v1.Made); written, its words and verses;
   // a final recording is published as the next version, as the workspace does.
   back_translation: { emits:['v1.ReviewRecorded','v1.Made','v1.WritingAdded','v1.CardVerseSet','v1.NoteAdded','v1.RecordingAdded','v1.TakeComposed','v1.TakeArchived','v1.TakeSubmitted'],
     reads:['derivePassage'],rpcs:REPORTS },
-  // Something made from a version (decision 108): read or heard, never marked out of date.
+  // Something made from a version (decision 109): read or heard, never marked out of date.
   made_detail: { reads:['derivePassage'] },
   // One reader for both nodes (decision 71): steps, the Bible, key words and notes.
   study_guide: { emits:['v1.StudyStepMarked','v1.NoteAdded','v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted'],
@@ -79,14 +79,17 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // stream a template and a flow, which it needs (decisions.md 63).
   // And what its team is offered from the start (decision 71), and its first group invite code.
   // Its name is looked up in the language list as it is typed (docs/languoids.md).
+  // One language or a cluster of several, and the cluster it joins (decision 108).
   new_language: { emits:['v1.LanguageAdded','v1.LanguageCodeSet','v1.TemplateSelected','v1.UnitAdded','v1.UnitHidden','v1.FlowSelected','v1.FlowStepSet','v1.ReviewKindDefined','v1.LibrarySubscribed','v1.LibraryPinned',
-    'v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.ReferenceSet'],
+    'v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.ReferenceSet','v1.ClusterNamed','v1.LanguageClusterSet'],
     rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document','issue_invite_v3','library_template_users','search_languoids'] },
   // The public listing is per language (docs/streams-and-languages.md).
   // Opening the organization's license (docs/licensing.md).
   org_home: { emits:['v1.LicenseSet','v1.OrgRenamed'],rpcs:['set_language_visibility'],reads:['language_visibility','orgLicense'] },
   // A language's page reads the four questions from the record, and who is waiting to be let in (decision 71).
-  language_home: { emits:['v1.LanguageRenamed','v1.LanguageCodeSet'],rpcs:['set_language_visibility','search_languoids'],reads:['languoid','language_visibility','join_requests','recommendedFor','deriveFlow','org.members'] },
+  // A cluster's page (decision 108): adding languages already here, renaming it, ungrouping it.
+  cluster_home: { emits:['v1.ClusterNamed','v1.LanguageClusterSet'],reads:['orgClusters','languageProgress'] },
+  language_home: { emits:['v1.LanguageRenamed','v1.LanguageCodeSet','v1.ClusterNamed','v1.LanguageClusterSet'],rpcs:['set_language_visibility','search_languoids'],reads:['languoid','language_visibility','join_requests','recommendedFor','deriveFlow','org.members'] },
   // One check (decision 91): its people (one review team per check), its questions (a question set for the kind),
   // its helps, and its place in the language's steps.
   check_editor: { emits:['v1.ReviewTeamDefined','v1.ReviewTeamMemberSet','v1.ReviewTeamKindSet','v1.CheckHelpSet','v1.MaterialDefined','v1.MaterialFieldSet','v1.StepMakesSet','v1.CheckLooksAtSet',

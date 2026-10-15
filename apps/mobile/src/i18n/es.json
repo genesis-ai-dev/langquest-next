@@ -343,6 +343,7 @@
     "get_ready": "Prepárate",
     "settings_more": "Más ajustes",
     "check_editor": "Verificación",
+    "cluster_home": "Grupo",
     "made_detail": "Hecho a partir de una versión"
   },
   "native": {
@@ -667,7 +668,8 @@
       "languagesTitle": "Idiomas",
       "newLanguage": "Nuevo idioma",
       "noLanguages": "Todavía no hay idiomas. Agrega el primero que grabará tu equipo.",
-      "openToBring": "Ábrelo para traerlo a este dispositivo"
+      "openToBring": "Ábrelo para traerlo a este dispositivo",
+      "newLanguageOrCluster": "Idioma o grupo nuevo"
     },
     "rename": {
       "done": "Se cambió el nombre a {{name}}.",
@@ -738,7 +740,8 @@
         "roles": "roles",
         "publicListing": "lista pública",
         "name": "nombre",
-        "languageList": "lista de idiomas"
+        "languageList": "lista de idiomas",
+        "cluster": "grupo"
       },
       "orgAndCode": "{{org}} · Código {{code}}",
       "seeWork": "Ver su trabajo",
@@ -4892,7 +4895,8 @@
       "newChapters": "Capítulos nuevos",
       "books": "Libros",
       "chaptersByBook": "Capítulos por libro",
-      "total": "Total"
+      "total": "Total",
+      "clusters": "Grupos"
     },
     "errors": {
       "noServer": "Esta compilación no sabe dónde está el servidor de informes.",
@@ -5002,7 +5006,8 @@
       "alertsChip_other": "Alertas, {{count, number}} necesitan a alguien",
       "allCountries": "Todos los países",
       "loading": "Cargando informes…",
-      "couldNotRead": "No se pudieron leer los informes"
+      "couldNotRead": "No se pudieron leer los informes",
+      "allLanguages": "Todos los idiomas"
     },
     "overview": {
       "across_one": "En {{count, number}} idioma · {{recent}} en las últimas cuatro semanas",
@@ -5336,6 +5341,13 @@
       "typeToFind_one": "Escribe para buscar el otro.",
       "typeToFind_many": "Escribe para buscar los otros {{count, number}}.",
       "typeToFind_other": "Escribe para buscar los otros {{count, number}}."
+    },
+    "clusters": {
+      "title": "Grupos",
+      "sub": "Los idiomas de cada grupo juntos. Elige uno para ver solo sus idiomas.",
+      "languages_one": "{{count, number}} idioma",
+      "languages_many": "{{count, number}} idiomas",
+      "languages_other": "{{count, number}} idiomas"
     }
   },
   "review": {
@@ -6506,6 +6518,114 @@
       "playHelp": "Reproduce cómo lo dicen.",
       "suggest": "Otros idiomas aquí usan",
       "suggestHelp": "Se usa aquí en {{languages}}. Tócala para agregarla."
+    }
+  },
+  "clusters": {
+    "row": {
+      "sub_one": "{{count, number}} idioma · {{names}}",
+      "sub_many": "{{count, number}} idiomas · {{names}}",
+      "sub_other": "{{count, number}} idiomas · {{names}}",
+      "namesMore": "{{names}}…"
+    },
+    "home": {
+      "sub_one": "Grupo · {{count, number}} idioma",
+      "sub_many": "Grupo · {{count, number}} idiomas",
+      "sub_other": "Grupo · {{count, number}} idiomas",
+      "together": "En conjunto",
+      "itsLanguages": "Sus idiomas",
+      "add": "Añadirle un idioma",
+      "rename": "Cambiar nombre",
+      "ungroup": "Desagrupar",
+      "gone": "Este grupo ya no tiene idiomas",
+      "goneSub": "Se sacaron sus idiomas. Todos siguen en {{org}}.",
+      "notSaved": "No se guardó"
+    },
+    "add": {
+      "title": "Añadir a {{cluster}}",
+      "newLanguage": "Un idioma nuevo",
+      "newLanguageSub": "Configúralo, ya dentro de {{cluster}}",
+      "alreadyIn": "Ya en {{org}}",
+      "none": "Todos los idiomas de {{org}} ya están en él.",
+      "button": "Añadir",
+      "done_one": "{{count, number}} idioma añadido a {{cluster}}.",
+      "done_many": "{{count, number}} idiomas añadidos a {{cluster}}.",
+      "done_other": "{{count, number}} idiomas añadidos a {{cluster}}."
+    },
+    "rename": {
+      "title": "Cambiar el nombre de {{cluster}}",
+      "label": "Su nombre",
+      "save": "Guardar",
+      "done": "Ahora se llama {{name}}."
+    },
+    "ungroup": {
+      "title": "¿Desagrupar {{cluster}}?",
+      "body_one": "Su idioma se queda, con su gente, sus grabaciones y sus revisiones. Solo se va el nombre que lo agrupa.",
+      "body_many": "Sus {{count, number}} idiomas se quedan, con su gente, sus grabaciones y sus revisiones. Solo se va el nombre que los agrupa.",
+      "body_other": "Sus {{count, number}} idiomas se quedan, con su gente, sus grabaciones y sus revisiones. Solo se va el nombre que los agrupa.",
+      "confirm": "Desagrupar",
+      "keep": "Mantenerlo",
+      "done": "{{cluster}} desagrupado. Sus idiomas siguen aquí."
+    },
+    "language": {
+      "label": "Grupo",
+      "none": "No está en un grupo",
+      "sheetTitle": "¿En qué grupo está?",
+      "count_one": "{{count, number}} idioma",
+      "count_many": "{{count, number}} idiomas",
+      "count_other": "{{count, number}} idiomas",
+      "newLabel": "O un grupo nuevo",
+      "firstLabel": "Ponerlo en un grupo nuevo",
+      "note": "Un idioma puede estar en más de un grupo, o en ninguno. Nada del idioma cambia.",
+      "done": "Listo",
+      "saved": "Grupos de {{language}} guardados."
+    },
+    "newLanguage": {
+      "what": "¿Qué vas a añadir?",
+      "one": "Un idioma",
+      "oneSub": "Con sus propias grabaciones, revisiones y gente",
+      "cluster": "Un grupo de idiomas",
+      "clusterSub": "Varios idiomas emparentados, configurados juntos",
+      "clusterName": "El nombre del grupo",
+      "clusterPlaceholder": "p. ej., Dar Khamsa",
+      "theCluster": "el grupo",
+      "inCluster": "¿En un grupo? Puedes decidirlo después",
+      "no": "No",
+      "newCluster": "Grupo nuevo",
+      "joinsNamed": "{{org}} ya tiene {{cluster}}. Estos idiomas se unen a él.",
+      "itsLanguages": "Sus idiomas · {{number}}",
+      "addOne": "Añadir un idioma",
+      "unlisted": "¿No aparece? Añádelo tal como lo escribiste, con su código si tiene uno.",
+      "addTyped": "Añadir «{{name}}»",
+      "new": "Nuevo",
+      "newWithCode": "{{code}} · nuevo",
+      "already": "Ya en {{org}}",
+      "takeOut": "Quitar",
+      "note_one": "Los idiomas que ya están aquí conservan todo lo que tienen. El nuevo se configura en los pasos siguientes.",
+      "note_many": "Los idiomas que ya están aquí conservan todo lo que tienen. Los {{count, number}} nuevos se configuran juntos en los pasos siguientes.",
+      "note_other": "Los idiomas que ya están aquí conservan todo lo que tienen. Los {{count, number}} nuevos se configuran juntos en los pasos siguientes.",
+      "onlyExisting": "No hay nada nuevo que configurar: los idiomas que ya están aquí conservan todo lo que tienen.",
+      "make": "Crear el grupo",
+      "made_one": "{{cluster}} creado, con {{count, number}} idioma.",
+      "made_many": "{{cluster}} creado, con {{count, number}} idiomas.",
+      "made_other": "{{cluster}} creado, con {{count, number}} idiomas.",
+      "forNew_one": "Para el idioma nuevo de {{cluster}}. Podrá cambiar lo suyo después.",
+      "forNew_many": "Para los {{count, number}} idiomas nuevos de {{cluster}}. Cada uno podrá cambiar lo suyo después.",
+      "forNew_other": "Para los {{count, number}} idiomas nuevos de {{cluster}}. Cada uno podrá cambiar lo suyo después.",
+      "added_one": "{{count, number}} idioma añadido a {{org}}, en {{cluster}}.",
+      "added_many": "{{count, number}} idiomas añadidos a {{org}}, en {{cluster}}.",
+      "added_other": "{{count, number}} idiomas añadidos a {{org}}, en {{cluster}}.",
+      "addedNotOffered_one": "{{count, number}} idioma añadido a {{org}}, en {{cluster}}. Ofrece {{offers}} en Qué les ayuda cuando tengas conexión.",
+      "addedNotOffered_many": "{{count, number}} idiomas añadidos a {{org}}, en {{cluster}}. Ofrece {{offers}} en Qué les ayuda cuando tengas conexión.",
+      "addedNotOffered_other": "{{count, number}} idiomas añadidos a {{org}}, en {{cluster}}. Ofrece {{offers}} en Qué les ayuda cuando tengas conexión.",
+      "notMade": "No se añadió",
+      "making": {
+        "adding": "Añadiendo {{language}}",
+        "grouping": "Añadiendo a {{cluster}}"
+      }
+    },
+    "status": {
+      "all": "Todos",
+      "none": "Sin grupo"
     }
   },
   "writing": {

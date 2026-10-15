@@ -8,8 +8,10 @@
 // (admins reach these homes through Manage), ADR-025 (a language owns its
 // template, starting from the one its organization suggests). The demo's
 // Project Home and New Project are not ported: an organization holds its
-// languages directly (docs/decisions.md 63).
+// languages directly (docs/decisions.md 63). A cluster (decision 108, demo
+// ADR-045) is a name on some of them, with a page of its own (ClusterHome).
 import {
+  clusterName, clustersOf, mayManageClusters, orgClusters,
   decodeHlc, deriveFlow, goesWith, isMoreOpen, keyTermsFor, languageInfo, languageName, languageProgress,
   leavesNoRoleManager, libraryItemView, materialsFor, mayChangeLicense, mayChangeMembership, mayGrantRole, mayRenameLanguage, mayRenameOrg, orgLicense, orgName, privilegesFor, SEED_ROLES,
   subscriptionItemId, templateBooks, type LanguageProgress, type LibraryDoc, type License, type Scope, type ScopeLevel, type SourceDoc
@@ -44,7 +46,7 @@ import {
 import { noteExpected, reportError, failureMessage } from '../report';
 import { LicenseRow, LicenseSheet } from '../licenseSheet';
 import { appendToLanguage } from '../languageWriter';
-import { createLanguage, newLanguageParts, type Making, type Offer } from '../org/newLanguage';
+import { createLanguages, newLanguageParts, type Making, type NewOne, type Offer } from '../org/newLanguage';
 import { emailInvite } from '../org/emailInvite';
 import { looksLikeEmail, signInFailure } from '../org/model';
 import { usePublicListing } from '../org/usePublicListing';
@@ -57,7 +59,7 @@ import { shareText } from '../share';
 import { C, radius, space, tile, TINT } from '../theme';
 import { useOrgSummary } from '../useOrgSummary';
 import { useHelpMode } from '../helpContext';
-import { AmberNote, BigTop, ChoiceCard, CountBadge, DashedRow, IconTile, inviteFailureText, NumberedSteps, Pills, Question, QuietLink, RadioRow, WorkSteps } from '../simple/admin';
+import { AmberNote, BigTop, CheckRow, ChoiceCard, CountBadge, DashedRow, IconTile, inviteFailureText, NumberedSteps, Pills, Question, QuietLink, RadioRow, WorkSteps } from '../simple/admin';
 import { askedAgo, firstName, flowSub, guideShortName, joinAnd, languageLabel, QUESTIONS, questionLabel, stepTitle } from '../simple/adminModel';
 import { useCheckChoices, type FlowEntry } from '../simple/choices';
 import { rowsOf, stepsOf } from '../checks/model';
@@ -72,6 +74,8 @@ import { ReferenceLanguagePage, useReferenceLanguages } from '../reference/Refer
 import { howItWorks, ReadyChecklist, usePendingRequests, usePlainRoles, useReadySummary } from '../simple/ready';
 import { personLook } from '../people';
 import { PersonAvatar, usePerson } from '../UserChip';
+import { clusterEvents, clusterNamed, languagesOutsideClusters, newClusterId, ungroupEvents } from '../clusters/model';
+import { appendClusterEvents, ClusterRow, ClusterTile, LanguageClustersRow } from '../clusters/parts';
 
 /**
  * What to say when something fails (error-tracking): a command's own reason,
@@ -266,6 +270,9 @@ export function OrgHome(ctx: Ctx) {
   const mayAdd = privilegesFor(v.org, ctx.session.actorId).has('manage_structure');
   // The demo's "Invite people" (gate assigner), and Invite itself, which a role may hold without assigning: it asks both.
   const canInvite = edgeAllowed(edgeFor('org_home', 'invite_member')!, ctx.session) && ctx.session.can('invite_members');
+  // Clusters first, then the languages in none (decision 108): a language in a cluster shows under it.
+  const clusters = orgClusters(v.org);
+  const loose = languagesOutsideClusters(v.org, v.languages);
   return (
     <Screen header={<Header title={v.orgName} />}>
       <Card>
@@ -285,24 +292,142 @@ export function OrgHome(ctx: Ctx) {
       </Card>
       {canInvite ? <HomePrimary label={t('org.home.invite')} icon="plus" onPress={() => ctx.go('invite_member', { level: 'org' })} /> : null}
       <HomeSection label={t('org.home.languagesTitle')}
-        add={mayAdd ? { label: t('org.home.newLanguage'), onPress: () => ctx.go('new_language') } : undefined}>
+        add={mayAdd ? { label: t('org.home.newLanguageOrCluster'), onPress: () => ctx.go('new_language') } : undefined}>
         {v.languages.length === 0 ? (
           <View style={{ padding: space.lg }}><Text style={txt.smMuted}>{t('org.home.noLanguages')}</Text></View>
-        ) : v.languages.slice(0, shown).map((languageId) => {
-          const p = v.progressOf(languageId);
-          // Only the open language's flow is on this phone.
-          const flow = languageId === v.openId && v.state?.flow ? `${deriveFlow(v.state).name} · ` : '';
-          return (
-            <Row key={languageId} icon="globe" label={v.label(languageId)} onPress={() => ctx.go('language_home', { languageId })}
-              current={beside?.screen === 'language_home' && beside.params['languageId'] === languageId}
-              sub={p ? `${flow}${progressLine(p)}` : t('org.home.openToBring')} />
-          );
-        })}
+        ) : null}
+        {clusters.map((c) => (
+          <ClusterRow key={c.clusterId} ctx={ctx} c={c} current={beside?.screen === 'cluster_home' && beside.params['clusterId'] === c.clusterId} />
+        ))}
+        {loose.slice(0, shown).map((languageId) => <LanguageListRow key={languageId} ctx={ctx} v={v} languageId={languageId} />)}
       </HomeSection>
-      <ShowMore remaining={v.languages.length - shown} step={20} onMore={() => setShown((n) => n + 20)} />
+      <ShowMore remaining={loose.length - shown} step={20} onMore={() => setShown((n) => n + 20)} />
       <PeopleRows ctx={ctx} level="org" />
       <HomeSetup ctx={ctx} from="org_home" level="org" languageIds={v.languages}
         extra={{ label: t('org.setup.summary.nameAndLicense'), rows: <><OrgNameSection ctx={ctx} /><LicenseSection ctx={ctx} /></> }} />
+    </Screen>
+  );
+}
+
+/** A language in a home's list: its name, its flow when it is open here, and its progress. */
+function LanguageListRow(props: { ctx: Ctx; v: ReturnType<typeof useOrgView>; languageId: string; bar?: boolean; last?: boolean }) {
+  const { ctx, v, languageId } = props;
+  const beside = useOpenDetail();
+  const p = v.progressOf(languageId);
+  // Only the open language's flow is on this phone.
+  const flow = languageId === v.openId && v.state?.flow ? `${deriveFlow(v.state).name} · ` : '';
+  return (
+    <Row icon="globe" label={v.label(languageId)} onPress={() => ctx.go('language_home', { languageId })} last={!!props.last}
+      current={beside?.screen === 'language_home' && beside.params['languageId'] === languageId}
+      sub={p ? `${flow}${progressLine(p)}` : t('org.home.openToBring')}
+      below={props.bar && p && p.total > 0 ? <ProgressBar value={Math.round((p.recorded / p.total) * 100)} color={C.primary} /> : undefined} />
+  );
+}
+
+// ---- A cluster -----------------------------------------------------------------------------------
+
+/**
+ * A cluster's page (decision 108, demo ADR-045): its languages and their
+ * progress together, and what changes it: adding a language, new or
+ * already here, renaming it, and ungrouping it. A cluster is only a name:
+ * none of this changes a language, its people or its stream.
+ */
+export function ClusterHome(ctx: Ctx) {
+  const v = useOrgView(ctx);
+  const clusterId = ctx.params['clusterId'] ?? '';
+  const [sheet, setSheet] = useState<'add' | 'rename' | 'ungroup' | null>(null);
+  const [adding, setAdding] = useState<Set<string>>(new Set());
+  const [rename, setRename] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  if (!v.org) return <Loading title={t('screens.cluster_home')} onBack={ctx.back} />;
+  const c = orgClusters(v.org).find((x) => x.clusterId === clusterId);
+  if (!c) {
+    // Every language taken out of it, here or on another device: the cluster is gone, its languages are not.
+    return (
+      <Screen header={<Header title={clusterName(v.org, clusterId) ?? t('screens.cluster_home')} onBack={ctx.back} />}>
+        <EmptyState icon="layers" title={t('clusters.home.gone')} sub={t('clusters.home.goneSub', { org: v.orgName })} />
+      </Screen>
+    );
+  }
+  const may = mayManageClusters(v.org, ctx.session.actorId);
+  const others = v.languages.filter((id) => !c.languageIds.includes(id));
+  const known = c.languageIds.every((id) => v.progressOf(id));
+  const together = known ? sumProgress(c.languageIds.map((id) => v.progressOf(id)!)) : null;
+  const close = () => { setSheet(null); setError(''); };
+  async function run(what: string, events: Parameters<typeof appendClusterEvents>[1], done: string, after?: () => void) {
+    if (busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      await appendClusterEvents(ctx, events);
+      close();
+      ctx.toast(done);
+      after?.();
+    } catch (e) {
+      setError(failure(what, e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Screen header={<Header title={c.name} sub={t('clusters.home.sub', { count: c.languageIds.length })} onBack={ctx.back} />}
+      footer={may ? (
+        <>
+          <PrimaryBtn label={t('clusters.home.add')} icon="plus" onPress={() => { setAdding(new Set()); setSheet('add'); }} />
+          <QuietLinks items={[
+            { label: t('clusters.home.rename'), icon: 'edit', onPress: () => { setRename(c.name); setSheet('rename'); } },
+            { label: t('clusters.home.ungroup'), icon: 'layers', onPress: () => setSheet('ungroup') }
+          ]} />
+        </>
+      ) : undefined}>
+      {together ? (
+        <Card>
+          <Text style={txt.xsStrong}>{t('clusters.home.together')}</Text>
+          <HomeProgressBars p={together} />
+        </Card>
+      ) : null}
+      <HomeSection label={t('clusters.home.itsLanguages')}>
+        {c.languageIds.map((languageId, i) => <LanguageListRow key={languageId} ctx={ctx} v={v} languageId={languageId} bar last={i === c.languageIds.length - 1} />)}
+      </HomeSection>
+      <Sheet visible={sheet === 'add'} title={t('clusters.add.title', { cluster: c.name })} onClose={close}
+        footer={others.length ? <PrimaryBtn label={t('clusters.add.button')} icon="check" busy={busy} disabled={adding.size === 0}
+          // i18n-ignore: the first argument is a log label
+          onPress={() => void run('add to cluster', clusterEvents(v.org, { clusterId, add: [...adding] }), t('clusters.add.done', { count: adding.size, cluster: c.name }))} /> : undefined}>
+        {v.org && privilegesFor(v.org, ctx.session.actorId).has('manage_structure') ? (
+          <Group>
+            <Row leading={<ClusterTile size={40} />} label={t('clusters.add.newLanguage')} sub={t('clusters.add.newLanguageSub', { cluster: c.name })} last
+              onPress={() => { close(); ctx.go('new_language', { clusterId }); }} />
+          </Group>
+        ) : null}
+        {others.length ? (
+          <View>
+            <SectionLabel label={t('clusters.add.alreadyIn', { org: v.orgName })} />
+            {others.map((id, i) => (
+              <CheckRow key={id} label={v.label(id)} checked={adding.has(id)} last={i === others.length - 1}
+                onToggle={() => setAdding((cur) => { const next = new Set(cur); if (next.has(id)) next.delete(id); else next.add(id); return next; })} />
+            ))}
+          </View>
+        ) : <Text style={txt.smMuted}>{t('clusters.add.none', { org: v.orgName })}</Text>}
+        {error ? <Banner icon="flag" tone="amber" title={t('clusters.home.notSaved')} body={error} /> : null}
+      </Sheet>
+      <Sheet visible={sheet === 'rename'} title={t('clusters.rename.title', { cluster: c.name })} onClose={close}
+        footer={<PrimaryBtn label={t('clusters.rename.save')} icon="check" busy={busy} disabled={!rename.trim() || rename.trim() === c.name}
+          // i18n-ignore: the first argument is a log label
+          onPress={() => void run('rename cluster', clusterEvents(v.org, { clusterId, name: rename }), t('clusters.rename.done', { name: rename.trim() }))} />}>
+        <Field label={t('clusters.rename.label')} value={rename} onChangeText={setRename} autoCapitalize="words" />
+        {error ? <Banner icon="flag" tone="amber" title={t('clusters.home.notSaved')} body={error} /> : null}
+      </Sheet>
+      <Sheet visible={sheet === 'ungroup'} title={t('clusters.ungroup.title', { cluster: c.name })} onClose={close}
+        footer={<>
+          <PrimaryBtn label={t('clusters.ungroup.confirm')} icon="layers" busy={busy}
+            // i18n-ignore: the first argument is a log label
+            onPress={() => void run('ungroup cluster', ungroupEvents(v.org, clusterId), t('clusters.ungroup.done', { cluster: c.name }), ctx.back)} />
+          <QuietLinks items={[{ label: t('clusters.ungroup.keep'), icon: 'close', onPress: close }]} />
+        </>}>
+        <Text style={txt.body}>{t('clusters.ungroup.body', { count: c.languageIds.length })}</Text>
+        {error ? <Banner icon="flag" tone="amber" title={t('clusters.home.notSaved')} body={error} /> : null}
+      </Sheet>
     </Screen>
   );
 }
@@ -492,10 +617,13 @@ export function LanguageHome(ctx: Ctx) {
     <Row leading={<IconTile icon="people" />} label={t('org.join.peopleWant', { count: requests.length })} sub={t('org.join.tapToLetIn')} last
       right={<CountBadge n={requests.length} />} onPress={() => ctx.go('members_list', params)} />
   );
+  const clusters = clustersOf(v.org, languageId);
+  const showClusters = clusters.length > 0 || mayManageClusters(v.org, ctx.session.actorId);
   const moreCard = (
     <Disclosure icon="settings" title={t('org.more.title')}
       summary={[t('org.more.summary.progress'), t('org.more.summary.members'), t('org.more.summary.roles'),
-        listing.may ? t('org.more.summary.publicListing') : '', t('org.more.summary.name'), t('org.more.summary.languageList')].filter(Boolean).join(t('admin.list.separator'))}
+        listing.may ? t('org.more.summary.publicListing') : '', t('org.more.summary.name'), t('org.more.summary.languageList'),
+        showClusters ? t('org.more.summary.cluster') : ''].filter(Boolean).join(t('admin.list.separator'))}
       open={more.open} onToggle={more.onToggle}>
       <View style={{ padding: space.lg, gap: space.sm }}>
         <Text style={txt.xs}>{t('org.more.orgAndCode', { org: v.orgName, code: info.code.toUpperCase() })}</Text>
@@ -525,7 +653,9 @@ export function LanguageHome(ctx: Ctx) {
         }}
         save={(next) => ctx.org.append('v1.LanguageRenamed', { languageId, name: next }).then(() => undefined)} />
       <LanguoidLinkRow ctx={ctx} languageId={languageId} name={name} code={info.code} languoidId={info.languoidId}
-        may={mayRenameLanguage(v.org, ctx.session.actorId, languageId)} last />
+        may={mayRenameLanguage(v.org, ctx.session.actorId, languageId)} last={!showClusters} />
+      {/* The clusters it is in (decision 108): a name the organization puts on it, nothing more. */}
+      <LanguageClustersRow ctx={ctx} languageId={languageId} language={name} last />
     </Disclosure>
   );
   const listingError = listing.error ? <Banner icon="flag" tone="amber" title={t('org.listing.failed')} body={listing.error} /> : null;
@@ -545,7 +675,8 @@ export function LanguageHome(ctx: Ctx) {
     );
   }
   return (
-    <Screen header={<BigTop onBack={back} title={name} status={t('org.language.readyStatus', { count: n })} statusTone="green" />} bodyStyle={{ gap: space.md }}
+    <Screen header={<BigTop onBack={back} {...(clusters.length ? { over: clusters.map((c) => c.name).join(t('admin.list.separator')) } : {})} title={name}
+      status={t('org.language.readyStatus', { count: n })} statusTone="green" />} bodyStyle={{ gap: space.md }}
       footer={<PrimaryBtn label={t('org.more.seeWork')} icon="book" onPress={openMap} />}>
       <Group>
         <Row leading={<IconTile icon="file" />} label={t('org.language.theyRecord')} sub={s.lines[0]} onPress={() => ctx.go('get_ready', { languageId, step: '1', only: '1' })} />
@@ -1204,6 +1335,9 @@ async function adoptChoice(lib: ReturnType<typeof useLibrary>, c: LibraryChoice)
 /** Step 3's "I'll choose the steps" card. */
 const CHOOSE_STEPS = 'choose';
 
+/** "In a cluster?" on one language: a new cluster, named below it. */
+const NEW_CLUSTER = 'new';
+
 /**
  * A new language (ORG-2, decision 63; decision 71 and the prototype's
  * NewLang and NewLangFlow): one question per step, the likely answer picked.
@@ -1230,13 +1364,26 @@ export function NewLanguage(ctx: Ctx) {
   // Picked from the language list (docs/languoids.md); none leaves it unlinked, to link from its page later.
   const [picked, setPicked] = useState<LanguoidHit | null>(null);
   const search = useLanguoidSearch(name, !picked);
+  // One language, or a cluster of several (decision 108, demo ADR-045). Opened from a cluster's page, one language already in it.
+  const fromCluster = ctx.params['clusterId'] ?? null;
+  const mayGroup = mayManageClusters(ctx.org.state, ctx.session.actorId);
+  const [many, setMany] = useState(false);
+  // One language: the cluster it joins (an id, NEW_CLUSTER, or none), and a new one's name.
+  const [joins, setJoins] = useState<string | null>(fromCluster);
+  const [newCluster, setNewCluster] = useState('');
+  // A cluster: its name, the new languages it brings, and those already here it takes in.
+  const [clusterTitle, setClusterTitle] = useState('');
+  const [batch, setBatch] = useState<NewOne[]>([]);
+  const [existing, setExisting] = useState<Set<string>>(new Set());
+  // Languages already added by a Continue that failed partway: tried again, they are not added twice.
+  const madeRef = useRef(new Map<string, { languageId: string; name: string }>());
   const [scope, setScope] = useState<LanguageScope>('nt');
   const [chosenBooks, setChosenBooks] = useState<Set<string>>(new Set());
   const [flowKey, setFlowKey] = useState<string | null>(null);
   const [moreFlows, setMoreFlows] = useState(false);
   // What Continue is doing now, of the parts it will do (the step 3 screen shows them while it runs).
   const [making, setMaking] = useState<{ parts: Making[]; now: Making } | null>(null);
-  const [created, setCreated] = useState<{ languageId: string; name: string } | null>(null);
+  const [created, setCreated] = useState<{ languages: { languageId: string; name: string }[]; cluster: string | null } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   // What it translates and how the Bible is broken up (decision 74); what other languages here use comes first.
@@ -1264,7 +1411,11 @@ export function NewLanguage(ctx: Ctx) {
     ? (draft ? { name: undefined, kinds: draft.kinds, steps: stepsOf(draft.rows) } : null)
     : flow ? { name: flow.c.name, kinds: chk.kindsOf(flow.doc), steps: flow.doc.steps } : null;
   const orgName = ctx.org.state?.org?.value.name ?? t('org.newLanguage.theOrganization');
-  const title = name.trim() || t('org.newLanguage.theLanguage');
+  const title = many ? clusterTitle.trim() || t('clusters.newLanguage.theCluster') : name.trim() || t('org.newLanguage.theLanguage');
+  // What Continue adds: the one language, or each new one of the cluster.
+  const toMake: NewOne[] = many ? batch : [{ key: 'one', name: name.trim(), code: (picked?.code ?? code).trim(), languoidId: picked?.id ?? null }];
+  const clusters = orgClusters(ctx.org.state);
+  const ready1 = many ? !!clusterTitle.trim() && batch.length + existing.size > 0 : !!name.trim() && (joins !== NEW_CLUSTER || !!newCluster.trim());
   // Names and codes identify nothing, so a second Dinka is only warned about (decision 76).
   const theCode = picked?.code ?? code;
   const alike = useMemo(() => similarLanguages(ctx.org.state, { code: theCode, name }), [ctx.org.state, theCode, name]);
@@ -1277,16 +1428,48 @@ export function NewLanguage(ctx: Ctx) {
     ctx.go('flow_editor', { draft: '1', name: title });
   }
 
-  async function create() {
-    if (!name.trim() || busy || !tq.ready || !checks) return;
+  /** The cluster the new languages go in: one already here (by id, or by the same name), or a new one with its name. */
+  function clusterTarget(): { clusterId: string; name?: string } | null {
+    const org = ctx.org.state;
+    const named = (n: string) => {
+      const same = clusterNamed(org, n);
+      return same ? { clusterId: same.clusterId } : { clusterId: newClusterId(n, Crypto.randomUUID()), name: n.trim() };
+    };
+    if (many) return named(clusterTitle);
+    if (joins === NEW_CLUSTER) return newCluster.trim() ? named(newCluster) : null;
+    return joins && clusterName(org, joins) ? { clusterId: joins } : null;
+  }
+
+  /** A cluster of languages already here and nothing new: it is made at once, and its page opens. */
+  async function groupOnly() {
+    if (busy) return;
     setBusy(true);
     setError('');
-    // Each part is named on screen before it starts, and the screen is drawn before the work goes on.
-    const parts = newLanguageParts(offers.items.length > 0);
     try {
-      const made = await createLanguage({
-        org: ctx.org.state, actorId: ctx.session.actorId, name, code: theCode, languoidId: picked?.id ?? null, reads,
-        scope, chosenBooks, checks, offers: offers.items
+      const target = clusterTarget()!;
+      await appendClusterEvents(ctx, clusterEvents(ctx.org.state, { ...target, add: [...existing] }));
+      ctx.toast(t('clusters.newLanguage.made', { cluster: clusterTitle.trim(), count: existing.size }));
+      ctx.go('cluster_home', { clusterId: target.clusterId });
+    } catch (e) {
+      setError(failure('new cluster', e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function create() {
+    const list = toMake;
+    if (list.length === 0 || list.some((l) => !l.name) || busy || !tq.ready || !checks) return;
+    setBusy(true);
+    setError('');
+    const target = clusterTarget();
+    // Each part is named on screen before it starts, and the screen is drawn before the work goes on.
+    const parts = newLanguageParts(offers.items.length > 0, { ...(many ? { each: list.length } : {}), cluster: !!target });
+    try {
+      const made = await createLanguages({
+        org: ctx.org.state, actorId: ctx.session.actorId, reads, scope, chosenBooks, checks, offers: offers.items,
+        languages: list, each: many, done: madeRef.current,
+        cluster: target ? { ...target, ...(many ? { existing: [...existing] } : {}) } : null
       }, {
         resolveTemplate: () => tq.resolve(),
         loadDoc: async (hash) => (await loadDocs(lib.orgId, [hash])).get(hash) ?? undefined,
@@ -1302,16 +1485,22 @@ export function NewLanguage(ctx: Ctx) {
         },
         note: noteExpected
       });
-      ctx.toast(made.notOffered.length
-        ? t('org.newLanguage.addedNotOffered', { language: made.name, org: orgName, offers: joinAnd(made.notOffered) })
-        : t('org.newLanguage.added', { language: made.name, org: orgName }));
-      // The language this person works in is the one the app opens.
-      ctx.setLanguage(made.languageId);
-      setCreated({ languageId: made.languageId, name: made.name });
+      const group = target ? target.name ?? clusterName(ctx.org.state, target.clusterId) ?? null : null;
+      const first = made.languages[0]!;
+      ctx.toast(many
+        ? (made.notOffered.length
+          ? t('clusters.newLanguage.addedNotOffered', { count: made.languages.length, org: orgName, cluster: group ?? title, offers: joinAnd(made.notOffered) })
+          : t('clusters.newLanguage.added', { count: made.languages.length, org: orgName, cluster: group ?? title }))
+        : made.notOffered.length
+          ? t('org.newLanguage.addedNotOffered', { language: first.name, org: orgName, offers: joinAnd(made.notOffered) })
+          : t('org.newLanguage.added', { language: first.name, org: orgName }));
+      // The language this person works in is the one the app opens: a cluster's first.
+      ctx.setLanguage(first.languageId);
+      setCreated({ languages: made.languages, cluster: many ? group : null });
       setChecksDraft(null);
       setStep(5);
     } catch (e) {
-      setError(failure('new language', e));
+      setError(many ? failure('new cluster', e) : failure('new language', e));
     } finally {
       setBusy(false);
       setMaking(null);
@@ -1331,13 +1520,13 @@ export function NewLanguage(ctx: Ctx) {
   const back = step > 1 && step < 5 ? <QuietLinks items={[{ label: t('common.back'), icon: 'arrowL', onPress: () => setStep(step - 1) }]} /> : null;
   const bodyStyle = { paddingHorizontal: 20, gap: 14 } as const;
 
-  if (step === 5 && created) return <NewLanguageInvite ctx={ctx} languageId={created.languageId} name={created.name} />;
+  if (step === 5 && created) return <NewLanguageInvite ctx={ctx} languages={created.languages} cluster={created.cluster} />;
 
   // Step 4: the language of its Bibles and study guides, and what will be offered in it.
   if (step === 4 && !making) {
     return (
       <Screen header={header} bodyStyle={bodyStyle}
-        footer={<><PrimaryBtn label={t('org.continue')} icon="right" busy={busy} disabled={!checks || !tq.ready || !name.trim()} onPress={() => void create()} />{back}</>}>
+        footer={<><PrimaryBtn label={t('org.continue')} icon="right" busy={busy} disabled={!checks || !tq.ready || !ready1} onPress={() => void create()} />{back}</>}>
         <ReferenceLanguagePage team={title} choices={refs.choices} value={reads} first={startingLanguage(refs.choices, reader)} onChange={setReadsPicked} loading={refs.loading}>
           {offers.names.length ? (
             <AmberNote icon="layers">
@@ -1356,19 +1545,105 @@ export function NewLanguage(ctx: Ctx) {
   }
 
   if (step === 1) {
+    const orgLangs = ctx.languages.map((l) => l.languageId);
+    // A new cluster's languages: picked from the language list one after another, or typed when it is not there.
+    const addTyped = () => {
+      const typed = name.trim();
+      if (!typed) return;
+      setBatch((cur) => [...cur, { key: Crypto.randomUUID(), name: typed, code: code.trim(), languoidId: null }]);
+      setName('');
+      setCode('');
+    };
+    const onlyExisting = many && batch.length === 0 && existing.size > 0;
     return (
       <Screen header={header} bodyStyle={bodyStyle}
-        footer={<PrimaryBtn label={t('org.continue')} icon="right" disabled={!name.trim()} onPress={() => setStep(2)} />}>
-        <Question>{t('org.newLanguage.called')}</Question>
-        <Field label={t('org.itsName')} value={name} onChangeText={setName} placeholder={t('org.newLanguage.namePlaceholder')} autoCapitalize="words" />
-        <LanguoidPicker search={search} picked={picked} onPick={(h) => { setPicked(h); if (h) setName(h.name); }}
-          unlisted={t('org.newLanguage.unlisted')} unreachable={t('org.newLanguage.unreachable')} />
-        {picked ? null : <Field label={t('org.newLanguage.codeLabel')} value={code} onChangeText={setCode} placeholder={t('org.newLanguage.codePlaceholder')} autoCapitalize="none" />}
-        <Text style={[txt.sm, { color: C.muted }]}>{t('org.newLanguage.goesIn', { org: orgName })}</Text>
-        {alike.length ? (
-          <Banner icon="flag" tone="amber" title={t('org.newLanguage.alikeTitle', { org: orgName })}
-            body={t('org.newLanguage.alikeBody', { count: alike.length, languages: alike.map((l) => `${l.name} (${l.code.toUpperCase()})`).join(t('admin.list.separator')) })} />
-        ) : null}
+        footer={onlyExisting
+          ? <PrimaryBtn label={t('clusters.newLanguage.make')} icon="layers" busy={busy} disabled={!clusterTitle.trim()} onPress={() => void groupOnly()} />
+          : <PrimaryBtn label={t('org.continue')} icon="right" disabled={!ready1} onPress={() => setStep(2)} />}>
+        {mayGroup ? (
+          <>
+            {/* One language, or a cluster of several (decision 108): asked first, with one language picked. */}
+            <Question>{t('clusters.newLanguage.what')}</Question>
+            <ChoiceCard on={!many} icon="globe" title={t('clusters.newLanguage.one')} sub={t('clusters.newLanguage.oneSub')} onPress={() => setMany(false)} />
+            <ChoiceCard on={many} icon="layers" title={t('clusters.newLanguage.cluster')} sub={t('clusters.newLanguage.clusterSub')} onPress={() => { setMany(true); setPicked(null); }}>
+              {many ? <Field label={t('clusters.newLanguage.clusterName')} value={clusterTitle} onChangeText={setClusterTitle}
+                placeholder={t('clusters.newLanguage.clusterPlaceholder')} autoCapitalize="words" /> : null}
+            </ChoiceCard>
+          </>
+        ) : <Question>{t('org.newLanguage.called')}</Question>}
+        {many ? (
+          <>
+            {clusterNamed(ctx.org.state, clusterTitle) ? (
+              <Text style={[txt.sm, { color: C.muted }]}>{t('clusters.newLanguage.joinsNamed', { org: orgName, cluster: clusterNamed(ctx.org.state, clusterTitle)!.name })}</Text>
+            ) : null}
+            <SectionLabel label={t('clusters.newLanguage.itsLanguages', { number: formatNumber(batch.length + existing.size) })} />
+            {batch.length || existing.size ? (
+              <Group>
+                {batch.map((l) => (
+                  <Row key={l.key} icon="globe" label={l.name} sub={l.code ? t('clusters.newLanguage.newWithCode', { code: l.code }) : t('clusters.newLanguage.new')}
+                    right={<SmallBtn label={t('clusters.newLanguage.takeOut')} icon="close" tone="plain" onPress={() => setBatch((cur) => cur.filter((x) => x.key !== l.key))} />} />
+                ))}
+                {[...existing].map((id) => (
+                  <Row key={id} icon="globe" label={languageName(ctx.org.state, id)} sub={t('clusters.newLanguage.already', { org: orgName })}
+                    right={<SmallBtn label={t('clusters.newLanguage.takeOut')} icon="close" tone="plain" onPress={() => setExisting((cur) => { const next = new Set(cur); next.delete(id); return next; })} />} />
+                ))}
+              </Group>
+            ) : null}
+            <Field label={t('clusters.newLanguage.addOne')} value={name} onChangeText={setName} placeholder={t('org.newLanguage.namePlaceholder')} autoCapitalize="words" />
+            <LanguoidPicker search={search} picked={null}
+              onPick={(h) => { if (h) { setBatch((cur) => [...cur, { key: h.id, name: h.name, code: h.code, languoidId: h.id }]); setName(''); } }}
+              unlisted={t('clusters.newLanguage.unlisted')} unreachable={t('org.newLanguage.unreachable')} />
+            {name.trim() && (search.status === 'none' || search.status === 'unreachable') ? (
+              <>
+                <Field label={t('org.newLanguage.codeLabel')} value={code} onChangeText={setCode} placeholder={t('org.newLanguage.codePlaceholder')} autoCapitalize="none" />
+                <QuietLink icon="plus" label={t('clusters.newLanguage.addTyped', { name: name.trim() })} onPress={addTyped} />
+              </>
+            ) : null}
+            {orgLangs.some((id) => !existing.has(id)) ? (
+              <>
+                <SectionLabel label={t('clusters.add.alreadyIn', { org: orgName })} />
+                <Pills>
+                  {orgLangs.filter((id) => !existing.has(id)).map((id) => (
+                    <Chip key={id} label={languageName(ctx.org.state, id)} on={false} icon="plus" onPress={() => setExisting((cur) => new Set(cur).add(id))} />
+                  ))}
+                </Pills>
+              </>
+            ) : null}
+            <Text style={[txt.sm, { color: C.muted }]}>
+              {batch.length === 0 ? t('clusters.newLanguage.onlyExisting') : t('clusters.newLanguage.note', { count: batch.length })}
+            </Text>
+          </>
+        ) : (
+          <>
+            {mayGroup ? <Question>{t('org.newLanguage.called')}</Question> : null}
+            <Field label={t('org.itsName')} value={name} onChangeText={setName} placeholder={t('org.newLanguage.namePlaceholder')} autoCapitalize="words" />
+            <LanguoidPicker search={search} picked={picked} onPick={(h) => { setPicked(h); if (h) setName(h.name); }}
+              unlisted={t('org.newLanguage.unlisted')} unreachable={t('org.newLanguage.unreachable')} />
+            {picked ? null : <Field label={t('org.newLanguage.codeLabel')} value={code} onChangeText={setCode} placeholder={t('org.newLanguage.codePlaceholder')} autoCapitalize="none" />}
+            {mayGroup ? (
+              <>
+                {/* Which cluster it joins, if any: made right here when it is new (decision 108). */}
+                <SectionLabel label={t('clusters.newLanguage.inCluster')} />
+                <Pills>
+                  <Chip label={t('clusters.newLanguage.no')} on={joins === null} onPress={() => setJoins(null)} />
+                  {clusters.map((c) => <Chip key={c.clusterId} label={c.name} icon="layers" on={joins === c.clusterId} onPress={() => setJoins(c.clusterId)} />)}
+                  {fromCluster && !clusters.some((c) => c.clusterId === fromCluster) && clusterName(ctx.org.state, fromCluster) ? (
+                    <Chip label={clusterName(ctx.org.state, fromCluster)!} icon="layers" on={joins === fromCluster} onPress={() => setJoins(fromCluster)} />
+                  ) : null}
+                  <Chip label={t('clusters.newLanguage.newCluster')} icon="plus" on={joins === NEW_CLUSTER} onPress={() => setJoins(NEW_CLUSTER)} />
+                </Pills>
+                {joins === NEW_CLUSTER ? <Field label={t('clusters.newLanguage.clusterName')} value={newCluster} onChangeText={setNewCluster}
+                  placeholder={t('clusters.newLanguage.clusterPlaceholder')} autoCapitalize="words" /> : null}
+              </>
+            ) : null}
+            <Text style={[txt.sm, { color: C.muted }]}>{t('org.newLanguage.goesIn', { org: orgName })}</Text>
+            {alike.length ? (
+              <Banner icon="flag" tone="amber" title={t('org.newLanguage.alikeTitle', { org: orgName })}
+                body={t('org.newLanguage.alikeBody', { count: alike.length, languages: alike.map((l) => `${l.name} (${l.code.toUpperCase()})`).join(t('admin.list.separator')) })} />
+            ) : null}
+          </>
+        )}
+        {error ? <Banner icon="flag" tone="amber" title={t('clusters.newLanguage.notMade')} body={error} /> : null}
       </Screen>
     );
   }
@@ -1412,7 +1687,9 @@ export function NewLanguage(ctx: Ctx) {
       : p === 'checks' ? t('org.newLanguage.making.checks')
         : p === 'helps' ? t('org.newLanguage.making.helps', { offers: joinAnd(offers.names) })
           : p === 'listing' ? t('org.newLanguage.making.listing', { language: title, org: orgName })
-            : t('org.newLanguage.making.saving', { language: title });
+            : p === 'saving' ? t('org.newLanguage.making.saving', { language: title })
+              : p === 'cluster' ? t('clusters.newLanguage.making.grouping', { cluster: many ? title : joins === NEW_CLUSTER ? newCluster.trim() : clusterName(ctx.org.state, joins ?? '') ?? '' })
+                : t('clusters.newLanguage.making.adding', { language: toMake[Number(p.slice('language:'.length))]?.name ?? '' });
     return (
       <Screen header={header} bodyStyle={bodyStyle}>
         <Question>{t('org.newLanguage.making.title', { language: title })}</Question>
@@ -1441,10 +1718,11 @@ export function NewLanguage(ctx: Ctx) {
     <Screen header={header} bodyStyle={bodyStyle}
       footer={<>
         {choosing && !draft ? <PrimaryBtn label={t('getReady.checks.chooseSteps')} icon="right" onPress={chooseSteps} />
-          : <PrimaryBtn label={t('org.continue')} icon="right" disabled={!checks || !tq.ready || !name.trim()} onPress={() => setStep(4)} />}
+          : <PrimaryBtn label={t('org.continue')} icon="right" disabled={!checks || !tq.ready || !ready1} onPress={() => setStep(4)} />}
         {back}
       </>}>
       <Question>{t('org.newLanguage.howChecked')}</Question>
+      {many ? <Text style={[txt.sm, { color: C.muted }]}>{t('clusters.newLanguage.forNew', { count: batch.length, cluster: title })}</Text> : null}
       {/* Making your own comes first, set apart, so the ready-made list below can grow (design principle 12). */}
       {ctx.session.can('manage_flows') && chk.loaded ? (
         <ChoiceCard own on={choosing} icon="edit" title={t('getReady.checks.illChoose')} onPress={() => setFlowKey(CHOOSE_STEPS)}>
@@ -1535,20 +1813,26 @@ function bibleOffer(name: string): string {
   return /^World\b/.test(name) ? t('org.offers.theBible', { name }) : name;
 }
 
-/** Step 4: invite the new language's translators (the prototype's Invite, after NewLangFlow). */
-function NewLanguageInvite(props: { ctx: Ctx; languageId: string; name: string }) {
+/**
+ * Last: invite the new language's translators (the prototype's Invite, after
+ * NewLangFlow). After a cluster, its new languages are chips: a code is for
+ * one language, as a membership is (decision 108: a cluster is no scope).
+ */
+function NewLanguageInvite(props: { ctx: Ctx; languages: { languageId: string; name: string }[]; cluster: string | null }) {
   const { ctx } = props;
-  const scope = { key: props.languageId, label: props.name, scope: { level: 'language', languageId: props.languageId } as Scope };
-  const may = ctx.session.can('invite_members') && mayGrantAt(ctx.org.state, ctx.session.actorId, scope.scope);
+  const scopes = props.languages.map((l) => ({ key: l.languageId, label: l.name, scope: { level: 'language', languageId: l.languageId } as Scope }));
+  const first = props.languages[0]!;
+  const may = ctx.session.can('invite_members') && scopes.every((s) => mayGrantAt(ctx.org.state, ctx.session.actorId, s.scope));
+  const names = props.cluster ?? first.name;
   return (
-    <InviteSomeone ctx={ctx} scopes={[scope]} initialScope={props.languageId}
-      header={(shown, back) => <Header title={t('org.invite.title')} sub={props.name} onBack={shown ? back : ctx.back} />}
-      label={() => t('admin.invite.teamLabel', { name: props.name })} onDone={ctx.back}
-      disabled={may ? undefined : t('org.newLanguage.inviteLater', { language: props.name })}
+    <InviteSomeone ctx={ctx} scopes={scopes} initialScope={first.languageId}
+      header={(shown, back) => <Header title={t('org.invite.title')} sub={names} onBack={shown ? back : ctx.back} />}
+      label={(scope) => t('admin.invite.teamLabel', { name: scope.label })} onDone={ctx.back}
+      disabled={may ? undefined : t('org.newLanguage.inviteLater', { language: names })}
       links={() => [{ label: t('org.newLanguage.later'), icon: 'clock', onPress: ctx.back }]}
       {...(ctx.session.can('manage_roles') ? { onNewRole: () => ctx.go('role_editor', { roleId: 'new' }) } : {})} />
   );
 }
 
-export const contracts = contractsFor('org_home', 'language_home', 'members_list', 'invite_member', 'invite_qr',
+export const contracts = contractsFor('org_home', 'cluster_home', 'language_home', 'members_list', 'invite_member', 'invite_qr',
   'edit_member', 'new_language');

@@ -70,12 +70,26 @@ export interface OrgEventPayloads extends LibraryEvents, ReferenceOrgEvents {
   'v1.LanguageCountrySet': { languageId: string; country: string };
   /** What a language aims to record, from when and by when, for the dashboard's pace (decision 41). Register per language. */
   'v1.LanguageTargetSet': { languageId: string } & LanguageTarget;
+  /**
+   * A cluster's name: a group the organization puts some of its languages
+   * in (decision 108). Not a level: nothing about a language, its people
+   * or its stream depends on it. Register per cluster; making one and
+   * renaming it are the same event.
+   */
+  'v1.ClusterNamed': { clusterId: string; name: string };
+  /**
+   * Whether a language is in a cluster. Register per (language, cluster),
+   * so it is a tag: a language may be in several clusters or none, and two
+   * admins tagging different clusters offline both land.
+   */
+  'v1.LanguageClusterSet': { languageId: string; clusterId: string; inCluster: boolean };
 }
 export type OrgEventType = keyof OrgEventPayloads;
 export const ORG_EVENT_TYPES: readonly OrgEventType[] = [
   'v1.OrgCreated', 'v1.OrgRenamed', 'v1.RoleDefined', 'v1.RoleRetired', 'v1.MemberAdded', 'v1.MemberRemoved',
   'v1.InviteIssued', 'v1.InviteRedeemed', 'v1.JoinDecided', 'v1.LicenseSet',
   'v1.LanguageAdded', 'v1.LanguageRenamed', 'v1.LanguageCodeSet', 'v1.LanguageCountrySet', 'v1.LanguageTargetSet',
+  'v1.ClusterNamed', 'v1.LanguageClusterSet',
   'v1.ReferenceRecommended', ...LIBRARY_EVENT_TYPES
 ];
 
@@ -110,6 +124,9 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.LanguageCodeSet': 'manage_structure',
   'v1.LanguageCountrySet': 'manage_structure',
   'v1.LanguageTargetSet': 'manage_structure',
+  // Grouping the organization's languages is the organization's to do: org scope (languageOfOrgEvent).
+  'v1.ClusterNamed': 'manage_structure',
+  'v1.LanguageClusterSet': 'manage_structure',
   'v1.ReferenceRecommended': 'manage_reference',
   'v1.LibraryItemDefined': 'by_kind',
   'v1.LibraryVersionPublished': 'by_kind',
@@ -140,7 +157,7 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.TakeArchived': 'translate',
   'v1.CardVerseSet': 'translate',
   'v1.TakeSubmitted': 'translate',
-  // Written parts belong to a version (translate) or to something a step made, which reviewers make too (decisions.md 108).
+  // Written parts belong to a version (translate) or to something a step made, which reviewers make too (decisions.md 109).
   'v1.WritingAdded': ['translate', 'review'],
   // What the team makes is part of what it records, like its template.
   'v1.MediaAllowedSet': 'manage_templates',
@@ -209,8 +226,9 @@ export function privilegeFor(event: AnyEvent): EventPrivilege {
 /**
  * The language an organization-stream event is authorized against, or
  * undefined when it needs org scope. A language admin may rename their
- * language or grant and invite at its scope (rule 6); adding a language, and
- * everything else here, needs org scope. The SQL `may_emit` mirrors this.
+ * language or grant and invite at its scope (rule 6); adding a language,
+ * putting one in a cluster, and everything else here, needs org scope. The
+ * SQL `may_emit` mirrors this.
  */
 export function languageOfOrgEvent(event: AnyEvent): string | undefined {
   switch (event.type) {
@@ -337,6 +355,18 @@ interface OrgLanguage {
   target: Register<LanguageTarget> | null;
 }
 
+/**
+ * A cluster as the organization knows it (decision 108). Its name and each
+ * language's place in it are written by different events, so they commute:
+ * a language tagged before the cluster's name arrives waits for the name.
+ */
+interface OrgCluster {
+  /** `v1.ClusterNamed`; null while only tags have arrived. */
+  name: Register<string> | null;
+  /** languageId -> in the cluster (`v1.LanguageClusterSet`). */
+  languages: Record<string, Register<boolean>>;
+}
+
 export interface OrgState {
   /** The name, written by `OrgCreated` and `OrgRenamed`; the later clock wins (`orgName`). */
   org: Register<{ name: string }> | null;
@@ -362,10 +392,12 @@ export interface OrgState {
   license: Register<License> | null;
   /** itemId -> recommended to every language (`v1.ReferenceRecommended`, references.ts). */
   recommendations: Record<string, Register<boolean>>;
+  /** clusterId -> the cluster (`orgClusters`); absent in states folded before clusters existed. */
+  clusters?: Record<string, OrgCluster>;
 }
 
 export function emptyOrgState(): OrgState {
-  return { org: null, roles: {}, members: {}, languages: {}, invites: {}, joinDecisions: {}, appliedEventIds: {}, invalidEvents: {}, redactions: {}, library: {}, license: null, recommendations: {} };
+  return { org: null, roles: {}, members: {}, languages: {}, invites: {}, joinDecisions: {}, appliedEventIds: {}, invalidEvents: {}, redactions: {}, library: {}, license: null, recommendations: {}, clusters: {} };
 }
 
 export function scopeKey(s: Scope): string {
@@ -386,6 +418,10 @@ function loses(current: Register<unknown>, event: EventEnvelope): boolean {
 function set<V>(current: Register<V> | null | undefined, event: EventEnvelope, value: V): Register<V> {
   if (current && current.hlc !== '' && loses(current, event)) return current;
   return { value, hlc: event.hlc, eventId: event.id };
+}
+
+function cluster(state: OrgState, clusterId: string): OrgCluster {
+  return ((state.clusters ??= {})[clusterId] ??= { name: null, languages: {} });
 }
 
 function language(state: OrgState, languageId: string): OrgLanguage {
@@ -504,6 +540,17 @@ export function applyOrgEvent(state: OrgState, event: AnyEvent): OrgState {
       l.target = set(l.target, event, { scope, startDate, targetDate });
       break;
     }
+    case 'v1.ClusterNamed': {
+      const c = cluster(state, event.payload.clusterId);
+      c.name = set(c.name, event, event.payload.name);
+      break;
+    }
+    case 'v1.LanguageClusterSet': {
+      const { languageId, clusterId, inCluster } = event.payload;
+      const c = cluster(state, clusterId);
+      c.languages[languageId] = set(c.languages[languageId], event, inCluster);
+      break;
+    }
     case 'v1.ReferenceRecommended':
       applyOrgRecommendation(state.recommendations, event);
       break;
@@ -583,6 +630,51 @@ export function orgLanguages(org: OrgState | null): LanguageInfo[] {
 export function languageName(org: OrgState | null, languageId: string): string {
   const l = languageInfo(org, languageId);
   return l?.name || l?.code.toUpperCase() || languageId;
+}
+
+/** A cluster of the organization's languages (decision 108). */
+export interface ClusterInfo {
+  clusterId: string;
+  name: string;
+  /** The languages in it that the organization lists, by name, then id. */
+  languageIds: string[];
+}
+
+/**
+ * The organization's clusters, by name, then id: each named one with at
+ * least one language in it. A cluster whose languages have all left is
+ * gone, as a tag nobody carries is; naming it again brings it back.
+ */
+export function orgClusters(org: OrgState | null): ClusterInfo[] {
+  const order = new Map(orgLanguages(org).map((l, i) => [l.languageId, i]));
+  return Object.entries(org?.clusters ?? {})
+    .flatMap(([clusterId, c]) => {
+      const name = c.name?.value;
+      const languageIds = Object.entries(c.languages)
+        .filter(([id, r]) => r.value === true && order.has(id))
+        .map(([id]) => id)
+        .sort((a, b) => order.get(a)! - order.get(b)!);
+      return name && languageIds.length ? [{ clusterId, name, languageIds }] : [];
+    })
+    .sort((a, b) => a.name.localeCompare(b.name) || (a.clusterId < b.clusterId ? -1 : 1));
+}
+
+/** The clusters a language is in, by name. */
+export function clustersOf(org: OrgState | null, languageId: string): ClusterInfo[] {
+  return orgClusters(org).filter((c) => c.languageIds.includes(languageId));
+}
+
+/**
+ * A cluster's name, also while it has no languages (one being made, or
+ * just emptied), or undefined when it was never named.
+ */
+export function clusterName(org: OrgState | null, clusterId: string): string | undefined {
+  return org?.clusters?.[clusterId]?.name?.value;
+}
+
+/** May this person make, rename or fill clusters? Manage structure at org scope, as adding a language. */
+export function mayManageClusters(state: OrgState | null, profileId: string): boolean {
+  return !!state && privilegesFor(state, profileId).has('manage_structure');
 }
 
 /** Does a membership's scope cover a language? With no language, only org scope does. */

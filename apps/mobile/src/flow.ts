@@ -46,8 +46,10 @@ export const SCREEN_IDS = [
   'settings_more',
   // App only: one of a language's checks, with its people, questions and helps (decision 91)
   'check_editor',
-  // App only: something made from a version, by a step or brought over from v2 (decision 108)
-  'made_detail'
+  // App only: something made from a version, by a step or brought over from v2 (decision 109)
+  'made_detail',
+  // App only: a cluster of languages, a name the organization puts on them (decision 108, demo ADR-045)
+  'cluster_home'
 ] as const;
 
 export type ScreenId = (typeof SCREEN_IDS)[number];
@@ -410,14 +412,22 @@ export const EDGES: Edge[] = [
   // App only: signing out of "Join your team" goes through the same confirmation as Me (NOORG-004, decision 60)
   e('intent_chooser', 'sign_out_confirm'),
   e('sign_out_confirm', 'intent_chooser', 'back'),
-  // Something made from a version (decision 108): from the passage's Reviews by version, and from the version.
+  // App only: a cluster's page (decision 108, demo ADR-045): its languages, a new one already in it,
+  // and New language opening the cluster it made of languages already here
+  e('org_home', 'cluster_home'),
+  e('cluster_home', 'language_home'),
+  e('cluster_home', 'new_language'),
+  e('cluster_home', 'org_home', 'back'),
+  e('new_language', 'cluster_home', 'replace'),
+  e('new_language', 'cluster_home', 'back'),
+  // Something made from a version (decision 109): from the passage's Reviews by version, and from the version.
   e('passage_record', 'made_detail'),
   e('version_detail', 'made_detail'),
   e('made_detail', 'passage_record', 'back'),
   e('made_detail', 'version_detail', 'back'),
   e('made_detail', 'ask_someone'),
-  e('version_detail', 'back_translation', undefined, 'reviewer'), // tap Change the words (decision 108)
-  e('made_detail', 'back_translation', undefined, 'reviewer'), // tap Change the words (decision 108)
+  e('version_detail', 'back_translation', undefined, 'reviewer'), // tap Change the words (decision 109)
+  e('made_detail', 'back_translation', undefined, 'reviewer'), // tap Change the words (decision 109)
   e('back_translation', 'version_detail', 'back'),
   e('back_translation', 'made_detail', 'back')
 ];
@@ -431,7 +441,7 @@ export const EDGES: Edge[] = [
 export const MAP_SCREENS: ScreenId[] = ['map_home', 'status_home', 'book_map', 'passage_record'];
 // The study left this list with the simple redesign (decision 71, demo ADR-035): it is a task, closed with ✕.
 export const PASSAGE_READING: ScreenId[] = ['version_detail', 'review_detail', 'passage_reference'];
-const MANAGE_HOMES: ScreenId[] = ['org_home', 'language_home'];
+const MANAGE_HOMES: ScreenId[] = ['org_home', 'cluster_home', 'language_home'];
 export const TAB_SCREENS: ScreenId[] = [
   'my_work', ...MAP_SCREENS, ...PASSAGE_READING, 'inbox_home', 'settings_home', ...MANAGE_HOMES, 'intent_chooser'
 ];

@@ -391,6 +391,8 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
     case 'v1.LanguageCodeSet':
     case 'v1.LanguageCountrySet':
     case 'v1.LanguageTargetSet':
+    case 'v1.ClusterNamed':
+    case 'v1.LanguageClusterSet':
     case 'v1.ReferenceRecommended':
     case 'v1.LibraryItemDefined':
     case 'v1.LibraryVersionPublished':

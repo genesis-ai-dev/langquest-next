@@ -228,7 +228,7 @@ export function buildRecordFixture(): AnyEvent[] {
     { itemId: 'biblebrain.ENGESV', name: 'English Standard Version', kind: 'source', detail: 'ENGESVN1DA', opened: true }] });
   emit('dF', 'bt1', 'v1.ReferencesUsed', { unitId: 'luke1', reviewId: 'rv1', items: [{ itemId: 'guidelines', name: 'Translation Guidelines', kind: 'note', opened: false }] });
 
-  // Writing beside recording (decisions.md 108): two devices write overlapping
+  // Writing beside recording (decisions.md 109): two devices write overlapping
   // verses, a written version is composed, labelled and published; the
   // language's switches are set from two devices; a kind becomes a making
   // step and another reads what it made; things are made from a version,
@@ -257,7 +257,7 @@ export function buildRecordFixture(): AnyEvent[] {
   emit('dB', 't1', 'v1.TakeComposed', { takeId: 'takeFinal', unitId: 'luke1', cardHashes: ['c1', 'c3', 'c4'], parentTakeId: 'take2' });
   emit('dB', 't1', 'v1.TakeSubmitted', { takeId: 'takeFinal' });
   emit('dB', 't1', 'v1.Made', { madeId: 'm4', unitId: 'luke1', kindId: 'polish', fromTakeId: 'take2', takeId: 'takeFinal' });
-  // Words added to the final recording, checked, then changed (decisions.md 108).
+  // Words added to the final recording, checked, then changed (decisions.md 109).
   emit('dA', 'lead', 'v1.StepMakesSet', { kindId: 'transcribe', makes: { from: 'recording', to: 'writing', language: 'same', result: 'added' } });
   emit('dB', 't1', 'v1.Made', { madeId: 'm5', unitId: 'luke1', kindId: 'transcribe', fromTakeId: 'takeFinal', added: true, parts: [{ hash: w4.id, durationMs: 0 }, { hash: w5.id, durationMs: 0 }] });
   emit('dC', 'r1', 'v1.ReviewRecorded', { reviewId: 'rvFinal', takeId: 'takeFinal', kindId: 'community', outcome: 'looks_good', via: 'app' });
@@ -379,6 +379,16 @@ export function buildOrgFixture(): AnyEvent[] {
   raw('code-a', 'dB', '001800000966000:000000:dB', 'v1.LanguageCodeSet', { languageId: 'L1', code: 'dib', languoidId: '0a1b2c3d-0000-4000-8000-000000000001' });
   raw('code-b', 'dC', '001800000966000:000000:dB', 'v1.LanguageCodeSet', { languageId: 'L1', code: 'dik', languoidId: '0a1b2c3d-0000-4000-8000-000000000002' });
   raw('code-c', 'dB', '001800000962500:000000:dB', 'v1.LanguageCodeSet', { languageId: 'L1', code: 'din', languoidId: null });
+  // A cluster (decision 108): named, renamed from two devices at one clock
+  // (the higher id stands), a language tagged in and out from two devices,
+  // and a tag that arrives before its cluster's name.
+  emit('v1.ClusterNamed', { clusterId: 'cl1', name: 'Dinka cluster' });
+  emit('v1.LanguageClusterSet', { languageId: 'L1', clusterId: 'cl1', inCluster: true });
+  raw('cl-a', 'dB', '001800000967000:000000:dB', 'v1.ClusterNamed', { clusterId: 'cl1', name: 'Dinka languages' });
+  raw('cl-b', 'dC', '001800000967000:000000:dB', 'v1.ClusterNamed', { clusterId: 'cl1', name: 'Jieng' });
+  raw('cl-c', 'dB', '001800000968000:000000:dB', 'v1.LanguageClusterSet', { languageId: 'L1', clusterId: 'cl1', inCluster: false });
+  raw('cl-d', 'dC', '001800000968000:000000:dB', 'v1.LanguageClusterSet', { languageId: 'L1', clusterId: 'cl1', inCluster: true });
+  raw('cl-e', 'dB', '001800000969000:000000:dB', 'v1.LanguageClusterSet', { languageId: 'L1', clusterId: 'cl-unnamed', inCluster: true });
   // The license only opens (license.ts): a later, more closed choice from
   // an admin who was offline changes nothing, and two devices opening to the
   // same license at the same clock settle on the lower id.
