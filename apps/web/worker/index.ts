@@ -50,8 +50,10 @@ export default {
       if (error) throw new Error(`record_blob: ${error.message}`);
     };
     const orgObject = (orgId: string) => env.ORG_SNAPSHOTS.get(env.ORG_SNAPSHOTS.idFromName(orgId));
+    const agentStore = supabaseAgentStore(serviceClient(env));
     return handleApi(request, {
       profileOf,
+      orgsOf: (profileId) => agentStore.orgsOf(profileId),
       reports: (orgId, profileId, fresh) => orgObject(orgId).reports(orgId, profileId, fresh),
       bible: { key: env.BIBLE_BRAIN_ACCESS_KEY, cache: caches.default, waitUntil: (p) => ctx.waitUntil(p) },
       languoids: {
@@ -74,7 +76,7 @@ export default {
         record: recordBlob
       },
       agent: {
-        store: supabaseAgentStore(serviceClient(env)),
+        store: agentStore,
         profileOf,
         org: (orgId): OrgStub => {
           const object = orgObject(orgId);
