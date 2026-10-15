@@ -191,7 +191,15 @@ const server = createServer(async (req, res) => {
     const path = resolve(directory, `${audioMatch[1]}.wav`);
     if (!existsSync(path)) return reply({ error: 'No such audio' }, 404);
     const bytes = readFileSync(path);
-    res.writeHead(200, { 'content-type': 'audio/wav', 'content-length': bytes.length });
+    // Phones' players read audio in ranges, as they do LangQuest's signed links.
+    const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range ?? '');
+    if (range) {
+      const start = range[1] ? Number(range[1]) : Math.max(0, bytes.length - Number(range[2]));
+      const end = range[1] && range[2] ? Math.min(Number(range[2]), bytes.length - 1) : bytes.length - 1;
+      res.writeHead(206, { 'content-type': 'audio/wav', 'accept-ranges': 'bytes', 'content-range': `bytes ${start}-${end}/${bytes.length}`, 'content-length': end - start + 1 });
+      return res.end(bytes.subarray(start, end + 1));
+    }
+    res.writeHead(200, { 'content-type': 'audio/wav', 'accept-ranges': 'bytes', 'content-length': bytes.length });
     return res.end(bytes);
   }
   if (req.headers.authorization !== `Bearer ${token}`) return reply({ error: 'Unknown demo token', code: 'unauthorized' }, 401);
