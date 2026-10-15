@@ -59,39 +59,63 @@ export function audioFormatsFor(
   return [...out].map(([hash, format]) => ({ type: 'v1.AudioFormatSet', payload: { hash, format } }));
 }
 
+type Verdict = LanguageState['blobs'][string];
+
 /**
  * What the language's audio is, read once per state and revision: every
- * file it references, the order the log names them in, and where each
- * passage's audio lives. The upload and download workers, the space
- * reclaimer and the offline screens all ask after every change and every
- * file that arrives; each used to walk the whole language for itself: 0.1
- * to 0.25 s of a Mac's time per change for Koro Miyan's 61,000 files, and
- * as much again for every audio file that came down. Keyed like the
- * passage indexes (`recordIndexes`): the fold bumps a state's revision with
- * every event it applies, so a hit is never stale.
+ * file it references, the order the log names them in, where each
+ * passage's audio lives, and the server's verdict on each. The upload and
+ * download workers, the space reclaimer and the offline screens all ask
+ * after every change and every file that arrives; each used to walk the
+ * whole language for itself: 0.1 to 0.25 s of a Mac's time per change for
+ * Koro Miyan's 61,000 files, and as much again for every audio file that
+ * came down. Keyed like the passage indexes (`recordIndexes`): the fold
+ * bumps a state's revision with every event it applies, so a hit is never
+ * stale.
+ *
+ * A phone that keeps a language on disk (decisions.md 107) makes its own
+ * plan (`filePlan`) from the files memory names and those its table lists
+ * for the passages or files a question is about, so planning never needs
+ * the records themselves.
  */
-interface BlobPlan {
+export interface FilePlan {
   refs: ReadonlyMap<string, BlobRef>;
   /** Each referenced file's place in `refs`, so a list made from a few files keeps the log's order. */
   order: ReadonlyMap<string, number>;
   idx: AudioIndex;
-  /** Per offline scope asked about at this revision: the files its passages need, and those the server has, in order. */
+  /** The server's latest verdict on a file. */
+  verdict(hash: string): Verdict | undefined;
+  units: LanguageState['units'];
+  /** Per offline scope asked about with this plan: the files its passages need, and those the server has, in order. */
   scoped: Map<string, { needed: ReadonlySet<string>; stored: readonly BlobRef[] }>;
 }
 
-const plans = new WeakMap<LanguageState, { revision: number; plan: BlobPlan }>();
+const plans = new WeakMap<LanguageState, { revision: number; plan: FilePlan }>();
 
-function planOf(state: LanguageState): BlobPlan {
+function planOf(state: LanguageState): FilePlan {
   const revision = stateRevision(state);
   const hit = plans.get(state);
   if (hit && hit.revision === revision) return hit.plan;
-  const refs = collectRefs(state);
+  const plan = filePlan(state, collectRefs(state), (hash) => state.blobs[hash]);
+  plans.set(state, { revision, plan });
+  return plan;
+}
+
+/**
+ * A plan from files listed some other way: those a language kept on disk
+ * names for the passages or files in question, beside what memory names.
+ * `state` gives the materials and key terms passages inherit audio from,
+ * and the units they sit in.
+ */
+export function filePlan(
+  state: Pick<LanguageState, 'materials' | 'keyTerms' | 'units'>,
+  refs: ReadonlyMap<string, BlobRef>,
+  verdict: (hash: string) => Verdict | undefined
+): FilePlan {
   const order = new Map<string, number>();
   let n = 0;
   for (const hash of refs.keys()) order.set(hash, n++);
-  const plan = { refs, order, idx: audioIndex(state, refs), scoped: new Map() };
-  plans.set(state, { revision, plan });
-  return plan;
+  return { refs, order, idx: audioIndex(state, refs), verdict, units: state.units, scoped: new Map() };
 }
 
 /** Every blob the language references: recording cards and reference audio. Read-only: it is shared until the next change. */
@@ -99,13 +123,13 @@ export function referencedBlobs(state: LanguageState): ReadonlyMap<string, BlobR
   return planOf(state).refs;
 }
 
-/** What a scope needs, worked out once per revision: the workers and the reclaimer ask with the same scope after every file. */
-function forScope(state: LanguageState, plan: BlobPlan, scope: ReadonlySet<string>): { needed: ReadonlySet<string>; stored: readonly BlobRef[] } {
+/** What a scope needs, worked out once per plan: the workers and the reclaimer ask with the same scope after every file. */
+function forScope(plan: FilePlan, scope: ReadonlySet<string>): { needed: ReadonlySet<string>; stored: readonly BlobRef[] } {
   const key = [...scope].sort().join('\n');
   let hit = plan.scoped.get(key);
   if (!hit) {
-    const needed = scopedHashes(state, scope, plan);
-    hit = { needed, stored: inOrder(plan, needed, (ref) => isStored(state, ref.hash)) };
+    const needed = scopedHashes(plan, scope);
+    hit = { needed, stored: inOrder(plan, needed, (ref) => plan.verdict(ref.hash)?.stored === true) };
     // A person has one scope at a time; a few cover the screens that ask about others.
     if (plan.scoped.size >= 4) plan.scoped.delete(plan.scoped.keys().next().value!);
     plan.scoped.set(key, hit);
@@ -114,7 +138,7 @@ function forScope(state: LanguageState, plan: BlobPlan, scope: ReadonlySet<strin
 }
 
 /** Refs for some files, in the order the language names them. */
-function inOrder(plan: BlobPlan, hashes: Iterable<string>, keep: (ref: BlobRef) => boolean): BlobRef[] {
+function inOrder(plan: FilePlan, hashes: Iterable<string>, keep: (ref: BlobRef) => boolean): BlobRef[] {
   const out: BlobRef[] = [];
   for (const hash of hashes) {
     const ref = plan.refs.get(hash);
@@ -123,10 +147,34 @@ function inOrder(plan: BlobPlan, hashes: Iterable<string>, keep: (ref: BlobRef) 
   return out.sort((a, b) => plan.order.get(a.hash)! - plan.order.get(b.hash)!);
 }
 
+/** A voice note's format, as its recording device said (decisions.md 77): m4a unless the log says otherwise. */
+export function voiceFormat(state: Pick<LanguageState, 'audioFormats'>, hash: string): BlobRef['format'] {
+  return state.audioFormats[hash]?.value ?? 'm4a';
+}
+
+/** The record's own audio (decision 30) one entry names, with its format when the entry says it; a voice note's comes from the log. */
+export function recordAudio(map: string, value: unknown): { hash: string; format?: BlobRef['format'] }[] {
+  const out: { hash: string; format?: BlobRef['format'] }[] = [];
+  const add = (hash: string | undefined, format?: BlobRef['format']) => { if (hash) out.push(format ? { hash, format } : { hash }); };
+  switch (map) {
+    case 'recordings': for (const c of (value as LanguageState['recordings'][string]).cards) add(c.hash, c.format ?? 'wav'); break;
+    case 'responses': add((value as LanguageState['responses'][string]).blobHash); break;
+    case 'notes': add((value as LanguageState['notes'][string]).blobHash); break;
+    case 'departures': add((value as LanguageState['departures'][string]).reasonBlobHash); break;
+    case 'requests': add((value as LanguageState['requests'][string]).noteBlobHash); break;
+    case 'kindReviews': {
+      const r = value as LanguageState['kindReviews'][string];
+      add(r.commentBlobHash);
+      for (const c of r.artifacts ?? []) add(c.hash, c.format ?? 'wav');
+      break;
+    }
+  }
+  return out;
+}
+
 function collectRefs(state: LanguageState): Map<string, BlobRef> {
   const out = new Map<string, BlobRef>();
-  // A voice note's format, as its recording device said (decisions.md 77).
-  const voice = (hash: string): BlobRef['format'] => state.audioFormats[hash]?.value ?? 'm4a';
+  const voice = (hash: string): BlobRef['format'] => voiceFormat(state, hash);
   for (const r of Object.values(state.recordings)) {
     for (const c of r.cards) {
       if (!out.has(c.hash)) out.set(c.hash, { hash: c.hash, format: c.format ?? 'wav', unitId: r.unitId });
@@ -180,9 +228,13 @@ export function deriveUploadWork(
   present: ReadonlySet<string>,
   localSizes?: ReadonlyMap<string, number>
 ): BlobRef[] {
+  return uploadWorkOf(planOf(state), present, localSizes);
+}
+
+export function uploadWorkOf(plan: FilePlan, present: ReadonlySet<string>, localSizes?: ReadonlyMap<string, number>): BlobRef[] {
   // Only files on this phone can go up: look at those, not at every file the language names.
-  return inOrder(planOf(state), present, (ref) => {
-    const verdict = state.blobs[ref.hash];
+  return inOrder(plan, present, (ref) => {
+    const verdict = plan.verdict(ref.hash);
     if (!verdict?.stored) return true;
     const local = localSizes?.get(ref.hash);
     return local !== undefined && local !== verdict.size;
@@ -199,11 +251,14 @@ export function deriveDownloadWork(
   present: ReadonlySet<string>,
   scope: ReadonlySet<string> | null = null
 ): BlobRef[] {
+  return downloadWorkOf(planOf(state), present, scope);
+}
+
+export function downloadWorkOf(plan: FilePlan, present: ReadonlySet<string>, scope: ReadonlySet<string> | null = null): BlobRef[] {
   if (scope && scope.size === 0) return [];
-  const plan = planOf(state);
   // A scope is a person's passages: look at their files, not at every file the language names.
-  if (scope) return forScope(state, plan, scope).stored.filter((ref) => !present.has(ref.hash));
-  return [...plan.refs.values()].filter((ref) => isStored(state, ref.hash) && !present.has(ref.hash));
+  if (scope) return forScope(plan, scope).stored.filter((ref) => !present.has(ref.hash));
+  return [...plan.refs.values()].filter((ref) => plan.verdict(ref.hash)?.stored === true && !present.has(ref.hash));
 }
 
 /**
@@ -219,7 +274,7 @@ interface AudioIndex {
   everywhere: string[];
 }
 
-function audioIndex(state: LanguageState, refs: ReadonlyMap<string, BlobRef>): AudioIndex {
+function audioIndex(state: Pick<LanguageState, 'materials' | 'keyTerms'>, refs: ReadonlyMap<string, BlobRef>): AudioIndex {
   const own = new Map<string, string[]>();
   const byScope = new Map<string, string[]>();
   const everywhere: string[] = [];
@@ -247,9 +302,9 @@ function audioIndex(state: LanguageState, refs: ReadonlyMap<string, BlobRef>): A
 }
 
 /** One passage's audio, leaving out what the whole language shares (`everywhere`). */
-function unitHashes(state: LanguageState, unitId: string, idx: AudioIndex, into = new Set<string>()): Set<string> {
-  for (const hash of idx.own.get(unitId) ?? []) into.add(hash);
-  for (const ancestor of unitAncestry(state, unitId)) for (const hash of idx.byScope.get(ancestor) ?? []) into.add(hash);
+function unitHashes(plan: FilePlan, unitId: string, into = new Set<string>()): Set<string> {
+  for (const hash of plan.idx.own.get(unitId) ?? []) into.add(hash);
+  for (const ancestor of unitAncestry(plan, unitId)) for (const hash of plan.idx.byScope.get(ancestor) ?? []) into.add(hash);
   return into;
 }
 
@@ -257,10 +312,10 @@ function unitHashes(state: LanguageState, unitId: string, idx: AudioIndex, into 
  * Every blob a set of units needs offline: their own audio plus the
  * reference audio, materials and key terms they inherit (rule 10).
  */
-function scopedHashes(state: LanguageState, scope: ReadonlySet<string>, plan = planOf(state)): Set<string> {
+function scopedHashes(plan: FilePlan, scope: ReadonlySet<string>): Set<string> {
   const needed = new Set<string>();
   if (scope.size === 0) return needed;
-  for (const unitId of scope) unitHashes(state, unitId, plan.idx, needed);
+  for (const unitId of scope) unitHashes(plan, unitId, needed);
   for (const hash of plan.idx.everywhere) needed.add(hash);
   return needed;
 }
@@ -280,11 +335,18 @@ export function defaultOfflineScope(state: LanguageState, actorId: string): Set<
   let scope = hit.byActor.get(actorId);
   if (!scope) {
     const units = unitsAskedOf(state, actorId);
-    for (const r of Object.values(state.recordings)) if (r.actorId === actorId) units.add(r.unitId);
-    for (const t of Object.values(state.takes)) if (t.actorId === actorId && t.unitId) units.add(t.unitId);
+    for (const u of workedBy(state, actorId)) units.add(u);
     hit.byActor.set(actorId, (scope = units));
   }
   return new Set(scope);
+}
+
+/** Passages this person recorded or composed in, from what the state holds. */
+export function workedBy(state: LanguageState, actorId: string): Set<string> {
+  const units = new Set<string>();
+  for (const r of Object.values(state.recordings)) if (r.actorId === actorId) units.add(r.unitId);
+  for (const t of Object.values(state.takes)) if (t.actorId === actorId && t.unitId) units.add(t.unitId);
+  return units;
 }
 
 /** Referenced but neither confirmed nor present anywhere we can see: visibly missing. */
@@ -308,13 +370,16 @@ export interface LostFilesView {
  * file) counts in neither total; the caller still counts it as lost.
  */
 export function lostFilesView(state: LanguageState, hashes: Iterable<string>): LostFilesView {
-  const refs = referencedBlobs(state);
+  return lostFilesOf(planOf(state), hashes);
+}
+
+export function lostFilesOf(plan: FilePlan, hashes: Iterable<string>): LostFilesView {
   const out: LostFilesView = { safe: 0, unsent: 0, unitIds: [] };
   const units = new Set<string>();
   for (const hash of hashes) {
-    const ref = refs.get(hash);
+    const ref = plan.refs.get(hash);
     if (!ref) continue;
-    if (isStored(state, hash)) { out.safe++; continue; }
+    if (plan.verdict(hash)?.stored) { out.safe++; continue; }
     out.unsent++;
     if (ref.unitId && !units.has(ref.unitId)) { units.add(ref.unitId); out.unitIds.push(ref.unitId); }
   }
@@ -334,12 +399,15 @@ export function evictableBlobs(
   scope: ReadonlySet<string> | null,
   localSizes?: ReadonlyMap<string, number>
 ): BlobRef[] {
-  const plan = planOf(state);
+  return evictableOf(planOf(state), present, scope, localSizes);
+}
+
+export function evictableOf(plan: FilePlan, present: ReadonlySet<string>, scope: ReadonlySet<string> | null, localSizes?: ReadonlyMap<string, number>): BlobRef[] {
   // Only a file on this phone can be deleted: look at those. Kept passages need theirs; a file
   // going up stays (a stored file goes up again only when its size here differs from the server's).
-  const needed = scope ? (scope.size === 0 ? new Set<string>() : forScope(state, plan, scope).needed) : null;
+  const needed = scope ? (scope.size === 0 ? new Set<string>() : forScope(plan, scope).needed) : null;
   return inOrder(plan, present, (ref) => {
-    const verdict = state.blobs[ref.hash];
+    const verdict = plan.verdict(ref.hash);
     if (!verdict?.stored) return false;
     if (!needed || needed.has(ref.hash)) return false;
     const local = localSizes?.get(ref.hash);
@@ -390,28 +458,32 @@ export function offlineByUnit(
   actorId: string,
   chosen: ReadonlySet<string>
 ): Map<string, UnitOffline> {
-  return countOffline(state, unitIds, present, chosen, planOf(state).idx, defaultOfflineScope(state, actorId), unitsAskedOf(state, actorId));
+  return offlineCountsOf(planOf(state), unitIds, present, chosen, { mine: defaultOfflineScope(state, actorId), asked: unitsAskedOf(state, actorId) });
 }
 
-function countOffline(
-  state: LanguageState,
+/** Why a person keeps passages: those asked of them, and those they keep by default (asked of them or worked in). */
+export interface OfflineReasons {
+  mine: ReadonlySet<string>;
+  asked: ReadonlySet<string>;
+}
+
+export function offlineCountsOf(
+  plan: FilePlan,
   unitIds: Iterable<string>,
   present: ReadonlySet<string>,
   chosen: ReadonlySet<string>,
-  idx: AudioIndex,
-  mine: ReadonlySet<string>,
-  asked: ReadonlySet<string>
+  why: OfflineReasons
 ): Map<string, UnitOffline> {
   // What the whole language shares is the same for every passage: count it once.
-  const shared = new Set(idx.everywhere);
-  const sharedCount = tally(state, shared, present);
+  const shared = new Set(plan.idx.everywhere);
+  const sharedCount = tally(plan, shared, present);
   const out = new Map<string, UnitOffline>();
   for (const unitId of unitIds) {
     if (out.has(unitId)) continue;
-    const reason: OfflineReason | null = asked.has(unitId) ? 'asked' : mine.has(unitId) ? 'worked' : chosen.has(unitId) ? 'chosen' : null;
-    const own = unitHashes(state, unitId, idx);
+    const reason: OfflineReason | null = why.asked.has(unitId) ? 'asked' : why.mine.has(unitId) ? 'worked' : chosen.has(unitId) ? 'chosen' : null;
+    const own = unitHashes(plan, unitId);
     for (const hash of shared) own.delete(hash);
-    const c = tally(state, own, present);
+    const c = tally(plan, own, present);
     const audio = own.size + shared.size;
     const toFetch = c.toFetch + sharedCount.toFetch;
     out.set(unitId, {
@@ -422,14 +494,15 @@ function countOffline(
   return out;
 }
 
-function tally(state: LanguageState, hashes: Iterable<string>, present: ReadonlySet<string>) {
+function tally(plan: FilePlan, hashes: Iterable<string>, present: ReadonlySet<string>) {
   let here = 0;
   let toFetch = 0;
   let bytesToFetch = 0;
   let notSent = 0;
   for (const hash of hashes) {
+    const verdict = plan.verdict(hash);
     if (present.has(hash)) here++;
-    else if (isStored(state, hash)) { toFetch++; bytesToFetch += state.blobs[hash]?.size ?? 0; }
+    else if (verdict?.stored) { toFetch++; bytesToFetch += verdict.size; }
     else notSent++;
   }
   return { here, toFetch, bytesToFetch, notSent };
@@ -453,21 +526,23 @@ export function offlineSummary(
   actorId: string,
   chosen: ReadonlySet<string>
 ): OfflineSummary {
-  const plan = planOf(state);
-  const idx = plan.idx;
-  const mine = defaultOfflineScope(state, actorId);
-  const scope = new Set(mine);
+  return offlineSummaryOf(planOf(state), present, chosen, { mine: defaultOfflineScope(state, actorId), asked: unitsAskedOf(state, actorId) });
+}
+
+export function offlineSummaryOf(plan: FilePlan, present: ReadonlySet<string>, chosen: ReadonlySet<string>, why: OfflineReasons): OfflineSummary {
+  const scope = new Set(why.mine);
   for (const u of chosen) scope.add(u);
   const out: OfflineSummary = { kept: 0, ready: 0, chosen: 0, filesToFetch: 0, bytesToFetch: 0, notSent: 0 };
   // Per passage, so a file two passages share is counted under each; the totals below are by file.
-  for (const u of countOffline(state, scope, present, chosen, idx, mine, unitsAskedOf(state, actorId)).values()) {
+  for (const u of offlineCountsOf(plan, scope, present, chosen, why).values()) {
     out.kept++;
     if (u.ready) out.ready++;
     if (u.reason === 'chosen') out.chosen++;
   }
-  for (const hash of scopedHashes(state, scope, plan)) {
+  for (const hash of scopedHashes(plan, scope)) {
     if (present.has(hash)) continue;
-    if (isStored(state, hash)) { out.filesToFetch++; out.bytesToFetch += state.blobs[hash]?.size ?? 0; }
+    const verdict = plan.verdict(hash);
+    if (verdict?.stored) { out.filesToFetch++; out.bytesToFetch += verdict.size; }
     else out.notSent++;
   }
   return out;
