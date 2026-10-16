@@ -864,7 +864,8 @@ test('REV-041 Record a fix answers the feedback with Version 2 @p0', async ({ pa
   await button(page, 'Hear the feedback').click();
   await button(page, 'Record a fix').click();
   await expect(text(page, 'Recording Version 2')).toBeVisible();
-  await expect(text(page, 'These are Version 1\'s parts. Record a new part or delete one to publish a new version.')).toBeVisible();
+  // The parts are Version 1's until something changes (LAN-83: no sentence says so).
+  await expect(page.getByRole('button', { name: /^Version 1, \d+ parts? · / }).locator('visible=true').first()).toBeVisible();
   await deletePart(page, 3);
   await recordAPart(page);
   await publishButton(page).click();

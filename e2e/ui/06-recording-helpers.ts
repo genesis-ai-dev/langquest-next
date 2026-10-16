@@ -140,8 +140,9 @@ export async function partCount(page: Page): Promise<number> {
     return m ? Number(m[1]) : 0;
   }
   if (!(await page.getByRole('button', { name: 'Done', exact: true }).locator('visible=true').count())) return 0;
-  const live = await page.getByLabel(/^Part \d+\. /).locator('visible=true').first().getAttribute('aria-label').catch(() => null);
-  const n = /^Part (\d+)\. /.exec(live ?? '');
+  const live = page.getByLabel(/^Part \d+\. /).locator('visible=true').first();
+  if (!(await live.count())) return 0;
+  const n = /^Part (\d+)\. /.exec((await live.getAttribute('aria-label').catch(() => null)) ?? '');
   return n ? Number(n[1]) - 1 : 0;
 }
 

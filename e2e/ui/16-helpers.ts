@@ -14,13 +14,16 @@ import {
  * part being said ("Part 4. Recording…"): three are kept.
  */
 export async function partsCount(page: Page): Promise<number> {
-  const label = await page.getByRole('button', { name: /^(Parts? 1(–\d+)?|Version \d+), \d+ parts?/ }).locator('visible=true').first()
-    .getAttribute('aria-label', { timeout: 1_000 }).catch(() => null);
-  const m = label?.match(/, (\d+) parts?/);
-  if (m) return Number(m[1]);
+  // Only what is on screen now: a lookup that waits for an absent card makes a recording overrun its stop.
+  const card = page.getByRole('button', { name: /^(Parts? 1(–\d+)?|Version \d+), \d+ parts?/ }).locator('visible=true').first();
+  if (await card.count()) {
+    const m = (await card.getAttribute('aria-label').catch(() => null))?.match(/, (\d+) parts?/);
+    return m ? Number(m[1]) : 0;
+  }
   if (!(await page.getByRole('button', { name: 'Done', exact: true }).locator('visible=true').count())) return 0;
-  const live = await page.getByLabel(/^Part \d+\. /).locator('visible=true').first().getAttribute('aria-label', { timeout: 1_000 }).catch(() => null);
-  const n = live?.match(/^Part (\d+)\. /);
+  const live = page.getByLabel(/^Part \d+\. /).locator('visible=true').first();
+  if (!(await live.count())) return 0;
+  const n = (await live.getAttribute('aria-label').catch(() => null))?.match(/^Part (\d+)\. /);
   return n ? Number(n[1]) - 1 : 0;
 }
 

@@ -221,7 +221,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
           </HelpClip>
         )}
         bottom={({ compact, open }) => session ? (
-          <RecordingView rec={rec} phase={loop.phase} title={partLabel} partNumber={partN ?? 1} onLeave={() => void loop.toggle()} onResume={loop.resumeNow} />
+          <RecordingView rec={rec} phase={loop.phase} title={partLabel} partNumber={partN ?? 1} count={part?.cards.length ?? 0} noun="piece" onLeave={() => void loop.toggle()} onResume={loop.resumeNow} />
         ) : compact ? (
           <PaneBar icon="mic" onPress={open} text={<>{partLabel} · {saidLine(parts)}</>} label={t('backTranslation.openYour', { what: produces.what })}
             help={t('backTranslation.openPartsHelp')} />

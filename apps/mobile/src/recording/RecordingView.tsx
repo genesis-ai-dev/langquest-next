@@ -17,7 +17,7 @@ import { t } from '../i18n';
 import { HelpInfo, Ico, IconBtn } from '../ui/kit';
 import { C, radius, space, target, TINT, type as T, withAlpha } from '../ui/theme';
 import type { useRecorder } from './useRecorder';
-import type { LoopPhase } from './splitModel';
+import { loopStatus, type LoopNoun, type LoopPhase } from './splitModel';
 import { mmss } from './workspaceModel';
 import { LiveParts } from './LiveParts';
 
@@ -77,6 +77,8 @@ export function RecordingView(props: {
   title: string;
   /** Its number: the waveform numbers the parts kept from the one recording when the view opened. */
   partNumber: number;
+  /** How many are kept so far, and what they are called, for the status a screen reader hears. */
+  count: number; noun: LoopNoun;
   /** Its verses, when it takes a deleted part's. */
   tile?: ReactNode;
   onLeave: () => void; onResume: () => void;
@@ -93,12 +95,13 @@ export function RecordingView(props: {
       <View style={styles.head}>
         {props.tile ? <View style={styles.tile}>{props.tile}</View> : null}
         <HelpInfo style={{ flex: 1, minWidth: 0 }} label={`${props.title}. ${status}`} detail={listening ? t('recording.vad.statusPausedHelp') : t('recording.recorder.nextRecordingHelp')}>
-          <View accessible accessibilityLiveRegion="polite" accessibilityLabel={t('recording.recorder.nextLabel', { part: props.title, status })}>
+          <View accessible accessibilityLabel={t('recording.recorder.nextLabel', { part: props.title, status })}>
             <Text style={[styles.title, { color: fg }]} numberOfLines={1}>{props.title}</Text>
-            <View style={styles.statusRow}>
-              {listening ? <Ico name="pause" size={14} color={fg} /> : <PulsingDot on={capturing} />}
-              <Text style={[styles.status, { color: fg }]} numberOfLines={1}>{status}</Text>
-            </View>
+          </View>
+          {/* Read politely as it changes, with how many are kept so far (the waveform's boxes show it; screen readers hear it). */}
+          <View style={styles.statusRow} accessible accessibilityLiveRegion="polite" accessibilityLabel={loopStatus(props.phase, rec.vadCapturing, props.count, props.noun)}>
+            {listening ? <Ico name="pause" size={14} color={fg} /> : <PulsingDot on={capturing} />}
+            <Text style={[styles.status, { color: fg }]} numberOfLines={1}>{status}</Text>
           </View>
         </HelpInfo>
         <Elapsed running={props.phase === 'recording'} color={fg} />

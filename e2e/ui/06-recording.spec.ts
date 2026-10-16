@@ -150,7 +150,8 @@ test('REC-004 Record parts with voice detection @p0', async ({ page, browser }) 
   await expect(publishButton(page)).not.toHaveAttribute('aria-disabled', 'true');
   await expect(saveButton(page)).not.toHaveAttribute('aria-disabled', 'true');
   // No part is shorter than a second, and none is empty.
-  const lengths = await page.getByRole('button', { name: /^Play Part \d$/ }).evaluateAll((els) => els.map((e) => e.textContent ?? ''));
+  // Each part's name and length: tapping it chooses it to record over (LAN-83); its play button has no words.
+  const lengths = await page.getByRole('button', { name: /^Record Part \d again$/ }).evaluateAll((els) => els.map((e) => e.textContent ?? ''));
   expect(lengths).toHaveLength(3);
   for (const l of lengths) expect(l).toMatch(/0:0[3-5]/);
   await m.mode('file');
@@ -209,7 +210,9 @@ test('REC-007 Delete a part, then Undo @p0', async ({ page }) => {
   await deletePart(page, 2);
   const toast = await expectToast(page, 'Part 2 deleted.');
   await expect(byId(page, 'toast-undo')).toBeVisible();
-  await expect(page.getByRole('button', { name: /^Parts 1–2, 2 parts · / })).toBeVisible();
+  // The deleted part's place stays, numbered, so the card reads three places and two parts (LAN-83).
+  await expect(page.getByRole('button', { name: /^Parts 1–3, 2 parts · / })).toBeVisible();
+  await expect(button(page, 'Record Part 2 here')).toBeVisible();
   await expect.poll(() => lastComposed(page, w, 'P-NEW')).toEqual([original[0], original[2]]);
   // The toast stays for 7 seconds; Undo inside them.
   await page.waitForTimeout(4000); // sleep: the toast's own 7 s life; Undo must still work 4 s in
