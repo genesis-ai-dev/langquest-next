@@ -326,7 +326,6 @@
     "flows_home": "审核流程",
     "flow_editor": "编辑流程",
     "templates_home": "内容模板",
-    "template_picker": "选择模板",
     "template_editor": "模板大纲",
     "book_structure": "划分书卷",
     "reference_home": "参考资料库",
@@ -684,7 +683,7 @@
         "rolesFirst": "角色",
         "roles": "角色"
       },
-      "titleHelp": "显示只设置一次、很少更改的内容：角色、名称、许可协议。",
+      "titleHelp": "显示只需设置一次、很少更改的内容：内容模板、参考资料、审核流程和角色。",
       "templatesHelp": "打开把工作划分成经段的各种方式，以及每个语言用的是哪一种。",
       "referenceHelp": "打开提供给译者的圣经、学习指南、问题和关键术语。",
       "flowsHelp": "打开检查录音的各种方式，以及每个语言用的是哪一种。",
@@ -727,7 +726,6 @@
     },
     "link": {
       "done": "{{name}}已关联到{{linked}}。",
-      "row": "在语言列表中",
       "linkedTo": "已关联到{{name}} · {{code}}",
       "linked": "已关联 · {{code}}",
       "notLinked": "还没有关联：离线时添加的，或者在列表中找不到",
@@ -753,13 +751,16 @@
       "title": "语言",
       "addFirst": "请先在机构主页上添加一个语言。",
       "readyStatus_other": "已就绪 · {{count, number}} 位译者",
-      "theyRecord": "他们录什么",
-      "whatHelps": "帮助他们的资料",
       "nothingOffered": "还没有提供资料 · 去添加",
       "peopleSub_other": "{{count, number}} 位译者 · 邀请更多人",
-      "theyRecordHelp": "打开他们翻译的内容，可以更改。",
-      "whatHelpsHelp": "打开提供给他们的圣经、指南和注释，可以更改。",
-      "checksHelp": "打开每段录音要经过的检查，可以更改。"
+      "checksHelp": "打开每段录音要经过的检查，可以更改。",
+      "contentTemplate": "内容模板",
+      "referenceMaterial": "参考资料",
+      "reviewFlow": "审核流程",
+      "contentTemplateHelp": "打开它使用的内容模板、可选的其他模板以及全部模板。",
+      "referenceMaterialHelp": "打开它使用的圣经、指南和注释，以便添加或移除。",
+      "reviewFlowHelp": "打开它使用的审核、可用的现成流程以及全部流程。",
+      "rolesSub_other": "{{count, number}} 个角色"
     },
     "join": {
       "wantsToJoin": "{{name}}想加入",
@@ -777,29 +778,8 @@
       "sayNoHelp": "立即拒绝对方的申请。对方不能加入。"
     },
     "more": {
-      "title": "更多",
-      "summary": {
-        "progress": "进展",
-        "members": "成员",
-        "roles": "角色",
-        "publicListing": "公开列表",
-        "languageList": "语言列表"
-      },
-      "orgAndCode": "{{org}} · 代码 {{code}}",
       "seeWork": "查看他们的工作",
-      "seeWorkSub": "所有经段，以及各自的进展",
-      "membersSub_other": "{{count, number}} 人在{{language}}中有角色",
-      "rolesSub_other": "{{count, number}} 个角色 · 各自能做什么",
-      "templates": "所有划分工作的方式",
-      "templatesSub": "机构的经段和大纲资料库",
-      "reference": "圣经、指南和注释",
-      "referenceSub": "资料库中的所有内容、覆盖范围和分享",
-      "flows": "所有检查方式",
-      "flowsSub": "机构的审核流程",
       "publicList": "在公开列表中显示",
-      "publicListSub": "只显示语言名称和进展",
-      "orgPage": "机构页面",
-      "titleHelp": "显示其余内容：进展、人员、角色、名称等。",
       "seeWorkHelp": "打开地图：所有经段，以及各自的进展。",
       "publicListOnHelp": "已开启：它的名称和进展在公开列表中。点按可以移除。",
       "publicListOffHelp": "已关闭。点按可以把它的名称和进展放到公开列表中。"
@@ -985,6 +965,14 @@
       "guides": "{{name}}的学习指南",
       "theBible": "{{name}}",
       "guidesIn": "{{language}}的{{name}}学习指南"
+    },
+    "languages": {
+      "row": "语言",
+      "rowSub": "{{target}} · {{understood}}",
+      "rowHelp": "打开他们译入的语言，以及他们懂的语言。",
+      "target": "他们译入",
+      "understood": "他们懂",
+      "understoodHelp": "打开他们的圣经和指南所用的语言，以便更改。"
     }
   },
   "admin": {
@@ -1286,7 +1274,9 @@
       "findBibleHelp": "搜索别人分享的圣经，选一本提供给团队。",
       "openBibleHelp": "打开它，可以听和读。",
       "setHelp": "打开它的语言：选择团队用哪一种，或者关闭它。",
-      "patternOnHelp": "已用为它选择的语言提供给团队。"
+      "patternOnHelp": "已用为它选择的语言提供给团队。",
+      "all": "全部参考资料",
+      "allHelp": "打开组织资料库中的全部内容，以及提供给每种语言的内容。"
     },
     "page": {
       "title": "帮助他们的资料",
@@ -1346,7 +1336,22 @@
     "nextHelp": "进入下一个问题。",
     "nextPageHelp": "进入这个问题的下一部分。",
     "nextQuestionHelp": "打开下一个还没回答的问题。",
-    "backHelp": "返回上一页。你选好的内容会保留。"
+    "backHelp": "返回上一页。你选好的内容会保留。",
+    "template": {
+      "eachBook": "每卷书的段落",
+      "eachBookHelp": "打开每卷书，更改其段落的起止位置。",
+      "whichBooks": "哪些书卷",
+      "whichBooksHelp": "打开他们翻译的内容，以选择书卷。",
+      "optionViewHelp": "组织的内容模板之一。负责设置语言的人可以选择它。",
+      "chooseOne": "在下面选择一个。",
+      "all": "全部内容模板",
+      "allHelp": "打开组织的内容模板，以及每种语言使用的模板。"
+    },
+    "flow": {
+      "all": "全部审核流程",
+      "allHelp": "打开组织的审核流程，以及每种语言使用的流程。",
+      "optionViewHelp": "现成的流程。负责设置审核的人可以在这里使用它。"
+    }
   },
   "content": {
     "chapterChip": "第 {{chapter}} 章",
@@ -1455,9 +1460,7 @@
       "copySub": "变成我们自己的，可以修改。"
     },
     "language": {
-      "title": "内容模板",
       "noLanguageSub": "从某个语言打开“内容模板”，可以查看它录音所依据的结构。",
-      "recordsAgainst": "{{language}}录音所依据的是",
       "itsTemplate": "它的模板",
       "version": "第 {{n}} 版",
       "versionFrom": "第 {{n}} 版 · 来自{{org}}",
@@ -1470,42 +1473,23 @@
       "recorded_other": "已录音 {{count, number}} 个",
       "newerOut": "第 {{n}} 版已推出。{{language}}会自动换到新版本。",
       "movesToNew": "{{language}}会换到{{name}}的新版本。",
-      "editTemplate": "编辑模板",
-      "viewTemplate": "查看模板",
-      "changeTemplate": "更换模板",
-      "chooseStructure": "选择{{language}}录音所依据的结构。它的经段来自模板。",
       "whoeverChooses": "由管理内容模板的人选择{{language}}录音所依据的结构。",
-      "chooseTemplate": "选择模板",
       "setAsideTitle_other": "{{count, number}} 个已录音的部分被搁置",
       "setAsideBody_other": "它们不在{{language}}现在使用的模板中。只是搁置，没有删除：换回原来的模板就会恢复。",
-      "divideInto": "划分为{{parts}}",
-      "openABook": "打开一卷书，通读一遍，看看每个{{part}}从哪里开始，FIA 的分段会作为建议标出。",
       "findBook": "查找书卷",
       "noBookMatches": "没有与“{{query}}”匹配的书卷。",
       "editTemplateHelp": "打开模板进行修改。使用它的语言会得到新版本。",
-      "changeTemplateHelp": "为{{language}}选择另一个模板。已录音的内容都不会删除。",
       "bookHelp": "打开它通读，查看每个{{part}}从哪里开始。",
       "bookWaitingHelp": "还没有划分。打开它查看可以怎样划分。"
     },
     "picker": {
-      "title": "选择模板",
-      "noLanguageSub": "请从某个语言的“内容模板”中选择模板。",
-      "itsTemplate": "它的模板",
       "nowUses": "{{language}}现在使用{{name}}。",
-      "inUseLabel": "{{name}}，正在使用",
-      "inUseTitle": "{{name}} · 正在使用",
-      "for": "用于{{language}}",
-      "forNow": "用于{{language}} · 现在是{{template}}",
       "hidden": "{{language}}现在的{{parts}}会被隐藏，不会删除。",
       "hiddenRecorded_other": "{{language}}现在的{{parts}}会被隐藏，不会删除。其中 {{count, number}} 个部分有录音——换回这个模板就会恢复。",
       "willRecord": "{{language}}将按{{name}}录音。以后可以更改；录过的内容永远不会被删除。",
       "followsIt": "你的机构关注了它，所以{{org}}的新版本会自动送到{{language}}。",
       "use": "使用{{name}}",
-      "noneOurs": "你的机构还没有模板。请选择其他机构分享的模板。",
-      "makeOwnHelp": "新建一个由你自己建立的模板。",
-      "cardHelp": "选择它并显示它的层级。然后用下面的按钮开始使用。",
-      "pickedHelp": "已选择，如勾所示。再点一次可以取消选择。",
-      "inUseHelp": "{{language}}现在使用的模板。"
+      "cardHelp": "选择它并显示它的层级。然后用下面的按钮开始使用。"
     },
     "editor": {
       "levelShownByReference": "录音 · 按经文出处显示",
@@ -6809,7 +6793,7 @@
       "outHelp": "不在这个语言群中。点按可以加入。",
       "newHelp": "输入一个名称：它会放入以这个名称命名的新语言群。",
       "doneHelp": "保存它所属的语言群。",
-      "add": "加入语言群",
+      "add": "语言群",
       "chipHelp": "它所在的语言群。"
     },
     "newLanguage": {

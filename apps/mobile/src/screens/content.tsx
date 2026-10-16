@@ -1,8 +1,10 @@
 // Content templates: the structure each language records against. Ports the
 // UX demo's src/screens/content.tsx: ContentTemplatesScreen (templates_home,
-// the organization's templates and a language's own), TemplatePickerScreen
-// (template_picker), TemplateEditorScreen with OutlineScroll, LevelSheet and
-// NodeSheet (template_editor) and BookStructureScreen (book_structure).
+// the organization's templates and a language's books), TemplateEditorScreen
+// with OutlineScroll, LevelSheet and NodeSheet (template_editor) and
+// BookStructureScreen (book_structure). The demo's TemplatePickerScreen is a
+// language's Content template page (templates/ContentTemplatePage.tsx,
+// decision 136).
 // Requirements TPL-1, TPL-2, TPL-7, TPL-9; ADR-025 (a language uses its own
 // version, suggestions are advice), ADR-026 (a whole book in one scroll) and
 // ADR-027 (the book reads like a Bible, FIA's breaks are suggestions).
@@ -16,7 +18,7 @@
 //
 // Below the organization there are only languages (docs/decisions.md 63).
 // templates_home params: `level` ('org' | 'language') and/or `languageId`.
-// template_picker: `languageId`. template_editor: `itemId` (a library
+// template_editor: `itemId` (a library
 // template), `new` (start one), or `languageId` (that language's template).
 // book_structure: `languageId`, `bookId`. A `languageId` param opens that
 // language, so its state is the open language's.
@@ -396,110 +398,45 @@ function SharedTemplateSheet(props: { ctx: Ctx; lib: Lib; shared: SharedItem; ca
   );
 }
 
-/** A language: its template and version, its levels and counts, Change, and the books (TPL-1, TPL-7). */
+/**
+ * A language's books, each opening to divide it into passages its own way
+ * (decisions 74, 93): "Each book's passages" on its Content template page
+ * (decision 136), which holds the template itself, its version and edit.
+ */
 function LanguageTemplateView({ ctx, languageId }: { ctx: Ctx; languageId: string | null }) {
   const state = ctx.language.state;
   const lib = useLibrary(ctx);
   const [query, setQuery] = useState('');
   const [limit, setLimit] = useState(8);
-  const { busy, run } = useRunner(ctx);
   const open = isOpen(ctx, languageId);
   const sel = state && open ? templateOf(state) : null;
   const docs = useLibraryDocs(lib.orgId, [sel?.docHash]);
-  const { updates } = useLibraryUpdates(lib.orgId);
   const data = useMemo(() => {
     if (!state || !open) return null;
     const idx = indexesFor(state);
     return {
       language: languageName(ctx.org.state, languageId),
       // Books waiting to be divided are listed too, so they can be opened and divided here (decision 107).
-      books: withWaitingBooks(bookRows(state, idx), state, idx),
-      progress: languageProgress(state, idx),
-      setAside: setAsideCount(state)
+      books: withWaitingBooks(bookRows(state, idx), state, idx)
     };
   }, [state, open, languageId, ctx.org.state]);
-  if (!state) return <Loading title={t('content.language.title')} onBack={ctx.back} />;
+  if (!state) return <Loading title={t('getReady.template.eachBook')} onBack={ctx.back} />;
   if (!data || !languageId) {
     return (
-      <Screen header={<Header title={t('content.language.title')} onBack={ctx.back} />}>
+      <Screen header={<Header title={t('getReady.template.eachBook')} onBack={ctx.back} />}>
         <EmptyState icon="globe" title={t('content.noLanguage')} sub={t('content.language.noLanguageSub')} />
       </Screen>
     );
   }
-  const canManage = ctx.session.can('manage_templates');
-  // Editing the template, taking an update and following one are the organization's library (`mayWriteLibrary`);
-  // choosing which template the language uses is the language's own.
-  const canWrite = lib.canWrite('template');
-  const canShape = ctx.session.can('shape_templates') || canManage;
-  const item = sel ? lib.item(sel.itemId) : null;
-  const doc = docs.get<TemplateDoc>(sel?.docHash);
-  const v11n = doc?.bible ? docs.get<VersificationDoc>(doc.bible.versification) : null;
-  const levels = doc ? docLevels(doc) : [];
-  const words = partWords(doc);
+  const canShape = ctx.session.can('shape_templates') || ctx.session.can('manage_templates');
+  const words = partWords(docs.get<TemplateDoc>(sel?.docHash));
   const books = filterBooks(data.books, query, bookName);
-  const { versionLine, newer, update } = languageVersionView(item, sel, updates);
-  const { bibleLine, countsLine } = languageSummary({
-    doc, chosenBooks: sel?.books ? sel.books.length : null, v11n, bookRows: data.books.length, progress: data.progress, words
-  });
 
   return (
-    <Screen header={<Header title={t('content.language.title')} sub={data.language} onBack={ctx.back} />}>
-      {sel ? (
-        <Card>
-          <View>
-            <Text style={txt.label}>{t('content.language.recordsAgainst', { language: data.language })}</Text>
-            <Text style={[txt.h2, { marginTop: space.xs }]}>{item?.name ?? doc?.name ?? t('content.language.itsTemplate')}</Text>
-            <Text style={[txt.smMuted, { marginTop: 2 }]}>{versionLine}</Text>
-          </View>
-          {!doc ? <LoadingLine /> : <LevelsLine levels={levels} explain />}
-          {bibleLine !== null ? <Text style={txt.sm}>{bibleLine}</Text> : null}
-          <Text style={txt.sm}>{countsLine}</Text>
-          {newer ? (
-            <Text style={[txt.sm, { color: C.primary, fontWeight: '600' }]}>{t('content.language.newerOut', { n: newer, language: data.language })}</Text>
-          ) : update ? (
-            <>
-              <Text style={[txt.sm, { color: TINT.amberText }]}>{t('content.newerVersion', { org: item!.subscription!.sourceOrgName })}</Text>
-              {canWrite ? (
-                <SmallBtn label={t('content.options.takeUpdate')} icon="download" disabled={busy} help={t('content.options.takeUpdateHelp')} onPress={() => void run('take template update', async () => { // i18n-ignore: log label
-                  await lib.takeUpdate(item!, update);
-                  ctx.toast(t('content.language.movesToNew', { language: data.language, name: item!.name }));
-                })} />
-              ) : null}
-            </>
-          ) : null}
-          {canManage ? (
-            <View style={{ gap: space.sm }}>
-              <GhostBtn label={item && item.source !== 'subscription' && canWrite ? t('content.language.editTemplate') : t('content.language.viewTemplate')} icon="edit"
-                help={item && item.source !== 'subscription' && canWrite ? t('content.language.editTemplateHelp') : t('content.library.viewHelp')}
-                onPress={() => ctx.go('template_editor', { itemId: sel.itemId })} />
-              <GhostBtn label={t('content.language.changeTemplate')} icon="swap" help={t('content.language.changeTemplateHelp', { language: data.language })}
-                onPress={() => ctx.go('template_picker', { languageId })} />
-            </View>
-          ) : null}
-        </Card>
-      ) : (
-        <Card>
-          <Text style={txt.h3}>{t('content.noTemplate')}</Text>
-          <Text style={txt.smMuted}>
-            {canManage
-              ? t('content.language.chooseStructure', { language: data.language })
-              : t('content.language.whoeverChooses', { language: data.language })}
-          </Text>
-          {canManage ? <PrimaryBtn label={t('content.language.chooseTemplate')} icon="template" onPress={() => ctx.go('template_picker', { languageId })} /> : null}
-        </Card>
-      )}
-
-      {data.setAside > 0 ? (
-        <Banner icon="history" title={t('content.language.setAsideTitle', { count: data.setAside })}
-          body={t('content.language.setAsideBody', { count: data.setAside, language: data.language })} />
-      ) : null}
-
+    <Screen header={<Header title={t('getReady.template.eachBook')} sub={data.language} onBack={ctx.back} />}>
+      {!sel ? <EmptyState icon="template" title={t('content.noTemplate')} /> : null}
       {sel && canShape && data.books.length > 0 ? (
         <>
-          <SectionLabel label={t('content.language.divideInto', { parts: lower(words.many) })} />
-          <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>
-            {t('content.language.openABook', { part: lower(words.one) })}
-          </Text>
           <SearchField value={query} onChangeText={(v) => { setQuery(v); setLimit(8); }} placeholder={t('content.language.findBook')} />
           {books.length === 0 ? (
             <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('content.language.noBookMatches', { query: query.trim() })}</Text>
@@ -520,102 +457,6 @@ function LanguageTemplateView({ ctx, languageId }: { ctx: Ctx; languageId: strin
     </Screen>
   );
 }
-
-// ---- Choose a Template ------------------------------------------------------------------------
-
-export function TemplatePicker(ctx: Ctx) {
-  const state = ctx.language.state;
-  const languageId = ctx.params['languageId'] ?? ctx.languageId;
-  const lib = useLibrary(ctx);
-  const libItems = lib.items;
-  const library = ctx.org.state?.library;
-  const shared = useSharedItems('template', lib.orgId);
-  const choices = useMemo(() => libraryChoices(library ?? {}, libItems('template'), shared.rows, STARTER_TEMPLATE.name), [library, libItems, shared.rows]);
-  const [picked, setPicked] = useState<string | null>(null);
-  const [sharedLimit, setSharedLimit] = useState(5);
-  const open = isOpen(ctx, languageId);
-  const sel = state && open ? templateOf(state) : null;
-  const pick = choices.find((c) => c.key === picked);
-  const docs = useLibraryDocs(lib.orgId, [pick?.hash, sel?.docHash]);
-  const selDoc = sel ? docs.get<TemplateDoc>(sel.docHash) : null;
-  // Using another organization's template follows it first, an organization write (`mayWriteLibrary`); LangQuest's
-  // ways are offered in the numbering the language uses now (decision 107).
-  const numbering = (selDoc?.bible ? docs.get<VersificationDoc>(selDoc.bible.versification)?.code : null) ?? 'eng';
-  const { ours, others } = pickerLists(choices, lib.canWrite('template'), numbering);
-  const recorded = useMemo(() => (state && open ? recordedCount(state) : 0), [state, open]);
-  const { busy, use } = usePickTemplate(ctx, lib, state, languageId);
-  if (!state) return <Loading title={t('content.picker.title')} onBack={ctx.back} />;
-  if (!isOpen(ctx, languageId)) {
-    return (
-      <Screen header={<Header title={t('content.picker.title')} onBack={ctx.back} />}>
-        <EmptyState icon="globe" title={t('content.noLanguage')} sub={t('content.picker.noLanguageSub')} />
-      </Screen>
-    );
-  }
-  const language = languageName(ctx.org.state, languageId);
-  const canUse = ctx.session.can('manage_templates');
-  const currentName = sel ? lib.item(sel.itemId)?.name ?? t('content.picker.itsTemplate') : null;
-  const inUse = (c: LibraryChoice) => choiceInUse(c, sel);
-  const currentDoc = sel ? docs.get<TemplateDoc>(sel.docHash) : null;
-  const currentParts = lower(partWords(currentDoc).many);
-
-  const card = (c: LibraryChoice) => {
-    const on = picked === c.key;
-    const used = inUse(c);
-    const doc = on ? docs.get<TemplateDoc>(c.hash) : null;
-    const description = c.source === 'ours' ? c.item.description : c.shared.description;
-    return (
-      <HelpRow key={c.key} of="content.choice">
-        <Card onPress={() => setPicked(on ? null : c.key)} accessibilityLabel={used ? t('content.picker.inUseLabel', { name: c.name }) : c.name}
-          help={on ? t('content.picker.pickedHelp') : used ? t('content.picker.inUseHelp', { language }) : t('content.picker.cardHelp')}
-          style={on ? { borderWidth: 2, borderColor: C.primary } : null}>
-          <View style={styles.head}>
-            <View style={[styles.tile, on ? { backgroundColor: C.primary } : null]}>
-              <Ico name={doc?.structure === 'outline' ? 'folder' : 'book'} size={22} color={on ? C.white : C.primary} />
-            </View>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={txt.h3}>{used ? t('content.picker.inUseTitle', { name: c.name }) : c.name}</Text>
-              <Text style={[txt.sm, { fontWeight: '600', color: C.primary }]}>{choiceLine(c, sourceLine)}</Text>
-              {description ? <Text style={[txt.smMuted, { marginTop: 2 }]}>{description}</Text> : null}
-            </View>
-            {on ? <Ico name="check" size={22} color={C.primary} /> : null}
-          </View>
-          {on ? (doc ? <LevelsLine levels={docLevels(doc)} /> : <LoadingLine />) : null}
-        </Card>
-      </HelpRow>
-    );
-  };
-
-  const changing = !!pick && !inUse(pick);
-  return (
-    <Screen
-      header={<Header title={t('content.picker.title')}
-        sub={currentName ? t('content.picker.forNow', { language, template: currentName }) : t('content.picker.for', { language })} onBack={ctx.back} />}
-      footer={changing && pick ? (
-        <>
-          <Text style={txt.smMuted}>{pickerNote({ hasCurrent: !!sel, recorded, language, currentParts, pick })}</Text>
-          <PrimaryBtn label={t('content.picker.use', { name: pick.name })} icon="check" busy={busy} disabled={!canUse} onPress={() => void use(pick)} />
-        </>
-      ) : undefined}>
-      {/* Making your own comes first and stands apart, so the ready-made list below can grow without burying it (design principle 12). */}
-      {ctx.session.can('manage_templates') ? <DashedRow icon="plus" label={t('breakup.translate.makeOwn')} detail={t('content.picker.makeOwnHelp')} onPress={() => ctx.go('template_editor', { new: '1' })} /> : null}
-      <SectionLabel label={t('content.sections.yourOrganization')} />
-      {ours.length === 0 ? (
-        <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('content.picker.noneOurs')}</Text>
-      ) : ours.map(card)}
-      {lib.canWrite('template') ? (
-        <>
-          <SectionLabel label={t('content.sections.fromOthers')} />
-          <SharedOffline error={shared.error} empty={shared.rows.length === 0} />
-          {others.slice(0, sharedLimit).map(card)}
-        </>
-      ) : null}
-      <ShowMore remaining={others.length - sharedLimit} step={5} onMore={() => setSharedLimit((l) => l + 5)} />
-    </Screen>
-  );
-}
-
-// ---- Template editor (TPL-9) -------------------------------------------------------------------
 
 export function TemplateEditor(ctx: Ctx) {
   const languageId = ctx.params['languageId'] ?? ctx.languageId;
@@ -1330,4 +1171,4 @@ const styles = StyleSheet.create({
   }
 });
 
-export const contracts = contractsFor('templates_home', 'template_picker', 'template_editor', 'book_structure');
+export const contracts = contractsFor('templates_home', 'template_editor', 'book_structure');

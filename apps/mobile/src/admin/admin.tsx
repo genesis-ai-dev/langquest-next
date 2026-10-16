@@ -256,6 +256,39 @@ export function RadioRow(props: { icon: AdminIcon; label: string; sub?: string; 
   );
 }
 
+/**
+ * What a language uses now, above the others it could use (decision 136): a
+ * lit radio, its name and facts, what it holds, and links into it (its
+ * books, its edit). The others are RadioRows under it, and the last row
+ * opens the organization's whole shelf.
+ */
+export function PickCard(props: { title: string; sub?: string; children?: ReactNode; links?: { label: string; help: string; onPress: () => void }[] }) {
+  return (
+    <View style={[styles.choice, styles.choiceOn]} accessibilityLabel={`${props.title}${props.sub ? `. ${props.sub}` : ''}`}>
+      <View style={styles.choiceHead}>
+        <Radio on size={26} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={styles.choiceTitle}>{props.title}</Text>
+          {props.sub ? <Text style={[txt.xs, { fontSize: 14, color: C.muted, marginTop: 1 }]}>{props.sub}</Text> : null}
+        </View>
+      </View>
+      {props.children}
+      {props.links?.length ? <View style={styles.pickLinks}>{props.links.map((l) => <PickLink key={l.label} {...l} />)}</View> : null}
+    </View>
+  );
+}
+
+function PickLink(props: { label: string; help: string; onPress: () => void }) {
+  const spot = useHelpSpot(props.label, props.help, props.onPress);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.label} style={({ pressed }) => [styles.pickLink, pressed && styles.pressed]}>
+      <Text style={styles.pickLinkText}>{props.label}</Text>
+      <Ico name="right" size={16} color={C.primary} />
+      <HelpBadge spot={spot} />
+    </Pressable>
+  );
+}
+
 /** A dashed action ("Add a step", "Something else: make a new role"). */
 export function DashedRow(props: { icon: AdminIcon; label: string; onPress: () => void; detail?: string; centred?: boolean }) {
   const spot = useHelpSpot(props.label, props.detail, props.onPress);
@@ -411,6 +444,9 @@ const styles = StyleSheet.create({
   radio: { borderWidth: 2, borderColor: C.faint, alignItems: 'center', justifyContent: 'center' },
   choice: { padding: 14, borderRadius: radius.xl, backgroundColor: C.card, borderWidth: 2, borderColor: C.border, gap: 10 },
   choiceOn: { borderColor: C.primary },
+  pickLinks: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  pickLink: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: 40, paddingHorizontal: space.md, borderRadius: radius.full, backgroundColor: C.light },
+  pickLinkText: { fontSize: T.sm, fontWeight: '700', color: C.primary },
   choiceOwn: { borderStyle: 'dashed', borderColor: C.primary, backgroundColor: C.light },
   choiceHead: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   choiceTitle: { fontSize: T.base, fontWeight: '800', color: C.dark, lineHeight: 25 },

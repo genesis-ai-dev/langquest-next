@@ -3,13 +3,13 @@
 // InviteNow, PickTemplate and Helps). An admin who knows nothing about the
 // app's model gets a language ready with four plain questions, each with the
 // likely answer already picked:
-//   1 What will they record?   the language's content template (as New Language and template_picker apply it)
+//   1 What will they record?   the language's content template (as New Language and its Content template page apply it)
 //   2 What will help them?     Bibles and study guides offered to its team (the recommendations reference_bibles/guides write)
 //   3 Who checks the recordings? its review flow (chosen as flows_home chooses it; "I'll choose the steps" opens the flow editor)
 //   4 Invite your translators  a group code to scan (the invite RPC Invite by QR uses)
 // Params: `languageId` (opens that language) and `step`: none for the
 // checklist, '1'..'4' for the questions (Next walks on through the rest),
-// 'helps' for What helps them on a ready language. `only: '1'` opens
+// 'template', 'helps' and 'flow' for a ready language's three picks (decision 136). `only: '1'` opens
 // question 1 alone, as "What to translate" from a ready language's page.
 import {
   commands, CUSTOM_FLOW, deriveFlow, keyTermsFor, languageName, languageProgress, materialsFor,
@@ -61,6 +61,8 @@ import { useCheckChoices, type FlowEntry } from '../admin/useChoices';
 import { TranslateQuestion } from '../breakup/TranslateStep';
 import { useTranslate } from '../breakup/useTranslate';
 import { NumberingNote, RedoSheet } from '../breakup/parts';
+import { ContentTemplatePage } from '../templates/ContentTemplatePage';
+import { ReviewFlowPage } from '../checks/ReviewFlowPage';
 import { useVerseNumbering } from '../breakup/useBreakup';
 
 const PAD = { paddingHorizontal: 20, gap: 14 } as const;
@@ -70,7 +72,10 @@ export function GetReady(ctx: Ctx) {
   if (!ctx.language.state || !ctx.org.state) {
     return <Screen header={<Header title={t('getReady.loading.title')} onBack={ctx.back} close />}><EmptyState icon="cloud" title={t('getReady.loading.empty')} sub={t('getReady.loading.sub')} /></Screen>;
   }
+  // A ready language's three picks (decision 136): what it uses, its other options, and the organization's shelf.
+  if (step === 'template') return <ContentTemplatePage ctx={ctx} />;
   if (step === 'helps') return <HelpsPage ctx={ctx} />;
+  if (step === 'flow') return <ReviewFlowPage ctx={ctx} />;
   const n = Number(step);
   if (n >= 1 && n <= 4) return <Questions ctx={ctx} start={n} only={ctx.params['only'] === '1'} />;
   return <Overview ctx={ctx} />;
@@ -110,7 +115,7 @@ function Questions({ ctx, start, only }: { ctx: Ctx; start: number; only: boolea
   const [n, setN] = useState(start);
   const lang = languageName(ctx.org.state, ctx.language.languageId);
   const header = only
-    ? <Header title={n === 2 ? t('getReady.page.title') : t('getReady.whatToTranslate')} sub={lang} onBack={ctx.back} />
+    ? <Header title={n === 2 ? t('org.languages.row') : t('getReady.whatToTranslate')} sub={lang} onBack={ctx.back} />
     : <Header title={t('getReady.title', { language: lang })} sub={t('getReady.stepOf', { step: formatNumber(n), total: formatNumber(4) })} onBack={ctx.back} close />;
   const next = () => (only || n >= 4 ? ctx.back() : setN(n + 1));
   const props: StepProps = { ctx, lang, header, next, only };
@@ -510,7 +515,7 @@ function HelpsList({ ctx, lang, header, next, onLanguage }: StepProps & { onLang
   );
 }
 
-/** What helps them, on a ready language: every kind of help with a switch each, and Add more. */
+/** Reference material, on a ready language: every kind of help with a switch each, Add more, and the organization's whole shelf (decision 136). */
 function HelpsPage({ ctx }: { ctx: Ctx }) {
   const state = ctx.language.state!;
   const languageId = ctx.language.languageId;
@@ -536,7 +541,7 @@ function HelpsPage({ ctx }: { ctx: Ctx }) {
   const rendered = terms.filter((term) => term.renderings.length > 0).length;
   const go = (to: Parameters<Ctx['go']>[0], params: Record<string, string>) => { setAdding(false); ctx.go(to, params); };
   return (
-    <Screen header={<Header title={t('getReady.page.title')} sub={lang} onBack={ctx.back} />} bodyStyle={{ gap: space.sm }}
+    <Screen header={<Header title={t('org.language.referenceMaterial')} sub={lang} onBack={ctx.back} />} bodyStyle={{ gap: space.sm }}
       footer={h.may ? <PrimaryBtn label={t('getReady.page.addMore')} icon="plus" help={t('getReady.page.addMoreHelp')} onPress={() => setAdding(true)} /> : undefined}>
       <ReferenceLanguageChip languages={h.languages} onPress={() => ctx.go('get_ready', { languageId, step: '2', only: '1', page: 'language' })} />
       <SectionLabel label={t('getReady.page.bibles')} />
@@ -570,13 +575,18 @@ function HelpsPage({ ctx }: { ctx: Ctx }) {
         ))}
         {notes.length + written.length === 0 ? none(t('getReady.page.noNotes')) : null}
       </Group>
+      {/* Last, the organization's whole shelf (decision 136). */}
+      {ctx.session.can('manage_reference') ? (
+        <Group>
+          <Row icon="layers" label={t('getReady.helps.all')} help={t('getReady.helps.allHelp')} last onPress={() => ctx.go('reference_home', { languageId })} />
+        </Group>
+      ) : null}
       <Sheet visible={adding} title={t('getReady.page.addMore')} sub={t('getReady.add.sub', { language: lang })} onClose={() => setAdding(false)}>
         <Group>
           <Row icon="search" label={t('getReady.add.bible')} sub={t('getReady.add.bibleSub')} onPress={() => go('reference_bibles', { languageId })} />
           <Row icon="star" label={t('getReady.add.guide')} sub={t('getReady.add.guideSub')} onPress={() => go('reference_guides', { languageId })} />
           <Row icon="note" label={t('getReady.add.note')} sub={t('getReady.add.noteSub')} onPress={() => go('material_editor', { itemId: 'new', kind: 'note', languageId })} />
-          <Row icon="key" label={t('getReady.page.keyWords')} sub={t('getReady.add.keyWordsSub')} onPress={() => go('key_terms', { languageId })} />
-          <Row icon="layers" label={t('getReady.add.library')} sub={t('getReady.add.librarySub')} last onPress={() => go('reference_home', { languageId })} />
+          <Row icon="key" label={t('getReady.page.keyWords')} sub={t('getReady.add.keyWordsSub')} last onPress={() => go('key_terms', { languageId })} />
         </Group>
       </Sheet>
       {sheet.sheet}

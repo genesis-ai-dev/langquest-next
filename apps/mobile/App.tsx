@@ -106,7 +106,7 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   edit_member: lazyScreen(loadOrg, 'EditMember'), check_editor: lazyScreen(loadChecks, 'CheckEditor'),
   roles_home: lazyScreen(loadConfig, 'RolesHome'), role_editor: lazyScreen(loadConfig, 'RoleEditor'), reference_home: lazyScreen(loadConfig, 'ReferenceHome'), material_editor: lazyScreen(loadConfig, 'MaterialEditor'),
   flows_home: lazyScreen(loadConfig, 'FlowsHome'), flow_editor: lazyScreen(loadConfig, 'FlowEditor'),
-  templates_home: lazyScreen(loadContent, 'TemplatesHome'), template_picker: lazyScreen(loadContent, 'TemplatePicker'), template_editor: lazyScreen(loadContent, 'TemplateEditor'),
+  templates_home: lazyScreen(loadContent, 'TemplatesHome'), template_editor: lazyScreen(loadContent, 'TemplateEditor'),
   book_structure: lazyScreen(loadContent, 'BookStructure'),
   reports_home: lazyScreen(loadReports, 'ReportsHome'), reports_language: lazyScreen(loadReports, 'ReportsLanguage'),
   reference_bibles: lazyScreen(loadReference, 'ReferenceBibles'), reference_source: lazyScreen(loadReference, 'ReferenceSource'), reference_guides: lazyScreen(loadReference, 'ReferenceGuides'),
