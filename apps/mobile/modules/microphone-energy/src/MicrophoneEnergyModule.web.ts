@@ -1,12 +1,14 @@
 // Web is a test target (see metro.config.js). Same contract as the native
 // module: 44.1 kHz mono frames of 2048 samples, parts split by splitter.ts
-// (LAN-82), and 16-bit WAV segments delivered as blob: URIs. renderAudio (export and
-// editing) is native-only and fails loudly.
+// and kept in chunks with the room around them by chunks.ts (LAN-82), and
+// 16-bit WAV files delivered as blob: URIs. renderAudio (export and editing)
+// is native-only and fails loudly.
 import type { MicrophoneEnergyModuleEvents, VADConfig } from './MicrophoneEnergyModule';
 import {
   assemble, DEFAULT_PREROLL_MS, encodeWav, FRAME_SAMPLES, peakEnergy, prerollFrames, SAMPLE_RATE
 } from './vadCore';
-import { SPLIT, Splitter, type HeardLevels } from './splitter';
+import { Splitter, type HeardLevels } from './splitter';
+import { Chunks, ringFrames } from './chunks';
 
 export type { VADConfig, MicrophoneEnergyModuleEvents } from './MicrophoneEnergyModule';
 
@@ -32,10 +34,15 @@ const TAP = `registerProcessor('lq-tap', class extends AudioWorkletProcessor {
 let capture: { ctx: AudioContext; stream: MediaStream } | null = null;
 /** The capture's sample rate: the phones' 44.1 kHz unless the browser insists on the device's own. */
 let rate = SAMPLE_RATE;
-/** Long enough for a part's head to reach back as far as the splitter lets it. */
-const RING_FRAMES = Math.ceil((SPLIT.maxHeadMs + SPLIT.headMarginMs) / (FRAME_SAMPLES / (SAMPLE_RATE / 1000))) + 2;
+/** Long enough for a part's head to reach back as far as the splitter lets it, and the room before it. */
+const ringSize = () => (chunks ? chunks.ringSize : ringFrames(frameMs()));
 const ring: Float32Array[] = [];
+/** A hold-to-record take. */
 let segment: { frames: Float32Array[]; startTime: number } | null = null;
+/** The session's open chunk (chunks.ts): its id, and its frames until it closes as a WAV. */
+let chunk: { id: string; frames: Float32Array[] } | null = null;
+let chunks: Chunks | null = null;
+let chunkCount = 0;
 let vadEnabled = false;
 /** What this device heard last time, until a session's splitter hears for itself. */
 let remembered: HeardLevels | null = null;
@@ -47,21 +54,47 @@ const frameMs = () => FRAME_SAMPLES / (rate / 1000);
 function onFrame(frame: Float32Array) {
   const now = Date.now();
   const energy = peakEnergy(frame);
-  // Native order: ring, then open segment, then the splitter, then the meter event.
+  // Native order: ring, then the open take or chunk, then the splitter and the chunks, then the meter event.
   ring.push(frame);
-  if (ring.length > RING_FRAMES) ring.shift();
+  while (ring.length > ringSize()) ring.shift();
   segment?.frames.push(frame);
+  chunk?.frames.push(frame);
   clock += frameMs();
-  if (vadEnabled && splitter) {
+  if (vadEnabled && splitter && chunks) {
     const action = splitter.step(energy, clock);
-    if (action?.type === 'start') { emit('onSegmentStart', { headMs: action.headFrames * frameMs() }); open(action.headFrames); }
-    else if (action?.type === 'stop') {
+    if (action?.type === 'start') emit('onSegmentStart', { headMs: action.headFrames * frameMs() });
+    if (action?.type === 'stop') {
       remembered = splitter.remember();
-      if (action.discard) { segment = null; emit('onSegmentComplete', { uri: '', startTime: 0, endTime: 0, duration: 0, heard: remembered }); }
-      else finish(Date.now() - action.trimMs, rate * action.trimMs / 1000);
+      // A tap or a bump, not speech: nothing said is lost, so nothing is kept.
+      if (action.discard) emit('onSegmentComplete', { uri: '', startTime: 0, endTime: 0, duration: 0, heard: remembered });
     }
+    keep(chunks.step(frame.length, action, clock));
   }
   emit('onEnergyResult', { energy, timestamp: now, ...(vadEnabled && splitter ? { quiet: splitter.levels().quiet } : {}) });
+}
+
+/** Do what chunks.ts says: open a chunk with the ring's last frames, mark a part in it, or close it. */
+function keep(actions: ReturnType<Chunks['step']>) {
+  for (const a of actions) {
+    if (a.type === 'open') {
+      chunk = { id: `chunk-${++chunkCount}`, frames: ring.slice(-a.frames) };
+    } else if (a.type === 'mark' && chunk) {
+      const fromMs = a.from / (rate / 1000), toMs = a.to / (rate / 1000);
+      emit('onSegmentComplete', { uri: chunk.id, chunk: chunk.id, fromMs, toMs, startTime: 0, endTime: 0, duration: toMs - fromMs, ...(remembered ? { heard: remembered } : {}) });
+    } else if (a.type === 'close' && chunk) {
+      const done = chunk;
+      chunk = null;
+      if (!a.keep) continue;
+      const pcm = assemble(done.frames, 0);
+      const uri = URL.createObjectURL(new Blob([encodeWav(pcm, rate) as Uint8Array<ArrayBuffer>], { type: 'audio/wav' }));
+      emit('onChunkComplete', { chunk: done.id, uri, duration: pcm.length / (rate / 1000) });
+    }
+  }
+}
+
+/** The detector stops: a part being said is kept to here, and the chunk closes. */
+function stopChunks() {
+  if (chunks) keep(chunks.stop());
 }
 
 function open(frames: number) {
@@ -143,6 +176,7 @@ export default {
     vadEnabled = false;
     if (splitter) remembered = splitter.remember();
     splitter?.pauseListening();
+    stopChunks();
     finish(Date.now(), 0);
     const c = capture;
     capture = null;
@@ -157,13 +191,14 @@ export default {
     vadEnabled = true;
     ring.length = 0;
     if (!splitter) splitter = new Splitter(frameMs(), remembered);
+    chunks ??= new Chunks(frameMs(), rate);
     splitter.pauseListening();
   },
   async disableVAD() {
     vadEnabled = false;
     if (splitter) remembered = splitter.remember();
     splitter?.pauseListening();
-    finish(Date.now(), 0);
+    stopChunks();
   },
   async startSegment(options?: { prerollMs?: number }) {
     if (!capture) {

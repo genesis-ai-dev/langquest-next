@@ -696,7 +696,8 @@ test('WEB-026 The update banner waits while recording', async ({ page }) => {
   await page.waitForTimeout(1500); // sleep: proves a negative (tapping Reload while recording must not reload); nothing to observe
   expect(reloaded).toBe(false);
   await expect(byId(page, 'record-button')).toHaveAttribute('aria-label', 'Stop recording');
-  await byId(page, 'record-button').click();
+  // Done leaves the session (LAN-82): its parts are saved, and only then may the page reload.
+  await button(page, 'Done').click();
   // The take is saved before a reload is allowed (isRecording covers the save).
   await expect(page.getByRole('button', { name: /^Part 1, 1 part · / }).locator('visible=true').first()).toBeVisible();
   page.on('dialog', (d) => void d.accept());

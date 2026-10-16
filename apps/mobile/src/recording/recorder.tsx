@@ -18,7 +18,7 @@ import { HelpBadge } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { HelpInfo, Ico, IconBtn } from '../ui/kit';
 import { txt } from '../ui/textStyles';
-import type { LoopPhase } from './splitModel';
+import { loopRecording, type LoopPhase } from './splitModel';
 import { C, radius, space, target as target_, TINT, type as T } from '../ui/theme';
 import { useEnergyHistory } from './useRecorder';
 import { mmss, partLabel, recorderLines, totalMs } from './model';
@@ -210,7 +210,7 @@ function Meter(props: { captured: boolean }) {
 export function RecorderBar(props: { count: number; phase: LoopPhase; disabled: boolean; onRecord: () => void; onOpen: () => void; nextIndex?: number }) {
   const lines = { ...recorderLines(props.count), ...(props.nextIndex !== undefined ? { next: partLabel(props.nextIndex) } : {}) };
   const open = useHelpSpot(t('recording.recorder.yourRecording'), t('recording.recorder.openHelp'), props.onOpen);
-  const recording = props.phase !== 'off';
+  const recording = loopRecording(props.phase);
   return (
     <View style={styles.bar}>
       <Pressable onPress={open.onPress} accessibilityRole="button" accessibilityLabel={t('recording.recorder.barLabel', { next: lines.next, progress: lines.bar })} style={({ pressed }) => [{ flex: 1 }, pressed && ps.pressed]}>
@@ -229,14 +229,16 @@ export function RecorderBar(props: { count: number; phase: LoopPhase; disabled: 
  */
 export function RecorderFooter(props: { count: number; phase: LoopPhase; recordDisabled: boolean; publishDisabled: boolean; onRecord: () => void; onPublish: () => void; nextIndex?: number }) {
   const lines = { ...recorderLines(props.count), ...(props.nextIndex !== undefined ? { next: partLabel(props.nextIndex) } : {}) };
-  const recording = props.phase !== 'off';
+  const recording = loopRecording(props.phase);
+  // A session open but stopped (decision 129) still has the recording view's Done.
+  const session = props.phase !== 'off';
   const publish = useHelpSpot(t('common.done'), t('recording.recorder.doneHelp'), props.onPublish);
   return (
     <View style={styles.footer}>
       <Text style={[styles.side, { textAlign: 'right', color: recording ? TINT.redText : C.muted }]} numberOfLines={2}>{recording ? t('recording.recorder.nextRecording', { part: lines.next }) : lines.next}</Text>
       <RecordBtn size={72} recording={recording} disabled={props.recordDisabled} onPress={props.onRecord} />
       <View style={styles.sideBox}>
-        {recording ? null : (
+        {session ? null : (
           <Pressable testID="publish-button" onPress={publish.onPress} disabled={props.publishDisabled} accessibilityRole="button" accessibilityLabel={t('common.done')} accessibilityState={{ disabled: props.publishDisabled }}
             style={({ pressed }) => [styles.publish, props.publishDisabled && { opacity: 0.45 }, pressed && ps.pressed]}>
             <Text style={styles.publishLabel}>{t('common.done')}</Text>

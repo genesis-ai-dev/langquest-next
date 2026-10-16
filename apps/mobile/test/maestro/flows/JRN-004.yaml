@@ -57,6 +57,8 @@ tags:
     timeout: 30000
 - tapOn:
     id: "record-button"
+# Stop keeps the session open (decision 129): Done leaves it and saves its parts.
+- tapOn: "Done"
 - tapOn:
     id: "publish-button"
 - tapOn: "Send later"
@@ -176,6 +178,8 @@ tags:
     timeout: 30000
 - tapOn:
     id: "record-button"
+# Stop keeps the session open (decision 129): Done leaves it and saves its parts.
+- tapOn: "Done"
 - tapOn:
     id: "publish-button"
 # Done: one tap publishes and asks the Peer check team (decision 127).
