@@ -191,9 +191,9 @@ Expected:
   - Device 3 leaves "Asked UI Test Org" within 60 seconds or on returning to the app.
   - Device 3 shows Welcome (once per account: a fixture that already welcomed NOORG goes straight on), then My Work in Bravo.
 - Step 6: Ben's My Work shows the passage after syncing, "Record · asked by {COORD}", with no due date.
-- Step 7: Bravo's report lists its template, its flow, and one passage asked ("1 request open in all", once the server's figures catch up).
+- Step 7: Bravo's report lists its template, its flow, and one passage asked ("Open requests" 1, once the server's figures catch up).
 - Fixed (2026-10-13): Get ready offered the Oral Review Path as "Just the community · One check" and saved two checks. Each check made at the same time is now named and counted ("Community, then retelling · 2 checks"; decision 91). The report still does not name the template.
-- Known issue (2026-10-12): Reports still counted "0 requests open in all" for Bravo three minutes after the ask (local run; check the projection worker, G2).
+- Known issue (2026-10-12): Reports still counted 0 open requests for Bravo three minutes after the ask (local run; check the projection worker, G2).
 
 ### JRN-006 A coordinator moves a passage past a checkpoint and signs it off
 Roles: COORD, TRANS, VIEW · Priority: P0 · Platforms: iOS, Android · Run: Auto
