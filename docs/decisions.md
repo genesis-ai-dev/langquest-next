@@ -5299,3 +5299,30 @@ Reverse if: parts miss words a person said in a quiet room, the model's
 scores differ by phone so parts differ, the runtime's size or the web's first
 download keeps people from recording, or a later ONNX Runtime without
 telemetry makes 1.22.0 worth leaving.
+## 136. A page's name and clusters are changed where they show: a pencil by the title, a chip under it
+
+Date: 2026-10-16 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-16), on a language's page in Manage: its name should
+have "a pencil by big title on top of page", its cluster should show "below
+the big page title saying what cluster it's in" so people "can tap it and
+change or add", and the row to the organization's page is an "odd place to
+access organization page considering they can just go back". The principle
+behind it: change a thing where it is shown, and don't repeat a way back the
+screen already has. What was built:
+- **A language's page** (`LanguageHome`): a pencil beside the big title opens
+  the rename sheet (it keeps Save the name, since everyone sees the name,
+  76); its clusters are an amber chip under the title, "Add to a cluster"
+  for whoever may group languages while it is in none, opening the same
+  clusters sheet More's Cluster row opened (108). More loses Name and
+  Cluster.
+- **The organization's row in More** shows only where the page has no Back:
+  a language lead's Manage tab opens on their language, and it is their way
+  to the organization.
+- **The organization's home** (`OrgHome`), the same way: a pencil beside its
+  name in the top card, and its licence under the name opens the licence
+  sheet. Setup loses Name and the licence row.
+- More's other rows (Members, the three libraries, In the language list) wait
+  on the layout research Caleb asked for the same day.
+Reverse if: people look for a page's name or clusters in More and miss the
+pencil or the chip.

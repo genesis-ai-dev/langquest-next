@@ -20,7 +20,6 @@ import { C, space, TINT } from '../ui/theme';
 import { ChoiceCard, DashedRow, LockToggle } from '../admin/admin';
 import { checkName, checksLine, dropIndex } from '../admin/adminModel';
 import { useCheckChoices, type FlowEntry } from '../admin/useChoices';
-import { useLibrary } from '../library/useLibrary';
 import { addRow, moveRow, removeRow, rowNumbers, rowsOf, setCheckpoint, setTogether, type CheckRow } from './model';
 import { setChecksDraft } from './draft';
 import { useChecksDraft } from './useChecksDraft';
@@ -259,8 +258,6 @@ function OwnChecks({ ctx }: { ctx: Ctx }) {
   const [flows, setFlows] = useState(false);
   const canManage = ctx.session.can('manage_flows');
   const startFlow = useHelpSpot(t('checks.flows.start'), t('checks.flows.startHelp'), canManage ? () => setFlows(true) : undefined);
-  const canKeep = useLibrary(ctx).canWrite('flow');
-  const keepSet = useHelpSpot(t('checks.flows.keep'), t('config.flows.saveAsFlowHelp'), canKeep ? () => ctx.go('flow_editor', { itemId: 'new', languageId }) : undefined);
   const undo = useChecksUndo(ctx);
   if (!state) {
     return <Screen header={<Header title={t('checks.title')} onBack={ctx.back} />}><EmptyState icon="flow" title={t('common.loading')} /></Screen>;
@@ -284,14 +281,6 @@ function OwnChecks({ ctx }: { ctx: Ctx }) {
           <Ico name="flow" size={20} color={C.muted} />
           <Text style={styles.quietText}>{t('checks.flows.start')}</Text>
           <HelpBadge spot={startFlow} />
-        </Pressable>
-      ) : null}
-      {/* Kept in the organization's library, for its other languages (decision 136). */}
-      {canKeep && rows.length ? (
-        <Pressable onPress={keepSet.onPress} accessibilityRole="button" style={({ pressed }) => [styles.quiet, pressed && { opacity: 0.7 }]}>
-          <Ico name="plus" size={20} color={C.muted} />
-          <Text style={styles.quietText}>{t('checks.flows.keep')}</Text>
-          <HelpBadge spot={keepSet} />
         </Pressable>
       ) : null}
       <AddCheckSheet visible={adding} kinds={known} taken={rows.map((r) => r.kindId)} onClose={() => setAdding(false)} onPick={(k, isNew) => {

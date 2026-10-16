@@ -39,26 +39,6 @@ export async function more(page: Page): Promise<void> {
   await openDisclosure(page, 'More');
 }
 
-/** A language's own template view: They record › Each book's passages (decision 136). */
-export async function eachBook(page: Page): Promise<void> {
-  await text(page, 'They record').click();
-  await text(page, 'Each book\'s passages').click();
-}
-
-/** A language's reference material: What helps them › Add more › Everything in your library (decision 136). */
-export async function referenceLibrary(page: Page): Promise<void> {
-  await text(page, 'What helps them').click();
-  await text(page, 'Add more').click();
-  await text(page, 'Everything in your library').click();
-}
-
-/** The organization's review flows, from its Setup, beside the language open on this device (decision 136). */
-export async function reviewFlows(page: Page, w: World): Promise<void> {
-  await orgHome(page, w);
-  await setup(page);
-  await text(page, 'Review Flows').click();
-}
-
 /** Setup on Org home, open. */
 export async function setup(page: Page): Promise<void> {
   if (await visible(page.getByText('Hide', { exact: true })).count()) return;

@@ -747,6 +747,7 @@
     },
     "link": {
       "done": "{{name}} est lié à {{linked}}.",
+      "row": "Dans la liste des langues",
       "linkedTo": "Lié à {{name}} · {{code}}",
       "linked": "Lié · {{code}}",
       "notLinked": "Pas encore lié : ajouté hors ligne, ou introuvable dans la liste",
@@ -805,23 +806,33 @@
       "title": "Plus",
       "summary": {
         "progress": "Progression",
+        "members": "membres",
         "roles": "rôles",
         "publicListing": "liste publique",
-        "languages": "langues"
+        "languageList": "liste des langues"
       },
       "orgAndCode": "{{org}} · Code {{code}}",
       "seeWork": "Voir leur travail",
       "seeWorkSub": "Chaque passage, et où il en est",
+      "membersSub_one": "{{count, number}} avec un rôle dans {{language}}",
+      "membersSub_many": "{{count, number}} avec un rôle dans {{language}}",
+      "membersSub_other": "{{count, number}} avec un rôle dans {{language}}",
       "rolesSub_one": "{{count, number}} rôle · ce que chacun peut faire",
       "rolesSub_many": "{{count, number}} rôles · ce que chacun peut faire",
       "rolesSub_other": "{{count, number}} rôles · ce que chacun peut faire",
+      "templates": "Toutes les façons de découper le travail",
+      "templatesSub": "La bibliothèque de passages et de plans de l’organisation",
+      "reference": "Bibles, guides et notes",
+      "referenceSub": "Tout ce qui est dans la bibliothèque, couverture et partage",
+      "flows": "Toutes les façons de vérifier",
+      "flowsSub": "Les circuits de révision de l’organisation",
       "publicList": "Afficher sur la liste publique",
       "publicListSub": "Seulement le nom de la langue et sa progression",
+      "orgPage": "La page de l’organisation",
       "titleHelp": "Affiche le reste : progression, personnes, rôles, son nom et plus.",
       "seeWorkHelp": "Ouvre la carte : chaque passage, et où il en est.",
       "publicListOnHelp": "Activé : son nom et sa progression sont sur la liste publique. Touchez pour les retirer.",
-      "publicListOffHelp": "Désactivé. Touchez pour mettre son nom et sa progression sur la liste publique.",
-      "orgPage": "La page de l’organisation"
+      "publicListOffHelp": "Désactivé. Touchez pour mettre son nom et sa progression sur la liste publique."
     },
     "members": {
       "joined": "{{target}} · a rejoint {{when}}",
@@ -1014,14 +1025,6 @@
       "guides": "les guides d’étude de {{name}}",
       "theBible": "la {{name}}",
       "guidesIn": "les guides d’étude de {{name}} en {{language}}"
-    },
-    "languages": {
-      "row": "Langues",
-      "rowSub": "{{target}} · {{understood}}",
-      "rowHelp": "Ouvre la langue vers laquelle ils traduisent, et les langues qu’ils comprennent.",
-      "target": "Ils traduisent vers",
-      "understood": "Ils comprennent",
-      "understoodHelp": "Ouvre les langues de leurs Bibles et guides, pour les changer."
     }
   },
   "admin": {
@@ -1307,9 +1310,7 @@
       "bookOffHelp": "Touchez pour choisir ce livre.",
       "nextHelp": "Garde cette réponse, puis passe à la question suivante.",
       "useThisHelp": "Ils traduisent ceci désormais. Puis retour à la page de la langue.",
-      "keepItHelp": "Garde ce qu’ils traduisent maintenant, et revient en arrière.",
-      "eachBook": "Les passages de chaque livre",
-      "eachBookHelp": "Ouvre chaque livre, pour changer où ses passages commencent et finissent."
+      "keepItHelp": "Garde ce qu’ils traduisent maintenant, et revient en arrière."
     },
     "media": {
       "both": "Audio et texte",
@@ -7154,8 +7155,7 @@
       "startHelp": "Remplace les vérifications par un ensemble tout prêt, à modifier comme vous voulez.",
       "useHelp": "Remplace les vérifications de {{language}} par celles-ci. Annuler les remet.",
       "pickHelp": "Le choisit. Utiliser, en bas, remplace ensuite les vérifications par les siennes.",
-      "replaceAsk": "Remplacer les vérifications propres à {{language}} par {{name}} ?",
-      "keep": "Garder comme circuit tout prêt"
+      "replaceAsk": "Remplacer les vérifications propres à {{language}} par {{name}} ?"
     },
     "gone": "Ceci ne fait plus partie des vérifications de la langue",
     "checkOf": "Vérification {{n}} · {{language}}",

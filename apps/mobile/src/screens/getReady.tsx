@@ -181,10 +181,7 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
             help={only ? (changed ? t('getReady.record.useThisHelp') : t('getReady.record.keepItHelp')) : t('getReady.record.nextHelp')}
             onPress={() => void answer()} />
         )}
-        {tq.page !== 'what' ? <QuietLinks items={[{ label: t('common.back'), icon: 'arrowL', help: t('getReady.backHelp'), onPress: () => { tq.retreat(); } }]} />
-          // Opened from the language's page: its books, each to divide into passages its own way (decision 136).
-          : only && sel && (canUse || ctx.session.can('shape_templates')) ? <QuietLinks items={[{ label: t('getReady.record.eachBook'), icon: 'cut', help: t('getReady.record.eachBookHelp'),
-            onPress: () => ctx.go('templates_home', { level: 'language', languageId }) }]} /> : null}
+        {tq.page !== 'what' ? <QuietLinks items={[{ label: t('common.back'), icon: 'arrowL', help: t('getReady.backHelp'), onPress: () => { tq.retreat(); } }]} /> : null}
       </>}>
       <TranslateQuestion ctx={ctx} t={tq} lang={lang} canMake={lib.canWrite('template')} onMake={() => ctx.go('template_editor', { new: '1', kind: 'outline' })} />
       {doc?.bible && tq.last ? (

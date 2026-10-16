@@ -737,6 +737,7 @@
     },
     "link": {
       "done": "{{name}} ከ{{linked}} ጋር ተገናኝቷል።",
+      "row": "በቋንቋዎች ዝርዝር ውስጥ",
       "linkedTo": "ከ{{name}} ጋር ተገናኝቷል · {{code}}",
       "linked": "ከእሱ ጋር ተገናኝቷል · {{code}}",
       "notLinked": "ገና አልተገናኘም፦ ከመስመር ውጭ የታከለ ወይም እዚያ ያልተገኘ",
@@ -792,22 +793,31 @@
       "title": "ተጨማሪ",
       "summary": {
         "progress": "እድገት",
+        "members": "አባላት",
         "roles": "ሚናዎች",
         "publicListing": "የሕዝብ ዝርዝር",
-        "languages": "ቋንቋዎች"
+        "languageList": "የቋንቋዎች ዝርዝር"
       },
       "orgAndCode": "{{org}} · ኮድ {{code}}",
       "seeWork": "ሥራቸውን ይመልከቱ",
       "seeWorkSub": "እያንዳንዱ ክፍልና ምን ያህል እንደደረሰ",
+      "membersSub_one": "በ{{language}} {{count, number}} ሚና ተሰጥቷል",
+      "membersSub_other": "በ{{language}} {{count, number}} ሚና ተሰጥቷቸዋል",
       "rolesSub_one": "{{count, number}} ሚና · እያንዳንዱ ምን ማድረግ እንደሚችል",
       "rolesSub_other": "{{count, number}} ሚናዎች · እያንዳንዱ ምን ማድረግ እንደሚችል",
+      "templates": "ሥራውን የመከፋፈያ መንገዶች ሁሉ",
+      "templatesSub": "የድርጅቱ የክፍሎችና የአወቃቀሮች ቤተ መጻሕፍት",
+      "reference": "መጽሐፍ ቅዱሶች፣ መመሪያዎችና ማስታወሻዎች",
+      "referenceSub": "በቤተ መጻሕፍቱ ውስጥ ያለው ሁሉ፣ ሽፋንና ማጋራት",
+      "flows": "የመፈተሻ መንገዶች ሁሉ",
+      "flowsSub": "የድርጅቱ የግምገማ ሂደቶች",
       "publicList": "በሕዝብ ዝርዝር ላይ ያሳዩ",
       "publicListSub": "የቋንቋው ስምና እድገቱ ብቻ",
+      "orgPage": "የድርጅቱ ገጽ",
       "titleHelp": "ቀሪውን ያሳያል፦ እድገት፣ ሰዎች፣ ሚናዎች፣ ስሙና ሌሎችም።",
       "seeWorkHelp": "ካርታውን ይከፍታል፦ እያንዳንዱ ክፍልና ምን ያህል እንደደረሰ።",
       "publicListOnHelp": "በርቷል፦ ስሙና እድገቱ በሕዝብ ዝርዝር ላይ ናቸው። ለማንሳት ይንኩ።",
-      "publicListOffHelp": "ጠፍቷል። ስሙንና እድገቱን በሕዝብ ዝርዝር ላይ ለማድረግ ይንኩ።",
-      "orgPage": "የድርጅቱ ገጽ"
+      "publicListOffHelp": "ጠፍቷል። ስሙንና እድገቱን በሕዝብ ዝርዝር ላይ ለማድረግ ይንኩ።"
     },
     "members": {
       "joined": "{{target}} · {{when}} ተቀላቅሏል",
@@ -995,14 +1005,6 @@
       "guides": "የ{{name}} የጥናት መመሪያዎች",
       "theBible": "{{name}}",
       "guidesIn": "የ{{name}} የጥናት መመሪያዎች በ{{language}}"
-    },
-    "languages": {
-      "row": "ቋንቋዎች",
-      "rowSub": "{{target}} · {{understood}}",
-      "rowHelp": "የሚተረጉሙበትን ቋንቋ እና የሚረዷቸውን ቋንቋዎች ይከፍታል።",
-      "target": "የሚተረጉሙት ወደ",
-      "understood": "የሚረዱት",
-      "understoodHelp": "የመጽሐፍ ቅዱሶቻቸውንና የመመሪያዎቻቸውን ቋንቋዎች ለመቀየር ይከፍታል።"
     }
   },
   "admin": {
@@ -1279,9 +1281,7 @@
       "bookOffHelp": "ይህን መጽሐፍ ለመምረጥ ይንኩ።",
       "nextHelp": "ይህን መልስ ይይዛል፣ ከዚያ ወደ ቀጣዩ ጥያቄ ይቀጥላል።",
       "useThisHelp": "ከአሁን ጀምሮ ይህን ይተረጉማሉ። ከዚያ ወደ ቋንቋው ገጽ ይመለሳል።",
-      "keepItHelp": "አሁን የሚተረጉሙትን እንዳለ ያቆያል፣ ይመለሳልም።",
-      "eachBook": "የእያንዳንዱ መጽሐፍ ክፍሎች",
-      "eachBookHelp": "ክፍሎቹ የሚጀምሩበትንና የሚያልቁበትን ለመቀየር እያንዳንዱን መጽሐፍ ይከፍታል።"
+      "keepItHelp": "አሁን የሚተረጉሙትን እንዳለ ያቆያል፣ ይመለሳልም።"
     },
     "media": {
       "both": "ድምፅና ጽሑፍ",
@@ -6865,8 +6865,7 @@
       "startHelp": "ፍተሻዎቹን እንደፈለጉ በሚለውጡት የተዘጋጀ ስብስብ ይተካል።",
       "useHelp": "የ{{language}} ፍተሻዎችን በእነዚህ ይተካል። «ይቀልብሱ» ይመልሳቸዋል።",
       "pickHelp": "ይመርጠዋል። ከዚያ ከታች ያለው «ይጠቀሙ» ፍተሻዎቹን በእሱ ፍተሻዎች ይተካል።",
-      "replaceAsk": "የ{{language}}ን የራሱ ፍተሻዎች በ{{name}} ይተኩ?",
-      "keep": "እንደ ተዘጋጀ ሂደት ያስቀምጡ"
+      "replaceAsk": "የ{{language}}ን የራሱ ፍተሻዎች በ{{name}} ይተኩ?"
     },
     "gone": "ይህ ከአሁን በኋላ ከቋንቋው ፍተሻዎች አንዱ አይደለም",
     "checkOf": "ፍተሻ {{n}} · {{language}}",

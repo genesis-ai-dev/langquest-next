@@ -777,6 +777,7 @@
     },
     "link": {
       "done": "تم ربط {{name}} بـ {{linked}}.",
+      "row": "في قائمة اللغات",
       "linkedTo": "مرتبطة بـ {{name}} · {{code}}",
       "linked": "مرتبطة بها · {{code}}",
       "notLinked": "غير مرتبطة بعد: أُضيفت بدون اتصال، أو لم يُعثر عليها هناك",
@@ -844,26 +845,39 @@
       "title": "المزيد",
       "summary": {
         "progress": "التقدّم",
+        "members": "الأعضاء",
         "roles": "الأدوار",
         "publicListing": "الإدراج العام",
-        "languages": "اللغات"
+        "languageList": "قائمة اللغات"
       },
       "orgAndCode": "{{org}} · الرمز {{code}}",
       "seeWork": "شاهد عملهم",
       "seeWorkSub": "كل مقطع، وإلى أين وصل",
+      "membersSub_zero": "{{count, number}} شخص له دور في {{language}}",
+      "membersSub_one": "شخص واحد له دور في {{language}}",
+      "membersSub_two": "شخصان لهما دور في {{language}}",
+      "membersSub_few": "{{count, number}} أشخاص لهم دور في {{language}}",
+      "membersSub_many": "{{count, number}} شخصًا لهم دور في {{language}}",
+      "membersSub_other": "{{count, number}} شخص لهم دور في {{language}}",
       "rolesSub_zero": "{{count, number}} دور · ما يستطيع كل دور فعله",
       "rolesSub_one": "دور واحد · ما يستطيع كل دور فعله",
       "rolesSub_two": "دوران · ما يستطيع كل دور فعله",
       "rolesSub_few": "{{count, number}} أدوار · ما يستطيع كل دور فعله",
       "rolesSub_many": "{{count, number}} دورًا · ما يستطيع كل دور فعله",
       "rolesSub_other": "{{count, number}} دور · ما يستطيع كل دور فعله",
+      "templates": "كل طرق تقسيم العمل",
+      "templatesSub": "مكتبة المنظمة من المقاطع والمخططات",
+      "reference": "ترجمات الكتاب المقدس والأدلة والملاحظات",
+      "referenceSub": "كل ما في المكتبة، والتغطية والمشاركة",
+      "flows": "كل طرق الفحص",
+      "flowsSub": "مسارات المراجعة في المنظمة",
       "publicList": "اعرضها في القائمة العامة",
       "publicListSub": "اسم اللغة وتقدّمها فقط",
+      "orgPage": "صفحة المنظمة",
       "titleHelp": "يعرض الباقي: التقدّم، والأشخاص، والأدوار، واسمها، والمزيد.",
       "seeWorkHelp": "يفتح الخريطة: كل مقطع، وإلى أين وصل.",
       "publicListOnHelp": "مفعّل: اسمها وتقدّمها في القائمة العامة. اضغط لإزالتهما.",
-      "publicListOffHelp": "متوقف. اضغط لتضع اسمها وتقدّمها في القائمة العامة.",
-      "orgPage": "صفحة المنظمة"
+      "publicListOffHelp": "متوقف. اضغط لتضع اسمها وتقدّمها في القائمة العامة."
     },
     "members": {
       "joined": "{{target}} · انضم {{when}}",
@@ -1071,14 +1085,6 @@
       "guides": "أدلة الدراسة من {{name}}",
       "theBible": "{{name}}",
       "guidesIn": "أدلة الدراسة من {{name}} باللغة {{language}}"
-    },
-    "languages": {
-      "row": "اللغات",
-      "rowSub": "{{target}} · {{understood}}",
-      "rowHelp": "يفتح اللغة التي يترجمون إليها، واللغات التي يفهمونها.",
-      "target": "يترجمون إلى",
-      "understood": "يفهمون",
-      "understoodHelp": "يفتح لغات كتبهم المقدسة وأدلتهم، لتغييرها."
     }
   },
   "admin": {
@@ -1391,9 +1397,7 @@
       "bookOffHelp": "اضغط لتختار هذا السفر.",
       "nextHelp": "يحتفظ بهذه الإجابة، ثم ينتقل إلى السؤال التالي.",
       "useThisHelp": "يترجمون هذا من الآن فصاعدًا. ثم يعود إلى صفحة اللغة.",
-      "keepItHelp": "يُبقي ما يترجمونه الآن، ويعود.",
-      "eachBook": "مقاطع كل سفر",
-      "eachBookHelp": "يفتح كل سفر، لتغيير أين تبدأ مقاطعه وأين تنتهي."
+      "keepItHelp": "يُبقي ما يترجمونه الآن، ويعود."
     },
     "media": {
       "both": "صوت ونص",
@@ -8021,8 +8025,7 @@
       "startHelp": "يستبدل الفحوصات بمجموعة جاهزة، لتغيّرها كما تريد.",
       "useHelp": "يستبدل فحوصات {{language}} بهذه. «تراجع» يعيدها.",
       "pickHelp": "يختاره. ثم «استخدم» في الأسفل يستبدل الفحوصات بفحوصاته.",
-      "replaceAsk": "استبدال فحوصات {{language}} الخاصة بـ {{name}}؟",
-      "keep": "احفظه مسارًا جاهزًا"
+      "replaceAsk": "استبدال فحوصات {{language}} الخاصة بـ {{name}}؟"
     },
     "gone": "لم يعد هذا من فحوصات اللغة",
     "checkOf": "الفحص {{n}} · {{language}}",

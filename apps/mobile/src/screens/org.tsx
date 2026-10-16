@@ -74,7 +74,7 @@ import { InviteSomeone } from '../invites/invite';
 import { refKindOf } from '../reference/model';
 import type { GuideSet } from '../reference/guideSets';
 import { memberIn, startingLanguage } from '../reference/languageChoices';
-import { docLanguage, readerLanguage, sameLanguage, teamLanguages } from '../reference/languages';
+import { docLanguage, readerLanguage, sameLanguage } from '../reference/languages';
 import { ReferenceLanguagePage } from '../reference/ReferenceLanguagePage';
 import { useReferenceLanguages } from '../reference/useReferenceLanguages';
 import { ReadyChecklist } from '../admin/ready';
@@ -532,33 +532,19 @@ function LanguoidLinkSheet(props: { ctx: Ctx; visible: boolean; onClose: () => v
   );
 }
 
-/**
- * A language's languages, behind one row: the one they translate into (its
- * link to the language list) and the ones they understand, which their
- * Bibles and guides are in (decision 130). Each opens where it is changed.
- */
-function LanguagesRow(props: { ctx: Ctx; languageId: string; name: string; code: string; languoidId: string | null; may: boolean; last?: boolean }) {
-  const { ctx, languageId } = props;
-  const [open, setOpen] = useState<'menu' | 'link' | null>(null);
+/** Which language in the world it is: its link to the language list, a row opening the link sheet. */
+function LanguoidLinkRow(props: { ctx: Ctx; languageId: string; name: string; code: string; languoidId: string | null; may: boolean; last?: boolean }) {
+  const [open, setOpen] = useState(false);
   const linked = !!props.languoidId;
   const linkedName = useLanguoidName(props.languoidId);
-  const understood = joinAnd(teamLanguages(ctx.org.state, ctx.language.state, languageId).map(languageLabel));
-  const target = !linked ? t('org.link.notLinked')
-    : linkedName ? t('org.link.linkedTo', { name: linkedName, code: props.code.toUpperCase() }) : t('org.link.linked', { code: props.code.toUpperCase() });
-  const unlinked = !linked && props.may ? { badge: t('org.link.linkIt'), badgeTone: 'amber' as const } : {};
   return (
     <>
-      <Row icon="globe" label={t('org.languages.row')} sub={t('org.languages.rowSub', { target: linkedName ?? props.name, understood })} last={props.last}
-        help={t('org.languages.rowHelp')} {...unlinked} onPress={() => setOpen('menu')} />
-      <Sheet visible={open === 'menu'} title={t('org.languages.row')} sub={props.name} onClose={() => setOpen(null)}>
-        <Group>
-          <Row icon="globe" label={t('org.languages.target')} sub={target} {...unlinked}
-            help={linked ? t('org.link.rowHelp') : t('org.link.rowLinkHelp')} {...(props.may ? { onPress: () => setOpen('link') } : {})} />
-          <Row icon="book" label={t('org.languages.understood')} sub={understood} help={t('org.languages.understoodHelp')} last
-            onPress={() => { setOpen(null); ctx.go('get_ready', { languageId, step: '2', only: '1', page: 'language' }); }} />
-        </Group>
-      </Sheet>
-      <LanguoidLinkSheet ctx={ctx} visible={open === 'link'} onClose={() => setOpen(null)} languageId={languageId} name={props.name} linked={linked} />
+      <Row icon="globe" label={t('org.link.row')}
+        sub={linked ? (linkedName ? t('org.link.linkedTo', { name: linkedName, code: props.code.toUpperCase() }) : t('org.link.linked', { code: props.code.toUpperCase() })) : t('org.link.notLinked')}
+        last={props.last} {...(!linked && props.may ? { badge: t('org.link.linkIt'), badgeTone: 'amber' as const } : {})}
+        help={linked ? t('org.link.rowHelp') : t('org.link.rowLinkHelp')}
+        {...(props.may ? { onPress: () => setOpen(true) } : {})} />
+      <LanguoidLinkSheet ctx={props.ctx} visible={open} onClose={() => setOpen(false)} languageId={props.languageId} name={props.name} linked={linked} />
     </>
   );
 }
@@ -628,9 +614,9 @@ function OrgNameAndLicense(props: { ctx: Ctx }) {
  * get it ready; once it is, the same four as a summary (they record, what
  * helps them, who checks, people) with join requests under them, each row
  * opening one screen. Its name (a pencil) and clusters are at the top, where
- * they show. Progress, roles, its languages and the public listing are under
- * More, one labelled tap deeper; nothing there repeats a row above, and the
- * organization's libraries open from the organization (decision 136).
+ * they show (decision 136). Everything else the page had (progress, members,
+ * roles, the public listing, the library behind each question) is under
+ * More, one labelled tap deeper.
  */
 export function LanguageHome(ctx: Ctx) {
   const v = useOrgView(ctx);
@@ -683,28 +669,31 @@ export function LanguageHome(ctx: Ctx) {
       }}
       save={(next) => ctx.org.append('v1.LanguageRenamed', { languageId, name: next }).then(() => undefined)} />
   );
-  // What is set once and seldom changed. Each library (ways to divide, Bibles and guides, check sets) is the
-  // organization's and opens from its Setup; each of the four rows above opens its part of it (decision 136).
   const moreCard = (
     <Disclosure icon="settings" title={t('org.more.title')}
-      summary={[t('org.more.summary.progress'), t('org.more.summary.roles'), t('org.more.summary.languages'),
-        listing.may ? t('org.more.summary.publicListing') : ''].filter(Boolean).join(t('admin.list.separator'))}
+      summary={[t('org.more.summary.progress'), t('org.more.summary.members'), t('org.more.summary.roles'),
+        listing.may ? t('org.more.summary.publicListing') : '', t('org.more.summary.languageList')].filter(Boolean).join(t('admin.list.separator'))}
       open={more.open} onToggle={more.onToggle} {...(more.open ? {} : { help: t('org.more.titleHelp') })}>
       <View style={{ padding: space.lg, gap: space.sm }}>
         <Text style={txt.xs}>{t('org.more.orgAndCode', { org: v.orgName, code: info.code.toUpperCase() })}</Text>
         <HomeProgressBars p={v.progressOf(languageId) ?? { total: 0, recorded: 0, done: 0 }} />
       </View>
       {s.readiness.ready ? null : <Row icon="book" label={t('org.more.seeWork')} sub={t('org.more.seeWorkSub')} onPress={openMap} />}
+      <Row icon="people" label={t('org.people.members')} sub={t('org.more.membersSub', { count: membersAt(memberEntries(v.org), 'language', languageId).length, language: name })}
+        help={t('org.people.membersHelp')} onPress={() => ctx.go('members_list', params)} />
       {/* Roles are the organization's: whoever may change them opens them there (decision 63). */}
       <Row icon="star" label={t('org.setup.roles')} sub={t('org.more.rolesSub', { count: liveRoles(ctx.org.state?.roles).length })} help={t('org.setup.rolesHelp')}
         onPress={() => ctx.go('roles_home', v.org && privilegesFor(v.org, ctx.session.actorId).has('manage_roles') ? { level: 'org' } : params)} />
-      {/* Without Back (a language lead's Manage tab opens here), this is their way to the organization. */}
-      {atRoot ? <Row icon="building" label={v.orgName} sub={t('org.more.orgPage')} onPress={() => ctx.go('org_home')} /> : null}
-      <LanguagesRow ctx={ctx} languageId={languageId} name={name} code={info.code} languoidId={info.languoidId} may={mayRename} last={!listing.may} />
+      {can('manage_templates') ? <Row icon="template" label={t('org.more.templates')} sub={t('org.more.templatesSub')} onPress={() => ctx.go('templates_home', { level: 'language', languageId })} /> : null}
+      {can('manage_reference') ? <Row icon="layers" label={t('org.more.reference')} sub={t('org.more.referenceSub')} onPress={() => ctx.go('reference_home', params)} /> : null}
+      {can('manage_flows') ? <Row icon="flow" label={t('org.more.flows')} sub={t('org.more.flowsSub')} onPress={() => ctx.go('flows_home', params)} /> : null}
       {listing.may ? (
-        <Row icon="globe" label={t('org.more.publicList')} sub={t('org.more.publicListSub')} role="switch" checked={listing.listed} disabled={listing.busy} last
+        <Row icon="globe" label={t('org.more.publicList')} sub={t('org.more.publicListSub')} role="switch" checked={listing.listed} disabled={listing.busy}
           help={listing.listed ? t('org.more.publicListOnHelp') : t('org.more.publicListOffHelp')} onPress={() => void listing.set(!listing.listed)} />
       ) : null}
+      {/* Without Back (a language lead's Manage tab opens here), this is their way to the organization. */}
+      {atRoot ? <Row icon="building" label={v.orgName} sub={t('org.more.orgPage')} onPress={() => ctx.go('org_home')} /> : null}
+      <LanguoidLinkRow ctx={ctx} languageId={languageId} name={name} code={info.code} languoidId={info.languoidId} may={mayRename} last />
     </Disclosure>
   );
   const listingError = listing.error ? <Banner icon="flag" tone="amber" title={t('org.listing.failed')} body={listing.error} /> : null;

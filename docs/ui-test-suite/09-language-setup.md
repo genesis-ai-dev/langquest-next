@@ -74,8 +74,9 @@ Expected:
 - The add row "New language" shows.
 - People shows "Members" with the sub "3 at org level · {total} total".
 - "Setup" lists "Content Templates", "Reference Material", "Review Flows",
-  "Roles" (sub "{n} roles at this level and above"), the "Name" row and the
-  licence row.
+  "Roles" (sub "{n} roles at this level and above"). The name and licence
+  are not in Setup: the card at the top has a pencil beside the name and the
+  licence under it (decision 136).
 - Step 5 opens Alpha's page, with a Back button.
 
 ### SETUP-002 Only an organization admin renames the organization and changes its licence
@@ -86,13 +87,12 @@ Preconditions (in addition to the global ones):
   ("The organization's page").
 
 Steps:
-1. Open Org home. Tap "Setup".
-2. Tap the "Name" row.
-3. Tap the licence row.
+1. Open Org home. Look beside the name in the top card.
+2. Tap the licence under the name.
 
 Expected:
-- The "Name" row shows "UI Test Org" and does nothing when tapped (it
-  needs Manage roles at organization scope).
+- There is no pencil beside "UI Test Org" (renaming needs Manage roles at
+  organization scope).
 - The licence sheet "Who may use your work" opens in view mode with
   "Only an organization admin can change this." and no "Open to …" button.
 - For LADMIN, "New language" is not offered on Org home (it needs Manage
@@ -107,7 +107,7 @@ Preconditions (in addition to the global ones):
 - Resets: renames ORG and puts the name back.
 
 Steps:
-1. Open Org home → "Setup" → "Name".
+1. Open Org home → the pencil beside the name in the top card.
 2. Clear "Its name". Check the button.
 3. Type "UI Test Org Renamed". Tap "Save the name".
 4. On a second device signed in as TRANS, tap Sync now and open Me.
@@ -192,8 +192,12 @@ Expected:
   and "Done" bars.
 - Rows: "Members" ("{n} given a role in Alpha"), "Roles"
   ("{n} roles · what each can do"), "Every way to divide the work", "Bibles,
-  guides and notes", "Every way to check", "Show on the public list", "UI
-  Test Org" ("The organization's page"), "Name", "In the language list".
+  guides and notes", "Every way to check", "Show on the public list", "In
+  the language list". Only LADMIN, whose Manage tab opens here with no Back,
+  also has "UI Test Org" ("The organization's page").
+- The name is not in More: a pencil beside the title renames it, and a chip
+  under the title shows its clusters ("Add to a cluster" for ADMIN while it
+  is in none) (decision 136).
 - "See their work" is not inside More once the language is ready. There is
   no "Review groups" row: a check's people are on the check (decision 91).
 - "Roles" opens Roles at "Organization" for ADMIN and at "Language" (view
@@ -209,7 +213,7 @@ Preconditions (in addition to the global ones):
 - Resets: renames LANG-A and puts it back.
 
 Steps:
-1. Open Alpha's page → "More" → "Name".
+1. Open Alpha's page → the pencil beside its title.
 2. Type "Bravo". Read the sheet.
 3. Change it to "Alpha Renamed". Tap "Save the name".
 4. Rename it back to "Alpha".
@@ -1934,7 +1938,8 @@ Expected:
 - Alpha's page opens with no Back button.
 - More offers "Members", "Review groups", "Roles", "Every way to divide the
   work", "Bibles, guides and notes", "Every way to check", "Show on the
-  public list", "UI Test Org", "Name", "In the language list".
+  public list", "UI Test Org", "In the language list". Its name is
+  renamed from the pencil beside the title.
 - LADMIN may rename and link Alpha and change its listing (SETUP-007 to
   SETUP-009).
 - Bravo shows none of its setup and none of its work to LADMIN, who has no

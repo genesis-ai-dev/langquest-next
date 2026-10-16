@@ -112,7 +112,7 @@ for (const who of ['ADMIN', 'COORD'] as const) {
     await expect(primary(p)).toContainText('What will they record?');
     // "How this works" is offered on the checklist; tapping it turns help on and says how (decision 71, amended 2026-10-10).
     await expect(text(p, /How this works · 0:40/)).toBeVisible();
-    await expectOnScreen(p, 'More', /Progress, roles, languages, public listing/);
+    await expectOnScreen(p, 'More', /Progress, members, roles, public listing, language list/);
     await more(p);
     await expectOnScreen(p, 'See their work');
     await text(p, 'What will help them?').click();
@@ -160,30 +160,28 @@ for (const who of ['ADMIN', 'LADMIN'] as const) {
     // While Alpha's events are still arriving the page can read as not ready; wait for the language as it is.
     await expect(text(p, 'Ready · 3 translators')).toBeVisible({ timeout: 60_000 });
     await more(p);
-    await expectOnScreen(p, `${w.orgName} · Code ALP`, 'Recorded', 'Done', 'Roles', '7 roles · what each can do', 'Languages', 'Show on the public list');
-    // Nothing in More repeats a row above it, and the organization's libraries open from the organization (decision 136).
-    await expectNotOnScreen(p, 'Review groups', 'See their work Every passage', 'Members', 'Every way to divide the work', 'Bibles, guides and notes', 'Every way to check',
-      'In the language list');
-    // Only a language lead, whose Manage tab opens here with no Back, has a row to the organization.
+    await expectOnScreen(p, `${w.orgName} · Code ALP`, 'Recorded', 'Done', 'Members', '5 given a role in Alpha', 'Roles', '7 roles · what each can do',
+      'Every way to divide the work', 'Bibles, guides and notes', 'Every way to check', 'Show on the public list', 'In the language list');
+    // Review groups left with decision 91: a check's people are on the check.
+    await expectNotOnScreen(p, 'Review groups', 'See their work Every passage');
+    // Only a language lead, whose Manage tab opens here with no Back, has a row to the organization (decision 136).
     if (who === 'LADMIN') await expect(text(p, 'The organization\'s page')).toBeVisible();
     else await expect(text(p, 'The organization\'s page')).toHaveCount(0);
+    // Its name and clusters are at the top, where they show: a pencil, and a chip to put it in a cluster.
+    if (who === 'ADMIN') await expectOnScreen(p, 'Add to a cluster');
+    await expect(byId(p, 'title-rename')).toBeVisible();
     await text(p, 'Roles').click();
     await expectOnScreen(p, 'Roles', who === 'ADMIN' ? 'Organization' : 'Language');
-    await goBack(p, 'Languages');
-    await text(p, 'Languages').click();
-    await expectOnScreen(p, 'They translate into', 'They understand');
-    await text(p, 'They understand').click();
-    await expectOnScreen(p, 'Which languages should Alpha\'s Bibles and study guides be in?');
-    await goBack(p, 'They record');
-    // They record opens each book's passages; Checks keeps its checks as a ready-made flow.
-    await text(p, 'They record').click();
-    await text(p, 'Each book\'s passages').click();
+    await goBack(p, 'Every way to divide the work');
+    await text(p, 'Every way to divide the work').click();
     await expectOnScreen(p, 'Content Template', 'Alpha records against');
-    await goBack(p);
-    await goBack(p, 'Checks');
-    await text(p, 'Checks').click();
-    if (who === 'ADMIN') await expect(text(p, 'Keep as a ready-made flow')).toBeVisible();
-    await goBack(p, 'They record');
+    await goBack(p, 'Bibles, guides and notes');
+    await text(p, 'Bibles, guides and notes').click();
+    await expectOnScreen(p, 'Reference Material', 'What translators are offered');
+    await goBack(p, 'Every way to check');
+    await text(p, 'Every way to check').click();
+    await expectOnScreen(p, 'Review Flows', 'Alpha uses');
+    await goBack(p, 'Every way to check');
     if (d) await d.context.close();
   });
 }
@@ -220,10 +218,8 @@ test('SETUP-008 Link a language to the language list', async ({ page }) => {
   await openAs(page, w, 'ADMIN');
   await languagePage(page, w, 'Bravo');
   await more(page);
-  await expectOnScreen(page, 'Languages', 'Link it');
-  await text(page, 'Languages').click();
-  await expectOnScreen(page, 'They translate into', 'Not linked yet: added offline, or not found there');
-  await text(page, 'They translate into').click();
+  await expectOnScreen(page, 'In the language list', 'Not linked yet: added offline, or not found there', 'Link it');
+  await text(page, 'In the language list').click();
   await expectOnScreen(page, 'Link Bravo', 'Find it by any of its names or its code. It keeps the name Bravo here, and takes the list\'s code.');
   await field(page, 'Its name or code').fill('bra');
   // The local language list is empty (the languoid tables are not seeded locally): nothing is found.
@@ -613,7 +609,8 @@ for (const who of ['ADMIN', 'LADMIN'] as const) {
     const d = who === 'ADMIN' ? null : await deviceFor(page.context().browser()!, w, who);
     const p = d?.page ?? page;
     if (!d) { await openAs(p, w, who); await languagePage(p, w, 'Alpha'); } else await tab(p, 'manage').click();
-    await eachBook(p);
+    await more(p);
+    await text(p, 'Every way to divide the work').click();
     await expectOnScreen(p, 'Content Template', 'Alpha records against', 'FIA passages (English)', /\d+ of its \d+ books · English versification/,
       /\d+ passages · \d+ recorded/, 'Change template', /Divide into passages/i);
     await expectOnScreen(p, who === 'ADMIN' ? 'View template' : 'View template');
@@ -632,7 +629,8 @@ test('SETUP-036 Choose a different template for a language', async ({ page }) =>
   const w = world();
   await openAs(page, w, 'ADMIN');
   await languagePage(page, w, 'Alpha');
-  await eachBook(page);
+  await more(page);
+  await text(page, 'Every way to divide the work').click();
   await text(page, 'Change template').click();
   await expectOnScreen(page, 'Choose a Template', 'For Alpha · now FIA passages (English)', 'FIA passages (English) · in use');
   // LangQuest's older templates are not offered, nor its ways in other numberings (decision 107).
@@ -752,7 +750,8 @@ test('SETUP-040 Divide a book that waits, for this language', async ({ page }) =
   await primary(page).click();
   await expectToast(page, /^Oscar translates/);
   await byId(page, 'header-close').click();
-  await eachBook(page);
+  await more(page);
+  await text(page, 'Every way to divide the work').click();
   // Books that wait are listed here too, and open the ways to divide them (decision 107); here it is divided from the map.
   await page.getByPlaceholder('Find a book').fill('Proverbs');
   await expectOnScreen(page, 'Proverbs', 'Waiting to be broken up');
@@ -778,7 +777,8 @@ test('SETUP-042 What a language calls a book, and what translators see', async (
   const w = world();
   await openAs(page, w, 'ADMIN');
   await languagePage(page, w, 'Alpha');
-  await eachBook(page);
+  await more(page);
+  await text(page, 'Every way to divide the work').click();
   // The list shows eight books at a time; by now earlier tests have broken up enough that Luke is
   // past the first eight, so it is found by name, as a person would.
   await page.getByPlaceholder('Find a book').fill('Luke');

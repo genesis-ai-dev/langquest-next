@@ -737,6 +737,7 @@
     },
     "link": {
       "done": "{{name}} is linked to {{linked}}.",
+      "row": "In the language list",
       "linkedTo": "Linked to {{name}} · {{code}}",
       "linked": "Linked to it · {{code}}",
       "notLinked": "Not linked yet: added offline, or not found there",
@@ -792,22 +793,31 @@
       "title": "More",
       "summary": {
         "progress": "Progress",
+        "members": "members",
         "roles": "roles",
         "publicListing": "public listing",
-        "languages": "languages"
+        "languageList": "language list"
       },
       "orgAndCode": "{{org}} · Code {{code}}",
       "seeWork": "See their work",
       "seeWorkSub": "Every passage, and how far it has come",
+      "membersSub_one": "{{count, number}} given a role in {{language}}",
+      "membersSub_other": "{{count, number}} given a role in {{language}}",
       "rolesSub_one": "{{count, number}} role · what each can do",
       "rolesSub_other": "{{count, number}} roles · what each can do",
+      "templates": "Every way to divide the work",
+      "templatesSub": "The organization's library of passages and outlines",
+      "reference": "Bibles, guides and notes",
+      "referenceSub": "Everything in the library, coverage and sharing",
+      "flows": "Every way to check",
+      "flowsSub": "The organization's review flows",
       "publicList": "Show on the public list",
       "publicListSub": "Only the language's name and progress",
+      "orgPage": "The organization's page",
       "titleHelp": "Shows the rest: progress, people, roles, its name and more.",
       "seeWorkHelp": "Opens the map: every passage, and how far it has come.",
       "publicListOnHelp": "On: its name and progress are on the public list. Tap to take them off.",
-      "publicListOffHelp": "Off. Tap to put its name and progress on the public list.",
-      "orgPage": "The organization's page"
+      "publicListOffHelp": "Off. Tap to put its name and progress on the public list."
     },
     "members": {
       "joined": "{{target}} · joined {{when}}",
@@ -995,14 +1005,6 @@
       "guides": "{{name}}'s study guides",
       "theBible": "the {{name}}",
       "guidesIn": "{{name}}'s study guides in {{language}}"
-    },
-    "languages": {
-      "row": "Languages",
-      "rowSub": "{{target}} · {{understood}}",
-      "rowHelp": "Opens the language they translate into, and the languages they understand.",
-      "target": "They translate into",
-      "understood": "They understand",
-      "understoodHelp": "Opens the languages their Bibles and guides are in, to change them."
     }
   },
   "admin": {
@@ -1279,9 +1281,7 @@
       "bookOffHelp": "Tap to choose this book.",
       "nextHelp": "Keeps this answer, then on to the next question.",
       "useThisHelp": "They translate this from now on. Then back to the language's page.",
-      "keepItHelp": "Keeps what they translate now, and goes back.",
-      "eachBook": "Each book's passages",
-      "eachBookHelp": "Opens each book, to change where its passages start and end."
+      "keepItHelp": "Keeps what they translate now, and goes back."
     },
     "media": {
       "both": "Audio and text",
@@ -6865,8 +6865,7 @@
       "startHelp": "Replaces the checks with a ready-made set, to change as you like.",
       "useHelp": "Replaces {{language}}'s checks with these. Undo puts them back.",
       "pickHelp": "Picks it. Use, at the bottom, then replaces the checks with its own.",
-      "replaceAsk": "Replace {{language}}'s own checks with {{name}}?",
-      "keep": "Keep as a ready-made flow"
+      "replaceAsk": "Replace {{language}}'s own checks with {{name}}?"
     },
     "gone": "This is no longer one of the language's checks",
     "checkOf": "Check {{n}} · {{language}}",

@@ -727,6 +727,7 @@
     },
     "link": {
       "done": "{{name}} ditautkan ke {{linked}}.",
+      "row": "Di daftar bahasa",
       "linkedTo": "Ditautkan ke {{name}} · {{code}}",
       "linked": "Sudah ditautkan · {{code}}",
       "notLinked": "Belum ditautkan: ditambahkan saat offline, atau tidak ditemukan di sana",
@@ -779,21 +780,29 @@
       "title": "Lainnya",
       "summary": {
         "progress": "Perkembangan",
+        "members": "anggota",
         "roles": "peran",
         "publicListing": "daftar publik",
-        "languages": "bahasa"
+        "languageList": "daftar bahasa"
       },
       "orgAndCode": "{{org}} · Kode {{code}}",
       "seeWork": "Lihat pekerjaan mereka",
       "seeWorkSub": "Setiap perikop, dan sejauh mana perkembangannya",
+      "membersSub_other": "{{count, number}} diberi peran di {{language}}",
       "rolesSub_other": "{{count, number}} peran · apa yang dapat dilakukan masing-masing",
+      "templates": "Semua cara membagi pekerjaan",
+      "templatesSub": "Perpustakaan perikop dan kerangka milik organisasi",
+      "reference": "Alkitab, panduan, dan catatan",
+      "referenceSub": "Semua isi perpustakaan, cakupan, dan berbagi",
+      "flows": "Semua cara memeriksa",
+      "flowsSub": "Alur pemeriksaan organisasi",
       "publicList": "Tampilkan di daftar publik",
       "publicListSub": "Hanya nama dan perkembangan bahasa ini",
+      "orgPage": "Halaman organisasi",
       "titleHelp": "Menampilkan sisanya: perkembangan, orang, peran, namanya, dan lainnya.",
       "seeWorkHelp": "Membuka peta: setiap perikop, dan sejauh mana perkembangannya.",
       "publicListOnHelp": "Aktif: nama dan perkembangannya ada di daftar publik. Ketuk untuk menghapusnya dari sana.",
-      "publicListOffHelp": "Mati. Ketuk untuk menaruh nama dan perkembangannya di daftar publik.",
-      "orgPage": "Halaman organisasi"
+      "publicListOffHelp": "Mati. Ketuk untuk menaruh nama dan perkembangannya di daftar publik."
     },
     "members": {
       "joined": "{{target}} · bergabung {{when}}",
@@ -976,14 +985,6 @@
       "guides": "panduan studi {{name}}",
       "theBible": "{{name}}",
       "guidesIn": "panduan studi {{name}} dalam bahasa {{language}}"
-    },
-    "languages": {
-      "row": "Bahasa",
-      "rowSub": "{{target}} · {{understood}}",
-      "rowHelp": "Membuka bahasa tujuan terjemahan mereka, dan bahasa yang mereka pahami.",
-      "target": "Mereka menerjemahkan ke",
-      "understood": "Mereka pahami",
-      "understoodHelp": "Membuka bahasa Alkitab dan panduan mereka, untuk mengubahnya."
     }
   },
   "admin": {
@@ -1251,9 +1252,7 @@
       "bookOffHelp": "Ketuk untuk memilih kitab ini.",
       "nextHelp": "Menyimpan jawaban ini, lalu lanjut ke pertanyaan berikutnya.",
       "useThisHelp": "Mereka menerjemahkan ini mulai sekarang. Lalu kembali ke halaman bahasa itu.",
-      "keepItHelp": "Tetap pada apa yang mereka terjemahkan sekarang, lalu kembali.",
-      "eachBook": "Perikop tiap kitab",
-      "eachBookHelp": "Membuka tiap kitab, untuk mengubah awal dan akhir perikopnya."
+      "keepItHelp": "Tetap pada apa yang mereka terjemahkan sekarang, lalu kembali."
     },
     "media": {
       "both": "Audio dan teks",
@@ -6576,8 +6575,7 @@
       "startHelp": "Mengganti pemeriksaan dengan kumpulan siap pakai, untuk diubah sesuka Anda.",
       "useHelp": "Mengganti pemeriksaan {{language}} dengan yang ini. Urungkan mengembalikannya.",
       "pickHelp": "Memilihnya. Lalu ketuk Pakai di bagian bawah untuk mengganti pemeriksaan dengan pemeriksaannya.",
-      "replaceAsk": "Ganti pemeriksaan milik {{language}} sendiri dengan {{name}}?",
-      "keep": "Simpan sebagai alur siap pakai"
+      "replaceAsk": "Ganti pemeriksaan milik {{language}} sendiri dengan {{name}}?"
     },
     "gone": "Ini bukan lagi salah satu pemeriksaan bahasa ini",
     "checkOf": "Pemeriksaan {{n}} · {{language}}",
