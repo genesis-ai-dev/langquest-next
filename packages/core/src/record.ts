@@ -60,7 +60,7 @@ interface RequestPayload {
   teamId?: string;
   /** Someone without the app, reached by a link. */
   guest?: { name: string; channel: 'whatsapp' | 'sms'; contact: string };
-  /** Requests made before due dates were removed (decision 112) may carry one; nothing sets or shows it. */
+  /** Requests made before due dates were removed (decision 124) may carry one; nothing sets or shows it. */
   dueDate?: string;
   note?: string;
   noteBlobHash?: string;

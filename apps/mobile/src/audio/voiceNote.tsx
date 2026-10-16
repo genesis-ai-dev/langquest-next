@@ -30,7 +30,7 @@ export function VoiceNote(props: {
   // all the note needs. No journal target: nothing is appended until the
   // note itself is saved.
   const persist = (card: RecordedCard) => { latest.current.onChange(card.ref.hash, { durationMs: card.durationMs, format: card.ref.format }); };
-  const rec = useRecorder(persist);
+  const rec = useRecorder(persist, undefined, props.ctx.language);
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
     if (!rec.manualOn) return;

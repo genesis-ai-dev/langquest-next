@@ -113,9 +113,12 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.RoleRetired': 'manage_roles',
   'v1.MemberAdded': 'invite_members',
   'v1.MemberRemoved': 'invite_members',
-  'v1.InviteIssued': 'invite_members',
+  // Server-only, like a redemption: issue_invite_v3 and decide_join_request
+  // append these after their own checks. A client's copy would be believed
+  // as consent by may_help_sign_in (decisions.md 114).
+  'v1.InviteIssued': null,
   'v1.InviteRedeemed': null,
-  'v1.JoinDecided': 'invite_members',
+  'v1.JoinDecided': null,
   // The owner's decision, and it cannot be taken back: only Organization
   // Admin holds manage_roles among the seed roles.
   'v1.LicenseSet': 'manage_roles',

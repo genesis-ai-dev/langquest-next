@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { accessTokenFresh, savedSession } from '../auth/authState';
+import { signingOutByChoice } from '../auth/signOutCause';
 
 interface KeyValue {
   getItem(key: string): Promise<string | null>;
@@ -13,15 +14,17 @@ interface KeyValue {
  * token is still good, the server is asked to end this one session; offline,
  * or with an expired token, nothing is asked, which used to fail after
  * half a minute of retries. Either way the phone forgets the sign-in and the
- * app hears SIGNED_OUT.
+ * app hears SIGNED_OUT, as one the person chose (signOutCause.ts).
  */
-export async function signOutThisDevice(client: SupabaseClient, storage: KeyValue, key: string): Promise<void> {
-  if (accessTokenFresh(savedSession(await storage.getItem(key)))) {
-    // Online this ends the session on the server; offline supabase-js forgets it here and reports the network error.
+export function signOutThisDevice(client: SupabaseClient, storage: KeyValue, key: string): Promise<void> {
+  return signingOutByChoice(async () => {
+    if (accessTokenFresh(savedSession(await storage.getItem(key)))) {
+      // Online this ends the session on the server; offline supabase-js forgets it here and reports the network error.
+      await client.auth.signOut({ scope: 'local' });
+      if (await storage.getItem(key) === null) return;
+    }
+    await storage.removeItem(key);
+    // Nothing stored now: this asks the server nothing, forgets the session in memory and tells the app.
     await client.auth.signOut({ scope: 'local' });
-    if (await storage.getItem(key) === null) return;
-  }
-  await storage.removeItem(key);
-  // Nothing stored now: this asks the server nothing, forgets the session in memory and tells the app.
-  await client.auth.signOut({ scope: 'local' });
+  });
 }

@@ -311,11 +311,12 @@ describe('invites and join requests (audit 5.B)', () => {
     expect(s.joinDecisions['r2']?.accepted).toBe(false);
   });
 
-  it('gates issuing and deciding on invite_members, and redemption is server-only', () => {
-    // Why: a translator must not be able to admit people, and no client may
-    // forge a redemption; only the redeem_invite RPC appends that.
-    expect(EVENT_PRIVILEGE['v1.InviteIssued']).toBe('invite_members');
-    expect(EVENT_PRIVILEGE['v1.JoinDecided']).toBe('invite_members');
+  it('issuing, deciding and redeeming are server-only', () => {
+    // Why: no client may forge how someone joined. The RPCs append these
+    // after their own invite_members checks, and may_help_sign_in believes
+    // an accepted JoinDecided as the person's consent.
+    expect(EVENT_PRIVILEGE['v1.InviteIssued']).toBeNull();
+    expect(EVENT_PRIVILEGE['v1.JoinDecided']).toBeNull();
     expect(EVENT_PRIVILEGE['v1.InviteRedeemed']).toBeNull();
   });
 

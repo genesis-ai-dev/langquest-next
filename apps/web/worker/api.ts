@@ -8,6 +8,8 @@ import { handleAgentApi, type AgentDeps } from './agent/http';
 export interface ApiDeps {
   /** The profile a Supabase access token belongs to, or null when it is not valid. */
   profileOf(token: string): Promise<string | null>;
+  /** The organizations a profile is an active member of (agent/store.ts). */
+  orgsOf(profileId: string): Promise<string[]>;
   /** The caller's languages in the organization, or null when they are not in it. */
   reports(orgId: string, profileId: string, fresh: boolean): Promise<OrgReportsResponse | null>;
   /** Bible Brain (`/api/bible/*`, bible.ts); without it, or without its key, those routes answer 503. */
@@ -92,7 +94,10 @@ async function answer(request: Request, deps: ApiDeps): Promise<Response> {
   if (!profileId) return json(401, { error: 'Sign in again.' });
   let out: OrgReportsResponse | null;
   try {
-    out = await deps.reports(orgId, profileId, url.searchParams.get('fresh') === '1');
+    // Membership first, as the token routes do, so nobody wakes an
+    // organization's object, or makes it read the database again with
+    // fresh=1, by naming it.
+    out = (await deps.orgsOf(profileId)).includes(orgId) ? await deps.reports(orgId, profileId, url.searchParams.get('fresh') === '1') : null;
   } catch (e) {
     console.error(`reports ${orgId}:`, e);
     return json(502, { error: 'The dashboard could not read this organization just now. Try again.' });
@@ -105,7 +110,7 @@ async function answer(request: Request, deps: ApiDeps): Promise<Response> {
 }
 
 /**
- * Apps built before due dates were removed (decision 112) still show an
+ * Apps built before due dates were removed (decision 124) still show an
  * "Overdue requests" tile and add up `attention.overdueRequests`; without the
  * field they show NaN. Nothing is overdue any more, so they are told 0.
  */

@@ -11,6 +11,7 @@ import { audioFormat } from './audioFormat';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
 import { t } from '../i18n';
 import { noteExpected, reportError } from '../diagnostics/report';
+import { countAudio } from './audioTally';
 import type { LanguageHandle } from '../sync/useLanguage';
 import { cardSeconds } from './clipTime';
 
@@ -94,13 +95,14 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: { uri
       if (!uri && ref && lang.state && isStored(lang.state, hash)) {
         try { uri = await lang.blobs.streamUri(ref); } catch (err) {
           noteExpected('simple clip stream', err);
+          countAudio(lang, 'streamFail');
           if (generation.current === run) { wants.current = false; setPlaying(false); setError(t('common.audioCouldNotLoad')); }
           return;
         }
         if (generation.current !== run || !wants.current) return;
       }
     }
-    if (!uri) { wants.current = false; setPlaying(false); setError(t('recording.player.notOnDeviceYet')); return; }
+    if (!uri) { wants.current = false; setPlaying(false); setError(t('recording.player.notOnDeviceYet')); countAudio(lang, 'playNotHere'); return; }
     try {
       const p = createAudioPlayer({ uri });
       player.current = p;
@@ -109,6 +111,7 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: { uri
         if (status.error) {
           wants.current = false; p.remove(); player.current = null; setPlaying(false);
           setError(t('common.audioCouldNotLoad'));
+          countAudio(lang, 'playFail');
           return;
         }
         if (status.duration > 0) setClipLength(status.duration);
@@ -119,6 +122,7 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: { uri
       if (generation.current === run && wants.current) p.play();
     } catch (err) {
       wants.current = false; player.current?.remove(); player.current = null; setPlaying(false);
+      countAudio(lang, 'playFail');
       setError(t('common.audioCouldNotPlay', { code: reportError('simple clip create', err) }));
     }
   }
@@ -131,6 +135,7 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: { uri
     wants.current = true;
     setPlaying(true);
     setError('');
+    countAudio(language, 'plays');
     try {
       await setSessionAudioMode({ allowsRecording: false, playsInSilentMode: true });
       if (generation.current !== run) return;
@@ -138,7 +143,11 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: { uri
       if (p && p.duration > 0 && p.currentTime < p.duration - 0.1) { p.play(); return; }
       await playFrom(p ? indexRef.current : 0, 0, run);
     } catch (err) {
-      if (generation.current === run) { halt(); setError(t('common.audioCouldNotPlay', { code: reportError('simple clip play', err) })); }
+      if (generation.current === run) {
+        halt();
+        countAudio(language, 'playFail');
+        setError(t('common.audioCouldNotPlay', { code: reportError('simple clip play', err) }));
+      }
     }
   }
 

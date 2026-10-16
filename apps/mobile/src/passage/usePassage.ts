@@ -1,5 +1,6 @@
 // One passage as its screens read it (passage/passageView.ts builds the view).
 import { languageName } from '@langquest-next/core';
+import { useMemo } from 'react';
 import type { Ctx } from '../shell/ctx';
 import { passageView, type PassageView } from './passageView';
 
@@ -12,6 +13,10 @@ export function usePassage(ctx: Ctx): PassageView | null {
   const state = ctx.language.state;
   const unitId = ctx.params['unitId'];
   const languageId = ctx.params['languageId'] ?? ctx.languageId ?? undefined;
-  if (!state || !unitId || !languageId || languageId !== ctx.language.languageId || !state.units[unitId]) return null;
-  return passageView(state, unitId, languageId, languageName(ctx.org.state, languageId));
+  const orgState = ctx.org.state;
+  const openLanguageId = ctx.language.languageId;
+  return useMemo(() => {
+    if (!state || !unitId || !languageId || languageId !== openLanguageId || !state.units[unitId]) return null;
+    return passageView(state, unitId, languageId, languageName(orgState, languageId));
+  }, [state, unitId, languageId, openLanguageId, orgState]);
 }

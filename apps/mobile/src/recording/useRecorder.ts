@@ -18,6 +18,8 @@ import { cachedMicSettings, loadMicSettings, onMicSettings } from '../mic/micSet
 import type { JournalTarget } from './recordingJournalModel';
 import { storableRecording } from '../web/webAudio';
 import { claimVad, MicrophoneRefused, recorderProblem, vadOwner, activity } from './recorderState';
+import { recorderFaultCode, type RecorderFailure, type RecorderStage } from './recorderFaultModel';
+import { countAudio, type AudioLanguage } from '../audio/audioTally';
 
 const WEB = Platform.OS === 'web';
 /** A browser records MP4 when it can (audioFormat.ts); otherwise the take is converted to WAV when it stops. */
@@ -40,6 +42,8 @@ const useTakeRecorder: () => ReturnType<typeof useAudioRecorder> | null = WEB ? 
 
 /** A hold-to-record take starts with whatever the microphone heard since it opened, up to this. */
 const TAKE_HEAD_START_MS = 500;
+/** A hold-to-record take shorter than this was a tap, not speech: it is deleted unsaid. */
+const SHORTEST_TAKE_MS = 200;
 let keepAwakeTags = 0;
 
 export interface RecordedCard {
@@ -72,7 +76,7 @@ async function askForMicrophone() {
 
 /** A finished file the phone may delete: a take too short to keep, or a WAV once its AAC copy is safe. */
 function deleteQuietly(uri: string) {
-  try { const f = new File(uri); if (f.exists) f.delete(); } catch (e) { noteExpected('recorder: delete', e); }
+  try { const f = new File(uri); if (f.exists) f.delete(); } catch (e) { noteExpected('recorder: delete', e, recorderFaultCode(e)); }
 }
 
 /**
@@ -80,9 +84,11 @@ function deleteQuietly(uri: string) {
  * `target` names the passage a delivered card belongs to; with it, a save
  * interrupted at any stage is journaled and finished on the next launch
  * (see recordingJournalModel.ts). Without it the journal still protects the
- * file until the handler returns.
+ * file until the handler returns. Takes and failures are counted for field
+ * diagnostics under the target's language, else under `language` when the
+ * screen has one open.
  */
-export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget) {
+export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget, language?: AudioLanguage | null) {
   const recorder = useTakeRecorder();
   const [vadOn, setVadOn] = useState(false);
   const [vadPaused, setVadPaused] = useState(false);
@@ -103,6 +109,8 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
   handler.current = onCard;
   const targetRef = useRef(target);
   targetRef.current = target;
+  const languageRef = useRef<AudioLanguage | null>(null);
+  languageRef.current = target ? { orgId: target.orgId, languageId: target.languageId } : language ?? null;
   const wanted = useRef(false);
   const active = useRef(false);
   const startedAt = useRef(0);
@@ -117,9 +125,11 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
   const queue = useRef<Promise<void>>(Promise.resolve());
   const failures = useRef<PendingFile[]>([]);
   const config = useRef({ threshold: chosen?.threshold ?? 0.1, silenceDuration: chosen?.pauseMs ?? 1000 });
-  const fail = useCallback((e: unknown) => {
-    if (mounted.current) setError(recorderProblem('recorder', e));
+  const fail = useCallback((stage: RecorderStage, e: unknown, failed: RecorderFailure = null) => {
+    const said = recorderProblem(stage, e, failed, languageRef.current);
+    if (mounted.current) setError(said);
   }, []);
+  const count = useCallback((counter: Parameters<typeof countAudio>[1], by = 1) => countAudio(languageRef.current, counter, by), []);
   const work = useCallback((delta: number) => {
     if (mounted.current) setWorking((n) => Math.max(0, n + delta));
   }, []);
@@ -139,6 +149,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
               size: previous.size ?? store.storedSize({ hash: previous.hash, format: file.format }),
               durationMs: entry().durationMs };
           } else {
+            let wavKept = false;
             await journal.put(previous ?? { ...entry(), stage: 'recorded' });
             // A phone keeps AAC, about a fifth of the WAV (decisions.md 106). The
             // journal names the AAC copy before the WAV goes, so a restart finds
@@ -151,30 +162,36 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
                 await journal.put({ ...entry(), stage: 'recorded' });
                 deleteQuietly(wav);
               } catch (e) {
-                noteExpected('recorder: aac', e);
+                const code = recorderFaultCode(e) === 'nospace' ? 'nospace' : 'encode';
+                noteExpected('recorder: aac', e, code);
+                count('encodeFail');
+                wavKept = true;
               }
             }
             const { ref, size } = await store.ingest(file.uri, file.format, (ref, size) =>
               journal.put({ ...entry(), stage: 'recorded', hash: ref.hash, size }));
+            if (wavKept) count('wavKept');
             file.card = { id: file.id, ref, size, durationMs: entry().durationMs };
           }
         }
         await journal.put({ ...entry(), stage: 'ingested',
           hash: file.card.ref.hash, size: file.card.size });
         await handler.current(file.card);
+        count('takes');
+        count('takeMs', file.card.durationMs);
         await journal.remove(file.id);
       } catch (e) {
         failures.current.push(file);
         if (mounted.current) setFailureCount(failures.current.length);
-        fail(e);
+        fail('save', e, 'saveFail');
       } finally { work(-1); }
     });
     return queue.current;
-  }, [fail, work]);
+  }, [count, fail, work]);
 
   const configure = useCallback(async () => {
     try { await MicrophoneEnergy.configureVAD({ ...VAD_BASE, ...config.current }); }
-    catch (e) { fail(e); }
+    catch (e) { fail('configure', e); }
   }, [fail]);
   const setPause = useCallback(async (duration: number) => {
     config.current.silenceDuration = duration;
@@ -209,6 +226,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
     setError('');
     work(1);
     const start = (async () => {
+      let stage: RecorderStage = 'start';
       try {
         const permission = await askForMicrophone();
         if (!wanted.current || !mounted.current) return;
@@ -216,6 +234,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
         await setSessionAudioMode({ allowsRecording: true, playsInSilentMode: true });
         if (!wanted.current || !mounted.current) return;
         await MicrophoneEnergy.startEnergyDetection();
+        stage = 'segment';
         if (recorder) {
           await recorder.prepareToRecordAsync();
           if (!wanted.current || !mounted.current) return;
@@ -232,12 +251,12 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
         active.current = true;
         startedAt.current = Date.now();
         setManualOn(true);
-      } catch (e) { wanted.current = false; fail(e); }
+      } catch (e) { wanted.current = false; fail(stage, e, 'startFail'); }
       finally {
         if (!active.current) {
-          await MicrophoneEnergy.stopEnergyDetection().catch(fail);
+          await MicrophoneEnergy.stopEnergyDetection().catch((e: unknown) => fail('stop', e));
           manualSegment.current = false;
-          await setSessionAudioMode({ allowsRecording: false, playsInSilentMode: true }).catch(fail);
+          await setSessionAudioMode({ allowsRecording: false, playsInSilentMode: true }).catch((e: unknown) => fail('stop', e));
         }
         starting.current = null;
         work(-1);
@@ -254,6 +273,8 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
       await starting.current;
       if (!active.current) return;
       work(1);
+      let stage: RecorderStage = 'segment';
+      let failed: RecorderFailure = 'stopFail';
       try {
         const durationMs = Date.now() - startedAt.current;
         let uri: string | null;
@@ -266,24 +287,27 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
         active.current = false;
         if (mounted.current) setManualOn(false);
         // Stopping waits for the module's last file to be complete on disk.
-        await MicrophoneEnergy.stopEnergyDetection().catch(fail);
+        await MicrophoneEnergy.stopEnergyDetection().catch((e: unknown) => fail('stop', e, 'stopFail'));
         manualSegment.current = false;
-        await setSessionAudioMode({ allowsRecording: false, playsInSilentMode: true }).catch(fail);
-        if (uri && durationMs >= 200) {
+        await setSessionAudioMode({ allowsRecording: false, playsInSilentMode: true }).catch((e: unknown) => fail('stop', e));
+        if (uri && durationMs >= SHORTEST_TAKE_MS) {
+          stage = 'save';
+          failed = 'saveFail';
           // A phone's take is the module's WAV, kept as AAC by deliver; a browser
           // records what it can, made playable everywhere first.
           const stored = WEB ? await storableRecording(uri) : { uri, format: 'wav' as const };
           await deliver({ id: Crypto.randomUUID(), ...stored, durationMs });
-        } else if (uri && !WEB) {
-          deleteQuietly(uri);
+        } else if (uri) {
+          count('tooShort');
+          if (!WEB) deleteQuietly(uri);
         }
-      } catch (e) { fail(e); }
+      } catch (e) { fail(stage, e, failed); }
       finally { work(-1); }
     })();
     stopping.current = stop;
     void stop.finally(() => { stopping.current = null; });
     return stop;
-  }, [deliver, fail, recorder, work]);
+  }, [count, deliver, fail, recorder, work]);
 
   const stopVad = useCallback((): Promise<void> => {
     if (vadStopping.current) return vadStopping.current;
@@ -300,7 +324,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
         await setSessionAudioMode({ allowsRecording: false, playsInSilentMode: true });
         if (mounted.current) { setVadOn(false); setVadPaused(false); setVadCapturing(false); }
         await queue.current;
-      } catch (e) { fail(e); }
+      } catch (e) { fail('stop', e, 'stopFail'); }
       finally { work(-1); }
     })();
     vadStopping.current = stop;
@@ -318,7 +342,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
     if (!vadActive.current || vadPausedRef.current || vadStopping.current) return;
     vadPausedRef.current = true;
     if (mounted.current) { setVadPaused(true); setVadCapturing(false); }
-    try { await MicrophoneEnergy.disableVAD(); } catch (e) { fail(e); }
+    try { await MicrophoneEnergy.disableVAD(); } catch (e) { fail('vad', e); }
   }, [fail]);
 
   /** The source stopped: listen for the next part straight away. */
@@ -330,7 +354,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
       await MicrophoneEnergy.configureVAD({ ...VAD_BASE, ...config.current });
       claimVad(self);
       await MicrophoneEnergy.enableVAD();
-    } catch (e) { fail(e); }
+    } catch (e) { fail('vad', e); }
   }, [fail, self]);
 
   const toggleVad = useCallback((): Promise<void> => {
@@ -341,15 +365,19 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
     setError('');
     work(1);
     const start = (async () => {
+      let stage: RecorderStage = 'start';
       try {
         const permission = await askForMicrophone();
         if (!mounted.current) return;
         if (!permission.granted) throw new MicrophoneRefused();
+        stage = 'configure';
         await MicrophoneEnergy.configureVAD({ ...VAD_BASE, ...config.current });
+        stage = 'start';
         await setSessionAudioMode({ allowsRecording: true, playsInSilentMode: true });
         if (!mounted.current) return;
         await MicrophoneEnergy.startEnergyDetection();
         claimVad(self);
+        stage = 'vad';
         await MicrophoneEnergy.enableVAD();
         vadActive.current = true;
         vadPausedRef.current = false;
@@ -357,9 +385,9 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
         holdMicrophone(true);
         if (mounted.current) { setVadOn(true); setVadPaused(false); }
       } catch (e) {
-        fail(e);
-        await MicrophoneEnergy.stopEnergyDetection().catch(fail);
-        await setSessionAudioMode({ allowsRecording: false, playsInSilentMode: true }).catch(fail);
+        fail(stage, e, 'startFail');
+        await MicrophoneEnergy.stopEnergyDetection().catch((err: unknown) => fail('stop', err));
+        await setSessionAudioMode({ allowsRecording: false, playsInSilentMode: true }).catch((err: unknown) => fail('stop', err));
       } finally { vadStarting.current = null; work(-1); }
     })();
     vadStarting.current = start;
@@ -384,7 +412,9 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
   useEffect(() => {
     mounted.current = true;
     const subscriptions = [
-      MicrophoneEnergy.addListener('onError', (e) => fail(new Error(e.message))),
+      // The module's own report, from its threads (a part's file that could not be written).
+      // Every recorder hears it; only the one whose session it is counts it.
+      MicrophoneEnergy.addListener('onError', (e) => fail('native', new Error(e.message), vadOwner === self ? 'native' : null)),
       MicrophoneEnergy.addListener('onSegmentStart', () => { if (vadOwner === self) setVadCapturing(true); }),
       MicrophoneEnergy.addListener('onSegmentComplete', (e) => {
         // A hold-to-record take is delivered by manualUp, not here.
@@ -392,7 +422,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
         setVadCapturing(false);
         if (e.uri) void deliver({ id: Crypto.randomUUID(), uri: e.uri, format: 'wav', durationMs: e.duration });
         // Too little voice to be speech: the module deleted it. Say so (decisions.md 106).
-        else if (vadActive.current && mounted.current) setTooShort((n) => n + 1);
+        else if (vadActive.current && mounted.current) { setTooShort((n) => n + 1); count('tooShort'); }
       })
     ];
     // A phone stops recording when the app leaves the screen. A browser tab
@@ -401,7 +431,11 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
     // not leaving the screen.
     const stopAll = () => { void manualUp(); void stopVad(); };
     const appState = AppState.addEventListener('change', (state) => {
-      if (state !== 'active' && !WEB && askingForMicrophone === 0) stopAll();
+      if (state !== 'active' && !WEB && askingForMicrophone === 0) {
+        // Once per recording cut short (iOS passes `inactive` on its way to `background`).
+        if ((active.current && !stopping.current) || (vadActive.current && !vadStopping.current)) count('interrupted');
+        stopAll();
+      }
     });
     if (WEB) window.addEventListener('pagehide', stopAll);
     return () => {
@@ -414,7 +448,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
         subscriptions.forEach((subscription) => subscription.remove());
       });
     };
-  }, [deliver, fail, manualUp, stopVad, self]);
+  }, [count, deliver, fail, manualUp, stopVad, self]);
 
   // Hands-free recording means nobody touches the screen: keep it on, as v2
   // did, or the phone's screen timeout sends the app away and ends the session.

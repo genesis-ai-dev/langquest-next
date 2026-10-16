@@ -909,7 +909,7 @@ Expected:
 - The question shows under "They'll answer", after the check's own
   questions, with "Yes/No" and ✕ ("Remove question").
 - There is no "By when · optional", no date chip, no date field and no
-  "Due {day}" line (decision 112).
+  "Due {day}" line (decision 124).
 - After sending, the toast reads "{TREV} will see it on their My Work", with
   "Undo". The app returns to P-DRAFT's record.
 - The "Peer check" row reads "asked {TREV}".
@@ -938,7 +938,7 @@ Expected:
   else?", not the path (`passage_record` now takes an `asked` param).
 
 ### PASS-040 Typing a due date (retired)
-Removed with due dates (decision 112). The number is not reused.
+Removed with due dates (decision 124). The number is not reused.
 
 ### PASS-041 Your own questions
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto

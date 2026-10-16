@@ -1,4 +1,5 @@
 import type { LanguageState } from './state';
+import { changesSince, liveStateOf, sameFields, stateRevision, watchChanges } from './changes';
 
 /**
  * Read indexes over a folded language. Built once per fold, then every
@@ -71,6 +72,31 @@ export function buildIndexes(state: LanguageState): Indexes {
     passages.push(id);
   }
   return { passages, containers, waiting };
+}
+
+const built = new WeakMap<LanguageState, { revision: number; idx: Indexes }>();
+/** Per live state: the latest indexes built for it or a copy of it, and the live revision they were built at. */
+const latest = new WeakMap<LanguageState, { idx: Indexes; revision: number; source: LanguageState }>();
+
+/**
+ * `buildIndexes`, once per state and revision, and carried from one
+ * published copy (`publishedCopy`) to the next while no event since could
+ * change the units, the template or what it hides. Read-only: the result
+ * is shared.
+ */
+export function indexesOf(state: LanguageState): Indexes {
+  const revision = stateRevision(state);
+  const hit = built.get(state);
+  if (hit && hit.revision === revision) return hit.idx;
+  const live = liveStateOf(state);
+  const now = stateRevision(live);
+  const prev = latest.get(live);
+  const changes = prev && sameFields(prev.source, state) ? changesSince(live, prev.revision) : null;
+  const idx = prev && changes && !changes.includes('all') ? prev.idx : buildIndexes(state);
+  latest.set(live, { idx, revision: now, source: state });
+  watchChanges(live, 'indexes', now);
+  built.set(state, { revision, idx });
+  return idx;
 }
 
 /** Books of the language waiting to be broken up (`Indexes.waiting`), as unit ids. */

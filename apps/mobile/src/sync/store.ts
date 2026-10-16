@@ -158,7 +158,12 @@ function failed<T>(forget: () => void) {
  */
 export function getDiagStore(): Promise<SqliteDiagStore> {
   // Diagnostics fail quietly (diagnostics.ts); only the event log tells the screen.
-  diagPromise ??= allowed.then(() => open('langquest-diagnostics.db'))
+  // On the web the event log opens first: a record written at start-up (a
+  // sign-in record, before any screen) opened this at the same moment, and
+  // expo-sqlite's file pool failed to open both.
+  diagPromise ??= allowed
+    .then(() => (Platform.OS === 'web' ? getStore().then(() => undefined, () => undefined) : undefined))
+    .then(() => open('langquest-diagnostics.db'))
     .then(async (db) => SqliteDiagStore.open(await expoDriver(db, 'langquest-diagnostics.db')))
     .catch((error: unknown) => { diagPromise = undefined; throw error; });
   return diagPromise;

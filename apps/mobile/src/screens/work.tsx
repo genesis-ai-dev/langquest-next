@@ -40,7 +40,7 @@ import { Bell, NextCard, QuietToggle, ReadyCard } from '../work/home';
 import { checkName } from '../admin/adminModel';
 import { Faces } from '../checks/parts';
 import { useReadySummary, type ReadySummary } from '../admin/useReadySummary';
-import { nextSub, readiness, readySteps, THEN_CAP, waitingWhat, waitingWho, workIcon, workSub, workTarget, workWhat, type Readiness } from '../work/homeModel';
+import { divideSub, elsewhereCounts, nextSub, readinessFrom, THEN_CAP, undecided, waitingWhat, waitingWho, workIcon, workSub, workTarget, workWhat, type Readiness } from '../work/homeModel';
 import { SyncIndicator } from '../sync/SyncIndicator';
 import { C, space, TINT } from '../ui/theme';
 
@@ -86,10 +86,7 @@ function memberCount(org: OrgState | null): number {
  */
 function readyFor(ctx: Ctx, summary: ReadySummary): Readiness | null {
   if (!ctx.session.isAdmin || !ctx.languageId || !canGo(ctx, 'get_ready')) return null;
-  const r = summary.readiness;
-  const steps = readySteps({ template: r.done[0]!, helps: r.done[1] ? 1 : 0, flow: r.done[2]!, members: r.done[3] ? 2 : 1 });
-  const all = readiness(steps);
-  return r.ready ? { ...all, next: null, step: 0 } : all;
+  return readinessFrom(summary.readiness);
 }
 
 /**
@@ -110,7 +107,7 @@ function useJoinRequests(ctx: Ctx): PendingRequest[] {
     return () => { live = false; };
   }, [may, orgId, tick]);
   const decided = ctx.org.state?.joinDecisions ?? {};
-  return rows.filter((r) => !decided[r.id]);
+  return undecided(rows, decided);
 }
 
 /**
@@ -125,14 +122,7 @@ function useElsewhere(ctx: Ctx): { languageId: string; count: number }[] {
   const open = ctx.languageId;
   // Read again whenever the Inbox count moves.
   const { remote: rows, seen: read } = useServerInbox(me, ctx.inbox.unread);
-  return useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const r of rows) {
-      if (r.org_id !== orgId || !r.language_id || r.language_id === open || read.has(r.id)) continue;
-      counts.set(r.language_id, (counts.get(r.language_id) ?? 0) + 1);
-    }
-    return [...counts].map(([languageId, count]) => ({ languageId, count }));
-  }, [rows, read, orgId, open]);
+  return useMemo(() => elsewhereCounts(rows, read, orgId, open), [rows, read, orgId, open]);
 }
 
 /** The sync state as one icon beside the bell, always: live or not, and what is still moving. */
@@ -311,9 +301,9 @@ export function MyWork(ctx: Ctx) {
     const bookId = unitPlace(state, toDivide[0]!).bookId;
     const template = state.template?.value;
     const way = template ? libraryItemView(ctx.org.state?.library ?? {}, template.itemId) : null;
-    const why = way && (!way.subscription || baseWay(way.subscription.sourceItemId) !== LATER_ITEM) ? t('work.divide.leftOut', { way: way.name, book }) : null;
+    const bookByBook = !!way?.subscription && baseWay(way.subscription.sourceItemId) === LATER_ITEM;
     tasks.push({ id: 'divide', icon: 'cut', tone: 'brand', title: t('work.divide.title', { book }),
-      sub: !why ? t('work.divide.waiting', { count: toDivide.length }) : toDivide.length > 1 ? `${why} ${t('work.divide.more', { count: toDivide.length - 1 })}` : why,
+      sub: divideSub({ wayName: way?.name ?? null, book, waiting: toDivide.length, bookByBook }),
       help: bookId && canGo(ctx, 'book_structure') ? t('work.divide.help') : t('work.divide.mapHelp'),
       onPress: () => (bookId && canGo(ctx, 'book_structure') ? ctx.go('book_structure', { languageId, bookId }) : map()) });
   }

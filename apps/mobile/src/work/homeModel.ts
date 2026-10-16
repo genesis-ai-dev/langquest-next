@@ -137,3 +137,45 @@ export function waitingWhat(r: WaitingRequest, checkName: (kindId: string) => st
 
 /** How many of "Then" show before "N more" (Hick's law: a short list, the rest one tap away). */
 export const THEN_CAP = 3;
+
+// ---- what My Work gathers around the lead ---------------------------------------------
+
+/** The language's readiness, from the summary's four answers; once ready there is no next question. */
+export function readinessFrom(r: { ready: boolean; done: readonly boolean[] }): Readiness {
+  const all = readiness(readySteps({ template: r.done[0]!, helps: r.done[1] ? 1 : 0, flow: r.done[2]!, members: r.done[3] ? 2 : 1 }));
+  return r.ready ? { ...all, next: null, step: 0 } : all;
+}
+
+/** Join requests nobody has decided yet (a decision this phone knows of removes the row before the server's list catches up). */
+export function undecided<T extends { id: string }>(rows: readonly T[], decided: Readonly<Record<string, unknown>>): T[] {
+  return rows.filter((r) => !decided[r.id]);
+}
+
+/**
+ * Unread updates for this person in the organization's other languages, by
+ * language: not the open one, not another organization's, not ones with no
+ * language, not the ones already read.
+ */
+export function elsewhereCounts(
+  rows: readonly { id: string; org_id: string; language_id?: string | null }[],
+  read: ReadonlySet<string>,
+  orgId: string,
+  open: string | null | undefined
+): { languageId: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const r of rows) {
+    if (r.org_id !== orgId || !r.language_id || r.language_id === open || read.has(r.id)) continue;
+    counts.set(r.language_id, (counts.get(r.language_id) ?? 0) + 1);
+  }
+  return [...counts].map(([languageId, count]) => ({ languageId, count }));
+}
+
+/**
+ * The line under "divide this book": why it waits (the way chosen leaves it
+ * out, unless the organization chose to divide book by book, which needs no
+ * reason), and how many more wait.
+ */
+export function divideSub(o: { wayName: string | null; book: string; waiting: number; bookByBook: boolean }): string {
+  const why = o.wayName && !o.bookByBook ? t('work.divide.leftOut', { way: o.wayName, book: o.book }) : null;
+  return !why ? t('work.divide.waiting', { count: o.waiting }) : o.waiting > 1 ? `${why} ${t('work.divide.more', { count: o.waiting - 1 })}` : why;
+}

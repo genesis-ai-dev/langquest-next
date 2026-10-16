@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="board-token" content="__BOARD_TOKEN__">
 <title>v2 → Next transfers</title>
 <style>
   :root {
@@ -215,7 +216,9 @@ function toast(text) { const t = $('#toast'); t.textContent = text; t.classList.
 
 // ---- reading -----------------------------------------------------------------------
 async function api(path, body) {
-  const res = await fetch(path, body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {});
+  // The server wrote this run's token into the page; without it every call is refused.
+  const token = document.querySelector('meta[name="board-token"]')?.content ?? '';
+  const res = await fetch(path, body ? { method: 'POST', headers: { 'content-type': 'application/json', 'x-board-token': token }, body: JSON.stringify(body) } : { headers: { 'x-board-token': token } });
   const out = await res.json();
   if (!res.ok) throw new Error(out.error || res.status);
   return out;

@@ -13,21 +13,23 @@ export function StudyPrefetch(props: { ctx: Ctx }) {
   const state = ctx.language.state;
   const kept = ctx.language.blobs.keptUnits;
   const me = ctx.session.actorId;
-  let key = '';
-  if (state && STUDY_FILES_OFFLINE) {
+  // Worked out when the fold, the person or the kept units change, not on every render of the app root.
+  const key = useMemo(() => {
+    if (!state || !STUDY_FILES_OFFLINE) return '';
     const scope = defaultOfflineScope(state, me);
     for (const u of kept) scope.add(u);
-    key = [...scope].sort().join(',');
-  }
+    return [...scope].sort().join(',');
+  }, [state, me, kept]);
   // Keyed by the scope's members, so a new fold with the same scope finds the same guides.
   const unitIds = useMemo(() => (key ? key.split(',') : []), [key]);
   const guides = useStudyGuides(ctx, unitIds);
   const online = ctx.language.online !== false;
+  const { orgId, languageId } = ctx.language;
   useEffect(() => {
     if (!STUDY_FILES_OFFLINE) return;
     const next = new Map<string, string[]>();
     for (const [unitId, guide] of guides) next.set(unitId, studyUrls(guide));
-    setStudyWanted(next, online);
-  }, [guides, online]);
+    setStudyWanted(next, online, { orgId, languageId });
+  }, [guides, online, orgId, languageId]);
   return null;
 }

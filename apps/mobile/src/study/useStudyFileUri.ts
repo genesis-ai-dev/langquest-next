@@ -5,10 +5,12 @@
 // guide editor puts them); until it arrives, or if it cannot, the URL stands
 // in when there is one.
 import { ORG_STREAM } from '@langquest-next/core';
+import { classifyTransferFailure } from '@langquest-next/sync';
 import { useEffect, useState } from 'react';
 import { getBlobStore, isStoredFormat, type BlobStore, type StoredFile } from '../sync/blobs';
 import { downloadBlob } from '../server/blobTransport';
 import { noteExpected } from '../diagnostics/report';
+import { timedTransfer } from '../diagnostics/diagnostics';
 import type { StudyFile } from './guides';
 
 /** Downloads under way, by hash, so two screens asking for one file fetch it once. */
@@ -22,13 +24,17 @@ function storedFileOf(file: StudyFile | undefined): StoredFile | null {
   return file && isStoredFormat(file.format) ? { hash: file.hash, format: file.format } : null;
 }
 
-/** Fetch a guide file into the blob store from the organization's guide files. */
+/** Fetch a guide file into the blob store from the organization's guide files, tallied as a `guide` download of the organization. */
 function fetchGuideFile(orgId: string, ref: StoredFile, store: BlobStore): Promise<void> {
   const last = failedAt.get(ref.hash);
   if (last && Date.now() - last < RETRY_MS) return Promise.reject(new Error('Not available yet.'));
   let p = inflight.get(ref.hash);
   if (!p) {
-    p = downloadBlob(orgId, ORG_STREAM, ref, store)
+    p = timedTransfer('down', { orgId, streamId: ORG_STREAM, src: 'guide' }, async (timings) => {
+      await downloadBlob(orgId, ORG_STREAM, ref, store, timings);
+      return store.sizeOf(ref.hash) ?? 0;
+    })
+      .then(() => undefined)
       .catch((e: unknown) => { failedAt.set(ref.hash, Date.now()); throw e; })
       .finally(() => inflight.delete(ref.hash));
     inflight.set(ref.hash, p);
@@ -65,7 +71,7 @@ export function useStudyFileUri(orgId: string | null | undefined, file: StudyFil
     let live = true;
     fetchGuideFile(orgId, ref, store).catch((e: unknown) => {
       // Offline, or a file another organization keeps: the URL (or a stand-in) is shown instead.
-      noteExpected('guide file: fetch', e);
+      noteExpected('guide file: fetch', e, classifyTransferFailure(e));
       if (live) setFailed(true);
     });
     return () => { live = false; };

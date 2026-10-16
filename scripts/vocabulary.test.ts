@@ -27,7 +27,8 @@ const ALLOWED: { path: string; words: RegExp; why: string }[] = [
   { path: 'scripts/linear-sync', words: /^lanes?$/i, why: 'deploy lanes (iOS, Android), not languages' },
   { path: 'supabase/migrations/20261006000001_schedule_projections.sql', words: /^partition$/i, why: 'unscheduling the job by its old name' },
   { path: 'supabase/migrations/20261009000000_languoids.sql', words: /^(partition|projects)$/i, why: 'SQL window clauses (partition by), and the v2 projects whose languages it keeps' },
-  { path: 'packages/sync/src/sqliteStore.ts', words: /^lane$/i, why: 'dropping a table older apps made' }
+  { path: 'packages/sync/src/sqliteStore.ts', words: /^lane$/i, why: 'dropping a table older apps made' },
+  { path: 'server/delete-account-smoke.sql', words: /^projects$/, why: "v2_import.arrivals' column of v2 projects" }
 ];
 
 function files(path: string): string[] {
