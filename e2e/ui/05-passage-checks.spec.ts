@@ -375,10 +375,11 @@ test('PASS-049 Add details: where, on this passage only (decision 128)', async (
   await openTeamRow(page, 'Peer check');
   await sheet(page).getByRole('button', { name: 'Already happened' }).first().click();
   await text(page, 'Add details').click();
-  const details = await sheetText(page);
-  expect(details).toContain('Evidence · optional');
+  // Section labels show in capitals, so the sheet is read without case.
+  const details = (await sheetText(page)).toLowerCase();
+  expect(details).toContain('record a retelling');
   // A review goes on its own passage: the session's other passages each get theirs there.
-  expect(details).not.toContain('Also covered in this session');
+  expect(details).not.toContain('also covered in this session');
   await closeSheet(page);
   await byId(page, 'header-close').click();
   const v1 = (await passageAs(world(), 'TRANS', s)).latest!.takeId;
