@@ -56,11 +56,14 @@ tags:
       text: "Part 3, no verse yet"
     direction: DOWN
     duration: 1500
+# No toast (decision 133): the spaces show the verses, and one Undo takes the slide back.
 - extendedWaitUntil:
-    visible: "3 parts numbered\\..*"
+    notVisible: "Part 3, no verse yet"
     timeout: 5000
+- assertNotVisible:
+    id: "toast"
 - assertVisible:
-    id: "toast-undo"
+    id: "undo"
 - assertNotVisible: "Part 3, no verse yet"
 - assertNotVisible: "Part 4, no verse yet"
 - assertNotVisible: "Part 5, no verse yet"

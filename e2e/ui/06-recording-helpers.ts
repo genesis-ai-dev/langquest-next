@@ -218,7 +218,7 @@ export const verseSpace = (page: Page, n: number): Locator =>
  * until the sheet opens, not for a fixed time: on a busy page (a part just recorded, the list
  * settling) the timer that turns a press into a hold runs late, so a press let go at the threshold
  * lands as a tap and gives the part a verse instead (JRN-002 failed so in CI). A press that lands
- * as a tap anyway is undone with its toast's Undo, and held again.
+ * as a tap anyway is undone with the footer's Undo, and held again.
  */
 export async function holdPart(page: Page, n: number): Promise<void> {
   // The hold sheet's own tool ("None"): every part row has its own "Delete Part n" too.
@@ -233,11 +233,15 @@ export async function holdPart(page: Page, n: number): Promise<void> {
     await sheet.waitFor({ state: 'visible', timeout: 5_000 }).catch(() => undefined);
     await page.mouse.up();
     if (await sheet.waitFor({ state: 'visible', timeout: 3_000 }).then(() => true, () => false)) return;
-    const undo = byId(page, 'toast-undo');
-    if (await undo.isVisible().catch(() => false)) await undo.click();
+    const undo = undoButton(page);
+    if (await undo.isEnabled().catch(() => false)) await undo.click();
   }
   await expect(sheet, 'holding the part opens its sheet').toBeVisible();
 }
+
+/** Undo and Redo by the red button (Caleb, 2026-10-16). */
+export const undoButton = (page: Page): Locator => byId(page, 'undo');
+export const redoButton = (page: Page): Locator => byId(page, 'redo');
 
 /** Delete a part as a person does: the bin at the end of its row (LAN-83). */
 export async function deletePart(page: Page, n: number): Promise<void> {
