@@ -44,6 +44,8 @@ tags:
     timeout: 30000
 - tapOn:
     id: "record-button"
+# Stop keeps the session open (decision 127): Done leaves it and saves its parts.
+- tapOn: "Done"
 # The microphone permission prompt, the first time only.
 - runFlow:
     when:

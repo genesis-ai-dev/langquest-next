@@ -41,6 +41,9 @@ async function backTranslateOnePart(page: Page): Promise<void> {
   // The microphone's voice file speaks 1.5 s in every 4 s; the takeover covers the parts while it records.
   await page.waitForTimeout(10_000); // sleep: the recorder shows no part until it stops, so only the voice file's loop length says when one was said
   await button(page, 'Stop recording').click();
+  // Stopped, the session is still open (decision 128): its Done keeps the pieces, then the footer's Done sends the back translation on.
+  await button(page, 'Done').click();
+  await expect(text(page, 'Stopped')).toHaveCount(0);
   await expect(button(page, 'Done'), 'a part was said').toBeEnabled({ timeout: 45_000 });
   await button(page, 'Done').click();
   await expect(byId(page, 'sheet')).toBeVisible();

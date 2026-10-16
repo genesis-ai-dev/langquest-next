@@ -78,9 +78,14 @@ export class RecordingJournal {
    * unrecoverable leave the journal. The caller notes each failure for field
    * diagnostics (useLanguage.ts); the journal counts those still waiting.
    */
-  async resume(language: { orgId: string; languageId: string }, deps: Omit<ResumeDeps, 'save' | 'fileExists'>): Promise<ResumeResult> {
-    const result = await resumeEntries([...(await this.all())], language, {
-      ...deps,
+  async resume(language: { orgId: string; languageId: string },
+    deps: Omit<ResumeDeps, 'save' | 'fileExists'> & { deleteChunk?: (uri: string) => void }): Promise<ResumeResult> {
+    // A session still open on this screen is not interrupted: its parts are cut when it is left (useRecorder).
+    const entries = (await this.all()).filter((e) => !liveParts.has(e.id));
+    const chunks = new Set(entries.flatMap((e) => (e.range ? [e.uri] : [])));
+    const { deleteChunk, ...rest } = deps;
+    const result = await resumeEntries([...entries], language, {
+      ...rest,
       // On the web a recording's blob: URL does not outlive the page. Once
       // ingested its bytes are in the browser's files (blobs.ts) and it
       // resumes by hash above this check; before that, a reload loses it.
@@ -89,9 +94,15 @@ export class RecordingJournal {
     });
     for (const { id } of result.failed) this.failedIds.add(id);
     for (const id of [...result.resumed, ...result.dropped]) await this.remove(id);
+    // A session chunk whose parts are all cut is no longer needed.
+    const still = new Set((await this.all()).flatMap((e) => (e.range ? [e.uri] : [])));
+    for (const uri of chunks) if (!still.has(uri)) deleteChunk?.(uri);
     return result;
   }
 }
+
+/** Parts of a recording session open right now: theirs is not an interrupted save, so recovery leaves them. */
+export const liveParts = new Set<string>();
 
 let journal: RecordingJournal | undefined;
 export function getRecordingJournal(): RecordingJournal {

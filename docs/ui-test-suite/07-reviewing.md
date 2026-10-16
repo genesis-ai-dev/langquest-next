@@ -642,7 +642,7 @@ Preconditions:
 Steps:
 1. Tap the player's play button and listen to part 1.
 2. Tap "Record part 1". Speak for 4 seconds, pause 2 seconds, speak for 3 seconds, pause 2 seconds.
-3. Tap "Stop recording".
+3. Tap "Stop recording", then "Done".
 4. For each remaining part, listen, then record it the same way.
 5. Tap "Done".
 6. In the sheet, type "The word for 'salt' has no match" under "Anything that was hard to say back? Optional".
@@ -652,6 +652,7 @@ Expected:
 - While recording, the bottom shows the red recording view (decision 124, the workspace's too): "Part 1", a pulsing dot and its status, the elapsed time (accessibility label "Recorded for 0:07"), a check "Done", and the live waveform. Its label reads "Part 1. Recording…" while speaking and "Part 1. Listening for you · pause between parts" while silent.
 - Every piece said in one recording goes to the part it started on, however many pauses it has.
 - The footer shows "Stop recording". (The sensitivity line and the pause choices went in decision 124, with the recording thread's levels learned as you speak.)
+- After "Stop recording" the session is still open (decision 127): the pane says "Stopped" and its pieces are boxes to hear, move or drop; "Done" keeps them.
 - After step 3 Part 1 reads "0:07 in English · record to add more", with "Play your part 1", "Hear what you said" and a trash button "Delete part 1 to say it again". Focus moves to Part 2 ("Saying it next").
 - Said parts that are not open read "0:07 in English".
 - "Done" is enabled after the first part is said.

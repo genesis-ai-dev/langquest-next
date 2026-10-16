@@ -57,6 +57,10 @@ tags:
     timeout: 30000
 - tapOn:
     id: "record-button"
+# Stop keeps the session open (decision 127): Done leaves it and saves its parts.
+- tapOn: "Done"
+# Stop keeps the session open (decision 127): Done leaves it and saves its parts.
+- tapOn: "Done"
 - tapOn:
     id: "publish-button"
 - tapOn: "Send later"

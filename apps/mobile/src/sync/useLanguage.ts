@@ -5,6 +5,7 @@ import { downloadBlob, streamUrl, uploadBlob } from '../server/blobTransport';
 import { diagnostics, flushDiagnostics, registerDeviceProbe, timedTransfer, type TransferTimings } from '../diagnostics/diagnostics';
 import { noteExpected, reportError } from '../diagnostics/report';
 import { getRecordingJournal } from '../recording/recordingJournal';
+import { cutWav, deleteRecorderFile } from '../audio/wavCut';
 import { isRecording } from '../recording/recorderState';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -205,6 +206,9 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
       // Idempotent by recordingId; runs after the workers so the upload
       // pass sees the recovered card.
       const resumed = await getRecordingJournal().resume({ orgId, languageId }, {
+        // A session part the app never got to leave is cut from its chunk as its box last stood (LAN-82).
+        cut: cutWav,
+        deleteChunk: (uri) => { try { deleteRecorderFile(uri); } catch (e) { noteExpected('recording recovery: delete chunk', e); } },
         blobExists: (hash, format) => files.exists({ hash, format }),
         ingest: async (uri, format, beforeMove) => {
           const { ref, size } = await files.ingest(uri, format, (ref, size) => beforeMove(ref.hash, size));

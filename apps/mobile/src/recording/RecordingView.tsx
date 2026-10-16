@@ -2,10 +2,12 @@
 // divider turns into the recording view, red from start to stop, as the
 // back translation's was (the VadTakeover panel it replaces). Its top row says what is being
 // recorded (the part, and its verses when it is said again in a deleted
-// part's place) and has a check, Done, that stops, keeps every part and goes
-// back to the parts; the
+// part's place) and has a check, Done, that leaves the session, keeping
+// every part as its box stands, and goes back to the parts; the
 // rest is the live waveform, each kept part boxed and numbered as it is
-// said (LiveParts.tsx, the "Recordings getting cut off" thread's). Stop stays in the footer. The reference above
+// said (LiveParts.tsx, the "Recordings getting cut off" thread's). Stop stays in the footer,
+// and stopping keeps the session open (LAN-82): the boxes can be heard,
+// moved and dropped until Done, and the big button carries on recording. The reference above
 // stays readable and playable. While the Bible plays the microphone is
 // paused: the pane turns pale and says so, with Resume now.
 import { useEffect, useRef, useState, type ReactNode } from 'react';
@@ -84,23 +86,27 @@ export function RecordingView(props: {
   onLeave: () => void; onResume: () => void;
 }) {
   const { rec } = props;
-  const [firstPart] = useState(props.partNumber);
   const listening = props.phase === 'listening';
-  const capturing = rec.vadCapturing && !listening;
+  const stopped = props.phase === 'stopped';
+  const capturing = rec.vadCapturing && props.phase === 'recording';
   const fg = listening ? TINT.redText : C.white;
-  const status = listening ? t('recording.recorder.pausedForBible') : capturing ? t('recording.recorder.recordingNow') : t('recording.recorder.listeningPause');
+  const status = listening ? t('recording.recorder.pausedForBible') : stopped ? t('recording.recorder.stopped')
+    : capturing ? t('recording.recorder.recordingNow') : t('recording.recorder.listeningPause');
+  // The waveform numbers the parts from where they go; a part recorded into a gap changes that, until the first is said.
+  const session = rec.session;
+  useEffect(() => { session?.setFirst(props.partNumber); }, [session, props.partNumber]);
   const resume = useHelpSpot(t('recording.resumeNow'), t('recording.vad.resumeHelp'), listening ? props.onResume : undefined);
   return (
     <View style={[styles.panel, { backgroundColor: listening ? TINT.red : capturing ? C.red : TINT.redText }]}>
       <View style={styles.head}>
         {props.tile ? <View style={styles.tile}>{props.tile}</View> : null}
-        <HelpInfo style={{ flex: 1, minWidth: 0 }} label={`${props.title}. ${status}`} detail={listening ? t('recording.vad.statusPausedHelp') : t('recording.recorder.nextRecordingHelp')}>
+        <HelpInfo style={{ flex: 1, minWidth: 0 }} label={`${props.title}. ${status}`} detail={listening ? t('recording.vad.statusPausedHelp') : stopped ? t('recording.recorder.stoppedHelp') : t('recording.recorder.nextRecordingHelp')}>
           <View accessible accessibilityLabel={t('recording.recorder.nextLabel', { part: props.title, status })}>
             <Text style={[styles.title, { color: fg }]} numberOfLines={1}>{props.title}</Text>
           </View>
           {/* Read politely as it changes, with how many are kept so far (the waveform's boxes show it; screen readers hear it). */}
           <View style={styles.statusRow} accessible accessibilityLiveRegion="polite" accessibilityLabel={loopStatus(props.phase, rec.vadCapturing, props.count, props.noun)}>
-            {listening ? <Ico name="pause" size={14} color={fg} /> : <PulsingDot on={capturing} />}
+            {listening ? <Ico name="pause" size={14} color={fg} /> : stopped ? <View style={styles.stop} /> : <PulsingDot on={capturing} />}
             <Text style={[styles.status, { color: fg }]} numberOfLines={1}>{status}</Text>
           </View>
         </HelpInfo>
@@ -119,7 +125,8 @@ export function RecordingView(props: {
         </View>
       ) : (
         <View style={styles.wave}>
-          <LiveParts rec={rec} firstPart={firstPart} tone="onRed" />
+          {/* Stopped, the status row's help says what the boxes do. */}
+          <LiveParts session={session} tone="onRed" paused={rec.vadPaused} editing={stopped} onDrop={rec.dropPart} onMoved={rec.notePart} />
         </View>
       )}
       {rec.error ? <Text style={styles.error} accessibilityRole="alert">{rec.error}</Text> : null}
@@ -140,5 +147,6 @@ const styles = StyleSheet.create({
   resumeLabel: { color: C.white, fontSize: T.sm, fontWeight: '700' },
   error: { color: C.white, fontSize: T.sm, textAlign: 'center' },
   dot: { width: 10, height: 10, borderRadius: radius.full, backgroundColor: C.white },
+  stop: { width: 10, height: 10, borderRadius: 2, backgroundColor: C.white },
   time: { fontSize: T.lg, fontWeight: '700', fontVariant: ['tabular-nums'] }
 });

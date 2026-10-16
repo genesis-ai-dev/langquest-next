@@ -532,6 +532,8 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const targetN = targetNumber(rows, target);
   rowsRef.current = rows;
   const nextIndex = targetN - 1;
+  // While a session is open its parts are not in the list yet (LAN-82): the next one's number is the session's.
+  const sessionIndex = (rec.sessionNext ?? targetN) - 1;
   // The verses the next part takes, for the recording view's title.
   const targetLabel = target.kind === 'over' ? verseLabels[target.index] ?? null
     : target.kind === 'gap' ? (rows.find((r) => r.kind === 'gap' && r.before === target.before) as { label: PartLabel | null } | undefined)?.label
@@ -569,7 +571,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       header={<Header title={v.title} sub={recordingSub} crumbs={passageCrumbs(ctx, v, screenTitle('workspace'))} onBack={ctx.back} close
         action={<SavedMark status={savedStatus} help={t('saved.draftHelp')} />} />}
       footer={recorderLine ? undefined : (
-        <RecorderFooter count={list.length} nextIndex={nextIndex} phase={loop.phase} recordDisabled={saving || rec.failureCount > 0}
+        <RecorderFooter count={list.length} nextIndex={sessionIndex} phase={loop.phase} recordDisabled={saving || rec.failureCount > 0}
           publishDisabled={!changed || blocked || rec.failureCount > 0} onRecord={record} onPublish={() => setConfirming(true)} />
       )}>
       <SplitPane memoryKey="workspace" minBottom={session ? MIN_BOTTOM_RECORDING : MIN_BOTTOM} onFraction={setSplit}
@@ -610,7 +612,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
         )}
         bottom={({ compact, open, height, room }) => session ? (
           // While recording, the pane is the recording view: what is being said, the waveform, and an X back to the parts.
-          <RecordingView rec={rec} phase={loop.phase} title={partLabel(nextIndex)} partNumber={targetN} count={list.length} noun="part" onLeave={record} onResume={loop.resumeNow}
+          <RecordingView rec={rec} phase={loop.phase} title={partLabel(sessionIndex)} partNumber={targetN} count={list.length + rec.sessionKept} noun="part" onLeave={() => void loop.finish()} onResume={loop.resumeNow}
             {...(slotTile ? { tile: slotTile } : {})} />
         ) : compact ? (
           <RecorderBar count={list.length} nextIndex={nextIndex} phase={loop.phase} disabled={saving || rec.failureCount > 0} onRecord={record} onOpen={open} />
