@@ -106,10 +106,10 @@ export function QuestionCard(props: { question: SourcedQuestion; asker?: string 
       <SpeakBtn text={q.q.text} />
       <View style={{ flex: 1, minWidth: 0, gap: space.xs }}>
         <Text style={styles.qText} accessibilityRole="header">{q.q.text}</Text>
-        {q.required || q.source !== 'org' ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.sm }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.sm }}>
           {q.required ? <Badge label={t('common.required')} tone="brand" /> : null}
-          {q.source !== 'org' ? <Text style={txt.xs}>{questionSource(q, props.asker)}</Text> : null}
-        </View> : null}
+          <Text style={txt.xs}>{questionSource(q, props.asker)}</Text>
+        </View>
       </View>
     </View>
   );

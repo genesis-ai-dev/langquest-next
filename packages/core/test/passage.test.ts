@@ -5,7 +5,7 @@ import { applyLanguageEvent, foldLanguage as fold } from '../src/reducer';
 import { referencedBlobs } from '../src/blobs';
 import { emptyLanguageState as emptyState, type LanguageState } from '../src/state';
 import {
-  deriveFlow, deriveKinds, derivePassage, highlightsFor, languageProgress, passageSummary,
+  deriveFlow, deriveKinds, derivePassage, formatQuestionField, highlightsFor, languageProgress, passageSummary,
   questionsForKind, recordTimeline, reviewGrid, studyMarksFor, unitPlace, unitsAskedOf, upNext, updatesFor, waitingOn
 } from '../src/passage';
 import { flowTemplate, instantiateFlow } from '../src/record';
@@ -375,11 +375,23 @@ describe('passage record', () => {
 
   it('questions come as one list labelled by source, the asker’s last', () => {
     const p = language();
+    p.run('lead', (c) => c.defineMaterial({ commandId: 'm', materialId: 'questions-ours', kind: 'questions', title: 'Community check questions', scope: { stepId: 'community' },
+      fields: [{ fieldId: 'q1', text: formatQuestionField({ text: 'Did it make sense?', type: 'yesno' }) }] }));
     p.run('akol', (c) => c.ask({ commandId: 'ask', unitId: 'john3', what: 'review', kindId: 'community', profileId: 'ayen', questions: [{ id: 'own', text: 'Did the children follow?', type: 'yesno', required: true }] }));
     const req = derivePassage(p.state(), 'john3').requests[0]!;
     const qs = questionsForKind(p.state(), 'community', req);
-    expect(qs[0]!.source).toBe('org');
+    expect(qs[0]).toMatchObject({ source: 'language', q: { text: 'Did it make sense?', type: 'yesno' } });
     expect(qs.at(-1)).toMatchObject({ source: 'request', required: true });
+  });
+
+  it('LangQuest’s ready-made checks come with no questions', () => {
+    // Why (LAN-85): a team writes its own questions on each check; LangQuest's
+    // English ones could not be changed, and every team got them.
+    const p = language();
+    for (const f of ['standard_bible', 'spoken_oral']) {
+      p.useFlow(f);
+      for (const k of deriveFlow(p.state()).steps.flatMap((st) => st.kindIds)) expect(questionsForKind(p.state(), k), `${f} ${k}`).toEqual([]);
+    }
   });
 
   it('places units by book and chapter for the Map', () => {

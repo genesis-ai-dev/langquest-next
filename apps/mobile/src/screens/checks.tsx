@@ -207,7 +207,7 @@ export function CheckEditor(ctx: Ctx) {
           const type = questionTypes().find((x) => x.id === sq.q.type)?.label ?? '';
           return (
             <Row key={sq.q.id} icon="chat" label={sq.q.text}
-              sub={[type, sq.required ? t('common.required') : '', sq.source === 'org' ? t('checks.fromLangQuest') : ''].filter(Boolean).join(' · ')} help={t('checks.editQuestionHelp')}
+              sub={[type, sq.required ? t('common.required') : ''].filter(Boolean).join(' · ')} help={t('checks.editQuestionHelp')}
               {...(editable ? { onPress: () => setQuestion({ materialId: materialId!, fieldId: fieldId!, text: sq.q.text, type: sq.q.type, required: sq.required }) } : {})} />
           );
         })}

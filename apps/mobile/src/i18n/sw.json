@@ -3668,7 +3668,6 @@
         "question": "Swali"
       },
       "questionFrom": {
-        "org": "Shirika",
         "language": "Lugha",
         "request": "Imeombwa kwa ukaguzi huu"
       },
@@ -4048,7 +4047,8 @@
       "askSpecificHelp": "Andika swali ili walijibu, kisha uliongeze.",
       "answerTypeHelp": "Hubadilisha jinsi wanavyojibu: ndiyo au hapana, kwa maneno, au 1 hadi 5.",
       "addQuestionHelp": "Huongeza swali lako kwenye yale wanayojibu.",
-      "removeQuestionHelp": "Huondoa swali hili."
+      "removeQuestionHelp": "Huondoa swali hili.",
+      "openCheckHelp": "Hufungua {{check}}, ambapo unabadilisha maswali yake."
     },
     "resources": {
       "sourceAudio": "Sauti ya chanzo"
@@ -5787,7 +5787,6 @@
       "saidAloud": "Imesemwa kwa sauti · {{time}} · rekodi {{n}}",
       "typedAndSaidAloud": "{{typed}} (imesemwa kwa sauti · {{time}} · rekodi {{n}})",
       "source": {
-        "org": "Shirika",
         "language": "Timu ya lugha",
         "fromName": "Kutoka kwa {{name}}",
         "fromWhoeverAsked": "Kutoka kwa aliyeomba"
@@ -6893,7 +6892,6 @@
     "questionSaved": "Swali limehifadhiwa",
     "questionRemoved": "Swali limeondolewa",
     "questionsTitle": "Maswali ya {{check}}",
-    "fromLangQuest": "Kutoka LangQuest",
     "noQuestions": "Hakuna maswali",
     "addHelp": "Ongeza kisaidizi",
     "removeHelp": "Ondoa {{name}} kwenye ukaguzi huu",

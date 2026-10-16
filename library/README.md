@@ -21,8 +21,9 @@ and publishes them; `docs/library.md` explains items, versions and documents.
 | `fia/demo_*.study.json` | Luke 15:11–32 and John 3:1–21, written for the partner demo in FIA's format (their notes are the demo's, not FIA's) | Converted from the app's former `src/study/fia.ts`; `versification` names a code, which the seed turns into a hash. |
 
 Built from core as well: the flows (`FLOWS` and `DEFAULT_KINDS` in
-`packages/core/src/record.ts`), the question sets (`QUESTION_TEMPLATES` in
-`catalog.ts`) and the FIA passage list (`FIA_PERICOPES`).
+`packages/core/src/record.ts`) and the FIA passage list (`FIA_PERICOPES`).
+LangQuest publishes no question sets: a team writes its own on each check
+(LAN-85).
 
 ## What it publishes
 
@@ -46,7 +47,6 @@ Item ids are `langquest.<kind>.<slug>`:
   `langquest.template.*` items above are kept as they are for the languages
   that use them.
 - `langquest.flow.<id>`: each core flow, carrying the review kinds it uses.
-- `langquest.questions.<id>`: each question set, for its review kind.
 - `langquest.fia.<language>`: "FIA study guides (English)" and so on, one
   collection per language FIA renders, whose entries are `study@1`
   documents made by `scripts/fia-adapter.ts`, numbered in English.

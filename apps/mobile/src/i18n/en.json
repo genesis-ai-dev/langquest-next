@@ -3668,7 +3668,6 @@
         "question": "Question"
       },
       "questionFrom": {
-        "org": "Organization",
         "language": "Language",
         "request": "Asked for this review"
       },
@@ -4048,7 +4047,8 @@
       "askSpecificHelp": "Type a question for them to answer, then add it.",
       "answerTypeHelp": "Changes how they answer: yes or no, in words, or 1 to 5.",
       "addQuestionHelp": "Adds your question to the ones they answer.",
-      "removeQuestionHelp": "Takes this question off."
+      "removeQuestionHelp": "Takes this question off.",
+      "openCheckHelp": "Opens {{check}}, where you change its questions."
     },
     "resources": {
       "sourceAudio": "Source audio"
@@ -5787,7 +5787,6 @@
       "saidAloud": "Said aloud · {{time}} · recording {{n}}",
       "typedAndSaidAloud": "{{typed}} (said aloud · {{time}} · recording {{n}})",
       "source": {
-        "org": "Organization",
         "language": "Language team",
         "fromName": "From {{name}}",
         "fromWhoeverAsked": "From whoever asked"
@@ -6893,7 +6892,6 @@
     "questionSaved": "Question saved",
     "questionRemoved": "Question removed",
     "questionsTitle": "{{check}} questions",
-    "fromLangQuest": "From LangQuest",
     "noQuestions": "No questions",
     "addHelp": "Add a help",
     "removeHelp": "Take {{name}} off this check",

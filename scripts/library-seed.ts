@@ -8,7 +8,7 @@
  *
  * The official LangQuest organization (`langquest`) hosts the starters:
  * the six standard versifications, Bible and FIA templates, the standard
- * review flows, the question sets and FIA study material. All of it is built
+ * review flows and FIA study material. All of it is built
  * here from sources in `library/` and core, into documents named by the
  * SHA-256 of their canonical JSON, and the org events that publish them.
  *
@@ -36,8 +36,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isLocalUrl, LOCAL_URL, supabaseKey } from './local-supabase';
 import {
   bookOrder, canonicalJson, convertWay, DEFAULT_KINDS, encodeHlc, FIA_PERICOPES, FLOWS, kindOfDoc, missingMappings, numberingOf, ORG_STREAM, paratextMappings, parseRef,
-  QUESTION_TEMPLATES, USFM_BOOKS, usfmOf, validateDoc, withDeps,
-  type AnyEvent, type CollectionDoc, type FlowDoc, type LibraryDoc, type LibraryKind, type MaterialDoc, type StudyDoc,
+  USFM_BOOKS, usfmOf, validateDoc, withDeps,
+  type AnyEvent, type CollectionDoc, type FlowDoc, type LibraryDoc, type LibraryKind, type StudyDoc,
   type TemplateBook, type TemplateDocV1, type TemplateDocV2, type VersificationDoc
 } from '@langquest-next/core';
 import { FIA_ATTRIBUTION, fiaLanguages, fiaPericope, fiaStudyDoc } from './fia-adapter';
@@ -98,8 +98,6 @@ const NUMBERINGS: { id: string; from: string; name: string; short: string; descr
 const NT_FIRST = bookOrder('MAT');
 const NT_LAST = bookOrder('REV');
 
-/** The review kind each question set is for. */
-const QUESTION_KIND: Record<string, string> = { community_check: 'community', consultant_check: 'consultant' };
 
 interface SeedDocument {
   hash: string;
@@ -277,19 +275,7 @@ export function buildLibrary(opts: { fiaDirs?: string[]; examples?: boolean } = 
     } satisfies FlowDoc);
   }
 
-  // 4. Question sets.
-  for (const q of QUESTION_TEMPLATES) {
-    const reviewKindId = QUESTION_KIND[q.id];
-    if (!reviewKindId) throw new Error(`no review kind for question set ${q.id}`);
-    const kind = DEFAULT_KINDS.find((k) => k.id === reviewKindId)!;
-    publish(`langquest.questions.${q.id}`, q.name, `Questions to ask in a ${kind.name}.`, {
-      format: 'material@1', kind: 'questions', title: q.name, language: 'eng', reviewKindId,
-      questions: q.questions.map((x) => ({ id: x.id, text: x.text, type: x.type, required: false })),
-      deps: []
-    } satisfies MaterialDoc);
-  }
-
-  // 5. FIA study guides, one collection per language.
+  // 4. FIA study guides, one collection per language.
   const guides = new Map<string, { name: string; entries: { ref: string; title: string; doc: string }[] }>();
   const addGuide = (lang: string, langName: string, doc: StudyDoc) => {
     const g = guides.get(lang) ?? { name: langName, entries: [] };

@@ -233,10 +233,10 @@ for (const who of ['ADMIN', 'LADMIN'] as const) {
 test('SETUP-068 A check\'s questions', async ({ page }) => {
   const w = world();
   await checks(page, w, 'ADMIN');
-  // LangQuest's own questions for a community check come with it.
-  await expectOnScreen(page, /Community check .*\d+ questions/);
+  // LangQuest's checks come with no questions: a team writes its own on each check (LAN-85).
+  expect(await screenText(page)).toMatch(/Community check Anyone \d+ Consultant check/);
   await text(page, 'Community check').click();
-  await expectOnScreen(page, 'From LangQuest');
+  expect(await screenText(page)).toMatch(/Questions Add a question/i);
   await back(page).click();
   await text(page, 'Peer check').click();
   await text(page, 'Add a question').click();

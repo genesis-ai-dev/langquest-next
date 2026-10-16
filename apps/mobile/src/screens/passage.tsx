@@ -456,7 +456,8 @@ export function PassageRecord(ctx: Ctx) {
                 people={checkPeople(v.state, k.kindId).filter((id) => id !== me)} onPress={() => setAskKindId(k.kindId)} />
             ))}
             {/* With someone to send it to, the questions they'll answer, and more to add. With nobody yet, the button opens Someone else, which has them. */}
-            {can.ask && targets[nextKind.kindId] ? <TheyAnswer asked={questionsForKind(v.state, nextKind.kindId)} questions={askQuestions} setQuestions={setAskQuestions} /> : null}
+            {can.ask && targets[nextKind.kindId] ? <TheyAnswer asked={questionsForKind(v.state, nextKind.kindId)} questions={askQuestions} setQuestions={setAskQuestions}
+              {...(ctx.session.can('manage_flows') ? { check: { name: checkName(nextKind.kindId, kinds), open: () => ctx.go('check_editor', { languageId: v.languageId, kindId: nextKind.kindId }) } } : {})} /> : null}
           </View>
         ) : can.ask ? (
           <Text style={[txt.smMuted, { textAlign: 'center', marginTop: space.lg }]}>
@@ -1292,7 +1293,8 @@ export function AskSomeone(ctx: Ctx) {
       <VoiceNote ctx={ctx} label={isRecord ? t('passage.ask.sayKeepInMind') : t('passage.ask.sayListenFor')} hash={noteHash} onChange={setNoteHash} />
       <Field value={note} onChangeText={setNote} placeholder={t('passage.ask.orTypeThem')} multiline />
 
-      {!isRecord ? <TheyAnswer asked={asked} questions={questions} setQuestions={setQuestions} /> : null}
+      {!isRecord ? <TheyAnswer asked={asked} questions={questions} setQuestions={setQuestions}
+        {...(kindId && ctx.session.can('manage_flows') ? { check: { name: model.check, open: () => ctx.go('check_editor', { languageId: v.languageId, kindId }) } } : {})} /> : null}
     </Screen>
   );
 }

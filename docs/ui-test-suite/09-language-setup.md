@@ -1386,7 +1386,9 @@ Steps:
 4. Open the question. Tap "Remove question".
 
 Expected:
-- LangQuest's own questions for the check show with "From LangQuest".
+- Community check comes with no questions (LangQuest's checks bring none,
+  LAN-85): its card shows no count, and Questions holds only "Add a
+  question".
 - The question sheet offers "Text", "Yes / No", "1–5" and "Required".
 - Toast "Question saved"; the row reads "Yes / No · Required"; the card
   says "1 question".

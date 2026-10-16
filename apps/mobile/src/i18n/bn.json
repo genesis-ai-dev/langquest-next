@@ -3668,7 +3668,6 @@
         "question": "প্রশ্ন"
       },
       "questionFrom": {
-        "org": "সংস্থা",
         "language": "ভাষা",
         "request": "এই পর্যালোচনার জন্য চাওয়া"
       },
@@ -4048,7 +4047,8 @@
       "askSpecificHelp": "তাদের উত্তর দেওয়ার জন্য একটি প্রশ্ন লিখুন, তারপর এটি যোগ করুন।",
       "answerTypeHelp": "তারা কীভাবে উত্তর দেবেন তা বদলায়: হ্যাঁ বা না, কথায়, অথবা ১ থেকে ৫।",
       "addQuestionHelp": "তারা যে প্রশ্নগুলোর উত্তর দেন, তাতে আপনার প্রশ্ন যোগ করে।",
-      "removeQuestionHelp": "এই প্রশ্নটি সরিয়ে দেয়।"
+      "removeQuestionHelp": "এই প্রশ্নটি সরিয়ে দেয়।",
+      "openCheckHelp": "{{check}} খোলে, যেখানে এর প্রশ্নগুলো বদলান।"
     },
     "resources": {
       "sourceAudio": "উৎসের অডিও"
@@ -5787,7 +5787,6 @@
       "saidAloud": "মুখে বলা · {{time}} · রেকর্ডিং {{n}}",
       "typedAndSaidAloud": "{{typed}} (মুখে বলা · {{time}} · রেকর্ডিং {{n}})",
       "source": {
-        "org": "সংস্থা",
         "language": "ভাষা দল",
         "fromName": "{{name}}-এর কাছ থেকে",
         "fromWhoeverAsked": "যিনি বলেছেন তার কাছ থেকে"
@@ -6893,7 +6892,6 @@
     "questionSaved": "প্রশ্ন সংরক্ষিত হয়েছে",
     "questionRemoved": "প্রশ্ন সরানো হয়েছে",
     "questionsTitle": "{{check}}-এর প্রশ্ন",
-    "fromLangQuest": "LangQuest থেকে",
     "noQuestions": "কোনো প্রশ্ন নেই",
     "addHelp": "একটি সহায়ক যোগ করুন",
     "removeHelp": "{{name}} এই যাচাই থেকে সরান",

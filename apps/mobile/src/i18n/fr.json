@@ -3785,7 +3785,6 @@
         "question": "Question"
       },
       "questionFrom": {
-        "org": "Organisation",
         "language": "Langue",
         "request": "Demandée pour cette révision"
       },
@@ -4174,7 +4173,8 @@
       "askSpecificHelp": "Tapez une question à laquelle ils répondront, puis ajoutez-la.",
       "answerTypeHelp": "Change la façon de répondre : oui ou non, avec des mots, ou de 1 à 5.",
       "addQuestionHelp": "Ajoute votre question à celles auxquelles ils répondent.",
-      "removeQuestionHelp": "Retire cette question."
+      "removeQuestionHelp": "Retire cette question.",
+      "openCheckHelp": "Ouvre {{check}}, où vous changez ses questions."
     },
     "resources": {
       "sourceAudio": "Audio source"
@@ -6032,7 +6032,6 @@
       "saidAloud": "Dit à voix haute · {{time}} · enregistrement {{n}}",
       "typedAndSaidAloud": "{{typed}} (dit à voix haute · {{time}} · enregistrement {{n}})",
       "source": {
-        "org": "Organisation",
         "language": "Équipe de la langue",
         "fromName": "De {{name}}",
         "fromWhoeverAsked": "De la personne qui a demandé"
@@ -7187,7 +7186,6 @@
     "questionSaved": "Question sauvegardée",
     "questionRemoved": "Question retirée",
     "questionsTitle": "Questions : {{check}}",
-    "fromLangQuest": "De LangQuest",
     "noQuestions": "Aucune question",
     "addHelp": "Ajouter une aide",
     "removeHelp": "Retirer {{name}} de cette vérification",

@@ -3668,7 +3668,6 @@
         "question": "ጥያቄ"
       },
       "questionFrom": {
-        "org": "ድርጅት",
         "language": "ቋንቋ",
         "request": "ለዚህ ግምገማ የተጠየቀ"
       },
@@ -4048,7 +4047,8 @@
       "askSpecificHelp": "የሚመልሱትን ጥያቄ ይጻፉ፣ ከዚያ ያክሉት።",
       "answerTypeHelp": "እንዴት እንደሚመልሱ ይቀይራል፦ አዎ ወይም አይ፣ በቃላት፣ ወይም ከ1 እስከ 5።",
       "addQuestionHelp": "ጥያቄዎን ከሚመልሷቸው ጥያቄዎች ጋር ያክላል።",
-      "removeQuestionHelp": "ይህን ጥያቄ ያስወግዳል።"
+      "removeQuestionHelp": "ይህን ጥያቄ ያስወግዳል።",
+      "openCheckHelp": "{{check}}ን ይከፍታል፤ ጥያቄዎቹን እዚያ ይቀይራሉ።"
     },
     "resources": {
       "sourceAudio": "የምንጩ ድምፅ"
@@ -5787,7 +5787,6 @@
       "saidAloud": "በድምፅ የተነገረ · {{time}} · ቀረጻ {{n}}",
       "typedAndSaidAloud": "{{typed}} (በድምፅ የተነገረ · {{time}} · ቀረጻ {{n}})",
       "source": {
-        "org": "ድርጅት",
         "language": "የቋንቋ ቡድን",
         "fromName": "ከ{{name}}",
         "fromWhoeverAsked": "ከጠየቀው ሰው"
@@ -6893,7 +6892,6 @@
     "questionSaved": "ጥያቄው ተቀምጧል",
     "questionRemoved": "ጥያቄው ተወግዷል",
     "questionsTitle": "{{check}} ጥያቄዎች",
-    "fromLangQuest": "ከLangQuest",
     "noQuestions": "ጥያቄ የለም",
     "addHelp": "አጋዥ ያክሉ",
     "removeHelp": "{{name}}ን ከዚህ ፍተሻ ያስወግዱ",

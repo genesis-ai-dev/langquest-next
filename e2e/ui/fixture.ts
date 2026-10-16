@@ -520,7 +520,7 @@ export async function buildWorld(opts: { welcomed?: boolean } = {}): Promise<UiW
   const record = audio(orgId, A);
   const id = () => randomUUID();
 
-  // COORD sets up the checks' people and the Consultant Check's question, then asks for recordings.
+  // COORD sets up the checks' people and the Consultant Check's questions (LangQuest's checks bring none), then asks for recordings.
   const coord = await languageClient(COORD, orgId, A);
   const checkKinds = [...new Set(Object.values(coord.state().flowSteps).flatMap((st) => st.value.kindIds))];
   const checkName: Record<string, string> = { peer: 'Peer check', bt: 'Back translation', community: 'Community check', consultant: 'Consultant check', final: 'Final approval' };
@@ -530,7 +530,12 @@ export async function buildWorld(opts: { welcomed?: boolean } = {}): Promise<UiW
   const questionSet = `questions-${randomUUID()}`;
   await coord.step((st) => commands(st).defineMaterial({
     commandId: id(), materialId: questionSet, kind: 'questions', title: `${checkName['consultant']} questions`, scope: { stepId: 'consultant' },
-    fields: [{ fieldId: 'q1', text: formatQuestionField({ text: CONSULTANT_QUESTION, type: 'yesno', required: true }) }]
+    fields: [
+      { fieldId: 'q1', text: formatQuestionField({ text: 'How well does this draft hold up against the source in the hardest verses?', type: 'rating' }) },
+      { fieldId: 'q2', text: formatQuestionField({ text: "Are the key terms aligned with the language's key terms list?", type: 'yesno' }) },
+      { fieldId: 'q3', text: formatQuestionField({ text: 'Notes for the translation team', type: 'text' }) },
+      { fieldId: 'q4', text: formatQuestionField({ text: CONSULTANT_QUESTION, type: 'yesno', required: true }) }
+    ]
   }));
   await coord.step((st) => commands(st).ask({ commandId: id(), unitId: unit('P-NEW'), what: 'record', profileId: TRANS.id }));
   for (const k of ['P-Q1', 'P-Q2', 'P-Q3', 'P-Q4'] as const) await coord.step((st) => commands(st).ask({ commandId: id(), unitId: unit(k), what: 'record', profileId: TRANS.id }));
@@ -583,7 +588,7 @@ export async function buildWorld(opts: { welcomed?: boolean } = {}): Promise<UiW
   await coord.done('pull reviews');
   await coord.step((st) => commands(st).depart({ commandId: id(), unitId: unit('P-ASIDE'), type: 'skip', kindId: 'community', reason: 'No community meeting this month' }));
   await coord.step((st) => commands(st).recordReview({ commandId: id(), takeIds: [take('P-DONE')], kindId: 'consultant', outcome: 'looks_good', via: 'app',
-    answers: { [`${questionSet}#q1`]: 'Yes' } }));
+    answers: { [`${questionSet}#q4`]: 'Yes' } }));
   await coord.step((st) => commands(st).recordReview({ commandId: id(), takeIds: [take('P-DONE')], kindId: 'final', outcome: 'looks_good', via: 'app' }));
   await coord.done('set aside, consultant and final approval');
 
@@ -601,7 +606,7 @@ export async function buildWorld(opts: { welcomed?: boolean } = {}): Promise<UiW
       C: { languageId: charlie.languageId, name: 'Charlie', orgId: org2Id }
     },
     passages,
-    consultantQuestionId: `${questionSet}#q1`,
+    consultantQuestionId: `${questionSet}#q4`,
     accounts: Object.fromEntries(ACCOUNT_KEYS.map((k) => [k, account(P[k])])) as Record<AccountKey, UiAccount>
   };
 }

@@ -110,7 +110,6 @@ describe('before an outcome can be sent (REV-2, REV-3)', () => {
   });
 
   it('labels questions by where they come from', () => {
-    expect(questionSource(q('x', false, 'org'))).toBe('Organization');
     expect(questionSource(q('x', false, 'language'))).toBe('Language team');
     expect(questionSource(q('x', false, 'request'), 'Mary')).toBe('From Mary');
   });
