@@ -40,4 +40,21 @@ android {
   lintOptions {
     abortOnError false
   }
+  // The speech model (models/README.md, decision 135) ships as an asset.
+  sourceSets {
+    main {
+      assets.srcDirs += ['../models']
+    }
+  }
+  // The model is already compressed weights: storing it as it is lets it load without inflating.
+  androidResources {
+    noCompress 'onnx'
+  }
+}
+
+dependencies {
+  // Runs the speech model (decision 135). Held at 1.22.0: from 1.29.0 ONNX Runtime starts Microsoft's
+  // telemetry at app launch (a content provider reading the device's Android ID, and the INTERNET
+  // permission), which the app's Play declarations rule out; 1.22.0 has none and is the smallest.
+  implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.22.0'
 }

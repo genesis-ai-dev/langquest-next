@@ -25,6 +25,12 @@ the test that creates it.
 - "The record" is the passage record (`passage_record`).
 - "Speak for N seconds" follows G8.
 - A "part" is one stretch of speech that voice detection kept by itself.
+  Voice detection asks a speech model whether the sound is speech (decision
+  135). The test microphones (G8's tone, the web suite's tones) are not
+  speech to it, so the web suites' builds leave the model out
+  (`NO_SPEECH_MODEL=1`) and parts follow the level alone. The phones always
+  carry the model: the flows tagged `voice` make no parts until G8 plays a
+  recorded voice.
 - `{TRANS-name}` and similar are the fixture accounts' display names.
 
 ---

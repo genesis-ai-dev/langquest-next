@@ -154,6 +154,18 @@ Recordings (decisions.md 106) are kept and uploaded as AAC (`.m4a`) on a
 phone instead of WAV: the same voice recordings in a smaller file, so the
 "Voice or sound recordings" answer is unchanged.
 
+The speech model (decisions.md 135) tells speech from noise while
+recording: Silero VAD, a 1.3 MB file in the app, run by ONNX Runtime on the
+phone (`onnxruntime-android` and `onnxruntime-objc` from the microphone
+module, `onnxruntime-web` on the web). It scores the sound as it is heard and
+keeps nothing of its own; it reads no files, sends nothing and needs no
+permission, so no Play Console answer changes. The phones' runtime is held
+at 1.22.0 on purpose: from 1.29.0 ONNX Runtime starts Microsoft's telemetry
+when the app launches (a content provider that reads the device's Android
+ID, with the INTERNET and ACCESS_NETWORK_STATE permissions), which would
+add "Device or other IDs", collected and shared with Microsoft. Check for it
+before raising the version.
+
 Bible text and audio (docs/reference-material.md, decisions.md 62) come
 from Faith Comes By Hearing's Bible Brain through our Worker, which holds the
 key and sends Bible Brain no user data; phones then download the audio from
@@ -207,7 +219,7 @@ this block.
     "@react-navigation/native-stack", "@supabase/supabase-js", "d3-geo", "expo", "expo-audio",
     "expo-camera", "expo-crypto", "expo-dev-client", "expo-file-system", "expo-keep-awake", "expo-localization", "expo-network",
     "expo-notifications", "expo-screen-orientation", "expo-secure-store", "expo-sqlite", "expo-status-bar", "expo-updates",
-    "i18n-iso-countries", "i18next", "lucide-react-native", "react", "react-dom", "react-i18next", "react-native", "react-native-qrcode-svg",
+    "i18n-iso-countries", "i18next", "lucide-react-native", "onnxruntime-web", "react", "react-dom", "react-i18next", "react-native", "react-native-qrcode-svg",
     "react-native-safe-area-context", "react-native-screens", "react-native-svg",
     "react-native-url-polyfill", "react-native-web", "topojson-client", "world-atlas"
   ],
