@@ -6787,11 +6787,9 @@
       "guide": "Panduan",
       "audio": "Audio",
       "text": "Teks",
-      "audioAndText": "Audio dan teks",
-      "hidden": "Disembunyikan",
-      "everyStep": "Semua langkah",
-      "fromSteps": "Dari",
-      "openHelp": "Membuka bagian mana yang mereka dapat."
+      "allOnHelp": "Aktif: mereka mendapat semuanya. Ketuk untuk menyembunyikan semuanya.",
+      "allOffHelp": "Mati: mereka tidak mendapat apa pun. Ketuk untuk menampilkan semuanya.",
+      "partLabel": "{{help}}: {{part}}"
     },
     "peopleOpenHelp": "Membuka siapa yang melakukan pemeriksaan ini.",
     "questionsOpenHelp": "Membuka pertanyaan yang mereka jawab.",

@@ -6787,11 +6787,9 @@
       "guide": "指南",
       "audio": "音频",
       "text": "文字",
-      "audioAndText": "音频和文字",
-      "hidden": "隐藏",
-      "everyStep": "每一步",
-      "fromSteps": "来自",
-      "openHelp": "打开他们能得到哪些。"
+      "allOnHelp": "已开启：他们能得到全部。点按可全部隐藏。",
+      "allOffHelp": "已关闭：他们什么都得不到。点按可全部显示。",
+      "partLabel": "{{help}}：{{part}}"
     },
     "peopleOpenHelp": "打开由谁做这项检查。",
     "questionsOpenHelp": "打开他们要回答的问题。",

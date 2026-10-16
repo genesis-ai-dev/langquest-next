@@ -94,14 +94,13 @@ function RecordEditor({ ctx }: { ctx: Ctx }) {
 }
 
 /**
- * One check, or one of its parts as a page of its own (`part`): its people,
- * its questions, and each help that has choices inside it (decisions.md 110).
+ * One check, or one of its parts as a page of its own (`part`): its people
+ * and its questions (decisions.md 110).
  */
 export function CheckEditor(ctx: Ctx) {
   const part = ctx.params['part'];
   if (part === 'people') return <PeoplePage ctx={ctx} />;
   if (part === 'questions') return <QuestionsPage ctx={ctx} />;
-  if (part === 'bible' || part === 'guide' || part === 'notes' || part === 'earlier') return <ShowsPage ctx={ctx} part={part} />;
   if (ctx.params['kindId'] === RECORD_STEP) return <RecordEditor ctx={ctx} />;
   return <OneCheck ctx={ctx} />;
 }
@@ -447,61 +446,6 @@ function QuestionsPage({ ctx }: { ctx: Ctx }) {
           </>
         ) : null}
       </Sheet>
-    </Screen>
-  );
-}
-
-/**
- * One help a step shows, on a page of its own (decisions.md 110): the Bible
- * or the guide as audio and text, or notes and earlier versions step by step.
- */
-function ShowsPage({ ctx, part }: { ctx: Ctx; part: 'bible' | 'guide' | 'notes' | 'earlier' }) {
-  const { state, kindId, known, i, name } = useCheck(ctx);
-  if (!state || (i < 0 && kindId !== RECORD_STEP)) return <Gone ctx={ctx} name={name} loading={!state} />;
-  const canEdit = ctx.session.can('manage_flows');
-  const shows = checkShows(state, kindId);
-  const title = part === 'bible' ? t('checks.shows.bible') : part === 'guide' ? t('checks.shows.guide') : part === 'notes' ? t('checks.shows.notes') : t('checks.shows.earlier');
-  async function set(what: ShownWhat, shown: boolean, from?: string) {
-    const s = ctx.language.state;
-    if (!s || !canEdit) return;
-    const commandId = Crypto.randomUUID();
-    const specs = checkShowsSpecs(s, { commandId, kindId, what, shown, ...(from !== undefined ? { from } : {}) });
-    if (!specs.length) return;
-    const undo = () => {
-      const now = ctx.language.state;
-      return now ? checkShowsSpecs(now, { commandId: `${commandId}:undo`, kindId, what, shown: !shown, ...(from !== undefined ? { from } : {}) }) : [];
-    };
-    await ctx.act(specs, t('checks.saved', { language: languageName(ctx.org.state, ctx.language.languageId) }), undo).catch(() => {});
-  }
-  if (part === 'bible' || part === 'guide') {
-    const audio: ShownWhat = part === 'bible' ? 'bibleAudio' : 'guideAudio';
-    const text: ShownWhat = part === 'bible' ? 'bibleText' : 'guideText';
-    return (
-      <Screen header={<Header title={title} sub={name} onBack={ctx.back} />}>
-        <Group>
-          <Row icon="listen" label={t('checks.shows.audio')} role="checkbox" checked={shows[audio]} right={<Tick on={shows[audio]} />}
-            help={shows[audio] ? t('checks.shows.onHelp') : t('checks.shows.offHelp')} onPress={() => void set(audio, !shows[audio])} />
-          <Row icon="book" label={t('checks.shows.text')} role="checkbox" checked={shows[text]} right={<Tick on={shows[text]} />} last
-            help={shows[text] ? t('checks.shows.onHelp') : t('checks.shows.offHelp')} onPress={() => void set(text, !shows[text])} />
-        </Group>
-      </Screen>
-    );
-  }
-  const steps = stepKeys(state);
-  return (
-    <Screen header={<Header title={title} sub={name} onBack={ctx.back} />}>
-      <SectionLabel label={t('checks.shows.fromSteps')} />
-      <Group>
-        {steps.map((step, j) => {
-          const on = shownFrom(state, kindId, part, step);
-          const label = step === RECORD_STEP ? t('checks.recording') : checkName(step, known);
-          return (
-            <Row key={step} leading={step === RECORD_STEP ? <View style={styles.mic}><Ico name="mic" size={18} color={C.white} /></View> : <KindIcon kindId={step} size={40} />}
-              label={label} role="checkbox" checked={on} right={<Tick on={on} />} last={j === steps.length - 1}
-              help={on ? t('checks.shows.onHelp') : t('checks.shows.offHelp')} onPress={() => void set(part, !on, step)} />
-          );
-        })}
-      </Group>
     </Screen>
   );
 }

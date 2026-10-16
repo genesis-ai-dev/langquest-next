@@ -7083,11 +7083,9 @@
       "guide": "መመሪያ",
       "audio": "ድምፅ",
       "text": "ጽሑፍ",
-      "audioAndText": "ድምፅና ጽሑፍ",
-      "hidden": "ተደብቋል",
-      "everyStep": "ሁሉም ደረጃዎች",
-      "fromSteps": "ከ",
-      "openHelp": "ከእሱ ምን እንደሚያገኙ ይከፍታል።"
+      "allOnHelp": "በርቷል፦ ሁሉንም ያገኛሉ። ሁሉንም ለመደበቅ ይንኩ።",
+      "allOffHelp": "ጠፍቷል፦ ምንም አያገኙም። ሁሉንም ለማሳየት ይንኩ።",
+      "partLabel": "{{help}}፦ {{part}}"
     },
     "peopleOpenHelp": "ይህን ፍተሻ የሚያደርጉትን ይከፍታል።",
     "questionsOpenHelp": "የሚመልሷቸውን ጥያቄዎች ይከፍታል።",

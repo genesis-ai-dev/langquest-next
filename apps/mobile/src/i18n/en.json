@@ -7083,11 +7083,9 @@
       "guide": "Guide",
       "audio": "Audio",
       "text": "Text",
-      "audioAndText": "Audio and text",
-      "hidden": "Hidden",
-      "everyStep": "Every step",
-      "fromSteps": "From",
-      "openHelp": "Opens which of it they get."
+      "allOnHelp": "On: they get all of it. Tap to hide all of it.",
+      "allOffHelp": "Off: they get none of it. Tap to show all of it.",
+      "partLabel": "{{help}} ({{part}})"
     },
     "peopleOpenHelp": "Opens who does this check.",
     "questionsOpenHelp": "Opens the questions they answer.",

@@ -7379,11 +7379,9 @@
       "guide": "Guía",
       "audio": "Audio",
       "text": "Texto",
-      "audioAndText": "Audio y texto",
-      "hidden": "Oculto",
-      "everyStep": "Todos los pasos",
-      "fromSteps": "De",
-      "openHelp": "Abre qué parte reciben."
+      "allOnHelp": "Activado: lo reciben todo. Toca para ocultarlo todo.",
+      "allOffHelp": "Desactivado: no reciben nada. Toca para mostrarlo todo.",
+      "partLabel": "{{help}}: {{part}}"
     },
     "peopleOpenHelp": "Abre quién hace esta revisión.",
     "questionsOpenHelp": "Abre las preguntas que responden.",

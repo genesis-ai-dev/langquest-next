@@ -7083,11 +7083,9 @@
       "guide": "Mwongozo",
       "audio": "Sauti",
       "text": "Maandishi",
-      "audioAndText": "Sauti na maandishi",
-      "hidden": "Imefichwa",
-      "everyStep": "Kila hatua",
-      "fromSteps": "Kutoka",
-      "openHelp": "Inafungua sehemu wanayopata."
+      "allOnHelp": "Imewashwa: wanapata yote. Gusa ili kuficha yote.",
+      "allOffHelp": "Imezimwa: hawapati chochote. Gusa ili kuonyesha yote.",
+      "partLabel": "{{help}}: {{part}}"
     },
     "peopleOpenHelp": "Inafungua anayefanya ukaguzi huu.",
     "questionsOpenHelp": "Inafungua maswali wanayojibu.",

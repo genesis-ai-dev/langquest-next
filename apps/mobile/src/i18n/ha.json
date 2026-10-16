@@ -7083,11 +7083,9 @@
       "guide": "Jagora",
       "audio": "Sauti",
       "text": "Rubutu",
-      "audioAndText": "Sauti da rubutu",
-      "hidden": "An ɓoye",
-      "everyStep": "Kowane mataki",
-      "fromSteps": "Daga",
-      "openHelp": "Yana buɗe abin da suke samu daga ciki."
+      "allOnHelp": "A kunne: suna samun duka. Taɓa don ɓoye duka.",
+      "allOffHelp": "A kashe: ba sa samun komai. Taɓa don nuna duka.",
+      "partLabel": "{{help}}: {{part}}"
     },
     "peopleOpenHelp": "Yana buɗe waɗanda ke yin wannan dubawa.",
     "questionsOpenHelp": "Yana buɗe tambayoyin da suke amsawa.",

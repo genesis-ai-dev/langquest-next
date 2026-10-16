@@ -8267,11 +8267,9 @@
       "guide": "الدليل",
       "audio": "صوت",
       "text": "نص",
-      "audioAndText": "صوت ونص",
-      "hidden": "مخفي",
-      "everyStep": "كل الخطوات",
-      "fromSteps": "من",
-      "openHelp": "يفتح ما يصلهم منه."
+      "allOnHelp": "مفعّل: يحصلون على كل شيء. اضغط لإخفاء الكل.",
+      "allOffHelp": "متوقف: لا يحصلون على شيء. اضغط لإظهار الكل.",
+      "partLabel": "{{help}}: {{part}}"
     },
     "peopleOpenHelp": "يفتح من يقوم بهذا الفحص.",
     "questionsOpenHelp": "يفتح الأسئلة التي يجيبون عنها.",

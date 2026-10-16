@@ -60,17 +60,3 @@ export function fromFilter(state: LanguageState, kindId: string, what: 'notes' |
 export function anyFrom(state: LanguageState, kindId: string, what: 'notes' | 'earlier'): boolean {
   return stepKeys(state).some((s) => shownFrom(state, kindId, what, s));
 }
-
-/** "Audio and text", "Audio", "Text" or "Hidden": what of the Bible or the guide a step gets. */
-export function mediaLine(audio: boolean, text: boolean): string {
-  return audio && text ? t('checks.shows.audioAndText') : audio ? t('checks.shows.audio') : text ? t('checks.shows.text') : t('checks.shows.hidden');
-}
-
-/** "Every step", "Hidden", or the steps whose notes or earlier versions a step gets: "Recording · Peer check". */
-export function stepsLine(state: LanguageState, kindId: string, what: 'notes' | 'earlier', nameOf: (kindId: string) => string): string {
-  const steps = stepKeys(state);
-  const on = steps.filter((s) => shownFrom(state, kindId, what, s));
-  if (on.length === steps.length) return t('checks.shows.everyStep');
-  if (on.length === 0) return t('checks.shows.hidden');
-  return on.map((s) => (s === RECORD_STEP ? t('checks.recording') : nameOf(s))).join(' · ');
-}
