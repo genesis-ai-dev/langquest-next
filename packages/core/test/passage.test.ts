@@ -227,6 +227,73 @@ describe('passage record', () => {
     expect(waitingOn(p.state(), 'akol')).toEqual([]);
   });
 
+  it('taking back a review opens its check again, reopens the request it answered, and keeps it in the history', () => {
+    // Why (LAN-84): a reviewer who approved by mistake had no way back, and the
+    // passage moved on as if the check had passed.
+    const p = language();
+    record(p, ['c1']);
+    p.run('akol', (c) => c.ask({ commandId: 'ask', unitId: 'john3', what: 'review', kindId: 'peer', profileId: 'ayen' }));
+    const v1 = derivePassage(p.state(), 'john3').latest!.takeId;
+    p.run('ayen', (c) => c.recordReview({ commandId: 'peer', takeIds: [v1], kindId: 'peer', outcome: 'looks_good', via: 'app', requestId: 'req:ask' }));
+    const reviewId = derivePassage(p.state(), 'john3').reviews[0]!.id;
+    expect(updatesFor(p.state(), 'akol').map((u) => u.kind).sort()).toEqual(['request_done', 'review']);
+
+    p.run('ayen', (c) => c.withdrawReviews({ commandId: 'undo', reviewIds: [reviewId] }));
+    const s = derivePassage(p.state(), 'john3');
+    expect(s.reviews).toEqual([]);
+    expect(s.withdrawnReviews.map((r) => [r.id, r.withdrawn.by])).toEqual([[reviewId, 'ayen']]);
+    expect(s.steps[0]!.kinds[0]!.state).toBe('asked');
+    expect(s.requests[0]!.status).toBe('open');
+    expect(highlightsFor(p.state(), 'ayen', { canRecord: false, canReview: true }).map((h) => h.request?.id)).toEqual(['req:ask']);
+    expect(updatesFor(p.state(), 'akol')).toEqual([]);
+  });
+
+  it('only a review\'s own author can take it back, whenever the withdrawal arrives', () => {
+    const p = language();
+    record(p, ['c1']);
+    const v1 = derivePassage(p.state(), 'john3').latest!.takeId;
+    // Someone else's withdrawal counts for nothing (the server refuses it too).
+    p.run('lead', (c) => c.withdrawReviews({ commandId: 'w0', reviewIds: ['rev:early'] }));
+    p.emit('ayen', 'v1.ReviewRecorded', { reviewId: 'rev:early', takeId: v1, kindId: 'peer', outcome: 'looks_good', via: 'app' });
+    expect(derivePassage(p.state(), 'john3').steps[0]!.kinds[0]!.state).toBe('approved');
+    // The author's own counts even when it reaches a phone before the review does.
+    const late = language();
+    record(late, ['c1']);
+    late.run('ayen', (c) => c.withdrawReviews({ commandId: 'w1', reviewIds: ['rev:late'] }));
+    late.emit('ayen', 'v1.ReviewRecorded', { reviewId: 'rev:late', takeId: v1, kindId: 'peer', outcome: 'looks_good', via: 'app' });
+    expect(derivePassage(late.state(), 'john3').steps[0]!.kinds[0]!.state).toBe('todo');
+  });
+
+  it('taking back feedback stops it waiting on the translator, and taking back a checkpoint locks the steps after it again', () => {
+    const p = language();
+    record(p, ['c1']);
+    const v1 = derivePassage(p.state(), 'john3').latest!.takeId;
+    p.run('ayen', (c) => c.recordReview({ commandId: 'peer', takeIds: [v1], kindId: 'peer', outcome: 'needs_changes', via: 'app', comment: 'Verse 3.' }));
+    const feedback = derivePassage(p.state(), 'john3').awaitingResponse;
+    expect(feedback).toHaveLength(1);
+    p.run('ayen', (c) => c.withdrawReviews({ commandId: 'w', reviewIds: [feedback[0]!.id] }));
+    expect(derivePassage(p.state(), 'john3').awaitingResponse).toEqual([]);
+
+    for (const kindId of ['peer', 'community', 'consultant']) {
+      p.run('ayen', (c) => c.recordReview({ commandId: `ok-${kindId}`, takeIds: [v1], kindId, outcome: 'looks_good', via: 'app' }));
+    }
+    p.run('ayen', (c) => c.produceContent({ commandId: 'bt', fromTakeId: v1, kindId: 'bt', cards: [{ hash: 'b1', durationMs: 4000, format: 'wav' }] }));
+    expect(derivePassage(p.state(), 'john3').steps[3]!.lockedBy).toBeUndefined();
+    const consultant = derivePassage(p.state(), 'john3').reviews.find((r) => r.kindId === 'consultant')!.id;
+    p.run('ayen', (c) => c.withdrawReviews({ commandId: 'w2', reviewIds: [consultant] }));
+    expect(derivePassage(p.state(), 'john3').steps[3]!.lockedBy).toBe('Consultant Check');
+  });
+
+  it('a note its author takes back shows nowhere; anyone else\'s withdrawal is ignored', () => {
+    const p = language();
+    record(p, ['c1']);
+    p.run('akol', (c) => c.addNote({ commandId: 'n1', unitId: 'john3', anchor: { kind: 'passage' }, text: 'Say it slower.' }));
+    p.run('akol', (c) => c.addNote({ commandId: 'n2', unitId: 'john3', anchor: { kind: 'verse', verse: '3:16' }, text: 'Loved, not liked.' }));
+    p.run('lead', (c) => c.withdrawNote({ commandId: 'w0', noteId: 'note:n2' }));
+    p.run('akol', (c) => c.withdrawNote({ commandId: 'w1', noteId: 'note:n1' }));
+    expect(derivePassage(p.state(), 'john3').notes.map((n) => n.id)).toEqual(['note:n2']);
+  });
+
   it('a withdrawn request is not waiting on anyone', () => {
     const p = language();
     p.run('lead', (c) => c.ask({ commandId: 'rec', unitId: 'john4', what: 'record', profileId: 'akol' }));

@@ -81,6 +81,8 @@ means is in `fleet-simulation.md`.
 
 ### reducerBump
 
+Measured when the scenario modelled the update as a reinstall with an empty store; it now keeps each phone's store (decision 110), and `--keepStore=0` gives the old model. On 2026-10-15 `bump-default` kept-store came to 2,595 events, 22.51 MB down, every phone agreeing.
+
 | Run | Phones | Passages | Sim days | Real s | Heap MB | Events | Syncs | Sync CPU s | Sync CPU p95 ms | Refolds | MB down | Reach server p95 min | Reach others p95 min | Agree |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | bump-default | 14 | 600 | 4.38 | 2.62 | 65 | 2,578 | 26,893 | 0.8 | 0.06 | 0 | 22.42 | 0.01 | 0.15 | yes |

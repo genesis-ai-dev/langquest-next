@@ -243,6 +243,14 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
       earliestUndo(state.withdrawnRequests, event.payload.requestId, event);
       break;
 
+    case 'v1.ReviewWithdrawn':
+      earliestUndo(state.withdrawnReviews, event.payload.reviewId, event);
+      break;
+
+    case 'v1.NoteWithdrawn':
+      earliestUndo(state.withdrawnNotes, event.payload.noteId, event);
+      break;
+
     case 'v1.NoteAdded': {
       const { noteId, ...rest } = event.payload;
       firstWins(state.notes, noteId, event, { ...rest, id: noteId });

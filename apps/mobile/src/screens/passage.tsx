@@ -38,7 +38,7 @@ import {
   type OutcomeTone
 } from '../passage/reviewModel';
 import {
-  hasWords, keepInput, keepPageInput, noteInput, overrideInput, payloadField, skipInput, undoneText
+  hasWords, keepInput, keepPageInput, noteInput, overrideInput, payloadField, skipInput, undoneText, undoNote
 } from '../passage/recordInputsModel';
 import { VersionsPage } from '../passage/versions';
 import { deleteVersion } from '../passage/deleteVersion';
@@ -58,7 +58,7 @@ import { clipSeconds, clock as clockOf } from '../audio/clipTime';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { requestIsMine, sendToInput, teamNameIn } from '../passage/sendTarget';
-import { dueTitle, feedbackSource, kindInSentence, outcomeText, passageCrumbs, versionTitle, viaText, when, type PassageView } from '../passage/passageView';
+import { dueTitle, feedbackSource, isJustNow, kindInSentence, outcomeText, passageCrumbs, versionTitle, viaText, when, type PassageView } from '../passage/passageView';
 import { usePassage } from '../passage/usePassage';
 import { PassageOffline, PassageOfflineLine } from '../sync/offline';
 import { noteExpected, reportError } from '../diagnostics/report';
@@ -201,6 +201,7 @@ function actionHelp(id: RowAction['id']): string {
     case 'ask': return t('passage.page.actionHelp.ask');
     case 'log': return t('passage.page.actionHelp.log');
     case 'skip': return t('passage.page.actionHelp.skip');
+    case 'undo': return t('passage.page.actionHelp.undo');
   }
 }
 
@@ -238,18 +239,22 @@ export function PassageRecord(ctx: Ctx) {
   const [askKindId, setAskKindId] = useState<string | null>(null);
   // Questions added on the ask page, sent with the request (as Someone else can).
   const [askQuestions, setAskQuestions] = useState<QuestionSpec[]>([]);
-  const timeline = useMemo(() => (v ? recordTimeline(v.state, v.p) : []), [v?.state, v?.p]);
+  const vState = v?.state;
+  const vp = v?.p;
+  const vLanguageId = v?.languageId;
+  const timeline = useMemo(() => (vState && vp ? recordTimeline(vState, vp) : []), [vState, vp]);
   const guide = useStudyGuide(ctx, v?.unitId);
-  const study = useMemo(() => (v && guide ? studyProgress(v.state, v.p, guide) : null), [v?.state, v?.p, guide]);
+  const study = useMemo(() => (vState && vp && guide ? studyProgress(vState, vp, guide) : null), [vState, vp, guide]);
   const versesHeld = useVersesHeld(ctx, v?.state, v?.unitId);
   const me = ctx.session.actorId;
   const isAuthor = !!v?.p.latest && v.p.latest.by === me;
   // Whoever just published (a version, or a back translation) asks for the next check (demo ADR-034).
   const asker = isAuthor || !!publishedParam?.startsWith('bt');
   // Where each of the flow's kinds usually goes; only its author sends a version on (ADR-029).
+  const orgState = ctx.org.state;
   const targets = useMemo(
-    () => (v ? usualTargets(v.state, ctx.org.state, { p: v.p, languageId: v.languageId, me, asker }) : {}),
-    [v?.state, v?.languageId, v?.p.flow, ctx.org.state, me, asker]
+    () => (vState && vp && vLanguageId !== undefined ? usualTargets(vState, orgState, { p: vp, languageId: vLanguageId, me, asker }) : {}),
+    [vState, vLanguageId, vp, orgState, me, asker]
   );
   if (!v) return <Missing ctx={ctx} id="passage_record" />;
 
@@ -299,11 +304,15 @@ export function PassageRecord(ctx: Ctx) {
     if (!mv) return;
     if (mv.id === 'send') sendTo(mv.kindId);
     else if (mv.id === 'skip') afterSheet(() => setSkipping({ kindId: mv.kindId, stepId: mv.stepId }));
+    else if (mv.id === 'undoReview') takeBackReview(mv.reviewId);
     else doMove(mv);
   };
   const sheetOf = (step: FlowStepStatus) => stepSheet({ p, kinds, kind: v.kind, step, can, isAuthor, me, mine, name: ctx.name, teamName, targets });
   const undoFromHistory = (departureId: string, type: string) => void perform(ctx, (c) => c.undoDeparture({ commandId: newId(), departureId }), undoneText(type));
   const withdraw = (requestId: string) => void perform(ctx, (c) => c.withdrawRequest({ commandId: newId(), requestId }), t('passage.page.withdrawn'));
+  /** Your own review or note, taken back (decisions.md 111): the check is open again, the note gone. */
+  const takeBackReview = (reviewId: string) => void perform(ctx, (c) => c.withdrawReviews({ commandId: newId(), reviewIds: [reviewId] }), t('common.undone'));
+  const takeBackNote = (noteId: string) => void perform(ctx, (c) => c.withdrawNote({ commandId: newId(), noteId }), t('common.undone'));
 
   // ---- the path ----
   const latestSeconds = p.latest ? clipSeconds(v.state, p.latest.cardHashes) : 0;
@@ -510,6 +519,8 @@ export function PassageRecord(ctx: Ctx) {
             let trailing: ReactNode = null;
             if (act?.id === 'undo') trailing = <SmallBtn label={t('passage.page.undo')} icon="undo" help={t('help.details.undo')} onPress={() => undoFromHistory(act.departureId, act.type)} />;
             if (act?.id === 'withdraw') trailing = <SmallBtn label={t('passage.page.withdraw')} help={t('passage.page.withdrawHelp')} onPress={() => withdraw(act.requestId)} />;
+            if (act?.id === 'undoReview') trailing = <SmallBtn label={t('passage.page.undo')} icon="undo" help={t('passage.page.actionHelp.undo')} onPress={() => takeBackReview(act.reviewId)} />;
+            if (act?.id === 'undoNote') trailing = <SmallBtn label={t('passage.page.undo')} icon="undo" help={t('passage.page.undoNoteHelp')} onPress={() => takeBackNote(act.noteId)} />;
             if (act?.id === 'reportNote') trailing = <ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', act.noteId, act.by, unitId)} size={36} />;
             if (act?.id === 'reportRequest') trailing = <ReportFlag ctx={ctx} target={recordTarget(ctx, 'request', act.requestId, act.by, unitId)} size={36} />;
             return <HistoryRow key={`${e.type}-${e.hlc}-${i}`} text={entry} when={when(e.hlc)} last={i === Math.min(historyShown, timeline.length) - 1} trailing={trailing} {...(onPress ? { onPress } : {})} {...(help ? { help } : {})} />;
@@ -651,7 +662,7 @@ function AddNoteSheet(props: { ctx: Ctx; v: PassageView; onClose: () => void; sa
   const [busy, setBusy] = useState(false);
   const save = async () => {
     setBusy(true);
-    const ok = await perform(ctx, (c) => c.addNote(noteInput({ commandId: newId(), unitId: v.unitId, text, hash })), t('passage.addNote.done'));
+    const ok = await perform(ctx, (c) => c.addNote(noteInput({ commandId: newId(), unitId: v.unitId, text, hash })), t('passage.addNote.done'), undoNote);
     setBusy(false);
     if (ok) props.onClose();
   };
@@ -705,6 +716,11 @@ function KindActionRow(props: {
               <SmallBtn label={acts.primary ? t('passage.page.more') : t('passage.page.options')} help={t('passage.page.moreHelp')} onPress={props.onMore} />
             </View>
           ) : null}
+        </View>
+      ) : null}
+      {!props.compact && acts.undo ? (
+        <View style={styles.btnRow}>
+          <SmallBtn label={acts.undo.label} icon="undo" help={actionHelp('undo')} onPress={() => props.onAction(acts.undo!, status, step, acts.askedMe)} />
         </View>
       ) : null}
       {!props.compact && rowButtons(acts).length ? (
@@ -841,7 +857,7 @@ function GridCell(props: { label: string; help: string; onPress: () => void; chi
 function HistoryRow(props: { text: EntryText; when: string; last: boolean; trailing: ReactNode; onPress?: () => void; help?: string }) {
   const { text } = props;
   return (
-    <Row label={text.title} sub={`${text.who} · ${props.when}${text.sub ? ` — ${text.sub}` : ''}`} last={props.last}
+    <Row label={text.title} sub={`${text.who} · ${props.when}${text.sub ? ` — ${text.sub}` : ''}`} last={props.last} {...(text.struck ? { struck: true } : {})}
       leading={(
         <View style={[styles.historyIcon, { backgroundColor: withAlpha(text.color, 0.1) }]}>
           <Ico name={text.icon} size={16} color={text.color} />
@@ -1079,6 +1095,10 @@ export function ReviewDetail(ctx: Ctx) {
     );
   }
 
+  // Your own review, taken back from here too (decisions.md 111); one taken back reads crossed out, grey.
+  const mine = review.by === me && !review.withdrawn;
+  const undone = review.withdrawn ? (isJustNow(review.withdrawn.hlc) ? t('passage.record.entry.undoneJustNow') : t('passage.record.entry.undone', { when: when(review.withdrawn.hlc) })) : '';
+  const fg = review.withdrawn ? C.muted : tint.fg;
   return (
     <Screen header={<Header title={kind.name} crumbs={passageCrumbs(ctx, v, kind.name)} sub={when(review.hlc)} onBack={ctx.back}
       action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'review', review.id, review.by, unitId)} />} />}
@@ -1087,14 +1107,17 @@ export function ReviewDetail(ctx: Ctx) {
           <View style={{ width: '44%' }}><GhostBtn label={t('passage.keep.keepIt')} help={t('passage.keep.sayWhyHelp')} onPress={() => setKeeping(true)} /></View>
           <View style={{ flex: 1 }}><PrimaryBtn label={t('passage.review.recordFix')} icon="mic" help={t('passage.review.recordFixHelp')} onPress={() => ctx.go('workspace', { ...params, reviewId: review.id })} /></View>
         </View>
+      ) : mine ? (
+        <GhostBtn label={t('passage.page.undo')} icon="undo" help={t('passage.page.actionHelp.undo')}
+          onPress={() => void perform(ctx, (c) => c.withdrawReviews({ commandId: newId(), reviewIds: [review.id] }), t('common.undone'))} />
       ) : undefined}>
-      <View style={[styles.outcome, { backgroundColor: tint.bg }]}>
+      <View style={[styles.outcome, { backgroundColor: review.withdrawn ? C.bg : tint.bg }]}>
         <View style={[styles.roundTile, { backgroundColor: C.card, width: 44, height: 44, borderRadius: 22 }]}>
-          <Ico name={makes ? kindIcon(review.kindId) : good ? 'check' : 'chat'} size={22} color={tint.fg} />
+          <Ico name={review.withdrawn ? 'undo' : makes ? kindIcon(review.kindId) : good ? 'check' : 'chat'} size={22} color={fg} />
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={[txt.body, { fontWeight: '700', color: tint.fg }]}>{outcome}</Text>
-          <Text style={[txt.xs, { color: tint.fg, marginTop: 2 }]}>{`${source} · ${viaText(review, ctx.name)}`}</Text>
+          <Text style={[txt.body, { fontWeight: '700', color: fg }, review.withdrawn && { textDecorationLine: 'line-through' }]}>{outcome}</Text>
+          <Text style={[txt.xs, { color: fg, marginTop: 2 }]}>{[source, viaText(review, ctx.name), undone].filter(Boolean).join(' · ')}</Text>
         </View>
       </View>
       {makes ? (
@@ -1238,8 +1261,11 @@ export function AskSomeone(ctx: Ctx) {
   const [dueTyped, setDueTyped] = useState('');
   const [othersShown, setOthersShown] = useState(PEOPLE_STEP);
   const [busy, setBusy] = useState(false);
-  const candidates = useMemo(() => (v ? askCandidates(v.state, ctx.org.state, { languageId: v.languageId, what, ...(kindId ? { kindId } : {}), me }) : []),
-    [v?.state, v?.languageId, ctx.org.state, what, kindId, me]);
+  const vState = v?.state;
+  const vLanguageId = v?.languageId;
+  const orgState = ctx.org.state;
+  const candidates = useMemo(() => (vState && vLanguageId !== undefined ? askCandidates(vState, orgState, { languageId: vLanguageId, what, ...(kindId ? { kindId } : {}), me }) : []),
+    [vState, vLanguageId, orgState, what, kindId, me]);
   if (!v) return <Missing ctx={ctx} id="ask_someone" />;
   if (what === 'review' && !kindId) {
     return <Missing ctx={ctx} id="ask_someone" crumbsOf={v} text={t('passage.ask.fromItsStep')} />;

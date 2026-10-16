@@ -65,6 +65,7 @@ role on a hosted database (`DIAG_DATABASE_URL`) or the local database.
 | `failHttp4xx` | Session expired or signing refused | Sync outcomes `refused`; membership |
 | `failHash` | Corrupt or truncated downloads | Storage object sizes vs `v1.BlobStored` (blob reconciler) |
 | `too_old` outcomes | Build below `server_config.min_client_version` | Context `runtimeVersion`, `updateId` |
+| `load` with `staleCheckpointSeq`, then a `snapshot` record | An update changed the reducer: the phone dropped its checkpoint and fetches the stream again (decisions.md 110); it looks partial until that finishes | Snapshot outcome `none` means it pulls the whole log: `partition_health.snapshots` for the current reducer |
 | Problems begin at a new `updateId` | Regression in an over-the-air update | Roll back the update first (error-tracking section 7) |
 | `clockAheadS` large | Phone clock ahead; events refused `clock ahead` and re-stamped | Sync `rejected` |
 | `freeDiskMb` < 500 | Recording and downloads constrained | `blobCacheMb`, `blobsWanted` |

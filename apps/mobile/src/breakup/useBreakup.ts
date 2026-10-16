@@ -62,10 +62,12 @@ export function useTemplateUsers(ctx: Ctx) {
  */
 export function useWays(ctx: Ctx, forLanguage: string | null, numbering?: string | null) {
   const lib = useLibrary(ctx);
+  const libItems = lib.items;
   const library = ctx.org.state?.library;
   const shared = useSharedItems('template', lib.orgId);
-  const choices = useMemo(() => libraryChoices(library ?? {}, lib.items('template'), shared.rows, STARTER_TEMPLATE.name), [library, lib.items, shared.rows]);
+  const choices = useMemo(() => libraryChoices(library ?? {}, libItems('template'), shared.rows, STARTER_TEMPLATE.name), [library, libItems, shared.rows]);
   const docs = useLibraryDocs(lib.orgId, choices.map((c) => c.hash));
+  const getDoc = docs.get;
   const { users } = useTemplateUsers(ctx);
   // Offline the server's list of who uses what is not known, but the open language's template is (this device
   // folds it): the way it uses is still offered, first, rather than only LangQuest's ways that need the server.
@@ -75,36 +77,32 @@ export function useWays(ctx: Ctx, forLanguage: string | null, numbering?: string
   const current = forLanguage ? (forLanguage === ctx.language.languageId ? ctx.language.state?.template?.value.itemId ?? null : null) : null;
   // Only the ways in this numbering (decision 80): a template's numbering is its versification document's code.
   const inNumbering = useCallback((h: string) => {
-    const d = docs.get<TemplateDoc>(h);
+    const d = getDoc<TemplateDoc>(h);
     if (!d || !numbering) return d;
-    const v = d.bible ? docs.get<VersificationDoc>(d.bible.versification) : null;
+    const v = d.bible ? getDoc<VersificationDoc>(d.bible.versification) : null;
     return v && v.code === numbering ? d : null;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [docs.get, numbering]);
+  }, [getDoc, numbering]);
   const rows = useMemo(() => wayRows({
     choices,
     docOf: inNumbering,
     others: known.filter((u) => u.language_id !== forLanguage).map((u) => ({ languageId: u.language_id, name: languageName(ctx.org.state, u.language_id), itemId: u.item_id })),
     current,
     follow: (s) => subscriptionItemId(s.org_id, s.item_id)
-    // docs.get changes when documents arrive.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [choices, inNumbering, known, forLanguage, current, ctx.org.state]);
-  const docOf = useCallback((c: LibraryChoice | null | undefined) => (c ? docs.get<TemplateDoc>(c.hash) : null), [docs.get]);
+  const docOf = useCallback((c: LibraryChoice | null | undefined) => (c ? getDoc<TemplateDoc>(c.hash) : null), [getDoc]);
   // What numbering the organization's other languages use, by code: their template's versification.
   const usedInByNumbering = useMemo(() => {
     const out: Record<string, string[]> = {};
     for (const u of known) {
       if (u.language_id === forLanguage) continue;
       const ch = choices.find((c) => itemIdOf(c, (sh) => subscriptionItemId(sh.org_id, sh.item_id)) === u.item_id);
-      const d = ch ? docs.get<TemplateDoc>(ch.hash) : null;
-      const code = d?.bible ? docs.get<VersificationDoc>(d.bible.versification)?.code : undefined;
+      const d = ch ? getDoc<TemplateDoc>(ch.hash) : null;
+      const code = d?.bible ? getDoc<VersificationDoc>(d.bible.versification)?.code : undefined;
       if (code) (out[code] ??= []).push(languageName(ctx.org.state, u.language_id));
     }
     return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [known, choices, docs.get, forLanguage, ctx.org.state]);
-  const v11nOf = useCallback((d: TemplateDoc | null | undefined) => (d?.bible ? docs.get<VersificationDoc>(d.bible.versification) : null), [docs.get]);
+  }, [known, choices, getDoc, forLanguage, ctx.org.state]);
+  const v11nOf = useCallback((d: TemplateDoc | null | undefined) => (d?.bible ? getDoc<VersificationDoc>(d.bible.versification) : null), [getDoc]);
   /** A LangQuest way by its item id, when it is offered. */
   const way = useCallback((sourceItemId: string): WayRow | null => rows.find((r) => wayOf(r.choice) === sourceItemId) ?? null, [rows]);
   // The numberings to choose from: LangQuest's, with their documents.
@@ -149,8 +147,7 @@ export function useVerseNumbering(ctx: Ctx) {
     if (!english) return { code: bibles[0]?.versification.code ?? 'eng', clash: null, key: '' };
     const n = verseNumbering(bibles, english);
     return { ...n, key: bibles.map((b) => b.versification.code).sort().join(',') };
-    // docs.get changes when documents arrive.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- docs.get changes when documents arrive
   }, [hashes, docs.get, state]);
   const store = `numbering-ignored:${languageId}`;
   const [ignored, setIgnored] = useState<string | null>(null);
@@ -186,8 +183,7 @@ export function useBookNameChoices(ctx: Ctx, book: string, open: boolean) {
     const b = d?.format === 'source@1' ? d.books.find((x) => x.book === book) : undefined;
     return d && b ? [{ name: b.name, from: d.name }] : [];
   })),
-  // docs.get changes when documents arrive.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- docs.get changes when documents arrive
   [hashes, docs.get, book]);
   const [answer, setAnswer] = useState<{ book: string; rows: { language_id: string; name: string }[] } | null>(null);
   useEffect(() => {

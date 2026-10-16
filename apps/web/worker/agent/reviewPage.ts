@@ -125,10 +125,10 @@ textarea { min-height: 110px; resize: vertical; }
 const CODE = ${JSON.stringify(code)};
 const W = ${words};
 const T = (key, values) => String(W[key]).replace(/\\{\\{\\s*(\\w+)\\s*\\}\\}/g, (m, k) => (values && k in values ? values[k] : m));
-$('ui-lang').addEventListener('change', (e) => { const u = new URL(location.href); u.searchParams.set('lang', e.target.value); location.replace(u); });
 const API = '/api/v1/links/' + CODE;
 const MAX_CLIPS = 10;
 const $ = (id) => document.getElementById(id);
+$('ui-lang').addEventListener('change', (e) => { const u = new URL(location.href); u.searchParams.set('lang', e.target.value); location.replace(u); });
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
 const rid = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('');
 let browserId = store.get('lq-review-browser'); if (!browserId) { browserId = rid(); store.set('lq-review-browser', browserId); }

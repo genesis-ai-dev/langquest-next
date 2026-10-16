@@ -103,7 +103,7 @@ Steps:
 Expected:
 - Step 3 shows Decide: the heading "Is it accurate and natural?" with a speak button, a green "Looks good" card, an amber "Needs changes" card and a dashed row "Say something about it" with the sub "{TRANS first name} hears it with your answer" and "optional".
 - The strip shows "Listen" done (green check, accessibility label "Listen, done. Go back").
-- Step 4 saves at once, with no further screen. The toast reads "Looks good · sent to {TRANS-name}", with no Undo.
+- Step 4 saves at once, with no further screen. The toast reads "Looks good · sent to {TRANS-name}", with "Undo" (REV-049 takes it back).
 - The app returns to P-SUBMITTED's record, where the team's first step reads "Peer check looks good".
 - Within 30 seconds nothing waits to upload. TRANS, on a second device after Sync now, sees an update that the Peer check looks good in the Inbox (from the bell), and the record shows it.
 - The request to REV is done: P-SUBMITTED leaves REV's My Work.
@@ -147,7 +147,7 @@ Expected:
 - After step 3 the big mic is replaced by a chip "Your feedback · 0:05" and "Record again".
 - Step 4's field has the placeholder "Or type it — what worked, what didn't".
 - A dashed row "Record a listener retelling" with "optional" is under it.
-- Step 5 shows the toast "Feedback sent to {TRANS-name}", with no Undo, and returns to P-Q1's record.
+- Step 5 shows the toast "Feedback sent to {TRANS-name}", with "Undo", and returns to P-Q1's record.
 - The record's first step reads Peer check "needs changes", with REV's name.
 - TRANS, on a second device after Sync now, sees an Inbox update that Peer check suggests changes ("… suggests changes — revise, or keep it and say why."), and P-Q1's main button reads "Hear the feedback".
 - In TRANS's "Hear the feedback", the voice feedback plays, "“Verse 12 is too fast”" shows, and the note at 0:04 is listed with the review.
@@ -653,7 +653,7 @@ Expected:
 - Said parts that are not open read "0:07 in English".
 - "Publish" is enabled after the first part is said.
 - Step 5 opens the sheet "Publish the back translation?", sub "Of Version 1. The Consultant check listens to it next.", with "✓ N of N parts said".
-- Step 7 shows the toast "Back translation published.", with no Undo.
+- Step 7 shows the toast "Back translation published.", with "Undo".
 - The record opens on "Back translation published" with "Luke 14:25-35 · saved on this device · sends when you're online".
 - Afterwards, the record shows Back translation done ("Back translation recorded") on Version 1, and step 1 is complete.
 - COORD, on a second device after Sync now, can play the back translation from the review, in part order, and reads the note.
@@ -940,3 +940,21 @@ Expected:
 - The Publish screen lists one "Answers the Peer check feedback from {REV-name}" line for each open feedback on Version 1 (only the unanswered one here).
 - Version 2 publishes and answers it.
 - Resets: P-Q1 has Version 2.
+
+### REV-049 Take back a review
+Roles: REV · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions:
+- TRANS published P-DRAFT and asked REV for its Peer check.
+
+Steps:
+1. Do the peer check on P-DRAFT, tap "Looks good", then "Undo" on the message.
+2. Do it again and tap "Looks good". Wait for the message to go, tap the Peer check row under "Then the team", and tap "Undo" in the sheet.
+3. Close the sheet. Do it a third time, then open "Versions and history" → "History" and tap "Undo" on the review.
+
+Expected:
+- Step 1: "Undone." The record offers "Do the peer check" again.
+- Step 2: the sheet shows "Undo" under REV's own check (no one else sees it, decisions.md 111). After it, the row reads "Tom Translator asked you" with "Review it now".
+- Step 3: "Undone." Each review taken back stays in the history, crossed out, "undone just now".
+- Afterwards P-DRAFT has no peer review that counts, three taken back, and TRANS's request to REV is open: P-DRAFT is back on REV's My Work, and TRANS's "reviewed" update is gone.
+- Nothing is refused by the server.

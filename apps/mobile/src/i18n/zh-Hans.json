@@ -3388,6 +3388,7 @@
       "passageDock": "经段 · {{title}}",
       "adaptGuideHelp": "复制一份你自己的指南来修改。",
       "doneWithStepHelp": "为团队把这一步标记为完成，然后打开下一步。",
+      "undoDoneHelp": "把这一步重新标记为未完成。",
       "editGuideHelp": "在指南编辑器中打开它。",
       "nextStepHelp": "进入那一步。"
     },
@@ -3552,6 +3553,8 @@
         "assigned": "已分配",
         "broughtBack": "{{when}}恢复",
         "broughtBackJustNow": "刚刚恢复",
+        "undone": "{{when}}撤销",
+        "undoneJustNow": "刚刚撤销",
         "movedPast": "已越过检查点",
         "setAside": "{{kind}}已搁置",
         "note": "备注 · {{anchor}}",
@@ -3768,6 +3771,7 @@
       "reviewsByVersion": "按版本查看审核",
       "historyTitle": "历史记录",
       "undo": "撤销",
+      "undoNoteHelp": "收回你的备注。之后没人会再看到它。",
       "withdraw": "撤回",
       "playNote": "播放{{name}}的备注",
       "whoseNote": "{{name}}的备注",
@@ -3798,7 +3802,8 @@
         "send": "发送给通常负责的人。“撤销”可以收回。",
         "ask": "选择一个人、一个团队，或者没有应用的人。",
         "log": "已经在应用外做过：把它写进记录。",
-        "skip": "不做这项检查。你要说明原因。"
+        "skip": "不做这项检查。你要说明原因。",
+        "undo": "收回你的审查。这项检查重新打开。"
       },
       "moreHelp": "显示这一步的所有选项。",
       "movePastHelp": "不做这项检查就继续。你要说明原因，原因会写进记录。",

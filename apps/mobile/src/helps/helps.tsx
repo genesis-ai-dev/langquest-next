@@ -394,7 +394,7 @@ function OtherVoice(props: { ctx: Ctx; o: OtherSays; onFailed: () => void }) {
     if (!wanted || !uri) return;
     setWanted(false);
     clip.toggle();
-  }, [wanted, uri]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [wanted, uri]); // eslint-disable-line react-hooks/exhaustive-deps -- plays once the asked-for file has a uri; clip is new on every draw
   const press = () => {
     if (uri) { clip.toggle(); return; }
     setWanted(true);

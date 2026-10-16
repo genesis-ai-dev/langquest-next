@@ -127,6 +127,14 @@ export type RecordEvents = {
   };
   /** Bring a set-aside step back. The departure stays on the record, marked undone. Add-wins. */
   'v1.DepartureUndone': { departureId: string };
+  /**
+   * Take back your own review (decisions.md 111): a verdict, feedback, a
+   * logged check or a back translation. It stays on the record, marked
+   * undone, and counts for nothing: the check is open again and a request
+   * it answered is open again. Only whoever recorded the review may (the
+   * server's may_emit holds it, and the fold ignores anyone else's). Add-wins.
+   */
+  'v1.ReviewWithdrawn': { reviewId: string };
   /** A record of asking (ADR-007, ADR-020, ADR-029): who, for what, by when. Nobody needs one to act. Grow-only by requestId. */
   'v1.RequestMade': RequestPayload;
   /** Undo of a request. Add-wins. */
@@ -141,6 +149,8 @@ export type RecordEvents = {
     photoHash?: string;
     onTakeId?: string;
   };
+  /** Take back your own note (decisions.md 111): it no longer shows anywhere. Only its author may, as with a review. Add-wins. */
+  'v1.NoteWithdrawn': { noteId: string };
   /** Someone finished (or un-finished) a study step for a passage (ADR-018). Register per (unit, guide, step). */
   'v1.StudyStepMarked': { unitId: string; guideId: string; stepId: string; done: boolean };
 };
@@ -209,7 +219,11 @@ export interface RecordState {
   undoneDepartures: Record<string, Undo>;
   requests: Record<string, PassageRequest>;
   withdrawnRequests: Record<string, Undo>;
+  /** reviewId -> who took it back, when (add-wins); counts only when it is the review's own author. */
+  withdrawnReviews: Record<string, Undo>;
   notes: Record<string, PassageNote>;
+  /** noteId -> who took it back, when (add-wins); counts only when it is the note's own author. */
+  withdrawnNotes: Record<string, Undo>;
   /** `${unitId}:${guideId}:${stepId}` -> done register */
   studyMarks: Record<string, { value: { done: boolean; by: string }; hlc: Hlc; eventId: string }>;
 }
@@ -224,7 +238,9 @@ export function emptyRecordState(): RecordState {
     undoneDepartures: {},
     requests: {},
     withdrawnRequests: {},
+    withdrawnReviews: {},
     notes: {},
+    withdrawnNotes: {},
     studyMarks: {}
   };
 }

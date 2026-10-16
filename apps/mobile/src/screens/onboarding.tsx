@@ -34,22 +34,24 @@ export function Welcome(ctx: Ctx) {
   const profiles = useDisplayNames(me);
   const [busy, setBusy] = useState(false);
 
+  const { role: sessionRole, email: sessionEmail } = ctx.session;
+  const nameOf = ctx.name;
   const who = useMemo(() => {
     // Your membership here: the role's name and the scope it covers.
     const mine = Object.values(org?.members[me] ?? {}).filter((m) => !m.removed.value);
     const scoped = mine.find((m) => m.scope.level === 'language') ?? mine[0];
     const roleName = (scoped && org?.roles[scoped.roleId.value]?.name.value)
-      ?? (ctx.session.role ? roleWords(ctx.session.role) : undefined) ?? t('entry.welcome.member');
+      ?? (sessionRole ? roleWords(sessionRole) : undefined) ?? t('entry.welcome.member');
     // Who invited you: the invite you redeemed, when the log has it.
     const invite = Object.values(org?.invites ?? {}).find((i) => i.redeemedBy === me);
-    const invitedBy = invite?.issuedBy && invite.issuedBy !== me ? ctx.name(invite.issuedBy) : undefined;
-    const displayName = profiles[me] ?? ctx.session.email?.split('@')[0] ?? '';
+    const invitedBy = invite?.issuedBy && invite.issuedBy !== me ? nameOf(invite.issuedBy) : undefined;
+    const displayName = profiles[me] ?? sessionEmail?.split('@')[0] ?? '';
     const team = teamLabel(scoped?.scope, {
       org: org?.org?.value.name ?? t('entry.welcome.yourOrganization'),
       language: (id) => languageInfo(org, id)?.name
     });
     return { roleName, invitedBy, inviterId: invite?.issuedBy, displayName, team };
-  }, [org, me, profiles, ctx.session.role, ctx.session.email, ctx.name]);
+  }, [org, me, profiles, sessionRole, sessionEmail, nameOf]);
 
   const role = welcomeRoleFor(ctx.session);
   const points = WELCOME_POINTS[role];
@@ -113,9 +115,12 @@ export function Welcome(ctx: Ctx) {
  *
  * Not ported: Listen, as on Welcome.
  */
+/** Nothing came over yet: one value, so what is worked out from it is not worked out again on every draw. */
+const NOTHING_BACK: NonNullable<Ctx['welcomeBack']>['data'] = { here: [], onTheirWay: [] };
+
 export function WelcomeBack(ctx: Ctx) {
   const me = ctx.session.actorId;
-  const data = ctx.welcomeBack?.data ?? { here: [], onTheirWay: [] };
+  const data = ctx.welcomeBack?.data ?? NOTHING_BACK;
   const profiles = useDisplayNames(me);
   const first = firstName(profiles[me] ?? ctx.session.email?.split('@')[0] ?? '');
   const [busy, setBusy] = useState(false);
@@ -124,20 +129,23 @@ export function WelcomeBack(ctx: Ctx) {
 
   // Their work arrived while no organization was open here: open the one it is in.
   const opened = useRef(false);
+  const { openOrganization, setLanguage } = ctx;
+  const hasNoOrg = ctx.session.hasNoOrg;
   useEffect(() => {
-    if (opened.current || !ctx.session.hasNoOrg || !data.here[0]) return;
+    if (opened.current || !hasNoOrg || !data.here[0]) return;
     opened.current = true;
-    void ctx.openOrganization(data.here[0].orgId);
-  }, [ctx.session.hasNoOrg, data.here, ctx.openOrganization]);
+    void openOrganization(data.here[0].orgId);
+  }, [hasNoOrg, data.here, openOrganization]);
 
   // Keep going starts in the language they recorded in last, in this organization.
   const last = useMemo(() => lastWork(data, orgId), [data, orgId]);
   const moved = useRef(false);
+  const languageNow = ctx.languageId;
   useEffect(() => {
-    if (moved.current || !last || ctx.languageId === last.languageId) return;
+    if (moved.current || !last || languageNow === last.languageId) return;
     moved.current = true;
-    ctx.setLanguage(last.languageId);
-  }, [last, ctx.languageId, ctx.setLanguage]);
+    setLanguage(last.languageId);
+  }, [last, languageNow, setLanguage]);
   const state = ctx.language.state;
   const target = useMemo(() => {
     if (!last || !state || ctx.language.languageId !== last.languageId) return null;

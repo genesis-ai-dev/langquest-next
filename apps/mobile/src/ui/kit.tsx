@@ -333,6 +333,8 @@ export function Row(props: {
   onPress?: () => void;
   last?: boolean;
   muted?: boolean;
+  /** Taken back, kept to be seen: the label crossed out and muted. */
+  struck?: boolean;
   /**
    * How a screen reader should treat it: a choice among several is a radio, a pick-many a checkbox.
    * A switch is the whole row (a 48pt target, not just the thumb) showing `checked` as a switch;
@@ -375,7 +377,7 @@ export function Row(props: {
         </View>
       ) : null)}
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={[txt.body, { fontWeight: '600' }, props.muted && { color: C.muted }]} numberOfLines={2}>{marked(props.label, props.highlight)}</Text>
+        <Text style={[txt.body, { fontWeight: '600' }, (props.muted || props.struck) && { color: C.muted }, props.struck && { textDecorationLine: 'line-through' }]} numberOfLines={2}>{marked(props.label, props.highlight)}</Text>
         {props.sub ? <Text style={[txt.smMuted, { marginTop: 1 }]} numberOfLines={props.role === 'switch' ? undefined : 2}>{marked(props.sub, props.highlight)}</Text> : null}
         {props.below ? <View style={{ marginTop: space.sm }}>{props.below}</View> : null}
       </View>
@@ -949,7 +951,7 @@ export function ToastView(props: { toast: ToastSpec | null; onDismiss: () => voi
   const left = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     if (toast) AccessibilityInfo.announceForAccessibility(toast.undo ? t('shell.toast.announceUndo', { message: toast.message }) : toast.message);
-  }, [toast?.id]);
+  }, [toast?.id]); // eslint-disable-line react-hooks/exhaustive-deps -- announced once per toast: its words do not change for its id
   useEffect(() => {
     if (!toast?.ms) return;
     left.setValue(1);

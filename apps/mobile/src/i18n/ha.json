@@ -3494,6 +3494,7 @@
       "passageDock": "Nassin · {{title}}",
       "adaptGuideHelp": "Yana yin kwafin wannan jagora naku na kanku don canjawa.",
       "doneWithStepHelp": "Yana nuna wa tawagar cewa an gama wannan mataki, sannan ya buɗe na gaba.",
+      "undoDoneHelp": "Yana sake nuna cewa ba a gama wannan mataki ba.",
       "editGuideHelp": "Yana buɗe ta a wurin gyaran jagora.",
       "nextStepHelp": "Yana ci gaba zuwa wannan mataki."
     },
@@ -3663,6 +3664,8 @@
         "assigned": "An ba da aiki",
         "broughtBack": "an dawo da shi {{when}}",
         "broughtBackJustNow": "an dawo da shi yanzu nan",
+        "undone": "an janye {{when}}",
+        "undoneJustNow": "an janye yanzu nan",
         "movedPast": "An wuce shingen dubawa",
         "setAside": "An ajiye {{kind}} a gefe",
         "note": "Bayani · {{anchor}}",
@@ -3887,6 +3890,7 @@
       "reviewsByVersion": "Bitoci bisa siga",
       "historyTitle": "Tarihi",
       "undo": "Janye",
+      "undoNoteHelp": "Yana janye bayaninku. Babu wanda zai sake ganinsa.",
       "withdraw": "Janye",
       "playNote": "Kunna bayanin {{name}}",
       "whoseNote": "Bayanin {{name}}",
@@ -3917,7 +3921,8 @@
         "send": "Yana aika shi ga wanda yawanci yake yin sa. Janye yana dawo da shi.",
         "ask": "Ku zaɓi mutum, tawaga, ko wani da ba shi da manhajar.",
         "log": "Ya faru a wajen manhajar: ku sa shi a tarihi.",
-        "skip": "Ku bar wannan dubawa. Za ku faɗi dalili."
+        "skip": "Ku bar wannan dubawa. Za ku faɗi dalili.",
+        "undo": "Yana janye bitarku. Dubawar za ta sake buɗewa."
       },
       "moreHelp": "Yana nuna kowane zaɓi na wannan mataki.",
       "movePastHelp": "Ku ci gaba ba tare da wannan dubawa ba. Za ku faɗi dalili, kuma zai shiga tarihi.",

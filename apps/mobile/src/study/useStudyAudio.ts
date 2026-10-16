@@ -46,8 +46,7 @@ export function useStudyAudio(address: string | undefined, estimate: number): St
     setTime(0);
     setDuration(estimate);
     return () => { player.current?.remove(); player.current = null; };
-    // A new source starts over; the estimate only matters until the file says its length.
-  }, [url]);
+  }, [url]); // eslint-disable-line react-hooks/exhaustive-deps -- a new source starts over; the estimate only matters until the file says its length
 
   useEffect(() => {
     if (!playing || !simulated) return;

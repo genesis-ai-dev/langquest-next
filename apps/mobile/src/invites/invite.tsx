@@ -63,8 +63,7 @@ export function InviteSomeone(props: {
     const before = rolesBefore.current;
     const made = before ? roles.others.find((r) => !before.has(r.id)) : undefined;
     if (made) { rolesBefore.current = null; setChoice(made.id); setOthers(true); }
-    // `otherIds` names what changes in `roles.others`.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `otherIds` names what changes in `roles.others`
   }, [otherIds]);
   const newRole = props.onNewRole ? () => { rolesBefore.current = new Set(roles.others.map((r) => r.id)); props.onNewRole!(); } : undefined;
 

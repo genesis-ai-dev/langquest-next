@@ -50,8 +50,7 @@ export function useLibraryFollow(language: LanguageHandle, org: OrgHandle, sessi
       // Offline, or the document is not readable yet: tried again on the next change.
       noteExpected('library follow', e);
     }).finally(() => { busy.current = false; });
-    // `behind` is keyed by `key`.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `behind` is keyed by `key`
   }, [key, session]);
 
   // Documents made here go to the server whenever this organization syncs.
