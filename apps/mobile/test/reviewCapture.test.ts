@@ -5,7 +5,7 @@ import {
 import {
   canLeave, cleanAnswers, cleanSkips, clockMs, earlierReviews, firstOpenAt, footHint, isGroupKind, kindLabel, listenLine,
   noteAnchorText, nextLabel, openRequired, questionSource, readiness, requestFor, reviewCapture, reviewStages,
-  stageAt, summaryLine, toCompareFor, verdictQuestion, versionFor
+  stageAt, stageBack, summaryLine, toCompareFor, verdictQuestion, versionFor
 } from '../src/reviewing/capture';
 
 /** A small language on the Standard Bible Flow, with a few passages of John and one of Mark. */
@@ -149,6 +149,18 @@ describe('reviewing is three short steps: Listen, Questions, Decide (REV-0, SIMP
     expect(stages.slice(1).map(nextLabel)).toEqual(['Next: questions', 'Next: decide']);
     expect(stageAt(stages, 'decide')).toBe(2);
     expect(stageAt(reviewStages({ questions: 0, logged: false, makes: false }), 'questions')).toBe(0);
+  });
+
+  it("a phone's Back goes one step back: the question before, the stage before, and leaves only from Listen (decision 135)", () => {
+    const stages = reviewStages({ questions: 3, logged: false, makes: false });
+    expect(stageBack(stages, 'decide', 0, 3)).toEqual({ stage: 'questions', qi: 2 });
+    expect(stageBack(stages, 'questions', 2, 3)).toEqual({ stage: 'questions', qi: 1 });
+    expect(stageBack(stages, 'questions', 0, 3)).toEqual({ stage: 'listen', qi: 0 });
+    expect(stageBack(stages, 'listen', 0, 3)).toBeNull();
+    const none = reviewStages({ questions: 0, logged: true, makes: true });
+    expect(stageBack(none, 'decide', 0, 0)).toEqual({ stage: 'listen', qi: 0 });
+    // Its questions went while it was open: it stands on Listen, so Back leaves.
+    expect(stageBack(none, 'questions', 2, 0)).toBeNull();
   });
 
   it('a collapsed card says only what it has', () => {

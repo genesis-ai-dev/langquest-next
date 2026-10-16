@@ -24,6 +24,7 @@ import { BookChangeSheets, PieceBar, PreviewSheet, WayCard } from './parts';
 import { useBookNameChoices, useWays } from './useBreakup';
 import { alsoUsedLine } from './templateNames';
 import { useBookChange } from './useBookChange';
+import { useHardwareBack } from '../ui/useHardwareBack';
 
 /** The numbering a template is in (decision 80): its versification document's code. */
 function useNumberingCode(ctx: Ctx, doc: TemplateDoc | null): string | null {
@@ -130,6 +131,8 @@ export function BreakUpBook(props: {
   const picked = offered.find((r) => r.choice.key === key) ?? null;
   const [peek, setPeek] = useState<WayRow | null>(null);
   const change = useBookChange(ctx, { book, bookName: props.bookName, doc: props.doc, item: props.item, redo: props.redo, onDone: props.onClose });
+  // A phone's Back does what the header's arrow does: back to the book, or out when it is not broken up yet (decision 135).
+  useHardwareBack(true, props.onClose);
 
   const go = () => {
     const wayDoc = ways.docOf(picked?.choice);

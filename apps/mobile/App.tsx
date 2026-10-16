@@ -73,6 +73,7 @@ import { useOnboarding } from './src/shell/useOnboarding';
 import { useOpenOrganization, type Arrival } from './src/shell/useOpenOrganization';
 import { useRecentPassages } from './src/shell/useRecentPassages';
 import { useRouting } from './src/shell/useRouting';
+import { useRootBack } from './src/shell/useRootBack';
 import { useTestProbes } from './src/shell/useTestProbes';
 import { useWorkingLanguage } from './src/shell/useWorkingLanguage';
 
@@ -431,6 +432,11 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   const canSwitchPersona = maySwitchPersona(props.email, IS_DEV);
 
   const home = useCallback(() => nav.reset({ screen: homeScreenFor(session) }), [nav, session]);
+  // Android's Back for the whole app, and a Back arrow with nothing under it: to the first screen (useRootBack.ts).
+  // Here, not in a child: this component's effects run after the navigator's, so its listener is asked first.
+  const backFromRoot = useRootBack(nav, session);
+  const navBack = nav.back;
+  const back = useCallback(() => { if (navRef.isReady() && navRef.canGoBack()) navBack(); else backFromRoot(); }, [navBack, backFromRoot]);
   const acceptTerms = useCallback((actorId = props.actorId) => recordUserEvent(actorId, 'v1.TermsAccepted'), [props.actorId]);
   const openDev = useCallback(() => setDevOpen(true), []);
   const inboxView = useMemo(
@@ -450,7 +456,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     session,
     params,
     go,
-    back: nav.back,
+    back,
     home,
     languageId,
     setLanguage,
@@ -472,7 +478,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     openDev,
     isDev: IS_DEV,
     canSwitchPersona
-  }), [language, org, session, params, go, nav.back, home, languageId, setLanguage, languages, act, toast, details, recent, openPassage,
+  }), [language, org, session, params, go, back, home, languageId, setLanguage, languages, act, toast, details, recent, openPassage,
     name, blocks, inboxView, welcomeView, markWelcomed, acceptTerms, invite, openOrganization, openDev, canSwitchPersona]);
   const syncSources = useMemo(() => ({ language: language.syncStatus, org: org.syncStatus }), [language.syncStatus, org.syncStatus]);
 

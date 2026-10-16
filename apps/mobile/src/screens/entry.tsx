@@ -10,7 +10,7 @@
 import { CommandError, DEFAULT_LICENSE, isLicense, LICENSE_INFO, type License } from '@langquest-next/core';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { BackHandler, Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import {
   cachedListedOrganizations, cachedPublicLanguages, listedOrganizations, publicLanguages, queueAccountAction, TERMS_VERSION,
@@ -34,6 +34,7 @@ import { redeemSignInCode } from '../invites/invites';
 import { useRequestOutcome } from '../invites/useInviteRequests';
 import { latestRequest } from '../invites/requestOutcome';
 import { Badge, Banner, Card, EmptyState, Field, GhostBtn, Group, HelpTop, Header, HelpInfo, Ico, LinkBtn, OrDivider, PrimaryBtn, ProgressBar, QuietLinks, Row, Screen, SearchField, SectionLabel, Segments, ShowMore, SmallBtn, type IconName } from '../ui/kit';
+import { useHardwareBack } from '../ui/useHardwareBack';
 import { txt } from '../ui/textStyles';
 import { PRIVACY_URL } from '../auth/legal';
 import { LicenseRow, LicenseSheet } from '../org/licenseSheet';
@@ -225,6 +226,8 @@ export function Vision(ctx: Ctx) {
   const [step, setStep] = useState(0);
   const current = VISION_STEPS[step]!;
   const last = step === VISION_STEPS.length - 1;
+  // A phone's Back goes back a card, as the header's arrow does (decision 135).
+  useHardwareBack(step > 0, () => setStep(step - 1));
   return (
     <Screen
       header={<Header title={t('entry.vision.title')} sub={t('entry.vision.step', { current: step + 1, total: VISION_STEPS.length })} onBack={step === 0 ? ctx.back : () => setStep(step - 1)}
@@ -469,20 +472,10 @@ export function ScanQr(ctx: Ctx) {
 
   // A link opens this screen on its own (flow D), with nothing under it to go
   // back to: Back then leads where the person would otherwise be, Sign In or
-  // their home, and the held invite stays held.
+  // their home, and the held invite stays held. Android's Back does the same
+  // on any screen with nothing under it (shell/useRootBack.ts).
   const alone = () => !(navRef.isReady() && navRef.canGoBack());
   const leave = () => { if (!alone()) ctx.back(); else if (guest) ctx.go('sign_in'); else ctx.home(); };
-  const leaveRef = useRef(leave);
-  leaveRef.current = leave;
-  useEffect(() => {
-    if (Platform.OS !== 'android') return;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (!alone()) return false;
-      leaveRef.current();
-      return true;
-    });
-    return () => sub.remove();
-  }, []);
 
   // What the server says about the held key; null when it cannot be asked.
   const { preview, asked } = useInvitePreview(invite);

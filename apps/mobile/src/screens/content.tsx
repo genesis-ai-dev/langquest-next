@@ -50,6 +50,7 @@ import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { indexesFor } from '../sync/indexes';
 import { Banner, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, PrimaryBtn, QuietLinks, Row, Screen, SearchField, SectionLabel, SmallBtn, Sheet, ShowMore, Toggle } from '../ui/kit';
+import { useHardwareBack } from '../ui/useHardwareBack';
 import { txt } from '../ui/textStyles';
 import { useOpenDetail } from '../ui/useLayout';
 import { useHelpSpot } from '../helpMode/useHelpMode';
@@ -676,12 +677,14 @@ function NewTemplate({ ctx }: { ctx: Ctx }) {
   // A new template begun before opens as it was left, without asking again.
   const draft = useTemplateDraft(ctx, lib, null);
   const start = form ?? draft.value?.form;
+  // Back from the first question leaves Scripture; otherwise it goes back a question.
+  const backOut = () => { if ((tq.page === 'find' && !tq.numbering) || tq.page === 'what' || !tq.retreat()) setBible(false); };
+  // A phone's Back does the same as the header's arrow (decision 135).
+  useHardwareBack(bible && !start, backOut);
   if (start) return <TemplateEditorForm ctx={ctx} lib={lib} item={null} initial={start} draft={draft} />;
   if (!draft.loaded) return <Screen header={<Header title={t('content.newTemplate.title')} sub={orgName(ctx)} onBack={ctx.back} />}>{null}</Screen>;
 
   const scripture = () => { tq.setWhat('bible'); tq.setPage(tq.numbering ? 'numbered' : 'find'); setBible(true); };
-  // Back from the first question leaves Scripture; otherwise it goes back a question.
-  const backOut = () => { if ((tq.page === 'find' && !tq.numbering) || tq.page === 'what' || !tq.retreat()) setBible(false); };
   const begin = () => {
     if (!tq.doc?.bible) return;
     // The way's books and how it divides them, its levels and numbering; the name and purpose are the admin's own.

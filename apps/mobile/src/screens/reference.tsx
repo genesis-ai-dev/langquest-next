@@ -254,6 +254,7 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
   const facts = picked ? sourceFacts(sourceFromBible(picked, '0'.repeat(64)), () => null, picked) : null;
   return (
     <Sheet visible title={picked ? picked.name : t('reference.addBible.title')} onClose={props.onClose}
+      onBack={picked ? () => setPicked(null) : undefined}
       sub={picked ? [picked.abbreviation, picked.languageName, providerName('biblebrain')].join(' · ') : t('reference.addBible.sub')}
       footer={picked ? (
         <>

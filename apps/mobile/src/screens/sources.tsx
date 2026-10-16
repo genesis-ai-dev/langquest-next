@@ -18,6 +18,7 @@ import { HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { Badge, Card, Chip, EmptyState, Group, Header, LinkBtn, PrimaryBtn, Row, Screen, SearchField, SectionLabel } from '../ui/kit';
+import { useHardwareBack } from '../ui/useHardwareBack';
 import { txt } from '../ui/textStyles';
 import { useLibraryDocs } from '../library/useLibrary';
 import { contractsFor } from '../shell/screenContracts';
@@ -91,6 +92,8 @@ export function BibleExplore(ctx: Ctx) {
 
   const passageLabel = unitId && state?.units[unitId] ? state.units[unitId]!.label : undefined;
   const back = () => (picked ? setPicked(null) : ctx.back());
+  // A phone's Back from one Bible goes back to the list, as the header's arrow does (decision 135).
+  useHardwareBack(!!picked, () => setPicked(null));
   const header = <Header title={screenTitle('bible_explore')} sub={passageLabel ? t('sources.explore.forPassage', { passage: passageLabel }) : t('sources.explore.sub')} onBack={back} />;
 
   if (picked) {

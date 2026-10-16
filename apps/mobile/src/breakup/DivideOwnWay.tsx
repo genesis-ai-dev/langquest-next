@@ -43,6 +43,7 @@ import {
 import { isItself } from './model';
 import { useWays } from './useBreakup';
 import { useBookText } from './useBookText';
+import { useHardwareBack } from '../ui/useHardwareBack';
 
 /** A dashed line where at least this many of the 20 Bibles start a section. */
 const SUGGEST = 10;
@@ -108,6 +109,13 @@ export function DivideOwnWay(props: {
   });
   const [sel, setSel] = useState<At | null>(null);
   const [panel, setPanel] = useState<Panel>(null);
+  // A phone's Back closes what is open here first, the helps or the verse picked, then goes back
+  // as the header's arrow does (decision 135). The sections are kept as a draft either way.
+  useHardwareBack(true, () => {
+    if (panel === 'helps') setPanel(null);
+    else if (sel) setSel(null);
+    else props.onClose();
+  });
   // Undo and Redo in the header (decision 134): every change to the sections this visit, as the recording screen keeps its parts'.
   const [history, setHistory] = useState<History<At[]>>(emptyHistory);
   const [inView, setInView] = useState(1);
