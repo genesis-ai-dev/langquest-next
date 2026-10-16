@@ -1,4 +1,4 @@
-// What a step shows whoever does it (decisions.md 128), on the step's page:
+// What a step shows whoever does it (decisions.md 129), on the step's page:
 // a row per help, as the person's screen has them. Each row's switch turns
 // the whole help on or off and its line says how much of it is on; the row
 // opens the help's own page, where each part has its switch (the Bible and

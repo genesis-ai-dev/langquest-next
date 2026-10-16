@@ -105,7 +105,7 @@ export function Workspace(ctx: Ctx) {
   if (!v) return <Missing ctx={ctx} title={screenTitle('workspace')} />;
   // Each draft opened is its own workspace (decisions.md 83).
   const which = ['draftId', 'from', 'fresh'].map((k) => ctx.params[k] ?? '').join(':');
-  // Notes written while recording are the recording's (decisions.md 128).
+  // Notes written while recording are the recording's (decisions.md 129).
   return <NoteStepContext.Provider value={RECORD_STEP}><WorkspaceBody key={`${v.unitId}:${v.languageId}:${which}`} ctx={ctx} v={v} /></NoteStepContext.Provider>;
 }
 
@@ -385,7 +385,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   // ---- reference (REC-W1, REC-W5; demo ADR-036): what is attached, one chip each ----
   // What was offered and used here goes on the record with the version (docs/reference-material.md).
   const usage = useUsage();
-  // What the recorder shows is the language's to say (decisions.md 128).
+  // What the recorder shows is the language's to say (decisions.md 129).
   const shows = useMemo(() => checkShows(state, RECORD_STEP), [state]);
   const bible = useBible(ctx, unitId, languageId, { listen: loop.hooks, usage, hidden: confirming, shows: { audio: shows.bibleAudio, text: shows.bibleText } });
   const sourceWords = useMemo(() => (bible.rows ? bible.rows.map((r) => r.text).join(' ') : null), [bible.rows]);
@@ -448,7 +448,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   }, [sourceWords, unitTerms, tied]);
   const guide = useStudyGuide(ctx, unitId);
   const study = useMemo(() => (guide ? studyProgress(state, p, guide) : null), [state, p, guide]);
-  // Notes and earlier work from the steps the recording shows (decisions.md 128).
+  // Notes and earlier work from the steps the recording shows (decisions.md 129).
   const notesFrom = useMemo(() => fromFilter(state, RECORD_STEP, 'notes'), [state]);
   const earlierFrom = useMemo(() => fromFilter(state, RECORD_STEP, 'earlier'), [state]);
   const notes = useMemo<PassageNote[]>(() => p.notes.filter((n) => n.anchor.kind !== 'study' && notesFrom(n.kindId ?? RECORD_STEP)), [p.notes, notesFrom]);

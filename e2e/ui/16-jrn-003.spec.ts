@@ -55,7 +55,7 @@ test('JRN-003 A reviewer\'s round: one check, one back translation @p0', async (
   await expect(text(page, /^Back translation · asked by/)).toBeVisible();
   await primary(page).click();
 
-  // Step 8: each part said in English; the top pane has the version alone, with no sentence saying so (decision 128).
+  // Step 8: each part said in English; the top pane has the version alone, with no sentence saying so (decision 129).
   await expect(text(page, /hidden on purpose/)).toHaveCount(0);
   await sayEachPart(page, 3);
 

@@ -36,8 +36,8 @@ const DRAG_HERE = () => undefined;
 function CheckCard(props: {
   ctx: Ctx; row: CheckRow; i: number; n: number; count: number; kinds: KindDef[]; people: string[] | null;
   questions: number; helps: number; readOnly: boolean; height: number;
-  /** What the check hides (decisions.md 128), as a line: "Bible text · Guide text". */ hidden?: ShownLine | null;
-  /** The check that listens to what this step makes (decisions.md 128). */ checkedAt?: string;
+  /** What the check hides (decisions.md 129), as a line: "Bible text · Guide text". */ hidden?: ShownLine | null;
+  /** The check that listens to what this step makes (decisions.md 129). */ checkedAt?: string;
   onLayout: (h: number) => void; onMove: (to: number) => void; onLock: () => void; onOpen?: () => void;
   /** What help mode says opening the card shows. */ openHelp?: string;
 }) {
@@ -107,7 +107,7 @@ function CheckCard(props: {
 
 type ShownLine = ReturnType<typeof shownLine>;
 
-/** What a step hides, by a struck eye, or what it still shows, by an open one (decisions.md 128). */
+/** What a step hides, by a struck eye, or what it still shows, by an open one (decisions.md 129). */
 function HiddenLine(props: NonNullable<ShownLine>) {
   return (
     <View style={styles.metaPart}>

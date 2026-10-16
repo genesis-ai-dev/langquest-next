@@ -20,7 +20,7 @@ import { mmss, passageClock } from '../recording/model';
  */
 export function useBible(ctx: Ctx, unitId: string | null, languageId: string | null, opts: {
   listen?: ListenHooks; usage?: Usage; hidden?: boolean;
-  /** What the step shows (decisions.md 128): only Bibles with audio when it is heard and not read, with text when read and not heard. */
+  /** What the step shows (decisions.md 129): only Bibles with audio when it is heard and not read, with text when read and not heard. */
   shows?: { audio: boolean; text: boolean };
 }) {
   const all = useSources(ctx, unitId, languageId);

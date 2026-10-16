@@ -92,7 +92,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
   const request = (requestId ? p.requests.find((r) => r.id === requestId) : undefined)
     ?? p.openRequests.find((r) => r.what === 'review' && r.kindId === kind.id && r.profileId === me);
 
-  // What this check shows beside the version (decisions.md 128); out of the box a back translation shows nothing else.
+  // What this check shows beside the version (decisions.md 129); out of the box a back translation shows nothing else.
   const shows = useMemo(() => checkShows(state, kind.id), [state, kind.id]);
   const bible = useBible(ctx, unitId, languageId, { shows: { audio: shows.bibleAudio, text: shows.bibleText } });
   const guide = useStudyGuide(ctx, unitId);

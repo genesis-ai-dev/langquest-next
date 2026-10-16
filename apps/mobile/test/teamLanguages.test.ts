@@ -1,4 +1,4 @@
-// The languages a team's reference material may be in (decision 128): the main one, then others added.
+// The languages a team's reference material may be in (decision 129): the main one, then others added.
 import { describe, expect, it } from 'vitest';
 import { emptyLanguageState, type LanguageState } from '@langquest-next/core';
 import { inLanguages, languagesSays, teamLanguages } from '../src/reference/languages';

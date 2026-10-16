@@ -245,7 +245,7 @@ async function openCheck(page: Page, check: string, opts: { lead?: boolean } = {
   await text(page, check).click();
   await expect(text(page, /^Check \d+ · Alpha$/)).toBeVisible();
 }
-/** A check's People page: its own page since decision 128. */
+/** A check's People page: its own page since decision 129. */
 async function openPeople(page: Page, check: string, opts: { lead?: boolean } = {}): Promise<void> {
   await openCheck(page, check, opts);
   await text(page, 'People').click();

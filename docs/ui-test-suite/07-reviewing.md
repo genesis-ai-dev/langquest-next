@@ -626,7 +626,7 @@ Steps:
 Expected:
 - The record's main button reads "Back-translate it".
 - The screen opens split like the workspace. Header title "Luke 14:25-35", sub "Back translation · into English" (on a wide window: "Alpha → English"), with ✕.
-- Top: a player "Alpha · Version 1 · part 1" with the sub "{TRANS first name} · drag back and forth as often as you like", and no sentence about what is hidden (decision 128).
+- Top: a player "Alpha · Version 1 · part 1" with the sub "{TRANS first name} · drag back and forth as often as you like", and no sentence about what is hidden (decision 129).
 - Bottom: a card per part, "Part 1" to "Part N". Part 1 is open, with "Saying it next".
 - The footer has a big red record button (accessibility label "Record part 1") and "Done", disabled.
 - No notes, earlier reviews or study are shown anywhere on this screen.

@@ -144,7 +144,7 @@ Expected:
 - Step 6:
   - The toast reads "Feedback sent to {TRANS name}".
   - The record shows "Peer check · needs changes", credited to REV ("You" on REV's own device).
-- Step 8: the top pane has the version alone, with no sentence saying what is hidden (decision 128).
+- Step 8: the top pane has the version alone, with no sentence saying what is hidden (decision 129).
 - Step 9:
   - Done's sheet is titled "Back translation", with the sub "Of Version 1".
   - REV is not offered "Ask …" and the sheet has no "Next check", because REV has no Send to reviewers; its only button is "Finish the back translation".

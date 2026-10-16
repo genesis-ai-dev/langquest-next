@@ -1,4 +1,4 @@
-// Saving what a step shows (decisions.md 128): a switch flipped back is the
+// Saving what a step shows (decisions.md 129): a switch flipped back is the
 // way back, so there is no Undo (checks/ShowsSection.tsx, screens/checks.tsx).
 import { checkShowsSpecs, type EventSpec } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';

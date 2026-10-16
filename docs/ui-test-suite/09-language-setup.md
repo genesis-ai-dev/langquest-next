@@ -569,7 +569,7 @@ Steps:
 Expected:
 - The question is "Which languages should {language}'s Bibles and study
   guides be in?", with no sentence under it; as many languages as the
-  team reads can be ticked (decision 128).
+  team reads can be ticked (decision 129).
 - Each choice says what is in it, for example "FIA guides for {n} passages
   · {n} Bibles · {n} other guides or notes".
 - The app's own language is marked as yours and chosen first when it has
@@ -1367,7 +1367,7 @@ Expected:
 - The card names "Rita Reviewer, Trevor Both" with their faces; a check
   with nobody on it says "Anyone".
 - The check's People row names them; People opens a page of its own
-  (decision 128) listing each person with their role ("Reviewer",
+  (decision 129) listing each person with their role ("Reviewer",
   "Translator-Reviewer").
 - "Add people" lists whoever may review at Alpha, Translators included
   (decision 91), and "You" for oneself; Vic Viewer is not offered.
@@ -1390,7 +1390,7 @@ Steps:
 Expected:
 - Community check comes with no questions (LangQuest's checks bring none,
   LAN-85): its card shows no count, and its row reads "Questions · No
-  questions". Questions is a page of its own (decision 128).
+  questions". Questions is a page of its own (decision 129).
 - The question sheet offers "Text", "Yes / No", "1–5" and "Required".
 - Toast "Question saved"; the row reads "Yes / No · Required"; the
   check's Questions row and its card say "1 question".
@@ -1432,7 +1432,7 @@ Steps:
 Expected:
 - Toast "Alpha's checks saved" with Undo; Community check's card shows the
   lock ("Community check must pass before the next steps").
-- "Same time as" is a choice of any other checks (decision 128).
+- "Same time as" is a choice of any other checks (decision 129).
 - Back translation is "Check 1 · Alpha" while at the same time as Peer
   check, and "Check 2 · Alpha" on its own ("Same time as · No other
   check").

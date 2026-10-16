@@ -92,7 +92,7 @@ export interface Commands {
   withdrawReviews(c: { commandId: string; reviewIds: string[] }): EventSpec[];
   /** Take back a note you added (decisions.md 111). */
   withdrawNote(c: { commandId: string; noteId: string }): EventSpec[];
-  /** `kindId`: the step it is written at (`record` or a check, decisions.md 128). */
+  /** `kindId`: the step it is written at (`record` or a check, decisions.md 129). */
   addNote(c: { commandId: string; unitId: string; anchor: NoteAnchor; text?: string; blobHash?: string; photoHash?: string; kindId?: string }): EventSpec[];
   markStudyStep(c: { commandId: string; unitId: string; guideId: string; stepId: string; done: boolean }): EventSpec[];
   defineKind(c: RecordEvents['v1.ReviewKindDefined'] & { commandId: string }): EventSpec[];

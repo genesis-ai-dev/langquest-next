@@ -210,7 +210,7 @@ for (const who of ['ADMIN', 'LADMIN'] as const) {
     await expectOnScreen(page, PEER_PEOPLE);
     await text(page, 'Peer check').click();
     await expectOnScreen(page, 'Peer check', 'Check 1 · Alpha', /People (Rita Reviewer, Trevor Both|Trevor Both, Rita Reviewer) Questions/);
-    // People and Questions open pages of their own (decision 128).
+    // People and Questions open pages of their own (decision 129).
     await text(page, 'People').click();
     await expectOnScreen(page, 'Rita Reviewer', 'Reviewer', 'Trevor Both', 'Translator-Reviewer');
     await text(page, 'Add people').click();
@@ -315,7 +315,7 @@ test('SETUP-070 Must pass, and checks at the same time', async ({ page }) => {
   await back(page).click();
   await expect(page.getByLabel('Community check must pass before the next steps')).toHaveCount(1);
   await undoToast(page).catch(() => undefined);
-  // Back translation happens at the same time as Peer check; untick it there and it is a check of its own (decision 128).
+  // Back translation happens at the same time as Peer check; untick it there and it is a check of its own (decision 129).
   await text(page, 'Back translation').click();
   await expectOnScreen(page, /Same time as Peer check/);
   await text(page, 'Same time as').click();

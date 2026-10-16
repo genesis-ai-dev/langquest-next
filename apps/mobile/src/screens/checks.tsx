@@ -84,7 +84,7 @@ function Tick(props: { on: boolean }) {
   return <View style={[styles.tick, props.on && styles.tickOn]}>{props.on ? <Ico name="check" size={18} color={C.white} strokeWidth={3} /> : null}</View>;
 }
 
-/** Recording a version, as a step: what the recorder shows (decisions.md 128). */
+/** Recording a version, as a step: what the recorder shows (decisions.md 129). */
 function RecordEditor({ ctx }: { ctx: Ctx }) {
   const language = languageName(ctx.org.state, ctx.language.languageId);
   const name = t('checks.recording');
@@ -97,7 +97,7 @@ function RecordEditor({ ctx }: { ctx: Ctx }) {
 
 /**
  * One check, or one of its parts as a page of its own (`part`): its people,
- * its questions, and each help with parts inside it (decisions.md 128).
+ * its questions, and each help with parts inside it (decisions.md 129).
  */
 export function CheckEditor(ctx: Ctx) {
   const part = ctx.params['part'];
@@ -456,7 +456,7 @@ function QuestionsPage({ ctx }: { ctx: Ctx }) {
 }
 
 /**
- * One help a step shows, on a page of its own (decisions.md 128): a switch
+ * One help a step shows, on a page of its own (decisions.md 129): a switch
  * for each of its parts, the Bible and the guide as audio and text, notes and
  * earlier versions by the step they were added during.
  */

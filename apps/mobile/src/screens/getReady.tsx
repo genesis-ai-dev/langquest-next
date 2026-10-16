@@ -396,7 +396,7 @@ function ReferenceLanguageStep({ ctx, lang, header, onDone }: StepProps & { onDo
   const org = ctx.org.state;
   const languageId = ctx.language.languageId;
   const lib = useLibrary(ctx);
-  // The languages the team's material may be in, the main one first (decision 128).
+  // The languages the team's material may be in, the main one first (decision 129).
   const current = teamLanguages(org, state, languageId);
   const [picked, setPicked] = useState<string[] | null>(null);
   const values = picked ?? current;
@@ -456,7 +456,7 @@ function HelpsList({ ctx, lang, header, next, onLanguage }: StepProps & { onLang
   const sheet = useSetSheet(h, lang);
   const numbering = useVerseNumbering(ctx);
   const comes = useComesWith(ctx);
-  // Only what is in the team's language, and what the team already has (decision 128 amended).
+  // Only what is in the team's language, and what the team already has (decision 129 amended).
   const offered = h.items.filter((x) => inTeamLanguage(x, h.languages));
   const bibles = offered.filter((x) => x.kind === 'source');
   const guides = offered.filter((x) => x.kind === 'guide');
@@ -521,7 +521,7 @@ function HelpsPage({ ctx }: { ctx: Ctx }) {
       onToggle={() => onHelpPress(x, h.items, sheet.open, (item) => void h.toggle(item))} last={last} />
   );
   const none = (label: string) => <Row label={label} sub={t('getReady.page.addToOffer')} muted last />;
-  // Only what is in the team's language, and what the team already has (decision 128 amended).
+  // Only what is in the team's language, and what the team already has (decision 129 amended).
   const offered = h.items.filter((x) => inTeamLanguage(x, h.languages));
   const bibles = offered.filter((x) => x.kind === 'source');
   const guides = offered.filter((x) => x.kind === 'guide');

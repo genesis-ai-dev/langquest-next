@@ -67,7 +67,7 @@ export interface NewLanguageDeps {
 
 type NewLanguageInput = {
   org: OrgState | null; actorId: string; reads: string;
-  /** Other languages its reference material may be in, beside `reads` (decision 128). */
+  /** Other languages its reference material may be in, beside `reads` (decision 129). */
   alsoReads?: readonly string[];
   scope: LanguageScope; chosenBooks: ReadonlySet<string>; checks: { name?: string | undefined; kinds: readonly KindDef[]; steps: readonly { kindIds: readonly string[]; checkpoint?: boolean }[] }; offers: Offer[];
 };
