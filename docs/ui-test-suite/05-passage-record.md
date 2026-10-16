@@ -1106,22 +1106,22 @@ Expected:
 - TRANS's My Work gains "Feedback to hear", and the bell gains "Feedback on
   Luke 14:1-14".
 
-### PASS-049 Add details: where, which version, and other passages
+### PASS-049 Add details: where and which version, on this passage only
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
 
 Steps:
-1. On Already happened for a Peer Review on a passage with two versions (P-NEEDS
-   after PASS-019), tap "Add details".
-2. Type "Bor church, after service" in "Where". Under "Which version was
-   played", choose Version 1. Under other passages, add Luke 14:25-35.
+1. On Already happened for a Peer Review, tap "Add details".
+2. Type "Bor church, after service" in "Where".
 3. Finish with "Looks good".
 
 Expected:
 - The sheet offers "Where — e.g. Bor church, after service", "Which version
-  was played" (chips, only with more than one version), the other-passages
-  picker ("Saves to 2 passages") and "Evidence · optional".
-- The toast reads "Peer Review added to 2 passages".
-- Each passage's History shows the review, with the place.
+  was played" (chips, only with more than one version) and "Evidence ·
+  optional". It has no "Also covered in this session": a review goes on the
+  one passage it is about, and another passage the session covered gets its
+  own review there (decision 128).
+- The toast reads "Peer Review added to the record".
+- The passage's History shows the review, with the place.
 
 ### PASS-050 A back translation that happened outside the app
 Roles: REV · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
