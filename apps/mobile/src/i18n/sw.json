@@ -7085,7 +7085,13 @@
       "text": "Maandishi",
       "allOnHelp": "Imewashwa: wanapata yote. Gusa ili kuficha yote.",
       "allOffHelp": "Imezimwa: hawapati chochote. Gusa ili kuonyesha yote.",
-      "partLabel": "{{help}}: {{part}}"
+      "partLabel": "{{help}}: {{part}}",
+      "all": "Vyote",
+      "off": "Imezimwa",
+      "someOf": "{{n, number}} kati ya {{total, number}}",
+      "openHelp": "Inafungua swichi kwa kila sehemu yake.",
+      "notesFrom": "Madokezo yaliyoongezwa wakati wa",
+      "earlierFrom": "Matoleo na maoni kutoka"
     },
     "peopleOpenHelp": "Inafungua anayefanya ukaguzi huu.",
     "questionsOpenHelp": "Inafungua maswali wanayojibu.",
@@ -7100,8 +7106,7 @@
     "checkedAtPickHelp": "Ukaguzi huu unakisikiliza.",
     "ownCheck": "Ukaguzi wake wenyewe",
     "ownCheckHelp": "Inaongeza ukaguzi mara baada ya huu unaokisikiliza.",
-    "ownCheckName": "Ukaguzi wa {{name}}",
-    "helpLanguageHelp": "Inaonyesha visaidizi katika lugha hii."
+    "ownCheckName": "Ukaguzi wa {{name}}"
   },
   "lostFiles": {
     "title": "Sauti imepotea",

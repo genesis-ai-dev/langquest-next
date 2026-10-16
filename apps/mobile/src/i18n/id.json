@@ -6789,7 +6789,13 @@
       "text": "Teks",
       "allOnHelp": "Aktif: mereka mendapat semuanya. Ketuk untuk menyembunyikan semuanya.",
       "allOffHelp": "Mati: mereka tidak mendapat apa pun. Ketuk untuk menampilkan semuanya.",
-      "partLabel": "{{help}}: {{part}}"
+      "partLabel": "{{help}}: {{part}}",
+      "all": "Semua",
+      "off": "Mati",
+      "someOf": "{{n, number}} dari {{total, number}}",
+      "openHelp": "Membuka sakelar untuk setiap bagiannya.",
+      "notesFrom": "Catatan yang ditambahkan selama",
+      "earlierFrom": "Versi dan masukan dari"
     },
     "peopleOpenHelp": "Membuka siapa yang melakukan pemeriksaan ini.",
     "questionsOpenHelp": "Membuka pertanyaan yang mereka jawab.",
@@ -6804,8 +6810,7 @@
     "checkedAtPickHelp": "Pemeriksaan ini mendengarkannya.",
     "ownCheck": "Pemeriksaan tersendiri",
     "ownCheckHelp": "Menambahkan pemeriksaan tepat setelah ini yang mendengarkannya.",
-    "ownCheckName": "Pemeriksaan {{name}}",
-    "helpLanguageHelp": "Menampilkan alat bantu dalam bahasa ini."
+    "ownCheckName": "Pemeriksaan {{name}}"
   },
   "lostFiles": {
     "title": "Audio hilang",

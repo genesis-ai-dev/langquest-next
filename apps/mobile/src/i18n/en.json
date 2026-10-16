@@ -7085,7 +7085,13 @@
       "text": "Text",
       "allOnHelp": "On: they get all of it. Tap to hide all of it.",
       "allOffHelp": "Off: they get none of it. Tap to show all of it.",
-      "partLabel": "{{help}} ({{part}})"
+      "partLabel": "{{help}} ({{part}})",
+      "all": "All",
+      "off": "Off",
+      "someOf": "{{n, number}} of {{total, number}}",
+      "openHelp": "Opens a switch for each part of it.",
+      "notesFrom": "Notes added during",
+      "earlierFrom": "Versions and feedback from"
     },
     "peopleOpenHelp": "Opens who does this check.",
     "questionsOpenHelp": "Opens the questions they answer.",
@@ -7100,8 +7106,7 @@
     "checkedAtPickHelp": "This check listens to it.",
     "ownCheck": "A check of its own",
     "ownCheckHelp": "Adds a check right after this one that listens to it.",
-    "ownCheckName": "{{name}} check",
-    "helpLanguageHelp": "Shows the helps in this language."
+    "ownCheckName": "{{name}} check"
   },
   "lostFiles": {
     "title": "Audio is missing",

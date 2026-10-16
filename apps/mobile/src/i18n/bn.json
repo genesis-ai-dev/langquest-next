@@ -7085,7 +7085,13 @@
       "text": "লেখা",
       "allOnHelp": "চালু: তারা সবটা পান। সব লুকাতে চাপ দিন।",
       "allOffHelp": "বন্ধ: তারা কিছুই পান না। সব দেখাতে চাপ দিন।",
-      "partLabel": "{{help}}: {{part}}"
+      "partLabel": "{{help}}: {{part}}",
+      "all": "সব",
+      "off": "বন্ধ",
+      "someOf": "{{total, number}}টির মধ্যে {{n, number}}টি",
+      "openHelp": "এর প্রতিটি অংশের জন্য সুইচ খোলে।",
+      "notesFrom": "যে ধাপে নোট যোগ হয়েছে",
+      "earlierFrom": "সংস্করণ ও মতামত যেখান থেকে"
     },
     "peopleOpenHelp": "এই যাচাই কারা করেন তা খোলে।",
     "questionsOpenHelp": "তারা যে প্রশ্নের উত্তর দেন তা খোলে।",
@@ -7100,8 +7106,7 @@
     "checkedAtPickHelp": "এই যাচাই এটি শোনে।",
     "ownCheck": "নিজস্ব একটি যাচাই",
     "ownCheckHelp": "এর ঠিক পরে একটি যাচাই যোগ করে, যা এটি শোনে।",
-    "ownCheckName": "{{name}} যাচাই",
-    "helpLanguageHelp": "এই ভাষার সহায়কগুলো দেখায়।"
+    "ownCheckName": "{{name}} যাচাই"
   },
   "lostFiles": {
     "title": "অডিও হারিয়ে গেছে",

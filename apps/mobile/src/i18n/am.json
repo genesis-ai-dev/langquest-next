@@ -7085,7 +7085,13 @@
       "text": "ጽሑፍ",
       "allOnHelp": "በርቷል፦ ሁሉንም ያገኛሉ። ሁሉንም ለመደበቅ ይንኩ።",
       "allOffHelp": "ጠፍቷል፦ ምንም አያገኙም። ሁሉንም ለማሳየት ይንኩ።",
-      "partLabel": "{{help}}፦ {{part}}"
+      "partLabel": "{{help}}፦ {{part}}",
+      "all": "ሁሉም",
+      "off": "ጠፍቷል",
+      "someOf": "ከ{{total, number}} {{n, number}}",
+      "openHelp": "ለእያንዳንዱ ክፍሉ ማብሪያ ይከፍታል።",
+      "notesFrom": "በእነዚህ ጊዜ የታከሉ ማስታወሻዎች",
+      "earlierFrom": "ስሪቶችና አስተያየቶች ከ"
     },
     "peopleOpenHelp": "ይህን ፍተሻ የሚያደርጉትን ይከፍታል።",
     "questionsOpenHelp": "የሚመልሷቸውን ጥያቄዎች ይከፍታል።",
@@ -7100,8 +7106,7 @@
     "checkedAtPickHelp": "ይህ ፍተሻ ያዳምጠዋል።",
     "ownCheck": "የራሱ ፍተሻ",
     "ownCheckHelp": "ከዚህ በኋላ ወዲያውኑ የሚያዳምጠው ፍተሻ ያክላል።",
-    "ownCheckName": "የ{{name}} ፍተሻ",
-    "helpLanguageHelp": "በዚህ ቋንቋ ያሉትን አጋዦች ያሳያል።"
+    "ownCheckName": "የ{{name}} ፍተሻ"
   },
   "lostFiles": {
     "title": "ድምፅ ጠፍቷል",

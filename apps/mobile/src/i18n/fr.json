@@ -7381,7 +7381,13 @@
       "text": "Texte",
       "allOnHelp": "Activé : ils reçoivent tout. Touchez pour tout masquer.",
       "allOffHelp": "Désactivé : ils ne reçoivent rien. Touchez pour tout afficher.",
-      "partLabel": "{{help}} : {{part}}"
+      "partLabel": "{{help}} : {{part}}",
+      "all": "Tout",
+      "off": "Désactivé",
+      "someOf": "{{n, number}} sur {{total, number}}",
+      "openHelp": "Ouvre un interrupteur pour chaque partie.",
+      "notesFrom": "Notes ajoutées pendant",
+      "earlierFrom": "Versions et retours de"
     },
     "peopleOpenHelp": "Ouvre qui fait cette vérification.",
     "questionsOpenHelp": "Ouvre les questions auxquelles ils répondent.",
@@ -7396,8 +7402,7 @@
     "checkedAtPickHelp": "Cette vérification l’écoute.",
     "ownCheck": "Une vérification à part",
     "ownCheckHelp": "Ajoute juste après celle-ci une vérification qui l’écoute.",
-    "ownCheckName": "Vérification de la {{name}}",
-    "helpLanguageHelp": "Affiche les aides dans cette langue."
+    "ownCheckName": "Vérification de la {{name}}"
   },
   "lostFiles": {
     "title": "Audio manquant",

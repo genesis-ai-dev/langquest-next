@@ -1,6 +1,6 @@
 // What a step shows (decisions.md 110), as the Checks screens word it: the
 // switches in order, each thing's short name, and a card's one line.
-import { deriveFlow, RECORD_STEP, shownFrom, type LanguageState, type ShownWhat } from '@langquest-next/core';
+import { checkShows, deriveFlow, RECORD_STEP, shownFrom, type LanguageState, type ShownWhat } from '@langquest-next/core';
 import { rowsOf } from './model';
 import { t } from '../i18n';
 import type { IconName } from '../ui/kit';
@@ -59,4 +59,32 @@ export function fromFilter(state: LanguageState, kindId: string, what: 'notes' |
 /** Whether a step shows any notes or earlier versions at all. */
 export function anyFrom(state: LanguageState, kindId: string, what: 'notes' | 'earlier'): boolean {
   return stepKeys(state).some((s) => shownFrom(state, kindId, what, s));
+}
+
+/** One switch inside a help: audio or text, or notes or earlier versions from one step. */
+export interface ShowPart { key: string; what: ShownWhat; from?: string; on: boolean }
+
+/** The parts a help has at a step, in the order its page lists them. */
+export function partsOf(state: LanguageState, kindId: string, help: 'bible' | 'guide' | 'notes' | 'earlier'): ShowPart[] {
+  if (help === 'bible' || help === 'guide') {
+    const shows = checkShows(state, kindId);
+    const audio: ShownWhat = help === 'bible' ? 'bibleAudio' : 'guideAudio';
+    const text: ShownWhat = help === 'bible' ? 'bibleText' : 'guideText';
+    return [{ key: audio, what: audio, on: shows[audio] }, { key: text, what: text, on: shows[text] }];
+  }
+  return stepKeys(state).map((step) => ({ key: `${help}@${step}`, what: help, from: step, on: shownFrom(state, kindId, help, step) }));
+}
+
+/** A help's line on the step's page: "All", "Off", "Audio" or "Text", or "3 of 7" steps. */
+export function partsLine(parts: readonly ShowPart[], help: 'bible' | 'guide' | 'notes' | 'earlier'): string {
+  const on = parts.filter((p) => p.on);
+  if (on.length === parts.length) return t('checks.shows.all');
+  if (on.length === 0) return t('checks.shows.off');
+  if (help === 'bible' || help === 'guide') return isAudio(on[0]!.what) ? t('checks.shows.audio') : t('checks.shows.text');
+  return t('checks.shows.someOf', { n: on.length, total: parts.length });
+}
+
+/** The Bible or the guide heard, as against read. */
+export function isAudio(what: ShownWhat): boolean {
+  return what === 'bibleAudio' || what === 'guideAudio';
 }

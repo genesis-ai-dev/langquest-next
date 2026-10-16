@@ -6789,7 +6789,13 @@
       "text": "ข้อความ",
       "allOnHelp": "เปิด: พวกเขาได้ทั้งหมด แตะเพื่อซ่อนทั้งหมด",
       "allOffHelp": "ปิด: พวกเขาไม่ได้อะไรเลย แตะเพื่อแสดงทั้งหมด",
-      "partLabel": "{{help}}: {{part}}"
+      "partLabel": "{{help}}: {{part}}",
+      "all": "ทั้งหมด",
+      "off": "ปิด",
+      "someOf": "{{n, number}} จาก {{total, number}}",
+      "openHelp": "เปิดสวิตช์สำหรับแต่ละส่วน",
+      "notesFrom": "โน้ตที่เพิ่มระหว่าง",
+      "earlierFrom": "ฉบับและความเห็นจาก"
     },
     "peopleOpenHelp": "เปิดดูว่าใครทำการตรวจนี้",
     "questionsOpenHelp": "เปิดคำถามที่พวกเขาตอบ",
@@ -6804,8 +6810,7 @@
     "checkedAtPickHelp": "การตรวจนี้ฟังสิ่งนี้",
     "ownCheck": "การตรวจของมันเอง",
     "ownCheckHelp": "เพิ่มการตรวจที่ฟังสิ่งนี้ต่อจากขั้นนี้ทันที",
-    "ownCheckName": "การตรวจ{{name}}",
-    "helpLanguageHelp": "แสดงตัวช่วยในภาษานี้"
+    "ownCheckName": "การตรวจ{{name}}"
   },
   "lostFiles": {
     "title": "เสียงหายไป",

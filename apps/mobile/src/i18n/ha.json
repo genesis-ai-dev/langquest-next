@@ -7085,7 +7085,13 @@
       "text": "Rubutu",
       "allOnHelp": "A kunne: suna samun duka. Taɓa don ɓoye duka.",
       "allOffHelp": "A kashe: ba sa samun komai. Taɓa don nuna duka.",
-      "partLabel": "{{help}}: {{part}}"
+      "partLabel": "{{help}}: {{part}}",
+      "all": "Duka",
+      "off": "A kashe",
+      "someOf": "{{n, number}} cikin {{total, number}}",
+      "openHelp": "Yana buɗe maɓalli ga kowane sashe nasa.",
+      "notesFrom": "Bayanan da aka ƙara a lokacin",
+      "earlierFrom": "Sigogi da ra'ayoyi daga"
     },
     "peopleOpenHelp": "Yana buɗe waɗanda ke yin wannan dubawa.",
     "questionsOpenHelp": "Yana buɗe tambayoyin da suke amsawa.",
@@ -7100,8 +7106,7 @@
     "checkedAtPickHelp": "Wannan dubawa tana sauraron sa.",
     "ownCheck": "Dubawa ta kanta",
     "ownCheckHelp": "Yana ƙara dubawa nan da nan bayan wannan da ke sauraron sa.",
-    "ownCheckName": "Dubawar {{name}}",
-    "helpLanguageHelp": "Yana nuna abubuwan taimako a wannan harshe."
+    "ownCheckName": "Dubawar {{name}}"
   },
   "lostFiles": {
     "title": "Sauti ta ɓace",

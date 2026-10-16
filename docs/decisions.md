@@ -4166,15 +4166,17 @@ kind, so recording the back translation and reviewing it are two steps
 with their own people, questions and screens, and the passage's steps
 list both. On the web, switches keep a white thumb when on.
 
-Amended (2026-10-16, Caleb Koster): every setting for a step is on its page,
-a card per help with one switch that turns all of it on or off and its
-parts inside as chips (Audio and Text, or each step), instead of pages of
-their own. A check's "Add a help" offers material one language at a time:
-the team's reference language first (`teamLanguage`), then each other
-language the organization has something in, with how many; the team's own
-notes count as the team's language. Caleb's rule (2026-10-16): the
-language of review material is set by the admin for the team, and choosing
-material means choosing the language it is in.
+Amended (2026-10-16, Caleb Koster): on a step's page each help is one row
+with a switch that turns all of it on or off and a line saying how much is
+on ("All", "Audio", "3 of 7"); the row opens the help's own page with a
+switch per part (Audio and Text, or each step its notes or earlier versions
+were added during, under a label saying so). Choosing material follows the
+language its content is in, set once for the language: the team's
+reference language (decision 84), asked when the language is set up with
+how much is in each language, and changed from the top of What helps them.
+What helps them and a check's "Add a help" offer only material in that
+language, and what the team already has. Caleb's rule (2026-10-16): the
+language of review material is set by the admin for the team, in one place.
 
 Reverse if: teams want the same settings on every language of an
 organization or cluster; then they move to the organization's

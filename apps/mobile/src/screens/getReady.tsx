@@ -107,7 +107,7 @@ function Questions({ ctx, start, only }: { ctx: Ctx; start: number; only: boolea
   const [n, setN] = useState(start);
   const lang = languageName(ctx.org.state, ctx.language.languageId);
   const header = only
-    ? <Header title={t('getReady.whatToTranslate')} sub={lang} onBack={ctx.back} />
+    ? <Header title={n === 2 ? t('getReady.page.title') : t('getReady.whatToTranslate')} sub={lang} onBack={ctx.back} />
     : <Header title={t('getReady.title', { language: lang })} sub={t('getReady.stepOf', { step: formatNumber(n), total: formatNumber(4) })} onBack={ctx.back} close />;
   const next = () => (only || n >= 4 ? ctx.back() : setN(n + 1));
   const props: StepProps = { ctx, lang, header, next, only };
@@ -435,8 +435,10 @@ function useComesWith(ctx: Ctx) {
 /** What will help them: the language of their reference material on a page of its own, then what is offered in it (decision 84). */
 function HelpsStep(props: StepProps) {
   const [page, setPage] = useState<'language' | 'helps'>('language');
+  // Opened from a ready language's What helps them to change the language: back there once it is saved.
+  const languageOnly = props.only && props.ctx.params['page'] === 'language';
   return page === 'language'
-    ? <ReferenceLanguageStep {...props} onDone={() => setPage('helps')} />
+    ? <ReferenceLanguageStep {...props} onDone={() => (languageOnly ? props.next() : setPage('helps'))} />
     : <HelpsList {...props} onLanguage={() => setPage('language')} />;
 }
 
@@ -506,11 +508,11 @@ function HelpsList({ ctx, lang, header, next, onLanguage }: StepProps & { onLang
   const sheet = useSetSheet(h, lang);
   const numbering = useVerseNumbering(ctx);
   const comes = useComesWith(ctx);
-  // Bibles in the team's language first.
-  const bibles = h.items.filter((x) => x.kind === 'source')
-    .sort((a, b) => Number(!sameLanguage((a.doc as SourceDoc).language, h.reads)) - Number(!sameLanguage((b.doc as SourceDoc).language, h.reads)));
-  const guides = h.items.filter((x) => x.kind === 'guide');
-  const notes = h.items.filter((x) => x.kind === 'note' || x.kind === 'other');
+  // Only what is in the team's language, and what the team already has (decision 110 amended).
+  const offered = h.items.filter((x) => inTeamLanguage(x, h.reads));
+  const bibles = offered.filter((x) => x.kind === 'source');
+  const guides = offered.filter((x) => x.kind === 'guide');
+  const notes = offered.filter((x) => x.kind === 'note' || x.kind === 'other');
   return (
     <Screen header={header} bodyStyle={PAD} footer={<PrimaryBtn label={t('common.next')} icon="right" help={t('getReady.nextHelp')} onPress={next} />}>
       <ReferenceLanguageChip language={h.reads} onPress={onLanguage} />
@@ -571,14 +573,17 @@ function HelpsPage({ ctx }: { ctx: Ctx }) {
       onToggle={() => onHelpPress(x, h.items, sheet.open, (item) => void h.toggle(item))} last={last} />
   );
   const none = (label: string) => <Row label={label} sub={t('getReady.page.addToOffer')} muted last />;
-  const bibles = h.items.filter((x) => x.kind === 'source');
-  const guides = h.items.filter((x) => x.kind === 'guide');
-  const notes = h.items.filter((x) => x.kind === 'note' || x.kind === 'other');
+  // Only what is in the team's language, and what the team already has (decision 110 amended).
+  const offered = h.items.filter((x) => inTeamLanguage(x, h.reads));
+  const bibles = offered.filter((x) => x.kind === 'source');
+  const guides = offered.filter((x) => x.kind === 'guide');
+  const notes = offered.filter((x) => x.kind === 'note' || x.kind === 'other');
   const rendered = terms.filter((term) => term.renderings.length > 0).length;
   const go = (to: Parameters<Ctx['go']>[0], params: Record<string, string>) => { setAdding(false); ctx.go(to, params); };
   return (
     <Screen header={<Header title={t('getReady.page.title')} sub={lang} onBack={ctx.back} />} bodyStyle={{ gap: space.sm }}
       footer={h.may ? <PrimaryBtn label={t('getReady.page.addMore')} icon="plus" help={t('getReady.page.addMoreHelp')} onPress={() => setAdding(true)} /> : undefined}>
+      <ReferenceLanguageChip language={h.reads} onPress={() => ctx.go('get_ready', { languageId, step: '2', only: '1', page: 'language' })} />
       <SectionLabel label={t('getReady.page.bibles')} />
       <Group>
         {bibles.length ? bibles.map((b, i) => {
@@ -620,6 +625,17 @@ function HelpsPage({ ctx }: { ctx: Ctx }) {
       {sheet.sheet}
     </Screen>
   );
+}
+
+/**
+ * Is a help offered to the team: in the language its material is in
+ * (`reads`, set once for the language), or one the team already has. A
+ * guide set (FIA) follows the team's language by itself.
+ */
+function inTeamLanguage(x: HelpItem, reads: string): boolean {
+  if (x.on || x.set) return true;
+  const language = x.kind === 'source' ? (x.doc as SourceDoc).language : docLanguage(x.doc);
+  return !language || sameLanguage(language, reads);
 }
 
 /** "FIA study guides (English)" for a team that reads English: "FIA study guides". */

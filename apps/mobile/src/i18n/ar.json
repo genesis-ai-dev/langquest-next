@@ -8269,7 +8269,13 @@
       "text": "نص",
       "allOnHelp": "مفعّل: يحصلون على كل شيء. اضغط لإخفاء الكل.",
       "allOffHelp": "متوقف: لا يحصلون على شيء. اضغط لإظهار الكل.",
-      "partLabel": "{{help}}: {{part}}"
+      "partLabel": "{{help}}: {{part}}",
+      "all": "الكل",
+      "off": "متوقف",
+      "someOf": "{{n, number}} من {{total, number}}",
+      "openHelp": "يفتح مفتاحًا لكل جزء منه.",
+      "notesFrom": "ملاحظات أُضيفت أثناء",
+      "earlierFrom": "النسخ والملاحظات من"
     },
     "peopleOpenHelp": "يفتح من يقوم بهذا الفحص.",
     "questionsOpenHelp": "يفتح الأسئلة التي يجيبون عنها.",
@@ -8284,8 +8290,7 @@
     "checkedAtPickHelp": "هذا الفحص يستمع إليه.",
     "ownCheck": "فحص خاص به",
     "ownCheckHelp": "يضيف بعد هذا الفحص مباشرة فحصًا يستمع إليه.",
-    "ownCheckName": "فحص {{name}}",
-    "helpLanguageHelp": "يعرض وسائل المساعدة بهذه اللغة."
+    "ownCheckName": "فحص {{name}}"
   },
   "lostFiles": {
     "title": "الصوت مفقود",

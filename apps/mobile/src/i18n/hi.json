@@ -7085,7 +7085,13 @@
       "text": "पाठ",
       "allOnHelp": "चालू: उन्हें सब मिलता है। सब छिपाने के लिए दबाएँ।",
       "allOffHelp": "बंद: उन्हें कुछ नहीं मिलता। सब दिखाने के लिए दबाएँ।",
-      "partLabel": "{{help}}: {{part}}"
+      "partLabel": "{{help}}: {{part}}",
+      "all": "सब",
+      "off": "बंद",
+      "someOf": "{{total, number}} में से {{n, number}}",
+      "openHelp": "इसके हर हिस्से का स्विच खोलता है।",
+      "notesFrom": "इन चरणों में जोड़े गए नोट",
+      "earlierFrom": "इनसे आए वर्शन और राय"
     },
     "peopleOpenHelp": "यह जाँच कौन करता है, वह खोलता है।",
     "questionsOpenHelp": "वे जिन सवालों के जवाब देते हैं, वे खोलता है।",
@@ -7100,8 +7106,7 @@
     "checkedAtPickHelp": "यह जाँच इसे सुनती है।",
     "ownCheck": "अपनी अलग जाँच",
     "ownCheckHelp": "इसके ठीक बाद एक जाँच जोड़ता है जो इसे सुनती है।",
-    "ownCheckName": "{{name}} जाँच",
-    "helpLanguageHelp": "इस भाषा में मदद की चीज़ें दिखाता है।"
+    "ownCheckName": "{{name}} जाँच"
   },
   "lostFiles": {
     "title": "ऑडियो गायब है",

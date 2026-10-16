@@ -7381,7 +7381,13 @@
       "text": "Texto",
       "allOnHelp": "Ligado: recebem tudo. Toque para ocultar tudo.",
       "allOffHelp": "Desligado: não recebem nada. Toque para mostrar tudo.",
-      "partLabel": "{{help}}: {{part}}"
+      "partLabel": "{{help}}: {{part}}",
+      "all": "Tudo",
+      "off": "Desligado",
+      "someOf": "{{n, number}} de {{total, number}}",
+      "openHelp": "Abre um botão para cada parte.",
+      "notesFrom": "Notas adicionadas durante",
+      "earlierFrom": "Versões e comentários de"
     },
     "peopleOpenHelp": "Abre quem faz esta verificação.",
     "questionsOpenHelp": "Abre as perguntas que eles respondem.",
@@ -7396,8 +7402,7 @@
     "checkedAtPickHelp": "Esta verificação ouve isso.",
     "ownCheck": "Uma verificação própria",
     "ownCheckHelp": "Adiciona logo depois desta uma verificação que ouve isso.",
-    "ownCheckName": "Verificação da {{name}}",
-    "helpLanguageHelp": "Mostra as ajudas neste idioma."
+    "ownCheckName": "Verificação da {{name}}"
   },
   "lostFiles": {
     "title": "Falta áudio",

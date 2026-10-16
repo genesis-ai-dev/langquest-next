@@ -1,92 +1,53 @@
-// What a step shows whoever does it (decisions.md 110), all on the step's
-// page: a card per help, as the person's screen has them. Each card's switch
-// turns the whole help on or off; its parts sit inside it and turn on and
-// off one by one: the Bible and the guide as audio and text, notes and
-// earlier versions by the step they come from. Key words is one switch.
-// The same on the recording and on every check (screens/checks.tsx).
-import { checkShows, checkShowsSpecs, RECORD_STEP, shownFrom, type EventSpec, type ShownWhat } from '@langquest-next/core';
-import * as Crypto from 'expo-crypto';
-import { StyleSheet, View } from 'react-native';
+// What a step shows whoever does it (decisions.md 110), on the step's page:
+// a row per help, as the person's screen has them. Each row's switch turns
+// the whole help on or off and its line says how much of it is on; the row
+// opens the help's own page, where each part has its switch (the Bible and
+// the guide as audio and text, notes and earlier versions by the step they
+// were added during; ShowsPage in screens/checks.tsx). Key words has no
+// parts. The same on the recording and on every check.
+import { checkShows, type ShownWhat } from '@langquest-next/core';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
-import { Chip, Group, Row, SectionLabel, Toggle, type IconName } from '../ui/kit';
-import { kindIcon } from '../ui/kindIcon';
-import { space } from '../ui/theme';
-import { checkName } from '../admin/adminModel';
-import { deriveKinds } from '../i18n/coreText';
-import { stepKeys } from './showsModel';
-
-/** One switch a card holds: a thing, or notes or earlier versions from one step. */
-interface Part { key: string; label: string; icon: IconName; what: ShownWhat; from?: string; on: boolean }
+import { Group, Row, SectionLabel, Toggle, type IconName } from '../ui/kit';
+import { partsOf, partsLine, type ShowPart } from './showsModel';
+import { setParts } from './showActions';
 
 export function ShowsSection(props: { ctx: Ctx; kindId: string; name: string; canEdit: boolean }) {
   const { ctx, kindId, name } = props;
   const state = ctx.language.state;
   if (!state) return null;
   const shows = checkShows(state, kindId);
-  const known = deriveKinds(state);
-  const steps = stepKeys(state);
-
-  /** Set several parts at once, with one Undo that puts each back. */
-  async function set(parts: readonly Part[], shown: boolean, label: string) {
-    const s = ctx.language.state;
-    if (!s || !props.canEdit) return;
-    const commandId = Crypto.randomUUID();
-    const changing = parts.filter((p) => p.on !== shown);
-    const specs: EventSpec[] = changing.flatMap((p, i) => checkShowsSpecs(s, { commandId: `${commandId}:${i}`, kindId, what: p.what, shown, ...(p.from !== undefined ? { from: p.from } : {}) }));
-    if (!specs.length) return;
-    const undo = () => {
-      const now = ctx.language.state;
-      return now ? changing.flatMap((p, i) => checkShowsSpecs(now, { commandId: `${commandId}:undo:${i}`, kindId, what: p.what, shown: !shown, ...(p.from !== undefined ? { from: p.from } : {}) })) : [];
-    };
-    await ctx.act(specs, shown ? t('checks.shows.shownToast', { what: label, check: name }) : t('checks.shows.hiddenToast', { what: label, check: name }), undo).catch(() => {});
-  }
-
-  const media = (audio: ShownWhat, text: ShownWhat, textIcon: IconName): Part[] => [
-    { key: audio, label: t('checks.shows.audio'), icon: 'listen', what: audio, on: shows[audio] },
-    { key: text, label: t('checks.shows.text'), icon: textIcon, what: text, on: shows[text] }
+  const open = (part: string) => ctx.go('check_editor', { languageId: ctx.language.languageId, kindId, part });
+  const rows: { key: 'bible' | 'guide' | 'terms' | 'notes' | 'earlier'; icon: IconName; label: string }[] = [
+    { key: 'bible', icon: 'book', label: t('checks.shows.bible') },
+    { key: 'guide', icon: 'star', label: t('checks.shows.guide') },
+    { key: 'terms', icon: 'key', label: t('checks.shows.terms') },
+    { key: 'notes', icon: 'chat', label: t('checks.shows.notes') },
+    { key: 'earlier', icon: 'clock', label: t('checks.shows.earlier') }
   ];
-  const bySteps = (what: 'notes' | 'earlier'): Part[] => steps.map((step) => ({
-    key: `${what}@${step}`, label: step === RECORD_STEP ? t('checks.recording') : checkName(step, known),
-    icon: step === RECORD_STEP ? 'mic' : kindIcon(step), what, from: step, on: shownFrom(state, kindId, what, step)
-  }));
-  const cards: { key: string; icon: IconName; label: string; parts: Part[] }[] = [
-    { key: 'bible', icon: 'book', label: t('checks.shows.bible'), parts: media('bibleAudio', 'bibleText', 'book') },
-    { key: 'guide', icon: 'star', label: t('checks.shows.guide'), parts: media('guideAudio', 'guideText', 'file') },
-    { key: 'terms', icon: 'key', label: t('checks.shows.terms'), parts: [{ key: 'terms', label: t('checks.shows.terms'), icon: 'key', what: 'terms', on: shows.terms }] },
-    { key: 'notes', icon: 'chat', label: t('checks.shows.notes'), parts: bySteps('notes') },
-    { key: 'earlier', icon: 'clock', label: t('checks.shows.earlier'), parts: bySteps('earlier') }
-  ];
-
+  const toggle = (parts: ShowPart[], on: boolean, label: string) => {
+    if (!props.canEdit) return;
+    void setParts(ctx, kindId, parts, !on, on ? t('checks.shows.hiddenToast', { what: label, check: name }) : t('checks.shows.shownToast', { what: label, check: name }));
+  };
   return (
     <>
       <SectionLabel label={t('checks.shows.title')} />
-      <View style={styles.cards}>
-        {cards.map((c) => {
-          const on = c.parts.some((p) => p.on);
-          const inside = c.parts.length > 1;
-          return (
-            <Group key={c.key}>
-              <Row icon={c.icon} label={c.label} role="switch" checked={on} muted={!on} last={!inside}
-                right={<Toggle testID={`toggle-shows-${c.key}`} on={on} label={c.label} disabled={!props.canEdit}
-                  help={on ? t('checks.shows.allOnHelp') : t('checks.shows.allOffHelp')} onToggle={() => void set(c.parts, !on, c.label)} />} />
-              {inside ? (
-                <View style={styles.parts}>
-                  {c.parts.map((p) => (
-                    <Chip key={p.key} label={p.label} icon={p.icon} on={p.on} help={p.on ? t('checks.shows.onHelp') : t('checks.shows.offHelp')}
-                      onPress={() => void set([p], !p.on, t('checks.shows.partLabel', { help: c.label, part: p.label }))} />
-                  ))}
-                </View>
-              ) : null}
-            </Group>
+      <Group>
+        {rows.map((r, j) => {
+          const parts: ShowPart[] = r.key === 'terms' ? [{ key: 'terms', what: 'terms' as ShownWhat, on: shows.terms }] : partsOf(state, kindId, r.key);
+          const on = parts.some((p) => p.on);
+          const switchEl = (
+            <Toggle testID={`toggle-shows-${r.key}`} on={on} label={r.label} disabled={!props.canEdit}
+              help={on ? t('checks.shows.allOnHelp') : t('checks.shows.allOffHelp')} onToggle={() => toggle(parts, on, r.label)} />
+          );
+          return r.key === 'terms' ? (
+            <Row key={r.key} icon={r.icon} label={r.label} role="switch" checked={on} muted={!on} right={switchEl} last={j === rows.length - 1} />
+          ) : (
+            <Row key={r.key} icon={r.icon} label={r.label} sub={partsLine(parts, r.key)} muted={!on} right={switchEl}
+              help={t('checks.shows.openHelp')} onPress={() => open(r.key)} last={j === rows.length - 1} />
           );
         })}
-      </View>
+      </Group>
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  cards: { gap: space.md },
-  parts: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, paddingHorizontal: space.lg, paddingBottom: space.lg }
-});
