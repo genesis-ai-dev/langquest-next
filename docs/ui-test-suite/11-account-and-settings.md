@@ -29,12 +29,11 @@ Steps:
 
 Expected:
 - The header says "Me" and has no Back button.
-- One card holds six rows, in this order:
+- One card holds five rows, in this order:
   - The account's display name, with "Name and photo" under it.
   - "Ready for offline", with one of: "Checking this device…", "No passages
     kept on this device yet", "{n} passage(s) on this device", or
     "{ready} of {n} passage(s) ready on this device".
-  - "Set up the microphone", with "Say a sentence, pick what sounds best".
   - "How LangQuest works", with "Listen to a short tour".
   - "Language", with the name of the language the app shows, in that
     language ("English").
@@ -73,20 +72,18 @@ Preconditions: None.
 Steps:
 1. On Me, tap the name row. Then tap Back.
 2. Tap "Ready for offline". Then tap Back.
-3. Tap "Set up the microphone". Then tap Back.
-4. Tap "How LangQuest works". Then tap Back.
-5. Tap "Language". Then close the sheet with its ✕.
-6. Tap "More settings". Then tap Back.
-7. Tap "Sign out". Then tap "Cancel".
+3. Tap "How LangQuest works". Then tap Back.
+4. Tap "Language". Then close the sheet with its ✕.
+5. Tap "More settings". Then tap Back.
+6. Tap "Sign out". Then tap "Cancel".
 
 Expected:
 - Step 1 opens "Edit Profile".
 - Step 2 opens "Sync" (the Sync screen; its contents are in SYNC).
-- Step 3 opens "Set up your microphone" (its use is in REC).
-- Step 4 opens "What is LangQuest?" with "1 of {n}" under the title.
-- Step 5 opens the "Language" sheet over Me.
-- Step 6 opens "More settings".
-- Step 7 opens the sign-out screen ("Sign out?").
+- Step 3 opens "What is LangQuest?" with "1 of {n}" under the title.
+- Step 4 opens the "Language" sheet over Me.
+- Step 5 opens "More settings".
+- Step 6 opens the sign-out screen ("Sign out?").
 - Each Back, ✕ or "Cancel" returns to Me, with the tab bar showing.
 - No step shows "That can't be opened from here." or "You don't have
   permission to open that."
@@ -743,7 +740,7 @@ Steps:
 5. Tap the "?" again (screen reader: "Turn help off").
 
 Expected:
-- Step 1: the screen dims. Each part (at least the six rows and "Sign out")
+- Step 1: the screen dims. Each part (at least the five rows and "Sign out")
   stays lit with a number, in reading order, top to bottom. The "?" stays
   lit, so help can be turned off.
 - Step 2: a tooltip beside the row says "More settings" and its sub-line

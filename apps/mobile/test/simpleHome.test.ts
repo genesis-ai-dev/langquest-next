@@ -80,7 +80,7 @@ describe('the simple tabs (decision 71)', () => {
     // Why: Me shows five rows; More settings holds the rest (profile, switching
     // organization, sync, diagnostics, deleting the account), so nothing is lost.
     const s = roleSession('translator');
-    for (const to of ['settings_more', 'profile_edit', 'sync_status', 'mic_setup', 'vision', 'sign_out_confirm'] as const) {
+    for (const to of ['settings_more', 'profile_edit', 'sync_status', 'vision', 'sign_out_confirm'] as const) {
       expect(EDGES.some((e) => e.from === 'settings_home' && e.to === to && edgeAllowed(e, s)), to).toBe(true);
     }
     for (const to of ['org_switcher', 'sync_status', 'delete_account', 'profile_edit'] as const) {

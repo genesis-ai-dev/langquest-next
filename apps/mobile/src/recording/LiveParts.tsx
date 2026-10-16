@@ -6,13 +6,14 @@
 // recording, not at playback. It fills its parent and carries no words but
 // the part numbers; the pane's status row says what is happening, so the
 // waveform is hidden from screen readers. `tone` is the ground it sits on:
-// the red recording pane, or a white card.
-import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+// the red recording pane, or a white card. Two fingers pinch it nearer or
+// farther (about 2 s to 30 s); the bars only grow or shrink.
+import { useRef, useState } from 'react';
+import { PanResponder, StyleSheet, View, type GestureResponderEvent } from 'react-native';
 import { Text } from '../ui/text';
 import { formatNumber } from '../i18n/format';
 import { C, radius, withAlpha } from '../ui/theme';
-import { LIVE_BARS, liveBars, liveBoxes, liveHeight, type LiveBar } from './livePartsModel';
+import { clampFrames, LIVE_BARS, liveBars, liveBoxes, liveHeight, type LiveBar } from './livePartsModel';
 import { useLiveParts } from './useLiveParts';
 import type { useRecorder } from './useRecorder';
 
@@ -35,15 +36,17 @@ const TONES: Record<Tone, { bar: Record<LiveBar['kind'], string>; band: string; 
 export function LiveParts(props: { rec: ReturnType<typeof useRecorder>; firstPart: number; tone: Tone }) {
   const live = useLiveParts(props.firstPart);
   const [width, setWidth] = useState(0);
+  const [frames, setFrames] = useState(LIVE_BARS);
+  const pinch = usePinch(frames, setFrames);
   const ink = TONES[props.tone];
-  const bars = liveBars(live);
-  const boxes = width ? liveBoxes(live) : [];
+  const bars = liveBars(live, frames);
+  const boxes = width ? liveBoxes(live, frames) : [];
   return (
     <View style={[styles.fill, props.rec.vadPaused && { opacity: 0.5 }]} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
-      importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+      importantForAccessibility="no-hide-descendants" accessibilityElementsHidden {...pinch.panHandlers}>
       {boxes.map((b) => (
         <View key={b.n} style={[styles.part, {
-          left: (b.from / LIVE_BARS) * width, width: Math.max(6, ((b.to - b.from) / LIVE_BARS) * width),
+          left: (b.from / frames) * width, width: Math.max(6, ((b.to - b.from) / frames) * width),
           borderColor: b.open ? ink.open : ink.box, backgroundColor: b.open ? ink.openFill : ink.boxFill, borderWidth: b.open ? 2.5 : 1.5
         }]}>
           <View style={[styles.pill, { backgroundColor: b.open ? ink.pillOpen : ink.pill }]}>
@@ -61,6 +64,29 @@ export function LiveParts(props: { rec: ReturnType<typeof useRecorder>; firstPar
       </View>
     </View>
   );
+}
+
+/** Two fingers apart: nearer (fewer frames); together: farther. One finger does nothing here. */
+function usePinch(frames: number, setFrames: (n: number) => void) {
+  const start = useRef({ d: 0, frames });
+  const latest = useRef(frames);
+  latest.current = frames;
+  const spread = (e: GestureResponderEvent) => {
+    const [a, b] = e.nativeEvent.touches;
+    return a && b ? Math.max(10, Math.hypot(a.pageX - b.pageX, a.pageY - b.pageY)) : 0;
+  };
+  return useRef(PanResponder.create({
+    onStartShouldSetPanResponder: (e) => e.nativeEvent.touches.length === 2,
+    onMoveShouldSetPanResponder: (e) => e.nativeEvent.touches.length === 2,
+    onPanResponderGrant: (e) => { start.current = { d: spread(e), frames: latest.current }; },
+    onPanResponderMove: (e) => {
+      const d = spread(e);
+      if (!d) return;
+      if (!start.current.d) { start.current = { d, frames: latest.current }; return; }
+      setFrames(clampFrames(start.current.frames * start.current.d / d));
+    },
+    onPanResponderTerminationRequest: () => false
+  })).current;
 }
 
 const PILL = 18;
