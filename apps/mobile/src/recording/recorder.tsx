@@ -299,7 +299,8 @@ export function RecorderBar(props: { count: number; phase: LoopPhase; disabled: 
         <Text style={[txt.smMuted, recording && { color: TINT.redText }]}>{props.phase === 'recording' ? t('recording.recorder.recordingNow') : props.phase === 'listening' ? t('recording.recorder.pausedForBible') : lines.bar}</Text>
         <HelpBadge spot={open} />
       </Pressable>
-      {props.undo ? <UndoRedo {...props.undo} hidden={props.phase !== 'off'} help={recordingHelp()} /> : null}
+      {/* Not drawn while recording: the line beside it needs the room (in Swahili, "Listening for you" took four lines). */}
+      {props.undo && props.phase === 'off' ? <UndoRedo {...props.undo} help={recordingHelp()} /> : null}
       <RecordBtn size={56} recording={recording} disabled={props.disabled} onPress={props.onRecord} />
     </View>
   );
@@ -368,7 +369,8 @@ const styles = StyleSheet.create({
   resume: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 40, paddingHorizontal: space.md, borderRadius: radius.full, backgroundColor: TINT.amberText },
   bar: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, backgroundColor: C.card, borderTopWidth: 1, borderColor: C.border },
   footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.lg },
-  sideBox: { width: 96 },
-  publish: { minHeight: target_.min, borderRadius: radius.md + 2, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.sm },
+  // Each side takes half of what the red button leaves, so it stays centred and Done fits its word whole ("Nimemaliza" in Swahili).
+  sideBox: { flex: 1, minWidth: 0, alignItems: 'flex-start' },
+  publish: { minHeight: target_.min, minWidth: 96, borderRadius: radius.md + 2, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.md },
   publishLabel: { fontSize: T.base, fontWeight: '800', color: C.primary }
 });
