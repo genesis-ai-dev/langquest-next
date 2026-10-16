@@ -18,7 +18,7 @@ import {
 } from '@langquest-next/core';
 import type { Ctx } from '../shell/ctx';
 import { useHelpOn, useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { HelpInfo, Ico, IconBtn, Sheet } from '../ui/kit';
 import { txt } from '../ui/textStyles';
@@ -211,7 +211,7 @@ export function VerseParts(props: {
         const moved = drag.offset(key);
         const lifted = drag.dragging === key;
         const mark = !disabled && !drag.dragging && opensAbove(rows, k) && r.kind === 'part'
-          ? <InsertMark key={`mark-${key}`} n={r.n} before={nameOf(r.index)} onPress={() => props.onChoose({ kind: 'gap', before: r.index })} /> : null;
+          ? <HelpRow key={`mark-${key}`} of="recording.insert"><InsertMark n={r.n} before={nameOf(r.index)} onPress={() => props.onChoose({ kind: 'gap', before: r.index })} /></HelpRow> : null;
         const row = r.kind === 'gap' ? (
           <GapSlot n={r.n} gutter grip first={k === 0} disabled={disabled}
             {...(r.label ? { tile: <VerseTile verses={verses} label={r.label} same={r.label.kind === 'join'} /> } : {})}
@@ -232,7 +232,9 @@ export function VerseParts(props: {
         })();
         return [
           mark,
-          <View key={key} ref={drag.ref(key)} onLayout={drag.onLayout(key)} style={[moved !== 0 && { transform: [{ translateY: moved }] }, lifted && styles.lifted]}>{row}</View>
+          <HelpRow key={key} of={r.kind === 'gap' ? 'recording.gap' : 'recording.part'}>
+            <View ref={drag.ref(key)} onLayout={drag.onLayout(key)} style={[moved !== 0 && { transform: [{ translateY: moved }] }, lifted && styles.lifted]}>{row}</View>
+          </HelpRow>
         ];
       })}
       {sheet ? (
@@ -361,12 +363,14 @@ function VerseSheet(props: {
           const link = !!above && above.s === v && above.e === v;
           const ends = isSel && (v === cur!.s || v === cur!.e);
           return (
-            <VerseCell key={v} part={partLabel(i)} name={link ? t('recording.verses.verseSame', { verse: spanName(verses, v, v) }) : spanName(verses, v, v)}
-              text={spanShort(verses, v, v)} selected={isSel} ends={ends} ok={ok} link={link} disabled={!ok || props.disabled}
-              onPress={() => {
-                if (anchor !== null && v > anchor && legal(anchor, v)) props.onPick(anchor, v, anchor);
-                else if (!(cur && cur.s === v && cur.e === v)) props.onPick(v, v, v);
-              }} />
+            <HelpRow key={v} of="recording.verseCell">
+              <VerseCell part={partLabel(i)} name={link ? t('recording.verses.verseSame', { verse: spanName(verses, v, v) }) : spanName(verses, v, v)}
+                text={spanShort(verses, v, v)} selected={isSel} ends={ends} ok={ok} link={link} disabled={!ok || props.disabled}
+                onPress={() => {
+                  if (anchor !== null && v > anchor && legal(anchor, v)) props.onPick(anchor, v, anchor);
+                  else if (!(cur && cur.s === v && cur.e === v)) props.onPick(v, v, v);
+                }} />
+            </HelpRow>
           );
         })}
       </View>

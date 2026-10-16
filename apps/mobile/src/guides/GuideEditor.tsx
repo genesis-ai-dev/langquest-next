@@ -32,7 +32,7 @@ import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { Badge, Banner, Card, Chip, ChipRow, EmptyState, Field, Group, Header, HelpInfo, Ico, IconBtn, LinkBtn, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, SmallBtn } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { useLayout } from '../ui/useLayout';
@@ -306,6 +306,7 @@ function Editor(props: {
         {/* Tabs within the screen (kit ChipRow): they scroll sideways on a phone instead of shrinking. */}
         <View accessibilityRole="tablist">
           <ChipRow>
+            {/* help-each: each tab shows a different part of the guide */}
             {PANELS.map((p) => (
               <Chip key={p.id} icon={p.icon} label={panelLabel(p.id)} on={panel === p.id} onPress={() => setPanel(p.id)} help={panelHelp(p.id)}
                 {...(counts[p.id] !== null ? { count: counts[p.id]! } : {})} />
@@ -331,7 +332,9 @@ function Problems(props: { problems: DraftProblem[]; current: DraftPanel; onPick
     <View style={s.problems} accessibilityRole="alert">
       <Text style={[txt.sm, { fontWeight: '700', color: TINT.amberText }]}>{t('guides.editor.beforePublishing')}</Text>
       {props.problems.map((p, i) => (
-        <ProblemRow key={`${p.panel}-${p.id ?? ''}-${i}`} problem={p} current={props.current} onPick={props.onPick} />
+        <HelpRow key={`${p.panel}-${p.id ?? ''}-${i}`} of="guide.problem">
+          <ProblemRow problem={p} current={props.current} onPick={props.onPick} />
+        </HelpRow>
       ))}
     </View>
   );
@@ -379,7 +382,9 @@ function DetailsPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; 
       <SectionLabel label={t('guides.details.method')} />
       <ChipRow>
         {[...new Set(['FIA', ...props.own.map((m) => m.pattern).filter(Boolean), draft.pattern].filter(Boolean))].map((p) => (
-          <Chip key={p} label={p} on={draft.pattern === p} help={t('guides.details.methodHelp')} onPress={() => set({ pattern: p })} />
+          <HelpRow key={p} of="guide.method">
+            <Chip label={p} on={draft.pattern === p} help={t('guides.details.methodHelp')} onPress={() => set({ pattern: p })} />
+          </HelpRow>
         ))}
       </ChipRow>
       <Field label={t('guides.details.ownMethod')} value={draft.pattern} onChangeText={(v) => set({ pattern: v })} placeholder={t('guides.details.ownMethodPlaceholder')} autoCapitalize="words"
@@ -388,7 +393,9 @@ function DetailsPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; 
         <>
           <Text style={txt.xsStrong}>{t('guides.details.startWith')}</Text>
           <ChipRow>
-            {methods.map((m) => <Chip key={m.id} label={m.label} on={false} help={t('guides.details.startWithHelp')} onPress={() => pickMethod(m)} />)}
+            {methods.map((m) => (
+              <HelpRow key={m.id} of="guide.startWith"><Chip label={m.label} on={false} help={t('guides.details.startWithHelp')} onPress={() => pickMethod(m)} /></HelpRow>
+            ))}
           </ChipRow>
           <Text style={txt.xs}>{written ? t('guides.details.choosingReplaces') : t('guides.details.nowSteps', { count: draft.steps.length })}</Text>
         </>
@@ -412,6 +419,7 @@ function DetailsPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; 
       ) : (
         <>
           <ChipRow>
+            {/* help-each: each license means something different */}
             {LICENSES.map((l) => <Chip key={l} label={licenseText(l).name} on={draft.license === l} help={licenseText(l).means} onPress={() => set({ license: l })} />)}
           </ChipRow>
           {isLicense(draft.license) ? <Text style={txt.xs}>{licenseText(draft.license).means}</Text> : null}
@@ -465,16 +473,22 @@ function Placement(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch }) {
         <>
           <Text style={txt.xsStrong}>{t('guides.placement.numberedAs')}</Text>
           <ChipRow>
-            {choices.map((c) => <Chip key={c.key} label={c.label} on={draft.versification === c.hash} help={t('guides.placement.numberingHelp')} onPress={() => dispatch({ type: 'set', patch: { versification: c.hash } })} />)}
+            {choices.map((c) => (
+              <HelpRow key={c.key} of="guide.numbering">
+                <Chip label={c.label} on={draft.versification === c.hash} help={t('guides.placement.numberingHelp')} onPress={() => dispatch({ type: 'set', patch: { versification: c.hash } })} />
+              </HelpRow>
+            ))}
           </ChipRow>
         </>
       ) : null}
       {draft.parts.length ? (
         <Group>
           {draft.parts.map((p, i) => (
-            <Row key={`${p.template}/${p.node}`} icon="template" label={partLabel(p)} sub={t('guides.placement.partSub')} last={i === draft.parts.length - 1}
-              right={<IconBtn name="close" label={t('guides.editor.remove', { name: partLabel(p) })} bg={C.light} color={C.primary} help={t('guides.placement.removeHelp')}
-                onPress={() => dispatch({ type: 'set', patch: { parts: draft.parts.filter((_, j) => j !== i) } })} />} />
+            <HelpRow key={`${p.template}/${p.node}`} of="guide.part">
+              <Row icon="template" label={partLabel(p)} sub={t('guides.placement.partSub')} last={i === draft.parts.length - 1}
+                right={<IconBtn name="close" label={t('guides.editor.remove', { name: partLabel(p) })} bg={C.light} color={C.primary} help={t('guides.placement.removeHelp')}
+                  onPress={() => dispatch({ type: 'set', patch: { parts: draft.parts.filter((_, j) => j !== i) } })} />} />
+            </HelpRow>
           ))}
         </Group>
       ) : null}
@@ -485,12 +499,14 @@ function Placement(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch }) {
         {units.length === 0 ? <Text style={txt.smMuted}>{q ? t('common.nothingMatches', { query: q }) : t('guides.placement.noTemplate')}</Text> : null}
         <Group>
           {units.map((u, i) => (
-            <Row key={u.unitId} icon="template" label={u.label} last={i === units.length - 1} help={t('guides.placement.unitHelp')} onPress={() => {
-              const slash = u.unitId.indexOf('/');
-              const part = { template: u.unitId.slice(0, slash), node: u.unitId.slice(slash + 1) };
-              if (!draft.parts.some((p) => p.template === part.template && p.node === part.node)) dispatch({ type: 'set', patch: { parts: [...draft.parts, part] } });
-              setPicking(false);
-            }} />
+            <HelpRow key={u.unitId} of="guide.unit">
+              <Row icon="template" label={u.label} last={i === units.length - 1} help={t('guides.placement.unitHelp')} onPress={() => {
+                const slash = u.unitId.indexOf('/');
+                const part = { template: u.unitId.slice(0, slash), node: u.unitId.slice(slash + 1) };
+                if (!draft.parts.some((p) => p.template === part.template && p.node === part.node)) dispatch({ type: 'set', patch: { parts: [...draft.parts, part] } });
+                setPicking(false);
+              }} />
+            </HelpRow>
           ))}
         </Group>
       </Sheet>
@@ -521,8 +537,10 @@ function StepsPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; st
     <View style={{ gap: space.sm }}>
       <Group>
         {draft.steps.map((st, i) => (
-          <StepRow key={st.id} step={st} index={i} count={draft.steps.length} on={st.id === props.stepId} last={i === draft.steps.length - 1}
-            onOpen={() => props.setStepId(st.id)} onMove={(by) => dispatch({ type: 'moveStep', id: st.id, by })} onDelete={() => remove(st)} />
+          <HelpRow key={st.id} of="guide.step">
+            <StepRow step={st} index={i} count={draft.steps.length} on={st.id === props.stepId} last={i === draft.steps.length - 1}
+              onOpen={() => props.setStepId(st.id)} onMove={(by) => dispatch({ type: 'moveStep', id: st.id, by })} onDelete={() => remove(st)} />
+          </HelpRow>
         ))}
       </Group>
       {draft.steps.length === 0 ? <Text style={txt.smMuted}>{t('guides.steps.none')}</Text> : null}
@@ -602,7 +620,9 @@ function StepEditor(props: { ctx: Ctx; draft: GuideDraft; step: DraftStep; index
           help={t('guides.steps.titleHelp')} />
         <Field label={t('guides.steps.phase')} value={step.phase} onChangeText={(v) => update({ phase: v })} placeholder={t('guides.steps.phasePlaceholder')} autoCapitalize="words" />
         {phases.length > 1 ? (
-          <ChipRow>{phases.map((p) => <Chip key={p} label={p} on={step.phase.trim() === p} help={t('guides.steps.phaseHelp')} onPress={() => update({ phase: p })} />)}</ChipRow>
+          <ChipRow>
+            {phases.map((p) => <HelpRow key={p} of="guide.phase"><Chip label={p} on={step.phase.trim() === p} help={t('guides.steps.phaseHelp')} onPress={() => update({ phase: p })} /></HelpRow>)}
+          </ChipRow>
         ) : null}
         <Field label={t('guides.steps.purpose')} value={step.purpose} onChangeText={(v) => update({ purpose: v })} placeholder={t('guides.steps.purposePlaceholder')} autoCapitalize="sentences" />
       </Card>
@@ -683,14 +703,16 @@ function TextEditor(props: { draft: GuideDraft; text: string; onChange: (text: s
       </View>
       {tray === 'callout' ? (
         <View style={s.tray}>
-          {CALLOUT_KINDS.map((k) => <CalloutChoice key={k} kind={k} onPress={() => apply(calloutText(props.text, sel.current, k))} />)}
+          {CALLOUT_KINDS.map((k) => <HelpRow key={k} of="guide.callout"><CalloutChoice kind={k} onPress={() => apply(calloutText(props.text, sel.current, k))} /></HelpRow>)}
         </View>
       ) : null}
       {tray === 'link' ? (
         <View style={s.tray}>
           {linkables.length === 0 ? <Text style={txt.smMuted}>{t('guides.text.nothingToLink')}</Text> : null}
           {linkables.map((l) => (
-            <SmallBtn key={l.ref} label={`${l.title} · #${l.ref}`} icon={l.icon} help={t('guides.text.linkToHelp')} onPress={() => apply(linkText(props.text, sel.current, l.ref, l.title))} />
+            <HelpRow key={l.ref} of="guide.linkable">
+              <SmallBtn label={`${l.title} · #${l.ref}`} icon={l.icon} help={t('guides.text.linkToHelp')} onPress={() => apply(linkText(props.text, sel.current, l.ref, l.title))} />
+            </HelpRow>
           ))}
         </View>
       ) : null}
@@ -798,7 +820,11 @@ function MediaPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch }) 
       {!canPickFiles ? <Banner icon="globe" title={t('guides.media.onWeb')} body={t('guides.media.onWebBody')} /> : null}
       {error ? <Text style={txt.error}>{error}</Text> : null}
       <SectionLabel label={t('guides.media.picturesAndFilms', { n: section('media').length })} />
-      {section('media').map((r) => <ResourceCard key={r.ref} ctx={ctx} r={r} dispatch={dispatch} onRemove={() => remove(r)} onAdd={(kind) => void add('media', kind, r)} />)}
+      {section('media').map((r) => (
+        <HelpRow key={r.ref} of="guide.pictures">
+          <ResourceCard ctx={ctx} r={r} dispatch={dispatch} onRemove={() => remove(r)} onAdd={(kind) => void add('media', kind, r)} />
+        </HelpRow>
+      ))}
       {canPickFiles ? (
         <View style={s.buttons}>
           <SmallBtn label={t('guides.media.addPicture')} icon="camera" help={t('guides.media.addPictureHelp')} onPress={() => void add('media', 'image')} disabled={busy} />
@@ -806,7 +832,11 @@ function MediaPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch }) 
         </View>
       ) : null}
       <SectionLabel label={t('guides.media.maps', { n: section('map').length })} />
-      {section('map').map((r) => <ResourceCard key={r.ref} ctx={ctx} r={r} dispatch={dispatch} onRemove={() => remove(r)} onAdd={(kind) => void add('map', kind, r)} />)}
+      {section('map').map((r) => (
+        <HelpRow key={r.ref} of="guide.map">
+          <ResourceCard ctx={ctx} r={r} dispatch={dispatch} onRemove={() => remove(r)} onAdd={(kind) => void add('map', kind, r)} />
+        </HelpRow>
+      ))}
       {canPickFiles ? <SmallBtn label={t('guides.media.addMap')} icon="map" help={t('guides.media.addMapHelp')} onPress={() => void add('map', 'image')} disabled={busy} /> : null}
       <Text style={txt.xs}>
         {busy ? t('guides.media.keeping') : t('guides.media.copies', { pixels: formatNumber(500) })}
@@ -830,7 +860,7 @@ function ResourceCard(props: { ctx: Ctx; r: DraftResource; dispatch: Dispatch; o
         help={t('guides.media.titleHelp')} />
       <Field label={t('guides.media.description')} value={r.description} onChangeText={(v) => dispatch({ type: 'updateResource', ref: r.ref, patch: { description: v } })}
         placeholder={t('guides.media.descriptionPlaceholder')} autoCapitalize="sentences" />
-      {r.media.map((m) => <MediaItem key={m.id} ctx={props.ctx} r={r} m={m} dispatch={dispatch} />)}
+      {r.media.map((m) => <HelpRow key={m.id} of="guide.mediaItem"><MediaItem ctx={props.ctx} r={r} m={m} dispatch={dispatch} /></HelpRow>)}
       {canPickFiles && r.kind === 'media' ? <SmallBtn label={t('guides.media.addAnother')} icon="plus" help={t('guides.media.addAnotherHelp')} onPress={() => props.onAdd('image')} /> : null}
     </Card>
   );
@@ -855,6 +885,7 @@ function MediaItem(props: { ctx: Ctx; r: DraftResource; m: DraftMedia; dispatch:
         </View>
         {r.kind === 'media' && m.kind !== 'video' ? (
           <ChipRow>
+            {/* help-each: a photo and an illustration are explained differently */}
             {(['photo', 'illustration'] as const).map((k) => <Chip key={k} label={mediaKindLabel(k)} on={m.kind === k} help={k === 'photo' ? t('guides.media.photoHelp') : t('guides.media.illustrationHelp')} onPress={() => patch({ kind: k })} />)}
           </ChipRow>
         ) : null}
@@ -879,7 +910,7 @@ function GlossaryPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch 
     <View style={{ gap: space.md }}>
       {draft.terms.length === 0 ? <Text style={txt.smMuted}>{t('guides.glossary.none')}</Text> : null}
       {draft.terms.map((term) => (
-        <Card key={term.id}>
+        <HelpRow key={term.id} of="guide.term"><Card>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
             <HelpInfo label={`#${term.id}`} detail={t('guides.editor.refHelp')}><Badge label={`#${term.id}`} tone="brand" /></HelpInfo>
             <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]} numberOfLines={1}>{term.term || t('guides.glossary.newTerm')}</Text>
@@ -893,7 +924,7 @@ function GlossaryPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch 
             help={t('guides.glossary.meaningPlaceholder')} />
           <AudioSlot ctx={ctx} label={t('guides.glossary.audio')} removeLabel={t('guides.glossary.removeAudio')} recordLabel={t('guides.glossary.record')} audio={term.audio}
             onChange={(audio) => dispatch({ type: 'setTermAudio', id: term.id, audio })} />
-        </Card>
+        </Card></HelpRow>
       ))}
       <SmallBtn label={t('guides.glossary.add')} icon="plus" help={t('guides.glossary.addHelp')} onPress={() => dispatch({ type: 'addTerm' })} />
     </View>

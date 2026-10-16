@@ -25,6 +25,7 @@ import type { LibraryChoice } from '../templates/contentTemplates';
 import { deriveKinds } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
 import { useHelpMode } from '../helpMode/useHelpMode';
+import { HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatClock, formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
@@ -187,6 +188,7 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
         <>
           <SectionLabel label={t('getReady.record.whichPart')} />
           <Pills>
+            {/* help-each: each choice is a different part of the Bible */}
             {LANGUAGE_SCOPES.map((sc) => (
               <Chip key={sc} label={languageScopeLabel(sc)} on={pills === sc} help={sc === 'custom' ? t('getReady.record.chooseBooksHelp') : t('getReady.record.partHelp')}
                 onPress={() => { setScope(sc); if (sc === 'custom' && !chosen) setChosen(new Set(wanted ?? templateBooks(doc).map((b) => b.book))); }} />
@@ -195,8 +197,10 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
           {pills === 'custom' ? (
             <Pills>
               {templateBooks(doc).map((b) => (
-                <Chip key={b.book} label={b.name || b.book} on={books.has(b.book)} help={books.has(b.book) ? t('getReady.record.bookOnHelp') : t('getReady.record.bookOffHelp')}
-                  onPress={() => setChosen(() => { const nextSet = new Set(books); if (nextSet.has(b.book)) nextSet.delete(b.book); else nextSet.add(b.book); return nextSet; })} />
+                <HelpRow key={b.book} of="getReady.book">
+                  <Chip label={b.name || b.book} on={books.has(b.book)} help={books.has(b.book) ? t('getReady.record.bookOnHelp') : t('getReady.record.bookOffHelp')}
+                    onPress={() => setChosen(() => { const nextSet = new Set(books); if (nextSet.has(b.book)) nextSet.delete(b.book); else nextSet.add(b.book); return nextSet; })} />
+                </HelpRow>
               ))}
             </Pills>
           ) : null}
@@ -465,9 +469,11 @@ function HelpsList({ ctx, lang, header, next, onLanguage }: StepProps & { onLang
         {bibles.map((b) => {
           const doc = b.doc as SourceDoc;
           return (
-            <CheckRow key={b.key} label={`${languageLabel(doc.language)} · ${doc.abbreviation}`} sub={mediaText(mediaOf(doc, h.get))} checked={b.on}
-              disabled={!h.may || h.busy} onToggle={() => void h.toggle(b)} playLabel={t('admin.checkRow.hear', { name: b.name })} playHelp={t('getReady.helps.openBibleHelp')}
-              {...(b.itemId ? { onPlay: () => ctx.go('reference_source', { itemId: b.itemId!, languageId }) } : {})} />
+            <HelpRow key={b.key} of="getReady.bible">
+              <CheckRow label={`${languageLabel(doc.language)} · ${doc.abbreviation}`} sub={mediaText(mediaOf(doc, h.get))} checked={b.on}
+                disabled={!h.may || h.busy} onToggle={() => void h.toggle(b)} playLabel={t('admin.checkRow.hear', { name: b.name })} playHelp={t('getReady.helps.openBibleHelp')}
+                {...(b.itemId ? { onPlay: () => ctx.go('reference_source', { itemId: b.itemId!, languageId }) } : {})} />
+            </HelpRow>
           );
         })}
         <Row icon="search" label={t('getReady.helps.findBible')} sub={bibles.length ? undefined : t('getReady.helps.noneChosen')} last
@@ -476,9 +482,11 @@ function HelpsList({ ctx, lang, header, next, onLanguage }: StepProps & { onLang
       {guides.length ? (
         <Group>
           {guides.map((g, i) => (
-            <SwitchRow key={g.key} icon="star" label={guides.length === 1 ? t('getReady.helps.studyGuides') : t('getReady.helps.namedGuides', { name: guideShortName(g.name) })}
-              sub={[guides.length === 1 ? guideShortName(g.name) : fromLine(g), guideLanguageLine(g), g.on ? t('getReady.helps.onInline') : t('getReady.helps.offInline'), comes(g)].filter(Boolean).join(' · ')}
-              on={g.on} disabled={!h.may || h.busy} help={helpItemLine(g, h.items)} onToggle={() => onHelpPress(g, h.items, sheet.open, (x) => void h.toggle(x))} last={i === guides.length - 1} />
+            <HelpRow key={g.key} of="getReady.guide">
+              <SwitchRow icon="star" label={guides.length === 1 ? t('getReady.helps.studyGuides') : t('getReady.helps.namedGuides', { name: guideShortName(g.name) })}
+                sub={[guides.length === 1 ? guideShortName(g.name) : fromLine(g), guideLanguageLine(g), g.on ? t('getReady.helps.onInline') : t('getReady.helps.offInline'), comes(g)].filter(Boolean).join(' · ')}
+                on={g.on} disabled={!h.may || h.busy} help={helpItemLine(g, h.items)} onToggle={() => onHelpPress(g, h.items, sheet.open, (x) => void h.toggle(x))} last={i === guides.length - 1} />
+            </HelpRow>
           ))}
         </Group>
       ) : h.loading ? <Text style={txt.smMuted}>{t('getReady.helps.lookingForGuides')}</Text> : null}
@@ -488,8 +496,10 @@ function HelpsList({ ctx, lang, header, next, onLanguage }: StepProps & { onLang
           <SectionLabel label={t('getReady.helps.notesForTranslators')} />
           <Group>
             {notes.map((x, i) => (
-              <SwitchRow key={x.key} icon="note" label={x.name} sub={[x.on ? t('getReady.helps.on') : t('getReady.helps.off'), languagesLine([docLanguage(x.doc)])].join(' · ')} on={x.on} disabled={!h.may || h.busy}
-                help={helpItemLine(x, h.items)} onToggle={() => void h.toggle(x)} last={i === notes.length - 1} />
+              <HelpRow key={x.key} of="getReady.note">
+                <SwitchRow icon="note" label={x.name} sub={[x.on ? t('getReady.helps.on') : t('getReady.helps.off'), languagesLine([docLanguage(x.doc)])].join(' · ')} on={x.on} disabled={!h.may || h.busy}
+                  help={helpItemLine(x, h.items)} onToggle={() => void h.toggle(x)} last={i === notes.length - 1} />
+              </HelpRow>
             ))}
           </Group>
         </>
@@ -512,8 +522,10 @@ function HelpsPage({ ctx }: { ctx: Ctx }) {
   const terms = useMemo(() => keyTermsFor(state), [state]);
   const written = useMemo(() => materialsFor(state).filter((m) => m.kind !== 'questions' && m.kind !== 'key_terms' && m.kind !== 'fia_study'), [state]);
   const switchRow = (x: HelpItem, last: boolean, sub: string) => (
-    <SwitchRow key={x.key} label={plainName(x.name, reads)} sub={sub} on={x.on} disabled={!h.may || h.busy} help={helpItemLine(x, h.items)}
-      onToggle={() => onHelpPress(x, h.items, sheet.open, (item) => void h.toggle(item))} last={last} />
+    <HelpRow key={x.key} of={`getReady.${x.kind}`}>
+      <SwitchRow label={plainName(x.name, reads)} sub={sub} on={x.on} disabled={!h.may || h.busy} help={helpItemLine(x, h.items)}
+        onToggle={() => onHelpPress(x, h.items, sheet.open, (item) => void h.toggle(item))} last={last} />
+    </HelpRow>
   );
   const none = (label: string) => <Row label={label} sub={t('getReady.page.addToOffer')} muted last />;
   // Only what is in the team's language, and what the team already has (decision 130 amended).
@@ -551,8 +563,10 @@ function HelpsPage({ ctx }: { ctx: Ctx }) {
       <Group>
         {notes.map((x, i) => switchRow(x, i === notes.length - 1 && written.length === 0, [x.owner, languagesLine([docLanguage(x.doc)])].filter(Boolean).join(' · ')))}
         {written.map((m, i) => (
-          <Row key={m.materialId} label={m.title} sub={t('getReady.page.writtenHere')} last={i === written.length - 1} help={t('getReady.page.noteHelp')}
-            onPress={h.may ? () => ctx.go('material_editor', { materialId: m.materialId, languageId }) : undefined} />
+          <HelpRow key={m.materialId} of="getReady.writtenNote">
+            <Row label={m.title} sub={t('getReady.page.writtenHere')} last={i === written.length - 1} help={t('getReady.page.noteHelp')}
+              onPress={h.may ? () => ctx.go('material_editor', { materialId: m.materialId, languageId }) : undefined} />
+          </HelpRow>
         ))}
         {notes.length + written.length === 0 ? none(t('getReady.page.noNotes')) : null}
       </Group>
@@ -639,9 +653,11 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
     const on = key === e.c.key;
     const sub = e.c === current ? t('getReady.checks.inUse') : e === starter && i === 0 ? t('getReady.checks.suggested') : flowSub(e.doc.steps);
     return (
-      <ChoiceCard key={e.c.key} on={on} icon="people" title={titleOf(e.doc)} sub={sub} help={t('getReady.checks.wayHelp')} onPress={() => setPicked(e.c.key)}>
-        {on && e.doc.steps.length ? <NumberedSteps items={flowWho(e.doc.steps, kindsOf(e.doc))} /> : null}
-      </ChoiceCard>
+      <HelpRow key={e.c.key} of="getReady.way">
+        <ChoiceCard on={on} icon="people" title={titleOf(e.doc)} sub={sub} help={t('getReady.checks.wayHelp')} onPress={() => setPicked(e.c.key)}>
+          {on && e.doc.steps.length ? <NumberedSteps items={flowWho(e.doc.steps, kindsOf(e.doc))} /> : null}
+        </ChoiceCard>
+      </HelpRow>
     );
   };
   return (
@@ -701,8 +717,13 @@ function InviteStep({ ctx, lang, header, next }: StepProps) {
         <DashedRow icon="plus" label={t('admin.invite.newRole')} detail={t('admin.invite.newRoleHelp')} onPress={() => ctx.go('role_editor', { roleId: 'new' })} />
       ) : null}
       <Pills>
+        {/* help-each: each plain role does different work */}
         {roles.choices.map((c) => <Chip key={c.id} label={c.chip} on={choice === c.id} help={plainRoleHelp(c.id)} onPress={() => setChoice(c.id)} />)}
-        {more ? roles.others.map((r) => <Chip key={r.id} label={r.name} on={choice === r.id} help={t('admin.invite.pickRoleHelp')} onPress={() => setChoice(r.id)} />) : null}
+        {more ? roles.others.map((r) => (
+          <HelpRow key={r.id} of="getReady.otherRole">
+            <Chip label={r.name} on={choice === r.id} help={t('admin.invite.pickRoleHelp')} onPress={() => setChoice(r.id)} />
+          </HelpRow>
+        )) : null}
         {!more && roles.others.length ? <Chip label={t('getReady.invite.somethingElse')} icon="plus" on={false} help={t('admin.invite.otherRolesHelp')} onPress={() => setMore(true)} /> : null}
       </Pills>
       {may ? <InviteCode state={invite} /> : (

@@ -14,7 +14,7 @@ import { Text } from '../ui/text';
 import { ClipPlayer } from '../audio/clipPlayer';
 import type { Ctx } from '../shell/ctx';
 import { useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { Ico } from '../ui/kit';
 import { txt } from '../ui/textStyles';
@@ -55,7 +55,9 @@ export function VersionParts(props: { ctx: Ctx; state: LanguageState; unitId: st
   return (
     <View style={styles.list}>
       {hashes.map((hash, i) => (
-        <PartRow key={`${hash}-${i}`} ctx={ctx} hash={hash} index={i} durationMs={durations.get(hash)} verses={verses} row={rows[i]!} numbered={numbered} />
+        <HelpRow key={`${hash}-${i}`} of="version.part">
+          <PartRow ctx={ctx} hash={hash} index={i} durationMs={durations.get(hash)} verses={verses} row={rows[i]!} numbered={numbered} />
+        </HelpRow>
       ))}
     </View>
   );

@@ -11,7 +11,7 @@ import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'rea
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { useHelpOn, useHelpSpot } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
@@ -146,7 +146,9 @@ export function SourceView(props: SourceReaderProps & {
   const chipRow = props.chips === false ? null : (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
       {passage.options.map((o) => (
-        <VersionChip key={o.itemId} option={o} label={chipLabel(o, passage.options)} on={o.itemId === option?.itemId} marks={marks[o.itemId] ?? []} onPress={() => props.onChoose?.(o)} />
+        <HelpRow key={o.itemId} of="source.bible">
+          <VersionChip option={o} label={chipLabel(o, passage.options)} on={o.itemId === option?.itemId} marks={marks[o.itemId] ?? []} onPress={() => props.onChoose?.(o)} />
+        </HelpRow>
       ))}
       {props.onMoreBibles ? <MoreBiblesChip onPress={props.onMoreBibles} /> : null}
     </ScrollView>
@@ -200,11 +202,13 @@ export function SourceView(props: SourceReaderProps & {
           ...(isSel && !player.playing && player.started && player.current?.key === row.key ? { at: anchorClock(player.ms) } : {})
         });
         return (
-          <View key={row.key} onLayout={(e) => { rowsY.current[row.key] = e.nativeEvent.layout.y; }}>
-            <VerseRowView row={row} here={here} selected={isSel} badge={badge} timed={!!plan && timed} choosable={!!props.verse} terms={terms}
-              tied={props.tied} onTerm={props.onTerm} onPress={() => tapRow(row)} />
-            {below}
-          </View>
+          <HelpRow key={row.key} of="source.verse">
+            <View onLayout={(e) => { rowsY.current[row.key] = e.nativeEvent.layout.y; }}>
+              <VerseRowView row={row} here={here} selected={isSel} badge={badge} timed={!!plan && timed} choosable={!!props.verse} terms={terms}
+                tied={props.tied} onTerm={props.onTerm} onPress={() => tapRow(row)} />
+              {below}
+            </View>
+          </HelpRow>
         );
       }) : (
         <Text style={[txt.smMuted, { padding: space.md }]}>{src?.loading || !src ? t('common.loading') : src.textProblem}</Text>

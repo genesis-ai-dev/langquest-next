@@ -70,6 +70,7 @@ export function LicenseSheet(props: {
           body={`${words.means} ${t('shell.license.cannotClose')}`} />
       ) : (
         <View>
+          {/* help-each: each license means something different */}
           {licenseChoices(floor).map(({ info: option, available }, i, all) => {
             const selected = option.license === picked;
             const locked = !available;

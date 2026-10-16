@@ -17,6 +17,7 @@ import { LISTEN_PLAYER, registerPlayback, setSessionAudioMode, stopAudioPlayback
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { getReferenceSlides } from './passageResources';
+import { HelpRow } from '../helpMode/helpBadge';
 import { Card, IconBtn, Ico } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import type { ListenHooks } from '../recording/useListenLoop';
@@ -33,14 +34,14 @@ export function ReferenceRecordings({ ctx, unitId, disabled, listen, onPlay }: {
     ? getReferenceSlides(ctx.language.state, unitId) : [];
   if (references.length === 0) return null;
   return <View style={{ gap: space.sm }}>
-    {references.map((item) => <Card key={item.id}>
+    {references.map((item) => <HelpRow key={item.id} of="source.recording"><Card>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
         <Ico name="listen" size={22} color={TINT.amberText} />
         <Text style={[txt.sm, { flex: 1 }]}>{item.label}</Text>
       </View>
       <SourcePlayer language={ctx.language} hashes={[item.hash]} {...(listen ? { listen } : {})}
         label={t('sources.recordings.play', { name: item.label })} disabled={disabled} {...(onPlay ? { onPlay: () => onPlay(item.id) } : {})} />
-    </Card>)}
+    </Card></HelpRow>)}
   </View>;
 }
 

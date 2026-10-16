@@ -39,6 +39,7 @@ import { edgeAllowed, mapScreenFor } from '../shell/session';
 import { Bell, NextCard, QuietToggle, ReadyCard } from '../work/home';
 import { checkName } from '../admin/adminModel';
 import { Faces } from '../checks/parts';
+import { HelpRow } from '../helpMode/helpBadge';
 import { useReadySummary, type ReadySummary } from '../admin/useReadySummary';
 import { divideSub, elsewhereCounts, nextSub, readinessFrom, THEN_CAP, undecided, waitingWhat, waitingWho, workIcon, workSub, workTarget, workWhat, type Readiness } from '../work/homeModel';
 import { SyncIndicator } from '../sync/SyncIndicator';
@@ -146,8 +147,11 @@ function WorkRows(props: { items: WorkItem[] }) {
   return (
     <Group>
       {props.items.map((it, i) => (
-        <Row key={it.id} icon={it.icon} label={it.title} sub={it.sub} last={i === props.items.length - 1} onPress={it.onPress} {...(it.help ? { help: it.help } : {})}
-          iconBg={it.tone === 'amber' ? TINT.amber : C.light} iconColor={it.tone === 'amber' ? TINT.amberText : C.primary} />
+        // A to-do of each kind (a join request, a passage to record) speaks for the rest of its kind.
+        <HelpRow key={it.id} of={`work.todo.${it.icon}`}>
+          <Row icon={it.icon} label={it.title} sub={it.sub} last={i === props.items.length - 1} onPress={it.onPress} {...(it.help ? { help: it.help } : {})}
+            iconBg={it.tone === 'amber' ? TINT.amber : C.light} iconColor={it.tone === 'amber' ? TINT.amberText : C.primary} />
+        </HelpRow>
       ))}
     </Group>
   );
@@ -355,8 +359,10 @@ export function MyWork(ctx: Ctx) {
             {waiting.map((w, i) => {
               const line = waitingText(state, kinds, w, ctx.name);
               return (
-                <Row key={w.id} icon="clock" iconColor={C.muted} iconBg={C.bg} last={i === waiting.length - 1}
-                  label={line.title} sub={line.sub} help={t('work.waiting.rowHelp')} onPress={() => ctx.openPassage(w.unitId, languageId)} />
+                <HelpRow key={w.id} of="work.waiting">
+                  <Row icon="clock" iconColor={C.muted} iconBg={C.bg} last={i === waiting.length - 1}
+                    label={line.title} sub={line.sub} help={t('work.waiting.rowHelp')} onPress={() => ctx.openPassage(w.unitId, languageId)} />
+                </HelpRow>
               );
             })}
           </Group>
@@ -368,14 +374,16 @@ export function MyWork(ctx: Ctx) {
         {recentOpen.open && recent.length > 0 ? (
           <Group>
             {recent.map((r, i) => (
-              <Row key={`${r.unitId}:${r.languageId}`} icon="history" iconColor={C.muted} iconBg={C.bg} last={i === recent.length - 1}
-                label={unitTitle(state, r.unitId)}
-                sub={passageSummary(r.s, kinds, actorId, (id) => ctx.name(id, true))}
-                help={r.s.recorded && r.s.steps.length > 0 ? `${t('work.recent.rowHelp')} ${t('map.marks.stepsHelp')}` : t('work.recent.rowHelp')}
-                right={r.s.recorded && r.s.steps.length > 0
-                  ? <StepMarks steps={r.s.steps.map((st) => ({ kinds: st.kinds, checkpoint: st.step.checkpoint }))} size={14} />
-                  : undefined}
-                onPress={() => ctx.openPassage(r.unitId, r.languageId)} />
+              <HelpRow key={`${r.unitId}:${r.languageId}`} of="work.recent">
+                <Row icon="history" iconColor={C.muted} iconBg={C.bg} last={i === recent.length - 1}
+                  label={unitTitle(state, r.unitId)}
+                  sub={passageSummary(r.s, kinds, actorId, (id) => ctx.name(id, true))}
+                  help={r.s.recorded && r.s.steps.length > 0 ? `${t('work.recent.rowHelp')} ${t('map.marks.stepsHelp')}` : t('work.recent.rowHelp')}
+                  right={r.s.recorded && r.s.steps.length > 0
+                    ? <StepMarks steps={r.s.steps.map((st) => ({ kinds: st.kinds, checkpoint: st.step.checkpoint }))} size={14} />
+                    : undefined}
+                  onPress={() => ctx.openPassage(r.unitId, r.languageId)} />
+              </HelpRow>
             ))}
           </Group>
         ) : null}

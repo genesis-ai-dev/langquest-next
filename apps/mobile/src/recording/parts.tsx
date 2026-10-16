@@ -7,7 +7,7 @@ import { AccessibilityInfo, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { AudioClip } from '../audio/audioClip';
 import type { Ctx } from '../shell/ctx';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
 import { GhostBtn, Ico, IconBtn } from '../ui/kit';
@@ -63,15 +63,17 @@ export function CardList(props: {
   return (
     <View style={styles.list}>
       {props.cards.map((c, i) => (
-        <View key={`${c.hash}-${i}`} style={[styles.row, i > 0 && styles.rowBorder]}>
-          <AudioClip language={props.ctx.language} hashes={[c.hash]} label={t('recording.player.playTitle', { title: c.label })} disabled={props.disabled} />
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={[txt.body, { fontWeight: '600' }]} numberOfLines={1}>{c.label}</Text>
-            <Text style={txt.xs}>{mmss(c.durationMs)}</Text>
+        <HelpRow key={`${c.hash}-${i}`} of="recording.part">
+          <View style={[styles.row, i > 0 && styles.rowBorder]}>
+            <AudioClip language={props.ctx.language} hashes={[c.hash]} label={t('recording.player.playTitle', { title: c.label })} disabled={props.disabled} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={[txt.body, { fontWeight: '600' }]} numberOfLines={1}>{c.label}</Text>
+              <Text style={txt.xs}>{mmss(c.durationMs)}</Text>
+            </View>
+            <IconBtn name="trash" label={t('recording.deleteItem', { item: c.label })} help={t('recording.recorder.deletePartHelp')} bg="transparent" color={C.muted} disabled={props.disabled}
+              onPress={() => props.onDelete(c.hash)} />
           </View>
-          <IconBtn name="trash" label={t('recording.deleteItem', { item: c.label })} help={t('recording.recorder.deletePartHelp')} bg="transparent" color={C.muted} disabled={props.disabled}
-            onPress={() => props.onDelete(c.hash)} />
-        </View>
+        </HelpRow>
       ))}
     </View>
   );

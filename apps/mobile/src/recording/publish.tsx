@@ -12,7 +12,7 @@ import { Text } from '../ui/text';
 import { ClipPlayer } from '../audio/clipPlayer';
 import type { Ctx } from '../shell/ctx';
 import { useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { Field, Header, Ico, PrimaryBtn, QuietLinks, Screen, SectionLabel, Sheet } from '../ui/kit';
 import { SavedMark } from '../ui/SavedMark';
@@ -112,8 +112,10 @@ export function PublishScreen(props: {
         <View style={{ gap: space.sm, marginTop: space.sm }}>
           <SectionLabel label={t('recording.publish.nextCheck')} />
           {kinds.map((k) => (
-            <AskCheckCard key={k.kindId} ctx={ctx} kindId={k.kindId} name={checkName(k.kindId, v.kinds)} on={k.kindId === next.kindId} radio={kinds.length > 1}
-              people={checkPeople(v.state, k.kindId).filter((id) => id !== ctx.session.actorId)} onPress={() => setKindId(k.kindId)} />
+            <HelpRow key={k.kindId} of="ask.check">
+              <AskCheckCard ctx={ctx} kindId={k.kindId} name={checkName(k.kindId, v.kinds)} on={k.kindId === next.kindId} radio={kinds.length > 1}
+                people={checkPeople(v.state, k.kindId).filter((id) => id !== ctx.session.actorId)} onPress={() => setKindId(k.kindId)} />
+            </HelpRow>
           ))}
           {nextTarget ? <TheyAnswer asked={questionsForKind(v.state, next.kindId)} questions={questions} setQuestions={setQuestions} /> : null}
         </View>

@@ -664,6 +664,28 @@ test('ACCT-034 The ? explains each part of the screen', async ({ page }) => {
   await expect(button(page, /^Back\. Goes back to the screen before\./)).toBeVisible();
 });
 
+test('ACCT-051 In a list, one row takes the help numbers', async ({ page }) => {
+  await openAs(page, world(), 'TRANS');
+  await tab(page, 'map').click();
+  await button(page, /^Luke/).click();
+  const chapters = page.getByRole('button', { name: /^Chapter \d+:/ }).locator('visible=true');
+  await expect(chapters.nth(4)).toBeVisible();
+  await byId(page, 'header-help').click();
+  // Every chapter is the same kind of part: the first holds a number, the rest stay dim.
+  const numbered = async () => {
+    const marks = await page.getByTestId('help-number').locator('visible=true').evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => ({ x: r.x + r.width / 2, y: r.y + r.height / 2 })));
+    const boxes = await chapters.evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => ({ x: r.x, y: r.y, r: r.right, b: r.bottom })));
+    return boxes.filter((c) => marks.some((m) => m.x >= c.x - 14 && m.x <= c.r && m.y >= c.y - 14 && m.y <= c.b)).length;
+  };
+  await expect.poll(numbered).toBe(1);
+  // A dim row still explains itself instead of opening.
+  await chapters.nth(4).click();
+  await expect(button(page, /^Chapter 5\b.*\. /)).toBeVisible();
+  await expect(chapters.first()).toBeVisible();
+  await byId(page, 'header-help').click();
+  await expect(page.getByTestId('help-number').locator('visible=true')).toHaveCount(0);
+});
+
 // ---- Signing out ---------------------------------------------------------------------------------
 
 test('ACCT-040 On the web, sign-out waits for work to send @p0', async ({ browser }) => {

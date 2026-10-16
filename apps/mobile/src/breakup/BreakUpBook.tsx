@@ -13,6 +13,7 @@ import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { Card, Field, GhostBtn, Header, Ico, PrimaryBtn, Row, Group, Screen, SectionLabel, Sheet } from '../ui/kit';
+import { HelpRow } from '../helpMode/helpBadge';
 import { txt } from '../ui/textStyles';
 import { useLibraryDocs } from '../library/useLibrary';
 import { failureMessage } from '../diagnostics/report';
@@ -92,12 +93,14 @@ function NameChoices(props: { rows: { name: string; from: string[] }[]; current:
   return (
     <Group>
       {props.rows.map((r, i) => (
-        <Row key={r.name} label={r.name} sub={r.from.join(' · ')} last={i === props.rows.length - 1} onPress={() => props.onPick(r.name)}
-          help={props.current === r.name ? t('breakup.bookName.inBoxHelp') : t('breakup.bookName.useHelp')}
-          accessibilityLabel={t('breakup.bookName.useLabel', { name: r.name, from: r.from.join(t('admin.list.separator')) })}
-          right={props.current === r.name
-            ? <Ico name="check" size={22} color={C.green} strokeWidth={3} />
-            : <Text style={txt.link}>{t('breakup.bookName.use')}</Text>} />
+        <HelpRow key={r.name} of="breakup.bookName">
+          <Row label={r.name} sub={r.from.join(' · ')} last={i === props.rows.length - 1} onPress={() => props.onPick(r.name)}
+            help={props.current === r.name ? t('breakup.bookName.inBoxHelp') : t('breakup.bookName.useHelp')}
+            accessibilityLabel={t('breakup.bookName.useLabel', { name: r.name, from: r.from.join(t('admin.list.separator')) })}
+            right={props.current === r.name
+              ? <Ico name="check" size={22} color={C.green} strokeWidth={3} />
+              : <Text style={txt.link}>{t('breakup.bookName.use')}</Text>} />
+        </HelpRow>
       ))}
     </Group>
   );
@@ -154,8 +157,10 @@ export function BreakUpBook(props: {
       <ChoiceCard own chevron on={false} icon="edit" title={t('breakup.own.title')} sub={t('breakup.own.sub', { book: props.bookName })} onPress={props.onOwn} />
       {offered.length ? <SectionLabel label={t('breakup.own.orReadyMade')} /> : null}
       {offered.map((r) => (
-        <WayCard key={r.choice.key} row={{ ...r, usedIn: r.usedIn, inUse: r === now }} doc={ways.docOf(r.choice)} v11n={ways.v11nOf(ways.docOf(r.choice))}
-          on={picked === r} onPress={() => setKey(r.choice.key)} onPreview={() => setPeek(r)} oneBook={book} />
+        <HelpRow key={r.choice.key} of="breakup.way">
+          <WayCard row={{ ...r, usedIn: r.usedIn, inUse: r === now }} doc={ways.docOf(r.choice)} v11n={ways.v11nOf(ways.docOf(r.choice))}
+            on={picked === r} onPress={() => setKey(r.choice.key)} onPreview={() => setPeek(r)} oneBook={book} />
+        </HelpRow>
       ))}
       {offered.length === 0 ? <Text style={txt.smMuted}>{ways.loaded ? t('breakup.book.connectForWays') : t('common.loading')}</Text> : null}
       {props.extra}
