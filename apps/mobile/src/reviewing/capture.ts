@@ -113,7 +113,7 @@ export interface Stage { id: StageId; label: string; icon: 'listen' | 'help' | '
  */
 export function reviewStages(opts: { questions: number; logged: boolean; makes: boolean; reads?: boolean }): Stage[] {
   return [
-    // Checking writing reads instead of listening (decisions.md 133).
+    // Checking writing reads instead of listening (decisions.md 134).
     opts.reads ? { id: 'listen', label: t('writing.review.read'), icon: 'edit' } : { id: 'listen', label: t('review.capture.stages.listen'), icon: 'listen' },
     ...(opts.questions > 0 ? [{ id: 'questions' as const, label: t('review.capture.stages.questions'), icon: 'help' as const }] : []),
     opts.makes ? { id: 'decide', label: t('review.capture.stages.recordIt'), icon: 'mic' } : { id: 'decide', label: t('review.capture.stages.decide'), icon: 'check' }

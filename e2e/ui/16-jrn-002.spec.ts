@@ -47,7 +47,6 @@ test('JRN-002 A translator answers feedback: one fix, one kept with a reason @p0
   await recordParts(page, 1);
   // Each part has its own bin (LAN-83).
   await button(page, 'Delete Part 1').click();
-  await expectToast(page, 'Part 1 deleted.');
   await expect.poll(() => partsCount(page)).toBe(before);
   await byId(page, 'publish-button').click();
 

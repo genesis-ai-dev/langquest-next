@@ -47,7 +47,7 @@ Expected:
 - The chips over the reference show at least "Bible", "Key words" and "Notes". "Earlier" is not shown, because nothing has been recorded or reviewed yet.
 - The "Bible" chip is selected.
 - The recorder shows a lit card "Part 1" with "Recording next".
-- The line "Tap the red button and speak. Pause between parts: each part is kept by itself." shows under it. There is no "Set up the microphone" link (LAN-82).
+- No line explains it (decision 124). There is no "Set up the microphone" link (LAN-82).
 - The footer shows "Part 1" on the left, the big red button (accessibility label "Record") in the middle, and "Done" on the right, dimmed and disabled.
 - The passage record is unchanged (nothing is written by opening the workspace).
 
@@ -80,7 +80,7 @@ Steps:
 Expected:
 - The record's main button reads "Continue recording", and its Record step says "Your parts are recorded, not published yet."
 - The workspace opens with sub "Recording Version 1".
-- The recorder shows one card "Parts 1–2" with "2 parts · {total length}" and a play button "Play Parts 1–2". The parts show under it by themselves when the pane has room, so its toggle reads "Hide the parts" ("Show the parts" when folded).
+- The recorder shows one card "Parts 1–2" with "2 parts · {total length}" and a play button "Play Parts 1–2". The parts show under it at every size of the pane (decision 133), so its toggle reads "Hide the parts" ("Show the parts" when folded).
 - The footer reads "Part 3", and "Done" is enabled.
 - The "Tap the red button and speak…" hint is not shown.
 
@@ -103,7 +103,7 @@ Steps:
 6. Tap the check, "Done".
 
 Expected:
-- After step 1 the button turns to a stop button (accessibility label "Stop recording"), and the footer's left label turns red: "Part 1…".
+- After step 1 the button turns to a stop button (accessibility label "Stop recording"), and the recording view's title reads "Part 1". The Undo and Redo arrows left of the red button are out of the way while it records (decision 133).
 - The lit card reads "Listening for you · pause between parts" while silent, and "Recording…" with a moving level meter while speaking.
 - Each pause ends a part. Within 2 seconds of each pause the card above counts it: "Part 1", then "Parts 1–2", then "Parts 1–3", and the lit card moves to the next part number.
 - After step 5 the session is still open (decision 129): the pane says "Stopped", the waveform shows the three parts boxed and numbered, the title reads "Part 4", the button reads "Record", and the footer has no "Done" (the recording view's check is the only one).
@@ -131,7 +131,7 @@ Preconditions:
 Steps:
 1. In the workspace, tap the play button on the "Parts 1–3" card ("Play Parts 1–3").
 2. While it plays, tap it again ("Pause").
-3. Look at the parts under the card (they show by themselves when the pane has room; otherwise tap "Show the parts").
+3. Look at the parts under the card (they show by themselves).
 4. Tap the play button on "Part 2 · 0:04" ("Play Part 2").
 5. Tap "Hide the parts", then "Show the parts".
 
@@ -162,7 +162,7 @@ Expected:
 - The volume is even from part to part.
 - Resets: P-Q1 now has TRANS's draft. Delete it from Versions and history before a fresh run.
 
-### REC-007 Delete a part, then Undo
+### REC-007 Delete a part, then Undo and Redo
 Roles: TRANS · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
@@ -170,14 +170,19 @@ Preconditions:
 
 Steps:
 1. In the workspace, look at the parts (tap "Show the parts" if they are folded).
-2. Hold Part 2's verse space, then tap "Delete Part 2" in the sheet (decision 82).
-3. Within 7 seconds, tap "Undo" on the toast.
+2. Tap the bin at the end of Part 2's row.
+3. Close the workspace with ✕, then open it again with "Continue recording".
+4. Tap the Undo arrow left of the red button.
+5. Tap the Redo arrow beside it, then Undo again.
 
 Expected:
-- After step 2, the toast reads "Part 2 deleted." with "Undo", and stays for 7 seconds.
-- The card reads "Parts 1–2", "2 parts · 0:07". The rows are "Part 1 · 0:04" and "Part 2 · 0:03" (the old Part 3, renumbered).
-- After step 3, the toast reads "Undone.". The card reads "Parts 1–3" again, in the original order. Playing Part 2 plays the second sentence again.
+- After step 2 no toast shows. Part 2's place stays, numbered ("Record Part 2 here"), and the card reads "Parts 1–3, 2 parts". The Undo arrow is dark (its label "Undo: Part 2 deleted."), Redo is grey.
+- After step 3 Undo is still dark: the history is kept with the draft on this phone, through leaving the screen and the app being closed, until the draft is published or deleted.
+- After step 4 the card reads three parts again, in the original order, and Part 2 is shaded faintly red. Redo is dark. Playing Part 2 plays the second sentence again.
+- Step 5 deletes Part 2 again, then brings it back. Each Undo and Redo is a new change on the record, never a removed one.
 - Every step is on the record: a second device, after Sync now, shows the same three parts in the same order (G10.4, G10.5).
+
+Changed (2026-10-16, decision 133): no toast offers an Undo that runs out; the recording screen has its own Undo and Redo.
 
 ### REC-008 Parts cannot be deleted while recording
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -206,12 +211,12 @@ Preconditions:
 Steps:
 1. Open P-Q2 and tap "Record" (or the Record step row).
 2. Record one part: speak for 3 seconds, then stop.
-3. Hold Part 1's verse space, then tap "Delete Part 1".
-4. Tap "Undo" on the toast.
+3. Tap the bin at the end of Part 1's row.
+4. Tap the Undo arrow left of the red button.
 
 Expected:
-- After step 3 the toast reads "Part 1 deleted.". The parts card is gone, the lit card reads "Part 1", the hint "Tap the red button and speak…" is back, and "Done" is disabled.
-- After step 4, "Undone." shows, Part 1 is back, and "Done" is enabled.
+- After step 3 the parts card is gone, the lit card reads "Part 1", and "Done" is disabled. No toast shows.
+- After step 4 Part 1 is back, shaded, and "Done" is enabled.
 - Resets: P-Q2 now has TRANS's draft.
 
 ### REC-010 Leaving keeps the draft, and the mark says so
@@ -672,12 +677,12 @@ Preconditions:
 
 Steps:
 1. Open P-Q1's workspace and record two more parts.
-2. Tap "Show the parts", delete one part, tap "Undo".
+2. Delete one part, then tap the Undo arrow.
 3. Tap "Done", then "Send later".
 4. Turn airplane mode off and wait 30 seconds.
 
 Expected:
-- Steps 1 to 3 behave and read exactly as online: the same parts, "Part N deleted.", "Undone.", then "Version 1 published.".
+- Steps 1 to 3 behave and read exactly as online: the same parts, the part gone and back, then "Version 1 published.".
 - It returns to the record, where the version shows as published; its events wait on the device until there is a connection.
 - My Work shows the sync chip while offline, and Sync shows the events waiting to upload.
 - After step 4 nothing waits to upload, and a second device as REV, after Sync now, sees Version 1 and can play every part.
@@ -711,11 +716,11 @@ Preconditions:
 
 Steps:
 1. As soon as My Work shows P-DRAFT, open it, tap "Continue recording", then "Show the parts" and delete a part.
-2. Tap "Undo".
+2. Tap the Undo arrow.
 3. Wait until loading finishes, then reopen the workspace.
 
 Expected:
-- Either the action is not offered until the language has loaded, or it is saved: the draft after step 3 matches what the toasts said.
+- Either the action is not offered until the language has loaded, or it is saved: the draft after step 3 matches what the screen showed.
 
 Fixed (2026-10-13): `language.run` (`useLanguage.ts`) returns without writing when the language's sync client is not ready yet, so `ctx.act` can toast success ("Part 2 deleted.", "Version N published.") for a change that was never written. Record whether the draft matches the toasts. Reported 2026-10-13 with a proposed patch for `useLanguage.ts`: `run`, `append` and `appendMany` throw a "still loading" error when the client is not ready, so `ctx.act` shows a failure toast instead of success.
 
@@ -846,15 +851,15 @@ Steps:
 1. In the workspace, look at the parts (tap "Show the parts" if they are folded).
 2. Tap the empty space left of Part 1.
 3. Tap the empty space left of Part 2.
-4. Tap "Undo" on the toast.
+4. Tap the Undo arrow left of the red button.
 5. Tap Part 2's space again, then tap the number now shown on Part 2.
 
 Expected:
 - Each part has an empty space on its left (accessibility label "Part 1, no verse yet", hint "Tap to give it the next verse. Hold to choose.").
-- Step 2 shows the toast "Part 1 is verse 22." with Undo; Part 1 shows 22 in a soft grey tile.
-- Step 3 shows "Part 2 is verse 23.".
-- Step 4 shows "Undone." and Part 2's space is empty again.
-- Step 5: the first tap gives 23; tapping the number then makes Part 2 the same verse as the part above ("Part 2 is more of verse 22."), shown hollow and grey.
+- Step 2: Part 1 shows 22 in a soft grey tile. No toast: a verse is plain to see and easy to change again (Caleb, 2026-10-16).
+- Step 3: Part 2 shows 23.
+- Step 4: Part 2's space is empty again; Part 1 keeps 22.
+- Step 5: the first tap gives 23; tapping the number then makes Part 2 the same verse as the part above (label "Part 2, Verse 22, same as the part above"), shown hollow and grey.
 - Labels are on the record (`v1.CardVerseSet`): a second device shows the same numbers after Sync now.
 
 ### REC-042 Hold a part to choose its verses, Auto, None or Delete
@@ -868,14 +873,14 @@ Steps:
 2. In the sheet "Part 3", tap verse 25, then verse 26.
 3. Tap "Auto".
 4. Tap "None".
-5. Tap "Delete Part 3", then "Undo".
+5. Tap "Delete Part 3", then the Undo arrow left of the red button.
 
 Expected:
 - Step 1 opens a sheet titled "Part 3" with the passage's verses as chips, and "Auto", "None" and "Delete Part 3".
-- Each tap applies at once with a toast: step 2 ends with "Part 3 is verses 25–26.".
-- Step 3 lets the app work it out from the neighbours ("Part 3 follows the order.").
-- Step 4 clears it ("Part 3 has no verse.").
-- Step 5 deletes the part ("Part 3 deleted.") and Undo restores it.
+- Each tap applies at once, with no toast: step 2 ends with Part 3 as verses 25–26.
+- Step 3 lets the app work it out from the neighbours.
+- Step 4 clears it.
+- Step 5 deletes the part and Undo restores it.
 - A later part whose label no longer fits after a chosen verse loses its label instead of breaking the order.
 
 ### REC-043 Slide down the spaces to number many parts
@@ -888,7 +893,7 @@ Steps:
 1. Press on Part 3's space and slide down to Part 5's space without lifting.
 
 Expected:
-- The toast reads "3 parts numbered." with Undo.
+- No toast shows; one Undo takes back the whole slide.
 - Parts 3 to 5 take the next verses in order.
 - A space that cannot take a verse (every verse is used) shakes when tapped and changes nothing.
 
@@ -957,6 +962,45 @@ Expected:
 - After step 4 the session is still open and stopped, with parts 3 and 4 boxed.
 - After step 5 the red view is gone and the card reads "Parts 1–2" as before: nothing said in the session is kept, and no event is written.
 - A session that kept no part (nothing said, or only taps) goes at the ✕ without asking.
+
+## Moving parts, recording between them, Undo and Redo (decision 133)
+
+### REC-055 Drag a part by its grip; it loses its verse, the others keep theirs; Undo and Redo
+Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions:
+- TRANS's draft of P-S has three parts (REC-053), labelled verses 35, 36 and 37 (tap each space once).
+
+Steps:
+1. Press the six-dot grip at the left of Part 3 and drag it up above Part 1, then let go.
+2. Tap the Undo arrow left of the red button.
+3. Tap the Redo arrow beside it.
+
+Expected:
+- While dragging, the part is lifted with a shadow and the parts it passes move out of its way; the + marks between parts are hidden. No toast shows when it is dropped.
+- After step 1 the moved part is Part 1 with no verse ("Part 1, no verse yet"), so it can be labelled again; the others keep theirs: Part 2 is verse 35, Part 3 verse 36. Verse 37 now shows as a place left for later.
+- After step 2 the parts are back in their order, Part 3 is verse 37 again, and the moved part is shaded.
+- After step 3 the move is made again.
+- A screen reader reaches the grip as "Move Part 3", with "Move up" and "Move down" actions.
+
+### REC-056 Record between two parts with the mark on the line; Undo takes the whole recording back
+Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions:
+- TRANS's draft of P-S (REC-055).
+
+Steps:
+1. Tap the small + on the line between Part 1 and Part 2.
+2. Tap the red button, say two parts, stop, and tap the check, "Done".
+3. Tap the Undo arrow.
+4. Tap the Redo arrow.
+
+Expected:
+- Each line between two parts (and above the first) has a small + at its left end, before the grips, labelled "Record a new part before Part 2". A line beside a place already open has none.
+- After step 1 the line opens into a place "Part 2 · Recording next" with the purple microphone, and the parts after it are numbered as they will be (the old Part 2 reads "Part 3").
+- After step 2 the card is open, whatever the split, with the first new part in view. The two new parts are Parts 2 and 3, faintly red-shaded until the next recording, with no verses; the parts around them keep theirs. Undo's label reads "Undo: New recording".
+- Step 3 takes both new parts back in one tap; step 4 puts both back.
+- A part said between two pieces of one verse is labelled as more of that verse, so the piece after it keeps its verse.
 
 ## Microphone setup
 
