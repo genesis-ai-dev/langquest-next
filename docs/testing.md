@@ -136,6 +136,27 @@ The four PR jobs start together, so a PR waits for the slowest of them
 A job that needs the local stack starts it in the background while it
 installs the browsers.
 
+## Running each layer here
+
+| Layer | Command |
+| --- | --- |
+| 1 and 3 | `npm test` (about 10 s); `npm run test:coverage` with the thresholds |
+| 2 | `npm run db:test`, `npm run test:integration`, `npm run fleet -- normalDay` (Docker, local stack) |
+| 4 | `npm run db:start`, then `npm run test:ui:web`; one file: `npm run test:ui:web -- e2e/ui/<file>` |
+| 5 | `npm run test:ui:build -- --platform ios --device <simulator udid>` (Android: `--platform android --device <AVD name>`), then `npm run test:ui:phone` (`-- --platform android`) |
+| Beside them | `npm run lint`, `npm run test:web` (web smoke), `npm run mutate:core` |
+
+Two things these leave behind can pass for current:
+
+- **The phone build.** `test:ui:phone` runs the build installed on the
+  device, with its JavaScript inside, not this checkout's code. Rebuild with
+  `test:ui:build` after pulling or changing app code, or the flows test old
+  code and fail on what changed since.
+- **The local stack.** It serves the Edge Functions of the checkout that
+  started it. Started from a worktree that is later removed, every function
+  call fails (`failed to determine entrypoint` in the edge runtime's log).
+  `npm run db:stop`, then `npm run db:start` from the checkout you are in.
+
 ## Adding a test
 
 - Layer 1 to 3: beside the code's existing tests, titled with the spec ID
