@@ -84,7 +84,8 @@ export function ContentTemplatePage({ ctx }: { ctx: Ctx }) {
       ) : undefined}>
       {sel ? (
         <PickCard title={item?.name ?? doc?.name ?? t('content.language.itsTemplate')} sub={bibleLine ?? countsLine} links={links}>
-          <Text style={txt.sm}>{[bibleLine ? countsLine : null, versionLine].filter(Boolean).join(t('admin.list.separator'))}</Text>
+          {bibleLine ? <Text style={txt.sm}>{countsLine}</Text> : null}
+          {versionLine ? <Text style={txt.smMuted}>{versionLine}</Text> : null}
           {newer ? (
             <Text style={[txt.sm, { color: C.primary, fontWeight: '600' }]}>{t('content.language.newerOut', { n: newer, language })}</Text>
           ) : update ? (

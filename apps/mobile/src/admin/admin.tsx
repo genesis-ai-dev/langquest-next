@@ -283,7 +283,12 @@ export function PickCard(props: { title: string; sub?: string; children?: ReactN
         </View>
       </View>
       {props.children}
-      {props.links?.length ? <View style={styles.pickLinks}>{props.links.map((l) => <PickLink key={l.label} {...l} />)}</View> : null}
+      {props.links?.length ? (
+        <View style={styles.pickLinks}>
+          {/* help-each: each link opens a different part of the pick */}
+          {props.links.map((l) => <PickLink key={l.label} {...l} />)}
+        </View>
+      ) : null}
     </View>
   );
 }
