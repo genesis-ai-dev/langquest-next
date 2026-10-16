@@ -940,3 +940,21 @@ Expected:
 - The Publish screen lists one "Answers the Peer check feedback from {REV-name}" line for each open feedback on Version 1 (only the unanswered one here).
 - Version 2 publishes and answers it.
 - Resets: P-Q1 has Version 2.
+
+### REV-049 Take back a review
+Roles: REV · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions:
+- TRANS published P-DRAFT and asked REV for its Peer check.
+
+Steps:
+1. Do the peer check on P-DRAFT, tap "Looks good", then "Undo" on the message.
+2. Do it again and tap "Looks good". Wait for the message to go, tap the Peer check row under "Then the team", and tap "Undo" in the sheet.
+3. Close the sheet. Do it a third time, then open "Versions and history" → "History" and tap "Undo" on the review.
+
+Expected:
+- Step 1: "Undone." The record offers "Do the peer check" again.
+- Step 2: the sheet shows "Undo" under REV's own check (no one else sees it, decisions.md 111). After it, the row reads "Tom Translator asked you" with "Review it now".
+- Step 3: "Undone." Each review taken back stays in the history, crossed out, "undone just now".
+- Afterwards P-DRAFT has no peer review that counts, three taken back, and TRANS's request to REV is open: P-DRAFT is back on REV's My Work, and TRANS's "reviewed" update is gone.
+- Nothing is refused by the server.

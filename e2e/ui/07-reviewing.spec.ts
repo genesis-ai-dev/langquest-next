@@ -14,6 +14,7 @@
 // - P-S: Versions 1 and 2 (2 said by voice): REV-010, then REV-022 offline.
 // - P-CHECK: questions REV-012 to 018; REV-017 saves the consultant check.
 // - P-Q4: asked of REV before any version (REV-021). P-T: TREV's own (REV-030). P-BT: REV-031/032. P-NEEDS: REV-029, REV-040/041.
+// - P-DRAFT: published and asked of REV in REV-049, which approves and takes it back three ways.
 import type { Page } from '@playwright/test';
 import {
   back, button, byId, deviceEvents, expect, expectNothingRefused, expectSent, field, primary,
@@ -28,6 +29,7 @@ import { clientAs, send } from './fixture';
 import { commands } from '@langquest-next/core';
 import { randomUUID } from 'node:crypto';
 import { openSyncDetails } from './sync-helpers';
+import { closeSheet, openTeamRow, sheet } from './05-passage-helpers';
 
 // One world for the run, kept when a failed test restarts the worker (reviewing-helpers.ts useRunWorld).
 const world = useRunWorld('07-reviewing', async (w) => {
@@ -1000,4 +1002,42 @@ test('REV-048 Answering feedback on P-Q1 with a new version', async ({ page }) =
   await button(page, 'Publish Version 2').click();
   await sawToast(page, 'Version 2 published.');
   await expectSent(page, world());
+});
+
+test('REV-049 Take back a review @p0', async ({ page }) => {
+  await publishVersion(world(), 'TRANS', 'P-DRAFT');
+  await ask(world(), 'TRANS', 'P-DRAFT', { kindId: 'peer', profile: 'REV' });
+  await open(page, world(), 'REV');
+  const approve = async () => {
+    await startCheck(page, 'P-DRAFT');
+    await primary(page).click();
+    await button(page, 'Looks good').click();
+    await sawToast(page, `Looks good · sent to ${TOM}`);
+  };
+  // Right away, from the message.
+  await approve();
+  await undoToast(page);
+  await sawToast(page, 'Undone.');
+  await expect(doCheck(page, 'peer')).toBeVisible();
+  // Later, from the check on the passage: the sheet offers Undo on REV's own check only.
+  await approve();
+  await openTeamRow(page, 'Peer check');
+  await visible(sheet(page).getByRole('button', { name: 'Undo', exact: true })).click();
+  await sawToast(page, 'Undone.');
+  await expect(visible(sheet(page).getByRole('button', { name: 'Review it now' }))).toBeVisible();
+  await closeSheet(page);
+  // Later, from the history: the review taken back stays, crossed out.
+  await approve();
+  await button(page, 'Versions and history').click();
+  await text(page, 'History').click();
+  await expect(visible(page.getByText(/undone just now/))).toHaveCount(2);
+  await visible(page.getByRole('button', { name: 'Undo', exact: true })).first().click();
+  await expect(visible(page.getByText(/undone just now/))).toHaveCount(3);
+  await expectSent(page, world());
+  await expectNothingRefused(page, world());
+  // The check is open again, and the request is back with REV.
+  const p = await passageNow(world(), 'TRANS', 'P-DRAFT');
+  expect(p.reviews.filter((r) => r.kindId === 'peer')).toEqual([]);
+  expect(p.withdrawnReviews).toHaveLength(3);
+  expect(p.requests.find((r) => r.kindId === 'peer')?.status).toBe('open');
 });
