@@ -267,7 +267,6 @@ These are defined in the event catalog but not yet emitted by UI code (forms stu
 ✓ tasks.test.ts (5 tests) 8ms
   - Task status derivation (todo/doing/done)
   - Assignment filtering
-  - Due date sorting
 
 ✓ org.test.ts (8 tests) 28ms
   - Org partition fold

@@ -11,14 +11,13 @@ import {
   type Privilege, type LanguageState, type QuestionSpec, type RecordEntry, type RequestView, type ReviewView, type SourcedQuestion,
   type Version, withdrawnBy
 } from '@langquest-next/core';
-import { latinDigits } from '../ui/textMatch';
 import { stateLabel, stepName } from '../i18n/coreText';
 import { t } from '../i18n';
 import { checkName } from '../admin/adminModel';
 import type { IconName } from '../ui/kit';
 import { hiddenText } from '../moderation/model';
 import { storedAnswerText } from '../reviewing/capture';
-import { andList, commaList, dueText, feedbackSource, isJustNow, outcomeText, outcomeTitle, versionTitle, viaText, when } from './passageView';
+import { andList, commaList, feedbackSource, isJustNow, outcomeText, outcomeTitle, versionTitle, viaText, when } from './passageView';
 import type { StudyGuide } from '../study/guides';
 import { C, TINT } from '../ui/theme';
 
@@ -194,7 +193,7 @@ export function oldStepSummary(kindIds: string[], reviews: (ReviewView | undefin
 export function kindLineText(k: KindStatus, s: FlowStepStatus, p: PassageState, name: NameFn, teamName?: (teamId: string) => string | undefined): string {
   const r = k.review;
   switch (k.state) {
-    case 'asked': return [t('passage.record.waitingOn', { name: requestee(k.request, name, true, teamName) }), k.request?.dueDate ? dueText(k.request.dueDate) : ''].filter(Boolean).join(' · ');
+    case 'asked': return t('passage.record.waitingOn', { name: requestee(k.request, name, true, teamName) });
     case 'skipped': return t('passage.record.setAsideBecause', { reason: reasonText(k.departure?.reason ?? '') });
     case 'locked': return startsAfter(s);
     case 'todo': return t('passage.record.notYet');
@@ -323,7 +322,6 @@ export function kindRowSub(o: {
   const req = status.request;
   const makes = kind.produces;
   const cleared = kindCleared(status, step);
-  const due = req?.dueDate ? dueText(req.dueDate) : '';
   const checked = makes && o.checkedBy ? t('passage.record.sub.reviewsIt', { kind: o.checkedBy }) : '';
   const line = (...parts: string[]) => parts.filter(Boolean).join(' · ');
   if (s === 'asked') {
@@ -332,10 +330,10 @@ export function kindRowSub(o: {
       const team = !req.profileId && req.teamId ? o.teamName?.(req.teamId) : undefined;
       const asked = req.profileId ? t('passage.record.sub.askedYou', { by })
         : team ? t('passage.record.sub.askedYourTeam', { by, team }) : t('passage.record.sub.askedYourReviewTeam', { by });
-      return line(asked, due);
+      return asked;
     }
     return line(t('passage.record.waitingOn', { name: requestee(req, name, true, o.teamName) }),
-      req?.guest ? t('passage.record.sub.byLinkOver', { channel: channelLabel(req.guest.channel) }) : '', due);
+      req?.guest ? t('passage.record.sub.byLinkOver', { channel: channelLabel(req.guest.channel) }) : '');
   }
   if (s === 'skipped') return t('passage.record.setAsideBecause', { reason: reasonText(status.departure?.reason ?? '') });
   if (s === 'suggestions' && status.review) return t('passage.record.sub.askedForChanges', { who: feedbackSource(status.review, name) });
@@ -434,7 +432,7 @@ export function describeEntry(e: RecordEntry, o: {
     case 'request': {
       const r = e.request;
       const teamOf = () => r.team?.name || undefined;
-      const status = r.status === 'open' ? (r.dueDate ? dueText(r.dueDate) : t('passage.record.entry.status.open'))
+      const status = r.status === 'open' ? t('passage.record.entry.status.open')
         : r.status === 'done' ? t('passage.record.entry.status.done') : t('passage.record.entry.status.withdrawn');
       return {
         icon: r.guest ? 'link' : 'people', color: C.muted,
@@ -583,40 +581,6 @@ export function askCandidates(
     out.push({ profileId: id, sub: why ? `${role} · ${why}` : role, usual: onCheck.has(id) || !!why, onCheck: onCheck.has(id) });
   }
   return out.map((c, i) => [c, i] as const).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(([c]) => c);
-}
-
-/** Local calendar day as YYYY-MM-DD. */
-export function isoDay(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-export function addDays(iso: string, days: number): string {
-  const [y, m, d] = iso.split('-').map(Number) as [number, number, number];
-  return isoDay(new Date(y, m - 1, d + days));
-}
-
-/** The "By when" chips (ASK-4): a day count from today, or no date. */
-export function dueChoices(): { label: string; days: number | null }[] {
-  return [
-    { label: t('passage.record.due.none'), days: null },
-    { label: t('passage.record.due.today'), days: 0 },
-    { label: t('passage.record.due.threeDays'), days: 3 },
-    { label: t('passage.record.due.week'), days: 7 },
-    { label: t('passage.record.due.twoWeeks'), days: 14 }
-  ];
-}
-
-/** Why a typed due date can't be used, or null when it can (empty = no date). Any day from today on. */
-export function dueError(value: string, today: string): string | null {
-  const v = latinDigits(value).trim();
-  if (!v) return null;
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
-  if (!m) return t('passage.record.due.format');
-  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
-  const date = new Date(y, mo - 1, d);
-  if (date.getFullYear() !== y || date.getMonth() !== mo - 1 || date.getDate() !== d) return t('passage.record.due.noSuchDate');
-  if (v < today) return t('passage.record.due.past');
-  return null;
 }
 
 export function questionTypeLabel(type: QuestionSpec['type']): string {

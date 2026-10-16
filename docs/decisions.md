@@ -3819,6 +3819,24 @@ rules) and a model at 0% that nothing flagged; the logic moved into models,
 and a threshold keeps it there. Thresholds well under the measured value had
 let a gain slip back unnoticed.
 
+Amended (2026-10-16, Carl Sauder): "reported" now means filed in Linear.
+The whole web suite had failed on the first two nights (5, then 8 tests)
+and nobody knew: a red scheduled run only emails whoever last edited its
+cron line. Each nightly job now ends with `scripts/nightly-report.mjs`,
+which opens an unassigned issue in the team per failing test (titled
+`Nightly: <test> [<project>]`), or one for the whole run when it left no
+report or more than 15 tests failed (one cause, such as the stack not
+starting), and one per fleet or mutation job that fails. As in decision
+53 the state lives in the issues: a failure that persists adds nothing,
+and a turn to passing or back to failing is one comment. The reporter
+never closes an issue; a fix names it and linear-sync moves it, and a
+test that fails again after its issue is closed opens a new one naming
+the old. A run off `main` only prints what it would file. Linear rather
+than a chat message, because an open issue waits for someone to act on it.
+The quarantine job stays unreported: its tests already have an issue.
+Reverse if: a night's issues are mostly noise (then raise the bar, or
+report a weekly digest from scripts/ui-flakes.mjs instead).
+
 ## 103. Large languages are projected by a scheduled GitHub job; the Edge pass leaves them out
 
 Date: 2026-10-14 · By: Caleb Koster · Status: accepted
@@ -4187,7 +4205,7 @@ with no change to the events.
 
 ## 109. A listening app keeps playing the approved version, hears changes by webhook, and the team sees its listeners on the passage
 
-Date: 2026-10-14 · By: Ryder Wishart · Status: partly superseded by 126
+Date: 2026-10-14 · By: Ryder Wishart · Status: partly superseded by 127
 
 Reason: Ryder asked for the whole EveryBible loop for a stakeholder demo:
 a recorded passage goes out for review, reviewers hear it in EveryBible,
@@ -4716,7 +4734,30 @@ are out of the room), taps or bumps start parts often, or a phone's frames
 are so long that the head reaches too far (iOS can tap 100 ms buffers; the
 splitter counts in that phone's own frames).
 
-## 126. For its prototype, EveryBible holds LangQuest tokens on the phone: a reviewer's code is a review token, and listeners hear approved versions
+## 126. Due dates are gone
+
+Date: 2026-10-16 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb asked on 2026-10-16 to get rid of the due date feature across
+the app. Nobody sets one any more: "Ask someone" has no "By when" section,
+no date chips and no typed date. Nothing shows one: My Work's rows and Next
+for you read "asked by {name}", Waiting on others lists newest first, the
+Inbox body is the passage and its language, the passage's path and its step
+rows say only who asked, History shows a request as open, done or
+withdrawn, and the review banner reads "{name} asked". Reports replace the
+"Overdue requests" tile with "Open requests" (the count of open requests,
+still opening the Map filtered to waiting passages), the CSV exports drop
+the "Overdue requests" column, and the agent API's requests no longer carry
+`dueDate` (`docs/agent-api.md`). Stored data is unchanged: `v1.RequestMade`
+keeps its optional `dueDate` in the schema, the validator and the server's
+checks, so old events still sync, and an old request's date is simply not
+shown. The reports API still sends `attention.overdueRequests: 0` (and the
+report version is 5), so an app built before this shows 0 on its old tile,
+not NaN. Removing the field from stored events is left for Caleb to decide.
+Reverse if: teams need deadlines on requests again; then bring back setting
+and showing `dueDate`, which old events still hold.
+
+## 127. For its prototype, EveryBible holds LangQuest tokens on the phone: a reviewer's code is a review token, and listeners hear approved versions
 
 Date: 2026-10-16 · By: Ryder Wishart · Status: accepted
 

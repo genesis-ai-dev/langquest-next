@@ -7,7 +7,7 @@ import { ID, NAMES, passageWorld, unitOf, type WorldPassage, type WorldRole } fr
 
 const w = passageWorld();
 const picks = (over: Partial<AskPicks> = {}): AskPicks => ({
-  mode: 'team', who: null, guestName: '', contact: '', dueDays: null, dueTyped: '', today: '2026-10-15', ...over
+  mode: 'team', who: null, guestName: '', contact: '', ...over
 });
 
 /** The ask screen's model as `who` sees it on passage `k`. */
@@ -76,20 +76,6 @@ describe('Someone else: who is listed and what Ask says (askModel.ts)', () => {
     expect(ask('COORD', 'P-SUBMITTED', 'review', 'peer', picks({ mode: 'outside', contact: '5551' })).model.ready).toBe(false);
   });
 
-  it('turns a chip into a date from today, and a typed date wins over the chip', () => {
-    expect(ask('COORD', 'P-SUBMITTED', 'review', 'peer', picks({ dueDays: 3 })).model.due).toBe('2026-10-18');
-    expect(ask('COORD', 'P-SUBMITTED', 'review', 'peer', picks({ dueDays: null })).model.due).toBeNull();
-    expect(ask('COORD', 'P-SUBMITTED', 'review', 'peer', picks({ dueDays: 3, dueTyped: ' 2026-12-01 ' })).model.due).toBe('2026-12-01');
-  });
-
-  it('refuses a typed date in the past or badly written, and then Ask is off', () => {
-    const past = ask('COORD', 'P-SUBMITTED', 'review', 'peer', picks({ who: ID.REV, dueTyped: '2026-01-01' })).model;
-    expect(past.dueErr).toBe(t('passage.record.due.past'));
-    expect(past.due).toBeNull();
-    expect(past.ready).toBe(false);
-    expect(ask('COORD', 'P-SUBMITTED', 'review', 'peer', picks({ who: ID.REV, dueTyped: 'soon' })).model.dueErr).toBe(t('passage.record.due.format'));
-  });
-
   it('carries the check\'s own questions, none for a recording', () => {
     expect(ask('COORD', 'P-DONE', 'review', 'consultant', picks()).model.asked.map((q) => q.q.text)).toContain('Does it carry the meaning of the original?');
     expect(ask('COORD', 'P-NEW', 'record', undefined, picks()).model.asked).toEqual([]);
@@ -102,10 +88,10 @@ describe('the ask command it builds', () => {
     return askInput({ commandId: 'c', unitId: 'u', what: 'review', model, picks: p, channel: 'sms', note: '', noteHash: null, questions: [], ...extra });
   };
 
-  it('sends to the person picked, with a due date and trimmed note', () => {
-    const p = picks({ who: ID.REV, dueDays: 0 });
+  it('sends to the person picked, with a trimmed note and no due date', () => {
+    const p = picks({ who: ID.REV });
     expect(build('COORD', p, { note: ' listen for verse 3 ', noteHash: 'nh' })).toEqual({
-      commandId: 'c', unitId: 'u', what: 'review', kindId: 'peer', profileId: ID.REV, dueDate: '2026-10-15', note: 'listen for verse 3', noteBlobHash: 'nh'
+      commandId: 'c', unitId: 'u', what: 'review', kindId: 'peer', profileId: ID.REV, note: 'listen for verse 3', noteBlobHash: 'nh'
     });
   });
 

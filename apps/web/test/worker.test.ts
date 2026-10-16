@@ -374,6 +374,13 @@ describe('the reports API', () => {
     expect(d.calls).toEqual([['org 1', 'p1', true]]);
   });
 
+  it('tells apps from before decision 126 that nothing is overdue, so their old tile reads 0, not NaN', async () => {
+    const attention = { feedback: 1, openRequests: 3, atCheckpoint: 0 };
+    const rows = [{ languageId: 'l1', report: { attention } as never }];
+    const res = await handleApi(get('/api/orgs/o/reports', 'good'), deps({ reports: async () => ({ rows, asOf: body.asOf }) }));
+    expect((await res.json()).rows[0].report.attention).toEqual({ ...attention, overdueRequests: 0 });
+  });
+
   it('refuses a missing or bad token before touching the organization', async () => {
     const d = deps();
     expect((await handleApi(get('/api/orgs/o/reports'), d)).status).toBe(401);
