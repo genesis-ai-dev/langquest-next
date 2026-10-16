@@ -87,6 +87,10 @@ export interface Commands {
   /** Ask someone (ASK-1..5): a teammate, a guest by link, or a review team (ADR-029). */
   ask(c: Omit<RecordEvents['v1.RequestMade'], 'requestId'> & { commandId: string }): EventSpec[];
   withdrawRequest(c: { commandId: string; requestId: string }): EventSpec[];
+  /** Take back reviews you recorded (decisions.md 111): one Undo can take back a check logged on several passages. */
+  withdrawReviews(c: { commandId: string; reviewIds: string[] }): EventSpec[];
+  /** Take back a note you added (decisions.md 111). */
+  withdrawNote(c: { commandId: string; noteId: string }): EventSpec[];
   addNote(c: { commandId: string; unitId: string; anchor: NoteAnchor; text?: string; blobHash?: string; photoHash?: string }): EventSpec[];
   markStudyStep(c: { commandId: string; unitId: string; guideId: string; stepId: string; done: boolean }): EventSpec[];
   defineKind(c: RecordEvents['v1.ReviewKindDefined'] & { commandId: string }): EventSpec[];
@@ -120,7 +124,7 @@ export interface Commands {
    */
   restoreFlow(c: { commandId: string; previous: { flow: FlowSelection | null; steps: { id: string; kindIds: string[]; checkpoint: boolean }[] } }): EventSpec[];
 
-  // ---- writing, and steps that make something (writing.ts, decisions.md 110) ----
+  // ---- writing, and steps that make something (writing.ts, decisions.md 112) ----
 
   /** Written parts the log lacks, at most 100 an event. Ids are the caller's `writtenPartId` of NFC text. */
   addWriting(c: { commandId: string; unitId: string; parts: readonly WrittenPart[] }): EventSpec[];
@@ -318,6 +322,15 @@ export function commands(state: LanguageState, idx: Indexes = buildIndexes(state
 
     withdrawRequest(c) {
       return [{ id: ids(c.commandId)(), type: 'v1.RequestWithdrawn', payload: { requestId: c.requestId } }];
+    },
+
+    withdrawReviews(c) {
+      const next = ids(c.commandId);
+      return c.reviewIds.map((reviewId) => ({ id: next(), type: 'v1.ReviewWithdrawn' as const, payload: { reviewId } }));
+    },
+
+    withdrawNote(c) {
+      return [{ id: ids(c.commandId)(), type: 'v1.NoteWithdrawn', payload: { noteId: c.noteId } }];
     },
 
     addNote(c) {

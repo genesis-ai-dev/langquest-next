@@ -6,7 +6,7 @@ import { filesetsFor, sourceUsed } from './model';
 import type { Usage } from './useUsage';
 import { useSources, type PassageSources } from './useSources';
 
-export const choices = new Map<string, string>();
+const choices = new Map<string, string>();
 
 /** The version chosen last for this language on this phone, shared by the recorder, the study and the review. */
 export function useChoice(key: string): [string | null, (itemId: string) => void] {

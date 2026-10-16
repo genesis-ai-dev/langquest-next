@@ -3,7 +3,7 @@ import { highlightsFor, updatesFor, type LanguageState } from '@langquest-next/c
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { indexesFor } from '../sync/indexes';
 import { usePendingRequestCount } from '../invites/useInviteRequests';
-import { type Blocks } from '../moderation/moderationData';
+import type { Blocks } from '../moderation/moderationData';
 import { useOpenReportCount } from '../moderation/useModeration';
 import type { Session } from './session';
 

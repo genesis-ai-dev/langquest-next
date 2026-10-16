@@ -86,8 +86,11 @@ permutation and idempotence tests then cover it), and
 - **Tenant on every row and every query**: `orgId`, `streamId` (or
   `languageId` on tables about a language). Index plans
   are part of the migration (PLAN.md section 5).
-- **Snapshots are tagged with the reducer version**; a client folds the log
-  rather than loading a snapshot from another version (invariant 10).
+- **Snapshots are tagged with the reducer version**; a client never loads a
+  snapshot from another version (invariant 10). Its own checkpoint pruned the
+  log, so it drops the checkpoint and the cursor and fetches the stream
+  again (the server snapshot, or the log from 0), never folding the tail
+  that is left (decisions.md 110).
 
 ## Outside advice that does NOT apply here
 

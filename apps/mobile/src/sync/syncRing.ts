@@ -86,3 +86,49 @@ function approach(from: number, to: number, dt: number): number {
 export function ringOpacity(s: RingState): number {
   return s.phase === 'done' ? Math.max(0, 1 - s.t / HOLD_S) : s.phase === 'idle' ? 0 : 1;
 }
+
+// ---- the clock: when the ring is drawn, and when it looks again -----------------------
+//
+// Stepping the motion is cheap; drawing it is a React render. So the ring is
+// drawn only when it looks different (about a point of arc, a new lap or
+// count, a step of the fade), at most 20 times a second while busy, and the
+// clock rests while nothing visible moves: a stalled upload hardly draws.
+
+/** About a point of arc on the 40pt ring: less than this is not worth a draw. */
+const SHOWN_STEP = 0.01;
+/** A step of the done fade worth drawing. */
+const FADE_STEP = 0.08;
+/** While busy, at most one draw this often. */
+const BUSY_DRAW_MS = 50;
+/** How long the clock rests when it last saw nothing worth drawing. */
+const QUIET_MS = 200;
+
+export interface RingPace {
+  /** Where the motion is. */
+  ring: RingState;
+  /** What is on screen. */
+  drawn: RingState;
+  /** Seconds since the last draw. */
+  sinceDrawn: number;
+  /** When to look again: 0 for the next frame, else after this many ms; -1 when there is nothing to show. */
+  nextMs: number;
+}
+
+/** The clock, starting from what is on screen. */
+export function startPace(drawn: RingState): RingPace {
+  return { ring: drawn, drawn, sinceDrawn: 0, nextMs: 0 };
+}
+
+/** One look: step the motion, and say whether to draw it and when to look again. */
+export function paceRing(p: RingPace, dtSeconds: number, input: RingInput): { pace: RingPace; draw: boolean } {
+  const ring = stepRing(p.ring, dtSeconds, input);
+  const since = p.sinceDrawn + dtSeconds;
+  const d = p.drawn;
+  const fast = ring.phase === 'finishing' || ring.phase === 'done';
+  const changed = ring.phase !== d.phase || ring.lap !== d.lap || ring.count !== d.count;
+  const moved = Math.abs(ring.shown - d.shown) >= SHOWN_STEP || Math.abs(ringOpacity(ring) - ringOpacity(d)) >= FADE_STEP;
+  const draw = changed || (moved && (fast || since * 1000 >= BUSY_DRAW_MS));
+  const resting = ring.phase === 'idle' && ring.count === 0 && input.pending === 0;
+  const nextMs = resting ? -1 : fast ? 0 : draw ? BUSY_DRAW_MS : QUIET_MS;
+  return { pace: { ring, drawn: draw ? ring : d, sinceDrawn: draw ? 0 : since, nextMs }, draw };
+}

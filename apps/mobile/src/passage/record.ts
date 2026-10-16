@@ -9,7 +9,7 @@ import {
   checkPeople, feedbackIsMine, isCompleteState, keyTermView, languagePeople, LISTENER_KIND, madeVersionOf, membershipsOf, privilegesFor, releasesOf, scopeCovers,
   type FlowStepStatus, type KindDef, type KindStatus, type OrgState, type PassageNote, type PassageState,
   type Privilege, type LanguageState, type QuestionSpec, type RecordEntry, type RequestView, type ReviewView, type SourcedQuestion,
-  type Version
+  type Version, withdrawnBy
 } from '@langquest-next/core';
 import { latinDigits } from '../ui/textMatch';
 import { stateLabel, stepName } from '../i18n/coreText';
@@ -224,7 +224,7 @@ export function sendTargetLabel(target: { teamId: string; name: string } | { pro
 
 // ---- a kind's actions (REC-3) ------------------------------------------------------
 
-type RowActionId = 'do' | 'send' | 'ask' | 'log' | 'skip';
+type RowActionId = 'do' | 'send' | 'ask' | 'log' | 'skip' | 'undo';
 export interface RowAction { id: RowActionId; label: string }
 
 export interface KindRowCan {
@@ -246,6 +246,8 @@ interface KindRowActions {
   rest: RowAction[];
   /** The person looking was asked to do it: Review it now carries their request. */
   askedMe: boolean;
+  /** Their own review is what this check says now: they may take it back (decisions.md 111), done or not. */
+  undo?: RowAction;
 }
 
 /**
@@ -267,22 +269,23 @@ export function kindRowActions(o: {
   const askedMe = s === 'asked' && !!o.status.request && mine(o.status.request);
   const cleared = kindCleared(o.status, o.step);
   // Nobody checks their own version unless they were asked to (the role matrix: Review, "not their own version unless asked").
-  // A step that makes something is not a check: the translator may write their own recording down (decisions.md 110).
+  // A step that makes something is not a check: the translator may write their own recording down (decisions.md 112).
   const doIt: RowAction | undefined = o.can.review && (!o.isAuthor || askedMe || !!o.kind.makes)
     ? { id: 'do', label: o.kind.makes ? o.kind.name : o.kind.produces ? o.kind.produces.action : t('passage.record.actions.reviewNow') } : undefined;
   const send: RowAction | undefined = o.can.ask && s !== 'asked' && s !== 'addressed' && o.isAuthor && o.sendTo
     ? { id: 'send', label: t('passage.record.actions.sendTo', { target: o.sendTo }) } : undefined;
   const ask: RowAction | undefined = o.can.ask && s !== 'asked'
     ? { id: 'ask', label: s === 'addressed' ? t('passage.record.actions.askAgain') : send ? t('passage.record.actions.sendElsewhere') : t('passage.record.actions.askSomeone') } : undefined;
-  // What a step makes is made here, not logged afterwards (decision 110).
+  // What a step makes is made here, not logged afterwards (decision 112).
   const log: RowAction | undefined = o.can.log && !o.kind.makes ? { id: 'log', label: t('passage.record.actions.alreadyHappened') } : undefined;
   const skip: RowAction | undefined = o.can.skip && !o.step.step.checkpoint ? { id: 'skip', label: t('passage.record.actions.setAside') } : undefined;
   const primary = askedMe ? doIt : s === 'asked' ? undefined : o.isAuthor || !doIt ? send ?? ask ?? doIt : doIt;
   const second = s === 'asked' ? undefined : send && primary === send ? ask : log;
   const rest = [doIt, ask, log, skip].filter((a): a is RowAction => !!a && a !== primary && a !== second);
+  const undo: RowAction | undefined = o.status.review?.by === o.me ? { id: 'undo', label: t('passage.page.undo') } : undefined;
   return {
     actionable: !cleared && s !== 'locked' && s !== 'suggestions',
-    ...(primary ? { primary } : {}), ...(second ? { second } : {}), rest, askedMe
+    ...(primary ? { primary } : {}), ...(second ? { second } : {}), rest, askedMe, ...(undo ? { undo } : {})
   };
 }
 
@@ -372,6 +375,8 @@ export interface EntryText {
   title: string;
   sub: string;
   who: string;
+  /** Taken back: it stays in the history, crossed out. */
+  struck?: boolean;
 }
 
 /** Where a note points, as a label ("Whole passage", "Version 2", "Verse 3 · NIV"). */
@@ -411,12 +416,16 @@ export function describeEntry(e: RecordEntry, o: {
       const r = e.review;
       const k = kinds.find((x) => x.id === r.kindId);
       const good = r.outcome !== 'needs_changes';
+      const source = r.via === 'logged' ? t('passage.record.entry.from', { who: feedbackSource(r, name, true) }) : viaText(r, name);
+      // Taken back by its author (decisions.md 111): struck through, with when, like a set-aside brought back.
+      const undone = !r.withdrawn ? '' : isJustNow(r.withdrawn.hlc) ? t('passage.record.entry.undoneJustNow') : t('passage.record.entry.undone', { when: when(r.withdrawn.hlc) });
       return {
-        icon: k?.produces ? 'swap' : good ? 'check' : 'chat',
-        color: k?.produces ? C.primary : good ? C.green : C.amber,
+        icon: r.withdrawn ? 'undo' : k?.produces ? 'swap' : good ? 'check' : 'chat',
+        color: r.withdrawn ? C.muted : k?.produces ? C.primary : good ? C.green : C.amber,
         title: `${kindName(kinds, r.kindId)} · ${outcomeText(k, r.outcome)}`,
-        sub: r.via === 'logged' ? t('passage.record.entry.from', { who: feedbackSource(r, name, true) }) : viaText(r, name),
-        who: r.via === 'logged' ? t('passage.record.entry.loggedBy', { name: name(r.by, true) }) : who
+        sub: [source, undone].filter(Boolean).join(' · '),
+        who: r.via === 'logged' ? t('passage.record.entry.loggedBy', { name: name(r.by, true) }) : who,
+        ...(r.withdrawn ? { struck: true } : {})
       };
     }
     case 'response':
@@ -451,7 +460,7 @@ export function describeEntry(e: RecordEntry, o: {
       };
     }
     case 'made': {
-      // Made beside a version, or added to it; a change to what was added says which review it came after (decision 110).
+      // Made beside a version, or added to it; a change to what was added says which review it came after (decision 112).
       const m = e.made;
       const of = o.p.versions.find((x) => x.takeId === madeVersionOf(o.p, m));
       const version = of ? versionTitle(of.n) : t('passage.record.anchor.aVersion');
@@ -572,7 +581,7 @@ export function askCandidates(
   const need: Privilege = o.what === 'record' ? 'translate' : 'review';
   const reviewedHere = new Set<string>();
   if (o.what === 'review' && o.kindId) {
-    for (const r of Object.values(state.kindReviews)) if (r.kindId === o.kindId) reviewedHere.add(r.by);
+    for (const r of Object.values(state.kindReviews)) if (r.kindId === o.kindId && !withdrawnBy(state.withdrawnReviews, r.id, r)) reviewedHere.add(r.by);
   }
   // The check's people come first (decision 91): admins put them on the check, and they are the top choices when someone asks for it.
   const onCheck = new Set(o.what === 'review' && o.kindId ? checkPeople(state, o.kindId) : []);

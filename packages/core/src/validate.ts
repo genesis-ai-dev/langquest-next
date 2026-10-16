@@ -165,7 +165,7 @@ export function validateEvent(e: AnyEvent): string | null {
       return str('recordingId', 'unitId') ?? oneOf('kind', ['source', 'target']) ?? cards('cards');
     case 'v1.TakeComposed':
       return str('takeId', 'unitId') ?? strArray('cardHashes') ?? (p['parentTakeId'] === null ? null : str('parentTakeId')) ??
-        // A take holds recorded parts or written ones, never both (decisions.md 110).
+        // A take holds recorded parts or written ones, never both (decisions.md 112).
         (oneMedium(p['cardHashes'] as string[]) ? null : 'cardHashes must be all recorded or all written parts');
     case 'v1.WritingAdded':
       return str('writingId', 'unitId') ?? writtenPartsError(p['parts']);
@@ -236,6 +236,10 @@ export function validateEvent(e: AnyEvent): string | null {
       );
     case 'v1.RequestWithdrawn':
       return str('requestId');
+    case 'v1.ReviewWithdrawn':
+      return str('reviewId');
+    case 'v1.NoteWithdrawn':
+      return str('noteId');
     case 'v1.NoteAdded':
       return (
         str('noteId', 'unitId') ??
@@ -400,7 +404,7 @@ function cardVerseError(p: Record<string, unknown>): string | null {
   return a <= b ? null : 'from must not come after to';
 }
 
-// ---- writing (decisions.md 110) ----
+// ---- writing (decisions.md 112) ----
 
 function oneMedium(ids: readonly string[]): boolean {
   if (ids.length === 0) return true;

@@ -199,6 +199,14 @@ export function buildRecordFixture(): AnyEvent[] {
   emit('dB', 't1', 'v1.NoteAdded', { noteId: 'n2', unitId: 'luke1', anchor: { kind: 'study', guideId: 'fia:luke1', stepId: 'hear', at: '1:02' }, blobHash: 'c9' });
   emit('dB', 't1', 'v1.StudyStepMarked', { unitId: 'luke1', guideId: 'fia:luke1', stepId: 'hear', done: true });
   emit('dG', 't2', 'v1.StudyStepMarked', { unitId: 'luke1', guideId: 'fia:luke1', stepId: 'hear', done: false });
+  // Taking back (decisions.md 111): a reviewer withdraws their own verdict, someone else's withdrawal
+  // of a review and of a note count for nothing, and the author takes back a note.
+  emit('dF', 'r1', 'v1.ReviewRecorded', { reviewId: 'rv3', takeId: 'take2', kindId: 'peer', outcome: 'looks_good', via: 'app' });
+  emit('dF', 'r1', 'v1.ReviewWithdrawn', { reviewId: 'rv3' });
+  emit('dA', 'lead', 'v1.ReviewWithdrawn', { reviewId: 'rv2' });
+  emit('dB', 't1', 'v1.NoteAdded', { noteId: 'n3', unitId: 'luke1', anchor: { kind: 'passage' }, text: 'Wrong passage, sorry.' });
+  emit('dB', 't1', 'v1.NoteWithdrawn', { noteId: 'n3' });
+  emit('dA', 'lead', 'v1.NoteWithdrawn', { noteId: 'n1' });
   // The library (decision 36): the language moves to another template
   // version from two devices, hides a part the new version dropped (and
   // another device brings it back), and follows a library flow from one
@@ -228,7 +236,7 @@ export function buildRecordFixture(): AnyEvent[] {
     { itemId: 'biblebrain.ENGESV', name: 'English Standard Version', kind: 'source', detail: 'ENGESVN1DA', opened: true }] });
   emit('dF', 'bt1', 'v1.ReferencesUsed', { unitId: 'luke1', reviewId: 'rv1', items: [{ itemId: 'guidelines', name: 'Translation Guidelines', kind: 'note', opened: false }] });
 
-  // Writing beside recording (decisions.md 110): two devices write overlapping
+  // Writing beside recording (decisions.md 112): two devices write overlapping
   // verses, a written version is composed, labelled and published; the
   // language's switches are set from two devices; a kind becomes a making
   // step and another reads what it made; things are made from a version,
@@ -257,7 +265,7 @@ export function buildRecordFixture(): AnyEvent[] {
   emit('dB', 't1', 'v1.TakeComposed', { takeId: 'takeFinal', unitId: 'luke1', cardHashes: ['c1', 'c3', 'c4'], parentTakeId: 'take2' });
   emit('dB', 't1', 'v1.TakeSubmitted', { takeId: 'takeFinal' });
   emit('dB', 't1', 'v1.Made', { madeId: 'm4', unitId: 'luke1', kindId: 'polish', fromTakeId: 'take2', takeId: 'takeFinal' });
-  // Words added to the final recording, checked, then changed (decisions.md 110).
+  // Words added to the final recording, checked, then changed (decisions.md 112).
   emit('dA', 'lead', 'v1.StepMakesSet', { kindId: 'transcribe', makes: { from: 'recording', to: 'writing', language: 'same', result: 'added' } });
   emit('dB', 't1', 'v1.Made', { madeId: 'm5', unitId: 'luke1', kindId: 'transcribe', fromTakeId: 'takeFinal', added: true, parts: [{ hash: w4.id, durationMs: 0 }, { hash: w5.id, durationMs: 0 }] });
   emit('dC', 'r1', 'v1.ReviewRecorded', { reviewId: 'rvFinal', takeId: 'takeFinal', kindId: 'community', outcome: 'looks_good', via: 'app' });

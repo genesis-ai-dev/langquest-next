@@ -14,7 +14,7 @@ below it, so a check goes in the lowest-numbered layer that can hold it.
 | --- | --- | --- | --- | --- |
 | 1. Unit and property | Core folds and commands, client sync, mobile models, scripts. The PLAN.md invariants as property tests. | Vitest, with fast-check for the property tests | `packages/*/test`, `apps/*/test`, `scripts/*.test.ts` | every `npm test`, pre-push, CI on every PR |
 | 2. Server | SQL smokes, SQL-to-core parity (`validate_payload`, `event_privilege`), the sync integration test, a fleet scenario on simulated time | Plain SQL run by `psql` from a Node script (`scripts/db-test.mjs`); the parity check and the fleet are `tsx` scripts; the integration test is Vitest | `server/*.sql`, `scripts/db-test.mjs`, `packages/sync/test/integration.test.ts`, `scripts/fleet` | CI on every PR (fleet nightly) |
-| 3. Screen models | What a screen shows for a state and a role: main button, path steps, team rows, tabs. Pure functions in `apps/mobile/src/*Model.ts`, tested with the core fixtures and `test/sessions.ts`. | Vitest | `apps/mobile/test` | every `npm test` |
+| 3. Screen models | What a screen shows for a state and a role: main button, path steps, team rows, tabs. Pure functions in `apps/mobile/src/<feature>/model.ts` and `*Model.ts`, tested with the core fixtures and `test/sessions.ts`. | Vitest | `apps/mobile/test` | every `npm test` |
 | 4. End-to-end, web | A person does a job in the real app, signed in, against the local server: the release web export served by the Worker. | Playwright (Chromium) | `e2e/ui` | `@p0` on every PR; the whole suite nightly and before a store release |
 | 5. End-to-end, phones | What only a phone shows: recording, permissions, backgrounding, airplane mode, hand-over, the P0 smoke set. On a Release test build. | Maestro (YAML flows) | `apps/mobile/test/maestro` | before a store release, and after a change to the recorder, sync or sign-in |
 
@@ -119,14 +119,20 @@ These keep the suite fast enough to run and stable enough to trust.
 
 | When | What | Budget |
 | --- | --- | --- |
-| Pre-push hook | typecheck, `npm test` | under 30 s |
+| Pre-push hook | typecheck, `npm test`, worker bundle parity | under 30 s |
+| `npm run guardrails` | the CI `checks` job here; `--web` adds the export and its budget, `--all` the server and `ui-web` jobs | |
 | PR (CI `checks`) | typecheck, `npm test`, coverage thresholds, worker bundle parity | under 10 min |
 | PR (CI `server`) | `db:test`, `test:integration` | under 15 min |
 | PR (CI `web-smoke`) | the export in three engines | under 20 min |
-| PR (CI `ui-web`) | `@p0` web tests on the export | under 20 min |
+| PR (CI `ui-web`) | `@p0` web tests on the export, in two shards | under 20 min |
 | Nightly (CI) | the whole web suite, `@quarantine` apart; fleet `normalDay`; Stryker on core | reported, not blocking |
 | `npm run ship` | typecheck, then `@p0` web tests on the local stack (`SHIP_UNTESTED=1` skips, loudly) | |
 | Store release | full web suite, every Maestro flow on both phones, the run sheet | |
+
+The four PR jobs start together, so a PR waits for the slowest of them
+(about 6 minutes, the `ui-web` shards), not for `checks` and then the rest.
+A job that needs the local stack starts it in the background while it
+installs the browsers.
 
 ## Adding a test
 

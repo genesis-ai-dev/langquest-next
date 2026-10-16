@@ -441,3 +441,14 @@ export function tileLabel(c: ChapterTile, kept: readonly { ready: boolean }[], c
     ...(c.matches ? [] : [t('map.tile.outsideFilter')])
   ]);
 }
+
+/** What help mode says a chapter tile does, and what the marks on it mean: the corner shows the kept mark, else the changed flag. */
+export function tileHelp(c: ChapterTile, kept: readonly { ready: boolean }[], changed: boolean): string {
+  const parts = c.list.length;
+  return [
+    parts > 1 ? t('map.tile.pickHelp', { count: parts }) : parts === 1 ? t('map.tile.openHelp') : t('map.tile.noneHelp'),
+    parts ? t('map.tile.marksHelp') : null,
+    kept.length ? (kept.every((u) => u.ready) ? t('map.marks.keptHelp') : t('map.marks.downloadingHelp')) : changed ? t('map.marks.changedHelp') : null,
+    c.matches ? null : t('map.tile.outsideHelp')
+  ].filter(Boolean).join(' ');
+}

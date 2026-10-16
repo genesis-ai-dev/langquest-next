@@ -42,7 +42,6 @@ export function useEarlierSections(ctx: Ctx, state: LanguageState | null): Earli
     for (const [u, v] of madeIn) if (numbering && v.code !== numbering.code) out.numbered.set(u, numberedLike(v.code) ?? v.name);
     out.over = earlierSections({ current: idx.passages, expired, currentNumbering: numbering, numberingOf: (u) => madeIn.get(u) ?? null });
     return out;
-    // docs.get changes when documents arrive.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- docs.get changes when documents arrive
   }, [state, current, docs.get]);
 }

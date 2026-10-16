@@ -9,7 +9,7 @@ import { txt } from '../ui/textStyles';
 import { hitLine, type LanguoidHit } from './languoidModel';
 import { C, space } from '../ui/theme';
 import { LANGUOID_RESULTS } from './languoidModel';
-import { type LanguoidSearch } from './useLanguoids';
+import type { LanguoidSearch } from './useLanguoids';
 
 /**
  * The matches to pick from, or the one picked with a way to change it.
@@ -26,7 +26,7 @@ export function LanguoidPicker(props: {
       <View style={{ gap: space.xs }}>
         <SectionLabel label={t('languoid.picker.inList')} />
         <Group>
-          <Row icon="globe" label={picked.name} sub={hitLine(picked)} last right={<SmallBtn label={t('languoid.picker.change')} onPress={() => props.onPick(null)} />} />
+          <Row icon="globe" label={picked.name} sub={hitLine(picked)} last right={<SmallBtn label={t('languoid.picker.change')} help={t('languoid.picker.changeHelp')} onPress={() => props.onPick(null)} />} />
         </Group>
       </View>
     );
@@ -36,7 +36,7 @@ export function LanguoidPicker(props: {
     return (
       <View style={{ gap: space.xs }}>
         <Banner icon="cloud" tone="amber" title={t('languoid.picker.cannotSearch')} body={props.unreachable} />
-        <LinkBtn label={t('common.tryAgain')} onPress={search.retry} />
+        <LinkBtn label={t('common.tryAgain')} help={t('help.details.tryAgain')} onPress={search.retry} />
       </View>
     );
   }
@@ -57,7 +57,7 @@ export function LanguoidPicker(props: {
           ) : null}
           {search.hits.map((h, i) => (
             <Row key={h.id} icon="globe" label={h.name} sub={hitLine(h)} highlight={search.query} role="radio" selected={false} last={i === n - 1}
-              onPress={() => props.onPick(h)} />
+              help={t('languoid.picker.pickHelp')} onPress={() => props.onPick(h)} />
           ))}
         </ScrollView>
       </Group>

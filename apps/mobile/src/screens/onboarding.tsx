@@ -14,7 +14,7 @@ import { Text } from '../ui/text';
 import { firstName, roleWords, teamLabel, welcomeRoleFor, WELCOME_POINTS } from '../account/accountText';
 import type { Ctx } from '../shell/ctx';
 import { t, Trans } from '../i18n';
-import { Banner, Disclosure, GhostBtn, Group, Ico, LinkBtn, PrimaryBtn, Row, Screen } from '../ui/kit';
+import { Banner, Disclosure, GhostBtn, Group, HelpTop, Ico, LinkBtn, PrimaryBtn, Row, Screen } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { signInName } from '../auth/accounts';
 import { highlightsFor, languageInfo, unitTitle } from '@langquest-next/core';
@@ -34,22 +34,24 @@ export function Welcome(ctx: Ctx) {
   const profiles = useDisplayNames(me);
   const [busy, setBusy] = useState(false);
 
+  const { role: sessionRole, email: sessionEmail } = ctx.session;
+  const nameOf = ctx.name;
   const who = useMemo(() => {
     // Your membership here: the role's name and the scope it covers.
     const mine = Object.values(org?.members[me] ?? {}).filter((m) => !m.removed.value);
     const scoped = mine.find((m) => m.scope.level === 'language') ?? mine[0];
     const roleName = (scoped && org?.roles[scoped.roleId.value]?.name.value)
-      ?? (ctx.session.role ? roleWords(ctx.session.role) : undefined) ?? t('entry.welcome.member');
+      ?? (sessionRole ? roleWords(sessionRole) : undefined) ?? t('entry.welcome.member');
     // Who invited you: the invite you redeemed, when the log has it.
     const invite = Object.values(org?.invites ?? {}).find((i) => i.redeemedBy === me);
-    const invitedBy = invite?.issuedBy && invite.issuedBy !== me ? ctx.name(invite.issuedBy) : undefined;
-    const displayName = profiles[me] ?? ctx.session.email?.split('@')[0] ?? '';
+    const invitedBy = invite?.issuedBy && invite.issuedBy !== me ? nameOf(invite.issuedBy) : undefined;
+    const displayName = profiles[me] ?? sessionEmail?.split('@')[0] ?? '';
     const team = teamLabel(scoped?.scope, {
       org: org?.org?.value.name ?? t('entry.welcome.yourOrganization'),
       language: (id) => languageInfo(org, id)?.name
     });
     return { roleName, invitedBy, inviterId: invite?.issuedBy, displayName, team };
-  }, [org, me, profiles, ctx.session.role, ctx.session.email, ctx.name]);
+  }, [org, me, profiles, sessionRole, sessionEmail, nameOf]);
 
   const role = welcomeRoleFor(ctx.session);
   const points = WELCOME_POINTS[role];
@@ -70,8 +72,9 @@ export function Welcome(ctx: Ctx) {
   const handle = signInName(ctx.session.email);
   return (
     <Screen
+      header={<HelpTop />}
       bodyStyle={styles.body}
-      footer={<PrimaryBtn label={t('entry.welcome.getStarted')} onPress={() => void leave()} disabled={busy} />}
+      footer={<PrimaryBtn label={t('entry.welcome.getStarted')} help={t('entry.welcome.getStartedHelp')} onPress={() => void leave()} disabled={busy} />}
     >
       <View style={styles.hero}>
         {who.inviterId ? (
@@ -95,7 +98,7 @@ export function Welcome(ctx: Ctx) {
       <Group>
         {points.map((p, i) => <Row key={p.text} icon={p.icon} label={p.text} last={i === points.length - 1} />)}
       </Group>
-      <LinkBtn label={t('entry.vision.title')} onPress={() => ctx.go('vision')} style={{ alignSelf: 'center' }} />
+      <LinkBtn label={t('entry.vision.title')} help={t('entry.welcome.visionHelp')} onPress={() => ctx.go('vision')} style={{ alignSelf: 'center' }} />
     </Screen>
   );
 }
@@ -112,9 +115,12 @@ export function Welcome(ctx: Ctx) {
  *
  * Not ported: Listen, as on Welcome.
  */
+/** Nothing came over yet: one value, so what is worked out from it is not worked out again on every draw. */
+const NOTHING_BACK: NonNullable<Ctx['welcomeBack']>['data'] = { here: [], onTheirWay: [] };
+
 export function WelcomeBack(ctx: Ctx) {
   const me = ctx.session.actorId;
-  const data = ctx.welcomeBack?.data ?? { here: [], onTheirWay: [] };
+  const data = ctx.welcomeBack?.data ?? NOTHING_BACK;
   const profiles = useDisplayNames(me);
   const first = firstName(profiles[me] ?? ctx.session.email?.split('@')[0] ?? '');
   const [busy, setBusy] = useState(false);
@@ -123,20 +129,23 @@ export function WelcomeBack(ctx: Ctx) {
 
   // Their work arrived while no organization was open here: open the one it is in.
   const opened = useRef(false);
+  const { openOrganization, setLanguage } = ctx;
+  const hasNoOrg = ctx.session.hasNoOrg;
   useEffect(() => {
-    if (opened.current || !ctx.session.hasNoOrg || !data.here[0]) return;
+    if (opened.current || !hasNoOrg || !data.here[0]) return;
     opened.current = true;
-    void ctx.openOrganization(data.here[0].orgId);
-  }, [ctx.session.hasNoOrg, data.here, ctx.openOrganization]);
+    void openOrganization(data.here[0].orgId);
+  }, [hasNoOrg, data.here, openOrganization]);
 
   // Keep going starts in the language they recorded in last, in this organization.
   const last = useMemo(() => lastWork(data, orgId), [data, orgId]);
   const moved = useRef(false);
+  const languageNow = ctx.languageId;
   useEffect(() => {
-    if (moved.current || !last || ctx.languageId === last.languageId) return;
+    if (moved.current || !last || languageNow === last.languageId) return;
     moved.current = true;
-    ctx.setLanguage(last.languageId);
-  }, [last, ctx.languageId, ctx.setLanguage]);
+    setLanguage(last.languageId);
+  }, [last, languageNow, setLanguage]);
   const state = ctx.language.state;
   const target = useMemo(() => {
     if (!last || !state || ctx.language.languageId !== last.languageId) return null;
@@ -167,17 +176,18 @@ export function WelcomeBack(ctx: Ctx) {
   const bold = <Text style={{ fontWeight: '700' }} />;
   return (
     <Screen
+      header={<HelpTop />}
       bodyStyle={styles.body}
       footer={waiting ? (
-        <PrimaryBtn label={t('entry.welcomeBack.checkAgain')} icon="restart" onPress={() => void checkAgain()} busy={busy} />
+        <PrimaryBtn label={t('entry.welcomeBack.checkAgain')} icon="restart" help={t('entry.welcomeBack.checkAgainHelp')} onPress={() => void checkAgain()} busy={busy} />
       ) : target ? (
         <>
           <PrimaryBtn label={t('entry.welcomeBack.keepGoing', { passage: target.title })} icon="arrowR" disabled={busy}
             onPress={() => void leave(() => ctx.openPassage(target.unitId, target.languageId))} />
-          <GhostBtn label={t('entry.welcomeBack.goToMyWork')} disabled={busy} onPress={() => void leave(() => ctx.go(homeScreenFor(ctx.session)))} />
+          <GhostBtn label={t('entry.welcomeBack.goToMyWork')} disabled={busy} help={t('entry.welcomeBack.goToMyWorkHelp')} onPress={() => void leave(() => ctx.go(homeScreenFor(ctx.session)))} />
         </>
       ) : (
-        <PrimaryBtn label={t('entry.welcomeBack.goToMyWork')} disabled={busy} onPress={() => void leave(() => ctx.go(homeScreenFor(ctx.session)))} />
+        <PrimaryBtn label={t('entry.welcomeBack.goToMyWork')} disabled={busy} help={t('entry.welcomeBack.goToMyWorkHelp')} onPress={() => void leave(() => ctx.go(homeScreenFor(ctx.session)))} />
       )}
     >
       <View style={styles.hero}>
@@ -222,7 +232,7 @@ export function WelcomeBack(ctx: Ctx) {
         </Text>
       </View>
       <Disclosure icon="swap" title={t('entry.welcomeBack.differentTitle')} summary={t('entry.welcomeBack.differentSummary')}
-        {...ctx.details('welcome_back.different')}>
+        help={t('entry.welcomeBack.differentHelp')} {...ctx.details('welcome_back.different')}>
         <View style={styles.different}>
           <Text style={txt.sm}><Trans i18nKey="entry.welcomeBack.differentProject" components={{ b: bold }} /></Text>
           <Text style={txt.sm}><Trans i18nKey="entry.welcomeBack.differentQuests" components={{ b: bold }} /></Text>

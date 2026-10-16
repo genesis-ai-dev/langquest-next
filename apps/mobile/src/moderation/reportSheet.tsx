@@ -44,7 +44,7 @@ export function ReportFlag(props: { ctx: Ctx; target: ReportTarget; size?: numbe
   if (ctx.session.isGuest || target.profileId === ctx.session.actorId || !target.profileId) return null;
   return (
     <>
-      <IconBtn name="flag" label={t('moderation.flagLabel', { name: ctx.name(target.profileId) })} onPress={() => setOpen(true)}
+      <IconBtn name="flag" label={t('moderation.flagLabel', { name: ctx.name(target.profileId) })} help={t('moderation.flagHelp')} onPress={() => setOpen(true)}
         size={props.size ?? 40} color={C.muted} bg={C.card} />
       {open ? <ReportSheet ctx={ctx} target={target} onClose={() => setOpen(false)} /> : null}
     </>
@@ -143,7 +143,7 @@ function ReportSheet(props: { ctx: Ctx; target: ReportTarget; onClose: () => voi
         footer={(
           <>
             <PrimaryBtn label={t('moderation.remove.confirm')} icon="trash" tone="red" disabled={busy} busy={busy} onPress={() => void remove()} />
-            <GhostBtn label={t('common.cancel')} onPress={() => setStep({ at: 'menu' })} />
+            <GhostBtn label={t('common.cancel')} help={t('help.details.cancel')} onPress={() => setStep({ at: 'menu' })} />
           </>
         )}>
         <Text style={txt.body}>{t('moderation.remove.body')}</Text>
@@ -206,7 +206,7 @@ export function ReportActions(props: { ctx: Ctx; target: ReportTarget; onDone: (
       <>
         <Text style={txt.body}>{t('moderation.remove.sub')} {t('moderation.remove.body')}</Text>
         <PrimaryBtn label={t('moderation.remove.confirm')} icon="trash" tone="red" disabled={busy} busy={busy} onPress={() => void run('remove')} />
-        <GhostBtn label={t('common.cancel')} disabled={busy} onPress={() => setConfirming(false)} />
+        <GhostBtn label={t('common.cancel')} help={t('help.details.cancel')} disabled={busy} onPress={() => setConfirming(false)} />
       </>
     );
   }
@@ -217,10 +217,11 @@ export function ReportActions(props: { ctx: Ctx; target: ReportTarget; onDone: (
       ) : (
         <>
           <PrimaryBtn label={t('moderation.removeFromRecord')} icon="trash" tone="red" disabled={busy} onPress={() => setConfirming(true)} />
-          {target.unitId ? <GhostBtn label={t('moderation.actions.openPassage')} onPress={props.onOpen} /> : null}
+          {target.unitId ? <GhostBtn label={t('moderation.actions.openPassage')} help={t('moderation.actions.openPassageHelp')} onPress={props.onOpen} /> : null}
         </>
       )}
-      <GhostBtn label={target.kind === 'person' ? t('moderation.actions.closeReport') : t('moderation.actions.keep')} disabled={busy} onPress={() => void run('keep')} />
+      <GhostBtn label={target.kind === 'person' ? t('moderation.actions.closeReport') : t('moderation.actions.keep')} disabled={busy}
+        help={target.kind === 'person' ? t('moderation.actions.closeReportHelp') : t('moderation.actions.keepHelp')} onPress={() => void run('keep')} />
     </>
   );
 }
@@ -237,7 +238,7 @@ export function Authored(props: { ctx: Ctx; by: string; children: ReactNode }) {
     <View style={styles.hidden}>
       <Ico name="block" size={18} color={C.muted} />
       <Text style={[txt.sm, { flex: 1, color: C.muted }]}>{t('moderation.hidden.byName', { name: props.ctx.name(props.by) })}</Text>
-      <LinkBtn label={t('moderation.hidden.show')} onPress={() => setShown(true)} accessibilityLabel={t('moderation.hidden.showLabel', { name: props.ctx.name(props.by) })} />
+      <LinkBtn label={t('moderation.hidden.show')} help={t('moderation.hidden.showHelp')} onPress={() => setShown(true)} accessibilityLabel={t('moderation.hidden.showLabel', { name: props.ctx.name(props.by) })} />
     </View>
   );
 }

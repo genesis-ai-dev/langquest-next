@@ -162,6 +162,8 @@ for (const [key, a] of Object.entries(world.accounts)) {
   env[`${k}_PASSWORD`] = a.password ?? '';
   env[`${k}_NAME`] = a.name ?? '';
   env[`${k}_FIRST`] = (a.name ?? '').split(' ')[0];
+  // Rows that list people carry the profile id in their testID (ask-person-<id>).
+  env[`${k}_ID`] = a.id ?? '';
   if (a.signInName) env[`${k}_SIGNIN`] = a.signInName;
 }
 for (const [key, p] of Object.entries(world.passages)) {

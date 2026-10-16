@@ -11,7 +11,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { BlobFile } from '../sync/blobs';
-import { streamUrl } from '../server/blobTransport';
+import { useStreamedUri } from './useStreamedUri';
 import type { Ctx } from '../shell/ctx';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
@@ -32,12 +32,15 @@ import { useClip } from '../audio/useClip';
 import { textMissing } from './helpsModel';
 
 /** A chosen verse or a found word: soft grey, never loud purple (Caleb, 2026-10-10). */
-export const SOFT_MARK = withAlpha(C.dark, 0.1);
+const SOFT_MARK = withAlpha(C.dark, 0.1);
 
 /** "12", "38-39": a verse row's own number, without its chapter. */
 const verseOf = (row: VerseRow) => keyLabel(row.key.includes(':') ? row.key.slice(row.key.indexOf(':') + 1) : row.key);
 
 // ---- the Bible chips ------------------------------------------------------------------------
+
+/** The only Bible's press: nothing, outside help. */
+const NOTHING = () => undefined;
 
 /** The chosen Bible (tap to choose another) and Listen, as two amber chips (demo `BibleChips`). */
 export function BibleChips(props: { ctx: Ctx; bible: Bible }) {
@@ -66,11 +69,13 @@ export function BibleChip(props: { ctx: Ctx; bible: Bible }) {
   const [picking, setPicking] = useState(false);
   const many = bible.passage.options.length > 1;
   const abbr = bible.option?.abbreviation ?? '';
-  const spot = useHelpSpot(t('reference.bible.choose'), t('reference.bible.chooseHelp'), many ? () => setPicking(true) : undefined);
+  // The only Bible offered still says what it is while help is on: its abbreviation alone does not.
+  const spot = useHelpSpot(many ? t('reference.bible.choose') : t('reference.bible.barTitleWith', { abbr }),
+    many ? t('reference.bible.chooseHelp') : t('reference.bible.onlyBibleHelp'), many ? () => setPicking(true) : NOTHING);
   if (!bible.option) return null;
   return (
     <>
-      <Pressable onPress={spot.onPress} disabled={!many} accessibilityRole="button" accessibilityLabel={t('reference.bible.pickLabel', { bible: abbr })}
+      <Pressable onPress={many || spot.id ? spot.onPress : undefined} disabled={!many && !spot.id} accessibilityRole="button" accessibilityLabel={t('reference.bible.pickLabel', { bible: abbr })}
         style={({ pressed }) => [styles.chip, pressed && ps.pressed]}>
         <Ico name="book" size={18} color={TINT.amberText} />
         <Text style={styles.chipText} numberOfLines={1}>{abbr}</Text>
@@ -263,10 +268,10 @@ export function PassageNoteEditor({ ctx }: { ctx: Ctx }) {
         <>
           <View style={styles.whereRow}>
             <View style={styles.wherePill}><Text style={styles.whereText} numberOfLines={1}>{key ? t('notes.onVerses.on', { where: keyLabel(key) }) : t('notes.onVerses.onWhole')}</Text></View>
-            {key ? <LinkBtn label={t('notes.onVerses.whole')} color={C.muted} onPress={() => setRun(null)} /> : null}
+            {key ? <LinkBtn label={t('notes.onVerses.whole')} color={C.muted} help={t('notes.onVerses.wholeHelp')} onPress={() => setRun(null)} /> : null}
           </View>
           <VoiceNote ctx={ctx} label={t('notes.onVerses.say')} hash={hash} onChange={setHash} />
-          <Field value={text} onChangeText={setText} placeholder={t('common.orTypeIt')} autoCapitalize="sentences" multiline />
+          <Field value={text} onChangeText={setText} placeholder={t('common.orTypeIt')} autoCapitalize="sentences" help={t('reference.notes.typeHelp')} multiline />
           <PrimaryBtn label={t('reference.notes.save')} icon="check" disabled={!ready} busy={busy} onPress={() => void save()} />
         </>
       )}>
@@ -382,18 +387,18 @@ function OtherCard(props: { ctx: Ctx; o: OtherSays }) {
 function OtherVoice(props: { ctx: Ctx; o: OtherSays; onFailed: () => void }) {
   const { ctx, o } = props;
   const ref = { hash: o.voice!, format: (o.voiceFormat ?? 'm4a') as BlobFile['format'] };
-  const [uri, setUri] = useState<string | null>(() => ctx.language.blobs.uriFor(ref));
+  const { uri, stream } = useStreamedUri(ctx, o.languageId, ref);
   const [wanted, setWanted] = useState(false);
   const clip = useClip(ctx.language, [], uri ? { uri } : undefined);
   useEffect(() => {
     if (!wanted || !uri) return;
     setWanted(false);
     clip.toggle();
-  }, [wanted, uri]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [wanted, uri]); // eslint-disable-line react-hooks/exhaustive-deps -- plays once the asked-for file has a uri; clip is new on every draw
   const press = () => {
     if (uri) { clip.toggle(); return; }
     setWanted(true);
-    streamUrl(ctx.language.orgId, o.languageId, ref).then(setUri).catch((e: unknown) => {
+    stream().catch((e: unknown) => {
       noteExpected('other language word audio', e);
       setWanted(false);
       props.onFailed();

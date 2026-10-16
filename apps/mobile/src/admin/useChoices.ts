@@ -4,7 +4,7 @@
 // organizations share (libraryChoices' order: its own first, then
 // LangQuest's), with their documents, sorted into the few plain answers an
 // admin is offered and the rest one tap deeper.
-import { type FlowDoc, type KindDef, type TemplateDoc } from '@langquest-next/core';
+import type { FlowDoc, KindDef, TemplateDoc } from '@langquest-next/core';
 import { useMemo } from 'react';
 import { libraryChoices, STARTER_TEMPLATE, type LibraryChoice } from '../templates/contentTemplates';
 import type { Ctx } from '../shell/ctx';
@@ -18,9 +18,10 @@ const communityOnly = () => flowTitle([{ kindIds: ['community'] }], []);
 /** Templates by the kind of work they give: the likely stories and chapters, and something else. */
 export function useRecordChoices(ctx: Ctx, inUseItemId: string | null | undefined, extraHashes: (string | null | undefined)[] = []) {
   const lib = useLibrary(ctx);
+  const libItems = lib.items;
   const library = ctx.org.state?.library;
   const shared = useSharedItems('template', lib.orgId);
-  const choices = useMemo(() => libraryChoices(library ?? {}, lib.items('template'), shared.rows, STARTER_TEMPLATE.name), [library, lib.items, shared.rows]);
+  const choices = useMemo(() => libraryChoices(library ?? {}, libItems('template'), shared.rows, STARTER_TEMPLATE.name), [library, libItems, shared.rows]);
   const docs = useLibraryDocs(lib.orgId, [...choices.map((c) => c.hash), ...extraHashes]);
   const current = choices.find((c) => c.source === 'ours' && c.item.itemId === inUseItemId) ?? null;
   const kindOf = (c: LibraryChoice | null | undefined): RecordKind | null => (c ? recordKind(docs.get<TemplateDoc>(c.hash)) : null);
@@ -41,9 +42,10 @@ export interface FlowEntry {
 /** Flows as plain answers: the one in use or suggested, a single community check, the organization's own; the rest one tap deeper. */
 export function useCheckChoices(ctx: Ctx, inUseItemId: string | null | undefined, kinds: readonly KindDef[]) {
   const lib = useLibrary(ctx);
+  const libItems = lib.items;
   const library = ctx.org.state?.library;
   const shared = useSharedItems('flow', lib.orgId);
-  const choices = useMemo(() => libraryChoices(library ?? {}, lib.items('flow'), shared.rows, STARTER_FLOW.name), [library, lib.items, shared.rows]);
+  const choices = useMemo(() => libraryChoices(library ?? {}, libItems('flow'), shared.rows, STARTER_FLOW.name), [library, libItems, shared.rows]);
   const docs = useLibraryDocs(lib.orgId, choices.map((c) => c.hash));
   const current = choices.find((c) => c.source === 'ours' && c.item.itemId === inUseItemId) ?? null;
   const entries = choices.map((c) => ({ c, doc: docs.get<FlowDoc>(c.hash) })).filter((e): e is FlowEntry => !!e.doc);

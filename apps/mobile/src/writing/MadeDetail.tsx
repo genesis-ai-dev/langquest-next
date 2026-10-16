@@ -1,4 +1,4 @@
-// Something made from a version (decisions.md 110; demo branch
+// Something made from a version (decisions.md 112; demo branch
 // caleb-written-translations wMadeRead): a written copy, a back translation,
 // a translation, or what LangQuest v2 brought over with no step. It stays
 // with the version it came from and is never marked out of date. Written,
@@ -19,14 +19,9 @@ import { passageCrumbs, versionTitle, when, type PassageView } from '../passage/
 import { usePassage } from '../passage/usePassage';
 import { languageLabel } from '../admin/adminModel';
 import { space, TINT } from '../ui/theme';
-import { usePassageVerses, WrittenReader } from './WrittenText';
-
-/** What a made thing is called: its step's name, else what it is ("Written down", "In English"). */
-export function madeTitle(v: Pick<PassageView, 'kind'>, m: Pick<MadeView, 'kindId' | 'medium' | 'language'>): string {
-  if (m.kindId) return v.kind(m.kindId).name;
-  if (m.language) return m.medium === 'writing' ? t('writing.made.writtenIn', { language: languageLabel(m.language) }) : t('writing.made.saidIn', { language: languageLabel(m.language) });
-  return m.medium === 'writing' ? t('writing.made.writtenDown') : t('writing.made.recordedAgain');
-}
+import { WrittenReader } from './WrittenText';
+import { usePassageVerses } from './usePassageVerses';
+import { madeTitle } from './namesModel';
 
 export function MadeDetail(ctx: Ctx) {
   const v = usePassage(ctx);
@@ -42,7 +37,7 @@ export function MadeDetail(ctx: Ctx) {
   }
   const from = v.p.versions.find((x) => x.takeId === madeVersionOf(v.p, m));
   const title = madeTitle(v, m);
-  // Added to its version (decision 110): part of it, and the latest of its kind there holds.
+  // Added to its version (decision 112): part of it, and the latest of its kind there holds.
   const holds = m.added && from ? addedTo(v.p, from).find((a) => a.medium === m.medium) : undefined;
   const edge = edgeFor('made_detail', 'back_translation');
   const changeable = !!holds && holds.made.id === m.id && !!m.kindId && !!edge && edgeAllowed(edge, ctx.session);

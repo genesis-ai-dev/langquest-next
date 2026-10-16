@@ -16,7 +16,7 @@ import { useLanguoidSearch } from '../org/useLanguoids';
 import { Question, QuietLink, RadioRow } from '../admin/admin';
 import { guideShortName, languageLabel } from '../admin/adminModel';
 import { C, radius, space, type as T } from '../ui/theme';
-import { type LanguageChoice } from './languageChoices';
+import type { LanguageChoice } from './languageChoices';
 import { readerLanguage, sameLanguage } from './languages';
 
 /** "FIA guides for 294 passages · 2 Bibles", or that nothing is in it yet. */
@@ -56,6 +56,7 @@ export function ReferenceLanguagePage(props: {
       <Text style={[txt.sm, { paddingHorizontal: space.xs }]}>{t('referenceLanguage.sub', { language: props.team })}</Text>
       {ordered.map((c) => (
         <RadioRow key={c.language} icon="globe" label={label(c.language)} on={sameLanguage(c.language, props.value)} onPress={() => props.onChange(c.language)} subLines={4}
+          help={t('referenceLanguage.rowHelp')}
           sub={[whatIsThere(c), sameLanguage(c.language, reader) ? t('reference.setLanguage.yours') : ''].filter(Boolean).join(' · ')} />
       ))}
       {props.loading ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('common.loading')}</Text> : null}
@@ -72,7 +73,7 @@ export function ReferenceLanguagePage(props: {
             }} />
         </>
       ) : (
-        <QuietLink icon="search" label={t('reference.language.another')} onPress={() => setSearching(true)} />
+        <QuietLink icon="search" label={t('reference.language.another')} detail={t('reference.language.anotherHelp')} onPress={() => setSearching(true)} />
       )}
       {props.children}
     </View>

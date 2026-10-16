@@ -157,7 +157,7 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.TakeArchived': 'translate',
   'v1.CardVerseSet': 'translate',
   'v1.TakeSubmitted': 'translate',
-  // Written parts belong to a version (translate) or to something a step made, which reviewers make too (decisions.md 110).
+  // Written parts belong to a version (translate) or to something a step made, which reviewers make too (decisions.md 112).
   'v1.WritingAdded': ['translate', 'review'],
   // What the team makes is part of what it records, like its template.
   'v1.MediaAllowedSet': 'manage_templates',
@@ -176,6 +176,9 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.RequestMade': ['send_to_reviewers', 'assign_work'],
   'v1.RequestWithdrawn': ['send_to_reviewers', 'assign_work'],
   'v1.NoteAdded': ['translate', 'review', 'fill_reference'],
+  // Taking back your own review or note: whoever may record one, and only its author (may_emit, decisions.md 111).
+  'v1.ReviewWithdrawn': ['review', 'translate'],
+  'v1.NoteWithdrawn': ['translate', 'review', 'fill_reference'],
   'v1.StudyStepMarked': 'translate',
   'v1.MaterialDefined': 'by_kind',
   'v1.MaterialFieldSet': 'fill_reference',

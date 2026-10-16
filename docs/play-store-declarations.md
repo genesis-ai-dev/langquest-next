@@ -110,7 +110,7 @@ every type.
 | Personal info | Phone number (a guest reviewer's contact, typed in by a user) | Yes | No | Optional | App functionality |
 | Messages | Other in-app messages (review comments, join request messages) | Yes | No | Optional | App functionality |
 | Audio | Voice or sound recordings | Yes | No | Required | App functionality |
-| App activity | Other user-generated content (written translations, transcriptions and back translations, decisions.md 110; reviews, notes, answers, reports of content or people, blocked people, which Bibles and guides were used for a version or review) | Yes | No | Required | App functionality |
+| App activity | Other user-generated content (written translations, transcriptions and back translations, decisions.md 112; reviews, notes, answers, reports of content or people, blocked people, which Bibles and guides were used for a version or review) | Yes | No | Required | App functionality |
 | Photos and videos | Photos (pictures and maps an admin adds to a study guide) | Yes | No | Optional | App functionality |
 | Photos and videos | Videos (films an admin adds to a study guide) | Yes | No | Optional | App functionality |
 | Audio | Other audio files (step and glossary audio an admin uploads to a study guide) | Yes | No | Optional | App functionality |
@@ -206,7 +206,7 @@ this block.
     "kinds": {
       "device": ["blobCacheMb", "blobsWanted", "freeDiskMb", "totalDiskMb"],
       "error": ["errorId", "fatal", "name", "where"],
-      "load": ["events", "fromSnapshot", "ms"],
+      "load": ["events", "fromSnapshot", "ms", "staleCheckpointSeq"],
       "snapshot": ["bytes", "chunks", "ms", "outcome", "resumedChunks", "seq"],
       "sync": ["applyMs", "error", "ms", "offlineMs", "outcome", "pages", "pending", "pulled", "pullNetMs", "pushed", "pushNetMs", "rejected"],
       "transfer": ["bytes", "count", "dir", "failDisk", "failHash", "failHttp4xx", "failHttp5xx", "failOffline", "failOther", "fetchMs", "maxMs", "ms", "signMs", "verifyMs"]

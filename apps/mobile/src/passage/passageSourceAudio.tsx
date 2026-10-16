@@ -89,14 +89,15 @@ export function SourcePlayer(props: {
     setPlaying(false);
   };
   useEffect(() => props.language.blobs.store?.onChange(() => refresh((n) => n + 1)), [props.language.blobs.store]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- halt reads only refs, so the first draw's copy stops whatever plays
   useEffect(() => registerPlayback(halt), []);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- halt reads only refs; this runs when the player is turned off, not on every draw
   useEffect(() => { if (props.disabled) halt(); }, [props.disabled]);
   useEffect(() => {
     setPlayingState(false);
     setError('');
     return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- a counter, not a node: bumping it on cleanup is what stops the old play
       generation.current++;
       wants.current = false;
       player.current?.remove();
@@ -189,12 +190,12 @@ export function SourcePlayer(props: {
   return (
     <View style={{ gap: space.sm }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-        <IconBtn name="restart" label={t('sources.recordings.rewind')} size={target.min}
+        <IconBtn name="restart" label={t('sources.recordings.rewind')} help={t('recording.player.back10Help')} size={target.min}
           bg={C.light} color={C.primary} disabled={props.disabled || !available} onPress={() => void seek(-10)} />
         <IconBtn name={available ? playing ? 'pause' : 'play' : 'download'} size={target.primary} bg={C.light} color={C.primary}
           label={available ? playing ? t('sources.recordings.pause') : props.label : t('sources.recordings.notHereLabel')}
-          disabled={!available || props.disabled} onPress={() => void toggle()} />
-        <IconBtn name="skip" label={t('sources.recordings.forward')} size={target.min}
+          help={props.listen ? t('sources.recordings.playListenHelp') : t('recording.player.playHelp')} disabled={!available || props.disabled} onPress={() => void toggle()} />
+        <IconBtn name="skip" label={t('sources.recordings.forward')} help={t('recording.player.forwardHelp')} size={target.min}
           bg={C.light} color={C.primary} disabled={props.disabled || !available} onPress={() => void seek(10)} />
       </View>
       {error ? <Text accessibilityRole="alert" style={txt.error}>{error}</Text> : null}

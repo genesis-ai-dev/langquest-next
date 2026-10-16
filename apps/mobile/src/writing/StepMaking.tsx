@@ -1,4 +1,4 @@
-// Steps that make something (decisions.md 110; demo branch
+// Steps that make something (decisions.md 112; demo branch
 // caleb-written-translations wStepPick, wStepOwn, wStepFinal): in a
 // language's checks, a step can turn recording or writing into recording or
 // writing, in the team's language or another. What it makes stays beside
@@ -22,20 +22,9 @@ import { Chip, ChipRow, Field, Group, Ico, PrimaryBtn, Row, SectionLabel, Sheet,
 import { txt } from '../ui/textStyles';
 import { languageLabel } from '../admin/adminModel';
 import { C, radius, space, TINT } from '../ui/theme';
+import { presetName } from './namesModel';
 
 type Side = Medium | 'either';
-
-/** A preset's name in the language showing. */
-export function presetName(id: string): string {
-  switch (id) {
-    case 'make-bt-said': return t('writing.presets.btSaid');
-    case 'make-bt-written': return t('writing.presets.btWritten');
-    case 'make-write-down': return t('writing.presets.writeDown');
-    case 'make-read-aloud': return t('writing.presets.readAloud');
-    case 'make-final': return t('writing.presets.final');
-    default: return id;
-  }
-}
 
 /** Recording into writing, drawn: a microphone or a pen, an arrow, and the language. */
 export function MakesLine({ makes, language }: { makes: Pick<MakesSpec, 'from' | 'to' | 'language'>; language: string }) {
@@ -101,7 +90,7 @@ export function MakesFields(props: { makes: MakesSpec; own: string; reference: s
   const set = (patch: Partial<MakesSpec>) => {
     const next = { ...makes, ...patch };
     if (next.language === 'same') delete next.otherLanguage;
-    // The result follows the choices until someone picks it (decisions.md 110); it never stays where it cannot be.
+    // The result follows the choices until someone picks it (decisions.md 112); it never stays where it cannot be.
     const result: MakesResult = 'result' in patch ? patch.result! : ('from' in patch || 'to' in patch || 'language' in patch) ? defaultResult(next) : next.result;
     props.onChange({ ...next, result: resultAllowed(next, result) ? result : 'beside' });
   };

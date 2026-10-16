@@ -21,6 +21,9 @@ import { txt } from '../ui/textStyles';
 import { noteExpected, reportError } from '../diagnostics/report';
 import { C, radius, space, TINT, type as T } from '../ui/theme';
 import type { LanguageHandle } from '../sync/useLanguage';
+
+/** The timeline's press while help is on: it explains itself; it is moved by tapping and dragging when help is off. */
+const SEEK_ONLY = () => undefined;
 import { clock } from './clipTime';
 
 /** Each card's length in seconds, from the recording that holds it (0 when unknown). */
@@ -85,9 +88,9 @@ export function ClipPlayer(props: {
     setPlaying(false);
   };
   useEffect(() => props.language.blobs.store?.onChange(() => refresh((n) => n + 1)), [props.language.blobs.store]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- halt reads only refs, so the first draw's copy stops whatever plays
   useEffect(() => registerPlayback(halt), []);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- halt reads only refs; this runs when the player is turned off, not on every draw
   useEffect(() => { if (props.disabled) halt(); }, [props.disabled]);
   useEffect(() => {
     setPlayingState(false);
@@ -95,6 +98,7 @@ export function ClipPlayer(props: {
     setIndex(0); indexRef.current = 0;
     setAt(0);
     return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- a counter, not a node: bumping it on cleanup is what stops the old play
       generation.current++;
       wants.current = false;
       player.current?.remove();
@@ -233,6 +237,8 @@ export function ClipPlayer(props: {
     void toggle();
   };
   const play = useHelpSpot(playing ? t('common.pause') : t('recording.player.playTitle', { title: props.title }), t('recording.player.playHelp'), onPlay);
+  // While help is on, a tap on the timeline explains it (and the times beside it) instead of moving.
+  const timeline = useHelpSpot(t('recording.player.whereYouAre', { title: props.title }), t('recording.player.timelineHelp'), SEEK_ONLY);
 
   // The timeline: tap anywhere, or drag the thumb.
   const width = useRef(1);
@@ -277,10 +283,15 @@ export function ClipPlayer(props: {
         aria-valuemin={0} aria-valuemax={Math.round(total)} aria-valuenow={Math.round(elapsed)}
         aria-valuetext={t('recording.player.position', { at: clock(elapsed), total: clock(total) })}
         focusable {...keys}
-        {...pan.panHandlers}>
+        {...(timeline.id ? {} : pan.panHandlers)}>
         <View style={styles.rail} />
         <View style={[styles.fill, { width: `${share * 100}%`, backgroundColor: tone }]} />
         <View style={[styles.thumb, { left: `${share * 100}%`, borderColor: tone }]} />
+        {timeline.id ? (
+          <Pressable onPress={timeline.onPress} accessibilityRole="button" accessibilityLabel={t('recording.player.whereYouAre', { title: props.title })} style={StyleSheet.absoluteFill}>
+            <HelpBadge spot={timeline} />
+          </Pressable>
+        ) : null}
       </View>
       <View style={styles.controls}>
         <Text style={[txt.xs, styles.time]}>{clock(elapsed)}</Text>

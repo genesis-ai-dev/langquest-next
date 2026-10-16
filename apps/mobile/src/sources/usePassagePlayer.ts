@@ -52,9 +52,9 @@ export function usePassagePlayer(c: {
     setPlaying(false);
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- halt reads only refs, so the first draw's copy stops whatever plays
   useEffect(() => registerPlayback(halt), []);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- halt reads only refs; this runs when the player is turned off, not on every draw
   useEffect(() => { if (c.disabled) halt(); }, [c.disabled]);
   useEffect(() => {
     generation.current++;
@@ -62,8 +62,9 @@ export function usePassagePlayer(c: {
     setPart(0); setMs(c.plan?.parts[0]?.fromMs ?? 0); setStarted(false); setError(''); setLoading(false);
     if (reported.current) { reported.current = false; live.current.c.listen?.onPlaying(false); }
     setPlayingState(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- a counter, not a node: bumping it on cleanup is what stops the old play
     return () => { generation.current++; drop(); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the signature is the source: a new c for the same source does not start over
   }, [c.signature]);
 
   async function start(at: number, fromMs: number) {

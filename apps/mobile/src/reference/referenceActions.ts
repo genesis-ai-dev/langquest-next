@@ -6,11 +6,11 @@ import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { cachedDoc, hashOf, keepNewDoc, loadDocs } from '../library/docStore';
 import type { SharedItem } from '../library/model';
-import { useLibrary } from '../library/useLibrary';
+import type { useLibrary } from '../library/useLibrary';
 import { failureMessage } from '../diagnostics/report';
 import * as server from '../server/reference';
 import { BibleError } from '../sources/bibleBrainAdmin';
-import { type Level } from './model';
+import type { Level } from './model';
 import { timingPublication, type TimingPublication, type TimingResultRow } from '@langquest-next/core';
 
 /** The level a screen is at: the language in its params (when it is the open language), else the organization. */

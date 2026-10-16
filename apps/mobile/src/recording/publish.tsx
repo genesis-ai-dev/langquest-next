@@ -25,7 +25,7 @@ import { styles as ps } from './blockStyles';
 export function PublishScreen(props: {
   ctx: Ctx; v: PassageView; n: number; first: boolean; cards: string[]; totalMs: number | undefined; bible: string | undefined;
   busy: boolean; answers: ReviewView[]; tied: number; revisingKind?: string;
-  /** A step makes this version (a final recording, decisions.md 110): the step says what it is, so no change note. */
+  /** A step makes this version (a final recording, decisions.md 112): the step says what it is, so no change note. */
   making?: boolean;
   onClose: () => void; onPublish: (note: string, hash: string | null) => void;
 }) {
@@ -73,7 +73,7 @@ export function PublishScreen(props: {
         <Sheet visible title={needsNote ? t('recording.publish.whatChangedQuestion') : t('recording.publish.saySomething')}
           sub={needsNote ? t('recording.publish.sinceVersion', { version: versionTitle(props.n - 1) }) : t('recording.publish.anythingToKnow')}
           onClose={() => setSaying(false)}
-          footer={<PrimaryBtn label={t('common.done')} icon="check" onPress={() => setSaying(false)} />}>
+          footer={<PrimaryBtn label={t('common.done')} icon="check" help={t('recording.publish.doneHelp')} onPress={() => setSaying(false)} />}>
           <VoiceNote ctx={ctx} label={needsNote ? t('recording.publish.sayWhatChanged') : t('common.sayIt')} hash={hash} onChange={setHash} />
           <Field value={text} onChangeText={setText} placeholder={t('common.orTypeIt')} multiline />
         </Sheet>

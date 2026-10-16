@@ -17,7 +17,8 @@ import { answeredQuestions, type NameFn } from './record';
 
 /** The review a page opens: the one named, else the newest. */
 export function reviewFor(p: PassageState, reviewId: string | undefined): ReviewView | undefined {
-  return p.reviews.find((r) => r.id === reviewId) ?? p.reviews.at(-1);
+  // One taken back still opens from the history (decisions.md 111), marked as such.
+  return p.reviews.find((r) => r.id === reviewId) ?? p.withdrawnReviews.find((r) => r.id === reviewId) ?? p.reviews.at(-1);
 }
 
 /** How a review's outcome card is coloured: made content, a good verdict, or a verdict that asks for changes. */

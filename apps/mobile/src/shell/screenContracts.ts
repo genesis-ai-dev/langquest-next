@@ -39,31 +39,32 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   book_map: { reads:['derivePassage','unitPlace','earlierSections','library'],rpcs:['library_get_documents'] },
   // Send to … (ADR-029) asks the usual reviewer or review team in one tap.
   // Versions deletes a draft; its Undo composes it again (decisions.md 83).
-  passage_record: { emits:['v1.DepartureRecorded','v1.DepartureUndone','v1.RequestMade','v1.RequestWithdrawn','v1.NoteAdded','v1.TakeArchived','v1.TakeComposed'],
+  // Your own review or note is taken back from its check or the history (decisions.md 111).
+  passage_record: { emits:['v1.DepartureRecorded','v1.DepartureUndone','v1.RequestMade','v1.RequestWithdrawn','v1.NoteAdded','v1.NoteWithdrawn','v1.ReviewWithdrawn','v1.TakeArchived','v1.TakeComposed'],
     reads:['derivePassage','recordTimeline','reviewGrid','studyMarksFor','earlierSections','library'],rpcs:[...REPORTS,'library_get_documents'] },
   version_detail: { reads:['derivePassage','keyTermLinksFor'],rpcs:REPORTS },
-  review_detail: { emits:['v1.DepartureRecorded','v1.DepartureUndone'],reads:['derivePassage','questionsForKind'],rpcs:REPORTS },
+  review_detail: { emits:['v1.DepartureRecorded','v1.DepartureUndone','v1.ReviewWithdrawn'],reads:['derivePassage','questionsForKind'],rpcs:REPORTS },
   ask_someone: { emits:['v1.RequestMade','v1.RequestWithdrawn'],reads:['derivePassage','questionsForKind'] },
   // Background's Bible takes a note on a verse (simple/review.tsx); a note at a moment of the version is a review artifact.
-  review_capture: { emits:['v1.ReviewRecorded','v1.ReferencesUsed','v1.NoteAdded'],reads:['derivePassage','questionsForKind','recommendedFor'],rpcs:REPORTS },
-  add_record: { emits:['v1.ReviewRecorded','v1.ReferencesUsed','v1.NoteAdded'],reads:['derivePassage','questionsForKind','recommendedFor'] },
+  review_capture: { emits:['v1.ReviewRecorded','v1.ReviewWithdrawn','v1.ReferencesUsed','v1.NoteAdded','v1.NoteWithdrawn'],reads:['derivePassage','questionsForKind','recommendedFor'],rpcs:REPORTS },
+  add_record: { emits:['v1.ReviewRecorded','v1.ReviewWithdrawn','v1.ReferencesUsed','v1.NoteAdded'],reads:['derivePassage','questionsForKind','recommendedFor'] },
   // What was offered and used goes on the record with the version (docs/reference-material.md).
   // Key words grow during the work (decision 71): say yours, add a word.
-  // Writing the passage instead (decision 110): its words, and its verses.
+  // Writing the passage instead (decision 112): its words, and its verses.
   workspace: { emits:['v1.RecordingAdded','v1.TakeComposed','v1.TakeArchived','v1.TakeSubmitted','v1.WritingAdded',
-    'v1.ResponseRecorded','v1.CardVerseSet','v1.NoteAdded','v1.KeyTermLinked','v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted','v1.ReferencesUsed'],
+    'v1.ResponseRecorded','v1.CardVerseSet','v1.NoteAdded','v1.NoteWithdrawn','v1.KeyTermLinked','v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted','v1.ReferencesUsed'],
     reads:['derivePassage','keyTermsForUnit','recommendedFor','studyMarksFor'],rpcs:[...REPORTS,'library_get_documents','library_shared_items'] },
   // Its parts are the review's artifacts, not recordings (docs/decisions.md 30).
-  // A step that makes something (decision 110): what it made stays with its version (v1.Made); written, its words and verses;
+  // A step that makes something (decision 112): what it made stays with its version (v1.Made); written, its words and verses;
   // a final recording is published as the next version, as the workspace does.
-  back_translation: { emits:['v1.ReviewRecorded','v1.Made','v1.WritingAdded','v1.CardVerseSet','v1.NoteAdded','v1.RecordingAdded','v1.TakeComposed','v1.TakeArchived','v1.TakeSubmitted'],
+  back_translation: { emits:['v1.ReviewRecorded','v1.ReviewWithdrawn','v1.Made','v1.WritingAdded','v1.CardVerseSet','v1.NoteAdded','v1.RecordingAdded','v1.TakeComposed','v1.TakeArchived','v1.TakeSubmitted'],
     reads:['derivePassage'],rpcs:REPORTS },
-  // Something made from a version (decision 110): read or heard, never marked out of date.
+  // Something made from a version (decision 112): read or heard, never marked out of date.
   made_detail: { reads:['derivePassage'] },
   // One reader for both nodes (decision 71): steps, the Bible, key words and notes.
-  study_guide: { emits:['v1.StudyStepMarked','v1.NoteAdded','v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted'],
+  study_guide: { emits:['v1.StudyStepMarked','v1.NoteAdded','v1.NoteWithdrawn','v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted'],
     reads:['studyMarksFor','studyNotesFor','keyTermsForUnit'],rpcs:REPORTS },
-  study_step: { emits:['v1.StudyStepMarked','v1.NoteAdded','v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted'],
+  study_step: { emits:['v1.StudyStepMarked','v1.NoteAdded','v1.NoteWithdrawn','v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted'],
     reads:['studyMarksFor','studyNotesFor','keyTermsForUnit'],rpcs:REPORTS },
   // Publishes a study@2 guide as a library version; its files go to the organization's guide files (guides/files.ts).
   guide_editor: { emits:['v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySubscribed','v1.LibraryPinned'],reads:['library'],

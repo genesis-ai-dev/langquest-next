@@ -14,7 +14,7 @@
 // One main action per screen, the rest one labelled tap away (decision 56).
 // Pure reading lives in src/reference/ (model.ts, coverage.ts, timings.ts, offered.ts).
 import {
-  derivePassage, keyTermsForUnit, languageName, libraryUnitRange, materialsFor, unitTitle,
+  derivePassage, keyTermsForUnit, languageName, type libraryUnitRange, materialsFor, unitTitle,
   type RecommendationSource, type SourceDoc, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -75,13 +75,24 @@ function Intro(props: { children: ReactNode }) {
   return <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{props.children}</Text>;
 }
 
+/** What a recommendation button does, for help mode: who gets the item, or stops getting it. */
+function recHelp(id: ReturnType<typeof recActions>[number]['id'], level: Level, r: ReturnType<typeof recState>): string {
+  if (level.kind === 'org') return id === 'stop' ? t('reference.rec.stopOrgHelp') : t('reference.rec.recommendOrgHelp');
+  switch (id) {
+    case 'recommend': return t('reference.rec.recommendLanguageHelp');
+    case 'hide': return t('reference.rec.hideHelp');
+    // "Follow organization", or "Stop recommending" what only this language recommends.
+    default: return r.language === 'hidden' || r.org ? t('reference.rec.followHelp') : t('reference.rec.stopLanguageHelp');
+  }
+}
+
 /** Recommend, stop, hide or follow the organization, for one item at this level. */
 function RecButtons(props: { ctx: Ctx; level: Level; itemId: string; name: string; rec: ReturnType<typeof useRecommend> }) {
   const r = recState(props.ctx.org.state?.recommendations, props.ctx.language.state, props.level, props.itemId);
   return (
     <View style={styles.actions}>
       {recActions(r, props.level).map((a) => (
-        <SmallBtn key={a.id} label={a.label} tone={a.id === 'recommend' ? 'primary' : 'plain'} disabled={props.rec.busy}
+        <SmallBtn key={a.id} label={a.label} tone={a.id === 'recommend' ? 'primary' : 'plain'} disabled={props.rec.busy} help={recHelp(a.id, props.level, r)}
           onPress={() => void props.rec.run(props.level, props.itemId, props.name, a.id)} />
       ))}
     </View>
@@ -121,7 +132,8 @@ export function ReferenceBibles(ctx: Ctx) {
     const label = recLabel(st, level);
     return (
       <Card key={r.it.itemId} current={beside?.screen === 'reference_source' && beside.params['itemId'] === r.it.itemId}
-        onPress={() => ctx.go('reference_source', { itemId: r.it.itemId, ...levelParams(level) })} accessibilityLabel={t('reference.itemLabel', { name: r.it.name, state: label })}>
+        onPress={() => ctx.go('reference_source', { itemId: r.it.itemId, ...levelParams(level) })} accessibilityLabel={t('reference.itemLabel', { name: r.it.name, state: label })}
+        help={t('reference.bibles.cardHelp')}>
         <View style={styles.titleRow}>
           <Text style={[txt.h3, { flex: 1 }]}>{r.it.name}</Text>
           <Badge label={label} tone={recTone(st)} />
@@ -241,7 +253,7 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
       footer={picked ? (
         <>
           <PrimaryBtn label={t('reference.addBible.addAndRecommend')} onPress={() => void addBibleBrain(picked)} busy={busy} />
-          <GhostBtn label={t('reference.addBible.backToList')} onPress={() => setPicked(null)} />
+          <GhostBtn label={t('reference.addBible.backToList')} help={t('reference.addBible.backToListHelp')} onPress={() => setPicked(null)} />
         </>
       ) : undefined}>
       {picked && facts ? (
@@ -255,8 +267,8 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
       ) : (
         <>
           <ChipRow>
-            <Chip label={t('reference.addBible.fromLangQuest')} on={tab === 'ready'} onPress={() => setTab('ready')} />
-            <Chip label={providerName('biblebrain')} icon="search" on={tab === 'biblebrain'} onPress={() => setTab('biblebrain')} />
+            <Chip label={t('reference.addBible.fromLangQuest')} on={tab === 'ready'} help={t('reference.addBible.fromLangQuestHelp')} onPress={() => setTab('ready')} />
+            <Chip label={providerName('biblebrain')} icon="search" on={tab === 'biblebrain'} help={t('reference.addBible.bibleBrainHelp')} onPress={() => setTab('biblebrain')} />
           </ChipRow>
           {tab === 'ready' ? (
             !shared.loaded ? <Text style={txt.smMuted}>{t('common.loading')}</Text>
@@ -266,7 +278,7 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
                   {ready.map((s, i) => {
                     const doc = readyDocs.get(s.latest_hash) as SourceDoc;
                     return <Row key={`${s.org_id}/${s.item_id}`} icon="book" label={s.name} disabled={busy} last={i === ready.length - 1}
-                      sub={[s.org_name, languageLabel(doc.language), sourceSummary(sourceFacts(doc, readyDocs.get))].join(' · ')} onPress={() => void addReady(s)} />;
+                      sub={[s.org_name, languageLabel(doc.language), sourceSummary(sourceFacts(doc, readyDocs.get))].join(' · ')} help={t('reference.addBible.readyHelp')} onPress={() => void addReady(s)} />;
                   })}
                 </Group>
               )
@@ -274,12 +286,12 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
             <Text style={txt.smMuted}>{t('reference.addBible.noServer')}</Text>
           ) : (
             <>
-              <SearchField value={q} onChangeText={(v) => { setQ(v); setLang(null); }} placeholder={t('reference.addBible.searchPlaceholder')} />
+              <SearchField value={q} onChangeText={(v) => { setQ(v); setLang(null); }} placeholder={t('reference.addBible.searchPlaceholder')} help={t('reference.addBible.searchHelp')} />
               {error ? <Text style={txt.error}>{error}</Text> : null}
               {languages.length ? (
                 <ChipRow>
                   {languages.slice(0, 8).map((l) => (
-                    <Chip key={l.code} label={`${l.name} · ${l.code}`} count={l.bibles} on={l.code === lang} onPress={() => setLang(l.code)} />
+                    <Chip key={l.code} label={`${l.name} · ${l.code}`} count={l.bibles} on={l.code === lang} help={t('reference.addBible.languageHelp')} onPress={() => setLang(l.code)} />
                   ))}
                 </ChipRow>
               ) : null}
@@ -289,7 +301,7 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
                 <Group>
                   {bibles.map((b, i) => (
                     <Row key={b.bibleId} icon="book" label={b.name} disabled={busy} last={i === bibles.length - 1}
-                      sub={`${b.abbreviation} · ${bibleLine(b)}`} onPress={() => void pick(b)} />
+                      sub={`${b.abbreviation} · ${bibleLine(b)}`} help={t('reference.addBible.bibleHelp')} onPress={() => void pick(b)} />
                   ))}
                 </Group>
               ) : null}
@@ -369,7 +381,7 @@ export function ReferenceSource(ctx: Ctx) {
   const timedBooks = timedBookCount(facts);
   return (
     <Screen header={<Header title={it.name} sub={[source.abbreviation, languageLabel(source.language), providerName(source.provider.kind)].join(' · ')} onBack={ctx.back} />}
-      footer={mayAsk ? <PrimaryBtn label={t('reference.source.generate')} icon="clock" onPress={() => void ask()} busy={asking} /> : undefined}>
+      footer={mayAsk ? <PrimaryBtn label={t('reference.source.generate')} icon="clock" help={t('reference.source.generateHelp')} onPress={() => void ask()} busy={asking} /> : undefined}>
       <Card>
         <View style={styles.titleRow}>
           <Text style={[txt.h3, { flex: 1 }]}>{levelName(ctx, level)}</Text>
@@ -436,14 +448,15 @@ function JobCard(props: { ctx: Ctx; job: TimingJob; outcome?: JobOutcome; onRetr
       {outcome && 'error' in outcome ? (
         <>
           <Text style={txt.error}>{t('reference.job.notPublishedYet', { reason: outcome.error })}</Text>
-          <SmallBtn label={t('common.tryAgain')} icon="restart" onPress={() => void props.onRetry()} />
+          <SmallBtn label={t('common.tryAgain')} icon="restart" help={t('reference.job.tryAgainHelp')} onPress={() => void props.onRetry()} />
         </>
       ) : null}
       {outcome && 'placed' in outcome ? (
         <Text style={txt.xs}>{publicationLine(outcome)}</Text>
       ) : null}
       {failed.length ? (
-        <Disclosure icon="flag" title={t('reference.job.didNotPass')} summary={t('reference.job.notPublishedChapters', { count: failed.length })} {...failedOpen}>
+        <Disclosure icon="flag" title={t('reference.job.didNotPass')} summary={t('reference.job.notPublishedChapters', { count: failed.length })} {...failedOpen}
+          {...(failedOpen.open ? {} : { help: t('reference.job.didNotPassHelp') })}>
           {failed.map((f, i) => <Row key={`${f.book}.${f.chapter}`} label={`${f.book} ${formatNumber(f.chapter)}`} sub={failReason(f.reason)} last={i === failed.length - 1} />)}
         </Disclosure>
       ) : null}
@@ -473,8 +486,7 @@ export function ReferenceGuides(ctx: Ctx) {
     if (!covers || !passages || !state) return null;
     const all = new Map<string, RecommendationSource>(items.map((r) => [r.it.itemId, 'organization']));
     return coverageFor(state, passages, all, items, docs.get);
-    // items changes with rows
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- items changes with rows
   }, [covers, passages, state, rows, docs.get]);
   // Material written in the app belongs to a language: shown at that language's level.
   const inApp = useMemo(() => (state && languageId ? writtenHelps(materialsFor(state)) : []), [state, languageId]);
@@ -497,8 +509,8 @@ export function ReferenceGuides(ctx: Ctx) {
         </Group>
       ) : null}
       <ChipRow>
-        <Chip label={active ? t('reference.guides.filterCount', { n: active }) : t('common.filter')} icon="filter" on={active > 0} onPress={() => setFiltering(true)} />
-        {active ? <Chip label={t('reference.guides.clear')} on={false} onPress={() => { setKind('all'); setLanguage(null); setBook(null); setCovers(false); }} /> : null}
+        <Chip label={active ? t('reference.guides.filterCount', { n: active }) : t('common.filter')} icon="filter" on={active > 0} help={t('reference.guides.filterHelp')} onPress={() => setFiltering(true)} />
+        {active ? <Chip label={t('reference.guides.clear')} on={false} help={t('reference.guides.clearHelp')} onPress={() => { setKind('all'); setLanguage(null); setBook(null); setCovers(false); }} /> : null}
       </ChipRow>
       <SectionLabel label={t('reference.guides.inLibrary', { n: shown.length })} />
       {covers && !reach ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('reference.guides.workingOut')}</Text> : null}
@@ -508,7 +520,8 @@ export function ReferenceGuides(ctx: Ctx) {
         <Card key={r.it.itemId} current={beside?.screen === 'material_editor' && beside.params['itemId'] === r.it.itemId}
           onPress={() => (r.doc?.format === 'study@2' && r.it.source !== 'subscription'
             ? ctx.go('guide_editor', { itemId: r.it.itemId, ...levelParams(level) })
-            : ctx.go('material_editor', { itemId: r.it.itemId, ...levelParams(level) }))} accessibilityLabel={t('reference.itemLabel', { name: r.it.name, state: label })}>
+            : ctx.go('material_editor', { itemId: r.it.itemId, ...levelParams(level) }))} accessibilityLabel={t('reference.itemLabel', { name: r.it.name, state: label })}
+          help={r.doc?.format === 'study@2' && r.it.source !== 'subscription' ? t('reference.guides.editHelp') : t('reference.guides.openHelp')}>
           <View style={styles.titleRow}>
             <Text style={[txt.h3, { flex: 1 }]}>{r.it.name}</Text>
             <Badge label={label} tone={recTone(st)} />
@@ -534,13 +547,13 @@ export function ReferenceGuides(ctx: Ctx) {
 
       <Sheet visible={filtering} title={t('common.filter')} onClose={() => setFiltering(false)} footer={<PrimaryBtn label={t('reference.guides.showItems', { count: shown.length })} onPress={() => setFiltering(false)} />}>
         <Text style={txt.xsStrong}>{t('reference.guides.whatKind')}</Text>
-        <ChipRow>{KIND_FILTERS.map((k) => <Chip key={k} label={kindFilterLabel(k)} on={kind === k} onPress={() => setKind(k)} />)}</ChipRow>
+        <ChipRow>{KIND_FILTERS.map((k) => <Chip key={k} label={kindFilterLabel(k)} on={kind === k} help={k === 'all' ? t('reference.guides.kindAllHelp') : t('reference.guides.kindHelp')} onPress={() => setKind(k)} />)}</ChipRow>
         {languages.length ? (
           <>
             <Text style={txt.xsStrong}>{t('reference.guides.language')}</Text>
             <ChipRow>
-              <Chip label={t('reference.guides.any')} on={!language} onPress={() => setLanguage(null)} />
-              {languages.map((l) => <Chip key={l} label={languageLabel(l)} on={language === l} onPress={() => setLanguage(l)} />)}
+              <Chip label={t('reference.guides.any')} on={!language} help={t('reference.guides.anyLanguageHelp')} onPress={() => setLanguage(null)} />
+              {languages.map((l) => <Chip key={l} label={languageLabel(l)} on={language === l} help={t('reference.guides.languageHelp')} onPress={() => setLanguage(l)} />)}
             </ChipRow>
           </>
         ) : null}
@@ -548,8 +561,8 @@ export function ReferenceGuides(ctx: Ctx) {
           <>
             <Text style={txt.xsStrong}>{t('reference.guides.book')}</Text>
             <ChipRow>
-              <Chip label={t('reference.guides.any')} on={!book} onPress={() => setBook(null)} />
-              {books.slice(0, 40).map((b) => <Chip key={b} label={b} on={book === b} onPress={() => setBook(b)} />)}
+              <Chip label={t('reference.guides.any')} on={!book} help={t('reference.guides.anyBookHelp')} onPress={() => setBook(null)} />
+              {books.slice(0, 40).map((b) => <Chip key={b} label={b} on={book === b} help={t('reference.guides.bookHelp')} onPress={() => setBook(b)} />)}
             </ChipRow>
           </>
         ) : null}
@@ -598,9 +611,9 @@ export function ReferenceCoverage(ctx: Ctx) {
         </Card>
       ) : <Card><Text style={txt.smMuted}>{t('reference.coverage.workingOut')}</Text></Card>}
       <ChipRow>
-        <Chip label={t('reference.coverage.all')} on={filter === 'all'} onPress={() => setFilter('all')} />
-        <Chip label={t('reference.coverage.noGuide')} on={filter === 'bare'} count={summary?.bare} onPress={() => setFilter('bare')} />
-        <Chip label={t('reference.coverage.withNotes')} on={filter === 'notes'} count={summary?.withNote} onPress={() => setFilter('notes')} />
+        <Chip label={t('reference.coverage.all')} on={filter === 'all'} help={t('reference.coverage.allHelp')} onPress={() => setFilter('all')} />
+        <Chip label={t('reference.coverage.noGuide')} on={filter === 'bare'} count={summary?.bare} help={t('reference.coverage.noGuideHelp')} onPress={() => setFilter('bare')} />
+        <Chip label={t('reference.coverage.withNotes')} on={filter === 'notes'} count={summary?.withNote} help={t('reference.coverage.withNotesHelp')} onPress={() => setFilter('notes')} />
       </ChipRow>
       {shown.length === 0 ? <Card><Text style={txt.smMuted}>{t('reference.coverage.noPassages')}</Text></Card> : (
         <Group>
@@ -611,7 +624,7 @@ export function ReferenceCoverage(ctx: Ctx) {
                 current={beside?.screen === 'passage_reference' && beside.params['unitId'] === p.unitId}
                 sub={what.length ? what.join(' · ') : t('reference.coverage.nothingReaches')}
                 badge={bare ? t('reference.coverage.noGuideBadge') : undefined} badgeTone={bare ? 'amber' : undefined}
-                onPress={() => ctx.go('passage_reference', { unitId: p.unitId, languageId })} />
+                help={t('reference.coverage.passageHelp')} onPress={() => ctx.go('passage_reference', { unitId: p.unitId, languageId })} />
             );
           })}
         </Group>
@@ -654,7 +667,7 @@ export function PassageReference(ctx: Ctx) {
     if (!state || !passage) return null;
     const template = sel?.docHash ? (tdocs.get(sel.docHash) as TemplateDoc | null) : null;
     return passageHelps(state, passage, templateVersification(template, (h) => tdocs.get(h)), offered, rows, docs.get);
-  }, [state, passage, sel?.docHash, tdocs, unitId, offered, rows, docs.get]);
+  }, [state, passage, sel?.docHash, tdocs, offered, rows, docs.get]);
   const inApp = useMemo(() => (state && passage ? writtenHelps(materialsFor(state, { unitId })) : []), [state, passage, unitId]);
   // Notes translators see on this passage: on a verse, a run of verses, or the whole of it.
   const notes = useMemo(() => (state && passage ? visibleNotes(derivePassage(state, unitId, indexesFor(state)).notes) : []),
@@ -702,7 +715,7 @@ export function PassageReference(ctx: Ctx) {
 
   return (
     <Screen header={<Header title={t('passage.else.whatHelps')} sub={languageName(ctx.org.state, languageId)} onBack={ctx.back} />}
-      footer={<PrimaryBtn label={t('common.done')} icon="check" onPress={ctx.back} />}>
+      footer={<PrimaryBtn label={t('common.done')} icon="check" help={t('help.details.done')} onPress={ctx.back} />}>
       <PassageTextBar ctx={ctx} bible={bible} title={passage.label} open={text.open} onToggle={text.onToggle} terms={termsHere} notes={notes} />
       {cards.length === 0 ? <Card><Text style={txt.smMuted}>{t('reference.passageText.none')}</Text></Card> : null}
       {cards.map((c) => (
@@ -733,6 +746,7 @@ export function PassageReference(ctx: Ctx) {
             {addable.slice(0, 50).map((r, i) => (
               <Row key={r.it.itemId} icon={refIcon(r.kind!)} label={r.it.name}
                 sub={addableLine(r)} last={i === Math.min(addable.length, 50) - 1} disabled={busy}
+                help={t('reference.passage.placeHelp')}
                 onPress={() => { setAdding(false); void link(r.it.itemId, true, t('reference.passage.placed', { name: r.it.name }), false); }} />
             ))}
           </Group>

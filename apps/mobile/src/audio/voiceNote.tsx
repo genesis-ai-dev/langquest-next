@@ -8,6 +8,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { AudioClip } from './audioClip';
 import type { Ctx } from '../shell/ctx';
+import { HelpBadge } from '../helpMode/helpBadge';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
 import { formatClock } from '../i18n/format';
 import { Ico, IconBtn } from '../ui/kit';
@@ -36,6 +38,9 @@ export function VoiceNote(props: {
     const timer = setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => clearInterval(timer);
   }, [rec.manualOn]);
+  const toggle = useHelpSpot(rec.manualOn ? t('common.stopRecording') : props.label,
+    rec.manualOn ? t('recording.voiceNote.stopHelp') : t('recording.voiceNote.recordHelp'),
+    props.hash && !rec.manualOn ? undefined : () => void (rec.manualOn ? rec.manualUp() : rec.manualDown()));
 
   if (props.hash && !rec.manualOn) {
     return (
@@ -43,14 +48,14 @@ export function VoiceNote(props: {
         <View style={{ flex: 1 }}>
           <AudioClip language={props.ctx.language} hashes={[props.hash]} label={t('recording.voiceNote.play')} />
         </View>
-        <IconBtn name="trash" label={t('recording.voiceNote.delete')} onPress={() => props.onChange(null)} bg="transparent" color={TINT.greenText} />
+        <IconBtn name="trash" label={t('recording.voiceNote.delete')} help={t('recording.voiceNote.deleteHelp')} onPress={() => props.onChange(null)} bg="transparent" color={TINT.greenText} />
       </View>
     );
   }
   const recording = rec.manualOn;
   return (
     <View style={{ gap: space.xs }}>
-      <Pressable onPress={() => void (recording ? rec.manualUp() : rec.manualDown())} disabled={rec.busy && !recording}
+      <Pressable onPress={toggle.onPress} disabled={rec.busy && !recording}
         accessibilityRole="button" accessibilityLabel={recording ? t('common.stopRecording') : props.label}
         style={({ pressed }) => [styles.box, recording ? { backgroundColor: TINT.red, borderColor: `${C.red}55` } : null, pressed && { opacity: 0.8 }]}>
         <View style={[styles.dot, { backgroundColor: recording ? C.red : C.primary }]}>
@@ -59,6 +64,7 @@ export function VoiceNote(props: {
         <Text style={[txt.sm, { flex: 1, fontWeight: '600', color: recording ? TINT.redText : C.dark }]}>
           {recording ? t('recording.voiceNote.recording', { time: formatClock(elapsed * 1000) }) : rec.busy ? t('common.saving') : props.label}
         </Text>
+        <HelpBadge spot={toggle} />
       </Pressable>
       {rec.error ? <Text style={[txt.xs, { color: TINT.redText }]}>{rec.error}</Text> : null}
     </View>

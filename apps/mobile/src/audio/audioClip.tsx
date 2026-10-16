@@ -50,6 +50,7 @@ export function AudioClip(props: {
     setPlaying(false);
     setError('');
     return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- a counter, not a node: bumping it on cleanup is what stops the old play
       generation.current++;
       wantsPlayback.current = false;
       player.current?.remove();
@@ -145,12 +146,12 @@ export function AudioClip(props: {
   return (
     <View style={{ gap: 8 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        {props.seekControls ? <IconBtn name="restart" label={t('recording.player.rewindSource')} size={target.min}
+        {props.seekControls ? <IconBtn name="restart" label={t('recording.player.rewindSource')} help={t('recording.player.back10Help')} size={target.min}
           bg={C.light} color={C.primary} disabled={props.disabled || !available} onPress={() => void seek(-10)} /> : null}
         <IconBtn name={available ? playing ? 'pause' : 'play' : 'download'} size={target.primary} bg={C.light} color={C.primary}
           label={available ? playing ? t('common.pause') : props.label ?? t('recording.player.playAudio') : t('recording.player.notOnDevice')}
-          disabled={!available || props.disabled} onPress={() => void toggle()} />
-        {props.seekControls ? <IconBtn name="skip" label={t('recording.player.forwardSource')} size={target.min}
+          help={t('recording.player.playHelp')} disabled={!available || props.disabled} onPress={() => void toggle()} />
+        {props.seekControls ? <IconBtn name="skip" label={t('recording.player.forwardSource')} help={t('recording.player.forwardHelp')} size={target.min}
           bg={C.light} color={C.primary} disabled={props.disabled || !available} onPress={() => void seek(10)} /> : null}
       </View>
       {error ? <Text accessibilityRole="alert" style={txt.error}>{error}</Text> : null}

@@ -57,7 +57,6 @@ interface PendingFile {
   durationMs: number;
   card?: RecordedCard;
 }
-export { VAD_BASE };
 
 /**
  * The microphone permission prompt takes the app out of `active` (iOS goes
@@ -365,7 +364,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
     })();
     vadStarting.current = start;
     return start;
-  }, [fail, stopVad, work]);
+  }, [fail, self, stopVad, work]);
 
   const busy = working > 0;
   useEffect(() => {

@@ -1,6 +1,6 @@
 // Words and keys for the source reader (sources/SourceReader.tsx).
 import { t } from '../i18n';
-import { type SourceOption } from './model';
+import type { SourceOption } from './model';
 
 export const choiceKey = (actorId: string, orgId: string, languageId: string) => `source-choice:${actorId}:${orgId}:${languageId}`;
 

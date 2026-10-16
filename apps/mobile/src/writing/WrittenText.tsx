@@ -1,8 +1,8 @@
-// Reading writing, and hearing a recording verse by verse (decisions.md 110;
+// Reading writing, and hearing a recording verse by verse (decisions.md 112;
 // demo branch caleb-written-translations wCheck, wMadeRead, wConsult): each
 // verse as a grey tile and its words, with a play button for the same verse
 // of a recording when there is one, so whoever reads hears it too.
-import { versesInChapter, type LanguageState } from '@langquest-next/core';
+import type { LanguageState } from '@langquest-next/core';
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
@@ -11,19 +11,9 @@ import { t } from '../i18n';
 import { txt } from '../ui/textStyles';
 import { PlayBtn } from '../recording/blocks';
 import { useClip } from '../audio/useClip';
-import { passageVerseKeys, verseName } from '../recording/verseModel';
-import { catalogVerses } from '../sources/model';
-import { useSources } from '../sources/useSources';
+import { verseName } from '../recording/verseModel';
 import { C, radius, space, TINT } from '../ui/theme';
 import { heardByVerse, isPartKey, writtenByVerse } from './model';
-
-/** The passage's verses, as the recorder works them out. */
-export function usePassageVerses(ctx: Ctx, unitId: string, languageId: string): string[] {
-  const passage = useSources(ctx, unitId, languageId);
-  const v11n = passage.versification;
-  return useMemo(() => passageVerseKeys(passage.range, (b, c) => (v11n ? versesInChapter(v11n, b, c) : undefined) ?? catalogVerses(b, c)),
-    [passage.range, v11n]);
-}
 
 /** A verse of a recording: its grey tile, a play button, and a line for how long. */
 export function VersePlayRow({ ctx, hashes, label, lit }: { ctx: Ctx; hashes: string[]; label: string; lit?: boolean }) {

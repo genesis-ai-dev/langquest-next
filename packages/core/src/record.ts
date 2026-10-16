@@ -128,6 +128,14 @@ export type RecordEvents = {
   };
   /** Bring a set-aside step back. The departure stays on the record, marked undone. Add-wins. */
   'v1.DepartureUndone': { departureId: string };
+  /**
+   * Take back your own review (decisions.md 111): a verdict, feedback, a
+   * logged check or a back translation. It stays on the record, marked
+   * undone, and counts for nothing: the check is open again and a request
+   * it answered is open again. Only whoever recorded the review may (the
+   * server's may_emit holds it, and the fold ignores anyone else's). Add-wins.
+   */
+  'v1.ReviewWithdrawn': { reviewId: string };
   /** A record of asking (ADR-007, ADR-020, ADR-029): who, for what, by when. Nobody needs one to act. Grow-only by requestId. */
   'v1.RequestMade': RequestPayload;
   /** Undo of a request. Add-wins. */
@@ -142,10 +150,12 @@ export type RecordEvents = {
     photoHash?: string;
     onTakeId?: string;
   };
+  /** Take back your own note (decisions.md 111): it no longer shows anywhere. Only its author may, as with a review. Add-wins. */
+  'v1.NoteWithdrawn': { noteId: string };
   /** Someone finished (or un-finished) a study step for a passage (ADR-018). Register per (unit, guide, step). */
   'v1.StudyStepMarked': { unitId: string; guideId: string; stepId: string; done: boolean };
   /**
-   * A kind that makes something (decisions.md 110): it turns recording or
+   * A kind that makes something (decisions.md 112): it turns recording or
    * writing into recording or writing, in the same language or another, and
    * may make the passage's next version. `null` makes it an ordinary check
    * again. Register per kind.
@@ -159,7 +169,7 @@ export type RecordEvents = {
   'v1.CheckLooksAtSet': { kindId: string; makerKindId: string | null };
   /**
    * Something made from a version, or from something made from one
-   * (decisions.md 110): exactly one of `fromTakeId` and `fromMadeId`, and
+   * (decisions.md 112): exactly one of `fromTakeId` and `fromMadeId`, and
    * exactly one of `parts` (recorded cards or written parts, one kind) and
    * `takeId` (it became the passage's next version). `kindId` is the step
    * that made it, absent when none did (brought over from LangQuest v2);
@@ -193,7 +203,7 @@ export interface KindDef {
   usualReviewer: string;
   withholdsContext?: boolean;
   produces?: ProducesSpec;
-  /** What it makes, when it is a making step (v1.StepMakesSet, decisions.md 110); read from the fold, never a field of ReviewKindDefined. */
+  /** What it makes, when it is a making step (v1.StepMakesSet, decisions.md 112); read from the fold, never a field of ReviewKindDefined. */
   makes?: MakesSpec;
   /** The making kind whose output it reads, when it checks one (v1.CheckLooksAtSet). */
   looksAt?: string;
@@ -252,7 +262,11 @@ export interface RecordState {
   undoneDepartures: Record<string, Undo>;
   requests: Record<string, PassageRequest>;
   withdrawnRequests: Record<string, Undo>;
+  /** reviewId -> who took it back, when (add-wins); counts only when it is the review's own author. */
+  withdrawnReviews: Record<string, Undo>;
   notes: Record<string, PassageNote>;
+  /** noteId -> who took it back, when (add-wins); counts only when it is the note's own author. */
+  withdrawnNotes: Record<string, Undo>;
   /** `${unitId}:${guideId}:${stepId}` -> done register */
   studyMarks: Record<string, { value: { done: boolean; by: string }; hlc: Hlc; eventId: string }>;
   /** kindId -> what it makes (v1.StepMakesSet); absent in older snapshots. */
@@ -280,7 +294,9 @@ export function emptyRecordState(): RecordState {
     undoneDepartures: {},
     requests: {},
     withdrawnRequests: {},
+    withdrawnReviews: {},
     notes: {},
+    withdrawnNotes: {},
     studyMarks: {}
   };
 }

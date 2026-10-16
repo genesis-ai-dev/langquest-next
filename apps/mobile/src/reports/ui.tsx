@@ -2,13 +2,15 @@ import { percent, recencyOf, type Coverage, type LanguageReport } from '@langque
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
+import { HelpBadge } from '../helpMode/helpBadge';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { t, Trans } from '../i18n';
 import { formatPercent } from '../i18n/format';
 import { Badge, Card, Ico, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { C, radius, space, TINT } from '../ui/theme';
 import { RECENCY_TONE, recencyLabel, scopeLabel, scopeShort } from './labels';
-import { type Tone, TONE_FILL, num, pctText, signed, dateTime, ago, partOf, bookOf } from './format';
+import { type Tone, TONE_FILL, num, pctText, signed, dateTime, ago, partOf } from './format';
 
 /**
  * The Reports section's primitives (ported from the web dashboard, decision
@@ -53,8 +55,9 @@ function wrapEach(children: ReactNode, min: number): ReactNode {
   ));
 }
 
-/** One figure. With `onOpen`, it opens what it counts (design principle 11), and says so under it. */
-export function Stat(props: { label: string; value: string; sub?: string | undefined; tone?: Tone | undefined; onOpen?: { label: string; onPress: () => void } }) {
+/** One figure. With `onOpen`, it opens what it counts (design principle 11), and says so under it; `help` is what help mode says that does. */
+export function Stat(props: { label: string; value: string; sub?: string | undefined; tone?: Tone | undefined; onOpen?: { label: string; onPress: () => void; help?: string } }) {
+  const spot = useHelpSpot(props.label, props.onOpen?.help ?? props.onOpen?.label, props.onOpen?.onPress);
   const spoken = props.sub ? t('reports.stat.spokenWithSub', { label: props.label, value: props.value, sub: props.sub }) : t('reports.stat.spoken', { label: props.label, value: props.value });
   const body = (
     <>
@@ -65,10 +68,11 @@ export function Stat(props: { label: string; value: string; sub?: string | undef
   );
   if (!props.onOpen) return <View style={styles.stat} accessible accessibilityLabel={spoken}>{body}</View>;
   return (
-    <Pressable style={({ pressed }) => [styles.stat, pressed && { opacity: 0.7 }]} onPress={props.onOpen.onPress}
+    <Pressable style={({ pressed }) => [styles.stat, pressed && { opacity: 0.7 }]} onPress={spot.onPress}
       accessibilityRole="button" accessibilityLabel={`${spoken}. ${props.onOpen.label}`}>
       {body}
       <Text style={[txt.sm, { color: C.primary, fontWeight: '700', marginTop: space.xs }]}>{props.onOpen.label} ›</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -228,7 +232,8 @@ export function HeadlineStats(props: { total: number; recorded: number; done: nu
 export function AttentionPanel(props: { attention: LanguageReport['attention']; onShow?: (filter: 'feedback' | 'waiting') => void }) {
   const a = props.attention;
   const tone = (n: number, t: Tone): Tone | undefined => (n > 0 ? t : undefined);
-  const show = (n: number, filter: 'feedback' | 'waiting') => (props.onShow && n > 0 ? { label: t('reports.attention.show'), onPress: () => props.onShow!(filter) } : undefined);
+  const show = (n: number, filter: 'feedback' | 'waiting') => (props.onShow && n > 0
+    ? { label: t('reports.attention.show'), help: t('reports.attention.showHelp'), onPress: () => props.onShow!(filter) } : undefined);
   return (
     <Panel title={t('reports.attention.title')} sub={t('reports.attention.sub')}>
       <Stats>

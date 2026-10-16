@@ -32,6 +32,13 @@ export interface HelpMode {
   place: (id: string, rect: HelpRect | null, what: HelpLit) => void;
   /** Measure this every frame while help is on, so the lit places follow scrolling. Returns the stop. */
   track: (measure: () => void) => () => void;
+  /**
+   * The sheet showing over the screen (its host id), or null for the screen
+   * itself. Only the parts of the top one light up, and help draws inside it.
+   */
+  top: string | null;
+  /** A sheet opening over the screen; returns its closing. Help turns off as it opens and closes. */
+  openHost: (id: string) => () => void;
 }
 
 /** Where a part's number sits: over its top corner, or just inside it (a row in a card). */

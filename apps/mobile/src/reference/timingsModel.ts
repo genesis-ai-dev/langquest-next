@@ -7,7 +7,7 @@ import { testamentOf, type LibraryItemView } from '@langquest-next/core';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { list } from './biblesModel';
-import { sourceFacts, timingsNeeded } from './model';
+import type { sourceFacts, timingsNeeded } from './model';
 import type { TimingJob } from './useReference';
 import type { TimingPublication } from '@langquest-next/core';
 

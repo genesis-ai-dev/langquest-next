@@ -20,6 +20,8 @@ import { cardDurations, sameCards } from '../recording/workspaceModel';
 import { mmss, totalMs } from '../recording/model';
 import { useClip } from '../audio/useClip';
 import { Text } from '../ui/text';
+import { useHelpSpot } from '../helpMode/useHelpMode';
+import { HelpBadge } from '../helpMode/helpBadge';
 import { C, radius, space, target, TINT } from '../ui/theme';
 import { versionReviewsSummary } from './record';
 import { draftName, startedFrom } from './versionsModel';
@@ -40,7 +42,7 @@ export function VersionsPage(props: {
   const mine = draftsBy(p, me);
   const durations = cardDurations(state, unitId);
   const versesHeld = useVersesHeld(ctx, state, unitId);
-  // "2 parts · 0:17", and the verses they hold when they have any: "2 parts · 0:17 · Verses 1–2". Written: "3 verses written" (decisions.md 110).
+  // "2 parts · 0:17", and the verses they hold when they have any: "2 parts · 0:17 · Verses 1–2". Written: "3 verses written" (decisions.md 112).
   const length = (hashes: readonly string[]) => partsMedium(hashes) === 'writing' ? t('writing.publishSub', { count: hashes.length })
     : [t('recording.parts.groupSub', { count: hashes.length, length: mmss(totalMs(hashes.map((h) => durations.get(h)))) }), versesHeld(hashes)].filter(Boolean).join(' · ');
   const saved = (hlc: string) => {
@@ -65,7 +67,7 @@ export function VersionsPage(props: {
 
   return (
     <Screen header={<Header title={t('passage.versions.title')} sub={v.title} onBack={props.onBack} close />}
-      footer={props.canRecord ? <PrimaryBtn label={t('passage.versions.newVersion')} icon="plus" onPress={() => props.go('workspace', { fresh: '1' })} /> : undefined}>
+      footer={props.canRecord ? <PrimaryBtn label={t('passage.versions.newVersion')} icon="plus" help={t('passage.versions.newVersionHelp')} onPress={() => props.go('workspace', { fresh: '1' })} /> : undefined}>
       {mine.length > 0 ? <SectionLabel label={mine.length > 1 ? t('passage.versions.yourDrafts') : t('passage.versions.yourDraft')} /> : null}
       {mine.map((d) => {
         const name = draftName(mine, d.rootTakeId);
@@ -74,10 +76,10 @@ export function VersionsPage(props: {
         return (
           <ItemCard key={d.takeId} ctx={ctx} hashes={d.cardHashes} title={name}
             lines={[from && from !== p.latest?.n ? t('passage.versions.lengthFrom', { length: length(d.cardHashes), version: versionTitle(from) }) : length(d.cardHashes), saved(d.hlc)]}
-            trailing={<IconBtn name="trash" label={t('passage.versions.delete', { name })} bg="transparent" color={C.muted} size={44} onPress={() => remove(d, name)} />}>
-            {props.canRecord ? <SmallBtn label={t('common.edit')} icon="edit" onPress={() => props.go('workspace', { draftId: d.rootTakeId })} /> : null}
+            trailing={<IconBtn name="trash" label={t('passage.versions.delete', { name })} help={t('passage.versions.deleteHelp')} bg="transparent" color={C.muted} size={44} onPress={() => remove(d, name)} />}>
+            {props.canRecord ? <SmallBtn label={t('common.edit')} icon="edit" help={t('passage.versions.editDraftHelp')} onPress={() => props.go('workspace', { draftId: d.rootTakeId })} /> : null}
             {props.canRecord ? (
-              <SmallBtn label={t('common.publish')} icon="send" tone="primary" disabled={unchanged}
+              <SmallBtn label={t('common.publish')} icon="send" tone="primary" disabled={unchanged} help={t('passage.versions.publishHelp')}
                 onPress={() => props.go('workspace', { draftId: d.rootTakeId, publish: '1' })} />
             ) : null}
           </ItemCard>
@@ -108,8 +110,8 @@ function VersionCard(props: {
     <ItemCard ctx={ctx} hashes={ver.cardHashes} title={title} onOpen={props.onOpen} badge={props.latest ? t('passage.versions.latest') : undefined}
       lines={[`${ctx.name(ver.by)} · ${when(ver.hlc)}`, props.length, ...(reviews.length ? [versionReviewsSummary(reviews, v.kinds)] : [])]}
       trailing={<Ico name="right" size={22} color={C.muted} />}>
-      {props.canRecord ? <SmallBtn label={t('common.edit')} icon="edit" onPress={props.onEdit} /> : null}
-      {props.ask ? <SmallBtn label={props.ask.label} icon="send" tone="primary" onPress={props.ask.onPress} /> : null}
+      {props.canRecord ? <SmallBtn label={t('common.edit')} icon="edit" help={t('passage.versions.editVersionHelp')} onPress={props.onEdit} /> : null}
+      {props.ask ? <SmallBtn label={props.ask.label} icon="send" tone="primary" help={t('passage.page.mainHelp.ask')} onPress={props.ask.onPress} /> : null}
     </ItemCard>
   );
 }
@@ -121,8 +123,12 @@ function ItemCard(props: {
 }) {
   const written = partsMedium(props.hashes) === 'writing';
   const clip = useClip(props.ctx.language, written ? [] : props.hashes);
-  // A written version shows its first words, and a pen where a recording has play (decision 110).
+  // A written version shows its first words, and a pen where a recording has play (decision 112).
   const words = written ? props.hashes.map((h) => writtenText(props.ctx.language.state!, h) ?? '').join(' ').trim() : '';
+  const playLabel = clip.playing ? t('recording.recorder.pausePart', { part: props.title }) : t('recording.player.playTitle', { title: props.title });
+  const play = useHelpSpot(playLabel, undefined, clip.toggle);
+  const openLabel = t('passage.versions.open', { title: props.title });
+  const open = useHelpSpot(openLabel, t('passage.page.openVersionHelp'), props.onOpen);
   const body = (
     <>
       <View style={styles.titleRow}>
@@ -141,16 +147,18 @@ function ItemCard(props: {
             <Ico name="edit" size={20} color={TINT.greenText} />
           </View>
         ) : (
-          <Pressable onPress={clip.toggle} disabled={!clip.available} accessibilityRole="button" accessibilityLabel={clip.playing ? t('recording.recorder.pausePart', { part: props.title }) : t('recording.player.playTitle', { title: props.title })}
+          <Pressable onPress={play.onPress} disabled={!clip.available} accessibilityRole="button" accessibilityLabel={playLabel}
             style={({ pressed }) => [styles.play, !clip.available && { opacity: 0.4 }, pressed && { opacity: 0.7 }]}>
             <Ico name={clip.playing ? 'pause' : 'play'} size={20} color={C.primary} strokeWidth={2.6} fill={C.primary} />
+            <HelpBadge spot={play} />
           </Pressable>
         )}
         {props.onOpen ? (
-          <Pressable onPress={props.onOpen} accessibilityRole="button" accessibilityLabel={t('passage.versions.open', { title: props.title })}
+          <Pressable onPress={open.onPress} accessibilityRole="button" accessibilityLabel={openLabel}
             style={({ pressed }) => [{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center' }, pressed && { opacity: 0.7 }]}>
             <View style={{ flex: 1, minWidth: 0 }}>{body}</View>
             {props.trailing}
+            <HelpBadge spot={open} />
           </Pressable>
         ) : (
           <>

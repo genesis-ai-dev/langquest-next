@@ -5,7 +5,8 @@ import { commandErrorText } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { indexesFor } from '../sync/indexes';
-import { type PassageView } from '../passage/passageView';
+import type { PassageView } from '../passage/passageView';
+import { undoNote } from '../passage/recordInputsModel';
 import { noteExpected, reportError } from '../diagnostics/report';
 
 /**
@@ -28,7 +29,8 @@ export async function saveNote(ctx: Ctx, v: Pick<PassageView, 'unitId'>, anchor:
     return false;
   }
   try {
-    await ctx.act(specs, message);
+    const sent = specs;
+    await ctx.act(specs, message, () => undoNote(sent)(commands(state)));
     return true;
   } catch (e) {
     noteExpected('study: save note', e);
