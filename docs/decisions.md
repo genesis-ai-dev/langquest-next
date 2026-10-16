@@ -2528,6 +2528,34 @@ lead. The UI test suite holds this (SETUP-061 to 066, MAP-023).
 Amended (2026-10-13, Carl Sauder): nobody may leave the organization
 without someone who can manage roles (98).
 
+Amended (2026-10-15, Carl Sauder): a resend is a duplicate even while the
+first push is still being inserted. A push that timed out on a weak link
+is retried with the first still in flight (the client no longer overlaps
+its own pushes, `SyncClient.exclusive`, but a lost response still races on
+the server). `append_events` checked the id before it took the stream's
+lock, so the retry passed that check, waited on the lock, and found the
+entity id taken: it refused the event, and the phone folded out work the
+server holds; an event with no entity id failed the whole batch on the
+primary key. Every event now takes its stream's lock once it is authorized
+and valid (`_next_seq` took it anyway, so nothing waits longer) and checks
+the id again under it, answering a stored event of the same organization,
+stream, actor and type as `duplicate` with its seq. The lock comes after
+authorization so nobody makes or holds a stream they may not write. The
+same id pushed to two different streams at once still fails one batch on
+the primary key; the retry is then refused (`event id already used`), as
+it should be. Migration `20261015180000_append_duplicate_under_lock.sql`;
+SQL test `server/concurrentAppendSmoke.sql`, two sessions over dblink.
+
+Amended (2026-10-15, Carl Sauder): the server's own events race the same
+way. `_append_event_as` (blob verdicts, invites redeemed, join decisions,
+redactions, account deletions, library pins) checked the id before
+`_next_seq` locked the stream, so two Worker or projection passes
+appending the same id at once failed the second on the primary key and
+aborted its caller's transaction. It now takes the stream's lock and
+checks the id again under it, returning null as it says it does.
+Migration `20261015190000_append_event_as_under_lock.sql`; cases 4 and 5
+of `server/concurrentAppendSmoke.sql` (`record_blob` twice at once).
+
 ## 76. Names identify nothing: a repeated language is warned about, and an organization can be renamed
 
 Date: 2026-10-09 · By: Carl Sauder · Status: accepted
@@ -3709,6 +3737,21 @@ run's flags into exclusions and a printed list. The flows had been written
 to fail rather than pass silently; a skip that is printed keeps that
 honesty without the noise. Named flows (`--flow`) still run as asked.
 
+Amended (2026-10-15, Carl Sauder): the PR jobs no longer wait for
+`checks`, and `ui-web` runs in two shards. A PR waited about 12 minutes:
+`checks` (2.4 min), then `ui-web` (8 to 10 min), of which the `@p0` tests
+were 5 to 6.5 min on four workers that were busy only 70% of the time,
+because the one long `@wide` journey (JRN-005, about 2 min) was queued last
+and ran alone. Now the four jobs start together, a job that needs the local
+stack starts it in the background while it installs browsers, the `wide`
+project is listed first, and each project builds its own fixture world, so
+the two can run one file at once. Shards, not more workers: a runner has
+four cores and already runs the stack and the Worker beside the browsers.
+A failing `checks` no longer saves the other jobs' runner time, which on a
+public repository costs nothing. Reverse if: runner minutes start to cost
+(a private repository, or a paid plan's limit), or the shards' runs disagree
+with an unsharded one.
+
 ## 103. Large languages are projected by a scheduled GitHub job; the Edge pass leaves them out
 
 Date: 2026-10-14 · By: Caleb Koster · Status: accepted
@@ -3908,6 +3951,21 @@ redone on the new structure rather than merged across it, so no branch
 needs them. Git history keeps where each file went. The layout and the
 roles are held by `eslint.config.mjs` and `apps/mobile/test/folders.test.ts`.
 
+Amended (2026-10-15, Carl Sauder): react-hooks/exhaustive-deps is on, as
+an error, in the app. Carl chose to turn it on after seeing what it would
+take: a hook that reads a value it does not list keeps that value from the
+draw it first ran in, and agents write much of the code. Of the 55 hooks it
+named, most only spelled their dependencies in a way the rule cannot read
+(a method called on an object, a field of a value that is new each draw),
+and now read them once instead; two read a value they did not list and
+could show it stale (the source reader's language and whether it is
+online). The rest list less or more on purpose, because the org and
+language folds change their maps in place, because a counter is bumped on
+cleanup, or because a key made of the inputs stands for them; each says why
+after `--` on its disable comment, which lint now requires
+(`@eslint-community/eslint-comments/require-description`), and a disable
+that no longer excuses anything is an error.
+
 ## 106. A phone records every take with the microphone module, keeps a part going down to half the cutoff, and keeps AAC
 
 Date: 2026-10-14 · By: Caleb Koster · Status: accepted
@@ -4062,7 +4120,7 @@ with no change to the events.
 
 ## 109. A listening app keeps playing the approved version, hears changes by webhook, and the team sees its listeners on the passage
 
-Date: 2026-10-14 · By: Ryder Wishart · Status: partly superseded by 111
+Date: 2026-10-14 · By: Ryder Wishart · Status: partly superseded by 112
 
 Reason: Ryder asked for the whole EveryBible loop for a stakeholder demo:
 a recorded passage goes out for review, reviewers hear it in EveryBible,
@@ -4138,7 +4196,50 @@ Reverse if: phones that update while offline need their language on screen
 before they reach the server; then keep the pruned events beside the
 checkpoint until a checkpoint from the new reducer replaces it.
 
-## 111. For its prototype, EveryBible holds LangQuest tokens on the phone: a reviewer's code is a review token, and listeners hear approved versions
+## 111. Whoever gave a review or added a note can take it back, as a new event, and the record keeps the review crossed out
+
+Date: 2026-10-15 · By: Caleb Koster · Status: accepted
+
+Reason: Spoken's tester approved a peer check by accident and found no way
+back (LAN-84). A review was grow-only with no inverse: its toast had no
+Undo, the record stopped offering the check once it was approved, and only
+a moderator's redaction (48) could remove it. Caleb asked for approval to be
+undoable, and for the other actions people would want to take back. What
+was built:
+- **Two events, the shape `v1.RequestWithdrawn` already has.**
+  `v1.ReviewWithdrawn { reviewId }` and `v1.NoteWithdrawn { noteId }`,
+  add-wins (`withdrawnReviews`, `withdrawnNotes` in `RecordState`). Nothing is
+  deleted: the log keeps the review, and `derivePassage` leaves it out of
+  every status, so the check is open again, a request it answered is open
+  again (back on the reviewer's My Work), feedback stops waiting on the
+  translator, and a checkpoint it cleared holds the steps after it again.
+  Inbox rows follow, since they are derived (`updatesFor`).
+- **Only the author.** A withdrawal counts only when its actor is the
+  review's or note's own author (`withdrawnBy`), so a refused or stray one
+  changes nothing on a phone, whichever arrives first. The server's
+  `may_emit` refuses anyone else's, and one for a review or note it has not
+  seen (`20261015220000_withdraw_reviews_notes.sql`, `server/grantsSmoke.sql`
+  10b). Removing someone else's words stays a moderator's redaction (48).
+- **Where Undo is.** The toast after Looks good, Send feedback, a logged
+  check, a back translation and every note. Later: on your own check in its
+  step sheet, on your own review's page, and on your own review or note in
+  the history. A review taken back stays in the history and on its page,
+  crossed out, "undone just now"; a note taken back shows nowhere. No words
+  were added to explain any of it (Caleb's rule for this work).
+- **A study step marked done** already had a register (`v1.StudyStepMarked`),
+  so its Undo after the toast is the same event with `done: false`.
+Reducer version 17: the state has two new maps.
+Not given an Undo: publishing a version (the "Delete a version" work,
+LAN-83, takes that), withdrawing a request or bringing back a set-aside
+check (both are two taps to do again), declining a join request (the person
+can ask again), renames and library publishes (done again the same way), the
+license (final by design, 38), and a key term tie (grow-only, its own topic).
+Reverse if: teams need someone else (a coordinator) to take back a
+reviewer's verdict, then add a privilege for it beside Override checkpoints;
+or a verdict taken back must disappear from the history too, then show it
+only to its author.
+
+## 112. For its prototype, EveryBible holds LangQuest tokens on the phone: a reviewer's code is a review token, and listeners hear approved versions
 
 Date: 2026-10-15 · By: Ryder Wishart · Status: accepted
 

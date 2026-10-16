@@ -33,8 +33,7 @@ function useOfflineUnits(ctx: Ctx, unitIds: readonly string[]): Map<string, Kept
     for (const [id, u] of offlineByUnit(state, unitIds, present, me, keptUnits)) out.set(id, withStudy(u, id));
     return out;
   },
-    // unitIds is read through its key, so a new array with the same passages does not recompute.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- unitIds is read through its key, so a new array with the same passages does not recompute
     [state, present, keptUnits, me, key, rev]);
 }
 

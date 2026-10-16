@@ -75,8 +75,8 @@ export function GuideStep(props: {
   const [selected, setSelected] = useState<string | null>(null);
   const [adding, setAdding] = useState<{ sectionId?: string; at?: string; quote: string; answer: boolean } | null>(null);
   const [resource, setResource] = useState<StudyResource | null>(null);
-  useEffect(() => () => audio.pause(), []); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (props.hidden) audio.pause(); }, [props.hidden]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => audio.pause(), []); // eslint-disable-line react-hooks/exhaustive-deps -- it reads only refs, so the first draw's copy is enough on unmount
+  useEffect(() => { if (props.hidden) audio.pause(); }, [props.hidden]); // eslint-disable-line react-hooks/exhaustive-deps -- pause reads only refs; this runs when the screen hides, not on every draw
 
   const momentOf = (n: PassageNote) => (n.anchor.kind === 'study' && n.anchor.at ? secondsOf(n.anchor.at) : -1);
   const atMoment = status.notes.filter((n) => momentOf(n) >= 0).sort((a, b) => momentOf(a) - momentOf(b));

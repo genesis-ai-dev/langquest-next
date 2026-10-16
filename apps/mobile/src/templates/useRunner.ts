@@ -29,7 +29,8 @@ export function useRunner(ctx: Ctx) {
 export function useVersifications(ctx: Ctx, lib: Lib, enabled = true) {
   const shared = useSharedItems('versification', lib.orgId, enabled);
   const library = ctx.org.state?.library;
+  const libItems = lib.items;
   // i18n-ignore: LangQuest's English versification by its library name, matched to list it first
-  const choices = useMemo(() => libraryChoices(library ?? {}, lib.items('versification'), shared.rows, 'English'), [library, lib.items, shared.rows]);
+  const choices = useMemo(() => libraryChoices(library ?? {}, libItems('versification'), shared.rows, 'English'), [library, libItems, shared.rows]);
   return { choices, error: shared.error };
 }

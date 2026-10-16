@@ -335,8 +335,8 @@ export function stepMove(st: PathStep, o: { p: PassageState; can: RecordCan; ear
   return undefined;
 }
 
-/** What a button on a check's row does: along an edge, send it on with one tap, or set it aside (after the sheet closes). */
-export type RowMove = RecordMove | { id: 'send'; kindId: string } | { id: 'skip'; kindId: string; stepId: string };
+/** What a button on a check's row does: along an edge, send it on with one tap, set it aside (after the sheet closes), or take back your review. */
+export type RowMove = RecordMove | { id: 'send'; kindId: string } | { id: 'skip'; kindId: string; stepId: string } | { id: 'undoReview'; reviewId: string };
 
 /** Where a check's row button goes; a request asked of this person travels with "do" (the check answers it). */
 export function rowMove(a: RowAction, k: KindStatus, o: { produces: boolean; stepId: string; askedMe: boolean }): RowMove | undefined {
@@ -346,6 +346,7 @@ export function rowMove(a: RowAction, k: KindStatus, o: { produces: boolean; ste
   if (a.id === 'ask') return goTo('ask_someone', { what: 'review', kindId: k.kindId });
   if (a.id === 'log') return goTo('add_record', { kindId: k.kindId });
   if (a.id === 'skip') return { id: 'skip', kindId: k.kindId, stepId: o.stepId };
+  if (a.id === 'undo' && k.review) return { id: 'undoReview', reviewId: k.review.id };
   return undefined;
 }
 
@@ -428,6 +429,8 @@ export function historyHelp(e: RecordEntry): string | undefined {
 /** The one small button on a history entry: take it back, withdraw it, or report it. */
 export type HistoryAction =
   | { id: 'undo'; departureId: string; type: string }
+  | { id: 'undoReview'; reviewId: string }
+  | { id: 'undoNote'; noteId: string }
   | { id: 'withdraw'; requestId: string }
   | { id: 'reportNote'; noteId: string; by: string }
   | { id: 'reportRequest'; requestId: string; by: string };
@@ -446,6 +449,9 @@ export function historyAction(e: RecordEntry, o: { can: RecordCan; me: string; a
   if (e.type === 'request' && e.request.status === 'open' && o.can.withdraw && (e.request.by === o.me || o.assigns)) {
     return { id: 'withdraw', requestId: e.request.id };
   }
+  // Your own review or note, taken back by its author only (decisions.md 111).
+  if (e.type === 'review' && !e.review.withdrawn && e.review.by === o.me) return { id: 'undoReview', reviewId: e.review.id };
+  if (e.type === 'note' && e.note.by === o.me) return { id: 'undoNote', noteId: e.note.id };
   if (e.type === 'note') return { id: 'reportNote', noteId: e.note.id, by: e.by };
   if (e.type === 'request' && e.request.by && (e.request.note || e.request.noteBlobHash)) return { id: 'reportRequest', requestId: e.request.id, by: e.request.by };
   return undefined;

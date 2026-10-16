@@ -104,7 +104,7 @@ export function SourceView(props: SourceReaderProps & {
     ...(props.listen ? { listen: props.listen } : {}),
     onPlayed: () => { if (option) props.onPlayed?.(option); }
   });
-  useEffect(() => { if (props.hidden) player.pause(); }, [props.hidden]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (props.hidden) player.pause(); }, [props.hidden]); // eslint-disable-line react-hooks/exhaustive-deps -- pause reads only refs; this runs when the screen hides, not on every draw
 
   const text = src?.rows ? src.rows.map((r) => r.text).join(' ') : null;
   const onText = props.onText;
@@ -122,7 +122,7 @@ export function SourceView(props: SourceReaderProps & {
     const y = rowsY.current[key];
     if (y === undefined) return;
     scroll.current.scrollTo({ y: Math.max(0, (props.layout === 'screen' ? 0 : readerY.current) + listY.current + y - 160), animated: true });
-  }, [player.playing, player.current?.key]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [player.playing, player.current?.key]); // eslint-disable-line react-hooks/exhaustive-deps -- scrolls when the part playing changes, not on every draw
 
   const [selected, setSelected] = useState<string | null>(null);
   const canManage = ctx.session.can('manage_reference');

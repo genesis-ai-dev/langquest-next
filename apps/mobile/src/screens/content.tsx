@@ -522,9 +522,10 @@ export function TemplatePicker(ctx: Ctx) {
   const state = ctx.language.state;
   const languageId = ctx.params['languageId'] ?? ctx.languageId;
   const lib = useLibrary(ctx);
+  const libItems = lib.items;
   const library = ctx.org.state?.library;
   const shared = useSharedItems('template', lib.orgId);
-  const choices = useMemo(() => libraryChoices(library ?? {}, lib.items('template'), shared.rows, STARTER_TEMPLATE.name), [library, lib.items, shared.rows]);
+  const choices = useMemo(() => libraryChoices(library ?? {}, libItems('template'), shared.rows, STARTER_TEMPLATE.name), [library, libItems, shared.rows]);
   const [picked, setPicked] = useState<string | null>(null);
   const [sharedLimit, setSharedLimit] = useState(5);
   const open = isOpen(ctx, languageId);

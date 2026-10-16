@@ -20828,7 +20828,9 @@ function emptyRecordState() {
     undoneDepartures: {},
     requests: {},
     withdrawnRequests: {},
+    withdrawnReviews: {},
     notes: {},
+    withdrawnNotes: {},
     studyMarks: {}
   };
 }
@@ -21292,6 +21294,10 @@ function validateEvent(e) {
       return str("requestId", "unitId") ?? oneOf("what", ["record", "review"]) ?? optStr("kindId", "profileId", "teamId", "dueDate", "note", "noteBlobHash") ?? (p["what"] === "review" && !p["kindId"] ? "a review request needs kindId" : null) ?? (p["guest"] === void 0 || guest(p["guest"]) ? null : "guest needs name, channel, contact") ?? (p["questions"] === void 0 || questions(p["questions"]) ? null : "questions must be id, text, type") ?? (["profileId", "guest", "teamId"].filter((k) => p[k] !== void 0 && p[k] !== "").length === 1 ? null : "exactly one of profileId, guest, teamId");
     case "v1.RequestWithdrawn":
       return str("requestId");
+    case "v1.ReviewWithdrawn":
+      return str("reviewId");
+    case "v1.NoteWithdrawn":
+      return str("noteId");
     case "v1.NoteAdded":
       return str("noteId", "unitId") ?? optStr("text", "blobHash", "photoHash", "onTakeId") ?? anchor(p["anchor"]) ?? (!p["text"] && !p["blobHash"] && !p["photoHash"] ? "a note needs text, audio or a photo" : null);
     case "v1.StudyStepMarked":
@@ -21419,7 +21425,7 @@ function stable(v) {
 }
 
 // packages/core/src/reducer.ts
-var REDUCER_VERSION = 16;
+var REDUCER_VERSION = 17;
 var REVISIONS = /* @__PURE__ */ new WeakMap();
 function stateRevision(state) {
   return REVISIONS.get(state) ?? 0;
@@ -21589,6 +21595,12 @@ function applyLanguageEvent(state, event) {
     }
     case "v1.RequestWithdrawn":
       earliestUndo(state.withdrawnRequests, event.payload.requestId, event);
+      break;
+    case "v1.ReviewWithdrawn":
+      earliestUndo(state.withdrawnReviews, event.payload.reviewId, event);
+      break;
+    case "v1.NoteWithdrawn":
+      earliestUndo(state.withdrawnNotes, event.payload.noteId, event);
       break;
     case "v1.NoteAdded": {
       const { noteId, ...rest } = event.payload;
@@ -21856,6 +21868,10 @@ function stepName(kinds, step) {
 }
 var COMPLETE = ["approved", "skipped"];
 var isCompleteState = (s) => COMPLETE.includes(s);
+function withdrawnBy(table, id, item) {
+  const w = table?.[id];
+  return w && w.by === item.by ? w : void 0;
+}
 var cache = /* @__PURE__ */ new WeakMap();
 function push(m, k, v) {
   const list = m.get(k);
@@ -21868,7 +21884,12 @@ function recordIndexes(state, idx) {
   const hit = cache.get(state);
   if (hit && hit.revision === revision) return hit.ri;
   const reviewsByTake = /* @__PURE__ */ new Map();
-  for (const r of Object.values(state.kindReviews)) push(reviewsByTake, r.takeId, r);
+  const withdrawnByTake = /* @__PURE__ */ new Map();
+  for (const r of Object.values(state.kindReviews)) {
+    const withdrawn = withdrawnBy(state.withdrawnReviews, r.id, r);
+    if (withdrawn) push(withdrawnByTake, r.takeId, { ...r, withdrawn });
+    else push(reviewsByTake, r.takeId, r);
+  }
   const versions = /* @__PURE__ */ new Map();
   const drafts = /* @__PURE__ */ new Map();
   const takes = Object.entries(state.takes).filter(([, t]) => t.unitId);
@@ -21895,6 +21916,7 @@ function recordIndexes(state, idx) {
   const notes = /* @__PURE__ */ new Map();
   const changeNotes = /* @__PURE__ */ new Map();
   for (const n of Object.values(state.notes).sort(byHlc)) {
+    if (withdrawnBy(state.withdrawnNotes, n.id, n)) continue;
     if (n.anchor.kind === "version" && n.anchor.role === "change") {
       if (!changeNotes.has(n.anchor.takeId)) changeNotes.set(n.anchor.takeId, n);
       continue;
@@ -21908,6 +21930,7 @@ function recordIndexes(state, idx) {
     versions,
     drafts,
     reviewsByTake,
+    withdrawnByTake,
     departures,
     requests,
     requestsTo,
@@ -21947,6 +21970,7 @@ function derivePassage(state, unitId, idx) {
     return undone ? { ...d, undone } : d;
   });
   const active = (match) => [...departures].reverse().find((d) => match(d) && !d.undone);
+  const withdrawnReviews = versions.flatMap((v) => (ri.withdrawnByTake.get(v.takeId) ?? []).map(({ eventId: _e, ...r }) => ({ ...r, versionN: v.n }))).sort(byHlc);
   const reviews = versions.flatMap((v) => (ri.reviewsByTake.get(v.takeId) ?? []).map(({ eventId: _e, ...r }) => ({ ...r, versionN: v.n }))).sort(byHlc).map((r) => {
     if (r.outcome !== "needs_changes") return r;
     const kept = departures.find((d) => d.type === "keep" && d.reviewId === r.id && !d.undone);
@@ -22020,6 +22044,7 @@ function derivePassage(state, unitId, idx) {
     recorded,
     departures,
     reviews,
+    withdrawnReviews,
     requests,
     openRequests,
     steps,

@@ -9,12 +9,13 @@
  * The rest: the projection worker scheduled every minute (decisions.md 42),
  * as `npm run secrets` schedules it every five on a hosted database (push
  * delivery runs every minute on both, decisions.md 68), and the
- * LangQuest library seeded when the database has none. Both are gone after a
- * reset, which is why reset does them again.
+ * LangQuest library seeded when the database has none of its items. Both
+ * are gone after a reset, which is why reset does them again.
  *
  * `npm run db:test` resets with `supabase db reset` directly, so no worker
- * pass runs under its smokes (they count snapshots and Inbox rows). Nothing
- * here is in `seed.sql`, which preview branches run too.
+ * pass runs under its smokes (they count snapshots and Inbox rows);
+ * `npm run guardrails -- --all` runs db:start after it, before the UI tests.
+ * Nothing here is in `seed.sql`, which preview branches run too.
  *
  * `dev:local` is the whole local stack in one command: the web Worker serves
  * Reports and the Bible routes (apps/web, `npm run web:dev`), which the app
@@ -68,7 +69,8 @@ function prepare(secret) {
   const scheduled = psql(`select cron.schedule(jobname, '* * * * *', command) from cron.job where jobname = '${CRON_JOB}';`).trim();
   if (!scheduled) throw new Error(`${CRON_JOB} was not scheduled`);
   console.log(`✓ projection worker and push delivery every minute (select * from net._http_response shows their answers)`);
-  if (Number(psql('select count(*) from public.library_items;').trim()) === 0) sh('npx', ['tsx', 'scripts/library-seed.ts']);
+  // LangQuest's own items: the server smokes leave other orgs' rows behind.
+  if (Number(psql("select count(*) from public.library_items where org_id = 'langquest';").trim()) === 0) sh('npx', ['tsx', 'scripts/library-seed.ts']);
   else console.log('✓ library already seeded');
 }
 

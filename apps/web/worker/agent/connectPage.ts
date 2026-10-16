@@ -94,8 +94,8 @@ pre { white-space: pre-wrap; word-break: break-all; background: var(--bg); paddi
 const CFG = ${config};
 const W = CFG.words;
 const T = (key, values) => String(W[key]).replace(/\\{\\{\\s*(\\w+)\\s*\\}\\}/g, (m, k) => (values && k in values ? values[k] : m));
-$('ui-lang').addEventListener('change', (e) => { const u = new URL(location.href); u.searchParams.set('lang', e.target.value); location.replace(u); });
 const $ = (id) => document.getElementById(id);
+$('ui-lang').addEventListener('change', (e) => { const u = new URL(location.href); u.searchParams.set('lang', e.target.value); location.replace(u); });
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 let jwt = null, orgs = [];
 
