@@ -95,7 +95,8 @@ const APP_ONLY: Record<string, string> = {
   'org_home->cluster_home': "a cluster is a row among the organization's languages and opens its page (decision 108, demo ADR-045)",
   'cluster_home->language_home': "a cluster's page lists its languages (decision 108, demo ADR-045)",
   'cluster_home->new_language': 'Add a language to it: a new one, already in the cluster (decision 108, demo ADR-045)',
-  'new_language->cluster_home': 'a cluster made of languages already here opens its page (decision 108, demo ADR-045)'
+  'new_language->cluster_home': 'a cluster made of languages already here opens its page (decision 108, demo ADR-045)',
+  'version_detail->workspace': 'a version\'s page edits it into a new draft, as the Versions page does (LAN-83)'
 };
 
 /** App-only reference screens (docs/reference-material.md). */

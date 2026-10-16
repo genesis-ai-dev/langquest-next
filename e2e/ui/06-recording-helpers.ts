@@ -128,12 +128,22 @@ export const partsTitle = (count: number): string => (count <= 1 ? 'Part 1' : `P
 /** The parts card's sub line: "3 parts · 0:06". */
 export const partsSub = (count: number): RegExp => new RegExp(`^${count} parts? · \\d+:\\d\\d$`);
 
-/** How many parts the card counts now (0 when there is no card). */
+/**
+ * How many parts the card counts now (0 when there is no card). While
+ * recording, the card gives way to the recording view, whose title is the
+ * part being said at the end ("Part 4. Recording…": three are kept).
+ */
 export async function partCount(page: Page): Promise<number> {
-  const group = page.getByRole('button', { name: /^Parts? 1(–\d+)?, \d+ parts? · / }).locator('visible=true').first();
-  if (!(await group.count())) return 0;
-  const m = /^Parts? 1(?:–(\d+))?,/.exec((await group.getAttribute('aria-label')) ?? '');
-  return m ? Number(m[1] ?? 1) : 0;
+  const group = page.getByRole('button', { name: /^(Parts? 1(–\d+)?|Version \d+), \d+ parts? · / }).locator('visible=true').first();
+  if (await group.count()) {
+    const m = /, (\d+) parts? · /.exec((await group.getAttribute('aria-label')) ?? '');
+    return m ? Number(m[1]) : 0;
+  }
+  if (!(await page.getByRole('button', { name: 'Done', exact: true }).locator('visible=true').count())) return 0;
+  const live = page.getByLabel(/^Part \d+\. /).locator('visible=true').first();
+  if (!(await live.count())) return 0;
+  const n = /^Part (\d+)\. /.exec((await live.getAttribute('aria-label').catch(() => null)) ?? '');
+  return n ? Number(n[1]) - 1 : 0;
 }
 
 /** The parts a draft already has, once its card has drawn (the workspace opens before the card shows; 0 read too soon is not the count). */
@@ -196,7 +206,8 @@ export const verseSpace = (page: Page, n: number): Locator =>
  * as a tap anyway is undone with its toast's Undo, and held again.
  */
 export async function holdPart(page: Page, n: number): Promise<void> {
-  const sheet = page.getByRole('button', { name: `Delete Part ${n}`, exact: true }).locator('visible=true').first();
+  // The hold sheet's own tool ("None"): every part row has its own "Delete Part n" too.
+  const sheet = page.getByRole('button', { name: 'None', exact: true }).locator('visible=true').first();
   for (let attempt = 0; attempt < 3; attempt++) {
     const space = verseSpace(page, n);
     await space.scrollIntoViewIfNeeded();
@@ -213,9 +224,8 @@ export async function holdPart(page: Page, n: number): Promise<void> {
   await expect(sheet, 'holding the part opens its sheet').toBeVisible();
 }
 
-/** Delete a part as a person does: hold its space, then "Delete Part N". */
+/** Delete a part as a person does: the bin at the end of its row (LAN-83). */
 export async function deletePart(page: Page, n: number): Promise<void> {
-  await holdPart(page, n);
   await page.getByRole('button', { name: `Delete Part ${n}`, exact: true }).locator('visible=true').first().click();
 }
 

@@ -51,6 +51,8 @@ interface Take {
   actorId: string;
   hlc: Hlc;
   archived: boolean;
+  /** The first archive of it (earliest clock, then actor): for a version, who deleted it and when (LAN-83). */
+  archivedAt?: { hlc: Hlc; by: string };
 }
 
 interface Submission {

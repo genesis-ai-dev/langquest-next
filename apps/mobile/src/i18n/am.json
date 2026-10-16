@@ -38,7 +38,8 @@
     "voiceNote": "የድምፅ ማስታወሻ",
     "addNote": "ማስታወሻ ያክሉ",
     "orTypeIt": "ወይም ይጻፉት",
-    "sayIt": "በድምፅ ይናገሩት"
+    "sayIt": "በድምፅ ይናገሩት",
+    "deleteAsk": "{{name}}ን ይሰርዙ?"
   },
   "time": {
     "justNow": "አሁን",
@@ -3672,7 +3673,8 @@
         "studyStepDone": "የ{{pattern}} ደረጃ {{n, number}} ተከናውኗል · {{step}}",
         "studyDone": "የጥናት ደረጃ ተከናውኗል",
         "keptAfter": "ከ{{kind}} በኋላ እንዳለ ተቀምጧል",
-        "keptAfterFeedback": "ከአስተያየት በኋላ እንዳለ ተቀምጧል"
+        "keptAfterFeedback": "ከአስተያየት በኋላ እንዳለ ተቀምጧል",
+        "versionDeleted": "ስሪት {{n, number}} ተሰርዟል"
       },
       "counts": {
         "versions_one": "{{count, number}} ስሪት",
@@ -4110,7 +4112,6 @@
       "newVersion": "አዲስ ስሪት",
       "yourDraft": "ረቂቅዎ",
       "yourDrafts": "ረቂቆችዎ",
-      "noDrafts": "ረቂቅ የለም። ከታች ያለን ስሪት ያርትዑ ወይም አዲስ ይጀምሩ።",
       "published": "የታተሙ",
       "latest": "የቅርብ ጊዜው",
       "saved": "{{when}} ተቀምጧል",
@@ -4126,11 +4127,12 @@
       "draft": "ረቂቅ",
       "draftN": "ረቂቅ {{n, number}}",
       "newVersionHelp": "አዲስ ስሪት ከመጀመሪያው ይጀምራል። ረቂቆችዎ ይቆያሉ።",
-      "deleteHelp": "ይህን ረቂቅ ይሰርዛል። «ይቀልብሱ» መልሶ ያመጣዋል።",
+      "deleteHelp": "ይህን ረቂቅ ይሰርዛል።",
       "editDraftHelp": "መሥራትዎን ለመቀጠል ይህን ረቂቅ በመቅረጫው ውስጥ ይከፍታል።",
       "publishHelp": "ቡድኑ እንዲሰማው ለማተም ይህን ረቂቅ ይከፍታል።",
       "editVersionHelp": "ከዚህ ስሪት አዲስ ረቂቅ ይጀምራል። ስሪቱ ራሱ እንዳለ ይቆያል።",
-      "partHelp": "ይህን ቁራጭ ብቻውን ያጫውታል።"
+      "partHelp": "ይህን ቁራጭ ብቻውን ያጫውታል።",
+      "deleteVersionHelp": "ይህን ስሪት ለሁሉም ይሰርዛል። ቀድሞ የተደረጉ ፍተሻዎች በታሪክ ውስጥ ይቆያሉ፣ ግን ከእንግዲህ አይቆጠሩም።"
     }
   },
   "work": {
@@ -4708,7 +4710,6 @@
     },
     "recorder": {
       "permissionNeeded": "የማይክሮፎን ፈቃድ ያስፈልጋል።",
-      "dragUp": "{{recorded}} · ለማየት ወደ ላይ ይጎትቱ",
       "hidePartsHelp": "ቁራጮቹን ይደብቁ።",
       "showPartsHelp": "ለመስማት ወይም ለመሰረዝ እያንዳንዱን ቁራጭ ያሳዩ።",
       "playAllHelp": "እስካሁን የተቀረጸውን ሁሉ ቁራጭ በቁራጭ ይስሙ።",
@@ -4733,7 +4734,18 @@
       "deletePartHelp": "ይህን ቁራጭ ይሰርዛል። ወዲያውኑ መቀልበስ ይችላሉ።",
       "nextCardHelp": "ቀጥሎ የሚቀርጹት ቁራጭ። ለመጀመር ቀዩን አዝራር ይንኩ።",
       "nextRecordingHelp": "አሁን በመቅረጽ ላይ። ደማቅ አሞሌዎች የሚቀመጠው ድምፅዎ ናቸው፤ ደብዛዛ አሞሌዎች ጸጥታ ናቸው።",
-      "nextPausedHelp": "መጽሐፍ ቅዱሱ ሲጫወት ቆሟል። ሲቆም ቀረጻው ይቀጥላል።"
+      "nextPausedHelp": "መጽሐፍ ቅዱሱ ሲጫወት ቆሟል። ሲቆም ቀረጻው ይቀጥላል።",
+      "deleteAll": "ሁሉንም ቁራጮች ሰርዝ",
+      "deleteAllHelp": "እንደገና ለመጀመር ሁሉንም ቁራጮች ይሰርዛል።",
+      "leave": "ተጠናቋል",
+      "leaveHelp": "መቅረጹን ያቆማል፣ ሁሉንም ቁራጮች ያስቀምጣል።",
+      "recordOver": "{{part}}ን እንደገና ይቅረጹ",
+      "recordOverHelp": "ቀጥሎ የሚቀርጹት ይህን ቁራጭ ይተካል።",
+      "recordInGap": "{{part}}ን እዚህ ይቅረጹ",
+      "gapHelp": "ቀጥሎ የሚቀርጹት በዚህ ክፍተት ውስጥ ይገባል።",
+      "recordAtEnd": "{{part}}ን መጨረሻ ላይ ይቅረጹ",
+      "endHelp": "ቀጥሎ የሚቀርጹት መጨረሻ ላይ ይገባል።",
+      "deleteAllAsk": "ሁሉንም ቁራጮች ይሰርዙ?"
     },
     "quoted": "«{{text}}»",
     "listening": "በማዳመጥ ላይ… {{time}}",
@@ -4913,16 +4925,9 @@
     },
     "vad": {
       "recordedFor": "ለ{{time}} ተቀርጿል",
-      "pausedForSource": "ምንጩ ሲጫወት ቆሟል",
-      "startsAgain": "ምንጩ ሲቆም ቀረጻው እንደገና ይጀምራል።",
-      "cutoff": "የድምፅ መቁረጫ",
-      "pauseBetween": "በቁራጮች መካከል ቆም ማለት",
       "tooShort": "ለማስቀመጥ በጣም አጭር ነው። ይናገሩ ከነበረ፣ እንደገና ይናገሩት።",
-      "statusHelp": "የሚመታ ነጥብ፦ ድምፅዎ እየተቀመጠ ነው። ቁጥሩ፦ እስካሁን ስንት እንደሆኑ። ሰዓቱ፦ የተቀረጸው ጊዜ።",
       "statusPausedHelp": "ምንጩ ሲጫወት ቆሟል። ቁጥሩ፦ እስካሁን ስንት እንደሆኑ። ሰዓቱ፦ የተቀረጸው ጊዜ።",
-      "resumeHelp": "የሚጫወተውን ያቆማል፣ መቅረጹንም ይቀጥላል።",
-      "cutoffHelp": "አሞሌዎቹ ማይክሮፎኑ የሚሰማው ናቸው። መስመሩን ይጎትቱ፦ ከእሱ በላይ ያለ ድምፅ ይቀረጻል።",
-      "pauseHelp": "ቁራጭን ለማብቃት ቆም ማለቱ ምን ያህል ይረዝማል። ወዲያውኑ ይለወጣል።"
+      "resumeHelp": "የሚጫወተውን ያቆማል፣ መቅረጹንም ይቀጥላል።"
     },
     "split": {
       "referenceOneLine": "ማጣቀሻው በአንድ መስመር",
@@ -4950,7 +4955,6 @@
       "moreOfRange": "{{part}} የቁጥሮች {{first}}–{{last}} ቀጣይ ነው።",
       "numbered_one": "{{count, number}} ቁራጭ ተቆጠረ።",
       "numbered_other": "{{count, number}} ቁራጮች ተቆጠሩ።",
-      "leftForLater": "{{verses}} · ለበኋላ የተተወ",
       "follows": "{{part}} ቅደም ተከተሉን ይከተላል።",
       "none": "{{part}} ቁጥር የለውም።",
       "giveNext": "ለ{{part}} ቀጣዩን ቁጥር ይስጡ",
@@ -4963,8 +4967,6 @@
       "hintLabelled": "ከላይ ያለውን ቁራጭ ቁጥር ለመስጠት ይንኩ። ለመምረጥ ይያዙ።",
       "hintEmpty": "ቀጣዩን ቁጥር ለመስጠት ይንኩ። ለመምረጥ ይያዙ።",
       "choose": "ቁጥሮችን ይምረጡ",
-      "recordHere": "እዚህ ይቅረጹ",
-      "recordHereHelp": "ለበኋላ የተዉትን ቁጥር ይቅረጹ፤ በቦታው ይገባል።",
       "verseSame": "{{verse}}፣ ከላይ ካለው ቁራጭ ጋር አንድ",
       "auto": "ራስ-ሰር",
       "noVerse": "ምንም",
@@ -6340,14 +6342,13 @@
     "dragDown": "መመሪያውን፣ ዋና ቃላትን፣ ማስታወሻዎችንና ቀደም ያሉ ቀረጻዎችን ለማየት ወደ ታች ይጎትቱ",
     "openStudy": "ጥናቱን ይክፈቱ",
     "yourRecording": "የእርስዎ ቀረጻ",
-    "tapRed": "ቀዩን አዝራር ይንኩና ይናገሩ። በቁራጮች መካከል ቆም ይበሉ፦ እያንዳንዱ ቁራጭ ለብቻው ይቀመጣል።",
-    "latestParts": "እነዚህ የስሪት {{n}} ቁራጮች ናቸው። አዲስ ስሪት ለማተም አዲስ ቁራጭ ይቅረጹ ወይም አንዱን ይሰርዙ።",
     "clipped": "ቁራጮቹ በጣም አጭር ሆነው እየወጡ ነው። ቃላት ሊቆረጡ ይችላሉ።",
     "micSetup": "ማይክሮፎኑን ያዘጋጁ",
     "micSetupHint": "መሣሪያው እርስዎን እንዴት እንደሚሰማ ያስተካክሉ፦ ስሜታዊነትና ቆም ማለት።",
     "saveHelp": "ቁራጮችዎ ሲቀርጹ ቀድሞውኑ ይቀመጣሉ። ይህ ወደ ኋላ ይመለሳል።",
     "openReferenceHelp": "ማጣቀሻውን ወደ ግማሽ ገጽ ይመልሳል።",
-    "openStudyHelp": "ይህን ደረጃ በሙሉው ጥናት ውስጥ ይከፍታል።"
+    "openStudyHelp": "ይህን ደረጃ በሙሉው ጥናት ውስጥ ይከፍታል።",
+    "partReplaced": "{{part}} እንደገና ተቀርጿል።"
   },
   "reference": {
     "organization": "ድርጅት",
