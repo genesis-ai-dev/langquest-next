@@ -70,6 +70,10 @@ import {
 } from '../templates/model';
 import { usePickTemplate } from '../templates/usePickTemplate';
 import { useTemplateEditor } from '../templates/useTemplateEditor';
+import { draftKey } from '../drafts/draftModel';
+import { isTemplateDraft, type TemplateDraft } from '../drafts/editorDrafts';
+import { useDraft, type Draft } from '../drafts/useDraft';
+import { SavedMark } from '../ui/SavedMark';
 
 /**
  * What to say when something fails (error-tracking): a command's own reason,
@@ -624,12 +628,18 @@ export function TemplateEditor(ctx: Ctx) {
   );
 }
 
-/** One of the organization's templates, opened once its document is on the phone. */
+/** The changes this person has not finished to a template (`itemId`) or a new one, kept on this phone (decision 111). */
+function useTemplateDraft(ctx: Ctx, lib: Lib, itemId: string | null): Draft<TemplateDraft | null> {
+  return useDraft<TemplateDraft | null>(draftKey('editor', ctx.session.actorId, lib.orgId, 'template', itemId ?? 'new'), null, isTemplateDraft);
+}
+
+/** One of the organization's templates, opened once its document (and any draft of it) is on the phone. */
 function LibraryTemplate({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
   const lib = useLibrary(ctx);
   const item = lib.item(itemId);
   const docs = useLibraryDocs(lib.orgId, [item?.current]);
   const doc = docs.get<TemplateDoc>(item?.current);
+  const draft = useTemplateDraft(ctx, lib, itemId);
   if (!item || item.kind !== 'template') {
     return (
       <Screen header={<Header title={t('content.editor.outlineTitle')} onBack={ctx.back} />}>
@@ -637,14 +647,14 @@ function LibraryTemplate({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
       </Screen>
     );
   }
-  if (!doc) {
+  if (!doc || !draft.loaded) {
     return (
       <Screen header={<Header title={item.name} sub={sourceLine(item)} onBack={ctx.back} />}>
-        {docs.error ? <Banner icon="cloud" tone="amber" title={t('content.editor.notOnDevice')} body={t('content.editor.connectToOpen')} /> : <LoadingLine />}
+        {!doc && docs.error ? <Banner icon="cloud" tone="amber" title={t('content.editor.notOnDevice')} body={t('content.editor.connectToOpen')} /> : <LoadingLine />}
       </Screen>
     );
   }
-  return <TemplateEditorForm key={item.current} ctx={ctx} lib={lib} item={item} initial={formFromDoc(doc, item.name, item.description)} />;
+  return <TemplateEditorForm key={item.current} ctx={ctx} lib={lib} item={item} initial={formFromDoc(doc, item.name, item.description)} draft={draft} />;
 }
 
 /**
@@ -660,7 +670,11 @@ function NewTemplate({ ctx }: { ctx: Ctx }) {
   const [form, setForm] = useState<TemplateForm | null>(() => (ctx.params['kind'] === 'outline' ? newTemplateForm('outline') : null));
   const [bible, setBible] = useState(false);
   const tq = useTranslate(ctx, null);
-  if (form) return <TemplateEditorForm ctx={ctx} lib={lib} item={null} initial={form} />;
+  // A new template begun before opens as it was left, without asking again.
+  const draft = useTemplateDraft(ctx, lib, null);
+  const start = form ?? draft.value?.form;
+  if (start) return <TemplateEditorForm ctx={ctx} lib={lib} item={null} initial={start} draft={draft} />;
+  if (!draft.loaded) return <Screen header={<Header title={t('content.newTemplate.title')} sub={orgName(ctx)} onBack={ctx.back} />}>{null}</Screen>;
 
   const scripture = () => { tq.setWhat('bible'); tq.setPage(tq.numbering ? 'numbered' : 'find'); setBible(true); };
   // Back from the first question leaves Scripture; otherwise it goes back a question.
@@ -711,22 +725,22 @@ function NewTemplate({ ctx }: { ctx: Ctx }) {
  * The editor itself (the demo's TemplateEditorScreen): name, description,
  * levels, and for Scripture the versification, the books and their names,
  * and how they divide; for an outline, the whole outline in one scroll.
- * Save publishes the next version. A followed template opens read-only.
+ * What is changed is kept on this phone as it changes (`draft`, decision
+ * 111); Done publishes the next version. A followed template opens read-only.
  */
-function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; item: LibraryItemView | null; initial: TemplateForm }) {
+function TemplateEditorForm({ ctx, lib, item, initial, draft }: { ctx: Ctx; lib: Lib; item: LibraryItemView | null; initial: TemplateForm; draft: Draft<TemplateDraft | null> }) {
   const [editingLevel, setEditingLevel] = useState<number | null>(null);
   const [editingBook, setEditingBook] = useState<string | null>(null);
   const [addingBook, setAddingBook] = useState(false);
   const [choosingV11n, setChoosingV11n] = useState(false);
   const [editingNode, setEditingNode] = useState<string | null>(null);
-  const [leaving, setLeaving] = useState(false);
   const [bookLimit, setBookLimit] = useState(12);
   // The book being divided (decision 107), and whether it is being divided its own way.
   const [dividing, setDividing] = useState<string | null>(null);
   const [ownWay, setOwnWay] = useState(false);
   const {
-    f, set, busy, run, v, v11n, isNew, followed, readOnly, changed, users, bible, v11nName, ready, sub, save, doc, perBook, divide, redone, redoing, cancelRedo
-  } = useTemplateEditor(ctx, lib, item, initial);
+    f, set, busy, run, v, v11n, isNew, followed, readOnly, newer, users, bible, v11nName, ready, sub, done, doc, perBook, divide, redone, redoing, cancelRedo
+  } = useTemplateEditor(ctx, lib, item, initial, draft);
   const ways = useWays(ctx, ctx.language.languageId, bible ? v11n?.code ?? null : null);
   const shownBooks = f.books.slice(0, bookLimit);
   const bookSheet = editingBook ? f.books.find((b) => b.book === editingBook) : undefined;
@@ -766,11 +780,13 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
 
   return (
     <Screen
-      header={<Header title={f.name.trim() || t('content.editor.untitled')} sub={sub} onBack={() => (changed && !readOnly && !isNew ? setLeaving(true) : ctx.back())} />}
+      header={<Header title={f.name.trim() || t('content.editor.untitled')} sub={sub} onBack={ctx.back}
+        action={readOnly ? undefined : <SavedMark status={draft.status} help={t('saved.draftHelp')} />} />}
       footer={readOnly ? undefined : (
-        <PrimaryBtn label={isNew ? t('content.editor.create') : t('content.editor.saveChanges')} icon="check" busy={busy} disabled={!changed || !ready} onPress={save}
-          help={isNew ? t('content.editor.createHelp') : t('content.editor.saveChangesHelp')} />
+        <PrimaryBtn label={isNew ? t('content.editor.create') : t('common.done')} icon="check" busy={busy} disabled={!ready} onPress={done}
+          help={isNew ? t('content.editor.createHelp') : t('content.editor.doneHelp')} />
       )}>
+      {newer && !readOnly && !busy ? <Banner icon="history" tone="amber" title={t('guides.editor.newer')} body={t('guides.editor.newerBody')} /> : null}
       {followed ? (
         <>
           <Banner icon="lock" title={t('content.editor.follows', { org: item!.subscription!.sourceOrgName })} body={t('content.editor.followsBody')} />
@@ -896,28 +912,28 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
           onMove={(by) => set({ outline: moveNode(f.outline, node.id, by) })}
           onRemove={() => { const outline = removeNode(f.outline, node.id); set({ outline, levels: levelsForOutline(outline, f.levels) }); setEditingNode(null); }} />
       ) : null}
-      <RedoSheet visible={redoing} book={booksLine(redone)} busy={busy} onClose={cancelRedo} onConfirm={save} />
-      {leaving ? (
-        <Sheet visible title={t('content.editor.leaveTitle')} sub={t('content.editor.leaveSub')} onClose={() => setLeaving(false)}
-          footer={<>
-            <PrimaryBtn label={t('content.editor.keepEditing')} onPress={() => setLeaving(false)} />
-            <GhostBtn label={t('content.editor.leave')} tone="red" help={t('content.editor.leaveHelp')} onPress={() => { setLeaving(false); ctx.back(); }} />
-          </>}>
-          <Text style={txt.smMuted}>{t('content.editor.leaveNote')}</Text>
-        </Sheet>
-      ) : null}
+      <RedoSheet visible={redoing} book={booksLine(redone)} busy={busy} onClose={cancelRedo} onConfirm={done} />
     </Screen>
   );
 }
 
-/** A level: what the team calls it, and for a Bible template's last level how each part is shown (the demo's LevelSheet). */
+/**
+ * A level: what the team calls it, and for a Bible template's last level how
+ * each part is shown (the demo's LevelSheet). Closing it keeps what was
+ * changed, as Done does; an empty name is not kept.
+ */
 function LevelSheet(props: { level: TemplateForm['levels'][number]; last: boolean; bible: boolean; onClose: () => void; onSave: (l: TemplateForm['levels'][number]) => void }) {
   const [name, setName] = useState(props.level.name);
-  const [display, setDisplay] = useState(defaultDisplay(props.level, props.bible));
+  const start = defaultDisplay(props.level, props.bible);
+  const [display, setDisplay] = useState(start);
   const example = `${bookName('luk')} 15:11–32`;
+  const done = () => {
+    if (name.trim() && (name.trim() !== props.level.name || display !== start)) props.onSave({ name: name.trim(), ...(props.last ? { display } : {}) });
+    else props.onClose();
+  };
   return (
-    <Sheet visible title={t('content.levelSheet.title')} sub={t('content.levelSheet.sub')} onClose={props.onClose}
-      footer={<PrimaryBtn label={t('common.done')} disabled={!name.trim()} help={t('content.levelSheet.doneHelp')} onPress={() => props.onSave({ name: name.trim(), ...(props.last ? { display } : {}) })} />}>
+    <Sheet visible title={t('content.levelSheet.title')} sub={t('content.levelSheet.sub')} onClose={done}
+      footer={<PrimaryBtn label={t('common.done')} disabled={!name.trim()} help={t('content.levelSheet.doneHelp')} onPress={done} />}>
       <Field label={t('content.name')} value={name} onChangeText={setName} placeholder={t('content.levelSheet.placeholder')} autoCapitalize="words" help={t('content.levelSheet.nameHelp')} />
       {props.last && props.bible ? (
         <>
@@ -934,12 +950,13 @@ function LevelSheet(props: { level: TemplateForm['levels'][number]; last: boolea
   );
 }
 
-/** A book: its name in the language, or take it out of the template. */
+/** A book: its name in the language, or take it out of the template. Closing it keeps a name changed, as Done does. */
 function BookSheet(props: { book: { book: string; name: string }; onClose: () => void; onSave: (name: string) => void; onRemove: () => void }) {
   const [name, setName] = useState(props.book.name);
+  const done = () => (name.trim() && name.trim() !== props.book.name ? props.onSave(name.trim()) : props.onClose());
   return (
-    <Sheet visible title={bookNameOf(props.book.book)} sub={t('content.bookSheet.sub')} onClose={props.onClose}
-      footer={<PrimaryBtn label={t('common.done')} disabled={!name.trim()} help={t('content.keepNameHelp')} onPress={() => props.onSave(name.trim())} />}>
+    <Sheet visible title={bookNameOf(props.book.book)} sub={t('content.bookSheet.sub')} onClose={done}
+      footer={<PrimaryBtn label={t('common.done')} disabled={!name.trim()} help={t('content.keepNameHelp')} onPress={done} />}>
       <Field label={t('content.bookSheet.nameLabel')} value={name} onChangeText={setName} placeholder={bookNameOf(props.book.book)} autoCapitalize="words" />
       <GhostBtn label={t('content.bookSheet.remove')} icon="trash" tone="red" help={t('content.bookSheet.removeNote')} onPress={props.onRemove} />
       <Text style={txt.smMuted}>{t('content.bookSheet.removeNote')}</Text>

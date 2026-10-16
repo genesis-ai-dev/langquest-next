@@ -16,7 +16,7 @@ import {
   type Commands, type EventSpec, type FlowStepStatus, type KindState, type KindStatus, type PassageNote, type QuestionSpec, type ReviewView
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useHardwareBack } from '../ui/useHardwareBack';
 import { Text } from '../ui/text';
@@ -26,11 +26,12 @@ import type { Ctx } from '../shell/ctx';
 import { edgeFor, screenTitle, type ScreenId } from '../shell/flow';
 import { t, Trans } from '../i18n';
 import { indexesFor } from '../sync/indexes';
-import { Badge, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, IconBtn, KindIcon, LinkBtn, NoteCard, PrimaryBtn, QuietLinks, ReasonSheet, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, StateMark, type IconName, HelpTop } from '../ui/kit';
+import { Badge, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, IconBtn, KindIcon, LinkBtn, NoteCard, PrimaryBtn, QuietLinks, ReasonSheet, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, StateMark, type IconName } from '../ui/kit';
 import { kindIcon } from '../ui/kindIcon';
 import { txt } from '../ui/textStyles';
 import { addDays, anchorLabel, askCandidates, channelLabel, currentStepId, describeEntry, dueChoices, gridKindIds, guestMessage, historySummary, isoDay, listenersOf, nextQuestionType, questionTypeLabel, reviewMark, reviewsSummary, sendTargetLabel, versionReviewsSummary, type EntryText, type RowAction } from '../passage/record';
 import { PassagePath } from '../passage/path';
+import { AskCheckCard, TheyAnswer } from '../passage/askParts';
 import { askInput, askDoneText, askModel, TEAM, type AskPicks } from '../passage/askModel';
 import {
   answersSummary, changeNoteText, feedbackIsEmpty, gridCell, gridCellLabel, gridColumnName, gridModel, hasFeedback, notesSummary, responseLine,
@@ -46,7 +47,7 @@ import { useVersesHeld } from '../passage/useVerses';
 import { pathSteps, teamSteps, type PathStep, type TeamStep } from '../passage/pathModel';
 import {
   askButtonLabel, askForLabel, currentCheck, elseMove, elseOptions, historyAction, historyHelp, historyMove, listenerLabel, listenersLine, mainMove,
-  nothingToAsk, passageNoteFor, publishedHeadline, publishedLine, recordCan, recordModel, recordPathInput, rowBar, rowButtons, rowMove, sentText,
+  nothingToAsk, passageNoteFor, recordCan, recordModel, recordPathInput, rowBar, rowButtons, rowMove, sentText,
   stepMove, stepSheet, studyLine, studyPathInfo, teamStepsOpen, usualTargets, waitingOnAnswer,
   type ElseOption, type RecordMain, type RecordMove, type SheetRow
 } from '../passage/recordModel';
@@ -74,6 +75,9 @@ import { usePerson } from '../ui/usePerson';
 import { BigVoice } from '../recording/bigVoice';
 import { ClipPlayer } from '../audio/clipPlayer';
 import { VoiceNote } from '../audio/voiceNote';
+import { useDraft } from '../drafts/useDraft';
+import { draftKey, EMPTY_NOTE, isNoteDraft } from '../drafts/draftModel';
+import { SavedMark } from '../ui/SavedMark';
 
 // ---- shared plumbing -----------------------------------------------------------------
 
@@ -220,14 +224,18 @@ export function PassageRecord(ctx: Ctx) {
   const [overriding, setOverriding] = useState<string | null>(null);
   const [noting, setNoting] = useState<null | 'note' | 'say'>(null);
   // The record's pages: the path, "Something else?", asking for the next check, and every version (decisions.md 83).
-  const publishedParam = ctx.params['published'];
-  const [page, setPage] = useState<'path' | 'else' | 'ask' | 'versions'>(() => (publishedParam ? 'ask' : 'path'));
-  const [askAfterPublish, setAskAfterPublish] = useState(!!publishedParam);
-  // Publishing returns to a record that may already be open (the stack pops back to it): open the ask then too.
-  useEffect(() => { if (publishedParam) { setPage('ask'); setAskAfterPublish(true); } }, [publishedParam]);
+  // Done asks for the next check itself (decision 111), so the record opens on the path after it.
+  const [page, setPage] = useState<'path' | 'else' | 'ask' | 'versions'>('path');
   // Asking someone comes back to the path, where the request shows, even when it started from "Something else?".
   const askedParam = ctx.params['asked'];
   useEffect(() => { if (askedParam) setPage('path'); }, [askedParam]);
+  // Done's "Someone else" (decision 111): the version is on the record; choosing who to ask opens from here.
+  const askSomeoneParam = ctx.params['askSomeone'];
+  const goRef = useRef(ctx.go);
+  goRef.current = ctx.go;
+  useEffect(() => {
+    if (askSomeoneParam && v) goRef.current('ask_someone', { unitId: v.unitId, languageId: v.languageId, what: 'review', kindId: askSomeoneParam });
+  }, [askSomeoneParam]); // eslint-disable-line react-hooks/exhaustive-deps -- once per arrival with the param; v is new on every draw
   useHardwareBack(page !== 'path', () => setPage('path'));
   const [historyShown, setHistoryShown] = useState(HISTORY_STEP);
   // Which of the checks that happen next the ask page sends (decision 91): the first, unless another is picked.
@@ -243,8 +251,8 @@ export function PassageRecord(ctx: Ctx) {
   const versesHeld = useVersesHeld(ctx, v?.state, v?.unitId);
   const me = ctx.session.actorId;
   const isAuthor = !!v?.p.latest && v.p.latest.by === me;
-  // Whoever just published (a version, or a back translation) asks for the next check (demo ADR-034).
-  const asker = isAuthor || !!publishedParam?.startsWith('bt');
+  // The version's author asks for its next check (demo ADR-034).
+  const asker = isAuthor;
   // Where each of the flow's kinds usually goes; only its author sends a version on (ADR-029).
   const orgState = ctx.org.state;
   const targets = useMemo(
@@ -292,7 +300,7 @@ export function PassageRecord(ctx: Ctx) {
   const doMove = (mv: RecordMove) => {
     if (mv.id === 'go') go(mv.to, mv.extra);
     else if (mv.id === 'recordOrPick') recordOrPick();
-    else { setAskAfterPublish(false); setPage('ask'); }
+    else setPage('ask');
   };
   const onRowAction = (a: RowAction, k: KindStatus, step: FlowStepStatus, askedMe: boolean) => {
     const mv = rowMove(a, k, { produces: !!v.kind(k.kindId).produces, stepId: step.step.id, askedMe });
@@ -415,14 +423,11 @@ export function PassageRecord(ctx: Ctx) {
     );
   }
 
-  // ---- Published, then ask for a check (demo a-ask, a-btAsk; decision 91: each check with its people) ----
+  // ---- Ask for a check (demo a-ask; decision 91: each check with its people). Done asks in its own tap (decision 111). ----
   if (page === 'ask') {
-    const bt = publishedParam?.startsWith('bt');
-    const latest = p.latest;
-    const close = () => { setPage('path'); setAskAfterPublish(false); };
-    const sendLine = publishedLine({ pending: ctx.language.pending, pendingUp: ctx.language.blobs.pendingUp, online: ctx.language.online, title: v.title });
+    const close = () => setPage('path');
     return (
-      <Screen header={askAfterPublish ? <HelpTop /> : <Header title={t('passage.published.askTitle')} sub={v.title} onBack={close} close />}
+      <Screen header={<Header title={t('passage.published.askTitle')} sub={v.title} onBack={close} close />}
         footer={nextKind && can.ask ? (
           <View style={{ gap: space.xs }}>
             <PrimaryBtn label={askButtonLabel({ target: nextTarget, kindId: nextKind.kindId, kinds, name: ctx.name })} icon="send"
@@ -434,17 +439,8 @@ export function PassageRecord(ctx: Ctx) {
             ]} />
           </View>
         ) : <PrimaryBtn label={t('common.done')} icon="check" help={t('passage.published.doneHelp')} onPress={close} />}>
-        {askAfterPublish ? (
-          <View style={{ alignItems: 'center', gap: space.sm, paddingTop: space.xl }}>
-            <View style={styles.bigCheck}><Ico name="check" size={44} color={TINT.greenText} strokeWidth={3} /></View>
-            <Text style={[txt.h2, { textAlign: 'center', fontSize: 26, fontWeight: '800' }]} accessibilityRole="header">
-              {publishedHeadline({ backTranslation: !!bt, latest })}
-            </Text>
-            <Text style={[txt.smMuted, { textAlign: 'center' }]}>{sendLine}</Text>
-          </View>
-        ) : null}
         {nextKind && can.ask ? (
-          <View style={{ gap: space.sm, marginTop: askAfterPublish ? space.lg : 0 }}>
+          <View style={{ gap: space.sm }}>
             <Text style={txt.label}>{t('passage.published.nextAsk')}</Text>
             {nextKinds.map((k) => (
               <AskCheckCard key={k.kindId} ctx={ctx} kindId={k.kindId} name={checkName(k.kindId, kinds)} on={k.kindId === nextKind.kindId} radio={nextKinds.length > 1}
@@ -525,7 +521,7 @@ export function PassageRecord(ctx: Ctx) {
     return (
       <>
         <VersionsPage ctx={ctx} v={v} canRecord={can.record} go={go} onBack={() => setPage('path')} history={history}
-          {...(nextKind && can.ask ? { ask: { label: askForLabel(nextKind.kindId, kinds), onPress: () => { setAskAfterPublish(false); setPage('ask'); } } } : {})} />
+          {...(nextKind && can.ask ? { ask: { label: askForLabel(nextKind.kindId, kinds), onPress: () => setPage('ask') } } : {})} />
         {sheets}
       </>
     );
@@ -570,24 +566,6 @@ function SmallOption(props: { icon: IconName; label: string; onPress: () => void
     <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} accessibilityRole="button" style={({ pressed }) => [styles.tile, pressed && { opacity: 0.7 }]}>
       <Ico name={props.icon} size={20} color={props.icon === 'chat' ? TINT.amberText : C.primary} />
       <Text style={[txt.sm, { fontWeight: '700', flex: 1 }]}>{props.label}</Text>
-      <HelpBadge spot={spot} />
-    </Pressable>
-  );
-}
-
-/** One of the checks that happen next, on the ask page: pick it to ask for it (decision 91). */
-function AskCheckCard(props: { ctx: Ctx; kindId: string; name: string; on: boolean; radio: boolean; people: string[]; onPress: () => void }) {
-  const { on } = props;
-  const spot = useHelpSpot(props.name, t('passage.published.pickCheckHelp'), props.onPress);
-  return (
-    <Pressable onPress={spot.onPress} accessibilityRole="radio" accessibilityState={{ selected: on, checked: on }} aria-checked={on}
-      style={[styles.askCard, !on && { borderWidth: 1, borderColor: C.border }]}>
-      <View style={styles.askIcon}><Ico name={kindIcon(props.kindId)} size={24} color={C.primary} /></View>
-      <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-        <Text style={[txt.body, { fontWeight: '800', fontSize: 19 }]}>{props.name}</Text>
-        <PeopleLine ctx={props.ctx} people={props.people} />
-      </View>
-      {props.radio ? <View style={[styles.radio, on && { borderColor: C.primary }]}>{on ? <View style={styles.radioDot} /> : null}</View> : null}
       <HelpBadge spot={spot} />
     </Pressable>
   );
@@ -646,21 +624,23 @@ function KeepSheet(props: { ctx: Ctx; v: PassageView; reviewId: string; onClose:
 
 function AddNoteSheet(props: { ctx: Ctx; v: PassageView; onClose: () => void; say?: boolean }) {
   const { ctx, v } = props;
-  const [text, setText] = useState('');
-  const [hash, setHash] = useState<string | null>(null);
+  // Kept as it is said or typed, only for whoever is writing it, until it is added (decision 111).
+  const draft = useDraft(draftKey('note', ctx.session.actorId, v.languageId, v.unitId, 'passage'), EMPTY_NOTE, isNoteDraft);
+  const { text, hash } = draft.value;
   const [busy, setBusy] = useState(false);
   const save = async () => {
     setBusy(true);
     const ok = await perform(ctx, (c) => c.addNote(noteInput({ commandId: newId(), unitId: v.unitId, text, hash })), t('passage.addNote.done'));
     setBusy(false);
-    if (ok) props.onClose();
+    if (ok) { await draft.clear(); props.onClose(); }
   };
   return (
     <Sheet visible title={props.say ? t('passage.else.sayInstead') : t('common.addNote')}
       sub={props.say ? t('passage.addNote.saySub') : t('passage.addNote.sub')} onClose={props.onClose}
+      action={<SavedMark status={draft.status} help={t('saved.draftHelp')} />}
       footer={<PrimaryBtn label={t('passage.addNote.save')} disabled={!hasWords(text, hash)} busy={busy} onPress={() => void save()} />}>
-      <VoiceNote ctx={ctx} label={t('common.sayIt')} hash={hash} onChange={setHash} />
-      <Field value={text} onChangeText={setText} placeholder={t('common.orTypeIt')} multiline />
+      <VoiceNote ctx={ctx} label={t('common.sayIt')} hash={hash} onChange={(h) => draft.set((d) => ({ ...d, hash: h }))} />
+      <Field value={text} onChangeText={(x) => draft.set((d) => ({ ...d, text: x }))} placeholder={t('common.orTypeIt')} multiline />
     </Sheet>
   );
 }
@@ -1151,47 +1131,6 @@ export function ReviewDetail(ctx: Ctx) {
  * when. It asks for exactly what its button belonged to (params `what` and
  * `kindId`); another kind is asked for from its own step.
  */
-/**
- * What the people asked will answer: the check's own questions (decision 91),
- * then any added for this request, with a field to add one. On the ask page
- * after publishing and on Someone else alike.
- */
-function TheyAnswer(props: { asked: ReturnType<typeof questionsForKind>; questions: QuestionSpec[]; setQuestions: (f: (qs: QuestionSpec[]) => QuestionSpec[]) => void }) {
-  const [draft, setDraft] = useState('');
-  const [type, setType] = useState<QuestionSpec['type']>('yesno');
-  const add = () => {
-    const text = draft.trim();
-    if (!text) return;
-    props.setQuestions((qs) => [...qs, { id: `ask:${newId()}`, text, type }]);
-    setDraft('');
-  };
-  return (
-    <>
-      <SectionLabel label={t('checks.theyAnswer')} />
-      {props.asked.length > 0 || props.questions.length > 0 ? (
-        <Group>
-          {props.asked.map((sq) => (
-            <Row key={sq.q.id} icon="chat" label={sq.q.text} sub={[questionTypeLabel(sq.q.type), sq.required ? t('common.required') : ''].filter(Boolean).join(' · ')} />
-          ))}
-          {props.questions.map((q, i) => (
-            <Row key={q.id} label={q.text} sub={questionTypeLabel(q.type)} last={i === props.questions.length - 1}
-              right={<IconBtn name="close" label={t('passage.ask.removeQuestion')} help={t('passage.ask.removeQuestionHelp')} onPress={() => props.setQuestions((qs) => qs.filter((x) => x.id !== q.id))} bg="transparent" color={C.muted} />} />
-          ))}
-        </Group>
-      ) : null}
-      <Field value={draft} onChangeText={setDraft} placeholder={t('passage.ask.askSpecific')} help={t('passage.ask.askSpecificHelp')} />
-      <View style={styles.btnRow}>
-        <View style={{ flex: 1 }}>
-          <SmallBtn label={t('passage.ask.answerType', { type: questionTypeLabel(type) })} help={t('passage.ask.answerTypeHelp')} onPress={() => setType(nextQuestionType)} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <SmallBtn label={t('passage.ask.addQuestion')} icon="plus" tone="primary" help={t('passage.ask.addQuestionHelp')} disabled={!draft.trim()} onPress={add} />
-        </View>
-      </View>
-    </>
-  );
-}
-
 export function AskSomeone(ctx: Ctx) {
   const v = usePassage(ctx);
   const what: 'record' | 'review' = ctx.params['what'] === 'record' ? 'record' : 'review';
@@ -1336,9 +1275,6 @@ const styles = StyleSheet.create({
   tile: { flexGrow: 1, flexBasis: '45%', flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 56, paddingHorizontal: space.md,
     borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, backgroundColor: C.card },
   notePill: { flexDirection: 'row', alignItems: 'center', gap: space.sm, padding: space.sm, borderRadius: radius.lg, backgroundColor: TINT.amber },
-  bigCheck: { width: 88, height: 88, borderRadius: 44, backgroundColor: TINT.green, alignItems: 'center', justifyContent: 'center', marginBottom: space.sm },
-  askCard: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.lg, borderRadius: radius.xl, borderWidth: 2, borderColor: C.primary, backgroundColor: C.card },
-  askIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
   rowCenter: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   btnRow: { flexDirection: 'row', gap: space.sm },
   toneDot: { width: 10, height: 10, borderRadius: 5 },
@@ -1366,7 +1302,6 @@ const styles = StyleSheet.create({
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   answer: { paddingHorizontal: space.lg, paddingVertical: space.md, gap: 2 },
   groupHead: { paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: space.xs },
-  radioDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: C.primary },
   radio: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
   preview: { backgroundColor: TINT.green, borderRadius: radius.lg, padding: space.md, gap: 6, borderWidth: 1, borderColor: withAlpha(C.green, 0.2) }
 });

@@ -4,7 +4,7 @@
 // Bible (play, Back 10 s, a Bible picker, the verses with the one playing
 // lit, a note on a verse or a moment), key words (hear each, your word or
 // say yours, add a word), notes, and everything recorded so far.
-import { commands, keyTermsFor, type KeyTermView, type PassageNote } from '@langquest-next/core';
+import { commands, keyTermsFor, type KeyTermView, type NoteAnchor, type PassageNote } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -31,7 +31,7 @@ import { C, radius, space, target, TINT, type as T } from '../ui/theme';
 import { VoiceNote } from '../audio/voiceNote';
 import { joinAnd, languageLabel } from '../admin/adminModel';
 import { OthersSay, WhereItIs, WordChip } from './helps';
-import { keyLabel, keyTouches, othersSay, suggestedWords, type WordSuggestion } from './helpsModel';
+import { keyLabel, keyTouches, othersSay, suggestedWords } from './helpsModel';
 import { useOtherLanguageTerms } from '../reference/useOtherLanguageTerms';
 import { bookOf, mmss, verseRefs } from '../recording/model';
 import { Back10, DashedBtn, MiniPlayer, PlayBtn, PlayRow } from '../recording/blocks';
@@ -39,6 +39,9 @@ import { styles as ps } from '../recording/blockStyles';
 import { useClip } from '../audio/useClip';
 import { noteLabel } from './referenceText';
 import type { useBible } from './useBible';
+import { draftKey, EMPTY_NOTE, isNoteDraft, isRecord } from '../drafts/draftModel';
+import { useDraft } from '../drafts/useDraft';
+import { SavedMark } from '../ui/SavedMark';
 
 const DBP_TERMS = 'https://www.faithcomesbyhearing.com/bible-brain/license';
 
@@ -345,12 +348,13 @@ function SayYours(props: { onPress: () => void; term: string }) {
   );
 }
 
+/** Say (or type) the language's word for a key term: kept as a draft only you see until Add your word (decision 111). */
 function SayYoursSheet(props: { ctx: Ctx; v: PassageView; term: KeyTermView; draftTakeId: string | undefined; canTie: boolean; onClose: () => void }) {
   const { ctx, v, term } = props;
-  const [hash, setHash] = useState<string | null>(null);
-  const [text, setText] = useState('');
+  const draft = useDraft(draftKey('word', ctx.session.actorId, v.languageId, v.unitId, term.termId), EMPTY_NOTE, isNoteDraft);
+  const { hash, text } = draft.value;
   const [busy, setBusy] = useState(false);
-  async function save() {
+  async function add() {
     const state = ctx.language.state;
     if (!state || busy || (!hash && !text.trim())) return;
     setBusy(true);
@@ -363,6 +367,7 @@ function SayYoursSheet(props: { ctx: Ctx; v: PassageView; term: KeyTermView; dra
         ...(hash ? { blobHash: hash } : {}), ...(duringTakeId ? { duringTakeId } : {}),
         ...(props.canTie && props.draftTakeId ? { tieToTakeId: props.draftTakeId } : {})
       }), t('reference.keyWords.saved', { term: term.term }));
+      await draft.clear();
       props.onClose();
     } catch { /* ctx.act said what went wrong */ }
     finally { setBusy(false); }
@@ -370,11 +375,31 @@ function SayYoursSheet(props: { ctx: Ctx; v: PassageView; term: KeyTermView; dra
   return (
     <Sheet visible title={t('reference.keyWords.sayTitle', { term: term.term })}
       sub={term.gloss ? t('reference.keyWords.saySubGloss', { gloss: term.gloss, language: v.language }) : t('reference.keyWords.saySub', { language: v.language })}
-      onClose={props.onClose} footer={<PrimaryBtn label={t('reference.keyWords.saveWord')} icon="check" busy={busy} disabled={!hash && !text.trim()} onPress={() => void save()} />}>
-      <VoiceNote ctx={ctx} label={t('common.sayIt')} hash={hash} onChange={setHash} />
-      <Field value={text} onChangeText={setText} placeholder={t('common.orTypeIt')} help={t('reference.keyWords.typeHelp', { language: v.language })} />
+      action={<SavedMark status={draft.status} help={t('saved.draftHelp')} />}
+      onClose={props.onClose} footer={<PrimaryBtn label={t('reference.keyWords.addYourWord')} icon="check" busy={busy} disabled={!hash && !text.trim()} onPress={() => void add()} />}>
+      <VoiceNote ctx={ctx} label={t('common.sayIt')} hash={hash} onChange={(h) => draft.set((d) => ({ ...d, hash: h }))} />
+      <Field value={text} onChangeText={(x) => draft.set((d) => ({ ...d, text: x }))} placeholder={t('common.orTypeIt')} help={t('reference.keyWords.typeHelp', { language: v.language })} />
     </Sheet>
   );
+}
+
+/** A new key word as it is being made: the word, its meaning, how the language says it, and the other language's word it was taken from. */
+interface NewWordDraft {
+  term: string;
+  gloss: string;
+  rendering: string;
+  hash: string | null;
+  taken: { termId: string; term: string } | null;
+}
+
+const EMPTY_WORD: NewWordDraft = { term: '', gloss: '', rendering: '', hash: null, taken: null };
+
+function isNewWordDraft(x: unknown): x is NewWordDraft {
+  if (!isRecord(x)) return false;
+  const taken = x['taken'];
+  return typeof x['term'] === 'string' && typeof x['gloss'] === 'string' && typeof x['rendering'] === 'string'
+    && (x['hash'] === null || typeof x['hash'] === 'string')
+    && (taken === null || (isRecord(taken) && typeof taken['termId'] === 'string' && typeof taken['term'] === 'string'));
 }
 
 /**
@@ -387,12 +412,11 @@ function SayYoursSheet(props: { ctx: Ctx; v: PassageView; term: KeyTermView; dra
  */
 function AddWordSheet(props: { ctx: Ctx; v: PassageView; draftTakeId: string | undefined; rows: VerseRow[] | null; bibleName: string; onClose: () => void }) {
   const { ctx, v } = props;
-  const [term, setTerm] = useState('');
-  const [gloss, setGloss] = useState('');
-  const [hash, setHash] = useState<string | null>(null);
-  const [rendering, setRendering] = useState('');
+  // What is typed, said or taken is kept as a draft only you see until Add the word (decision 111).
+  const draft = useDraft(draftKey('word', ctx.session.actorId, v.languageId, v.unitId, 'new'), EMPTY_WORD, isNewWordDraft);
+  const { term, gloss, hash, rendering, taken } = draft.value;
+  const put = (change: Partial<NewWordDraft>) => draft.set((d) => ({ ...d, ...change }));
   const [busy, setBusy] = useState(false);
-  const [taken, setTaken] = useState<WordSuggestion | null>(null);
   const others = useOtherLanguageTerms(ctx, true);
   const own = useMemo(() => (ctx.language.state ? keyTermsFor(ctx.language.state) : []), [ctx.language.state]);
   const suggestions = useMemo(() => suggestedWords(others.languages, props.rows, own).slice(0, 6), [others.languages, props.rows, own]);
@@ -415,12 +439,14 @@ function AddWordSheet(props: { ctx: Ctx; v: PassageView; draftTakeId: string | u
         rendering, note: rendering.trim() ? `First rendering: ${rendering.trim()}.` : 'Said in a voice note.',
         ...(hash ? { blobHash: hash } : {}), ...(duringTakeId ? { duringTakeId } : {})
       }), t('reference.keyWords.added', { term: word }));
+      await draft.clear();
       props.onClose();
     } catch { /* ctx.act said what went wrong */ }
     finally { setBusy(false); }
   }
   return (
     <Sheet visible title={t('reference.keyWords.add')} sub={t('reference.keyWords.addSub', { language: v.language })}
+      action={<SavedMark status={draft.status} help={t('saved.draftHelp')} />}
       onClose={props.onClose} footer={<PrimaryBtn label={t('reference.keyWords.addWord')} icon="plus" busy={busy} disabled={!ready} onPress={() => void save()} />}>
       {suggestions.length && !word ? (
         <View style={{ gap: space.xs }}>
@@ -428,21 +454,21 @@ function AddWordSheet(props: { ctx: Ctx; v: PassageView; draftTakeId: string | u
           <View style={styles.wordRow}>
             {suggestions.map((x) => (
               <WordChip key={x.termId} label={x.term} help={t('keyTerms.others.suggestHelp', { languages: joinAnd(x.languages) })}
-                onPress={() => { setTerm(x.term); setGloss(x.gloss); setTaken(x); }} />
+                onPress={() => put({ term: x.term, gloss: x.gloss, taken: { termId: x.termId, term: x.term } })} />
             ))}
           </View>
         </View>
       ) : null}
-      <Field value={term} onChangeText={setTerm} placeholder={t('reference.keyWords.wordPlaceholder')} />
-      <Field value={gloss} onChangeText={setGloss} placeholder={t('reference.keyWords.meaningPlaceholder')} autoCapitalize="sentences" />
+      <Field value={term} onChangeText={(x) => put({ term: x })} placeholder={t('reference.keyWords.wordPlaceholder')} />
+      <Field value={gloss} onChangeText={(x) => put({ gloss: x })} placeholder={t('reference.keyWords.meaningPlaceholder')} autoCapitalize="sentences" />
       {word.length > 1 ? (
         <>
           <WhereItIs rows={props.rows} book={bookOf(v.title)} word={word} bibleName={props.bibleName} missing={t('common.loading')} max={3} />
           <OthersSay ctx={ctx} items={say} loading={others.loading} word={word} />
         </>
       ) : null}
-      <VoiceNote ctx={ctx} label={t('reference.keyWords.sayItIn', { language: v.language })} hash={hash} onChange={setHash} />
-      <Field value={rendering} onChangeText={setRendering} placeholder={t('common.orTypeIt')} help={t('reference.keyWords.typeHelp', { language: v.language })} />
+      <VoiceNote ctx={ctx} label={t('reference.keyWords.sayItIn', { language: v.language })} hash={hash} onChange={(h) => put({ hash: h })} />
+      <Field value={rendering} onChangeText={(x) => put({ rendering: x })} placeholder={t('common.orTypeIt')} help={t('reference.keyWords.typeHelp', { language: v.language })} />
     </Sheet>
   );
 }
@@ -504,18 +530,35 @@ export function RequestNote(props: { ctx: Ctx; request: Parameters<typeof Reques
   return <RequestBanner ctx={props.ctx} request={props.request} />;
 }
 
-/** A note by voice or text on the passage, a verse or a moment. */
-export function NoteSheet(props: { ctx: Ctx; v: Pick<PassageView, 'unitId'>; title: string; where: string; anchor: Parameters<typeof saveNote>[2]; onClose: () => void; message?: string }) {
-  const [text, setText] = useState('');
-  const [hash, setHash] = useState<string | null>(null);
+/** Where a note's draft is kept: the verse it is on (at whatever moment, in whichever Bible), else what it is on. */
+function noteDraftAt(anchor: NoteAnchor): string {
+  return anchor.kind === 'verse' ? `verse:${anchor.verse}` : anchor.kind;
+}
+
+/**
+ * A note by voice or text on the passage, a verse or a moment. What is said
+ * or typed is kept as a draft only you see (decision 111): closing keeps it
+ * for the next note there, Add a note puts it on the record and drops it.
+ */
+export function NoteSheet(props: { ctx: Ctx; v: Pick<PassageView, 'unitId'>; title: string; where: string; anchor: NoteAnchor; onClose: () => void; message?: string }) {
+  const { ctx } = props;
+  const draft = useDraft(draftKey('note', ctx.session.actorId, ctx.language.languageId, props.v.unitId, noteDraftAt(props.anchor)), EMPTY_NOTE, isNoteDraft);
+  const { text, hash } = draft.value;
   const [busy, setBusy] = useState(false);
+  const add = async () => {
+    setBusy(true);
+    const ok = await saveNote(ctx, props.v, props.anchor, { text, blobHash: hash }, props.message ?? t('reference.notes.added'));
+    if (ok) await draft.clear();
+    setBusy(false);
+    if (ok) props.onClose();
+  };
   return (
     <Sheet visible title={props.title} sub={t('reference.notes.sheetSub')} onClose={props.onClose}
-      footer={<PrimaryBtn label={t('reference.notes.save')} busy={busy} disabled={!text.trim() && !hash}
-        onPress={() => { setBusy(true); void saveNote(props.ctx, props.v, props.anchor, { text, blobHash: hash }, props.message ?? t('reference.notes.added')).then((ok) => { setBusy(false); if (ok) props.onClose(); }); }} />}>
+      action={<SavedMark status={draft.status} help={t('saved.draftHelp')} />}
+      footer={<PrimaryBtn label={t('common.addNote')} busy={busy} disabled={!text.trim() && !hash} onPress={() => void add()} />}>
       <View style={styles.where}><Text style={txt.smMuted}>{props.where}</Text></View>
-      <VoiceNote ctx={props.ctx} label={t('common.sayIt')} hash={hash} onChange={setHash} />
-      <Field value={text} onChangeText={setText} placeholder={t('common.orTypeIt')} help={t('reference.notes.typeHelp')} multiline />
+      <VoiceNote ctx={ctx} label={t('common.sayIt')} hash={hash} onChange={(h) => draft.set((d) => ({ ...d, hash: h }))} />
+      <Field value={text} onChangeText={(x) => draft.set((d) => ({ ...d, text: x }))} placeholder={t('common.orTypeIt')} help={t('reference.notes.typeHelp')} multiline />
     </Sheet>
   );
 }

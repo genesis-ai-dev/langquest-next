@@ -3,7 +3,7 @@ import { recordTimeline } from '@langquest-next/core';
 import { pathSteps } from '../src/passage/pathModel';
 import {
   askButtonLabel, askForLabel, elseMove, historyAction, historyMove, listenerLabel, listenersLine, mainMove, nothingToAsk, passageNoteFor,
-  publishedHeadline, publishedLine, recordCan, recordModel, recordPathInput, rowBar, rowMove, sentText, stepMove, stepSheet, studyLine, studyPathInfo,
+  nextAfterDone, recordCan, recordModel, recordPathInput, rowBar, rowMove, sentText, stepMove, stepSheet, studyLine, studyPathInfo,
   usualTargets, type RecordMain
 } from '../src/passage/recordModel';
 import { requestIsMine, teamNameIn } from '../src/passage/sendTarget';
@@ -189,20 +189,6 @@ describe('the history', () => {
 });
 
 describe('the ask page and its words', () => {
-  it('says where the new version is: sent, sending, or saved here', () => {
-    const line = (o: Partial<Parameters<typeof publishedLine>[0]>) => publishedLine({ pending: 0, pendingUp: 0, online: true, title: 'Luke 1', ...o });
-    expect(line({})).toBe(t('passage.published.sent', { title: 'Luke 1' }));
-    expect(line({ pending: 2 })).toBe(t('passage.published.sending', { title: 'Luke 1' }));
-    expect(line({ pendingUp: 1, online: undefined })).toBe(t('passage.published.sending', { title: 'Luke 1' }));
-    expect(line({ pending: 1, online: false })).toBe(t('passage.published.savedHere', { title: 'Luke 1' }));
-  });
-
-  it('headlines the version, the back translation, or an unnumbered version', () => {
-    expect(publishedHeadline({ backTranslation: true, latest: { n: 3 } })).toBe(t('passage.published.backTranslation'));
-    expect(publishedHeadline({ backTranslation: false, latest: { n: 3 } })).toBe(t('passage.published.version', { n: 3 }));
-    expect(publishedHeadline({ backTranslation: false, latest: undefined })).toBe(t('passage.published.versionNoNumber'));
-  });
-
   it('labels the ask button by the usual people, else by the check', () => {
     const r = record('TRANS', 'P-SUBMITTED');
     expect(askButtonLabel({ target: { profileId: ID.REV }, kindId: 'peer', kinds: r.kinds, name: w.nameFor('TRANS') })).toBe(t('passage.published.askTarget', { target: 'Rita Reviewer' }));
@@ -232,5 +218,26 @@ describe('the ask page and its words', () => {
     const step = r.p.steps.find((st) => st.kinds.some((k) => k.kindId === 'peer'))!;
     const sh = stepSheet({ p: r.p, kinds: r.kinds, kind: r.v.kind, step, can: r.can, isAuthor: r.isAuthor, me: r.me, mine: requestIsMine(w.state, r.me), name: w.nameFor('TRANS'), teamName: teamNameIn(w.state), targets: r.targets });
     for (const row of sh.rows) expect(rowBar(row.acts, true).others).toBe((row.acts.second ? 1 : 0) + row.acts.rest.length);
+  });
+});
+
+describe('Done asks for the check that comes next (decision 111, recordModel.ts nextAfterDone)', () => {
+  const kindsOf = (k: WorldPassage, o: Parameters<typeof nextAfterDone>[1]) => nextAfterDone(record('TRANS', k).p, o)?.kinds.map((x) => x.kindId);
+  it('offers the first step for a first version, before anything is published', () => {
+    expect(kindsOf('P-DRAFT', { publishing: true })).toEqual(['peer', 'bt']);
+  });
+  it('leaves out a check already asked for', () => {
+    expect(kindsOf('P-SUBMITTED', { publishing: true })).toEqual(['bt']);
+  });
+  it('sends a fix back to the check whose feedback it answers', () => {
+    // Waiting on the answer, the check is not offered; the new version answers it, so it is.
+    expect(record('TRANS', 'P-NEEDS').model.nextKinds.map((k) => k.kindId)).toEqual(['bt']);
+    expect(kindsOf('P-NEEDS', { publishing: true })).toEqual(['peer', 'bt']);
+  });
+  it('moves past a check that makes content once it is made', () => {
+    expect(kindsOf('P-BT', { recordedKindId: 'bt' })).toEqual(['community']);
+  });
+  it('has nothing to offer when every check is done', () => {
+    expect(nextAfterDone(record('TRANS', 'P-DONE').p, { publishing: true })).toBeUndefined();
   });
 });

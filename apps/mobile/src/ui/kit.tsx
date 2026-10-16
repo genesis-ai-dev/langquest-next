@@ -632,6 +632,8 @@ export function Field(props: {
   style?: StyleProp<TextStyle>;
   /** What Enter (or the keyboard's Go) does in a one-line field: the screen's main action, where there is one. */
   onSubmit?: () => void;
+  /** Leaving the field: where a setting typed here applies (decision 111). */
+  onBlur?: () => void;
   /** For the UI tests: iOS does not expose a multi-line field's placeholder. */
   testID?: string;
   /** What a screen reader calls a field with no label, when its placeholder does not say it. */
@@ -649,6 +651,7 @@ export function Field(props: {
         accessibilityLabel={props.label ?? props.accessibilityLabel ?? props.placeholder}
         {...(props.onSubmit && !props.multiline ? { onSubmitEditing: props.onSubmit, returnKeyType: 'go' as const } : {})}
         {...(props.testID ? { testID: props.testID } : {})}
+        {...(props.onBlur ? { onBlur: props.onBlur } : {})}
         multiline={props.multiline} secureTextEntry={props.secure} keyboardType={props.keyboardType} autoCapitalize={props.autoCapitalize}
         style={[styles.field, inputDirection(), props.multiline && { minHeight: 88, textAlignVertical: 'top', paddingTop: 14 }, props.style]} />
       <HelpCover spot={spot} label={name} />
@@ -845,7 +848,8 @@ export function Banner(props: { icon: IconName; title: string; body?: string; to
  * A bottom sheet: darkened backdrop, rounded top, ✕ to close. Never a flow
  * node. On a wide window it is a centred dialog instead (decisions.md 55).
  */
-export function Sheet(props: { visible: boolean; title: string; sub?: string; onClose: () => void; children: ReactNode; footer?: ReactNode }) {
+export function Sheet(props: { visible: boolean; title: string; sub?: string; onClose: () => void; children: ReactNode; footer?: ReactNode;
+  /** Beside the title, before ? and ✕: the saved mark of what the sheet keeps as you go (SavedMark.tsx). */ action?: ReactNode }) {
   const insets = useSafeAreaInsets();
   const wide = useLayout().kind !== 'phone';
   const host = useHelpHost(props.visible);
@@ -862,6 +866,7 @@ export function Sheet(props: { visible: boolean; title: string; sub?: string; on
               <Text style={txt.title}>{props.title}</Text>
               {props.sub ? <Text style={[txt.smMuted, { marginTop: 4 }]}>{props.sub}</Text> : null}
             </View>
+            {props.action}
             <HelpToggle testID="sheet-help" />
             <IconBtn testID="sheet-close" name="close" label={t('common.close')} help={t('help.details.closeSheet')} onPress={props.onClose} bg={C.card} color={C.muted} />
           </View>

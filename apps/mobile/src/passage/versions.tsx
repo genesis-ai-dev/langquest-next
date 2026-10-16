@@ -78,7 +78,7 @@ export function VersionsPage(props: {
             trailing={<IconBtn name="trash" label={t('passage.versions.delete', { name })} help={t('passage.versions.deleteHelp')} bg="transparent" color={C.muted} size={44} onPress={() => remove(d, name)} />}>
             {props.canRecord ? <SmallBtn label={t('common.edit')} icon="edit" help={t('passage.versions.editDraftHelp')} onPress={() => props.go('workspace', { draftId: d.rootTakeId })} /> : null}
             {props.canRecord ? (
-              <SmallBtn label={t('common.publish')} icon="send" tone="primary" disabled={unchanged} help={t('passage.versions.publishHelp')}
+              <SmallBtn label={t('common.done')} icon="send" tone="primary" disabled={unchanged} help={t('passage.versions.doneHelp')}
                 onPress={() => props.go('workspace', { draftId: d.rootTakeId, publish: '1' })} />
             ) : null}
           </ItemCard>

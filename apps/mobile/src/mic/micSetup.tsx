@@ -365,7 +365,7 @@ function ByHand(props: { ctx: Ctx; onDone: () => void }) {
   }
   return (
     <Screen header={<Header title={t('recording.micSetup.byHand')} sub={t('recording.micSetup.title')} onBack={props.onDone} />}
-      footer={<PrimaryBtn label={t('recording.micSetup.saveSettings')} icon="check" busy={saving} onPress={() => void save()} />}>
+      footer={<PrimaryBtn label={t('recording.micSetup.useSettings')} icon="check" busy={saving} onPress={() => void save()} />}>
       <Text style={styles.lead}>{t('recording.micSetup.byHandLead')}</Text>
       <View style={styles.meter} {...(line.id ? {} : pan.panHandlers)}
         accessible accessibilityRole="adjustable" accessibilityLabel={t('recording.micSetup.sensitivityLine')} accessibilityValue={{ min: 4, max: 92, now: Math.round(cutoff * 100) }}

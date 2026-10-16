@@ -14,7 +14,9 @@
 // then useLibrary.publish appends 'v1.LibraryItemDefined' (a new guide) and
 // 'v1.LibraryVersionPublished'; verses numbered in another organization's
 // versification follow it first ('v1.LibrarySubscribed', 'v1.LibraryPinned').
-// Drafts stay on the device (draftStore.ts) until published.
+// Drafts stay on the device (draftStore.ts), the writer's own, until Done
+// publishes them; the saved mark in the header shows they are kept
+// (decision 111).
 import {
   CALLOUT_KINDS, LICENSES, isLicense, orgLicense, subscriptionItemId, unitPrefixOf, unitTitle,
   type CalloutKind, type MediaRef, type StudyDoc, type StudyDoc2, type VersificationDoc
@@ -26,7 +28,7 @@ import { Text } from '../ui/text';
 import { licenseText } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
-import { formatNumber, formatTime } from '../i18n/format';
+import { formatNumber } from '../i18n/format';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { Badge, Banner, Card, Chip, ChipRow, EmptyState, Field, Group, Header, HelpInfo, Ico, IconBtn, LinkBtn, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, SmallBtn } from '../ui/kit';
@@ -35,7 +37,7 @@ import { useLayout } from '../ui/useLayout';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
 import { LanguageField } from '../reference/LanguageField';
 import { readerLanguage } from '../reference/languages';
-import { failureMessage } from '../diagnostics/report';
+import { failureMessage, reportError } from '../diagnostics/report';
 import type { StudyGuide, StudyResource } from '../study/guides';
 import { guideFromDoc, glossaryEntryOf } from '../study/guideMatch';
 import { useStudyFileUri } from '../study/useStudyFileUri';
@@ -43,12 +45,15 @@ import { AudioBar, GlossarySheet, MediaSheet, StepPreview } from '../study/ui';
 import { CALLOUT_LOOK, calloutLabel, mediaKindLabel, shownClock } from '../study/studyText';
 import { useStudyAudio } from '../study/useStudyAudio';
 import { C, measure, radius, space, target, TINT, type as T } from '../ui/theme';
+import { SavedMark } from '../ui/SavedMark';
+import { useSaveStatus } from '../ui/useSaveStatus';
+import type { SaveStatus } from '../ui/savedModel';
 import { VoiceNote } from '../audio/voiceNote';
 import {
   boldText, buildDoc, calloutText, draftFromDoc, draftProblems, draftReducer, linkText, listText, newDraft, nextId, untitledResource,
   type DraftAction, type DraftMedia, type DraftPanel, type DraftProblem, type DraftResource, type DraftStep, type DraftTerm, type GuideDraft, type Selection
 } from './draft';
-import { draftKey, dropDraft, loadDraft, saveDraft } from './draftStore';
+import { draftKey, dropDraft, loadDraft, saveDraft, unownedDraftKey } from './draftStore';
 import { canPickFiles, FileProblem, keepPicked, mediaKindFor, pickFile, uploadDraftFiles, type PickKind } from './files';
 import { BLANK_METHOD, FIA_METHOD, methodFromDoc, type Method } from './methods';
 
@@ -109,25 +114,26 @@ export function GuideEditorScreen({ ctx }: { ctx: Ctx }) {
   // Written into a new guide's source and credit (the author can change them), so in the language showing.
   const orgName = ctx.org.state?.org?.value.name ?? t('guides.editor.ourOrganization');
   const license = orgLicense(ctx.org.state);
-  const key = draftKey(orgId, { ...(itemId ? { itemId } : {}), ...(from ? { from } : {}) });
+  const which = { ...(itemId ? { itemId } : {}), ...(from ? { from } : {}) };
+  const key = draftKey(orgId, ctx.session.actorId, which);
+  const unowned = unownedDraftKey(orgId, which);
 
   const [draft, setDraft] = useState<GuideDraft | null>(null);
-  const [restored, setRestored] = useState<number | null>(null);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [looked, setLooked] = useState(false);
   const dispatch = useCallback<Dispatch>((a) => setDraft((d) => (d ? draftReducer(d, a) : d)), []);
 
-  // A draft on this device wins; otherwise start from the guide being edited or adapted, or a new one.
+  // This person's draft on this device wins; otherwise start from the guide being edited or adapted, or a new one.
   useEffect(() => {
     let live = true;
     setLooked(false);
-    void loadDraft(key).then((saved) => {
+    void loadDraft(key, unowned).then((saved) => {
       if (!live) return;
-      if (saved) { setDraft(saved.draft); setRestored(saved.savedAt); setSavedAt(saved.savedAt); }
+      if (saved) { setDraft(saved.draft); setSavedAt(saved.savedAt); }
       setLooked(true);
     }).catch(() => { if (live) setLooked(true); });
     return () => { live = false; };
-  }, [key]);
+  }, [key, unowned]);
   useEffect(() => {
     if (!looked || draft) return;
     if (!sourceHash) { setDraft(newDraft({ method: FIA_METHOD, orgName, license, language: readerLanguage() })); return; }
@@ -139,14 +145,41 @@ export function GuideEditorScreen({ ctx }: { ctx: Ctx }) {
     }
   }, [looked, draft, sourceHash, source, itemId, it?.source, orgName, license]);
 
-  // Saved on the device a moment after each change, so a closed tab loses nothing.
+  // Kept on the device a moment after each change, and at once on leaving, so a closed tab loses nothing.
+  // The saved mark spins while a change waits to be kept and turns into a check once it is.
   const first = useRef(true);
+  const pending = useRef<GuideDraft | null>(null);
+  const round = useRef(0);
+  const [writing, setWriting] = useState(false);
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
     if (!draft) return;
     if (first.current) { first.current = false; return; }
-    const timer = setTimeout(() => { void saveDraft(key, draft).then(setSavedAt).catch(() => undefined); }, 600);
+    const n = ++round.current;
+    pending.current = draft;
+    setWriting(true);
+    const timer = setTimeout(() => {
+      if (round.current !== n) return;
+      pending.current = null;
+      void saveDraft(key, draft).then(
+        (at) => { if (round.current === n) { setSavedAt(at); setFailed(false); setWriting(false); } },
+        (e: unknown) => { reportError('guide draft: save', e); if (round.current === n) { setFailed(true); setWriting(false); } }
+      );
+    }, 600);
     return () => clearTimeout(timer);
   }, [draft, key]);
+  useEffect(() => () => {
+    const left = pending.current;
+    pending.current = null;
+    if (left) void saveDraft(key, left).catch((e: unknown) => { reportError('guide draft: save', e); });
+  }, [key]);
+  const status = useSaveStatus(writing, savedAt !== null, failed);
+  /** Published: the draft is forgotten, with any change still waiting to be kept. */
+  const finished = useCallback(async () => {
+    round.current++;
+    pending.current = null;
+    await dropDraft(key);
+  }, [key]);
 
   if (!canManage) return <Waiting ctx={ctx} title={t('guides.editor.notAllowed')} />;
   if (!draft) {
@@ -154,7 +187,7 @@ export function GuideEditorScreen({ ctx }: { ctx: Ctx }) {
     return <Waiting ctx={ctx} title={gone ? t('guides.editor.notAGuide') : t('common.loading')} {...(itemId && !it && ctx.org.state ? { sub: t('guides.editor.gone') } : {})} />;
   }
   return (
-    <Editor ctx={ctx} draft={draft} setDraft={setDraft} dispatch={dispatch} draftKey={key} restored={restored} savedAt={savedAt}
+    <Editor ctx={ctx} draft={draft} setDraft={setDraft} dispatch={dispatch} status={status} finished={finished}
       own={own.flatMap((i) => { const d = docs.get(i.current); return isStudy(d) && i.current !== sourceHash ? [methodFromDoc(i.itemId, d)] : []; })}
       isNew={!sourceHash} title={itemId ? t('guides.editor.editGuide') : from ? t('guides.editor.adaptGuide') : t('guides.editor.writeGuide')}
       newer={!!(itemId && it?.current && draft.basis?.docHash && draft.basis.docHash !== it.current)} />
@@ -162,8 +195,12 @@ export function GuideEditorScreen({ ctx }: { ctx: Ctx }) {
 }
 
 function Editor(props: {
-  ctx: Ctx; draft: GuideDraft; setDraft: (d: GuideDraft) => void; dispatch: Dispatch; draftKey: string;
-  restored: number | null; savedAt: number | null; own: Method[]; isNew: boolean; title: string;
+  ctx: Ctx; draft: GuideDraft; setDraft: (d: GuideDraft) => void; dispatch: Dispatch;
+  /** How keeping the draft on this device is going, for the saved mark. */
+  status: SaveStatus;
+  /** Forgets the draft once it is published. */
+  finished: () => Promise<void>;
+  own: Method[]; isNew: boolean; title: string;
   /** Someone published a version after this draft began. */
   newer: boolean;
 }) {
@@ -208,7 +245,7 @@ function Editor(props: {
         // The item's description, like its name, is the author's: in the language showing.
         description: doc.pattern ? t('guides.editor.itemDescriptionPattern', { pattern: doc.pattern }) : t('guides.editor.itemDescription'), doc
       });
-      await dropDraft(props.draftKey);
+      await props.finished();
       ctx.toast(t('guides.editor.published', { title: doc.title }));
       ctx.back();
     } catch (e) {
@@ -219,11 +256,11 @@ function Editor(props: {
   }
 
   const counts: Record<DraftPanel, number | null> = { details: null, steps: draft.steps.length, media: draft.resources.length, glossary: draft.terms.length };
-  const saved = props.savedAt ? t('guides.editor.savedAt', { time: formatTime(props.savedAt) }) : t('guides.editor.savedAsYouWrite');
   return (
     <Screen fixed={false} columnWidth={wide ? measure.report : undefined}
-      header={<Header title={draft.title.trim() || props.title} {...(draft.title.trim() ? { sub: props.title } : {})} onBack={ctx.back} columnWidth={wide ? measure.report : undefined} />}
-      footer={<PrimaryBtn label={busy ?? (draft.basis?.itemId ? t('guides.editor.publishNewVersion') : t('common.publish'))} onPress={() => void publish()} disabled={!!busy}
+      header={<Header title={draft.title.trim() || props.title} {...(draft.title.trim() ? { sub: props.title } : {})} onBack={ctx.back} columnWidth={wide ? measure.report : undefined}
+        action={<SavedMark status={props.status} help={t('saved.draftHelp')} />} />}
+      footer={<PrimaryBtn label={busy ?? t('common.done')} icon="check" onPress={() => void publish()} disabled={!!busy}
         help={t('guides.editor.publishHelp')} />}>
       {/* Forms keep the reading width; only the steps use the whole window, side by side. */}
       <View style={[{ gap: space.md }, panel === 'steps' ? null : s.reading]}>
@@ -236,10 +273,6 @@ function Editor(props: {
             ))}
           </ChipRow>
         </View>
-        <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>{saved}</Text>
-        {props.restored && panel === 'details' ? (
-          <Banner icon="history" title={t('guides.editor.restored', { time: formatTime(props.restored) })} body={t('guides.editor.restoredBody')} />
-        ) : null}
         {props.newer ? (
           <Banner icon="history" tone="amber" title={t('guides.editor.newer')} body={t('guides.editor.newerBody')} />
         ) : null}

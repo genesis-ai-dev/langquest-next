@@ -173,19 +173,19 @@ export function RecorderBar(props: { count: number; phase: LoopPhase; disabled: 
   );
 }
 
-/** The footer (a-wsHalf): the part next, the big red button, and Publish beside it. */
+/** The footer (a-wsHalf): the part next, the big red button, and Done beside it (decision 111; it was Publish). */
 export function RecorderFooter(props: { count: number; phase: LoopPhase; recordDisabled: boolean; publishDisabled: boolean; onRecord: () => void; onPublish: () => void }) {
   const lines = recorderLines(props.count);
   const recording = props.phase !== 'off';
-  const publish = useHelpSpot(t('common.publish'), t('recording.recorder.publishHelp'), props.onPublish);
+  const publish = useHelpSpot(t('common.done'), t('recording.recorder.doneHelp'), props.onPublish);
   return (
     <View style={styles.footer}>
       <Text style={[styles.side, { textAlign: 'right', color: recording ? TINT.redText : C.muted }]} numberOfLines={2}>{recording ? t('recording.recorder.nextRecording', { part: lines.next }) : lines.next}</Text>
       <RecordBtn size={72} recording={recording} disabled={props.recordDisabled} onPress={props.onRecord} />
       <View style={styles.sideBox}>
-        <Pressable testID="publish-button" onPress={publish.onPress} disabled={props.publishDisabled} accessibilityRole="button" accessibilityLabel={t('common.publish')} accessibilityState={{ disabled: props.publishDisabled }}
+        <Pressable testID="publish-button" onPress={publish.onPress} disabled={props.publishDisabled} accessibilityRole="button" accessibilityLabel={t('common.done')} accessibilityState={{ disabled: props.publishDisabled }}
           style={({ pressed }) => [styles.publish, props.publishDisabled && { opacity: 0.45 }, pressed && ps.pressed]}>
-          <Text style={styles.publishLabel}>{t('common.publish')}</Text>
+          <Text style={styles.publishLabel}>{t('common.done')}</Text>
           <HelpBadge spot={publish} />
         </Pressable>
       </View>

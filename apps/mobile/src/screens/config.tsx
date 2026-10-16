@@ -22,7 +22,7 @@ import {
   type EventSpec, type FlowDoc, type FlowStep, type KeyTermView, type KindDef, type LibraryDoc, type LibraryItemView, type MaterialView, type Privilege, type VersificationDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { AudioClip } from '../audio/audioClip';
@@ -44,8 +44,17 @@ import { LanguageField } from '../reference/LanguageField';
 import { readerLanguage } from '../reference/languages';
 import { contractsFor } from '../shell/screenContracts';
 import { draftToTie } from '../study/keyTermDraft';
+import { draftKey } from '../drafts/draftModel';
+import {
+  draftBehind, editorDraft, EMPTY_RENDERING, isFlowDraft, isLibraryMaterialDraft, isMaterialDraft, isRenderingDraft, isTermDraft,
+  NO_FLOW_EDITS, NO_LIBRARY_MATERIAL_EDITS, NO_MATERIAL_EDITS,
+  type FlowDraft, type FlowEdits, type LibraryMaterialDraft, type LibraryMaterialEdits, type MaterialDraft, type MaterialEdits, type RenderingDraft
+} from '../drafts/editorDrafts';
+import { useDraft } from '../drafts/useDraft';
 import { sourceText } from '../passage/scripture';
 import { C, radius, space, TINT } from '../ui/theme';
+import { SavedMark } from '../ui/SavedMark';
+import { useSaver } from '../ui/useSaveStatus';
 import { VoiceNote } from '../audio/voiceNote';
 import { CheckSteps } from '../checks/checkSteps';
 import { BibleChip, OthersSay, OwnWord, PassageNoteEditor, WhereItIs } from '../helps/helps';
@@ -237,14 +246,21 @@ export function RoleEditor(ctx: Ctx) {
   const existing = isNew ? undefined : org?.roles[roleId];
   const inherited = !isNew && level !== 'org';
   const readOnly = inherited || !ctx.session.can('manage_roles');
+  // The name as typed; a new role's switches until it is made, an existing role's while their change is on its way.
   const [name, setName] = useState<string | null>(null);
   const [picked, setPicked] = useState<Privilege[] | null>(null);
   const [busy, setBusy] = useState(false);
+  const saver = useSaver();
+  const writing = useRef(0);
+  // The definition on its way, so Enter and then leaving the field write it once.
+  const sending = useRef<string | null>(null);
   const label = name ?? existing?.name.value ?? '';
   const privileges = picked ?? existing?.privileges.value ?? [];
   const holders = useMemo(() => (isNew ? [] : holdersOf(org, roleId)), [isNew, org, roleId]);
   const canAssign = ctx.session.can('assign_work');
-  const dirty = roleDirty(isNew, existing, label, privileges);
+  // Leaving keeps a new name typed and not yet applied (decision 111).
+  const leave = useLatest(() => { if (name !== null) void apply(name, privileges); });
+  useEffect(() => () => leave.current(), [leave]);
 
   if (!isNew && !existing) {
     return (
@@ -254,16 +270,46 @@ export function RoleEditor(ctx: Ctx) {
     );
   }
 
-  async function save() {
+  /**
+   * An existing role changes as it is changed (decision 111): a switch at
+   * once, the name when its field or the screen is left. Each change is written with Undo; an
+   * empty name is never written.
+   */
+  async function apply(nextName: string, nextPrivileges: Privilege[]) {
+    if (readOnly || !existing) return;
+    const next = roleDefinition(roleId, nextName.trim() || existing.name.value, nextPrivileges);
+    const prev = roleSnapshot(roleId, existing);
+    if (!prev || !roleDirty(false, existing, next.name, next.privileges) || sending.current === JSON.stringify(next)) return;
+    sending.current = JSON.stringify(next);
+    writing.current += 1;
+    setPicked(next.privileges);
+    const ok = await saver.run(async () => {
+      try {
+        await ctx.org.append('v1.RoleDefined', next);
+      } catch (e) {
+        ctx.toast(t('common.notSaved', { reason: failure('save role', e) }));
+        throw e;
+      }
+      return true;
+    });
+    writing.current -= 1;
+    if (sending.current === JSON.stringify(next)) sending.current = null;
+    if (writing.current === 0) setPicked(null);
+    if (!ok) return;
+    setName((n) => (n !== null && n.trim() === next.name ? null : n));
+    ctx.toast(t('config.roleEditor.saved', { name: next.name }), async () => {
+      try { await ctx.org.append('v1.RoleDefined', prev); ctx.toast(t('common.undone')); } catch (e) { ctx.toast(t('common.notUndone', { reason: failure('undo role', e) })); }
+    });
+  }
+
+  /** A new role is made once it has a name, with the switches chosen. */
+  async function create() {
     if (readOnly || busy || !label.trim()) return;
     const next = roleDefinition(roleId, label, privileges);
-    const prev = roleSnapshot(roleId, existing);
     setBusy(true);
     try {
       await ctx.org.append('v1.RoleDefined', next);
-      ctx.toast(isNew ? t('config.roleEditor.created', { name: next.name }) : t('config.roleEditor.saved', { name: next.name }), prev ? async () => {
-        try { await ctx.org.append('v1.RoleDefined', prev); ctx.toast(t('common.undone')); } catch (e) { ctx.toast(t('common.notUndone', { reason: failure('undo role', e) })); }
-      } : undefined);
+      ctx.toast(t('config.roleEditor.created', { name: next.name }));
       ctx.back();
     } catch (e) {
       ctx.toast(t('common.notSaved', { reason: failure('save role', e) }));
@@ -275,9 +321,10 @@ export function RoleEditor(ctx: Ctx) {
   // The role's permissions as three groups of switches in the admin's words (decision 71, demo ADR-039).
   return (
     <Screen
-      header={<Header title={label || (isNew ? t('config.roleEditor.newRole') : t('config.roleEditor.title'))} sub={isNew ? t('config.roleEditor.aNewRole') : t('config.roleEditor.people', { count: people })} onBack={ctx.back} />}
+      header={<Header title={label || (isNew ? t('config.roleEditor.newRole') : t('config.roleEditor.title'))} sub={isNew ? t('config.roleEditor.aNewRole') : t('config.roleEditor.people', { count: people })} onBack={ctx.back}
+        action={readOnly || isNew ? undefined : <SavedMark status={saver.status} />} />}
       bodyStyle={{ gap: space.sm }}
-      footer={readOnly ? undefined : <PrimaryBtn label={t('common.save')} icon="check" help={t('config.roleEditor.saveHelp')} onPress={() => void save()} disabled={!label.trim() || !dirty} busy={busy} />}>
+      footer={readOnly || !isNew ? undefined : <PrimaryBtn label={t('config.roleEditor.addRole')} icon="plus" help={t('config.roleEditor.addRoleHelp')} onPress={() => void create()} disabled={!label.trim()} busy={busy} />}>
       {inherited ? <Banner icon="lock" title={t('common.viewOnly')} body={t('config.roleEditor.inheritedBody')} /> : null}
       {readOnly && !inherited ? <Banner icon="lock" title={t('common.viewOnly')} body={t('config.roleEditor.noPermission')} /> : null}
       {isNew && !readOnly ? <Field label={t('config.roleEditor.nameLabel')} value={label} onChangeText={setName} placeholder={t('config.roleEditor.namePlaceholder')} autoCapitalize="words" /> : null}
@@ -290,7 +337,7 @@ export function RoleEditor(ctx: Ctx) {
               return (
                 <SwitchRow key={row.label} label={row.label} on={state !== 'off'} disabled={readOnly || busy} last={i === g.rows.length - 1} help={roleSwitchHelp(row.privileges)}
                   {...(state === 'some' ? { sub: t('config.roleEditor.onlySome', { privileges: listOf(privilegesOn(row.privileges, privileges).map((p) => PRIVILEGE_INFO[p].label)) }) } : {})}
-                  onToggle={() => setPicked(flipSwitch(privileges, row))} />
+                  onToggle={() => (isNew ? setPicked(flipSwitch(privileges, row)) : void apply(label, flipSwitch(privileges, row)))} />
               );
             })}
           </Group>
@@ -307,7 +354,7 @@ export function RoleEditor(ctx: Ctx) {
               onPress={canAssign ? () => ctx.go('edit_member', { memberId: h.profileId }) : undefined} last={last} />
           )} />
           {!readOnly ? <Field label={t('config.roleEditor.itsName')} value={label} onChangeText={setName} placeholder={t('config.roleEditor.itsNamePlaceholder')} autoCapitalize="words"
-            help={t('config.roleEditor.renameHelp')} /> : null}
+            onSubmit={() => void apply(label, privileges)} onBlur={() => void apply(label, privileges)} help={t('config.roleEditor.renameHelp')} /> : null}
         </>
       ) : null}
       <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>{t('config.roleEditor.scopeNote')}</Text>
@@ -608,7 +655,7 @@ export function FlowsHome(ctx: Ctx) {
               <FlowStepsInline steps={current.steps} kinds={kinds} explain />
               {canManage && currentItem ? <SmallBtn label={t('config.flows.openFlow')} icon="edit" help={t('config.flows.openFlowHelp')} onPress={() => ctx.go('flow_editor', { itemId: currentItem.itemId })} /> : null}
               {canWrite && !current.itemId && current.chosen && current.steps.length ? (
-                <SmallBtn label={t('config.flows.saveAsFlow')} icon="plus" help={t('config.flows.saveAsFlowHelp')} onPress={() => ctx.go('flow_editor', { itemId: 'new', languageId: ctx.language.languageId })} />
+                <SmallBtn label={t('config.flows.addToFlows')} icon="plus" help={t('config.flows.saveAsFlowHelp')} onPress={() => ctx.go('flow_editor', { itemId: 'new', languageId: ctx.language.languageId })} />
               ) : null}
             </Card>
           ) : null}
@@ -689,8 +736,9 @@ function StepSheet(props: {
  * demo ADR-039 "Who checks"): the steps top to bottom, each with who usually
  * does it and a lock for a step that must pass. With `steps: 'language'` it
  * edits the open language's own checks (core `saveFlowSteps`, Undo puts
- * back the flow it had); otherwise a library flow, whose Save publishes a
- * new version that the languages using it move to.
+ * back the flow it had); otherwise a library flow, kept on this phone as it
+ * changes, whose Done publishes a new version that the languages using it
+ * move to.
  */
 export function FlowEditor(ctx: Ctx) {
   // A language's own checks, or New language's before it exists (screens/checks.tsx, decision 91).
@@ -711,14 +759,15 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
   // flow's steps under a name given (New language's "I'll choose the steps", `from` and `name`).
   const [seed] = useState(() => flowEditorSeed(state, isNew, { languageId: ctx.params['languageId'], name: ctx.params['name'] }, isNew ? cachedDoc(ctx.params['from']) : null));
   const base = useMemo(() => flowEditorBase(isNew, seed, doc), [isNew, seed, doc]);
-  const [name, setName] = useState<string | null>(null);
-  const [description, setDescription] = useState<string | null>(null);
-  const [edited, setEdited] = useState<DraftStep[] | null>(null);
-  const [added, setAdded] = useState<KindDef[]>([]);
+  // What is changed is kept on this phone as it changes, there when the editor opens again (decision 111); Done publishes it.
+  // A new flow's draft is the one begun from the same start (`languageId`, `from`).
+  const draft = useDraft<FlowDraft | null>(
+    draftKey('editor', ctx.session.actorId, lib.orgId, 'flow', requested, ...(isNew ? [ctx.params['languageId'], ctx.params['from']] : [])), null, isFlowDraft);
+  const { name, description, steps: edited, added } = draft.value?.form ?? NO_FLOW_EDITS;
+  const edit = (patch: Partial<FlowEdits>) => draft.set((prev) => editorDraft({ ...(prev?.form ?? NO_FLOW_EDITS), ...patch }, NO_FLOW_EDITS, prev?.basis ?? it?.current ?? null));
   const [open, setOpen] = useState<number | null>(null);
   const [pickFor, setPickFor] = useState<number | 'new' | null>(null);
   const [newKind, setNewKind] = useState('');
-  const [leaving, setLeaving] = useState(false);
   const [busy, setBusy] = useState(false);
   const known = useMemo(() => knownKinds(state ? deriveKinds(state) : [], doc?.kinds ?? [], seed.kinds), [state, doc, seed]);
   const kinds = useMemo(() => withAddedKinds(known, added), [known, added]);
@@ -729,7 +778,10 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
   const steps = edited ?? base?.steps ?? [];
   const label = name ?? base?.name ?? '';
   const desc = description ?? base?.description ?? '';
-  const { dirty, canSave } = flowEditorStatus({ readOnly, isNew, base, label, desc, steps, added });
+  const { canSave } = flowEditorStatus({ readOnly, isNew, base, label, desc, steps, added });
+  // Done publishes what changed, or with nothing changed just closes.
+  const canFinish = !readOnly && base !== null && draft.loaded && !!label.trim();
+  const newer = draftBehind(draft.value, it?.current);
   const language = openLanguageName(ctx);
   const usedHere = !!it && !!language && usesItem(state, it.itemId);
 
@@ -741,7 +793,7 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
     );
   }
 
-  const change = (next: DraftStep[]) => setEdited(next);
+  const change = (next: DraftStep[]) => edit({ steps: next });
   const title = (i: number) => stepTitle(steps[i]?.kindIds ?? [], kinds);
   const picking = typeof pickFor === 'number' ? steps[pickFor] : undefined;
   const pick = (id: string) => {
@@ -749,32 +801,40 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
     setPickFor(null);
   };
 
-  /** Save publishes a new version; languages using the flow move to it by themselves (follow.ts). */
-  async function save() {
-    if (!canSave || busy) return;
+  /** Done publishes a new version; languages using the flow move to it by themselves (follow.ts). */
+  async function done() {
+    if (!canFinish || busy) return;
+    if (!canSave) {
+      void draft.clear();
+      ctx.back();
+      return;
+    }
     const flowDoc = flowDocFrom({ name: label, description: desc, steps, kinds });
     setBusy(true);
     const saved = await libraryAct(ctx, 'save flow', // i18n-ignore: log label
       () => lib.publish({ kind: 'flow', ...(it ? { itemId: it.itemId } : {}), name: flowDoc.name, description: flowDoc.description, doc: flowDoc }),
       usedHere ? t('config.flowEditor.savedMoves', { name: flowDoc.name, language }) : t('config.flowEditor.saved', { name: flowDoc.name }));
-    if (saved) ctx.back();
-    else setBusy(false);
+    if (!saved) { setBusy(false); return; }
+    await draft.clear();
+    ctx.back();
   }
 
   return (
     <Screen
       header={<Header title={label || (isNew ? t('config.flowEditor.newWayToCheck') : t('config.flowEditor.whoChecks'))} sub={it ? sourceLine(it) : t('config.flowEditor.newSub')}
-        onBack={() => (dirty ? setLeaving(true) : ctx.back())} />}
-      footer={readOnly ? undefined : <PrimaryBtn label={t('common.save')} icon="check" help={t('config.flowEditor.saveHelp')} onPress={() => void save()} disabled={!canSave} busy={busy} />}>
+        onBack={ctx.back} action={readOnly ? undefined : <SavedMark status={draft.status} help={t('saved.draftHelp')} />} />}
+      footer={readOnly ? undefined : <PrimaryBtn label={t('common.done')} icon="check" help={t('config.flowEditor.saveHelp')} onPress={() => void done()} disabled={!canFinish} busy={busy} />}>
+      {/* Only what was changed here replaces theirs: the rest is the newer version's. */}
+      {newer && !readOnly && !busy ? <Banner icon="history" tone="amber" title={t('guides.editor.newer')} /> : null}
       {followed ? (
         <Banner icon="link" title={t('config.library.follows', { org: it!.subscription!.sourceOrgName })} body={t('config.library.followsBody')} />
       ) : !canManage ? <Banner icon="lock" title={t('common.viewOnly')} body={t('config.flowEditor.noPermission')} /> : null}
-      {!base ? <Card><Text style={txt.smMuted}>{t('common.loading')}</Text></Card> : (
+      {!base || !draft.loaded ? <Card><Text style={txt.smMuted}>{t('common.loading')}</Text></Card> : (
         <>
           {readOnly ? (desc ? <Text style={[txt.sm, { paddingHorizontal: space.xs }]}>{desc}</Text> : null) : (
             <>
-              <Field label={t('config.flowEditor.nameLabel')} value={label} onChangeText={setName} placeholder={t('config.flowEditor.namePlaceholder')} autoCapitalize="words" />
-              <Field label={t('config.flowEditor.descriptionLabel')} value={desc} onChangeText={setDescription} placeholder={t('config.flowEditor.descriptionPlaceholder')} autoCapitalize="sentences" multiline />
+              <Field label={t('config.flowEditor.nameLabel')} value={label} onChangeText={(v) => edit({ name: v })} placeholder={t('config.flowEditor.namePlaceholder')} autoCapitalize="words" />
+              <Field label={t('config.flowEditor.descriptionLabel')} value={desc} onChangeText={(v) => edit({ description: v })} placeholder={t('config.flowEditor.descriptionPlaceholder')} autoCapitalize="sentences" multiline />
             </>
           )}
           <CheckSteps steps={steps} kinds={kinds} readOnly={readOnly} usually={usuallyFor(state, kinds, ctx.name)} onChange={change}
@@ -810,19 +870,12 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
         <SmallBtn label={t('config.flowEditor.addThisKind')} icon="plus" tone="primary" disabled={!newKind.trim()} help={t('config.flowEditor.addThisKindHelp')} onPress={() => {
           if (!newKind.trim()) return;
           const k = newKindDef(newKind, kinds);
-          setAdded([...added, k]);
+          edit({ added: [...added, k] });
           setNewKind('');
           pick(k.id);
         }} />
       </Sheet>
 
-      <Sheet visible={leaving} title={t('config.flowEditor.leaveTitle')} sub={t('config.flowEditor.leaveSubFlow')} onClose={() => setLeaving(false)}
-        footer={<>
-          <PrimaryBtn label={t('common.save')} icon="check" help={t('config.flowEditor.saveHelp')} onPress={() => { setLeaving(false); void save(); }} busy={busy} disabled={!label.trim()} />
-          <GhostBtn label={t('config.flowEditor.discard')} tone="red" help={t('config.flowEditor.discardHelp')} onPress={() => { setLeaving(false); ctx.back(); }} />
-        </>}>
-        {null}
-      </Sheet>
     </Screen>
   );
 }
@@ -971,6 +1024,15 @@ export function MaterialEditor(ctx: Ctx) {
   return ctx.params['itemId'] ? <LibraryMaterialEditor ctx={ctx} /> : <AppMaterialEditor ctx={ctx} />;
 }
 
+/** A material's fields with the changes made in the editor, as they will be once written. */
+function withFieldChanges(fields: MaterialView['fields'], changes: { fieldId: string; text: string }[]): MaterialView['fields'] {
+  const changed = new Map(changes.map((c) => [c.fieldId, c.text]));
+  return [
+    ...fields.map((f) => (changed.has(f.fieldId) ? { ...f, text: changed.get(f.fieldId)! } : f)),
+    ...changes.filter((c) => !fields.some((f) => f.fieldId === c.fieldId)).map((c) => ({ fieldId: c.fieldId, text: c.text }))
+  ];
+}
+
 function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
   const state = ctx.language.state;
   const lib = useLibrary(ctx);
@@ -982,24 +1044,28 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
   const existing = useMemo(() => (state && materialId ? materialView(state, materialId) : null), [state, materialId]);
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
   const canManage = ctx.session.can('manage_reference');
+  // What is changed is kept on this phone as it changes, there when the editor opens again (decision 111); Done writes it.
+  const draft = useDraft<MaterialDraft | null>(
+    draftKey('editor', ctx.session.actorId, lib.orgId, 'material', ctx.language.languageId, materialId ?? 'new', ...(isNew ? [ctx.params['languageId'] ? 'language' : 'org'] : [])),
+    null, isMaterialDraft);
+  const edits = draft.value?.form ?? NO_MATERIAL_EDITS;
+  const edit = (patch: Partial<MaterialEdits>) => draft.set((prev) => editorDraft({ ...(prev?.form ?? NO_MATERIAL_EDITS), ...patch }, NO_MATERIAL_EDITS, null));
   // A new material: what it is, where it applies, and which review its questions are for.
-  const [kind, setKind] = useState(canManage ? 'tg' : 'questions');
-  const [title, setTitle] = useState('');
-  const [forLanguage, setForLanguage] = useState(!!ctx.params['languageId'] || !mayRecommend);
-  const [reviewKind, setReviewKind] = useState('peer');
+  const kind = edits.kind ?? (canManage ? 'tg' : 'questions');
+  const title = edits.title;
+  const forLanguage = edits.forLanguage ?? (!!ctx.params['languageId'] || !mayRecommend);
+  const reviewKind = edits.reviewKind ?? 'peer';
   // What it goes to the library in (decision 84): the writer's own language unless they say another.
-  const [libraryLanguage, setLibraryLanguage] = useState(readerLanguage);
+  const libraryLanguage = edits.libraryLanguage ?? readerLanguage();
   // Edits: only touched fields are written (each field is its own register, so two people filling different blanks both land).
-  const [texts, setTexts] = useState<Record<string, string>>({});
-  const [extraFields, setExtraFields] = useState<string[]>([]);
+  const { texts, extraFields, questions } = edits;
   const [newField, setNewField] = useState('');
-  const [questions, setQuestions] = useState<QuestionDraft[] | null>(isNew ? [{ fieldId: 'q1', text: '', type: 'text', required: false }] : null);
   const [busy, setBusy] = useState(false);
   const [shown, setShown] = useState(STEP);
   const baseQuestions = useMemo(() => questionDrafts(existing), [existing]);
 
-  if (!state || (!isNew && !existing)) {
-    return <Screen header={<Header title={t('config.material.editTitle')} onBack={ctx.back} />}><EmptyState icon="book" title={state ? t('config.material.gone') : t('common.loading')} /></Screen>;
+  if (!state || !draft.loaded || (!isNew && !existing)) {
+    return <Screen header={<Header title={t('config.material.editTitle')} onBack={ctx.back} />}><EmptyState icon="book" title={state && draft.loaded ? t('config.material.gone') : t('common.loading')} /></Screen>;
   }
 
   const materialKind = existing?.kind ?? kind;
@@ -1008,18 +1074,25 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
   const canFill = canManage || (ctx.session.can('fill_reference') && !locked && (existing !== null || isQuestions));
   // Question sets stay in the language: reviewers read the language's sets (core `questionsForKind`).
   const toLibrary = isNew && !isQuestions && mayRecommend && (!forLanguage || !language);
-  const qs = questions ?? baseQuestions;
+  const qs = questions ?? (isNew ? [{ fieldId: 'q1', text: '', type: 'text' as const, required: false }] : baseQuestions);
   const before = (fieldId: string) => existing?.fields.find((f) => f.fieldId === fieldId)?.text ?? '';
   // A new FIA study follows its template (summary, key ideas, scenes, discussion); other new material starts with one section.
   const fieldIds = materialFieldIds({ existing, isNew, materialKind, extraFields });
   const valueOf = (fieldId: string) => texts[fieldId] ?? before(fieldId);
 
-  // What saving would write.
+  // What Done would write.
   const changes = materialChanges({ isQuestions, questions: qs, baseQuestions, fieldIds, texts, before });
   const ready = materialReady({ isNew, title, isQuestions, changes, toLibrary, hasLanguage: !!language });
 
-  async function save() {
-    if (!canFill || busy || !ready) return;
+  /** Done: new material is added; changes to material there are written (with Undo); with none, it just closes. */
+  async function done() {
+    if (!canFill || busy) return;
+    if (!isNew && changes.length === 0) {
+      void draft.clear();
+      ctx.back();
+      return;
+    }
+    if (!ready) return;
     if (toLibrary) return saveToLibrary();
     const s = state!;
     const id = existing?.materialId ?? `${materialKind}-${Crypto.randomUUID()}`;
@@ -1031,8 +1104,9 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
       : c.setMaterialFields({ commandId: Crypto.randomUUID(), materialId: id, fields })),
     isNew ? t('config.material.added', { title: title.trim() }) : t('config.material.saved'),
     isNew ? undefined : () => c.setMaterialFields({ commandId: Crypto.randomUUID(), materialId: id, fields: fieldRestores(changes) }));
-    if (saved) ctx.back();
-    else setBusy(false);
+    if (!saved) { setBusy(false); return; }
+    await draft.clear();
+    ctx.back();
   }
 
   /** New material for every language: a library item, recommended to every language (decision 63). */
@@ -1044,8 +1118,9 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
       const { itemId } = await lib.publish({ kind: 'material', name, description: referenceKindName(materialKind), doc });
       await ctx.org.append('v1.ReferenceRecommended', { itemId, recommended: true });
     }, t('config.material.inLibraryRecommended', { name }));
-    if (saved) ctx.back();
-    else setBusy(false);
+    if (!saved) { setBusy(false); return; }
+    await draft.clear();
+    ctx.back();
   }
 
   function toggleLock() {
@@ -1057,19 +1132,34 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
       () => c.lockMaterial({ commandId: Crypto.randomUUID(), materialId: existing.materialId, locked: !to }));
   }
 
+  const setQuestions = (next: QuestionDraft[]) => edit({ questions: next });
   const setQuestion = (i: number, p: Partial<QuestionDraft>) => setQuestions(qs.map((q, j) => (j === i ? { ...q, ...p } : q)));
   const kindOfSet = existing ? setKindName(kinds, existing) : null;
   const fieldTitle = (fieldId: string) => (state.units[fieldId] ? unitTitle(state, fieldId) : fieldLabel(fieldId));
   const published = existing ? lib.item(materialItemId(existing.materialId)) : null;
 
-  /** Publish to library: its saved fields become a new version of the item made from it (the same item every time). */
+  /**
+   * Publish to library: the material as it is on the screen becomes a new
+   * version of the item made from it (the same item every time). Changes
+   * not yet in the material are written to it first, as Done writes them.
+   */
   async function publishToLibrary() {
     if (!existing || !canManage || busy) return;
     setBusy(true);
+    if (changes.length) {
+      const c = commands(state!, indexesFor(state!));
+      const written = await actCommand(ctx, 'save material', // i18n-ignore: log label
+        () => c.setMaterialFields({ commandId: Crypto.randomUUID(), materialId: existing.materialId, fields: fieldWrites(changes) }), t('config.material.saved'),
+        () => c.setMaterialFields({ commandId: Crypto.randomUUID(), materialId: existing.materialId, fields: fieldRestores(changes) }));
+      if (!written) { setBusy(false); return; }
+      draft.set(null);
+      await draft.clear();
+    }
+    const fields = withFieldChanges(existing.fields, changes);
     await libraryAct(ctx, 'publish material', // i18n-ignore: log label
       () => lib.publish({
         kind: 'material', itemId: materialItemId(existing.materialId), name: existing.title,
-        description: published?.description || referenceKindName(existing.kind), doc: { ...materialDocFrom(existing, fieldTitle), language: libraryLanguage }
+        description: published?.description || referenceKindName(existing.kind), doc: { ...materialDocFrom({ ...existing, fields }, fieldTitle), language: libraryLanguage }
       }),
       published ? t('config.material.publishedVersion', { title: existing.title }) : t('config.material.inLibraryShare', { title: existing.title }));
     setBusy(false);
@@ -1078,11 +1168,14 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
   return (
     <Screen
       header={<Header title={existing?.title ?? t('config.material.newMaterial')} sub={existing ? materialScopeName(state, existing, language ?? '') : toLibrary ? orgName(ctx) : language ?? orgName(ctx)} onBack={ctx.back}
-        action={existing && canManage ? <SmallBtn label={locked ? t('config.material.locked') : t('config.material.unlocked')} icon="lock" tone={locked ? 'dark' : undefined}
-          help={locked ? t('config.material.lockedHelp') : t('config.material.unlockedHelp')} onPress={toggleLock} />
-          : existing && locked ? <Badge label={t('config.material.locked')} tone="red" /> : undefined} />}
-      footer={canFill ? <PrimaryBtn label={isNew ? t('config.reference.addMaterial') : t('config.material.saveChanges')}
-        help={isNew ? t('config.material.saveNewHelp') : t('help.details.save')} onPress={() => void save()} disabled={!ready} busy={busy} /> : undefined}>
+        action={<>
+          {canFill ? <SavedMark status={draft.status} help={t('saved.draftHelp')} /> : null}
+          {existing && canManage ? <SmallBtn label={locked ? t('config.material.locked') : t('config.material.unlocked')} icon="lock" tone={locked ? 'dark' : undefined}
+            help={locked ? t('config.material.lockedHelp') : t('config.material.unlockedHelp')} onPress={toggleLock} />
+            : existing && locked ? <Badge label={t('config.material.locked')} tone="red" /> : null}
+        </>} />}
+      footer={canFill ? <PrimaryBtn label={isNew ? t('config.reference.addMaterial') : t('common.done')}
+        help={isNew ? t('config.material.saveNewHelp') : t('config.material.doneHelp')} onPress={() => void done()} disabled={isNew && !ready} busy={busy} /> : undefined}>
       {existing ? (
         <Text style={txt.xs}>
           {[referenceKindName(existing.kind), t('config.material.byWhom', { name: ctx.name(existing.createdBy) }), ...(kindOfSet ? [t('config.material.questionsFor', { kind: kindOfSet })] : [])].join(' · ')}
@@ -1096,24 +1189,24 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
           <SectionLabel label={t('config.material.whatKind')} />
           <Group>
             {referenceKinds().filter((k) => k.id !== 'key_terms' && (canManage || k.id === 'questions')).map((k, i, a) => (
-              <Row key={k.id} label={k.name} sub={k.code} help={t('config.material.kindHelp')} onPress={() => setKind(k.id)} last={i === a.length - 1}
+              <Row key={k.id} label={k.name} sub={k.code} help={t('config.material.kindHelp')} onPress={() => edit({ kind: k.id })} last={i === a.length - 1}
                 role="radio" selected={kind === k.id}
                 right={kind === k.id ? <Ico name="check" size={22} color={C.primary} /> : <View style={{ width: 22 }} />} />
             ))}
           </Group>
-          <Field label={t('config.material.titleLabel')} value={title} onChangeText={setTitle} placeholder={isQuestions ? t('config.material.questionsTitlePlaceholder') : t('config.material.titlePlaceholder')} autoCapitalize="sentences" />
+          <Field label={t('config.material.titleLabel')} value={title} onChangeText={(v) => edit({ title: v })} placeholder={isQuestions ? t('config.material.questionsTitlePlaceholder') : t('config.material.titlePlaceholder')} autoCapitalize="sentences" />
           {language && mayRecommend && !isQuestions ? (
             <>
               <SectionLabel label={t('config.material.whereItApplies')} />
               <ChipRow>
-                <Chip label={language} icon="globe" on={forLanguage} help={t('config.material.forLanguageHelp')} onPress={() => setForLanguage(true)} />
-                <Chip label={t('config.material.allLanguages')} icon="folder" on={!forLanguage} help={t('config.material.allLanguagesHelp')} onPress={() => setForLanguage(false)} />
+                <Chip label={language} icon="globe" on={forLanguage} help={t('config.material.forLanguageHelp')} onPress={() => edit({ forLanguage: true })} />
+                <Chip label={t('config.material.allLanguages')} icon="folder" on={!forLanguage} help={t('config.material.allLanguagesHelp')} onPress={() => edit({ forLanguage: false })} />
               </ChipRow>
             </>
           ) : null}
           {toLibrary ? (
             <>
-              <LanguageField label={t('reference.language.writtenIn')} value={libraryLanguage} onChange={setLibraryLanguage} />
+              <LanguageField label={t('reference.language.writtenIn')} value={libraryLanguage} onChange={(code) => edit({ libraryLanguage: code })} />
               <Text style={txt.xs}>{t('config.material.toLibraryNote')}</Text>
             </>
           ) : null}
@@ -1123,7 +1216,7 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
               <SectionLabel label={t('config.material.forWhichKind')} />
               <Group>
                 {kinds.map((k, i) => (
-                  <Row key={k.id} leading={<KindIcon kindId={k.id} size={40} />} label={k.name} help={t('config.material.reviewKindHelp')} onPress={() => setReviewKind(k.id)} last={i === kinds.length - 1}
+                  <Row key={k.id} leading={<KindIcon kindId={k.id} size={40} />} label={k.name} help={t('config.material.reviewKindHelp')} onPress={() => edit({ reviewKind: k.id })} last={i === kinds.length - 1}
                     role="radio" selected={reviewKind === k.id}
                     right={reviewKind === k.id ? <Ico name="check" size={22} color={C.primary} /> : <View style={{ width: 22 }} />} />
                 ))}
@@ -1175,7 +1268,7 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
             <Card key={fieldId}>
               <Text style={txt.h3}>{fieldTitle(fieldId)}</Text>
               {canFill
-                ? <Field value={valueOf(fieldId)} onChangeText={(v) => setTexts({ ...texts, [fieldId]: v })} placeholder={t('config.material.guidanceFor', { section: fieldTitle(fieldId) })} multiline
+                ? <Field value={valueOf(fieldId)} onChangeText={(v) => edit({ texts: { ...texts, [fieldId]: v } })} placeholder={t('config.material.guidanceFor', { section: fieldTitle(fieldId) })} multiline
                   help={t('config.material.sectionHelp')} />
                 : <Text style={valueOf(fieldId) ? txt.body : txt.bodyMuted}>{valueOf(fieldId) || t('config.material.notFilled')}</Text>}
             </Card>
@@ -1189,7 +1282,7 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
               </View>
               <SmallBtn label={t('config.material.add')} icon="plus" disabled={!newField.trim()} help={t('config.material.addSectionHelp')} onPress={() => {
                 const id = newKindId(newField, fieldIds);
-                setExtraFields([...extraFields, id]);
+                edit({ extraFields: [...extraFields, id] });
                 setNewField('');
               }} />
             </View>
@@ -1203,10 +1296,9 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
           <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>
             {published ? t('config.material.inLibrary', { source: sourceLine(published) }) : t('config.material.notInLibrary')}
           </Text>
-          <LanguageField label={t('reference.language.writtenIn')} value={libraryLanguage} onChange={setLibraryLanguage} disabled={busy} />
-          <GhostBtn label={published ? t('config.material.publishNewVersion') : t('config.material.publishToLibrary')} icon="share" disabled={busy || changes.length > 0}
+          <LanguageField label={t('reference.language.writtenIn')} value={libraryLanguage} onChange={(code) => edit({ libraryLanguage: code })} disabled={busy} />
+          <GhostBtn label={published ? t('config.material.publishNewVersion') : t('config.material.publishToLibrary')} icon="share" disabled={busy}
             help={published ? t('config.material.publishVersionHelp') : t('config.material.publishHelp')} onPress={() => void publishToLibrary()} />
-          {changes.length > 0 ? <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>{t('config.material.saveFirst')}</Text> : null}
         </>
       ) : null}
     </Screen>
@@ -1231,14 +1323,19 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
   const canManage = lib.canWrite('material');
   const editable = canManage && it?.source !== 'subscription' && (isNew || material !== null);
   const sharedV = useSharedItems('versification', lib.orgId, editable);
-  const [kind, setKind] = useState<string | null>(null);
-  const [title, setTitle] = useState<string | null>(null);
-  const [body, setBody] = useState<string | null>(null);
-  const [refsText, setRefsText] = useState<string | null>(null);
-  const [parts, setParts] = useState<{ template: string; node: string }[] | null>(null);
-  const [v11n, setV11n] = useState<VersificationChoice | null>(null);
-  // The language it is written in (decision 84): a new one starts in the writer's own.
-  const [language, setLanguage] = useState<string | null>(null);
+  // What is changed is kept on this phone as it changes, there when the editor opens again (decision 111); Done publishes it.
+  const draft = useDraft<LibraryMaterialDraft | null>(draftKey('editor', ctx.session.actorId, lib.orgId, 'library-material', requested), null, isLibraryMaterialDraft);
+  // Null is "as the library has it". The language it is written in (decision 84): a new one starts in the writer's own.
+  const { kind, title, body, refsText, parts, v11n, language } = draft.value?.form ?? NO_LIBRARY_MATERIAL_EDITS;
+  const edit = (patch: Partial<LibraryMaterialEdits>) =>
+    draft.set((prev) => editorDraft({ ...(prev?.form ?? NO_LIBRARY_MATERIAL_EDITS), ...patch }, NO_LIBRARY_MATERIAL_EDITS, prev?.basis ?? it?.current ?? null));
+  const setKind = (v: string) => edit({ kind: v });
+  const setTitle = (v: string) => edit({ title: v });
+  const setBody = (v: string) => edit({ body: v });
+  const setRefsText = (v: string) => edit({ refsText: v });
+  const setParts = (v: { template: string; node: string }[]) => edit({ parts: v });
+  const setV11n = (v: VersificationChoice) => edit({ v11n: v });
+  const setLanguage = (v: string) => edit({ language: v });
   const [picking, setPicking] = useState(false);
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState(false);
@@ -1258,7 +1355,9 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
   const chosen = v11n ?? baseChoice;
   const units = useMemo(() => (state && picking ? templatePartChoices(state, q) : []), [state, picking, q]);
   const dirty = editable && (kind !== null || title !== null || body !== null || refsText !== null || parts !== null || v11n !== null || language !== null);
-  const ready = editable && titleText.trim() !== '' && !!lang && refs.bad.length === 0 && (isNew || dirty);
+  // Done publishes what changed (a new one as its first version), or with nothing changed just closes.
+  const ready = editable && draft.loaded && titleText.trim() !== '' && !!lang && refs.bad.length === 0;
+  const newer = draftBehind(draft.value, it?.current);
 
   if (!state || (!isNew && !it)) {
     return <Screen header={<Header title={t('config.libraryMaterial.title')} onBack={ctx.back} />}><EmptyState icon="book" title={state && ctx.org.state ? t('config.material.gone') : t('common.loading')} /></Screen>;
@@ -1268,9 +1367,14 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
     return state.units[unitId] ? unitTitle(state, unitId) : l.node;
   };
 
-  /** Save publishes a new version. A verse link's versification from another organization is followed (or copied) first, so it travels with it. */
-  async function save() {
+  /** Done publishes a new version. A verse link's versification from another organization is followed (or copied) first, so it travels with it. */
+  async function done() {
     if (!ready || busy) return;
+    if (!isNew && !dirty) {
+      void draft.clear();
+      ctx.back();
+      return;
+    }
     setBusy(true);
     const saved = await libraryAct(ctx, 'save material', async () => { // i18n-ignore: log label
       let hash = refs.refs.length ? chosen.hash : null;
@@ -1282,8 +1386,9 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
       const out = libraryMaterialDoc({ material, kind: k, title: titleText, language: lang, body: b, refs: refs.refs, linked, versification: hash });
       await lib.publish({ kind: 'material', ...(it ? { itemId: it.itemId } : {}), name: out.title, description: it?.description || referenceKindName(k), doc: out });
     }, isNew ? t('config.libraryMaterial.inLibrary', { title: titleText.trim() }) : t('config.libraryMaterial.savedVersion', { title: titleText.trim() }));
-    if (saved) ctx.back();
-    else setBusy(false);
+    if (!saved) { setBusy(false); return; }
+    await draft.clear();
+    ctx.back();
   }
 
   function useInReviews() {
@@ -1305,10 +1410,13 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
   const what = libraryMaterialLine(doc, versificationNameOf(docs, doc), kinds);
   return (
     <Screen
-      header={<Header title={titleText || (isNew ? t('config.libraryMaterial.newTitle') : it?.name ?? t('config.libraryMaterial.title'))} sub={it ? sourceLine(it) : t('config.libraryMaterial.newSub')} onBack={ctx.back} />}
-      footer={editable ? <PrimaryBtn label={isNew ? t('common.publish') : t('config.libraryMaterial.publishNewVersion')}
-        help={isNew ? t('config.libraryMaterial.publishHelp') : t('config.libraryMaterial.publishVersionHelp')} onPress={() => void save()} disabled={!ready} busy={busy} /> : undefined}>
-      {!isNew && !doc ? <Card><Text style={txt.smMuted}>{t('common.loading')}</Text></Card> : null}
+      header={<Header title={titleText || (isNew ? t('config.libraryMaterial.newTitle') : it?.name ?? t('config.libraryMaterial.title'))} sub={it ? sourceLine(it) : t('config.libraryMaterial.newSub')} onBack={ctx.back}
+        action={editable ? <SavedMark status={draft.status} help={t('saved.draftHelp')} /> : undefined} />}
+      footer={editable ? <PrimaryBtn label={t('common.done')}
+        help={isNew ? t('config.libraryMaterial.publishHelp') : t('config.libraryMaterial.publishVersionHelp')} onPress={() => void done()} disabled={!ready} busy={busy} /> : undefined}>
+      {(!isNew && !doc) || !draft.loaded ? <Card><Text style={txt.smMuted}>{t('common.loading')}</Text></Card> : null}
+      {/* Only what was changed here replaces theirs: the rest is the newer version's. */}
+      {newer && editable && !busy ? <Banner icon="history" tone="amber" title={t('guides.editor.newer')} /> : null}
       {it?.source === 'subscription' ? (
         <Banner icon="link" title={t('config.library.follows', { org: it.subscription!.sourceOrgName })} body={t('config.library.followsBody')} />
       ) : null}
@@ -1330,7 +1438,7 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
       ) : null}
 
       {isNew || material ? (
-        editable ? (
+        editable ? (!draft.loaded ? null : (
           <>
             <SectionLabel label={t('config.material.whatKind')} />
             <ChipRow>
@@ -1365,7 +1473,7 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
             ) : null}
             <SmallBtn label={t('config.libraryMaterial.linkPart')} icon="link" help={t('config.libraryMaterial.linkPartHelp')} onPress={() => setPicking(true)} />
           </>
-        ) : material ? (
+        )) : material ? (
           <>
             {material.body ? <Card><Text style={txt.body}>{material.body}</Text></Card> : null}
             {(material.fields ?? []).filter(() => material.kind !== 'questions').map((f) => (
@@ -1437,7 +1545,10 @@ export function KeyTerms(ctx: Ctx) {
   const takeId = ctx.params['takeId'];
   const [q, setQ] = useState('');
   const [adding, setAdding] = useState(false);
-  const [draft, setDraft] = useState<TermDraft>(EMPTY_TERM_DRAFT);
+  // A new term is kept on this phone as it is typed, there when the sheet opens again (decision 111); Add Term adds it.
+  const termDraft = useDraft<TermDraft>(languageId ? draftKey('word', ctx.session.actorId, languageId, 'new-term', unitId) : null, EMPTY_TERM_DRAFT, isTermDraft);
+  const draft = termDraft.value;
+  const setDraft = termDraft.set;
   const [busy, setBusy] = useState(false);
   const terms = useMemo(() => (state ? keyTermsFor(state) : []), [state]);
   const here = useMemo(() => (state && unitId && state.units[unitId] ? termsInPassage(state, terms, unitId, sourceText(state, unitId)) : new Set<string>()), [state, terms, unitId]);
@@ -1459,6 +1570,7 @@ export function KeyTerms(ctx: Ctx) {
     ), t('config.keyTerms.added', { term: draft.term.trim() }));
     if (saved) {
       setDraft(EMPTY_TERM_DRAFT);
+      await termDraft.clear();
       setAdding(false);
     }
     setBusy(false);
@@ -1485,6 +1597,7 @@ export function KeyTerms(ctx: Ctx) {
       <Intro>{t('config.keyTerms.intro', { language })}</Intro>
 
       <Sheet visible={adding} title={t('config.keyTerms.newKeyTerm')} sub={t('config.keyTerms.newSub', { language })} onClose={() => setAdding(false)}
+        action={<SavedMark status={termDraft.status} help={t('saved.draftHelp')} />}
         footer={<PrimaryBtn label={t('config.keyTerms.addTerm')} onPress={() => void add()} disabled={!termDraftReady(draft)} busy={busy} />}>
         <Field value={draft.term} onChangeText={(v) => setDraft({ ...draft, term: v })} placeholder={t('config.keyTerms.termPlaceholder')} />
         <Field value={draft.gloss} onChangeText={(v) => setDraft({ ...draft, gloss: v })} placeholder={t('config.keyTerms.meaningPlaceholder')} autoCapitalize="sentences" />
@@ -1505,10 +1618,10 @@ export function KeyTermDetail(ctx: Ctx) {
   const passage = useMemo(() => (state && unitId && state.units[unitId] ? derivePassage(state, unitId, indexesFor(state)) : null), [state, unitId]);
   const usedIn = useMemo(() => (state ? termUsedIn(state, termId) : []), [state, termId]);
   const [adjusting, setAdjusting] = useState(false);
-  const [rendering, setRendering] = useState('');
-  const [context, setContext] = useState('');
-  const [note, setNote] = useState('');
-  const [hash, setHash] = useState<string | null>(null);
+  // A new rendering, or a change and why, is kept on this phone as it is made, there when the sheet opens again (decision 111).
+  const adjust = useDraft<RenderingDraft>(languageId ? draftKey('word', ctx.session.actorId, languageId, 'adjust', termId) : null, EMPTY_RENDERING, isRenderingDraft);
+  const { rendering, context, note, hash } = adjust.value;
+  const change = (patch: Partial<RenderingDraft>) => adjust.set((d) => ({ ...d, ...patch }));
   const [busy, setBusy] = useState(false);
   const [usedShown, setUsedShown] = useState(STEP);
   const why = ctx.details(`term:${termId}:why`);
@@ -1540,7 +1653,7 @@ export function KeyTermDetail(ctx: Ctx) {
     setBusy(false);
   }
 
-  async function saveAdjustment() {
+  async function addAdjustment() {
     if (!canEdit || busy || !adjustmentReady(note, hash)) return;
     const duringTakeId = adjustDuringTake(draftTakeId, passage);
     setBusy(true);
@@ -1550,7 +1663,11 @@ export function KeyTermDetail(ctx: Ctx) {
       // TERM-5: an adjustment made while drafting ties the term to the draft.
       ...(canTie && !isLinked && draftTakeId ? { tieToTakeId: draftTakeId } : {})
     }), rendering.trim() ? t('config.keyTerm.added', { rendering: rendering.trim() }) : t('config.keyTerm.changeRecorded'));
-    if (saved) { setAdjusting(false); setRendering(''); setContext(''); setNote(''); setHash(null); }
+    if (saved) {
+      adjust.set(EMPTY_RENDERING);
+      await adjust.clear();
+      setAdjusting(false);
+    }
     setBusy(false);
   }
 
@@ -1639,11 +1756,12 @@ export function KeyTermDetail(ctx: Ctx) {
       ) : null}
       <Sheet visible={adjusting} title={t('config.keyTerm.adjustTitle', { language, term: term.term })} onClose={() => setAdjusting(false)}
         sub={canTie ? t('config.keyTerm.adjustSubTie', { passage: passageLabel ?? '' }) : t('config.keyTerm.adjustSub')}
-        footer={<PrimaryBtn label={t('common.save')} help={t('config.keyTerm.saveHelp')} onPress={() => void saveAdjustment()} disabled={!adjustmentReady(note, hash)} busy={busy} />}>
-        <Field value={rendering} onChangeText={setRendering} placeholder={t('config.keyTerm.newRendering')} />
-        {rendering.trim() ? <Field value={context} onChangeText={setContext} placeholder={t('config.keyTerm.whenToUse')} multiline autoCapitalize="sentences" /> : null}
-        {passage ? <VoiceNote ctx={ctx} label={t('config.keyTerm.sayWhy')} hash={hash} onChange={setHash} /> : null}
-        <Field value={note} onChangeText={setNote} placeholder={passage ? t('config.keyTerm.orTypeWhy') : t('config.keyTerm.typeWhy')} multiline autoCapitalize="sentences" />
+        action={<SavedMark status={adjust.status} help={t('saved.draftHelp')} />}
+        footer={<PrimaryBtn label={t('reference.keyWords.addYourWord')} help={t('config.keyTerm.saveHelp')} onPress={() => void addAdjustment()} disabled={!adjustmentReady(note, hash)} busy={busy} />}>
+        <Field value={rendering} onChangeText={(v) => change({ rendering: v })} placeholder={t('config.keyTerm.newRendering')} />
+        {rendering.trim() ? <Field value={context} onChangeText={(v) => change({ context: v })} placeholder={t('config.keyTerm.whenToUse')} multiline autoCapitalize="sentences" /> : null}
+        {passage ? <VoiceNote ctx={ctx} label={t('config.keyTerm.sayWhy')} hash={hash} onChange={(h) => change({ hash: h })} /> : null}
+        <Field value={note} onChangeText={(v) => change({ note: v })} placeholder={passage ? t('config.keyTerm.orTypeWhy') : t('config.keyTerm.typeWhy')} multiline autoCapitalize="sentences" />
       </Sheet>
     </Screen>
   );

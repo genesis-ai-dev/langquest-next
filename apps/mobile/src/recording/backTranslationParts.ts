@@ -96,6 +96,24 @@ export function saidLine(parts: readonly BackPart[]): string {
 /** A note the back translator left at a moment of a part, for whoever checks it. */
 export interface MomentNote { part: number; atMs: number; text: string }
 
+/**
+ * What a back translation carries besides its parts, kept as it is said or
+ * typed until it is done (decision 111): the notes at moments, the one voice
+ * note, and the last word.
+ */
+export interface BackNotesDraft { notes: MomentNote[]; noteHash: string | null; voiceInMoment: boolean; extra: string }
+
+export const EMPTY_BACK_NOTES: BackNotesDraft = { notes: [], noteHash: null, voiceInMoment: false, extra: '' };
+
+export function isBackNotesDraft(x: unknown): x is BackNotesDraft {
+  if (typeof x !== 'object' || x === null) return false;
+  const v = x as Record<string, unknown>;
+  return Array.isArray(v['notes']) && v['notes'].every((n: unknown) => {
+    const m = n as Record<string, unknown> | null;
+    return !!m && typeof m['part'] === 'number' && typeof m['atMs'] === 'number' && typeof m['text'] === 'string';
+  }) && (v['noteHash'] === null || typeof v['noteHash'] === 'string') && typeof v['voiceInMoment'] === 'boolean' && typeof v['extra'] === 'string';
+}
+
 /** "0:07". */
 function clock(ms: number): string {
   const s = Math.max(0, Math.round(ms / 1000));

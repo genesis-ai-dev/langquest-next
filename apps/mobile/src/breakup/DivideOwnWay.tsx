@@ -5,8 +5,11 @@
 // Bibles start a section, the book's outline, notes and guides in a pane under
 // the text, and sections started or joined from the verse tapped. The book
 // opens as the language divides it, else by chapter; a ready-made way can be
-// the starting point instead. Saving divides the book like any other way
-// (useBookChange: the warning, the languages it changes, Undo).
+// the starting point instead. What is drawn is kept on this phone as a
+// private draft (decision 111) with the saved mark, and comes back when the
+// person opens the same book again; leaving keeps it. Done divides the book
+// like any other way (useBookChange: the warning, the languages it changes,
+// Undo) and drops the draft.
 import { bibleBreaksIn, BIBLES_COUNTED, recommendedFor, wayCovers, type LibraryItemView, type MaterialDoc, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { FlatList, Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -18,6 +21,9 @@ import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { Field, Group, Header, Ico, PrimaryBtn, QuietLinks, Row, Screen, Sheet, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
+import { SavedMark } from '../ui/SavedMark';
+import { draftKey } from '../drafts/draftModel';
+import { useDraft } from '../drafts/useDraft';
 import { useLibraryDocs } from '../library/useLibrary';
 import { itemRangesIn } from '../reference/coverage';
 import type { RefKind } from '../reference/model';
@@ -27,7 +33,10 @@ import { chipLabel } from '../sources/sourceText';
 import { C, radius, space, target, TINT, type as T } from '../ui/theme';
 import { useBookChange } from './useBookChange';
 import { BookChangeSheets } from './parts';
-import { atOf, namesOfWay, ownWayDoc, parseAt, sectionLabel, sectionsOf, startsOfWay, verseOrder, type At, type Section } from './ownWay';
+import {
+  atOf, draftOf, drawnFrom, EMPTY_OWN_WAY, isOwnWayDraft, namesOfWay, ownWayDoc, parseAt, sectionLabel, sectionsOf, startsOfWay, verseOrder,
+  type At, type Drawn, type Section
+} from './ownWay';
 import { isItself } from './model';
 import { useWays } from './useBreakup';
 import { useBookText } from './useBookText';
@@ -60,7 +69,7 @@ function useBookHelps(ctx: Ctx, book: string, v11n: VersificationDoc | null): He
   }, [rows, docs.get, book, v11n, state, ctx.org.state]);
 }
 
-type Panel = null | 'bible' | 'jump' | 'from' | 'helps' | 'leave' | { section: At };
+type Panel = null | 'bible' | 'jump' | 'from' | 'helps' | { section: At };
 
 export function DivideOwnWay(props: {
   ctx: Ctx; book: string; bookName: string; doc: TemplateDoc; v11n: VersificationDoc | null; fallbackVerses: readonly number[];
@@ -80,29 +89,36 @@ export function DivideOwnWay(props: {
   const breaks = useMemo(() => bibleBreaksIn(book, english, props.v11n), [book, english, props.v11n]);
 
   // The book as the language divides it now, else by chapter: decided once, when the editor opens.
-  const [first] = useState(() => {
+  const [was] = useState<Drawn>(() => {
     const own = startsOfWay(props.doc, book, props.v11n);
-    return own.size ? own : new Set(chapters.map((c) => atOf(c, 1)));
+    return { starts: own.size ? own : new Set(chapters.map((c) => atOf(c, 1))), names: namesOfWay(props.doc, book) };
   });
-  const [firstNames] = useState(() => namesOfWay(props.doc, book));
-  const [starts, setStarts] = useState<Set<At>>(first);
-  const [names, setNames] = useState<Record<At, string>>(firstNames);
+  // What is drawn is this person's draft until Done: for this language's template (or the template being edited) and this book.
+  const draft = useDraft(draftKey('editor', ctx.session.actorId, ctx.language.orgId, props.apply ? 'template' : ctx.language.languageId,
+    props.item?.itemId ?? 'new', 'divide', book), EMPTY_OWN_WAY, isOwnWayDraft);
+  const { starts, names } = useMemo(() => drawnFrom(draft.value, was), [draft.value, was]);
+  const firstVerse = order[0];
+  const setStarts = (next: ReadonlySet<At>) => draft.set((prev) => draftOf({ starts: next, names: drawnFrom(prev, was).names }, was, firstVerse));
+  const setName = (at: At, name: string) => draft.set((prev) => {
+    const now = drawnFrom(prev, was);
+    return draftOf({ starts: now.starts, names: { ...now.names, [at]: name } }, was, firstVerse);
+  });
   const [sel, setSel] = useState<At | null>(null);
   const [panel, setPanel] = useState<Panel>(null);
-  const [undo, setUndo] = useState<Set<At> | null>(null);
+  const [undo, setUndo] = useState<ReadonlySet<At> | null>(null);
   const [inView, setInView] = useState(1);
   const list = useRef<FlatList<number>>(null);
   const sections = useMemo(() => sectionsOf(order, starts), [order, starts]);
   const numberOf = (at: At, secs: Section[] = sections) => secs.findIndex((s) => s.start === at) + 1;
   const text = useBookText(ctx, book, maxVerses);
   const helps = useBookHelps(ctx, book, props.v11n);
-  const change = useBookChange(ctx, { book, bookName, doc: props.doc, item: props.item, redo: props.redo, onDone: props.onDone });
-  const dirty = starts.size !== first.size || [...starts].some((a) => !first.has(a))
-    || Object.keys({ ...names, ...firstNames }).some((k) => (names[k] ?? '').trim() !== (firstNames[k] ?? '').trim());
+  const change = useBookChange(ctx, {
+    book, bookName, doc: props.doc, item: props.item, redo: props.redo, onDone: () => { void draft.clear(); props.onDone(); }
+  });
   const onViewable = useRef(({ viewableItems }: { viewableItems: { item: number }[] }) => { if (viewableItems[0]) setInView(viewableItems[0].item); }).current;
 
-  /** Change the starts and say what changed; Undo (in the toast and under Save) brings back what they were. */
-  const replace = (next: Set<At>, said: string) => {
+  /** Change the starts and say what changed; Undo (in the toast and under Done) brings back what they were. */
+  const replace = (next: ReadonlySet<At>, said: string) => {
     const before = starts;
     setUndo(before);
     setStarts(next);
@@ -119,14 +135,16 @@ export function DivideOwnWay(props: {
     replace(next, t('breakup.own.joined', { n: formatNumber(numberOf(at) - 1) }));
   };
   const jump = (c: number) => list.current?.scrollToIndex({ index: Math.max(0, c - 1), animated: true });
-  const save = () => {
+  /** Divide the book as drawn; the draft is dropped once it is (the template editor takes it at once). */
+  const finish = () => {
     // i18n-ignore: the part's name is stored in the template, as the ready-made ways store theirs ("Passage", "Chapter")
     const way = ownWayDoc({ base: props.doc, book, bookName, part: 'Section', sections, names, v11n: props.v11n, english });
     const note = `${bookName} is divided its own way`; // i18n-ignore: the new version's note, stored in the event log
-    if (props.apply) props.apply(way, note, t('breakup.own.saved', { book: bookName }));
-    else change.start(way, note, t('breakup.own.saved', { book: bookName }));
+    if (props.apply) {
+      void draft.clear();
+      props.apply(way, note, t('breakup.own.saved', { book: bookName }));
+    } else change.start(way, note, t('breakup.own.saved', { book: bookName }));
   };
-  const back = () => (dirty ? setPanel('leave') : props.onClose());
 
   const offered = ways.rows.filter((r) => !r.later && !isItself(r, props.item?.itemId) && (() => { const d = ways.docOf(r.choice); return !!d && wayCovers(d, book); })());
   const section = panel && typeof panel === 'object' ? sections.find((s) => s.start === panel.section) ?? null : null;
@@ -153,7 +171,7 @@ export function DivideOwnWay(props: {
     </View>
   ) : (
     <>
-      <PrimaryBtn label={t('breakup.own.save', { count: sections.length })} icon="check" busy={change.busy} disabled={!props.item && !props.apply} help={t('breakup.own.saveHelp')} onPress={save} />
+      <PrimaryBtn label={t('breakup.own.done', { count: sections.length })} icon="check" busy={change.busy} disabled={!props.item && !props.apply} help={t('breakup.own.saveHelp')} onPress={finish} />
       <QuietLinks items={[
         ...(undo ? [{ label: t('breakup.own.undo'), icon: 'undo' as const, help: t('breakup.own.undoHelp'), onPress: () => { setStarts(undo); setUndo(null); } }] : []),
         { label: t('breakup.own.startFrom'), icon: 'book', help: t('breakup.own.startFromHelp'), onPress: () => setPanel('from') }
@@ -162,7 +180,8 @@ export function DivideOwnWay(props: {
   );
 
   return (
-    <Screen fixed footer={footer} header={<Header title={bookName} sub={t('breakup.own.headerSub', { count: sections.length })} onBack={back} />}>
+    <Screen fixed footer={footer} header={<Header title={bookName} sub={t('breakup.own.headerSub', { count: sections.length })} onBack={props.onClose}
+      action={<SavedMark status={draft.status} help={t('saved.draftHelp')} />} />}>
       <View style={styles.tools}>
         <Pill icon="book" help down label={text.option ? chipLabel(text.option, text.options) : t('breakup.own.noBibleChip')} detail={t('breakup.own.biblePillHelp')} onPress={() => setPanel('bible')} />
         <Pill icon="layers" help label={t('breakup.own.helps')} on={panel === 'helps'} detail={panel === 'helps' ? t('breakup.own.closeHelpsHelp') : t('breakup.own.helpsPillHelp')}
@@ -234,18 +253,11 @@ export function DivideOwnWay(props: {
 
       {section ? (
         <SectionSheet n={numberOf(section.start)} section={section} bookName={bookName} name={names[section.start] ?? ''}
-          onName={(name) => setNames((cur) => ({ ...cur, [section.start]: name }))}
+          onName={(name) => setName(section.start, name)}
           onJoin={section.start === order[0] ? undefined : () => { setPanel(null); joinAt(section.start); }}
           onClose={() => setPanel(null)} />
       ) : null}
 
-      <Sheet visible={panel === 'leave'} title={t('breakup.own.leaveTitle')} sub={t('breakup.own.leaveSub', { book: bookName })} onClose={() => setPanel(null)}
-        footer={<>
-          <PrimaryBtn label={t('breakup.own.save', { count: sections.length })} icon="check" busy={change.busy} disabled={!props.item} help={t('breakup.own.saveHelp')} onPress={() => { setPanel(null); save(); }} />
-          <QuietLinks items={[{ label: t('breakup.own.leaveAnyway'), icon: 'close', help: t('breakup.own.leaveAnywayHelp'), onPress: props.onClose }]} />
-        </>}>
-        {null}
-      </Sheet>
       <BookChangeSheets s={change.sheets} />
     </Screen>
   );

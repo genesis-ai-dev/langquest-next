@@ -1,7 +1,10 @@
 // Dividing a book your own way: starts, sections, and the way they make (decision 93).
 import { describe, expect, it } from 'vitest';
 import { bookParts, withBookBrokenUp, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
-import { namesOfWay, ownWayDoc, sectionLabel, sectionsOf, startsOfWay, verseOrder } from '../src/breakup/ownWay';
+import { hasContent } from '../src/drafts/draftModel';
+import {
+  draftOf, drawnFrom, EMPTY_OWN_WAY, isOwnWayDraft, namesOfWay, ownWayDoc, sectionLabel, sectionsOf, startsOfWay, verseOrder, type Drawn
+} from '../src/breakup/ownWay';
 
 const v11n: VersificationDoc = { format: 'versification@1', code: 'eng', name: 'English', maxVerses: { RUT: [22, 23, 18, 22] }, mappedVerses: {} };
 const base: TemplateDoc = {
@@ -38,5 +41,45 @@ describe('own way', () => {
     const after = withBookBrokenUp(base, 'RUT', way);
     expect(bookParts(after, 'RUT')?.divide).toBe('passages');
     expect(bookParts(after, 'JON')?.divide).toBe('chapters');
+  });
+
+  describe('the sections being drawn, kept as a draft until Done (decision 111)', () => {
+    const was: Drawn = { starts: new Set(['1:1', '2:1', '3:1', '4:1']), names: { '2:1': 'Boaz' } };
+
+    it('keeps nothing while the book is as it was, so the saved mark stays empty', () => {
+      expect(draftOf(was, was, '1:1')).toBe(EMPTY_OWN_WAY);
+      expect(hasContent(EMPTY_OWN_WAY)).toBe(false);
+      expect(drawnFrom(EMPTY_OWN_WAY, was)).toBe(was);
+      // A name typed and taken back again, or only spaces added, is no change.
+      expect(draftOf({ starts: was.starts, names: { '2:1': 'Boaz ', '3:1': '' } }, was, '1:1')).toBe(EMPTY_OWN_WAY);
+      // The first verse starts a section whether or not it is listed.
+      expect(draftOf({ starts: new Set(['2:1', '3:1', '4:1']), names: was.names }, was, '1:1')).toBe(EMPTY_OWN_WAY);
+    });
+
+    it('keeps a change to the starts or the names, and gives it back when the book opens again', () => {
+      const moved = draftOf({ starts: new Set(['1:1', '1:6', '2:1', '3:1', '4:1']), names: was.names }, was, '1:1');
+      expect(new Set(moved.starts)).toEqual(new Set(['1:1', '1:6', '2:1', '3:1', '4:1']));
+      expect(hasContent(moved)).toBe(true);
+      expect(drawnFrom(moved, was)).toEqual({ starts: new Set(moved.starts), names: { '2:1': 'Boaz' } });
+      const named = draftOf({ starts: was.starts, names: { ...was.names, '3:1': 'The threshing floor' } }, was, '1:1');
+      expect(named.names).toEqual({ '2:1': 'Boaz', '3:1': 'The threshing floor' });
+      expect(drawnFrom(named, was).starts).toEqual(was.starts);
+    });
+
+    it('never keeps a change as an empty draft: the first verse stays a start', () => {
+      const joined = draftOf({ starts: new Set<string>(), names: {} }, was, '1:1');
+      expect(joined.starts).toEqual(['1:1']);
+      expect(hasContent(joined)).toBe(true);
+      expect(sectionsOf(order, drawnFrom(joined, was).starts).map(sectionLabel)).toEqual(['1:1–4:22']);
+    });
+
+    it('reads back only drafts of its own shape', () => {
+      expect(isOwnWayDraft({ starts: ['1:1'], names: { '1:1': 'Naomi' } })).toBe(true);
+      expect(isOwnWayDraft(EMPTY_OWN_WAY)).toBe(true);
+      expect(isOwnWayDraft({ starts: [1], names: {} })).toBe(false);
+      expect(isOwnWayDraft({ starts: ['1:1'], names: { '1:1': 2 } })).toBe(false);
+      expect(isOwnWayDraft({ starts: ['1:1'] })).toBe(false);
+      expect(isOwnWayDraft(null)).toBe(false);
+    });
   });
 });

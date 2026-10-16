@@ -38,6 +38,9 @@ import { usePassageSource, useSources } from '../sources/useSources';
 import { C, onColor, radius, space, target, TINT, type as T, withAlpha } from '../ui/theme';
 import { VoiceNote } from '../audio/voiceNote';
 import { SpeakBtn } from './reviewVoice';
+import { draftKey, EMPTY_NOTE, isNoteDraft } from '../drafts/draftModel';
+import { useDraft } from '../drafts/useDraft';
+import { SavedMark } from '../ui/SavedMark';
 import type { BackgroundData } from './reviewText';
 
 // ---- the strip of steps ----------------------------------------------------------------------
@@ -426,13 +429,18 @@ function NotesBy(props: { open: boolean; label: string; names: string; onPress: 
   );
 }
 
-/** A note on a verse of the Bible, where it was paused: it follows the passage (a verse note, as the study and the recorder leave). */
+/**
+ * A note on a verse of the Bible, where it was paused: it follows the passage
+ * (a verse note, as the study and the recorder leave). What is said or typed
+ * is kept as a draft only you see (decision 111): Close keeps it for the next
+ * note on this verse, Add note puts it on the record and drops it.
+ */
 function VerseNote(props: { ctx: Ctx; v: PassageView; verse: string; at: string; translation: string; onDone: () => void }) {
   const { ctx, v } = props;
-  const [text, setText] = useState('');
-  const [hash, setHash] = useState<string | null>(null);
+  const draft = useDraft(draftKey('note', ctx.session.actorId, v.languageId, v.unitId, `verse:${props.verse}`), EMPTY_NOTE, isNoteDraft);
+  const { text, hash } = draft.value;
   const [busy, setBusy] = useState(false);
-  async function save() {
+  async function add() {
     const state = ctx.language.state;
     if (!state || busy) return;
     setBusy(true);
@@ -442,19 +450,23 @@ function VerseNote(props: { ctx: Ctx; v: PassageView; verse: string; at: string;
         anchor: { kind: 'verse', verse: props.verse, ...(props.translation ? { translation: props.translation } : {}), ...(props.at ? { at: props.at } : {}) },
         ...(text.trim() ? { text: text.trim() } : {}), ...(hash ? { blobHash: hash } : {})
       }), t('review.simple.noteAdded'));
+      await draft.clear();
       props.onDone();
     } catch { /* ctx.act said what went wrong */ } finally { setBusy(false); }
   }
   return (
     <View style={styles.noteBox}>
-      <Text style={[txt.sm, { fontWeight: '800', color: TINT.amberText }]}>
-        {props.at ? t('review.simple.noteOnVerseAt', { verse: props.verse, time: props.at }) : t('review.simple.noteOnVerse', { verse: props.verse })}
-      </Text>
-      <VoiceNote ctx={ctx} label={t('common.sayIt')} hash={hash} onChange={setHash} />
-      <Field value={text} onChangeText={setText} placeholder={t('common.orTypeIt')} multiline />
+      <View style={styles.noteHead}>
+        <Text style={[txt.sm, { flex: 1, fontWeight: '800', color: TINT.amberText }]}>
+          {props.at ? t('review.simple.noteOnVerseAt', { verse: props.verse, time: props.at }) : t('review.simple.noteOnVerse', { verse: props.verse })}
+        </Text>
+        <View style={styles.noteMark}><SavedMark status={draft.status} help={t('saved.draftHelp')} /></View>
+      </View>
+      <VoiceNote ctx={ctx} label={t('common.sayIt')} hash={hash} onChange={(h) => draft.set((d) => ({ ...d, hash: h }))} />
+      <Field value={text} onChangeText={(x) => draft.set((d) => ({ ...d, text: x }))} placeholder={t('common.orTypeIt')} multiline />
       <View style={{ flexDirection: 'row', gap: space.sm }}>
-        <View style={{ flex: 1 }}><GhostBtn label={t('common.cancel')} help={t('help.details.cancel')} onPress={props.onDone} /></View>
-        <View style={{ flex: 1 }}><PrimaryBtn label={t('review.simple.saveNote')} busy={busy} disabled={!text.trim() && !hash} onPress={() => void save()} /></View>
+        <View style={{ flex: 1 }}><GhostBtn label={t('common.close')} help={t('review.simple.closeNoteHelp')} onPress={props.onDone} /></View>
+        <View style={{ flex: 1 }}><PrimaryBtn label={t('common.addNote')} busy={busy} disabled={!text.trim() && !hash} onPress={() => void add()} /></View>
       </View>
     </View>
   );
@@ -601,6 +613,9 @@ const styles = StyleSheet.create({
   verseNum: { fontSize: T.xs, fontWeight: '700', color: C.muted },
   noteBy: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 36, alignSelf: 'flex-start' },
   noteBox: { backgroundColor: TINT.note, borderWidth: 1, borderColor: TINT.noteBorder, borderRadius: radius.lg, padding: space.md, gap: space.sm },
+  noteHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  // The mark is 48pt tall: it sits in the heading's line without making it taller.
+  noteMark: { marginVertical: -space.md },
   moment: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.md, paddingVertical: space.sm, minHeight: target.row },
   momentTop: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border },
   centre: { flexGrow: 1, justifyContent: 'center', gap: space.lg, paddingVertical: space.lg },

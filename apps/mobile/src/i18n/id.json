@@ -2,7 +2,6 @@
   "common": {
     "loading": "Memuat…",
     "done": "Selesai",
-    "save": "Simpan",
     "saving": "Menyimpan…",
     "cancel": "Batal",
     "close": "Tutup",
@@ -14,7 +13,6 @@
     "tryAgain": "Coba lagi",
     "pause": "Jeda",
     "record": "Rekam",
-    "publish": "Terbitkan",
     "remove": "Hapus",
     "edit": "Ubah",
     "copy": "Salin",
@@ -443,12 +441,7 @@
       "itemDescription": "Panduan studi",
       "itemDescriptionPattern": "Panduan studi · {{pattern}}",
       "published": "{{title}} sudah diterbitkan. Perangkat mendapatkannya saat sinkronisasi berikutnya.",
-      "notPublished": "{{reason}} Draf Anda tetap disimpan.",
-      "savedAt": "Draf tersimpan di perangkat ini pada {{time}}. Satu panduan hanya diubah oleh satu orang dalam satu waktu.",
-      "savedAsYouWrite": "Draf tersimpan di perangkat ini selagi Anda menulis. Satu panduan hanya diubah oleh satu orang dalam satu waktu.",
-      "publishNewVersion": "Terbitkan versi baru",
-      "restored": "Draf Anda dari {{time}} sudah terbuka.",
-      "restoredBody": "Terbitkan, atau lanjutkan menulis. Tidak ada yang diterbitkan sebelum Anda melakukannya.",
+      "notPublished": "Tidak diterbitkan: {{reason}}",
       "newer": "Versi yang lebih baru diterbitkan setelah Anda memulai draf ini.",
       "newerBody": "Menerbitkan draf Anda akan menjadikannya versi berikutnya, tanpa perubahan mereka.",
       "ready": "Siap diterbitkan.",
@@ -715,7 +708,6 @@
     "rename": {
       "done": "Nama diganti menjadi {{name}}.",
       "row": "Nama",
-      "save": "Simpan nama",
       "taken": "Nama itu sudah dipakai di sini",
       "failed": "Nama tidak diganti",
       "orgTitle": "Ganti nama organisasi",
@@ -870,7 +862,6 @@
       "notMemberSub": "Orang ini sudah tidak punya peran di organisasi ini.",
       "awaiting": "Menunggu persetujuan",
       "assignRole": "Beri Peran",
-      "saveAssignment": "Simpan Penugasan",
       "decline": "Tolak",
       "introPending": "Orang ini membuat akun dan meminta bergabung. Beri peran dan lingkup agar mereka mendapat akses.",
       "intro": "Pilih peran, lalu pilih lingkup yang berlaku untuk penugasan ini. Lingkupnya bisa tingkat ini atau di bawahnya.",
@@ -1529,7 +1520,6 @@
       "subTemplate": "Templat · {{source}}",
       "untitled": "Templat baru",
       "create": "Buat templat",
-      "saveChanges": "Simpan perubahan",
       "follows": "Templat ini mengikuti {{org}}",
       "followsBody": "Versinya berasal dari sana. Salin untuk mengubahnya.",
       "copiedFind": "{{name}} disalin. Cari salinannya di bagian Organisasi Anda.",
@@ -1553,13 +1543,7 @@
       "chapterCount_other": "{{count, number}} pasal",
       "addBook": "Tambah kitab",
       "outline": "Kerangka",
-      "leaveTitle": "Keluar tanpa menyimpan?",
-      "leaveSub": "Perubahan Anda pada templat ini belum disimpan.",
-      "keepEditing": "Lanjutkan mengubah",
-      "leave": "Keluar",
-      "leaveNote": "Simpan akan menerbitkannya sebagai versi berikutnya.",
       "createHelp": "Menambahkannya ke perpustakaan organisasi Anda, siap dipakai bahasa-bahasa.",
-      "saveChangesHelp": "Menyimpannya sebagai versi berikutnya. Bahasa yang memakainya pindah ke versi itu.",
       "nameHelp": "Nama templat di perpustakaan.",
       "levelHelp": "Mengganti namanya. Semua orang melihat kata ini di aplikasi.",
       "lastLevelHelp": "Mengganti namanya, dan memilih cara masing-masing ditampilkan.",
@@ -1568,7 +1552,7 @@
       "bookHelp": "Pilih cara membaginya. Ganti nama atau hapus kitab ini dari sana.",
       "addBookHelp": "Menambahkan kitab yang belum ada di templat.",
       "versificationChoiceHelp": "Menomori pasal dan ayat templat dengan cara ini.",
-      "leaveHelp": "Kembali tanpa menyimpan perubahan Anda."
+      "doneHelp": "Menerbitkan perubahan Anda sebagai versi berikutnya. Bahasa yang memakainya pindah ke versi itu."
     },
     "newTemplate": {
       "title": "Templat Baru",
@@ -1662,7 +1646,7 @@
       "versePlaceholder": "ayat {{verse}}"
     },
     "divide": {
-      "done": "{{book}} sudah dibagi. Simpan templat untuk menyimpannya.",
+      "done": "{{book}} sudah dibagi.",
       "tapBook": "Ketuk sebuah kitab untuk memilih cara membaginya.",
       "nameOrRemove": "Ganti nama atau hapus {{book}}",
       "nameOrRemoveHelp": "Membuka nama kitab dalam bahasa itu, untuk mengubahnya atau mengeluarkan kitab itu."
@@ -1829,8 +1813,7 @@
       "fromLanguages": "Sebutannya dalam bahasa lain di sini",
       "use": "Pakai",
       "useLabel": "Pakai {{name}} ({{from}})",
-      "saveHelp": "Menyimpan nama ini: penerjemah melihatnya mulai sekarang.",
-      "useHelp": "Menaruh nama ini di kotak di atas. Ketuk Simpan untuk menyimpannya.",
+      "useHelp": "Memakai nama ini: penerjemah melihatnya mulai sekarang.",
       "inBoxHelp": "Tanda centang berarti nama ini ada di kotak di atas."
     },
     "translate": {
@@ -2026,9 +2009,6 @@
       "namePlaceholder": "Sebutan tim untuknya",
       "joinSub": "Ayat-ayat bagian ini masuk ke bagian sebelumnya",
       "firstCantJoin": "Bagian pertama tidak bisa digabungkan",
-      "leaveTitle": "Keluar tanpa menyimpan?",
-      "leaveSub": "Bagian-bagian Anda untuk {{book}} belum disimpan.",
-      "leaveAnyway": "Keluar tanpa menyimpan",
       "helpsTitle": "Bantuan untuk {{book}}",
       "closeHelps": "Tutup bantuan",
       "tabOutline": "Garis besar",
@@ -2045,7 +2025,6 @@
       "noHelps": "Belum ada panduan atau catatan yang ditawarkan untuk {{book}}.",
       "headerSub_other": "Cara Anda · {{count, number}} bagian",
       "verses_other": "{{count, number}} ayat",
-      "save_other": "Simpan · {{count, number}} bagian",
       "jumpLabel_other": "Pasal {{chapter}}: {{count, number}} bagian dimulai di sini",
       "sections_other": "{{count, number}} bagian",
       "partsIn_other": "{{count, number}} bagian di {{book}}",
@@ -2075,7 +2054,7 @@
       "guideRowHelp": "Pergi ke tempat pertama yang dibahasnya di teks.",
       "undoHelp": "Mengembalikan bagian-bagian seperti sebelum perubahan terakhir Anda.",
       "startFromHelp": "Mengganti bagian Anda dengan bagian dari cara yang sudah jadi, untuk memulai dari sana.",
-      "leaveAnywayHelp": "Kembali. Bagian-bagian Anda untuk kitab ini tidak disimpan."
+      "done_other": "Selesai · {{count, number}} bagian"
     },
     "division": {
       "way_other": "{{way}} · {{count, number}} potongan",
@@ -2265,7 +2244,6 @@
       "itsName": "Namanya",
       "itsNamePlaceholder": "Nama peran",
       "scopeNote": "Tempat berlakunya peran dipilih untuk setiap orang: seluruh organisasi atau satu bahasa, saat mereka diundang atau diizinkan masuk.",
-      "saveHelp": "Menyimpan nama dan pilihan aktif/mati. Semua orang dengan peran ini mendapat perubahannya.",
       "inviteHelp": "Menunjukkan kode untuk dipindai. Siapa pun yang bergabung dengan kode itu mendapat peran ini.",
       "personHelp": "Membuka peran-perannya dan tempat masing-masing berlaku, untuk mengubahnya.",
       "renameHelp": "Mengganti nama peran ini untuk semua orang.",
@@ -2280,7 +2258,9 @@
       "chooseWhoChecksHelp": "Aktif: orang dengan peran ini boleh memilih pemeriksaan apa yang dilalui sebuah perikop, dan siapa yang memeriksa.",
       "assignWorkHelp": "Aktif: orang dengan peran ini boleh meminta siapa pun merekam atau memeriksa perikop.",
       "overrideChecksHelp": "Aktif: orang dengan peran ini boleh meloloskan perikop melewati pemeriksaan yang terkunci, dengan alasan.",
-      "manageRolesHelp": "Aktif: orang dengan peran ini boleh membuat peran dan mengubah apa yang diizinkan masing-masing."
+      "manageRolesHelp": "Aktif: orang dengan peran ini boleh membuat peran dan mengubah apa yang diizinkan masing-masing.",
+      "addRole": "Tambah peran",
+      "addRoleHelp": "Membuat peran ini dengan pilihan aktif/mati tersebut."
     },
     "library": {
       "followingAuto": "Mengikuti {{name}}. Diperbarui otomatis.",
@@ -2350,7 +2330,6 @@
       "version": "Versi {{n, number}}",
       "movingToNewest": "pindah ke yang terbaru",
       "openFlow": "Buka alur",
-      "saveAsFlow": "Simpan sebagai alur",
       "yourOrganization": "Organisasi Anda",
       "noFlows": "Belum ada alur di sini. Ikuti atau salin alur yang dibagikan organisasi lain, atau buat sendiri.",
       "openNamed": "Buka {{name}}",
@@ -2364,7 +2343,8 @@
       "inUseHelp": "Bahasa ini sekarang memeriksa perikopnya dengan cara ini.",
       "useHelp": "Pemeriksaannya menjadi milik {{language}} sendiri. Anda dapat mengubahnya sesudahnya.",
       "stepsLabel": "Tahap",
-      "stepsHelp": "Pemeriksaan, dari kiri ke kanan. Yang bertumpuk dilakukan bersamaan. Gembok: tahap itu harus lulus lebih dulu."
+      "stepsHelp": "Pemeriksaan, dari kiri ke kanan. Yang bertumpuk dilakukan bersamaan. Gembok: tahap itu harus lulus lebih dulu.",
+      "addToFlows": "Tambahkan ke alur Anda"
     },
     "flowEditor": {
       "anyoneTeamAsks": "Siapa pun yang diminta tim",
@@ -2383,8 +2363,6 @@
       "addThisCheck": "Tambahkan pemeriksaan ini",
       "newKindDescription": "Ditetapkan oleh organisasi Anda.",
       "newKindReviewer": "Siapa pun yang dipilih tim",
-      "leaveTitle": "Keluar tanpa menyimpan?",
-      "discard": "Buang perubahan",
       "reviewFlow": "Alur Pemeriksaan",
       "gone": "Alur ini sudah tidak ada",
       "savedMoves": "{{name}} disimpan. {{language}} pindah ke alur ini.",
@@ -2398,23 +2376,21 @@
       "descriptionPlaceholder": "Kegunaannya, dalam satu baris",
       "noChecks": "Tanpa pemeriksaan: selesai setelah direkam",
       "usedHere": "{{language}} memakainya. Perubahan langsung berlaku untuk perikop-perikopnya; tidak ada rekaman yang hilang.",
-      "usedNote": "Bahasa yang memakainya pindah ke setiap versi yang Anda simpan. Urutan tahap hanya saran; hanya tahap yang terkunci yang harus lulus lebih dulu.",
+      "usedNote": "Bahasa yang memakainya pindah ke setiap versi baru. Urutan tahap hanya saran; hanya tahap yang terkunci yang harus lulus lebih dulu.",
       "kindsSub": "Jenis-jenis ini adalah kosakata organisasi Anda. Tambahkan sendiri jika yang ada tidak cocok.",
       "newKindLabel": "Jenis baru",
       "newKindPlaceholder": "Jenis baru, misalnya Pemeriksaan Penatua",
       "addThisKind": "Tambahkan jenis ini",
-      "leaveSubFlow": "Perubahan Anda pada alur ini belum disimpan.",
       "removeCheckHelp": "Mengeluarkannya dari tahap ini. Pemeriksaan lainnya tetap ada.",
       "moveUpHelp": "Tahap ini dilakukan satu tahap lebih awal.",
       "moveDownHelp": "Tahap ini dilakukan satu tahap lebih akhir.",
-      "removeStepHelp": "Mengeluarkan tahap ini beserta pemeriksaannya. Tidak ada yang berubah sampai Anda menyimpan.",
+      "removeStepHelp": "Mengeluarkan tahap ini beserta pemeriksaannya.",
       "saveHelp": "Menerbitkan versi ini ke perpustakaan Anda. Bahasa yang memakai alur ini pindah ke versi itu.",
       "noChecksHelp": "Mengeluarkan semua tahap: perikop selesai begitu direkam.",
       "pickNewHelp": "Menambahkan tahap dengan pemeriksaan ini, setelah yang lain.",
       "pickAlongsideHelp": "Menambahkan pemeriksaan ini ke tahap tersebut, bersamaan dengan yang sudah ada.",
       "newKindHelp": "Beri nama jenis pemeriksaan yang tidak ada di daftar ini.",
-      "addThisKindHelp": "Menambahkan jenis yang Anda namai, dan memasukkannya ke tahap ini.",
-      "discardHelp": "Keluar tanpa menyimpan. Perubahan Anda hilang."
+      "addThisKindHelp": "Menambahkan jenis yang Anda namai, dan memasukkannya ke tahap ini."
     },
     "reference": {
       "languageTeam": "Tim {{language}}",
@@ -2470,7 +2446,6 @@
       "newMaterial": "Bahan baru",
       "locked": "Terkunci",
       "unlocked": "Tidak terkunci",
-      "saveChanges": "Simpan Perubahan",
       "byWhom": "oleh {{name}}",
       "questionsFor": "pertanyaan untuk {{kind}}",
       "unfilledBlanks_other": "{{count, number}} isian belum diisi",
@@ -2481,7 +2456,7 @@
       "titlePlaceholder": "misalnya Pedoman penerjemahan bahasa Kalamang",
       "whereItApplies": "Di mana berlaku",
       "allLanguages": "Semua bahasa",
-      "toLibraryNote": "Disimpan ke perpustakaan Anda dan direkomendasikan untuk setiap bahasa.",
+      "toLibraryNote": "Masuk ke perpustakaan Anda, direkomendasikan untuk setiap bahasa.",
       "setsNeedLanguage": "Kumpulan pertanyaan milik sebuah bahasa. Tambahkan bahasa dulu.",
       "addLanguageFirst": "Tambahkan bahasa dulu.",
       "forWhichKind": "Untuk jenis pemeriksaan apa",
@@ -2499,11 +2474,10 @@
       "addSection": "Tambah bagian",
       "addSectionPlaceholder": "misalnya Nama-nama",
       "add": "Tambah",
-      "inLibrary": "Ada di perpustakaan Anda · {{source}}. Menerbitkan lagi akan menambah versi dari yang tersimpan di sini.",
+      "inLibrary": "Ada di perpustakaan Anda · {{source}}.",
       "notInLibrary": "Terbitkan ke perpustakaan Anda untuk membagikannya kepada organisasi lain atau menyimpan versi-versinya.",
       "publishNewVersion": "Terbitkan versi baru",
       "publishToLibrary": "Terbitkan ke perpustakaan",
-      "saveFirst": "Simpan dulu perubahan Anda.",
       "lockedHelp": "Hanya orang yang mengelola bahan referensi yang dapat mengubahnya. Ketuk untuk membuka kunci.",
       "unlockedHelp": "Siapa pun yang mengisi bahan referensi dapat mengubahnya. Ketuk untuk mengunci.",
       "saveNewHelp": "Menambahkannya. Penerjemah dan pemeriksa mendapatkannya di tempat bahan ini berlaku.",
@@ -2516,13 +2490,14 @@
       "typeYesNoHelp": "Pemeriksa menjawab ya atau tidak.",
       "typeRatingHelp": "Pemeriksa menjawab dengan angka pada skala ini.",
       "requiredSwitchHelp": "Aktif: pemeriksa harus menjawabnya, atau menyebutkan alasan tidak menjawab. Mati: mereka boleh melewatinya.",
-      "removeQuestionHelp": "Mengeluarkan pertanyaan ini. Tidak ada yang berubah sampai Anda menyimpan.",
+      "removeQuestionHelp": "Mengeluarkan pertanyaan ini.",
       "addQuestionHelp": "Menambahkan pertanyaan kosong di akhir.",
       "sectionHelp": "Ketik apa yang perlu diketahui penerjemah untuk bagian ini.",
       "sectionNameHelp": "Ketik nama bagian baru, lalu tambahkan.",
       "addSectionHelp": "Menambahkan bagian yang Anda namai, masih kosong, untuk diisi.",
-      "publishHelp": "Menaruh apa yang tersimpan di sini ke perpustakaan Anda, untuk dibagikan atau disimpan versinya.",
-      "publishVersionHelp": "Menambahkan apa yang tersimpan di sini ke perpustakaan Anda sebagai versi baru."
+      "publishHelp": "Menaruhnya di perpustakaan Anda, untuk dibagikan atau disimpan versinya.",
+      "publishVersionHelp": "Menambahkannya ke perpustakaan Anda sebagai versi baru.",
+      "doneHelp": "Memasukkan perubahan Anda ke bahan ini, untuk semua orang yang membacanya."
     },
     "libraryMaterial": {
       "eachLanguagesOwn": "Milik masing-masing bahasa",
@@ -2532,7 +2507,6 @@
       "reviewersSee": "Pemeriksa yang melakukan {{kind}} sekarang melihat pertanyaan-pertanyaan ini.",
       "newTitle": "Bahan perpustakaan baru",
       "newSub": "Perpustakaan · organisasi Anda",
-      "publishNewVersion": "Terbitkan versi baru",
       "passages": "Perikop",
       "titlePlaceholder": "misalnya Nama-nama dalam Rut",
       "textLabel": "Teks",
@@ -2550,12 +2524,12 @@
       "searchParts": "Cari bagian",
       "noTemplates": "Belum ada bahasa yang memakai templat perpustakaan.",
       "publishHelp": "Menaruhnya di perpustakaan Anda, untuk direkomendasikan kepada bahasa-bahasa atau dibagikan.",
-      "publishVersionHelp": "Menyimpan perubahan Anda sebagai versi baru di perpustakaan Anda.",
+      "publishVersionHelp": "Menerbitkan perubahan Anda sebagai versi baru di perpustakaan Anda.",
       "kindHelp": "Menjadikannya bahan jenis ini.",
       "textHelp": "Yang dibaca penerjemah: isi bahan itu sendiri.",
       "versesHelp": "Penerjemah mendapatkannya di ayat-ayat ini. Tulis masing-masing seperti {{example}}.",
       "numberingHelp": "Alkitab menomori sebagian ayat secara berbeda. Membaca ayat-ayat di atas dengan cara ini.",
-      "removePartHelp": "Melepas tautannya. Tidak ada yang berubah sampai Anda menerbitkan.",
+      "removePartHelp": "Melepas tautannya.",
       "linkPartHelp": "Pilih satu bagian templat: penerjemah mendapatkannya di sana, di setiap bahasa yang memakai templat itu.",
       "useInReviewsHelp": "Pemeriksa yang melakukan {{kind}} dalam bahasa ini mendapat pertanyaan-pertanyaan ini.",
       "pickPartHelp": "Menautkan bagian ini: penerjemah mendapatkannya di sana."
@@ -3175,13 +3149,10 @@
     },
     "profile": {
       "title": "Ubah Profil",
-      "save": "Simpan Profil",
       "nameLabel": "Nama Lengkap",
       "shortPassword": "Pilih kata sandi 6 karakter atau lebih.",
       "passwordNeedsConnection": "Membuat kata sandi memerlukan koneksi.",
       "passwordFailed": "Kata sandi tidak dapat dibuat. Coba lagi.",
-      "savedWithPassword": "Tersimpan. Anda dapat masuk dengan nama pengguna Anda dan kata sandi ini.",
-      "saved": "Profil tersimpan. Akan disinkronkan saat Anda terhubung.",
       "newPassword": "Kata sandi baru (tidak wajib)",
       "password": "Kata sandi (tidak wajib)",
       "passwordPlaceholder": "6 karakter atau lebih",
@@ -3191,7 +3162,10 @@
       "lastChangeRefused": "Perubahan terakhir Anda tidak diterima",
       "savedBody": "Akan terkirim saat Anda terhubung.",
       "nameHelp": "Nama yang dipakai tim Anda untuk mengenali Anda. Terkirim saat Anda terhubung.",
-      "passwordHelp": "Agar Anda bisa masuk lagi setelah orang lain memakai perangkat ini."
+      "passwordHelp": "Agar Anda bisa masuk lagi setelah orang lain memakai perangkat ini.",
+      "setPassword": "Buat kata sandi",
+      "setPasswordHelp": "Membuat kata sandi ini sekarang, agar Anda bisa masuk kembali dengannya. Memerlukan koneksi.",
+      "passwordSet": "Kata sandi sudah dibuat."
     },
     "orgs": {
       "stale": "Tidak dapat memperbarui. Organisasi yang tersimpan tetap tersedia.",
@@ -3316,7 +3290,8 @@
     "contribute": {
       "sub": "Ini tetap bersama perikopnya, dan pemeriksa melihatnya bersama studi.",
       "record": "Rekam apa yang dikatakan kelompok",
-      "typeHelp": "Ketik di sini, sebagai ganti merekam atau sebagai tambahan."
+      "typeHelp": "Ketik di sini, sebagai ganti merekam atau sebagai tambahan.",
+      "addAnswer": "Tambahkan jawaban Anda"
     },
     "media": {
       "map": "Peta",
@@ -3622,12 +3597,10 @@
         "askedName": "{{by}} meminta {{name}}",
         "askedSomeone": "{{by}} meminta seseorang"
       },
-      "publish": "Terbitkan",
       "publishedWhen": "Diterbitkan {{when}}",
       "publishedJustNow": "Baru saja diterbitkan",
       "someoneInSentence": "seseorang",
       "thenAskFor": "Lalu minta {{check}}",
-      "saveForTeam": "Simpan agar tim bisa mendengarnya",
       "hearFeedback": "Dengarkan masukan",
       "feedbackSub": "{{kind}} · perlu perubahan",
       "fix": "Perbaiki, atau biarkan dan sebutkan alasannya",
@@ -3642,13 +3615,13 @@
         "after": "setelah {{check}}",
         "askedWho": "meminta {{who}}",
         "asked": "diminta",
-        "afterPublish": "setelah Anda menerbitkan",
-        "next": "berikutnya"
+        "next": "berikutnya",
+        "afterDone": "setelah Anda selesai"
       },
       "help": {
         "study": "Lalui panduan studi bersama sebelum Anda merekam. Tidak ada yang menunggu langkah ini.",
         "record": "Rekam perikop dalam bahasa Anda. Coba sebanyak yang Anda mau.",
-        "publish": "Menerbitkan menyimpan versi Anda agar tim bisa mendengarnya, lalu Anda meminta pemeriksaan.",
+        "publish": "Setelah semua bagian direkam, ketuk Selesai: tim bisa mendengarnya, dan versi ini lanjut ke pemeriksaan berikutnya.",
         "feedback": "Seseorang sudah mendengarkan dan meminta perubahan. Dengarkan apa yang mereka katakan.",
         "fix": "Rekam versi baru dengan perubahannya, atau biarkan versi ini dan sebutkan alasannya.",
         "team": "Pemeriksaan oleh tim: {{status}}. Ketuk untuk melihat siapa dan pilihannya.",
@@ -3662,7 +3635,8 @@
         "teamView": "Pemeriksaan oleh tim: {{status}}.",
         "checkpoint": "Gembok: tahap ini harus lulus sebelum tahap-tahap sesudahnya."
       },
-      "thenTheTeam": "Lalu tim"
+      "thenTheTeam": "Lalu tim",
+      "teamHears": "Lalu tim bisa mendengarnya"
     },
     "quote": "“{{text}}”",
     "journey": {
@@ -3835,12 +3809,6 @@
       "askTitle": "Minta pemeriksaan",
       "askTarget": "Minta {{target}}",
       "someoneElse": "Orang lain",
-      "backTranslation": "Terjemahan balik diterbitkan",
-      "version": "Versi {{n, number}} diterbitkan",
-      "versionNoNumber": "Versi diterbitkan",
-      "savedHere": "{{title}} · tersimpan di perangkat ini · terkirim saat Anda online",
-      "sent": "{{title}} · terkirim ke tim",
-      "sending": "{{title}} · sedang dikirim",
       "nextAsk": "Berikutnya, minta pemeriksaan",
       "allDone": "Semua pemeriksaan sudah selesai.",
       "alreadyAsked": "Pemeriksaan berikutnya sudah diminta.",
@@ -3984,7 +3952,6 @@
       "latest": "Terbaru",
       "saved": "Disimpan {{when}}",
       "savedJustNow": "Baru saja disimpan",
-      "savedToast": "{{name}} disimpan.",
       "notDeleted": "Tidak terhapus. {{reason}}",
       "deleted": "{{name}} dihapus.",
       "delete": "Hapus {{name}}",
@@ -3997,9 +3964,9 @@
       "newVersionHelp": "Memulai versi baru dari awal. Draf-draf Anda tetap ada.",
       "deleteHelp": "Menghapus draf ini. Urungkan mengembalikannya.",
       "editDraftHelp": "Membuka draf ini di perekam, untuk melanjutkan pengerjaannya.",
-      "publishHelp": "Membuka draf ini untuk diterbitkan agar tim bisa mendengarnya.",
       "editVersionHelp": "Memulai draf baru dari versi ini. Versi itu sendiri tetap apa adanya.",
-      "partHelp": "Memutar bagian ini saja."
+      "partHelp": "Memutar bagian ini saja.",
+      "doneHelp": "Membuka draf ini untuk dilihat sekali lagi, lalu diselesaikan dan dikirim ke pemeriksaan berikutnya."
     }
   },
   "work": {
@@ -4288,7 +4255,6 @@
       "switchOff": "Mati. Ketuk untuk mengaktifkannya.",
       "person": "Menampilkan siapa orang ini: nama dan ID-nya.",
       "cancel": "Menutup ini tanpa mengubah apa pun.",
-      "save": "Menyimpan yang Anda ubah.",
       "done": "Selesai di sini: kembali.",
       "undo": "Mengembalikan yang ada sebelumnya.",
       "tryAgain": "Mencoba sekali lagi.",
@@ -4569,12 +4535,12 @@
       "yourRecording": "Rekaman Anda",
       "openHelp": "Tarik pembatas ke atas, atau ketuk di sini, untuk melihat bagian-bagian Anda.",
       "barLabel": "Rekaman Anda. {{next}}. {{progress}}. Buka",
-      "publishHelp": "Setelah semua bagian direkam: simpan versi ini untuk tim.",
       "nextRecording": "{{part}}…",
       "deletePartHelp": "Menghapus bagian ini. Anda bisa mengurungkannya segera sesudahnya.",
       "nextCardHelp": "Bagian yang Anda rekam berikutnya. Ketuk tombol merah untuk mulai.",
       "nextRecordingHelp": "Sedang merekam. Batang yang pekat adalah suara Anda yang disimpan; batang yang samar adalah hening.",
-      "nextPausedHelp": "Dijeda selama Alkitab diputar. Perekaman berlanjut saat Alkitab berhenti."
+      "nextPausedHelp": "Dijeda selama Alkitab diputar. Perekaman berlanjut saat Alkitab berhenti.",
+      "doneHelp": "Setelah semua bagian direkam: selesaikan versi ini dan kirim ke pemeriksaan berikutnya."
     },
     "quoted": "“{{text}}”",
     "listening": "Mendengarkan… {{time}}",
@@ -4616,7 +4582,6 @@
       "chooseThis": "Pilih yang ini.",
       "tryLabel": "Percobaan {{id}}, {{length}}",
       "settingsSaved": "Pengaturan mikrofon tersimpan di perangkat ini.",
-      "saveSettings": "Simpan pengaturan ini",
       "byHandLead": "Bicaralah, dan perhatikan batangnya. Geser garisnya agar suara Anda berada di atasnya dan suara bising ruangan tetap di bawahnya.",
       "sensitivityLine": "Garis kepekaan",
       "pauseEndsPart": "Jeda yang mengakhiri bagian",
@@ -4627,7 +4592,8 @@
       "listenRoomHelp": "Mendengarkan ruangan selama beberapa detik. Tetap diam selama itu.",
       "tryHelp": "Memulai percobaan ini: ucapkan kalimatnya, berhenti sejenak, ucapkan lagi, lalu ketuk berhenti.",
       "tryStopHelp": "Mengakhiri percobaan ini dan menyimpannya, untuk dibandingkan dengan yang lain.",
-      "sensitivityHelp": "Batang-batang ini adalah apa yang didengar mikrofon. Tarik garisnya: suara di atas garis akan direkam."
+      "sensitivityHelp": "Batang-batang ini adalah apa yang didengar mikrofon. Tarik garisnya: suara di atas garis akan direkam.",
+      "useSettings": "Pakai pengaturan ini"
     },
     "bigVoice": {
       "toggleHelp": "Ketuk untuk mulai bicara, ketuk lagi untuk berhenti.",
@@ -4681,9 +4647,7 @@
       "revisedAfter": "Diperbaiki setelah masukan {{kind}}.",
       "parts_other": "{{count, number}} bagian",
       "withBible": "direkam dengan Alkitab {{bible}}",
-      "publishVersion": "Terbitkan {{version}}",
       "atMoment": "Di {{time}}:",
-      "explain": "Menerbitkan menyimpan {{version}} ke perikop. Semua orang di tim dapat mendengarnya. Versi ini terkirim saat perangkat terhubung ke internet.",
       "answers": "Menjawab masukan {{kind}} dari {{from}}",
       "tied_other": "{{count, number}} kata kunci dikaitkan dengan versi ini",
       "whatChangedQuestion": "Apa yang berubah?",
@@ -4697,7 +4661,14 @@
       "optional": "Tidak wajib · tim mendengarnya bersama versi ini",
       "sayHelp": "Dengan suara atau diketik. Tim mendengarnya bersama versi ini.",
       "rowLabel": "{{label}}. {{sub}}",
-      "doneHelp": "Menyimpan apa yang Anda ucapkan dan menutup ini."
+      "doneHelp": "Menyimpan apa yang Anda ucapkan dan menutup ini.",
+      "nextCheck": "Pemeriksaan berikutnya",
+      "sendHelp": "Menyelesaikan {{version}} dan mengirimnya kepada mereka untuk pemeriksaan ini. Mereka melihatnya di Pekerjaan Saya.",
+      "askHelp": "Menyelesaikan {{version}}, lalu Anda memilih siapa yang diminta.",
+      "sendLater": "Kirim nanti",
+      "sendLaterHelp": "Menyelesaikan {{version}} tanpa meminta siapa pun dulu. Tim bisa mendengarnya.",
+      "finish": "Selesaikan {{version}}",
+      "finishHelp": "Menyelesaikan {{version}}: tim bisa mendengarnya."
     },
     "tray": {
       "help": "Bantuan",
@@ -5559,7 +5530,6 @@
       "bar": "{{name}}: {{share}} lewat"
     },
     "settings": {
-      "saved": "Tersimpan.",
       "notSaved": "Tidak tersimpan.",
       "offline": "Tidak ada koneksi. Tidak ada yang disimpan; coba lagi saat Anda online kembali.",
       "refused": "Tidak tersimpan: server menolaknya.",
@@ -5571,21 +5541,17 @@
       "countryButton": "Negara: {{country}}. Ganti.",
       "countryButtonNone": "Negara: belum dipilih. Ganti.",
       "chooseCountry": "Pilih negara",
-      "saveCountry": "Simpan negara",
       "target": "Target",
       "start": "Mulai (TTTT-BB-HH)",
       "finishBy": "Selesai paling lambat (TTTT-BB-HH)",
       "datesInvalid": "Tulis kedua tanggal dengan format TTTT-BB-HH (tahun-bulan-hari), dengan tanggal selesai sesudah tanggal mulai.",
-      "saveTarget": "Simpan target",
       "findCountry": "Cari negara",
       "typeToFind_other": "Ketik untuk mencari {{count, number}} lainnya.",
       "countryHelp": "Membuka daftar negara, untuk memilih di mana pekerjaan bahasa ini dilakukan.",
-      "saveCountryHelp": "Menyimpan negara ke server sekarang. Memerlukan koneksi.",
-      "scopeHelp": "Apa yang dicakup target. Lalu atur tanggalnya dan simpan.",
+      "scopeHelp": "Apa yang dicakup target, di antara tanggal di bawah ini.",
       "startHelp": "Hari dimulainya pekerjaan menuju target.",
       "finishByHelp": "Hari target harus tercapai.",
-      "saveTargetHelp": "Menyimpan target dan tanggalnya ke server sekarang. Memerlukan koneksi.",
-      "pickCountryHelp": "Memilih negara ini. Lalu ketuk Simpan negara untuk menyimpannya.",
+      "pickCountryHelp": "Memilih negara ini untuk bahasa ini.",
       "chosenCountryHelp": "Negara yang dipilih sekarang, dicetak tebal. Ketuk yang lain untuk menggantinya."
     },
     "clusters": {
@@ -5744,7 +5710,6 @@
       "sendFeedback": "Kirim masukan",
       "nextQuestion": "Pertanyaan berikutnya",
       "savesTo_other": "Disimpan ke {{count, number}} perikop",
-      "saveToRecord": "Simpan ke riwayat",
       "loggedIntro": "Untuk {{kind}} yang dilakukan di luar aplikasi — bertatap muka, lewat telepon, di gereja. Ini masuk ke riwayat atas nama orang yang memberikannya.",
       "versionByYou": "Versi {{n}} · direkam oleh Anda",
       "versionBy": "Versi {{n}} · direkam oleh {{name}}",
@@ -5813,10 +5778,6 @@
       "skipSub": "Pertanyaan wajib boleh dilewati — alasannya disimpan bersama pemeriksaan Anda.",
       "skipConfirm": "Lewati pertanyaan",
       "skipFootnote": "Alasannya disimpan bersama pemeriksaan Anda.",
-      "leaveTitle": "Keluar tanpa menyimpan?",
-      "leaveSub": "Apa yang Anda katakan dan jawab di sini belum tersimpan sampai Anda mengirim tinjauan.",
-      "keepReviewing": "Lanjutkan meninjau",
-      "leave": "Keluar",
       "backgroundHelp": "Membuka apa yang membantu Anda menilainya: Alkitab, catatan, kata kunci, dan lainnya.",
       "whoHelp": "Sebutkan berapa orang yang mendengarkan, dan di mana. Tidak wajib.",
       "whoReviewedHelp": "Sebutkan siapa yang memberi pemeriksaan ini. Tidak wajib.",
@@ -5832,12 +5793,11 @@
       "sheetDoneHelp": "Menyimpan yang Anda isi di sini dan menutup ini.",
       "whereHelp": "Di mana mereka mendengarkan. Ini tercatat di riwayat bersama pemeriksaan.",
       "whichVersionHelp": "Memilih versi yang diputar untuk mereka.",
-      "keepReviewingHelp": "Tetap di sini. Tidak ada yang hilang.",
-      "leaveHelp": "Keluar tanpa mengirim. Apa yang Anda ucapkan di sini tidak disimpan.",
       "helpBibleHelp": "Membuka Alkitab ini di Latar belakang, di samping perikop.",
       "helpGuideHelp": "Membuka panduan studi untuk perikop ini.",
       "helpNoteHelp": "Membukanya untuk dibaca.",
-      "howManyHelp": "Sebutkan berapa orang yang mendengarkan. Tidak wajib."
+      "howManyHelp": "Sebutkan berapa orang yang mendengarkan. Tidak wajib.",
+      "doneRecordedHelp": "Memasukkan {{what}} ke riwayat perikop."
     },
     "guest": {
       "previewSub": "Pratinjau · yang dilihat orang tanpa aplikasi",
@@ -5930,7 +5890,6 @@
       "noteAdded": "Catatan ditambahkan — catatan ini ikut bersama perikop ini",
       "noteOnVerse": "Catatan pada ayat {{verse}}",
       "noteOnVerseAt": "Catatan pada ayat {{verse}} · di {{time}}",
-      "saveNote": "Simpan catatan",
       "playYourNoteAt": "Putar catatan Anda di {{time}}",
       "yourNoteAt": "Catatan Anda di {{time}}",
       "goesWithReview": "{{length}} · disertakan dengan pemeriksaan Anda",
@@ -5948,7 +5907,8 @@
       "verseHelpPlay": "Memutar perikop dari ayat ini.",
       "verseHelpPick": "Memilih ayat ini. Lalu ketuk Catatan untuk memberi catatan pada ayat ini.",
       "notesByHelp": "Catatan pada ayat ini oleh {{names}}.",
-      "removeNoteHelp": "Menghapus catatan ini."
+      "removeNoteHelp": "Menghapus catatan ini.",
+      "closeNoteHelp": "Menutup catatan. Apa yang Anda ucapkan atau ketik muncul kembali saat Anda memberi catatan pada ayat ini lagi."
     },
     "voice": {
       "hearIt": "Dengarkan",
@@ -6011,8 +5971,6 @@
     "openYour": "Buka {{what}} Anda",
     "yourWhat": "{{what}} Anda, {{said}}",
     "loadingParts": "Memuat bagian-bagian Anda…",
-    "notesFor_other": "{{count, number}} catatan untuk {{check}} · ikut terkirim saat Anda menerbitkan",
-    "notesForNext_other": "{{count, number}} catatan untuk pemeriksaan berikutnya · ikut terkirim saat Anda menerbitkan",
     "saidInMore": "{{length}} dalam {{into}} · rekam untuk menambah",
     "sayingNext": "Diucapkan berikutnya",
     "saidIn": "{{length}} dalam {{into}}",
@@ -6025,17 +5983,12 @@
     "recordHelp": "Ucapkan bagian {{n}} dengan kata-kata Anda sendiri. Berhenti sejenak di antara pikiran; ketuk berhenti setelah selesai.",
     "recordPart": "Rekam bagian {{n}}",
     "recordHint": "Bicaralah, dengan jeda di antara bagian. Ketuk berhenti setelah selesai.",
-    "publishHelp": "Menyimpan terjemahan balik untuk tim, lalu meminta pemeriksaan berikutnya.",
     "noteAtPart": "Catatan di {{time}} pada bagian {{part}}",
     "noteSub": "Apa yang sulit diucapkan di sini? {{check}} mendengarnya bersama terjemahan balik Anda.",
     "noteSubNext": "Apa yang sulit diucapkan di sini? Pemeriksaan berikutnya mendengarnya bersama terjemahan balik Anda.",
     "addNote": "Tambah catatan",
     "typeNoMatch": "Atau ketik — misalnya kata yang tidak ada padanannya dalam bahasa Inggris",
     "oneSpokenNote": "Untuk sementara, satu catatan suara per terjemahan balik: ketik yang ini.",
-    "publishThe": "Terbitkan {{what}}?",
-    "publishSubCheck": "Dari Versi {{n}}. {{check}} mendengarkannya berikutnya.",
-    "publishSub": "Dari Versi {{n}}. Ini masuk ke riwayat perikop.",
-    "publishWhat": "Terbitkan {{what}}",
     "nothingYet_other": "Belum ada apa-apa untuk bagian {{parts}}",
     "notesAtMoments_other": "{{count, number}} catatan pada saat tertentu",
     "hardToSayBack": "Ada yang sulit diucapkan kembali?",
@@ -6043,7 +5996,14 @@
     "noRecording": "Belum ada rekaman untuk diterjemahkan balik.",
     "openVersionHelp": "Mengembalikan pemutar versi ke setengah layar.",
     "openPartsHelp": "Mengembalikan bagian-bagian Anda ke setengah layar.",
-    "deletePartHelp": "Menghapus apa yang Anda ucapkan untuk bagian ini. Anda bisa mengurungkannya segera sesudahnya."
+    "deletePartHelp": "Menghapus apa yang Anda ucapkan untuk bagian ini. Anda bisa mengurungkannya segera sesudahnya.",
+    "notesForCheck_other": "{{count, number}} catatan untuk {{check}}",
+    "doneHelp": "Setelah semua bagian diucapkan: selesaikan dan kirim ke pemeriksaan yang mendengarkannya berikutnya.",
+    "sendHelp": "Menyelesaikan {{what}} dan mengirimnya kepada mereka untuk pemeriksaan ini. Mereka melihatnya di Pekerjaan Saya.",
+    "askHelp": "Menyelesaikan {{what}}, lalu Anda memilih siapa yang diminta.",
+    "sendLaterHelp": "Menyelesaikan {{what}} tanpa meminta siapa pun dulu. Tim bisa mendengarnya.",
+    "finishWhat": "Selesaikan {{what}}",
+    "ofVersion": "Dari Versi {{n, number}}"
   },
   "translate": {
     "missing": "Perikop ini belum ada di perangkat ini.",
@@ -6078,7 +6038,6 @@
     "clipped": "Bagian-bagian terekam sangat pendek. Kata-kata mungkin terpotong.",
     "micSetup": "Atur mikrofon",
     "micSetupHint": "Sesuaikan cara perangkat mendengar Anda: kepekaan dan jeda.",
-    "saveHelp": "Bagian-bagian Anda sudah tersimpan selagi Anda merekam. Ini untuk kembali.",
     "openReferenceHelp": "Mengembalikan referensi ke setengah layar.",
     "openStudyHelp": "Membuka langkah ini dalam studi lengkap."
   },
@@ -6394,7 +6353,6 @@
       "sayTitle": "Kata Anda untuk “{{term}}”",
       "saySub": "Ucapkan bagaimana {{language}} menyebutnya. Tim Anda mendengarnya setiap kali kata ini muncul.",
       "saySubGloss": "{{gloss}}. Ucapkan bagaimana {{language}} menyebutnya. Tim Anda mendengarnya setiap kali kata ini muncul.",
-      "saveWord": "Simpan kata Anda",
       "added": "{{term}} ditambahkan.",
       "addSub": "Kata yang harus diucapkan tim dengan cara yang sama setiap kali. Kata ini ditambahkan ke kata kunci {{language}}.",
       "addWord": "Tambahkan kata ini",
@@ -6402,7 +6360,8 @@
       "meaningPlaceholder": "Artinya (tidak wajib)",
       "sayItIn": "Ucapkan dalam {{language}}",
       "allHelp": "Membuka daftar semua kata kunci dalam bahasa ini.",
-      "typeHelp": "Ketik cara mengucapkannya dalam {{language}}."
+      "typeHelp": "Ketik cara mengucapkannya dalam {{language}}.",
+      "addYourWord": "Tambahkan kata Anda"
     },
     "notes": {
       "noteOnRef": "Catatan pada {{verse}}",
@@ -6425,7 +6384,6 @@
       "madeWith": "dibuat dengan {{version}}",
       "addHint": "Tinggalkan catatan pada perikop ini, dengan suara atau tulisan.",
       "sheetSub": "Catatan ini tetap bersama perikop. Pemeriksa dan penerjemah berikutnya melihatnya.",
-      "save": "Simpan catatan",
       "added": "Catatan ditambahkan.",
       "typeHelp": "Ketik catatan Anda. Anda juga dapat mengucapkannya."
     },
@@ -6746,7 +6704,7 @@
     "addQuestionHelp": "Tulis pertanyaan yang dijawab pemeriksa pada pemeriksaan ini.",
     "unlinkHelp": "Melepaskannya dari pemeriksaan ini. Urungkan mengembalikannya.",
     "addHelpHelp": "Tautkan catatan, panduan, atau Alkitab yang dapat dibuka pemeriksa pada pemeriksaan ini.",
-    "peopleDoneHelp": "Menyimpan siapa saja yang ada di pemeriksaan ini.",
+    "peopleDoneHelp": "Memasukkan orang yang dicentang ke pemeriksaan ini dan menutup ini.",
     "personOnHelp": "Ada di pemeriksaan ini. Ketuk untuk mengeluarkannya.",
     "personOffHelp": "Tidak ada di pemeriksaan ini. Ketuk untuk memasukkannya.",
     "questionFieldHelp": "Apa yang ditanyakan kepada pemeriksa pada pemeriksaan ini.",
@@ -6755,7 +6713,9 @@
     "helpOnHelp": "Ditautkan: pemeriksa dapat membukanya pada pemeriksaan ini. Ketuk untuk melepas tautan.",
     "helpOffHelp": "Ketuk agar pemeriksa dapat membukanya pada pemeriksaan ini.",
     "writeNoteHelp": "Tulis catatan baru, yang ditautkan ke pemeriksaan ini.",
-    "removeCheckHelp": "Mengeluarkan pemeriksaan ini dari tahap-tahap yang dilalui perikop."
+    "removeCheckHelp": "Mengeluarkan pemeriksaan ini dari tahap-tahap yang dilalui perikop.",
+    "questionDoneHelp": "Memasukkan pertanyaan ke pemeriksaan ini apa adanya dan menutup ini.",
+    "noteDoneHelp": "Menambahkan catatan ke pemeriksaan ini dan menutup ini."
   },
   "lostFiles": {
     "title": "Audio hilang",
@@ -6837,7 +6797,6 @@
     "rename": {
       "title": "Ganti nama {{cluster}}",
       "label": "Namanya",
-      "save": "Simpan",
       "done": "Namanya sekarang {{name}}."
     },
     "ungroup": {
@@ -6858,12 +6817,11 @@
       "firstLabel": "Masukkan ke rumpun baru",
       "note": "Sebuah bahasa bisa berada di lebih dari satu rumpun, atau tidak di mana pun. Tidak ada yang berubah pada bahasanya.",
       "done": "Selesai",
-      "saved": "Rumpun {{language}} disimpan.",
       "rowHelp": "Pilih rumpun mana saja yang mencakup bahasa ini, atau masukkan ke rumpun baru.",
       "inHelp": "Ada di rumpun ini. Ketuk untuk mengeluarkannya.",
       "outHelp": "Tidak ada di rumpun ini. Ketuk untuk memasukkannya.",
       "newHelp": "Ketik nama: bahasa ini masuk ke rumpun baru dengan nama itu.",
-      "doneHelp": "Menyimpan rumpun mana saja yang mencakup bahasa ini."
+      "doneHelp": "Menutup ini. Centang langsung berlaku saat Anda mengetuknya; nama yang diketik di bawah membuat rumpun baru."
     },
     "newLanguage": {
       "what": "Apa yang Anda tambahkan?",
@@ -6910,5 +6868,13 @@
       "all": "Semua",
       "none": "Tanpa rumpun"
     }
+  },
+  "saved": {
+    "saving": "Menyimpan",
+    "saved": "Tersimpan",
+    "failed": "Tidak tersimpan",
+    "help": "Tersimpan selagi Anda bekerja: lingkaran berputar saat sedang disimpan, lalu centang. Tidak perlu menyimpan apa pun.",
+    "draftHelp": "Tersimpan di perangkat ini selagi Anda bekerja, dan hanya Anda yang dapat melihatnya sampai Anda selesai. Lingkaran berputar saat sedang disimpan, lalu centang.",
+    "failedHelp": "Ini tidak tersimpan. Coba lagi: apa yang Anda buat masih ada di layar."
   }
 }

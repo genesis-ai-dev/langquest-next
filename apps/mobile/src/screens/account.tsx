@@ -13,7 +13,7 @@ import { signInName } from '../auth/accounts';
 import { readHelp, type SignInHelp } from '../auth/signInHelp';
 import { CommandError, decodeHlc, languageName, unitTitle, type Update } from '@langquest-next/core';
 import * as Updates from 'expo-updates';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { accountOutbox, queueAccountAction } from '../account/accountData';
@@ -57,6 +57,8 @@ import { useInviterName } from '../account/useInviterName';
 import { useOrganizations } from '../account/useOrganizations';
 import { useUnsent } from '../account/useUnsent';
 import { deleteThisAccount } from '../account/deleteThisAccount';
+import { SavedMark } from '../ui/SavedMark';
+import { useSaver } from '../ui/useSaveStatus';
 
 // ---- Inbox (INBOX-1, INBOX-2) ---------------------------------------------------------------
 
@@ -544,54 +546,75 @@ function BlockedPeople(props: { ctx: Ctx; onClose: () => void }) {
 
 // ---- Edit Profile (AUTH-7) ------------------------------------------------------------------------------
 
-/** Your name, saved on this phone and sent when connected. */
+/**
+ * Your name, kept on this phone and sent when connected. It applies when
+ * you leave the field or the screen, with the saved mark (decision 111). A
+ * password is not a setting: it goes to the server when you set it.
+ */
 export function ProfileEdit(ctx: Ctx) {
-  const names = useDisplayNames(ctx.session.actorId);
+  const me = ctx.session.actorId;
+  const names = useDisplayNames(me);
   const [name, setName] = useState<string | null>(null);
   const [password, setPassword] = useState('');
   const [hasPassword, recheck] = useHasPassword();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const actions = useAccountActions(ctx.session.actorId);
+  const saver = useSaver();
+  const actions = useAccountActions(me);
   const pending = actions.filter((a) => a.kind === 'profile' && a.status !== 'sent').at(-1);
-  const value = name ?? String(pending?.payload.displayName ?? names[ctx.session.actorId] ?? '');
+  const stored = String(pending?.payload.displayName ?? names[me] ?? '');
+  const value = name ?? stored;
   const managed = ctx.session.isManaged;
   const handle = signInName(ctx.session.email);
-  // Saving stays off while the name is empty, except a too-short password:
-  // that has to be tappable so this screen can refuse it (ACCT-019).
-  const passwordTooShort = managed && password.length > 0 && password.length < 6;
-  async function save() {
+  // The name as typed and as kept, for leaving the screen (when nothing on it can show the mark any more).
+  const typed = useRef({ next: '', stored: '' });
+  typed.current = { next: name?.trim() ?? '', stored: stored.trim() };
+  const queued = useRef('');
+  async function queueName(next: string) {
+    queued.current = next;
+    await queueAccountAction(me, 'profile', { displayName: next });
+  }
+  function applyName() {
+    const { next, stored: was } = typed.current;
+    if (!next || next === was || next === queued.current) return;
+    setError('');
+    void saver.run(async () => {
+      try { await queueName(next); } catch (e) { queued.current = ''; setError(failure('save profile', e)); throw e; }
+    });
+  }
+  useEffect(() => () => {
+    const { next, stored: was } = typed.current;
+    if (!next || next === was || next === queued.current) return;
+    void queueName(next).catch((e: unknown) => ctx.toast(t('common.notSaved', { reason: failure('save profile', e) }))); // i18n-ignore: log label
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- keeps the name typed as the screen goes, once
+  // Too short is refused here, so the button stays tappable for it (ACCT-019).
+  async function setThePassword() {
+    if (busy) return;
+    if (password.length < 6) { setError(t('account.profile.shortPassword')); return; }
     setBusy(true);
     setError('');
     try {
-      // A password goes to the server now (it needs a connection); the name syncs whenever it can.
-      // A too-short one is refused here and nothing is written, name included.
-      if (managed && password) {
-        if (passwordTooShort) { setError(t('account.profile.shortPassword')); return; }
-        const { error } = await choosePassword(password);
-        if (error) {
-          noteExpected('set password', error);
-          setError(authErrorText(error, t('account.profile.passwordFailed'), t('account.profile.passwordNeedsConnection')));
-          return;
-        }
-        recheck();
+      const { error } = await choosePassword(password);
+      if (error) {
+        noteExpected('set password', error);
+        setError(authErrorText(error, t('account.profile.passwordFailed'), t('account.profile.passwordNeedsConnection')));
+        return;
       }
-      await queueAccountAction(ctx.session.actorId, 'profile', { displayName: value.trim() });
-      ctx.toast(managed && password ? t('account.profile.savedWithPassword') : t('account.profile.saved'));
-      ctx.back();
-    } catch (e) { setError(failure('save profile', e)); }
+      recheck();
+      setPassword('');
+      ctx.toast(t('account.profile.passwordSet'));
+    } catch (e) { setError(failure('set password', e)); }
     finally { setBusy(false); }
   }
   return (
-    <Screen
-      header={<Header title={t('account.profile.title')} onBack={ctx.back} />}
-      footer={<PrimaryBtn label={t('account.profile.save')} onPress={() => void save()} disabled={!value.trim() && !passwordTooShort} busy={busy} />}
-    >
+    <Screen header={<Header title={t('account.profile.title')} onBack={ctx.back} action={<SavedMark status={saver.status} />} />}
+      footer={managed ? <PrimaryBtn label={t('account.profile.setPassword')} icon="lock" help={t('account.profile.setPasswordHelp')} disabled={!password} busy={busy}
+        onPress={() => void setThePassword()} /> : undefined}>
       <View style={styles.avatarBlock}>
-        <PersonAvatar look={personLook(ctx.session.actorId, value)} size={72} />
+        <PersonAvatar look={personLook(me, value)} size={72} />
       </View>
       <Field label={t('account.profile.nameLabel')} value={value} onChangeText={setName} placeholder={t('entry.fields.yourName')} autoCapitalize="words"
-        help={t('account.profile.nameHelp')} />
+        help={t('account.profile.nameHelp')} onSubmit={applyName} onBlur={applyName} />
       <View style={{ gap: space.xs }}>
         <Text style={txt.xsStrong}>{t('entry.fields.email')}</Text>
         {/* A looked-after account's address is not an email anyone can use (accounts.ts). */}
@@ -600,7 +623,8 @@ export function ProfileEdit(ctx: Ctx) {
       {managed ? (
         <View style={{ gap: space.xs }}>
           <Field label={hasPassword ? t('account.profile.newPassword') : t('account.profile.password')} value={password} onChangeText={setPassword}
-            placeholder={t('account.profile.passwordPlaceholder')} secure autoCapitalize="none" help={t('account.profile.passwordHelp')} />
+            placeholder={t('account.profile.passwordPlaceholder')} secure autoCapitalize="none" help={t('account.profile.passwordHelp')}
+            onSubmit={() => { if (password) void setThePassword(); }} />
           <Text style={txt.xs}>
             {password || hasPassword
               ? (handle ? t('account.profile.signInWith', { name: handle }) : t('account.profile.signInWithYourName'))
