@@ -4,7 +4,6 @@
 import { randomUUID } from 'node:crypto';
 import { commands, type LanguageState } from '@langquest-next/core';
 import { Devices, expectClean, openBell, partsCount, recordParts, syncUntil, watch } from './16-helpers';
-import { holdPart } from './06-recording-helpers';
 import { clientAs, send } from './fixture';
 import { back, button, byId, expect, expectToast, openAs, primary, screenText, tab, test, text, useWorld } from './support';
 
@@ -46,7 +45,7 @@ test('JRN-002 A translator answers feedback: one fix, one kept with a reason @p0
   // Step 6: one new part, and one of Version 1's parts deleted.
   const before = await partsCount(page);
   await recordParts(page, 1);
-  await holdPart(page, 1);
+  // Each part has its own bin (LAN-83).
   await button(page, 'Delete Part 1').click();
   await expectToast(page, 'Part 1 deleted.');
   await expect.poll(() => partsCount(page)).toBe(before);

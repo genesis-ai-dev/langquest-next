@@ -1265,8 +1265,9 @@ Steps:
 
 Expected:
 - The header is "Versions", with the sub "Luke 14:15-24" and ✕.
-- TRANS, with no draft: "No drafts. Edit a version below, or start a new
-  one." and the footer "New version".
+- TRANS, with no draft: no drafts section, and the footer "New version"
+  (the line "No drafts. Edit a version below, or start a new one." went in
+  decision 124).
 - "Published" lists the versions newest first. The latest has the badge
   "Latest". Each shows "{name} · {when}", its length, and a summary of its
   reviews. Each has "Edit" for anyone who can record.
@@ -1311,20 +1312,24 @@ Expected:
 
 Resets: delete the unstarted passage's drafts.
 
-### PASS-060 Delete a draft, and Undo
+### PASS-060 Delete a draft, asked first
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Steps:
 1. On P-DONE's Versions page (PASS-059), tap the trash on "Draft 1".
-2. Tap "Undo".
-3. Delete it again and let the toast pass.
+2. Tap "Cancel".
+3. Tap the trash again, then "Delete Draft 1" in the sheet.
 
 Expected:
-- The trash is spoken "Delete Draft 1". Tapping it shows "Draft 1 deleted."
-  with "Undo", and the draft goes away. "Draft 2" is now the only draft,
-  named "Draft".
-- "Undo" brings back the same draft, with the same parts.
+- The trash is spoken "Delete Draft 1". Tapping it opens the sheet
+  "Delete Draft 1?" with what it holds, "Delete Draft 1" and "Cancel".
+- "Cancel" keeps both drafts.
+- Step 3 shows "Draft 1 deleted." with no Undo, and the draft goes away.
+  "Draft 2" is now the only draft, named "Draft".
 - Only TRANS's own drafts have a trash button.
+
+Changed (2026-10-16, decision 124): a whole draft, a whole version or every
+part asks first instead of offering Undo.
 
 Resets: delete both drafts.
 

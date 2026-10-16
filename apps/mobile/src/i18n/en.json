@@ -38,7 +38,8 @@
     "voiceNote": "Voice note",
     "addNote": "Add a note",
     "orTypeIt": "Or type it",
-    "sayIt": "Say it"
+    "sayIt": "Say it",
+    "deleteAsk": "Delete {{name}}?"
   },
   "time": {
     "justNow": "Just now",
@@ -3672,7 +3673,8 @@
         "studyStepDone": "{{pattern}} step {{n, number}} done · {{step}}",
         "studyDone": "Study step done",
         "keptAfter": "Kept after {{kind}}",
-        "keptAfterFeedback": "Kept after feedback"
+        "keptAfterFeedback": "Kept after feedback",
+        "versionDeleted": "Version {{n, number}} deleted"
       },
       "counts": {
         "versions_one": "{{count, number}} version",
@@ -4110,7 +4112,6 @@
       "newVersion": "New version",
       "yourDraft": "Your draft",
       "yourDrafts": "Your drafts",
-      "noDrafts": "No drafts. Edit a version below, or start a new one.",
       "published": "Published",
       "latest": "Latest",
       "saved": "Saved {{when}}",
@@ -4126,11 +4127,12 @@
       "draft": "Draft",
       "draftN": "Draft {{n, number}}",
       "newVersionHelp": "Starts a new version from the beginning. Your drafts stay.",
-      "deleteHelp": "Deletes this draft. Undo brings it back.",
+      "deleteHelp": "Deletes this draft.",
       "editDraftHelp": "Opens this draft in the recorder, to keep working on it.",
       "publishHelp": "Opens this draft to publish it for the team to hear.",
       "editVersionHelp": "Starts a new draft from this version. The version itself stays as it is.",
-      "partHelp": "Plays this part alone."
+      "partHelp": "Plays this part alone.",
+      "deleteVersionHelp": "Deletes this version for everyone. Checks already made of it stay on the record but no longer count."
     }
   },
   "work": {
@@ -4708,7 +4710,6 @@
     },
     "recorder": {
       "permissionNeeded": "Microphone permission is required.",
-      "dragUp": "{{recorded}} · drag up to see them",
       "hidePartsHelp": "Hide the parts.",
       "showPartsHelp": "Show each part, to hear or delete it.",
       "playAllHelp": "Hear everything recorded so far, one part after another.",
@@ -4733,7 +4734,18 @@
       "deletePartHelp": "Deletes this part. You can undo it right after.",
       "nextCardHelp": "The part you record next. Tap the red button to start.",
       "nextRecordingHelp": "Recording now. Solid bars are your voice being kept; faint bars are quiet.",
-      "nextPausedHelp": "Paused while the Bible plays. Recording goes on when it stops."
+      "nextPausedHelp": "Paused while the Bible plays. Recording goes on when it stops.",
+      "deleteAll": "Delete every part",
+      "deleteAllHelp": "Deletes every part, to start over.",
+      "leave": "Done",
+      "leaveHelp": "Stops recording and keeps every part.",
+      "recordOver": "Record {{part}} again",
+      "recordOverHelp": "What you record next replaces this part.",
+      "recordInGap": "Record {{part}} here",
+      "gapHelp": "What you record next goes in this gap.",
+      "recordAtEnd": "Record {{part}} at the end",
+      "endHelp": "What you record next goes at the end.",
+      "deleteAllAsk": "Delete every part?"
     },
     "quoted": "“{{text}}”",
     "listening": "Listening… {{time}}",
@@ -4913,16 +4925,9 @@
     },
     "vad": {
       "recordedFor": "Recorded for {{time}}",
-      "pausedForSource": "Paused while the source plays",
-      "startsAgain": "Recording starts again when the source stops.",
-      "cutoff": "Sound cutoff",
-      "pauseBetween": "Pause between parts",
       "tooShort": "Too short to keep. If you were speaking, say it again.",
-      "statusHelp": "Pulsing dot: your voice is being kept. The number: how many so far. The clock: time recorded.",
       "statusPausedHelp": "Paused while the source plays. The number: how many so far. The clock: time recorded.",
-      "resumeHelp": "Stops what is playing and goes on recording.",
-      "cutoffHelp": "The bars are what the microphone hears. Drag the line: sound above it is recorded.",
-      "pauseHelp": "How long a pause ends a part. It changes at once."
+      "resumeHelp": "Stops what is playing and goes on recording."
     },
     "split": {
       "referenceOneLine": "Reference as one line",
@@ -4950,7 +4955,6 @@
       "moreOfRange": "{{part}} is more of verses {{first}}–{{last}}.",
       "numbered_one": "{{count, number}} part numbered.",
       "numbered_other": "{{count, number}} parts numbered.",
-      "leftForLater": "{{verses}} · left for later",
       "follows": "{{part}} follows the order.",
       "none": "{{part}} has no verse.",
       "giveNext": "Give {{part}} the next verse",
@@ -4963,8 +4967,6 @@
       "hintLabelled": "Tap to give it the same verse as the part above. Hold to choose.",
       "hintEmpty": "Tap to give it the next verse. Hold to choose.",
       "choose": "Choose verses",
-      "recordHere": "Record here",
-      "recordHereHelp": "Record the verse you left for later; it goes in its place.",
       "verseSame": "{{verse}}, same as the part above",
       "auto": "Auto",
       "noVerse": "None",
@@ -6340,14 +6342,13 @@
     "dragDown": "Drag down for the guide, key words, notes and earlier recordings",
     "openStudy": "Open the study",
     "yourRecording": "Your recording",
-    "tapRed": "Tap the red button and speak. Pause between parts: each part is kept by itself.",
-    "latestParts": "These are Version {{n}}'s parts. Record a new part or delete one to publish a new version.",
     "clipped": "Parts are coming out very short. Words may be cut off.",
     "micSetup": "Set up the microphone",
     "micSetupHint": "Tune how the device hears you: sensitivity and pauses.",
     "saveHelp": "Your parts are already kept as you record. This goes back.",
     "openReferenceHelp": "Brings the reference back to half the screen.",
-    "openStudyHelp": "Opens this step in the full study."
+    "openStudyHelp": "Opens this step in the full study.",
+    "partReplaced": "{{part}} recorded again."
   },
   "reference": {
     "organization": "Organization",
