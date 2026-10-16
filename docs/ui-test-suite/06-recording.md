@@ -25,6 +25,12 @@ the test that creates it.
 - "The record" is the passage record (`passage_record`).
 - "Speak for N seconds" follows G8.
 - A "part" is one stretch of speech that voice detection kept by itself.
+  Voice detection asks a speech model whether the sound is speech (decision
+  135). The test microphones (G8's tone, the web suite's tones) are not
+  speech to it, so the web suites' builds leave the model out
+  (`NO_SPEECH_MODEL=1`) and parts follow the level alone. The phones always
+  carry the model: the flows tagged `voice` make no parts until G8 plays a
+  recorded voice.
 - `{TRANS-name}` and similar are the fixture accounts' display names.
 
 ---
@@ -184,7 +190,7 @@ Expected:
 - Every step is on the record: a second device, after Sync now, shows the same three parts in the same order (G10.4, G10.5).
 
 Changed (2026-10-16, decision 133): no toast offers an Undo that runs out; the recording screen has its own Undo and Redo.
-Changed (2026-10-16, decision 135): a part is deleted by sliding its row to its bin; no row has a bin of its own.
+Changed (2026-10-16, decision 136): a part is deleted by sliding its row to its bin; no row has a bin of its own.
 
 ### REC-008 Parts cannot be deleted while recording
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
