@@ -23,7 +23,8 @@ import { useCheckChoices, type FlowEntry } from '../admin/useChoices';
 import { addRow, moveRow, removeRow, rowNumbers, rowsOf, setCheckpoint, setTogether, type CheckRow } from './model';
 import { setChecksDraft } from './draft';
 import { useChecksDraft } from './useChecksDraft';
-import { restoreChecks } from './undo';
+import { useChecksUndo } from './useChecksUndo';
+import { UndoRedo } from '../ui/undoRedo';
 import { PeopleLine } from './parts';
 import { newKindId } from '../config/model';
 import { saveRows } from './checkActions';
@@ -251,12 +252,14 @@ function OwnChecks({ ctx }: { ctx: Ctx }) {
   const [flows, setFlows] = useState(false);
   const canManage = ctx.session.can('manage_flows');
   const startFlow = useHelpSpot(t('checks.flows.start'), t('checks.flows.startHelp'), canManage ? () => setFlows(true) : undefined);
+  const undo = useChecksUndo(ctx);
   if (!state) {
     return <Screen header={<Header title={t('checks.title')} onBack={ctx.back} />}><EmptyState icon="flow" title={t('common.loading')} /></Screen>;
   }
+  // A save is a step on the header's Undo (useChecksUndo hears it).
   const save = (next: CheckRow[], before: EventSpec[] = []) => void saveRows(ctx, next, t('checks.saved', { language }), before);
   return (
-    <Screen header={<Header title={t('checks.title')} sub={language} onBack={ctx.back} />}>
+    <Screen header={<Header title={t('checks.title')} sub={language} onBack={ctx.back} action={canManage ? <UndoRedo {...undo.props} help={{ undo: t('checks.undoHelp'), redo: t('common.redoHelp') }} /> : undefined} />}>
       {!canManage ? <Banner icon="lock" title={t('common.viewOnly')} body={t('config.flowEditor.viewOnlyBody')} /> : null}
       <CheckList ctx={ctx} rows={rows} kinds={known} readOnly={!canManage}
         peopleOf={(k) => checkPeople(state, k)}
@@ -290,11 +293,8 @@ function OwnChecks({ ctx }: { ctx: Ctx }) {
           ctx.toast(t('common.notSaved', { reason: failureMessage('use flow', err) })); // i18n-ignore: log label
           return;
         }
-        const undo = () => {
-          const s = ctx.language.state;
-          return s ? restoreChecks(s, previous, Crypto.randomUUID()) : [];
-        };
-        void ctx.act(specs, t('checks.flows.used', { name: e.c.name, language }), undo).catch(() => {});
+        const said = t('checks.flows.used', { name: e.c.name, language });
+        void ctx.act(specs, said).then(() => undo.did(previous, said), () => {});
       }} />
     </Screen>
   );

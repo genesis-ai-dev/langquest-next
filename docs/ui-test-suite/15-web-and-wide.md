@@ -550,11 +550,15 @@ Preconditions: None.
 
 Steps:
 1. Block {TRANS} from the flag on P-SUBMITTED's Version 1 (MOD-008).
-2. Before it goes, block {TREV} from another flag.
+2. Before it goes (about 3.5 seconds), block {TREV} from another flag.
 
 Expected:
 - The toast is no wider than about 480 px, not the window's width.
 - One toast at a time: the second replaces the first.
-- Each has "Undo" and a close ✕, and goes after about 7 seconds.
+- Each has a close ✕ ("Close") and no "Undo", and goes after about 3.5
+  seconds, with a bar along its foot counting down. The web never doubles
+  it, screen reader or not.
 
 Resets: unblock both (MOD-012).
+
+Changed (2026-10-16, decision 134): no toast offers Undo; "Unblock" (MOD-012) takes a block back, and every toast lasts 3.5 s on the web.

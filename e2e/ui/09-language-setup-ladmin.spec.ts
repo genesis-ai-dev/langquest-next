@@ -8,7 +8,7 @@
 import type { Page } from '@playwright/test';
 import {
   back, button, byId, deviceFor, expect, expectNothingRefused, expectSent, expectToast, field, openAs, primary, screenText, tab, tabsShown, test, text,
-  undoToast, useWorld
+  useWorld
 } from './support';
 import { closeSheet, expectNotOnScreen, expectOnScreen, expectOrgSent, more, orgRefused, setup } from './setup-helpers';
 
@@ -61,19 +61,27 @@ test('SETUP-062 LADMIN chooses Alpha\'s own template and checks', async ({ page 
   // A ready-made flow: its checks are copied into Alpha (decision 91), Alpha's own events.
   await more(page);
   await text(page, 'Every way to check').click();
-  const quick = page.locator('div').filter({ has: page.getByText('Quick Check', { exact: true }) })
+  const flowCard = (name: string) => page.locator('div').filter({ has: page.getByText(name, { exact: true }) })
     .filter({ has: page.getByRole('button', { name: 'Use', exact: true }) }).last();
+  const quick = flowCard('Quick Check');
+  // Alpha's checks are still as Standard Bible Flow made them, so Use asks nothing (decision 134).
   await quick.getByRole('button', { name: 'Use', exact: true }).click();
   await expectToast(page, 'Alpha now uses Quick Check.');
-  await undoToast(page);
-  await expectToast(page, 'Undone.');
+  // Put back the same way, as no toast offers Undo: Standard Bible Flow, which Alpha's checks were copied from.
+  const standard = flowCard('Standard Bible Flow');
+  await expect(standard).not.toContainText('Loading…');
+  await standard.getByRole('button', { name: 'Use', exact: true }).click();
+  await expectToast(page, 'Alpha now uses Standard Bible Flow.');
   await back(page).click();
-  // One of Alpha's checks taken out and put back.
+  // One of Alpha's checks taken out, and added again from the list (it was the last).
   await text(page, 'Checks').click();
   await text(page, 'Final approval').click();
   await text(page, 'Remove this check').click();
+  await page.getByTestId('sheet').locator('visible=true').last().getByRole('button', { name: 'Remove this check', exact: true }).click();
   await expectToast(page, 'Final approval removed');
-  await undoToast(page);
+  await text(page, 'Add a check').click();
+  await text(page, 'Final approval').click();
+  await expectToast(page, 'Alpha\'s checks saved');
   await expectOnScreen(page, 'Final approval');
   await back(page).click();
   // Another of the organization's own templates: Change template offers only those (following another
@@ -86,7 +94,11 @@ test('SETUP-062 LADMIN chooses Alpha\'s own template and checks', async ({ page 
   await text(page, 'FIA passages', true).click();
   await button(page, 'Use FIA passages').click();
   await expectToast(page, 'Alpha now uses FIA passages.');
-  await undoToast(page);
+  // Put back the same way: the template Alpha used before.
+  await text(page, 'Change template').click();
+  await text(page, 'FIA passages (English)').click();
+  await button(page, 'Use FIA passages (English)').click();
+  await expectToast(page, 'Alpha now uses FIA passages (English).');
   await expectSent(page, w);
   await expectNothingRefused(page, w);
   await expectOrgSent(page, w);

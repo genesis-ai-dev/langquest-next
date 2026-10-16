@@ -103,8 +103,12 @@ test('PASS-012 Done, then asking: the check\'s people are picked @p0', async ({ 
   await toast(page, 'Sent to the Peer check team — anyone on it will see it on My Work');
   await expect(header(page)).toHaveText(L);
   expect(await teamRow(page, 'Peer check').getAttribute('aria-label')).toBe('Peer check, asked the Peer check team');
-  await byId(page, 'toast-undo').click();
-  await toast(page, 'Undone.');
+  // The toast has no Undo (decision 134): History's Withdraw takes the request back.
+  await versionsPage(page);
+  await expand(page, 'History', /^Version \d+ published$|^Asked /);
+  await button(page, 'Withdraw').click();
+  await toast(page, 'Request withdrawn');
+  await byId(page, 'header-close').click();
   await expect(teamRow(page, 'Peer check')).toHaveAttribute('aria-label', 'Peer check, next');
   // REV's My Work does not hold it.
   const rev = await pageFor(browser, world(), 'REV');
@@ -162,7 +166,6 @@ test('PASS-022 Send to the check\'s people in one tap', async ({ browser }) => {
   await button(page, 'Send to the Peer check team').click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await toast(page, 'Sent to the Peer check team — anyone on it will see it on My Work');
-  await expect(byId(page, 'toast-undo')).toBeVisible();
   await expect(teamRow(page, 'Peer check')).toHaveAttribute('aria-label', 'Peer check, asked the Peer check team');
   for (const who of ['REV', 'TREV'] as AccountKey[]) {
     const all = await myWork(await pageFor(browser, world(), who), `asked by ${nameOf('TRANS')}`);
@@ -232,7 +235,6 @@ test('PASS-038 Ask a person, with directions and a question, and no due date @p0
   await expect(field(page, /^Or a date, like /)).toHaveCount(0);
   await byId(page, 'primary-action').click();
   await toast(page, `${trev} will see it on their My Work`);
-  await expect(byId(page, 'toast-undo')).toBeVisible();
   await expect(header(page)).toHaveText(L);
   await expect(teamRow(page, 'Peer check')).toHaveAttribute('aria-label', `Peer check, asked ${trev}`);
   await versionsPage(page);
@@ -244,8 +246,8 @@ test('PASS-038 Ask a person, with directions and a question, and no due date @p0
   expect(all).not.toMatch(/\bdue\b/);
 });
 
-/** PASS-039 for one role: asks Kept to record a spare passage (`at` picks the passage), then undoes it. */
-async function askToRecordThenUndo(browser: Browser, who: AccountKey, at: number): Promise<void> {
+/** PASS-039 for one role: asks Kept to record a spare passage (`at` picks the passage), then withdraws it from History. */
+async function askToRecordThenWithdraw(browser: Browser, who: AccountKey, at: number): Promise<void> {
   const p = (await sparePassages(world(), 2))[at]!;
   const kept = nameOf('KEPT');
   const page = await recordAs(browser, world(), who, p);
@@ -257,20 +259,22 @@ async function askToRecordThenUndo(browser: Browser, who: AccountKey, at: number
   await toast(page, `${kept} will see it on their My Work`);
   await expect(header(page), who).toHaveText(p.label);
   expect(await pathStep(page, 'Record').getAttribute('aria-label'), who).toMatch(new RegExp(`Record\\. You asked ${kept}\\. Tell it`));
-  await byId(page, 'toast-undo').click();
-  await toast(page, 'Undone.');
-  await expect.poll(async () => pathStep(page, 'Record').getAttribute('aria-label'), { message: who }).not.toContain('asked');
+  // The toast has no Undo (decision 134): History's Withdraw takes the request back.
   await versionsPage(page);
   await expand(page, 'History', /^Version \d+ published$|^Asked /);
-  expect(await screenText(page), who).toMatch(new RegExp(`Asked ${kept} to record .*withdrawn`));
+  await button(page, 'Withdraw').click();
+  await toast(page, 'Request withdrawn');
+  await expect.poll(() => screenText(page), { message: who }).toMatch(new RegExp(`Asked ${kept} to record .*withdrawn`));
+  await byId(page, 'header-close').click();
+  await expect.poll(async () => pathStep(page, 'Record').getAttribute('aria-label'), { message: who }).not.toContain('asked');
 }
 
-test('PASS-039 COORD Ask someone to record, then Undo', async ({ browser }) => {
-  await askToRecordThenUndo(browser, 'COORD', 0);
+test('PASS-039 COORD Ask someone to record, then withdraw it', async ({ browser }) => {
+  await askToRecordThenWithdraw(browser, 'COORD', 0);
 });
 
-test('PASS-039 LADMIN Ask someone to record, then Undo', async ({ browser }) => {
-  await askToRecordThenUndo(browser, 'LADMIN', 1);
+test('PASS-039 LADMIN Ask someone to record, then withdraw it', async ({ browser }) => {
+  await askToRecordThenWithdraw(browser, 'LADMIN', 1);
 });
 
 /** Ask someone for the Back translation of P-DRAFT, from its step sheet. */
@@ -316,7 +320,6 @@ test('PASS-042 Ask someone without the app', async ({ browser }) => {
   await expect(byId(page, 'primary-action')).toHaveText('Ask Pastor');
   await byId(page, 'primary-action').click();
   await toast(page, 'Asked Pastor Garang · the request is on the record');
-  await expect(byId(page, 'toast-undo')).toBeVisible();
   await openTeamRow(page, 'Back translation');
   expect(await screenText(page)).toContain('Waiting on Pastor Garang · by link over SMS');
   await closeSheet(page);
@@ -350,7 +353,6 @@ test('PASS-044 TRANS Withdraw a request from History', async ({ browser }) => {
   await expect(row.or(text(page, /Asked Pastor Garang for/, false)).first()).toBeVisible();
   await button(page, 'Withdraw').click();
   await toast(page, 'Request withdrawn');
-  await expect(byId(page, 'toast-undo')).toHaveCount(0);
   await expect.poll(() => screenText(page)).toMatch(/Asked Pastor Garang for .*withdrawn/);
 });
 

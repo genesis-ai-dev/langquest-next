@@ -10,7 +10,7 @@ import {
 } from './people-helpers';
 import { clientAs, send, signIn } from './fixture';
 import {
-  back, button, byId, expect, expectSyncIdle, expectToast, field, openAs, primary, screenText, syncNow, tab, tabsShown, test, text, undoToast,
+  back, button, byId, expect, expectSyncIdle, expectToast, field, openAs, primary, screenText, syncNow, tab, tabsShown, test, text,
   useWorld
 } from './support';
 
@@ -615,8 +615,7 @@ test('PEOPLE-018 Decline a request from the Inbox', async ({ page, browser }) =>
   await openInbox(page);
   await text(page, 'Join request').click();
   await button(page, 'Decline').click();
-  const t = await expectToast(page, 'Declined. They were not given access.');
-  await expect(t.getByTestId('toast-undo')).toHaveCount(0);
+  await expectToast(page, 'Declined. They were not given access.');
   await expect(text(page, asked(person.name))).toHaveCount(0);
 
   // Brought to the front: the app asks again.
@@ -651,8 +650,7 @@ test('PEOPLE-019 Say no from the request screen', async ({ page }) => {
   await text(page, `${person.name} wants to join`).click();
   await expect(text(page, 'Say no')).toBeVisible();
   await text(page, 'Say no').click();
-  const t = await expectToast(page, `You said no to ${person.name}.`);
-  await expect(t.getByTestId('toast-undo')).toHaveCount(0);
+  await expectToast(page, `You said no to ${person.name}.`);
   await expect(text(page, `${person.name} wants to join`)).toHaveCount(0);
   await alphaMembers(page, w);
   await expectSyncIdle(page);
@@ -768,17 +766,13 @@ for (const who of ['ADMIN', 'COORD'] as const) {
     await expect(primary(p)).toBeEnabled();
     await primary(p).click();
     await expectToast(p, `${rev} is now Translator-Reviewer`);
-    if (who === 'ADMIN') {
-      await undoToast(p);
-      await expectToast(p, 'Put back.');
-    } else {
-      await text(p, rev).click();
-      await p.getByRole('radio', { name: 'Reviewer', exact: true }).locator('visible=true').first().click();
-      await primary(p).click();
-      await expectToast(p, `${rev} is now Reviewer`);
-    }
-    // The change (and its Undo, or the change back) is written on this device and uploads on its next
-    // sync: wait for it to be sent before reading the server, and before COORD's device is closed with it.
+    // No toast offers Undo (decision 134): the role is changed back the same way.
+    await text(p, rev).click();
+    await p.getByRole('radio', { name: 'Reviewer', exact: true }).locator('visible=true').first().click();
+    await primary(p).click();
+    await expectToast(p, `${rev} is now Reviewer`);
+    // The change and the change back are written on this device and upload on its next sync: wait
+    // for them to be sent before reading the server, and before COORD's device is closed with them.
     await expectSyncIdle(p);
     if (who === 'COORD') await (d as { context: import('@playwright/test').BrowserContext }).context.close();
     await expect.poll(async () => (await membership(w.accounts.REV.id)).find((m) => !m.removed)?.role_id, { timeout: 30_000 }).toBe('reviewer');
@@ -805,8 +799,12 @@ test('PEOPLE-024 Move a membership between organization and language scope', asy
   expect(await between(page, 'Alpha · ', null)).toContain(view);
   await expect.poll(async () => (await membership(w.accounts.VIEW.id)).filter((m) => !m.removed).map((m) => m.scope), { timeout: 30_000 })
     .toEqual([{ level: 'language', languageId: w.languages.A.languageId }]);
-  await undoToast(page);
-  await expectToast(page, 'Put back.');
+  // No toast offers Undo (decision 134): moved back the same way, from its row under Alpha.
+  await text(page, view).click();
+  await expect(text(page, 'Viewer · Alpha')).toBeVisible();
+  await page.getByRole('button', { name: 'Organization', exact: true }).locator('visible=true').first().click();
+  await primary(page).click();
+  await expectToast(page, `${view} is now Viewer`);
   await expect(text(page, `Organization members · ${atOrg}`)).toBeVisible();
   await expect.poll(async () => (await membership(w.accounts.VIEW.id)).filter((m) => !m.removed).map((m) => m.scope), { timeout: 30_000 })
     .toEqual([{ level: 'org' }]);
@@ -829,26 +827,30 @@ test('PEOPLE-025 Remove a member', async ({ page }) => {
   await expectInOrder(page, 'Which language this assignment applies to.', 'Remove from language');
   await expect(primary(page)).toHaveText('Save Assignment');
   expect(await remove.evaluate((e, save) => !!save && save.contains(e), await primary(page).elementHandle())).toBe(false);
+  // It asks first (decision 134): nothing puts a member back afterwards. Cancel keeps them.
+  const ask = page.getByTestId('sheet').locator('visible=true').last();
   await remove.click();
+  await expect(ask).toContainText(`Remove ${joiner()}?`);
+  await expect(ask).toContainText('Translator · Alpha');
+  await ask.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(remove).toBeVisible();
+  // The sheet's button has the link's words. The person stays removed for the rest of this file.
+  await remove.click();
+  await ask.getByRole('button', { name: 'Remove from language', exact: true }).click();
   await expectToast(page, `${joiner()} removed at language level`);
   await expect(text(page, /^Language members · /)).toBeVisible();
   await expect(text(page, joiner())).toHaveCount(0);
-  await undoToast(page);
-  await expectToast(page, 'Put back.');
-  await expect(text(page, joiner())).toBeVisible();
-  // An organization member's link and toast name the organization.
+  // An organization member's link and sheet name the organization.
   await back(page).click();
   await back(page).click();
   await orgMembers(page, w);
   await text(page, w.accounts.VIEW.name).click();
-  await expect(text(page, 'Remove from organization')).toBeVisible();
+  await text(page, 'Remove from organization').click();
+  await expect(ask).toContainText(`Remove ${w.accounts.VIEW.name}?`);
+  await expect(ask.getByRole('button', { name: 'Remove from organization', exact: true })).toBeVisible();
+  await ask.getByRole('button', { name: 'Cancel', exact: true }).click();
   await back(page).click();
-  // Removed again (the person stays removed for the rest of this file).
-  await back(page).click();
-  await alphaMembers(page, w);
-  await text(page, joiner()).click();
-  await text(page, 'Remove from language').click();
-  await expectToast(page, `${joiner()} removed at language level`);
 });
 
 test('PEOPLE-026 The only one who can manage roles keeps that role', async ({ page }) => {
@@ -986,8 +988,11 @@ test('PEOPLE-030 A language lead grants only what they hold, only at their langu
   await page.getByRole('radio', { name: 'Reviewer', exact: true }).locator('visible=true').first().click();
   await primary(page).click();
   await expectToast(page, `${w.accounts.TRANS.name} is now Reviewer`);
-  await undoToast(page);
-  await expectToast(page, 'Put back.');
+  // No toast offers Undo (decision 134): TRANS's role is changed back the same way.
+  await text(page, w.accounts.TRANS.name).click();
+  await page.getByRole('radio', { name: 'Translator', exact: true }).locator('visible=true').first().click();
+  await primary(page).click();
+  await expectToast(page, `${w.accounts.TRANS.name} is now Translator`);
   await expect.poll(async () => (await membership(w.accounts.TRANS.id)).find((m) => !m.removed)?.role_id, { timeout: 30_000 }).toBe('translator');
 
   // The server refuses what the screens do not offer: Coordinator at Alpha, anything at the organization.

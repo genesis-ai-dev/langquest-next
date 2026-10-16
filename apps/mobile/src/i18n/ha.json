@@ -38,7 +38,14 @@
     "addNote": "Ƙara bayani",
     "orTypeIt": "Ko ku rubuta shi",
     "sayIt": "Faɗe shi",
-    "deleteAsk": "A goge {{name}}?"
+    "deleteAsk": "A goge {{name}}?",
+    "undo": "Janye",
+    "redo": "Maimaita",
+    "undoWhat": "Janye: {{what}}",
+    "redoWhat": "Maimaita: {{what}}",
+    "undoneWhat": "An janye: {{what}}",
+    "redoneWhat": "An maimaita: {{what}}",
+    "redoHelp": "Yana mayar da abin da Janye ya cire."
   },
   "time": {
     "justNow": "Yanzu nan",
@@ -454,7 +461,8 @@
       "removed": "An cire {{name}}.",
       "publishHelp": "Yana duba abin da ba a cika ba, sannan ya sa jagorar a ɗakin karatun ƙungiyarku.",
       "problemHelp": "Yana kai ku gare shi, don ku gyara shi.",
-      "refHelp": "Yadda mahaɗan matakai suke samun sa. Haɗa a sandar rubutu yana rubuta muku shi."
+      "refHelp": "Yadda mahaɗan matakai suke samun sa. Haɗa a sandar rubutu yana rubuta muku shi.",
+      "undoHelp": "Yana janye canjinku na ƙarshe ga jagorar. Ku sake taɓawa don komawa baya sosai."
     },
     "details": {
       "replacedFia": "An maye gurbin matakai da matakai shida na FIA.",
@@ -869,8 +877,6 @@
       "byNameHelp": "Yana yin lamba mai suna a kanta, don mutum ɗaya ko rukuni."
     },
     "member": {
-      "putBack": "An mayar.",
-      "notPutBack": "Ba a mayar ba. {{reason}}",
       "isNow": "{{name}} yanzu {{role}} ne",
       "removedOrg": "An cire {{name}} a matakin ƙungiya",
       "removedLanguage": "An cire {{name}} a matakin harshe",
@@ -892,7 +898,8 @@
       "removeFromOrg": "Cire daga ƙungiya",
       "removeFromLanguage": "Cire daga harshe",
       "declineHelp": "Yana ƙin buƙatarsu ta shiga.",
-      "removeHelp": "Yana cire matsayinsu a nan. Janye yana bayyana na ɗan lokaci bayan haka."
+      "removeHelp": "Yana cire matsayinsu a nan. Yana tambaya tukuna; don dawowa, sai su sake shiga.",
+      "removeAsk": "Cire {{name}}?"
     },
     "signIn": {
       "notAllowed": "Ba ku da izinin taimaka wa wannan mutum shiga.",
@@ -2060,7 +2067,6 @@
       "bookStarts": "Littafin yana farawa a nan",
       "joinWith": "Haɗa da sashe na {{n}}",
       "startHere": "Fara sashe a nan",
-      "undo": "Soke",
       "startFrom": "Fara daga hanyar da aka shirya",
       "started": "Sashe na {{n}} yana farawa a {{at}}",
       "joined": "An haɗa da sashe na {{n}}",
@@ -3874,7 +3880,7 @@
       },
       "actionHelp": {
         "do": "Yana buɗe shi, don ku yi shi da kanku yanzu.",
-        "send": "Yana aika shi ga wanda yawanci yake yin sa. Janye yana dawo da shi.",
+        "send": "Yana aika shi ga wanda yawanci yake yin sa. Kuna iya janye shi daga baya.",
         "ask": "Ku zaɓi mutum, tawaga, ko wani da ba shi da manhajar.",
         "log": "Ya faru a wajen manhajar: ku sa shi a tarihi.",
         "skip": "Ku bar wannan dubawa. Za ku faɗi dalili.",
@@ -4223,11 +4229,7 @@
     "toast": {
       "notSaved": "Ba a ajiye ba: {{reason}}",
       "notSavedCode": "Ba a ajiye ba. Wani abu bai yi daidai ba (lamba {{code}}).",
-      "notUndone": "An kasa janyewa: {{reason}}",
-      "notUndoneCode": "An kasa janyewa. Wani abu bai yi daidai ba (lamba {{code}}).",
-      "announceUndo": "{{message}} Ana iya janyewa.",
-      "dismissLabel": "{{message}} Kawar",
-      "undo": "Janye"
+      "dismissLabel": "{{message}} Kawar"
     },
     "nav": {
       "cannotOpenHere": "Ba za a iya buɗe wannan daga nan ba.",
@@ -4706,14 +4708,7 @@
       "movePartHelp": "Ku ja sama ko ƙasa don matsar da wannan sashe. Sashen da kuka matsar yana rasa ayarsa, don ku sake ba shi.",
       "moveUp": "Matsar sama",
       "moveDown": "Matsar ƙasa",
-      "undo": "Janye",
-      "redo": "Maimaita",
-      "undoWhat": "Janye: {{what}}",
-      "redoWhat": "Maimaita: {{what}}",
-      "undoHelp": "Yana janye canjinku na ƙarshe ga sassan. Ku sake taɓawa don komawa baya sosai.",
-      "redoHelp": "Yana mayar da abin da Janye ya cire.",
-      "undoneWhat": "An janye: {{what}}",
-      "redoneWhat": "An maimaita: {{what}}"
+      "undoHelp": "Yana janye canjinku na ƙarshe ga sassan. Ku sake taɓawa don komawa baya sosai."
     },
     "quoted": "“{{text}}”",
     "listening": "Ana saurara… {{time}}",
@@ -6833,7 +6828,7 @@
       "languageHelp": "Yana nuna Littattafai Masu Tsarkinsa a ƙasa.",
       "nextChapterHelp": "Yana nunawa da kunna babin da ke bayan wannan.",
       "previousChapterHelp": "Yana nunawa da kunna babin da ke gaban wannan.",
-      "removeHelp": "Yana cire shi daga Littattafai Masu Tsarki naku a wannan na'ura. Kuna iya janyewa.",
+      "removeHelp": "Yana cire shi daga Littattafai Masu Tsarki naku a wannan na'ura. Kuna iya sake ƙara shi a nan.",
       "searchHelp": "Ku rubuta sunan harshe ko lambarsa don nemo Littattafai Masu Tsarkinsa."
     }
   },
@@ -6873,7 +6868,8 @@
       "used": "Yanzu {{language}} yana farawa daga {{name}}",
       "startHelp": "Yana maye gurbin dubawar da rukunin da aka shirya, don ku canja yadda kuke so.",
       "useHelp": "Yana maye gurbin dubawar {{language}} da waɗannan. Janye yana mayar da su.",
-      "pickHelp": "Yana zaɓar sa. Sannan Yi amfani, a ƙasa, yana maye gurbin dubawar da tasa."
+      "pickHelp": "Yana zaɓar sa. Sannan Yi amfani, a ƙasa, yana maye gurbin dubawar da tasa.",
+      "replaceAsk": "A maye gurbin dubawar {{language}} ta kanta da {{name}}?"
     },
     "gone": "Wannan ba ya cikin dubawar harshen yanzu",
     "checkOf": "Dubawa ta {{n}} · {{language}}",
@@ -6932,11 +6928,11 @@
     "draftDoneHelp": "Yana riƙe waɗannan dubawa don sabon harshen, ya koma baya.",
     "sameTimeOnHelp": "A kunne: tana faruwa tare da {{check}}. Taɓa don ta zo bayanta.",
     "sameTimeOffHelp": "A kashe: tana zuwa bayan {{check}}. Taɓa don duka biyu su faru lokaci ɗaya.",
-    "removePersonHelp": "Yana cire su daga wannan dubawa. Janye yana mayar da su.",
+    "removePersonHelp": "Yana cire su daga wannan dubawa. Ƙara mutane yana mayar da su.",
     "addPeopleHelp": "Ku zaɓi wanda zai yi wannan dubawa. Idan ba a zaɓi kowa ba, kowa zai iya.",
     "editQuestionHelp": "Ku canja tambayar ko irinta, ko ku cire ta.",
     "addQuestionHelp": "Ku rubuta tambayar da masu bita za su amsa a wannan dubawa.",
-    "unlinkHelp": "Yana cire shi daga wannan dubawa. Janye yana mayar da shi.",
+    "unlinkHelp": "Yana cire shi daga wannan dubawa. Kuna iya sake ƙara shi.",
     "addHelpHelp": "Ku haɗa bayanai, jagorori ko Littattafai Masu Tsarki da masu bita za su iya buɗewa a wannan dubawa.",
     "peopleDoneHelp": "Yana ajiye waɗanda ke kan wannan dubawa.",
     "personOnHelp": "Suna kan wannan dubawa. Taɓa don cire su.",
@@ -7000,7 +6996,9 @@
     "checkedAtPickHelp": "Wannan dubawa tana sauraron sa.",
     "ownCheck": "Dubawa ta kanta",
     "ownCheckHelp": "Yana ƙara dubawa nan da nan bayan wannan da ke sauraron sa.",
-    "ownCheckName": "Dubawar {{name}}"
+    "ownCheckName": "Dubawar {{name}}",
+    "undoHelp": "Yana janye canjinku na ƙarshe ga dubawa. Ku sake taɓawa don komawa baya sosai.",
+    "removeAsk": "Cire {{check}}?"
   },
   "lostFiles": {
     "title": "Sauti ta ɓace",

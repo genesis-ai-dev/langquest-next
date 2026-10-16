@@ -38,7 +38,14 @@
     "addNote": "Ongeza dokezo",
     "orTypeIt": "Au andika",
     "sayIt": "Sema kwa sauti",
-    "deleteAsk": "Futa {{name}}?"
+    "deleteAsk": "Futa {{name}}?",
+    "undo": "Tendua",
+    "redo": "Rudia",
+    "undoWhat": "Tendua: {{what}}",
+    "redoWhat": "Rudia: {{what}}",
+    "undoneWhat": "Imetenduliwa: {{what}}",
+    "redoneWhat": "Imerudiwa: {{what}}",
+    "redoHelp": "Hurudisha kile Tendua ilichoondoa."
   },
   "time": {
     "justNow": "Sasa hivi",
@@ -454,7 +461,8 @@
       "removed": "{{name}} imeondolewa.",
       "publishHelp": "Huangalia kinachokosekana, kisha huuweka katika maktaba ya shirika lako.",
       "problemHelp": "Hukupeleka kwenye tatizo hilo, ili ulirekebishe.",
-      "refHelp": "Jinsi viungo vya hatua vinavyokipata kipengele hiki. Unganisha kwenye zana za maandishi hukuandikia rejea hii."
+      "refHelp": "Jinsi viungo vya hatua vinavyokipata kipengele hiki. Unganisha kwenye zana za maandishi hukuandikia rejea hii.",
+      "undoHelp": "Hutendua badiliko lako la mwisho kwa mwongozo. Gusa tena kurudi nyuma zaidi."
     },
     "details": {
       "replacedFia": "Hatua zimebadilishwa na hatua sita za FIA.",
@@ -869,8 +877,6 @@
       "byNameHelp": "Hutengeneza msimbo wenye jina, kwa ajili ya mtu mmoja au kikundi."
     },
     "member": {
-      "putBack": "Imerudishwa.",
-      "notPutBack": "Haijarudishwa. {{reason}}",
       "isNow": "{{name}} sasa ni {{role}}",
       "removedOrg": "{{name}} ameondolewa katika ngazi ya shirika",
       "removedLanguage": "{{name}} ameondolewa katika ngazi ya lugha",
@@ -892,7 +898,8 @@
       "removeFromOrg": "Ondoa kwenye shirika",
       "removeFromLanguage": "Ondoa kwenye lugha",
       "declineHelp": "Hukataa ombi lake la kujiunga.",
-      "removeHelp": "Huondoa jukumu lake hapa. Tendua huonekana kwa muda mfupi baadaye."
+      "removeHelp": "Huondoa jukumu lake hapa. Huuliza kwanza; ili kurudi, atajiunga tena.",
+      "removeAsk": "Ondoa {{name}}?"
     },
     "signIn": {
       "notAllowed": "Huruhusiwi kumsaidia mtu huyu kuingia.",
@@ -2060,7 +2067,6 @@
       "bookStarts": "Kitabu kinaanzia hapa",
       "joinWith": "Unganisha na sehemu {{n}}",
       "startHere": "Anza sehemu hapa",
-      "undo": "Tendua",
       "startFrom": "Anza kutoka njia iliyo tayari",
       "started": "Sehemu {{n}} inaanzia {{at}}",
       "joined": "Imeunganishwa na sehemu {{n}}",
@@ -3874,7 +3880,7 @@
       },
       "actionHelp": {
         "do": "Huufungua, ili uufanye mwenyewe sasa.",
-        "send": "Huutuma kwa anayeufanya kwa kawaida. Tendua huurudisha.",
+        "send": "Huutuma kwa anayeufanya kwa kawaida. Unaweza kuondoa ombi baadaye.",
         "ask": "Chagua mtu, timu, au mtu asiye na programu.",
         "log": "Ulifanyika nje ya programu: uandike kwenye kumbukumbu.",
         "skip": "Acha ukaguzi huu. Unasema kwa nini.",
@@ -4223,11 +4229,7 @@
     "toast": {
       "notSaved": "Haijahifadhiwa: {{reason}}",
       "notSavedCode": "Haijahifadhiwa. Kuna hitilafu (msimbo {{code}}).",
-      "notUndone": "Imeshindwa kutendua: {{reason}}",
-      "notUndoneCode": "Imeshindwa kutendua. Kuna hitilafu (msimbo {{code}}).",
-      "announceUndo": "{{message}} Unaweza kutendua.",
-      "dismissLabel": "{{message}} Ondoa",
-      "undo": "Tendua"
+      "dismissLabel": "{{message}} Ondoa"
     },
     "nav": {
       "cannotOpenHere": "Hicho hakiwezi kufunguliwa kutoka hapa.",
@@ -4706,14 +4708,7 @@
       "movePartHelp": "Buruta juu au chini ili kusogeza sehemu hii. Sehemu unayosogeza hupoteza mstari wake, ili uupe tena.",
       "moveUp": "Peleka juu",
       "moveDown": "Peleka chini",
-      "undo": "Tendua",
-      "redo": "Rudia",
-      "undoWhat": "Tendua: {{what}}",
-      "redoWhat": "Rudia: {{what}}",
-      "undoHelp": "Hutendua badiliko lako la mwisho kwa sehemu. Gusa tena kurudi nyuma zaidi.",
-      "redoHelp": "Hurudisha kile Tendua ilichoondoa.",
-      "undoneWhat": "Imetenduliwa: {{what}}",
-      "redoneWhat": "Imerudiwa: {{what}}"
+      "undoHelp": "Hutendua badiliko lako la mwisho kwa sehemu. Gusa tena kurudi nyuma zaidi."
     },
     "quoted": "“{{text}}”",
     "listening": "Inasikiliza… {{time}}",
@@ -6833,7 +6828,7 @@
       "languageHelp": "Huonyesha Biblia zake hapa chini.",
       "nextChapterHelp": "Husoma na kucheza sura inayofuata.",
       "previousChapterHelp": "Husoma na kucheza sura iliyotangulia.",
-      "removeHelp": "Huiondoa kwenye Biblia zako kwenye kifaa hiki. Unaweza kutendua.",
+      "removeHelp": "Huiondoa kwenye Biblia zako kwenye kifaa hiki. Unaweza kuiongeza tena hapa.",
       "searchHelp": "Andika jina au msimbo wa lugha ili kupata Biblia zake."
     }
   },
@@ -6873,7 +6868,8 @@
       "used": "{{language}} sasa inaanza na {{name}}",
       "startHelp": "Huweka seti iliyo tayari badala ya kaguzi zilizopo, ili uzibadilishe upendavyo.",
       "useHelp": "Huweka hizi badala ya kaguzi za {{language}}. Tendua huzirudisha.",
-      "pickHelp": "Huuchagua. Kisha Tumia, chini kabisa, huweka kaguzi zake badala ya zilizopo."
+      "pickHelp": "Huuchagua. Kisha Tumia, chini kabisa, huweka kaguzi zake badala ya zilizopo.",
+      "replaceAsk": "Weka {{name}} badala ya kaguzi za {{language}} zenyewe?"
     },
     "gone": "Ukaguzi huu haumo tena kwenye kaguzi za lugha",
     "checkOf": "Ukaguzi wa {{n}} · {{language}}",
@@ -6932,11 +6928,11 @@
     "draftDoneHelp": "Huhifadhi kaguzi hizi kwa lugha mpya na kurudi.",
     "sameTimeOnHelp": "Imewashwa: unafanyika pamoja na {{check}}. Gusa ili uje baadaye.",
     "sameTimeOffHelp": "Imezimwa: unakuja baada ya {{check}}. Gusa ili zote mbili zifanyike wakati mmoja.",
-    "removePersonHelp": "Humwondoa kwenye ukaguzi huu. Tendua humrudisha.",
+    "removePersonHelp": "Humwondoa kwenye ukaguzi huu. Ongeza watu humrudisha.",
     "addPeopleHelp": "Chagua nani anafanya ukaguzi huu. Asipochaguliwa mtu, yeyote anaweza.",
     "editQuestionHelp": "Badilisha swali au aina yake, au liondoe.",
     "addQuestionHelp": "Andika swali ambalo wakaguzi wanajibu katika ukaguzi huu.",
-    "unlinkHelp": "Hukiondoa kwenye ukaguzi huu. Tendua hukirudisha.",
+    "unlinkHelp": "Hukiondoa kwenye ukaguzi huu. Unaweza kukiongeza tena.",
     "addHelpHelp": "Unganisha madokezo, miongozo au Biblia ambazo wakaguzi wanaweza kufungua katika ukaguzi huu.",
     "peopleDoneHelp": "Huhifadhi walio kwenye ukaguzi huu.",
     "personOnHelp": "Yuko kwenye ukaguzi huu. Gusa ili umwondoe.",
@@ -7000,7 +6996,9 @@
     "checkedAtPickHelp": "Ukaguzi huu unakisikiliza.",
     "ownCheck": "Ukaguzi wake wenyewe",
     "ownCheckHelp": "Inaongeza ukaguzi mara baada ya huu unaokisikiliza.",
-    "ownCheckName": "Ukaguzi wa {{name}}"
+    "ownCheckName": "Ukaguzi wa {{name}}",
+    "undoHelp": "Hutendua badiliko lako la mwisho kwa kaguzi. Gusa tena kurudi nyuma zaidi.",
+    "removeAsk": "Ondoa {{check}}?"
   },
   "lostFiles": {
     "title": "Sauti imepotea",

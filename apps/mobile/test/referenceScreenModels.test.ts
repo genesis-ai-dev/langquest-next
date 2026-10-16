@@ -283,7 +283,7 @@ describe('the helps on one passage', () => {
     expect([...got.keys()].every((k) => k === 'g')).toBe(true);
   });
 
-  it('orders cards, offers Show here / Hide here only to an admin and sends the right undo', () => {
+  it('orders cards, and offers Show here / Hide here only to an admin', () => {
     const rows = [item('g', guide('GEN 1'), 'guide'), item('b', source(), 'source'), item('h', guide('GEN 1'), 'guide')];
     const byId = new Map(rows.map((r) => [r.it.itemId, r]));
     const calls: unknown[][] = [];
@@ -301,8 +301,8 @@ describe('the helps on one passage', () => {
     expect(h.shown).toBe(false);
     h.onSet!(true);
     expect(calls).toEqual([
-      ['g', false, t('reference.passage.hidden', { name: 'g' }), true],
-      ['h', true, t('reference.passage.shownAgain', { name: 'h' }), false]
+      ['g', false, t('reference.passage.hidden', { name: 'g' })],
+      ['h', true, t('reference.passage.shownAgain', { name: 'h' })]
     ]);
     const reader = helpCards({ ...base, helps: helps([reach('g', 'guide')], [reach('h', 'guide')]), canManage: false });
     expect(reader.map((c) => c.key)).toEqual(['g', 'terms']);

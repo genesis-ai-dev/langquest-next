@@ -7,6 +7,7 @@ import {
   type Card, type DraftView, type EventSpec, type Indexes, type KeyTermView, type LanguageState, type PartLabel, type PartMark
 } from '@langquest-next/core';
 import { formatClock } from '../i18n/format';
+import { parseHistory, type History, type Step } from '../ui/undoModel';
 
 /**
  * Which of a person's drafts the workspace opens (decisions.md 83), named by
@@ -446,38 +447,8 @@ export function restoreSpecs(state: LanguageState, idx: Indexes, c: {
   return { specs, cleared: list.length === 0 };
 }
 
-/** One change on a recording screen: what it changed from and to, and what it was, for a screen reader. */
-export interface Step<S> { before: S; after: S; what?: string }
-
-/** What Undo and Redo can do: the changes made, newest last, and the ones undone, most recent last. */
-export interface History<S> { done: Step<S>[]; undone: Step<S>[] }
-
 export type PartsStep = Step<PartsSnap>;
 export type PartsHistory = History<PartsSnap>;
-
-export const emptyHistory: History<never> = { done: [], undone: [] };
-
-const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
-
-/** A change made: it can be undone, and what was undone before it can no longer be redone. A change that changed nothing is not one. */
-export function didStep<S>(h: History<S>, step: Step<S>): History<S> {
-  if (same(step.before, step.after)) return h;
-  return { done: [...h.done, step], undone: [] };
-}
-
-/** Undo: what goes back to what, and the history after it; null when there is nothing to undo. */
-export function undoStep<S>(h: History<S>): { to: S; from: S; what?: string; history: History<S> } | null {
-  const step = h.done[h.done.length - 1];
-  if (!step) return null;
-  return { to: step.before, from: step.after, ...(step.what ? { what: step.what } : {}), history: { done: h.done.slice(0, -1), undone: [...h.undone, step] } };
-}
-
-/** Redo: what the undone change made it, and the history after it; null when nothing was undone. */
-export function redoStep<S>(h: History<S>): { to: S; from: S; what?: string; history: History<S> } | null {
-  const step = h.undone[h.undone.length - 1];
-  if (!step) return null;
-  return { to: step.after, from: step.before, ...(step.what ? { what: step.what } : {}), history: { done: [...h.done, step], undone: h.undone.slice(0, -1) } };
-}
 
 /**
  * Whether the history still describes the parts on screen: the list is
@@ -548,26 +519,6 @@ const isSnap = (x: unknown): x is PartsSnap => {
   return Array.isArray(s['list']) && s['list'].every((h) => typeof h === 'string') && Array.isArray(s['marks'])
     && s['marks'].length === s['list'].length && s['marks'].every(isMark);
 };
-const stepOf = <S>(isS: (x: unknown) => x is S) => (x: unknown): x is Step<S> => {
-  if (typeof x !== 'object' || x === null) return false;
-  const s = x as Record<string, unknown>;
-  return isS(s['before']) && isS(s['after']) && (s['what'] === undefined || typeof s['what'] === 'string');
-};
-
-/** A stored history, or an empty one when there is none or it cannot be read as one. */
-function parseHistory<S>(raw: string | null, isS: (x: unknown) => x is S): History<S> {
-  if (!raw) return emptyHistory;
-  try {
-    const h = JSON.parse(raw) as Record<string, unknown>;
-    const isStep = stepOf(isS);
-    if (!Array.isArray(h['done']) || !Array.isArray(h['undone'])) return emptyHistory;
-    if (!h['done'].every(isStep) || !h['undone'].every(isStep)) return emptyHistory;
-    return { done: h['done'], undone: h['undone'] };
-  } catch {
-    return emptyHistory; // not JSON: no history, as a missing one
-  }
-}
-
 /** A stored history of a draft's parts. */
 export const parsePartsHistory = (raw: string | null): PartsHistory => parseHistory(raw, isSnap);
 

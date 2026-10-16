@@ -61,22 +61,29 @@ Expected:
 - Step 2: the Inbox tab speaks its unread count.
 - Step 3: the bell speaks "Updates" or "Updates, {n} new".
 
-### A11Y-003 Toasts are announced, and Undo stays up longer
+### A11Y-003 Toasts are announced, and stay up longer
 Roles: TRANS · Priority: P0 · Platforms: iOS, Android · Run: Manual
 
 Preconditions:
 - The screen reader is on.
-- P-DRAFT is open in the workspace.
+- P-S (Luke 12:35-48) is not kept on this device (PASS-035).
+- P-DRAFT has TRANS's draft (two parts, as in the fixture).
 
 Steps:
-1. Delete Part 2.
+1. Open P-S. Tap "Something else?", then "Keep offline".
 2. Time how long the toast stays.
-3. Move focus to "Undo" and activate it.
+3. Tap "Stop keeping offline". While its toast shows, move focus to the toast's close ✕ and activate it.
+4. Open P-DRAFT in the workspace. Delete Part 2.
+5. Move focus to the Undo arrow left of the red button and activate it.
 
 Expected:
-- Step 1: the reader speaks "Part 2 deleted. Undo available.".
-- Step 2: the toast stays about 14 seconds, double the 7 seconds it stays without a screen reader.
-- Step 3: the part is back. The reader speaks "Undone.".
+- Step 1: the reader speaks the toast's message, "Kept on this device. It downloads while you are connected.", and nothing about Undo. The toast has no Undo.
+- Step 2: the toast stays about 7 seconds, double the 3.5 seconds it stays without a screen reader.
+- Step 3: the ✕ is spoken "Close", and closes the toast at once.
+- Step 4: no toast shows. The reader speaks "Part 2 deleted.", and the Undo arrow is spoken "Undo: Part 2 deleted.".
+- Step 5: the part is back. The reader speaks "Undone: Part 2 deleted.".
+
+Changed (2026-10-16, decision 134): no toast offers Undo; a toast lasts 3.5 s (7 s with a screen reader on a phone), and the recording screen's Undo arrow brings a deleted part back.
 
 ### A11Y-004 The split divider and the cutoff line can be moved without dragging
 Roles: TRANS, REV · Priority: P1 · Platforms: iOS, Android · Run: Manual
@@ -240,7 +247,9 @@ Expected:
 - The main action and ✕ are reachable on every screen.
 - The footer is not pushed off screen with no scroll.
 - In the workspace, the record button is reachable at every divider snap.
-- Toasts and their Undo stay readable and tappable.
+- A toast's message stays readable (it wraps), and its close ✕ stays tappable.
+
+Changed (2026-10-16, decision 134): no toast offers Undo; only the toast's message and its close ✕ are checked here.
 
 ### A11Y-012 Colour never carries meaning alone
 Roles: TRANS, VIEW · Priority: P1 · Platforms: iOS, Android · Run: Manual
