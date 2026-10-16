@@ -11,13 +11,13 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
     setItem: async (k: string, v: string) => { if (refuse) throw new Error('QuotaExceededError'); store.set(k, v); }
   }
 }));
-vi.mock('../src/report', () => ({ noteExpected: () => undefined }));
+vi.mock('../src/diagnostics/report', () => ({ noteExpected: () => undefined }));
 
 describe('microphone settings on the device', () => {
   beforeEach(() => { store.clear(); refuse = false; vi.resetModules(); });
 
   it('keeps what was saved and tells the recorders', async () => {
-    const m = await import('../src/simple/micSettings');
+    const m = await import('../src/mic/micSettings');
     const heard: unknown[] = [];
     m.onMicSettings((s) => heard.push(s));
     await m.saveMicSettings({ threshold: 0.2, pauseMs: 2000 });
@@ -27,7 +27,7 @@ describe('microphone settings on the device', () => {
   });
 
   it('a save the device refuses throws and changes nothing in use', async () => {
-    const m = await import('../src/simple/micSettings');
+    const m = await import('../src/mic/micSettings');
     await m.saveMicSettings({ threshold: 0.1, pauseMs: 1000 });
     const heard: unknown[] = [];
     m.onMicSettings((s) => heard.push(s));

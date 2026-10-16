@@ -3,15 +3,15 @@
 // picture each, and opens the recorder or the writing boxes.
 import type { KindDef } from '@langquest-next/core';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import type { Ctx } from '../ctx';
-import { useHelpSpot } from '../helpContext';
-import { HelpBadge } from '../helpBadge';
+import { Text } from '../ui/text';
+import type { Ctx } from '../shell/ctx';
+import { useHelpSpot } from '../helpMode/helpContext';
+import { HelpBadge } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import { Header, Ico, Screen, txt, type IconName } from '../kit';
-import type { PassageView } from '../passageView';
-import { languageLabel } from '../simple/adminModel';
-import { C, radius, space, TINT } from '../theme';
+import { Header, Ico, Screen, txt, type IconName } from '../ui/kit';
+import type { PassageView } from '../passage/passageView';
+import { languageLabel } from '../admin/adminModel';
+import { C, radius, space, TINT } from '../ui/theme';
 
 export function MakeChoice({ ctx, v, kind, language, onPick }: { ctx: Ctx; v: PassageView; kind: KindDef; language?: string; onPick: (m: 'recording' | 'writing') => void }) {
   const into = language ? languageLabel(language) : v.language;

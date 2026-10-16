@@ -10,7 +10,7 @@ import type { SharedItem } from '../src/library/model';
 import { chooseSetLanguage, chosenOnly, guideSets, hideSet, setReach, suggestedMember, type GuideSet } from '../src/reference/guideSets';
 import { languageChoices, memberIn, startingLanguage } from '../src/reference/languageChoices';
 import { docLanguage, languagesLine, readerLanguage, sameLanguage, teamLanguage } from '../src/reference/languages';
-import { helpsSummary, languageLabel } from '../src/simple/adminModel';
+import { helpsSummary, languageLabel } from '../src/admin/adminModel';
 
 const H = (c: string) => c.repeat(64);
 let seq = 0;

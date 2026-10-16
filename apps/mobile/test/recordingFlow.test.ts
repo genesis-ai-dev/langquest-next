@@ -1,5 +1,5 @@
 import { emptyLanguageState, foldLanguage, type AnyEvent, type EventPayloads, type EventType } from '@langquest-next/core';
-import { pendingPassageCards } from '../src/recordingFlow';
+import { pendingPassageCards } from '../src/recording/recordingFlow';
 
 function history() {
   const events: AnyEvent[] = [];

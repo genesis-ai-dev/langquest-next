@@ -1,6 +1,6 @@
-import { PASSAGE_READING, SCREEN_IDS, TAB_SCREENS } from '../src/flow';
-import { chapterColumns, chromeVisible, frame, layoutKind, WIDE_CHROME } from '../src/layout';
-import { measure } from '../src/theme';
+import { PASSAGE_READING, SCREEN_IDS, TAB_SCREENS } from '../src/shell/flow';
+import { chapterColumns, chromeVisible, frame, layoutKind, WIDE_CHROME } from '../src/ui/layout';
+import { measure } from '../src/ui/theme';
 
 describe('responsive layout (decisions.md 55)', () => {
   it('sorts windows into phone, tablet and desktop at 768 and 1100', () => {

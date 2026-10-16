@@ -11,7 +11,7 @@
 // (`<org>/_org/<hash>.<ext>`), where study/media.ts fetches them.
 import { ORG_STREAM, type MediaRef } from '@langquest-next/core';
 import { Platform } from 'react-native';
-import { getBlobStore, isStoredFormat, type StoredFile, type StoredFormat } from '../blobs';
+import { getBlobStore, isStoredFormat, type StoredFile, type StoredFormat } from '../sync/blobs';
 import { uploadBlob } from '../server/blobTransport';
 import { formatNumber } from '../i18n/format';
 import { t } from '../i18n';

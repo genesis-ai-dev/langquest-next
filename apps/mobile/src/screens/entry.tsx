@@ -11,44 +11,44 @@ import { CommandError, DEFAULT_LICENSE, isLicense, LICENSE_INFO, type License } 
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { BackHandler, Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
-import { Text } from '../text';
+import { Text } from '../ui/text';
 import {
   cachedListedOrganizations, cachedPublicLanguages, listedOrganizations, publicLanguages, queueAccountAction, TERMS_VERSION,
   type ListedOrganization
-} from '../accountData';
-import { authErrorText, firstName, outboxErrorText, signInCodeErrorText, VISION_STEPS } from '../accountText';
-import { signInName } from '../accounts';
-import { licenseText } from '../coreText';
+} from '../account/accountData';
+import { authErrorText, firstName, outboxErrorText, signInCodeErrorText, VISION_STEPS } from '../account/accountText';
+import { signInName } from '../auth/accounts';
+import { licenseText } from '../i18n/coreText';
 import { t, Trans } from '../i18n';
 import { formatPercent } from '../i18n/format';
-import { recordHelp } from '../signInHelp';
-import { inviteCard, scanVerdict } from '../heldInvite';
-import { parseKey } from '../inviteCode';
-import type { Ctx } from '../ctx';
+import { recordHelp } from '../auth/signInHelp';
+import { inviteCard, scanVerdict } from '../invites/heldInvite';
+import { parseKey } from '../invites/inviteCode';
+import type { Ctx } from '../shell/ctx';
 import { recreateDevAccount } from '../server/personas';
 import { createAccountReady, MIN_PASSWORD } from '../auth/model';
 import { signIn, signInReady } from '../auth/signIn';
 import { useInvitePreview } from '../auth/useInvitePreview';
 import { useOrganizationSearch } from '../auth/useOrganizationSearch';
-import { redeemSignInCode, useRequestOutcome } from '../invites';
-import { latestRequest } from '../requestOutcome';
+import { redeemSignInCode, useRequestOutcome } from '../invites/invites';
+import { latestRequest } from '../invites/requestOutcome';
 import {
   Badge, Banner, Card, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, OrDivider, PrimaryBtn, ProgressBar, QuietLinks, Row, Screen, SearchField, SectionLabel,
   Segments, ShowMore, SmallBtn, txt, type IconName
-} from '../kit';
-import { PRIVACY_URL } from '../legal';
-import { LicenseRow, LicenseSheet } from '../licenseSheet';
-import { noteExpected, reportError, failureMessage } from '../report';
-import { createOrganization } from '../createOrg';
-import { navRef } from '../nav';
-import { contractsFor } from '../screenContracts';
-import { FORGETS_ON_SIGN_OUT, forgetThisBrowser } from '../forgetBrowser';
+} from '../ui/kit';
+import { PRIVACY_URL } from '../auth/legal';
+import { LicenseRow, LicenseSheet } from '../org/licenseSheet';
+import { noteExpected, reportError, failureMessage } from '../diagnostics/report';
+import { createOrganization } from '../org/createOrg';
+import { navRef } from '../shell/nav';
+import { contractsFor } from '../shell/screenContracts';
+import { FORGETS_ON_SIGN_OUT, forgetThisBrowser } from '../web/forgetBrowser';
 import { setSession, signInWithPassword, signUp } from '../server/auth';
 import { signInWithV2Account } from '../server/v2';
-import { lift } from '../shadow';
-import { C, TINT, radius, space, tile, type as T, withAlpha } from '../theme';
-import { useAccountActions, useDisplayNames } from '../useAccount';
-import { LanguageChip } from '../uiLanguage';
+import { lift } from '../ui/shadow';
+import { C, TINT, radius, space, tile, type as T, withAlpha } from '../ui/theme';
+import { useAccountActions, useDisplayNames } from '../account/useAccount';
+import { LanguageChip } from '../i18n/uiLanguage';
 
 /**
  * What to say when something fails (error-tracking): a command's own reason,

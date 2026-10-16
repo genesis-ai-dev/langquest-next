@@ -1,10 +1,10 @@
 import { isTemplateDoc, selectFlowSpecs, selectTemplateSpecs, translatorReviewUpgrade, type FlowDoc, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useEffect, useMemo, useRef } from 'react';
-import { noteExpected, reportError } from '../report';
-import type { Session } from '../session';
-import type { OrgHandle } from '../useOrg';
-import type { LanguageHandle } from '../useLanguage';
+import { noteExpected, reportError } from '../diagnostics/report';
+import type { Session } from '../shell/session';
+import type { OrgHandle } from '../sync/useOrg';
+import type { LanguageHandle } from '../sync/useLanguage';
 import { flushOutbox, loadDocs } from './docStore';
 import { behindLibrary } from './model';
 

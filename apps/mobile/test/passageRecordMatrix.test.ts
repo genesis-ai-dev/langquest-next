@@ -5,8 +5,8 @@ import {
   currentCheck, elseOptions, recordCan, recordModel, recordPathInput, rowButtons, stepSheet, teamStepsOpen, usualTargets, waitingOnAnswer
 } from '../src/passage/recordModel';
 import { requestIsMine, teamNameIn } from '../src/passage/sendTarget';
-import { kindInSentence, passageView } from '../src/passageView';
-import { checkName } from '../src/simple/adminModel';
+import { kindInSentence, passageView } from '../src/passage/passageView';
+import { checkName } from '../src/admin/adminModel';
 import { t } from '../src/i18n';
 import { ID, labelOf, NAMES, passageWorld, unitOf, type WorldPassage, type WorldRole } from './passageWorld';
 

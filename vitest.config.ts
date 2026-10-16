@@ -32,7 +32,7 @@ export default defineConfig({
         '**/*.d.ts',
         '**/generated/**',
         '**/*.generated.*',
-        'apps/mobile/src/flow.ts',
+        'apps/mobile/src/shell/flow.ts',
         'scripts/**/*.{sh,mjs}',
         'scripts/fleet/**',
         'scripts/bench/**'

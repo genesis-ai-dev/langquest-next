@@ -3,7 +3,7 @@ import type { KeyTermView } from '@langquest-next/core';
 import {
   firstTouched, keyLabel, keySpan, keyTouches, othersSay, plain, refInPassage, runKey, sameTerm, suggestedWords, tapVerse, wordHits,
   type LanguageTerms, type VerseRun
-} from '../src/simple/helpsModel';
+} from '../src/helps/helpsModel';
 import type { VerseRow } from '../src/sources/model';
 
 const row = (chapter: number, verseStart: number, text: string, verseEnd = verseStart): VerseRow =>

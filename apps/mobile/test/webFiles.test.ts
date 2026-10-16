@@ -4,7 +4,7 @@
  * removal while a write is open, and found by WEB-023 on 2026-10-14, a single
  * refusal used to leave every recording and library file behind.
  */
-import { clearAllWebFiles } from '../src/webFiles';
+import { clearAllWebFiles } from '../src/web/webFiles';
 
 function refusal(name: string): Error {
   const e = new Error(`refused: ${name}`);

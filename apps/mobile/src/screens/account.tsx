@@ -9,45 +9,45 @@
 // decisions.md 48).
 // Requirements INBOX-1, INBOX-2, AUTH-7, AUTH-8, ONB-2 (the Me rows back to
 // them), CORE-12 (sign-out never strands work).
-import { signInName } from '../accounts';
-import { readHelp, type SignInHelp } from '../signInHelp';
+import { signInName } from '../auth/accounts';
+import { readHelp, type SignInHelp } from '../auth/signInHelp';
 import { CommandError, decodeHlc, languageName, unitTitle, type Update } from '@langquest-next/core';
 import * as Updates from 'expo-updates';
 import { useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import { accountOutbox, queueAccountAction } from '../accountData';
-import { authErrorText, groupByRead, outboxErrorText, ownName, remoteTitle, roleWords, updateText } from '../accountText';
-import { deriveKinds, kindOf } from '../coreText';
-import type { Ctx } from '../ctx';
+import { Text } from '../ui/text';
+import { accountOutbox, queueAccountAction } from '../account/accountData';
+import { authErrorText, groupByRead, outboxErrorText, ownName, remoteTitle, roleWords, updateText } from '../account/accountText';
+import { deriveKinds, kindOf } from '../i18n/coreText';
+import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatAgo, formatDayTime, formatNumber, formatShortDate, formatTime } from '../i18n/format';
-import { OfflineCard, useOfflineSummary } from '../offline';
-import { offlineCount, moreSettingsSub } from '../simple/meModel';
-import { useHelpSpot } from '../helpContext';
-import { HelpBadge } from '../helpBadge';
-import { reasonLabel, reportSummary, reportTitle, type ReportGroup } from '../moderation';
-import { decideRequest, type PendingRequest } from '../invites';
+import { OfflineCard, useOfflineSummary } from '../sync/offline';
+import { offlineCount, moreSettingsSub } from '../account/meModel';
+import { useHelpSpot } from '../helpMode/helpContext';
+import { HelpBadge } from '../helpMode/helpBadge';
+import { reasonLabel, reportSummary, reportTitle, type ReportGroup } from '../moderation/model';
+import { decideRequest, type PendingRequest } from '../invites/invites';
 import {
   Badge, Banner, Card, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, PrimaryBtn, ProgressBar, Row, Screen,
   SectionLabel, Sheet, ShowMore, SmallBtn, txt, useLayout, useOpenDetail, type IconName
-} from '../kit';
-import { enableNotifications, tryUnregisterNotifications, unregisterNotifications, type RemoteNotification } from '../notifications';
-import { notificationTarget, openAfterSwitch } from '../notificationTarget';
-import { dueText } from '../passageView';
-import { personLook } from '../people';
-import { noteExpected, failureMessage } from '../report';
-import { ReportActions } from '../reportSheet';
-import { contractsFor } from '../screenContracts';
-import { FORGETS_ON_SIGN_OUT, forgetThisBrowser } from '../forgetBrowser';
-import { HANDS_OVER, signOutHandingOver } from '../handOver';
+} from '../ui/kit';
+import { enableNotifications, tryUnregisterNotifications, unregisterNotifications, type RemoteNotification } from '../notifications/notifications';
+import { notificationTarget, openAfterSwitch } from '../notifications/notificationTarget';
+import { dueText } from '../passage/passageView';
+import { personLook } from '../ui/people';
+import { noteExpected, failureMessage } from '../diagnostics/report';
+import { ReportActions } from '../moderation/reportSheet';
+import { contractsFor } from '../shell/screenContracts';
+import { FORGETS_ON_SIGN_OUT, forgetThisBrowser } from '../web/forgetBrowser';
+import { HANDS_OVER, signOutHandingOver } from '../sync/handOver';
 import { choosePassword, signOutHere } from '../server/auth';
-import { C, radius, space, target, tile, TINT, type as T } from '../theme';
-import { useAccountActions, useDisplayNames } from '../useAccount';
-import { runningBuildLabel } from '../updateStatus';
-import { PersonAvatar } from '../UserChip';
-import { standingTitle, syncStanding, type SyncStanding } from '../SyncIndicator';
-import { LanguageRow } from '../uiLanguage';
+import { C, radius, space, target, tile, TINT, type as T } from '../ui/theme';
+import { useAccountActions, useDisplayNames } from '../account/useAccount';
+import { runningBuildLabel } from '../shell/updateStatus';
+import { PersonAvatar } from '../ui/UserChip';
+import { standingTitle, syncStanding, type SyncStanding } from '../sync/SyncIndicator';
+import { LanguageRow } from '../i18n/uiLanguage';
 import { inSeveral, refusedHere, remoteRowView, speed, syncSummary } from '../account/model';
 import { useSyncInspection } from '../account/useSyncInspection';
 import { useDiagnosticsSwitch } from '../account/useDiagnosticsSwitch';

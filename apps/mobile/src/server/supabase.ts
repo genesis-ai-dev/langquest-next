@@ -1,8 +1,8 @@
 import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
-import { sessionStorageKey } from '../sessionKey';
-import { answerAtOnceWhileOffline, sessionSafeFetch, type RenewalWatch } from '../sessionSafeFetch';
+import { sessionStorageKey } from './sessionKey';
+import { answerAtOnceWhileOffline, sessionSafeFetch, type RenewalWatch } from './sessionSafeFetch';
 import { signOutThisDevice } from './signOut';
 
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;

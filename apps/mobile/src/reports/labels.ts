@@ -1,7 +1,7 @@
 import {
   DEFAULT_KINDS, RECENCY_DAYS, type AlertLevel, type LanguageReport, type LanguageRow, type Milestone, type PaceBand, type PassageWork, type RecencyBand, type TargetScope
 } from '@langquest-next/core';
-import { localKind } from '../coreText';
+import { localKind } from '../i18n/coreText';
 import { t } from '../i18n';
 import { formatPercent } from '../i18n/format';
 import type { Tone } from './ui';

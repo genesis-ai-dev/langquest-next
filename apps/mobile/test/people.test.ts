@@ -1,7 +1,7 @@
 // A person's look is derived from their id alone, never synced: if two devices
 // disagreed, "Teal Diamond approved this" would name different people on each.
 import { describe, expect, it } from 'vitest';
-import { initials, personLook, PERSON_COLORS, PERSON_SHAPES } from '../src/people';
+import { initials, personLook, PERSON_COLORS, PERSON_SHAPES } from '../src/ui/people';
 
 const ids = Array.from({ length: 400 }, (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`);
 

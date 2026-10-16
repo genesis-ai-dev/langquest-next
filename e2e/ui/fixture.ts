@@ -133,7 +133,7 @@ export function localServer(): Server {
 
 /** Read from the app so a terms bump cannot put a terms screen in every test. */
 const TERMS_VERSION = /TERMS_VERSION = '([^']+)'/.exec(
-  readFileSync(new URL('../../apps/mobile/src/accountData.ts', import.meta.url), 'utf8'))![1]!;
+  readFileSync(new URL('../../apps/mobile/src/account/accountData.ts', import.meta.url), 'utf8'))![1]!;
 
 // ---- people and their clients -----------------------------------------------------
 

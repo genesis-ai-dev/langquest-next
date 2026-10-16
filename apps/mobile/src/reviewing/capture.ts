@@ -10,7 +10,7 @@ import {
   type Card, type KindDef, type NoteAnchor, type PassageState, type LanguageState,
   type RequestView, type ReviewView, type SourcedQuestion, type Version
 } from '@langquest-next/core';
-import { bookMatches, canonBook, parseQuery } from '../canon';
+import { bookMatches, canonBook, parseQuery } from '../reference/canon';
 import { currentLanguage, t } from '../i18n';
 import { formatClock } from '../i18n/format';
 

@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { sessionStorageKey } from '../src/sessionKey';
+import { sessionStorageKey } from '../src/server/sessionKey';
 
 // The hand-over's own rules and its delivery attempt are tested with the
 // rest of the sync package (packages/sync/test/handOver.test.ts).

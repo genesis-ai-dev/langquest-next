@@ -14,13 +14,13 @@ import {
 } from '@langquest-next/core';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import { useHelpSpot } from '../helpContext';
-import { HelpBadge } from '../helpBadge';
+import { Text } from '../ui/text';
+import { useHelpSpot } from '../helpMode/helpContext';
+import { HelpBadge } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import { Chip, ChipRow, Field, Group, Ico, PrimaryBtn, Row, SectionLabel, Sheet, txt, type IconName } from '../kit';
-import { languageLabel } from '../simple/adminModel';
-import { C, radius, space, TINT } from '../theme';
+import { Chip, ChipRow, Field, Group, Ico, PrimaryBtn, Row, SectionLabel, Sheet, txt, type IconName } from '../ui/kit';
+import { languageLabel } from '../admin/adminModel';
+import { C, radius, space, TINT } from '../ui/theme';
 
 type Side = Medium | 'either';
 

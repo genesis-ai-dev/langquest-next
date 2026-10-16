@@ -6,15 +6,15 @@
 import { templateBooks, type NumberingClash, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import { bookNameOf } from '../contentTemplates';
-import { useHelpSpot } from '../helpContext';
-import { HelpBadge } from '../helpBadge';
+import { Text } from '../ui/text';
+import { bookNameOf } from '../templates/contentTemplates';
+import { useHelpSpot } from '../helpMode/helpContext';
+import { HelpBadge } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { Chip, GhostBtn, Ico, LinkBtn, PrimaryBtn, Sheet, txt } from '../kit';
-import { CheckRow, ChoiceCard, Pills } from '../simple/admin';
-import { C, radius, space, TINT } from '../theme';
+import { Chip, GhostBtn, Ico, LinkBtn, PrimaryBtn, Sheet, txt } from '../ui/kit';
+import { CheckRow, ChoiceCard, Pills } from '../admin/admin';
+import { C, radius, space, TINT } from '../ui/theme';
 import {
   booksLine, CHAPTERS_ITEM, countLine, lessonSlides, piecesOf, PREVIEW_BOOKS, SAMPLE_BOOK, usedLine, verseSays, wayOf, type TemplateUser, type WayRow
 } from './model';

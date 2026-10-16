@@ -5,10 +5,10 @@
 // feedback comes back, Hear the feedback and Fix it join the path. The
 // language's flow follows under "Then the team". Pure, for tests.
 import { isCompleteState, type FlowStepStatus, type KindDef, type PassageState, type ReviewView } from '@langquest-next/core';
-import { checkName } from '../simple/adminModel';
+import { checkName } from '../admin/adminModel';
 import { t } from '../i18n';
 import { formatClock, formatNumber } from '../i18n/format';
-import { kindInSentence, versionTitle } from '../passageView';
+import { kindInSentence, versionTitle } from './passageView';
 import { kindCleared } from './record';
 
 export type PathStepKind = 'study' | 'record' | 'publish' | 'feedback' | 'fix';

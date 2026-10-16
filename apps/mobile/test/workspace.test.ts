@@ -6,7 +6,7 @@ import {
   backTranslationDraftKey, canPublish, cardDurations, draftToOpen, markTerms, mmss, parseBackTranslationDraft, removeCardSpecs,
   termsInText, tiedTermIds, tieTermsSpecs, unsavedParts, withoutPart, withPart, workingCards
 } from '../src/recording/workspaceModel';
-import { pendingPassageCards } from '../src/recordingFlow';
+import { pendingPassageCards } from '../src/recording/recordingFlow';
 
 function history() {
   const events: AnyEvent[] = [];

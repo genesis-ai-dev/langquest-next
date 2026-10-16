@@ -5,16 +5,16 @@
 import { versesInChapter, type LanguageState } from '@langquest-next/core';
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import type { Ctx } from '../ctx';
+import { Text } from '../ui/text';
+import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
-import { txt } from '../kit';
-import { PlayBtn } from '../simple/parts';
-import { useClip } from '../simple/useClip';
-import { passageVerseKeys, verseName } from '../simple/verseModel';
+import { txt } from '../ui/kit';
+import { PlayBtn } from '../recording/blocks';
+import { useClip } from '../audio/useClip';
+import { passageVerseKeys, verseName } from '../recording/verseModel';
 import { catalogVerses } from '../sources/model';
 import { useSources } from '../sources/useSources';
-import { C, radius, space, TINT } from '../theme';
+import { C, radius, space, TINT } from '../ui/theme';
 import { heardByVerse, isPartKey, writtenByVerse } from './model';
 
 /** The passage's verses, as the recorder works them out. */

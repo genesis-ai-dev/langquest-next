@@ -115,7 +115,7 @@ Call log:
   59  |   await expect(page.getByText(/^Get Dinka ready/).first()).toBeVisible({ timeout: 60_000 });
   60  | }
   61  | 
-  62  | /** Every file the app's own stores hold in this site's private files (apps/mobile/src/webFiles.ts). */
+  62  | /** Every file the app's own stores hold in this site's private files (apps/mobile/src/web/webFiles.ts). */
   63  | async function appFiles(page: Page): Promise<string[]> {
   64  |   return page.evaluate(async () => {
   65  |     type Dir = { entries(): AsyncIterable<[string, { kind: string }]>; getDirectoryHandle(n: string): Promise<Dir> };

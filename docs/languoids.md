@@ -129,7 +129,7 @@ to levels and to a nation or macroarea, and says which other name matched.
 
 The app searches online, and phones keep no copy of these tables. Adding a
 language (New language, step 1) searches languages and dialects as its name
-is typed (`apps/mobile/src/languoidPicker.tsx`); picking one fills in the
+is typed (`apps/mobile/src/org/languoidPicker.tsx`); picking one fills in the
 name and gives the language the languoid's code and a `LanguageCodeSet`
 linking it. Offline, or when nothing fits, the typed name and code are added
 unlinked. A language's page (More, In the language list) says whether it is

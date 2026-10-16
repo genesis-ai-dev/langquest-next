@@ -21,23 +21,23 @@ import {
 import * as Crypto from 'expo-crypto';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View, type NativeSyntheticEvent, type TextInputSelectionChangeEventData } from 'react-native';
-import { Text } from '../text';
-import type { Ctx } from '../ctx';
-import { HelpClip } from '../helpBadge';
+import { Text } from '../ui/text';
+import type { Ctx } from '../shell/ctx';
+import { HelpClip } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import { indexesFor } from '../indexes';
-import { Field, Header, Ico, PrimaryBtn, Screen, Sheet, SmallBtn, txt } from '../kit';
-import { versionTitle, type PassageView } from '../passageView';
+import { indexesFor } from '../sync/indexes';
+import { Field, Header, Ico, PrimaryBtn, Screen, Sheet, SmallBtn, txt } from '../ui/kit';
+import { versionTitle, type PassageView } from '../passage/passageView';
 import { SplitPane } from '../recording/SplitPane';
 import { MIN_BOTTOM } from '../recording/splitModel';
-import { failureMessage, reportError } from '../report';
-import { RefChips, type ChipItem } from '../simple/parts';
-import { BiblePane, NotesPane, useBible } from '../simple/reference';
-import { passageVerseKeys, verseName } from '../simple/verseModel';
+import { failureMessage, reportError } from '../diagnostics/report';
+import { RefChips, type ChipItem } from '../recording/blocks';
+import { BiblePane, NotesPane, useBible } from '../helps/reference';
+import { passageVerseKeys, verseName } from '../recording/verseModel';
 import { catalogVerses } from '../sources/model';
 import { useUsage } from '../sources/used';
-import { languageLabel } from '../simple/adminModel';
-import { C, radius, space, target, TINT } from '../theme';
+import { languageLabel } from '../admin/adminModel';
+import { C, radius, space, target, TINT } from '../ui/theme';
 import {
   boxesChanged, boxesFor, heardByVerse, isPartKey, teamLetters, writingSpecs, writtenByVerse, type MakingSource, type VerseText
 } from './model';

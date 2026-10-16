@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
-import type { RecentPassage } from '../ctx';
+import type { RecentPassage } from './ctx';
 
 /** Passages this person opened lately (WORK-2), newest first, twelve at most, per organization on this device. */
 export function useRecentPassages(actorId: string, orgId: string) {

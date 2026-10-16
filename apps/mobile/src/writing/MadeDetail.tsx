@@ -7,16 +7,16 @@
 // in who checks reads it.
 import { addedTo, madeVersionOf, type MadeView } from '@langquest-next/core';
 import { View } from 'react-native';
-import { Text } from '../text';
-import type { Ctx } from '../ctx';
-import { edgeFor } from '../flow';
-import { edgeAllowed } from '../session';
+import { Text } from '../ui/text';
+import type { Ctx } from '../shell/ctx';
+import { edgeFor } from '../shell/flow';
+import { edgeAllowed } from '../shell/session';
 import { t } from '../i18n';
-import { AudioClip } from '../audioClip';
-import { Card, EmptyState, Header, Ico, QuietLinks, Screen, txt } from '../kit';
-import { passageCrumbs, usePassage, versionTitle, when, type PassageView } from '../passageView';
-import { languageLabel } from '../simple/adminModel';
-import { space, TINT } from '../theme';
+import { AudioClip } from '../audio/audioClip';
+import { Card, EmptyState, Header, Ico, QuietLinks, Screen, txt } from '../ui/kit';
+import { passageCrumbs, usePassage, versionTitle, when, type PassageView } from '../passage/passageView';
+import { languageLabel } from '../admin/adminModel';
+import { space, TINT } from '../ui/theme';
 import { usePassageVerses, WrittenReader } from './WrittenText';
 
 /** What a made thing is called: its step's name, else what it is ("Written down", "In English"). */

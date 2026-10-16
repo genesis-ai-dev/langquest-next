@@ -1,5 +1,5 @@
 import { foldOrg, SEED_ROLES, type AnyEvent } from '@langquest-next/core';
-import { deriveSession } from '../src/session';
+import { deriveSession } from '../src/shell/session';
 
 /**
  * One organization with language 'din': a person per seed role at org scope,

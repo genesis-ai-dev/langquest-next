@@ -5,9 +5,9 @@ import {
 import { MemoryStore } from '../../../packages/sync/src/memoryStore';
 import { SyncClient } from '../../../packages/sync/src/syncClient';
 import { FakeServer } from '../../../packages/sync/src/testing/fakeServer';
-import { EDGES, TAB_SCREENS, type ScreenId } from '../src/flow';
-import { deriveSession, edgeAllowed, homeScreenFor } from '../src/session';
-import { screenMayEmit } from '../src/screenContracts';
+import { EDGES, TAB_SCREENS, type ScreenId } from '../src/shell/flow';
+import { deriveSession, edgeAllowed, homeScreenFor } from '../src/shell/session';
+import { screenMayEmit } from '../src/shell/screenContracts';
 
 /**
  * Two phones, a translator and a reviewer, wander the flow machine with the

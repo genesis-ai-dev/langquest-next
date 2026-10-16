@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const root = join(__dirname, '..');
-const source = readFileSync(join(root, 'src/bookIcons.tsx'), 'utf8');
+const source = readFileSync(join(root, 'src/ui/bookIcons.tsx'), 'utf8');
 
 describe('book icons', () => {
   const map = new Map(

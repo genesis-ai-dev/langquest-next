@@ -1,4 +1,4 @@
-import { runningBuildLabel, updateStatus, type UpdateSignals } from '../src/updateStatus';
+import { runningBuildLabel, updateStatus, type UpdateSignals } from '../src/shell/updateStatus';
 
 const idle: UpdateSignals = {
   isChecking: false,

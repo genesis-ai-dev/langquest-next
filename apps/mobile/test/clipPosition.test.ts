@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { restartIndex } from '../src/clipPosition';
+import { restartIndex } from '../src/audio/clipPosition';
 
 describe('where Play starts', () => {
   it('starts at the first clip when nothing is loaded', () => {

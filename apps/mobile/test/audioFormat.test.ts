@@ -1,4 +1,4 @@
-import { preferredRecordingType, storedFormatOf, toMono16 } from '../src/audioFormat';
+import { preferredRecordingType, storedFormatOf, toMono16 } from '../src/audio/audioFormat';
 
 // Every device plays what any other recorded (decisions.md 58): the stored label matches the bytes.
 

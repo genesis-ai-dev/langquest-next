@@ -1,4 +1,4 @@
-import type { ListedOrganization } from '../src/accountData';
+import type { ListedOrganization } from '../src/account/accountData';
 import { createAccountReady, matchOrganizations } from '../src/auth/model';
 
 const org = (org_id: string, name: string, languages: string[] = []): ListedOrganization => ({ org_id, name, languages });

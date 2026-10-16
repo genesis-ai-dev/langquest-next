@@ -1,16 +1,16 @@
 import { CommonActions } from '@react-navigation/native';
 import { useEffect, useRef } from 'react';
 import { Linking } from 'react-native';
-import { forgetKeyInAddress } from '../appUrl';
-import type { Ctx } from '../ctx';
-import { nextStep } from '../heldInvite';
-import { parseKey } from '../inviteCode';
-import { navRef, type Nav } from '../nav';
-import { findNotification } from '../notifications';
-import { notificationTarget, openAfterSwitch } from '../notificationTarget';
-import { onNotificationOpened } from '../push';
-import { noteExpected } from '../report';
-import type { InviteHandle } from '../useHeldInvite';
+import { forgetKeyInAddress } from '../web/appUrl';
+import type { Ctx } from './ctx';
+import { nextStep } from '../invites/heldInvite';
+import { parseKey } from '../invites/inviteCode';
+import { navRef, type Nav } from './nav';
+import { findNotification } from '../notifications/notifications';
+import { notificationTarget, openAfterSwitch } from '../notifications/notificationTarget';
+import { onNotificationOpened } from '../notifications/push';
+import { noteExpected } from '../diagnostics/report';
+import type { InviteHandle } from '../invites/useHeldInvite';
 
 let initialLinkRead = false;
 

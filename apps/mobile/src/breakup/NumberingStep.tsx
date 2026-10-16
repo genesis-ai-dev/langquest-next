@@ -6,15 +6,15 @@
 // as three facts that tell the numberings apart at a glance.
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { bookName } from '../coreText';
+import { bookName } from '../i18n/coreText';
 import { formatNumber } from '../i18n/format';
 import { t } from '../i18n';
-import { Text } from '../text';
-import { useHelpSpot } from '../helpContext';
-import { HelpBadge } from '../helpBadge';
-import { GhostBtn, Ico, SearchField, type IconName } from '../kit';
-import { ChoiceCard, Question, RadioRow } from '../simple/admin';
-import { C, radius, space, TINT, type as T } from '../theme';
+import { Text } from '../ui/text';
+import { useHelpSpot } from '../helpMode/helpContext';
+import { HelpBadge } from '../helpMode/helpBadge';
+import { GhostBtn, Ico, SearchField, type IconName } from '../ui/kit';
+import { ChoiceCard, Question, RadioRow } from '../admin/admin';
+import { C, radius, space, TINT, type as T } from '../ui/theme';
 import {
   bibleLanguage, COMMON_BIBLES, KNOWN_BIBLES, QUIZ, resolveNumbering, shortName, type KnownBible, type NumberingCode, type NumberingFacts, type QuizOption
 } from './numberingGuide';

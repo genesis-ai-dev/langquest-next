@@ -8,12 +8,12 @@ import {
   draftsBy, feedbackIsMine, isCompleteState,
   type FlowStepStatus, type Hlc, type KindDef, type KindStatus, type LanguageState, type Medium, type OrgState, type PassageState, type ReviewView
 } from '@langquest-next/core';
-import { edgeFor, type ScreenId } from '../flow';
+import { edgeFor, type ScreenId } from '../shell/flow';
 import { t } from '../i18n';
-import type { IconName } from '../kit';
-import { andList, dueText, kindInSentence, when } from '../passageView';
-import { edgeAllowed, type Session } from '../session';
-import { checkName, stepTitle } from '../simple/adminModel';
+import type { IconName } from '../ui/kit';
+import { andList, dueText, kindInSentence, when } from './passageView';
+import { edgeAllowed, type Session } from '../shell/session';
+import { checkName, stepTitle } from '../admin/adminModel';
 import type { PathInput, PathStep } from './pathModel';
 import {
   elseChoices, kindCleared, kindRowActions, kindRowSub, openCheckFor, sendTargetLabel, stepSheetSub,

@@ -1,5 +1,5 @@
-import { DROPPED_SCREENS, EDGES, SCREEN_IDS, TAB_SCREENS, screenTitle, type NodeId, type ScreenId } from '../src/flow';
-import { edgeAllowed, tabsFor } from '../src/session';
+import { DROPPED_SCREENS, EDGES, SCREEN_IDS, TAB_SCREENS, screenTitle, type NodeId, type ScreenId } from '../src/shell/flow';
+import { edgeAllowed, tabsFor } from '../src/shell/session';
 import { roleSession } from './sessions';
 import spec from './spec-flow.json';
 

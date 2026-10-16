@@ -26,7 +26,7 @@ now carries a test for the first two and a derivation for the third.
 | Layer | Question | Proof | Status |
 | --- | --- | --- | --- |
 | Structure | Does every spec screen and transition exist here, with the spec's nav mode? | `apps/mobile/test/specParity.test.ts` against `spec-flow.json`, vendored from the spec's `flow.ts` by `scripts/extractSpecFlow.ts` | 55 of 55 screens, 101 of 101 machine edges (spec edges with mode `back` are Back-button documentation, not machine edges); 6 app-only edges logged with reasons |
-| Permission | Can each role take only the affordances the spec gates for it, and can every gate be satisfied by some role? | 30 spec gates ported into `apps/mobile/src/flow.ts`; `edgeAllowed` in `session.ts`; `go()` refuses gated edges; the parity test checks no gate is dead | 1 known dead gate: `home_hub → language_home` (gap G2) |
+| Permission | Can each role take only the affordances the spec gates for it, and can every gate be satisfied by some role? | 30 spec gates ported into `apps/mobile/src/shell/flow.ts`; `edgeAllowed` in `session.ts`; `go()` refuses gated edges; the parity test checks no gate is dead | 1 known dead gate: `home_hub → language_home` (gap G2) |
 | Liveness | From every reachable state, can the work actually finish? | `deriveBlockers` in `packages/core/src/blockers.ts` | Four blocker kinds derived from the fold; see section 3 |
 
 What the structural proof found that eyeballing did not:

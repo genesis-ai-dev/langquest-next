@@ -1,4 +1,4 @@
-// The admin's simple screens in plain words (src/simple/adminModel.ts,
+// The admin's simple screens in plain words (src/admin/adminModel.ts,
 // decision 71, demo ADR-039): which of the four questions are answered, how
 // a template, a flow and a role read to an admin who knows nothing about the
 // model, and the small sums behind the screens.
@@ -11,7 +11,7 @@ import {
   askedAgo, dropIndex, firstName, flipSwitch, flowShort, flowSub, flowTitle, flowWho, guideShortName, helpsSummary, invitedTo, joinAnd,
   languageLabel, languageTranslators, moveTo, plainRoleChoices, readableRef, readiness, recordExamples, recordKind, recordSummary,
   ROLE_SWITCHES, scopeLabel, scopeOfBooks, stepTitle, stepWho, switchState, translatorsOf
-} from '../src/simple/adminModel';
+} from '../src/admin/adminModel';
 
 let seq = 0;
 const clock = new HlcClock('dev1', () => 1_700_000_000_000 + seq * 1000);
