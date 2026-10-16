@@ -56,4 +56,28 @@ describe('cloudflare deploy', () => {
       }
     }
   });
+
+  // The job runner (docs/server-jobs.md, decisions.md 134).
+  it('runs the job container in both environments, one instance, through the object that locks it', () => {
+    const config = parseJsonc(read('apps/web/wrangler.jsonc'));
+    for (const env of ['production', 'preview']) {
+      const c = wranglerFor(config, env);
+      expect(c.containers, env).toEqual([
+        { class_name: 'JobRunner', image: './jobs/Dockerfile', instance_type: 'standard-1', max_instances: 1 }
+      ]);
+      expect(c.durable_objects?.bindings, env).toContainEqual({ name: 'JOBS', class_name: 'JobRunner' });
+    }
+    const classes = (config.migrations as { new_sqlite_classes?: string[] }[]).flatMap((m) => m.new_sqlite_classes ?? []);
+    expect(classes).toContain('JobRunner');
+  });
+
+  it('builds the job image from bundles alone, never installing the dependency tree beside the key', () => {
+    const dockerfile = read('apps/web/jobs/Dockerfile');
+    expect(dockerfile).not.toMatch(/\b(npm|npx|yarn|pnpm|RUN)\b/);
+    expect(dockerfile).toMatch(/^COPY dist\/ /m);
+    // The bundles are built before every deploy and dev run, not committed.
+    const scripts = (JSON.parse(read('apps/web/package.json')) as { scripts: Record<string, string> }).scripts;
+    for (const name of ['dev', 'build', 'build:preview']) expect(scripts[name], name).toContain('build-jobs.mjs');
+    expect(read('.gitignore')).toContain('apps/web/jobs/dist/');
+  });
 });

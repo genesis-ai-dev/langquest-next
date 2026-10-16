@@ -1,11 +1,12 @@
 /**
- * The projection pass for large languages (decisions.md 103): the same work
- * as the Edge Function's pass (`server/projectionEdge.ts`), for the
- * languages too big for it, with Node's memory. The scheduled workflow
- * `.github/workflows/projections.yml` runs it every ten minutes.
+ * The projection pass for large languages (decisions.md 103, 134): the same
+ * work as the Edge Function's pass (`server/projectionEdge.ts`), for the
+ * languages too big for it, with Node's memory. The job container behind
+ * the dashboard Worker runs it every ten minutes from the Worker's cron
+ * (`apps/web/worker/jobs.ts`; `scripts/build-jobs.mjs` bundles this file).
  *   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npx tsx server/projections.ts [--all]
  * `--all` covers every language that changed, small ones too, as the Edge
- * pass would. The repository is public, so it prints counts, never names.
+ * pass would. The log prints counts, never names.
  */
 import { createClient } from '@supabase/supabase-js';
 import { runProjections, type ProjectionCounts } from './projectionWorker';
@@ -38,6 +39,6 @@ await record({
   ...(first ? { errorClass: errorClassOf(first.error), orgId: first.orgId, streamId: first.streamId } : {})
 });
 console.log(`${scope} languages: ${done.languages} projected, ${done.snapshots} new snapshots, ${done.failed.length} failed, ${Math.round((Date.now() - started) / 1000)} s`);
-// Ids only: the workflow's log is public.
+// Ids only, never a language's name.
 for (const f of done.failed) console.error(`failed ${f.streamId}: ${f.error instanceof Error ? f.error.message : String(f.error)}`);
 if (done.failed.length) process.exit(1);

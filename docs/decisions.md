@@ -3860,7 +3860,7 @@ report a weekly digest from scripts/ui-flakes.mjs instead).
 
 ## 103. Large languages are projected by a scheduled GitHub job; the Edge pass leaves them out
 
-Date: 2026-10-14 · By: Caleb Koster · Status: accepted
+Date: 2026-10-14 · By: Caleb Koster · Status: superseded by 134
 
 Reason: the projection pass (decisions.md 68) runs in the
 `stream-projections` Edge Function, and a run there gets 256 MB and 2 s of
@@ -5136,3 +5136,57 @@ be done).
 Reverse if: people undo by accident (the arrows sit beside the red button),
 a history kept on the phone undoes work they expected kept, or the grip is
 dragged by mistake while scrolling a long list.
+
+## 134. Server jobs too big for an Edge Function run in a container behind the dashboard Worker, started by its cron, and no production job runs in GitHub Actions
+
+Date: 2026-10-16 · By: Carl Sauder · Status: accepted
+
+Reason: decision 103 put the projection pass for large languages in a
+scheduled GitHub Actions workflow as a temporary measure, and the v2 import
+runs there too. Carl ruled (2026-10-16) that no production job belongs in
+GitHub: a scheduled run is delayed under load and can be dropped; a public
+repository's schedules are switched off after 60 days without a push; the
+production service-role key sat in the repository's secrets beside a freshly
+installed dependency tree; a job is capped at six hours; and it is a CI
+system, with public logs and `concurrency` as its only lock. The host chosen
+is Cloudflare Containers behind the dashboard Worker (`docs/server-jobs.md`
+weighs it against Cloud Run Jobs, a VPS, fitting the fold into 256 MB,
+Workflows and folding in Postgres): the same account and `wrangler.jsonc`,
+Workers Builds builds the image with the Worker, `npm run secrets` and
+`diag.job_runs` are unchanged, and a container is billed only while it
+runs. This entry is step one of that plan, the pass for large languages:
+- `apps/web/jobs/Dockerfile` is the image: Node 24 and one bundle per job
+  (`scripts/build-jobs.mjs`, run by the Worker's build and by `npm run
+  web:dev`), nothing installed, so the dependency tree never sits beside
+  the key. The object names a job's bundle as the entrypoint, so a later
+  job is one more bundle.
+- `JobRunner` (`apps/web/worker/jobs.ts`) is one Durable Object per job,
+  named by the job, and the lock: the Worker's cron starts it every ten
+  minutes, a tick that finds the run under way starts nothing, and the
+  tick never waits for the run. It drives the container through the
+  object's own container API rather than the `@cloudflare/containers`
+  class, which starts containers for requests and ran a sub-second pass
+  twice while reporting a failed start. The container gets `SUPABASE_URL`
+  and the service key from the Worker's own env. The process writes its
+  own job run as before; the object writes one when the process died
+  without the chance (`killed:137`, `exit:143` at the 45-minute limit,
+  `stopped` without a code), so a dead run is never silent. A pending
+  monitor keeps the object in memory for up to 15 minutes, so a longer
+  run's exit can go unobserved; its own job run is then the record.
+- `standard-1` (4 GiB) with Node's heap at 3 GiB, for Santhali's 850 MB
+  fold. Under the big-languages plan's option F the pass will also cut the
+  fold into rows, so the peak is measured before F lands and the instance
+  type follows it.
+- `.github/workflows/projections.yml` is gone, and
+  `scripts/workflows.test.ts` holds the allowlist of scheduled workflows to
+  `v2-import.yml`, which the import's move empties.
+Not changed yet, in order (`docs/server-jobs.md` section 5): one pass for
+every language in the container with the Edge Function keeping push
+delivery only; the pass as the one producer of per-language aggregates the
+Durable Object reads; the v2 import. Supersedes 103.
+Reverse if: a run longer than its time limit is needed and cannot be split,
+a container is evicted mid-run often enough to matter, or a fold needs more
+than 12 GiB; then the same image goes to Cloud Run Jobs, the object keeping
+the trigger and the lock. Or if Workers Builds cannot build the image; then
+the deploy command builds and pushes it from a laptop, as the Workers are
+deployed off Workers Builds today.

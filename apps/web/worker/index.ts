@@ -15,6 +15,7 @@ import { liveSessions } from './liveSessions';
 import { cachedBlobAccess, cachedProfileOf } from './isolateCache';
 
 export { OrgSnapshot } from './orgSnapshot';
+export { JobRunner } from './jobs';
 
 /** Compared by digest, so the time taken says nothing about the secret. */
 async function sameSecret(given: string, expected: string): Promise<boolean> {
@@ -59,12 +60,16 @@ export default {
   },
   // The Worker's cron (wrangler.jsonc, every ten minutes): verse timings
   // asked for LangQuest's own sources (worker/timings.ts), expired device
-  // grants, and webhook catch-up. Each part's failure is caught on its own,
-  // so one does not stop the others, and the tick leaves a job run
-  // (diag.jobs `worker_cron`) saying which failed and how.
+  // grants, webhook catch-up, and the projection pass for the languages the
+  // Edge Function leaves out (jobs.ts, decisions.md 134). Each part's
+  // failure is caught on its own, so one does not stop the others, and the
+  // tick leaves a job run (diag.jobs `worker_cron`) saying which failed and how.
   async scheduled(_event, env, ctx) {
     const startedAt = Date.now();
-    const n = { timingJobs: 0, timingsPublished: 0, timingsFailed: 0, grantCleanupFailed: 0, webhookOrgs: 0, webhookCatchupFailed: 0 };
+    const n = {
+      timingJobs: 0, timingsPublished: 0, timingsFailed: 0, grantCleanupFailed: 0, webhookOrgs: 0, webhookCatchupFailed: 0,
+      jobStarted: 0, jobRunning: 0, jobStartFailed: 0
+    };
     const errors: unknown[] = [];
     const failed = (key: keyof typeof n, what: string) => (e: unknown) => {
       n[key] = 1;
@@ -86,9 +91,14 @@ export default {
         return Promise.all(orgs.map((orgId) => env.ORG_SNAPSHOTS.get(env.ORG_SNAPSHOTS.idFromName(orgId)).webhookPoke(orgId)));
       })
       .catch(failed('webhookCatchupFailed', 'webhook catch-up'));
-    const run = Promise.all([timings, cleanup, catchUp]).then((): JobRun => ({
+    // The large-language pass: started, or found still running from an earlier tick. The tick never waits for it.
+    const job = env.JOBS.get(env.JOBS.idFromName('projection')).run()
+      .then((r) => { n[r === 'started' ? 'jobStarted' : 'jobRunning'] = 1; })
+      .catch(failed('jobStartFailed', 'projection job'));
+    const parts = [timings, cleanup, catchUp, job];
+    const run = Promise.all(parts).then((): JobRun => ({
       job: 'worker_cron', startedAt, ms: Date.now() - startedAt, n,
-      outcome: errors.length === 0 ? 'ok' : errors.length < 3 ? 'partial' : 'error',
+      outcome: errors.length === 0 ? 'ok' : errors.length < parts.length ? 'partial' : 'error',
       ...(errors.length ? { errorClass: errorClassOf(errors[0]) } : {})
     }));
     ctx.waitUntil(run.then(jobRunSink(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)));

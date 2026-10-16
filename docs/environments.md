@@ -60,7 +60,7 @@ declares:
 
 | Destination | Gets |
 | --- | --- |
-| dashboard Worker | `SUPABASE_SERVICE_ROLE_KEY`, read from Supabase each run, never stored in the repo; `BIBLE_BRAIN_ACCESS_KEY` and `WEBHOOK_POKE_SECRET` when the file has them |
+| dashboard Worker | `SUPABASE_SERVICE_ROLE_KEY`, read from Supabase each run, never stored in the repo; `BIBLE_BRAIN_ACCESS_KEY` and `WEBHOOK_POKE_SECRET` when the file has them. Its job container gets `SUPABASE_URL` and the key from the Worker at each start (`docs/server-jobs.md`) |
 | invite-email Worker | `INVITE_RELAY_SECRET` |
 | Edge Function secrets | `INVITE_RELAY_SECRET`, `PROJECTION_WORKER_SECRET`, `INVITE_RELAY_URL` (public, derived from the Worker's name) |
 | Vault | `langquest_project_url`, `langquest_projection_worker_secret`; with `WEBHOOK_POKE_SECRET`, also `langquest_webhook_poke_secret` and `langquest_dashboard_url` (public, the dashboard Worker's route) |

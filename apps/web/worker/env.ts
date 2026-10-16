@@ -1,9 +1,12 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { OrgSnapshot } from './orgSnapshot';
+import type { JobRunner } from './jobs';
 
 export interface Env {
   ASSETS: Fetcher;
   ORG_SNAPSHOTS: DurableObjectNamespace<OrgSnapshot>;
+  /** The job runner (jobs.ts, decisions.md 134): one object per server job, started by the cron. */
+  JOBS: DurableObjectNamespace<JobRunner>;
   /** Recordings and guide media (blobs.ts, decisions.md 69). */
   BLOBS: R2Bucket;
   /** Per-address limit on the device endpoints, which anyone may call (agent/http.ts). */
@@ -11,6 +14,13 @@ export interface Env {
   /** Per-address limit on review links (agent/links.ts), generous because a WhatsApp group may share one address. */
   LINK_RATE_LIMIT?: RateLimit;
   SUPABASE_URL: string;
+  /**
+   * Where the job container reaches the database when that differs from the
+   * Worker's address: local development, where the Worker runs on the host
+   * and the container in Docker (a var in the local config copy,
+   * scripts/web-dev-vars.ts). Unset in production.
+   */
+  JOBS_SUPABASE_URL?: string;
   /** The public key the app ships with; the connect page signs in with it (agent/connectPage.ts). */
   SUPABASE_ANON_KEY?: string;
   /** Reads every stream; never sent to the browser. */

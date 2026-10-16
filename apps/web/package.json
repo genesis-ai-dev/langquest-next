@@ -4,9 +4,9 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "tsx ../../scripts/web-dev-vars.ts && wrangler dev -c .wrangler.dev.jsonc --port 8787",
-    "build": "npm run export:web -w mobile -- production",
-    "build:preview": "npm run export:web -w mobile -- preview"
+    "dev": "tsx ../../scripts/web-dev-vars.ts && node ../../scripts/build-jobs.mjs && wrangler dev -c .wrangler.dev.jsonc --port 8787 --test-scheduled",
+    "build": "npm run export:web -w mobile -- production && node ../../scripts/build-jobs.mjs",
+    "build:preview": "npm run export:web -w mobile -- preview && node ../../scripts/build-jobs.mjs"
   },
   "dependencies": {
     "@langquest-next/sync": "*",

@@ -19,7 +19,13 @@ secrets `npm run secrets` set on it (decisions.md 51).
 | Build command | | | | |
 | Deploy command | `npm run email:deploy` | `npm run web:deploy` | `npm run email:deploy:preview` | `npm run web:deploy:preview` |
 | Build variables and secrets | none | none | none | none |
-| Include paths | `apps/invite-email/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs` | `apps/web/*`, `apps/mobile/*`, `packages/core/*`, `packages/sync/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs` | as invite email | as dashboard |
+| Include paths | `apps/invite-email/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs` | `apps/web/*`, `apps/mobile/*`, `packages/core/*`, `packages/sync/*`, `server/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs`, `scripts/build-jobs.mjs` | as invite email | as dashboard |
+
+The dashboard's include paths cover `server/*` and `scripts/build-jobs.mjs`
+because the job image (The job runner, below) is built from them: without
+them a change to the pass alone would not rebuild the image. Set on
+2026-10-16 with decision 134; check it in the Cloudflare dashboard if a
+pass change does not reach the container.
 
 Leave the default dependency install on. The web app's deploy command builds
 the Expo web export first (`npm run export:web`, a few minutes), reading
@@ -46,6 +52,37 @@ binding, add Email Sending edit to that token (My Profile > API Tokens).
 | --- | --- | --- |
 | invite email | `INVITE_FROM` | `INVITE_RELAY_SECRET` |
 | dashboard | `SUPABASE_URL` | `SUPABASE_SERVICE_ROLE_KEY` |
+
+## The job runner (containers)
+
+The dashboard Worker also runs the server jobs too big for an Edge
+Function (`docs/server-jobs.md`, decisions.md 134): today the projection
+pass for large languages (`server/projections.ts`), later the v2 import.
+`apps/web/jobs/Dockerfile` is the image: Node 24 and one bundle per job
+from `scripts/build-jobs.mjs` (`npm run jobs:build`, run by the Worker's
+build and by `npm run web:dev`). It installs nothing, so the dependency
+tree is never beside the service key. `wrangler deploy` builds the image
+with Docker and pushes it to Cloudflare's registry, on Workers Builds as
+on a laptop. The Worker goes live before the image rolls out, so a tick in
+between may find the old image; the next tick finds the new one. One
+`JobRunner` Durable Object per job (`worker/jobs.ts`) starts the container
+from the Worker's cron, hands it `SUPABASE_URL` and
+`SUPABASE_SERVICE_ROLE_KEY` from the Worker's own env (no new secret), and
+starts nothing while a run is going. The instance type is `standard-1`
+(4 GiB); containers need the Workers Paid plan. A run that is killed or
+reaches the 45-minute limit leaves a `projection_large` job run with
+`killed:137`, `exit:143` or `stopped` as its error class
+(`npm run diag -- jobs`).
+
+Locally, `npm run web:dev` needs Docker Desktop running: `wrangler dev`
+builds the image, the container reaches the local database through
+`host.docker.internal` (`JOBS_SUPABASE_URL`, a var `scripts/web-dev-vars.ts`
+adds to the local config copy; unset in production), and the cron is fired
+by hand:
+
+```bash
+curl 'http://localhost:8787/__scheduled?cron=*/10+*+*+*+*'
+```
 
 ## Recordings and guide media (R2)
 

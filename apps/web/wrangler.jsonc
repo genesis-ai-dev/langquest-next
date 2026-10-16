@@ -38,11 +38,26 @@
   // a deploy fails while one is missing.
   "secrets": { "required": ["SUPABASE_SERVICE_ROLE_KEY"] },
   // One per organization (decision 44): reports and recent folds in memory,
-  // a rebuildable cache of them in its own SQLite.
+  // a rebuildable cache of them in its own SQLite. JobRunner (worker/jobs.ts,
+  // decision 134): one per server job, the object that starts the job's
+  // container from the cron and keeps two runs from overlapping.
   "durable_objects": {
-    "bindings": [{ "name": "ORG_SNAPSHOTS", "class_name": "OrgSnapshot" }]
+    "bindings": [
+      { "name": "ORG_SNAPSHOTS", "class_name": "OrgSnapshot" },
+      { "name": "JOBS", "class_name": "JobRunner" }
+    ]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OrgSnapshot"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["OrgSnapshot"] },
+    { "tag": "v2", "new_sqlite_classes": ["JobRunner"] }
+  ],
+  // The job runner's container (docs/server-jobs.md): the image is built
+  // from jobs/Dockerfile at deploy, on Workers Builds as on a laptop, around
+  // the bundles scripts/build-jobs.mjs writes. One instance: one job at a
+  // time. standard-1 is 4 GiB, for Santhali's 850 MB fold (decision 103).
+  "containers": [
+    { "class_name": "JobRunner", "image": "./jobs/Dockerfile", "instance_type": "standard-1", "max_instances": 1 }
+  ],
   // Recordings and guide media (worker/blobs.ts, decisions.md 69). Private:
   // no public access and no r2.dev address; everything goes through
   // /api/blobs. Created by scripts/r2-buckets.mjs; `wrangler dev` keeps a
@@ -65,8 +80,14 @@
       "vars": { "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5bXhuZWJkd3Ria2Z4bGJ5bGNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0OTE1NDYsImV4cCI6MjEwNTA2NzU0Nn0.25nzSvDd07448L-jjQeVUjJ3UIUE-KlRJkUFWkmNz50" },
       "secrets": { "required": ["SUPABASE_SERVICE_ROLE_KEY"] },
       "durable_objects": {
-        "bindings": [{ "name": "ORG_SNAPSHOTS", "class_name": "OrgSnapshot" }]
+        "bindings": [
+          { "name": "ORG_SNAPSHOTS", "class_name": "OrgSnapshot" },
+          { "name": "JOBS", "class_name": "JobRunner" }
+        ]
       },
+      "containers": [
+        { "class_name": "JobRunner", "image": "./jobs/Dockerfile", "instance_type": "standard-1", "max_instances": 1 }
+      ],
       "r2_buckets": [{ "binding": "BLOBS", "bucket_name": "langquest-next-blobs-preview" }],
       "ratelimits": [
         { "name": "DEVICE_RATE_LIMIT", "namespace_id": "7002", "simple": { "limit": 20, "period": 60 } },
