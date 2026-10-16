@@ -210,6 +210,10 @@ export function validateEvent(e: AnyEvent): string | null {
       );
     case 'v1.RequestWithdrawn':
       return str('requestId');
+    case 'v1.ReviewWithdrawn':
+      return str('reviewId');
+    case 'v1.NoteWithdrawn':
+      return str('noteId');
     case 'v1.NoteAdded':
       return (
         str('noteId', 'unitId') ??

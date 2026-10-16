@@ -3597,6 +3597,7 @@
       "passageDock": "El pasaje · {{title}}",
       "adaptGuideHelp": "Crea tu propia copia de esta guía para cambiarla.",
       "doneWithStepHelp": "Marca este paso como listo para el equipo y luego abre el siguiente.",
+      "undoDoneHelp": "Vuelve a marcar este paso como no hecho.",
       "editGuideHelp": "La abre en el editor de guías.",
       "nextStepHelp": "Pasa a ese paso."
     },
@@ -3767,6 +3768,8 @@
         "assigned": "Asignado",
         "broughtBack": "recuperado {{when}}",
         "broughtBackJustNow": "recuperado hace un momento",
+        "undone": "deshecho {{when}}",
+        "undoneJustNow": "deshecho hace un momento",
         "movedPast": "Se pasó un punto de control",
         "setAside": "{{kind}} apartada",
         "note": "Nota · {{anchor}}",
@@ -3987,6 +3990,7 @@
       "reviewsByVersion": "Revisiones por versión",
       "historyTitle": "Historial",
       "undo": "Deshacer",
+      "undoNoteHelp": "Retira tu nota. Nadie la verá más.",
       "withdraw": "Retirar",
       "playNote": "Reproducir la nota de {{name}}",
       "whoseNote": "Nota de {{name}}",
@@ -4017,7 +4021,8 @@
         "send": "Lo envía a quien suele hacerlo. Deshacer lo retira.",
         "ask": "Elige una persona, un equipo o alguien sin la app.",
         "log": "Pasó fuera de la app: déjalo en el registro.",
-        "skip": "Deja fuera esta verificación. Dices por qué."
+        "skip": "Deja fuera esta verificación. Dices por qué.",
+        "undo": "Retira tu revisión. La verificación vuelve a quedar abierta."
       },
       "moreHelp": "Muestra todas las opciones de este paso.",
       "movePastHelp": "Sigue sin esta verificación. Dices por qué, y queda en el registro.",

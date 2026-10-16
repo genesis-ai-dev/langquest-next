@@ -3491,6 +3491,7 @@
       "passageDock": "The passage · {{title}}",
       "adaptGuideHelp": "Makes your own copy of this guide to change.",
       "doneWithStepHelp": "Marks this step done for the team, then opens the next one.",
+      "undoDoneHelp": "Marks this step as not done again.",
       "editGuideHelp": "Opens it in the guide editor.",
       "nextStepHelp": "Goes on to that step."
     },
@@ -3656,6 +3657,8 @@
         "assigned": "Assigned",
         "broughtBack": "brought back {{when}}",
         "broughtBackJustNow": "brought back just now",
+        "undone": "undone {{when}}",
+        "undoneJustNow": "undone just now",
         "movedPast": "Moved past a checkpoint",
         "setAside": "{{kind}} set aside",
         "note": "Note · {{anchor}}",
@@ -3868,6 +3871,7 @@
       "reviewsByVersion": "Reviews by version",
       "historyTitle": "History",
       "undo": "Undo",
+      "undoNoteHelp": "Takes back your note. Nobody sees it any more.",
       "withdraw": "Withdraw",
       "playNote": "Play {{name}}'s note",
       "whoseNote": "{{name}}'s note",
@@ -3898,7 +3902,8 @@
         "send": "Sends it to whoever usually does it. Undo takes it back.",
         "ask": "Choose a person, a team, or someone without the app.",
         "log": "It happened outside the app: put it on the record.",
-        "skip": "Leave this check out. You say why."
+        "skip": "Leave this check out. You say why.",
+        "undo": "Takes back your review. The check is open again."
       },
       "moreHelp": "Shows every option for this step.",
       "movePastHelp": "Go on without this check. You say why, and it goes on the record.",

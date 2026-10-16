@@ -3491,6 +3491,7 @@
       "passageDock": "Kifungu · {{title}}",
       "adaptGuideHelp": "Hutengeneza nakala yako ya mwongozo huu ili uibadilishe.",
       "doneWithStepHelp": "Huweka alama kuwa hatua hii imekamilika kwa ajili ya timu, kisha hufungua inayofuata.",
+      "undoDoneHelp": "Huweka alama tena kuwa hatua hii haijakamilika.",
       "editGuideHelp": "Huufungua katika sehemu ya kuhariri miongozo.",
       "nextStepHelp": "Huendelea kwenye hatua hiyo."
     },
@@ -3656,6 +3657,8 @@
         "assigned": "Amepangiwa",
         "broughtBack": "imerudishwa {{when}}",
         "broughtBackJustNow": "imerudishwa sasa hivi",
+        "undone": "imetenduliwa {{when}}",
+        "undoneJustNow": "imetenduliwa sasa hivi",
         "movedPast": "Kituo cha ukaguzi kimerukwa",
         "setAside": "{{kind}} imewekwa kando",
         "note": "Dokezo · {{anchor}}",
@@ -3868,6 +3871,7 @@
       "reviewsByVersion": "Ukaguzi kwa kila toleo",
       "historyTitle": "Historia",
       "undo": "Tendua",
+      "undoNoteHelp": "Huondoa dokezo lako. Hakuna atakayeliona tena.",
       "withdraw": "Ondoa ombi",
       "playNote": "Cheza dokezo la {{name}}",
       "whoseNote": "Dokezo la {{name}}",
@@ -3898,7 +3902,8 @@
         "send": "Huutuma kwa anayeufanya kwa kawaida. Tendua huurudisha.",
         "ask": "Chagua mtu, timu, au mtu asiye na programu.",
         "log": "Ulifanyika nje ya programu: uandike kwenye kumbukumbu.",
-        "skip": "Acha ukaguzi huu. Unasema kwa nini."
+        "skip": "Acha ukaguzi huu. Unasema kwa nini.",
+        "undo": "Huondoa ukaguzi wako. Ukaguzi unakuwa wazi tena."
       },
       "moreHelp": "Huonyesha kila chaguo la hatua hii.",
       "movePastHelp": "Endelea bila ukaguzi huu. Unasema kwa nini, na inaandikwa kwenye kumbukumbu.",

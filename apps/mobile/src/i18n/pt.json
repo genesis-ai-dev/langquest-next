@@ -3597,6 +3597,7 @@
       "passageDock": "A passagem · {{title}}",
       "adaptGuideHelp": "Cria a sua própria cópia deste guia para mudar.",
       "doneWithStepHelp": "Marca esta etapa como feita para a equipe e depois abre a próxima.",
+      "undoDoneHelp": "Marca esta etapa como não feita de novo.",
       "editGuideHelp": "Abre no editor de guias.",
       "nextStepHelp": "Vai para essa etapa."
     },
@@ -3767,6 +3768,8 @@
         "assigned": "Atribuído",
         "broughtBack": "trazido de volta {{when}}",
         "broughtBackJustNow": "trazido de volta agora mesmo",
+        "undone": "desfeito {{when}}",
+        "undoneJustNow": "desfeito agora mesmo",
         "movedPast": "Passou de um ponto de controle",
         "setAside": "{{kind}} deixada de lado",
         "note": "Nota · {{anchor}}",
@@ -3987,6 +3990,7 @@
       "reviewsByVersion": "Revisões por versão",
       "historyTitle": "Histórico",
       "undo": "Desfazer",
+      "undoNoteHelp": "Retira sua nota. Ninguém mais a vê.",
       "withdraw": "Cancelar pedido",
       "playNote": "Tocar a nota de {{name}}",
       "whoseNote": "Nota de {{name}}",
@@ -4017,7 +4021,8 @@
         "send": "Envia para quem normalmente faz isso. Desfazer cancela o envio.",
         "ask": "Escolha uma pessoa, uma equipe, ou alguém sem o aplicativo.",
         "log": "Aconteceu fora do aplicativo: registre na ficha.",
-        "skip": "Deixe esta verificação de fora. Você diz por quê."
+        "skip": "Deixe esta verificação de fora. Você diz por quê.",
+        "undo": "Retira sua revisão. A verificação fica aberta de novo."
       },
       "moreHelp": "Mostra todas as opções para esta etapa.",
       "movePastHelp": "Continue sem esta verificação. Você diz por quê, e isso fica na ficha.",

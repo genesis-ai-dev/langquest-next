@@ -3385,6 +3385,7 @@
       "passageDock": "Perikop · {{title}}",
       "adaptGuideHelp": "Membuat salinan panduan ini milik Anda sendiri untuk diubah.",
       "doneWithStepHelp": "Menandai langkah ini selesai untuk tim, lalu membuka langkah berikutnya.",
+      "undoDoneHelp": "Menandai langkah ini belum selesai lagi.",
       "editGuideHelp": "Membukanya di editor panduan.",
       "nextStepHelp": "Lanjut ke langkah itu."
     },
@@ -3545,6 +3546,8 @@
         "assigned": "Ditugaskan",
         "broughtBack": "dikembalikan {{when}}",
         "broughtBackJustNow": "baru saja dikembalikan",
+        "undone": "diurungkan {{when}}",
+        "undoneJustNow": "baru saja diurungkan",
         "movedPast": "Melewati titik periksa",
         "setAside": "{{kind}} ditunda",
         "note": "Catatan · {{anchor}}",
@@ -3749,6 +3752,7 @@
       "reviewsByVersion": "Pemeriksaan per versi",
       "historyTitle": "Riwayat",
       "undo": "Urungkan",
+      "undoNoteHelp": "Menarik kembali catatan Anda. Tidak ada yang melihatnya lagi.",
       "withdraw": "Tarik",
       "playNote": "Putar catatan {{name}}",
       "whoseNote": "Catatan {{name}}",
@@ -3779,7 +3783,8 @@
         "send": "Mengirimnya ke orang yang biasanya mengerjakannya. Urungkan menariknya kembali.",
         "ask": "Pilih seseorang, sebuah tim, atau seseorang tanpa aplikasi.",
         "log": "Sudah dilakukan di luar aplikasi: catat di riwayat.",
-        "skip": "Lewati pemeriksaan ini. Anda menyebutkan alasannya."
+        "skip": "Lewati pemeriksaan ini. Anda menyebutkan alasannya.",
+        "undo": "Menarik kembali tinjauan Anda. Pemeriksaannya terbuka lagi."
       },
       "moreHelp": "Menampilkan semua pilihan untuk tahap ini.",
       "movePastHelp": "Lanjutkan tanpa pemeriksaan ini. Anda menyebutkan alasannya, dan itu tercatat di riwayat.",

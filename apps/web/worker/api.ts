@@ -105,7 +105,7 @@ async function answer(request: Request, deps: ApiDeps): Promise<Response> {
 }
 
 /**
- * Apps built before due dates were removed (decision 111) still show an
+ * Apps built before due dates were removed (decision 112) still show an
  * "Overdue requests" tile and add up `attention.overdueRequests`; without the
  * field they show NaN. Nothing is overdue any more, so they are told 0.
  */

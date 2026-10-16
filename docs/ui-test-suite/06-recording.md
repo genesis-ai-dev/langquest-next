@@ -64,7 +64,7 @@ Steps:
 
 Expected:
 - The workspace for that passage opens with sub "Recording Version 1".
-- Choose the "Notes" chip: COORD's request shows at the top of the notes: "Cora Coordinator asked", with no due date (decision 111).
+- Choose the "Notes" chip: COORD's request shows at the top of the notes: "Cora Coordinator asked", with no due date (decision 112).
 - Tapping ✕ returns to the screen the test came from (My Work or the record), and nothing is written.
 
 ### REC-003 Continue recording opens the draft already on the device
