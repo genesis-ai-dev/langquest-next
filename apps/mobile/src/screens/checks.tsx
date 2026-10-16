@@ -36,7 +36,7 @@ import { addRow, moveRow, removeRow, rowNumbers, rowsOf, setCheckpoint, setToget
 import { setChecksDraft, useChecksDraft } from '../checks/draft';
 import { restoreChecks } from '../checks/undo';
 import { PeopleLine } from '../checks/parts';
-import { newKindId, nextFieldId, referenceKindName } from './configModel';
+import { newKindId, nextFieldId, referenceKindName } from '../config/model';
 import { teamLanguage } from '../reference/languages';
 import { MakeStepSheet, MakesFields, MakingPresets } from '../writing/StepMaking';
 

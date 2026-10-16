@@ -89,6 +89,23 @@ if (platform === 'android') {
   }
 }
 
+// Animations off while the run lasts, as Android's guidance for UI tests has
+// it, and put back as they were when it ends. Maestro reads the screen once it
+// is idle, and a screen that animates every frame (the header's sync ring
+// during a transfer) is never idle, so a check comes late: after a 9-second
+// clip has finished, or a toast has gone. React Native reads a zero
+// transition scale as Reduce Motion, which the app honours.
+const ANIMATION_SCALES = ['window_animation_scale', 'transition_animation_scale', 'animator_duration_scale'];
+if (platform === 'android') for (const dev of devices) {
+  const setting = (...a) => spawnSync('adb', ['-s', dev, 'shell', 'settings', ...a], { encoding: 'utf8' });
+  const before = ANIMATION_SCALES.map((s) => setting('get', 'global', s).stdout.trim());
+  for (const s of ANIMATION_SCALES) setting('put', 'global', s, '0');
+  process.on('exit', () => ANIMATION_SCALES.forEach((s, i) => {
+    const was = before[i];
+    if (was && was !== 'null') setting('put', 'global', s, was); else setting('delete', 'global', s);
+  }));
+}
+
 // Airplane mode does not cut adb reverse ports, and a connection already open
 // through one stays open, so a flow that "goes offline" with setAirplaneMode
 // would still reach the local server. While the run lasts, a watcher rejects

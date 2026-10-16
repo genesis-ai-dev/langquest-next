@@ -11,7 +11,7 @@ import { usePerson, PersonAvatar } from '../UserChip';
 import type { IconName } from '../kit';
 import { useLibrary, useLibraryDocs } from '../library/useLibrary';
 import { refKindOf } from '../reference/model';
-import { referenceKindName } from '../screens/configModel';
+import { referenceKindName } from '../config/model';
 
 /** Up to four faces, overlapping. */
 export function Faces(props: { people: string[]; size?: number }) {

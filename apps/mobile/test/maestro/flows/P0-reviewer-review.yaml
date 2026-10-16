@@ -25,7 +25,11 @@ tags:
     visible: "Listen to all of it first"
     timeout: 30000
 - assertVisible: "Version 1 · recorded by ${TRANS_FIRST}"
-- tapOn: "Play Version 1 · recorded by ${TRANS_FIRST}"
+# Pause shows only while the 9-second clip plays: look for it at once, not
+# after the tap has waited for a screen that is busy playing.
+- tapOn:
+    text: "Play Version 1 · recorded by ${TRANS_FIRST}"
+    waitToSettleTimeoutMs: 0
 - extendedWaitUntil:
     visible: "Pause"
     timeout: 30000

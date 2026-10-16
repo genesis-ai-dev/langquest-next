@@ -13,7 +13,7 @@
 // Requirements ORG-3, ORG-4, ORG-8, TERM-1..6, FLOW-1..4.
 // ADR-002 (one model for reference), ADR-004 (done is read from the record),
 // ADR-005 (kinds arranged by the flow designer), ADR-016 (parallel kinds).
-// Pure reading lives in configModel.ts and the feature models (roles/, flows/,
+// Pure reading lives in config/model.ts and the feature models (roles/, flows/,
 // keyTerms/, reference/materialModel.ts); the screens here lay it out.
 import {
   CommandError, commands, derivePassage, keyTermsFor, keyTermView, languageName,
@@ -74,7 +74,7 @@ import {
   nextFieldId, parseRefLinks, PRIVILEGE_INFO, questionCount, questionCountLabel, questionDrafts, questionSetToReviews,
   referenceKinds, referenceKindName, referenceView, roleRows, scopeName, setKindName, termsInPassage, viewLevelFrom,
   type DraftStep, type QuestionDraft
-} from './configModel';
+} from '../config/model';
 
 /** Long lists grow 25 at a time (ADR-009). */
 const STEP = 25;
@@ -523,7 +523,7 @@ export function FlowsHome(ctx: Ctx) {
    * and are the language's own from then on (decision 91). Undo goes back to
    * the checks it had (core `restoreFlow`).
    */
-  async function use(target: { itemId: string } | { shared: SharedItem }) {
+  async function adopt(target: { itemId: string } | { shared: SharedItem }) {
     if (!state || !language || busy) return;
     setBusy(true);
     let specs: EventSpec[];
@@ -600,7 +600,7 @@ export function FlowsHome(ctx: Ctx) {
                     : updates[f.itemId] ? <Badge label={t('config.library.updateBadge')} tone="amber" /> : null}
                   {on
                     ? <SmallBtn label={t('config.flows.inUse')} icon="check" tone="primary" onPress={() => {}} />
-                    : language && !f.archived ? <SmallBtn label={t('config.flows.use')} onPress={() => void use({ itemId: f.itemId })} disabled={!canManage || busy || !f.current} /> : null}
+                    : language && !f.archived ? <SmallBtn label={t('config.flows.use')} onPress={() => void adopt({ itemId: f.itemId })} disabled={!canManage || busy || !f.current} /> : null}
                 </View>
                 <DocSteps doc={docs.get<FlowDoc>(f.current)} kinds={kinds} />
               </Card>
@@ -610,7 +610,7 @@ export function FlowsHome(ctx: Ctx) {
 
           <SharedItems ctx={ctx} lib={lib} shared={shared} canManage={canWrite}
             detail={(s) => <DocSteps doc={docs.get<FlowDoc>(s.latest_hash)} kinds={kinds} />}
-            {...(language && canManage ? { use: { label: t('config.flows.use'), onUse: (s: SharedItem) => void use({ shared: s }), disabled: busy } } : {})} />
+            {...(language && canManage ? { use: { label: t('config.flows.use'), onUse: (s: SharedItem) => void adopt({ shared: s }), disabled: busy } } : {})} />
         </>
       )}
     </Screen>

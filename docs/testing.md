@@ -23,6 +23,11 @@ Beside them:
 - **Web smoke** (`e2e/web-smoke`): the release export in Chromium,
   Firefox and WebKit, checking the platform itself (storage, tabs, headers,
   sign-out). CI on every PR.
+- **Lint** (`npm run lint`): what may import what (`eslint.config.mjs`,
+  decisions.md 104 and 105): core imports nothing, sync only core and
+  supabase-js, only `src/server` reaches Supabase, models stay pure,
+  screens keep storage out, and nothing but `App.tsx` imports a screen.
+  CI, pre-push.
 - **Coverage** (`npm run test:coverage`): V8 coverage of layers 1 to 3 with
   thresholds for `packages/core` and `packages/sync`, which are pure and
   must stay near fully covered. CI fails under the threshold. On 2026-10-14 core was at 95% lines and client at 90%; thresholds are 93 and 88.
