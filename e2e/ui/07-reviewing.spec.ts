@@ -689,11 +689,10 @@ test('REV-032 Say each part, then publish the back translation @p0', async ({ pa
   await primary(page).click();
   await button(page, 'Record part 1').click();
   await expect(button(page, 'Stop recording')).toBeVisible();
-  await expect(visible(page.getByLabel(/Recording what you say|Listening for you/)).first()).toBeVisible();
+  // The pane below the divider is the recording view (LAN-83): the part being said, the time and Done.
+  await expect(visible(page.getByLabel(/^Part 1\. (Recording…|Listening for you)/)).first()).toBeVisible();
   await expect(visible(page.getByLabel(/^Recorded for 0:\d\d$/)).first()).toBeVisible();
-  await expect(visible(page.getByLabel('Sound cutoff')).first()).toBeVisible();
-  for (const p of ['Short pause', 'Normal pause', 'Long pause']) await expect(button(page, new RegExp(p))).toBeVisible();
-  await expect(visible(page.getByLabel(/[1-9]\d* pieces? so far/)).first()).toBeVisible({ timeout: 15_000 });
+  await expect(button(page, 'Done')).toBeVisible();
   await button(page, 'Stop recording').click();
   await expect(button(page, /^Part 1, 0:0\d in English$/)).toBeVisible({ timeout: 20_000 });
   await expect(button(page, /^Part 1, 0:\d\d in English$/)).toBeVisible({ timeout: 20_000 });

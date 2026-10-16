@@ -940,7 +940,7 @@ test('REC-042 Hold a part to choose its verses, Auto, None or Delete', async ({ 
   await expectUploaded(page, w);
 });
 
-test('REC-044 A verse left for later, then Record here', async ({ page }) => {
+test('REC-044 A verse left for later, then tap its place and record', async ({ page }) => {
   const w = world();
   await openAs(page, w, 'TRANS');
   await openWorkspace(page, w, 'P-Q3', 'Continue recording');
@@ -951,19 +951,23 @@ test('REC-044 A verse left for later, then Record here', async ({ page }) => {
   await holdPart(page, 2);
   await page.getByRole('button', { name: /^Verse 24$/ }).click();
   await page.keyboard.press('Escape');
-  await expect(text(page, 'Verse 23 · left for later')).toBeVisible();
+  // The verse left out is a place of its own, numbered as the part it will be (LAN-83).
+  const place = button(page, 'Record Part 2 here');
+  await expect(place).toBeVisible();
   await mic(page).mode('tone');
-  await button(page, 'Record here').click();
+  await place.click();
+  await expect(place).toHaveAttribute('aria-selected', 'true');
+  await recordButton(page).click();
   await expect(recordButton(page)).toHaveAttribute('aria-label', 'Stop recording');
   await say(page, 3000);
-  await expectParts(page, parts + 1);
   await recordButton(page).click();
   await expectIdle(page);
+  await expectParts(page, parts + 1);
   // The new part sits between Part 1 and the old Part 2, as verse 23.
   await expect(verseSpace(page, 2)).toHaveAttribute('aria-label', 'Part 2, Verse 23');
   await expect(verseSpace(page, 3)).toHaveAttribute('aria-label', 'Part 3, Verse 24');
-  await expect(text(page, 'Verse 23 · left for later')).toHaveCount(0);
-  // Recording again without Record here adds at the end.
+  await expect(button(page, 'Record Part 2 here')).toHaveCount(0);
+  // Recording again, with nothing chosen, adds at the end.
   await recordSaid(page, [3000]);
   await expect(verseSpace(page, parts + 2)).toBeVisible();
   await expect(verseSpace(page, 2)).toHaveAttribute('aria-label', 'Part 2, Verse 23');

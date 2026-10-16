@@ -11,7 +11,7 @@ import { earlier } from './ties';
  * events. Snapshots are tagged with this; a client only loads snapshots at
  * its own version.
  */
-export const REDUCER_VERSION = 17;
+export const REDUCER_VERSION = 18;
 
 /**
  * How many events have been applied to a state object. Kept outside the

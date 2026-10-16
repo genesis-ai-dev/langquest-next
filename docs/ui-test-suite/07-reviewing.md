@@ -646,9 +646,9 @@ Steps:
 7. Tap "Publish back translation".
 
 Expected:
-- While recording, the bottom shows the red recording panel: a pulsing dot, the elapsed time (accessibility label "Recorded for 0:07"), a level meter and a dashed "Sound cutoff" line. Its status (the panel's accessibility label; on screen the count of pieces) reads "Recording what you say" while speaking and "Listening for you. 2 pieces so far" while silent.
+- While recording, the bottom shows the red recording view (decision 112, the workspace's too): "Part 1", a pulsing dot and its status, the elapsed time (accessibility label "Recorded for 0:07"), a check "Done", and the live waveform. Its label reads "Part 1. Recording…" while speaking and "Part 1. Listening for you · pause between parts" while silent.
 - Every piece said in one recording goes to the part it started on, however many pauses it has.
-- The footer shows "Stop recording" and the pause choices "Short pause", "Normal pause" and "Long pause".
+- The footer shows "Stop recording". (The sensitivity line and the pause choices went in decision 112, with the recording thread's levels learned as you speak.)
 - After step 3 Part 1 reads "0:07 in English · record to add more", with "Play your part 1", "Hear what you said" and a trash button "Delete part 1 to say it again". Focus moves to Part 2 ("Saying it next").
 - Said parts that are not open read "0:07 in English".
 - "Publish" is enabled after the first part is said.

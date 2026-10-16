@@ -7,12 +7,21 @@ import {
   button, byId, expect, expectNothingRefused, expectSent, leaveScreen, primary, openAs, screenChanged, screenText, syncNow, tab, test, text, type AccountKey, type PassageKey, type UiWorld
 } from './support';
 
-/** The parts card's count ("Parts 1–3 · 3 parts"), or 0 before the first part. */
+/**
+ * The parts card's count ("Parts 1–3, 3 parts", or "Version 1, 5 parts"
+ * while they are still the version's), or 0 before the first part. While
+ * recording the card gives way to the recording view, whose title is the
+ * part being said ("Part 4. Recording…"): three are kept.
+ */
 export async function partsCount(page: Page): Promise<number> {
-  const label = await page.getByRole('button', { name: /^Parts 1–\d+, \d+ parts?/ }).locator('visible=true').first()
+  const label = await page.getByRole('button', { name: /^(Parts? 1(–\d+)?|Version \d+), \d+ parts?/ }).locator('visible=true').first()
     .getAttribute('aria-label', { timeout: 1_000 }).catch(() => null);
-  const m = label?.match(/(\d+) parts?/);
-  return m ? Number(m[1]) : 0;
+  const m = label?.match(/, (\d+) parts?/);
+  if (m) return Number(m[1]);
+  if (!(await page.getByRole('button', { name: 'Done', exact: true }).locator('visible=true').count())) return 0;
+  const live = await page.getByLabel(/^Part \d+\. /).locator('visible=true').first().getAttribute('aria-label', { timeout: 1_000 }).catch(() => null);
+  const n = live?.match(/^Part (\d+)\. /);
+  return n ? Number(n[1]) - 1 : 0;
 }
 
 /**

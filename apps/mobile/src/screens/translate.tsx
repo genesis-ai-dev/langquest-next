@@ -283,7 +283,9 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       if (hole?.before === aim.hash && list[first]) setHole({ ...hole, before: list[first]! });
       undo = () => {
         const s = stateRef.current;
-        return commands(s, indexesFor(s)).keepTake({ commandId: Crypto.randomUUID(), unitId, cardHashes: before, actorId: me, parentTakeId: draftIn(s)?.takeId ?? parentNow() });
+        // This draft as it is now (as `draftIn`), read here so the effect depends on nothing that changes every render.
+        const now = draftOf(draftsBy(derivePassage(s, unitId), me), rootRef.current);
+        return commands(s, indexesFor(s)).keepTake({ commandId: Crypto.randomUUID(), unitId, cardHashes: before, actorId: me, parentTakeId: now?.takeId ?? parentNow() });
       };
       setAim(after ? { kind: 'gap', before: after, ...(aim.mark ? { mark: { t: 'join' } } : {}) } : { kind: 'end' });
     } else if (aim.kind === 'gap') {
@@ -291,7 +293,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       if (aim.mark) setAim({ ...aim, mark: { t: 'join' } });
       if (hole?.before === aim.before) setHole(null);
     }
-    (undo ? ctx.act(specs, t('translate.partReplaced', { part: replacedLabel }), undo) : ctx.language.run(specs))
+    (undo ? latestCtx.current.act(specs, t('translate.partReplaced', { part: replacedLabel }), undo) : ctx.language.run(specs))
       .catch((e: unknown) => setComposeError(t('translate.partsNotInDraft', { reason: failureMessage('workspace: save draft', e) })))
       .finally(() => { composeLock.current = false; setComposing(false); });
     // `composing` is a dependency so a card that landed mid-compose is composed next.
