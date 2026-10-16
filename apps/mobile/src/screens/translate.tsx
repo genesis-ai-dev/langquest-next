@@ -538,7 +538,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
         )}
         bottom={({ compact, open, height, room }) => session ? (
           // While recording, the pane is the recording view: what is being said, the waveform, and an X back to the parts.
-          <RecordingView rec={rec} phase={loop.phase} title={partLabel(nextIndex ?? list.length)} onLeave={record} onResume={loop.resumeNow}
+          <RecordingView rec={rec} phase={loop.phase} title={partLabel(nextIndex ?? list.length)} partNumber={(nextIndex ?? list.length) + 1} onLeave={record} onResume={loop.resumeNow}
             {...(slotTile ? { tile: slotTile } : {})} />
         ) : compact ? (
           <RecorderBar count={list.length} {...(nextIndex !== undefined ? { nextIndex } : {})} phase={loop.phase} disabled={saving || rec.failureCount > 0} onRecord={record} onOpen={open} />

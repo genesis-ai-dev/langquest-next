@@ -3,7 +3,8 @@
 // back translation's was (the VadTakeover panel it replaces). Its top row says what is being
 // recorded (the part, and its verses when it is said again in a deleted
 // part's place) and has an X that stops and goes back to the parts; the
-// rest is the live waveform. Stop stays in the footer. The reference above
+// rest is the live waveform, each kept part boxed and numbered as it is
+// said (LiveParts.tsx, the "Recordings getting cut off" thread's). Stop stays in the footer. The reference above
 // stays readable and playable. While the Bible plays the microphone is
 // paused: the pane turns pale and says so, with Resume now.
 import { useEffect, useRef, useState, type ReactNode } from 'react';
@@ -14,18 +15,12 @@ import { useHelpSpot } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
 import { HelpInfo, Ico, IconBtn } from '../ui/kit';
 import { C, radius, space, target, TINT, type as T, withAlpha } from '../ui/theme';
-import { useEnergyHistory, type useRecorder } from './useRecorder';
-import { meterHeight, type LoopPhase } from './splitModel';
+import type { useRecorder } from './useRecorder';
+import type { LoopPhase } from './splitModel';
 import { mmss } from './workspaceModel';
+import { LiveParts } from './LiveParts';
 
 type Recorder = ReturnType<typeof useRecorder>;
-
-/** The only thing that re-renders with the microphone. Bars and the cutoff line share one scale (meterHeight). */
-function EnergyBars(props: { captured: boolean }) {
-  const history = useEnergyHistory(props.captured);
-  return <>{history.map((bar, index) => <View key={index}
-    style={[styles.bar, { opacity: bar.captured ? 1 : 0.35, height: `${Math.max(1, meterHeight(bar.energy) * 100)}%` }]} />)}</>;
-}
 
 /** The reduce-motion setting, kept current (A11Y-8). */
 function useReduceMotion(): boolean {
@@ -79,11 +74,14 @@ export function RecordingView(props: {
   rec: Recorder; phase: LoopPhase;
   /** What is being recorded: "Part 3". */
   title: string;
+  /** Its number: the waveform numbers the parts kept from the one recording when the view opened. */
+  partNumber: number;
   /** Its verses, when it takes a deleted part's. */
   tile?: ReactNode;
   onLeave: () => void; onResume: () => void;
 }) {
   const { rec } = props;
+  const [firstPart] = useState(props.partNumber);
   const listening = props.phase === 'listening';
   const capturing = rec.vadCapturing && !listening;
   const fg = listening ? TINT.redText : C.white;
@@ -91,20 +89,20 @@ export function RecordingView(props: {
   const resume = useHelpSpot(t('recording.resumeNow'), t('recording.vad.resumeHelp'), listening ? props.onResume : undefined);
   return (
     <View style={[styles.panel, { backgroundColor: listening ? TINT.red : capturing ? C.red : TINT.redText }]}>
-      <HelpInfo label={`${props.title}. ${status}`} detail={listening ? t('recording.vad.statusPausedHelp') : t('recording.recorder.nextRecordingHelp')}>
-        <View style={styles.head} accessible accessibilityLiveRegion="polite" accessibilityLabel={t('recording.recorder.nextLabel', { part: props.title, status })}>
-          {props.tile ? <View style={styles.tile}>{props.tile}</View> : null}
-          <View style={{ flex: 1, minWidth: 0 }}>
+      <View style={styles.head}>
+        {props.tile ? <View style={styles.tile}>{props.tile}</View> : null}
+        <HelpInfo style={{ flex: 1, minWidth: 0 }} label={`${props.title}. ${status}`} detail={listening ? t('recording.vad.statusPausedHelp') : t('recording.recorder.nextRecordingHelp')}>
+          <View accessible accessibilityLiveRegion="polite" accessibilityLabel={t('recording.recorder.nextLabel', { part: props.title, status })}>
             <Text style={[styles.title, { color: fg }]} numberOfLines={1}>{props.title}</Text>
             <View style={styles.statusRow}>
               {listening ? <Ico name="pause" size={14} color={fg} /> : <PulsingDot on={capturing} />}
               <Text style={[styles.status, { color: fg }]} numberOfLines={1}>{status}</Text>
             </View>
           </View>
-          <Elapsed running={props.phase === 'recording'} color={fg} />
-          <IconBtn name="close" label={t('recording.recorder.leave')} help={t('recording.recorder.leaveHelp')} bg={listening ? C.card : withAlpha(C.white, 0.18)} color={fg} size={target.min} onPress={props.onLeave} />
-        </View>
-      </HelpInfo>
+        </HelpInfo>
+        <Elapsed running={props.phase === 'recording'} color={fg} />
+        <IconBtn name="close" label={t('recording.recorder.leave')} help={t('recording.recorder.leaveHelp')} bg={listening ? C.card : withAlpha(C.white, 0.18)} color={fg} size={target.min} onPress={props.onLeave} />
+      </View>
       {listening ? (
         <View style={styles.paused}>
           <Pressable onPress={resume.onPress} accessibilityRole="button" accessibilityLabel={t('recording.resumeRecordingNow')}
@@ -115,8 +113,8 @@ export function RecordingView(props: {
           </Pressable>
         </View>
       ) : (
-        <View style={styles.wave} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <EnergyBars captured={rec.vadCapturing} />
+        <View style={styles.wave}>
+          <LiveParts rec={rec} firstPart={firstPart} tone="onRed" />
         </View>
       )}
       {rec.error ? <Text style={styles.error} accessibilityRole="alert">{rec.error}</Text> : null}
@@ -131,12 +129,11 @@ const styles = StyleSheet.create({
   title: { fontSize: T.lg, fontWeight: '800' },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   status: { fontSize: T.sm, fontWeight: '600' },
-  wave: { flex: 1, minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 2 },
+  wave: { flex: 1, minHeight: 56, paddingBottom: space.xs },
   paused: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   resume: { minHeight: target.min, paddingHorizontal: space.lg, borderRadius: radius.full, backgroundColor: TINT.redText, flexDirection: 'row', alignItems: 'center', gap: space.sm },
   resumeLabel: { color: C.white, fontSize: T.sm, fontWeight: '700' },
   error: { color: C.white, fontSize: T.sm, textAlign: 'center' },
-  bar: { flex: 1, backgroundColor: C.white, borderRadius: 2 },
   dot: { width: 10, height: 10, borderRadius: radius.full, backgroundColor: C.white },
   time: { fontSize: T.lg, fontWeight: '700', fontVariant: ['tabular-nums'] }
 });
