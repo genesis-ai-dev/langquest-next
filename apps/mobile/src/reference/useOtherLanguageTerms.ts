@@ -13,6 +13,7 @@ import * as Crypto from 'expo-crypto';
 import { useEffect, useState } from 'react';
 import { audioFormat } from '../audio/audioFormat';
 import type { Ctx } from '../shell/ctx';
+import { diagnostics } from '../diagnostics/diagnostics';
 import { noteExpected } from '../diagnostics/report';
 import type { LanguageTerms } from '../helps/helpsModel';
 import { getStore } from '../sync/store';
@@ -35,8 +36,9 @@ async function termsOnPhone(c: { orgId: string; languageId: string; actorId: str
   if (hit && hit.mark === mark) return hit;
   const deviceId = await ensureDeviceId(store, () => Crypto.randomUUID());
   // Loading reads the log on this phone; the transport is never asked for anything.
-  const client = new SyncClient({ orgId: c.orgId, streamId: c.languageId, actorId: c.actorId, deviceId, store, transport: serverTransport() });
-  const state = await client.load();
+  // The helps screen waits on this fold, so it is timed like any other (`load`, reason `other`).
+  const client = new SyncClient({ orgId: c.orgId, streamId: c.languageId, actorId: c.actorId, deviceId, store, transport: serverTransport(), diag: diagnostics });
+  const state = await client.load('other');
   const terms = keyTermsFor(state);
   // How each recording of a word was saved (decisions.md 77), to play it from that language's files.
   const formats: Record<string, string> = {};

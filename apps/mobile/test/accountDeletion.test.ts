@@ -10,7 +10,7 @@ const keys = [
   `inbox:${other}`, `organizations:${other}`, 'public-partitions', 'held-invite', 'sb-ref-auth-token'
 ];
 
-function phone(serverError: string | null = null) {
+function phone(serverError: { message: string; code?: string } | null = null) {
   const stored = new Set(keys);
   const calls: string[] = [];
   const deps: DeletionDeps = {
@@ -40,9 +40,15 @@ describe('account deletion on the phone', () => {
   });
 
   it('changes nothing on the phone when the server refuses', async () => {
-    const p = phone('sign in required');
+    const p = phone({ message: 'sign in required', code: '42501' });
     await expect(deleteAccount(me, p.deps)).rejects.toThrow('sign in required');
     expect(p.calls).toEqual(['server']);
     expect(p.stored.size).toBe(keys.length);
+  });
+
+  it('the refusal carries the server\'s code, so the report of it says why', async () => {
+    // Why: a failed deletion reached diagnostics as a bare Error, with no SQLSTATE to tell a lost sign-in from a fault.
+    const p = phone({ message: 'sign in required', code: '42501' });
+    await expect(deleteAccount(me, p.deps)).rejects.toMatchObject({ code: '42501' });
   });
 });

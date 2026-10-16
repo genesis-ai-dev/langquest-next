@@ -42,4 +42,14 @@ describe('invite codes', () => {
   it('returns null for a non-invite https URL with a token query', () => {
     expect(parseInvite(`https://example.com/not-invite?token=${token}`)).toBeNull();
   });
+
+  it('reads https links only at the app\'s own addresses', () => {
+    const at = (host: string) => `https://${host}/invite#org=org1&token=${token}`;
+    expect(parseInvite(at('next.langquest.org'))).toEqual({ token, orgId: 'org1' });
+    expect(parseInvite(at('next-preview.langquest.org'))).toEqual({ token, orgId: 'org1' });
+    expect(parseInvite(at('Next.LangQuest.org'))).toEqual({ token, orgId: 'org1' });
+    for (const host of ['example.com', 'next.langquest.org.evil.example', 'evil.example@next.langquest.org', 'langquest.org']) {
+      expect(parseInvite(at(host)), host).toBeNull();
+    }
+  });
 });

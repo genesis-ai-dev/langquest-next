@@ -16,6 +16,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { SCHEDULE_MIGRATION, vaultSql } from './secrets.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const DB = 'supabase_db_langquest-next';
@@ -31,8 +32,20 @@ const SMOKES = [
   'server/joinSmoke.sql',
   'server/grantsSmoke.sql',
   'server/externalValuesSmoke.sql',
-  'server/concurrentAppendSmoke.sql'
+  'server/notificationsSmoke.sql',
+  'server/concurrentAppendSmoke.sql',
+  'server/rlsReadSmoke.sql',
+  'server/timingJobsSmoke.sql',
+  'server/surfaceSmoke.sql',
+  'server/cronSmoke.sql'
 ];
+/** Smokes that need something a reset leaves out, set up first: the cron jobs exist only where the Vault secrets do. */
+const PREPARE = {
+  'server/cronSmoke.sql': () => {
+    psql(vaultSql({ langquest_project_url: 'http://127.0.0.1:54321', langquest_projection_worker_secret: 'db-test' }), true);
+    psql(readFileSync(join(root, SCHEDULE_MIGRATION), 'utf8'), true);
+  }
+};
 /** Smokes that open sessions of their own (dblink), which needs a superuser. */
 const AS_SUPERUSER = new Set(['server/concurrentAppendSmoke.sql']);
 
@@ -59,6 +72,7 @@ try {
     run('npx', ['supabase', 'db', 'reset']);
     for (const smoke of SMOKES) {
       console.log(`→ ${smoke}`);
+      PREPARE[smoke]?.();
       psql(readFileSync(join(root, smoke)), false, AS_SUPERUSER.has(smoke) ? 'supabase_admin' : 'postgres');
     }
   }

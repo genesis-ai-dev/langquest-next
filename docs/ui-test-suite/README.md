@@ -291,7 +291,9 @@ The automated tests live beside the app (decision 95):
   (`01-getting-in.spec.ts` …). A test's title starts with its ID.
 - **Phones:** Maestro flows in `apps/mobile/test/maestro/flows/`, one file
   per test ID (`REC-023.yaml`), plus the P0 smoke set (`P0-*.yaml`, tag
-  `smoke`).
+  `smoke`). A smoke flow names
+  the specs it covers on a `# Covers: ID, ID` line, and only what it runs;
+  `scripts/uiSuite.test.ts` counts those IDs as implemented.
 - **Fixture:** `e2e/ui/fixture.ts` builds a fresh world through the
   real server in about a second (`npm run ui:fixture -- --out world.json`
   writes one to look at). Every web spec file gets its own world, and so
@@ -380,6 +382,12 @@ npm run test:ui:phone -- --platform ios --voice --tags smoke
 passed, 5 open, 7 skipped, in 12.9 minutes; median test 1.2 s. The five
 were test bugs, fixed the same day; MOD-016 and MOD-020 failed once each
 under load afterwards (`node scripts/ui-flakes.mjs` over the kept reports).
+
+**Tests that need a key the local stack lacks:** STUDY-030 (Bible Brain's
+language search) skips, saying so, unless the Worker has a real
+`BIBLE_BRAIN_ACCESS_KEY`; STUDY-033 is its mirror and runs without one.
+The rest of the study file runs on the world's own guide (Luke 15:11-32 with
+a recorded step and a glossary word) and Bible (`e2e/ui/study-helpers.ts`).
 
 **Phone results (2026-10-13, after merging main), test builds:** 23 of 31
 flows pass on iOS and 24 of 31 on Android (the two `wrapped` flows run on

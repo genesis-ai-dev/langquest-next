@@ -1,26 +1,26 @@
-import { DEFAULT_TRANSFER_BUDGET_BYTES, LanguageSession, TransferBudget, ensureDeviceId, type LanguageStatus, type SyncInspection } from '@langquest-next/sync';
+import { DEFAULT_TRANSFER_BUDGET_BYTES, LanguageSession, TransferBudget, classifyTransferFailure, ensureDeviceId, type LanguageStatus, type SyncInspection } from '@langquest-next/sync';
 import { CommandError, emptyLanguageState, type BlobRef, type EventPayloads, type EventSpec, type EventType, type LanguageState } from '@langquest-next/core';
 import { getBlobStore, type BlobFile, type BlobStore } from './blobs';
 import { downloadBlob, streamUrl, uploadBlob } from '../server/blobTransport';
-import { diagnostics, flushDiagnostics, timedTransfer, type TransferTimings } from '../diagnostics/diagnostics';
+import { diagnostics, flushDiagnostics, registerDeviceProbe, timedTransfer, type TransferTimings } from '../diagnostics/diagnostics';
+import { noteExpected, reportError } from '../diagnostics/report';
 import { getRecordingJournal } from '../recording/recordingJournal';
 import { isRecording } from '../recording/recorderState';
 import * as Crypto from 'expo-crypto';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RateMeter } from './rate';
 import { getStore } from './store';
 import { trackSync } from './syncActivity';
 import { onWake } from './wake';
 import { serverTransport } from '../server/sync';
 import { stateCopier } from './publishedState';
+import { NO_LANGUAGE_STATUS, StatusStore, type LanguageStatusStore, type LanguageSyncStatus } from './syncStatusStore';
 import { t } from '../i18n';
 
 export interface LanguageHandle {
   orgId: string;
   languageId: string;
   state: LanguageState | null;
-  pending: number;
-  lastSync: string;
   /**
    * Did the server answer? null until the first sync attempt, false only
    * when it could not be reached. A refusal is an answer: see `refused`.
@@ -53,12 +53,13 @@ export interface LanguageHandle {
   revision: number;
   /** The local log as the sync screen shows it; null before load. */
   inspect: () => Promise<SyncInspection | null>;
+  /**
+   * What changes while syncing (pending, lastSync, transfer counts, the files
+   * here) is not on this handle: it would redraw every screen on every tick.
+   * Components that show it call `useSyncStatus()`; the app gives it this store.
+   */
+  syncStatus: LanguageStatusStore;
   blobs: {
-    pendingUp: number;
-    pendingDown: number;
-    /** Highest pending count since the queue was last empty: the bar's denominator. */
-    peakUp: number;
-    peakDown: number;
     /** Bytes per second over the last ten seconds. */
     rates: () => { up: number; down: number };
     uriFor: (ref: BlobFile) => string | null;
@@ -67,8 +68,6 @@ export interface LanguageHandle {
     store: BlobStore | null;
     keptUnits: ReadonlySet<string>;
     keepOffline: (unitId: string, keep: boolean) => Promise<void>;
-    /** Audio files on this phone now; a new set whenever one arrives or is reclaimed. */
-    present: ReadonlySet<string>;
     /** Recordings here the server has not confirmed: what a hand-over must still send (handOver.ts). */
     unsent: () => BlobRef[];
   };
@@ -115,7 +114,11 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
   const sessionRef = useRef<LanguageSession | null>(null);
   const filesRef = useRef<BlobStore | null>(null);
   const [state, setState] = useState<LanguageState | null>(null);
+  // What changes rarely, as React state; what ticks goes to `syncStatus` (see LanguageHandle).
   const [status, setStatus] = useState<LanguageStatus>(NOTHING_YET);
+  const syncStatus = useMemo<LanguageStatusStore>(() => new StatusStore<LanguageSyncStatus>(NO_LANGUAGE_STATUS), []);
+  // The file store, once opened: `blobs.store` follows it.
+  const [files, setFiles] = useState<BlobStore | null>(null);
   // Bumped when a web recording's URL is ready (blobs.ts uriFor); only its re-render matters.
   const [, setUrlsReady] = useState(0);
   const upMeter = useRef(new RateMeter());
@@ -139,6 +142,8 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
     // language may show under this one while it loads.
     setState(null);
     setStatus(NOTHING_YET);
+    setFiles(null);
+    syncStatus.set({ ...NO_LANGUAGE_STATUS });
     if (!openId) {
       setState(emptyLanguageState());
       setStatus({ ...NOTHING_YET, pulled: true });
@@ -174,15 +179,24 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
       opened = session;
       sessionRef.current = session;
       filesRef.current = files;
+      setFiles(files);
       // The fold mutates in place, so copy the top level, but only when the
       // fold changed: identity is the revision (publishedState.ts).
       const copy = stateCopier();
       const publish = () => {
         const next = copy(session.state, session.status.revision);
         if (next) setState(next);
-        setStatus(session.status);
+        const now = session.status;
+        // Only a change in what is shown redraws the shell; the ticking part goes to its own store.
+        setStatus((prev) => (slowSame(prev, now) ? prev : now));
+        syncStatus.set({
+          pending: now.pending, lastSync: now.lastSync, pendingUp: now.pendingUp, pendingDown: now.pendingDown,
+          peakUp: now.peakUp, peakDown: now.peakDown, present: now.present
+        });
       };
       stops.push(session.subscribe(publish));
+      // Uploads waiting and how long, for the device record (diagnostics.ts); gone with the session.
+      stops.push(registerDeviceProbe(`language:${orgId}/${languageId}`, () => session.probe()));
       // Web: a recording's playable URL is read from the browser's files on first ask; draw again once it is.
       stops.push(files.onUrlReady(() => setUrlsReady((n) => n + 1)));
       session.start();
@@ -203,7 +217,13 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
             cards: [{ hash: e.hash, durationMs: e.durationMs, format: e.format }]
           });
         }
-      }).catch(() => null);
+      }).catch((e: unknown) => { reportError('recording recovery', e); return null; });
+      // An entry that failed stays in the journal for the next open. Count
+      // each failure by its cause's fixed class (a full disk, a file gone),
+      // never its text; how many wait is the journal's own probe.
+      for (const f of resumed?.failed ?? []) {
+        noteExpected('recording recovery entry', new Error('recovery failed'), recoveryCode(f.error));
+      }
       if (cancelled || !resumed?.resumed.length) return;
       await session.refresh();
       session.triggerUpload();
@@ -215,7 +235,7 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
       sessionRef.current = null;
       filesRef.current = null;
     };
-  }, [orgId, languageId, openId, actorId]);
+  }, [orgId, languageId, openId, actorId, syncStatus]);
 
   const sync = useCallback(() => sessionRef.current?.sync() ?? Promise.resolve({ more: false }), []);
 
@@ -246,25 +266,30 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
     await sessionRef.current?.keepOffline(unitId, keep);
   }, []);
 
-  const blobs = {
-    pendingUp: status.pendingUp,
-    pendingDown: status.pendingDown,
-    uriFor: (ref: BlobFile) => filesRef.current?.uriFor(ref) ?? null,
-    streamUri: (ref: BlobFile) => streamUrl(orgId, languageId, ref),
-    store: filesRef.current,
-    keptUnits: status.keptUnits,
-    keepOffline,
-    present: status.present,
-    peakUp: status.peakUp,
-    peakDown: status.peakDown,
-    rates: () => ({ up: upMeter.current.perSecond(), down: downMeter.current.perSecond() }),
-    unsent: () => sessionRef.current?.unsent() ?? []
-  };
+  const uriFor = useCallback((ref: BlobFile) => filesRef.current?.uriFor(ref) ?? null, []);
+  const streamUri = useCallback((ref: BlobFile) => streamUrl(orgId, languageId, ref), [orgId, languageId]);
+  const rates = useCallback(() => ({ up: upMeter.current.perSecond(), down: downMeter.current.perSecond() }), []);
+  const unsent = useCallback(() => sessionRef.current?.unsent() ?? [], []);
+  const { keptUnits } = status;
+  const blobs = useMemo(
+    () => ({ uriFor, streamUri, store: files, keptUnits, keepOffline, rates, unsent }),
+    [uriFor, streamUri, files, keptUnits, keepOffline, rates, unsent]
+  );
   const triggerUpload = useCallback(() => sessionRef.current?.triggerUpload(), []);
   const inspect = useCallback(() => sessionRef.current?.inspect() ?? Promise.resolve(null), []);
-  const { pending, lastSync, online, tooOld, refused, refusedEvents, pulled, live, revision } = status;
+  const { online, tooOld, refused, refusedEvents, pulled, live, revision } = status;
 
-  return { orgId, languageId, state, pending, lastSync, online, tooOld, refused, refusedEvents, pulled, live, revision, inspect, blobs, triggerUpload, append, appendMany, run, sync };
+  // One object until something it shows changes, so `ctx` can be one too.
+  return useMemo(
+    () => ({ orgId, languageId, state, online, tooOld, refused, refusedEvents, pulled, live, revision, inspect, syncStatus, blobs, triggerUpload, append, appendMany, run, sync }),
+    [orgId, languageId, state, online, tooOld, refused, refusedEvents, pulled, live, revision, inspect, syncStatus, blobs, triggerUpload, append, appendMany, run, sync]
+  );
+}
+
+/** Whether nothing that changes slowly differs between two statuses (the ticking fields are not compared). */
+function slowSame(a: LanguageStatus, b: LanguageStatus): boolean {
+  return a.revision === b.revision && a.refusedEvents === b.refusedEvents && a.online === b.online && a.tooOld === b.tooOld
+    && a.refused === b.refused && a.pulled === b.pulled && a.live === b.live && a.keptUnits === b.keptUnits;
 }
 
 /** Time one transfer, credit its bytes to the meter once it succeeds, and tally it for diagnostics either way. */
@@ -282,4 +307,10 @@ async function metered(
     meter.add(bytes);
     return bytes;
   });
+}
+
+/** A failed recovery's cause as a fixed code: its take's file gone, a full disk, or a transfer's class. Never the text. */
+function recoveryCode(error: string): string {
+  if (/missing|gone|not found|no such file/i.test(error)) return 'missing';
+  return classifyTransferFailure(new Error(error));
 }

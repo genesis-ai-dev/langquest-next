@@ -1267,7 +1267,7 @@ Expected:
 - The header is "Versions", with the sub "Luke 14:15-24" and ✕.
 - TRANS, with no draft: no drafts section, and the footer "New version"
   (the line "No drafts. Edit a version below, or start a new one." went in
-  decision 112).
+  decision 124).
 - "Published" lists the versions newest first. The latest has the badge
   "Latest". Each shows "{name} · {when}", its length, and a summary of its
   reviews. Each has "Edit" for anyone who can record.
@@ -1328,7 +1328,7 @@ Expected:
   "Draft 2" is now the only draft, named "Draft".
 - Only TRANS's own drafts have a trash button.
 
-Changed (2026-10-16, decision 112): a whole draft, a whole version or every
+Changed (2026-10-16, decision 124): a whole draft, a whole version or every
 part asks first instead of offering Undo.
 
 Resets: delete both drafts.

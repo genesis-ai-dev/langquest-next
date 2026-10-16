@@ -7,6 +7,7 @@ import { Platform } from 'react-native';
 import { getFileLedger } from './store';
 import { onWake } from './wake';
 import { webFiles, type WebFiles } from '../web/webFiles';
+import { noteExpected } from '../diagnostics/report';
 
 /**
  * Content-addressed local blob store (PLAN.md section 14, rules 9 and 11).
@@ -72,7 +73,17 @@ export function mimeOf(format: StoredFormat): string {
 }
 /** Object URLs kept for playback on the web, most recently used last. */
 const URLS_KEPT = 64;
-const nameOf = (ref: StoredFile) => `${ref.hash}.${ref.format}`;
+/**
+ * A hash from an event is any non-empty text to core, and becomes part of a path here: only the 64 hex
+ * characters of a SHA-256 and a format from the list are ever a file name. Anything else (`../x`, a slash,
+ * a stray extension) is a file the store does not have and will not make, read or delete.
+ */
+const HASH_NAME = /^[0-9a-f]{64}$/;
+const safeRef = (ref: { hash: string; format: string }): ref is StoredFile => HASH_NAME.test(ref.hash) && isStoredFormat(ref.format);
+const nameOf = (ref: StoredFile) => {
+  if (!safeRef(ref)) throw new Error('not a file name this store makes');
+  return `${ref.hash}.${ref.format}`;
+};
 /** While the app is in use, the folder is listed again at most this often. */
 const RECHECK_MS = 10 * 60 * 1000;
 /** New files are written down together, this long after the first of them. */
@@ -81,10 +92,15 @@ const KEEP_DELAY_MS = 1000;
 const SPOT_CHECKS = 100;
 
 /** A file name in the folder as hash and extension; staging names and strays are not files of the store. */
+/** Files found lost (decisions.md 92), as field diagnostics count it: no names, no hashes. */
+class FilesLost extends Error {
+  override name = 'FilesLost';
+}
+
 function parseName(name: string): StoredFile | null {
   if (name.endsWith(STAGING_SUFFIX)) return null;
   const [hash, ext, more] = name.split('.');
-  return hash && isStoredFormat(ext) && more === undefined ? { hash, format: ext } : null;
+  return hash && HASH_NAME.test(hash) && isStoredFormat(ext) && more === undefined ? { hash, format: ext } : null;
 }
 
 export class BlobStore {
@@ -95,6 +111,8 @@ export class BlobStore {
   private readonly urls = new Map<string, string>();
   private readonly loading = new Set<string>();
   private readonly present = new Set<string>();
+  /** Bumped whenever a file joins or leaves `present`, so a reader can tell a copy is still current. */
+  private versionNow = 0;
   private readonly sizeByHash = new Map<string, number>();
   /** The format each present file was stored as: its name's extension. */
   private readonly formatByHash = new Map<string, StoredFormat>();
@@ -136,7 +154,7 @@ export class BlobStore {
         // page) leaves it empty. Taken as kept, it would never be downloaded again, and its size would make
         // it an upload the server refuses, so signing out would wait for it forever (WEB-023, 2026-10-14).
         if (hash && size === 0) { await this.files.remove(name).catch(() => undefined); continue; }
-        if (hash) {
+        if (hash && HASH_NAME.test(hash)) {
           this.present.add(hash);
           this.sizeByHash.set(hash, size);
           if (isStoredFormat(ext)) this.formatByHash.set(hash, ext);
@@ -154,7 +172,7 @@ export class BlobStore {
           continue;
         }
         const [hash, ext] = entry.name.split('.');
-        if (hash) {
+        if (hash && HASH_NAME.test(hash)) {
           this.present.add(hash);
           if (entry.size !== null) this.sizeByHash.set(hash, entry.size);
           if (isStoredFormat(ext)) this.formatByHash.set(hash, ext);
@@ -206,13 +224,28 @@ export class BlobStore {
     return this.present.has(hash);
   }
 
-  /** Snapshot of present hashes for work-list derivation. */
+  /** A copy of the present hashes, for what is kept or handed to React. */
   snapshot(): ReadonlySet<string> {
     return new Set(this.present);
   }
 
+  /**
+   * The live set of present hashes, without a copy: for a reader that uses it
+   * at once and neither keeps nor changes it (work lists, reclaim). A copy
+   * per arriving file made a download of 61,000 files quadratic.
+   */
+  presentView(): ReadonlySet<string> {
+    return this.present;
+  }
+
+  /** Changes whenever a file joins or leaves. */
+  get version(): number {
+    return this.versionNow;
+  }
+
   /** Whether this file is stored. On the web the index is the truth: it is marked only after a write commits. */
   exists(ref: StoredFile): boolean {
+    if (!safeRef(ref)) return false;
     return this.dir ? this.fileFor(ref).exists : this.present.has(ref.hash);
   }
 
@@ -221,23 +254,25 @@ export class BlobStore {
     return this.dir ? this.fileFor(ref).size : this.sizeByHash.get(ref.hash) ?? 0;
   }
 
-  /** Native only: the file on disk. */
+  /** Native only: the file on disk. Throws for a name the store does not make (the caller's transfer fails and is tried or dropped as any failure is). */
   fileFor(ref: StoredFile): File {
-    return new File(this.disk(), `${ref.hash}.${ref.format}`);
+    return new File(this.disk(), nameOf(ref));
   }
 
   /** Native only: where a download lands before its bytes are verified. */
   stagingFor(ref: StoredFile): File {
-    return new File(this.disk(), `${ref.hash}.${ref.format}${STAGING_SUFFIX}`);
+    return new File(this.disk(), `${nameOf(ref)}${STAGING_SUFFIX}`);
   }
 
   /** Web only: the bytes to upload. */
   async readBytes(ref: StoredFile): Promise<Uint8Array<ArrayBuffer> | null> {
+    if (!safeRef(ref)) return null;
     return this.web().read(nameOf(this.here(ref)));
   }
 
   /** Web only: keep downloaded bytes the caller has verified against their hash. */
   async putVerified(ref: StoredFile, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
+    if (!safeRef(ref)) return;
     if (!this.present.has(ref.hash)) await this.web().write(nameOf(ref), bytes);
     this.markPresent(ref.hash, bytes.byteLength, ref.format);
   }
@@ -304,7 +339,7 @@ export class BlobStore {
   private discard(refs: readonly StoredFile[]): string[] {
     const gone: StoredFile[] = [];
     for (const ref of refs) {
-      if (!this.present.has(ref.hash) || this.removing.has(ref.hash)) continue;
+      if (!safeRef(ref) || !this.present.has(ref.hash) || this.removing.has(ref.hash)) continue;
       // By the name it is stored under, which the index forgets next.
       gone.push(this.here(ref));
       this.unindex(ref.hash);
@@ -329,6 +364,7 @@ export class BlobStore {
   /** Off the index: not present, no size, no format, no playback URL. */
   private unindex(hash: string): void {
     this.present.delete(hash);
+    this.versionNow++;
     this.sizeByHash.delete(hash);
     this.formatByHash.delete(hash);
     const url = this.urls.get(hash);
@@ -371,7 +407,7 @@ export class BlobStore {
     const kept = await ledger.kept();
     const missing: StoredFile[] = [];
     for (const [hash, format] of kept) {
-      if (!this.present.has(hash) && !this.removing.has(hash) && isStoredFormat(format)) missing.push({ hash, format });
+      if (!this.present.has(hash) && !this.removing.has(hash) && HASH_NAME.test(hash) && isStoredFormat(format)) missing.push({ hash, format });
     }
     const fresh: StoredFile[] = [];
     for (const hash of this.present) {
@@ -379,7 +415,8 @@ export class BlobStore {
       if (format && !kept.has(hash) && !this.toKeep.has(hash)) fresh.push({ hash, format });
     }
     if (fresh.length) await ledger.keep(fresh);
-    if (missing.length && this.believable(missing)) await this.lose(ledger, missing.map((r) => r.hash));
+    // i18n-ignore: a diagnostics label (noteExpected), never shown
+    if (missing.length && this.believable(missing)) await this.lose(ledger, missing.map((r) => r.hash), 'files: lost at start');
   }
 
   /**
@@ -412,7 +449,8 @@ export class BlobStore {
       for (const ref of missing) { this.unindex(ref.hash); this.toKeep.delete(ref.hash); }
       for (const l of this.listeners) l();
       const ledger = await this.ledger;
-      if (ledger) await this.lose(ledger, missing.map((r) => r.hash));
+      // i18n-ignore: a diagnostics label (noteExpected), never shown
+      if (ledger) await this.lose(ledger, missing.map((r) => r.hash), 'files: lost in use');
     });
   }
 
@@ -442,7 +480,13 @@ export class BlobStore {
     return true;
   }
 
-  private async lose(ledger: FileLedger, hashes: readonly string[]): Promise<void> {
+  /**
+   * Write down a loss and raise the alert. Field diagnostics count each
+   * check that found one (`expected`, code `lost`); how many files are
+   * waiting for someone to see the alert is the `device` record's (lostFiles.tsx).
+   */
+  private async lose(ledger: FileLedger, hashes: readonly string[], where: string): Promise<void> {
+    noteExpected(where, new FilesLost(), 'lost');
     await ledger.markLost(hashes, Date.now());
     for (const l of this.lostListeners) l();
   }
@@ -476,7 +520,7 @@ export class BlobStore {
    * screen that asked while drawing has it for the tap.
    */
   uriFor(asked: StoredFile): string | null {
-    if (!this.present.has(asked.hash)) return null;
+    if (!safeRef(asked) || !this.present.has(asked.hash)) return null;
     if (this.dir) return this.fileFor(asked).uri;
     const ref = this.here(asked);
     const url = this.urls.get(ref.hash);
@@ -566,10 +610,12 @@ export class BlobStore {
 
   /** Called by the downloader once a file is on disk and verified. */
   markPresent(hash: string, size?: number, format?: StoredFormat): void {
+    if (!HASH_NAME.test(hash)) return;
     if (size !== undefined) this.sizeByHash.set(hash, size);
     if (this.present.has(hash)) return;
     if (format) this.formatByHash.set(hash, format);
     this.present.add(hash);
+    this.versionNow++;
     this.arrivedDuringListing?.add(hash);
     const stored = this.formatByHash.get(hash);
     if (stored) this.queueKeep(hash, stored);

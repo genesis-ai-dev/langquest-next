@@ -29,8 +29,18 @@ export interface Env {
   WEBHOOK_POKE_SECRET?: string;
 }
 
+let shared: { url: string; key: string; client: SupabaseClient } | undefined;
+
+/**
+ * One client per isolate: it holds no session (persistSession off), only the
+ * URL and key, so reusing it saves building one per call and lets
+ * `getClaims` keep the signing keys it fetched.
+ */
 export function serviceClient(env: Env): SupabaseClient {
-  return createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+  if (shared?.url === env.SUPABASE_URL && shared.key === env.SUPABASE_SERVICE_ROLE_KEY) return shared.client;
+  const client = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
   });
+  shared = { url: env.SUPABASE_URL, key: env.SUPABASE_SERVICE_ROLE_KEY, client };
+  return client;
 }

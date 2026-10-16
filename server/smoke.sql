@@ -203,6 +203,35 @@ do $$ declare r record; begin
   if r.accepted or r.reason <> 'malformed envelope' then raise exception 'an envelope without streamId should be refused, got %', r; end if;
 end $$;
 
+-- 5e. No event may use a name every object has (decisions.md 113): the fold
+-- keys its maps by these ids, and `__proto__` would reach Object.prototype.
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"proto1","type":"v1.TakeArchived","orgId":"org1","streamId":"L1","actorId":"t1","deviceId":"dB","hlc":"000000000000019:000000:dB","payload":{"takeId":"__proto__"}}
+  ]'::jsonb);
+  if r.accepted or r.reason not like 'invalid payload%' then raise exception 'a __proto__ take id should be refused, got %', r; end if;
+  select * into r from public.append_events('[
+    {"id":"proto2","type":"v1.NoteAdded","orgId":"org1","streamId":"L1","actorId":"t1","deviceId":"dB","hlc":"000000000000020:000000:dB","payload":{"noteId":"n9","anchor":{"kind":"version","takeId":"t"},"extra":{"constructor":1}}}
+  ]'::jsonb);
+  if r.accepted or r.reason not like 'invalid payload%' then raise exception 'a constructor key should be refused, got %', r; end if;
+  select * into r from public.append_events('[
+    {"id":"toString","type":"v1.TakeArchived","orgId":"org1","streamId":"L1","actorId":"t1","deviceId":"dB","hlc":"000000000000021:000000:dB","payload":{"takeId":"tk9"}}
+  ]'::jsonb);
+  if r.accepted or r.reason not like 'malformed envelope%' then raise exception 'a toString event id should be refused, got %', r; end if;
+end $$;
+
+-- 5f. An event goes on the kind of stream it belongs to (decisions.md 116).
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"wrong-stream-1","type":"v1.RoleDefined","orgId":"org1","streamId":"L1","actorId":"t1","deviceId":"dB","hlc":"000000000000022:000000:dB","payload":{"roleId":"boss","name":"Boss","privileges":["manage_roles"]}}
+  ]'::jsonb);
+  if r.accepted or r.reason not like 'invalid payload: v1.RoleDefined belongs on the organization stream%' then raise exception 'a role in a language stream should be refused, got %', r; end if;
+  select * into r from public.append_events('[
+    {"id":"wrong-stream-2","type":"v1.TakeArchived","orgId":"org1","streamId":"_org","actorId":"t1","deviceId":"dB","hlc":"000000000000023:000000:dB","payload":{"takeId":"tk1"}}
+  ]'::jsonb);
+  if r.accepted or r.reason not like 'invalid payload: v1.TakeArchived belongs on a language stream%' then raise exception 'a take in the organization stream should be refused, got %', r; end if;
+end $$;
+
 -- 5e. Oversized batches are refused outright; clients must page.
 do $$ begin
   begin
@@ -777,6 +806,19 @@ begin
   if n <> 0 then raise exception 'decided request left open'; end if;
 end $$;
 
+-- How someone joined is the server's to say (decisions.md 114): the lead holds
+-- invite_members, yet may not append a JoinDecided or an InviteIssued itself.
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"forged-join","type":"v1.JoinDecided","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dL","hlc":"000000000000090:000000:dL","payload":{"requestId":"x","profileId":"asker","accepted":true}}
+  ]'::jsonb);
+  if r.accepted or r.reason not like 'may not emit%' then raise exception 'a client JoinDecided should be refused, got %', r; end if;
+  select * into r from public.append_events('[
+    {"id":"forged-invite","type":"v1.InviteIssued","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dL","hlc":"000000000000091:000000:dL","payload":{"inviteId":"invX","roleId":"translator","scope":{"level":"org"},"expiresAt":"2030-01-01T00:00:00Z"}}
+  ]'::jsonb);
+  if r.accepted or r.reason not like 'may not emit%' then raise exception 'a client InviteIssued should be refused, got %', r; end if;
+end $$;
+
 -- Accepting names the scope, as an invite does: here one language.
 select set_config('request.jwt.claim.sub', 'asker-scope', false);
 select public.create_join_request('org1', 'req-scope', '');
@@ -926,5 +968,60 @@ do $$ begin
 exception when insufficient_privilege then null;
 end $$;
 reset role;
+
+-- 22. An event is at most 64 KB, and an account creates at most 5
+-- organizations a day and 20 in all (decisions.md 115).
+select set_config('request.jwt.claim.sub', 't1', false);
+do $$ declare r record; begin
+  select * into r from public.append_events(jsonb_build_array(jsonb_build_object(
+    'id', 'huge-note', 'type', 'v1.NoteAdded', 'orgId', 'org1', 'streamId', 'L1', 'actorId', 't1', 'deviceId', 'dB',
+    'hlc', '000000000000099:000000:dB', 'payload', jsonb_build_object('noteId', 'huge', 'anchor', jsonb_build_object('kind', 'version', 'takeId', 't'), 'text', repeat('x', 70000)))));
+  if r.accepted or r.reason not like 'invalid payload: event too large%' then raise exception 'a 70 KB note should be refused, got %', r; end if;
+end $$;
+select set_config('request.jwt.claim.sub', 'founder', false);
+do $$ declare r record; i int; begin
+  for i in 1..5 loop
+    select * into r from public.append_events(jsonb_build_array(jsonb_build_object(
+      'id', 'quota-org-' || i, 'type', 'v1.OrgCreated', 'orgId', 'quota-org-' || i, 'streamId', '_org', 'actorId', 'founder', 'deviceId', 'dF',
+      'hlc', '000000000000001:000000:dF', 'payload', jsonb_build_object('name', 'Org ' || i))));
+    if not r.accepted then raise exception 'organization % should be created, got %', i, r; end if;
+  end loop;
+  -- More events in an organization already made are not counted.
+  select * into r from public.append_events(jsonb_build_array(jsonb_build_object(
+    'id', 'quota-role-1', 'type', 'v1.RoleDefined', 'orgId', 'quota-org-1', 'streamId', '_org', 'actorId', 'founder', 'deviceId', 'dF',
+    'hlc', '000000000000002:000000:dF', 'payload', jsonb_build_object('roleId', 'r', 'name', 'R', 'privileges', jsonb_build_array('translate')))));
+  if not r.accepted then raise exception 'a second event in an organization just made should be taken, got %', r; end if;
+  select * into r from public.append_events(jsonb_build_array(jsonb_build_object(
+    'id', 'quota-org-6', 'type', 'v1.RoleDefined', 'orgId', 'quota-org-6', 'streamId', '_org', 'actorId', 'founder', 'deviceId', 'dF',
+    'hlc', '000000000000003:000000:dF', 'payload', jsonb_build_object('roleId', 'r', 'name', 'R', 'privileges', jsonb_build_array('translate')))));
+  if r.accepted or r.reason not like 'may not emit v1.RoleDefined: an account creates at most 5 organizations a day%' then
+    raise exception 'a sixth organization in a day should be refused, got %', r;
+  end if;
+end $$;
+
+-- 23. Signing in with a v2 account is counted before v2 is asked: per email,
+-- per address, and cleared once v2 accepts the password.
+do $$ declare i int; begin
+  for i in 1..10 loop
+    if public.v2_import_sign_in_begin('Spray@Example.org', '198.51.100.7') is not null then raise exception 'try % should go to v2', i; end if;
+  end loop;
+  if public.v2_import_sign_in_begin('spray@example.org', '198.51.100.8') is distinct from 'email' then raise exception 'an 11th try for one email should stop'; end if;
+  perform public.v2_import_sign_in_passed('spray@example.org');
+  if public.v2_import_sign_in_begin('spray@example.org', '198.51.100.8') is not null then raise exception 'a right password should clear the count'; end if;
+  for i in 1..30 loop perform public.v2_import_sign_in_begin('person' || i || '@example.org', '198.51.100.9'); end loop;
+  if public.v2_import_sign_in_begin('another@example.org', '198.51.100.9') is distinct from 'address' then raise exception 'a 31st try from one address should stop'; end if;
+  delete from v2_import.sign_in_failures;
+end $$;
+
+-- 24. A looked-after account is one `join` made (decisions.md 54, amended
+-- 2026-10-15): an address in the domain that someone signed up with is not.
+insert into auth.users (id, email, aud, role, raw_app_meta_data) values
+  ('24000000-0000-0000-0000-00000000000a', 'squat-123@people.langquest.org', 'authenticated', 'authenticated', '{}'),
+  ('24000000-0000-0000-0000-00000000000b', 'made-456@people.langquest.org', 'authenticated', 'authenticated', '{"managed": true}');
+do $$ begin
+  if public.is_managed_account('24000000-0000-0000-0000-00000000000a') then raise exception 'a signed-up address in the domain is not looked-after'; end if;
+  if not public.is_managed_account('24000000-0000-0000-0000-00000000000b') then raise exception 'an account join made is looked-after'; end if;
+end $$;
+delete from auth.users where id in ('24000000-0000-0000-0000-00000000000a', '24000000-0000-0000-0000-00000000000b');
 
 select 'smoke ok' as result;

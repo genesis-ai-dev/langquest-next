@@ -13,7 +13,7 @@ import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrar
 import { noteExpected } from '../diagnostics/report';
 import { templateUsers } from '../server/library';
 import { bookNames } from '../server/languages';
-import { groupNames, itemIdOf, NUMBERING_ITEMS, wayOf, wayRows, type WayRow } from './model';
+import { clashShown, groupNames, templateInNumbering, itemIdOf, knownUses, otherUses, usedInByNumbering, NUMBERING_ITEMS, wayOf, wayRows, type WayRow } from './model';
 
 interface UserRow {
   language_id: string;
@@ -72,36 +72,27 @@ export function useWays(ctx: Ctx, forLanguage: string | null, numbering?: string
   // Offline the server's list of who uses what is not known, but the open language's template is (this device
   // folds it): the way it uses is still offered, first, rather than only LangQuest's ways that need the server.
   const openTemplate = ctx.language.state?.template?.value;
-  const known = useMemo(() => users ?? (openTemplate && ctx.language.languageId
-    ? [{ language_id: ctx.language.languageId, item_id: openTemplate.itemId }] : []), [users, openTemplate, ctx.language.languageId]);
+  const known = useMemo(() => knownUses(users, ctx.language.languageId, openTemplate?.itemId), [users, openTemplate, ctx.language.languageId]);
   const current = forLanguage ? (forLanguage === ctx.language.languageId ? ctx.language.state?.template?.value.itemId ?? null : null) : null;
   // Only the ways in this numbering (decision 80): a template's numbering is its versification document's code.
   const inNumbering = useCallback((h: string) => {
     const d = getDoc<TemplateDoc>(h);
-    if (!d || !numbering) return d;
-    const v = d.bible ? getDoc<VersificationDoc>(d.bible.versification) : null;
-    return v && v.code === numbering ? d : null;
+    return templateInNumbering(d, d?.bible ? getDoc<VersificationDoc>(d.bible.versification) : null, numbering);
   }, [getDoc, numbering]);
   const rows = useMemo(() => wayRows({
     choices,
     docOf: inNumbering,
-    others: known.filter((u) => u.language_id !== forLanguage).map((u) => ({ languageId: u.language_id, name: languageName(ctx.org.state, u.language_id), itemId: u.item_id })),
+    others: otherUses(known, forLanguage, (id) => languageName(ctx.org.state, id)),
     current,
     follow: (s) => subscriptionItemId(s.org_id, s.item_id)
   }), [choices, inNumbering, known, forLanguage, current, ctx.org.state]);
   const docOf = useCallback((c: LibraryChoice | null | undefined) => (c ? getDoc<TemplateDoc>(c.hash) : null), [getDoc]);
   // What numbering the organization's other languages use, by code: their template's versification.
-  const usedInByNumbering = useMemo(() => {
-    const out: Record<string, string[]> = {};
-    for (const u of known) {
-      if (u.language_id === forLanguage) continue;
-      const ch = choices.find((c) => itemIdOf(c, (sh) => subscriptionItemId(sh.org_id, sh.item_id)) === u.item_id);
-      const d = ch ? getDoc<TemplateDoc>(ch.hash) : null;
-      const code = d?.bible ? getDoc<VersificationDoc>(d.bible.versification)?.code : undefined;
-      if (code) (out[code] ??= []).push(languageName(ctx.org.state, u.language_id));
-    }
-    return out;
-  }, [known, choices, getDoc, forLanguage, ctx.org.state]);
+  const usedByNumbering = useMemo(() => usedInByNumbering(known, forLanguage, (itemId) => {
+    const ch = choices.find((c) => itemIdOf(c, (sh) => subscriptionItemId(sh.org_id, sh.item_id)) === itemId);
+    const d = ch ? getDoc<TemplateDoc>(ch.hash) : null;
+    return d?.bible ? getDoc<VersificationDoc>(d.bible.versification)?.code : undefined;
+  }, (id) => languageName(ctx.org.state, id)), [known, choices, getDoc, forLanguage, ctx.org.state]);
   const v11nOf = useCallback((d: TemplateDoc | null | undefined) => (d?.bible ? getDoc<VersificationDoc>(d.bible.versification) : null), [getDoc]);
   /** A LangQuest way by its item id, when it is offered. */
   const way = useCallback((sourceItemId: string): WayRow | null => rows.find((r) => wayOf(r.choice) === sourceItemId) ?? null, [rows]);
@@ -111,7 +102,7 @@ export function useWays(ctx: Ctx, forLanguage: string | null, numbering?: string
     const row = numberingRows.rows.find((r) => r.org_id === 'langquest' && r.item_id === itemId);
     return row ? [{ code, itemId, name: row.name, description: row.description, hash: row.latest_hash }] : [];
   }), [numberingRows.rows]);
-  return { lib, rows, choices, docOf, v11nOf, way, numberings, usedInByNumbering, loaded: shared.loaded, error: shared.error };
+  return { lib, rows, choices, docOf, v11nOf, way, numberings, usedInByNumbering: usedByNumbering, loaded: shared.loaded, error: shared.error };
 }
 
 /**
@@ -158,7 +149,7 @@ export function useVerseNumbering(ctx: Ctx) {
     setIgnored(result.key);
     void AsyncStorage.setItem(store, result.key).catch(() => undefined);
   }, [store, result.key]);
-  return { code: result.code, clash: result.clash && ignored !== result.key ? result.clash : null, ignore };
+  return { code: result.code, clash: clashShown(result.clash, result.key, ignored), ignore };
 }
 
 /**

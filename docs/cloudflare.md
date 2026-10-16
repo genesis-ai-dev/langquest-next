@@ -76,3 +76,33 @@ plain `apps/mobile/.env.<environment>` at build time.
 Guardrails still typecheck (both Workers included) and test every pull
 request and every push to `develop` and `main`. Workers Builds does not wait
 for that job.
+
+## Caches in a Worker isolate (`worker/isolateCache.ts`)
+
+A phone downloading a language's audio sends thousands of file requests, and
+each needed two serial round trips before R2 answered: the token check and
+the `blob_access` call. An isolate now remembers both for a short time. The
+caches are per isolate, bounded (5,000 entries, oldest dropped), and lost
+with the isolate, so they are an optimization, not state.
+
+- **Token to person.** Keyed by the SHA-256 of the token (the raw token is
+  not kept). Only successful checks are kept, until the sooner of the
+  token's own expiry and 60 s.
+- **File access.** Keyed by person, organization, stream and read or write
+  (library media in an organization's own stream, `<org>/_org/<hash>`, is
+  keyed per file because the database decides it per file). A yes is kept
+  60 s, a no 10 s, an error not at all. A member who is removed may keep
+  opening files for up to 60 s from an isolate that already answered for
+  them; the developer accepted this.
+- **Service client.** One per isolate, reused by every call.
+
+Not done yet, and separate from the above: the hosted Supabase project still
+signs with the legacy shared (HS256) secret, so `auth.getClaims` makes
+supabase-js call Auth for each token that is not cached. Moving the project
+to asymmetric JWT signing keys lets the Worker verify tokens locally against
+cached public keys. As with every hosted setting (`infrastructure-as-code`)
+this is done through the repo's Supabase config and the CLI
+(`supabase/config.toml` `signing_keys_path`, `supabase gen signing-key`,
+then the repo's way of applying Supabase config), never the dashboard. Switching
+rotates the keys, so existing sessions get new tokens on their next refresh;
+rotate the legacy secret out only after clients have refreshed.

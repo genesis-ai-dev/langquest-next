@@ -24,6 +24,7 @@ import { t } from '../i18n';
 import { formatAgo, formatDayTime, formatNumber, formatShortDate, formatTime } from '../i18n/format';
 import { OfflineCard } from '../sync/offline';
 import { useOfflineSummary } from '../sync/useOfflineSummary';
+import { useSyncStatus } from '../sync/useSyncStatus';
 import { offlineCount, moreSettingsSub } from '../account/meModel';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
@@ -343,7 +344,8 @@ export function SettingsHome(ctx: Ctx) {
   // Sync needs noticing when work is waiting to send: say so on More settings' row. The organization's
   // changes count too (a language or organization made offline), as they do before sign-out.
   const p = ctx.language;
-  const waiting = p.pending + ctx.org.pending;
+  const status = useSyncStatus();
+  const waiting = status.pending + status.orgPending;
   const moreSub = p.refused ? t('account.me.moreRefused')
     : p.refusedEvents > 0 ? t('account.me.moreRefusedEvents', { n: p.refusedEvents })
     : waiting > 0 ? t('account.me.morePending', { count: waiting }) : moreSettingsSub();
@@ -410,7 +412,8 @@ export function SettingsMore(ctx: Ctx) {
   useEffect(() => { void readHelp(s.actorId).then(setHelp); }, [s.actorId]);
   const name = useOwnName(ctx);
   const p = ctx.language;
-  const syncSub = syncSummary(p);
+  const status = useSyncStatus();
+  const syncSub = syncSummary({ refused: p.refused, live: p.live, online: p.online, pending: status.pending, lastSync: status.lastSync });
   // Someone in several organizations switches on Me itself; anyone else finds it here, where it also starts a new one.
   const orgs = useOrganizations(s.actorId).rows;
   const switchHere = !inSeveral(orgs);
@@ -465,7 +468,7 @@ export function SettingsMore(ctx: Ctx) {
       ) : null}
       <SectionLabel label={t('account.more.thisDevice')} />
       <Group>
-        <Row icon="cloud" label={t('account.more.sync')} sub={syncSub} help={t('account.more.syncHelp')} badge={p.pending > 0 ? formatNumber(p.pending) : undefined} onPress={() => ctx.go('sync_status')} />
+        <Row icon="cloud" label={t('account.more.sync')} sub={syncSub} help={t('account.more.syncHelp')} badge={status.pending > 0 ? formatNumber(status.pending) : undefined} onPress={() => ctx.go('sync_status')} />
         {/* docs/diagnostics.md, decisions.md 39: on by default, off here. */}
         <Row icon="progress" label={t('account.more.diagnostics')} sub={t('account.more.diagnosticsSub')}
           role="switch" checked={diag.on === true} disabled={diag.on === null} onPress={diag.toggle} last={blocked === 0} />
@@ -790,6 +793,7 @@ export function DeleteAccount(ctx: Ctx) {
  */
 export function SyncStatus(ctx: Ctx) {
   const { language, org } = ctx;
+  const sync = useSyncStatus();
   const { ins, orgIns, logged, rates } = useSyncInspection(language, org, (e) => ctx.toast(failure('sync inspect', e)));
   const [busy, setBusy] = useState(false);
   const offline = language.online === false;
@@ -821,8 +825,8 @@ export function SyncStatus(ctx: Ctx) {
       {/* Settings' "Ready for offline" opens here (decisions.md 61): what comes along comes first. */}
       <OfflineCard ctx={ctx} s={offlineSummaryNow} />
       <Card>
-        <SyncLine icon="up" label={t('account.sync.toSend')} value={pendingEvents + language.blobs.pendingUp} rate={language.blobs.pendingUp ? rates.up : 0} help={t('account.sync.help.toSend')} />
-        <SyncLine icon="download" label={t('account.sync.toReceive')} value={language.blobs.pendingDown} rate={language.blobs.pendingDown ? rates.down : 0} help={t('account.sync.help.toReceive')} />
+        <SyncLine icon="up" label={t('account.sync.toSend')} value={pendingEvents + sync.pendingUp} rate={sync.pendingUp ? rates.up : 0} help={t('account.sync.help.toSend')} />
+        <SyncLine icon="download" label={t('account.sync.toReceive')} value={sync.pendingDown} rate={sync.pendingDown ? rates.down : 0} help={t('account.sync.help.toReceive')} />
         {rejected.length ? <SyncLine icon="flag" label={t('account.sync.refusedLine')} value={rejected.length} tone={TINT.redText} help={t('account.sync.help.refusedLine')} /> : null}
       </Card>
       <Disclosure testID="sync-details" icon="layers" title={t('account.sync.details')} summary={ins ? t('account.sync.events', { count: ins.total + ins.rejected.length }) : ''}
@@ -833,8 +837,8 @@ export function SyncStatus(ctx: Ctx) {
         <Stat id="confirmed" icon="check" color={C.green} value={Math.max(ins?.cursor ?? 0, logged?.cursor ?? 0)} label={t('account.sync.latestConfirmed')} />
         <Stat id="checkpoint" icon="layers" color={C.muted} value={ins?.checkpointSeq ?? 0} label={t('account.sync.localCheckpoint')} />
       </View>
-      <Transfer icon="up" pending={language.blobs.pendingUp} peak={language.blobs.peakUp} rate={rates.up} label={t('account.sync.audioUp')} />
-      <Transfer icon="download" pending={language.blobs.pendingDown} peak={language.blobs.peakDown} rate={rates.down} label={t('account.sync.audioDown')} />
+      <Transfer icon="up" pending={sync.pendingUp} peak={sync.peakUp} rate={rates.up} label={t('account.sync.audioUp')} />
+      <Transfer icon="download" pending={sync.pendingDown} peak={sync.peakDown} rate={rates.down} label={t('account.sync.audioDown')} />
       {ins && ins.pending.length ? (
         <>
           <SectionLabel label={t('account.sync.waitingCount', { n: ins.pending.length })} />

@@ -1,7 +1,8 @@
 # Deploy watchdog
 
-Runs: hourly. Tools: Linear, git, `gh`, `npm run db:check` (read-only).
-Writes: Linear comments only.
+Runs: hourly. Tools: Linear, git, `gh`, `npm run db:check` (read-only),
+`npm run diag -- --hosted` (the `diag_reader` role: read-only, content-free).
+Writes: Linear comments, and the issues steps 3 and 5 open.
 
 ## Prompt
 
@@ -19,7 +20,21 @@ Find what the pipeline left half-done. Report; fix nothing.
    open, with the diff; do not apply anything.
 4. Commits on main since the last run that name no issue ID. List them in one
    comment on the digest issue, LAN-33, so work outside the board is visible.
-5. Do not repeat yourself: if the last comment on an issue already says the
+5. Server jobs that stopped or keep failing. Read `diag.jobs()` on the hosted
+   database (`select * from diag.jobs()` as `diag_reader`; docs/diagnostics.md).
+   A job is in trouble when `stale` is true (its last run that was not an
+   error is older than twice its schedule, plus the lateness its scheduler is
+   known for: the projection passes, push delivery, the v2 import, the
+   Worker's cron) or `streak` is 3 or more (that many `error` runs in a row,
+   any job). For each, open one issue titled "Job not running: <job>" or
+   "Job failing: <job>" if none is open, with `last_at`, `last_ok_at`,
+   `last_outcome`, `last_error_class`, `streak` and `runs_on` from
+   `diag.job_schedule`, and the latest runs from
+   `select * from diag.job_history('<job>')` (ids and numbers only). When it
+   recovers, comment on the open issue once that it ran again. A job whose
+   `last_at` is null never ran there and is not a finding. Do not restart,
+   reschedule or rerun anything.
+6. Do not repeat yourself: if the last comment on an issue already says the
    same thing and nothing changed, add nothing.
 
 Report each finding with the issue link. If there are none, confirm in one line.

@@ -9,6 +9,7 @@ import { t } from '../i18n';
 import { IconBtn } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { noteExpected, reportError } from '../diagnostics/report';
+import { countAudio } from './audioTally';
 import { C, target } from '../ui/theme';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
 import { audioFormat } from './audioFormat';
@@ -76,6 +77,7 @@ export function AudioClip(props: {
     wantsPlayback.current = true;
     setPlaying(true);
     setError('');
+    countAudio(props.language, 'plays');
     try {
       await setSessionAudioMode({ allowsRecording: false, playsInSilentMode: true });
       if (generation.current !== run) return;
@@ -102,12 +104,13 @@ export function AudioClip(props: {
           try { uri = await language.blobs.streamUri(ref); }
           catch (err) {
             noteExpected('audio clip stream', err);
+            countAudio(language, 'streamFail');
             if (generation.current === run) { wantsPlayback.current = false; setPlaying(false); setError(t('common.audioCouldNotLoad')); }
             return;
           }
           if (generation.current !== run || !wantsPlayback.current) return;
         }
-        if (!uri) { wantsPlayback.current = false; setPlaying(false); setError(t('recording.player.notOnDeviceYet')); return; }
+        if (!uri) { wantsPlayback.current = false; setPlaying(false); setError(t('recording.player.notOnDeviceYet')); countAudio(language, 'playNotHere'); return; }
         try {
           const p = createAudioPlayer({ uri });
           player.current = p;
@@ -117,6 +120,7 @@ export function AudioClip(props: {
               wantsPlayback.current = false;
               p.remove(); player.current = null; setPlaying(false);
               setError(t('common.audioCouldNotLoad'));
+              countAudio(language, 'playFail');
               return;
             }
             if (status.didJustFinish && player.current === p) void next(index + 1);
@@ -125,6 +129,7 @@ export function AudioClip(props: {
         } catch (err) {
           wantsPlayback.current = false;
           player.current?.remove(); player.current = null;
+          countAudio(language, 'playFail');
           setPlaying(false); setError(t('common.audioCouldNotPlay', { code: reportError('audio clip create player', err) }));
         }
       };
@@ -133,6 +138,7 @@ export function AudioClip(props: {
       if (generation.current === run) {
         wantsPlayback.current = false;
         player.current?.remove(); player.current = null;
+        countAudio(props.language, 'playFail');
         setPlaying(false); setError(t('common.audioCouldNotPlay', { code: reportError('audio clip play', err) }));
       }
     }

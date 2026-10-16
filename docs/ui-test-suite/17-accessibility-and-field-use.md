@@ -90,7 +90,7 @@ Steps:
 Expected:
 - Step 1: the divider speaks "Divider between reference and your recording", is adjustable, and gives the hint "Drag up or down to give either one more room".
 - Step 2: each swipe moves one snap. The value is spoken: "Source 35%", "Reference as one line" or "Recorder as one line".
-- (The "Sound cutoff" line went in decision 112; there is nothing to adjust while recording.)
+- (The "Sound cutoff" line went in decision 124; there is nothing to adjust while recording.)
 
 ### A11Y-005 Recording state is never only visual
 Roles: TRANS, REV · Priority: P0 · Platforms: iOS, Android · Run: Manual
@@ -104,7 +104,7 @@ Steps:
 Expected:
 - Step 1: the record button changes its spoken name from "Record" to "Stop recording" and back.
 - Step 2:
-  - The status is read politely: "Part 1. Recording…", then "Part 1. Listening for you · pause between parts" (decision 112).
+  - The status is read politely: "Part 1. Recording…", then "Part 1. Listening for you · pause between parts" (decision 124).
   - The elapsed time is readable, for example "Recorded for 0:12".
 - The reader's own speech is not recorded into the take. Check by playing the take.
 

@@ -7,6 +7,8 @@ node_modules/
 .expo/
 dist/
 web-build/
+# Local release builds (scripts/testflight.sh): signed archives never belong in a public repo.
+/build/
 dist-sourcemaps/
 expo-env.d.ts
 
