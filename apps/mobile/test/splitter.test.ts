@@ -80,6 +80,13 @@ describe('where parts split (splitter.ts)', () => {
     expect(kept(parts)).toHaveLength(1);
   });
 
+  it('takes lasting exact silence as the room, so a steady sound after it is a part, not the room', () => {
+    // The UI tests' microphone: a tone switched on and off over exact silence.
+    const { parts, s } = split([...frames(1.5, -60), ...frames(4, -7), ...frames(2, -60), ...frames(4, -7), ...frames(2, -60)]);
+    expect(kept(parts)).toHaveLength(2);
+    expect(s.levels().room).toBe(-60);
+  });
+
   it('lengthens the pause for someone who pauses long in the middle of what they say', () => {
     const sentence = [...frames(1, -20), ...frames(0.8, ROOM), ...frames(1, -20)];
     const levels = [...frames(2, ROOM)];

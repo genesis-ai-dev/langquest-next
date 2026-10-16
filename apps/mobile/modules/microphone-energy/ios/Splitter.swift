@@ -34,6 +34,8 @@ final class Splitter {
     static let maxPauseMs = 2500.0
     static let minGapMs = 150.0
     static let learnAfterGaps = 8
+    /// Exact silence this long is the room (a quiet line, a noise gate); shorter, it is a microphone starting.
+    static let zeroRoomMs = 500.0
 
     /// A frame's peak (0..1) in dB, -60..0.
     static func levelDb(_ energy: Double) -> Double { max(-60, min(0, 20 * log10(max(energy, 1e-6)))) }
@@ -52,6 +54,8 @@ final class Splitter {
     private var partDbs: [Double] = []
     private var quietSince: Double?
     private var lastEnd = -Double.infinity
+    /// How long the 3-frame median has been exact silence (-60 dB).
+    private var zeroMs = 0.0
 
     init(frameMs: Double, remembered: Heard?) {
         self.frameMs = frameMs
@@ -74,7 +78,7 @@ final class Splitter {
     }
 
     /// The detector stopped (the source plays, or the session ended): nothing heard meanwhile heads a part.
-    func pauseListening() { open = false; history.removeAll(); quietSince = nil }
+    func pauseListening() { open = false; history.removeAll(); quietSince = nil; zeroMs = 0 }
 
     /// One frame's energy (0..1 peak) at `now` (ms, the frame's end).
     func step(energy: Double, now: Double) -> Action? {
@@ -137,11 +141,12 @@ final class Splitter {
         return run
     }
 
-    /// The room: the quietest 3-frame median of the last few seconds. No signal at all (a microphone starting) is not the room.
+    /// The room: the quietest 3-frame median of the last few seconds. Exact silence is the room only once it has lasted zeroRoomMs.
     private func trackRoom(_ now: Double) {
         if history.count >= 3 {
-            let last = history.suffix(3).map { $0.db }.sorted()
-            if last[0] > -59.5 { calm.append(Frame(t: now, db: last[1])) }
+            let median = history.suffix(3).map { $0.db }.sorted()[1]
+            zeroMs = median <= -59.5 ? zeroMs + frameMs : 0
+            if median > -59.5 || zeroMs >= Splitter.zeroRoomMs { calm.append(Frame(t: now, db: median)) }
         }
         while let first = calm.first, now - first.t > Splitter.roomWindowMs { calm.removeFirst() }
         guard let first = calm.first, let lowest = calm.map({ $0.db }).min() else { return }
