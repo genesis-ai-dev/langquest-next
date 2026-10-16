@@ -23,7 +23,7 @@ async function alphaPage(page: Page): Promise<void> {
 test('SETUP-061 LADMIN\'s Manage tab is Alpha\'s page', async ({ page }) => {
   await alphaPage(page);
   await expect(byId(page, 'header-back')).toHaveCount(0);
-  // Where Back would be, the organization (decision 137); the rest is on the page, with no More.
+  // Where Back would be, the organization (decision 138); the rest is on the page, with no More.
   await expect(byId(page, 'header-up')).toHaveAccessibleName(world().orgName);
   await expectOnScreen(page, 'Content template', 'Reference material', 'Review flow', 'People', 'Roles', 'Languages', 'Show on the public list');
   await expectNotOnScreen(page, 'More', 'Members', 'Review groups');

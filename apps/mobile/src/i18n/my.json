@@ -4079,6 +4079,7 @@
     "nav": {
       "cannotOpenHere": "၎င်းကို ဤနေရာမှ ဖွင့်၍ မရပါ။",
       "noPermission": "၎င်းကို ဖွင့်ခွင့် မရှိပါ။",
+      "backAgainToLeave": "LangQuest မှ ထွက်ရန် နောက်သို့ ကို ထပ်နှိပ်ပါ",
       "languageExplorer": "ဘာသာစကား ရှာဖွေရေး",
       "languageExplorerNewTab": "ဘာသာစကား ရှာဖွေရေး၊ တဘ်အသစ်တွင် ပွင့်မည်",
       "tabBadge": "{{tab}}၊ {{badge, number}}",

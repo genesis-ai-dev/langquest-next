@@ -18,6 +18,7 @@ import { usePlainRoles } from '../admin/useReadySummary';
 import { shareInvite } from './shareInvite';
 import { plainRoleHelp } from '../admin/readyText';
 import { HelpRow } from '../helpMode/helpBadge';
+import { useHardwareBack } from '../ui/useHardwareBack';
 
 export interface InviteScope {
   key: string;
@@ -49,6 +50,8 @@ export function InviteSomeone(props: {
   const roles = usePlainRoles(ctx, scope?.scope ?? null);
   const roleId = roles.choices.find((c) => c.id === choice)?.roleId ?? roles.others.find((r) => r.id === choice)?.id ?? null;
   const making = shown && sent;
+  // A phone's Back from the code goes back to who it is for, as the header's arrow does (decision 137).
+  useHardwareBack(shown, () => setShown(false));
   const invite = useGroupInvite(ctx.language.orgId, making ? roleId : null, making && scope ? scope.scope : null, scope ? props.label(scope) : '');
   function show() {
     setShown(true);

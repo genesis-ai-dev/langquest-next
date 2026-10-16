@@ -32,6 +32,7 @@ import { canHelpSignIn, decideRequest, inviteUri, issueInvite, issueSignInCode, 
 import { APP_URL } from '../web/appUrl';
 import { signInUri } from '../invites/inviteCode';
 import { Badge, Banner, Card, Chip, Disclosure, EmptyState, Field, GhostBtn, Group, HelpInfo, Header, Ico, KindIcon, LinkBtn, MovingBar, PrimaryBtn, ProgressBar, QuietLinks, Row, Screen, SearchField, SectionLabel, Segments, Sheet, ShowMore, SmallBtn, Toggle, type IconName } from '../ui/kit';
+import { useHardwareBack } from '../ui/useHardwareBack';
 import { txt } from '../ui/textStyles';
 import { useOpenDetail } from '../ui/useLayout';
 import { edgeFor } from '../shell/flow';
@@ -625,7 +626,7 @@ function OrgNameAndLicense(props: { ctx: Ctx }) {
 /**
  * A language's page (decision 71, demo ADR-039; the prototype's AdminStart
  * and LangReady): until it is ready for translators, the four questions that
- * get it ready; once it is, seven rows and no More (decision 137): its
+ * get it ready; once it is, seven rows and no More (decision 138): its
  * content template, reference material and review flow, each by the name
  * the organization's page uses with this language's pick as its line, each
  * opening that pick, its other options and the organization's shelf; People
@@ -666,7 +667,7 @@ export function LanguageHome(ctx: Ctx) {
       right={<CountBadge n={requests.length} />} help={t('org.join.manyHelp')} onPress={() => ctx.go('members_list', params)} />
   );
   const mayRename = mayRenameLanguage(v.org, ctx.session.actorId, languageId);
-  // The name and its clusters are changed where they show, at the top (decision 137).
+  // The name and its clusters are changed where they show, at the top (decision 138).
   const top = {
     // A language lead's Manage tab opens here, with no Back: the organization is one tap up, where Back would be.
     ...(atRoot ? { up: { label: v.orgName, help: t('org.language.upHelp'), onPress: () => ctx.go('org_home') } } : {}),
@@ -720,7 +721,7 @@ export function LanguageHome(ctx: Ctx) {
       </Screen>
     );
   }
-  // One name for each thing, everywhere (decision 137): the row is what it is, its line this language's pick, and the
+  // One name for each thing, everywhere (decision 138): the row is what it is, its line this language's pick, and the
   // pick's page lists the others and the organization's shelf.
   return (
     <Screen header={<BigTop onBack={back} title={name} {...top}
@@ -1311,6 +1312,8 @@ export function InviteQr(ctx: Ctx) {
   const [error, setError] = useState('');
   const role = roles.find((r) => r.id === roleId) ?? null;
   const canAdvance = step === 0 ? !!role : step === 1 ? name.trim().length > 0 : true;
+  // A phone's Back from the name goes back to the role, as the header's arrow does (decision 137).
+  useHardwareBack(step === 1 && !invite, () => setStep(0));
   async function next() {
     if (step === 0) return setStep(1);
     setBusy(true);
@@ -1595,6 +1598,13 @@ export function NewLanguage(ctx: Ctx) {
     </View>
   );
   const back = step > 1 && step < 5 ? <QuietLinks items={[{ label: t('common.back'), icon: 'arrowL', help: t('org.newLanguage.backHelp'), onPress: () => setStep(step - 1) }]} /> : null;
+  // A phone's Back goes one step back, as the Back under each step does: on step 2 a page of its question first
+  // (decision 137). While it is being added, it says to wait, as ✕ does.
+  useHardwareBack(!!making || (step > 1 && step < 5), () => {
+    if (making) { ctx.toast(t('org.newLanguage.making.wait', { language: title })); return; }
+    if (step === 2 && tq.retreat()) return;
+    setStep(step - 1);
+  });
   const bodyStyle = { paddingHorizontal: 20, gap: 14 } as const;
 
   if (step === 5 && created) return <NewLanguageInvite ctx={ctx} languages={created.languages} cluster={created.cluster} />;

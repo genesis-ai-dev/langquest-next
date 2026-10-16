@@ -58,7 +58,7 @@ tags:
           id: "header-back"
 - tapOn:
     id: "tab-manage"
-# Alpha's checks: Review flow, then Edit (decision 137).
+# Alpha's checks: Review flow, then Edit (decision 138).
 - tapOn: "Review flow.*"
 - tapOn: "Edit"
 - tapOn: "1\\. Peer check"

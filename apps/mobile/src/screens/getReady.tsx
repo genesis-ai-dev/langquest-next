@@ -9,7 +9,7 @@
 //   4 Invite your translators  a group code to scan (the invite RPC Invite by QR uses)
 // Params: `languageId` (opens that language) and `step`: none for the
 // checklist, '1'..'4' for the questions (Next walks on through the rest),
-// 'template', 'helps' and 'flow' for a ready language's three picks (decision 137). `only: '1'` opens
+// 'template', 'helps' and 'flow' for a ready language's three picks (decision 138). `only: '1'` opens
 // question 1 alone, as "What to translate" from a ready language's page.
 import {
   commands, CUSTOM_FLOW, deriveFlow, keyTermsFor, languageName, languageProgress, materialsFor,
@@ -30,6 +30,7 @@ import { t } from '../i18n';
 import { formatClock, formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
 import { Banner, Chip, EmptyState, Group, Header, PrimaryBtn, QuietLinks, Row, Screen, SectionLabel, Sheet } from '../ui/kit';
+import { useHardwareBack } from '../ui/useHardwareBack';
 import { txt } from '../ui/textStyles';
 import { sourceLine, type SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
@@ -72,7 +73,7 @@ export function GetReady(ctx: Ctx) {
   if (!ctx.language.state || !ctx.org.state) {
     return <Screen header={<Header title={t('getReady.loading.title')} onBack={ctx.back} close />}><EmptyState icon="cloud" title={t('getReady.loading.empty')} sub={t('getReady.loading.sub')} /></Screen>;
   }
-  // A ready language's three picks (decision 137): what it uses, its other options, and the organization's shelf.
+  // A ready language's three picks (decision 138): what it uses, its other options, and the organization's shelf.
   if (step === 'template') return <ContentTemplatePage ctx={ctx} />;
   if (step === 'helps') return <HelpsPage ctx={ctx} />;
   if (step === 'flow') return <ReviewFlowPage ctx={ctx} />;
@@ -118,6 +119,8 @@ function Questions({ ctx, start, only }: { ctx: Ctx; start: number; only: boolea
     ? <Header title={n === 2 ? t('org.languages.row') : t('getReady.whatToTranslate')} sub={lang} onBack={ctx.back} />
     : <Header title={t('getReady.title', { language: lang })} sub={t('getReady.stepOf', { step: formatNumber(n), total: formatNumber(4) })} onBack={ctx.back} close />;
   const next = () => (only || n >= 4 ? ctx.back() : setN(n + 1));
+  // A phone's Back goes to the question before, down to the one this opened on, then leaves; ✕ leaves at once (decision 137).
+  useHardwareBack(n > start, () => setN(n - 1));
   const props: StepProps = { ctx, lang, header, next, only };
   switch (n) {
     case 1: return <RecordStep {...props} />;
@@ -151,6 +154,8 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
   // Any work at all, published or not: a change of numbering moves it (decision 80).
   const worked = useMemo(() => Object.keys(state.recordings).length + Object.keys(state.takes).length > 0, [state]);
   const [warn, setWarn] = useState(false);
+  // A phone's Back goes back a page of the question, as the Back under it does (decision 137); from the first, it leaves.
+  useHardwareBack(tq.page !== 'what', () => { tq.retreat(); });
 
   async function answer(confirmed = false) {
     if (busy) return;
@@ -387,6 +392,8 @@ function HelpsStep(props: StepProps) {
   const [page, setPage] = useState<'language' | 'helps'>('language');
   // Opened from a ready language's Reference material (or its Languages) to change the language: back there once it is saved.
   const languageOnly = props.only && props.ctx.params['page'] === 'language';
+  // A phone's Back from what is offered goes back to the language, the page before (decision 137).
+  useHardwareBack(page === 'helps', () => setPage('language'));
   return page === 'language'
     ? <ReferenceLanguageStep {...props} onDone={() => (languageOnly ? props.next() : setPage('helps'))} />
     : <HelpsList {...props} onLanguage={() => setPage('language')} />;
@@ -515,7 +522,7 @@ function HelpsList({ ctx, lang, header, next, onLanguage }: StepProps & { onLang
   );
 }
 
-/** Reference material, on a ready language: every kind of help with a switch each, Add more, and the organization's whole shelf (decision 137). */
+/** Reference material, on a ready language: every kind of help with a switch each, Add more, and the organization's whole shelf (decision 138). */
 function HelpsPage({ ctx }: { ctx: Ctx }) {
   const state = ctx.language.state!;
   const languageId = ctx.language.languageId;
@@ -575,7 +582,7 @@ function HelpsPage({ ctx }: { ctx: Ctx }) {
         ))}
         {notes.length + written.length === 0 ? none(t('getReady.page.noNotes')) : null}
       </Group>
-      {/* Last, the organization's whole shelf (decision 137). */}
+      {/* Last, the organization's whole shelf (decision 138). */}
       {ctx.session.can('manage_reference') ? (
         <Group>
           <Row icon="layers" label={t('getReady.helps.all')} help={t('getReady.helps.allHelp')} last onPress={() => ctx.go('reference_home', { languageId })} />

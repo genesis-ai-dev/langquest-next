@@ -4214,6 +4214,7 @@
     "nav": {
       "cannotOpenHere": "ያ ከዚህ ሊከፈት አይችልም።",
       "noPermission": "ያንን ለመክፈት ፈቃድ የለዎትም።",
+      "backAgainToLeave": "ከLangQuest ለመውጣት ይመለሱን እንደገና ይጫኑ",
       "languageExplorer": "የቋንቋ አሳሽ",
       "languageExplorerNewTab": "የቋንቋ አሳሽ፣ በአዲስ ትር ይከፈታል",
       "tabBadge": "{{tab}}፣ {{badge, number}}",

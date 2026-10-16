@@ -1,4 +1,4 @@
-// A language's review flow (decision 137): its checks on top, with Edit; the
+// A language's review flow (decision 138): its checks on top, with Edit; the
 // ready-made flows it could start from instead under them; and, last, the
 // organization's whole shelf (Review flows). Opened from the language's page
 // as get_ready `step: 'flow'`. Using a ready-made flow copies its checks into
@@ -29,7 +29,7 @@ export function ReviewFlowPage({ ctx }: { ctx: Ctx }) {
   const kinds = useMemo(() => deriveKinds(state), [state]);
   const flow = useMemo(() => deriveFlow(state), [state]);
   const { entries, current, kindsOf, loaded } = useCheckChoices(ctx, flow.itemId, kinds);
-  // Each named as the language's page names its checks: in order (decision 137).
+  // Each named as the language's page names its checks: in order (decision 138).
   const nameOf = (e: FlowEntry) => checksLine(e.doc.steps, kindsOf(e.doc));
   const canUse = ctx.session.can('manage_flows');
   const [picked, setPicked] = useState<string | null>(null);

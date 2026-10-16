@@ -241,7 +241,7 @@ test('PEOPLE-038 Roles at a language are view only', async ({ page }) => {
 /** Alpha's page → Review flow → Edit → one check. */
 async function openCheck(page: Page, check: string, opts: { lead?: boolean } = {}): Promise<void> {
   await alphaPage(page, world(), opts);
-  // A language's checks: Review flow › Edit (decision 137).
+  // A language's checks: Review flow › Edit (decision 138).
   await text(page, 'Review flow').click();
   await text(page, 'Edit').click();
   await expect(text(page, 'Add a check')).toBeVisible();

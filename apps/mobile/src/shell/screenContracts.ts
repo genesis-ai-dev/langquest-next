@@ -136,7 +136,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   reports_language: { emits:['v1.LanguageCountrySet','v1.LanguageTargetSet'],reads:['orgReports'] },
   // Bible Brain through the Worker (docs/reference-material.md); My Bibles are kept on the phone.
   bible_explore: { reads:['bibleBrain','library'],rpcs:['library_get_documents'] },
-  // Get a language ready (decision 71), and a ready language's three picks (decision 137): what they record (a template, as its Content template page applies it, and its update), what helps
+  // Get a language ready (decision 71), and a ready language's three picks (decision 138): what they record (a template, as its Content template page applies it, and its update), what helps
   // them (recommendations, as reference_bibles and reference_guides write them), who checks (a flow, as flows_home
   // chooses it), and a group invite code (as invite_qr issues it).
   get_ready: { emits:['v1.TemplateSelected','v1.UnitAdded','v1.UnitHidden','v1.FlowSelected','v1.FlowStepSet','v1.FlowStepRemoved','v1.ReviewKindDefined',

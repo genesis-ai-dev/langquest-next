@@ -4754,6 +4754,7 @@
     "nav": {
       "cannotOpenHere": "لا يمكن فتح ذلك من هنا.",
       "noPermission": "ليست لديك صلاحية لفتح ذلك.",
+      "backAgainToLeave": "اضغط رجوع مرة أخرى للخروج من LangQuest",
       "languageExplorer": "مستكشف اللغات",
       "languageExplorerNewTab": "مستكشف اللغات، يُفتح في علامة تبويب جديدة",
       "tabBadge": "{{tab}}، {{badge, number}}",

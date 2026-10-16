@@ -24,6 +24,7 @@ import { mmss } from './workspaceModel';
 import { LiveParts } from './LiveParts';
 import { liveKept } from './livePartsModel';
 import { ConfirmDelete } from '../ui/ConfirmDelete';
+import { useHardwareBack } from '../ui/useHardwareBack';
 
 type Recorder = ReturnType<typeof useRecorder>;
 
@@ -108,6 +109,8 @@ export function RecordingView(props: {
     void props.onStop();
   };
   const resume = useHelpSpot(t('recording.resumeNow'), t('recording.vad.resumeHelp'), listening ? props.onResume : undefined);
+  // A phone's Back is the ✓ (decision 137): it keeps every part said and goes back to the parts, never out of the screen.
+  useHardwareBack(true, props.onLeave);
   return (
     <View style={[styles.panel, { backgroundColor: listening ? TINT.red : capturing ? C.red : TINT.redText }]}>
       <View style={styles.head}>

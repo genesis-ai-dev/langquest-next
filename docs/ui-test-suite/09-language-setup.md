@@ -9,7 +9,7 @@ guide editor, the licence, and renaming. People, invites and roles are in
 Read with: decisions 36 (the library), 38 (the licence only opens), 62 and
 84 (reference material and its language), 71 and its amendments (Get ready,
 four questions, one screen each), 74 and 80 (dividing books, numbering
-first), 76 (repeated names), 78 (the language list), 137 (a language's
+first), 76 (repeated names), 78 (the language list), 138 (a language's
 page: one name for each thing, no More).
 
 **Notes for this file**
@@ -24,7 +24,7 @@ page: one name for each thing, no More).
 - Org home is reached from the Manage tab (ADMIN, COORD). LANG-A's page is
   the Manage tab's root for LADMIN, and for others it is reached from Org
   home → Languages → "Alpha". LADMIN reaches Org home from "UI Test Org"
-  above Alpha's title, where Back would be (`header-up`, decision 137).
+  above Alpha's title, where Back would be (`header-up`, decision 138).
 - New language has **five** steps on screen ("Step n of 5"): name, what
   they translate, how recordings get checked, the language of the Bibles
   and guides (added by decision 84), and invite. Decision 71's amendment
@@ -78,7 +78,7 @@ Expected:
 - "Setup" lists "Content templates", "Reference material", "Review flows",
   "Roles" (sub "{n} roles at this level and above"). The name and licence
   are not in Setup: the card at the top has a pencil beside the name and the
-  licence ("All rights reserved") under it (decision 137).
+  licence ("All rights reserved") under it (decision 138).
 - Step 5 opens Alpha's page ("Content template" is its first row), with a
   Back button.
 
@@ -87,7 +87,7 @@ Roles: COORD, LADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Aut
 
 Preconditions (in addition to the global ones):
 - LADMIN reaches Org home from Alpha's page: "UI Test Org" above the title,
-  where Back would be (decision 137).
+  where Back would be (decision 138).
 
 Steps:
 1. Open Org home. Look beside the name in the top card.
@@ -151,7 +151,7 @@ Expected:
   2026-10-10).
 - Under the checklist the page shows "See their work" and "Roles", then
   "Languages" and "Show on the public list". There is no "More" (decision
-  137).
+  138).
 - Step 4 opens Get ready at that question (header "Get Bravo ready",
   sub "2 of 4").
 
@@ -172,11 +172,11 @@ Expected:
 - The title is "Alpha" with the green status "Ready · 3 translators"
   (TRANS, TREV and KEPT; people who also assign work are not counted).
 - LADMIN sees no Back button: the page is the Manage tab's root, and
-  "UI Test Org" sits where Back would be (decision 137).
+  "UI Test Org" sits where Back would be (decision 138).
 - Rows: "Content template", "Reference material", "Review flow" with the
   order ("Peer check + back translation → Community check → Consultant
   check → Final approval"), "People" with "3 translators · invite more",
-  and "Roles" (decision 137).
+  and "Roles" (decision 138).
 - "Review flow" → "Edit" opens "Checks" with the sub "Alpha": "A translator
   records a version", the checks in order, "Add a check" (decision 91).
   Its Review flow page ends with "All review flows".
@@ -201,7 +201,7 @@ Steps:
 6. Tap "Languages". Tap "They understand". Go back.
 
 Expected:
-- Seven rows, in three groups (decision 137): "Content template",
+- Seven rows, in three groups (decision 138): "Content template",
   "Reference material", "Review flow"; "People", "Roles" ("{n} roles");
   "Languages" and "Show on the public list".
 - There is no "More", and none of "Members", "Every way to divide the
@@ -257,7 +257,7 @@ Steps:
 4. Read the row again.
 
 Expected:
-- Before: the "Languages" row has an amber "Link it" badge (decision 137).
+- Before: the "Languages" row has an amber "Link it" badge (decision 138).
   In its sheet, "They translate into" reads "Not linked yet: added
   offline, or not found there".
 - The sheet title is "Link Bravo", with "Find it by any of its names or its
@@ -288,7 +288,7 @@ Steps:
 
 Expected:
 - The switch is on. It is a row on the page, with no sub-line (decision
-  137).
+  138).
 - There is no toast after flipping it.
 - Off: Alpha is not on the public list (`public_languages`, what Explore
   reads, at once). On: the listing is on again (Explore shows it after the
@@ -343,7 +343,7 @@ Expected:
 - On Org home "Charlie {run}" is listed. Its page shows "Ready · 0
   translators" (it has a template, a flow and an invite).
 - Its page → "Languages" says "Not linked yet: added offline, or not found
-  there" (decisions 78 and 137).
+  there" (decisions 78 and 138).
 - Its map ("See their work") lists New Testament books, with Luke divided
   into FIA passages.
 
@@ -405,7 +405,7 @@ Expected:
   later: toast "{language} added to UI Test Org. Offer {offers} under What
   helps once you are online."
 - Its "Languages" sheet says "Not linked yet: added offline, or not found
-  there" (decision 137).
+  there" (decision 138).
 - Once online, linking works as in SETUP-008.
 
 Fixed (2026-10-12): offline, New language offered only LangQuest's ways
@@ -629,7 +629,7 @@ Preconditions (in addition to the global ones):
 Steps:
 1. COORD: Org home → "New language". Add "Juliet {run}" as in SETUP-010.
 2. LADMIN: open Org home from Alpha's page: "UI Test Org" above the title,
-   where Back would be (decision 137).
+   where Back would be (decision 138).
 
 Expected:
 - COORD can add a language end to end (Coordinator holds every privilege
@@ -727,7 +727,7 @@ Expected:
   soon as the screen opens.
 - Bravo's page now shows "Bravo" with the green status "Ready · 0
   translators" and the rows "Content template", "Reference material",
-  "Review flow", "People" (decision 137).
+  "Review flow", "People" (decision 138).
 - On TRANS's device after Sync now, nothing about Bravo changes (TRANS has
   no role there).
 
@@ -775,7 +775,7 @@ Steps:
 5. Go back to Alpha's page.
 
 Expected:
-- "Which books" is the question that chose the template (decision 137).
+- "Which books" is the question that chose the template (decision 138).
   The header is "What to translate" with the sub "Alpha".
 - With nothing changed the main button reads "Keep it" and only goes back.
 - With a change it reads "Use this"; the note "Pieces that stay the same
@@ -789,7 +789,7 @@ Expected:
 
 Changed (2026-10-16, decision 134): no toast offers Undo; choosing the earlier books again in "They record" changes it back.
 
-Changed (2026-10-16, decision 137): "They record" is now "Content template" → "Which books".
+Changed (2026-10-16, decision 138): "They record" is now "Content template" → "Which books".
 
 ### SETUP-025 A new numbering on a language with work warns first
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Manual
@@ -819,7 +819,7 @@ Expected:
 
 Changed (2026-10-16, decision 134): no toast offers Undo; choosing the earlier numbering again in "They record" changes it back.
 
-Changed (2026-10-16, decision 137): "They record" is now "Content template" → "Which books".
+Changed (2026-10-16, decision 138): "They record" is now "Content template" → "Which books".
 
 ### SETUP-026 What will help them: FIA's language
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -834,7 +834,7 @@ Steps:
 3. Open the row again; choose "English", "Use English".
 
 Expected:
-- The page is "Reference material" (decision 137; it was "What helps
+- The page is "Reference material" (decision 138; it was "What helps
   them").
 - The guide set shows as one row, "FIA study guides", its source and
   language, and how many passages it covers.
@@ -845,7 +845,7 @@ Expected:
   neither with Undo: choosing the language again in the same sheet (step 3)
   is the way back.
 - On a ready language the reference-language page (decision 84) opens
-  from "Languages" → "They understand" (SETUP-006, decision 137).
+  from "Languages" → "They understand" (SETUP-006, decision 138).
 
 Known issue (2026-10-12): run after SETUP-024 (ADMIN, then LADMIN, change
 what Alpha translates and Undo), Alpha's "What helps them" shows FIA study
@@ -893,7 +893,7 @@ Steps:
 3. Tap "Add more". Read the sheet. Tap "Key words".
 
 Expected:
-- The header is "Reference material" (decision 137; it was "What helps
+- The header is "Reference material" (decision 138; it was "What helps
   them").
 - Sections: Bibles, Study guides ("{n} passages covered"), Key words (row
   "Key terms", "{n} words · {n} with a Alpha word"), Notes for translators.
@@ -903,7 +903,7 @@ Expected:
   shelf (SETUP-049).
 - The "Add more" sheet offers "A Bible", "A study guide", "A note for
   translators" and "Key words". "Everything in your library" is gone from
-  it (decision 137).
+  it (decision 138).
 - "Key words" opens Key terms.
 
 ### SETUP-029 Invite your translators: other roles, and a new role
@@ -996,7 +996,7 @@ Steps:
 
 Expected:
 - The row opens Alpha's books, each to divide: "Each book's passages" with
-  "Alpha", listing Luke (decision 137).
+  "Alpha", listing Luke (decision 138).
 - It does not say "That can't be opened from here."
 
 Fixed (2026-10-13): `flow.ts` has no `templates_home → templates_home`
@@ -1096,7 +1096,7 @@ Steps:
 5. Clear it and tap "Luke".
 
 Expected:
-- The page is "Content template" with the sub "Alpha" (decision 137). On
+- The page is "Content template" with the sub "Alpha" (decision 138). On
   top, the template it uses, with its radio lit: "FIA passages (English)",
   "{n} of its {N} books · English versification", "{n} passages · {n}
   recorded" and its version.
@@ -1130,7 +1130,7 @@ Steps:
 Expected:
 - "FIA passages (English)" is on top, the one in use; the organization's
   others are listed under it to choose from, "OpenBible: long sections"
-  among them (decision 137: there is no "Choose a Template" screen or
+  among them (decision 138: there is no "Choose a Template" screen or
   "Change template" button any more).
 - LangQuest's older templates ("Bible books (English)") and its ways in
   other numberings ("Bible chapters (Russian Orthodox)") are not offered
@@ -1151,7 +1151,7 @@ Expected:
 
 Changed (2026-10-16, decision 134): no toast offers Undo; picking the earlier template again in "Change template" changes it back.
 
-Changed (2026-10-16, decision 137): "Change template" and "Choose a Template" are gone; the others are picked on the language's Content template page, under the one it uses.
+Changed (2026-10-16, decision 138): "Change template" and "Choose a Template" are gone; the others are picked on the language's Content template page, under the one it uses.
 
 ### SETUP-037 Make a Scripture template
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -1249,7 +1249,7 @@ Expected:
   the Get ready checklist, with no "Content template" row: the book is
   divided from the map (decision 107). On a ready language, books that wait
   are also listed under "Content template" → "Each book's passages"
-  (SETUP-035, decision 137).
+  (SETUP-035, decision 138).
 - "How should Proverbs be broken up?" with way cards ("By chapter" and
   others, each with a preview).
 - When another language uses the template, "Which languages should
@@ -1327,7 +1327,7 @@ Expected:
 Since decision 91 a language's checks are its own: a ready-made flow is a
 starting point whose checks are copied in, and each check carries its own
 people, questions and helps. The language page's "Review flow" row opens
-its Review flow page (decision 137): its checks on top, whose "Edit" opens
+its Review flow page (decision 138): its checks on top, whose "Edit" opens
 the Checks screen (`screens/checks.tsx`); the ready-made flows under them;
 and last "All review flows", the organization's Review flows. The Review
 Teams screens are gone.
@@ -1345,7 +1345,7 @@ Steps:
 
 Expected:
 - The header is "Review flows" with the sub "Alpha" and the action "Flow"
-  (decision 137: it was reached from More's "Every way to check").
+  (decision 138: it was reached from More's "Every way to check").
 - The card says "Alpha uses" and "Custom flow" (its checks were copied from
   Standard Bible Flow, decision 91), its steps (Peer Review, Back
   Translation, Community Check, Consultant Check, Final Approval), and
@@ -1379,7 +1379,7 @@ Expected:
   that set can be chosen again: "Use" asks nothing. Toast "Alpha now uses
   Quick Check.", with no Undo. Its checks are copied into Alpha (decision
   91): the "Review flow" row reads "Peer check → Final approval" (decision
-  137).
+  138).
 - Step 4 puts Standard Bible Flow's checks back, again without a question:
   Alpha's Review flow page shows "Peer check + back translation →
   Community check → Consultant check → Final approval". A check's people,
@@ -1430,7 +1430,7 @@ Preconditions (in addition to the global ones):
 - Resets: removes a check and undoes it.
 
 Steps:
-1. Alpha's page → "Review flow" → "Edit" (Checks, decision 137).
+1. Alpha's page → "Review flow" → "Edit" (Checks, decision 138).
 2. Tap "Community check". Read the page.
 3. Tap "Remove this check", then Cancel.
 4. Tap "Remove this check", then "Remove this check" in the sheet.
@@ -1496,7 +1496,7 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. Alpha's page (LADMIN: the Manage tab) → "Review flow" → "Edit"
-   (Checks, decision 137). Read Peer check's card.
+   (Checks, decision 138). Read Peer check's card.
 2. Tap "Peer check". Read its People row. Tap "People".
 3. Tap "Add people". Read the list. Tick "Tom Translator". Tap "Done".
 4. Tap ✕ beside Tom Translator. Go back twice.
@@ -1644,7 +1644,7 @@ Changed (2026-10-16, decision 134): no toast offers Undo; the Undo arrow in the 
 A ready language's "Reference material" row opens its own page: what its
 team is offered, each with a switch, and "Add more" (SETUP-026 to SETUP-028).
 That page ends with "All reference material", the organization's library as
-the language sees it (decision 137). Below, "Alpha's Reference material" is
+the language sees it (decision 138). Below, "Alpha's Reference material" is
 that last screen: Alpha's page → "Reference material" → "All reference
 material".
 
@@ -1654,7 +1654,7 @@ Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 A ready language's Review flow names its checks as its page does, in order,
 with the ready-made flows under them and the organization's shelf last
-(decision 137).
+(decision 138).
 
 Preconditions (in addition to the global ones):
 - Alpha's checks are as Standard Bible Flow made them.
@@ -1696,7 +1696,7 @@ Steps:
 
 Expected:
 - The header is "Reference material" with the sub "Alpha", and the main
-  button "Add material" (decision 137: it was More's "Bibles, guides and
+  button "Add material" (decision 138: it was More's "Bibles, guides and
   notes").
 - The intro begins "Alpha's own material adds to what the organization
   recommends; nothing is copied."
@@ -1994,7 +1994,7 @@ Steps:
 Expected:
 - The licence reads "All rights reserved"; a screen reader hears "License:
   All rights reserved. Only your organization". It is no longer a row in
-  Setup (decision 137).
+  Setup (decision 138).
 - COORD: view mode, "Only an organization admin can change this.".
 - ADMIN: "Who may use your work" with "Opening up is permanent: anyone who
   copies your work keeps these terms." Picking shows "Open to CC BY 4.0";
@@ -2042,7 +2042,7 @@ Steps:
 
 Expected:
 - Alpha's page opens with no Back button. Where Back would be, "UI Test
-  Org" opens the organization's page (decision 137).
+  Org" opens the organization's page (decision 138).
 - The rows are on the page, with no "More": "Content template",
   "Reference material", "Review flow", "People", "Roles", "Languages",
   "Show on the public list". There is no "Members" or "Review groups" row.
@@ -2081,7 +2081,7 @@ Expected:
   saved"), and FIA passages (English).
 - The Content template page lists only the organization's own templates
   under the one in use (no "Bible chapters (English)"): using another
-  organization's would follow it, a library write (decision 137).
+  organization's would follow it, a library write (decision 138).
 - Sync shows "refused by the server" at 0: these are Alpha's own events,
   which LADMIN may write at Alpha.
 
@@ -2104,7 +2104,7 @@ Steps:
 
 Expected:
 - The Content template page offers "View" and "Each book's passages",
-  never "Edit" (decision 137). Luke reads "Called Luke in Alpha" and
+  never "Edit" (decision 138). Luke reads "Called Luke in Alpha" and
   offers no "Break up differently". "View" opens the template read only:
   no "Copy to change it", "Create template", "Done" or saved mark.
 - Review flows offers "Use" (Alpha's own checks) but no "Flow", "Follow",

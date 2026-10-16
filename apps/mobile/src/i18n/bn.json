@@ -4214,6 +4214,7 @@
     "nav": {
       "cannotOpenHere": "এটি এখান থেকে খোলা যায় না।",
       "noPermission": "এটি খোলার অনুমতি আপনার নেই।",
+      "backAgainToLeave": "LangQuest থেকে বের হতে আবার পেছনে চাপুন",
       "languageExplorer": "ভাষা অনুসন্ধান",
       "languageExplorerNewTab": "ভাষা অনুসন্ধান, নতুন ট্যাবে খোলে",
       "tabBadge": "{{tab}}, {{badge, number}}",

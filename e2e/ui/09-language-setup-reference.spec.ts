@@ -11,7 +11,7 @@ import { closeSheet, expectNotOnScreen, expectOnScreen, expectOrgSent, languageP
 
 const world = useWorld();
 
-/** Alpha's page → Reference material → All reference material (decision 137). */
+/** Alpha's page → Reference material → All reference material (decision 138). */
 async function alphaReference(page: Page, who: 'ADMIN' | 'COORD' = 'ADMIN'): Promise<void> {
   const w = world();
   await openAs(page, w, who);
