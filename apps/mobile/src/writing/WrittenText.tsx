@@ -8,7 +8,7 @@ import { StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
-import { txt } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { PlayBtn } from '../recording/blocks';
 import { useClip } from '../audio/useClip';
 import { passageVerseKeys, verseName } from '../recording/verseModel';

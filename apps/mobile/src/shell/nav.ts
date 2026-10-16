@@ -1,7 +1,6 @@
 import { createNavigationContainerRef } from '@react-navigation/native';
 import type { ScreenId } from './flow';
 import { useNav } from './useNav';
-export { useNav } from './useNav';
 
 /** A navigation stack entry: a spec screen id plus screen-specific params. */
 export interface Route {

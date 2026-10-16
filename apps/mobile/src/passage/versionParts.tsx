@@ -13,19 +13,19 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { ClipPlayer } from '../audio/clipPlayer';
 import type { Ctx } from '../shell/ctx';
-import { useHelpSpot } from '../helpMode/helpContext';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import { Ico, txt } from '../ui/kit';
+import { Ico } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { cardDurations } from '../recording/workspaceModel';
 import { mmss, partLabel } from '../recording/model';
-import { styles as ps } from '../recording/blocks';
+import { styles as ps } from '../recording/blockStyles';
 import { useClip } from '../audio/useClip';
 import { VerseTile } from '../recording/verseParts';
 import { readPartVerses, spanName } from '../recording/verseModel';
 import { C, radius, space, target } from '../ui/theme';
 import { usePartVerses } from './useVerses';
-export { useVerseKeys, usePartVerses, useVersesHeld } from './useVerses';
 
 /** The whole version, then its parts. */
 export function VersionRecording(props: { ctx: Ctx; state: LanguageState; unitId: string; title: string; hashes: string[] }) {

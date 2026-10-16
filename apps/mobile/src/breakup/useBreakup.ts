@@ -14,7 +14,6 @@ import { noteExpected } from '../diagnostics/report';
 import { templateUsers } from '../server/library';
 import { bookNames } from '../server/languages';
 import { groupNames, itemIdOf, NUMBERING_ITEMS, wayOf, wayRows, type WayRow } from './model';
-export { adoptWay, ownTemplate, templateUsersOf, publishChange, languageNames, coveredBooks } from './breakupActions';
 
 interface UserRow {
   language_id: string;

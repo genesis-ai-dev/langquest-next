@@ -27,7 +27,7 @@ import {
 import * as Crypto from 'expo-crypto';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { useHardwareBack } from '../ui/hardwareBack';
+import { useHardwareBack } from '../ui/useHardwareBack';
 import { Text } from '../ui/text';
 import { AudioClip } from '../audio/audioClip';
 import { ClipPlayer } from '../audio/clipPlayer';
@@ -39,8 +39,11 @@ import { screenTitle } from '../shell/flow';
 import { t } from '../i18n';
 import { formatClock } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
-import { Badge, Banner, Card, Chip, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, ReasonSheet, Row, Screen, Sheet, txt, useLayout, SectionLabel } from '../ui/kit';
-import { passageCrumbs, passageView as passageViewOf, usePassage, versionTitle, type PassageView } from '../passage/passageView';
+import { Badge, Banner, Card, Chip, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, ReasonSheet, Row, Screen, Sheet, SectionLabel } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { useLayout } from '../ui/useLayout';
+import { passageCrumbs, passageView as passageViewOf, versionTitle, type PassageView } from '../passage/passageView';
+import { usePassage } from '../passage/usePassage';
 import { failureMessage } from '../diagnostics/report';
 import {
   canLeave, cantAnswerReasons, cleanAnswers, cleanSkips, earlierReviews, firstOpenAt, isGroupKind, kindInSentence, kindLabel, listenLine, loggedTargets, nextLabel,
@@ -53,11 +56,12 @@ import {
 import { contractsFor } from '../shell/screenContracts';
 import { AgainBtn, BigMic, DashedRow, PlayChip, SpeakBtn } from '../reviewing/reviewVoice';
 import { checkName } from '../admin/adminModel';
-import { useCheckHelpRows, type HelpRow } from '../checks/parts';
-import { BackgroundSheet, backgroundLine, BigChoices, Centre, DecideCard, MomentList, OutcomePill, QuestionCard, QuestionDots, SkipBtn, StepStrip } from '../reviewing/review';
-import { useOfferedSources } from '../sources/SourceReader';
-import { useUsage } from '../sources/used';
-import { useStudyGuide } from '../study/libraryGuides';
+import { useCheckHelpRows, type HelpRow } from '../checks/useCheckHelpRows';
+import { BackgroundSheet, BigChoices, Centre, DecideCard, MomentList, OutcomePill, QuestionCard, QuestionDots, SkipBtn, StepStrip } from '../reviewing/review';
+import { backgroundLine } from '../reviewing/reviewText';
+import { useOfferedSources } from '../sources/useSourceChoice';
+import { useUsage } from '../sources/useUsage';
+import { useStudyGuide } from '../study/useStudyGuides';
 import type { StudyGuide } from '../study/guides';
 import { studyProgress } from '../study/progress';
 import { C, space, TINT, type as T } from '../ui/theme';

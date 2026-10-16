@@ -8,15 +8,16 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { t } from '../i18n';
 import { HelpBadge } from '../helpMode/helpBadge';
-import { useHelpSpot } from '../helpMode/helpContext';
-import { Ico, SearchField, txt } from '../ui/kit';
-import { LanguoidPicker, useLanguoidSearch } from '../org/languoidPicker';
+import { useHelpSpot } from '../helpMode/useHelpMode';
+import { Ico, SearchField } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { LanguoidPicker } from '../org/languoidPicker';
+import { useLanguoidSearch } from '../org/useLanguoids';
 import { Question, QuietLink, RadioRow } from '../admin/admin';
 import { guideShortName, languageLabel } from '../admin/adminModel';
 import { C, radius, space, type as T } from '../ui/theme';
 import { type LanguageChoice } from './languageChoices';
 import { readerLanguage, sameLanguage } from './languages';
-export { useReferenceLanguages } from './useReferenceLanguages';
 
 /** "FIA guides for 294 passages · 2 Bibles", or that nothing is in it yet. */
 function whatIsThere(c: LanguageChoice): string {

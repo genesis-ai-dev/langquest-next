@@ -23,35 +23,40 @@ import { Text } from '../ui/text';
 import { type LibraryChoice } from '../templates/contentTemplates';
 import { deriveKinds } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
-import { useHelpMode } from '../helpMode/helpContext';
+import { useHelpMode } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
 import { formatClock, formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
-import { Banner, Chip, EmptyState, Group, Header, PrimaryBtn, QuietLinks, Row, Screen, SectionLabel, Sheet, txt } from '../ui/kit';
+import { Banner, Chip, EmptyState, Group, Header, PrimaryBtn, QuietLinks, Row, Screen, SectionLabel, Sheet } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { sourceLine, type SharedItem } from '../library/model';
 import { restoreChecks } from '../checks/undo';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
 import { booksInScope, LANGUAGE_SCOPES, languageScopeLabel, mayGrantAt, type LanguageScope } from '../org/orgAdmin';
 import { recState, refKindOf, sourceFacts, type RefKind } from '../reference/model';
-import { referenceFailure, useRecommend } from '../reference/useReference';
+import { useRecommend } from '../reference/useReference';
+import { referenceFailure } from '../reference/referenceActions';
 import { GuideLanguageSheet } from '../reference/GuideLanguageSheet';
 import { chooseSetLanguage, guideSets, hideSet, originOf, patternOf, setKeyOf, setReach, type GuideSet, type ReferenceSay, type SetMember } from '../reference/guideSets';
 import { docLanguage, languagesLine, readerLanguage, sameLanguage, teamLanguage } from '../reference/languages';
 import { memberIn } from '../reference/languageChoices';
-import { ReferenceLanguageChip, ReferenceLanguagePage, useReferenceLanguages } from '../reference/ReferenceLanguagePage';
+import { ReferenceLanguageChip, ReferenceLanguagePage } from '../reference/ReferenceLanguagePage';
+import { useReferenceLanguages } from '../reference/useReferenceLanguages';
 import { failureMessage } from '../diagnostics/report';
 import { contractsFor } from '../shell/screenContracts';
 import { C, space } from '../ui/theme';
-import {
-  BigTop, CheckRow, SwitchRow, ChoiceCard, DashedRow, InviteCode, NumberedSteps, Pills, Question, QuietLink, useGroupInvite
-} from '../admin/admin';
+import { BigTop, CheckRow, SwitchRow, ChoiceCard, DashedRow, InviteCode, NumberedSteps, Pills, Question, QuietLink } from '../admin/admin';
+import { useGroupInvite } from '../admin/useGroupInvite';
 import {
   flowSub, flowTitle, flowWho, guideShortName, languageLabel, QUESTIONS, questionLabel, recordSummary, scopeOfBooks,
   type PlainRoleId } from '../admin/adminModel';
-import { shareInvite } from '../invites/invite';
-import { howItWorks, ReadyChecklist, usePlainRoles, useReadySummary } from '../admin/ready';
-import { useCheckChoices, type FlowEntry } from '../admin/choices';
-import { TranslateQuestion, useTranslate } from '../breakup/TranslateStep';
+import { shareInvite } from '../invites/shareInvite';
+import { ReadyChecklist } from '../admin/ready';
+import { howItWorks } from '../admin/readyText';
+import { usePlainRoles, useReadySummary } from '../admin/useReadySummary';
+import { useCheckChoices, type FlowEntry } from '../admin/useChoices';
+import { TranslateQuestion } from '../breakup/TranslateStep';
+import { useTranslate } from '../breakup/useTranslate';
 import { NumberingNote, RedoSheet } from '../breakup/parts';
 import { useVerseNumbering } from '../breakup/useBreakup';
 

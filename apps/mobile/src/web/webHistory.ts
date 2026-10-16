@@ -1,7 +1,6 @@
 import { Platform } from 'react-native';
 import type { ScreenId } from '../shell/flow';
 import { sectionOfPath } from './webPaths';
-export { useWebHistory } from './useWebHistory';
 
 /**
  * The browser's address bar, Back button and tab title for the web app

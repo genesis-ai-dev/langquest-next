@@ -4,13 +4,12 @@
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { Text } from '../ui/text';
 import { t } from '../i18n';
-import { Banner, Group, LinkBtn, Row, SectionLabel, SmallBtn, txt } from '../ui/kit';
+import { Banner, Group, LinkBtn, Row, SectionLabel, SmallBtn } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { hitLine, type LanguoidHit } from './languoidModel';
 import { C, space } from '../ui/theme';
 import { LANGUOID_RESULTS } from './languoidModel';
 import { type LanguoidSearch } from './useLanguoids';
-export { useLanguoidSearch, useLanguoidName, type LanguoidSearch } from './useLanguoids';
-export { LANGUOID_RESULTS } from './languoidModel';
 
 /**
  * The matches to pick from, or the one picked with a way to change it.

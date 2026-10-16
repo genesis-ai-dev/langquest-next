@@ -30,10 +30,9 @@ import { indexesFor } from '../sync/indexes';
 import { canHelpSignIn, decideRequest, inviteUri, issueInvite, issueSignInCode, pendingRequests, type NewInvite, type PendingRequest } from '../invites/invites';
 import { APP_URL } from '../web/appUrl';
 import { signInUri } from '../invites/inviteCode';
-import {
-  Badge, Banner, Card, Chip, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, KindIcon, LinkBtn, MovingBar, PrimaryBtn, ProgressBar, QuietLinks, Row,
-  Screen, SearchField, SectionLabel, Segments, Sheet, ShowMore, SmallBtn, Toggle, txt, useOpenDetail, type IconName
-} from '../ui/kit';
+import { Badge, Banner, Card, Chip, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, KindIcon, LinkBtn, MovingBar, PrimaryBtn, ProgressBar, QuietLinks, Row, Screen, SearchField, SectionLabel, Segments, Sheet, ShowMore, SmallBtn, Toggle, type IconName } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { useOpenDetail } from '../ui/useLayout';
 import { edgeFor } from '../shell/flow';
 import { loadDocs } from '../library/docStore';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
@@ -52,30 +51,39 @@ import { looksLikeEmail, signInFailure } from '../org/model';
 import { usePublicListing } from '../org/usePublicListing';
 import { contractsFor } from '../shell/screenContracts';
 import { languageFigures } from '../org/orgFigures';
-import { LanguoidPicker, useLanguoidName, useLanguoidSearch } from '../org/languoidPicker';
+import { LanguoidPicker } from '../org/languoidPicker';
+import { useLanguoidName, useLanguoidSearch } from '../org/useLanguoids';
 import type { LanguoidHit } from '../org/languoidModel';
 import { edgeAllowed } from '../shell/session';
 import { shareText } from '../ui/share';
 import { C, radius, space, tile, TINT } from '../ui/theme';
 import { useOrgSummary } from '../reports/useOrgSummary';
-import { useHelpMode } from '../helpMode/helpContext';
-import { AmberNote, BigTop, CheckRow, ChoiceCard, CountBadge, DashedRow, IconTile, inviteFailureText, NumberedSteps, Pills, Question, QuietLink, RadioRow, WorkSteps } from '../admin/admin';
+import { useHelpMode } from '../helpMode/useHelpMode';
+import { AmberNote, BigTop, CheckRow, ChoiceCard, CountBadge, DashedRow, IconTile, NumberedSteps, Pills, Question, QuietLink, RadioRow, WorkSteps } from '../admin/admin';
+import { inviteFailureText } from '../admin/inviteText';
 import { askedAgo, firstName, flowSub, guideShortName, joinAnd, languageLabel, QUESTIONS, questionLabel, stepTitle } from '../admin/adminModel';
-import { useCheckChoices, type FlowEntry } from '../admin/choices';
+import { useCheckChoices, type FlowEntry } from '../admin/useChoices';
 import { rowsOf, stepsOf } from '../checks/model';
-import { setChecksDraft, useChecksDraft } from '../checks/draft';
-import { TranslateQuestion, useTranslate } from '../breakup/TranslateStep';
+import { setChecksDraft } from '../checks/draft';
+import { useChecksDraft } from '../checks/useChecksDraft';
+import { TranslateQuestion } from '../breakup/TranslateStep';
+import { useTranslate } from '../breakup/useTranslate';
 import { InviteSomeone } from '../invites/invite';
 import { refKindOf } from '../reference/model';
 import { type GuideSet } from '../reference/guideSets';
 import { memberIn, startingLanguage } from '../reference/languageChoices';
 import { docLanguage, readerLanguage, sameLanguage } from '../reference/languages';
-import { ReferenceLanguagePage, useReferenceLanguages } from '../reference/ReferenceLanguagePage';
-import { howItWorks, ReadyChecklist, usePendingRequests, usePlainRoles, useReadySummary } from '../admin/ready';
+import { ReferenceLanguagePage } from '../reference/ReferenceLanguagePage';
+import { useReferenceLanguages } from '../reference/useReferenceLanguages';
+import { ReadyChecklist } from '../admin/ready';
+import { howItWorks } from '../admin/readyText';
+import { usePendingRequests, usePlainRoles, useReadySummary } from '../admin/useReadySummary';
 import { personLook } from '../ui/people';
-import { PersonAvatar, usePerson } from '../ui/UserChip';
+import { PersonAvatar } from '../ui/UserChip';
+import { usePerson } from '../ui/usePerson';
 import { clusterEvents, clusterNamed, languagesOutsideClusters, newClusterId, ungroupEvents } from '../clusters/model';
-import { appendClusterEvents, ClusterRow, ClusterTile, LanguageClustersRow } from '../clusters/parts';
+import { ClusterRow, ClusterTile, LanguageClustersRow } from '../clusters/parts';
+import { appendClusterEvents } from '../clusters/clusterActions';
 
 /**
  * What to say when something fails (error-tracking): a command's own reason,

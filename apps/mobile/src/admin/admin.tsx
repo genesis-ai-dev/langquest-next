@@ -10,17 +10,16 @@ import { useEffect, type ReactNode } from 'react';
 import { AccessibilityInfo, ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import QRCode from 'react-native-qrcode-svg';
-import { useHelpMode, useHelpSpot } from '../helpMode/helpContext';
+import { useHelpMode, useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpLit } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { Ico, txt, type IconName } from '../ui/kit';
+import { Ico, type IconName } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { shadow } from '../ui/shadow';
 import { C, radius, space, target, TINT, type as T } from '../ui/theme';
 import { inviteFailureText, GROUP_USES } from './inviteText';
 import { type InviteState } from './useGroupInvite';
-export { useGroupInvite, type InviteState } from './useGroupInvite';
-export { inviteFailureText, GROUP_USES } from './inviteText';
 
 // ---- icons ----------------------------------------------------------------------------
 

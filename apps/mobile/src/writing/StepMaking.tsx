@@ -15,10 +15,11 @@ import {
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
-import { useHelpSpot } from '../helpMode/helpContext';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import { Chip, ChipRow, Field, Group, Ico, PrimaryBtn, Row, SectionLabel, Sheet, txt, type IconName } from '../ui/kit';
+import { Chip, ChipRow, Field, Group, Ico, PrimaryBtn, Row, SectionLabel, Sheet, type IconName } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { languageLabel } from '../admin/adminModel';
 import { C, radius, space, TINT } from '../ui/theme';
 

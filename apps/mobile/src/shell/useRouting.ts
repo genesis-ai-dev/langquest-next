@@ -5,7 +5,8 @@ import type { ScreenId } from './flow';
 import { layoutKind } from '../ui/layout';
 import { navRef, type Nav } from './nav';
 import { AUTH_SCREENS, GUEST_SCREENS, homeScreenFor, postSignInScreen, type Session } from './session';
-import { sectionAtLoad, useWebHistory } from '../web/webHistory';
+import { sectionAtLoad } from '../web/webHistory';
+import { useWebHistory } from '../web/useWebHistory';
 import { addressSection } from './routingModel';
 import type { Arrival } from './useOpenOrganization';
 

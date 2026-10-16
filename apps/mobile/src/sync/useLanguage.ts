@@ -4,7 +4,7 @@ import { getBlobStore, type BlobFile, type BlobStore } from './blobs';
 import { downloadBlob, streamUrl, uploadBlob } from '../server/blobTransport';
 import { diagnostics, flushDiagnostics, timedTransfer, type TransferTimings } from '../diagnostics/diagnostics';
 import { getRecordingJournal } from '../recording/recordingJournal';
-import { isRecording } from '../recording/useRecorder';
+import { isRecording } from '../recording/recorderState';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { RateMeter } from './rate';

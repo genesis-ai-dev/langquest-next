@@ -7,13 +7,12 @@
 import { isStored } from '@langquest-next/core';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState } from 'react';
-import { audioFormat } from './audioClip';
+import { audioFormat } from './audioFormat';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
 import { t } from '../i18n';
 import { noteExpected, reportError } from '../diagnostics/report';
 import type { LanguageHandle } from '../sync/useLanguage';
 import { cardSeconds } from './clipTime';
-export { cardSeconds } from './clipTime';
 
 export interface Clip {
   playing: boolean;

@@ -14,20 +14,20 @@ import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { Field, Group, Header, Ico, PrimaryBtn, QuietLinks, Row, Screen, Sheet, txt, type IconName } from '../ui/kit';
+import { Field, Group, Header, Ico, PrimaryBtn, QuietLinks, Row, Screen, Sheet, type IconName } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { useLibraryDocs } from '../library/useLibrary';
 import { itemRangesIn } from '../reference/coverage';
 import type { RefKind } from '../reference/model';
 import { useRefItems } from '../reference/useReference';
 import { languageLabel } from '../admin/adminModel';
-import { chipLabel } from '../sources/SourceReader';
+import { chipLabel } from '../sources/sourceText';
 import { C, radius, space, target, TINT, type as T } from '../ui/theme';
-import { useBookChange } from './BreakUpBook';
+import { useBookChange } from './useBookChange';
 import { atOf, namesOfWay, ownWayDoc, parseAt, sectionLabel, sectionsOf, startsOfWay, verseOrder, type At, type Section } from './ownWay';
 import { isItself } from './model';
 import { useWays } from './useBreakup';
 import { useBookText } from './useBookText';
-export { useBookText } from './useBookText';
 
 /** A dashed line where at least this many of the 20 Bibles start a section. */
 const SUGGEST = 10;

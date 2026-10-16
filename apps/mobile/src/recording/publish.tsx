@@ -9,17 +9,18 @@ import { BackHandler, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { ClipPlayer } from '../audio/clipPlayer';
 import type { Ctx } from '../shell/ctx';
-import { useHelpSpot } from '../helpMode/helpContext';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import { Field, Header, Ico, PrimaryBtn, Screen, Sheet, txt } from '../ui/kit';
+import { Field, Header, Ico, PrimaryBtn, Screen, Sheet } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { feedbackSource, versionTitle, type PassageView } from '../passage/passageView';
 import type { ReviewView } from '@langquest-next/core';
 import { C, radius, space, target, TINT, type as T } from '../ui/theme';
 import { VoiceNote } from '../audio/voiceNote';
 import { checkName } from '../admin/adminModel';
 import { mmss } from './model';
-import { styles as ps } from './blocks';
+import { styles as ps } from './blockStyles';
 
 export function PublishScreen(props: {
   ctx: Ctx; v: PassageView; n: number; first: boolean; cards: string[]; totalMs: number | undefined; bible: string | undefined;

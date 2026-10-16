@@ -11,7 +11,7 @@ import { SyncClient, ensureDeviceId } from '@langquest-next/sync';
 import { keyTermsFor, type KeyTermView } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useEffect, useState } from 'react';
-import { audioFormat } from '../audio/audioClip';
+import { audioFormat } from '../audio/audioFormat';
 import type { Ctx } from '../shell/ctx';
 import { noteExpected } from '../diagnostics/report';
 import type { LanguageTerms } from '../helps/helpsModel';

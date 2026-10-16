@@ -2,10 +2,12 @@
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import type { ListenHooks } from '../recording/useListenLoop';
-import { choiceKey, useChoice, useOffer } from '../sources/SourceReader';
+import { choiceKey } from '../sources/sourceText';
+import { useChoice, useOffer } from '../sources/useSourceChoice';
 import { emptyBibleText, type SourceOption } from '../sources/model';
-import { PlayError, usePassagePlayer } from '../sources/player';
-import type { Usage } from '../sources/used';
+import { PlayError } from '../sources/player';
+import { usePassagePlayer } from '../sources/usePassagePlayer';
+import type { Usage } from '../sources/useUsage';
 import { usePassageSource, useSources } from '../sources/useSources';
 import { mmss, passageClock } from '../recording/model';
 

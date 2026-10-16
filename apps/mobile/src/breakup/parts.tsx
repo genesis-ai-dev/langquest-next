@@ -8,11 +8,12 @@ import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { bookNameOf } from '../templates/contentTemplates';
-import { useHelpSpot } from '../helpMode/helpContext';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { Chip, GhostBtn, Ico, LinkBtn, PrimaryBtn, Sheet, txt } from '../ui/kit';
+import { Chip, GhostBtn, Ico, LinkBtn, PrimaryBtn, Sheet } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { CheckRow, ChoiceCard, Pills } from '../admin/admin';
 import { C, radius, space, TINT } from '../ui/theme';
 import {

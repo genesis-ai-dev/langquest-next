@@ -4,7 +4,6 @@
 // forgotten when the language is made or New language closes.
 import type { KindDef } from '@langquest-next/core';
 import type { CheckRow } from './model';
-export { useChecksDraft } from './useChecksDraft';
 
 export interface ChecksDraft {
   kinds: KindDef[];

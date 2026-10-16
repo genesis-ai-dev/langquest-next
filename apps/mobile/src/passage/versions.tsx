@@ -12,7 +12,8 @@ import type { Ctx } from '../shell/ctx';
 import type { ScreenId } from '../shell/flow';
 import { t } from '../i18n';
 import { indexesFor } from '../sync/indexes';
-import { Badge, Header, IconBtn, Ico, PrimaryBtn, Screen, SectionLabel, SmallBtn, txt } from '../ui/kit';
+import { Badge, Header, IconBtn, Ico, PrimaryBtn, Screen, SectionLabel, SmallBtn } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { versionTitle, when, type PassageView } from './passageView';
 import { failureMessage } from '../diagnostics/report';
 import { cardDurations, sameCards } from '../recording/workspaceModel';
@@ -22,7 +23,7 @@ import { Text } from '../ui/text';
 import { C, radius, space, target, TINT } from '../ui/theme';
 import { versionReviewsSummary } from './record';
 import { draftName, startedFrom } from './versionsModel';
-import { useVersesHeld } from './versionParts';
+import { useVersesHeld } from './useVerses';
 
 export function VersionsPage(props: {
   ctx: Ctx; v: PassageView; canRecord: boolean;

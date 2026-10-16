@@ -5,11 +5,12 @@
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
-import { useHelpSpot } from '../helpMode/helpContext';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { Ico, PrimaryBtn, txt } from '../ui/kit';
+import { Ico, PrimaryBtn } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { C, onColor, radius, space, target, type as T } from '../ui/theme';
 
 /**

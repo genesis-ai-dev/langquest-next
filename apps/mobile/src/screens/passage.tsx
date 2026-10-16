@@ -7,7 +7,8 @@
 // Everything shown is derived from the event log
 // (core derivePassage and friends); every change is a core command through
 // ctx.act, with Undo where the demo offers it.
-import { EarlierNote, EarlierSections, isEarlierSection } from '../breakup/earlier';
+import { EarlierNote, EarlierSections } from '../breakup/earlier';
+import { isEarlierSection } from '../breakup/earlierSections';
 import { Faces, PeopleLine } from '../checks/parts';
 import { checkName } from '../admin/adminModel';
 import {
@@ -19,7 +20,7 @@ import {
 import * as Crypto from 'expo-crypto';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { useHardwareBack } from '../ui/hardwareBack';
+import { useHardwareBack } from '../ui/useHardwareBack';
 import { Text } from '../ui/text';
 import { AudioClip } from '../audio/audioClip';
 import { commandErrorText, stateLabel, stepName } from '../i18n/coreText';
@@ -27,11 +28,9 @@ import type { Ctx } from '../shell/ctx';
 import { edgeFor, screenTitle, type ScreenId } from '../shell/flow';
 import { t, Trans } from '../i18n';
 import { indexesFor } from '../sync/indexes';
-import {
-  Badge, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, IconBtn, KindIcon, kindIcon, LinkBtn,
-  NoteCard, PrimaryBtn, QuietLinks, ReasonSheet, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, StateMark, txt,
-  type IconName
-} from '../ui/kit';
+import { Badge, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, IconBtn, KindIcon, LinkBtn, NoteCard, PrimaryBtn, QuietLinks, ReasonSheet, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, StateMark, type IconName } from '../ui/kit';
+import { kindIcon } from '../ui/kindIcon';
+import { txt } from '../ui/textStyles';
 import {
   addDays, anchorLabel, askCandidates, channelLabel, currentStepId, describeEntry, dueChoices,
   gridKindIds, guestMessage, heroHeadline, historySummary, isoDay, listenersOf, nextQuestionType, questionTypeLabel,
@@ -49,7 +48,8 @@ import {
   hasWords, keepInput, keepPageInput, noteInput, overrideInput, payloadField, skipInput, undoneText
 } from '../passage/recordInputsModel';
 import { VersionsPage } from '../passage/versions';
-import { useVersesHeld, VersionRecording } from '../passage/versionParts';
+import { VersionRecording } from '../passage/versionParts';
+import { useVersesHeld } from '../passage/useVerses';
 import { pathSteps, teamSteps, type PathStep, type TeamStep } from '../passage/pathModel';
 import {
   askButtonLabel, askForLabel, currentCheck, elseMove, elseOptions, historyAction, historyMove, listenerLabel, listenersLine, mainMove,
@@ -57,25 +57,27 @@ import {
   stepMove, stepSheet, studyLine, studyPathInfo, teamStepsOpen, usualTargets, waitingOnAnswer,
   type ElseOption, type RecordMove, type SheetRow
 } from '../passage/recordModel';
-import { clipSeconds, clock as clockOf } from '../audio/clipPlayer';
-import { useHelpSpot } from '../helpMode/helpContext';
+import { clipSeconds, clock as clockOf } from '../audio/clipTime';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { requestIsMine, sendToInput, teamNameIn } from '../passage/sendTarget';
-import {
-  dueTitle, feedbackSource, outcomeText, passageCrumbs, usePassage, versionTitle, viaText, when, type PassageView
-} from '../passage/passageView';
+import { dueTitle, feedbackSource, outcomeText, passageCrumbs, versionTitle, viaText, when, type PassageView } from '../passage/passageView';
+import { usePassage } from '../passage/usePassage';
 import { PassageOffline, PassageOfflineLine } from '../sync/offline';
 import { noteExpected, reportError } from '../diagnostics/report';
-import { Authored, authoredText, recordTarget, ReportFlag } from '../moderation/reportSheet';
+import { Authored, ReportFlag } from '../moderation/reportSheet';
+import { authoredText, recordTarget } from '../moderation/reportTargets';
 import { UsedLine } from '../sources/used';
 import { contractsFor } from '../shell/screenContracts';
 import { edgeAllowed } from '../shell/session';
-import { useStudyGuide } from '../study/libraryGuides';
+import { useStudyGuide } from '../study/useStudyGuides';
 import { studyProgress, type StudyProgress } from '../study/progress';
-import { StepMark, stepLine } from '../study/ui';
+import { StepMark } from '../study/ui';
+import { stepLine } from '../study/studyText';
 import { flat } from '../ui/shadow';
 import { C, radius, space, TINT, withAlpha } from '../ui/theme';
-import { PersonAvatar, usePerson } from '../ui/UserChip';
+import { PersonAvatar } from '../ui/UserChip';
+import { usePerson } from '../ui/usePerson';
 import { BigVoice } from '../recording/bigVoice';
 import { ClipPlayer } from '../audio/clipPlayer';
 import { VoiceNote } from '../audio/voiceNote';
