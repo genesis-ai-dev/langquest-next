@@ -38,7 +38,8 @@
     "voiceNote": "Catatan suara",
     "addNote": "Tambah catatan",
     "orTypeIt": "Atau ketik",
-    "sayIt": "Ucapkan"
+    "sayIt": "Ucapkan",
+    "deleteAsk": "Hapus {{name}}?"
   },
   "time": {
     "justNow": "Baru saja",
@@ -3555,7 +3556,8 @@
         "studyStepDone": "{{pattern}} langkah {{n, number}} selesai · {{step}}",
         "studyDone": "Langkah studi selesai",
         "keptAfter": "Dipertahankan setelah {{kind}}",
-        "keptAfterFeedback": "Dipertahankan setelah masukan"
+        "keptAfterFeedback": "Dipertahankan setelah masukan",
+        "versionDeleted": "Versi {{n, number}} dihapus"
       },
       "counts": {
         "versions_other": "{{count, number}} versi",
@@ -3962,7 +3964,6 @@
       "newVersion": "Versi baru",
       "yourDraft": "Draf Anda",
       "yourDrafts": "Draf-draf Anda",
-      "noDrafts": "Tidak ada draf. Ubah versi di bawah, atau mulai yang baru.",
       "published": "Diterbitkan",
       "latest": "Terbaru",
       "saved": "Disimpan {{when}}",
@@ -3978,11 +3979,12 @@
       "draft": "Draf",
       "draftN": "Draf {{n, number}}",
       "newVersionHelp": "Memulai versi baru dari awal. Draf-draf Anda tetap ada.",
-      "deleteHelp": "Menghapus draf ini. Urungkan mengembalikannya.",
+      "deleteHelp": "Menghapus draf ini.",
       "editDraftHelp": "Membuka draf ini di perekam, untuk melanjutkan pengerjaannya.",
       "publishHelp": "Membuka draf ini untuk diterbitkan agar tim bisa mendengarnya.",
       "editVersionHelp": "Memulai draf baru dari versi ini. Versi itu sendiri tetap apa adanya.",
-      "partHelp": "Memutar bagian ini saja."
+      "partHelp": "Memutar bagian ini saja.",
+      "deleteVersionHelp": "Menghapus versi ini untuk semua orang. Pemeriksaan yang sudah dilakukan tetap ada di riwayat, tetapi tidak dihitung lagi."
     }
   },
   "work": {
@@ -4532,7 +4534,6 @@
     },
     "recorder": {
       "permissionNeeded": "Izin mikrofon diperlukan.",
-      "dragUp": "{{recorded}} · tarik ke atas untuk melihatnya",
       "hidePartsHelp": "Sembunyikan bagian-bagiannya.",
       "showPartsHelp": "Tampilkan setiap bagian, untuk didengar atau dihapus.",
       "playAllHelp": "Dengarkan semua yang sudah direkam, satu bagian demi satu bagian.",
@@ -4557,7 +4558,18 @@
       "deletePartHelp": "Menghapus bagian ini. Anda bisa mengurungkannya segera sesudahnya.",
       "nextCardHelp": "Bagian yang Anda rekam berikutnya. Ketuk tombol merah untuk mulai.",
       "nextRecordingHelp": "Sedang merekam. Batang yang pekat adalah suara Anda yang disimpan; batang yang samar adalah hening.",
-      "nextPausedHelp": "Dijeda selama Alkitab diputar. Perekaman berlanjut saat Alkitab berhenti."
+      "nextPausedHelp": "Dijeda selama Alkitab diputar. Perekaman berlanjut saat Alkitab berhenti.",
+      "deleteAll": "Hapus semua bagian",
+      "deleteAllHelp": "Menghapus semua bagian, untuk mulai lagi.",
+      "leave": "Selesai",
+      "leaveHelp": "Menghentikan rekaman dan menyimpan semua bagian.",
+      "recordOver": "Rekam ulang {{part}}",
+      "recordOverHelp": "Yang Anda rekam berikutnya menggantikan bagian ini.",
+      "recordInGap": "Rekam {{part}} di sini",
+      "gapHelp": "Yang Anda rekam berikutnya masuk ke celah ini.",
+      "recordAtEnd": "Rekam {{part}} di akhir",
+      "endHelp": "Yang Anda rekam berikutnya masuk di akhir.",
+      "deleteAllAsk": "Hapus semua bagian?"
     },
     "quoted": "“{{text}}”",
     "listening": "Mendengarkan… {{time}}",
@@ -4733,16 +4745,9 @@
     },
     "vad": {
       "recordedFor": "Direkam selama {{time}}",
-      "pausedForSource": "Dijeda selama sumber diputar",
-      "startsAgain": "Perekaman dimulai lagi saat sumber berhenti.",
-      "cutoff": "Batas suara",
-      "pauseBetween": "Jeda di antara bagian",
       "tooShort": "Terlalu pendek untuk disimpan. Jika Anda sedang berbicara, ucapkan lagi.",
-      "statusHelp": "Titik berdenyut: suara Anda sedang disimpan. Angka: berapa banyak sejauh ini. Jam: lama waktu yang direkam.",
       "statusPausedHelp": "Dijeda selama sumber diputar. Angka: berapa banyak sejauh ini. Jam: lama waktu yang direkam.",
-      "resumeHelp": "Menghentikan yang sedang diputar dan lanjut merekam.",
-      "cutoffHelp": "Batang-batang ini adalah apa yang didengar mikrofon. Tarik garisnya: suara di atas garis akan direkam.",
-      "pauseHelp": "Berapa lama jeda untuk mengakhiri sebuah bagian. Langsung berubah."
+      "resumeHelp": "Menghentikan yang sedang diputar dan lanjut merekam."
     },
     "split": {
       "referenceOneLine": "Referensi dalam satu baris",
@@ -4768,7 +4773,6 @@
       "moreOfOne": "{{part}} adalah lanjutan ayat {{verse}}.",
       "moreOfRange": "{{part}} adalah lanjutan ayat {{first}}–{{last}}.",
       "numbered_other": "{{count, number}} bagian diberi nomor.",
-      "leftForLater": "{{verses}} · untuk nanti",
       "follows": "{{part}} mengikuti urutan.",
       "none": "{{part}} belum punya ayat.",
       "giveNext": "Beri {{part}} ayat berikutnya",
@@ -4781,8 +4785,6 @@
       "hintLabelled": "Ketuk untuk memberinya ayat yang sama dengan bagian di atasnya. Tahan untuk memilih.",
       "hintEmpty": "Ketuk untuk memberinya ayat berikutnya. Tahan untuk memilih.",
       "choose": "Pilih ayat",
-      "recordHere": "Rekam di sini",
-      "recordHereHelp": "Rekam ayat yang Anda tinggalkan untuk nanti; ayat itu masuk ke tempatnya.",
       "verseSame": "{{verse}}, sama dengan bagian di atasnya",
       "auto": "Otomatis",
       "noVerse": "Tidak ada",
@@ -6053,14 +6055,13 @@
     "dragDown": "Tarik ke bawah untuk panduan, kata kunci, catatan, dan rekaman sebelumnya",
     "openStudy": "Buka studi",
     "yourRecording": "Rekaman Anda",
-    "tapRed": "Ketuk tombol merah lalu berbicara. Berhenti sejenak di antara bagian: setiap bagian disimpan tersendiri.",
-    "latestParts": "Ini bagian-bagian Versi {{n}}. Rekam bagian baru atau hapus satu bagian untuk menerbitkan versi baru.",
     "clipped": "Bagian-bagian terekam sangat pendek. Kata-kata mungkin terpotong.",
     "micSetup": "Atur mikrofon",
     "micSetupHint": "Sesuaikan cara perangkat mendengar Anda: kepekaan dan jeda.",
     "saveHelp": "Bagian-bagian Anda sudah tersimpan selagi Anda merekam. Ini untuk kembali.",
     "openReferenceHelp": "Mengembalikan referensi ke setengah layar.",
-    "openStudyHelp": "Membuka langkah ini dalam studi lengkap."
+    "openStudyHelp": "Membuka langkah ini dalam studi lengkap.",
+    "partReplaced": "{{part}} direkam ulang."
   },
   "reference": {
     "organization": "Organisasi",

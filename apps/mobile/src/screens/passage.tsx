@@ -12,7 +12,7 @@ import { isEarlierSection } from '../breakup/earlierSections';
 import { Faces, PeopleLine } from '../checks/parts';
 import { checkName } from '../admin/adminModel';
 import {
-  CommandError, checkPeople, commands, draftsBy, questionsForKind, recordTimeline,
+  CommandError, canDeleteVersion, checkPeople, commands, draftsBy, questionsForKind, recordTimeline,
   type Commands, type EventSpec, type FlowStepStatus, type KindState, type KindStatus, type PassageNote, type QuestionSpec, type ReviewView
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -35,13 +35,17 @@ import { PassagePath } from '../passage/path';
 import { askInput, askDoneText, askModel, TEAM, type AskPicks } from '../passage/askModel';
 import {
   answersSummary, changeNoteText, feedbackIsEmpty, gridCell, gridCellLabel, gridColumnName, gridModel, hasFeedback, notesSummary, responseLine,
-  revisedVersion, reviewDetailModel, reviewFor, skippedQuestionText, termLabel, termsTiedSummary, versionDetailModel, versionFor,
+  revisedVersion, reviewDetailModel, reviewFor, skippedQuestionText, termLabel, termsTiedSummary, versionDetailModel, versionFor, versionName,
   type OutcomeTone
 } from '../passage/reviewModel';
 import {
   hasWords, keepInput, keepPageInput, noteInput, overrideInput, payloadField, skipInput, undoneText, undoNote
 } from '../passage/recordInputsModel';
 import { VersionsPage } from '../passage/versions';
+import { deleteVersion } from '../passage/deleteVersion';
+import { ConfirmDelete } from '../ui/ConfirmDelete';
+import { cardDurations } from '../recording/workspaceModel';
+import { mmss, totalMs } from '../recording/model';
 import { VersionRecording } from '../passage/versionParts';
 import { useVersesHeld } from '../passage/useVerses';
 import { pathSteps, teamSteps, type PathStep, type TeamStep } from '../passage/pathModel';
@@ -867,19 +871,42 @@ function HistoryRow(props: { text: EntryText; when: string; last: boolean; trail
 
 // ---- version_detail (REC-9) --------------------------------------------------------------
 
-/** One version: what changed and why, its takes, the key terms tied to it, its reviews and notes. */
+/**
+ * One version: what changed and why, its takes, the key terms tied to it,
+ * its reviews and notes. Its footer edits it into a new draft, and deletes
+ * it while it is the person's latest and nobody has checked it (LAN-83).
+ */
 export function VersionDetail(ctx: Ctx) {
   const v = usePassage(ctx);
   const guide = useStudyGuide(ctx, v?.unitId);
+  // Deleting the version asks first (LAN-83).
+  const [asking, setAsking] = useState(false);
   if (!v) return <Missing ctx={ctx} id="version_detail" />;
   const { p, unitId, languageId } = v;
   const version = versionFor(p, ctx.params['takeId']);
   if (!version) return <Missing ctx={ctx} id="version_detail" crumbsOf={v} text={t('passage.version.nothingRecorded')} />;
   const { title, reviews, prompted, terms, notes } = versionDetailModel(v, version);
+  // A deleted version opens as what it was, with when and by whom it was deleted (LAN-83).
+  const gone = p.deletedVersions.find((x) => x.takeId === version.takeId);
   const key = (part: string) => `version:${unitId}:${languageId}:${version.takeId}:${part}`;
   const params = { unitId, languageId };
+  const canEdit = recordCan(ctx.session).record;
+  const deletable = canEdit && canDeleteVersion(p, version.takeId, ctx.session.actorId);
+  const durations = cardDurations(v.state, unitId);
+  const footer = canEdit ? (
+    <View style={styles.versionFooter}>
+      <View style={{ flex: 1 }}>
+        <PrimaryBtn label={t('common.edit')} icon="edit" help={t('passage.versions.editVersionHelp')} onPress={() => ctx.go('workspace', { ...params, from: version.takeId })} />
+      </View>
+      {deletable ? (
+        <IconBtn name="trash" label={t('passage.versions.delete', { name: title })} help={t('passage.versions.deleteVersionHelp')} bg={TINT.red} color={TINT.redText}
+          onPress={() => setAsking(true)} />
+      ) : null}
+    </View>
+  ) : undefined;
   return (
-    <Screen header={<Header title={title} crumbs={passageCrumbs(ctx, v, title)} sub={`${ctx.name(version.by)} · ${when(version.hlc)}`} onBack={ctx.back}
+    <Screen footer={footer} header={<Header title={title} crumbs={passageCrumbs(ctx, v, title)} onBack={ctx.back}
+      sub={gone ? `${t('passage.record.entry.versionDeleted', { n: version.n })} · ${ctx.name(gone.deleted.by)} · ${when(gone.deleted.hlc)}` : `${ctx.name(version.by)} · ${when(version.hlc)}`}
       action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'version', version.takeId, version.by, unitId)} />} />}>
       <Card>
         <Label text={version.n === 1 ? t('passage.version.note') : t('passage.version.whatChanged')} />
@@ -940,6 +967,10 @@ export function VersionDetail(ctx: Ctx) {
             ))}
           </View>
         </Disclosure>
+      ) : null}
+      {deletable ? (
+        <ConfirmDelete visible={asking} name={title} sub={t('recording.parts.groupSub', { count: version.cardHashes.length, length: mmss(totalMs(version.cardHashes.map((h) => durations.get(h)))) })}
+          onClose={() => setAsking(false)} onConfirm={() => { setAsking(false); deleteVersion(ctx, v, version, ctx.back); }} />
       ) : null}
     </Screen>
   );
@@ -1033,7 +1064,7 @@ export function ReviewDetail(ctx: Ctx) {
           </View>
           <View style={{ marginTop: space.md }}><PersonAvatar look={look(review.by)} size={72} /></View>
           <Text style={[txt.h2, { fontWeight: '800' }]}>{source}</Text>
-          <Text style={txt.smMuted}>{[when(review.hlc), version ? versionTitle(version.n) : ''].filter(Boolean).join(' · ')}</Text>
+          <Text style={txt.smMuted}>{[when(review.hlc), version ? versionName(p, version) : ''].filter(Boolean).join(' · ')}</Text>
         </View>
         <Authored ctx={ctx} by={review.by}>
           <View style={styles.feedbackCard}>
@@ -1337,6 +1368,7 @@ const OUTCOME_TINT: Record<OutcomeTone, { bg: string; fg: string }> = {
 };
 
 const styles = StyleSheet.create({
+  versionFooter: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   amberPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: space.md, paddingVertical: 6, borderRadius: radius.full, backgroundColor: TINT.amber },
   feedbackCard: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: 1, borderColor: TINT.noteBorder, padding: space.lg, gap: space.md },
   tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },

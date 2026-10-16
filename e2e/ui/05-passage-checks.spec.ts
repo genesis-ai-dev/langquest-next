@@ -511,18 +511,20 @@ test('PASS-059 Several drafts of one passage', async ({ browser }) => {
   await expect(header(p)).toHaveText('Versions');
 });
 
-test('PASS-060 Delete a draft, and Undo', async ({ browser }) => {
+test('PASS-060 Delete a draft, asked first', async ({ browser }) => {
   await twoDraftsOnDone();
   const page = await recordAs(browser, world(), 'TRANS', 'P-DONE');
   await versionsPage(page);
+  // A whole draft is never one tap from gone (LAN-83): the sheet asks, and Cancel keeps it.
   await button(page, 'Delete Draft 1').click();
-  await toast(page, 'Draft 1 deleted.');
-  await expect(text(page, 'Your draft')).toBeVisible();
-  await byId(page, 'toast-undo').click();
+  await expect(text(page, 'Delete Draft 1?')).toBeVisible();
+  await button(page, 'Cancel').click();
   await expect(text(page, 'Your drafts')).toBeVisible();
   await button(page, 'Delete Draft 1').click();
+  await expect(text(page, 'Delete Draft 1?')).toBeVisible();
+  await page.getByRole('button', { name: 'Delete Draft 1', exact: true }).locator('visible=true').last().click();
   await toast(page, 'Draft 1 deleted.');
-  await expect(byId(page, 'toast')).toHaveCount(0, { timeout: 15_000 });
+  await expect(byId(page, 'toast-undo')).toHaveCount(0);
   await expect(text(page, 'Your draft')).toBeVisible();
 });
 

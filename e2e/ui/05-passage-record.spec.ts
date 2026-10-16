@@ -338,7 +338,6 @@ test('PASS-058 TRANS The Versions page', async ({ browser }) => {
   await expect(byId(page, 'header-close')).toBeVisible();
   const all = await screenText(page);
   expect(all).toContain(`Versions ${label('P-NEEDS')}`);
-  expect(all).toContain('No drafts. Edit a version below, or start a new one.');
   expect(all).toContain('New version');
   expect(all).toContain('Edit');
   expect(all).toMatch(/Published Version 1 Latest .+ · .+ 3 parts · \d+:\d\d/i);

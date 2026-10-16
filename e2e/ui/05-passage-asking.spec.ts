@@ -223,7 +223,7 @@ test('PASS-038 Ask a person, with directions and a question, and no due date @p0
   expect(listed.toLowerCase()).toContain("they’ll answer");
   expect(listed).toContain("Is the host's anger clear? Yes/No");
   await expect(button(page, 'Remove question')).toBeVisible();
-  // Due dates are gone (decision 124): no By when, no date to type.
+  // Due dates are gone (decision 125): no By when, no date to type.
   expect((await screenText(page)).toLowerCase()).not.toMatch(/by when|\bdue\b/);
   await expect(field(page, /^Or a date, like /)).toHaveCount(0);
   await byId(page, 'primary-action').click();

@@ -417,7 +417,9 @@ export const EDGES: Edge[] = [
   e('cluster_home', 'new_language'),
   e('cluster_home', 'org_home', 'back'),
   e('new_language', 'cluster_home', 'replace'),
-  e('new_language', 'cluster_home', 'back')
+  e('new_language', 'cluster_home', 'back'),
+  // App only: a version's page edits it into a new draft, as the Versions page does (LAN-83)
+  e('version_detail', 'workspace', undefined, 'translator')
 ];
 
 /**

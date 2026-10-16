@@ -419,11 +419,14 @@ export function describeEntry(e: RecordEntry, o: {
         icon: r.withdrawn ? 'undo' : k?.produces ? 'swap' : good ? 'check' : 'chat',
         color: r.withdrawn ? C.muted : k?.produces ? C.primary : good ? C.green : C.amber,
         title: `${kindName(kinds, r.kindId)} · ${outcomeText(k, r.outcome)}`,
-        sub: [source, undone].filter(Boolean).join(' · '),
+        // A check of a version deleted since says so: it counts for nothing (LAN-83).
+        sub: [o.p.deletedVersions.some((v) => v.n === r.versionN) ? t('passage.record.entry.versionDeleted', { n: r.versionN }) : '', source, undone].filter(Boolean).join(' · '),
         who: r.via === 'logged' ? t('passage.record.entry.loggedBy', { name: name(r.by, true) }) : who,
         ...(r.withdrawn ? { struck: true } : {})
       };
     }
+    case 'deleted':
+      return { icon: 'trash', color: C.muted, title: t('passage.record.entry.versionDeleted', { n: e.version.n }), sub: '', who };
     case 'response':
       return { icon: 'edit', color: C.primary, title: t('passage.record.entry.revisedAfter', { kind: kindName(kinds, e.review.kindId) }), sub: said(e.response.note ?? ''), who };
     case 'request': {

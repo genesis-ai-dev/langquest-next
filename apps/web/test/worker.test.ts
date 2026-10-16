@@ -374,7 +374,7 @@ describe('the reports API', () => {
     expect(d.calls).toEqual([['org 1', 'p1', true]]);
   });
 
-  it('tells apps from before decision 124 that nothing is overdue, so their old tile reads 0, not NaN', async () => {
+  it('tells apps from before decision 125 that nothing is overdue, so their old tile reads 0, not NaN', async () => {
     const attention = { feedback: 1, openRequests: 3, atCheckpoint: 0 };
     const rows = [{ languageId: 'l1', report: { attention } as never }];
     const res = await handleApi(get('/api/orgs/o/reports', 'good'), deps({ reports: async () => ({ rows, asOf: body.asOf }) }));
