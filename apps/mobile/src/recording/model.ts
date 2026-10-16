@@ -44,18 +44,6 @@ export function totalMs(lengths: (number | undefined)[]): number | undefined {
   return sum;
 }
 
-/** Below this a part is likely a word cut off rather than something said (ADR-037). */
-export const SHORT_PART_MS = 1200;
-
-/**
- * Takes keep coming out clipped: the last three parts recorded in this
- * session were all very short. The workspace then offers microphone setup.
- */
-export function partsLookClipped(sessionLengths: number[]): boolean {
-  const last = sessionLengths.slice(-3);
-  return last.length === 3 && last.every((ms) => ms < SHORT_PART_MS);
-}
-
 // ---- the reference pane's chips -------------------------------------------------------
 
 export type RefChip = 'bible' | 'guide' | 'terms' | 'notes' | 'earlier';
@@ -124,50 +112,17 @@ export function stepGroups<T extends { phase?: string }>(steps: T[]): { phase: s
   return out;
 }
 
-// ---- microphone setup by ear (ADR-037) ---------------------------------------------------
+// ---- what the microphone heard (LAN-82) -----------------------------------------------------
 
-export interface MicSettings {
-  /** The level a sound must pass to count as speech (0..1, the recorder's cutoff). */
-  threshold: number;
-  /** How long a pause ends a part, in milliseconds. */
-  pauseMs: number;
-}
-
-/** The recorder's own starting point (useRecorder). */
-export const DEFAULT_MIC: MicSettings = { threshold: 0.1, pauseMs: 1000 };
-
-/** The three tries: one sentence, the same sensitivity, a slightly different pause each. */
-export const MIC_TRIES = [
-  { id: 'A', pauseMs: 700 },
-  { id: 'B', pauseMs: 1000 },
-  { id: 'C', pauseMs: 1500 }
-] as const;
-
-/** How long the room is listened to before the tries. */
-export const QUIET_MS = 3000;
-
-/**
- * The sensitivity from a few seconds of the room's noise: a margin above
- * the loud end of the quiet (the 90th percentile of the meter), so the
- * room itself never counts as speech and soft words still do. Bounded like
- * the recorder's own cutoff.
- */
-export function thresholdFromNoise(levels: number[]): number {
-  const clean = levels.filter((x) => Number.isFinite(x) && x >= 0).sort((a, b) => a - b);
-  if (clean.length === 0) return DEFAULT_MIC.threshold;
-  const p90 = clean[Math.min(clean.length - 1, Math.floor(clean.length * 0.9))]!;
-  const t = p90 * 3;
-  return Math.round(Math.min(0.5, Math.max(0.04, t)) * 1000) / 1000;
-}
-
-/** Settings read back from the device: anything missing or out of range falls back. */
-export function parseMicSettings(raw: string | null): MicSettings | null {
+/** What the splitter heard, as kept on the device (mic/heardLevels.ts); null when unreadable or out of range. */
+export interface HeardLevels { room: number; voice: number; pause: number }
+export function parseHeardLevels(raw: string | null): HeardLevels | null {
   if (!raw) return null;
   try {
-    const v = JSON.parse(raw) as Partial<MicSettings>;
-    if (typeof v.threshold !== 'number' || typeof v.pauseMs !== 'number') return null;
-    if (!(v.threshold >= 0.04 && v.threshold <= 0.92) || !(v.pauseMs >= 200 && v.pauseMs <= 5000)) return null;
-    return { threshold: v.threshold, pauseMs: Math.round(v.pauseMs) };
+    const v = JSON.parse(raw) as Partial<HeardLevels>;
+    if (typeof v.room !== 'number' || typeof v.voice !== 'number' || typeof v.pause !== 'number') return null;
+    if (!(v.room >= -60 && v.room <= 0) || !(v.voice >= v.room && v.voice <= 0) || !(v.pause >= 200 && v.pause <= 5000)) return null;
+    return { room: v.room, voice: v.voice, pause: Math.round(v.pause) };
   } catch {
     return null;
   }

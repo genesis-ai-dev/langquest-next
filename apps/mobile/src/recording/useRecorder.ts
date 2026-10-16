@@ -8,13 +8,12 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import MicrophoneEnergy from '../../modules/microphone-energy';
-import { VAD_BASE } from './vadModel';
 import { preferredRecordingType } from '../audio/audioFormat';
 import { getBlobStore } from '../sync/blobs';
 import { t } from '../i18n';
 import { getRecordingJournal } from './recordingJournal';
 import { noteExpected } from '../diagnostics/report';
-import { cachedMicSettings, loadMicSettings, onMicSettings } from '../mic/micSettings';
+import { cachedHeardLevels, keepHeardLevels, loadHeardLevels } from '../mic/heardLevels';
 import type { JournalTarget } from './recordingJournalModel';
 import { storableRecording } from '../web/webAudio';
 import { claimVad, MicrophoneRefused, recorderProblem, vadOwner, activity } from './recorderState';
@@ -44,6 +43,11 @@ const useTakeRecorder: () => ReturnType<typeof useAudioRecorder> | null = WEB ? 
 const TAKE_HEAD_START_MS = 500;
 /** A hold-to-record take shorter than this was a tap, not speech: it is deleted unsaid. */
 const SHORTEST_TAKE_MS = 200;
+/**
+ * Stop is tapped as the last word is said: the take runs on until the voice
+ * falls back to the room, up to this long (LAN-82).
+ */
+const TAKE_TAIL_MAX_MS = 600;
 let keepAwakeTags = 0;
 
 export interface RecordedCard {
@@ -93,16 +97,10 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
   const [vadOn, setVadOn] = useState(false);
   const [vadPaused, setVadPaused] = useState(false);
   const [vadCapturing, setVadCapturing] = useState(false);
-  /** How many voice-detected parts were too short to keep; screens say so each time it grows. */
-  const [tooShort, setTooShort] = useState(0);
   const [manualOn, setManualOn] = useState(false);
   const [error, setError] = useState('');
   const [working, setWorking] = useState(0);
   const [failureCount, setFailureCount] = useState(0);
-  // The settings chosen by ear in microphone setup, when there are any (simple/micSettings.ts).
-  const chosen = cachedMicSettings();
-  const [pauseDuration, setPauseDuration] = useState(chosen?.pauseMs ?? 1000);
-  const [cutoff, setCutoffState] = useState(chosen?.threshold ?? 0.1);
   const mounted = useRef(true);
   const self = useRef(Symbol('recorder')).current;
   const handler = useRef(onCard);
@@ -124,7 +122,8 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
   const vadStopping = useRef<Promise<void> | null>(null);
   const queue = useRef<Promise<void>>(Promise.resolve());
   const failures = useRef<PendingFile[]>([]);
-  const config = useRef({ threshold: chosen?.threshold ?? 0.1, silenceDuration: chosen?.pauseMs ?? 1000 });
+  /** The voice's last level seen, for ending a tapped take once it falls back to the room. */
+  const level = useRef(0);
   const fail = useCallback((stage: RecorderStage, e: unknown, failed: RecorderFailure = null) => {
     const said = recorderProblem(stage, e, failed, languageRef.current);
     if (mounted.current) setError(said);
@@ -189,32 +188,23 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
     return queue.current;
   }, [count, fail, work]);
 
-  const configure = useCallback(async () => {
-    try { await MicrophoneEnergy.configureVAD({ ...VAD_BASE, ...config.current }); }
-    catch (e) { fail('configure', e); }
-  }, [fail]);
-  const setPause = useCallback(async (duration: number) => {
-    config.current.silenceDuration = duration;
-    setPauseDuration(duration);
-    if (vadActive.current) await configure();
-  }, [configure]);
-  const setCutoff = useCallback(async (value: number) => {
-    config.current.threshold = Math.max(0.04, Math.min(0.92, value));
-    setCutoffState(config.current.threshold);
-    if (vadActive.current) await configure();
-  }, [configure]);
-  // Read the device's settings once, and follow them when microphone setup changes them.
-  useEffect(() => {
-    let live = true;
-    const apply = (m: { threshold: number; pauseMs: number } | null) => {
-      if (!live || !m) return;
-      void setCutoff(m.threshold);
-      void setPause(m.pauseMs);
-    };
-    if (cachedMicSettings() === undefined) void loadMicSettings().then(apply);
-    const off = onMicSettings(apply);
-    return () => { live = false; off(); };
-  }, [setCutoff, setPause]);
+  // Parts split by what the microphone hears, the room and the voice (LAN-82): nothing to set.
+  // The device's last levels let a session's first words be judged before it has heard for itself.
+  const vadConfig = useCallback(async () => {
+    const heard = cachedHeardLevels() ?? await loadHeardLevels();
+    return heard ? { heard } : {};
+  }, []);
+
+  /**
+   * After stop is tapped: wait while the voice is still above the room, up to
+   * TAKE_TAIL_MAX_MS, so a word said as the finger lands is kept whole.
+   */
+  const tail = useCallback(async () => {
+    const heard = cachedHeardLevels();
+    const quiet = 10 ** (((heard?.room ?? -50) + 6) / 20);
+    const until = Date.now() + TAKE_TAIL_MAX_MS;
+    while (Date.now() < until && level.current > quiet) await new Promise((r) => setTimeout(r, 50));
+  }, []);
 
   const manualDown = useCallback((): Promise<void> => {
     if (starting.current || stopping.current || active.current ||
@@ -276,6 +266,9 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
       let stage: RecorderStage = 'segment';
       let failed: RecorderFailure = 'stopFail';
       try {
+        // The button shows stopped at once; the file runs on through the last word.
+        if (mounted.current) setManualOn(false);
+        await tail();
         const durationMs = Date.now() - startedAt.current;
         let uri: string | null;
         if (recorder) {
@@ -307,7 +300,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
     stopping.current = stop;
     void stop.finally(() => { stopping.current = null; });
     return stop;
-  }, [count, deliver, fail, recorder, work]);
+  }, [count, deliver, fail, recorder, tail, work]);
 
   const stopVad = useCallback((): Promise<void> => {
     if (vadStopping.current) return vadStopping.current;
@@ -351,11 +344,11 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
     vadPausedRef.current = false;
     if (mounted.current) setVadPaused(false);
     try {
-      await MicrophoneEnergy.configureVAD({ ...VAD_BASE, ...config.current });
+      await MicrophoneEnergy.configureVAD(await vadConfig());
       claimVad(self);
       await MicrophoneEnergy.enableVAD();
     } catch (e) { fail('vad', e); }
-  }, [fail, self]);
+  }, [fail, self, vadConfig]);
 
   const toggleVad = useCallback((): Promise<void> => {
     if (vadActive.current || vadStarting.current) return stopVad();
@@ -371,7 +364,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
         if (!mounted.current) return;
         if (!permission.granted) throw new MicrophoneRefused();
         stage = 'configure';
-        await MicrophoneEnergy.configureVAD({ ...VAD_BASE, ...config.current });
+        await MicrophoneEnergy.configureVAD(await vadConfig());
         stage = 'start';
         await setSessionAudioMode({ allowsRecording: true, playsInSilentMode: true });
         if (!mounted.current) return;
@@ -392,7 +385,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
     })();
     vadStarting.current = start;
     return start;
-  }, [fail, self, stopVad, work]);
+  }, [fail, self, stopVad, vadConfig, work]);
 
   const busy = working > 0;
   useEffect(() => {
@@ -416,13 +409,15 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
       // Every recorder hears it; only the one whose session it is counts it.
       MicrophoneEnergy.addListener('onError', (e) => fail('native', new Error(e.message), vadOwner === self ? 'native' : null)),
       MicrophoneEnergy.addListener('onSegmentStart', () => { if (vadOwner === self) setVadCapturing(true); }),
+      MicrophoneEnergy.addListener('onEnergyResult', (e) => { level.current = e.energy; }),
       MicrophoneEnergy.addListener('onSegmentComplete', (e) => {
+        if (e.heard) keepHeardLevels(e.heard);
         // A hold-to-record take is delivered by manualUp, not here.
         if (vadOwner !== self || manualSegment.current) return;
         setVadCapturing(false);
         if (e.uri) void deliver({ id: Crypto.randomUUID(), uri: e.uri, format: 'wav', durationMs: e.duration });
-        // Too little voice to be speech: the module deleted it. Say so (decisions.md 106).
-        else if (vadActive.current && mounted.current) { setTooShort((n) => n + 1); count('tooShort'); }
+        // An empty uri was a tap or a bump, not speech (splitter.ts): nothing said is lost, so nothing is said; it is still counted.
+        else if (vadActive.current && mounted.current) count('tooShort');
       })
     ];
     // A phone stops recording when the app leaves the screen. A browser tab
@@ -470,22 +465,10 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
   }, [recording]);
 
   return {
-    vadOn, vadPaused, vadCapturing, manualOn, error, pauseDuration, cutoff, tooShort,
+    vadOn, vadPaused, vadCapturing, manualOn, error,
     busy, failureCount, retryFailed,
-    toggleVad, stopVad, pauseVad, resumeVad, setPause, setCutoff, manualDown, manualUp
+    toggleVad, stopVad, pauseVad, resumeVad, manualDown, manualUp
   };
-}
-
-/** Calls `said` each time the recorder's count of too-short parts grows (decisions.md 106). */
-export function useOnTooShort(count: number, said: () => void): void {
-  const seen = useRef(count);
-  const latest = useRef(said);
-  latest.current = said;
-  useEffect(() => {
-    if (count === seen.current) return;
-    seen.current = count;
-    latest.current();
-  }, [count]);
 }
 
 /**

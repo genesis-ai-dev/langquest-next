@@ -20,6 +20,7 @@ import kotlin.math.pow
 
 /** Samples per frame: the iOS tap's size, and what vadCore.ts assumes. */
 private const val FRAME_SAMPLES = 2048
+private const val FRAME_MS = FRAME_SAMPLES * 1000.0 / 44100
 
 class MicrophoneEnergyModule : Module() {
   private var audioRecord: AudioRecord? = null
@@ -35,7 +36,8 @@ class MicrophoneEnergyModule : Module() {
   
   private data class RingBufferEntry(val buffer: ShortArray, val timestamp: Long)
   private val ringBuffer = ArrayDeque<RingBufferEntry>()
-  private val ringBufferMaxSize = 10
+  /** Long enough for a part's head to reach back as far as the splitter lets it. */
+  private val ringBufferMaxSize = kotlin.math.ceil((Splitter.MAX_HEAD_MS + Splitter.HEAD_MARGIN_MS) / FRAME_MS).toInt() + 2
   
   private var isRecordingSegment = false
   private var segmentStartTime: Long = 0
@@ -45,22 +47,12 @@ class MicrophoneEnergyModule : Module() {
   private var segmentWriter: SegmentWriter? = null
   
   private var vadEnabled = false
-  private var vadThreshold = 0.05f
-  private var vadOnsetMultiplier = 0.1f
-  private var vadMaxOnsetDuration = 250
-  private var vadSilenceDuration = 300
-  private var vadMinSegmentDuration = 500
-  private var vadRewindHalfPause = true
-  private var vadMinActiveAudioDuration = 250  // Discard clips with less active audio than this
-  private var vadSustainMultiplier = 0.5f     // An open part keeps going above this share of the threshold
-  
-  private var vadState = "IDLE"
-  private var preOnsetCutPoint: Long = 0
-  private var lockedOnsetTime: Long = 0
-  private var lastAboveThresholdTime: Long = 0
-  private var recordingStartTime: Long = 0
-  private var activeAudioTime: Long = 0  // Cumulative time above threshold during recording
-  private var lastFrameTime: Long = 0    // For calculating delta time
+  /** Where parts split (Splitter.kt, LAN-82): it learns the room and the voice, and needs no setting. */
+  private var splitter: Splitter? = null
+  /** What this device heard last time, until a session's splitter hears for itself. */
+  private var remembered: Splitter.Heard? = null
+  /** The splitter's clock: frames heard, as time. */
+  private var clockMs = 0.0
 
   override fun definition() = ModuleDefinition {
     Name("MicrophoneEnergy")
@@ -94,7 +86,6 @@ class MicrophoneEnergyModule : Module() {
     if (isActive) stopEnergyDetectionInternal()
     synchronized(ringBuffer) { ringBuffer.clear() }
     segmentWriter?.discard(); segmentWriter = null; isRecordingSegment = false
-    activeAudioTime = 0; lastFrameTime = 0
     try {
       val channelConfig = AudioFormat.CHANNEL_IN_MONO
       val audioFormat = AudioFormat.ENCODING_PCM_16BIT
@@ -154,7 +145,7 @@ class MicrophoneEnergyModule : Module() {
     synchronized(configLock) {
       isActive = false
       vadEnabled = false
-      vadState = "IDLE"
+      splitter?.let { remembered = it.remember(); it.pauseListening() }
     }
     recordingScope?.cancel()
     recordingScope = null
@@ -163,28 +154,31 @@ class MicrophoneEnergyModule : Module() {
     audioRecord = null
   }
   
+  /** Only what the device heard last time is read; the old detector's settings are ignored (LAN-82). */
   private fun configureVAD(config: Map<String, Any?>) = synchronized(configLock) {
-    (config["threshold"] as? Number)?.let { vadThreshold = it.toFloat() }
-    (config["silenceDuration"] as? Number)?.let { vadSilenceDuration = it.toInt() }
-    (config["minSegmentDuration"] as? Number)?.let { vadMinSegmentDuration = it.toInt() }
-    (config["onsetMultiplier"] as? Number)?.let { vadOnsetMultiplier = it.toFloat() }
-    (config["maxOnsetDuration"] as? Number)?.let { vadMaxOnsetDuration = it.toInt() }
-    (config["rewindHalfPause"] as? Boolean)?.let { vadRewindHalfPause = it }
-    (config["minActiveAudioDuration"] as? Number)?.let { vadMinActiveAudioDuration = it.toInt() }
-    (config["sustainMultiplier"] as? Number)?.let { vadSustainMultiplier = it.toFloat() }
+    @Suppress("UNCHECKED_CAST")
+    val heard = config["heard"] as? Map<String, Any?> ?: return@synchronized
+    val room = (heard["room"] as? Number)?.toDouble()
+    val voice = (heard["voice"] as? Number)?.toDouble()
+    val pause = (heard["pause"] as? Number)?.toDouble()
+    if (room != null && voice != null && pause != null) remembered = Splitter.Heard(room, voice, pause)
   }
-  
+
   private fun enableVAD() {
     synchronized(configLock) {
-      vadEnabled = true; vadState = "IDLE"; preOnsetCutPoint = 0; lockedOnsetTime = 0; lastAboveThresholdTime = 0
-      activeAudioTime = 0; lastFrameTime = 0
+      vadEnabled = true
+      val sp = splitter ?: Splitter(FRAME_MS, remembered).also { splitter = it }
+      sp.pauseListening()
       // What the microphone heard while the detector was off (a source playing) never heads a part.
       synchronized(ringBuffer) { ringBuffer.clear() }
     }
   }
-  
+
   private fun disableVAD(done: () -> Unit) {
-    synchronized(configLock) { vadEnabled = false; vadState = "IDLE" }
+    synchronized(configLock) {
+      vadEnabled = false
+      splitter?.let { remembered = it.remember(); it.pauseListening() }
+    }
     awaitWrites { finishStoppedSegment(done) }
   }
 
@@ -208,6 +202,7 @@ class MicrophoneEnergyModule : Module() {
     val db = 20.0 * log10(max(peakAmplitude, 1e-10))
     val clampedDb = max(-60.0, kotlin.math.min(0.0, db))
     val normalizedAmplitude = 10.0.pow(clampedDb / 20.0).toFloat()
+    var quiet: Double? = null
 
     synchronized(configLock) {
       if (!isActive) return
@@ -215,82 +210,51 @@ class MicrophoneEnergyModule : Module() {
         ringBuffer.addLast(RingBufferEntry(dataCopy, now))
         if (ringBuffer.size > ringBufferMaxSize) ringBuffer.removeFirst()
       }
-      if (isRecordingSegment) {
-        val keep = if (vadRewindHalfPause) sampleRate * vadSilenceDuration / 2000 else 0
-        segmentWriter?.append(dataCopy, keep)
+      // The open part keeps the last pause's worth in memory, so its tail can still be trimmed.
+      if (isRecordingSegment) segmentWriter?.append(dataCopy, (sampleRate * Splitter.MAX_PAUSE_MS / 1000).toInt())
+      clockMs += bytesRead * 1000.0 / sampleRate
+      val sp = splitter
+      if (vadEnabled && sp != null) {
+        handleSplit(sp, sp.step(normalizedAmplitude.toDouble(), clockMs))
+        quiet = sp.levels().quiet
       }
-      if (vadEnabled) handleVAD(normalizedAmplitude, now)
     }
-    main.post { sendEvent("onEnergyResult", mapOf("energy" to normalizedAmplitude.toDouble(), "timestamp" to now.toDouble())) }
-  }
-  
-  private fun handleVAD(rawPeak: Float, now: Long) {
-    synchronized(configLock) { handleVADLocked(rawPeak, now) }
+    val q = quiet
+    main.post {
+      sendEvent("onEnergyResult", if (q != null) mapOf("energy" to normalizedAmplitude.toDouble(), "timestamp" to now.toDouble(), "quiet" to q)
+        else mapOf("energy" to normalizedAmplitude.toDouble(), "timestamp" to now.toDouble()))
+    }
   }
 
-  private fun handleVADLocked(rawPeak: Float, now: Long) {
-    if (!vadEnabled || !isActive) return
-    val onsetThreshold = vadThreshold * vadOnsetMultiplier
-    if (rawPeak > vadThreshold) lastAboveThresholdTime = now
-    
-    when (vadState) {
-      "IDLE" -> {
-        preOnsetCutPoint = max(0, now - vadMaxOnsetDuration)
-        if (rawPeak > onsetThreshold) {
-          vadState = "ONSET_PENDING"; lockedOnsetTime = preOnsetCutPoint
-          if (rawPeak > vadThreshold) confirmAndStartRecording(now)
+  /** Called with configLock held: start or end a part as the splitter says. */
+  private fun handleSplit(sp: Splitter, action: Splitter.Action?) {
+    when (action) {
+      is Splitter.Action.Start -> {
+        sendEvent("onSegmentStart", mapOf("headMs" to action.headFrames * FRAME_MS))
+        val p = object : Promise { override fun resolve(value: Any?) {}; override fun reject(code: String?, message: String?, cause: Throwable?) {} }
+        startSegmentFrames(action.headFrames, p)
+      }
+      is Splitter.Action.Stop -> {
+        if (!isRecordingSegment) return
+        isRecordingSegment = false
+        val writer = segmentWriter
+        segmentWriter = null
+        remembered = sp.remember()
+        if (action.discard) {
+          // A tap or a bump, not speech: nothing said is lost.
+          writer?.discard()
+          sendEvent("onSegmentComplete", mapOf("uri" to "", "duration" to 0.0, "heard" to heardMap()))
+          return
         }
+        val endTime = System.currentTimeMillis() - action.trimMs
+        finishSegment(writer, segmentStartTime, endTime, sampleRate * action.trimMs / 1000)
       }
-      "ONSET_PENDING" -> {
-        if (now - lockedOnsetTime > vadMaxOnsetDuration) lockedOnsetTime = now - vadMaxOnsetDuration
-        when { rawPeak > vadThreshold -> confirmAndStartRecording(now); rawPeak <= onsetThreshold -> vadState = "IDLE" }
-      }
-      "RECORDING" -> {
-        // An open part keeps going while the voice stays above the sustain
-        // level (decisions.md 106): a soft stretch is speech, not a pause.
-        val deltaMs = now - lastFrameTime
-        if (rawPeak > vadThreshold * vadSustainMultiplier) {
-          lastAboveThresholdTime = now
-          activeAudioTime += deltaMs
-        }
-        lastFrameTime = now
-        
-        val silenceMs = now - lastAboveThresholdTime
-        val durationMs = now - recordingStartTime
-        if (silenceMs >= vadSilenceDuration && durationMs >= vadMinSegmentDuration) stopRecordingAsync()
-      }
+      null -> {}
     }
   }
-  
-  private fun confirmAndStartRecording(now: Long) {
-    vadState = "RECORDING"; lastAboveThresholdTime = now; recordingStartTime = now
-    activeAudioTime = 0; lastFrameTime = now  // Reset active audio tracking
-    sendEvent("onSegmentStart", emptyMap<String, Any>())
-    val prerollMs = (now - lockedOnsetTime).toInt()
-    val p = object : Promise { override fun resolve(value: Any?) {}; override fun reject(code: String?, message: String?, cause: Throwable?) {} }
-    startSegment(mapOf("prerollMs" to prerollMs), p)
-  }
-  
-  private fun stopRecordingAsync() {
-    if (!isRecordingSegment) return
-    isRecordingSegment = false; vadState = "IDLE"
-    val writer = segmentWriter
-    segmentWriter = null
-    
-    // Check if enough active audio - discard transients/short sounds
-    if (activeAudioTime < vadMinActiveAudioDuration) {
-      println("VAD: Discarding segment - only ${activeAudioTime}ms of active audio (min: ${vadMinActiveAudioDuration}ms)")
-      writer?.discard()
-      // Emit empty URI to notify JS that recording stopped but was discarded
-      sendEvent("onSegmentComplete", mapOf("uri" to "", "duration" to 0.0))
-      return
-    }
-    
-    val rewindMs = if (vadRewindHalfPause) vadSilenceDuration / 2 else 0
-    val endTime = System.currentTimeMillis() - rewindMs
-    finishSegment(writer, segmentStartTime, endTime, sampleRate * rewindMs / 1000)
-  }
-  
+
+  private fun heardMap(): Map<String, Double> = remembered?.let { mapOf("room" to it.room, "voice" to it.voice, "pause" to it.pause) } ?: emptyMap()
+
   /** Completes the file off the audio thread. Every failure reaches JS as onError. */
   private fun finishSegment(writer: SegmentWriter?, startTime: Long, endTime: Long, trimSamples: Int) {
     if (writer == null) return
@@ -299,7 +263,7 @@ class MicrophoneEnergyModule : Module() {
       try {
         writer.finish(trimSamples)
         withContext(Dispatchers.Main) {
-          sendEvent("onSegmentComplete", mapOf("uri" to writer.uri, "startTime" to startTime.toDouble(), "endTime" to endTime.toDouble(), "duration" to (endTime - startTime).toDouble()))
+          sendEvent("onSegmentComplete", mapOf("uri" to writer.uri, "startTime" to startTime.toDouble(), "endTime" to endTime.toDouble(), "duration" to writer.durationMs, "heard" to heardMap()))
         }
       } catch (e: Exception) {
         withContext(Dispatchers.Main) {
@@ -309,29 +273,32 @@ class MicrophoneEnergyModule : Module() {
     }
   }
 
+  /** A hold-to-record take: starts with up to `prerollMs` of what the microphone already heard. */
   private fun startSegment(options: Map<String, Any?>?, promise: Promise) {
-    synchronized(configLock) {
-      if (!isActive) { promise.reject("NOT_ACTIVE", "Energy detection not active", null); return }
-      if (isRecordingSegment) { promise.resolve(null); return }
-      try {
-        val prerollMs = (options?.get("prerollMs") as? Number)?.toInt() ?: 200
-        val context = appContext.reactContext ?: throw Exception("Context not available")
-        // filesDir survives restarts, unlike cacheDir, so JS can resume an
-        // interrupted save from its journal.
-        val dir = java.io.File(context.filesDir, "recording-staging").also { it.mkdirs() }
-        val writer = SegmentWriter(java.io.File(dir, "segment_${java.util.UUID.randomUUID()}.wav"), sampleRate)
-        segmentStartTime = System.currentTimeMillis()
-        synchronized(ringBuffer) {
-          val maxPrerollBuffers = (prerollMs / (FRAME_SAMPLES / (sampleRate / 1000.0))).toInt()
-          val buffersToWrite = kotlin.math.min(ringBuffer.size, maxPrerollBuffers)
-          for (entry in ringBuffer.takeLast(buffersToWrite)) writer.append(entry.buffer, 0)
-        }
-        segmentWriter = writer
-        isRecordingSegment = true; promise.resolve(null)
-      } catch (e: Exception) {
-        promise.reject("START_SEGMENT_ERROR", "Failed to start segment", e)
-        isRecordingSegment = false; segmentWriter = null
+    val prerollMs = (options?.get("prerollMs") as? Number)?.toDouble() ?: 200.0
+    synchronized(configLock) { startSegmentFrames((prerollMs / FRAME_MS).toInt(), promise) }
+  }
+
+  /** Called with configLock held: open a part's file with the last `headFrames` frames of the ring. */
+  private fun startSegmentFrames(headFrames: Int, promise: Promise) {
+    if (!isActive) { promise.reject("NOT_ACTIVE", "Energy detection not active", null); return }
+    if (isRecordingSegment) { promise.resolve(null); return }
+    try {
+      val context = appContext.reactContext ?: throw Exception("Context not available")
+      // filesDir survives restarts, unlike cacheDir, so JS can resume an
+      // interrupted save from its journal.
+      val dir = java.io.File(context.filesDir, "recording-staging").also { it.mkdirs() }
+      val writer = SegmentWriter(java.io.File(dir, "segment_${java.util.UUID.randomUUID()}.wav"), sampleRate)
+      segmentStartTime = System.currentTimeMillis()
+      synchronized(ringBuffer) {
+        val buffersToWrite = kotlin.math.min(ringBuffer.size, headFrames)
+        for (entry in ringBuffer.takeLast(buffersToWrite)) writer.append(entry.buffer, 0)
       }
+      segmentWriter = writer
+      isRecordingSegment = true; promise.resolve(null)
+    } catch (e: Exception) {
+      promise.reject("START_SEGMENT_ERROR", "Failed to start segment", e)
+      isRecordingSegment = false; segmentWriter = null
     }
   }
 
@@ -339,7 +306,8 @@ class MicrophoneEnergyModule : Module() {
   private fun stopSegment(promise: Promise) {
     synchronized(configLock) {
       if (!isRecordingSegment) { promise.resolve(null); return }
-      isRecordingSegment = false; vadState = "IDLE"
+      isRecordingSegment = false
+      splitter?.pauseListening()
       val writer = segmentWriter
       segmentWriter = null
       finishSegment(writer, segmentStartTime, System.currentTimeMillis(), 0)
@@ -362,6 +330,8 @@ class SegmentWriter(val file: java.io.File, private val sampleRate: Int) {
   private var failure: Exception? = null
   private var closed = false
   val uri: String get() = "file://${file.absolutePath}"
+  /** The finished file's length: head, voice and tail. */
+  val durationMs: Double get() = samplesWritten * 1000.0 / sampleRate
 
   init {
     out.setLength(0)
