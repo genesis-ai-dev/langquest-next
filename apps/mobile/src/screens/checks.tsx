@@ -199,7 +199,7 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
   const checkers = rows.filter((r, j) => j !== i && !kindOf(state, r.kindId).produces);
   const checkedByName = kind.produces ? checkName(kind.produces.checkedBy, known) : '';
 
-  // A step that makes something (decisions.md 131): what it turns, into what, in which language, and what happens to it.
+  // A step that makes something (decisions.md 133): what it turns, into what, in which language, and what happens to it.
   const makes = kind.makes;
   const reference = teamLanguage(ctx.org.state, state, languageId);
   const setMakes = (next: MakesSpec) => {
@@ -210,7 +210,7 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
       before ? () => { const now = ctx.language.state; return now ? commands(now, indexesFor(now)).setStepMakes({ commandId: Crypto.randomUUID(), kindId, makes: before }) : []; } : undefined)
       .catch(() => {});
   };
-  // Words added here, before a step that makes the next version, stay with the older version (decision 131).
+  // Words added here, before a step that makes the next version, stay with the older version (decision 133).
   const laterVersion = makes?.result === 'added' ? rows.slice(i + 1).map((r) => known.find((k) => k.id === r.kindId)).find((k) => k?.makes?.result === 'version') : undefined;
   // A check may read what an earlier step made instead of the version (a spelling check of what was written down).
   const makersBefore = rows.slice(0, i).map((r) => known.find((k) => k.id === r.kindId)).filter((k): k is KindDef => !!k?.makes);

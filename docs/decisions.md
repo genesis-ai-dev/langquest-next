@@ -4226,7 +4226,7 @@ with no change to the events.
 
 ## 109. A listening app keeps playing the approved version, hears changes by webhook, and the team sees its listeners on the passage
 
-Date: 2026-10-14 · By: Ryder Wishart · Status: accepted
+Date: 2026-10-14 · By: Ryder Wishart · Status: partly superseded by 131
 
 Reason: Ryder asked for the whole EveryBible loop for a stakeholder demo:
 a recorded passage goes out for review, reviewers hear it in EveryBible,
@@ -4999,7 +4999,75 @@ organization or cluster; then they move to the organization's
 recommendations level (decision 62) with the language's register on top,
 with no change to what a step reads.
 
-## 131. A passage may be written as well as recorded, and a step can turn either into either, in any language
+## 131. For its prototype, EveryBible holds LangQuest tokens on the phone: a reviewer's code is a review token, and listeners hear approved versions
+
+Date: 2026-10-16 · By: Ryder Wishart · Status: accepted
+
+Reason: Ryder wants the Every Language organization linked to EveryBible,
+its review and listening app, with no bridge between them, while it is a
+prototype. Partly supersedes 109's listening side: EveryBible no longer
+goes through its bridge Worker.
+- **A reviewer's code is a token.** An Every Language admin makes a token
+  with `read` and `review` at `/connect` and shares it with reviewers. The
+  phone checks it with `/me` (it must read drafts and review in some
+  language), keeps it in the keychain and calls `/api/v1` itself. Revoking
+  the token on `/connect` closes it for everyone who holds it. This departs
+  from `docs/agent-api.md` ("`review` … tokens belong on a server") on
+  purpose: anyone who holds the code can record listener reviews and, where
+  a step takes links, reviews that count, as the admin who made it. That is
+  acceptable while the code goes only to known reviewers.
+- **Listeners use the app's own `read:published` token**, which the docs
+  allow in an app: it hears approved versions only. Approved in LangQuest is
+  published in EveryBible; no studio step. That token cannot write, so a
+  listener without a code cannot send feedback; feedback after approval
+  comes from phones with a reviewer code.
+- **Freshness without webhooks.** A reviewer's phone reads each language's
+  change feed every 4 s while the screen is open and then only the passages
+  it names; a listener's token cannot read the feed, so it asks for passages
+  changed since its newest `updatedAt` every 30 s, which folds the whole
+  language list on LangQuest's side.
+- `server/listeningDemo.ts` answers `/me` as LangQuest does and adds a
+  `read:published` token (`.listening-demo/listener-token`) for testing.
+Reverse if: codes reach people the team does not know, or listeners
+without a code must send feedback (then a server holds the review token, as
+109's bridge did, or LangQuest issues per-reviewer tokens by the device
+flow); or listener polling shows up in LangQuest's load (then a cheaper
+published change feed).
+
+## 132. An organization's Durable Object keeps under half its isolate, folds languages of unknown size one at a time, and a capped-heap test holds it there
+
+Date: 2026-10-16 · By: Ryder Wishart · Status: accepted
+
+Reason: on 2026-10-16 `/connect` answered 502 for people in a large
+organization. The Worker log said "Durable Object's isolate exceeded its
+memory limit and was reset": answering `session/orgs` asks each of the
+person's organizations for their access, which on a cold object folds
+every language, and one object went past Cloudflare's 128 MB. Two things
+let it: the folder kept 40 MB of folds (`STATE_BUDGET_BYTES`, PR #150), and
+a parsed fold takes about 1.8 times its serialized size, so a full budget
+held about 72 MB before any request's own work; and a language with no
+recorded size (a cold object, or a summary written before sizes were
+recorded) counted as small, so four large languages were folded at once.
+- `STATE_BUDGET_BYTES` is 12 MB (about 22 MB once parsed), and a language
+  of unknown size is folded alone (`isLarge`). Once its summary records a
+  size, small languages run four at a time again.
+- `apps/web/test/memory/orgFolderMemory.test.ts` runs the real `OrgFolder`
+  over two large organizations (twelve languages of about 5 MB of fold,
+  and six of about 12 MB) in a Node heap capped at 112 MB, below the
+  isolate's 128 MB for what it spends outside V8's old space. Events come
+  a page at a time and folds are saved to disk, as Postgres and SQLite do
+  in production, so the heap holds only what the folder keeps. It fails if
+  the folder runs out of memory or keeps 48 MB or more between requests.
+  It runs in `npm test`, so in the checks job on every pull request. With
+  the 40 MB budget and parallel unknowns it fails both ways.
+- Memory is now a property tests hold, like order-independence (102's
+  lowest layer that can hold the check: a unit test with a capped heap,
+  not a deployed canary).
+Reverse if: Cloudflare raises the isolate limit, folds move out of the
+heap (then the budget can grow), or production shows an organization the
+test's shapes do not cover (then add that shape to the test).
+
+## 133. A passage may be written as well as recorded, and a step can turn either into either, in any language
 
 Date: 2026-10-16 · By: Caleb Koster · Status: accepted
 

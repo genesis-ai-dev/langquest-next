@@ -296,7 +296,9 @@ describe('OrgFolder memory limits (V4)', () => {
     const cache = new MemoryCache();
     const first = counting(log);
     await new OrgFolder(first.source, ORG, cache, () => at).reportsFor('admin');
-    expect(first.seen.max).toBe(2); // no size known yet: both are small
+    // No size known yet: each runs alone, since four large languages folded at
+    // once ran an organization's object out of memory (test/memory).
+    expect(first.seen.max).toBe(1);
     // The next day every language is refolded; with a tiny threshold both are large.
     const large = counting(log);
     await new OrgFolder(large.source, ORG, cache, () => at + 86_400_000, undefined, { largeStateBytes: 1 }).reportsFor('admin');
