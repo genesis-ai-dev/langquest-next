@@ -194,6 +194,9 @@ export async function recordAndPublish(page: Page, world: UiWorld, key: PassageK
   await expect.poll(count, { timeout: 8_000 + parts * 6_000, message: `${parts} new parts` }).toBeGreaterThanOrEqual(before + parts);
   await rec.click();
   await expect(rec).toHaveAttribute('aria-label', 'Record');
+  // Stopped, the session is still open (decision 129): the recording view's Done keeps its parts.
+  await button(page, 'Done').click();
+  await expect(page.getByText('Stopped', { exact: true }).locator('visible=true')).toHaveCount(0);
   await byId(page, 'publish-button').click();
   await button(page, 'Send later').or(button(page, /^Finish Version \d+$/)).first().click();
   await expect(byId(page, 'toast')).toContainText(/^Version \d+ published\./);

@@ -44,6 +44,24 @@ describe('recording journal', () => {
     expect(calls.append).toEqual(['rec-1']);
   });
 
+  it('cuts a session part from its chunk first, as its box last stood, then saves it as any take (LAN-82)', async () => {
+    const cuts: string[] = [];
+    const { d, calls } = deps({ cut: async (uri, from, to) => { cuts.push(`${uri}@${from}-${to}`); return 'file:///staging/part.wav'; } });
+    const r = await resumeEntries([entry({ uri: 'file:///staging/chunk.wav', range: { fromMs: 2000, toMs: 5200 } })], target, d);
+    expect(r.resumed).toEqual(['rec-1']);
+    expect(cuts).toEqual(['file:///staging/chunk.wav@2000-5200']);
+    expect(calls.saved[0]).toMatchObject({ uri: 'file:///staging/part.wav', stage: 'recorded' });
+    expect(calls.saved[0]).not.toHaveProperty('range');
+    expect(calls.ingest).toEqual(['file:///staging/part.wav']);
+  });
+
+  it('keeps a session part it cannot cut for a later pass', async () => {
+    const { d, calls } = deps();
+    const r = await resumeEntries([entry({ range: { fromMs: 0, toMs: 900 } })], target, d);
+    expect(r.failed[0]?.id).toBe('rec-1');
+    expect(calls.ingest).toEqual([]);
+  });
+
   it('is idempotent: an entry whose event already reached the fold appends nothing again', async () => {
     const { d, calls } = deps({ hasRecording: (id) => id === 'rec-1' });
     const r = await resumeEntries([entry({ stage: 'ingested', hash: 'h' })], target, d);

@@ -101,20 +101,27 @@ export function rememberSplit(key: string, fraction: number): void {
 /**
  * Where a recording session stands. `listening`: the person pressed play
  * on the source while recording, so the microphone is paused; recording
- * resumes when the source pauses or ends. Derived from the recorder's own
- * state and one flag, so a recorder that stops by itself (the app went to
- * the background, an error) ends the session rather than leaving it stuck.
+ * resumes when the source pauses or ends. `stopped`: recording stopped and
+ * the session is still open, its parts boxes to hear, move or drop until it
+ * is left (LAN-82). Derived from the recorder's own state and one flag, so a
+ * recorder that stops by itself (the app went to the background, an error)
+ * stops the session rather than leaving it stuck.
  */
-export type LoopPhase = 'off' | 'recording' | 'listening';
+export type LoopPhase = 'off' | 'recording' | 'listening' | 'stopped';
 
 /**
  * The session's phase. The microphone stays on while the source plays
- * (decisions.md 106), so a session is on exactly while the recorder is, and
- * listening while the source has it paused.
+ * (decisions.md 106), so a session records exactly while the recorder is
+ * on, and listens while the source has it paused.
  */
-export function loopPhase(vadOn: boolean, listening: boolean): LoopPhase {
-  if (!vadOn) return 'off';
+export function loopPhase(vadOn: boolean, listening: boolean, open = false): LoopPhase {
+  if (!vadOn) return open ? 'stopped' : 'off';
   return listening ? 'listening' : 'recording';
+}
+
+/** The microphone is on for the session: recording, or paused while the source plays. */
+export function loopRecording(phase: LoopPhase): boolean {
+  return phase === 'recording' || phase === 'listening';
 }
 
 /** What a session's recordings are called where it counts them. */

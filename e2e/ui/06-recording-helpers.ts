@@ -163,6 +163,20 @@ export async function expectIdle(page: Page): Promise<void> {
   await expect(recordButton(page)).not.toHaveAttribute('aria-disabled', 'true');
 }
 
+/** Stop recording (LAN-82): the session stays open, its parts boxes to hear, move or drop until Done. */
+export async function stopRecording(page: Page): Promise<void> {
+  await recordButton(page).click();
+  await expect(text(page, 'Stopped')).toBeVisible();
+  await expect(recordButton(page)).toHaveAttribute('aria-label', 'Record');
+}
+
+/** Leave the recording session: Done stops recording if it still is, and keeps every part as its box stands; only then are they saved. */
+export async function leaveSession(page: Page): Promise<void> {
+  await button(page, 'Done').click();
+  await expect(text(page, 'Stopped')).toHaveCount(0);
+  await expectIdle(page);
+}
+
 /**
  * Record with the voice file until the card counts `more` new parts, then
  * stop in the quiet after the last one (the file speaks again 1.5 s later).
@@ -172,8 +186,8 @@ export async function recordParts(page: Page, more: number): Promise<void> {
   await recordButton(page).click();
   await expect(recordButton(page)).toHaveAttribute('aria-label', 'Stop recording');
   await expectParts(page, before + more, 8_000 + more * 6_000);
-  await recordButton(page).click();
-  await expectIdle(page);
+  await stopRecording(page);
+  await leaveSession(page);
   await expectParts(page, before + more);
 }
 
@@ -189,8 +203,8 @@ export async function recordSaid(page: Page, lengths: number[]): Promise<void> {
     await say(page, ms, 0);
     await expectParts(page, before + i + 1, 10_000);
   }
-  await recordButton(page).click();
-  await expectIdle(page);
+  await stopRecording(page);
+  await leaveSession(page);
   await expectParts(page, before + lengths.length);
   await m.mode('file');
 }

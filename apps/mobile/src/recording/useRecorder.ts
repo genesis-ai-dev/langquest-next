@@ -11,7 +11,10 @@ import MicrophoneEnergy from '../../modules/microphone-energy';
 import { preferredRecordingType } from '../audio/audioFormat';
 import { getBlobStore } from '../sync/blobs';
 import { t } from '../i18n';
-import { getRecordingJournal } from './recordingJournal';
+import { getRecordingJournal, liveParts } from './recordingJournal';
+import { RecordingSession } from './recordingSession';
+import { liveKept, liveKeptCount, liveNext } from './livePartsModel';
+import { cutWav, deleteRecorderFile } from '../audio/wavCut';
 import { noteExpected } from '../diagnostics/report';
 import { cachedHeardLevels, keepHeardLevels, loadHeardLevels } from '../mic/heardLevels';
 import type { JournalTarget } from './recordingJournalModel';
@@ -124,6 +127,17 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
   const failures = useRef<PendingFile[]>([]);
   /** The voice's last level seen, for ending a tapped take once it falls back to the room. */
   const level = useRef(0);
+  /**
+   * The recording session open now (LAN-82): from the first tap of record
+   * until it is left, through every stop and carry on. Its parts are boxes
+   * on the waveform until then; leaving cuts each from its chunk as its box
+   * stands, and only then are they saved (endSession).
+   */
+  const session = useRef<RecordingSession | null>(null);
+  const [sessionOpen, setSessionOpen] = useState(false);
+  /** Bumped when the session's parts change, so the screen redraws its count and the next part's number. */
+  const [, setPartsSeen] = useState(0);
+  const ending = useRef<Promise<void> | null>(null);
   const fail = useCallback((stage: RecorderStage, e: unknown, failed: RecorderFailure = null) => {
     const said = recorderProblem(stage, e, failed, languageRef.current);
     if (mounted.current) setError(said);
@@ -343,6 +357,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
     if (!vadActive.current || !vadPausedRef.current || vadStopping.current) return;
     vadPausedRef.current = false;
     if (mounted.current) setVadPaused(false);
+    session.current?.seam();
     try {
       await MicrophoneEnergy.configureVAD(await vadConfig());
       claimVad(self);
@@ -357,6 +372,12 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
     stopAudioPlayback();
     setError('');
     work(1);
+    // The session carries on where it stopped; a new one starts with the first tap.
+    if (session.current) session.current.seam();
+    else {
+      session.current = new RecordingSession(1, () => { if (mounted.current) setPartsSeen((n) => n + 1); });
+      setSessionOpen(true);
+    }
     const start = (async () => {
       let stage: RecorderStage = 'start';
       try {
@@ -381,11 +402,108 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
         fail(stage, e, 'startFail');
         await MicrophoneEnergy.stopEnergyDetection().catch((err: unknown) => fail('stop', err));
         await setSessionAudioMode({ allowsRecording: false, playsInSilentMode: true }).catch((err: unknown) => fail('stop', err));
+        // A session that never heard a part is nothing to leave.
+        if (session.current && session.current.snapshot().parts.length === 0) { session.current = null; if (mounted.current) setSessionOpen(false); }
       } finally { vadStarting.current = null; work(-1); }
     })();
     vadStarting.current = start;
     return start;
   }, [fail, self, stopVad, vadConfig, work]);
+
+  /** A part's box as it stands, written down so a crash before the session is left loses nothing said (phones, a passage's parts). */
+  const notePart = useCallback((index: number) => {
+    const p = session.current?.snapshot().parts[index];
+    const target = targetRef.current;
+    if (WEB || !target || !p?.id || !p.chunk || p.fromMs === undefined || p.toMs === undefined) return;
+    liveParts.add(p.id);
+    getRecordingJournal().put({ id: p.id, uri: p.chunk, format: 'wav', durationMs: Math.round(p.toMs - p.fromMs), stage: 'recorded', target, range: { fromMs: p.fromMs, toMs: p.toMs } })
+      .catch((e: unknown) => noteExpected('recorder: journal part', e, recorderFaultCode(e)));
+  }, []);
+
+  /** The × on a part's box: it goes, its place and number stay for what is said next. */
+  const dropPart = useCallback((index: number) => {
+    const s = session.current;
+    const id = s?.snapshot().parts[index]?.id;
+    s?.drop(index);
+    if (id) { liveParts.delete(id); getRecordingJournal().remove(id).catch((e: unknown) => noteExpected('recorder: journal drop', e)); }
+  }, []);
+
+  /**
+   * Leave the session: recording stops, and each part not dropped is cut
+   * from its chunk where its box is and saved, in order (Caleb, 2026-10-16:
+   * the boxes as they stand when the session is left are the parts). The
+   * chunks go once every part is cut; a part that cannot be cut stays in the
+   * journal with its chunk, for the next launch.
+   */
+  const endSession = useCallback((): Promise<void> => {
+    if (ending.current) return ending.current;
+    const run = (async () => {
+      await stopVad();
+      const s = session.current;
+      if (!s) return;
+      session.current = null;
+      if (mounted.current) setSessionOpen(false);
+      work(1);
+      try {
+        const state = s.snapshot();
+        const journal = getRecordingJournal();
+        const cut: PendingFile[] = [];
+        let failed = false;
+        for (const k of liveKept(state)) {
+          const id = k.id ?? Crypto.randomUUID();
+          // A phone's chunk is its file; the web's is a blob once written.
+          const from = k.uri ?? (WEB ? null : k.chunk);
+          try {
+            if (!from) throw new Error('the part\'s chunk was never written');
+            const uri = await cutWav(from, k.fromMs, k.toMs);
+            const durationMs = k.toMs - k.fromMs;
+            const target = targetRef.current;
+            if (!WEB && target) await journal.put({ id, uri, format: 'wav', durationMs: Math.round(durationMs), stage: 'recorded', target });
+            liveParts.delete(id);
+            cut.push({ id, uri, format: 'wav', durationMs });
+          } catch (e) {
+            failed = true;
+            liveParts.delete(id);
+            fail('save', e, 'saveFail');
+          }
+        }
+        if (!failed) {
+          for (const [chunk, c] of Object.entries(state.chunks)) {
+            const uri = c.uri ?? (WEB ? null : chunk);
+            if (uri) { try { deleteRecorderFile(uri); } catch (e) { noteExpected('recorder: delete chunk', e, recorderFaultCode(e)); } }
+          }
+        }
+        for (const file of cut) void deliver(file);
+        await queue.current;
+      } finally { work(-1); }
+    })();
+    ending.current = run;
+    void run.finally(() => { ending.current = null; });
+    return run;
+  }, [deliver, fail, stopVad, work]);
+
+  /**
+   * Throw the session away (the red view's ✕, after asking): recording
+   * stops, and nothing said in it is saved. Its chunks and journal entries go.
+   */
+  const discardSession = useCallback(async (): Promise<void> => {
+    await stopVad();
+    const s = session.current;
+    if (!s) return;
+    session.current = null;
+    if (mounted.current) setSessionOpen(false);
+    const state = s.snapshot();
+    const journal = getRecordingJournal();
+    for (const p of state.parts) {
+      if (!p.id) continue;
+      liveParts.delete(p.id);
+      await journal.remove(p.id).catch((e: unknown) => noteExpected('recorder: journal discard', e));
+    }
+    for (const [chunk, c] of Object.entries(state.chunks)) {
+      const uri = c.uri ?? (WEB ? null : chunk);
+      if (uri) { try { deleteRecorderFile(uri); } catch (e) { noteExpected('recorder: delete chunk', e, recorderFaultCode(e)); } }
+    }
+  }, [stopVad]);
 
   const busy = working > 0;
   useEffect(() => {
@@ -408,17 +526,32 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
       // The module's own report, from its threads (a part's file that could not be written).
       // Every recorder hears it; only the one whose session it is counts it.
       MicrophoneEnergy.addListener('onError', (e) => fail('native', new Error(e.message), vadOwner === self ? 'native' : null)),
-      MicrophoneEnergy.addListener('onSegmentStart', () => { if (vadOwner === self) setVadCapturing(true); }),
-      MicrophoneEnergy.addListener('onEnergyResult', (e) => { level.current = e.energy; }),
+      MicrophoneEnergy.addListener('onSegmentStart', (e) => {
+        if (vadOwner !== self) return;
+        setVadCapturing(true);
+        if (!manualSegment.current) session.current?.partStart(e.headMs);
+      }),
+      MicrophoneEnergy.addListener('onEnergyResult', (e) => {
+        level.current = e.energy;
+        if (vadOwner === self && !manualSegment.current) session.current?.frame(e.energy, e.quiet, e.timestamp);
+      }),
       MicrophoneEnergy.addListener('onSegmentComplete', (e) => {
         if (e.heard) keepHeardLevels(e.heard);
         // A hold-to-record take is delivered by manualUp, not here.
         if (vadOwner !== self || manualSegment.current) return;
         setVadCapturing(false);
-        if (e.uri) void deliver({ id: Crypto.randomUUID(), uri: e.uri, format: 'wav', durationMs: e.duration });
+        const s = session.current;
+        // A session's part is a box in its chunk until the session is left (endSession).
+        if (e.chunk && e.fromMs !== undefined && e.toMs !== undefined) {
+          s?.partEnd({ id: Crypto.randomUUID(), chunk: e.chunk, fromMs: e.fromMs, toMs: e.toMs });
+          if (s) notePart(s.snapshot().parts.length - 1);
+          return;
+        }
+        s?.partEnd(null);
         // An empty uri was a tap or a bump, not speech (splitter.ts): nothing said is lost, so nothing is said; it is still counted.
-        else if (vadActive.current && mounted.current) count('tooShort');
-      })
+        if (!e.uri && vadActive.current && mounted.current) count('tooShort');
+      }),
+      MicrophoneEnergy.addListener('onChunkComplete', (e) => { if (vadOwner === self) session.current?.chunkDone(e.chunk, e.uri, e.duration); })
     ];
     // A phone stops recording when the app leaves the screen. A browser tab
     // keeps the microphone while another tab is in front, so the web stops
@@ -438,12 +571,12 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
       wanted.current = false;
       appState.remove();
       if (WEB) window.removeEventListener('pagehide', stopAll);
-      // Keep native listeners through the final segment emitted by stop.
-      void Promise.all([manualUp(), stopVad()]).finally(() => {
+      // Keep native listeners through the final part and chunk emitted by stop; leaving the screen leaves the session.
+      void Promise.all([manualUp(), endSession()]).finally(() => {
         subscriptions.forEach((subscription) => subscription.remove());
       });
     };
-  }, [count, deliver, fail, manualUp, stopVad, self]);
+  }, [count, deliver, endSession, fail, manualUp, notePart, stopVad, self]);
 
   // Hands-free recording means nobody touches the screen: keep it on, as v2
   // did, or the phone's screen timeout sends the app away and ends the session.
@@ -456,7 +589,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
   }, [microphoneOn]);
 
   // Web: closing the tab mid-take loses it (its audio lives in the page until it stops), so say so first.
-  const recording = manualOn || vadOn || working > 0;
+  const recording = manualOn || vadOn || sessionOpen || working > 0;
   useEffect(() => {
     if (!WEB || !recording) return;
     const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
@@ -464,10 +597,18 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
     return () => window.removeEventListener('beforeunload', warn);
   }, [recording]);
 
+  const snap = session.current?.snapshot();
   return {
     vadOn, vadPaused, vadCapturing, manualOn, error,
     busy, failureCount, retryFailed,
-    toggleVad, stopVad, pauseVad, resumeVad, manualDown, manualUp
+    toggleVad, stopVad, pauseVad, resumeVad, manualDown, manualUp,
+    /** A session is open: recording, or stopped with its parts still boxes to hear, move or drop. */
+    sessionOpen,
+    session: session.current,
+    /** The number the next part of the session takes, and how many it keeps so far. */
+    sessionNext: snap ? liveNext(snap) : null,
+    sessionKept: snap ? liveKeptCount(snap) : 0,
+    endSession, discardSession, dropPart, notePart
   };
 }
 
