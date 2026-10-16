@@ -41,7 +41,7 @@ tags:
 - extendedWaitUntil:
     visible: "Microphone permission is required\\."
     timeout: 10000
-# The button is back to Record, no part was made, and Publish stays off.
+# The button is back to Record, no part was made, and Done stays off.
 - assertVisible:
     id: "record-button"
     text: "Record"

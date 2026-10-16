@@ -44,8 +44,13 @@ export function useNavActions(o: { nav: Nav; session: Session; toast: (message: 
     [nav, session, toast]
   );
   const screenNow = nav.current.screen;
-  const go = useCallback((to: ScreenId, params?: Record<string, string>) => goFrom(screenNow, undefined, to, params),
-    [goFrom, screenNow]);
+  // From the navigator's focused route when it has one: a screen that moves on as soon as it is
+  // reached (Done's "Someone else" lands on the record, which opens Ask someone) runs before
+  // `nav.current` catches up with the move.
+  const go = useCallback((to: ScreenId, params?: Record<string, string>) => {
+    const live = navRef.isReady() ? navRef.getCurrentRoute()?.name : undefined;
+    return goFrom((live as ScreenId | undefined) ?? screenNow, undefined, to, params);
+  }, [goFrom, screenNow]);
   const openPassage = useCallback((unitId: string, inLanguage: string, extra?: Record<string, string>) => {
     remember(unitId, inLanguage);
     go('passage_record', { unitId, languageId: inLanguage, ...extra });

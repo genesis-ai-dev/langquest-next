@@ -4,15 +4,15 @@
 // in. The top is the big player of the part being worked on (Back 10 s, a
 // timeline to drag back and forth, Note at a moment); the bottom a card per
 // part, said ones green, the next one lit. The footer is the part's name,
-// the big red record button and Publish. Playing pauses the microphone and
+// the big red record button and Done. Playing pauses the microphone and
 // recording picks up again when it stops (listen, speak, listen, LAN-23).
 //
-// The parts are kept on this device until Publish (decision 30): each
+// The parts are kept on this device until Done (decision 30): each
 // recorded piece goes to a local draft with the moment in the version its
-// part starts (`atMs`), and Publish puts them in one core produceContent,
-// in part order. Publishing returns to the passage record with
-// `published=bt:<time>`, where the next check is asked (demo ADR-034).
-import { commands, DEFAULT_KINDS, type EventSpec, type KindDef, type Version } from '@langquest-next/core';
+// part starts (`atMs`), and so do the notes at moments (decision 127). Done
+// (it was Publish) puts them in one core produceContent, in part order, and
+// in the same tap asks whoever usually does the check that comes next.
+import { checkPeople, commands, DEFAULT_KINDS, type EventSpec, type KindDef, type KindStatus, type Version } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -28,14 +28,23 @@ import { HelpBadge, HelpClip } from '../helpMode/helpBadge';
 import { currentLocale, t } from '../i18n';
 import { formatClock, formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
-import { Banner, Field, Header, Ico, IconBtn, PrimaryBtn, Screen, Sheet, type IconName } from '../ui/kit';
+import { Banner, Field, Header, Ico, IconBtn, PrimaryBtn, QuietLinks, Screen, SectionLabel, Sheet, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { useLayout } from '../ui/useLayout';
 import { passageCrumbs, type PassageView } from '../passage/passageView';
 import { undoReviews } from '../passage/recordInputsModel';
 import { useBackTranslationDraft } from './useBackTranslationDraft';
 import { checkName } from '../admin/adminModel';
-import { backParts, nextPart, noteText, partAfter, pieceFor, piecesInOrder, saidLine, sourceParts, type BackPart, type MomentNote } from './backTranslationParts';
+import { backParts, EMPTY_BACK_NOTES, isBackNotesDraft, nextPart, noteText, partAfter, pieceFor, piecesInOrder, saidLine, sourceParts, type BackPart, type MomentNote } from './backTranslationParts';
+import { useDraft } from '../drafts/useDraft';
+import { draftKey } from '../drafts/draftModel';
+import { SavedMark } from '../ui/SavedMark';
+import { useSaveStatus } from '../ui/useSaveStatus';
+import { nextAfterDone, recordCan, sentText, usualTargets, askButtonLabel } from '../passage/recordModel';
+import { sendTargetLabel } from '../passage/record';
+import { sendToInput, type UsualTarget } from '../passage/sendTarget';
+import { AskCheckCard } from '../passage/askParts';
+import type { DoneAsk } from './publish';
 import { RecordButton, SaveProblem } from './parts';
 import { SplitPane } from './SplitPane';
 import { MIN_BOTTOM, MIN_BOTTOM_RECORDING } from './splitModel';
@@ -49,6 +58,7 @@ import { C, radius, space, target, TINT, type as T, withAlpha } from '../ui/them
 import { useRecorder, type RecordedCard } from './useRecorder';
 import { spanName } from './verseModel';
 import { VoiceNote } from '../audio/voiceNote';
+import type { SaveStatus } from '../ui/savedModel';
 
 export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: PassageView; kind: KindDef; of: Version }) {
   const { state, unitId, languageId, p } = v;
@@ -122,44 +132,65 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
     } finally { setWorking(false); }
   }
 
-  // ---- notes at moments, and publishing ----
-  const [notes, setNotes] = useState<MomentNote[]>([]);
-  const [noteHash, setNoteHash] = useState<string | null>(null);
-  // The one voice note a back translation carries (one noteBlobHash, REV-035): the first moment note
-  // that is said aloud keeps it, and later notes are typed, until the event can carry one each.
-  const [voiceInMoment, setVoiceInMoment] = useState(false);
+  // ---- notes at moments, and Done ----
+  // Kept as they are said or typed, only for whoever is making it, until it is done (decision 127).
+  const said = useDraft(draftKey('bt', me, languageId, unitId, kind.id), EMPTY_BACK_NOTES, isBackNotesDraft);
+  const { notes, noteHash, voiceInMoment } = said.value;
+  const setNoteHash = (h: string | null) => said.set((d) => ({ ...d, noteHash: h }));
   const [noteAt, setNoteAt] = useState<number | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [saving, setSaving] = useState(false);
   const pieces = piecesInOrder(parts);
-  async function publish(extra: string) {
+  // The check that comes next once this one is recorded, and who usually does it (decision 127).
+  const askCan = recordCan(ctx.session).ask;
+  const orgState = ctx.org.state;
+  const nextUp = useMemo(() => (askCan ? nextAfterDone(p, { recordedKindId: kind.id }) : undefined), [p, askCan, kind.id]);
+  const targets = useMemo(() => (nextUp ? usualTargets(state, orgState, { p, languageId, me, asker: true }) : {}), [nextUp, state, orgState, p, languageId, me]);
+  async function publish(extra: string, ask: DoneAsk) {
     const note = noteText(notes, extra);
+    const sendTo = ask && 'kindId' in ask ? targets[ask.kindId] : undefined;
+    let message = shipped ? t('backTranslation.published') : t('backTranslation.whatPublished', { what: capitalize(produces.what) });
+    let requestId: string | undefined;
     let specs: EventSpec[];
     try {
-      specs = commands(state, indexesFor(state)).produceContent({
+      const c = commands(state, indexesFor(state));
+      specs = c.produceContent({
         commandId: Crypto.randomUUID(), fromTakeId: of.takeId, kindId: kind.id, cards: pieces,
         ...(note ? { note } : {}), ...(noteHash ? { noteBlobHash: noteHash } : {}), ...(request ? { requestId: request.id } : {})
       });
+      if (ask && 'kindId' in ask && sendTo) {
+        const asked = c.ask(sendToInput({ commandId: Crypto.randomUUID(), unitId, kindId: ask.kindId, target: sendTo }));
+        requestId = (asked.find((x) => x.type === 'v1.RequestMade')?.payload as { requestId: string } | undefined)?.requestId;
+        specs = [...specs, ...asked];
+        message = sentText(sendTo, sendTargetLabel(sendTo, ctx.name));
+      }
     } catch (e) {
       ctx.toast(t('backTranslation.notPublished', { reason: failureMessage('back translation: save', e) }));
       return;
     }
     setSaving(true);
     try {
+      // Undo takes it back (decisions.md 111): the back translation, and the asking that went with it.
       const sent = specs;
-      await ctx.act(specs, shipped ? t('backTranslation.published') : t('backTranslation.whatPublished', { what: capitalize(produces.what) }),
-        () => undoReviews(sent)(commands(state)));
+      await ctx.act(specs, message, () => {
+        const now = ctx.language.state ?? state;
+        const c = commands(now, indexesFor(now));
+        return [...undoReviews(sent)(c), ...(requestId ? c.withdrawRequest({ commandId: Crypto.randomUUID(), requestId }) : [])];
+      });
     } catch {
       setSaving(false); // ctx.act said what went wrong
       return;
     }
     // On the record now; a draft left behind is harmless (saved parts are never offered again).
     await drafts.clear().catch((e: unknown) => { reportError('back translation: clear draft', e); });
+    await said.clear();
     setSaving(false);
     setConfirming(false);
-    // Publish, then ask (demo ADR-034): the record opens with the next check (usually the consultant) ready.
-    ctx.go('passage_record', { unitId, languageId, published: `bt:${Date.now()}` });
+    // Back to the record, where who was asked shows; Someone else opens there with the check chosen.
+    const someone = ask && 'someoneElse' in ask ? ask.someoneElse : ask && 'kindId' in ask && !sendTo ? ask.kindId : undefined;
+    ctx.go('passage_record', { unitId, languageId, ...(someone ? { askSomeone: someone } : { asked: `bt:${Date.now()}` }) });
   }
+  const savedStatus = useSaveStatus(rec.busy || said.status === 'saving', pieces.length > 0 || notes.length > 0, rec.failureCount > 0 || !!drafts.problem || said.status === 'failed');
 
   const problem = drafts.problem ? <SaveProblem message={drafts.problem} />
     : rec.failureCount > 0 ? <SaveProblem message={rec.error || t('backTranslation.partNotSaved')} retryLabel={t('backTranslation.retrySaving')} busy={rec.busy} onRetry={() => void rec.retryFailed()} />
@@ -175,9 +206,9 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
     <Screen fixed
       header={wide
         ? <Header title={shipped ? t('backTranslation.title') : capitalize(produces.what)} sub={t('backTranslation.fromInto', { from: v.language, into: produces.into })}
-          crumbs={passageCrumbs(ctx, v, screenTitle('back_translation'))} onBack={ctx.back} close />
+          crumbs={passageCrumbs(ctx, v, screenTitle('back_translation'))} onBack={ctx.back} close action={<SavedMark status={savedStatus} help={t('saved.draftHelp')} />} />
         : <Header title={v.title} sub={shipped ? t('backTranslation.subInto', { into: produces.into }) : t('backTranslation.whatInto', { what: capitalize(produces.what), into: produces.into })}
-          onBack={ctx.back} close />}
+          onBack={ctx.back} close action={<SavedMark status={savedStatus} help={t('saved.draftHelp')} />} />}
       footer={session ? (
         <View style={styles.footer}>
           <Text style={[txt.sm, styles.footLabel, { color: TINT.redText }]} numberOfLines={2}>{partLabel}…</Text>
@@ -234,7 +265,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
               ))}
               {notes.length ? (
                 <Text style={[txt.xs, { textAlign: 'center' }]}>
-                  {checkedBy ? t('backTranslation.notesFor', { count: notes.length, check: checkedBy }) : t('backTranslation.notesForNext', { count: notes.length })}
+                  {checkedBy ? t('backTranslation.notesForCheck', { count: notes.length, check: checkedBy }) : t('backTranslation.notesAtMoments', { count: notes.length })}
                 </Text>
               ) : null}
             </ScrollView>
@@ -246,15 +277,17 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
           onHash={setNoteHash} checkedBy={checkedBy}
           onClose={() => { if (!voiceInMoment) setNoteHash(null); setNoteAt(null); }}
           onSave={(text, spoken) => {
-            if (spoken) setVoiceInMoment(true);
             // i18n-ignore: stored in the event log with the back translation's note (noteText)
-            setNotes((n) => [...n, { part: part.index, atMs: noteAt, text: text || 'said in the voice note' }]);
+            const added: MomentNote = { part: part.index, atMs: noteAt, text: text || 'said in the voice note' };
+            said.set((d) => ({ ...d, notes: [...d.notes, added], voiceInMoment: d.voiceInMoment || spoken }));
             setNoteAt(null);
           }} />
       ) : null}
       {confirming ? (
-        <PublishSheet ctx={ctx} what={produces.what} of={of} checkedBy={checkedBy} parts={parts} notes={notes} busy={saving}
-          hash={noteHash} spokenTaken={voiceInMoment} onHash={setNoteHash} onClose={() => setConfirming(false)} onPublish={(extra) => void publish(extra)} />
+        <PublishSheet ctx={ctx} v={v} what={produces.what} of={of} parts={parts} notes={notes} busy={saving}
+          hash={noteHash} spokenTaken={voiceInMoment} onHash={setNoteHash} extra={said.value.extra} onExtra={(x) => said.set((d) => ({ ...d, extra: x }))}
+          next={nextUp ? { kinds: nextUp.kinds, targets } : null} saved={said.status}
+          onClose={() => setConfirming(false)} onPublish={(extra, ask) => void publish(extra, ask)} />
       ) : null}
     </Screen>
   );
@@ -330,11 +363,11 @@ function BigRecord(props: { disabled: boolean; part: number | null; onPress: () 
 }
 
 function PublishBtn(props: { disabled: boolean; onPress: () => void }) {
-  const spot = useHelpSpot(t('common.publish'), t('backTranslation.publishHelp'), props.onPress);
+  const spot = useHelpSpot(t('common.done'), t('backTranslation.doneHelp'), props.onPress);
   return (
-    <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={t('common.publish')} accessibilityState={{ disabled: props.disabled }}
+    <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={t('common.done')} accessibilityState={{ disabled: props.disabled }}
       style={({ pressed }) => [styles.publish, props.disabled && { opacity: 0.45 }, pressed && { opacity: 0.7 }]}>
-      <Text style={styles.publishLabel}>{t('common.publish')}</Text>
+      <Text style={styles.publishLabel}>{t('common.done')}</Text>
       <HelpBadge spot={spot} />
     </Pressable>
   );
@@ -361,18 +394,38 @@ function MomentSheet(props: {
   );
 }
 
-/** Publishing is a real step, so it confirms (ADR-028): what is said, what is missing, and a last word. */
+/**
+ * Done is a real step, so it shows what goes (ADR-028): what is said, what is
+ * missing, and a last word; then who listens to it next, asked in the same
+ * tap (decision 127). The last word is kept as it is typed.
+ */
 function PublishSheet(props: {
-  ctx: Ctx; what: string; of: Version; checkedBy: string | undefined; parts: BackPart[]; notes: MomentNote[]; busy: boolean;
-  hash: string | null; spokenTaken: boolean; onHash: (h: string | null) => void; onClose: () => void; onPublish: (extra: string) => void;
+  ctx: Ctx; v: PassageView; what: string; of: Version; parts: BackPart[]; notes: MomentNote[]; busy: boolean;
+  hash: string | null; spokenTaken: boolean; onHash: (h: string | null) => void; extra: string; onExtra: (x: string) => void;
+  next: { kinds: KindStatus[]; targets: Record<string, UsualTarget | undefined> } | null; saved: SaveStatus;
+  onClose: () => void; onPublish: (extra: string, ask: DoneAsk) => void;
 }) {
-  const [text, setText] = useState('');
+  const { ctx, v } = props;
   const missing = props.parts.filter((x) => x.cards.length === 0).map((x) => x.index + 1);
+  const [kindId, setKindId] = useState<string | null>(null);
+  const kinds = props.next?.kinds ?? [];
+  const next = kinds.find((k) => k.kindId === kindId) ?? kinds[0];
+  const nextTarget = next ? props.next?.targets[next.kindId] : undefined;
+  const finish = (ask: DoneAsk) => { if (!props.busy) props.onPublish(props.extra, ask); };
+  const footer = next ? (
+    <View style={{ gap: space.xs }}>
+      <PrimaryBtn label={askButtonLabel({ target: nextTarget, kindId: next.kindId, kinds: v.kinds, name: ctx.name })} icon="send" busy={props.busy}
+        help={nextTarget ? t('backTranslation.sendHelp', { what: props.what }) : t('backTranslation.askHelp', { what: props.what })}
+        onPress={() => finish(nextTarget ? { kindId: next.kindId, questions: [] } : { someoneElse: next.kindId })} />
+      <QuietLinks items={[
+        ...(nextTarget ? [{ label: t('passage.published.someoneElse'), icon: 'people' as const, help: t('passage.published.someoneElseHelp'), onPress: () => finish({ someoneElse: next.kindId }) }] : []),
+        { label: t('recording.publish.sendLater'), icon: 'clock' as const, help: t('backTranslation.sendLaterHelp', { what: props.what }), onPress: () => finish(null) }
+      ]} />
+    </View>
+  ) : <PrimaryBtn label={t('backTranslation.finishWhat', { what: props.what })} icon="check" busy={props.busy} onPress={() => finish(null)} />;
   return (
-    <Sheet visible title={t('backTranslation.publishThe', { what: props.what })}
-      sub={props.checkedBy ? t('backTranslation.publishSubCheck', { n: props.of.n, check: props.checkedBy }) : t('backTranslation.publishSub', { n: props.of.n })}
-      onClose={props.onClose}
-      footer={<PrimaryBtn label={t('backTranslation.publishWhat', { what: props.what })} icon="send" busy={props.busy} onPress={() => props.onPublish(text)} />}>
+    <Sheet visible title={capitalize(props.what)} sub={t('backTranslation.ofVersion', { n: props.of.n })}
+      onClose={props.onClose} action={<SavedMark status={props.saved} help={t('saved.draftHelp')} />} footer={footer}>
       <View style={styles.checks}>
         <Text style={txt.sm}>✓ {saidLine(props.parts)}</Text>
         {missing.length ? (
@@ -383,8 +436,17 @@ function PublishSheet(props: {
       <Text style={[txt.sm, { fontWeight: '700' }]}>{t('backTranslation.hardToSayBack')} <Text style={[txt.sm, { color: C.muted, fontWeight: '400' }]}>{t('backTranslation.optional')}</Text></Text>
       {props.spokenTaken
         ? <Text style={txt.smMuted}>{t('backTranslation.oneSpokenNote')}</Text>
-        : <VoiceNote ctx={props.ctx} label={t('common.sayIt')} hash={props.hash} onChange={(h) => props.onHash(h)} />}
-      <Field value={text} onChangeText={setText} placeholder={t('backTranslation.typeNoMatch')} multiline />
+        : <VoiceNote ctx={ctx} label={t('common.sayIt')} hash={props.hash} onChange={(h) => props.onHash(h)} />}
+      <Field value={props.extra} onChangeText={props.onExtra} placeholder={t('backTranslation.typeNoMatch')} multiline />
+      {next ? (
+        <View style={{ gap: space.sm }}>
+          <SectionLabel label={t('recording.publish.nextCheck')} />
+          {kinds.map((k) => (
+            <AskCheckCard key={k.kindId} ctx={ctx} kindId={k.kindId} name={checkName(k.kindId, v.kinds)} on={k.kindId === next.kindId} radio={kinds.length > 1}
+              people={checkPeople(v.state, k.kindId).filter((id) => id !== ctx.session.actorId)} onPress={() => setKindId(k.kindId)} />
+          ))}
+        </View>
+      ) : null}
     </Sheet>
   );
 }

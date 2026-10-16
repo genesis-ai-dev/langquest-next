@@ -106,13 +106,13 @@ export function pathSteps(input: PathInput): PathStep[] {
 
   const asked = first ? first.step.kinds.find((k) => k.kindId === first.kindId)?.request : undefined;
   out.push({
-    kind: 'publish', title: t('passage.path.publish'),
+    kind: 'publish', title: t('common.done'),
     sub: p.recorded && latest
       ? [
         publishedLine(input.when(latest.hlc)),
         asked ? t('passage.path.status.askedWho', { who: input.askedName?.(asked.kindId ?? '') ?? (asked.profileId ? input.name(asked.profileId) : asked.team?.name ?? t('passage.path.someoneInSentence')) }) : ''
       ].filter(Boolean).join(' · ')
-      : firstName ? t('passage.path.thenAskFor', { check: kindInSentence(firstName) }) : t('passage.path.saveForTeam'),
+      : firstName ? t('passage.path.thenAskFor', { check: kindInSentence(firstName) }) : t('passage.path.teamHears'),
     state: p.recorded ? 'done' : 'todo'
   });
 
@@ -182,7 +182,7 @@ export function teamSteps(input: PathInput): TeamStep[] {
       } else {
         state = 'todo';
         status = !p.recorded
-          ? previous ? after(previous.name) : t('passage.path.status.afterPublish')
+          ? previous ? after(previous.name) : t('passage.path.status.afterDone')
           : previous && !previous.complete ? after(previous.name) : t('passage.path.status.next');
       }
       return { stepId: s.step.id, kindId: k.kindId, together: j > 0, name, status, state, checkpoint: s.step.checkpoint };

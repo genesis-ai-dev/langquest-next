@@ -14,7 +14,6 @@
     "tryAgain": "Try again",
     "pause": "Pause",
     "record": "Record",
-    "publish": "Publish",
     "remove": "Remove",
     "edit": "Edit",
     "copy": "Copy",
@@ -446,12 +445,7 @@
       "itemDescription": "Study guide",
       "itemDescriptionPattern": "Study guide · {{pattern}}",
       "published": "{{title}} is published. Devices get it when they next sync.",
-      "notPublished": "{{reason}} Your draft is kept.",
-      "savedAt": "Draft saved on this device at {{time}}. One person edits a guide at a time.",
-      "savedAsYouWrite": "Drafts are saved on this device as you write. One person edits a guide at a time.",
-      "publishNewVersion": "Publish new version",
-      "restored": "Your draft from {{time}} is open.",
-      "restoredBody": "Publish it, or keep writing. Nothing is published until you do.",
+      "notPublished": "Not published: {{reason}}",
       "newer": "A newer version was published after you started this draft.",
       "newerBody": "Publishing yours makes it the next version, without their changes.",
       "ready": "Ready to publish.",
@@ -1571,7 +1565,6 @@
       "subTemplate": "Template · {{source}}",
       "untitled": "New template",
       "create": "Create template",
-      "saveChanges": "Save changes",
       "follows": "It follows {{org}}",
       "followsBody": "Its versions come from there. Copy it to change it.",
       "copiedFind": "{{name}} copied. Find the copy under Your organization.",
@@ -1598,13 +1591,7 @@
       "chapterCount_other": "{{count, number}} chapters",
       "addBook": "Add a book",
       "outline": "Outline",
-      "leaveTitle": "Leave without saving?",
-      "leaveSub": "Your changes to this template are not saved.",
-      "keepEditing": "Keep editing",
-      "leave": "Leave",
-      "leaveNote": "Save publishes them as the next version.",
       "createHelp": "Adds it to your organization's library, ready for languages to use.",
-      "saveChangesHelp": "Saves it as the next version. Languages using it move to it.",
       "nameHelp": "What the template is called in the library.",
       "levelHelp": "Renames it. Everyone sees this word in the app.",
       "lastLevelHelp": "Renames it, and chooses how each one is shown.",
@@ -1613,7 +1600,7 @@
       "bookHelp": "Choose how it is divided. Rename it or remove it from there.",
       "addBookHelp": "Adds books the template doesn't have yet.",
       "versificationChoiceHelp": "Numbers the template's chapters and verses this way.",
-      "leaveHelp": "Goes back without saving your changes."
+      "doneHelp": "Publishes your changes as the next version. Languages using it move to it."
     },
     "newTemplate": {
       "title": "New Template",
@@ -1710,7 +1697,7 @@
       "versePlaceholder": "verse {{verse}}"
     },
     "divide": {
-      "done": "{{book}} is divided. Save the template to keep it.",
+      "done": "{{book}} is divided.",
       "tapBook": "Tap a book to choose how it's divided.",
       "nameOrRemove": "Rename or remove {{book}}",
       "nameOrRemoveHelp": "Opens the book's name in the language, to change it or take the book out."
@@ -2092,9 +2079,6 @@
       "namePlaceholder": "What the team calls it",
       "joinSub": "This section's verses go to the one before",
       "firstCantJoin": "The first section can't be joined",
-      "leaveTitle": "Leave without saving?",
-      "leaveSub": "Your sections for {{book}} aren't saved yet.",
-      "leaveAnyway": "Leave without saving",
       "helpsTitle": "Helps for {{book}}",
       "closeHelps": "Close helps",
       "tabOutline": "Outline",
@@ -2113,8 +2097,6 @@
       "headerSub_other": "Your own way · {{count, number}} sections",
       "verses_one": "{{count, number}} verse",
       "verses_other": "{{count, number}} verses",
-      "save_one": "Save · {{count, number}} section",
-      "save_other": "Save · {{count, number}} sections",
       "jumpLabel_one": "Chapter {{chapter}}: {{count, number}} section starts here",
       "jumpLabel_other": "Chapter {{chapter}}: {{count, number}} sections start here",
       "sections_one": "{{count, number}} section",
@@ -2147,7 +2129,8 @@
       "guideRowHelp": "Goes to the first place it covers in the text.",
       "undoHelp": "Puts the sections back as they were before your last change.",
       "startFromHelp": "Replaces your sections with a ready-made way's, to start from there.",
-      "leaveAnywayHelp": "Goes back. Your sections for this book are not kept."
+      "done_one": "Done · {{count, number}} section",
+      "done_other": "Done · {{count, number}} sections"
     },
     "division": {
       "way_one": "{{way}} · {{count, number}} piece",
@@ -2432,7 +2415,6 @@
       "version": "Version {{n, number}}",
       "movingToNewest": "moving to the newest",
       "openFlow": "Open flow",
-      "saveAsFlow": "Save as a flow",
       "yourOrganization": "Your organization",
       "noFlows": "No flows here yet. Follow or copy one another organization shares, or make your own.",
       "openNamed": "Open {{name}}",
@@ -2446,7 +2428,8 @@
       "inUseHelp": "This language checks its passages this way now.",
       "useHelp": "Its checks become {{language}}'s own. You can change them after.",
       "stepsLabel": "Steps",
-      "stepsHelp": "The checks, left to right. Stacked ones happen together. A lock: that step must pass first."
+      "stepsHelp": "The checks, left to right. Stacked ones happen together. A lock: that step must pass first.",
+      "addToFlows": "Add to your flows"
     },
     "flowEditor": {
       "anyoneTeamAsks": "Anyone the team asks",
@@ -2465,8 +2448,6 @@
       "addThisCheck": "Add this check",
       "newKindDescription": "Defined by your organization.",
       "newKindReviewer": "Anyone the team chooses",
-      "leaveTitle": "Leave without saving?",
-      "discard": "Discard changes",
       "reviewFlow": "Review Flow",
       "gone": "This flow is not here any more",
       "savedMoves": "{{name}} saved. {{language}} moves to it.",
@@ -2480,23 +2461,21 @@
       "descriptionPlaceholder": "What it is for, in a line",
       "noChecks": "No checks: done once recorded",
       "usedHere": "{{language}} uses it. Changes apply to its passages right away; nothing already recorded is lost.",
-      "usedNote": "Languages using it move to each version you save. Steps are a suggested order; only a locked step has to pass first.",
+      "usedNote": "Languages using it move to each new version. Steps are a suggested order; only a locked step has to pass first.",
       "kindsSub": "Kinds are your organization's vocabulary. Add your own if these don't fit.",
       "newKindLabel": "A new kind",
       "newKindPlaceholder": "New kind, e.g. Elder Review",
       "addThisKind": "Add this kind",
-      "leaveSubFlow": "Your changes to this flow haven't been saved.",
       "removeCheckHelp": "Takes it out of this step. The other checks stay.",
       "moveUpHelp": "This step happens one step earlier.",
       "moveDownHelp": "This step happens one step later.",
-      "removeStepHelp": "Takes this step and its checks out. Nothing changes until you save.",
+      "removeStepHelp": "Takes this step and its checks out.",
       "saveHelp": "Publishes this version to your library. Languages using the flow move to it.",
       "noChecksHelp": "Takes out every step: a passage is done as soon as it is recorded.",
       "pickNewHelp": "Adds a step with this check, after the others.",
       "pickAlongsideHelp": "Adds this check to the step, alongside the ones there.",
       "newKindHelp": "Name a kind of check this list is missing.",
-      "addThisKindHelp": "Adds the kind you named, and puts it in the step.",
-      "discardHelp": "Leaves without saving. Your changes are lost."
+      "addThisKindHelp": "Adds the kind you named, and puts it in the step."
     },
     "reference": {
       "languageTeam": "{{language}} team",
@@ -2557,7 +2536,6 @@
       "newMaterial": "New material",
       "locked": "Locked",
       "unlocked": "Unlocked",
-      "saveChanges": "Save Changes",
       "byWhom": "by {{name}}",
       "questionsFor": "questions for {{kind}}",
       "unfilledBlanks_one": "{{count, number}} unfilled blank",
@@ -2569,7 +2547,7 @@
       "titlePlaceholder": "e.g. Dinka translation guidelines",
       "whereItApplies": "Where it applies",
       "allLanguages": "All languages",
-      "toLibraryNote": "Saved to your library and recommended to every language.",
+      "toLibraryNote": "It goes to your library, recommended to every language.",
       "setsNeedLanguage": "Question sets belong to a language. Add a language first.",
       "addLanguageFirst": "Add a language first.",
       "forWhichKind": "For which kind of review",
@@ -2587,11 +2565,10 @@
       "addSection": "Add a section",
       "addSectionPlaceholder": "e.g. Names",
       "add": "Add",
-      "inLibrary": "In your library · {{source}}. Publishing again adds a version from what is saved here.",
+      "inLibrary": "In your library · {{source}}.",
       "notInLibrary": "Publish it to your library to share it with other organizations or keep versions of it.",
       "publishNewVersion": "Publish a new version",
       "publishToLibrary": "Publish to library",
-      "saveFirst": "Save your changes first.",
       "lockedHelp": "Only people who manage reference material can change it. Tap to unlock.",
       "unlockedHelp": "Anyone who fills reference content can change it. Tap to lock.",
       "saveNewHelp": "Adds it. Translators and reviewers get it where it applies.",
@@ -2604,13 +2581,14 @@
       "typeYesNoHelp": "Reviewers answer yes or no.",
       "typeRatingHelp": "Reviewers answer with a number on this scale.",
       "requiredSwitchHelp": "On: reviewers must answer it, or say why not. Off: they may skip it.",
-      "removeQuestionHelp": "Takes this question out. Nothing changes until you save.",
+      "removeQuestionHelp": "Takes this question out.",
       "addQuestionHelp": "Adds an empty question at the end.",
       "sectionHelp": "Type what translators should know for this section.",
       "sectionNameHelp": "Type the name of a new section, then add it.",
       "addSectionHelp": "Adds the section you named, empty, to fill in.",
-      "publishHelp": "Puts what is saved here in your library, to share or keep versions.",
-      "publishVersionHelp": "Adds what is saved here to your library as a new version."
+      "publishHelp": "Puts it in your library, to share or keep versions.",
+      "publishVersionHelp": "Adds it to your library as a new version.",
+      "doneHelp": "Puts your changes in the material, for everyone who reads it."
     },
     "libraryMaterial": {
       "eachLanguagesOwn": "Each language's own",
@@ -2620,7 +2598,6 @@
       "reviewersSee": "Reviewers doing {{kind}} now see these questions.",
       "newTitle": "New library material",
       "newSub": "Library · your organization",
-      "publishNewVersion": "Publish new version",
       "passages": "Passages",
       "titlePlaceholder": "e.g. Names in Ruth",
       "textLabel": "Text",
@@ -2638,12 +2615,12 @@
       "searchParts": "Search parts",
       "noTemplates": "No language uses a library template yet.",
       "publishHelp": "Puts it in your library, to recommend to languages or share.",
-      "publishVersionHelp": "Saves your changes as a new version in your library.",
+      "publishVersionHelp": "Publishes your changes as a new version in your library.",
       "kindHelp": "Makes it this kind of material.",
       "textHelp": "What translators read: the material itself.",
       "versesHelp": "Translators get it on these verses. Write each like {{example}}.",
       "numberingHelp": "Bibles number some verses differently. Reads the verses above this way.",
-      "removePartHelp": "Unlinks it. Nothing changes until you publish.",
+      "removePartHelp": "Unlinks it.",
       "linkPartHelp": "Pick a part of a template: translators get it there, in every language using it.",
       "useInReviewsHelp": "Reviewers doing {{kind}} in this language get these questions.",
       "pickPartHelp": "Links this part: translators get it there."
@@ -3417,7 +3394,8 @@
     "contribute": {
       "sub": "It stays with the passage, and reviewers see it with the study.",
       "record": "Record what the group said",
-      "typeHelp": "Type it here, instead of recording it or as well."
+      "typeHelp": "Type it here, instead of recording it or as well.",
+      "addAnswer": "Add your answer"
     },
     "media": {
       "map": "Map",
@@ -3725,12 +3703,10 @@
         "askedName": "{{by}} asked {{name}}",
         "askedSomeone": "{{by}} asked someone"
       },
-      "publish": "Publish",
       "publishedWhen": "Published {{when}}",
       "publishedJustNow": "Published just now",
       "someoneInSentence": "someone",
       "thenAskFor": "Then ask for the {{check}}",
-      "saveForTeam": "Save it for the team to hear",
       "hearFeedback": "Hear the feedback",
       "feedbackSub": "{{kind}} · needs changes",
       "fix": "Fix it, or keep it and say why",
@@ -3745,13 +3721,13 @@
         "after": "after the {{check}}",
         "askedWho": "asked {{who}}",
         "asked": "asked",
-        "afterPublish": "after you publish",
-        "next": "next"
+        "next": "next",
+        "afterDone": "once you're done"
       },
       "help": {
         "study": "Go through the study guide together before you record. Nothing waits on it.",
         "record": "Record the passage in your language. As many tries as you like.",
-        "publish": "Publishing saves your version for the team to hear, then you ask for a check.",
+        "publish": "When every part is recorded, tap Done: the team can hear it, and it goes to its next check.",
         "feedback": "Someone listened and asked for changes. Hear what they said.",
         "fix": "Record a new version with the change, or keep this one and say why.",
         "team": "A check by the team: {{status}}. Tap for who and the options.",
@@ -3765,7 +3741,8 @@
         "teamView": "A check by the team: {{status}}.",
         "checkpoint": "The lock: it must pass before the steps after it."
       },
-      "thenTheTeam": "Then the team"
+      "thenTheTeam": "Then the team",
+      "teamHears": "Then the team can hear it"
     },
     "quote": "“{{text}}”",
     "journey": {
@@ -3941,12 +3918,6 @@
       "askTitle": "Ask for a check",
       "askTarget": "Ask {{target}}",
       "someoneElse": "Someone else",
-      "backTranslation": "Back translation published",
-      "version": "Version {{n, number}} published",
-      "versionNoNumber": "Version published",
-      "savedHere": "{{title}} · saved on this device · sends when you're online",
-      "sent": "{{title}} · sent to the team",
-      "sending": "{{title}} · sending now",
       "nextAsk": "Next, ask for a check",
       "allDone": "Every check is done.",
       "alreadyAsked": "The next check is already asked for.",
@@ -4091,7 +4062,6 @@
       "latest": "Latest",
       "saved": "Saved {{when}}",
       "savedJustNow": "Saved just now",
-      "savedToast": "{{name}} saved.",
       "notDeleted": "Not deleted. {{reason}}",
       "deleted": "{{name}} deleted.",
       "delete": "Delete {{name}}",
@@ -4104,10 +4074,10 @@
       "newVersionHelp": "Starts a new version from the beginning. Your drafts stay.",
       "deleteHelp": "Deletes this draft.",
       "editDraftHelp": "Opens this draft in the recorder, to keep working on it.",
-      "publishHelp": "Opens this draft to publish it for the team to hear.",
       "editVersionHelp": "Starts a new draft from this version. The version itself stays as it is.",
       "partHelp": "Plays this part alone.",
-      "deleteVersionHelp": "Deletes this version for everyone. Checks already made of it stay on the record but no longer count."
+      "deleteVersionHelp": "Deletes this version for everyone. Checks already made of it stay on the record but no longer count.",
+      "doneHelp": "Opens this draft's last look, to finish it and send it to its next check."
     }
   },
   "work": {
@@ -4704,7 +4674,6 @@
       "yourRecording": "Your recording",
       "openHelp": "Drag the divider up, or tap here, to see your parts.",
       "barLabel": "Your recording. {{next}}. {{progress}}. Open",
-      "publishHelp": "When every part is recorded: save this version for the team.",
       "nextRecording": "{{part}}…",
       "deletePartHelp": "Deletes this part. You can undo it right after.",
       "nextCardHelp": "The part you record next. Tap the red button to start.",
@@ -4720,7 +4689,8 @@
       "gapHelp": "What you record next goes in this gap.",
       "recordAtEnd": "Record {{part}} at the end",
       "endHelp": "What you record next goes at the end.",
-      "deleteAllAsk": "Delete every part?"
+      "deleteAllAsk": "Delete every part?",
+      "doneHelp": "When every part is recorded: finish this version and send it to its next check."
     },
     "quoted": "“{{text}}”",
     "listening": "Listening… {{time}}",
@@ -4779,9 +4749,7 @@
       "parts_one": "{{count, number}} part",
       "parts_other": "{{count, number}} parts",
       "withBible": "recorded with the {{bible}} Bible",
-      "publishVersion": "Publish {{version}}",
       "atMoment": "At {{time}}:",
-      "explain": "Publishing saves {{version}} to the passage. Everyone on the team can hear it. It goes out when the device has internet.",
       "answers": "Answers the {{kind}} feedback from {{from}}",
       "tied_one": "{{count, number}} key word tied to this version",
       "tied_other": "{{count, number}} key words tied to this version",
@@ -4796,7 +4764,14 @@
       "optional": "Optional · the team hears it with this version",
       "sayHelp": "By voice or typed. The team hears it with this version.",
       "rowLabel": "{{label}}. {{sub}}",
-      "doneHelp": "Keeps what you said and closes this."
+      "doneHelp": "Keeps what you said and closes this.",
+      "finish": "Finish {{version}}",
+      "finishHelp": "Finishes {{version}}: the team can hear it.",
+      "sendHelp": "Finishes {{version}} and sends it to them for this check. They find it on My Work.",
+      "askHelp": "Finishes {{version}}, then you choose who to ask.",
+      "sendLater": "Send later",
+      "sendLaterHelp": "Finishes {{version}} without asking anyone yet. The team can hear it.",
+      "nextCheck": "Next check"
     },
     "tray": {
       "help": "Help",
@@ -5924,7 +5899,6 @@
       "nextQuestion": "Next question",
       "savesTo_one": "Saves to {{count, number}} passage",
       "savesTo_other": "Saves to {{count, number}} passages",
-      "saveToRecord": "Save to the record",
       "loggedIntro": "For a {{kind}} that happened outside the app — in person, on a call, at church. It goes on the record credited to whoever gave it.",
       "versionByYou": "Version {{n}} · recorded by you",
       "versionBy": "Version {{n}} · recorded by {{name}}",
@@ -5994,10 +5968,6 @@
       "skipSub": "Required questions can be skipped — the reason is saved with your review.",
       "skipConfirm": "Skip question",
       "skipFootnote": "The reason is saved with your review.",
-      "leaveTitle": "Leave without saving?",
-      "leaveSub": "What you said and answered here is not saved until you send the review.",
-      "keepReviewing": "Keep reviewing",
-      "leave": "Leave",
       "backgroundHelp": "Opens what helps you judge it: the Bible, notes, key words and more.",
       "whoHelp": "Say how many listened, and where. Optional.",
       "whoReviewedHelp": "Say who gave this review. Optional.",
@@ -6013,12 +5983,11 @@
       "sheetDoneHelp": "Keeps what you gave here and closes this.",
       "whereHelp": "Where they listened. It goes on the record with the review.",
       "whichVersionHelp": "Picks the version that was played to them.",
-      "keepReviewingHelp": "Stays here. Nothing is lost.",
-      "leaveHelp": "Leaves without sending. What you said here is not kept.",
       "helpBibleHelp": "Opens this Bible in Background, beside the passage.",
       "helpGuideHelp": "Opens the study guide for this passage.",
       "helpNoteHelp": "Opens it to read.",
-      "howManyHelp": "Say how many listened. Optional."
+      "howManyHelp": "Say how many listened. Optional.",
+      "doneRecordedHelp": "Puts the {{what}} on the passage's record."
     },
     "guest": {
       "previewSub": "Preview · what someone without the app sees",
@@ -6114,7 +6083,6 @@
       "noteAdded": "Note added — it follows this passage",
       "noteOnVerse": "Note on verse {{verse}}",
       "noteOnVerseAt": "Note on verse {{verse}} · at {{time}}",
-      "saveNote": "Save note",
       "playYourNoteAt": "Play your note at {{time}}",
       "yourNoteAt": "Your note at {{time}}",
       "goesWithReview": "{{length}} · goes with your review",
@@ -6132,7 +6100,8 @@
       "verseHelpPlay": "Plays the passage from this verse.",
       "verseHelpPick": "Picks this verse. Then Note leaves a note on it.",
       "notesByHelp": "Notes on this verse by {{names}}.",
-      "removeNoteHelp": "Deletes this note."
+      "removeNoteHelp": "Deletes this note.",
+      "closeNoteHelp": "Closes the note. What you said or typed comes back when you note this verse again."
     },
     "voice": {
       "hearIt": "Hear it",
@@ -6195,10 +6164,6 @@
     "openYour": "Open your {{what}}",
     "yourWhat": "Your {{what}}, {{said}}",
     "loadingParts": "Loading your parts…",
-    "notesFor_one": "{{count, number}} note for the {{check}} · they go with it when you publish",
-    "notesFor_other": "{{count, number}} notes for the {{check}} · they go with it when you publish",
-    "notesForNext_one": "{{count, number}} note for the next check · they go with it when you publish",
-    "notesForNext_other": "{{count, number}} notes for the next check · they go with it when you publish",
     "saidInMore": "{{length}} in {{into}} · record to add more",
     "sayingNext": "Saying it next",
     "saidIn": "{{length}} in {{into}}",
@@ -6211,17 +6176,12 @@
     "recordHelp": "Say part {{n}} in your own words. Pause between thoughts; tap stop when you finish.",
     "recordPart": "Record part {{n}}",
     "recordHint": "Speak, pausing between parts. Tap stop when you finish.",
-    "publishHelp": "Saves the back translation for the team, then asks for the next check.",
     "noteAtPart": "A note at {{time}} in part {{part}}",
     "noteSub": "What was hard to say here? The {{check}} hears it with your back translation.",
     "noteSubNext": "What was hard to say here? The next check hears it with your back translation.",
     "addNote": "Add note",
     "typeNoMatch": "Or type it — e.g. a word with no English match",
     "oneSpokenNote": "One spoken note per back translation for now: type this one.",
-    "publishThe": "Publish the {{what}}?",
-    "publishSubCheck": "Of Version {{n}}. The {{check}} listens to it next.",
-    "publishSub": "Of Version {{n}}. It goes on the passage record.",
-    "publishWhat": "Publish {{what}}",
     "nothingYet_one": "Nothing yet for part {{parts}}",
     "nothingYet_other": "Nothing yet for part {{parts}}",
     "notesAtMoments_one": "{{count, number}} note at moments",
@@ -6231,7 +6191,15 @@
     "noRecording": "There's no recording to back-translate yet.",
     "openVersionHelp": "Brings the version's player back to half the screen.",
     "openPartsHelp": "Brings your parts back to half the screen.",
-    "deletePartHelp": "Deletes what you said for this part. You can undo it right after."
+    "deletePartHelp": "Deletes what you said for this part. You can undo it right after.",
+    "ofVersion": "Of Version {{n, number}}",
+    "sendHelp": "Finishes the {{what}} and sends it to them for this check. They find it on My Work.",
+    "askHelp": "Finishes the {{what}}, then you choose who to ask.",
+    "notesForCheck_one": "{{count, number}} note for the {{check}}",
+    "finishWhat": "Finish the {{what}}",
+    "doneHelp": "When every part is said: finish it and send it to the check that listens to it next.",
+    "notesForCheck_other": "{{count, number}} notes for the {{check}}",
+    "sendLaterHelp": "Finishes the {{what}} without asking anyone yet. The team can hear it."
   },
   "translate": {
     "missing": "This passage isn't on this device yet.",
@@ -6261,7 +6229,6 @@
     "dragDown": "Drag down for the guide, key words, notes and earlier recordings",
     "openStudy": "Open the study",
     "yourRecording": "Your recording",
-    "saveHelp": "Your parts are already kept as you record. This goes back.",
     "openReferenceHelp": "Brings the reference back to half the screen.",
     "openStudyHelp": "Opens this step in the full study.",
     "partReplaced": "{{part}} recorded again."
@@ -6597,7 +6564,6 @@
       "sayTitle": "Your word for “{{term}}”",
       "saySub": "Say how {{language}} says it. Your team hears it whenever this word comes up.",
       "saySubGloss": "{{gloss}}. Say how {{language}} says it. Your team hears it whenever this word comes up.",
-      "saveWord": "Save your word",
       "added": "{{term}} added.",
       "addSub": "A word the team should say the same way every time. It is added to {{language}}'s key words.",
       "addWord": "Add the word",
@@ -6605,7 +6571,8 @@
       "meaningPlaceholder": "What it means (optional)",
       "sayItIn": "Say it in {{language}}",
       "allHelp": "Opens the list of every key word in this language.",
-      "typeHelp": "Type how {{language}} says it."
+      "typeHelp": "Type how {{language}} says it.",
+      "addYourWord": "Add your word"
     },
     "notes": {
       "noteOnRef": "Note on {{verse}}",
@@ -6628,7 +6595,6 @@
       "madeWith": "made with {{version}}",
       "addHint": "Leave a note on this passage, by voice or text.",
       "sheetSub": "It stays with the passage. Reviewers and the next translator see it.",
-      "save": "Save note",
       "added": "Note added.",
       "typeHelp": "Type your note. You can say it too."
     },
@@ -7143,5 +7109,13 @@
       "all": "All",
       "none": "Not in a cluster"
     }
+  },
+  "saved": {
+    "draftHelp": "Kept on this device as you go, and only you can see it until you finish. A spinner while it is being kept, then a check.",
+    "saving": "Saving",
+    "failedHelp": "This was not kept. Try again: what you made is still on the screen.",
+    "help": "Kept as you go: a spinner while it is being kept, then a check. There is nothing to save.",
+    "failed": "Not saved",
+    "saved": "Saved"
   }
 }

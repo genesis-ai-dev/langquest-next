@@ -3,7 +3,7 @@
 Review it (`review_capture`): Listen, Questions and Decide, notes at a
 moment, Background, "Looks good" and "Needs changes" with "What should
 change?". Back translation (`back_translation`), said part by part and
-published for the next check. And the translator answering feedback:
+finished with Done for the next check. And the translator answering feedback:
 "Hear the feedback", then "Record a fix" or "Keep it, say why".
 
 Read with [the README](README.md): the global preconditions G1 to G10, the
@@ -12,7 +12,7 @@ amendment (8 October) is the specification for these screens.
 
 Code under test: `src/screens/review.tsx` (ReviewCapture),
 `src/simple/{review,reviewVoice,btWorkspace}.tsx`, `src/reviewing/*`,
-`src/screens/passage.tsx` (ReviewDetail, KeepPage, the published page) and
+`src/screens/passage.tsx` (ReviewDetail, KeepPage) and
 `src/screens/translate.tsx` (Workspace when answering feedback).
 
 **Order and shared state.** Tests run in number order.
@@ -25,7 +25,7 @@ Code under test: `src/screens/review.tsx` (ReviewCapture),
 - P-Q3 (TRANS's Version 1) gets "Needs changes" with a retelling in REV-007
   and is back-translated in REV-034 to REV-039.
 - P-NEW (Versions 1 and 2, what changed typed) is opened in REV-008, REV-010
-  and REV-024, which save nothing. P-ASIDE's Peer check is REV-009's. P-S
+  and REV-024, which send nothing (REV-024 leaves a draft on its device). P-ASIDE's Peer check is REV-009's. P-S
   (Versions 1 and 2, said by voice) is REV-010's, then REV-022's.
 - P-CHECK's Consultant check is used for questions (REV-012 to REV-018) and
   is completed in REV-017.
@@ -126,7 +126,7 @@ Expected:
 - The sheet's sub reads "Say what you noticed here. {TRANS first name} hears it with your review."
 - After step 3 the list under the player shows "Your note at 0:04" with "0:05 · goes with your review", a play button ("Play your note at 0:04") and "Remove".
 - Step 4 removes it with no toast.
-- Notes at moments are not written until the review is saved; REV-005 saves this one.
+- Notes at moments are kept on this device as a draft only REV sees (decision 127), and go on the record only when the review is sent; REV-005 sends this one.
 
 ### REV-005 Needs changes, said and typed
 Roles: REV · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
@@ -204,12 +204,12 @@ Steps:
 5. Android only: press the system Back button.
 
 Expected:
-- Step 3 returns to Decide, with the strip and ✕ back. Nothing is saved.
+- Step 3 returns to Decide, with the strip and ✕ back. Nothing is sent.
 - After step 4 the typed text is still in the field.
 - Step 5 should return to Decide, as the header's back arrow does.
 - Steps 1 to 4 run in Playwright; step 5 is the Maestro flow `flows/REV-008.yaml` (on iOS it uses the header's arrow).
 
-Fixed (2026-10-12): `review.tsx` now handles the phone's Back on "What should change?" (back to Decide), and with anything said asks before leaving (REV-024).
+Fixed (2026-10-12): `review.tsx` now handles the phone's Back on "What should change?" (back to Decide). Since decision 127 a Back or ✕ that leaves keeps the review as a draft instead of asking first (REV-024); the Maestro flow ends by leaving and opening it again.
 
 ### REV-009 Who is listening
 Roles: REV · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
@@ -256,7 +256,7 @@ Preconditions:
 Steps:
 1. Tap "Background".
 2. Tap each chip: "Passage", "Guide", "Notes · N", "Key words · N", "Earlier · N".
-3. On "Passage", select verse 18 and leave a note: tap "Note", type "Is 'heaven' clear here?" and tap "Save note".
+3. On "Passage", select verse 18 and leave a note: tap "Note", type "Is 'heaven' clear here?" and tap "Add a note".
 4. On "Passage", open the Bible picker, tap "More Bibles", then come back.
 5. Close the sheet.
 
@@ -353,21 +353,21 @@ Steps:
 2. Answer or skip the three shipped questions and reach "Does it carry the meaning of the original?".
 3. Without answering, look at the footer and the strip.
 4. Tap "Yes", then "Next: decide".
-5. Tap ✕, then "Leave".
+5. Tap ✕.
 
 Expected:
 - On the required question, the right-hand footer button ("Next: decide") is disabled until it is answered or skipped. "Skip" is enabled.
 - "Decide" in the strip cannot be tapped (only finished stages can).
 - If Decide is ever reached with a required question still open, it shows "1 required question left — answer, or say why not" (tapping it opens that question), and both "Looks good" and "Needs changes" are dimmed and disabled.
 - After step 4 Decide shows no such line, and both cards are enabled.
-- Step 5 first asks "Leave without saving?" (an answer was given, REV-024); "Leave" leaves without saving anything.
+- Step 5 leaves at once, with nothing to answer first: the answers stay on this device as a draft (REV-024), and nothing is sent.
 
 ### REV-017 A required question skipped with a reason
 Roles: REV · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
 - The Consultant check carries the required question "Does it carry the meaning of the original?" (fixture).
-- P-CHECK's Consultant check has no review yet (REV-016 saves nothing).
+- P-CHECK's Consultant check has no review yet (REV-016 sends nothing).
 
 Steps:
 1. Open P-CHECK, tap "Do the consultant check", then "Next: questions".
@@ -485,24 +485,27 @@ Expected:
 
 Fixed (2026-10-13), the Sync screen now reads refusals from the device log: after COORD makes REV a Viewer while REV is offline, the review is refused (the device's events table holds it as rejected), but the Sync screen (Me → More settings → Sync) shows "0 refused by the server" and "0 latest confirmed", as if it read another, unsynced language client. My Work and Me do not say so either (SYNC-019).
 
-### REV-024 ✕ in the middle of a review
+### REV-024 Leaving a review keeps it; opening it again brings it back
 Roles: REV · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
-- A version REV has not reviewed is open in Review it.
+- A version REV has not reviewed is open in Review it (P-NEW in the automated test).
 
 Steps:
-1. Leave a note at a moment, and answer a question if there are any.
-2. Tap ✕.
-3. Tap "Keep reviewing", then ✕ again and "Leave".
-4. Open the same review again and tap ✕ without saying anything.
+1. Leave a note at a moment. Tap "Next: decide", then "Needs changes", and type "Too quiet at the start" under "Or type it".
+2. Tap the header's back arrow (to Decide), then ✕.
+3. Kill the app (iOS, Android) or reload (Web), relaunch, open the passage and tap "Do the peer check".
+4. Tap "Needs changes", then go back to Listen.
 
 Expected:
-- Step 2 asks first: a sheet "Leave without saving?" with "What you said and answered here is not saved until you send the review.", "Keep reviewing" and "Leave". A phone's Back does the same.
-- "Keep reviewing" keeps everything (the note at a moment is still listed); "Leave" leaves and saves nothing.
-- With nothing said, chosen or answered, ✕ leaves at once.
+- While it is made, the header's saved mark turns from a spinner into a check: what is said, typed or answered is kept on this device as a draft only REV sees (decision 127).
+- Step 2 leaves at once, with nothing to answer first; nothing is sent (the device's log is unchanged). A phone's Back does the same.
+- Step 3 opens the review where it was left, on Decide.
+- Step 4: the typed words are back in the field, and the note at a moment is listed under the player.
+- Sending the review drops the draft; a draft about a version that is gone is dropped and the review starts fresh.
+- The phone steps are in the Maestro flow `flows/REV-008.yaml` (after REV-008's Back).
 
-Fixed (2026-10-12): ✕ and the phone's Back now ask before discarding (`review.tsx`). Still open: if the app is killed, voice notes and big-mic recordings are not resumed, because the recording journal only resumes parts that have a passage target (`src/recording/`, REC-023).
+Changed (2026-10-15, decision 127): "Leave without saving?" with "Keep reviewing" and "Leave" is gone; leaving keeps the review instead (`reviewing/reviewDraft.ts`). Still open: if the app is killed, voice notes and big-mic recordings are not resumed, because the recording journal only resumes parts that have a passage target (`src/recording/`, REC-023).
 
 ### REV-025 A phone call while recording feedback
 Roles: REV · Priority: P2 · Platforms: iOS, Android · Run: Device
@@ -625,12 +628,12 @@ Expected:
 - The screen opens split like the workspace. Header title "Luke 14:25-35", sub "Back translation · into English" (on a wide window: "Alpha → English"), with ✕.
 - Top: a player "Alpha · Version 1 · part 1" with the sub "{TRANS first name} · drag back and forth as often as you like", and the line "Say each part in English, in your own words. Notes and earlier checks are hidden on purpose, so only the recording shapes what you say."
 - Bottom: a card per part, "Part 1" to "Part N". Part 1 is open, with "Saying it next".
-- The footer has a big red record button (accessibility label "Record part 1") and "Publish", disabled.
+- The footer has a big red record button (accessibility label "Record part 1") and "Done", disabled.
 - No notes, earlier reviews or study are shown anywhere on this screen.
 
-Known issue (2026-10-12): `docs/ux/screen-path.md` calls the secondary action "Save back translation", and `flow.ts`'s edge comment says "tap Save back translation". The screen's button reads "Publish" (and the sheet's "Publish back translation"). The test passes on "Publish"; the doc is the issue.
+Known issue (2026-10-12): `docs/ux/screen-path.md` calls the secondary action "Save back translation", and `flow.ts`'s edge comment says "tap Save back translation". The screen's button reads "Done" (it was "Publish" until decision 127), and its sheet's "Finish the back translation" or, for someone who may ask, "Ask …" for the next check. The test passes on "Done"; the doc is the issue.
 
-### REV-032 Say each part, then publish the back translation
+### REV-032 Say each part, then finish the back translation
 Roles: REV · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
@@ -641,9 +644,9 @@ Steps:
 2. Tap "Record part 1". Speak for 4 seconds, pause 2 seconds, speak for 3 seconds, pause 2 seconds.
 3. Tap "Stop recording".
 4. For each remaining part, listen, then record it the same way.
-5. Tap "Publish".
+5. Tap "Done".
 6. In the sheet, type "The word for 'salt' has no match" under "Anything that was hard to say back? Optional".
-7. Tap "Publish back translation".
+7. Tap "Finish the back translation".
 
 Expected:
 - While recording, the bottom shows the red recording view (decision 124, the workspace's too): "Part 1", a pulsing dot and its status, the elapsed time (accessibility label "Recorded for 0:07"), a check "Done", and the live waveform. Its label reads "Part 1. Recording…" while speaking and "Part 1. Listening for you · pause between parts" while silent.
@@ -651,27 +654,28 @@ Expected:
 - The footer shows "Stop recording". (The sensitivity line and the pause choices went in decision 124, with the recording thread's levels learned as you speak.)
 - After step 3 Part 1 reads "0:07 in English · record to add more", with "Play your part 1", "Hear what you said" and a trash button "Delete part 1 to say it again". Focus moves to Part 2 ("Saying it next").
 - Said parts that are not open read "0:07 in English".
-- "Publish" is enabled after the first part is said.
-- Step 5 opens the sheet "Publish the back translation?", sub "Of Version 1. The Consultant check listens to it next.", with "✓ N of N parts said".
-- Step 7 shows the toast "Back translation published.", with "Undo".
-- The record opens on "Back translation published" with "Luke 14:25-35 · saved on this device · sends when you're online".
+- "Done" is enabled after the first part is said.
+- Step 5 opens the sheet "Back translation", sub "Of Version 1", with "✓ N of N parts said" and the header's saved mark (what is typed there is kept as it is typed). REV may not ask for checks, so it has no "Next check" and its only button is "Finish the back translation" (REV-033).
+- Step 7 shows the toast "Back translation published.", with "Undo" (which takes it back), and returns to the record: there is no page of its own after Done.
 - Afterwards, the record shows Back translation done ("Back translation recorded") on Version 1, and step 1 is complete.
 - COORD, on a second device after Sync now, can play the back translation from the review, in part order, and reads the note.
 - Resets: P-BT has its back translation.
 
 Fixed (2026-10-12): a recording started on a part with nothing picked followed "the next part to say", so after its first piece landed every later piece went to the next part (Part 1, 2 and 3 each got a piece of one recording). The session now keeps to the part it started on (`btWorkspace.tsx`). The sheet names the next check by its check name, "Consultant check" (decision 91).
 
-### REV-033 A reviewer who cannot ask is left at "Next, ask for a check"
+### REV-033 A reviewer who cannot ask is not offered to ask
 Roles: REV · Priority: P2 · Platforms: iOS, Android, Web · Run: Manual
 
 Preconditions:
-- REV has just published P-BT's back translation (REV-032), on its published page.
+- REV has said P-BT's back translation, not yet finished (as REV-032 before step 5).
 
 Steps:
-1. Read the published page.
+1. Tap "Done" and read the sheet.
 
 Expected:
-- A reviewer without Send to reviewers or Assign work is not invited to ask: either "Next, ask for a check" is not shown, or it says who will.
+- A reviewer without Send to reviewers or Assign work is not invited to ask: the sheet has no "Next check", and its only button is "Finish the back translation". Someone who may ask gets "Ask {usual people}" (or "Ask for the {check}") with "Send later" under it (decision 127).
+
+Changed (2026-10-15, decision 127): the published page after publishing is gone; asking for the next check is on Done itself.
 
 Fixed (2026-10-13): the page shows "Next, ask for a check" and the Community check card ("Choose who checks it" or its usual team) even though REV cannot ask; the only button is "Done". The section is shown whenever there is a next check (`passage.tsx`, `page === 'ask'`), without checking `can.ask`.
 
@@ -703,34 +707,34 @@ Steps:
 1. Play part 2 of the version and tap "Note" at about 0:07.
 2. In the sheet "A note at 0:07 in part 2", say it ("Say it"), tap "Add note".
 3. Leave a second note at another moment: type "No word for 'disciple'", tap "Add note".
-4. Tap "Publish" and read the sheet.
+4. Tap "Done" and read the sheet.
 
 Expected:
 - The sheet's sub reads "What was hard to say here? The Consultant check hears it with your back translation." and its field "Or type it — e.g. a word with no English match". "Add note" is disabled until something is said or typed.
-- Under the parts: "2 notes for the Consultant check · they go with it when you publish".
-- The publish sheet shows "✓ 2 notes at moments".
+- Under the parts: "2 notes for the Consultant check". They are kept on this device as they are added (decision 127), and go with the back translation when it is finished.
+- Done's sheet shows "✓ 2 notes at moments".
 - The published note lists each note with its part and time ("Part 2 · 0:07: No word for 'disciple'").
-- The second note's sheet, and the publish sheet's "Anything hard to say back?", read "One spoken note per back translation for now: type this one." and offer no "Say it".
+- The second note's sheet, and Done's "Anything hard to say back?", read "One spoken note per back translation for now: type this one." and offer no "Say it".
 
 Decided (2026-10-13, decisions.md 99, interim): a back translation carries one spoken note; the first said aloud keeps it and later notes are typed. A voice per moment still needs a change to what the event carries.
 
 Known issue (2026-10-12, before the decision): the notes at moments and the publish sheet share one voice recording (`btWorkspace.tsx` `noteHash`). The second voice note replaces the first, the publish sheet opens already holding it, and a voice-only note at a moment is saved as the text "said in the voice note". Notes at moments are also kept only on screen: ✕ or a crash loses them, though the parts are kept. Not fixed here: `produceContent` records one note recording (`commentBlobHash`), and its artifacts are the back translation's own parts, so keeping a voice per moment needs a change to what the event carries (a design decision, PLAN.md section 6).
 
-### REV-036 Publishing with parts not said
+### REV-036 Done with parts not said
 Roles: REV · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
 - A back translation in progress of a version with three or more parts, with only Part 1 said.
 
 Steps:
-1. Tap "Publish".
+1. Tap "Done".
 
 Expected:
 - The sheet shows "✓ 1 of N parts said" and, in amber, "Nothing yet for part 2, 3" (the missing parts).
-- "Publish back translation" is still enabled; the reviewer may publish what they have.
+- "Finish the back translation" is still enabled; the reviewer may finish with what they have.
 - ✕ on the sheet returns to the parts.
 
-### REV-037 Parts are kept on the device until published
+### REV-037 Parts are kept on the device until Done
 Roles: REV · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
@@ -811,15 +815,15 @@ Steps:
 1. Tap "Record a fix".
 2. Look at the workspace.
 3. Delete the part with verse 18 (or the last part) and record it again, slower: speak for 4 seconds, pause, stop.
-4. Tap "Publish".
-5. Look at the Publish screen.
-6. Tap "Publish Version 2".
+4. Tap "Done".
+5. Look at the Done screen.
+6. Tap "Send later".
 
 Expected:
 - Step 1 opens the workspace with sub "Recording Version 2", on the "Earlier" chip, with REV's needs-changes review highlighted in amber.
 - Version 1's parts are in the card, and "These are Version 1's parts. Record a new part or delete one to publish a new version." shows until something changes.
-- Step 5: the row already reads "What changed" with "“Revised after the Peer check feedback.”" (prefilled, so "Publish Version 2" is enabled), and a green check line "Answers the Peer check feedback from {REV-name}".
-- Step 6 shows "Version 2 published." and the published page "Version 2 published" with "Next, ask for a check" for Peer check.
+- Step 5: the row already reads "What changed" with "“Revised after the Peer check feedback.”" (prefilled, so the buttons are enabled), and a green check line "Answers the Peer check feedback from {REV-name}". Under "Next check" is the Peer check, and the main button asks for it ("Ask {usual people}", which publishes and asks in one tap), with "Send later" under it.
+- Step 6 shows "Version 2 published." and returns to the record.
 - Afterwards, the feedback is answered: the record no longer shows "Hear the feedback", and the review shows "{TRANS-name} revised it · {when}" with "Open Version 2".
 - REV, on a second device after Sync now, sees the update and can review Version 2; its Listen page shows "What changed in Version 2: Revised after the Peer check feedback.".
 - Resets: P-NEEDS has Version 2 answering REV's feedback.
@@ -832,7 +836,7 @@ Preconditions:
 
 Steps:
 1. Open P-Q2, "Hear the feedback", "Record a fix".
-2. Record a part, "Publish", "Publish Version 3".
+2. Record a part, "Done", "Send later".
 3. Go online and wait 30 seconds.
 
 Expected:
@@ -934,10 +938,10 @@ Preconditions:
 
 Steps:
 1. TRANS: open P-Q1, "Hear the feedback", "Record a fix".
-2. Change a part, "Publish", "Publish Version 2".
+2. Change a part, "Done", "Send later".
 
 Expected:
-- The Publish screen lists one "Answers the Peer check feedback from {REV-name}" line for each open feedback on Version 1 (only the unanswered one here).
+- The Done screen lists one "Answers the Peer check feedback from {REV-name}" line for each open feedback on Version 1 (only the unanswered one here).
 - Version 2 publishes and answers it.
 - Resets: P-Q1 has Version 2.
 

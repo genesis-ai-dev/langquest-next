@@ -106,7 +106,9 @@ test('SETUP-063 LADMIN is not offered the organization\'s library writes', async
   await expectNotOnScreen(page, 'Break up differently');
   await back(page).click();
   await text(page, 'View template').click();
-  await expectNotOnScreen(page, 'Save changes', 'Copy to change it', 'Create template');
+  await expectNotOnScreen(page, 'Copy to change it', 'Create template');
+  await expect(button(page, 'Done')).toHaveCount(0);
+  await expect(byId(page, 'saved-mark')).toHaveCount(0);
   await back(page).click();
   await back(page).click();
   // Review flows: Use (Alpha's own checks), but no new flow, Follow or Copy.
@@ -116,7 +118,7 @@ test('SETUP-063 LADMIN is not offered the organization\'s library writes', async
   await expect(button(page, 'Follow')).toHaveCount(0);
   await expect(button(page, 'Copy')).toHaveCount(0);
   await expect(button(page, 'Flow')).toHaveCount(0);
-  await expectNotOnScreen(page, 'Save as a flow');
+  await expectNotOnScreen(page, 'Add to your flows');
   await back(page).click();
   // The organization's Content Templates: no Options, no new template, no Follow or Copy.
   await more(page);

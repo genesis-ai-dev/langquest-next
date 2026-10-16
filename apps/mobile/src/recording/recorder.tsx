@@ -4,7 +4,7 @@
 // (open it to hear or delete each; opened when the pane is small, it takes
 // the room it needs), the next part lit, the one-line bar when the
 // reference has the screen, and the footer with the big red button and
-// Publish. Every part has its own delete, and the card one for them all.
+// Done. Every part has its own delete, and the card one for them all.
 // A deleted part leaves the lit next part in its place, so what is said
 // next goes there (LAN-83). When the passage has verses, each part in the
 // card has a space beside it to tap a verse in (verseParts.tsx, decisions.md 82).
@@ -223,21 +223,26 @@ export function RecorderBar(props: { count: number; phase: LoopPhase; disabled: 
   );
 }
 
-/** The footer (a-wsHalf): the part next, the big red button, and Publish beside it. */
+/**
+ * The footer (a-wsHalf): the part next, the big red button, and Done beside it (decision 127; it was Publish).
+ * While recording, Done is the recording view's check, so the footer has none, as in back translation.
+ */
 export function RecorderFooter(props: { count: number; phase: LoopPhase; recordDisabled: boolean; publishDisabled: boolean; onRecord: () => void; onPublish: () => void; nextIndex?: number }) {
   const lines = { ...recorderLines(props.count), ...(props.nextIndex !== undefined ? { next: partLabel(props.nextIndex) } : {}) };
   const recording = props.phase !== 'off';
-  const publish = useHelpSpot(t('common.publish'), t('recording.recorder.publishHelp'), props.onPublish);
+  const publish = useHelpSpot(t('common.done'), t('recording.recorder.doneHelp'), props.onPublish);
   return (
     <View style={styles.footer}>
       <Text style={[styles.side, { textAlign: 'right', color: recording ? TINT.redText : C.muted }]} numberOfLines={2}>{recording ? t('recording.recorder.nextRecording', { part: lines.next }) : lines.next}</Text>
       <RecordBtn size={72} recording={recording} disabled={props.recordDisabled} onPress={props.onRecord} />
       <View style={styles.sideBox}>
-        <Pressable testID="publish-button" onPress={publish.onPress} disabled={props.publishDisabled} accessibilityRole="button" accessibilityLabel={t('common.publish')} accessibilityState={{ disabled: props.publishDisabled }}
-          style={({ pressed }) => [styles.publish, props.publishDisabled && { opacity: 0.45 }, pressed && ps.pressed]}>
-          <Text style={styles.publishLabel}>{t('common.publish')}</Text>
-          <HelpBadge spot={publish} />
-        </Pressable>
+        {recording ? null : (
+          <Pressable testID="publish-button" onPress={publish.onPress} disabled={props.publishDisabled} accessibilityRole="button" accessibilityLabel={t('common.done')} accessibilityState={{ disabled: props.publishDisabled }}
+            style={({ pressed }) => [styles.publish, props.publishDisabled && { opacity: 0.45 }, pressed && ps.pressed]}>
+            <Text style={styles.publishLabel}>{t('common.done')}</Text>
+            <HelpBadge spot={publish} />
+          </Pressable>
+        )}
       </View>
     </View>
   );

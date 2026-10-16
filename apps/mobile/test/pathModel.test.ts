@@ -51,7 +51,7 @@ describe('the passage path (decision 71)', () => {
     // One row per check, each by its one name (decision 91); the second of a step happens at the same time.
     const team = teamSteps(l.input('akol'));
     expect(team.map((t) => `${t.name}|${t.status}`)).toEqual([
-      'Peer check|after you publish',
+      "Peer check|once you're done",
       'Back translation|same time',
       'Community check|after the peer check',
       'Consultant check|after the community check',

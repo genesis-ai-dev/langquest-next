@@ -31,6 +31,9 @@ import { shownClock, mediaKindLabel, CALLOUT_LOOK, calloutLabel } from './studyT
 import { saveNote } from './studyActions';
 import { styles } from './studyStyles';
 import { useStudyAudio, type StudyAudio } from './useStudyAudio';
+import { draftKey, EMPTY_NOTE, isNoteDraft } from '../drafts/draftModel';
+import { useDraft } from '../drafts/useDraft';
+import { SavedMark } from '../ui/SavedMark';
 
 // ---- audio -------------------------------------------------------------------------
 
@@ -148,26 +151,43 @@ export function StudyNote(props: { ctx: Ctx; note: PassageNote; label?: string }
 
 // ---- writing notes -------------------------------------------------------------------
 
-/** Answer, note, or report what the group said: by voice or text (STUDY-3). */
+/**
+ * Answer, note, or report what the group said: by voice or text (STUDY-3).
+ * What is said or typed is a draft only you see (decision 127), kept under
+ * `draftAt` (the verse, or the study part or moment): closing keeps it for
+ * the next note there, the button adds it and drops the draft.
+ */
 export function ContributeSheet(props: {
   ctx: Ctx;
   unitId: string;
   languageId: string;
   title: string;
   where: string;
+  /** What it is on, for its draft: "verse:15:20", a study step's part or moment. */
+  draftAt: string;
+  /** It answers a question: the button says Add your answer. */
+  answer?: boolean;
   onClose: () => void;
   onSave: (c: { text: string; blobHash: string | null }) => Promise<boolean>;
 }) {
-  const [text, setText] = useState('');
-  const [hash, setHash] = useState<string | null>(null);
+  const draft = useDraft(draftKey('note', props.ctx.session.actorId, props.languageId, props.unitId, props.draftAt), EMPTY_NOTE, isNoteDraft);
+  const { text, hash } = draft.value;
   const [busy, setBusy] = useState(false);
+  const add = async () => {
+    setBusy(true);
+    const ok = await props.onSave({ text, blobHash: hash });
+    if (ok) await draft.clear();
+    setBusy(false);
+    if (ok) props.onClose();
+  };
   return (
     <Sheet visible title={props.title} sub={t('study.contribute.sub')} onClose={props.onClose}
-      footer={<PrimaryBtn label={t('common.save')} busy={busy} disabled={!text.trim() && !hash}
-        onPress={() => { setBusy(true); void props.onSave({ text, blobHash: hash }).then((ok) => { setBusy(false); if (ok) props.onClose(); }); }} />}>
+      action={<SavedMark status={draft.status} help={t('saved.draftHelp')} />}
+      footer={<PrimaryBtn label={props.answer ? t('study.contribute.addAnswer') : t('common.addNote')} busy={busy} disabled={!text.trim() && !hash}
+        onPress={() => void add()} />}>
       <View style={styles.where}><Text style={txt.smMuted}>{props.where}</Text></View>
-      <VoiceNote ctx={props.ctx} label={t('study.contribute.record')} hash={hash} onChange={setHash} />
-      <Field value={text} onChangeText={setText} placeholder={t('common.orTypeIt')} help={t('study.contribute.typeHelp')} multiline />
+      <VoiceNote ctx={props.ctx} label={t('study.contribute.record')} hash={hash} onChange={(h) => draft.set((d) => ({ ...d, hash: h }))} />
+      <Field value={text} onChangeText={(x) => draft.set((d) => ({ ...d, text: x }))} placeholder={t('common.orTypeIt')} help={t('study.contribute.typeHelp')} multiline />
     </Sheet>
   );
 }
@@ -361,7 +381,7 @@ export function PassageReader(props: { ctx: Ctx; v: PassageView; canContribute: 
           }
         }} />
       {adding ? (
-        <ContributeSheet ctx={ctx} unitId={v.unitId} languageId={v.languageId} title={t('common.addNote')}
+        <ContributeSheet ctx={ctx} unitId={v.unitId} languageId={v.languageId} title={t('common.addNote')} draftAt={`verse:${adding.verse}`}
           where={adding.at
             ? t('study.reader.whereAt', { title: v.title, verse: adding.verse, bible: adding.code, time: adding.at })
             : t('study.reader.where', { title: v.title, verse: adding.verse, bible: adding.code })}
