@@ -4576,7 +4576,9 @@
       "nextPausedHelp": "Dijeda selama Alkitab diputar. Perekaman berlanjut saat Alkitab berhenti.",
       "deleteAll": "Hapus semua bagian",
       "deleteAllHelp": "Menghapus semua bagian, untuk mulai lagi. Anda bisa mengurungkannya segera sesudahnya.",
-      "slotHelp": "Bagian yang Anda rekam berikutnya masuk di sini, di tempat bagian yang dihapus. Ketuk tombol merah untuk mulai."
+      "slotHelp": "Bagian yang Anda rekam berikutnya masuk di sini, di tempat bagian yang dihapus. Ketuk tombol merah untuk mulai.",
+      "leave": "Berhenti dan kembali ke bagian Anda",
+      "leaveHelp": "Menghentikan rekaman dan menampilkan bagian-bagian Anda. Yang Anda ucapkan tetap tersimpan."
     },
     "quoted": "“{{text}}”",
     "listening": "Mendengarkan… {{time}}",
@@ -4752,16 +4754,9 @@
     },
     "vad": {
       "recordedFor": "Direkam selama {{time}}",
-      "pausedForSource": "Dijeda selama sumber diputar",
-      "startsAgain": "Perekaman dimulai lagi saat sumber berhenti.",
-      "cutoff": "Batas suara",
-      "pauseBetween": "Jeda di antara bagian",
       "tooShort": "Terlalu pendek untuk disimpan. Jika Anda sedang berbicara, ucapkan lagi.",
-      "statusHelp": "Titik berdenyut: suara Anda sedang disimpan. Angka: berapa banyak sejauh ini. Jam: lama waktu yang direkam.",
       "statusPausedHelp": "Dijeda selama sumber diputar. Angka: berapa banyak sejauh ini. Jam: lama waktu yang direkam.",
-      "resumeHelp": "Menghentikan yang sedang diputar dan lanjut merekam.",
-      "cutoffHelp": "Batang-batang ini adalah apa yang didengar mikrofon. Tarik garisnya: suara di atas garis akan direkam.",
-      "pauseHelp": "Berapa lama jeda untuk mengakhiri sebuah bagian. Langsung berubah."
+      "resumeHelp": "Menghentikan yang sedang diputar dan lanjut merekam."
     },
     "split": {
       "referenceOneLine": "Referensi dalam satu baris",

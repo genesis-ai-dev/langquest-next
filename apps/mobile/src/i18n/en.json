@@ -4730,7 +4730,9 @@
       "nextPausedHelp": "Paused while the Bible plays. Recording goes on when it stops.",
       "deleteAll": "Delete every part",
       "deleteAllHelp": "Deletes every part, to start over. You can undo it right after.",
-      "slotHelp": "The part you record next goes here, where the deleted part was. Tap the red button to start."
+      "slotHelp": "The part you record next goes here, where the deleted part was. Tap the red button to start.",
+      "leave": "Stop and go back to your parts",
+      "leaveHelp": "Stops recording and shows your parts. What you said is kept."
     },
     "quoted": "“{{text}}”",
     "listening": "Listening… {{time}}",
@@ -4910,16 +4912,9 @@
     },
     "vad": {
       "recordedFor": "Recorded for {{time}}",
-      "pausedForSource": "Paused while the source plays",
-      "startsAgain": "Recording starts again when the source stops.",
-      "cutoff": "Sound cutoff",
-      "pauseBetween": "Pause between parts",
       "tooShort": "Too short to keep. If you were speaking, say it again.",
-      "statusHelp": "Pulsing dot: your voice is being kept. The number: how many so far. The clock: time recorded.",
       "statusPausedHelp": "Paused while the source plays. The number: how many so far. The clock: time recorded.",
-      "resumeHelp": "Stops what is playing and goes on recording.",
-      "cutoffHelp": "The bars are what the microphone hears. Drag the line: sound above it is recorded.",
-      "pauseHelp": "How long a pause ends a part. It changes at once."
+      "resumeHelp": "Stops what is playing and goes on recording."
     },
     "split": {
       "referenceOneLine": "Reference as one line",

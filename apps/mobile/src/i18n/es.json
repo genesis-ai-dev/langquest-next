@@ -4884,7 +4884,9 @@
       "nextPausedHelp": "En pausa mientras suena la Biblia. La grabación sigue cuando se detiene.",
       "deleteAll": "Borrar todas las partes",
       "deleteAllHelp": "Borra todas las partes, para empezar de nuevo. Puedes deshacerlo justo después.",
-      "slotHelp": "La parte que grabes a continuación va aquí, donde estaba la parte borrada. Toca el botón rojo para empezar."
+      "slotHelp": "La parte que grabes a continuación va aquí, donde estaba la parte borrada. Toca el botón rojo para empezar.",
+      "leave": "Detener y volver a tus partes",
+      "leaveHelp": "Detiene la grabación y muestra tus partes. Lo que dijiste se guarda."
     },
     "quoted": "“{{text}}”",
     "listening": "Escuchando… {{time}}",
@@ -5068,16 +5070,9 @@
     },
     "vad": {
       "recordedFor": "Grabado durante {{time}}",
-      "pausedForSource": "En pausa mientras suena la fuente",
-      "startsAgain": "La grabación vuelve a empezar cuando la fuente se detiene.",
-      "cutoff": "Corte de sonido",
-      "pauseBetween": "Pausa entre partes",
       "tooShort": "Fue demasiado corto para guardarlo. Si estabas hablando, dilo otra vez.",
-      "statusHelp": "Punto que late: tu voz se está guardando. El número: cuántas partes van. El reloj: tiempo grabado.",
       "statusPausedHelp": "En pausa mientras suena la fuente. El número: cuántas partes van. El reloj: tiempo grabado.",
-      "resumeHelp": "Detiene lo que suena y sigue grabando.",
-      "cutoffHelp": "Las barras son lo que oye el micrófono. Mueve la línea: se graba el sonido que queda por encima.",
-      "pauseHelp": "Cuánto dura la pausa que termina una parte. Cambia de inmediato."
+      "resumeHelp": "Detiene lo que suena y sigue grabando."
     },
     "split": {
       "referenceOneLine": "Referencia en una línea",

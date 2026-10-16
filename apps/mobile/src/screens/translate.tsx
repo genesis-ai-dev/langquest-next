@@ -29,7 +29,7 @@
 // listen to the latest version and what you save is content for the next
 // check, not a version.
 import {
-  commands, derivePassage, draftsBy, keyTermsForUnit, partMarksFor, versesInChapter,
+  commands, derivePartVerses, derivePassage, draftsBy, keyTermsForUnit, partMarksFor, versesInChapter,
   type EventSpec, type KindDef, type LanguageState, type PartMark, type PassageNote, type Version
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -52,7 +52,8 @@ import { CardList, RecordButton, SaveProblem, type ListedCard } from '../recordi
 import { SplitPane } from '../recording/SplitPane';
 import { MIN_BOTTOM, MIN_BOTTOM_RECORDING, rememberedSplit } from '../recording/splitModel';
 import { useListenLoop } from '../recording/useListenLoop';
-import { VadControls, VadPanel } from '../recording/VadTakeover';
+import { RecordingView } from '../recording/RecordingView';
+import { VerseTile } from '../recording/verseParts';
 import {
   backTranslationDraftKey, canPublish, cardDurations, clearListSpecs, draftToOpen, removeCardSpecs, sameCards,
   termsInText, tiedTermIds, tieTermsSpecs, unsavedParts, workingCards
@@ -460,6 +461,10 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   // Where the next part goes: a deleted part's place, else the end.
   const slotIndex = insertBefore ? list.indexOf(insertBefore) : -1;
   const nextIndex = slotIndex >= 0 ? slotIndex : undefined;
+  // The verses a part said in a deleted part's place takes, for the recording view's title.
+  const slotLabel = slotIndex >= 0 && slotMark && verseKeys.length > 0
+    ? derivePartVerses([...marks.slice(0, slotIndex), slotMark, ...marks.slice(slotIndex)], verseKeys.length).labels[slotIndex] ?? null : null;
+  const slotTile = slotLabel ? <VerseTile verses={verseKeys} label={slotLabel} same={slotLabel.kind === 'join'} /> : null;
   const problem = rec.failureCount > 0
     ? <SaveProblem message={rec.error || t('translate.partNotSaved')} retryLabel={t('translate.retrySaving')} busy={rec.busy} onRetry={() => void rec.retryFailed()} />
     : composeError ? <SaveProblem message={composeError} onRetry={() => setComposeError('')} />
@@ -495,7 +500,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
         <RecorderFooter count={list.length} {...(nextIndex !== undefined ? { nextIndex } : {})} phase={loop.phase} recordDisabled={saving || rec.failureCount > 0}
           publishDisabled={!changed || blocked || rec.failureCount > 0} onRecord={record} onPublish={() => setConfirming(true)} />
       )}>
-      <SplitPane memoryKey="workspace" minBottom={MIN_BOTTOM} onFraction={setSplit}
+      <SplitPane memoryKey="workspace" minBottom={session ? MIN_BOTTOM_RECORDING : MIN_BOTTOM} onFraction={setSplit}
         topStyle={styles.refPane} bottomStyle={styles.wsRecordPane}
         top={({ compact, open }) => compact ? (
           bible.hasVerses ? <BibleBar bible={bible} onOpen={open} /> : <ReferenceBar onOpen={open} />
@@ -531,7 +536,11 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
             </HelpClip>
           </View>
         )}
-        bottom={({ compact, open, height, room }) => compact ? (
+        bottom={({ compact, open, height, room }) => session ? (
+          // While recording, the pane is the recording view: what is being said, the waveform, and an X back to the parts.
+          <RecordingView rec={rec} phase={loop.phase} title={partLabel(nextIndex ?? list.length)} onLeave={record} onResume={loop.resumeNow}
+            {...(slotTile ? { tile: slotTile } : {})} />
+        ) : compact ? (
           <RecorderBar count={list.length} {...(nextIndex !== undefined ? { nextIndex } : {})} phase={loop.phase} disabled={saving || rec.failureCount > 0} onRecord={record} onOpen={open} />
         ) : (
           <HelpClip style={{ flex: 1 }}>

@@ -4576,7 +4576,9 @@
       "nextPausedHelp": "播放圣经时已暂停。圣经停止后会继续录音。",
       "deleteAll": "删除所有段",
       "deleteAllHelp": "删除所有段，从头再来。删除后可以马上撤销。",
-      "slotHelp": "你接下来录的一段放在这里，就是删掉的那一段原来的位置。点按红色按钮开始。"
+      "slotHelp": "你接下来录的一段放在这里，就是删掉的那一段原来的位置。点按红色按钮开始。",
+      "leave": "停止并回到你的各段",
+      "leaveHelp": "停止录音并显示你的各段。你说的内容会保留。"
     },
     "quoted": "“{{text}}”",
     "listening": "正在听……{{time}}",
@@ -4752,16 +4754,9 @@
     },
     "vad": {
       "recordedFor": "已录 {{time}}",
-      "pausedForSource": "播放源音频时已暂停",
-      "startsAgain": "源音频停止后会重新开始录音。",
-      "cutoff": "声音门限",
-      "pauseBetween": "段与段之间的停顿",
       "tooShort": "太短了，没有保存。如果您刚才在说话，请再说一遍。",
-      "statusHelp": "闪动的圆点：正在保存你的声音。数字：目前录了几段。时钟：已录的时间。",
       "statusPausedHelp": "播放源音频时已暂停。数字：目前录了几段。时钟：已录的时间。",
-      "resumeHelp": "停止正在播放的内容，继续录音。",
-      "cutoffHelp": "这些条是麦克风听到的声音。拖动这条线：高于它的声音会被录下来。",
-      "pauseHelp": "停顿多久算一段结束。更改后立即生效。"
+      "resumeHelp": "停止正在播放的内容，继续录音。"
     },
     "split": {
       "referenceOneLine": "参考资料缩成一行",

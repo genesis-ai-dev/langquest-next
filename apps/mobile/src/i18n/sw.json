@@ -4730,7 +4730,9 @@
       "nextPausedHelp": "Imesitishwa wakati Biblia inacheza. Kurekodi kunaendelea ikisimama.",
       "deleteAll": "Futa sehemu zote",
       "deleteAllHelp": "Hufuta sehemu zote, ili uanze upya. Unaweza kutendua mara baada ya hapo.",
-      "slotHelp": "Sehemu utakayorekodi ijayo inakaa hapa, mahali pa ile uliyofuta. Gusa kitufe chekundu ili kuanza."
+      "slotHelp": "Sehemu utakayorekodi ijayo inakaa hapa, mahali pa ile uliyofuta. Gusa kitufe chekundu ili kuanza.",
+      "leave": "Simamisha na urudi kwenye sehemu zako",
+      "leaveHelp": "Husimamisha kurekodi na kuonyesha sehemu zako. Ulichosema kinahifadhiwa."
     },
     "quoted": "“{{text}}”",
     "listening": "Inasikiliza… {{time}}",
@@ -4910,16 +4912,9 @@
     },
     "vad": {
       "recordedFor": "Imerekodiwa kwa {{time}}",
-      "pausedForSource": "Imesitishwa chanzo kinapocheza",
-      "startsAgain": "Kurekodi kunaanza tena chanzo kikisimama.",
-      "cutoff": "Kiwango cha sauti",
-      "pauseBetween": "Pumziko kati ya sehemu",
       "tooShort": "Ni fupi mno kuhifadhiwa. Kama ulikuwa ukiongea, sema tena.",
-      "statusHelp": "Nukta inayodunda: sauti yako inahifadhiwa. Namba: idadi hadi sasa. Saa: muda uliorekodiwa.",
       "statusPausedHelp": "Imesitishwa wakati chanzo kinacheza. Namba: idadi hadi sasa. Saa: muda uliorekodiwa.",
-      "resumeHelp": "Husimamisha kinachocheza na kuendelea kurekodi.",
-      "cutoffHelp": "Vipau ni kile maikrofoni inasikia. Buruta mstari: sauti iliyo juu yake inarekodiwa.",
-      "pauseHelp": "Pumziko la muda gani linamaliza sehemu. Linabadilika mara moja."
+      "resumeHelp": "Husimamisha kinachocheza na kuendelea kurekodi."
     },
     "split": {
       "referenceOneLine": "Marejeo katika mstari mmoja",

@@ -4884,7 +4884,9 @@
       "nextPausedHelp": "En pause pendant que la Bible joue. L’enregistrement reprend quand elle s’arrête.",
       "deleteAll": "Supprimer toutes les parties",
       "deleteAllHelp": "Supprime toutes les parties, pour tout recommencer. Vous pouvez annuler juste après.",
-      "slotHelp": "La partie que vous enregistrez ensuite va ici, à la place de celle supprimée. Touchez le bouton rouge pour commencer."
+      "slotHelp": "La partie que vous enregistrez ensuite va ici, à la place de celle supprimée. Touchez le bouton rouge pour commencer.",
+      "leave": "Arrêter et revenir à vos parties",
+      "leaveHelp": "Arrête l’enregistrement et affiche vos parties. Ce que vous avez dit est gardé."
     },
     "quoted": "« {{text}} »",
     "listening": "Écoute… {{time}}",
@@ -5068,16 +5070,9 @@
     },
     "vad": {
       "recordedFor": "Enregistré pendant {{time}}",
-      "pausedForSource": "En pause pendant que la source joue",
-      "startsAgain": "L’enregistrement reprend quand la source s’arrête.",
-      "cutoff": "Seuil du son",
-      "pauseBetween": "Pause entre les parties",
       "tooShort": "Trop court pour être gardé. Si vous parliez, redites-le.",
-      "statusHelp": "Point qui pulse : votre voix est gardée. Le nombre : combien jusqu’ici. L’horloge : temps enregistré.",
       "statusPausedHelp": "En pause pendant que la source joue. Le nombre : combien jusqu’ici. L’horloge : temps enregistré.",
-      "resumeHelp": "Arrête ce qui joue et continue l’enregistrement.",
-      "cutoffHelp": "Les barres montrent ce que le microphone entend. Faites glisser la ligne : le son au-dessus est enregistré.",
-      "pauseHelp": "La durée de pause qui termine une partie. Elle change tout de suite."
+      "resumeHelp": "Arrête ce qui joue et continue l’enregistrement."
     },
     "split": {
       "referenceOneLine": "Référence sur une ligne",
