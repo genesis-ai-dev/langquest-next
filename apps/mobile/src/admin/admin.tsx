@@ -6,21 +6,21 @@
 // primitives and theme tokens; every pressable goes through `useHelpSpot`
 // so help mode explains it instead of pressing it.
 import { FileText, Play, Route } from 'lucide-react-native';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { AccessibilityInfo, ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import QRCode from 'react-native-qrcode-svg';
-import { scopeKey, type Scope } from '@langquest-next/core';
-import { APP_URL } from '../web/appUrl';
 import { useHelpMode, useHelpSpot } from '../helpMode/helpContext';
 import { HelpBadge, HelpLit } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { inviteUri, issueInvite } from '../invites/invites';
 import { Ico, txt, type IconName } from '../ui/kit';
-import { noteExpected } from '../diagnostics/report';
 import { shadow } from '../ui/shadow';
 import { C, radius, space, target, TINT, type as T } from '../ui/theme';
+import { inviteFailureText, GROUP_USES } from './inviteText';
+import { type InviteState } from './useGroupInvite';
+export { useGroupInvite, type InviteState } from './useGroupInvite';
+export { inviteFailureText, GROUP_USES } from './inviteText';
 
 // ---- icons ----------------------------------------------------------------------------
 
@@ -338,48 +338,6 @@ export function AmberNote(props: { icon: AdminIcon; children: ReactNode }) {
 }
 
 // ---- the invite code ------------------------------------------------------------------------
-
-/** How many people a group code admits (the server allows up to 50). */
-export const GROUP_USES = 30;
-
-type InviteState = { uri: string } | { error: string } | null;
-
-/**
- * Why the server made no invite code, in the language showing. Its own
- * words are a developer's English (the invite RPCs' `raise exception`), so
- * only a refusal is told apart; anything else reads as a connection to try
- * again on.
- */
-export function inviteFailureText(e: unknown): string {
-  const message = e instanceof Error ? e.message : '';
-  if (/not allowed|may only invite/i.test(message)) return t('admin.inviteCode.notAllowed');
-  return t('common.tryWhenConnected');
-}
-
-/**
- * A group code for one role at one scope, issued when first shown (the same
- * RPC as Invite by QR) and kept while the screen is up, so switching back to
- * a role shows the code already made. Offline, it says so.
- */
-export function useGroupInvite(orgId: string, roleId: string | null, scope: Scope | null, label: string): InviteState {
-  const [made, setMade] = useState<Record<string, InviteState>>({});
-  const key = roleId && scope ? `${roleId}|${scopeKey(scope)}` : '';
-  useEffect(() => {
-    if (!key || !roleId || !scope || made[key]) return;
-    let live = true;
-    void issueInvite(orgId, roleId, scope, { label, maxUses: GROUP_USES })
-      .then((inv) => { if (live) setMade((m) => ({ ...m, [key]: { uri: inviteUri(orgId, inv.token, APP_URL) } })); })
-      .catch((e: unknown) => {
-        // Offline or refused by the server: its words say which.
-        noteExpected('issue group invite', e);
-        if (live) setMade((m) => ({ ...m, [key]: { error: inviteFailureText(e) } }));
-      });
-    return () => { live = false; };
-    // `made` is read to skip a code already made; it must not re-run the effect.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, orgId, label]);
-  return key ? made[key] ?? null : null;
-}
 
 /** The code to scan, with what to tell people. */
 export function InviteCode(props: { state: InviteState }) {

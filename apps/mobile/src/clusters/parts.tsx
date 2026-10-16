@@ -2,7 +2,7 @@
 // (amber, so it never reads as a language), and a language's Cluster row,
 // which opens the clusters it is in to change them. The model is
 // clusters/model.ts; the cluster's own page is ClusterHome (screens/org.tsx).
-import { clustersOf, mayManageClusters, orgClusters, type ClusterInfo, type OrgState } from '@langquest-next/core';
+import { clustersOf, mayManageClusters, orgClusters, type ClusterInfo } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useState } from 'react';
 import { View } from 'react-native';
@@ -13,17 +13,13 @@ import { failureMessage } from '../diagnostics/report';
 import { CheckRow, IconTile } from '../admin/admin';
 import { Text } from '../ui/text';
 import { TINT } from '../ui/theme';
-import { clusterEvents, clusterNamed, clusterNames, newClusterId, type ClusterEvent } from './model';
+import { clusterEvents, clusterNamed, newClusterId, type ClusterEvent } from './model';
+import { clusterSub, appendClusterEvents } from './clusterActions';
+export { clusterSub, appendClusterEvents } from './clusterActions';
 
 /** A cluster's tile: layers, in amber. */
 export function ClusterTile(props: { size?: number }) {
   return <IconTile icon="layers" size={props.size ?? 44} bg={TINT.amber} color={TINT.amberText} />;
-}
-
-/** "5 languages · Northeastern Dinka, Northwestern Dinka, South Central Dinka…" */
-export function clusterSub(org: OrgState | null, c: ClusterInfo): string {
-  const names = clusterNames(org, c).join(t('admin.list.separator'));
-  return t('clusters.row.sub', { count: c.languageIds.length, names: c.languageIds.length > 3 ? t('clusters.row.namesMore', { names }) : names });
 }
 
 /** A cluster as a row of the organization's languages: tapping it opens its page. */
@@ -33,14 +29,6 @@ export function ClusterRow(props: { ctx: Ctx; c: ClusterInfo; current?: boolean;
     <Row leading={<ClusterTile />} label={c.name} sub={clusterSub(ctx.org.state, c)} current={!!props.current} last={!!props.last}
       testID={`cluster-${c.clusterId}`} onPress={() => ctx.go('cluster_home', { clusterId: c.clusterId })} />
   );
-}
-
-/** Append a cluster's events in order, to the organization's stream. */
-export async function appendClusterEvents(ctx: Ctx, events: readonly ClusterEvent[]): Promise<void> {
-  for (const e of events) {
-    if (e.type === 'v1.ClusterNamed') await ctx.org.append('v1.ClusterNamed', e.payload);
-    else await ctx.org.append('v1.LanguageClusterSet', e.payload);
-  }
 }
 
 /**

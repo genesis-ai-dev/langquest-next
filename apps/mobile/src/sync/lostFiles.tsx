@@ -5,7 +5,7 @@
 // can miss it: over every screen, until someone taps "I understand". It
 // says what can come back and which passages need recording again.
 import type { LostFile } from '@langquest-next/sync';
-import { lostFilesView, unitTitle, type LanguageState } from '@langquest-next/core';
+import { type LanguageState } from '@langquest-next/core';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Modal, ScrollView, StyleSheet, View } from 'react-native';
 import { getBlobStore, type BlobStore } from './blobs';
@@ -13,32 +13,8 @@ import { Ico, PrimaryBtn, txt, type IconName } from '../ui/kit';
 import { t } from '../i18n';
 import { Text } from '../ui/text';
 import { C, onColor, radius, space, TINT, type as T, withAlpha } from '../ui/theme';
-
-/** Passages named in the alert; the rest are counted. */
-const NAMED = 4;
-
-export interface LostFilesWords {
-  total: number;
-  /** Recordings the server never had: gone. */
-  unsent: number;
-  /** Files the server has: nothing lost there. */
-  safe: number;
-  /** The passages to record again, by name. */
-  passages: string[];
-  morePassages: number;
-}
-
-/** What the alert says, from the open language and the files lost. */
-export function lostFilesWords(state: LanguageState, lost: readonly LostFile[]): LostFilesWords {
-  const view = lostFilesView(state, lost.map((l) => l.hash));
-  return {
-    total: lost.length,
-    unsent: view.unsent,
-    safe: view.safe,
-    passages: view.unitIds.slice(0, NAMED).map((id) => unitTitle(state, id)),
-    morePassages: Math.max(0, view.unitIds.length - NAMED)
-  };
-}
+import { lostFilesWords, type LostFilesWords } from './lostFilesWords';
+export { lostFilesWords, type LostFilesWords } from './lostFilesWords';
 
 /** Files lost that nobody has seen the alert for, kept current as the store finds more. */
 function useLostFiles(): { lost: LostFile[]; store: BlobStore | null } {

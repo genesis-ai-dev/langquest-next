@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect, useState } from 'react';
 import type { HeldInvite } from './heldInvite';
+export { useHeld } from './useHeldInvite';
 
 /**
  * Where the held invite lives (heldInvite.ts has the rule). One key for the
@@ -10,9 +10,9 @@ import type { HeldInvite } from './heldInvite';
  */
 export const HELD_INVITE_KEY = 'held-invite';
 const KEY = HELD_INVITE_KEY;
-const listeners = new Set<(held: HeldInvite | null) => void>();
+export const listeners = new Set<(held: HeldInvite | null) => void>();
 
-async function readHeld(): Promise<HeldInvite | null> {
+export async function readHeld(): Promise<HeldInvite | null> {
   try {
     const raw = await AsyncStorage.getItem(KEY);
     const held = raw ? (JSON.parse(raw) as HeldInvite) : null;
@@ -28,15 +28,3 @@ export async function writeHeld(held: HeldInvite | null): Promise<void> {
   for (const l of listeners) l(held);
 }
 
-/** The held invite, kept current for a screen. `undefined` until read. */
-export function useHeld(): HeldInvite | null | undefined {
-  const [held, setHeld] = useState<HeldInvite | null | undefined>(undefined);
-  useEffect(() => {
-    let active = true;
-    void readHeld().then((h) => { if (active) setHeld(h); });
-    const l = (h: HeldInvite | null) => setHeld(h);
-    listeners.add(l);
-    return () => { active = false; listeners.delete(l); };
-  }, []);
-  return held;
-}

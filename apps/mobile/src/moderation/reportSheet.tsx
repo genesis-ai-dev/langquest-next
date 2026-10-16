@@ -9,18 +9,11 @@ import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { Field, GhostBtn, Group, Ico, IconBtn, LinkBtn, PrimaryBtn, Row, Sheet, txt } from '../ui/kit';
 import { t } from '../i18n';
-import {
-  hiddenText, personTarget, reasonLabel, reasonSub, removeThingTitle, reportedMessage, REPORT_REASON_IDS, reportThingLabel, thingByLine,
-  type ReportKind, type ReportReason, type ReportTarget
-} from './model';
+import { personTarget, reasonLabel, reasonSub, removeThingTitle, reportedMessage, REPORT_REASON_IDS, reportThingLabel, thingByLine, type ReportReason, type ReportTarget } from './model';
 import { dismissReports, removeContent, reportsChanged, sendReport } from './moderationData';
 import { failureMessage, noteExpected } from '../diagnostics/report';
 import { C, radius, space, TINT } from '../ui/theme';
-
-/** A piece of the open language's record, as something to report. */
-export function recordTarget(ctx: Ctx, kind: Exclude<ReportKind, 'person'>, id: string, by: string, unitId?: string): ReportTarget {
-  return { kind, id, profileId: by, orgId: ctx.language.orgId, languageId: ctx.language.languageId, ...(unitId ? { unitId } : {}) };
-}
+export { recordTarget, authoredText } from './reportTargets';
 
 /** May this person take it out of the record, or act on a report about someone? The server checks again. */
 function canModerate(ctx: Ctx, target: ReportTarget): boolean {
@@ -247,11 +240,6 @@ export function Authored(props: { ctx: Ctx; by: string; children: ReactNode }) {
       <LinkBtn label={t('moderation.hidden.show')} onPress={() => setShown(true)} accessibilityLabel={t('moderation.hidden.showLabel', { name: props.ctx.name(props.by) })} />
     </View>
   );
-}
-
-/** Someone's words in a line of text, unless this person blocked them. */
-export function authoredText(ctx: Ctx, by: string | undefined, text: string): string {
-  return by && by !== ctx.session.actorId && ctx.blocks.has(by) ? hiddenText() : text;
 }
 
 const styles = StyleSheet.create({

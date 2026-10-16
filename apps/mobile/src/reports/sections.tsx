@@ -24,38 +24,9 @@ import WorldMap from './WorldMap';
 import {
   LEVEL_TONE, levelCount, levelLabel, milestoneText, paceAdvice, paceLabel, PACE_TONE, recencyAdvice, recencyLabel, RECENCY_TONE, scopeLabel
 } from './labels';
-import {
-  ago, AttentionPanel, Bar, bookOf, canPrint, Columns, CoverageMini, CoverageRows, dateTime, dayYear, Delta, exportCsv, fileName, Freshness,
-  HeadlineStats, languagesCsv, ledgerCsv, ListLine, longDay, monthName, monthShort, Notice, num, Panel, partOf, pctText, printPage, ProgressPair,
-  RecencyBadge, safeName, shortDate, signed, Stat, Stats, ToneBadge, utcTime, type Tone
-} from './ui';
-
-export type SectionId = 'overview' | 'activity' | 'languages' | 'geography' | 'field' | 'ledger' | 'pace' | 'alerts';
-
-export const SECTIONS: { id: SectionId; filterCountry: boolean }[] = [
-  { id: 'overview', filterCountry: true },
-  { id: 'activity', filterCountry: true },
-  { id: 'languages', filterCountry: true },
-  { id: 'geography', filterCountry: false },
-  { id: 'field', filterCountry: true },
-  { id: 'ledger', filterCountry: true },
-  { id: 'pace', filterCountry: true },
-  { id: 'alerts', filterCountry: false }
-];
-
-/** A section's name, for its chip and the page title. */
-export function sectionLabel(id: SectionId): string {
-  switch (id) {
-    case 'overview': return t('reports.sections.overview');
-    case 'activity': return t('reports.sections.activity');
-    case 'languages': return t('reports.sections.languages');
-    case 'geography': return t('reports.sections.geography');
-    case 'field': return t('reports.sections.field');
-    case 'ledger': return t('reports.sections.ledger');
-    case 'pace': return t('reports.sections.pace');
-    case 'alerts': return t('reports.sections.alerts');
-  }
-}
+import { ago, AttentionPanel, Bar, bookOf, canPrint, Columns, CoverageMini, CoverageRows, dateTime, dayYear, Delta, exportCsv, fileName, Freshness, HeadlineStats, languagesCsv, ledgerCsv, ListLine, longDay, monthName, monthShort, Notice, num, Panel, pctText, printPage, ProgressPair, RecencyBadge, safeName, shortDate, signed, Stat, Stats, ToneBadge, utcTime, type Tone } from './ui';
+import { sectionLabel, type SectionId } from './sectionsModel';
+export { SECTIONS, sectionLabel, openAlerts, type SectionId } from './sectionsModel';
 
 /** What every section gets. */
 export interface SectionProps {
@@ -836,11 +807,6 @@ function alertText(a: Alert, asOf: string, now: number): { title: string; body: 
     };
     default: return { title: a.title, body: a.body, action: a.action };
   }
-}
-
-/** Alerts that need someone, for the section switcher's count. */
-export function openAlerts(rows: LanguageRow[], asOf: string, now: number): number {
-  return alertsFor(rows, asOf, now).filter((a) => a.level !== 'fyi').length;
 }
 
 export function Alerts(p: SectionProps) {

@@ -8,10 +8,7 @@
 // the passage's verses with the team's notes marked in amber with their
 // author. Built from kit.tsx and theme tokens; every press goes through the
 // kit or useHelpSpot (with its HelpBadge) so help mode explains it.
-import {
-  commands, usedOn,
-  type KeyTermView, type KindDef, type PassageNote, type ReviewView, type SourcedQuestion
-} from '@langquest-next/core';
+import { commands, usedOn, type KindDef, type PassageNote, type SourcedQuestion } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -35,10 +32,11 @@ import { lift } from '../ui/shadow';
 import { usePassagePlayer } from '../sources/player';
 import type { Usage } from '../sources/used';
 import { usePassageSource, useSources } from '../sources/useSources';
-import type { StudyProgress } from '../study/progress';
 import { C, onColor, radius, space, target, TINT, type as T, withAlpha } from '../ui/theme';
 import { VoiceNote } from '../audio/voiceNote';
 import { SpeakBtn } from './reviewVoice';
+import { type BackgroundData } from './reviewText';
+export { backgroundLine, type BackgroundData } from './reviewText';
 
 // ---- the strip of steps ----------------------------------------------------------------------
 
@@ -139,33 +137,7 @@ export function OutcomePill(props: { label: string }) {
 
 // ---- Background ------------------------------------------------------------------------------
 
-export interface BackgroundData {
-  terms: KeyTermView[];
-  notes: PassageNote[];
-  anchor: (n: PassageNote) => string;
-  olderVersion: (n: PassageNote) => string | undefined;
-  study: StudyProgress | null;
-  earlier: ReviewView[];
-}
-
 type Tab = 'passage' | 'guide' | 'notes' | 'terms' | 'earlier';
-
-/**
- * The Background row's line: what there is, in the translator's name ("The
- * passage, Deng's notes, key words, earlier checks"). `you` when the
- * translator is the person looking ("your notes").
- */
-export function backgroundLine(d: BackgroundData, translator: { id: string; name: string; you: boolean }): string {
-  const parts = [t('review.simple.bgLine.passage')];
-  if (d.study) parts.push(t('review.simple.bgLine.study'));
-  if (d.notes.length) {
-    parts.push(!d.notes.every((n) => n.by === translator.id) ? t('review.simple.bgLine.notes')
-      : translator.you ? t('review.simple.bgLine.yourNotes') : t('review.simple.bgLine.theirNotes', { name: translator.name }));
-  }
-  if (d.terms.length) parts.push(t('review.simple.bgLine.keyWords'));
-  if (d.earlier.length) parts.push(t('review.simple.bgLine.earlier'));
-  return parts.join(', ');
-}
 
 /**
  * Background as one sheet: chips switch between the passage in the Bible
@@ -478,7 +450,6 @@ export function MomentList(props: { ctx: Ctx; moments: { hash: string; durationM
     </Group>
   );
 }
-
 
 /** Answer a rating or a yes/no question with big targets: five numbers, or two cards. */
 export function BigChoices(props: { type: 'rating' | 'yesno'; value: string | undefined; onChange: (v: string) => void }) {

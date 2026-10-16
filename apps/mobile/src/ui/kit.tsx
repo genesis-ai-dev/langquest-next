@@ -30,6 +30,10 @@ import { lift, shadow } from './shadow';
 import { markedParts } from './textMatch';
 import { C, measure, onColor, radius, space, target, TINT, type as T } from './theme';
 import { useLayout } from './useLayout';
+import { kindIcon } from './kindIcon';
+import { txt } from './textStyles';
+export { txt } from './textStyles';
+export { kindIcon } from './kindIcon';
 
 export { useLayout, useOpenDetail, type Layout, type OpenDetail } from './useLayout';
 
@@ -71,27 +75,7 @@ export function Ico(props: { name: IconName; size?: number; color?: string; stro
   return isRtl() && MIRRORED.has(props.name) ? <View style={{ transform: [{ scaleX: -1 }] }}>{icon}</View> : icon;
 }
 
-/** The icon each shipped review kind reads by (the demo's REVIEW_KINDS icons). */
-export function kindIcon(kindId: string): IconName {
-  return ({ peer: 'people', bt: 'swap', community: 'globe', consultant: 'check', final: 'star', retell: 'chat', local: 'place' } as Record<string, IconName>)[kindId] ?? 'chat';
-}
-
 // ---- text ----------------------------------------------------------------------------
-
-export const txt = StyleSheet.create({
-  title: { fontSize: T.lg, fontWeight: '700', color: C.dark },
-  h2: { fontSize: T.xl, fontWeight: '700', color: C.dark },
-  h3: { fontSize: T.base, fontWeight: '700', color: C.dark },
-  body: { fontSize: T.base, color: C.dark, lineHeight: 23 },
-  bodyMuted: { fontSize: T.base, color: C.muted, lineHeight: 23 },
-  sm: { fontSize: T.sm, color: C.dark, lineHeight: 21 },
-  smMuted: { fontSize: T.sm, color: C.muted, lineHeight: 21 },
-  xs: { fontSize: T.xs, color: C.muted, lineHeight: 18 },
-  xsStrong: { fontSize: T.xs, fontWeight: '700', color: C.muted },
-  label: { fontSize: T.xs, fontWeight: '800', letterSpacing: 0.8, color: C.muted, textTransform: 'uppercase' },
-  link: { fontSize: T.sm, fontWeight: '700', color: C.primary },
-  error: { fontSize: T.sm, color: TINT.redText, lineHeight: 21 }
-});
 
 // ---- layout ----------------------------------------------------------------------------
 

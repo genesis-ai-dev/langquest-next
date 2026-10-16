@@ -4,8 +4,8 @@
 // does instead of doing it; the tooltip's play button says it aloud where it
 // can. Kept apart from the provider so kit.tsx, which reads it, stays free of
 // I/O; the pure parts (numbering, where things go) are tested.
-import { createContext, useContext, useEffect, useId } from 'react';
 import { t } from '../i18n';
+export { useScreenShowing, useHelpMode, useHelpSpot, HelpClipContext, HelpContext, HelpScopeContext } from './useHelpMode';
 
 export interface HelpPart {
   key: string;
@@ -48,50 +48,11 @@ export type HelpLit =
   | { kind: 'lit'; clip?: string }
   | { kind: 'clip' };
 
-/** The area that parts inside it scroll in, by its lit id (see HelpClip). */
-export const HelpClipContext = createContext<string | undefined>(undefined);
-
-export const HelpContext = createContext<HelpMode | null>(null);
-
-/**
- * Whether the screen around a part is the one showing. Screens under it in
- * the stack stay mounted; only the focused one's parts are numbered.
- */
-export const HelpScopeContext = createContext<boolean>(true);
-
-/** Whether the screen this is drawn in is the one showing (false while another screen is pushed over it). */
-export function useScreenShowing(): boolean {
-  return useContext(HelpScopeContext);
-}
-
-export function useHelpMode(): HelpMode | null {
-  return useContext(HelpContext);
-}
-
 /** A part while help is on: its press, and the id HelpBadge lights and numbers it by. Render `<HelpBadge spot={…} />` inside it. */
 export interface HelpSpot<T> {
   onPress: T;
   /** Set while help is on and the part is on the screen showing. */
   id?: string;
-}
-
-/**
- * A part of the screen while help is on: it registers itself, and its press
- * shows its tooltip instead of acting. The part renders `<HelpBadge spot />`
- * inside itself, which lights it and draws its number.
- */
-export function useHelpSpot<T extends (() => void) | undefined>(label: string, detail: string | undefined, onPress: T): HelpSpot<T> {
-  const help = useContext(HelpContext);
-  const showing = useContext(HelpScopeContext);
-  const key = useId();
-  const on = !!help?.on && !!onPress && showing;
-  const register = help?.register;
-  useEffect(() => {
-    if (!on || !register) return;
-    return register({ key, label, ...(detail ? { detail } : {}) });
-  }, [on, register, key, label, detail]);
-  if (!on || !help) return { onPress };
-  return { onPress: (() => help.explain(key)) as T, id: key };
 }
 
 /** Parts whose tops are this close (in points) read as one line, numbered along it. */

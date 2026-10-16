@@ -13,7 +13,12 @@
 // imports rewritten for its new place. Running it again changes nothing, and
 // on a branch made before the moves it fixes code that still names old paths.
 // The decision log and dated audits keep their old paths: they are history.
+//
+// `movedExports` lists names that moved from one file to another (a hook out of
+// a component file, say). Every import or re-export of such a name from the old
+// file is pointed at the new one, and the old file's own re-export of it goes.
 import { execFileSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, posix, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -38,6 +43,66 @@ for (const m of moves) {
   byBase.set(f, t);
 }
 const fileTo = new Map(moves.map((m) => [m.from, m.to]));
+
+const movedExports = (spec.movedExports ?? []).map((m) => ({
+  from: base(posix.join(APP, m.from)), to: base(posix.join(APP, m.to)), names: new Set(m.names)
+}));
+let ts = null;
+const typescript = () => (ts ??= createRequire(join(ROOT, 'package.json'))('typescript'));
+
+/** Point imports of moved names at their new file, and drop the old file's re-exports of them. */
+function repointExports(file, text) {
+  if (!movedExports.length || !/\.(tsx?|mts|cts)$/.test(file)) return text;
+  const t = typescript();
+  const sf = t.createSourceFile(file, text, t.ScriptTarget.Latest, true, file.endsWith('x') ? t.ScriptKind.TSX : t.ScriptKind.TS);
+  const self = base(file);
+  const edits = [];
+  const imports = sf.statements.filter((s) => t.isImportDeclaration(s));
+  const added = new Map();
+  for (const s of sf.statements) {
+    const isImport = t.isImportDeclaration(s);
+    if (!isImport && !t.isExportDeclaration(s)) continue;
+    const named = isImport ? s.importClause?.namedBindings : s.exportClause;
+    if (!named || !t.isNamedImports(named) && !t.isNamedExports(named)) continue;
+    const spec = s.moduleSpecifier && t.isStringLiteral(s.moduleSpecifier) ? s.moduleSpecifier.text : null;
+    const source = spec === null ? self : spec.startsWith('.') ? base(posix.normalize(posix.join(posix.dirname(file), spec))) : null;
+    if (source === null) continue;
+    const typeOnly = isImport ? s.importClause.isTypeOnly : s.isTypeOnly;
+    const keep = [];
+    const out = new Map();
+    for (const e of named.elements) {
+      const name = (e.propertyName ?? e.name).text;
+      // In the old file: its re-export of a moved name (from the new file, or a bare export list) goes.
+      if (!isImport && movedExports.some((x) => x.names.has(name) && x.from === self && (spec === null || source === x.to))) continue;
+      // Anywhere else: a moved name is taken from its new file.
+      const m = movedExports.find((x) => x.names.has(name) && x.from === source && x.from !== self);
+      if (m) { out.set(m.to, [...(out.get(m.to) ?? []), e.getText()]); continue; }
+      keep.push(e.getText());
+    }
+    if (keep.length === named.elements.length) continue;
+    const lines = [];
+    const kw = isImport ? 'import' : 'export';
+    if (keep.length) lines.push(text.slice(s.getStart(), named.getStart()) + `{ ${keep.join(', ')} }` + text.slice(named.getEnd(), s.getEnd()));
+    else if (isImport && s.importClause.name) lines.push(`import ${s.importClause.name.text} from ${s.moduleSpecifier.getText()};`);
+    for (const [to, names] of out) {
+      const next = rel(file, to);
+      const existing = isImport && imports.find((i) => i !== s && t.isStringLiteral(i.moduleSpecifier) && i.moduleSpecifier.text === next &&
+        i.importClause && !i.importClause.isTypeOnly === !typeOnly && i.importClause.namedBindings && t.isNamedImports(i.importClause.namedBindings));
+      if (existing) { added.set(existing, [...(added.get(existing) ?? []), ...names]); continue; }
+      lines.push(`${kw} ${typeOnly ? 'type ' : ''}{ ${names.join(', ')} } from '${next}';`);
+    }
+    if (lines.length) edits.push({ start: s.getStart(), end: s.getEnd(), text: lines.join('\n') });
+    else edits.push({ start: s.getFullStart(), end: s.getEnd(), text: '' });
+  }
+  for (const [i, names] of added) {
+    const nb = i.importClause.namedBindings;
+    const have = new Set(nb.elements.map((e) => e.getText()));
+    const all = [...nb.elements.map((e) => e.getText()), ...names.filter((n) => !have.has(n))];
+    edits.push({ start: nb.getStart(), end: nb.getEnd(), text: `{ ${all.join(', ')} }` });
+  }
+  for (const e of edits.sort((a, b) => b.start - a.start)) text = text.slice(0, e.start) + e.text + text.slice(e.end);
+  return text;
+}
 
 const tracked = git('ls-files', '-z').split('\0').filter(Boolean);
 const pending = moves.filter((m) => existsSync(join(ROOT, m.from)) && !existsSync(join(ROOT, m.to)));
@@ -85,6 +150,7 @@ for (const file of tracked) {
     }
   }
   for (const [f, t] of spec.renamedMentions ?? []) after = after.split(f).join(t);
+  if (isCode) after = repointExports(now, after);
   if (after !== before || now !== file) changes.set(file, { now, after, edited: after !== before });
 }
 

@@ -10,23 +10,16 @@ import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { Chip, PrimaryBtn, QuietLinks, Screen, SectionLabel, txt, type IconName } from '../ui/kit';
-import { shareText } from '../ui/share';
 import { C, space } from '../ui/theme';
 import { DashedRow, InviteCode, Pills, Question, QuietLink, RadioRow, useGroupInvite } from '../admin/admin';
 import { usePlainRoles } from '../admin/ready';
+import { shareInvite } from './shareInvite';
+export { shareInvite } from './shareInvite';
 
 export interface InviteScope {
   key: string;
   label: string;
   scope: Scope;
-}
-
-/** Share a code's link: the share sheet, or copied where there is none. */
-export function shareInvite(ctx: Ctx, uri: string) {
-  void shareText(uri).then((r) => {
-    if (r === 'copied') ctx.toast(t('admin.invite.linkCopied'));
-    else if (r === 'failed') ctx.toast(t('admin.invite.couldNotShare'));
-  });
 }
 
 export function InviteSomeone(props: {

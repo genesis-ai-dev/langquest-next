@@ -7,8 +7,10 @@ import { reportError } from '../diagnostics/report';
 import { allowStorage, onStoreFailure } from '../sync/store';
 import { startTab, type TabDeps, type TabState } from './tabLock';
 import { C, space } from '../ui/theme';
+export { useLeaveGuard } from './useLeaveGuard';
 
 const WEB = Platform.OS === 'web';
+
 const MOVED_KEY = 'langquest-moved';
 /** Set while this tab takes the database over from another, so one failed first open reloads instead of stopping. */
 const TOOK_KEY = 'langquest-took';
@@ -165,16 +167,3 @@ export function StorageGate(props: { children: ReactNode }) {
   );
 }
 
-/**
- * Web: say so before the tab closes while this session still has work to
- * send. Nothing is lost (it waits in this browser), but nobody else gets it
- * until LangQuest opens here again.
- */
-export function useLeaveGuard(unsent: boolean): void {
-  useEffect(() => {
-    if (!WEB || !unsent) return;
-    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
-    window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
-  }, [unsent]);
-}

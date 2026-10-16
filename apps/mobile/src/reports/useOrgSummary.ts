@@ -1,21 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { fetchOrgSummary, type ReportsServer } from '@langquest-next/sync';
+import { fetchOrgSummary } from '@langquest-next/sync';
 import type { OrgSummaryResponse } from '@langquest-next/core';
 import { useEffect, useState } from 'react';
-import { Platform } from 'react-native';
-import { accessToken } from '../server/auth';
-
-/**
- * Where the dashboard's server is (decision 44). The web build is served by
- * it, so there it is the page's own origin unless a setting says otherwise;
- * a phone build without the setting shows only what it folds itself.
- */
-const apiUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') || (Platform.OS === 'web' ? '' : null);
-
-export const reportsServer: ReportsServer | null = apiUrl === null ? null : {
-  baseUrl: apiUrl,
-  token: accessToken
-};
+import { reportsServer } from './reportsServer';
+export { reportsServer } from './reportsServer';
 
 /** How often an open overview asks again; the server answers 304 when nothing changed. */
 const EVERY_MS = 5 * 60_000;

@@ -27,6 +27,8 @@ import { firstTouched, keyLabel, runKey, tapVerse, wordHits, type OtherSays, typ
 import { styles as ps } from '../recording/blocks';
 import { BibleSheet, useBible, type Bible } from './reference';
 import { useClip } from '../audio/useClip';
+import { textMissing } from './helpsModel';
+export { bibleMissing } from './helpsModel';
 
 /** A chosen verse or a found word: soft grey, never loud purple (Caleb, 2026-10-10). */
 export const SOFT_MARK = withAlpha(C.dark, 0.1);
@@ -77,13 +79,6 @@ export function BibleChip(props: { ctx: Ctx; bible: Bible }) {
       {picking ? <BibleSheet ctx={props.ctx} bible={bible} onClose={() => setPicking(false)} /> : null}
     </>
   );
-}
-
-/** Why there are no verses to show: still loading, no Bible, or what the Bible lacks. */
-function textMissing(bible: Bible): string {
-  if (!bible.option) return bible.passage.loading ? t('common.loading') : t('sources.reader.noBible');
-  if (!bible.src || bible.src.loading) return t('common.loading');
-  return bible.src.textProblem ?? t('common.loading');
 }
 
 // ---- the passage, one tap away ---------------------------------------------------------------
@@ -342,11 +337,6 @@ export function WhereItIs(props: { rows: readonly VerseRow[] | null; book: strin
       {props.max && hits.length > props.max ? <Text style={[txt.xs, styles.pad]}>{t('keyTerms.verses.more', { count: hits.length - props.max })}</Text> : null}
     </>
   );
-}
-
-/** "Where it is here" from a passage's Bible: what to say while there are no verses. */
-export function bibleMissing(bible: Bible): string {
-  return textMissing(bible);
 }
 
 /**
