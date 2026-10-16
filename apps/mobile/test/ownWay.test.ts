@@ -43,7 +43,7 @@ describe('own way', () => {
     expect(bookParts(after, 'JON')?.divide).toBe('chapters');
   });
 
-  describe('the sections being drawn, kept as a draft until Done (decision 125)', () => {
+  describe('the sections being drawn, kept as a draft until Done (decision 126)', () => {
     const was: Drawn = { starts: new Set(['1:1', '2:1', '3:1', '4:1']), names: { '2:1': 'Boaz' } };
 
     it('keeps nothing while the book is as it was, so the saved mark stays empty', () => {

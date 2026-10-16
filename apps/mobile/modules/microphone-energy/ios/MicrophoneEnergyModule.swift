@@ -3,14 +3,11 @@ import AVFoundation
 import Foundation
 
 /**
- * New VAD Algorithm - Simple Threshold with Pre-Onset Buffer
- * 
- * Key differences from old module (MicrophoneEnergyModule.old.swift):
- * - No EMA smoothing - uses raw peak amplitude for immediate response
- * - Pre-onset buffer tracking - continuously tracks a safe cut point
- * - Three-state machine: IDLE -> ONSET_PENDING -> RECORDING
- * - Async file writing - no blocking, no cooldown needed
- * - Ring buffer always fills (not paused during recording)
+ * The microphone, its level, and parts split where the speaker pauses
+ * (Splitter.swift, LAN-82): the splitter learns the room and the voice while
+ * it listens and needs no setting. Each part's audio streams to disk as it is
+ * heard; the ring buffer holds the last few seconds so a part can start where
+ * the voice first rose out of the room.
  */
 public class MicrophoneEnergyModule: Module {
     private var audioEngine: AVAudioEngine?
@@ -24,7 +21,10 @@ public class MicrophoneEnergyModule: Module {
         let timestamp: TimeInterval
     }
     private var ringBuffer: [RingBufferEntry] = []
-    private let ringBufferMaxSize = 10
+    /// Long enough for a part's head to reach back as far as the splitter lets it, at this device's frame length.
+    private var ringBufferMaxSize: Int {
+        max(10, Int(((Splitter.maxHeadMs + Splitter.headMarginMs) / (splitter?.frameMs ?? 46.4)).rounded(.up)) + 2)
+    }
     
     private var isRecordingSegment = false
     private var segmentStartTime: TimeInterval = 0
@@ -39,25 +39,13 @@ public class MicrophoneEnergyModule: Module {
     
     private let sampleRate: Double = 44100
     
-    // VAD configuration
     private var vadEnabled = false
-    private var vadThreshold: Float = 0.05
-    private var vadOnsetMultiplier: Float = 0.1
-    private var vadMaxOnsetDuration: Int = 250
-    private var vadSilenceDuration: Int = 300
-    private var vadMinSegmentDuration: Int = 500
-    private var vadRewindHalfPause = true
-    private var vadMinActiveAudioDuration: Int = 250  // Discard clips with less active audio than this
-    private var vadSustainMultiplier: Float = 0.5     // An open part keeps going above this share of the threshold
-    
-    // VAD state machine
-    private var vadState = "IDLE"
-    private var preOnsetCutPoint: TimeInterval = 0
-    private var lockedOnsetTime: TimeInterval = 0
-    private var lastAboveThresholdTime: TimeInterval = 0
-    private var recordingStartTime: TimeInterval = 0
-    private var activeAudioTime: TimeInterval = 0  // Cumulative time above threshold during recording
-    private var lastFrameTime: TimeInterval = 0    // For calculating delta time
+    /// Where parts split (Splitter.swift, LAN-82); made with the device's frame length when the first frame arrives.
+    private var splitter: Splitter?
+    /// What this device heard last time, until a session's splitter hears for itself.
+    private var remembered: Splitter.Heard?
+    /// The splitter's clock: frames heard, as time.
+    private var clockMs = 0.0
     
     public func definition() -> ModuleDefinition {
         Name("MicrophoneEnergy")
@@ -79,8 +67,6 @@ public class MicrophoneEnergyModule: Module {
         if let stale = segmentWriter { wavWriteQueue.async { stale.discard() } }
         segmentWriter = nil
         isRecordingSegment = false
-        activeAudioTime = 0
-        lastFrameTime = 0
         
         let audioSession = AVAudioSession.sharedInstance()
         let permissionGranted = await withCheckedContinuation { continuation in
@@ -158,7 +144,7 @@ public class MicrophoneEnergyModule: Module {
         configLock.lock()
         isActive = false
         vadEnabled = false
-        vadState = "IDLE"
+        if let sp = splitter { remembered = sp.remember(); sp.pauseListening() }
         configLock.unlock()
         
         // Preserve segment order: older queued writes emit before the final clip.
@@ -180,28 +166,21 @@ public class MicrophoneEnergyModule: Module {
         do { try AVAudioSession.sharedInstance().setActive(false) } catch {}
     }
     
+    /// Only what the device heard last time is read; the old detector's settings are ignored (LAN-82).
     private func configureVAD(config: [String: Any?]) {
         configLock.lock()
         defer { configLock.unlock() }
-        if let threshold = config["threshold"] as? NSNumber { vadThreshold = threshold.floatValue }
-        if let silenceDuration = config["silenceDuration"] as? NSNumber { vadSilenceDuration = silenceDuration.intValue }
-        if let minSegmentDuration = config["minSegmentDuration"] as? NSNumber { vadMinSegmentDuration = minSegmentDuration.intValue }
-        if let onsetMultiplier = config["onsetMultiplier"] as? NSNumber { vadOnsetMultiplier = onsetMultiplier.floatValue }
-        if let maxOnsetDuration = config["maxOnsetDuration"] as? NSNumber { vadMaxOnsetDuration = maxOnsetDuration.intValue }
-        if let rewindHalfPause = config["rewindHalfPause"] as? Bool { vadRewindHalfPause = rewindHalfPause }
-        if let minActiveAudioDuration = config["minActiveAudioDuration"] as? NSNumber { vadMinActiveAudioDuration = minActiveAudioDuration.intValue }
-        if let sustainMultiplier = config["sustainMultiplier"] as? NSNumber { vadSustainMultiplier = sustainMultiplier.floatValue }
+        guard let heard = config["heard"] as? [String: Any],
+              let room = (heard["room"] as? NSNumber)?.doubleValue,
+              let voice = (heard["voice"] as? NSNumber)?.doubleValue,
+              let pause = (heard["pause"] as? NSNumber)?.doubleValue else { return }
+        remembered = Splitter.Heard(room: room, voice: voice, pause: pause)
     }
     
     private func enableVAD() {
         configLock.lock()
         vadEnabled = true
-        vadState = "IDLE"
-        preOnsetCutPoint = 0
-        lockedOnsetTime = 0
-        lastAboveThresholdTime = 0
-        activeAudioTime = 0
-        lastFrameTime = 0
+        splitter?.pauseListening()
         // What the microphone heard while the detector was off (a source playing) never heads a part.
         ringBuffer.removeAll()
         configLock.unlock()
@@ -220,7 +199,7 @@ public class MicrophoneEnergyModule: Module {
     private func disableVAD() async {
         configLock.lock()
         vadEnabled = false
-        vadState = "IDLE"
+        if let sp = splitter { remembered = sp.remember(); sp.pauseListening() }
         configLock.unlock()
         // Preserve segment order: older queued writes emit before the final clip.
         await drainWavWritesAndMain()
@@ -265,92 +244,57 @@ public class MicrophoneEnergyModule: Module {
         configLock.lock()
         defer { configLock.unlock() }
         guard isActive else { return }
+        let frameMs = Double(frameLength) * 1000 / sampleRate
         ringBuffer.append(RingBufferEntry(buffer: bufferCopy, timestamp: now))
-        if ringBuffer.count > ringBufferMaxSize { ringBuffer.removeFirst() }
+        while ringBuffer.count > ringBufferMaxSize { ringBuffer.removeFirst() }
         
         if isRecordingSegment, let writer = segmentWriter {
-            let keep = vadRewindHalfPause ? Int(sampleRate) * vadSilenceDuration / 2000 : 0
+            // The open part keeps the longest pause's worth in memory, so its tail can still be trimmed.
+            let keep = Int(sampleRate * Splitter.maxPauseMs / 1000)
             wavWriteQueue.async { writer.append(bufferCopy, keepSamples: keep) }
         }
-        if vadEnabled { handleVAD(rawPeak: normalizedAmplitude, now: now) }
-        
-        sendEvent("onEnergyResult", ["energy": normalizedAmplitude, "timestamp": now])
+        clockMs += frameMs
+        var event: [String: Any] = ["energy": normalizedAmplitude, "timestamp": now]
+        if vadEnabled {
+            if splitter == nil { splitter = Splitter(frameMs: frameMs, remembered: remembered) }
+            if let sp = splitter {
+                handleSplit(sp, sp.step(energy: Double(normalizedAmplitude), now: clockMs))
+                event["quiet"] = sp.levels().quiet
+            }
+        }
+        sendEvent("onEnergyResult", event)
     }
     
-    private func handleVAD(rawPeak: Float, now: TimeInterval) {
-        configLock.lock()
-        defer { configLock.unlock() }
-        guard vadEnabled && isActive else { return }
-        let onsetThreshold = vadThreshold * vadOnsetMultiplier
-        
-        if rawPeak > vadThreshold { lastAboveThresholdTime = now }
-        
-        switch vadState {
-        case "IDLE":
-            preOnsetCutPoint = max(0, now - TimeInterval(vadMaxOnsetDuration))
-            if rawPeak > onsetThreshold {
-                vadState = "ONSET_PENDING"
-                lockedOnsetTime = preOnsetCutPoint
-                if rawPeak > vadThreshold { confirmAndStartRecording(now: now) }
+    /// Called with configLock held: start or end a part as the splitter says.
+    private func handleSplit(_ sp: Splitter, _ action: Splitter.Action?) {
+        switch action {
+        case .start(let headFrames):
+            sendEvent("onSegmentStart", ["headMs": Double(headFrames) * sp.frameMs])
+            do { try openSegment(headFrames: headFrames) } catch {
+                sendEvent("onError", ["message": error.localizedDescription])
             }
-        case "ONSET_PENDING":
-            if now - lockedOnsetTime > TimeInterval(vadMaxOnsetDuration) { lockedOnsetTime = now - TimeInterval(vadMaxOnsetDuration) }
-            if rawPeak > vadThreshold { confirmAndStartRecording(now: now) }
-            else if rawPeak <= onsetThreshold { vadState = "IDLE" }
-        case "RECORDING":
-            // An open part keeps going while the voice stays above the sustain
-            // level (decisions.md 106): a soft stretch is speech, not a pause.
-            let deltaMs = now - lastFrameTime
-            if rawPeak > vadThreshold * vadSustainMultiplier {
-                lastAboveThresholdTime = now
-                activeAudioTime += deltaMs
+        case .stop(let discard, let trimMs):
+            guard isRecordingSegment else { return }
+            isRecordingSegment = false
+            let writer = segmentWriter
+            segmentWriter = nil
+            remembered = sp.remember()
+            if discard {
+                // A tap or a bump, not speech: nothing said is lost.
+                wavWriteQueue.async { writer?.discard() }
+                sendEvent("onSegmentComplete", ["uri": "", "duration": 0, "heard": heardMap()])
+                return
             }
-            lastFrameTime = now
-            
-            let silenceMs = now - lastAboveThresholdTime
-            let durationMs = now - recordingStartTime
-            if silenceMs >= TimeInterval(vadSilenceDuration) && durationMs >= TimeInterval(vadMinSegmentDuration) {
-                stopRecordingAsync()
-            }
-        default: break
+            let endTime = Date().timeIntervalSince1970 * 1000 - Double(trimMs)
+            finishSegment(writer, startTime: segmentStartTime, endTime: endTime, trimSamples: Int(sampleRate) * trimMs / 1000)
+        case .none:
+            break
         }
     }
     
-    private func confirmAndStartRecording(now: TimeInterval) {
-        vadState = "RECORDING"
-        lastAboveThresholdTime = now
-        recordingStartTime = now
-        activeAudioTime = 0  // Reset active audio tracking
-        lastFrameTime = now
-        sendEvent("onSegmentStart", [:])
-        let prerollMs = Int(now - lockedOnsetTime)
-        do { try startSegment(options: ["prerollMs": prerollMs]) } catch {
-            vadState = "IDLE"
-            sendEvent("onError", ["message": error.localizedDescription])
-        }
-    }
-    
-    private func stopRecordingAsync() {
-        guard isRecordingSegment else { return }
-        isRecordingSegment = false
-        vadState = "IDLE"
-        let writer = segmentWriter
-        segmentWriter = nil
-        
-        // Check if enough active audio - discard transients/short sounds
-        if activeAudioTime < TimeInterval(vadMinActiveAudioDuration) {
-            print("VAD: Discarding segment - only \(Int(activeAudioTime))ms of active audio (min: \(vadMinActiveAudioDuration)ms)")
-            wavWriteQueue.async { writer?.discard() }
-            // Emit empty URI to notify JS that recording stopped but was discarded
-            self.sendEvent("onSegmentComplete", ["uri": "", "duration": 0])
-            return
-        }
-        
-        let startTime = segmentStartTime
-        let endTime = Date().timeIntervalSince1970 * 1000
-        let rewindMs = vadRewindHalfPause ? vadSilenceDuration / 2 : 0
-        let trimSamples = Int(sampleRate) * rewindMs / 1000
-        finishSegment(writer, startTime: startTime, endTime: endTime - Double(rewindMs), trimSamples: trimSamples)
+    private func heardMap() -> [String: Double] {
+        guard let r = remembered else { return [:] }
+        return ["room": r.room, "voice": r.voice, "pause": r.pause]
     }
     
     /// Completes the file on the write queue. Every failure reaches JS as
@@ -362,8 +306,12 @@ public class MicrophoneEnergyModule: Module {
             do {
                 try writer.finish(trimSamples: trimSamples)
                 let uri = writer.uri
+                let duration = writer.durationMs
                 DispatchQueue.main.async {
-                    self.sendEvent("onSegmentComplete", ["uri": uri, "startTime": startTime, "endTime": endTime, "duration": endTime - startTime])
+                    self.configLock.lock()
+                    let heard = self.heardMap()
+                    self.configLock.unlock()
+                    self.sendEvent("onSegmentComplete", ["uri": uri, "startTime": startTime, "endTime": endTime, "duration": duration, "heard": heard])
                 }
             } catch {
                 let message = "Could not save recording (\(writer.url.lastPathComponent)): \(error.localizedDescription)"
@@ -372,23 +320,24 @@ public class MicrophoneEnergyModule: Module {
         }
     }
     
+    /// A hold-to-record take: starts with up to `prerollMs` of what the microphone already heard.
     private func startSegment(options: [String: Any?]?) throws {
         configLock.lock()
         defer { configLock.unlock() }
+        let prerollMs = (options?["prerollMs"] as? NSNumber)?.doubleValue ?? 200
+        let frameMs = ringBuffer.last.map { Double($0.buffer.frameLength) * 1000 / sampleRate } ?? 2048 * 1000 / sampleRate
+        try openSegment(headFrames: Int(prerollMs / frameMs))
+    }
+    
+    /// Called with configLock held: open a part's file with the last `headFrames` buffers of the ring.
+    private func openSegment(headFrames: Int) throws {
         guard isActive else { throw NSError(domain: "MicrophoneEnergy", code: 4, userInfo: nil) }
         if isRecordingSegment { return }
-        
-        let prerollMs = (options?["prerollMs"] as? NSNumber)?.intValue ?? 200
         let fileURL = SegmentWriter.stagingDirectory().appendingPathComponent("segment_\(UUID().uuidString).wav")
         let writer = try SegmentWriter(url: fileURL, sampleRate: Int(sampleRate))
-        
         segmentStartTime = Date().timeIntervalSince1970 * 1000
-        
-        let maxPrerollBuffers = Int(Double(prerollMs) / (2048.0 / (sampleRate / 1000.0)))
-        let buffersToWrite = min(ringBuffer.count, maxPrerollBuffers)
-        let preroll = ringBuffer.suffix(buffersToWrite).map { $0.buffer }
+        let preroll = ringBuffer.suffix(min(ringBuffer.count, headFrames)).map { $0.buffer }
         wavWriteQueue.async { for buffer in preroll { writer.append(buffer, keepSamples: 0) } }
-        
         segmentWriter = writer
         isRecordingSegment = true
     }
@@ -401,7 +350,7 @@ public class MicrophoneEnergyModule: Module {
         defer { configLock.unlock() }
         guard isRecordingSegment else { return nil }
         isRecordingSegment = false
-        vadState = "IDLE"
+        splitter?.pauseListening()
         let writer = segmentWriter
         segmentWriter = nil
         let startTime = segmentStartTime
@@ -427,6 +376,8 @@ final class SegmentWriter {
     private var samplesWritten = 0
     private var failure: Error?
     private var closed = false
+    /// The finished file's length: head, voice and tail.
+    var durationMs: Double { Double(samplesWritten) * 1000 / Double(sampleRate) }
     
     var uri: String {
         let path = url.path

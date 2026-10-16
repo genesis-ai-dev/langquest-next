@@ -1,5 +1,5 @@
 // What the library editors and key-word sheets keep on the phone while
-// unfinished (decision 125, src/drafts/editorDrafts.ts).
+// unfinished (decision 126, src/drafts/editorDrafts.ts).
 import { describe, expect, it } from 'vitest';
 import { hasContent, parseDraft, serializeDraft } from '../src/drafts/draftModel';
 import {

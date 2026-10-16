@@ -1,5 +1,5 @@
 // What someone is making and has not finished, kept on this phone as they go
-// (decision 125): a note half typed, a review half answered, an editor's
+// (decision 126): a note half typed, a review half answered, an editor's
 // changes. Only its maker sees it, so the key names them, and a phone shared
 // by several people never shows one person's draft to another. Finishing
 // (Done, Add note, Looks good) sends it and drops the draft; leaving keeps it.

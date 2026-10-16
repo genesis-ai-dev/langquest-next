@@ -18,7 +18,7 @@ const world = useRunWorld('05-asking');
 const nameOf = (who: AccountKey) => world().accounts[who].name;
 const label = (p: Passage) => (typeof p === 'string' ? world().passages[p].label : p.label);
 
-/** In the workspace: Done, the last look with the next check ready to ask (decision 125). */
+/** In the workspace: Done, the last look with the next check ready to ask (decision 126). */
 async function openDone(page: Page): Promise<void> {
   await expect(byId(page, 'publish-button')).toHaveText('Done');
   await byId(page, 'publish-button').click();

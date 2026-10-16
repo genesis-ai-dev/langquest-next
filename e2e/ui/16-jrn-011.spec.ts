@@ -56,7 +56,7 @@ test('JRN-011 One passage from first recording to done, across every role @p0', 
     await openFromWork(trans, PX);
     if (!(await byId(trans, 'record-button').isVisible().catch(() => false))) await button(trans, /^1\. Record\./).click();
     await recordParts(trans, 2);
-    // Done asks the Peer check team in the same tap (decision 125).
+    // Done asks the Peer check team in the same tap (decision 126).
     await byId(trans, 'publish-button').click();
     await button(trans, 'Ask the Peer check team').click();
     await expectToast(trans, /Sent to the Peer check team/);

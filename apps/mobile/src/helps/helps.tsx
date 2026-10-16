@@ -232,7 +232,7 @@ export function WordChip(props: { label: string; help: string; onPress: () => vo
  * typing under it. Added as a passage note on those verses (`v1.NoteAdded`,
  * a verse anchor in the verse rows' own key form), which translators see
  * on those verses in the recorder and the study. What is said or typed is a
- * draft only its writer sees until Add a note (decision 125): ✕ keeps it.
+ * draft only its writer sees until Add a note (decision 126): ✕ keeps it.
  */
 export function PassageNoteEditor({ ctx }: { ctx: Ctx }) {
   const state = ctx.language.state;

@@ -74,7 +74,7 @@ test('PEOPLE-046 A removed member\'s next sync is refused, and they are told', a
   const pending = async () => (await deviceEvents(p, w.orgId, w.languages.A.languageId)).filter((r) => r.status === 'pending').length;
   const unsent = await pending();
   expect(unsent).toBeGreaterThan(0);
-  // Leave the workspace (nothing to save, decision 125): the part stays as a draft, unsent.
+  // Leave the workspace (nothing to save, decision 126): the part stays as a draft, unsent.
   await toTabs(p);
 
   // ADMIN removes them from Alpha, their only role.

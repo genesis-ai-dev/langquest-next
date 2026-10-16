@@ -98,7 +98,7 @@ export interface MomentNote { part: number; atMs: number; text: string }
 
 /**
  * What a back translation carries besides its parts, kept as it is said or
- * typed until it is done (decision 125): the notes at moments, the one voice
+ * typed until it is done (decision 126): the notes at moments, the one voice
  * note, and the last word.
  */
 export interface BackNotesDraft { notes: MomentNote[]; noteHash: string | null; voiceInMoment: boolean; extra: string }

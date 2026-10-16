@@ -8,7 +8,7 @@ const empty: ReviewState = {
 };
 const clip = (hash: string) => ({ hash, durationMs: 4200, format: 'm4a' as const });
 
-describe('a review kept as a draft (decision 125)', () => {
+describe('a review kept as a draft (decision 126)', () => {
   it('is nothing until something is said, answered, skipped, chosen or recorded', () => {
     // Moving on, or opening a field to type in, is not something said.
     expect(reviewDraftOf({ ...empty, stage: 'questions', qi: 2, typing: { q1: true }, typeFeedback: true }, 't2', undefined)).toBeNull();

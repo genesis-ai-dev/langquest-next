@@ -178,7 +178,7 @@ tags:
     id: "record-button"
 - tapOn:
     id: "publish-button"
-# Done: one tap publishes and asks the Peer check team (decision 125).
+# Done: one tap publishes and asks the Peer check team (decision 126).
 - tapOn: "Ask the Peer check team"
 - extendedWaitUntil:
     visible: "Sent to the Peer check team.*"

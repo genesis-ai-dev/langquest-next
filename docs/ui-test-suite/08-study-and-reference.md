@@ -171,7 +171,7 @@ Steps:
 Expected:
 - Step 1 lights the question and shows "Answer". A plain section shows "Add a note" instead.
 - The sheet's sub reads "It stays with the passage, and reviewers see it with the study."
-- "Add your answer" is disabled until something is said or typed. What is said or typed is kept on this device as a draft only TRANS sees (the sheet's saved mark), so closing the sheet and answering again brings it back (decision 125).
+- "Add your answer" is disabled until something is said or typed. What is said or typed is kept on this device as a draft only TRANS sees (the sheet's saved mark), so closing the sheet and answering again brings it back (decision 126).
 - Step 4 shows the toast "Added to the study. Reviewers will see it with the passage.".
 - The answer shows under the question, labelled "Answer", with a play button for the voice.
 - REV sees it in Review it → Background → "Guide" (REV-011) and in the study.
@@ -357,7 +357,7 @@ Steps:
 
 Expected:
 - The sheet's sub reads "Say how Alpha says it. Your team hears it whenever this word comes up." (with the meaning first when the term has one).
-- "Add your word" is disabled until something is said or typed ("Or type it"). Until then what is said is a draft only TRANS sees, kept as it is made (decision 125).
+- "Add your word" is disabled until something is said or typed ("Or type it"). Until then what is said is a draft only TRANS sees, kept as it is made (decision 126).
 - Step 4 shows "Your word for {term} is saved.", with no Undo (grow-only, as STUDY-016).
 - The row now shows "Your word", which plays it.
 - The change is recorded with the passage and, when a draft is open, tied to that draft.
@@ -492,7 +492,7 @@ Steps:
 
 Expected:
 - The sheet is titled "Alpha · “heaven”", sub "Recorded as part of Luke 15:11-32, and tied to your draft." (with a draft) or "Every change is recorded with your reason.".
-- "Add your word" is disabled until a note is typed or a reason said. What is typed or said is kept as a draft (the sheet's saved mark) until it is added (decision 125).
+- "Add your word" is disabled until a note is typed or a reason said. What is typed or said is kept as a draft (the sheet's saved mark) until it is added (decision 126).
 - Step 4 shows "Added “{rendering}”." The page shows the rendering under "In Alpha".
 - Step 5 shows "Change recorded.".
 - "Why it's rendered this way" shows "2 changes · latest by {TRANS-name}, {when}", with "Play the explanation" for the voice reason and "Open Version N" where the change was made with a version.
@@ -654,7 +654,7 @@ Steps:
 
 Expected:
 - The sheet names where the note goes ("Luke 15:11-32 · verse 20").
-- "Add a note" shows "Note added." and verse 20 shows "● 1" (or one more). Closing the sheet instead keeps what was said as a draft for the next note on that verse (decision 125).
+- "Add a note" shows "Note added." and verse 20 shows "● 1" (or one more). Closing the sheet instead keeps what was said as a draft for the next note on that verse (decision 126).
 - The "Notes" chip lists it first as "Note on verse 20", with a play button.
 - REV sees it in Background → Notes and on the "Passage" chip.
 

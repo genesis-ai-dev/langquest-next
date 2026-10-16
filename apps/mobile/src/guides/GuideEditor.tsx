@@ -16,7 +16,7 @@
 // versification follow it first ('v1.LibrarySubscribed', 'v1.LibraryPinned').
 // Drafts stay on the device (draftStore.ts), the writer's own, until Done
 // publishes them; the saved mark in the header shows they are kept
-// (decision 125).
+// (decision 126).
 import {
   CALLOUT_KINDS, LICENSES, isLicense, orgLicense, subscriptionItemId, unitPrefixOf, unitTitle,
   type CalloutKind, type MediaRef, type StudyDoc, type StudyDoc2, type VersificationDoc

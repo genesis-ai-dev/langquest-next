@@ -21,10 +21,10 @@ fixture world and the role matrix hold for every test here.
   library's kind names ("Peer Review", "Back Translation"); see PASS-062.
 - "Then the team" lists each check as a card, with the people on it
   (decision 91): a round state tile, the check's name, its status on its
-  own line, then its people, with space between the cards (decision 125).
+  own line, then its people, with space between the cards (decision 126).
   A card is still spoken "{name}, {status}". The Peer check and Back
   translation have {REV} and {TREV}.
-- Since decision 125 the recorder's "Publish" is "Done". Done opens a last
+- Since decision 126 the recorder's "Publish" is "Done". Done opens a last
   look at the version whose main button asks the next check's usual people
   and publishes in the same tap ("Ask the Peer check team"); "Someone else"
   and "Send later" finish it too. There is no "Version N published" page:
@@ -311,7 +311,7 @@ Expected:
 - "Record" opens the recording workspace for Luke 13:10-17.
 - "Send later" publishes Version 1 and asks nobody: the toast reads
   "Version 1 published.", and the app returns to the record's path. There
-  is no "Version 1 published" page (decision 125).
+  is no "Version 1 published" page (decision 126).
 - The path's "Record" is done ("Version 1 · {m:ss}"), and so is "Done"
   ("Published just now").
 - My Work no longer lists Luke 13:10-17 for TRANS. COORD's "Waiting on
@@ -347,7 +347,7 @@ Expected:
 - "Undo" takes back the asking, not the version: it shows "Undone.", the
   card goes back to "next", Version 1 stays published, and REV's My Work
   (after Sync now) does not list Luke 14:1-14.
-- Changed (2026-10-15, decision 125): the page after publishing (a big
+- Changed (2026-10-15, decision 126): the page after publishing (a big
   green ✓, "Version 1 published", its upload line, fixed 2026-10-12 in
   REC-034, and "Next, ask for a check") is gone. Asking happens on Done.
 
@@ -1157,7 +1157,7 @@ Expected:
   "Part {n}" and "Remove part {n}".
 - "Done" shows "Back Translation added to the record". Back Translation is
   marked done on the record.
-- Changed (2026-10-15, decision 125): the button read "Save to the record".
+- Changed (2026-10-15, decision 126): the button read "Save to the record".
 
 ## Checkpoints
 

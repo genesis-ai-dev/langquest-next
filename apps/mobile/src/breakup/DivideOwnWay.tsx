@@ -6,7 +6,7 @@
 // the text, and sections started or joined from the verse tapped. The book
 // opens as the language divides it, else by chapter; a ready-made way can be
 // the starting point instead. What is drawn is kept on this phone as a
-// private draft (decision 125) with the saved mark, and comes back when the
+// private draft (decision 126) with the saved mark, and comes back when the
 // person opens the same book again; leaving keeps it. Done divides the book
 // like any other way (useBookChange: the warning, the languages it changes,
 // Undo) and drops the draft.

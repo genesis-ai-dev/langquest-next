@@ -165,7 +165,7 @@ test('SETUP-056 Write a guide and publish it', async ({ page }) => {
   await expectToast(page, /things? to fix before publishing\./);
   await expectOnScreen(page, 'Before publishing', 'Give the guide a title.');
   await field(page, 'Title').fill(title);
-  // The draft is kept on this device as it is written (decision 125): the header's saved mark turns into a check.
+  // The draft is kept on this device as it is written (decision 126): the header's saved mark turns into a check.
   await expect(byId(page, 'saved-mark')).toHaveAttribute('aria-label', 'Saved');
   // A new guide starts with FIA's six steps; choosing another start replaces them (a toast with Undo only once a step has words in it).
   await expectOnScreen(page, 'Now: 6 steps.');

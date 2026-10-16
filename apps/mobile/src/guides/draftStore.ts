@@ -1,5 +1,5 @@
 // Guide drafts kept on this device until they are published, so nothing is
-// lost to a closed tab or a dead battery (decision 125). A draft is its
+// lost to a closed tab or a dead battery (decision 126). A draft is its
 // writer's: the key names them, so on a shared phone or browser nobody else
 // opens it, and deleting the account removes it. Two drafts of one guide
 // never merge: the later publish is the next version, and the editor warns

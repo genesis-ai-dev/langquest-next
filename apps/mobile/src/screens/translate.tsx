@@ -19,12 +19,12 @@
 // for all; a deleted part's place takes the next part, and with it the
 // deleted part's verses, so a part said wrong is said again where it was
 // (LAN-83). While the parts are still a version's, the card is named for it. Done is its own screen inside this one, so
-// nothing recorded or offered is lost on the way. The sensitivity and the
-// pause between parts are set in microphone setup (`mic_setup`).
+// nothing recorded or offered is lost on the way. Parts split by what the
+// microphone hears, the room and the voice, with nothing to set (LAN-82).
 //
 // Every change persists: each part is kept as the draft on the record, so
 // nothing is lost if you leave; the saved mark in the header turns from a
-// spinner to a check as each part is kept (decision 125). Done (it was
+// spinner to a check as each part is kept (decision 126). Done (it was
 // Publish) opens a last look that sends the version to the people who do its
 // next check in the same tap. A person may keep several
 // drafts of a passage (decisions.md 83): the workspace opens one of them, a
@@ -71,7 +71,7 @@ import { contractsFor } from '../shell/screenContracts';
 import { BackTranslationBody } from '../recording/btWorkspace';
 import { SourceReader } from '../sources/SourceReader';
 import { GuideNav, GuideStep } from '../study/guide';
-import { mmss, partLabel, partsLookClipped, recorderLines, refChips, totalMs, type RefChip } from '../recording/model';
+import { mmss, partLabel, recorderLines, refChips, totalMs, type RefChip } from '../recording/model';
 import { passageVerseKeys } from '../recording/verseModel';
 import { draftName, draftOf, startedFrom } from '../passage/versionsModel';
 import { catalogVerses } from '../sources/model';
@@ -91,7 +91,7 @@ import { useUsage } from '../sources/useUsage';
 import { useStudyGuide } from '../study/useStudyGuides';
 import { studyProgress } from '../study/progress';
 import { C, radius, space, TINT, withAlpha } from '../ui/theme';
-import { useOnTooShort, useRecorder, type RecordedCard } from '../recording/useRecorder';
+import { useRecorder, type RecordedCard } from '../recording/useRecorder';
 
 // ---- Workspace ---------------------------------------------------------------------
 
@@ -202,9 +202,6 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   // Publish from the Versions page opens the publish screen at once.
   const publishParam = ctx.params['publish'] === '1';
   const [confirming, setConfirming] = useState(publishParam);
-  // This session's part lengths: three very short ones in a row look like clipping (demo ADR-037).
-  const sessionLengths = useRef<number[]>([]);
-  const [clipped, setClipped] = useState(false);
 
   // Cards arrive from the recorder already saved (addRecording, id chosen
   // before any save step, journaled against this passage). The latest
@@ -220,16 +217,8 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       card: { hash: card.ref.hash, durationMs: card.durationMs, format: card.ref.format }
     }));
     current.language.triggerUpload();
-    sessionLengths.current.push(card.durationMs);
-    if (partsLookClipped(sessionLengths.current)) setClipped(true);
   }, [unitId]);
   const rec = useRecorder(persist, { orgId: ctx.language.orgId, languageId, unitId });
-  // A part too short to keep is said, and counts as a clipped one (decisions.md 106).
-  useOnTooShort(rec.tooShort, () => {
-    ctx.toast(t('recording.vad.tooShort'));
-    sessionLengths.current.push(0);
-    if (partsLookClipped(sessionLengths.current)) setClipped(true);
-  });
   const loop = useListenLoop(rec);
   const session = loop.phase !== 'off';
   const recording = session || rec.manualOn;
@@ -483,10 +472,8 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     earlier: { id: 'earlier' as const, label: t('translate.chips.earlier'), icon: 'clock' as const, hint: t('translate.chips.earlierHint') }
   })[c]);
 
-  // ---- microphone: offered when parts keep coming out clipped (demo ADR-037) ----
-  useEffect(() => { if (session) sessionLengths.current = []; }, [session]);
 
-  // ---- Done: publishing, and asking for the next check in the same tap (REC-W3, REC-W4; decision 125) ----
+  // ---- Done: publishing, and asking for the next check in the same tap (REC-W3, REC-W4; decision 126) ----
   const [publishing, setPublishing] = useState(false);
   // Who it goes to next: the step that will be open once this version is on the record, and each check's usual people.
   const can = recordCan(ctx.session);
@@ -636,14 +623,6 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
                 {...(recorderGroupTitle ? { title: recorderGroupTitle } : {})}
                 rows={rows} target={target} onChoose={choose}
                 verses={{ keys: verseKeys, marks, onMarks: setMarks }} />
-              {clipped ? (
-                <View style={styles.clipped}>
-                  <Text style={[txt.sm, { color: TINT.amberText, fontWeight: '700' }]}>{t('translate.clipped')}</Text>
-                  <SmallBtn label={t('translate.micSetup')} icon="sliders" help={t('translate.micSetupHint')} onPress={() => ctx.go('mic_setup')} />
-                </View>
-              ) : !session ? (
-                <QuietLink label={t('translate.micSetup')} icon="sliders" hint={t('translate.micSetupHint')} onPress={() => ctx.go('mic_setup')} />
-              ) : null}
             </ScrollView>
           </HelpClip>
         )} />
@@ -685,7 +664,6 @@ const styles = StyleSheet.create({
   refPane: { backgroundColor: C.bg },
   wsRecordPane: { backgroundColor: C.card },
   recordBody: { paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: space.lg, gap: space.md },
-  clipped: { backgroundColor: TINT.amber, borderRadius: radius.lg, padding: space.md, gap: space.sm },
   // Back translation (LAN-23): each half its own ground, so the two read as
   // different places: the version cool (the brand's pale tint), your parts
   // warm (the red tint). Cards on both stay white, so text keeps its contrast.

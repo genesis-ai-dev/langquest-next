@@ -356,7 +356,6 @@ export function SettingsHome(ctx: Ctx) {
         {inSeveral(orgs) ? <SwitchOrgRow ctx={ctx} orgName={orgName} several /> : null}
         {/* What comes along to the field, seen before a trip (decisions.md 61). */}
         <Row icon="download" label={t('account.me.offline')} sub={offlineCount(offline)} help={t('account.me.offlineHelp')} onPress={() => ctx.go('sync_status')} />
-        <Row icon="mic" label={t('account.me.mic')} sub={t('account.me.micSub')} onPress={() => ctx.go('mic_setup')} />
         <Row icon="help" label={t('account.me.tour')} sub={t('account.me.tourSub')} help={t('account.me.tourHelp')} onPress={() => ctx.go('vision')} />
         <LanguageRow />
         <Row icon="settings" label={t('account.me.more')} sub={moreSub} help={t('account.me.moreHelp')} onPress={() => ctx.go('settings_more')}

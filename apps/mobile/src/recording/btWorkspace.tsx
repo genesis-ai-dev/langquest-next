@@ -9,7 +9,7 @@
 //
 // The parts are kept on this device until Done (decision 30): each
 // recorded piece goes to a local draft with the moment in the version its
-// part starts (`atMs`), and so do the notes at moments (decision 125). Done
+// part starts (`atMs`), and so do the notes at moments (decision 126). Done
 // (it was Publish) puts them in one core produceContent, in part order, and
 // in the same tap asks whoever usually does the check that comes next.
 import { checkPeople, commands, DEFAULT_KINDS, type EventSpec, type KindDef, type KindStatus, type Version } from '@langquest-next/core';
@@ -55,7 +55,7 @@ import { failureMessage, reportError } from '../diagnostics/report';
 import { RequestBanner } from '../reviewing/parts';
 import { lift } from '../ui/shadow';
 import { C, radius, space, target, TINT, type as T, withAlpha } from '../ui/theme';
-import { useOnTooShort, useRecorder, type RecordedCard } from './useRecorder';
+import { useRecorder, type RecordedCard } from './useRecorder';
 import { spanName } from './verseModel';
 import { VoiceNote } from '../audio/voiceNote';
 import type { SaveStatus } from '../ui/savedModel';
@@ -101,7 +101,6 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
   }, [add]);
   const rec = useRecorder(persist, undefined, ctx.language);
   // A piece too short to keep is said (decisions.md 106).
-  useOnTooShort(rec.tooShort, () => ctx.toast(t('recording.vad.tooShort')));
   const loop = useListenLoop(rec);
   const session = loop.phase !== 'off';
   const recording = session || rec.manualOn;
@@ -134,7 +133,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
   }
 
   // ---- notes at moments, and Done ----
-  // Kept as they are said or typed, only for whoever is making it, until it is done (decision 125).
+  // Kept as they are said or typed, only for whoever is making it, until it is done (decision 126).
   const said = useDraft(draftKey('bt', me, languageId, unitId, kind.id), EMPTY_BACK_NOTES, isBackNotesDraft);
   const { notes, noteHash, voiceInMoment } = said.value;
   const setNoteHash = (h: string | null) => said.set((d) => ({ ...d, noteHash: h }));
@@ -142,7 +141,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
   const [confirming, setConfirming] = useState(false);
   const [saving, setSaving] = useState(false);
   const pieces = piecesInOrder(parts);
-  // The check that comes next once this one is recorded, and who usually does it (decision 125).
+  // The check that comes next once this one is recorded, and who usually does it (decision 126).
   const askCan = recordCan(ctx.session).ask;
   const orgState = ctx.org.state;
   const nextUp = useMemo(() => (askCan ? nextAfterDone(p, { recordedKindId: kind.id }) : undefined), [p, askCan, kind.id]);
@@ -398,7 +397,7 @@ function MomentSheet(props: {
 /**
  * Done is a real step, so it shows what goes (ADR-028): what is said, what is
  * missing, and a last word; then who listens to it next, asked in the same
- * tap (decision 125). The last word is kept as it is typed.
+ * tap (decision 126). The last word is kept as it is typed.
  */
 function PublishSheet(props: {
   ctx: Ctx; v: PassageView; what: string; of: Version; parts: BackPart[]; notes: MomentNote[]; busy: boolean;

@@ -24,7 +24,7 @@
 // the check on the record or from the history.
 //
 // What is said, answered or chosen here is kept on this phone as it is made,
-// a draft only its maker sees (decision 125, reviewing/reviewDraft.ts), with
+// a draft only its maker sees (decision 126, reviewing/reviewDraft.ts), with
 // the saved mark in the header. Back and ✕ leave and keep it; opening the
 // same review again brings it back where it was left; sending it drops it.
 import {
@@ -155,7 +155,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const version = v ? versionFor(v.p, takeId) : undefined;
 
   // Everything said, answered, chosen or recorded here is a draft only you see, kept as you go
-  // (decision 125): Back and ✕ leave it, opening this review again brings it back, sending drops it.
+  // (decision 126): Back and ✕ leave it, opening this review again brings it back, sending drops it.
   const opened = ctx.params['takeId'];
   const draft = useDraft<ReviewDraft | null>(v ? draftKey('review', actorId, v.languageId, v.unitId, kindId, logged ? 'logged' : 'live') : null, null, isStoredReview);
   const setDraft = draft.set;
