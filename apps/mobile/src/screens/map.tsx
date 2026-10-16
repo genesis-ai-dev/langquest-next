@@ -22,6 +22,7 @@ import { edgeFor, type ScreenId } from '../shell/flow';
 import { t } from '../i18n';
 import { formatNumber, formatPercent } from '../i18n/format';
 import { OfflineMark } from '../sync/offline';
+import { useSyncStatus } from '../sync/useSyncStatus';
 import { keptOfflineMap, offlineWords, type KeptOffline } from '../sync/offlineText';
 import { indexesFor } from '../sync/indexes';
 import { useOrgSummary } from '../reports/useOrgSummary';
@@ -114,7 +115,8 @@ function PassageRow(props: { ctx: Ctx; state: LanguageState; kinds: KindDef[]; e
   const title = unitTitle(props.state, e.unitId);
   const summary = passageSummary(e.s, props.kinds, me, (id) => ctx.name(id, true));
   const beside = useOpenDetail();
-  const offline = keptOfflineMap(ctx).get(e.unitId);
+  const { present } = useSyncStatus();
+  const offline = keptOfflineMap(ctx, present).get(e.unitId);
   return (
     <Row testID={`row-${e.unitId}`} label={title} sub={summary} last={props.last} onPress={props.onPress}
       help={rowHelp(e.s, { mine: props.mine, offline, changed: !!props.changed })}
@@ -594,7 +596,8 @@ function Tile(props: { c: ChapterTile; testID?: string; onPress: () => void; cur
 export function BookMap(ctx: Ctx) {
   const languageId = ctx.params['languageId'] ?? ctx.languageId;
   const state = openState(ctx.language, languageId);
-  const offline = keptOfflineMap(ctx);
+  const { present } = useSyncStatus();
+  const offline = keptOfflineMap(ctx, present);
   const bookId = ctx.params['bookId'] ?? '';
   const initial = ctx.params['filter'];
   const [filter, setFilter] = useState<MapFilter>(isMapFilter(initial) ? initial : 'all');

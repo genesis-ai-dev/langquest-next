@@ -934,6 +934,15 @@ and every answer carries an ETag over its rows and `X-As-Of`, so an
 unchanged answer is a 304. `_org` gets no server snapshot: with the cache it
 is folded from 0 once per reducer version.
 
+Amended (2026-10-15, Carl Sauder): the folds held in memory are capped by
+the size of their serialized text (`STATE_BUDGET_BYTES`, 40 MB, always at
+least one) instead of eight by count, a language of 2 MB or more is
+refreshed alone while smaller ones still go four at a time, and a large
+fold is let go once it is in the cache (`apps/web/worker/orgFolder.ts`). A
+14 MB snapshot parses to well over 100 MB in a 128 MB isolate, and every
+language is recomputed when the UTC day turns (performance-audit-app.md
+V4). The limits are not yet measured against a real isolate.
+
 ## 45. Merging to main ships Android to Google Play's internal testing track
 
 Date: 2026-09-30 · By: Caleb Koster · Status: accepted
@@ -1524,6 +1533,10 @@ each one, about half a kilobyte apiece, so the move cost 30 KB beyond the
 code it moved (5.98 MB on main, 6.01 MB after). The budget still says when
 the download grows; one module per concern is worth that half kilobyte.
 
+Amended (2026-10-15, Carl Sauder): the export is now a main file and one
+file per screen module that loads when opened, and the budget is two: 5.7
+MiB for what a first visit loads, 6.5 MiB for all of it (123).
+
 ## 59. Joining by invite needs no password, and whoever can invite you can get you back in
 
 Date: 2026-10-05 · By: Caleb Koster · Status: accepted
@@ -1929,6 +1942,20 @@ Amended (2026-10-12, Carl Sauder): the pass also visits a language whose
 newest snapshot is behind its stream and an hour old, so it gets a new one
 (88); a language whose stream moved is still folded every pass, but its
 snapshot is written only on 88's schedule.
+
+Amended (2026-10-15, Carl Sauder): the pass also skips a language whose
+stream moved when the organization and the listing are as its mark left
+them, no snapshot is due (88's schedule, unchanged), and every event since
+the mark, at most 1,000, is of a type that cannot change an Inbox row, a
+row's title or the language's progress (`eventsThatCannotChangeInbox`,
+`packages/core/src/quiet.ts`, held by a property test). It reads only those
+events and moves the mark; the snapshot is not downloaded. A type not
+checked is left out and costs a full fold, so a new language event type is
+read against the list before it joins it. `public_languages` is written
+only when something it shows changed, and the snapshot's age comes from the
+list the pass already read (performance-audit-app.md V2). Reverse if a
+skipped language's Inbox rows are found stale: take that type out of the
+set.
 
 ## 69. Recordings and guide media live in Cloudflare R2, behind the app's Worker
 
@@ -4155,7 +4182,7 @@ with no change to the events.
 
 ## 109. A listening app keeps playing the approved version, hears changes by webhook, and the team sees its listeners on the passage
 
-Date: 2026-10-14 · By: Ryder Wishart · Status: partly superseded by 119
+Date: 2026-10-14 · By: Ryder Wishart · Status: partly superseded by 124
 
 Reason: Ryder asked for the whole EveryBible loop for a stakeholder demo:
 a recorded passage goes out for review, reviewers hear it in EveryBible,
@@ -4449,7 +4476,138 @@ database hiccup must not sign every phone out.
 Reverse if: the extra query shows in the Worker's latency; then ask only on
 the routes that mint credentials or change data.
 
-## 119. For its prototype, EveryBible holds LangQuest tokens on the phone: a reviewer's code is a review token, and listeners hear approved versions
+## 119. Sync status that ticks is a store of its own, read where it is shown, not part of `ctx`
+
+Date: 2026-10-15 · By: Carl Sauder · Status: accepted
+
+Reason: every screen gets `ctx` (`apps/mobile/App.tsx`), and the native
+stack keeps every screen under the top one mounted. `ctx` was a new object
+on every render of `OrgWork`, and `OrgWork` rendered whenever a sync or
+transfer counter moved, so one file arriving redrew every mounted screen and
+re-ran their derived views. Each arrival also copied the set of files on the
+phone (61,000 for a big language) to publish it (performance-audit-app.md
+R1, R2). Now the counters that tick while syncing (`pending`, `lastSync`,
+`pendingUp`, `pendingDown`, `peakUp`, `peakDown`, `present`, the
+organization's `pending`) live in a `StatusStore` per session
+(`src/sync/syncStatusStore.ts`), read with `useSyncStatus()` by the
+components that show them. `ctx`, the language and organization handles and
+`blobs` are memoized. Fields that change rarely (`online`, `refused`,
+`pulled`, `live`, `revision`, `keptUnits`) stay on `ctx.language`. The
+stack freezes blurred screens (`freezeOnBlur`), so audio stops on the
+navigation `blur` event rather than on a render. The session reads the file
+set in place, tells screens about it at most every 500 ms
+(`FILE_NEWS_MS`, `packages/sync/src/languageSession.ts`), reclaims storage
+at most that often, and keeps one offline-scope `Set` per fold revision,
+which core's plan cache finds by identity. A scope `Set` is never changed
+after it is handed to core. Turned down: `React.memo` on every screen (each
+needs stable props from callers, and a new `ctx` defeats it anyway).
+Reverse if: a screen needs a ticking value to decide what to draw on every
+change; read it with `useSyncStatus()` there, rather than putting it back
+on `ctx`.
+
+## 120. Passage views are patched per published copy from a change log kept outside the state
+
+Date: 2026-10-15 · By: Carl Sauder · Status: accepted
+
+Reason: the app publishes a shallow copy of the live state after each fold
+change (`stateCopier`), and the derived views were cached by state identity
+and revision, so every copy re-sorted every take, request and note and
+re-derived every passage: 41 ms at 5,000 passages on a laptop, several
+hundred ms on a slow phone, after each recording (performance-audit.md item
+10, performance-audit-app.md C1). Now, while a view is watching a live
+state, the reducer records what each event may change
+(`packages/core/src/changes.ts`, `touchedBy`): specific takes, reviews,
+departures, requests, notes and passages, nothing, or `all`. The app
+publishes with `publishedCopy`, and `recordIndexes` and `indexesOf` build a
+copy's views from the previous copy's, re-deriving only touched passages.
+The log lives in `WeakMap`s beside the state, never in it or in a snapshot,
+and holds at most 1,000 entries; past that, or after any `all`, the next
+view rebuilds in full. Any event type not checked against the views is
+`all`, the default for new types. `packages/core/test/incrementalViews.test.ts`
+holds patched views equal to a full rebuild for every fixture event in
+random order. One new take: 2.0 to 2.6 ms instead of 43 at 5,000 passages
+(`npm run bench:core`). Equal clocks in `highlightsFor` and `updatesFor`
+are now ordered by id. Turned down: maintaining every view per event (too
+much to keep correct) and caching passages by a hash of their inputs (about
+as costly as deriving them). Reverse if: the views start reading state the
+touch rules do not follow (a passage view that reads `recordings`, say)
+and keeping `touchedBy` in step costs more than the rebuild it saves.
+
+## 121. The Worker trusts a verified token, and a file-access answer, for up to a minute per isolate
+
+Date: 2026-10-15 · By: Carl Sauder · Status: accepted
+
+Reason: the hosted project still signs with the legacy shared secret, so
+`getClaims` (44) asks Supabase Auth about every request, and every audio
+file also asked Postgres `blob_access`: two serial round trips per file, for
+a phone downloading tens of thousands (performance-audit-app.md V1). Each
+isolate now remembers a verified token's claims, keyed by the token's
+SHA-256, until the token expires or 60 s pass, and still asks whether its
+session is live on every request (118's check and its 30 s cache are
+unchanged, so a signed-out phone loses access as 118 says), and each `blob_access`
+answer per person, organization, stream and mode for 60 s (a refusal for
+10 s); library media in an organization's own stream is per file, as
+`_library_media_readable` decides it (`apps/web/worker/isolateCache.ts`).
+Both are bounded to 5,000 entries. A member who is removed may keep
+opening files from an isolate that already answered for them for up to a
+minute; Carl accepted that. Moving the hosted project to
+asymmetric signing keys, so tokens are checked without Auth, is a separate
+step to take through the repo's Supabase config (`docs/cloudflare.md`).
+Reverse if: a removal must cut access at once (a takedown, say); then drop
+the access cache, or clear it from the event that removes the member.
+
+## 122. Inactive Inbox rows are deleted 30 days after they went inactive
+
+Date: 2026-10-15 · By: Carl Sauder · Status: accepted
+
+Reason: `reconcile_notifications` (68) marks a row inactive and never
+deleted it, so the table only grew, the pass scanned it per language, and a
+phone's Inbox read walked the dead rows (performance-audit-app.md V3). Rows
+now record when they last changed (`changed_at`), and a daily pg_cron job
+(`langquest-purge-notifications`) deletes rows inactive for 30 days, except
+any a push receipt still names. A phone learns a row went away from the
+inactive row itself, so one whose Inbox copy has not refreshed in 25 days
+starts it over from cursor 0 (`INBOX_COPY_MAX_AGE_MS`,
+`apps/mobile/src/notifications/notifications.ts`). Partial indexes serve
+the reconcile's language and organization cases. Migration
+`20261016120000_notifications_indexes_and_purge.sql`, smoke
+`server/notificationsSmoke.sql`. Reverse if: someone needs Inbox history
+older than a month (an audit of who was asked what); then archive rows
+before deleting them.
+
+## 123. Screens most people never open load when opened, and the web budget measures a first visit
+
+Date: 2026-10-15 · By: Carl Sauder · Status: accepted
+
+Reason: `App.tsx` imported every screen module, and Expo's Metro config
+turns inline requires off, so a phone ran all of them before the first
+frame: Reports' d3-geo, world map and 13 country-name tables among them,
+though phones never show Reports. On the web the export was one file, its
+budget raised four times (4.8, 6, 6.1, 6.25 MB) and nearly spent
+(performance-audit-app.md S1, S2). Now Reports, Config, Org, Content,
+Checks, Sources and Reference are `import()`ed the first time one of their
+screens opens (`lazyScreen`, `apps/mobile/src/shell/lazyScreens.tsx`); the
+screens on the way to recording stay in the main bundle. The web export
+gives each its own file; a phone keeps them in its one bundle. Inline
+requires are on for native only (`metro.config.js`): on the web they added
+110 KB to the entry file, which a browser parses whole either way. Once the
+organization's first sync has settled, the web fetches the lazy files in
+the background (`usePrefetchLazyScreens`), so work still continues offline
+once the app is open (58); a file that fails to load reaches the error
+boundary, and the next open tries again. `apps/mobile/scripts/export-web.mjs`
+holds two budgets: 5.7 MiB for the files `index.html` loads (5.41
+measured, 6.21 before), and 6.5 MiB for every file together (6.26 once
+main's security fixes and field diagnostics merged in; the cap only catches
+growth that runs away, and the first-visit budget holds what a visit pays). Help
+audio now waits for that first sync, an idle screen, and Wi-Fi or a cable
+(`useKeepHelpAudio`), and `/i18n/*` is cached for a year, since the app
+asks for it with `?v=<build>`. Turned down: splitting the country names by
+language (`countryName()` is synchronous; they now ride in the Reports
+file). Reverse if: a lazy screen's first open is slow enough for people to
+notice on the slowest partner phone, or the web's background fetch competes
+with a first sync on slow links; then move that screen back, or fetch later.
+
+## 124. For its prototype, EveryBible holds LangQuest tokens on the phone: a reviewer's code is a review token, and listeners hear approved versions
 
 Date: 2026-10-15 · By: Ryder Wishart · Status: accepted
 

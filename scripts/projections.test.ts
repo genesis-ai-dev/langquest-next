@@ -1,4 +1,5 @@
-import { isLarge, LARGE } from '../server/projectionWorker';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { deliverPushes, isLarge, LARGE } from '../server/projectionWorker';
 
 describe('which languages the Edge pass leaves to the scheduled job (decisions.md 103)', () => {
   it('a language is large from a 10 MB snapshot, or 25,000 events past it', () => {
@@ -18,5 +19,41 @@ describe('which languages the Edge pass leaves to the scheduled job (decisions.m
     expect(isLarge({ chars: 0, head: 24_999, snapshotSeq: 0 })).toBe(false);
     expect(isLarge({ chars: 2_000_000, head: 80_000, snapshotSeq: 50_000 })).toBe(true);
     expect(isLarge({ chars: 2_000_000, head: 80_000, snapshotSeq: 70_000 })).toBe(false);
+  });
+});
+
+describe('push delivery (performance-audit-app.md V9)', () => {
+  it('looks up every claimed person\'s phones in one query', async () => {
+    // Why: the job runs every minute and used one query per claimed row.
+    const queries: string[] = [];
+    const sent: string[] = [];
+    const ok = { data: [], error: null };
+    const table = (name: string) => {
+      const q: Record<string, unknown> = {};
+      const chain = (result: unknown) => new Proxy(q, {
+        get: (_t, prop) => prop === 'then' ? (resolve: (v: unknown) => void) => resolve(result) : () => chain(result)
+      });
+      if (name === 'push_tokens') {
+        return { select: () => ({ in: (_c: string, ids: string[]) => {
+          queries.push(`tokens for ${ids.sort().join(',')}`);
+          return Promise.resolve({ data: [
+            { profile_id: 'a', token: 't1' }, { profile_id: 'a', token: 't2' }, { profile_id: 'b', token: 't3' }
+          ], error: null });
+        } }) };
+      }
+      return chain(ok);
+    };
+    const service = {
+      rpc: async () => ({ data: [{ id: 'n1', profile_id: 'a' }, { id: 'n2', profile_id: 'b' }, { id: 'n3', profile_id: 'a' }, { id: 'n4', profile_id: 'c' }], error: null }),
+      from: table
+    } as unknown as SupabaseClient;
+    const fetcher = (async (_url: string, init: { body: string }) => {
+      sent.push(JSON.parse(init.body).to);
+      return { ok: true, json: async () => ({ data: { status: 'ok', id: 'ticket' } }) };
+    }) as unknown as typeof fetch;
+    await deliverPushes(service, fetcher);
+    expect(queries).toEqual(['tokens for a,b,c']);
+    // n1 and n3 (person a) go to both of a's phones, n2 to b's; n4 has no phone yet.
+    expect(sent.sort()).toEqual(['t1', 't1', 't2', 't2', 't3']);
   });
 });

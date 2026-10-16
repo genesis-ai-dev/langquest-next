@@ -1,5 +1,5 @@
 import {
-  audioFormatsFor, decodeHlc, defaultOfflineScope, deriveDownloadWork, deriveUploadWork, evictableBlobs,
+  audioFormatsFor, decodeHlc, defaultOfflineScope, deriveDownloadWork, deriveUploadWork, evictableBlobs, stateRevision,
   type BlobRef, type EventPayloads, type EventSpec, type EventType, type LanguageState
 } from '@langquest-next/core';
 import { SyncClient, type SyncClientOptions, type SyncResult } from './syncClient';
@@ -9,8 +9,16 @@ import type { EventStore, SyncInspection, Transport } from './types';
 
 /** The files a language's recordings are kept in on this device: the phone's blob store, a fake in tests. */
 export interface LocalFiles {
-  /** Hashes of the files here now. */
+  /** Hashes of the files here now, as a copy that will not change. */
   snapshot(): ReadonlySet<string>;
+  /**
+   * The same hashes without a copy: the live set, to be read at once and never
+   * kept or changed. Work lists, reclaim and the scope ask after every file
+   * that lands; a copy of 61,000 entries each time was O(files squared).
+   */
+  presentView?(): ReadonlySet<string>;
+  /** Changes whenever the set of files does: lets a copy be skipped when nothing changed. */
+  readonly version?: number;
   sizes(): ReadonlyMap<string, number>;
   sizeOf(hash: string): number | undefined;
   /** The format a file was stored in, which can differ from the one asked for (WAV on a browser without MP4). */
@@ -83,6 +91,9 @@ export interface LanguageSessionOptions {
   scheduler?: { pollMs?: number };
 }
 
+/** How long file arrivals are gathered before screens are told, and between storage reclaims. */
+export const FILE_NEWS_MS = 500;
+
 const keepKey = (orgId: string, languageId: string) => `keep:${orgId}/${languageId}`;
 
 /**
@@ -104,6 +115,14 @@ export class LanguageSession {
   private pulling = false;
   private current: LanguageStatus;
   private closed = false;
+  /** Trailing timers: the file set shown to screens, and reclaim after file changes. */
+  private presentTimer: ReturnType<typeof setTimeout> | null = null;
+  private reclaimTimer: ReturnType<typeof setTimeout> | null = null;
+  private lastReclaim = -Infinity;
+  /** The file set last published, to skip a copy when nothing changed since. */
+  private publishedVersion: number | undefined;
+  /** The scope worked out for one fold revision and set of kept units: the same Set until either changes. */
+  private scopeCache: { state: LanguageState; revision: number; kept: ReadonlySet<string>; scope: Set<string> } | null = null;
 
   static async open(o: LanguageSessionOptions): Promise<LanguageSession> {
     const client = new SyncClient({
@@ -128,6 +147,7 @@ export class LanguageSession {
       online: null, tooOld: false, refused: null, pulled: false, live: false,
       pendingUp: 0, pendingDown: 0, peakUp: 0, peakDown: 0, present: o.files.snapshot(), keptUnits: kept
     };
+    this.publishedVersion = o.files.version;
     const files = o.files;
     const common = {
       isOnline: () => this.current.online !== false,
@@ -141,7 +161,7 @@ export class LanguageSession {
       ...UPLOAD_DEFAULTS,
       ...common,
       // Size from the confirmation versus the file here: a mismatch reopens the upload.
-      work: () => deriveUploadWork(client.getState(), files.snapshot(), files.sizes()),
+      work: () => deriveUploadWork(client.getState(), this.here(), files.sizes()),
       transfer: o.upload,
       onChange: (n) => this.set({ pendingUp: n, peakUp: n === 0 ? 0 : Math.max(this.current.peakUp, n) })
     });
@@ -150,7 +170,7 @@ export class LanguageSession {
       ...common,
       // Rule 10: by scope, never the whole language. Scope is the actor's
       // own units plus what they explicitly chose to keep offline.
-      work: () => deriveDownloadWork(client.getState(), files.snapshot(), this.scope()),
+      work: () => deriveDownloadWork(client.getState(), this.here(), this.scope()),
       transfer: o.download,
       onChange: (n) => this.set({ pendingDown: n, peakDown: n === 0 ? 0 : Math.max(this.current.peakDown, n) })
     });
@@ -180,9 +200,11 @@ export class LanguageSession {
     // Storage pressure must never reach the recorder: after any change to
     // what is on disk, give back out-of-scope files the server still has.
     this.reclaim();
-    this.stops.push(files.onChange(() => this.reclaim()));
+    this.stops.push(files.onChange(() => this.reclaimSoon()));
     // What is on this device, for the offline marks on passages and in Settings.
-    this.stops.push(files.onChange(() => this.set({ present: files.snapshot() })));
+    // Told once per window however many files landed in it: a copy per file
+    // (and a redraw per copy) made a full download quadratic.
+    this.stops.push(files.onChange(() => this.presentSoon()));
     const unwatch = o.transport.watch?.(o.orgId, o.languageId, {
       onPoke: () => this.scheduler.nudge(),
       onStatus: (connected) => { this.set({ live: connected }); this.scheduler.connection(connected); }
@@ -199,6 +221,9 @@ export class LanguageSession {
     this.up.stop();
     this.down.stop();
     this.scheduler.stop();
+    if (this.presentTimer) clearTimeout(this.presentTimer);
+    if (this.reclaimTimer) clearTimeout(this.reclaimTimer);
+    this.presentTimer = this.reclaimTimer = null;
     this.listeners.clear();
   }
 
@@ -326,7 +351,7 @@ export class LanguageSession {
 
   /** Recordings here the server has not confirmed: what a hand-over must still send. */
   unsent(): BlobRef[] {
-    return deriveUploadWork(this.client.getState(), this.o.files.snapshot(), this.o.files.sizes());
+    return deriveUploadWork(this.client.getState(), this.here(), this.o.files.sizes());
   }
 
   inspect(): Promise<SyncInspection> {
@@ -360,17 +385,58 @@ export class LanguageSession {
     return out;
   }
 
+  /** The files here, read at once and not kept: the live set where the store offers one, else a copy. */
+  private here(): ReadonlySet<string> {
+    return this.o.files.presentView?.() ?? this.o.files.snapshot();
+  }
+
+  /**
+   * The offline scope: the actor's own units plus those kept. The same Set
+   * until the fold or the kept units change, so core's per-revision cache
+   * finds it again by identity instead of sorting and joining 61,000 ids.
+   * Callers must not change it.
+   */
   private scope(): Set<string> {
-    const scope = defaultOfflineScope(this.client.getState(), this.o.actorId);
+    const state = this.client.getState();
+    const revision = stateRevision(state);
+    const hit = this.scopeCache;
+    if (hit && hit.state === state && hit.revision === revision && hit.kept === this.current.keptUnits) return hit.scope;
+    const scope = defaultOfflineScope(state, this.o.actorId);
     for (const u of this.current.keptUnits) scope.add(u);
+    this.scopeCache = { state, revision, kept: this.current.keptUnits, scope };
     return scope;
   }
 
   private reclaim(): void {
     const files = this.o.files;
+    this.lastReclaim = Date.now();
     try {
-      files.reclaim(evictableBlobs(this.client.getState(), files.snapshot(), this.scope(), files.sizes()), this.o.limits);
+      files.reclaim(evictableBlobs(this.client.getState(), this.here(), this.scope(), files.sizes()), this.o.limits);
     } catch { /* disk queries can fail on some devices; try again next change */ }
+  }
+
+  /**
+   * After a file change: reclaim now if it has been a while, else once more
+   * when the window ends. Storage pressure is still answered within
+   * FILE_NEWS_MS, and a burst of arrivals costs one pass, not one per file.
+   */
+  private reclaimSoon(): void {
+    if (this.closed || this.reclaimTimer) return;
+    const wait = this.lastReclaim + FILE_NEWS_MS - Date.now();
+    if (wait <= 0) { this.reclaim(); return; }
+    this.reclaimTimer = setTimeout(() => { this.reclaimTimer = null; if (!this.closed) this.reclaim(); }, wait);
+  }
+
+  /** Tell screens which files are here, once per window. */
+  private presentSoon(): void {
+    if (this.closed || this.presentTimer) return;
+    this.presentTimer = setTimeout(() => {
+      this.presentTimer = null;
+      const version = this.o.files.version;
+      if (version !== undefined && version === this.publishedVersion) return;
+      this.publishedVersion = version;
+      this.set({ present: this.o.files.snapshot() });
+    }, FILE_NEWS_MS);
   }
 
   /**
