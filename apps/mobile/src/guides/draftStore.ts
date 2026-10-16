@@ -6,6 +6,7 @@
 // when a newer version was published after a draft began.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { GuideDraft } from './draft';
+import { parseHistory, type History } from '../ui/undoModel';
 
 const PREFIX = 'guide-draft:v1:';
 
@@ -60,4 +61,18 @@ export async function saveDraft(key: string, draft: GuideDraft, now = Date.now()
 
 export async function dropDraft(key: string): Promise<void> {
   await AsyncStorage.removeItem(key);
+}
+
+/**
+ * Where a draft's Undo and Redo history is kept, beside it, until it is
+ * published (decision 134). It holds whole drafts, so it keeps the newest
+ * hundred changes (ui/undoModel.ts `didEdit`).
+ */
+export function guideHistoryKey(draftKey: string): string {
+  return draftKey.replace(PREFIX, 'guide-history:v1:');
+}
+
+/** A stored history of a guide draft, or an empty one. */
+export function parseGuideHistory(raw: string | null): History<GuideDraft> {
+  return parseHistory(raw, (x: unknown): x is GuideDraft => typeof x === 'object' && x !== null && (x as GuideDraft).v === 1 && Array.isArray((x as GuideDraft).steps));
 }

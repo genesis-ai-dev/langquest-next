@@ -18,6 +18,7 @@ import {
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { ConfirmDelete } from '../ui/ConfirmDelete';
 import { View } from 'react-native';
 import { Text } from '../ui/text';
 import QRCode from 'react-native-qrcode-svg';
@@ -1118,15 +1119,6 @@ function MemberEditor(ctx: Ctx) {
   async function runOrg(ops: OrgOp[]) {
     for (const op of ops) await ctx.org.append(op.type, op.payload as never);
   }
-  /** Undo from the toast: the screen may be gone by then, so the outcome is a toast too. */
-  async function undoOrg(ops: OrgOp[], where: string) {
-    try {
-      await runOrg(ops);
-      ctx.toast(t('org.member.putBack'));
-    } catch (e) {
-      ctx.toast(t('org.member.notPutBack', { reason: failure(where, e) }));
-    }
-  }
   async function attempt(work: () => Promise<void>) {
     if (busy) return;
     setBusy(true);
@@ -1148,15 +1140,16 @@ function MemberEditor(ctx: Ctx) {
     const plan = changeMembership(entry, { roleId: form.roleId, scope });
     if (plan.apply.length === 0) return;
     await runOrg(plan.apply);
-    ctx.toast(t('org.member.isNow', { name: who, role }), () => undoOrg(plan.undo, 'undo role change')); // i18n-ignore: log label
+    ctx.toast(t('org.member.isNow', { name: who, role }));
   });
   const remove = () => attempt(async () => {
     if (!entry) return;
     const plan = removeMembership(entry);
     await runOrg(plan.apply);
-    const said = entry.scope.level === 'org' ? t('org.member.removedOrg', { name: who }) : t('org.member.removedLanguage', { name: who });
-    ctx.toast(said, () => undoOrg(plan.undo, 'undo remove member')); // i18n-ignore: log label
+    ctx.toast(entry.scope.level === 'org' ? t('org.member.removedOrg', { name: who }) : t('org.member.removedLanguage', { name: who }));
   });
+  // Removing someone asks first (decision 134): nothing undoes it after, and they come back only by joining again.
+  const [asking, setAsking] = useState(false);
   const decline = () => attempt(async () => {
     await decideRequest(requestId!, false);
     await ctx.org.sync();
@@ -1190,10 +1183,14 @@ function MemberEditor(ctx: Ctx) {
       {allowed && onlyManager ? <Banner icon="lock" title={memberId === ctx.session.actorId ? t('org.member.onlyManagerYou') : t('org.member.onlyManager', { name: who })} body={t('org.member.onlyManagerSub')} /> : null}
       {error ? <Banner icon="flag" tone="amber" title={t('org.notSaved')} body={error} /> : null}
       {allowed && !pending && !onlyManager ? (
-        // The demo has no Remove here; kept as a quiet link below the form,
-        // away from Save, and it offers Undo.
+        // The demo has no Remove here; kept as a quiet link below the form, away from Save. It asks first.
         <LinkBtn label={entry!.scope.level === 'org' ? t('org.member.removeFromOrg') : t('org.member.removeFromLanguage')} color={TINT.redText}
-          help={t('org.member.removeHelp')} onPress={() => { if (!busy) void remove(); }} style={{ alignSelf: 'center' }} />
+          help={t('org.member.removeHelp')} onPress={() => { if (!busy) setAsking(true); }} style={{ alignSelf: 'center' }} />
+      ) : null}
+      {entry ? (
+        <ConfirmDelete visible={asking} name={who} title={t('org.member.removeAsk', { name: who })} sub={sub} busy={busy}
+          confirmLabel={entry.scope.level === 'org' ? t('org.member.removeFromOrg') : t('org.member.removeFromLanguage')}
+          onClose={() => setAsking(false)} onConfirm={() => { setAsking(false); void remove(); }} />
       ) : null}
     </Screen>
   );

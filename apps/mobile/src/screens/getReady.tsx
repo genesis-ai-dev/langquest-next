@@ -17,6 +17,7 @@ import {
   type CollectionDoc, type EventSpec, type LibraryDoc, type SourceDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
+import { ConfirmDelete } from '../ui/ConfirmDelete';
 import { useMemo, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { Text } from '../ui/text';
@@ -31,7 +32,6 @@ import { indexesFor } from '../sync/indexes';
 import { Banner, Chip, EmptyState, Group, Header, PrimaryBtn, QuietLinks, Row, Screen, SectionLabel, Sheet } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { sourceLine, type SharedItem } from '../library/model';
-import { restoreChecks } from '../checks/undo';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
 import { booksInScope, LANGUAGE_SCOPES, languageScopeLabel, mayGrantAt, type LanguageScope } from '../org/orgAdmin';
 import { recState, refKindOf, sourceFacts, type RefKind } from '../reference/model';
@@ -50,6 +50,7 @@ import { C, space } from '../ui/theme';
 import { BigTop, CheckRow, SwitchRow, ChoiceCard, DashedRow, InviteCode, NumberedSteps, Pills, Question, QuietLink } from '../admin/admin';
 import { useGroupInvite } from '../admin/useGroupInvite';
 import {
+  sameChecks,
   flowSub, flowTitle, flowWho, guideShortName, joinAnd, languageLabel, QUESTIONS, questionLabel, recordSummary, scopeOfBooks,
   type PlainRoleId } from '../admin/adminModel';
 import { shareInvite } from '../invites/shareInvite';
@@ -156,15 +157,10 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
     if (wanted && wanted.length === 0) { ctx.toast(t('getReady.record.chooseABook')); return; }
     setBusy(true);
     try {
-      const prev = state.template?.value;
-      // Undo re-applies what it used before (none when that version is not on this device).
-      const undo = prev?.itemId && prev.docHash
-        ? await lib.applySpecs(prev.itemId, { docHash: prev.docHash, ...(prev.books ? { books: prev.books } : {}) }).catch(() => null)
-        : null;
       const use = await tq.resolve();
       const specs = await lib.applySpecs(use.itemId, { docHash: use.docHash, ...(wanted ? { books: wanted } : {}), ...(use.unitPrefix ? { unitPrefix: use.unitPrefix } : {}) });
       try {
-        await ctx.act(specs, t('getReady.record.saved', { language: lang, what: recordSummary(use.doc, wanted, use.doc.name) }), undo ? () => undo : undefined);
+        await ctx.act(specs, t('getReady.record.saved', { language: lang, what: recordSummary(use.doc, wanted, use.doc.name) }));
       } catch { setBusy(false); return; }
       setBusy(false);
       next();
@@ -269,12 +265,12 @@ function useHelpItems(ctx: Ctx) {
       setBusy(false);
     }
   }
-  /** Language-stream writes for one set's says, with Undo, in one step. */
-  async function sayAll(plan: { says: ReferenceSay[]; undo: ReferenceSay[] }, message: string) {
+  /** Language-stream writes for one set's says, in one step; the same row changes it back (decision 134). */
+  async function sayAll(plan: { says: ReferenceSay[] }, message: string) {
     const specs = (list: ReferenceSay[]) => list.map((p) => ({ id: Crypto.randomUUID(), type: 'v1.ReferenceSet', payload: p } as EventSpec));
     if (!plan.says.length) return;
     try {
-      await ctx.act(specs(plan.says), message, () => specs(plan.undo));
+      await ctx.act(specs(plan.says), message);
     } catch {
       // ctx.act has already said "Not saved" and why.
     }
@@ -415,7 +411,6 @@ function ReferenceLanguageStep({ ctx, lang, header, onDone }: StepProps & { onDo
     if (!may || !moved) { onDone(); return; }
     setBusy(true);
     const says: { type: 'v1.ReferenceLanguageSet' | 'v1.ReferenceLanguageAdded' | 'v1.ReferenceSet'; payload: object }[] = languagesSays(current, values);
-    const undo: typeof says = languagesSays(values, current);
     try {
       // A guide set follows the main language only.
       for (const set of sameLanguage(value, current[0]) ? [] : refs.sets) {
@@ -427,7 +422,6 @@ function ReferenceLanguageStep({ ctx, lang, header, onDone }: StepProps & { onDo
         const held = { ...set, members: set.members.map((x) => (x === m ? { ...x, itemId, shared: null } : x)) };
         const plan = chooseSetLanguage(held, itemId, ctx.language.state);
         says.push(...plan.says.map((p) => ({ type: 'v1.ReferenceSet' as const, payload: p })));
-        undo.push(...plan.undo.map((p) => ({ type: 'v1.ReferenceSet' as const, payload: p })));
       }
     } catch (e) {
       ctx.toast(t('common.notSaved', { reason: referenceFailure('reference language', e) })); // i18n-ignore: log label
@@ -436,7 +430,8 @@ function ReferenceLanguageStep({ ctx, lang, header, onDone }: StepProps & { onDo
     }
     const specs = (list: typeof says) => list.map((x) => ({ id: Crypto.randomUUID(), ...x } as EventSpec));
     try {
-      await ctx.act(specs(says), t('getReady.language.saved', { team: lang, language: joinAnd(values.map(languageLabel)) }), () => specs(undo));
+      // Choosing the earlier languages again changes it back (decision 134).
+      await ctx.act(specs(says), t('getReady.language.saved', { team: lang, language: joinAnd(values.map(languageLabel)) }));
     } catch {
       // ctx.act has already said "Not saved" and why.
       setBusy(false);
@@ -624,12 +619,19 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
   const key = picked ?? (custom ? 'custom' : first?.c.key ?? null);
   const canUse = ctx.session.can('manage_flows');
 
+  // Its own checks would be gone for good: it asks before a ready-made set replaces them (decision 134).
+  const [replacing, setReplacing] = useState<FlowEntry | null>(null);
   async function answer() {
     if (busy) return;
     if (key === 'choose') { ctx.go('flow_editor', { languageId, steps: 'language' }); onChoose(); return; }
     const pick = entries.find((e) => e.c.key === key);
     if (!pick || pick.c === current || key === 'custom') { next(); return; }
     if (!canUse) { ctx.toast(t('getReady.checks.onlyChoosers')); return; }
+    // Checks still as a ready-made set made them can be chosen again: only the language's own are asked about.
+    if (custom && flow.steps.length > 0 && !entries.some((e) => sameChecks(flow.steps, e.doc.steps))) { setReplacing(pick); return; }
+    await takeFlow(pick);
+  }
+  async function takeFlow(pick: FlowEntry) {
     setBusy(true);
     let specs: EventSpec[];
     try {
@@ -640,14 +642,8 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
       setBusy(false);
       return;
     }
-    // Undo goes back to the checks it had, whose steps were never removed (core restoreFlow).
-    const previous = state.flow?.value ? { flow: state.flow.value, steps: flow.steps } : null;
-    const undo = previous ? () => {
-      const s = ctx.language.state;
-      return s ? restoreChecks(s, previous, Crypto.randomUUID()) : [];
-    } : undefined;
     try {
-      await ctx.act(specs, t('getReady.checks.saved', { title: titleOf(pick.doc) }), undo);
+      await ctx.act(specs, t('getReady.checks.saved', { title: titleOf(pick.doc) }));
     } catch { setBusy(false); return; }
     setBusy(false);
     next();
@@ -690,6 +686,9 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
         ) : <QuietLink icon="down" label={t('getReady.checks.otherWaysCount', { total: formatNumber(rest.length) })} detail={t('getReady.checks.otherWaysHelp')} onPress={() => setMore(true)} />
       ) : null}
       {entries.length === 0 ? <Text style={txt.smMuted}>{loaded ? t('getReady.checks.noWays') : t('common.loading')}</Text> : null}
+      <ConfirmDelete visible={!!replacing} name={replacing ? titleOf(replacing.doc) : ''} replaces
+        title={t('checks.flows.replaceAsk', { language: languageName(ctx.org.state, languageId), name: replacing ? titleOf(replacing.doc) : '' })} confirmLabel={t('checks.flows.use', { name: replacing ? titleOf(replacing.doc) : '' })}
+        onClose={() => setReplacing(null)} onConfirm={() => { const r = replacing; setReplacing(null); if (r) void takeFlow(r); }} />
     </Screen>
   );
 }

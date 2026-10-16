@@ -39,7 +39,7 @@ import {
   type OutcomeTone
 } from '../passage/reviewModel';
 import {
-  hasWords, keepInput, keepPageInput, noteInput, overrideInput, payloadField, skipInput, undoneText, undoNote
+  hasWords, keepInput, keepPageInput, noteInput, overrideInput, skipInput, undoneText
 } from '../passage/recordInputsModel';
 import { VersionsPage } from '../passage/versions';
 import { deleteVersion } from '../passage/deleteVersion';
@@ -111,17 +111,10 @@ function canGo(ctx: Ctx, from: ScreenId, to: ScreenId): boolean {
  * Build a command's events against the fold and apply them. A command the
  * fold refuses says why in a toast instead of throwing; anything else is a
  * fault, reported with an id the person can read out. A failed write was
- * already shown by ctx.act. `undo` builds the inverse from the specs that
- * were applied (their ids).
+ * already shown by ctx.act. The toast offers no Undo (decision 134): what is
+ * done here is taken back from the record's History (Undo, Withdraw).
  */
-async function perform(
-  ctx: Ctx,
-  build: (c: Commands) => EventSpec[],
-  message: string,
-  undo?: (applied: EventSpec[]) => (c: Commands) => EventSpec[],
-  /** What Undo says once it has undone (ctx.act's default is "Undone."). */
-  undone?: string
-): Promise<boolean> {
+async function perform(ctx: Ctx, build: (c: Commands) => EventSpec[], message: string): Promise<boolean> {
   const state = ctx.language.state;
   if (!state) return false;
   let specs: EventSpec[];
@@ -133,10 +126,7 @@ async function perform(
     return false;
   }
   try {
-    await ctx.act(specs, message, undo ? () => {
-      const now = ctx.language.state ?? state;
-      return undo(specs)(commands(now, indexesFor(now)));
-    } : undefined, undone);
+    await ctx.act(specs, message);
     return true;
   } catch (e) {
     // ctx.act already said "Not saved"; only the caller's busy state is left to reset.
@@ -144,9 +134,6 @@ async function perform(
     return false;
   }
 }
-
-/** Undo of a departure: the step, checkpoint or feedback is back as it was (CORE-2). */
-const undoDepart = (applied: EventSpec[]) => (c: Commands) => c.undoDeparture({ commandId: newId(), departureId: payloadField(applied, 'departureId') });
 
 function Missing(props: { ctx: Ctx; id: ScreenId; crumbsOf?: PassageView; text?: string }) {
   const { ctx } = props;
@@ -298,8 +285,7 @@ export function PassageRecord(ctx: Ctx) {
     setOpenStepId(null);
     const label = sendTargetLabel(target, ctx.name);
     void perform(ctx, (c) => c.ask({ ...sendToInput({ commandId: newId(), unitId, kindId, target }), ...(questions.length ? { questions } : {}) }),
-      sentText(target, label),
-      (applied) => (c) => c.withdrawRequest({ commandId: newId(), requestId: payloadField(applied, 'requestId') }));
+      sentText(target, label));
   };
   /** Carry out a move the record's models decided (recordModel.ts `RecordMove`). */
   const doMove = (mv: RecordMove) => {
@@ -384,7 +370,7 @@ export function PassageRecord(ctx: Ctx) {
             const { kindId, stepId } = skipping;
             setSkipping(null);
             void perform(ctx, (c) => c.depart(skipInput({ commandId: newId(), unitId, kindId, stepId, reason: r })),
-              t('passage.page.skip.done', { kind: nameOf(kindId) }), undoDepart);
+              t('passage.page.skip.done', { kind: nameOf(kindId) }));
           }} />
       ) : null}
       {overriding ? (
@@ -395,7 +381,7 @@ export function PassageRecord(ctx: Ctx) {
             const stepId = overriding;
             setOverriding(null);
             void perform(ctx, (c) => c.depart(overrideInput({ commandId: newId(), unitId, stepId, reason: r })),
-              t('passage.page.override.done'), undoDepart);
+              t('passage.page.override.done'));
           }} />
       ) : null}
       {noting ? <AddNoteSheet ctx={ctx} v={v} say={noting === 'say'} onClose={() => setNoting(null)} /> : null}
@@ -642,7 +628,7 @@ function KeepSheet(props: { ctx: Ctx; v: PassageView; reviewId: string; onClose:
       onConfirm={(r) => {
         props.onClose();
         void perform(ctx, (c) => c.depart(keepInput({ commandId: newId(), unitId: v.unitId, reviewId: props.reviewId, reason: r })),
-          t('passage.keep.done'), undoDepart, t('passage.page.undone.keep'));
+          t('passage.keep.done'));
       }} />
   );
 }
@@ -655,7 +641,7 @@ function AddNoteSheet(props: { ctx: Ctx; v: PassageView; onClose: () => void; sa
   const [busy, setBusy] = useState(false);
   const save = async () => {
     setBusy(true);
-    const ok = await perform(ctx, (c) => c.addNote(noteInput({ commandId: newId(), unitId: v.unitId, text, hash })), t('passage.addNote.done'), undoNote);
+    const ok = await perform(ctx, (c) => c.addNote(noteInput({ commandId: newId(), unitId: v.unitId, text, hash })), t('passage.addNote.done'));
     setBusy(false);
     if (ok) { await draft.clear(); props.onClose(); }
   };
@@ -1007,7 +993,7 @@ function KeepPage(props: { ctx: Ctx; v: PassageView; review: ReviewView; source:
   const keep = async () => {
     setBusy(true);
     const ok = await perform(ctx, (c) => c.depart(keepPageInput({ commandId: newId(), unitId: v.unitId, reviewId: review.id, text, hash })),
-      t('passage.keep.done'), undoDepart, t('passage.page.undone.keep'));
+      t('passage.keep.done'));
     setBusy(false);
     if (ok) ctx.back();
   };
@@ -1246,8 +1232,7 @@ export function AskSomeone(ctx: Ctx) {
     if (!ready) return;
     setBusy(true);
     const ok = await perform(ctx, (c) => c.ask(askInput({ commandId: newId(), unitId: v.unitId, what, model, picks, channel, note, noteHash, questions })),
-    askDoneText(model),
-    (applied) => (c) => c.withdrawRequest({ commandId: newId(), requestId: payloadField(applied, 'requestId') }));
+    askDoneText(model));
     setBusy(false);
     if (ok) ctx.go('passage_record', { unitId: v.unitId, languageId: v.languageId, asked: String(Date.now()) });
   };

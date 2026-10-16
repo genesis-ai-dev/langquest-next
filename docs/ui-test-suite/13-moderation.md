@@ -196,7 +196,7 @@ Expected:
 - Step 2: the toast "Reported. Thank you." (online; MOD-004).
 - Step 3: "{TRANS} was reported" (MOD-021).
 
-### MOD-008 Block someone, with Undo
+### MOD-008 Block someone, then Unblock
 Roles: REV · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
@@ -204,18 +204,24 @@ Preconditions:
 
 Steps:
 1. Open P-SUBMITTED's Version 1, the flag, then "Block {TRANS}".
-2. Tap "Undo" on the toast.
+2. Tap "Show", then the flag, then "Unblock {TRANS}".
 3. Block {TRANS} again and let the toast go.
 
 Expected:
 - Step 1: the sheet closes. The toast "Blocked {TRANS}. What they add is
-  hidden for you." with "Undo" (a screen reader hears "… Undo available.").
-  It stays about 7 seconds.
+  hidden for you." has no Undo, only its close button ("Close"); a screen
+  reader hears just the message. It stays about 3.5 seconds (7 on a phone
+  with a screen reader on).
 - Version 1's words and audio are hidden at once (MOD-009).
-- Step 2: TRANS's version shows again. More settings has no "Blocked
-  people" row.
+- Step 2: the flag's row reads "Unblock {TRANS}" with "Show what they add
+  again". Tapping it shows the toast "Unblocked {TRANS}." and TRANS's
+  version shows again. More settings has no "Blocked people" row.
+  ("Unblock" in Me → More settings → "Blocked people" does the same,
+  MOD-012.)
 - Step 3: blocked. More settings shows "Blocked people" with "1 person".
 - TRANS is not told and sees nothing different.
+
+Changed (2026-10-16, decision 134): no toast offers Undo; "Unblock" in the same flag menu, or in Blocked people, takes a block back.
 
 ### MOD-009 What a blocked person made is hidden, and Show reveals it once
 Roles: REV · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -274,13 +280,17 @@ Preconditions:
 Steps:
 1. Open P-SUBMITTED's Version 1 and tap "Show", then the flag.
 2. Tap "Unblock {TRANS}".
-3. Tap "Undo" on the toast, then unblock again.
+3. Tap the flag, then "Block {TRANS}".
+4. Tap "Show", then the flag, then "Unblock {TRANS}".
 
 Expected:
 - Step 1: the row reads "Unblock {TRANS}" with "Show what they add again".
-- Step 2: the toast "Unblocked {TRANS}." with "Undo". The version shows.
-- Step 3: Undo blocks again (the version is hidden); unblocking again shows
-  it.
+- Step 2: the toast "Unblocked {TRANS}.", with no Undo. The version shows.
+- Step 3: the row reads "Block {TRANS}" again; it blocks again ("Blocked
+  {TRANS}. What they add is hidden for you.") and the version is hidden.
+- Step 4: unblocking again shows it.
+
+Changed (2026-10-16, decision 134): no toast offers Undo; the same flag menu blocks and unblocks.
 
 ### MOD-012 The Blocked people sheet
 Roles: REV · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto

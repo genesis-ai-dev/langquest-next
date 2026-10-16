@@ -32,7 +32,7 @@ Result: pass, fail or n.a. Put the reason for any fail or n.a. in Notes.
 | --- | --- | --- | --- | --- |
 | NAV-051 | Forced navigation is refused without a crash | iOS, Android, Web | | |
 | NAV-070 | A screen that cannot draw offers a way out | iOS, Android, Web | | |
-| NAV-080 | How long a toast stays, with and without Undo | iOS, Android | | |
+| NAV-080 | How long a toast stays | iOS, Android | | |
 | NAV-081 | A toast never covers the main button | iOS, Android, Web | | |
 | NAV-090 | Tapping a push notification | iOS, Android | | |
 
@@ -61,7 +61,7 @@ Result: pass, fail or n.a. Put the reason for any fail or n.a. in Notes.
 | REC-028 | A phone call during a recording | iOS, Android | | |
 | REC-029 | A Bluetooth headset's microphone | iOS, Android | | |
 | REC-032 | Low storage: a part that cannot be saved says so and can be retried | Android | | |
-| REC-034 | "Saved on this device · sends when you're online" while online | iOS, Android, Web | | |
+| REC-034 | Nothing says "waits for a connection" while online | iOS, Android, Web | | |
 | REC-035 | A success toast with nothing written while the language is still loading | iOS, Android, Web | | |
 
 ## 07 · Reviewing
@@ -72,7 +72,7 @@ Result: pass, fail or n.a. Put the reason for any fail or n.a. in Notes.
 | REV-020 | Verdict headings for each kind | iOS, Android, Web | | |
 | REV-025 | A phone call while recording feedback | iOS, Android | | |
 | REV-026 | Voice answers and notes sound right | iOS, Android | | |
-| REV-033 | A reviewer who cannot ask is left at "Next, ask for a check" | iOS, Android, Web | | |
+| REV-033 | A reviewer who cannot ask is not offered to ask | iOS, Android, Web | | |
 | REV-047 | One review screen answers feedback; the older footer is unreachable | iOS, Android, Web | | |
 
 ## 08 · Study and reference
@@ -172,7 +172,7 @@ Result: pass, fail or n.a. Put the reason for any fail or n.a. in Notes.
 | --- | --- | --- | --- | --- |
 | A11Y-001 | Every control on the key screens has a spoken name and role | iOS, Android | | |
 | A11Y-002 | Tabs announce where they go and their counts | iOS, Android | | |
-| A11Y-003 | Toasts are announced, and Undo stays up longer | iOS, Android | | |
+| A11Y-003 | Toasts are announced, and stay up longer | iOS, Android | | |
 | A11Y-004 | The split divider and the cutoff line can be moved without dragging | iOS, Android | | |
 | A11Y-005 | Recording state is never only visual | iOS, Android | | |
 | A11Y-006 | Players can be used with a screen reader | iOS, Android | | |

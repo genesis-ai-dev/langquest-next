@@ -7,7 +7,7 @@
 // ID order; each puts back what it changes unless it says "Resets".
 import {
   back, button, byId, deviceFor, expect, expectNothingRefused, expectSent, expectToast, field, openAs, openSignedOut, primary, screenText, syncNow, tab, test,
-  text, undoToast, useWorld, waitForApp
+  text, useWorld, waitForApp
 } from './support';
 import { closeSheet, addBareLanguage, expectNotOnScreen, expectOnScreen, expectOrgSent, goBack, languagePage, more, orgHome, listingOf, openAsIn, orgRefused, publiclyListed, setup, switchNamed } from './setup-helpers';
 
@@ -82,7 +82,6 @@ test('SETUP-003 Rename the organization', async ({ page }) => {
   await name.fill(renamed);
   await save.click();
   await expectToast(page, `Renamed to ${renamed}.`);
-  await expect(byId(page, 'toast-undo')).toHaveCount(0);
   await expect(text(page, renamed).first()).toBeVisible();
 
   // A second device, TRANS, sees the new name after sync (Me shows the organization).
@@ -341,7 +340,7 @@ for (const who of ['ADMIN', 'TRANS', 'REV', 'VIEW'] as const) {
 }
 
 for (const who of ['ADMIN', 'LADMIN'] as const) {
-  test(`SETUP-024 ${who} Change what a ready language translates, and undo it`, async ({ page }) => {
+  test(`SETUP-024 ${who} Change what a ready language translates, and change it back`, async ({ page }) => {
     const w = world();
     const d = who === 'ADMIN' ? null : await deviceFor(page.context().browser()!, w, who);
     const p = d?.page ?? page;
@@ -356,7 +355,16 @@ for (const who of ['ADMIN', 'LADMIN'] as const) {
     await expectOnScreen(p, 'Pieces that stay the same keep their recordings. What was recorded on a piece that changes is kept under "Earlier sections" on the new pieces.');
     await primary(p).click();
     await expectToast(p, /^Alpha translates .*\./);
-    await undoToast(p);
+    // No toast offers Undo (decision 134): the same step chooses the New Testament again.
+    await text(p, 'They record').click();
+    await expectOnScreen(p, 'What to translate', 'Alpha');
+    await primary(p).click();
+    await primary(p).click();
+    await expect(primary(p)).toContainText('Keep it');
+    await text(p, 'New Testament').click();
+    await expect(primary(p)).toContainText('Use this');
+    await primary(p).click();
+    await expectToast(p, /^Alpha translates .*New Testament.*\./);
     await expectOnScreen(p, 'Bible stories · New Testament');
     await expectSent(p, w);
     await expectNothingRefused(p, w);
@@ -393,13 +401,14 @@ test('SETUP-027 What will help them: Bibles, study guides and notes', async ({ p
   await text(page, 'What helps them').click();
   // No Bible is in the local library (no source@1): the Bible rows, ticking and the play button need the preview environment.
   await expectOnScreen(page, 'No Bibles yet');
-  // A guide that is not a set turns off and on with a toast and Undo.
+  // A guide that is not a set turns off and on with the same row; no toast offers Undo (decision 134).
   const example = text(page, 'Example study guides');
   if (await example.count()) {
     await example.click();
+    const said = (await (await expectToast(page, /Example study guides/)).innerText()).trim();
+    await example.click();
+    await expect.poll(async () => (await byId(page, 'toast').innerText()).trim()).not.toBe(said);
     await expectToast(page, /Example study guides/);
-    await expect(byId(page, 'toast-undo')).toBeVisible();
-    await undoToast(page);
   }
   await text(page, 'Add more').click();
   await text(page, 'A Bible').click();
@@ -526,13 +535,20 @@ test('SETUP-033 Follow or copy a template another organization shares', async ({
   await text(page, 'Follow').click();
   await text(page, 'Update automatically').click();
   await expectToast(page, 'Following By chapter from LangQuest.');
-  await undoToast(page);
-  await expectToast(page, 'Undone.');
-  // Undo stopped following it: it is under Your organization, stopped, and offered again from LangQuest.
-  await page.getByRole('button', { name: 'By chapter, from LangQuest' }).click();
-  await text(page, 'Follow').click();
-  await text(page, 'I\'ll take updates').click();
-  await expectToast(page, 'Following By chapter from LangQuest.');
+  // No toast offers Undo (decision 134): its Options stop following it, and then offer "Follow again" in its place.
+  const options = () => cardWith(page, 'By chapter', 'Options').getByRole('button', { name: 'Options', exact: true }).click();
+  await options();
+  await text(page, 'Stop following').click();
+  await expectToast(page, /^Stopped following By chapter\./);
+  await options();
+  await expect(text(page, 'Stop following')).toHaveCount(0);
+  await text(page, 'Follow again').click();
+  await expectToast(page, 'Following LangQuest again.');
+  // Updates by hand, as the next tests expect: the switch in its Options.
+  await options();
+  await page.locator('input[role="switch"]').and(page.getByRole('switch', { name: 'Update automatically', exact: true })).last().dispatchEvent('click');
+  await expectToast(page, 'You take By chapter\'s updates.');
+  await closeSheet(page);
   await page.getByRole('button', { name: 'OpenBible: long sections, from LangQuest' }).click();
   await text(page, 'Copy').click();
   await expectToast(page, 'OpenBible: long sections copied. The copy is yours to change.');
@@ -561,15 +577,20 @@ test('SETUP-034 Share, let follow and archive a template', async ({ page }) => {
   const flip = (name: string) => page.locator('input[role="switch"]').and(page.getByRole('switch', { name, exact: true })).last().dispatchEvent('click');
   await flip('Share with other organizations');
   await expectToast(page, `${name} is shared with other organizations.`);
-  await expect(byId(page, 'toast-undo')).toBeVisible();
+  await flip('Let them follow updates');
+  await expectToast(page, 'Others can follow it and get your new versions.');
+  // No toast offers Undo (decision 134): the same switches turn them off, and on again.
+  await flip('Let them follow updates');
+  await expectToast(page, 'Others can no longer follow it.');
+  await flip('Share with other organizations');
+  await expectToast(page, `${name} is no longer shared. Anyone using it keeps their version.`);
+  await flip('Share with other organizations');
+  await expectToast(page, `${name} is shared with other organizations.`);
   await flip('Let them follow updates');
   await expectToast(page, 'Others can follow it and get your new versions.');
   await text(page, 'Archive').click();
   await expectToast(page, `${name} archived. Languages using it keep it.`);
-  await undoToast(page);
-  await options();
-  await text(page, 'Archive').click();
-  await expectToast(page, `${name} archived. Languages using it keep it.`);
+  // The Archived list's Unarchive brings it back.
   await expectOnScreen(page, 'Archived', '1 template · languages using them keep them');
   await text(page, 'Archived').click();
   await page.getByRole('button', { name: /^OpenBible: long sections.*copied from LangQuest/ }).last().click();
@@ -616,7 +637,11 @@ test('SETUP-036 Choose a different template for a language', async ({ page }) =>
   await expectOnScreen(page, /Alpha's current passages are hidden, not deleted\. \d+ parts have recordings — change back to this template to bring them back\./);
   await button(page, 'Use OpenBible: long sections').click();
   await expectToast(page, 'Alpha now uses OpenBible: long sections.');
-  await undoToast(page);
+  // No toast offers Undo (decision 134): choosing the template it used before puts it back.
+  await text(page, 'Change template').click();
+  await text(page, 'FIA passages (English)').click();
+  await button(page, 'Use FIA passages (English)').click();
+  await expectToast(page, 'Alpha now uses FIA passages (English).');
   await expectSent(page, w);
   await expectNothingRefused(page, w);
   await back(page).click().catch(() => undefined);
@@ -684,7 +709,6 @@ test('SETUP-038 Edit a template; leaving keeps the draft', async ({ page }) => {
   await expect(primary(page)).toHaveText('Done');
   await primary(page).click();
   await expectToast(page, `${name} saved as version 2.`);
-  await expect(byId(page, 'toast-undo')).toHaveCount(0);
   await expectOrgSent(page, w);
 });
 
@@ -762,7 +786,6 @@ test('SETUP-042 What a language calls a book, and what translators see', async (
   await field(page, 'What Alpha calls Luke').fill('Luka');
   await button(page, 'Save').click();
   await expectToast(page, 'Alpha calls it Luka.');
-  await expect(byId(page, 'toast-undo')).toHaveCount(0);
   await expectOnScreen(page, 'Called Luka in Alpha');
   await expectSent(page, w);
   const trans = await deviceFor(browser, w, 'TRANS');
@@ -814,7 +837,6 @@ test('SETUP-060 The licence only opens, never closes', async ({ page }) => {
   await expectOnScreen(page, 'This can\'t be undone', 'You will not be able to close it again.', 'Back');
   await button(page, 'Yes, open to CC BY-NC-ND 4.0').click();
   await expectToast(page, 'Your work is now under CC BY-NC-ND 4.0.');
-  await expect(byId(page, 'toast-undo')).toHaveCount(0);
   await expectOrgSent(page, w);
   expect(await orgRefused(page, w)).toEqual([]);
   await button(page, /^(License: )?CC BY-NC-ND 4\.0/).click();

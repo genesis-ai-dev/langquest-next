@@ -200,6 +200,23 @@ export type DraftAction =
   | { type: 'setTermAudio'; id: string; audio: MediaRef | null }
   | { type: 'deleteTerm'; id: string };
 
+/**
+ * What a change edits, for joining typing into one Undo step: the same
+ * field of the same step, resource, picture or term. Other changes (adding,
+ * removing, moving, choosing a method) are steps of their own.
+ */
+export function editKey(a: DraftAction): string | undefined {
+  const fields = (patch: object) => Object.keys(patch).sort().join(',');
+  switch (a.type) {
+    case 'set': return `set:${fields(a.patch)}`;
+    case 'updateStep': return `step:${a.id}:${fields(a.patch)}`;
+    case 'updateResource': return `resource:${a.ref}:${fields(a.patch)}`;
+    case 'updateMedia': return `media:${a.ref}:${a.id}:${fields(a.patch)}`;
+    case 'updateTerm': return `term:${a.id}:${fields(a.patch)}`;
+    default: return undefined;
+  }
+}
+
 const withoutAudio = <T extends { audio?: MediaRef }>(x: T, audio: MediaRef | null): T => {
   const { audio: _old, ...rest } = x;
   return (audio ? { ...rest, audio } : rest) as T;

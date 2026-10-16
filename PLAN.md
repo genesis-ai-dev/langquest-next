@@ -430,8 +430,12 @@ short:
   server's `may_emit`) say who may act; the flow never does.
 - **One place for what's next.** Everyone who does or asks for work lands
   on My Work; the Map finds any passage at whole-Bible scale; the passage
-  record is where every loop closes, with a toast (and Undo) after every
-  action.
+  record is where every loop closes, with a toast after every action and
+  its way back in the record's History.
+- **No Undo that runs out** (decisions 133, 134): a toast says what
+  happened and nothing more. The way back stays with the thing: History's
+  Undo or Withdraw, the same control, or Undo and Redo arrows on screens
+  where people build something. What cannot come back asks first.
 - **Simple on the surface, deep in the record.** One next step and one main
   button; background and history behind one-line summaries.
 - **Built for the field.** 48pt targets, 56pt primary actions, 13pt minimum

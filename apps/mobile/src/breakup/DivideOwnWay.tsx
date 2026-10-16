@@ -7,12 +7,13 @@
 // opens as the language divides it, else by chapter; a ready-made way can be
 // the starting point instead. What is drawn is kept on this phone as a
 // private draft (decision 127) with the saved mark, and comes back when the
-// person opens the same book again; leaving keeps it. Done divides the book
-// like any other way (useBookChange: the warning, the languages it changes,
-// Undo) and drops the draft.
+// person opens the same book again; leaving keeps it. Undo and Redo in the
+// header take back and put back each change made this visit (decision 134).
+// Done divides the book like any other way (useBookChange: the warning, the
+// languages it changes) and drops the draft.
 import { bibleBreaksIn, BIBLES_COUNTED, recommendedFor, wayCovers, type LibraryItemView, type MaterialDoc, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
-import { FlatList, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { AccessibilityInfo, FlatList, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { useHelpSpot } from '../helpMode/useHelpMode';
@@ -22,6 +23,8 @@ import { formatNumber } from '../i18n/format';
 import { Field, Group, Header, Ico, PrimaryBtn, QuietLinks, Row, Screen, Sheet, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { SavedMark } from '../ui/SavedMark';
+import { UndoRedo } from '../ui/undoRedo';
+import { didStep, emptyHistory, redoStep, undoStep, type History } from '../ui/undoModel';
 import { draftKey } from '../drafts/draftModel';
 import { useDraft } from '../drafts/useDraft';
 import { useLibraryDocs } from '../library/useLibrary';
@@ -105,7 +108,8 @@ export function DivideOwnWay(props: {
   });
   const [sel, setSel] = useState<At | null>(null);
   const [panel, setPanel] = useState<Panel>(null);
-  const [undo, setUndo] = useState<ReadonlySet<At> | null>(null);
+  // Undo and Redo in the header (decision 134): every change to the sections this visit, as the recording screen keeps its parts'.
+  const [history, setHistory] = useState<History<At[]>>(emptyHistory);
   const [inView, setInView] = useState(1);
   const list = useRef<FlatList<number>>(null);
   const sections = useMemo(() => sectionsOf(order, starts), [order, starts]);
@@ -117,14 +121,23 @@ export function DivideOwnWay(props: {
   });
   const onViewable = useRef(({ viewableItems }: { viewableItems: { item: number }[] }) => { if (viewableItems[0]) setInView(viewableItems[0].item); }).current;
 
-  /** Change the starts and say what changed; Undo (in the toast and under Done) brings back what they were. */
+  /** Change the starts; the sections show it, a screen reader is told, and Undo takes it back. */
   const replace = (next: ReadonlySet<At>, said: string) => {
-    const before = starts;
-    setUndo(before);
+    setHistory((h) => didStep(h, { before: [...starts].sort(), after: [...next].sort(), what: said }));
     setStarts(next);
     setSel(null);
-    ctx.toast(said, () => { setStarts(before); setUndo(null); });
+    AccessibilityInfo.announceForAccessibility(said);
   };
+  const travel = (which: 'undo' | 'redo') => {
+    const step = which === 'undo' ? undoStep(history) : redoStep(history);
+    if (!step) return;
+    setStarts(new Set(step.to));
+    setHistory(step.history);
+    setSel(null);
+    if (step.what) AccessibilityInfo.announceForAccessibility(t(which === 'undo' ? 'common.undoneWhat' : 'common.redoneWhat', { what: step.what }));
+  };
+  const lastDone = history.done[history.done.length - 1];
+  const lastUndone = history.undone[history.undone.length - 1];
   const startAt = (at: At) => {
     const next = new Set(starts).add(at);
     replace(next, t('breakup.own.started', { n: formatNumber(numberOf(at, sectionsOf(order, next))), at }));
@@ -173,7 +186,6 @@ export function DivideOwnWay(props: {
     <>
       <PrimaryBtn label={t('breakup.own.done', { count: sections.length })} icon="check" busy={change.busy} disabled={!props.item && !props.apply} help={t('breakup.own.saveHelp')} onPress={finish} />
       <QuietLinks items={[
-        ...(undo ? [{ label: t('breakup.own.undo'), icon: 'undo' as const, help: t('breakup.own.undoHelp'), onPress: () => { setStarts(undo); setUndo(null); } }] : []),
         { label: t('breakup.own.startFrom'), icon: 'book', help: t('breakup.own.startFromHelp'), onPress: () => setPanel('from') }
       ]} />
     </>
@@ -181,7 +193,13 @@ export function DivideOwnWay(props: {
 
   return (
     <Screen fixed footer={footer} header={<Header title={bookName} sub={t('breakup.own.headerSub', { count: sections.length })} onBack={props.onClose}
-      action={<SavedMark status={draft.status} help={t('saved.draftHelp')} />} />}>
+      action={(
+        <View style={styles.headerActs}>
+          <UndoRedo canUndo={!!lastDone} canRedo={!!lastUndone} {...(lastDone?.what ? { undoWhat: lastDone.what } : {})} {...(lastUndone?.what ? { redoWhat: lastUndone.what } : {})}
+            onUndo={() => travel('undo')} onRedo={() => travel('redo')} help={{ undo: t('breakup.own.undoHelp'), redo: t('common.redoHelp') }} />
+          <SavedMark status={draft.status} help={t('saved.draftHelp')} />
+        </View>
+      )} />}>
       <View style={styles.tools}>
         <Pill icon="book" help down label={text.option ? chipLabel(text.option, text.options) : t('breakup.own.noBibleChip')} detail={t('breakup.own.biblePillHelp')} onPress={() => setPanel('bible')} />
         <Pill icon="layers" help label={t('breakup.own.helps')} on={panel === 'helps'} detail={panel === 'helps' ? t('breakup.own.closeHelpsHelp') : t('breakup.own.helpsPillHelp')}
@@ -516,6 +534,7 @@ function Pill(props: { icon?: IconName; label: string; help?: boolean; down?: bo
 }
 
 const styles = StyleSheet.create({
+  headerActs: { flexDirection: 'row', alignItems: 'center' },
   tools: { flexDirection: 'row', gap: space.sm, paddingHorizontal: space.lg, paddingBottom: space.sm, borderBottomWidth: 1, borderColor: C.border },
   pill: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: target.min, paddingHorizontal: space.md, borderRadius: radius.full, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card, flexShrink: 1 },
   pillHelp: { borderColor: TINT.noteBorder, backgroundColor: TINT.note },

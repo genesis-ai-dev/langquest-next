@@ -5,9 +5,10 @@ import {
 import {
   backTranslationDraftKey, canPublish, cardDurations, draftToOpen, markTerms, mmss, parseBackTranslationDraft, removeCardSpecs,
   termsInText, tiedTermIds, tieTermsSpecs, unsavedParts, withoutPart, withPart, workingCards, slotRows, targetNumber,
-  changedParts, didStep, emptyHistory, historyFits, marksAfterMove, marksKeepingLabels, marksOf, movedList, opensAbove, parsePartsHistory, redoStep, restoreSpecs,
-  undoStep, type PartsSnap
+  changedParts, historyFits, marksAfterMove, marksKeepingLabels, marksOf, movedList, opensAbove, parsePartsHistory, restoreSpecs,
+  type PartsSnap
 } from '../src/recording/workspaceModel';
+import { didStep, emptyHistory, redoStep, undoStep } from '../src/ui/undoModel';
 import { pendingPassageCards } from '../src/recording/recordingFlow';
 
 function history() {

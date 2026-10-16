@@ -38,7 +38,14 @@
     "addNote": "Ajouter une note",
     "orTypeIt": "Ou écrivez-la",
     "sayIt": "Dites-la",
-    "deleteAsk": "Supprimer {{name}} ?"
+    "deleteAsk": "Supprimer {{name}} ?",
+    "undo": "Annuler",
+    "redo": "Rétablir",
+    "undoWhat": "Annuler : {{what}}",
+    "redoWhat": "Rétablir : {{what}}",
+    "undoneWhat": "Annulé : {{what}}",
+    "redoneWhat": "Rétabli : {{what}}",
+    "redoHelp": "Remet ce qu’Annuler a enlevé."
   },
   "time": {
     "justNow": "À l’instant",
@@ -457,7 +464,8 @@
       "removed": "{{name}} a été retiré.",
       "publishHelp": "Vérifie ce qui manque, puis le met dans la bibliothèque de votre organisation.",
       "problemHelp": "Va à cet endroit, pour le corriger.",
-      "refHelp": "Ce qui permet aux liens des étapes de le trouver. Lier, dans la barre d’outils du texte, l’écrit pour vous."
+      "refHelp": "Ce qui permet aux liens des étapes de le trouver. Lier, dans la barre d’outils du texte, l’écrit pour vous.",
+      "undoHelp": "Annule votre dernier changement au guide. Touchez encore pour remonter plus loin."
     },
     "details": {
       "replacedFia": "Étapes remplacées par les six étapes FIA.",
@@ -885,8 +893,6 @@
       "byNameHelp": "Crée un code avec un nom dessus, pour une personne ou un groupe."
     },
     "member": {
-      "putBack": "Remis en place.",
-      "notPutBack": "Non remis en place. {{reason}}",
       "isNow": "{{name}} est maintenant {{role}}",
       "removedOrg": "{{name}} retiré au niveau de l’organisation",
       "removedLanguage": "{{name}} retiré au niveau de la langue",
@@ -908,7 +914,8 @@
       "removeFromOrg": "Retirer de l’organisation",
       "removeFromLanguage": "Retirer de la langue",
       "declineHelp": "Refuse sa demande pour rejoindre.",
-      "removeHelp": "Lui retire son rôle ici. Annuler s’affiche un moment après."
+      "removeHelp": "Lui retire son rôle ici. Cela demande d’abord ; pour revenir, la personne rejoint à nouveau.",
+      "removeAsk": "Retirer {{name}} ?"
     },
     "signIn": {
       "notAllowed": "Vous ne pouvez pas aider cette personne à se connecter.",
@@ -2126,7 +2133,6 @@
       "bookStarts": "Le livre commence ici",
       "joinWith": "Joindre à la section {{n}}",
       "startHere": "Commencer une section ici",
-      "undo": "Annuler",
       "startFrom": "Partir d’une façon toute prête",
       "started": "La section {{n}} commence à {{at}}",
       "joined": "Jointe à la section {{n}}",
@@ -3993,7 +3999,7 @@
       },
       "actionHelp": {
         "do": "L’ouvre, pour le faire vous-même maintenant.",
-        "send": "L’envoie à la personne qui le fait d’habitude. Annuler le reprend.",
+        "send": "L’envoie à la personne qui le fait d’habitude. Vous pourrez le retirer ensuite.",
         "ask": "Choisissez une personne, une équipe, ou quelqu’un sans l’application.",
         "log": "Cela s’est fait hors de l’application : notez-le dans l’historique.",
         "skip": "Laissez cette vérification de côté. Vous dites pourquoi.",
@@ -4359,11 +4365,7 @@
     "toast": {
       "notSaved": "Non sauvegardé : {{reason}}",
       "notSavedCode": "Non sauvegardé. Un problème est survenu (code {{code}}).",
-      "notUndone": "Impossible d’annuler : {{reason}}",
-      "notUndoneCode": "Impossible d’annuler. Un problème est survenu (code {{code}}).",
-      "announceUndo": "{{message}} Annulation possible.",
-      "dismissLabel": "{{message}} Fermer",
-      "undo": "Annuler"
+      "dismissLabel": "{{message}} Fermer"
     },
     "nav": {
       "cannotOpenHere": "Impossible de l’ouvrir d’ici.",
@@ -4860,14 +4862,7 @@
       "movePartHelp": "Faites glisser vers le haut ou le bas pour déplacer cette partie. Une partie déplacée perd son verset, pour que vous le lui redonniez.",
       "moveUp": "Monter",
       "moveDown": "Descendre",
-      "undo": "Annuler",
-      "redo": "Rétablir",
-      "undoWhat": "Annuler : {{what}}",
-      "redoWhat": "Rétablir : {{what}}",
-      "undoHelp": "Annule votre dernier changement aux parties. Touchez encore pour remonter plus loin.",
-      "redoHelp": "Remet ce qu’Annuler a enlevé.",
-      "undoneWhat": "Annulé : {{what}}",
-      "redoneWhat": "Rétabli : {{what}}"
+      "undoHelp": "Annule votre dernier changement aux parties. Touchez encore pour remonter plus loin."
     },
     "quoted": "« {{text}} »",
     "listening": "Écoute… {{time}}",
@@ -7118,7 +7113,7 @@
       "languageHelp": "Affiche ses Bibles ci-dessous.",
       "nextChapterHelp": "Affiche et lit le chapitre suivant.",
       "previousChapterHelp": "Affiche et lit le chapitre précédent.",
-      "removeHelp": "La retire de vos Bibles sur cet appareil. Vous pouvez annuler.",
+      "removeHelp": "La retire de vos Bibles sur cet appareil. Vous pouvez la rajouter ici.",
       "searchHelp": "Tapez le nom ou le code d’une langue pour trouver ses Bibles."
     }
   },
@@ -7163,7 +7158,8 @@
       "used": "{{language}} part maintenant de {{name}}",
       "startHelp": "Remplace les vérifications par un ensemble tout prêt, à modifier comme vous voulez.",
       "useHelp": "Remplace les vérifications de {{language}} par celles-ci. Annuler les remet.",
-      "pickHelp": "Le choisit. Utiliser, en bas, remplace ensuite les vérifications par les siennes."
+      "pickHelp": "Le choisit. Utiliser, en bas, remplace ensuite les vérifications par les siennes.",
+      "replaceAsk": "Remplacer les vérifications propres à {{language}} par {{name}} ?"
     },
     "gone": "Ceci ne fait plus partie des vérifications de la langue",
     "checkOf": "Vérification {{n}} · {{language}}",
@@ -7223,11 +7219,11 @@
     "draftDoneHelp": "Garde ces vérifications pour la nouvelle langue et revient en arrière.",
     "sameTimeOnHelp": "Activé : elle se fait en même temps que {{check}}. Touchez pour qu’elle vienne après.",
     "sameTimeOffHelp": "Désactivé : elle vient après {{check}}. Touchez pour que les deux se fassent en même temps.",
-    "removePersonHelp": "Retire cette personne de cette vérification. Annuler la remet.",
+    "removePersonHelp": "Retire cette personne de cette vérification. Ajouter des personnes la remet.",
     "addPeopleHelp": "Choisissez qui fait cette vérification. Si personne n’est choisi, n’importe qui peut la faire.",
     "editQuestionHelp": "Changez la question ou son type, ou retirez-la.",
     "addQuestionHelp": "Écrivez une question à laquelle les réviseurs répondent à cette vérification.",
-    "unlinkHelp": "Le retire de cette vérification. Annuler le remet.",
+    "unlinkHelp": "Le retire de cette vérification. Vous pouvez le rajouter.",
     "addHelpHelp": "Liez des notes, des guides ou des Bibles que les réviseurs peuvent ouvrir à cette vérification.",
     "peopleDoneHelp": "Sauvegarde qui fait cette vérification.",
     "personOnHelp": "Sur cette vérification. Touchez pour retirer cette personne.",
@@ -7291,7 +7287,9 @@
     "checkedAtPickHelp": "Cette vérification l’écoute.",
     "ownCheck": "Une vérification à part",
     "ownCheckHelp": "Ajoute juste après celle-ci une vérification qui l’écoute.",
-    "ownCheckName": "Vérification de la {{name}}"
+    "ownCheckName": "Vérification de la {{name}}",
+    "undoHelp": "Annule votre dernier changement aux vérifications. Touchez encore pour remonter plus loin.",
+    "removeAsk": "Retirer {{check}} ?"
   },
   "lostFiles": {
     "title": "Audio manquant",

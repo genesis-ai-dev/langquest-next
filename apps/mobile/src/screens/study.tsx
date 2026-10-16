@@ -135,7 +135,7 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
     const next = stepAfterDone(sp.steps.map((st) => ({ done: !!st.done })), index);
     try {
       const said = next !== null ? t('study.screen.stepDone', { step: status.step.title, done: sp.doneCount + 1, total: sp.steps.length }) : t('study.screen.allDone');
-      await ctx.act(mark(true), said, () => mark(false));
+      await ctx.act(mark(true), said);
     } catch (e) {
       // ctx.act already said "Not saved"; stay on this step.
       noteExpected('study: mark step', e);
@@ -147,7 +147,7 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
   async function undoDone() {
     if (!state || !status.done) return;
     try {
-      await ctx.act(mark(false), t('common.undone'), () => mark(true));
+      await ctx.act(mark(false), t('common.undone'));
     } catch (e) {
       noteExpected('study: unmark step', e);
     }

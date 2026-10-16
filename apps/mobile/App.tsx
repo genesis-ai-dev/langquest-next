@@ -590,20 +590,17 @@ const styles = StyleSheet.create({
 });
 
 /**
- * Shows one toast at a time for about 7 s with Undo, 3.5 s without, and
- * twice as long while a screen reader is on, so Undo can be reached.
- */
-/**
  * The toast showing now, kept outside any component: signing in or opening an
  * organization remounts the shell, and with it the host, right after the
  * screen that said what happened ("Signed in", "… is ready to grow"). The new
- * host shows it for the rest of its time (AUTH-049, NOORG-009). Its Undo is
- * not carried: the shell remounts when the account or the organization
- * changes, and an Undo from before would then act for the account or in the
- * organization that was left.
+ * host shows it for the rest of its time (AUTH-049, NOORG-009).
  */
 let showing: { message: string; until: number } | null = null;
 
+/**
+ * Shows one toast at a time for 3.5 s, twice as long while a screen reader
+ * is on. A toast only says what happened: it never offers Undo (decision 134).
+ */
 function ToastHost(props: { register: (show: (spec: ToastSpec) => void) => void; bottom: number }) {
   const [spec, setSpec] = useState<ToastSpec | null>(() => {
     const left = showing ? showing.until - Date.now() : 0;
@@ -624,7 +621,7 @@ function ToastHost(props: { register: (show: (spec: ToastSpec) => void) => void;
   useEffect(() => {
     register((next) => {
       if (timer.current) clearTimeout(timer.current);
-      const ms = (next.undo ? 7000 : 3500) * (reader.current ? 2 : 1);
+      const ms = 3500 * (reader.current ? 2 : 1);
       showing = { message: next.message, until: Date.now() + ms };
       setSpec({ ...next, ms });
       timer.current = setTimeout(() => setSpec((t) => (t?.id === next.id ? null : t)), ms);

@@ -201,19 +201,18 @@ function BibleDetailView(props: {
     setBusy(true);
     try {
       await mine.add(entry(option));
-      ctx.toast(t('sources.explore.added', { abbr: option.abbreviation }), () => mine.remove(option.itemId));
+      ctx.toast(t('sources.explore.added', { abbr: option.abbreviation }));
       ctx.back();
     } catch {
       ctx.toast(t('sources.explore.notAdded'));
     } finally { setBusy(false); }
   }
-  // Removing says so and can be undone, as adding does (STUDY-032).
+  // Removing says so; the footer then offers Add to My Bibles again (STUDY-032).
   async function remove() {
     if (!option) return;
-    const was = entry(option);
     try {
       await mine.remove(option.itemId);
-      ctx.toast(t('sources.explore.removed', { abbr: option.abbreviation }), () => mine.add(was));
+      ctx.toast(t('sources.explore.removed', { abbr: option.abbreviation }));
     } catch {
       ctx.toast(t('sources.explore.notRemoved'));
     }

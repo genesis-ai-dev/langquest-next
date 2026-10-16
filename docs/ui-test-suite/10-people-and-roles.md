@@ -584,14 +584,14 @@ Expected:
 Roles: ADMIN, COORD · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions (in addition to the global ones):
-- Resets: changes REV's role and undoes it.
+- Resets: changes REV's role and changes it back.
 
 Steps:
 1. Alpha's members → REV.
 2. Read the page.
 3. Choose "Translator-Reviewer". Tap "Save Assignment".
 4. On REV's device, Sync now. Open P-DRAFT.
-5. Change it back to Reviewer (or tap "Undo" in the toast).
+5. Alpha's members → REV again. Choose "Reviewer". Tap "Save Assignment".
 
 Expected:
 - The header is REV's name with "Reviewer · Alpha".
@@ -603,57 +603,68 @@ Expected:
   selected role's privileges.", and "Language" with Alpha chosen.
 - "Save Assignment" is disabled until something changes. (Fixed
   2026-10-13: it was enabled at once.)
-- Toast "{REV name} is now Translator-Reviewer" with Undo; Undo says "Put
-  back.".
+- Toast "{REV name} is now Translator-Reviewer", with no Undo. Step 5
+  toasts "{REV name} is now Reviewer".
 - REV's device gains the record and publish actions after sync; they go
   again after the change back.
+
+Changed (2026-10-16, decision 134): no toast offers Undo; opening the member again and saving the old role changes it back.
 
 ### PEOPLE-024 Move a membership between organization and language scope
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions (in addition to the global ones):
-- Resets: changes VIEW's scope and undoes it.
+- Resets: changes VIEW's scope and changes it back.
 
 Steps:
 1. Org home → Members → VIEW.
 2. Tap "Language" under "Where?". Choose "Alpha". Tap "Save Assignment".
 3. Read Members at organization level and at Alpha.
 4. On VIEW's device, Sync now. Open Map → All languages → "Bravo".
-5. Tap "Undo".
+5. Org home → Members → VIEW again (now under Alpha). Tap "Organization"
+   under "Where?". Tap "Save Assignment".
 
 Expected:
-- Toast "{VIEW name} is now Viewer" with Undo.
+- Toast "{VIEW name} is now Viewer", with no Undo.
 - VIEW leaves "Organization members" and appears under Alpha (one
   MemberAdded at Alpha and one MemberRemoved at the organization).
 - After sync VIEW sees Alpha's progress, and Bravo's work is no longer
   readable (PEOPLE-047).
-- Undo puts VIEW back at organization scope ("Put back.").
+- Step 5 puts VIEW back at organization scope (the same toast, "{VIEW
+  name} is now Viewer").
+
+Changed (2026-10-16, decision 134): no toast offers Undo; opening the member again and saving the old scope changes it back.
 
 ### PEOPLE-025 Remove a member
 Roles: ADMIN, LADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions (in addition to the global ones):
 - UI Joiner {run} is a member at Alpha (PEOPLE-003).
-- Resets: removes and puts back, then removes for PEOPLE-046.
+- Resets: removes UI Joiner {run}, for PEOPLE-046. Nothing puts them back:
+  to run this again, they join again with a new invite (PEOPLE-003).
 
 Steps:
 1. Alpha's members → UI Joiner {run}.
 2. Tap "Remove from language".
-3. Tap "Undo".
-4. Remove again.
+3. Read the sheet. Tap "Cancel".
+4. Tap "Remove from language" again, then "Remove from language" in the
+   sheet.
 
 Expected:
 - The link "Remove from language" is red and sits under the form, away
-  from "Save Assignment".
-- Toast "UI Joiner {run} removed at language level" with Undo; the row
-  leaves Members.
-- Undo brings them back ("Put back.").
-- An organization-scope member's link reads "Remove from organization" and
-  its toast "… removed at organization level".
+  from "Save Assignment". Its help says "Takes away their role here. It
+  asks first; to come back, they join again."
+- Step 2 removes nothing yet: it asks first, in a sheet titled "Remove UI
+  Joiner {run}?" with their role line under it ("{role} · Alpha"), a red
+  "Remove from language" and "Cancel".
+- "Cancel" closes the sheet; UI Joiner {run} is still a member.
+- Step 4: toast "UI Joiner {run} removed at language level", with no
+  Undo; the page goes back to Members and the row has left it. Nothing in
+  the app puts them back: they come back only by joining again.
+- An organization-scope member's link and the sheet's button read "Remove
+  from organization", and its toast "… removed at organization level".
 
-Not a bug (2026-10-13): PLAN.md section 12 closes every action with a toast
-and Undo rather than a confirmation, and Undo here really puts the member
-back. The case Undo cannot cover is removing yourself (PEOPLE-026).
+Changed (2026-10-16, decision 134): no toast offers Undo; removing a member asks first ("Remove {name}?"), and they come back only by joining again.
 
 ### PEOPLE-026 The only one who can manage roles keeps that role
 Roles: ADMIN · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
@@ -743,7 +754,7 @@ Expected:
 Roles: LADMIN · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions (in addition to the global ones):
-- Resets: changes TRANS's role and undoes it.
+- Resets: changes TRANS's role and changes it back.
 
 Steps:
 1. Alpha's page → "People" → "Invite". Read the choices.
@@ -751,7 +762,8 @@ Steps:
    else".
 3. Tap "One person, by name". Read the role list.
 4. Back in Members, open TRANS. Read "What will they do?" and "Where?".
-5. Choose "Reviewer". Tap "Save Assignment". Tap "Undo".
+5. Choose "Reviewer". Tap "Save Assignment".
+6. Open TRANS again. Choose "Translator". Tap "Save Assignment".
 
 Expected:
 - The header sub is "Alpha"; there is no "In which language?" (one scope)
@@ -767,7 +779,10 @@ Expected:
   Translator-Reviewer and Viewer, each "{n} privileges".
 - TRANS's page offers only "Language" under "Where?", and the same five
   roles.
-- Toast "{TRANS name} is now Reviewer" with Undo; Undo puts it back.
+- Toast "{TRANS name} is now Reviewer", with no Undo. Step 6 puts it back
+  ("{TRANS name} is now Translator").
+
+Changed (2026-10-16, decision 134): no toast offers Undo; opening the member again and saving the old role changes it back.
 
 ### PEOPLE-031 A language lead cannot act at organization scope
 Roles: LADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -864,26 +879,29 @@ Expected:
 - It is offered under "Other roles" to ADMIN, COORD and LADMIN (each
   holds Review, Manage flows and Manage teams where they invite).
 
-### PEOPLE-035 Edit a role, partly-on switches, and Undo
+### PEOPLE-035 Edit a role, partly-on switches, and change it back
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions (in addition to the global ones):
 - "Elder {run}" (PEOPLE-034).
-- Resets: edits and undoes.
+- Resets: edits and changes back.
 
 Steps:
 1. Open "Elder {run}". Turn "Choose who checks" off and on.
 2. Change "Its name" to "Elders {run}". Tap Save.
-3. Tap "Undo".
+3. Open "Elders {run}" again. Change "Its name" back to "Elder {run}". Tap
+   Save.
 
 Expected:
 - Flipping a switch that covers several privileges sets every one of them
   on, or every one off.
-- Toast "Elders {run} saved." with Undo; Undo says "Undone." and the old
-  name returns.
+- Toast "Elders {run} saved.", with no Undo, and Roles lists the new name.
+- Step 3 toasts "Elder {run} saved." and the old name returns.
 - A role holding only some of a switch's privileges shows "Only some:
   {labels}" under it (no fixture role does; `npm test` covers
   `flipSwitch`).
+
+Changed (2026-10-16, decision 134): no toast offers Undo; opening the role again and changing it back is the way back.
 
 ### PEOPLE-036 Invite someone as a role, and the people who hold it
 Roles: ADMIN, COORD · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -1054,19 +1072,24 @@ Roles: ADMIN, TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions (in addition to the global ones):
 - TRANS signed in on a second device.
-- Resets: changes TRANS's role and undoes it.
+- Resets: changes TRANS's role and changes it back.
 
 Steps:
-1. ADMIN: change TRANS to Viewer at Alpha.
+1. ADMIN: change TRANS to Viewer at Alpha (Alpha's members → TRANS →
+   "Viewer" → "Save Assignment").
 2. TRANS: Sync now, then open My Work and a passage.
-3. ADMIN: Undo.
+3. ADMIN: open TRANS again, choose "Translator", tap "Save Assignment".
 4. TRANS: Sync now.
 
 Expected:
+- Step 1's toast "{TRANS name} is now Viewer" has no Undo; step 3 is the
+  way back ("{TRANS name} is now Translator").
 - After step 2 TRANS's home and tabs follow the README matrix for VIEW at
   Alpha: no Record or Publish, no Work items asking them to record.
 - Work TRANS already recorded stays on the record.
 - After step 4 TRANS can record again.
+
+Changed (2026-10-16, decision 134): no toast offers Undo; opening the member again and saving the old role changes it back.
 
 ### PEOPLE-046 A removed member's next sync is refused, and they are told
 Roles: ADMIN, NEW · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto

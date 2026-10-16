@@ -3,7 +3,8 @@
 // (`useWorld`), opens the app signed in as a fixture account (`openAs`), and
 // reads the screen through the same words a person sees, plus the few
 // testIDs the kit carries (header-back, header-close, header-help,
-// primary-action, record-button, publish-button, toast, toast-undo, tab-*).
+// primary-action, record-button, publish-button, toast, undo, redo, tab-*).
+// No toast offers Undo (decision 134): the way back is where the thing is.
 import { expect, test as base, type Browser, type BrowserContext, type Locator, type Page } from '@playwright/test';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -137,10 +138,6 @@ export async function expectToast(page: Page, message: string | RegExp): Promise
   await expect(t).toBeVisible();
   await expect(t).toContainText(message);
   return t;
-}
-
-export async function undoToast(page: Page): Promise<void> {
-  await byId(page, 'toast-undo').click();
 }
 
 /** Whole visible text of the page, whitespace collapsed. */

@@ -685,12 +685,17 @@ Steps:
 Expected:
 - Each question is its own screen, headed "Get Bravo ready" with "1 of 4"
   … "4 of 4" and a ✕.
-- After step 2: toast "Bravo translates {what}." (no Undo: a first answer
-  has nothing to go back to; changing it later offers Undo, SETUP-024).
-- After step 3: toast "Bravo's Bibles and guides are now in English"
-  with Undo (or no toast if English was already set).
-- After step 5: toast "{flow title} checks the recordings." (Undo only
-  when it replaces checks the language had).
+- No toast in Get ready has Undo: an answer is changed by answering again.
+- After step 2: toast "Bravo translates {what}." (to change it later, open
+  "They record" again, SETUP-024).
+- After step 3: toast "Bravo's Bibles and guides are now in English" (or
+  no toast if English was already set). Going back to that page and
+  choosing another language changes it; once Bravo is ready, a guide set's
+  language is changed from "What helps them" (SETUP-026).
+- After step 5: toast "{flow title} checks the recordings." Bravo had no
+  checks, so nothing asks first. When a language changed its checks so no
+  ready-made set has them, it asks "Replace {language}'s own checks with
+  {flow title}?" with "Use {flow title}" and "Cancel" (as SETUP-044).
 - The local library has no Bible to tick at step 4.
 - Step 6 shows the chips "Translate", "Check", "Back-translate", "Help run
   the team", "Something else"; "Making the code…", then "Ask them to scan
@@ -701,6 +706,8 @@ Expected:
   "People".
 - On TRANS's device after Sync now, nothing about Bravo changes (TRANS has
   no role there).
+
+Changed (2026-10-16, decision 134): no toast offers Undo; each answer is changed by answering it again, and replacing a language's own checks asks first.
 
 ### SETUP-023 My Work leads with "Get ‹language› ready · n of 4"
 Roles: ADMIN, COORD · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -727,18 +734,19 @@ Expected:
 - A screen reader reads the bar as "2 of 4 questions answered".
 - TRANS, REV and VIEW never see this card.
 
-### SETUP-024 Change what a ready language translates, and undo it
+### SETUP-024 Change what a ready language translates, and change it back
 Roles: ADMIN, LADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions (in addition to the global ones):
-- Resets: changes Alpha's books and undoes it.
+- Resets: changes Alpha's books and changes them back.
 
 Steps:
 1. Open Alpha's page → "They record".
 2. Without changing anything, tap the main button.
 3. Open it again. Under "Which part of the Bible?" tap "Whole Bible". Tap
    the main button.
-4. Tap "Undo" in the toast.
+4. Open it again. Under "Which part of the Bible?" tap "New Testament".
+   Tap the main button.
 
 Expected:
 - The header is "What to translate" with the sub "Alpha".
@@ -746,8 +754,11 @@ Expected:
 - With a change it reads "Use this"; the note "Pieces that stay the same
   keep their recordings. What was recorded on a piece that changes is kept
   under "Earlier sections" on the new pieces." shows.
-- Toast "Alpha translates {what}." with Undo; Undo puts the New Testament
-  back, and every P-* passage keeps its work.
+- Toast "Alpha translates {what}.", with no Undo.
+- Step 4 puts the New Testament back (the same toast, with the New
+  Testament), and every P-* passage keeps its work.
+
+Changed (2026-10-16, decision 134): no toast offers Undo; choosing the earlier books again in "They record" changes it back.
 
 ### SETUP-025 A new numbering on a language with work warns first
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Manual
@@ -760,7 +771,9 @@ Steps:
    choose "Numbered like the Latin Vulgate".
 2. Tap "Use this".
 3. Tap "Keep it as it is".
-4. Repeat, and tap "Change it anyway". Then Undo.
+4. Repeat, and tap "Change it anyway".
+5. Open "They record" again, choose the numbering Alpha had ("Numbered
+   like most English Bibles"), tap "Use this", then "Change it anyway".
 
 Expected:
 - A sheet "Some sections will change" explains that work on changed
@@ -768,8 +781,12 @@ Expected:
   "Change it anyway" (red) and "Keep it as it is".
 - "Keep it as it is" changes nothing.
 - After "Change it anyway", passages whose verses are the same in both
-  numberings keep their recordings (decision 80). Undo restores the
-  previous numbering.
+  numberings keep their recordings (decision 80). The toast "Alpha
+  translates {what}." has no Undo.
+- Step 5 asks the same question, and "Change it anyway" puts the previous
+  numbering back.
+
+Changed (2026-10-16, decision 134): no toast offers Undo; choosing the earlier numbering again in "They record" changes it back.
 
 ### SETUP-026 What will help them: FIA's language
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -789,7 +806,9 @@ Expected:
 - The sheet asks "Which language should FIA be in?" with "It comes in 5
   languages. Choose the one Alpha's team reads best.", "Keep English" and
   "Don't offer FIA".
-- Toast "FIA study guides are now in French", then "… in English".
+- Toast "FIA study guides are now in French", then "… in English",
+  neither with Undo: choosing the language again in the same sheet (step 3)
+  is the way back.
 - On a ready language the reference-language page (decision 84) is part of
   Get ready's question 2, which a ready language no longer shows; its
   team's language is changed from Get ready before it is ready.
@@ -799,6 +818,8 @@ what Alpha translates and Undo), Alpha's "What helps them" shows FIA study
 guides off ("In 5 languages") and the row does not open its sheet.
 Reproduced twice with SETUP-024 then SETUP-026, never with SETUP-023 then
 SETUP-026 or with ADMIN's half of SETUP-024 alone. Not yet diagnosed.
+
+Changed (2026-10-16, decision 134): no toast offers Undo; the guide set's sheet changes its language back.
 
 ### SETUP-027 What will help them: Bibles, study guides and notes
 Roles: ADMIN, COORD · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -816,8 +837,8 @@ Steps:
 Expected:
 - "What will help them?" lists "Bibles they understand" with rows "{Lang} ·
   {abbr}" and subs "Audio and text", "Audio", "Text" or "Listed".
-- Unticking says the Bible is no longer offered (toast with Undo, as in
-  SETUP-050); ticking offers it again.
+- Unticking says the Bible is no longer offered (a toast with no Undo, as
+  in SETUP-050); ticking it again offers it again.
 - The play button opens the Bible's page.
 - "Find another Bible" (sub "None chosen yet" when none are) opens
   "Bibles".
@@ -825,6 +846,8 @@ Expected:
   team".
 - If Bibles number verses differently: "These Bibles number some verses
   differently" with "OK, ignore".
+
+Changed (2026-10-16, decision 134): no toast offers Undo; the same tick or switch changes it back.
 
 ### SETUP-028 The "What helps them" page and "Add more"
 Roles: ADMIN · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
@@ -954,8 +977,10 @@ Preconditions (in addition to the global ones):
 Steps:
 1. Content Templates → "From other organizations". Tap "By chapter".
 2. Tap "Follow", then "Update automatically".
-3. Tap "Undo".
-4. Follow it again with "I'll take updates".
+3. Under "Your organization", tap "Options" on "By chapter", then "Stop
+   following".
+4. Tap "Options" on it again, then "Follow again". Open "Options" once
+   more and turn "Update automatically" off.
 5. Open "OpenBible: long sections". Tap "Copy".
 6. Turn the network off and reopen Content Templates.
 
@@ -963,8 +988,14 @@ Expected:
 - The sheet shows "From LangQuest · {n} versions" with "Follow" ("Use
   LangQuest's versions as they publish them.") and "Copy" ("Make it ours
   to change.").
-- Toast "Following {name} from LangQuest." with Undo; Undo stops
-  following.
+- Toast "Following {name} from LangQuest.", with no Undo. Its card under
+  "Your organization" reads "Following LangQuest · updates automatically".
+- Step 3: toast "Stopped following {name}. Languages keep the version
+  they use." The card reads "Stopped following LangQuest", and its Options
+  sheet offers "Follow again" where "Stop following" was.
+- Step 4: "Follow again" toasts "Following LangQuest again." Turning
+  "Update automatically" off toasts "You take {name}'s updates." and the
+  card reads "Following LangQuest · you take updates".
 - After copying: toast "{name} copied. The copy is yours to change." It is
   under "Your organization" with "copied from LangQuest" in its source line.
 - A followed template opens read only: "It follows LangQuest" / "Its
@@ -975,6 +1006,8 @@ Expected:
   ways in other numberings are not (decision 107).
 - Offline: "Could not refresh this list" with "Showing the list this device
   saved."
+
+Changed (2026-10-16, decision 134): no toast offers Undo; the template's Options has "Stop following", and after that "Follow again".
 
 ### SETUP-034 Share, let follow, archive a template, and take an update
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -989,22 +1022,27 @@ Steps:
 1. Content Templates → "Options" on "OpenBible: long sections" (copied in
    SETUP-033).
 2. Turn on "Share with other organizations"; then "Let them follow
-   updates". Undo each, then turn them on again.
-3. Tap "Archive". Tap "Undo". Tap "Archive" again.
+   updates". Turn "Let them follow updates" off, then "Share with other
+   organizations" off. Turn both on again.
+3. Tap "Archive".
 4. Open "Archived". Tap "Options" → "Unarchive".
 5. On the followed template: read the card, tap "Options" → "Take update".
 
 Expected:
 - Toasts "Songs {run} is shared with other organizations.", "Others can
-  follow it and get your new versions.", each with Undo.
-- "Songs {run} archived. Languages using it keep it." with Undo; the card
-  moves to the collapsible "Archived" ("1 template · languages using them
-  keep them").
-- "Songs {run} is back in the list."
+  follow it and get your new versions.", neither with Undo. Turning them
+  off toasts "Others can no longer follow it." and "Songs {run} is no
+  longer shared. Anyone using it keeps their version."
+- "Songs {run} archived. Languages using it keep it.", with no Undo; the
+  card moves to the collapsible "Archived" ("1 template · languages using
+  them keep them").
+- "Unarchive" is the way back: "Songs {run} is back in the list."
 - The followed template shows the amber "LangQuest has a newer version.".
   "Take update" toasts "{name} updated. Languages using it move to the new
   version by themselves." (needs an owner who publishes a newer version:
   the preview environment).
+
+Changed (2026-10-16, decision 134): no toast offers Undo; the same switch, or "Unarchive", changes it back.
 
 ### SETUP-035 A language's own template view
 Roles: ADMIN, LADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -1035,13 +1073,15 @@ Expected:
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions (in addition to the global ones):
-- Resets: changes Alpha's template and undoes it.
+- Resets: changes Alpha's template and changes it back.
 
 Steps:
 1. Alpha's template view (SETUP-035) → "Change template".
 2. Tap another template, for example "OpenBible: long sections" (SETUP-033).
 3. Read the footer.
-4. Tap "Use Songs {run}". Tap "Undo".
+4. Tap "Use Songs {run}".
+5. On Alpha's template view, tap "Change template" again. Tap "FIA
+   passages (English)", then "Use FIA passages (English)".
 
 Expected:
 - The header is "Choose a Template" with "For Alpha · now FIA passages
@@ -1050,13 +1090,17 @@ Expected:
 - The footer warns "Alpha's current passages are hidden, not deleted. {n}
   parts have recordings — change back to this template to bring them
   back."
-- Toast "Alpha now uses Songs {run}." with Undo.
-- After Undo, Alpha's map shows FIA passages again with every recording
-  (TPL-7: hidden, never deleted).
+- Toast "Alpha now uses Songs {run}.", with no Undo, and Alpha's template
+  view opens.
+- Step 5: toast "Alpha now uses FIA passages (English).", and Alpha's map
+  shows FIA passages again with every recording (TPL-7: hidden, never
+  deleted). Picking it again uses that template's latest version.
 - For a language with no template: "{lang} will record against {name}. You
   can change it later; nothing recorded is ever deleted." For a shared
   template it adds "Your organization follows it, so {org}'s new versions
   reach {language} by themselves."
+
+Changed (2026-10-16, decision 134): no toast offers Undo; picking the earlier template again in "Change template" changes it back.
 
 ### SETUP-037 Make a Scripture template
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -1172,7 +1216,9 @@ Steps:
 1. Alpha's template view → "Luke". Tap "Break up differently".
 2. Pick "By chapter". Tap "Change Luke".
 3. Tap "Keep it as it is". Repeat and tap "Change it anyway".
-4. Open Luke 15 on the map. Tap "Undo" in the toast (or change back).
+4. Open Luke 15 on the map.
+5. Alpha's template view → "Luke" → "Break up differently". Pick "FIA
+   passages", tap "Change Luke", then "Change it anyway".
 
 Expected:
 - "Change how Luke is broken up" with "Now: FIA passages. Each piece is
@@ -1181,9 +1227,15 @@ Expected:
 - The sheet "Luke will be divided again" says the work moves to "Earlier
   sections" and "Nothing is deleted.", with "Change it anyway" and "Keep it
   as it is".
-- After the change, Luke 15 shows the warning mark and "Earlier sections"
-  with P-CHECK's and P-SUBMITTED's recordings (decision 80).
-- Changing back brings the passages back with their work.
+- After the change, the toast "Luke is broken up by chapter." has no Undo.
+  Luke 15 shows the warning mark and "Earlier sections" with P-CHECK's and
+  P-SUBMITTED's recordings (decision 80).
+- Step 5 changes it back ("Luke is broken up into FIA passages."), with
+  the same warning first, and brings the passages back with their work. A
+  book divided its own way has no ready-made way to pick again: it is drawn
+  again with "Divide it your own way".
+
+Changed (2026-10-16, decision 134): no toast offers Undo; picking the earlier way again in "Break up differently" changes it back.
 
 ### SETUP-042 What a language calls a book, and what translators see
 Roles: ADMIN, TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
@@ -1255,18 +1307,31 @@ Steps:
 1. Alpha's page → More → "Every way to check".
 2. Tap "Use" on "Quick Check".
 3. Go back to Alpha's page and read the Checks row.
-4. "Every way to check" → "Use" on "Standard Bible Flow". Tap "Undo".
-5. Checks → "Start from a ready-made flow" → "Standard Bible Flow" → "Use
-   Standard Bible Flow".
+4. "Every way to check" → "Use" on "Standard Bible Flow".
+5. Checks → tap Community check's lock ("can be set aside"), so it must
+   pass. Tap the Undo arrow in the header, then Redo.
+6. "Every way to check" → "Use" on "Quick Check". Read the sheet and tap "Cancel".
+7. Checks → tap Community check's lock again.
 
 Expected:
-- Toast "Alpha now uses Quick Check." with Undo. Its checks are copied into
-  Alpha (decision 91): the Checks row reads "Peer check → Final approval".
-- Undo puts back the checks Alpha had before.
-- After step 5 the Checks row reads "Peer check + back translation →
-  Community check → Consultant check → Final approval".
+- Alpha's checks are still exactly as Standard Bible Flow made them, so
+  that set can be chosen again: "Use" asks nothing. Toast "Alpha now uses
+  Quick Check.", with no Undo. Its checks are copied into Alpha (decision
+  91): the Checks row reads "Peer check → Final approval".
+- Step 4 puts Standard Bible Flow's checks back, again without a question:
+  "Peer check + back translation → Community check → Consultant check →
+  Final approval". A check's people, questions and helps belong to its
+  kind, so they come back with it.
+- In step 5 Undo takes the lock back and Redo puts it on again (the
+  Checks list keeps its changes while the screen is open). Alpha's checks
+  are then its own (no ready-made set has them), so step 6 asks first: a
+  sheet "Replace Alpha's own checks with Quick Check?" with "Use Quick
+  Check" and "Cancel". "Cancel" changes nothing.
+- Step 7 takes the lock off: Community check can be set aside again.
 - Passages read against the new checks; nothing recorded or reviewed is
   lost (decision 32). Sync shows nothing refused.
+
+Changed (2026-10-16, decision 134): no toast offers Undo; "Use" on the earlier flow puts its checks back, and replacing checks a language made its own asks first.
 
 ### SETUP-045 Make a review flow in the library
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -1295,7 +1360,7 @@ Expected:
 - Toast "Community first {run} saved." The flow is listed under "Your
   organization · 1". Nothing is refused.
 
-### SETUP-046 Remove one of a language's checks; Undo puts it back
+### SETUP-046 Remove one of a language's checks: it asks first, and the list's Undo puts it back
 Roles: ADMIN, COORD · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions (in addition to the global ones):
@@ -1304,16 +1369,24 @@ Preconditions (in addition to the global ones):
 Steps:
 1. Alpha's page → "Checks".
 2. Tap "Community check". Read the page.
-3. Tap "Remove this check".
-4. Tap "Undo" in the toast.
+3. Tap "Remove this check", then Cancel.
+4. Tap "Remove this check", then "Remove this check" in the sheet.
+5. Back on Checks, tap the Undo arrow in the header.
 
 Expected:
 - The check's page is "Community check" with the sub "Check 2 · Alpha" and
   People, Questions, Helps, "Must pass" and "Remove this check".
-- Toast "Community check removed" with Undo; Checks lists Peer check, Back
-  translation, Consultant check, Final approval.
+- Step 3: a sheet asks "Remove Community check?" with "Check 2 · Alpha", and
+  Cancel keeps it.
+- Step 4: toast "Community check removed" (no Undo); Checks lists Peer
+  check, Back translation, Consultant check, Final approval, and the header's
+  Undo reads "Undo: Community check removed".
 - Undo brings Community check back in its place, and P-ASIDE keeps its
   set-aside Community check.
+
+Changed (2026-10-16, decision 134): no toast offers Undo; removing a check
+asks first, and the Checks list's header Undo, which hears a save made on a
+check's own page opened from it, puts it back.
 
 Fixed (2026-10-12): Undo said "Undone." but the check stayed gone. A removed
 step is out for good (`FlowStepRemoved` is add-wins) and core `restoreFlow`
@@ -1430,7 +1503,7 @@ Steps:
 3. Turn Community check's "Must pass" off again.
 
 Expected:
-- Toast "Alpha's checks saved" with Undo; Community check's card shows the
+- Toast "Alpha's checks saved"; Community check's card shows the
   lock ("Community check must pass before the next steps").
 - "Same time as" is a choice of any other checks (decision 130).
 - Back translation is "Check 1 · Alpha" while at the same time as Peer
@@ -1454,7 +1527,7 @@ Expected:
 - The sheet offers the kinds Alpha does not use yet ("Retelling", "Local
   check") and "Something else".
 - Each is added at the end: toast "Alpha's checks saved".
-- Removing each toasts "{check} removed".
+- Removing each asks first ("Remove {check}?"), then toasts "{check} removed".
 
 ### SETUP-072 Start from a ready-made flow
 Roles: LADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -1465,14 +1538,19 @@ Preconditions (in addition to the global ones):
 Steps:
 1. Checks → "Start from a ready-made flow".
 2. Tap "Quick Check" → "Use Quick Check".
-3. Tap "Undo".
+3. Tap the Undo arrow in the Checks header.
 
 Expected:
 - The sheet is "Ready-made flows" with "Replaces Alpha's checks", each flow
   with its checks in a line ("Peer check → Final approval").
-- Toast "Alpha now starts from Quick Check" with Undo; Checks lists Peer
-  check and Final approval.
-- Undo puts back all five checks, with Peer check's people.
+- Toast "Alpha now starts from Quick Check", with no Undo; Checks lists
+  Peer check and Final approval. The header's Undo arrow is dark,
+  labelled "Undo: Alpha now starts from Quick Check"; Redo is grey.
+- Step 3 puts back all five checks, with Peer check's people. No toast
+  shows; Redo is now dark. The arrows' history lasts until you leave the
+  Checks screen.
+
+Changed (2026-10-16, decision 134): no toast offers Undo; the Undo arrow in the Checks header puts the checks back.
 
 ### SETUP-073 Move a check to another place in the order
 Roles: ADMIN · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
@@ -1483,12 +1561,16 @@ Preconditions (in addition to the global ones):
 Steps:
 1. Checks: drag Final approval's grip above Consultant check (a screen
    reader uses the grip's "Move up").
-2. Tap "Undo".
+2. Tap the Undo arrow in the Checks header.
 
 Expected:
-- Toast "Alpha's checks saved"; Final approval comes before Consultant
-  check.
-- Undo puts the order back.
+- Toast "Alpha's checks saved", with no Undo; Final approval comes before
+  Consultant check. The header's Undo arrow is labelled "Undo: Alpha's
+  checks saved".
+- Step 2 puts the order back. Dragging Final approval back below
+  Consultant check does the same.
+
+Changed (2026-10-16, decision 134): no toast offers Undo; the Undo arrow in the Checks header, or moving it back, puts the order back.
 
 ---
 
@@ -1533,11 +1615,11 @@ Preconditions (in addition to the global ones):
   Locally there is no Bible (no `source@1`): the test checks both levels'
   intros and empty lists; Recommend, Hide and Follow organization run on
   the preview environment.
-- Resets: changes recommendations and undoes them.
+- Resets: changes recommendations and changes them back.
 
 Steps:
 1. Org home → Setup → "Reference Material" → "Bibles". Tap "Recommend" on
-   {Bible 2}. Tap "Undo".
+   {Bible 2}. Tap "Stop recommending" on it.
 2. Alpha's page → More → "Bibles, guides and notes" → "Bibles".
 3. On the English Bible tap "Hide".
 4. In "Hidden for this language", tap "Follow organization".
@@ -1546,15 +1628,19 @@ Steps:
 
 Expected:
 - Organization level: intro "What the organization recommends to every
-  language…"; toast "{Bible 2} is recommended to every language." with
-  Undo.
+  language…"; toast "{Bible 2} is recommended to every language.", with
+  no Undo. The row's button turns into "Stop recommending", which takes it
+  back ("{Bible 2} is no longer recommended.").
 - Language level: intro "What this language’s team is offered…";
   sections "Recommended · {n}", "Hidden for this language · {n}", "In your
   library, not recommended · {n}".
-- Toasts, each with Undo: "{name} is hidden for this language.", "{name}
+- Toasts, none with Undo: "{name} is hidden for this language.", "{name}
   follows the organization here.", "{Bible 2} is recommended to this
-  language's team."
+  language's team." Each row's button changes it back: "Follow
+  organization" after Hide, "Stop recommending" after Recommend.
 - TRANS is offered exactly the Bibles recommended for Alpha.
+
+Changed (2026-10-16, decision 134): no toast offers Undo; the row's own button ("Stop recommending", "Follow organization") changes it back.
 
 ### SETUP-051 Add a Bible
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -1619,8 +1705,7 @@ Steps:
 1. Alpha's Reference Material → "Coverage".
 2. Tap "No guide or note". Then "All".
 3. Tap Luke 15:11-32 (P-SUBMITTED).
-4. On its FIA guide tap "Hide here". Tap "Undo". Tap "Hide here" again,
-   then "Show here".
+4. On its FIA guide tap "Hide here", then "Show here".
 5. Tap "Add a help".
 
 Expected:
@@ -1631,7 +1716,8 @@ Expected:
 - The passage page is "What helps here": the passage a tap away at the top,
   then a card for each help with Show here / Hide here (PASS-034).
 - Toasts "{name} is hidden on this passage." and "{name} shows on this
-  passage again.", with Undo.
+  passage again.", neither with Undo: the card keeps "Show here" / "Hide
+  here", hidden ones too, so the same button changes it back.
 - Adding: "Add a help" opens a sheet with "Write a note for translators"
   first, set apart, then "From your library". Placing a library item says
   "{name} is placed on this passage." and shows it with "Placed here by hand".
@@ -1639,6 +1725,8 @@ Expected:
   page is "What helps here"; "Add" is "Add a help". The automated test checks
   Hide/Show only when a guide is offered on that passage, and only opens and
   closes the Add a help sheet.
+
+Changed (2026-10-16, decision 134): no toast offers Undo; "Show here" and "Hide here" on the card change it back.
 
 ### SETUP-054 Write a note and a question set
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -1683,7 +1771,13 @@ Steps:
 Expected:
 - A bad line: "Could not read “LUKE fifteen”. Write them like RUT 1:1-16."
 - "{title} is in your library."
-- "Reviewers doing {kind} now see these questions." with Undo.
+- "Reviewers doing {kind} now see these questions.", with no Undo.
+- There is no lasting way back yet: "Use in reviews" stays as it is (it
+  does not turn into "Stop using"), and nothing takes the copy back in one
+  step. To take the questions out again, remove each one from the check's
+  Questions (Checks → the check → the question → "Remove question").
+
+Changed (2026-10-16, decision 134): no toast offers Undo; no lasting way back yet: each copied question is removed on the check's page.
 
 ---
 
@@ -1700,7 +1794,9 @@ Steps:
 2. Tap "Done" at once.
 3. Fix each item: title "The lost son {run}"; "Verses" LUK 15:11-32;
    "Numbered as in" English; "Start with these steps" → FIA (six steps).
-4. Tap Undo on the steps toast, then choose FIA again.
+4. Open "Steps" and type a line in step 1's text. In "Details", tap "One
+   empty step" under "Start with these steps". Tap the Undo arrow in the
+   header.
 5. Open "Steps". Record step audio for step 1. Use Bold and Link in its
    text.
 6. Open "Media". Add a picture and a film. Open "Glossary". Add a term.
@@ -1717,12 +1813,21 @@ Expected:
 - The header's saved mark turns from a spinner into a check as you type:
   the draft is kept on this device, only for its writer (decision 127).
 - A new guide starts with FIA's six steps ("Now: 6 steps."); "One empty
-  step" and "FIA's six steps" replace them. The toast "Steps replaced with
-  FIA's six steps." with Undo shows only once a step has words or audio.
+  step" and "FIA's six steps" replace them. Once a step has words or audio
+  the line reads "Choosing replaces the steps you have. You can undo it."
+- Step 4: choosing "One empty step" shows no toast. The header's Undo
+  arrow, beside the saved mark, is labelled "Undo: Steps replaced with one
+  empty step." and brings back the six steps with the line typed in step
+  1; Redo is then dark. Every change in the editor is a step for Undo
+  (typing in one field without a pause joins into one step), kept with the
+  draft on this device until it is published. Removing a step, a picture or a term shows no
+  toast either; Undo brings it back.
 - Busy labels "Uploading {n} of {N}…", then "Publishing…".
 - Toast "The lost son {run} is published. Devices get it when they next
   sync."
 - TRANS sees the guide on P-SUBMITTED.
+
+Changed (2026-10-16, decision 134): no toast offers Undo; the guide editor's Undo and Redo arrows in the header take changes back.
 
 ### SETUP-057 Edit or adapt a guide; a draft is kept
 Roles: ADMIN · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
@@ -1841,22 +1946,32 @@ Roles: LADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 Preconditions (in addition to the global ones):
 - ORG's library has a second template (ADMIN follows LangQuest's "FIA
   passages" first).
-- Resets: changes and undoes.
+- Resets: changes and changes back.
 
 Steps:
 1. Alpha's page → More → "Every way to check". Tap "Use" on "Quick Check"
-   (its checks are copied into Alpha). Undo.
-2. Alpha's page → "Checks" → "Final approval" → "Remove this check". Undo.
+   → "Use Quick Check" (its checks are copied into Alpha). Then "Use" on
+   "Standard Bible Flow" → "Use Standard Bible Flow".
+2. Alpha's page → "Checks" → "Final approval" → "Remove this check", and
+   "Remove this check" again in the sheet that asks. Then "Add a check" →
+   "Final approval".
 3. Alpha's template view → "Change template" → "FIA passages" → "Use FIA
-   passages". Undo.
+   passages". Then "Change template" → "FIA passages (English)" → "Use FIA
+   passages (English)".
 4. Open Sync.
 
 Expected:
-- Each change toasts as for ADMIN, with Undo.
+- Each change toasts as for ADMIN, with no Undo. "Use" asks nothing:
+  Alpha's checks are still as a ready-made set made them (SETUP-044).
+- Each second half of a step puts Alpha back: Standard Bible Flow's
+  checks, Final approval at the end of the checks again, and FIA passages
+  (English).
 - "Choose a Template" lists only the organization's own templates: using
   another organization's would follow it, a library write.
 - Sync shows "refused by the server" at 0: these are Alpha's own events,
   which LADMIN may write at Alpha.
+
+Changed (2026-10-16, decision 134): no toast offers Undo; each change is put back by choosing the earlier flow, check or template again.
 
 ### SETUP-063 LADMIN is not offered the organization's library writes
 Roles: LADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -1902,15 +2017,18 @@ Steps:
 5. Open Sync.
 
 Expected:
-- Steps 2–3 work, each toast with Undo ("… is hidden for this language.",
-  "… follows the organization here.", "… is recommended to this language's
-  team."): these are Alpha's own events. (No Bible locally: preview
-  environment.)
+- Steps 2–3 work, each toast with no Undo ("… is hidden for this
+  language.", "… follows the organization here.", "… is recommended to this
+  language's team."): these are Alpha's own events. The row's button
+  changes each back ("Follow organization", "Stop recommending"). (No Bible
+  locally: preview environment.)
 - "Add a Bible" is not offered: it follows LangQuest's Bible or publishes
   Bible Brain's in the organization's library.
 
 Fixed (2026-10-12): "Add a Bible" is offered only with organization-scope
 Manage reference (`mayWriteLibrary`).
+
+Changed (2026-10-16, decision 134): no toast offers Undo; the row's own button changes it back.
 
 ### SETUP-065 LADMIN's guides and organization-wide material
 Roles: LADMIN · Priority: P2 · Platforms: Web · Run: Auto

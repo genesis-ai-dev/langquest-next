@@ -82,9 +82,7 @@ function ReportSheet(props: { ctx: Ctx; target: ReportTarget; onClose: () => voi
   async function toggleBlock() {
     try {
       await ctx.blocks.set(target.profileId, !blocked);
-      ctx.toast(blocked ? t('moderation.toast.unblocked', { name: who }) : t('moderation.toast.blocked', { name: who }), async () => {
-        await ctx.blocks.set(target.profileId, blocked);
-      });
+      ctx.toast(blocked ? t('moderation.toast.unblocked', { name: who }) : t('moderation.toast.blocked', { name: who }));
       props.onClose();
     } catch (e) {
       ctx.toast(failureMessage('block person', e));

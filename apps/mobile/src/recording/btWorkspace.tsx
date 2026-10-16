@@ -37,7 +37,6 @@ import { Banner, Field, Header, Ico, IconBtn, PrimaryBtn, QuietLinks, Screen, Se
 import { txt } from '../ui/textStyles';
 import { useLayout } from '../ui/useLayout';
 import { passageCrumbs, type PassageView } from '../passage/passageView';
-import { undoReviews } from '../passage/recordInputsModel';
 import { useBackTranslationDraft } from './useBackTranslationDraft';
 import { checkName } from '../admin/adminModel';
 import { backParts, EMPTY_BACK_NOTES, isBackNotesDraft, nextPart, noteText, partAfter, pieceFor, piecesInOrder, saidLine, sourceParts, type BackPart, type MomentNote } from './backTranslationParts';
@@ -56,11 +55,12 @@ import { loopRecording, MIN_BOTTOM, MIN_BOTTOM_RECORDING } from './splitModel';
 import { useListenLoop } from './useListenLoop';
 import { RecordingView } from './RecordingView';
 import {
-  backTranslationDraftKey, cardDurations, didStep, parsePiecesHistory, piecesHistoryKey, redoStep, undoStep, unsavedParts, type PiecesSnap
+  backTranslationDraftKey, cardDurations, parsePiecesHistory, piecesHistoryKey, unsavedParts, type PiecesSnap
 } from './workspaceModel';
-import { useUndoHistory } from './useUndoHistory';
-import { forgetUndoHistory } from './undoHistory';
-import { UndoRedo } from './recorder';
+import { useUndoHistory } from '../drafts/useUndoHistory';
+import { forgetUndoHistory } from '../drafts/undoHistory';
+import { didStep, redoStep, undoStep } from '../ui/undoModel';
+import { UndoRedo } from '../ui/undoRedo';
 import { failureMessage, reportError } from '../diagnostics/report';
 import { RequestBanner } from '../reviewing/parts';
 import { lift } from '../ui/shadow';
@@ -211,7 +211,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
       setHistory(step.history);
       const was = new Set(step.from.map((c) => c.hash));
       setJustSaid(partsOf(step.to.filter((c) => !was.has(c.hash))));
-      AccessibilityInfo.announceForAccessibility(step.what ? t(which === 'undo' ? 'recording.recorder.undoneWhat' : 'recording.recorder.redoneWhat', { what: step.what })
+      AccessibilityInfo.announceForAccessibility(step.what ? t(which === 'undo' ? 'common.undoneWhat' : 'common.redoneWhat', { what: step.what })
         : which === 'undo' ? t('common.undone') : t('translate.redone'));
     } catch (e) {
       ctx.toast(t(which === 'undo' ? 'common.notUndone' : 'common.notSaved', { reason: failureMessage(`back translation: ${which}`, e) }));
@@ -238,7 +238,6 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
     const note = noteText(notes, extra);
     const sendTo = ask && 'kindId' in ask ? targets[ask.kindId] : undefined;
     let message = shipped ? t('backTranslation.published') : t('backTranslation.whatPublished', { what: capitalize(produces.what) });
-    let requestId: string | undefined;
     let specs: EventSpec[];
     try {
       const c = commands(state, indexesFor(state));
@@ -248,7 +247,6 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
       });
       if (ask && 'kindId' in ask && sendTo) {
         const asked = c.ask(sendToInput({ commandId: Crypto.randomUUID(), unitId, kindId: ask.kindId, target: sendTo }));
-        requestId = (asked.find((x) => x.type === 'v1.RequestMade')?.payload as { requestId: string } | undefined)?.requestId;
         specs = [...specs, ...asked];
         message = sentText(sendTo, sendTargetLabel(sendTo, ctx.name));
       }
@@ -258,13 +256,8 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
     }
     setSaving(true);
     try {
-      // Undo takes it back (decisions.md 111): the back translation, and the asking that went with it.
-      const sent = specs;
-      await ctx.act(specs, message, () => {
-        const now = ctx.language.state ?? state;
-        const c = commands(now, indexesFor(now));
-        return [...undoReviews(sent)(c), ...(requestId ? c.withdrawRequest({ commandId: Crypto.randomUUID(), requestId }) : [])];
-      });
+      // Taken back from the record's History (Undo on it, Withdraw on the asking), not a toast (decisions 111, 134).
+      await ctx.act(specs, message);
     } catch {
       setSaving(false); // ctx.act said what went wrong
       return;
@@ -310,7 +303,8 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
           <View style={[styles.footSide, { alignItems: 'flex-end' }]}>
             <UndoRedo hidden={session} canUndo={!!lastDone && !blocked && historyLoaded} canRedo={!!lastUndone && !blocked && historyLoaded}
               {...(lastDone?.what ? { undoWhat: lastDone.what } : {})} {...(lastUndone?.what ? { redoWhat: lastUndone.what } : {})}
-              onUndo={() => void travel('undo')} onRedo={() => void travel('redo')} />
+              onUndo={() => void travel('undo')} onRedo={() => void travel('redo')}
+              help={{ undo: t('recording.recorder.undoHelp'), redo: t('common.redoHelp') }} />
           </View>
           <BigRecord disabled={blocked || rec.failureCount > 0 || !part} part={partN} onPress={() => void loop.toggle()} />
           <View style={styles.footSide}>
