@@ -59,8 +59,7 @@ test('SETUP-062 LADMIN chooses Alpha\'s own template and checks', async ({ page 
   await secondTemplate(page);
   await alphaPage(page);
   // A ready-made flow: its checks are copied into Alpha (decision 91), Alpha's own events.
-  await more(page);
-  await text(page, 'Every way to check').click();
+  await reviewFlows(page, w);
   const flowCard = (name: string) => page.locator('div').filter({ has: page.getByText(name, { exact: true }) })
     .filter({ has: page.getByRole('button', { name: 'Use', exact: true }) }).last();
   const quick = flowCard('Quick Check');
@@ -86,8 +85,7 @@ test('SETUP-062 LADMIN chooses Alpha\'s own template and checks', async ({ page 
   await back(page).click();
   // Another of the organization's own templates: Change template offers only those (following another
   // organization's is a library write).
-  await more(page);
-  await text(page, 'Every way to divide the work').click();
+  await eachBook(page);
   await text(page, 'Change template').click();
   await expectOnScreen(page, 'Choose a Template', 'FIA passages (English) · in use');
   await expectNotOnScreen(page, 'From other organizations', 'Bible chapters (English)');
@@ -124,8 +122,7 @@ test('SETUP-063 LADMIN is not offered the organization\'s library writes', async
   await back(page).click();
   await back(page).click();
   // Review flows: Use (Alpha's own checks), but no new flow, Follow or Copy.
-  await more(page);
-  await text(page, 'Every way to check').click();
+  await reviewFlows(page, w);
   await expectOnScreen(page, 'Review Flows', 'Use');
   await expect(button(page, 'Follow')).toHaveCount(0);
   await expect(button(page, 'Copy')).toHaveCount(0);
@@ -152,8 +149,7 @@ test('SETUP-063 LADMIN is not offered the organization\'s library writes', async
 test('SETUP-064 LADMIN\'s Bibles: recommendations are Alpha\'s; adding one to the library is not offered', async ({ page }) => {
   const w = world();
   await alphaPage(page);
-  await more(page);
-  await text(page, 'Bibles, guides and notes').click();
+  await referenceLibrary(page);
   await text(page, 'Bibles').click();
   await expectOnScreen(page, 'Bibles', 'What this language’s team is offered');
   // Adding a Bible follows LangQuest's or publishes Bible Brain's in the organization's library.
@@ -167,8 +163,7 @@ test('SETUP-065 LADMIN\'s guides and material are Alpha\'s own', async ({ page }
   const w = world();
   const title = `Names in Luke ${w.run.slice(-4)}`;
   await alphaPage(page);
-  await more(page);
-  await text(page, 'Bibles, guides and notes').click();
+  await referenceLibrary(page);
   await expectNotOnScreen(page, 'Write a guide');
   await expect(button(page, 'New')).toHaveCount(0);
   await expect(button(page, 'Follow')).toHaveCount(0);

@@ -820,7 +820,8 @@
       "titleHelp": "Muestra el resto: avance, personas, roles, su nombre y más.",
       "seeWorkHelp": "Abre el mapa: cada pasaje y cuánto ha avanzado.",
       "publicListOnHelp": "Activado: su nombre y su avance están en la lista pública. Toca para quitarlos.",
-      "publicListOffHelp": "Desactivado. Toca para poner su nombre y su avance en la lista pública."
+      "publicListOffHelp": "Desactivado. Toca para poner su nombre y su avance en la lista pública.",
+      "orgPage": "La página de la organización"
     },
     "members": {
       "joined": "{{target}} · se unió {{when}}",

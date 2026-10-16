@@ -21,7 +21,9 @@ test('SETUP-001 Org home shows the organization, its languages and its setup', a
   await expectOnScreen(page, '2 languages · 8 members', 'Invite people', 'Alpha', 'Bravo', 'New language', 'Members', '3 at org level · 8 total');
   await expectOnScreen(page, /Alpha Standard Bible Flow · \d+ of \d+ recorded · \d+ done/);
   await setup(page);
-  await expectOnScreen(page, 'Content Templates', 'Reference Material', 'Review Flows', 'Roles', '7 roles at this level and above', 'Name', 'All rights reserved');
+  await expectOnScreen(page, 'Content Templates', 'Reference Material', 'Review Flows', 'Roles', '7 roles at this level and above', 'All rights reserved');
+  // The name and licence are changed beside the name, not in Setup (decision 136).
+  await expect(byId(page, 'org-rename')).toBeVisible();
   await expect(text(page, w.orgName).first()).toBeVisible();
   await text(page, 'Alpha').click();
   await expect(text(page, 'They record')).toBeVisible();
@@ -39,9 +41,7 @@ test('SETUP-002 Only an organization admin renames the organization and changes 
   // COORD: Org home from the Manage tab.
   await openAs(page, w, 'COORD');
   await orgHome(page, w);
-  await setup(page);
-  await text(page, 'Name').click();
-  await expect(text(page, 'Rename the organization')).toHaveCount(0);
+  await expect(page.getByTestId('org-rename')).toHaveCount(0);
   await button(page, /^(License: )?All rights reserved/).click();
   await expectOnScreen(page, 'Who may use your work', 'Only an organization admin can change this.');
   await expectNotOnScreen(page, 'Open to ', 'Pick a more open license');
@@ -54,9 +54,7 @@ test('SETUP-002 Only an organization admin renames the organization and changes 
   await text(p, 'The organization\'s page').click();
   await expect(text(p, w.orgName).first()).toBeVisible();
   await expect(text(p, 'New language or cluster')).toHaveCount(0);
-  await setup(p);
-  await text(p, 'Name').click();
-  await expect(text(p, 'Rename the organization')).toHaveCount(0);
+  await expect(p.getByTestId('org-rename')).toHaveCount(0);
   await button(p, /^(License: )?All rights reserved/).click();
   await expectOnScreen(p, 'Only an organization admin can change this.');
   await closeSheet(p);
@@ -70,8 +68,7 @@ test('SETUP-003 Rename the organization', async ({ page }) => {
   const w = world();
   await openAs(page, w, 'ADMIN');
   await orgHome(page, w);
-  await setup(page);
-  await text(page, 'Name').click();
+  await byId(page, 'org-rename').click();
   await expectOnScreen(page, 'Rename the organization', 'Its members see the new name, and so does anyone asking to join it.');
   const save = button(page, 'Save the name');
   await expect(save).toBeDisabled();
@@ -93,7 +90,7 @@ test('SETUP-003 Rename the organization', async ({ page }) => {
   await trans.context.close();
 
   // Put it back.
-  await text(page, 'Name').click();
+  await byId(page, 'org-rename').click();
   await field(page, 'Its name').fill(w.orgName);
   await button(page, 'Save the name').click();
   await expectToast(page, `Renamed to ${w.orgName}.`);
@@ -115,7 +112,7 @@ for (const who of ['ADMIN', 'COORD'] as const) {
     await expect(primary(p)).toContainText('What will they record?');
     // "How this works" is offered on the checklist; tapping it turns help on and says how (decision 71, amended 2026-10-10).
     await expect(text(p, /How this works · 0:40/)).toBeVisible();
-    await expectOnScreen(p, 'More', /Progress, members, roles, public listing, name, language list/);
+    await expectOnScreen(p, 'More', /Progress, roles, languages, public listing/);
     await more(p);
     await expectOnScreen(p, 'See their work');
     await text(p, 'What will help them?').click();
@@ -163,22 +160,30 @@ for (const who of ['ADMIN', 'LADMIN'] as const) {
     // While Alpha's events are still arriving the page can read as not ready; wait for the language as it is.
     await expect(text(p, 'Ready · 3 translators')).toBeVisible({ timeout: 60_000 });
     await more(p);
-    await expectOnScreen(p, `${w.orgName} · Code ALP`, 'Recorded', 'Done', 'Members', '5 given a role in Alpha', 'Roles', '7 roles · what each can do',
-      'Every way to divide the work', 'Bibles, guides and notes', 'Every way to check', 'Show on the public list', 'The organization\'s page', 'Name', 'In the language list');
-    // Review groups left with decision 91: a check's people are on the check.
-    await expectNotOnScreen(p, 'Review groups', 'See their work Every passage');
+    await expectOnScreen(p, `${w.orgName} · Code ALP`, 'Recorded', 'Done', 'Roles', '7 roles · what each can do', 'Languages', 'Show on the public list');
+    // Nothing in More repeats a row above it, and the organization's libraries open from the organization (decision 136).
+    await expectNotOnScreen(p, 'Review groups', 'See their work Every passage', 'Members', 'Every way to divide the work', 'Bibles, guides and notes', 'Every way to check',
+      'In the language list');
+    // Only a language lead, whose Manage tab opens here with no Back, has a row to the organization.
+    if (who === 'LADMIN') await expect(text(p, 'The organization\'s page')).toBeVisible();
+    else await expect(text(p, 'The organization\'s page')).toHaveCount(0);
     await text(p, 'Roles').click();
     await expectOnScreen(p, 'Roles', who === 'ADMIN' ? 'Organization' : 'Language');
-    await goBack(p, 'Every way to divide the work');
-    await text(p, 'Every way to divide the work').click();
+    await goBack(p, 'Languages');
+    await text(p, 'Languages').click();
+    await expectOnScreen(p, 'They translate into', 'They understand');
+    await text(p, 'They understand').click();
+    await expectOnScreen(p, 'Which languages should Alpha\'s Bibles and study guides be in?');
+    await goBack(p, 'They record');
+    // They record opens each book's passages; Checks keeps its checks as a ready-made flow.
+    await text(p, 'They record').click();
+    await text(p, 'Each book\'s passages').click();
     await expectOnScreen(p, 'Content Template', 'Alpha records against');
-    await goBack(p, 'Bibles, guides and notes');
-    await text(p, 'Bibles, guides and notes').click();
-    await expectOnScreen(p, 'Reference Material', 'What translators are offered');
-    await goBack(p, 'Every way to check');
-    await text(p, 'Every way to check').click();
-    await expectOnScreen(p, 'Review Flows', 'Alpha uses');
-    await goBack(p, 'Every way to check');
+    await goBack(p);
+    await goBack(p, 'Checks');
+    await text(p, 'Checks').click();
+    if (who === 'ADMIN') await expect(text(p, 'Keep as a ready-made flow')).toBeVisible();
+    await goBack(p, 'They record');
     if (d) await d.context.close();
   });
 }
@@ -191,8 +196,7 @@ for (const who of ['ADMIN', 'LADMIN'] as const) {
     if (!d) { await openAs(p, w, who); await languagePage(p, w, 'Alpha'); } else await tab(p, 'manage').click();
     // Let the organization's stream catch up first: the earlier renames arriving would redraw the page under the sheet.
     await syncNow(p);
-    await more(p);
-    await text(p, 'Name').click();
+    await byId(p, 'title-rename').click();
     await expectOnScreen(p, 'Rename Alpha', `Everyone in ${w.orgName} sees the new name. Its code, ALP, stays.`);
     await field(p, 'Its name').fill('Bravo');
     await expectOnScreen(p, 'That name is taken here', 'Bravo (BRA) already has this name. Two languages with one name are hard to tell apart.');
@@ -201,7 +205,7 @@ for (const who of ['ADMIN', 'LADMIN'] as const) {
     await button(p, 'Save the name').click();
     await expectToast(p, 'Renamed to Alpha Renamed.');
     await expect(text(p, 'Alpha Renamed').first()).toBeVisible();
-    await text(p, 'Name').click();
+    await byId(p, 'title-rename').click();
     await field(p, 'Its name').fill('Alpha');
     await button(p, 'Save the name').click();
     await expectToast(p, 'Renamed to Alpha.');
@@ -216,8 +220,10 @@ test('SETUP-008 Link a language to the language list', async ({ page }) => {
   await openAs(page, w, 'ADMIN');
   await languagePage(page, w, 'Bravo');
   await more(page);
-  await expectOnScreen(page, 'In the language list', 'Not linked yet: added offline, or not found there', 'Link it');
-  await text(page, 'In the language list').click();
+  await expectOnScreen(page, 'Languages', 'Link it');
+  await text(page, 'Languages').click();
+  await expectOnScreen(page, 'They translate into', 'Not linked yet: added offline, or not found there');
+  await text(page, 'They translate into').click();
   await expectOnScreen(page, 'Link Bravo', 'Find it by any of its names or its code. It keeps the name Bravo here, and takes the list\'s code.');
   await field(page, 'Its name or code').fill('bra');
   // The local language list is empty (the languoid tables are not seeded locally): nothing is found.
@@ -607,8 +613,7 @@ for (const who of ['ADMIN', 'LADMIN'] as const) {
     const d = who === 'ADMIN' ? null : await deviceFor(page.context().browser()!, w, who);
     const p = d?.page ?? page;
     if (!d) { await openAs(p, w, who); await languagePage(p, w, 'Alpha'); } else await tab(p, 'manage').click();
-    await more(p);
-    await text(p, 'Every way to divide the work').click();
+    await eachBook(p);
     await expectOnScreen(p, 'Content Template', 'Alpha records against', 'FIA passages (English)', /\d+ of its \d+ books · English versification/,
       /\d+ passages · \d+ recorded/, 'Change template', /Divide into passages/i);
     await expectOnScreen(p, who === 'ADMIN' ? 'View template' : 'View template');
@@ -627,8 +632,7 @@ test('SETUP-036 Choose a different template for a language', async ({ page }) =>
   const w = world();
   await openAs(page, w, 'ADMIN');
   await languagePage(page, w, 'Alpha');
-  await more(page);
-  await text(page, 'Every way to divide the work').click();
+  await eachBook(page);
   await text(page, 'Change template').click();
   await expectOnScreen(page, 'Choose a Template', 'For Alpha · now FIA passages (English)', 'FIA passages (English) · in use');
   // LangQuest's older templates are not offered, nor its ways in other numberings (decision 107).
@@ -748,8 +752,7 @@ test('SETUP-040 Divide a book that waits, for this language', async ({ page }) =
   await primary(page).click();
   await expectToast(page, /^Oscar translates/);
   await byId(page, 'header-close').click();
-  await more(page);
-  await text(page, 'Every way to divide the work').click();
+  await eachBook(page);
   // Books that wait are listed here too, and open the ways to divide them (decision 107); here it is divided from the map.
   await page.getByPlaceholder('Find a book').fill('Proverbs');
   await expectOnScreen(page, 'Proverbs', 'Waiting to be broken up');
@@ -775,8 +778,7 @@ test('SETUP-042 What a language calls a book, and what translators see', async (
   const w = world();
   await openAs(page, w, 'ADMIN');
   await languagePage(page, w, 'Alpha');
-  await more(page);
-  await text(page, 'Every way to divide the work').click();
+  await eachBook(page);
   // The list shows eight books at a time; by now earlier tests have broken up enough that Luke is
   // past the first eight, so it is found by name, as a person would.
   await page.getByPlaceholder('Find a book').fill('Luke');

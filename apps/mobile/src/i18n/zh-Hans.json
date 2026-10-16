@@ -792,7 +792,8 @@
       "titleHelp": "显示其余内容：进展、人员、角色、名称等。",
       "seeWorkHelp": "打开地图：所有经段，以及各自的进展。",
       "publicListOnHelp": "已开启：它的名称和进展在公开列表中。点按可以移除。",
-      "publicListOffHelp": "已关闭。点按可以把它的名称和进展放到公开列表中。"
+      "publicListOffHelp": "已关闭。点按可以把它的名称和进展放到公开列表中。",
+      "orgPage": "机构页面"
     },
     "members": {
       "joined": "{{target}} · {{when}}加入",

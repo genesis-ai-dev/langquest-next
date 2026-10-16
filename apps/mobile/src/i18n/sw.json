@@ -806,7 +806,8 @@
       "titleHelp": "Huonyesha vilivyobaki: maendeleo, watu, majukumu, jina lake na zaidi.",
       "seeWorkHelp": "Hufungua ramani: kila kifungu, na kimefika wapi.",
       "publicListOnHelp": "Imewashwa: jina lake na maendeleo yake yako kwenye orodha ya umma. Gusa ili kuyaondoa.",
-      "publicListOffHelp": "Imezimwa. Gusa ili kuweka jina lake na maendeleo yake kwenye orodha ya umma."
+      "publicListOffHelp": "Imezimwa. Gusa ili kuweka jina lake na maendeleo yake kwenye orodha ya umma.",
+      "orgPage": "Ukurasa wa shirika"
     },
     "members": {
       "joined": "{{target}} · alijiunga {{when}}",

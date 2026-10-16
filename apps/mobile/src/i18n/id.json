@@ -792,7 +792,8 @@
       "titleHelp": "Menampilkan sisanya: perkembangan, orang, peran, namanya, dan lainnya.",
       "seeWorkHelp": "Membuka peta: setiap perikop, dan sejauh mana perkembangannya.",
       "publicListOnHelp": "Aktif: nama dan perkembangannya ada di daftar publik. Ketuk untuk menghapusnya dari sana.",
-      "publicListOffHelp": "Mati. Ketuk untuk menaruh nama dan perkembangannya di daftar publik."
+      "publicListOffHelp": "Mati. Ketuk untuk menaruh nama dan perkembangannya di daftar publik.",
+      "orgPage": "Halaman organisasi"
     },
     "members": {
       "joined": "{{target}} · bergabung {{when}}",

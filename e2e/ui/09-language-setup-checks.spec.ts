@@ -73,8 +73,7 @@ for (const who of ['ADMIN', 'COORD'] as const) {
     const p = d?.page ?? page;
     if (!d) await openAs(p, w, who);
     await languagePage(p, w, 'Alpha');
-    await more(p);
-    await text(p, 'Every way to check').click();
+    await reviewFlows(p, w);
     await expectOnScreen(p, 'Review Flows', 'Alpha', 'Flow');
     // Alpha's checks were copied from Standard Bible Flow (decision 91): they are its own.
     await expectOnScreen(p, 'Alpha uses', 'Custom flow', 'Peer Review', 'Back Translation', 'Community Check', 'Consultant Check', 'Final Approval', 'Add to your flows');
@@ -91,8 +90,7 @@ test('SETUP-044 Use a ready-made flow for a language @p0', async ({ page, browse
   const w = world();
   await openAs(page, w, 'ADMIN');
   await languagePage(page, w, 'Alpha');
-  await more(page);
-  await text(page, 'Every way to check').click();
+  await reviewFlows(page, w);
   // "Use" copies the flow's checks into Alpha (decision 91); Quick Check is a peer check, then sign-off.
   // The copy replaces the checks this device holds: Alpha's record must have arrived (a fresh device pulls
   // it in pages), or the old checks stay beside the new ones.
@@ -113,8 +111,7 @@ test('SETUP-044 Use a ready-made flow for a language @p0', async ({ page, browse
   await expect.poll(() => screenText(rev.page)).not.toContain('Something went wrong');
   await rev.context.close();
   // Back to Alpha's checks: Standard Bible Flow again, the same way (no toast offers Undo, decision 134).
-  await more(page);
-  await text(page, 'Every way to check').click();
+  await reviewFlows(page, w);
   const standard = await flowCard(page, 'Standard Bible Flow', 'Consultant Check', 'Final Approval');
   await standard.getByRole('button', { name: 'Use', exact: true }).click();
   await expectToast(page, 'Alpha now uses Standard Bible Flow.');
@@ -131,8 +128,7 @@ test('SETUP-044 Use a ready-made flow for a language @p0', async ({ page, browse
   await expect(lock('must pass before the next steps')).toBeVisible();
   // Changed, Alpha's checks are its own: a ready-made set over them asks first, and Cancel keeps them.
   await back(page).click();
-  await more(page);
-  await text(page, 'Every way to check').click();
+  await reviewFlows(page, w);
   const quickAgain = await flowCard(page, 'Quick Check', 'Peer Review', 'Final Approval');
   await quickAgain.getByRole('button', { name: 'Use', exact: true }).click();
   await expect(text(page, 'Replace Alpha\'s own checks with Quick Check?')).toBeVisible();
@@ -153,8 +149,7 @@ test('SETUP-045 Make a review flow in the library', async ({ page }) => {
   const name = `Community first ${w.run.slice(-4)}`;
   await openAs(page, w, 'ADMIN');
   await languagePage(page, w, 'Alpha');
-  await more(page);
-  await text(page, 'Every way to check').click();
+  await reviewFlows(page, w);
   await text(page, 'Flow').click();
   await expectOnScreen(page, 'New way to check', 'New · your organization');
   await field(page, 'Name').fill(name);
@@ -211,8 +206,7 @@ test('SETUP-048 Follow, update, stop following and copy a shared flow', async ({
   const w = world();
   await openAs(page, w, 'ADMIN');
   await languagePage(page, w, 'Alpha');
-  await more(page);
-  await text(page, 'Every way to check').click();
+  await reviewFlows(page, w);
   await cardWith(page, 'Oral Review Path', 'Follow').getByRole('button', { name: 'Follow', exact: true }).click();
   await text(page, 'I\'ll take updates').click();
   await expectToast(page, 'Following Oral Review Path. You choose when to take updates.');

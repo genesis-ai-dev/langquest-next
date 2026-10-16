@@ -806,7 +806,8 @@
       "titleHelp": "Yana nuna sauran: ci gaba, mutane, matsayai, sunanta da ƙari.",
       "seeWorkHelp": "Yana buɗe taswira: kowane nassi, da nisan da ya kai.",
       "publicListOnHelp": "A kunne: sunanta da ci gabanta suna kan jerin jama'a. Taɓa don cire su.",
-      "publicListOffHelp": "A kashe. Taɓa don sa sunanta da ci gabanta a jerin jama'a."
+      "publicListOffHelp": "A kashe. Taɓa don sa sunanta da ci gabanta a jerin jama'a.",
+      "orgPage": "Shafin ƙungiyar"
     },
     "members": {
       "joined": "{{target}} · an shiga {{when}}",

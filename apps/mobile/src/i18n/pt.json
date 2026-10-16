@@ -820,7 +820,8 @@
       "titleHelp": "Mostra o resto: progresso, pessoas, funções, o nome e mais.",
       "seeWorkHelp": "Abre o mapa: cada passagem e até onde ela chegou.",
       "publicListOnHelp": "Ligado: o nome e o progresso estão na lista pública. Toque para tirar.",
-      "publicListOffHelp": "Desligado. Toque para pôr o nome e o progresso na lista pública."
+      "publicListOffHelp": "Desligado. Toque para pôr o nome e o progresso na lista pública.",
+      "orgPage": "A página da organização"
     },
     "members": {
       "joined": "{{target}} · entrou {{when}}",

@@ -698,6 +698,8 @@ export function LanguageHome(ctx: Ctx) {
       {/* Roles are the organization's: whoever may change them opens them there (decision 63). */}
       <Row icon="star" label={t('org.setup.roles')} sub={t('org.more.rolesSub', { count: liveRoles(ctx.org.state?.roles).length })} help={t('org.setup.rolesHelp')}
         onPress={() => ctx.go('roles_home', v.org && privilegesFor(v.org, ctx.session.actorId).has('manage_roles') ? { level: 'org' } : params)} />
+      {/* Without Back (a language lead's Manage tab opens here), this is their way to the organization. */}
+      {atRoot ? <Row icon="building" label={v.orgName} sub={t('org.more.orgPage')} onPress={() => ctx.go('org_home')} /> : null}
       <LanguagesRow ctx={ctx} languageId={languageId} name={name} code={info.code} languoidId={info.languoidId} may={mayRename} last={!listing.may} />
       {listing.may ? (
         <Row icon="globe" label={t('org.more.publicList')} sub={t('org.more.publicListSub')} role="switch" checked={listing.listed} disabled={listing.busy} last

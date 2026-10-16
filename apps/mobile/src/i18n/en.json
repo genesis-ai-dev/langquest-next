@@ -806,7 +806,8 @@
       "titleHelp": "Shows the rest: progress, people, roles, its name and more.",
       "seeWorkHelp": "Opens the map: every passage, and how far it has come.",
       "publicListOnHelp": "On: its name and progress are on the public list. Tap to take them off.",
-      "publicListOffHelp": "Off. Tap to put its name and progress on the public list."
+      "publicListOffHelp": "Off. Tap to put its name and progress on the public list.",
+      "orgPage": "The organization's page"
     },
     "members": {
       "joined": "{{target}} · joined {{when}}",

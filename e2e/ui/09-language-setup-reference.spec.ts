@@ -16,8 +16,7 @@ async function alphaReference(page: Page, who: 'ADMIN' | 'COORD' = 'ADMIN'): Pro
   const w = world();
   await openAs(page, w, who);
   await languagePage(page, w, 'Alpha');
-  await more(page);
-  await text(page, 'Bibles, guides and notes').click();
+  await referenceLibrary(page);
   await expectOnScreen(page, 'Reference Material', 'What translators are offered');
 }
 
@@ -48,8 +47,7 @@ test('SETUP-050 Bibles: the organization\'s and a language\'s', async ({ page })
   await back(page).click();
   await back(page).click();
   await languagePage(page, w, 'Alpha');
-  await more(page);
-  await text(page, 'Bibles, guides and notes').click();
+  await referenceLibrary(page);
   await text(page, 'Bibles').click();
   await expectOnScreen(page, 'What this language’s team is offered', /Recommended · \d+/i);
   // No Bible is in the local library: Recommend, Hide and Follow organization need the preview environment.

@@ -820,7 +820,8 @@
       "titleHelp": "Affiche le reste : progression, personnes, rôles, son nom et plus.",
       "seeWorkHelp": "Ouvre la carte : chaque passage, et où il en est.",
       "publicListOnHelp": "Activé : son nom et sa progression sont sur la liste publique. Touchez pour les retirer.",
-      "publicListOffHelp": "Désactivé. Touchez pour mettre son nom et sa progression sur la liste publique."
+      "publicListOffHelp": "Désactivé. Touchez pour mettre son nom et sa progression sur la liste publique.",
+      "orgPage": "La page de l’organisation"
     },
     "members": {
       "joined": "{{target}} · a rejoint {{when}}",
