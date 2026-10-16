@@ -84,12 +84,12 @@ tags:
 - extendedWaitUntil:
     visible: "Moved past the checkpoint · reason saved.*"
     timeout: 20000
-- assertVisible:
-    id: "toast-undo"
 - assertVisible: "Consultant check, moved past"
 - tapOn: "Versions and history"
 - tapOn: "History.*"
 - assertVisible: ".*Consultant visit postponed to March.*"
+# No toast offers Undo (decision 134): the way back is History's Undo on it.
+- assertVisible: "Undo"
 - assertVisible: ".*${COORD_FIRST}.*|.*You.*"
 - tapOn:
     id: "header-close"

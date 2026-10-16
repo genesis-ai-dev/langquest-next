@@ -34,6 +34,14 @@ async function history(page: Page): Promise<string> {
   return screenText(page);
 }
 
+/** History's Undo on the newest entry that has one (newest first), then back to the record. No toast offers Undo (decision 134). */
+async function undoFromHistory(page: Page, said: string | RegExp): Promise<void> {
+  await history(page);
+  await page.getByRole('button', { name: 'Undo', exact: true }).locator('visible=true').first().click();
+  await toast(page, said);
+  await byId(page, 'header-close').click();
+}
+
 /** The back translation screen: say one part with the fake microphone, then Done, whose sheet shows who listens next (decision 127). */
 async function backTranslateOnePart(page: Page): Promise<void> {
   await button(page, 'Record part 1').click();
@@ -179,7 +187,7 @@ test('PASS-019 Record a fix', async ({ browser }) => {
   expect(await history(page)).toMatch(/Revised after (the )?Peer check/i);
 });
 
-test('PASS-020 Keep it, say why, and Undo', async ({ browser }) => {
+test('PASS-020 Keep it, say why, and Undo from History', async ({ browser }) => {
   const s = await spare(1);
   await recordOn(world(), 'TRANS', s, { parts: 2, publish: true });
   const v1 = (await passageAs(world(), 'REV', s)).latest!.takeId;
@@ -197,14 +205,13 @@ test('PASS-020 Keep it, say why, and Undo', async ({ browser }) => {
   await toast(page, 'Kept · your reason is on the record');
   await expect(header(page)).toHaveText(s.label);
   await expect(pathStep(page, 'Hear the feedback')).toHaveCount(0);
-  await byId(page, 'toast-undo').click();
-  await toast(page, 'Undone — the feedback is waiting again');
+  await undoFromHistory(page, 'Undone — the feedback is waiting again');
   await expect(pathStep(page, 'Hear the feedback')).toBeVisible();
 });
 
 // ---- the step sheet ----------------------------------------------------------------------------
 
-/** PASS-023 for one role: sets Back translation aside on P-SUBMITTED with a reason, then undoes it. */
+/** PASS-023 for one role: sets Back translation aside on P-SUBMITTED with a reason, then undoes it from History. */
 async function setAsideThenUndo(browser: Browser, who: AccountKey): Promise<Page> {
   const page = await recordAs(browser, world(), who, 'P-SUBMITTED');
   await openTeamRow(page, 'Back translation');
@@ -220,20 +227,19 @@ async function setAsideThenUndo(browser: Browser, who: AccountKey): Promise<Page
   await confirm.click();
   await toast(page, 'Back translation set aside · reason saved');
   await expect(teamRow(page, 'Back translation')).toHaveAttribute('aria-label', /^Back translation, /);
-  await byId(page, 'toast-undo').click();
-  await toast(page, 'Undone');
+  await undoFromHistory(page, "Brought back — it's a suggested step again");
   await openTeamRow(page, 'Back translation');
   expect(await sheetText(page)).not.toContain('Set aside: Not needed for this passage');
   await closeSheet(page);
   return page;
 }
 
-test('PASS-023 TRANS Set a check aside, with a reason, and Undo @p0', async ({ browser }) => {
+test('PASS-023 TRANS Set a check aside, with a reason, and Undo from History @p0', async ({ browser }) => {
   const page = await setAsideThenUndo(browser, 'TRANS');
   expect(await history(page)).toMatch(/Back translation set aside .*brought back/);
 });
-test('PASS-023 REV Set a check aside, with a reason, and Undo @p0', async ({ browser }) => { await setAsideThenUndo(browser, 'REV'); });
-test('PASS-023 COORD Set a check aside, with a reason, and Undo @p0', async ({ browser }) => { await setAsideThenUndo(browser, 'COORD'); });
+test('PASS-023 REV Set a check aside, with a reason, and Undo from History @p0', async ({ browser }) => { await setAsideThenUndo(browser, 'REV'); });
+test('PASS-023 COORD Set a check aside, with a reason, and Undo from History @p0', async ({ browser }) => { await setAsideThenUndo(browser, 'COORD'); });
 
 /** PASS-025 for one role: History shows P-ASIDE's set-aside Community check, with Undo for all but VIEW. */
 async function seesSetAside(browser: Browser, who: AccountKey): Promise<Page> {
@@ -254,7 +260,6 @@ test('PASS-025 TRANS Bring back a set-aside step from History', async ({ browser
   const page = await seesSetAside(browser, 'TRANS');
   await page.getByRole('button', { name: 'Undo', exact: true }).locator('visible=true').first().click();
   await toast(page, "Brought back — it's a suggested step again");
-  await expect(byId(page, 'toast-undo')).toHaveCount(0);
   await byId(page, 'header-close').click();
   await expect(teamRow(page, 'Community check')).not.toHaveAttribute('aria-label', 'Community check, set aside');
   // Resets: set it aside again.
@@ -273,10 +278,12 @@ test('PASS-030 Not now, from Something else?', async ({ browser }) => {
   await sheet(page).getByRole('button', { name: 'No one available for this right now' }).click();
   await sheet(page).getByRole('button', { name: 'Set aside', exact: true }).last().click();
   await toast(page, 'Peer check set aside · reason saved');
-  await byId(page, 'toast-undo').click();
-  await toast(page, 'Undone');
   // It stays on Something else? (the same on every platform).
   await expect(header(page)).toHaveText('Something else?');
+  // The toast has no Undo (decision 134): History's Undo brings the check back.
+  await byId(page, 'header-close').click();
+  await undoFromHistory(page, "Brought back — it's a suggested step again");
+  await expect(teamRow(page, 'Peer check')).not.toHaveAttribute('aria-label', 'Peer check, set aside');
 });
 
 test('PASS-031 Record a new version, or continue', async ({ browser }) => {
@@ -312,7 +319,6 @@ test('PASS-032 TRANS Add a note', async ({ browser }) => {
   await sheet(page).getByPlaceholder('Or type it').fill('Watch the names in verse 12');
   await save.click();
   await toast(page, 'Note added — it follows this passage');
-  await expect(byId(page, 'toast-undo')).toHaveCount(0);
 });
 
 test('PASS-032 TREV The note is in History', async ({ browser }) => {
@@ -437,7 +443,6 @@ test('PASS-054 Move past a checkpoint, with a reason @p0', async ({ browser }) =
   await sheet(page).getByRole('button', { name: 'Consultant visit is months away; church needs it now' }).click();
   await confirm.click();
   await toast(page, 'Moved past the checkpoint · reason saved');
-  await expect(byId(page, 'toast-undo')).toBeVisible();
   // Fixed (2026-10-12): the rows say it was moved past, and the step after it is next.
   await expect.poll(async () => (await teamRows(page)).slice(3)).toEqual(['Consultant check, moved past', 'Final approval, next']);
   await openTeamRow(page, 'Consultant check');
@@ -447,6 +452,8 @@ test('PASS-054 Move past a checkpoint, with a reason @p0', async ({ browser }) =
   expect(await sheetButtons(page)).toContain('Review it now');
   await closeSheet(page);
   expect(await history(page)).toMatch(/Moved past a checkpoint You · .+ — Consultant visit is months away; church needs it now/);
+  // The way back is History's Undo (PASS-056); the toast has none (decision 134).
+  await expect(page.getByRole('button', { name: 'Undo', exact: true }).locator('visible=true').first()).toBeVisible();
   const t = await recordAs(browser, world(), 'TRANS', 'P-CHECK');
   expect(await mainButton(t)).toBe('Ask for the final approval');
 });
@@ -533,7 +540,6 @@ test('PASS-060 Delete a draft, asked first', async ({ browser }) => {
   await expect(text(page, 'Delete Draft 1?')).toBeVisible();
   await page.getByRole('button', { name: 'Delete Draft 1', exact: true }).locator('visible=true').last().click();
   await toast(page, 'Draft 1 deleted.');
-  await expect(byId(page, 'toast-undo')).toHaveCount(0);
   await expect(text(page, 'Your draft')).toBeVisible();
 });
 

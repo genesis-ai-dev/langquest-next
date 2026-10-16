@@ -281,12 +281,8 @@ function ItemOptions(props: { ctx: Ctx; lib: Lib; item: LibraryItemView; update?
   const sub = it.subscription;
 
   const setSharing = (shared: boolean, subscribable: boolean, message: string) => run('template sharing', async () => { // i18n-ignore: log label
-    const before = { shared: it.shared, subscribable: it.subscribable };
     await lib.setSharing(it, shared, subscribable);
-    ctx.toast(message, () => run('undo template sharing', async () => { // i18n-ignore: log label
-      await lib.setSharing(it, before.shared, before.subscribable);
-      ctx.toast(t('common.undone'));
-    }));
+    ctx.toast(message);
   });
 
   if (sub) {
@@ -299,10 +295,7 @@ function ItemOptions(props: { ctx: Ctx; lib: Lib; item: LibraryItemView; update?
                 onToggle={() => void run('template updates', async () => { // i18n-ignore: log label
                   const auto = !sub.autoUpdate;
                   await lib.follow(it.itemId, { autoUpdate: auto });
-                  ctx.toast(auto ? t('content.options.autoOn', { name: it.name }) : t('content.options.autoOff', { name: it.name }), () => run('undo template updates', async () => { // i18n-ignore: log label
-                    await lib.follow(it.itemId, { autoUpdate: !auto });
-                    ctx.toast(t('common.undone'));
-                  }));
+                  ctx.toast(auto ? t('content.options.autoOn', { name: it.name }) : t('content.options.autoOff', { name: it.name }));
                 })} />} />
           </Group>
         ) : null}
@@ -317,12 +310,16 @@ function ItemOptions(props: { ctx: Ctx; lib: Lib; item: LibraryItemView; update?
           <GhostBtn label={t('content.options.stopFollowing')} icon="close" disabled={busy} help={t('content.options.stopFollowingHelp')} onPress={() => void run('stop following template', async () => { // i18n-ignore: log label
             await lib.follow(it.itemId, { active: false });
             onClose();
-            ctx.toast(t('content.options.stoppedFollowing', { name: it.name }), () => run('undo stop following', async () => { // i18n-ignore: log label
-              await lib.follow(it.itemId, { active: true });
-              ctx.toast(t('common.undone'));
-            }));
+            ctx.toast(t('content.options.stoppedFollowing', { name: it.name }));
           })} />
-        ) : null}
+        ) : (
+          // The way back from Stop following stays here, as in the library's settings (decision 134).
+          <GhostBtn label={t('config.library.followAgain')} disabled={busy} help={t('config.library.followAgainHelp')} onPress={() => void run('follow template again', async () => { // i18n-ignore: log label
+            await lib.follow(it.itemId, { active: true });
+            onClose();
+            ctx.toast(t('config.library.followingAgain', { org: sub.sourceOrgName }));
+          })} />
+        )}
         <GhostBtn label={t('content.options.copyToChange')} icon="edit" disabled={busy} help={t('content.options.copyToChangeHelp')} onPress={() => void run('copy template', async () => { // i18n-ignore: log label
           await lib.copyFollowed(it);
           onClose();
@@ -349,10 +346,7 @@ function ItemOptions(props: { ctx: Ctx; lib: Lib; item: LibraryItemView; update?
         const archived = !it.archived;
         await lib.archive(it, archived);
         onClose();
-        ctx.toast(archived ? t('content.options.archivedToast', { name: it.name }) : t('content.options.unarchivedToast', { name: it.name }), () => run('undo archive', async () => { // i18n-ignore: log label
-          await lib.archive(it, !archived);
-          ctx.toast(t('common.undone'));
-        }));
+        ctx.toast(archived ? t('content.options.archivedToast', { name: it.name }) : t('content.options.unarchivedToast', { name: it.name }));
       })} />
     </Sheet>
   );
@@ -364,12 +358,9 @@ function SharedTemplateSheet(props: { ctx: Ctx; lib: Lib; shared: SharedItem; ca
   const { busy, run } = useRunner(ctx);
   const [following, setFollowing] = useState(false);
   const follow = (auto: boolean) => run('follow template', async () => { // i18n-ignore: log label
-    const itemId = await lib.subscribe(s, auto);
+    await lib.subscribe(s, auto);
     onClose();
-    ctx.toast(t('content.shared.followingToast', { name: s.name, org: s.org_name }), () => run('undo follow', async () => { // i18n-ignore: log label
-      await lib.follow(itemId, { active: false });
-      ctx.toast(t('common.undone'));
-    }));
+    ctx.toast(t('content.shared.followingToast', { name: s.name, org: s.org_name }));
   });
   return (
     <Sheet visible title={s.name} sub={t('content.fromOrgVersions', { org: s.org_name, count: s.version_count })} onClose={onClose}>

@@ -257,7 +257,7 @@ Expected:
 - A row "Say something about it" with the sub "Optional · the team hears it with this version". The row has no amber border.
 - "Next check", with a card for each check that comes next ("Peer check" and "Back translation", decision 91) and its people (in the fixture "Trevor Both, Rita Reviewer"). No sentence explains publishing.
 - The footer offers "Ask {usual target}" (in the fixture "Ask the Peer check team"), enabled, then quiet links "Someone else" and "Send later".
-- Step 3 publishes Version 1 and asks for the peer check in one write: the toast reads "Sent to {target} — anyone on it will see it on My Work" (a team) or "Sent to {target} — they will see it on My Work" (a person), with Undo (which takes the asking back, not the version).
+- Step 3 publishes Version 1 and asks for the peer check in one write: the toast reads "Sent to {target} — anyone on it will see it on My Work" (a team) or "Sent to {target} — they will see it on My Work" (a person), with no Undo: the asking is taken back from History ("Withdraw"), the version is not (decision 134).
 - It returns to the record's path; there is no "Version 1 published" page.
 - The draft is gone from Versions and history; Version 1 is listed under "Published" with "Latest".
 - Within 30 seconds, Sync shows nothing waiting to upload (G10.3). On a second device as REV, after Sync now, P-NEW's record shows Version 1 and its audio plays.
@@ -410,7 +410,7 @@ Expected:
 - Step 1 opens an empty workspace with the header sub "New draft"; once its first part is kept it reads "Draft 2" (the person now keeps more than one).
 - Step 2 goes back to the Versions page, which lists "Your drafts" with both (the saved mark had shown the part kept).
 - In step 3 the record still leads with "Ask for the peer check" (Version 2 is not asked yet), so "Continue recording" is not offered; Versions and history lists "Your drafts" with both, each with play, Edit, Done and Delete. (Record with several drafts opening this page is PASS-059's.)
-- Deleting one shows "{name} deleted." with Undo, and Undo brings it back with the same parts.
+- Deleting one asks first ("Delete {name}?", with Delete and Cancel; decision 124). Once deleted it shows "{name} deleted." with no Undo (decision 134), and the other draft stays.
 
 ---
 

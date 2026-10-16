@@ -936,25 +936,25 @@ function QuickReason(props: { reason: string; on: boolean; onPick: () => void })
 export interface ToastSpec {
   id: number;
   message: string;
-  /** Offered for about 7 s (CORE-5). */
-  undo?: () => void | Promise<void>;
   /** How long it shows, for the bar that counts down to its going (the host sets it). */
   ms?: number;
 }
 
 /**
- * What changed, and Undo when it can be (CORE-5). The message and Undo are
- * separate elements so a screen reader can reach Undo, and the message is
- * announced as it appears. A bar along its foot shrinks until it goes, and
- * a big X (or tapping the message) closes it sooner. The host places it
- * above the screen's buttons, never over them.
+ * What changed (CORE-5), and nothing to do about it: a toast never offers
+ * Undo, which would run out with it (Caleb, 2026-10-16; decision 134). The
+ * way back stays where the thing is: its own Undo and Redo, its history row,
+ * or the same control. The message is announced as it appears. A bar along
+ * its foot shrinks until it goes, and a big X (or tapping the message)
+ * closes it sooner. The host places it above the screen's buttons, never
+ * over them.
  */
 export function ToastView(props: { toast: ToastSpec | null; onDismiss: () => void; bottom: number }) {
   const toast = props.toast;
   const wide = useLayout().kind !== 'phone';
   const left = useRef(new Animated.Value(1)).current;
   useEffect(() => {
-    if (toast) AccessibilityInfo.announceForAccessibility(toast.undo ? t('shell.toast.announceUndo', { message: toast.message }) : toast.message);
+    if (toast) AccessibilityInfo.announceForAccessibility(toast.message);
   }, [toast?.id]); // eslint-disable-line react-hooks/exhaustive-deps -- announced once per toast: its words do not change for its id
   useEffect(() => {
     if (!toast?.ms) return;
@@ -973,13 +973,6 @@ export function ToastView(props: { toast: ToastSpec | null; onDismiss: () => voi
           <Ico name="check" size={20} color={C.green} />
           <Text style={[txt.sm, { color: C.white, flex: 1, fontWeight: '600' }]}>{toast.message}</Text>
         </Pressable>
-        {toast.undo ? (
-          // help-ignore: the toast's Undo, gone in a few seconds with the toast
-          <Pressable testID="toast-undo" onPress={() => { void Promise.resolve(toast.undo?.()).catch(() => undefined); props.onDismiss(); }} hitSlop={10}
-            accessibilityRole="button" accessibilityLabel={t('shell.toast.undo')} style={styles.toastUndo}>
-            <Text style={[txt.sm, { color: C.light, fontWeight: '800' }]}>{t('shell.toast.undo')}</Text>
-          </Pressable>
-        ) : null}
         {/* help-ignore: the toast's close, gone in a few seconds with the toast */}
         <IconBtn name="close" label={t('common.close')} onPress={props.onDismiss} bg="transparent" color={C.white} size={target.min} />
         {toast.ms ? (
@@ -1060,5 +1053,4 @@ const styles = StyleSheet.create({
   toastTrack: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 4, backgroundColor: 'rgba(255,255,255,0.15)' },
   toastLeft: { height: 4, backgroundColor: C.light },
   toastMessage: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 48, paddingVertical: space.xs },
-  toastUndo: { minHeight: 48, minWidth: 64, alignItems: 'center', justifyContent: 'center' }
 });

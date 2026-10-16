@@ -277,6 +277,18 @@ export function checkName(kindId: string, kinds: readonly KindDef[]): string {
 }
 
 /** A language's checks in order on one line: "Peer check + back translation → Community check → Final approval". */
+/**
+ * The same checks in the same order, with the same ones that must pass:
+ * a language's checks still exactly as a ready-made set made them, so
+ * choosing that set again brings them back (decision 134).
+ */
+export function sameChecks(a: readonly PlainStep[], b: readonly PlainStep[]): boolean {
+  return a.length === b.length && a.every((s, i) => {
+    const o = b[i]!;
+    return !!s.checkpoint === !!o.checkpoint && s.kindIds.length === o.kindIds.length && s.kindIds.every((k, j) => k === o.kindIds[j]);
+  });
+}
+
 export function checksLine(steps: readonly PlainStep[], kinds: readonly KindDef[]): string {
   if (steps.length === 0) return t('admin.flow.noChecks');
   return steps.map((s) => s.kindIds.map((id, i) => (i === 0 ? plainKind(id, kinds).step : plainKind(id, kinds).stepLater)).join(t('checks.together')))

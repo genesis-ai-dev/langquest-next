@@ -38,7 +38,14 @@
     "addNote": "添加备注",
     "orTypeIt": "或者打字输入",
     "sayIt": "说出来",
-    "deleteAsk": "删除{{name}}？"
+    "deleteAsk": "删除{{name}}？",
+    "undo": "撤销",
+    "redo": "重做",
+    "undoWhat": "撤销：{{what}}",
+    "redoWhat": "重做：{{what}}",
+    "undoneWhat": "已撤销：{{what}}",
+    "redoneWhat": "已重做：{{what}}",
+    "redoHelp": "把撤销拿掉的再放回来。"
   },
   "time": {
     "justNow": "刚刚",
@@ -451,7 +458,8 @@
       "removed": "已移除{{name}}。",
       "publishHelp": "先检查缺少什么，然后把它放进你的机构的资料库。",
       "problemHelp": "跳到那里去修改。",
-      "refHelp": "步骤中的链接靠它找到这一项。文字工具栏中的“链接”会帮你写好。"
+      "refHelp": "步骤中的链接靠它找到这一项。文字工具栏中的“链接”会帮你写好。",
+      "undoHelp": "撤销你对指南的上一个改动。再点一次可以继续往回。"
     },
     "details": {
       "replacedFia": "步骤已替换为 FIA 的六个步骤。",
@@ -853,8 +861,6 @@
       "byNameHelp": "生成一个带名字的邀请码，给一个人或一组人用。"
     },
     "member": {
-      "putBack": "已恢复。",
-      "notPutBack": "未恢复。{{reason}}",
       "isNow": "{{name}}现在是{{role}}",
       "removedOrg": "已在机构级别移除{{name}}",
       "removedLanguage": "已在语言级别移除{{name}}",
@@ -876,7 +882,8 @@
       "removeFromOrg": "从机构中移除",
       "removeFromLanguage": "从语言中移除",
       "declineHelp": "拒绝对方的加入申请。",
-      "removeHelp": "取消他在这里的角色。之后会短暂显示“撤销”。"
+      "removeHelp": "取消他在这里的角色。会先询问；要回来需要重新加入。",
+      "removeAsk": "移除{{name}}？"
     },
     "signIn": {
       "notAllowed": "你不能帮这个人登录。",
@@ -1994,7 +2001,6 @@
       "bookStarts": "这卷书从这里开始",
       "joinWith": "与第{{n}}段合并",
       "startHere": "在这里开始一段",
-      "undo": "撤销",
       "startFrom": "从现成的方式开始",
       "started": "第{{n}}段从{{at}}开始",
       "joined": "已与第{{n}}段合并",
@@ -3755,7 +3761,7 @@
       },
       "actionHelp": {
         "do": "打开它，现在自己来做。",
-        "send": "发送给通常负责的人。“撤销”可以收回。",
+        "send": "发送给通常负责的人。之后可以撤回。",
         "ask": "选择一个人、一个团队，或者没有应用的人。",
         "log": "已经在应用外做过：把它写进记录。",
         "skip": "不做这项检查。你要说明原因。",
@@ -4087,11 +4093,7 @@
     "toast": {
       "notSaved": "未保存：{{reason}}",
       "notSavedCode": "未保存。出了点问题（代码 {{code}}）。",
-      "notUndone": "无法撤销：{{reason}}",
-      "notUndoneCode": "无法撤销。出了点问题（代码 {{code}}）。",
-      "announceUndo": "{{message}}可以撤销。",
-      "dismissLabel": "{{message}}关闭",
-      "undo": "撤销"
+      "dismissLabel": "{{message}}关闭"
     },
     "nav": {
       "cannotOpenHere": "这里无法打开它。",
@@ -4552,14 +4554,7 @@
       "movePartHelp": "上下拖动可以移动这一段。移动过的一段会去掉它的经节，方便你重新标注。",
       "moveUp": "上移",
       "moveDown": "下移",
-      "undo": "撤销",
-      "redo": "重做",
-      "undoWhat": "撤销：{{what}}",
-      "redoWhat": "重做：{{what}}",
-      "undoHelp": "撤销你对这些段落的上一个改动。再点一次可以继续往回。",
-      "redoHelp": "把撤销拿掉的再放回来。",
-      "undoneWhat": "已撤销：{{what}}",
-      "redoneWhat": "已重做：{{what}}"
+      "undoHelp": "撤销你对这些段落的上一个改动。再点一次可以继续往回。"
     },
     "quoted": "“{{text}}”",
     "listening": "正在听……{{time}}",
@@ -6548,7 +6543,7 @@
       "languageHelp": "在下面显示它的圣经。",
       "nextChapterHelp": "阅读和播放下一章。",
       "previousChapterHelp": "阅读和播放上一章。",
-      "removeHelp": "在本设备上把它从你的圣经中移除。可以撤销。",
+      "removeHelp": "在本设备上把它从你的圣经中移除。可以在这里重新添加。",
       "searchHelp": "输入语言的名称或代码，查找它的圣经。"
     }
   },
@@ -6583,7 +6578,8 @@
       "used": "{{language}}现在以{{name}}为基础",
       "startHelp": "用一套现成的检查替换现有检查，之后可以随意修改。",
       "useHelp": "用这些替换{{language}}的检查。“撤销”可以恢复。",
-      "pickHelp": "选择它。然后点按底部的“使用”，用它的检查替换现有检查。"
+      "pickHelp": "选择它。然后点按底部的“使用”，用它的检查替换现有检查。",
+      "replaceAsk": "用{{name}}替换{{language}}自己的检查？"
     },
     "gone": "这项检查已不属于这个语言",
     "checkOf": "第 {{n}} 项检查 · {{language}}",
@@ -6641,11 +6637,11 @@
     "draftDoneHelp": "为新语言保留这些检查，然后返回。",
     "sameTimeOnHelp": "已开启：它与{{check}}同时进行。点按可以改为在其之后进行。",
     "sameTimeOffHelp": "已关闭：它在{{check}}之后进行。点按可以让两项同时进行。",
-    "removePersonHelp": "把他从这项检查中移除。“撤销”可以恢复。",
+    "removePersonHelp": "把他从这项检查中移除。“添加人员”可以加回来。",
     "addPeopleHelp": "选择谁来做这项检查。如果没有选人，任何人都可以做。",
     "editQuestionHelp": "更改问题或问题类型，或者移除它。",
     "addQuestionHelp": "写一个审核人在这项检查中要回答的问题。",
-    "unlinkHelp": "把它从这项检查中移除。“撤销”可以恢复。",
+    "unlinkHelp": "把它从这项检查中移除。可以重新添加。",
     "addHelpHelp": "链接审核人在这项检查中可以打开的注释、指南或圣经。",
     "peopleDoneHelp": "保存这项检查的人员。",
     "personOnHelp": "在这项检查中。点按可以移除。",
@@ -6709,7 +6705,9 @@
     "checkedAtPickHelp": "这项检查会听它。",
     "ownCheck": "单独的检查",
     "ownCheckHelp": "在这项之后紧接着添加一项检查来听它。",
-    "ownCheckName": "{{name}}检查"
+    "ownCheckName": "{{name}}检查",
+    "undoHelp": "撤销你对检查的上一个改动。再点一次可以继续往回。",
+    "removeAsk": "移除{{check}}？"
   },
   "lostFiles": {
     "title": "音频丢失了",
