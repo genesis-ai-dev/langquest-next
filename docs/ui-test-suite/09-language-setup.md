@@ -1648,6 +1648,40 @@ the language sees it (decision 137). Below, "Alpha's Reference material" is
 that last screen: Alpha's page → "Reference material" → "All reference
 material".
 
+
+### SETUP-075 A ready language's Review flow: its checks, the others, and the organization's
+Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+A ready language's Review flow names its checks as its page does, in order,
+with the ready-made flows under them and the organization's shelf last
+(decision 137).
+
+Preconditions (in addition to the global ones):
+- Alpha's checks are as Standard Bible Flow made them.
+- Resets: uses Quick Check's checks, then Standard Bible Flow's again.
+
+Steps:
+1. Open Alpha's page and tap "Review flow".
+2. Tap "Peer check → Final approval", then "Use Peer check → Final
+   approval".
+3. Tap "Peer check + back translation → Community check → Consultant check
+   → Final approval", then its "Use …" button.
+4. Go back to Alpha's page.
+
+Expected:
+- Step 1: on top "Peer check + back translation → Community check →
+  Consultant check → Final approval", "4 checks", who does each, and
+  "Edit"; under it the ready-made flows, among them "Peer check → Final
+  approval"; last "All review flows".
+- Step 2: toast "Alpha now starts from Peer check → Final approval"; no
+  question first (the checks were still as a ready-made flow made them,
+  decision 134).
+- Step 3: toast "Alpha now starts from Peer check + back translation …",
+  again without asking.
+- Step 4: the Review flow row reads "Peer check + back translation →
+  Community check → Consultant check → Final approval". Everything is sent
+  and nothing refused.
+
 ### SETUP-049 Reference material for a language
 Roles: ADMIN, COORD · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
