@@ -17,7 +17,8 @@ import { answeredQuestions, type NameFn } from './record';
 
 /** The review a page opens: the one named, else the newest. */
 export function reviewFor(p: PassageState, reviewId: string | undefined): ReviewView | undefined {
-  return p.reviews.find((r) => r.id === reviewId) ?? p.reviews.at(-1);
+  // A check of a version deleted since is still its reviewer's to read (LAN-83).
+  return p.reviews.find((r) => r.id === reviewId) ?? p.reviewsOfDeleted.find((r) => r.id === reviewId) ?? p.reviews.at(-1);
 }
 
 /** How a review's outcome card is coloured: made content, a good verdict, or a verdict that asks for changes. */
@@ -72,7 +73,7 @@ export function reviewDetailModel(o: { v: PassageView; review: ReviewView; me: s
   const outcome = makes ? t('passage.review.madeRecorded', { what: made }) : good ? t('passage.view.outcomeStart.looksGood') : t('passage.view.outcomeStart.needsChanges');
   return {
     kind, makes, checkedBy, good, request, questions, answers, skipped, source: feedbackSource(review, o.name),
-    version: p.versions[review.versionN - 1], tone: makes ? 'made' : good ? 'good' : 'amber', answerable, outcome
+    version: p.versions.find((x) => x.n === review.versionN), tone: makes ? 'made' : good ? 'good' : 'amber', answerable, outcome
   };
 }
 

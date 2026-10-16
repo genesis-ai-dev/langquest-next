@@ -26,6 +26,8 @@ import { C, radius, space, target, TINT, type as T } from '../ui/theme';
 import { mmss, partLabel } from './model';
 import { styles as ps } from './blockStyles';
 import type { Part } from './recorder';
+import type { RecordTarget, SlotRow } from './workspaceModel';
+import { ChosenMic, GapSlot } from './slots';
 import { useClip } from '../audio/useClip';
 import { partIs, spanName, spanShort } from './verseModel';
 
@@ -42,10 +44,10 @@ export function VerseParts(props: {
   /** New marks for every part, what to say, and the parts that changed. */
   onMarks: (marks: PartMark[], message: string) => void;
   onDelete: (hash: string, label: string) => void;
-  /** Record into a gap: new parts go before this part. */
-  onRecordHere: (beforeIndex: number) => void;
-  /** The lit next part, before the part at `index`, taking `mark` (a deleted part's): drawn by `render` around its verse tile. */
-  slot?: { index: number; mark?: PartMark; render: (tile: ReactNode) => ReactNode };
+  /** The rows (parts, and gaps a part can be recorded into) and where the next part goes (LAN-83). */
+  rows: SlotRow[];
+  target: RecordTarget;
+  onChoose: (to: RecordTarget) => void;
 }) {
   const { parts, verses, disabled } = props;
   const count = verses.length;
@@ -53,15 +55,9 @@ export function VerseParts(props: {
   const [painted, setPainted] = useState<PartMark[] | null>(null);
   const marks = painted ?? props.marks;
   const { labels } = useMemo(() => derivePartVerses(marks, count), [marks, count]);
-  const gaps = useMemo(() => skippedVerses(labels), [labels]);
-  const slot = props.slot;
-  // The verses the next part will take in the slot: read with it in the list.
-  const slotLabel = useMemo(() => {
-    if (!slot || !slot.mark) return null;
-    const withSlot = [...marks.slice(0, slot.index), slot.mark, ...marks.slice(slot.index)];
-    return derivePartVerses(withSlot, count).labels[slot.index] ?? null;
-  }, [slot, marks, count]);
-  const shift = (i: number) => (slot && i >= slot.index ? i + 1 : i);
+  const { rows, target } = props;
+  // A part's name is its row's number: a gap before it keeps the parts after it numbered as they will be.
+  const nameOf = (i: number) => partLabel((rows.find((r) => r.kind === 'part' && r.index === i)?.n ?? i + 1) - 1);
   const [sheet, setSheet] = useState<{ i: number; anchor: number | null } | null>(null);
   const [flash, setFlash] = useState<Set<string>>(new Set());
   const [shake, setShake] = useState(-1);
@@ -190,21 +186,23 @@ export function VerseParts(props: {
 
   return (
     <View ref={box} onLayout={() => box.current?.measureInWindow((x) => { boxLeft.current = x; })} {...(Platform.OS === 'web' ? {} : responder.panHandlers)}>
-      {parts.map((part, i) => {
-        const gap = gaps.find((g) => g.before === i);
+      {rows.map((r, k) => {
+        if (r.kind === 'gap') {
+          return (
+            <GapSlot key={`gap-${r.before}`} n={r.n} gutter first={k === 0} disabled={disabled}
+              {...(r.label ? { tile: <VerseTile verses={verses} label={r.label} same={r.label.kind === 'join'} /> } : {})}
+              chosen={target.kind === 'gap' && target.before === r.before} onPress={() => props.onChoose({ kind: 'gap', before: r.before })} />
+          );
+        }
+        const i = r.index;
+        const part = parts[i]!;
         return (
-          <View key={`${part.hash}-${i}`}>
-            {slot?.index === i ? (
-              <View style={[styles.slot, i > 0 && styles.rowBorder]}>
-                {slot.render(slotLabel ? <VerseTile verses={verses} label={slotLabel} same={slotLabel.kind === 'join'} /> : <View style={styles.noTile} />)}
-              </View>
-            ) : gap ? <GapRow text={t('recording.verses.leftForLater', { verses: spanName(verses, gap.s, gap.e) })} disabled={disabled} onRecord={() => props.onRecordHere(i)} /> : null}
-            <PartRow ctx={props.ctx} part={part} index={i} name={partLabel(shift(i))} label={labels[i] ?? null} verses={verses} ghost={labels[i] ? null : ghost(i)}
-              onDelete={() => props.onDelete(part.hash, partLabel(shift(i)))}
-              flash={flash.has(part.hash)} shake={shake === i} editing={sheet?.i === i} disabled={disabled}
-              gutterRef={(v) => { if (v) refs.current.set(i, v); else refs.current.delete(i); }}
-              onTap={() => tap(i)} onHold={() => { if (!disabled) setSheet({ i, anchor: null }); }} />
-          </View>
+          <PartRow key={`${part.hash}-${i}`} ctx={props.ctx} part={part} first={k === 0} name={nameOf(i)} label={labels[i] ?? null} verses={verses} ghost={labels[i] ? null : ghost(i)}
+            onDelete={() => props.onDelete(part.hash, nameOf(i))}
+            chosen={target.kind === 'over' && target.index === i} onChoose={() => props.onChoose({ kind: 'over', index: i })}
+            flash={flash.has(part.hash)} shake={shake === i} editing={sheet?.i === i} disabled={disabled}
+            gutterRef={(v) => { if (v) refs.current.set(i, v); else refs.current.delete(i); }}
+            onTap={() => tap(i)} onHold={() => { if (!disabled) setSheet({ i, anchor: null }); }} />
         );
       })}
       {sheet ? (
@@ -218,28 +216,31 @@ export function VerseParts(props: {
           }}
           onAuto={() => { const i = sheet.i; setSheet({ i, anchor: null }); const next = withPartMark(marks, i, { t: 'next' }); if (derivePartVerses(next, count).ok) save(next, t('recording.verses.follows', { part: partLabel(i) })); }}
           onNone={() => { const i = sheet.i; setSheet({ i, anchor: null }); save(withPartMark(marks, i, null), t('recording.verses.none', { part: partLabel(i) })); }}
-          onDelete={() => { const i = sheet.i; setSheet(null); props.onDelete(parts[i]!.hash, partLabel(i)); }} />
+          onDelete={() => { const i = sheet.i; setSheet(null); props.onDelete(parts[i]!.hash, nameOf(i)); }} />
       ) : null}
     </View>
   );
 }
 
 function PartRow(props: {
-  ctx: Ctx; part: Part; index: number; name: string; label: PartLabel | null; verses: string[];
+  ctx: Ctx; part: Part; first: boolean; name: string; label: PartLabel | null; verses: string[];
   ghost: { text: string; join: boolean } | null; flash: boolean; shake: boolean; editing: boolean; disabled: boolean;
   gutterRef: (v: View | null) => void; onTap: () => void; onHold: () => void; onDelete: () => void;
+  /** Chosen: what is said next replaces this part (LAN-83). */
+  chosen: boolean; onChoose: () => void;
 }) {
   const name = props.name;
   const clip = useClip(props.ctx.language, [props.part.hash], { disabled: props.disabled });
   const playLabel = clip.playing ? t('recording.recorder.pausePart', { part: name }) : t('recording.player.playTitle', { title: name });
   const play = useHelpSpot(playLabel, undefined, clip.toggle);
+  const choose = useHelpSpot(t('recording.recorder.recordOver', { part: name }), t('recording.recorder.recordOverHelp'), props.onChoose);
   const l = props.label;
   const verses = l ? spanName(props.verses, l.s, l.e) : null;
   // Its line says what the tile shows (hollow: more of the verse above; the ring: chosen by hand), and the hold and the slide.
   const tap = useHelpSpot(l ? (l.kind === 'join' ? t('recording.verses.giveNext', { part: name }) : t('recording.verses.giveAbove', { part: name })) : t('recording.verses.giveVerse', { part: name }),
     t(!l ? 'recording.verses.spaceEmptyHelp' : l.kind === 'join' ? 'recording.verses.spaceSameHelp' : l.kind === 'set' ? 'recording.verses.spaceSetHelp' : 'recording.verses.spaceHelp'), props.onTap);
   return (
-    <View style={[styles.row, props.index > 0 && styles.rowBorder, props.flash && { backgroundColor: C.light }, props.editing && styles.editing]}>
+    <View style={[styles.row, !props.first && styles.rowBorder, (props.flash || props.chosen) && { backgroundColor: C.light }, props.editing && styles.editing]}>
       <Pressable ref={props.gutterRef} onPress={tap.onPress} onLongPress={tap.id ? undefined : props.onHold} delayLongPress={HOLD_MS}
         disabled={props.disabled} accessibilityRole="button"
         accessibilityLabel={l ? t(l.kind === 'join' ? 'recording.verses.labelSame' : 'recording.verses.label', { part: name, verses }) : t('recording.verses.labelEmpty', { part: name })}
@@ -261,11 +262,18 @@ function PartRow(props: {
         <HelpBadge spot={tap} />
       </Pressable>
       <Pressable onPress={play.onPress} disabled={!clip.available || props.disabled} accessibilityRole="button" accessibilityLabel={playLabel}
-        style={({ pressed }) => [styles.play, (!clip.available || props.disabled) && ps.off, pressed && ps.pressed]}>
+        style={({ pressed }) => [styles.playTap, (!clip.available || props.disabled) && ps.off, pressed && ps.pressed]}>
         <View style={styles.playDot}><Ico name={clip.playing ? 'pause' : 'play'} size={16} color={C.primary} strokeWidth={2.6} fill={C.primary} /></View>
-        <Text style={[txt.body, { fontWeight: '700', color: C.dark }]}>{name}</Text>
-        <Text style={txt.smMuted}>{mmss(props.part.durationMs)}</Text>
         <HelpBadge spot={play} />
+      </Pressable>
+      {/* Its name chooses it: what is said next replaces it. */}
+      <Pressable onPress={choose.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityState={{ selected: props.chosen }}
+        accessibilityLabel={t('recording.recorder.recordOver', { part: name })}
+        style={({ pressed }) => [styles.play, pressed && ps.pressed]}>
+        <Text style={[txt.body, { fontWeight: '700', color: C.dark }]}>{name}</Text>
+        <Text style={[txt.smMuted, { flex: 1 }]}>{mmss(props.part.durationMs)}</Text>
+        {props.chosen ? <ChosenMic /> : null}
+        <HelpBadge spot={choose} />
       </Pressable>
       <View style={styles.trash}>
         <IconBtn name="trash" label={t('recording.deleteItem', { item: name })} help={t('recording.recorder.deletePartHelp')} bg="transparent" color={C.muted} size={target.min}
@@ -289,21 +297,6 @@ export function VerseTile(props: { verses: string[]; label: PartLabel; same: boo
         <Text style={l.s === l.e ? styles.badgeText : styles.badgeRange} numberOfLines={1}>{spanShort(props.verses, l.s, l.e)}</Text>
       </View>
     </HelpInfo>
-  );
-}
-
-function GapRow(props: { text: string; disabled: boolean; onRecord: () => void }) {
-  const record = useHelpSpot(t('recording.verses.recordHere'), t('recording.verses.recordHereHelp'), props.onRecord);
-  return (
-    <View style={styles.gap}>
-      <Text style={[txt.body, { flex: 1, fontWeight: '700', color: TINT.amberText }]}>{props.text}</Text>
-      <Pressable onPress={record.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={t('recording.verses.recordHere')}
-        style={({ pressed }) => [styles.gapBtn, props.disabled && ps.off, pressed && ps.pressed]}>
-        <Ico name="mic" size={18} color={TINT.amberText} />
-        <Text style={[txt.sm, { fontWeight: '700', color: TINT.amberText }]}>{t('recording.verses.recordHere')}</Text>
-        <HelpBadge spot={record} />
-      </Pressable>
-    </View>
   );
 }
 
@@ -377,13 +370,12 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'stretch', minHeight: target.row },
   rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border },
   editing: { backgroundColor: C.light },
-  slot: { backgroundColor: C.card },
-  // A part without verses leaves nothing where its number would be (verses are never asked for).
-  noTile: { width: 44, height: 44 },
+
   trash: { alignSelf: 'center', marginRight: space.xs },
   gutter: { width: GUTTER, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderColor: C.border },
   // A part's own verse: a soft grey tile with a dark number, so the labels stay quiet beside the parts.
-  badge: { minWidth: 44, height: 44, paddingHorizontal: space.sm, borderRadius: radius.md + 2, backgroundColor: TINT.gray, alignItems: 'center', justifyContent: 'center' },
+  // Narrow enough for a range ("49–50") to sit inside the 64-point space beside its part.
+  badge: { minWidth: 44, maxWidth: GUTTER - 6, height: 44, paddingHorizontal: 4, borderRadius: radius.md + 2, backgroundColor: TINT.gray, alignItems: 'center', justifyContent: 'center' },
   badgeText: { fontSize: 20, fontWeight: '700', color: C.dark },
   badgeRange: { fontSize: T.base, fontWeight: '700', color: C.dark },
   // More of the verse above: grey like an empty space, but solid and darker, so it reads as labelled.
@@ -392,7 +384,8 @@ const styles = StyleSheet.create({
   // An empty space is barely there (Caleb, 2026-10-09): grey at a tenth, so it never competes with a verse.
   ghost: { width: 44, height: 44, borderRadius: radius.md + 2, borderWidth: 2, borderStyle: 'dashed', borderColor: C.dark, opacity: 0.1, alignItems: 'center', justifyContent: 'center' },
   ghostText: { fontSize: 18, fontWeight: '700', color: C.dark },
-  play: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.md, minHeight: target.row },
+  play: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingRight: space.sm, minHeight: target.row },
+  playTap: { paddingLeft: space.md, paddingRight: space.xs, alignItems: 'center', justifyContent: 'center' },
   playDot: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
   gap: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 56, paddingLeft: space.md, paddingRight: space.xs,
     borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border, backgroundColor: TINT.amber },

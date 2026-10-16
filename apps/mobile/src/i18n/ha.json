@@ -38,7 +38,8 @@
     "voiceNote": "Saƙon murya",
     "addNote": "Ƙara bayani",
     "orTypeIt": "Ko ku rubuta shi",
-    "sayIt": "Faɗe shi"
+    "sayIt": "Faɗe shi",
+    "deleteAsk": "A goge {{name}}?"
   },
   "time": {
     "justNow": "Yanzu nan",
@@ -3669,7 +3670,8 @@
         "studyStepDone": "An gama mataki na {{n, number}} na {{pattern}} · {{step}}",
         "studyDone": "An gama matakin nazari",
         "keptAfter": "An bar shi bayan {{kind}}",
-        "keptAfterFeedback": "An bar shi bayan sharhi"
+        "keptAfterFeedback": "An bar shi bayan sharhi",
+        "versionDeleted": "An goge Siga ta {{n, number}}"
       },
       "counts": {
         "versions_one": "siga {{count, number}}",
@@ -4120,12 +4122,12 @@
       "draft": "Daftari",
       "draftN": "Daftari na {{n, number}}",
       "newVersionHelp": "Yana fara sabuwar siga daga farko. Daftarorinku suna nan.",
-      "deleteHelp": "Yana goge wannan daftari. Janye yana dawo da shi.",
+      "deleteHelp": "Yana goge wannan daftari.",
       "editDraftHelp": "Yana buɗe wannan daftari a wurin naɗawa, don ci gaba da aiki a kansa.",
       "publishHelp": "Yana buɗe wannan daftari don wallafa shi, tawagar ta ji.",
       "editVersionHelp": "Yana fara sabon daftari daga wannan siga. Sigar kanta tana zama yadda take.",
       "partHelp": "Yana kunna wannan sashe shi kaɗai.",
-      "deleteVersionHelp": "Yana goge wannan siga. Sai dai idan ba wanda ya duba ta ko aka roƙe shi ya duba ta. Kuna iya janyewa nan take bayan haka."
+      "deleteVersionHelp": "Yana goge wannan siga ga kowa. Binciken da aka riga aka yi a kanta yana nan a tarihi amma ba a ƙirga shi kuma."
     }
   },
   "work": {
@@ -4729,10 +4731,15 @@
       "nextRecordingHelp": "Ana naɗawa yanzu. Sanduna masu cikakken launi muryarku ce da ake ajiyewa; sanduna masu dushewa shiru ne.",
       "nextPausedHelp": "An dakata yayin da Littafi Mai Tsarki yake kunnawa. Naɗawa za ta ci gaba idan ya tsaya.",
       "deleteAll": "Goge dukkan sassa",
-      "deleteAllHelp": "Yana goge dukkan sassa, don ku sake farawa. Kuna iya janyewa nan take bayan haka.",
-      "slotHelp": "Sashen da za ku naɗa na gaba zai shiga nan, inda sashen da aka goge yake. Taɓa maɓalli ja don farawa.",
+      "deleteAllHelp": "Yana goge dukkan sassa, don ku sake farawa.",
       "leave": "Tsaya ka koma sassanka",
-      "leaveHelp": "Yana tsayar da naɗi kuma yana nuna sassanku. Abin da kuka faɗa ana ajiye shi."
+      "leaveHelp": "Yana tsayar da naɗi kuma yana nuna sassanku. Abin da kuka faɗa ana ajiye shi.",
+      "recordOver": "Sake naɗa {{part}}",
+      "recordOverHelp": "Abin da za ku naɗa na gaba zai maye gurbin wannan sashe.",
+      "recordInGap": "Naɗa {{part}} a nan",
+      "gapHelp": "Abin da za ku naɗa na gaba zai shiga wannan gibi.",
+      "recordAtEnd": "Naɗa {{part}} a ƙarshe",
+      "endHelp": "Abin da za ku naɗa na gaba zai tafi ƙarshe."
     },
     "quoted": "“{{text}}”",
     "listening": "Ana saurara… {{time}}",
@@ -4942,7 +4949,6 @@
       "moreOfRange": "{{part}} ci gaban ayoyi {{first}}–{{last}} ce.",
       "numbered_one": "An sa lamba ga sashe {{count, number}}.",
       "numbered_other": "An sa lamba ga sassa {{count, number}}.",
-      "leftForLater": "{{verses}} · an bari sai anjima",
       "follows": "{{part}} tana bin jeri.",
       "none": "{{part}} ba ta da aya.",
       "giveNext": "Ba {{part}} aya ta gaba",
@@ -4955,8 +4961,6 @@
       "hintLabelled": "Taɓa don ba ta ayar sashen da ke sama. Riƙe don zaɓa.",
       "hintEmpty": "Taɓa don ba ta aya ta gaba. Riƙe don zaɓa.",
       "choose": "Zaɓi ayoyi",
-      "recordHere": "Naɗa a nan",
-      "recordHereHelp": "Naɗa ayar da ka bari sai anjima; za ta shiga wurinta.",
       "verseSame": "{{verse}}, daidai da sashen da ke sama",
       "auto": "Kai-tsaye",
       "noVerse": "Babu",
@@ -6337,7 +6341,8 @@
     "micSetupHint": "Daidaita yadda na'urar take jin ku: ƙarfin ji da tsayawa.",
     "saveHelp": "Ana ajiye sassanku tuni yayin da kuke naɗawa. Wannan yana komawa baya.",
     "openReferenceHelp": "Yana dawo da kayan bincike zuwa rabin shafin.",
-    "openStudyHelp": "Yana buɗe wannan mataki a cikakken nazarin."
+    "openStudyHelp": "Yana buɗe wannan mataki a cikakken nazarin.",
+    "partReplaced": "An sake naɗa {{part}}."
   },
   "reference": {
     "organization": "Ƙungiya",

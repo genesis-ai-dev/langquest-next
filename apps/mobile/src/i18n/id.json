@@ -38,7 +38,8 @@
     "voiceNote": "Catatan suara",
     "addNote": "Tambah catatan",
     "orTypeIt": "Atau ketik",
-    "sayIt": "Ucapkan"
+    "sayIt": "Ucapkan",
+    "deleteAsk": "Hapus {{name}}?"
   },
   "time": {
     "justNow": "Baru saja",
@@ -3558,7 +3559,8 @@
         "studyStepDone": "{{pattern}} langkah {{n, number}} selesai · {{step}}",
         "studyDone": "Langkah studi selesai",
         "keptAfter": "Dipertahankan setelah {{kind}}",
-        "keptAfterFeedback": "Dipertahankan setelah masukan"
+        "keptAfterFeedback": "Dipertahankan setelah masukan",
+        "versionDeleted": "Versi {{n, number}} dihapus"
       },
       "counts": {
         "versions_other": "{{count, number}} versi",
@@ -3994,12 +3996,12 @@
       "draft": "Draf",
       "draftN": "Draf {{n, number}}",
       "newVersionHelp": "Memulai versi baru dari awal. Draf-draf Anda tetap ada.",
-      "deleteHelp": "Menghapus draf ini. Urungkan mengembalikannya.",
+      "deleteHelp": "Menghapus draf ini.",
       "editDraftHelp": "Membuka draf ini di perekam, untuk melanjutkan pengerjaannya.",
       "publishHelp": "Membuka draf ini untuk diterbitkan agar tim bisa mendengarnya.",
       "editVersionHelp": "Memulai draf baru dari versi ini. Versi itu sendiri tetap apa adanya.",
       "partHelp": "Memutar bagian ini saja.",
-      "deleteVersionHelp": "Menghapus versi ini. Hanya selama belum ada yang memeriksanya atau diminta memeriksanya. Anda bisa mengurungkannya segera sesudahnya."
+      "deleteVersionHelp": "Menghapus versi ini untuk semua orang. Pemeriksaan yang sudah dilakukan tetap ada di riwayat, tetapi tidak dihitung lagi."
     }
   },
   "work": {
@@ -4575,10 +4577,15 @@
       "nextRecordingHelp": "Sedang merekam. Batang yang pekat adalah suara Anda yang disimpan; batang yang samar adalah hening.",
       "nextPausedHelp": "Dijeda selama Alkitab diputar. Perekaman berlanjut saat Alkitab berhenti.",
       "deleteAll": "Hapus semua bagian",
-      "deleteAllHelp": "Menghapus semua bagian, untuk mulai lagi. Anda bisa mengurungkannya segera sesudahnya.",
-      "slotHelp": "Bagian yang Anda rekam berikutnya masuk di sini, di tempat bagian yang dihapus. Ketuk tombol merah untuk mulai.",
+      "deleteAllHelp": "Menghapus semua bagian, untuk mulai lagi.",
       "leave": "Berhenti dan kembali ke bagian Anda",
-      "leaveHelp": "Menghentikan rekaman dan menampilkan bagian-bagian Anda. Yang Anda ucapkan tetap tersimpan."
+      "leaveHelp": "Menghentikan rekaman dan menampilkan bagian-bagian Anda. Yang Anda ucapkan tetap tersimpan.",
+      "recordOver": "Rekam ulang {{part}}",
+      "recordOverHelp": "Yang Anda rekam berikutnya menggantikan bagian ini.",
+      "recordInGap": "Rekam {{part}} di sini",
+      "gapHelp": "Yang Anda rekam berikutnya masuk ke celah ini.",
+      "recordAtEnd": "Rekam {{part}} di akhir",
+      "endHelp": "Yang Anda rekam berikutnya masuk di akhir."
     },
     "quoted": "“{{text}}”",
     "listening": "Mendengarkan… {{time}}",
@@ -4782,7 +4789,6 @@
       "moreOfOne": "{{part}} adalah lanjutan ayat {{verse}}.",
       "moreOfRange": "{{part}} adalah lanjutan ayat {{first}}–{{last}}.",
       "numbered_other": "{{count, number}} bagian diberi nomor.",
-      "leftForLater": "{{verses}} · untuk nanti",
       "follows": "{{part}} mengikuti urutan.",
       "none": "{{part}} belum punya ayat.",
       "giveNext": "Beri {{part}} ayat berikutnya",
@@ -4795,8 +4801,6 @@
       "hintLabelled": "Ketuk untuk memberinya ayat yang sama dengan bagian di atasnya. Tahan untuk memilih.",
       "hintEmpty": "Ketuk untuk memberinya ayat berikutnya. Tahan untuk memilih.",
       "choose": "Pilih ayat",
-      "recordHere": "Rekam di sini",
-      "recordHereHelp": "Rekam ayat yang Anda tinggalkan untuk nanti; ayat itu masuk ke tempatnya.",
       "verseSame": "{{verse}}, sama dengan bagian di atasnya",
       "auto": "Otomatis",
       "noVerse": "Tidak ada",
@@ -6075,7 +6079,8 @@
     "micSetupHint": "Sesuaikan cara perangkat mendengar Anda: kepekaan dan jeda.",
     "saveHelp": "Bagian-bagian Anda sudah tersimpan selagi Anda merekam. Ini untuk kembali.",
     "openReferenceHelp": "Mengembalikan referensi ke setengah layar.",
-    "openStudyHelp": "Membuka langkah ini dalam studi lengkap."
+    "openStudyHelp": "Membuka langkah ini dalam studi lengkap.",
+    "partReplaced": "{{part}} direkam ulang."
   },
   "reference": {
     "organization": "Organisasi",

@@ -42,6 +42,9 @@ import {
 } from '../passage/recordInputsModel';
 import { VersionsPage } from '../passage/versions';
 import { deleteVersion } from '../passage/deleteVersion';
+import { ConfirmDelete } from '../ui/ConfirmDelete';
+import { cardDurations } from '../recording/workspaceModel';
+import { mmss, totalMs } from '../recording/model';
 import { VersionRecording } from '../passage/versionParts';
 import { useVersesHeld } from '../passage/useVerses';
 import { pathSteps, teamSteps, type PathStep, type TeamStep } from '../passage/pathModel';
@@ -858,6 +861,8 @@ function HistoryRow(props: { text: EntryText; when: string; last: boolean; trail
 export function VersionDetail(ctx: Ctx) {
   const v = usePassage(ctx);
   const guide = useStudyGuide(ctx, v?.unitId);
+  // Deleting the version asks first (LAN-83).
+  const [asking, setAsking] = useState(false);
   if (!v) return <Missing ctx={ctx} id="version_detail" />;
   const { p, unitId, languageId } = v;
   const version = versionFor(p, ctx.params['takeId']);
@@ -867,6 +872,7 @@ export function VersionDetail(ctx: Ctx) {
   const params = { unitId, languageId };
   const canEdit = recordCan(ctx.session).record;
   const deletable = canEdit && canDeleteVersion(p, version.takeId, ctx.session.actorId);
+  const durations = cardDurations(v.state, unitId);
   const footer = canEdit ? (
     <View style={styles.versionFooter}>
       <View style={{ flex: 1 }}>
@@ -874,7 +880,7 @@ export function VersionDetail(ctx: Ctx) {
       </View>
       {deletable ? (
         <IconBtn name="trash" label={t('passage.versions.delete', { name: title })} help={t('passage.versions.deleteVersionHelp')} bg={TINT.red} color={TINT.redText}
-          onPress={() => deleteVersion(ctx, v, version, ctx.back)} />
+          onPress={() => setAsking(true)} />
       ) : null}
     </View>
   ) : undefined;
@@ -940,6 +946,10 @@ export function VersionDetail(ctx: Ctx) {
             ))}
           </View>
         </Disclosure>
+      ) : null}
+      {deletable ? (
+        <ConfirmDelete visible={asking} name={title} sub={t('recording.parts.groupSub', { count: version.cardHashes.length, length: mmss(totalMs(version.cardHashes.map((h) => durations.get(h)))) })}
+          onClose={() => setAsking(false)} onConfirm={() => { setAsking(false); deleteVersion(ctx, v, version, ctx.back); }} />
       ) : null}
     </Screen>
   );

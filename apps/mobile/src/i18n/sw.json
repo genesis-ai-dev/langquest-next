@@ -38,7 +38,8 @@
     "voiceNote": "Ujumbe wa sauti",
     "addNote": "Ongeza dokezo",
     "orTypeIt": "Au andika",
-    "sayIt": "Sema kwa sauti"
+    "sayIt": "Sema kwa sauti",
+    "deleteAsk": "Futa {{name}}?"
   },
   "time": {
     "justNow": "Sasa hivi",
@@ -3669,7 +3670,8 @@
         "studyStepDone": "Hatua ya {{n, number}} ya {{pattern}} imekamilika · {{step}}",
         "studyDone": "Hatua ya kujifunza imekamilika",
         "keptAfter": "Kimeachwa kama kilivyo baada ya {{kind}}",
-        "keptAfterFeedback": "Kimeachwa kama kilivyo baada ya maoni"
+        "keptAfterFeedback": "Kimeachwa kama kilivyo baada ya maoni",
+        "versionDeleted": "Toleo la {{n, number}} limefutwa"
       },
       "counts": {
         "versions_one": "toleo {{count, number}}",
@@ -4120,12 +4122,12 @@
       "draft": "Rasimu",
       "draftN": "Rasimu ya {{n, number}}",
       "newVersionHelp": "Huanzisha toleo jipya tangu mwanzo. Rasimu zako zinabaki.",
-      "deleteHelp": "Hufuta rasimu hii. Tendua huirudisha.",
+      "deleteHelp": "Hufuta rasimu hii.",
       "editDraftHelp": "Hufungua rasimu hii kwenye kinasa sauti, ili uendelee kuifanyia kazi.",
       "publishHelp": "Hufungua rasimu hii ili uichapishe timu iisikie.",
       "editVersionHelp": "Huanzisha rasimu mpya kutoka toleo hili. Toleo lenyewe linabaki kama lilivyo.",
       "partHelp": "Hucheza sehemu hii peke yake.",
-      "deleteVersionHelp": "Hufuta toleo hili. Ni pale tu hakuna aliyelikagua wala kuombwa kulikagua. Unaweza kutendua mara baada ya hapo."
+      "deleteVersionHelp": "Hufuta toleo hili kwa kila mtu. Ukaguzi uliokwisha kufanywa unabaki kwenye historia lakini hauhesabiwi tena."
     }
   },
   "work": {
@@ -4729,10 +4731,15 @@
       "nextRecordingHelp": "Inarekodi sasa. Vipau vilivyokolea ni sauti yako inayohifadhiwa; vipau hafifu ni ukimya.",
       "nextPausedHelp": "Imesitishwa wakati Biblia inacheza. Kurekodi kunaendelea ikisimama.",
       "deleteAll": "Futa sehemu zote",
-      "deleteAllHelp": "Hufuta sehemu zote, ili uanze upya. Unaweza kutendua mara baada ya hapo.",
-      "slotHelp": "Sehemu utakayorekodi ijayo inakaa hapa, mahali pa ile uliyofuta. Gusa kitufe chekundu ili kuanza.",
+      "deleteAllHelp": "Hufuta sehemu zote, ili uanze upya.",
       "leave": "Simamisha na urudi kwenye sehemu zako",
-      "leaveHelp": "Husimamisha kurekodi na kuonyesha sehemu zako. Ulichosema kinahifadhiwa."
+      "leaveHelp": "Husimamisha kurekodi na kuonyesha sehemu zako. Ulichosema kinahifadhiwa.",
+      "recordOver": "Rekodi {{part}} upya",
+      "recordOverHelp": "Utakachorekodi kijacho kinachukua nafasi ya sehemu hii.",
+      "recordInGap": "Rekodi {{part}} hapa",
+      "gapHelp": "Utakachorekodi kijacho kinaingia katika pengo hili.",
+      "recordAtEnd": "Rekodi {{part}} mwishoni",
+      "endHelp": "Utakachorekodi kijacho kinaenda mwishoni."
     },
     "quoted": "“{{text}}”",
     "listening": "Inasikiliza… {{time}}",
@@ -4942,7 +4949,6 @@
       "moreOfRange": "{{part}} ni mwendelezo wa mistari {{first}}–{{last}}.",
       "numbered_one": "Sehemu {{count, number}} imepewa namba.",
       "numbered_other": "Sehemu {{count, number}} zimepewa namba.",
-      "leftForLater": "{{verses}} · imeachwa kwa baadaye",
       "follows": "{{part}} inafuata mpangilio.",
       "none": "{{part}} haina mstari.",
       "giveNext": "Ipe {{part}} mstari unaofuata",
@@ -4955,8 +4961,6 @@
       "hintLabelled": "Gusa ili uipe mstari sawa na sehemu ya juu. Shikilia ili kuchagua.",
       "hintEmpty": "Gusa ili uipe mstari unaofuata. Shikilia ili kuchagua.",
       "choose": "Chagua mistari",
-      "recordHere": "Rekodi hapa",
-      "recordHereHelp": "Rekodi mstari uliouacha kwa baadaye; utaingia mahali pake.",
       "verseSame": "{{verse}}, sawa na sehemu ya juu",
       "auto": "Otomatiki",
       "noVerse": "Hakuna",
@@ -6337,7 +6341,8 @@
     "micSetupHint": "Rekebisha jinsi kifaa kinavyokusikia: usikivu na vituo.",
     "saveHelp": "Sehemu zako tayari zinahifadhiwa unaporekodi. Hiki hurudi nyuma.",
     "openReferenceHelp": "Hurudisha marejeo kwenye nusu ya skrini.",
-    "openStudyHelp": "Hufungua hatua hii katika somo kamili."
+    "openStudyHelp": "Hufungua hatua hii katika somo kamili.",
+    "partReplaced": "{{part}} imerekodiwa upya."
   },
   "reference": {
     "organization": "Shirika",

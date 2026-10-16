@@ -19,9 +19,11 @@ import { t } from '../i18n';
 import { HelpInfo, Ico, IconBtn } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import type { LoopPhase } from './splitModel';
-import { C, radius, space, target, TINT, type as T } from '../ui/theme';
+import { C, radius, space, target as target_, TINT, type as T } from '../ui/theme';
 import { useEnergyHistory } from './useRecorder';
 import { mmss, partLabel, recorderLines, totalMs } from './model';
+import type { RecordTarget, SlotRow } from './workspaceModel';
+import { ChosenMic, GapSlot } from './slots';
 import { PartMark, RecordBtn } from './blocks';
 import { styles as ps } from './blockStyles';
 import { useClip } from '../audio/useClip';
@@ -29,27 +31,23 @@ import { VerseParts } from './verseParts';
 
 export interface Part { hash: string; durationMs?: number }
 
-/** Where the next part goes when it is not the end: in place of a deleted part (LAN-83). */
-export interface NextSlot { index: number; mark?: VerseMark }
-
-/** The recorder pane: the recorded parts, the next one, and the hint line. */
+/** The recorder pane: the parts and their gaps, where the next part goes, and the next part at the end. */
 export function RecorderPane(props: {
   ctx: Ctx; parts: Part[]; phase: LoopPhase; capturing: boolean; small: boolean; disabled: boolean;
   onDelete: (hash: string, label: string) => void; onResume: () => void;
   /** The card's title when it is not "Parts 1–n": the version the parts are, while nothing changed. */
   title?: string;
-  /** Delete every part, to start over. */
+  /** Delete every part, to start over (asks first). */
   onDeleteAll?: () => void;
   /** Give the recorder the room to show its parts (the card opened while the pane is small). */
   onRoom?: () => void;
-  slot?: NextSlot | null;
-  /** The passage's verses and each part's mark: given, the parts are grouped by verse. */
-  verses?: { keys: string[]; marks: VerseMark[]; onMarks: (marks: VerseMark[], message: string) => void; onRecordHere: (beforeIndex: number) => void };
+  /** The card's rows (parts and gaps) and where the next part goes (LAN-83). */
+  rows: SlotRow[]; target: RecordTarget; onChoose: (to: RecordTarget) => void;
+  /** The passage's verses and each part's mark: given, each part has a space for its verse. */
+  verses?: { keys: string[]; marks: VerseMark[]; onMarks: (marks: VerseMark[], message: string) => void };
 }) {
-  const { parts } = props;
-  // A deleted part's place still counts: the parts are numbered with it.
-  const inPlace = !!props.slot && props.slot.index < parts.length;
-  const lines = { ...recorderLines(parts.length), ...(inPlace ? { group: recorderLines(parts.length + 1).group } : {}) };
+  const { parts, rows } = props;
+  const lines = recorderLines(parts.length);
   const [open, setOpen] = useState<boolean | null>(null);
   // Opened by the person, or open by itself once the pane has room.
   const expanded = open ?? !props.small;
@@ -57,33 +55,28 @@ export function RecorderPane(props: {
     if (!expanded && props.small) props.onRoom?.();
     setOpen(!expanded);
   };
-  // The next part in a deleted part's place: lit there, in the card, instead of at the end.
-  const slot = props.slot && props.slot.index < parts.length && expanded ? props.slot : null;
-  const next = (label: string, mark?: ReactNode) => (
-    <NextCard label={label} mark={mark} inPlace={!!mark || !!slot} phase={props.phase} capturing={props.capturing} onResume={props.onResume} />
-  );
+  const endN = rows.length + 1;
+  const atEnd = props.target.kind === 'end';
   return (
     <View style={{ gap: space.sm }}>
       {parts.length > 0 ? (
         <GroupCard
           body={props.verses && props.verses.keys.length > 0 ? (
             <VerseParts ctx={props.ctx} parts={parts} verses={props.verses.keys} marks={props.verses.marks} disabled={props.disabled}
-              onMarks={props.verses.onMarks} onDelete={props.onDelete} onRecordHere={props.verses.onRecordHere}
-              {...(slot ? { slot: { index: slot.index, ...(slot.mark !== undefined ? { mark: slot.mark } : {}), render: (tile: ReactNode) => next(partLabel(slot.index), tile) } } : {})} />
-          ) : undefined} ctx={props.ctx} parts={parts} title={props.title ?? lines.group} sub={lines.groupSub(totalMs(parts.map((p) => p.durationMs)))}
-          open={expanded} onToggle={toggle} disabled={props.disabled} onDelete={props.onDelete}
-          {...(props.onDeleteAll ? { onDeleteAll: props.onDeleteAll } : {})}
-          {...(slot ? { slot: { index: slot.index, node: next(partLabel(slot.index)) } } : {})} />
+              onMarks={props.verses.onMarks} onDelete={props.onDelete} rows={rows} target={props.target} onChoose={props.onChoose} />
+          ) : undefined} ctx={props.ctx} parts={parts} title={props.title ?? recorderLines(rows.length).group} sub={lines.groupSub(totalMs(parts.map((p) => p.durationMs)))}
+          open={expanded} onToggle={toggle} disabled={props.disabled} onDelete={props.onDelete} rows={rows} target={props.target} onChoose={props.onChoose}
+          {...(props.onDeleteAll ? { onDeleteAll: props.onDeleteAll } : {})} />
       ) : null}
-      {slot ? null : next(props.slot && props.slot.index < parts.length ? partLabel(props.slot.index) : lines.next)}
+      <NextCard label={partLabel(endN - 1)} chosen={atEnd} disabled={props.disabled} onChoose={() => props.onChoose({ kind: 'end' })}
+        phase={props.phase} capturing={props.capturing} onResume={props.onResume} />
     </View>
   );
 }
 
 function GroupCard(props: { ctx: Ctx; parts: Part[]; title: string; sub: string; open: boolean; onToggle: () => void; disabled: boolean; onDelete: (hash: string, label: string) => void;
   onDeleteAll?: () => void;
-  /** The lit next part, drawn in a deleted part's place among the plain rows. */
-  slot?: { index: number; node: ReactNode };
+  rows: SlotRow[]; target: RecordTarget; onChoose: (to: RecordTarget) => void;
   /** The parts with their verse spaces, in place of the plain rows. */
   body?: ReactNode }) {
   const clip = useClip(props.ctx.language, props.parts.map((p) => p.hash), { disabled: props.disabled });
@@ -91,12 +84,13 @@ function GroupCard(props: { ctx: Ctx; parts: Part[]; title: string; sub: string;
   const playLabel = clip.playing ? t('common.pause') : t('recording.player.playTitle', { title: props.title });
   const play = useHelpSpot(playLabel, t('recording.recorder.playAllHelp'), clip.toggle);
   const onDeleteAll = props.onDeleteAll;
+  const target = props.target;
   return (
     <View style={styles.card}>
       <View style={styles.head}>
         <PartMark state="done" />
         <Pressable onPress={toggle.onPress} accessibilityRole="button" accessibilityState={{ expanded: props.open }} accessibilityLabel={t('recording.recorder.groupLabel', { title: props.title, sub: props.sub })}
-          style={({ pressed }) => [{ flex: 1, minHeight: target.min, justifyContent: 'center' }, pressed && ps.pressed]}>
+          style={({ pressed }) => [{ flex: 1, minHeight: target_.min, justifyContent: 'center' }, pressed && ps.pressed]}>
           <Text style={styles.title}>{props.title}</Text>
           <Text style={txt.smMuted}>{props.sub}</Text>
           <HelpBadge spot={toggle} />
@@ -107,7 +101,7 @@ function GroupCard(props: { ctx: Ctx; parts: Part[]; title: string; sub: string;
           <HelpBadge spot={play} />
         </Pressable>
         {onDeleteAll ? (
-          <IconBtn name="trash" label={t('recording.recorder.deleteAll')} help={t('recording.recorder.deleteAllHelp')} bg="transparent" color={C.muted} size={target.min} disabled={props.disabled} onPress={onDeleteAll} />
+          <IconBtn name="trash" label={t('recording.recorder.deleteAll')} help={t('recording.recorder.deleteAllHelp')} bg="transparent" color={C.muted} size={target_.min} disabled={props.disabled} onPress={onDeleteAll} />
         ) : null}
         <Pressable onPress={toggle.onPress} accessibilityRole="button" accessibilityLabel={props.open ? t('recording.recorder.hideParts') : t('recording.recorder.showParts')} style={({ pressed }) => [styles.iconTap, pressed && ps.pressed]}>
           <Ico name={props.open ? 'down' : 'right'} size={22} color={C.muted} />
@@ -116,11 +110,12 @@ function GroupCard(props: { ctx: Ctx; parts: Part[]; title: string; sub: string;
       </View>
       {props.open && props.body ? <View style={styles.versePart}>{props.body}</View> : props.open ? (
         <View style={styles.parts}>
-          {props.parts.map((p, i) => (
-            <View key={`${p.hash}-${i}`}>
-              {props.slot?.index === i ? <View style={styles.slotPlain}>{props.slot.node}</View> : null}
-              <PartRow ctx={props.ctx} part={p} index={i >= (props.slot?.index ?? Infinity) ? i + 1 : i} disabled={props.disabled} onDelete={props.onDelete} />
-            </View>
+          {props.rows.map((r, k) => r.kind === 'gap' ? (
+            <GapSlot key={`gap-${r.before}`} n={r.n} gutter={false} first={k === 0} disabled={props.disabled}
+              chosen={target.kind === 'gap' && target.before === r.before} onPress={() => props.onChoose({ kind: 'gap', before: r.before })} />
+          ) : (
+            <PartRow key={`${props.parts[r.index]!.hash}-${r.index}`} ctx={props.ctx} part={props.parts[r.index]!} n={r.n} disabled={props.disabled} onDelete={props.onDelete}
+              chosen={target.kind === 'over' && target.index === r.index} onChoose={() => props.onChoose({ kind: 'over', index: r.index })} />
           ))}
         </View>
       ) : null}
@@ -129,18 +124,24 @@ function GroupCard(props: { ctx: Ctx; parts: Part[]; title: string; sub: string;
   );
 }
 
-function PartRow(props: { ctx: Ctx; part: Part; index: number; disabled: boolean; onDelete: (hash: string, label: string) => void }) {
-  const label = partLabel(props.index);
+function PartRow(props: { ctx: Ctx; part: Part; n: number; disabled: boolean; chosen: boolean; onChoose: () => void; onDelete: (hash: string, label: string) => void }) {
+  const label = partLabel(props.n - 1);
   const clip = useClip(props.ctx.language, [props.part.hash], { disabled: props.disabled });
   const playLabel = clip.playing ? t('recording.recorder.pausePart', { part: label }) : t('recording.player.playTitle', { title: label });
   const play = useHelpSpot(clip.playing ? t('common.pause') : t('recording.player.playTitle', { title: label }), undefined, clip.toggle);
+  const choose = useHelpSpot(t('recording.recorder.recordOver', { part: label }), t('recording.recorder.recordOverHelp'), props.onChoose);
   return (
-    <View style={styles.partRow}>
+    <View style={[styles.partRow, props.chosen && styles.chosenRow]}>
       <Pressable onPress={play.onPress} disabled={!clip.available || props.disabled} accessibilityRole="button" accessibilityLabel={playLabel}
-        style={({ pressed }) => [styles.partPlay, (!clip.available || props.disabled) && ps.off, pressed && ps.pressed]}>
+        style={({ pressed }) => [styles.iconTap, (!clip.available || props.disabled) && ps.off, pressed && ps.pressed]}>
         <Ico name={clip.playing ? 'pause' : 'play'} size={16} color={C.primary} strokeWidth={2.6} fill={C.primary} />
-        <Text style={[txt.body, { color: C.muted }]}>{t('recording.recorder.partLength', { part: label, length: mmss(props.part.durationMs) })}</Text>
         <HelpBadge spot={play} />
+      </Pressable>
+      <Pressable onPress={choose.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityState={{ selected: props.chosen }} accessibilityLabel={t('recording.recorder.recordOver', { part: label })}
+        style={({ pressed }) => [styles.partPlay, pressed && ps.pressed]}>
+        <Text style={[txt.body, { color: props.chosen ? C.dark : C.muted, flex: 1 }]}>{t('recording.recorder.partLength', { part: label, length: mmss(props.part.durationMs) })}</Text>
+        {props.chosen ? <ChosenMic /> : null}
+        <HelpBadge spot={choose} />
       </Pressable>
       <IconBtn name="trash" label={t('recording.deleteItem', { item: label })} help={t('recording.recorder.deletePartHelp')} bg="transparent" color={C.muted} size={40} disabled={props.disabled} onPress={() => props.onDelete(props.part.hash, label)} />
     </View>
@@ -148,21 +149,31 @@ function PartRow(props: { ctx: Ctx; part: Part; index: number; disabled: boolean
 }
 
 /**
- * The part to record next, lit (a-wsHalf); while recording it is the live
- * part, red. In a deleted part's place it sits in the card, with the verses
- * it will take where the part's were (LAN-83).
+ * The part to record at the end. Lit (a-wsHalf) when the next part goes
+ * there; while recording it is the live part, red. When a gap or a part
+ * is chosen instead, it is quiet and dashed, and a tap chooses it again.
  */
-function NextCard(props: { label: string; phase: LoopPhase; capturing: boolean; onResume: () => void; mark?: ReactNode; inPlace?: boolean }) {
+function NextCard(props: { label: string; chosen: boolean; disabled: boolean; onChoose: () => void; phase: LoopPhase; capturing: boolean; onResume: () => void }) {
   const recording = props.phase === 'recording';
   const listening = props.phase === 'listening';
   const resume = useHelpSpot(t('recording.resumeNow'), t('recording.recorder.resumeHelp'), props.onResume);
+  const choose = useHelpSpot(t('recording.recorder.recordAtEnd', { part: props.label }), t('recording.recorder.endHelp'), props.onChoose);
+  if (!props.chosen && !recording && !listening) {
+    return (
+      <Pressable onPress={choose.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={t('recording.recorder.recordAtEnd', { part: props.label })}
+        style={({ pressed }) => [styles.next, styles.nextQuiet, pressed && ps.pressed]}>
+        <View style={styles.quietMic}><Ico name="mic" size={16} color={C.muted} /></View>
+        <Text style={[styles.title, { color: C.muted, flex: 1 }]}>{props.label}</Text>
+        <HelpBadge spot={choose} />
+      </Pressable>
+    );
+  }
   // While help is on, the card says what its mark, border and level bars mean.
   return (
-    <HelpInfo label={props.label} detail={recording ? t('recording.recorder.nextRecordingHelp') : listening ? t('recording.recorder.nextPausedHelp') : props.inPlace ? t('recording.recorder.slotHelp') : t('recording.recorder.nextCardHelp')}>
-    <View style={[styles.next, props.mark ? styles.nextInPlace : null, recording && { borderColor: C.red }, listening && { borderColor: TINT.amberText }]}
+    <HelpInfo label={props.label} detail={recording ? t('recording.recorder.nextRecordingHelp') : listening ? t('recording.recorder.nextPausedHelp') : t('recording.recorder.nextCardHelp')}>
+    <View style={[styles.next, recording && { borderColor: C.red }, listening && { borderColor: TINT.amberText }]}
       accessibilityLiveRegion="polite" accessible={!listening}
       accessibilityLabel={t('recording.recorder.nextLabel', { part: props.label, status: recording ? (props.capturing ? t('recording.loop.capturing') : t('recording.recorder.listeningForYou')) : listening ? t('recording.recorder.pausedForBible') : t('recording.recorder.recordingNext') })}>
-      {props.mark ? <View style={styles.nextTile}>{props.mark}</View> : null}
       <PartMark state={recording ? 'recording' : 'next'} />
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={styles.title}>{props.label}</Text>
@@ -236,16 +247,16 @@ const styles = StyleSheet.create({
   card: { backgroundColor: C.card, borderRadius: radius.lg, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
   head: { flexDirection: 'row', alignItems: 'center', gap: space.sm + 2, minHeight: 56, paddingLeft: space.md, paddingRight: space.xs },
   title: { fontSize: T.base, fontWeight: '800', color: C.dark },
-  iconTap: { width: target.min, height: target.min, alignItems: 'center', justifyContent: 'center' },
-  parts: { borderTopWidth: 1, borderColor: C.border, paddingLeft: 50, paddingRight: space.xs, paddingVertical: space.xs },
+  iconTap: { width: target_.min, height: target_.min, alignItems: 'center', justifyContent: 'center' },
+  parts: { borderTopWidth: 1, borderColor: C.border, paddingLeft: space.xs, paddingRight: space.xs, paddingVertical: space.xs },
   versePart: { borderTopWidth: 1, borderColor: C.border },
   partRow: { flexDirection: 'row', alignItems: 'center' },
-  partPlay: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: target.min },
+  partPlay: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: target_.min },
   next: { flexDirection: 'row', alignItems: 'center', gap: space.sm + 2, minHeight: 56, paddingHorizontal: space.md, borderRadius: radius.lg, borderWidth: 2, borderColor: C.primary, backgroundColor: C.card },
-  // In the card, where a deleted part was: the verse tile in the parts' column, the lit border inset.
-  nextInPlace: { margin: space.xs, paddingLeft: 0, minHeight: target.row - space.sm },
-  nextTile: { width: 64 - space.xs, alignItems: 'center' },
-  slotPlain: { paddingVertical: space.xs, marginLeft: -42 },
+  // The end, when the next part goes somewhere else: quiet and dashed, a tap away.
+  nextQuiet: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.border, backgroundColor: 'transparent' },
+  quietMic: { width: 36, height: 36, borderRadius: radius.full, borderWidth: 2, borderStyle: 'dashed', borderColor: C.faint, alignItems: 'center', justifyContent: 'center' },
+  chosenRow: { backgroundColor: C.light, borderRadius: radius.md },
   meter: { width: 64, height: 28, flexDirection: 'row', alignItems: 'center', gap: 2 },
   meterBar: { flex: 1, borderRadius: 2, backgroundColor: C.red },
   resume: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 40, paddingHorizontal: space.md, borderRadius: radius.full, backgroundColor: TINT.amberText },
@@ -253,6 +264,6 @@ const styles = StyleSheet.create({
   footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.lg },
   side: { width: 96, fontSize: T.sm, color: C.muted },
   sideBox: { width: 96 },
-  publish: { minHeight: target.min, borderRadius: radius.md + 2, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.sm },
+  publish: { minHeight: target_.min, borderRadius: radius.md + 2, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.sm },
   publishLabel: { fontSize: T.base, fontWeight: '800', color: C.primary }
 });

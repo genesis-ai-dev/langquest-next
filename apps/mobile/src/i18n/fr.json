@@ -38,7 +38,8 @@
     "voiceNote": "Note vocale",
     "addNote": "Ajouter une note",
     "orTypeIt": "Ou écrivez-la",
-    "sayIt": "Dites-la"
+    "sayIt": "Dites-la",
+    "deleteAsk": "Supprimer {{name}} ?"
   },
   "time": {
     "justNow": "À l’instant",
@@ -3780,7 +3781,8 @@
         "studyStepDone": "Étape {{n, number}} {{pattern}} terminée · {{step}}",
         "studyDone": "Étape d’étude terminée",
         "keptAfter": "Gardé après : {{kind}}",
-        "keptAfterFeedback": "Gardé après les remarques"
+        "keptAfterFeedback": "Gardé après les remarques",
+        "versionDeleted": "Version {{n, number}} supprimée"
       },
       "counts": {
         "versions_one": "{{count, number}} version",
@@ -4246,12 +4248,12 @@
       "draft": "Brouillon",
       "draftN": "Brouillon {{n, number}}",
       "newVersionHelp": "Commence une nouvelle version depuis le début. Vos brouillons restent.",
-      "deleteHelp": "Supprime ce brouillon. Annuler le rétablit.",
+      "deleteHelp": "Supprime ce brouillon.",
       "editDraftHelp": "Ouvre ce brouillon dans l’espace d’enregistrement, pour continuer à y travailler.",
       "publishHelp": "Ouvre ce brouillon pour le publier, afin que l’équipe l’écoute.",
       "editVersionHelp": "Commence un nouveau brouillon à partir de cette version. La version elle-même reste telle quelle.",
       "partHelp": "Fait entendre cette partie seule.",
-      "deleteVersionHelp": "Supprime cette version. Seulement tant que personne ne l’a vérifiée ni n’a été invité à le faire. Vous pouvez annuler juste après."
+      "deleteVersionHelp": "Supprime cette version pour tous. Les vérifications déjà faites restent dans l’historique mais ne comptent plus."
     }
   },
   "work": {
@@ -4883,10 +4885,15 @@
       "nextRecordingHelp": "Enregistrement en cours. Les barres pleines sont votre voix gardée ; les barres pâles sont le silence.",
       "nextPausedHelp": "En pause pendant que la Bible joue. L’enregistrement reprend quand elle s’arrête.",
       "deleteAll": "Supprimer toutes les parties",
-      "deleteAllHelp": "Supprime toutes les parties, pour tout recommencer. Vous pouvez annuler juste après.",
-      "slotHelp": "La partie que vous enregistrez ensuite va ici, à la place de celle supprimée. Touchez le bouton rouge pour commencer.",
+      "deleteAllHelp": "Supprime toutes les parties, pour tout recommencer.",
       "leave": "Arrêter et revenir à vos parties",
-      "leaveHelp": "Arrête l’enregistrement et affiche vos parties. Ce que vous avez dit est gardé."
+      "leaveHelp": "Arrête l’enregistrement et affiche vos parties. Ce que vous avez dit est gardé.",
+      "recordOver": "Réenregistrer {{part}}",
+      "recordOverHelp": "Ce que vous enregistrez ensuite remplace cette partie.",
+      "recordInGap": "Enregistrer {{part}} ici",
+      "gapHelp": "Ce que vous enregistrez ensuite va dans ce vide.",
+      "recordAtEnd": "Enregistrer {{part}} à la fin",
+      "endHelp": "Ce que vous enregistrez ensuite va à la fin."
     },
     "quoted": "« {{text}} »",
     "listening": "Écoute… {{time}}",
@@ -5102,7 +5109,6 @@
       "numbered_one": "{{count, number}} partie numérotée.",
       "numbered_many": "{{count, number}} de parties numérotées.",
       "numbered_other": "{{count, number}} parties numérotées.",
-      "leftForLater": "{{verses}} · pour plus tard",
       "follows": "{{part}} suit l’ordre.",
       "none": "{{part}} n’a pas de verset.",
       "giveNext": "Donner à {{part}} le verset suivant",
@@ -5115,8 +5121,6 @@
       "hintLabelled": "Touchez pour lui donner le même verset que la partie du dessus. Maintenez pour choisir.",
       "hintEmpty": "Touchez pour lui donner le verset suivant. Maintenez pour choisir.",
       "choose": "Choisir les versets",
-      "recordHere": "Enregistrer ici",
-      "recordHereHelp": "Enregistrez le verset laissé pour plus tard ; il se place au bon endroit.",
       "verseSame": "{{verse}}, comme la partie du dessus",
       "auto": "Auto",
       "noVerse": "Aucun",
@@ -6599,7 +6603,8 @@
     "micSetupHint": "Réglez la façon dont l’appareil vous entend : sensibilité et pauses.",
     "saveHelp": "Vos parties sont déjà gardées pendant que vous enregistrez. Ceci revient en arrière.",
     "openReferenceHelp": "Ramène la référence sur la moitié de l’écran.",
-    "openStudyHelp": "Ouvre cette étape dans l’étude complète."
+    "openStudyHelp": "Ouvre cette étape dans l’étude complète.",
+    "partReplaced": "{{part}} réenregistrée."
   },
   "reference": {
     "organization": "Organisation",

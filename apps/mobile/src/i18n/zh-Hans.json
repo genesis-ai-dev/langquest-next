@@ -38,7 +38,8 @@
     "voiceNote": "语音备注",
     "addNote": "添加备注",
     "orTypeIt": "或者打字输入",
-    "sayIt": "说出来"
+    "sayIt": "说出来",
+    "deleteAsk": "删除{{name}}？"
   },
   "time": {
     "justNow": "刚刚",
@@ -3558,7 +3559,8 @@
         "studyStepDone": "{{pattern}}第 {{n, number}} 步已完成 · {{step}}",
         "studyDone": "学习步骤已完成",
         "keptAfter": "{{kind}}后保持原样",
-        "keptAfterFeedback": "收到反馈后保持原样"
+        "keptAfterFeedback": "收到反馈后保持原样",
+        "versionDeleted": "第 {{n, number}} 版已删除"
       },
       "counts": {
         "versions_other": "{{count, number}} 个版本",
@@ -3994,12 +3996,12 @@
       "draft": "草稿",
       "draftN": "草稿 {{n, number}}",
       "newVersionHelp": "从头开始一个新版本。你的草稿会保留。",
-      "deleteHelp": "删除这份草稿。“撤销”可以恢复。",
+      "deleteHelp": "删除这份草稿。",
       "editDraftHelp": "在录音页面打开这份草稿，继续完成它。",
       "publishHelp": "打开这份草稿进行发布，让团队可以听。",
       "editVersionHelp": "根据这个版本开始一份新草稿。这个版本本身保持不变。",
       "partHelp": "单独播放这一段。",
-      "deleteVersionHelp": "删除这个版本。只能在还没有人检查、也没有人被请去检查的时候删除。删除后可以马上撤销。"
+      "deleteVersionHelp": "为所有人删除这个版本。已经做过的检查仍留在记录里，但不再计算。"
     }
   },
   "work": {
@@ -4575,10 +4577,15 @@
       "nextRecordingHelp": "正在录音。实心的条是正在保存的你的声音；浅色的条是安静的部分。",
       "nextPausedHelp": "播放圣经时已暂停。圣经停止后会继续录音。",
       "deleteAll": "删除所有段",
-      "deleteAllHelp": "删除所有段，从头再来。删除后可以马上撤销。",
-      "slotHelp": "你接下来录的一段放在这里，就是删掉的那一段原来的位置。点按红色按钮开始。",
+      "deleteAllHelp": "删除所有段，从头再来。",
       "leave": "停止并回到你的各段",
-      "leaveHelp": "停止录音并显示你的各段。你说的内容会保留。"
+      "leaveHelp": "停止录音并显示你的各段。你说的内容会保留。",
+      "recordOver": "重录{{part}}",
+      "recordOverHelp": "你接下来录的内容会替换这一段。",
+      "recordInGap": "在这里录{{part}}",
+      "gapHelp": "你接下来录的内容放进这个空位。",
+      "recordAtEnd": "在末尾录{{part}}",
+      "endHelp": "你接下来录的内容放在末尾。"
     },
     "quoted": "“{{text}}”",
     "listening": "正在听……{{time}}",
@@ -4782,7 +4789,6 @@
       "moreOfOne": "{{part}}接着第 {{verse}} 节。",
       "moreOfRange": "{{part}}接着第 {{first}}–{{last}} 节。",
       "numbered_other": "已为 {{count, number}} 段编号。",
-      "leftForLater": "{{verses}} · 留待以后",
       "follows": "{{part}}按顺序编号。",
       "none": "{{part}}没有经节。",
       "giveNext": "给{{part}}下一节",
@@ -4795,8 +4801,6 @@
       "hintLabelled": "轻点给它与上面一段相同的经节。长按选择。",
       "hintEmpty": "轻点给它下一节。长按选择。",
       "choose": "选择经节",
-      "recordHere": "在这里录音",
-      "recordHereHelp": "录下你留待以后的经节；它会放在原来的位置。",
       "verseSame": "{{verse}}，与上面一段相同",
       "auto": "自动",
       "noVerse": "无",
@@ -6075,7 +6079,8 @@
     "micSetupHint": "调整设备听你说话的方式：灵敏度和停顿。",
     "saveHelp": "录音时，你的各段已经随时保存了。点按这里返回。",
     "openReferenceHelp": "把参考资料恢复到半个屏幕。",
-    "openStudyHelp": "在完整的学习内容中打开这一步。"
+    "openStudyHelp": "在完整的学习内容中打开这一步。",
+    "partReplaced": "已重录{{part}}。"
   },
   "reference": {
     "organization": "机构",

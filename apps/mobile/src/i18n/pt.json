@@ -38,7 +38,8 @@
     "voiceNote": "Nota de voz",
     "addNote": "Adicionar uma nota",
     "orTypeIt": "Ou digite",
-    "sayIt": "Falar"
+    "sayIt": "Falar",
+    "deleteAsk": "Apagar {{name}}?"
   },
   "time": {
     "justNow": "Agora mesmo",
@@ -3780,7 +3781,8 @@
         "studyStepDone": "Etapa {{n, number}} de {{pattern}} feita · {{step}}",
         "studyDone": "Etapa do estudo feita",
         "keptAfter": "Mantida depois da {{kind}}",
-        "keptAfterFeedback": "Mantida depois dos comentários"
+        "keptAfterFeedback": "Mantida depois dos comentários",
+        "versionDeleted": "Versão {{n, number}} apagada"
       },
       "counts": {
         "versions_one": "{{count, number}} versão",
@@ -4246,12 +4248,12 @@
       "draft": "Rascunho",
       "draftN": "Rascunho {{n, number}}",
       "newVersionHelp": "Começa uma versão nova do início. Os seus rascunhos continuam.",
-      "deleteHelp": "Apaga este rascunho. Desfazer traz de volta.",
+      "deleteHelp": "Apaga este rascunho.",
       "editDraftHelp": "Abre este rascunho no gravador, para continuar trabalhando nele.",
       "publishHelp": "Abre este rascunho para publicar, para a equipe ouvir.",
       "editVersionHelp": "Começa um rascunho novo a partir desta versão. A versão em si continua como está.",
       "partHelp": "Toca só esta parte.",
-      "deleteVersionHelp": "Apaga esta versão. Só enquanto ninguém a verificou nem foi chamado para isso. Você pode desfazer logo depois."
+      "deleteVersionHelp": "Apaga esta versão para todos. As verificações já feitas ficam no histórico, mas deixam de contar."
     }
   },
   "work": {
@@ -4883,10 +4885,15 @@
       "nextRecordingHelp": "Gravando agora. As barras cheias são a sua voz sendo guardada; as barras fracas são silêncio.",
       "nextPausedHelp": "Pausado enquanto a Bíblia toca. A gravação continua quando ela parar.",
       "deleteAll": "Apagar todas as partes",
-      "deleteAllHelp": "Apaga todas as partes, para começar de novo. Você pode desfazer logo depois.",
-      "slotHelp": "A parte que você gravar em seguida fica aqui, onde estava a parte apagada. Toque no botão vermelho para começar.",
+      "deleteAllHelp": "Apaga todas as partes, para começar de novo.",
       "leave": "Parar e voltar às suas partes",
-      "leaveHelp": "Para a gravação e mostra suas partes. O que você disse fica guardado."
+      "leaveHelp": "Para a gravação e mostra suas partes. O que você disse fica guardado.",
+      "recordOver": "Gravar {{part}} de novo",
+      "recordOverHelp": "O que você gravar em seguida substitui esta parte.",
+      "recordInGap": "Gravar {{part}} aqui",
+      "gapHelp": "O que você gravar em seguida fica neste espaço.",
+      "recordAtEnd": "Gravar {{part}} no fim",
+      "endHelp": "O que você gravar em seguida fica no fim."
     },
     "quoted": "“{{text}}”",
     "listening": "Ouvindo… {{time}}",
@@ -5102,7 +5109,6 @@
       "numbered_one": "{{count, number}} parte numerada.",
       "numbered_many": "{{count, number}} de partes numeradas.",
       "numbered_other": "{{count, number}} partes numeradas.",
-      "leftForLater": "{{verses}} · para depois",
       "follows": "{{part}} segue a ordem.",
       "none": "{{part}} não tem versículo.",
       "giveNext": "Dar a {{part}} o próximo versículo",
@@ -5115,8 +5121,6 @@
       "hintLabelled": "Toque para dar o mesmo versículo da parte de cima. Segure para escolher.",
       "hintEmpty": "Toque para dar o próximo versículo. Segure para escolher.",
       "choose": "Escolher versículos",
-      "recordHere": "Gravar aqui",
-      "recordHereHelp": "Grave o versículo que você deixou para depois; ele fica no lugar certo.",
       "verseSame": "{{verse}}, igual à parte de cima",
       "auto": "Auto",
       "noVerse": "Nenhum",
@@ -6599,7 +6603,8 @@
     "micSetupHint": "Ajuste como o aparelho ouve você: sensibilidade e pausas.",
     "saveHelp": "As suas partes já ficam guardadas enquanto você grava. Isto volta.",
     "openReferenceHelp": "Volta a mostrar a referência em metade da tela.",
-    "openStudyHelp": "Abre esta etapa no estudo completo."
+    "openStudyHelp": "Abre esta etapa no estudo completo.",
+    "partReplaced": "{{part}} gravada de novo."
   },
   "reference": {
     "organization": "Organização",

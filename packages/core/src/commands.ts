@@ -43,7 +43,7 @@ export interface Commands {
   keepTake(c: { commandId: string; unitId: string; cardHashes: string[]; actorId: string; parentTakeId?: string | null }): EventSpec[];
   /** Set one of the person's drafts aside (decisions.md 83). Undo is `keepTake` with its cards and the draft as parent. */
   deleteDraft(c: { commandId: string; unitId: string; takeId: string; actorId: string }): EventSpec[];
-  /** Delete the person's latest version while nothing points at it (LAN-83, `canDeleteVersion`). Undo publishes its parts again. */
+  /** Delete a version its publisher no longer wants (LAN-83, `canDeleteVersion`): a tombstone; its number and its checks stay on the record. */
   deleteVersion(c: { commandId: string; unitId: string; takeId: string; actorId: string }): EventSpec[];
   /**
    * Which verses each part holds (decisions.md 82): one 'v1.CardVerseSet'
@@ -191,7 +191,7 @@ export function commands(state: LanguageState, idx: Indexes = buildIndexes(state
 
     deleteVersion(c) {
       const passage = derivePassage(state, c.unitId, idx);
-      if (!canDeleteVersion(passage, c.takeId, c.actorId)) throw new CommandError('Only your latest version, before anyone checks it, can be deleted.');
+      if (!canDeleteVersion(passage, c.takeId, c.actorId)) throw new CommandError('Only whoever published a version can delete it.');
       return [{ id: ids(c.commandId)(), type: 'v1.TakeArchived', payload: { takeId: c.takeId } }];
     },
 

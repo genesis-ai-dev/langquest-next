@@ -87,6 +87,8 @@ export function stepName(kinds: KindDef[], step: FlowStep): string {
 
 // ---- views -----------------------------------------------------------------------
 
+export interface DeletedVersion extends Version { deleted: { hlc: Hlc; by: string } }
+
 export interface Version {
   takeId: string;
   /** 1-based, in order of publishing. */
@@ -191,6 +193,15 @@ export interface PassageState {
   unitId: string;
   flow: LanguageFlow;
   versions: Version[];
+  /**
+   * Versions their publisher deleted (LAN-83): tombstones. Each keeps its
+   * number, so the next version never reuses it; none counts for the path.
+   */
+  deletedVersions: DeletedVersion[];
+  /** Checks of deleted versions, given before or after the delete reached the reviewer: kept to read, counted for nothing. */
+  reviewsOfDeleted: ReviewView[];
+  /** The number the next version published will have. */
+  nextVersionN: number;
   latest?: Version;
   recorded: boolean;
   /** An unpublished take exists (someone's draft). */
@@ -263,8 +274,7 @@ function recordIndexes(state: LanguageState, idx?: Indexes): RecordIndexes {
   const drafts = new Map<string, string[]>();
   const takes = Object.entries(state.takes).filter(([, t]) => t.unitId);
   const submittedAt = (id: string) => state.submissions[id]?.hlc ?? '';
-  // A version its publisher deleted before anyone heard it is no longer one (LAN-83, deleteVersion).
-  for (const [id, t] of takes.filter(([id, t]) => state.submissions[id] && !t.archived).sort(([a], [b]) => (submittedAt(a) < submittedAt(b) ? -1 : submittedAt(a) > submittedAt(b) ? 1 : a < b ? -1 : 1))) {
+  for (const [id, t] of takes.filter(([id]) => state.submissions[id]).sort(([a], [b]) => (submittedAt(a) < submittedAt(b) ? -1 : submittedAt(a) > submittedAt(b) ? 1 : a < b ? -1 : 1))) {
     push(versions, t.unitId, id);
   }
   for (const [id, t] of takes.filter(([id, t]) => !state.submissions[id] && !t.archived && t.cardHashes.length > 0).sort(([ia, a], [ib, b]) => (a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : ia < ib ? 1 : -1))) {
@@ -302,15 +312,12 @@ function recordIndexes(state: LanguageState, idx?: Indexes): RecordIndexes {
 // ---- the passage -----------------------------------------------------------------
 
 /**
- * Whether a person may delete a version (LAN-83): only the latest, only
- * their own, and only while nothing points at it: no check of it, nothing
- * made from it, and no review asked for since it was published.
+ * Whether a person may delete a version (LAN-83): whoever published it.
+ * Deleting leaves a tombstone, since a reviewer offline may already hold
+ * it and check it later: that check is kept to read and counts for nothing.
  */
-export function canDeleteVersion(p: Pick<PassageState, 'latest' | 'reviews' | 'requests'>, takeId: string, actorId: string): boolean {
-  const v = p.latest;
-  if (!v || v.takeId !== takeId || v.by !== actorId) return false;
-  if (p.reviews.some((r) => r.takeId === takeId)) return false;
-  return !p.requests.some((r) => r.what === 'review' && r.status !== 'withdrawn' && r.hlc > v.hlc);
+export function canDeleteVersion(p: Pick<PassageState, 'versions'>, takeId: string, actorId: string): boolean {
+  return p.versions.some((v) => v.takeId === takeId && v.by === actorId);
 }
 
 export function derivePassage(state: LanguageState, unitId: string, idx?: Indexes): PassageState {
@@ -320,7 +327,7 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
   if (hit) return hit;
   const flow = ri.flow;
 
-  const versions: Version[] = (ri.versions.get(key) ?? []).map((takeId, i) => {
+  const everyVersion: Version[] = (ri.versions.get(key) ?? []).map((takeId, i) => {
     const t = state.takes[takeId]!;
     const response = state.responses[takeId];
     const change = ri.changeNotes.get(takeId);
@@ -332,6 +339,16 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
       ...(note ? { changeNote: note } : {}), ...(blob ? { changeBlobHash: blob } : {})
     };
   });
+  // A deleted version is a tombstone (LAN-83): it keeps its number and its
+  // checks, but it is not a version the passage has any more.
+  const deletedVersions: DeletedVersion[] = everyVersion.flatMap((v) => {
+    const t = state.takes[v.takeId]!;
+    return t.archived ? [{ ...v, deleted: t.archivedAt ?? { hlc: v.hlc, by: v.by } }] : [];
+  });
+  const versions = everyVersion.filter((v) => !state.takes[v.takeId]!.archived);
+  const reviewsOfDeleted: ReviewView[] = deletedVersions
+    .flatMap((v) => (ri.reviewsByTake.get(v.takeId) ?? []).map(({ eventId: _e, ...r }) => ({ ...r, versionN: v.n })))
+    .sort(byHlc);
 
   const departures: DepartureView[] = (ri.departures.get(key) ?? []).map(({ eventId: _e, ...d }) => {
     const undone = state.undoneDepartures[d.id];
@@ -415,7 +432,7 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
   // An overridden checkpoint is cleared (decision 29): it is never next, and it does not hold the passage back from done.
   const next = recorded ? open.find((s) => !s.override) : undefined;
   const result: PassageState = {
-    unitId, flow, versions, recorded, departures, reviews, requests, openRequests, steps, drafts,
+    unitId, flow, versions, deletedVersions, reviewsOfDeleted, nextVersionN: everyVersion.length + 1, recorded, departures, reviews, requests, openRequests, steps, drafts,
     drafting: draftTakeId !== undefined,
     done: recorded && steps.every((s) => s.complete || !!s.override),
     awaitingResponse: reviews.filter((r) => r.outcome === 'needs_changes' && !r.response && r.versionN === latest?.n),
@@ -757,6 +774,7 @@ export function formatQuestionField(q: Omit<QuestionSpec, 'id'>): string {
 
 export type RecordEntry =
   | { type: 'version'; hlc: Hlc; by: string; version: Version }
+  | { type: 'deleted'; hlc: Hlc; by: string; version: DeletedVersion }
   | { type: 'review'; hlc: Hlc; by: string; review: ReviewView }
   | { type: 'response'; hlc: Hlc; by: string; review: ReviewView; response: ResponseView }
   | { type: 'request'; hlc: Hlc; by: string; request: RequestView }
@@ -768,7 +786,9 @@ export type RecordEntry =
 export function recordTimeline(state: LanguageState, s: PassageState): RecordEntry[] {
   const out: RecordEntry[] = [
     ...s.versions.map((v) => ({ type: 'version' as const, hlc: v.hlc, by: v.by, version: v })),
-    ...s.reviews.map((r) => ({ type: 'review' as const, hlc: r.hlc, by: r.by, review: r })),
+    // A deleted version stays on the record where it was published, and its deletion is an entry of its own.
+    ...s.deletedVersions.flatMap((v) => [{ type: 'version' as const, hlc: v.hlc, by: v.by, version: v }, { type: 'deleted' as const, hlc: v.deleted.hlc, by: v.deleted.by, version: v }]),
+    ...[...s.reviews, ...s.reviewsOfDeleted].map((r) => ({ type: 'review' as const, hlc: r.hlc, by: r.by, review: r })),
     ...s.reviews.filter((r) => r.response?.decision === 'revised').map((r) => ({ type: 'response' as const, hlc: r.response!.hlc, by: r.response!.by, review: r, response: r.response! })),
     ...s.requests.map((r) => ({ type: 'request' as const, hlc: r.hlc, by: r.by, request: r })),
     ...s.departures.map((d) => ({ type: 'departure' as const, hlc: d.hlc, by: d.by, departure: d })),
@@ -777,7 +797,7 @@ export function recordTimeline(state: LanguageState, s: PassageState): RecordEnt
   ];
   // Same instant (a version and the feedback it answered): the day's usual
   // order, so the answer reads above the version that carries it.
-  const rank: Record<RecordEntry['type'], number> = { study: 0, version: 0, note: 1, request: 2, review: 3, departure: 3, response: 4 };
+  const rank: Record<RecordEntry['type'], number> = { study: 0, version: 0, deleted: 0, note: 1, request: 2, review: 3, departure: 3, response: 4 };
   return out.sort((a, b) => (a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : rank[b.type] - rank[a.type]));
 }
 
@@ -926,7 +946,7 @@ export function updatesFor(state: LanguageState, actorId: string, idx?: Indexes)
       }
     }
     for (const r of s.reviews) {
-      const version = s.versions[r.versionN - 1];
+      const version = s.versions.find((v) => v.n === r.versionN);
       if (version?.by === actorId && r.by !== actorId) out.push({ ...base, id: `review:${r.id}`, kind: 'review', by: r.by, hlc: r.hlc, review: r, version });
       if (r.by === actorId && r.response && r.response.by !== actorId) {
         out.push({ ...base, id: `answer:${r.id}`, kind: r.response.decision === 'revised' ? 'revision' : 'kept', by: r.response.by, hlc: r.response.hlc, review: r });

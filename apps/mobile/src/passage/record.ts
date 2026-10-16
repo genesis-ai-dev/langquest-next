@@ -417,6 +417,8 @@ export function describeEntry(e: RecordEntry, o: {
         who: r.via === 'logged' ? t('passage.record.entry.loggedBy', { name: name(r.by, true) }) : who
       };
     }
+    case 'deleted':
+      return { icon: 'trash', color: C.muted, title: t('passage.record.entry.versionDeleted', { n: e.version.n }), sub: '', who };
     case 'response':
       return { icon: 'edit', color: C.primary, title: t('passage.record.entry.revisedAfter', { kind: kindName(kinds, e.review.kindId) }), sub: said(e.response.note ?? ''), who };
     case 'request': {
