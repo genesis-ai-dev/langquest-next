@@ -98,8 +98,17 @@ async function answer(request: Request, deps: ApiDeps): Promise<Response> {
     return json(502, { error: 'The dashboard could not read this organization just now. Try again.' });
   }
   if (!out) return json(403, { error: 'You are not a member of this organization.' });
-  const body = url.searchParams.get('view') === 'summary' ? summarizeReports(out) : out;
+  const body = url.searchParams.get('view') === 'summary' ? summarizeReports(out) : withOverdueZero(out);
   const headers = { etag: await etagOf(body.rows), 'x-as-of': body.asOf };
   if (request.headers.get('if-none-match') === headers.etag) return new Response(null, { status: 304, headers: { ...NO_STORE, ...headers } });
   return json(200, body, headers);
+}
+
+/**
+ * Apps built before due dates were removed (decision 111) still show an
+ * "Overdue requests" tile and add up `attention.overdueRequests`; without the
+ * field they show NaN. Nothing is overdue any more, so they are told 0.
+ */
+function withOverdueZero(out: OrgReportsResponse): OrgReportsResponse {
+  return { ...out, rows: out.rows.map((r) => ({ ...r, report: { ...r.report, attention: { ...r.report.attention, overdueRequests: 0 } } })) };
 }

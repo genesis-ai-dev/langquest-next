@@ -4213,6 +4213,8 @@ the "Overdue requests" column, and the agent API's requests no longer carry
 `dueDate` (`docs/agent-api.md`). Stored data is unchanged: `v1.RequestMade`
 keeps its optional `dueDate` in the schema, the validator and the server's
 checks, so old events still sync, and an old request's date is simply not
-shown. Removing the field from stored events is left for Caleb to decide.
+shown. The reports API still sends `attention.overdueRequests: 0` (and the
+report version is 5), so an app built before this shows 0 on its old tile,
+not NaN. Removing the field from stored events is left for Caleb to decide.
 Reverse if: teams need deadlines on requests again; then bring back setting
 and showing `dueDate`, which old events still hold.

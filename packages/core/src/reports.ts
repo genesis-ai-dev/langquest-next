@@ -22,7 +22,7 @@ import type { LanguageState } from './state';
  */
 
 /** Bump when the report's shape or meaning changes. */
-export const REPORT_VERSION = 4;
+export const REPORT_VERSION = 5;
 
 /** Weeks of activity and coverage history a report carries, ending with the week that holds `now`. */
 export const REPORT_WEEKS = 53;
