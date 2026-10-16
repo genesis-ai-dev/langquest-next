@@ -37,7 +37,7 @@ describe('SyncClient', () => {
   });
 
   it('refuses an event bigger than the server takes before recording it', async () => {
-    // Why: the server refuses a payload over 64 KB (decisions.md 113); kept,
+    // Why: the server refuses a payload over 64 KB (decisions.md 115); kept,
     // it would sit rejected in the log, a write the person thinks was saved.
     const server = new FakeServer();
     const { client } = device(server, 'dA', 'lead', { t: 0 });

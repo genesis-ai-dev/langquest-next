@@ -245,6 +245,10 @@ export function validateEvent(e: AnyEvent): string | null {
       );
     case 'v1.RequestWithdrawn':
       return str('requestId');
+    case 'v1.ReviewWithdrawn':
+      return str('reviewId');
+    case 'v1.NoteWithdrawn':
+      return str('noteId');
     case 'v1.NoteAdded':
       return (
         str('noteId', 'unitId') ??
@@ -408,7 +412,7 @@ function cardVerseError(p: Record<string, unknown>): string | null {
 }
 
 /**
- * The most one event may carry (decisions.md 113): its payload as Postgres
+ * The most one event may carry (decisions.md 115): its payload as Postgres
  * prints it, and each envelope field. Checked where events are made
  * (SyncClient.append) and where the server takes them (append_events, SQL
  * `_event_size_refusal`), never in the fold, so nothing already in a log

@@ -1303,7 +1303,7 @@ could make a password account in that domain and be taken as looked-after
 by the server, which lets helpers issue it sign-in codes. `join` now sets
 `app_metadata.managed`, which only the service role can write, and
 `is_managed_account` asks for it as well as the domain (migration
-20261015233000; the accounts already in the domain were all made by `join`
+20261016080000; the accounts already in the domain were all made by `join`
 and are marked there). The phone still tells a looked-after account by its
 domain, which only changes what it shows.
 
@@ -3778,6 +3778,15 @@ public repository costs nothing. Reverse if: runner minutes start to cost
 (a private repository, or a paid plan's limit), or the shards' runs disagree
 with an unsharded one.
 
+Amended (2026-10-15, Carl Sauder): coverage thresholds also hold the
+mobile screen models (`apps/mobile/src/**/{model,*Model}.ts`), and every
+threshold sits about two points under what is measured, raised as coverage
+rises. A coverage audit that day found decision logic had grown back into
+screens and hooks (Get ready's help items, My Work's to-dos, the break-up
+rules) and a model at 0% that nothing flagged; the logic moved into models,
+and a threshold keeps it there. Thresholds well under the measured value had
+let a gain slip back unnoticed.
+
 ## 103. Large languages are projected by a scheduled GitHub job; the Edge pass leaves them out
 
 Date: 2026-10-14 · By: Caleb Koster · Status: accepted
@@ -4222,7 +4231,96 @@ Reverse if: phones that update while offline need their language on screen
 before they reach the server; then keep the pruned events beside the
 checkpoint until a checkpoint from the new reducer replaces it.
 
-## 111. No event may use a name every object already has
+## 111. Whoever gave a review or added a note can take it back, as a new event, and the record keeps the review crossed out
+
+Date: 2026-10-15 · By: Caleb Koster · Status: accepted
+
+Reason: Spoken's tester approved a peer check by accident and found no way
+back (LAN-84). A review was grow-only with no inverse: its toast had no
+Undo, the record stopped offering the check once it was approved, and only
+a moderator's redaction (48) could remove it. Caleb asked for approval to be
+undoable, and for the other actions people would want to take back. What
+was built:
+- **Two events, the shape `v1.RequestWithdrawn` already has.**
+  `v1.ReviewWithdrawn { reviewId }` and `v1.NoteWithdrawn { noteId }`,
+  add-wins (`withdrawnReviews`, `withdrawnNotes` in `RecordState`). Nothing is
+  deleted: the log keeps the review, and `derivePassage` leaves it out of
+  every status, so the check is open again, a request it answered is open
+  again (back on the reviewer's My Work), feedback stops waiting on the
+  translator, and a checkpoint it cleared holds the steps after it again.
+  Inbox rows follow, since they are derived (`updatesFor`).
+- **Only the author.** A withdrawal counts only when its actor is the
+  review's or note's own author (`withdrawnBy`), so a refused or stray one
+  changes nothing on a phone, whichever arrives first. The server's
+  `may_emit` refuses anyone else's, and one for a review or note it has not
+  seen (`20261015220000_withdraw_reviews_notes.sql`, `server/grantsSmoke.sql`
+  10b). Removing someone else's words stays a moderator's redaction (48).
+- **Where Undo is.** The toast after Looks good, Send feedback, a logged
+  check, a back translation and every note. Later: on your own check in its
+  step sheet, on your own review's page, and on your own review or note in
+  the history. A review taken back stays in the history and on its page,
+  crossed out, "undone just now"; a note taken back shows nowhere. No words
+  were added to explain any of it (Caleb's rule for this work).
+- **A study step marked done** already had a register (`v1.StudyStepMarked`),
+  so its Undo after the toast is the same event with `done: false`.
+Reducer version 17: the state has two new maps.
+Not given an Undo: publishing a version (the "Delete a version" work,
+LAN-83, takes that), withdrawing a request or bringing back a set-aside
+check (both are two taps to do again), declining a join request (the person
+can ask again), renames and library publishes (done again the same way), the
+license (final by design, 38), and a key term tie (grow-only, its own topic).
+Reverse if: teams need someone else (a coordinator) to take back a
+reviewer's verdict, then add a privilege for it beside Override checkpoints;
+or a verdict taken back must disappear from the history too, then show it
+only to its author.
+
+## 112. Diagnostics reach us without waiting on a stuck upload, cover sign-in, recording and the server's own jobs, and stay counts and codes
+
+Date: 2026-10-15 · By: Carl Sauder · Status: accepted
+
+Reason: Carl asked for an audit of what field diagnostics (39) can and
+cannot see after the features added since, and for every gap it found to be
+closed (2026-10-15). The worst gap was delivery itself: records went out
+only after a language sync with no upload waiting, and uploads retry for
+ever, so one file the server always refuses (a 413 over 50 MB, a 403 after
+removal) kept every record on the phone that support most needed to hear
+from; and a phone that never opened a language (no organization yet, a join
+request waiting, stuck on the organization stream) never sent anything.
+Now records also go when every waiting upload has failed at least once,
+after a refused sync, when the organization stream settles and on sign-in.
+The rest made failures that were invisible or mislabelled readable, still
+within 39's rule that a record is measurements and code-written tags:
+- `sync` says why work was rejected, separates a sign-in that could not be
+  renewed (a rate limit, a 5xx, a captive portal: it read as offline) and
+  carries an error's SQLSTATE or PostgREST code and where it failed;
+- `load` says why a fold ran and splits reading from folding; `checkpoint`
+  and `open` (first full pull) are new; `snapshot` says why it was fetched;
+- `transfer` names its source (guide media, hand-over, streamed play, source
+  audio, help, study files were untallied) and the Worker's refusals by
+  meaning (401/403, 404, 413, 422), and a file gone before upload;
+- `device` adds lost files (92), unsent and unrecoverable recordings, the
+  oldest unsent recording, the streams and events held, and the
+  diagnostics queue, including records dropped past its bound;
+- `error` takes a fixed code (a recorder's `nospace`, a SQLSTATE);
+- `expected` tallies per hour what `noteExpected` saw (it only logged), by
+  where, class and code; `audio` tallies recording and playback per hour per
+  language; `auth` records sign-in, renewal, a sign-out the person did not
+  choose, invites, hand-over and the account outbox, never a name, an email,
+  an invite or the other person on a shared phone.
+On the server, jobs that leave nothing support can read (push delivery,
+projection passes, the v2 import, webhooks, invite email, Worker errors)
+write counts to `diag.job_runs` through a service-role function, and
+`diag.jobs()` flags a job whose last success is too old; `npm run diag` gains
+`org`, `person` and `jobs`. Messages are still never kept: they can quote
+what someone typed. Turned down: accepting records before sign-in with the
+public key (an abuse and privacy cost for a gap that sign-in closes), native
+error codes from the microphone module (a native build; the JS side maps its
+texts to codes), and a third-party tracker for the Workers (39's reasons
+stand). Reverse if: the volume of `expected` or `audio` records outgrows the
+5000-a-day cap per install, or Play's Data safety review reads recording and
+sign-in outcomes as more than "App info and performance".
+
+## 113. No event may use a name every object already has
 
 Date: 2026-10-15 · By: Carl Sauder · Status: accepted
 
@@ -4235,7 +4333,7 @@ refold, for good, since the log is append-only. Now no string or key at any
 depth of a payload, and no envelope field, may be one of the names a plain
 object answers to (`OBJECT_MEMBER_NAMES` and `objectMemberNameIn` in
 `packages/core/src/validate.ts`; SQL `_names_object_member`, migration
-20261015200000). The fold runs `validateEvent` first, so an event like
+20261016020000). The fold runs `validateEvent` first, so an event like
 that already in a log is folded out as invalid. Checking every string, not
 only the fields that are ids, holds future event types without a list to
 keep; the cost is that a note or comment that is exactly one of these
@@ -4247,7 +4345,7 @@ key; tests `packages/core/test/objectMemberNames.test.ts`, server smoke 5e.
 Reverse if: a real text payload that is exactly one of these words is
 refused in the field; then check only the fields the folds use as keys.
 
-## 112. How someone joined is the server's to say
+## 114. How someone joined is the server's to say
 
 Date: 2026-10-15 · By: Carl Sauder · Status: accepted
 
@@ -4260,13 +4358,13 @@ lets a helper issue a sign-in code for a looked-after account that joined
 by consent, so an organization's admin could forge the consent that rule
 asks for. Both are now server-only, as `v1.InviteRedeemed` was: null in
 core's `EVENT_PRIVILEGE` (`packages/core/src/org.ts`) and in SQL
-`event_privilege` (migration 20261015210000). The RPCs keep their own
+`event_privilege` (migration 20261016030000). The RPCs keep their own
 `invite_members` checks and are unchanged; no client emitted either event.
 Server smoke: a lead's own JoinDecided and InviteIssued are refused.
 Reverse if: a client must issue invites or decide requests offline; then
 `_joined_by_consent` must instead require a matching row the server wrote.
 
-## 113. An event is at most 64 KB, and an account creates at most 5 organizations a day and 20 in all
+## 115. An event is at most 64 KB, and an account creates at most 5 organizations a day and 20 in all
 
 Date: 2026-10-15 · By: Carl Sauder · Status: accepted
 
@@ -4278,7 +4376,7 @@ organizations without end. Now, for signed-in callers, a payload as
 Postgres prints it is at most 64 KB and each envelope field at most 256
 characters (`eventSizeError` and `jsonbTextBytes` in
 `packages/core/src/validate.ts`, SQL `_event_size_refusal`, migration
-20261015220000). A recording's cards, the largest real payload, take about
+20261016040000). A recording's cards, the largest real payload, take about
 120 bytes each. The app refuses to record a bigger event
 (`EventTooLargeError` from `SyncClient.append`), since kept it could never be
 sent; the fold does not check size, so nothing already in a log changes
@@ -4294,7 +4392,7 @@ Reverse if: real work needs a bigger event (then split it, as cards are), or
 someone legitimately runs more than 20 organizations (then raise the
 allowance for that account rather than for everyone).
 
-## 114. An event goes on the kind of stream it belongs to
+## 116. An event goes on the kind of stream it belongs to
 
 Date: 2026-10-15 · By: Carl Sauder · Status: accepted
 
@@ -4308,13 +4406,13 @@ The folds skip foreign types, so they did nothing yet, but a later fold or
 report that read them would have believed them. Now, for signed-in callers,
 the organization's events (core `ORG_EVENT_TYPES`, SQL `_org_event_types`)
 go only on `_org`, every other event only on a language's stream, and
-`v1.Redacted` on either (migration 20261015230000; the parity script holds
+`v1.Redacted` on either (migration 20261016050000; the parity script holds
 the two lists together; server smoke 5f). The service role's imports keep
 their own rules.
 Reverse if: an event needs to live on both kinds of stream; then list it
 with `v1.Redacted`.
 
-## 115. A stream's pokes reach only those who may read it
+## 117. A stream's pokes reach only those who may read it
 
 Date: 2026-10-15 · By: Carl Sauder · Status: accepted
 
@@ -4326,7 +4424,7 @@ not secret, could still watch when and how much a language works. The poke
 is now private: a policy on `realtime.messages` lets a signed-in person hear
 a stream's channel only when `can_read_stream` says they may read it, asked
 through `may_hear_stream`, which answers only for the caller (migration
-20261015234000), and the phone joins with `private: true`
+20261016090000), and the phone joins with `private: true`
 (`packages/sync/src/supabaseTransport.ts`). Checked on the local stack: a
 member hears the poke and a stranger is refused the channel. An app from
 before this change subscribes to the public channel, hears nothing, and
@@ -4334,7 +4432,7 @@ falls back to its poll until it updates.
 Reverse if: joining private channels costs phones on weak links noticeably
 more than public ones did.
 
-## 116. A Worker request needs a session that is still live
+## 118. A Worker request needs a session that is still live
 
 Date: 2026-10-15 · By: Carl Sauder · Status: accepted
 
@@ -4344,7 +4442,7 @@ gone. A security audit found that a lost phone signed out from another
 (`sign-in-code`'s "sign out my other phones"), or a deleted account, kept
 reading recordings and reports, and could mint API tokens, until then. Now
 `profileOf` also asks `session_is_live` for the token's `session_id`
-(migration 20261015235000), remembering the answer for 30 seconds per
+(migration 20261016100000), remembering the answer for 30 seconds per
 isolate so a run of blob requests asks once (`apps/web/worker/liveSessions.ts`).
 When the question cannot be answered, the verified token stands: a
 database hiccup must not sign every phone out.

@@ -6,9 +6,10 @@
 // says what can come back and which passages need recording again.
 import type { LostFile } from '@langquest-next/sync';
 import type { LanguageState } from '@langquest-next/core';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Modal, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Modal, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { getBlobStore, type BlobStore } from './blobs';
+import { registerDeviceProbe } from '../diagnostics/diagnostics';
 import { HelpHost } from '../helpMode/helpBadge';
 import { Ico, PrimaryBtn, type IconName } from '../ui/kit';
 import { useHelpHost } from '../helpMode/useHelpMode';
@@ -46,6 +47,12 @@ export function LostFilesAlert(props: { state: LanguageState | null }) {
   const state = props.state;
   // One walk of the language's files per change, not per render.
   const words = useMemo(() => (state && lost.length ? lostFilesWords(state, lost) : null), [state, lost]);
+  // Field diagnostics read the counts at each delivery (the `device` record): files lost that
+  // nobody has seen the alert for, and of them the open language's recordings that never
+  // reached the server. Phones only, like the ledger (decisions.md 92).
+  const counts = useRef({ lostFiles: 0, lostRecordings: undefined as number | undefined });
+  counts.current = { lostFiles: lost.length, lostRecordings: words ? words.unsent : state ? 0 : undefined };
+  useEffect(() => (Platform.OS === 'web' ? undefined : registerDeviceProbe('lostFiles', () => counts.current)), []);
   if (!store || !words) return null;
   const seen = () => { void store.lostSeen(lost.map((l) => l.hash)); };
   return <LostFilesCard words={words} onSeen={seen} />;

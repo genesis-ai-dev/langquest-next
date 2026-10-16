@@ -6,6 +6,7 @@ const net = { down: new Set<string>(), fetched: [] as string[], hold: null as nu
 
 vi.mock('react-native', () => ({ Platform: { OS: 'ios' } }));
 vi.mock('../src/diagnostics/report', () => ({ noteExpected: () => {} }));
+vi.mock('../src/diagnostics/diagnostics', () => ({ timedTransfer: async (_dir: string, _where: unknown, run: () => Promise<unknown>) => run() }));
 vi.mock('expo-file-system', () => {
   class File {
     name: string;

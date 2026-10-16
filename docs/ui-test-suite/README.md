@@ -29,7 +29,7 @@ screens follow the simple redesign (decision 71 and its amendments) and
 | 04 | [04-map.md](04-map.md) | All languages, a language's map, books, chapters, search, filter | `MAP` | 21 |
 | 05 | [05-passage-record.md](05-passage-record.md) | The passage record, Something else?, Ask someone, Already happened, versions and history, set aside, checkpoints, Undo | `PASS` | 65 |
 | 06 | [06-recording.md](06-recording.md) | The recording workspace, voice detection, parts, Publish, microphone setup, interruptions | `REC` | 52 |
-| 07 | [07-reviewing.md](07-reviewing.md) | Review it, questions, verdicts, feedback, back translation, answering feedback | `REV` | 48 |
+| 07 | [07-reviewing.md](07-reviewing.md) | Review it, questions, verdicts, feedback, back translation, answering feedback | `REV` | 49 |
 | 08 | [08-study-and-reference.md](08-study-and-reference.md) | The study, key words, Bibles beside a passage, reference for one passage | `STUDY` | 36 |
 | 09 | [09-language-setup.md](09-language-setup.md) | New language and clusters, Get ready, templates, dividing books, review flows, reference material, the guide editor, licence | `SETUP` | 67 |
 | 10 | [10-people-and-roles.md](10-people-and-roles.md) | Members, invites, join requests, editing members, roles, review teams, the limits on granting | `PEOPLE` | 48 |
@@ -41,7 +41,7 @@ screens follow the simple redesign (decision 71 and its amendments) and
 | 16 | [16-role-journeys.md](16-role-journeys.md) | Whole jobs per role, and the passage lifecycle across every role | `JRN` | 14 |
 | 17 | [17-accessibility-and-field-use.md](17-accessibility-and-field-use.md) | Screen readers, target sizes, text size, colour, RTL, outdoor and low-end use | `A11Y` | 24 |
 
-**659 tests in all.**
+**660 tests in all.**
 
 ## How a test is written
 
@@ -291,7 +291,9 @@ The automated tests live beside the app (decision 95):
   (`01-getting-in.spec.ts` …). A test's title starts with its ID.
 - **Phones:** Maestro flows in `apps/mobile/test/maestro/flows/`, one file
   per test ID (`REC-023.yaml`), plus the P0 smoke set (`P0-*.yaml`, tag
-  `smoke`).
+  `smoke`). A smoke flow names
+  the specs it covers on a `# Covers: ID, ID` line, and only what it runs;
+  `scripts/uiSuite.test.ts` counts those IDs as implemented.
 - **Fixture:** `e2e/ui/fixture.ts` builds a fresh world through the
   real server in about a second (`npm run ui:fixture -- --out world.json`
   writes one to look at). Every web spec file gets its own world, and so
@@ -380,6 +382,12 @@ npm run test:ui:phone -- --platform ios --voice --tags smoke
 passed, 5 open, 7 skipped, in 12.9 minutes; median test 1.2 s. The five
 were test bugs, fixed the same day; MOD-016 and MOD-020 failed once each
 under load afterwards (`node scripts/ui-flakes.mjs` over the kept reports).
+
+**Tests that need a key the local stack lacks:** STUDY-030 (Bible Brain's
+language search) skips, saying so, unless the Worker has a real
+`BIBLE_BRAIN_ACCESS_KEY`; STUDY-033 is its mirror and runs without one.
+The rest of the study file runs on the world's own guide (Luke 15:11-32 with
+a recorded step and a glossary word) and Bible (`e2e/ui/study-helpers.ts`).
 
 **Phone results (2026-10-13, after merging main), test builds:** 23 of 31
 flows pass on iOS and 24 of 31 on Android (the two `wrapped` flows run on

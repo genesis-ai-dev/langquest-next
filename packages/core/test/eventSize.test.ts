@@ -4,7 +4,7 @@ import { buildFixture, buildOrgFixture, buildRecordFixture, buildStep11Fixture }
 
 // Why: append_events limited a push to 500 events but not their size, so one
 // member could push events of many megabytes that every phone in the language
-// must download and fold, and the log can never shed (decisions.md 113).
+// must download and fold, and the log can never shed (decisions.md 115).
 
 describe('how big an event may be', () => {
   it('every fixture event fits', () => {

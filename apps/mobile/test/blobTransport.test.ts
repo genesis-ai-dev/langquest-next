@@ -4,13 +4,24 @@
  * The Worker answers anything but PUT with 405, which the uploader takes
  * as a refusal, so a wrong method silently strands every recording.
  */
-const env = vi.hoisted(() => ({ platform: { OS: 'web' as string }, uploads: [] as { url: string; options: Record<string, unknown> }[] }));
+const env = vi.hoisted(() => ({
+  platform: { OS: 'web' as string },
+  uploads: [] as { url: string; options: Record<string, unknown> }[],
+  tallied: [] as { dir: string; where: Record<string, string>; failed: boolean }[]
+}));
 
 vi.mock('react-native', () => ({ Platform: env.platform }));
 vi.mock('../src/server/supabase', () => ({
   supabase: { auth: { getSession: async () => ({ data: { session: { access_token: 'tok' } }, error: null }) } }
 }));
 vi.mock('expo-file-system', () => ({ File: class {}, UploadType: { BINARY_CONTENT: 0 } }));
+// The diagnostics recorder, with its tally seen here: what streamed play counts.
+vi.mock('../src/diagnostics/diagnostics', () => ({
+  timedTransfer: async (dir: string, where: Record<string, string>, run: (t: object) => Promise<unknown>) => {
+    try { const r = await run({}); env.tallied.push({ dir, where, failed: false }); return r; }
+    catch (e) { env.tallied.push({ dir, where, failed: true }); throw e; }
+  }
+}));
 vi.mock('../src/sync/blobs', () => ({
   mimeOf: () => 'audio/wav',
   BlobStore: { hashOf: async () => 'h'.repeat(64) }
@@ -40,6 +51,7 @@ describe('blob transport', () => {
   beforeEach(() => {
     calls.length = 0;
     env.uploads.length = 0;
+    env.tallied.length = 0;
     vi.stubEnv('EXPO_PUBLIC_API_URL', 'https://next.example/');
     vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
       calls.push({ url, init });
@@ -92,6 +104,17 @@ describe('blob transport', () => {
     const { streamUrl } = await load('ios');
     expect(await streamUrl('o', 'L1', ref)).toBe(`https://next.example/api/blobs/o/L1/${HASH}.wav?expires=1&sig=s`);
     expect(calls[0]!.url).toBe(`https://next.example/api/blob-urls/o/L1/${HASH}.wav`);
+  });
+
+  it('a link to play from is tallied as a stream transfer of its language; a download\'s own link is not', async () => {
+    const { streamUrl, downloadBlob } = await load('web');
+    await streamUrl('o', 'L1', ref);
+    expect(env.tallied).toEqual([{ dir: 'down', where: { orgId: 'o', streamId: 'L1', src: 'stream' }, failed: false }]);
+    vi.stubGlobal('fetch', async () => new Response('no', { status: 403 }));
+    await expect(streamUrl('o', 'L1', ref)).rejects.toThrow(/\(403\)/);
+    expect(env.tallied[1]).toEqual({ dir: 'down', where: { orgId: 'o', streamId: 'L1', src: 'stream' }, failed: true });
+    await expect(downloadBlob('o', 'L1', ref, store as never)).rejects.toThrow();
+    expect(env.tallied).toHaveLength(2);
   });
 
   it('a refusal is a refusal, and a server fault is worth retrying', async () => {

@@ -759,18 +759,19 @@ Expected:
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android · Run: Device
 
 Steps:
-1. Open P-SUBMITTED. Tap "Something else?", "Add a note", type "Timing
-   test" and tap "Add note". Time the toast.
+1. Open P-SUBMITTED. Open "Versions and history" → "History" and tap
+   "Withdraw" on the open request. Time the toast.
 2. Open P-Q4 (Luke 13:31-35). Tap its first "Then the team" row and set the
    Back Translation aside with "Not needed for this passage" (PASS-023). Time
    the toast without tapping it.
 3. Turn on VoiceOver (iOS) or TalkBack (Android). Repeat step 2 on P-Q3, and
    this time tap "Undo".
 
-Resets: undo P-Q4's set aside from "Versions and history" → "History".
+Resets: undo P-Q4's set aside from "Versions and history" → "History", and
+ask REV again for P-SUBMITTED's Peer check.
 
 Expected:
-- "Note added — it follows this passage" has no Undo and lasts about 3.5 s.
+- "Request withdrawn" has no Undo and lasts about 3.5 s.
 - "Back Translation set aside · reason saved" has "Undo" and lasts about 7
   s.
 - With a screen reader on, both last twice as long. The toast is announced

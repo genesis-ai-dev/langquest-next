@@ -1,5 +1,5 @@
 -- Whether an access token's session is still live, for the Worker
--- (apps/web/worker/liveSessions.ts, decisions.md 116).
+-- (apps/web/worker/liveSessions.ts, decisions.md 118).
 --
 -- The Worker verifies access tokens itself (getClaims), and a token stays
 -- valid until it expires, an hour, even once its session is gone: after

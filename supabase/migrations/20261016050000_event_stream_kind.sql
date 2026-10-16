@@ -1,4 +1,4 @@
--- An event goes on the kind of stream it belongs to (decisions.md 114).
+-- An event goes on the kind of stream it belongs to (decisions.md 116).
 --
 -- append_events asked only whether the author held the event's privilege,
 -- not whether the event belonged on that stream, so an organization's
@@ -14,7 +14,7 @@
 -- together.
 --
 -- append_events is restated whole, as `create or replace`, from
--- 20261015220000_event_size_and_org_quota.sql's.
+-- 20261016040000_event_size_and_org_quota.sql's.
 
 create or replace function public._org_event_types()
 returns text[] language sql immutable set search_path = '' as $$
@@ -58,7 +58,7 @@ begin
       id := v_id; accepted := false; server_seq := null; reason := 'malformed envelope: a name every object has, such as __proto__';
       return next; continue;
     end if;
-    -- Small enough for every phone to fold (decisions.md 113); the service role's imports are its own.
+    -- Small enough for every phone to fold (decisions.md 115); the service role's imports are its own.
     if v_actor is not null then
       v_invalid := public._event_size_refusal(ev);
       if v_invalid is not null then
@@ -100,7 +100,7 @@ begin
     end if;
 
     -- An organization's events go on its stream, a language's on the
-    -- language's; only a redaction goes on either (decisions.md 114).
+    -- language's; only a redaction goes on either (decisions.md 116).
     if v_actor is not null and v_type <> 'v1.Redacted'
        and (v_stream = '_org') is distinct from (v_type = any (public._org_event_types())) then
       id := v_id; accepted := false; server_seq := null;

@@ -1,44 +1,26 @@
--- No event may use a name every object already has (decisions.md 111).
+-- Taking back your own review or note (decisions.md 111, LAN-84).
 --
--- The fold keys its maps by the ids in events (`state.takes[takeId]`). An
--- event whose take id was `__proto__` reached Object.prototype instead of a
--- take, so one member's push changed every object on every phone in that
--- language and in the projection worker, on every refold, for good: the log
--- is append-only. Core's validateEvent now refuses any string or key, at any
--- depth of the payload or in the envelope, that is one of the names a plain
--- object answers to (OBJECT_MEMBER_NAMES); the server refuses the same.
+--   v1.ReviewWithdrawn  { reviewId }
+--   v1.NoteWithdrawn    { noteId }
 --
--- validate_payload is restated whole, as `create or replace`, from
--- 20261014200000_clusters.sql's, with the check after the object check.
--- append_events is restated whole from
--- 20261015180000_append_duplicate_under_lock.sql's, with the envelope check
--- after the malformed-envelope check. scripts/record-parity-sql.ts holds the
--- payload rule to core.
-
--- Core OBJECT_MEMBER_NAMES (packages/core/src/validate.ts).
-create or replace function public._object_member_names()
-returns text[] language sql immutable set search_path = '' as $$
-  select array['__proto__', 'constructor', 'prototype', 'hasOwnProperty', 'isPrototypeOf', 'propertyIsEnumerable',
-    'toLocaleString', 'toString', 'valueOf', '__defineGetter__', '__defineSetter__', '__lookupGetter__', '__lookupSetter__'];
-$$;
-
-create or replace function public._names_object_member(p jsonb)
-returns boolean language sql immutable set search_path = '' as $$
-  select exists (
-    select 1 from jsonb_path_query(p, 'strict $.** ? (@.type() == "string")') s
-    where s #>> '{}' = any (public._object_member_names())
-  ) or exists (
-    select 1 from jsonb_path_query(p, 'strict $.** ? (@.type() == "object").keyvalue().key') k
-    where k #>> '{}' = any (public._object_member_names())
-  );
-$$;
+-- Add-wins, like v1.RequestWithdrawn: the review or note stays in the log,
+-- and core's fold leaves it out of everything but a review's line in the
+-- history. Only whoever recorded it may take it back: may_emit looks the
+-- review or note up in the same stream and refuses anyone else, and anything
+-- the server has not seen (a withdrawal never comes before its review, since
+-- a phone pushes in order). The fold also ignores a withdrawal by anyone but
+-- the author, so a refused one changes nothing on a phone either.
+--
+-- validate_payload and event_privilege are restated whole, as `create or
+-- replace`, from 20261014200000_clusters.sql's, plus these events (no later migration restates them).
+-- scripts/record-parity-sql.ts holds them to core. may_emit is restated from
+-- 20261013140000_override_undo_privilege.sql's.
 
 create or replace function public.validate_payload(p_type text, p jsonb)
 returns text language plpgsql immutable as $$
 declare x jsonb; n int;
 begin
   if p is null or jsonb_typeof(p) <> 'object' then return 'payload must be an object'; end if;
-  if public._names_object_member(p) then return 'payload may not use a name every object has, such as __proto__'; end if;
 
   -- The library's items: an id people can read, of a kind the library knows.
   if p_type like 'v1.Library%' then
@@ -294,6 +276,10 @@ begin
       if n <> 1 then return 'exactly one of profileId, guest, teamId'; end if;
     when 'v1.RequestWithdrawn' then
       if not public._is_str(p->'requestId') then return 'requestId must be a non-empty string'; end if;
+    when 'v1.ReviewWithdrawn' then
+      if not public._is_str(p->'reviewId') then return 'reviewId must be a non-empty string'; end if;
+    when 'v1.NoteWithdrawn' then
+      if not public._is_str(p->'noteId') then return 'noteId must be a non-empty string'; end if;
     when 'v1.NoteAdded' then
       if not (public._is_str(p->'noteId') and public._is_str(p->'unitId')) then return 'noteId, unitId must be non-empty strings'; end if;
       if not (public._is_opt_str(p->'text') and public._is_opt_str(p->'blobHash') and public._is_opt_str(p->'photoHash') and public._is_opt_str(p->'onTakeId')) then
@@ -374,177 +360,115 @@ begin
   return null;
 end $$;
 
-create or replace function public.append_events(p_events jsonb, p_client_version int default 0)
-returns table (id text, accepted boolean, server_seq bigint, reason text)
-language plpgsql security definer set search_path = public as $$
-declare
-  ev jsonb;
-  v_actor text := public.caller_id();
-  v_org text; v_stream text; v_type text; v_id text; v_hlc text;
-  v_seq bigint; v_invalid text; v_key text;
-  v_prior public.events;
-  v_now_ms bigint := (extract(epoch from clock_timestamp()) * 1000)::bigint;
-  v_wall_ms bigint;
-  v_tolerance bigint;
-  v_ok boolean;
-  v_bootstrap boolean;
+create or replace function public.event_privilege(p_type text, p jsonb)
+returns text language sql immutable as $$
+  select case p_type
+    -- organization stream
+    when 'v1.OrgCreated' then 'bootstrap'
+    when 'v1.OrgRenamed' then 'manage_roles'
+    when 'v1.RoleDefined' then 'manage_roles'
+    when 'v1.RoleRetired' then 'manage_roles'
+    when 'v1.MemberAdded' then 'invite_members'
+    when 'v1.MemberRemoved' then 'invite_members'
+    when 'v1.InviteIssued' then 'invite_members'
+    when 'v1.InviteRedeemed' then null
+    when 'v1.JoinDecided' then 'invite_members'
+    when 'v1.LicenseSet' then 'manage_roles'
+    when 'v1.LanguageAdded' then 'manage_structure'
+    when 'v1.LanguageRenamed' then 'manage_structure'
+    when 'v1.LanguageCodeSet' then 'manage_structure'
+    when 'v1.LanguageCountrySet' then 'manage_structure'
+    when 'v1.LanguageTargetSet' then 'manage_structure'
+    when 'v1.ClusterNamed' then 'manage_structure'
+    when 'v1.LanguageClusterSet' then 'manage_structure'
+    when 'v1.ReferenceRecommended' then 'manage_reference'
+    when 'v1.LibraryItemDefined' then public._library_privilege(p->>'kind')
+    when 'v1.LibraryVersionPublished' then public._library_privilege(p->>'kind')
+    when 'v1.LibrarySharingSet' then public._library_privilege(p->>'kind')
+    when 'v1.LibraryItemArchived' then public._library_privilege(p->>'kind')
+    when 'v1.LibrarySubscribed' then public._library_privilege(p->>'kind')
+    when 'v1.LibraryPinned' then public._library_privilege(p->>'kind')
+    -- either stream
+    when 'v1.Redacted' then 'manage_structure'
+    -- language stream
+    when 'v1.TemplateSelected' then 'manage_templates'
+    when 'v1.UnitAdded' then 'manage_templates'
+    when 'v1.UnitHidden' then 'manage_templates,shape_templates'
+    when 'v1.BookNameSet' then 'manage_templates'
+    when 'v1.FlowSelected' then 'manage_flows'
+    when 'v1.FlowStepSet' then 'manage_flows'
+    when 'v1.FlowStepRemoved' then 'manage_flows'
+    when 'v1.ReviewKindDefined' then 'manage_flows'
+    when 'v1.ReviewTeamDefined' then 'manage_teams'
+    when 'v1.ReviewTeamMemberSet' then 'manage_teams'
+    when 'v1.ReviewTeamKindSet' then 'manage_teams'
+    when 'v1.FlowStepLinksSet' then 'manage_flows'
+    when 'v1.CheckHelpSet' then 'manage_flows'
+    when 'v1.VersionReleased' then 'assign_work'
+    when 'v1.RecordingAdded' then 'translate'
+    when 'v1.TakeComposed' then 'translate'
+    when 'v1.TakeArchived' then 'translate'
+    when 'v1.CardVerseSet' then 'translate'
+    when 'v1.TakeSubmitted' then 'translate'
+    when 'v1.ResponseRecorded' then 'translate'
+    when 'v1.AudioFormatSet' then 'translate,review,assign_work,send_to_reviewers,override_checkpoints,fill_reference'
+    when 'v1.ExternalValueSet' then 'translate,review,fill_reference'
+    when 'v1.ReviewRecorded' then case when p->>'via' in ('logged', 'link') then 'review,translate' else 'review' end
+    when 'v1.DepartureRecorded' then case p->>'type'
+      when 'override' then 'override_checkpoints' when 'keep' then 'translate' else 'translate,review,assign_work' end
+    when 'v1.DepartureUndone' then 'translate,review,assign_work,override_checkpoints'
+    when 'v1.RequestMade' then 'send_to_reviewers,assign_work'
+    when 'v1.RequestWithdrawn' then 'send_to_reviewers,assign_work'
+    when 'v1.NoteAdded' then 'translate,review,fill_reference'
+    when 'v1.ReviewWithdrawn' then 'review,translate'
+    when 'v1.NoteWithdrawn' then 'translate,review,fill_reference'
+    when 'v1.StudyStepMarked' then 'translate'
+    when 'v1.MaterialDefined' then case when p->>'kind' = 'questions' then 'fill_reference' else 'manage_reference' end
+    when 'v1.MaterialFieldSet' then 'fill_reference'
+    when 'v1.MaterialLocked' then 'manage_reference'
+    when 'v1.KeyTermDefined' then 'fill_reference'
+    when 'v1.KeyTermRenderingAdded' then 'fill_reference'
+    when 'v1.KeyTermAdjusted' then 'fill_reference'
+    when 'v1.KeyTermLinked' then 'fill_reference'
+    when 'v1.ReferenceSet' then 'manage_reference'
+    when 'v1.ReferenceLanguageSet' then 'manage_reference'
+    when 'v1.PassageReferenceLinked' then 'manage_reference'
+    when 'v1.ReferencesUsed' then 'translate,review'
+    else null
+  end;
+$$;
+
+create or replace function public.may_emit(p_org text, p_stream text, p_profile text, p_type text, p jsonb)
+returns boolean language plpgsql stable security definer set search_path = '' as $$
+declare v_priv text := public.event_privilege(p_type, p);
 begin
-  perform public.require_client_version(p_client_version);
-  select clock_ahead_tolerance_ms into v_tolerance from public.server_config;
-  if jsonb_typeof(p_events) <> 'array' then
-    raise exception 'p_events must be a jsonb array' using errcode = '22023';
+  if v_priv is null or v_priv = 'bootstrap' then return false; end if;
+  if p_type = 'v1.DepartureUndone' and exists (
+    select 1 from public.events e
+    where e.org_id = p_org and e.stream_id = p_stream and e.type = 'v1.DepartureRecorded'
+      and e.payload->>'departureId' = p->>'departureId' and e.payload->>'type' = 'override')
+  then
+    v_priv := 'override_checkpoints';
   end if;
-  if jsonb_array_length(p_events) > 500 then
-    raise exception 'batch too large: % events (max 500); page the push', jsonb_array_length(p_events) using errcode = '22023';
+  -- Your own review or note only.
+  if p_type = 'v1.ReviewWithdrawn' and not exists (
+    select 1 from public.events e
+    where e.org_id = p_org and e.stream_id = p_stream and e.type = 'v1.ReviewRecorded'
+      and e.payload->>'reviewId' = p->>'reviewId' and e.actor_id = p_profile)
+  then
+    return false;
   end if;
-
-  for ev in select * from jsonb_array_elements(p_events) loop
-    v_id := ev->>'id'; v_org := ev->>'orgId'; v_stream := ev->>'streamId'; v_type := ev->>'type'; v_hlc := ev->>'hlc';
-
-    if not (public._is_str(ev->'id') and public._is_str(ev->'orgId') and public._is_str(ev->'streamId')
-            and public._is_str(ev->'type') and public._is_str(ev->'hlc') and public._is_str(ev->'deviceId')
-            and public._is_str(ev->'actorId')) or ev->'payload' is null then
-      id := v_id; accepted := false; server_seq := null; reason := 'malformed envelope';
-      return next; continue;
-    end if;
-    if public._names_object_member(jsonb_build_array(ev->'id', ev->'orgId', ev->'streamId', ev->'type', ev->'hlc', ev->'deviceId', ev->'actorId')) then
-      id := v_id; accepted := false; server_seq := null; reason := 'malformed envelope: a name every object has, such as __proto__';
-      return next; continue;
-    end if;
-
-    if v_actor is not null and ev->>'actorId' <> v_actor then
-      id := v_id; accepted := false; server_seq := null; reason := 'actorId does not match caller';
-      return next; continue;
-    end if;
-
-    -- One id, one event: the same event again is a duplicate; the id on
-    -- anything else is refused, never answered as if it were this one.
-    select * into v_prior from public.events e where e.id = v_id;
-    if found then
-      if v_prior.org_id = v_org and v_prior.stream_id = v_stream and v_prior.actor_id = ev->>'actorId' and v_prior.type = v_type then
-        id := v_id; accepted := true; server_seq := v_prior.server_seq; reason := 'duplicate';
-      else
-        id := v_id; accepted := false; server_seq := null; reason := 'malformed envelope: event id already used';
-      end if;
-      return next; continue;
-    end if;
-    if v_actor is not null and public._server_event_id(v_id) then
-      id := v_id; accepted := false; server_seq := null; reason := 'malformed envelope: event id reserved for the server';
-      return next; continue;
-    end if;
-
-    v_wall_ms := nullif(regexp_replace(split_part(v_hlc, ':', 1), '\D', '', 'g'), '')::bigint;
-    if v_wall_ms is null then
-      id := v_id; accepted := false; server_seq := null; reason := 'malformed envelope';
-      return next; continue;
-    end if;
-    if v_wall_ms > v_now_ms + v_tolerance then
-      id := v_id; accepted := false; server_seq := null;
-      reason := format('clock ahead: server time %s', v_now_ms);
-      return next; continue;
-    end if;
-
-    -- A person's stream is written only by record_user_event.
-    if v_org = '_person' then
-      id := v_id; accepted := false; server_seq := null; reason := format('may not emit %s here', v_type);
-      return next; continue;
-    end if;
-
-    -- A third-party app's value comes only from the app's Worker (the
-    -- service role), as the person behind a live token that holds the
-    -- external_values scope and reaches this language (decisions.md 79).
-    if v_type = 'v1.ExternalValueSet' and not (v_actor is null
-         and public._external_values_token(v_org, v_stream, ev->>'actorId', ev->>'deviceId')) then
-      id := v_id; accepted := false; server_seq := null; reason := format('may not emit %s', v_type);
-      return next; continue;
-    end if;
-
-    v_ok := public.may_emit(v_org, v_stream, ev->>'actorId', v_type, ev->'payload');
-    v_bootstrap := false;
-    if not v_ok and v_stream = '_org' then
-      -- The organization's creation: until anyone is a member, and while
-      -- nobody else has written to it, its creator may create it, define
-      -- its roles and make themselves its first member.
-      v_ok := not exists (select 1 from public.org_memberships m where m.org_id = v_org)
-        and not exists (select 1 from public.events e where e.org_id = v_org and e.stream_id = '_org' and e.actor_id <> ev->>'actorId')
-        and (v_type in ('v1.OrgCreated', 'v1.RoleDefined')
-          or (v_type = 'v1.MemberAdded' and ev->'payload'->>'profileId' = ev->>'actorId'
-              and ev->'payload'->'scope'->>'level' = 'org'));
-      v_bootstrap := v_ok;
-    end if;
-    if not v_ok then
-      id := v_id; accepted := false; server_seq := null;
-      reason := case
-        when not public.can_read_stream(v_org, v_stream, ev->>'actorId') then 'not a member'
-        else format('may not emit %s', v_type)
-      end;
-      return next; continue;
-    end if;
-
-    -- A language stream exists once the organization lists the language. A
-    -- phone may push a new language's events before the organization's
-    -- (two streams, two outboxes); it retries them (NOT_LISTED).
-    if v_stream <> '_org' and not public.language_listed(v_org, v_stream) then
-      id := v_id; accepted := false; server_seq := null; reason := 'language not listed yet';
-      return next; continue;
-    end if;
-
-    v_invalid := public.validate_payload(v_type, ev->'payload');
-    if v_invalid is not null then
-      id := v_id; accepted := false; server_seq := null; reason := 'invalid payload: ' || v_invalid;
-      return next; continue;
-    end if;
-
-    -- A redaction is never redacted (rule 7).
-    if v_type = 'v1.Redacted' and exists (select 1 from public.events e
-         where e.id = ev->'payload'->>'eventId' and e.type = 'v1.Redacted') then
-      id := v_id; accepted := false; server_seq := null; reason := 'invalid payload: a redaction cannot be redacted';
-      return next; continue;
-    end if;
-
-    -- Nobody grants more than they hold (the workers, as the service role, import and seed).
-    if v_actor is not null and v_stream = '_org' and not v_bootstrap then
-      v_invalid := public._grant_refusal(v_org, v_actor, v_type, ev->'payload');
-      if v_invalid is not null then
-        id := v_id; accepted := false; server_seq := null; reason := format('may not emit %s: %s', v_type, v_invalid);
-        return next; continue;
-      end if;
-    end if;
-
-    -- From here the stream is locked. The same event pushed again while
-    -- this one was in flight (a retry after a lost response) has committed
-    -- by now, so it is a duplicate, as above.
-    perform public._lock_stream(v_org, v_stream);
-    select * into v_prior from public.events e where e.id = v_id;
-    if found then
-      if v_prior.org_id = v_org and v_prior.stream_id = v_stream and v_prior.actor_id = ev->>'actorId' and v_prior.type = v_type then
-        id := v_id; accepted := true; server_seq := v_prior.server_seq; reason := 'duplicate';
-      else
-        id := v_id; accepted := false; server_seq := null; reason := 'malformed envelope: event id already used';
-      end if;
-      return next; continue;
-    end if;
-
-    -- One create, one entity, checked under the stream's lock.
-    v_key := public._entity_key(v_type, ev->'payload');
-    if v_key is not null and exists (select 1 from public.events e
-         where e.org_id = v_org and e.stream_id = v_stream and public._entity_key(e.type, e.payload) = v_key) then
-      id := v_id; accepted := false; server_seq := null;
-      reason := format('invalid payload: %s id %s is already used', split_part(v_key, ':', 1), substr(v_key, length(split_part(v_key, ':', 1)) + 2));
-      return next; continue;
-    end if;
-
-    v_seq := public._next_seq(v_org, v_stream);
-    insert into public.events (id, org_id, stream_id, server_seq, type, actor_id, device_id,
-                               hlc, parent_event_id, payload)
-    values (v_id, v_org, v_stream, v_seq, v_type, ev->>'actorId', ev->>'deviceId',
-            v_hlc, ev->>'parentEventId', ev->'payload');
-
-    if v_stream = '_org' then
-      perform public._apply_org_event(v_org, v_id, v_type, ev->'payload', v_hlc, ev->>'actorId');
-    end if;
-
-    id := v_id; accepted := true; server_seq := v_seq; reason := null;
-    return next;
-  end loop;
+  if p_type = 'v1.NoteWithdrawn' and not exists (
+    select 1 from public.events e
+    where e.org_id = p_org and e.stream_id = p_stream and e.type = 'v1.NoteAdded'
+      and e.payload->>'noteId' = p->>'noteId' and e.actor_id = p_profile)
+  then
+    return false;
+  end if;
+  return string_to_array(v_priv, ',') && public.org_privileges(
+    p_org, p_profile,
+    case when p_stream = '_org' then public.language_of_org_event(p_type, p) else p_stream end);
 end $$;
+
+revoke all on function public.may_emit(text, text, text, text, jsonb) from public, anon, authenticated;
+grant execute on function public.may_emit(text, text, text, text, jsonb) to service_role;

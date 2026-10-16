@@ -33,6 +33,7 @@ import { workerBlobs } from '@langquest-next/sync';
 import { createHash, randomBytes } from 'node:crypto';
 import { refuseBoardRequest, TOKEN_HEADER } from './v2Guard';
 import { foldLanguage, foldOrg, ORG_STREAM, subscriptionItemId, validateEvent } from '@langquest-next/core';
+import { errorClassOf, jobRunSink, noJobRuns, type JobRun } from './jobRuns';
 import { bucketName, boardData, mapProject, parseRecommendations, reconcile, restReader, supabaseTarget, sync, WAYS, LIBRARY_ORG, type ChosenRole, type CopiedFile, type SavedPlacement, type PlanOrg, type TemplateRef } from '@langquest-next/v2-import';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -170,7 +171,20 @@ const concurrency = Math.max(1, Math.min(64, Number(process.env['V2_IMPORT_CONCU
 const deps = { v2, target, ...(cache ? { cache } : {}), print, concurrency, by: process.env['V2_IMPORT_BY'] ?? (whoAmI() || 'the command line') };
 
 if (command === 'sync') {
-  const reports = await sync(deps, { all: flag('all'), projects: values('project') });
+  const startedAt = Date.now();
+  const projects = values('project');
+  // The scheduled passes leave a job run (diag.jobs, docs/diagnostics.md):
+  // counts over the projects read, never a project's name. One for chosen
+  // projects, by hand, would hide whether the schedule still runs.
+  const record = projects.length ? noJobRuns : jobRunSink(url, serviceKey);
+  let reports: Awaited<ReturnType<typeof sync>>;
+  try {
+    reports = await sync(deps, { all: flag('all'), projects });
+  } catch (e) {
+    await record({ job: 'v2_import', startedAt, ms: Date.now() - startedAt, outcome: 'error', errorClass: errorClassOf(e) });
+    throw e;
+  }
+  await record(v2ImportRun(reports, startedAt));
   const refused = reports.filter((r) => r.rejected?.length || r.skipped?.startsWith('failed'));
   for (const r of refused) console.log(`${r.projectId}: ${r.skipped ?? r.rejected!.slice(0, 5).map((x) => `${x.id} (${x.reason})`).join('; ')}`);
   if (refused.length) process.exitCode = 2;
@@ -181,6 +195,32 @@ if (command === 'sync') {
 } else {
   console.error('usage: npm run v2 -- board | sync [--all] [--project <v2 id> …] | try --project <v2 id> …');
   process.exit(2);
+}
+
+/** One pass's job run: projects read, failed, refused, and their events and files summed. */
+function v2ImportRun(reports: Awaited<ReturnType<typeof sync>>, startedAt: number): JobRun {
+  const n: Record<string, number> = {
+    projects: reports.length, failed: 0, skipped: 0, refused: 0,
+    eventsAccepted: 0, eventsDuplicate: 0, eventsRejected: 0, filesCopied: 0, filesMissing: 0, filesUploaded: 0
+  };
+  for (const r of reports) {
+    if (r.skipped?.startsWith('failed')) n['failed']! += 1;
+    else if (r.skipped) n['skipped']! += 1;
+    if (r.rejected?.length) n['refused']! += 1;
+    n['eventsAccepted']! += r.append?.accepted ?? 0;
+    n['eventsDuplicate']! += r.append?.duplicates ?? 0;
+    n['eventsRejected']! += r.append?.rejected ?? 0;
+    n['filesCopied']! += r.files?.copied ?? 0;
+    n['filesMissing']! += r.files?.missing ?? 0;
+    n['filesUploaded']! += r.files?.uploaded ?? 0;
+  }
+  const bad = n['failed']! + n['refused']!;
+  return {
+    job: 'v2_import', startedAt, ms: Date.now() - startedAt, n,
+    outcome: bad === 0 ? 'ok' : bad < reports.length ? 'partial' : 'error',
+    // The first failure's class (never its message: it can name a project), else that events were refused.
+    ...(n['failed'] ? { errorClass: errorClassOf(reports.find((r) => r.error)?.error) } : n['refused'] ? { errorClass: 'events_refused' } : {})
+  };
 }
 
 async function board(port: number) {

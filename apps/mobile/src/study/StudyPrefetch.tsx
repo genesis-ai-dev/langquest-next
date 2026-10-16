@@ -23,11 +23,12 @@ export function StudyPrefetch(props: { ctx: Ctx }) {
   const unitIds = useMemo(() => (key ? key.split(',') : []), [key]);
   const guides = useStudyGuides(ctx, unitIds);
   const online = ctx.language.online !== false;
+  const { orgId, languageId } = ctx.language;
   useEffect(() => {
     if (!STUDY_FILES_OFFLINE) return;
     const next = new Map<string, string[]>();
     for (const [unitId, guide] of guides) next.set(unitId, studyUrls(guide));
-    setStudyWanted(next, online);
-  }, [guides, online]);
+    setStudyWanted(next, online, { orgId, languageId });
+  }, [guides, online, orgId, languageId]);
   return null;
 }

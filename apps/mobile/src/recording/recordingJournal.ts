@@ -1,8 +1,9 @@
 import { getStore } from '../sync/store';
 import { File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
+import { registerDeviceProbe } from '../diagnostics/diagnostics';
 import {
-  parseJournal, removeEntry, resumeEntries, upsertEntry,
+  journalCounts, parseJournal, removeEntry, resumeEntries, upsertEntry,
   type JournalEntry, type ResumeDeps, type ResumeResult
 } from './recordingJournalModel';
 
@@ -20,6 +21,8 @@ export class RecordingJournal {
   private entries: JournalEntry[] | null = null;
   private chain: Promise<unknown> = Promise.resolve();
   private loading: Promise<JournalEntry[]> | undefined;
+  /** Entries the last pass for their language could not finish; they stay for the next. */
+  private readonly failedIds = new Set<string>();
 
   private async load(): Promise<JournalEntry[]> {
     if (this.entries) return this.entries;
@@ -61,10 +64,20 @@ export class RecordingJournal {
   }
 
   remove(id: string): Promise<void> {
+    this.failedIds.delete(id);
     return this.change((entries) => removeEntry(entries, id));
   }
 
-  /** Finish unfinished saves for one language; entries that succeed or are unrecoverable leave the journal. */
+  /** Takes waiting to be saved, and those a recovery could not save, for field diagnostics. */
+  async counts(): Promise<{ journalPending: number; journalFailed: number }> {
+    return journalCounts(await this.all(), this.failedIds);
+  }
+
+  /**
+   * Finish unfinished saves for one language; entries that succeed or are
+   * unrecoverable leave the journal. The caller notes each failure for field
+   * diagnostics (useLanguage.ts); the journal counts those still waiting.
+   */
   async resume(language: { orgId: string; languageId: string }, deps: Omit<ResumeDeps, 'save' | 'fileExists'>): Promise<ResumeResult> {
     const result = await resumeEntries([...(await this.all())], language, {
       ...deps,
@@ -74,6 +87,7 @@ export class RecordingJournal {
       fileExists: (uri) => { if (Platform.OS === 'web') return false; try { return new File(uri).exists; } catch { return false; } },
       save: (entry) => this.put(entry)
     });
+    for (const { id } of result.failed) this.failedIds.add(id);
     for (const id of [...result.resumed, ...result.dropped]) await this.remove(id);
     return result;
   }
@@ -81,6 +95,10 @@ export class RecordingJournal {
 
 let journal: RecordingJournal | undefined;
 export function getRecordingJournal(): RecordingJournal {
-  if (!journal) journal = new RecordingJournal();
+  if (!journal) {
+    const created = new RecordingJournal();
+    journal = created;
+    registerDeviceProbe('recordingJournal', () => created.counts());
+  }
   return journal;
 }

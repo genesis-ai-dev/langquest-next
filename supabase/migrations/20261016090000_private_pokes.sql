@@ -1,4 +1,4 @@
--- A stream's pokes go to its readers only (decisions.md 115).
+-- A stream's pokes go to its readers only (decisions.md 117).
 --
 -- events_notify broadcast on a public Realtime channel, so anyone with the
 -- publishable key who knew an `events:<org>/<stream>` name could watch when

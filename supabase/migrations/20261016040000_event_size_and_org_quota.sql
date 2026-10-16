@@ -1,5 +1,5 @@
 -- An event is at most 64 KB, and an account creates at most 5 organizations
--- a day and 20 in all (decisions.md 113).
+-- a day and 20 in all (decisions.md 115).
 --
 -- append_events limited a push to 500 events but not their size, so one
 -- member could push notes of many megabytes that every phone in the
@@ -20,7 +20,7 @@
 --   * record_user_event takes the same 64 KB limit.
 --
 -- append_events is restated whole, as `create or replace`, from
--- 20261015200000_object_member_names.sql's; record_user_event from
+-- 20261016020000_object_member_names.sql's; record_user_event from
 -- 20261006000000_baseline.sql's.
 
 create table public.org_bootstraps (
@@ -121,7 +121,7 @@ begin
       id := v_id; accepted := false; server_seq := null; reason := 'malformed envelope: a name every object has, such as __proto__';
       return next; continue;
     end if;
-    -- Small enough for every phone to fold (decisions.md 113); the service role's imports are its own.
+    -- Small enough for every phone to fold (decisions.md 115); the service role's imports are its own.
     if v_actor is not null then
       v_invalid := public._event_size_refusal(ev);
       if v_invalid is not null then

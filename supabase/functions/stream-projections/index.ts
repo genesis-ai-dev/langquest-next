@@ -20828,7 +20828,9 @@ function emptyRecordState() {
     undoneDepartures: {},
     requests: {},
     withdrawnRequests: {},
+    withdrawnReviews: {},
     notes: {},
+    withdrawnNotes: {},
     studyMarks: {}
   };
 }
@@ -21328,6 +21330,10 @@ function validateEvent(e) {
       return str("requestId", "unitId") ?? oneOf("what", ["record", "review"]) ?? optStr("kindId", "profileId", "teamId", "dueDate", "note", "noteBlobHash") ?? (p["what"] === "review" && !p["kindId"] ? "a review request needs kindId" : null) ?? (p["guest"] === void 0 || guest(p["guest"]) ? null : "guest needs name, channel, contact") ?? (p["questions"] === void 0 || questions(p["questions"]) ? null : "questions must be id, text, type") ?? (["profileId", "guest", "teamId"].filter((k) => p[k] !== void 0 && p[k] !== "").length === 1 ? null : "exactly one of profileId, guest, teamId");
     case "v1.RequestWithdrawn":
       return str("requestId");
+    case "v1.ReviewWithdrawn":
+      return str("reviewId");
+    case "v1.NoteWithdrawn":
+      return str("noteId");
     case "v1.NoteAdded":
       return str("noteId", "unitId") ?? optStr("text", "blobHash", "photoHash", "onTakeId") ?? anchor(p["anchor"]) ?? (!p["text"] && !p["blobHash"] && !p["photoHash"] ? "a note needs text, audio or a photo" : null);
     case "v1.StudyStepMarked":
@@ -21456,7 +21462,7 @@ function stable(v) {
 }
 
 // packages/core/src/reducer.ts
-var REDUCER_VERSION = 16;
+var REDUCER_VERSION = 17;
 var REVISIONS = /* @__PURE__ */ new WeakMap();
 function stateRevision(state) {
   return REVISIONS.get(state) ?? 0;
@@ -21626,6 +21632,12 @@ function applyLanguageEvent(state, event) {
     }
     case "v1.RequestWithdrawn":
       earliestUndo(state.withdrawnRequests, event.payload.requestId, event);
+      break;
+    case "v1.ReviewWithdrawn":
+      earliestUndo(state.withdrawnReviews, event.payload.reviewId, event);
+      break;
+    case "v1.NoteWithdrawn":
+      earliestUndo(state.withdrawnNotes, event.payload.noteId, event);
       break;
     case "v1.NoteAdded": {
       const { noteId, ...rest } = event.payload;
@@ -21893,6 +21905,10 @@ function stepName(kinds, step) {
 }
 var COMPLETE = ["approved", "skipped"];
 var isCompleteState = (s) => COMPLETE.includes(s);
+function withdrawnBy(table, id, item) {
+  const w = table?.[id];
+  return w && w.by === item.by ? w : void 0;
+}
 var cache = /* @__PURE__ */ new WeakMap();
 function push(m, k, v) {
   const list = m.get(k);
@@ -21905,7 +21921,12 @@ function recordIndexes(state, idx) {
   const hit = cache.get(state);
   if (hit && hit.revision === revision) return hit.ri;
   const reviewsByTake = /* @__PURE__ */ new Map();
-  for (const r of Object.values(state.kindReviews)) push(reviewsByTake, r.takeId, r);
+  const withdrawnByTake = /* @__PURE__ */ new Map();
+  for (const r of Object.values(state.kindReviews)) {
+    const withdrawn = withdrawnBy(state.withdrawnReviews, r.id, r);
+    if (withdrawn) push(withdrawnByTake, r.takeId, { ...r, withdrawn });
+    else push(reviewsByTake, r.takeId, r);
+  }
   const versions = /* @__PURE__ */ new Map();
   const drafts = /* @__PURE__ */ new Map();
   const takes = Object.entries(state.takes).filter(([, t]) => t.unitId);
@@ -21932,6 +21953,7 @@ function recordIndexes(state, idx) {
   const notes = /* @__PURE__ */ new Map();
   const changeNotes = /* @__PURE__ */ new Map();
   for (const n of Object.values(state.notes).sort(byHlc)) {
+    if (withdrawnBy(state.withdrawnNotes, n.id, n)) continue;
     if (n.anchor.kind === "version" && n.anchor.role === "change") {
       if (!changeNotes.has(n.anchor.takeId)) changeNotes.set(n.anchor.takeId, n);
       continue;
@@ -21945,6 +21967,7 @@ function recordIndexes(state, idx) {
     versions,
     drafts,
     reviewsByTake,
+    withdrawnByTake,
     departures,
     requests,
     requestsTo,
@@ -21984,6 +22007,7 @@ function derivePassage(state, unitId, idx) {
     return undone ? { ...d, undone } : d;
   });
   const active = (match) => [...departures].reverse().find((d) => match(d) && !d.undone);
+  const withdrawnReviews = versions.flatMap((v) => (ri.withdrawnByTake.get(v.takeId) ?? []).map(({ eventId: _e, ...r }) => ({ ...r, versionN: v.n }))).sort(byHlc);
   const reviews = versions.flatMap((v) => (ri.reviewsByTake.get(v.takeId) ?? []).map(({ eventId: _e, ...r }) => ({ ...r, versionN: v.n }))).sort(byHlc).map((r) => {
     if (r.outcome !== "needs_changes") return r;
     const kept = departures.find((d) => d.type === "keep" && d.reviewId === r.id && !d.undone);
@@ -22057,6 +22081,7 @@ function derivePassage(state, unitId, idx) {
     recorded,
     departures,
     reviews,
+    withdrawnReviews,
     requests,
     openRequests,
     steps,
@@ -22495,6 +22520,18 @@ var CLIENT_PROTOCOL_VERSION = 1;
 var OfflineError = class extends Error {
   name = "OfflineError";
 };
+var UnrenewedError = class extends OfflineError {
+  name = "UnrenewedError";
+};
+var UNRENEWED_TEXT = /sign-in could not be renewed|sign-in renewal answered/i;
+var ServerError = class extends Error {
+  constructor(message, code) {
+    super(message);
+    this.code = code;
+  }
+  code;
+  name = "ServerError";
+};
 var NotAuthorizedError = class extends Error {
   name = "NotAuthorizedError";
 };
@@ -22509,41 +22546,41 @@ var SupabaseTransport = class {
   }
   supabase;
   async append(events) {
-    const { data, error } = await this.supabase.rpc("append_events", {
+    const { data, error, status } = await this.supabase.rpc("append_events", {
       p_events: events.map(({ serverSeq: _s, ...e }) => e),
       p_client_version: CLIENT_PROTOCOL_VERSION
     });
-    if (error) throw toError(error);
+    if (error) throw toError(error, status);
     return data.map(
       (r) => ({ id: r.id, accepted: r.accepted, serverSeq: r.server_seq, reason: r.reason })
     );
   }
   async snapshotMeta(orgId, streamId, reducerVersion) {
-    const { data, error } = await this.supabase.rpc("get_snapshot_meta", {
+    const { data, error, status } = await this.supabase.rpc("get_snapshot_meta", {
       p_org_id: orgId,
       p_stream_id: streamId,
       p_reducer_version: reducerVersion
     });
-    if (error) throw toError(error);
+    if (error) throw toError(error, status);
     const row = data?.[0];
     return row ? { serverSeq: row.server_seq, chunks: row.chunks, bytes: row.bytes } : null;
   }
   async snapshotChunk(orgId, streamId, reducerVersion, serverSeq, index) {
-    const { data, error } = await this.supabase.rpc("get_snapshot_chunk", {
+    const { data, error, status } = await this.supabase.rpc("get_snapshot_chunk", {
       p_org_id: orgId,
       p_stream_id: streamId,
       p_reducer_version: reducerVersion,
       p_server_seq: serverSeq,
       p_index: index
     });
-    if (error) throw toError(error);
+    if (error) throw toError(error, status);
     return data ?? null;
   }
   /**
    * A database trigger (events_notify) broadcasts a poke on
    * `events:<org>/<stream>` after every push. The channel is private: the
    * server lets only someone who may read the stream hear it
-   * (20261015234000_private_pokes.sql), since even a bare poke says when a
+   * (20261016090000_private_pokes.sql), since even a bare poke says when a
    * language is working. The events themselves come through the RPC.
    */
   watch(orgId, streamId, handlers) {
@@ -22553,14 +22590,14 @@ var SupabaseTransport = class {
     };
   }
   async pull(orgId, streamId, after, limit) {
-    const { data, error } = await this.supabase.rpc("pull_events", {
+    const { data, error, status } = await this.supabase.rpc("pull_events", {
       p_org_id: orgId,
       p_stream_id: streamId,
       p_after: after,
       p_limit: limit,
       p_client_version: CLIENT_PROTOCOL_VERSION
     });
-    if (error) throw toError(error);
+    if (error) throw toError(error, status);
     return data.map(
       (r) => ({
         id: r.id,
@@ -22577,15 +22614,16 @@ var SupabaseTransport = class {
     );
   }
 };
-function toError(error) {
+function toError(error, status) {
   if (error.code === "LQ001") return new ClientTooOldError(error.message);
+  if (UNRENEWED_TEXT.test(error.message)) return new UnrenewedError(error.message);
   if (error.code === "42501" || /not a member|permission denied|service role only|not authorized/i.test(error.message)) {
     return new NotAuthorizedError(error.message);
   }
   if (/fetch failed|failed to fetch|network|ECONNREFUSED|ECONNRESET|ENOTFOUND|ETIMEDOUT|timed out/i.test(error.message)) {
     return new OfflineError(error.message);
   }
-  return new Error(`${error.code ?? "rpc"}: ${error.message}`);
+  return new ServerError(`${error.code ?? "rpc"}: ${error.message}`, error.code || (status ? `http${status}` : void 0));
 }
 
 // packages/sync/src/snapshotFetch.ts
@@ -22723,8 +22761,18 @@ async function pullAll(transport, orgId, streamId, after, pageSize) {
 }
 
 // server/projectionWorker.ts
-function check(result) {
-  if (result.error) throw new Error(result.error.message);
+var DbError = class extends Error {
+  constructor(op, code, message) {
+    super(message);
+    this.op = op;
+    this.code = code;
+  }
+  op;
+  code;
+  name = "DbError";
+};
+function check(result, op) {
+  if (result.error) throw new DbError(op, result.error.code, result.error.message);
 }
 var UPDATE_TITLES = {
   request: "You were asked to help",
@@ -22743,13 +22791,23 @@ async function selectAll(service, table, columns) {
   const out = [];
   for (let from = 0; ; from += 1e3) {
     const page = await service.from(table).select(columns).range(from, from + 999);
-    check(page);
+    check(page, table);
     const rows = page.data ?? [];
     out.push(...rows);
     if (rows.length < 1e3) return out;
   }
 }
-async function runProjections(service, scope2 = "all") {
+var ProjectionFailed = class extends Error {
+  constructor(orgId, streamId, cause) {
+    super(cause instanceof Error ? cause.message : String(cause), { cause });
+    this.orgId = orgId;
+    this.streamId = streamId;
+  }
+  orgId;
+  streamId;
+  name = "ProjectionFailed";
+};
+async function runProjections(service, scope2 = "all", counts = { orgs: 0, projected: 0 }) {
   const transport = new SupabaseTransport(service);
   const orgs = /* @__PURE__ */ new Map();
   async function orgState(orgId) {
@@ -22806,19 +22864,21 @@ async function runProjections(service, scope2 = "all") {
   };
   const mark = async (orgId, streamId, seq, orgSeq, isListed) => {
     check(await service.from("projection_marks").upsert({
+      // projected_at is set by the database on this write (20261016010000_diag_jobs.sql).
       org_id: orgId,
       stream_id: streamId,
       seq,
       org_seq: orgSeq,
       listed: isListed,
       version: PROJECTION_VERSION
-    }));
+    }), "projection_marks");
   };
   for (const [key, head2] of heads) {
     const [orgId, streamId] = JSON.parse(key);
     if (scope2 === "large" || streamId !== ORG_STREAM || orgId === PERSON_ORG || !changed(orgId, ORG_STREAM)) continue;
-    check(await service.rpc("refresh_org_notifications", { p_org: orgId }));
+    check(await service.rpc("refresh_org_notifications", { p_org: orgId }), "refresh_org_notifications");
     await mark(orgId, ORG_STREAM, head2, head2, false);
+    counts.orgs += 1;
   }
   const failed = [];
   const results = await runSnapshotWorker(
@@ -22841,7 +22901,7 @@ async function runProjections(service, scope2 = "all") {
         p_org: snapshot.orgId,
         p_language: languageId,
         p_rows: notifications
-      }));
+      }), "reconcile_notifications");
       const isListed = listed.has(streamKey(snapshot.orgId, languageId));
       const info = languageInfo(org, languageId);
       if (isListed && info) {
@@ -22855,82 +22915,208 @@ async function runProjections(service, scope2 = "all") {
           // What someone browsing may do with the work (docs/licensing.md).
           license: orgLicense(org),
           updated_at: (/* @__PURE__ */ new Date()).toISOString()
-        }));
+        }), "public_languages");
       }
       await mark(snapshot.orgId, languageId, snapshot.serverSeq, orgSeq, isListed);
+      counts.projected += 1;
     },
     (orgId, streamId) => inScope(orgId, streamId) && (changed(orgId, streamId) || snapshotDue(orgId, streamId)),
     // The large pass goes on past a language that fails, so the next waits only
-    // for its own turn; the Edge pass stops at the first error, as before.
-    scope2 === "large" ? (_orgId, streamId, error) => {
-      failed.push({ streamId, error: error instanceof Error ? error.message : String(error) });
-    } : void 0
+    // for its own turn; the Edge pass stops at the first error, as before, and
+    // says which language it stopped at.
+    (orgId, streamId, error) => {
+      if (scope2 !== "large") throw new ProjectionFailed(orgId, streamId, error);
+      failed.push({ orgId, streamId, error });
+    }
   );
   return { languages: results.filter((r) => r.updated).length, snapshots: results.filter((r) => r.written).length, failed };
 }
+var FAIL_COUNT = {
+  http_4xx: "failHttp4xx",
+  http_5xx: "failHttp5xx",
+  timeout: "failTimeout",
+  unreachable: "failUnreachable",
+  ticket_error: "failTicket"
+};
+var isTimeout = (e) => e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError");
+async function recordPushes(service, results) {
+  if (!results.length) return;
+  if (!(await service.rpc("record_notification_pushes", { p_results: results })).error) return;
+  for (const r of results) {
+    if (r.error === null) {
+      check(await service.from("notifications").update({ pushed_at: (/* @__PURE__ */ new Date()).toISOString(), push_lease_until: null }).eq("id", r.id), "notifications");
+    } else if (r.error === "receipt_error") {
+      check(await service.from("notifications").update({ pushed_at: null }).eq("id", r.id), "notifications");
+    }
+  }
+}
 async function deliverPushes(service, fetcher = fetch) {
+  const counts = {
+    claimed: 0,
+    sent: 0,
+    noToken: 0,
+    failed: 0,
+    failHttp4xx: 0,
+    failHttp5xx: 0,
+    failTimeout: 0,
+    failUnreachable: 0,
+    failTicket: 0,
+    unregistered: 0,
+    receipts: 0,
+    receiptErrors: 0,
+    receiptsError: 0
+  };
   const claimed = await service.rpc("claim_notification_pushes");
-  check(claimed);
-  for (const row of claimed.data ?? []) {
-    const tokens = await service.from("push_tokens").select("token").eq("profile_id", row.profile_id);
-    check(tokens);
-    if (!tokens.data?.length) continue;
-    let accepted = true;
-    for (const { token } of tokens.data) {
-      const response2 = await fetcher("https://exp.host/--/api/v2/push/send", {
-        signal: AbortSignal.timeout(15e3),
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          to: token,
-          title: "LangQuest",
-          body: "You have an update in your inbox.",
-          data: { notificationId: row.id },
-          channelId: "work"
-        })
-      });
-      if (!response2.ok) {
-        accepted = false;
+  check(claimed, "claim_notification_pushes");
+  const results = [];
+  try {
+    for (const row of claimed.data ?? []) {
+      counts.claimed += 1;
+      const tokens = await service.from("push_tokens").select("token").eq("profile_id", row.profile_id);
+      check(tokens, "push_tokens");
+      if (!tokens.data?.length) {
+        counts.noToken += 1;
+        results.push({ id: row.id, error: "no_token" });
         continue;
       }
-      const result2 = await response2.json();
-      const ticket = result2.data;
-      if (ticket?.status === "ok" && ticket.id) {
-        check(await service.from("push_receipts").upsert({
-          ticket_id: ticket.id,
-          token,
-          notification_id: row.id
-        }));
-      } else if (ticket?.details?.error === "DeviceNotRegistered") {
-        check(await service.from("push_tokens").delete().eq("token", token));
-      } else accepted = false;
+      let error = null;
+      for (const { token } of tokens.data) {
+        let response2;
+        try {
+          response2 = await fetcher("https://exp.host/--/api/v2/push/send", {
+            signal: AbortSignal.timeout(15e3),
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              to: token,
+              title: "LangQuest",
+              body: "You have an update in your inbox.",
+              data: { notificationId: row.id },
+              channelId: "work"
+            })
+          });
+        } catch (e) {
+          error = isTimeout(e) ? "timeout" : "unreachable";
+          continue;
+        }
+        if (!response2.ok) {
+          error = response2.status >= 500 ? "http_5xx" : "http_4xx";
+          await response2.body?.cancel().catch(() => void 0);
+          continue;
+        }
+        const result2 = await response2.json().catch(() => null);
+        const ticket = result2?.data;
+        if (ticket?.status === "ok" && ticket.id) {
+          check(await service.from("push_receipts").upsert({
+            ticket_id: ticket.id,
+            token,
+            notification_id: row.id
+          }), "push_receipts");
+        } else if (ticket?.details?.error === "DeviceNotRegistered") {
+          check(await service.from("push_tokens").delete().eq("token", token), "push_tokens");
+          counts.unregistered += 1;
+        } else error = "ticket_error";
+      }
+      if (error) {
+        counts.failed += 1;
+        counts[FAIL_COUNT[error]] += 1;
+      } else counts.sent += 1;
+      results.push({ id: row.id, error });
     }
-    if (accepted) check(await service.from("notifications").update({ pushed_at: (/* @__PURE__ */ new Date()).toISOString(), push_lease_until: null }).eq("id", row.id));
+  } finally {
+    await recordPushes(service, results);
   }
   const receipts = await service.from("push_receipts").select("*").lt("created_at", new Date(Date.now() - 15 * 6e4).toISOString()).limit(100);
-  check(receipts);
-  if (!receipts.data?.length) return;
-  const response = await fetcher("https://exp.host/--/api/v2/push/getReceipts", {
-    signal: AbortSignal.timeout(15e3),
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ids: receipts.data.map((r) => r.ticket_id) })
-  });
-  if (!response.ok) return;
+  check(receipts, "push_receipts");
+  if (!receipts.data?.length) return counts;
+  let response;
+  try {
+    response = await fetcher("https://exp.host/--/api/v2/push/getReceipts", {
+      signal: AbortSignal.timeout(15e3),
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: receipts.data.map((r) => r.ticket_id) })
+    });
+  } catch {
+    counts.receiptsError = 1;
+    return counts;
+  }
+  if (!response.ok) {
+    counts.receiptsError = 1;
+    await response.body?.cancel().catch(() => void 0);
+    return counts;
+  }
   const result = await response.json();
+  const back = [];
+  const read = [];
   for (const receipt of receipts.data) {
     const status = result.data?.[receipt.ticket_id];
     if (!status) continue;
+    counts.receipts += 1;
     if (status.details?.error === "DeviceNotRegistered") {
-      check(await service.from("push_tokens").delete().eq("token", receipt.token));
+      check(await service.from("push_tokens").delete().eq("token", receipt.token), "push_tokens");
+      counts.unregistered += 1;
     } else if (status.status === "error") {
-      check(await service.from("notifications").update({ pushed_at: null }).eq("id", receipt.notification_id));
+      counts.receiptErrors += 1;
+      back.push({ id: receipt.notification_id, error: "receipt_error" });
     }
-    check(await service.from("push_receipts").delete().eq("ticket_id", receipt.ticket_id));
+    read.push(receipt.ticket_id);
   }
+  await recordPushes(service, back);
+  for (const ticketId of read) check(await service.from("push_receipts").delete().eq("ticket_id", ticketId), "push_receipts");
+  return counts;
+}
+
+// server/jobRuns.ts
+var WRITE_TIMEOUT_MS = 3e3;
+var noJobRuns = async () => {
+};
+function jobRunSink(url, serviceKey, fetcher = fetch) {
+  if (!url || !serviceKey) return noJobRuns;
+  const endpoint = `${url.replace(/\/+$/, "")}/rest/v1/rpc/diag_job_ingest`;
+  return async (run) => {
+    try {
+      const response = await fetcher(endpoint, {
+        method: "POST",
+        signal: AbortSignal.timeout(WRITE_TIMEOUT_MS),
+        headers: { "content-type": "application/json", apikey: serviceKey, authorization: `Bearer ${serviceKey}` },
+        body: JSON.stringify({
+          p_job: run.job,
+          p_started_at: new Date(run.startedAt).toISOString(),
+          p_ms: Math.max(0, Math.round(run.ms)),
+          p_outcome: run.outcome,
+          p_n: numbersOnly(run.n ?? {}),
+          p_error_class: run.errorClass ?? null,
+          p_org: run.orgId ?? null,
+          p_stream: run.streamId ?? null
+        })
+      });
+      await response.body?.cancel().catch(() => void 0);
+    } catch {
+    }
+  };
+}
+function numbersOnly(n) {
+  const out = {};
+  for (const [k, v] of Object.entries(n)) if (typeof v === "number" && Number.isFinite(v)) out[k] = Math.round(v);
+  return out;
+}
+function errorClassOf(error) {
+  if (!error || typeof error !== "object") return "unknown";
+  const e = error;
+  if (typeof e.streamId === "string" && e.cause) return errorClassOf(e.cause);
+  const code = typeof e.code === "string" && /^[0-9A-Z]{5}$|^PGRST\d{3}$|^E_[A-Z_]{1,60}$/.test(e.code) ? e.code : null;
+  const op = typeof e.op === "string" ? e.op : typeof e.message === "string" ? /^([a-z]+_[a-z0-9_]+)\b/.exec(e.message)?.[1] ?? null : null;
+  const name = typeof e.name === "string" && e.name ? e.name : "Error";
+  const parts = [op ?? name, code].filter((p) => !!p);
+  return parts.join(":").replace(/[^A-Za-z0-9_.:#/-]/g, "_").slice(0, 80) || "unknown";
 }
 
 // server/projectionEdge.ts
+function commonest(p) {
+  const codes = { http_4xx: p.failHttp4xx, http_5xx: p.failHttp5xx, timeout: p.failTimeout, unreachable: p.failUnreachable, ticket_error: p.failTicket };
+  return Object.entries(codes).sort((a, b) => b[1] - a[1])[0][0];
+}
 async function sameSecret(given, expected) {
   const digest = async (text) => new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)));
   const [a, b] = await Promise.all([digest(given), digest(expected)]);
@@ -22944,17 +23130,47 @@ Deno.serve(async (request) => {
     return new Response("Unauthorized", { status: 401 });
   }
   if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
-  const service = createClient(
-    Deno.env.get("SUPABASE_URL"),
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
-    { auth: { persistSession: false } }
-  );
+  const url = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const service = createClient(url, key, { auth: { persistSession: false } });
+  const record = jobRunSink(url, key);
+  const startedAt = Date.now();
   const body = await request.json().catch(() => ({}));
+  const counts = { orgs: 0, projected: 0 };
   try {
-    if (body.task === "pushes") await deliverPushes(service);
-    else await runProjections(service, "small");
+    if (body.task === "pushes") {
+      const pushes = await deliverPushes(service);
+      const allFailed = pushes.failed > 0 && pushes.sent === 0;
+      await record({
+        job: "push_delivery",
+        startedAt,
+        ms: Date.now() - startedAt,
+        outcome: allFailed ? "error" : pushes.failed || pushes.receiptsError ? "partial" : "ok",
+        n: { ...pushes },
+        ...allFailed ? { errorClass: commonest(pushes) } : {}
+      });
+    } else {
+      const done = await runProjections(service, "small", counts);
+      await record({
+        job: "projection",
+        startedAt,
+        ms: Date.now() - startedAt,
+        outcome: "ok",
+        n: { ...counts, languages: done.languages, snapshots: done.snapshots, failed: 0 }
+      });
+    }
     return Response.json({ ok: true });
   } catch (error) {
+    const stoppedAt = error instanceof ProjectionFailed ? error : null;
+    await record({
+      job: body.task === "pushes" ? "push_delivery" : "projection",
+      startedAt,
+      ms: Date.now() - startedAt,
+      outcome: "error",
+      errorClass: errorClassOf(error),
+      ...body.task === "pushes" ? {} : { n: { ...counts, failed: 1 } },
+      ...stoppedAt ? { orgId: stoppedAt.orgId, streamId: stoppedAt.streamId } : {}
+    });
     console.error("Projection worker failed", error instanceof Error ? error.message : "unknown");
     return Response.json({ error: "Projection pass failed. Retry after checking worker logs." }, { status: 500 });
   }

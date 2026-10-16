@@ -1,4 +1,4 @@
--- How someone joined is the server's to say (decisions.md 112).
+-- How someone joined is the server's to say (decisions.md 114).
 --
 -- v1.InviteIssued and v1.JoinDecided were open to any invite_members holder
 -- through append_events, though only issue_invite_v3 and
@@ -10,7 +10,7 @@
 -- Both are server-only now, as v1.InviteRedeemed already was.
 --
 -- event_privilege is restated whole, as `create or replace`, from
--- 20261014200000_clusters.sql's, with those two rules made null.
+-- 20261015220000_withdraw_reviews_notes.sql's, with those two rules made null.
 -- scripts/record-parity-sql.ts holds it to core's EVENT_PRIVILEGE.
 
 create or replace function public.event_privilege(p_type text, p jsonb)
@@ -73,6 +73,8 @@ returns text language sql immutable as $$
     when 'v1.RequestMade' then 'send_to_reviewers,assign_work'
     when 'v1.RequestWithdrawn' then 'send_to_reviewers,assign_work'
     when 'v1.NoteAdded' then 'translate,review,fill_reference'
+    when 'v1.ReviewWithdrawn' then 'review,translate'
+    when 'v1.NoteWithdrawn' then 'translate,review,fill_reference'
     when 'v1.StudyStepMarked' then 'translate'
     when 'v1.MaterialDefined' then case when p->>'kind' = 'questions' then 'fill_reference' else 'manage_reference' end
     when 'v1.MaterialFieldSet' then 'fill_reference'

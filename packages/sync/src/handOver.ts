@@ -16,6 +16,7 @@ export interface HandOver {
   uploads: PendingUpload[];
   /** Their notifications, still pointed at this phone because it was offline at sign-out. */
   pushToken?: string;
+  /** When they first handed over work still kept here (ISO): the age of the oldest of it. */
   savedAt: string;
 }
 export interface PendingUpload { orgId: string; languageId: string; ref: BlobRef }
@@ -56,14 +57,40 @@ export function withoutFinished(h: HandOver, finished: readonly string[], unregi
 
 /**
  * Add or replace one person's hand-over. Signing out twice before the
- * phone is online keeps one record, with every recording either time named.
+ * phone is online keeps one record, with every recording either time named,
+ * dated from the first time.
  */
 export function withHandOver(list: HandOver[], h: HandOver): HandOver[] {
   const before = list.find((x) => x.actorId === h.actorId);
   const seen = new Set(h.uploads.map((u) => u.ref.hash));
   const uploads = [...h.uploads, ...(before?.uploads ?? []).filter((u) => !seen.has(u.ref.hash))];
   const pushToken = h.pushToken ?? before?.pushToken;
-  return [...list.filter((x) => x.actorId !== h.actorId), { ...h, uploads, ...(pushToken ? { pushToken } : {}) }];
+  const savedAt = before && before.savedAt < h.savedAt ? before.savedAt : h.savedAt;
+  return [...list.filter((x) => x.actorId !== h.actorId), { ...h, uploads, savedAt, ...(pushToken ? { pushToken } : {}) }];
+}
+
+/**
+ * One courier attempt as field diagnostics say it (`auth`, op `courier`):
+ * how it ended and what is left, counted, never whose work it is. `ageH`:
+ * how long the oldest of it has waited on this phone.
+ */
+export interface CourierReport {
+  outcome: 'done' | 'keep' | 'offline' | 'gone';
+  eventsLeft: number;
+  uploadsLeft: number;
+  accountLeft: number;
+  ageH?: number;
+}
+
+export function courierReport(h: HandOver, result: { attempt: HandOverAttempt; offline: boolean }, next: Next, now: number): CourierReport {
+  const saved = Date.parse(h.savedAt);
+  const ageH = Number.isFinite(saved) ? Math.max(0, Math.round((now - saved) / 3_600_000)) : undefined;
+  const left = next.kind === 'keep' ? next.handOver.uploads.length : next.kind === 'drop' ? h.uploads.length : 0;
+  const outcome = next.kind === 'done' ? 'done' : next.kind === 'drop' ? 'gone' : result.offline ? 'offline' : 'keep';
+  return {
+    outcome, eventsLeft: result.attempt.eventsLeft, uploadsLeft: left, accountLeft: result.attempt.accountLeft,
+    ...(ageH !== undefined ? { ageH } : {})
+  };
 }
 
 /** A torn write or garbage reads as no hand-overs, never a crash on launch. */

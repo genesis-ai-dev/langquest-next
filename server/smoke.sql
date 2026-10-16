@@ -203,7 +203,7 @@ do $$ declare r record; begin
   if r.accepted or r.reason <> 'malformed envelope' then raise exception 'an envelope without streamId should be refused, got %', r; end if;
 end $$;
 
--- 5e. No event may use a name every object has (decisions.md 111): the fold
+-- 5e. No event may use a name every object has (decisions.md 113): the fold
 -- keys its maps by these ids, and `__proto__` would reach Object.prototype.
 do $$ declare r record; begin
   select * into r from public.append_events('[
@@ -220,7 +220,7 @@ do $$ declare r record; begin
   if r.accepted or r.reason not like 'malformed envelope%' then raise exception 'a toString event id should be refused, got %', r; end if;
 end $$;
 
--- 5f. An event goes on the kind of stream it belongs to (decisions.md 114).
+-- 5f. An event goes on the kind of stream it belongs to (decisions.md 116).
 do $$ declare r record; begin
   select * into r from public.append_events('[
     {"id":"wrong-stream-1","type":"v1.RoleDefined","orgId":"org1","streamId":"L1","actorId":"t1","deviceId":"dB","hlc":"000000000000022:000000:dB","payload":{"roleId":"boss","name":"Boss","privileges":["manage_roles"]}}
@@ -806,7 +806,7 @@ begin
   if n <> 0 then raise exception 'decided request left open'; end if;
 end $$;
 
--- How someone joined is the server's to say (decisions.md 112): the lead holds
+-- How someone joined is the server's to say (decisions.md 114): the lead holds
 -- invite_members, yet may not append a JoinDecided or an InviteIssued itself.
 do $$ declare r record; begin
   select * into r from public.append_events('[
@@ -970,7 +970,7 @@ end $$;
 reset role;
 
 -- 22. An event is at most 64 KB, and an account creates at most 5
--- organizations a day and 20 in all (decisions.md 113).
+-- organizations a day and 20 in all (decisions.md 115).
 select set_config('request.jwt.claim.sub', 't1', false);
 do $$ declare r record; begin
   select * into r from public.append_events(jsonb_build_array(jsonb_build_object(

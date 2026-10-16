@@ -46,7 +46,8 @@ import {
 } from '../reference/passagesModel';
 import { usePassages } from '../reference/usePassages';
 import { useRecommend, useRefItems, useTimingJobs, useTimingPublisher, type TimingJob } from '../reference/useReference';
-import { levelOf, publishTimingJob, referenceFailure, requestTimings, versificationHash } from '../reference/referenceActions';
+import { publishTimingJob, requestTimings, versificationHash } from '../reference/referenceActions';
+import { levelOf, referenceFailure } from '../reference/failureModel';
 import { teamLanguage } from '../reference/languages';
 import { termsInText } from '../recording/workspaceModel';
 import { languageLabel } from '../admin/adminModel';

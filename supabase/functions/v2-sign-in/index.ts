@@ -37,7 +37,7 @@ Deno.serve(async (request) => {
   }
   const address = email.trim().toLowerCase();
   const service = serviceClient();
-  // Counted before v2 is asked: per email, per caller's address, and overall (20261015232000_v2_sign_in_limits.sql).
+  // Counted before v2 is asked: per email, per caller's address, and overall (20261016070000_v2_sign_in_limits.sql).
   const stopped = await service.rpc('v2_import_sign_in_begin', { p_email: address, p_ip: callerAddress(request) });
   if (stopped.error) return reply(BUSY, 503);
   if (stopped.data === 'email') return reply({ error: 'Too many tries with this email. Wait an hour.', code: 'over_request_rate_limit' }, 429);

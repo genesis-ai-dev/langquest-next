@@ -61,7 +61,7 @@ const broken: AnyEvent[] = events.flatMap((e) => {
   for (const k of new Set([...Object.keys(p), ...(OPTIONAL[e.type] ?? [])])) {
     variants.push({ ...p, [k]: 5 }, { ...p, [k]: null }, { ...p, [k]: '' });
   }
-  // A name every object has, as each string field and as a key (decisions.md 111).
+  // A name every object has, as each string field and as a key (decisions.md 113).
   for (const k of Object.keys(p)) if (typeof p[k] === 'string') variants.push({ ...p, [k]: '__proto__' }, { ...p, [k]: 'constructor' });
   variants.push({ ...p, extra: JSON.parse('{"__proto__": {"toString": 1}}') as unknown }, { ...p, extra: [['valueOf']] });
   if ('outcome' in p) variants.push({ ...p, outcome: 'approve' });
@@ -221,7 +221,7 @@ const scopedLanguage = [...events, ...broken.filter((e) => SCOPED.has(e.type) &&
 // The entity a creating event names (one event per entity in a stream, decisions.md 75).
 const entities = events.map((e) => ({ type: e.type, payload: e.payload, key: entityKeyOf(e) }));
 
-// How big an event may be (decisions.md 113): each fixture, and payloads on
+// How big an event may be (decisions.md 115): each fixture, and payloads on
 // either side of the limit, of text, of many small numbers (a space after
 // every comma) and of nested objects (one after every colon too).
 const room = (shape: (n: number) => unknown, base = shape(0)) => EVENT_PAYLOAD_MAX_BYTES - jsonbTextBytes(base);
