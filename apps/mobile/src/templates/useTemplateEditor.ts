@@ -1,6 +1,6 @@
 // The template editor's form: what is being edited, what it may do, and Done
 // (the demo's TemplateEditorScreen, TPL-9). The screen keeps its sheets.
-// The form is the editor's draft on this phone (decision 126): kept as it
+// The form is the editor's draft on this phone (decision 127): kept as it
 // changes, there when the editor opens again; Done publishes it.
 import { useMemo, useState } from 'react';
 import { templateBooks, withBookBrokenUp, type LibraryItemView, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';

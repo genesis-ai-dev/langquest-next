@@ -63,7 +63,7 @@ tags:
 - tapOn: "Needs changes"
 - assertVisible: "Too quiet at the start"
 # Back again, then ✕ leaves at once: the review is kept on the phone as a
-# draft (REV-024, decision 126), and opening it again brings it back on
+# draft (REV-024, decision 127), and opening it again brings it back on
 # Decide with what was typed.
 - runFlow:
     when:

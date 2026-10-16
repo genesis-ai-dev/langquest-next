@@ -1,13 +1,13 @@
 // What "Someone else" (screens/passage.tsx `AskSomeone`, ASK-1..5) shows and
 // sends for what the person has picked so far: the title, who is listed first,
-// the due date, who the request goes to, whether Ask is enabled, and the ask
+// who the request goes to, whether Ask is enabled, and the ask
 // command's input. Pure, so the choices are held by tests
 // (test/askModel.test.ts) and the screen only draws and collects them.
 import { checkPeople, questionsForKind, type Commands, type OrgState, type QuestionSpec } from '@langquest-next/core';
 import { checkName } from '../admin/adminModel';
 import { t } from '../i18n';
 import type { PassageView } from './passageView';
-import { addDays, dueError, sendTargetLabel, type NameFn } from './record';
+import { sendTargetLabel, type NameFn } from './record';
 import { usualTargetFor, type UsualTarget } from './sendTarget';
 
 /** The ask screen's choice of a check's whole team (decision 91), beside one person's id. */
@@ -23,11 +23,6 @@ export interface AskPicks {
   who: string | null;
   guestName: string;
   contact: string;
-  /** A "By when" chip: days from today, or null for no date. */
-  dueDays: number | null;
-  dueTyped: string;
-  /** Today as YYYY-MM-DD. */
-  today: string;
 }
 
 export interface AskModel {
@@ -47,9 +42,6 @@ export interface AskModel {
   chosen: string | null;
   /** The check's own questions, which the people asked will answer. */
   asked: ReturnType<typeof questionsForKind>;
-  dueErr: string | null;
-  /** The due date the request carries (YYYY-MM-DD), or null. */
-  due: string | null;
   /** Asking someone without the app. */
   outside: boolean;
   /** Who the request goes to, as the button says it; empty when nobody is chosen. */
@@ -79,14 +71,12 @@ export function askModel(o: {
   const teamPeople = team && kindId ? checkPeople(v.state, kindId).filter((id) => id !== o.me) : [];
   const chosen = picks.who ?? (team ? TEAM : null);
   const asked = kindId ? questionsForKind(v.state, kindId) : [];
-  const dueErr = dueError(picks.dueTyped, picks.today);
-  const due = picks.dueTyped.trim() ? (dueErr ? null : picks.dueTyped.trim()) : picks.dueDays === null ? null : addDays(picks.today, picks.dueDays);
   const outside = picks.mode === 'outside' && !isRecord;
   const target = outside ? picks.guestName.trim() : chosen === TEAM && team ? sendTargetLabel(team, o.name) : chosen ? o.name(chosen) : '';
-  const ready = !!target && (!outside || picks.contact.trim().length > 3) && !dueErr;
+  const ready = !!target && (!outside || picks.contact.trim().length > 3);
   const buttonLabel = chosen === TEAM && team && !outside ? t('passage.published.askTarget', { target })
     : target ? t('passage.ask.askName', { name: target.split(' ')[0] }) : t('passage.ask.chooseSomeone');
-  return { isRecord, kindId, check, title, usual, others, team, teamPeople, chosen, asked, dueErr, due, outside, target, ready, buttonLabel };
+  return { isRecord, kindId, check, title, usual, others, team, teamPeople, chosen, asked, outside, target, ready, buttonLabel };
 }
 
 /** The toast after asking: who it went to, with Undo to withdraw it. */
@@ -105,7 +95,6 @@ export function askInput(o: {
     ...(m.kindId ? { kindId: m.kindId } : {}),
     ...(m.outside ? { guest: { name: picks.guestName.trim(), channel: o.channel, contact: picks.contact.trim() } }
       : m.chosen === TEAM && m.team ? { teamId: m.team.teamId } : m.chosen ? { profileId: m.chosen } : {}),
-    ...(m.due ? { dueDate: m.due } : {}),
     ...(o.note.trim() ? { note: o.note.trim() } : {}),
     ...(o.noteHash ? { noteBlobHash: o.noteHash } : {}),
     ...(!m.isRecord && o.questions.length ? { questions: o.questions } : {})

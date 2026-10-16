@@ -1,5 +1,5 @@
 // What the library editors and key-word sheets keep on this phone while they
-// are unfinished (decision 126): the template, flow and material editors,
+// are unfinished (decision 127): the template, flow and material editors,
 // a key word's new rendering, and a new key term. Each screen holds its form
 // with useDraft (useDraft.ts); these say what a stored draft may look like,
 // so one this version cannot read is dropped rather than shown half.

@@ -22,8 +22,6 @@ interface UpdateWords {
   kindName: (kindId: string | undefined) => string;
   /** Does this kind make content (a back translation) rather than give a verdict? */
   produces?: (kindId: string) => boolean;
-  /** A due date as people say it ("due Oct 1"). */
-  due?: (date: string) => string;
 }
 
 export function firstName(name: string): string {
@@ -41,11 +39,7 @@ export function updateText(u: Update, w: UpdateWords): { title: string; body: st
       const title = r?.what === 'record'
         ? t('account.updates.askedToRecord', { name: who })
         : t('account.updates.askedToReview', { name: who, kind: w.kindName(r?.kindId) });
-      const due = r?.dueDate ? (w.due ? w.due(r.dueDate) : t('account.updates.due', { date: r.dueDate })) : null;
-      const body = due
-        ? t('account.updates.whereDue', { passage, language, due })
-        : t('account.updates.where', { passage, language });
-      return { icon: 'assign', title, body };
+      return { icon: 'assign', title, body: t('account.updates.where', { passage, language }) };
     }
     case 'review': {
       const r = u.review;

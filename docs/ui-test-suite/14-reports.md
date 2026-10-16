@@ -125,7 +125,9 @@ Expected (Alpha's page):
   review" 4 (P-SUBMITTED, P-BT, P-CHECK, P-ASIDE), "Being recorded" 1
   (P-DRAFT, once its parts have synced), and "Not started" the rest.
 - "Needs attention": "Feedback to answer" 1, "At a checkpoint" 1 (P-CHECK),
-  "Overdue requests" 0 (P-NEW is due in 14 days).
+  "Open requests" the count of Alpha's open requests (at least the five
+  record requests), with no sub line. Tapping it opens the Map filtered to
+  waiting passages. There is no "Overdue requests" tile (decision 126).
 - "Review flow" lists Standard Bible Flow's four steps in order;
   "Consultant Check" has the "Checkpoint" badge and at least 1 waiting.
 - "Bravo" (LANG-B) shows no passages.

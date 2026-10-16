@@ -126,7 +126,6 @@ Roles: TRANS, COORD · Priority: P1 · Platforms: iOS, Android, Web · Run: Manu
 
 Steps:
 1. Open each of these:
-   - "Ask someone"'s due date
    - "Report or block"
    - the Language sheet
    - "Leave this question unanswered?"

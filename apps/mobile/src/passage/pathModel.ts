@@ -51,8 +51,6 @@ export interface PathInput {
   latestVerses?: string | null;
   /** Who a request went to, as people say it ("the Community team", "Mary"). */
   askedName?: (kindId: string) => string | undefined;
-  /** A due date as people say it ("due Oct 11"). */
-  due?: (iso: string) => string;
 }
 
 // A check's one name on every screen (decision 91).
@@ -95,8 +93,7 @@ export function pathSteps(input: PathInput): PathStep[] {
   }
 
   const recordAsk = p.openRequests.find((r) => r.what === 'record');
-  const askedLine = recordAsk ? [whoAsked(recordAsk, input), recordAsk.dueDate ? (input.due ? input.due(recordAsk.dueDate) : t('passage.path.dueOn', { date: recordAsk.dueDate })) : '']
-    .filter(Boolean).join(' · ') : '';
+  const askedLine = recordAsk ? whoAsked(recordAsk, input) : '';
   out.push({
     kind: 'record', title: t('passage.path.record'),
     sub: p.recorded && latest

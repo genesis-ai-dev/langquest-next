@@ -153,7 +153,7 @@ export function StudyNote(props: { ctx: Ctx; note: PassageNote; label?: string }
 
 /**
  * Answer, note, or report what the group said: by voice or text (STUDY-3).
- * What is said or typed is a draft only you see (decision 126), kept under
+ * What is said or typed is a draft only you see (decision 127), kept under
  * `draftAt` (the verse, or the study part or moment): closing keeps it for
  * the next note there, the button adds it and drops the draft.
  */

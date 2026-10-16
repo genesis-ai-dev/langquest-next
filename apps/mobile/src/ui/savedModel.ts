@@ -1,4 +1,4 @@
-// The saved mark's states (SavedMark.tsx, decision 126), shared by the hooks
+// The saved mark's states (SavedMark.tsx, decision 127), shared by the hooks
 // that drive it (useSaveStatus.ts, drafts/useDraft.ts).
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'failed';

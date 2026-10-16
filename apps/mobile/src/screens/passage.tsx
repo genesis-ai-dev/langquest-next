@@ -29,7 +29,7 @@ import { indexesFor } from '../sync/indexes';
 import { Badge, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, IconBtn, KindIcon, LinkBtn, NoteCard, PrimaryBtn, QuietLinks, ReasonSheet, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, StateMark, type IconName } from '../ui/kit';
 import { kindIcon } from '../ui/kindIcon';
 import { txt } from '../ui/textStyles';
-import { addDays, anchorLabel, askCandidates, channelLabel, currentStepId, describeEntry, dueChoices, gridKindIds, guestMessage, historySummary, isoDay, listenersOf, nextQuestionType, questionTypeLabel, reviewMark, reviewsSummary, sendTargetLabel, versionReviewsSummary, type EntryText, type RowAction } from '../passage/record';
+import { anchorLabel, askCandidates, channelLabel, currentStepId, describeEntry, gridKindIds, guestMessage, historySummary, listenersOf, nextQuestionType, questionTypeLabel, reviewMark, reviewsSummary, sendTargetLabel, versionReviewsSummary, type EntryText, type RowAction } from '../passage/record';
 import { PassagePath } from '../passage/path';
 import { AskCheckCard, TheyAnswer } from '../passage/askParts';
 import { askInput, askDoneText, askModel, TEAM, type AskPicks } from '../passage/askModel';
@@ -59,7 +59,7 @@ import { clipSeconds, clock as clockOf } from '../audio/clipTime';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { requestIsMine, sendToInput, teamNameIn } from '../passage/sendTarget';
-import { dueTitle, feedbackSource, isJustNow, kindInSentence, outcomeText, passageCrumbs, versionTitle, viaText, when, type PassageView } from '../passage/passageView';
+import { feedbackSource, isJustNow, kindInSentence, outcomeText, passageCrumbs, versionTitle, viaText, when, type PassageView } from '../passage/passageView';
 import { usePassage } from '../passage/usePassage';
 import { PassageOffline, PassageOfflineLine } from '../sync/offline';
 import { noteExpected, reportError } from '../diagnostics/report';
@@ -220,7 +220,7 @@ function actionHelp(id: RowAction['id']): string {
  * drafts and every published version to work on freely, then the full
  * record, decisions.md 83). With several drafts, Record opens that page to
  * pick one. Done asks for the next check before coming back here
- * (decision 126).
+ * (decision 127).
  */
 export function PassageRecord(ctx: Ctx) {
   const v = usePassage(ctx);
@@ -229,12 +229,12 @@ export function PassageRecord(ctx: Ctx) {
   const [overriding, setOverriding] = useState<string | null>(null);
   const [noting, setNoting] = useState<null | 'note' | 'say'>(null);
   // The record's pages: the path, "Something else?", asking for the next check, and every version (decisions.md 83).
-  // Done asks for the next check itself (decision 126), so the record opens on the path after it.
+  // Done asks for the next check itself (decision 127), so the record opens on the path after it.
   const [page, setPage] = useState<'path' | 'else' | 'ask' | 'versions'>('path');
   // Asking someone comes back to the path, where the request shows, even when it started from "Something else?".
   const askedParam = ctx.params['asked'];
   useEffect(() => { if (askedParam) setPage('path'); }, [askedParam]);
-  // Done's "Someone else" (decision 126): the version is on the record; choosing who to ask opens from here.
+  // Done's "Someone else" (decision 127): the version is on the record; choosing who to ask opens from here.
   const askSomeoneParam = ctx.params['askSomeone'];
   const goRef = useRef(ctx.go);
   goRef.current = ctx.go;
@@ -432,7 +432,7 @@ export function PassageRecord(ctx: Ctx) {
     );
   }
 
-  // ---- Ask for a check (demo a-ask; decision 91: each check with its people). Done asks in its own tap (decision 126). ----
+  // ---- Ask for a check (demo a-ask; decision 91: each check with its people). Done asks in its own tap (decision 127). ----
   if (page === 'ask') {
     const close = () => setPage('path');
     return (
@@ -635,7 +635,7 @@ function KeepSheet(props: { ctx: Ctx; v: PassageView; reviewId: string; onClose:
 
 function AddNoteSheet(props: { ctx: Ctx; v: PassageView; onClose: () => void; say?: boolean }) {
   const { ctx, v } = props;
-  // Kept as it is said or typed, only for whoever is writing it, until it is added (decision 126).
+  // Kept as it is said or typed, only for whoever is writing it, until it is added (decision 127).
   const draft = useDraft(draftKey('note', ctx.session.actorId, v.languageId, v.unitId, 'passage'), EMPTY_NOTE, isNoteDraft);
   const { text, hash } = draft.value;
   const [busy, setBusy] = useState(false);
@@ -1195,9 +1195,6 @@ export function AskSomeone(ctx: Ctx) {
   const [note, setNote] = useState('');
   const [noteHash, setNoteHash] = useState<string | null>(null);
   const [questions, setQuestions] = useState<QuestionSpec[]>([]);
-  const [today] = useState(() => isoDay(new Date()));
-  const [dueDays, setDueDays] = useState<number | null>(null);
-  const [dueTyped, setDueTyped] = useState('');
   const [othersShown, setOthersShown] = useState(PEOPLE_STEP);
   const [busy, setBusy] = useState(false);
   const vState = v?.state;
@@ -1211,10 +1208,10 @@ export function AskSomeone(ctx: Ctx) {
   }
 
   const kind = kindId ? v.kind(kindId) : undefined;
-  const picks: AskPicks = { mode, who, guestName, contact, dueDays, dueTyped, today };
+  const picks: AskPicks = { mode, who, guestName, contact };
   const model = askModel({ v, org: ctx.org.state, me, name: ctx.name, what, kindId, candidates, picks });
   // The check's team (decision 91): everyone on it gets the request, and it is the first choice.
-  const { isRecord, check, title, usual, others, team, teamPeople, chosen, asked, dueErr, due, outside, ready } = model;
+  const { isRecord, check, title, usual, others, team, teamPeople, chosen, asked, outside, ready } = model;
 
   const send = async () => {
     if (!ready) return;
@@ -1296,17 +1293,6 @@ export function AskSomeone(ctx: Ctx) {
       <Field value={note} onChangeText={setNote} placeholder={t('passage.ask.orTypeThem')} multiline />
 
       {!isRecord ? <TheyAnswer asked={asked} questions={questions} setQuestions={setQuestions} /> : null}
-
-      <SectionLabel label={t('passage.ask.byWhen')} />
-      <ChipRow>
-        {dueChoices().map((d) => (
-          <Chip key={String(d.days)} label={d.label} on={!dueTyped.trim() && dueDays === d.days} help={d.days === null ? t('passage.ask.noDateHelp') : t('passage.ask.dueHelp')}
-            onPress={() => { setDueTyped(''); setDueDays(d.days); }} />
-        ))}
-      </ChipRow>
-      <Field value={dueTyped} onChangeText={setDueTyped} placeholder={t('passage.ask.orDate', { date: addDays(today, 10) })} autoCapitalize="none" help={t('passage.ask.dateHelp')} />
-      {dueErr ? <Text style={[txt.xs, { color: TINT.redText }]}>{dueErr}</Text>
-        : due ? <Text style={txt.xs}>{dueTitle(due)}</Text> : null}
     </Screen>
   );
 }

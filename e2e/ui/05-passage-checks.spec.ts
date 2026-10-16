@@ -34,7 +34,7 @@ async function history(page: Page): Promise<string> {
   return screenText(page);
 }
 
-/** The back translation screen: say one part with the fake microphone, then Done, whose sheet shows who listens next (decision 126). */
+/** The back translation screen: say one part with the fake microphone, then Done, whose sheet shows who listens next (decision 127). */
 async function backTranslateOnePart(page: Page): Promise<void> {
   await button(page, 'Record part 1').click();
   await expect(button(page, 'Stop recording')).toBeVisible();

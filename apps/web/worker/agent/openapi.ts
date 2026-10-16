@@ -173,8 +173,8 @@ function schemas(): Record<string, Schema> {
     }),
     Request: obj({
       requestId: text(), what: text(undefined, { enum: ['record', 'review'] }), kindId: text('A review of this kind answers it.'), kind: text(),
-      forYou: bool('Asked of the token\'s person, or a team they are in.'), team: text(), dueDate: text(), note: text(), askedAt: time()
-    }, ['kindId', 'kind', 'team', 'dueDate', 'note']),
+      forYou: bool('Asked of the token\'s person, or a team they are in.'), team: text(), note: text(), askedAt: time()
+    }, ['kindId', 'kind', 'team', 'note']),
     PassageListItem: passage([...PASSAGE_INCLUDES], 'A passage\'s summary, with the fields include named.'),
     PassageDetail: passage(['steps', 'requests', 'versions', 'approvedAudio'], 'Everything the token may see of one passage; steps, requests, versions and approvedAudio need read.'),
     PassagePage: obj({

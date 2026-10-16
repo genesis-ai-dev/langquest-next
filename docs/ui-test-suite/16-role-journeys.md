@@ -20,7 +20,7 @@ TREV, and "Ask the Peer check team" reaches both. The Review Teams screens
 are gone. "Ask someone" on the record is now "Something else?" → "Someone
 else should do this".
 
-**Done since decision 126.** The recorder's and back translation's
+**Done since decision 127.** The recorder's and back translation's
 "Publish" is "Done". Done's main button asks the next check's usual people
 and publishes in the same tap ("Ask the Peer check team"); "Someone else"
 publishes and opens Ask someone, and "Send later" publishes and asks nobody
@@ -188,7 +188,7 @@ Steps:
 3. Device 2 (NEW): create an account. On "Join your team", choose "Scan their code" and paste the link. The card reads "Translator · Bravo · {ORG}" and "From {COORD}". Tap "Join as {name}" (a new account has no name of its own yet and goes by its address).
 4. Device 3 (NOORG): choose "Find your organization", then "Ask to join" on UI Test Org.
 5. Device 1 (COORD): sync. Under the Get ready card, open "{NOORG name} wants to join". Under "What will they do?" choose "Check recordings", under "In which language?" choose Bravo, then tap "Let {first} in".
-6. Device 1: open a Bravo passage. Choose "Something else?" → "Someone else should do this", ask Ben to record it, and choose "In a week".
+6. Device 1: open a Bravo passage. Choose "Something else?" → "Someone else should do this", and ask Ben to record it.
 7. Device 1 (COORD, wide window): open the Reports tab, then "Languages", then Bravo.
 
 Expected:
@@ -199,10 +199,10 @@ Expected:
   - The toast reads "{name} is in, as Reviewer in Bravo.".
   - Device 3 leaves "Asked UI Test Org" within 60 seconds or on returning to the app.
   - Device 3 shows Welcome (once per account: a fixture that already welcomed NOORG goes straight on), then My Work in Bravo.
-- Step 6: Ben's My Work shows the passage after syncing, with the due date.
-- Step 7: Bravo's report lists its template, its flow, and one passage asked ("1 request open in all", once the server's figures catch up).
+- Step 6: Ben's My Work shows the passage after syncing, "Record · asked by {COORD}", with no due date.
+- Step 7: Bravo's report lists its template, its flow, and one passage asked ("Open requests" 1, once the server's figures catch up).
 - Fixed (2026-10-13): Get ready offered the Oral Review Path as "Just the community · One check" and saved two checks. Each check made at the same time is now named and counted ("Community, then retelling · 2 checks"; decision 91). The report still does not name the template.
-- Known issue (2026-10-12): Reports still counted "0 requests open in all" for Bravo three minutes after the ask (local run; check the projection worker, G2).
+- Known issue (2026-10-12): Reports still counted 0 open requests for Bravo three minutes after the ask (local run; check the projection worker, G2).
 
 ### JRN-006 A coordinator moves a passage past a checkpoint and signs it off
 Roles: COORD, TRANS, VIEW · Priority: P0 · Platforms: iOS, Android · Run: Auto

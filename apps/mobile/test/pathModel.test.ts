@@ -80,11 +80,11 @@ describe('the passage path (decision 71)', () => {
     expect(shape(pathSteps(l.input('akol', { study: { name: 'Notes', total: 0, done: 0 } })))).toEqual(['record:current', 'publish:todo']);
   });
 
-  it('who asked and by when goes on the Record step', () => {
+  it('who asked goes on the Record step, without a due date an older request carries', () => {
     const l = language();
     l.run('lead', (c) => c.ask({ commandId: 'a1', unitId: 'luk15', what: 'record', profileId: 'akol', dueDate: '2026-10-11' }));
-    const steps = pathSteps(l.input('akol', { due: (iso) => `due ${iso.slice(5)}` }));
-    expect(steps[0]!.sub.startsWith('Mary asked you · due 10-11.')).toBe(true);
+    const steps = pathSteps(l.input('akol'));
+    expect(steps[0]!.sub.startsWith('Mary asked you.')).toBe(true);
   });
 
   it('after publishing, Record says the version and its length; Publish says when and who was asked', () => {

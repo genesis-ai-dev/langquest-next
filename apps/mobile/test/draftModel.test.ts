@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { draftKey, hasContent, isNoteDraft, parseDraft, serializeDraft } from '../src/drafts/draftModel';
 import { accountKeys } from '../src/account/accountDeletion';
 
-describe('drafts kept on the phone (decision 126)', () => {
+describe('drafts kept on the phone (decision 127)', () => {
   it('keys each draft by its maker, so a shared phone never shows one person another’s, and account deletion finds it', () => {
     const a = draftKey('note', 'person-a', 'lang', 'unit', null);
     expect(a).toBe('draft:v1:note:person-a:lang:unit:-');

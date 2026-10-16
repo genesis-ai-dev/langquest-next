@@ -64,9 +64,8 @@ export async function seedDemoTeam(d: DemoTarget): Promise<void> {
     const invite = await issueInvite(d.language.orgId, p.roleId, { level: 'org' }, { label: p.label, ttlDays: 1 });
     await joinAsPersona(p, invite.token);
     if (languageId && p.role === 'translator') {
-      const due = new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10);
       const c = commands(state, indexesFor(state));
-      for (const unitId of units) await d.language.run(c.ask({ commandId: `seed-ask:${Crypto.randomUUID()}`, unitId, what: 'record', profileId: id, dueDate: due }));
+      for (const unitId of units) await d.language.run(c.ask({ commandId: `seed-ask:${Crypto.randomUUID()}`, unitId, what: 'record', profileId: id }));
     }
   }
   if (languageId && !state.flow) await adoptStandardFlow(d);
