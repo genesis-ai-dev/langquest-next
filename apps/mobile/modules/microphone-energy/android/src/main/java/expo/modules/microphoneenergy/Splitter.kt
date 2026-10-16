@@ -40,6 +40,8 @@ class Splitter(private val frameMs: Double, remembered: Heard?) {
     const val MAX_PAUSE_MS = 2500.0
     const val MIN_GAP_MS = 150.0
     const val LEARN_AFTER_GAPS = 8
+    /** Exact silence this long is the room (a quiet line, a noise gate); shorter, it is a microphone starting. */
+    const val ZERO_ROOM_MS = 500.0
 
     /** A frame's peak (0..1) in dB, -60..0. */
     fun levelDb(energy: Double): Double = max(-60.0, min(0.0, 20 * log10(max(energy, 1e-6))))
@@ -58,6 +60,8 @@ class Splitter(private val frameMs: Double, remembered: Heard?) {
   private val partDbs = ArrayList<Double>()
   private var quietSince: Double? = null
   private var lastEnd = Double.NEGATIVE_INFINITY
+  /** How long the 3-frame median has been exact silence (-60 dB). */
+  private var zeroMs = 0.0
 
   fun levels(): Levels {
     val room = roomDb
@@ -72,7 +76,7 @@ class Splitter(private val frameMs: Double, remembered: Heard?) {
   }
 
   /** The detector stopped (the source plays, or the session ended): nothing heard meanwhile heads a part. */
-  fun pauseListening() { open = false; history.clear(); quietSince = null }
+  fun pauseListening() { open = false; history.clear(); quietSince = null; zeroMs = 0.0 }
 
   /** One frame's energy (0..1 peak) at `now` (ms, the frame's end). */
   fun step(energy: Double, now: Double): Action? {
@@ -134,11 +138,12 @@ class Splitter(private val frameMs: Double, remembered: Heard?) {
     return run
   }
 
-  /** The room: the quietest 3-frame median of the last few seconds. No signal at all (a microphone starting) is not the room. */
+  /** The room: the quietest 3-frame median of the last few seconds. Exact silence is the room only once it has lasted ZERO_ROOM_MS. */
   private fun trackRoom(now: Double) {
     if (history.size >= 3) {
-      val last = history.takeLast(3).map { it.db }.sorted()
-      if (last[0] > -59.5) calm.addLast(Frame(now, last[1]))
+      val median = history.takeLast(3).map { it.db }.sorted()[1]
+      zeroMs = if (median <= -59.5) zeroMs + frameMs else 0.0
+      if (median > -59.5 || zeroMs >= ZERO_ROOM_MS) calm.addLast(Frame(now, median))
     }
     while (calm.isNotEmpty() && now - calm.first().t > ROOM_WINDOW_MS) calm.removeFirst()
     if (calm.isEmpty()) return

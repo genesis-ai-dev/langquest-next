@@ -50,7 +50,9 @@ export const SPLIT = {
   maxPauseMs: 2500,
   /** Quiet gaps inside parts shorter than this are between syllables, not pauses. */
   minGapMs: 150,
-  learnAfterGaps: 8
+  learnAfterGaps: 8,
+  /** Exact silence this long is the room (a quiet line, a noise gate); shorter, it is a microphone starting. */
+  zeroRoomMs: 500
 };
 
 /** What a device remembers between sessions, so the first words of the next one are heard right. */
@@ -95,6 +97,8 @@ export class Splitter {
   private quietSince: number | null = null;
   /** The end of the last part: a head never reaches into it. */
   private lastEnd = -Infinity;
+  /** How long the 3-frame median has been exact silence (-60 dB). */
+  private zeroMs = 0;
   private frameMs: number;
 
   constructor(frameMs: number, remembered?: HeardLevels | null) {
@@ -131,6 +135,7 @@ export class Splitter {
     this.open = false;
     this.history = [];
     this.quietSince = null;
+    this.zeroMs = 0;
   }
 
   /** One frame's energy (peakEnergy) at time `now` (ms, the frame's end). */
@@ -219,12 +224,17 @@ export class Splitter {
     return run;
   }
 
-  /** The room: the quietest 3-frame median of the last few seconds. No signal at all (-60 dB, a microphone starting) is not the room. */
+  /**
+   * The room: the quietest 3-frame median of the last few seconds. Exact
+   * silence (-60 dB) is the room only once it has lasted zeroRoomMs; a
+   * microphone starting gives a few frames of it, and they are not the room.
+   */
   private trackRoom(now: number): void {
     const h = this.history;
     if (h.length >= 3) {
-      const last = h.slice(-3).map((f) => f.db).sort((a, b) => a - b);
-      if (last[0]! > -59.5) this.calm.push({ t: now, db: last[1]! });
+      const median = h.slice(-3).map((f) => f.db).sort((a, b) => a - b)[1]!;
+      this.zeroMs = median <= -59.5 ? this.zeroMs + this.frameMs : 0;
+      if (median > -59.5 || this.zeroMs >= SPLIT.zeroRoomMs) this.calm.push({ t: now, db: median });
     }
     while (this.calm.length > 0 && now - this.calm[0]!.t > SPLIT.roomWindowMs) this.calm.shift();
     if (this.calm.length === 0) return;
